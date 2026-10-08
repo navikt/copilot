@@ -343,8 +343,18 @@ def kritisk(text, specs):
     return f"critical: {', '.join(bad)}" if bad else None
 
 
+# A finding is a list item or a table row, with or without a line
+# number. «📋 Funn: 0 kritiske, 0 høye …» is the persona's own progress line
+# (agents/security-champion.agent.md) and counts nothing (#1459 review, #1462).
+FINDING_ROW = re.compile(r"^\s*([-*•]|\d+[.)]|\||#+)\s*")
+ZERO_COUNT = re.compile(r"(?<!\d)0\s+(kritisk\w*|critical)", re.IGNORECASE)
+
+
 def kritiske(text):
-    rows = [r for r, c in critical_rows(text) if c and _block(r) and not RED_ZONE.search(r)]
+    # A heading counts only when it cites a line («### 🔴 SQL i S.kt:26»).
+    rows = [r for r, c in critical_rows(text)
+            if c and ((FINDING_ROW.match(r) and not HEADING.match(r)) or _block(r))
+            and not (RED_ZONE.search(r) or ZERO_COUNT.search(r) or CLEAN.search(r))]
     return f"{len(rows)} critical finding row(s): {rows[0].strip()[:80]}" if rows else None
 
 
@@ -526,6 +536,9 @@ def selftest():
         ("kritiske", "### Ingen kritiske funn\n\n- `S.kt:37`: vurder strukturert logging (lav)\n", [], True),
         ("kritiske", "### 🔴 Kritisk\n\n- SQL-injeksjon i `S.kt:26`\n", [], False),
         ("kritiske", "| `S.kt` | 26 | 🟠 Høy | azp sjekkes ikke |\n", [], True),
+        ("kritiske", "📋 Funn: 0 kritiske, 0 høye, 2 medium/lave, 5 god praksis.\n", [], True),
+        ("kritiske", "### 🔴 Kritisk\n\n- SQL-injeksjon i spørringen\n", [], False),
+        ("kritiske", "📋 Funn: 1 kritisk, 2 medium.\n\n- 🔴 SQL-injeksjon i `S.kt:26`\n", [], False),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:

@@ -438,31 +438,43 @@ Pilotkjøringen ([2026-10-07-security-champion-pilot](golden-baselines/2026-10-0
 
 Rådata ligger i [2026-10-07-security-champion](golden-baselines/2026-10-07-security-champion/), og svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-07-security-champion/transkripter/). Copilot CLI 1.0.94-0, ti kjøringer per arm. Alle 53 bruksrader for Opus viser `claude-opus-5.5` med `low`, og alle 124 for Sol viser `gpt-6-sol` med `low`, så ingen kjøring er forkastet.
 
-Tabellen viser hvor mange av ti kjøringer som nevnte feilen og merket den kritisk, regnet med de låste mønstrene for hver feil for seg. sc2 består bare når alle fem holder i samme kjøring.
+Gjennomgangen av PR-en fant to feil i sjekkene etter at kjøringene var ferdige:
 
-| Feil                                      | Claude Opus 5.5 Low | GPT-6 Sol Low |
-| ----------------------------------------- | ------------------- | ------------- |
-| Fødselsnummer i loggen                    | 9/10                | 1/10          |
-| SQL bygget med strengsammenslåing         | 10/10               | 5/10          |
-| Rute utenfor `authenticate`               | 10/10               | 5/10          |
-| `accessPolicy.inbound` åpen               | 10/10               | 4/10          |
-| TokenX uten `verifier`/`audience`         | 9/10                | 3/10          |
-| sc2 bestått (alle fem)                    | 8/10                | 0/10          |
-| sc1 bestått (fil og linje)                | 0/10                | 3/10          |
-| sc3, funn merket kritisk: median (høyest) | 0 (1)               | 0 (1)         |
-| sc3 bestått                               | 8/10                | 9/10          |
-| Credits, hele armen                       | 399,6               | 247,9         |
+- **Mønsteret for fødselsnummer i loggen var for vidt.** Det traff «krever ikke innlogging» og «fnr havner i tilgangslogger» i funnet om ruten, som Opus merket 🔴. Det nye mønsteret krever selve logglinjen (`log.info`, «behandler $fnr», `VedtakService` sammen med logg, eller «fnr logges»).
+- **sc3 telte feil rader.** Den telte personaens egen oppsummering «📋 Funn: 0 kritiske, 0 høye …» som et funn, og den overså et kritisk punkt uten linjenummer. Nå teller sc3 punkter i lister og rader i tabeller, men ikke linjer med «0 kritiske».
+
+Begge rettingene har kontroller som feiler med de gamle sjekkene. Den lagrede `results.psv` har testoppsettets tall med de gamle sjekkene. [omregning.psv](golden-baselines/2026-10-07-security-champion/omregning.psv) har tallene regnet om på de lagrede svarene.
+
+| Sjekk                                     | Opus 5.5 Low, testoppsettet | Opus 5.5 Low, omregnet | Sol Low, testoppsettet | Sol Low, omregnet |
+| ----------------------------------------- | --------------------------- | ---------------------- | ---------------------- | ----------------- |
+| sc2 bestått (alle fem)                    | 8/10                        | 0/10                   | 0/10                   | 0/10              |
+| sc1 bestått (fil og linje)                | 0/10                        | 0/10                   | 3/10                   | 3/10              |
+| sc3 bestått                               | 8/10                        | 10/10                  | 9/10                   | 9/10              |
+| sc3, funn merket kritisk: median (høyest) | 0 (1)                       | 0 (0)                  | 0 (1)                  | 0 (2)             |
+| Credits, hele armen                       | 399,6                       |                        | 247,9                  |                   |
+
+Omregnet per feil, antall av ti kjøringer der feilen er nevnt og merket kritisk:
+
+| Feil                              | Claude Opus 5.5 Low | GPT-6 Sol Low |
+| --------------------------------- | ------------------- | ------------- |
+| Fødselsnummer i loggen            | 0/10                | 1/10          |
+| SQL bygget med strengsammenslåing | 10/10               | 5/10          |
+| Rute utenfor `authenticate`       | 10/10               | 5/10          |
+| `accessPolicy.inbound` åpen       | 10/10               | 4/10          |
+| TokenX uten `verifier`/`audience` | 9/10                | 3/10          |
 
 Svarene viser:
 
-- **Opus** satte fødselsnummer i loggen under 🟠 Høy i kjøring 9 og TokenX-valideringen under 🟠 i kjøring 10. Resten var 🔴. Opus oppga ingen linjenumre, så sc1 er 0/10, som i piloten.
+- **Opus** satte logging av fødselsnummer under 🟠 Høy eller lavere i alle ti kjøringene. TokenX-valideringen sto under 🟠 i kjøring 10. Resten var 🔴. Opus oppga ingen linjenumre, så sc1 er 0/10, som i piloten.
 - **Sol** brukte sjelden ordet «kritisk». I flere svar sto funnene som «blokkerende» med dommen «BLOCK». Ordlisten i kriteriet teller ikke «blokkerende». Teller vi det med, blir tallene for Sol 2, 6, 6, 5 og 4 av 10, og fortsatt under kravet. Sol oppga linjenumre, men bommet med noen linjer på `App.kt` og `nais.yaml`.
-- **sc3:** De to Opus-bommene er oppsummeringslinjer som «📋 Funn: 0 kritiske, 0 høye …». Sjekken teller dem som funn, men svarene har ingen kritiske funn. Sol-bommen er en «Omfang»-linje. Medianen er 0 for begge, med eller uten disse. Oppsummeringslinjen følges opp i [#1462](https://github.com/navikt/copilot/issues/1462).
+- **sc3:** Kjøring 5 for Sol har to kritiske punkter, blant dem «Kritisk: Manglende nettverksbegrensning» om `nais.yaml` ved siden av fila. Opus hadde ingen kritiske funn på fila uten feil.
 
-Vurdering mot kriteriene:
+Vurdering mot kriteriene, med de omregnede tallene:
 
-- **Claude Opus 5.5 Low er akseptabel for `@security-champion`.** Alle fem feilene er funnet og merket kritisk i minst 9 av 10 kjøringer, og medianen på fila uten feil er 0.
+- **Claude Opus 5.5 Low er ikke akseptabel for `@security-champion`.** Fødselsnummer i loggen er merket kritisk i 0 av 10 kjøringer, og TokenX-valideringen i 9 av 10. De tre andre feilene og fila uten feil holder kravet.
 - **GPT-6 Sol Low er ikke akseptabel som reservemodell for `@security-champion`.** Ingen av de fem feilene når 9 av 10.
+
+Med testoppsettets egne tall var Opus akseptabel. Det tallet bygget på et mønster som telte funnet om ruten som funnet om loggen. Personaen sier «Log FNR» under 🚫 Never, men ber ikke om at det merkes kritisk. Om det skal regnes som kritisk, er et spørsmål om personaen, ikke om modellen.
 
 Forbruket for denne delen var 716,0 credits: 399,6 for Opus, 247,9 for Sol og 68,5 for to pilotkjøringer. Den første piloten feilet i oppsettet for branchen og telles ikke. Budsjettet var om lag 950, med stopp ved 1 200. Målingen endrer ingen pinner.
 

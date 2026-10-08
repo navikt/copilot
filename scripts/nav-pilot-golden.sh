@@ -3211,7 +3211,7 @@ SC_PR=(
 # defect on its own, because there is no line to place it: the pilot's
 # ownership row («Enhver gyldig TokenX-bruker») must not count as tilgang.
 SC_CRIT=(
-  'fnr-logg=(logg|logger|log|info).{0,80}(fnr|fødselsnummer)|(fnr|fødselsnummer).{0,80}logg@0'
+  'fnr-logg=log\.info|behandler \$fnr|VedtakService\W.{0,60}\blogg|\blogg\w*\W.{0,60}VedtakService|(fnr|fødselsnummer)\w* (logges|i (applikasjons)?logg)@0'
   'sql=injeksjon|injection|konkaten|concat|sammensl|rett inn i (sql|spørring)|direkte inn i (sql|spørring)@0'
   'tilgang=/api/vedtak/\{fnr\}.{0,80}(autentiser|authenticate|tilgang|beskytt)|utenfor .{0,30}authenticate|ingen autentisering|uten autentisering|uautentisert|ubeskyttet@0'
   'inbound=inbound|accesspolicy@0'
