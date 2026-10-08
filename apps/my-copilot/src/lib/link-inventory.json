@@ -1153,7 +1153,8 @@
       "docs/CLIENT-SUPPORT-MATRIX.md",
       "docs/README.nav-pilot.md",
       "docs/nav-pilot-changelog.md",
-      "docs/news/articles/nav-pilot-mcp-og-cplt-init.md"
+      "docs/news/articles/nav-pilot-mcp-og-cplt-init.md",
+      "docs/news/articles/opencode-2-pa-mac.md"
     ],
     "anchors": {
       "copilot-cli": [
@@ -1985,6 +1986,10 @@
   },
   "/nyheter/one-click-fix-failing-actions": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/opencode-2-pa-mac": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
   "/nyheter/org-runner-controls-cloud-agent": {

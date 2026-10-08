@@ -127,6 +127,14 @@ func liveOpenCode2(t *testing.T) (oc, cplt string) {
 	if oc == "" || cplt == "" {
 		t.Skip("set NAV_PILOT_OPENCODE2 to an opencode 2 binary and NAV_PILOT_CPLT to a cplt binary")
 	}
+	// cplt resolves opencode on PATH from the binary's directory, so a bare
+	// name or an opencode 1 here runs the wrong client and fails on its flags.
+	if !filepath.IsAbs(oc) {
+		t.Fatalf("NAV_PILOT_OPENCODE2=%q: give an absolute path to an opencode 2 binary", oc)
+	}
+	if out, err := exec.Command(oc, "--version").Output(); err != nil || !strings.Contains(string(out), "v2.") {
+		t.Fatalf("NAV_PILOT_OPENCODE2=%s is not opencode 2 (--version: %q, %v)", oc, out, err)
+	}
 	return oc, cplt
 }
 

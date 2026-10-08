@@ -387,17 +387,8 @@ func cmdDoctor() error {
 		fmt.Printf("      [i] Binary not found on PATH (optional)\n")
 	} else {
 		fmt.Printf("      %s Binary found: %s\n", green("✓"), ocPath)
-		v, tested, err := providerpkg.OpenCodeVersionStatus()
-		switch refused := providerpkg.CheckOpenCodeMajor(); {
-		case refused != nil:
-			fmt.Printf("      %s %s\n", red("✗"), strings.ReplaceAll(refused.Error(), "\n", "\n      "))
+		if !reportOpenCodeVersion() {
 			hasErrors = true
-		case err != nil:
-			fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
-		case tested:
-			fmt.Printf("      %s Version %s is inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCodeTestedRange)
-		default:
-			fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRange)
 		}
 		switch listed, unlisted, err := providerpkg.OpenCodeMCPReport(""); {
 		case err != nil:
@@ -651,4 +642,33 @@ func async[T any](f func() T) func() T {
 	ch := make(chan T, 1)
 	go func() { ch <- f() }()
 	return sync.OnceValue(func() T { return <-ch })
+}
+
+// Seams for TestDoctorReportsOpenCode2Refusal.
+var (
+	openCodeMajorCheck  = providerpkg.CheckOpenCodeMajor
+	openCodeLaunchCheck = providerpkg.OpenCodeLaunchCheck
+)
+
+// reportOpenCodeVersion prints whether the opencode on PATH would launch, the
+// same refusals `nav-pilot opencode` gives; false when it would not.
+func reportOpenCodeVersion() (ok bool) {
+	ok = true
+	v, tested, err := providerpkg.OpenCodeVersionStatus()
+	refused := openCodeMajorCheck()
+	if refused == nil {
+		refused = openCodeLaunchCheck()
+	}
+	switch {
+	case refused != nil:
+		fmt.Printf("      %s %s\n", red("✗"), strings.ReplaceAll(refused.Error(), "\n", "\n      "))
+		ok = false
+	case err != nil:
+		fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
+	case tested:
+		fmt.Printf("      %s Version %s is inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCodeTestedRangeFor(v))
+	default:
+		fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRangeFor(v))
+	}
+	return ok
 }

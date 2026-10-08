@@ -100,6 +100,8 @@ func navPilotDataDir() string {
 	return filepath.Join(home, ".local", "share", "nav-pilot")
 }
 
+const openCodeDisableProjectConfigEnv = "OPENCODE_DISABLE_PROJECT_CONFIG"
+
 func openCodePluginDir() string { return filepath.Join(navPilotDataDir(), "opencode-plugin") }
 
 // OpenCodeHookStateDir is where the OpenCode bridge's hooks keep their state
@@ -116,6 +118,10 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	// The session's policy (share, autoupdate, MCP) rides in this variable
 	// whether or not any hook runs, and cplt passes only what it is told to.
 	cpltArgs = append(cpltArgs, "--pass-env", openCodeConfigContentEnv)
+	// The documented switch for an untrusted repo; cplt strips it otherwise.
+	if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, openCodeDisableProjectConfigEnv+"=") }) {
+		cpltArgs = append(cpltArgs, "--pass-env", openCodeDisableProjectConfigEnv)
+	}
 	if OpenCodeHookBridge == nil {
 		return env, cpltArgs
 	}

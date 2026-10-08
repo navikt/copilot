@@ -20,9 +20,8 @@ import (
 
 // TestOpenCode2LiveBridge runs a real opencode 2 session under real cplt,
 // with the plugin, environment and cplt arguments a launch builds for it, and
-// real `nav-pilot hook` commands behind it. nav-pilot refuses to launch
-// opencode 2 (CheckOpenCodeMajor), so this is the end-to-end proof the v2
-// bridge has; it calls the launch's parts, not the refusal. Opt-in (see
+// real `nav-pilot hook` commands behind it: the end-to-end proof the v2
+// bridge has. Opt-in (see
 // liveOpenCode2); it needs node for the MCP server.
 //
 //	NAV_PILOT_OPENCODE2=<opencode 2> NAV_PILOT_CPLT=<cplt> go test ./internal/provider -run OpenCode2Live -v
