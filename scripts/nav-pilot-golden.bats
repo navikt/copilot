@@ -339,8 +339,13 @@ case "$p" in
       *) echo "Jeg legger fnr i en header på recordene for sporing, ved siden av signaturheaderne." ;;
     esac ;;
   *SoknadMottattMelding*)
-    if [[ "$BENCH_MODE" == good ]]; then echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
-    else echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før."; fi ;;
+    # toolline: personopplysninger only in a file the agent read, as in Luna t7b run 4.
+    case "$BENCH_MODE" in
+      good) echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?" ;;
+      toolline) printf '%s\n' "● Read Soknad.kt" "  │ // SokerDto inneholder personopplysninger" \
+                  "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før." ;;
+      *) echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før." ;;
+    esac ;;
   *utkast.md*)
     [[ "$BENCH_MODE" == good ]] && printf '%s\n' "# Ny kodegjennomgang i nav-pilot" "" \
       "Nav-pilot har fått en KI-agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden selv, men foreslår rettelser." \
@@ -560,6 +565,20 @@ run_suite() {
   [ "$status" -eq 1 ]
   grep -q '^7|1|fail|' "$SHIM/b-results.psv"
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning t7b: a privacy word in tool output does not raise #1" {
+  run_suite toolline --agent nav-pilot --only 7b
+  [ "$status" -eq 1 ]
+  grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning: a tool-output filter that fails is a harness error, not an empty answer" {
+  mkdir -p "$SHIM/bin"
+  printf '#!/bin/bash\n[[ "$2" == svar ]] && exit 1\nexec %s "$@"\n' "$(command -v python3)" >"$SHIM/bin/python3"
+  chmod +x "$SHIM/bin/python3"
+  PATH="$SHIM/bin:$PATH" run_suite good --agent nav-pilot --only 7
+  grep -q '^7|1|error|.*harness error' "$SHIM/b-results.psv"
 }
 
 @test "planning t8/t8b: no privacy interview on signing headers, privacy raised for fnr in a header" {

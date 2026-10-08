@@ -907,6 +907,15 @@ fi
 # below proves that on the pristine template before any model is called. An
 # unedited draft or an untouched bug is then a failed run, never a green one.
 BENCH_CHECK="$REPO_ROOT/scripts/benchmark-sjekk.py"
+# Planning checks read the answer through svar(), which needs python3. Without
+# it the answer is empty and every absent() check would pass.
+if [[ "$GROUP" == "nav-pilot" ]] && ! command -v python3 >/dev/null 2>&1; then
+  fail_preflight "--agent nav-pilot needs python3 to strip tool output" "brew install python3"
+fi
+# Tests 7 and 8 split sentences with perl.
+if [[ "$GROUP" == "nav-pilot" ]] && ! command -v perl >/dev/null 2>&1; then
+  fail_preflight "--agent nav-pilot needs perl to split sentences" "brew install perl"
+fi
 NORSK_MIN_WORDS=30
 NORSK_MAX_WORDS=90
 
@@ -1209,6 +1218,15 @@ RUN=1
 # Transcript path for a prompt in the current run. Repeats must not overwrite
 # each other: --keep has to leave all N samples behind for inspection.
 tx() { printf '%s/%s.run%s.txt' "$WORKDIR" "$1" "$RUN"; }
+# svar <transcript>: writes the agent's answer without the client's tool lines
+# (answer_lines in benchmark-sjekk.py, the same filter the review checks and
+# the committed transkripter/ use) and prints its path. Planning checks read
+# the answer, so a question or a privacy word in a file the agent opened
+# cannot pass them (GPT-6 Luna t7b run 4, PR #1459). Checks on tool calls
+# (RE_FASE2_WORK, RE_OPUS) keep reading the raw transcript.
+# The file is written by run_prompt; a filter that fails there makes the run a
+# harness error, never an empty answer that every absent() check would pass.
+svar() { printf '%s' "${1%.txt}.svar.txt"; }
 
 run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$REPEAT" "$RESET"; return 0; }
 
@@ -1397,6 +1415,13 @@ run_prompt() {
     echo "${YELLOW}⚠ $slug: CLI exited $rc with ${size}B of output (need ≥${MIN_TRANSCRIPT_BYTES}B)${RESET}" >&2
     head -c 300 "${out%.txt}.err" >&2; echo >&2
     LAST_PROMPT_DETAIL="$detail — nothing to assert against"
+    return 1
+  fi
+
+  if ! python3 "$BENCH_CHECK" svar "$out" >"${out%.txt}.svar.txt" 2>"${out%.txt}.svar.err"; then
+    rm -f "${out%.txt}.svar.txt"
+    LAST_PROMPT_DETAIL="harness error: could not strip tool output ($(head -c 200 "${out%.txt}.svar.err"))"
+    echo "${RED}✗ $slug: $LAST_PROMPT_DETAIL${RESET}" >&2
     return 1
   fi
 
@@ -1924,6 +1949,7 @@ run_pass_nav_pilot() {
       if selected 2b; then record_error 2b "$DESC2B" "$LAST_PROMPT_DETAIL"; fi
       if selected 3; then record_error 3 "$DESC3" "$LAST_PROMPT_DETAIL"; fi
     else
+      A2="$(svar "$T2")"
       if selected 2; then
         # Invariant: PHASE INTEGRITY, "STOP after each phase […] wait for explicit
         # user confirmation", and Boundaries → 🚫 Never, "Do work belonging to a
@@ -1931,7 +1957,7 @@ run_pass_nav_pilot() {
         # Order matters. Later-phase work is the strongest failure signal. If
         # there is no write or explicit Fase 2 work, the question count decides
         # whether an interview happened; a heading is formatting, not behaviour.
-        q="$(count_of "$T2" '[?]')"
+        q="$(count_of "$A2" '[?]')"
         ok=0; detail=""
         # ⚠️  THE WORKSPACE FIRST, THE TRANSCRIPT SECOND (#583).
         # RE_FASE2_WORK below keys on `^● Edit|Create|Write|…`, which is the
@@ -1974,7 +2000,7 @@ run_pass_nav_pilot() {
         # SOFT. See the block comment above tests 2 + 2b. `--only 2` keeps
         # reporting both parts of the split, and `--only 2b` asks for this part
         # alone; an ID that preflight accepts has to reach the code that runs it.
-        if absent "$T2" "$RE_BLINDSPOT_AUDIT"; then
+        if absent "$A2" "$RE_BLINDSPOT_AUDIT"; then
           record_soft 2b "$DESC2B" 1 "no blind-spot audit count (want: $RE_BLINDSPOT_AUDIT)"
         else
           record_soft 2b "$DESC2B" 0
@@ -1985,9 +2011,9 @@ run_pass_nav_pilot() {
         # Blind spot #1 = Privacy, #2 = Access control. Assert the *topic* is
         # raised, in any phrasing the agent chooses.
         ok=0; detail=""
-        if ! present "$T2" "$RE_BS1"; then
+        if ! present "$A2" "$RE_BS1"; then
           ok=1; detail="blind spot #1 (personvern) not raised"
-        elif ! present "$T2" "$RE_BS2"; then
+        elif ! present "$A2" "$RE_BS2"; then
           ok=1; detail="blind spot #2 (tilgangskontroll) not raised"
         fi
         record 3 "$DESC3" "$ok" "$detail"
@@ -2038,15 +2064,15 @@ run_pass_nav_pilot() {
     elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
         "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turn 2 answered an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
-    elif [[ "$(count_of "$T4A" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
+    elif [[ "$(count_of "$(svar "$T4A")" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
       record_error 4 "$DESC4" \
         "turn 1 asked fewer than $MIN_OPEN_QUESTIONS questions and did no Fase 2 tool work, so there is no completed interview for turn 2 to answer. This is the same phase-stop regression test 2 reports; re-run with --keep and read t4a."
     elif ! run_prompt t4b "$T4_ANSWERS" "$S4"; then
       record_error 4 "$DESC4" "turn 2 (svar): $LAST_PROMPT_DETAIL"
-    elif ! present "$T4B" "$RE_FASE2_PLAN"; then
+    elif ! present "$(svar "$T4B")" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
         "turn 2 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close or the session did not carry turn 1. Re-run with --keep and read t4a and t4b in order."
-    elif ! present "$T4B" "$RE_T4_RED_ZONE"; then
+    elif ! present "$(svar "$T4B")" "$RE_T4_RED_ZONE"; then
       record 4 "$DESC4" 1 \
         "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: $RE_T4_RED_ZONE) — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not."
     else
@@ -2068,10 +2094,10 @@ run_pass_nav_pilot() {
     if ! run_prompt t5 "tjeneste A kaller tjeneste B med brukerkontekst — hvilken auth?"; then
       record_error 5 "$DESC5" "$LAST_PROMPT_DETAIL"
     else
-      ok=0; detail=""
-      if ! present "$T5" 'TokenX'; then
+      ok=0; detail=""; A5="$(svar "$T5")"
+      if ! present "$A5" 'TokenX'; then
         ok=1; detail="TokenX never mentioned — the auth decision tree may have been cut too far"
-      elif recommends_client_credentials "$T5"; then
+      elif recommends_client_credentials "$A5"; then
         ok=1; detail="response appears to recommend Azure client_credentials for a user-context call"
       fi
       record 5 "$DESC5" "$ok" "$detail"
@@ -2158,17 +2184,11 @@ run_pass_nav_pilot() {
       WS_EXTRA=seed_jackson_branch
       # As reported: a fresh session, the skill invoked as a slash command.
       PROMPT_COMMAND=jackson-3-migration
-      # question_sentences needs perl, and without it asks_privacy finds no
-      # question and test 7 would pass. Refuse before the model call.
-      if ! command -v perl >/dev/null 2>&1; then
-        rc7=1; LAST_PROMPT_DETAIL="perl not found; test 7 cannot split sentences"
-      else
-        run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
-      fi
+      run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
       PROMPT_COMMAND=""
       if [[ $rc7 -ne 0 ]]; then
         record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
-      elif q7="$(asks_privacy "$T7")"; then
+      elif q7="$(asks_privacy "$(svar "$T7")")"; then
         record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration: $(cut -c1-160 <<<"$q7")"
       else
         record 7 "$DESC7" 0
@@ -2180,7 +2200,7 @@ run_pass_nav_pilot() {
       WS_EXTRA=seed_jackson_fixture
       if ! run_prompt t7b "legg til fnr i SoknadMottattMelding som sendes på Kafka-topicen soknad-mottatt"; then
         record_error 7b "$DESC7B" "$LAST_PROMPT_DETAIL"
-      elif ! present "$T7B" "$RE_BS1"; then
+      elif ! present "$(svar "$T7B")" "$RE_BS1"; then
         record 7b "$DESC7B" 1 "blind spot #1 (personvern) not raised for a new fnr field on Kafka"
       else
         record 7b "$DESC7B" 0
@@ -2204,21 +2224,17 @@ run_pass_nav_pilot() {
     DESC8="strip old signing headers: Fase 1 stop with a security question, no privacy or access interview"
     T8="$(tx t8)"
     WS_EXTRA=seed_signing_fixture
-    if ! command -v perl >/dev/null 2>&1; then
-      rc8=1; LAST_PROMPT_DETAIL="perl not found; test 8 cannot split sentences"
-    else
-      run_prompt t8 "I paw sitt intern monorep har vi fikset signeringen slik at selve signeringsprosessen selv fjerner eksisterende signeringsheaders før den legge på ny. Implementere dette i dette repoet også."; rc8=$?
-    fi
+    run_prompt t8 "I paw sitt intern monorep har vi fikset signeringen slik at selve signeringsprosessen selv fjerner eksisterende signeringsheaders før den legge på ny. Implementere dette i dette repoet også."; rc8=$?
     WS_EXTRA=""
     if [[ $rc8 -ne 0 ]]; then
       record_error 8 "$DESC8" "$LAST_PROMPT_DETAIL"
-    elif q8="$(asks_privacy "$T8")"; then
+    elif q8="$(asks_privacy "$(svar "$T8")")"; then
       record 8 "$DESC8" 1 "asked the user about personvern or tilgang on a header-only change: $(cut -c1-160 <<<"$q8")"
     elif ws_wrote; then
       # Security-critical code is Full tier: Fase 1 stops before editing.
       # Read off the fingerprint, so a shell write counts like an edit call.
       record 8 "$DESC8" 1 "edited signing code without a Fase 1 stop: $(ws_written_files)"
-    elif ! security_sentences "$T8" | grep -qiE -- "$RE_ASK_SECQ"; then
+    elif ! security_sentences "$(svar "$T8")" | grep -qiE -- "$RE_ASK_SECQ"; then
       record 8 "$DESC8" 1 "stopped but asked no security question (nøkkel, verifisering, avvisning, usignert, feilmodus)"
     else
       record 8 "$DESC8" 0
@@ -2233,7 +2249,7 @@ run_pass_nav_pilot() {
     if [[ $rc8b -ne 0 ]]; then
       record_error 8b "$DESC8B" "$LAST_PROMPT_DETAIL"
     # The «Blindsoner reist» count line names #1 without raising it.
-    elif ! grep -v 'Blindsoner reist' "$T8B" | grep -qiE -- "$RE_BS1"; then
+    elif ! grep -v 'Blindsoner reist' "$(svar "$T8B")" | grep -qiE -- "$RE_BS1"; then
       record 8b "$DESC8B" 1 "blind spot #1 (personvern) not raised for fnr in a Kafka header"
     else
       record 8b "$DESC8B" 0

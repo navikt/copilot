@@ -1,0 +1,70 @@
+question	expected_bs1	expected_bs2	source
+Skal fnr-feltet i Kafka-meldingen være en String eller en egen value class i Kotlin?	0	0	heldout-2026-10-08
+Hvilken konsumentgruppe-id skal jeg bruke for den nye Kafka-konsumenten, og skal offset resettes til earliest?	0	0	heldout-2026-10-08
+Når vi kaller PDL, skal vi bruke TokenX eller Azure client credentials-flyten for maskin-til-maskin-kall?	0	0	heldout-2026-10-08
+Hvor i NAIS-manifestet legger jeg inn at appen trenger tilgang til Kafka-poolet nav-dev?	0	0	heldout-2026-10-08
+Hvem eier topicet vi skal lese fra, slik at jeg vet hvilket team jeg skal spørre om schema-endringer?	0	0	heldout-2026-10-08
+Skal vi lagre offset manuelt eller la Ktor-appen bruke auto-commit på konsumenten?	0	0	heldout-2026-10-08
+Hvilket format skal fødselsnummer ha i URL-stien når vi kaller det eksisterende REST-endepunktet: path-param eller header?	0	0	heldout-2026-10-08
+Skal vi sende meldingen som Avro eller JSON på det nye topicet?	0	0	heldout-2026-10-08
+Hvordan skal vi dele den felles Kafka-konfigurasjonen mellom de to Ktor-modulene i repoet?	0	0	heldout-2026-10-08
+Hvis fnr mangler i innkommende melding, skal konsumenten feile hardt eller logge og hoppe over?	0	0	heldout-2026-10-08
+Skal vi lese fra databasen med Exposed eller holde oss til ren JDBC slik resten av repoet gjør?	0	0	heldout-2026-10-08
+Hvor mange partisjoner trenger topicet for å holde tritt med forventet volum?	0	0	heldout-2026-10-08
+Må jeg hente nytt TokenX-token for hvert kall, eller har vi en felles token-cache i prosjektet?	0	0	heldout-2026-10-08
+Skal retry-logikken for Kafka-konsumenten bruke eksponentiell backoff eller fast intervall?	0	0	heldout-2026-10-08
+Når vi kaller Azure AD for token, hvilket scope-navn skal stå i miljøvariabelen?	0	0	heldout-2026-10-08
+Skal vi lagre meldinger som feiler deserialisering på et eget dead-letter-topic?	0	0	heldout-2026-10-08
+Hvilken Kotlin-versjon og Ktor-versjon står vi på, og kan jeg oppgradere kotlinx-serialization samtidig?	0	0	heldout-2026-10-08
+Når konsumenten leser batch, skal vi committe per melding eller per poll?	0	0	heldout-2026-10-08
+Skal vi sende metrikker til Prometheus for hver melding vi behandler, eller bare på feil?	0	0	heldout-2026-10-08
+Hvordan skal vi dele koden for fnr-validering (mod11-sjekk) mellom produsent og konsument?	0	0	heldout-2026-10-08
+Hvilke personopplysninger ender faktisk opp i meldingen vi publiserer, utover fødselsnummer?	1	0	heldout-2026-10-08
+Hva er formålet med å lagre disse opplysningene, og dekkes det av et eksisterende behandlingsgrunnlag?	1	0	heldout-2026-10-08
+Hvor lenge skal dataene ligge i databasen før de slettes eller anonymiseres?	1	0	heldout-2026-10-08
+Hvem mottar opplysningene nedstrøms når de først er publisert på topicet?	1	0	heldout-2026-10-08
+Trenger vi egentlig fødselsdato og navn, eller holder det med en intern ID for å løse oppgaven?	1	0	heldout-2026-10-08
+Finnes det en PVK eller protokollføring for denne behandlingen, eller må vi starte en?	1	0	heldout-2026-10-08
+Skal vi loggføre hvem som har slått opp hvilken bruker, slik personvernregelverket krever for innsyn?	1	0	heldout-2026-10-08
+Hva er hjemmelen for å dele disse dataene med det andre teamet?	1	0	heldout-2026-10-08
+Blir opplysningene om brukeren slettet fra Kafka når retention går ut, eller lever de videre i konsumentenes databaser?	1	0	heldout-2026-10-08
+Bør vi maskere eller pseudonymisere fnr før meldingen legges på topicet, siden mange konsumenter leser det?	1	0	heldout-2026-10-08
+Er det noen av feltene som er særlige kategorier av personopplysninger (helse, fagforening), som krever ekstra vern?	1	0	heldout-2026-10-08
+Hvordan sikrer vi at vi ikke behandler opplysninger om flere personer enn dem saken faktisk gjelder?	1	0	heldout-2026-10-08
+Hvem skal ha lov til å kalle det nye endepunktet: bare saksbehandlere, eller også eksterne systemer?	0	1	heldout-2026-10-08
+Hvilke applikasjoner skal stå i accessPolicy.inbound for denne tjenesten?	0	1	heldout-2026-10-08
+Skal endepunktet akseptere både brukertoken fra TokenX og maskintoken fra Azure, eller bare det ene?	0	1	heldout-2026-10-08
+Hvilke team skal få lese fra topicet, og hvem godkjenner nye konsumenter?	0	1	heldout-2026-10-08
+Må vi sjekke at innlogget saksbehandler faktisk har tilgang til akkurat denne brukerens sak før vi svarer?	0	1	heldout-2026-10-08
+Hvordan håndterer vi skjermede brukere (kode 6/7) i tilgangskontrollen for oppslaget?	0	1	heldout-2026-10-08
+Er det roller eller AD-grupper som avgjør hvem som får lov til å gjøre denne operasjonen?	0	1	heldout-2026-10-08
+Skal konsumentene av topicet hvitelistes eksplisitt i Kafka-ACL-ene, eller er poolet åpent for alle i namespace?	0	1	heldout-2026-10-08
+Hvilke kallere har lov til å bruke dette API-et på vegne av en innbygger, og hvordan verifiserer vi det?	0	1	heldout-2026-10-08
+Skal vi stole på at oppstrøms-tjenesten allerede har gjort tilgangssjekken, eller må vi gjøre den selv?	0	1	heldout-2026-10-08
+Hvem får lov til å trigge den manuelle re-kjøringen av batchen i produksjon?	0	1	heldout-2026-10-08
+Må den nye klientappen registreres i inbound-reglene våre før den kan kalle oss, og hvem eier den avtalen?	0	1	heldout-2026-10-08
+Skal jeg se på fnr-valideringen først?	0	0	review-2026-10-08
+Hvor skal jeg lagre testdata med fnr?	0	0	review-2026-10-08
+Vil du at jeg sender videre fnr-feltet uendret?	0	0	review-2026-10-08
+Hvem eier koden som parser fnr?	0	0	review-2026-10-08
+Skal fnr lagres som String eller Long?	0	0	review-2026-10-08
+Skal jeg dele opp fnr-parsingen?	0	0	review-2026-10-08
+Hvem skrev fnr-testen?	0	0	review-2026-10-08
+Har du tilgang til fnr-testdataene i dev?	0	0	review-2026-10-08
+Skal jeg se bort fra fnr i diffen?	0	0	review-2026-10-08
+Hvem skal kunne kalle denne hjelpefunksjonen i testene?	0	0	review-2026-10-08
+Skal vi bruke TokenX-mocken?	0	0	review-2026-10-08
+Er Azure-oppsettet i dev ferdig?	0	0	review-2026-10-08
+Kjører appen i Azure eller GCP?	0	0	review-2026-10-08
+Hvem skal kunne lese loggene i Grafana?	0	0	review-2026-10-08
+Skal jeg autentisere mot Maven-registeret?	0	0	review-2026-10-08
+Hvem har tilgang til CI-hemmelighetene?	0	0	review-2026-10-08
+Er det tjeneste-til-tjeneste-kallet som feiler i testen?	0	0	review-2026-10-08
+Hvilke personopplysninger behandles?	1	0	review-2026-10-08
+Hvem er konsumentene av fnr?	1	0	review-2026-10-08
+Skal fnr eksponeres til alle som leser topicet?	1	0	review-2026-10-08
+Hvor lenge skal fnr oppbevares?	1	0	review-2026-10-08
+Hvem skal ha tilgang til endepunktet?	0	1	review-2026-10-08
+Hvilke konsumenter skal få lese topicet?	0	1	review-2026-10-08
+Hvilke applikasjoner skal ha lesetilgang?	0	1	review-2026-10-08
+Trenger vi en access policy for hvem som kan kalle oss?	0	1	review-2026-10-08

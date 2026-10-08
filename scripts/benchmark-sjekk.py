@@ -17,6 +17,7 @@ nothing.
   punkter TX MIN MAX        MIN to MAX list items in the answer
   prioritet TX SPEC...      each defect's row carries a high-priority marker;
                             a SPEC named `!navn` must not carry one
+  svar    TX                print the answer without tool lines (not a check)
   taus    TX                no finding row carries a high-priority marker,
                             and the answer says there is nothing critical
   kritisk TX SPEC...        each defect's row is marked critical (🔴,
@@ -559,6 +560,10 @@ def selftest():
 if __name__ == "__main__":
     if sys.argv[1:2] == ["--selftest"]:
         sys.exit(selftest())
+    if sys.argv[1:2] == ["svar"] and len(sys.argv) == 3:
+        # The answer alone, for the planning checks in nav-pilot-golden.sh.
+        print("\n".join(answer_lines(Path(sys.argv[2]).read_text(encoding="utf-8"))))
+        sys.exit(0)
     if len(sys.argv) < 3:
         sys.exit(__doc__)
     reason = check(sys.argv[1], sys.argv[2:])
