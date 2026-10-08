@@ -194,7 +194,7 @@
         "quality"
       ],
       "filePath": "agents/rust.agent.md",
-      "contentHash": "f915a28c049a0f64cfe1afec7af4c7567d4cd19ffafb5affe74a6ba071059326",
+      "contentHash": "e1cb55806cd87d8c2b71832e5049d2490b65f6eb7e933b5c74618324f50defc5",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Health endpoints",

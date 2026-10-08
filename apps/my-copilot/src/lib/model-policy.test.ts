@@ -37,12 +37,17 @@ describe("nav-pilots modellvalg", () => {
   it("har ett tydelig bruksområde per primærvalg", () => {
     expect(NAV_PILOT_MODEL_CHOICES.map((choice) => choice.purpose)).toEqual([
       "Daglig agentisk koding",
-      "Kodeagenter for Kafka og Rust",
+      "Kafka-agent",
+      "Rust-agent",
       "Research og faste maler",
       "Høyrisikoplanlegging og kodegjennomgang",
       "Aksel, tilgjengelighet og norsk tekst",
       "Rask oppretting av Aksel-komponenter",
     ]);
+    expect(NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Rust-agent")).toMatchObject({
+      primary: "Claude Haiku 5.5",
+      fallbacks: ["GPT-6 Luna", "GPT-5.3-Codex"],
+    });
     expect(
       NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Aksel, tilgjengelighet og norsk tekst")
     ).toMatchObject({
@@ -57,12 +62,13 @@ describe("nav-pilots modellvalg", () => {
   it("viser både primær- og fallback-bruk på prisraden", () => {
     expect(navPilotPurposesFor("GPT-6 Sol (Default, ≤ 272K)")).toEqual([
       "Daglig agentisk koding",
-      "Kodeagenter for Kafka og Rust",
+      "Kafka-agent",
       "Høyrisikoplanlegging og kodegjennomgang",
     ]);
     expect(navPilotPurposesFor("GPT-5.3-Codex (Default)")).toEqual([
       "Daglig agentisk koding",
-      "Kodeagenter for Kafka og Rust",
+      "Kafka-agent",
+      "Rust-agent",
       "Research og faste maler",
       "Høyrisikoplanlegging og kodegjennomgang",
     ]);
