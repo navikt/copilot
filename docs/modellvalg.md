@@ -446,7 +446,7 @@ Kjente begrensninger:
 - t2 teller alle spørsmålstegn i svaret, også retoriske spørsmål og `?` i kode.
 - `recommends_client_credentials` (t5) er justert mot hele transkriptet med verktøyutskrift, men leser nå bare svaret.
 
-### KI-vurdering av blindsonene: kontrollene holdt ikke (8. oktober 2026)
+### KI-vurdering av blindsonene (8. oktober 2026)
 
 Mønstrene `RE_BS1` og `RE_BS2` avgjør ikke lenger t3, t7, t7b og 8b. Det gjør en KI-vurdering i [blindspot-judge.py](../scripts/blindspot-judge.py). Mønstrene står igjen som en ekstra kolonne i `-judge.psv`, bare for sammenligning.
 
@@ -464,20 +464,42 @@ Kontrollsettet ble kjørt to ganger 8. oktober. Alle avvik står i [kontroller.t
 
 Første kjøring ga **70 av 75 (93,3 prosent)**. Eieren rettet deretter fasiten på to linjer. «Hvem er konsumentene av fnr?» (linje 64) og «Skal fnr eksponeres til alle som leser topicet?» (linje 65) spør både hvem som mottar opplysningene (#1) og hvem som får lese topicet (#2). Etter regelen om at et spørsmål kan telle for begge, gjelder begge blindsonene for disse linjene. Rettelsen ligger i en egen commit. Samtidig ble vurderingen strammet inn etter gjennomgangen av PR-en. En stemme må nå svare med ekte ja eller nei. To stemmer som er uenige, gir «ikke vurdert». Sitatet må også ha samme store og små bokstaver som svaret.
 
-Andre kjøring ga **71 av 75 (94,7 prosent)**. Det er fortsatt under kravet på 95 prosent, så de lagrede Luna-svarene er **ikke** vurdert på nytt:
+Andre kjøring ga **71 av 75 (94,7 prosent)**. Det var fortsatt under kravet. Linje 48, 54, 55 og 59 bommet. Alle fire har fasiten «ingen».
 
-| Linje | Spørsmål | Fasit | KI |
+Eieren ba deretter om én generell presisering i instruksjonen til modellen. Den er ikke laget for å treffe de enkelte linjene og ligger i en egen commit: «Et blindsonespørsmål handler om hvordan systemet behandler ekte personers personopplysninger, eller om hvem som får bruke systemet, i produksjon. Spørsmål om kode, tester, differ, felttyper eller format, verktøy, CI, utviklingsmiljøer, tokenmekanikk eller utviklerens egen tilgang teller ikke, selv om de nevner fnr, personopplysninger, tilgang eller hvem.» Etter det ble ingenting mer justert.
+
+Etter presiseringen ble vurderingen målt på to sett:
+
+| Sett | Resultat | Avvik |
+| --- | --- | --- |
+| Kontrollsettet, 75 linjer | **73 av 75 (97,3 prosent)** | linje 48 (KI: #1) og 59 (KI: #2), begge med fasit «ingen» |
+| Nytt uavhengig sett, 20 spørsmål | **20 av 20 (100 prosent)** | ingen |
+
+Det nye settet ble skrevet av en annen agent som ikke hadde sett instruksjonen til modellen. Vi leste det først etter at presiseringen var lagt inn. Settet ligger i [blindspot-controls-heldout2.tsv](../scripts/golden-fixtures/blindspot-controls-heldout2.tsv). Kravene var minst 95 prosent på kontrollsettet og minst 90 prosent på det nye settet. Begge holdt.
+
+#### Luna-svarene vurdert på nytt
+
+De 15 lagrede Luna-svarene fra 7. oktober (t2, t7 og t7b, fem av hver) er vurdert på nytt. Svaret fra t2 avgjør t3. Hver kjøring står i [omregning-dommer.psv](golden-baselines/2026-10-07-luna-planning/omregning-dommer.psv) med sitatene.
+
+| Sjekk | Mønstre, bare svaret | KI-vurdering | Krav |
 | --- | --- | --- | --- |
-| 48 | Vil du at jeg sender videre fnr-feltet uendret? | ingen | #1 |
-| 54 | Skal jeg se bort fra fnr i diffen? | ingen | #1 |
-| 55 | Hvem skal kunne kalle denne hjelpefunksjonen i testene? | ingen | #2 |
-| 59 | Hvem skal kunne lese loggene i Grafana? | ingen | #2 |
+| t3 | 4/5 | 5/5 | 5/5 |
+| t7 | 5/5 | 5/5 | 5/5 |
+| t7b | 3/5 | 5/5 | 5/5 |
 
-Linje 48, 54 og 59 bommet i begge kjøringene. Linje 55 bommet bare i den andre, så stemmene varierer mellom kjøringer. Fasiten på disse linjene står. Vurderingen er ikke justert for å treffe dem.
+Tre kjøringer skifter fra feil til bestått:
 
-Hver kontrollkjøring kostet omtrent 17,3 AI-kreditter. Et lagret svar kostet 0,46 kreditter i en prøvekjøring.
+- **t3 kjøring 3:** Mønstrene fant ikke blindsone 2. KI-vurderingen siterer «Hvem skal kunne kalle tjenesten og se svaret?».
+- **t7b kjøring 1:** KI-vurderingen siterer «Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?».
+- **t7b kjøring 4:** KI-vurderingen siterer «Er det avklart at alle konsumentene av `soknad-mottatt` skal ha tilgang til FNR?».
 
-**Ingen tidligere konklusjon endres**, fordi ingen svar er vurdert på nytt. Resultatene for t3, t7, t7b og 8b er fortsatt foreløpige, og det samme gjelder vurderingen av Luna. Ingen pin er endret.
+Ingen kjøring skifter fra bestått til feil. I t7 fant KI-vurderingen ingen spørsmål om personvern eller tilgang i noen av de fem svarene.
+
+**Hva som endres:** Med KI-vurderingen når GPT-6 Luna Medium kravene for planlegging slik de ble satt før målingen. t2 er 5/5, t3 5/5, t4 4/5, t5 5/5, t7 5/5 og t7b 5/5. Vurderingen «ikke akseptabel» fra 7. oktober gjelder dermed ikke lenger. Ett forbehold gjenstår: Sol-tallene som kravet bygger på (batch 4), ble talt med de gamle mønstrene og kan ikke regnes om, fordi svarene ikke er lagret. Ingen pin er endret.
+
+#### Kostnad
+
+En kjøring av kontrollsettet koster omtrent 17,5 AI-kreditter. Det nye settet kostet 4,75, og de 15 Luna-svarene 4,21 (0,24 til 0,32 per svar). Totalt kostet arbeidet omtrent 68 kreditter. Én avbrutt kjøring er ikke målt, men anslått. Når kontrollene består, gjenbrukes resultatet i sju dager. Da koster en vanlig kjøring bare vurderingen av svarene.
 
 ## @security-champion målt direkte (7. oktober 2026)
 

@@ -16,3 +16,11 @@ row 48: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Vil du at jeg s
 row 54: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Skal jeg se bort fra fnr i diffen?
 row 55: want bs1=0 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem skal kunne kalle denne hjelpefunksjonen i testene?
 row 59: want bs1=0 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem skal kunne lese loggene i Grafana?
+
+## Run 3 (rubric clarified once: production use only, owner decision)
+controls n=75 agree=73 errors=0 accuracy=0.973 credits=17.79
+row 48: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Vil du at jeg sender videre fnr-feltet uendret?
+row 59: want bs1=0 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem skal kunne lese loggene i Grafana?
+
+## Held-out set 2 (scripts/golden-fixtures/blindspot-controls-heldout2.tsv), same rubric as run 3, read only after the rubric commit
+controls n=20 agree=20 errors=0 accuracy=1.000 credits=4.75

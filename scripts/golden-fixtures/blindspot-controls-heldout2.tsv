@@ -1,0 +1,21 @@
+question	expected_bs1	expected_bs2	source	note
+Skal fnr-feltet i request-DTO-en være en vanlig String, eller vil dere ha en egen value class som validerer elleve siffer og kontrollsiffer?	0	0	heldout2-2026-10-08	negativ: feltformat/type, ordet fnr
+Når vi utvider meldingen på topicen med fødselsnummeret til ektefellen, får alle dagens konsumenter automatisk det feltet – og er det noen av dem som faktisk trenger det?	1	1	heldout2-2026-10-08	begge: nedstrøms mottakere + minimering
+Hvilke applikasjoner står i accessPolicy.inbound for denne tjenesten i prod, og er alle fortsatt i bruk?	0	1	heldout2-2026-10-08	bs2: hvem får kalle tjenesten
+Kan jeg bruke syntetiske fødselsnummer fra Dolly i integrasjonstestene mot PDL i dev-gcp, eller foretrekker dere at PDL-klienten mockes helt?	0	0	heldout2-2026-10-08	negativ: test/dev-miljø, ordet fødselsnummer og PDL
+Dere lagrer hele PDL-responsen i Postgres – trenger tjenesten faktisk adresse og sivilstand, eller holder det med navn og fødselsdato for det dere skal gjøre?	1	0	heldout2-2026-10-08	bs1: dataminimering
+Jeg mangler kubectl-tilgang til dev-gcp – hvem i teamet kan gi meg det, eller er det #nais jeg skal spørre?	0	0	heldout2-2026-10-08	negativ: utviklerens egen tilgang, ordene tilgang og hvem
+Er det bare saksbehandlere i en bestemt AD-gruppe som skal kunne hente denne listen, eller kan alle innloggede ansatte kalle endepunktet?	0	1	heldout2-2026-10-08	bs2: roller/autorisasjon i prod
+Skal konsumenten committe offset manuelt etter hver batch, eller er auto-commit greit nok for denne topicen?	0	0	heldout2-2026-10-08	negativ: kode/Kafka-mekanikk, ordet konsument
+Hva er hjemmelen for å slå opp barnas fødselsnummer hos PDL i denne flyten – er det samme behandlingsgrunnlag som for søkeren selv?	1	0	heldout2-2026-10-08	bs1: rettslig grunnlag
+Hvilke team skal kunne lese den nye tabellen med inntektsopplysninger, og hva skal de bruke dem til?	1	1	heldout2-2026-10-08	begge: lesetilgang + formål
+Hvordan skaffer jeg et TokenX-token lokalt for å kalle PDL fra IntelliJ – bruker dere mock-oauth2-server, eller henter dere et ekte token fra dev?	0	0	heldout2-2026-10-08	negativ: tokenmekanikk/lokal utvikling, ordene TokenX, kalle, PDL
+Hvor lenge skal vedtaksdataene ligge i databasen etter at saken er avsluttet, og er det noen jobb som sletter dem?	1	0	heldout2-2026-10-08	bs1: lagringstid/sletting
+Hvem er konsumentene på topicen i prod i dag – kan hvilket som helst team i clusteret abonnere, eller er den låst med ACL-er?	0	1	heldout2-2026-10-08	bs2: konsumentapper/ACL
+Skal jeg skrive en test som sjekker at loggene ikke inneholder personopplysninger, eller holder det med en enhetstest på selve maskeringsfunksjonen?	0	0	heldout2-2026-10-08	negativ: testdekning, ordene logg og personopplysninger
+Skal eksterne partnere kunne kalle oppslaget på fødselsnummer, og hvis ja, hva har de lov til å få tilbake?	1	1	heldout2-2026-10-08	begge: eksterne kallere + hvilke opplysninger som utleveres
+Når jeg leser fra topicen i dev, hvilken consumer-group-id bør jeg bruke så jeg ikke stjeler meldinger fra den som allerede kjører der?	0	0	heldout2-2026-10-08	negativ: dev-miljø/tooling, ordene lese og konsument
+Skal det nye endepunktet godta både borgere via TokenX og ansatte via Azure, eller bare én av dem?	0	1	heldout2-2026-10-08	bs2: kallertyper
+Vi logger fullt navn på INFO-nivå når saksbehandlingen starter – trenger driftsloggen det, eller holder det med saksnummer?	1	0	heldout2-2026-10-08	bs1: personopplysninger i prod-logg, minimering
+Azure-tokenet fra Wonderwall utløper etter en time – skal jeg cache det i minnet eller hente nytt per kall?	0	0	heldout2-2026-10-08	negativ: tokenmekanikk, ordet Azure
+Søket returnerer adressen også for personer med skjermingskode – skal saksbehandlere uten særskilt tilgang se den i det hele tatt, og hvorfor trenger de adresse her?	1	1	heldout2-2026-10-08	begge: autorisasjon + formål/minimering
