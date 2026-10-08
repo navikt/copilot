@@ -193,6 +193,16 @@ nav-pilot ignore instruction nextjs-aksel --user`}
               for eksempel <code className={code}>kubectl delete</code> eller <code className={code}>rm -rf</code>, gir
               mening før den kjører, og lagrer svaret. Den stopper ingenting, og KI-agenten ser ikke svaret. Virker bare
               med lokal modell. Slå den av med <code className={code}>off</code>.
+              <span id="hook-action-check" className="block mt-2">
+                Kommandoene den sjekker: endringer med <code className={code}>kubectl</code>,{" "}
+                <code className={code}>nais</code>, <code className={code}>gcloud</code> og{" "}
+                <code className={code}>helm</code>, <code className={code}>terraform apply</code>,{" "}
+                <code className={code}>rm -r</code>, <code className={code}>git push --force</code> og lignende.
+                Modellen vurderer om kommandoen står i forhold til formålet, om den er destruktiv, og om formålet
+                agenten oppga støtter den. Med <code className={code}>log</code> lagres svaret i telemetrien og en lokal
+                logg, og kommandoen kjører alltid. Den krever <code className={code}>local_enabled</code> og en server
+                som kjører, og starter aldri en server selv.
+              </span>
             </li>
           </Bullets>
           <CodeBlock compact>

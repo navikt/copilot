@@ -1099,6 +1099,7 @@
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx"
       ],
+      "hook-action-check": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"],
       "hooks": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx"

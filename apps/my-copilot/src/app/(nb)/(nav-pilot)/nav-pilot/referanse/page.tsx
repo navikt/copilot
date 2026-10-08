@@ -19,6 +19,7 @@ const KEY_LINKS: Record<string, { href: string; label: string }> = {
   local_dispatch: { href: "/nav-pilot/forklaring/lokal-modell#utsending", label: "Utsending" },
   surveys: { href: "/nav-pilot/forklaring/personvern#brukerundersokelser", label: "Brukerundersøkelser" },
   news: { href: "/nav-pilot/forklaring/personvern#nyheter", label: "Nyheter" },
+  hook_action_check: { href: "/nav-pilot/guider/tilpasse#hook-action-check", label: "Hvilke kommandoer" },
 };
 
 export const metadata: Metadata = {
