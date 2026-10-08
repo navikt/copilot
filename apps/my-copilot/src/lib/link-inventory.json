@@ -264,6 +264,7 @@
       ],
       "bygg-videre-pa-en": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"
       ],
       "distribuer": [
@@ -364,6 +365,70 @@
       "vedlikehold": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"
+      ]
+    }
+  },
+  "/nav-pilot/agentpakker/referanse": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/lib/nav-items.ts"
+    ],
+    "anchors": {
+      "artefakttyper": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "gjenbruk": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "hold-basen-oppdatert": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "hva-som-komponerer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "hvilken-tier": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "kjorbar-kode": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "klientoppforinga": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "kollisjoner": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "mcp-servere": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "nar-endringen-nar-fram": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "pensjonering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "releases": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "sandkasse": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"
+      ],
+      "skript-i-en-skill": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "stabile-releases": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
+        "docs/news/articles/stabile-agentpakker.md"
+      ],
+      "uten-agent": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "validering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
       ]
     }
   },
@@ -1366,6 +1431,7 @@
     ],
     "anchors": {
       "avslutningskoder": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
