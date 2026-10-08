@@ -589,7 +589,36 @@ cleanup() {
     rm -rf "$WORKDIR" ${DELEG_HOME:+"$DELEG_HOME"}
   fi
 }
-trap cleanup EXIT
+# No orphaned daemons. A Gradle daemon outlives the run by hours otherwise, and
+# the agents under test run `gradle test` too, so the settings go in the
+# environment every child inherits. The daemon stays on (a cold JVM per call made
+# the kafka controls 4x slower, and so did Kotlin in-process) but lives under
+# $WORKDIR via registry.base (long-stable, undocumented), is reused within the
+# run and is reaped at exit; its Kotlin compile daemon exits with it.
+# NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 forces --no-daemon instead.
+# An inherited registry base wins (the bats file shares one daemon across its
+# runs and stops it itself).
+export GRADLE_OPTS="${GRADLE_OPTS:-}"
+[[ "$GRADLE_OPTS" == *daemon.registry.base=* ]] || GRADLE_OPTS="$GRADLE_OPTS -Dorg.gradle.daemon.registry.base=$WORKDIR/gradle-daemon"
+[[ "${NAV_PILOT_GOLDEN_GRADLE_DAEMON:-}" == 0 ]] && GRADLE_OPTS="$GRADLE_OPTS -Dorg.gradle.daemon=false"
+# Belt and braces: stop any Gradle/Kotlin daemon whose command line, cwd or
+# open files point into $WORKDIR. Daemons of the owner's own projects never match.
+# Matched on the unique basename: TMPDIR may end in a slash, and macOS reports
+# /var as /private/var.
+# shellcheck disable=SC2329  # invoked via trap
+reap_daemons() {
+  local pid id="${WORKDIR##*/}"
+  for pid in $(pgrep -f 'GradleDaemon|KotlinCompileDaemon' 2>/dev/null); do
+    if ps -o command= -p "$pid" | grep -qF "$id" ||
+      lsof -p "$pid" -Fn 2>/dev/null | grep -qF "$id"; then
+      kill "$pid" 2>/dev/null
+      # SIGTERM runs JVM shutdown hooks: wait up to 5 s, then SIGKILL.
+      for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+      kill -9 "$pid" 2>/dev/null
+    fi
+  done
+}
+trap 'reap_daemons; cleanup' EXIT
 
 mkdir -p "$TEMPLATE/.github/agents" "$TEMPLATE/src/main/kotlin/no/nav/demo"
 # The installed copy differs from the working-tree file in two frontmatter

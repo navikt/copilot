@@ -16,7 +16,23 @@ setup() {
   SHIM="$(mktemp -d "$BATS_TEST_TMPDIR/shim.XXXXXX")"
 }
 
+# One Gradle daemon for the whole file, as before, but under BATS_FILE_TMPDIR so
+# it can be found and stopped. Real benchmark runs keep a registry per run.
+setup_file() {
+  export GRADLE_OPTS="-Dorg.gradle.daemon.registry.base=$BATS_FILE_TMPDIR/gradle-daemon"
+}
+
+teardown_file() {
+  local pid id="${BATS_FILE_TMPDIR##*/}"
+  for pid in $(pgrep -f GradleDaemon 2>/dev/null); do
+    lsof -p "$pid" -Fn 2>/dev/null | grep -qF "$id" && kill "$pid" 2>/dev/null
+  done
+  return 0
+}
+
 teardown() {
+  # Fake daemons from the reaper test, if the reaper failed to stop them.
+  [[ -f "$SHIM/daemon-pids" ]] && xargs kill 2>/dev/null <"$SHIM/daemon-pids"
   rm -rf "$SHIM"
 }
 
@@ -608,6 +624,38 @@ run_suite() {
     for id in $ok; do grep -q "^$id|1|pass|" "$SHIM/b-results.psv"; done
     for id in $scope; do grep -q "^$id|1|fail|.*changed outside .*README.md" "$SHIM/b-results.psv"; done
   done
+}
+
+@test "kafka preflight: gradle children get a registry under the workdir (no-daemon on request), and a daemon left in the workdir is stopped" {
+  make_bench_shim
+  # The fake gradle records what a child sees, and leaves a "daemon" behind the
+  # way a real one starts: argv without the workdir, cwd in the registry base.
+  cat >"$SHIM/gradle" <<EOF
+#!/bin/bash
+echo "\$GRADLE_OPTS" >>"$SHIM/gradle-opts"
+base="\$(grep -o 'daemon.registry.base=[^ ]*' <<<"\$GRADLE_OPTS" | cut -d= -f2)"
+mkdir -p "\$base" && cd "\$base" && (echo \$BASHPID >>"$SHIM/daemon-pids"; exec -a "GradleDaemon 8.14.5" sleep 300) >/dev/null 2>&1 &
+exit 0
+EOF
+  chmod +x "$SHIM/gradle"
+  GRADLE_OPTS= PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite kafka --dry-run
+  [ -s "$SHIM/gradle-opts" ]
+  [ -s "$SHIM/daemon-pids" ]
+  while IFS= read -r opts; do
+    [[ "$opts" == *" -Dorg.gradle.daemon.registry.base="*"/gradle-daemon" ]]
+    [[ "$opts" != *daemon=false* ]]
+  done <"$SHIM/gradle-opts"
+  sleep 0.3
+  while read -r pid; do ! kill -0 "$pid" 2>/dev/null; done <"$SHIM/daemon-pids"
+}
+
+@test "kafka preflight: NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 adds daemon=false" {
+  make_bench_shim
+  printf '#!/bin/bash\necho "$GRADLE_OPTS" >>"%s/gradle-opts"\n' "$SHIM" >"$SHIM/gradle"
+  chmod +x "$SHIM/gradle"
+  GRADLE_OPTS= NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite kafka --dry-run
+  [ -s "$SHIM/gradle-opts" ]
+  while IFS= read -r opts; do [[ "$opts" == *" -Dorg.gradle.daemon=false"* ]]; done <"$SHIM/gradle-opts"
 }
 
 @test "planning t7/t7b: no privacy interview on a migration, privacy raised for fnr on Kafka" {

@@ -56,7 +56,7 @@ jobs:
   build-and-test:
     name: Build and test installer
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -139,7 +139,7 @@ jobs:
   bats:
     name: Unit Test install.sh
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -157,7 +157,7 @@ jobs:
       matrix:
         container: ["ubuntu:latest", "alpine:latest"]
     container: ${{ matrix.container }}
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
