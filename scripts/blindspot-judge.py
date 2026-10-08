@@ -10,7 +10,9 @@ RE_BS1/RE_BS2 verdict, which held-out questions showed to be unreliable
   controls TSV      judge every row of a controls file (question,
                     expected_bs1, expected_bs2, source), each wrapped as a
                     minimal answer; prints one disagreement per row to stderr
-                    and a summary line; exit 1 below 95 % agreement
+                    and a summary line; exit 1 below 95 % agreement.
+                    A pass is recorded under a hash of judge model, effort,
+                    rubric and controls file, and reused for 7 days
 
 Each answer gets up to three votes from Claude Haiku 5.5 through the Copilot
 CLI, with no tools and the lowest effort the model takes. The third vote is
@@ -23,6 +25,8 @@ prints the judge's JSON. The bats tests use it so CI makes no model calls.
 """
 
 import csv
+import datetime
+import hashlib
 import json
 import os
 import re
@@ -154,9 +158,45 @@ def wrap(question):
     return "Jeg har sett på oppgaven.\n\n" + question
 
 
+# Passing control runs, one per line: hash|date|model|effort|n|agree|accuracy|credits.
+# A run is skipped when this file holds a pass for the same hash from the last
+# CACHE_DAYS days. BS_JUDGE_RECORD points elsewhere (bats); empty disables it.
+RECORD = os.environ.get("BS_JUDGE_RECORD", os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "docs", "golden-baselines", "blindsone-dommer-kontroller.psv"))
+CACHE_DAYS = 7
+
+
+def controls_hash(data):
+    judge_id = "stub:" + os.environ["BS_JUDGE_CMD"] if os.environ.get("BS_JUDGE_CMD") else MODEL
+    h = hashlib.sha256("\0".join([judge_id, EFFORT, RUBRIC, wrap("")]).encode())
+    h.update(data)
+    return h.hexdigest()[:16]
+
+
+def cached(key):
+    try:
+        lines = open(RECORD, encoding="utf-8").read().splitlines()
+    except OSError:
+        return None
+    today = datetime.date.today()
+    for line in reversed(lines):
+        f = line.split("|")
+        if len(f) >= 8 and f[0] == key:
+            age = (today - datetime.date.fromisoformat(f[1])).days
+            return line if 0 <= age <= CACHE_DAYS else None
+    return None
+
+
 def controls(path):
-    with open(path, encoding="utf-8") as f:
-        rows = [r for r in csv.DictReader(f, delimiter="\t")]
+    with open(path, "rb") as f:
+        data = f.read()
+    key = controls_hash(data)
+    hit = RECORD and cached(key)
+    if hit:
+        f = hit.split("|")
+        print(f"controls cached hash={key} date={f[1]} n={f[4]} agree={f[5]} accuracy={f[6]}")
+        return 0
+    rows = list(csv.DictReader(data.decode("utf-8").splitlines(), delimiter="\t"))
     jobs = int(os.environ.get("BS_JUDGE_JOBS", "4"))
     with ThreadPoolExecutor(jobs) as ex:
         results = list(ex.map(lambda r: judge(wrap(r["question"])), rows))
@@ -178,7 +218,13 @@ def controls(path):
     print(f"controls n={len(rows)} agree={agree} errors={errors} accuracy={acc:.3f} credits={credits:.2f}")
     if errors * 10 > len(rows):
         return 2
-    return 0 if acc >= MIN_ACCURACY else 1
+    if acc < MIN_ACCURACY:
+        return 1
+    if RECORD:
+        with open(RECORD, "a", encoding="utf-8") as f:
+            f.write(f"{key}|{datetime.date.today()}|{MODEL if not os.environ.get('BS_JUDGE_CMD') else 'stub'}|"
+                    f"{EFFORT}|{len(rows)}|{agree}|{acc:.3f}|{credits:.2f}\n")
+    return 0
 
 
 def main(argv):

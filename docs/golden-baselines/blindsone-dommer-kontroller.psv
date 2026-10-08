@@ -1,0 +1,2 @@
+# Passing blind-spot judge control runs (scripts/blindspot-judge.py). A pass is reused for 7 days while the hash matches.
+# hash|date|model|effort|n|agree|accuracy|credits

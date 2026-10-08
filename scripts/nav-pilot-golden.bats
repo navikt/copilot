@@ -426,7 +426,7 @@ run_suite() {
   make_bench_shim
   make_judge_stub
   GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
-    BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$SHIM/controls.tsv}" \
+    BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$SHIM/controls.tsv}" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -633,6 +633,23 @@ run_suite() {
   BS_JUDGE_CONTROLS="$SHIM/bad.tsv" run_suite good --agent nav-pilot --only 7b
   grep -q '^7b|1|error|.*controls below 95' "$SHIM/b-results.psv"
   [[ "$output" == *"row 2: want bs1=0 bs2=1, judge bs1=1 bs2=0"* ]]
+}
+
+@test "planning judge: a passing control run is reused until the rubric changes" {
+  make_judge_stub
+  j="$BATS_TEST_DIRNAME/blindspot-judge.py"
+  export BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv"
+  run python3 "$j" controls "$SHIM/controls.tsv"
+  [ "$status" -eq 0 ]; [[ "$output" == "controls n=2 agree=2"* ]]
+  run python3 "$j" controls "$SHIM/controls.tsv"
+  [ "$status" -eq 0 ]; [[ "$output" == "controls cached"* ]]
+  sed 's/You grade an answer/You grade one answer/' "$j" >"$SHIM/judge2.py"
+  run python3 "$SHIM/judge2.py" controls "$SHIM/controls.tsv"
+  [ "$status" -eq 0 ]; [[ "$output" == "controls n=2 agree=2"* ]]
+  # An old pass is not reused.
+  sed -i.bak 's/|20[0-9-]*|/|2000-01-01|/' "$SHIM/record.psv"
+  run python3 "$j" controls "$SHIM/controls.tsv"
+  [[ "$output" == "controls n=2"* ]]
 }
 
 @test "planning judge: a quote that is not in the answer is no verdict" {
