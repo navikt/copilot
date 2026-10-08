@@ -291,8 +291,10 @@ nav-pilot`}
             I standardoppsettet stopper cplt bare kjente skadelige verter og verter med private adresser, og
             installasjoner virker som vanlig. Har du slått på en liste over tillatte verter, med{" "}
             <code className={code}>--preset strict</code>, <code className={code}>proxy.default_allowlist</code> eller{" "}
-            <code className={code}>proxy.allowed_domains</code>, slipper cplt bare gjennom det som står på lista. Med{" "}
-            <code className={code}>proxy.default_allowlist</code> er de vanlige pakkeregistrene med:
+            <code className={code}>proxy.allowed_domains</code>, slipper cplt bare gjennom det som står på lista.
+            Pakkeregistrene er med når <code className={code}>proxy.default_allowlist</code> er på, også med strict. Med
+            bare <code className={code}>proxy.allowed_domains</code> er de med hvis de står i fila. Fila nav-pilot
+            skriver, har dem:
           </BodyLong>
           <Bullets>
             <li>

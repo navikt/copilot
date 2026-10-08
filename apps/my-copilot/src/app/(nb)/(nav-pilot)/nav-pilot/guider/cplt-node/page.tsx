@@ -380,7 +380,7 @@ cplt config set sandbox.allow_cache_exec npm/_npx`}
           </LinkableHeading>
           <BodyLong>
             Uten en liste over tillatte verter virker installasjoner som vanlig. Med{" "}
-            <code className={code}>proxy.default_allowlist</code> er npm og yarn med (se{" "}
+            <code className={code}>proxy.default_allowlist</code> og i fila nav-pilot skriver, er npm og yarn med (se{" "}
             <NextLink href={`${OPPSETT}#tillatelsesliste`} className={linkClass}>
               Pakkeregistre og en liste over tillatte verter
             </NextLink>
