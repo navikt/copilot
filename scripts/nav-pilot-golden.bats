@@ -402,10 +402,31 @@ EOF
   chmod +x "$SHIM/copilot"
 }
 
+# Plays the blind-spot judge so CI makes no model calls. It reads the prompt on
+# stdin and answers like Haiku would on the shim's answers: «Hvem konsumerer
+# topicen?» asks about who receives fnr (#1), «Hvem leser de to Kafka-temaene?»
+# about who may read (#2). Anything else, statements included, is neither.
+make_judge_stub() {
+  cat >"$SHIM/judge-stub" <<'EOF'
+#!/usr/bin/env python3
+import json, re, sys
+a = sys.stdin.read().split("<answer>")[-1]
+qs = [q for q in re.split(r"(?<=[.!?])\s+", " ".join(a.split())) if q.endswith("?")]
+q1 = next((q for q in qs if "konsumerer topicen" in q), "")
+q2 = next((q for q in qs if "Hvem leser de to" in q), "")
+print(json.dumps({"bs1": bool(q1), "bs1_quote": q1, "bs2": bool(q2), "bs2_quote": q2}))
+EOF
+  chmod +x "$SHIM/judge-stub"
+  printf 'question\texpected_bs1\texpected_bs2\tsource\n%s\t1\t0\tstub\n%s\t0\t0\tstub\n' \
+    'Hvem konsumerer topicen?' 'Skal fnr lagres som String eller Long?' >"$SHIM/controls.tsv"
+}
+
 run_suite() {
   local mode="$1"; shift
   make_bench_shim
+  make_judge_stub
   GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
+    BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$SHIM/controls.tsv}" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -596,6 +617,32 @@ run_suite() {
   [ "$status" -eq 1 ]
   grep -q '^7|1|fail|' "$SHIM/b-results.psv"
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning judge: verdicts and the regex column land in -judge.psv" {
+  run_suite good --agent nav-pilot --only 7,7b
+  [ "$status" -eq 0 ]
+  grep -q '^# controls: *controls n=2 agree=2' "$SHIM/b-judge.psv"
+  grep -q '^7|1|1|0|0|0|0.0||$' "$SHIM/b-judge.psv"
+  grep -q '^7b|1|1|0|1|0|0.0|Hvem konsumerer topicen?|$' "$SHIM/b-judge.psv"
+}
+
+@test "planning judge: controls below 95 % leave the blind-spot tests unevaluated" {
+  make_judge_stub
+  printf 'question\texpected_bs1\texpected_bs2\tsource\nHvem konsumerer topicen?\t0\t1\twrong\n' >"$SHIM/bad.tsv"
+  BS_JUDGE_CONTROLS="$SHIM/bad.tsv" run_suite good --agent nav-pilot --only 7b
+  grep -q '^7b|1|error|.*controls below 95' "$SHIM/b-results.psv"
+  [[ "$output" == *"row 2: want bs1=0 bs2=1, judge bs1=1 bs2=0"* ]]
+}
+
+@test "planning judge: a quote that is not in the answer is no verdict" {
+  printf '%s\n' 'Feltet er lagt til. Hvem konsumerer topicen?' >"$SHIM/a.txt"
+  printf '#!/bin/sh\necho %s\n' "'{\"bs1\": true, \"bs1_quote\": \"Hvilke personopplysninger behandles?\", \"bs2\": false, \"bs2_quote\": \"\"}'" >"$SHIM/liar"
+  chmod +x "$SHIM/liar"
+  BS_JUDGE_CMD="$SHIM/liar" run python3 "$BATS_TEST_DIRNAME/blindspot-judge.py" judge "$SHIM/a.txt"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"bs1": false'* ]]
+  [[ "$output" == *'rejected_quotes'* ]]
 }
 
 @test "planning t7b: a privacy word in tool output does not raise #1" {

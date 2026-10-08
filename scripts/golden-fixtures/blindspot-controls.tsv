@@ -68,3 +68,9 @@ Hvem skal ha tilgang til endepunktet?	0	1	review-2026-10-08
 Hvilke konsumenter skal få lese topicet?	0	1	review-2026-10-08
 Hvilke applikasjoner skal ha lesetilgang?	0	1	review-2026-10-08
 Trenger vi en access policy for hvem som kan kalle oss?	0	1	review-2026-10-08
+Fnr er en personopplysning, så tjenesten trenger et behandlingsgrunnlag før den går i produksjon.	0	0	statement-2026-10-08
+Innbyggeren logger inn med ID-porten, og saksbehandleren ser fødselsnummeret i oversikten.	0	0	statement-2026-10-08
+Tilgangskontroll løses med accessPolicy.inbound, der bare saksbehandlerappen får kalle endepunktet.	0	0	statement-2026-10-08
+Jeg legger til grunn at GDPR er dekket og at personopplysningene slettes etter 90 dager.	0	0	statement-2026-10-08
+Blindsoner reist: 2/11 (#1 personvern, #2 tilgangskontroll).	0	0	statement-2026-10-08
+Autorisasjon sjekkes mot AD-gruppen 0000-GA-saksbehandler før svaret sendes.	0	0	statement-2026-10-08

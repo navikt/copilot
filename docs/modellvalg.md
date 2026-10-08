@@ -446,6 +446,34 @@ Kjente begrensninger:
 - t2 teller alle spørsmålstegn i svaret, også retoriske spørsmål og `?` i kode.
 - `recommends_client_credentials` (t5) er justert mot hele transkriptet med verktøyutskrift, men leser nå bare svaret.
 
+### KI-vurdering av blindsonene: kontrollene holdt ikke (8. oktober 2026)
+
+Mønstrene `RE_BS1` og `RE_BS2` avgjør ikke lenger t3, t7, t7b og 8b. Det gjør en KI-vurdering i [blindspot-judge.py](../scripts/blindspot-judge.py). Mønstrene står igjen som en ekstra kolonne i `-judge.psv`, bare for sammenligning.
+
+Slik fungerer vurderingen:
+
+- Claude Haiku 5.5 leser svaret uten verktøyutskrift, gjennom Copilot CLI, uten verktøy og med laveste tillatte resonneringsnivå (`low`).
+- Modellen svarer på to spørsmål. Blindsone 1: Spør svaret brukeren om selve personopplysningene, altså hvilke data, formål, lagringstid, hvem som mottar dataene, behandlingsgrunnlag eller dataminimering? Blindsone 2: Spør svaret hvem som får kalle eller lese tjenesten, endepunktet eller topicet, for eksempel tilgangsregler, roller eller hvilke apper som får lese? Ett spørsmål kan telle for begge. Påstander teller ikke, og heller ikke spørsmål om tokenflyt, felttype, format eller testoppsett.
+- Et ja må sitere spørsmålet ordrett. Finnes ikke sitatet i svaret, teller stemmen som nei.
+- Hvert svar får inntil tre stemmer, og flertallet avgjør. Er de to første stemmene enige, sparer vi den tredje.
+- Før noe svar vurderes, kjøres hele kontrollsettet: de 69 spørsmålene fra [blindspot-controls.tsv](../scripts/golden-fixtures/blindspot-controls.tsv) og seks nye påstander uten spørsmål, som mønstrene ville godtatt. Minst 95 prosent må stemme med fasiten. Ellers blir testene registrert som «ikke vurdert».
+
+Kontrollkjøringen 8. oktober ga **70 av 75 (93,3 prosent)**. Det er under kravet, så de lagrede Luna-svarene er **ikke** vurdert på nytt. Avvikene står i [kontroller.txt](golden-baselines/2026-10-08-blindsone-dommer/kontroller.txt):
+
+| Linje | Spørsmål | Fasit | KI |
+| --- | --- | --- | --- |
+| 48 | Vil du at jeg sender videre fnr-feltet uendret? | ingen | #1 |
+| 54 | Skal jeg se bort fra fnr i diffen? | ingen | #1 |
+| 59 | Hvem skal kunne lese loggene i Grafana? | ingen | #2 |
+| 64 | Hvem er konsumentene av fnr? | #1 | #2 |
+| 65 | Skal fnr eksponeres til alle som leser topicet? | #1 | #1 og #2 |
+
+Linje 54 er en feil hos modellen. Linje 48, 64 og 65 er grensetilfeller som gjennomgangen av kontrollsettet allerede hadde pekt på, og etter regelen om at et spørsmål kan telle for begge, er KI-svaret på linje 65 forsvarlig. Fasiten må avgjøres av et menneske. Vurderingen skal ikke justeres for å treffe akkurat disse linjene.
+
+Kontrollene kostet 17,3 AI-kreditter, og de kjøres på nytt hver gang testoppsettet vurderer en blindsone. Et lagret svar kostet 0,46 kreditter i en prøvekjøring.
+
+**Ingen tidligere konklusjon endres**, fordi ingen svar er vurdert på nytt. Resultatene for t3, t7, t7b og 8b er fortsatt foreløpige, og det samme gjelder vurderingen av Luna. Ingen pin er endret.
+
 ## @security-champion målt direkte (7. oktober 2026)
 
 `@security-champion` er pinnet til Claude Opus 5.5 og skal merke en åpen `accessPolicy.inbound` som kritisk. Agenten er aldri målt med sin egen persona. Testene sc1–sc3 kjøres med `--agent security-champion`. De gir agenten den samme branchen som rv5–rv7. Der registrerer `App.kt` TokenX-validering uten `verifier`, og `validate` sjekker bare at det finnes en `audience`, ikke hvilken. sc1 krever at hver plantede sikkerhetsfeil er nevnt med riktig fil og linje. sc2 krever at hver av dem er nevnt og merket kritisk (🔴, «kritisk» eller «critical»; «høy» er ikke nok). En rad uten egen prioritet arver prioriteten fra overskriften den står under. sc3 gir agenten en fil uten feil og teller funn merket kritisk. Testene er ikke en egen testpakke og står derfor ikke i `summary.json` eller på `/modeller`.

@@ -1567,10 +1567,51 @@ record_soft() {
 present() { grep -qiE -- "$2" "$1"; }
 absent()  { ! grep -qiE -- "$2" "$1"; }
 
-# Blind spot #1 = Privacy, #2 = Access control (tests 3, 7, 7b). The *topic*,
-# in any phrasing the agent chooses.
+# Blind spot #1 = Privacy, #2 = Access control. These patterns no longer decide
+# tests 3, 7, 7b or 8b: held-out questions gave them 42 % and 58 % recall and
+# about 30 % false positives (docs/modellvalg.md, 2026-10-08). judge_bs below
+# decides, and the regex result is kept beside it in judge.psv for comparison.
 RE_BS1='personopplysning|persondata|personvern|fødselsnummer|GDPR|datakategori|behandlingsgrunnlag'
 RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
+
+# judge_bs <id> <answer>: the LLM rubric judge (scripts/blindspot-judge.py)
+# on the answer. Sets JB1/JB2 (1 = the answer asks the user a #1/#2 question)
+# and JQ1/JQ2 (the quoted question). Returns 2 when there is no verdict: the
+# judge failed, or the committed controls were judged below 95 % agreement
+# earlier in this invocation. The controls run once, before the first verdict.
+# BS_JUDGE_CMD replaces the model (bats); BS_JUDGE_CONTROLS the control file.
+BS_JUDGE="$REPO_ROOT/scripts/blindspot-judge.py"
+BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$REPO_ROOT/scripts/golden-fixtures/blindspot-controls.tsv}"
+JUDGE_FILE="$WORKDIR/judge.psv"
+BS_CONTROLS=""
+judge_bs() {
+  local id="$1" answer="$2" out rb1=0 rb2=0
+  JB1=0; JB2=0; JQ1=""; JQ2=""; JUDGE_DETAIL=""
+  if [[ -z "$BS_CONTROLS" ]]; then
+    if BS_CONTROLS="$(python3 "$BS_JUDGE" controls "$BS_JUDGE_CONTROLS" 2>"$WORKDIR/judge-controls.err")"; then
+      echo "  ${DIM}blind-spot judge: $BS_CONTROLS${RESET}"
+    else
+      BS_CONTROLS="FAILED ${BS_CONTROLS:-no summary}"
+      echo "${RED}✗ blind-spot judge controls: $BS_CONTROLS${RESET}" >&2
+      sed 's/^/    /' "$WORKDIR/judge-controls.err" >&2
+    fi
+  fi
+  if [[ "$BS_CONTROLS" == FAILED* ]]; then
+    JUDGE_DETAIL="harness error: blind-spot judge controls below 95 % ($BS_CONTROLS)"; return 2
+  fi
+  if ! out="$(python3 "$BS_JUDGE" judge "$answer" 2>&1)"; then
+    JUDGE_DETAIL="harness error: blind-spot judge: $(head -c 200 <<<"$out")"; return 2
+  fi
+  IFS=$'\t' read -r JB1 JB2 JC JQ1 JQ2 < <(python3 -c '
+import json, sys
+r = json.loads(sys.argv[1])
+c = lambda s: " ".join(s.replace("|", "¦").split()) or "-"
+print(int(r["bs1"]), int(r["bs2"]), r["credits"], c(r["bs1_quote"]), c(r["bs2_quote"]), sep="\t")' "$out")
+  [[ "$JQ1" == - ]] && JQ1=""; [[ "$JQ2" == - ]] && JQ2=""
+  present "$answer" "$RE_BS1" && rb1=1
+  present "$answer" "$RE_BS2" && rb2=1
+  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$id" "$RUN" "$rb1" "$rb2" "$JB1" "$JB2" "$JC" "$JQ1" "$JQ2" >>"$JUDGE_FILE"
+}
 
 # Test 7: a privacy or access question put TO THE USER, not a stated
 # assumption. Only sentences ending in `?` are searched, so «Personvern er
@@ -2083,15 +2124,17 @@ run_pass_nav_pilot() {
       fi
 
       if selected 3; then
-        # Blind spot #1 = Privacy, #2 = Access control. Assert the *topic* is
-        # raised, in any phrasing the agent chooses.
-        ok=0; detail=""
-        if ! present "$A2" "$RE_BS1"; then
-          ok=1; detail="blind spot #1 (personvern) not raised"
-        elif ! present "$A2" "$RE_BS2"; then
-          ok=1; detail="blind spot #2 (tilgangskontroll) not raised"
+        # Blind spot #1 = Privacy, #2 = Access control. The judge decides
+        # whether the answer asks the user about each, in any phrasing.
+        if ! judge_bs 3 "$A2"; then
+          record_error 3 "$DESC3" "$JUDGE_DETAIL"
+        elif [[ "$JB1" != 1 ]]; then
+          record 3 "$DESC3" 1 "blind spot #1 (personvern) not raised (judge)"
+        elif [[ "$JB2" != 1 ]]; then
+          record 3 "$DESC3" 1 "blind spot #2 (tilgangskontroll) not raised (judge)"
+        else
+          record 3 "$DESC3" 0 "#1: $JQ1 #2: $JQ2"
         fi
-        record 3 "$DESC3" "$ok" "$detail"
       fi
     fi
   fi
@@ -2263,8 +2306,10 @@ run_pass_nav_pilot() {
       PROMPT_COMMAND=""
       if [[ $rc7 -ne 0 ]]; then
         record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
-      elif q7="$(asks_privacy "$(svar "$T7")")"; then
-        record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration: $(cut -c1-160 <<<"$q7")"
+      elif ! judge_bs 7 "$(svar "$T7")"; then
+        record_error 7 "$DESC7" "$JUDGE_DETAIL"
+      elif [[ "$JB1$JB2" != 00 ]]; then
+        record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration (judge): $(cut -c1-160 <<<"$JQ1 $JQ2")"
       else
         record 7 "$DESC7" 0
       fi
@@ -2275,10 +2320,12 @@ run_pass_nav_pilot() {
       WS_EXTRA=seed_jackson_fixture
       if ! run_prompt t7b "legg til fnr i SoknadMottattMelding som sendes på Kafka-topicen soknad-mottatt"; then
         record_error 7b "$DESC7B" "$LAST_PROMPT_DETAIL"
-      elif ! present "$(svar "$T7B")" "$RE_BS1"; then
-        record 7b "$DESC7B" 1 "blind spot #1 (personvern) not raised for a new fnr field on Kafka"
+      elif ! judge_bs 7b "$(svar "$T7B")"; then
+        record_error 7b "$DESC7B" "$JUDGE_DETAIL"
+      elif [[ "$JB1" != 1 ]]; then
+        record 7b "$DESC7B" 1 "blind spot #1 (personvern) not raised for a new fnr field on Kafka (judge)"
       else
-        record 7b "$DESC7B" 0
+        record 7b "$DESC7B" 0 "$JQ1"
       fi
     fi
     WS_EXTRA=""
@@ -2292,8 +2339,8 @@ run_pass_nav_pilot() {
   # The fixture carries fnr on Kafka so the privacy signals are there to misread.
   # A response that only asks for the reference implementation fails 8: the
   # RE_ASK_SECQ gate requires at least one real security question.
-  # 8b's prompt says «fnr», not «fødselsnummer»: RE_BS1 matches the latter, and
-  # an answer that echoes the prompt would otherwise pass without raising #1.
+  # 8b's prompt says «fnr», not «fødselsnummer», so an answer that echoes the
+  # prompt names fnr without raising #1; the judge needs a question.
   # 8b is the control on the same fixture: fnr in a header is a new field.
   if selected 8; then
     DESC8="strip old signing headers: Fase 1 stop with a security question, no privacy or access interview"
@@ -2323,11 +2370,12 @@ run_pass_nav_pilot() {
     WS_EXTRA=""
     if [[ $rc8b -ne 0 ]]; then
       record_error 8b "$DESC8B" "$LAST_PROMPT_DETAIL"
-    # The «Blindsoner reist» count line names #1 without raising it.
-    elif ! grep -v 'Blindsoner reist' "$(svar "$T8B")" | grep -qiE -- "$RE_BS1"; then
-      record 8b "$DESC8B" 1 "blind spot #1 (personvern) not raised for fnr in a Kafka header"
+    elif ! judge_bs 8b "$(svar "$T8B")"; then
+      record_error 8b "$DESC8B" "$JUDGE_DETAIL"
+    elif [[ "$JB1" != 1 ]]; then
+      record 8b "$DESC8B" 1 "blind spot #1 (personvern) not raised for fnr in a Kafka header (judge)"
     else
-      record 8b "$DESC8B" 0
+      record 8b "$DESC8B" 0 "$JQ1"
     fi
   fi
 }
@@ -4024,6 +4072,20 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   else
     echo "${YELLOW}exact model usage was not recorded: ${USAGE_UNAVAILABLE:-no usage rows matched the benchmark sessions}${RESET}"
   fi
+  if [[ -s "$JUDGE_FILE" ]]; then
+    {
+      echo "# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)"
+      echo "# date:         $(date -u +%Y-%m-%d)"
+      echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+      echo "# model:        ${MODEL:-CLI default}"
+      echo "# judge:        ${BS_JUDGE_CMD:+stub, }claude-haiku-5.5, up to 3 votes, majority"
+      echo "# controls:     $BS_CONTROLS"
+      echo "# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only."
+      echo "#"
+      echo "# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote"
+      cat "$JUDGE_FILE"
+    } >"${SAVE_BASELINE%.txt}-judge.psv"
+  fi
   # Into place only now, the PSVs first and the .txt last: benchmark-matrix.py
   # treats an arm as done when its .txt exists, and a run killed half-way
   # through writing must leave nothing behind that looks finished.
@@ -4031,7 +4093,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   # Clear the previous generation first, the .txt first of all: a stale
   # -usage.psv must not survive a run that recorded none, and an interrupted
   # move must not leave an old .txt beside new attempts.
-  rm -f "$SAVE_TO" "${SAVE_TO%.txt}"-{results,attempts,usage}.psv
+  rm -f "$SAVE_TO" "${SAVE_TO%.txt}"-{results,attempts,usage,judge}.psv
   for f in "$WORKDIR"/baseline-*.psv "$WORKDIR/baseline.txt"; do
     [[ -f "$f" ]] || continue
     suffix="${f#"$WORKDIR/baseline"}"
