@@ -220,7 +220,7 @@
         "vulnerability"
       ],
       "filePath": "agents/security-champion.agent.md",
-      "contentHash": "930e495e2eb64858e1232c0e9630774d6cca592cf4bf0a3e96ededca69097015",
+      "contentHash": "65fed295fcdd5bd1d2b5b837beb7fbc396de9f30a6fdc986018dbd2252934cfd",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",

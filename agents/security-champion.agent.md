@@ -958,6 +958,6 @@ From [sikkerhet.nav.no/docs/verktoy](https://sikkerhet.nav.no/docs/verktoy/):
 - Commit secrets, tokens, or credentials to git
 - Copy production secrets to local machines
 - Use string concatenation in SQL queries
-- Log FNR, JWT tokens, or passwords
+- Log FNR or other personal data in application logs (the dedicated CEF `auditLogger` is the only exception, see Audit Logging), or log JWT tokens or passwords anywhere
 - Skip input validation "because it's internal"
 - Disable SBOM generation (byosbom, salsa)
