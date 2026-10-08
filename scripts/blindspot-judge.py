@@ -109,8 +109,8 @@ def is_question(q, na):
     q = q.rstrip(" .\"'«»“”")
     if q.endswith("?") or INDIRECT.search(q):
         return True
-    i = na.find(q)
-    return i >= 0 and na[i + len(q):].lstrip("\"'»”").startswith("?")
+    # Any occurrence counts, and markdown such as **...**? normalises to «... ?».
+    return re.search(re.escape(q) + r"[\s\"'»”]*\?", na) is not None
 
 
 def escape_answer(answer):

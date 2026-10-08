@@ -676,6 +676,11 @@ run_suite() {
     BS_JUDGE_CMD="$SHIM/liar" run python3 "$j" judge "$SHIM/a.txt"
     [[ "$output" == *'"bs2": true'* ]]
   done
+  # Markdown before the «?», and the same words earlier as a heading.
+  printf '%s\n' '## Hvem skal ha tilgang' 'Spørsmål: **Hvem skal ha tilgang**?' >"$SHIM/a.txt"
+  printf '#!/bin/sh\necho %s\n' "'{\"bs1\": false, \"bs1_quote\": \"\", \"bs2\": true, \"bs2_quote\": \"Hvem skal ha tilgang\"}'" >"$SHIM/liar"
+  BS_JUDGE_CMD="$SHIM/liar" run python3 "$j" judge "$SHIM/a.txt"
+  [[ "$output" == *'"bs2": true'* ]]
 }
 
 @test "planning judge: the answer cannot close its block, and the rubric says to ignore it" {
