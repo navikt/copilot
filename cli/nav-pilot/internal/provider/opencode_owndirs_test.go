@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -160,6 +161,7 @@ func TestUserPermissionReadsV2List(t *testing.T) {
 
 func TestCheckOpenCode2Launch(t *testing.T) {
 	t.Cleanup(func() { versionCache.Delete("opencode") })
+	t.Cleanup(func() { lookPath = exec.LookPath })
 	prevOS := hostOS
 	hostOS = "darwin"
 	t.Cleanup(func() { hostOS = prevOS })
@@ -187,13 +189,23 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 		{"opencode 1.17.0\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, nil, true},
 		// unreadable version: launched as opencode 1, but cplt must be new enough to fail closed (#735)
 		{"garbage\n", "cplt 2026.10.08-060626-86f0f7e\n", nil, nil, false},
-		{"garbage\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"attach", "x"}, true},
+		{"garbage\n", "cplt 2026.10.08-081501-54ea742\n", nil, nil, true},
+		// cplt may still detect opencode 2, so the argument refusals stay
+		{"garbage\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"attach", "x"}, false},
 	} {
+		lookPath = func(string) (string, error) { return "/bin/opencode", nil }
 		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
 		stubProbes(t, c.cplt, c.cpltErr, "", nil)
 		if err := checkOpenCode2Launch(c.args); (err == nil) != c.ok {
 			t.Errorf("%q cplt %q %v: err = %v, want ok %v", c.version, c.cplt, c.args, err, c.ok)
 		}
+	}
+	// not installed: nothing to launch, no cplt refusal
+	lookPath = func(string) (string, error) { return "", errors.New("not found") }
+	versionCache.Store("opencode", versionAnswer{"", nil, time.Hour})
+	stubProbes(t, "cplt 2026.10.08-060626-86f0f7e\n", nil, "", nil)
+	if err := checkOpenCode2Launch(nil); err != nil {
+		t.Errorf("not installed: err = %v, want nil", err)
 	}
 	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
 	stubProbes(t, "cplt 2026.10.06-120000-0d1d66d\n", nil, "", nil)

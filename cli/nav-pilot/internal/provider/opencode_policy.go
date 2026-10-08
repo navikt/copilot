@@ -289,18 +289,21 @@ const minOpenCode2CpltStamp = "2026.10.08-081501"
 // does not run opencode 2. Nil on opencode 1. An opencode whose version
 // cannot be read is launched as opencode 1 but still needs the cplt floor, so
 // cplt's own fail-closed refusal (#735) is there if it really is opencode 2.
+var lookPath = exec.LookPath
+
 func checkOpenCode2Launch(args []string) error {
 	out, _ := cachedVersion("opencode", 5*time.Second)
 	if !openCodeMajorPattern.MatchString(strings.TrimSpace(out)) {
-		if _, err := exec.LookPath("opencode"); err != nil {
+		if _, err := lookPath("opencode"); err != nil {
 			return nil // not installed: nothing to launch, doctor reports it elsewhere
 		}
-		return checkOpenCode2Cplt()
-	}
-	if openCodeMajor() < 2 {
+		// cplt may still see opencode 2, so keep the argument refusals too.
+		if err := checkOpenCode2Cplt(); err != nil {
+			return err
+		}
+	} else if openCodeMajor() < 2 {
 		return nil
-	}
-	if hostOS != "darwin" {
+	} else if hostOS != "darwin" {
 		return fmt.Errorf("opencode 2 runs under cplt on macOS only, and nav-pilot never launches a client outside cplt.\n\n  Install opencode 1: %s",
 			domain.Bold(OpenCode1InstallHint()))
 	}
