@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -46,6 +47,8 @@ type baseLag struct {
 	Days int
 	// Target is what the pin is behind: "its default branch" or a release.
 	Target string
+	// Ref is the revision Target names: a release SHA, or "HEAD".
+	Ref string
 }
 
 // lookupBaseLag reports how far pin trails in repo, or nil when it does not.
@@ -84,7 +87,7 @@ func lookupBaseLagHTTP(ctx context.Context, repo, name, pin string) (*baseLag, e
 	if cmp.Status != "ahead" || cmp.AheadBy == 0 {
 		return nil, nil
 	}
-	lag := &baseLag{Commits: cmp.AheadBy, Target: target}
+	lag := &baseLag{Commits: cmp.AheadBy, Target: target, Ref: head}
 	if len(cmp.Commits) > 0 {
 		lag.Days = int(time.Since(cmp.Commits[0].Commit.Committer.Date).Hours() / 24)
 	}
@@ -95,9 +98,9 @@ func lookupBaseLagHTTP(ctx context.Context, repo, name, pin string) (*baseLag, e
 // to w when it trails. It also records the answer as freshness telemetry, and
 // returns the lookup's error so doctor can say it could not tell.
 // ctx bounds the whole check; the caller sets the deadline.
-func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo, baseRepo, baseName, pin string) error {
+func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo, baseRepo, baseName, pin string) (*baseLag, error) {
 	if !pinnable(baseRepo) || pin == "" {
-		return nil
+		return nil, nil
 	}
 	lag, err := lookupBaseLag(ctx, baseRepo, baseName, pin)
 	a := artifacts.StalenessAssessment{Result: "up_to_date", LatestVersion: "latest", UpToDate: true}
@@ -109,7 +112,7 @@ func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo,
 	}
 	recordFreshness("agentpakke-base", scopeName, a)
 	if lag == nil {
-		return err
+		return nil, err
 	}
 	// Addressed to the person running the command, who cannot move the pin:
 	// what it means for them, and who can.
@@ -117,7 +120,7 @@ func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo,
 		"%s  Ask the owners of %s to update (%s), then run %s.\n",
 		indent, yellow("⚠"), pakkeRepo, baseRepo, shortSHA(pin), lag.Commits, lag.Days, lag.Target,
 		indent, pakkeRepo, bold("nav-pilot pakke bump-base"), bold("nav-pilot sync --apply"))
-	return nil
+	return lag, nil
 }
 
 // couldNotCheck is doctor's line for a check that did not finish, so a user
@@ -151,12 +154,20 @@ func reportScopeBaseLag(scope *InstallScope, state *StateFile) {
 	var base struct {
 		Name string `json:"name"`
 	}
-	if githubFileJSON(ctx, lock.Source, agentpakke.ManifestPath, lock.SHA, &base) != nil ||
-		warnBaseLag(ctx, os.Stdout, "      ", scope.Name, state.SourceRepo, lock.Source, base.Name, lock.SHA) != nil {
+	if githubFileJSON(ctx, lock.Source, agentpakke.ManifestPath, lock.SHA, &base) != nil {
 		couldNotCheck("whether " + state.SourceRepo + " is up to date")
 		return
 	}
-	reportPinDrift(scope, state, lock.Source, lock.SHA)
+	lag, err := warnBaseLag(ctx, os.Stdout, "      ", scope.Name, state.SourceRepo, lock.Source, base.Name, lock.SHA)
+	if err != nil {
+		couldNotCheck("whether " + state.SourceRepo + " is up to date")
+		return
+	}
+	// Drift is measured against what bump-base would move the pin to, so a
+	// pin at the newest release is not told about unreleased changes.
+	if lag != nil {
+		reportPinDrift(scope, state, lock.Source, lock.SHA, cmp.Or(lag.Ref, "HEAD"))
+	}
 }
 
 // pinDriftRequestTimeout bounds each request of the drift check on its own,
@@ -176,7 +187,7 @@ const pinDriftRequestTimeout = 5 * time.Second
 // model moved, each with its own deadline. About three doctor runs an hour
 // anonymously; GITHUB_TOKEN lifts that. Batch through the trees API if it
 // ever matters.
-func reportPinDrift(scope *InstallScope, state *StateFile, baseRepo, pin string) {
+func reportPinDrift(scope *InstallScope, state *StateFile, baseRepo, pin, target string) {
 	get := func(path, ref string) ([]byte, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), pinDriftRequestTimeout)
 		defer cancel()
@@ -185,7 +196,8 @@ func reportPinDrift(scope *InstallScope, state *StateFile, baseRepo, pin string)
 	drifted, unchecked := 0, 0
 	for _, f := range state.Files {
 		name := filepath.Base(f.Path)
-		if !strings.HasSuffix(name, ".agent.md") {
+		// Ignored and conflict entries are files the user kept as theirs.
+		if f.Status != "" || !strings.HasSuffix(name, ".agent.md") {
 			continue
 		}
 		local, err := os.ReadFile(filepath.Join(scope.RootDir, f.Path))
@@ -194,7 +206,7 @@ func reportPinDrift(scope *InstallScope, state *StateFile, baseRepo, pin string)
 			continue
 		}
 		path := "agents/" + name
-		head, err := get(path, "HEAD")
+		head, err := get(path, target)
 		if err != nil {
 			if !errors.Is(err, errGitHubNotFound) {
 				unchecked++

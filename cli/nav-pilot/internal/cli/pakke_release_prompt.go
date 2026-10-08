@@ -373,7 +373,7 @@ func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *S
 // A pin (no files of its own) is left to [offerPakkeRelease], which already
 // asks at launch.
 func pakkeScopeUpdate(state *StateFile) string {
-	if state == nil || !pinnable(state.SourceRepo) || state.SourceSHA == "" || pinnedState(state) {
+	if state == nil || !pinnable(state.SourceRepo) || state.SourceSHA == "" || pinnedRevisionOnDisk(state) {
 		return ""
 	}
 	// A No at "Sync now?" holds every scope's question off for a day; this

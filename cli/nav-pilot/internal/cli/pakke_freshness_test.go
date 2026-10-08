@@ -2,12 +2,15 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
 func agentFile(model string) string {
@@ -24,13 +27,18 @@ func TestDoctorReportsPinDrift(t *testing.T) {
 		"override":          "own-model", // the pakke chose its own: silent
 		"own":               "gpt-6-sol", // the base does not ship it: silent
 		"same":              "claude-x",  // unchanged: silent
-		"broken":            "gpt-6-sol", // lookup fails: silent
+		"broken":            "gpt-6-sol", // lookup fails: counted
+		"kept":              "gpt-6-sol", // the user kept their own file: silent
 	}
 	var files []InstalledFile
 	for name, model := range installed {
 		p := filepath.Join(".github", "agents", name+".agent.md")
 		mustWrite(t, filepath.Join(scope.RootDir, p), agentFile(model))
-		files = append(files, InstalledFile{Path: p, Hash: "h"})
+		status := ""
+		if name == "kept" {
+			status = "conflict"
+		}
+		files = append(files, InstalledFile{Path: p, Hash: "h", Status: status})
 	}
 	orig := githubFile
 	t.Cleanup(func() { githubFile = orig })
@@ -43,8 +51,8 @@ func TestDoctorReportsPinDrift(t *testing.T) {
 		if d, ok := ctx.Deadline(); !ok || time.Until(d) < pinDriftRequestTimeout-time.Second {
 			t.Errorf("%s@%s: deadline %v is not this request's own", path, ref, d)
 		}
-		head := map[string]string{"security-champion": "claude-opus-5.5", "override": "claude-opus-5.5", "same": "claude-x"}
-		pin := map[string]string{"security-champion": "gpt-6-sol", "override": "gpt-6-sol"}
+		head := map[string]string{"security-champion": "claude-opus-5.5", "override": "claude-opus-5.5", "same": "claude-x", "kept": "claude-opus-5.5"}
+		pin := map[string]string{"security-champion": "gpt-6-sol", "override": "gpt-6-sol", "kept": "gpt-6-sol"}
 		name := strings.TrimSuffix(strings.TrimPrefix(path, "agents/"), ".agent.md")
 		m := head
 		if ref == basePin {
@@ -59,7 +67,7 @@ func TestDoctorReportsPinDrift(t *testing.T) {
 		return nil, fmt.Errorf("%s: %w", path, errGitHubNotFound)
 	}
 	out := captureStdoutFor(t, func() {
-		reportPinDrift(scope, &StateFile{SourceRepo: "nais/pilot", Files: files}, "navikt/copilot", basePin)
+		reportPinDrift(scope, &StateFile{SourceRepo: "nais/pilot", Files: files}, "navikt/copilot", basePin, "HEAD")
 	})
 	want := "      ⚠ @security-champion runs gpt-6-sol; navikt/copilot now pins claude-opus-5.5.\n" +
 		"      When the owners of nais/pilot have updated, run nav-pilot sync --apply.\n" +
@@ -157,8 +165,48 @@ func TestPakkeScopeUpdate(t *testing.T) {
 		calls := stub(t, "0.5.0", nil)
 		pin := *state
 		pin.Files = nil
+		if err := os.MkdirAll(pakkeRevisionDir(pin.SourceRepo, pin.SourceSHA), 0o755); err != nil {
+			t.Fatal(err)
+		}
 		if got := pakkeScopeUpdate(&pin); got != "" || *calls != 0 {
 			t.Errorf("pin: %q after %d lookups", got, *calls)
 		}
 	})
+}
+
+// Drift is measured against what bump-base would take (the base's newest
+// release here), not its default branch, and not at all when the pin is
+// current.
+func TestDoctorPinDriftUsesTheBumpTarget(t *testing.T) {
+	origJSON, origLag, origFile := githubFileJSON, lookupBaseLag, githubFile
+	t.Cleanup(func() { githubFileJSON, lookupBaseLag, githubFile = origJSON, origLag, origFile })
+	githubFileJSON = func(_ context.Context, _, path, _ string, v any) error {
+		body := `{"name":"nav-pilot"}`
+		if path == agentpakke.DeclarationPath {
+			body = `{"contractVersion":"1","source":"navikt/copilot","sha":"` + basePin + `"}`
+		}
+		return json.Unmarshal([]byte(body), v)
+	}
+	var refs []string
+	githubFile = func(_ context.Context, _, _, ref string) ([]byte, error) {
+		refs = append(refs, ref)
+		return nil, errOfflineForTests
+	}
+	scope := ScopeRepo(repoTarget(t))
+	p := filepath.Join(".github", "agents", "a.agent.md")
+	mustWrite(t, filepath.Join(scope.RootDir, p), agentFile("m"))
+	state := &StateFile{SourceRepo: "nais/pilot", SourceSHA: strings.Repeat("a", 40), Files: []InstalledFile{{Path: p, Hash: "h"}}}
+
+	lookupBaseLag = func(context.Context, string, string, string) (*baseLag, error) { return nil, nil }
+	captureStdoutFor(t, func() { reportScopeBaseLag(scope, state) })
+	if len(refs) != 0 {
+		t.Errorf("a current pin was checked for drift at %v", refs)
+	}
+	lookupBaseLag = func(context.Context, string, string, string) (*baseLag, error) {
+		return &baseLag{Commits: 1, Target: "release 1.2.0", Ref: "relsha"}, nil
+	}
+	captureStdoutFor(t, func() { reportScopeBaseLag(scope, state) })
+	if len(refs) != 1 || refs[0] != "relsha" {
+		t.Errorf("drift read %v, want the release", refs)
+	}
 }
