@@ -114,6 +114,12 @@ gh pr create --head min-branch`}
             </li>
           </Bullets>
           <BodyLong>
+            Med sikkerhetsnivået <code className={code}>permissive</code> eller <code className={code}>full-trust</code>{" "}
+            er git-vakta av. Da gjør cplt ingenting med pushen. Git prøver å lagre upstream selv, skriver en feilmelding
+            og en linje om at upstream er satt, men den er ikke lagret. Kjør <code className={code}>git branch -u</code>{" "}
+            selv utenfor cplt.
+          </BodyLong>
+          <BodyLong>
             <code className={code}>git branch -u</code> og <code className={code}>--set-upstream-to</code> inne i økta
             blir ikke lagret på macOS.
           </BodyLong>
