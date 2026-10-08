@@ -181,7 +181,8 @@ def controls_hash(data):
 
 def cached(key):
     try:
-        lines = open(RECORD, encoding="utf-8").read().splitlines()
+        with open(RECORD, encoding="utf-8") as f:
+            lines = f.read().splitlines()
     except OSError:
         return None
     today = datetime.date.today()
