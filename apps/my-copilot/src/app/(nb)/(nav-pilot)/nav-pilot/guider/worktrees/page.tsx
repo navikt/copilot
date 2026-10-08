@@ -32,7 +32,7 @@ export default function Worktrees() {
       label="Guider"
       upgrade
       title="Worktrees med nav-pilot og cplt"
-      description="Med git worktree har du flere grener sjekket ut samtidig, hver i sin mappe. Slik bruker du det i sandkassen."
+      description="Med git worktree har du flere brancher sjekket ut samtidig, hver i sin mappe. Slik bruker du det i sandkassen."
       toc={TOC}
     >
       <section>
@@ -41,9 +41,9 @@ export default function Worktrees() {
             Hvorfor worktrees
           </LinkableHeading>
           <BodyLong>
-            Et worktree er en ekstra utsjekking av samme repo, på en annen gren og i en annen mappe. Agenten kan jobbe
-            på én gren mens du jobber på en annen, og flere subagenter kan jobbe parallelt uten å skrive over hverandres
-            filer. Objekter, refs og konfig ligger i én felles git-mappe, den{" "}
+            Et worktree er en ekstra utsjekking av samme repo, på en annen branch og i en annen mappe. Agenten kan jobbe
+            på én branch mens du jobber på en annen, og flere subagenter kan jobbe parallelt uten å skrive over
+            hverandres filer. Objekter, refs og konfig ligger i én felles git-mappe, den{" "}
             <code className={code}>git rev-parse --git-common-dir</code> viser. Hvert worktree har i stedet for en{" "}
             <code className={code}>.git</code>-mappe en <code className={code}>.git</code>-fil som peker til sin egen
             admin-mappe under <code className={code}>&lt;felles&gt;/worktrees/&lt;navn&gt;</code>.
@@ -68,8 +68,8 @@ export default function Worktrees() {
           <BodyLong>Lag worktreet utenfor sandkassen, og start nav-pilot i det:</BodyLong>
           <CodeBlock compact>
             {`cd ~/src/min-app
-git worktree add ../min-app-ny-gren -b ny-gren
-cd ../min-app-ny-gren
+git worktree add ../min-app-ny-branch -b ny-branch
+cd ../min-app-ny-branch
 nav-pilot`}
           </CodeBlock>
           <BodyLong>
@@ -89,7 +89,7 @@ nav-pilot`}
           </BodyLong>
           <BodyLong>
             Godkjenningen av repoets <code className={code}>.cplt.toml</code> gjelder hele repoet. Har du godkjent den i
-            hovedutsjekkingen, spør ikke cplt på nytt i worktreet, med mindre grenen har endret forslaget.
+            hovedutsjekkingen, spør ikke cplt på nytt i worktreet, med mindre branchen har endret forslaget.
           </BodyLong>
         </VStack>
       </section>
@@ -116,14 +116,14 @@ cplt config set --local sandbox.allow_git_worktrees true   # bare denne utsjekki
             Du trenger ikke be agenten om å bruke mappa. cplt forteller den om mappa i starten av økten, sammen med
             kommandoen:
           </BodyLong>
-          <CodeBlock compact>{`git worktree add "$CPLT_WORKTREE_ROOT/<navn>" -b <gren>`}</CodeBlock>
+          <CodeBlock compact>{`git worktree add "$CPLT_WORKTREE_ROOT/<navn>" -b <branch>`}</CodeBlock>
           <BodyLong>
-            Worktrees og grener agenten lager, blir liggende etter økten. Rydd opp selv, utenfor cplt:
+            Worktrees og brancher agenten lager, blir liggende etter økten. Rydd opp selv, utenfor cplt:
           </BodyLong>
           <CodeBlock compact>
             {`git worktree list
 git worktree remove ~/.cplt-worktrees/<id>/<navn>
-git branch -d <gren>`}
+git branch -d <branch>`}
           </CodeBlock>
           <BodyLong>
             Innstillingen kan bare settes i din egen cplt-konfig. Et repo kan ikke slå den på for deg med{" "}
@@ -138,8 +138,8 @@ git branch -d <gren>`}
             Bare repo og .git et annet sted
           </LinkableHeading>
           <BodyLong>
-            Noen holder repoet som et bare repo, uten arbeidskatalog, med hver gren som et worktree ved siden av. Andre
-            har git-mappa et annet sted enn koden. Begge virker som når du starter i et worktree: cplt følger{" "}
+            Noen holder repoet som et bare repo, uten arbeidskatalog, med hver branch som et worktree ved siden av.
+            Andre har git-mappa et annet sted enn koden. Begge virker som når du starter i et worktree: cplt følger{" "}
             <code className={code}>.git</code>-fila til den felles git-mappa og gir agenten tilgang dit.
           </BodyLong>
           <CodeBlock compact>

@@ -525,17 +525,17 @@ cplt trust accept --all                                    # godkjenn forslaget`
             Gjelder macOS. <code className={code}>.git/config</code> er skrivebeskyttet, fordi den kan få git til å
             kjøre kode utenfor sandkassen. Derfor fjerner cplt <code className={code}>-u</code> fra{" "}
             <code className={code}>git push -u</code> og skriver <code className={code}>cplt: pushing without -u</code>.
-            Grenen blir pushet, og cplt setter upstream når økta er ferdig hvis pushen oppfyller kravene i{" "}
+            Branchen blir pushet, og cplt setter upstream når økta er ferdig hvis pushen oppfyller kravene i{" "}
             <NextLink href="/nav-pilot/guider/cplt-git#push" className={linkClass}>
               Git og GitHub i sandkassen
             </NextLink>
             . Ellers skriver cplt en <code className={code}>git branch -u</code>-kommando du kjører selv utenfor cplt:
             når økta slutter, eller i meldingen når du pusher i en stille økt. Du klarer deg også uten upstream. Skriv
-            grennavnet når du pusher, og oppgi det når du lager pull requesten:
+            branchnavnet når du pusher, og oppgi det når du lager pull requesten:
           </BodyLong>
           <CodeBlock compact>
-            {`git push origin HEAD:min-gren
-gh pr create --head min-gren`}
+            {`git push origin HEAD:min-branch
+gh pr create --head min-branch`}
           </CodeBlock>
           <BodyLong>
             <code className={code}>git config</code>, <code className={code}>git remote add</code>,{" "}
@@ -547,17 +547,18 @@ gh pr create --head min-gren`}
           </LinkableHeading>
           <BodyLong>
             Git-vakta stopper push til default branch og force push. <code className={code}>main</code> og{" "}
-            <code className={code}>master</code> er alltid beskyttet, i tillegg til grenen{" "}
+            <code className={code}>master</code> er alltid beskyttet, i tillegg til branchen{" "}
             <code className={code}>origin</code> peker på. Med <code className={code}>strict</code> stopper vakta all
-            push. Lag en egen gren og push den:
+            push. Lag en egen branch og push den:
           </BodyLong>
-          <CodeBlock compact>{`git push origin HEAD:min-gren`}</CodeBlock>
+          <CodeBlock compact>{`git push origin HEAD:min-branch`}</CodeBlock>
           <BodyLong>
-            <code className={code}>cplt doctor</code> viser om vakta slipper gjennom push til en ny gren i repoet ditt.
-            Stopper vakta også push til en ny gren, og sier at{" "}
+            <code className={code}>cplt doctor</code> viser om vakta slipper gjennom push til en ny branch i repoet
+            ditt. Stopper vakta også push til en ny branch, og sier at{" "}
             <code className={code}>the default branch of remote &apos;origin&apos; could not be determined</code>, vet
-            den ikke hvilken gren som er default branch. cplt spør remoten når <code className={code}>origin/HEAD</code>{" "}
-            mangler lokalt, og feilen kommer når remoten ikke svarer. Kjør dette utenfor cplt, og start en ny økt:
+            den ikke hvilken branch som er default branch. cplt spør remoten når{" "}
+            <code className={code}>origin/HEAD</code> mangler lokalt, og feilen kommer når remoten ikke svarer. Kjør
+            dette utenfor cplt, og start en ny økt:
           </BodyLong>
           <CodeBlock compact>{`git remote set-head origin -a`}</CodeBlock>
 
@@ -594,11 +595,11 @@ cplt config set git_guard.mode block`}
             aborted: you must first push the current branch to a remote, or use the --head flag
           </LinkableHeading>
           <BodyLong>
-            Uten terminal pusher ikke <code className={code}>gh pr create</code> for deg. Push først, og oppgi grenen:
+            Uten terminal pusher ikke <code className={code}>gh pr create</code> for deg. Push først, og oppgi branchen:
           </BodyLong>
           <CodeBlock compact>
-            {`git push origin HEAD:min-gren
-gh pr create --head min-gren`}
+            {`git push origin HEAD:min-branch
+gh pr create --head min-branch`}
           </CodeBlock>
 
           <LinkableHeading id="publickey" size="small" level="3">
