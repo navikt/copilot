@@ -679,6 +679,18 @@ Gjennomgangen av PR-en fant at kf1 ikke sjekket at en feilet hendelse blir utbet
 
 Forbruket var 50,4 credits: 19,8 for den første `kafka`-målingen, 19,2 for den nye og 11,4 for `rust`. Budsjettet var om lag 40, med stopp ved 80.
 
+## GPT-6 Luna Medium mot GPT-6 Sol Low på planlegging, med KI-vurdering (8. oktober 2026)
+
+Luna oppfylte planleggingskravene da de lagrede svarene ble vurdert på nytt med KI-vurderingen. Sol er ikke målt med den. Her måles begge på samme måte, med ti kjøringer hver.
+
+### Kriteriene ble satt før målingen
+
+Begge armene kjøres med `@nav-pilot` i Copilot CLI med `--keep`, ti kjøringer av t2, t3, t4, t5, t7 og t7b. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen hovedmodell, forkastes. KI-vurderingen avgjør blindsonene i t3, t7 og t7b. Mønstrene vises ved siden av, bare for sammenligning. Før kjøringene er KI-vurderingen gjort sikrere ([#1472](https://github.com/navikt/copilot/issues/1472)), og kontrollene er kjørt på nytt.
+
+**GPT-6 Luna Medium blir standard for `@nav-pilot` bare hvis den består minst like mange kjøringer som GPT-6 Sol Low på hver av t2, t3, t4, t5, t7 og t7b, og t2 består minst 9 av 10.** Ellers forblir GPT-6 Sol standard. Målingen endrer ingen pinner. Et eventuelt bytte gjøres i en egen endring.
+
+Budsjettet er om lag 350 credits, med stopp ved 440.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
