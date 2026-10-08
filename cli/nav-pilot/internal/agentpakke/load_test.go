@@ -647,6 +647,45 @@ func TestValidateSourceTier1(t *testing.T) {
 	})
 }
 
+func TestValidateSourceFailClosedNeedsMinVersion(t *testing.T) {
+	cases := []struct {
+		name, minVersion, sidecar string
+		wantErr                   bool
+	}{
+		{"failClosed without minNavPilotVersion", "", `{"failClosed": true}`, true},
+		{"failClosed with too low a version", "2026.10.08-212050-3c9c008", `{"failClosed": true}`, true},
+		{"failClosed with the required version", FailClosedMinVersion, `{"failClosed": true}`, false},
+		{"no failClosed needs no version", "", `{"matcher": "bash"}`, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			minVersion := ""
+			if tc.minVersion != "" {
+				minVersion = `"minNavPilotVersion": "` + tc.minVersion + `",`
+			}
+			writeManifest(t, root, `{
+  "contractVersion": "1",
+  "name": "eksempel",
+  "description": "Tier 1 agentpakke",`+minVersion+`
+  "clients": { "opencode": { "primaryAgents": ["eksempel"] } },
+  "layout": { "agents": "agents", "hooks": "hooks" }
+}`)
+			mkdirAll(t, filepath.Join(root, "agents"))
+			mkdirAll(t, filepath.Join(root, "hooks"))
+			writeFile(t, filepath.Join(root, "agents", "eksempel.agent.md"),
+				"---\nname: eksempel\ndescription: Et eksempel\n---\n\nBody\n")
+			writeFile(t, filepath.Join(root, "hooks", "gate.py"), "")
+			writeFile(t, filepath.Join(root, "hooks", "gate.hook.json"), tc.sidecar)
+
+			joined := joinErrs(ValidateSource(root))
+			if got := strings.Contains(joined, "Set minNavPilotVersion to at least "+FailClosedMinVersion); got != tc.wantErr {
+				t.Fatalf("violations %q: want failClosed error = %v", joined, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateSourceNoManifest(t *testing.T) {
 	errs := ValidateSource(t.TempDir())
 	if len(errs) != 1 || !errors.Is(errs[0], ErrNoManifest) {
