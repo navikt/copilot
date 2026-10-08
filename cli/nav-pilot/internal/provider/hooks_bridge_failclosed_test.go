@@ -28,33 +28,44 @@ const hooks = {}
 await plugin.setup({ location: { directory: process.cwd() }, session: { hook: async () => {} }, tool: { hook: async (n, f) => (hooks[n] = f) } })
 try { await hooks["execute.before"]({ tool: "shell", sessionID: "s", input: { command: "x" } }); console.log("allowed") } catch (e) { console.log(e.message) }`,
 	}
+	// What the gate's command does, and what a failClosed gate then says. The
+	// installed command never exits non-zero or prints half an answer itself;
+	// these stand in for a sh that is killed, or a script whose own output is
+	// not JSON.
+	commands := map[string]string{
+		"sleep 5":   "treg feilet eller svarte ikke innen fristen, så kallet er stoppet",
+		"exit 1":    "treg feilet eller svarte ikke innen fristen, så kallet er stoppet",
+		"echo nope": "treg feilet, så kallet er stoppet",
+	}
 	for file, driver := range drivers {
-		for _, failClosed := range []bool{true, false} {
-			dir := t.TempDir()
-			src, err := os.ReadFile(file)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(dir, "bridge.mjs"), src, 0o644); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(dir, "driver.mjs"), []byte(driver), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			cfg, _ := json.Marshal(HookBridge{Pre: []BridgeHook{{Name: "treg", Command: "sleep 5", Matcher: ".*", Timeout: 1, FailClosed: failClosed}}})
-			cmd := exec.Command(node, "driver.mjs")
-			cmd.Dir = dir
-			cmd.Env = append(os.Environ(), "NAV_PILOT_OPENCODE_HOOKS="+string(cfg), "NAV_PILOT_DISPATCH_GATE=")
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Fatalf("%s: %v\n%s", file, err, out)
-			}
-			want := "allowed"
-			if failClosed {
-				want = "treg svarte ikke innen fristen, så kallet er stoppet"
-			}
-			if got := strings.TrimSpace(string(out)); got != want {
-				t.Errorf("%s failClosed=%v: got %q, want %q", file, failClosed, got, want)
+		for command, denied := range commands {
+			for _, failClosed := range []bool{true, false} {
+				dir := t.TempDir()
+				src, err := os.ReadFile(file)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "bridge.mjs"), src, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "driver.mjs"), []byte(driver), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				cfg, _ := json.Marshal(HookBridge{Pre: []BridgeHook{{Name: "treg", Command: command, Matcher: ".*", Timeout: 1, FailClosed: failClosed}}})
+				cmd := exec.Command(node, "driver.mjs")
+				cmd.Dir = dir
+				cmd.Env = append(os.Environ(), "NAV_PILOT_OPENCODE_HOOKS="+string(cfg), "NAV_PILOT_DISPATCH_GATE=")
+				out, err := cmd.CombinedOutput()
+				if err != nil {
+					t.Fatalf("%s: %v\n%s", file, err, out)
+				}
+				want := "allowed"
+				if failClosed {
+					want = denied
+				}
+				if got := strings.TrimSpace(string(out)); got != want {
+					t.Errorf("%s %q failClosed=%v: got %q, want %q", file, command, failClosed, got, want)
+				}
 			}
 		}
 	}

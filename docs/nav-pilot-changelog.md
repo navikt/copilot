@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Porter som stopper kallet når de ikke svarer
 
-- **`failClosed` for hooks**: En hook i en agentpakke kan sette `"failClosed": true` i `<navn>.hook.json`. Da nekter porten kallet når den bruker for lang tid, feiler eller mangler `python3`, i stedet for å slippe det gjennom. Gjelder i Copilot CLI og OpenCode. Prisen er at en treg maskin stopper agenten, så bruk det bare for porter som må holde. Se [README.agentpakke.md](README.agentpakke.md#porter-som-skal-stoppe-kallet-når-de-ikke-svarer-failclosed).
+- **`failClosed` for hooks**: En hook i en agentpakke kan sette `"failClosed": true` i `<navn>.hook.json`. Da nekter porten kallet når den bruker for lang tid, feiler eller mangler `python3`, i stedet for å slippe det gjennom, og modellen får vite hvilken port som stoppet det og hvorfor. Gjelder i Copilot CLI og OpenCode. Prisen er at en treg maskin stopper agenten, så bruk det bare for porter som må holde. Se [README.agentpakke.md](README.agentpakke.md#porter-som-skal-stoppe-kallet-når-de-ikke-svarer-failclosed).
 
 ### Færre feil på en travel Mac
 

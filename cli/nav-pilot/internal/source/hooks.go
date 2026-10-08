@@ -140,17 +140,25 @@ func LoadHookMeta(scriptPath string) HookMeta {
 //
 // failClosed turns each of those allows into a deny: the command prints a
 // permissionDecision of deny, with printf, a builtin, so the kill path still
-// starts no process. It cannot cover a hook that does not start at all before
-// Copilot's own deadline; Copilot then allows the call whatever this says.
+// starts no process. The reason names the gate and says whether it was killed
+// (143) or failed; the name is JSON-encoded and then single-quoted, so a name
+// with quotes or a newline cannot break out of either. A script that exits 0
+// has answered, whatever it printed: an empty answer allows, and only the
+// client decides what an unparseable one means. The flag cannot cover a hook
+// that does not start at all before Copilot's own deadline; Copilot then
+// allows the call whatever this says.
 func HookCommand(scriptPath string, timeoutSec int, failClosed bool) string {
 	deadline := max(1, timeoutSec-2)
 	fail, ok := "exit 0", `[ $r = 0 ] && cat "$o"`
 	if failClosed {
 		name := strings.TrimSuffix(filepath.Base(scriptPath), filepath.Ext(scriptPath))
-		deny, _ := json.Marshal(map[string]string{"permissionDecision": "deny",
-			"permissionDecisionReason": name + " svarte ikke innen fristen, så kallet er stoppet"})
-		fail = "printf '%s\\n' " + shellQuote(string(deny)) + "; exit 0"
-		ok = `if [ $r = 0 ]; then cat "$o"; else ` + strings.TrimSuffix(fail, "; exit 0") + "; fi"
+		deny := func(why string) string {
+			j, _ := json.Marshal(map[string]string{"permissionDecision": "deny",
+				"permissionDecisionReason": name + " " + why + ", så kallet er stoppet"})
+			return "printf '%s\\n' " + shellQuote(string(j))
+		}
+		fail = deny("feilet") + "; exit 0"
+		ok = `if [ $r = 0 ]; then cat "$o"; elif [ $r = 143 ]; then ` + deny("svarte ikke innen fristen") + "; else " + deny("feilet") + "; fi"
 	}
 	return fmt.Sprintf("command -v python3 >/dev/null 2>&1 || { %[3]s; }; "+
 		"o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; %[3]s; }; exec 3<&0 4>&2 2>/dev/null; "+

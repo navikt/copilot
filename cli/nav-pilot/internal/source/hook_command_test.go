@@ -1,6 +1,7 @@
 package source
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -131,28 +132,65 @@ func TestHookCommandCleansUpAfterKill(t *testing.T) {
 	emptyEventually(t, tmp)
 }
 
-// A gate marked failClosed denies when it is killed or fails, and still passes
-// on a clean answer, an empty one included. Without the flag the same cases
-// allow (TestHookCommandCleansUpAfterKill, TestHookCommandForwardsStderr).
+// A gate marked failClosed denies when it is killed or fails, with a reason
+// that says which, and still passes on a clean answer, an empty one included.
+// Without the flag the same cases allow (TestHookCommandCleansUpAfterKill,
+// TestHookCommandForwardsStderr).
 func TestHookCommandFailClosed(t *testing.T) {
-	deny := `{"permissionDecision":"deny","permissionDecisionReason":"gate svarte ikke innen fristen, så kallet er stoppet"}`
-	for name, c := range map[string]struct{ body, want string }{
-		"killed": {"import time\ntime.sleep(30)\n", deny},
-		"failed": {"import sys\nprint('allow')\nsys.exit(1)\n", deny},
-		"answer": {"print('ok')\n", "ok"},
-		"silent": {"pass\n", ""},
+	deny := func(why string) string {
+		return `{"permissionDecision":"deny","permissionDecisionReason":"gate ` + why + `, så kallet er stoppet"}`
+	}
+	// Only the killed case wants a short deadline; the others get a long one,
+	// so a python3 that is slow to start under load is not killed instead.
+	for name, c := range map[string]struct {
+		body, want string
+		timeout    int
+	}{
+		"killed": {"import time\ntime.sleep(30)\n", deny("svarte ikke innen fristen"), 3},
+		"failed": {"import sys\nprint('allow')\nsys.exit(1)\n", deny("feilet"), 20},
+		"answer": {"print('ok')\n", "ok", 20},
+		"silent": {"pass\n", "", 20},
 	} {
-		out, _, tmp := runHook(t, c.body, 3, true)
+		out, _, tmp := runHook(t, c.body, c.timeout, true)
 		if got := strings.TrimSpace(out); got != c.want {
 			t.Errorf("%s: stdout %q, want %q", name, got, c.want)
 		}
 		emptyEventually(t, tmp)
 	}
-	// No python3 at all: the command -v guard denies too.
-	cmd := exec.Command("/bin/sh", "-c", HookCommand("gate.py", 3, true))
+	// No python3 at all, or no temp directory: the guards deny too.
+	for name, env := range map[string][]string{
+		"no python3": {"PATH=/nonexistent"},
+		"no mktemp":  {"PATH=" + os.Getenv("PATH"), "TMPDIR=/nonexistent"},
+	} {
+		cmd := exec.Command("/bin/sh", "-c", HookCommand("gate.py", 3, true))
+		cmd.Env = env
+		if out, err := cmd.Output(); err != nil || strings.TrimSpace(string(out)) != deny("feilet") {
+			t.Errorf("%s: %v, stdout %q", name, err, out)
+		}
+	}
+}
+
+// The gate's name lands in the deny reason, so a name with shell and JSON
+// metacharacters must neither run anything nor break the JSON.
+func TestHookCommandFailClosedQuotesTheName(t *testing.T) {
+	dir := t.TempDir()
+	name := "it's \"a\" $(touch pwned) `id`\nx"
+	cmd := exec.Command("/bin/sh", "-c", HookCommand(filepath.Join(dir, name+".py"), 3, true))
+	cmd.Dir = dir
 	cmd.Env = []string{"PATH=/nonexistent"}
-	if out, err := cmd.Output(); err != nil || strings.TrimSpace(string(out)) != deny {
-		t.Errorf("no python3: %v, stdout %q", err, out)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct{ PermissionDecision, PermissionDecisionReason string }
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("not JSON: %v: %q", err, out)
+	}
+	if got.PermissionDecision != "deny" || !strings.HasPrefix(got.PermissionDecisionReason, name+" ") {
+		t.Errorf("got %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "pwned")); err == nil {
+		t.Error("the name's $(…) ran")
 	}
 }
 

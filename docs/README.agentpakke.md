@@ -48,11 +48,13 @@ Som standard slipper kallet gjennom når en hook ikke svarer: `python3` mangler,
 {"matcher": "bash", "timeoutSec": 5, "failClosed": true}
 ```
 
-Da nekter porten kallet i de samme tilfellene, med begrunnelsen «`<navn>` svarte ikke innen fristen, så kallet er stoppet». Modellen får begrunnelsen og kan si den videre. Det gjelder i Copilot CLI og i OpenCode.
+Da nekter porten kallet i de samme tilfellene. Begrunnelsen er «`<navn>` feilet, så kallet er stoppet» eller «`<navn>` svarte ikke innen fristen, så kallet er stoppet». Modellen får begrunnelsen og kan si den videre. Det gjelder i Copilot CLI og i OpenCode.
 
-Bruk det bare for porter som virkelig må holde. Prisen er at en treg maskin stopper agenten: når `python3` bruker for lang tid på å starte, blir hvert kall porten ser på, nektet til maskinen har roet seg. En kostnadskontroll eller et dytt, som `gh-poll-gate`, skal ikke ha `failClosed`.
+Et skript som avslutter med 0, har svart. Da gjelder det skriptet skrev, også når det er tomt: et tomt svar slipper kallet gjennom. Skal porten nekte, må skriptet selv skrive `deny`-svaret.
 
-Én grense gjenstår i Copilot CLI. Rekker ikke hook-prosessen engang å starte før Copilots egen frist (`timeoutSec`), slipper Copilot kallet gjennom uansett hva hooken ville ha svart. nav-pilot kan ikke tette det hullet. I OpenCode har broen selv fristen, og der nektes kallet også da.
+Bruk det bare for porter som virkelig må holde. Prisen er at en treg maskin stopper agenten: når `python3` bruker for lang tid på å starte, nekter porten hvert kall den ser, til maskinen har roet seg. En kostnadskontroll eller et dytt, som `gh-poll-gate`, skal ikke ha `failClosed`.
+
+To grenser gjenstår. Rekker ikke hook-prosessen å skrive svaret før Copilots egen frist (`timeoutSec`), slipper Copilot CLI kallet gjennom uansett hva hooken ville ha svart. nav-pilot kan ikke tette det hullet. I OpenCode har broen selv fristen, og der nekter den kallet også da. Og en nav-pilot som er eldre enn `failClosed`, skriver oppføringen på nytt uten flagget når den kjører `nav-pilot install --repo`. Alle som installerer pakka, må derfor ha en nav-pilot som kjenner feltet.
 
 Extensions fikk en type fordi et team som hadde skrevet en, ikke kunne distribuere den: nav-pilot kjente ikke formen, så den ble hverken installert, synket eller eksportert ([#572](https://github.com/navikt/copilot/issues/572)).
 
