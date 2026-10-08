@@ -448,11 +448,11 @@ func cmdDoctor() error {
 	fmt.Println()
 
 	// 3b'. Subagent model overrides in ~/.copilot/settings.json. Read-only.
-	fmt.Printf("[i] Subagent model overrides\n")
 	if pinScope != nil {
+		fmt.Printf("[i] Subagent model overrides\n")
 		reportSubagentOverrides(os.Stdout, filepath.Join(pinScope.RootDir, "settings.json"), pins, catalogue)
+		fmt.Println()
 	}
-	fmt.Println()
 
 	// 3c. Local model. Config only; alpha local doctor runs the probes.
 	fmt.Printf("[i] Local model\n")

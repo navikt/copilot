@@ -33,7 +33,9 @@ func TestReportSubagentOverrides(t *testing.T) {
 		{"unknown model", `{"subagents":{"agents":{"security-champion-agent":{"model":"gpt-5.4-nano"}}}}`, catalogue,
 			[]string{`"gpt-5.4-nano", which Copilot does not know`, "silently runs it on the parent model"}},
 		{"unknown model, no catalogue", `{"subagents":{"agents":{"anything":{"model":"fantasimodell-9"}}}}`, nil,
-			[]string{"@anything", "does not know"}},
+			[]string{"@anything", "was not checked"}},
+		{"bom", "\xef\xbb\xbf" + `{"subagents":{"agents":{"security-champion-agent":{"model":"inherit"}}}}`, catalogue,
+			[]string{"overrides it to inherit"}},
 		{"filename key has no effect", `{"subagents":{"agents":{"security-champion":{"model":"inherit"}}}}`, catalogue, nil},
 		{"jsonc", `{
   // personal tweaks
@@ -61,6 +63,9 @@ func TestReportSubagentOverrides(t *testing.T) {
 					t.Errorf("want the clean line, got:\n%s", got)
 				}
 				return
+			}
+			if strings.Contains(got, "does not know") && tt.catalogue == nil {
+				t.Errorf("no catalogue must never claim a model is unknown:\n%s", got)
 			}
 			for _, w := range tt.want {
 				if !strings.Contains(got, w) {

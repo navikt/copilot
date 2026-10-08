@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -47,7 +48,7 @@ func readSubagentModels(path string) (map[string]string, error) {
 			} `json:"agents"`
 		} `json:"subagents"`
 	}
-	if err := json.Unmarshal(stripJSONC(data), &s); err != nil {
+	if err := json.Unmarshal(stripJSONC(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))), &s); err != nil {
 		return nil, err
 	}
 	out := map[string]string{}
@@ -108,14 +109,17 @@ func stripJSONC(in []byte) []byte {
 
 // subagentOverrideWarnings compares each pinned agent with its override.
 // catalogue is the client's model list; nil means it could not be read, and
-// nav-pilot's own model list is used instead.
+// then an override that is not inherit and not a pinned agent's other model is
+// reported as unchecked, never as unknown: nav-pilot's own list comes from
+// models.dev and is not this account's catalogue.
+//
+// Assumption, not measured: Copilot resolves a display label ("Claude Opus
+// 5.5") in settings.json the way it does in frontmatter, so labels and ids are
+// compared alike.
 func subagentOverrideWarnings(pins []pinnedModel, overrides map[string]string, catalogue []string) []subagentWarning {
 	known := func(model string) bool {
 		if strings.EqualFold(model, "auto") {
 			return true // resolved client-side, never in the catalogue
-		}
-		if catalogue == nil {
-			return domain.CopilotModelIDForLabel(model) != ""
 		}
 		id := domain.CopilotModelIDForLabel(model)
 		if id == "" {
@@ -147,13 +151,18 @@ func subagentOverrideWarnings(pins []pinnedModel, overrides map[string]string, c
 			agent = "@" + p.Agent // what the user types; the key is the frontmatter name
 		}
 		var msg string
+		unchecked := false
 		switch {
 		case strings.EqualFold(o, "inherit"):
 			if isPinned {
 				msg = fmt.Sprintf("%s is pinned to %s, but %s overrides it to inherit for subagents; delegated runs use the parent model.",
 					agent, p.Label, subagentSettingsLabel)
 			}
-		case !known(o):
+		case catalogue == nil && !isPinned:
+			msg = fmt.Sprintf("%s sets the subagent model for %s to %q; the client's model list could not be read, so it was not checked.",
+				subagentSettingsLabel, agent, o)
+			unchecked = true
+		case catalogue != nil && !known(o):
 			msg = fmt.Sprintf("%s sets the subagent model for %s to %q, which Copilot does not know; the CLI silently runs it on the parent model and still labels it %q.",
 				subagentSettingsLabel, agent, o, o)
 		case isPinned && !overrideMatchesPin(o, p):
@@ -161,13 +170,16 @@ func subagentOverrideWarnings(pins []pinnedModel, overrides map[string]string, c
 				agent, p.Label, subagentSettingsLabel, o, o)
 		}
 		if msg != "" {
-			warns = append(warns, subagentWarning{Key: k, Msg: msg})
+			warns = append(warns, subagentWarning{Key: k, Msg: msg, Unchecked: unchecked})
 		}
 	}
 	return warns
 }
 
-type subagentWarning struct{ Key, Msg string }
+type subagentWarning struct {
+	Key, Msg  string
+	Unchecked bool // could not be checked; not a warning
+}
 
 func overrideMatchesPin(override string, p pinnedModel) bool {
 	if strings.EqualFold(override, p.Label) {
@@ -191,6 +203,10 @@ func reportSubagentOverrides(w io.Writer, path string, pins []pinnedModel, catal
 		return
 	}
 	for _, wn := range warns {
+		if wn.Unchecked {
+			fmt.Fprintf(w, "    %s %s\n", dim("-"), wn.Msg)
+			continue
+		}
 		fmt.Fprintf(w, "    %s %s\n", yellow("⚠"), wn.Msg)
 		fmt.Fprintf(w, "      %s Remove subagents.agents.%s.model from %s, or set it to the agent's own model.\n",
 			yellow("Solution:"), wn.Key, subagentSettingsLabel)

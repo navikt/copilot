@@ -45,8 +45,9 @@ COPILOT_HOME=$S/home COPILOT_GITHUB_TOKEN=$token "$to" 400 copilot \
   --agent probe-parent --model "$PARENT_MODEL" \
   -p "start the subagent probe-child" --allow-all-tools \
   --log-level debug --log-dir "$S/logs" > "$S/out" 2>&1
+rc=$?
 
-echo "copilot $(copilot --version 2>/dev/null | head -1)"
+echo "copilot $(COPILOT_HOME=$S/home copilot --version 2>/dev/null | head -1)"
 grep -h 'AI Credits' "$S/out"
 models=$(grep -rhoE 'turn tool surface resolved \{"model":"[^"]*"' "$S/logs" 2>/dev/null |
   sed 's/.*"model":"//;s/"$//' | sort | uniq -c)
@@ -54,12 +55,16 @@ echo "turns per model:"
 echo "${models:-  (none)}"
 grep -rh 'did not commit a new selection' "$S/logs" 2>/dev/null | sed 's/^.*\[WARNING\]/[WARNING]/'
 
+if [ "$rc" = 124 ]; then
+  echo "canary: copilot timed out after 400 s; probe incomplete" >&2
+  exit 2
+fi
 if [ -z "$models" ]; then
   echo "canary: no turns in the debug log; could not run" >&2
   tail -20 "$S/out" >&2
   exit 2
 fi
-if ! grep -qw -- "$CHILD_MODEL" <<<"$models"; then
+if ! grep -qE "^ *[0-9]+ ${CHILD_MODEL//./\\.}\$" <<<"$models"; then
   echo "canary: FAIL, probe-child pinned to $CHILD_MODEL did not run on it" >&2
   exit 1
 fi
