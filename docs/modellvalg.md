@@ -8,7 +8,7 @@ Kortversjonen for utviklere, med målinger og priser, står på [ki-utvikling.na
 
 De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` har det ikke, men agentpakken bruker GPT-6 Sol når brukeren ikke har valgt en modell. En brukerpinne vinner fortsatt over pakkas standard. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
 
-**Pinnene under gjelder når agenten startes direkte.** Blir den startet som subagent av `@nav-pilot`, arver den modellen forelderen kjører på. Se [Pinner og delegering](#pinner-og-delegering).
+**Pinnene under gjelder også for subagenter fra Copilot CLI 1.0.94-3.** I 1.0.83-4 arvet en subagent forelderens modell. Målt på nytt 8. oktober 2026: subagenten kjører på pinnen sin. Se [Ny måling 8. oktober 2026](#ny-måling-8-oktober-2026-copilot-cli-1094-3).
 
 ### Agenter
 
@@ -877,7 +877,47 @@ Klientens egen konfigurasjon setter modell per subagent, uavhengig av hva modell
 
 Seks av agentene våre har et `name:` som ikke er filnavnet: `accessibility`, `aksel`, `kafka`, `research`, `rust` og `security-champion` heter alle `<navn>-agent` i frontmatteren. Den som setter opp dette fra agentens eget navn får ingen feilmelding, bare ingen effekt.
 
+> Begge funnene over gjelder 1.0.83-4. I 1.0.94-3 er de snudd: pinnen gjelder for subagenter, og nøkkelen er `name:`, ikke filnavnet. Se neste avsnitt.
+
 Nav-pilot skriver ikke klientkonfigurasjon i dag, men skal gjøre det: [beslutning 4.8](nav-pilot-benchmark-og-beslutninger-2026-08.md#48-nav-pilot-skriver-nøkler-den-selv-eier-og-tar-dem-tilbake) ble omgjort 8. september. Nøkler nav-pilot eier skrives og tas tilbake. Fire spørsmål om eierskap, reversering, formatering og synlighet står ubesvart, og ingen kode skrives før de har svar ([#500](https://github.com/navikt/copilot/issues/500)).
+
+### Ny måling 8. oktober 2026 (Copilot CLI 1.0.94-3)
+
+Spørsmålet var om `@code-review` og `@security-champion`, som er pinnet til Claude Opus 5.5, kjører på pinnen når `@nav-pilot` delegerer til dem fra en billigere modell. Råtall, prober og skript ligger i [`golden-baselines/2026-10-08-subagent-arv/`](golden-baselines/2026-10-08-subagent-arv/).
+
+**Oppsett.** En egen `COPILOT_HOME` i en midlertidig mappe med bare to agenter og en tom `settings.json`. Innlogging via `COPILOT_GITHUB_TOKEN`. Brukerens egen `~/.copilot` ble ikke rørt. Forelderen `probe-parent` startes med `--model gpt-6-luna` og blir bedt om å starte subagenten `probe-child` uten å nevne modell. Fila heter `probe-child.agent.md`, mens `name:` er `probe-child-agent`, så de to mulige nøklene kan skilles.
+
+**Hvordan modellen er lest av.** To uavhengige kilder per kjøring: linja `turn tool surface resolved {"model":...}` i debugloggen (én per modelltur), og etiketten `(model: ...)` som CLI-en viser for subagenten. Der de er uenige, er det debugloggen som teller (se D1–D2).
+
+| Kjøring | Pinne i `probe-child` | `subagents.agents` i `settings.json` | Modell i debugloggen (forelder + subagent) | Etikett | AI Credits |
+| ------- | --------------------- | ------------------------------------ | ------------------------------------------ | ------- | ---------- |
+| direkte | claude-opus-5.5 | – | claude-opus-5.5 (kun subagenten, startet direkte) | – | 12,19 |
+| A1 | claude-opus-5.5 | – | gpt-6-luna + **claude-opus-5.5** | claude-opus-5.5 | 10,59 |
+| B1–B3 | gpt-5.6-luna | – | gpt-6-luna + **gpt-5.6-luna** | gpt-5.6-luna | 0,36 / 0,11 / 0,11 |
+| C1–C2 | gpt-5.6-luna | `probe-child` (filnavnet) → gpt-5.4-nano | gpt-6-luna + gpt-5.6-luna | gpt-5.6-luna | 0,11 / 0,11 |
+| C3–C4 | gpt-5.6-luna | `probe-child` (filnavnet) → gpt-5.6-terra | gpt-6-luna + gpt-5.6-luna | gpt-5.6-luna | 0,11 / 0,11 |
+| D1–D2 | gpt-5.6-luna | `probe-child-agent` (`name:`) → gpt-5.4-nano | gpt-6-luna + **gpt-6-luna** | gpt-5.4-nano | 0,21 / 0,10 |
+| D3–D4 | gpt-5.6-luna | `probe-child-agent` (`name:`) → gpt-5.6-terra | gpt-6-luna + **gpt-5.6-terra** | gpt-5.6-terra | 2,89 / 0,33 |
+| E1–E2 | gpt-5.6-luna | `probe-child` (filnavnet) → `inherit` | gpt-6-luna + gpt-5.6-luna | gpt-5.6-luna | 0,11 / 0,11 |
+| E3–E4 | gpt-5.6-luna | `probe-child-agent` (`name:`) → `inherit` | gpt-6-luna + **gpt-6-luna** | gpt-6-luna | 0,10 / 0,10 |
+
+**Funn.**
+
+1. **Pinnen gjelder for subagenter.** En subagent med `model:` i frontmatteren kjører på pinnen, ikke på forelderens modell. Med Opus-pinnen er det målt én gang (A1), fordi én Opus-kjøring kostet over 10 credits. Mekanismen er bekreftet med en billig pinne i ni kjøringer (B, C, E1–E2). Dette er det motsatte av målingen 7. september på 1.0.83-4.
+2. **Overstyringen i `settings.json` virker, men nøkkelen er nå `name:` fra frontmatteren, ikke filnavnet.** Nøkkel på filnavnet ga ingen effekt i seks kjøringer (C1–C4, E1–E2). Nøkkel på `name:` overstyrte pinnen i fire av fire kjøringer med en tilgjengelig verdi (D3–D4, E3–E4). Også dette er snudd siden 1.0.83-4.
+3. **`inherit` fungerer** som dokumentert: subagenten kjører på forelderens modell (E3–E4).
+4. **En overstyring til en modell kontoen ikke har, faller stille tilbake til forelderens modell, ikke til pinnen.** I D1–D2 viste etiketten `gpt-5.4-nano`, mens debugloggen viser at turen gikk på gpt-6-luna, med advarselen `Model "gpt-5.4-nano" is not available` ([utdrag](golden-baselines/2026-10-08-subagent-arv/D1-fallback-warning.txt)). Etiketten kan altså ikke brukes som bevis alene.
+5. **Kredittene skiller modeller i denne versjonen.** Samme subagenttur kostet 10,59 på Opus 5.5 og 0,11 på GPT-5.6 Luna. Det er motsatt av målingen i neste avsnitt. Første kjøring med en ny modell er dyrere enn de neste (B1 0,36, D3 2,89), trolig fordi forespørselen skrives til hurtigbuffer første gang. Det er ikke undersøkt nærmere.
+
+**Hva det betyr for nav-pilot.** Med standard GPT-6 Sol eller Luna for `@nav-pilot` kjører en delegert `@code-review` på Opus 5.5 allerede i dag, uten konfigurasjon. Tre forbehold:
+
+- Det hviler på klientens oppførsel, som har snudd én gang mellom 1.0.83-4 og 1.0.94-3. En vakt bør derfor være en måling i `doctor` eller CI som fanger neste snuoperasjon, ikke en antakelse.
+- `security-champion` heter `security-champion-agent` i frontmatteren. En overstyring for den må bruke det navnet. Med 1.0.83-4-regelen måtte den bruke filnavnet. Den som skriver nøkkelen må vite hvilken CLI-versjon som leser den.
+- Brukeren kan selv ha satt `subagents.agents.<navn>.model` eller `inherit`, og det slår pinnen.
+
+OpenCode er ikke målt på nytt. Der setter frontmatterens `model:` modellen per agent også som subagent (se [#500](https://github.com/navikt/copilot/issues/500)).
+
+**Forbruk.** 27,75 AI Credits, over budsjettet på 15 og hard stopp på 25. Den direkte Opus-kjøringen (12,19) og A1 (10,59) tok 22,78 alene. Det var ikke ventet ut fra målingen 7. september, der Opus kostet det samme som Luna. Resten ble kjørt med billige modeller, og siste gruppe (D3–E4) presset summen over 25.
 
 ### AI-kreditter skiller ikke modeller
 

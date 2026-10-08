@@ -1,0 +1,18 @@
+run|ai_credits|turns_per_model_debuglog|subagent_label_export|fallback_warnings
+direct|12.19|1xclaude-opus-5.5 ||0
+A1|10.59|1xclaude-opus-5.5 1xgpt-6-luna |(model: claude-opus-5.5)|0
+B1|0.36|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+B2|0.11|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+B3|0.11|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+C1|0.11|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+C2|0.11|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+D1|0.21|2xgpt-6-luna |(model: gpt-5.4-nano)|1
+D2|0.1|2xgpt-6-luna |(model: gpt-5.4-nano)|1
+E1|0.11|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+E2|0.11|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+C3|0.11|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+C4|0.11|1xgpt-5.6-luna 1xgpt-6-luna |(model: gpt-5.6-luna)|0
+D3|2.89|1xgpt-5.6-terra 1xgpt-6-luna |(model: gpt-5.6-terra)|0
+D4|0.33|1xgpt-5.6-terra 1xgpt-6-luna |(model: gpt-5.6-terra)|0
+E3|0.1|2xgpt-6-luna |(model: gpt-6-luna)|0
+E4|0.1|2xgpt-6-luna |(model: gpt-6-luna)|0
