@@ -1311,7 +1311,8 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
+        "cli/nav-pilot/docs/opencode-hooks.md"
       ],
       "paritet": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
