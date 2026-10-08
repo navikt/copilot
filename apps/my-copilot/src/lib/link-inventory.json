@@ -154,6 +154,7 @@
     "anchors": {
       "delegeringsnivaer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"],
       "godkjent-for": ["docs/news/articles/lokale-modeller-i-nav-pilot.md"],
+      "ikke-malt": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
       "malt-decide": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/decide/page.tsx",

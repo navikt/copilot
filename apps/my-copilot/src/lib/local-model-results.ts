@@ -53,6 +53,25 @@ export const DELEGATION_RESULTS: ResultSet = {
   ],
 };
 
+/**
+ * Cost and time per delegation level as multiples of the cloud model alone, low–high
+ * across the measured cells. The prose in DELEGATION_RESULTS rounds these numbers.
+ * aggressive: dispatch re-probe 7, AI credits. balanced: same-day controls, cloud cost
+ * per cell (r4 1.57×, r6 1.49×, small 1.39×) and median time (2.5×, 1.6×, 1.7×).
+ */
+export type DelegationRange = {
+  level: string;
+  cost: [number, number];
+  time: [number, number];
+  measured: string;
+  source: string;
+};
+
+export const DELEGATION_RANGES: DelegationRange[] = [
+  { level: "aggressive", cost: [0.83, 2.1], time: [2.7, 3.6], measured: "2026-09-28", source: SOURCES.reprobe7 },
+  { level: "balanced", cost: [1.39, 1.57], time: [1.6, 2.5], measured: "2026-09-29", source: SOURCES.balanced },
+];
+
 export const WORKER_RESULTS: ResultSet = {
   measured: "2026-09-26",
   source: SOURCES.night2,

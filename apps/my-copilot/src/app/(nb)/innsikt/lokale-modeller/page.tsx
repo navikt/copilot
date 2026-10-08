@@ -13,9 +13,11 @@ import {
   modelCountRows,
   rejectedCountRows,
 } from "@/components/nav-pilot/local-model-tables";
+import { DelegationRangeChart, IntervalChart, ReportTimeline } from "@/components/nav-pilot/local-model-charts";
 import { PageHero } from "@/components/page-hero";
 import {
   DECIDE_RESULTS,
+  DELEGATION_RANGES,
   DELEGATION_RESULTS,
   GB64_MEASURED,
   MEASURED_MODEL,
@@ -23,7 +25,16 @@ import {
   WORKER_RESULTS,
   formatDate,
 } from "@/lib/local-model-results";
-import { FALLBACK_TABLE, MANIFEST_URL, getLocalModels, type LocalModel, type RejectedModel } from "@/lib/local-models";
+import {
+  FALLBACK_REPORTS,
+  FALLBACK_TABLE,
+  MANIFEST_URL,
+  getLocalModels,
+  getLocalReports,
+  type LocalModel,
+  type RejectedModel,
+  type ReportIndex,
+} from "@/lib/local-models";
 
 // "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
 
@@ -95,6 +106,7 @@ function ManifestSections({ table }: { table: Table }) {
             {barText(standard.bar)}
           </BodyShort>
         )}
+        <IntervalChart model={standard} />
       </Section>
 
       {live !== MEASURED_MODEL && (
@@ -118,6 +130,44 @@ function RejectedSection({ rejected }: { rejected: RejectedModel[] }) {
       <ClassCountsTable rows={rejectedCountRows(rejected)} />
     </Section>
   );
+}
+
+function ReportsSection({ index }: { index: ReportIndex }) {
+  return (
+    <Section id="rapporter" title="Rapporter">
+      <BodyLong>
+        Hver måling på denne siden har en rapport i navikt/mlx-workspace. Oversikten under hentes fra rapportlisten der
+        og oppdateres hver time.
+      </BodyLong>
+      <ReportTimeline index={index} listUrl={SOURCES.readme} />
+      {index.unmeasured.length > 0 && (
+        <VStack gap="space-8">
+          <LinkableHeading id="ikke-malt" size="small" level="3">
+            Ikke målt ennå
+          </LinkableHeading>
+          <BodyShort size="small" textColor="subtle">
+            Listen hentes fra navikt/mlx-workspace og er på engelsk.
+          </BodyShort>
+          <Bullets>
+            {index.unmeasured.slice(0, 5).map((u) => (
+              <li key={u.item}>
+                {u.item}. <span style={{ color: "var(--ax-text-neutral-subtle)" }}>{u.status}</span>
+              </li>
+            ))}
+          </Bullets>
+          <BodyShort size="small">
+            <a href={SOURCES.unmeasured} className={linkClass}>
+              Hele listen ({index.unmeasured.length} punkter)
+            </a>
+          </BodyShort>
+        </VStack>
+      )}
+    </Section>
+  );
+}
+
+async function LiveReportsSection() {
+  return <ReportsSection index={await getLocalReports()} />;
 }
 
 async function LiveRejectedSection() {
@@ -216,6 +266,7 @@ export default function LokaleModeller() {
                 tid og som regel flere AI-kreditter.
               </BodyLong>
               <ResultTable headers={["Nivå", "Resultat", "Vurdering"]} rows={DELEGATION_RESULTS.rows} />
+              <DelegationRangeChart ranges={DELEGATION_RANGES} />
               <BodyLong>Flere funn fra målingene, med Sonnet 5 som hovedagent:</BodyLong>
               <Bullets>
                 <li>
@@ -355,6 +406,10 @@ export default function LokaleModeller() {
 
             <Suspense fallback={<RejectedSection rejected={FALLBACK.rejected} />}>
               <LiveRejectedSection />
+            </Suspense>
+
+            <Suspense fallback={<ReportsSection index={FALLBACK_REPORTS} />}>
+              <LiveReportsSection />
             </Suspense>
 
             <Section id="metode" title="Maskinvare og metode">
