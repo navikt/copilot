@@ -2,11 +2,14 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"slices"
+	"syscall"
 	"testing"
+	"time"
 )
 
 // shortTempDir keeps socket paths under macOS's 104-byte limit.
@@ -106,5 +109,48 @@ func TestPidAlive(t *testing.T) {
 	}
 	if pidAlive(1 << 30) {
 		t.Error("nonexistent pid reported alive")
+	}
+}
+
+func TestIDESocketsHostileLockDir(t *testing.T) {
+	tmp := shortTempDir(t)
+	lockDir := t.TempDir()
+	alive := func(int) bool { return true }
+
+	sock := filepath.Join(tmp, "github-copilot-a", ".copilot-ide-1", "m.sock")
+	listenUnix(t, sock)
+	lock := ideLock{Scheme: "unix", SocketPath: sock, PID: 1}
+	for _, name := range []string{"a", "b", "c"} {
+		writeLock(t, lockDir, name, lock)
+	}
+	if err := os.Symlink("/dev/zero", filepath.Join(lockDir, "zero.lock")); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(lockDir, "fifo.lock"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	big := make([]byte, maxIDELockBytes+1)
+	if err := os.WriteFile(filepath.Join(lockDir, "big.lock"), big, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan []string, 1)
+	go func() { done <- ideSockets(lockDir, tmp, os.Getuid(), alive) }()
+	select {
+	case got := <-done:
+		if len(got) != 1 {
+			t.Fatalf("duplicate locks not collapsed: %q", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ideSockets hung on a hostile lock dir")
+	}
+
+	for i := range maxIDESockets + 2 {
+		s := filepath.Join(tmp, fmt.Sprintf("github-copilot-%d", i), ".copilot-ide-1", "m.sock")
+		listenUnix(t, s)
+		writeLock(t, lockDir, fmt.Sprintf("n%d", i), ideLock{Scheme: "unix", SocketPath: s, PID: 1})
+	}
+	if got := ideSockets(lockDir, tmp, os.Getuid(), alive); len(got) != maxIDESockets {
+		t.Errorf("got %d sockets, want the cap of %d", len(got), maxIDESockets)
 	}
 }

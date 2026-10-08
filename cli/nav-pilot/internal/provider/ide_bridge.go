@@ -3,9 +3,11 @@ package provider
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"syscall"
 )
 
@@ -40,19 +42,34 @@ func ideBridgeFlags() []string {
 	return flags
 }
 
+// Bounds on lockDir, which the agent can fill. A real lock is ~400 bytes.
+const (
+	maxIDELockEntries = 256
+	maxIDELockBytes   = 4096
+	maxIDESockets     = 8
+)
+
 // ideSockets returns the sockets of live IDE lock files in lockDir.
 func ideSockets(lockDir, tmpDir string, uid int, alive func(int) bool) []string {
 	tmp, err := filepath.EvalSymlinks(tmpDir)
 	if err != nil {
 		return nil
 	}
-	entries, _ := os.ReadDir(lockDir)
+	dir, err := os.Open(lockDir)
+	if err != nil {
+		return nil
+	}
+	entries, _ := dir.ReadDir(maxIDELockEntries)
+	dir.Close()
 	var socks []string
 	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".lock" {
+		if len(socks) == maxIDESockets {
+			break
+		}
+		if !e.Type().IsRegular() || filepath.Ext(e.Name()) != ".lock" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(lockDir, e.Name()))
+		data, err := readIDELock(filepath.Join(lockDir, e.Name()))
 		if err != nil {
 			continue
 		}
@@ -75,9 +92,32 @@ func ideSockets(lockDir, tmpDir string, uid int, alive func(int) bool) []string 
 		if st, ok := fi.Sys().(*syscall.Stat_t); !ok || int(st.Uid) != uid {
 			continue
 		}
-		socks = append(socks, sock)
+		if !slices.Contains(socks, sock) {
+			socks = append(socks, sock)
+		}
 	}
 	return socks
+}
+
+// readIDELock reads a lock file without following a link or blocking on a
+// fifo, and refuses anything but a small regular file.
+func readIDELock(path string) ([]byte, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	if fi, err := f.Stat(); err != nil || !fi.Mode().IsRegular() {
+		return nil, errors.New("not a regular file")
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxIDELockBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxIDELockBytes {
+		return nil, errors.New("lock file too large")
+	}
+	return data, nil
 }
 
 // pidAlive reports whether pid is running. EPERM counts as running.
