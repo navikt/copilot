@@ -17,6 +17,8 @@ setup() {
 }
 
 teardown() {
+  # Fake daemons from the reaper test, if the reaper failed to stop them.
+  [[ -f "$SHIM/daemon-pids" ]] && xargs kill 2>/dev/null <"$SHIM/daemon-pids"
   rm -rf "$SHIM"
 }
 
@@ -618,8 +620,7 @@ run_suite() {
 #!/bin/bash
 echo "\$GRADLE_OPTS" >>"$SHIM/gradle-opts"
 base="\$(grep -o 'daemon.registry.base=[^ ]*' <<<"\$GRADLE_OPTS" | cut -d= -f2)"
-mkdir -p "\$base" && cd "\$base" && (exec -a "GradleDaemon 8.14.5" sleep 300) >/dev/null 2>&1 &
-echo \$! >>"$SHIM/daemon-pids"
+mkdir -p "\$base" && cd "\$base" && (echo \$BASHPID >>"$SHIM/daemon-pids"; exec -a "GradleDaemon 8.14.5" sleep 300) >/dev/null 2>&1 &
 exit 0
 EOF
   chmod +x "$SHIM/gradle"

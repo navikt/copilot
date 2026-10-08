@@ -608,6 +608,9 @@ reap_daemons() {
     if ps -o command= -p "$pid" | grep -qF "$id" ||
       lsof -p "$pid" -Fn 2>/dev/null | grep -qF "$id"; then
       kill "$pid" 2>/dev/null
+      # SIGTERM runs JVM shutdown hooks: wait up to 5 s, then SIGKILL.
+      for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+      kill -9 "$pid" 2>/dev/null
     fi
   done
 }
