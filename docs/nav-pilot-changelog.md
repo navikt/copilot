@@ -7,8 +7,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### `@rust` bytter til Claude Haiku 5.5
 
 - **Ny modell**: `@rust` kjører på Claude Haiku 5.5 i stedet for GPT-6 Luna. GPT-6 Luna er reserve. `@kafka` blir på GPT-6 Luna.
-- **Billigere, ikke bedre**: Begge modellene besto alle Rust-oppgavene i målingen. Haiku på Low brukte 0,87–1,02 credits per kjøring mot 1,11–1,58 for Luna. Oppgavene var små, så målingen sier lite om kvalitet.
-- **Bruk Low**: Effort settes i modellvelgeren, ikke i agentfilen.
+- **Billigere, ikke bedre**: Begge modellene besto alle Rust-oppgavene i målingen. Haiku på Low brukte 0,87–1,02 credits per kjøring mot 1,11–1,58 for Luna Medium. Oppgavene var små, så målingen sier lite om kvalitet.
+- **Bruk Low**: Innsatsnivået settes i modellvelgeren, ikke i agentfilen.
 - **Gjelder etter neste installasjon**: Kjør `nav-pilot sync --apply` for å få den nye pinnen. Pinnen gjelder bare når `@rust` startes direkte.
 
 ### Hook-porter får to sekunders margin før Copilot gir opp
@@ -166,6 +166,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Riktig navn**: `nav-pilot alpha local setup` kalte `mlx_lm.server` på port 8080 for llama-server. Nå kjenner den igjen serveren på `Server`-headeren.
 - **Riktig modell**: `mlx_lm.server` lister alle MLX-modellene i Hugging Face-cachen og laster den en forespørsel ber om. setup foretrakk den første Qwen3.6-35B-modellen i lista, som kunne være det vanlige 4-bit-bygget. Nå kommer bygget fra nav-pilots egen modelliste først (OptiQ), og setup sier fra om at modellen kan være en annen enn den serveren ble startet med (#1102).
+
 ### opencode spørres om versjonen én gang
 
 - **Svaret lagres**: Før hver opencode-økt kjørte nav-pilot `opencode --version`, som tar et kvart sekund. Nå lagres svaret i `~/.nav-pilot/client-versions.json`, og nav-pilot spør igjen først når programfila er byttet ut, for eksempel etter en oppgradering. Det samme gjelder `copilot --version`, som nav-pilot bruker for å se om copilot egentlig er cplt.
