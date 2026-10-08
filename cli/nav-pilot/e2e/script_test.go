@@ -188,6 +188,11 @@ func cmdFakeBin(ts *testscript.TestScript, neg bool, args []string) {
 		if name == "cplt" {
 			version = "cplt 2026.09.24-192459-38642b4"
 		}
+		if name == "opencode" {
+			// An opencode 1 version: an unreadable one counts as opencode 2,
+			// which needs a newer cplt than the fake reports.
+			version = "1.14.0"
+		}
 		script := "#!/bin/sh\n" +
 			"printf '%s\\n' \"$@\" --- >> '" + filepath.Join(dir, name+".log") + "'\n" +
 			"[ -f '" + filepath.Join(dir, name+".sh") + "' ] && . '" + filepath.Join(dir, name+".sh") + "'\n" +
