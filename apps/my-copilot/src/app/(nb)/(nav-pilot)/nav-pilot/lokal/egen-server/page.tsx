@@ -117,8 +117,11 @@ export default function EgenServer() {
           </BodyLong>
           <BodyLong>
             Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er den GGUF-varianten som ligger
-            nærmest modellen vi har målt på Mac. <code className={code}>setup</code> finner også LM Studio og vLLM, men
-            dem har vi ikke prøvd.
+            nærmest modellen vi har målt på Mac. Siste tall for modellene står på{" "}
+            <NextLink href="/innsikt/lokale-modeller#modeller-per-minne" className={linkClass}>
+              Lokale modeller
+            </NextLink>
+            . <code className={code}>setup</code> finner også LM Studio og vLLM, men dem har vi ikke prøvd.
           </BodyLong>
           <Box background="warning-soft" padding="space-16" borderRadius="8">
             <VStack gap="space-8">

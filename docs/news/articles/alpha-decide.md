@@ -12,6 +12,8 @@ tags:
   - alpha
 ---
 
+**Latest numbers:** The figures below are from when this was written. Current measurements are on [Lokale modeller](https://ki-utvikling.nav.no/innsikt/lokale-modeller#malt-decide), in Norwegian.
+
 `nav-pilot` is the command-line tool we build for developers at Nav, Norway's labour and welfare administration. `nav-pilot alpha decide` asks a local model (MLX on Apple Silicon) a multiple-choice question and reads the answer as probabilities over the options, from one token. No text is generated. A warm call takes about 0.35–0.45 seconds, runs offline and uses no cloud credits, so the question and the evidence you pass, often code and diffs, stay on your machine. The idea comes from TypeSafe AI, who [launched Jev on 15 September 2026](https://typesafe.ai/blog/introducing-system-one-models-and-jev). `decide` borrows the pattern for scripts and git hooks.
 
 ## Example
