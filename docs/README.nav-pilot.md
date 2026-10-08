@@ -382,6 +382,31 @@ en `config.toml` uten `client` betyr `copilot`. Copilot CLI er fortsatt fullt st
 
 En modell du velger med config eller `--model`, vinner over agentpakkas standard.
 
+### Modellen til en subagent (Copilot CLI)
+
+Copilot CLI lar `~/.copilot/settings.json` velge modellen en agent bruker når en annen agent
+starter den som subagent, under `subagents.agents.<navn>.model`. Nøkkelen er `name:` i agentfila,
+ikke filnavnet. Et filnavn som nøkkel har ingen virkning (målt 8. oktober 2026).
+Innstillingen vinner over `model:` i agentfila. Står den til `inherit`, kjører for eksempel
+`@security-champion` på modellen til agenten som delegerte, og ikke på Claude Opus 5.5.
+Står det en modell Copilot ikke kjenner, bruker Copilot CLI modellen til agenten som
+delegerte, men viser fortsatt navnet du skrev.
+
+`nav-pilot doctor` sier fra i begge tilfellene for agentene i `~/.copilot`, men ikke for agenter installert i repoet. Den leser fila og endrer den aldri, og kommentarer
+i fila går fint. Kan den ikke lese fila, sier den det og fortsetter:
+
+```text
+[i] Subagent model overrides
+    ⚠ @security-champion is pinned to Claude Opus 5.5, but ~/.copilot/settings.json overrides it to inherit for subagents; delegated runs use the parent model.
+      Solution: Remove subagents.agents.security-champion-agent.model from ~/.copilot/settings.json, or set it to the agent's own model.
+```
+
+`mise run canary:subagent-pin` sjekker om Copilot CLI fortsatt bruker modellen i agentfila når agenten
+kjører som subagent. Sjekken bruker en egen, midlertidig `COPILOT_HOME` og koster 0,1–0,5 AI credits.
+Workflowen `subagent pin canary` kjører den samme sjekken. Den åpner eller oppdaterer en sak
+med etiketten `subagent-pin-canary` når sjekken feiler.
+Den ukentlige kjøringen er av til repovariabelen `SUBAGENT_PIN_CANARY` er `true`.
+
 > **nav-pilot krever sandkassen cplt.** nav-pilot kjører klienten via
 > `cplt --agent <klient>`. Agenten kan da lese og skrive prosjektfiler, men når ikke
 > SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. Mangler

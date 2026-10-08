@@ -444,8 +444,15 @@ func cmdDoctor() error {
 	// and the picker is generated from a global catalogue (#717). Warn-only,
 	// and an unanswerable question says so.
 	fmt.Printf("[i] Model pins\n")
-	reportModelPins()
+	pinScope, pins, catalogue := reportModelPins()
 	fmt.Println()
+
+	// 3b'. Subagent model overrides in ~/.copilot/settings.json. Read-only.
+	if pinScope != nil {
+		fmt.Printf("[i] Subagent model overrides\n")
+		reportSubagentOverrides(os.Stdout, filepath.Join(pinScope.RootDir, "settings.json"), pins, catalogue)
+		fmt.Println()
+	}
 
 	// 3c. Local model. Config only; alpha local doctor runs the probes.
 	fmt.Printf("[i] Local model\n")
