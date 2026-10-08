@@ -1,6 +1,6 @@
 import { VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
-import type { LocalModel } from "@/lib/local-models";
+import type { Bar, ClassVerdict, LocalModel, RejectedModel } from "@/lib/local-models";
 import { HeaderRow } from "@/components/nav-pilot/doc-page";
 import type { ResultRow } from "@/lib/local-model-results";
 
@@ -148,6 +148,88 @@ export function TrustedClassesTable({ models, stack }: { models: LocalModel[]; s
       </Table>
     </div>
   );
+}
+
+function CountLine({ mode, k, n, verdict }: { mode: string; k: number; n: number; verdict: string }) {
+  if (verdict === "trusted") {
+    return (
+      <span>
+        {mode} <strong>{`${k}\u00a0av\u00a0${n}`} ✓ godkjent</strong>
+      </span>
+    );
+  }
+  return <span style={subtle}>{`${mode} ${k}\u00a0av\u00a0${n}`}</span>;
+}
+
+// Only the modes with runs; a stacked card keeps the first line next to the column label.
+function Counts({ c }: { c?: ClassVerdict }) {
+  const lines = [
+    c?.delegate_n ? <CountLine key="d" mode="delegert" k={c.delegate_k} n={c.delegate_n} verdict={c.delegate} /> : null,
+    c?.local_n ? <CountLine key="l" mode="lokalt" k={c.local_k} n={c.local_n} verdict={c.local} /> : null,
+  ].filter(Boolean);
+  if (!lines.length) return <span style={subtle}>ikke målt</span>;
+  return lines.flatMap((l, i) => (i ? [<br key={i} />, l] : [l]));
+}
+
+type CountRow = { key: string; name: React.ReactNode; classes: Record<string, ClassVerdict> };
+
+/**
+ * Passed runs of all runs per task type, for delegation and for a fully local
+ * session. A row per model; stacks into cards below 640px.
+ */
+export function ClassCountsTable({ rows }: { rows: CountRow[] }) {
+  const ids = [...new Set(rows.flatMap((r) => Object.keys(r.classes)))];
+  const label = (id: string) => classLabel(id).replace(/^./, (c) => c.toUpperCase());
+  return (
+    <div className="overflow-x-auto">
+      <Table size="small" className="table-stack w-full" role="table">
+        <HeaderRow stack cells={["Modell", ...ids.map(label)]} />
+        <TableBody role="rowgroup">
+          {rows.map((r) => (
+            <TableRow role="row" key={r.key}>
+              <TableDataCell role="cell">{r.name}</TableDataCell>
+              {ids.map((id) => {
+                const c = r.classes[id];
+                return (
+                  <TableDataCell role="cell" key={id} data-label={label(id)}>
+                    <Counts c={c} />
+                  </TableDataCell>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+export const modelCountRows = (models: LocalModel[]): CountRow[] =>
+  models.map((m) => ({
+    key: m.id,
+    name: <strong className="whitespace-nowrap">{modelName(m)}</strong>,
+    classes: m.classes,
+  }));
+
+export const rejectedCountRows = (rejected: RejectedModel[]): CountRow[] =>
+  rejected.map((m) => ({
+    key: m.model,
+    name: (
+      <VStack gap="space-4">
+        <strong className="whitespace-nowrap">{m.model.split("/").pop()}</strong>
+        <span className="text-sm" style={subtle}>
+          {m.replaced_by ? `erstattet av ${m.replaced_by}` : "ingen oppgavetype nådde kravet"}
+        </span>
+      </VStack>
+    ),
+    classes: m.classes,
+  }));
+
+const pct = (x: number) => `${Math.round(x * 100)} %`;
+
+/** The bar behind «godkjent», in one sentence. */
+export function barText(bar: Bar) {
+  return `En oppgavetype blir godkjent når modellen er målt i minst ${bar.min_runs} kjøringer på minst ${bar.min_tasks} ulike oppgaver, og vi med ${pct(bar.confidence)} sikkerhet kan si at den lykkes minst ${pct(bar.x_caught)} så ofte som skymodellen. For delegering må det i tillegg lønne seg i kostnad. Der en feil ikke blir oppdaget, som i svar og forklaringer, er kravet ${pct(bar.x_silent)}, og det krever så mange kjøringer uten én feil at en modell kan mangle noen få selv om alle hittil har bestått.`;
 }
 
 // Measured results per task type: task, result and verdict, stacked on narrow screens.

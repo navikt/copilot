@@ -8,15 +8,22 @@
  * rendered as text, never as HTML.
  */
 import fallback from "./local-models.json";
-import { MANIFEST_URL, buildTable, type LocalModelTable } from "./local-models-manifest";
+import { CAPABILITIES_URL, MANIFEST_URL, buildTable, type LocalModelTable } from "./local-models-manifest";
 
 export { MANIFEST_URL };
 
-export type { LocalModel } from "./local-models-manifest";
+export type { LocalModel, RejectedModel, ClassVerdict, Bar } from "./local-models-manifest";
 
 const TIMEOUT_MS = 3000;
 
 export const FALLBACK_TABLE: LocalModelTable = fallback;
+
+/** One file from navikt/mlx-workspace, cached for an hour. Throws on timeout or a non-200 answer. */
+async function fetchJson(url: string): Promise<{ body: unknown; date: string | null }> {
+  const res = await fetch(url, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  return { body: await res.json(), date: res.headers.get("date") };
+}
 
 /**
  * fetchedAt is when the live manifest was read, or null for the checked-in copy.
@@ -25,14 +32,10 @@ export const FALLBACK_TABLE: LocalModelTable = fallback;
  */
 export async function getLocalModels(): Promise<LocalModelTable & { fetchedAt: string | null }> {
   try {
-    const res = await fetch(MANIFEST_URL, {
-      next: { revalidate: 3600 },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const [manifest, capabilities] = await Promise.all([fetchJson(MANIFEST_URL), fetchJson(CAPABILITIES_URL)]);
     return {
-      ...buildTable(await res.json()),
-      fetchedAt: new Date(res.headers.get("date") ?? Date.now()).toISOString(),
+      ...buildTable(manifest.body, capabilities.body),
+      fetchedAt: new Date(manifest.date ?? Date.now()).toISOString(),
     };
   } catch (err) {
     console.error(`[local-models] using the checked-in fallback, manifest unavailable: ${String(err)}`);

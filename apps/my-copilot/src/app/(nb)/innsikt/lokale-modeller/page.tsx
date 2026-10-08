@@ -5,7 +5,14 @@ import { Suspense } from "react";
 import { LinkableHeading } from "@/components/linkable-heading";
 import MetricCard from "@/components/metric-card";
 import { Bullets, code, linkClass } from "@/components/nav-pilot/doc-page";
-import { LocalModelsTable, ResultTable, TrustedClassesTable } from "@/components/nav-pilot/local-model-tables";
+import {
+  ClassCountsTable,
+  LocalModelsTable,
+  ResultTable,
+  barText,
+  modelCountRows,
+  rejectedCountRows,
+} from "@/components/nav-pilot/local-model-tables";
 import { PageHero } from "@/components/page-hero";
 import {
   DECIDE_RESULTS,
@@ -16,7 +23,7 @@ import {
   WORKER_RESULTS,
   formatDate,
 } from "@/lib/local-model-results";
-import { FALLBACK_TABLE, MANIFEST_URL, getLocalModels, type LocalModel } from "@/lib/local-models";
+import { FALLBACK_TABLE, MANIFEST_URL, getLocalModels, type LocalModel, type RejectedModel } from "@/lib/local-models";
 
 // "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
 
@@ -27,6 +34,8 @@ export const metadata: Metadata = {
 };
 
 type Table = { models: LocalModel[]; fetchedAt: string | null };
+
+const FALLBACK = { ...FALLBACK_TABLE, fetchedAt: null };
 
 const modelName = (m: LocalModel) => m.model.split("/").pop();
 
@@ -58,7 +67,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
 // Everything that reads the manifest. Rendered with the checked-in copy while the live one loads.
 function ManifestSections({ table }: { table: Table }) {
   const { models } = table;
-  const live = modelName(models.find((m) => m.default) ?? models[0]);
+  const standard = models.find((m) => m.default) ?? models[0];
+  const live = modelName(standard);
   return (
     <>
       <Section id="modeller-per-minne" title="Valgte modeller">
@@ -75,7 +85,16 @@ function ManifestSections({ table }: { table: Table }) {
           Arbeidet er delt i oppgavetyper. For hver type avgjør målingene om hovedagenten i skyen kan delegere oppgaven
           til modellen som subagent, eller om hele økten kan kjøres lokalt. Alt som ikke er godkjent, blir i skyen.
         </BodyLong>
-        <TrustedClassesTable stack models={models} />
+        <BodyLong>
+          Tallene viser beståtte kjøringer av alle kjøringer. «Delegert» er oppgaver hovedagenten sendte til modellen,
+          «lokalt» er økter der modellen jobbet alene.
+        </BodyLong>
+        <ClassCountsTable rows={modelCountRows(models)} />
+        {standard.bar && (
+          <BodyShort size="small" textColor="subtle">
+            {barText(standard.bar)}
+          </BodyShort>
+        )}
       </Section>
 
       {live !== MEASURED_MODEL && (
@@ -86,6 +105,23 @@ function ManifestSections({ table }: { table: Table }) {
       )}
     </>
   );
+}
+
+function RejectedSection({ rejected }: { rejected: RejectedModel[] }) {
+  if (!rejected.length) return null;
+  return (
+    <Section id="forkastede-modeller" title="Forkastede modeller">
+      <BodyLong>
+        Disse modellene er målt, men nav-pilot tilbyr dem ikke. Enten nådde ingen oppgavetype kravet, eller en annen
+        versjon gjorde jobben bedre.
+      </BodyLong>
+      <ClassCountsTable rows={rejectedCountRows(rejected)} />
+    </Section>
+  );
+}
+
+async function LiveRejectedSection() {
+  return <RejectedSection rejected={(await getLocalModels()).rejected} />;
 }
 
 async function LiveManifestSections() {
@@ -104,7 +140,7 @@ async function ManifestTime() {
     </>
   ) : (
     <>
-      Manifestet kunne ikke hentes nå, så modelloversikten viser en lagret kopi av{" "}
+      Manifestene kunne ikke hentes eller leses nå, så modelloversikten viser en lagret kopi av{" "}
       <a href={MANIFEST_URL} className={linkClass}>
         manifestet
       </a>
@@ -167,7 +203,7 @@ export default function LokaleModeller() {
               .
             </BodyLong>
 
-            <Suspense fallback={<ManifestSections table={{ ...FALLBACK_TABLE, fetchedAt: null }} />}>
+            <Suspense fallback={<ManifestSections table={FALLBACK} />}>
               <LiveManifestSections />
             </Suspense>
 
@@ -317,7 +353,9 @@ export default function LokaleModeller() {
               <Source {...GB64_MEASURED} />
             </Section>
 
-            {/* TODO(PR B): «Forkastede modeller», from the manifest's `replaced` field once local-models-manifest.ts maps it. */}
+            <Suspense fallback={<RejectedSection rejected={FALLBACK.rejected} />}>
+              <LiveRejectedSection />
+            </Suspense>
 
             <Section id="metode" title="Maskinvare og metode">
               <Bullets>

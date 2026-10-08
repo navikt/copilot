@@ -326,9 +326,9 @@ jobs:
             gh pr create \
               --base main --head "$BRANCH" \
               --title "chore(local-models): refresh the local-model fallback copy" \
-              --body "navikt/mlx-workspace's \`manifest/models.json\` no longer matches \`apps/my-copilot/src/lib/local-models.json\`.
+              --body "navikt/mlx-workspace's \`manifest/models.json\` or \`manifest/capabilities.json\` (model list, or the run counts and bar) no longer matches \`apps/my-copilot/src/lib/local-models.json\`.
 
-          The nav-pilot docs page reads the manifest at run time and already shows the change. This PR only refreshes the fallback copy the page renders when that fetch fails or the manifest does not validate.
+          The nav-pilot docs page reads the manifest at run time and already shows the change. This PR only refreshes the fallback copy the page renders when that fetch fails or the manifests do not validate. A count-only change shows up on /innsikt/lokale-modeller and anywhere the numbers are quoted.
 
           While here, check the page: a new model needs a Norwegian description in \`LOCAL_MODEL_TEXT\` in \`apps/my-copilot/src/components/nav-pilot/local-model-tables.tsx\` (until then it shows the English role with a note), and a changed number can leave the prose on /nav-pilot/referanse, /nav-pilot/forklaring/lokal-modell or in \`docs/README.nav-pilot.md\` behind.
 
