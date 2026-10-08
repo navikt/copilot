@@ -589,7 +589,7 @@ Credits per kjøring, det vil si begge oppgavene til agenten, som laveste–medi
 
 Vurdering mot kriteriene:
 
-- **`@kafka`: Haiku Low oppfyller kriteriene etter ordlyden, men forskjellen er ikke målbar.** Begge besto alle oppgavene. Medianen for Haiku Low var 1,85 credits per kjøring, mot 1,90 for Luna Medium (p = 0,84 over fem kjøringer, Mann–Whitney). I den første målingen, med den svakere kf1, var det motsatt: 2,06 for Haiku mot 1,80 for Luna (p = 1,0). Prisen skiller altså ikke modellene på `@kafka`, og et bytte der gir ingen sikker besparelse.
+- **`@kafka`: Luna beholdes.** Begge besto alle oppgavene. Medianen for Haiku Low var 1,85 credits per kjøring, mot 1,90 for Luna Medium (Mann–Whitney over fem kjøringer). Kriteriet er oppfylt etter ordlyden, men forskjellen i credits er ikke målbar (p = 0,84; første måling gikk motsatt vei, p = 1,0). Bytte gir ingen pålitelig besparelse, så Luna beholdes.
 - **`@rust`: Haiku Low oppfyller kriteriene.** Begge besto alle oppgavene, og medianen for Haiku Low (0,92 credits per kjøring) er lavere enn for Luna Medium (1,34). Haiku Low var billigere i alle fem kjøringer, uten overlapp (p = 0,008, Mann–Whitney).
 
 Fire oppgaver og fem kjøringer per arm er et lite utvalg. Oppgavene er små rettinger i én fil, og begge armene fikk 5/5 på alle. Testpakkene gir derfor et signal om kostnad og en sperre mot regresjon, men skiller ikke modellene på kvalitet. kf-idem kan for eksempel løses med et sett i minnet. Denne PR-en endrer ingen pinner. Et eventuelt bytte for `@rust` tas i en egen PR.
