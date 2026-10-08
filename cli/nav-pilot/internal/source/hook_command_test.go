@@ -112,12 +112,19 @@ func TestHookCommandForwardsStderr(t *testing.T) {
 		t.Errorf("stdout %q, stderr %q; want ok and nothing", out, errOut)
 	}
 	emptyEventually(t, tmp)
+
+	// A script that fails: its stdout is dropped, its stderr still shown.
+	out, errOut, tmp = runHook(t, "import sys\nprint('deny')\nsys.exit('broke')\n", 5)
+	if out != "" || strings.TrimSpace(errOut) != "broke" {
+		t.Errorf("stdout %q, stderr %q; want nothing and broke", out, errOut)
+	}
+	emptyEventually(t, tmp)
 }
 
 // A killed script prints nothing, allows the call, and its temp files are
 // still removed by the rm the hook no longer waits for.
 func TestHookCommandCleansUpAfterKill(t *testing.T) {
-	out, errOut, tmp := runHook(t, "import sys, time\nprint('deny')\nsys.stdout.flush()\ntime.sleep(30)\n", 3)
+	out, errOut, tmp := runHook(t, "import sys, time\nprint('deny')\nsys.stderr.write('slow\\n')\nsys.stdout.flush()\nsys.stderr.flush()\ntime.sleep(30)\n", 3)
 	if out != "" || errOut != "" {
 		t.Errorf("killed gate wrote stdout %q, stderr %q; want nothing", out, errOut)
 	}
