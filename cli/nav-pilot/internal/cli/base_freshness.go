@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -107,9 +109,12 @@ func warnBaseLag(ctx context.Context, w io.Writer, indent, scopeName, pakkeRepo,
 	if lag == nil {
 		return
 	}
-	fmt.Fprintf(w, "%s%s %s pins %s at %s in %s, %d commit(s) and %d day(s) behind %s. The owners of %s should bump it.\n",
-		indent, yellow("⚠"), pakkeRepo, baseRepo, shortSHA(pin), agentpakke.DeclarationPath,
-		lag.Commits, lag.Days, lag.Target, pakkeRepo)
+	// Addressed to the person running the command, who cannot move the pin:
+	// what it means for them, and who can.
+	fmt.Fprintf(w, "%s%s Your agents come from %s, which is %d commit(s) (%d day(s)) behind %s (%s, pinned at %s). You miss what changed there since, such as new model choices.\n"+
+		"%s  Ask the owners of %s to update (%s), then run %s.\n",
+		indent, yellow("⚠"), pakkeRepo, lag.Commits, lag.Days, baseRepo, lag.Target, shortSHA(pin),
+		indent, pakkeRepo, bold("nav-pilot pakke bump-base"), bold("nav-pilot sync --apply"))
 }
 
 // reportScopeBaseLag is doctor's half. doctor has no checkout of the scope's
@@ -135,6 +140,61 @@ func reportScopeBaseLag(scope *InstallScope, state *StateFile) {
 		return
 	}
 	warnBaseLag(ctx, os.Stdout, "      ", scope.Name, state.SourceRepo, lock.Source, base.Name, lock.SHA)
+	reportPinDrift(scope, state, lock.Source, lock.SHA)
+}
+
+// reportPinDrift warns, per installed agent, when the base has since changed
+// the agent's frontmatter model and the pakke still ships the old one. An
+// agent whose installed model differs from the base's at the pin is the
+// pakke's own choice (or the user's edit) and is left alone, as is an agent
+// the base does not ship. Only files nav-pilot installed are read: the state
+// tracks those and nothing the user wrote. A lookup that fails is silence.
+//
+// ponytail: one contents request per installed agent, plus one for each whose
+// model moved, under its own deadline. Fine for a command run on purpose;
+// batch through the trees API if doctor ever meets the anonymous rate limit.
+func reportPinDrift(scope *InstallScope, state *StateFile, baseRepo, pin string) {
+	ctx, cancel := context.WithTimeout(context.Background(), pakkeReleaseTimeout)
+	defer cancel()
+	for _, f := range state.Files {
+		name := filepath.Base(f.Path)
+		if !strings.HasSuffix(name, ".agent.md") {
+			continue
+		}
+		local, err := os.ReadFile(filepath.Join(scope.RootDir, f.Path))
+		installed := frontmatterModel(local)
+		if err != nil || installed == "" {
+			continue
+		}
+		path := "agents/" + name
+		head, err := githubFile(ctx, baseRepo, path, "HEAD")
+		current := frontmatterModel(head)
+		if err != nil || current == "" || current == installed {
+			continue
+		}
+		if atPin, err := githubFile(ctx, baseRepo, path, pin); err != nil || frontmatterModel(atPin) != installed {
+			continue
+		}
+		fmt.Printf("      %s @%s runs %s; %s now pins %s. The owners of %s must update, or run %s once they have.\n",
+			yellow("⚠"), strings.TrimSuffix(name, ".agent.md"), installed, baseRepo, current,
+			state.SourceRepo, bold("nav-pilot sync --apply"))
+	}
+}
+
+// githubFile is one file of repo at ref, raw, read through the contents API.
+// A var so the test binary starts offline.
+var githubFile = githubFileHTTP
+
+func githubFileHTTP(ctx context.Context, repo, path, ref string) ([]byte, error) {
+	resp, err := githubGet(ctx, fmt.Sprintf("%s/repos/%s/contents/%s?ref=%s", githubAPIBase, repo, path, url.QueryEscape(ref)), "application/vnd.github.raw+json")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GitHub API returned %d for %s", resp.StatusCode, path)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 }
 
 // githubFileJSON decodes one file of repo at ref, read through the contents

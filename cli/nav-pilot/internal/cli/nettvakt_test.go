@@ -71,6 +71,8 @@ func TestMain(m *testing.M) {
 	// the HTTP lookups back for the tests about it.
 	lookupBaseLag = func(context.Context, string, string, string) (*baseLag, error) { return nil, errOfflineForTests }
 	githubFileJSON = func(context.Context, string, string, string, any) error { return errOfflineForTests }
+	githubFile = func(context.Context, string, string, string) ([]byte, error) { return nil, errOfflineForTests }
+	lookupPakkeUpdate = func(context.Context, string, string, string) (string, error) { return "", errOfflineForTests }
 	os.Exit(testhome.Run(m))
 }
 
