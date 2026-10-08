@@ -902,7 +902,10 @@
       "andre-repoer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
       "opencode": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
       "oppsett": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
-      "push": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
+      "push": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"
+      ],
       "signering": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
       "utenfor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
       "vaktene": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"]

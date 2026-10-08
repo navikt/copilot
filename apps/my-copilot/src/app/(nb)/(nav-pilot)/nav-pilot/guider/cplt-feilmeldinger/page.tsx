@@ -525,8 +525,13 @@ cplt trust accept --all                                    # godkjenn forslaget`
             Gjelder macOS. <code className={code}>.git/config</code> er skrivebeskyttet, fordi den kan få git til å
             kjøre kode utenfor sandkassen. Derfor fjerner cplt <code className={code}>-u</code> fra{" "}
             <code className={code}>git push -u</code> og skriver <code className={code}>cplt: pushing without -u</code>.
-            Grenen blir pushet, men uten upstream. Skriv grennavnet når du pusher, og oppgi det når du lager pull
-            requesten:
+            Grenen blir pushet, og cplt setter upstream når økta er ferdig hvis pushen oppfyller kravene i{" "}
+            <NextLink href="/nav-pilot/guider/cplt-git#push" className={linkClass}>
+              Git og GitHub i sandkassen
+            </NextLink>
+            . Ellers skriver cplt en <code className={code}>git branch -u</code>-kommando du kjører selv utenfor cplt:
+            når økta slutter, eller i meldingen når du pusher i en stille økt. Du klarer deg også uten upstream. Skriv
+            grennavnet når du pusher, og oppgi det når du lager pull requesten:
           </BodyLong>
           <CodeBlock compact>
             {`git push origin HEAD:min-gren
