@@ -59,7 +59,12 @@ export default function CpltNettverk() {
           </Bullets>
           <BodyLong>
             Proxyen er ikke tvungen. Et program som ignorerer proxyvariablene, kan koble seg direkte til port 443, og da
-            gjelder ikke reglene for hoster. <code className={code}>strict</code> tvinger all trafikk gjennom proxyen.
+            gjelder ikke reglene for hoster. <code className={code}>strict</code> tvinger all trafikk gjennom proxyen,
+            se{" "}
+            <NextLink href="/nav-pilot/forklaring/sandkassen#strict" className={linkClass}>
+              strict i Sandkassen
+            </NextLink>
+            .
           </BodyLong>
           <BodyLong>
             Endringer med <code className={code}>cplt config set</code> gjelder fra neste økt.

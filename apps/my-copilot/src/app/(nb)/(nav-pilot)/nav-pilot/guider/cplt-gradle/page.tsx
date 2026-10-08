@@ -55,9 +55,11 @@ cplt config set sandbox.allow_jvm_attach true`}
           </CodeBlock>
           <BodyLong>
             Med <code className={code}>allow_localhost_any</code> når agenten alle tjenester som lytter på localhost,
-            også en lokal database. På Linux koster den mer: kjernen der kan ikke skille localhost fra andre verter, så
-            cplt slår av portfiltreringen for utgående TCP helt, og bare proxyen begrenser hvor agenten kan koble seg
-            til. <code className={code}>allow_jvm_attach</code> åpner bare socketene{" "}
+            også en lokal database, og på Linux åpner den mer, se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett#localhost" className={linkClass}>
+              Tjenester på localhost
+            </NextLink>
+            . <code className={code}>allow_jvm_attach</code> åpner bare socketene{" "}
             <code className={code}>/tmp/.java_pid&lt;PID&gt;</code>, ingen andre.
           </BodyLong>
           <BodyLong>Gjelder det ett prosjekt, legg innstillingene i repoet, så får hele teamet dem:</BodyLong>
@@ -89,23 +91,13 @@ cplt trust accept --all`}
             <code className={code}>./gradlew</code> ned Gradle og avhengigheter som vanlig.
           </BodyLong>
           <BodyLong>
-            Har du slått på en liste over tillatte verter, med <code className={code}>--preset strict</code>,{" "}
-            <code className={code}>proxy.default_allowlist</code> eller{" "}
-            <code className={code}>proxy.allowed_domains</code>, slipper cplt bare gjennom det som står på lista. Med{" "}
-            <code className={code}>proxy.default_allowlist</code> er de vanlige pakkeregistrene med:
+            Har du slått på en liste over tillatte verter med <code className={code}>proxy.default_allowlist</code>, er
+            Maven Central og Gradle-plugins med, se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-oppsett#tillatelsesliste" className={linkClass}>
+              Pakkeregistre og en liste over tillatte verter
+            </NextLink>
+            .
           </BodyLong>
-          <Bullets>
-            <li>
-              <code className={code}>repo.maven.apache.org</code> (Maven Central)
-            </li>
-            <li>
-              <code className={code}>plugins.gradle.org</code> og{" "}
-              <code className={code}>plugins-artifacts.gradle.org</code> (Gradle-plugins)
-            </li>
-            <li>
-              <code className={code}>packages.confluent.io</code> og <code className={code}>jitpack.io</code>
-            </li>
-          </Bullets>
           <BodyLong>
             Selve Gradle-distribusjonen som wrapperen laster ned, er ikke med. Den kommer fra{" "}
             <code className={code}>services.gradle.org</code>, som sender videre til{" "}
@@ -121,8 +113,7 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
           </CodeBlock>
           <BodyLong>
             Copilot har <code className={code}>github.com</code> på lista fra før, så med Copilot kan du hoppe over den
-            linja. <code className={code}>allow.domains</code> legger verter til en liste som allerede er slått på. Den
-            slår ikke på lista.
+            linja.
           </BodyLong>
           <BodyLong>Sjekk en vert uten å kjøre bygget:</BodyLong>
           <CodeBlock compact>{`cplt check net services.gradle.org`}</CodeBlock>
@@ -172,12 +163,11 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
           </BodyLong>
           <CodeBlock compact>{`cplt config set allow.read ~/.gradle/gradle.properties`}</CodeBlock>
           <BodyLong>
-            Trenger du også <code className={code}>~/.npmrc</code> og <code className={code}>~/.m2/settings.xml</code>,
-            se{" "}
+            Hva det koster å åpne tokenfilene, og hvordan du åpner alle tre på én gang, står i{" "}
             <NextLink href="/nav-pilot/guider/cplt-oppsett#github-packages" className={linkClass}>
               Pakker fra GitHub Packages
-            </NextLink>{" "}
-            i oppsettguiden.
+            </NextLink>
+            .
           </BodyLong>
           <BodyLong>
             Leser bygget tokenet fra <code className={code}>GITHUB_TOKEN</code>, kommer det an på agenten. Copilot får{" "}
@@ -188,10 +178,8 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
             den med, men da har agenten tokenet ditt.
           </BodyLong>
           <BodyLong>
-            Under en liste over tillatte verter når Copilot <code className={code}>maven.pkg.github.com</code>, fordi
-            lista har med <code className={code}>github.com</code> og alle undervertene. Får du{" "}
-            <code className={code}>Received status code 401 from server: Unauthorized</code>, har forespørselen kommet
-            fram. Da er det tokenet som mangler, ikke nettverket.
+            <code className={code}>Received status code 401 from server: Unauthorized</code> betyr at forespørselen kom
+            fram, men at tokenet mangler.
           </BodyLong>
         </VStack>
       </section>
