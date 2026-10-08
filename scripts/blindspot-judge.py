@@ -56,6 +56,12 @@ allowed to call or read the service, endpoint or topic: caller types, which \
 consumer apps or teams may read, access policy (accessPolicy, ACLs), roles or \
 AD groups, per-case access checks, skjermede brukere, who may trigger an operation.
 
+A blind-spot question is about how the system handles real people's personal \
+data, or who may use the system, in production. Questions about code, tests, \
+diffs, field types or formats, tooling, CI, dev environments, token mechanics \
+or a developer's own access do not count, even if they mention fnr, personal \
+data, access or who.
+
 A question can be both. Not either: implementation mechanics such as token flow \
 or token caching, scopes, field type or format, validation, serialisation, \
 schema compatibility, field order, retries, offsets, partitions, test setup or \
