@@ -478,6 +478,23 @@ Med testoppsettets egne tall var Opus akseptabel. Det tallet bygget på et møns
 
 Forbruket for denne delen var 716,0 credits: 399,6 for Opus, 247,9 for Sol og 68,5 for to pilotkjøringer. Den første piloten feilet i oppsettet for branchen og telles ikke. Budsjettet var om lag 950, med stopp ved 1 200. Målingen endrer ingen pinner.
 
+## Claude Haiku 5.5 mot GPT-6 Luna Medium (8. oktober 2026)
+
+Claude Haiku 5.5 er aktivert i Nav og svarer på `--model claude-haiku-5.5` i Copilot CLI 1.0.94, selv om `copilot help config` ikke lister modellen. Listeprisen er den samme som for GPT-6 Luna opp til 100K input-tokens per forespørsel, men over 100K koster Haiku fem ganger så mye. Luna dobler inputprisen først over 272K. Spørsmålet er om Haiku kan ta over noen av Luna-pinnene.
+
+### Kriteriene ble satt før målingen
+
+Haiku 5.5 måles på Low og Medium i Copilot CLI: fem kjøringer av `coding`, fem av `research` og ti av `review` (rv1–rv8, `@code-review`-personaen). GPT-6 Luna Medium er kontroll på samme commit: fem kjøringer av `coding`, fem av `research` og ti av rv5–rv8. Testoppsettet fjerner modellpinnen i agentfila. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 80 credits, med stopp ved 150.
+
+Per arm og testpakke rapporteres antall bestått, median credits per kjøring, høyeste og 95-persentil input-tokens per forespørsel, andelen forespørsler over 100K og listepris i dollar per kjøring. Listeprisen regnes per forespørsel med Haikus 100K-trinn og Lunas 272K-trinn, med cache-lesing og cache-skriving priset hver for seg, på samme måte som [list-price.py](golden-baselines/2026-10-06-batch4/list-price.py).
+
+Haiku 5.5 kan erstatte GPT-6 Luna Medium
+
+- på `@kafka` og `@rust` bare hvis én Haiku-arm består minst like mange `coding`-sjekker som Luna i kontrollen, med median credits og median listepris per kjøring som ikke er høyere enn Lunas.
+- på `@research` bare hvis én Haiku-arm består minst like mange `research`-sjekker som Luna i kontrollen, med median credits og median listepris per kjøring som ikke er høyere enn Lunas.
+
+Kodegjennomgangen er bare informasjon. Haiku-armene vurderes mot de fire kravene for reservemodell for `@code-review` (rv5 minst 9/10, rv7 minst 9/10, rv8 median 0 og høyst én rad med høy prioritet, rv6 høyst to kjøringer under Opus 5.5), men resultatet gir ikke grunnlag for å endre noe. Opus-tallet for rv6 er 6/10 fra [omregningen](#omregning-etter-rettet-rv6-og-rv8-7-oktober-2026). Feilede sjekker klassifiseres i `failures.psv` etter de samme reglene for alle armene. Konklusjonene bygger på sjekkens egne tall. Målingen endrer ingen pinner.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
