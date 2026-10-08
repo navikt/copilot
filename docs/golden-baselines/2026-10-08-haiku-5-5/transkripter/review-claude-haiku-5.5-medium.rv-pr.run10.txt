@@ -1,0 +1,36 @@
+Henter diffen mellom `main` og `vedtak-kafka`.
+
+### Oppsummering
+
+Branchen `vedtak-kafka` (1 commit, 8 filer, +257/−2) legger til Kafka-konsument, vedtak-API og Postgres-lagring. Det er tre blokkere: SQL-injeksjon, manglende auth/ownership, og duplikat-risiko ved retry. Ingen tester eller Flyway-migrasjon er lagt til. Jeg har ikke endret kode.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon: `fnr` settes inn med strengkonkatenering. Bruk `?`-parameter. |
+| `Routes.kt` | `get("/api/vedtak/{fnr}")` | 🔴 | Uautentisert endepunkt som returnerer vedtak for et fnr. FNR i URL og i logger. |
+| `Routes.kt` | `post("/api/vedtak")` | 🔴 | Autentisert, men ingen sjekk av `azp` eller eierskap. Hvem som helst med gyldig token kan fatte vedtak for vilkårlig fnr. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | Ingen `verifier` (signatur/issuer). `validate` sjekker bare at `audience` finnes. Token er ikke validert. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. |
+| `VedtakConsumer.kt` | `behandle` / `retry` | 🔴 | Ikke idempotent. `fattVedtak` lager ny `vedtakId` og INSERT ved hvert forsøk. Hvis Kafka-send feiler etter DB-lagring, blir det duplikat-rader. Samme for redelivery etter `commitSync`. |
+| `VedtakConsumer.kt` | `start` | 🔴 | Ett ugyldig melding (`decodeFromString`) eller `retry` som gir opp, kaster ut av løkken. Tråden dør, offset committes ikke, og appen fortsetter å svare på HTTP uten å konsumere. `/isready` sier fortsatt OK. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | FNR i logg. Forbudt etter Security Core. |
+| `VedtakRepository.kt` | — | 🔴 | Tabellen `vedtak` finnes ikke i branchen. Ingen Flyway-migrasjon. Appen feiler ved første kall. |
+| `App.kt` | `Properties` (Kafka) | 🔴 | Ingen `security.protocol`/SSL- eller keystore-config for Nais Kafka. Sannsynlig at tilkobling feiler. Verifiser mot Nais-dokumentasjon. |
+| `App.kt` | `DB_JDBC_URL` | 🟡 | Env-navnet må matche det Nais setter (`NAIS_DATABASE_…`). Ingen brukernavn/passord. |
+| `App.kt` | `Authentication` | 🟡 | `Netty` og konsument-tråden startes uten health-signal for konsumenten. |
+| `Routes.kt` | `receive` / `require` | 🟡 | Ugyldig body eller blank `sakId` gir 500 i stedet for 400. Mangler `StatusPages`. |
+| `VedtakRepository.kt` | `lagre` | 🟡 | INSERT uten transaksjon. Vurder `transaction { }` når flere skritt skal atomisk. |
+| `build.gradle.kts` | andre `dependencies {}` | 💭 | Duplisert blokk. Slå sammen med den første. |
+| `VedtakService.kt` | `hentVedtak` | 💭 | Ubrukt. |
+| — | Tester | 🟡 | Ingen tester for service, repository eller konsument. |
+| — | Branchnavn | 🟡 | `vedtak-kafka` mangler forventet prefiks (`feature/`, `fix/` osv.). |
+
+### Detaljer på blokkere
+
+- **Idempotens:** Bruk en stabil nøkkel (f.eks. `soknadId`) som unik constraint i DB. Lagre og publiser i samme transaksjon eller via outbox.
+- **Feilhåndtering i konsumenten:** Send feilede meldinger til DLQ og commit offset. Ikke la tråden dø stille.
+- **Auth:** Konfigurer `verifier` mot TokenX JWKS og valider `audience`/`issuer`. Valider `azp` for M2M-kall.
+
+Still gjerne spørsmål om valgene over.

@@ -1,0 +1,17 @@
+🔍 Skanner SakService.kt og Kotlin-instruksjonene før jeg kjører prosjektets sjekker.
+
+📊 Filen inneholder flere enn den første visningen viste. Jeg leser resten sammen med byggoppsettet, relaterte tester og sjekkkommandoene for å kontrollere funn mot hele endringen.
+
+📋 Sjekkene bekrefter at dette repoet ikke har `mise check`-oppgave. Jeg undersøker nå auth-oppsettet og datamodellen rundt endepunktet før jeg fastsetter funnene.
+
+### Oppsummering
+
+Fant ingen blocker i `SakService.kt`. Endepunktet krever TokenX-autentisering, henter fødselsnummeret fra tokenet og bruker en parameterisert SQL-spørring.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 40–42 | 🟡 Forslag | `catch` logger bare exception-typen og kaster feilen videre. Det gir lite feilsøkingsinformasjon her, og kan føre til dobbeltlogging hvis Ktor også logger feilen. Fjern `catch` hvis tjenesten ikke skal håndtere feilen, eller la ett felles feilhåndteringslag logge den. |
+
+`mise check` kunne ikke kjøres fordi repoet ikke har en `check`-oppgave. `gradle test --no-daemon` stoppet under konfigurasjon av rotprosjektet med feilen `27`, før testene startet.

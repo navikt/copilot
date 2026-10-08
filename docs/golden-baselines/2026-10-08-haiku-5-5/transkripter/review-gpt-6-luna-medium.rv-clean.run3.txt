@@ -1,0 +1,19 @@
+🔍 Skanner `SakService.kt` og relevante Kotlin-/sikkerhetsinstruksjoner, og finner prosjektets kontrollkommando.
+
+📊 Koden eksponerer et autentisert endepunkt som henter saker via en fødselsnummer-claim. Jeg sjekker nå JWT-oppsettet, dataskjemaet og prosjektets test-/kontrollmønstre for å bekrefte konsekvensene.
+
+📋 JWT-oppsettet bekrefter signatur, issuer, audience og innloggingsnivå før routen bruker `pid`. Jeg kontrollerer nå om API-et har en definert grense for saksmengden, og henter linjereferansene for funn.
+
+📋 Jeg fant én konkret skalerbarhetsrisiko: spørringen materialiserer og returnerer alle sakene uten sideinndeling. `mise check` finnes ikke i dette arbeidsområdet, så jeg prøver prosjektets Gradle-testoppgave som tilgjengelig alternativ.
+
+### Sammendrag
+
+Fant én skalerbarhetsrisiko. Spørringen bruker parameterisert SQL, og tjenesten logger ikke selve fødselsnummeret.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 26–28 | 🟡 Forslag | Spørringen henter alle sakene for personen, og `.asList` laster hele resultatet i minnet. Responsen kan bli stor når sakshistorikken vokser. Vurder sideinndeling eller en tydelig øvre grense. |
+
+`mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave. `gradle test --no-daemon` stoppet under konfigureringen av prosjektet med feilen `27`, før testene startet.

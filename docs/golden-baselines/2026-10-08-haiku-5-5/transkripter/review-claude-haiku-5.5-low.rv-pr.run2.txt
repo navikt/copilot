@@ -1,0 +1,27 @@
+## Gjennomgang: `vedtak-kafka` mot `main`
+
+**Oppsummering:** Branchen legger til Kafka-konsument, vedtak-API og Postgres-lagring. Den har flere blokkere: SQL-injeksjon, ufullstendig JWT-validering, FNR i logger og et åpent API uten autentisering. Det mangler også databasemigrasjon. Funnene under er ikke fikset.
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | ~29 | 🔴 | SQL-injeksjon i `hentForPerson`: `fnr` settes inn i SQL-strengen. Bruk `queryOf("... WHERE fnr = ?", fnr)`. |
+| `Routes.kt` | GET `/api/vedtak/{fnr}` | 🔴 | Endepunktet er uten autentisering og eierskapssjekk. Det returnerer fødselsnumre og vedtak for hvem som helst. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | Ingen `verifier` er satt, og `validate` godtar alle tokens med `aud`. Signatur, issuer og audience valideres ikke. Bruk TokenX-verifier og sjekk `azp`/audience. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | FNR i logg. Logg kun `vedtakId` eller `sakId`. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. Begrens til konkrete klienter. |
+| `VedtakRepository.kt` / mangler | `vedtak`-tabell | 🔴 | Ingen Flyway-migrasjon i diffen. `INSERT` og `SELECT` feiler ved oppstart. |
+| `VedtakConsumer.kt` | `retry` + `behandle` | 🔴 | Retry kan lagre samme vedtak flere ganger hvis Kafka-sendingen feiler etter databaselagring. Idempotens mangler. |
+| `VedtakConsumer.kt` | `decodeFromString` | 🟡 | Ugyldig melding stopper konsumentråden. Ingen DLQ eller håndtering av «poison message». |
+| `App.kt` | `thread { consumer.start() }` | 🟡 | Hvis konsumenten dør, fortsetter serveren uten konsument. |
+| `App.kt` | `DB_JDBC_URL`, `KAFKA_BROKERS` | 🟡 | Nais injiserer ikke disse navnene. Bruk Naiserator-variablene, og sjekk Kafka-SSL-konfigurasjonen. |
+| `build.gradle.kts` | andre `dependencies {}` | 🟡 | Duplisert blokk. Nye avhengigheter krever godkjenning. Sjekk at `kotlinx.serialization`-plugin finnes. |
+| `VedtakService.kt` | `hentVedtak` | 💭 | Ubrukt. `hentForSak` er også ubrukt i ruting. |
+| Branch | `vedtak-kafka` | 🟡 | Mangler forventet prefiks (`feature/`). Ingen tester er lagt til. |
+
+### Detaljer om blokkerne
+
+- **Rød sone: auth og input.** SQL-injeksjonen og ruten uten autentisering er den største risikoen. Begge må fikses før merge.
+- **Migrasjon.** Legg til `V<n>__vedtak.sql` under `db/migration`. Tabellen må ha kolonnene som brukes i `INSERT` og `SELECT`.
+- **Idempotens.** Bruk en unik nøkkel på `sak_id` eller en melding-ID, og gjør lagringen `ON CONFLICT DO NOTHING`.
+
+Ingen filer er endret.

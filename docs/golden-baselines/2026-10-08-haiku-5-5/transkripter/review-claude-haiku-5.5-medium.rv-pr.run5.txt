@@ -1,0 +1,28 @@
+### Sammendrag
+
+Branchen `vedtak-kafka` legger til Kafka-konsument, vedtak-API og Postgres-lagring. Den har flere 🔴-funn: SQL-injection, uautentisert tilgang til personopplysninger, FNR i logg, en svak JWT-validering og en konsument som kan lage dupliserte vedtak. Jeg har ikke endret kode.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injection: `fnr` settes inn i SQL med strengkonkatenering. Bruk `queryOf(sql, fnr)`. |
+| `Routes.kt` | 30 | 🔴 | `GET /api/vedtak/{fnr}` har ingen autentisering og returnerer vedtak for alle FNR. Fødselsnummer ligger også i URL-en, som havner i access-logger. |
+| `App.kt` | 42 | 🔴 | `validate` godtar alle tokens med en `aud`-claim. Ingen issuer, JWKS, audience eller `azp` sjekkes. |
+| `Routes.kt` | 25 | 🔴 | POST bruker `fnr` fra request-body uten at kallet sjekkes mot identiteten i tokenet. |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer. |
+| `nais.yaml` | 25 | 🔴 | `accessPolicy.inbound` tillater `*` i alle namespaces og alle applikasjoner. |
+| `VedtakConsumer.kt` | 33, 25 | 🔴 | Ved retry kjøres `fattVedtak` på nytt, så databaseinnsetting og Kafka-publisering kan skje flere ganger. Duplikater er sannsynlige fordi `vedtakId` genereres på nytt for hver forsøk. |
+| `VedtakConsumer.kt` | 22–27 | 🔴 | En feil etter tre forsøk (eller en ugyldig JSON) kaster ut av `start()`. Konsument-tråden dør stille, mens HTTP-serveren fortsetter å svare OK. Det finnes ingen DLQ. |
+| `VedtakConsumer.kt` | 27 | 🟡 | `commitSync()` kjøres etter hele batchen. En feil midt i batchen gir redelivery av meldinger som allerede er behandlet. |
+| `VedtakService.kt` | 14 | 🟡 | `require` gir `IllegalArgumentException`, som blir 500 i API-et og et poison-pill i konsumenten. |
+| `App.kt` | 23, 27 | 🟡 | `DB_JDBC_URL` og `KAFKA_BROKERS` leses uten null-sjekk. Nais setter ikke nødvendigvis disse navnene (sjekk `NAIS_DATABASE_*`). |
+| `build.gradle.kts` | 8, 13 | 🟡 | To `dependencies {}`-blokker. Slå dem sammen. |
+| (mangler) | — | 🟡 | Ingen Flyway-migrasjon for tabellen `vedtak`. |
+| `VedtakService.kt` | 28, `VedtakRepository.kt` 27 | 🟡 | `hentVedtak` og `hentForSak` er ubrukt. |
+| `VedtakService.kt` | — | 🟡 | `fnr` valideres ikke (format, lengde). |
+| `App.kt` | 33 | 💭 | Serializer-config i consumer-`Properties` er unødvendig. Mangler `auto.offset.reset`. |
+
+### Anbefaling
+
+Lukk SQL-injection og FNR-logging først. Deretter må GET-endepunktet få auth og eierskapssjekk, og JWT-validering må settes opp mot TokenX-issuer og audience. Konsumenten trenger idempotens (for eksempel unik constraint på `sak_id` og `soknad_id`) og en feilhåndtering som ikke dreper tråden.

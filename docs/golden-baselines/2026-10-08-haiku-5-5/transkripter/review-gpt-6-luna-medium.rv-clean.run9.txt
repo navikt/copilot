@@ -1,0 +1,17 @@
+🔍 Leser tjenesten og relevante Kotlin-/testinstruksjoner før gjennomgangen.
+
+📊 Koden viser et autentisert oppslag med personidentifikator fra JWT. Jeg undersøker nå auth-konfigurasjon, datamodell og prosjektets sjekker for å vurdere tilgangskontroll og feilbehandling i kontekst.
+
+📋 Prosjektet mangler `mise check`-task. Auth-oppsettet begrenser tokenets issuer, audience og `acr`; jeg sjekker nå presise linjer og om Kotlin-kilden bygger med tilgjengelige Gradle-verktøy.
+
+### Sammendrag
+
+Ingen blokkere. Oppslaget bruker parameterisert SQL og henter saker med fødselsnummeret fra det autentiserte tokenet.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 40–42 | 🟡 Forslag | Koden logger feilen og kaster den videre, men loggfører bare klassenavnet. Logglinja mangler årsak og stacktrace, og kan bli en ekstra feillogg hvis en sentral feilhåndterer også logger unntaket. Fjern `catch`-blokken hvis tjenesten ikke skal håndtere feilen, eller loggfør unntaket her hvis dette laget skal eie feilloggen. |
+
+`mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave. `gradle test` feilet under konfigurering av rotprosjektet med meldingen `> 27`, før testene startet. Ingen tester finnes under `src`.

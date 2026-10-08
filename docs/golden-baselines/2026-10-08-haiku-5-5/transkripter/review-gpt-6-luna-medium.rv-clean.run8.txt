@@ -1,0 +1,16 @@
+🔍 Skanner `SakService.kt`, Kotlin-instruksjonene og prosjektets testoppsett.
+
+Filen inneholder en liten service, men `view` rapporterer samtidig at den er større enn 20 KB. Jeg sjekker hele innholdet med målrettede oppslag og finner prosjektets tilgjengelige kvalitetssjekk.
+
+`mise check` kan ikke kjøres her: prosjektet har ingen slik task. Jeg vurderer nå auth- og loggføringen mot nærliggende kode og ser om det finnes tester som bekrefter oppførselen.
+
+### Oppsummering
+Fant ett forbedringspunkt, ingen blokkere. Spørringen bruker parameterbinding, og loggen skriver ikke ut fødselsnummeret.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 41 | 🟡 | Catch-blokken logger bare exception-klassen og kaster feilen videre. Det gir lite hjelp ved feilsøking og kan føre til dobbeltlogging. La feilen håndteres ett sted, eller logg trygg kontekst én gang. |
+
+**Sjekker:** `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-task. `gradle test` stoppet under konfigurering: Kotlin-pluginen klarte ikke å tolke Java-versjonen `27`. Jeg fant ingen testfiler i prosjektet.

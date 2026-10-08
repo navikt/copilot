@@ -1,0 +1,23 @@
+### Sammendrag
+
+Filen er ryddig og ingen blokkerere funnet. SQL er parametrisert, fødselsnummer maskeres i logg, og eier-sjekken skjer ved at `fnr` hentes fra token-claimen `pid`, ikke fra request-parametre. Jeg har ikke kjørt `mise check`, og jeg har ikke lest Flyway-migrasjonene eller Application-oppsettet.
+
+🔴 Rød sone: tilgangskontroll og token-claim (`pid`) i `sakRoutes`. Gå gjennom denne nøye.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 20 | 💭 | `maskert()` gir én `*` per tegn, så lengden på fnr lekker. Vurder fast maske, for eksempel `"***********"`. |
+| `SakService.kt` | 26 | 💭 | Spørringen filtrerer på `fnr` og sorterer på `opprettet`. Sjekk at det finnes indeks på `sak(fnr, opprettet)`, ellers blir det full tabellskan. Migrasjonene er ikke lest her. |
+| `SakService.kt` | 50 | 💭 | `pid` er ikke validert (lengde, format). Lav risiko siden tokenet er validert av TokenX, men en enkel sjekk gir bedre feilmeldinger. |
+| `SakService.kt` | 55 | 💭 | Feil fra databasen gir generisk 500. Vurder en eksplisitt feilrespons med `StatusPages`. |
+
+### Bekreftet OK
+
+- Parametrisert SQL (linje 26).
+- Ingen fnr i logg, bare maskert verdi og exception-typens navn (linje 37, 41).
+- Eier-sjekk via token, ikke via request-data (linje 50).
+- Ingen ubrukte imports.
+
+Still gjerne spørsmål om valgene over.

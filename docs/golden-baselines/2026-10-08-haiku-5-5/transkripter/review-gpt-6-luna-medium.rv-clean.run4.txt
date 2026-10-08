@@ -1,0 +1,19 @@
+🔍 Leser `SakService.kt`, Kotlin-instruksene og prosjektets testoppsett før jeg vurderer endringene.
+
+📊 Koden er liten, men håndterer `pid` fra JWT og fødselsnummer. Jeg sjekker nå auth-oppsettet, testene og den tilgjengelige byggesjekken for å skille faktiske risikoer fra antakelser.
+
+🧪 Det finnes ikke `mise.toml` eller synlige tester i prosjektet. Jeg kjører likevel den påkrevde `mise check`-kommandoen og kontrollerer kildefila med linjenumre før jeg oppsummerer funnene.
+
+📋 Første gjennomgang viser én mulig inputvalideringsmangel ved bruk av JWT-claimet `pid`. Jeg kjører Gradle-testoppgaven for å sjekke om prosjektet bygger, siden `mise check` ikke finnes i dette miljøet.
+
+### Oppsummering
+
+Ingen blokkere. `SakService.kt` bruker parameterisert SQL og logger ikke fødselsnummeret. Én anbefaling:
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 50–55 | 🟡 Forslag | Koden sjekker bare om `pid` mangler. Valider også at claimet følger avtalt format før databaseoppslaget. Et ugyldig, men signert claim gir ellers normalt `200` med en tom liste. |
+
+🔴 Rød sone: `pid` bestemmer hvilken persons saker tjenesten henter. Valider claimet før du bruker det som identifikator.
+
+**Sjekker:** `mise check` kunne ikke kjøres fordi prosjektet ikke har en slik oppgave. Gradle-testen kom ikke forbi kompilering; den feilet på urelaterte feil i `UserRepo.kt:11`.

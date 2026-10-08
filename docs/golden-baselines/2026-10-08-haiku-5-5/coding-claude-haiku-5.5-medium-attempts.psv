@@ -1,0 +1,28 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        coding
+# date:         2026-10-08
+# revision:     05cfadc9
+# model:        claude-haiku-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       medium
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+ko-go|1|0|pass|874|15946|true|
+ko-ts|1|0|pass|1264|15412|true|
+ko-go2|1|0|pass|1545|31035|true|
+ko-go|2|0|pass|870|19040|true|
+ko-ts|2|0|pass|964|14570|true|
+ko-go2|2|0|pass|1610|21912|true|
+ko-go|3|0|pass|1163|19159|true|
+ko-ts|3|0|pass|1280|14160|true|
+ko-go2|3|0|pass|1157|18552|true|
+ko-go|4|0|pass|1255|19439|true|
+ko-ts|4|0|pass|985|12978|true|
+ko-go2|4|0|pass|1126|17725|true|
+ko-go|5|0|pass|1117|19916|true|
+ko-ts|5|0|pass|1118|14025|true|
+ko-go2|5|0|pass|1196|26070|true|

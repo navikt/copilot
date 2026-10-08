@@ -1,0 +1,24 @@
+### Sammendrag
+
+Filen er liten og gjør det rette i de viktigste punktene: SQL er parametrisert, fødselsnummer maskeres i logg, og eieren av saken hentes fra token-claimen `pid`, ikke fra input. Jeg fant ingen blokkerere. Jeg kjørte ikke `mise check` fordi filen ligger i en repo uten git og uten app-katalog.
+
+🔴 **Rød sone: autorisasjon og tilgangskontroll i `/api/saker`. Gå gjennom denne nøye.**
+
+### Funn
+
+| Fil | Linje | Prioritet | Issue |
+|------|------|----------|-------|
+| `SakService.kt` | 20 | 💭 | `maskert()` beholder lengden på fnr (11 tegn). Det lekker lite, men `"*".repeat(...)` gir ingen ekstra verdi. Vurder fast maske, f.eks. `"***********"`. |
+| `SakService.kt` | 40–43 | 💭 | Feilen logges her og kastes videre. Kaller som også logger, får to loggelinjer for samme feil. |
+| `SakService.kt` | 50 | 🟡 | `pid` brukes uten formatvalidering. Det er akseptabelt når tokenet er validert av TokenX, men verifiser at `tokenx`-providerens validering sjekker `azp` og signatur. |
+| `SakService.kt` | 55 | 💭 | Databasefeil blir 500 uten egen feilrespons. Det er greit, men en `ProblemDetail`-respons (RFC 7807) ville gi bedre feilkontrakt. |
+| `SakService.kt` | — | 🟡 | Ingen tester i denne filen. Legg til test for 401 uten `pid` og for at kun saker for `pid` returneres. |
+
+### Detaljer
+
+- **Eierskap (linje 50, 26):** Spørringen filtrerer på `fnr` fra token, så en bruker kan ikke hente andres saker via API-et. Dette er riktig mønster.
+- **SQL (linje 26):** `?`-parameter, ingen konkatenering. Riktig.
+- **Logging (linje 37, 41):** Ingen fnr i klartekst. Feilmelding inneholder kun exception-typen, ikke meldingen, så ingen data lekker.
+- **Importer:** Alle brukt.
+
+Still gjerne spørsmål om valgene over.

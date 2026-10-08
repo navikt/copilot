@@ -1,0 +1,13 @@
+## Gjennomgang: `SakService.kt`
+
+**Oppsummering:** Ingen blokkerende funn. SQL er parameterisert, fødselsnummer maskeres i logg, og feil logges uten personopplysninger. Autorisasjonen er riktig: `fnr` hentes fra tokenets `pid`-claim, ikke fra forespørselen.
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 36 | 🟡 | `fnr` valideres ikke (lengde, kun sifre). Tokenet er tillitsgrunnlaget, men en enkel format-sjekk før databasekallet gir tydeligere feil og er et ekstra forsvar. |
+| `SakService.kt` | 38–43 | 💭 | Feilen logges her og kastes videre. Hvis kalleren også logger, blir den logget to ganger. |
+| `SakService.kt` | 55 | 💭 | Hele listen returneres uten paginering. Det kan bli stort for personer med mange saker. |
+
+**Hvorfor 🟡 på linje 36:** Dette er ikke en sikkerhetsfeil i dag, fordi verdien kommer fra et validert token. Men inputvalidering ved tillitsgrenser er en del av Nav-standarden, og den fanger feil tidlig.
+
+Jeg kjørte ikke `mise check` fordi prosjektet ikke ble lest i sin helhet, bare denne filen.

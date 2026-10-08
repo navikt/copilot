@@ -1,0 +1,15 @@
+🔍 Leser `SakService.kt` og Kotlin-/sikkerhetsinstruksjonene, og finner prosjektets relevante sjekker.
+
+📊 Kontrollerer auth-oppsett og tester for å skille sikre feil fra antakelser i denne ruta.
+
+### Sammendrag
+
+Ruta krever `tokenx`, henter identiteten fra JWT-et og bruker en parameterisert SQL-spørring. Jeg fant ett punkt å følge opp.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 50–51 | 🟡 | Valider `pid` før du bruker det som fødselsnummer. Koden avviser bare manglende verdi; tomme eller feilformaterte verdier behandles som gyldig identitet og sendes til databasen. Parameterisert SQL hindrer SQL-injeksjon, men validering hindrer ugyldige identitetsdata i å bli brukt. |
+
+`mise check` kunne ikke kjøres fordi prosjektet ikke har en slik oppgave. Jeg fant heller ingen tester i prosjektfilene.
