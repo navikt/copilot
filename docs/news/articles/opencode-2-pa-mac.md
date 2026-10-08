@@ -4,15 +4,15 @@ date: 2026-10-08
 author: starefossen
 category: nav-pilot
 cli: true
-excerpt: "Du kan nå bruke OpenCode 2 med nav-pilot på macOS. Oppdater cplt først."
+excerpt: "Vil du bruke OpenCode 2 på macOS, må du oppdatere cplt først. Bruker du OpenCode 1, trenger du ikke gjøre noe."
 tags:
   - nav-pilot
   - opencode
 ---
 
-Du kan nå bruke OpenCode 2 med nav-pilot på macOS.
+Du kan nå bruke OpenCode 2 med nav-pilot på macOS. Bruker du OpenCode 1, trenger du ikke gjøre noe. På Linux må du bli på OpenCode 1 inntil videre.
 
-## Slik kommer du i gang
+## Slik kommer du i gang på Mac
 
 1. Oppdater cplt til versjonen fra 8. oktober 2026 eller nyere:
 
@@ -27,11 +27,5 @@ Du kan nå bruke OpenCode 2 med nav-pilot på macOS.
    ```sh
    opencode auth import
    ```
-
-## Linux og OpenCode 1
-
-På Linux må du bli på OpenCode 1 inntil videre. Støtte for OpenCode 2 kommer senere.
-
-Bruker du OpenCode 1, trenger du ikke gjøre noe.
 
 Mer om klientene finner du på [Klienter](/nav-pilot/klienter).
