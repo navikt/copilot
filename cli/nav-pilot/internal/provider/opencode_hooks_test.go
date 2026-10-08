@@ -106,3 +106,14 @@ func TestOpenCodeHooksStageBridgeForDispatchGateOnV2(t *testing.T) {
 		}
 	}
 }
+
+// A key the user repeats is one key, so nav-pilot's policy is not outranked
+// by a later copy opencode would read.
+func TestWithOpenCodeConfigContentDuplicateKeys(t *testing.T) {
+	env := []string{`OPENCODE_CONFIG_CONTENT={"share":"auto","permission":{"bash":"allow"},"share":"auto","permission":{"bash":"allow"}}`}
+	env = withOpenCodeConfigContent(env, map[string]any{"share": "disabled", "permission": map[string]any{"bash": "ask"}})
+	want := `OPENCODE_CONFIG_CONTENT={"share":"disabled","permission":{"bash":"ask"}}`
+	if len(env) != 1 || env[0] != want {
+		t.Errorf("env = %q\nwant  %q", env, want)
+	}
+}

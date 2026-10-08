@@ -1,12 +1,14 @@
 package provider
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+	"go.yaml.in/yaml/v3"
 )
 
 // Tier 2 (payload) launch.
@@ -571,9 +574,16 @@ func openCodeV2Args(args, env []string) ([]string, []string) {
 //
 // opencode 2 ranks OPENCODE_CONFIG above the config dir, which would let the
 // user's file override the payload's opencode.json; opencode 1 ranks the
-// payload higher. So the payload's permissions go into OPENCODE_CONFIG_CONTENT
-// as well, which ranks above both. Only those: anything else may name a path
-// relative to the payload, which the content would resolve elsewhere.
+// payload higher. So the payload's permissions and agents go into
+// OPENCODE_CONFIG_CONTENT as well, which ranks above both: opencode 2 lays a
+// later source's agent fields over an earlier one's, so a user agent with a
+// payload agent's name would otherwise replace its prompt and model. Agents
+// come from the payload's opencode.json, with relative {file:} paths made
+// absolute (the content resolves them from the project), and from its
+// agent/mode markdown files, read as opencode reads them: the payload is a
+// third-party tree nav-pilot never authors (agentpakke/payload.go). Nothing
+// else: other keys may name paths relative to the payload. Key order is kept,
+// since opencode resolves permission rules in order.
 //
 // Not put back: the user's agents, commands, modes, tools and plugins
 // directories under the config dir. opencode 2 reads those only from a config
@@ -603,17 +613,198 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 		if err != nil {
 			continue
 		}
-		var cfg map[string]any
-		if json.Unmarshal(stripJSONC(b), &cfg) == nil {
-			for _, k := range []string{"permission", "permissions"} {
-				if v, ok := cfg[k]; ok {
-					add[k] = mergeJSON(add[k], v)
+		b = openCodeFileRefs.ReplaceAllFunc(b, func(m []byte) []byte {
+			p := string(m[len("{file:") : len(m)-1])
+			if filepath.IsAbs(p) || strings.HasPrefix(p, "~/") {
+				return m
+			}
+			return []byte("{file:" + filepath.ToSlash(filepath.Join(payload, p)) + "}")
+		})
+		if cfg, err := jsonNode(stripJSONC(b)); err == nil {
+			for _, k := range []string{"permission", "permissions", "agent", "agents"} {
+				if v := nodeGet(cfg, k); v != nil {
+					have, _ := add[k].(*yaml.Node)
+					add[k] = mergeNode(have, v)
 				}
 			}
+		}
+	}
+	// As opencode loads them: markdown agents after the config dir's files,
+	// so a file outranks the JSON agent of its name. Legacy (v1) frontmatter
+	// goes under "agent", native (v2) under "agents"; within one source
+	// opencode takes a native agent whole over a legacy one, so a legacy file
+	// drops a native JSON agent of its name.
+	//
+	// ponytail: a native file over a legacy JSON agent of its name replaces it
+	// whole, where opencode overlays field by field. Matching that means
+	// porting opencode's v1 migration; do it if a payload ever ships both.
+	legacy, native := openCodeMarkdownAgents(payload)
+	for i := 0; i+1 < len(legacy.Content); i += 2 {
+		have, _ := add["agents"].(*yaml.Node)
+		nodeDelete(have, legacy.Content[i].Value)
+	}
+	for k, md := range map[string]*yaml.Node{"agent": legacy, "agents": native} {
+		if len(md.Content) > 0 {
+			have, _ := add[k].(*yaml.Node)
+			add[k] = mergeNode(have, md)
 		}
 	}
 	if len(add) == 0 {
 		return env
 	}
 	return withOpenCodeConfigContent(env, add)
+}
+
+var openCodeFileRefs = regexp.MustCompile(`\{file:[^}]+\}`)
+
+// openCodeMarkdownAgents reads a config dir's agent and mode files as opencode
+// 2 does (packages/core/src/config/plugin/agent.ts at v2.0.24): the path under
+// the folder without .md names the agent, a mode file is a primary agent, and
+// frontmatter with only native keys is a v2 agent with the body as system,
+// else a v1 agent with the body as prompt. Left out, keeping their rank below
+// the user's config: files opencode would not parse, and files with {file:}
+// or {env:}, which opencode resolves in OPENCODE_CONFIG_CONTENT but not in an
+// agent file.
+func openCodeMarkdownAgents(dir string) (legacy, native *yaml.Node) {
+	legacy, native = &yaml.Node{Kind: yaml.MappingNode}, &yaml.Node{Kind: yaml.MappingNode}
+	for _, sub := range []string{"agent", "agents", "mode", "modes"} {
+		root := filepath.Join(dir, sub)
+		_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".md") || (strings.HasPrefix(sub, "mode") && filepath.Dir(p) != root) {
+				return nil
+			}
+			b, err := os.ReadFile(p)
+			if err != nil {
+				return nil
+			}
+			rel, _ := filepath.Rel(root, p)
+			name := strings.TrimSuffix(filepath.ToSlash(rel), ".md")
+			if bytes.Contains(b, []byte("{file:")) || bytes.Contains(b, []byte("{env:")) {
+				fmt.Fprintf(os.Stderr, "%s The payload's agent %s uses {file:} or {env:}; a user agent of that name outranks it.\n", domain.Yellow("⚠"), name)
+				return nil
+			}
+			// No frontmatter is a native agent, the whole file its system.
+			fm, body, ok := source.SplitFrontmatter(b)
+			if !ok {
+				fm, body = nil, b
+			}
+			var doc yaml.Node
+			if yaml.Unmarshal(fm, &doc) != nil && yaml.Unmarshal(sanitizeFrontmatter(fm), &doc) != nil {
+				return nil
+			}
+			agent := &yaml.Node{Kind: yaml.MappingNode}
+			if len(doc.Content) > 0 {
+				agent = doc.Content[0]
+			}
+			if agent.Kind != yaml.MappingNode {
+				return nil
+			}
+			// A repeated key is emitted once, the last value winning.
+			dedup := &yaml.Node{Kind: yaml.MappingNode}
+			for i := 0; i+1 < len(agent.Content); i += 2 {
+				nodeSet(dedup, agent.Content[i].Value, agent.Content[i+1])
+			}
+			agent = dedup
+			str := func(v string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v} }
+			out, prompt := native, "system"
+			for i := 0; i < len(agent.Content); i += 2 {
+				if !openCodeNativeAgentKeys[agent.Content[i].Value] {
+					out, prompt = legacy, "prompt"
+				}
+			}
+			if out == legacy && !openCodeV1AgentValid(agent) {
+				return nil
+			}
+			if out == native {
+				m, v := nodeGet(agent, "model"), nodeGet(agent, "variant")
+				if m != nil && v != nil && m.Tag == "!!str" && v.Tag == "!!str" && !strings.Contains(m.Value, "#") && v.Value != "" && !strings.Contains(v.Value, "#") {
+					nodeSet(agent, "model", str(m.Value+"#"+v.Value))
+				}
+				nodeDelete(agent, "variant")
+			}
+			if strings.HasPrefix(sub, "mode") {
+				nodeSet(agent, "mode", str("primary"))
+			}
+			nodeSet(agent, prompt, str(strings.TrimSpace(string(body))))
+			nodeSet(out, name, agent)
+			return nil
+		})
+	}
+	return legacy, native
+}
+
+// sanitizeFrontmatter is opencode's retry for frontmatter YAML rejects
+// (core/src/config/markdown.ts sanitize): a top-level value with an unquoted
+// colon becomes a block scalar.
+func sanitizeFrontmatter(fm []byte) []byte {
+	lines := strings.Split(string(fm), "\n")
+	var out []string
+	for _, l := range lines {
+		t := strings.TrimSpace(l)
+		m := openCodeFrontmatterEntry.FindStringSubmatch(l)
+		if t == "" || strings.HasPrefix(t, "#") || m == nil {
+			out = append(out, l)
+			continue
+		}
+		v := strings.TrimSpace(m[2])
+		if v == "" || v == ">" || v == "|" || strings.HasPrefix(v, `"`) || strings.HasPrefix(v, "'") || !strings.Contains(v, ":") {
+			out = append(out, l)
+			continue
+		}
+		out = append(out, m[1]+": |-", "  "+v)
+	}
+	return []byte(strings.Join(out, "\n"))
+}
+
+var openCodeFrontmatterEntry = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$`)
+
+// openCodeV1AgentValid checks the fields of opencode's v1 agent schema
+// (core/src/v1/config/agent.ts) a file most likely gets wrong; opencode drops
+// a file that fails it.
+//
+// ponytail: types only, not color patterns or positive steps; extend if a
+// payload trips over those.
+func openCodeV1AgentValid(a *yaml.Node) bool {
+	for i := 0; i+1 < len(a.Content); i += 2 {
+		v := a.Content[i+1]
+		switch a.Content[i].Value {
+		case "model", "variant", "prompt", "description", "color":
+			if v.Tag != "!!str" {
+				return false
+			}
+		case "disable", "hidden":
+			if v.Tag != "!!bool" {
+				return false
+			}
+		case "temperature", "top_p", "steps", "maxSteps":
+			if v.Tag != "!!int" && v.Tag != "!!float" {
+				return false
+			}
+		case "mode":
+			if !slices.Contains([]string{"subagent", "primary", "all"}, v.Value) {
+				return false
+			}
+		case "options", "permission":
+			if v.Kind != yaml.MappingNode && !(a.Content[i].Value == "permission" && v.Tag == "!!str") {
+				return false
+			}
+		case "tools":
+			if v.Kind != yaml.MappingNode {
+				return false
+			}
+			for j := 1; j < len(v.Content); j += 2 {
+				if v.Content[j].Tag != "!!bool" {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// openCodeNativeAgentKeys are the frontmatter keys of an opencode 2 agent
+// (ConfigAgent.Info, and variant); any other key makes the file a v1 agent.
+var openCodeNativeAgentKeys = map[string]bool{
+	"variant": true, "model": true, "request": true, "system": true, "description": true, "mode": true,
+	"hidden": true, "color": true, "steps": true, "disabled": true, "permissions": true,
 }

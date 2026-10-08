@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,8 +17,11 @@ import (
 // agents` under real cplt with the arguments and environment a Tier 2 launch
 // builds (buildStagedOpenCodeSpec): the payload's agent is loaded (cplt
 // overlays OPENCODE_CONFIG_DIR) and the user's opencode.json is read as
-// OPENCODE_CONFIG. Controls: without --pass-env OPENCODE_CONFIG the user's
-// file is gone, and without OPENCODE_CONFIG_DIR the payload's agent is.
+// OPENCODE_CONFIG, while the payload's agent outranks the user's agent of the
+// same name (restated in OPENCODE_CONFIG_CONTENT). Controls: without
+// --pass-env OPENCODE_CONFIG the user's file is gone, without the restated
+// agents the user's agent wins, and without OPENCODE_CONFIG_DIR as well the
+// payload's agent is gone.
 // Opt-in: NAV_PILOT_OPENCODE2 and NAV_PILOT_CPLT.
 func TestOpenCode2LiveTier2UnderCplt(t *testing.T) {
 	oc, _ := liveOpenCode2(t)
@@ -32,7 +36,7 @@ func TestOpenCode2LiveTier2UnderCplt(t *testing.T) {
 	_ = os.MkdirAll(proj, 0o755)
 	_ = exec.Command("git", "-C", proj, "init", "-q").Run()
 	user := filepath.Join(openCodeConfigDir(), "opencode.json")
-	mustWrite(t, user, `{"instructions":["user-probe.md"]}`)
+	mustWrite(t, user, `{"instructions":["user-probe.md"],"agent":{"grillmester":{"prompt":"USER-AGENT-PROMPT"}}}`)
 
 	spec := buildStagedSpec(t, "opencode", domain.ResolvedConfig{}, StagedLaunch{PakkeName: "grillmester", Dir: payload, Context: "full"})
 	if !slices.Contains(spec.env, "OPENCODE_CONFIG="+user) {
@@ -52,7 +56,18 @@ func TestOpenCode2LiveTier2UnderCplt(t *testing.T) {
 		i := slices.Index(args, flag)
 		return slices.Delete(slices.Clone(args), i-1, i+1)
 	}
-	noDir := slices.DeleteFunc(slices.Clone(env), func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG_DIR=") })
+	noAgents := slices.Clone(env)
+	for i, e := range noAgents {
+		if v, ok := strings.CutPrefix(e, "OPENCODE_CONFIG_CONTENT="); ok {
+			var cfg map[string]any
+			_ = json.Unmarshal([]byte(v), &cfg)
+			delete(cfg, "agent")
+			delete(cfg, "agents")
+			b, _ := json.Marshal(cfg)
+			noAgents[i] = "OPENCODE_CONFIG_CONTENT=" + string(b)
+		}
+	}
+	noDir := slices.DeleteFunc(slices.Clone(noAgents), func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG_DIR=") })
 
 	// The user's file, as opencode lists its config sources.
 	for _, c := range []struct {
@@ -68,22 +83,25 @@ func TestOpenCode2LiveTier2UnderCplt(t *testing.T) {
 			t.Errorf("%s: %s listed = %v, want %v\n%s", c.name, user, !c.found, c.found, tail(out, 1500))
 		}
 	}
-	// The payload's agent, by its prompt reaching the model.
+	// The payload's agent, by its prompt reaching the model in place of the
+	// user's agent of the same name.
 	run := []string{"run", "--agent", "grillmester", "--model", "fake/m", "go"}
 	for _, c := range []struct {
 		name  string
 		env   []string
 		found bool
 	}{
-		{"payload agent loaded", env, true},
+		{"payload agent outranks user agent", env, true},
+		{"control: agents not restated, user agent wins", noAgents, false},
 		{"control: no payload dir", noDir, false},
 	} {
 		llm.mu.Lock()
 		llm.bodies = nil
 		llm.mu.Unlock()
 		out := runOpenCode2(t, oc, proj, run, c.env, spec.cpltArgs, srv)
-		if strings.Contains(llm.requests(), "PAYLOAD-AGENT-PROMPT") != c.found {
-			t.Errorf("%s: payload prompt sent = %v, want %v\n%s", c.name, !c.found, c.found, tail(out, 1500))
+		req := llm.requests()
+		if strings.Contains(req, "PAYLOAD-AGENT-PROMPT") != c.found || strings.Contains(req, "USER-AGENT-PROMPT") == c.found {
+			t.Errorf("%s: payload prompt sent = %v, want %v (user prompt sent = %v)\n%s", c.name, !c.found, c.found, strings.Contains(req, "USER-AGENT-PROMPT"), tail(out, 1500))
 		}
 	}
 }

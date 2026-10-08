@@ -6,15 +6,19 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
+	"maps"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+	"go.yaml.in/yaml/v3"
 )
 
 // The hooks Copilot CLI runs for nav-pilot, run in OpenCode as well (#1025).
@@ -188,35 +192,216 @@ func writeHooksBridgePlugin(v2 bool) (string, error) {
 // the user set is kept and added to; a list (plugin) is appended to. A value
 // that is not a JSON object is replaced, with a warning, because what
 // nav-pilot puts there is policy it does not skip.
+//
+// Key order is kept: opencode resolves permission rules in order, the last
+// match winning. add's own maps are written in sorted key order; a
+// *yaml.Node value is written in its own order. Output is not byte-identical
+// to the earlier map-based merge: top-level keys follow the user's order then
+// add's, and add's nested maps are sorted (the user's keep their order); what opencode reads is the same.
 func withOpenCodeConfigContent(env []string, add map[string]any) []string {
-	cfg := map[string]any{}
+	cfg := &yaml.Node{Kind: yaml.MappingNode}
 	for _, e := range env {
 		if v, ok := strings.CutPrefix(e, openCodeConfigContentEnv+"="); ok && v != "" {
-			if err := json.Unmarshal([]byte(v), &cfg); err != nil || cfg == nil {
+			n, err := jsonNode([]byte(v))
+			if err != nil || n.Kind != yaml.MappingNode {
 				fmt.Fprintf(os.Stderr, "%s %s is not a JSON object; nav-pilot replaces it for this session.\n", domain.Yellow("⚠"), openCodeConfigContentEnv)
-				cfg = map[string]any{}
+				n = &yaml.Node{Kind: yaml.MappingNode}
 			}
+			cfg = n
 		}
 	}
-	for k, v := range add {
-		if list, ok := v.([]any); ok {
-			have, isList := cfg[k].([]any)
-			if one, isStr := cfg[k].(string); !isList && isStr {
-				have = []any{one}
+	for _, k := range slices.Sorted(maps.Keys(add)) {
+		a := toNode(add[k])
+		have := nodeGet(cfg, k)
+		if a.Kind == yaml.SequenceNode {
+			list := &yaml.Node{Kind: yaml.SequenceNode}
+			switch {
+			case have != nil && have.Kind == yaml.SequenceNode:
+				list = have
+			case have != nil && have.Kind == yaml.ScalarNode && have.Tag == "!!str":
+				list.Content = []*yaml.Node{have}
 			}
-			for _, item := range list {
-				if !slices.Contains(have, item) {
-					have = append(have, item)
+			for _, item := range a.Content {
+				if !slices.ContainsFunc(list.Content, func(h *yaml.Node) bool { return string(nodeJSON(h)) == string(nodeJSON(item)) }) {
+					list.Content = append(list.Content, item)
 				}
 			}
-			cfg[k] = have
+			nodeSet(cfg, k, list)
 			continue
 		}
-		cfg[k] = mergeJSON(cfg[k], v)
+		nodeSet(cfg, k, mergeNode(have, a))
 	}
-	out, _ := json.Marshal(cfg)
-	env, _ = telemetry.SetEnvValue(env, openCodeConfigContentEnv, string(out))
+	env, _ = telemetry.SetEnvValue(env, openCodeConfigContentEnv, string(nodeJSON(cfg)))
 	return env
+}
+
+// toNode turns a JSON-shaped value into a node, maps in sorted key order.
+func toNode(v any) *yaml.Node {
+	if n, ok := v.(*yaml.Node); ok {
+		return n
+	}
+	b, _ := json.Marshal(v)
+	n, _ := jsonNode(b)
+	return n
+}
+
+// jsonNode decodes JSON into a node, keeping key order.
+func jsonNode(b []byte) (*yaml.Node, error) {
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.UseNumber()
+	n, err := jsonNodeFrom(dec)
+	if err == nil {
+		if _, e := dec.Token(); e != io.EOF {
+			err = fmt.Errorf("trailing data after JSON value")
+		}
+	}
+	return n, err
+}
+
+func jsonNodeFrom(dec *json.Decoder) (*yaml.Node, error) {
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	switch t := tok.(type) {
+	case json.Delim:
+		n := &yaml.Node{Kind: yaml.SequenceNode}
+		if t == '{' {
+			n.Kind = yaml.MappingNode
+		}
+		for dec.More() {
+			if n.Kind == yaml.MappingNode {
+				k, err := dec.Token()
+				if err != nil {
+					return nil, err
+				}
+				v, err := jsonNodeFrom(dec)
+				if err != nil {
+					return nil, err
+				}
+				// A duplicate key keeps its first place and its last value, as
+				// JSON.parse does; two copies would let the user's outrank policy.
+				nodeSet(n, k.(string), v)
+				continue
+			}
+			v, err := jsonNodeFrom(dec)
+			if err != nil {
+				return nil, err
+			}
+			n.Content = append(n.Content, v)
+		}
+		_, err := dec.Token()
+		return n, err
+	case string:
+		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: t}, nil
+	case json.Number:
+		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!float", Value: t.String()}, nil
+	case bool:
+		return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: strconv.FormatBool(t)}, nil
+	}
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null", Value: "null"}, nil
+}
+
+// nodeJSON writes a node as compact JSON in its own key order. Mapping keys
+// become strings, as JavaScript makes them.
+func nodeJSON(n *yaml.Node) []byte {
+	var b bytes.Buffer
+	writeNodeJSON(&b, n)
+	return b.Bytes()
+}
+
+func writeNodeJSON(b *bytes.Buffer, n *yaml.Node) {
+	switch n.Kind {
+	case yaml.AliasNode:
+		writeNodeJSON(b, n.Alias)
+		return
+	case yaml.MappingNode, yaml.SequenceNode:
+		open, close := byte('['), byte(']')
+		if n.Kind == yaml.MappingNode {
+			open, close = '{', '}'
+		}
+		b.WriteByte(open)
+		step := 1
+		if n.Kind == yaml.MappingNode {
+			step = 2
+		}
+		for i := 0; i+step <= len(n.Content); i += step {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			if step == 2 {
+				k, _ := json.Marshal(n.Content[i].Value)
+				b.Write(k)
+				b.WriteByte(':')
+			}
+			writeNodeJSON(b, n.Content[i+step-1])
+		}
+		b.WriteByte(close)
+		return
+	case yaml.ScalarNode:
+		if n.Tag == "!!float" || n.Tag == "!!int" {
+			if json.Valid([]byte(n.Value)) {
+				b.WriteString(n.Value)
+				return
+			}
+		}
+		var v any
+		if n.Tag == "!!str" {
+			v = n.Value
+		} else if n.Decode(&v) != nil {
+			v = n.Value
+		}
+		if out, err := json.Marshal(v); err == nil {
+			b.Write(out)
+			return
+		}
+	}
+	b.WriteString("null")
+}
+
+func nodeGet(m *yaml.Node, key string) *yaml.Node {
+	if m == nil || m.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return m.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func nodeSet(m *yaml.Node, key string, v *yaml.Node) {
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			m.Content[i+1] = v
+			return
+		}
+	}
+	m.Content = append(m.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, v)
+}
+
+func nodeDelete(m *yaml.Node, key string) {
+	for i := 0; m != nil && i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			m.Content = slices.Delete(m.Content, i, i+2)
+			return
+		}
+	}
+}
+
+// mergeNode merges add over have: mappings key by key, anything else
+// replaced. A key have already holds keeps its place; a new one goes last.
+// have is changed in place.
+func mergeNode(have, add *yaml.Node) *yaml.Node {
+	if have == nil || have.Kind != yaml.MappingNode || add.Kind != yaml.MappingNode {
+		return add
+	}
+	for i := 0; i+1 < len(add.Content); i += 2 {
+		k := add.Content[i].Value
+		nodeSet(have, k, mergeNode(nodeGet(have, k), add.Content[i+1]))
+	}
+	return have
 }
 
 // underCpltExecRoot reports whether dir is under a tree cplt lets a sandboxed
