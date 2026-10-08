@@ -140,7 +140,8 @@ func LoadHookMeta(scriptPath string) HookMeta {
 //
 // failClosed turns each of those allows into a deny: the command prints a
 // permissionDecision of deny, with printf, a builtin, so the kill path still
-// starts no process. The reason names the gate and says whether it was killed
+// waits for nothing it starts (the background rm stays the only child, as
+// above). The reason names the gate and says whether it was killed
 // (143) or failed; the name is JSON-encoded and then single-quoted, so a name
 // with quotes or a newline cannot break out of either. A script that exits 0
 // has answered, whatever it printed: an empty answer allows, and only the

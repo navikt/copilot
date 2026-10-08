@@ -626,7 +626,8 @@ skriver `HookCommand` selv et `deny`-svar der skriptet ellers ville sluppet
 kallet gjennom: `python3` mangler, `mktemp` feiler, skriptet avslutter med
 feil, eller watchdogen dreper det (exit 143). Begrunnelsen navngir porten og
 sier om den feilet eller ikke svarte i tide. Svaret skrives med `printf`, en
-builtin, så drapsstien starter fortsatt ingen prosess. Navnet JSON-kodes og
+builtin, så drapsstien venter fortsatt ikke på noen prosess den starter; den
+bakgrunnskjørte `rm` er som før den eneste. Navnet JSON-kodes og
 settes i enkle anførselstegn, så et navn med anførselstegn eller linjeskift
 kommer ikke ut av noen av dem. Oppføringen bærer flagget videre
 (`failClosed` i `copilot-hooks.json` og `~/.copilot/hooks/<navn>.json`), og
