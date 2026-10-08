@@ -40,6 +40,8 @@ export function wilson(k: number, n: number, confidence: number): [number, numbe
 
 const pct = (x: number) => `${Math.round(x * 100)} %`;
 const pos = (x: number) => `${(x * 100).toFixed(2)}%`;
+// Keeps a centred mark of width 2*inset inside the track at 0 % and 100 %.
+const inTrack = (x: number, inset: string) => `clamp(${inset}, ${pos(x)}, calc(100% - ${inset}))`;
 
 function Axis({ ticks, format, max }: { ticks: number[]; format: (t: number) => string; max: number }) {
   return (
@@ -115,9 +117,9 @@ export function IntervalChart({ model }: { model: LocalModel }) {
       <figcaption>
         <BodyShort weight="semibold">Andel beståtte kjøringer med usikkerhet, {model.model.split("/").pop()}</BodyShort>
         <BodyShort size="small" textColor="subtle">
-          Prikken er andelen beståtte. Streken viser et {span}-intervall for hvor den sanne andelen kan ligge. Venstre
-          ende er den nedre grensen kravet bruker ({conf} sikkerhet). Få kjøringer gir lang strek. En oppgavetype kan
-          godkjennes først når venstre ende ligger til høyre for den stiplede kravlinjen.
+          Prikken er andelen beståtte kjøringer. Streken viser et {span}-intervall for hvor den sanne andelen kan ligge.
+          Venstre ende er den nedre grensen kravet bruker ({conf} sikkerhet). Få kjøringer gir lang strek. En
+          oppgavetype godkjennes først når venstre ende ligger til høyre for den stiplede kravlinjen.
         </BodyShort>
       </figcaption>
       <div role="img" aria-label={`Diagram. ${summary}.`} className="flex flex-col gap-2">
@@ -142,14 +144,14 @@ export function IntervalChart({ model }: { model: LocalModel }) {
               {[r.lo, r.hi].map((x, i) => (
                 <div
                   key={i}
-                  className="absolute inset-y-2 w-0.5"
-                  style={{ left: pos(x), background: "var(--ax-bg-accent-strong)" }}
+                  className="absolute inset-y-2 w-0.5 -translate-x-1/2"
+                  style={{ left: inTrack(x, "1px"), background: "var(--ax-bg-accent-strong)" }}
                 />
               ))}
               <div
                 className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
                 style={{
-                  left: pos(r.k / r.n),
+                  left: inTrack(r.k / r.n, "0.375rem"),
                   background: "var(--ax-bg-accent-strong)",
                   borderColor: "var(--ax-bg-default)",
                 }}
@@ -163,15 +165,15 @@ export function IntervalChart({ model }: { model: LocalModel }) {
         </div>
       </div>
       <BodyShort size="small" textColor="subtle">
-        Stiplet linje: kravet, {pct(model.bar.x_caught)} av skymodellens andel, {pct(model.bar.x_silent)} for svar og
-        feilsøking. Skymodellen besto alle kjøringene i disse målingene, så kravet er vist som en fast andel. Manifestet
-        har ikke skymodellens antall kjøringer, så den har ingen egen strek.
+        Stiplet linje er kravet: {pct(model.bar.x_caught)} av skymodellens andel, {pct(model.bar.x_silent)} for svar og
+        feilsøking. Skymodellen besto alle kjøringene i disse målingene, så kravet vises som en fast andel. Manifestet
+        oppgir ikke hvor mange kjøringer skymodellen hadde, så den har ingen egen strek.
       </BodyShort>
-      <ReadMore header="Tallene i tabell" size="small">
+      <ReadMore header="Tallene som tabell" size="small">
         <div className="overflow-x-auto">
           <Table size="small">
             <HeaderRow
-              cells={["Oppgavetype", "Kjøring", "Bestått", `${span}-intervall`, "Nedre grense", "Krav", "Vurdering"]}
+              cells={["Oppgavetype", "Utført", "Bestått", `${span}-intervall`, "Nedre grense", "Krav", "Vurdering"]}
             />
             <TableBody>
               {rows.map((r) => (
@@ -327,7 +329,7 @@ export function ReportTimeline({ index, listUrl }: { index: ReportIndex; listUrl
           Hver prikk er én rapport. Rapporter fra samme dag ligger over hverandre. Velg en prikk for å åpne rapporten.
         </BodyShort>
       </figcaption>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Forklaring">
+      <ul className="flex flex-wrap gap-x-4 gap-y-1" aria-label="Tegnforklaring">
         {used.map((k) => (
           <li key={k} className="flex items-center gap-2">
             <Marker k={k} />
@@ -370,7 +372,7 @@ export function ReportTimeline({ index, listUrl }: { index: ReportIndex; listUrl
         </div>
       </Box>
       <BodyShort size="small" textColor="subtle">
-        Rapportene er på engelsk. Bare rapporter som selv oppgir en vurdering, har farge.
+        Rapportene er på engelsk. Bare rapporter som oppgir en vurdering, har farge.
       </BodyShort>
       <BodyShort size="small" weight="semibold" as="h3">
         Nyeste rapporter
