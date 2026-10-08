@@ -1,0 +1,9 @@
+Lagt til `sakstype` i `VedtakFattet`, og `gradle test` i `vedtak-hendelse/` er grønt (4 tester).
+
+- **Enum `Sakstype`**: `ORDINAER`, `KLAGE`, `ANKE`.
+- **Default `ORDINAER`**: gamle meldinger uten feltet leses som `ORDINAER`.
+- **`FAIL_ON_UNKNOWN_PROPERTIES = false`**: ukjente felt fra nyere produsenter ignoreres. Jackson feiler som standard på dem, så dette måtte settes.
+
+Ukjente verdier i `sakstype` (for eksempel en ny type) feiler fortsatt. Si fra hvis konsumentene skal tåle det også.
+
+Testfilen er utvidet med tester for manglende felt, alle tre verdiene, ukjente felt og rundtur.

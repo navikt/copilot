@@ -1,0 +1,23 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        kafka
+# suite:        kafka
+# date:         2026-10-08
+# revision:     ddd78e25
+# model:        claude-haiku-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+kf-idem|1|0|pass|3050|48652|true|
+kf-felt|1|0|pass|1784|28231|true|
+kf-idem|2|0|pass|4974|79057|true|
+kf-felt|2|0|pass|2033|29788|true|
+kf-idem|3|0|pass|5395|78901|true|
+kf-felt|3|0|pass|1419|20893|true|
+kf-idem|4|0|pass|4451|76037|true|
+kf-felt|4|0|pass|1559|24182|true|
+kf-idem|5|0|pass|9173|82235|true|
+kf-felt|5|0|pass|1541|23089|true|

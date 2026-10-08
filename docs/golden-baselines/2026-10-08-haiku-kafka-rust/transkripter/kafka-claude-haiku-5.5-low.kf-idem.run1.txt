@@ -1,0 +1,10 @@
+Rettet, og `gradle test` i `vedtak-konsument/` går grønt (5 tester).
+
+**Endringer i `VedtakKonsument.kt`:**
+- **Idempotens:** Hver `eventId` utbetales bare én gang. Duplikater hoppes over.
+- **Commit etter behandling:** Offset commites per melding, etter at utbetalingen er gjort. Ved feil commites ikke offset, consumeren seekes tilbake til første ubehandlede melding, og feilen kastes videre.
+- **Konstruktør:** `VedtakKonsument(consumer) { id, belop -> ... }` fungerer som før.
+
+**Ny testdekning:** duplikat i samme batch, gjenlesing etter rebalansering, commit-offset, og feil uten commit med gjenlesing.
+
+**Begrensning:** Settet med utbetalte `eventId`-er ligger i minnet. Det beskytter mot dobbelutbetaling ved rebalansering i samme prosess, men ikke etter restart. Hvis prosessen krasjer mellom utbetaling og commit, kan samme melding utbetales på nytt. Full sikkerhet krever en persistent lagring av `eventId` i samme transaksjon som utbetalingen, for eksempel med unik nøkkel i databasen.

@@ -1,0 +1,3 @@
+Lånefeilen i `behandle_neste` er rettet, og `cargo test` i `saksko/` går grønt (1 test).
+
+Feilen var at `sak` var en referanse inn i `self.saker` da `remove(0)` ble kalt. Nå sjekker funksjonen om køen er tom, fjerner eldste sak med `remove(0)` og returnerer den direkte. Oppførselen er den samme: tom kø gir `None`, og eldste sak blir notert i `behandlet`. Endringen er i `saksko/src/lib.rs`.

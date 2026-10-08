@@ -1,0 +1,7 @@
+`les` returnerer nå `Result<Vedtak, VedtakFeil>` i stedet for å panikke. `cargo test` i `vedtak-parser/` gir 4 passerte tester.
+
+- **`VedtakFeil`** (thiserror): `ManglerId` når id er tom, `ManglerBelop` når beløpsfeltet mangler, og `UgyldigBelop(String)` når beløpet ikke er et gyldig `u32`. Feilmeldingen for `UgyldigBelop` inneholder teksten, for eksempel `ugyldig beløp: abc`.
+- **Tester**: én per feilvariant, pluss gyldig-linje-testen som nå sjekker `Ok(...)`. Testen for `UgyldigBelop` verifiserer også at feilteksten finnes i meldingen.
+- **Avhengighet**: `thiserror` er lagt til i `Cargo.toml`.
+
+`use thiserror::Error;` står midt i filen, under `Vedtak`-structen. Det fungerer, men kan flyttes til toppen hvis du vil ha det ryddigere.

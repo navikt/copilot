@@ -1,0 +1,9 @@
+`les` returnerer nå `Result<Vedtak, VedtakFeil>` i stedet for å få panikk på ugyldig input. Feiltypen bruker `thiserror` og skiller mellom tom id, manglende beløp og ugyldig beløpstekst. Testene dekker hver feil og sjekker at teksten vises i feilmeldingen.
+
+Valget gjør ugyldig input eksplisitt for kalleren. Det krever feilhåndtering der `les` brukes, men unngår panikk når parseren får feil format.
+
+🔴 Rød sone: inputvalidering. Gå nøye gjennom hvordan kallere håndterer de nye feilene.
+
+`cargo test` og `cargo clippy -- -W clippy::pedantic` passerer i `vedtak-parser/`. Formateringssjekken passerer også.
+
+Still gjerne spørsmål om valgene over

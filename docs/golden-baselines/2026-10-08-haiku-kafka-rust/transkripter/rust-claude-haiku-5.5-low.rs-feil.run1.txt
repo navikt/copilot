@@ -1,0 +1,9 @@
+`les` returnerer nå `Result<Vedtak, VedtakFeil>` i `vedtak-parser/src/lib.rs`, og ingen input panikker lenger. `cargo test` er grønn: 5 tester passerer, inkludert én test per feilvariant.
+
+- **`VedtakFeil`** (thiserror):
+  - `ManglerId`: tom id.
+  - `ManglerBelop`: mangler beløp, eller beløpsfeltet er tomt.
+  - `UgyldigBelop(String)`: feilmeldingen blir `ugyldig beløp: <tekst>`.
+- **Dependency:** `thiserror` er lagt til i `Cargo.toml`.
+
+Jeg behandlet et tomt beløpsfelt (`"v1;"`) som `ManglerBelop`, ikke `UgyldigBelop("")`. Si fra hvis du heller vil ha det som ugyldig.

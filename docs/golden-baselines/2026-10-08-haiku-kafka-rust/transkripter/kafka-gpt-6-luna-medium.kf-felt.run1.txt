@@ -1,0 +1,3 @@
+Lagt til `sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Eldre meldinger får standardverdien `ORDINAER`, og ukjente felter ignoreres. Ugyldige verdier avvises av enum-parsingen, slik at kontrakten ikke godtar fritekst.
+
+🔴 Rød sone: enum-parsingen validerer hendelsesdata. `gradle test` i `vedtak-hendelse/` fullførte med `BUILD SUCCESSFUL`. Testene dekker eldre meldinger, alle gyldige verdier, ukjente felter og serialisering. Still gjerne spørsmål om valgene over.

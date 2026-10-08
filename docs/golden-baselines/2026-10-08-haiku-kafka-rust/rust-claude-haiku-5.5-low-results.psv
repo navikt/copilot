@@ -1,0 +1,36 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        rust
+# suite:        rust
+# date:         2026-10-08
+# revision:     ddd78e25
+# model:        claude-haiku-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      588445031
+# prompts:      all
+#
+# id|run|status|assertion|detail
+rs2|1|pass|Rust borrow: changes only inside saksko/|
+rs1|1|pass|Rust borrow: hidden tests pass (queue drains in order)|
+rs4|1|pass|Rust errors: changes only inside vedtak-parser/|
+rs3|1|pass|Rust errors: hidden tests pass, thiserror used, a test per error|
+rs2|2|pass|Rust borrow: changes only inside saksko/|
+rs1|2|pass|Rust borrow: hidden tests pass (queue drains in order)|
+rs4|2|pass|Rust errors: changes only inside vedtak-parser/|
+rs3|2|pass|Rust errors: hidden tests pass, thiserror used, a test per error|
+rs2|3|pass|Rust borrow: changes only inside saksko/|
+rs1|3|pass|Rust borrow: hidden tests pass (queue drains in order)|
+rs4|3|pass|Rust errors: changes only inside vedtak-parser/|
+rs3|3|pass|Rust errors: hidden tests pass, thiserror used, a test per error|
+rs2|4|pass|Rust borrow: changes only inside saksko/|
+rs1|4|pass|Rust borrow: hidden tests pass (queue drains in order)|
+rs4|4|pass|Rust errors: changes only inside vedtak-parser/|
+rs3|4|pass|Rust errors: hidden tests pass, thiserror used, a test per error|
+rs2|5|pass|Rust borrow: changes only inside saksko/|
+rs1|5|pass|Rust borrow: hidden tests pass (queue drains in order)|
+rs4|5|pass|Rust errors: changes only inside vedtak-parser/|
+rs3|5|pass|Rust errors: hidden tests pass, thiserror used, a test per error|

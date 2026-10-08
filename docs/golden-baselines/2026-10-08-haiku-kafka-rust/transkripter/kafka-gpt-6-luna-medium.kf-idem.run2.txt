@@ -1,0 +1,3 @@
+`VedtakKonsument` dedupliserer nå `eventId`-er mens konsumenten kjører. Den committer først etter at alle meldingene i poll-kallet er behandlet. Ved feil søker den tilbake til første offset i hver berørte partisjon og kaster feilen videre. Konstruktøren er uendret. `cd vedtak-konsument && gradle test` fullførte med `BUILD SUCCESSFUL`.
+
+🔴 Rød sone: Dedupliseringen ligger i minnet, så den hindrer nye utbetalinger ved gjentatte meldinger og rebalanseringer så lenge prosessen kjører. Den beskytter ikke mot en omstart etter utbetaling, men før offset-commit; varig garanti krever en persistent idempotensløsning i utbetalingen eller lagringen. Still gjerne spørsmål om valgene over.

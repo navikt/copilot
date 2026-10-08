@@ -1,0 +1,8 @@
+`VedtakKonsument` is fixed, and `gradle test` in `vedtak-konsument/` passes (3 tests, 0 failures).
+
+- **Dobbel utbetaling:** eventId lagres etter vellykket utbetaling. Samme eventId hoppes over ved redelivery.
+- **Offset:** commites per melding etter behandling, ikke før. Ved feil spoles consumeren tilbake, så meldingen leses på nytt.
+- **Konstruktør:** `VedtakKonsument(consumer, utbetaling)` fungerer fortsatt. Dedup-settet er valgfritt som tredje parameter.
+- **Tester:** lagt til tester for redelivery og feilet utbetaling.
+
+Begrensning: dedup-settet ligger i minnet, så det tømmes ved restart. Etter restart kan allerede utbetalte eventer utbetales på nytt. Hvis dette må tåles, må settet lagres i database sammen med utbetalingen. Kontroller også at `enable.auto.commit` er `false`, ellers commiter Kafka-klienten offset på egen hånd.

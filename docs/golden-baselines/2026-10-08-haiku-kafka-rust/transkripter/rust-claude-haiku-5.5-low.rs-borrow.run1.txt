@@ -1,0 +1,3 @@
+Lånefeilen i `behandle_neste` er rettet, og `cargo test` i `saksko/` går grønt (1 test passerer).
+
+Endringen er i `saksko/src/lib.rs`: `behandle_neste` sjekker først om køen er tom, flytter den eldste saken ut med `remove(0)`, noterer id-en og returnerer saken. Den tidligere versjonen holdt en lånt referanse til saken mens køen ble endret, noe Rust ikke tillater. Oppførselen er uendret.

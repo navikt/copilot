@@ -1,0 +1,3 @@
+Rettet lånefeilen i `saksko/src/lib.rs`: funksjonen sjekker nå om køen er tom og tar deretter saken ut av køen som en eid verdi. Den beholder samme oppførsel uten å låne saken mens køen endres.
+
+`cargo test` i `saksko/` går grønt.

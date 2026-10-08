@@ -1,0 +1,7 @@
+Lagt til `sakstype` i `VedtakFattet` med enum `Sakstype` (`ORDINAER`, `KLAGE`, `ANKE`). `gradle test` i `vedtak-hendelse/` er grønn.
+
+- **Gamle meldinger:** Feltet har default `ORDINAER`, så meldinger uten `sakstype` leses som `ORDINAER`.
+- **Nye felt:** `VedtakSerde` slår av `FAIL_ON_UNKNOWN_PROPERTIES`, så ukjente felt fra nyere produsenter ignoreres.
+- **Tester:** Fire nye tester i `VedtakFattetTest.kt` dekker gamle meldinger, alle gyldige verdier, ukjente felt og skriving.
+
+Ukjent verdi i `sakstype` (for eksempel en ny type) gir fortsatt feil. Det dekker ikke kravet, som bare gjelder ukjente felt. Si fra hvis det også skal tolereres.

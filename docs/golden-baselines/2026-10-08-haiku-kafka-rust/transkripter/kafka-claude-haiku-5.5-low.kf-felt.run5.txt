@@ -1,0 +1,7 @@
+Feltet `sakstype` er lagt til i `VedtakFattet`, og `gradle test` i `vedtak-hendelse/` går grønt (4 tester, 0 feil).
+
+- **Enum:** `Sakstype` med `ORDINAER`, `KLAGE` og `ANKE`.
+- **Gamle meldinger:** Feltet har default `ORDINAER`, så meldinger uten feltet leses som ORDINAER.
+- **Nyere produsenter:** `@JsonIgnoreProperties(ignoreUnknown = true)` gjør at ukjente felt ignoreres.
+
+Endringene er i `VedtakFattet.kt` og `VedtakFattetTest.kt`. Ukjente enum-verdier gir fortsatt feil ved lesing; det dekker ikke kravet, som bare gjelder felt.

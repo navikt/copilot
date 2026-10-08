@@ -1,0 +1,9 @@
+Feltet `sakstype` er lagt til i `VedtakFattet`, og `gradle test` i `vedtak-hendelse/` passerer (5 tester, 0 feil).
+
+- **Enum:** `Sakstype` med `ORDINAER`, `KLAGE` og `ANKE`.
+- **Gamle meldinger:** Uten feltet blir verdien `ORDINAER`, via default-verdi.
+- **Nyere produsenter:** Ukjente felt ignoreres (`FAIL_ON_UNKNOWN_PROPERTIES` er av).
+
+Ukjente verdier i `sakstype` (for eksempel en ny sakstype) feiler fortsatt ved deserialisering. Det dekker ikke kravet, så si fra om dere vil ha en fallback for det.
+
+Rød sone: deserialiseringen i `VedtakSerde` er den delen konsumentene avhenger av, gå gjennom den nøye.

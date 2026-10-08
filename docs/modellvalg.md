@@ -567,6 +567,35 @@ Ellers beholder agenten Luna. Hver agent vurderes for seg.
 
 Armene er Claude Haiku 5.5 Low og GPT-6 Luna Medium, fem kjøringer per oppgave og arm i Copilot CLI, med `--keep`. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell enn armen, forkastes. Budsjettet er om lag 40 credits, med stopp ved 80. Målingen endrer ingen pinner.
 
+### Resultater
+
+Rådata ligger i [2026-10-08-haiku-kafka-rust](golden-baselines/2026-10-08-haiku-kafka-rust/). Svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-kafka-rust/transkripter/). Copilot CLI, fem kjøringer per oppgave og arm. Alle 136 bruksrader for Haiku viser `claude-haiku-5.5` med `low`, og alle 208 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet, og ingen sjekk feilet, så [failures.psv](golden-baselines/2026-10-08-haiku-kafka-rust/failures.psv) har ingen rader.
+
+Credits per oppgave er oppgitt som laveste–median–høyeste over de fem kjøringene.
+
+| Agent    | Oppgave   | Haiku 5.5 Low: bestått | Haiku 5.5 Low: credits | Luna Medium: bestått | Luna Medium: credits |
+| -------- | --------- | ---------------------- | ---------------------- | -------------------- | -------------------- |
+| `@kafka` | kf-idem   | 5/5                    | 1,06–1,50–1,72         | 5/5                  | 0,88–1,07–1,64       |
+| `@kafka` | kf-felt   | 5/5                    | 0,52–0,61–0,69         | 5/5                  | 0,62–0,72–0,92       |
+| `@rust`  | rs-borrow | 5/5                    | 0,39–0,42–0,51         | 5/5                  | 0,43–0,65–0,72       |
+| `@rust`  | rs-feil   | 5/5                    | 0,45–0,49–0,60         | 5/5                  | 0,67–0,69–0,92       |
+
+Credits per kjøring, det vil si begge oppgavene til agenten, som laveste–median–høyeste:
+
+| Agent    | Haiku 5.5 Low  | Luna Medium    |
+| -------- | -------------- | -------------- |
+| `@kafka` | 1,67–2,06–2,40 | 1,69–1,80–2,36 |
+| `@rust`  | 0,87–0,92–1,02 | 1,11–1,34–1,58 |
+
+Vurdering mot kriteriene:
+
+- **`@kafka`: Luna beholdes.** Begge besto alle oppgavene, men medianen for Haiku Low (2,06 credits per kjøring) er høyere enn for Luna Medium (1,80). Haiku brukte mest på kf-idem.
+- **`@rust`: Haiku Low oppfyller kriteriene.** Begge besto alle oppgavene, og medianen for Haiku Low (0,92 credits per kjøring) er lavere enn for Luna Medium (1,34).
+
+Fire oppgaver og fem kjøringer per arm er et lite utvalg, og ingen oppgave skilte modellene på kvalitet. Denne PR-en endrer ingen pinner. Et eventuelt bytte for `@rust` tas i en egen PR.
+
+Forbruket var 31,2 credits: 10,0 for Haiku på `kafka`, 4,7 for Haiku på `rust`, 9,8 for Luna på `kafka` og 6,8 for Luna på `rust`. Budsjettet var om lag 40, med stopp ved 80.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
