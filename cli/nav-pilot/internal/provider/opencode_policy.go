@@ -292,6 +292,9 @@ const minOpenCode2CpltStamp = "2026.10.08-081501"
 func checkOpenCode2Launch(args []string) error {
 	out, _ := cachedVersion("opencode", 5*time.Second)
 	if !openCodeMajorPattern.MatchString(strings.TrimSpace(out)) {
+		if _, err := exec.LookPath("opencode"); err != nil {
+			return nil // not installed: nothing to launch, doctor reports it elsewhere
+		}
 		return checkOpenCode2Cplt()
 	}
 	if openCodeMajor() < 2 {
