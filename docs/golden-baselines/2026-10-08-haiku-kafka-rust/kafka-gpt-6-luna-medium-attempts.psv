@@ -1,0 +1,23 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        kafka
+# suite:        kafka
+# date:         2026-10-08
+# revision:     f62c1d8f
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       medium
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+kf-idem|1|0|pass|3979|87797|true|
+kf-felt|1|0|pass|2186|47047|true|
+kf-idem|2|0|pass|5523|87970|true|
+kf-felt|2|0|pass|2934|61208|true|
+kf-idem|3|0|pass|3237|82247|true|
+kf-felt|3|0|pass|10095|60929|true|
+kf-idem|4|0|pass|2860|141255|true|
+kf-felt|4|0|pass|3291|58969|true|
+kf-idem|5|0|pass|3950|136437|true|
+kf-felt|5|0|pass|3471|48798|true|

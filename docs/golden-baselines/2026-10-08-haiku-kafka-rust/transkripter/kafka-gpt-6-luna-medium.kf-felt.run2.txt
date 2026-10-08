@@ -1,0 +1,3 @@
+La til `sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Eldre meldinger uten feltet leses som `ORDINAER`, og ukjente felt ignoreres. `gradle test` i `vedtak-hendelse/` fullførte uten feil.
+
+🔴 Rød sone: Endring av hendelsesskjema. Standardverdien ivaretar eldre meldinger, mens ukjente felt gjør konsumentene kompatible med nyere produsenter. Still gjerne spørsmål om valgene over.

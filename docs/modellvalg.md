@@ -569,14 +569,14 @@ Armene er Claude Haiku 5.5 Low og GPT-6 Luna Medium, fem kjøringer per oppgave 
 
 ### Resultater
 
-Rådata ligger i [2026-10-08-haiku-kafka-rust](golden-baselines/2026-10-08-haiku-kafka-rust/). Svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-kafka-rust/transkripter/). Copilot CLI, fem kjøringer per oppgave og arm. Alle 136 bruksrader for Haiku viser `claude-haiku-5.5` med `low`, og alle 208 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet, og ingen sjekk feilet, så [failures.psv](golden-baselines/2026-10-08-haiku-kafka-rust/failures.psv) har ingen rader.
+Rådata ligger i [2026-10-08-haiku-kafka-rust](golden-baselines/2026-10-08-haiku-kafka-rust/). Svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-kafka-rust/transkripter/). Copilot CLI, fem kjøringer per oppgave og arm. Alle 130 bruksrader for Haiku viser `claude-haiku-5.5` med `low`, og alle 204 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet, og ingen sjekk feilet, så [failures.psv](golden-baselines/2026-10-08-haiku-kafka-rust/failures.psv) har ingen rader.
 
 Credits per oppgave er oppgitt som laveste–median–høyeste over de fem kjøringene.
 
 | Agent    | Oppgave   | Haiku 5.5 Low: bestått | Haiku 5.5 Low: credits | Luna Medium: bestått | Luna Medium: credits |
 | -------- | --------- | ---------------------- | ---------------------- | -------------------- | -------------------- |
-| `@kafka` | kf-idem   | 5/5                    | 1,06–1,50–1,72         | 5/5                  | 0,88–1,07–1,64       |
-| `@kafka` | kf-felt   | 5/5                    | 0,52–0,61–0,69         | 5/5                  | 0,62–0,72–0,92       |
+| `@kafka` | kf-idem   | 5/5                    | 1,07–1,10–1,79         | 5/5                  | 0,98–1,13–1,30       |
+| `@kafka` | kf-felt   | 5/5                    | 0,61–0,69–0,75         | 5/5                  | 0,70–0,77–0,88       |
 | `@rust`  | rs-borrow | 5/5                    | 0,39–0,42–0,51         | 5/5                  | 0,43–0,65–0,72       |
 | `@rust`  | rs-feil   | 5/5                    | 0,45–0,49–0,60         | 5/5                  | 0,67–0,69–0,92       |
 
@@ -584,17 +584,19 @@ Credits per kjøring, det vil si begge oppgavene til agenten, som laveste–medi
 
 | Agent    | Haiku 5.5 Low  | Luna Medium    |
 | -------- | -------------- | -------------- |
-| `@kafka` | 1,67–2,06–2,40 | 1,69–1,80–2,36 |
+| `@kafka` | 1,70–1,85–2,42 | 1,74–1,90–2,18 |
 | `@rust`  | 0,87–0,92–1,02 | 1,11–1,34–1,58 |
 
 Vurdering mot kriteriene:
 
-- **`@kafka`: Luna beholdes.** Begge besto alle oppgavene. Medianen for Haiku Low var 2,06 credits per kjøring, mot 1,80 for Luna Medium, og forskjellen ligger i kf-idem. Ingen målbar forskjell i credits (p = 1,0 over fem kjøringer, Mann–Whitney), så kriteriet gir ikke grunnlag for bytte.
+- **`@kafka`: Haiku Low oppfyller kriteriene etter ordlyden, men forskjellen er ikke målbar.** Begge besto alle oppgavene. Medianen for Haiku Low var 1,85 credits per kjøring, mot 1,90 for Luna Medium (p = 0,84 over fem kjøringer, Mann–Whitney). I den første målingen, med den svakere kf1, var det motsatt: 2,06 for Haiku mot 1,80 for Luna (p = 1,0). Prisen skiller altså ikke modellene på `@kafka`, og et bytte der gir ingen sikker besparelse.
 - **`@rust`: Haiku Low oppfyller kriteriene.** Begge besto alle oppgavene, og medianen for Haiku Low (0,92 credits per kjøring) er lavere enn for Luna Medium (1,34). Haiku Low var billigere i alle fem kjøringer, uten overlapp (p = 0,008, Mann–Whitney).
 
 Fire oppgaver og fem kjøringer per arm er et lite utvalg. Oppgavene er små rettinger i én fil, og begge armene fikk 5/5 på alle. Testpakkene gir derfor et signal om kostnad og en sperre mot regresjon, men skiller ikke modellene på kvalitet. kf-idem kan for eksempel løses med et sett i minnet. Denne PR-en endrer ingen pinner. Et eventuelt bytte for `@rust` tas i en egen PR.
 
-Forbruket var 31,2 credits: 10,0 for Haiku på `kafka`, 4,7 for Haiku på `rust`, 9,8 for Luna på `kafka` og 6,8 for Luna på `rust`. Budsjettet var om lag 40, med stopp ved 80.
+Gjennomgangen av PR-en fant at kf1 ikke sjekket at en feilet hendelse blir utbetalt når den leveres på nytt. En konsument som merker hendelsen som behandlet før utbetalingen, besto. kf1 krever nå at hendelsen utbetales ved ny levering, og den kjente rettingen merker først etter utbetalingen. `kafka`-armene ble kjørt på nytt med den nye sjekken. Tabellene viser den nye målingen. Den første ligger i commit-historikken til PR-en.
+
+Forbruket var 50,4 credits: 19,8 for den første `kafka`-målingen, 19,2 for den nye og 11,4 for `rust`. Budsjettet var om lag 40, med stopp ved 80.
 
 ## Pinner og delegering
 

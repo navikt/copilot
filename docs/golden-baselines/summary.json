@@ -3196,12 +3196,12 @@
         }
       ],
       "credits": {
-        "median": 2.061,
-        "mean": 2.0
+        "median": 1.852,
+        "mean": 1.929
       },
       "usage_complete": true,
       "wall_seconds": {
-        "median": 100.2
+        "median": 87.4
       },
       "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/kafka-claude-haiku-5.5-low.txt"
     },
@@ -3239,12 +3239,12 @@
         }
       ],
       "credits": {
-        "median": 1.804,
-        "mean": 1.957
+        "median": 1.895,
+        "mean": 1.916
       },
       "usage_complete": true,
       "wall_seconds": {
-        "median": 159.0
+        "median": 149.2
       },
       "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/kafka-gpt-6-luna-medium.txt"
     },
