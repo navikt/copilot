@@ -1,0 +1,5 @@
+`les()` returnerer nå `Result<Vedtak, VedtakFeil>`. Feiltypen bruker `thiserror` og skiller mellom manglende ID, manglende beløp og ugyldig beløpstekst. Typede feil lar kallere håndtere hver situasjon uten panikk, men krever at de håndterer `Result`.
+
+🔴 Rød sone: Parserens validering av input. Jeg la til en test for hver feil, inkludert feilmeldingen for ugyldig beløp. `cargo test` i `vedtak-parser/` bestod: 4 tester.
+
+Still gjerne spørsmål om valgene over.

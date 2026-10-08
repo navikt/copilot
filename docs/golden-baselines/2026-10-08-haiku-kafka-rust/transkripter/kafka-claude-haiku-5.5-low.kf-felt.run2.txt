@@ -1,0 +1,11 @@
+Feltet `sakstype` er lagt til i `VedtakFattet`, og `gradle test` går igjennom: 5 tester, 0 feil.
+
+- **Enum `Sakstype`:** `ORDINAER`, `KLAGE`, `ANKE`.
+- **Default `ORDINAER`:** gamle meldinger uten feltet leses som `ORDINAER`.
+- **Ukjente felt ignoreres:** `FAIL_ON_UNKNOWN_PROPERTIES` er slått av, så nyere produsenter kan legge til felt uten å knekke konsumentene.
+
+Ukjente *verdier* i `sakstype` (for eksempel en ny type) feiler fortsatt. Det er bevisst, siden enum-verdien da ikke kan tolkes, men det er verdt å vite før en ny sakstype publiseres.
+
+🔴 Rød sone: deserialisering av hendelser på topicen. Gå gjennom `VedtakSerde` nøye.
+
+Still gjerne spørsmål om valgene over.

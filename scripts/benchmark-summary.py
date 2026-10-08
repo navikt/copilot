@@ -35,7 +35,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINES = REPO / "docs" / "golden-baselines"
-SUITES = {"planning", "review", "norsk", "coding", "research"}
+SUITES = {"planning", "review", "norsk", "coding", "research", "kafka", "rust"}
 EFFORTS = {"low", "medium", "high", "default"}
 
 # Shown on ki-utvikling.nav.no/modeller. Every hard check a suite records needs
@@ -68,6 +68,14 @@ CHECKS = {
     "re1": ("re1", "Riktig fil og linje for hver bruk av konstanten"),
     "re2": ("re2", "Sier at funksjonen ikke kalles, uten å dikte opp filer"),
     "re3": ("re3", "Oppsummerer i høyst tre punkter"),
+    "kf1": ("kf1", "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling"),
+    "kf2": ("kf2", "Kafka-konsument: endrer bare i prosjektet med feilen"),
+    "kf3": ("kf3", "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses"),
+    "kf4": ("kf4", "Kafka-hendelse: endrer bare i prosjektet med hendelsen"),
+    "rs1": ("rs1", "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge"),
+    "rs2": ("rs2", "Rust: endrer bare i craten med feilen"),
+    "rs3": ("rs3", "Rust: feiltyper med thiserror og en test per feil"),
+    "rs4": ("rs4", "Rust: endrer bare i craten med parseren"),
     "re4": ("re4", "Oppsummeringen nevner endepunktet"),
 }
 

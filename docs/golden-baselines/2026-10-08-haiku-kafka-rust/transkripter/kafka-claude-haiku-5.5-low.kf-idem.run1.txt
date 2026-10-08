@@ -1,0 +1,13 @@
+`VedtakKonsument` er rettet. `gradle test` i `vedtak-konsument/` går grønt, alle 4 tester passerer.
+
+- **Dedup på eventId:** en eventId utbetales bare én gang. Den registreres først etter vellykket utbetaling, så en feilet utbetaling kan prøves på nytt.
+- **Commit etter behandling:** offset commites etter at batchen er behandlet. Ved feil spoles posisjonen tilbake til første ubehandlede offset, og meldingen leses på nytt.
+- **Konstruktør:** `VedtakKonsument(consumer, utbetaling)` fungerer fortsatt. Registret er en `internal` konstruktør for testene.
+
+Begrensning: registret er i minnet. Det dekker rebalansering i samme prosess, men ikke omstart av applikasjonen. For full sikkerhet må eventIder lagres i database, for eksempel med en unik nøkkel knyttet til utbetalingen. Det er ikke gjort her.
+
+Endrede filer: `src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt` og `src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt`.
+
+🔴 Rød sone: commit- og seek-logikken styrer om meldinger går tapt eller utbetales dobbelt. Gå gjennom den nøye.
+
+Still gjerne spørsmål om valgene over.

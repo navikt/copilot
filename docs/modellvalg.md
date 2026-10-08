@@ -567,6 +567,61 @@ Fem kjøringer er lite. `coding` består av tre små oppgaver, så et pinnebytte
 
 Målingen brukte 98,4 credits ifølge bruksradene: 60,9 på Haiku og 37,6 på Luna. Prøvekjøringene og sjekken av innsatsnivåene brukte om lag 1,6 til. Budsjettet var om lag 80 credits, med stopp ved 150.
 
+## Claude Haiku 5.5 Low på @kafka og @rust (8. oktober 2026)
+
+Testpakken `coding` har tre små rettinger i Go og TypeScript, og der besto både Claude Haiku 5.5 Low og GPT-6 Luna Medium alle 30 sjekkene. Haiku Low var billigst. Testpakken `coding` kjører `@nav-pilot` og sier lite om Kafka og Rust. Derfor måler vi her de to modellene gjennom agentene som faktisk er pinnet til Luna: `@kafka` og `@rust`.
+
+Testoppsettet hadde ingen Kafka- eller Rust-oppgaver. Fire nye ligger i [`scripts/golden-fixtures/`](../scripts/golden-fixtures/), som testpakkene `kafka` og `rust`:
+
+- **kf-idem** (`@kafka`): En Kotlin-konsument commiter offset før behandlingen og utbetaler samme hendelse to ganger. kf1 krever at samme `eventId` utbetales én gang, at offset commites etter behandlingen, og at en feilet utbetaling ikke commites.
+- **kf-felt** (`@kafka`): Feltet `sakstype` skal inn i en JSON-hendelse. kf3 krever at gamle meldinger uten feltet leses som `ORDINAER`, at nye meldinger skrives med feltet, og at ukjente felt fra nyere produsenter ikke stopper lesingen.
+- **rs-borrow** (`@rust`): `cargo test` kompilerer ikke på grunn av en lånefeil. rs1 krever at køen tømmes i riktig rekkefølge og at en tom kø gir `None`.
+- **rs-feil** (`@rust`): En parser får panikk på ugyldig input. rs3 krever `Result` med en feiltype laget med `thiserror`, de tre navngitte variantene, den ugyldige teksten i feilmeldingen og minst én ny test per feil.
+
+kf2, kf4, rs2 og rs4 krever at agenten bare endrer filer i prosjektet oppgaven gjelder. Testene i kf1, kf3, rs1 og rs3 ser agenten ikke. De kjøres etter kallet, sammen med agentens egne tester, i en kopi av prosjektet. Før hver kjøring sjekker testoppsettet tre kontroller per oppgave: den urørte koden feiler, den kjente rettingen består, og en fristende gal retting feiler. `scripts/nav-pilot-golden.bats` kjører de samme kontrollene gjennom hele testoppsettet.
+
+### Kriteriene ble satt før målingen
+
+En oppgave er bestått i en kjøring når begge sjekkene er grønne. Claude Haiku 5.5 Low erstatter GPT-6 Luna Medium på `@kafka` eller `@rust` bare hvis begge disse holder for den agenten:
+
+- Haiku Low består hver av agentens to oppgaver i minst like mange kjøringer som Luna Medium.
+- Medianen av credits per kjøring for Haiku Low er lik eller lavere enn for Luna Medium.
+
+Ellers beholder agenten Luna. Hver agent vurderes for seg.
+
+Armene er Claude Haiku 5.5 Low og GPT-6 Luna Medium, fem kjøringer per oppgave og arm i Copilot CLI, med `--keep`. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell enn armen, forkastes. Budsjettet er om lag 40 credits, med stopp ved 80. Målingen endrer ingen pinner.
+
+### Resultater
+
+Rådata ligger i [2026-10-08-haiku-kafka-rust](golden-baselines/2026-10-08-haiku-kafka-rust/). Svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-kafka-rust/transkripter/). Copilot CLI, fem kjøringer per oppgave og arm. Alle 130 bruksrader for Haiku viser `claude-haiku-5.5` med `low`, og alle 204 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet, og ingen sjekk feilet, så [failures.psv](golden-baselines/2026-10-08-haiku-kafka-rust/failures.psv) har ingen rader.
+
+Credits per oppgave er oppgitt som laveste–median–høyeste over de fem kjøringene.
+
+| Agent    | Oppgave   | Haiku 5.5 Low: bestått | Haiku 5.5 Low: credits | Luna Medium: bestått | Luna Medium: credits |
+| -------- | --------- | ---------------------- | ---------------------- | -------------------- | -------------------- |
+| `@kafka` | kf-idem   | 5/5                    | 1,07–1,10–1,79         | 5/5                  | 0,98–1,13–1,30       |
+| `@kafka` | kf-felt   | 5/5                    | 0,61–0,69–0,75         | 5/5                  | 0,70–0,77–0,88       |
+| `@rust`  | rs-borrow | 5/5                    | 0,39–0,42–0,51         | 5/5                  | 0,43–0,65–0,72       |
+| `@rust`  | rs-feil   | 5/5                    | 0,45–0,49–0,60         | 5/5                  | 0,67–0,69–0,92       |
+
+Credits per kjøring, det vil si begge oppgavene til agenten, som laveste–median–høyeste:
+
+| Agent    | Haiku 5.5 Low  | Luna Medium    |
+| -------- | -------------- | -------------- |
+| `@kafka` | 1,70–1,85–2,42 | 1,74–1,90–2,18 |
+| `@rust`  | 0,87–0,92–1,02 | 1,11–1,34–1,58 |
+
+Vurdering mot kriteriene:
+
+- **`@kafka`: Luna beholdes.** Begge besto alle oppgavene. Medianen for Haiku Low var 1,85 credits per kjøring, mot 1,90 for Luna Medium (Mann–Whitney over fem kjøringer). Kriteriet er oppfylt etter ordlyden, men forskjellen i credits er ikke målbar (p = 0,84; første måling gikk motsatt vei, p = 1,0). Bytte gir ingen pålitelig besparelse, så Luna beholdes.
+- **`@rust`: Haiku Low oppfyller kriteriene.** Begge besto alle oppgavene, og medianen for Haiku Low (0,92 credits per kjøring) er lavere enn for Luna Medium (1,34). Haiku Low var billigere i alle fem kjøringer, uten overlapp (p = 0,008, Mann–Whitney).
+
+Fire oppgaver og fem kjøringer per arm er et lite utvalg. Oppgavene er små rettinger i én fil, og begge armene fikk 5/5 på alle. Testpakkene gir derfor et signal om kostnad og en sperre mot regresjon, men skiller ikke modellene på kvalitet. kf-idem kan for eksempel løses med et sett i minnet. Denne PR-en endrer ingen pinner. Et eventuelt bytte for `@rust` tas i en egen PR.
+
+Gjennomgangen av PR-en fant at kf1 ikke sjekket at en feilet hendelse blir utbetalt når den leveres på nytt. En konsument som merker hendelsen som behandlet før utbetalingen, besto. kf1 krever nå at hendelsen utbetales ved ny levering, og den kjente rettingen merker først etter utbetalingen. `kafka`-armene ble kjørt på nytt med den nye sjekken. Tabellene viser den nye målingen. Den første ligger i commit-historikken til PR-en.
+
+Forbruket var 50,4 credits: 19,8 for den første `kafka`-målingen, 19,2 for den nye og 11,4 for `rust`. Budsjettet var om lag 40, med stopp ved 80.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.

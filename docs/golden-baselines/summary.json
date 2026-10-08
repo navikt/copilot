@@ -3164,6 +3164,92 @@
     },
     {
       "date": "2026-10-08",
+      "suite": "kafka",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "kf1",
+          "description": "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling",
+          "passed": 5
+        },
+        {
+          "id": "kf2",
+          "description": "Kafka-konsument: endrer bare i prosjektet med feilen",
+          "passed": 5
+        },
+        {
+          "id": "kf3",
+          "description": "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses",
+          "passed": 5
+        },
+        {
+          "id": "kf4",
+          "description": "Kafka-hendelse: endrer bare i prosjektet med hendelsen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.852,
+        "mean": 1.929
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 87.4
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/kafka-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "kafka",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "kf1",
+          "description": "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling",
+          "passed": 5
+        },
+        {
+          "id": "kf2",
+          "description": "Kafka-konsument: endrer bare i prosjektet med feilen",
+          "passed": 5
+        },
+        {
+          "id": "kf3",
+          "description": "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses",
+          "passed": 5
+        },
+        {
+          "id": "kf4",
+          "description": "Kafka-hendelse: endrer bare i prosjektet med hendelsen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.895,
+        "mean": 1.916
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 149.2
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/kafka-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
       "suite": "research",
       "model": "claude-haiku-5.5",
       "model_verified": true,
@@ -3459,6 +3545,92 @@
         "median": 204.3
       },
       "source": "docs/golden-baselines/2026-10-08-haiku-5-5/review-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "rust",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rs1",
+          "description": "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge",
+          "passed": 5
+        },
+        {
+          "id": "rs2",
+          "description": "Rust: endrer bare i craten med feilen",
+          "passed": 5
+        },
+        {
+          "id": "rs3",
+          "description": "Rust: feiltyper med thiserror og en test per feil",
+          "passed": 5
+        },
+        {
+          "id": "rs4",
+          "description": "Rust: endrer bare i craten med parseren",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 0.918,
+        "mean": 0.933
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 40.0
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/rust-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "rust",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rs1",
+          "description": "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge",
+          "passed": 5
+        },
+        {
+          "id": "rs2",
+          "description": "Rust: endrer bare i craten med feilen",
+          "passed": 5
+        },
+        {
+          "id": "rs3",
+          "description": "Rust: feiltyper med thiserror og en test per feil",
+          "passed": 5
+        },
+        {
+          "id": "rs4",
+          "description": "Rust: endrer bare i craten med parseren",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.344,
+        "mean": 1.355
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 108.6
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/rust-gpt-6-luna-medium.txt"
     }
   ]
 }

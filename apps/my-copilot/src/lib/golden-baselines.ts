@@ -3,7 +3,7 @@
 import { MODEL_PRICING } from "./model-pricing";
 import { normalizeModelName } from "./model-policy";
 
-export type Suite = "planning" | "review" | "norsk" | "coding" | "research";
+export type Suite = "planning" | "review" | "norsk" | "coding" | "research" | "kafka" | "rust";
 export type Effort = "low" | "medium" | "high" | "default";
 
 export interface GoldenRun {

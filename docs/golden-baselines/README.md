@@ -14,14 +14,18 @@ De fire oppgavene og kontrollene for den avsluttede kodepiloten ligger i [`bench
 | `norsk` | `@forfatter` | Skriver om et utkast og skriver en notis: ingen nynorsk, ingen KI-floskler, ikke «AI», 30–90 ord |
 | `coding` | `@nav-pilot` | Får feilende Go- og TS-tester grønne, og endrer bare filene med feilen, også når rettingen går over to filer |
 | `research` | `@research` | Oppgir riktig fil og linje, sier ærlig at noe ikke finnes, og oppsummerer i høyst tre punkter |
+| `kafka` | `@kafka` | Retter en Kotlin-konsument som utbetaler dobbelt og commiter for tidlig, og legger til et felt i en hendelse uten å bryte gamle meldinger |
+| `rust` | `@rust` | Retter en lånefeil, og erstatter panikk med feiltyper laget med `thiserror` og tester for hver feil |
 
-Alle sjekkene er deterministiske, og hver sjekk har en kontroll som viser at den kan feile. For hver testpakke spiller `scripts/nav-pilot-golden.bats` en agent som gjør feil, og sjekken må slå ut. For `norsk` og `coding` sjekker testoppsettet i tillegg fiksturene før hver kjøring: utkastet og de feilende testene må feile sjekkene, og den kjente rettingen må få testene grønne. Ellers kjører det ikke.
+Alle sjekkene er deterministiske, og hver sjekk har en kontroll som viser at den kan feile. For hver testpakke spiller `scripts/nav-pilot-golden.bats` en agent som gjør feil, og sjekken må slå ut. For `norsk`, `coding`, `kafka` og `rust` sjekker testoppsettet i tillegg fiksturene før hver kjøring: utkastet og de feilende testene må feile sjekkene, og den kjente rettingen må få testene grønne. Ellers kjører det ikke.
 
 Agenten installeres i arbeidsområdet under navnet `golden-<agent>`. En agent med samme navn i `~/.copilot/agents/` ville ellers overstyre filen vi tester. Med `--model` fjernes også modellpinnen i agentfila, fordi pinnen ellers går foran `--model`. Sammendraget avviser en kjøring der hovedagenten har kjørt på en annen modell enn den som står øverst i kjøringsfila. Subagenter kan bruke andre modeller; de listes i `subagent_models`.
 
 ## Før du kjører
 
 Testoppsettet kjører Copilot CLI som deg, utenfor cplt, med `--allow-all-tools`. Agenten jobber i en midlertidig mappe, men `coding`-pakken kjører skallkommandoer uten tilsyn, og ingenting hindrer en kommando i å gå utenfor mappa. Kjør på en maskin der det er akseptabelt.
+
+`kafka` og `rust` kjøres bare lokalt. De trenger JDK 21, gradle og cargo, som ikke står i `.mise.toml`. Derfor hopper CI over bats-testen for dem.
 
 ## Kjør en benchmark
 

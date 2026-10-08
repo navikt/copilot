@@ -385,6 +385,17 @@ case "$p" in
     else echo "- Den svarer på HTTP-kall med en liste oppgaver."; fi
     echo "- Den kjører på port 8080 på Nais."
     [[ "$BENCH_MODE" == good ]] || { echo "- Den har helsesjekker."; echo "- Den bruker kotlinx.serialization."; } ;;
+  *vedtak-konsument/*|*vedtak-hendelse/*|*saksko/*|*vedtak-parser/*)
+    # good/wrong overlay the fixture's known and tempting wrong fix; stray
+    # also writes outside the project. The group dir is read off the cwd.
+    proj="$(printf '%s' "$p" | grep -oE 'vedtak-konsument|vedtak-hendelse|saksko|vedtak-parser' | head -1)"
+    grp=kafka; [[ -f Cargo.toml || -d saksko ]] && grp=rust
+    case "$BENCH_MODE" in
+      good|wrong|stray) m="$BENCH_MODE"; [[ "$m" == stray ]] && m=good
+        cp -R "$GOLDEN_FIXTURES/$grp/controls/$m/$proj/." "$proj/" ;;
+    esac
+    [[ "$BENCH_MODE" == stray ]] && echo x >>README.md
+    echo "Rettet feilen i $proj og kjørte testene." ;;
   *) echo "unexpected prompt in the benchmark shim: $p"; exit 1 ;;
 esac
 EOF
@@ -394,7 +405,7 @@ EOF
 run_suite() {
   local mode="$1"; shift
   make_bench_shim
-  BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
+  GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -556,6 +567,26 @@ run_suite() {
   PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite coding --dry-run
   [ "$status" -eq 2 ]
   [[ "$output" == *"ts_tests fails even with the known fix applied"* ]]
+}
+
+@test "kafka and rust: the known fix passes, the tempting wrong fix and doing nothing fail, a stray edit fails scope" {
+  command -v gradle >/dev/null && command -v cargo >/dev/null || skip "needs gradle and cargo"
+  for suite in kafka rust; do
+    if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3"; scope="rs2 rs4"; fi
+    run_suite good --suite $suite
+    [ "$status" -eq 0 ]
+    run_suite wrong --suite $suite
+    [ "$status" -eq 1 ]
+    for id in $ok; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+    for id in $scope; do grep -q "^$id|1|pass|" "$SHIM/b-results.psv"; done
+    run_suite none --suite $suite
+    [ "$status" -eq 1 ]
+    for id in $ok $scope; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+    run_suite stray --suite $suite
+    [ "$status" -eq 1 ]
+    for id in $ok; do grep -q "^$id|1|pass|" "$SHIM/b-results.psv"; done
+    for id in $scope; do grep -q "^$id|1|fail|.*changed outside .*README.md" "$SHIM/b-results.psv"; done
+  done
 }
 
 @test "planning t7/t7b: no privacy interview on a migration, privacy raised for fnr on Kafka" {
