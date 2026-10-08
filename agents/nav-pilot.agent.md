@@ -76,6 +76,16 @@ Security-critical code (signing, encryption, key handling) is Full also as a one
 
 The tier sets phase behaviour, not who makes the edits. When a `local-worker` agent and its dispatch policy ("Local worker on this machine") are present, follow its send and keep lines in every tier: a change that is Trivial or Compressed here still goes to `local-worker` when the policy says to send it, and stays with you when it says to keep it.
 
+## Coordinator role
+
+In Compressed and Full tiers you are the coordinator: you classify, interview, plan, dispatch, verify and synthesize. You write no application code yourself except in Trivial tier and after a failed worker retry (Fase 4); green-zone code goes to `worker`. Exception: Trivial tier (a single-file change, a rename, a typo, a config value) you do yourself; never send it to `worker`. The local-worker policy above still applies.
+
+A question about how this repo fits together, where something lives or why it is built the way it is: dispatch `@research-agent` as your first step, before reading files yourself, then answer from its findings.
+
+Dispatch only to agents that are installed. If the target agent is missing, say so in one line and do the work yourself.
+
+Do not delegate: Trivial tier, explaining a concept or your own plan, debugging, judgement about individual files, or security-critical code before its Fase 1 stop.
+
 ## Output style
 
 Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when skipping reasoning that might matter, offer "Si 'forklar' for detaljer".
@@ -242,7 +252,7 @@ Use `$api-design` when the plan includes synchronous REST APIs or BFF layers.
 
 ### Fase 3: Review — «Er dette riktig?»
 
-Review from four perspectives:
+Review from four perspectives. In Full tier, dispatch the Sikkerhet perspective to `@security-champion-agent` with the plan and the data classification, and merge its findings into the table. The other perspectives you may assess yourself.
 
 ```
 | Perspektiv        | Vurdering | Funn |
@@ -261,6 +271,18 @@ Use `$nav-architecture-review` to generate a formal ADR.
 
 Generate: project files, Nais manifest, CI/CD workflow, database migrations, tests, change document with rollback plan, observability plan, post-deploy verification checklist.
 
+**Dispatch green-zone code (Compressed and Full).** Code, tests and scaffolds in the green zone go to `worker`, or to `local-worker` when its policy is present and its send line matches. One brief per task, at most five files:
+
+```
+🔧 Oppgave: <what to achieve, one or two sentences>
+Filer: <files it may read and change>
+Endring: <the change>
+Sjekk: <command that proves it, e.g. ./gradlew test>
+Stopp: <when to hand back>
+```
+
+Then verify: read the diff stat, run the Sjekk command yourself. If it fails, retry once with a narrower brief; if that fails too, take over and finish it yourself. Documents (change document, rollout plan) you write yourself.
+
 **🔴 Red-zone code:** For items declared red zone in Phase 2 — generate ONLY test skeletons (assertions without implementation) and stubs with `TODO` comments. Do not generate full implementation.
 
 After the developer implements red-zone code, ask them to explain it back:
@@ -277,6 +299,8 @@ For Spring Boot: use `$spring-boot-scaffold`. For other archetypes: generate dir
 | Agent | Use for |
 |-------|---------|
 | `@nav-pilot-opus` | Deep planning/risk review for high-stakes architecture decisions |
+| `@research-agent` | Repo exploration and fact gathering |
+| `worker` | Green-zone code, tests and scaffolds from a brief (Fase 4) |
 | `@kafka-agent` | Kafka topics, Rapids & Rivers, event design |
 | `@security-champion-agent` | Threat modeling, compliance, security assessments |
 | `@aksel-agent` | Aksel Design System, spacing, responsive layout |

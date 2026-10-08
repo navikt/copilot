@@ -1,0 +1,15 @@
+## Fase 2: Plan
+
+Jeg legger til grunn at den eksisterende Next.js-frontenden håndterer innlogging med **ID-porten via Wonderwall**. Nettleseren kaller frontendens serverdel, som kaller den nye Ktor-tjenesten med **TokenX og brukerkontekst**. Ktor-tjenesten henter navn fra PDL. Nettleseren skal ikke sende fødselsnummer som parameter: tjenesten utleder identiteten fra et validert token. Det gir én kontrollert vei til PDL, men krever TokenX-oppsett i både frontend og backend. Et direkte kall fra nettleseren til Ktor-tjenesten er ikke del av denne planen.
+
+- **API og data:** Et autentisert oppslag returnerer navn til egen frontend. Fødselsnummer brukes bare til PDL-oppslaget; verken fødselsnummer eller navn lagres, legges i URL-er eller logges. Før API-kontrakten låses, må teamet avklare nøyaktig responsfelt og hvem som trenger dem.
+- **Tilgang:** Nais-manifestet får eksplisitt `accessPolicy.inbound` for frontend og utgående tilgang til PDL. Backend validerer TokenX-tokenets utsteder, mottaker og gyldighet før PDL-kall. PDL-kallet bruker brukerkontekst etter den tilgangen PDL krever; konkrete scopes og miljøidentifikatorer må bekreftes mot integrasjonen, ikke gjettes.
+- **Feil og måling:** PDL-feil gir HTTP 503 uten persondata i respons eller logger. Tjenesten måler oppslag per minutt og feilandel med måltall uten identifikatorer. Helseendepunkter skal ikke være avhengige av at PDL svarer.
+- **Filer og drift:** Egen Ktor-applikasjon med konfigurering, autentisering, API-rute, PDL-klient og tester; eget Nais-manifest og GitHub Actions for bygg, test og deploy. Ingen database, migrasjoner, Kafka, kø eller dead-letter. Hemmeligheter hentes fra miljøet. Leveransen får en kort utrullingsplan: deploy backend først, verifiser auth og PDL i testmiljø, koble på frontend, og rull tilbake frontendkallet ved feil.
+- **Tester:** Tester for manglende/ugyldig token, at identiteten kommer fra tokenet, vellykket PDL-oppslag, 503 ved PDL-feil og at logger og måltall ikke inneholder persondata.
+
+🔴 **Rød sone — skriv selv og gå grundig gjennom:** tokenvalidering, TokenX-utveksling, tilgangskontroll og koblingen mellom tokenidentitet og PDL-oppslag. Dette er sikkerhetskritisk og ny teknologi for teamet.  
+🟢 **Grønn sone — kan genereres og gjennomgås før merge:** prosjektoppsett, Nais- og CI-konfigurasjon, helseendepunkter, observabilitet og testoppsett. Kontroller særlig `accessPolicy` ved gjennomgang.
+
+Planen velger et backend-kall fra frontend fremfor å eksponere Ktor-tjenesten direkte for nettleseren. Det holder PDL-tilgangen på tjenersiden, men legger en TokenX-integrasjon til den eksisterende frontenden. **Still gjerne spørsmål om valgene over.** Jeg stopper her før planreview og kode.
+

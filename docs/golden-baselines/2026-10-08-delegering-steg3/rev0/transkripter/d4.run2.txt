@@ -1,0 +1,45 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+/ Search (glob)
+  │ "**/*"
+  └ 49 files found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 2 -type f | head -80
+  └ 15 lines…
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+`maksAntall` er i dag en hardkodet konstant på **100** i [`Config.kt`](src/main/kotlin/no/nav/demo/Config.kt). [`App.kt`](src/main/kotlin/no/nav/demo/App.kt) skriver verdien ved oppstart og registrerer rutene. I [`Routes.kt`](src/main/kotlin/no/nav/demo/Routes.kt) bruker `GET /api/oppgaver` verdien i `oppgaver.take(maksAntall)` før den svarer med `OppgaveRespons`. [`Oppgave.kt`](src/main/kotlin/no/nav/demo/Oppgave.kt) definerer de serialiserbare typene `Oppgave` og `OppgaveRespons`; grensen er ikke del av domenemodellen eller responsformatet. Listen i ruten inneholder foreløpig bare to oppgaver, så dagens grense på 100 begrenser ikke svaret. `vedtak-api` er en separat katalog og bruker ikke `maksAntall`.
+
+For en grense **per miljø** må konstanten erstattes med en oppstartskonfigurasjon, for eksempel `MAKS_ANTALL` fra miljøvariabler. Valider at verdien er et positivt heltall og la ugyldig konfigurasjon gi en tydelig oppstartsfeil. Send den inn til `oppgaveRoutes` i stedet for å lese en global konstant, og sett miljøspesifikke verdier i Nais-konfigurasjonen eller deployoppsettet. En test bør dekke både avkorting av listen og ugyldig konfigurasjon. Dette beholder API-formatet uendret, men krever at hvert miljø får en definert verdi eller at dere velger en eksplisitt standardverdi.
+

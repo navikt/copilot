@@ -1,0 +1,51 @@
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "docs/nav-pilot-design.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot*instructions.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml,nais.yaml,app.yaml}"
+  └ 2 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1: Avklaring.** Repoet er en Ktor-demo med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten eller `accessPolicy`. Jeg legger til grunn at fødselsnummer er personopplysningen tjenesten skal lese, men formål og videre bruk er ikke avklart.
+
+1. Skal innbyggeren logge inn direkte mot denne tjenesten via ID-porten, eller kommer forespørselen fra en frontend eller en annen tjeneste? Hvem skal kunne kalle de nye endepunktene?
+2. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller returneres i et svar?
+3. Hva skal skje hvis innloggingen er ugyldig eller ID-porten er utilgjengelig? Eier teamet hele flyten, inkludert eventuell frontend og mottakertjeneste?
+
+Jeg finner ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette repo-lokal Copilot-konfigurasjon. Øvrige blindsoner, som måling, tester og utrulling, hører til planfasen når dataflyten er avklart.
+
+Blindsoner reist: 4/11 (#1 personvern, #2 tilgang, #3 feilhåndtering, #5 teamgrenser; #4 og #6–#11 utsettes til planen eller er ikke relevante ennå).
+

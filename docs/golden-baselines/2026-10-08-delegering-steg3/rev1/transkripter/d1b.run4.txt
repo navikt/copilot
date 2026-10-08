@@ -1,0 +1,15 @@
+## Fase 2: Plan
+
+Jeg legger til grunn at den eksisterende Next.js-frontenden kan sende nettleserens API-kall via **samme origin** til Ktor-tjenesten. Da kan Nais Wonderwall beskytte tjenesten med ID-porten, mens backend henter fødselsnummer fra en validert brukerkontekst. Nettleseren skal verken sende fødselsnummer som parameter eller få tilgang til PDL-tokenet. Vi må bekrefte rutingen i frontenden før levering; dersom den ikke kan bruke samme origin, må innloggingsflyten vurderes på nytt, ikke løses ved å åpne API-et.
+
+- **API og data:** Et nytt innlogget endepunkt returnerer kun navn til innbyggeren. Fødselsnummer brukes til PDL-oppslaget i minnet og lagres ikke. Detaljer om responsformat og hvilken navnevariant som skal vises, avklares mot frontenden og PDL-kontrakten før kode skrives.
+- **Tilgang og PDL:** Konfigurer ID-porten og Wonderwall i Nais, og en eksplisitt `accessPolicy.inbound` for den faktiske kallveien. Backend bruker TokenX med brukerkontekst for PDL; PDL må tillate tjenesten som konsument. Autorisasjonen må bygge på validert token, ikke en header eller et fødselsnummer fra klienten.
+- **Feil:** Når PDL er utilgjengelig, svarer endepunktet med 503. Logg feilen uten fødselsnummer, navn eller token. Ingen kø, automatisk jobb-retry eller dead-letter.
+- **Kode og drift:** Legg endepunkt, PDL-klient og konfigurasjon i den eksisterende Ktor-tjenesten. Oppdater `nais.yaml` med auth, utgående PDL-tilgang, ressurser og eksplisitt inbound-regel. Behold helsesjekkene, men ikke la et PDL-avbrudd gjøre podden «ikke klar».
+- **Måling og tester:** Tell oppslag og feil uten persondata i metrikker eller etiketter; bruk dem til oppslag per minutt og feilandelen. Legg til tester for innlogget/uinnlogget kall, at klientstyrt fødselsnummer ikke brukes, vellykket PDL-oppslag og 503 ved PDL-avbrudd. Bygg og test i CI før Nais-deploy.
+- **Innføring:** Sett opp tilgangen mot PDL og den interne rutingen først. Verifiser innlogging, tilgangsregler, et vellykket oppslag og 503 uten persondata i logger før frontenden tar endepunktet i bruk. Rull tilbake ved å fjerne frontend-kallet og deploye forrige versjon. Ingen database eller migrasjon trengs.
+
+🔴 **Rød sone, forstå og skriv selv:** validering av brukerkontekst, uthenting av fødselsnummer, TokenX-utveksling og tilgangskontroll mot PDL. Teamet er nytt med TokenX og Wonderwall; disse valgene må gjennomgås særskilt. 🟢 **Grønn sone:** endepunktsstruktur, PDL-klientens ikke-sikkerhetskritiske deler, metrikker, tester, CI og Nais-grunnoppsett. Gevinsten ved denne løsningen er at PDL får brukerens kontekst uten at frontenden håndterer fødselsnummer. Prisen er at Wonderwall-rutingen og TokenX-tilgangen må fungere sammen; et åpent API med fødselsnummer i forespørselen er ikke et forsvarlig alternativ.
+
+Dette er planen, ikke en godkjent implementasjon. Neste fase er sikkerhets-, plattform-, arkitektur- og endringssikkerhetsgjennomgang. Still gjerne spørsmål om valgene over.
+

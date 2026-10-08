@@ -1,0 +1,53 @@
+🛡️ Sikkerhet: Planreview, fase 3 (Ktor-backend bak Next.js-frontend med ID-porten/TokenX og oppslag mot PDL)
+
+🔍 Kartlegger: borger → Wonderwall/ID-porten → Next.js-server → (TokenX) → Ktor-backend → (TokenX eller Azure) → PDL. Data: fnr og navn.
+🛡️ Analyserer mot Golden Path, OWASP og Nav-prinsippene.
+📋 Funn: 0 kritiske i planen slik den er beskrevet, 5 medium og 6 god praksis. Kodebasen er ikke vurdert.
+
+**Vurdering: ⚠️ Godkjent med forbehold.** Arkitekturen følger Nais-standardene. Avklaringene under må være på plass før implementeringen regnes som ferdig.
+
+**God praksis ✅**
+- Fnr hentes fra tokenet (`pid`), ikke fra request-parametre. Det hindrer at én bruker kan hente en annens data (IDOR).
+- TokenX bevarer brukerkonteksten hele veien. Ingen servicebrukere eller STS.
+- Data lagres ikke, og planen sier eksplisitt at personopplysninger ikke skal logges.
+- Default deny: inbound er bare frontend, outbound bare PDL.
+- PDL-feil gir 503, så backend feiler lukket.
+- Formål og lovhjemmel er dokumentert.
+
+**Risikoer ⚠️**
+1. **Tokenvalidering:** Backend må sjekke `iss` (TokenX), `aud` (backendens egen client-id), `exp` og signatur. Den bør også sjekke `acr=idporten-loa-high` hvis det kreves. Mangler `aud`-sjekken, kan tokens laget for andre tjenester bli godtatt.
+2. **Kall mot PDL:** Uavklart om backend skal veksle tokenet via TokenX (brukerkontekst) eller bruke Azure client credentials (M2M). Det avgjør scope, og om PDL skal se borgeren eller tjenesten. Det innkommende tokenet må aldri sendes videre som det er.
+3. **Logging:** Feilmeldinger fra PDL, `toString` på objekter, callLogging og stacktraces kan få med seg fnr og navn. Også fnr-er i URL eller query fra GraphQL-feil. Dette blir kritisk hvis det skjer. Tokens må heller ikke logges.
+4. **Feilhåndtering:** 503-svaret må ikke lekke detaljer fra PDL. Bruk timeouts og helst en circuit breaker, så tråder ikke henger og tjenesten ikke blir sårbar for tjenestenekt.
+5. **Repo-utgangspunktet:** Dagens demo har ingen auth. Ingen endepunkter med data må finnes uten autentisering, og det må ikke ligge en «dev-bypass» igjen. Bare helse- og metrics-endepunkter skal være åpne.
+
+**Mindre punkter**
+- Frontend: Next.js-API-ruter må kreve en gyldig Wonderwall-sesjon og gjøre tokenveksling server-side. Tokens skal aldri til nettleseren.
+- Sett `Cache-Control: no-store` på svar med navn.
+- Bruk distroless- eller Chainguard-image, og behold SBOM i docker-build-push.
+- Sett opp Dependabot og Trivy.
+
+**Avklaringer som trengs**
+1. Hvilken PDL-flyt skal brukes (TokenX eller Azure), og med hvilket scope og hvilken behandling eller hvilket behandlingsnummer i PDL?
+2. Hvilke presise app-navn, namespace og cluster gjelder for inbound og outbound? Får man feil her, slutter tjenesten å fungere eller blir for åpen.
+3. Krav til sikkerhetsnivå: skal `acr` være `idporten-loa-high`?
+4. Adressebeskyttelse (fortrolig eller strengt fortrolig): skal navn vises uansett? Siden det er borgeren selv som ser egne data, er dette trolig greit, men det må bekreftes.
+5. Hvis tjenesten bare viser borgerens egne data, trengs det trolig ingen CEF-auditlogging. Bekreft det med Team Auditlogging.
+6. Er det gjort en DPIA eller ROS, eller trengs det en enkel trusselmodell? Kontakt `#appsec` ved tvil.
+
+**Endelig:** ⚠️ Fase 3 kan gå videre. Før produksjon må tokenvalideringen være komplett, PDL-flyt og scope avklart, accessPolicy konkretisert, og det må finnes tester som bekrefter at fnr og navn ikke havner i loggene.● Security-champion-agent (model: claude-opus-5.5) Vurder sikkerhet i plan                       22s
+  └ 🛡️ Sikkerhet: Planreview, fase 3 (Ktor-backend bak Next.js-frontend med ID-p...
+
+## Fase 3: Planreview
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Valider signatur, utsteder, mottaker og utløpstid på TokenX-tokenet. Avklar sikkerhetsnivå og PDLs krav til tokenutveksling før implementering. Ikke videresend innkommende token uendret. |
+| Plattform | ⚠️ | Fastsett appnavn, namespace og cluster før `accessPolicy` skrives. Hold helseendepunktene uavhengige av PDL; sett tidsavbrudd på PDL-kall. |
+| Arkitektur | ✅ | Frontendens serverdel kaller backend på vegne av innbyggeren. Ingen database eller kø trengs for dette oppslaget. |
+| Endringssikkerhet | ⚠️ | Test at alle dataruter krever gyldig token, at PDL-feil gir 503 uten detaljer, og at fødselsnummer og navn ikke havner i logger eller måltall. Verifiser flyten i testmiljø før frontend kobles på. |
+
+**Konklusjon: Godkjent med endringer.** Før leveranse må teamet avklare PDLs autentiseringsflyt og tilgang, appidentiteter, eventuelt krav til `acr`, og hvordan adressebeskyttelse påvirker visning av navn. Sikkerhetsgjennomgangen anbefaler også `Cache-Control: no-store` på svar med navn. Jeg stopper ved fasegrensen; ingen kode er endret.
+
+🔴 Rød sone: TokenX-validering, tokenutveksling og koblingen mellom identitet og PDL-oppslag. Still gjerne spørsmål om valgene over.
+

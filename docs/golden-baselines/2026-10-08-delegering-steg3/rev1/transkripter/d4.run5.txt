@@ -1,0 +1,52 @@
+## Oppsummering
+
+`maksAntall` er nå en global Kotlin-konstant med verdien `100`. Den eneste bruken som påvirker API-responsen er i ruta `GET /api/oppgaver`, der listen avgrenses med `take(maksAntall)`. Oppstartskoden skriver også verdien til loggen. Nais-manifestet har ingen innstilling for denne grensen, og det finnes ingen tester for Ktor-rutene. For en minimal endring bør verdien leses fra en miljøvariabel ved oppstart, med en eksplisitt standardverdi, og sendes inn til ruteregistreringen.
+
+## Nåværende flyt og relasjoner
+
+- **Konfigurasjon:** `src/main/kotlin/no/nav/demo/Config.kt:4` definerer `const val maksAntall = 100`. Dette er en kompileringstidskonstant, ikke miljøkonfigurasjon.
+- **Oppstart:** `src/main/kotlin/no/nav/demo/App.kt:9-14` skriver grensen til stdout, oppretter Ktor-serveren på port `8080`, installerer JSON-serialisering og registrerer `oppgaveRoutes()`.
+- **Rute og grense:** `src/main/kotlin/no/nav/demo/Routes.kt:14-17` registrerer `GET /api/oppgaver`. Ruta avgrenser `oppgaver` med `take(maksAntall)` og svarer med `OppgaveRespons`.
+- **Domenemodell/JSON:** `src/main/kotlin/no/nav/demo/Oppgave.kt:5-8` definerer serialiserbare `Oppgave`- og `OppgaveRespons`-dataklasser. Grensen endrer hvor mange oppgaver som legges i responsen, ikke modellens struktur.
+- **Miljø/deploy:** `nais.yaml:1-12` beskriver Nais-applikasjonen og port/helsekontroller, men setter ingen miljøvariabler. `build.gradle.kts:1-12` viser Ktor-avhengighetene; det er ikke en separat konfigurasjonsmekanisme.
+- **Vedtak-modulen:** `vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt` modellerer vedtak separat. Den har ingen kobling til `maksAntall` eller demo-ruta.
+
+## Alle treff på `maksAntall`
+
+1. `src/main/kotlin/no/nav/demo/Config.kt:4` — deklarasjon: `const val maksAntall = 100`.
+2. `src/main/kotlin/no/nav/demo/Routes.kt:16` — faktisk begrensning av API-listen: `oppgaver.take(maksAntall)`.
+3. `src/main/kotlin/no/nav/demo/App.kt:10` — logging av verdien ved oppstart.
+
+## Anbefalt minimal endring
+
+1. Bytt konstanten til en oppstartsverdi som leses fra en miljøvariabel, for eksempel `MAKS_ANTALL`, med standardverdi `100` dersom variabelen ikke er satt.
+2. Les og valider verdien én gang ved oppstart (heltall og ikke-negativ), fremfor å slå opp miljøet per forespørsel.
+3. Send verdien eksplisitt inn i `oppgaveRoutes(maksAntall: Int)` fra `App.kt`, og bruk parameteren i `Routes.kt`. Dette gjør avhengigheten synlig og ruta enklere å teste.
+4. Konfigurer `MAKS_ANTALL` i `nais.yaml` med miljøspesifikke verdier gjennom Nais’ miljø-/overlay-konfigurasjon som prosjektets deploy-oppsett støtter. Den viste manifestfilen angir ikke miljø eller overlays, så hvor slike verdier bør legges kan ikke fastslås fra dette repoet alene.
+5. Oppdater oppstartsloggen til å vise den innleste verdien.
+
+Unngå å la manglende eller ugyldig verdi bli tolket stilltiende som null; bruk dokumentert standard for manglende variabel og en tydelig oppstartsfeil for ugyldig verdi.
+
+## Relevante tester
+
+Det finnes ingen tester for `src/main` eller Ktor-rutene i det viste repoet. Den eneste testen er `vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt:7-10`, som tester vedtaks-ID og er ikke relevant for grensen.
+
+Anbefalte tester for endringen:
+
+- Rute-test som verifiserer at responsen inneholder høyst den konfigurerte mengden, også for grense `0` og en verdi større enn antall tilgjengelige oppgaver.
+- Test av konfigurasjonslesingen for manglende variabel (standardverdi), gyldig verdi og ugyldig/negativ verdi.
+- Eventuelt en test av at ruteregistrering med ulike grenseverdier gir forventet respons, som dokumenterer at verdien kan variere per miljø.
+
+**Konfidens: Høy** for nåværende kodeflyt og alle treff; **middels** for konkret Nais-plassering av miljøverdier, siden repoet ikke viser miljøoverlays eller pipeline-konfigurasjon.● Research-agent (model: gpt-6-luna) Kartlegg konfigurasjon og grense                            25s
+  │ ## Oppsummering
+  │ Read VedtakTest.kt
+  │   │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  │   └ 12 lines read
+  └ Read build.gradle.kts
+      │ vedtak-api/build.gradle.kts
+      └ 19 lines read
+
+`maksAntall` er ikke miljøkonfigurasjon i dag. Det er en konstant satt til `100` i `src/main/kotlin/no/nav/demo/Config.kt:4`. `App.kt` starter Ktor, logger verdien og registrerer `oppgaveRoutes()`. I `Routes.kt:16` bruker `GET /api/oppgaver` verdien i `oppgaver.take(maksAntall)`. Resultatet pakkes i `OppgaveRespons` fra `Oppgave.kt`; grensen påvirker antall elementer, ikke JSON-strukturen. Dette er de tre brukene av `maksAntall`: deklarasjonen, oppstartsloggen og ruta.
+
+For å variere grensen per miljø: les og valider for eksempel `MAKS_ANTALL` én gang ved oppstart, bruk `100` når variabelen mangler, og la ugyldige verdier gi en tydelig oppstartsfeil. Send deretter verdien inn som parameter til `oppgaveRoutes(maksAntall: Int)`, og sett miljøvariabelen i deploy-konfigurasjonen for hvert miljø. `nais.yaml` har ingen slik innstilling nå, og repoet viser ikke hvor miljøspesifikke deploy-verdier ligger. Domenemodellen trenger ikke endres.
+

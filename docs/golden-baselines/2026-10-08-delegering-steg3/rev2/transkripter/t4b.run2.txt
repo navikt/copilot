@@ -1,0 +1,25 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● skill(nav-auth)
+
+**Fase 2: Plan.** Jeg legger til grunn at den eksisterende Next.js-frontenden er eneste klient, og at tjenesten kun skal slå opp navnet til den innloggede innbyggeren. Frontenden sender ikke fødselsnummer. Ktor-tjenesten henter det fra en verifisert ID-porten-identitet, bruker TokenX med brukerkontekst mot PDL og returnerer bare navn.
+
+| Område | Plan |
+|---|---|
+| API | `GET /api/meg` returnerer `{ "navn": "..." }`. Ingen fødselsnummer i responsen. Feil returneres som ProblemDetail uten personopplysninger. |
+| Tilgang | ID-porten og Wonderwall for innbyggerinnlogging. Beskytt API-ruten i applikasjonen; la bare helse- og metrikkendepunkter stå uten brukerinnlogging. Avklar hvordan den eksisterende frontenden og tjenesten får en fungerende nettleserflyt med cookies og samme origin før implementering. Ikke åpne for vilkårlige origins med CORS. |
+| PDL | TokenX-veksling for PDLs avtalte audience og et minst mulig personoppslag. PDL er eneste nedstrøms tjeneste. Timeout eller utilgjengelig PDL gir `503`, uten kø eller automatisk ny behandling. |
+| Data | Ingen database, cache eller varig lagring av fødselsnummer og navn. Ikke legg dem i logger, URL-er, sporingsdata eller metrikketiketter. |
+| Nais | Utvid `nais.yaml` med ID-porten/Wonderwall, TokenX, eksplisitt `accessPolicy` for den avtalte kallveien og outbound til PDL. Legg til små ressursforespørsler, minnegrense, minst to replikaer, helsesjekker og `/metrics`. Ingen CPU-grense. |
+| Kode og tester | Erstatt demo-ruten med en beskyttet «meg»-rute, en avgrenset PDL-klient og tydelig håndtering av nedstrømsfeil. Test gyldig og ugyldig identitet, at oppslaget gjelder innlogget person, PDL-feil, `503` og at personopplysninger ikke havner i feilsvar. |
+| Leveranse | Bygg og test i GitHub Actions; deploy til dev før prod med nødvendige rettigheter. Dokumenter API-kontrakten, driftsrutinen og rollback til forrige image. Verifiser innlogging og PDL-oppslag i dev før prod. |
+
+**Observerbarhet:** Mål antall oppslag per minutt og andel feilende kall. Logg nedstrømsfeil med korrelasjons-ID og feiltype, aldri token, fødselsnummer eller navn. Sett alarm på vedvarende høy feilandel; fastsett terskel etter målinger i dev og tidlig prod.
+
+🔴 **Rød sone, skriv og forstå selv:** uthenting og kontroll av identiteten fra ID-porten, tilgangskontroll på ruten og TokenX-vekslingen mot PDL. Teamet er nytt på TokenX og Wonderwall, og feil her kan gi oppslag på feil person eller åpne tjenesten for uvedkommende.  
+🟢 **Grønn sone:** prosjektkobling, helsesjekker, metrikkoppsett, CI/CD og tester rundt den avtalte kontrakten. Gå gjennom Nais-reglene før deploy.
+
+**Valg og avgrensning:** En stateless tjeneste uten database gir færre steder å beskytte personopplysninger, men hvert vellykket kall krever at PDL svarer. Alternativet med lagring eller cache velges bort. Nettleserflytens origin/cookie-oppsett og PDLs konkrete audience må bekreftes mot eksisterende frontend og PDL-avtalen før fase 3; planen gjetter ikke disse verdiene. Still gjerne spørsmål om valgene over.
+

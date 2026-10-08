@@ -1,0 +1,21 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        delegation
+# date:         2026-10-08
+# revision:     90f67e11
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      619919060
+# prompts:      d4
+#
+# id|run|status|assertion|detail
+d4|1|fail|repo research delegates to research-agent on gpt-6-luna|log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+d4|2|fail|repo research delegates to research-agent on gpt-6-luna|log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+d4|3|fail|repo research delegates to research-agent on gpt-6-luna|log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+d4|4|fail|repo research delegates to research-agent on gpt-6-luna|log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+d4|5|fail|repo research delegates to research-agent on gpt-6-luna|log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none

@@ -1,0 +1,53 @@
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml,nais.yaml,README.md,docs/nav-pilot-design.md}"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/*nais*.{yaml,yml}"
+  └ 1 file found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+● skill(klarsprak)
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1: Avklaring.** Dette er en ny tjeneste som skal behandle fødselsnummer og bruke ID-porten. Repoet inneholder foreløpig en Ktor-demo med et åpent `/api/oppgaver`-endpoint. `nais.yaml` har verken ID-porten eller `accessPolicy` konfigurert, så jeg gjør ingen auth-endringer før bruken er avklart.
+
+1. Skal tjenesten lese fødselsnummeret fra den innloggede innbyggerens ID-porten-token? Hva skal den gjøre med nummeret, og skal det lagres eller sendes til andre tjenester?
+2. Skal innbyggeren kalle tjenesten direkte, eller går kallene via en frontend/BFF? Skal noen andre kunne kalle den?
+3. Skal dette bygges ved å erstatte demoen i repoet, eller opprettes som et eget prosjekt? Finnes det allerede en avtale om API-et eller mottakere av dataene?
+
+Jeg antar foreløpig at fødselsnummeret er personopplysningen som behandles, og at innbyggeren er den tiltenkte brukeren. Feilhåndtering, tester, rollback og observerbarhet må avklares når flyten er kjent. Blindsoner #7–#11 avventer derfor svarene; avvikling av en gammel løsning er ikke relevant med mindre demoen skal erstattes. Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 6/11 (#1–#6; #7–#10 avventer avklart flyt, #11 tas i planfasen).
+

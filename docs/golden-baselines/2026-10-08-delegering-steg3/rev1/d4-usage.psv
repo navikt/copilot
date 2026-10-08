@@ -1,0 +1,55 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        nav-pilot
+# suite:        delegation
+# date:         2026-10-08
+# revision:     3afd3553
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      619919060
+# prompts:      d4
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+d4|1|76ed4a91-920f-4225-9fe6-8d23733f8ac5|2|0|gpt-6-sol|low|21933|157|9207|12723|13|3522490000|4184|2885.764458|tool_calls||
+d4|1|76ed4a91-920f-4225-9fe6-8d23733f8ac5|3|0|gpt-6-luna|low|7853|77|0|7850|0|102005000|2021|1518.45|tool_calls|5aa82b72-e2c6-4d44-b1ba-0bfc75406960|call_OQldTBXrUfXS1WFgmPFrxo56
+d4|1|76ed4a91-920f-4225-9fe6-8d23733f8ac5|4|0|gpt-6-luna|low|7958|83|7850|105|0|13342500|1420|845.899458|tool_calls|5aa82b72-e2c6-4d44-b1ba-0bfc75406960|call_OQldTBXrUfXS1WFgmPFrxo56
+d4|1|76ed4a91-920f-4225-9fe6-8d23733f8ac5|5|0|gpt-6-luna|low|8731|595|7955|773|0|47397500|5647|5586.400875|tool_calls|5aa82b72-e2c6-4d44-b1ba-0bfc75406960|call_OQldTBXrUfXS1WFgmPFrxo56
+d4|1|76ed4a91-920f-4225-9fe6-8d23733f8ac5|6|0|gpt-6-luna|low|10058|612|8728|1327|0|55945500|5861|5790.355542|tool_calls|5aa82b72-e2c6-4d44-b1ba-0bfc75406960|call_OQldTBXrUfXS1WFgmPFrxo56
+d4|1|76ed4a91-920f-4225-9fe6-8d23733f8ac5|7|0|gpt-6-luna|low|16272|1378|10055|6214|0|156660000|14511|1356.284667|stop|5aa82b72-e2c6-4d44-b1ba-0bfc75406960|call_OQldTBXrUfXS1WFgmPFrxo56
+d4|1|76ed4a91-920f-4225-9fe6-8d23733f8ac5|8|0|gpt-6-sol|low|23474|354|21930|1541|43|1178450000|6022|2157.079875|stop||
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|9|0|gpt-6-sol|low|21930|151|9207|12720|14|3515740000|3633|2002.8774999999998|tool_calls||
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|10|0|gpt-6-sol|low|22098|142|21927|168|0|623140000|2104|1029.1600839999999|tool_calls||
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|11|0|gpt-6-luna|low|7856|281|7723|130|0|23428000|3651|3562.015209|tool_calls|9747764a-4608-48be-a032-88653559e98a|call_jt0LDLZc6jUfDaSK7wwBLoBD
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|12|0|gpt-6-luna|low|8514|339|7853|658|14|33058000|3366|1513.7155|tool_calls|9747764a-4608-48be-a032-88653559e98a|call_jt0LDLZc6jUfDaSK7wwBLoBD
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|13|0|gpt-6-luna|low|9103|172|8511|589|0|24503500|2809|2726.592084|tool_calls|9747764a-4608-48be-a032-88653559e98a|call_jt0LDLZc6jUfDaSK7wwBLoBD
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|14|0|gpt-6-luna|low|9306|356|9100|203|8|29467500|3670|3659.627833|tool_calls|9747764a-4608-48be-a032-88653559e98a|call_jt0LDLZc6jUfDaSK7wwBLoBD
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|15|0|gpt-6-luna|low|9952|352|9303|646|0|35008000|4089|4012.977792|tool_calls|9747764a-4608-48be-a032-88653559e98a|call_jt0LDLZc6jUfDaSK7wwBLoBD
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|16|0|gpt-6-luna|low|11015|389|9949|1063|46|42716500|4547|2814.139542|tool_calls|9747764a-4608-48be-a032-88653559e98a|call_jt0LDLZc6jUfDaSK7wwBLoBD
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|17|0|gpt-6-luna|low|11559|1122|11012|544|0|73942000|12036|1289.061917|stop|9747764a-4608-48be-a032-88653559e98a|call_jt0LDLZc6jUfDaSK7wwBLoBD
+d4|2|9fc8c190-ac32-42c8-aeab-959ef4e46190|18|0|gpt-6-sol|low|23368|344|22095|1270|37|1104000000|5547|2138.727625|stop||
+d4|3|0fefe6ee-d939-4d54-a48a-58b8a14c75aa|19|0|gpt-6-sol|low|21932|176|9207|12722|12|3541240000|4587|2511.1557920000005|tool_calls||
+d4|3|0fefe6ee-d939-4d54-a48a-58b8a14c75aa|20|0|gpt-6-luna|low|7876|363|7723|150|21|27778000|4144|4076.4612500000003|tool_calls|a60aff19-6cbb-4e37-b625-e7b8fd59cea0|call_eDV8Cxu5MYPTjchmyLxkvVDk
+d4|3|0fefe6ee-d939-4d54-a48a-58b8a14c75aa|21|0|gpt-6-luna|low|8986|621|7873|1110|25|52828000|6779|6718.542708|tool_calls|a60aff19-6cbb-4e37-b625-e7b8fd59cea0|call_eDV8Cxu5MYPTjchmyLxkvVDk
+d4|3|0fefe6ee-d939-4d54-a48a-58b8a14c75aa|22|0|gpt-6-luna|low|10339|577|8983|1353|61|54775500|5444|1973.990041|tool_calls|a60aff19-6cbb-4e37-b625-e7b8fd59cea0|call_eDV8Cxu5MYPTjchmyLxkvVDk
+d4|3|0fefe6ee-d939-4d54-a48a-58b8a14c75aa|23|0|gpt-6-luna|low|11349|532|10336|1010|69|49591000|5500|2450.150291|tool_calls|a60aff19-6cbb-4e37-b625-e7b8fd59cea0|call_eDV8Cxu5MYPTjchmyLxkvVDk
+d4|3|0fefe6ee-d939-4d54-a48a-58b8a14c75aa|24|0|gpt-6-luna|low|14342|1253|11346|2993|0|111438500|13491|1441.289375|stop|a60aff19-6cbb-4e37-b625-e7b8fd59cea0|call_eDV8Cxu5MYPTjchmyLxkvVDk
+d4|3|0fefe6ee-d939-4d54-a48a-58b8a14c75aa|25|0|gpt-6-sol|low|23367|350|21929|1435|30|1147930000|8426|4308.193792|stop||
+d4|4|f494f593-09e0-4ac5-b19d-9508869b3e6e|26|0|gpt-6-sol|low|21932|164|9207|12722|11|3529240000|3554|1959.0721250000001|tool_calls||
+d4|4|f494f593-09e0-4ac5-b19d-9508869b3e6e|27|0|gpt-6-luna|low|7865|298|7723|139|14|24390500|4050|3987.638125|tool_calls|09fedabc-547c-4e66-9e25-4908c6bc6873|call_kNiu0qcTqXeLWbezWcuGvEmS
+d4|4|f494f593-09e0-4ac5-b19d-9508869b3e6e|28|0|gpt-6-luna|low|8610|333|7862|745|8|33854500|3752|3676.9505000000004|tool_calls|09fedabc-547c-4e66-9e25-4908c6bc6873|call_kNiu0qcTqXeLWbezWcuGvEmS
+d4|4|f494f593-09e0-4ac5-b19d-9508869b3e6e|29|0|gpt-6-luna|low|9193|82|8607|583|0|20024500|1721|1040.080042|tool_calls|09fedabc-547c-4e66-9e25-4908c6bc6873|call_kNiu0qcTqXeLWbezWcuGvEmS
+d4|4|f494f593-09e0-4ac5-b19d-9508869b3e6e|30|0|gpt-6-luna|low|9965|533|9190|772|0|45520000|4609|4533.304792|tool_calls|09fedabc-547c-4e66-9e25-4908c6bc6873|call_kNiu0qcTqXeLWbezWcuGvEmS
+d4|4|f494f593-09e0-4ac5-b19d-9508869b3e6e|31|0|gpt-6-luna|low|10966|398|9962|1001|37|42404500|4438|2270.584|tool_calls|09fedabc-547c-4e66-9e25-4908c6bc6873|call_kNiu0qcTqXeLWbezWcuGvEmS
+d4|4|f494f593-09e0-4ac5-b19d-9508869b3e6e|32|0|gpt-6-luna|low|12979|1390|10963|2013|0|105655500|14218|1411.8408339999999|stop|09fedabc-547c-4e66-9e25-4908c6bc6873|call_kNiu0qcTqXeLWbezWcuGvEmS
+d4|4|f494f593-09e0-4ac5-b19d-9508869b3e6e|33|0|gpt-6-sol|low|23492|296|21929|1560|22|1125180000|4786|1904.6772079999998|stop||
+d4|5|304baa0d-fd70-4e3b-a72f-68bc82bc80b6|34|0|gpt-6-sol|low|21932|151|9207|12722|11|3516240000|3972|2371.0165|tool_calls||
+d4|5|304baa0d-fd70-4e3b-a72f-68bc82bc80b6|35|0|gpt-6-luna|low|7850|261|7723|124|0|22353000|3046|2983.946583|tool_calls|1604aa03-0582-43ce-9e84-8e690e7e4ec5|call_gC8cF5jFeXu9je0hcB9qYuOw
+d4|5|304baa0d-fd70-4e3b-a72f-68bc82bc80b6|36|0|gpt-6-luna|low|9097|504|7847|1247|0|48664500|4253|4234.700958|tool_calls|1604aa03-0582-43ce-9e84-8e690e7e4ec5|call_gC8cF5jFeXu9je0hcB9qYuOw
+d4|5|304baa0d-fd70-4e3b-a72f-68bc82bc80b6|37|0|gpt-6-luna|low|10063|359|9094|966|0|39149000|3314|3229.789542|tool_calls|1604aa03-0582-43ce-9e84-8e690e7e4ec5|call_gC8cF5jFeXu9je0hcB9qYuOw
+d4|5|304baa0d-fd70-4e3b-a72f-68bc82bc80b6|38|0|gpt-6-luna|low|10734|1110|10060|671|0|73977500|12430|941.1315|stop|1604aa03-0582-43ce-9e84-8e690e7e4ec5|call_gC8cF5jFeXu9je0hcB9qYuOw
+d4|5|304baa0d-fd70-4e3b-a72f-68bc82bc80b6|39|0|gpt-6-sol|low|23199|291|21929|1267|17|1046930000|4594|1594.907042|stop||

@@ -1,0 +1,42 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,docs/nav-pilo
+  │ t-design.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*"
+  └ 49 files found
+
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+`maksAntall` er i dag en hardkodet konstant på `100` i `src/main/kotlin/no/nav/demo/Config.kt:4`. `App.kt:10` skriver verdien ved oppstart og registrerer rutene. `Routes.kt:16` bruker den i `oppgaver.take(maksAntall)` når `GET /api/oppgaver` bygger en `OppgaveRespons`. Domenemodellen i `Oppgave.kt` definerer bare `Oppgave` og responsens liste; grensen er ikke en del av modellen. Siden den innebygde listen foreløpig har to oppgaver, merkes ikke grensen på 100 i dagens svar.
+
+For å styre grensen per miljø: les for eksempel `MAKS_ANTALL` ved oppstart i `Config.kt`, valider at den er et positivt heltall, og send verdien inn i `oppgaveRoutes` i stedet for å bruke en global konstant. Sett miljøvariabelen i Nais-konfigurasjonen for hvert miljø; dagens `nais.yaml` har ingen `env`-oppføring. En ugyldig verdi bør gi en tydelig oppstartsfeil, ikke en umerkelig endring i API-svaret. Dette beholder responsformatet, men gjør antall returnerte oppgaver avhengig av miljøkonfigurasjonen.
+

@@ -779,7 +779,8 @@ Hver sjekk har en kontroll i `scripts/nav-pilot-golden.bats` med ferdige debuglo
 
 - d1–d4 består 5 av 5.
 - t2–t5 er minst like gode som GPT-6 Sol i batch 4: t2 5/5, t3 5/5, t4 4/5, t5 5/5.
-- Planleggingen koster høyst 27,2 credits i median, som i batch 4.
+- ~~Planleggingen koster høyst 27,2 credits i median, som i batch 4.~~
+- **Endret 8. oktober 2026 etter rev2:** kravet er 28,89 credits, medianen for samme modell og persona før steg 3 samme dag (sju kjøringer). Eieren godtar om lag 2 credits mer per kjøring for de nye linjene i personaen.
 - ~~d2 koster høyst halvparten av det d2 kostet i grunnmålingen.~~
 - **Endret 8. oktober 2026 etter grunnmålingen, før steg 3 er målt:** d2 må koste høyst det d2 kostet i grunnmålingen (9,74 credits i median), med grønne tester. Halvparten (4,87) er et mål vi strekker oss mot, ikke et krav. Grunnen er at koordinatoren fortsatt betaler for egne turer på GPT-6 Sol til å finne fram, sende oppgaven videre og kontrollere resultatet, i tillegg til det arbeideren koster. Eieren tok beslutningen.
 
@@ -817,6 +818,60 @@ Avvik fra planen og forbehold:
 - Grunnmålingen kostet 168,6 credits, over anslaget på 150 og under stoppen på 200. Prøvekallet før hver kjøring er ikke med.
 - Debugloggen har én `turn tool surface resolved`-linje per prompt og modell, ikke én per modellkall. I d1a viser bruksradene fem kall og loggen én linje. Testene bruker linjene bare til å se hvilke modeller som kjørte, ikke hvor mange kall.
 - Debugloggene er ikke lagt i repoet, fordi de inneholder hele forespørslene. Linjene testene bruker står i `raw.psv`.
+
+## Delegering fra @nav-pilot: steg 3 (8. oktober 2026)
+
+`@nav-pilot` er gjort om til koordinator ([agents/nav-pilot.agent.md](../agents/nav-pilot.agent.md)). I komprimerte og fulle oppgaver sender den grønn kode til `worker`, sikkerhetsperspektivet i fase 3 til `@security-champion-agent` og spørsmål om repoet til `@research-agent`. Målt mot kriteriene i [grunnmålingen](#delegering-fra-nav-pilot-grunnmåling-8-oktober-2026), med det samme oppsettet: Copilot CLI, `--model gpt-6-sol --effort low`, fem kjøringer per test, `--keep`. Rådata ligger i [`golden-baselines/2026-10-08-delegering-steg3/`](golden-baselines/2026-10-08-delegering-steg3/), én rad per kjøring i [raw.psv](golden-baselines/2026-10-08-delegering-steg3/raw.psv). Alle bruksradene for forelderen viser `gpt-6-sol`, så ingen kjøring er forkastet.
+
+Personaen ble endret én gang underveis (rev1), etter at d4 strøk 0/5 med første versjon (rev0). Rev0 sa at forklaringer ikke skulle sendes videre, og modellen leste spørsmålet om repoet som en forklaring. Rev1 sier at spørsmål om repoet går til `@research-agent` før koordinatoren leser filer selv, og at koordinatoren ikke skriver applikasjonskode, «however small the change».
+
+| Test | Krav | Grunnmåling | Rev0 | Rev1 | Credits rev1, median (spenn) |
+| ---- | ---- | ----------- | ---- | ---- | ---------------------------- |
+| d1 | 5/5 | 0/5 | ikke kjørt | 5/5 | 19,18 (15,44–29,42) |
+| d2 | 5/5, høyst 9,74 credits | 0/5, 9,74 | 4/5, 9,54 | 5/5 | 9,57 (8,79–11,07) |
+| d3 | 5/5 | 5/5 | 5/5 | **4/5** | 8,18 (7,91–9,21) |
+| d4 | 5/5 | 0/5 | **0/5** | 5/5 | 4,99 (4,75–5,51) |
+| t2–t5 | t2 5/5, t3 5/5, t4 4/5, t5 5/5, høyst 27,2 credits | | ikke kjørt | ikke kjørt | |
+
+**Konklusjon: kriteriene er ikke oppfylt.** D3 strøk i rev1: i kjøring 4 sendte koordinatoren omdøpingen i tre filer til `worker`. Det er den nye setningen om at også små endringer skal sendes videre, som trekker en oppgave på grensen mellom triviell og komprimert over til `worker`. Endringen ga altså d4, men kostet d3. Etter regelen om høyst én revisjon er personaen ikke justert mer.
+
+Planleggingen (t2–t5) er ikke kjørt. Steg 3 kostet 337,0 credits før den, og fem kjøringer av t2–t5 koster om lag 136. Det ville gått over stoppen på 450.
+
+Hva målingen viser:
+
+- **Delegeringen virker.** Hver delegering i bruksradene hadde riktig agent på riktig pinne: `worker` og `@research-agent` på `gpt-6-luna`, `@security-champion-agent` på `claude-opus-5.5`.
+- **D2 sparer nesten ingenting.** `worker` kostet 0,07–0,26 credits per kjøring, men koordinatoren på GPT-6 Sol brukte fortsatt 8,5–11 credits på å lese, skrive briefen og kontrollere. Medianen 9,57 er under kravet på 9,74 og langt fra målet på 4,87.
+- **D1 koster om lag dobbelt så mye.** Median 19,18 mot 9,94 i grunnmålingen. `@security-champion-agent` på Opus kostet 3,9–18,1 credits per kjøring.
+- **D4 ble billigere.** Median 4,99 mot 5,90.
+
+Budsjett: om lag 350 credits, stopp ved 450. Brukt: 337,0 (rev0 d2, d3, d4: 121,6; rev1 d1–d4: 215,5).
+
+### Rev2 (8. oktober 2026)
+
+Eieren opphevet regelen om én revisjon og ba om rev2: trivielle endringer (én fil, en omdøping, en skrivefeil, en konfigurasjonsverdi) gjør koordinatoren alltid selv og sender dem aldri videre. Resten av personaen er som i rev1. Målt med samme oppsett: d3 fem kjøringer, d2 og d4 tre kjøringer hver som stikkprøve, og t2–t5 med dagens KI-vurdering. D1 er ikke kjørt på nytt, fordi rev2 ikke endrer fase 3. Rådata ligger i [`rev2/`](golden-baselines/2026-10-08-delegering-steg3/rev2/) og som `rev2`-rader i raw.psv.
+
+| Test | Krav | Rev2 | Credits, median (spenn) |
+| ---- | ---- | ---- | ----------------------- |
+| d2 | 5/5, høyst 9,74 credits | 3/3 (`worker` på `gpt-6-luna`) | 9,82 (9,50–10,41) |
+| d3 | 5/5 | 5/5 | 7,79 (7,25–10,30) |
+| d4 | 5/5 | 3/3 (`@research-agent` på `gpt-6-luna`) | 4,87 (4,79–5,41) |
+| t2 | 5/5 | 3/3 | |
+| t3 | 5/5 | 3/3 | |
+| t4 | 4/5 | 3/3 | |
+| t5 | 5/5 | 3/3 | |
+| Planlegging, credits | høyst 28,89 (endret, se over) | | 30,84 (29,24–33,52) per kjøring av t2–t5 |
+
+Planleggingen ble kjørt tre ganger, ikke fem. Hver kjøring kostet rundt 31 credits, og en fjerde ville gått over stoppen på 200 for denne runden. Ingen planleggingskjøring hadde en subagentrad, så personaen delegerte ikke i fase 1 og 2.
+
+**Konklusjon for rev2: delegeringen består, og planleggingen ligger 1,95 over det nye kravet; eieren godtar det.**
+
+- D3 består 5/5 igjen. Unntaket for trivielle oppgaver rettet feilen fra rev1.
+- D2 og d4 delegerer i alle stikkprøvene.
+- Planleggingen koster 30,84 credits i median. Det opprinnelige kravet på 27,2 kom fra batch 4 (6. oktober). Samme modell med personaen før denne endringen kostet 28,89 i median for de samme testene 8. oktober (sju kjøringer, [2026-10-08-planning-luna-sol-judge](golden-baselines/2026-10-08-planning-luna-sol-judge/)). En del av økningen fantes altså før steg 3. Resten, om lag 2 credits per kjøring, er trolig de nye linjene i personaen, som leses i hver tur.
+- D2 kostet 9,82 i median i tre kjøringer, rett over kravet på 9,74. Med fem kjøringer i rev1 var medianen 9,57. Tre kjøringer er for få til å si om d2 er over eller under.
+- Kvaliteten i planleggingen er like god: t2–t5 besto i alle tre kjøringene, med KI-vurderingen av blindsonene i t3.
+
+Brukt i rev2: 187,5 credits (d3 41,6; d2 29,7; d4 15,1; t2–t5 93,6; KI-vurderingen 0,4; kontrollene for KI-vurderingen 7,1, [blindsone-dommer-kontroller.psv](golden-baselines/blindsone-dommer-kontroller.psv)). Budsjett om lag 170, stopp ved 200. Totalt for steg 3: 524,5.
 
 ## Pinner og delegering
 

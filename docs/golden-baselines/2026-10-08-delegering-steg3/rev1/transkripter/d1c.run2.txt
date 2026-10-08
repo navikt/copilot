@@ -1,0 +1,86 @@
+🛡️ Sikkerhet: fase 3, kun vurdering
+
+🔍 Jeg har sett gjennom repoet: `nais.yaml` har ingen `accessPolicy`, `idporten` eller `tokenx`. `build.gradle.kts` har ingen auth-avhengigheter. Ktor-ruten `/api/oppgaver` har ingen autentisering, og det finnes ingen loggoppsett (`println` i `App.kt`). Dette er altså et nytt oppsett fra bunnen.
+📋 **Funn:** 0 kritiske i planen, 6 avklaringer må løses før implementering, 6 punkter er gode.
+
+## Vurdering av planen
+
+| | Område | Vurdering |
+|---|---|---|
+| ✅ | Fnr hentes fra validert identitet | Riktig. Fnr skal aldri komme fra path, query eller body. Det hindrer IDOR (at noen slår opp andres data). |
+| ✅ | Ingen database | Gir liten angrepsflate. Vi trenger ingen regler for lagringstid eller sletting (GDPR). |
+| ✅ | 503 ved PDL-nedetid | Bra hvis svaret er generisk og ikke sender videre feiltekst eller stacktrace fra PDL. |
+| ✅ | Logging av feiltype og korrelasjons-ID | Bra, gitt at ID-en er teknisk og ikke avledet av fnr. |
+| ✅ | Metrikker uten PII | Bra. Labels må ikke ha høy kardinalitet med brukerdata. |
+| ✅ | Eksplisitt inbound og outbound i Nais | Bra. I dag mangler `accessPolicy` helt. |
+| ⚠️ | TokenX og Wonderwall er nytt for teamet | Dette er størst risiko for feilkonfigurasjon. Se avklaringene under. |
+| ⚠️ | Tilgangsnivå mot PDL | Ingen eksplisitt håndtering av adressebeskyttelse eller tilgangsnivå er planlagt. |
+
+## Konkrete risikoer og avklaringer før implementering
+
+1. **❌ hvis det ikke avklares: Hvilket token når Ktor-tjenesten?**
+   - Det riktige mønsteret er at Next.js veksler ID-porten-tokenet til et TokenX-token med Ktor-tjenesten som audience.
+   - Ktor-tjenesten skal ikke ta imot ID-porten-tokenet direkte, og ikke stole på headere fra Wonderwall.
+   - Avklar dette:
+     - Ktor validerer kun TokenX. Det betyr `tokenx.enabled: true`, og at issuer, audience, utløp og signatur sjekkes via `TOKEN_X_*`.
+     - Fnr leses fra claimet `pid`, ikke fra `sub`.
+     - Frontend har `tokenx.enabled: true` og `idporten.sidecar.enabled: true`.
+
+2. **⚠️ Sikkerhetsnivå (`acr`)**
+   - Bestem om `idporten-loa-high` er påkrevd, og valider `acr` i Ktor, ikke bare i frontend.
+   - Ellers kan et token med lavere nivå gi tilgang.
+
+3. **⚠️ Kobling mellom kode og `accessPolicy`**
+   - Inbound skal kun tillate frontend-appen (navn og namespace).
+   - Outbound skal kun gå til PDL, med riktig namespace og cluster (PDL ligger i `pdl` i fss/gcp, og ofte trengs `external`/ingress).
+   - Avklar også at frontend sin outbound peker på tjenesten.
+   - Et åpnet inbound (`*` eller alle namespaces) skal behandles som kritisk.
+
+4. **⚠️ Kall til PDL: hvilken identitet brukes?**
+   - Avklar om tjenesten kaller PDL med TokenX on-behalf-of (borgerens token) eller med Azure client credentials.
+   - Ved client credentials har tjenesten tilgang til alle personer. Da er riktig `pid` i punkt 1 den eneste kontrollen.
+   - Avklar også hvilken behandlingsnummer- eller `Behandlingsnummer`-header som er godkjent.
+
+5. **⚠️ Adressebeskyttelse**
+   - Bestem om navnet skal vises når personen har adressebeskyttelse (fortrolig/strengt fortrolig).
+   - Det er borgerens eget navn, så risikoen er lav. Men responsen fra PDL må ikke brukes eller videresendes med mer enn navnet (dataminimering).
+
+6. **⚠️ Loggdisiplin, siden teamet er nytt på dette**
+   - Det er ingen loggoppsett i dag. Bestem at Ktor-tjenesten aldri logger:
+     - token eller `Authorization`-header
+     - PDL-responskropp
+     - `pid`
+     - exception-meldinger fra PDL-klienten, som kan inneholde fnr i URL eller GraphQL-variabler
+   - Bestem om CallLogging er av eller filtrert, og om team-logs/secure logs trengs.
+   - Revisjonslogg (CEF-auditlog) gjelder ikke her, siden ingen ansatt ser personopplysninger.
+
+7. **⚠️ Mindre punkter**
+   - Rate limiting per bruker eller globalt, så tjenesten ikke kan brukes til å overbelaste PDL.
+   - Timeout og circuit breaker mot PDL.
+   - Ingen CORS, siden kallet går server-til-server fra Next.js.
+   - Bytt til Chainguard/distroless-image og legg til Dependabot og Trivy. Ingen av dem finnes i repoet nå.
+
+**Konklusjon:** Planen er sikkerhetsmessig god. Punkt 1, 3 og 4 må avklares før implementering starter. De henger sammen med at TokenX og Wonderwall er nytt for teamet, og det er der en feil vil gi faktisk eksponering. Jeg anbefaler å ta en kort sjekk med `#appsec` eller en security champion på token-flyten.● Security-champion-agent (model: claude-opus-5.5) Vurder sikkerhet i plan                       31s
+  │ 🛡️ Sikkerhet: fase 3, kun vurdering
+  │ Inspect local repo signals (shell)
+  │   │ cat nais.yaml README.md build.gradle.kts 2>/dev/null | head -120; find src vedtak-api -type
+  │   f |
+  │   │ head -30
+  │   └ 36 lines…
+  └ Read demo source (shell)
+      │ cat src/main/kotlin/no/nav/demo/*.kt | head -80
+      └ 47 lines…
+
+**Fase 3 – gjennomgang:** Planen er godkjent med endringer før implementering.
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Avklar hvilket token Ktor mottar, hvordan det valideres, og hvilken identitet PDL krever. Bind oppslaget til innlogget innbyggers fnr. Kontroller at Nais-reglene bare åpner for riktig frontend og PDL. |
+| Plattform | ⚠️ | Legg inn tidsavbrudd mot PDL og helseendepunkter som ikke gjør tjenesten utilgjengelig ved kortvarige PDL-feil. |
+| Arkitektur | ✅ | Et synkront oppslag uten database passer behovet. Frontenden skal ikke kunne sende inn fnr som valgfritt oppslagsmål. |
+| Endringssikkerhet | ⚠️ | Avtal den konkrete API-responsen med frontenden, og test tokenavvisning, eget oppslag og PDL-feil før utrulling. |
+
+**Før fase 4** må teamet verifisere tokenflyten mellom eksisterende frontend, tjenesten og PDL mot de faktiske konfigurasjonene og PDLs kontrakt. Sikkerhetsgjennomgangen peker også på at PDL-feiltekst og persondata ikke må havne i logger eller 503-responsen. Jeg vil ikke velge TokenX-oppsett eller PDL-identitet ut fra antakelser.
+
+🔴 Rød sone: tokenvalidering og koblingen mellom innlogget person og PDL-oppslag. Gå gjennom disse valgene grundig. Still gjerne spørsmål om valgene over.
+

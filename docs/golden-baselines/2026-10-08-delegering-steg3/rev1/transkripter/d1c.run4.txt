@@ -1,0 +1,96 @@
+🛡️ Sikkerhet: vurdering av fase 3 (bare lest, ingen filer endret)
+
+Jeg leste `nais.yaml`, README og `src/main/kotlin/no/nav/demo/*`. Ingen kode ble kjørt eller endret.
+
+## Hovedfunn: auth-arkitekturen i planen stemmer ikke helt
+
+**❌ 1. Wonderwall står foran frontenden, ikke foran Ktor-tjenesten.**
+- Wonderwall gir innbyggeren en sesjon (cookie) mot Next.js. Ktor-tjenesten ser aldri den sesjonen og skal ikke ha `idporten.enabled` eller Wonderwall.
+- Riktig flyt er: nettleser → Wonderwall/Next.js → frontenden bytter ID-porten-tokenet til et **TokenX-token med Ktor-tjenesten som audience** → Ktor-tjenesten.
+- Ktor-tjenesten skal ha `tokenx.enabled: true` og validere TokenX-tokenet: issuer, audience, utløp og signatur.
+- fnr hentes fra `pid`-claimet i det validerte tokenet. Det skal aldri komme fra path, query, body eller en egen header.
+- Krev også `acr = idporten-loa-high`.
+- **Planjustering:** Skriv om fase 3 til to TokenX-hopp: frontend → Ktor-tjenesten, og Ktor-tjenesten → PDL.
+
+**⚠️ 2. Det er ikke bekreftet at PDL tar imot TokenX med brukerkontekst.** Dette må avklares med PDL-teamet før implementering.
+- Mange innbyggerrettede tjenester bruker Azure AD client credentials mot PDL i stedet.
+- Begge alternativene krever registrert **behandlingsnummer** og `Behandlingsnummer`-header, knyttet til lovhjemmelen.
+- "Tilgang for tjenesten i PDL" må derfor gjelde både token-typen og behandlingsnummeret.
+
+**⚠️ 3. "Samme-origin ruting" må presiseres.**
+- Anbefalt: Ktor-tjenesten får **ingen ingress**. Next.js kaller den server-side (BFF) over service discovery. Da trengs ingen CORS, og nettleseren ser aldri tokenet.
+- Hvis nettleseren skal kalle Ktor-tjenesten direkte via en path på samme domene, virker ikke Wonderwall-cookien der. Da trengs et annet opplegg, og angrepsflaten blir større.
+
+## Nais-oppsett
+
+**❌ 4. Dagens manifest egner seg ikke.** `nais.yaml` har ingen auth og ingen `accessPolicy`, og `/api/oppgaver` er helt åpent.
+- Ikke legg den nye tjenesten inn i `demo-tjeneste`. Lag et eget manifest.
+- Dersom demo-tjenesten skal bli den nye tjenesten, må `/api/oppgaver` fjernes eller beskyttes.
+
+**✅/⚠️ 5. `accessPolicy` er planlagt.**
+- Inbound: kun Next.js-appen, med namespace angitt. Ingen `*`.
+- Outbound: PDL, for eksempel `pdl-api` i `pdl` (eventuelt som external host, avhengig av hvordan PDL eksponeres).
+- Inbound-regelen og den tillatte frontenden i koden må stemme overens. TokenX krever begge deler.
+
+## Personvern og logging
+
+**✅ 6. Lovhjemmel, ingen lagring, og frontenden får bare navn.**
+- Responsen bør være en egen DTO med bare navn. Ikke send videre PDL-objektet, fnr eller adressebeskyttelse.
+
+**⚠️ 7. Fare for at PII havner i loggene.**
+- fnr eller navn kan lekke via exception-meldinger, `toString` på data-klasser, PDL-feilrespons som logges ordrett, request-logging av headere (`Authorization`) og span-attributter.
+- **Krav:** Logg kun feiltype, statuskode og call-id. Ingen tokens i logger.
+- Bruk ikke `println` med konfig, slik demo-koden gjør, til noe sensitivt.
+
+**⚠️ 8. Feilhåndtering.**
+- Ugyldig eller manglende token skal gi 401, ikke 503.
+- Bare feil fra PDL skal gi 503, og feilmeldingen ut skal være generisk.
+- Ingen `StatusPages` som skriver ut stacktrace.
+
+**✅ 9. Målinger uten PII.**
+- Pass på at metrikk-labels ikke inneholder fnr eller noe annet med høy kardinalitet fra brukeren.
+
+**✅ 10. Audit-logg (CEF) trengs trolig ikke.** Innbyggeren ser sine egne data, og ingen ansatt får innsyn.
+- Bekreft dette i `#auditlogging-arcsight` hvis dere er usikre.
+
+## Tester: dette må legges til
+
+**⚠️ 11.**
+- Token fra ID-porten sendt direkte, ikke byttet via TokenX: skal gi 401.
+- Feil audience: 401.
+- Utløpt token: 401.
+- `acr` lavere enn high: 401 eller 403.
+- fnr i query, body eller header skal ignoreres. Kontroller at PDL kalles med `pid`.
+- Loggene ved PDL-feil skal ikke inneholde fnr eller navn.
+- Testene for innlogget, uinnlogget, PDL-suksess og 503 som allerede står i planen er gode.
+
+## Oppsummering
+
+📋 Funn: 2 kritiske (1, 4), 6 medium (2, 3, 5, 7, 8, 11), 3 god praksis (6, 9, 10).
+
+Nødvendige planjusteringer:
+- **Auth-flyt:** Wonderwall kun på frontenden, og TokenX i begge hopp.
+- **PDL:** Avklar token-type og behandlingsnummer med PDL-teamet.
+- **Ingress:** Ktor-tjenesten bør ikke ha ingress.
+- **Manifest:** Lag et eget manifest i stedet for å gjenbruke demo-tjenesten.● Security-champion-agent (model: claude-opus-5.5) Vurder sikkerhet i plan                       38s
+  │ 🛡️ Sikkerhet: vurdering av fase 3 (bare lest, ingen filer endret)
+  │ Read nais.yaml, README and structure (shell)
+  │   │ cat nais.yaml README.md; ls -R vedtak-api src | head -50
+  │   └ 66 lines…
+  └ Read demo source (shell)
+      │ cat src/main/kotlin/no/nav/demo/*.kt
+      └ 47 lines…
+
+## Fase 3: Gjennomgang
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ❌ | Planen plasserer Wonderwall foran feil komponent. Wonderwall beskytter Next.js-frontenden, ikke Ktor-tjenesten. Backend må validere et TokenX-token med riktig mottaker før den bruker fødselsnummer fra tokenet. |
+| Plattform | ⚠️ | Ktor-tjenesten bør kalles fra Next.js på serversiden, uten egen offentlig ingress. Nais-reglene må begrense kall til frontenden og gi nødvendig tilgang videre til PDL. |
+| Arkitektur | ⚠️ | Det er ikke avklart om PDL godtar TokenX i dette oppslaget, eller hvilket behandlingsnummer oppslaget krever. Dette avgjør hvordan siste hopp autentiseres. |
+| Endringssikkerhet | ⚠️ | Testplanen må også dekke feil mottaker, utløpt eller feil token, og at PDL-feil ikke lekker personopplysninger i respons eller logg. |
+
+**Konklusjon: Tilbake til fase 2.** Sikkerhetsgjennomgangen avdekket en feil i den godkjente auth-flyten: nettleseren bør kalle Next.js, som kaller Ktor-tjenesten med TokenX. Jeg retter ikke planen eller starter kodearbeid i denne fasen. Før en revidert plan kan godkjennes, må PDLs støttede token-type og krav til behandlingsnummer bekreftes. Dette er en arkitekturbeslutning, ikke noe vi bør gjette oss til.
+
+🔴 Rød sone: tokenvalidering og tilgang til fødselsnummer må gjennomgås grundig. Still gjerne spørsmål om valgene over.
+

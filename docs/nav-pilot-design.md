@@ -199,6 +199,17 @@ Spesialistagenter skal være **leaf-only**: de skal løse sitt smale delproblem 
 
 `worker` ble lagt til 8. oktober 2026. Den er smal: den utfører én avgrenset oppgave fra en brief og kan ikke delegere videre. Den er en agent og ikke en skill på grunn av modellvalget. Bare en agentfil kan pinne modell; en skill kan ikke. Da kan billige oppgaver gå til GPT-6 Luna mens koordinatoren kjører på en dyrere modell.
 
+### Hva `@nav-pilot` sender videre
+
+Fra 8. oktober 2026 er `@nav-pilot` koordinator i komprimerte og fulle oppgaver. Den klassifiserer, intervjuer, planlegger, sender arbeid videre, kontrollerer og setter sammen. Den skriver ikke applikasjonskode selv.
+
+- Kode, tester og skjelett i grønn sone i fase 4 går til `worker`, eller til `local-worker` når policyen for den finnes og sier at oppgaven skal sendes. Briefen har fem deler: Oppgave, Filer, Endring, Sjekk og Stopp. Koordinatoren leser diffen, kjører sjekken selv, prøver én gang til med smalere brief og tar over hvis det heller ikke går.
+- Sikkerhetsperspektivet i fase 3 går til `@security-champion-agent` i fulle oppgaver. De andre perspektivene kan koordinatoren vurdere selv.
+- Utforsking av repoet og innhenting av fakta går til `@research-agent`.
+- Ikke sendt videre: trivielle oppgaver, forklaringer, feilsøking, vurderinger av enkeltfiler og sikkerhetskritisk kode før stoppet i fase 1. Er agenten ikke installert, sier koordinatoren det og gjør jobben selv.
+
+Fasestoppene, nivåreglene og modellporten til `@nav-pilot-opus` er de samme som før.
+
 ### Utfasede spesialistagenter
 
 `auth`, `nais` og `observability` er fjernet (#481, august 2026) og erstattet av skills. Ruting som tidligere gikk til disse agentene går nå til `nav-auth` og `tokenx-auth`, `nais`, `observability-setup` og `observability-debugging`.

@@ -1,0 +1,98 @@
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Vedtak*"
+  └ 2 files found
+
+/ Search (glob)
+  │ ".github/instructions/{kotlin,testing-kotlin,testing}.instructions.md"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/build.gradle*"
+  └ 2 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "vedtak-api/src/**/*.kt"
+  └ 2 files found
+
+/ Search (glob)
+  │ "gradlew"
+  └ No matches found
+
+/ Search (grep)
+  │ "DTO|data class|LocalDate|DateTimeFormatter|extension|Mapper|Mapping"
+  │ (.github/instructions/kotlin.instructions.md)
+  └ 17 lines found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:135 (135 lines read)
+
+● Inspect project files and Gradle availability (shell)
+  │ ls -la && command -v gradle || true && git status --short 2>/dev/null || true
+  └ 10 lines…
+
+Endret de to forespurte filene:
+- `VedtakDto.kt`: la til `VedtakDto` og `Vedtak.tilDto()` med ISO-datoformat.
+- `VedtakDtoTest.kt`: la til test som verifiserer feltene, posisjonell DTO-likhet og datoformatet `2026-10-08`.
+
+Kjørte ikke tester, som instruert.● Worker (model: gpt-6-luna) Legg til DTO-mapper og test                                         10s
+  │ Endret de to forespurte filene:
+  │ Read VedtakDtoTest.kt
+  │   │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt
+  │   └ Path does not exist
+  └ Edit
+      │ Create vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+      └ Create vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt
+
+● Read VedtakDto.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+  └ 16 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read VedtakDtoTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt
+  └ 17 lines read
+
+● Edit
+  └ Edit vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+
+● Run vedtak-api tests with Gradle (shell)                                                        5s
+  │ cd vedtak-api && gradle test --quiet
+  └ No Content
+
+Lagt til `VedtakDto` i `vedtak-api` med feltene i ønsket rekkefølge, og `Vedtak.tilDto()` som formaterer `fattet` som ISO-dato. Enhetstesten dekker mapperen. `gradle test` besto.
+
