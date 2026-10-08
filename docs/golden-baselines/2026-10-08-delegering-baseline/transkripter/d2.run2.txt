@@ -1,0 +1,95 @@
+/ Search (glob)
+  │ "**/*Vedtak*"
+  └ 2 files found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/build.gradle*"
+  └ 2 files found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+● Read kotlin.instructions.md
+  │ ./.github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● List directory ./vedtak-api/src/main/kotlin/no/nav/vedtak
+  └ 1 file found
+
+● Read Vedtak.kt
+  │ ./vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ ./.github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ ./.github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  │ ./vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● Read VedtakTest.kt
+  │ ./vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read testing.instructions.md
+  │ ./.github/instructions/testing.instructions.md
+  └ 112 lines read
+
+/ Search (grep)
+  │ "data class|DTO|LocalDate|Test|mapping|Mapper" (.github/instructions/kotlin.instructions.md)
+  └ 151 lines found
+
+● Edit
+  │ Create vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+  └ Edit vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+
+✗ Run vedtak-api Gradle tests (shell)
+  │ ./gradlew :vedtak-api:test --quiet
+  └ /bin/bash: ./gradlew: No such file or directory
+    Failed with exit code 127
+
+● Check Gradle installation and project files (shell)
+  │ command -v gradle || true; ls -a | head -35
+  └ 9 lines…
+
+✗ Run vedtak-api tests with Gradle (shell)                                                        6s
+  │ gradle :vedtak-api:test --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    Cannot locate tasks that match ':vedtak-api:test' as project 'vedtak-api' not found in root
+    project 'repo'.
+
+    * Try:
+    > Run gradle projects to get a list of available projects.
+    > For more on name expansion, please refer to
+    https://docs.gradle.org/8.14.5/userguide/command_line_interface.html#sec:name_abbreviation in
+    the Gradle documentation.
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 5s
+    Failed with exit code 1
+
+● Run module tests with Gradle (shell)
+  │ cd vedtak-api && gradle test --quiet
+  └ No Content
+
+Lagt til `VedtakDto` med feltene i ønsket rekkefølge og `Vedtak.tilDto()`, som gjør datoen om til ISO-format. Enhetstesten dekker verdiene og feltrekkefølgen. `gradle test` bestod i `vedtak-api`.
+

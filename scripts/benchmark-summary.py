@@ -165,7 +165,9 @@ def build(directory=BASELINES):
     runs = [
         summarise_run(txt)
         for txt in sorted(directory.rglob("*.txt"))
-        if header(txt).get("suite", "none") != "none"
+        # delegation measures which agents a persona calls, not a model, and
+        # has no place on ki-utvikling.nav.no/modeller.
+        if header(txt).get("suite", "none") not in ("none", "delegation")
     ]
     runs.sort(key=lambda r: (r["date"], r["suite"], r["model"], r["effort"], r["source"]))
     generated = max((r["date"] for r in runs), default="1970-01-01")

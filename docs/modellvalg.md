@@ -783,6 +783,30 @@ Hver sjekk har en kontroll i `scripts/nav-pilot-golden.bats` med ferdige debuglo
 
 Budsjettet for grunnmålingen er om lag 150 credits, med stopp ved 200.
 
+### Resultater
+
+Kjørt 8. oktober 2026 med Copilot CLI 1.0.94-3, `--model gpt-6-sol --effort low`, fem kjøringer per test. Rådata, transkripter og skript ligger i [`golden-baselines/2026-10-08-delegering-baseline/`](golden-baselines/2026-10-08-delegering-baseline/), med én rad per kjøring i [raw.psv](golden-baselines/2026-10-08-delegering-baseline/raw.psv). Credits er summen av bruksradene per kjøring.
+
+| Test | Bestått | Modeller i debugloggen og bruksradene | Subagenter startet | Credits, median (spenn) |
+| ---- | ------- | ------------------------------------- | ------------------ | ----------------------- |
+| d1   | 0/5     | bare gpt-6-sol                        | 0                  | 9,94 (9,06–10,19)       |
+| d2   | 0/5     | bare gpt-6-sol                        | 0                  | 9,74 (8,31–10,63)       |
+| d3   | 5/5     | bare gpt-6-sol                        | 0                  | 8,67 (7,34–9,65)        |
+| d4   | 0/5     | bare gpt-6-sol                        | 0                  | 5,90 (5,65–6,47)        |
+
+Utfallet er som ventet: dagens persona delegerer ikke. I alle 20 kjøringene kjørte bare GPT-6 Sol, og ingen subagent ble startet. Ingen av svarene nevner `@security-champion-agent`, `@research-agent` eller en annen agent.
+
+- **d1** nådde fase 3 i alle fem kjøringene. Personaen gjorde gjennomgangen selv.
+- **d2** feilet bare på modellkravet. Arbeidsområdet ble endret og testene var grønne i alle fem. Målet for steg 3 er derfor høyst 4,87 credits i median for d2.
+- **d3** brukte mer enn d4, 8,67 mot 5,90 credits, selv om oppgaven er en omdøping i tre filer.
+
+Avvik fra planen og forbehold:
+
+- d1 ble kjørt som fem enkeltkjøringer, ikke én kjøring med `--repeat 5`, for å kunne sjekke forbruket etter hver. Kjøringene er like ellers.
+- Grunnmålingen kostet 168,6 credits, over anslaget på 150 og under stoppen på 200. Prøvekallet før hver kjøring er ikke med.
+- Debugloggen har én `turn tool surface resolved`-linje per prompt og modell, ikke én per modellkall. I d1a viser bruksradene fem kall og loggen én linje. Testene bruker linjene bare til å se hvilke modeller som kjørte, ikke hvor mange kall.
+- Debugloggene er ikke lagt i repoet, fordi de inneholder hele forespørslene. Linjene testene bruker står i `raw.psv`.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.

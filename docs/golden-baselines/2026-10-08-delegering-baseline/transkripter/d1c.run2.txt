@@ -1,0 +1,11 @@
+## Fase 3: Gjennomgang
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Fødselsnummer må hentes fra et validert token, ikke fra klientinput. Avklar hvilket token og hvilke rettigheter PDL krever før auth-koden skrives. Logg bare feiltype og status, aldri fødselsnummer, navn eller token. |
+| Plattform | ⚠️ | Frontendens Nais-oppsett og repo er ikke tilgjengelige her. Bekreft appnavn og namespace før `accessPolicy`, TokenX og Wonderwall konfigureres. |
+| Arkitektur | ✅ | En server-side frontendrute og én Ktor-tjeneste passer flyten. Ingen database eller kø er nødvendig. |
+| Endringssikkerhet | ⚠️ | Test avviste token, PDL-feil → 503 og fravær av personopplysninger i respons og logger før utrulling. Backend kan rulles ut først; frontendkoblingen er tilbakeføringspunktet. |
+
+**Konklusjon: Godkjent med avklaringer.** Planen kan brukes, men PDLs autentiseringskrav og frontendens Nais-identitet må bekreftes før konfigurasjon og kode leveres. Dette er tilgangsvalg, ikke detaljer som bør gjettes. 🔴 Rød sone: gå særlig gjennom tokenvalidering og koblingen mellom innbyggerens identitet og PDL-oppslaget. Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,15 @@
+## Fase 3: Gjennomgang
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Backend må validere tokenet den mottar, og kun bruke identiteten fra dette tokenet til oppslag. Frontendens Wonderwall-innlogging alene beviser ikke hvem som kaller backend. Fødselsnummer, navn og token må holdes ute av logger og måleetiketter. |
+| Plattform | ⚠️ | Nais-manifestet mangler foreløpig innlogging, eksplisitt tilgangspolicy og tilgang til PDL. PDLs audience og krav til TokenX må bekreftes mot integrasjonen. |
+| Arkitektur | ✅ | Ett API uten lagring passer et oppslag der eneste konsument er egen frontend. PDL er eneste nedstrøms avhengighet. |
+| Endringssikkerhet | ⚠️ | Det finnes ingen tester ennå. Før utrulling må tester dekke identitetsbinding, avviste kall og `503` ved PDL-bortfall, og testmiljøet må bekrefte tokenflyten fra frontend til backend. |
+
+**Konklusjon: Godkjent med avklaringer før levering.** Planen trenger ingen ny fase 2-beslutning, men tokenflyten og PDLs konkrete tilgangskrav kan ikke fylles inn på antakelser. Disse må verifiseres før kode og Nais-konfigurasjon ferdigstilles. Jeg stopper her ved fasegrensen og avventer godkjenning for fase 4.
+
+🔴 Rød sone: identitetsbinding, tokenvalidering og tilgang til PDL må gjennomgås grundig av teamet. Valget om å utsette disse detaljene hindrer at vi gjetter på en sikkerhetskritisk kontrakt; alternativet ville vært en tilsynelatende ferdig integrasjon med ubekreftet tilgangsmodell.
+
+Still gjerne spørsmål om valgene over.
+

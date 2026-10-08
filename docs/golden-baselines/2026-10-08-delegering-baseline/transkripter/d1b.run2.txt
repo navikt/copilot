@@ -1,0 +1,16 @@
+## Fase 2: Plan
+
+**Arkitekturvalg:** Jeg legger til grunn at den eksisterende Next.js-frontenden er en egen Nais-app. Innbyggeren logger inn via ID-porten, og Wonderwall beskytter frontendens sesjon. Frontenden kaller en server-side rute som videresender brukerkonteksten med TokenX til en ny Ktor-tjeneste. Ktor-tjenesten validerer tokenets utsteder, målgruppe og levetid, leser fødselsnummeret fra det validerte tokenet og henter navn fra PDL. Nettleseren får aldri et TokenX-token. Dette gir et ekstra serverledd, men unngår å legge tjenestetoken i nettleseren. Jeg finner ingen Next.js-app i dette repoet, så frontendkoblingen er en leveranse i frontendens eget repo.
+
+**Filer og dataflyt:** Opprett egne Ktor-moduler for autentisering, PDL-klient og et `GET /api/meg`-endepunkt. Endepunktet returnerer bare navn; fødselsnummeret brukes til PDL-oppslaget og skal ikke returneres, lagres eller logges. Bruk maskin-til-maskin-token for PDL-kallet, men behold innbyggerens identitet i den autoriserte forespørselen og kontroller at PDL-tilgangen dekker denne bruken. Ingen database, Kafka eller nye GCP-ressurser.
+
+**Nais og drift:** Konfigurer ID-porten og Wonderwall på frontend-appen, TokenX på frontend og backend, og nødvendig Azure-tilgang for PDL etter PDLs dokumenterte oppsett. Sett eksplisitt `accessPolicy.inbound` slik at bare frontend-appen kan kalle backend, og `accessPolicy.outbound` for PDL. Behold helseendepunktene og bruk ressursforespørsler uten CPU-grense. Legg til en GitHub Actions-flyt med bygg, tester og Nais-deploy, med avgrensede rettigheter og SHA-pinnede actions.
+
+**Feil og observabilitet:** PDL-feil eller tidsavbrudd gir HTTP 503 og en logg uten fødselsnummer, navn eller token. Ugyldig eller manglende innlogging gir 401; manglende tilgang gir 403. Mål oppslag per minutt og feilandel med tellere fordelt på resultatstatus, ikke identitet. Varsle ved vedvarende høy feilandel.
+
+**Tester og utrulling:** Test tokenvalidering og avvisning, at oppslaget bruker identiteten fra tokenet, PDL-svar, 503 ved nedetid og at respons og logger ikke lekker fødselsnummer. Kjør integrasjonstest av Wonderwall → frontend → TokenX → backend og en kontrollert test mot PDL i testmiljø. Rull ut backend først, deretter frontendkoblingen; slå av frontendkoblingen ved feil. Ingen migrering eller bakoverkompatibilitet trengs.
+
+🔴 **Rød sone — skriv selv, med gjennomgang:** Tokenvalidering, tilgangskontroll, uttrekk av fødselsnummer og koblingen mellom identitet og PDL-oppslag. Teamet må også forstå Wonderwall og TokenX før produksjonssetting. 🟢 **Grønn sone — kan genereres:** Ktor-oppsett, PDL-klientens rammeverk, Nais-manifester, CI/CD og tester. Sikkerhetsvalget er å utlede fødselsnummer fra validert identitet fremfor fra klientinput; det begrenser misbruk, men krever korrekt tokenutveksling og tilgang hos PDL. Still gjerne spørsmål om valgene over.
+
+**Fase 2 er ferdig.** Neste fase er gjennomgang av planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv.
+

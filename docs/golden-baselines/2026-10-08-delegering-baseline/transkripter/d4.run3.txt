@@ -1,0 +1,43 @@
+/ Search (glob)
+  │ "**/*"
+  └ 48 files found
+
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+`maksAntall` er en hardkodet konstant på `100` i [`Config.kt`](src/main/kotlin/no/nav/demo/Config.kt). Ruten `GET /api/oppgaver` i [`Routes.kt`](src/main/kotlin/no/nav/demo/Routes.kt) bruker den i `oppgaver.take(maksAntall)`. [`App.kt`](src/main/kotlin/no/nav/demo/App.kt) skriver verdien ved oppstart og registrerer ruten. Domenemodellen i [`Oppgave.kt`](src/main/kotlin/no/nav/demo/Oppgave.kt) beskriver oppgavene og responsen, men eier ikke grensen. Siden den innebygde listen har bare to oppgaver, påvirker grensen på 100 ikke responsen i dag.
+
+For å styre grensen per miljø: les en miljøvariabel ved oppstart, valider at den er et positivt heltall, og send verdien til `oppgaveRoutes` i stedet for å bruke en global konstant. Sett miljøvariabelen i Nais-manifestet for hvert miljø, og la oppstartsutskriften bruke den innleste verdien. Ved ugyldig verdi bør tjenesten feile ved oppstart, ikke stille falle tilbake til en annen grense. Ingen endring i `Oppgave` eller `OppgaveRespons` trengs.
+
+🔴 Rød sone: Valideringen av miljøverdien og grensen i ruten styrer API-atferd; gå gjennom disse valgene nøye. Still gjerne spørsmål om valgene over.
+
