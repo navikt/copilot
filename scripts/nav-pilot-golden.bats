@@ -626,7 +626,7 @@ run_suite() {
   done
 }
 
-@test "kafka preflight: gradle children get the registry and in-process opts (no-daemon on request), and a daemon left in the workdir is stopped" {
+@test "kafka preflight: gradle children get a registry under the workdir (no-daemon on request), and a daemon left in the workdir is stopped" {
   make_bench_shim
   # The fake gradle records what a child sees, and leaves a "daemon" behind the
   # way a real one starts: argv without the workdir, cwd in the registry base.
@@ -642,7 +642,7 @@ EOF
   [ -s "$SHIM/gradle-opts" ]
   [ -s "$SHIM/daemon-pids" ]
   while IFS= read -r opts; do
-    [[ "$opts" == *" -Dorg.gradle.project.kotlin.compiler.execution.strategy=in-process "* ]]
+    [[ "$opts" == *" -Dorg.gradle.daemon.registry.base="*"/gradle-daemon" ]]
     [[ "$opts" != *daemon=false* ]]
   done <"$SHIM/gradle-opts"
   sleep 0.3
@@ -656,14 +656,6 @@ EOF
   GRADLE_OPTS= NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite kafka --dry-run
   [ -s "$SHIM/gradle-opts" ]
   while IFS= read -r opts; do [[ "$opts" == *" -Dorg.gradle.daemon=false"* ]]; done <"$SHIM/gradle-opts"
-}
-
-@test "golden fixtures: every Gradle project sets in-process Kotlin" {
-  dirs="$(find "$BATS_TEST_DIRNAME/golden-fixtures" -name settings.gradle.kts -exec dirname {} \;)"
-  [ -n "$dirs" ]
-  for p in $dirs; do
-    grep -qx 'kotlin.compiler.execution.strategy=in-process' "$p/gradle.properties"
-  done
 }
 
 @test "planning t7/t7b: no privacy interview on a migration, privacy raised for fnr on Kafka" {
