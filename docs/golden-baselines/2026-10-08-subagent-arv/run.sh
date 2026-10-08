@@ -1,6 +1,6 @@
 #!/bin/bash
 # usage: run.sh <label>   (uses isolated COPILOT_HOME; parent on gpt-6-luna)
-S=/private/tmp/claude-501/-Users-hans-go-src-github-com-navikt-copilot/614d7367-cac8-4f51-bd69-362d0a336457/scratchpad/subarv
+S=${S:?set S to a scratch dir containing home/ and work/}
 cd $S/work
 COPILOT_HOME=$S/home COPILOT_GITHUB_TOKEN=$(cat $S/.tok) timeout 400 copilot --agent probe-parent --model gpt-6-luna \
   -p "start the subagent probe-child" --allow-all-tools --log-level debug \

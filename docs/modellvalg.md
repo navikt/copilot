@@ -19,7 +19,7 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `@security-champion` | Claude Opus 5.5   | Sikkerhetskritiske vurderinger. Flyttet fra GPT-6 Sol 7. oktober etter eierens forhåndsbestemte regel: GPT-6 Sol besto rv5 i 3 av 10 kjøringer, under kravet på 7 ([2026-10-07-gpt-6-sol-review](golden-baselines/2026-10-07-gpt-6-sol-review/), [#1447](https://github.com/navikt/copilot/pull/1447)). Opus 5.5 besto 7 av 10. Målingen brukte `@code-review`-personaen, som da ga en åpen `accessPolicy` 🟡. Nå er den 🔴, så agenten må måles på nytt. 8. oktober ble fnr og andre personopplysninger i logger gjort til et kritisk funn i personaen. Målingen i [#1459](https://github.com/navikt/copilot/pull/1459) er eldre enn regelen, så den må også måles på nytt. GPT-6 Sol er reservemodell |
 | `@code-review`       | Claude Opus 5.5   | Fant alle plantede feil på riktig linje i ti av ti gjennomganger på Low, Medium og High 30. september. Low holder og er billigst. Fallback er GPT-6 Sol Low, deretter GPT-5.3-Codex. GPT-6 Sol fikk rv5 3/10, rv7 0/10 og rv1–rv4 36/40 7. oktober, se [Rettede sjekker og GPT-6 Sol](#rettede-sjekker-og-gpt-6-sol-7-oktober-2026)                                                                                                                                                                                                                                                                                                                                                                     |
 | `@kafka`             | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så Målt 8. oktober mot Claude Haiku 5.5 Low: ingen målbar forskjell, så Luna beholdes. GPT-6 Sol er fallback, deretter GPT-5.3-Codex                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `@research`          | GPT-6 Luna        | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `@research`          | GPT-6 Luna        | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder også når `@nav-pilot` delegerer til den, målt 8. oktober 2026 på Copilot CLI 1.0.94-3                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `@rust`              | Claude Haiku 5.5  | Verktøytung kodeagent. Både Haiku 5.5 Low og GPT-6 Luna Medium besto 5 av 5 på rs-borrow og rs-feil 8. oktober. Haiku var billigere i alle fem kjøringene: 0,87–1,02 mot 1,11–1,58 credits per kjøring (p = 0,008). Oppgavene er små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Bruk Low. GPT-6 Luna er reserve, deretter GPT-5.3-Codex                                                                                                                                                                                                                                                                                                                                |
 | `@aksel`             | Claude Sonnet 5.5 | Sterk på komponentstruktur og designsystem-konvensjoner. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `@accessibility`     | Claude Sonnet 5.5 | God på WCAG-tolkning og semantisk HTML. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -823,6 +823,8 @@ Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
 
 ### Pinnen gjelder bare på toppnivå
 
+> **Utdatert per 8. oktober 2026 (Copilot CLI 1.0.94-3).** Pinnen gjelder nå også for subagenter. Se [Ny måling 8. oktober 2026](#ny-måling-8-oktober-2026-copilot-cli-1094-3).
+
 `model:`-feltet i en agents frontmatter blir brukt når agenten startes direkte:
 
 ```
@@ -891,7 +893,7 @@ Spørsmålet var om `@code-review` og `@security-champion`, som er pinnet til Cl
 
 | Kjøring | Pinne i `probe-child` | `subagents.agents` i `settings.json` | Modell i debugloggen (forelder + subagent) | Etikett | AI Credits |
 | ------- | --------------------- | ------------------------------------ | ------------------------------------------ | ------- | ---------- |
-| direkte | claude-opus-5.5 | – | claude-opus-5.5 (kun subagenten, startet direkte) | – | 12,19 |
+| direkte | claude-opus-5.5 | – | claude-opus-5.5 (kun subagenten, startet direkte) | – | 12,19 (ikke lagret, se under) |
 | A1 | claude-opus-5.5 | – | gpt-6-luna + **claude-opus-5.5** | claude-opus-5.5 | 10,59 |
 | B1–B3 | gpt-5.6-luna | – | gpt-6-luna + **gpt-5.6-luna** | gpt-5.6-luna | 0,36 / 0,11 / 0,11 |
 | C1–C2 | gpt-5.6-luna | `probe-child` (filnavnet) → gpt-5.4-nano | gpt-6-luna + gpt-5.6-luna | gpt-5.6-luna | 0,11 / 0,11 |
@@ -911,15 +913,26 @@ Spørsmålet var om `@code-review` og `@security-champion`, som er pinnet til Cl
 
 **Hva det betyr for nav-pilot.** Med standard GPT-6 Sol eller Luna for `@nav-pilot` kjører en delegert `@code-review` på Opus 5.5 allerede i dag, uten konfigurasjon. Tre forbehold:
 
-- Det hviler på klientens oppførsel, som har snudd én gang mellom 1.0.83-4 og 1.0.94-3. En vakt bør derfor være en måling i `doctor` eller CI som fanger neste snuoperasjon, ikke en antakelse.
+- Det hviler på klientens oppførsel, som har snudd én gang mellom 1.0.83-4 og 1.0.94-3. En vakt bør derfor være en måling i `doctor` eller CI som fanger neste gang klienten snur, ikke en antakelse.
 - `security-champion` heter `security-champion-agent` i frontmatteren. En overstyring for den må bruke det navnet. Med 1.0.83-4-regelen måtte den bruke filnavnet. Den som skriver nøkkelen må vite hvilken CLI-versjon som leser den.
 - Brukeren kan selv ha satt `subagents.agents.<navn>.model` eller `inherit`, og det slår pinnen.
 
 OpenCode er ikke målt på nytt. Der setter frontmatterens `model:` modellen per agent også som subagent (se [#500](https://github.com/navikt/copilot/issues/500)).
 
-**Forbruk.** 27,75 AI Credits, over budsjettet på 15 og hard stopp på 25. Den direkte Opus-kjøringen (12,19) og A1 (10,59) tok 22,78 alene. Det var ikke ventet ut fra målingen 7. september, der Opus kostet det samme som Luna. Resten ble kjørt med billige modeller, og siste gruppe (D3–E4) presset summen over 25.
+**Gjenstående risiko.**
+
+- Den pakkede oppstarten (`pakke:primary`) er ikke målt. Målingen startet agentene fra `COPILOT_HOME/agents`.
+- OpenCode er ikke målt på nytt, og pi har ingen nøkkel for modell per subagent.
+- En pinne i frontmatteren til en modell kontoen ikke har, faller trolig stille tilbake til forelderens modell, slik overstyringen gjorde i D1–D2. Det er ikke testet.
+- `@nav-pilot` gjør sikkerhetsgjennomgangen i fase 3 selv, uten å delegere. Den går på `@nav-pilot` sin modell uansett hva pinnene sier.
+- En overstyring brukeren har satt selv, vinner over pinnen.
+- Klienten har snudd oppførselen én gang og kan gjøre det igjen.
+
+**Forbruk.** 27,75 AI Credits, over budsjettet på 15 og stoppgrensen på 25. Den direkte Opus-kjøringen (12,19) og A1 (10,59) tok 22,78 alene. Utskriften fra den direkte kjøringen ble ikke lagret. Tallet 12,19 er lest av terminalen og kan ikke etterprøves fra filene. Det var ikke ventet ut fra målingen 7. september, der Opus kostet det samme som Luna. Resten ble kjørt med billige modeller, og siste gruppe (D3–E4) presset summen over 25.
 
 ### AI-kreditter skiller ikke modeller
+
+> **Gjelder ikke lenger i Copilot CLI 1.0.94-3.** 8. oktober 2026 kostet samme subagenttur 10,59 credits på Claude Opus 5.5 og 0,11 på GPT-5.6 Luna. Se [Ny måling 8. oktober 2026](#ny-måling-8-oktober-2026-copilot-cli-1094-3).
 
 Samme agent, samme oppgave, 10,0k input-tokens:
 
