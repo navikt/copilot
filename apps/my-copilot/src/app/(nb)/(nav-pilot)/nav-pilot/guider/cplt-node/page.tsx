@@ -44,16 +44,15 @@ export default function CpltNode() {
             @navikt-pakker fra GitHub Packages
           </LinkableHeading>
           <BodyLong>
-            @navikt-pakkene ligger i GitHub Packages, og <code className={code}>npm.pkg.github.com</code> svarer{" "}
-            <code className={code}>401 Unauthorized</code> uten token, også for offentlige pakker. Tokenet ligger som
-            regel i <code className={code}>~/.npmrc</code>, og den fila stenger cplt. Det enkleste er å installere
-            utenfor cplt før du starter agenten:
+            <code className={code}>npm.pkg.github.com</code> svarer <code className={code}>401 Unauthorized</code> uten
+            token, også for offentlige pakker, og cplt stenger <code className={code}>~/.npmrc</code> der tokenet
+            ligger. Det enkleste er å kjøre <code className={code}>pnpm install</code> utenfor cplt før du starter
+            agenten. Hvorfor, og hva det koster å åpne tokenfilene, står i{" "}
+            <NextLink href={`${OPPSETT}#github-packages`} className={linkClass}>
+              Pakker fra GitHub Packages
+            </NextLink>
+            . Må agenten installere selv, kommer det an på pakkebehandleren.
           </BodyLong>
-          <CodeBlock compact>
-            {`pnpm install        # i terminalen, utenfor cplt
-nav-pilot`}
-          </CodeBlock>
-          <BodyLong>Må agenten installere selv, kommer det an på pakkebehandleren.</BodyLong>
 
           <LinkableHeading id="npm-token" size="small" level="3">
             npm: token fra en miljøvariabel
@@ -89,13 +88,7 @@ cplt --pass-env NODE_AUTH_TOKEN                    # bare denne økten`}
           <CodeBlock compact>{`cplt config set allow.read ~/.npmrc`}</CodeBlock>
           <BodyLong>
             <code className={code}>cplt init</code> og <code className={code}>cplt doctor</code> sier fra når
-            prosjektets <code className={code}>.npmrc</code> henter et scope fra GitHub Packages. Skal agenten også lese{" "}
-            <code className={code}>~/.gradle/gradle.properties</code> og{" "}
-            <code className={code}>~/.m2/settings.xml</code>, se{" "}
-            <NextLink href={`${OPPSETT}#github-packages`} className={linkClass}>
-              Pakker fra GitHub Packages
-            </NextLink>{" "}
-            i oppsettguiden.
+            prosjektets <code className={code}>.npmrc</code> henter et scope fra GitHub Packages.
           </BodyLong>
 
           <LinkableHeading id="yarn" size="small" level="3">
@@ -142,8 +135,8 @@ cplt config set --repo sandbox.allow_lifecycle_scripts true --force   # i .cplt.
           </BodyLong>
           <BodyLong>
             Sperren gjelder også pnpm 11 og nyere og yarn 1, men ikke yarn 2 og nyere: de kjører prosjektets eget
-            postinstall. Bruker du cplt eldre enn <code className={code}>2026.09.30-132931-5b511d2</code>, kjører de
-            prosjektets egne skript. Da må du si fra selv:
+            postinstall. Bruker du cplt fra før 30. september 2026, kjører de prosjektets egne skript. Da må du si fra
+            selv:
           </BodyLong>
           <CodeBlock compact>
             {`pnpm install --ignore-scripts
@@ -197,23 +190,10 @@ cplt config set sandbox.allow_env_files true    # alltid`}
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_localhost_any true`}</CodeBlock>
           <BodyLong>
-            Med <code className={code}>allow_localhost_any</code> når agenten alle tjenester som lytter på localhost,
-            også en lokal database. På Linux koster den mer: kjernen der kan ikke skille localhost fra andre verter, så
-            cplt slår av portfiltreringen for utgående TCP helt, og bare proxyen begrenser hvor agenten kan koble seg
-            til.
-          </BodyLong>
-          <BodyLong>
-            Med <code className={code}>proxy.forced</code> slått på, som i <code className={code}>--preset strict</code>
-            , ser cplt bort fra <code className={code}>allow_localhost_any</code>. Enkeltporter fra{" "}
-            <code className={code}>allow.localhost</code> virker fortsatt, men de tilfeldige portene til Turbopack, Vite
-            og esbuild kan ikke åpnes. Da må du kjøre uten tvungen proxy.
-          </BodyLong>
-          <BodyLong>
-            Begge kan stå i repoet, slik at hele teamet får dem. Bruk{" "}
-            <code className={code}>cplt config set --repo …</code>, sjekk inn <code className={code}>.cplt.toml</code>{" "}
-            og godkjenn med <code className={code}>cplt trust accept</code>, som beskrevet i{" "}
-            <NextLink href={`${OPPSETT}#forste-gang`} className={linkClass}>
-              Sett opp cplt i et repo
+            Hva det åpner, hva det koster på Linux, hvorfor det ikke virker med tvungen proxy, og hvordan du legger det
+            i repoet for hele teamet, står i{" "}
+            <NextLink href={`${OPPSETT}#localhost`} className={linkClass}>
+              Tjenester på localhost
             </NextLink>
             .
           </BodyLong>
@@ -315,21 +295,6 @@ cplt --pass-env PUPPETEER_CACHE_DIR`}
           <LinkableHeading id="pnpm-konfig" size="medium" level="2">
             pnpm-konfig og tokens
           </LinkableHeading>
-          <BodyLong>To feil med pnpm er rettet i cplt fra 29. september 2026. Ser du dem, oppgrader cplt:</BodyLong>
-          <Bullets>
-            <li>
-              <NextLink href={`${FAQ}#pnpm-config`} className={linkClass}>
-                EPERM på …/Library/Preferences/pnpm/config.yaml
-              </NextLink>
-              : pnpm fikk ikke lese sin egen konfig.
-            </li>
-            <li>
-              <NextLink href={`${FAQ}#pnpm-claude`} className={linkClass}>
-                ERR_PNPM_EPERM i node_modules
-              </NextLink>
-              : pakker med en <code className={code}>.claude</code>-mappe kunne ikke installeres.
-            </li>
-          </Bullets>
           <BodyLong>
             <code className={code}>pnpm login</code> lagrer tokenet i <code className={code}>auth.ini</code> i pnpms
             konfigmappe (pnpm 10 og eldre: <code className={code}>rc</code>). På macOS er det{" "}
@@ -414,15 +379,12 @@ cplt config set sandbox.allow_cache_exec npm/_npx`}
             Pakkeregistre og en liste over tillatte verter
           </LinkableHeading>
           <BodyLong>
-            I standardoppsettet stopper cplt bare kjente skadelige verter og verter med private adresser, og
-            installasjoner virker som vanlig. Har du slått på en liste over tillatte verter, slipper cplt bare gjennom
-            det som står på lista. Med <code className={code}>proxy.default_allowlist</code> er{" "}
-            <code className={code}>registry.npmjs.org</code> og <code className={code}>registry.yarnpkg.com</code> med.{" "}
-            <code className={code}>npm.pkg.github.com</code> kommer med fordi Copilot har{" "}
-            <code className={code}>github.com</code> og alle undervertene på lista.
-          </BodyLong>
-          <BodyLong>
-            Vertene Playwright og Cypress laster ned nettlesere fra, er ikke med. Sjekk en vert og legg den til:
+            Uten en liste over tillatte verter virker installasjoner som vanlig. Hvilke registre lista har med, står i{" "}
+            <NextLink href={`${OPPSETT}#tillatelsesliste`} className={linkClass}>
+              Pakkeregistre og en liste over tillatte verter
+            </NextLink>
+            . npm og yarn er med. Vertene Playwright og Cypress laster ned nettlesere fra, er ikke med. Sjekk en vert og
+            legg den til:
           </BodyLong>
           <CodeBlock compact>
             {`cplt check net cdn.playwright.dev

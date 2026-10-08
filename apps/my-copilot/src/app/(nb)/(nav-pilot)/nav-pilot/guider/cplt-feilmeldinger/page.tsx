@@ -24,15 +24,6 @@ const TOC: TocItem[] = [
 ];
 
 const KNOWN_IMPACTS = "https://github.com/navikt/cplt/blob/main/docs/known-impacts.md";
-const cpltPr = (n: number) => `https://github.com/navikt/cplt/pull/${n}`;
-
-function Pr({ n }: { n: number }) {
-  return (
-    <a href={cpltPr(n)} className={linkClass}>
-      cplt#{n}
-    </a>
-  );
-}
 
 export default function CpltFeilmeldinger() {
   return (
@@ -48,6 +39,15 @@ export default function CpltFeilmeldinger() {
           <LinkableHeading id="start-her" size="medium" level="2">
             Start her
           </LinkableHeading>
+          <BodyLong id="oppgrader">
+            {/* Gamle anker for feil som er rettet i cplt fra 29. september 2026. */}
+            <span id="sign-in-failed" />
+            <span id="pnpm-config" />
+            <span id="pnpm-claude" />
+            <strong>Eldre cplt? Oppgrader først.</strong> Flere feil er rettet i cplt fra 29. september 2026, blant
+            annet at pnpm ikke fikk lese sin egen konfig, at pakker med en <code className={code}>.claude</code>-mappe
+            ikke kunne installeres, og at en egen host-liste stengte Copilot ute fra innloggingen.
+          </BodyLong>
           <BodyLong>Finner du ikke feilen under, spør cplt selv:</BodyLong>
           <CodeBlock compact>
             {`cplt check                               # virker sandkassen?
@@ -58,8 +58,8 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           </CodeBlock>
           <BodyLong>
             Svarene fra <code className={code}>cplt check</code> har en linje som begynner med{" "}
-            <code className={code}>Reason:</code>, og ofte en med <code className={code}>Fix:</code>. Kommandoene på
-            denne siden er testet med cplt fra 30. september 2026 på macOS. Flere detaljer står i{" "}
+            <code className={code}>Reason:</code>, og ofte en med <code className={code}>Fix:</code>. Flere detaljer
+            står i{" "}
             <a href={KNOWN_IMPACTS} className={linkClass}>
               known-impacts.md
             </a>{" "}
@@ -115,16 +115,6 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
             Nettverk
           </LinkableHeading>
 
-          <LinkableHeading id="sign-in-failed" size="small" level="3">
-            Sign-in failed: request failed: error sending request for url (https://github.com/login/oauth/access_token)
-          </LinkableHeading>
-          <BodyLong>
-            Rettet i cplt fra 29. september 2026. En egen host-liste i{" "}
-            <code className={code}>proxy.allowed_domains</code> stengte Copilot ute fra sine egne hoster, og{" "}
-            <code className={code}>cplt check</code> viste <code className={code}>reach githubcopilot.com BLOCKED</code>
-            . Oppgrader cplt. Agentens egne hoster er nå alltid med.
-          </BodyLong>
-
           <LinkableHeading id="blocked-allowlist" size="small" level="3">
             BLOCKED-ALLOWLIST
           </LinkableHeading>
@@ -175,8 +165,8 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             <a href="https://github.com/navikt/cplt/issues" className={linkClass}>
               navikt/cplt
             </a>
-            . I cplt fra før 29. september 2026 kom meldingen også når sandkassen blokkerte noe den skulle slippe
-            gjennom. Oppgrader og kjør <code className={code}>cplt check</code> på nytt før du melder.
+            . Oppgrader og kjør <code className={code}>cplt check</code> på nytt før du melder, for eldre cplt viste
+            meldingen også når sandkassen blokkerte noe den skulle slippe gjennom.
           </BodyLong>
 
           <LinkableHeading id="policy-too-strict" size="small" level="3">
@@ -235,9 +225,9 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             </li>
             <li>
               <code className={code}>~/Library/Preferences/pnpm</code>: se{" "}
-              <a href="#pnpm-config" className={linkClass}>
-                pnpm-konfig
-              </a>
+              <NextLink href="/nav-pilot/guider/cplt-node#pnpm-konfig" className={linkClass}>
+                pnpm-konfig og tokens
+              </NextLink>
               .
             </li>
             <li>
@@ -273,23 +263,6 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
               .
             </li>
           </Bullets>
-
-          <LinkableHeading id="pnpm-config" size="small" level="3">
-            EPERM: operation not permitted, open …/Library/Preferences/pnpm/config.yaml
-          </LinkableHeading>
-          <BodyLong>
-            Rettet i cplt fra 29. september 2026 (<Pr n={616} />
-            ). Oppgrader cplt.
-          </BodyLong>
-
-          <LinkableHeading id="pnpm-claude" size="small" level="3">
-            ERR_PNPM_EPERM i node_modules
-          </LinkableHeading>
-          <BodyLong>
-            Rettet i cplt fra 29. september 2026 (<Pr n={627} />
-            ): cplt stengte konfigmapper for KI-verktøy også inne i <code className={code}>node_modules</code>.
-            Oppgrader cplt.
-          </BodyLong>
 
           <LinkableHeading id="yarnrc" size="small" level="3">
             EPERM: operation not permitted, open …/.yarnrc
@@ -354,8 +327,7 @@ cplt --allow-env-files                          # bare denne økten`}
             kan ikke startes i sandkassen. Fra Go ser feilen ut som{" "}
             <code className={code}>fork/exec /bin/ps: operation not permitted</code>. Ingen innstilling åpner det. Kjør
             kommandoen utenfor cplt. <code className={code}>cplt check exec /bin/ps</code> svarer{" "}
-            <code className={code}>BLOCKED</code> fra 29. september 2026 (<Pr n={628} />
-            ).
+            <code className={code}>BLOCKED</code>.
           </BodyLong>
 
           <LinkableHeading id="openpty" size="small" level="3">
@@ -426,11 +398,7 @@ cplt --allow-env-files                          # bare denne økten`}
           <BodyLong>
             cplt støtter ikke JDK-er i <code className={code}>~/Library/Java/JavaVirtualMachines</code> ennå. Pek{" "}
             <code className={code}>JAVA_HOME</code> på en JDK et annet sted, for eksempel under{" "}
-            <code className={code}>/Library/Java/JavaVirtualMachines</code>, SDKMAN eller jenv. Følg saken i{" "}
-            <a href="https://github.com/navikt/cplt/issues/694" className={linkClass}>
-              cplt#694
-            </a>
-            .
+            <code className={code}>/Library/Java/JavaVirtualMachines</code>, SDKMAN eller jenv.
           </BodyLong>
 
           <LinkableHeading id="foojay" size="small" level="3">
@@ -594,12 +562,8 @@ gh pr create --head min-gren`}
             Derfor stopper git-vakta <code className={code}>git remote add origin</code>,{" "}
             <code className={code}>git remote set-url origin</code> og <code className={code}>git config</code> med{" "}
             <code className={code}>remote.origin.url</code> eller <code className={code}>url.*.insteadOf</code>. Det
-            gjelder overalt i sandkassen, også i test-repoer i en temp-mappe, og det er med vilje (
-            <a href="https://github.com/navikt/cplt/issues/622" className={linkClass}>
-              cplt#622
-            </a>
-            ). Andre remotes kan du endre. Lager testene dine egne repoer med <code className={code}>origin</code>, kjør
-            dem uten git-vakta:
+            gjelder overalt i sandkassen, også i test-repoer i en temp-mappe, og det er med vilje. Andre remotes kan du
+            endre. Lager testene dine egne repoer med <code className={code}>origin</code>, kjør dem uten git-vakta:
           </BodyLong>
           <CodeBlock compact>{`cplt --no-git-guard exec -- <kommando>`}</CodeBlock>
           <BodyLong>

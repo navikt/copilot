@@ -1,10 +1,10 @@
 import { BodyLong, Box, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
+import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
-import { DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -16,7 +16,9 @@ export const metadata: Metadata = {
 const TOC: TocItem[] = [
   { id: "forste-gang", label: "Første gang i et repo" },
   { id: "stakker", label: "Det stakken din trenger" },
+  { id: "localhost", label: "Tjenester på localhost" },
   { id: "github-packages", label: "Pakker fra GitHub Packages" },
+  { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte verter" },
   { id: "pnpm", label: "pnpm" },
   { id: "mise", label: "mise" },
   { id: "docker", label: "Docker" },
@@ -135,34 +137,28 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
             sandkassen.
           </BodyLong>
           <div className="overflow-x-auto">
-            <Table size="small">
-              <TableHeader>
-                <TableRow>
-                  <TableHeaderCell scope="col">Stakk</TableHeaderCell>
-                  <TableHeaderCell scope="col">Feilen</TableHeaderCell>
-                  <TableHeaderCell scope="col">I .cplt.toml</TableHeaderCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <Table size="small" className="table-stack" role="table">
+              <HeaderRow stack cells={["Stakk", "Feilen", "I .cplt.toml"]} />
+              <TableBody role="rowgroup">
                 {STACKS.map((s) => (
-                  <TableRow key={s.stack}>
-                    <TableDataCell>{s.stack}</TableDataCell>
-                    <TableDataCell>
+                  <TableRow role="row" key={s.stack}>
+                    <TableDataCell role="cell">{s.stack}</TableDataCell>
+                    <TableDataCell role="cell" data-label="Feilen">
                       <NextLink href={`${FEIL}#${s.anchor}`} className={linkClass}>
                         <code className={code}>{s.symptom}</code>
                       </NextLink>
                     </TableDataCell>
-                    <TableDataCell>
+                    <TableDataCell role="cell" data-label="I .cplt.toml">
                       <code className={code}>{s.toml}</code>
                     </TableDataCell>
                   </TableRow>
                 ))}
-                <TableRow>
-                  <TableDataCell>@navikt-pakker fra GitHub Packages</TableDataCell>
-                  <TableDataCell>
+                <TableRow role="row">
+                  <TableDataCell role="cell">@navikt-pakker fra GitHub Packages</TableDataCell>
+                  <TableDataCell role="cell" data-label="Feilen">
                     <code className={code}>401 Unauthorized … authentication token not provided</code>
                   </TableDataCell>
-                  <TableDataCell>
+                  <TableDataCell role="cell" data-label="I .cplt.toml">
                     Ingenting. Se{" "}
                     <a href="#github-packages" className={linkClass}>
                       Pakker fra GitHub Packages
@@ -176,10 +172,49 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
           <BodyLong>En Kotlin-app med Gradle, MockK og PostgreSQL i Docker Compose får denne fila:</BodyLong>
           <CodeBlock filename=".cplt.toml">{EKSEMPEL}</CodeBlock>
           <BodyLong>
-            Go-tester med <code className={code}>httptest</code>, Gradle-daemonen og Turbopacks arbeidsprosesser lytter
-            på tilfeldige porter, så én port er ikke nok. Med bare port 3000 åpen starter Next.js, men første side
-            feiler. Databasen har fast port, og da holder det å åpne den.
+            Hvorfor noen stakker trenger alle portene, står under{" "}
+            <a href="#localhost" className={linkClass}>
+              Tjenester på localhost
+            </a>
+            .
           </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="localhost" size="medium" level="2">
+            Tjenester på localhost
+          </LinkableHeading>
+          <BodyLong>
+            På macOS stenger cplt localhost. Agenten kan starte en utviklingsserver, og du når den fra nettleseren som
+            vanlig, men agenten selv når ikke tjenester på din maskin. Har tjenesten fast port, som en database, åpne
+            bare den:
+          </BodyLong>
+          <CodeBlock compact>{`cplt config set allow.localhost 5432`}</CodeBlock>
+          <BodyLong>
+            Go-tester med <code className={code}>httptest</code>, Gradle-daemonen og arbeidsprosessene til Turbopack,
+            Vite og esbuild lytter på tilfeldige porter, så én port er ikke nok. Med bare port 3000 åpen starter
+            Next.js, men første side feiler. Da må alle portene åpnes:
+          </BodyLong>
+          <CodeBlock compact>{`cplt config set sandbox.allow_localhost_any true`}</CodeBlock>
+          <Bullets>
+            <li>
+              Med <code className={code}>allow_localhost_any</code> når agenten alle tjenester som lytter på localhost,
+              også en lokal database.
+            </li>
+            <li>
+              På Linux koster den mer: kjernen der kan ikke skille localhost fra andre verter, så cplt slår av
+              portfiltreringen for utgående TCP helt, og bare proxyen begrenser hvor agenten kan koble seg til.
+            </li>
+            <li>
+              Med <code className={code}>proxy.forced</code> slått på, som i{" "}
+              <code className={code}>--preset strict</code>, ser cplt bort fra{" "}
+              <code className={code}>allow_localhost_any</code>. Enkeltporter fra{" "}
+              <code className={code}>allow.localhost</code> virker fortsatt, men tilfeldige porter kan ikke åpnes. Da må
+              du kjøre uten tvungen proxy.
+            </li>
+          </Bullets>
           <Box background="warning-soft" borderRadius="8" padding="space-16">
             <BodyLong>
               Bruk <code className={code}>localhost</code>, ikke <code className={code}>ports</code>, for tjenester på
@@ -187,6 +222,14 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
               gir den ikke tilgang til localhost.
             </BodyLong>
           </Box>
+          <BodyLong>
+            Skal hele teamet ha innstillingen, bruk <code className={code}>cplt config set --repo …</code> og sjekk inn{" "}
+            <code className={code}>.cplt.toml</code>, som beskrevet i{" "}
+            <a href="#forste-gang" className={linkClass}>
+              Første gang i et repo
+            </a>
+            .
+          </BodyLong>
         </VStack>
       </section>
 
@@ -218,6 +261,63 @@ nav-pilot`}
             <code className={code}>read:packages</code>). Trenger du bare én av filene, gi lesetilgang til den, for
             eksempel <code className={code}>cplt config set allow.read ~/.gradle/gradle.properties</code>.
           </BodyLong>
+          <BodyLong>
+            Under en liste over tillatte verter når Copilot <code className={code}>npm.pkg.github.com</code> og{" "}
+            <code className={code}>maven.pkg.github.com</code>, fordi lista har med{" "}
+            <code className={code}>github.com</code> og alle undervertene. Får du <code className={code}>401</code>, har
+            forespørselen kommet fram. Da er det tokenet som mangler, ikke nettverket.
+          </BodyLong>
+          <BodyLong>
+            Hvert verktøy har sin egen vei rundt dette: npm kan lese tokenet fra en miljøvariabel, pnpm og yarn 1
+            trenger <code className={code}>~/.npmrc</code>, og Gradle kan hente fra Navs speil uten token. Se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-node#github-packages" className={linkClass}>
+              Node, npm og pnpm
+            </NextLink>{" "}
+            og{" "}
+            <NextLink href="/nav-pilot/guider/cplt-gradle#github-packages" className={linkClass}>
+              Kotlin og Gradle
+            </NextLink>
+            .
+          </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="tillatelsesliste" size="medium" level="2">
+            Pakkeregistre og en liste over tillatte verter
+          </LinkableHeading>
+          <BodyLong>
+            I standardoppsettet stopper cplt bare kjente skadelige verter og verter med private adresser, og
+            installasjoner virker som vanlig. Har du slått på en liste over tillatte verter, med{" "}
+            <code className={code}>--preset strict</code>, <code className={code}>proxy.default_allowlist</code> eller{" "}
+            <code className={code}>proxy.allowed_domains</code>, slipper cplt bare gjennom det som står på lista. Med{" "}
+            <code className={code}>proxy.default_allowlist</code> er de vanlige pakkeregistrene med:
+          </BodyLong>
+          <Bullets>
+            <li>
+              <code className={code}>registry.npmjs.org</code> og <code className={code}>registry.yarnpkg.com</code>{" "}
+              (npm og yarn)
+            </li>
+            <li>
+              <code className={code}>repo.maven.apache.org</code> (Maven Central)
+            </li>
+            <li>
+              <code className={code}>plugins.gradle.org</code> og{" "}
+              <code className={code}>plugins-artifacts.gradle.org</code> (Gradle-plugins)
+            </li>
+            <li>
+              <code className={code}>packages.confluent.io</code> og <code className={code}>jitpack.io</code>
+            </li>
+          </Bullets>
+          <BodyLong>
+            Mangler en vert, sjekk den og legg den til. <code className={code}>allow.domains</code> legger verter til en
+            liste som allerede er slått på. Den slår ikke på lista:
+          </BodyLong>
+          <CodeBlock compact>
+            {`cplt check net min.vert.no
+cplt config set allow.domains min.vert.no`}
+          </CodeBlock>
         </VStack>
       </section>
 
