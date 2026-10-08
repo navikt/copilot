@@ -1,0 +1,36 @@
+Henter diffen mellom `main` og `vedtak-kafka`.
+
+### Sammendrag
+
+Branchen legger til Kafka-konsument, Postgres-repository, TokenX-auth og to nye REST-endepunkter. Jeg fant flere 🔴-funn: uautentisert PII-endepunkt, SQL-injeksjon, åpen `accessPolicy`, manglende JWT-verifisering og PII i logg. Jeg har ikke endret kode.
+
+🔴 **Rød sone: auth, tilgangskontroll og input-validering. Gå gjennom disse nøye.**
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `Routes.kt` | `get("/api/vedtak/{fnr}")` | 🔴 | Ingen autentisering. Hvem som helst kan lese alle vedtak for et fødselsnummer. |
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen. Bruk `queryOf(sql, fnr)`. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | Ingen `verifier` er satt, og `validate` godtar alle tokens med en `aud`. Signatur, issuer og audience valideres ikke. |
+| `Routes.kt` | `post("/api/vedtak")` | 🔴 | Autentisert kaller kan fatte vedtak for vilkårlig `fnr`. Ingen sjekk av `azp` eller eierskap. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | FNR i logg. Logg `sakId` eller en intern ID i stedet. |
+| `VedtakConsumer.kt` | `retry` + `repository.lagre` | 🔴 | Ikke idempotent. Hvis `producer.send` feiler etter `lagre`, gir retry en ny rad med ny `vedtakId`. Duplikater kan oppstå. |
+| `VedtakConsumer.kt` | `start()` | 🟡 | Ett feil-JSON kaster exception ut av løkken. Tråden dør, offset committes ikke, og meldingen leses om igjen (poison pill). `/isalive` svarer fortsatt OK. |
+| `VedtakConsumer.kt` | `retry` | 🟡 | Ingen DLQ eller stopp-strategi etter tre forsøk. |
+| `App.kt` | `HikariConfig` | 🟡 | Ingen brukernavn/passord, og `nais.yaml` mangler `env`/`DB_JDBC_URL`. Appen starter ikke mot databasen. |
+| `App.kt` | `Properties` for Kafka | 🟡 | Ingen SSL/SASL-konfig. Nais `kafka`-pool krever sertifikater (`KAFKA_CA_PATH`, `KAFKA_PRIVATE_KEY_PATH` m.fl.). |
+| Repo | mangler | 🟡 | Ingen Flyway-migrering for tabellen `vedtak`. Ingen unik constraint på `vedtak_id`. |
+| `Routes.kt` | `require(sakId.isNotBlank())` | 🟡 | `IllegalArgumentException` gir 500, ikke 400. |
+| `VedtakService.kt` | `hentVedtak` | 💭 | Ubrukt metode. |
+| `build.gradle.kts` | ny `dependencies {}` | 💭 | Andre blokk. Slå sammen med den eksisterende. |
+| `Vedtak.kt` | `LocalDateSerializer` | 💭 | Fint, men `VedtakFattetMelding.vedtaksdato` er `String`. Bruk samme serializer for konsistens. |
+
+### Detaljer om de viktigste
+
+- **Auth-kjeden:** `jwt("tokenx")` uten `verifier` betyr at tokens ikke er kryptografisk verifisert. Sett `verifier(JwkProviderBuilder(...).build(), issuer)`, `withAudience(...)` og valider `azp` mot `AZURE_APP_PRE_AUTHORIZED_APPS`. Se skillen `nav-auth` / `tokenx-auth`.
+- **Åpen accessPolicy:** Begrens til konkrete applikasjoner, for eksempel `frontend` i egen namespace.
+- **Duplikater:** Lagre med `soknadId` som unik nøkkel og bruk `ON CONFLICT DO NOTHING`. Da blir retry trygg.
+
+Still gjerne spørsmål om valgene over.

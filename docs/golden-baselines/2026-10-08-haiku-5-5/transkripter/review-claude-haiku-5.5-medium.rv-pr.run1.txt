@@ -1,0 +1,33 @@
+## Review: `vedtak-kafka` mot `main`
+
+`mise check` finnes ikke i dette repoet, så jeg har bare lest diffen. Ingen kode er endret.
+
+### Sammendrag
+Funksjonaliteten er på plass (Kafka-konsument, vedtak-API, Postgres). Det finnes flere blokkere: SQL-injeksjon, usikker JWT-validering, PII i logg og en åpen accessPolicy. Retry-logikken kan også gi dupliserte vedtak.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen. Bruk `?`-parameter. |
+| `Routes.kt` | `get("/api/vedtak/{fnr}")` | 🔴 | Uautentisert endepunkt returnerer personopplysninger. Ingen eierskapssjekk. |
+| `Routes.kt` | `post("/api/vedtak")` | 🔴 | Autentisert bruker kan fatte vedtak for vilkårlig `fnr`. Ingen sjekk av eierskap eller `azp`. |
+| `App.kt` | `validate { ... }` | 🔴 | JWT godtas hvis `aud` finnes. Ingen signaturverifisering (`verifier`/JWKS), ingen sjekk mot forventet audience eller `AZURE_APP_PRE_AUTHORIZED_APPS`. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | FNR i logg. |
+| `VedtakConsumer.kt` | `retry` + `commitSync` | 🔴 | Ved feil kjøres `fattVedtak` på nytt. Vedtaket lagres da på nytt med ny `vedtakId`, og batchen behandles på nytt etter restart. Gir duplikater. Løsning: idempotens på `soknadId`. |
+| `VedtakConsumer.kt` | `start()` | 🟡 | Uventet feil (f.eks. ugyldig JSON) dreper tråden stille. HTTP-appen lever videre. |
+| `App.kt` | Kafka-properties | 🟡 | Ingen SSL/keystore-konfig for Nais Kafka. Bekreft mot Nais-dokumentasjonen. |
+| `nais.yaml` | `kafka` | 🟡 | Topics `soknad-behandlet` og `vedtak-fattet` er ikke deklarert, så ACL mangler. |
+| `VedtakRepository.kt` | — | 🟡 | Tabellen `vedtak` har ingen Flyway-migrering i repoet. |
+| `App.kt` | `DB_JDBC_URL` | 🟡 | Bekreft at Nais faktisk setter denne variabelen. Nais bruker normalt `NAIS_DATABASE_*`. |
+| `build.gradle.kts` | andre `dependencies {}` | 💭 | Duplisert blokk. Slå sammen. |
+| `VedtakService.kt` | `import java.util.Locale` | 💭 | Ubrukt import. `hentVedtak` er ubrukt. |
+| — | tester | 🟡 | Ingen tester for ny logikk. |
+
+### Detaljer på de viktigste blokkerne
+- **SQL-injeksjon:** `"... WHERE fnr = '" + fnr + "'"` kan misbrukes med en fnr-verdi som `' OR '1'='1`. Bruk `queryOf("... WHERE fnr = ?", fnr)`.
+- **Autorisasjon:** `GET /api/vedtak/{fnr}` bør kreve token og sjekke at kallet gjelder brukerens eget fnr, eller en tillatt tjeneste. `POST` bør verifisere at `azp` er i `AZURE_APP_PRE_AUTHORIZED_APPS`.
+- **Logging:** Logg `vedtakId` i stedet for `fnr`.
+
+🔴 Rød sone: token-validering, autorisasjon og konsumentens retry-logikk. Gå gjennom disse nøye.

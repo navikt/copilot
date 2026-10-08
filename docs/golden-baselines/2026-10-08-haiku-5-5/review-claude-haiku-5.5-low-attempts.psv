@@ -1,0 +1,53 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-10-08
+# revision:     05cfadc9
+# model:        claude-haiku-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+cr-kotlin|1|0|pass|2381|19927|true|
+cr-tsx|1|0|pass|2306|15115|true|
+rv-pr|1|0|pass|3225|24432|true|
+rv-clean|1|0|pass|1352|13884|true|
+cr-kotlin|2|0|pass|1539|13735|true|
+cr-tsx|2|0|pass|2917|18023|true|
+rv-pr|2|0|pass|3179|26990|true|
+rv-clean|2|0|pass|1609|18983|true|
+cr-kotlin|3|0|pass|1557|14303|true|
+cr-tsx|3|0|pass|2830|20481|true|
+rv-pr|3|0|pass|3285|23556|true|
+rv-clean|3|0|pass|1758|18595|true|
+cr-kotlin|4|0|pass|1507|12434|true|
+cr-tsx|4|0|pass|2476|17203|true|
+rv-pr|4|0|pass|4527|36128|true|
+rv-clean|4|0|pass|1183|15245|true|
+cr-kotlin|5|0|pass|1736|12730|true|
+cr-tsx|5|0|pass|1672|13428|true|
+rv-pr|5|0|pass|3650|27675|true|
+rv-clean|5|0|pass|1675|14810|true|
+cr-kotlin|6|0|pass|1845|16064|true|
+cr-tsx|6|0|pass|1628|13876|true|
+rv-pr|6|0|pass|3645|26621|true|
+rv-clean|6|0|pass|2049|18064|true|
+cr-kotlin|7|0|pass|1820|15306|true|
+cr-tsx|7|0|pass|1995|19805|true|
+rv-pr|7|0|pass|2691|31163|true|
+rv-clean|7|0|pass|1408|15743|true|
+cr-kotlin|8|0|pass|2070|13636|true|
+cr-tsx|8|0|pass|3110|17629|true|
+rv-pr|8|0|pass|3668|27030|true|
+rv-clean|8|0|pass|1902|20703|true|
+cr-kotlin|9|0|pass|2275|17396|true|
+cr-tsx|9|0|pass|2043|18014|true|
+rv-pr|9|0|pass|2965|26506|true|
+rv-clean|9|0|pass|1232|14664|true|
+cr-kotlin|10|0|pass|1298|16972|true|
+cr-tsx|10|0|pass|1350|15653|true|
+rv-pr|10|0|pass|3492|27186|true|
+rv-clean|10|0|pass|1543|15668|true|

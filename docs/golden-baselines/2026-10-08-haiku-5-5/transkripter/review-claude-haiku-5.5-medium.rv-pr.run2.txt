@@ -1,0 +1,23 @@
+Jeg henter diffen mellom `main` og `vedtak-kafka`.
+
+## Gjennomgang: `vedtak-kafka` mot `main`
+
+Diffen er én commit med 257 nye linjer. Jeg har ikke endret kode. Flere funn er 🔴 og bør fikses før merge.
+
+| Fil | Priority | Problem |
+|---|---|---|
+| `vedtak/VedtakRepository.kt` (`hentForPerson`) | 🔴 | SQL-injeksjon: `fnr` settes inn med strengkonkatenering. Bruk `?`-parameter. |
+| `Routes.kt` (`GET /api/vedtak/{fnr}`) | 🔴 | Ingen autentisering eller eierskapssjekk. Alle kan hente vedtak for en hvilken som helst person. |
+| `Routes.kt` (`POST /api/vedtak`) | 🔴 | Autentisert, men ingen sjekk på at kalleren har lov til å fatte vedtak for `fnr`/`sakId`. |
+| `App.kt` (`jwt("tokenx")`) | 🔴 | `validate` godtar alle JWT-er med en `aud`. Valider audience, issuer og `azp` mot forventede verdier. |
+| `vedtak/VedtakService.kt` | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer. |
+| `nais.yaml` (`accessPolicy.inbound`) | 🔴 | `application: "*"` og `namespace: "*"` åpner tjenesten for alle. |
+| `vedtak/VedtakConsumer.kt` (`retry`) | 🔴 | Hvert forsøk kjører `fattVedtak` på nytt, med ny `vedtakId` og ny DB-rad. Hvis `producer.send` feiler etter lagring, får vi duplikate vedtak. |
+| Mangler i diffen | 🔴 | Ingen Flyway-migrering for tabellen `vedtak`. `INSERT` vil feile i alle miljøer. |
+| `VedtakConsumer.kt` (`start`) | 🟡 | Ugyldig JSON utenfor `retry` og en feil etter tre forsøk kaster ut av løkken. Consumer-tråden dør, men appen og `isready` fortsetter som friske. |
+| `VedtakService.kt` (`require`) | 🟡 | `IllegalArgumentException` gir 500 uten `StatusPages`. Bør bli 400. |
+| `build.gradle.kts` | 🟡 | Ny `dependencies {}`-blokk. Slå sammen med den eksisterende. |
+| `VedtakService.kt` (`hentVedtak`) | 💭 | Ubrukt metode. |
+| `nais.yaml` (`kafka.pool`) | 💭 | `nav-dev` er hardkodet. Vurder å flytte til miljøspesifikk konfigurasjon. |
+
+Ingen scope- eller over-editing-funn. Diffen er avgrenset til vedtak-funksjonaliteten.

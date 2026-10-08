@@ -1,0 +1,34 @@
+Jeg henter diffen mellom `main` og `vedtak-kafka` lokalt.
+
+Diffen er lesen. Henter linjenummer for funnene før rapport.
+
+## Gjennomgang: `vedtak-kafka` mot `main`
+
+**Oppsummering:** Branchen legger til Kafka-konsument, vedtak-API og Postgres. Den har flere 🔴-funn: SQL-injeksjon, FNR i logg og URL, uautentisert vedtaksoppslag, svak JWT-validering, åpen `accessPolicy` og mulige dupliserte vedtak. Jeg har ikke endret kode eller kjørt build/tester.
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes inn med strengkonkatenering. Bruk `queryOf("... WHERE fnr = ?", fnr)`. |
+| `Routes.kt` | 30–32 | 🔴 | `GET /api/vedtak/{fnr}` har ingen autentisering eller eierskapssjekk. Hvem som helst kan lese vedtak for en person. |
+| `Routes.kt` | 30 | 🔴 | FNR i URL-path havner i access-logger hos ingress. Flytt til POST-body. |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger FNR. |
+| `App.kt` | 40–42 | 🔴 | `validate` sjekker kun at `aud` finnes. Ingen signatur-verifiering (`verifier`/JWKS), issuer, audience-verdi eller `azp`. |
+| `Routes.kt` | 25–28 | 🔴 | `POST /api/vedtak` tar `fnr` fra body. Kallende tjeneste kan lage vedtak for vilkårlig person, uten eierskapssjekk. |
+| `nais.yaml` | 23–25 | 🔴 | `accessPolicy.inbound` åpner for `*` i alle namespaces. Fjern eller begrens til konkrete apper. |
+| `VedtakConsumer.kt` | 25, 33 | 🔴 | Ved feil etter DB-insert (`lagre` skjer før Kafka-send) gjør retry ny insert med ny `vedtakId`. Resultatet blir dupliserte vedtak. Trenger idempotens, for eksempel unik constraint på `soknadId`. |
+| `VedtakConsumer.kt` | 24 | 🔴 | Ugyldig JSON kaster unntak utenfor `retry` og dreper konsument-tråden. Appen fortsetter likevel og `isalive` svarer OK. |
+| `VedtakConsumer.kt` | 25–27 | 🟡 | Ved feil hoppes `commitSync` over. Hele batchen leses på nytt ved restart. Ved `retry` som gir opp blir `blokk()` kastet videre, og tråden dør. |
+| `App.kt` | 27–34 | 🔴 | Kafka-config mangler SSL/keystore for Nais Kafka (Aiven). Tilkobling feiler sannsynligvis. |
+| `App.kt` | 23 | 🔴 | `DB_JDBC_URL` settes ikke i `nais.yaml`. Nais injiserer ikke denne automatisk, så `jdbcUrl` blir `null` ved oppstart. |
+| `db/migration` | – | 🔴 | Ingen Flyway-migrasjon for tabellen `vedtak`. Insert og select feiler ved første kall. |
+| `VedtakService.kt` | 9–10 | 🟡 | Ingen validering av `fnr` (format). Validering av `sakId` gir `IllegalArgumentException`, som blir 500 uten `StatusPages`. |
+| `VedtakService.kt` | 28 / `VedtakRepository.kt` | 🟡 | `hentVedtak` og `hentForSak` er ubrukt. Fjern eller bruk dem. |
+| `build.gradle.kts` | 8, 13 | 🟡 | To `dependencies {}`-blokker. Slå sammen. |
+| branch | – | 🟡 | Branchnavnet `vedtak-kafka` mangler prefiks (`feature/`, `fix/`). |
+| tester | – | 🟡 | Ingen tester for ny logikk (repository, consumer, service, auth). |
+| `Routes.kt` | 31 | 💭 | `!!` på path-parameter. Trygt i praksis, men `call.parameters.getOrFail` er tydeligere. |
+| `VedtakService.kt` | 22 | 💭 | `LocalDate.now()` bruker JVM-tidssone. Sett `Europe/Oslo` eksplisitt, ellers kan dato bli feil rundt midnatt. |
+
+**Merk:** `UserRepo.kt` på `main` har samme SQL-konkatenering. Det er eksisterende kode utenfor denne branchen.
+
+**Neste steg:** Løs 🔴-punktene før merge, særlig autentisering, FNR-håndtering, SQL og migrasjon.

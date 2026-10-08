@@ -1,0 +1,13 @@
+### Summary
+`SakService.kt` is clean. The SQL is parameterized, the fødselsnummer is kept out of logs, and the endpoint takes the caller's `pid` from the validated token, so a user can only read their own saker. I found no blockers.
+
+### Findings
+
+| File | Line | Priority | Issue |
+|------|------|----------|-------|
+| `SakService.kt` | 20 | 💭 | `maskert()` keeps the original length, which leaks the number of digits. Consider a fixed-length mask such as `"***********"` if length should not be visible in logs. |
+| `SakService.kt` | 40–43 | 💭 | The catch logs only the exception class name and rethrows. Good for PII, but the stack trace is lost in logs. Consider logging the stack trace with a masked message, if the logging setup allows it. |
+| `SakService.kt` | 50 | 💭 | The `pid` claim is trusted without a check of `azp` or the issuer. This is probably fine for TokenX end-user tokens, but confirm the `tokenx` verifier restricts the issuer and audience. |
+
+### Details
+No 🔴 or 🟡 findings. I did not run `mise check` or change any files. The `Sak` response relies on Ktor ContentNegotiation with kotlinx.serialization being installed; I could not verify that from this file alone.

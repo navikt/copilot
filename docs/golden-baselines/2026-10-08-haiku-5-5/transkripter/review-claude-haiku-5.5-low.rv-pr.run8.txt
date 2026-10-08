@@ -1,0 +1,32 @@
+Henter diffen for `vedtak-kafka` mot `main`.
+
+## Review: `vedtak-kafka` mot `main`
+
+**Oppsummering:** Branchen legger til Kafka-konsument, vedtak-API og Postgres-lagring. Funksjonaliteten er et godt utgangspunkt, men jeg finner flere sikkerhetsproblemer som må fikses før merge. Jeg har ikke kjørt `mise check` eller bygget prosjektet, og det finnes ingen tester.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|---------|
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. |
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon: `fnr` settes inn med strengkonkatenering. Bruk `queryOf(sql, fnr)`. |
+| `Routes.kt` | `get("/api/vedtak/{fnr}")` | 🔴 | Uautentisert endepunkt returnerer vedtak for et fødselsnummer. Dette er personopplysninger uten tilgangskontroll. |
+| `Routes.kt` | `post("/api/vedtak")` | 🔴 | Autentisert kaller kan fatte vedtak for hvilken som helst `fnr`. Eierskap til saken sjekkes ikke. |
+| `App.kt` | `validate { … audience?.let { credential } }` | 🔴 | Token valideres kun på at `aud` finnes. Issuer og audience sjekkes ikke mot konfigurasjon. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | Fødselsnummer logges. Logg kun `vedtakId` eller `sakId`. |
+| `VedtakConsumer.kt` | `start()` | 🔴 | Feil i `decodeFromString` eller `behandle` kaster ut av løkken. Tråden dør stille, og konsumenten slutter å lese. Fang feil per melding og send til feilkø eller logg og hopp over. |
+| `VedtakConsumer.kt` | `retry` + `commitSync` | 🟡 | `fattVedtak` lagrer i DB før Kafka-send. Ved retry etter feilet send lagres et nytt duplikat-vedtak med ny ID. Kafka-meldinger som leses på nytt gir også duplikater. Gjør operasjonen idempotent, for eksempel med unik nøkkel på `sakId` eller `soknadId`. |
+| `nais.yaml` / `App.kt` | `DB_JDBC_URL` | 🟡 | Nais setter ikke `DB_JDBC_URL` når `sqlInstances` brukes. Den har navnet `NAIS_DATABASE_VEDTAK_VEDTAK_JDBC_URL`. Appen vil feile ved oppstart. |
+| `src/main` (mangler) | migrasjon | 🟡 | Tabellen `vedtak` opprettes ingen steder. Legg til Flyway-migrasjon. |
+| `Routes.kt` | `call.receive` | 🟡 | Ugyldig JSON gir 500 i stedet for 400. |
+| `build.gradle.kts` | andre `dependencies {}` | 💭 | Slå sammen med den eksisterende blokken. |
+| `VedtakService.kt` | `hentVedtak` / `hentForSak` | 💭 | Ubrukt kode. Fjern hvis den ikke trengs nå. |
+| `nais.yaml` | `kafka.pool: nav-dev` | 💭 | Hardkodet miljø-pool. Vurder å knytte den til miljø. |
+
+### Detaljer på blokkerne
+
+- **Tilgangskontroll:** Både `GET /api/vedtak/{fnr}` og `POST /api/vedtak` mangler eierskapssjekk. Kallere må bekreftes mot saken eller fnr før data returneres eller skrives.
+- **Nais-tilgang:** Den åpne `accessPolicy` gir alle i clusteret tilgang til tjenesten. Begrens til konkrete applikasjoner som trenger tilgang.
+- **Konsumentfeil:** Ett ugyldig meldingsformat stopper hele konsumenten. Det er et driftsproblem, ikke bare en feil i logikken.
+
+🔴 Rød sone: token-validering og tilgangskontroll må gjennomgås nøye før merge.

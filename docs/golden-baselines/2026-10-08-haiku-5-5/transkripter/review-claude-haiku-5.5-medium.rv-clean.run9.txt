@@ -1,0 +1,18 @@
+### Sammendrag
+
+Filen er kort og SQL-spørringen er parameterisert. Den har ingen 🔴-funn i selve filen. Den største risikoen er blokkerende JDBC-kall i en Ktor-rute. Jeg har ikke lest auth-oppsettet for `tokenx`, så funn om autentisering er uverifisert.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 44–46 | 🟡 | `repository.hentForPerson` er et blokkerende JDBC-kall inne i en suspend-handler. Det binder en Ktor-worker-tråd. Kall det via `withContext(Dispatchers.IO)`, eller bruk en `suspend`-funksjon. |
+| `SakService.kt` | 48 | 🟡 | `log.error` inkluderer ikke `e`. Stack trace og årsak går tapt i loggen. Bruk `log.error("Kunne ikke hente saker", e)`. Det er trygt, siden meldingen ikke inneholder fnr. |
+| `SakService.kt` | 47–50 | 💭 | `catch` logger og kaster på nytt. Feilen blir da logget to ganger, en gang her og en gang der den håndteres. Vurder å logge bare ett sted. |
+| `SakService.kt` | 14 | 💭 | `maskert()` erstatter alle tegn med `*`. Loggen viser da fnr-lengden (11) og ingen korrelasjons-ID. Vurder en hash eller en intern ID hvis logger skal kunne følges opp. |
+| `SakService.kt` | 58–60 | 💭 | Manglende `pid` gir 401. Det er akseptabelt, men 403 kan være mer korrekt hvis tokenet er gyldig uten `pid`. |
+| `SakService.kt` | 54 | 🟡 | Ruten bruker provideren `tokenx`. TokenX er vanligvis tjeneste-til-tjeneste. Bekreft at tokenet som kommer inn her faktisk har `pid`-claim fra ID-porten. Hvis ikke, er det en auth-feil. Jeg har ikke verifisert dette. |
+
+Ingen 🔴-funn i denne filen. SQL-spørringen bruker `?`-parametre. Det er ingen fnr i responsen, og eierskap sjekkes via `pid` fra tokenet.
+
+Filen ble ikke endret.

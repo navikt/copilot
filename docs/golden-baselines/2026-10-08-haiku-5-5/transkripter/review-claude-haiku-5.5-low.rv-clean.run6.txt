@@ -1,0 +1,23 @@
+### Summary
+Filen er liten og i hovedsak trygg. SQL er parameterisert, fødselsnummer maskeres i logg, og eieren av data hentes fra tokenet, ikke fra request. Funnene under er små. Jeg kjørte ikke `mise check`, fordi filen ligger i et prosjekt uten git-oversikt og uten `apps/`-struktur.
+
+### Findings
+
+| File | Line | Priority | Issue |
+|------|------|----------|-------|
+| `SakService.kt` | 38–43 | 💭 | `try/catch` som bare logger og kaster på nytt. Loggen gir ingen ekstra verdi her, siden Ktor logger feilen uansett. Vurder å fjerne `try/catch`, eller legg til kontekst med `throw IllegalStateException(..., e)` hvis du vil beholde den. |
+| `SakService.kt` | 50 | 💭 | `pid`-claimet brukes direkte som fødselsnummer. Tokenet er validert av `authenticate`, så det er akseptabelt. Hvis du vil være ekstra streng, kan du validere formatet (11 siffer) før bruk. |
+| `SakService.kt` | 20 | 💭 | `maskert()` gir én `*` per tegn. Det skjuler innholdet, men lengden er synlig. For fnr er lengden fast (11), så det lekker ingenting. Dokumentasjonen «skjuler hele fødselsnummeret» stemmer. |
+| `SakService.kt` | 47–58 | 🟡 | Ingen tester i denne filen. Hvis det finnes tester i prosjektet, bør `/api/saker` testes for 401 uten `pid`, og for at en bruker bare ser sine egne saker. |
+
+### Details
+
+**Det som er bra**
+- Linje 26: `fnr` sendes som parameter, ikke via string-konkatenering. SQL-injection er utelukket.
+- Linje 50–53: Manglende `pid` gir 401, ikke tom liste eller 500.
+- Linje 37 og 41: Fødselsnummer og exception-melding logges ikke i klartekst. Bare exception-klassen logges.
+- Eierskap: `fnr` kommer fra det validerte tokenet, ikke fra path eller query. Brukeren kan ikke be om andres saker.
+
+🔴 Rød sone: autentisering og tilgang til `/api/saker` er sikkerhetskritisk. Verifiser at `tokenx`-konfigurasjonen validerer issuer og audience.
+
+Ingen blokkerende funn.

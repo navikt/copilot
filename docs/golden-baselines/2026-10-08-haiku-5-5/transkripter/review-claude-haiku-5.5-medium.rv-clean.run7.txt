@@ -1,0 +1,18 @@
+### Sammendrag
+
+`SakService.kt` er trygg å merge. SQL er parameterisert, fnr hentes fra token-claimen `pid` og brukes som filter (eieransvarlig), og loggene inneholder ikke fnr. Det er ingen blokkerere. Funnene under er forbedringer.
+
+🔴 **Rød sone: ownership og fnr-håndtering i `/api/saker`, gå gjennom denne nøye.**
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 50 | 🟡 | `pid` brukes direkte i SQL uten formatsjekk. Legg til en sjekk på 11 sifre før spørringen som forsvar i dybden. |
+| `SakService.kt` | 40–42 | 🟡 | `catch` logger bare klassenavnet og kaster feilen videre. Stacktrace går tapt, og feilen kan logges to ganger hvis kalleren også logger. Logg én gang, med stacktrace (`log.error("...", e)`), og vurder å fjerne `catch` helt. |
+| `SakService.kt` | 26 | 💭 | `WHERE fnr = ?` krever indeks på `sak.fnr` for ytelse. Sjekk databasemigrasjonene. |
+| `SakService.kt` | 20 | 💭 | `maskert()` avslører lengden på fnr. Lengden er alltid 11, så det er uproblematisk. |
+
+### Ikke verifisert
+
+Jeg kjørte ikke `mise check` og fant ingen tester for `SakService`. Sjekk at det finnes tester for tom liste, 401 og feilhåndtering.

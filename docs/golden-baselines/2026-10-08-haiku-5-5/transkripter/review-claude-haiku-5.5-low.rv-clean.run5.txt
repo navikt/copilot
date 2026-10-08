@@ -1,0 +1,22 @@
+### Summering
+
+Filen er kort og ryddig. SQL er parameterisert, fødselsnummer logges ikke i klartekst, og endepunktet bruker token-claimet `pid` i stedet for input fra klienten. Jeg fant ingen 🔴-funn. Jeg kjørte ikke `mise check`, fordi jeg bare leste filen.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 17 | 🟡 | `maskert()` avslører lengden på fødselsnummeret. Det er alltid 11, så det er lite informasjon, men kommentaren sier «skjuler hele», så det er verdt å være klar over. |
+| `SakService.kt` | 26 | 🟡 | `ORDER BY opprettet DESC` uten `LIMIT`. En person med mange saker gir ubegrenset resultat og ubegrenset respons. |
+| `SakService.kt` | 47 | 🟡 | `fnr` fra token valideres ikke for format (11 siffer) før det brukes i spørringen. Tokenet er tillitsverdig, men en enkel sjekk gir bedre feilhåndtering. |
+| `SakService.kt` | 45–49 | 💭 | `respond(...)` i rutingen gir 500 ved feil uten noen meningsfull feilrespons. Vurder en feilhåndterer for `Exception`. |
+
+### Detaljer
+
+**Ownership:** Spørringen bruker `pid` fra `JWTPrincipal`, ikke query- eller path-parameter. Det er riktig mønster, og ingen andre personers saker kan hentes via dette endepunktet.
+
+**Logging:** `log.error` logger bare exception-klassenavnet, ikke meldingen. Det er trygt, fordi meldinger fra JDBC kan inneholde parameterverdier.
+
+**Auth:** Sjekk i `tokenx`-konfigurasjonen at audience og issuer valideres. Det ligger utenfor denne filen.
+
+Still gjerne spørsmål om valgene over.

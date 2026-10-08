@@ -1,0 +1,23 @@
+🔍 Leser endringene mellom `vedtak-kafka` og `main` og sjekker relevante prosjektinstruksjoner.
+
+📊 Endringen har åpne tilgangsregler, en usikret FNR-leserute og SQL-bygging med brukerdata. Jeg leser oppsettet rundt disse flytene og kjører prosjektets sjekk før jeg vurderer funnene ferdig.
+
+Mappen har ingen `mise check`-oppgave, så den obligatoriske sjekken kan ikke kjøres her. Jeg kontrollerer nå linjene i sikkerhets- og Kafka-flytene, og ser etter migreringer og tester som kan endre vurderingen.
+
+Jeg har bekreftet at `vedtak`-databasen ikke får noen migrering i branchen, og at Kafka-consumeren kan gjenta en lagring etter feil ved publisering. Gradle-testen stoppet under prosjektkonfigurasjon; jeg henter feilen for å skille kodefeil fra oppsettsfeil.
+
+Fant **7 blokkere og 2 forslag**. 🔴 Rød sone: autentisering, tilgangskontroll og persondata.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `nais.yaml:25` | 🔴 Blokkerer | Inbound-regelen åpner tjenesten for alle apper i alle namespaces. Begrens til navngitte kallere, særlig fordi tjenesten behandler vedtak og fødselsnumre. |
+| `App.kt:40-42` | 🔴 Blokkerer | JWT-verifisering mangler. Ktor kan da dekode tokenet uten å verifisere signaturen, og `audience?.let` sjekker bare at audience finnes, ikke at den er riktig. Verifiser signatur, issuer og forventet audience med TokenX-oppsettet. |
+| `Routes.kt:30-32` | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` krever ikke autentisering eller eierskapskontroll. En kallende kan hente vedtak for et vilkårlig fødselsnummer. |
+| `VedtakRepository.kt:23-24` | 🔴 Blokkerer | Spørringen setter `fnr` direkte inn i SQL-strengen. Bruk parameterbinding for å hindre SQL-injeksjon. |
+| `VedtakService.kt:15` | 🔴 Blokkerer | Logger fødselsnummer. Fjern verdien fra loggen; personopplysninger skal ikke logges. |
+| `VedtakRepository.kt:14` | 🔴 Blokkerer | Koden bruker tabellen `vedtak`, men branchen oppretter bare databasen og har ingen migrering som oppretter tabellen. Oppslag og lagring vil feile mot en ny database. |
+| `VedtakConsumer.kt:32-33` | 🔴 Blokkerer | Behandlingen er ikke idempotent. Hvis DB-lagringen lykkes, men Kafka-publiseringen feiler, oppretter retry et nytt vedtak med ny ID. Bruk en stabil idempotensnøkkel, for eksempel `soknadId`, og håndter publisering uten duplikater. |
+| `VedtakConsumer.kt:24, 46` | 🟡 Forslag | En ugyldig melding eller feil på siste retry kaster unntaket ut av `start()` og stopper consumer-tråden. Håndter feilen slik at consumeren ikke blir stående uten å behandle meldinger mens tjenesten fortsatt ser frisk ut. |
+| Ingen testfiler | 🟡 Forslag | Branchen legger til auth, lagring og Kafka-behandling uten tester for suksess- og feilstier. Legg til tester for disse flytene, særlig retry og duplikater. |
+
+`mise check` kan ikke kjøres fordi repoet ikke har en slik oppgave. `gradle test` stopper før kompilering: Kotlin-verktøyet feiler på Java-versjon 27 (`IllegalArgumentException: 27`).

@@ -495,6 +495,54 @@ Haiku 5.5 kan erstatte GPT-6 Luna Medium
 
 Kodegjennomgangen er bare informasjon. Haiku-armene vurderes mot de fire kravene for reservemodell for `@code-review` (rv5 minst 9/10, rv7 minst 9/10, rv8 median 0 og høyst én rad med høy prioritet, rv6 høyst to kjøringer under Opus 5.5), men resultatet gir ikke grunnlag for å endre noe. Opus-tallet for rv6 er 6/10 fra [omregningen](#omregning-etter-rettet-rv6-og-rv8-7-oktober-2026). Feilede sjekker klassifiseres i `failures.psv` etter de samme reglene for alle armene. Konklusjonene bygger på sjekkens egne tall. Målingen endrer ingen pinner.
 
+### Resultater
+
+Rådata ligger i [2026-10-08-haiku-5-5](golden-baselines/2026-10-08-haiku-5-5/). Hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-08-haiku-5-5/failures.psv), og svarene på rv5–rv8 uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-5-5/transkripter/). Tallene under kommer fra [list-price.py](golden-baselines/2026-10-08-haiku-5-5/list-price.py). Copilot CLI 1.0.94-3. Alle 434 bruksrader for Haiku viser `claude-haiku-5.5` med innsatsnivået vi ba om, og alle 370 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet. En smoke-kjøring før målingen viste at CLI-en tar imot og registrerer `low`, `medium` og `high` for Haiku.
+
+Bestått er antall sjekker på tvers av kjøringene. Credits og dollar er median per kjøring. Input-tokens er per forespørsel. Dollar er listepris med cache-lesing og cache-skriving priset hver for seg.
+
+| Testpakke | Arm             | Bestått | Credits | Maks input | p95 input | Over 100K | Listepris |
+| --------- | --------------- | ------- | ------- | ---------- | --------- | --------- | --------- |
+| coding    | Haiku 5.5 Low    | 30/30   | 1,57    | 43 170     | 43 110    | 0 av 62   | $0,0157   |
+| coding    | Haiku 5.5 Medium | 30/30   | 1,66    | 44 044     | 43 387    | 0 av 67   | $0,0166   |
+| coding    | Luna Medium      | 30/30   | 1,86    | 42 645     | 39 115    | 0 av 101  | $0,0186   |
+| research  | Haiku 5.5 Low    | 20/20   | 1,00    | 31 862     | 31 031    | 0 av 52   | $0,0100   |
+| research  | Haiku 5.5 Medium | 20/20   | 1,04    | 32 066     | 30 832    | 0 av 55   | $0,0104   |
+| research  | Luna Medium      | 20/20   | 0,92    | 25 132     | 24 711    | 0 av 62   | $0,0092   |
+| review    | Haiku 5.5 Low    | 47/80   | 1,59    | 35 708     | 33 158    | 0 av 95   | $0,0159   |
+| review    | Haiku 5.5 Medium | 50/80   | 1,82    | 37 994     | 36 870    | 0 av 103  | $0,0182   |
+| review    | Luna Medium (rv5–rv8) | 33/40 | 2,37 | 66 627    | 55 284    | 0 av 207  | $0,0237   |
+
+Ingen forespørsel i noen arm kom over 100K input-tokens, så Haikus dyrere trinn ble aldri brukt. Den største var 66 627 tokens (Luna, review).
+
+Kodegjennomgangen per sjekk, med sjekkens tall. rv8 er antall rader med høy prioritet: median (høyest).
+
+| Sjekk                        | Haiku 5.5 Low | Haiku 5.5 Medium | Luna Medium |
+| ---------------------------- | ------------- | ---------------- | ----------- |
+| rv1–rv4 (to filer)           | 37/40         | 30/40            | –           |
+| rv5, sikkerhet og personvern | 0/10          | 4/10             | 9/10        |
+| rv6, designfeil              | 1/10          | 3/10             | 8/10        |
+| rv7, prioritet               | 1/10          | 4/10             | 10/10       |
+| rv8, rader med høy prioritet | 0 (0)         | 0 (0)            | 0 (0)       |
+| rv8 bestått                  | 8/10          | 9/10             | 6/10        |
+
+Hva svarene viser:
+
+- **Haiku oppgir ofte ikke linjenummer i gjennomgangen av branchen.** I 8 av 10 rv-pr-svar på Low og 6 av 10 på Medium står et symbol eller en nøkkel i linjecellen, for eksempel `hentForPerson` eller `accessPolicy.inbound`. Da feiler rv5, rv7 og idempotensdelen av rv6 samtidig. I alle disse svarene er SQL-injeksjonen, fødselsnummeret i loggen, det åpne endepunktet og den åpne `accessPolicy.inbound` nevnt og merket 🔴. Regnet på innholdet blir rv5 8/10 på Low og 10/10 på Medium, og rv7 9/10 og 10/10. Lunas svar har linjenummer i alle ti.
+- **rv6:** Haiku sa ikke at lagringen kan lykkes mens publiseringen feiler, i tre kjøringer på hver arm. Regnet på innholdet blir rv6 7/10 på begge. For Luna er én kjøring beskrevet med andre ord og én ekte bom.
+- **rv1–rv4:** Haikus bom er linjer som ligger én eller to linjer feil, og på Medium ett linjeintervall over fire linjer.
+- **rv8:** Ingen arm hadde noen rad med høy prioritet. Bommene er svar uten en konklusjon om at fila er ren. To Luna-svar («Fant ingen blocker») og ett Haiku Medium-svar («Ingen sikkerhetsfunn») har en slik konklusjon med ord sjekken ikke kjenner.
+
+Vurdering mot kriteriene, med sjekkens egne tall:
+
+- **Haiku 5.5 kan erstatte GPT-6 Luna Medium på `@kafka` og `@rust`: ja.** Haiku 5.5 Low besto 30 av 30 `coding`-sjekker, som Luna, med median 1,57 credits mot 1,86 og $0,0157 mot $0,0186 per kjøring. Medium holder også (30/30, 1,66 credits, $0,0166).
+- **Haiku 5.5 kan erstatte GPT-6 Luna Medium på `@research`: nei.** Begge Haiku-armene besto 20 av 20, som Luna, men median credits var 1,00 (Low) og 1,04 (Medium) mot Lunas 0,92, og listeprisen $0,0100 og $0,0104 mot $0,0092.
+- **Kodegjennomgang, bare informasjon:** Ingen Haiku-arm oppfyller kravene for reservemodell for `@code-review`. Low: krav 1 holder ikke (rv5 0/10), krav 2 holder ikke (rv7 1/10), krav 3 holder (median 0, høyest 0), krav 4 holder ikke (rv6 1/10 mot Opus' 6/10). Medium: krav 1 holder ikke (4/10), krav 2 holder ikke (4/10), krav 3 holder (median 0, høyest 0), krav 4 holder ikke (3/10).
+
+Fem kjøringer per arm er lite, og kodeoppgavene er små. Målingen endrer ingen pinner. Et bytte på `@kafka` og `@rust` er en egen beslutning.
+
+Målingen brukte 98,4 credits ifølge bruksradene: 60,9 på Haiku og 37,6 på Luna. Smoke-kjøringene og sjekken av innsatsnivåene brukte om lag 1,6 til. Budsjettet var om lag 80 credits, med stopp ved 150.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
@@ -641,7 +689,7 @@ tallene her har et tidsstempel og ikke evig gyldighet.
 | Claude Sonnet 4.6     | Versatile   | $3.00    | $15.00   | Daglig koding, norsk tekst, planlegging                                                                                                                                                                         |
 | Claude Sonnet 5.5     | Versatile   | $2.00    | $10.00   | Aksel, tilgjengelighet og norsk tekst                                                                                                                                                                           |
 | Claude Sonnet 5       | Versatile   | $2.00    | $10.00   | Fallback for Sonnet 5.5. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen                                                                                     |
-| Claude Haiku 5.5      | Lightweight | $0.10    | $0.50    | Ikke målt hos oss. Aktivert i Nav 7. oktober 2026, men ennå ikke tilgjengelig i Copilot CLI 1.0.94. Lang kontekst over 100K: $0.50 / $2.50                                                                      |
+| Claude Haiku 5.5      | Lightweight | $0.10    | $0.50    | Aktivert i Nav 7. oktober 2026 og tilgjengelig i Copilot CLI 1.0.94 med `--model claude-haiku-5.5`. Målt 8. oktober, se [Claude Haiku 5.5 mot GPT-6 Luna Medium](#claude-haiku-55-mot-gpt-6-luna-medium-8-oktober-2026). Lang kontekst over 100K: $0.50 / $2.50                                                                      |
 | Claude Haiku 4.5      | Versatile   | $1.00    | $5.00    | Sjekklister, maler, scaffold-prompts                                                                                                                                                                            |
 | GPT-5.3-Codex         | Powerful    | $1.75    | $14.00   | Kodeforståelse, terminal, infrastruktur                                                                                                                                                                         |
 | GPT-5.6 Luna          | Lightweight | $0.20    | $1.20    | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort                                                     |

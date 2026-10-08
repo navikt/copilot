@@ -1,0 +1,18 @@
+🔍 Leser SakService og Kotlin-/sikkerhetsreglene.
+
+📊 Koden ser kort ut, men filviseren rapporterte også en større fil. Jeg avklarer filinnholdet og prosjektets testoppsett før vurderingen.
+
+🧪 `mise check` finnes ikke som prosjektoppgave. Jeg sjekker nå auth-konfigurasjonen og byggeoppsettet for å vurdere om tjenesten beskytter oppslagene riktig.
+
+🔐 Auth og spørringen ser ut til å begrense oppslaget til `pid` i verifisert token, og SQL-verdien er parameterisert. Jeg verifiserer linjene og om prosjektet har en kjørbar testoppgave før jeg konkluderer.
+
+### Sammendrag
+Fant ingen feil i autentiseringa eller SQL-oppslaget i `SakService.kt`. Tokenet styrer hvilket fødselsnummer tjenesten slår opp, og SQL-spørringen bruker en parameter.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 40–42 | 🟡 Forslag | Fjern `catch`-blokken eller håndter feilen der. Den logger bare unntakstypen og kaster feilen videre, så logglinja gir lite feilsøkingsinformasjon og kan bli overflødig hvis en øvre feilhåndterer logger feilen. |
+
+`mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave. `gradle test` stoppet under konfigurering av prosjektet med feilen `27`, før tester kunne kjøres.
