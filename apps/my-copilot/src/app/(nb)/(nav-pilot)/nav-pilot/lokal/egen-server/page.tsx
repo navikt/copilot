@@ -116,7 +116,8 @@ export default function EgenServer() {
           </BodyLong>
           <BodyLong>
             Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er den GGUF-varianten som ligger
-            nærmest modellen vi har målt på Mac. <code className={code}>setup</code> finner også LM Studio og vLLM.
+            nærmest modellen vi har målt på Mac. <code className={code}>setup</code> finner også LM Studio og vLLM, men
+            dem har vi ikke prøvd.
           </BodyLong>
           <Box background="warning-soft" padding="space-16" borderRadius="8">
             <VStack gap="space-8">
@@ -146,8 +147,9 @@ export default function EgenServer() {
           <BodyLong>
             En Copilot- eller opencode-økt trenger minst 30 000 tokens kontekst. Med mindre feiler kontekstsjekken i{" "}
             <code className={code}>setup</code>, men den tilbyr å lagre likevel. Korte prompter og{" "}
-            <code className={code}>alpha decide</code> virker da, men ikke en hel økt. Trenger du økter, må du ha et
-            grafikkort med mer minne, en Mac med 32 GB eller mer, eller bruke modellene i skyen.
+            <code className={code}>alpha decide</code> virker da, men ikke en hel økt. Går serveren tom for minne under
+            sjekken, lagrer <code className={code}>setup</code> ingenting. Trenger du økter, må du ha et grafikkort med
+            mer minne, en Mac med 32 GB eller mer, eller bruke modellene i skyen.
           </BodyLong>
         </VStack>
       </section>
@@ -175,7 +177,8 @@ export default function EgenServer() {
             <a href="#lite-minne" className={linkClass}>
               Lite minne
             </a>
-            ). Uten terminal lagrer den ikke, men viser kommandoene som gjør det.
+            ). Uten terminal lagrer den ikke, heller ikke med <code className={code}>--yes</code>, men viser kommandoene
+            som gjør det.
           </BodyLong>
           <BodyLong>
             <code className={code}>mlx_lm.server</code> lister alle MLX-modellene i Hugging Face-cachen, ikke bare den

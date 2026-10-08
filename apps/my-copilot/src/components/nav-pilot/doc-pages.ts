@@ -87,6 +87,11 @@ export const EXPLANATION_PAGES: DocLink[] = [
     desc: "Hvorfor utsendingen er begrenset, hva nivåene gjør, og hva modellen er godkjent for.",
   },
   {
+    href: "/nav-pilot/forklaring/lokal-modell/malinger",
+    title: "Målinger av lokal modell",
+    desc: "Tallene bak vurderingene: utsendingsnivåene, kodeoppgavene, decide-spørsmålene og modellen for 64 GB.",
+  },
+  {
     href: "/nav-pilot/forklaring/personvern",
     title: "Personvern og telemetri",
     desc: "Hva nav-pilot måler, hva som aldri er med, og hvordan du slår det av.",
