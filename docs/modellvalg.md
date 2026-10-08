@@ -458,19 +458,24 @@ Slik fungerer vurderingen:
 - Hvert svar får inntil tre stemmer, og flertallet avgjør. Er de to første stemmene enige, sparer vi den tredje.
 - Før noe svar vurderes, kjøres hele kontrollsettet: de 69 spørsmålene fra [blindspot-controls.tsv](../scripts/golden-fixtures/blindspot-controls.tsv) og seks nye påstander uten spørsmål, som mønstrene ville godtatt. Minst 95 prosent må stemme med fasiten. Ellers blir testene registrert som «ikke vurdert».
 
-Kontrollkjøringen 8. oktober ga **70 av 75 (93,3 prosent)**. Det er under kravet, så de lagrede Luna-svarene er **ikke** vurdert på nytt. Avvikene står i [kontroller.txt](golden-baselines/2026-10-08-blindsone-dommer/kontroller.txt):
+Et bestått kontrollsett gjenbrukes i sju dager, så lenge modell, resonneringsnivå, instruksjonen til modellen og kontrollfila er uendret. Resultatet lagres i [blindsone-dommer-kontroller.psv](golden-baselines/blindsone-dommer-kontroller.psv).
+
+Kontrollsettet ble kjørt to ganger 8. oktober. Alle avvik står i [kontroller.txt](golden-baselines/2026-10-08-blindsone-dommer/kontroller.txt).
+
+Første kjøring ga **70 av 75 (93,3 prosent)**. Eieren rettet deretter fasiten på to linjer. «Hvem er konsumentene av fnr?» (linje 64) og «Skal fnr eksponeres til alle som leser topicet?» (linje 65) spør både hvem som mottar opplysningene (#1) og hvem som får lese topicet (#2). Etter regelen om at et spørsmål kan telle for begge, gjelder begge blindsonene for disse linjene. Rettelsen ligger i en egen commit. Samtidig ble vurderingen strammet inn etter gjennomgangen av PR-en. En stemme må nå svare med ekte ja eller nei. To stemmer som er uenige, gir «ikke vurdert». Sitatet må også ha samme store og små bokstaver som svaret.
+
+Andre kjøring ga **71 av 75 (94,7 prosent)**. Det er fortsatt under kravet på 95 prosent, så de lagrede Luna-svarene er **ikke** vurdert på nytt:
 
 | Linje | Spørsmål | Fasit | KI |
 | --- | --- | --- | --- |
 | 48 | Vil du at jeg sender videre fnr-feltet uendret? | ingen | #1 |
 | 54 | Skal jeg se bort fra fnr i diffen? | ingen | #1 |
+| 55 | Hvem skal kunne kalle denne hjelpefunksjonen i testene? | ingen | #2 |
 | 59 | Hvem skal kunne lese loggene i Grafana? | ingen | #2 |
-| 64 | Hvem er konsumentene av fnr? | #1 | #2 |
-| 65 | Skal fnr eksponeres til alle som leser topicet? | #1 | #1 og #2 |
 
-Linje 54 er en feil hos modellen. Linje 48, 64 og 65 er grensetilfeller som gjennomgangen av kontrollsettet allerede hadde pekt på, og etter regelen om at et spørsmål kan telle for begge, er KI-svaret på linje 65 forsvarlig. Fasiten må avgjøres av et menneske. Vurderingen skal ikke justeres for å treffe akkurat disse linjene.
+Linje 48, 54 og 59 bommet i begge kjøringene. Linje 55 bommet bare i den andre, så stemmene varierer mellom kjøringer. Fasiten på disse linjene står. Vurderingen er ikke justert for å treffe dem.
 
-Kontrollene kostet 17,3 AI-kreditter, og de kjøres på nytt hver gang testoppsettet vurderer en blindsone. Et lagret svar kostet 0,46 kreditter i en prøvekjøring.
+Hver kontrollkjøring kostet omtrent 17,3 AI-kreditter. Et lagret svar kostet 0,46 kreditter i en prøvekjøring.
 
 **Ingen tidligere konklusjon endres**, fordi ingen svar er vurdert på nytt. Resultatene for t3, t7, t7b og 8b er fortsatt foreløpige, og det samme gjelder vurderingen av Luna. Ingen pin er endret.
 
