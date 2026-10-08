@@ -151,8 +151,8 @@ nav-pilot`}</CodeBlock>
             forklarer unntakene.
           </BodyLong>
           <BodyLong>
-            Har du lagt inn MCP-tjenere fra Navs MCP-register i Copilot CLI eller OpenCode, spør nav-pilot om de får nå
-            vertene sine fra sandkassen (
+            Har du lagt inn MCP-servere fra Navs MCP-register i Copilot CLI eller OpenCode, spør nav-pilot om de får nå
+            hostene sine fra sandkassen (
             <strong>MCP server … connects to these hosts. Allow them in the sandbox?</strong>
             ). Enter svarer nei. nav-pilot henter registeret i bakgrunnen, så spørsmålet kan komme først ved neste
             oppstart. Deretter starter klienten i sandkassen.
@@ -201,7 +201,7 @@ cplt trust accept`}</CodeBlock>
             <li>
               merging av pull requests (<code className={code}>gh pr merge</code>)
             </li>
-            <li>push til standardgrenen, for eksempel main, og force push</li>
+            <li>push til default branch, for eksempel main, og force push</li>
             <li>
               skriving utenfor prosjektkatalogen, og lesing av SSH-nøkler, nøkler til skytjenester og andre
               hemmeligheter

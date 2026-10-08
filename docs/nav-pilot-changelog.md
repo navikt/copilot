@@ -49,7 +49,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### OpenCode 2 under cplt på macOS
 
-- **nav-pilot starter OpenCode 2**: På macOS starter `nav-pilot opencode` nå også OpenCode 2 (testet med 2.0.24), med samme hooks, samme utsendingsstopp og samme innstillinger per økt som OpenCode 1 (#1446, #1455, #1468).
+- **nav-pilot starter OpenCode 2**: På macOS starter `nav-pilot opencode` nå også OpenCode 2 (testet med 2.0.24), med samme hooks, samme delegeringssperre og samme innstillinger per økt som OpenCode 1 (#1446, #1455, #1468).
 - **Krever ny cplt**: OpenCode 2 trenger cplt fra 8. oktober 2026 eller nyere. Kjør `cplt --version`: tallet etter `cplt` må være `2026.10.08-081501` eller høyere. Med en eldre cplt ville økten kjørt i OpenCodes bakgrunnstjeneste på maskinen, utenfor nav-pilots hooks. nav-pilot nekter derfor å starte og sier hvordan du oppgraderer. `nav-pilot doctor` viser det samme.
 - **Hent innloggingen på nytt**: Går du fra OpenCode 1 til 2, må du kjøre `opencode auth import` én gang. OpenCode 2 henter ikke innloggingen fra OpenCode 1 (`auth.json`) automatisk.
 - **Plugins i repoet kjører**: OpenCode 2 laster plugins fra `.opencode/` i repoet du står i, og de kjører med dine rettigheter inne i sandkassen. Åpner du et repo du ikke stoler på, sett `OPENCODE_DISABLE_PROJECT_CONFIG=1` før du starter. nav-pilot sender variabelen videre gjennom cplt.

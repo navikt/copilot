@@ -86,7 +86,7 @@ gh pr create --head min-gren`}
           <BodyLong>To vakter står på som standard:</BodyLong>
           <Bullets>
             <li>
-              Git-vakta stopper push til standardgrenen og force push. <code className={code}>main</code> og{" "}
+              Git-vakta stopper push til default branch og force push. <code className={code}>main</code> og{" "}
               <code className={code}>master</code> er alltid beskyttet. Med sikkerhetsnivået{" "}
               <code className={code}>strict</code> stopper den all push.
             </li>

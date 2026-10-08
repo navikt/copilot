@@ -322,7 +322,7 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       Minste form som validerer. <code className={code}>layout</code> navngir katalogene pakka faktisk
                       har, minst én av dem. <code className={code}>primaryAgents</code> er de agentene brukeren kan
-                      starte klienten som. Resten er underagenter andre kaller. Første navn startes som standard, og{" "}
+                      starte klienten som. Resten er subagenter andre kaller. Første navn startes som standard, og{" "}
                       <code className={code}>nav-pilot --persona &lt;navn&gt;</code> velger et annet av dem. Hvert navn
                       må ha en agentfil i <code className={code}>layout.agents</code>, ellers avviser{" "}
                       <code className={code}>validate</code> og <code className={code}>install</code> manifestet.

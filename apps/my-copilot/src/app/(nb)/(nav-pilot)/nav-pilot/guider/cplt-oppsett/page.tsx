@@ -18,7 +18,7 @@ const TOC: TocItem[] = [
   { id: "stakker", label: "Det stakken din trenger" },
   { id: "localhost", label: "Tjenester på localhost" },
   { id: "github-packages", label: "Pakker fra GitHub Packages" },
-  { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte verter" },
+  { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte hoster" },
   { id: "pnpm", label: "pnpm" },
   { id: "mise", label: "mise" },
   { id: "docker", label: "Docker" },
@@ -204,7 +204,7 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
               også en lokal database.
             </li>
             <li>
-              På Linux koster den mer: kjernen der kan ikke skille localhost fra andre verter, så cplt slår av
+              På Linux koster den mer: kjernen der kan ikke skille localhost fra andre hoster, så cplt slår av
               portfiltreringen for utgående TCP helt, og bare proxyen begrenser hvor agenten kan koble seg til.
             </li>
             <li>
@@ -262,7 +262,7 @@ nav-pilot`}
             eksempel <code className={code}>cplt config set allow.read ~/.gradle/gradle.properties</code>.
           </BodyLong>
           <BodyLong>
-            Under en liste over tillatte verter når Copilot <code className={code}>npm.pkg.github.com</code> og{" "}
+            Under en liste over tillatte hoster når Copilot <code className={code}>npm.pkg.github.com</code> og{" "}
             <code className={code}>maven.pkg.github.com</code>, fordi lista har med{" "}
             <code className={code}>github.com</code> og alle undervertene. Får du <code className={code}>401</code>, har
             forespørselen kommet fram. Da er det tokenet som mangler, ikke nettverket.
@@ -285,11 +285,11 @@ nav-pilot`}
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="tillatelsesliste" size="medium" level="2">
-            Pakkeregistre og en liste over tillatte verter
+            Pakkeregistre og en liste over tillatte hoster
           </LinkableHeading>
           <BodyLong>
-            I standardoppsettet stopper cplt bare kjente skadelige verter og verter med private adresser, og
-            installasjoner virker som vanlig. Har du slått på en liste over tillatte verter, med{" "}
+            I standardoppsettet stopper cplt bare kjente skadelige hoster og hoster med private adresser, og
+            installasjoner virker som vanlig. Har du slått på en liste over tillatte hoster, med{" "}
             <code className={code}>--preset strict</code>, <code className={code}>proxy.default_allowlist</code> eller{" "}
             <code className={code}>proxy.allowed_domains</code>, slipper cplt bare gjennom det som står på lista.
             Pakkeregistrene er med når <code className={code}>proxy.default_allowlist</code> er på, og strict slår den
@@ -320,7 +320,7 @@ nav-pilot`}
             </li>
           </Bullets>
           <BodyLong>
-            Mangler en vert, sjekk den og legg den til med <code className={code}>allow.domains</code>. Den legger til
+            Mangler en host, sjekk den og legg den til med <code className={code}>allow.domains</code>. Den legger til
             på en liste som allerede er slått på, og slår ikke på lista selv:
           </BodyLong>
           <CodeBlock compact>

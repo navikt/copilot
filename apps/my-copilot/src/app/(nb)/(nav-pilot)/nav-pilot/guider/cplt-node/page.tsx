@@ -21,7 +21,7 @@ const TOC: TocItem[] = [
   { id: "mermaid", label: "Puppeteer og Mermaid-diagrammer" },
   { id: "pnpm-konfig", label: "pnpm-konfig og tokens" },
   { id: "globale", label: "Globale installasjoner" },
-  { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte verter" },
+  { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte hoster" },
   { id: "feil", label: "Når installasjonen feiler" },
 ];
 
@@ -376,15 +376,15 @@ cplt config set sandbox.allow_cache_exec npm/_npx`}
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="tillatelsesliste" size="medium" level="2">
-            Pakkeregistre og en liste over tillatte verter
+            Pakkeregistre og en liste over tillatte hoster
           </LinkableHeading>
           <BodyLong>
-            Uten en liste over tillatte verter virker installasjoner som vanlig. npm og yarn er med både i{" "}
+            Uten en liste over tillatte hoster virker installasjoner som vanlig. npm og yarn er med både i{" "}
             <code className={code}>proxy.default_allowlist</code> og i fila nav-pilot skriver (se{" "}
             <NextLink href={`${OPPSETT}#tillatelsesliste`} className={linkClass}>
-              Pakkeregistre og en liste over tillatte verter
+              Pakkeregistre og en liste over tillatte hoster
             </NextLink>
-            ), men ikke vertene Playwright og Cypress laster ned nettlesere fra. Sjekk en vert og legg den til:
+            ), men ikke hostene Playwright og Cypress laster ned nettlesere fra. Sjekk en host og legg den til:
           </BodyLong>
           <CodeBlock compact>
             {`cplt check net cdn.playwright.dev
@@ -409,7 +409,7 @@ cplt config set allow.domains cdn.playwright.dev`}
 cplt exec -- pnpm install`}
           </CodeBlock>
           <BodyLong>
-            Linjer med <code className={code}>[proxy]</code> og <code className={code}>BLOCKED</code> viser hvilken vert
+            Linjer med <code className={code}>[proxy]</code> og <code className={code}>BLOCKED</code> viser hvilken host
             som ble stoppet. Nektes du en fil, spør cplt om stien med{" "}
             <code className={code}>cplt check path &lt;sti&gt;</code>. Feilmeldingene står i{" "}
             <NextLink href={`${FAQ}#filer`} className={linkClass}>

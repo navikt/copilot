@@ -421,9 +421,9 @@ org.gradle.java.installations.paths=/Library/Java/JavaVirtualMachines/temurin-25
             åpne fila, se neste oppføring.
           </BodyLong>
           <BodyLong>
-            Har du en liste over tillatte verter, stopper cplt også oppslaget mot{" "}
+            Har du en liste over tillatte hoster, stopper cplt også oppslaget mot{" "}
             <code className={code}>api.foojay.io</code> med <code className={code}>BLOCKED-ALLOWLIST</code> i
-            proxyloggen, og Gradle kan melde det som tidsavbrudd. Legg til verten, og vertene JDK-en hentes fra. For
+            proxyloggen, og Gradle kan melde det som tidsavbrudd. Legg til hosten, og hostene JDK-en hentes fra. For
             Temurin er det <code className={code}>github.com</code> og{" "}
             <code className={code}>release-assets.githubusercontent.com</code>, de samme som Gradle-wrapperen bruker:
           </BodyLong>
@@ -541,7 +541,7 @@ gh pr create --head min-gren`}
             BLOCKED by sandbox: &apos;git push&apos; is not allowed in this environment.
           </LinkableHeading>
           <BodyLong>
-            Git-vakta stopper push til standardgrenen og force push. <code className={code}>main</code> og{" "}
+            Git-vakta stopper push til default branch og force push. <code className={code}>main</code> og{" "}
             <code className={code}>master</code> er alltid beskyttet, i tillegg til grenen{" "}
             <code className={code}>origin</code> peker på. Med <code className={code}>strict</code> stopper vakta all
             push. Lag en egen gren og push den:
@@ -551,7 +551,7 @@ gh pr create --head min-gren`}
             <code className={code}>cplt doctor</code> viser om vakta slipper gjennom push til en ny gren i repoet ditt.
             Stopper vakta også push til en ny gren, og sier at{" "}
             <code className={code}>the default branch of remote &apos;origin&apos; could not be determined</code>, vet
-            den ikke hvilken gren som er standardgrenen. cplt spør remoten når <code className={code}>origin/HEAD</code>{" "}
+            den ikke hvilken gren som er default branch. cplt spør remoten når <code className={code}>origin/HEAD</code>{" "}
             mangler lokalt, og feilen kommer når remoten ikke svarer. Kjør dette utenfor cplt, og start en ny økt:
           </BodyLong>
           <CodeBlock compact>{`git remote set-head origin -a`}</CodeBlock>

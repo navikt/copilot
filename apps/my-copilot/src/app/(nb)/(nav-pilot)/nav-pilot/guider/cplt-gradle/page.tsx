@@ -9,14 +9,14 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Kotlin og Gradle i sandkassen",
   description:
-    "Slik bygger og tester du Kotlin-prosjekter med Gradle når nav-pilot og Copilot kjører i cplt: daemon, MockK, GitHub Packages, interne Nav-verter, JDK-er og Testcontainers.",
+    "Slik bygger og tester du Kotlin-prosjekter med Gradle når nav-pilot og Copilot kjører i cplt: daemon, MockK, GitHub Packages, interne Nav-hoster, JDK-er og Testcontainers.",
 };
 
 const TOC: TocItem[] = [
   { id: "oppsett", label: "Oppsett som dekker de fleste" },
-  { id: "tillatelsesliste", label: "Wrapperen og en liste over tillatte verter" },
+  { id: "tillatelsesliste", label: "Wrapperen og en liste over tillatte hoster" },
   { id: "github-packages", label: "Pakker fra GitHub Packages" },
-  { id: "interne-verter", label: "Interne Nav-verter" },
+  { id: "interne-hoster", label: "Interne Nav-hoster" },
   { id: "jdk", label: "JDK-er som Gradle laster ned" },
   { id: "testcontainers", label: "Testcontainers og Docker" },
   { id: "feil", label: "Når bygget feiler" },
@@ -84,17 +84,17 @@ cplt trust accept --all`}
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="tillatelsesliste" size="medium" level="2">
-            Wrapperen og en liste over tillatte verter
+            Wrapperen og en liste over tillatte hoster
           </LinkableHeading>
           <BodyLong>
-            I standardoppsettet stopper cplt bare kjente skadelige verter og verter med private adresser. Da laster{" "}
+            I standardoppsettet stopper cplt bare kjente skadelige hoster og hoster med private adresser. Da laster{" "}
             <code className={code}>./gradlew</code> ned Gradle og avhengigheter som vanlig.
           </BodyLong>
           <BodyLong>
             Maven Central og Gradle-plugins er med både i <code className={code}>proxy.default_allowlist</code> og i
             fila nav-pilot skriver, se{" "}
             <NextLink href="/nav-pilot/guider/cplt-oppsett#tillatelsesliste" className={linkClass}>
-              Pakkeregistre og en liste over tillatte verter
+              Pakkeregistre og en liste over tillatte hoster
             </NextLink>
             .
           </BodyLong>
@@ -104,7 +104,7 @@ cplt trust accept --all`}
             <code className={code}>github.com</code> og{" "}
             <code className={code}>release-assets.githubusercontent.com</code>. Uten disse stopper{" "}
             <code className={code}>./gradlew</code> før bygget starter, og proxyloggen viser{" "}
-            <code className={code}>BLOCKED-ALLOWLIST</code>. Legg til vertene:
+            <code className={code}>BLOCKED-ALLOWLIST</code>. Legg til hostene:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set allow.domains services.gradle.org
@@ -115,7 +115,7 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
             Copilot har <code className={code}>github.com</code> på lista fra før, så med Copilot kan du hoppe over den
             linja.
           </BodyLong>
-          <BodyLong>Sjekk en vert uten å kjøre bygget:</BodyLong>
+          <BodyLong>Sjekk en host uten å kjøre bygget:</BodyLong>
           <CodeBlock compact>{`cplt check net services.gradle.org`}</CodeBlock>
         </VStack>
       </section>
@@ -144,7 +144,7 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
 }`}
           </CodeBlock>
           <BodyLong>
-            Speilet står ikke på cplts liste over tillatte verter. Bruker du en slik liste, legg det til:
+            Speilet står ikke på cplts liste over tillatte hoster. Bruker du en slik liste, legg det til:
           </BodyLong>
           <CodeBlock compact>{`cplt config set allow.domains github-package-registry-mirror.gc.nav.no`}</CodeBlock>
 
@@ -186,15 +186,15 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
 
       <section>
         <VStack gap="space-16">
-          <LinkableHeading id="interne-verter" size="medium" level="2">
-            Interne Nav-verter
+          <LinkableHeading id="interne-hoster" size="medium" level="2">
+            Interne Nav-hoster
           </LinkableHeading>
           <BodyLong>
-            cplt stopper forbindelser til verter som peker til en privat IP-adresse. Det gjelder også Gradle, fordi cplt
-            sender JVM-ens nettverkstrafikk gjennom proxyen sin. Når en slik vert er et Maven-repo, stopper bygget med{" "}
+            cplt stopper forbindelser til hoster som peker til en privat IP-adresse. Det gjelder også Gradle, fordi cplt
+            sender JVM-ens nettverkstrafikk gjennom proxyen sin. Når en slik host er et Maven-repo, stopper bygget med{" "}
             <code className={code}>Private target blocked by cplt</code>. Det kan gjelde{" "}
-            <code className={code}>repo.adeo.no</code> på Nav-nettet og verter under{" "}
-            <code className={code}>intern.nav.no</code>. Åpne vertene med navn:
+            <code className={code}>repo.adeo.no</code> på Nav-nettet og hoster under{" "}
+            <code className={code}>intern.nav.no</code>. Åpne hostene med navn:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set proxy.allow_private_domains repo.adeo.no
@@ -226,7 +226,7 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             Med <code className={code}>jvmToolchain(…)</code> og foojay-pluginen laster Gradle ned JDK-en prosjektet ber
             om, til <code className={code}>~/.gradle/jdks</code>. På macOS kan agenten kjøre JDK-ene som ligger der, men
             ikke skrive nye dit, så en JDK som mangler, kan ikke lastes ned inne i cplt. På Linux er mappa skrivbar.
-            Under en liste over tillatte verter må <code className={code}>api.foojay.io</code> og vertene JDK-en hentes
+            Under en liste over tillatte hoster må <code className={code}>api.foojay.io</code> og hostene JDK-en hentes
             fra, stå på lista. For Temurin er det de samme som for wrapperen.
           </BodyLong>
           <BodyLong>
@@ -305,7 +305,7 @@ cplt config set sandbox.allow_docker true --force`}
 cplt exec -- ./gradlew build`}
           </CodeBlock>
           <BodyLong>
-            Linjer med <code className={code}>[proxy]</code> og <code className={code}>BLOCKED</code> viser hvilken vert
+            Linjer med <code className={code}>[proxy]</code> og <code className={code}>BLOCKED</code> viser hvilken host
             som ble stoppet og hvorfor. Blokkeringer av filer og localhost står ikke der, se{" "}
             <NextLink href="/nav-pilot/guider/feilsoking#kjernen" className={linkClass}>
               Filer, programmer og localhost

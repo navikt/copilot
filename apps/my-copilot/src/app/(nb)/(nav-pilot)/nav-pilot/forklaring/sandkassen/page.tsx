@@ -105,13 +105,13 @@ export default function Sandkassen() {
                 <code className={code}>standard</code>
               </strong>{" "}
               (anbefalt, og det du har hvis du ikke har valgt noe): agenten kan committe, pushe egne grener og åpne pull
-              requests. cplt stopper <code className={code}>gh pr merge</code>, push til standardgrenen og force push.
+              requests. cplt stopper <code className={code}>gh pr merge</code>, push til default branch og force push.
             </li>
             <li>
               <strong>
                 <code className={code}>strict</code>
               </strong>
-              : som standard, men agenten når bare verter på en liste, og all push er stoppet. Velg det bare hvis du vil
+              : som standard, men agenten når bare hoster på en liste, og all push er stoppet. Velg det bare hvis du vil
               låse nettverket. Se{" "}
               <a href="#strict" className={linkClass}>
                 Strict i detalj
@@ -140,7 +140,7 @@ export default function Sandkassen() {
           <BodyLong>
             Oppsettet i nav-pilot stiller to spørsmål om hva agenten får gjøre selv. Med{" "}
             <code className={code}>standard</code> og <code className={code}>strict</code> stopper cplt likevel{" "}
-            <code className={code}>gh pr merge</code>, push til standardgrenen og force push, uansett hva du svarer.
+            <code className={code}>gh pr merge</code>, push til default branch og force push, uansett hva du svarer.
           </BodyLong>
           <Bullets>
             <li>
@@ -179,9 +179,9 @@ nav-pilot config set autonomy sandbox        # kjør kommandoer selv`}</CodeBloc
           </LinkableHeading>
           <BodyLong>
             <code className={code}>strict</code> slår på tvungen proxy og{" "}
-            <code className={code}>proxy.default_allowlist</code>. Da når agenten bare vertene på lista til cplt og det{" "}
-            <code className={code}>proxy.allowed_domains</code> peker på. Verter som ikke står der, blir blokkert, også
-            interne verter du tar i bruk senere. Verken <code className={code}>nav-pilot doctor</code> eller
+            <code className={code}>proxy.default_allowlist</code>. Da når agenten bare hostene på lista til cplt og det{" "}
+            <code className={code}>proxy.allowed_domains</code> peker på. Hoster som ikke står der, blir blokkert, også
+            interne hoster du tar i bruk senere. Verken <code className={code}>nav-pilot doctor</code> eller
             innstillingssiden anbefaler strict.
           </BodyLong>
           <Box background="warning-soft" borderRadius="8" padding="space-16">
@@ -189,7 +189,7 @@ nav-pilot config set autonomy sandbox        # kjør kommandoer selv`}</CodeBloc
               Lista til cplt dekker GitHub Copilot og de offentlige pakkeregistrene, men ingenting hos Nav. Setter du
               strict for hånd, slutter telemetrien fra nav-pilot å komme fram. Skills som{" "}
               <code className={code}>aksel-builder</code>, <code className={code}>observability-debugging</code> og{" "}
-              <code className={code}>nav-auth</code> mister vertene de er bygget rundt, og ingenting på skjermen sier
+              <code className={code}>nav-auth</code> mister hostene de er bygget rundt, og ingenting på skjermen sier
               hvorfor.
             </BodyLong>
           </Box>
@@ -201,11 +201,11 @@ nav-pilot config                    # eller raden «cplt strict preset (blocks a
           <BodyLong>
             nav-pilot skriver vertslista til <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code>, peker{" "}
             <code className={code}>proxy.allowed_domains</code> dit, og setter nivået til slutt, så låsen aldri blir
-            aktiv uten vertene. Har du en egen <code className={code}>proxy.allowed_domains</code>, lar nav-pilot den
-            være og sier at du må legge til vertene selv. Nøkler du har satt selv, gjelder foran nivået.
+            aktiv uten hostene. Har du en egen <code className={code}>proxy.allowed_domains</code>, lar nav-pilot den
+            være og sier at du må legge til hostene selv. Nøkler du har satt selv, gjelder foran nivået.
           </BodyLong>
           <BodyLong>
-            Fila har hele lista: Nav-vertene, cplts egen liste og pakkeregistrene. Agenten når derfor pakkeregistrene
+            Fila har hele lista: Nav-hostene, cplts egen liste og pakkeregistrene. Agenten når derfor pakkeregistrene
             selv om <code className={code}>proxy.default_allowlist</code> er av. nav-pilot henter lista med{" "}
             <code className={code}>cplt config hosts</code>. Er cplt for gammel til det, skriver nav-pilot en frosset
             liste med GitHub, Copilot og pakkeregistrene som fantes da, uten dem cplt har lagt til siden. Lista til cplt
@@ -217,22 +217,22 @@ nav-pilot config                    # eller raden «cplt strict preset (blocks a
             request. Velger du strict med <code className={code}>nav-pilot config setup --advanced</code>, kan du i
             neste spørsmål la agenten pushe grener likevel. Da setter nav-pilot{" "}
             <code className={code}>git_guard.protect_default_branch_only = true</code>, og cplt stopper bare push til
-            standardgrenen og force push. Har du satt den nøkkelen fra før, gjelder den foran nivået, også når du slår
+            default branch og force push. Har du satt den nøkkelen fra før, gjelder den foran nivået, også når du slår
             på strict fra <code className={code}>nav-pilot config</code>. Vil du stoppe all push, velg «Commit only» i
             git-spørsmålet.
           </BodyLong>
           <BodyLong>
-            <strong>Lokal modell.</strong> Den lokale modellen går gjennom en løkkevakt på{" "}
-            <code className={code}>127.0.0.1</code>. cplt blokkerer localhost som standard, så nav-pilot sender porten
-            med som <code className={code}>--allow-localhost &lt;port&gt;</code> ved hver oppstart. Én port slipper
-            gjennom tvungen proxy på både macOS og Linux, så strict og lokal modell går sammen.
+            <strong>Lokal modell.</strong> Den lokale modellen går gjennom en loop guard (stopper modellen når den
+            gjentar seg) på <code className={code}>127.0.0.1</code>. cplt blokkerer localhost som standard, så nav-pilot
+            sender porten med som <code className={code}>--allow-localhost &lt;port&gt;</code> ved hver oppstart. Én
+            port slipper gjennom tvungen proxy på både macOS og Linux, så strict og lokal modell går sammen.
           </BodyLong>
           <BodyLong>
             <strong>Tilbake til standard.</strong> Bytter du fra strict til <code className={code}>standard</code>, spør
             nav-pilot (fra 29. september 2026):{" "}
             <strong>Remove the network allowlist nav-pilot set up for strict?</strong> Spørsmålet kommer bare for lista
             nav-pilot la inn selv. Svarer du nei, eller har du en egen liste, blir lista stående, og agenten når
-            fortsatt bare vertene på den. Kommandoen under fjerner lista som gjelder, uansett hvem som la den inn:
+            fortsatt bare hostene på den. Kommandoen under fjerner lista som gjelder, uansett hvem som la den inn:
           </BodyLong>
           <CodeBlock compact>{`cplt config set proxy.allowed_domains --unset --global`}</CodeBlock>
           <LinkableHeading id="nar-strict-ikke-anbefales" size="small" level="3">

@@ -47,7 +47,7 @@ export const SECTION: NavGroup[] = [
     items: [
       { label: "Copilot og nav-pilot", href: "/kom-i-gang" },
       { label: "Lokal modell på Mac", href: "/nav-pilot/lokal" },
-      { label: "Egen server", href: "/nav-pilot/lokal/egen-server" },
+      { label: "Egen LLM-server", href: "/nav-pilot/lokal/egen-server" },
       { label: "Din første decide-hook", href: "/nav-pilot/lokal/decide" },
     ],
   },

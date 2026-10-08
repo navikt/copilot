@@ -210,9 +210,9 @@ nav-pilot ignore instruction nextjs-aksel --user`}
 nav-pilot config set hook_redact_fnr true    # på igjen`}
           </CodeBlock>
           <BodyLong>
-            Kan ikke nav-pilot lese <code className={code}>config.toml</code>, kjører maskeringen og løkkevakta likevel,
-            og du får beskjed på stderr. Løkkevakta nevner ikke terskelen overfor modellen, så modellen ikke kan heve
-            den selv.
+            Kan ikke nav-pilot lese <code className={code}>config.toml</code>, kjører maskeringen og loop guard (stopper
+            agenten når den gjentar seg) likevel, og du får beskjed på stderr. Modellen får ikke vite terskelen, så den
+            kan ikke heve den.
           </BodyLong>
           <LinkableHeading id="hooks-fra-agentpakka" size="small" level="3">
             Hooks fra agentpakka er kode

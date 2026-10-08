@@ -65,7 +65,7 @@ describe("modellsiden", () => {
     expect(within(rowFor("fixture-c.txt")).getByText("high")).toBeInTheDocument();
   });
 
-  it("merker ubekreftet modell, holder den utenfor diagrammet og viser underagentenes modeller", () => {
+  it("merker ubekreftet modell, holder den utenfor diagrammet og viser subagentenes modeller", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
     const rowFor = (file: string) => screen.getByRole("link", { name: file }).closest("tr")!;

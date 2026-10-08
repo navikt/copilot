@@ -120,7 +120,7 @@ export const CONFIG_KEYS = [
     key: "local_loop_guard",
     flag: "—",
     values: "et heltall (standard: 8)",
-    desc: "Hvor mange identiske verktøykall på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2).",
+    desc: "Hvor mange like verktøykall på rad som avslutter en runde for den lokale modellen, uansett hva kallene returnerer. Gir kallene samme resultat hver gang, stopper runden etter halvparten så mange kall (minst 2).",
   },
   {
     key: "local_model",
@@ -144,7 +144,7 @@ export const CONFIG_KEYS = [
     key: "local_dispatch",
     flag: "--local-dispatch",
     values: "off · conservative · balanced · aggressive (standard: aggressive)",
-    desc: "Hvor mye hovedagenten i opencode sender til den lokale modellen. aggressive sender mest, men kostet flere AI-kreditter og tok lengre tid i målingene.",
+    desc: "Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI-kreditter og tok lengre tid i målingene.",
   },
   {
     key: "hook_loop_guard",
@@ -180,7 +180,7 @@ export const CONFIG_KEYS = [
     key: "mcp_hosts",
     flag: "—",
     values: "ask · off (standard: ask)",
-    desc: "Om nav-pilot spør om å slippe gjennom vertene MCP-tjenerne dine trenger i cplt. Vertene hentes fra Navs MCP-register. ask spør én gang per sett, off spør aldri.",
+    desc: "Om nav-pilot spør før den åpner cplt for hostene MCP-serverne dine trenger. Hostene hentes fra Navs MCP-register. ask spør én gang per sett, off spør aldri.",
   },
   {
     key: "copilot_auth_mode",

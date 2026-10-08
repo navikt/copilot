@@ -51,7 +51,7 @@ const ARTIFACT_TYPES = [
   {
     type: "agents",
     form: "<navn>.agent.md",
-    what: "Personaer klienten kan startes som, eller underagenter andre kaller",
+    what: "Personaer klienten kan startes som, eller subagenter andre kaller",
   },
   { type: "skills", form: "<navn>/SKILL.md", what: "Kunnskap modellen laster ved behov" },
   { type: "instructions", form: "<navn>.instructions.md", what: "Regler som aktiveres mot matchende filer" },
@@ -253,8 +253,8 @@ export default function AgentpakkerReferanse() {
             <code className={code}>minNavPilotVersion</code> ligger på pakkenivå, skrives på nav-pilots releaseformat (
             <code className={code}>YYYY.MM.DD-HHMMSS</code>, eventuelt med build-sha) og blokkerer eldre binærer med en
             melding som sier hva de skal gjøre. Et annet format avvises framfor å ignoreres: nav-pilot kan ikke
-            sammenligne det, og å godta det ville slått av akkurat den gaten manifestet ba om. Et utviklingsbygg (
-            <code className={code}>dev</code>) er unntatt gaten, så lokalt arbeid på pakka stopper ikke.
+            sammenligne det, og å godta det ville slått av akkurat sperren manifestet ba om. Et utviklingsbygg (
+            <code className={code}>dev</code>) er unntatt sperren, så lokalt arbeid på pakka stopper ikke.
           </BodyLong>
           <BodyLong textColor="subtle">
             <strong>Kjørbar kode når ikke alle klientene.</strong> opencode og pi hopper over hooks, med en advarsel på
@@ -516,18 +516,18 @@ export default function AgentpakkerReferanse() {
               Stabile releases
             </LinkableHeading>
             <BodyLong textColor="subtle">
-              Uten releases henter <code className={code}>sync</code> det standardgrenen holder, så alt du pusher går
+              Uten releases henter <code className={code}>sync</code> det default branch holder, så alt du pusher går
               rett ut til konsumentene. Publiserer du i stedet en GitHub Release med assetet{" "}
               <code className={code}>agentpakke-release.json</code>, leser <code className={code}>install</code> og{" "}
               <code className={code}>sync</code> nyeste stabile release, og du kan jobbe videre på main. Releasen må
               være publisert, ikke prerelease, og immutable, og taggen må binde versjonen. Et repo uten slike releases
-              fungerer nøyaktig som før, fra standardgrenen.
+              fungerer nøyaktig som før, fra default branch.
             </BodyLong>
             <BodyLong textColor="subtle">
               <strong>Er pakka di Tier 1</strong>, altså en layout av filer, pinner den ingen revisjon: den installerer
               filer, og abonnementet avgjør bare hvilken revisjon filene leses fra.{" "}
               <code className={code}>install</code> og <code className={code}>sync</code> uten{" "}
-              <code className={code}>--ref</code> leser nyeste stabile release i stedet for standardgrenen, i både
+              <code className={code}>--ref</code> leser nyeste stabile release i stedet for default branch, i både
               bruker- og repo-scope, og <code className={code}>sync --apply</code> flytter{" "}
               <code className={code}>sha</code> i erklæringa til release-SHA-en. Det finnes ikke noe nedgraderingsvern
               her: hvert oppslag tar nyeste stabile release uten å sammenligne med det som ligger på disk, så en
@@ -536,12 +536,12 @@ export default function AgentpakkerReferanse() {
               for enhver annen fil.
             </BodyLong>
             <BodyLong textColor="subtle">
-              Tre mekanismer hører sammen med releases, og de virker i dag bare for Tier 2, fordi alle tre er gatet på
-              at scopet pinner en revisjon: <code className={code}>nav-pilot rollback</code> tilbake til forrige
-              revisjon på maskinen, oppstartsspørsmålet om å ta en ny release, og det varige valget{" "}
+              Tre mekanismer hører sammen med releases, og de virker i dag bare for Tier 2, fordi alle tre krever at
+              scopet pinner en revisjon: <code className={code}>nav-pilot rollback</code> tilbake til forrige revisjon
+              på maskinen, oppstartsspørsmålet om å ta en ny release, og det varige valget{" "}
               <code className={code}>sync --updates auto|ask|keep</code>. En Tier 1-installasjon fører opp filene den la
-              ned, og faller derfor utenfor gaten: rollback nekter med «your user scope pins none», og de to andre nås
-              aldri. Lov derfor ikke konsumentene dine et rollback en Tier 1-pakke ikke gir dem. Gaten blir ikke
+              ned, og faller derfor utenfor sperren: rollback nekter med «your user scope pins none», og de to andre nås
+              aldri. Lov derfor ikke konsumentene dine et rollback en Tier 1-pakke ikke gir dem. Sperren blir ikke
               utvidet. Vil en Tier 1-konsument tilbake til en eldre revisjon, pinner de den selv med{" "}
               <code className={code}>nav-pilot sync --apply --ref &lt;sha&gt;</code>.
             </BodyLong>
@@ -550,7 +550,7 @@ export default function AgentpakkerReferanse() {
               vente på deg, den forlatte revisjonen tilbys ikke igjen mens neste release gjør det (lever derfor
               rettelsen som en ny versjon; en revert av taggen når dem ikke), og et team som har valgt{" "}
               <code className={code}>keep</code>, blir stående til de selv tar releasen. Regn ikke med at alle er på
-              nyeste versjon dagen etter. Konsumenter som alt står på standardgrenen ligger som regel foran din første
+              nyeste versjon dagen etter. Konsumenter som alt står på default branch ligger som regel foran din første
               release, og nedgraderingsvernet tilbyr den ikke til dem; nav-pilot spør dem én gang ved oppstart om å
               pinne releasen og følge releases videre, og navngir begge revisjonene.
             </BodyLong>
