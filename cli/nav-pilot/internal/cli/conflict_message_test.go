@@ -8,7 +8,7 @@ import (
 
 // #623 klaget på ordlyden «in conflict state and were skipped», fulgt av «Run
 // sync --apply to apply updates». Den ble skrevet om ett sted, men fantes to
-// steder, og grenen der det ikke er noe annet å synke beholdt den gamle
+// steder, og branchen der det ikke er noe annet å synke beholdt den gamle
 // (#651). Testen leser kilden, fordi det er formuleringene i seg selv saken
 // handler om, og de finnes ikke igjen i noen returverdi.
 func TestNoStaleConflictWordingRemains(t *testing.T) {
