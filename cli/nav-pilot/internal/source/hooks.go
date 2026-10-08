@@ -103,11 +103,13 @@ func LoadHookMeta(scriptPath string) HookMeta {
 // that exits non-zero (its output is dropped), and a python3 too slow to
 // answer.
 //
-// The last one needs a deadline of its own. Copilot denies a preToolUse call
-// whose hook outlives timeoutSec, so a cold or wedged interpreter used to turn
-// into a deny. The script is killed two seconds before that, and a killed script
-// has allowed the call. macOS has no timeout(1), so the watchdog is plain sh:
-// a background sleep that kills python3, itself killed once python3 is done.
+// The last one needs a deadline of its own. The script is killed two seconds
+// before timeoutSec, and a killed script has allowed the call. Copilot 1.0.94
+// allows a call whose hook outlives timeoutSec too (measured; DESIGN.md "Hook-
+// watchdog og klientens frist"), so what the watchdog buys is a shorter wait
+// and a verdict that is ours rather than the client's: a missed margin costs
+// time, not a deny. macOS has no timeout(1), so the watchdog is plain sh: a
+// background sleep that kills python3, itself killed once python3 is done.
 // Killing the watchdog subshell can leave its `sleep` running until it ends on
 // its own; it holds no pipe of the hook's and kills nothing once python3 has
 // been reaped, so it is left alone rather than chased with job control that a

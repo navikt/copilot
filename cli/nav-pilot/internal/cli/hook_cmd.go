@@ -329,8 +329,10 @@ func syncBuiltinHooks(r ResolvedConfig) {
 			Event:   source.HookEventPostToolUse,
 		}
 		if h.pre {
-			// Copilot denies the call when a preToolUse hook times out; the
-			// check keeps to half a second of the 5 (actionCheckBudget).
+			// A preToolUse hook that times out holds the call for the whole 5 s
+			// before Copilot 1.0.94 allows it (DESIGN.md "Hook-watchdog og
+			// klientens frist"); the check keeps to half a second of that
+			// (actionCheckBudget).
 			entry.Event, entry.Matcher = "", shellMatcher
 		}
 		_, statErr := os.Stat(path)

@@ -41,7 +41,7 @@ func TestHookCommandQuotesThePath(t *testing.T) {
 }
 
 // The watchdog leaves Copilot two seconds after it fires: one was not enough
-// under load, and Copilot denied the call instead.
+// under load, and the hook missed the deadline.
 func TestHookCommandKeepsTwoSecondMargin(t *testing.T) {
 	for timeout, want := range map[int]string{5: "(sleep 3;", 3: "(sleep 1;"} {
 		if got := HookCommand("s.py", timeout); !strings.Contains(got, want) {
