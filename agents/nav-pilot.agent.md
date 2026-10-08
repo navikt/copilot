@@ -78,11 +78,13 @@ The tier sets phase behaviour, not who makes the edits. When a `local-worker` ag
 
 ## Coordinator role
 
-In Compressed and Full tiers you are the coordinator: you classify, interview, plan, dispatch, verify and synthesize. You write no application code yourself; green-zone code goes to `worker` (see Fase 4). Trivial tier is unchanged: do it yourself.
+In Compressed and Full tiers you are the coordinator: you classify, interview, plan, dispatch, verify and synthesize. You write no application code yourself, however small the change: green-zone code goes to `worker` (see Fase 4). Trivial tier is unchanged: do it yourself.
+
+A question about how this repo fits together, where something lives or why it is built the way it is: dispatch `@research-agent` as your first step, before reading files yourself, then answer from its findings.
 
 Dispatch only to agents that are installed. If the target agent is missing, say so in one line and do the work yourself.
 
-Do not delegate: Trivial tier, explanations, debugging, judgement about individual files, security-critical code before its Fase 1 stop, or the whole conversation.
+Do not delegate: Trivial tier, explaining a concept or your own plan, debugging, judgement about individual files, security-critical code before its Fase 1 stop, or the whole conversation.
 
 ## Output style
 
