@@ -1,19 +1,19 @@
-# SSR-funksjoner i @navikt/nav-dekoratoren-moduler
+# SSR functions in @navikt/nav-dekoratoren-moduler
 
-Importeres fra `@navikt/nav-dekoratoren-moduler/ssr`.
+Imported from `@navikt/nav-dekoratoren-moduler/ssr`.
 
 ## fetchDecoratorHtml
 
-Returnerer dekoratøren som HTML-fragmenter. Brukes for manuell injeksjon.
+Returns Dekoratøren as HTML fragments. Used for manual injection.
 
 ```ts
 import { fetchDecoratorHtml } from "@navikt/nav-dekoratoren-moduler/ssr";
 
 const {
     DECORATOR_HEAD_ASSETS, // CSS, favicons → <head>
-    DECORATOR_HEADER, // Header HTML → rett før app-innhold
-    DECORATOR_FOOTER, // Footer HTML → rett etter app-innhold
-    DECORATOR_SCRIPTS, // <script>-elementer → hvor som helst
+    DECORATOR_HEADER, // Header HTML → right before app content
+    DECORATOR_FOOTER, // Footer HTML → right after app content
+    DECORATOR_SCRIPTS, // <script> elements → anywhere
 } = await fetchDecoratorHtml({
     env: "dev",
     params: { context: "privatperson" },
@@ -22,18 +22,24 @@ const {
 
 ## fetchDecoratorReact
 
-Returnerer React-komponenter for SSR-rammeverk (Next.js, Remix m.m.).
-Krever `react >=17.x` og `html-react-parser >=5.x`.
+Returns React components for SSR frameworks (Next.js, Remix and others).
+Requires `react >=17.x` and `html-react-parser >=5.x`.
 
 ### Next.js App Router
 
-Bruk App Router-eksempelet for nye Next.js-apper og apper som allerede har `app/`.
+Use the App Router example for new Next.js apps and apps that already have `app/`. Keep
+`dynamic = "force-dynamic"` so the layout is not prerendered at build time. Next.js rejects this
+export when `cacheComponents` is enabled; in that case call `await connection()` from `next/server`
+before `fetchDecoratorReact` instead (see 3.4 in SKILL.md).
 
 ```tsx
 // app/layout.tsx
 import { fetchDecoratorReact } from "@navikt/nav-dekoratoren-moduler/ssr";
 import type { ReactNode } from "react";
 import Script from "next/script";
+
+// Render per request so Dekoratøren is not frozen at build time (see 3.4 in SKILL.md)
+export const dynamic = "force-dynamic";
 
 export default async function RootLayout({
     children,
@@ -63,7 +69,9 @@ export default async function RootLayout({
 
 ### Next.js Page Router
 
-Bruk Page Router-eksempelet for eksisterende Next.js-apper med `pages/`.
+Use the Page Router example for existing Next.js apps with `pages/`. `_document` alone does not
+make pages dynamic: every page that shows Dekoratøren must use `getServerSideProps` or another
+per-request rendering mode (see 3.4 in SKILL.md).
 
 ```tsx
 // pages/_document.tsx
@@ -122,8 +130,9 @@ export default MyDocument;
 
 ## injectDecoratorServerSide
 
-Parser en HTML-fil med JSDOM og returnerer HTML-string med dekoratøren injisert.
-Krever `jsdom >=16.x`.
+Reads an HTML file and returns an HTML string with Dekoratøren injected. The file must be a
+complete HTML document with `</head>`, `<body>` and `</body>`. From version 3.7.0, `jsdom` is not
+needed.
 
 ```ts
 import { injectDecoratorServerSide } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -139,7 +148,7 @@ res.send(html);
 
 ## injectDecoratorServerSideDocument
 
-Setter inn dekoratøren i et eksisterende `Document`-objekt (muteres).
+Inserts Dekoratøren into an existing `Document` object (mutated in place).
 
 ```ts
 import { injectDecoratorServerSideDocument } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -155,7 +164,7 @@ res.send(document.documentElement.outerHTML);
 
 ## addDecoratorUpdateListener / removeDecoratorUpdateListener
 
-Registrer callback ved ny dekoratørversjon. Brukes for cache-invalidering.
+Registers a callback for new decorator versions. Used for cache invalidation.
 
 ```ts
 import {
@@ -170,13 +179,13 @@ const onUpdate = (versionId: string) => {
 
 addDecoratorUpdateListener({ env: "prod" }, onUpdate);
 
-// Fjern igjen:
+// Remove again:
 removeDecoratorUpdateListener({ env: "prod" }, onUpdate);
 ```
 
 ## getDecoratorVersionId
 
-Henter nåværende versjons-ID for dekoratøren.
+Gets the current version ID of Dekoratøren.
 
 ```ts
 import { getDecoratorVersionId } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -186,7 +195,7 @@ const versionId = await getDecoratorVersionId({ env: "prod" });
 
 ## buildCspHeader
 
-Bygger CSP-header som kombinerer appens egne direktiver med dekoratørens påkrevde direktiver.
+Builds a CSP header that combines the app's own directives with the directives Dekoratøren requires.
 
 ```ts
 import { buildCspHeader } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -202,15 +211,15 @@ const csp = await buildCspHeader(
 res.setHeader("Content-Security-Policy", csp);
 ```
 
-## Miljøer og service discovery
+## Environments and service discovery
 
 ```ts
-// Service discovery (default, fungerer på dev-gcp/prod-gcp)
+// Service discovery (default, works on dev-gcp/prod-gcp)
 fetchDecoratorHtml({ env: "prod" });
 
-// Alltid eksterne ingresser
+// Always external ingresses
 fetchDecoratorHtml({ env: "prod", serviceDiscovery: false });
 
-// Lokal utvikling
+// Local development
 fetchDecoratorHtml({ env: "localhost", localUrl: "http://localhost:8089" });
 ```

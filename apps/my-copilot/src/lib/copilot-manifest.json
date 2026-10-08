@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-08T08:26:49.988Z",
+  "generatedAt": "2026-10-08T09:35:33.278Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1338,13 +1338,13 @@
     {
       "id": "nav-dekoratoren",
       "name": "nav-dekoratoren",
-      "description": "Integrer og konfigurer Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.",
+      "description": "Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.",
       "type": "skill",
       "domain": "frontend",
       "filePath": "skills/nav-dekoratoren/SKILL.md",
       "repoPath": "skills/nav-dekoratoren/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "0c67d935aabba906576a665bd7e033e25b072d8959736fce7b9ea6c757d19072",
+      "contentHash": "d4b84c63c0c38aaf341a3f25aecbd5493e1bb85957e5a8f13fc57c6fda389160",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["nav", "dekoratoren", "header", "footer", "integration", "ssr", "analytics", "consent"],
@@ -1353,7 +1353,8 @@
         "Sett opp breadcrumbs og språkvelger med handleInApp i en React/Remix-app",
         "Konfigurer samtykkevennlig lagring med awaitDecoratorData og navLocalStorage",
         "Bygg CSP-header med buildCspHeader for prod-miljø på Nais",
-        "Feilsøk hvorfor dekoratøren ikke vises i dev med service discovery og accessPolicy"
+        "Feilsøk hvorfor dekoratøren ikke vises i dev med service discovery og accessPolicy",
+        "Revider en eksisterende Dekoratøren-integrasjon og finn statisk genererte sider"
       ],
       "references": [
         {
@@ -1371,6 +1372,10 @@
         {
           "path": "references/consent.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/consent.md"
+        },
+        {
+          "path": "references/audit.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/audit.md"
         }
       ]
     },
