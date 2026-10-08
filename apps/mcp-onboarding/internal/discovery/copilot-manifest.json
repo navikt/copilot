@@ -805,9 +805,9 @@
       "type": "skill",
       "name": "nav-dekoratoren",
       "displayName": "nav-dekoratoren",
-      "description": "Integrer, konfigurer og bidra til Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
+      "description": "Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
       "filePath": "skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "0452ab5ba3a931dc12986596c464da0789d4989076fc85a2982ff033f378b954",
+      "contentHash": "d4b84c63c0c38aaf341a3f25aecbd5493e1bb85957e5a8f13fc57c6fda389160",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
       "references": [

@@ -27,13 +27,19 @@ Requires `react >=17.x` and `html-react-parser >=5.x`.
 
 ### Next.js App Router
 
-Use the App Router example for new Next.js apps and apps that already have `app/`.
+Use the App Router example for new Next.js apps and apps that already have `app/`. Keep
+`dynamic = "force-dynamic"` so the layout is not prerendered at build time. Next.js rejects this
+export when `cacheComponents` is enabled; in that case call `await connection()` from `next/server`
+before `fetchDecoratorReact` instead (see 3.4 in SKILL.md).
 
 ```tsx
 // app/layout.tsx
 import { fetchDecoratorReact } from "@navikt/nav-dekoratoren-moduler/ssr";
 import type { ReactNode } from "react";
 import Script from "next/script";
+
+// Render per request so Dekoratøren is not frozen at build time (see 3.4 in SKILL.md)
+export const dynamic = "force-dynamic";
 
 export default async function RootLayout({
     children,
@@ -63,7 +69,9 @@ export default async function RootLayout({
 
 ### Next.js Page Router
 
-Use the Page Router example for existing Next.js apps with `pages/`.
+Use the Page Router example for existing Next.js apps with `pages/`. `_document` alone does not
+make pages dynamic: every page that shows Dekoratøren must use `getServerSideProps` or another
+per-request rendering mode (see 3.4 in SKILL.md).
 
 ```tsx
 // pages/_document.tsx

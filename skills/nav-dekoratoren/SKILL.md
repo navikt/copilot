@@ -111,13 +111,20 @@ for direct SSR calls or CSR.
 ### 3.1 Next.js App Router
 
 Use this for new Next.js apps and apps that already have `app/`. The root layout can be async and
-fetch Dekoratøren directly.
+fetch Dekoratøren directly. Keep `dynamic = "force-dynamic"` so the layout is not prerendered at
+build time (see 3.4). Next.js rejects this export when `cacheComponents` is enabled; in that case
+call `await connection()` from `next/server` before `fetchDecoratorReact` instead, and follow the
+Next.js [Cache Components guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components)
+for Suspense boundaries.
 
 ```tsx
 // app/layout.tsx
 import { fetchDecoratorReact } from "@navikt/nav-dekoratoren-moduler/ssr";
 import type { ReactNode } from "react";
 import Script from "next/script";
+
+// Render per request so Dekoratøren is not frozen at build time (see 3.4)
+export const dynamic = "force-dynamic";
 
 export default async function RootLayout({
     children,
@@ -153,7 +160,8 @@ export default async function RootLayout({
 
 Use this only for existing Next.js apps with `pages/`. In the Page Router, Dekoratøren must be
 fetched in `pages/_document.tsx`, because `_document` owns `<html>`, `<head>` and the
-server-rendered HTML shell.
+server-rendered HTML shell. `_document` alone does not make pages dynamic: every page that shows
+Dekoratøren must be rendered per request, for example with `getServerSideProps` (see 3.4).
 
 ```tsx
 // pages/_document.tsx
@@ -258,12 +266,13 @@ When you inspect a repository, look for:
   `○` or `●` and dynamic pages with `ƒ`.
 - **App Router:** routes without dynamic APIs are prerendered in the build step. Make the root
   layout dynamic with `export const dynamic = "force-dynamic";`, or call `await connection()` from
-  `next/server` before `fetchDecoratorReact`.
+  `next/server` before `fetchDecoratorReact`. Apps with `cacheComponents` enabled must use
+  `connection()`, because Next.js rejects the `dynamic` export there.
 
 ```ts
 // pages/minside.tsx (Page Router)
-export async function getServerSideProps({ locale }: GetServerSidePropsContext) {
-    return { props: { ...(await serverSideTranslations(locale ?? "nb", ["common"])) } };
+export async function getServerSideProps() {
+    return { props: {} };
 }
 ```
 
