@@ -1,0 +1,22 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Dette er en **ny personopplysning i en Kafka-melding**, så jeg stopper før jeg endrer kontrakten. I repoet har `SokerDto` allerede `fnr`, men `SoknadMottattMelding` har bare `soknadId` og `mottatt`. Jeg fant ingen konsumenter, tester eller dokumentasjon for `soknad-mottatt`. Repo-lokal Copilot-konfigurasjon mangler også (`AGENTS.md` og de to Copilot-filene under `.github`); `nav-pilot init` kan sette den opp.
+
+Før jeg legger til feltet, trenger jeg svar på tre forhold: Hvem konsumerer `soknad-mottatt`, og kan de håndtere et nytt påkrevd felt? Hvilken beskyttelse har topicen for fødselsnummer, særlig tilgangsstyring og kryptering? Hvor kommer `fnr` fra når `SoknadMottattMelding` opprettes? Jeg antar at meldingen skal beholde dagens nøkkel (`soknadId`) og øvrige felt. Feilhåndtering, observerbarhet, teamgrenser, teststrategi og utrulling er ikke avklart i repoet; de øvrige blindsonene gjelder ikke denne avgrensede endringen.
+
+Blindsoner reist: 6/11 (#1, #3, #4, #5, #6 og #7; #2 gjelder ikke siden endringen ikke gir nye kallere eller lesere).
+

@@ -1,0 +1,82 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+    00gn/T/1791453849300-copilot-tool-output-45524-06aed3b3-1eb3-4569-8737-441e61905273.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+
+
+**Vurdering: Migreringen ser teknisk riktig ut, men jeg ville ikke godkjent den som verifisert ennå.** Endringene flytter mapperen i `Soknad.kt` til Jackson 3.1 og bruker builder-API-et. Det er riktig å fjerne `jackson-datatype-jsr310`: Jackson 3 har støtte for `LocalDate` innebygd. Ktor bruker fortsatt kotlinx-serialisering, så Ktor-versjonen trenger ikke endres for denne migreringen.
+
+Det er to ting å avklare:
+
+- **JSON-rekkefølge kan endres** (`Soknad.kt:21`). Jackson 3 sorterer egenskaper alfabetisk som standard. `SoknadMottattMelding` kan derfor gå fra `soknadId, mottatt` til `mottatt, soknadId`. JSON-feltrekkefølge skal ikke ha betydning for konsumenter, men legg til en test eller fastsett rekkefølgen hvis noen sammenligner rå JSON-tekst.
+- **JDK-baseline er ukjent.** Jackson 3 krever Java 17+, men Gradle-fila fastsetter ikke en slik minimumsversjon, og `nais.yaml` oppgir ikke runtime-image.
+
+Jeg fant ingen tester i repoet. `gradle test` kom ikke til testkjøring: Gradle feilet under konfigurering med `IllegalArgumentException: 27` i Kotlin 2.1.0 på JDK 27. Det verifiserer verken migreringen eller dens funksjon.
+

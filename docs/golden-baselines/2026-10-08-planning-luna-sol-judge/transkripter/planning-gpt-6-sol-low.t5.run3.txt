@@ -1,0 +1,3 @@
+
+Bruk **TokenX token exchange** når tjeneste A kaller tjeneste B på vegne av en innlogget bruker. A bytter brukerens token til et token med B som audience, og B validerer tokenet. Aktiver TokenX for tjenestene og sett eksplisitte `accessPolicy`-regler. Ikke bruk Azure AD `client_credentials` her: det mister brukerkonteksten.
+

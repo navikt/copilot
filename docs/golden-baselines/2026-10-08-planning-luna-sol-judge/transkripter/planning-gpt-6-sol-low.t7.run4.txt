@@ -1,0 +1,40 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+**Vurdering: Migreringen er ikke klar til å regnes som verifisert.** Branchen bytter Jackson-avhengighetene til 3.1.0 og bygger mapperen før bruk, men det finnes ingen tester som viser at Kafka-meldingene beholder samme JSON-format. I `Soknad.kt:14–16` er den eksplisitte datoinnstillingen fjernet. Jackson 3 har som standard datoer som strenger, så akkurat dét ser forenlig ut med tidligere oppførsel, men endrede standardvalg kan blant annet påvirke egenskapsrekkefølge. En karakteriseringstest for begge meldingstypene bør sammenligne JSON før og etter migreringen.
+
+Ktor bruker `kotlinx-json`, ikke Ktors Jackson-integrasjon, så det er ingen Jackson-modul å bytte der. Jeg fant heller ingen `JsonNode.map`-kall eller gjenværende Jackson 2-importer i kildekoden. **Bygg og avhengighetstre er ikke verifisert:** `gradle compileKotlin dependencyInsight …` stoppet under prosjektkonfigurasjon med `> 27` på installert JDK 27. Repoet har heller ingen Gradle-wrapper. Kjør bygg, tester og avhengighetssjekk med en støttet JDK før migreringen godkjennes.
+

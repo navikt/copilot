@@ -1,0 +1,3 @@
+
+Bruk **TokenX (On-Behalf-Of)**. Tjeneste A bytter brukerens token til et TokenX-token med tjeneste B som audience, og sender det til B som `Authorization: Bearer …`. Konfigurer `tokenx.enabled` og riktige `accessPolicy`-regler for utgående kall fra A og innkommende kall til B.
+

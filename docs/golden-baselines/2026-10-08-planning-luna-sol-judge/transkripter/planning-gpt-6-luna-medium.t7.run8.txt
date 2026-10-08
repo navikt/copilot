@@ -1,0 +1,82 @@
+
+
+
+
+
+
+
+
+
+    OpenJDK Runtime Environment Temurin-27+35 (build 27+35)
+    OpenJDK 64-Bit Server VM Temurin-27+35 (build 27+35, mixed mode, sharing)
+    /bin/bash: ./gradlew: No such file or directory
+    Failed with exit code 127
+
+
+
+
+
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 3s
+    Failed with exit code 1
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+    00gn/T/1791454275234-copilot-tool-output-96920-a3bb8963-a4a6-42a0-960c-125c9997e1cb.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+
+
+
+
+
+
+
+**Vurdering: migreringen ser riktig ut, men jeg ville avklart JSON-formatet og kjørt testene på en støttet JDK før godkjenning.**
+
+- **Middels risiko, `Soknad.kt:20–21`:** Jackson 3 sorterer egenskaper alfabetisk som standard. Kafka-meldingen kan derfor gå fra `soknadId, mottatt` til `mottatt, soknadId`. JSON-forbrukere skal ikke være avhengige av rekkefølgen, men bekreft det eller legg til en test som låser formatet. Datoformatet ser derimot ut til å være bevart: Jackson 2 hadde tidsstempler slått av, og Jackson 3 har dem slått av som standard.
+- **Migreringsendringene ellers ser konsistente ut:** Jackson 3-avhengighetene og importene er oppdatert, Kotlin-modulen registreres via builder, og fjerning av `jackson-datatype-jsr310` er riktig. Ktor bruker fortsatt `kotlinx.serialization`, så Ktor 3.0 er ikke et hinder for denne bruken av Jackson.
+- **Verifisering er blokkert:** `gradle test` stopper under Gradle-konfigurasjon med `IllegalArgumentException: 27` fra Kotlin 2.1.0 når den leser JDK 27. Koden ble derfor ikke kompilert eller testet. Branchens arbeidskopi er ren etter kontroll.
+

@@ -1,0 +1,26 @@
+
+
+
+
+## Fase 2: Plan
+
+**Vi bygger en stateless Ktor-tjeneste for innbyggerens eget navneoppslag.** Jeg legger til grunn at den eksisterende Next.js-frontenden kan kalle tjenesten via en rute på samme origin. Wonderwall håndterer innlogging med ID-porten. Tjenesten henter fødselsnummer fra validert brukerkontekst, slår opp navn i PDL og returnerer **kun navn**. Nettleseren skal verken sende inn fødselsnummer eller få det tilbake.
+
+| Område | Plan |
+|---|---|
+| Tilgang | Beskytt oppslagsruten med ID-porten og Wonderwall. Sjekk at den validerte identiteten er grunnlaget for PDL-oppslaget. Ingen rute for oppslag på vilkårlig fødselsnummer. |
+| PDL | Bruk TokenX for kall med brukerkontekst dersom PDL-grensesnittet støtter dette. Avklar PDLs konkrete audience, tilgangskrav og spørring før implementering; ikke anta at ID-porten-tokenet kan sendes direkte til PDL. |
+| API | `GET /api/meg/navn` svarer med `{ "navn": "…" }`. Manglende eller ugyldig innlogging gir 401. Feil fra PDL gir 503 med en generell ProblemDetail-respons, uten personopplysninger. |
+| Data | Ingen database, kø eller lagring av fødselsnummer og navn. Ingen caching av PDL-svar i tjenesten eller nettleseren. |
+| Nais | Ny `Application` med ID-porten/Wonderwall, TokenX, eksplisitt `accessPolicy` for tillatt trafikk til PDL, health-endepunkter, Prometheus og små ressursforespørsler uten CPU-limit. Den konkrete inbound-regelen avhenger av om frontenden kaller via samme origin eller som egen tjeneste. |
+| Prosjekt | Behold Ktor og legg auth-/tilgangssjekk, PDL-klient, API-rute og feilhåndtering i adskilte deler. Ikke bygg videre på demoens oppgaveliste som om den var domenelogikk. |
+| CI/CD | Bygg og kjør tester i GitHub Actions. Deploy først til dev, deretter prod, med SHA-pinnede actions og nødvendige minimumsrettigheter. |
+| Tester | Test at uautentiserte kall avvises, at tjenesten bruker identiteten fra tokenet, og at ett oppslag gir riktig navn. Test PDL-feil, 503-respons og at verken respons eller logger inneholder fødselsnummer eller token. Test auth og PDL-integrasjonen med kontrollerte testtokens. |
+| Drift | Mål oppslag per minutt og andel feilende kall, fordelt på status og PDL-avhengighet, uten personidentifikatorer i metrikker. Logg feiltype og korrelasjons-ID ved PDL-feil, ikke navn, fødselsnummer, token eller payload. Varsle ved vedvarende høy feilandel. |
+
+**Leveranse og rollback:** Dokumenter API-kontrakten, PDL-tilgangen, driftsrutinen og behandlingen av personopplysninger. Verifiser etter deploy at innlogging, eget navneoppslag, 401, 503 og metrikker fungerer i dev før prod. Siden tjenesten er ny, er rollback å rute frontenden bort fra den og rulle tilbake tjenestens deployment; ingen data må migreres.
+
+🔴 **Rød sone, forstå og skriv selv:** validering av brukerkontekst, bindingen mellom innlogget person og PDL-oppslag, samt PDL-tilgang og tokenutveksling. Teamet er nytt med Wonderwall og TokenX; feil her kan gi innsyn i andres personopplysninger. 🟢 **Grønn sone:** Ktor-/Nais-oppsett, CI-workflow, testoppsett og metrikker, med gjennomgang før merge.
+
+**Avveining:** En rute på samme origin lar nettleseren bruke innloggingsflyten uten å håndtere nedstrøms token eller CORS. Den krever at vi verifiserer hvordan den eksisterende frontenden ruter kall; et direkte kall til en separat backend-origin ville kreve en annen konkret auth- og cookie-løsning. Vi går ikke videre til review eller kode før denne planen er bekreftet. Still gjerne spørsmål om valgene over.
+

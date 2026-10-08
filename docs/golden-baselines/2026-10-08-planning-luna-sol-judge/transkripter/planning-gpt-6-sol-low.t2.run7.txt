@@ -1,0 +1,25 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Avklaringer før vi bygger.** Repoet inneholder en enkel Ktor-tjeneste med et åpent `/api/oppgaver`-endpoint og et Nais-manifest uten ID-porten eller tilgangsregler. Jeg legger til grunn at den nye tjenesten skal håndtere fødselsnummer, men repoet sier ikke hva den skal bruke det til. Jeg endrer derfor ikke kode eller auth-oppsett ennå.
+
+1. Skal tjenesten erstatte `demo-tjeneste`, eller være en egen app? Hva skal den gjøre med fødselsnummeret etter innlogging: bruke det i et kall til en annen tjeneste, lagre det eller returnere data til innbyggeren?
+2. Kommer innbyggeren via en nettleser med Wonderwall, eller skal tjenesten selv motta token? Skal andre tjenester kunne kalle den, og hvilke?
+3. Hvilke tjenester eller team avhenger løsningen av, og hva skal skje hvis et nødvendig kall feiler?
+4. Finnes det konsumenter av dagens `/api/oppgaver` som må fortsette å virke? Hvilke tester eller krav til rollback finnes?
+
+Fødselsnummer og ID-porten er avklart som utgangspunkt, men **🔴 rød sone** gjelder tilgangskontroll og håndtering av fødselsnummer. Repoet mangler også `AGENTS.md` og begge lokale Copilot-instruksjonsfilene; `nav-pilot init` kan opprette slik repo-lokal veiledning.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #5, #6 og #7; #4, #8–#11 tas ved behov når tjenestens formål og flyt er kjent).
+

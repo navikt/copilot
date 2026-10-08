@@ -1,0 +1,105 @@
+
+
+
+
+
+
+
+    main      4d2fbfb Jackson 2
+    1e2a68e (HEAD -> jackson-3) Migrer til Jackson 3
+    4d2fbfb (main) Jackson 2
+    fatal: ambiguous argument 'origin/main...HEAD': unknown revision or path not in the working
+    tree.
+    Use '--' to separate paths from revisions, like this:
+    'git <command> [<revision>...] -- [<file>...]'
+    Failed with exit code 128
+
+
+
+
+
+
+
+
+
+
+
+
+
+    OpenJDK Runtime Environment Temurin-27+35 (build 27+35)
+    OpenJDK 64-Bit Server VM Temurin-27+35 (build 27+35, mixed mode, sharing)
+
+    ------------------------------------------------------------
+    Gradle 8.14.5
+    ------------------------------------------------------------
+
+    Build time:    2026-05-07 11:03:29 UTC
+    Revision:      62345becae08b13e793521816d585102fea66398
+
+    Kotlin:        2.0.21
+    Groovy:        3.0.25
+    Ant:           Apache Ant(TM) version 1.10.15 compiled on August 25 2024
+    Launcher JVM:  27 (Eclipse Adoptium 27+35)
+    Daemon JVM:    /Library/Java/JavaVirtualMachines/temurin-27.jdk/Contents/Home (no JDK specified,
+    using current Java home)
+    OS:            Mac OS X 26.7.1 aarch64
+
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+
+
+
+
+    00gn/T/1791451423963-copilot-tool-output-79797-2474956d-49b2-42bc-a90e-1cbe8ef4d650.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+Migreringen ser teknisk riktig ut, men jeg fant én mulig endring i Kafka-payloaden. Jeg ville avklart den før merge.
+
+- **Middels, `Soknad.kt`**: Jackson 3 sorterer egenskaper alfabetisk som standard. `SoknadMottattMelding` kan derfor serialiseres med `mottatt` før `soknadId`, motsatt av Jackson 2. JSON-objektrekkefølge skal ikke ha betydning for konsumenter som parser JSON, men byteinnholdet endres. Legg til en serialiseringstest, og angi eksplisitt egenskapsrekkefølge hvis den gamle rekkefølgen må bevares.
+
+Avhengighetene og mapper-oppsettet ser ellers konsistente ut: Jackson 3.1.0 brukes for begge artefaktene, Java Time-modulen er ikke lenger nødvendig separat, og Ktor bruker fortsatt kotlinx.serialization. Jeg fant ingen andre Jackson 2-importer eller `JsonNode.map`-kall.
+
+Jeg fikk ikke verifisert bygg eller tester. `gradle test` stoppet under Gradle-konfigurasjon fordi Kotlin 2.1.0 ikke gjenkjenner den installerte Java 27-versjonen (`IllegalArgumentException: 27`), før migreringskoden ble kompilert.
+

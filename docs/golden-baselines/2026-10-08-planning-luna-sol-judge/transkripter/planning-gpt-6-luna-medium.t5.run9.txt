@@ -1,0 +1,5 @@
+
+Bruk **TokenX** med token exchange (OBO): tjeneste A bytter brukerens innkommende token til et token med tjeneste B som audience, og sender det til B. B må ha TokenX aktivert og tillate A i `accessPolicy.inbound`; A må tillate B i `accessPolicy.outbound`.
+
+Ikke bruk Azure AD `client_credentials` når kallet skal beholde brukerkonteksten.
+

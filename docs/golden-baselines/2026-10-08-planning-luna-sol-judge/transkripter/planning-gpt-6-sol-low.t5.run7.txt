@@ -1,0 +1,3 @@
+
+Bruk **TokenX token exchange (on-behalf-of)**. Tjeneste A veksler brukerens token til et token med tjeneste B som *audience*, og sender det til B. Tjeneste B validerer tokenet og sjekker at brukeren har tilgang til ressursen. Sett også eksplisitt `accessPolicy` mellom tjenestene i Nais. Ikke bruk Azure AD `client_credentials` her: det mister brukerkonteksten.
+

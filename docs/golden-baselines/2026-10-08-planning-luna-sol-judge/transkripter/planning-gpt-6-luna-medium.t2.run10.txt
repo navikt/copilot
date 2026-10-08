@@ -1,0 +1,23 @@
+
+
+
+
+
+
+
+
+
+
+
+
+Jeg tolker dette som en ny Ktor-tjeneste på Nais. Repoet viser ingen ID-porten-konfigurasjon, `accessPolicy` eller tester, så jeg kan ikke utlede hvordan innlogging eller tilgang skal fungere. FNR-behandling og autentisering er **rød sone**; jeg avklarer kravene før jeg lager en plan eller kode.
+
+1. Skal innbyggeren logge inn direkte i tjenesten med ID-porten, eller skal et annet system kalle den? Hva skal tjenesten gjøre med FNR etter innlogging: bare bruke det midlertidig, lagre det eller sende det videre?
+2. Hvilke andre tjenester eller team inngår i flyten, og hvem skal bruke tjenestens API eller hendelser?
+3. Hva skal skje hvis ID-porten eller en annen avhengighet ikke svarer? Hvilke mål eller forretningsmålinger skal vise at tjenesten virker?
+4. Hvem eier hele flyten, og hvilke tester forventer dere? Er ID-porten-integrasjon kjent teknologi for teamet?
+
+Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 5/11 (#1, #2, #3, #4, #5, #6, #7, #11; #8–#10 ikke relevante ut fra antakelsen om en ny tjeneste).
+

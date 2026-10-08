@@ -2,3 +2,6 @@
 # hash|date|model|effort|n|agree|accuracy|credits
 bbb66840efb3cd3d|2026-10-08|claude-haiku-5.5|low|20|20|1.000|4.75
 1550c9547fa7e08b|2026-10-08|claude-haiku-5.5|low|75|73|0.973|17.79
+5974ee48845ca393|2026-10-08|claude-haiku-5.5|low|75|72|0.960|6.84
+78dc52b6b6abb07d|2026-10-08|claude-haiku-5.5|low|6|6|1.000|0.57
+40173aaebc326f52|2026-10-08|claude-haiku-5.5|low|20|19|0.950|2.04

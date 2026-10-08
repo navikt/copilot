@@ -1,0 +1,22 @@
+
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Avklaringer.** Repoet er en enkel Ktor-tjeneste på Nais. Det har et åpent `/api/oppgaver`-endepunkt, men ingen ID-porten-konfigurasjon eller tokenvalidering. Jeg legger til grunn at fødselsnummer er personopplysningen som skal leses, og at innbyggeren logger inn via ID-porten. Jeg gjør ingen endringer i auth eller kode før bruken er avklart.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller bare brukes under forespørselen? Behandles andre personopplysninger?
+2. Hvem skal kunne kalle tjenesten: innbyggerens nettleser, en annen Nav-tjeneste eller begge? Skal det eksisterende `/api/oppgaver` fortsatt være åpent?
+3. Hvilke tjenester eller team skal motta data eller bruke svaret, og hva skal skje hvis en avhengighet er utilgjengelig?
+4. Er dette en erstatning for en eksisterende løsning, eller en ny flyt? Finnes det tester eller en plan for å rulle tilbake?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Jeg utsetter teststrategi og observabilitet til planen; avvikling er ikke relevant uten en eksisterende løsning.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #5, #7, #8; øvrige avklares i planen eller er foreløpig ikke relevante).
+

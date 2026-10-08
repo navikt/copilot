@@ -1,0 +1,22 @@
+
+
+
+
+    Failed with exit code 128
+
+
+
+
+
+
+
+🔴 Fnr er personopplysning, og dette legger den til i meldingen på `soknad-mottatt`. I koden fant jeg ingen opplysninger om tilgang til topicen eller kryptering. Det finnes heller ingen repo-lokale Copilot-instruksjoner (`AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`) eller tester for meldingen.
+
+Før jeg endrer koden, må jeg avklare:
+
+1. Hvilket formål skal fnr dekke i denne meldingen, og er topicens eksisterende konsumenter autorisert til å behandle fnr?
+2. Er meldingen kryptert før den publiseres, eller skal fnr beskyttes på en annen måte?
+3. Hvilke konsumenter bruker `soknad-mottatt`, og tåler de at meldingen får et nytt felt?
+
+Blindsoner reist: 3/11 (#1, #6, #9 stilt; øvrige ikke relevante eller besvart av oppgavens omfang).
+

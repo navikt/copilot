@@ -1,0 +1,5 @@
+
+Bruk **tokenutveksling med brukerkontekst**, ikke `client_credentials`. Hvis brukeren er innlogget via **ID-porten**, bruker tjeneste A **TokenX** til å hente et token med tjeneste B som audience. Hvis brukeren er en **Nav-ansatt innlogget via Azure AD**, bruker A **Azure AD on-behalf-of**.
+
+Tjeneste B må validere tokenet og sjekke tilgang til ressursen. Nais `accessPolicy` må også tillate kall fra A til B.
+

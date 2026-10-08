@@ -1,0 +1,37 @@
+
+    total 24
+    drwxr-xr-x   7 hans  staff  224 Oct  8 11:18 .
+    drwx------  12 hans  staff  384 Oct  8 11:18 ..
+    drwxr-xr-x   4 hans  staff  128 Oct  8 11:18 .github
+    -rw-r--r--   1 hans  staff  340 Oct  8 11:18 build.gradle.kts
+    -rw-r--r--   1 hans  staff  216 Oct  8 11:18 nais.yaml
+    -rw-r--r--   1 hans  staff  166 Oct  8 11:18 README.md
+    drwxr-xr-x   3 hans  staff   96 Oct  8 11:18 src
+    total 0
+    drwxr-xr-x   4 hans  staff  128 Oct  8 11:18 .
+    drwxr-xr-x   7 hans  staff  224 Oct  8 11:18 ..
+    drwxr-xr-x   3 hans  staff   96 Oct  8 11:18 agents
+    drwxr-xr-x  18 hans  staff  576 Oct  8 11:18 instructions
+    Failed with exit code 1
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Avklaringer.** Repoet har en liten Ktor-tjeneste med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten eller `accessPolicy`. Jeg legger til grunn at fødselsnummer er personopplysningen dere vil lese, men trenger disse avklaringene før vi velger løsning:
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, lagre det eller sende det videre? Skal den behandle andre personopplysninger?
+2. Skal innbyggeren kalle tjenesten direkte via nettleser, eller går trafikken gjennom en frontend/BFF? Hvem skal ellers kunne kalle eller lese fra tjenesten, inkludert det eksisterende endepunktet?
+3. Hvilke andre tjenester eller team avhenger flyten av? Hva skal skje hvis en av dem er utilgjengelig?
+4. Hvilke tester finnes utenfor dette repoet, og hvordan skal dere se at løsningen virker etter utrulling?
+5. Er ID-porten og tokenvalidering kjent teknologi for teamet, eller bør vi gå gjennom valgene før implementering?
+
+Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `nav-pilot init` kan legge til repo-lokale føringer senere.
+
+Blindsoner reist: 6/11 (#1–#5 og #7; #6 dekkes av spørsmål 3, #8–#10 gjelder først ved endring eller avvikling av eksisterende flyt, #11 dekkes av spørsmål 5).
+

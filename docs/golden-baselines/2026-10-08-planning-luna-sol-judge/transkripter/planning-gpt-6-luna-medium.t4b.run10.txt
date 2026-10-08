@@ -1,0 +1,37 @@
+
+
+
+
+
+
+
+## Fase 2: Plan
+
+**Løsning:** Bygg videre på Kotlin/Ktor-skjelettet som et statsløst REST-API. Innbyggeren logger inn via ID-porten i den eksisterende Next.js-frontendens Wonderwall. Frontendens server-side BFF bruker TokenX til å kalle Kotlin-tjenesten, som igjen bruker TokenX med innbyggerens kontekst ved kall til PDL. API-et henter identiteten fra det validerte tokenet, ikke fra et fødselsnummer i URL eller request body, og returnerer navnet fra PDL.
+
+Dette holder ID-porten-tokenet og PDL-kallet på serversiden og viderefører innbyggerens kontekst gjennom tjenestekjeden. Alternativet, å la nettleseren kalle API-et direkte, gir nettleseren ansvar for tokenhåndtering og krever egne vurderinger av CORS og tokenets målgruppe. Planen forutsetter at PDL-integrasjonen er godkjent for dette formålet, og at PDL tilbyr en støttet TokenX-målgruppe og nødvendige tilganger. Lovhjemmel som behandlingsgrunnlag avklarer ikke i seg selv disse tilgangene.
+
+**Prosjektstruktur:** Tilpass dagens Ktor-app og fjern demo-rutene. Legg auth, API-ruter og PDL-klient i egne pakker under `src/main/kotlin/no/nav/<team>/<app>/`. Legg tester under `src/test/kotlin/`. Flytt Nais-manifestet til `.nais/nais.yaml` etter teamets repo-konvensjon, og oppdater `README.md`. Team-, app- og PDL-identifikatorer må fylles inn.
+
+**Auth og Nais:** Frontend håndterer ID-porten og Wonderwall. Kotlin-tjenesten aktiverer TokenX og validerer innkommende tokens med støttet JVM-integrasjon. Den sjekker issuer, audience, signatur, utløp og nødvendige identitetsclaims. Tjenesten utleder fødselsnummer fra den validerte brukeridentiteten; den godtar ikke fødselsnummer fra klienten som autoritativt.
+
+Manifestet får eksplisitt `accessPolicy`: inbound fra den eksisterende frontendens server-side BFF, outbound til PDL. Nais-konfigurasjon for ID-porten hører hjemme på frontend-appen, ikke denne backend-tjenesten. Bruk faktiske appnavn, namespace og cluster for begge reglene når de er kjent.
+
+**API og PDL:** Foreslått synkront endepunkt er `GET /api/person`, som returnerer navn for innlogget person. PDL-klienten utveksler innkommende brukertoken til riktig PDL-audience. Valider målgruppe, tilgang og hvilke PDL-felter tjenesten trenger før implementering. PDL-timeout eller utilgjengelighet gir `503`; loggen inneholder feilkategori og sporings-ID, aldri token, fødselsnummer eller navn. Bruk korte tidsavbrudd og ikke legg til kø eller automatisk retry uten dokumentert behov.
+
+**Lagring og personvern:** Ingen database, kø eller cache i første versjon. Tjenesten behandler fødselsnummer og navn bare mens den håndterer forespørselen. Ikke ta med fødselsnummer i responsen med mindre frontend har et konkret behov og det er godkjent. Ikke logg personopplysninger eller bruk dem som metrikktag.
+
+**Tester:** Start med tester for API-ruter, TokenX-validering og PDL-klienten. Test gyldig token, manglende/utløpt token, feil issuer eller audience, manglende identitetsclaim, vellykket PDL-svar og PDL-feil som skal gi `503`. Bruk MockOAuth2Server for auth og mock HTTP-server for PDL. Legg til en integrasjonstest av frontendens kall gjennom BFF før produksjonssetting. Repoet har ikke tester i dag, så CI må kjøre minst `./gradlew test`.
+
+**CI/CD:** Legg til en GitHub Actions-workflow som bygger og tester på pull requests, bygger image og deployer til dev før prod. Bruk repoets godkjente Nais-deploy-mønster, med minst mulig permissions og SHA-pinnede actions. Manifest og auth-konfigurasjon må verifiseres i dev før prod-deploy.
+
+**Drift og observabilitet:** Behold health-endepunktene og legg til Prometheus-metrikker for antall oppslag og feilandel. Vis oppslag per minutt og feilandel i dashboard; bruk bare avgrensede labels som resultat og feilkategori. Sett opp alarm for vedvarende økning i feil, med terskel justert etter trafikk i dev. En PDL-feil skal ikke gjøre tjenesten unready eller utløse omstart. Start med Nais-requests på `15m` CPU og `256Mi` minne, minnegrense `512Mi`, uten CPU-limit. Juster etter målt bruk.
+
+**Utrulling og rollback:** Deploy først til dev og test hele reisen fra ID-porten via frontend til PDL. I prod: hold funksjonen skjult i frontend til API-et er verifisert, og aktiver deretter gradvis hvis frontend har en egnet feature toggle. Ved auth-feil eller økt feilandel: skjul eller rull tilbake frontend-funksjonen og rull backend tilbake til forrige image. Det finnes ingen data å migrere eller rulle tilbake.
+
+**Leveranser:** Oppdater README med lokal kjøring og auth-oppsett, og lag en kort runbook for PDL-feil, TokenX-feil og rollback. Før prod bør teamet ha et endringsdokument med rollback-kriterier og en verifiseringssjekkliste for innlogging, oppslag, `503` ved PDL-feil, metrikker og logger.
+
+🔴 **Rød sone: forstå og gjennomgå nøye** TokenX-validering, bindingen mellom innlogget identitet og PDL-oppslaget, samt tilgang til PDL. Dette er sikkerhetskritisk og behandler fødselsnummer. 🟢 **Grønn sone:** Ktor-ruting, Nais-manifest, CI/CD og testoppsett kan bygges etter planen, men auth- og personvernkontrollene må gjennomgås grundig.
+
+Si fra om du godkjenner planen, så går jeg videre til fase 3 og vurderer den fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.
+

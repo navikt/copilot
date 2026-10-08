@@ -1,0 +1,81 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+
+
+
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+
+
+**Migreringsdiffen ser riktig ut, men jeg kan ikke bekrefte at branchen bygger.** Den bruker Jackson 3.1.0, bygger mapperen med `JsonMapper` og Kotlin-modulen, og fjerner `jackson-datatype-jsr310`, som ikke trengs i Jackson 3. Ktor bruker fortsatt `kotlinx.serialization`, så Ktor 3.0.0 trenger ikke oppgraderes for denne migreringen.
+
+Før merge bør dere avklare to ting:
+
+- `build.gradle.kts` setter ikke JDK-versjon. Jackson 3 krever Java 17 eller nyere. Bygget stoppet under konfigurering fordi Kotlin-pluginen 2.1.0 ikke kan tolke Java 27 (`IllegalArgumentException: 27`). Dermed fikk jeg ikke verifisert kompilering, tester eller avhengighetstreet.
+- Jackson 3 endrer standard rekkefølge på JSON-felter til alfabetisk. Det kan endre byteinnholdet i Kafka-meldingen fra `sendMottatt`, selv om JSON-feltene har samme betydning. Legg til en serialiseringstest for `LocalDate` og meldingsformatet, og sjekk at ingen konsumenter sammenligner rå JSON-strenger.
+
+**Vurdering:** Ingen konkret migreringsfeil i diffen, men resultatet er ikke verifisert. Kjør build og tester med en støttet JDK, og bekreft JSON-formatet før merge.
+

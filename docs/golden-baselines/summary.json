@@ -3250,6 +3250,112 @@
     },
     {
       "date": "2026-10-08",
+      "suite": "planning",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 10
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 10
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 10
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 10
+        },
+        {
+          "id": "t7",
+          "description": "Jackson-migrering: spør ikke om personvern eller tilgang",
+          "passed": 10
+        },
+        {
+          "id": "t7b",
+          "description": "Nytt fødselsnummer i en Kafka-melding: tar opp personvern",
+          "passed": 10
+        }
+      ],
+      "credits": {
+        "median": 4.168,
+        "mean": 4.161
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 364.4
+      },
+      "source": "docs/golden-baselines/2026-10-08-planning-luna-sol-judge/planning-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.94-3",
+      "n": 7,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 7
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 7
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 7
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 7
+        },
+        {
+          "id": "t7",
+          "description": "Jackson-migrering: spør ikke om personvern eller tilgang",
+          "passed": 7
+        },
+        {
+          "id": "t7b",
+          "description": "Nytt fødselsnummer i en Kafka-melding: tar opp personvern",
+          "passed": 7
+        }
+      ],
+      "credits": {
+        "median": 51.57,
+        "mean": 50.486
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 152.0
+      },
+      "source": "docs/golden-baselines/2026-10-08-planning-luna-sol-judge/planning-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-08",
       "suite": "research",
       "model": "claude-haiku-5.5",
       "model_verified": true,

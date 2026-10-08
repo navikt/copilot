@@ -1,0 +1,22 @@
+
+
+
+
+
+
+
+
+Hva slags tjeneste bygger du: backend-API, frontend for innbygger, fullstack eller noe annet? Repoet har Ktor 3 og et enkelt Nais-manifest, så jeg antar foreløpig at du bygger et backend-API.
+
+Før vi velger løsning for ID-porten og fnr, trenger jeg svar på dette:
+
+1. **Personvern:** Hva er formålet med å hente fnr, og hvilken hjemmel gjelder? Skal tjenesten bare bruke fnr i minnet, eller lagre eller sende det videre? Til hvem, hvor lenge, og trenger dere audit-logging av oppslag?
+2. **Innlogging og tilgang:** Starter innbyggeren forespørselen via ID-porten, eller kaller en annen tjeneste API-et? Skal tjenesten hente fnr fra et validert ID-token, eller fra en annen kilde? Hvem skal kunne kalle API-et?
+3. **Drift og avhengigheter:** Hvilke tjenester skal denne tjenesten kalle? Hva skal skje hvis ID-porten eller en avhengighet er utilgjengelig? Hvilke metrikker og varsler trenger dere, og hvem følger dem opp?
+4. **Team og leveranse:** Er dette et nytt prosjekt i repoet? Hvilke andre team er avhengige av løsningen, hvem skal konsumere API-er eller hendelser, og finnes det en deadline? Har teamet erfaring med Ktor og ID-porten?
+5. **Tester:** Hvilke tester eller krav finnes allerede? Hvordan skal dere verifisere innlogging, tilgangskontroll og at fnr aldri havner i logger?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Nais-manifestet har foreløpig ingen `accessPolicy`. Fnr behandles som fortrolige personopplysninger; skjermede personer eller helseopplysninger kan kreve strengere håndtering.
+
+Blindsoner reist: 9/11 (#1, #2, #3, #4, #5, #6, #7, #9, #11 stilt; #8 og #10 ikke relevante for et nybygg).
+

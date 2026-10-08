@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 303ms
+    Failed with exit code 1
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+**Vurdering: Migreringen er ikke verifisert og bør ikke regnes som klar til merge.** Branchen flytter Jackson-avhengighetene og Kotlin-importene til 3.1.0. Ktor bruker fortsatt `kotlinx-json`, så den trenger ikke `ktor-serialization-jackson3`.
+
+Den viktigste åpne risikoen er meldingene i `Soknad.kt`: Jackson 3 kan endre rekkefølgen på JSON-felter, mens det ikke finnes tester som viser at `sendMottatt`, `sendSoker` og `lesSoker` beholder forventet format. Endringen fjerner også eksplisitt datokonfigurasjon; datoformatet bør fastslås i en test før dette godkjennes. **Bygg kunne ikke bekreftes:** `gradle build` stopper under prosjektkonfigurasjon med `> 27` på installert Java 27. Avhengighetstreet er derfor heller ikke kontrollert for gjenværende Jackson 2-artefakter. Kjør bygg og format-tester med en støttet JDK, og kontroller deretter `compileClasspath`.
+
+🔴 Rød sone: Meldingsformatet er del av kontrakten mot Kafka-konsumentene. Gå gjennom forventet format med eierne før merge. Valget om å beholde nye Jackson-standarder krever mindre konfigurasjon, men gir ikke i seg selv bakoverkompatibilitet; alternativet er å sette de gamle formatvalgene eksplisitt. Still gjerne spørsmål om valgene over.
+

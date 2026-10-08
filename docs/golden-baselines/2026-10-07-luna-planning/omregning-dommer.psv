@@ -1,3 +1,4 @@
+# Merknad: Vurderingene 8. oktober før #1472 kjørte med 20 innebygde verktøy aktive; tallene står, men er ikke regnet om.
 # Luna 2026-10-07 planning answers, rescored 2026-10-08 with scripts/blindspot-judge.py (claude-haiku-5.5, effort low).
 # Controls before rescoring: 73/75 (0.973) and held-out 20/20 (1.000), see blindsone-dommer-kontroller.psv.
 # test: t2 answer scores t3 (needs #1 and #2); t7 passes with neither; t7b needs #1.

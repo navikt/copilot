@@ -1,0 +1,31 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+📐 **Fase 1: Intervju**
+
+Repoet er et Kotlin/Ktor 3-skjelett med et enkelt Nais-manifest. Jeg legger foreløpig til grunn at ID-porten autentiserer innbyggeren, og at appen får et validert token med fødselsnummer. Siden fødselsnummer er sensitive personopplysninger, avklarer vi bruken før vi velger løsning.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og i så fall til hvilket system og hvor lenge?
+2. Hvem skal kalle tjenesten: innbyggerens nettleser, en frontend/BFF eller en annen tjeneste? Hvilket sikkerhetsnivå fra ID-porten trenger dere, nivå 3 eller 4? Hvem skal bruke svaret fra tjenesten?
+3. Er tjenesten avhengig av andre systemer? Hva skal skje hvis et av dem er utilgjengelig?
+4. Hvilke måltall viser at tjenesten fungerer?
+5. Eier teamet hele flyten, eller er andre team involvert?
+6. Repoet har ingen synlige tester. Hvilken testdekning trenger dere?
+7. Er du kjent med Ktor og ID-porten, eller vil du gå gjennom auth-konseptene før vi bygger?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` for å legge til lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7, #11; #8, #9 og #10 er ikke relevante for en ny tjeneste).
+

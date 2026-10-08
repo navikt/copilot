@@ -1,0 +1,5 @@
+
+Bruk **TokenX med On-Behalf-Of (OBO)**. Tjeneste A bytter brukerens token mot et TokenX-token med tjeneste B som målgruppe, og sender det til B som Bearer-token.
+
+I Nais må B ha `tokenx.enabled: true` og slippe A inn via `accessPolicy.inbound`. Audience for utvekslingen er `cluster:namespace:tjeneste-b`.
+

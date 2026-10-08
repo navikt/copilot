@@ -1,0 +1,33 @@
+
+🔎 Fase 1: Jeg undersøker meldingsmodellen, publiseringsflyten og repoets Kafka-/personvernregler før jeg avklarer databruken.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jeg stopper før endringen fordi den legger fødselsnummer i en Kafka-payload. `SoknadMottattMelding` inneholder ikke `fnr` i dag. Repoet viser heller ikke hvem som leser topicet, tilgangsreglene eller om konsumentene kan håndtere det nye feltet. `nais.yaml` har ingen Kafka-konfigurasjon, og jeg fant ingen tester.
+
+1. Hva skal konsumentene bruke fødselsnummeret til, og er det avklart at `soknad-mottatt` skal behandle det?
+2. Hvilke konsumenter leser topicet, og er alle godkjent for å motta fødselsnummer?
+3. Skal `fnr` være obligatorisk i alle meldinger, og tåler eksisterende konsumenter at JSON-meldingen får et nytt felt?
+
+Repoet mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Du kan opprette dem med `nav-pilot init`.
+
+Blindsoner reist: 4/11 (#1, #2, #6 og #9 stilt; #3–#5, #7–#8 og #10–#11 ikke relevante eller avklart).
+
