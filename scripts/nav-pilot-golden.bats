@@ -612,25 +612,31 @@ run_suite() {
 
 @test "kafka preflight: gradle children get no-daemon opts, and a daemon left in the workdir is stopped" {
   make_bench_shim
-  # The fake gradle records what a child sees, and leaves a "daemon" behind in
-  # its cwd, as a real one would. The control (fails if the harness does
-  # neither) is the same shim run without the harness's env and trap.
+  # The fake gradle records what a child sees, and leaves a "daemon" behind the
+  # way a real one starts: argv without the workdir, cwd in the registry base.
   cat >"$SHIM/gradle" <<EOF
 #!/bin/bash
 echo "\$GRADLE_OPTS" >>"$SHIM/gradle-opts"
-(exec -a "GradleDaemon \$PWD" sleep 300) >/dev/null 2>&1 &
+base="\$(grep -o 'daemon.registry.base=[^ ]*' <<<"\$GRADLE_OPTS" | cut -d= -f2)"
+mkdir -p "\$base" && cd "\$base" && (exec -a "GradleDaemon 8.14.5" sleep 300) >/dev/null 2>&1 &
 echo \$! >>"$SHIM/daemon-pids"
 exit 0
 EOF
   chmod +x "$SHIM/gradle"
   PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite kafka --dry-run
   [ -s "$SHIM/gradle-opts" ]
-  ! grep -qv -- '-Dorg.gradle.daemon=false -Dkotlin.compiler.execution.strategy=in-process' "$SHIM/gradle-opts"
+  [ -s "$SHIM/daemon-pids" ]
+  while IFS= read -r opts; do
+    [[ "$opts" == *" -Dorg.gradle.daemon=false -Dorg.gradle.project.kotlin.compiler.execution.strategy=in-process "* ]]
+  done <"$SHIM/gradle-opts"
+  sleep 0.3
   while read -r pid; do ! kill -0 "$pid" 2>/dev/null; done <"$SHIM/daemon-pids"
 }
 
 @test "golden fixtures: every Gradle project sets daemon=false and in-process Kotlin" {
-  for p in $(find "$BATS_TEST_DIRNAME/golden-fixtures" -name settings.gradle.kts -exec dirname {} \;); do
+  dirs="$(find "$BATS_TEST_DIRNAME/golden-fixtures" -name settings.gradle.kts -exec dirname {} \;)"
+  [ -n "$dirs" ]
+  for p in $dirs; do
     grep -qx 'org.gradle.daemon=false' "$p/gradle.properties"
     grep -qx 'kotlin.compiler.execution.strategy=in-process' "$p/gradle.properties"
   done
