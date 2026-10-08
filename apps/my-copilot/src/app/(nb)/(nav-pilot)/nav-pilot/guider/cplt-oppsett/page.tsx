@@ -307,6 +307,12 @@ nav-pilot`}
               <code className={code}>plugins-artifacts.gradle.org</code> (Gradle-plugins)
             </li>
             <li>
+              <code className={code}>crates.io</code> og <code className={code}>static.crates.io</code> (Cargo)
+            </li>
+            <li>
+              <code className={code}>pypi.org</code> og <code className={code}>files.pythonhosted.org</code> (PyPI)
+            </li>
+            <li>
               <code className={code}>packages.confluent.io</code> og <code className={code}>jitpack.io</code>
             </li>
           </Bullets>
