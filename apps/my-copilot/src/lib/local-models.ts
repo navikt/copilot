@@ -8,15 +8,25 @@
  * rendered as text, never as HTML.
  */
 import fallback from "./local-models.json";
-import { CAPABILITIES_URL, MANIFEST_URL, buildTable, type LocalModelTable } from "./local-models-manifest";
+import {
+  CAPABILITIES_URL,
+  MANIFEST_URL,
+  REPORTS_URL,
+  buildReports,
+  buildTable,
+  type LocalModelTable,
+  type ReportIndex,
+} from "./local-models-manifest";
 
 export { MANIFEST_URL };
 
-export type { LocalModel, RejectedModel, ClassVerdict, Bar } from "./local-models-manifest";
+export type { LocalModel, RejectedModel, ClassVerdict, Bar, Report, ReportIndex } from "./local-models-manifest";
 
 const TIMEOUT_MS = 3000;
 
-export const FALLBACK_TABLE: LocalModelTable = fallback;
+const { reports: fallbackReports, ...fallbackTable } = fallback;
+export const FALLBACK_TABLE: LocalModelTable = fallbackTable;
+export const FALLBACK_REPORTS = fallbackReports as ReportIndex;
 
 /** One file from navikt/mlx-workspace, cached for an hour. Throws on timeout or a non-200 answer. */
 async function fetchJson(url: string): Promise<{ body: unknown; date: string | null }> {
@@ -40,5 +50,15 @@ export async function getLocalModels(): Promise<LocalModelTable & { fetchedAt: s
   } catch (err) {
     console.error(`[local-models] using the checked-in fallback, manifest unavailable: ${String(err)}`);
     return { ...FALLBACK_TABLE, fetchedAt: null };
+  }
+}
+
+/** The report index, fetched on its own so a bad reports.json never hides the model table. */
+export async function getLocalReports(): Promise<ReportIndex> {
+  try {
+    return buildReports((await fetchJson(REPORTS_URL)).body);
+  } catch (err) {
+    console.error(`[local-models] using the checked-in report index, reports.json unavailable: ${String(err)}`);
+    return FALLBACK_REPORTS;
   }
 }

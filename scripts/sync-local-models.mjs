@@ -3,7 +3,8 @@
  * Refreshes the fallback copy of the local-model table on ki-utvikling.nav.no.
  *
  * /nav-pilot/referanse and /nav-pilot/forklaring/lokal-modell fetch
- * navikt/mlx-workspace's manifest and capabilities.json at run time
+ * navikt/mlx-workspace's manifest and capabilities.json at run time, and
+ * /innsikt/lokale-modeller also fetches reports.json
  * (apps/my-copilot/src/lib/local-models.ts, revalidated hourly). When that fetch
  * fails or the manifest does not validate, it renders
  * apps/my-copilot/src/lib/local-models.json instead, which this script writes.
@@ -24,6 +25,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   CAPABILITIES_URL,
   MANIFEST_URL,
+  REPORTS_URL,
+  buildReports,
   buildTable,
 } from "../apps/my-copilot/src/lib/local-models-manifest.ts";
 
@@ -38,14 +41,17 @@ function render(table) {
 
 async function main() {
   const checkOnly = process.argv.includes("--check");
-  const [manifest, capabilities] = await Promise.all(
-    [MANIFEST_URL, CAPABILITIES_URL].map(async (url) => {
+  const [manifest, capabilities, reports] = await Promise.all(
+    [MANIFEST_URL, CAPABILITIES_URL, REPORTS_URL].map(async (url) => {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
       return res.json();
     }),
   );
-  const next = render(buildTable(manifest, capabilities));
+  const next = render({
+    ...buildTable(manifest, capabilities),
+    reports: buildReports(reports),
+  });
   const outPath = fileURLToPath(OUT_FILE);
 
   if (checkOnly) {

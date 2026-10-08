@@ -21,6 +21,7 @@
 const RAW = "https://raw.githubusercontent.com/navikt/mlx-workspace/main/manifest";
 export const MANIFEST_URL = `${RAW}/models.json`;
 export const CAPABILITIES_URL = `${RAW}/capabilities.json`;
+export const REPORTS_URL = `${RAW}/reports.json`;
 
 export type LocalModel = {
   id: string;
@@ -113,8 +114,11 @@ function projectBar(b: unknown): Bar | null {
     if (int ? !Number.isInteger(v) || v < 0 : v < 0 || v > 1) throw new Error(`bar.${n}=${v} is out of range`);
     return v;
   };
+  const confidence = f("confidence");
+  // The chart's Wilson z has a fixed lookup (local-model-charts.tsx zFor); any other value would be labelled but not computed.
+  if (confidence !== 0.9 && confidence !== 0.95) throw new Error(`bar.confidence=${confidence} is not 0.9 or 0.95`);
   return {
-    confidence: f("confidence"),
+    confidence,
     x_caught: f("x_caught"),
     x_silent: f("x_silent"),
     min_runs: f("min_runs", true),
@@ -205,4 +209,84 @@ export function buildTable(manifest: unknown, capabilities: unknown): LocalModel
   const defaults = models.filter((m) => m.default).length;
   if (defaults !== 1) throw new Error(`manifest has ${defaults} default models, want 1`);
   return { source: MANIFEST_URL, models, rejected: projectRejected(capabilities, manifest, models) };
+}
+
+/** A report verdict from the report's frontmatter; null when the report sets none. */
+export type ReportVerdict = "pass" | "fail" | "mixed" | "not-yet" | "none";
+
+/** One report in mlx-workspace's manifest/reports.json, only the fields the page shows. */
+export type Report = {
+  id: string;
+  title: string;
+  date: string;
+  url: string;
+  verdict: ReportVerdict | null;
+  headline: { k: number; n: number } | null;
+};
+
+/** One item from reports/UNMEASURED.md, Markdown stripped to plain text. */
+export type Unmeasured = { item: string; status: string };
+
+export type ReportIndex = { source: string; reports: Report[]; unmeasured: Unmeasured[] };
+
+const VERDICTS = new Set(["pass", "fail", "mixed", "not-yet", "none"]);
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** **bold**, `code` and [text](link) → plain text. The page renders it as text, never as HTML. */
+function plain(md: string): string {
+  return md
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*`]/g, "")
+    .trim();
+}
+
+function projectReport(r: unknown): Report {
+  if (!isPlainObject(r)) throw new Error("report is not an object");
+  const str = (f: string) => {
+    const v = r[f];
+    if (typeof v !== "string" || !v) throw new Error(`report ${String(r.id)} lacks ${f}`);
+    return v;
+  };
+  const [id, title, date, url] = ["id", "title", "date", "url"].map(str);
+  const t = Date.parse(`${date}T00:00:00Z`);
+  if (!ISO_DATE.test(date) || Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== date) {
+    throw new Error(`report ${id} has date ${JSON.stringify(date)}`);
+  }
+  // The page links every report, so only https links into the repo pass. Parsed, so `..` cannot climb out.
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    throw new Error(`report ${id} has an unparseable url`);
+  }
+  if (u.origin !== "https://github.com" || !u.pathname.startsWith("/navikt/mlx-workspace/")) {
+    throw new Error(`report ${id} links outside navikt/mlx-workspace`);
+  }
+  const v = r.verdict;
+  if (v !== undefined && (typeof v !== "string" || !VERDICTS.has(v))) {
+    throw new Error(`report ${id} has verdict ${JSON.stringify(v)}`);
+  }
+  let headline: Report["headline"] = null;
+  if (r.headline !== undefined) {
+    if (!isPlainObject(r.headline)) throw new Error(`report ${id} has a malformed headline`);
+    const k = count(r.headline, "k");
+    const n = count(r.headline, "n");
+    if (n === 0 || k > n) throw new Error(`report ${id} has headline ${k}/${n}`);
+    headline = { k, n };
+  }
+  return { id, title, date, url, verdict: (v as ReportVerdict | undefined) ?? null, headline };
+}
+
+/** Project manifest/reports.json (schema_version 1), newest first. Refuses another schema or an empty list. */
+export function buildReports(raw: unknown): ReportIndex {
+  if (!isPlainObject(raw) || raw.schema_version !== 1) throw new Error("reports.json is not schema_version 1");
+  if (!Array.isArray(raw.reports) || raw.reports.length === 0) throw new Error("reports.json lists no reports");
+  const reports = raw.reports.map(projectReport).sort((a, b) => b.date.localeCompare(a.date));
+  const unmeasured = (Array.isArray(raw.unmeasured) ? raw.unmeasured : []).map((u) => {
+    const item = isPlainObject(u) && typeof u.item === "string" ? plain(u.item) : "";
+    const status = isPlainObject(u) && typeof u.status === "string" ? plain(u.status) : "";
+    if (!item || !status) throw new Error("reports.json has an unmeasured row without item and status");
+    return { item, status };
+  });
+  return { source: REPORTS_URL, reports, unmeasured };
 }

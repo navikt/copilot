@@ -418,5 +418,398 @@
         }
       }
     }
-  ]
+  ],
+  "reports": {
+    "source": "https://raw.githubusercontent.com/navikt/mlx-workspace/main/manifest/reports.json",
+    "reports": [
+      {
+        "id": "2026-10-01-phase-c-rerun/report",
+        "title": "Phase C re-run: the 8-bit as a delegate worker",
+        "date": "2026-10-01",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-01-phase-c-rerun/report.md",
+        "verdict": "fail",
+        "headline": {
+          "k": 17,
+          "n": 19
+        }
+      },
+      {
+        "id": "2026-10-01-create-file-rerun/report",
+        "title": "create-file re-run with the sandbox fixed",
+        "date": "2026-10-01",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-01-create-file-rerun/report.md",
+        "verdict": "fail",
+        "headline": null
+      },
+      {
+        "id": "2026-09-30-emm8-delegate/report",
+        "title": "8-bit emm as a delegate, and r4 at n = 20",
+        "date": "2026-10-01",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-30-emm8-delegate/report.md",
+        "verdict": "not-yet",
+        "headline": {
+          "k": 13,
+          "n": 13
+        }
+      },
+      {
+        "id": "2026-09-29-kev-laya/report",
+        "title": "Kev 4B and Laya on the decide sets",
+        "date": "2026-09-29",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-29-kev-laya/report.md",
+        "verdict": "fail",
+        "headline": null
+      },
+      {
+        "id": "2026-09-28-frontier-harness-v2/night-v2-validate",
+        "title": "Frontier harness v2 validation",
+        "date": "2026-09-29",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-frontier-harness-v2/night-v2-validate.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-26-64gb-tier/night-64-6b",
+        "title": "Night 64-6: the 8-bit past 49k, and its capabilities",
+        "date": "2026-09-29",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-26-64gb-tier/night-64-6b.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-28-selective-rules/research",
+        "title": "Selective rule loading, per prompt and per file",
+        "date": "2026-09-28",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-selective-rules/research.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-28-orchestrator-and-penalty/presence-penalty-night",
+        "title": "presence_penalty 1.5 on the Qwen3.6 8-bit",
+        "date": "2026-09-28",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-orchestrator-and-penalty/presence-penalty-night.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-28-orchestrator-and-penalty/gpt6-sol",
+        "title": "GPT-6 Sol as the cloud orchestrator",
+        "date": "2026-09-28",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-orchestrator-and-penalty/gpt6-sol.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-28-local-endpoint-validation/report",
+        "title": "nav-pilot's own-endpoint path on real servers",
+        "date": "2026-09-28",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-28-local-endpoint-validation/report.md",
+        "verdict": "pass",
+        "headline": null
+      },
+      {
+        "id": "2026-09-27-linux-smoke/report",
+        "title": "Linux smoke test of the local endpoint path",
+        "date": "2026-09-28",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-27-linux-smoke/report.md",
+        "verdict": "pass",
+        "headline": null
+      },
+      {
+        "id": "2026-09-25-quality-frontier/night-followups-1",
+        "title": "Quality frontier, follow-ups 1",
+        "date": "2026-09-28",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-25-quality-frontier/night-followups-1.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-23-local-model-evaluation/pending-tasks",
+        "title": "Dispatch probes 1–6: does a cloud orchestrator hand work to the local worker?",
+        "date": "2026-09-28",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-23-local-model-evaluation/pending-tasks.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-27-qwen38-linux-ollama/research",
+        "title": "Qwen3.8's gap, Qwen news, and local inference on Linux",
+        "date": "2026-09-27",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-27-qwen38-linux-ollama/research.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-27-hybrid-orchestration-research/research",
+        "title": "Cloud + local orchestration: has anyone solved it?",
+        "date": "2026-09-27",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-27-hybrid-orchestration-research/research.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-27-hosted-decide-prd/prd",
+        "title": "PRD: hosted alpha decide",
+        "date": "2026-09-27",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-27-hosted-decide-prd/prd.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "bench/decide-layout-results",
+        "title": "Option order and yes/no consistency in alpha decide",
+        "date": "2026-09-26",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/bench/decide-layout-results.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-26-decide-as-a-service/research",
+        "title": "alpha decide as a service at NAV scale",
+        "date": "2026-09-26",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-26-decide-as-a-service/research.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-26-64gb-tier/plan",
+        "title": "The 64 GB tier: which local worker to benchmark, and how",
+        "date": "2026-09-26",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-26-64gb-tier/plan.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-25-quality-frontier/night-2",
+        "title": "Quality frontier, night 2: retry2 replication",
+        "date": "2026-09-26",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-25-quality-frontier/night-2.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-25-quality-frontier/night-1",
+        "title": "Quality frontier, night 1: results",
+        "date": "2026-09-26",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-25-quality-frontier/night-1.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-25-system-one/report",
+        "title": "System One: from the loop classifier to alpha decide",
+        "date": "2026-09-25",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-25-system-one/report.md",
+        "verdict": "mixed",
+        "headline": null
+      },
+      {
+        "id": "2026-09-25-social-research/research",
+        "title": "Posting about alpha decide internationally",
+        "date": "2026-09-25",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-25-social-research/research.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-25-quality-frontier/design",
+        "title": "Quality frontier: design",
+        "date": "2026-09-25",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-25-quality-frontier/design.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-25-benchmark-coverage/audit",
+        "title": "Benchmark coverage audit: gaps and duplicates",
+        "date": "2026-09-25",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-25-benchmark-coverage/audit.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-24-local-vs-cloud-routing/design",
+        "title": "When nav-pilot should use a local model",
+        "date": "2026-09-24",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-24-local-vs-cloud-routing/design.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-24-jev-like-features/research",
+        "title": "Jev-like \"System One\" features for nav-pilot",
+        "date": "2026-09-24",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-24-jev-like-features/research.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-24-copilot-mixed-mode/research",
+        "title": "Copilot CLI mixed mode: cloud main agent, local worker",
+        "date": "2026-09-24",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-24-copilot-mixed-mode/research.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-09-23-local-model-evaluation/decision",
+        "title": "Local models for nav-pilot: decision and action list",
+        "date": "2026-09-23",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-09-23-local-model-evaluation/decision.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "pre-ship-review-2026-08-31",
+        "title": "Adversarial pass before shipping",
+        "date": "2026-08-31",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/pre-ship-review-2026-08-31.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "night-results-2026-08-31",
+        "title": "Night results",
+        "date": "2026-08-31",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/night-results-2026-08-31.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "night-plan-2026-08-31",
+        "title": "Night plan",
+        "date": "2026-08-31",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/night-plan-2026-08-31.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "local-inference-findings",
+        "title": "Delegating coding work to a local model: a measurement study",
+        "date": "2026-08-30",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/local-inference-findings.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "alpha-model-decision",
+        "title": "Which model the nav-pilot alpha ships",
+        "date": "2026-08-28",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/alpha-model-decision.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "48gb-question",
+        "title": "The 48 GB question",
+        "date": "2026-08-27",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/48gb-question.md",
+        "verdict": null,
+        "headline": null
+      }
+    ],
+    "unmeasured": [
+      {
+        "item": "Kev 4B and Laya on our decide sets, Norwegian and injection included",
+        "status": "waiting on the uv 7-day cooldown (laya-mlx 0.2.0 published 2026-09-22 06:02 UTC); install then needs approval"
+      },
+      {
+        "item": "decide telemetry adoption (#961): devices, calls a day, caller split, latency, p_choice",
+        "status": "waiting on 2–4 weeks of data since 2026-09-25"
+      },
+      {
+        "item": "Hosted decide: vLLM against mlx logprob parity, a G4 load test in europe-north1, injection under FP8",
+        "status": "needs user decision (GCP budget and project)"
+      },
+      {
+        "item": "Decide volumes and owners: commits and PRs a day at NAV, one or two runtime flows with a named team",
+        "status": "needs user decision (who to ask)"
+      },
+      {
+        "item": "A working local coding session on CPU-only Linux: the RAM and context at which an opencode session through nav-pilot succeeds (Colima arm64 at 6 GB: Ollama cuts to 4k, llama-server at 32k is OOM-killed after a long prompt), and llama-server past doctor (decide, session) at -c 16384",
+        "status": "not built: needs a larger VM or a real machine; CPU probe time is navikt/copilot#1222"
+      },
+      {
+        "item": "Linux on real hardware: an 8 GB NVIDIA laptop and a CPU-only laptop through the endpoint path, x86_64 and x86_64 + NVIDIA (the Colima smoke test covers arm64 on CPU only, and no performance)",
+        "status": "needs hardware"
+      },
+      {
+        "item": "A real 48 GB Mac (Pro chip) and a real 64 GB Mac: speed and memory pressure with an IDE open, min_ram_gb enforcement",
+        "status": "needs hardware"
+      },
+      {
+        "item": "Qwen3.8-27B 8-bit at 52 GB wired (0.5 GB over the 48 fit line on 64-1), and the backlog's 64k and 131k fit rows",
+        "status": "needs user decision: sudo sysctl iogpu.wired_limit_mb=53248 for one night"
+      },
+      {
+        "item": "The delegate bar's cost rule (one cell below 1 is enough)",
+        "status": "needs user decision: keep the one-cell rule, or require the pooled ratio below 1, before any further emm runs"
+      },
+      {
+        "item": "Occamy at presence_penalty 1.5",
+        "status": "not queued. Qwen3.8's half was measured on 29–30 September: no effect (results §2, #122). The product path stays blocked: nav-pilot has no presence_penalty"
+      },
+      {
+        "item": "mlx-lm #1623 norm shift in the mlx-community Qwen3.8 builds",
+        "status": "not checked (desk: compare norm weights against the HF original)"
+      },
+      {
+        "item": "Laguna through nav-pilot",
+        "status": "waiting on nav-pilot's runtime: its mlx-lm 0.31.3 has no laguna"
+      },
+      {
+        "item": "Occamy shipping",
+        "status": "needs user decision: ALLOWED_ORGS (Accio-Lab), or a build in an allowed org"
+      },
+      {
+        "item": "Capabilities in the shipped manifest",
+        "status": "needs user decision; held until dispatch is shown to work"
+      },
+      {
+        "item": "retry2 as the default for edit-single dispatch",
+        "status": "replicated in the bench (10/16 → 16/16, p = 0.009), not measured in the product; create-file got its retry in navikt/copilot#1156"
+      },
+      {
+        "item": "create-file retry2 against design §7's time rule",
+        "status": "decided 2026-09-28: judged by seconds per verified result, so it passes; shipped for local create-file in navikt/copilot#1156. Open: design §7's wording"
+      },
+      {
+        "item": "read-qa: an ANSWER-line reminder on top of example",
+        "status": "not built: a new variant, so a harness_sha input, after harness v2"
+      },
+      {
+        "item": "GPT-6 Sol at balanced, and at n ≥ 5 per cell",
+        "status": "waiting on navikt/mlx-workspace#116 (9 of 25 sessions ended on a rejected read of nav-pilot's instructions; the nav-pilot side, navikt/copilot#1120, is fixed in navikt/copilot#1136); not in a queue yet"
+      },
+      {
+        "item": "Cheap-ops R1 and D2 fail for every model",
+        "status": "analysis, no GPU"
+      },
+      {
+        "item": "decide recipe examples: personal data in logs, incident cause, local/cloud routing",
+        "status": "parked; each needs a labelled set"
+      },
+      {
+        "item": "alpha decide log triage recipe",
+        "status": "not measured"
+      },
+      {
+        "item": "Selective rule loading: Copilot hook probes (userPromptSubmitted/userPromptTransformed/preToolUse additionalContext), a labelled prompts × rules set for alpha decide --eval, and frontier/cheap-ops arms (no rules, today, all inlined, fixed install, glob injection, decide)",
+        "status": "not built (labelled set and a rule-sensitive cheap-ops cell first); probes need no benchmark"
+      },
+      {
+        "item": "Rule recall after the install fix (navikt/copilot #1031, #1032): rule_load.py recall on sessions after the merge, same split by agent, model and workspace",
+        "status": "waiting on a week of golden and bench sessions after the merge (navikt/copilot#1031 and #1032 merged 2026-09-27)"
+      },
+      {
+        "item": "Redaction of secrets and fødselsnummer (#940)",
+        "status": "no benchmark exists"
+      },
+      {
+        "item": "DX UAT steps 4–5: the PR comment workflow and the weekly persona run",
+        "status": "not built"
+      }
+    ]
+  }
 }
