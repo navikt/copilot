@@ -880,3 +880,85 @@ EOF
   run python3 "${BATS_TEST_DIRNAME}/benchmark-matrix.py" "$M" --dry-run
   [[ "$output" == pending* ]]
 }
+
+# Delegation d1/d3/d4: the shim writes the debug-log lines and usage rows the
+# real client writes (format from #1477's logs, 1.0.94-3). DELEG picks the
+# canned world: the specialist ran, nothing was delegated, the wrong model ran,
+# or the log shows the specialist but the usage rows do not.
+make_deleg_shim() {
+  cat >"$SHIM/copilot" <<'EOF'
+#!/bin/bash
+if [[ "$1" == "--version" ]]; then echo "GitHub Copilot CLI 1.0.94-3."; exit 0; fi
+p="$2"; logdir=""; sid=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in --log-dir) logdir="$2" ;; --session-id) sid="$2" ;; esac
+  shift
+done
+[[ "$p" == *"svar kun med ordet OK"* ]] && { echo OK; exit 0; }
+models=(gpt-6-sol); sub=""
+case "$p" in
+  *"ny tjeneste"*) echo "Hvem kaller tjenesten? Hvilke data lagres? Hva skjer når PDL er nede?" ;;
+  *"svarene på spørsmålene"*) echo "Fase 2: plan for tjenesten. 🔴 Rød sone: tokenvalidering." ;;
+  *"Planen er godkjent"*) echo "## Fase 3: Review av planen, fire perspektiver"; sub=claude-opus-5.5 ;;
+  *rename*) echo "Renamet maksAntall til maksAntallOppgaver i tre filer."; [[ "$DELEG" == delegated ]] && sub=gpt-6-luna ;;
+  *VedtakDto*) [[ "$DELEG" == nowrite ]] || cp -R "$GF_D/controls/good/." .
+    echo "La til VedtakDto, tilDto og en test. Testene er grønne."; sub=gpt-6-luna ;;
+  *konfigurerbar*) echo "maksAntall brukes i Config.kt, Oppgave.kt og Routes.kt."; sub=gpt-6-luna ;;
+esac
+if [[ -n "$sub" ]]; then
+  case "$DELEG" in
+    delegated|logonly|nowrite) models+=("$sub") ;;
+    wrong) models+=(claude-sonnet-5.5) ;;
+  esac
+fi
+mkdir -p "$logdir"
+for m in "${models[@]}"; do
+  [[ "$m" != gpt-6-sol ]] && echo "2026-10-08T10:38:21Z [DEBUG] Sending telemetry event: cli.telemetry (kind: subagent_started)" >>"$logdir/process-1.log"
+  echo "2026-10-08T10:38:21Z [DEBUG] [rust:copilot_runtime::session::native_message_turn] turn tool surface resolved {\"model\":\"$m\",\"generic_path\":false}" >>"$logdir/process-1.log"
+  [[ "$DELEG" == logonly && "$m" != gpt-6-sol ]] && continue
+  python3 -c 'import sqlite3,sys; d=sqlite3.connect(sys.argv[1]); d.execute("INSERT INTO assistant_usage_events (session_id, model, total_nano_aiu) VALUES (?, ?, 1000000000)", sys.argv[2:]); d.commit()' "$NAV_PILOT_GOLDEN_USAGE_DB" "$sid" "$m"
+done
+EOF
+  chmod +x "$SHIM/copilot"
+  python3 -c 'import sqlite3,sys; sqlite3.connect(sys.argv[1]).execute("CREATE TABLE assistant_usage_events (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, turn_index INTEGER, model TEXT NOT NULL, reasoning_effort TEXT, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cache_write_tokens INTEGER, reasoning_tokens INTEGER, total_nano_aiu INTEGER, duration_ms INTEGER, time_to_first_token_ms INTEGER, finish_reason TEXT, agent_id TEXT, parent_tool_call_id TEXT)")' "$SHIM/usage.db"
+}
+
+run_deleg() {
+  rm -f "$SHIM/usage.db"
+  make_deleg_shim
+  GF_D="${BATS_TEST_DIRNAME}/golden-fixtures/delegation" DELEG="$1" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/usage.db" COPILOT_GITHUB_TOKEN=x PATH="$SHIM:$PATH" \
+    run /bin/bash "$SCRIPT" --suite delegation --only "${ONLY_D:-d1,d3,d4}" --save-baseline "$SHIM/b.txt"
+}
+
+@test "delegation d1/d3/d4: the right model passes; none, the wrong one, or log without usage rows fails" {
+  run_deleg delegated
+  [ "$status" -eq 1 ]   # d3 fails: the rename was delegated
+  grep -q '^d1|1|pass|.*log: gpt-6-sol 3,claude-opus-5.5 1; usage: claude-opus-5.5,gpt-6-sol; subagents started: 1' "$SHIM/b-results.psv"
+  grep -q '^d3|1|fail|.*log: gpt-6-sol 1,gpt-6-luna 1' "$SHIM/b-results.psv"
+  grep -q '^d4|1|pass|' "$SHIM/b-results.psv"
+  run_deleg none
+  [ "$status" -eq 1 ]
+  grep -q '^d1|1|fail|.*log: gpt-6-sol 3;' "$SHIM/b-results.psv"
+  grep -q '^d3|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^d4|1|fail|.*subagents started: 0' "$SHIM/b-results.psv"
+  run_deleg wrong
+  grep -q '^d1|1|fail|.*claude-sonnet-5.5' "$SHIM/b-results.psv"
+  grep -q '^d4|1|fail|.*claude-sonnet-5.5' "$SHIM/b-results.psv"
+  run_deleg logonly
+  grep -q '^d1|1|fail|.*claude-opus-5.5 1; usage: gpt-6-sol;' "$SHIM/b-results.psv"
+  grep -q '^d4|1|fail|.*gpt-6-luna 1; usage: gpt-6-sol;' "$SHIM/b-results.psv"
+}
+
+@test "delegation d2: a worker turn with green tests passes; no worker or no write fails" {
+  command -v gradle >/dev/null || skip "needs gradle"
+  export ONLY_D=d2
+  run_deleg delegated
+  [ "$status" -eq 0 ]
+  grep -q '^d2|1|pass|.*|log: gpt-6-sol 1,gpt-6-luna 1' "$SHIM/b-results.psv"
+  run_deleg none
+  [ "$status" -eq 1 ]
+  grep -q '^d2|1|fail|.*|no model other than gpt-6-sol' "$SHIM/b-results.psv"
+  run_deleg nowrite
+  [ "$status" -eq 1 ]
+  grep -q '^d2|1|fail|.*|nothing written; tests not green; no test calls tilDto' "$SHIM/b-results.psv"
+}

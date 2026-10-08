@@ -313,6 +313,9 @@ fail_preflight() {
 #   kafka     kafka        kf1-kf4    Kotlin consumer: idempotency and commit
 #                                     after processing; a backward-compatible field
 #   rust      rust         rs1-rs4    a borrow error; thiserror errors with tests
+#   delegation nav-pilot   d1-d4      which models ran, read from the client's
+#                                     debug log: Opus in Fase 3, a worker on a
+#                                     3-file feature, none on a rename, research
 GROUP=""
 if [[ -n "$SUITE" ]]; then
   $AGENT_SET && fail_preflight "--suite and --agent cannot be combined" \
@@ -325,7 +328,8 @@ if [[ -n "$SUITE" ]]; then
     research) AGENT="research";    GROUP="research" ;;
     kafka)    AGENT="kafka";       GROUP="kafka" ;;
     rust)     AGENT="rust";        GROUP="rust" ;;
-    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk, coding, research, kafka or rust." ;;
+    delegation) AGENT="nav-pilot"; GROUP="delegation"; ONLY="${ONLY:-d1,d2,d3,d4}" ;;
+    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk, coding, research, kafka, rust or delegation." ;;
   esac
 fi
 GROUP="${GROUP:-$AGENT}"
@@ -352,6 +356,7 @@ case "$GROUP" in
   research)      VALID_IDS="re1 re2 re3 re4" ;;
   kafka)         VALID_IDS="kf1 kf2 kf3 kf4" ;;
   rust)          VALID_IDS="rs1 rs2 rs3 rs4" ;;
+  delegation)    VALID_IDS="d1 d2 d3 d4" ;;
   security-champion) VALID_IDS="sc1 sc2 sc3" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
@@ -514,6 +519,26 @@ preflight_client() {
   fi
 }
 
+# --suite delegation: an empty COPILOT_HOME, so ~/.copilot/agents/ cannot
+# shadow the agents installed below. On the machine this was written on,
+# ~/.copilot/agents/security-champion.agent.md pins GPT-6 Sol, and d1 would
+# measure that pin instead of this checkout's Opus pin. The client then reads
+# no user config and no login, so the token comes from COPILOT_GITHUB_TOKEN or
+# `gh auth token`, and the session database lives in the scratch home (the
+# preflight probe below creates it). Same method as #1477.
+DELEG_HOME=""
+if [[ "$GROUP" == delegation && "$CLIENT" == copilot ]]; then
+  DELEG_HOME="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-home.XXXXXX")"
+  printf '{}\n' >"$DELEG_HOME/settings.json"
+  export COPILOT_HOME="$DELEG_HOME"
+  if [[ -z "${COPILOT_GITHUB_TOKEN:-}" ]] && ! $DRY_RUN; then
+    COPILOT_GITHUB_TOKEN="$(gh auth token 2>/dev/null)" || fail_preflight \
+      "--suite delegation runs with an empty COPILOT_HOME and needs a token" "Export COPILOT_GITHUB_TOKEN or log in with gh."
+    export COPILOT_GITHUB_TOKEN
+  fi
+  NAV_PILOT_GOLDEN_USAGE_DB="${NAV_PILOT_GOLDEN_USAGE_DB:-$DELEG_HOME/session-store.db}"
+fi
+
 $DRY_RUN || preflight_client
 
 if $JSON && ! command -v jq >/dev/null 2>&1; then
@@ -535,6 +560,11 @@ elif ! python3 "$USAGE_HELPER" cursor "$USAGE_DB" >/dev/null 2>&1; then
 else
   USAGE_TRACKING=true
 fi
+# d1-d4 cross-check the debug log against the usage rows; without rows half
+# of every check is missing.
+if [[ "$GROUP" == delegation ]] && ! $DRY_RUN && ! $USAGE_TRACKING; then
+  fail_preflight "--suite delegation needs usage rows: $USAGE_UNAVAILABLE" ""
+fi
 
 # ─── Throwaway workspace ─────────────────────────────────────────────────────
 # WORKDIR holds the harness's own files (transcripts, per-run rows) and the
@@ -554,8 +584,9 @@ WS="$WORKDIR/repo"
 cleanup() {
   if $KEEP; then
     echo "${DIM}transcripts kept in $WORKDIR${RESET}"
+    [[ -n "$DELEG_HOME" ]] && echo "${DIM}client home kept in $DELEG_HOME${RESET}"
   else
-    rm -rf "$WORKDIR"
+    rm -rf "$WORKDIR" ${DELEG_HOME:+"$DELEG_HOME"}
   fi
 }
 trap cleanup EXIT
@@ -589,6 +620,18 @@ fi
 [[ -e "$HOME/.copilot/agents/$LAUNCH_NAME.agent.md" ]] && fail_preflight \
   "$HOME/.copilot/agents/$LAUNCH_NAME.agent.md exists and would shadow the persona under test" \
   "Remove it; the harness installs the persona under that name."
+
+# --suite delegation measures whether the persona hands work to other agents,
+# so they have to be there. Every agent the persona can name is installed
+# byte-for-byte, pin included: the pin is what d1 and d4 look for. local-worker
+# is left out; it needs a local model this harness does not run. Every other
+# group still gets the one persona and nothing else.
+if [[ "$GROUP" == delegation ]]; then
+  for a in "$REPO_ROOT"/agents/*.agent.md; do
+    case "$(basename "$a")" in nav-pilot.agent.md|local-worker.agent.md) continue ;; esac
+    cp "$a" "$TEMPLATE/.github/agents/"
+  done
+fi
 
 # Instructions, laid out the way `nav-pilot install --repo` lays them out:
 # .github/instructions/<name>.instructions.md, byte-for-byte from the checkout.
@@ -1134,7 +1177,7 @@ eval_project() {
   cp -R "$1/$3/." "$dir/" && cp -R "$GF/$2/evaluator/$3/." "$dir/" || return 1
   rm -rf "$dir/build" "$dir/.gradle" "$dir/target"
   case "$2" in
-    kafka) (cd "$dir" && gradle -q test >/dev/null 2>&1) ;;
+    kafka|delegation) (cd "$dir" && gradle -q test >/dev/null 2>&1) ;;
     rust)  (cd "$dir" && CARGO_TARGET_DIR="$WORKDIR/cargo-target-$3" cargo test -q >/dev/null 2>&1) ;;
   esac
   rc=$?
@@ -1185,6 +1228,25 @@ if [[ "$GROUP" == "kafka" || "$GROUP" == "rust" ]]; then
   for t in $checks; do
     ! "$t" "$TEMPLATE" || fail_preflight "control: the pristine fixture already passes $t" "Plant the bug again."
   done
+fi
+
+# d2's fixture: a small Kotlin module beside the nav-pilot template, which d3
+# and d4 still need. The same controls as kafka: the known feature passes the
+# evaluator's test, the pristine module does not.
+d2_tests() { eval_project "$1" delegation vedtak-api; }
+if [[ "$GROUP" == delegation ]]; then
+  cp -R "$GF/delegation/workspace/." "$TEMPLATE/"
+  if [[ -z "$ONLY" || ",$ONLY," == *,d2,* ]] && ! $DRY_RUN; then
+    command -v gradle >/dev/null 2>&1 || fail_preflight "d2 needs gradle (and JDK 21) on PATH" "Or run --only d1,d3,d4."
+    JAVA_HOME="${NAV_PILOT_JAVA_HOME:-$(mise where java@21 2>/dev/null || echo "${JAVA_HOME:-}")}"
+    export JAVA_HOME
+    rm -rf "$WORKDIR/control"
+    cp -R "$TEMPLATE" "$WORKDIR/control"
+    cp -R "$GF/delegation/controls/good/." "$WORKDIR/control/"
+    d2_tests "$WORKDIR/control" || fail_preflight "control: d2's tests fail even with the known feature" "Check gradle/JDK 21."
+    rm -rf "$WORKDIR/control"
+    ! d2_tests "$TEMPLATE" || fail_preflight "control: the pristine d2 fixture already passes" "The evaluator test cannot fail."
+  fi
 fi
 
 # Fixture identity, for the --compare compatibility check below. The sizes this
@@ -1388,7 +1450,13 @@ run_prompt() {
     args+=("$prompt")
   else
     [[ -n "${PROMPT_COMMAND:-}" ]] && prompt="/$PROMPT_COMMAND $prompt"
-    args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
+    # Only the delegation group logs: it reads which models ran from the
+    # debug log. Every other group keeps --log-level none, unchanged.
+    if [[ "$GROUP" == delegation ]]; then
+      args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level debug --log-dir "${out%.txt}.logs")
+    else
+      args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
+    fi
     [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
     [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
     [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
@@ -3793,6 +3861,124 @@ run_pass_research() {
   fi
 }
 
+# ─── delegation suite: which models ran (d1-d4) ─────────────────────────────
+# The transcript cannot answer this. The CLI's own «(model: …)» label named a
+# model that never ran when an override fell back (#1477, D1-D2), so the model
+# is read from the client's debug log: one `turn tool surface resolved
+# {"model":"…"}` line per model turn, subagent turns included. Each check then
+# looks for the same model in the exact usage rows, which carry an agent_id for
+# subagent turns. The two sources come from different parts of the client.
+
+# models_in_run <slug>...: "<model> <turns>" per model, first model first.
+models_in_run() {
+  local s
+  for s in "$@"; do
+    [[ -d "$(tx "$s" | sed 's/\.txt$/.logs/')" ]] || continue
+    grep -rhoE 'turn tool surface resolved \{"model":"[^"]*"' "$(tx "$s" | sed 's/\.txt$/.logs/')"
+  done | sed 's/.*"model":"//; s/"$//' | awk '{ if (!($0 in n)) o[++k] = $0; n[$0]++ } END { for (i = 1; i <= k; i++) print o[i], n[o[i]] }'
+}
+# usage_models <slug>...: distinct models in this run's usage rows.
+usage_models() {
+  local s
+  for s in "$@"; do awk -F'|' -v s="$s" -v r="$RUN" '$1 == s && $2 == r { print $6 }' "$USAGE_FILE"; done | sort -u
+}
+subagents_started() {
+  local s
+  for s in "$@"; do
+    grep -rh 'kind: subagent_started' "$(tx "$s" | sed 's/\.txt$/.logs/')" 2>/dev/null
+  done | wc -l | tr -d ' '
+}
+# deleg_detail <slug>...: what every d-row records, pass or fail.
+deleg_detail() {
+  local s labels
+  labels="$(for s in "$@"; do grep -ohE '● [A-Za-z0-9_-]+ \(model: [^)]*\)' "$(tx "$s")" 2>/dev/null; done | sed 's/^● //' | sort -u | tr '\n' ';')"
+  printf 'log: %s; usage: %s; subagents started: %s; labels: %s' \
+    "$(models_in_run "$@" | tr '\n' ',' | sed 's/,$//')" \
+    "$(usage_models "$@" | tr '\n' ',' | sed 's/,$//')" \
+    "$(subagents_started "$@")" "${labels:-none}"
+}
+# ran_model <model> <slug>...: a turn on <model> in the debug log AND the usage rows.
+ran_model() {
+  local m="$1"; shift
+  models_in_run "$@" | grep -q "^$m " && usage_models "$@" | grep -qx "$m"
+}
+
+D1_GO='Takk. Planen er godkjent, gå videre til neste fase.'
+D2_PROMPT='Legg til en VedtakDto i vedtak-api med feltene vedtakId (String), belop (Int) og fattet (String, datoen i ISO-format), i den rekkefølgen. Lag en mapper fun Vedtak.tilDto() og en enhetstest for mapperen. Kjør testene med gradle til slutt.'
+D4_PROMPT='Hvordan henger konfigurasjonen, rutene og domenemodellen sammen i dette repoet? Finn hvor maksAntall brukes, og hva som må endres for å gjøre grensen konfigurerbar per miljø.'
+
+run_pass_delegation() {
+  local ok why d s
+
+  # d1: a Full-tier task taken to Fase 3, where the persona's security review
+  # should go to @security-champion-agent, pinned to Claude Opus 5.5. The first
+  # two turns are test 4's; the third approves the plan.
+  if selected d1; then
+    d="Fase 3 runs a claude-opus-5.5 turn (security-champion)"
+    s="$(new_session_id)"
+    if [[ -z "$s" ]]; then
+      LAST_PROMPT_FAILURE=""; record_error d1 "$d" "could not generate a session id"
+    elif ! run_prompt d1a "ny tjeneste som leser fnr fra ID-porten" "$s"; then
+      record_error d1 "$d" "turn 1: $LAST_PROMPT_DETAIL"
+    elif ! run_prompt d1b "$T4_ANSWERS" "$s"; then
+      record_error d1 "$d" "turn 2: $LAST_PROMPT_DETAIL"
+    elif ! run_prompt d1c "$D1_GO" "$s"; then
+      record_error d1 "$d" "turn 3: $LAST_PROMPT_DETAIL"
+    elif ! cat "$(svar "$(tx d1b)")" "$(svar "$(tx d1c)")" | grep -qiE 'Fase[[:space:]]*3'; then
+      record_error d1 "$d" "Fase 3 was never reached in turns 2-3; $(deleg_detail d1a d1b d1c)"
+    else
+      ok=1; ran_model claude-opus-5.5 d1a d1b d1c && ok=0
+      record d1 "$d" "$ok" "$(deleg_detail d1a d1b d1c)"
+    fi
+  fi
+
+  # d2: a Compressed 3-file feature. Pass needs a model other than the
+  # parent's (the first model in the log) to have taken a turn, the workspace
+  # written, and the evaluator's test plus the agent's own green.
+  if selected d2; then
+    d="3-file feature: a worker model takes a turn, tests green"
+    if ! run_prompt d2 "$D2_PROMPT"; then
+      record_error d2 "$d" "$LAST_PROMPT_DETAIL"
+    else
+      ok=0; why=""
+      local parent
+      parent="$(models_in_run d2 | head -1 | cut -d' ' -f1)"
+      if ! models_in_run d2 | cut -d' ' -f1 | grep -vqx "${parent:-none}"; then
+        ok=1; why="no model other than ${parent:-none} in the debug log"
+      elif ! usage_models d2 | grep -vqx "$parent"; then
+        ok=1; why="the debug log shows a worker model, the usage rows do not"
+      fi
+      ws_wrote || { ok=1; why="${why:+$why; }nothing written"; }
+      d2_tests "$WS" || { ok=1; why="${why:+$why; }tests not green"; }
+      grep -rqs 'tilDto' "$WS/vedtak-api/src/test" || { ok=1; why="${why:+$why; }no test calls tilDto"; }
+      record d2 "$d" "$ok" "${why:+$why; }$(deleg_detail d2)"
+    fi
+  fi
+
+  # d3: test 6's rename. Nothing here is worth a second model.
+  if selected d3; then
+    d="routine rename: one model, no delegation"
+    if ! run_prompt d3 "rename variabelen maksAntall i tre filer"; then
+      record_error d3 "$d" "$LAST_PROMPT_DETAIL"
+    else
+      ok=1; [[ "$(models_in_run d3 | wc -l | tr -d ' ')" -eq 1 && "$(usage_models d3 | wc -l | tr -d ' ')" -le 1 ]] && ok=0
+      record d3 "$d" "$ok" "$(deleg_detail d3)"
+    fi
+  fi
+
+  # d4: a repo question, which the persona says goes to @research-agent first
+  # (pinned to GPT-6 Luna).
+  if selected d4; then
+    d="repo research runs a gpt-6-luna turn (research-agent)"
+    if ! run_prompt d4 "$D4_PROMPT"; then
+      record_error d4 "$d" "$LAST_PROMPT_DETAIL"
+    else
+      ok=1; ran_model gpt-6-luna d4 && ok=0
+      record d4 "$d" "$ok" "$(deleg_detail d4)"
+    fi
+  fi
+}
+
 run_pass() {
   case "$GROUP" in
     nav-pilot)     run_pass_nav_pilot ;;
@@ -3803,6 +3989,7 @@ run_pass() {
     research)      run_pass_research ;;
     kafka|rust)    run_pass_"$GROUP" ;;
     security-champion) run_pass_security_champion ;;
+    delegation)    run_pass_delegation ;;
   esac
 }
 

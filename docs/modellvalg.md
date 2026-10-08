@@ -755,6 +755,34 @@ Fremgangen for Luna siden 7. oktober kom fra vurderingen, ikke fra modellen. Med
 
 Modellen til `@nav-pilot` er i praksis modellen for hele delegeringstreet. Pinner gjelder bare på toppnivå (se [Pinnen gjelder bare på toppnivå](#pinnen-gjelder-bare-på-toppnivå)), og overstyringen med `subagents` er ikke tatt i bruk ([#500](https://github.com/navikt/copilot/issues/500)). Med Luna som standard ville delegert kodegjennomgang og sikkerhetsvurdering også kjøre på Luna. Luna besto rv5 i 1 til 4 av 10 kjøringer 7. oktober, avhengig av tellemåte, og `@security-champion` er ikke målt på Luna. Arvingen ble målt på Copilot CLI 1.0.83-4 og må måles på nytt med dagens CLI før noen beslutning. Kvaliteten på planen i fase 2 er ikke målt utover t4 og t5. Målingen endrer ingen pinne.
 
+## Delegering fra @nav-pilot: grunnmåling (8. oktober 2026)
+
+Eieren har godkjent å gjøre `@nav-pilot` til en koordinator som sender arbeid videre til andre agenter. Dette er steg 1: et testoppsett som måler hvilke modeller som faktisk kjører, og en grunnmåling av dagens persona. `agents/nav-pilot.agent.md` er ikke endret.
+
+### Kriteriene ble satt før målingen
+
+Testoppsettet er `./scripts/nav-pilot-golden.sh --suite delegation`. Det installerer alle agentene personaen kan nevne (unntatt `local-worker`, som trenger en lokal modell) med pinnene sine, og kjører klienten med en tom `COPILOT_HOME`, slik at agenter i `~/.copilot/agents/` ikke kan skygge for dem. Modellen leses fra klientens debuglogg, linja `turn tool surface resolved {"model":...}`, og sjekkes mot modellkolonnen i bruksradene. Etiketten `(model: ...)` i CLI-en teller ikke, fordi den kan vise en modell som aldri kjørte ([#1477](https://github.com/navikt/copilot/pull/1477)).
+
+| Test | Oppgave | Består når |
+| ---- | ------- | ---------- |
+| d1 | Full-oppgave tatt til fase 3: test 4s to turer, og en tredje som godkjenner planen | En tur på `claude-opus-5.5` (`@security-champion-agent`) står i både debugloggen og bruksradene. Nås ikke fase 3, er testen ikke evaluert |
+| d2 | Komprimert oppgave i en liten Kotlin-modul: DTO, mapper og test | En annen modell enn forelderens har en tur (agent og modell skrives ned), arbeidsområdet er endret, og testene er grønne |
+| d3 | Samme omdøping som t6 | Bare én modell i debugloggen, altså ingen delegering |
+| d4 | Et spørsmål om hvordan repoet henger sammen | En tur på `gpt-6-luna` (`@research-agent`) står i både debugloggen og bruksradene |
+
+Hver sjekk har en kontroll i `scripts/nav-pilot-golden.bats` med ferdige debuglogger og bruksrader: delegert, ikke delegert, feil modell, og modell i loggen uten bruksrad. Kontrollene feiler der de skal.
+
+**Forventet utfall.** Grunnmålingen kjøres med GPT-6 Sol Low, dagens standard, fem kjøringer per test. Vi venter at dagens persona feiler d1, d2 og d4 og består d3. Grunnmålingen endrer ingen pinne og ingen persona.
+
+**Mål for steg 3** (endringen av personaen), satt nå:
+
+- d1–d4 består 5 av 5.
+- t2–t5 er minst like gode som GPT-6 Sol i batch 4: t2 5/5, t3 5/5, t4 4/5, t5 5/5.
+- Planleggingen koster høyst 27,2 credits i median, som i batch 4.
+- d2 koster høyst halvparten av d2 i grunnmålingen.
+
+Budsjettet for grunnmålingen er om lag 150 credits, med stopp ved 200.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
