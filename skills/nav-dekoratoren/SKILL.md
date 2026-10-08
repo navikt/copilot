@@ -8,53 +8,53 @@ metadata:
   tags: nav dekoratoren header footer integration ssr analytics consent
 ---
 
-# Nav Dekoratøren – integrasjon
+# Nav Dekoratøren – integration
 
-Dekoratøren er felles header og footer for eksternt rettede nav.no-applikasjoner. Den tilbyr
-SSR/CSR-integrasjon, innloggingsknapper via ID-porten, analytics (Umami) og håndtering av samtykke
-og cookies etter ekomloven. Dekoratøren gir ikke appen tilgang til brukerens innlogging. Sett opp
-autentisering og tilgangskontroll i appen selv.
+Dekoratøren is the shared header and footer for public-facing nav.no applications. It provides
+SSR/CSR integration, login buttons via ID-porten, analytics (Umami) and consent and cookie handling
+under the Norwegian Electronic Communications Act (ekomloven). Dekoratøren does not give the app
+access to the user's login session. Set up authentication and access control in the app itself.
 
 **Slack:** `#dekoratøren_på_navno`
 **Repo:** https://github.com/navikt/nav-dekoratoren
-**Dokumentasjon:** https://github.com/navikt/nav-dekoratoren/blob/main/README.md
-**Moduler-pakke:** https://github.com/navikt/nav-dekoratoren-moduler
+**Documentation:** https://github.com/navikt/nav-dekoratoren/blob/main/README.md
+**Modules package:** https://github.com/navikt/nav-dekoratoren-moduler
 **Storybook:** https://navikt.github.io/nav-dekoratoren
 
 ---
 
-## Steg 1: Kartlegg hva teamet trenger
+## Step 1: Find out what the team needs
 
-Start med å inspisere repoet hvis du har tilgang til koden. Se etter:
+If you have access to the code, start by inspecting the repository. Look for:
 
-1. **Formål** – bruker appen allerede Dekoratøren, eller skal den integreres for første gang?
-2. **Rammeverk** – Next.js `app/` (App Router), Next.js `pages/` (Page Router), Remix / React Router
-   framework mode, Vite SPA / React Router library mode, eller ren Node/Express.
-3. **Miljø** – `prod`, `dev`, `localhost`, eksisterende `nais.yaml`, og om service discovery kan
-   brukes.
-4. **Behov** – breadcrumbs, språkvelger, analytics, chatbot, samtykke/cookies, CSP og skip-lenke.
+1. **Purpose** – does the app already use Dekoratøren, or is this a first integration?
+2. **Framework** – Next.js `app/` (App Router), Next.js `pages/` (Page Router), Remix / React Router
+   framework mode, Vite SPA / React Router library mode, or plain Node/Express.
+3. **Environment** – `prod`, `dev`, `localhost`, an existing `nais.yaml`, and whether service
+   discovery is available.
+4. **Needs** – breadcrumbs, language selector, analytics, chatbot, consent/cookies, CSP and skip link.
 
-Spør bare om det du ikke kan finne i repoet eller som krever et produktvalg. Bruk deretter steg 2–7
-og relevante referanser. Bruker appen allerede Dekoratøren, og teamet vil sjekke oppsettet eller
-feilsøke, gå til [Revisjon av eksisterende integrasjon](references/audit.md).
+Only ask about what you cannot find in the repository or what requires a product decision. Then
+follow steps 2–7 and the relevant references. If the app already uses Dekoratøren and the team wants
+to check the setup or troubleshoot, go to [Auditing an existing integration](references/audit.md).
 
 ---
 
-## Steg 2: Installasjon og oppsett
+## Step 2: Installation and setup
 
-### 2.1 Installer moduler-pakken
+### 2.1 Install the modules package
 
 ```bash
 npm install --save @navikt/nav-dekoratoren-moduler
 ```
 
-Pakken publiseres kun på **GitHub Packages**. Legg til i `.npmrc`:
+The package is published only on **GitHub Packages**. Add to `.npmrc`:
 
 ```text
 @navikt:registry=https://npm.pkg.github.com
 ```
 
-Logg inn med en PAT med `read:packages`-scope og navikt SSO-autorisasjon:
+Log in with a PAT that has the `read:packages` scope and navikt SSO authorization:
 
 ```bash
 npm login --registry=https://npm.pkg.github.com --auth-type=legacy
@@ -72,9 +72,9 @@ npm login --registry=https://npm.pkg.github.com --auth-type=legacy
       NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
 ```
 
-### 2.3 Access policy i nais.yaml
+### 2.3 Access policy in nais.yaml
 
-Ved service discovery (anbefalt – brukes automatisk på dev-gcp/prod-gcp):
+With service discovery (recommended, used automatically on dev-gcp/prod-gcp):
 
 ```yaml
 accessPolicy:
@@ -84,7 +84,7 @@ accessPolicy:
               namespace: personbruker
 ```
 
-Ved eksterne ingresser (hvis `serviceDiscovery: false`):
+With external ingresses (if `serviceDiscovery: false`):
 
 ```yaml
 accessPolicy:
@@ -96,22 +96,22 @@ accessPolicy:
 
 ---
 
-## Steg 3: SSR-integrasjon (anbefalt)
+## Step 3: SSR integration (recommended)
 
-Server-side rendering gir best ytelse og unngår layout shift.
-Se [SSR-FUNCTIONS.md](references/ssr-functions.md) for fullstendige API-detaljer.
-Moduler-pakken prøver å hente dekoratøren tre ganger før den viser statiske plassholdere som
-rendres på klienten. Ved SSR på Nais setter pakken `teamName` automatisk til
-`NAIS_APP_NAME.NAIS_NAMESPACE` for konsumentlogging. Variablene leses når dekoratøren hentes, så
-de finnes bare i runtime på Nais, ikke i byggesteget. Uten dem varsler pakken én gang og bruker en
-eventuell manuelt satt `params.teamName`. Se
-[konsumentlogging](https://github.com/navikt/nav-dekoratoren/blob/main/README.md#10-innebygde-funksjoner-i-dekorat%C3%B8ren)
-ved direkte SSR-kall eller CSR.
+Server-side rendering gives the best performance and avoids layout shift.
+See [SSR-FUNCTIONS.md](references/ssr-functions.md) for full API details.
+The modules package tries to fetch Dekoratøren three times before it falls back to static
+placeholders rendered on the client. With SSR on Nais, the package sets `teamName` to
+`NAIS_APP_NAME.NAIS_NAMESPACE` automatically for consumer logging. The variables are read when
+Dekoratøren is fetched, so they exist only at runtime on Nais, not in the build step. Without them
+the package warns once and uses `params.teamName` if you set it manually. See
+[consumer logging](https://github.com/navikt/nav-dekoratoren/blob/main/README.md#10-innebygde-funksjoner-i-dekorat%C3%B8ren)
+for direct SSR calls or CSR.
 
 ### 3.1 Next.js App Router
 
-Bruk dette for nye Next.js-apper og apper som allerede har `app/`. Root layout kan være async og
-hente dekoratøren direkte.
+Use this for new Next.js apps and apps that already have `app/`. The root layout can be async and
+fetch Dekoratøren directly.
 
 ```tsx
 // app/layout.tsx
@@ -151,9 +151,9 @@ export default async function RootLayout({
 
 ### 3.2 Next.js Page Router
 
-Bruk dette bare for eksisterende Next.js-apper med `pages/`. I Page Router må dekoratøren hentes i
-`pages/_document.tsx`, fordi `_document` eier `<html>`, `<head>` og den server-renderede
-HTML-shellen.
+Use this only for existing Next.js apps with `pages/`. In the Page Router, Dekoratøren must be
+fetched in `pages/_document.tsx`, because `_document` owns `<html>`, `<head>` and the
+server-rendered HTML shell.
 
 ```tsx
 // pages/_document.tsx
@@ -213,7 +213,7 @@ class MyDocument extends Document<MyDocumentProps> {
 export default MyDocument;
 ```
 
-### 3.3 Express/Node (HTML-fragmenter)
+### 3.3 Express/Node (HTML fragments)
 
 ```ts
 import { fetchDecoratorHtml } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -229,34 +229,36 @@ const {
 });
 ```
 
-Ved direkte kall uten moduler-pakken: send `teamName` som query-parameter på `/ssr`, for eksempel
-`https://www.nav.no/dekoratoren/ssr?teamName=team-navno.navno`. Med service discovery er adressen
-`http://nav-dekoratoren.personbruker/ssr?teamName=team-navno.navno`, uten `/dekoratoren` foran
-`/ssr`. `teamName` må være på formen `teamnavn.namespace`: små bokstaver, minst ett punktum og
-bare `a-z`, `0-9`, `-` og `.`. `origin` brukes til analytics og erstatter ikke `teamName`.
+For direct calls without the modules package, send `teamName` as a query parameter on `/ssr`, for
+example `https://www.nav.no/dekoratoren/ssr?teamName=team-navno.navno`. With service discovery the
+address is `http://nav-dekoratoren.personbruker/ssr?teamName=team-navno.navno`, without
+`/dekoratoren` before `/ssr`. `teamName` must have the form `teamnavn.namespace`: lowercase, at
+least one dot, and only `a-z`, `0-9`, `-` and `.`. `origin` is used for analytics and does not
+replace `teamName`.
 
-### 3.4 Unngå statisk generering av sider med dekoratøren
+### 3.4 Avoid static generation of pages with Dekoratøren
 
-Dekoratøren må hentes i runtime, per request eller fra moduler-pakkens cache. Hvis Next.js bygger
-siden som statisk HTML, fryses dekoratørens HTML, CSS og versjons-ID fra byggetidspunktet. Etter
-neste deploy av Dekoratøren blander siden gammel CSS med ny HTML fra blant annet `/auth`, og for
-eksempel innlogget-menyen kan se feil ut. En ny bygg av appen retter det midlertidig.
-`teamName` mangler også: moduler-pakken leser `NAIS_APP_NAME` og `NAIS_NAMESPACE` når
-dekoratøren hentes, og de finnes bare i poden på Nais, ikke i byggesteget (for eksempel GitHub
-Actions eller Docker build). Når siden rendres per request, for eksempel med `getServerSideProps`,
-kjøres `_document` i poden, og `teamName` settes automatisk.
+Dekoratøren must be fetched at runtime, per request or from the modules package cache. If Next.js
+builds the page as static HTML, Dekoratøren's HTML, CSS and version ID are frozen at build time.
+After the next Dekoratøren deploy, the page mixes old CSS with new HTML from `/auth` and other
+endpoints, and the logged-in menu, for example, can render incorrectly. Rebuilding the app fixes it
+until the next deploy.
+`teamName` is also missing: the modules package reads `NAIS_APP_NAME` and `NAIS_NAMESPACE` when
+Dekoratøren is fetched, and they exist only in the pod on Nais, not in the build step (for example
+GitHub Actions or Docker build). When the page is rendered per request, for example with
+`getServerSideProps`, `_document` runs in the pod and `teamName` is set automatically.
 
-Når du inspiserer et repo, se etter dette:
+When you inspect a repository, look for:
 
-- **Page Router:** `_document` kjøres også for statisk genererte sider. Det gjelder sider med
-  `getStaticProps` og sider uten datahenting (Automatic Static Optimization). Bytt
-  `getStaticProps` med `getServerSideProps`. Sider uten datahenting kan gjøres dynamiske med
-  `getServerSideProps` hver for seg, eller for hele appen med `getInitialProps` i
-  `pages/_app.tsx`. Det siste gjelder ikke sider med `getStaticProps`. `next build` markerer statiske sider med `○` eller `●` og
-  dynamiske med `ƒ`.
-- **App Router:** ruter uten dynamiske API-er forhåndsrendres i byggesteget. Gjør root layout
-  dynamisk med `export const dynamic = "force-dynamic";`, eller kall `await connection()` fra
-  `next/server` før `fetchDecoratorReact`.
+- **Page Router:** `_document` also runs for statically generated pages. That covers pages with
+  `getStaticProps` and pages without data fetching (Automatic Static Optimization). Replace
+  `getStaticProps` with `getServerSideProps`. Pages without data fetching can be made dynamic one by
+  one with `getServerSideProps`, or for the whole app with `getInitialProps` in `pages/_app.tsx`.
+  The latter does not apply to pages with `getStaticProps`. `next build` marks static pages with
+  `○` or `●` and dynamic pages with `ƒ`.
+- **App Router:** routes without dynamic APIs are prerendered in the build step. Make the root
+  layout dynamic with `export const dynamic = "force-dynamic";`, or call `await connection()` from
+  `next/server` before `fetchDecoratorReact`.
 
 ```ts
 // pages/minside.tsx (Page Router)
@@ -265,11 +267,11 @@ export async function getServerSideProps({ locale }: GetServerSidePropsContext) 
 }
 ```
 
-Kan appen ikke gjøres dynamisk ennå, sett `teamName` manuelt i `params` (for eksempel
-`teamName: "min-app.mitt-namespace"`) slik at forespørslene i det minste kan spores. Det retter
-ikke versjonsproblemet.
+If the app cannot be made dynamic yet, set `teamName` manually in `params` (for example
+`teamName: "min-app.mitt-namespace"`) so the requests can at least be traced. This does not fix the
+version problem.
 
-### 3.5 Cache-invalidering
+### 3.5 Cache invalidation
 
 ```ts
 import { addDecoratorUpdateListener } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -282,11 +284,11 @@ addDecoratorUpdateListener({ env: "prod" }, (versionId) => {
 
 ---
 
-## Steg 4: Konfigurasjon
+## Step 4: Configuration
 
-Se [PARAMS.md](references/params.md) for alle parametre med type og standardverdi.
+See [PARAMS.md](references/params.md) for every parameter with type and default value.
 
-De viktigste:
+The most important:
 
 | Parameter            | Type                                                  | Default        |
 | -------------------- | ----------------------------------------------------- | -------------- |
@@ -301,29 +303,29 @@ De viktigste:
 | `feedback`           | `boolean`                                             | `false`        |
 | `origin`             | `string`                                              | `undefined`    |
 
-`language` kan settes til alle språkene i tabellen, men tekst i Dekoratørens eget grensesnitt
-finnes bare på bokmål, engelsk og delvis samisk. URL-er med `/no/`, `/nb/`, `/nn/`, `/en/` eller
-`/se/` kan overstyre `language`. URL-ene i `breadcrumbs` og `availableLanguages` må ligge på
-`nav.no` eller et underdomene; ellers svarer Dekoratøren med 500.
+`language` accepts every language in the table, but text in Dekoratøren's own interface exists
+only in Norwegian Bokmål, English and partly Northern Sami. URLs containing `/no/`, `/nb/`, `/nn/`,
+`/en/` or `/se/` can override `language`. URLs in `breadcrumbs` and `availableLanguages` must be on
+`nav.no` or a subdomain; otherwise Dekoratøren responds with 500.
 
-Bruk `redirectToUrl` eller `redirectToUrlLogout` for returadresse etter henholdsvis innlogging
-og utlogging. Begge avviser URL-er utenfor `nav.no` og underdomener. Ikke forveksle dem med
-`logoutUrl`: den overlater *hele* utloggingen, inkludert sletting av cookies og økter, til appen.
-Hvis du slår av `logoutWarning`, må appen selv gi brukeren mulighet til å utsette utlogging.
-Se [alle parametrene](references/params.md).
+Use `redirectToUrl` or `redirectToUrlLogout` for the return address after login and logout
+respectively. Both reject URLs outside `nav.no` and its subdomains. Do not confuse them with
+`logoutUrl`: it hands *all* of logout, including deleting cookies and sessions, to the app.
+If you turn off `logoutWarning`, the app must let the user postpone logout itself.
+See [all parameters](references/params.md).
 
 ---
 
-## Steg 5: Klient-side funksjonalitet
+## Step 5: Client-side features
 
-Se [CLIENT-FUNCTIONS.md](references/client-functions.md) for fullstendige eksempler.
+See [CLIENT-FUNCTIONS.md](references/client-functions.md) for complete examples.
 
 ### 5.1 Breadcrumbs
 
-Bruk `handleInApp: true` når appen selv skal håndtere navigasjonen. Bytt `navigateTo` med
-rammeverkets router, for eksempel `router.push` i Next.js eller `navigate` fra React Router.
-`title` logges som `[redacted]` til Umami. Sett `analyticsTitle` bare til tekst uten
-personopplysninger hvis du vil logge en tittel.
+Use `handleInApp: true` when the app handles navigation itself. Replace `navigateTo` with the
+framework's router, for example `router.push` in Next.js or `navigate` from React Router.
+`title` is logged to Umami as `[redacted]`. Set `analyticsTitle` only to text without personal
+data if you want to log a title.
 
 ```ts
 import {
@@ -345,9 +347,9 @@ onBreadcrumbClick((breadcrumb) => {
 });
 ```
 
-### 5.2 Språkvelger
+### 5.2 Language selector
 
-Samme mønster gjelder språkvalg med `handleInApp: true`.
+The same pattern applies to language selection with `handleInApp: true`.
 
 ```ts
 import {
@@ -367,42 +369,42 @@ onLanguageSelect((language) => {
 
 ### 5.3 Analytics (Umami)
 
-Send appens tekniske navn som `origin` i dekoratørparameterne. Verdien legges til automatiske
-`besøk`-hendelser, slik at sidevisninger kan filtreres per app. Når parameteren utelates, bruker
-`besøk`-hendelser verdien `nav-dekoratoren`.
-Dekoratøren sender ikke Umami-hendelser uten samtykke. Loggeren tar likevel imot kallene og
-forkaster dem lokalt. Query-parametre fjernes fra sidevisninger som standard; bruk
-`analyticsQueryParams` bare for navn der verdiene ikke kan inneholde personopplysninger.
-Endring av `analyticsRedactFilter` krever en egen risikovurdering.
+Pass the app's technical name as `origin` in the decorator parameters. The value is added to
+automatic `besøk` events, so page views can be filtered per app. When the parameter is omitted,
+`besøk` events use the value `nav-dekoratoren`.
+Dekoratøren does not send Umami events without consent. The logger still accepts the calls and
+discards them locally. Query parameters are stripped from page views by default; use
+`analyticsQueryParams` only for names whose values cannot contain personal data.
+Changing `analyticsRedactFilter` requires a separate risk assessment.
 
 ```ts
 import { getAnalyticsInstance, Events } from "@navikt/nav-dekoratoren-moduler";
 
 const logger = getAnalyticsInstance("min-app");
 
-// Taksonomi-event (strengt typet fra @navikt/analytics-types)
+// Taxonomy event (strictly typed from @navikt/analytics-types)
 logger(Events.SKJEMA_STARTET, { skjemaId: "1234", skjemanavn: "aap" });
 
 // Custom event
 logger.custom("feedback åpnet", { komponent: "feedback-widget", steg: 2 });
 ```
 
-> ⚠️ `getAmplitudeInstance()` er fjernet i v4+. Bruk `getAnalyticsInstance()`.
+> ⚠️ `getAmplitudeInstance()` was removed in v4+. Use `getAnalyticsInstance()`.
 
 ### 5.4 Chatbot
 
 ```ts
 import { openChatbot } from "@navikt/nav-dekoratoren-moduler";
 
-openChatbot(); // åpner Frida og setter chatbotVisible=true
+openChatbot(); // opens Frida and sets chatbotVisible=true
 ```
 
 ---
 
-## Steg 6: Samtykke og cookies (ekomloven)
+## Step 6: Consent and cookies (ekomloven)
 
-Se [CONSENT.md](references/consent.md) for detaljer.
-Nøkler må stå på tillatt-listen. Samtykke alene gjør ikke en ukjent nøkkel tillatt.
+See [CONSENT.md](references/consent.md) for details.
+Keys must be on the allowlist. Consent alone does not make an unknown key allowed.
 
 ```ts
 import {
@@ -413,25 +415,25 @@ import {
     navLocalStorage,
 } from "@navikt/nav-dekoratoren-moduler";
 
-// Vent til dekoratøren har lastet samtykke
+// Wait until Dekoratøren has loaded consent
 await awaitDecoratorData();
 
-// Erstatt med en nøkkel som er registrert som cookie på tillatt-listen
+// Replace with a key registered as a cookie on the allowlist
 if (isStorageKeyAllowed("registrert-cookie")) {
     setNavCookie("registrert-cookie", "verdi");
 }
 
-// Bruk en nøkkel registrert for localStorage
+// Use a key registered for localStorage
 navLocalStorage.setItem("registrert-localstorage-nøkkel", "verdi");
 ```
 
 ---
 
-## Steg 7: CSP-header
+## Step 7: CSP header
 
-Bruk `buildCspHeader` for å kombinere appens CSP med direktivene Dekoratøren trenger.
-Ved direkte integrasjon må appen selv holde CSP oppdatert mot
-[`/dekoratoren/api/csp`](https://www.nav.no/dekoratoren/api/csp).
+Use `buildCspHeader` to combine the app's CSP with the directives Dekoratøren needs.
+With a direct integration, the app must keep its CSP in sync with
+[`/dekoratoren/api/csp`](https://www.nav.no/dekoratoren/api/csp) itself.
 
 ```ts
 import { buildCspHeader } from "@navikt/nav-dekoratoren-moduler/ssr";
@@ -444,10 +446,10 @@ const csp = await buildCspHeader(
 res.setHeader("Content-Security-Policy", csp);
 ```
 
-## Skip-lenke
+## Skip link
 
-Dekoratøren viser en lenke til hovedinnholdet når dokumentet har et element med
-`id="maincontent"`. Gjør elementet fokuserbart slik at tastaturfokus flyttes dit:
+Dekoratøren shows a link to the main content when the document has an element with
+`id="maincontent"`. Make the element focusable so keyboard focus moves there:
 
 ```html
 <main id="maincontent" tabindex="-1">Appens innhold</main>
@@ -455,37 +457,37 @@ Dekoratøren viser en lenke til hovedinnholdet når dokumentet har et element me
 
 ---
 
-## Revisjon av eksisterende integrasjon
+## Auditing an existing integration
 
-Når teamet vil sjekke en eksisterende integrasjon, eller en feil bare dukker opp av og til (for
-eksempel etter en deploy av Dekoratøren), følg sjekklisten i [AUDIT.md](references/audit.md).
-Start med statisk generering (3.4), som er den vanligste årsaken.
-
----
-
-## Vanlige feil og løsninger
-
-| Problem                                  | Årsak                     | Løsning                                                    |
-| ---------------------------------------- | ------------------------- | ---------------------------------------------------------- |
-| `403` ved npm install                    | Mangler PAT eller SSO     | Generer PAT med `read:packages`, aktiver navikt SSO        |
-| Dekoratøren vises ikke                   | Mangler access policy     | Legg til `nav-dekoratoren` i `accessPolicy.outbound.rules` |
-| Layout shift                             | CSR brukes                | Bytt til SSR via `fetchDecoratorReact`                     |
-| Cookie ikke satt                         | Samtykke ikke innhentet   | Bruk `awaitDecoratorData()` + `setNavCookie`               |
-| `getAmplitudeInstance is not a function` | Moduler v4+ (API endret)   | Oppgrader til v4+ og bytt til `getAnalyticsInstance`       |
-| `availableLanguages`-URL feil            | URL utenfor nav.no        | Kun `nav.no` og underdomener er tillatt                    |
-| Konsument vises som `unknown`              | Mangler `teamName`        | Sett `teamName` ved direkte SSR-kall og CSR med moduler    |
-| `unknown` selv med SSR og moduler 4.5+     | Siden er bygget statisk   | Gjør siden dynamisk, se 3.4                                |
-| Header/innlogget-meny feil etter dekoratør-deploy, retter seg ved redeploy | Siden er bygget statisk | Gjør siden dynamisk, se 3.4 |
+When the team wants to check an existing integration, or a bug shows up only now and then (for
+example after a Dekoratøren deploy), follow the checklist in [AUDIT.md](references/audit.md).
+Start with static generation (3.4), the most common cause.
 
 ---
 
-## Miljøer og ingresser
+## Common errors and fixes
 
-| Miljø      | Service host                                   | Ingress                                          |
-| ---------- | ---------------------------------------------- | ------------------------------------------------ |
-| `prod`     | `http://nav-dekoratoren.personbruker`          | `https://www.nav.no/dekoratoren`                 |
-| `dev`      | `http://nav-dekoratoren.personbruker`          | `https://dekoratoren.ekstern.dev.nav.no`         |
-| `beta`     | `http://nav-dekoratoren-beta.personbruker`     | `https://dekoratoren-beta.intern.dev.nav.no`     |
-| `beta-tms` | `http://nav-dekoratoren-beta-tms.personbruker` | `https://dekoratoren-beta-tms.intern.dev.nav.no` |
+| Problem                                                          | Cause                       | Fix                                                        |
+| ---------------------------------------------------------------- | --------------------------- | ---------------------------------------------------------- |
+| `403` on npm install                                             | Missing PAT or SSO          | Create a PAT with `read:packages`, enable navikt SSO       |
+| Dekoratøren does not show                                        | Missing access policy       | Add `nav-dekoratoren` to `accessPolicy.outbound.rules`     |
+| Layout shift                                                     | CSR is used                 | Switch to SSR via `fetchDecoratorReact`                    |
+| Cookie not set                                                   | Consent not obtained        | Use `awaitDecoratorData()` + `setNavCookie`                |
+| `getAmplitudeInstance is not a function`                         | Modules v4+ (API changed)   | Upgrade to v4+ and switch to `getAnalyticsInstance`        |
+| `availableLanguages` URL error                                   | URL outside nav.no          | Only `nav.no` and subdomains are allowed                   |
+| Consumer shows as `unknown`                                      | Missing `teamName`          | Set `teamName` for direct SSR calls and CSR with modules   |
+| `unknown` even with SSR and modules 4.5+                         | The page is built statically | Make the page dynamic, see 3.4                            |
+| Header or logged-in menu wrong after a decorator deploy, fixed by redeploy | The page is built statically | Make the page dynamic, see 3.4                |
 
-> ⚠️ Beta-instanser er kun for intern testing av Team Nav.no / Team Min Side og kan være ustabile.
+---
+
+## Environments and ingresses
+
+| Environment | Service host                                   | Ingress                                          |
+| ----------- | ---------------------------------------------- | ------------------------------------------------ |
+| `prod`      | `http://nav-dekoratoren.personbruker`          | `https://www.nav.no/dekoratoren`                 |
+| `dev`       | `http://nav-dekoratoren.personbruker`          | `https://dekoratoren.ekstern.dev.nav.no`         |
+| `beta`      | `http://nav-dekoratoren-beta.personbruker`     | `https://dekoratoren-beta.intern.dev.nav.no`     |
+| `beta-tms`  | `http://nav-dekoratoren-beta-tms.personbruker` | `https://dekoratoren-beta-tms.intern.dev.nav.no` |
+
+> ⚠️ Beta instances are only for internal testing by Team Nav.no / Team Min Side and may be unstable.

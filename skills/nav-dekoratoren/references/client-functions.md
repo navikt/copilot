@@ -1,12 +1,12 @@
-# Klient-side funksjoner i @navikt/nav-dekoratoren-moduler
+# Client-side functions in @navikt/nav-dekoratoren-moduler
 
-Importeres fra `@navikt/nav-dekoratoren-moduler` (uten `/ssr`-suffix).
+Imported from `@navikt/nav-dekoratoren-moduler` (without the `/ssr` suffix).
 
 ## setBreadcrumbs
 
-Setter brødsmulestien dynamisk. Bruk `handleInApp: true` for SPA-routing.
-⚠️ `title` logges som `[redacted]` til Umami som standard. Bruk `analyticsTitle` for å logge uten
-personopplysninger.
+Sets the breadcrumb trail dynamically. Use `handleInApp: true` for SPA routing.
+⚠️ `title` is logged to Umami as `[redacted]` by default. Use `analyticsTitle` to log a title
+without personal data.
 
 ```ts
 import { setBreadcrumbs } from "@navikt/nav-dekoratoren-moduler";
@@ -15,7 +15,7 @@ setBreadcrumbs([
     { title: "Ditt Nav", url: "https://www.nav.no/person/dittnav" },
     {
         title: "Opplysninger for Ola Nordmann",
-        analyticsTitle: "Opplysninger for <Navn>", // ingen personopplysninger
+        analyticsTitle: "Opplysninger for <Navn>", // no personal data
         url: "https://www.nav.no/min-side",
         handleInApp: true,
     },
@@ -24,9 +24,9 @@ setBreadcrumbs([
 
 ## onBreadcrumbClick
 
-Kalles når bruker klikker på breadcrumb med `handleInApp: true`.
-Bruk rammeverkets router: `router.push(url)` i Next.js, `navigate(url)` i React Router, eller
-tilsvarende i andre SPA-rammeverk.
+Called when the user clicks a breadcrumb with `handleInApp: true`.
+Use the framework's router: `router.push(url)` in Next.js, `navigate(url)` in React Router, or the
+equivalent in other SPA frameworks.
 
 ```ts
 import { onBreadcrumbClick } from "@navikt/nav-dekoratoren-moduler";
@@ -38,7 +38,7 @@ onBreadcrumbClick((breadcrumb) => {
 
 ## setAvailableLanguages
 
-Oppdaterer språkvelgeren. URL må være på `nav.no` eller underdomene.
+Updates the language selector. The URL must be on `nav.no` or a subdomain.
 
 ```ts
 import { setAvailableLanguages } from "@navikt/nav-dekoratoren-moduler";
@@ -55,8 +55,8 @@ setAvailableLanguages([
 
 ## onLanguageSelect
 
-Kalles ved språkvalg med `handleInApp: true`.
-Bruk samme router-funksjon som for breadcrumbs.
+Called on language selection with `handleInApp: true`.
+Use the same router function as for breadcrumbs.
 
 ```ts
 import { onLanguageSelect } from "@navikt/nav-dekoratoren-moduler";
@@ -68,9 +68,9 @@ onLanguageSelect((language) => {
 
 ## getAnalyticsInstance
 
-Henter logger-instans for analytics (Umami). Støtter taksonomi-events og custom events.
-Oppgi `origin` når logger-instansen opprettes for å identifisere appens egne hendelser. Bruk den
-samme verdien som `origin` i dekoratørparameterne for automatiske `besøk`-hendelser.
+Gets a logger instance for analytics (Umami). Supports taxonomy events and custom events.
+Pass `origin` when creating the logger instance to identify the app's own events. Use the same
+value as `origin` in the decorator parameters for automatic `besøk` events.
 
 ```ts
 import {
@@ -81,13 +81,13 @@ import {
 
 const logger = getAnalyticsInstance("min-app");
 
-// Taksonomi-event – strengt typet fra @navikt/analytics-types
+// Taxonomy event – strictly typed from @navikt/analytics-types
 logger(Events.SKJEMA_STARTET, { skjemaId: "1234", skjemanavn: "aap" });
 
 // Custom event
 logger.custom("feedback åpnet", { komponent: "feedback-widget", steg: 2 });
 
-// Dynamisk valg av event-type
+// Choose the event type dynamically
 if (isValidEventName(eventName)) {
     logger(eventName, eventData);
 } else {
@@ -95,7 +95,7 @@ if (isValidEventName(eventName)) {
 }
 ```
 
-Importer event-typer direkte:
+Import event types directly:
 
 ```ts
 import type {
@@ -104,28 +104,28 @@ import type {
 } from "@navikt/nav-dekoratoren-moduler";
 ```
 
-> ⚠️ `getAmplitudeInstance()` er fjernet i v4+. Bruk `getAnalyticsInstance()`.
+> ⚠️ `getAmplitudeInstance()` was removed in v4+. Use `getAnalyticsInstance()`.
 
-Uten samtykke til analyse forkaster loggeren hendelsene lokalt. Appen trenger ikke en egen
-samtykkesjekk for å kalle loggeren, men må fortsatt unngå personopplysninger i event-data.
+Without consent to analytics, the logger discards events locally. The app does not need its own
+consent check before calling the logger, but must still keep personal data out of event data.
 
 ## setParams / getParams
 
-Oppdater eller les alle parametre dynamisk.
+Update or read all parameters dynamically.
 
 ```ts
 import { setParams, getParams } from "@navikt/nav-dekoratoren-moduler";
 
-// Oppdater parametre
+// Update parameters
 setParams({ simple: true, chatbot: false });
 
-// Les gjeldende parametre
+// Read current parameters
 const current = getParams();
 ```
 
 ## openChatbot
 
-Åpner Chatbot Frida og setter `chatbotVisible=true`.
+Opens the Frida chatbot and sets `chatbotVisible=true`.
 
 ```ts
 import { openChatbot } from "@navikt/nav-dekoratoren-moduler";
@@ -135,7 +135,7 @@ openChatbot();
 
 ## injectDecoratorClientSide
 
-CSR-fallback. Bruk kun hvis SSR ikke er mulig i arkitekturen.
+CSR fallback. Use only if SSR is not possible in the architecture.
 
 ```ts
 import { injectDecoratorClientSide } from "@navikt/nav-dekoratoren-moduler";
@@ -145,25 +145,25 @@ injectDecoratorClientSide({
     params: {
         simple: true,
         chatbot: true,
-        teamName: "teamnavn.namespace", // konsumentlogging, eksempel: "team-navno.navno"
+        teamName: "teamnavn.namespace", // consumer logging, example: "team-navno.navno"
     },
 });
 ```
 
-Sett `params.teamName` for konsumentlogging. Hvis verdien mangler, bruker Dekoratøren nettleserens
-`Origin`-header som fallback og moduler-pakken varsler i konsollen.
+Set `params.teamName` for consumer logging. If the value is missing, Dekoratøren falls back to the
+browser's `Origin` header and the modules package warns in the console.
 
-## Window-events (lavnivå)
+## Window events (low level)
 
-Dekoratørens Web Components kommuniserer via `window.dispatchEvent`. Tilgjengelige events:
+Dekoratøren's Web Components communicate via `window.dispatchEvent`. Available events:
 
-| Event                      | Payload                   | Beskrivelse                       |
-| -------------------------- | ------------------------- | --------------------------------- |
-| `activecontext`            | `{ context }`             | Bruker byttet kontekst            |
-| `paramsupdated`            | `{ params, changedKeys }` | Parametre ble oppdatert           |
-| `authupdated`              | `AuthDataResponse`        | Auth-status endret                |
-| `menuopened`               | –                         | Meny åpnet                        |
-| `menuclosed`               | –                         | Meny lukket                       |
-| `consentAllWebStorage`     | –                         | Bruker samtykket til all lagring  |
-| `refuseOptionalWebStorage` | –                         | Bruker avslo frivillig lagring    |
-| `closemenus`               | –                         | Lukk åpne menyer (sendes utenfra) |
+| Event                      | Payload                   | Description                          |
+| -------------------------- | ------------------------- | ------------------------------------ |
+| `activecontext`            | `{ context }`             | User switched context                |
+| `paramsupdated`            | `{ params, changedKeys }` | Parameters were updated              |
+| `authupdated`              | `AuthDataResponse`        | Auth status changed                  |
+| `menuopened`               | –                         | Menu opened                          |
+| `menuclosed`               | –                         | Menu closed                          |
+| `consentAllWebStorage`     | –                         | User consented to all storage        |
+| `refuseOptionalWebStorage` | –                         | User refused optional storage        |
+| `closemenus`               | –                         | Close open menus (sent from outside) |

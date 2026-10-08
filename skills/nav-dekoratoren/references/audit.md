@@ -1,57 +1,62 @@
-# Revisjon av eksisterende integrasjon
+# Auditing an existing integration
 
-Bruk denne sjekklisten når teamet vil sjekke en integrasjon, eller når en feil bare dukker opp av
-og til (for eksempel etter en deploy av Dekoratøren). Inspiser koden, og rapporter hvert funn med
-fil, konsekvens og konkret retting. Endre bare det teamet har bedt om, og foreslå resten.
+Use this checklist when the team wants to check an integration, or when a bug shows up only now and
+then (for example after a Dekoratøren deploy). Inspect the code and report each finding with the
+file, the consequence and a concrete fix. Change only what the team asked for, and suggest the rest.
 
-1. **Statisk generering** – finn sider eller layouts som bygges som statisk HTML (se 3.4 i
-   SKILL.md). Dette er den vanligste årsaken til at headeren eller innlogget-menyen ser feil ut
-   etter en deploy av Dekoratøren, og til at `teamName` mangler.
-2. **Moduler-versjon** – sjekk `@navikt/nav-dekoratoren-moduler` i `package.json` og lockfilen.
-   Versjoner før 4.5 sender ikke `teamName`. Anbefal nyeste versjon. Ber teamet om oppdatering,
-   bruk appens pakkebehandler, for eksempel `npm install @navikt/nav-dekoratoren-moduler@latest`,
-   og sjekk endringsloggen i [releases](https://github.com/navikt/nav-dekoratoren-moduler/releases)
-   før du hopper over en major-versjon.
-3. **`teamName`** – ved SSR på Nais skal den settes automatisk. Hardkodet `teamName` ved SSR er
-   unødvendig. Ved CSR og ved direkte `/ssr`-kall uten moduler må den settes manuelt på formen
-   `app.namespace`.
-4. **Miljø** – sjekk at `env` følger miljøet appen kjører i. Et fast `env: "prod"` eller en
-   fallback til `prod` gjør at dev-miljøet bruker prod-dekoratøren.
-5. **Feilhåndtering** – se etter `.catch` rundt `fetchDecoratorReact` eller `fetchDecoratorHtml`
-   som gir tomme komponenter. Da forsvinner headeren uten at noen merker det. Feilen bør minst
-   logges. Moduler-pakken prøver allerede tre ganger og faller tilbake til klient-rendering.
-6. **Egen cache** – cacher appen HTML med dekoratøren i (for eksempel i minne, Redis eller et CDN),
-   må cachen tømmes med `addDecoratorUpdateListener` (se 3.5 i SKILL.md).
-7. **CSR eller SSR** – bruker appen `injectDecoratorClientSide` eller direkte CSR der SSR er mulig,
-   anbefal SSR.
-8. **Nais** – `accessPolicy.outbound` må tillate `nav-dekoratoren` i `personbruker`, eller
-   eksterne hosts ved `serviceDiscovery: false` (se 2.3 i SKILL.md).
-9. **CSP** – finnes en egen CSP, bør den bygges med `buildCspHeader` slik at dekoratørens
-   direktiver blir med.
-10. **Utfaset API** – oppgrader én major-versjon om gangen og kjør typesjekk og bygg etter hver.
+1. **Static generation** – find pages or layouts built as static HTML (see 3.4 in SKILL.md). This
+   is the most common reason the header or logged-in menu looks wrong after a Dekoratøren deploy,
+   and that `teamName` is missing.
+2. **Modules version** – check `@navikt/nav-dekoratoren-moduler` in `package.json` and the lockfile.
+   Versions before 4.5 do not send `teamName`. Recommend the latest version. If the team asks for an
+   upgrade, use the app's package manager, for example
+   `npm install @navikt/nav-dekoratoren-moduler@latest`, and read the changelog in
+   [releases](https://github.com/navikt/nav-dekoratoren-moduler/releases) before skipping a major
+   version.
+3. **`teamName`** – with SSR on Nais it is set automatically. A hardcoded `teamName` with SSR is
+   unnecessary. With CSR and with direct `/ssr` calls without the modules package it must be set
+   manually in the form `app.namespace`.
+4. **Environment** – check that `env` follows the environment the app runs in. A fixed
+   `env: "prod"` or a fallback to `prod` makes the dev environment use the prod decorator.
+5. **Error handling** – look for a `.catch` around `fetchDecoratorReact` or `fetchDecoratorHtml`
+   that returns empty components. The header then disappears without anyone noticing. The error
+   should at least be logged. The modules package already retries three times and falls back to
+   client-side rendering.
+6. **Own cache** – if the app caches HTML that contains Dekoratøren (for example in memory, Redis or
+   a CDN), the cache must be cleared with `addDecoratorUpdateListener` (see 3.5 in SKILL.md).
+7. **CSR or SSR** – if the app uses `injectDecoratorClientSide` or direct CSR where SSR is
+   possible, recommend SSR.
+8. **Nais** – `accessPolicy.outbound` must allow `nav-dekoratoren` in `personbruker`, or the
+   external hosts when `serviceDiscovery: false` (see 2.3 in SKILL.md).
+9. **CSP** – if the app has its own CSP, build it with `buildCspHeader` so Dekoratøren's directives
+   are included.
+10. **Deprecated API** – upgrade one major version at a time and run type checks and a build after
+    each.
 
     **v2 → v3 (SSR):**
 
-    - `DECORATOR_STYLES` og `<Decorator.Styles />` er fjernet. Bruk `DECORATOR_HEAD_ASSETS` og
-      `<Decorator.HeadAssets />` i `<head>`. Uten dem mangler headeren CSS og favicon.
-    - `injectDecoratorServerSideDom` er fjernet. Bruk `injectDecoratorServerSideDocument`, som tar
-      et vanlig `Document`.
-    - `parseDecoratorHTMLToReact` er fjernet. Bruk `fetchDecoratorReact`.
-    - `<EnforceLoginLoader />`, parameteren `enforceLogin`, `getUrlFromLookupTable` og
-      `urlLookupTable` er fjernet. Innlogging må håndteres i appen, for eksempel med Wonderwall.
-    - Avhengighetene er peer dependencies. Installer `react` og `html-react-parser` selv ved bruk
-      av `fetchDecoratorReact`.
-    - Egen cache av dekoratøren kan tømmes med `addDecoratorUpdateListener` (se 3.5 i SKILL.md).
+    - `DECORATOR_STYLES` and `<Decorator.Styles />` are removed. Use `DECORATOR_HEAD_ASSETS` and
+      `<Decorator.HeadAssets />` in `<head>`. Without them the header lacks CSS and favicon.
+    - `injectDecoratorServerSideDom` is removed. Use `injectDecoratorServerSideDocument`, which
+      takes a regular `Document`.
+    - `parseDecoratorHTMLToReact` is removed. Use `fetchDecoratorReact`.
+    - `<EnforceLoginLoader />`, the `enforceLogin` parameter, `getUrlFromLookupTable` and
+      `urlLookupTable` are removed. Login must be handled in the app, for example with Wonderwall.
+    - Dependencies are peer dependencies. Install `react` and `html-react-parser` yourself when
+      using `fetchDecoratorReact`.
+    - Your own cache of Dekoratøren can be cleared with `addDecoratorUpdateListener` (see 3.5 in
+      SKILL.md).
 
     **v3 → v4 (analytics):**
 
-    - `getAmplitudeInstance()` og `logAmplitudeEvent()` er fjernet. De har ikke logget noe siden
-      v3.5. Bytt til `getAnalyticsInstance()` og `logAnalyticsEvent()` (se Steg 5 i SKILL.md).
-    - Eventnavn valideres mot `@navikt/analytics-types`. Bruk `Events.*` for taksonomi-events og
-      `logger.custom()` (v4.1+) for egne events.
-    - Typene `AmplitudeEvent`, `AmplitudeParams` og `AnalyticsEvent` og generiske typer på
-      `getAnalyticsInstance<...>()` er fjernet. Ugyldige eventnavn gir typefeil.
-    - SSR- og CSR-API-ene er ellers uendret fra v3.
+    - `getAmplitudeInstance()` and `logAmplitudeEvent()` are removed. They have not logged anything
+      since v3.5. Switch to `getAnalyticsInstance()` and `logAnalyticsEvent()` (see Step 5 in
+      SKILL.md).
+    - Event names are validated against `@navikt/analytics-types`. Use `Events.*` for taxonomy
+      events and `logger.custom()` (v4.1+) for custom events.
+    - The types `AmplitudeEvent`, `AmplitudeParams` and `AnalyticsEvent`, and generic types on
+      `getAnalyticsInstance<...>()`, are removed. Invalid event names cause type errors.
+    - The SSR and CSR APIs are otherwise unchanged from v3.
 
-Oppsummer funnene sortert etter alvorlighet: først feil brukerne merker, så manglende sporbarhet
-og til slutt anbefalinger.
+Summarize the findings by severity: first errors users notice, then missing traceability, and
+finally recommendations.

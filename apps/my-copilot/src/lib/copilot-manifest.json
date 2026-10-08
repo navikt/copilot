@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-08T08:46:42.682Z",
+  "generatedAt": "2026-10-08T08:59:34.113Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1344,7 +1344,7 @@
       "filePath": "skills/nav-dekoratoren/SKILL.md",
       "repoPath": "skills/nav-dekoratoren/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "0e2ffbbbf47e3d04e017dda7ca5b39d3ea16f0953bd9477552d40e4db54482a9",
+      "contentHash": "0452ab5ba3a931dc12986596c464da0789d4989076fc85a2982ff033f378b954",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["nav", "dekoratoren", "header", "footer", "integration", "ssr", "analytics", "consent"],

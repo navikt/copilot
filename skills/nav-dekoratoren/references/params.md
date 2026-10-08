@@ -1,69 +1,69 @@
-# Dekoratøren – alle konfigurasjonsparametre
+# Dekoratøren – all configuration parameters
 
-Kan settes som query-parametre ved direkte SSR-kall, eller som `params`-objekt i moduler-pakken.
+Set them as query parameters on direct SSR calls, or as the `params` object in the modules package.
 
-| Parameter               | Type                                                  | Default        | Forklaring                                                                |
-| ----------------------- | ----------------------------------------------------- | -------------- | ------------------------------------------------------------------------- |
-| `context`               | `privatperson` / `arbeidsgiver` / `samarbeidspartner` | `privatperson` | Angir meny og kontekstvelger i headeren                                   |
-| `simple`                | `boolean`                                             | `false`        | Enkel versjon av header og footer                                         |
-| `simpleHeader`          | `boolean`                                             | `false`        | Enkel versjon av kun header                                               |
-| `simpleFooter`          | `boolean`                                             | `false`        | Enkel versjon av kun footer                                               |
-| `redirectToApp`         | `boolean`                                             | `false`        | Send bruker tilbake til gjeldende URL etter innlogging                    |
-| `redirectToUrl`         | `string`                                              | `undefined`    | Send bruker til angitt URL etter innlogging (overstyrer redirectToApp)    |
-| `redirectToUrlLogout`   | `string`                                              | `undefined`    | Send bruker til angitt URL etter utlogging                                |
-| `language`              | `nb` / `nn` / `en` / `se` / `pl` / `uk` / `ru`        | `nb`           | Angir språk. Overstyres automatisk av URL-path (/no/, /en/ osv.)          |
-| `availableLanguages`    | `{ locale, url, handleInApp? }[]`                     | `[]`           | Tilgjengelige språk i språkvelgeren                                       |
-| `breadcrumbs`           | `{ title, url, analyticsTitle?, handleInApp? }[]`     | `[]`           | Brødsmulesti                                                              |
-| `utilsBackground`       | `white` / `gray` / `transparent`                      | `transparent`  | Bakgrunnsfarge for brødsmulesti og språkvelger                            |
-| `feedback`              | `boolean`                                             | `false`        | Vis tilbakemeldingskomponenten                                            |
-| `chatbot`               | `boolean`                                             | `true`         | Aktiver chatboten Frida (false = aldri initialisert)                      |
-| `chatbotVisible`        | `boolean`                                             | `false`        | Vis chatbot-ikonet alltid (true) eller kun ved aktiv økt (false)          |
-| `shareScreen`           | `boolean`                                             | `true`         | Aktiver skjermdeling-knapp i footer                                       |
-| `logoutUrl`             | `string`                                              | `undefined`    | Deleger all utlogging til angitt URL (teamet håndterer cookie-sletting)   |
-| `logoutWarning`         | `boolean`                                             | `true`         | Vis advarsel etter 55 min (WCAG-krav – deaktiver kun med eget alternativ) |
-| `redirectOnUserChange`  | `boolean`                                             | `false`        | Redirect til nav.no hvis annen bruker logger inn i annet vindu            |
-| `origin`                | `string`                                              | `undefined`    | Appidentifikator på automatiske `besøk`-hendelser                         |
-| `pageType`              | `string`                                              | `undefined`    | Sidetype for Analytics-logging                                            |
-| `analyticsQueryParams`  | `string[]`                                            | `[]`           | Hviteliste av query-params som inkluderes i Analytics (ingen sensitive!)  |
-| `analyticsRedactFilter` | `string[]`                                            | `['uuid']`     | Opt-out av automatisk redaction (UUID fjernes som standard)               |
+| Parameter               | Type                                                  | Default        | Description                                                                |
+| ----------------------- | ----------------------------------------------------- | -------------- | -------------------------------------------------------------------------- |
+| `context`               | `privatperson` / `arbeidsgiver` / `samarbeidspartner` | `privatperson` | Sets the menu and context selector in the header                           |
+| `simple`                | `boolean`                                             | `false`        | Simple version of header and footer                                        |
+| `simpleHeader`          | `boolean`                                             | `false`        | Simple version of the header only                                          |
+| `simpleFooter`          | `boolean`                                             | `false`        | Simple version of the footer only                                          |
+| `redirectToApp`         | `boolean`                                             | `false`        | Send the user back to the current URL after login                          |
+| `redirectToUrl`         | `string`                                              | `undefined`    | Send the user to the given URL after login (overrides redirectToApp)       |
+| `redirectToUrlLogout`   | `string`                                              | `undefined`    | Send the user to the given URL after logout                                |
+| `language`              | `nb` / `nn` / `en` / `se` / `pl` / `uk` / `ru`        | `nb`           | Sets the language. Overridden automatically by the URL path (/no/, /en/ etc.) |
+| `availableLanguages`    | `{ locale, url, handleInApp? }[]`                     | `[]`           | Languages available in the language selector                               |
+| `breadcrumbs`           | `{ title, url, analyticsTitle?, handleInApp? }[]`     | `[]`           | Breadcrumb trail                                                           |
+| `utilsBackground`       | `white` / `gray` / `transparent`                      | `transparent`  | Background color for breadcrumbs and language selector                     |
+| `feedback`              | `boolean`                                             | `false`        | Show the feedback component                                                |
+| `chatbot`               | `boolean`                                             | `true`         | Enable the Frida chatbot (false = never initialized)                       |
+| `chatbotVisible`        | `boolean`                                             | `false`        | Always show the chatbot icon (true) or only during an active session (false) |
+| `shareScreen`           | `boolean`                                             | `true`         | Enable the screen sharing button in the footer                             |
+| `logoutUrl`             | `string`                                              | `undefined`    | Delegate all logout to the given URL (the team handles cookie deletion)    |
+| `logoutWarning`         | `boolean`                                             | `true`         | Show a warning after 55 min (WCAG requirement, disable only with an alternative) |
+| `redirectOnUserChange`  | `boolean`                                             | `false`        | Redirect to nav.no if another user logs in in another window               |
+| `origin`                | `string`                                              | `undefined`    | App identifier on automatic `besøk` events                                 |
+| `pageType`              | `string`                                              | `undefined`    | Page type for analytics logging                                            |
+| `analyticsQueryParams`  | `string[]`                                            | `[]`           | Allowlist of query params included in analytics (nothing sensitive!)       |
+| `analyticsRedactFilter` | `string[]`                                            | `['uuid']`     | Opt out of automatic redaction (UUIDs are removed by default)              |
 
-`redirectToApp` gjelder både automatisk innlogging og innloggingsknappen. `redirectToUrl`
-overstyrer den; `redirectToUrlLogout` er returadressen *etter* utlogging. De to URL-ene må ligge
-på `nav.no` eller et underdomene, ellers forkastes de. `logoutUrl` er noe annet: appen må da selv
-håndtere all utlogging. Ikke slå av `logoutWarning` uten å gi brukeren en egen mulighet til å
-utsette utlogging. Økten kan maksimalt vare i 6 timer.
+`redirectToApp` applies to both automatic login and the login button. `redirectToUrl` overrides
+it; `redirectToUrlLogout` is the return address *after* logout. Both URLs must be on `nav.no` or a
+subdomain, otherwise they are discarded. `logoutUrl` is something else: the app must then handle
+all of logout itself. Do not turn off `logoutWarning` without giving the user another way to
+postpone logout. A session lasts at most 6 hours.
 
-`language` kan overstyres av `/no/`, `/nb/`, `/nn/`, `/en/` og `/se/` i URL-en. Dekoratørens eget
-grensesnitt har tekst på bokmål, engelsk og delvis samisk. URL-ene i `breadcrumbs` og
-`availableLanguages` må ligge på `nav.no` eller et underdomene; andre URL-er gir 500 ved henting.
-`analyticsTitle` kan brukes for brødsmuler hvis teksten ikke inneholder personopplysninger.
+`language` can be overridden by `/no/`, `/nb/`, `/nn/`, `/en/` and `/se/` in the URL. Dekoratøren's
+own interface has text in Norwegian Bokmål, English and partly Northern Sami. URLs in `breadcrumbs`
+and `availableLanguages` must be on `nav.no` or a subdomain; other URLs return 500 on fetch.
+`analyticsTitle` can be used for breadcrumbs if the text contains no personal data.
 
-`origin` identifiserer appen i analytics, ikke i Dekoratørens konsumentlogger. Ved SSR via
-moduler-pakken settes `teamName` automatisk fra `NAIS_APP_NAME.NAIS_NAMESPACE`. Ved direkte SSR
-må `teamName` settes som query-parameter; ved CSR med moduler-pakken settes `params.teamName`.
-Bruk formen `teamnavn.namespace` med små bokstaver og bare `a-z`, `0-9`, `-` og `.`.
+`origin` identifies the app in analytics, not in Dekoratøren's consumer logs. With SSR via the
+modules package, `teamName` is set automatically from `NAIS_APP_NAME.NAIS_NAMESPACE`. With direct
+SSR, set `teamName` as a query parameter; with CSR and the modules package, set `params.teamName`.
+Use the form `teamnavn.namespace` in lowercase with only `a-z`, `0-9`, `-` and `.`.
 
-Query-parametre fjernes fra analytics som standard. Inkluder bare ikke-sensitive parametre i
-`analyticsQueryParams`, og risikovurder før du endrer `analyticsRedactFilter`.
+Query parameters are stripped from analytics by default. Include only non-sensitive parameters in
+`analyticsQueryParams`, and do a risk assessment before changing `analyticsRedactFilter`.
 
-## URL-eksempler (direkte kall)
+## URL examples (direct calls)
 
 ```
-# Sett kontekst
+# Set context
 https://www.nav.no/dekoratoren/?context=arbeidsgiver
 
-# Identifiser appen i besøk-hendelser
+# Identify the app in besøk events
 https://www.nav.no/dekoratoren/?origin=min-app
 
-# Språkvelger
+# Language selector
 https://www.nav.no/dekoratoren/?availableLanguages=[{"locale":"nb","url":"https://www.nav.no/nb"},{"locale":"en","url":"https://www.nav.no/en"}]
 
-# Brødsmuler
+# Breadcrumbs
 https://www.nav.no/dekoratoren/?breadcrumbs=[{"url":"https://www.nav.no/person/dittnav","title":"Ditt Nav"},
 {"url":"https://www.nav.no/person/kontakt-oss","title":"Kontakt oss"}]
 ```
 
-## TypeScript-type (full)
+## TypeScript type (full)
 
 ```ts
 type DecoratorParams = Partial<{
