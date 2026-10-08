@@ -907,6 +907,11 @@ fi
 # below proves that on the pristine template before any model is called. An
 # unedited draft or an untouched bug is then a failed run, never a green one.
 BENCH_CHECK="$REPO_ROOT/scripts/benchmark-sjekk.py"
+# Planning checks read the answer through svar(), which needs python3. Without
+# it the answer is empty and every absent() check would pass.
+if [[ "$GROUP" == "nav-pilot" ]] && ! command -v python3 >/dev/null 2>&1; then
+  fail_preflight "--agent nav-pilot needs python3 to strip tool output" "brew install python3"
+fi
 NORSK_MIN_WORDS=30
 NORSK_MAX_WORDS=90
 
@@ -1209,6 +1214,17 @@ RUN=1
 # Transcript path for a prompt in the current run. Repeats must not overwrite
 # each other: --keep has to leave all N samples behind for inspection.
 tx() { printf '%s/%s.run%s.txt' "$WORKDIR" "$1" "$RUN"; }
+# svar <transcript>: writes the agent's answer without the client's tool lines
+# (answer_lines in benchmark-sjekk.py, the same filter the review checks and
+# the committed transkripter/ use) and prints its path. Planning checks read
+# the answer, so a question or a privacy word in a file the agent opened
+# cannot pass them (GPT-6 Luna t7b run 4, PR #1459). Checks on tool calls
+# (RE_FASE2_WORK, RE_OPUS) keep reading the raw transcript.
+svar() {
+  local out="${1%.txt}.svar.txt"
+  python3 "$BENCH_CHECK" svar "$1" >"$out" || : >"$out"
+  printf '%s' "$out"
+}
 
 run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$REPEAT" "$RESET"; return 0; }
 
@@ -1470,7 +1486,7 @@ absent()  { ! grep -qiE -- "$2" "$1"; }
 # Blind spot #1 = Privacy, #2 = Access control (tests 3, 7, 7b). The *topic*,
 # in any phrasing the agent chooses.
 RE_BS1='personopplysning|persondata|personvern|fødselsnummer|GDPR|datakategori|behandlingsgrunnlag'
-RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
+RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?(kunne[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
 
 # Test 7: a privacy or access question put TO THE USER, not a stated
 # assumption. Only sentences ending in `?` are searched, so «Personvern er
@@ -1514,6 +1530,24 @@ asks_privacy() {
     { l = tolower($0) }
     l ~ tolower(p) || (l ~ tolower(a) && l !~ tolower(s)) || (l ~ tolower(w) && l !~ tolower(c) && l !~ tolower(s)) { print; found = 1; exit }
     END { exit !found }'
+}
+# Blind spots #1 and #2 as tests 3, 7b and 8b score them: the topic word
+# anywhere in the answer, or a question to the user that names fnr (#1) or
+# tilgang (#2). Both words count only in a question. Every prompt that tests
+# #1 says «fnr», so an answer that echoes the prompt would raise #1 for free,
+# and «tilgang» in a statement is as often a network rule («utgående tilgang
+# til PDL») as an access question. A question about the field itself
+# (RE_ASK_COMPAT, påkrevd, valgfri) does not raise #1, and one about key access
+# (RE_ASK_SEC, «nøkkeltilgang») does not raise #2. Derived 2026-10-08 from the
+# 30 kept GPT-6 Luna planning answers (2026-10-07-luna-planning): t7b run 1
+# and 4 ask «skal motta FNR?» and «skal ha tilgang til FNR?», t2 run 3 asks
+# «Hvem skal kunne kalle tjenesten?» and «audit-logging av tilgang?».
+raises_bs1() {
+  present "$1" "$RE_BS1" ||
+    question_sentences "$1" | grep -iE -- '(^|[^[:alnum:]])fnr([^[:alnum:]]|$)' | grep -qviE -- "$RE_ASK_COMPAT|påkrevd|valgfri"
+}
+raises_bs2() {
+  present "$1" "$RE_BS2" || question_sentences "$1" | grep -i -- 'tilgang' | grep -qviE -- "$RE_ASK_SEC"
 }
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
@@ -1924,6 +1958,7 @@ run_pass_nav_pilot() {
       if selected 2b; then record_error 2b "$DESC2B" "$LAST_PROMPT_DETAIL"; fi
       if selected 3; then record_error 3 "$DESC3" "$LAST_PROMPT_DETAIL"; fi
     else
+      A2="$(svar "$T2")"
       if selected 2; then
         # Invariant: PHASE INTEGRITY, "STOP after each phase […] wait for explicit
         # user confirmation", and Boundaries → 🚫 Never, "Do work belonging to a
@@ -1931,7 +1966,7 @@ run_pass_nav_pilot() {
         # Order matters. Later-phase work is the strongest failure signal. If
         # there is no write or explicit Fase 2 work, the question count decides
         # whether an interview happened; a heading is formatting, not behaviour.
-        q="$(count_of "$T2" '[?]')"
+        q="$(count_of "$A2" '[?]')"
         ok=0; detail=""
         # ⚠️  THE WORKSPACE FIRST, THE TRANSCRIPT SECOND (#583).
         # RE_FASE2_WORK below keys on `^● Edit|Create|Write|…`, which is the
@@ -1974,7 +2009,7 @@ run_pass_nav_pilot() {
         # SOFT. See the block comment above tests 2 + 2b. `--only 2` keeps
         # reporting both parts of the split, and `--only 2b` asks for this part
         # alone; an ID that preflight accepts has to reach the code that runs it.
-        if absent "$T2" "$RE_BLINDSPOT_AUDIT"; then
+        if absent "$A2" "$RE_BLINDSPOT_AUDIT"; then
           record_soft 2b "$DESC2B" 1 "no blind-spot audit count (want: $RE_BLINDSPOT_AUDIT)"
         else
           record_soft 2b "$DESC2B" 0
@@ -1985,9 +2020,9 @@ run_pass_nav_pilot() {
         # Blind spot #1 = Privacy, #2 = Access control. Assert the *topic* is
         # raised, in any phrasing the agent chooses.
         ok=0; detail=""
-        if ! present "$T2" "$RE_BS1"; then
+        if ! raises_bs1 "$A2"; then
           ok=1; detail="blind spot #1 (personvern) not raised"
-        elif ! present "$T2" "$RE_BS2"; then
+        elif ! raises_bs2 "$A2"; then
           ok=1; detail="blind spot #2 (tilgangskontroll) not raised"
         fi
         record 3 "$DESC3" "$ok" "$detail"
@@ -2038,15 +2073,15 @@ run_pass_nav_pilot() {
     elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
         "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turn 2 answered an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
-    elif [[ "$(count_of "$T4A" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
+    elif [[ "$(count_of "$(svar "$T4A")" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
       record_error 4 "$DESC4" \
         "turn 1 asked fewer than $MIN_OPEN_QUESTIONS questions and did no Fase 2 tool work, so there is no completed interview for turn 2 to answer. This is the same phase-stop regression test 2 reports; re-run with --keep and read t4a."
     elif ! run_prompt t4b "$T4_ANSWERS" "$S4"; then
       record_error 4 "$DESC4" "turn 2 (svar): $LAST_PROMPT_DETAIL"
-    elif ! present "$T4B" "$RE_FASE2_PLAN"; then
+    elif ! present "$(svar "$T4B")" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
         "turn 2 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close or the session did not carry turn 1. Re-run with --keep and read t4a and t4b in order."
-    elif ! present "$T4B" "$RE_T4_RED_ZONE"; then
+    elif ! present "$(svar "$T4B")" "$RE_T4_RED_ZONE"; then
       record 4 "$DESC4" 1 \
         "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: $RE_T4_RED_ZONE) — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not."
     else
@@ -2068,10 +2103,10 @@ run_pass_nav_pilot() {
     if ! run_prompt t5 "tjeneste A kaller tjeneste B med brukerkontekst — hvilken auth?"; then
       record_error 5 "$DESC5" "$LAST_PROMPT_DETAIL"
     else
-      ok=0; detail=""
-      if ! present "$T5" 'TokenX'; then
+      ok=0; detail=""; A5="$(svar "$T5")"
+      if ! present "$A5" 'TokenX'; then
         ok=1; detail="TokenX never mentioned — the auth decision tree may have been cut too far"
-      elif recommends_client_credentials "$T5"; then
+      elif recommends_client_credentials "$A5"; then
         ok=1; detail="response appears to recommend Azure client_credentials for a user-context call"
       fi
       record 5 "$DESC5" "$ok" "$detail"
@@ -2168,7 +2203,7 @@ run_pass_nav_pilot() {
       PROMPT_COMMAND=""
       if [[ $rc7 -ne 0 ]]; then
         record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
-      elif q7="$(asks_privacy "$T7")"; then
+      elif q7="$(asks_privacy "$(svar "$T7")")"; then
         record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration: $(cut -c1-160 <<<"$q7")"
       else
         record 7 "$DESC7" 0
@@ -2180,7 +2215,7 @@ run_pass_nav_pilot() {
       WS_EXTRA=seed_jackson_fixture
       if ! run_prompt t7b "legg til fnr i SoknadMottattMelding som sendes på Kafka-topicen soknad-mottatt"; then
         record_error 7b "$DESC7B" "$LAST_PROMPT_DETAIL"
-      elif ! present "$T7B" "$RE_BS1"; then
+      elif ! raises_bs1 "$(svar "$T7B")"; then
         record 7b "$DESC7B" 1 "blind spot #1 (personvern) not raised for a new fnr field on Kafka"
       else
         record 7b "$DESC7B" 0
@@ -2212,13 +2247,13 @@ run_pass_nav_pilot() {
     WS_EXTRA=""
     if [[ $rc8 -ne 0 ]]; then
       record_error 8 "$DESC8" "$LAST_PROMPT_DETAIL"
-    elif q8="$(asks_privacy "$T8")"; then
+    elif q8="$(asks_privacy "$(svar "$T8")")"; then
       record 8 "$DESC8" 1 "asked the user about personvern or tilgang on a header-only change: $(cut -c1-160 <<<"$q8")"
     elif ws_wrote; then
       # Security-critical code is Full tier: Fase 1 stops before editing.
       # Read off the fingerprint, so a shell write counts like an edit call.
       record 8 "$DESC8" 1 "edited signing code without a Fase 1 stop: $(ws_written_files)"
-    elif ! security_sentences "$T8" | grep -qiE -- "$RE_ASK_SECQ"; then
+    elif ! security_sentences "$(svar "$T8")" | grep -qiE -- "$RE_ASK_SECQ"; then
       record 8 "$DESC8" 1 "stopped but asked no security question (nøkkel, verifisering, avvisning, usignert, feilmodus)"
     else
       record 8 "$DESC8" 0
@@ -2233,7 +2268,7 @@ run_pass_nav_pilot() {
     if [[ $rc8b -ne 0 ]]; then
       record_error 8b "$DESC8B" "$LAST_PROMPT_DETAIL"
     # The «Blindsoner reist» count line names #1 without raising it.
-    elif ! grep -v 'Blindsoner reist' "$T8B" | grep -qiE -- "$RE_BS1"; then
+    elif grep -v 'Blindsoner reist' "$(svar "$T8B")" >"$T8B.bs1"; ! raises_bs1 "$T8B.bs1"; then
       record 8b "$DESC8B" 1 "blind spot #1 (personvern) not raised for fnr in a Kafka header"
     else
       record 8b "$DESC8B" 0

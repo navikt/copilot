@@ -339,8 +339,15 @@ case "$p" in
       *) echo "Jeg legger fnr i en header på recordene for sporing, ved siden av signaturheaderne." ;;
     esac ;;
   *SoknadMottattMelding*)
-    if [[ "$BENCH_MODE" == good ]]; then echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?"
-    else echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før."; fi ;;
+    # fnrq: GPT-6 Luna t7b run 1 (PR #1459), the question names FNR only.
+    # toolline: personopplysninger only in a file the agent read, as in Luna t7b run 4.
+    case "$BENCH_MODE" in
+      good) echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?" ;;
+      fnrq) echo "Er det avklart at konsumentene av \`soknad-mottatt\` skal motta FNR?" ;;
+      toolline) printf '%s\n' "● Read Soknad.kt" "  │ // SokerDto inneholder personopplysninger" \
+                  "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før." ;;
+      *) echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før." ;;
+    esac ;;
   *utkast.md*)
     [[ "$BENCH_MODE" == good ]] && printf '%s\n' "# Ny kodegjennomgang i nav-pilot" "" \
       "Nav-pilot har fått en KI-agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden selv, men foreslår rettelser." \
@@ -560,6 +567,50 @@ run_suite() {
   [ "$status" -eq 1 ]
   grep -q '^7|1|fail|' "$SHIM/b-results.psv"
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning t7b: an FNR question raises #1, a privacy word in tool output does not" {
+  run_suite fnrq --agent nav-pilot --only 7b
+  [ "$status" -eq 0 ]
+  run_suite toolline --agent nav-pilot --only 7b
+  [ "$status" -eq 1 ]
+  grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning t3/t7b/t8b: fnr and tilgang count only in a question, not a format or key question" {
+  eval "$(grep -E "^RE_(BS1|BS2|ASK_COMPAT|ASK_SEC)=" "$SCRIPT")"
+  eval "$(sed -n '/^present() {/p' "$SCRIPT")"
+  eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"
+  eval "$(sed -n '/^raises_bs1() {/,/^}/p' "$SCRIPT")"
+  eval "$(sed -n '/^raises_bs2() {/,/^}/p' "$SCRIPT")"
+  f="$SHIM/a.txt"
+  # GPT-6 Luna, 2026-10-07-luna-planning: t7b run 1 and 4.
+  for q in 'Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?' \
+           'Er det avklart at alle konsumentene skal ha tilgang til FNR?' \
+           'Hvem skal kunne lese fnr-feltet?'; do
+    printf '%s\n' "$q" >"$f"
+    raises_bs1 "$f" || { echo "should raise #1: $q"; false; }
+  done
+  for q in 'Tjenesten leser fnr fra ID-porten.' \
+           'Skal fnr være påkrevd eller valgfritt?' \
+           'Hvem konsumerer fnr-feltet som JSON?' \
+           'Skal `fnr` ligge i meldingen?'; do
+    printf '%s\n' "$q" >"$f"
+    if raises_bs1 "$f"; then echo "should not raise #1: $q"; false; fi
+  done
+  # Luna t2 run 3.
+  for q in 'Hvem skal kunne kalle tjenesten og se svaret?' \
+           'Hvor lenge skal det lagres, og trenger dere audit-logging av tilgang?' \
+           'Hvem trenger eventuelt tilgang?'; do
+    printf '%s\n' "$q" >"$f"
+    raises_bs2 "$f" || { echo "should raise #2: $q"; false; }
+  done
+  for q in 'API-et må også ha eksplisitt utgående tilgang til PDL.' \
+           'Hvordan håndteres nøkkeltilgang og nøkkelrotasjon?' \
+           'Hvem skal eie tjenesten?'; do
+    printf '%s\n' "$q" >"$f"
+    if raises_bs2 "$f"; then echo "should not raise #2: $q"; false; fi
+  done
 }
 
 @test "planning t8/t8b: no privacy interview on signing headers, privacy raised for fnr in a header" {
