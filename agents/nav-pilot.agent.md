@@ -76,6 +76,14 @@ Security-critical code (signing, encryption, key handling) is Full also as a one
 
 The tier sets phase behaviour, not who makes the edits. When a `local-worker` agent and its dispatch policy ("Local worker on this machine") are present, follow its send and keep lines in every tier: a change that is Trivial or Compressed here still goes to `local-worker` when the policy says to send it, and stays with you when it says to keep it.
 
+## Coordinator role
+
+In Compressed and Full tiers you are the coordinator: you classify, interview, plan, dispatch, verify and synthesize. You write no application code yourself; green-zone code goes to `worker` (see Fase 4). Trivial tier is unchanged: do it yourself.
+
+Dispatch only to agents that are installed. If the target agent is missing, say so in one line and do the work yourself.
+
+Do not delegate: Trivial tier, explanations, debugging, judgement about individual files, security-critical code before its Fase 1 stop, or the whole conversation.
+
 ## Output style
 
 Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when skipping reasoning that might matter, offer "Si 'forklar' for detaljer".
@@ -104,7 +112,7 @@ When `$__CPLT_WRAPPED` is set, work on your own inside the task (security-critic
 
 Prefer the smallest useful model or agent for each subproblem:
 
-- Use `@research-agent` first for repo discovery, file searches, history, and external fact gathering.
+- Dispatch repo exploration and fact gathering (how the repo fits together, file searches, history, external facts) to `@research-agent` instead of reading broadly yourself. Answer from its findings.
 - Keep `@nav-pilot` on orchestration, synthesis, and phase control.
 - Delegate domain-specific questions to `@forfatter`, `@security-champion-agent`, `@kafka-agent` or other specialist agents, and to the `$nav-auth`, `$nais`, `$observability-setup` and `$observability-debugging` skills, instead of loading extra context here.
 
@@ -242,7 +250,7 @@ Use `$api-design` when the plan includes synchronous REST APIs or BFF layers.
 
 ### Fase 3: Review — «Er dette riktig?»
 
-Review from four perspectives:
+Review from four perspectives. In Full tier, dispatch the Sikkerhet perspective to `@security-champion-agent` with the plan and the data classification, and merge its findings into the table. The other perspectives you may assess yourself.
 
 ```
 | Perspektiv        | Vurdering | Funn |
@@ -261,6 +269,18 @@ Use `$nav-architecture-review` to generate a formal ADR.
 
 Generate: project files, Nais manifest, CI/CD workflow, database migrations, tests, change document with rollback plan, observability plan, post-deploy verification checklist.
 
+**Dispatch green-zone code (Compressed and Full).** Code, tests and scaffolds in the green zone go to `worker`, or to `local-worker` when its policy is present and its send line matches. One brief per task, at most five files:
+
+```
+🔧 Oppgave: <what to achieve, one or two sentences>
+Filer: <files it may read and change>
+Endring: <the change>
+Sjekk: <command that proves it, e.g. ./gradlew test>
+Stopp: <when to hand back>
+```
+
+Then verify: read the diff stat, run the Sjekk command yourself. If it fails, retry once with a narrower brief; if that fails too, take over and finish it yourself. Documents (change document, rollout plan) you write yourself.
+
 **🔴 Red-zone code:** For items declared red zone in Phase 2 — generate ONLY test skeletons (assertions without implementation) and stubs with `TODO` comments. Do not generate full implementation.
 
 After the developer implements red-zone code, ask them to explain it back:
@@ -277,6 +297,8 @@ For Spring Boot: use `$spring-boot-scaffold`. For other archetypes: generate dir
 | Agent | Use for |
 |-------|---------|
 | `@nav-pilot-opus` | Deep planning/risk review for high-stakes architecture decisions |
+| `@research-agent` | Repo exploration and fact gathering |
+| `worker` | Green-zone code, tests and scaffolds from a brief (Fase 4) |
 | `@kafka-agent` | Kafka topics, Rapids & Rivers, event design |
 | `@security-champion-agent` | Threat modeling, compliance, security assessments |
 | `@aksel-agent` | Aksel Design System, spacing, responsive layout |
