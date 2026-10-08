@@ -1495,7 +1495,7 @@ absent()  { ! grep -qiE -- "$2" "$1"; }
 # Blind spot #1 = Privacy, #2 = Access control (tests 3, 7, 7b). The *topic*,
 # in any phrasing the agent chooses.
 RE_BS1='personopplysning|persondata|personvern|fødselsnummer|GDPR|datakategori|behandlingsgrunnlag'
-RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?(kunne[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
+RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
 
 # Test 7: a privacy or access question put TO THE USER, not a stated
 # assumption. Only sentences ending in `?` are searched, so «Personvern er
@@ -1541,20 +1541,22 @@ asks_privacy() {
     END { exit !found }'
 }
 # Blind spots #1 and #2 as tests 3, 7b and 8b score them: the topic word
-# anywhere in the answer, or a question to the user that is about the topic.
-# Positive signals only. Every prompt that tests #1 says «fnr», so fnr counts
-# only in a question that also asks about purpose, recipients, storage or
-# sharing («Er det avklart at konsumentene skal motta FNR?»), never in a
-# question about the field («Hvilken type har fnr?»). «Tilgang» counts only
-# with an access-control signal: who may call or read, authentication,
-# TokenX/Azure. «Har du tilgang til repoet?» does not count. Derived
-# 2026-10-08 from the 30 kept GPT-6 Luna planning answers
-# (2026-10-07-luna-planning); the negatives in nav-pilot-golden.bats are the
-# only measured negatives.
+# anywhere in the answer, or a question to the user that carries a privacy or
+# access-control signal and none of the signs of a code, test or tooling
+# question. Every prompt that tests #1 says «fnr», so fnr counts only with a
+# purpose, recipient or retention signal («Er det avklart at konsumentene skal
+# motta FNR?»), never in a question about the field («Skal fnr lagres som
+# String eller Long?»). TokenX, Azure and authentication count for #2 only
+# beside a call, endpoint, service, topic or consumer. Derived 2026-10-08 from
+# the 30 kept GPT-6 Luna planning answers (2026-10-07-luna-planning) and two
+# rounds of review negatives. A third set in nav-pilot-golden.bats was held out
+# while writing these patterns; misses on it are listed in docs/modellvalg.md.
 _W1='(^|[^[:alnum:]])'
 RE_Q_BS1_FNR="${_W1}fnr([^[:alnum:]]|\$)"
-RE_Q_BS1_WHY="${_W1}(hvem|konsument|motta|se|bruke[[:space:]]+til|formål|lagre|lagres|dele|deles|sende[[:space:]]+videre|sendes[[:space:]]+videre|behandlingsgrunnlag|tilgang)"
-RE_Q_BS2='tilgangskontroll|autentiser|autoriser|tjeneste-til-tjeneste|tokenx|azure|hvem[^?]*tilgang|hvem[[:space:]]+(skal|kan)[[:space:]]+(kunne[[:space:]]+)?(kalle|lese)'
+RE_Q_BS1_WHY="${_W1}(konsument|mottaker|motta|bruke[[:space:]]+til|formål|sende[[:space:]]+videre|sendes[[:space:]]+videre|behandlingsgrunnlag|eksponer|oppbevar|pseudonym|hvem[^?]*(få|motta|se|lese)[^?]*fnr)"
+RE_Q_BS1_NOT='valider|parse|pars|test|streng|string|long|type|varchar|database|kode|diff|funksjon|feltnavn|navngi|dele[[:space:]]+opp|se[[:space:]]+(på|bort|om)'
+RE_Q_BS2='tilgangskontroll|access.?policy|lesetilgang|hvem[^?]*tilgang|hvem[[:space:]]+(skal|kan)[[:space:]]+(kunne[[:space:]]+)?(kalle|lese)|(hvilke|hvem)[^?]*(konsument|applikasjon|team)[^?]*(lese|konsumere|kalle)|(tokenx|azure|tjeneste-til-tjeneste|autentiser|autoriser)[^?]*(kall|endepunkt|tjeneste|topic|konsument)|(kall|endepunkt|tjeneste|topic|konsument)[^?]*(tokenx|azure|autentiser|autoriser)'
+RE_Q_BS2_NOT='test|mock|bibliotek|pipeline|(^|[^[:alnum:]])ci([^[:alnum:]]|$)|gcp|grafana|logg|figma|maven|hemmelighet|versjon|ferdig|feiler|repo'
 # Question sentences for raises_bs1/2. Unlike question_sentences, a heading or
 # a blank line ends a sentence («## FNR i Kafka» is not part of the question
 # below it), and a code span keeps its text with . ! ? blanked, so «`FNR`»
@@ -1564,10 +1566,10 @@ bs_questions() {
 }
 raises_bs1() {
   present "$1" "$RE_BS1" ||
-    bs_questions "$1" | grep -iE -- "$RE_Q_BS1_FNR" | grep -qiE -- "$RE_Q_BS1_WHY"
+    bs_questions "$1" | grep -iE -- "$RE_Q_BS1_FNR" | grep -iE -- "$RE_Q_BS1_WHY" | grep -qviE -- "$RE_Q_BS1_NOT"
 }
 raises_bs2() {
-  present "$1" "$RE_BS2" || bs_questions "$1" | grep -qiE -- "$RE_Q_BS2"
+  present "$1" "$RE_BS2" || bs_questions "$1" | grep -iE -- "$RE_Q_BS2" | grep -qviE -- "$RE_Q_BS2_NOT"
 }
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }

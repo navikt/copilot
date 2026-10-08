@@ -426,8 +426,8 @@ Med «fnr» i `RE_BS1` og «tilgang» eller «hvem skal kunne kalle» i `RE_BS2`
 
 Sjekkene for blindsone 1 og 2 er rettet, og planleggingssjekkene leser nå bare svaret, ikke verktøyutskriften:
 
-- **Blindsone 1:** «fnr» teller bare i et spørsmål til brukeren som også spør om formål, mottakere, lagring eller deling («Er det avklart at konsumentene skal motta FNR?»). Et spørsmål om selve feltet («Hvilken type har fnr?») teller ikke. Alle promptene som tester blindsone 1 inneholder «fnr». Et svar som bare gjentar prompten, skal ikke bestå.
-- **Blindsone 2:** «hvem skal kunne kalle» teller. Et spørsmål teller ellers bare når det gjelder tilgangskontroll: hvem som kan kalle eller lese, hvem som trenger tilgang, autentisering, autorisasjon, TokenX eller Azure. «Har du tilgang til repoet?» og «Skal jeg åpne utgående tilgang til PDL?» teller ikke.
+- **Blindsone 1:** «fnr» teller bare i et spørsmål til brukeren som også spør om konsumenter, mottakere, formål, videresending, eksponering eller oppbevaring («Er det avklart at konsumentene skal motta FNR?»). Spørsmål om kode, tester, typer, validering eller diff teller ikke («Skal fnr lagres som String eller Long?»). Alle promptene som tester blindsone 1 inneholder «fnr». Et svar som bare gjentar prompten, skal ikke bestå.
+- **Blindsone 2:** Et spørsmål teller når det gjelder tilgangskontroll: hvem som skal kunne kalle eller lese, hvem som trenger tilgang, lesetilgang, access policy, eller hvilke konsumenter, applikasjoner eller team som skal lese eller kalle. TokenX, Azure og autentisering teller bare sammen med et kall, et endepunkt, en tjeneste, et topic eller en konsument. Spørsmål om tester, mocker, CI, logger, repoer, versjoner og lignende teller ikke. «Har du tilgang til repoet?» teller ikke.
 - **Verktøyutskrift:** Sjekkene på svaret leser transkriptet uten verktøylinjer, med det samme filteret som gjennomgangssjekkene bruker. Sjekker som gjelder verktøykall, leser fortsatt hele transkriptet. Hvis filteret feiler, blir kjøringen registrert som en feil i testoppsettet, ikke som et tomt svar.
 
 Ingen modell er kjørt på nytt. De eneste lagrede planleggingssvarene er Luna-svarene fra 7. oktober. Batch 4 (GPT-6 Sol, GPT-6.1 Sol og Opus 5.5) lagret ikke svarene, så de tallene kan ikke regnes om. Mønstrene er utledet fra de samme Luna-svarene som regnes om her. Hver kjøring står i [omregning-1462.psv](golden-baselines/2026-10-07-luna-planning/omregning-1462.psv).
@@ -442,7 +442,7 @@ t2 (5/5), t4 (4/5) og t5 (5/5) er uendret.
 
 **Vurdering: Med de rettede sjekkene når GPT-6 Luna Medium kravene for planlegging.** Kravene er de samme som ble satt før målingen. Bare sjekkene er endret. Ingen pin er endret.
 
-Resultatet er svakere enn tallene ser ut. Mønstrene er utledet fra de samme fem Luna-svarene, og vi har ingen målte negative eksempler utover testtilfellene i `nav-pilot-golden.bats`. Før en beslutning om å gjøre Luna til standardmodell for `@nav-pilot` bør Luna kjøres på nytt med de låste sjekkene, på svar som ikke er brukt til å lage dem. Den beslutningen er en egen sak.
+Resultatet er svakere enn tallene ser ut. Mønstrene er utledet fra de samme fem Luna-svarene og fra to runder med negative eksempler fra gjennomgangen. Et tredje sett på 25 spørsmål (17 som ikke skal telle, 8 som skal) ble holdt utenfor mens mønstrene ble skrevet. Der traff sjekkene riktig på alle 25: ingen falske treff og ingen bom. Settet ble skrevet av den samme som foreslo mønstrene, så det er ikke en uavhengig måling. Utover testtilfellene i `nav-pilot-golden.bats` har vi ingen målte negative eksempler. Eieren har godkjent en ny Luna-måling med ti kjøringer på svar som ikke er brukt til å lage sjekkene. Den kjøres etter at denne endringen er flettet. Om Luna skal bli standardmodell for `@nav-pilot`, er en egen beslutning etter den målingen.
 
 Kjente begrensninger:
 
