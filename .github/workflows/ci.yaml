@@ -440,7 +440,11 @@ jobs:
       - name: Launch budget
         run: cd cli/nav-pilot && go test ./e2e -run TestLaunchBudget -count=1 -v
       - name: Vet
-        run: cd cli/nav-pilot && go vet ./...
+        run: |
+          cd cli/nav-pilot
+          go vet ./...
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "gofmt -w these files:"; echo "$unformatted"; exit 1; fi
       - name: Staticcheck
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.7.0

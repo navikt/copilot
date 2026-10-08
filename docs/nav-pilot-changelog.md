@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Færre feil på en travel Mac
 
-- **cplt blir funnet også når maskinen er travel**: nav-pilot ga opp etter 2 sekunder når den spurte `copilot` om versjonen eller `cplt` om innstillingene. På en travel Mac kan selv et program som ikke gjør noe, bruke lengre tid enn det på å starte. Da trodde nav-pilot at cplt manglet, eller `config setup` foreslo feil nettverksnivå. Nå venter nav-pilot opptil 8 sekunder, like lenge som før oppstart.
+- **cplt blir funnet også når maskinen er travel**: nav-pilot ga opp etter 2 sekunder når den spurte `copilot` om versjonen eller `cplt` om innstillingene. På en travel Mac kan selv et program som ikke gjør noe, bruke lengre tid enn det på å starte. Da trodde nav-pilot at cplt manglet, eller `config setup` foreslo feil nettverksnivå. Nå venter nav-pilot opptil 8 sekunder, like lenge som oppstartssjekken gjør.
 - **OpenCode-versjonen leses med samme frist som ved oppstart**: Før kunne en treg `opencode --version` gi feilmeldingen «cplt too old».
 - **Trege hooks slipper gjennom i tide**: En hook som blir stoppet fordi den bruker for lang tid, starter ikke lenger nye prosesser etterpå, så kallet slipper gjennom før Copilot gir opp. Gjelder etter neste `nav-pilot sync --apply`.
 

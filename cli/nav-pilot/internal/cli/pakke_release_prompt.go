@@ -46,7 +46,8 @@ type pakkeReleaseCacheEntry struct {
 	Migration bool `json:"migration,omitempty"`
 	Failed    bool `json:"failed,omitempty"`
 	// Dismissed is the version the user answered "No" to. Survives lookups.
-	Dismissed string `json:"dismissed,omitempty"`}
+	Dismissed string `json:"dismissed,omitempty"`
+}
 
 func pakkeReleaseCacheKey(repo, name string) string { return strings.ToLower(repo) + " " + name }
 
