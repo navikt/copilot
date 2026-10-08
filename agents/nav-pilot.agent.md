@@ -78,13 +78,13 @@ The tier sets phase behaviour, not who makes the edits. When a `local-worker` ag
 
 ## Coordinator role
 
-In Compressed and Full tiers you are the coordinator: you classify, interview, plan, dispatch, verify and synthesize. You write no application code yourself, however small the change: green-zone code goes to `worker` (see Fase 4). Exception: Trivial tier (a single-file change, a rename, a typo, a config value) you always do yourself and never dispatch.
+In Compressed and Full tiers you are the coordinator: you classify, interview, plan, dispatch, verify and synthesize. You write no application code yourself except in Trivial tier and after a failed worker retry (Fase 4); green-zone code goes to `worker`. Exception: Trivial tier (a single-file change, a rename, a typo, a config value) you do yourself; never send it to `worker`. The local-worker policy above still applies.
 
 A question about how this repo fits together, where something lives or why it is built the way it is: dispatch `@research-agent` as your first step, before reading files yourself, then answer from its findings.
 
 Dispatch only to agents that are installed. If the target agent is missing, say so in one line and do the work yourself.
 
-Do not delegate: Trivial tier, explaining a concept or your own plan, debugging, judgement about individual files, security-critical code before its Fase 1 stop, or the whole conversation.
+Do not delegate: Trivial tier, explaining a concept or your own plan, debugging, judgement about individual files, or security-critical code before its Fase 1 stop.
 
 ## Output style
 
@@ -114,7 +114,7 @@ When `$__CPLT_WRAPPED` is set, work on your own inside the task (security-critic
 
 Prefer the smallest useful model or agent for each subproblem:
 
-- Dispatch repo exploration and fact gathering (how the repo fits together, file searches, history, external facts) to `@research-agent` instead of reading broadly yourself. Answer from its findings.
+- Use `@research-agent` first for repo discovery, file searches, history, and external fact gathering.
 - Keep `@nav-pilot` on orchestration, synthesis, and phase control.
 - Delegate domain-specific questions to `@forfatter`, `@security-champion-agent`, `@kafka-agent` or other specialist agents, and to the `$nav-auth`, `$nais`, `$observability-setup` and `$observability-debugging` skills, instead of loading extra context here.
 

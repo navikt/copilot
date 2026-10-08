@@ -779,7 +779,8 @@ Hver sjekk har en kontroll i `scripts/nav-pilot-golden.bats` med ferdige debuglo
 
 - d1–d4 består 5 av 5.
 - t2–t5 er minst like gode som GPT-6 Sol i batch 4: t2 5/5, t3 5/5, t4 4/5, t5 5/5.
-- Planleggingen koster høyst 27,2 credits i median, som i batch 4.
+- ~~Planleggingen koster høyst 27,2 credits i median, som i batch 4.~~
+- **Endret 8. oktober 2026 etter rev2:** kravet er 28,89 credits, medianen for samme modell og persona før steg 3 samme dag (sju kjøringer). Eieren godtar om lag 2 credits mer per kjøring for de nye linjene i personaen.
 - ~~d2 koster høyst halvparten av det d2 kostet i grunnmålingen.~~
 - **Endret 8. oktober 2026 etter grunnmålingen, før steg 3 er målt:** d2 må koste høyst det d2 kostet i grunnmålingen (9,74 credits i median), med grønne tester. Halvparten (4,87) er et mål vi strekker oss mot, ikke et krav. Grunnen er at koordinatoren fortsatt betaler for egne turer på GPT-6 Sol til å finne fram, sende oppgaven videre og kontrollere resultatet, i tillegg til det arbeideren koster. Eieren tok beslutningen.
 
@@ -847,7 +848,7 @@ Budsjett: om lag 350 credits, stopp ved 450. Brukt: 337,0 (rev0 d2, d3, d4: 121,
 
 ### Rev2 (8. oktober 2026)
 
-Eieren ba om en rev2 etter rev1: trivielle endringer (én fil, en omdøping, en skrivefeil, en konfigurasjonsverdi) gjør koordinatoren alltid selv og sender dem aldri videre. Resten av personaen er som i rev1. Målt med samme oppsett: d3 fem kjøringer, d2 og d4 tre kjøringer hver som stikkprøve, og t2–t5 med dagens KI-vurdering. D1 er ikke kjørt på nytt, fordi rev2 ikke endrer fase 3. Rådata ligger i [`rev2/`](golden-baselines/2026-10-08-delegering-steg3/rev2/) og som `rev2`-rader i raw.psv.
+Eieren opphevet regelen om én revisjon og ba om rev2: trivielle endringer (én fil, en omdøping, en skrivefeil, en konfigurasjonsverdi) gjør koordinatoren alltid selv og sender dem aldri videre. Resten av personaen er som i rev1. Målt med samme oppsett: d3 fem kjøringer, d2 og d4 tre kjøringer hver som stikkprøve, og t2–t5 med dagens KI-vurdering. D1 er ikke kjørt på nytt, fordi rev2 ikke endrer fase 3. Rådata ligger i [`rev2/`](golden-baselines/2026-10-08-delegering-steg3/rev2/) og som `rev2`-rader i raw.psv.
 
 | Test | Krav | Rev2 | Credits, median (spenn) |
 | ---- | ---- | ---- | ----------------------- |
@@ -858,15 +859,15 @@ Eieren ba om en rev2 etter rev1: trivielle endringer (én fil, en omdøping, en 
 | t3 | 5/5 | 3/3 | |
 | t4 | 4/5 | 3/3 | |
 | t5 | 5/5 | 3/3 | |
-| Planlegging, credits | høyst 27,2 | | 30,84 (29,24–33,52) per kjøring av t2–t5 |
+| Planlegging, credits | høyst 28,89 (endret, se over) | | 30,84 (29,24–33,52) per kjøring av t2–t5 |
 
 Planleggingen ble kjørt tre ganger, ikke fem. Hver kjøring kostet rundt 31 credits, og en fjerde ville gått over stoppen på 200 for denne runden. Ingen planleggingskjøring hadde en subagentrad, så personaen delegerte ikke i fase 1 og 2.
 
-**Konklusjon for rev2: delegeringen består, men kostnadskravene gjør det ikke.**
+**Konklusjon for rev2: delegeringen består, og planleggingen ligger 1,95 over det nye kravet; eieren godtar det.**
 
 - D3 består 5/5 igjen. Unntaket for trivielle oppgaver rettet feilen fra rev1.
 - D2 og d4 delegerer i alle stikkprøvene.
-- Planleggingen koster 30,84 credits i median, over kravet på 27,2. Kravet kommer fra batch 4 (6. oktober). Samme modell med personaen før denne endringen kostet 28,89 i median for de samme testene 8. oktober (sju kjøringer, [2026-10-08-planning-luna-sol-judge](golden-baselines/2026-10-08-planning-luna-sol-judge/)). En del av økningen fantes altså før steg 3. Resten, om lag 2 credits per kjøring, er trolig de nye linjene i personaen, som leses i hver tur.
+- Planleggingen koster 30,84 credits i median. Det opprinnelige kravet på 27,2 kom fra batch 4 (6. oktober). Samme modell med personaen før denne endringen kostet 28,89 i median for de samme testene 8. oktober (sju kjøringer, [2026-10-08-planning-luna-sol-judge](golden-baselines/2026-10-08-planning-luna-sol-judge/)). En del av økningen fantes altså før steg 3. Resten, om lag 2 credits per kjøring, er trolig de nye linjene i personaen, som leses i hver tur.
 - D2 kostet 9,82 i median i tre kjøringer, rett over kravet på 9,74. Med fem kjøringer i rev1 var medianen 9,57. Tre kjøringer er for få til å si om d2 er over eller under.
 - Kvaliteten i planleggingen er like god: t2–t5 besto i alle tre kjøringene, med KI-vurderingen av blindsonene i t3.
 

@@ -21,8 +21,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Sikkerhet til `@security-champion-agent`**: I fulle oppgaver vurderer `@security-champion-agent` (Claude Opus 5.5) sikkerheten i fase 3. Det gjør fase 3 dyrere, om lag dobbelt så mange credits i målingen.
 - **Repospørsmål til `@research-agent`**: Spørsmål om hvordan repoet henger sammen går til `@research-agent` først.
 - **Uendret**: Trivielle oppgaver, forklaringer og feilsøking gjør `@nav-pilot` selv. Fasestoppene og modellporten til `@nav-pilot-opus` er som før.
-- **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply` for å få `worker` og den nye personaen. Mangler en agent, sier `@nav-pilot` fra og gjør jobben selv.
-- **Målt**: Se [modellvalg.md](modellvalg.md#delegering-fra-nav-pilot-steg-3-8-oktober-2026). Delegeringen består, men planleggingen koster mer enn kravet.
+- **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply` for å få `worker` og den nye personaen. Mangler en agent, sier `@nav-pilot` fra og gjør jobben selv. Bruker du nais/pilot, kommer `worker` med neste ukentlige oppdatering av basen.
+- **Målt**: Se [modellvalg.md](modellvalg.md#delegering-fra-nav-pilot-steg-3-8-oktober-2026). Delegeringen består, og planleggingen ligger 1,95 credits over det nye kravet; eieren godtar det.
 
 ### `nav-pilot doctor` sier fra når settings.json overstyrer modellen til en subagent
 
