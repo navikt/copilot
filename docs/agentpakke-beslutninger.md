@@ -364,7 +364,7 @@ Kontrakten står i [README.agentpakke.md, «Stabile releases»](README.agentpakk
 
 Assetet binder pakkenavn, versjon og kilde-SHA i selve releasen, og en immutable release kan ikke endres etter publisering.
 
-**`sourceSha` må ligge på standardbranchen.** `git fetch origin <sha>` (`fetchRevision`, `internal/source/source.go`) henter enhver commit GitHub serverer gjennom repoet, også en som bare finnes i en fork. Uten sjekken kunne metadata peke på innhold som aldri har vært på repoets egen branch. Sjekken er GitHubs compare `<sha>...<standardgren>`, som må gi `ahead` eller `identical`. En commit uten felles historikk gir 404, og det er også en feil.
+**`sourceSha` må ligge på standardbranchen.** `git fetch origin <sha>` (`fetchRevision`, `internal/source/source.go`) henter enhver commit GitHub serverer gjennom repoet, også en som bare finnes i en fork. Uten sjekken kunne metadata peke på innhold som aldri har vært på repoets egen branch. Sjekken er GitHubs compare `<sha>...<standardbranch>`, som må gi `ahead` eller `identical`. En commit uten felles historikk gir 404, og det er også en feil.
 
 **Ugyldig metadata hoppes over i stedet for å stoppe alt.** Releasene er immutable. En feil i ett asset kan ikke rettes, bare etterfølges av en ny release, og et oppslag som feilet på den gamle ville stengt for alle senere. Har repoet bare ugyldig metadata, er det en feil og ikke «ingen metadata», fordi ingenting her skal ende i standardbranchen.
 

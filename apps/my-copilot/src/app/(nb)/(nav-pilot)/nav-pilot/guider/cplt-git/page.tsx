@@ -74,39 +74,37 @@ gh pr create --head min-branch`}
           </BodyLong>
           <BodyLong>
             På Linux virker <code className={code}>-u</code> med en gang. På macOS er{" "}
-            <code className={code}>.git/config</code> skrivebeskyttet i sandkassen. Pushen går likevel, og cplt setter
-            upstream for branchen når økta er ferdig. Til da må du oppgi branchen når du pusher:{" "}
-            <code className={code}>git push origin HEAD:min-branch</code>.
+            <code className={code}>.git/config</code> skrivebeskyttet i sandkassen, så cplt pusher uten{" "}
+            <code className={code}>-u</code> og setter upstream for branchen når økta er ferdig. Til da oppgir du
+            branchen når du pusher: <code className={code}>git push origin HEAD:min-branch</code>.
           </BodyLong>
           <BodyLong>
             Har agenten klonet et repo inne i prosjektmappa, legg det til med <code className={code}>cplt link</code>{" "}
             før økta starter. Ellers setter ikke cplt upstream der.
           </BodyLong>
           <BodyLong>
-            Når cplt ikke kan sette upstream, skriver den kommandoen du skal kjøre selv utenfor cplt, for eksempel{" "}
-            <code className={code}>git branch -u origin/min-branch min-branch</code>.
-          </BodyLong>
-          <BodyLong>
-            <strong>Når virker det ikke?</strong> cplt setter ikke upstream hvis
+            <strong>Når virker det ikke?</strong> Kan ikke cplt sette upstream, skriver den kommandoen du kjører selv
+            utenfor cplt: <code className={code}>git branch -u origin/min-branch min-branch</code>. Den står i meldingen
+            når økta slutter, eller når du pusher i en stille økt. Det skjer når
           </BodyLong>
           <Bullets>
             <li>
               du kjørte <code className={code}>cplt exec</code>, som er stille som standard, eller startet med{" "}
-              <code className={code}>--quiet</code>. Da står kommandoen i meldingen når du pusher
+              <code className={code}>--quiet</code>
             </li>
             <li>
               du startet med <code className={code}>--no-audit</code> eller{" "}
               <code className={code}>--no-scratch-dir</code>
             </li>
-            <li>en prosess fra økta kjørte fortsatt da den sluttet</li>
+            <li>en prosess fra økta fortsatt kjørte da den sluttet</li>
             <li>
-              du pushet med andre flagg eller en refspec som <code className={code}>HEAD:min-branch</code>, i stedet for
-              bare <code className={code}>git push -u &lt;remote&gt; &lt;branch&gt;</code> eller{" "}
+              du pushet med andre flagg eller en refspec som <code className={code}>HEAD:min-branch</code>, ikke bare{" "}
+              <code className={code}>git push -u &lt;remote&gt; &lt;branch&gt;</code> eller{" "}
               <code className={code}>git push -u &lt;remote&gt; HEAD</code>
             </li>
             <li>branchen eller remoten ikke finnes lenger</li>
             <li>
-              git-vakta ville stoppet pushen, for eksempel fordi den går til default branch (se{" "}
+              git-vakta ville stoppet pushen, for eksempel til default branch (se{" "}
               <NextLink href="#vaktene" className={linkClass}>
                 Det cplt stopper
               </NextLink>
@@ -115,13 +113,13 @@ gh pr create --head min-branch`}
           </Bullets>
           <BodyLong>
             Med sikkerhetsnivået <code className={code}>permissive</code> eller <code className={code}>full-trust</code>{" "}
-            er git-vakta av. Da gjør cplt ingenting med pushen. Git prøver å lagre upstream selv, skriver en feilmelding
-            og en linje om at upstream er satt, men den er ikke lagret. Kjør <code className={code}>git branch -u</code>{" "}
-            selv utenfor cplt.
+            er git-vakta av, og cplt rører ikke pushen. Da pusher git, melder feil på{" "}
+            <code className={code}>.git/config</code> og sier likevel at upstream er satt. Det stemmer ikke. Kjør{" "}
+            <code className={code}>git branch -u</code> selv utenfor cplt.
           </BodyLong>
           <BodyLong>
             <code className={code}>git branch -u</code> og <code className={code}>--set-upstream-to</code> inne i økta
-            blir ikke lagret på macOS.
+            blir heller ikke lagret på macOS.
           </BodyLong>
         </VStack>
       </section>

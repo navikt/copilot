@@ -685,7 +685,7 @@ løse dem i, og feilen ber om at syklusen brytes i én av dem.
 
 **En gjenbruk på repoform må pinnes.** Erklæringas `sha` er valgfri for en konsument, men ikke
 for en pakke som gjenbruker en annen: en upinnet base ville komponert det den andre pakkas
-standardgren tilfeldigvis holdt, og to installasjoner en uke fra hverandre ville fått ulikt
+standardbranch tilfeldigvis holdt, og to installasjoner en uke fra hverandre ville fått ulikt
 innhold. Install og sync nekter, og ber om at revisjonen føres opp. En stiformet kilde har
 ingen revisjon å pinne og er unntatt.
 
@@ -801,7 +801,7 @@ En release som skal tilbys, har et asset som heter nøyaktig `agentpakke-release
 | `schemaVersion` | `1`. En annen verdi leses som et format denne nav-pilot ikke støtter. |
 | `name` | Manifestets `name`. En release med et annet navn gjelder en annen pakke i samme repo, og hoppes over. |
 | `version` | Streng SemVer `MAJOR.MINOR.PATCH`, uten `v`, prerelease eller build-metadata. |
-| `sourceSha` | Full commit-SHA, 40 små heksadesimale tegn, for revisjonen payloadene er bygget fra. Commiten må ligge på repoets standardgren. |
+| `sourceSha` | Full commit-SHA, 40 små heksadesimale tegn, for revisjonen payloadene er bygget fra. Commiten må ligge på repoets standardbranch. |
 
 Andre felt er ikke tillatt, og fila kan være høyst 64 KiB. Lint assetet mot [`cli/nav-pilot/schemas/agentpakke-release-v1.json`](../cli/nav-pilot/schemas/agentpakke-release-v1.json), som er den samme fila binæren validerer med. Repoet kommer fra installasjonen og aldri fra fila, så metadata kan verken bytte kilde-repo eller angi nedlastingsadresser.
 
@@ -842,7 +842,7 @@ Publiser releasen som stabil først når alle kontroller som godkjenner distribu
 
 `nav-pilot install --user <navn>` og launchen som pinner en payload-only kilde som ikke er installert, slår opp releasene før de pinner, med samme oppslag og samme kandidatvalg som sync.
 
-- Finnes en stabil release, pinnes nøyaktig dens `sourceSha`, og pinnen følger releases. Standardgrenen materialiseres ikke. `install --json` tar med `pakke_version` og `follows_releases`, og `--dry-run` navngir releasen.
+- Finnes en stabil release, pinnes nøyaktig dens `sourceSha`, og pinnen følger releases. Standardbranchen materialiseres ikke. `install --json` tar med `pakke_version` og `follows_releases`, og `--dry-run` navngir releasen.
 - Et repo uten metadata pinnes fra standardbranchen som før. Følger pinnen allerede releases, nekter install i stedet, slik sync gjør: et repo som slutter å publisere metadata — slettede releases, et trukket asset, en omdøping som gjør at hver release navngir en annen pakke — svarer med «ingen metadata» og ikke med en feil, og ingenting faller tilbake til standardbranchen på det.
 - Feiler oppslaget, pinnes ingenting, og kommandoen feiler med årsaken. Det finnes ingen pinne å beholde, og en pinne på standardbranchen ville ligget foran nyeste release, der nedgraderingsvernet holder den fast.
 - Er revisjonen i releasen ikke lenger payload-only, pinnes ingenting.
@@ -898,7 +898,7 @@ Starter du klienten i en terminal fra en pinnet pakke i brukerscope, og det finn
 
 - Kandidaten er den samme sync ville valgt, med samme nedgraderingsvern. Er pakkeversjonen ukjent, viser spørsmålet den korte SHA-en.
 - Svaret fra oppslaget lagres i `~/.nav-pilot/pakke-releases.json` per repo og pakke, og brukes i 24 timer, eller i én time etter et mislykket oppslag. Flyttes pinnen, slås det opp på nytt. Ved oppstart har oppslaget en tidsgrense på 3 sekunder. Feiler det, skrives én linje, og klienten starter som før. Svarer GitHub 404 på releaselista (et privat repo uten `GITHUB_TOKEN`) for en pinne som ikke følger releases, leses det som ingen metadata, uten melding ved oppstart. Sync og install synker og installerer fra standardbranchen i samme situasjon, men skriver en advarsel.
-- **Update now** slår releasen opp på nytt først. Er den ikke lenger tilbudt med samme SHA, pinnes ingenting, og neste oppstart slår opp på nytt. Ellers pinnes nøyaktig den release-SHA-en spørsmålet gjaldt, med samme verifisering som `sync --apply`, og klienten starter fra den nye revisjonen. Pinnen følger releases. Standardgrenen resolves ikke. Feiler oppdateringen, skrives feilen, og klienten starter fra den pinnede revisjonen etter vanlig verifisering. Er det releasen selv som ikke kan brukes, fordi den ikke er payload-only eller mangler payload for klienten og konteksten, huskes versjonen som avvist, og en nyere versjon spørres om igjen.
+- **Update now** slår releasen opp på nytt først. Er den ikke lenger tilbudt med samme SHA, pinnes ingenting, og neste oppstart slår opp på nytt. Ellers pinnes nøyaktig den release-SHA-en spørsmålet gjaldt, med samme verifisering som `sync --apply`, og klienten starter fra den nye revisjonen. Pinnen følger releases. Standardbranchen resolves ikke. Feiler oppdateringen, skrives feilen, og klienten starter fra den pinnede revisjonen etter vanlig verifisering. Er det releasen selv som ikke kan brukes, fordi den ikke er payload-only eller mangler payload for klienten og konteksten, huskes versjonen som avvist, og en nyere versjon spørres om igjen.
 - **Later** huskes for den versjonen. Kommer en nyere versjon, spør nav-pilot igjen. Avbryter du spørsmålet (Ctrl-C), starter klienten fra den pinnede revisjonen, og du blir spurt igjen neste gang.
 - **Always** og **Keep this revision** er det varige valget: de svarer på denne releasen og på alle etterpå i ett svar ([Varig oppdateringsvalg](#varig-oppdateringsvalg)).
 - Ligger pinnen foran nyeste stabile release, og følger den ikke releases fra før, spør nav-pilot om overgangen i stedet:
