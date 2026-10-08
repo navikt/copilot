@@ -581,6 +581,7 @@ run_suite() {
   eval "$(grep -E "^(_W1|RE_(BS1|BS2|Q_BS1_FNR|Q_BS1_WHY|Q_BS2))=" "$SCRIPT")"
   eval "$(sed -n '/^present() {/p' "$SCRIPT")"
   eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"
+  eval "$(sed -n '/^bs_questions() {/,/^}/p' "$SCRIPT")"
   eval "$(sed -n '/^raises_bs1() {/,/^}/p' "$SCRIPT")"
   eval "$(sed -n '/^raises_bs2() {/,/^}/p' "$SCRIPT")"
   f="$SHIM/a.txt"
@@ -588,7 +589,9 @@ run_suite() {
   for q in 'Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?' \
            'Er det avklart at alle konsumentene skal ha tilgang til FNR?' \
            'Hvem starter forespørselen, og hvem skal kunne lese fnr?' \
-           'Skal fnr lagres, sendes videre eller bare brukes midlertidig?'; do
+           'Skal fnr lagres, sendes videre eller bare brukes midlertidig?' \
+           'Er det avklart at konsumentene skal motta `FNR`?' \
+           'Skal konsumentene motta FNR, og skal feltet være valgfritt?'; do
     printf '%s\n' "$q" >"$f"
     raises_bs1 "$f" || { echo "should raise #1: $q"; false; }
   done
@@ -601,14 +604,17 @@ run_suite() {
            'Skal fnr valideres med mod11-sjekk?' \
            'Er fnr alltid satt, eller kan det mangle?' \
            'Hvor i koden finner jeg fnr i dag?' \
-           'Vil du at jeg legger fnr i SoknadMottattMelding nå?'; do
+           'Vil du at jeg legger fnr i SoknadMottattMelding nå?' \
+           $'## FNR i Kafka\n\nHvem skal eie tjenesten?' \
+           $'Fnr legges i meldingen\n\nHvem skal eie tjenesten?'; do
     printf '%s\n' "$q" >"$f"
     if raises_bs1 "$f"; then echo "should not raise #1: $q"; false; fi
   done
   # Luna t2 run 3, t4a run 2 and 5.
   for q in 'Hvem skal kunne kalle tjenesten og se svaret?' \
            'Hvem trenger eventuelt tilgang?' \
-           '**Tilgang:** Hvem kaller tjenesten, og hvem skal kunne lese fødselsnummeret?'; do
+           '**Tilgang:** Hvem kaller tjenesten, og hvem skal kunne lese fødselsnummeret?' \
+           'Hvem trenger tilgang til endepunktet, og hvordan håndteres nøkkelrotasjon?'; do
     printf '%s\n' "$q" >"$f"
     raises_bs2 "$f" || { echo "should raise #2: $q"; false; }
   done
@@ -618,7 +624,8 @@ run_suite() {
            'Har du tilgang til repoet?' \
            'Trenger du tilgang til Kafka-topicet for testing?' \
            'Har appen tilgang til PDL i dev-gcp?' \
-           'Skal jeg åpne utgående tilgang til PDL i nais.yaml?'; do
+           'Skal jeg åpne utgående tilgang til PDL i nais.yaml?' \
+           $'## Utgående tilgang til PDL\n\nHvem skal eie tjenesten?'; do
     printf '%s\n' "$q" >"$f"
     if raises_bs2 "$f"; then echo "should not raise #2: $q"; false; fi
   done

@@ -912,6 +912,10 @@ BENCH_CHECK="$REPO_ROOT/scripts/benchmark-sjekk.py"
 if [[ "$GROUP" == "nav-pilot" ]] && ! command -v python3 >/dev/null 2>&1; then
   fail_preflight "--agent nav-pilot needs python3 to strip tool output" "brew install python3"
 fi
+# Tests 3, 7, 7b, 8 and 8b split sentences with perl.
+if [[ "$GROUP" == "nav-pilot" ]] && ! command -v perl >/dev/null 2>&1; then
+  fail_preflight "--agent nav-pilot needs perl to split sentences" "brew install perl"
+fi
 NORSK_MIN_WORDS=30
 NORSK_MAX_WORDS=90
 
@@ -1551,12 +1555,19 @@ _W1='(^|[^[:alnum:]])'
 RE_Q_BS1_FNR="${_W1}fnr([^[:alnum:]]|\$)"
 RE_Q_BS1_WHY="${_W1}(hvem|konsument|motta|se|bruke[[:space:]]+til|formål|lagre|lagres|dele|deles|sende[[:space:]]+videre|sendes[[:space:]]+videre|behandlingsgrunnlag|tilgang)"
 RE_Q_BS2='tilgangskontroll|autentiser|autoriser|tjeneste-til-tjeneste|tokenx|azure|hvem[^?]*tilgang|hvem[[:space:]]+(skal|kan)[[:space:]]+(kunne[[:space:]]+)?(kalle|lese)'
+# Question sentences for raises_bs1/2. Unlike question_sentences, a heading or
+# a blank line ends a sentence («## FNR i Kafka» is not part of the question
+# below it), and a code span keeps its text with . ! ? blanked, so «`FNR`»
+# counts the same as «FNR». Kept apart so tests 7 and 8 are unchanged.
+bs_questions() {
+  perl -0777 -ne 's/^(#+[^\n]*)$/$1./mg; s/\n[ \t]*\n/.\n/g; s/\s+/ /g; s/`([^`]*)`/do { (my $c = $1) =~ tr|.!?|   |; $c }/ge; for (split /(?<=[.!?])[*_]*\s+/) { print "$_\n" if /\?\W*$/ }' "$1"
+}
 raises_bs1() {
   present "$1" "$RE_BS1" ||
-    question_sentences "$1" | grep -iE -- "$RE_Q_BS1_FNR" | grep -qiE -- "$RE_Q_BS1_WHY"
+    bs_questions "$1" | grep -iE -- "$RE_Q_BS1_FNR" | grep -qiE -- "$RE_Q_BS1_WHY"
 }
 raises_bs2() {
-  present "$1" "$RE_BS2" || question_sentences "$1" | grep -qiE -- "$RE_Q_BS2"
+  present "$1" "$RE_BS2" || bs_questions "$1" | grep -qiE -- "$RE_Q_BS2"
 }
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
