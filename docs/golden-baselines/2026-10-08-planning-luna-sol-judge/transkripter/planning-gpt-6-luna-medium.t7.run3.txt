@@ -1,0 +1,59 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+
+Foreløpig vurdering: Jackson 3-endringene ser teknisk riktige ut, men migreringen er ikke verifisert. Byggtesten stopper før kompilering fordi Kotlin 2.1-verktøyene ikke gjenkjenner JDK 27. Det finnes heller ingen tester for serialisering eller deserialisering i repoet.
+
+Én mulig wire-format-endring: Jackson 3 sorterer egenskaper alfabetisk som standard. `SoknadMottattMelding` kan derfor gå fra `soknadId, mottatt` til `mottatt, soknadId` i Kafka-meldingen. Datoformatet ser ut til å beholde tidligere oppførsel: Jackson 2 hadde tidsstempler slått av, og Jackson 3 har dem av som standard. Ktor bruker fortsatt kotlinx.serialization, så den delen påvirkes ikke av migreringen. Repoet mangler også `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem.
+
+Før jeg kan konkludere om bakoverkompatibilitet: Er Kafka-konsumentene uavhengige av JSON-feltrekkefølge, og ønsker dere tester som låser meldingsformatet og `LocalDate`-serialiseringen?
+
+Blindsoner reist: 3/11 (#6, #7 og #9 stilt; #1 og #2 ikke berørt; #3–#5, #8, #10 og #11 ikke relevante for denne migreringen).
+

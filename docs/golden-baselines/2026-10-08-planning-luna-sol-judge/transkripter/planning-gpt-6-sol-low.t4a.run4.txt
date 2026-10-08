@@ -1,0 +1,29 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Dette er en **ny tjeneste med fødselsnummer og innlogging**, så jeg stopper i fase 1 før jeg foreslår løsning eller endrer kode. Repoet inneholder en enkel Ktor-demo på Nais, men ingen ID-porten-oppsett eller tokenvalidering. Jeg fant heller ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`; `nav-pilot init` kan legge til lokal Copilot-konfigurasjon.
+
+For å avklare løsningen trenger jeg svar på dette:
+
+1. Skal tjenesten erstatte `demo-tjeneste`, eller være en egen applikasjon? Hva skal den gjøre med fødselsnummeret?
+2. Hvem skal kalle tjenesten: innlogget innbygger via nettleser, en annen Nav-tjeneste, eller begge? Hvem skal kunne se resultatet?
+3. Skal fødselsnummeret kun brukes under forespørselen, eller lagres, sendes videre eller returneres i et svar? Hvilke mottakere er aktuelle?
+4. Hva skal skje hvis innlogging eller en eventuell tjeneste den kaller, feiler? Finnes det andre team eller konsumenter vi må samordne med?
+5. Finnes det tester eller en eksisterende løsning vi skal bygge videre på? Hvordan skal den gamle løsningen fases ut dersom demoen erstattes?
+6. Hvilke målinger skal vise at tjenesten fungerer, uten å logge fødselsnummer?
+
+🔴 Rød sone: Tilgangskontroll og håndtering av fødselsnummer må forstås og gjennomgås grundig.
+
+Blindsoner reist: 8/11 (#1–#8 stilt; #9 avhenger av om eksisterende API endres, #10 dekkes av spørsmålet om utfasing, #11 avklares når løsning og teknologi er valgt).
+

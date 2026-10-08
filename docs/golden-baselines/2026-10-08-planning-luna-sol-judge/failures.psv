@@ -1,0 +1,6 @@
+# Klassifisering av feilede sjekker 8. oktober 2026, lest fra resultatfilene og transkripter/ (verktøyutskrift fjernet). Samme regler for begge armene.
+# arm|sjekk|kjøring|klasse|avgjørende linje
+# Klasser som 2026-10-08-haiku-5-5/failures.psv: modellfeil, sjekkfeil, dommerfeil.
+# Ingen sjekk feilet: GPT-6 Luna Medium besto t2, t3, t4, t5, t7 og t7b i 10 av 10 kjøringer, GPT-6 Sol Low i 7 av 7.
+# Merknad (ikke feil): planning-gpt-6-luna-medium t3 kjøring 10. Dommeren siterte «Hvem eier hele flyten, og hvilke tester forventer dere?» for #2,
+#   som ikke er et tilgangsspørsmål. Svaret har likevel et ekte #2-spørsmål: «hvem skal bruke tjenestens API eller hendelser?» (punkt 2). Utfallet står.

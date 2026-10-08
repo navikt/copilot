@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+## Fase 2: Plan
+
+**Anbefalt flyt:** Innbyggeren logger inn med ID-porten via den eksisterende Next.js-løsningen og Wonderwall. Next.js sin serverdel bruker TokenX til å kalle Kotlin-tjenesten på vegne av innbyggeren. Kotlin-tjenesten validerer TokenX-tokenet, henter fødselsnummeret fra en validert claim og bruker TokenX til å kalle PDL for navn. Nettleseren skal ikke sende fødselsnummer som en betrodd verdi, og Kotlin-tjenesten skal ikke sende det videre til klienten uten et dokumentert behov.
+
+Dette holder fødselsnummer og tokens på serversiden, men gir teamet ansvar for å forstå TokenX-flyten. Jeg legger til grunn at fødselsnummer og navn bare behandles i minnet, ikke lagres, og at PDL støtter TokenX på vegne av innbyggeren. Bekreft claim-navn, token-audience og PDLs tilgangskrav mot den eksisterende frontend-konfigurasjonen og PDL-dokumentasjonen før implementering.
+
+**Prosjektstruktur:** Bygg videre på Ktor-prosjektet. Skill mellom autentisering og uthenting av identitet, PDL-klient, tjenestelogikk og HTTP-ruter. Legg tester under `src/test/kotlin`. Next.js-koden ligger utenfor dette repoet, så dens BFF- og TokenX-oppsett må endres der.
+
+**Nais og tilgang:** Konfigurer ID-porten/Wonderwall i frontend-appen. Slå på TokenX i Kotlin-tjenesten. Sett eksplisitt `accessPolicy`: innkommende trafikk kun fra frontend-appen, utgående TokenX-tilgang kun til PDL. Kontroller at nettverkstilgang og tokenvalidering tillater de samme tjenestene. Ikke legg inn bredere regler enn nødvendig.
+
+**PDL og feil:** Kotlin-tjenesten kaller PDL server-side. Ved utilgjengelig PDL svarer tjenesten med `503`; loggen skal inneholde status, teknisk feilkontekst og korrelasjons-ID, aldri fødselsnummer, navn, token eller PDL-respons med personopplysninger. Ikke legg til kø eller dead-letter. Returner bare data frontend trenger.
+
+**Lagring og målinger:** Ingen database trengs når tjenesten ikke lagrer oppslag. Mål antall oppslag per minutt og andel feilende kall med lavt kardinalitetsnivå. Ikke bruk fødselsnummer, navn eller andre personidentifikatorer som metric-labels. Skill mellom feil fra PDL og avviste eller ugyldige kall.
+
+**CI/CD og tester:** Repoet har ingen GitHub Actions-workflow eller app-spesifikke tester. Legg til pipeline for bygg, tester og deploy etter teamets Nais-mal. Test tokenvalidering, manglende eller ugyldig identitetsclaim, PDL-svar og 503 ved PDL-feil. Bruk mock for PDL og testtoken; ikke bruk ekte personopplysninger. Legg også til en integrasjonstest av TokenX-tilgang og en ende-til-ende-test gjennom frontendens BFF.
+
+**Sikkerhet og utrulling:** Bruk lovhjemmelen som behandlingsgrunnlag, ikke samtykke. Begrens tilgang til innbyggerens egen innloggede flyt, valider signatur, issuer, audience og utløpstid for tokens, og ikke logg personopplysninger. Rull ut i testmiljø først, kontroller tilgang til PDL, feilrate og logger, og rull tilbake ved økt feilrate eller avvik i tilgangskontrollen. Legg ikke til nye GCP-ressurser eller database.
+
+🔴 **Rød sone, teamet må skrive og forstå selv:** Tokenvalidering og uttrekk av fødselsnummer, fordi dette er sikkerhetskritisk; kontroll av at PDL-oppslaget bruker riktig innbyggerkontekst; feilhåndtering som hindrer lekkasje av personopplysninger.  
+🟢 **Grønn sone:** Nais-manifest, CI-workflow, måleoppsett og teststubber kan genereres, men teamet må kontrollere tilgangsreglene og testdekningen.
+
+## Fase 3: Review
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Flyten unngår at nettleseren bestemmer fødselsnummeret. Må bekrefte TokenX-claim og PDLs krav til brukeridentitet og tilgang. |
+| Plattform | ⚠️ | Nais-konfigurasjonen må angi TokenX og eksplisitte inbound- og outbound-regler. Repoet mangler pipeline og app-spesifikke tester. |
+| Arkitektur | ✅ | Next.js BFF → Kotlin API → PDL er en synkron flyt med én avhengighet, slik tjenesten er beskrevet. Ingen database eller kø trengs. |
+| Endringssikkerhet | ⚠️ | Ingen eksisterende tester eller løsning å sammenligne med. Test TokenX- og PDL-integrasjonen før deploy, og bruk 503 ved PDL-feil. |
+
+**Konklusjon: Godkjent med avklaringer.** Planen forutsetter at ID-porten-flyten i frontend kan gi BFF-en brukerens TokenX-kontekst, og at PDL tillater oppslag på denne måten. Fordi dette endrer tilgang til fødselsnummer og navn, stopper jeg her før implementering. Svar eksplisitt at planen er godkjent, og bekreft eller korriger de to forutsetningene, så går jeg videre til Fase 4.
+

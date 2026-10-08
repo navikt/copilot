@@ -1,0 +1,54 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 294ms
+    Failed with exit code 1
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 291ms
+    Failed with exit code 1
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+**Vurdering: Migreringen er ikke verifisert ferdig.** Endringen i `Soknad.kt` bruker Jackson 3.1.0 og bygger mapperen før bruk. Den gamle innstillingen for datoer som tekst er fjernet, men dette er fortsatt standard i Jackson 3. Jeg fant ingen gjenværende Jackson 2-importer eller `JsonNode.map`-kall i kildekoden.
+
+Det viktigste som mangler, er en test som sammenligner JSON før og etter migreringen, særlig `mottatt`-feltet i Kafka-meldingen og deserialisering av `SokerDto`. Grunnlaget angir heller ikke en JDK-versjon eller har en Gradle-wrapper. Jeg kunne derfor ikke bekrefte kompilering eller avhengighetstreet: lokal `gradle --offline` stopper under prosjektkonfigurasjon med `> 27` på JDK 27. Kjør bygg og `dependencyInsight` med en støttet JDK før branchen regnes som klar.
+

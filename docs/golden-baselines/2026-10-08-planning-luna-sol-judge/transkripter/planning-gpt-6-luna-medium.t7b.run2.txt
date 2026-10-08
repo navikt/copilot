@@ -1,0 +1,26 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+`SoknadMottattMelding` sendes til `soknad-mottatt`. Koden viser at tjenesten behandler FNR andre steder, men ikke om det er godkjent å sende FNR på denne topicen, hvem som leser den, eller om de kan håndtere det nye feltet.
+
+Før jeg endrer meldingen, trenger jeg svar på tre spørsmål:
+
+1. Er det avklart at formålet og personvernvurderingen dekker at `soknad-mottatt` inneholder FNR?
+2. Hvilke tjenester leser topicen, og er alle autorisert til å motta FNR?
+3. Kan konsumentene håndtere at meldingen får et nytt felt?
+
+Jeg fant ingen `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md` i repoet. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 3/11 (#1, #2, #6; #3–#5 og #8–#11 ikke relevante nå; #7 kan vurderes ut fra at repoet ikke har testfiler).
+

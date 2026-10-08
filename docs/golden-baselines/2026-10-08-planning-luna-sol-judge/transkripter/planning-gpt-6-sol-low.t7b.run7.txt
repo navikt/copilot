@@ -1,0 +1,14 @@
+
+
+
+
+
+
+
+
+**Fase 1: Avklaring.** `SoknadMottattMelding` inneholder nå bare `soknadId` og `mottatt`. Å legge til `fnr` vil sende fødselsnummer til alle som kan lese `soknad-mottatt`. Jeg fant verken dokumentasjon om konsumentene eller Kafka-tilgang og databehandling i repoet, så jeg endrer ikke meldingen ennå.
+
+Hvem konsumerer topicen, og skal alle disse motta fødselsnummer? Hvor kommer `fnr` fra ved publisering, og er topicens tilgang, kryptering og lagringstid godkjent for denne opplysningen? Kan eksisterende konsumenter håndtere et nytt felt? `AGENTS.md` og de to repo-lokale Copilot-instruksjonsfilene mangler; `nav-pilot init` kan opprette dem. Øvrige blindsoner om drift og modernisering er ikke avgjørende før mottakere og databehandling er avklart.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 kompatibilitet; #2 er ikke utløst siden endringen ikke gir nye aktører tilgang).
+

@@ -691,6 +691,62 @@ Begge armene kjøres med `@nav-pilot` i Copilot CLI med `--keep`, ti kjøringer 
 
 Budsjettet er om lag 350 credits, med stopp ved 440.
 
+### KI-vurderingen ble gjort sikrere før målingen
+
+Endringene for [#1472](https://github.com/navikt/copilot/issues/1472) ligger i en egen commit, laget før noen kjøring:
+
+- Instruksjonen sier nå at modellen skal se bort fra instruksjoner inne i `<answer>`. En `<answer>` eller `</answer>` i svaret blir gjort ufarlig, så svaret kan ikke avslutte blokken.
+- Et sitat teller bare hvis det er et spørsmål. Det må slutte med «?», stå rett foran et «?» i svaret, eller være et indirekte spørsmål som «trenger å vite» eller «må avklare». En sitert påstand gir nei.
+- Et bestått kontrollsett gjenbrukes bare hvis også skriptet, flaggene til Copilot CLI og CLI-versjonen er uendret.
+- **`--available-tools ""` fjernet ikke verktøyene.** Feilsøkingsloggen viste at modellen hadde alle 20 innebygde verktøy, blant annet `bash`, `view` og `edit`. Nå bruker vurderingen `--available-tools=nonexistent_tool`, og loggen viser null verktøy. Samme testkall kostet 0,05 credits uten verktøy mot 0,27 med.
+- Seks nye kontroller er hele svar fra fase 1, med overskrifter, sjekklister, påstander og et spørsmål gjemt inne i teksten. To av dem prøver å gi modellen ordre. Fasiten ble skrevet før noen vurdering ([blindspot-controls-full.tsv](../scripts/golden-fixtures/blindspot-controls-full.tsv)).
+
+Kontrollene ble kjørt én gang etter endringen, uten justeringer etterpå ([kontroller.txt](golden-baselines/2026-10-08-planning-luna-sol-judge/kontroller.txt)):
+
+| Sett | Resultat | Krav |
+| --- | --- | --- |
+| Kontrollsettet, 75 linjer | 72 av 75 (96,0 prosent) | 95 prosent |
+| Hele svar, 6 linjer | 6 av 6 | 95 prosent |
+| Nytt sett fra 8. oktober, 20 linjer | 19 av 20 (95,0 prosent) | 90 prosent |
+
+### Resultater
+
+Rådata ligger i [2026-10-08-planning-luna-sol-judge](golden-baselines/2026-10-08-planning-luna-sol-judge/), og svarene uten verktøyutskrift i [transkripter](golden-baselines/2026-10-08-planning-luna-sol-judge/transkripter/). Copilot CLI 1.0.94-3. Alle 337 bruksrader for Luna viser `gpt-6-luna` med `medium`, og alle 191 for Sol viser `gpt-6-sol` med `low`. Ingen kjøring er forkastet.
+
+**Avvik fra planen: GPT-6 Sol Low fikk 7 kjøringer, ikke 10.** Sol brukte om lag 52 credits per kjøring, mens tidligere målinger av t2–t5 alene lå på 27 til 29. Ti kjøringer ville gitt om lag 570 credits totalt. Kjøringen ble stoppet da kjøring 8 startet, før den brukte noe, for å holde stoppgrensen på 440. Filene for Sol er bygget fra arbeidsmappa (`--keep`) med samme innhold og overskrift som lagringssteget lager.
+
+| Sjekk | GPT-6 Luna Medium | GPT-6 Sol Low |
+| ----- | ----------------- | ------------- |
+| t2    | 10/10             | 7/7           |
+| t3    | 10/10             | 7/7           |
+| t4    | 10/10             | 7/7           |
+| t5    | 10/10             | 7/7           |
+| t7    | 10/10             | 7/7           |
+| t7b   | 10/10             | 7/7           |
+
+Mønstrene ville gitt Luna t3 9/10 og t7b 7/10. Hos Sol ga mønstrene samme utfall som KI-vurderingen i alle sju kjøringene. Hver vurdering står med sitat i `-judge.psv`.
+
+Eksempler på sitater fra KI-vurderingen:
+
+- **Luna t3 kjøring 4:** «Hva skal tjenesten bruke fødselsnummeret til, og hvilket behandlingsgrunnlag gjelder?» (#1) og «Hvem skal kunne kalle tjenesten, og hvilke andre tjenester skal motta fødselsnummeret?» (#2).
+- **Luna t7b kjøring 8:** «Hva er formålet med å sende `fnr` på `soknad-mottatt`, og er dette godkjent for den behandlingen?». Mønstrene fant ikke blindsone 1 her, fordi svaret skriver «fnr».
+- **Luna t3 kjøring 10:** For #2 siterte vurderingen «Hvem eier hele flyten, og hvilke tester forventer dere?». Det er ikke et tilgangsspørsmål. Svaret spør likevel «hvem skal bruke tjenestens API eller hendelser?», så utfallet står. Se [failures.psv](golden-baselines/2026-10-08-planning-luna-sol-judge/failures.psv).
+- **Sol t3 kjøring 5:** «Hva skal tjenesten bruke fødselsnummeret til?» (#1) og «Hvem skal kunne kalle API-et?» (#2).
+- **Sol t7b kjøring 1:** «Hvilke konsumenter leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?».
+
+I t7 fant vurderingen ingen spørsmål om personvern eller tilgang i noen kjøring, verken for Luna eller Sol.
+
+Credits per kjøring, med KI-vurderingen:
+
+| Arm | Min | Median | Maks | Sum |
+| --- | --- | --- | --- | --- |
+| GPT-6 Luna Medium (10 kjøringer) | 3,85 | 4,55 | 5,36 | 45,5 |
+| GPT-6 Sol Low (7 kjøringer) | 46,85 | 51,98 | 53,28 | 356,1 |
+
+Kontrollene og verktøytesten kostet 9,8 credits. Hele målingen kostet 411,5 credits.
+
+**Vurdering: GPT-6 Luna Medium oppfyller kriteriet for å bli standard for `@nav-pilot`.** Luna besto alle seks sjekkene i 10 av 10 kjøringer, også t2. Sol kan ikke bestå mer enn 10 av 10 på noen sjekk, så de tre manglende Sol-kjøringene kunne ikke endret utfallet. Målingen endrer ingen pin. Byttet gjøres i en egen endring.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.

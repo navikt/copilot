@@ -1,0 +1,23 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Avklaringer før vi bygger.** Repoet har en enkel Ktor-tjeneste og et Nais-manifest, men ingen ID-porten-oppsett, tilgangsregler eller tester. Jeg antar at fødselsnummeret gjelder innlogget innbygger. `AGENTS.md` og repo-lokale Copilot-instruksjoner mangler; `nav-pilot init` kan legge dem til senere.
+
+1. Skal tjenesten kalles fra en innbyggerrettet nettleserapp, eller håndtere innloggingen selv? Hvem skal kunne kalle API-et?
+2. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i ett kall, sende det videre eller lagre det? Hvilke tjenester skal eventuelt motta det?
+3. Hva skal skje hvis ID-porten eller en tjeneste dere kaller, er utilgjengelig? Finnes det en eksisterende løsning som skal erstattes, og hvem eier resten av flyten?
+
+Jeg avventer svar før arkitekturvalg eller kode. Spørsmål om målinger, tester og utrulling hører til planen når flyten er avklart. 🔴 Rød sone: autentisering og håndtering av fødselsnummer må gjennomgås grundig.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #5, #6 og #8; #4 og #7 tas i planen, #9–#11 avhenger av svarene).
+

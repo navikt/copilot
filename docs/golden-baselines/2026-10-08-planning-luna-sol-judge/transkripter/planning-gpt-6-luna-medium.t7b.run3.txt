@@ -1,0 +1,28 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jeg fant `SoknadMottattMelding` i `src/main/kotlin/no/nav/demo/Soknad.kt`. Den inneholder nå `soknadId` og `mottatt`, mens `SokerDto` allerede har `fnr`. Repoet viser ingen Kafka-konsumenter eller konfigurasjon for tilgang til topicet, så jeg kan ikke verifisere hvem som får FNR eller om de tåler feltet.
+
+Før jeg endrer meldingen, trenger jeg svar på dette:
+
+1. Er `soknad-mottatt` godkjent for å sende FNR, og hvilke regler gjelder for tilgang og lagring av meldingen?
+2. Hvilke tjenester konsumerer topicet, og er alle autorisert til å behandle FNR?
+3. Tåler konsumentene et nytt felt, og hva skal skje med meldinger som mangler FNR under overgangen?
+4. Finnes det kontrakt- eller serialiseringstester for meldingen som ikke ligger i dette repoet?
+
+Jeg fant heller ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md` i repoet. **Blindsoner reist: 4/11 (#1, #2, #6, #7 og #9 stilt; øvrige ikke relevante).**
+

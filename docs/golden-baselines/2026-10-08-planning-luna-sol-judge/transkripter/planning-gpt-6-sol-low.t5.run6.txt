@@ -1,0 +1,3 @@
+
+Bruk **TokenX token exchange (on-behalf-of)**. Tjeneste A veksler brukerens token til et nytt token med tjeneste B som audience, og sender det til B. Da bevares brukerkonteksten. Konfigurer TokenX og eksplisitt `accessPolicy` for kallene; B må validere tokenet og sjekke at brukeren har tilgang til ressursen. Ikke bruk Azure AD `client_credentials` her, siden det mister brukerkonteksten.
+

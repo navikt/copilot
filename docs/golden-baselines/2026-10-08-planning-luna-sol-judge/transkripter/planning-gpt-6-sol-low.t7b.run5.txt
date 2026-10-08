@@ -1,0 +1,18 @@
+
+
+
+
+
+
+
+
+
+
+`SoknadMottattMelding` inneholder i dag bare `soknadId` og `mottatt`. Å legge til `fnr` endrer Kafka-meldingen med en personopplysning, så jeg stopper før kodeendringen.
+
+Hvor skal fødselsnummeret hentes fra når meldingen opprettes? Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer? Må eksisterende konsumenter kunne fortsette å lese meldingene uten endringer?
+
+Jeg fant ingen `AGENTS.md` eller repo-lokal Copilot-konfigurasjon. `nav-pilot init` kan legge til slik konfigurasjon.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 bakoverkompatibilitet; øvrige er ikke nødvendige for å avklare denne endringen).
+

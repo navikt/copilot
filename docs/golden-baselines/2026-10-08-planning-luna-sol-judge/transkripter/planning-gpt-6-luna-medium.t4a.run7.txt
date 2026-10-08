@@ -1,0 +1,32 @@
+
+Jeg avklarer først hva repoet allerede sier om oppsett, auth og personvern.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Repoet er en Ktor-tjeneste på Nais med et demo-API, men uten auth-oppsett. Jeg antar at du vil bygge videre på dette repoet. Jeg finner ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette repo-spesifikke Copilot-instruksjoner.
+
+Før jeg lager en plan:
+
+1. Skal en bruker logge inn via ID-porten, slik at tjenesten leser FNR fra brukerens token, eller skal tjenesten selv ta imot og validere tokens? Hvem skal kalle tjenesten, og hvem skal bruke svaret?
+2. Skal tjenesten bare bruke FNR mens den behandler forespørselen, eller også lagre eller sende det videre? I så fall, hvor?
+3. Hva skal tjenesten gjøre hvis ID-porten eller en annen auth-avhengighet er utilgjengelig, eller FNR mangler?
+4. Hvilke driftsmålinger trenger dere, og hvem eier tjenesten og eventuelle avhengigheter?
+5. Har teamet erfaring med ID-porten-integrasjon i Ktor, og finnes det allerede et testoppsett for tjenesten?
+
+Auth og behandling av FNR blir rød sone i planen.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7 og #11; #8 og #10 gjelder ikke for en ny tjeneste, #9 avhenger av API-kontrakten).
+

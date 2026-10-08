@@ -1,0 +1,39 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-10-08
+# revision:     0409e97c
+# model:        gpt-6-luna
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=5974ee48845ca393 date=2026-10-08 n=75 agree=72 accuracy=0.960
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|0.147|Skal tjenesten bare bruke FNR mens forespørselen behandles, eller skal den lagre eller sende FNR videre?|Er det andre kallere?
+7|1|0|0|0|0|0.118||
+7b|1|1|0|1|1|0.118|Er det godkjent at fødselsnummer sendes til alle eksisterende konsumenter av `soknad-mottatt`, og hvilke team eier konsumentene?|Er det godkjent at fødselsnummer sendes til alle eksisterende konsumenter av `soknad-mottatt`, og hvilke team eier konsumentene?
+3|2|1|1|1|1|0.143|Skal tjenesten bare lese fødselsnummer (fnr), eller også andre opplysninger?|Hvem skal kunne kalle tjenesten, og skal den være tilgjengelig fra internett?
+7|2|0|0|0|0|0.124||
+7b|2|1|0|1|1|0.094|1. Er det avklart at formålet og personvernvurderingen dekker at `soknad-mottatt` inneholder FNR?|2. Hvilke tjenester leser topicen, og er alle autorisert til å motta FNR?
+3|3|1|1|1|1|0.158|Behandler tjenesten bare fnr, eller også andre personopplysninger?|Hvem eller hvilke systemer skal få tilgang til fnr?
+7|3|0|0|0|0|0.119||
+7b|3|0|0|1|1|0.123|Er `soknad-mottatt` godkjent for å sende FNR, og hvilke regler gjelder for tilgang og lagring av meldingen?|Hvilke tjenester konsumerer topicet, og er alle autorisert til å behandle FNR?
+3|4|1|1|1|1|0.171|Hva skal tjenesten bruke fødselsnummeret til, og hvilket behandlingsgrunnlag gjelder?|Hvem skal kunne kalle tjenesten, og hvilke andre tjenester skal motta fødselsnummeret?
+7|4|0|0|0|0|0.11||
+7b|4|1|0|1|1|0.147|Bekrefter du at FNR skal sendes på `soknad-mottatt`, og at mottakerne av topicen har godkjent tilgang til det?|Bekrefter du at FNR skal sendes på `soknad-mottatt`, og at mottakerne av topicen har godkjent tilgang til det?
+3|5|1|1|1|1|0.152|Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller bare brukes under forespørselen?|Hvem skal kunne kalle tjenesten, og hvem skal kunne lese dataene den behandler?
+7|5|0|0|0|0|0.116||
+7b|5|1|0|1|1|0.143|Hvilke konsumenter skal motta fødselsnummeret, og hvordan er topic-tilgangen, kryptering og lagringstid begrenset?|Hvilke konsumenter skal motta fødselsnummeret, og hvordan er topic-tilgangen, kryptering og lagringstid begrenset?
+3|6|1|1|1|1|0.14|Behandler tjenesten bare fødselsnummer, eller også andre opplysninger?|Hvem bruker tjenesten, og hvem skal kunne kalle den?
+7|6|0|0|0|0|0.136||
+7b|6|1|0|1|1|0.183|Hvorfor må meldingen inneholde FNR, og er det godkjent å sende det til alle leserne av topicet?|Hvilke tjenester leser `soknad-mottatt`, og er alle autorisert til å motta FNR?
+3|7|1|1|1|1|0.106|Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og i så fall til hvilket system og hvor lenge?|Hvem skal kalle tjenesten: innbyggerens nettleser, en frontend/BFF eller en annen tjeneste? Hvilket sikkerhetsnivå fra ID-porten trenger dere, nivå 3 eller 4? Hvem skal bruke svaret fra tjenesten?
+7|7|0|0|0|0|0.117||
+7b|7|1|0|1|1|0.136|Hva skal konsumentene bruke fødselsnummeret til, og er det avklart at `soknad-mottatt` skal behandle det?|Hvilke konsumenter leser topicet, og er alle godkjent for å motta fødselsnummer?
+3|8|1|1|1|1|0.156|Skal tjenesten behandle fnr utover å lese det fra tokenet? Hvilket formål og hvilken hjemmel gjelder?|Hvem starter forespørselen: innbygger i nettleser, en annen Nav-tjeneste eller en batchjobb?
+7|8|0|0|0|0|0.111||
+7b|8|0|0|1|1|0.124|Hva er formålet med å sende `fnr` på `soknad-mottatt`, og er dette godkjent for den behandlingen?|Hvilke konsumenter leser topicet, og har alle tilgang til å motta `fnr`?
+3|9|1|1|1|1|0.104|Hva skal tjenesten bruke fødselsnummeret til? Skal den lagre det eller sende det videre, og i så fall til hvem og hvor lenge?|Hvem skal kunne kalle tjenesten: innbyggere via nettleser, andre Nav-tjenester eller noen andre?
+7|9|0|0|0|0|0.121||
+7b|9|0|0|1|1|0.135|Er alle konsumentene av `soknad-mottatt` godkjent for å motta FNR, og tåler de et nytt `fnr`-felt?|Er alle konsumentene av `soknad-mottatt` godkjent for å motta FNR, og tåler de et nytt `fnr`-felt?
+3|10|0|1|1|1|0.099|Hva skal tjenesten gjøre med FNR etter innlogging: bare bruke det midlertidig, lagre det eller sende det videre?|Hvem eier hele flyten, og hvilke tester forventer dere?
+7|10|0|0|0|0|0.124||
+7b|10|1|0|1|1|0.156|Hvilket formål skal fnr dekke i denne meldingen, og er topicens eksisterende konsumenter autorisert til å behandle fnr?|Hvilket formål skal fnr dekke i denne meldingen, og er topicens eksisterende konsumenter autorisert til å behandle fnr?

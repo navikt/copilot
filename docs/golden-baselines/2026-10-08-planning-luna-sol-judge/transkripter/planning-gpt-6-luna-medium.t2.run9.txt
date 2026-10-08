@@ -1,0 +1,29 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jeg tolker dette som en ny Nais-tjeneste i repoet. Det er en Ktor 3-tjeneste i Kotlin, men den har foreløpig ingen ID-porten-konfigurasjon eller tilgangskontroll. Jeg antar at innbyggeren logger inn via ID-porten, og at tjenesten leser fødselsnummeret fra et validert token via ID-porten-sidecar, ikke ved å hente det direkte fra et ID-porten-API. Stemmer det?
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal den lagre det eller sende det videre, og i så fall til hvem og hvor lenge?
+2. Hvem skal kunne kalle tjenesten: innbyggere via nettleser, andre Nav-tjenester eller noen andre?
+3. Hva skal skje hvis en tjeneste den er avhengig av, ikke svarer?
+4. Hvilke team eier tjenesten og eventuelle mottakere av dataene? Hvem skal bruke API-et?
+5. Hvilke målinger trenger dere for å se at tjenesten virker, og hva vet dere om testbehovet?
+6. Er Ktor, Nais eller ID-porten-integrasjonen ny teknologi for teamet?
+
+Fødselsnummerhåndtering og token-validering er rød sone: de må gjennomgås grundig før vi velger løsning. Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Still gjerne spørsmål om valgene over.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7, #11 stilt; #8 modernisering og #10 avvikling ikke relevant for en ny tjeneste; #9 bakoverkompatibilitet avklares når eksisterende konsumenter er kjent).
+

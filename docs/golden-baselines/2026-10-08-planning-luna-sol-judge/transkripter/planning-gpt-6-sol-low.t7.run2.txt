@@ -1,0 +1,44 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 304ms
+    Failed with exit code 1
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+
+**Vurdering: Migreringen er ikke verifisert ennå.** Branchen bytter til Jackson 3.1.0 og bygger `JsonMapper` med Kotlin-modulen. Ktor bruker fortsatt `kotlinx-json` for HTTP, så den trenger ikke `ktor-serialization-jackson3`.
+
+Den viktigste risikoen er Kafka-meldingene i `Soknad.kt`: mapperen serialiserer `LocalDate`, men branchen har ingen test som sammenligner JSON før og etter migreringen. Det finnes heller ingen tester som bekrefter innlesing av `SokerDto`. Jeg fant ingen `JsonNode.map`-kall eller mutering av mapperen etter konstruksjon.
+
+**Byggstatus er uavklart.** `gradle compileKotlin --offline` stopper under prosjektkonfigurasjon fordi Kotlin-plugin 2.1.0 ikke gjenkjenner den installerte Java 27 (`IllegalArgumentException: 27`). Kjør bygg og tester med en støttet JDK, og kontroller deretter avhengighetstreet for gjenværende Jackson 2-jars. Før migreringen godkjennes, bør en karakteriseringstest bekrefte at `mottatt` får samme datoformat i Kafka-meldingen som før. Ingen kode er endret.
+
+🔴 Rød sone: ingen for denne evalueringen.
+

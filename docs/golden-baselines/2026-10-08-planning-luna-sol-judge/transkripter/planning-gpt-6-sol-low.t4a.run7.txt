@@ -1,0 +1,23 @@
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Intervju.** Dette er en ny dataflyt med fødselsnummer og innlogging, så vi må avklare rammene før vi planlegger eller endrer kode. Repoet er en Ktor-demo med et åpent REST-endepunkt. `nais.yaml` har verken ID-porten-konfigurasjon eller `accessPolicy`.
+
+Jeg antar at innbyggeren logger inn via ID-porten, og at tjenesten skal bruke fødselsnummeret fra den validerte innloggingskonteksten, ikke ta det imot som et fritt API-felt. Stemmer det? Avklar også:
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bruke det i ett oppslag, sende det videre, lagre det eller returnere det? Hvilke andre personopplysninger inngår?
+2. Skal innbyggerens nettleser kalle tjenesten direkte, eller går trafikken via en frontend/BFF? Skal andre tjenester eller saksbehandlere ha tilgang?
+3. Hvilke systemer skal tjenesten kalle, hvem eier dem, og hva skal skje hvis de er utilgjengelige?
+4. Er dette en videreføring av demoen eller en separat tjeneste? Finnes det tester eller eksisterende konsumenter som må bevares?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan legge til repo-lokale instruksjoner.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #5, #6, #7; #4 og #8–#11 tas ved planlegging når tjenestens formål er avklart).
+

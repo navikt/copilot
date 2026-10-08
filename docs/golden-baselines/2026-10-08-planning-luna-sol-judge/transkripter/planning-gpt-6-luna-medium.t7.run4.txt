@@ -1,0 +1,50 @@
+
+Jeg undersøker branchens diff og Jackson-avhengigheter først, og vurderer deretter migreringsrisikoen ut fra faktisk kode og rammeverkstøtte.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 284ms
+    Failed with exit code 1
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+**Vurdering: Migreringen ser teknisk riktig ut, men jeg ville ikke godkjent den før wire-formatet er verifisert.**
+
+Jackson 3-importene og avhengighetene er byttet på riktig måte. Jackson 3 håndterer `LocalDate` uten `jackson-datatype-jsr310`, og den nye mapperen beholder Kotlin-modulen. Ktor bruker fortsatt `kotlinx.serialization`, så denne migreringen trenger ikke Ktors Jackson 3-modul.
+
+- **Sjekk endret feltsortering:** Jackson 3 sorterer egenskaper alfabetisk som standard. JSON for `SoknadMottattMelding` får dermed feltene `mottatt`, `soknadId`, i stedet for deklarasjonsrekkefølgen `soknadId`, `mottatt`. JSON-objekter skal ikke være avhengige av rekkefølge, men bekreft at Kafka-konsumentene håndterer dette. Legg gjerne til en regresjonstest for feltnavn og datoformat.
+- **Bygget lot seg ikke verifisere:** `gradle build` stopper under Gradle-konfigurering fordi Kotlin 2.1.0 ikke gjenkjenner JDK 27 (`IllegalArgumentException: 27`). Kotlin-plugin-versjonen er uendret fra foreldreversjonen, så dette ser ut som en eksisterende verktøybegrensning, ikke en Jackson-feil. Avhengighetstreet og testene ble derfor heller ikke kontrollert.
+

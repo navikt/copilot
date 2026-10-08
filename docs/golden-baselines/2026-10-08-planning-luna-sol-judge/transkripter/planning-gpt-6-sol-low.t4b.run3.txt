@@ -1,0 +1,18 @@
+
+
+
+## Fase 2: plan
+
+**Vi legger ID-porten og Wonderwall foran den eksisterende Next.js-frontenden.** Frontenden sender brukerens token videre til en ny Ktor-tjeneste via TokenX. Ktor-tjenesten validerer TokenX-tokenet, henter fødselsnummer fra den validerte brukerkonteksten og spør PDL om navn. Den tar ikke imot fødselsnummer fra klienten. Dette bevarer brukerkonteksten til backend, men krever TokenX-oppsett i begge apper. Alternativet, å la nettleseren kalle Ktor direkte, ville gitt en ekstra offentlig tilgangsvei å sikre.
+
+- **API og data:** Planlagt `GET /api/meg` returnerer bare navnet til innlogget bruker. Fødselsnummer og token skal ikke inngå i respons, logger eller metrikker. Tjenesten er stateless; ingen database, migrasjoner eller Kafka.
+- **Tilgang:** Nais-konfigurasjonen for frontenden får ID-porten og Wonderwall. Ktor-tjenesten får TokenX og en eksplisitt `accessPolicy.inbound` som bare tillater frontenden. `accessPolicy.outbound` tillater PDL. Backend validerer tokenets utsteder, signatur, utløp og audience; nettverkspolicy alene er ikke autentisering. Hvilket PDL-endepunkt og hvilken audience som brukes, hentes fra teamets integrasjonsoppsett, ikke gjettes i kode.
+- **Feil:** PDL-nedetid eller timeout gir `503` i et ProblemDetail-svar uten personopplysninger. Hendelsen logges med korrelasjons-ID og feilkategori, aldri fødselsnummer, navn eller token. Ingen kø eller dead-letter.
+- **Prosjekt og levering:** Behold Ktor-strukturen, men skill rute, token-validering og PDL-klient. Legg til miljøbasert konfigurasjon, Nais-manifest med helseendepunkter og eksplisitte tilgangsregler, samt en CI-workflow som bygger og tester før deploy til dev og deretter prod. Ingen database- eller Kafka-oppsett.
+- **Tester og drift:** Test avvisning av manglende og ugyldig token, at oppslaget gjelder identiteten i tokenet, vellykket PDL-svar og `503` ved PDL-feil. Mål oppslag per minutt og andel feilende kall uten personidentifikatorer. Sett alarmer for vedvarende høy feilandel og svikt i PDL-kall; verifiser innlogging, oppslag, feilrespons og logger i dev før prod.
+- **Utrulling og rollback:** Koble frontenden til det nye endepunktet først i dev. Ved feil rulles frontend-kallet og backend-imaget tilbake. Endringsdokumentet og runbooken skal beskrive denne rekkefølgen, PDL-feil og kontrollene etter deploy.
+
+🔴 **Rød sone, forstå og skriv selv:** TokenX-validering og bindingen mellom validert identitet og PDL-oppslaget er sikkerhetskritisk. Teamet bør også gå gjennom Wonderwall- og TokenX-oppsettet grundig siden teknologien er ny. 🟢 **Grønn sone:** Ktor-grunnstruktur, Nais- og CI-konfigurasjon, metrikkoppsett og testoppsett kan genereres og gjennomgås av teamet.
+
+Dette er bare planen. **Neste fase er gjennomgang av sikkerhet, plattform, arkitektur og endringssikkerhet**, etter at du har godkjent planen. Still gjerne spørsmål om valgene over.
+

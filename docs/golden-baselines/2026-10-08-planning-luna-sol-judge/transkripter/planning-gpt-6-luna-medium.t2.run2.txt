@@ -1,0 +1,27 @@
+
+
+
+
+
+
+
+
+
+
+
+
+Hva slags løsning bygger du: backend-API, hendelseskonsument, frontend for innbygger eller fullstack? Repoet inneholder allerede en liten Kotlin/Ktor-API-tjeneste. Skal vi bygge videre på den, eller opprette en egen tjeneste?
+
+Før jeg lager en plan, trenger jeg svar på dette:
+
+1. **Personopplysninger:** Skal tjenesten bare lese fødselsnummer (fnr), eller også andre opplysninger? Skal fnr lagres, sendes videre eller vises? Hva er formålet og behandlingsgrunnlaget, hvor lenge skal opplysningene beholdes, og trenger dere audit-logging?
+2. **Innlogging og tilgang:** Skal innbyggeren logge inn med ID-porten direkte i en nettleserflyt, eller skal en annen tjeneste sende brukerens kontekst til backend? Hvem skal kunne kalle tjenesten, og skal den være tilgjengelig fra internett?
+3. **Konsumenter og avhengigheter:** Hvilke tjenester skal motta data eller kalle API-et? Hva skal skje hvis ID-porten eller en annen avhengighet er utilgjengelig? Trengs asynkron kommunikasjon?
+4. **Drift:** Hvilke måltall og varsler trenger dere? Hvordan sjekker dere at en deploy fungerer, hvem har vakt, og hvor mye trafikk forventer dere?
+5. **Team og levering:** Er dette et helt nytt prosjekt eller en utvidelse av demo-tjenesten? Hvilke andre team er avhengige av arbeidet, finnes det en frist, og hvilken erfaring har teamet med stakken?
+6. **Tester og kompatibilitet:** Hvilke tester finnes eller skal på plass? Skal andre tjenester bruke et nytt API eller hendelsesformat, og må eldre konsumenter fortsatt fungere?
+
+`nais.yaml` har foreløpig ingen auth- eller `accessPolicy`-konfigurasjon. Jeg fant heller ikke repoets Copilot-instruksjonsfiler (`AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`). Jeg velger ikke auth-løsning før vi har avklart hvem som starter forespørselen og hvordan brukerens innlogging skal nå backend.
+
+Blindsoner reist: 9/11 (#1–#7, #9 og #11; #8 og #10 er ikke relevante hvis dette er nybygg).
+

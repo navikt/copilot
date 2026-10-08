@@ -1,0 +1,5 @@
+
+Bruk **TokenX** med token exchange (OBO): Tjeneste A bytter brukerens token mot et nytt token med tjeneste B som mottaker, og sender det til B som Bearer-token.
+
+Aktiver `tokenx` på B, og legg A inn i B sin `accessPolicy.inbound`. Tokenets audience skal peke på B, vanligvis `cluster:namespace:tjeneste-b`. Ikke bruk Azure `client_credentials`, siden det mister brukerkonteksten.
+

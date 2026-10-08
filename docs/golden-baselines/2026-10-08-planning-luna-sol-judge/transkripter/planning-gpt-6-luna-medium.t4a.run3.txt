@@ -1,0 +1,45 @@
+
+
+
+
+
+
+
+
+
+
+
+Hva slags tjeneste bygger du?
+
+- Backend-API med Kotlin/Ktor eller Spring Boot
+- Frontend for innbygger med ID-porten
+- Fullstack med frontend, BFF og backend
+- Noe annet
+
+Repoet inneholder en enkel Ktor-tjeneste på Nais. Den har ikke auth eller `accessPolicy` ennå, så det er uklart om dette er riktig utgangspunkt. Jeg antar foreløpig at fnr er fortrolige personopplysninger. Ikke del ekte fnr i svaret.
+
+**Personvern og data**
+
+1. Hva skal tjenesten gjøre med fnr? Skal den hente fnr fra en ID-porten-token, motta det fra en annen tjeneste eller hente det fra en annen kilde?
+2. Hvem skal bruke tjenesten, og hvem skal kunne se fnr?
+3. Hva er formålet med behandlingen, og hvilken hjemmel gjelder?
+4. Skal tjenesten lagre fnr? Hvis ja, hvor lenge og hvordan slettes det?
+5. Skal tjenesten dele fnr med andre tjenester? Hvilke?
+6. Trenger dere audit-logging av hvem som har sett eller endret opplysninger?
+
+**Plattform og auth**
+
+7. Hvem starter forespørselen: innbygger i nettleser, en annen Nav-tjeneste eller en batchjobb? Hvis det er en nettleserflyt, finnes det en frontend eller BFF?
+8. Hvilke tjenester skal tjenesten kalle, og i hvilke cluster? Hva skal skje hvis en avhengighet er nede?
+9. Trenger tjenesten Kafka eller annen asynkron kommunikasjon, eller holder det med et REST-API? Finnes det en eksisterende tjeneste dere kan gjenbruke?
+
+**Drift og team**
+
+10. Hvilke forretningsmetrikker og varsler trenger dere? Hvem har vakt, og hva forventer dere av trafikk?
+11. Er dette et nytt prosjekt? Hvilke team er avhengige av det, finnes det en deadline, og har teamet erfaring med Kotlin/Ktor og Nais?
+12. Hvilke konsumenter skal bruke API-et, og finnes det allerede forventninger til API-formatet? Hvordan skal dere teste auth, dataflyt og feiltilfeller?
+
+🔴 **Rød sone:** ID-porten-integrasjon, tokenbehandling og tilgang til fnr må avklares og gjennomgås grundig. Repoet har ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`.
+
+Blindsoner reist: 9/11 (#1, #2, #3, #4, #5, #6, #7, #9 og #11; #8 og #10 er ikke relevante for et nybygg).
+

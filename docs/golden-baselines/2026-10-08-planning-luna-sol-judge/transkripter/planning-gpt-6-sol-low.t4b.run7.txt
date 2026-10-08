@@ -1,0 +1,29 @@
+
+
+
+
+## Fase 2: Plan
+
+**Valg:** Bygg en statsløs Ktor-tjeneste som svarer på `GET /api/meg` med navn fra PDL. Nettleseren kaller tjenesten direkte. Wonderwall håndterer ID-porten-innloggingen, og backend bruker fødselsnummeret fra den validerte brukerkonteksten. Forespørselen skal ikke kunne angi et annet fødselsnummer. Tjenesten bruker TokenX med brukerkontekst når den kaller PDL.
+
+Dette bevarer den direkte nettleserflyten dere beskrev. Det krever at frontend og tjenesten settes opp med en konkret, begrenset origin- og cookie-konfigurasjon; vi skal ikke sende ID-porten-token til JavaScript eller bruke `localStorage`. Alternativet er en BFF i den eksisterende frontenden, men det ville endre hvem som kaller tjenesten.
+
+| Område | Plan |
+|---|---|
+| API | `GET /api/meg` returnerer kun navnet frontenden trenger. Ingen fødselsnummer i respons, URL eller query-parametre. Manglende eller ugyldig innlogging gir 401; PDL utilgjengelig gir 503 med en feilmelding uten personopplysninger. Dokumenter kontrakten i OpenAPI. |
+| Auth | ID-porten og Wonderwall for innbyggeren; TokenX for kall til PDL. Avklar påkrevd innloggingsnivå og PDL-audience mot faktisk integrasjon før konfigurasjonen låses. |
+| Data | Ingen database, cache eller kø. Fødselsnummeret brukes kun i PDL-oppslaget. Lovhjemmel dokumenteres for behandlingen; samtykke brukes ikke som grunnlag. |
+| Nais | `Application` med `idporten`/sidecar og `tokenx`, eksplisitt `accessPolicy.inbound` uten tjenestekallere og `accessPolicy.outbound` begrenset til PDL. Sett eksakt PDL-app og namespace etter integrasjonsavtalen. Konfigurer ingress, health-endepunkter, Prometheus, to replikaer og små ressursforespørsler; ingen CPU-limit. |
+| Struktur | Behold Ktor-oppsettet. Skill mellom beskyttet route, lesing av brukerkontekst og PDL-klient. Legg PDL-adresse og nødvendige innstillinger i miljøkonfigurasjon, ikke i kode. |
+| Feil og logger | Tidsavgrens PDL-kall. Ved utilgjengelighet logges teknisk feiltype og korrelasjons-ID, aldri fødselsnummer, navn, token eller PDL-payload. Ingen kø eller automatisk asynkron retry. |
+| CI/CD | GitHub Actions bygger og kjører tester før image-bygg. Deploy til dev før prod, med eksplisitt kontroll av Nais-konfigurasjonen i begge miljøer. |
+| Tester | Test at ugyldig/manglende innlogging avvises, at identiteten ikke kan overstyres, at PDL får riktig brukerkontekst, og at feil fra PDL gir 503 uten persondata i respons eller logger. Kjør en integrasjonstest mot simulert tokenutsteder og PDL, samt en nettlesertest av innlogging og origin/cookies. |
+
+**Drift og levering:** Mål oppslag per minutt og feilandel uten personidentifikatorer som metrikketiketter. Lag alarm for vedvarende høy feilandel og en runbook for å skille PDL-feil fra innloggingsfeil. Rull ut i dev med testidentitet først, kontroller 401/200/503 og metrikkene, og åpne deretter for produksjon. Ved feil går dere tilbake til forrige image; siden tjenesten ikke lagrer data, trengs ingen datarollback. Endringsdokumentet skal angi lovhjemmel, API-kontrakt, ansvar ved PDL-feil og disse kontrollene.
+
+🔴 **Rød sone, forstå og skriv selv:** uttrekk av identitet fra validert token, tilgangskontroll og TokenX-kallet til PDL. Teamet er nytt på TokenX og Wonderwall; gjennomgå særlig hvilken identitet som faktisk videresendes, tokenets audience og avvisning av kall uten gyldig brukerkontekst.
+
+🟢 **Grønn sone:** Ktor-oppsett, Nais-manifest, CI-workflow, metrikkoppsett og teststøtte. Kontroller tilgangsreglene før deploy.
+
+Planen gir direkte nettleserkall uten en ny BFF, men gjør origin- og cookie-oppsettet til en del av sikkerhetsgjennomgangen. **Fase 3 er neste steg etter godkjenning av planen.** Still gjerne spørsmål om valgene over.
+
