@@ -450,7 +450,7 @@ Begge rettingene har kontroller som feiler med de gamle sjekkene. Den lagrede `r
 | sc2 bestått (alle fem)                    | 8/10                        | 0/10                   | 0/10                   | 0/10              |
 | sc1 bestått (fil og linje)                | 0/10                        | 0/10                   | 3/10                   | 3/10              |
 | sc3 bestått                               | 8/10                        | 10/10                  | 9/10                   | 9/10              |
-| sc3, funn merket kritisk: median (høyest) | 0 (1)                       | 0 (0)                  | 0 (1)                  | 0 (2)             |
+| sc3, funn merket kritisk: median (høyest) | 0 (1)                       | 0 (0)                  | 0 (1)                  | 0 (1)             |
 | Credits, hele armen                       | 399,6                       |                        | 247,9                  |                   |
 
 Omregnet per feil, antall av ti kjøringer der feilen er nevnt og merket kritisk:
@@ -467,14 +467,14 @@ Svarene viser:
 
 - **Opus** satte logging av fødselsnummer under 🟠 Høy eller lavere i alle ti kjøringene. TokenX-valideringen sto under 🟠 i kjøring 10. Resten var 🔴. Opus oppga ingen linjenumre, så sc1 er 0/10, som i piloten.
 - **Sol** brukte sjelden ordet «kritisk». I flere svar sto funnene som «blokkerende» med dommen «BLOCK». Ordlisten i kriteriet teller ikke «blokkerende». Teller vi det med, blir tallene for Sol 2, 6, 6, 5 og 4 av 10, og fortsatt under kravet. Sol oppga linjenumre, men bommet med noen linjer på `App.kt` og `nais.yaml`.
-- **sc3:** Kjøring 5 for Sol har to kritiske punkter, blant dem «Kritisk: Manglende nettverksbegrensning» om `nais.yaml` ved siden av fila. Opus hadde ingen kritiske funn på fila uten feil.
+- **sc3:** Kjøring 5 for Sol har ett kritisk funn: «Kritisk: Manglende nettverksbegrensning» om `nais.yaml` ved siden av fila. Sjekken teller to, fordi den også teller oppsummeringen «**Omfang:** … **Funn: 1 kritisk, 2 øvrige.**», som viser til `SakService.kt:17` og `37`. Tabellen bruker det reelle tallet. Sjekken følges opp i [#1462](https://github.com/navikt/copilot/issues/1462). Opus hadde ingen kritiske funn på fila uten feil.
 
 Vurdering mot kriteriene, med de omregnede tallene:
 
 - **Claude Opus 5.5 Low er ikke akseptabel for `@security-champion`.** Fødselsnummer i loggen er merket kritisk i 0 av 10 kjøringer, og TokenX-valideringen i 9 av 10. De tre andre feilene og fila uten feil holder kravet.
 - **GPT-6 Sol Low er ikke akseptabel som reservemodell for `@security-champion`.** Ingen av de fem feilene når 9 av 10.
 
-Med testoppsettets egne tall var Opus akseptabel. Det tallet bygget på et mønster som telte funnet om ruten som funnet om loggen. Personaen sier «Log FNR» under 🚫 Never, men ber ikke om at det merkes kritisk. Om det skal regnes som kritisk, er et spørsmål om personaen, ikke om modellen.
+Med testoppsettets egne tall var Opus akseptabel. Det tallet bygget på et mønster som telte funnet om ruten som funnet om loggen. Personaen sier «Log FNR» under 🚫 Never, men ber ikke om at det merkes kritisk. Om det skal regnes som kritisk, er et spørsmål om personaen, ikke om modellen. [#1466](https://github.com/navikt/copilot/pull/1466) legger til en regel om at fødselsnummer i loggen er kritisk. Da må `@security-champion` måles på nytt.
 
 Forbruket for denne delen var 716,0 credits: 399,6 for Opus, 247,9 for Sol og 68,5 for to pilotkjøringer. Den første piloten feilet i oppsettet for branchen og telles ikke. Budsjettet var om lag 950, med stopp ved 1 200. Målingen endrer ingen pinner.
 
