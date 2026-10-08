@@ -4,6 +4,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-08
 
+### `@rust` bytter til Claude Haiku 5.5
+
+- **Ny modell**: `@rust` kjører på Claude Haiku 5.5 i stedet for GPT-6 Luna. GPT-6 Luna er reserve. `@kafka` blir på GPT-6 Luna.
+- **Billigere, ikke bedre**: Begge modellene besto alle Rust-oppgavene i målingen. Haiku på Low brukte 0,87–1,02 credits per kjøring mot 1,11–1,58 for Luna. Oppgavene var små, så målingen sier lite om kvalitet.
+- **Bruk Low**: Effort settes i modellvelgeren, ikke i agentfilen.
+- **Gjelder etter neste installasjon**: Kjør `nav-pilot sync --apply` for å få den nye pinnen. Pinnen gjelder bare når `@rust` startes direkte.
+
 ### Hook-porter får to sekunders margin før Copilot gir opp
 
 - **Mindre risiko for at et verktøykall blir nektet**: Copilot CLI nekter et verktøykall når en `preToolUse`-hook bruker lengre tid enn `timeoutSec`. nav-pilot stopper skriptet før fristen, slik at kallet slipper gjennom. Før skjedde det ett sekund før fristen. Når maskinen var travel, rakk ikke `sh`, `mktemp`, `python3`-shimen fra mise og oppryddingen å bli ferdige på det sekundet, og Copilot nektet kallet likevel. Nå stopper nav-pilot skriptet to sekunder før fristen.
