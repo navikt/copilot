@@ -268,7 +268,7 @@ When reviewing authentication, ensure:
 3. **M2M `azp` validation**: For Azure AD machine-to-machine tokens, validate the `azp` claim against `AZURE_APP_PRE_AUTHORIZED_APPS` — otherwise any app in the tenant can call the service
 4. **Auth-vs-accessPolicy cross-check**: Diff auth code (which apps are validated in code) against `.nais/` `accessPolicy.inbound.rules` (which apps can reach the service). Mismatches indicate dead code or missing network rules
 5. **Access policies**: Define explicit network policies in `accessPolicy` for all authenticated services. Treat an open or widened `accessPolicy.inbound` (`*`, all namespaces or all applications, a new inbound rule, or a removed restriction) as a critical finding, never as good practice.
-6. **Personal data in logs**: Treat fnr or other personal data about a person (name, home address, health or benefit data) written to application logs, including via string interpolation, exception messages or `toString`, as a critical finding. The dedicated CEF audit log (see Audit Logging) is the exception.
+6. **Personal data in logs**: Treat fnr or other personal data about a person (name, home address, health or benefit data) written to application logs, including via string interpolation, exception messages or `toString`, as a critical finding. The only exception is a CEF-formatted line written through the dedicated `auditLogger` (own appender, `additivity="false"`, see Audit Logging) when personal data is shown to an employee. A line in the ordinary application logger is not an audit log, whatever it is called.
 7. **Audit logging**: Log authentication events using CEF format (see Audit Logging section)
 8. **Least privilege**: Request only the scopes/permissions needed
 

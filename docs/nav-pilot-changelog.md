@@ -13,7 +13,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Personopplysninger i logger er et kritisk funn
 
-- **`@security-champion` og `@code-review`**: Fnr eller andre personopplysninger (navn, bostedsadresse, helse- eller ytelsesdata) som skrives til applikasjonsloggen, også via strenginterpolasjon, unntaksmeldinger eller `toString`, merkes nå som kritisk (🔴). Før sto det bare at slikt ikke skal logges, og modellen merket det høy i alle ti målte kjøringer.
+- **`@security-champion` og `@code-review`**: Fnr eller andre personopplysninger om en person (navn, bostedsadresse, helse- eller ytelsesdata) som skrives til applikasjonsloggen, også via strenginterpolasjon, unntaksmeldinger eller `toString`, merkes nå som kritisk (🔴). Sporingsloggen (CEF via `auditLogger`) er unntatt. Før sto det bare at slikt ikke skal logges, og modellen merket det som høy i alle ti målte kjøringer.
 
 ## 2026-10-06
 
