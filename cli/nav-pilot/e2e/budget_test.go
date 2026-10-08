@@ -35,6 +35,13 @@ const budgetClientLog = "NAV_PILOT_E2E_BUDGET_CLIENT_LOG"
 // blackhole), and twice with it done for the day, once with telemetry on (its
 // collector in the blackhole) and once with it off. The version check due
 // must match it done, and telemetry on must match it off, within noise.
+//
+// Those two are compared run by run, not median against median. The three
+// runs of one round follow each other within a second, so whatever else the
+// machine does at that moment (another check, Spotlight, the endpoint
+// scanner) lands on all three; across rounds a launch here varied from 80 ms
+// to 1.2 s on a busy laptop, far more than noise. The median of the per-round
+// differences cancels that; two medians of independent samples do not.
 var budgets = map[string]time.Duration{
 	"version": 50 * time.Millisecond,
 	"help":    50 * time.Millisecond,
@@ -58,6 +65,25 @@ const (
 	telemetryOff             // telemetry off, version check done for the day
 	modes
 )
+
+// pairedDiff is the median of a[i]-b[i]: how much slower a is than b, run
+// for run.
+func pairedDiff(a, b []time.Duration) time.Duration {
+	d := make([]time.Duration, len(a))
+	for i := range a {
+		d[i] = a[i] - b[i]
+	}
+	return median(d)
+}
+
+// median is the true median: with an even count, the mean of the middle two.
+// The upper of the two would side with whichever run of a pair is slower,
+// and where a run sits in its round moves its time (see order).
+func median(d []time.Duration) time.Duration {
+	d = slices.Sorted(slices.Values(d))
+	n := len(d)
+	return (d[(n-1)/2] + d[n/2]) / 2
+}
 
 // runBudgetClient is the fake client's whole program.
 func runBudgetClient() {
@@ -234,10 +260,6 @@ func TestLaunchBudget(t *testing.T) {
 		}
 		return end.Sub(start), 0, 0
 	}
-	median := func(d []time.Duration) time.Duration {
-		slices.Sort(d)
-		return d[len(d)/2]
-	}
 	check := func(name string, d [modes][]time.Duration) {
 		t.Helper()
 		budget := budgets[name]
@@ -247,25 +269,29 @@ func TestLaunchBudget(t *testing.T) {
 			t.Errorf("%s took %s (median of %d), budget %s: over %dx the budget. Something on this path waits on the network or does too much before the client starts; see docs/README.nav-pilot.md, «Ytelse»",
 				name, got, budgetRuns, budget, budgetMargin)
 		}
-		if got > on+noise {
-			t.Errorf("%s took %s with the version check due and %s with it done: something waits for the version check. It may not; see artifacts.AssessStalenessCached",
-				name, got, on)
+		if diff := pairedDiff(d[budgetMode], d[telemetryOn]); diff > noise {
+			t.Errorf("%s took %s more with the version check due than with it done (median of %d paired runs; medians %s and %s): something waits for the version check. It may not; see artifacts.AssessStalenessCached",
+				name, diff, budgetRuns, got, on)
 		}
-		if on > off+noise {
-			t.Errorf("%s took %s with telemetry on and %s with it off: something waits for telemetry. It may not; see internal/telemetry/spool.go",
-				name, on, off)
+		if diff := pairedDiff(d[telemetryOn], d[telemetryOff]); diff > noise {
+			t.Errorf("%s took %s more with telemetry on than off (median of %d paired runs; medians %s and %s): something waits for telemetry. It may not; see internal/telemetry/spool.go",
+				name, diff, budgetRuns, on, off)
 		}
 	}
 
-	// The run right after one in budget mode is the slower one, whatever it
-	// is (it pays for what that run left behind), so telemetry on and off
-	// take turns being it.
-	order := func(i int) []mode {
-		if i%2 == 0 {
-			return []mode{budgetMode, telemetryOn, telemetryOff}
-		}
-		return []mode{budgetMode, telemetryOff, telemetryOn}
+	// Where a run sits in its round moves its time: the run right after one
+	// in budget mode pays for what that run left behind. So the rounds go
+	// through all six orders of the three modes, and every mode holds every
+	// place equally often (budgetRuns is a multiple of six).
+	orders := [][]mode{
+		{budgetMode, telemetryOn, telemetryOff},
+		{budgetMode, telemetryOff, telemetryOn},
+		{telemetryOn, budgetMode, telemetryOff},
+		{telemetryOff, budgetMode, telemetryOn},
+		{telemetryOn, telemetryOff, budgetMode},
+		{telemetryOff, telemetryOn, budgetMode},
 	}
+	order := func(i int) []mode { return orders[i%len(orders)] }
 
 	// One untimed run of each: the first run of a new binary pays for the
 	// OS's first look at it, and the first launch writes its one-time notices.
@@ -294,32 +320,37 @@ func TestLaunchBudget(t *testing.T) {
 		check(c.name, d)
 	}
 
-	var copilotLaunch time.Duration
-	for _, client := range [][]string{
+	// Both clients run in each mode of each round, next to each other, and
+	// which goes first alternates by round. The opencode launch is held to
+	// the Copilot one in the same pairs, so neither is always the run that
+	// follows the other.
+	clients := [][]string{
 		{"--", "-p", "hei"},
 		{"--client", "opencode", "--", "run", "hei"},
-	} {
-		var launches, exits [modes][]time.Duration
-		for i := range budgetRuns {
-			for _, m := range order(i) {
-				_, launch, exit := run(m, client...)
+	}
+	var launches, exits [2][modes][]time.Duration
+	for i := range budgetRuns {
+		for _, m := range order(i) {
+			for _, c := range []int{i % 2, 1 - i%2} {
+				args := clients[c]
+				_, launch, exit := run(m, args...)
 				if launch == 0 {
-					t.Fatalf("nav-pilot %v started no client", client)
+					t.Fatalf("nav-pilot %v started no client", args)
 				}
-				launches[m], exits[m] = append(launches[m], launch), append(exits[m], exit)
+				launches[c][m], exits[c][m] = append(launches[c][m], launch), append(exits[c][m], exit)
 			}
 		}
-		t.Logf("nav-pilot %v:", client)
-		check("launch", launches)
-		check("exit", exits)
-		// The same machine and the same load, so no margin: what opencode
-		// does on top of the Copilot launch must fit in the budget itself.
-		// It once waited seconds on macOS's automounter for /home (#1276).
-		if copilotLaunch == 0 {
-			copilotLaunch = median(launches[telemetryOff])
-		} else if got := median(launches[telemetryOff]); got > copilotLaunch+budgets["launch"] {
-			t.Errorf("an opencode launch took %s and a Copilot launch %s (medians of %d): opencode adds more than the %s launch budget. Something on its path waits (a lookup, a lock, the network) or does too much",
-				got, copilotLaunch, budgetRuns, budgets["launch"])
-		}
+	}
+	for c, args := range clients {
+		t.Logf("nav-pilot %v:", args)
+		check("launch", launches[c])
+		check("exit", exits[c])
+	}
+	// The same machine and the same load, so no margin: what opencode does on
+	// top of the Copilot launch must fit in the budget itself. It once waited
+	// seconds on macOS's automounter for /home (#1276).
+	if diff := pairedDiff(launches[1][telemetryOff], launches[0][telemetryOff]); diff > budgets["launch"] {
+		t.Errorf("an opencode launch took %s more than a Copilot launch (median of %d paired runs; medians %s and %s): opencode adds more than the %s launch budget. Something on its path waits (a lookup, a lock, the network) or does too much",
+			diff, budgetRuns, median(launches[1][telemetryOff]), median(launches[0][telemetryOff]), budgets["launch"])
 	}
 }
