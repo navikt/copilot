@@ -383,8 +383,9 @@ export default function Klienter() {
           om den er testet. nav-pilot starter ikke opencode 3 før vi har testet den.
         </BodyLong>
         <BodyLong>
-          opencode 2 krever macOS og cplt fra 7. oktober 2026 eller nyere. På Linux kjører ikke cplt opencode 2 ennå, så
-          der må du bruke opencode 1. nav-pilot sier fra og viser hvordan du installerer opencode 1.
+          opencode 2 krever macOS og cplt 2026.10.07-123313 eller nyere. Kjør {c("cplt --version")} for å se hvilken du
+          har. På Linux kjører ikke cplt opencode 2 ennå, så der må du bruke opencode 1. nav-pilot sier fra og viser
+          hvordan du installerer opencode 1.
         </BodyLong>
         <LinkableHeading id="deling-og-oppdatering" size="small" level="3">
           Deling og oppdatering
