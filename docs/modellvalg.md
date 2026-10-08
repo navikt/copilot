@@ -480,7 +480,7 @@ Forbruket for denne delen var 716,0 credits: 399,6 for Opus, 247,9 for Sol og 68
 
 ## Claude Haiku 5.5 mot GPT-6 Luna Medium (8. oktober 2026)
 
-Claude Haiku 5.5 er aktivert i Nav og svarer på `--model claude-haiku-5.5` i Copilot CLI 1.0.94, selv om `copilot help config` ikke lister modellen. Listeprisen er den samme som for GPT-6 Luna opp til 100K input-tokens per forespørsel, men over 100K koster Haiku fem ganger så mye. Luna dobler inputprisen først over 272K. Spørsmålet er om Haiku kan ta over noen av Luna-pinnene.
+Claude Haiku 5.5 er aktivert i Nav og svarer på `--model claude-haiku-5.5` i Copilot CLI 1.0.94, selv om `copilot help config` ikke lister modellen. Listeprisen er den samme som for GPT-6 Luna opp til 100K input-tokens per forespørsel, men over 100K koster Haiku fem ganger så mye. Luna dobler prisen for input først over 272K. Spørsmålet er om Haiku kan ta over noen av Luna-pinnene.
 
 ### Kriteriene ble satt før målingen
 
@@ -497,7 +497,7 @@ Kodegjennomgangen er bare informasjon. Haiku-armene vurderes mot de fire kravene
 
 ### Resultater
 
-Rådata ligger i [2026-10-08-haiku-5-5](golden-baselines/2026-10-08-haiku-5-5/). Hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-08-haiku-5-5/failures.psv), og svarene på rv5–rv8 uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-5-5/transkripter/). Tallene under kommer fra [list-price.py](golden-baselines/2026-10-08-haiku-5-5/list-price.py). Copilot CLI 1.0.94-3. Alle 434 bruksrader for Haiku viser `claude-haiku-5.5` med innsatsnivået vi ba om, og alle 370 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet. En smoke-kjøring før målingen viste at CLI-en tar imot og registrerer `low`, `medium` og `high` for Haiku.
+Rådata ligger i [2026-10-08-haiku-5-5](golden-baselines/2026-10-08-haiku-5-5/). Hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-08-haiku-5-5/failures.psv), og svarene på rv5–rv8 uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-5-5/transkripter/). Tallene under kommer fra [list-price.py](golden-baselines/2026-10-08-haiku-5-5/list-price.py). Copilot CLI 1.0.94-3. Alle 434 bruksrader for Haiku viser `claude-haiku-5.5` med innsatsnivået vi ba om, og alle 370 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet. En prøvekjøring før målingen viste at CLI-en tar imot og registrerer `low`, `medium` og `high` for Haiku.
 
 Bestått er antall sjekker på tvers av kjøringene. Credits og dollar er median per kjøring. Input-tokens er per forespørsel. Dollar er listepris med cache-lesing og cache-skriving priset hver for seg.
 
@@ -515,7 +515,7 @@ Bestått er antall sjekker på tvers av kjøringene. Credits og dollar er median
 
 Ingen forespørsel i noen arm kom over 100K input-tokens, så Haikus dyrere trinn ble aldri brukt. Den største var 66 627 tokens (Luna, review).
 
-Kodegjennomgangen per sjekk, med sjekkens tall. rv8 er antall rader med høy prioritet: median (høyest).
+Tabellen viser kodegjennomgangen per sjekk, med sjekkens tall. rv8 er antall rader med høy prioritet: median (høyest).
 
 | Sjekk                        | Haiku 5.5 Low | Haiku 5.5 Medium | Luna Medium |
 | ---------------------------- | ------------- | ---------------- | ----------- |
@@ -530,18 +530,18 @@ Hva svarene viser:
 
 - **Haiku oppgir ofte ikke linjenummer i gjennomgangen av branchen.** I 8 av 10 rv-pr-svar på Low og 6 av 10 på Medium står et symbol eller en nøkkel i linjecellen, for eksempel `hentForPerson` eller `accessPolicy.inbound`. Da feiler rv5, rv7 og idempotensdelen av rv6 samtidig. I alle disse svarene er SQL-injeksjonen, fødselsnummeret i loggen, det åpne endepunktet og den åpne `accessPolicy.inbound` nevnt og merket 🔴. Regnet på innholdet blir rv5 8/10 på Low og 10/10 på Medium, og rv7 9/10 og 10/10. Lunas svar har linjenummer i alle ti.
 - **rv6:** Haiku sa ikke at lagringen kan lykkes mens publiseringen feiler, i tre kjøringer på hver arm. Regnet på innholdet blir rv6 7/10 på begge. For Luna er én kjøring beskrevet med andre ord og én ekte bom.
-- **rv1–rv4:** Haikus bom er linjer som ligger én eller to linjer feil, og på Medium ett linjeintervall over fire linjer.
+- **rv1–rv4:** Haikus bommer er linjenumre som ligger én eller to linjer feil, og på Medium ett linjeintervall over fire linjer.
 - **rv8:** Ingen arm hadde noen rad med høy prioritet. Bommene er svar uten en konklusjon om at fila er ren. To Luna-svar («Fant ingen blocker») og ett Haiku Medium-svar («Ingen sikkerhetsfunn») har en slik konklusjon med ord sjekken ikke kjenner.
 
 Vurdering mot kriteriene, med sjekkens egne tall:
 
-- **Haiku 5.5 kan erstatte GPT-6 Luna Medium på `@kafka` og `@rust`: ja.** Haiku 5.5 Low besto 30 av 30 `coding`-sjekker, som Luna, med median 1,57 credits mot 1,86 og $0,0157 mot $0,0186 per kjøring. Medium holder også (30/30, 1,66 credits, $0,0166).
-- **Haiku 5.5 kan erstatte GPT-6 Luna Medium på `@research`: nei.** Begge Haiku-armene besto 20 av 20, som Luna, men median credits var 1,00 (Low) og 1,04 (Medium) mot Lunas 0,92, og listeprisen $0,0100 og $0,0104 mot $0,0092.
+- **Haiku 5.5 kan erstatte GPT-6 Luna Medium på `@kafka` og `@rust`: ja.** Haiku 5.5 Low besto 30 av 30 `coding`-sjekker, som Luna, med median 1,57 credits mot 1,86 og $0,0157 mot $0,0186 per kjøring. Medium holder også (30/30, 1,66 credits, $0,0166). Alle fem Haiku Low-kjøringer på koding lå under alle fem Luna-kjøringene (1,55–1,64 mot 1,70–2,09 credits).
+- **Haiku 5.5 kan erstatte GPT-6 Luna Medium på `@research`: nei.** Begge Haiku-armene besto 20 av 20, som Luna, men median credits var 1,00 (Low) og 1,04 (Medium) mot Lunas 0,92, og listeprisen $0,0100 og $0,0104 mot $0,0092. Per kjøring lå Haiku Low på 0,98–1,23 credits og Luna på 0,77–0,99, og Haiku var dyrest i 23 av 25 par.
 - **Kodegjennomgang, bare informasjon:** Ingen Haiku-arm oppfyller kravene for reservemodell for `@code-review`. Low: krav 1 holder ikke (rv5 0/10), krav 2 holder ikke (rv7 1/10), krav 3 holder (median 0, høyest 0), krav 4 holder ikke (rv6 1/10 mot Opus' 6/10). Medium: krav 1 holder ikke (4/10), krav 2 holder ikke (4/10), krav 3 holder (median 0, høyest 0), krav 4 holder ikke (3/10).
 
-Fem kjøringer per arm er lite, og kodeoppgavene er små. Målingen endrer ingen pinner. Et bytte på `@kafka` og `@rust` er en egen beslutning.
+Fem kjøringer er lite. `coding` består av tre små oppgaver, så et pinnebytte på `@kafka` og `@rust` bør først måles med ekte oppgaver for de to agentene. Under 100K input-tokens er listeprisen i dollar lik credits delt på 100 for begge modellene, så dollarkriteriet gir ikke noe selvstendig bevis her. Målingen endrer ingen pinner.
 
-Målingen brukte 98,4 credits ifølge bruksradene: 60,9 på Haiku og 37,6 på Luna. Smoke-kjøringene og sjekken av innsatsnivåene brukte om lag 1,6 til. Budsjettet var om lag 80 credits, med stopp ved 150.
+Målingen brukte 98,4 credits ifølge bruksradene: 60,9 på Haiku og 37,6 på Luna. Prøvekjøringene og sjekken av innsatsnivåene brukte om lag 1,6 til. Budsjettet var om lag 80 credits, med stopp ved 150.
 
 ## Pinner og delegering
 
