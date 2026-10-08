@@ -253,12 +253,12 @@ hva hver av dem gjør og hvordan du slår den av.
 
 | Hook           | Fil                                 | Hva den gjør                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Slå av                                                                          |
 | -------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Løkkevakt      | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                                                                                                                                                          | `nav-pilot config set hook_loop_guard false`                                    |
+| Loop guard     | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                                                                                                                                                          | `nav-pilot config set hook_loop_guard false`                                    |
 | Handlingssjekk | `nav-pilot-action-check.json`       | Før en risikabel skallkommando (endringer med kubectl, nais, gcloud og helm, `terraform apply`/`destroy`, `rm -r`, `git push --force`, `git reset --hard`, `git clean -f`, `dd`, `mkfs`, `DROP` og `TRUNCATE` i SQL) spør hooken den lokale modellen om kommandoen står i forhold til formålet, om den er destruktiv, og om formålet støtter den. Svaret lagres i telemetri og i en logg i øktas mappe. Stopper ingenting, og modellen ser ikke svaret. Bare med lokal modell. | `nav-pilot config set hook_action_check off`                                    |
 | Maskering      | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører).                                                                                                                                        | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
 
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
-det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed om at den står
+det modellen leser. Når loop guard slår til, får modellen derfor en beskjed om at den står
 fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
 `local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil i øktas egen
 mappe, `~/.copilot/session-state/<økt-id>/nav-pilot-loop-guard.json`. Filen inneholder bare
@@ -301,7 +301,7 @@ I en lokal økt står vakten i nav-pilot allerede foran modellen og avslutter tu
 hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene er laget for å
 slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt, blir
 resultatet stående som det var. Unntaket er en `config.toml` som ikke lar seg lese. Da
-kjører hookene med standardverdiene, altså med maskering og løkkevakt på, og skriver én
+kjører hookene med standardverdiene, altså med maskering og loop guard på, og skriver én
 linje om det på stderr. En ødelagt fil skal ikke være det som slår av maskeringen. En nøkkel
 med feil type, for eksempel `hook_redact_secrets = "false"` med anførselstegn, blir hoppet
 over, så standardverdien gjelder, og hooken sier fra om det på stderr.
@@ -562,19 +562,19 @@ flervalgsspørsmål fra hooks og skript. Ingenting skjer før du kjører `init` 
 
 ```bash
 nav-pilot alpha local init      # Mac med Apple Silicon: laster ned modellen og starter serveren
-nav-pilot alpha local setup     # egen server (Linux, Ollama, llama-server)
+nav-pilot alpha local setup     # egen LLM-server (Linux, Ollama, llama-server)
 nav-pilot alpha help            # alle kommandoene
 ```
 
 Dokumentasjonen står på ki-utvikling.nav.no:
 
 - [Kom i gang med lokal modell på Mac](https://ki-utvikling.nav.no/nav-pilot/lokal)
-- [Kom i gang med egen server](https://ki-utvikling.nav.no/nav-pilot/lokal/egen-server)
+- [Kom i gang med egen LLM-server](https://ki-utvikling.nav.no/nav-pilot/lokal/egen-server)
 - [Din første decide-hook](https://ki-utvikling.nav.no/nav-pilot/lokal/decide)
-- Guiden [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/guider/lokal): utsending, bytte modell og oppskrifter for `alpha decide`
+- Guiden [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/guider/lokal): delegering, bytte modell og oppskrifter for `alpha decide`
 - [Når den lokale modellen henger](https://ki-utvikling.nav.no/nav-pilot/guider/feilsoking#lokal)
 - [Lokale modeller](https://ki-utvikling.nav.no/nav-pilot/referanse#lokale-modeller) i referansen
-- Forklaringen [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/forklaring/lokal-modell): hvorfor utsendingen er begrenset, og hva modellene klarer, målt
+- Forklaringen [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/forklaring/lokal-modell): hvorfor delegeringen er begrenset, og hva modellene klarer, målt
 
 ## Agentpakker fra andre team
 
@@ -694,17 +694,17 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `otel_log_level` | --otel-log-level | none · error · warning · warn · info · debug · verbose · all (standard: none) | Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env. |
 | `local_enabled` | — | true · false (standard: false) | Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false, ser nav-pilot ingen lokale modeller. |
 | `local_autostart` | — | true · false (standard: false) | La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: en prosess på 21 GB skal ikke starte uten at du har bedt om det. |
-| `local_loop_guard` | — | et heltall (standard: 8) | Hvor mange identiske verktøykall på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). |
+| `local_loop_guard` | — | et heltall (standard: 8) | Hvor mange like verktøykall på rad som avslutter en runde for den lokale modellen, uansett hva kallene returnerer. Gir kallene samme resultat hver gang, stopper runden etter halvparten så mange kall (minst 2). |
 | `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Sett den med nav-pilot alpha local use &lt;key&gt;. |
 | `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), bare localhost eller privat IP (alfa, uten støtte). Sjekk den med nav-pilot alpha local doctor. |
 | `local_endpoint_model` | — | modell-id på serveren | Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint. |
-| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: aggressive) | Hvor mye hovedagenten i opencode sender til den lokale modellen. aggressive sender mest, men kostet flere AI-kreditter og tok lengre tid i målingene. |
+| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: aggressive) | Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI-kreditter og tok lengre tid i målingene. |
 | `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
 | `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. |
 | `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer. |
 | `hook_injection_note` | — | true · false (standard: true) | Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. |
 | `hook_action_check` | — | off · log (standard: log) | Spør den lokale decide-modellen om en risikabel skallkommando (kubectl, terraform apply, rm -r, git push --force og lignende) står i forhold til formålet. log lagrer svaret og stopper ingenting. Krever lokal modell. |
-| `mcp_hosts` | — | ask · off (standard: ask) | Om nav-pilot spør om å slippe gjennom vertene MCP-tjenerne dine trenger i cplt. Vertene hentes fra Navs MCP-register. ask spør én gang per sett, off spør aldri. |
+| `mcp_hosts` | — | ask · off (standard: ask) | Om nav-pilot spør før den åpner cplt for hostene MCP-serverne dine trenger. Hostene hentes fra Navs MCP-register. ask spør én gang per sett, off spør aldri. |
 | `copilot_auth_mode` | — | auto · env_only · gh_only (standard: auto) | Hvilken innlogging som når cplt for Copilot. auto begrenser ingenting; env_only krever et token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner dem. |
 <!-- config-keys:end -->
 <!-- prettier-ignore-end -->

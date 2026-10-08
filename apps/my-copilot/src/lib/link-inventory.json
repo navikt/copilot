@@ -631,6 +631,11 @@
       "docs/README.nav-pilot.md"
     ],
     "anchors": {
+      "delegering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"
+      ],
       "hva-kommer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"],
       "malt-decide": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
@@ -665,10 +670,17 @@
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
     "anchors": {
+      "delegeringsnivaer": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"
+      ],
       "malt-decide": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/decide/page.tsx"
+      ],
+      "malt-delegering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx"
       ],
       "malt-utsending": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx"
@@ -912,6 +924,7 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"
       ],
       "gradle-properties": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "interne-hoster": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
       "interne-verter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
       "jdk": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
       "oppsett": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
@@ -1157,6 +1170,11 @@
         "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
         "docs/news/articles/nav-pilot-alpha-decide.md"
       ],
+      "delegering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx"
+      ],
       "egen-server": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx",
@@ -1280,6 +1298,7 @@
       ],
       "hvorfor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
       "starte-i-worktree": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "subagenter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
       "underagenter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
       "unknown-config-key": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
       "worktree-remove": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"]
@@ -1307,6 +1326,7 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
       ],
+      "delegering": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx"],
       "deling-og-oppdatering": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"

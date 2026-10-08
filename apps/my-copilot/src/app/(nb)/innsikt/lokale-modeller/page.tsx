@@ -178,8 +178,8 @@ export default function LokaleModeller() {
 
           <Section id="delegeringsnivaer" title="Delegeringsnivåene">
             <BodyLong>
-              Hovedagenten delegerer ikke av seg selv. Med bare en instruks om hva den burde delegere, sendte Sonnet 5
-              arbeid til den lokale modellen i 1 av 29 testkjøringer. Derfor har nav-pilot en delegeringssperre, og
+              Hovedagenten delegerer ikke av seg selv. Med bare en instruks om hva den burde delegere, delegerte Sonnet
+              5 arbeid til den lokale modellen i 1 av 29 testkjøringer. Derfor har nav-pilot en delegeringssperre, og
               nivået <code className={code}>aggressive</code> er standard fra 30. september 2026: det er det eneste
               nivået som faktisk delegerer, og alt som ble delegert, besto testene. Prisen er tid og som regel flere
               AI-kreditter.

@@ -12,11 +12,11 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Lokal modell",
   description:
-    "Bestem hvor mye hovedagenten sender til den lokale modellen, bytt modell i skyen og lokalt, og bruk alpha decide i hooks og skript.",
+    "Bestem hvor mye hovedagenten delegerer til den lokale modellen, bytt modell i skyen og lokalt, og bruk alpha decide i hooks og skript.",
 };
 
 const TOC: TocItem[] = [
-  { id: "utsending", label: "Styr utsendingen" },
+  { id: "delegering", label: "Styr delegeringen" },
   { id: "bytte-modell", label: "Bytte modell i skyen" },
   { id: "bytte-lokal-modell", label: "Bytte lokal modell" },
   { id: "decide-oppskrifter", label: "Oppskrifter for alpha decide" },
@@ -67,21 +67,21 @@ export default function LokalGuide() {
         </NextLink>{" "}
         og{" "}
         <NextLink href="/nav-pilot/lokal/egen-server" className={linkClass}>
-          Kom i gang med egen server
+          Kom i gang med egen LLM-server
         </NextLink>
         . Den lokale modellen er alfa og av som standard.
       </BodyLong>
 
       <section>
         <VStack gap="space-16">
-          <LinkableHeading id="utsending" size="medium" level="2">
-            Styr utsendingen
+          <LinkableHeading id="delegering" size="medium" level="2">
+            Styr delegeringen
           </LinkableHeading>
           <BodyLong>
-            Utsending krever opencode som klient. Der blir den lokale modellen en underagent som heter{" "}
-            <code className={code}>local-worker</code>, og hovedagenten i skyen sender avgrensede oppgaver dit.
+            Delegering krever opencode som klient. Der blir den lokale modellen en subagent som heter{" "}
+            <code className={code}>local-worker</code>, og hovedagenten i skyen delegerer avgrensede oppgaver dit.
             nav-pilot legger inn <code className={code}>local-worker</code> selv hvis agentpakka ikke har den. Har pakka
-            eller repoet en egen, bruker nav-pilot den. Copilot CLI har ingen slik underagent, så der kjører hele økten
+            eller repoet en egen, bruker nav-pilot den. Copilot CLI har ingen slik subagent, så der kjører hele økten
             enten lokalt eller i skyen.
           </BodyLong>
           <CodeBlock compact>
@@ -93,8 +93,8 @@ nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> fo
             Nivåene er <code className={code}>off</code>, <code className={code}>conservative</code>,{" "}
             <code className={code}>balanced</code> og <code className={code}>aggressive</code> (standard). Hva hvert
             nivå gjør, og hvorfor <code className={code}>aggressive</code> er standard, står i{" "}
-            <NextLink href="/nav-pilot/forklaring/lokal-modell#utsending" className={linkClass}>
-              Hvorfor utsendingen er begrenset
+            <NextLink href="/nav-pilot/forklaring/lokal-modell#delegering" className={linkClass}>
+              Hvorfor delegeringen er begrenset
             </NextLink>
             . Har du satt <code className={code}>local_dispatch</code> selv, beholder du verdien din. Vil du slå av alt
             lokalt, bruk <code className={code}>nav-pilot alpha local off</code>.
@@ -183,7 +183,7 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             <code className={code}>start</code> spør før de hever den. Den har 64k kontekst og 16k svar.
           </BodyLong>
           <BodyLong>
-            Hovedagenten sender ingenting til denne modellen ennå, uansett utsendingsnivå. Du kan bruke den til{" "}
+            Hovedagenten delegerer ingenting til denne modellen ennå, uansett delegeringsnivå. Du kan bruke den til{" "}
             <code className={code}>alpha decide</code>, eller prøve den i en økt selv. I målingene svarte den like godt
             som standardmodellen med decide. Prompter over 49 000 tokens kan sprenge minnegrensen. Se{" "}
             <NextLink href="/innsikt/lokale-modeller#modell-64-gb" className={linkClass}>

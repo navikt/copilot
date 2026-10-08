@@ -161,8 +161,8 @@ export default function RetningslinjerPage() {
                   du venter, og hvilke funksjoner du bruker. Dataene kan knyttes til pseudonyme IDer.
                 </BodyLong>
                 <BodyLong>
-                  Copilot Business beholder ikke ledetekster (prompts) eller forslag (suggestions) etter at de er
-                  levert. Koden din brukes ikke til å trene modeller.
+                  Copilot Business beholder ikke prompter eller forslag (suggestions) etter at de er levert. Koden din
+                  brukes ikke til å trene modeller.
                 </BodyLong>
                 <BodyLong>
                   Les mer i{" "}

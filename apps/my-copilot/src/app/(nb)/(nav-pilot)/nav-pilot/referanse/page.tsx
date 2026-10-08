@@ -15,7 +15,7 @@ import { CLI_COMMANDS, CONFIG_KEYS } from "./data";
 const KEY_LINKS: Record<string, { href: string; label: string }> = {
   autonomy: { href: "/nav-pilot/forklaring/sandkassen#autonomi", label: "Mer om autonomy" },
   client: { href: "/nav-pilot/klienter", label: "Klienter" },
-  local_dispatch: { href: "/nav-pilot/forklaring/lokal-modell#utsending", label: "Utsending" },
+  local_dispatch: { href: "/nav-pilot/forklaring/lokal-modell#delegering", label: "Delegering" },
   surveys: { href: "/nav-pilot/forklaring/personvern#brukerundersokelser", label: "Brukerundersøkelser" },
   news: { href: "/nav-pilot/forklaring/personvern#nyheter", label: "Nyheter" },
   hook_action_check: { href: "/nav-pilot/guider/tilpasse#hook-action-check", label: "Hvilke kommandoer" },
@@ -61,7 +61,7 @@ const EXIT_CODES = [
 
 const SECURITY_LEVELS = [
   { setting: "gh_guard", standard: "på", strict: "på" },
-  { setting: "git_guard", standard: "blokkerer push til standardgrenen og force push", strict: "blokkerer all push" },
+  { setting: "git_guard", standard: "blokkerer push til default branch og force push", strict: "blokkerer all push" },
   { setting: "proxy.forced (tvungen proxy)", standard: "av", strict: "på" },
   { setting: "proxy.default_allowlist", standard: "av", strict: "på: bare cplts egen liste og proxy.allowed_domains" },
 ];
@@ -77,10 +77,10 @@ nav-pilot alpha decide "..." --options ja,nei --evidence fil  # avgjørelse med 
 nav-pilot alpha local stop
 nav-pilot alpha local restart   # stop og start i ett
 nav-pilot alpha local on        # skru på igjen etter off
-nav-pilot alpha local off       # slutt å sende oppgaver dit; vektene blir liggende
+nav-pilot alpha local off       # slutt å delegere oppgaver dit; vektene blir liggende
 nav-pilot alpha local purge     # viser hva som fjernes og hvor mye; --yes sletter, --all tar alle modellene
-nav-pilot alpha local setup     # egen server: finner den, foreslår modell og sjekker den
-nav-pilot alpha local doctor    # egen server: sjekker verktøykall, logprobs, kontekst og tid til første token`;
+nav-pilot alpha local setup     # egen LLM-server: finner den, foreslår modell og sjekker den
+nav-pilot alpha local doctor    # egen LLM-server: sjekker verktøykall, logprobs, kontekst og tid til første token`;
 
 const nb = (n: number) => n.toLocaleString("nb-NO");
 

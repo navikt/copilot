@@ -13,7 +13,7 @@ import { getLocalModels } from "@/lib/local-models";
 export const metadata: Metadata = {
   title: "Kom i gang med lokal modell på Mac",
   description:
-    "Installer nav-pilot, last ned en kodemodell og kjør en første økt der hovedagenten i skyen sender en oppgave til modellen på Macen din.",
+    "Installer nav-pilot, last ned en kodemodell og kjør en første økt der hovedagenten i skyen delegerer en oppgave til modellen på Macen din.",
 };
 
 const TOC: TocItem[] = [
@@ -51,7 +51,7 @@ export default async function LokalIntro() {
     <DocPage
       label="Introduksjon"
       title="Kom i gang med lokal modell på Mac"
-      description={`Du installerer nav-pilot, laster ned en kodemodell og kjører en første økt der hovedagenten i skyen sender en oppgave til modellen på Macen din. Nedlastingen er på omtrent ${m.weights_gb + 1} GB.`}
+      description={`Du installerer nav-pilot, laster ned en kodemodell og kjører en første økt der hovedagenten i skyen delegerer en oppgave til modellen på Macen din. Nedlastingen er på omtrent ${m.weights_gb + 1} GB.`}
       badge={
         <Tag variant="warning" size="small" className="uppercase tracking-wide">
           Alfa
@@ -62,10 +62,10 @@ export default async function LokalIntro() {
       <div id="hva-du-far">
         <BodyLong>
           Hovedagenten i skyen planlegger og bestemmer. Mekaniske oppgaver, som å føre et nytt argument gjennom mange
-          filer, sender den til <code className={code}>local-worker</code>, en underagent som kjører på Macen din og
+          filer, delegerer den til <code className={code}>local-worker</code>, en subagent som kjører på Macen din og
           ikke bruker AI-kreditter. Med <code className={code}>nav-pilot alpha decide</code> stiller du den samme
           modellen et flervalgsspørsmål fra en hook eller et skript. Spørsmålet og grunnlaget forlater ikke maskinen.
-          Ved utsending ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret fra den lokale modellen.
+          Ved delegering ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret fra den lokale modellen.
         </BodyLong>
       </div>
       <BodyLong>
@@ -89,12 +89,12 @@ export default async function LokalIntro() {
             <NextLink href="/nav-pilot/guider/lokal#modell-64-gb" className={linkClass}>
               Større modell for Macer med 64 GB
             </NextLink>
-            . Hovedagenten sender den ingen oppgaver ennå.
+            . Hovedagenten delegerer ingen oppgaver til den ennå.
           </BodyLong>
           <BodyLong>
             Har du Linux, en Intel-Mac eller mindre minne, gå til{" "}
             <NextLink href="/nav-pilot/lokal/egen-server" className={linkClass}>
-              Kom i gang med egen server
+              Kom i gang med egen LLM-server
             </NextLink>
             .
           </BodyLong>
@@ -149,19 +149,20 @@ export default async function LokalIntro() {
           </LinkableHeading>
           <CodeBlock compact>{FIRST_SESSION}</CodeBlock>
           <BodyLong>
-            Utsending krever opencode som klient. Copilot CLI har ingen underagent som kan kjøre lokalt.
+            Delegering krever opencode som klient. Copilot CLI har ingen subagent som kan kjøre lokalt.
           </BodyLong>
           <BodyLong>
             Be om en mekanisk endring over flere filer, for eksempel «legg til parameteren{" "}
             <code className={code}>ctx</code> i alle kall til <code className={code}>hentBruker</code>». Gjør
-            hovedagenten en stor mekanisk endring selv, stopper nav-pilot den og ber den sende resten til{" "}
+            hovedagenten en stor mekanisk endring selv, stopper nav-pilot den og ber den delegere resten til{" "}
             <code className={code}>local-worker</code>. Når <code className={code}>local-worker</code> er ferdig, ber
             nav-pilot hovedagenten bygge prosjektet og kjøre testene. Små endringer gjør hovedagenten selv.
           </BodyLong>
           <BodyLong>
-            Det koster mer AI-kreditter og tid enn å la skymodellen gjøre alt selv. Hvor mye som sendes, styrer du med{" "}
-            <NextLink href="/nav-pilot/guider/lokal#utsending" className={linkClass}>
-              utsendingsnivået
+            Det koster mer AI-kreditter og tid enn å la skymodellen gjøre alt selv. Hvor mye som delegeres, styrer du
+            med{" "}
+            <NextLink href="/nav-pilot/guider/lokal#delegering" className={linkClass}>
+              delegeringsnivået
             </NextLink>
             .
           </BodyLong>
@@ -197,8 +198,8 @@ export default async function LokalIntro() {
           </LinkableHeading>
           <Bullets>
             <li>
-              <NextLink href="/nav-pilot/guider/lokal#utsending" className={linkClass}>
-                Styr utsendingen
+              <NextLink href="/nav-pilot/guider/lokal#delegering" className={linkClass}>
+                Styr delegeringen
               </NextLink>
             </li>
             <li>

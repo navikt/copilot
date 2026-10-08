@@ -14,11 +14,11 @@ import { FALLBACK_TABLE, getLocalModels } from "@/lib/local-models";
 export const metadata: Metadata = {
   title: "Lokal modell",
   description:
-    "Hvorfor nav-pilot stopper hovedagenten og ber den sende arbeid til den lokale modellen, hva utsendingsnivåene gjør, og hva modellen er godkjent for.",
+    "Hvorfor nav-pilot stopper hovedagenten og ber den delegere arbeid til den lokale modellen, hva delegeringsnivåene gjør, og hva modellen er godkjent for.",
 };
 
 const TOC: TocItem[] = [
-  { id: "utsending", label: "Hvorfor utsendingen er begrenset" },
+  { id: "delegering", label: "Hvorfor delegeringen er begrenset" },
   { id: "malte-grenser", label: "Hva den lokale modellen klarer" },
   { id: "hva-kommer", label: "Hva kommer" },
 ];
@@ -26,7 +26,7 @@ const TOC: TocItem[] = [
 type Verdict = { task: string; verdict: string };
 
 const VERDICTS: Verdict[] = [
-  { task: "Legge til et argument i 1–2 kall, i flere filer", verdict: "Godkjent for utsending" },
+  { task: "Legge til et argument i 1–2 kall, i flere filer", verdict: "Godkjent for delegering" },
   { task: "Det samme i 3–8 kall", verdict: "Ikke avgjort" },
   { task: "Det samme i 9 kall eller flere", verdict: "Blir i skyen" },
   { task: "Endre én fil", verdict: "Ikke godkjent ennå" },
@@ -63,11 +63,11 @@ export default function LokalModellForklaring() {
 
       <section>
         <VStack gap="space-16">
-          <LinkableHeading id="utsending" size="medium" level="2">
-            Hvorfor utsendingen er begrenset
+          <LinkableHeading id="delegering" size="medium" level="2">
+            Hvorfor delegeringen er begrenset
           </LinkableHeading>
           <BodyLong>
-            Utsending krever opencode. Copilot CLI velger én leverandør for hele økten, så der kjører økten enten helt
+            Delegering krever opencode. Copilot CLI velger én leverandør for hele økten, så der kjører økten enten helt
             lokalt eller helt i skyen (
             <a href="https://github.com/github/copilot-cli/issues/4703" className={linkClass}>
               github/copilot-cli#4703
@@ -75,34 +75,35 @@ export default function LokalModellForklaring() {
             ).
           </BodyLong>
           <BodyLong>
-            En instruks om hva hovedagenten burde sende, holdt ikke: nyere skymodeller gjør jobben selv. Derfor stopper
-            nav-pilot hovedagenten når den gjør en stor mekanisk endring selv, og ber den sende resten til{" "}
-            <code className={code}>local-worker</code>. Hvor tidlig den stopper, avhenger av utsendingsnivået:
+            En instruks om hva hovedagenten burde delegere, holdt ikke: nyere skymodeller gjør jobben selv. Derfor
+            stopper nav-pilot hovedagenten når den gjør en stor mekanisk endring selv, og ber den delegere resten til{" "}
+            <code className={code}>local-worker</code>. Hvor tidlig den stopper, avhenger av delegeringsnivået:
           </BodyLong>
           <Bullets>
             <li>
-              <code className={code}>off</code>: ingen lokal underagent.
+              <code className={code}>off</code>: ingen lokal subagent.
             </li>
             <li>
-              <code className={code}>conservative</code>: hovedagenten får bare en instruks om å sende store mekaniske
-              endringer (minst 10 filer eller 20 kallsteder). Ingenting stoppes.
+              <code className={code}>conservative</code>: hovedagenten får bare en instruks om å delegere store
+              mekaniske endringer (minst 10 filer eller 20 kall). Ingenting stoppes.
             </li>
             <li>
-              <code className={code}>balanced</code>: redigerer hovedagenten selv en femte fil eller et tiende kallsted
-              i samme tur, stopper nav-pilot den én gang og ber den sende resten. Et søk-og-erstatt teller hvert sted
-              det endrer.
+              <code className={code}>balanced</code>: redigerer hovedagenten selv en femte fil eller et tiende kall i
+              samme runde, stopper nav-pilot den én gang. Da ber nav-pilot den delegere resten. Et søk-og-erstatt teller
+              hvert sted det endrer.
             </li>
             <li>
-              <code className={code}>aggressive</code> (standard): en stoppet fil slipper gjennom først når den er sendt
-              til <code className={code}>local-worker</code>. Nye filer går også dit, hvis modellen er godkjent for det.
+              <code className={code}>aggressive</code> (standard): en stoppet fil slipper gjennom først når den er
+              delegert til <code className={code}>local-worker</code>. Nye filer går også dit, hvis modellen er godkjent
+              for det.
             </li>
           </Bullets>
           <BodyLong>
-            Stoppet får hovedagenten til å sende, men sparer ikke AI-kreditter. Både{" "}
+            Sperren får hovedagenten til å delegere, men sparer ikke AI-kreditter. Både{" "}
             <code className={code}>aggressive</code> og <code className={code}>balanced</code> kostet i de fleste
             målingene mer og tok lengre tid enn å la skymodellen gjøre alt selv. <code className={code}>balanced</code>{" "}
-            sendte nesten ingenting og kostet likevel mer, så <code className={code}>aggressive</code> er standard fra
-            30. september 2026. Tallene står i{" "}
+            delegerte nesten ingenting og kostet likevel mer, så <code className={code}>aggressive</code> er standard
+            fra 30. september 2026. Tallene står i{" "}
             <NextLink href="/innsikt/lokale-modeller#delegeringsnivaer" className={linkClass}>
               Målinger
             </NextLink>
@@ -115,11 +116,11 @@ export default function LokalModellForklaring() {
               slår ikke inn.
             </li>
             <li>Qwen 3.8-modellene og modellen for 64 GB er ikke godkjent for noe. Med dem stoppes ingenting.</li>
-            <li>En modell på egen server er ikke målt. Den får den generelle instruksen, og ingenting stoppes.</li>
+            <li>En modell på egen LLM-server er ikke målt. Den får den generelle instruksen, og ingenting stoppes.</li>
           </Bullets>
           <BodyLong>
-            nav-pilot stopper heller ingenting når den lokale serveren ikke svarer, i underagentenes egne økter, eller
-            når du starter opencode med <code className={code}>--pure</code>.
+            nav-pilot stopper heller ingenting når den lokale serveren ikke svarer, i subagentenes egne økter, eller når
+            du starter opencode med <code className={code}>--pure</code>.
           </BodyLong>
         </VStack>
       </section>
@@ -131,8 +132,8 @@ export default function LokalModellForklaring() {
           </LinkableHeading>
           <BodyLong>
             Den lokale modellen er god til å gjennomføre en beslutning som er tatt, og dårlig til å ta den selv. Om
-            utsending lønner seg, avhenger av hvor mange steg skymodellen trenger alene. Trenger den mange, sparer du
-            mye. Er oppgaven gjort på to steg, koster utsendingen mer enn den sparer.
+            delegering lønner seg, avhenger av hvor mange steg skymodellen trenger alene. Trenger den mange, sparer du
+            mye. Er oppgaven gjort på to steg, koster delegeringen mer enn den sparer.
           </BodyLong>
           <div className="overflow-x-auto">
             <Table size="small" className="table-stack w-full" role="table">
@@ -188,14 +189,16 @@ export default function LokalModellForklaring() {
           <BodyLong>Dette jobber vi med nå. Det er planer, ikke løfter, og noe av det kan bli lagt bort.</BodyLong>
           <Bullets>
             <li>
-              Vi måler hva hovedagenten kan sende til{" "}
+              Vi måler hva hovedagenten kan delegere til{" "}
               <NextLink href="/nav-pilot/guider/lokal#modell-64-gb" className={linkClass}>
                 modellen for Macer med 64 GB
               </NextLink>
               , og hvor mye minne den bruker med lange prompter.
             </li>
-            <li>Vi måler utsendingsnivåene videre, på flere modeller og oppgaver.</li>
-            <li>Vi har ennå ikke målt noen modell på egen server, verken på Linux eller med Ollama og llama-server.</li>
+            <li>Vi måler delegeringsnivåene videre, på flere modeller og oppgaver.</li>
+            <li>
+              Vi har ennå ikke målt noen modell på egen LLM-server, verken på Linux eller med Ollama og llama-server.
+            </li>
             <li>
               Vi vurderer å kjøre decide på en server for dem som ikke har en passende Mac. Da forlater grunnlaget
               maskinen din.

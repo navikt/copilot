@@ -46,7 +46,7 @@ TypeSafe AI gjorde ideen kjent med Jev, som de slapp til de første brukerne 15.
 
 _`decide` er høyre side. Svaret er sannsynligheten for hvert alternativ, lest av fra ett token._
 
-Vi kjører modellen lokalt. Grunnlaget du sender med `--evidence`, er ofte kode og differ, og verken det eller spørsmålet forlater maskinen. Kallet koster heller ingen AI-credits.
+Vi kjører modellen lokalt. Grunnlaget du sender med `--evidence`, er ofte kode og differ, og verken det eller spørsmålet forlater maskinen. Kallet koster heller ingen AI-kreditter.
 
 ## Bruk en regel når en regel holder
 

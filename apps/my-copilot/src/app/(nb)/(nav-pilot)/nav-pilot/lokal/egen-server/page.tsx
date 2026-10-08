@@ -8,7 +8,7 @@ import type { TocItem } from "@/components/table-of-contents";
 import { NAV_PILOT_APT_INSTALL, NAV_PILOT_BREW_INSTALL, NAV_PILOT_INSTALL_SCRIPT } from "@/lib/install-commands";
 
 export const metadata: Metadata = {
-  title: "Kom i gang med egen server",
+  title: "Kom i gang med egen LLM-server",
   description:
     "Bruk en OpenAI-kompatibel server du kjører selv, som Ollama eller llama-server, som lokal modell for nav-pilot på Linux eller Mac.",
 };
@@ -54,7 +54,7 @@ export default function EgenServer() {
   return (
     <DocPage
       label="Introduksjon"
-      title="Kom i gang med egen server"
+      title="Kom i gang med egen LLM-server"
       description="Har du Linux, eller vil du bruke Ollama eller llama-server på Macen, kan nav-pilot bruke en server du kjører selv. Da laster nav-pilot ikke ned noe, starter ingenting og trenger ikke sudo."
       badge={
         <Tag variant="warning" size="small" className="uppercase tracking-wide">
@@ -64,9 +64,10 @@ export default function EgenServer() {
       toc={TOC}
     >
       <BodyLong>
-        Utsendingen, løkkevakten og <code className={code}>alpha decide</code> går til serveren din. Koden din sendes
-        dit, så nav-pilot godtar bare localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. Modellen på
-        serveren din er ikke målt, så tallene i{" "}
+        Delegerte oppgaver, loop guard (stopper modellen når den gjentar seg) og{" "}
+        <code className={code}>alpha decide</code> bruker serveren din. Koden din sendes dit, så nav-pilot godtar bare
+        localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. Modellen på serveren din er ikke målt, så
+        tallene i{" "}
         <NextLink href="/innsikt/lokale-modeller" className={linkClass}>
           Målinger
         </NextLink>{" "}
@@ -208,8 +209,8 @@ export default function EgenServer() {
           <CodeBlock compact>{`nav-pilot alpha local init`}</CodeBlock>
           <BodyLong>
             Med <code className={code}>local_endpoint</code> satt laster <code className={code}>init</code> ikke ned
-            noe. Den sjekker serveren og slår på utsending. Feiler en av sjekkene, slår den ingenting på og sier hva du
-            må rette. Svarte du ja i <code className={code}>setup</code>, er utsending allerede på, og{" "}
+            noe. Den sjekker serveren og slår på delegering. Feiler en av sjekkene, slår den ingenting på og sier hva du
+            må rette. Svarte du ja i <code className={code}>setup</code>, er delegering allerede på, og{" "}
             <code className={code}>init</code> kjører de samme sjekkene en gang til.
           </BodyLong>
         </VStack>
@@ -223,13 +224,13 @@ export default function EgenServer() {
           <CodeBlock compact>{`nav-pilot alpha local doctor`}</CodeBlock>
           <BodyLong>
             <code className={code}>doctor</code> sjekker verktøykall, logprobs, kontekst og tid til første token. Den
-            sender rundt 30 000 tokens og feiler hvis serveren kutter prompten. Kommandoen sjekker bare egen server (
-            <code className={code}>local_endpoint</code>), ikke modellen nav-pilot setter opp på Mac.
+            sender rundt 30 000 tokens og feiler hvis serveren kutter prompten. Kommandoen sjekker bare egen LLM-server
+            (<code className={code}>local_endpoint</code>), ikke modellen nav-pilot setter opp på Mac.
           </BodyLong>
           <BodyShort size="small" textColor="subtle">
             <code className={code}>alpha decide</code> trenger logprobs. Ollama fra v0.12.11, llama-server og vLLM gir
             dem, LM Studio gjør det ikke. Uten logprobs sier <code className={code}>decide</code> fra med en gang, mens
-            utsendingen virker som før.
+            delegeringen virker som før.
           </BodyShort>
         </VStack>
       </section>
@@ -241,8 +242,8 @@ export default function EgenServer() {
           </LinkableHeading>
           <CodeBlock compact>{`nav-pilot config set client opencode`}</CodeBlock>
           <BodyLong>
-            Utsending krever opencode som klient. Der blir modellen på serveren din underagenten{" "}
-            <code className={code}>local-worker</code>. Copilot CLI har ingen slik underagent.
+            Delegering krever opencode som klient. Der blir modellen på serveren din subagenten{" "}
+            <code className={code}>local-worker</code>. Copilot CLI har ingen slik subagent.
           </BodyLong>
         </VStack>
       </section>
@@ -257,11 +258,12 @@ nav-pilot`}</CodeBlock>
           <BodyLong>
             Be om en mekanisk endring over flere filer, som «legg til parameteren <code className={code}>ctx</code> i
             alle kall til <code className={code}>hentBruker</code>». Modellen på serveren din er ikke målt, så
-            hovedagenten får den generelle instruksen om utsending, og nav-pilot stopper ingen redigeringer.
-            Hovedagenten vurderer selv hva den sender.
+            hovedagenten får bare den generelle instruksen om delegering, og nav-pilot stopper ingen redigeringer,
+            heller ikke med <code className={code}>balanced</code> eller <code className={code}>aggressive</code>.
+            Hovedagenten vurderer selv hva den delegerer.
           </BodyLong>
           <BodyLong>
-            <code className={code}>nav-pilot alpha local status</code> viser serveren, modellen og om utsending er på.
+            <code className={code}>nav-pilot alpha local status</code> viser serveren, modellen og om delegering er på.
             Vil du stille modellen spørsmål fra hooks og skript, fortsett med{" "}
             <NextLink href="/nav-pilot/lokal/decide" className={linkClass}>
               Din første decide-hook

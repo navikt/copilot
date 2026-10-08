@@ -50,7 +50,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#hva-nav-pilot-vet": "/nav-pilot/forklaring/arkitektur#hva-nav-pilot-vet",
   "/nav-pilot/referanse#hva-nav-pilot-vet-som-copilot-ikke-vet": "/nav-pilot/forklaring/arkitektur#hva-nav-pilot-vet",
   "/nav-pilot/referanse#hvor-installere": "/nav-pilot/guider/installere-og-oppgradere#velg-installasjonssted",
-  "/nav-pilot/referanse#hvor-mye-som-sendes": "/nav-pilot/guider/lokal#utsending",
+  "/nav-pilot/referanse#hvor-mye-som-sendes": "/nav-pilot/guider/lokal#delegering",
   "/nav-pilot/referanse#hvor-skal-artefaktene-installeres":
     "/nav-pilot/guider/installere-og-oppgradere#velg-installasjonssted",
   "/nav-pilot/referanse#hvorfor-nav-pilot": "/nav-pilot/forklaring/arkitektur#hvorfor",
@@ -80,7 +80,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#lokal-modell": "/nav-pilot/lokal#hva-du-far",
   "/nav-pilot/referanse#lokal-modeller": "/nav-pilot/referanse#lokale-modeller",
   "/nav-pilot/referanse#lokal-sync": "/nav-pilot/guider/synkronisere#lokal-sync",
-  "/nav-pilot/referanse#lokal-utsending": "/nav-pilot/guider/lokal#utsending",
+  "/nav-pilot/referanse#lokal-utsending": "/nav-pilot/guider/lokal#delegering",
   "/nav-pilot/referanse#modeller-i-alfa": "/nav-pilot/referanse#lokale-modeller",
   "/nav-pilot/referanse#nar-strict-ikke-anbefales": "/nav-pilot/forklaring/sandkassen#nar-strict-ikke-anbefales",
   "/nav-pilot/referanse#når-noe-henger": "/nav-pilot/guider/feilsoking#lokal",
@@ -114,7 +114,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/lokal#malt": "/nav-pilot/forklaring/lokal-modell#malte-grenser",
   "/nav-pilot/lokal#malt-decide": "/innsikt/lokale-modeller#malt-decide",
   "/nav-pilot/lokal#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
-  "/nav-pilot/lokal#utsending": "/nav-pilot/forklaring/lokal-modell#utsending",
+  "/nav-pilot/lokal#utsending": "/nav-pilot/forklaring/lokal-modell#delegering",
 
   // The measured numbers moved to their own page.
   "/nav-pilot/forklaring/lokal-modell#malt-decide": "/innsikt/lokale-modeller#malt-decide",
@@ -124,6 +124,13 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   // and "utsending" became "delegering".
   "/innsikt/lokale-modeller#utsendingsnivaer": "/innsikt/lokale-modeller#delegeringsnivaer",
   "/innsikt/lokale-modeller#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
+
+  // Terms renamed to plainer Norwegian (utsending, verter, underagenter).
+  "/nav-pilot/forklaring/lokal-modell#utsending": "/nav-pilot/forklaring/lokal-modell#delegering",
+  "/nav-pilot/guider/lokal#utsending": "/nav-pilot/guider/lokal#delegering",
+  "/nav-pilot/klienter#utsending": "/nav-pilot/klienter#delegering",
+  "/nav-pilot/guider/cplt-gradle#interne-verter": "/nav-pilot/guider/cplt-gradle#interne-hoster",
+  "/nav-pilot/guider/worktrees#underagenter": "/nav-pilot/guider/worktrees#subagenter",
 
   // Own server got its own introduction.
   "/nav-pilot/guider/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",

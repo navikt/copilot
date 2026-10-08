@@ -23,7 +23,7 @@ const TOC: TocItem[] = [
   { id: "opencode", label: "opencode" },
   { id: "copilot-cli", label: "Copilot CLI" },
   { id: "pi", label: "pi" },
-  { id: "kjente-hull", label: "Kjente hull i opencode" },
+  { id: "kjente-hull", label: "Kjente mangler i opencode" },
 ];
 
 const GH = "https://github.com/navikt/copilot";
@@ -37,7 +37,7 @@ const CLIENTS = [
   {
     name: "opencode",
     tag: { text: "Standard", variant: "info" as const },
-    desc: "opencode med Copilot-abonnementet ditt. Den eneste klienten der hovedagenten kan kjøre i skyen og sende jobber til en lokal modell.",
+    desc: "opencode med Copilot-abonnementet ditt. Den eneste klienten der hovedagenten kan kjøre i skyen og delegere jobber til en lokal modell.",
   },
   {
     name: "copilot",
@@ -62,7 +62,13 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     note: "Feiler maskeringen i opencode, holder nav-pilot verktøyresultatet tilbake.",
   },
   { what: "Merknad om prompt-injeksjon", copilot: "Ja", opencode: "Ja", pi: "Nei" },
-  { what: "Løkkevakt i skyøkter", copilot: "Ja", opencode: "Ja", pi: "Nei" },
+  {
+    what: "Loop guard i skyøkter",
+    copilot: "Ja",
+    opencode: "Ja",
+    pi: "Nei",
+    note: "Stopper agenten når den gjentar seg.",
+  },
   {
     what: "Gates og agentpakke-hooks",
     copilot: "Ja",
@@ -106,7 +112,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     note: "Copilot CLI kjører en økt helt lokalt eller helt i skyen, aldri blandet.",
   },
   {
-    what: "Utsendingsstopp",
+    what: "Delegeringssperre",
     copilot: "Nei",
     opencode: "Ja",
     pi: "Nei",
@@ -118,7 +124,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     ),
   },
   {
-    what: <>Egen server ({c("local_endpoint")})</>,
+    what: <>Egen LLM-server ({c("local_endpoint")})</>,
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
@@ -203,15 +209,16 @@ export default function Klienter() {
             forhåndsvalgt. Har du brukt nav-pilot før, beholder du klienten din.
           </li>
           <li>
-            Bytt for én økt med {c("--client copilot")}, for godt med {c("nav-pilot config set client copilot")}.
+            Bytt for én økt med {c("--client copilot")}, permanent med {c("nav-pilot config set client copilot")}.
           </li>
           <li>
             I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")} mangler. Bruk{" "}
             {c("--client opencode")} for opencode.
           </li>
           <li>
-            Bruker du lokal modell i Copilot CLI og har opencode installert, får du ett tips om opencode. Slå av med{" "}
-            {c("nav-pilot config set surveys false")}.
+            Kjører du lokal modell i Copilot CLI og har opencode installert, sier nav-pilot fra én gang at bare opencode
+            kan delegere til den lokale modellen. Meldingen følger {c("surveys")}-innstillingen:{" "}
+            {c("nav-pilot config set surveys false")} slår den av.
           </li>
         </Bullets>
         <BodyLong>
@@ -274,10 +281,10 @@ export default function Klienter() {
         </VStack>
         <Box background="warning-soft" borderRadius="8" padding="space-16">
           <BodyShort>
-            Uten nav-pilots hooks er det verken løkkevakt eller maskering. Det gjelder alltid pi, og opencode 1 med{" "}
-            {c("--pure")} og opencode uten nav-pilot. Se{" "}
+            Uten nav-pilots hooks er det verken loop guard (stopper agenten når den gjentar seg) eller maskering. Det
+            gjelder alltid pi, og opencode 1 med {c("--pure")} og opencode uten nav-pilot. Se{" "}
             <a href="#kjente-hull" className={linkClass}>
-              Kjente hull i opencode
+              Kjente mangler i opencode
             </a>
             .
           </BodyShort>
@@ -384,7 +391,7 @@ export default function Klienter() {
         </LinkableHeading>
         <BodyLong>
           nav-pilot er testet mot opencode {c(OPENCODE_RANGE)} og {c(OPENCODE2_RANGE)}. Utenfor dette advarer nav-pilot
-          og starter likevel, men hooks og utsendingsstopp virker kanskje ikke. {c("nav-pilot doctor")} viser versjonen
+          og starter likevel, men hooks og delegeringssperre er ikke testet. {c("nav-pilot doctor")} viser versjonen
           din. opencode 3 starter ikke før vi har testet den.
         </BodyLong>
         <BodyLong>opencode 2 krever:</BodyLong>
@@ -422,14 +429,14 @@ export default function Klienter() {
           </a>
           .
         </BodyLong>
-        <LinkableHeading id="utsending" size="small" level="3">
-          Lokal utsending
+        <LinkableHeading id="delegering" size="small" level="3">
+          Lokal delegering
         </LinkableHeading>
         <BodyLong>
-          Bare i opencode kan hovedagenten kjøre i skyen og sende avgrensede jobber til {c("local-worker")}, en
-          underagent på den lokale modellen. {c("local_dispatch")} styrer hvor mye som sendes. Se{" "}
-          <NextLink href="/nav-pilot/guider/lokal#utsending" className={linkClass}>
-            Styr utsendingen
+          Bare i opencode kan hovedagenten kjøre i skyen og delegere avgrensede jobber til {c("local-worker")}, en
+          subagent på den lokale modellen. {c("local_dispatch")} styrer hvor mye som delegeres. Se{" "}
+          <NextLink href="/nav-pilot/guider/lokal#delegering" className={linkClass}>
+            Styr delegeringen
           </NextLink>
           .
         </BodyLong>
@@ -442,7 +449,7 @@ export default function Klienter() {
         <BodyLong>
           {c("mode = autopilot")}, {c("context_tier")}, {c("ask_user")} og utvidelser (extensions) finnes bare i Copilot
           CLI. I cplt kjører Copilot CLI kommandoer på egen hånd og spør når den trenger det, med mindre du har satt{" "}
-          {c("nav-pilot config set autonomy conservative")}. En lokal modell tar hele økten, uten utsending, se{" "}
+          {c("nav-pilot config set autonomy conservative")}. En lokal modell tar hele økten, uten delegering, se{" "}
           <NextLink href="/nav-pilot/lokal" className={linkClass}>
             Lokal modell på Mac
           </NextLink>
@@ -469,7 +476,7 @@ export default function Klienter() {
           {c("~/.nav-pilot/pi/")} og gir pi skills og AGENTS.md som flagg. Dette mangler:
         </BodyLong>
         <Bullets>
-          <li>Hooks: ingen maskering, ingen løkkevakt og ingen gates.</li>
+          <li>Hooks: ingen maskering, ingen loop guard og ingen gates.</li>
           <li>
             {c("--agent")}: pi kan ikke bytte agent. Personaen blir en del av systemprompten, og {c("tools:")} gjelder
             ikke.
@@ -487,7 +494,7 @@ export default function Klienter() {
 
       <Section>
         <LinkableHeading id="kjente-hull" size="medium" level="2">
-          Kjente hull i opencode
+          Kjente mangler i opencode
         </LinkableHeading>
         <BodyLong>Hookene kjører som en plugin nav-pilot legger inn ved oppstart. Dette dekker de ikke:</BodyLong>
         <Bullets>
