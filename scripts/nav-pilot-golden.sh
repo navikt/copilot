@@ -2972,10 +2972,14 @@ RV_PR=(
 # publiseringen feiler», «lagres før publisering», «feil etter
 # databaseinnsetting»). Rescored, the patterns pass every run the 7 Oct
 # classification (failures.psv) judged a find and fail every model miss.
+# #1453: the same concept in the other word order («retry etter feilet `send`»,
+# «Feiler `send` eller `commitSync`», «lagres før det publiseres»), from the
+# review-persona transcripts. Opus runs 4, 6 and 8 there still fail: they
+# never say the save can succeed while the publish fails.
 RV_DESIGN=(
   'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)@VedtakConsumer.kt:25,32,33'
   'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)@VedtakRepository.kt:14'
-  'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler|publiser\w* (feiler|mislykkes)|(før|etter) (den )?(kafka-)?publiser|uten å (være|bli) publisert|feil(er)? etter (database|db|lagring|innsetting|databaseinnsetting)@0'
+  'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler|publiser\w* (feiler|mislykkes)|(?<![\wæøå])feil(er|et|ede|ende)\W{1,3}(producer\.)?(send\b|publiser)|(send|publish)\w*\W{1,3}(fails|failed)|(før|etter) (den |det )?(blir )?(kafka-)?publiser|uten å (være|bli) publisert|feil(er)? etter (database|db|lagring|innsetting|databaseinnsetting)@0'
 )
 # rv7: the SQL, access and nais.yaml inbound «*» findings are marked high;
 # the unused import is not. Only the Priority cell is read (#1443).

@@ -4,13 +4,14 @@
 # Klasser: modellfeil = modellen nevnte ikke feilen eller ga feil linje. beskrevet-med-andre-ord (rv6) = feilen er beskrevet på riktig sted, men uten ordene i mønsteret.
 # rv8: ekte = rad med 🔴 på fila uten feil. modellfeil = svaret melder en blokkering uten 🔴-rad, eller gir ingen konklusjon. sjekkfeil-ordliste = svaret sier at fila er ren, med ord sjekken ikke kjenner («ingen påvist …»), som Luna 7. oktober. Se #1453.
 # Avgjørende linje peker på svaret i transkripter/ (verktøyutskrift fjernet). rv1–rv4-transkriptene er ikke lagret.
+# Etter #1453 kjenner sjekkene omvendt ordstilling (rv6) og en forsiktig ren konklusjon (rv8). Rader merket «Består etter #1453» feiler ikke lenger; klassen er uendret.
 review-claude-opus-5.5-low|rv6|2|modellfeil|transkripter/review-claude-opus-5.5-low.rv-pr.run2.txt:18 idempotens står i den sammenslåtte linjecellen «32–33 / 23», som ikke er et linjenummer etter #1443. dobbeltskriving besto («outbox»).
-review-claude-opus-5.5-low|rv6|3|beskrevet-med-andre-ord|transkripter/review-claude-opus-5.5-low.rv-pr.run3.txt:20 dobbeltskriving: «Ny UUID per forsøk betyr at retry etter feilet `send` gir dobbelt vedtak»
+review-claude-opus-5.5-low|rv6|3|beskrevet-med-andre-ord|transkripter/review-claude-opus-5.5-low.rv-pr.run3.txt:20 dobbeltskriving: «Ny UUID per forsøk betyr at retry etter feilet `send` gir dobbelt vedtak» Består etter #1453 (omregning-1453.psv).
 review-claude-opus-5.5-low|rv6|4|modellfeil|transkripter/review-claude-opus-5.5-low.rv-pr.run4.txt dobbeltskriving (lagring lykkes, publisering feiler) er ikke nevnt
 review-claude-opus-5.5-low|rv6|6|modellfeil|transkripter/review-claude-opus-5.5-low.rv-pr.run6.txt:18 bare redelivery før commitSync; dobbeltskriving er ikke nevnt
 review-claude-opus-5.5-low|rv6|8|modellfeil|transkripter/review-claude-opus-5.5-low.rv-pr.run8.txt:19 retry gir nytt vedtak, men at lagring kan lykkes og publisering feile er ikke nevnt
-review-claude-opus-5.5-low|rv6|9|beskrevet-med-andre-ord|transkripter/review-claude-opus-5.5-low.rv-pr.run9.txt «Feiler `send` eller `commitSync`, lagres vedtaket på nytt med ny UUID»
-review-claude-opus-5.5-low|rv6|10|beskrevet-med-andre-ord|transkripter/review-claude-opus-5.5-low.rv-pr.run10.txt:18 «Vedtaket lagres før det publiseres … Et nytt forsøk … fatter derfor nytt vedtak»
+review-claude-opus-5.5-low|rv6|9|beskrevet-med-andre-ord|transkripter/review-claude-opus-5.5-low.rv-pr.run9.txt «Feiler `send` eller `commitSync`, lagres vedtaket på nytt med ny UUID» Består etter #1453 (omregning-1453.psv).
+review-claude-opus-5.5-low|rv6|10|beskrevet-med-andre-ord|transkripter/review-claude-opus-5.5-low.rv-pr.run10.txt:18 «Vedtaket lagres før det publiseres … Et nytt forsøk … fatter derfor nytt vedtak» Består etter #1453 (omregning-1453.psv).
 review-claude-opus-5.5-low|rv5|9|modellfeil|transkripter/review-claude-opus-5.5-low.rv-pr.run9.txt:16 fnr-logg på linje 16, ikke 15
 review-claude-opus-5.5-low|rv5|10|modellfeil|transkripter/review-claude-opus-5.5-low.rv-pr.run10.txt:11 SQL på linje 24, ikke 23
 review-gpt-6-sol-low|rv2|3|modellfeil|not named on its line: sql (10, ikke 9), fnr-logg (9, ikke 8)
@@ -22,14 +23,14 @@ review-gpt-6-sol-low|rv5|8|modellfeil|transkripter/review-gpt-6-sol-low.rv-pr.ru
 review-gpt-6-sol-low|rv5|9|modellfeil|transkripter/review-gpt-6-sol-low.rv-pr.run9.txt:10 inbound på nais.yaml:17–21, ikke 25–26. Nevnt med 🔴.
 review-gpt-6-sol-low|rv7|9|modellfeil|transkripter/review-gpt-6-sol-low.rv-pr.run9.txt:10 samme rad: 🔴, men feil linje
 review-gpt-6-sol-low|rv5|10|modellfeil|transkripter/review-gpt-6-sol-low.rv-pr.run10.txt:10 fnr-logg på linje 17, ikke 15
-review-gpt-6-sol-low|rv6|10|beskrevet-med-andre-ord|transkripter/review-gpt-6-sol-low.rv-pr.run10.txt:11 «Et vedtak lagres *før* publisering. Feiler publisering, vil retry lagre et nytt vedtak»
-review-gpt-6-sol-low|rv8|1|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run1.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «ingen tydelig tilgang til andre personers saker»
+review-gpt-6-sol-low|rv6|10|beskrevet-med-andre-ord|transkripter/review-gpt-6-sol-low.rv-pr.run10.txt:11 «Et vedtak lagres *før* publisering. Feiler publisering, vil retry lagre et nytt vedtak» Består etter #1453 (omregning-1453.psv).
+review-gpt-6-sol-low|rv8|1|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run1.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «ingen tydelig tilgang til andre personers saker» Består etter #1453 (omregning-1453.psv).
 review-gpt-6-sol-low|rv8|2|ekte|transkripter/review-gpt-6-sol-low.rv-clean.run2.txt:11 🔴 på SakService.kt:48–55: azp sjekkes ikke. Ikke en feil i fila.
-review-gpt-6-sol-low|rv8|3|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run3.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «ingen påvist tilgang til andre personers saker»
+review-gpt-6-sol-low|rv8|3|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run3.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «ingen påvist tilgang til andre personers saker» Består etter #1453 (omregning-1453.psv).
 review-gpt-6-sol-low|rv8|4|modellfeil|transkripter/review-gpt-6-sol-low.rv-clean.run4.txt 0 🔴-rader, men svaret melder «Én blokkering» om at azp ikke sjekkes
-review-gpt-6-sol-low|rv8|5|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run5.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «ingen påvist tilgangskontrollfeil i filen»
-review-gpt-6-sol-low|rv8|6|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run6.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «Ingen åpenbar tilgangslekkasje»
+review-gpt-6-sol-low|rv8|5|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run5.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «ingen påvist tilgangskontrollfeil i filen» Består etter #1453 (omregning-1453.psv).
+review-gpt-6-sol-low|rv8|6|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run6.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «Ingen åpenbar tilgangslekkasje» Består etter #1453 (omregning-1453.psv).
 review-gpt-6-sol-low|rv8|7|modellfeil|transkripter/review-gpt-6-sol-low.rv-clean.run7.txt 0 høyt prioriterte rader og ingen konklusjon om at fila er ren
 review-gpt-6-sol-low|rv8|8|ekte|transkripter/review-gpt-6-sol-low.rv-clean.run8.txt:10 🔴 på SakService.kt:48: azp sjekkes ikke. Ikke en feil i fila.
-review-gpt-6-sol-low|rv8|9|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run9.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «ingen bekreftet blokkering»
+review-gpt-6-sol-low|rv8|9|sjekkfeil-ordliste|transkripter/review-gpt-6-sol-low.rv-clean.run9.txt 0 høyt prioriterte rader. Ren konklusjon sjekken ikke kjenner: «ingen bekreftet blokkering» Består etter #1453 (omregning-1453.psv).
 review-gpt-6-sol-low|rv8|10|ekte|transkripter/review-gpt-6-sol-low.rv-clean.run10.txt:8 🔴 på SakService.kt:48–50: azp sjekkes ikke. Ikke en feil i fila.
