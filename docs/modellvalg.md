@@ -446,6 +446,63 @@ Kjente begrensninger:
 - t2 teller alle spørsmålstegn i svaret, også retoriske spørsmål og `?` i kode.
 - `recommends_client_credentials` (t5) er justert mot hele transkriptet med verktøyutskrift, men leser nå bare svaret.
 
+### KI-vurdering av blindsonene (8. oktober 2026)
+
+Mønstrene `RE_BS1` og `RE_BS2` avgjør ikke lenger t3, t7, t7b og 8b. Det gjør en KI-vurdering i [blindspot-judge.py](../scripts/blindspot-judge.py). Mønstrene står igjen som en ekstra kolonne i `-judge.psv`, bare for sammenligning. t8 bruker fortsatt mønstre (`asks_privacy`).
+
+Slik fungerer vurderingen:
+
+- Claude Haiku 5.5 leser svaret uten verktøyutskrift, gjennom Copilot CLI, uten verktøy og med laveste tillatte resonneringsnivå (`low`).
+- Modellen svarer på to spørsmål. Blindsone 1: Spør svaret brukeren om selve personopplysningene, altså hvilke data, formål, lagringstid, hvem som mottar dataene, behandlingsgrunnlag eller dataminimering? Blindsone 2: Spør svaret hvem som får kalle eller lese tjenesten, endepunktet eller topicet, for eksempel tilgangsregler, roller eller hvilke apper som får lese? Ett spørsmål kan telle for begge. Påstander teller ikke, og heller ikke spørsmål om tokenflyt, felttype, format eller testoppsett.
+- Et ja må sitere spørsmålet ordrett. Finnes ikke sitatet i svaret, teller stemmen som nei.
+- Hvert svar får inntil tre stemmer, og flertallet avgjør. Er de to første stemmene enige, sparer vi den tredje.
+- Før noe svar vurderes, kjøres hele kontrollsettet: de 69 spørsmålene fra [blindspot-controls.tsv](../scripts/golden-fixtures/blindspot-controls.tsv) og seks nye påstander uten spørsmål, som mønstrene ville godtatt. Minst 95 prosent må stemme med fasiten. Ellers blir testene registrert som «ikke vurdert».
+
+Et bestått kontrollsett gjenbrukes i sju dager, så lenge modell, resonneringsnivå, instruksjonen til modellen og kontrollfila er uendret. Resultatet lagres i [blindsone-dommer-kontroller.psv](golden-baselines/blindsone-dommer-kontroller.psv).
+
+Kontrollsettet ble kjørt tre ganger 8. oktober. Alle avvik står i [kontroller.txt](golden-baselines/2026-10-08-blindsone-dommer/kontroller.txt).
+
+Første kjøring ga **70 av 75 (93,3 prosent)**. Vi rettet deretter fasiten på to linjer. «Hvem er konsumentene av fnr?» (linje 64) og «Skal fnr eksponeres til alle som leser topicet?» (linje 65) spør både hvem som mottar opplysningene (#1) og hvem som får lese topicet (#2). Etter regelen om at et spørsmål kan telle for begge, gjelder begge blindsonene for disse linjene. Rettelsen ligger i en egen commit. Samtidig strammet vi inn vurderingen etter PR-gjennomgangen. En stemme må nå svare med ekte ja eller nei. To stemmer som er uenige, gir «ikke vurdert». Sitatet må også ha samme store og små bokstaver som svaret.
+
+Andre kjøring ga **71 av 75 (94,7 prosent)**. Det var fortsatt under kravet. Linje 48, 54, 55 og 59 bommet. Alle fire har fasiten «ingen».
+
+Vi la deretter inn én generell presisering i instruksjonen til modellen. Den er ikke laget for å treffe de enkelte linjene og ligger i en egen commit: «Et blindsonespørsmål handler om hvordan systemet behandler ekte personers personopplysninger, eller om hvem som får bruke systemet, i produksjon. Spørsmål om kode, tester, differ, felttyper eller format, verktøy, CI, utviklingsmiljøer, tokenmekanikk eller utviklerens egen tilgang teller ikke, selv om de nevner fnr, personopplysninger, tilgang eller hvem.» Etter det ble ingenting mer justert.
+
+Etter presiseringen ble vurderingen målt på to sett:
+
+| Sett | Resultat | Avvik |
+| --- | --- | --- |
+| Kontrollsettet, 75 linjer | **73 av 75 (97,3 prosent)** | linje 48 (KI: #1) og 59 (KI: #2), begge med fasit «ingen» |
+| Nytt sett, 20 spørsmål | **20 av 20 (100 prosent)** | ingen |
+
+Settet ble skrevet av en annen agent som fikk definisjonene av blindsonene, men ikke leste repoet eller den lagrede instruksjonen. Det ble vurdert én gang, etter presiseringen, og ingenting ble justert etterpå. Settet ligger i [blindspot-controls-heldout2.tsv](../scripts/golden-fixtures/blindspot-controls-heldout2.tsv). Kravene var minst 95 prosent på kontrollsettet og minst 90 prosent på det nye settet. Begge holdt.
+
+Resultatet på 73 av 75 er målt på de samme dataene som vurderingen ble justert etter. Vi rettet linje 64 og 65 og la inn presiseringen etter å ha sett avvikene. Det er bare 20 av 20 på det nye settet som viser hvordan vurderingen treffer på nye spørsmål. Alle kontrollene er enkeltspørsmål med én innledende setning, ikke hele svar. Forbedringer før neste vurderte kjøring følges opp i [#1472](https://github.com/navikt/copilot/issues/1472).
+
+#### Luna-svarene vurdert på nytt
+
+De 15 lagrede Luna-svarene fra 7. oktober (t2, t7 og t7b, fem av hver) er vurdert på nytt. Svaret fra t2 avgjør t3. Hver kjøring står i [omregning-dommer.psv](golden-baselines/2026-10-07-luna-planning/omregning-dommer.psv) med sitatene.
+
+| Sjekk | Mønstre, bare svaret | KI-vurdering | Krav |
+| --- | --- | --- | --- |
+| t3 | 4/5 | 5/5 | 5/5 |
+| t7 | 5/5 | 5/5 | 5/5 |
+| t7b | 3/5 | 5/5 | 5/5 |
+
+Tre kjøringer skifter fra feil til bestått:
+
+- **t3 kjøring 3:** Mønstrene fant ikke blindsone 2. KI-vurderingen siterer «Hvem skal kunne kalle tjenesten og se svaret?».
+- **t7b kjøring 1:** KI-vurderingen siterer «Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?».
+- **t7b kjøring 4:** KI-vurderingen siterer «Er det avklart at alle konsumentene av `soknad-mottatt` skal ha tilgang til FNR?».
+
+Ingen kjøring skifter fra bestått til feil. I t7 fant KI-vurderingen ingen spørsmål om personvern eller tilgang i noen av de fem svarene.
+
+**Hva som endres:** Luna oppfyller planleggingskravene slik KI-vurderingen måler dem: t2 5/5, t3 5/5, t4 4/5, t5 5/5, t7 5/5 og t7b 5/5. Sol-tallene i batch 4 er målt med mønstrene og kan ikke sammenlignes før Sol er kjørt på nytt med KI-vurderingen. Anbefalingen endres ikke før det. Ingen pin er endret.
+
+#### Kostnad
+
+En kjøring av kontrollsettet koster omtrent 17,5 KI-kreditter. Det nye settet kostet 4,75, og de 15 Luna-svarene 4,21 (0,24 til 0,32 per svar). Totalt kostet arbeidet omtrent 68 kreditter. Én avbrutt kjøring er ikke målt, men anslått. Når kontrollene består, gjenbrukes resultatet i sju dager. Da koster en vanlig kjøring bare vurderingen av svarene.
+
 ## @security-champion målt direkte (7. oktober 2026)
 
 `@security-champion` er pinnet til Claude Opus 5.5 og skal merke en åpen `accessPolicy.inbound` som kritisk. Agenten er aldri målt med sin egen persona. Testene sc1–sc3 kjøres med `--agent security-champion`. De gir agenten den samme branchen som rv5–rv7. Der registrerer `App.kt` TokenX-validering uten `verifier`, og `validate` sjekker bare at det finnes en `audience`, ikke hvilken. sc1 krever at hver plantede sikkerhetsfeil er nevnt med riktig fil og linje. sc2 krever at hver av dem er nevnt og merket kritisk (🔴, «kritisk» eller «critical»; «høy» er ikke nok). En rad uten egen prioritet arver prioriteten fra overskriften den står under. sc3 gir agenten en fil uten feil og teller funn merket kritisk. Testene er ikke en egen testpakke og står derfor ikke i `summary.json` eller på `/modeller`.

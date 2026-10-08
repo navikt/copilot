@@ -402,10 +402,31 @@ EOF
   chmod +x "$SHIM/copilot"
 }
 
+# Plays the blind-spot judge so CI makes no model calls. It reads the prompt on
+# stdin and answers like Haiku would on the shim's answers: «Hvem konsumerer
+# topicen?» asks about who receives fnr (#1), «Hvem leser de to Kafka-temaene?»
+# about who may read (#2). Anything else, statements included, is neither.
+make_judge_stub() {
+  cat >"$SHIM/judge-stub" <<'EOF'
+#!/usr/bin/env python3
+import json, re, sys
+a = sys.stdin.read().split("<answer>")[-1]
+qs = [q for q in re.split(r"(?<=[.!?])\s+", " ".join(a.split())) if q.endswith("?")]
+q1 = next((q for q in qs if "konsumerer topicen" in q), "")
+q2 = next((q for q in qs if "Hvem leser de to" in q), "")
+print(json.dumps({"bs1": bool(q1), "bs1_quote": q1, "bs2": bool(q2), "bs2_quote": q2}))
+EOF
+  chmod +x "$SHIM/judge-stub"
+  printf 'question\texpected_bs1\texpected_bs2\tsource\n%s\t1\t0\tstub\n%s\t0\t0\tstub\n' \
+    'Hvem konsumerer topicen?' 'Skal fnr lagres som String eller Long?' >"$SHIM/controls.tsv"
+}
+
 run_suite() {
   local mode="$1"; shift
   make_bench_shim
+  make_judge_stub
   GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
+    BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$SHIM/controls.tsv}" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -598,6 +619,49 @@ run_suite() {
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
 }
 
+@test "planning judge: verdicts and the regex column land in -judge.psv" {
+  run_suite good --agent nav-pilot --only 7,7b
+  [ "$status" -eq 0 ]
+  grep -q '^# controls: *controls n=2 agree=2' "$SHIM/b-judge.psv"
+  grep -q '^7|1|1|0|0|0|0.0||$' "$SHIM/b-judge.psv"
+  grep -q '^7b|1|1|0|1|0|0.0|Hvem konsumerer topicen?|$' "$SHIM/b-judge.psv"
+}
+
+@test "planning judge: controls below 95 % leave the blind-spot tests unevaluated" {
+  make_judge_stub
+  printf 'question\texpected_bs1\texpected_bs2\tsource\nHvem konsumerer topicen?\t0\t1\twrong\n' >"$SHIM/bad.tsv"
+  BS_JUDGE_CONTROLS="$SHIM/bad.tsv" run_suite good --agent nav-pilot --only 7b
+  grep -q '^7b|1|error|.*controls under 95 %' "$SHIM/b-results.psv"
+  [[ "$output" == *"row 2: want bs1=0 bs2=1, judge bs1=1 bs2=0"* ]]
+}
+
+@test "planning judge: a passing control run is reused until the rubric changes" {
+  make_judge_stub
+  j="$BATS_TEST_DIRNAME/blindspot-judge.py"
+  export BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv"
+  run python3 "$j" controls "$SHIM/controls.tsv"
+  [ "$status" -eq 0 ]; [[ "$output" == "controls n=2 agree=2"* ]]
+  run python3 "$j" controls "$SHIM/controls.tsv"
+  [ "$status" -eq 0 ]; [[ "$output" == "controls cached"* ]]
+  sed 's/You grade an answer/You grade one answer/' "$j" >"$SHIM/judge2.py"
+  run python3 "$SHIM/judge2.py" controls "$SHIM/controls.tsv"
+  [ "$status" -eq 0 ]; [[ "$output" == "controls n=2 agree=2"* ]]
+  # An old pass is not reused.
+  sed -i.bak 's/|20[0-9-]*|/|2000-01-01|/' "$SHIM/record.psv"
+  run python3 "$j" controls "$SHIM/controls.tsv"
+  [[ "$output" == "controls n=2"* ]]
+}
+
+@test "planning judge: a quote that is not in the answer is no verdict" {
+  printf '%s\n' 'Feltet er lagt til. Hvem konsumerer topicen?' >"$SHIM/a.txt"
+  printf '#!/bin/sh\necho %s\n' "'{\"bs1\": true, \"bs1_quote\": \"Hvilke personopplysninger behandles?\", \"bs2\": false, \"bs2_quote\": \"\"}'" >"$SHIM/liar"
+  chmod +x "$SHIM/liar"
+  BS_JUDGE_CMD="$SHIM/liar" run python3 "$BATS_TEST_DIRNAME/blindspot-judge.py" judge "$SHIM/a.txt"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"bs1": false'* ]]
+  [[ "$output" == *'rejected_quotes'* ]]
+}
+
 @test "planning t7b: a privacy word in tool output does not raise #1" {
   run_suite toolline --agent nav-pilot --only 7b
   [ "$status" -eq 1 ]
@@ -635,14 +699,6 @@ run_suite() {
   run_suite count --agent nav-pilot --only 8b
   [ "$status" -eq 1 ]
   grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
-}
-
-@test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {
-  re=$(sed -n "s/^RE_BS1='\\(.*\\)'$/\\1/p" "$SCRIPT")
-  [ -n "$re" ]
-  # The 2026-10-06 v4 t2 run 2 question that RE_BS1 used to miss.
-  printf '%s\n' 'Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, sende det videre eller lagre det?' | grep -qiE -- "$re"
-  if printf '%s\n' 'Hvilke tjenester må den kalle, og hva skal skje hvis de er nede?' | grep -qiE -- "$re"; then false; fi
 }
 
 @test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {

@@ -1,0 +1,26 @@
+# python3 scripts/blindspot-judge.py controls scripts/golden-fixtures/blindspot-controls.tsv
+# 2026-10-08, claude-haiku-5.5 via GitHub Copilot CLI 1.0.94-3, reasoning effort low, up to 3 votes, majority
+# row = line number in blindspot-controls.tsv (line 1 is the header)
+
+## Run 1 (labels as merged in #1467)
+controls n=75 agree=70 errors=0 accuracy=0.933 credits=17.31
+row 48: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Vil du at jeg sender videre fnr-feltet uendret?
+row 54: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Skal jeg se bort fra fnr i diffen?
+row 59: want bs1=0 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem skal kunne lese loggene i Grafana?
+row 64: want bs1=1 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem er konsumentene av fnr?
+row 65: want bs1=1 bs2=0, judge bs1=1 bs2=1 (review-2026-10-08): Skal fnr eksponeres til alle som leser topicet?
+
+## Run 2 (rows 64 and 65 relabelled to bs1 and bs2; boolean votes, 1-1 split is an error, case-sensitive quotes)
+controls n=75 agree=71 errors=0 accuracy=0.947 credits=17.25
+row 48: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Vil du at jeg sender videre fnr-feltet uendret?
+row 54: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Skal jeg se bort fra fnr i diffen?
+row 55: want bs1=0 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem skal kunne kalle denne hjelpefunksjonen i testene?
+row 59: want bs1=0 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem skal kunne lese loggene i Grafana?
+
+## Run 3 (rubric clarified once: production use only, owner decision)
+controls n=75 agree=73 errors=0 accuracy=0.973 credits=17.79
+row 48: want bs1=0 bs2=0, judge bs1=1 bs2=0 (review-2026-10-08): Vil du at jeg sender videre fnr-feltet uendret?
+row 59: want bs1=0 bs2=0, judge bs1=0 bs2=1 (review-2026-10-08): Hvem skal kunne lese loggene i Grafana?
+
+## Held-out set 2 (scripts/golden-fixtures/blindspot-controls-heldout2.tsv), same rubric as run 3, read only after the rubric commit
+controls n=20 agree=20 errors=0 accuracy=1.000 credits=4.75
