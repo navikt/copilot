@@ -1,4 +1,4 @@
-import { BodyShort, ReadMore } from "@navikt/ds-react";
+import { Box, BodyShort, ReadMore } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableRow } from "@/components/aksel-table";
 import { HeaderRow, linkClass } from "@/components/nav-pilot/doc-page";
 import type { DelegationRange } from "@/lib/local-model-results";
@@ -337,7 +337,7 @@ export function ReportTimeline({ index, listUrl }: { index: ReportIndex; listUrl
           </li>
         ))}
       </ul>
-      <div className="px-2">
+      <Box paddingInline="space-8">
         <div
           className="relative border-b"
           style={{ height: `${tallest * 1.25 + 0.5}rem`, borderColor: "var(--ax-border-neutral)" }}
@@ -368,7 +368,7 @@ export function ReportTimeline({ index, listUrl }: { index: ReportIndex; listUrl
             </span>
           ))}
         </div>
-      </div>
+      </Box>
       <BodyShort size="small" textColor="subtle">
         Rapportene er på engelsk. Bare rapporter som selv oppgir en vurdering, har farge.
       </BodyShort>

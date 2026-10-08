@@ -63,6 +63,10 @@ describe("buildTable", () => {
       { models: [entry({ capabilities: { bar: { ...entry().capabilities.bar, confidence: 2 } } })] },
     ],
     [
+      "a confidence the chart cannot compute",
+      { models: [entry({ capabilities: { bar: { ...entry().capabilities.bar, confidence: 0.8 } } })] },
+    ],
+    [
       "a fractional min_runs",
       { models: [entry({ capabilities: { bar: { ...entry().capabilities.bar, min_runs: 1.5 } } })] },
     ],
@@ -170,6 +174,13 @@ describe("buildReports", () => {
     ["a headline with k above n", index([report({ headline: { k: 5, n: 4 } })])],
     ["a headline with n = 0", index([report({ headline: { k: 0, n: 0 } })])],
     ["a bad date", index([report({ date: "1. oktober" })])],
+    ["a date that is not on the calendar", index([report({ date: "2026-02-30" })])],
+    ["a date of 2026-99-99", index([report({ date: "2026-99-99" })])],
+    [
+      "a link that climbs out of the repo",
+      index([report({ url: "https://github.com/navikt/mlx-workspace/../../other/repo" })]),
+    ],
+    ["an unmeasured row with no fields", index([report()], { unmeasured: [{}] })],
   ])("refuses %s", (_, raw) => {
     expect(() => buildReports(raw)).toThrow();
   });

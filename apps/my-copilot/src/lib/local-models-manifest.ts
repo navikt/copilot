@@ -114,8 +114,11 @@ function projectBar(b: unknown): Bar | null {
     if (int ? !Number.isInteger(v) || v < 0 : v < 0 || v > 1) throw new Error(`bar.${n}=${v} is out of range`);
     return v;
   };
+  const confidence = f("confidence");
+  // The chart's Wilson z has a fixed lookup (local-model-charts.tsx zFor); any other value would be labelled but not computed.
+  if (confidence !== 0.9 && confidence !== 0.95) throw new Error(`bar.confidence=${confidence} is not 0.9 or 0.95`);
   return {
-    confidence: f("confidence"),
+    confidence,
     x_caught: f("x_caught"),
     x_silent: f("x_silent"),
     min_runs: f("min_runs", true),
@@ -227,7 +230,6 @@ export type Unmeasured = { item: string; status: string };
 export type ReportIndex = { source: string; reports: Report[]; unmeasured: Unmeasured[] };
 
 const VERDICTS = new Set(["pass", "fail", "mixed", "not-yet", "none"]);
-const REPORT_URL = "https://github.com/navikt/mlx-workspace/";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** **bold**, `code` and [text](link) → plain text. The page renders it as text, never as HTML. */
@@ -246,9 +248,20 @@ function projectReport(r: unknown): Report {
     return v;
   };
   const [id, title, date, url] = ["id", "title", "date", "url"].map(str);
-  if (!ISO_DATE.test(date)) throw new Error(`report ${id} has date ${JSON.stringify(date)}`);
-  // The page links every report, so only links into the repo pass.
-  if (!url.startsWith(REPORT_URL)) throw new Error(`report ${id} links outside navikt/mlx-workspace`);
+  const t = Date.parse(`${date}T00:00:00Z`);
+  if (!ISO_DATE.test(date) || Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== date) {
+    throw new Error(`report ${id} has date ${JSON.stringify(date)}`);
+  }
+  // The page links every report, so only https links into the repo pass. Parsed, so `..` cannot climb out.
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    throw new Error(`report ${id} has an unparseable url`);
+  }
+  if (u.origin !== "https://github.com" || !u.pathname.startsWith("/navikt/mlx-workspace/")) {
+    throw new Error(`report ${id} links outside navikt/mlx-workspace`);
+  }
   const v = r.verdict;
   if (v !== undefined && (typeof v !== "string" || !VERDICTS.has(v))) {
     throw new Error(`report ${id} has verdict ${JSON.stringify(v)}`);
@@ -269,9 +282,11 @@ export function buildReports(raw: unknown): ReportIndex {
   if (!isPlainObject(raw) || raw.schema_version !== 1) throw new Error("reports.json is not schema_version 1");
   if (!Array.isArray(raw.reports) || raw.reports.length === 0) throw new Error("reports.json lists no reports");
   const reports = raw.reports.map(projectReport).sort((a, b) => b.date.localeCompare(a.date));
-  const unmeasured = (Array.isArray(raw.unmeasured) ? raw.unmeasured : []).filter(isPlainObject).map((u) => ({
-    item: plain(String(u.item ?? "")),
-    status: plain(String(u.status ?? "")),
-  }));
+  const unmeasured = (Array.isArray(raw.unmeasured) ? raw.unmeasured : []).map((u) => {
+    const item = isPlainObject(u) && typeof u.item === "string" ? plain(u.item) : "";
+    const status = isPlainObject(u) && typeof u.status === "string" ? plain(u.status) : "";
+    if (!item || !status) throw new Error("reports.json has an unmeasured row without item and status");
+    return { item, status };
+  });
   return { source: REPORTS_URL, reports, unmeasured };
 }
