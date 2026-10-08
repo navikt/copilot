@@ -15,26 +15,53 @@
       "temperature": 0.6,
       "top_p": 0.95,
       "prefill_step": null,
+      "bar": {
+        "confidence": 0.9,
+        "x_caught": 0.9,
+        "x_silent": 0.95,
+        "min_runs": 5,
+        "min_tasks": 2
+      },
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 27,
+          "local_n": 27
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 3,
+          "delegate_n": 3,
+          "local_k": 9,
+          "local_n": 9
         },
         "edit-multi-mechanical": {
           "delegate": "trusted",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 35,
+          "delegate_n": 35,
+          "local_k": 11,
+          "local_n": 18
         },
         "create-file": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 1,
+          "delegate_n": 2,
+          "local_k": 3,
+          "local_n": 18
         },
         "debug": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 3
         }
       }
     },
@@ -52,26 +79,53 @@
       "temperature": 0.6,
       "top_p": 0.95,
       "prefill_step": null,
+      "bar": {
+        "confidence": 0.9,
+        "x_caught": 0.9,
+        "x_silent": 0.95,
+        "min_runs": 5,
+        "min_tasks": 2
+      },
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 9,
+          "local_n": 9
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 3,
+          "local_n": 3
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 3,
+          "local_n": 6
         },
         "create-file": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 6
         },
         "debug": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 0
         }
       }
     },
@@ -89,26 +143,53 @@
       "temperature": 0.6,
       "top_p": 0.95,
       "prefill_step": 512,
+      "bar": {
+        "confidence": 0.9,
+        "x_caught": 0.9,
+        "x_silent": 0.95,
+        "min_runs": 5,
+        "min_tasks": 2
+      },
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 12,
+          "local_n": 12
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
         },
         "create-file": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
         },
         "debug": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 0
         }
       }
     },
@@ -126,26 +207,214 @@
       "temperature": 0.6,
       "top_p": 0.95,
       "prefill_step": null,
+      "bar": {
+        "confidence": 0.9,
+        "x_caught": 0.9,
+        "x_silent": 0.95,
+        "min_runs": 5,
+        "min_tasks": 2
+      },
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 6,
+          "local_n": 6
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 3,
+          "local_n": 4
         },
         "create-file": {
           "delegate": "cloud",
-          "local": "not-yet"
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
         },
         "debug": {
           "delegate": "cloud",
-          "local": "cloud"
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 0
+        }
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "model": "Accio-Lab/occamy-1.0-MLX-4bit",
+      "replaced_by": null,
+      "bar": {
+        "confidence": 0.9,
+        "x_caught": 0.9,
+        "x_silent": 0.95,
+        "min_runs": 5,
+        "min_tasks": 2
+      },
+      "classes": {
+        "read-qa": {
+          "delegate": "cloud",
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 6,
+          "local_n": 6
+        },
+        "edit-single": {
+          "delegate": "cloud",
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
+        },
+        "edit-multi-mechanical": {
+          "delegate": "cloud",
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
+        },
+        "create-file": {
+          "delegate": "cloud",
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 3,
+          "local_n": 4
+        },
+        "debug": {
+          "delegate": "cloud",
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 0
+        }
+      }
+    },
+    {
+      "model": "mlx-community/Laguna-XS-2.1-8bit",
+      "replaced_by": null,
+      "bar": {
+        "confidence": 0.9,
+        "x_caught": 0.9,
+        "x_silent": 0.95,
+        "min_runs": 5,
+        "min_tasks": 2
+      },
+      "classes": {
+        "read-qa": {
+          "delegate": "cloud",
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 5,
+          "local_n": 6
+        },
+        "edit-single": {
+          "delegate": "cloud",
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
+        },
+        "edit-multi-mechanical": {
+          "delegate": "cloud",
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
+        },
+        "create-file": {
+          "delegate": "cloud",
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 4,
+          "local_n": 4
+        },
+        "debug": {
+          "delegate": "cloud",
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 0
+        }
+      }
+    },
+    {
+      "model": "mlx-community/Qwen3.8-27B-4bit",
+      "replaced_by": "qwen3.8-27b-optiq-4bit",
+      "bar": {
+        "confidence": 0.9,
+        "x_caught": 0.9,
+        "x_silent": 0.95,
+        "min_runs": 5,
+        "min_tasks": 2
+      },
+      "classes": {
+        "read-qa": {
+          "delegate": "cloud",
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 9,
+          "local_n": 9
+        },
+        "edit-single": {
+          "delegate": "cloud",
+          "local": "not-yet",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 3,
+          "local_n": 3
+        },
+        "edit-multi-mechanical": {
+          "delegate": "cloud",
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 2,
+          "local_n": 6
+        },
+        "create-file": {
+          "delegate": "cloud",
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 6
+        },
+        "debug": {
+          "delegate": "cloud",
+          "local": "cloud",
+          "delegate_k": 0,
+          "delegate_n": 0,
+          "local_k": 0,
+          "local_n": 0
         }
       }
     }
