@@ -177,11 +177,7 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       Det billigste steget er å installere en pakke noen alt vedlikeholder. nav-pilot finner ikke pakker
                       for deg: <code className={code}>install</code> krever at du kjenner reponavnet, og det finnes
-                      ingen kommando som lister pakker (
-                      <a href="https://github.com/navikt/copilot/issues/819" className={linkClass}>
-                        #819
-                      </a>
-                      ). Lista under er ført for hånd.
+                      ingen kommando som lister pakker. Lista under er ført for hånd.
                     </BodyLong>
 
                     <LinkableHeading id="pakkene-som-finnes" size="small" level="3">

@@ -244,11 +244,7 @@ export default function AgentpakkerReferanse() {
               Stabile releases
             </a>{" "}
             som i dag bare virker der. Prisen er at du bygger payload-trærne selv og holder dem i takt med kontrakten.
-            nav-pilot har ingen kommando som bygger dem (
-            <a href="https://github.com/navikt/copilot/issues/840" className={linkClass}>
-              #840
-            </a>
-            ).
+            nav-pilot har ingen kommando som bygger dem.
           </BodyLong>
           <BodyLong textColor="subtle">
             <code className={code}>defaultModel</code> er per klient. Den literale verdien{" "}
