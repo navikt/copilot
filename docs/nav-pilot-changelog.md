@@ -11,6 +11,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Laveste frist er 3 sekunder**: Står `timeoutSec` til 1 eller 2 i en `.hook.json`, bruker nav-pilot 3. Før var den laveste fristen 2 sekunder.
 - **Gjelder etter neste installasjon**: Hooker som er installert fra før, får den nye marginen neste gang du kjører `nav-pilot install` eller `nav-pilot sync --apply`. Til da har de den gamle marginen på ett sekund.
 
+### Personopplysninger i logger er et kritisk funn
+
+- **`@security-champion` og `@code-review`**: Fnr eller andre personopplysninger om en person (navn, bostedsadresse, helse- eller ytelsesdata) som skrives til applikasjonsloggen, også via strenginterpolasjon, unntaksmeldinger eller `toString`, merkes nå som kritisk (🔴). Sporingsloggen (CEF via `auditLogger`) er unntatt. Før sto det bare at slikt ikke skal logges, og modellen merket det som høy i alle ti målte kjøringer.
+
 ## 2026-10-06
 
 ### nav-pilot spør om personvern bare når dataflyten endres

@@ -120,7 +120,7 @@ logger.info("Processing user id=$userId")
 
 - No secrets hardcoded — use environment variables or Nais Console secrets
 - Validate all input at system boundaries
-- No FNR, JWT tokens, or passwords in logs
+- No secrets (JWT tokens, passwords) in logs. Fnr or other personal data about a person (name, home address, health or benefit data) written to application logs is 🔴, including via string interpolation, exception messages or `toString`. The only exception is a CEF-formatted line written through the dedicated `auditLogger` (own appender, `additivity="false"`) when personal data is shown to an employee; a line in the ordinary application logger is not an audit log, whatever it is called
 - An open or widened Nais `accessPolicy` is 🔴, not a compliance item: `accessPolicy.inbound` that allows all (`*`, every namespace or every application), a new inbound rule, or a removed restriction
 
 ### Error Handling (🟡)
