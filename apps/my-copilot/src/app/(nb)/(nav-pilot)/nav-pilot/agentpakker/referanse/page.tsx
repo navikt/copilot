@@ -179,13 +179,13 @@ export default function AgentpakkerReferanse() {
               Skript i en skill
             </LinkableHeading>
             <BodyLong textColor="subtle">
-              Sender skillen din med et skript, kopieres det med resten av katalogen — men katalogen havner ulike steder
+              Sender skillen din med et skript, kopieres det med resten av katalogen, men katalogen havner ulike steder
               per klient: <code className={code}>~/.copilot/skills/</code> for copilot,{" "}
               <code className={code}>skills/</code> under konfigurasjonskatalogen for opencode,{" "}
               <code className={code}>~/.nav-pilot/pi/skills</code> for pi, og <code className={code}>skills/</code> i
               payloadtreet for Tier 2. Skriver du én av stiene i teksten, er skillen feil på de andre. nav-pilot
               eksporterer derfor <code className={code}>NAV_PILOT_SKILLS_DIR</code> ved hver launch, med roten skillene
-              faktisk ble lagt i for den klienten, og sender den gjennom sandboxen. Skriv{" "}
+              faktisk ble lagt i for den klienten, og sender den gjennom sandkassa. Skriv{" "}
               <code className={code}>bash &quot;$NAV_PILOT_SKILLS_DIR/&lt;skill&gt;/&lt;skript&gt;&quot;</code> og den
               peker riktig overalt. La nav-pilot ingen skills ut for klienten, er variabelen usatt framfor å peke på en
               katalog som ikke finnes, så en skill kan teste på den og si fra.
@@ -244,7 +244,11 @@ export default function AgentpakkerReferanse() {
               Stabile releases
             </a>{" "}
             som i dag bare virker der. Prisen er at du bygger payload-trærne selv og holder dem i takt med kontrakten.
-            nav-pilot har ingen kommando som bygger dem.
+            nav-pilot har ingen kommando som bygger dem (
+            <a href="https://github.com/navikt/copilot/issues/840" className={linkClass}>
+              #840
+            </a>
+            ).
           </BodyLong>
           <BodyLong textColor="subtle">
             <code className={code}>defaultModel</code> er per klient. Den literale verdien{" "}
@@ -433,11 +437,11 @@ export default function AgentpakkerReferanse() {
             Gjenbruk av en annen pakke
           </LinkableHeading>
           <BodyLong textColor="subtle">
-            Slik setter du det opp: se{" "}
+            Oppsettet står under{" "}
             <NextLink href="/nav-pilot/agentpakker#bygg-videre-pa-en" className={linkClass}>
               Bygg videre på en
             </NextLink>
-            . Her er reglene for hvordan de to pakkene settes sammen.
+            . Her står reglene for hvordan de to pakkene settes sammen.
           </BodyLong>
           <BodyLong textColor="subtle">
             Gjenbruker to pakker hverandre, finnes det ingen rekkefølge å løse dem i, og feilen ber om at syklusen

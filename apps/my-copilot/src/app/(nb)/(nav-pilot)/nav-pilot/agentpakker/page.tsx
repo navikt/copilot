@@ -177,14 +177,20 @@ export default function Agentpakker() {
                     <BodyLong textColor="subtle">
                       Det billigste steget er å installere en pakke noen alt vedlikeholder. nav-pilot finner ikke pakker
                       for deg: <code className={code}>install</code> krever at du kjenner reponavnet, og det finnes
-                      ingen kommando som lister pakker. Lista under er ført for hånd.
+                      ingen kommando som lister pakker (
+                      <a href="https://github.com/navikt/copilot/issues/819" className={linkClass}>
+                        #819
+                      </a>
+                      ). Lista under er ført for hånd.
                     </BodyLong>
 
                     <LinkableHeading id="pakkene-som-finnes" size="small" level="3">
                       Pakkene som finnes
                     </LinkableHeading>
                     <BodyLong textColor="subtle">
-                      Disse pakkene vet vi om. Vil du ta i bruk en annen pakke enn{" "}
+                      De tre under validerer CI-en i navikt/copilot ved hver kontraktsendring. Slutter en pakke å følge
+                      kontrakten, feiler bygget vårt, så lista holdes kort. Den er en referanse for deg som skriver en
+                      pakke, ikke en anbefaling om hva du bør installere. Vil du ta i bruk en annen pakke enn{" "}
                       <code className={code}>nav-pilot</code>, spør du teamet som eier den først.
                     </BodyLong>
                     <VStack gap="space-16">
@@ -409,8 +415,8 @@ export default function Agentpakker() {
                     </LinkableHeading>
 
                     <BodyLong textColor="subtle">
-                      Konsumentene er pinnet til revisjonen de installerte, så en endring du pusher når dem først når de
-                      kjører <code className={code}>nav-pilot sync --apply</code>. Tre ting å vite før du endrer en
+                      Konsumentene er pinnet til revisjonen de installerte. En endring du pusher, kommer fram først når
+                      de kjører <code className={code}>nav-pilot sync --apply</code>. Tre ting å vite før du endrer en
                       pakke andre bruker:
                     </BodyLong>
                     <Bullets>
