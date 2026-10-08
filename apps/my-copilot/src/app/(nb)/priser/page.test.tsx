@@ -34,11 +34,11 @@ describe("prissiden", () => {
     const versatileToggle = screen.getByRole("checkbox", { name: "Versatile" });
     fireEvent.click(versatileToggle);
 
-    expect(within(pristabell()).queryByText("Claude Sonnet 5.5")).toBeNull();
+    expect(within(pristabell()).queryByText("Claude Sonnet 5.5 (Default)")).toBeNull();
     expect(radFor("GPT-6 Sol (Default, ≤ 272K)")).toBeInTheDocument();
 
     fireEvent.click(versatileToggle);
-    expect(radFor("Claude Sonnet 5.5")).toBeInTheDocument();
+    expect(radFor("Claude Sonnet 5.5 (Default)")).toBeInTheDocument();
 
     const cacheWriteSort = screen.getByRole("button", { name: /Sorter etter Cache write/ });
     fireEvent.click(cacheWriteSort);

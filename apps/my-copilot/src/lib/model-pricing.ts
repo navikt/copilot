@@ -239,7 +239,7 @@ export const MODEL_PRICING: ModelPrice[] = [
   },
   // Anthropic
   {
-    model: "Claude Haiku 4.5",
+    model: "Claude Haiku 4.5 (Default)",
     provider: "Anthropic",
     category: "Versatile",
     status: "GA",
@@ -249,7 +249,27 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 5,
   },
   {
-    model: "Claude Sonnet 4",
+    model: "Claude Haiku 5.5 (Default, ≤ 100K)",
+    provider: "Anthropic",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.1,
+    cachedInput: 0.01,
+    cacheWrite: 0.125,
+    output: 0.5,
+  },
+  {
+    model: "Claude Haiku 5.5 (Long context, 100K)",
+    provider: "Anthropic",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.5,
+    cachedInput: 0.05,
+    cacheWrite: 0.625,
+    output: 2.5,
+  },
+  {
+    model: "Claude Sonnet 4 (Default)",
     provider: "Anthropic",
     category: "Versatile",
     status: "GA",
@@ -259,7 +279,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 15,
   },
   {
-    model: "Claude Sonnet 4.6",
+    model: "Claude Sonnet 4.6 (Default)",
     provider: "Anthropic",
     category: "Versatile",
     status: "GA",
@@ -269,7 +289,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 15,
   },
   {
-    model: "Claude Opus 4.8",
+    model: "Claude Opus 4.8 (Default)",
     provider: "Anthropic",
     category: "Powerful",
     status: "GA",
@@ -279,7 +299,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 25,
   },
   {
-    model: "Claude Opus 5",
+    model: "Claude Opus 5 (Default)",
     provider: "Anthropic",
     category: "Powerful",
     status: "GA",
@@ -289,7 +309,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 25,
   },
   {
-    model: "Claude Opus 5.5",
+    model: "Claude Opus 5.5 (Default)",
     provider: "Anthropic",
     category: "Powerful",
     status: "GA",
@@ -299,7 +319,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 20,
   },
   {
-    model: "Claude Sonnet 5",
+    model: "Claude Sonnet 5 (Default)",
     provider: "Anthropic",
     category: "Versatile",
     status: "GA",
@@ -309,17 +329,17 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 10,
   },
   {
-    model: "Claude Sonnet 5.5",
+    model: "Claude Sonnet 5.5 (Default)",
     provider: "Anthropic",
     category: "Versatile",
     status: "GA",
     input: 2,
-    cachedInput: 0.2,
+    cachedInput: 0.1,
     cacheWrite: 2.5,
     output: 10,
   },
   {
-    model: "Claude Opus 4.8 (fast mode) (preview)",
+    model: "Claude Opus 4.8 (fast mode) (preview) (Default)",
     provider: "Anthropic",
     category: "Powerful",
     status: "GA",
@@ -329,7 +349,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 50,
   },
   {
-    model: "Claude Fable 5",
+    model: "Claude Fable 5 (Default)",
     provider: "Anthropic",
     category: "Powerful",
     status: "GA",
@@ -339,7 +359,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 50,
   },
   {
-    model: "Claude Fable 5.1",
+    model: "Claude Fable 5.1 (Default)",
     provider: "Anthropic",
     category: "Powerful",
     status: "GA",
