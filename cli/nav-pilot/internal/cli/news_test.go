@@ -41,6 +41,15 @@ func TestNewsNextIsNewestUnseenRecentCLIItem(t *testing.T) {
 	}
 }
 
+func TestNewsNextShowsTodaysItemJustAfterLocalMidnight(t *testing.T) {
+	oslo := time.FixedZone("CEST", 2*60*60)
+	now := time.Date(2026, 10, 9, 0, 16, 0, 0, oslo) // 2026-10-08 22:16 UTC
+	st := newsState{Items: []newsItem{{Title: "today", Date: "2026-10-09", URL: "u", CLI: true}}}
+	if it := nextNews(st, now); it == nil {
+		t.Fatal("nextNews = nil, want today's item at 00:16 local time")
+	}
+}
+
 // The line shows each item once, and a slow feed costs at most the short
 // timeout at the end of a session.
 func TestNewsLineOnceAndNeverSlow(t *testing.T) {

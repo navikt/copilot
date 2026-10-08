@@ -157,10 +157,11 @@ func cleanNews(items []newsItem) []newsItem {
 }
 
 // nextNews is the first cli item in the feed (newest first) that is recent,
-// not dated in the future, and not shown before.
+// not dated in the future, and not shown before. A date starts at local
+// midnight: parsed as UTC, today's item stayed hidden until 02:00 in Norway.
 func nextNews(st newsState, now time.Time) *newsItem {
 	for i, it := range st.Items {
-		d, err := time.Parse(time.DateOnly, it.Date)
+		d, err := time.ParseInLocation(time.DateOnly, it.Date, now.Location())
 		if age := now.Sub(d); it.CLI && err == nil && age >= 0 && age <= newsMaxAge && !slices.Contains(st.Seen, it.URL) {
 			return &st.Items[i]
 		}
