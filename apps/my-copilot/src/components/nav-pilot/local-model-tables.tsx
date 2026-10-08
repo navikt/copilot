@@ -1,8 +1,8 @@
 import { VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import type { LocalModel } from "@/lib/local-models";
-import { HeaderRow, code } from "@/components/nav-pilot/doc-page";
-import { formatDate, type ResultRow } from "@/lib/local-model-results";
+import { HeaderRow } from "@/components/nav-pilot/doc-page";
+import type { ResultRow } from "@/lib/local-model-results";
 
 // The local-model tables on /nav-pilot/referanse and
 // /nav-pilot/forklaring/lokal-modell. The rows come from the manifest in
@@ -29,13 +29,21 @@ const TASK_CLASS_LABEL: Record<string, string> = {
   debug: "feilsøking",
 };
 
+const subtle = { color: "var(--ax-text-neutral-subtle)" };
+const formatShortDate = (iso: string) =>
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString("nb-NO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/Oslo",
+  });
 const kTokens = (n: number) => `${Math.round(n / 1024)}k`;
 const classLabel = (id: string) => TASK_CLASS_LABEL[id] ?? id;
 const modelName = (m: LocalModel) => m.model.split("/").pop();
 
 function trustedClasses(m: LocalModel) {
   return Object.entries(m.classes).flatMap(([id, c]) => [
-    ...(c.delegate === "trusted" ? [`${classLabel(id)} (delegert fra hovedagenten i skyen)`] : []),
+    ...(c.delegate === "trusted" ? [`${classLabel(id)} (delegering)`] : []),
     ...(c.local === "trusted" ? [`${classLabel(id)} (hele økten lokalt)`] : []),
   ]);
 }
@@ -67,39 +75,46 @@ export function LocalModelsTable({ models, stack }: { models: LocalModel[]; stac
   return (
     <div className="overflow-x-auto">
       <Table size="small" {...stackProps(stack)}>
-        <HeaderRow stack={stack} cells={["Modell", "Kontekst / svar", "Minne", "Krever nav-pilot", "Kort sagt"]} />
+        <HeaderRow stack={stack} cells={["Modell", "Minst minne", "Kontekst / svar", "nav-pilot"]} />
         <TableBody role={r("rowgroup")}>
-          {models.map((m) => (
-            <TableRow key={m.id} role={r("row")}>
-              <TableDataCell role={r("cell")}>
-                <VStack gap="space-2">
-                  <code className={stack ? `${code} whitespace-nowrap` : code}>{modelName(m)}</code>
-                  <div className="text-xs" style={{ color: "var(--ax-text-neutral-subtle)" }}>
-                    {m.default ? "standard" : "valgfri"}
+          {[...models]
+            .sort((x, y) => x.min_ram_gb - y.min_ram_gb)
+            .map((m) => (
+              <TableRow key={m.id} role={r("row")}>
+                <TableDataCell role={r("cell")}>
+                  <VStack gap="space-4">
+                    <span>
+                      <strong>{modelName(m)}</strong>{" "}
+                      <span className="text-sm" style={subtle}>
+                        {m.default ? "standard" : "valgfri"}
+                      </span>
+                    </span>
+                    <span className="text-sm" style={subtle}>
+                      <LocalModelText m={m} />
+                    </span>
+                  </VStack>
+                </TableDataCell>
+                <TableDataCell role={r("cell")} data-label="Minst minne" className="whitespace-nowrap">
+                  {m.min_ram_gb} GB
+                  <div className="text-sm" style={subtle}>
+                    vekter {m.weights_gb} GB
                   </div>
-                </VStack>
-              </TableDataCell>
-              <TableDataCell role={r("cell")} data-label="Kontekst / svar" className="whitespace-nowrap">
-                {kTokens(m.context)} / {kTokens(m.output)}
-              </TableDataCell>
-              <TableDataCell role={r("cell")} data-label="Minne">
-                {m.min_ram_gb} GB, vektene tar {m.weights_gb} GB
-              </TableDataCell>
-              <TableDataCell role={r("cell")} data-label="Krever nav-pilot">
-                {m.min_nav_pilot ? (
-                  // Build ids are YYYY.MM.DD-HHMMSS-sha. The date is what a reader needs; the id is in the tooltip.
-                  <span title={`≥ ${m.min_nav_pilot}`}>
-                    fra {formatDate(m.min_nav_pilot.slice(0, 10).replaceAll(".", "-"))}
-                  </span>
-                ) : (
-                  "alle versjoner"
-                )}
-              </TableDataCell>
-              <TableDataCell role={r("cell")}>
-                <LocalModelText m={m} />
-              </TableDataCell>
-            </TableRow>
-          ))}
+                </TableDataCell>
+                <TableDataCell role={r("cell")} data-label="Kontekst / svar" className="whitespace-nowrap">
+                  {kTokens(m.context)} / {kTokens(m.output)}
+                </TableDataCell>
+                <TableDataCell role={r("cell")} data-label="nav-pilot" className="whitespace-nowrap">
+                  {m.min_nav_pilot ? (
+                    // Build ids are YYYY.MM.DD-HHMMSS-sha. The date is what a reader needs; the id is in the tooltip.
+                    <span title={`≥ ${m.min_nav_pilot}`}>
+                      fra {formatShortDate(m.min_nav_pilot.slice(0, 10).replaceAll(".", "-"))}
+                    </span>
+                  ) : (
+                    "alle"
+                  )}
+                </TableDataCell>
+              </TableRow>
+            ))}
         </TableBody>
       </Table>
     </div>
@@ -118,7 +133,7 @@ export function TrustedClassesTable({ models, stack }: { models: LocalModel[]; s
             return (
               <TableRow key={m.id} role={r("row")}>
                 <TableDataCell role={r("cell")}>
-                  <code className={stack ? `${code} whitespace-nowrap` : code}>{modelName(m)}</code>
+                  <strong className="whitespace-nowrap">{modelName(m)}</strong>
                 </TableDataCell>
                 <TableDataCell role={r("cell")} data-label="Godkjent">
                   {trusted.length ? trusted.join(", ") : "ingen oppgavetyper ennå"}
