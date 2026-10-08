@@ -539,6 +539,7 @@
   },
   "/nav-pilot/forklaring/lokal-modell": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/lokal-modell/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
@@ -567,6 +568,32 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/lokal-modell/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/lokal/page.tsx"
+      ]
+    }
+  },
+  "/nav-pilot/forklaring/lokal-modell/malinger": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {
+      "malt-decide": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/decide/page.tsx"
+      ],
+      "malt-utsending": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx"
+      ],
+      "modell-64-gb": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx"
+      ],
+      "utsendingsnivaer": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"
       ]
     }
   },

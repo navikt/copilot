@@ -84,7 +84,7 @@ export const EXPLANATION_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/forklaring/lokal-modell",
     title: "Lokal modell",
-    desc: "Hvorfor utsendingen er begrenset, og hva modellene klarer i målingene våre.",
+    desc: "Hvorfor utsendingen er begrenset, hva nivåene gjør, og hva modellen er godkjent for.",
   },
   {
     href: "/nav-pilot/forklaring/personvern",
