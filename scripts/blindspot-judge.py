@@ -74,7 +74,9 @@ JSON object and nothing else:
 
 
 def norm(s):
-    return " ".join(re.sub(r"[*_`>#]", " ", s).split()).casefold()
+    # Markdown and line breaks only: models drop ** and backticks when quoting.
+    # Case and every other character must match.
+    return " ".join(re.sub(r"[*_`>#]", " ", s).split())
 
 
 def call_model(prompt):
@@ -117,6 +119,8 @@ def parse_vote(text, answer):
         v = json.loads(m.group(0))
     except ValueError:
         return None
+    if not isinstance(v, dict) or not all(isinstance(v.get(k), bool) for k in ("bs1", "bs2")):
+        return None
     na = norm(answer)
     out = {}
     for k in ("bs1", "bs2"):
@@ -143,6 +147,8 @@ def judge(answer):
             break
     if len(votes) < 2:
         return {"error": "fewer than two usable votes", "credits": round(credits, 3)}
+    if len(votes) == 2 and any(votes[0][k] != votes[1][k] for k in ("bs1", "bs2")):
+        return {"error": "two usable votes that disagree, no majority", "credits": round(credits, 3)}
     res = {"votes": len(votes), "credits": round(credits, 3)}
     for k in ("bs1", "bs2"):
         yes = [v for v in votes if v[k]]
