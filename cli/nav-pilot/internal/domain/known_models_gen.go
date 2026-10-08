@@ -19,6 +19,7 @@ var KnownCopilotModels = []ModelChoice{
 	{ID: "claude-fable-5", Label: "Claude Fable 5"},
 	{ID: "claude-fable-5.1", Label: "Claude Fable 5.1"},
 	{ID: "claude-haiku-4.5", Label: "Claude Haiku 4.5 (latest)"},
+	{ID: "claude-haiku-5.5", Label: "Claude Haiku 5.5"},
 	{ID: "claude-opus-4.6", Label: "Claude Opus 4.6"},
 	{ID: "claude-opus-4.7", Label: "Claude Opus 4.7"},
 	{ID: "claude-opus-4.8", Label: "Claude Opus 4.8"},
