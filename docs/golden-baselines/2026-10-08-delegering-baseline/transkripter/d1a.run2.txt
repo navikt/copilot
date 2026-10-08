@@ -1,0 +1,52 @@
+/ Search (glob)
+  │ "*"
+  └ 48 files found
+
+/ Search (glob)
+  │ "**/nais*.{yaml,yml}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot*"
+  └ No matches found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+Dette er en **ny tjeneste med personopplysninger og innlogging**, så jeg stopper ved avklaringen før jeg lager en plan eller endrer kode. Jeg antar at en innbygger logger inn via ID-porten, og at tjenesten skal lese vedkommendes fødselsnummer. Repoet har en enkel Ktor-tjeneste, men `nais.yaml` har ingen ID-porten-konfigurasjon. `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller returneres i et API-svar, og hvilke andre personopplysninger inngår?
+2. Skal bare den innloggede innbyggeren bruke tjenesten, eller skal også saksbehandlere eller andre tjenester kunne kalle den? Skal den eksisterende `/api/oppgaver` fortsatt være tilgjengelig?
+3. Hvilke systemer skal tjenesten kalle, og hva skal skje hvis de er utilgjengelige?
+4. Finnes det allerede tester eller en tidligere løsning som skal videreføres? Hvem bruker eventuelt API-et i dag?
+
+🔴 Rød sone: autentisering og håndtering av fødselsnummer må gjennomgås grundig. Valget om å avklare bruken før implementering hindrer at vi bygger feil tilgang eller sprer fødselsnummeret unødvendig; alternativet er å gjette på dataflyten. Still gjerne spørsmål om valgene over.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #5, #6, #7; #4 og #8–#11 avklares når løsningens omfang er kjent).
+

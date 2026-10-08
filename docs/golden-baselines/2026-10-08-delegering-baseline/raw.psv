@@ -1,0 +1,21 @@
+test|run|status|credits_per_model|debuglog_turns_per_model|subagents_started|fase3_in_d1c
+d2|1|fail|gpt-6-sol:9.09 |gpt-6-sol:1 |0|
+d2|2|fail|gpt-6-sol:9.74 |gpt-6-sol:1 |0|
+d2|3|fail|gpt-6-sol:10.63 |gpt-6-sol:1 |0|
+d2|4|fail|gpt-6-sol:10.40 |gpt-6-sol:1 |0|
+d2|5|fail|gpt-6-sol:8.31 |gpt-6-sol:1 |0|
+d3|1|pass|gpt-6-sol:9.65 |gpt-6-sol:1 |0|
+d3|2|pass|gpt-6-sol:7.34 |gpt-6-sol:1 |0|
+d3|3|pass|gpt-6-sol:9.00 |gpt-6-sol:1 |0|
+d3|4|pass|gpt-6-sol:8.67 |gpt-6-sol:1 |0|
+d3|5|pass|gpt-6-sol:7.71 |gpt-6-sol:1 |0|
+d4|1|fail|gpt-6-sol:5.90 |gpt-6-sol:1 |0|
+d4|2|fail|gpt-6-sol:5.65 |gpt-6-sol:1 |0|
+d4|3|fail|gpt-6-sol:5.74 |gpt-6-sol:1 |0|
+d4|4|fail|gpt-6-sol:6.47 |gpt-6-sol:1 |0|
+d4|5|fail|gpt-6-sol:5.93 |gpt-6-sol:1 |0|
+d1|1|fail|gpt-6-sol:9.94 |gpt-6-sol:3 |0|1
+d1|2|fail|gpt-6-sol:9.06 |gpt-6-sol:3 |0|1
+d1|3|fail|gpt-6-sol:10.13 |gpt-6-sol:3 |0|1
+d1|4|fail|gpt-6-sol:10.19 |gpt-6-sol:3 |0|1
+d1|5|fail|gpt-6-sol:9.06 |gpt-6-sol:3 |0|1

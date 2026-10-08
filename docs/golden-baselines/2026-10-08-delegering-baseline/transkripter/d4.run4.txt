@@ -1,0 +1,43 @@
+/ Search (glob)
+  │ "**/*"
+  └ 48 files found
+
+/ Search (grep)
+  │ "maksAntall|AGENTS.md"
+  └ 4 lines found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+`maksAntall` er en hardkodet konstant på `100` i `src/main/kotlin/no/nav/demo/Config.kt`. `App.kt` skriver verdien ved oppstart og registrerer `oppgaveRoutes()`. I `Routes.kt` bruker `GET /api/oppgaver` verdien i `oppgaver.take(maksAntall)` før listen pakkes i `OppgaveRespons`. Domenemodellen i `Oppgave.kt` definerer bare `Oppgave` og responsformatet; den bestemmer ikke grensen. `vedtak-api` er en separat modul uten bruk av `maksAntall`.
+
+For å gjøre grensen miljøspesifikk: Les en positiv heltallsverdi fra en miljøvariabel ved oppstart, med en uttrykkelig valgt standardverdi eller oppstartsfeil ved manglende verdi. Send verdien inn i `oppgaveRoutes` i stedet for å bruke en global konstant, og sett miljøvariabelen i `nais.yaml` for hvert miljø eller i miljøenes deploy-oppsett. Test at ruten avkorter listen ved den konfigurerte grensen, og at ugyldige verdier avvises. Da forblir API-formatet og domenemodellen uendret.
+
+🔴 Rød sone: Grensen styrer hvilke oppgaver API-et returnerer; gå gjennom ønsket standardverdi og håndtering av ugyldige verdier før endring. Still gjerne spørsmål om valgene over.
+

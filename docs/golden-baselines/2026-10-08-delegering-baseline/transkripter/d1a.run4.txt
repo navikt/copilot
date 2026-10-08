@@ -1,0 +1,57 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,docs/nav-pilo
+  │ t-design.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,**/nais.yaml,**/build.gradle.kts}"
+  └ 3 files found
+
+● List directory .
+  └ 6 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● List directory .github
+  └ 2 files found
+
+● List directory src
+  └ 1 file found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+**Fase 1: Avklaringer.** Repoet har en Ktor-tjeneste på Nais, men verken ID-porten-oppsett eller tilgangskontroll. Jeg legger til grunn at fødselsnummer er personopplysninger og ikke skal logges. Før jeg kan planlegge tjenesten, trenger jeg svar på:
+
+1. Skal innbyggeren kalle tjenesten direkte via nettleser, eller går kallet gjennom en frontend/BFF? Skal det eksisterende `/api/oppgaver` fortsatt være åpent?
+2. Hva skal tjenesten gjøre med fødselsnummeret etter at det er hentet fra ID-porten: bruke det i samme forespørsel, sende det videre eller lagre det? Hvilke mottakere er i så fall aktuelle?
+3. Hva skal skje når innlogging eller en eventuell nedstrøms tjeneste feiler? Hvilke målinger trenger dere for å se at tjenesten fungerer, uten å logge personopplysninger?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Spørsmål om migrering, bakoverkompatibilitet og avvikling venter til vi vet om den eksisterende tjenesten skal endres eller om dette er en separat tjeneste. Teststrategi og eierskap til eventuelle nedstrøms tjenester avhenger også av svarene over.
+
+Blindsoner reist: 5/11 (#1, #2, #3, #4, #6; #5 og #7–#11 avventer avklaring eller er foreløpig ikke relevante).
+

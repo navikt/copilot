@@ -1,0 +1,39 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+/ Search (glob)
+  │ "**/*"
+  └ 48 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+`maksAntall` er en hardkodet konstant på `100` i `src/main/kotlin/no/nav/demo/Config.kt:4`. `App.kt:10` skriver verdien ved oppstart, mens `Routes.kt:16` bruker den i `oppgaver.take(maksAntall)` for `GET /api/oppgaver`. `Oppgave.kt` definerer dataene og responsformatet, men ingen grense. Listen i ruten har bare to oppgaver, så grensen på 100 har ingen synlig effekt i dag.
+
+For å gjøre grensen konfigurerbar per miljø må konstanten erstattes med en positiv heltallsverdi lest og validert ved oppstart, for eksempel fra `MAKS_ANTALL`. Send verdien inn til `oppgaveRoutes` i stedet for å lese en global konstant, og sett miljøvariabelen i miljøenes Nais-konfigurasjon. `nais.yaml` setter ingen slik variabel nå. Behold `OppgaveRespons` uendret: dette endrer hvor mange oppgaver ruten returnerer, ikke responsformatet. Avklar også ønsket standardverdi og om ugyldig eller manglende verdi skal stoppe oppstart; ikke la ugyldig konfigurasjon gi en tilsynelatende vellykket respons.
+
+🔴 Rød sone: valideringen av grensen påvirker rutens oppførsel og bør gjennomgås nøye. Validering ved oppstart gir en tydelig feil ved feilkonfigurasjon, men krever at hvert miljø setter en gyldig verdi dersom dere ikke beholder en standard på 100. Still gjerne spørsmål om valgene over.
+

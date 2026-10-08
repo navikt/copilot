@@ -1,0 +1,41 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+/ Search (glob)
+  │ "**/*"
+  └ 48 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,docs/nav-pilo
+  │ t-design.md}"
+  └ No matches found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read README.md
+  └ 4 lines read
+
+`maksAntall` er i dag en konstant på `100` i `Config.kt`, ikke en miljøkonfigurasjon. `App.kt` starter Ktor, installerer JSON-serialisering og registrerer `oppgaveRoutes()`. Ruten `GET /api/oppgaver` i `Routes.kt` tar høyst `maksAntall` elementer fra den faste oppgavelisten og sender dem som `OppgaveRespons`. `Oppgave.kt` definerer JSON-modellene `Oppgave` og `OppgaveRespons`. Med dagens liste på to oppgaver merkes ikke grensen i svaret.
+
+For å gjøre grensen konfigurerbar per miljø må konstanten erstattes med en verdi som leses fra en miljøvariabel ved oppstart, valideres som et positivt heltall og gis videre til `oppgaveRoutes()`. Sett deretter miljøvariabelen i Nais-konfigurasjonen for hvert miljø; dagens `nais.yaml` har ingen slik verdi. En oppstartstest for gyldig og ugyldig verdi, samt en rutetest med flere oppgaver enn grensen, vil verifisere den nye oppførselen.
+
+🔴 Rød sone: Validering av miljøverdien bør gjennomgås nøye. Valg av feiloppførsel er å avvise ugyldig konfigurasjon ved oppstart fremfor å kjøre videre med en utilsiktet grense. Still gjerne spørsmål om valgene over.
+

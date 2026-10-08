@@ -1,0 +1,14 @@
+## Fase 2: Plan
+
+**Valg:** Behold Next.js-frontenden som eneste konsument og bygg en egen Ktor-tjeneste på Nais. Innbyggeren logger inn via ID-porten og Wonderwall. Backend må validere brukerens token før den henter fødselsnummer fra identiteten og slår opp navn i PDL. Bruk TokenX for kallet til PDL med brukerkontekst, ikke et tjenestetoken som mister den konteksten. Jeg legger til grunn at frontenden kan sende et token backend kan validere; dette må kontrolleres mot frontendens faktiske Wonderwall-oppsett før implementering.
+
+**Filer og ansvar:** Legg tjenesten i en egen modul med konfigurasjon for tokenvalidering og PDL, en avgrenset PDL-klient, og én autentisert rute som returnerer navnet til den innloggede innbyggeren. Ikke ta fødselsnummer som parameter fra nettleseren. Hold fødselsnummer og navn ute av logger, måleetiketter og feilmeldinger. Avklar med PDLs kontrakt hvilke felter og tilganger oppslaget krever før API-responsen fastsettes.
+
+**Nais og drift:** Konfigurer ID-porten/Wonderwall for frontendens innlogging, TokenX og eksplisitt `accessPolicy.inbound` for frontend samt utgående tilgang til PDL. Sett miljøvariabler for nødvendige endepunkter og målgrupper; ingen hardkodede nøkler. Bruk helseendepunkter og ressursforespørsler uten CPU-grense. Tjenesten trenger ingen database, migrasjoner, Kafka eller kø. Et PDL-utfall skal gi 503 og en loggoppføring uten personopplysninger; andre feil må ikke automatisk fremstilles som PDL-nedetid.
+
+**Leveranse og kontroll:** Legg til GitHub Actions for bygg, tester og Nais-deploy med minimale rettigheter. Test tokenavvisning, at identitet ikke kan velges av klienten, vellykket PDL-oppslag og 503 ved utilgjengelig PDL. Mål oppslag per minutt og andel feil med tellere uten persondata. Rull ut backend først, verifiser tokenflyt og PDL-tilgang i miljøet, og koble deretter frontenden på; ved feil rulles frontendens kall tilbake. Ingen gammel løsning må avvikles.
+
+🔴 **Rød sone, skriv og gjennomgå selv:** tokenvalidering, utledning av fødselsnummer fra validert identitet og tilgangsstyring mot PDL. TokenX og Wonderwall er nye for teamet; start med tester for disse grensene. 🟢 **Grønn sone:** prosjektoppsett, PDL-klientens struktur, målinger, CI/CD og Nais-manifest. Gevinsten ved å holde identiteten på serversiden er at nettleseren ikke kan velge hvem det slås opp for; kostnaden er at tokenutveksling og tilgangsregler må konfigureres og testes nøye.
+
+**Fase 2 er ferdig.** Neste fase er gjennomgang av planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.
+
