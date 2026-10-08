@@ -213,8 +213,9 @@ Tåler ikke porten å være stille ute av funksjon, er `--user` det scopet som f
 ### Portene slipper gjennom når Python svikter
 
 Copilot CLI nekter et verktøykall når en `preToolUse`-hook bruker lengre tid enn
-`timeoutSec`. Kommandoen nav-pilot skriver, stopper derfor skriptet ett sekund før fristen,
-og da slipper kallet gjennom. Det samme skjer når `python3` mangler eller skriptet feiler. En
+`timeoutSec`. Kommandoen nav-pilot skriver, stopper derfor skriptet to sekunder før fristen,
+og da slipper kallet gjennom. Med standardfristen på 5 sekunder har skriptet altså 3 sekunder på seg,
+og nav-pilot setter aldri `timeoutSec` lavere enn 3. Det samme skjer når `python3` mangler eller skriptet feiler. En
 port som nekter alt når Python er treg, er verre enn ingen port. Kommandoen bruker bare `sh`,
 fordi macOS ikke har `timeout`.
 

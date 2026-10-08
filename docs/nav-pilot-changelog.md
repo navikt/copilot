@@ -2,6 +2,14 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-08
+
+### Hook-porter får to sekunder margin før Copilot gir opp
+
+- **Mindre risiko for at et verktøykall blir nektet**: Copilot CLI nekter et verktøykall når en `preToolUse`-hook bruker lengre tid enn `timeoutSec`. nav-pilot stopper skriptet før fristen, slik at kallet slipper gjennom. Før skjedde det ett sekund før fristen. Når maskinen var travel, rakk ikke `sh`, `mktemp`, Python-shimen fra mise og oppryddingen å bli ferdige på det sekundet, og Copilot nektet kallet likevel. Nå stopper nav-pilot skriptet to sekunder før fristen.
+- **Kortere tid for skriptet**: En hook med standardfristen på 5 sekunder får 3 sekunder til skriptet, ikke 4 som før.
+- **Laveste frist er 3 sekunder**: Står `timeoutSec` lavere enn 3 i en `.hook.json`, bruker nav-pilot 3. Før var den laveste fristen 2 sekunder.
+
 ## 2026-10-06
 
 ### nav-pilot spør om personvern bare når dataflyten endres

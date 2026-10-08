@@ -90,9 +90,10 @@ func LoadHookMeta(scriptPath string) HookMeta {
 	if got.TimeoutSec <= 0 {
 		got.TimeoutSec = meta.TimeoutSec
 	}
-	// HookCommand kills the script a second before the deadline; below 2 s
-	// that second is all there is, and the watchdog would race Copilot.
-	got.TimeoutSec = max(2, got.TimeoutSec)
+	// HookCommand kills the script two seconds before the deadline, the margin
+	// sh, mktemp, a python3 shim and the cleanup need under load; below 3 s
+	// the script would get no time at all.
+	got.TimeoutSec = max(3, got.TimeoutSec)
 	return got
 }
 
@@ -104,7 +105,7 @@ func LoadHookMeta(scriptPath string) HookMeta {
 //
 // The last one needs a deadline of its own. Copilot denies a preToolUse call
 // whose hook outlives timeoutSec, so a cold or wedged interpreter used to turn
-// into a deny. The script is killed a second before that, and a killed script
+// into a deny. The script is killed two seconds before that, and a killed script
 // has allowed the call. macOS has no timeout(1), so the watchdog is plain sh:
 // a background sleep that kills python3, itself killed once python3 is done.
 // Killing the watchdog subshell can leave its `sleep` running until it ends on
@@ -124,7 +125,7 @@ func LoadHookMeta(scriptPath string) HookMeta {
 // The path is single-quoted: a HOME with a space in it would otherwise make
 // python3 fail to open the script, and every call would be allowed.
 func HookCommand(scriptPath string, timeoutSec int) string {
-	deadline := max(1, timeoutSec-1)
+	deadline := max(1, timeoutSec-2)
 	return fmt.Sprintf("command -v python3 >/dev/null 2>&1 || exit 0; "+
 		"o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; exit 0; }; exec 3<&0 4>&2 2>/dev/null; "+
 		"python3 %[1]s <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; "+
