@@ -57,6 +57,7 @@ export const SECTION: NavGroup[] = [
     items: [
       { label: "Verktøykatalog", href: "/verktoy" },
       { label: "Agentpakker", href: "/nav-pilot/agentpakker" },
+      { label: "Agentpakker: felt og regler", href: "/nav-pilot/agentpakker/referanse" },
     ],
   },
   {

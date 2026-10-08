@@ -150,7 +150,7 @@ nav-pilot`}</CodeBlock>
             Ber agentpakka om et unntak i sandkassen, spør nav-pilot før den installerer (
             <strong>agentpakke nav-pilot asks for more than the sandbox gives it. Allow it?</strong>). Nav-pakka ber om
             å nå Grafana-verktøyene Mimir, Loki og Tempo. Enter svarer Decline, og da virker alt annet i pakka.{" "}
-            <NextLink href="/nav-pilot/agentpakker#sandkasse" className={linkClass}>
+            <NextLink href="/nav-pilot/agentpakker/referanse#sandkasse" className={linkClass}>
               Agentpakker
             </NextLink>{" "}
             forklarer unntakene.

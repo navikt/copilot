@@ -8,6 +8,21 @@
 // target exists and that no key is a real id on its page. A value must be a
 // real id on its page, never another key. The link guard rejects chains.
 export const LEGACY_ANCHORS: Record<string, string> = {
+  // /nav-pilot/agentpakker was split into a how-to and a reference page.
+  "/nav-pilot/agentpakker#artefakttyper": "/nav-pilot/agentpakker/referanse#artefakttyper",
+  "/nav-pilot/agentpakker#kjorbar-kode": "/nav-pilot/agentpakker/referanse#kjorbar-kode",
+  "/nav-pilot/agentpakker#skript-i-en-skill": "/nav-pilot/agentpakker/referanse#skript-i-en-skill",
+  "/nav-pilot/agentpakker#klientoppforinga": "/nav-pilot/agentpakker/referanse#klientoppforinga",
+  "/nav-pilot/agentpakker#hvilken-tier": "/nav-pilot/agentpakker/referanse#hvilken-tier",
+  "/nav-pilot/agentpakker#uten-agent": "/nav-pilot/agentpakker/referanse#uten-agent",
+  "/nav-pilot/agentpakker#mcp-servere": "/nav-pilot/agentpakker/referanse#mcp-servere",
+  "/nav-pilot/agentpakker#sandkasse": "/nav-pilot/agentpakker/referanse#sandkasse",
+  "/nav-pilot/agentpakker#kollisjoner": "/nav-pilot/agentpakker/referanse#kollisjoner",
+  "/nav-pilot/agentpakker#hva-som-komponerer": "/nav-pilot/agentpakker/referanse#hva-som-komponerer",
+  "/nav-pilot/agentpakker#hold-basen-oppdatert": "/nav-pilot/agentpakker/referanse#hold-basen-oppdatert",
+  "/nav-pilot/agentpakker#nar-endringen-nar-fram": "/nav-pilot/agentpakker/referanse#nar-endringen-nar-fram",
+  "/nav-pilot/agentpakker#stabile-releases": "/nav-pilot/agentpakker/referanse#stabile-releases",
+  "/nav-pilot/agentpakker#pensjonering": "/nav-pilot/agentpakker/referanse#pensjonering",
   "/statistikk#team": "/innsikt/team#teamkostnad",
   // /nav-pilot/docs was split into guides, reference and explanation pages
   // (docs/nav-pilot-dokumentasjon-forslag.md §1.4). next.config.ts sends the
