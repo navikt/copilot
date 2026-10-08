@@ -1,0 +1,15 @@
+{
+  "domain": "general",
+  "tags": [
+    "sub-agent",
+    "delegation",
+    "cost"
+  ],
+  "excluded": true,
+  "examples": [
+    {
+      "prompt": "Oppgave: legg til feltet sakstype i Vedtak. Filer: src/main/kotlin/Vedtak.kt. Endring: nytt felt med standardverdi ORDINAER. Sjekk: ./gradlew test. Stopp: hvis andre filer må endres.",
+      "scenario": "Avgrenset endring fra en brief"
+    }
+  ]
+}

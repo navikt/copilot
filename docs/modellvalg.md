@@ -21,6 +21,7 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | `@kafka`             | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så Målt 8. oktober mot Claude Haiku 5.5 Low: ingen målbar forskjell, så Luna beholdes. GPT-6 Sol er fallback, deretter GPT-5.3-Codex                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `@research`          | GPT-6 Luna        | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder også når `@nav-pilot` delegerer til den, målt 8. oktober 2026 på Copilot CLI 1.0.94-3                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `@rust`              | Claude Haiku 5.5  | Verktøytung kodeagent. Både Haiku 5.5 Low og GPT-6 Luna Medium besto 5 av 5 på rs-borrow og rs-feil 8. oktober. Haiku var billigere i alle fem kjøringene: 0,87–1,02 mot 1,11–1,58 credits per kjøring (p = 0,008). Oppgavene er små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Bruk Low. GPT-6 Luna er reserve, deretter GPT-5.3-Codex                                                                                                                                                                                                                                                                                                                                |
+| `@worker`            | GPT-6 Luna        | Utfører én avgrenset oppgave fra en brief. Luna Medium besto 30 av 30 sjekker i kodesuiten 30. september og 8. oktober (median 1,65 og 1,86 credits). Claude Haiku 5.5 Low besto også 30 av 30 for 1,55–1,64 credits og er reserve. Kvaliteten avhenger av briefen fra koordinatoren                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `@aksel`             | Claude Sonnet 5.5 | Sterk på komponentstruktur og designsystem-konvensjoner. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `@accessibility`     | Claude Sonnet 5.5 | God på WCAG-tolkning og semantisk HTML. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `@forfatter`         | Claude Sonnet 5.5 | Anthropic-modellene er best på norsk klarspråk. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -470,10 +471,10 @@ Vi la deretter inn én generell presisering i instruksjonen til modellen. Den er
 
 Etter presiseringen ble vurderingen målt på to sett:
 
-| Sett | Resultat | Avvik |
-| --- | --- | --- |
+| Sett                      | Resultat                    | Avvik                                                     |
+| ------------------------- | --------------------------- | --------------------------------------------------------- |
 | Kontrollsettet, 75 linjer | **73 av 75 (97,3 prosent)** | linje 48 (KI: #1) og 59 (KI: #2), begge med fasit «ingen» |
-| Nytt sett, 20 spørsmål | **20 av 20 (100 prosent)** | ingen |
+| Nytt sett, 20 spørsmål    | **20 av 20 (100 prosent)**  | ingen                                                     |
 
 Settet ble skrevet av en annen agent som fikk definisjonene av blindsonene, men ikke leste repoet eller den lagrede instruksjonen. Det ble vurdert én gang, etter presiseringen, og ingenting ble justert etterpå. Settet ligger i [blindspot-controls-heldout2.tsv](../scripts/golden-fixtures/blindspot-controls-heldout2.tsv). Kravene var minst 95 prosent på kontrollsettet og minst 90 prosent på det nye settet. Begge holdt.
 
@@ -484,10 +485,10 @@ Resultatet på 73 av 75 er målt på de samme dataene som vurderingen ble juster
 De 15 lagrede Luna-svarene fra 7. oktober (t2, t7 og t7b, fem av hver) er vurdert på nytt. Svaret fra t2 avgjør t3. Hver kjøring står i [omregning-dommer.psv](golden-baselines/2026-10-07-luna-planning/omregning-dommer.psv) med sitatene.
 
 | Sjekk | Mønstre, bare svaret | KI-vurdering | Krav |
-| --- | --- | --- | --- |
-| t3 | 4/5 | 5/5 | 5/5 |
-| t7 | 5/5 | 5/5 | 5/5 |
-| t7b | 3/5 | 5/5 | 5/5 |
+| ----- | -------------------- | ------------ | ---- |
+| t3    | 4/5                  | 5/5          | 5/5  |
+| t7    | 5/5                  | 5/5          | 5/5  |
+| t7b   | 3/5                  | 5/5          | 5/5  |
 
 Tre kjøringer skifter fra feil til bestått:
 
@@ -705,10 +706,10 @@ Endringene for [#1472](https://github.com/navikt/copilot/issues/1472) ligger i e
 
 Kontrollene ble kjørt én gang etter endringen, uten justeringer etterpå ([kontroller.txt](golden-baselines/2026-10-08-planning-luna-sol-judge/kontroller.txt)):
 
-| Sett | Resultat | Krav |
-| --- | --- | --- |
-| Kontrollsettet, 75 linjer | 72 av 75 (96,0 prosent) | 95 prosent |
-| Hele svar, 6 linjer | 6 av 6 | 95 prosent |
+| Sett                                | Resultat                | Krav       |
+| ----------------------------------- | ----------------------- | ---------- |
+| Kontrollsettet, 75 linjer           | 72 av 75 (96,0 prosent) | 95 prosent |
+| Hele svar, 6 linjer                 | 6 av 6                  | 95 prosent |
 | Nytt sett fra 8. oktober, 20 linjer | 19 av 20 (95,0 prosent) | 90 prosent |
 
 ### Resultater
@@ -740,10 +741,10 @@ I t7 fant vurderingen ingen spørsmål om personvern eller tilgang i noen kjøri
 
 Kreditter per kjøring, medregnet KI-vurderingen. `summary.json` viser bare modellens egne kreditter, uten KI-vurderingen:
 
-| Arm | Min | Median | Maks | Sum |
-| --- | --- | --- | --- | --- |
-| GPT-6 Luna Medium (10 kjøringer) | 3,85 | 4,55 | 5,36 | 45,5 |
-| GPT-6 Sol Low (7 kjøringer) | 46,85 | 51,98 | 53,28 | 356,1 |
+| Arm                              | Min   | Median | Maks  | Sum   |
+| -------------------------------- | ----- | ------ | ----- | ----- |
+| GPT-6 Luna Medium (10 kjøringer) | 3,85  | 4,55   | 5,36  | 45,5  |
+| GPT-6 Sol Low (7 kjøringer)      | 46,85 | 51,98  | 53,28 | 356,1 |
 
 Kontrollene og verktøytesten kostet 9,8 kreditter. Hele målingen kostet 411,5 kreditter.
 
@@ -763,12 +764,12 @@ Eieren har godkjent å gjøre `@nav-pilot` til en koordinator som sender arbeid 
 
 Testoppsettet er `./scripts/nav-pilot-golden.sh --suite delegation`. Det installerer alle agentene personaen kan nevne (unntatt `local-worker`, som trenger en lokal modell) med pinnene sine, og kjører klienten med en tom `COPILOT_HOME`, slik at agenter i `~/.copilot/agents/` ikke kan skygge for dem. Modellen leses fra klientens debuglogg, linja `turn tool surface resolved {"model":...}`, og sjekkes mot modellkolonnen i bruksradene. Etiketten `(model: ...)` i CLI-en teller ikke, fordi den kan vise en modell som aldri kjørte ([#1477](https://github.com/navikt/copilot/pull/1477)).
 
-| Test | Oppgave | Består når |
-| ---- | ------- | ---------- |
-| d1 | Full oppgave tatt til fase 3: de to turene fra test 4, og en tredje som godkjenner planen | En tur på `claude-opus-5.5` (`@security-champion-agent`) står i både debugloggen og bruksradene. Nås ikke fase 3, telles ikke kjøringen |
-| d2 | Komprimert oppgave i en liten Kotlin-modul: DTO, mapper og test | En annen modell enn forelderens har en tur (agent og modell skrives ned), arbeidsområdet er endret, og testene er grønne |
-| d3 | Samme omdøping som t6 | Bare én modell i debugloggen, altså ingen delegering |
-| d4 | Et spørsmål om hvordan repoet henger sammen | En tur på `gpt-6-luna` (`@research-agent`) står i både debugloggen og bruksradene |
+| Test | Oppgave                                                                                   | Består når                                                                                                                              |
+| ---- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| d1   | Full oppgave tatt til fase 3: de to turene fra test 4, og en tredje som godkjenner planen | En tur på `claude-opus-5.5` (`@security-champion-agent`) står i både debugloggen og bruksradene. Nås ikke fase 3, telles ikke kjøringen |
+| d2   | Komprimert oppgave i en liten Kotlin-modul: DTO, mapper og test                           | En annen modell enn forelderens har en tur (agent og modell skrives ned), arbeidsområdet er endret, og testene er grønne                |
+| d3   | Samme omdøping som t6                                                                     | Bare én modell i debugloggen, altså ingen delegering                                                                                    |
+| d4   | Et spørsmål om hvordan repoet henger sammen                                               | En tur på `gpt-6-luna` (`@research-agent`) står i både debugloggen og bruksradene                                                       |
 
 Hver sjekk har en kontroll i `scripts/nav-pilot-golden.bats` med ferdige debuglogger og bruksrader: delegert, ikke delegert, feil modell, og modell i loggen uten bruksrad. Kontrollene stryker der de skal.
 
@@ -798,11 +799,11 @@ Grunnmålingen er skåret på nytt med de nye reglene ([rescore.sh](golden-basel
 Kjørt 8. oktober 2026 med Copilot CLI 1.0.94-3, `--model gpt-6-sol --effort low`, fem kjøringer per test. Rådata, transkripter og skript ligger i [`golden-baselines/2026-10-08-delegering-baseline/`](golden-baselines/2026-10-08-delegering-baseline/), med én rad per kjøring i [raw.psv](golden-baselines/2026-10-08-delegering-baseline/raw.psv). Credits er summen av bruksradene per kjøring.
 
 | Test | Bestått | Modeller i debugloggen og bruksradene | Subagentrader i bruksdataene | Credits, median (spenn) |
-| ---- | ------- | ------------------------------------- | ------------------ | ----------------------- |
-| d1   | 0/5     | bare gpt-6-sol                        | 0                  | 9,94 (9,06–10,19)       |
-| d2   | 0/5     | bare gpt-6-sol                        | 0                  | 9,74 (8,31–10,63)       |
-| d3   | 5/5     | bare gpt-6-sol                        | 0                  | 8,67 (7,34–9,65)        |
-| d4   | 0/5     | bare gpt-6-sol                        | 0                  | 5,90 (5,65–6,47)        |
+| ---- | ------- | ------------------------------------- | ---------------------------- | ----------------------- |
+| d1   | 0/5     | bare gpt-6-sol                        | 0                            | 9,94 (9,06–10,19)       |
+| d2   | 0/5     | bare gpt-6-sol                        | 0                            | 9,74 (8,31–10,63)       |
+| d3   | 5/5     | bare gpt-6-sol                        | 0                            | 8,67 (7,34–9,65)        |
+| d4   | 0/5     | bare gpt-6-sol                        | 0                            | 5,90 (5,65–6,47)        |
 
 Utfallet er som ventet: dagens persona delegerer ikke. I alle 20 kjøringene kjørte bare GPT-6 Sol, og ingen bruksrad tilhører en subagent. Ingen av svarene nevner `@security-champion-agent`, `@research-agent` eller en annen agent.
 
