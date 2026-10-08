@@ -27,6 +27,8 @@ const SUITE_NAMES: Record<Suite, string> = {
   norsk: "Norsk tekst",
   coding: "Koding",
   research: "Research",
+  kafka: "Kafka",
+  rust: "Rust",
 };
 
 const dateFormat = new Intl.DateTimeFormat("nb-NO", {

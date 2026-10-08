@@ -310,6 +310,9 @@ fail_preflight() {
 #                                     a Go fix that spans two files
 #   research  research     re1-re4    bounded read-and-summarise: right lines,
 #                                     no invented callers, at most three points
+#   kafka     kafka        kf1-kf4    Kotlin consumer: idempotency and commit
+#                                     after processing; a backward-compatible field
+#   rust      rust         rs1-rs4    a borrow error; thiserror errors with tests
 GROUP=""
 if [[ -n "$SUITE" ]]; then
   $AGENT_SET && fail_preflight "--suite and --agent cannot be combined" \
@@ -320,7 +323,9 @@ if [[ -n "$SUITE" ]]; then
     norsk)    AGENT="forfatter";   GROUP="forfatter" ;;
     coding)   AGENT="nav-pilot";   GROUP="coding" ;;
     research) AGENT="research";    GROUP="research" ;;
-    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk, coding or research." ;;
+    kafka)    AGENT="kafka";       GROUP="kafka" ;;
+    rust)     AGENT="rust";        GROUP="rust" ;;
+    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk, coding, research, kafka or rust." ;;
   esac
 fi
 GROUP="${GROUP:-$AGENT}"
@@ -345,6 +350,8 @@ case "$GROUP" in
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
   coding)        VALID_IDS="ko1 ko2 ko3 ko4 ko5 ko6" ;;
   research)      VALID_IDS="re1 re2 re3 re4" ;;
+  kafka)         VALID_IDS="kf1 kf2 kf3 kf4" ;;
+  rust)          VALID_IDS="rs1 rs2 rs3 rs4" ;;
   security-champion) VALID_IDS="sc1 sc2 sc3" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
@@ -1104,6 +1111,73 @@ if [[ "$GROUP" == "coding" ]]; then
   rm -rf "$FIXED"
 fi
 
+# ─── Fixtures for the kafka and rust suites ─────────────────────────────────
+# Files live in scripts/golden-fixtures/<group>/. workspace/ is copied into the
+# template; evaluator/ holds tests the agent never sees, run after the call in a
+# copy of the project together with the agent's own tests; controls/good and
+# controls/wrong are whole-file overlays of a known fix and a tempting wrong fix.
+GF="$REPO_ROOT/scripts/golden-fixtures"
+# eval_project <ws> <group> <project>: the project's tests plus the evaluator's,
+# in a throwaway copy, so the workspace and its fingerprint stay untouched.
+eval_project() {
+  local dir rc
+  dir="$(mktemp -d "$WORKDIR/eval.XXXXXX")"
+  cp -R "$1/$3/." "$dir/" && cp -R "$GF/$2/evaluator/$3/." "$dir/" || return 1
+  rm -rf "$dir/build" "$dir/.gradle" "$dir/target"
+  case "$2" in
+    kafka) (cd "$dir" && gradle -q test >/dev/null 2>&1) ;;
+    rust)  (cd "$dir" && CARGO_TARGET_DIR="$WORKDIR/cargo-target-$3" cargo test -q >/dev/null 2>&1) ;;
+  esac
+  rc=$?
+  rm -rf "$dir"
+  return $rc
+}
+kf_konsument() { eval_project "$1" kafka vedtak-konsument; }
+kf_hendelse()  { eval_project "$1" kafka vedtak-hendelse; }
+rs_saksko()    { eval_project "$1" rust saksko; }
+# Behaviour is not enough here: the task names thiserror and asks for tests.
+# The pristine crate has one #[test]; the task wants one per error variant.
+rs_parser() {
+  local c="$1/vedtak-parser"
+  eval_project "$1" rust vedtak-parser &&
+    grep -qE '^thiserror[[:space:]]*=' "$c/Cargo.toml" &&
+    grep -rqE 'derive\([^)]*Error' "$c/src" &&
+    [[ "$(cat "$c"/src/*.rs "$c"/tests/*.rs 2>/dev/null | grep -c '#\[test\]')" -ge 4 ]]
+}
+if [[ "$GROUP" == "kafka" || "$GROUP" == "rust" ]]; then
+  if [[ "$GROUP" == "kafka" ]]; then
+    command -v gradle >/dev/null 2>&1 || fail_preflight "--suite kafka needs gradle (and JDK 21) on PATH" "mise install"
+    # Kotlin 2.1 cannot run on the newest JDKs. Exported, so the agent's own
+    # gradle calls get the same JDK as the evaluator's.
+    JAVA_HOME="${NAV_PILOT_JAVA_HOME:-$(mise where java@21 2>/dev/null || echo "${JAVA_HOME:-}")}"
+    export JAVA_HOME
+    checks="kf_konsument kf_hendelse"
+  else
+    command -v cargo >/dev/null 2>&1 || fail_preflight "--suite rust needs cargo on PATH" "mise install"
+    checks="rs_saksko rs_parser"
+  fi
+  cp -R "$GF/$GROUP/workspace/." "$TEMPLATE/"
+  # Three controls per check: the pristine fixture fails, the known fix
+  # passes (else the toolchain fails every run), the tempting wrong fix fails.
+  for mode in good wrong; do
+    rm -rf "$WORKDIR/control"
+    cp -R "$TEMPLATE" "$WORKDIR/control"
+    cp -R "$GF/$GROUP/controls/$mode/." "$WORKDIR/control/"
+    for t in $checks; do
+      if [[ "$mode" == good ]]; then
+        "$t" "$WORKDIR/control" || fail_preflight "control: $t fails even with the known fix applied" \
+          "The toolchain, not the model, would fail this run. Check gradle/JDK 21 or cargo, and network for the first dependency fetch."
+      else
+        ! "$t" "$WORKDIR/control" || fail_preflight "control: $t passes the known wrong fix" "The check cannot fail; tighten it."
+      fi
+    done
+  done
+  rm -rf "$WORKDIR/control"
+  for t in $checks; do
+    ! "$t" "$TEMPLATE" || fail_preflight "control: the pristine fixture already passes $t" "Plant the bug again."
+  done
+fi
+
 # Fixture identity, for the --compare compatibility check below. The sizes this
 # harness reports are sizes of answers about this fake repo, so they move when
 # the repo moves. .github/ is excluded on purpose: the persona and the
@@ -1165,6 +1239,7 @@ seed_ws
 ws_fingerprint() {
   ( cd "$WS" && find . \
       \( -path ./.gradle -o -path ./.kotlin -o -path ./build \) -prune -o \
+      \( -type d \( -name .gradle -o -name .kotlin -o -name build -o -name target \) -path './*/*' \) -prune -o \
       -type f -exec cksum {} + 2>/dev/null | sort )
 }
 
@@ -3536,6 +3611,57 @@ coding_task() {
   fi
 }
 
+# ─── kafka and rust suites: the agents fix realistic tasks (kf1-kf4, rs1-rs4) ─
+# agent_task <slug> <prompt> <check fn> <project> <id> <desc> <id> <desc>
+# The check runs the evaluator's hidden tests; scope is every changed file
+# inside <project>/, so adding tests is fine and touching anything else is not.
+agent_task() {
+  local slug="$1" prompt="$2" check="$3" proj="$4"
+  local id_ok="$5" d_ok="$6" id_scope="$7" d_scope="$8" written f outside=""
+  selected "$id_ok" || selected "$id_scope" || return 0
+  if ! run_prompt "$slug" "$prompt"; then
+    selected "$id_ok" && record_error "$id_ok" "$d_ok" "$LAST_PROMPT_DETAIL"
+    selected "$id_scope" && record_error "$id_scope" "$d_scope" "$LAST_PROMPT_DETAIL"
+    return 0
+  fi
+  if selected "$id_scope"; then
+    written="$(ws_written_files)"
+    for f in $written; do [[ "$f" == "./$proj/"* ]] || outside+="$f "; done
+    if [[ -z "$written" ]]; then
+      record "$id_scope" "$d_scope" 1 "changed nothing"
+    elif [[ -n "$outside" ]]; then
+      record "$id_scope" "$d_scope" 1 "changed outside $proj/: ${outside% }"
+    else
+      record "$id_scope" "$d_scope" 0
+    fi
+  fi
+  if selected "$id_ok"; then
+    if "$check" "$WS"; then
+      record "$id_ok" "$d_ok" 0
+    else
+      record "$id_ok" "$d_ok" 1 "the evaluator's tests or checks fail after the run"
+    fi
+  fi
+}
+
+run_pass_kafka() {
+  agent_task kf-idem "Vi har fått doble utbetalinger. Når konsumenten i vedtak-konsument/ leser samme melding på nytt, for eksempel etter en rebalansering, utbetales vedtaket to ganger. Og hvis utbetalingen feiler, er offset allerede commitet, så meldingen blir aldri behandlet. Rett VedtakKonsument slik at samme eventId bare utbetales én gang, og slik at offset først commites når meldingene er behandlet. Konstruktøren skal fortsatt kunne kalles med bare consumer og utbetaling. Bygg og test med gradle test i vedtak-konsument/." \
+    kf_konsument vedtak-konsument \
+    kf1 "Kafka idempotency: hidden tests pass (dedup, commit after processing)" kf2 "Kafka idempotency: changes only inside vedtak-konsument/"
+  agent_task kf-felt "Legg til feltet sakstype i hendelsen VedtakFattet i vedtak-hendelse/. Gyldige verdier er ORDINAER, KLAGE og ANKE. Meldinger som allerede ligger på topicen har ikke feltet, og de skal leses som ORDINAER. Konsumentene våre må også tåle at en nyere produsent legger til felt vi ikke kjenner. Bygg og test med gradle test i vedtak-hendelse/." \
+    kf_hendelse vedtak-hendelse \
+    kf3 "Kafka schema: hidden tests pass (old messages, new field, unknown fields)" kf4 "Kafka schema: changes only inside vedtak-hendelse/"
+}
+
+run_pass_rust() {
+  agent_task rs-borrow "cargo test i saksko/ kompilerer ikke: behandle_neste gir en lånefeil. Rett feilen slik at koden kompilerer og testen går grønt, uten å endre hva funksjonen gjør." \
+    rs_saksko saksko \
+    rs1 "Rust borrow: hidden tests pass (queue drains in order)" rs2 "Rust borrow: changes only inside saksko/"
+  agent_task rs-feil "les i vedtak-parser/ får panikk på ugyldig input. Endre den til å returnere Result<Vedtak, VedtakFeil>. VedtakFeil skal være en enum laget med thiserror, med variantene ManglerId (tom id), ManglerBelop og UgyldigBelop(String), der strengen er den ugyldige teksten, og den skal stå i feilmeldingen. Skriv en test for hver feil. Kjør cargo test i vedtak-parser/." \
+    rs_parser vedtak-parser \
+    rs3 "Rust errors: hidden tests pass, thiserror used, a test per error" rs4 "Rust errors: changes only inside vedtak-parser/"
+}
+
 run_pass_coding() {
   coding_task ko-go "Testene i frister/ feiler. Finn og rett feilen i koden, ikke i testene, slik at go test ./... i frister/ går grønt." \
     go_tests frister/frist.go \
@@ -3606,6 +3732,7 @@ run_pass() {
     forfatter)     run_pass_forfatter ;;
     coding)        run_pass_coding ;;
     research)      run_pass_research ;;
+    kafka|rust)    run_pass_"$GROUP" ;;
     security-champion) run_pass_security_champion ;;
   esac
 }
