@@ -7,7 +7,9 @@ export const MEASURED_MODEL = "Qwen3.6-35B-A3B-OptiQ-4bit";
 export const MLX_WORKSPACE = "https://github.com/navikt/mlx-workspace/blob/main";
 
 export const SOURCES = {
+  reprobe7: `${MLX_WORKSPACE}/reports/2026-09-23-local-model-evaluation/pending-tasks.md#88-the-64-gb-tier-a-worker-directed-by-a-cloud-orchestrator-downloaded-profiles-in-place`,
   balanced: `${MLX_WORKSPACE}/reports/2026-09-28-balanced-controls/results.md`,
+  followups1: `${MLX_WORKSPACE}/reports/2026-09-25-quality-frontier/night-followups-1.md`,
   night1: `${MLX_WORKSPACE}/reports/2026-09-25-quality-frontier/night-1.md`,
   night2: `${MLX_WORKSPACE}/reports/2026-09-25-quality-frontier/night-2.md`,
   why: `${MLX_WORKSPACE}/bench/decide-cases/commit-explains-why-results.md`,
@@ -23,8 +25,33 @@ export const SOURCES = {
 export type ResultRow = { task: string; result: string; verdict: string };
 export type ResultSet = { measured: string; source: string; rows: ResultRow[] };
 
-export const DELEGATION_MEASURED = { measured: "2026-09-29", source: SOURCES.balanced };
 export const GB64_MEASURED = { measured: "2026-09-27", source: SOURCES.gb64 };
+
+// Dispatch re-probe 7 (2026-09-28) and the same-day controls for balanced (2026-09-29).
+export const DELEGATION_RESULTS: ResultSet = {
+  measured: "2026-09-29",
+  source: SOURCES.reprobe7,
+  rows: [
+    {
+      task: "aggressive",
+      result:
+        "Delegerte i 17 av 17 gyldige kjøringer med mange kallsteder eller nye filer, og alle 17 besto bygg og tester. Kostet 0,83–2,1 ganger så mye i AI-kreditter og tok 2,7–3,6 ganger så lang tid som skymodellen alene.",
+      verdict: "Standard fra 30. september 2026",
+    },
+    {
+      task: "balanced",
+      result:
+        "Delegerte i 2 av 20 kjøringer. I kontrollmålingen 29. september besto alle oppgavene, men hver kjøring kostet 1,4–1,6 ganger så mye som skymodellen alene og tok 1,6–2,5 ganger så lang tid.",
+      verdict: "Dyrere uten å delegere",
+    },
+    {
+      task: "Bare en instruks",
+      result:
+        "Sonnet 5 delegerte i 1 av 29 kjøringer, uansett hvordan instruksen var skrevet. Sonnet 4.6 delegerte i 23 av 24 med en eldre instruks.",
+      verdict: "Virker ikke med Sonnet 5",
+    },
+  ],
+};
 
 export const WORKER_RESULTS: ResultSet = {
   measured: "2026-09-26",

@@ -9,7 +9,7 @@ import { LocalModelsTable, ResultTable, TrustedClassesTable } from "@/components
 import { PageHero } from "@/components/page-hero";
 import {
   DECIDE_RESULTS,
-  DELEGATION_MEASURED,
+  DELEGATION_RESULTS,
   GB64_MEASURED,
   MEASURED_MODEL,
   SOURCES,
@@ -77,9 +77,8 @@ function ManifestSections({ table }: { table: Table }) {
 
       <Section id="godkjent-for" title="Hva hver modell er godkjent for">
         <BodyLong>
-          Arbeidet er delt i oppgavetyper. For hver type avgjør målingene om modellen kan få oppgaven som subagent,
-          sendt fra hovedagenten i skyen (delegering), eller om hele økten kan kjøres lokalt. Alt som ikke er godkjent,
-          blir i skyen.
+          Arbeidet er delt i oppgavetyper. For hver type avgjør målingene om hovedagenten i skyen kan delegere oppgaven
+          til modellen som subagent, eller om hele økten kan kjøres lokalt. Alt som ikke er godkjent, blir i skyen.
         </BodyLong>
         <TrustedClassesTable stack models={models} />
       </Section>
@@ -142,17 +141,17 @@ export default function LokaleModeller() {
             />
             <MetricCard
               value="17 av 17"
-              label="Delegering besto testene"
+              label="Delegeringer besto testene"
               helpTitle="Delegering med aggressive"
-              helpText="Med aggressive delegerte hovedagenten i alle 17 gyldige kjøringer, og alle besto bygg og tester."
+              helpText="Med aggressive delegerte hovedagenten i alle 17 gyldige kjøringer, og alle 17 besto bygg og tester. To kjøringer til ble avbrutt av en avvist filskriving før de var ferdige, så regnet på forsøk er det 17 av 19."
               subtitle="med aggressive"
             />
             <MetricCard
               value="93 %"
-              label="decide: commit-meldinger"
+              label="Riktige svar fra decide"
               helpTitle="Forklarer commit-meldingen hvorfor?"
-              helpText="89 av 96 riktige svar."
-              subtitle="89 av 96 riktige"
+              helpText="89 av 96 riktige svar på spørsmålet om commit-meldingen forklarer hvorfor endringen ble gjort."
+              subtitle="89 av 96 commit-meldinger"
             />
             <MetricCard
               value="0,4 s"
@@ -164,9 +163,9 @@ export default function LokaleModeller() {
           </HGrid>
 
           <BodyLong>
-            Hovedagenten er modellen i skyen som leder arbeidet. Den kan gi avgrensede oppgaver til en lokal modell som
-            subagent. Hva den får gi bort, avgjøres av målinger, ikke av hva modellen selv mener. Vil du ta i bruk en
-            lokal modell, les{" "}
+            Hovedagenten er modellen i skyen som leder arbeidet. Den kan delegere avgrensede oppgaver til en lokal
+            modell som subagent. Hva den får delegere, avgjør målingene, ikke modellen selv. Vil du ta i bruk en lokal
+            modell, les{" "}
             <NextLink href="/nav-pilot/forklaring/lokal-modell" className={linkClass}>
               Lokal modell
             </NextLink>
@@ -179,40 +178,52 @@ export default function LokaleModeller() {
 
           <Section id="delegeringsnivaer" title="Delegeringsnivåene">
             <BodyLong>
-              Med bare en instruks om hva den burde delegere, delegerte Sonnet 5 arbeid til den lokale modellen i 1 av
-              29 testkjøringer, mot 23 av 24 for Sonnet 4.6. Derfor bestemmer delegeringsnivået i nav-pilot hva
-              hovedagenten skal delegere.
+              Hovedagenten delegerer ikke av seg selv. Med bare en instruks om hva den burde delegere, sendte Sonnet 5
+              arbeid til den lokale modellen i 1 av 29 testkjøringer. Derfor har nav-pilot en delegeringssperre, og
+              nivået <code className={code}>aggressive</code> er standard fra 30. september 2026: det er det eneste
+              nivået som faktisk delegerer, og alt som ble delegert, besto testene. Prisen er tid og som regel flere
+              AI-kreditter.
             </BodyLong>
-            <BodyLong>Målingen fra september 2026, med Sonnet 5 som hovedagent:</BodyLong>
+            <ResultTable headers={["Nivå", "Resultat", "Vurdering"]} rows={DELEGATION_RESULTS.rows} />
+            <BodyLong>Flere funn fra målingene, med Sonnet 5 som hovedagent:</BodyLong>
             <Bullets>
               <li>
-                Med <code className={code}>aggressive</code> delegerte hovedagenten i alle 17 gyldige kjøringer med
-                mange kallsteder eller nye filer, og alle 17 besto bygg og tester. Med{" "}
-                <code className={code}>balanced</code> delegerte den i 2 av 20.
-              </li>
-              <li>Var endringen liten, delegerte den ingenting (0 av 5).</li>
-              <li>
-                Det kostet 0,83–2,1 ganger så mye i AI-kreditter og tok 2,7–3,6 ganger så lang tid som når skymodellen
-                gjorde alt selv.
+                Var endringen liten, delegerte hovedagenten ingenting (0 av 5). Små endringer skal den gjøre selv.
               </li>
               <li>
-                Hovedagenten gjorde likevel om 15 av 27 oppgaver med nye filer selv. To kjøringer ble avbrutt, og i én
-                av dem ble koden liggende i stykker.
+                Hovedagenten gjorde om 15 av 27 oppgaver med nye filer selv etter at subagenten var ferdig. Resultatet
+                er samarbeidets, ikke den lokale modellens alene.
+              </li>
+              <li>
+                Tre kjøringer med nye filer ble avbrutt av en avvist filskriving, og i én av dem ble koden liggende i
+                stykker.
+              </li>
+              <li>
+                Kravet for å beholde <code className={code}>balanced</code> som standard var like mange beståtte
+                oppgaver og ikke dyrere enn skymodellen alene. Det første holdt, det andre ikke: hver kjøring med{" "}
+                <code className={code}>balanced</code> kostet mer enn hver kontrollkjøring.
+              </li>
+              <li>
+                Et nytt forsøk lønner seg for nye filer. Når hovedagenten sendte bygge- eller testfeilen tilbake én
+                gang, ble 15 av 20 nye filer godkjent, mot 5 av 20 uten. Tiden per godkjent fil gikk ned fra 618 til 322
+                sekunder.
               </li>
             </Bullets>
-            <BodyLong>
-              Kravet til <code className={code}>balanced</code> var like mange beståtte oppgaver og ikke dyrere enn
-              skymodellen alene. I en ny måling 29. september besto alle oppgavene, men{" "}
-              <code className={code}>balanced</code> kostet 1,57 og 1,49 ganger så mye på to store oppgaver, og hver
-              kjøring var dyrere enn hver kontrollkjøring. Derfor ble <code className={code}>aggressive</code> standard
-              30. september 2026.
-            </BodyLong>
-            <BodyLong>
-              Et nytt forsøk lønner seg for nye filer. Når hovedagenten sendte bygge- eller testfeilen tilbake én gang,
-              ble 15 av 20 nye filer godkjent, mot 5 av 20 uten. Tiden per godkjent fil gikk ned fra 618 til 322
-              sekunder.
-            </BodyLong>
-            <Source {...DELEGATION_MEASURED} />
+            <BodyShort size="small" textColor="subtle">
+              Målt 28. og 29. september 2026. Se{" "}
+              <a href={SOURCES.reprobe7} className={linkClass}>
+                delegeringsmålingen
+              </a>
+              ,{" "}
+              <a href={SOURCES.balanced} className={linkClass}>
+                kontrollmålingen av balanced
+              </a>{" "}
+              og{" "}
+              <a href={SOURCES.followups1} className={linkClass}>
+                målingen av nye forsøk
+              </a>
+              .
+            </BodyShort>
           </Section>
 
           <Section id="malt-delegering" title="Resultater for kodeoppgaver">
@@ -250,7 +261,12 @@ export default function LokaleModeller() {
               <a href={SOURCES.layout} className={linkClass}>
                 måling
               </a>
-              ). «Ja»-svarene er stabile, men «nei»-svarene vipper mot «teksten er grei».
+              ). «Ja»-svarene er stabile, mens «nei»-svarene trekkes mot det siste svaralternativet, mest når spørsmålet
+              er snudd (
+              <a href={SOURCES.followups1} className={linkClass}>
+                oppfølging
+              </a>
+              ).
             </BodyLong>
             <Box background="warning-soft" padding="space-16" borderRadius="8">
               <VStack gap="space-8">
@@ -316,7 +332,8 @@ export default function LokaleModeller() {
               <li>Kodeoppgavene er hentet fra et Kotlin-repo i Nav.</li>
               <li>En løsning teller bare når en test bekrefter at den virker.</li>
               <li>
-                Andeler oppgis med Wilson-intervall, som viser hvor mye tallet kan bomme når det bygger på få forsøk.
+                Rapportene oppgir andeler med Wilson-intervall, som viser hvor mye et tall kan bomme når det bygger på
+                få forsøk.
               </li>
             </Bullets>
             <BodyLong>
@@ -343,7 +360,7 @@ export default function LokaleModeller() {
               </Suspense>
             </BodyLong>
             <Bullets>
-              <li>Delegeringsnivåene: {formatDate(DELEGATION_MEASURED.measured)}</li>
+              <li>Delegeringsnivåene: {formatDate(DELEGATION_RESULTS.measured)}</li>
               <li>Kodeoppgaver: {formatDate(WORKER_RESULTS.measured)}</li>
               <li>decide: {formatDate(DECIDE_RESULTS.measured)}</li>
               <li>Modellen for 64 GB: {formatDate(GB64_MEASURED.measured)}</li>
