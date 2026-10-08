@@ -1,0 +1,21 @@
+# Luna 2026-10-07 planning answers, rescored 2026-10-08 with scripts/blindspot-judge.py (claude-haiku-5.5, effort low).
+# Controls before rescoring: 73/75 (0.973) and held-out 20/20 (1.000), see blindsone-dommer-kontroller.psv.
+# test: t2 answer scores t3 (needs #1 and #2); t7 passes with neither; t7b needs #1.
+# regex_verdict = answer-only regex verdict from omregning-1462.psv; regex_bs1/2 = RE_BS1/RE_BS2 anywhere in the answer.
+# test|run|regex_verdict|judge_verdict|regex_bs1|regex_bs2|judge_bs1|judge_bs2|votes|credits|bs1_quote|bs2_quote
+t3|1|pass|pass|1|1|1|1|2|0.289|Skal tjenesten bare bruke fødselsnummeret mens den behandler forespørselen, eller skal den lagre eller sende det videre? Hva er formålet, og hvor lenge skal det eventuelt lagres?|Hvem skal kalle tjenesten: en innlogget innbygger via nettleser, en annen Nav-tjeneste eller noen andre?
+t3|2|pass|pass|1|1|1|1|2|0.324|Hva skal tjenesten bruke FNR til? Skal den lagre det, sende det videre eller bare bruke det under behandlingen?|Hvem skal kalle tjenesten, og fra hvilken klient? Er det innbyggeren via nettleser, eller en annen tjeneste?
+t3|3|fail|pass|1|0|1|1|2|0.302|Skal tjenesten behandle bare fødselsnummer, eller også andre personopplysninger?|Hvem skal kunne kalle tjenesten og se svaret?
+t3|4|pass|pass|1|1|1|1|2|0.309|Hva gjør tjenesten med fødselsnummeret etter innlogging? Bruker den det bare i forespørselen, lagrer det eller sender det videre? Hvem mottar det, og hvor lenge skal det beholdes?|Hvem skal bruke tjenesten: en innbygger i nettleser, en annen Nav-tjeneste eller begge?
+t3|5|pass|pass|1|1|1|1|2|0.295|Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller bare brukes mens forespørselen behandles?|Hvem skal kunne lese fødselsnummeret?
+t7|1|pass|pass|0|0|0|0|2|0.247||
+t7|2|pass|pass|0|0|0|0|2|0.246||
+t7|3|pass|pass|0|0|0|0|2|0.243||
+t7|4|pass|pass|0|0|0|0|2|0.25||
+t7|5|pass|pass|0|0|0|0|2|0.244||
+t7b|1|fail|pass|0|0|1|0|2|0.277|Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?|
+t7b|2|pass|pass|1|0|1|1|2|0.294|Er `soknad-mottatt`-topicet beskyttet slik at bare godkjente konsumenter kan lese fødselsnummeret?|Er `soknad-mottatt`-topicet beskyttet slik at bare godkjente konsumenter kan lese fødselsnummeret?
+t7b|3|pass|pass|1|0|1|1|2|0.317|Er det godkjent å sende FNR til alle som konsumerer `soknad-mottatt`, og hvem er konsumentene? Har de lov til å lese FNR og tåler de det nye feltet?|Har de lov til å lese FNR og tåler de det nye feltet?
+t7b|4|fail|pass|0|0|1|1|2|0.294|Er det avklart at alle konsumentene av `soknad-mottatt` skal ha tilgang til FNR?|Er det avklart at alle konsumentene av `soknad-mottatt` skal ha tilgang til FNR?
+t7b|5|pass|pass|1|0|1|1|2|0.275|Er det godkjent å dele fødselsnummer på `soknad-mottatt`, og er topicen sikret for dette?|Hvilke tjenester leser topicen, og er de autorisert til å motta fødselsnummer?
+# total credits: 4.21

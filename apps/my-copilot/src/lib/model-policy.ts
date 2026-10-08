@@ -23,12 +23,20 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     reason: "Besto blokkeringsskjermen 23. september mot GPT-5.6 Sol på samme oppgaver. Ett fasebrudd følges.",
   },
   {
-    purpose: "Kodeagenter for Kafka og Rust",
+    purpose: "Kafka-agent",
     primary: "GPT-6 Luna",
     fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
     reason:
-      "Besto alle 30 sjekker i kodesuiten på Medium for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så Sol er reserve.",
-    users: ["@kafka", "@rust"],
+      "Besto alle 30 sjekker i kodesuiten på Medium for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Claude Haiku 5.5 Low ga ingen målbar forskjell 8. oktober (p = 0,84; første måling p = 1,0). Oppgavene var små, så Sol er reserve.",
+    users: ["@kafka"],
+  },
+  {
+    purpose: "Rust-agent",
+    primary: "Claude Haiku 5.5",
+    fallbacks: ["GPT-6 Luna", "GPT-5.3-Codex"],
+    reason:
+      "Besto 5 av 5 på begge Rust-oppgavene 8. oktober, og var billigere i alle fem kjøringene på Low: 0,87 til 1,02 credits mot 1,11 til 1,58 med GPT-6 Luna Medium (p = 0,008). Oppgavene var små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Anbefalt innsatsnivå er Low.",
+    users: ["@rust"],
   },
   {
     purpose: "Research og faste maler",
