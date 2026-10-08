@@ -589,14 +589,16 @@ cleanup() {
     rm -rf "$WORKDIR" ${DELEG_HOME:+"$DELEG_HOME"}
   fi
 }
-# No orphaned daemons. Gradle (and the Kotlin compile daemon it starts) outlives
-# the run by hours otherwise, and the agents under test run `gradle test` too, so
-# the switch goes in the environment every child inherits. The fixtures carry the
-# same settings in gradle.properties.
-# Appended, so ours win over the user's. The Kotlin switch is a Gradle property
-# (KGP ignores plain -D). registry.base puts any daemon that does start under
-# $WORKDIR (long-stable, undocumented), so the reaper can find it.
-export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.daemon=false -Dorg.gradle.project.kotlin.compiler.execution.strategy=in-process -Dorg.gradle.daemon.registry.base=$WORKDIR/gradle-daemon"
+# No orphaned daemons. A Gradle daemon outlives the run by hours otherwise, and
+# the agents under test run `gradle test` too, so the settings go in the
+# environment every child inherits. The daemon stays on (a cold JVM per call made
+# the kafka controls 4x slower) but lives under $WORKDIR via registry.base
+# (long-stable, undocumented), is reused within the run and is reaped at exit.
+# NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 forces --no-daemon instead. Kotlin compiles
+# in-process (a Gradle property: KGP ignores plain -D), so no separate
+# KotlinCompileDaemon. Appended, so ours win over the user's.
+export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.project.kotlin.compiler.execution.strategy=in-process -Dorg.gradle.daemon.registry.base=$WORKDIR/gradle-daemon"
+[[ "${NAV_PILOT_GOLDEN_GRADLE_DAEMON:-}" == 0 ]] && GRADLE_OPTS="$GRADLE_OPTS -Dorg.gradle.daemon=false"
 # Belt and braces: stop any Gradle/Kotlin daemon whose command line, cwd or
 # open files point into $WORKDIR. Daemons of the owner's own projects never match.
 # Matched on the unique basename: TMPDIR may end in a slash, and macOS reports
