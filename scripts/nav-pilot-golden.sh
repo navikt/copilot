@@ -597,7 +597,10 @@ cleanup() {
 # NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 forces --no-daemon instead. Kotlin compiles
 # in-process (a Gradle property: KGP ignores plain -D), so no separate
 # KotlinCompileDaemon. Appended, so ours win over the user's.
-export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.project.kotlin.compiler.execution.strategy=in-process -Dorg.gradle.daemon.registry.base=$WORKDIR/gradle-daemon"
+# An inherited registry base wins (the bats file shares one daemon across its runs
+# and stops it itself).
+export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.project.kotlin.compiler.execution.strategy=in-process"
+[[ "$GRADLE_OPTS" == *daemon.registry.base=* ]] || GRADLE_OPTS="$GRADLE_OPTS -Dorg.gradle.daemon.registry.base=$WORKDIR/gradle-daemon"
 [[ "${NAV_PILOT_GOLDEN_GRADLE_DAEMON:-}" == 0 ]] && GRADLE_OPTS="$GRADLE_OPTS -Dorg.gradle.daemon=false"
 # Belt and braces: stop any Gradle/Kotlin daemon whose command line, cwd or
 # open files point into $WORKDIR. Daemons of the owner's own projects never match.

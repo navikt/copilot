@@ -16,6 +16,20 @@ setup() {
   SHIM="$(mktemp -d "$BATS_TEST_TMPDIR/shim.XXXXXX")"
 }
 
+# One Gradle daemon for the whole file, as before, but under BATS_FILE_TMPDIR so
+# it can be found and stopped. Real benchmark runs keep a registry per run.
+setup_file() {
+  export GRADLE_OPTS="-Dorg.gradle.daemon.registry.base=$BATS_FILE_TMPDIR/gradle-daemon"
+}
+
+teardown_file() {
+  local pid id="${BATS_FILE_TMPDIR##*/}"
+  for pid in $(pgrep -f GradleDaemon 2>/dev/null); do
+    lsof -p "$pid" -Fn 2>/dev/null | grep -qF "$id" && kill "$pid" 2>/dev/null
+  done
+  return 0
+}
+
 teardown() {
   # Fake daemons from the reaper test, if the reaper failed to stop them.
   [[ -f "$SHIM/daemon-pids" ]] && xargs kill 2>/dev/null <"$SHIM/daemon-pids"
@@ -624,7 +638,7 @@ mkdir -p "\$base" && cd "\$base" && (echo \$BASHPID >>"$SHIM/daemon-pids"; exec 
 exit 0
 EOF
   chmod +x "$SHIM/gradle"
-  PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite kafka --dry-run
+  GRADLE_OPTS= PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite kafka --dry-run
   [ -s "$SHIM/gradle-opts" ]
   [ -s "$SHIM/daemon-pids" ]
   while IFS= read -r opts; do
@@ -639,7 +653,7 @@ EOF
   make_bench_shim
   printf '#!/bin/bash\necho "$GRADLE_OPTS" >>"%s/gradle-opts"\n' "$SHIM" >"$SHIM/gradle"
   chmod +x "$SHIM/gradle"
-  NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite kafka --dry-run
+  GRADLE_OPTS= NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite kafka --dry-run
   [ -s "$SHIM/gradle-opts" ]
   while IFS= read -r opts; do [[ "$opts" == *" -Dorg.gradle.daemon=false"* ]]; done <"$SHIM/gradle-opts"
 }
