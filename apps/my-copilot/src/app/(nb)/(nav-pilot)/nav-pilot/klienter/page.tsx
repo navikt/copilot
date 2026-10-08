@@ -241,7 +241,18 @@ export default function Klienter() {
                 <TableRow key={i}>
                   <TableDataCell>
                     <strong>{r.what}</strong>
-                    {r.note && <sup aria-hidden="true"> {notes.indexOf(r) + 1}</sup>}
+                    {r.note && (
+                      <sup>
+                        {" "}
+                        <a
+                          href={`#merknad-${notes.indexOf(r) + 1}`}
+                          aria-label={`merknad ${notes.indexOf(r) + 1}`}
+                          className={linkClass}
+                        >
+                          {notes.indexOf(r) + 1}
+                        </a>
+                      </sup>
+                    )}
                   </TableDataCell>
                   {[r.copilot, r.opencode, r.pi].map((v, j) => (
                     <TableDataCell key={j} className="text-center">
@@ -255,7 +266,7 @@ export default function Klienter() {
         </div>
         <ol className="list-decimal space-y-1 pl-6 text-sm">
           {notes.map((r, i) => (
-            <li key={i}>
+            <li key={i} id={`merknad-${i + 1}`}>
               <strong>{r.what}:</strong> {r.note}
             </li>
           ))}
