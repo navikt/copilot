@@ -103,6 +103,7 @@ export function IntervalChart({ model }: { model: LocalModel }) {
   const rows = intervalRows(model, model.bar);
   if (!rows.length) return null;
   const conf = pct(model.bar.confidence);
+  const span = pct(2 * model.bar.confidence - 1); // same z at both ends: one-sided conf is a two-sided 2*conf-1
   const summary = rows
     .map(
       (r) =>
@@ -114,9 +115,9 @@ export function IntervalChart({ model }: { model: LocalModel }) {
       <figcaption>
         <BodyShort weight="semibold">Andel beståtte kjøringer med usikkerhet, {model.model.split("/").pop()}</BodyShort>
         <BodyShort size="small" textColor="subtle">
-          Prikken er andelen beståtte. Streken viser hvor den sanne andelen kan ligge ({conf} Wilson-grense, samme som
-          kravet bruker). Få kjøringer gir lang strek. Før en oppgavetype kan godkjennes, må hele streken ligge til
-          høyre for den stiplede kravlinjen.
+          Prikken er andelen beståtte. Streken viser et {span}-intervall for hvor den sanne andelen kan ligge. Venstre
+          ende er den nedre grensen kravet bruker ({conf} sikkerhet). Få kjøringer gir lang strek. En oppgavetype kan
+          godkjennes først når venstre ende ligger til høyre for den stiplede kravlinjen.
         </BodyShort>
       </figcaption>
       <div role="img" aria-label={`Diagram. ${summary}.`} className="flex flex-col gap-2">
@@ -169,7 +170,9 @@ export function IntervalChart({ model }: { model: LocalModel }) {
       <ReadMore header="Tallene i tabell" size="small">
         <div className="overflow-x-auto">
           <Table size="small">
-            <HeaderRow cells={["Oppgavetype", "Kjøring", "Bestått", "Wilson-grense", "Krav", "Vurdering"]} />
+            <HeaderRow
+              cells={["Oppgavetype", "Kjøring", "Bestått", `${span}-intervall`, "Nedre grense", "Krav", "Vurdering"]}
+            />
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={`${r.cls}-${r.mode}`}>
@@ -181,6 +184,7 @@ export function IntervalChart({ model }: { model: LocalModel }) {
                   <TableDataCell>
                     {pct(r.lo)}–{pct(r.hi)}
                   </TableDataCell>
+                  <TableDataCell>{pct(r.lo)}</TableDataCell>
                   <TableDataCell>{pct(r.bar)}</TableDataCell>
                   <TableDataCell>{r.trusted ? "Godkjent" : "Ikke godkjent"}</TableDataCell>
                 </TableRow>
