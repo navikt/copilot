@@ -100,7 +100,7 @@ function LocalModels({ models }: { models: LocalModel[] }) {
         </a>
         , det samme nav-pilot leser når du kjører <code className={code}>init</code> og{" "}
         <code className={code}>start</code>. Kontekst og svar er det største vinduet og det lengste svaret nav-pilot gir
-        modellen.
+        modellen. nav-pilot-kolonnen viser hvilken versjon av nav-pilot modellen krever.
       </BodyLong>
       <LocalModelsTable models={models} />
       <BodyShort size="small" textColor="subtle">
