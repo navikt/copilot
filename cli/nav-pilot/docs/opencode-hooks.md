@@ -73,8 +73,9 @@ For a repo you do not trust, set `OPENCODE_DISABLE_PROJECT_CONFIG=1`. OpenCode t
 
 opencode 2 launches only:
 
-- on macOS, because cplt does not run opencode 2 on Linux yet (navikt/cplt#719); nav-pilot says so and points to opencode 1;
-- under cplt 2026.10.08-081501 or newer: the session's service starts inside the sandbox (navikt/cplt#716), cplt reads the config directories opencode 2 discovers (navikt/cplt#720), and Ctrl-C no longer leaves a `serve --service` process behind (navikt/cplt#722). The floor is 2026.10.08-081501 for navikt/cplt#736 (ancestor AGENTS.md grants, and the fix for a credential leak through planted `.agents`, `.claude` or `.opencode` symlinks) and #735 (fails closed on an unreadable opencode version). An opencode whose version nav-pilot cannot read also needs this cplt.
+- on macOS or Linux; elsewhere nav-pilot says so and points to opencode 1;
+- on Linux, under cplt 2026.10.08-092800 or newer (navikt/cplt#740), which runs opencode 2 under bubblewrap. cplt refuses a host without `bwrap` and says how to install it. Port isolation needs kernel 6.7 or newer (Landlock ABI 4); on an older kernel cplt warns and the session relies on the service password. Linux has not been tested live with nav-pilot yet;
+- on macOS, under cplt 2026.10.08-081501 or newer: the session's service starts inside the sandbox (navikt/cplt#716), cplt reads the config directories opencode 2 discovers (navikt/cplt#720), and Ctrl-C no longer leaves a `serve --service` process behind (navikt/cplt#722). The floor is 2026.10.08-081501 for navikt/cplt#736 (ancestor AGENTS.md grants, and the fix for a credential leak through planted `.agents`, `.claude` or `.opencode` symlinks) and #735 (fails closed on an unreadable opencode version). An opencode whose version nav-pilot cannot read also needs this cplt.
 
 The opencode 2 TUI rejects `-m`/`--model`, so nav-pilot sets the model in the launch's config instead.
 

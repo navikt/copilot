@@ -390,7 +390,14 @@ export default function Klienter() {
         <BodyLong>opencode 2 krever:</BodyLong>
         <Bullets>
           <li>macOS med cplt fra 8. oktober 2026 eller nyere. {c("cplt --version")} viser datoen først i versjonen.</li>
-          <li>På Linux og WSL kjører cplt ikke opencode 2 ennå. Der må du bruke opencode 1, og nav-pilot sier fra.</li>
+          <li>
+            Linux med cplt fra 8. oktober 2026 eller nyere ({c("cplt --version")} minst {c("2026.10.08-092800")}) og
+            bubblewrap ({c("bwrap")}) installert.
+          </li>
+          <li>
+            Med Linux-kjerne eldre enn 6.7 kan ikke cplt stenge portene til økten. Da beskytter bare passordet til
+            tjenesten den.
+          </li>
           <li>
             Går du fra opencode 1 til 2, må du kjøre {c("opencode auth import")} én gang. Innloggingen følger ikke med
             automatisk.
