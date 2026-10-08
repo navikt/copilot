@@ -577,40 +577,59 @@ run_suite() {
   grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
 }
 
-@test "planning t3/t7b/t8b: fnr and tilgang count only in a question, not a format or key question" {
-  eval "$(grep -E "^RE_(BS1|BS2|ASK_COMPAT|ASK_SEC)=" "$SCRIPT")"
+@test "planning t3/t7b/t8b: fnr and tilgang count only in a privacy or access-control question" {
+  eval "$(grep -E "^(_W1|RE_(BS1|BS2|Q_BS1_FNR|Q_BS1_WHY|Q_BS2))=" "$SCRIPT")"
   eval "$(sed -n '/^present() {/p' "$SCRIPT")"
   eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"
   eval "$(sed -n '/^raises_bs1() {/,/^}/p' "$SCRIPT")"
   eval "$(sed -n '/^raises_bs2() {/,/^}/p' "$SCRIPT")"
   f="$SHIM/a.txt"
-  # GPT-6 Luna, 2026-10-07-luna-planning: t7b run 1 and 4.
+  # GPT-6 Luna, 2026-10-07-luna-planning: t7b run 1 and 4, t4a run 4.
   for q in 'Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?' \
            'Er det avklart at alle konsumentene skal ha tilgang til FNR?' \
-           'Hvem skal kunne lese fnr-feltet?'; do
+           'Hvem starter forespørselen, og hvem skal kunne lese fnr?' \
+           'Skal fnr lagres, sendes videre eller bare brukes midlertidig?'; do
     printf '%s\n' "$q" >"$f"
     raises_bs1 "$f" || { echo "should raise #1: $q"; false; }
   done
   for q in 'Tjenesten leser fnr fra ID-porten.' \
            'Skal fnr være påkrevd eller valgfritt?' \
-           'Hvem konsumerer fnr-feltet som JSON?' \
-           'Skal `fnr` ligge i meldingen?'; do
+           'Skal `fnr` ligge i meldingen?' \
+           'Skal fnr-feltet hete fodselsnummer?' \
+           'Hvilken type har fnr?' \
+           'Skal fnr være en streng på 11 tegn?' \
+           'Skal fnr valideres med mod11-sjekk?' \
+           'Er fnr alltid satt, eller kan det mangle?' \
+           'Hvor i koden finner jeg fnr i dag?' \
+           'Vil du at jeg legger fnr i SoknadMottattMelding nå?'; do
     printf '%s\n' "$q" >"$f"
     if raises_bs1 "$f"; then echo "should not raise #1: $q"; false; fi
   done
-  # Luna t2 run 3.
+  # Luna t2 run 3, t4a run 2 and 5.
   for q in 'Hvem skal kunne kalle tjenesten og se svaret?' \
-           'Hvor lenge skal det lagres, og trenger dere audit-logging av tilgang?' \
-           'Hvem trenger eventuelt tilgang?'; do
+           'Hvem trenger eventuelt tilgang?' \
+           '**Tilgang:** Hvem kaller tjenesten, og hvem skal kunne lese fødselsnummeret?'; do
     printf '%s\n' "$q" >"$f"
     raises_bs2 "$f" || { echo "should raise #2: $q"; false; }
   done
   for q in 'API-et må også ha eksplisitt utgående tilgang til PDL.' \
            'Hvordan håndteres nøkkeltilgang og nøkkelrotasjon?' \
-           'Hvem skal eie tjenesten?'; do
+           'Hvem skal eie tjenesten?' \
+           'Har du tilgang til repoet?' \
+           'Trenger du tilgang til Kafka-topicet for testing?' \
+           'Har appen tilgang til PDL i dev-gcp?' \
+           'Skal jeg åpne utgående tilgang til PDL i nais.yaml?'; do
     printf '%s\n' "$q" >"$f"
     if raises_bs2 "$f"; then echo "should not raise #2: $q"; false; fi
   done
+}
+
+@test "planning: a tool-output filter that fails is a harness error, not an empty answer" {
+  mkdir -p "$SHIM/bin"
+  printf '#!/bin/bash\n[[ "$2" == svar ]] && exit 1\nexec %s "$@"\n' "$(command -v python3)" >"$SHIM/bin/python3"
+  chmod +x "$SHIM/bin/python3"
+  PATH="$SHIM/bin:$PATH" run_suite good --agent nav-pilot --only 7
+  grep -q '^7|1|error|.*harness error' "$SHIM/b-results.psv"
 }
 
 @test "planning t8/t8b: no privacy interview on signing headers, privacy raised for fnr in a header" {

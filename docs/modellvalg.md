@@ -426,21 +426,29 @@ Med «fnr» i `RE_BS1` og «tilgang» eller «hvem skal kunne kalle» i `RE_BS2`
 
 Sjekkene for blindsone 1 og 2 er rettet, og planleggingssjekkene leser nå bare svaret, ikke verktøyutskriften:
 
-- **Blindsone 1:** «fnr» teller når det står i et spørsmål til brukeren, men ikke når spørsmålet gjelder format eller felt («Skal fnr være påkrevd?»). Alle promptene som tester blindsone 1, inneholder «fnr». Et svar som bare gjentar prompten, skal ikke bestå.
-- **Blindsone 2:** «hvem skal kunne kalle» teller. «Tilgang» teller når det står i et spørsmål, men ikke når spørsmålet gjelder nøkler («nøkkeltilgang»). En setning som «API-et må ha utgående tilgang til PDL» teller ikke.
-- **Verktøyutskrift:** Sjekkene på svaret leser transkriptet uten verktøylinjer, med det samme filteret som review-sjekkene bruker. Sjekker som gjelder verktøykall, leser fortsatt hele transkriptet.
+- **Blindsone 1:** «fnr» teller bare i et spørsmål til brukeren som også spør om formål, mottakere, lagring eller deling («Er det avklart at konsumentene skal motta FNR?»). Et spørsmål om selve feltet («Hvilken type har fnr?») teller ikke. Alle promptene som tester blindsone 1 inneholder «fnr». Et svar som bare gjentar prompten, skal ikke bestå.
+- **Blindsone 2:** «hvem skal kunne kalle» teller. Et spørsmål teller ellers bare når det gjelder tilgangskontroll: hvem som kan kalle eller lese, hvem som trenger tilgang, autentisering, autorisasjon, TokenX eller Azure. «Har du tilgang til repoet?» og «Skal jeg åpne utgående tilgang til PDL?» teller ikke.
+- **Verktøyutskrift:** Sjekkene på svaret leser transkriptet uten verktøylinjer, med det samme filteret som gjennomgangssjekkene bruker. Sjekker som gjelder verktøykall, leser fortsatt hele transkriptet. Hvis filteret feiler, blir kjøringen registrert som en feil i testoppsettet, ikke som et tomt svar.
 
 Ingen modell er kjørt på nytt. De eneste lagrede planleggingssvarene er Luna-svarene fra 7. oktober. Batch 4 (GPT-6 Sol, GPT-6.1 Sol og Opus 5.5) lagret ikke svarene, så de tallene kan ikke regnes om. Mønstrene er utledet fra de samme Luna-svarene som regnes om her. Hver kjøring står i [omregning-1462.psv](golden-baselines/2026-10-07-luna-planning/omregning-1462.psv).
 
-| Sjekk | Testoppsettet 7. okt. | Gammel sjekk på svaret | Ny sjekk | Krav |
-| ----- | --------------------- | ---------------------- | -------- | ---- |
-| t3    | 4/5                   | 4/5                    | 5/5      | 5/5  |
-| t7    | 5/5                   | 5/5                    | 5/5      | 5/5  |
-| t7b   | 4/5                   | 3/5                    | 5/5      | 5/5  |
+| Sjekk | Testoppsettet 7. oktober | Gammel sjekk på svaret | Ny sjekk | Krav |
+| ----- | ------------------------ | ---------------------- | -------- | ---- |
+| t3    | 4/5                      | 4/5                    | 5/5      | 5/5  |
+| t7    | 5/5                      | 5/5                    | 5/5      | 5/5  |
+| t7b   | 4/5                      | 3/5                    | 5/5      | 5/5  |
 
 t2 (5/5), t4 (4/5) og t5 (5/5) er uendret.
 
-**Vurdering: Med de rettede sjekkene når GPT-6 Luna Medium kravene for planlegging.** Kravene er de samme som ble satt før målingen. Bare sjekkene er endret. Pinnene er ikke endret. Om Luna skal bli standardmodell for `@nav-pilot`, er en egen beslutning.
+**Vurdering: Med de rettede sjekkene når GPT-6 Luna Medium kravene for planlegging.** Kravene er de samme som ble satt før målingen. Bare sjekkene er endret. Ingen pin er endret.
+
+Resultatet er svakere enn tallene ser ut. Mønstrene er utledet fra de samme fem Luna-svarene, og vi har ingen målte negative eksempler utover testtilfellene i `nav-pilot-golden.bats`. Før en beslutning om å gjøre Luna til standardmodell for `@nav-pilot` bør Luna kjøres på nytt med de låste sjekkene, på svar som ikke er brukt til å lage dem. Den beslutningen er en egen sak.
+
+Kjente begrensninger:
+
+- Verktøyfilteret er laget fra Copilot CLI-transkripter. Det er ikke prøvd mot OpenCode, fordi ingen rå OpenCode-transkripter er lagret.
+- t2 teller alle spørsmålstegn i svaret, også retoriske spørsmål og `?` i kode.
+- `recommends_client_credentials` (t5) er justert mot hele transkriptet med verktøyutskrift, men leser nå bare svaret.
 
 ## @security-champion målt direkte (7. oktober 2026)
 

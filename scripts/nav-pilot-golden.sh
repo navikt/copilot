@@ -1220,11 +1220,9 @@ tx() { printf '%s/%s.run%s.txt' "$WORKDIR" "$1" "$RUN"; }
 # the answer, so a question or a privacy word in a file the agent opened
 # cannot pass them (GPT-6 Luna t7b run 4, PR #1459). Checks on tool calls
 # (RE_FASE2_WORK, RE_OPUS) keep reading the raw transcript.
-svar() {
-  local out="${1%.txt}.svar.txt"
-  python3 "$BENCH_CHECK" svar "$1" >"$out" || : >"$out"
-  printf '%s' "$out"
-}
+# The file is written by run_prompt; a filter that fails there makes the run a
+# harness error, never an empty answer that every absent() check would pass.
+svar() { printf '%s' "${1%.txt}.svar.txt"; }
 
 run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$REPEAT" "$RESET"; return 0; }
 
@@ -1416,6 +1414,13 @@ run_prompt() {
     return 1
   fi
 
+  if ! python3 "$BENCH_CHECK" svar "$out" >"${out%.txt}.svar.txt" 2>"${out%.txt}.svar.err"; then
+    rm -f "${out%.txt}.svar.txt"
+    LAST_PROMPT_DETAIL="harness error: could not strip tool output ($(head -c 200 "${out%.txt}.svar.err"))"
+    echo "${RED}✗ $slug: $LAST_PROMPT_DETAIL${RESET}" >&2
+    return 1
+  fi
+
   # Size is measured for every usable transcript, whatever the assertions then
   # say about it. A dead transcript is deliberately not measured: its length
   # describes the failure, not the persona.
@@ -1532,22 +1537,26 @@ asks_privacy() {
     END { exit !found }'
 }
 # Blind spots #1 and #2 as tests 3, 7b and 8b score them: the topic word
-# anywhere in the answer, or a question to the user that names fnr (#1) or
-# tilgang (#2). Both words count only in a question. Every prompt that tests
-# #1 says «fnr», so an answer that echoes the prompt would raise #1 for free,
-# and «tilgang» in a statement is as often a network rule («utgående tilgang
-# til PDL») as an access question. A question about the field itself
-# (RE_ASK_COMPAT, påkrevd, valgfri) does not raise #1, and one about key access
-# (RE_ASK_SEC, «nøkkeltilgang») does not raise #2. Derived 2026-10-08 from the
-# 30 kept GPT-6 Luna planning answers (2026-10-07-luna-planning): t7b run 1
-# and 4 ask «skal motta FNR?» and «skal ha tilgang til FNR?», t2 run 3 asks
-# «Hvem skal kunne kalle tjenesten?» and «audit-logging av tilgang?».
+# anywhere in the answer, or a question to the user that is about the topic.
+# Positive signals only. Every prompt that tests #1 says «fnr», so fnr counts
+# only in a question that also asks about purpose, recipients, storage or
+# sharing («Er det avklart at konsumentene skal motta FNR?»), never in a
+# question about the field («Hvilken type har fnr?»). «Tilgang» counts only
+# with an access-control signal: who may call or read, authentication,
+# TokenX/Azure. «Har du tilgang til repoet?» does not count. Derived
+# 2026-10-08 from the 30 kept GPT-6 Luna planning answers
+# (2026-10-07-luna-planning); the negatives in nav-pilot-golden.bats are the
+# only measured negatives.
+_W1='(^|[^[:alnum:]])'
+RE_Q_BS1_FNR="${_W1}fnr([^[:alnum:]]|\$)"
+RE_Q_BS1_WHY="${_W1}(hvem|konsument|motta|se|bruke[[:space:]]+til|formål|lagre|lagres|dele|deles|sende[[:space:]]+videre|sendes[[:space:]]+videre|behandlingsgrunnlag|tilgang)"
+RE_Q_BS2='tilgangskontroll|autentiser|autoriser|tjeneste-til-tjeneste|tokenx|azure|hvem[^?]*tilgang|hvem[[:space:]]+(skal|kan)[[:space:]]+(kunne[[:space:]]+)?(kalle|lese)'
 raises_bs1() {
   present "$1" "$RE_BS1" ||
-    question_sentences "$1" | grep -iE -- '(^|[^[:alnum:]])fnr([^[:alnum:]]|$)' | grep -qviE -- "$RE_ASK_COMPAT|påkrevd|valgfri"
+    question_sentences "$1" | grep -iE -- "$RE_Q_BS1_FNR" | grep -qiE -- "$RE_Q_BS1_WHY"
 }
 raises_bs2() {
-  present "$1" "$RE_BS2" || question_sentences "$1" | grep -i -- 'tilgang' | grep -qviE -- "$RE_ASK_SEC"
+  present "$1" "$RE_BS2" || question_sentences "$1" | grep -qiE -- "$RE_Q_BS2"
 }
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }

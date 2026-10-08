@@ -562,7 +562,7 @@ if __name__ == "__main__":
         sys.exit(selftest())
     if sys.argv[1:2] == ["svar"] and len(sys.argv) == 3:
         # The answer alone, for the planning checks in nav-pilot-golden.sh.
-        print("\n".join(answer_lines(Path(sys.argv[2]).read_text())))
+        print("\n".join(answer_lines(Path(sys.argv[2]).read_text(encoding="utf-8"))))
         sys.exit(0)
     if len(sys.argv) < 3:
         sys.exit(__doc__)

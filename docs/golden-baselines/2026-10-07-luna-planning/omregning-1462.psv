@@ -1,7 +1,7 @@
-# Omregning uten modellkall av de lagrede planleggingssvarene fra 7. oktober med sjekkene rettet etter #1462.
+# Omregning av de lagrede planleggingssvarene, uten nye modellkall. Sjekkene er rettet etter #1462.
 # testoppsett = utfallet testoppsettet registrerte, på hele stdout med verktøyutskrift.
 # gammel = sjekken på origin/main før rettingen, kjørt på svaret uten verktøyutskrift (transkripter/). ny = denne branchen.
-# t3 og t7b: «fnr» teller i et spørsmål til brukeren som ikke gjelder format eller felt; «tilgang» teller i et spørsmål som ikke gjelder nøkler; «hvem skal kunne kalle» teller.
+# t3 og t7b: «fnr» teller i et spørsmål som også spør om formål, mottakere, lagring eller deling. «Tilgang» teller bare i et spørsmål om tilgangskontroll. «hvem skal kunne kalle» teller.
 # t7 er tatt med som kontroll: sjekken er ikke endret. t2, t4 og t5 er uendret fordi svarene allerede er uten verktøyutskrift.
 # Mønstrene er utledet fra de samme svarene.
 # sett|arm|sjekk|kjøring|testoppsett|gammel|ny
