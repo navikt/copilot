@@ -638,7 +638,9 @@ egen frist, tillater Copilot kallet uansett. Og et skript som avslutter med
 0, har svart, også når svaret er tomt eller uleselig: hva Copilot gjør med et
 uleselig svar, bestemmer Copilot. En eldre nav-pilot som kjører `install
 --repo`, skriver oppføringen på nytt uten flagget, så alle som installerer
-pakka må ha en nav-pilot som kjenner `failClosed`.
+pakka må ha en nav-pilot som kjenner `failClosed`. Valideringen håndhever
+det: en pakke med `failClosed` må sette `minNavPilotVersion` til minst
+`agentpakke.FailClosedMinVersion`.
 
 Målt på en Mac med 18 kjerner: hook-kommandoen med et skript som sover i 30 s
 og `timeoutSec: 3` (frist 1 s), kjørt slik Copilot gjør det (`sh -c`, payload

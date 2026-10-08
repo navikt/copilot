@@ -30,7 +30,7 @@ p = subprocess.run(["/bin/sh", "-c", e["command"]], input=b'{"toolName":"bash","
 sys.stdout.write(p.stdout.decode())
 sys.exit(p.returncode)
 -- plattform/.nav-pilot/agentpakke.json --
-{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+{"contractVersion":"1","name":"plattform","description":"plattform","minNavPilotVersion":"2026.10.08-214814-f2dcbbb","layout":{"agents":"agents","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --
 ---
 name: grillmester
