@@ -786,9 +786,9 @@ Budsjettet for grunnmålingen er om lag 150 credits, og stopp ved 200 credits.
 
 **Skjerpet etter gjennomgang, før steg 3.** Etter grunnmålingen ble sjekkene gjort strengere. Delegering telles nå fra bruksradene: en tur i en subagent har en `agent_id`, og agentnavnet hentes fra sesjonens `events.jsonl`. Dette er bekreftet på en ekte delegert kjøring på Copilot CLI 1.0.94-3 (0,47 credits): bruksraden for subagenten hadde `agent_id`, og debugloggen hadde både `subagent_started` og en egen `turn tool surface resolved`-linje for subagentens modell.
 
-- d1 krever en tur for `security-champion-agent` på `claude-opus-5.5` etter første tur, altså ikke under intervjuet.
-- d2 krever en subagentrad på en annen modell enn forelderens, i tillegg til at samme modell står i debugloggen.
-- d3 krever null subagentrader og minst én bruksrad, slik at en kjøring uten data ikke kan bestå.
+- d1 krever en tur for `security-champion-agent` på `claude-opus-5.5` i turen som når fase 3, ikke under intervjuet eller planen.
+- d2 krever en subagentrad på en annen modell enn forelderens, og samme modell må stå i debugloggen.
+- d3 krever null subagentrader og minst én bruksrad, slik at en kjøring uten data ikke kan bestå. Debugloggen og bruksradene må vise den samme, ene modellen.
 - d4 krever en tur for `research-agent` på `gpt-6-luna`.
 
 Grunnmålingen er skåret på nytt med de nye reglene ([rescore.sh](golden-baselines/2026-10-08-delegering-baseline/rescore.sh), [rescore.psv](golden-baselines/2026-10-08-delegering-baseline/rescore.psv)). Ingen av de 20 kjøringene har en subagentrad, så utfallet er det samme: d3 5/5, d1, d2 og d4 0/5.

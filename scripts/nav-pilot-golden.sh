@@ -3942,7 +3942,10 @@ run_pass_delegation() {
     else
       # After turn 1 only: Fase 3 is reached in turn 2 or 3, and an Opus
       # turn during the interview is not a Fase 3 review.
-      ok=1; delegated_to security-champion-agent claude-opus-5.5 d1b d1c && ok=0
+      # Only the turn(s) whose answer reaches Fase 3 count.
+      local f3=()
+      for s in d1b d1c; do grep -qiE 'Fase[[:space:]]*3' "$(svar "$(tx "$s")")" && f3+=("$s"); done
+      ok=1; delegated_to security-champion-agent claude-opus-5.5 "${f3[@]}" && ok=0
       record d1 "$d" "$ok" "$(deleg_detail d1a d1b d1c)"
     fi
   fi
@@ -3963,8 +3966,8 @@ run_pass_delegation() {
         ok=1; why="no subagent row in the usage rows"
       elif ! sub_turns d2 | cut -d' ' -f2 | grep -vqx "${parent:-none}"; then
         ok=1; why="the subagent ran on the parent's model ${parent:-none}"
-      elif ! models_in_run d2 | cut -d' ' -f1 | grep -vqx "${parent:-none}"; then
-        ok=1; why="the usage rows show a worker model, the debug log does not"
+      elif ! sub_turns d2 | cut -d' ' -f2 | grep -vx "${parent:-none}" | while read -r m; do models_in_run d2 | grep -q "^$m " && echo y; done | grep -q y; then
+        ok=1; why="no subagent model in the usage rows also appears in the debug log"
       fi
       ws_wrote || { ok=1; why="${why:+$why; }nothing written"; }
       d2_tests "$WS" || { ok=1; why="${why:+$why; }tests not green"; }
@@ -3980,7 +3983,9 @@ run_pass_delegation() {
       record_error d3 "$d" "$LAST_PROMPT_DETAIL"
     else
       # Zero usage rows would make "no subagent" vacuous, so at least one.
-      ok=1; [[ -z "$(sub_turns d3)" && "$(usage_rows d3)" -ge 1 && "$(models_in_run d3 | wc -l | tr -d ' ')" -eq 1 ]] && ok=0
+      # One model, and the same one, in both sources.
+      ok=1; [[ -z "$(sub_turns d3)" && "$(usage_rows d3)" -ge 1 && "$(models_in_run d3 | wc -l | tr -d ' ')" -eq 1 &&
+        "$(usage_models d3)" == "$(models_in_run d3 | cut -d' ' -f1)" ]] && ok=0
       record d3 "$d" "$ok" "$(deleg_detail d3)"
     fi
   fi

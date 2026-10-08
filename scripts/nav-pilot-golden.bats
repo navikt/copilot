@@ -893,8 +893,12 @@ EOF
 #   logonly     the model in the debug log, no subagent usage row
 #   parentmodel the subagent runs on the parent's model (d2)
 #   early       d1's Opus turn happens in the interview turn, not later
+#   plan        d1's Opus turn happens in the planning turn, not in Fase 3
 #   zero        no usage rows at all (d3)
 #   nowrite     d2 delegates but writes nothing
+#   disjoint    the log names one worker model, the usage row another (d2)
+#   samemodel   the rename goes to a subagent on the parent's model (d3)
+#   mismatch    log and usage name different single models (d3)
 make_deleg_shim() {
   cat >"$SHIM/copilot" <<'EOF'
 #!/bin/bash
@@ -909,11 +913,13 @@ sub=""; agent=""
 case "$p" in
   *"ny tjeneste"*) echo "Hvem kaller tjenesten? Hvilke data lagres? Hva skjer når PDL er nede?"
     [[ "$DELEG" == early ]] && { sub=claude-opus-5.5; agent=security-champion-agent; } ;;
-  *"svarene på spørsmålene"*) echo "Fase 2: plan for tjenesten. 🔴 Rød sone: tokenvalidering." ;;
+  *"svarene på spørsmålene"*) echo "Fase 2: plan for tjenesten. 🔴 Rød sone: tokenvalidering."
+    [[ "$DELEG" == plan ]] && { sub=claude-opus-5.5; agent=security-champion-agent; } ;;
   *"Planen er godkjent"*) echo "## Fase 3: Review av planen, fire perspektiver"
-    [[ "$DELEG" == early ]] || { sub=claude-opus-5.5; agent=security-champion-agent; } ;;
+    [[ "$DELEG" == early || "$DELEG" == plan ]] || { sub=claude-opus-5.5; agent=security-champion-agent; } ;;
   *rename*) echo "Renamet maksAntall til maksAntallOppgaver i tre filer."
-    [[ "$DELEG" == delegated ]] && { sub=gpt-6-luna; agent=research-agent; } ;;
+    [[ "$DELEG" == delegated ]] && { sub=gpt-6-luna; agent=research-agent; }
+    [[ "$DELEG" == samemodel ]] && { sub=gpt-6-sol; agent=research-agent; } ;;
   *VedtakDto*) [[ "$DELEG" == nowrite ]] || cp -R "$GF_D/controls/good/." .
     echo "La til VedtakDto, tilDto og en test. Testene er grønne."; sub=gpt-6-luna; agent=kafka-agent ;;
   *konfigurerbar*) echo "maksAntall brukes i Config.kt, Oppgave.kt og Routes.kt."; sub=gpt-6-luna; agent=research-agent ;;
@@ -931,7 +937,7 @@ row() {
 mkdir -p "$logdir"
 log() { echo "2026-10-08T10:38:21Z [DEBUG] $1" >>"$logdir/process-1.log"; }
 log "[rust:copilot_runtime::session::native_message_turn] turn tool surface resolved {\"model\":\"gpt-6-sol\",\"generic_path\":false}"
-row gpt-6-sol
+if [[ "$DELEG" == mismatch ]]; then row gpt-6-luna; else row gpt-6-sol; fi
 if [[ -n "$sub" ]]; then
   log "[rust:github_telemetry::service] Sending telemetry event: cli.telemetry (kind: subagent_started)"
   log "[rust:copilot_runtime::session::native_message_turn] turn tool surface resolved {\"model\":\"$sub\",\"generic_path\":false}"
@@ -939,7 +945,7 @@ if [[ -n "$sub" ]]; then
     id="$(uuidgen | tr '[:upper:]' '[:lower:]')"
     mkdir -p "$COPILOT_HOME/session-state/$sid"
     echo "{\"type\":\"subagent.completed\",\"restrictedProperties\":{\"agent_name\":\"$agent\",\"agent_id\":\"$id\"}}" >>"$COPILOT_HOME/session-state/$sid/events.jsonl"
-    row "$sub" "$id"
+    if [[ "$DELEG" == disjoint ]]; then row claude-sonnet-5.5 "$id"; else row "$sub" "$id"; fi
   fi
 fi
 EOF
@@ -973,6 +979,12 @@ run_deleg() {
   grep -q '^d4|1|fail|.*gpt-6-luna 1; usage: gpt-6-sol; subagents: none;' "$SHIM/b-results.psv"
   run_deleg early
   grep -q '^d1|1|fail|.*subagents: security-champion-agent:claude-opus-5.5;' "$SHIM/b-results.psv"
+  run_deleg plan
+  grep -q '^d1|1|fail|.*subagents: security-champion-agent:claude-opus-5.5;' "$SHIM/b-results.psv"
+  run_deleg samemodel
+  grep -q '^d3|1|fail|.*subagents: research-agent:gpt-6-sol;' "$SHIM/b-results.psv"
+  run_deleg mismatch
+  grep -q '^d3|1|fail|.*log: gpt-6-sol 1; usage: gpt-6-luna;' "$SHIM/b-results.psv"
   run_deleg zero
   grep -q '^d3|1|fail|.*usage: ; subagents: none;' "$SHIM/b-results.psv"
 }
@@ -989,6 +1001,9 @@ run_deleg() {
   run_deleg parentmodel
   [ "$status" -eq 1 ]
   grep -q "^d2|1|fail|.*|the subagent ran on the parent's model gpt-6-sol" "$SHIM/b-results.psv"
+  run_deleg disjoint
+  [ "$status" -eq 1 ]
+  grep -q '^d2|1|fail|.*|no subagent model in the usage rows also appears in the debug log' "$SHIM/b-results.psv"
   run_deleg nowrite
   [ "$status" -eq 1 ]
   grep -q '^d2|1|fail|.*|nothing written; tests not green; no test calls tilDto' "$SHIM/b-results.psv"
