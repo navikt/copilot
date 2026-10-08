@@ -1,3 +1,0 @@
-`VedtakKonsument` hopper nå over `eventId`-er den allerede har utbetalt, og commiter offset først når hele poll-batchen er behandlet. Konstruktøren tar fortsatt bare `consumer` og `utbetaling`. `gradle test` i `vedtak-konsument/` passerer med 3 tester.
-
-🔴 Rød sone: Dedupliseringen ligger i minnet. Den hindrer dobbeltutbetaling ved replay mens prosessen lever, men ikke etter omstart hvis prosessen krasjer etter utbetaling og før commit. Varig garanti krever idempotens eller lagring som overlever omstart. Still gjerne spørsmål om valgene over.

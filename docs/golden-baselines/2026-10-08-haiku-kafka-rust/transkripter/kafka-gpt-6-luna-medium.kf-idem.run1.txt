@@ -1,3 +1,0 @@
-Rettet `VedtakKonsument`: Den utbetaler hver `eventId` én gang per konsumentinstans og committer først etter at alle meldingene i poll-batchen er behandlet. Ved feil søker den tilbake til ubehandlede offsets og kaster feilen videre. Konstruktøren har samme signatur. `gradle test` i `vedtak-konsument/` passerer.
-
-🔴 Rød sone: Idempotensen ligger i minnet. Den hindrer dobbeltutbetaling ved replay etter rebalansering, men ikke etter omstart av prosessen. Varig garanti krever persistent idempotenslagring eller støtte for idempotens i utbetalingssystemet. Still gjerne spørsmål om valgene over.

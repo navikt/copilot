@@ -1,3 +1,0 @@
-Oppdatert `VedtakKonsument`: den betaler hvert `eventId` én gang per konsumentinstans og committer først etter at hele poll-batchen er behandlet. Ved utbetalingsfeil committes ikke offseten, og konstruktøren tar fortsatt bare `consumer` og `utbetaling`. `gradle test` i `vedtak-konsument/` består.
-
-🔴 Rød sone: dedupliseringen ligger i minnet. Den dekker ny lesing ved rebalansering så lenge instansen lever, men ikke omstart eller en annen instans. Varig deduplisering på tvers av instanser krever delt lagring eller at utbetalingssystemet håndhever idempotens. Still gjerne spørsmål om valgene over.

@@ -1,3 +1,0 @@
-**VedtakKonsument** hopper nå over eventId-er den allerede har utbetalt, og committer først etter at hele poll-batchen er behandlet. Konstruktøren kan fortsatt kalles med bare consumer og utbetaling. `gradle test` i `vedtak-konsument/` kjører uten feil.
-
-🔴 Rød sone: Utbetalingslogikken bør gjennomgås nøye. EventId-ene lagres i minnet, så beskyttelsen varer bare mens konsumentinstansen kjører. Varig beskyttelse ved omstart krever idempotens i utbetalingen eller varig lagring av eventId-er. Still gjerne spørsmål om valgene over.

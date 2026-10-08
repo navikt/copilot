@@ -1,3 +1,0 @@
-La til `sakstype` som enum med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Feltet får `ORDINAER` som standard for eldre meldinger, og deserialiseringen ignorerer ukjente felt slik at nye felt fra produsenten ikke stanser konsumentene. Ugyldige sakstyper avvises fortsatt. `gradle test` i `vedtak-hendelse/` bestod.
-
-Jeg valgte å ignorere ukjente felt i serde-laget, slik at kompatibiliteten gjelder alle konsumenter som bruker denne deserialiseringen. Det bevarer valideringen av kjente felt, men betyr at konsumentene ikke får beskjed om nye felt. Still gjerne spørsmål om valgene over.

@@ -1,3 +1,0 @@
-La til `sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Eldre meldinger får `ORDINAER` som standard, og konsumentene ignorerer ukjente felt. `gradle test` i `vedtak-hendelse/` passerer.
-
-🔴 Rød sone: Standardverdien bevarer bakoverkompatibilitet. Ukjente felt ignoreres, så eldre konsumenter kan ikke bruke dem, men de feiler heller ikke når produsenten legger til felt. Still gjerne spørsmål om valgene over.

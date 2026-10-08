@@ -1,8 +1,0 @@
-`VedtakKonsument` er rettet, og `gradle test` i `vedtak-konsument/` går grønt (4 tester).
-
-- **Dedup:** Hver `eventId` utbetales bare én gang. Settet ligger i instansen, så det dekker re-lesing etter rebalansering i samme prosess.
-- **Commit:** `commitSync()` kjøres etter at hele batchen er behandlet. Feiler en utbetaling, kastes feilen og offset commites ikke.
-- **Konstruktør:** Uendret, `VedtakKonsument(consumer, utbetaling)`.
-- **Tester:** Lagt til tester for dobbel re-lesing, commit etter behandling og feilet utbetaling med re-lesing uten dobbelutbetaling.
-
-**Begrensning:** Dedup-settet er i minnet og forsvinner ved restart. Etter restart kan allerede utbetalte meldinger utbetales på nytt. Full sikkerhet krever at eventId lagres persistent, for eksempel i databasen i samme transaksjon som utbetalingen. Det har jeg ikke gjort, fordi det krever et valg om lagring.

@@ -1,9 +1,0 @@
-`VedtakKonsument` er rettet. `gradle test` i `vedtak-konsument/` går grønt: 5 tester, 0 feil.
-
-- **Dobbel utbetaling:** en `eventId` utbetales bare én gang. Behandlede id-er ligger i et sett som kan sendes inn. Konstruktøren kan fortsatt kalles med bare `consumer` og `utbetaling`.
-- **Offset:** `commitSync()` kjøres først etter at hele batchen er behandlet.
-- **Feil:** ved feil fjernes id-en fra settet, konsumenten spoles tilbake til batchens startoffset og exception kastes videre. Meldingen leses da på nytt, og allerede utbetalte hoppes over.
-
-Begrensning: settet er i minnet, så etter omstart kan en melding som ikke er commitet utbetales på nytt. For å tette det må id-ene lagres varig, for eksempel i databasen i samme transaksjon som utbetalingen. Si fra hvis du vil at jeg gjør det.
-
-Testene dekker dedup, dedup ved ny lesing, commit etter utbetaling og retry etter feil.
