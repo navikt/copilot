@@ -292,9 +292,9 @@ nav-pilot`}
             installasjoner virker som vanlig. Har du slått på en liste over tillatte verter, med{" "}
             <code className={code}>--preset strict</code>, <code className={code}>proxy.default_allowlist</code> eller{" "}
             <code className={code}>proxy.allowed_domains</code>, slipper cplt bare gjennom det som står på lista.
-            Pakkeregistrene er med når <code className={code}>proxy.default_allowlist</code> er på, også med strict. Med
-            bare <code className={code}>proxy.allowed_domains</code> er de med hvis de står i fila. Fila nav-pilot
-            skriver, har dem:
+            Pakkeregistrene er med når <code className={code}>proxy.default_allowlist</code> er på, og strict slår den
+            på. Med bare <code className={code}>proxy.allowed_domains</code> er de med hvis fila lister dem. Fila
+            nav-pilot skriver, har dem:
           </BodyLong>
           <Bullets>
             <li>
