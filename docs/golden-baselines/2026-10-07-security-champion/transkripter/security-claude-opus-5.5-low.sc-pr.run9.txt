@@ -1,0 +1,29 @@
+🛡️ **Sikkerhetsgjennomgang: `vedtak-kafka` mot `main`** (1 commit, 8 filer)
+
+📋 **Funn: 5 kritiske, 4 høye, 3 medium**
+
+### 🔴 Kritisk
+1. **SQL-injeksjon.** `VedtakRepository.hentForPerson` (linje 23) setter `fnr` rett inn i SQL-strengen. `fnr` kommer fra URL-en uten validering. Bruk `queryOf("... WHERE fnr = ?", fnr)`.
+2. **`GET /api/vedtak/{fnr}` har ingen autentisering.** Ruten ligger utenfor `authenticate("tokenx")`, så hvem som helst kan hente alle vedtak for et fødselsnummer.
+3. **Tokenet blir ikke validert.** `jwt("tokenx")` mangler `verifier` (JWKS fra `TOKEN_X_JWKS_URI`) og issuer-sjekk. `validate` sjekker bare at `aud` finnes, ikke at den er lik `TOKEN_X_CLIENT_ID`. Signatur, issuer og audience må valideres.
+4. **Ingen sjekk av eierskap eller rolle på `POST /api/vedtak`.** Koden sammenligner ikke `fnr` i request-body med `pid` i tokenet. Et TokenX-token for en innbygger skal heller ikke kunne fatte vedtak. Den som kaller kan sette `fnr`, `sakId` og `utfall` (f.eks. `INNVILGET`) selv.
+5. **Åpen `accessPolicy.inbound`.** `application: "*"` og `namespace: "*"` slipper inn alle apper i clusteret. Det blir enda alvorligere sammen med funn 2. List opp hvilke apper som faktisk skal kalle tjenesten.
+
+### 🟠 Høy
+6. **FNR havner i loggen.** `VedtakService` linje 15 logger `"behandler $fnr"`. Fjern linjen eller logg `sakId`.
+7. **FNR står i URL-stien.** Stien havner i access-logger, proxyer og traces. Send FNR i body (POST) eller i en header, eller utled det fra tokenet.
+8. **Ingen audit-logging (CEF).** Både oppslag og registrering av vedtak for en person må logges i sporingsloggen.
+9. **Kafka er satt opp uten TLS.** Properties mangler `security.protocol=SSL` og keystore/truststore fra Nais (`KAFKA_KEYSTORE_PATH`, `KAFKA_TRUSTSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`). Med Aiven går det enten ikke å koble til, eller noen frister seg til å skru av sikkerheten.
+
+### 🟡 Medium
+10. **Én ugyldig melding stopper consumeren for godt.** Hvis `decodeFromString` eller en `retry` feiler, dør tråden uten commit. Det gir evig restart, og ingen ting overvåker tråden. Legg inn feilhåndtering per melding eller en dead letter-kø (DLQ), og helsesjekk som fanger at tråden er død.
+11. **Samme melding kan gi flere vedtak (ikke idempotent).** Retry og commit først etter hele batchen gjør at vedtak kan bli lagret og publisert flere ganger. Legg en unik nøkkel på `soknadId`/`sakId` og bruk upsert.
+12. **Ingen validering av input.** Koden sjekker ikke formatet på `fnr` eller `sakId`. Det mangler også Flyway-migrering for tabellen `vedtak`.
+
+Det som er bra: `lagre` og `hentForSak` bruker parametriserte spørringer, hemmeligheter leses fra miljøvariabler, og `enable.auto.commit=false` er satt.
+
+Jeg har ikke endret koden, kjørt bygg eller kjørt `trivy`/`zizmor`. Funnene bygger på å ha lest diffen. Funn 1–5 bør fikses før merge.
+
+🔴 Rød sone: autentisering, autorisasjon og SQL. Gå gjennom disse grundig selv.
+
+Still gjerne spørsmål om valgene over.

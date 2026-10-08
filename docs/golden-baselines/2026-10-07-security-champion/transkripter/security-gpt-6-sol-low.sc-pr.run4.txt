@@ -1,0 +1,16 @@
+🔍 Kartlegger endringene mot `main` og sjekker hvilke sikkerhetsflater branchen berører.
+
+🛡️ Analyserer auth, persondata, SQL og Kafka-flyten. Flere funn må vurderes opp mot konfigurasjonen og eksisterende kode.
+
+**Vurdering: BLOCK.** Endringene i `vedtak-kafka` bør ikke merges mot `main` slik de står. Jeg fant seks blokkerende funn:
+
+1. **Vedtak kan leses uten innlogging.** `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og returnerer vedtak med fødselsnummer (`Routes.kt:30–33`, `Vedtak.kt:21–29`). Legg på autentisering og kontroller at innringeren har rett til akkurat denne personens vedtak.
+2. **SQL-injeksjon i oppslag på fødselsnummer.** `hentForPerson` setter URL-parameteren rett inn i SQL (`VedtakRepository.kt:21–24`). Bruk parameterisert spørring. Sammen med det åpne GET-endepunktet kan dette gi tilgang til flere personers vedtak.
+3. **TokenX-valideringen er ikke ferdig satt opp.** JWT-konfigurasjonen angir ingen verifier for signatur, issuer og audience; `validate` godtar enhver ikke-null audience (`App.kt:39–43`). POST-endepunktet kan derfor ikke regnes som beskyttet. Konfigurer TokenX-verifisering og autoriser hvem som får fatte vedtak.
+4. **Alle apper og namespaces får nettverkstilgang.** `application: "*"` og `namespace: "*"` åpner inbound til tjenesten (`nais.yaml:22–26`). Avgrens til navngitte innringere; dette er særlig alvorlig når GET-endepunktet er åpent.
+5. **Fødselsnummer skrives til ordinær logg.** `log.info("behandler $fnr")` lekker persondata (`VedtakService.kt:15`). Fjern fødselsnummeret fra logglinja.
+6. **Kafka-klienten mangler Nais-autentisering.** Konfigurasjonen setter broker-adresse, men ikke TLS/SASL eller Kafka-credentials (`App.kt:26–35`). Consumer og producer vil dermed ikke være konfigurert for sikker tilkobling til Nais Kafka.
+
+**Andre forhold:** Ingen validering av `fnr` ved HTTP- eller Kafka-grensen (`Routes.kt:25–27`, `VedtakConsumer.kt:24–25`). Kafka-prosesseringen lagrer vedtak før publisering og offset-commit, uten idempotens; retry eller omstart kan opprette flere vedtak for samme melding (`VedtakConsumer.kt:23–27, 31–33`). En melding som feiler alle forsøk, avslutter dessuten consumer-tråden. Jeg fant ingen migrasjon som oppretter `vedtak`-tabellen. `INSERT` og oppslag på `sak_id` bruker parameteriserte spørringer; jeg fant ingen hardkodede secrets i de endrede filene.
+
+**Omfang:** Jeg leste hele diffen for de åtte endrede filene, tilhørende kode og `nais.yaml`. Arbeidstreet hadde ingen staged, unstaged eller untracked endringer. Trivy og zizmor var ikke installert, og `mise check` kunne ikke kjøres fordi repoet ikke har en `check`-oppgave. Avhengighetssårbarheter og skanning av git-historikk er derfor **ikke verifisert**.

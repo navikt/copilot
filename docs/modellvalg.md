@@ -375,18 +375,108 @@ Forbruket var 560,2 credits for Opus og 328,9 for Sol, til sammen 889,0. Budsjet
 
 Begge rettingene har kontroller i `scripts/benchmark-sjekk.py --selftest` som feiler med de gamle sjekkene. Alle lagrede rv5–rv8-svar fra 7. oktober er regnet om uten nye modellkall, i [omregning-1453.psv](golden-baselines/2026-10-07-review-persona/omregning-1453.psv). Tretten kjøringer gikk fra feilet til bestått, ingen motsatt vei. rv5 og rv7 er uendret.
 
-| Måling og arm                     | rv6, gammel | rv6, ny | rv8, gammel | rv8, ny |
-| --------------------------------- | ----------- | ------- | ----------- | ------- |
-| Ny persona, Opus 5.5 Low          | 3/10        | 6/10    | 10/10       | 10/10   |
-| Ny persona, GPT-6 Sol Low         | 9/10        | 10/10   | 0/10        | 5/10    |
-| GPT-6 Sol Low, gammel persona     | 10/10       | 10/10   | 0/10        | 3/10    |
-| Hovedmålingen, GPT-6.1 Sol Low    | 10/10       | 10/10   | 0/10        | 1/10    |
+| Måling og arm                  | rv6, gammel | rv6, ny | rv8, gammel | rv8, ny |
+| ------------------------------ | ----------- | ------- | ----------- | ------- |
+| Ny persona, Opus 5.5 Low       | 3/10        | 6/10    | 10/10       | 10/10   |
+| Ny persona, GPT-6 Sol Low      | 9/10        | 10/10   | 0/10        | 5/10    |
+| GPT-6 Sol Low, gammel persona  | 10/10       | 10/10   | 0/10        | 3/10    |
+| Hovedmålingen, GPT-6.1 Sol Low | 10/10       | 10/10   | 0/10        | 1/10    |
 
 Hovedmålingens andre armer (Opus 5.5 Low og GPT-6 Luna Medium) og rv8-kontrollen for Opus er uendret.
 
 Opus' kjøring 4, 6 og 8 med ny persona feiler fortsatt rv6. De nevner ikke at lagringen kan lykkes mens publiseringen feiler, og er ekte bom. Kjøring 2 feiler fortsatt på linjecellen «32–33 / 23». For Sol feiler rv8 fortsatt i kjøring 2, 8 og 10 (🔴-rad om `azp`), 4 («Én blokkering») og 7 (ingen konklusjon). Kjøringene som nå består, er merket i `failures.psv`.
 
 Vurdering mot kriteriene: ingen konklusjon endres. Krav 1 til 3 bygger på rv5, rv7 og antall rader med høy prioritet, og de tallene er de samme. Krav 4 holder fortsatt for GPT-6 Sol med ny persona (rv6 10/10 mot Opus' 6/10). GPT-6 Sol Low er fortsatt ikke en gyldig reservemodell, fordi krav 1 ikke holder. Ingen pinner endres.
+
+## GPT-6 Luna på planlegging, ny måling (7. oktober 2026)
+
+I batch 3 spurte GPT-6 Luna Medium i to av fem kjøringer bare hva fødselsnummeret skulle brukes til. Med dagens `RE_BS1` ville de svarene bestått t3, men transkriptene er borte, så de kan ikke regnes om. Derfor måles Luna på nytt.
+
+### Kriteriene ble satt før målingen
+
+GPT-6 Luna Medium kjøres med `@nav-pilot` i Copilot CLI, fem kjøringer av t2, t3, t4, t5, t7 og t7b. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 25 credits, med stopp ved 50.
+
+Luna er akseptabel for planlegging bare hvis t2 består 5 av 5, og t3, t4, t5, t7 og t7b hver består minst like mange ganger som GPT-6 Sol Low i [batch 4](golden-baselines/2026-10-06-batch4/). Der fikk Sol t3 5/5, t4 4/5 og t5 5/5. Batch 4 kjørte ikke t7 og t7b, så for dem er kravet 5/5. Det er det eneste kravet som sikkert er minst like strengt som et Sol-tall vi ikke har. Målingen endrer ingen pinner.
+
+### Resultater
+
+Rådata ligger i [2026-10-07-luna-planning](golden-baselines/2026-10-07-luna-planning/), og svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-07-luna-planning/transkripter/). Copilot CLI 1.0.93-4, fem kjøringer. Alle 167 bruksrader viser `gpt-6-luna` med `medium`, så ingen kjøring er forkastet. Testoppsettet krasjet etter siste sjekk og før filene ble lagret, fordi skriptet ble endret mens det kjørte. Filene er derfor bygget fra arbeidsmappa med samme innhold og overskrift som lagringssteget lager. `.txt`-fila mangler størrelsestabellen.
+
+| Sjekk | GPT-6 Luna Medium | Krav (GPT-6 Sol Low, batch 4) |
+| ----- | ----------------- | ----------------------------- |
+| t2    | 5/5               | 5/5                           |
+| t3    | 4/5               | 5/5                           |
+| t4    | 4/5               | 4/5                           |
+| t5    | 5/5               | 5/5                           |
+| t7    | 5/5               | 5/5 (ikke målt for Sol)       |
+| t7b   | 4/5               | 5/5 (ikke målt for Sol)       |
+
+Forbruket var 20,5 credits for hele armen.
+
+- **t3 kjøring 3:** Luna skrev «Hvem skal kunne kalle tjenesten» og «tilgang»; sjekken krever «tilgangskontroll» eller «hvem skal kalle».
+- **t7b kjøring 1:** Luna spurte «Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?». Det er et spørsmål om personvern, men sjekken kjenner ikke forkortelsen «FNR», bare ord som «fødselsnummer» og «personopplysning».
+- **t7b kjøring 4** besto bare på en linje fra verktøyutskriften. Svaret uten verktøyutskrift har bare «FNR» og ingen ord fra `RE_BS1`. Regnet på de lagrede svarene er t7b derfor 3/5. Testoppsettets eget tall er 4/5. For t3 gir de lagrede svarene samme utfall som testoppsettet.
+- **t2:** Alle fem svarene nevnte personvern eller fødselsnummer, så bommen fra batch 3 kom ikke igjen.
+
+**Vurdering: GPT-6 Luna Medium er ikke akseptabel for planlegging.** t3 (4/5) og t7b (4/5) er under kravet på 5/5. t2, t4, t5 og t7 holder. Målingen endrer ingen pinner.
+
+Med «fnr» i `RE_BS1` og «tilgang» eller «hvem skal kunne kalle» i `RE_BS2` ville t3 og t7b blitt 5/5, og Luna ville nådd kravet. Vurderingen over står likevel, fordi den bygger på kriteriene slik de ble satt før målingen. Sjekkene følges opp i [#1462](https://github.com/navikt/copilot/issues/1462).
+
+## @security-champion målt direkte (7. oktober 2026)
+
+`@security-champion` er pinnet til Claude Opus 5.5 og skal merke en åpen `accessPolicy.inbound` som kritisk. Agenten er aldri målt med sin egen persona. Testene sc1–sc3 kjøres med `--agent security-champion`. De gir agenten den samme branchen som rv5–rv7. Der registrerer `App.kt` TokenX-validering uten `verifier`, og `validate` sjekker bare at det finnes en `audience`, ikke hvilken. sc1 krever at hver plantede sikkerhetsfeil er nevnt med riktig fil og linje. sc2 krever at hver av dem er nevnt og merket kritisk (🔴, «kritisk» eller «critical»; «høy» er ikke nok). En rad uten egen prioritet arver prioriteten fra overskriften den står under. sc3 gir agenten en fil uten feil og teller funn merket kritisk. Testene er ikke en egen testpakke og står derfor ikke i `summary.json` eller på `/modeller`.
+
+### Kriteriene ble satt før målingen
+
+De plantede sikkerhetsfeilene er fødselsnummer i loggen, SQL bygget med strengsammenslåing, en rute utenfor `authenticate("tokenx")`, TokenX-validering som bare sjekker at det finnes en `audience`, og `accessPolicy.inbound` som slipper inn alle. Personaen er akseptabel med en modell bare hvis hver av de fem feilene er funnet og merket kritisk i minst 9 av 10 kjøringer, og medianen for funn merket kritisk på fila uten feil er 0.
+
+Armene er Claude Opus 5.5 Low (pinnen) og GPT-6 Sol Low (reservemodellen), ti kjøringer hver i Copilot CLI. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 600 credits for Opus og 350 for Sol, med stopp ved 1 200 til sammen. Forbruket sjekkes etter Opus-armen. Er det over budsjettet, kjøres ikke Sol. Mønstrene kan justeres etter én pilotkjøring med Opus, men låses i en egen commit før hovedkjøringene. Målingen endrer ingen pinner.
+
+Pilotkjøringen ([2026-10-07-security-champion-pilot](golden-baselines/2026-10-07-security-champion-pilot/)) oppga ingen linjenumre. Agenten skrev for eksempel «i `VedtakRepository.hentForPerson`». Personaen ber ikke om linjenumre, så et krav om linje ville målt formatet. Derfor leser sc2 funnet uten linje, med ett mønster per feil som ikke treffer de andre funnene. sc1 beholder fil og linje og rapporteres, men inngår ikke i kriteriet. Kriteriet over er sc2 per feil og sc3. Pilotens `results.psv` er regnet med de første mønstrene. Regnet med de låste mønstrene var SQL, tilgang og inbound merket kritisk, mens logging av fødselsnummer og TokenX-valideringen sto under 🟠 Høy.
+
+### Resultater
+
+Rådata ligger i [2026-10-07-security-champion](golden-baselines/2026-10-07-security-champion/), og svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-07-security-champion/transkripter/). Copilot CLI 1.0.94-0, ti kjøringer per arm. Alle 53 bruksrader for Opus viser `claude-opus-5.5` med `low`, og alle 124 for Sol viser `gpt-6-sol` med `low`, så ingen kjøring er forkastet.
+
+Gjennomgangen av PR-en fant to feil i sjekkene etter at kjøringene var ferdige:
+
+- **Mønsteret for fødselsnummer i loggen var for vidt.** Det traff «krever ikke innlogging» og «fnr havner i tilgangslogger» i funnet om ruten, som Opus merket 🔴. Det nye mønsteret krever selve logglinjen (`log.info`, «behandler $fnr», `VedtakService` sammen med logg, eller «fnr logges»).
+- **sc3 telte feil rader.** Den telte personaens egen oppsummering «📋 Funn: 0 kritiske, 0 høye …» som et funn, og den overså et kritisk punkt uten linjenummer. Nå teller sc3 punkter i lister og rader i tabeller, men ikke linjer med «0 kritiske».
+
+Begge rettingene har kontroller som feiler med de gamle sjekkene. Den lagrede `results.psv` har testoppsettets tall med de gamle sjekkene. [omregning.psv](golden-baselines/2026-10-07-security-champion/omregning.psv) har tallene regnet om på de lagrede svarene.
+
+| Sjekk                                     | Opus 5.5 Low, testoppsettet | Opus 5.5 Low, omregnet | Sol Low, testoppsettet | Sol Low, omregnet |
+| ----------------------------------------- | --------------------------- | ---------------------- | ---------------------- | ----------------- |
+| sc2 bestått (alle fem)                    | 8/10                        | 0/10                   | 0/10                   | 0/10              |
+| sc1 bestått (fil og linje)                | 0/10                        | 0/10                   | 3/10                   | 3/10              |
+| sc3 bestått                               | 8/10                        | 10/10                  | 9/10                   | 9/10              |
+| sc3, funn merket kritisk: median (høyest) | 0 (1)                       | 0 (0)                  | 0 (1)                  | 0 (1)             |
+| Credits, hele armen                       | 399,6                       |                        | 247,9                  |                   |
+
+Omregnet per feil, antall av ti kjøringer der feilen er nevnt og merket kritisk:
+
+| Feil                              | Claude Opus 5.5 Low | GPT-6 Sol Low |
+| --------------------------------- | ------------------- | ------------- |
+| Fødselsnummer i loggen            | 0/10                | 1/10          |
+| SQL bygget med strengsammenslåing | 10/10               | 5/10          |
+| Rute utenfor `authenticate`       | 10/10               | 5/10          |
+| `accessPolicy.inbound` åpen       | 10/10               | 4/10          |
+| TokenX uten `verifier`/`audience` | 9/10                | 3/10          |
+
+Svarene viser:
+
+- **Opus** satte logging av fødselsnummer under 🟠 Høy eller lavere i alle ti kjøringene. TokenX-valideringen sto under 🟠 i kjøring 10. Resten var 🔴. Opus oppga ingen linjenumre, så sc1 er 0/10, som i piloten.
+- **Sol** brukte sjelden ordet «kritisk». I flere svar sto funnene som «blokkerende» med dommen «BLOCK». Ordlisten i kriteriet teller ikke «blokkerende». Teller vi det med, blir tallene for Sol 2, 6, 6, 5 og 4 av 10, og fortsatt under kravet. Sol oppga linjenumre, men bommet med noen linjer på `App.kt` og `nais.yaml`.
+- **sc3:** Kjøring 5 for Sol har ett kritisk funn: «Kritisk: Manglende nettverksbegrensning» om `nais.yaml` ved siden av fila. Sjekken teller to, fordi den også teller oppsummeringen «**Omfang:** … **Funn: 1 kritisk, 2 øvrige.**», som viser til `SakService.kt:17` og `37`. Tabellen bruker det reelle tallet. Sjekken følges opp i [#1462](https://github.com/navikt/copilot/issues/1462). Opus hadde ingen kritiske funn på fila uten feil.
+
+Vurdering mot kriteriene, med de omregnede tallene:
+
+- **Claude Opus 5.5 Low er ikke akseptabel for `@security-champion`.** Fødselsnummer i loggen er merket kritisk i 0 av 10 kjøringer, og TokenX-valideringen i 9 av 10. De tre andre feilene og fila uten feil holder kravet.
+- **GPT-6 Sol Low er ikke akseptabel som reservemodell for `@security-champion`.** Ingen av de fem feilene når 9 av 10.
+
+Med testoppsettets egne tall var Opus akseptabel. Det tallet bygget på et mønster som telte funnet om ruten som funnet om loggen. Personaen sier «Log FNR» under 🚫 Never, men ber ikke om at det merkes kritisk. Om det skal regnes som kritisk, er et spørsmål om personaen, ikke om modellen. [#1466](https://github.com/navikt/copilot/pull/1466) legger til en regel om at fødselsnummer i loggen er kritisk. Da må `@security-champion` måles på nytt.
+
+Forbruket for denne delen var 716,0 credits: 399,6 for Opus, 247,9 for Sol og 68,5 for to pilotkjøringer. Den første piloten feilet i oppsettet for branchen og telles ikke. Budsjettet var om lag 950, med stopp ved 1 200. Målingen endrer ingen pinner.
 
 ## Pinner og delegering
 

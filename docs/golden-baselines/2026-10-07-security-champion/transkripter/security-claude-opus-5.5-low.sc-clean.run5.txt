@@ -1,0 +1,16 @@
+🛡️ Sikkerhet: `SakService.kt` har ingen kritiske funn. Jeg har ikke endret noen filer.
+
+**God praksis i fila**
+- SQL-spørringen bruker parameter (`?`), så den er ikke sårbar for SQL-injection.
+- Fødselsnummeret hentes fra token-claimet `pid`, ikke fra URL eller request-body. Innbyggeren kan dermed bare se sine egne saker, så eierskapssjekken er på plass.
+- Ruten ligger bak `authenticate("tokenx")`. `App.kt` validerer issuer, audience og `acr=idporten-loa-high`.
+- Loggene viser ikke fødselsnummer. `maskert()` gir bare 11 stjerner, og feilloggen viser bare navnet på unntaket.
+- Hvis tokenet mangler `pid`, svarer ruten 401.
+
+**Medium (i `nais.yaml`, ikke i denne fila)**
+- `tokenx.enabled: true` mangler. Da finnes ikke variablene `TOKEN_X_*`, og appen krasjer ved oppstart.
+- `accessPolicy.inbound` mangler. Den bør bare tillate kjente klienter.
+
+**Lav**
+- Linje 37 logger bare stjerner og gir ingen informasjon. Den kan fjernes.
+- Unntak fra databasen havner i Ktors standard 500-svar. Uten `StatusPages` lekker ikke stacktrace, men legg gjerne inn eksplisitt feilhåndtering.

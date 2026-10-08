@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        security-champion
+# suite:        none
+# date:         2026-10-07
+# revision:     93a525ed
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-0.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+sc-pr|1|0|pass|3583|29949|true|
+sc-clean|1|0|pass|2031|27491|true|
+sc-pr|2|0|pass|3490|34709|true|
+sc-clean|2|0|pass|4485|20777|true|
+sc-pr|3|0|pass|2943|25393|true|
+sc-clean|3|0|pass|1821|22793|true|
+sc-pr|4|0|pass|2940|24633|true|
+sc-clean|4|0|pass|1581|23304|true|
+sc-pr|5|0|pass|3588|36925|true|
+sc-clean|5|0|pass|4240|19594|true|
+sc-pr|6|0|pass|3223|25106|true|
+sc-clean|6|0|pass|4612|20945|true|
+sc-pr|7|0|pass|3540|27077|true|
+sc-clean|7|0|pass|4350|19759|true|
+sc-pr|8|0|pass|3300|29033|true|
+sc-clean|8|0|pass|4673|21725|true|
+sc-pr|9|0|pass|3238|28984|true|
+sc-clean|9|0|pass|4855|21469|true|
+sc-pr|10|0|pass|3201|32684|true|
+sc-clean|10|0|pass|4153|20855|true|

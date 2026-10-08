@@ -1,0 +1,13 @@
+🔍 Kartlegger dataflyten rundt `SakService` og sjekker tilgangskontroll, logging og SQL mot koden som faktisk kalles.
+
+🛡️ Analyserer funnene opp mot TokenX-verifisering og Nais-oppsett. Skannere er ikke tilgjengelige her, så vurderingen skiller kodefunn fra kontroller som ikke kan bekreftes.
+
+**Sikkerhetsgjennomgang: CONCERNS.** Endepunktet henter fødselsnummer fra en verifisert TokenX-principal, ikke fra en URL-parameter. SQL-spørringen er parameterisert, og fødselsnummeret skrives ikke ut i loggen. Jeg fant ingen påvist omgåelse av tilgangskontrollen i `SakService.kt`.
+
+- **Validering:** `SakService.kt:50–54` avviser bare manglende `pid`. En tom eller uventet lang verdi går videre til oppslaget og til `maskert()` på linje 20. Valider format og lengde ved grensen før verdien brukes.
+- **Nettverkstilgang:** `nais.yaml:6–12` har ingen eksplisitt `accessPolicy`. Avklar hvilke tjenester som skal kunne nå endepunktet, og begrens inbound-reglene tilsvarende før produksjonsbruk.
+- **Personvern og feilhåndtering:** Loggen på linje 37 skjuler selve fødselsnummeret, men antall stjerner røper lengden. Linje 40–42 logger bare unntakstypen og kaster feilen videre; responsen ved en databasefeil er ikke undersøkt.
+
+**Inspisert:** `SakService.kt`, TokenX-oppsettet i `App.kt`, `nais.yaml`, `build.gradle.kts` og tilstøtende rute. **Ikke inspisert:** kjøretidskonfigurasjon, databaseinnhold, avhengighetssårbarheter eller Git-historikk. Det finnes ingen Git-repositorium eller installerte Trivy-/zizmor-skannere i dette arbeidsområdet. Funn: **0 blokkeringer, 2 forhold å avklare eller rette**.
+
+🔴 Rød sone: Valideringen av `pid` og grensene for nettverkstilgang bør gjennomgås særskilt. Å beholde personidentifikatoren i det signerte tokenet hindrer at klienten velger en annens saker; avveiningen er at tokenutstederens krav og Nais-oppsettet fortsatt må verifiseres. Still gjerne spørsmål om valgene over.

@@ -1,0 +1,52 @@
+🛡️ Sikkerhet: gjennomgang av `vedtak-kafka` mot `main` (commit 3a708e4, 8 filer). Jeg har bare lest koden. Ingenting er endret.
+
+**Konklusjon: 🚫 BLOKKER.** Fem kritiske funn må fikses før merge.
+
+## Kritisk
+
+1. **SQL-injeksjon** i `VedtakRepository.hentForPerson`. Fnr fra URL-en settes rett inn i SQL-strengen:
+   ```kotlin
+   "SELECT * FROM vedtak WHERE fnr = '" + fnr + "' ..."
+   ```
+   Fix: `queryOf("SELECT * FROM vedtak WHERE fnr = ?", fnr)`.
+
+2. **`GET /api/vedtak/{fnr}` har ingen autentisering.** Ruten ligger utenfor `authenticate("tokenx")`. Alle som når tjenesten kan hente alle vedtak for et hvilket som helst fnr. Det er ingen eierskapssjekk, og fnr i URL-stien havner i tilgangslogger.
+   Fix: legg ruten bak auth. Hent fnr fra tokenets `pid`-claim (borger) eller fra request body, og sjekk at kalleren eier ressursen.
+
+3. **`accessPolicy.inbound` er åpen for `"*"/"*"`.** Alle apper i alle namespaces kan kalle tjenesten. Sammen med funn 2 blir dette en åpen datalekkasje.
+   Fix: list opp konkrete apper.
+
+4. **JWT-valideringen er ufullstendig** (`App.kt`):
+   - Det er ingen `verifier`/JWKS (`TOKEN_X_JWKS_URI`) og ingen sjekk av issuer (`TOKEN_X_ISSUER`).
+   - `validate` godtar en hvilken som helst audience som ikke er null. Audience skal sjekkes mot `TOKEN_X_CLIENT_ID`.
+
+   Uten verifier avviser Ktor trolig alle tokens. Valideringen er likevel feil konfigurert, og blir usikker hvis noen legger til en verifier uten å sjekke audience.
+
+5. **Ingen autorisasjon på `POST /api/vedtak`.** TokenX brukes for borgertokens, så en innlogget borger kan fatte vedtak for et hvilket som helst fnr og sakId. Å fatte vedtak bør være en saksbehandler- eller maskinoperasjon (Azure AD med grupper, eller M2M med `azp`-sjekk).
+
+## Høy
+
+6. **Fnr i applikasjonsloggen:** `log.info("behandler $fnr")` i `VedtakService`. Fjern linjen, eller logg bare sakId.
+7. **Ingen auditlogg (CEF)** når vedtak med personopplysninger vises.
+8. **Kafka-integritet:**
+   - En ugyldig melding (poison pill) får `decodeFromString` til å kaste et unntak, og consumer-tråden dør stille mens liveness-proben fortsatt svarer OK.
+   - Behandlingen er ikke idempotent: `retry` og ny levering etter feil før `commitSync` gir dupliserte vedtak med ny UUID.
+
+   Fix: dedupliser på `soknadId` (unik constraint) og håndter feil per melding.
+
+## Medium
+
+9. **Kafka-oppsettet mangler SSL** (`security.protocol=SSL`, keystore og truststore fra `KAFKA_*`-variablene Nais setter). Uten dette får appen ikke kontakt med Aiven, og transporten er ikke konfigurert med TLS.
+10. **Ingen inputvalidering av fnr** (11 siffer). `!!` og `receive` kan gi 500-feil som lekker detaljer om stacktracen.
+11. **Ny `logback-classic` uten `logback.xml`.** Det finnes ingen JSON-logging og ingen egen audit-appender.
+
+## Bra
+
+- `lagre` og `hentForSak` bruker parameteriserte spørringer.
+- `enable.auto.commit=false`.
+- Hemmeligheter leses fra miljøvariabler.
+- `VedtakFattetMelding` tar ikke med fnr på Kafka.
+
+🔴 Rød sone: auth, tilgangskontroll og SQL. Gå gjennom disse grundig selv. Jeg anbefaler å hente fnr fra tokenet i stedet for fra URL-en, fordi det fjerner både lekkasjen i tilgangsloggene og muligheten til å slå opp andres vedtak.
+
+Still gjerne spørsmål om valgene over.

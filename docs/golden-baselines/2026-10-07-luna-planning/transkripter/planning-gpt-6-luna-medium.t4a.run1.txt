@@ -1,0 +1,15 @@
+Dette er **full-tier** fordi tjenesten skal behandle fødselsnummer og innføre autentisering. Jeg har lest `nais.yaml`, `build.gradle.kts` og Ktor-koden: repoet er en Kotlin/Ktor-tjeneste på Nais med et eksempel-API, men uten autentisering eller `accessPolicy`. Jeg fant heller ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` for å legge til repo-instruksjoner.
+
+Før jeg lager en plan, trenger jeg svar på dette:
+
+1. Mener du at en innbygger logger inn med ID-porten, og at tjenesten leser fødselsnummer fra den validerte innloggingen? Eller skal tjenesten hente data fra et API med fødselsnummer?
+2. Hvem skal bruke tjenesten, og hvem skal kunne kalle API-et? Skal den svare direkte til innbyggeren, eller sende fødselsnummeret videre til en annen Nav-tjeneste?
+3. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og hvor lenge skal det eventuelt beholdes?
+4. Hva skal skje hvis ID-porten eller en tjeneste dere avhenger av, er utilgjengelig?
+5. Hvilke mål viser at tjenesten fungerer, og hvilket team eier hele flyten?
+6. Finnes det eksisterende konsumenter eller tester vi må ta hensyn til?
+7. Er ID-porten og tokenhåndtering kjent teknologi for deg, eller bør vi legge opp til at du skriver auth-delen selv først?
+
+Jeg har ikke endret kode. Autentisering, tilgangskontroll og behandling av fødselsnummer er rød sone og må avklares før implementering.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7, #11 stilt; #8–#10 ikke relevante for en ny tjeneste).

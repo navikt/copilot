@@ -45,6 +45,8 @@ CHECKS = {
     "3": ("t3", "Tar opp personvern og tilgangskontroll"),
     "4": ("t4", "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål"),
     "5": ("t5", "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker"),
+    "7": ("t7", "Jackson-migrering: spør ikke om personvern eller tilgang"),
+    "7b": ("t7b", "Nytt fødselsnummer i en Kafka-melding: tar opp personvern"),
     "rv1": ("rv1", "Kotlin: finner alle tre plantede feil"),
     "rv2": ("rv2", "Kotlin: riktig linje for hver feil"),
     "rv3": ("rv3", "TSX: finner alle fire plantede feil"),

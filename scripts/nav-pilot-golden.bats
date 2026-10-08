@@ -266,6 +266,24 @@ case "$p" in
     row UserRepo.kt 9 "SQL-injeksjon: fnr interpoleres i spørringen"
     row UserRepo.kt 8 "Logger fnr i klartekst"
     row UserRepo.kt 12-13 "catch svelger alle feil" ;;
+  *sikkerhetsgjennomgang*vedtak-kafka*)
+    # good passes sc1-sc2; noaud drops the TokenX finding, audhoy marks it high, not critical.
+    # innlogging: the log finding is high, and a critical route row mentions
+    # «innlogging» and «tilgangslogger» beside fnr (Opus, 7 Oct; #1459 review).
+    echo "## 🔴 Kritiske funn"
+    [[ "$BENCH_MODE" == innlogging ]] && echo "- GET /api/vedtak/{fnr} krever ikke innlogging, og fnr havner i tilgangslogger"
+    [[ "$BENCH_MODE" == innlogging ]] || echo "- Logger fnr i klartekst i \`VedtakService.kt:15\`"
+    echo "- SQL-injeksjon: fnr konkateneres inn i spørringen, \`VedtakRepository.kt:23\`"
+    echo "- \`Routes.kt:30\`: ruten ligger utenfor authenticate(\"tokenx\")"
+    echo "- \`nais.yaml:25\`: accessPolicy.inbound tillater alle applikasjoner"
+    [[ "$BENCH_MODE" == audhoy ]] && echo "## 🟠 Høy"
+    [[ "$BENCH_MODE" == noaud ]] || echo "- \`App.kt:42\`: jwt(\"tokenx\") sjekker ikke audience"
+    [[ "$BENCH_MODE" == innlogging ]] && printf '%s\n' "## 🟠 Høy" "- Fnr i applikasjonsloggen: \`log.info(\"behandler \$fnr\")\` i \`VedtakService.kt:15\`"
+    true ;;
+  *sikkerhetsgjennomgang*SakService.kt*)
+    echo "Jeg har gått gjennom SakService.kt for sikkerhetsfeil."
+    [[ "$BENCH_MODE" == invented ]] && row SakService.kt 26 "SQL-injeksjon i spørringen"
+    echo "Ingen kritiske funn." ;;
   *vedtak-kafka*)
     # good passes rv5-rv7; each other mode is one mutation of it.
     [[ "$BENCH_MODE" == lgtm ]] && { echo "Jeg har gått gjennom alle åtte filene i branchen. Endringene ser bra ut."; exit 0; }
@@ -428,6 +446,24 @@ run_suite() {
   grep -q '^rv8|1|fail|.*1 spurious high-priority row' "$SHIM/b-results.psv"
   run_suite lgtm "${only[@]}"
   for id in rv5 rv6 rv7; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+}
+
+@test "security-champion sc1-sc3: each check fails on its own mutation" {
+  only=(--agent security-champion --only sc1,sc2,sc3)
+  run_suite good "${only[@]}"
+  [ "$status" -eq 0 ]
+  grep -q '^sc3|1|pass|.*|0 critical finding rows' "$SHIM/b-results.psv"
+  run_suite noaud "${only[@]}"
+  [ "$status" -eq 1 ]
+  grep -q '^sc1|1|fail|.*tokenx' "$SHIM/b-results.psv"
+  grep -q '^sc2|1|fail|.*tokenx not named' "$SHIM/b-results.psv"
+  run_suite audhoy "${only[@]}"
+  grep -q '^sc1|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^sc2|1|fail|.*tokenx not marked critical' "$SHIM/b-results.psv"
+  run_suite innlogging "${only[@]}"
+  grep -q '^sc2|1|fail|.*fnr-logg not marked critical' "$SHIM/b-results.psv"
+  run_suite invented "${only[@]}"
+  grep -q '^sc3|1|fail|.*1 critical finding row' "$SHIM/b-results.psv"
 }
 
 # #1443: the specs themselves, read from the script, against wording taken
