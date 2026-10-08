@@ -212,14 +212,19 @@ Tåler ikke porten å være stille ute av funksjon, er `--user` det scopet som f
 
 ### Portene slipper gjennom når Python svikter
 
-Copilot CLI nekter et verktøykall når en `preToolUse`-hook bruker lengre tid enn
-`timeoutSec`. Kommandoen nav-pilot skriver, stopper derfor skriptet to sekunder før fristen,
-og da slipper kallet gjennom. Det samme skjer når `python3` mangler eller skriptet feiler.
+Bruker en `preToolUse`-hook lengre tid enn `timeoutSec`, dreper Copilot CLI den og slipper
+verktøykallet gjennom, men først når hele fristen er brukt (målt med 1.0.94). Kommandoen
+nav-pilot skriver, stopper derfor skriptet to sekunder før fristen og slipper kallet gjennom
+selv, så ventetiden blir kortere. Det samme skjer når `python3` mangler eller skriptet feiler.
 Med standardfristen på 5 sekunder har skriptet 3 sekunder på seg, og nav-pilot setter aldri
 `timeoutSec` lavere enn 3. Hooker som er installert fra før, får den nye marginen neste gang
 du kjører `nav-pilot install` eller `nav-pilot sync --apply`. Til da har de den gamle marginen
 på ett sekund. En port som nekter alt når Python er treg, er verre enn ingen port. Kommandoen
 bruker bare `sh`, fordi macOS ikke har `timeout`.
+
+En port i en agentpakke kan be om det motsatte med `"failClosed": true` i sidecar-fila. Da
+nekter den kallet når den feiler eller ikke svarer i tide. Se
+[README.agentpakke.md](README.agentpakke.md#porter-som-skal-stoppe-kallet-når-de-ikke-svarer-failclosed).
 
 Det et skript skriver ut, teller bare når det avslutter med exitkode 0. Skriver en hook fra en
 annen pakke et `deny`-svar og avslutter med 2, slipper kallet altså gjennom. Skal en port nekte,

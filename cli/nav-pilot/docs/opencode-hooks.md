@@ -8,7 +8,7 @@ Copilot CLI runs nav-pilot's hooks from `~/.copilot/hooks/` and `.github/hooks/c
 |---|---|---|---|
 | Redaction (secrets, fødselsnummer, injection note): `nav-pilot hook redact` | postToolUse | `tool.execute.after` | OpenCode: **fails closed**, output withheld. Copilot: fails open |
 | Loop guard: `nav-pilot hook loop-guard` | postToolUse | `tool.execute.after`, before redaction | fails open |
-| Gates nav-pilot installed (`ask-first-aria`, `gh-poll-gate`, `klarsprak-gate`, agentpakke hooks) | preToolUse | `tool.execute.before`; a deny is thrown | fails open |
+| Gates nav-pilot installed (`ask-first-aria`, `gh-poll-gate`, `klarsprak-gate`, agentpakke hooks) | preToolUse | `tool.execute.before`; a deny is thrown | fails open; a gate with `failClosed` in its sidecar denies (both clients) |
 
 ## How a launch wires it
 
@@ -32,7 +32,7 @@ Any other tool keeps its own name and arguments.
 
 ## Why redaction fails closed here
 
-In OpenCode, a plugin hook's answer controls what the model reads. Copilot's postToolUse can only ignore a hook that fails. So the OpenCode bridge withholds the output when redaction cannot run: the binary cannot be started, the hook times out (5 s), the answer is not JSON, or `nav-pilot hook redact` reports an error. The bridge asks for that report with `NAV_PILOT_HOOK_FAIL_CLOSED=1`, since otherwise the hook answers `{}` on every failure. The model is told the output was withheld and to tell the user. How to turn redaction off is kept out of that text, as the loop guard's message keeps its threshold out. The loop guard and the gates fail open, as under Copilot, because a broken guard must not stop work.
+In OpenCode, a plugin hook's answer controls what the model reads. Copilot's postToolUse can only ignore a hook that fails. So the OpenCode bridge withholds the output when redaction cannot run: the binary cannot be started, the hook times out (5 s), the answer is not JSON, or `nav-pilot hook redact` reports an error. The bridge asks for that report with `NAV_PILOT_HOOK_FAIL_CLOSED=1`, since otherwise the hook answers `{}` on every failure. The model is told the output was withheld and to tell the user. How to turn redaction off is kept out of that text, as the loop guard's message keeps its threshold out. The loop guard and the gates fail open, as under Copilot, because a broken guard must not stop work. The exception is a gate whose `<name>.hook.json` sets `failClosed`: its entry carries the flag, and the bridge denies the call when the gate times out, fails or answers something that is not JSON. Under Copilot the installed command itself prints the deny; Copilot still allows the call if the hook process does not start before its own deadline.
 
 The hooks run the nav-pilot binary by absolute path: the one on PATH at launch, or the running binary. Under cplt the session may execute only from a few trees (Homebrew, `/usr/local`, `~/.local/bin`, `~/go/bin` and similar). A nav-pilot outside them cannot start, which would withhold every output, so the launch warns when the binary lives elsewhere.
 

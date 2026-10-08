@@ -18,8 +18,9 @@
 // way. The loop guard skips sessions on the local provider, which have the
 // guard proxy in front of the model already.
 //
-// Failure: redaction fails closed (the output is withheld), everything else
-// fails open (the call and its result go through), as under Copilot.
+// Failure: redaction fails closed (the output is withheld), and so does a gate
+// marked failClosed (the call is denied). Everything else fails open (the call
+// and its result go through), as under Copilot.
 import { spawn } from "node:child_process"
 
 // What the model reads when redaction could not run. How to turn redaction off
@@ -201,10 +202,16 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
         if (!h.re.test(toolName)) continue
         const payload = { sessionId: input.sessionID, toolName, toolArgs, cwd, timestamp: Date.now() }
         const out = await run(["/bin/sh", "-c", h.command], payload, (h.timeout || 5) * 1000, cwd)
+        // A gate marked failClosed denies when it cannot answer. The command
+        // prints its own deny when the script is killed or fails, so null
+        // here means sh itself did not start or finish in time. The others
+        // allow.
+        if (out === null && h.failClosed) throw new Error(`${h.name} feilet eller svarte ikke innen fristen, så kallet er stoppet`)
         let answer
         try {
           answer = JSON.parse(out || "{}")
         } catch {
+          if (h.failClosed) throw new Error(`${h.name} feilet, så kallet er stoppet`)
           continue
         }
         const decision = answer?.permissionDecision ?? answer?.hookSpecificOutput?.permissionDecision

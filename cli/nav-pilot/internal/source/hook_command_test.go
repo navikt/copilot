@@ -1,6 +1,7 @@
 package source
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +30,7 @@ func TestHookCommandQuotesThePath(t *testing.T) {
 	if err := os.WriteFile(script, []byte("import sys\nprint('deny:' + sys.stdin.read())\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, 5))
+	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, 5, false))
 	cmd.Stdin = strings.NewReader("payload")
 	out, err := cmd.Output()
 	if err != nil {
@@ -44,7 +45,7 @@ func TestHookCommandQuotesThePath(t *testing.T) {
 // under load, and the hook missed the deadline.
 func TestHookCommandKeepsTwoSecondMargin(t *testing.T) {
 	for timeout, want := range map[int]string{5: "(sleep 3;", 3: "(sleep 1;"} {
-		if got := HookCommand("s.py", timeout); !strings.Contains(got, want) {
+		if got := HookCommand("s.py", timeout, false); !strings.Contains(got, want) {
 			t.Errorf("HookCommand(_, %d) lacks %q: %s", timeout, want, got)
 		}
 	}
@@ -53,7 +54,7 @@ func TestHookCommandKeepsTwoSecondMargin(t *testing.T) {
 // runHook runs HookCommand for a gate with body, the way Copilot does, with
 // mktemp writing under a directory of its own. It returns stdout, stderr and
 // that directory.
-func runHook(t *testing.T, body string, timeout int) (stdout, stderr, tmp string) {
+func runHook(t *testing.T, body string, timeout int, failClosed ...bool) (stdout, stderr, tmp string) {
 	t.Helper()
 	bin := t.TempDir()
 	wrapper := "#!/bin/sh\nexec '" + testhome.Python3(t) + "' \"$@\"\n"
@@ -75,7 +76,7 @@ func runHook(t *testing.T, body string, timeout int) (stdout, stderr, tmp string
 	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, timeout))
+	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, timeout, len(failClosed) > 0 && failClosed[0]))
 	cmd.Stdin = strings.NewReader("{}")
 	var o, e strings.Builder
 	cmd.Stdout, cmd.Stderr = &o, &e
@@ -129,6 +130,68 @@ func TestHookCommandCleansUpAfterKill(t *testing.T) {
 		t.Errorf("killed gate wrote stdout %q, stderr %q; want nothing", out, errOut)
 	}
 	emptyEventually(t, tmp)
+}
+
+// A gate marked failClosed denies when it is killed or fails, with a reason
+// that says which, and still passes on a clean answer, an empty one included.
+// Without the flag the same cases allow (TestHookCommandCleansUpAfterKill,
+// TestHookCommandForwardsStderr).
+func TestHookCommandFailClosed(t *testing.T) {
+	deny := func(why string) string {
+		return `{"permissionDecision":"deny","permissionDecisionReason":"gate ` + why + `, så kallet er stoppet"}`
+	}
+	// Only the killed case wants a short deadline; the others get a long one,
+	// so a python3 that is slow to start under load is not killed instead.
+	for name, c := range map[string]struct {
+		body, want string
+		timeout    int
+	}{
+		"killed": {"import time\ntime.sleep(30)\n", deny("svarte ikke innen fristen"), 3},
+		"failed": {"import sys\nprint('allow')\nsys.exit(1)\n", deny("feilet"), 20},
+		"answer": {"print('ok')\n", "ok", 20},
+		"silent": {"pass\n", "", 20},
+	} {
+		out, _, tmp := runHook(t, c.body, c.timeout, true)
+		if got := strings.TrimSpace(out); got != c.want {
+			t.Errorf("%s: stdout %q, want %q", name, got, c.want)
+		}
+		emptyEventually(t, tmp)
+	}
+	// No python3 at all, or no temp directory: the guards deny too.
+	for name, env := range map[string][]string{
+		"no python3": {"PATH=/nonexistent"},
+		"no mktemp":  {"PATH=" + os.Getenv("PATH"), "TMPDIR=/nonexistent"},
+	} {
+		cmd := exec.Command("/bin/sh", "-c", HookCommand("gate.py", 3, true))
+		cmd.Env = env
+		if out, err := cmd.Output(); err != nil || strings.TrimSpace(string(out)) != deny("feilet") {
+			t.Errorf("%s: %v, stdout %q", name, err, out)
+		}
+	}
+}
+
+// The gate's name lands in the deny reason, so a name with shell and JSON
+// metacharacters must neither run anything nor break the JSON.
+func TestHookCommandFailClosedQuotesTheName(t *testing.T) {
+	dir := t.TempDir()
+	name := "it's \"a\" $(touch pwned) `id`\nx"
+	cmd := exec.Command("/bin/sh", "-c", HookCommand(filepath.Join(dir, name+".py"), 3, true))
+	cmd.Dir = dir
+	cmd.Env = []string{"PATH=/nonexistent"}
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct{ PermissionDecision, PermissionDecisionReason string }
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("not JSON: %v: %q", err, out)
+	}
+	if got.PermissionDecision != "deny" || !strings.HasPrefix(got.PermissionDecisionReason, name+" ") {
+		t.Errorf("got %+v", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "pwned")); err == nil {
+		t.Error("the name's $(…) ran")
+	}
 }
 
 func TestLoadHookMetaTimeoutFloor(t *testing.T) {

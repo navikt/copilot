@@ -614,12 +614,31 @@ hook som går over fristen `null` fra `run` i `hooks-bridge.js` og
 (`nav-pilot hook redact`) går ikke gjennom watchdogen og holder tilbake
 utdataene ved timeout, som før.
 
-Alle portene foran et verktøykall feiler altså åpent, på begge klientene:
-python-hookene (`ask-first-aria`, `klarsprak-gate`, `gh-poll-gate` og dem en
-agentpakke installerer), `nav-pilot hook action-check` og delegeringssperren i
-`dispatch-gate.js`, som gir opp etter 2 s uten svar fra nav-pilot. Ryker
-fristen under last, går kallet gjennom uten at noen har sett på det. Bare
-redaksjonen feiler lukket.
+Alle portene foran et verktøykall feiler altså åpent som standard, på begge
+klientene: python-hookene (`ask-first-aria`, `klarsprak-gate`, `gh-poll-gate`
+og dem en agentpakke installerer), `nav-pilot hook action-check` og
+delegeringssperren i `dispatch-gate.js`, som gir opp etter 2 s uten svar fra
+nav-pilot. Ryker fristen under last, går kallet gjennom uten at noen har sett
+på det. Bare redaksjonen feiler lukket.
+
+Unntaket er en python-hook med `"failClosed": true` i `<navn>.hook.json`. Da
+skriver `HookCommand` selv et `deny`-svar der skriptet ellers ville sluppet
+kallet gjennom: `python3` mangler, `mktemp` feiler, skriptet avslutter med
+feil, eller watchdogen dreper det (exit 143). Begrunnelsen navngir porten og
+sier om den feilet eller ikke svarte i tide. Svaret skrives med `printf`, en
+builtin, så drapsstien venter fortsatt ikke på noen prosess den starter; den
+bakgrunnskjørte `rm` er som før den eneste. Navnet JSON-kodes og
+settes i enkle anførselstegn, så et navn med anførselstegn eller linjeskift
+kommer ikke ut av noen av dem. Oppføringen bærer flagget videre
+(`failClosed` i `copilot-hooks.json` og `~/.copilot/hooks/<navn>.json`), og
+broen i OpenCode nekter i tillegg når `sh` selv ikke starter eller blir
+ferdig innen fristen, og når et skript som avsluttet med 0 ga noe som ikke er
+JSON. To hull står igjen. Rekker ikke `sh` å skrive svaret før Copilots
+egen frist, tillater Copilot kallet uansett. Og et skript som avslutter med
+0, har svart, også når svaret er tomt eller uleselig: hva Copilot gjør med et
+uleselig svar, bestemmer Copilot. En eldre nav-pilot som kjører `install
+--repo`, skriver oppføringen på nytt uten flagget, så alle som installerer
+pakka må ha en nav-pilot som kjenner `failClosed`.
 
 Målt på en Mac med 18 kjerner: hook-kommandoen med et skript som sover i 30 s
 og `timeoutSec: 3` (frist 1 s), kjørt slik Copilot gjør det (`sh -c`, payload

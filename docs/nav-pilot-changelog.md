@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-08
 
+### Porter som stopper kallet når de ikke svarer
+
+- **`failClosed` for hooks**: En hook i en agentpakke kan sette `"failClosed": true` i `<navn>.hook.json`. Da nekter porten kallet når den bruker for lang tid, feiler eller mangler `python3`, i stedet for å slippe det gjennom, og modellen får vite hvilken port som stoppet det og hvorfor. Gjelder i Copilot CLI og OpenCode. Prisen er at en treg maskin stopper agenten, så bruk det bare for porter som må holde. Se [README.agentpakke.md](README.agentpakke.md#porter-som-skal-stoppe-kallet-når-de-ikke-svarer-failclosed).
+
 ### Færre feil på en travel Mac
 
 - **cplt blir funnet også når maskinen er travel**: nav-pilot ga opp etter 2 sekunder når den spurte `copilot` om versjonen eller `cplt` om innstillingene. På en travel Mac kan selv et program som ikke gjør noe, bruke lengre tid enn det på å starte. Da trodde nav-pilot at cplt manglet, eller `config setup` foreslo feil nettverksnivå. Nå venter nav-pilot opptil 8 sekunder, like lenge som oppstartssjekken gjør.

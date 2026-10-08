@@ -313,10 +313,16 @@ export default {
         if (!h.re.test(toolName)) continue
         const payload = { sessionId: event.sessionID, toolName, toolArgs, cwd, timestamp: Date.now() }
         const out = await run(["/bin/sh", "-c", h.command], payload, (h.timeout || 5) * 1000, cwd)
+        // A gate marked failClosed denies when it cannot answer. The command
+        // prints its own deny when the script is killed or fails, so null
+        // here means sh itself did not start or finish in time. The others
+        // allow.
+        if (out === null && h.failClosed) throw new Error(`${h.name} feilet eller svarte ikke innen fristen, så kallet er stoppet`)
         let answer
         try {
           answer = JSON.parse(out || "{}")
         } catch {
+          if (h.failClosed) throw new Error(`${h.name} feilet, så kallet er stoppet`)
           continue
         }
         const decision = answer?.permissionDecision ?? answer?.hookSpecificOutput?.permissionDecision
