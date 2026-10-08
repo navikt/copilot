@@ -68,7 +68,7 @@ func clientChatModels(copilotPath string) ([]string, bool) {
 	// The error is expected: the sentinel is rejected by design. What matters is
 	// whether the catalogue reached the log on the way there.
 	//
-	// Its own deadline, not cpltCommandTimeout. That one is 2s, tuned for `cplt
+	// Its own deadline, not cpltCommandTimeout. That one was 2s, tuned for `cplt
 	// --version`, and this probe measured 2.3s on the machine it was written on:
 	// under the shared budget it was killed just before writing the log, and
 	// doctor reported "could not read the catalogue" every time. A network round

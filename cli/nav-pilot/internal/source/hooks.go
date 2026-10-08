@@ -122,6 +122,13 @@ func LoadHookMeta(scriptPath string) HookMeta {
 // stderr goes to /dev/null (fd 4 keeps the real one for the script's), so
 // bash-as-sh does not report the jobs it killed.
 //
+// After the kill nothing else is started that the hook waits for: a killed
+// script (143, SIGTERM) has neither file printed, an empty stderr file is not
+// cat'ed either ([ is a builtin), and rm runs in the background, holding none
+// of the hook's pipes. A script that fails on its own still shows its stderr. On a busy Mac a process that does
+// nothing took up to 5 s from start to exit, and two of them after the kill
+// used up the two-second margin (hack/probes/RESULTS.md, 2026-10-08).
+//
 // The path is single-quoted: a HOME with a space in it would otherwise make
 // python3 fail to open the script, and every call would be allowed.
 func HookCommand(scriptPath string, timeoutSec int) string {
@@ -130,7 +137,7 @@ func HookCommand(scriptPath string, timeoutSec int) string {
 		"o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; exit 0; }; exec 3<&0 4>&2 2>/dev/null; "+
 		"python3 %[1]s <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; "+
 		"(sleep %[2]d; kill $p) >/dev/null 3<&- 4>&- & w=$!; "+
-		"wait $p && cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
+		"wait $p; r=$?; [ $r = 0 ] && cat \"$o\"; [ $r != 143 ] && [ -s \"$e\" ] && cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\" >/dev/null 4>&- & exit 0",
 		shellQuote(scriptPath), deadline)
 }
 

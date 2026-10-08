@@ -358,7 +358,13 @@ var latestCpltVersion = func() (string, error) {
 // cpltCommandTimeout bounds every cplt process spawn. Each spawn gets its own
 // deadline: no check may share a wall clock with an unrelated one. A var so
 // the tests can give their fake cplt more time on a loaded machine (#1335).
-var cpltCommandTimeout = 2 * time.Second
+//
+// 8 s, the budget the runtime gate gives `cplt --version`. The deadline is
+// for a cplt that hangs, not a slow one. During a full parallel test run a
+// bare `sh -c 'exit 0'` took up to 5 s from start to exit on a Mac
+// (hack/probes/RESULTS.md, 2026-10-08), and at 2 s a healthy cplt read as
+// absent: setup offered the wrong preset.
+var cpltCommandTimeout = 8 * time.Second
 
 // runBounded runs a command with its own deadline and returns its stdout.
 func runBounded(name string, args ...string) ([]byte, error) {
