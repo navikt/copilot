@@ -77,8 +77,8 @@ func pairedDiff(a, b []time.Duration) time.Duration {
 }
 
 // median is the true median: with an even count, the mean of the middle two.
-// The upper of the two would side with whichever run of a round comes second,
-// and the second run of a round is the slower one (see order).
+// The upper of the two would side with whichever run of a pair is slower,
+// and where a run sits in its round moves its time (see order).
 func median(d []time.Duration) time.Duration {
 	d = slices.Sorted(slices.Values(d))
 	n := len(d)
@@ -279,15 +279,19 @@ func TestLaunchBudget(t *testing.T) {
 		}
 	}
 
-	// The run right after one in budget mode is the slower one, whatever it
-	// is (it pays for what that run left behind), so telemetry on and off
-	// take turns being it.
-	order := func(i int) []mode {
-		if i%2 == 0 {
-			return []mode{budgetMode, telemetryOn, telemetryOff}
-		}
-		return []mode{budgetMode, telemetryOff, telemetryOn}
+	// Where a run sits in its round moves its time: the run right after one
+	// in budget mode pays for what that run left behind. So the rounds go
+	// through all six orders of the three modes, and every mode holds every
+	// place equally often (budgetRuns is a multiple of six).
+	orders := [][]mode{
+		{budgetMode, telemetryOn, telemetryOff},
+		{budgetMode, telemetryOff, telemetryOn},
+		{telemetryOn, budgetMode, telemetryOff},
+		{telemetryOff, budgetMode, telemetryOn},
+		{telemetryOn, telemetryOff, budgetMode},
+		{telemetryOff, telemetryOn, budgetMode},
 	}
+	order := func(i int) []mode { return orders[i%len(orders)] }
 
 	// One untimed run of each: the first run of a new binary pays for the
 	// OS's first look at it, and the first launch writes its one-time notices.
@@ -316,8 +320,10 @@ func TestLaunchBudget(t *testing.T) {
 		check(c.name, d)
 	}
 
-	// Both clients take turns in each round, so the opencode launch is held
-	// to the Copilot one run by run, like telemetry on to off.
+	// Both clients run in each mode of each round, next to each other, and
+	// which goes first alternates by round. The opencode launch is held to
+	// the Copilot one in the same pairs, so neither is always the run that
+	// follows the other.
 	clients := [][]string{
 		{"--", "-p", "hei"},
 		{"--client", "opencode", "--", "run", "hei"},
@@ -325,7 +331,8 @@ func TestLaunchBudget(t *testing.T) {
 	var launches, exits [2][modes][]time.Duration
 	for i := range budgetRuns {
 		for _, m := range order(i) {
-			for c, args := range clients {
+			for _, c := range []int{i % 2, 1 - i%2} {
+				args := clients[c]
 				_, launch, exit := run(m, args...)
 				if launch == 0 {
 					t.Fatalf("nav-pilot %v started no client", args)
