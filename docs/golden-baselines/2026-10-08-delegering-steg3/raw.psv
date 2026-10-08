@@ -34,3 +34,29 @@ rev1|d4|2|pass|gpt-6-sol:5.24 gpt-6-luna:0.26 |log: gpt-6-sol 1,gpt-6-luna 1; us
 rev1|d4|3|pass|gpt-6-sol:4.69 gpt-6-luna:0.30 |log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: research-agent:gpt-6-luna; labels: Research-agent (model: gpt-6-luna);
 rev1|d4|4|pass|gpt-6-sol:4.65 gpt-6-luna:0.27 |log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: research-agent:gpt-6-luna; labels: Research-agent (model: gpt-6-luna);
 rev1|d4|5|pass|gpt-6-sol:4.56 gpt-6-luna:0.18 |log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: research-agent:gpt-6-luna; labels: Research-agent (model: gpt-6-luna);
+rev2|d2|1|pass|gpt-6-sol:9.64 gpt-6-luna:0.19 |log: gpt-6-sol 1,gpt-6-luna 2; usage: gpt-6-luna,gpt-6-sol; subagents: worker:gpt-6-luna; labels: Worker (model: gpt-6-luna);
+rev2|d2|2|pass|gpt-6-sol:10.34 gpt-6-luna:0.07 |log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: worker:gpt-6-luna; labels: Worker (model: gpt-6-luna);
+rev2|d2|3|pass|gpt-6-sol:9.42 gpt-6-luna:0.08 |log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: worker:gpt-6-luna; labels: Worker (model: gpt-6-luna);
+rev2|d3|1|pass|gpt-6-sol:10.30 |log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+rev2|d3|2|pass|gpt-6-sol:7.79 |log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+rev2|d3|3|pass|gpt-6-sol:7.48 |log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+rev2|d3|4|pass|gpt-6-sol:7.25 |log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+rev2|d3|5|pass|gpt-6-sol:8.76 |log: gpt-6-sol 1; usage: gpt-6-sol; subagents: none; labels: none
+rev2|d4|1|pass|gpt-6-sol:4.85 gpt-6-luna:0.56 |log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: research-agent:gpt-6-luna; labels: Research-agent (model: gpt-6-luna);
+rev2|d4|2|pass|gpt-6-sol:4.53 gpt-6-luna:0.34 |log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: research-agent:gpt-6-luna; labels: Research-agent (model: gpt-6-luna);
+rev2|d4|3|pass|gpt-6-sol:4.56 gpt-6-luna:0.24 |log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: research-agent:gpt-6-luna; labels: Research-agent (model: gpt-6-luna);
+rev2|2|1|pass|(pass total) gpt-6-sol:33.52 |full tier: response stops after Fase 1 with questions outstanding
+rev2|2b|1|soft-pass|(pass total) gpt-6-sol:33.52 |full tier: Fase 1 ends with the blind-spot count
+rev2|3|1|pass|(pass total) gpt-6-sol:33.52 |#1: Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og behandles andre personopplysninger? #2: Skal innbyggeren kalle tjenesten direkte, eller via en frontend/BFF? Skal andre tjenester også kunne kalle den?
+rev2|4|1|pass|(pass total) gpt-6-sol:33.52 |Fase 2 output contains a 🔴 Rød sone declaration
+rev2|5|1|pass|(pass total) gpt-6-sol:33.52 |user context → TokenX, not Azure client_credentials  (canary)
+rev2|2|2|pass|(pass total) gpt-6-sol:30.84 |full tier: response stops after Fase 1 with questions outstanding
+rev2|2b|2|soft-pass|(pass total) gpt-6-sol:30.84 |full tier: Fase 1 ends with the blind-spot count
+rev2|3|2|pass|(pass total) gpt-6-sol:30.84 |#1: Hva skal tjenesten gjøre med fødselsnummeret: bruke det bare under forespørselen, lagre det eller sende det til andre tjenester? Hvilke tjenester eller team er i så fall mottakere? #2: Skal innbyggeren kalle et nytt endepunkt direkte via nettleser, eller skal en frontend/BFF kalle denne tjenesten på innbyggerens vegne?
+rev2|4|2|pass|(pass total) gpt-6-sol:30.84 |Fase 2 output contains a 🔴 Rød sone declaration
+rev2|5|2|pass|(pass total) gpt-6-sol:30.84 |user context → TokenX, not Azure client_credentials  (canary)
+rev2|2|3|pass|(pass total) gpt-6-sol:29.24 |full tier: response stops after Fase 1 with questions outstanding
+rev2|2b|3|soft-pass|(pass total) gpt-6-sol:29.24 |full tier: Fase 1 ends with the blind-spot count
+rev2|3|3|pass|(pass total) gpt-6-sol:29.24 |#1: Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller returneres i et svar? #2: Hvem skal kunne kalle de nye endepunktene?
+rev2|4|3|pass|(pass total) gpt-6-sol:29.24 |Fase 2 output contains a 🔴 Rød sone declaration
+rev2|5|3|pass|(pass total) gpt-6-sol:29.24 |user context → TokenX, not Azure client_credentials  (canary)

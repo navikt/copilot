@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+Bruk **TokenX token exchange** når tjeneste A kaller tjeneste B på vegne av en innbygger. A bytter brukerens token til et token med B som audience, og B validerer tokenet. Sett opp TokenX og eksplisitt `accessPolicy` i Nais for begge tjenestene. Ikke bruk Azure AD `client_credentials` her: det mister brukerkonteksten.
+
+Hvis brukeren er en Nav-ansatt med Azure AD-token, bruk i stedet Azure AD on-behalf-of-flyt.
+

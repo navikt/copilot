@@ -1,0 +1,10 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-10-08
+# revision:     8d42890e
+# model:        gpt-6-sol
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=1caabf65e3d4eb50 date=2026-10-08 n=75 agree=72 accuracy=0.960
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|0.152|Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller returneres i et svar?|Hvem skal kunne kalle de nye endepunktene?

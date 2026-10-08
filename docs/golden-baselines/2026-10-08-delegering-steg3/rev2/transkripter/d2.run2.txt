@@ -1,0 +1,77 @@
+● Locate instructions and Kotlin sources (shell)
+  │ ls .github/instructions 2>/dev/null; find . -name 'AGENTS.md' -o -name 'build.gradle.kts' -o
+  │ -name 'Vedtak.kt'
+  └ 19 lines…
+
+● Inspect project files (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 42 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect module layout and Gradle setup (shell)
+  │ find vedtak-api/src src -type f; cat vedtak-api/build.gradle.kts; cat build.gradle.kts; ls -la
+  │ vedtak-api
+  └ 43 lines…
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:120 (120 lines read)
+
+● Check Gradle availability and module documentation (shell)
+  │ ls -la vedtak-api/gradlew gradlew 2>&1; command -v gradle || true; cat
+  │ vedtak-api/settings.gradle.kts; cat README.md
+  └ 8 lines…
+
+Endret:
+- `vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt`
+- `vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt`
+
+La til `VedtakDto` med feltene i ønsket rekkefølge og `Vedtak.tilDto()` med ISO-dato via `toString()`. Enhetstesten verifiserer alle feltene og datoformatet. Kjørte ikke Gradle, som instruert.● Worker (model: gpt-6-luna) Legg til DTO-mapper                                                 12s
+  │ Endret:
+  │ Read VedtakTest.kt
+  │   │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  │   └ 12 lines read
+  └ Edit
+      │ Edit vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+      └ Edit vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 21 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 21 lines read
+
+● Edit
+  └ Edit vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+
+● Run vedtak-api Gradle tests (shell)                                                             6s
+  │ cd vedtak-api && gradle test --console=plain --quiet
+  └ No Content
+
+Lagt til `VedtakDto` i `vedtak-api` med feltene i ønsket rekkefølge, samt utvidelsesfunksjonen `Vedtak.tilDto()`. Mapperen gjør `fattet` om til en ISO-formatert datostreng. Enhetstesten dekker alle tre feltene, og `gradle test` besto.
+

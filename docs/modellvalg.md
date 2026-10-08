@@ -845,6 +845,33 @@ Hva målingen viser:
 
 Budsjett: om lag 350 credits, stopp ved 450. Brukt: 337,0 (rev0 d2, d3, d4: 121,6; rev1 d1–d4: 215,5).
 
+### Rev2 (8. oktober 2026)
+
+Eieren ba om en rev2 etter rev1: trivielle endringer (én fil, en omdøping, en skrivefeil, en konfigurasjonsverdi) gjør koordinatoren alltid selv og sender dem aldri videre. Resten av personaen er som i rev1. Målt med samme oppsett: d3 fem kjøringer, d2 og d4 tre kjøringer hver som stikkprøve, og t2–t5 med dagens KI-vurdering. D1 er ikke kjørt på nytt, fordi rev2 ikke endrer fase 3. Rådata ligger i [`rev2/`](golden-baselines/2026-10-08-delegering-steg3/rev2/) og som `rev2`-rader i raw.psv.
+
+| Test | Krav | Rev2 | Credits, median (spenn) |
+| ---- | ---- | ---- | ----------------------- |
+| d2 | 5/5, høyst 9,74 credits | 3/3 (`worker` på `gpt-6-luna`) | 9,82 (9,50–10,41) |
+| d3 | 5/5 | 5/5 | 7,79 (7,25–10,30) |
+| d4 | 5/5 | 3/3 (`@research-agent` på `gpt-6-luna`) | 4,87 (4,79–5,41) |
+| t2 | 5/5 | 3/3 | |
+| t3 | 5/5 | 3/3 | |
+| t4 | 4/5 | 3/3 | |
+| t5 | 5/5 | 3/3 | |
+| Planlegging, credits | høyst 27,2 | | 30,84 (29,24–33,52) per kjøring av t2–t5 |
+
+Planleggingen ble kjørt tre ganger, ikke fem. Hver kjøring kostet rundt 31 credits, og en fjerde ville gått over stoppen på 200 for denne runden. Ingen planleggingskjøring hadde en subagentrad, så personaen delegerte ikke i fase 1 og 2.
+
+**Konklusjon for rev2: delegeringen består, men kostnadskravene gjør det ikke.**
+
+- D3 består 5/5 igjen. Unntaket for trivielle oppgaver rettet feilen fra rev1.
+- D2 og d4 delegerer i alle stikkprøvene.
+- Planleggingen koster 30,84 credits i median, over kravet på 27,2. Kravet kommer fra batch 4 (6. oktober). Samme modell med personaen før denne endringen kostet 28,89 i median for de samme testene 8. oktober (sju kjøringer, [2026-10-08-planning-luna-sol-judge](golden-baselines/2026-10-08-planning-luna-sol-judge/)). En del av økningen fantes altså før steg 3. Resten, om lag 2 credits per kjøring, er trolig de nye linjene i personaen, som leses i hver tur.
+- D2 kostet 9,82 i median i tre kjøringer, rett over kravet på 9,74. Med fem kjøringer i rev1 var medianen 9,57. Tre kjøringer er for få til å si om d2 er over eller under.
+- Kvaliteten i planleggingen er like god: t2–t5 besto i alle tre kjøringene, med KI-vurderingen av blindsonene i t3.
+
+Brukt i rev2: 187,5 credits (d3 41,6; d2 29,7; d4 15,1; t2–t5 93,6; KI-vurderingen 0,4; kontrollene for KI-vurderingen 7,1, [blindsone-dommer-kontroller.psv](golden-baselines/blindsone-dommer-kontroller.psv)). Budsjett om lag 170, stopp ved 200. Totalt for steg 3: 524,5.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.

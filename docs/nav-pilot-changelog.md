@@ -22,7 +22,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Repospørsmål til `@research-agent`**: Spørsmål om hvordan repoet henger sammen går til `@research-agent` først.
 - **Uendret**: Trivielle oppgaver, forklaringer og feilsøking gjør `@nav-pilot` selv. Fasestoppene og modellporten til `@nav-pilot-opus` er som før.
 - **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply` for å få `worker` og den nye personaen. Mangler en agent, sier `@nav-pilot` fra og gjør jobben selv.
-- **Målt**: Se [modellvalg.md](modellvalg.md#delegering-fra-nav-pilot-steg-3-8-oktober-2026). Kriteriene er ikke oppfylt ennå.
+- **Målt**: Se [modellvalg.md](modellvalg.md#delegering-fra-nav-pilot-steg-3-8-oktober-2026). Delegeringen består, men planleggingen koster mer enn kravet.
 
 ### `nav-pilot doctor` sier fra når settings.json overstyrer modellen til en subagent
 

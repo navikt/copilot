@@ -1,0 +1,21 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-08
+# revision:     8d42890e
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      2,3,4,5
+#
+# id|run|status|assertion|detail
+2|1|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|1|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|1|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten gjøre med fødselsnummeret: bruke det bare under forespørselen, lagre det eller sende det til andre tjenester? Hvilke tjenester eller team er i så fall mottakere? #2: Skal innbyggeren kalle et nytt endepunkt direkte via nettleser, eller skal en frontend/BFF kalle denne tjenesten på innbyggerens vegne?
+4|1|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|

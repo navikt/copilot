@@ -1,0 +1,33 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-08
+# revision:     8d42890e
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      2,3,4,5
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+t2|1|7aacfedf-7d31-40a8-851c-b362879a60da|21888|0|gpt-6-sol|low|25127|137|9291|15833|33|4281670000|3292|2494.191542|tool_calls||
+t2|1|7aacfedf-7d31-40a8-851c-b362879a60da|21889|0|gpt-6-sol|low|25325|254|25124|198|0|806580000|2914|2848.53275|tool_calls||
+t2|1|7aacfedf-7d31-40a8-851c-b362879a60da|21890|0|gpt-6-sol|low|27460|360|25322|2135|10|1400790000|3535|3469.44025|tool_calls||
+t2|1|7aacfedf-7d31-40a8-851c-b362879a60da|21891|0|gpt-6-sol|low|28153|377|27457|693|49|1099990000|5760|1678.340792|stop||
+t4a|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21892|0|gpt-6-sol|low|25129|151|9291|15835|43|4296170000|3742|2691.721667|tool_calls||
+t4a|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21893|0|gpt-6-sol|low|25334|261|25126|205|10|815370000|2876|2814.709541|tool_calls||
+t4a|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21894|0|gpt-6-sol|low|25804|143|25331|470|15|767720000|3737|3674.303375|tool_calls||
+t4a|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21895|0|gpt-6-sol|low|26248|287|25801|444|14|914620000|2937|2887.909333|tool_calls||
+t4a|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21896|0|gpt-6-sol|low|26814|437|26245|566|65|1104000000|6913|2445.0011250000002|stop||
+t4b|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21897|1|gpt-6-sol|low|27423|51|25126|2294|31|1127620000|3646|3523.990167|tool_calls||
+t4b|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21898|1|gpt-6-sol|low|30953|18|27420|3530|0|1449500000|1234|1067.203458|tool_calls||
+t4b|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21899|1|gpt-6-sol|low|32556|94|30950|1603|74|1114350000|3925|2984.562333|tool_calls||
+t4b|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21900|1|gpt-6-sol|low|35774|46|32553|3218|25|1502160000|1660|1538.871833|tool_calls||
+t4b|1|dbb3e37a-7cd7-43d1-bcb1-6cb8066aedbd|21901|1|gpt-6-sol|low|41496|847|35771|5722|117|2993520000|12867|3231.292042|stop||
+t5|1|837fa5dd-a2d9-40c6-9b1b-f2025f480a76|21902|0|gpt-6-sol|low|25136|46|9291|15842|26|4192920000|2436|2296.082583|tool_calls||
+t5|1|837fa5dd-a2d9-40c6-9b1b-f2025f480a76|21903|0|gpt-6-sol|low|28306|77|25133|3170|0|1372760000|2326|1158.0905|stop||

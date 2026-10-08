@@ -1,0 +1,48 @@
+## Oppsummering
+
+Tjenesten er en liten Ktor-app med en fast, Kotlin-kodet grense: `maksAntall` er konstanten `100`, og ruta `/api/oppgaver` bruker den til å begrense lista i responsen. Det finnes ingen eksisterende kobling fra miljøvariabler eller Nais-konfigurasjon til denne grensen. For en miljøspesifikk grense må konfigurasjonen leses inn ved oppstart og gjøres tilgjengelig for ruta; Nais-manifestet må samtidig angi verdier for hvert miljø.
+
+## Hvordan delene henger sammen
+
+- **Oppstart:** `src/main/kotlin/no/nav/demo/App.kt:9–15` logger `maksAntall`, starter Ktor på port 8080, installerer JSON-serialisering og registrerer `oppgaveRoutes()`.
+- **Konfigurasjon:** `src/main/kotlin/no/nav/demo/Config.kt:1–4` definerer `maksAntall` som `const val` med verdien `100`. Dette er en kompileringstidskonstant, ikke en verdi som kan endres per miljø.
+- **Rute og dataflyt:** `src/main/kotlin/no/nav/demo/Routes.kt:8–18` har en privat, hardkodet liste med to `Oppgave`-objekter. `GET /api/oppgaver` tar de første `maksAntall` oppgavene og sender dem som `OppgaveRespons`.
+- **Domenemodell/API-format:** `src/main/kotlin/no/nav/demo/Oppgave.kt:5–10` definerer serialiserbare `Oppgave(id, tittel)` og `OppgaveRespons(oppgaver)`. Grensen endrer antallet elementer i responsen, ikke modellens felter.
+- **Nais:** `nais.yaml:1–13` angir appnavn, image, port og helseendepunkter. Der er ingen `env`- eller annen innstilling for `maksAntall`.
+
+## Alle relevante treff på `maksAntall`
+
+1. `src/main/kotlin/no/nav/demo/Config.kt:4` — deklarerer konstanten `100`.
+2. `src/main/kotlin/no/nav/demo/Routes.kt:16` — bruker konstanten i `oppgaver.take(maksAntall)`.
+3. `src/main/kotlin/no/nav/demo/App.kt:10` — skriver verdien til oppstartsloggen.
+
+Ingen andre treff finnes i repoets kildekode.
+
+## Hva som konkret må endres for en miljøspesifikk grense
+
+1. **Erstatt konstanten med runtime-konfigurasjon.** Endre `Config.kt` slik at grensen leses fra en runtime-kilde, for eksempel en miljøvariabel med en dokumentert standardverdi og validering. En miljøvariabel on its own gjør ikke oppsettet miljøspesifikt; den må få ulike verdier i de aktuelle utrullingsmiljøene.
+2. **Koble konfigureringen inn i oppstart og ruta.** `App.kt` moet hente/bygge konfigureringen ved oppstart og sende grensen til `oppgaveRoutes` (for eksempel som argument). `Routes.kt` må bruke den mottatte verdien istedenfor global konstant. Behold loggingen i `App.kt` bare dersom det er ønsket; da må den logge den effektive runtime-verdien.
+3. **Sett verdier per miljø i utrullingen.** `nais.yaml` inneholder nå ingen app-spesifikke miljøvariabler. Legg inn miljøvariabelen der med verdier for hvert miljø, eller bruk prosjektets eksisterende utrullingsoppsett dersom miljøverdiene defineres utenfor dette manifestet. Det finnes ikke filer i snapshotet som viser egne miljøoverstyringer, så plasseringen av slike verdier er ikke verifiserbar her.
+4. **Test både innlasting og effekt på responsen.** Legg til tester for konfigurasjonsverdien (inkludert ugyldig/manglende verdi, dersom en standard eller validering innføres) og ruterespons med ulike grenser.
+
+## Eksisterende testmønstre og begrensninger
+
+- Den eneste faktiske testen er `vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt:7–10`. Den bruker JUnit/Kotlin Test `@Test` og `assertEquals` for en enkel domenemodellassert.
+- `vedtak-api/build.gradle.kts:10–17` inkluderer `testImplementation(kotlin("test"))` og aktiverer JUnit Platform. Dette gjelder undermodulen `vedtak-api`; rotens `build.gradle.kts` deklarerer ikke testavhengigheter.
+- Det er **ingen testkonfigurasjon ega tester for Ktor-rutene** i `src/main`-appen. Ktor `testApplication` er nevnt som anbefalt mønster i `.github/instructions/kotlin.instructions.md:425–441`, men dette er instruksjonsfil, ikke et etablert testoppsett i appen. For rutetester må testavhengigheter og testoppsett derfor først etableres.
+
+**Konfidens: Høy** for kildekodeflyten og treffene. **Middels** for nøyaktig Nais-mekanisme for miljøverdier: repoet viser bare ett manifest og ingen miljøoverstyringer.● Research-agent (model: gpt-6-luna) Kartlegg konfigurasjon og maksAntall                        32s
+  │ ## Oppsummering
+  │ Search (grep)
+  │   │ "application.conf|environment|env\(|System.getenv|ConfigFactory|configMap|vars:|env:|testImp
+  │   leme
+  │   │ ntation|TestApplication|testApplication"
+  │   └ 41 lines found
+  └ Read testing-kotlin.instructions.md
+      │ .github/instructions/testing-kotlin.instructions.md
+      └ 185 lines read
+
+`maksAntall` er i dag **hardkodet til 100** i `src/main/kotlin/no/nav/demo/Config.kt`. Ved oppstart logger `App.kt` verdien og registrerer `oppgaveRoutes()`. I `Routes.kt` bruker `GET /api/oppgaver` verdien i `oppgaver.take(maksAntall)` før resultatet pakkes i `OppgaveRespons`, som er definert i `Oppgave.kt`. Den hardkodede lista har bare to oppgaver, så grensen på 100 påvirker ikke responsen slik appen står nå.
+
+For å styre grensen per miljø må `Config.kt` lese og validere en verdi ved oppstart, `App.kt` sende den videre til `oppgaveRoutes()`, og `Routes.kt` bruke den mottatte verdien fremfor konstanten. Ulike miljøverdier må deretter settes i utrullingskonfigurasjonen; `nais.yaml` har ingen slik variabel i dag. Test både innlesing av ugyldige verdier og at ruta begrenser responsen som forventet. Ingen filer er endret.
+

@@ -1,0 +1,22 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● skill(nav-auth)
+
+● skill(klarsprak)
+
+## Fase 2: plan
+
+**Beslutning:** Bygg en separat, stateless Ktor-tjeneste som returnerer innlogget innbyggers navn. Wonderwall håndterer ID-porten-innlogging ved tjenesten. Tjenesten henter fødselsnummer fra et validert token, bruker TokenX for et brukerkontekst-token til PDL og returnerer bare navnet. Den tar ikke fødselsnummer som parameter og lagrer verken fødselsnummer eller navn. Dette gir én tydelig tilgangsvei, men krever at teamet lærer både Wonderwall og TokenX før produksjonssetting. Vi velger ikke et maskin-til-maskin-token, fordi PDL-kallet skal beholde innbyggerens kontekst.
+
+**Grenseflate og plassering:** Foreslå `GET /api/meg` med `200 {"navn":"..."}`. Manglende eller ugyldig innlogging gir `401`; feil ved PDL eller TokenX-utveksling gir `503` med en generell feilrespons i ProblemDetail-format. Avklar rutingen mot den eksisterende Next.js-frontenden før implementering: nettleserkallet må nå Wonderwall på tjenestens inngang uten at frontend videresender et uvalidert identitetsfelt. Bekreft også PDLs påkrevde audience og at denne ID-porten-flyten støtter TokenX-utvekslingen.
+
+**Filer og drift:** Behold Ktor-strukturen og legg til avgrensede moduler for autentisert rute, PDL-klient og feilhåndtering. Nais-manifestet skal aktivere ID-porten med Wonderwall-sidecar og TokenX, gi eksplisitt outbound-`accessPolicy` til PDL og avgrense inbound etter valgt frontend-ruting. Eksponering av inngangen må tilpasses nettleserkallet. Ingen database, migrasjoner, Kafka eller nye GCP-ressurser. Legg til health-endepunkter og Prometheus-metrikker; start med små ressursforespørsler uten CPU-grense.
+
+**Leveranse og kontroll:** CI skal bygge og kjøre tester før deploy til dev, deretter prod. Test med gyldig og ugyldig token, at identiteten alltid kommer fra tokenet, PDL-svar, og at nedstrøms feil gir `503` uten personopplysninger i respons eller logger. Mål oppslag per minutt og feilandel, med alarmer for vedvarende PDL-feil. Logg feiltype og korrelasjons-ID, ikke token, fødselsnummer eller navn. Endringsdokumentet skal beskrive API-et, PDL-avhengigheten og rollback til forrige image; etter deploy kontrolleres innlogging, oppslag og metrikker i dev før prod.
+
+🔴 **Rød sone, skriv og forstå selv:** uttrekk av fødselsnummer fra validert identitet, tilgangskontroll og TokenX-utveksling til PDL. Dette er sikkerhetskritisk, og TokenX og Wonderwall er nytt for teamet. 🟢 **Grønn sone:** manifestutkast, CI, metrikker, dokumentasjon og testoppsett, med gjennomgang før merge.
+
+Planen er ikke sikkerhetsgjennomgått ennå. **Neste fase er review av planen**, ikke kodeendringer. Still gjerne spørsmål om valgene over.
+
