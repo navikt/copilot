@@ -1,0 +1,47 @@
+🛡️ Sikkerhet: Vurdering av Fase 2-planen (kun plan, ikke implementert)
+
+**Kritiske justeringer**
+
+1. **Verifiseringsgrensen ligger i Ktor, ikke i Wonderwall.** Wonderwall tar seg av innloggingen. Next.js-backenden veksler så tokenet via TokenX, og Ktor-tjenesten må selv validere TokenX-tokenet den får: signatur, `iss`, `aud` = egen client-id, `exp` og `acr` = `idporten-loa-high`. Fnr hentes kun fra `pid` i det validerte tokenet. Ingen fnr i path, query, body eller header, og ingen tillit til headere satt av frontend.
+   *Justering:* Skriv i planen at Ktor kun godtar TokenX-tokens med eget audience, og at rå ID-porten-tokens avvises.
+2. **Inngående tilgang.** `accessPolicy.inbound` skal kun tillate den konkrete Next.js-appen i riktig namespace, og `tokenx.enabled: true` må være satt. Ingen `*`, ingen ingress hvis den ikke trengs, og helst kun intern trafikk. Sjekk at appen som er autorisert i TokenX er den samme som står i inbound-regelen.
+3. **PDL-scope og audience.** Ktor gjør en ny TokenX-veksling (on-behalf-of) med PDL som audience, `<cluster>:pdl:pdl-api`. Det skal ikke brukes Azure client credentials, for da forsvinner brukerkonteksten. Bekreft også at PDL støtter TokenX for dette oppslaget, og at det finnes behandlingsnummer og `Behandlingsnummer`-header.
+   *Justering:* Legg til behandlingsnummer, en TokenX-registrering hos PDL og eksplisitt `outbound.rules` (eller `external`-host) for PDL.
+
+**Medium**
+
+4. **Adressebeskyttelse.** Personer med fortrolig eller strengt fortrolig adresse ser bare sitt eget navn, så risikoen er lav. Planen bør likevel si eksplisitt at det kun hentes navn og ingen adressefelt. Spør om minimalt GraphQL-felt (`navn`).
+5. **Feilhåndtering mot PDL.**
+   - Kun PDL-feil (5xx og timeout) skal mappes til 503.
+   - Svar som «ikke funnet», 401 og 403 fra PDL skal skilles ut og logges uten fnr, som 404 eller 500 og ikke 503. Ellers skjuler 503 feilkonfigurasjon.
+   - Sett timeout og et begrenset antall retries, og vurder circuit breaker.
+   - Feilmeldinger fra PDL (GraphQL `errors` og `extensions`) skal aldri videresendes til klienten.
+6. **Logging.** Ikke logg request- eller response-body fra PDL. Ingen `toString` på domeneobjekter som inneholder navn eller fnr. Exceptions fra HTTP-klienten kan inneholde body, så de må vaskes. CallLogging skal ikke ta med headere (`Authorization`). Metrikker skal ha labels med lav kardinalitet: status og feiltype, aldri fnr eller navn.
+7. **Caching.** Ingen lagring betyr også ingen delt cache som kan blande brukere. Sett `Cache-Control: no-store` på responsen, og sjekk at Next.js og CDN ikke cacher `/api/meg/navn`.
+
+**Lav og god praksis**
+
+- Auditlogg i CEF er ikke påkrevd, siden borgeren ser sine egne data og ingen ansatte er involvert. Bekreft dette med personvernombud eller ROS.
+- Rate limiting per bruker eller sesjon (vern mot misbruk av PDL-kvote).
+- Distroless- eller Chainguard-image, Trivy, Dependabot og zizmor i CI.
+- Alarm på feilandel og på uvanlig mange 401/403.
+- Test som bekrefter at tokens med feil `aud`, feil `acr` eller som har utløpt blir avvist.
+
+**Oppsummert:** Planen er god. Den må likevel sette verifiseringsgrensen eksplisitt i Ktor (TokenX-audience og `acr`), knytte inbound til én app, beskrive OBO-vekslingen mot PDL med behandlingsnummer, og utdype feilmappingen slik at det ikke blir 503 for alle feil.● Security-champion-agent (model: claude-opus-5.5) Vurder sikkerhet i tjenesteplan               21s
+  └ 🛡️ Sikkerhet: Vurdering av Fase 2-planen (kun plan, ikke implementert)
+
+## Fase 3: Gjennomgang
+
+Planen er **godkjent med endringer**. Sikkerhetsgjennomgangen avdekket at planen må beskrive tokenkjeden tydeligere før levering.
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Next.js må kalle Ktor med et TokenX-token. Ktor må validere tokenet for egen mottaker og hente fødselsnummer kun fra verifisert token. Rå ID-porten-token og identitet fra klientstyrte headere eller parametere skal avvises. Begrens inngående Nais-tilgang til den konkrete frontend-appen. |
+| Plattform | ⚠️ | Bekreft PDLs TokenX-tilgang og behandlingsnummer før konfigurasjon. Angi tidsavbrudd mot PDL; hold helseendepunktene uavhengige av PDL. |
+| Arkitektur | ✅ | Et oppslag uten lagring eller kø passer behovet. Hent bare navnefeltene som trengs, og sett `Cache-Control: no-store` i hele svarløpet, også i Next.js. |
+| Endringssikkerhet | ⚠️ | Test avvisning av ugyldige token og at PDL-feil ikke lekker persondata. Skill PDL-utfall: driftsfeil og tidsavbrudd gir 503, mens for eksempel 401/403 fra PDL må synliggjøres som konfigurasjonsfeil, ikke kamufleres som nedetid. |
+
+**Konklusjon:** Planen kan gå til levering med disse endringene. Først må vi bekrefte PDLs konkrete TokenX-krav, behandlingsnummer og hvilken frontend-app som skal få inngående tilgang; de verdiene kan ikke gjettes. 🔴 Rød sone: tokenvalidering og uthenting av fødselsnummer må gjennomgås grundig av teamet.
+
+Dette er slutten på fase 3. Jeg avventer godkjenning før fase 4. Still gjerne spørsmål om valgene over.
+

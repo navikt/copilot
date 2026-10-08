@@ -1,0 +1,45 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+/ Search (glob)
+  │ ".github/{copilot-instructions.md,copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/{AGENTS.md,*.conf,*.yaml,*.yml,*.kt,*.ts,*.go}"
+  └ 7 files found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 42 lines…
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+`maksAntall` er en hardkodet konstant på `100` i `src/main/kotlin/no/nav/demo/Config.kt`. Ruten `GET /api/oppgaver` i `Routes.kt` bruker den i `oppgaver.take(maksAntall)` før den svarer med `OppgaveRespons`. Domenemodellen i `Oppgave.kt` definerer bare `Oppgave` og responsens liste; den eier ikke grensen. `App.kt` logger verdien ved oppstart og registrerer ruten.
+
+For å styre grensen per miljø må konstanten erstattes med en konfigurert verdi som leses og valideres ved oppstart, for eksempel fra `MAKS_ANTALL` med en eksplisitt standardverdi. Send verdien inn i `oppgaveRoutes` og bruk samme verdi i oppstartsloggen. Sett deretter `MAKS_ANTALL` i Nais-konfigurasjonen for hvert miljø. Slik får ruten og loggen én felles kilde, uten å endre domenemodellen eller API-responsen. Tjenesten har nå bare én `nais.yaml`; egne miljøverdier er ikke satt opp i repoet.
+

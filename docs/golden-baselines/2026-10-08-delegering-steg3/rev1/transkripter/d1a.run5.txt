@@ -1,0 +1,64 @@
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,nav-pilot-design.md}"
+  └ 3 files found
+
+● Inspect repository and Copilot configuration (shell)
+  │ pwd; ls -la; ls -la .github 2>/dev/null; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then printf '%s present\n' "$f";
+  │ else printf '%s missing\n' "$f"; fi; done
+  └ 18 lines…
+
+● List directory vedtak-api
+  └ 3 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● List directory src
+  └ 1 file found
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 6 files found
+
+/ Search (glob)
+  │ "**/*.{yaml,yml,md}"
+  └ 29 files found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 1: Avklaring.** Jeg tolker dette som en ny innbyggerrettet tjeneste med ID-porten-innlogging. Repoet har en liten Ktor-tjeneste på Nais, men ingen ID-porten-konfigurasjon eller eksisterende håndtering av fødselsnummer. Før vi velger løsning, trenger jeg svar på:
+
+- Hva skal tjenesten gjøre med fødselsnummeret: bare bruke det i én forespørsel, sende det til andre tjenester eller lagre det? Behandles også andre personopplysninger?
+- Hvem skal kunne kalle tjenesten: kun den innloggede innbyggeren via nettleser, eller også andre tjenester? Skal den kunne hente data om andre enn den innloggede?
+- Hvilke tjenester skal den eventuelt kalle, og hva skal skje hvis de er utilgjengelige?
+- Er dette en videreføring av `demo-tjeneste` eller en separat tjeneste? Finnes det konsumenter eller en utrullingsplan vi må ta hensyn til?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette repo-lokal Copilot-konfigurasjon. Jeg går ikke videre til plan eller kode før disse avklaringene er gjort.
+
+Blindsoner reist: 5/11 (#1, #2, #3, #5, #6 stilt; #4 og #7–#11 avventer avgrensning).
+

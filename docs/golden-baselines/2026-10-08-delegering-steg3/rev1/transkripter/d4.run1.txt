@@ -1,0 +1,51 @@
+## Sammendrag
+
+Dette repoet er en liten Ktor-demo. Applikasjonen oppretter HTTP-serveren og JSON-serialisering i `App.kt`, mens ruta i `Routes.kt` returnerer en liste med `Oppgave`-objekter pakket i `OppgaveRespons`. `maksAntall` er nå en global Kotlin-konstant på `100`: den skrives ut ved oppstart og begrenser antallet oppgaver ruta tar med. Det finnes ingen innlesing eller validering av denne verdien, og ingen miljøspesifikke innstillinger i Nais-manifestet.
+
+## Hvordan konfigurasjon, ruter og modell henger sammen
+
+- `src/main/kotlin/no/nav/demo/Config.kt:1–4` definerer `const val maksAntall = 100`. Kommentaren beskriver den som maks antall oppgaver per respons.
+- `src/main/kotlin/no/nav/demo/App.kt:8–14` starter Ktor på port `8080`, installerer `ContentNegotiation` med JSON og registrerer `oppgaveRoutes()`. Linje 10 skriver ut `maksAntall` ved oppstart.
+- `src/main/kotlin/no/nav/demo/Routes.kt:7–10` definerer den lokale oppgavelista med to oppgaver. Linje 12–18 registrerer `GET /api/oppgaver`; linje 16 tar de første `maksAntall` oppgavene og svarer med `OppgaveRespons`.
+- `src/main/kotlin/no/nav/demo/Oppgave.kt:5–8` definerer serialiserbare dataklasser: `Oppgave(id, tittel)` og `OppgaveRespons(oppgaver: List<Oppgave>)`. Ruta bruker dermed modellen som JSON-responsens struktur.
+- `nais.yaml:1–13` beskriver Nais-applikasjonen, port `8080` og health-check-ruter. Den har ikke miljøspesifikke variabler eller innstillinger for `maksAntall`.
+
+## Alle bruk av `maksAntall`
+
+1. `src/main/kotlin/no/nav/demo/Config.kt:4` — deklarasjon: `const val maksAntall = 100`.
+2. `src/main/kotlin/no/nav/demo/App.kt:10` — oppstartslogg.
+3. `src/main/kotlin/no/nav/demo/Routes.kt:16` — grense på responslista via `oppgaver.take(maksAntall)`.
+
+Ingen andre treff finnes i repoet. Verdien settes altså ved kompilering som konstant, ikke fra miljøvariabel, konfigurasjonsfil eller Nais. Det finnes heller ingen eksplisitt validering. Kotlin-typen `Int` sikrer bare at konstanten er et heltall; den sikrer ikke at den er positiv eller innenfor en ønsket øvre grense. `take(n)` håndterer negative verdier som en tom liste, så en utilsiktet negativ grense gir ikke her en valideringsfeil.
+
+## Hva som konkret må endres for miljøspesifikk konfigurasjon
+
+For å kunne sette grensen separat per miljø må konstanten erstattes med en runtime-innstilling, og verdien må føres gjennom appen til ruta:
+
+1. **Les inn konfigurasjonen** i `Config.kt` eller et eget konfigurasjonsobjekt, for eksempel fra en miljøvariabel. Bestem om manglende verdi skal gi standardverdi eller stoppe oppstart.
+2. **Valider ved oppstart** at verdien kan parses som heltall og ligger i tillatt intervall, for eksempel `> 0` og eventuelt en definert øvre grense. Avklar også ønsket håndtering av manglende eller ugyldig verdi.
+3. **Koble inn verdien i `App.kt`** når applikasjonen startes, og gjør den tilgjengelig for `oppgaveRoutes` i stedet for at ruta leser en global `const`.
+4. **Bruk runtime-verdien i `Routes.kt:16`** ved `take(...)`. Oppstartsloggen bør rapportere den innlastede verdien, ikke lenger vise en konstant.
+5. **Legg miljøverdiene inn i deploy-konfigurasjonen**. `nais.yaml` mangler i dag denne innstillingen. Hvis miljøene deployes med egne manifests eller overlays, må verdien angis der per miljø; hvis ett manifest brukes med miljøvariasjon, må valgte Nais/deploy-mønsteret uttrykke forskjellene. Repoet inneholder ikke miljøoverlays som viser hvilket av disse mønstrene som allerede er i bruk.
+
+## Tester og deploy-mønstre
+
+- **Tester:** `vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt:7–12` viser et enkelt JUnit/Kotlin-testmønster: en `@Test`-funksjon og `assertEquals`. Testen gjelder `Vedtak`-modellen, ikke Ktor-rutene eller `maksAntall`. Jeg finner ingen tester for demo-tjenestens rute, konfigurasjon eller validering.
+- **Testoppsett:** `vedtak-api/build.gradle.kts:10–18` har `kotlin("test")`, JUnit Platform og JVM toolchain 21. Rotens `build.gradle.kts:1–13` setter Kotlin/serialization og Ktor-avhengigheter, men viser ikke et tilsvarende testoppsett.
+- **Deploy:** `nais.yaml:1–13` er det eneste synlige Nais-manifestet. Det definerer image, port og liveness/readiness, men ikke miljøspesifikke verdier. I de undersøkte filene finnes det ingen CI/deploy-workflow eller separate miljømanifest som dokumenterer hvordan deployer velger miljøinnstillinger.
+
+**Anbefaling:** Legg til tester som dekker både god/ugyldig/manglende konfigurasjon og at `GET /api/oppgaver` begrenser responsen til den injiserte verdien. Deretter legg inn verdien i den faktiske miljøspesifikke deploykonfigurasjonen. Nøyaktig deployfil for hvert miljø kan ikke fastslås ut fra repoets nåværende innhold.
+
+**Konfidens: Høy** for nåværende kodeflyt og bruk av `maksAntall`; **middels** for anbefalt deployendring fordi repoet ikke viser miljø- eller CI/CD-oppsett.● Research-agent (model: gpt-6-luna) Kartlegg konfigurasjon og ruter                             32s
+  │ ## Sammendrag
+  │ Read testing-kotlin.instructions.md
+  │   │ .github/instructions/testing-kotlin.instructions.md
+  │   └ 185 lines read
+  └ Search (grep)
+      │ "environment|env|test|assert|validate|require|check" (nais.yaml)
+      └ 200 lines found
+
+`maksAntall` er i dag en kompilert konstant, ikke en miljøinnstilling. `Config.kt:4` setter den til `100`. `App.kt:8–14` starter Ktor, installerer JSON-støtte og registrerer rutene; `Routes.kt:12–18` bruker `oppgaver.take(maksAntall)` i `GET /api/oppgaver`. Resultatet pakkes i `OppgaveRespons` fra `Oppgave.kt:5–8` og serialiseres til JSON. Verdien skrives også ut ved oppstart i `App.kt:10`.
+
+For å gjøre grensen konfigurerbar per miljø må `Config.kt` lese en verdi ved oppstart i stedet for å bruke `const val`, validere at den er et positivt heltall, og sende den via `App.kt` til `oppgaveRoutes`. Da bruker både ruta og oppstartsmeldingen samme innleste verdi. Miljøvariabelen må settes i deployoppsettet; `nais.yaml` har ingen slik variabel i dag, og repoet viser ingen separate miljømanifest. Legg til tester for innlesing, ugyldige verdier og responsgrensen. **Rød sone — forstå dette grundig:** valideringen ved oppstart hindrer at feil miljøkonfigurasjon først oppdages når ruta kalles. Grensen håndheves per respons, ikke per miljø før denne koblingen er gjort.
+

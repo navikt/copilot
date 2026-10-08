@@ -14,6 +14,16 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **OpenCode-versjonen leses med samme frist som ved oppstart**: Før kunne en treg `opencode --version` gi feilmeldingen «cplt too old».
 - **Trege hooks slipper gjennom i tide**: En hook som blir stoppet fordi den bruker for lang tid, starter ikke lenger nye prosesser etterpå, så kallet slipper gjennom før Copilot gir opp. Gjelder etter neste `nav-pilot sync --apply`.
 
+### `@nav-pilot` sender arbeid videre til andre agenter
+
+- **Koordinator**: I komprimerte og fulle oppgaver planlegger `@nav-pilot`, sender arbeid videre og kontrollerer resultatet. Den skriver ikke applikasjonskode selv.
+- **Kode til `worker`**: Kode, tester og skjelett i grønn sone går til `worker` (GPT-6 Luna) med en kort brief. `@nav-pilot` kjører sjekken selv etterpå og tar over hvis den feiler to ganger.
+- **Sikkerhet til `@security-champion-agent`**: I fulle oppgaver vurderer `@security-champion-agent` (Claude Opus 5.5) sikkerheten i fase 3. Det gjør fase 3 dyrere, om lag dobbelt så mange credits i målingen.
+- **Repospørsmål til `@research-agent`**: Spørsmål om hvordan repoet henger sammen går til `@research-agent` først.
+- **Uendret**: Trivielle oppgaver, forklaringer og feilsøking gjør `@nav-pilot` selv. Fasestoppene og modellporten til `@nav-pilot-opus` er som før.
+- **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply` for å få `worker` og den nye personaen. Mangler en agent, sier `@nav-pilot` fra og gjør jobben selv.
+- **Målt**: Se [modellvalg.md](modellvalg.md#delegering-fra-nav-pilot-steg-3-8-oktober-2026). Kriteriene er ikke oppfylt ennå.
+
 ### `nav-pilot doctor` sier fra når settings.json overstyrer modellen til en subagent
 
 - **Advarsel, ingen feil**: Har en agent `model:` i agentfila, og `~/.copilot/settings.json` setter `subagents.agents.<navn>.model` til `inherit` eller en annen modell, sier `doctor` fra. Da kjører agenten på en annen modell når en annen agent delegerer til den.

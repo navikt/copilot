@@ -1,0 +1,91 @@
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Vedtak*"
+  └ 2 files found
+
+/ Search (glob)
+  │ ".github/instructions/{kotlin,testing-kotlin,testing}.instructions.md"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/build.gradle*"
+  └ 2 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:145 (145 lines read)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L146:end (596 lines read)
+
+/ Search (glob)
+  │ "{.github/copilot-instructions.md,.github/copilot-review-instructions.md,gradlew,settings.gradle
+  │ .kts}"
+  └ No matches found
+
+/ Search (glob)
+  │ "vedtak-api/src/**/*"
+  └ 2 files found
+
+Endringene er gjort i `Vedtak.kt`, ny `VedtakDto.kt` og `VedtakTest.kt`. Enhetstesten verifiserer alle feltene, inkludert datoformatet `2026-10-08`.
+
+Gradle ble ikke kjørt, som ønsket.● Worker (model: gpt-6-luna) Legg til DTO mapper                                                  8s
+  │ Endringene er gjort i `Vedtak.kt`, ny `VedtakDto.kt` og `VedtakTest.kt`. Enhe...
+  │ Read VedtakTest.kt
+  │   │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  │   └ 12 lines read
+  └ Edit
+      │ Edit vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+      │ Create vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+      └ Edit vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+
+● Read VedtakDto.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+  └ 7 lines read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 15 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 21 lines read
+
+● Check available Gradle runner (shell)
+  │ ls -la gradlew settings.gradle.kts 2>/dev/null; command -v gradle || true
+  └ 1 line…
+
+● Run vedtak-api Gradle tests (shell)
+  │ cd vedtak-api && gradle test --quiet
+  └ No Content
+
+Lagt til `VedtakDto` med feltene `vedtakId`, `belop` og `fattet` i ønsket rekkefølge. `Vedtak.tilDto()` gjør datoen om til ISO-format, og enhetstesten kontrollerer alle tre feltene. `gradle test` i `vedtak-api` besto.
+

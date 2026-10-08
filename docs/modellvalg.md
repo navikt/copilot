@@ -818,6 +818,33 @@ Avvik fra planen og forbehold:
 - Debugloggen har én `turn tool surface resolved`-linje per prompt og modell, ikke én per modellkall. I d1a viser bruksradene fem kall og loggen én linje. Testene bruker linjene bare til å se hvilke modeller som kjørte, ikke hvor mange kall.
 - Debugloggene er ikke lagt i repoet, fordi de inneholder hele forespørslene. Linjene testene bruker står i `raw.psv`.
 
+## Delegering fra @nav-pilot: steg 3 (8. oktober 2026)
+
+`@nav-pilot` er gjort om til koordinator ([agents/nav-pilot.agent.md](../agents/nav-pilot.agent.md)). I komprimerte og fulle oppgaver sender den grønn kode til `worker`, sikkerhetsperspektivet i fase 3 til `@security-champion-agent` og spørsmål om repoet til `@research-agent`. Målt mot kriteriene i [grunnmålingen](#delegering-fra-nav-pilot-grunnmåling-8-oktober-2026), med det samme oppsettet: Copilot CLI, `--model gpt-6-sol --effort low`, fem kjøringer per test, `--keep`. Rådata ligger i [`golden-baselines/2026-10-08-delegering-steg3/`](golden-baselines/2026-10-08-delegering-steg3/), én rad per kjøring i [raw.psv](golden-baselines/2026-10-08-delegering-steg3/raw.psv). Alle bruksradene for forelderen viser `gpt-6-sol`, så ingen kjøring er forkastet.
+
+Personaen ble endret én gang underveis (rev1), etter at d4 strøk 0/5 med første versjon (rev0). Rev0 sa at forklaringer ikke skulle sendes videre, og modellen leste spørsmålet om repoet som en forklaring. Rev1 sier at spørsmål om repoet går til `@research-agent` før koordinatoren leser filer selv, og at koordinatoren ikke skriver applikasjonskode, «however small the change».
+
+| Test | Krav | Grunnmåling | Rev0 | Rev1 | Credits rev1, median (spenn) |
+| ---- | ---- | ----------- | ---- | ---- | ---------------------------- |
+| d1 | 5/5 | 0/5 | ikke kjørt | 5/5 | 19,18 (15,44–29,42) |
+| d2 | 5/5, høyst 9,74 credits | 0/5, 9,74 | 4/5, 9,54 | 5/5 | 9,57 (8,79–11,07) |
+| d3 | 5/5 | 5/5 | 5/5 | **4/5** | 8,18 (7,91–9,21) |
+| d4 | 5/5 | 0/5 | **0/5** | 5/5 | 4,99 (4,75–5,51) |
+| t2–t5 | t2 5/5, t3 5/5, t4 4/5, t5 5/5, høyst 27,2 credits | | ikke kjørt | ikke kjørt | |
+
+**Konklusjon: kriteriene er ikke oppfylt.** D3 strøk i rev1: i kjøring 4 sendte koordinatoren omdøpingen i tre filer til `worker`. Det er den nye setningen om at også små endringer skal sendes videre, som trekker en oppgave på grensen mellom triviell og komprimert over til `worker`. Endringen ga altså d4, men kostet d3. Etter regelen om høyst én revisjon er personaen ikke justert mer.
+
+Planleggingen (t2–t5) er ikke kjørt. Steg 3 kostet 337,0 credits før den, og fem kjøringer av t2–t5 koster om lag 136. Det ville gått over stoppen på 450.
+
+Hva målingen viser:
+
+- **Delegeringen virker.** Hver delegering i bruksradene hadde riktig agent på riktig pinne: `worker` og `@research-agent` på `gpt-6-luna`, `@security-champion-agent` på `claude-opus-5.5`.
+- **D2 sparer nesten ingenting.** `worker` kostet 0,07–0,26 credits per kjøring, men koordinatoren på GPT-6 Sol brukte fortsatt 8,5–11 credits på å lese, skrive briefen og kontrollere. Medianen 9,57 er under kravet på 9,74 og langt fra målet på 4,87.
+- **D1 koster om lag dobbelt så mye.** Median 19,18 mot 9,94 i grunnmålingen. `@security-champion-agent` på Opus kostet 3,9–18,1 credits per kjøring.
+- **D4 ble billigere.** Median 4,99 mot 5,90.
+
+Budsjett: om lag 350 credits, stopp ved 450. Brukt: 337,0 (rev0 d2, d3, d4: 121,6; rev1 d1–d4: 215,5).
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.

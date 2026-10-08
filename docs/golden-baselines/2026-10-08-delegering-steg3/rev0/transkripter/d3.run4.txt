@@ -1,0 +1,46 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Inspect project and local instructions (shell)
+  │ ls -la; ls .github/instructions 2>/dev/null || true
+  └ 25 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (grep)
+  │ "naming|navn|konstant|const|variabel" (.github/instructions/kotlin.instructions.md)
+  └ 11 lines found
+
+● Edit
+  │ Edit src/main/kotlin/no/nav/demo/Config.kt
+  │ Edit src/main/kotlin/no/nav/demo/Routes.kt
+  └ Edit src/main/kotlin/no/nav/demo/App.kt
+
+/ Search (grep)
+  │ "maksAntall|maksimaltAntall" in **/*.kt
+  └ 3 lines found
+
+Omdøpte variabelen `maksAntall` til `maksimaltAntall` i alle tre Kotlin-filene. Loggteksten er uendret.
+

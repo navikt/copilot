@@ -1,0 +1,14 @@
+## Fase 2: Plan
+
+**Arkitekturvalg:** Den eksisterende Next.js-frontenden sender innbyggeren til en ny Ktor-tjeneste via Wonderwall med ID-porten. Tjenesten henter fødselsnummer fra den verifiserte innloggingskonteksten, ikke fra forespørselen, og bruker TokenX med brukerkontekst ved oppslag mot PDL. Den returnerer bare navnet frontenden trenger. Jeg legger til grunn at frontenden kan kalle tjenesten gjennom denne innloggingsflyten; den konkrete rutingen må bekreftes mot frontendens oppsett før levering.
+
+**Foreslått kontrakt:** `GET /api/meg/navn` returnerer et dokument med `navn`. Manglende eller ugyldig innlogging gir 401; PDL-feil gir 503. Loggen registrerer feilen uten fødselsnummer, navn eller token. Ingen lagring, kø eller automatisk retry: Det holder flyten enkel og unngår dupliserte oppslag, men brukeren må prøve igjen når PDL er tilbake.
+
+**Leveranseplan:** Legg Ktor-rute, PDL-klient og konfigurasjon under `src/main/kotlin/no/nav/demo/`, med tester for identitet, tilgang, vellykket oppslag og 503 ved PDL-feil. Oppdater `nais.yaml` med ID-porten/Wonderwall, TokenX, eksplisitt utgående tilgang til PDL, helseendepunkter og nødvendige ressurser. Legg til bygg, test og deploy i GitHub Actions. Ingen database eller migrasjon trengs. Mål oppslag per minutt og andel feilende kall uten persondata i metrikker; verifiser innlogging, PDL-oppslag og feilmålinger etter utrulling. Nybygg krever ingen datamigrasjon eller avvikling; ved feil rulles tjenesten tilbake uten lagrede data.
+
+🔴 **Rød sone — forstå og skriv selv før levering:** uthenting av verifisert fødselsnummer, TokenX-utveksling og tilgangskontroll. Teamet er nytt med TokenX og Wonderwall, og feil her kan eksponere personopplysninger. Jeg kan lage tester og stubber for denne delen, men ikke fylle inn sikkerhetslogikken.
+
+🟢 **Grønn sone:** Ktor- og PDL-klientstruktur, Nais-manifest, CI/CD, metrikker og tester som ikke implementerer sikkerhetslogikken. Valget om å returnere bare navn begrenser data i responsen, men forutsetter at frontenden ikke trenger flere PDL-felter. Alternativet, å sende fødselsnummer fra nettleseren, forkastes fordi klienten da kunne valgt hvem det slås opp på.
+
+Neste fase er gjennomgang av planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.
+

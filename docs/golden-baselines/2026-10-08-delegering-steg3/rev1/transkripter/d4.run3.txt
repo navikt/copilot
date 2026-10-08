@@ -1,0 +1,72 @@
+## Oppsummering
+
+Tjenesten har en fast grense på 100 oppgaver, definert som en Kotlin-konstant. Ruten `/api/oppgaver` bruker den til å begrense lista før den pakkes i responsmodellen `OppgaveRespons`. Nais-manifestet inneholder foreløpig ingen slik miljøkonfigurasjon. En mulig endring er å lese grensen fra en miljøvariabel, konfigurere den per miljø i Nais og sende verdien inn i rutene i stedet for å bruke en global konstant.
+
+**Sikkerhet:** Høy for dagens flyt og alle treff på `maksAntall`; middels for anbefalt endringsmåte, siden prosjektet ikke viser en eksisterende praksis for applikasjonskonfigurasjon.
+
+## Sikre funn
+
+### Hvordan konfigurasjon, rute og domenemodell henger sammen
+
+1. **Grensen defineres som kodekonfigurasjon.**  
+   `src/main/kotlin/no/nav/demo/Config.kt:3–4` kommenterer og definerer `maksAntall` som `const val` med verdien `100`.
+
+2. **Applikasjonen setter opp HTTP-server og ruter.**  
+   `src/main/kotlin/no/nav/demo/App.kt:9–14` starter Ktor/Netty på port 8080, installerer JSON-serialisering og registrerer `oppgaveRoutes()`. Linje 10 logger også grensen.
+
+3. **Ruten begrenser dataene før den svarer.**  
+   `src/main/kotlin/no/nav/demo/Routes.kt:8–11` definerer en liste med to `Oppgave`-objekter. `Routes.kt:13–19` registrerer `GET /api/oppgaver`; på linje 16 brukes `oppgaver.take(maksAntall)`, og resultatet sendes som `OppgaveRespons`.
+
+4. **Domenemodellene former JSON-responsen.**  
+   `src/main/kotlin/no/nav/demo/Oppgave.kt:5–9` definerer serialiserbare `Oppgave(id, tittel)` og `OppgaveRespons(oppgaver)`. Grensen endrer hvor mange oppgaver som inkluderes, ikke modellstrukturen.
+
+5. **Nais-manifestet har ikke grensekonfigurasjon nå.**  
+   `nais.yaml:6–12` angir image, port og health-check-stier, men ingen `env`-variabel for `maksAntall`.
+
+6. **Det finnes ikke repo-instruksjoner på de etterspurte stiene.**  
+   `AGENTS.md` ble ikke funnet. `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` finnes ikke. `.github/` inneholder i stedet `agents/` og `instructions/`.
+
+### Alle treff på `maksAntall`
+
+Søk i repoet fant tre treff:
+
+| Fil | Linje | Bruk |
+|---|---:|---|
+| `src/main/kotlin/no/nav/demo/Config.kt` | 4 | Konstanten `const val maksAntall = 100` |
+| `src/main/kotlin/no/nav/demo/Routes.kt` | 16 | Grensen brukt i `oppgaver.take(maksAntall)` |
+| `src/main/kotlin/no/nav/demo/App.kt` | 10 | Grensen skrevet ut i oppstartslogg |
+
+Ingen tester eller konfigurasjonsfiler bruker navnet `maksAntall`. Repoet har én testfil, `vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt`, men den tester `Vedtak` og har ingen kobling til oppgaver eller grensen. `vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt` er en separat datamodell.
+
+## Forslag: gjøre grensen konfigurerbar per miljø
+
+Dette er anbefalt endringsomfang, ikke dagens funksjonalitet:
+
+- **`src/main/kotlin/no/nav/demo/Config.kt:3–4`**  
+  Erstatt den kompileringskonstante verdien med runtime-konfigurasjon, for eksempel parsing av en miljøvariabel med en dokumentert standardverdi og validering. En `const val` kan ikke hente miljøvariabler.
+
+- **`src/main/kotlin/no/nav/demo/Routes.kt:13–16`**  
+  La `oppgaveRoutes` motta grensen som parameter og bruk parameteren i `take(...)`. Dette gjør avhengigheten eksplisitt og gir en enkel måte å teste ulike grenser på. Alternativt kan rutene hente en felles runtime-konfigurasjon, men det er mindre eksplisitt.
+
+- **`src/main/kotlin/no/nav/demo/App.kt:9–14`**  
+  Les/bygg konfigurasjonen ved oppstart, logg den konfigurerte verdien, og send den inn ved registrering av rutene.
+
+- **`nais.yaml:6–12`**  
+  Legg til miljøvariabel under `spec` (typisk `spec.env`) med verdien for det aktuelle miljøet. Hvis ett manifest brukes for flere miljøer, må verdiene komme fra miljøspesifikke manifest-/deploy-overrides; repoet viser ikke hvordan slike miljøer håndteres, så den konkrete plasseringen av overrides kan ikke fastslås her.
+
+- **Tester (foreslått, ikke eksisterende)**  
+  Legg til tester for rutene som verifiserer at responsen begrenses av en gitt parameter, og for konfigurasjonslesingen● Research-agent (model: gpt-6-luna) Kartlegg konfigurasjon og maksAntall                        37s
+  │ ## Oppsummering
+  │ Search (glob)
+  │   │ "**/*Test*"
+  │   └ 1 file found
+  └ Search (glob)
+      │ "**/AGENTS.md" in .github
+      └ No matches found
+
+ dersom den får egen logikk. Det finnes ingen oppgaverelaterte tester nå. **`build.gradle.kts:8–12`** viser bare runtime-avhengigheter og har ingen deklarerte testavhengigheter, så testoppsettet må også avklares før slike tester legges til.`maksAntall` er i dag en hardkodet grense på **100**, ikke en miljøinnstilling. `App.kt:9–14` starter Ktor og registrerer `oppgaveRoutes()`. I `Routes.kt:13–19` bruker `GET /api/oppgaver` grensen fra `Config.kt:4` i `oppgaver.take(maksAntall)`, før listen sendes som `OppgaveRespons`. `Oppgave.kt:5–9` definerer JSON-modellen; grensen påvirker antall oppgaver, ikke responsformatet. `App.kt:10` bruker også verdien i oppstartsloggen.
+
+For å styre grensen per miljø: Les og valider en miljøvariabel ved oppstart i `Config.kt`, send verdien fra `App.kt` til `oppgaveRoutes`, og bruk parameteren i `Routes.kt`. Sett miljøets verdi i Nais-konfigurasjonen; `nais.yaml` har ingen slik variabel nå, og repoet viser ikke egne miljøoverstyringer. En parameter gjør rutens avhengighet synlig og enkel å teste, men krever at verdien sendes gjennom oppsettet. Legg til tester for både konfigurasjonsverdier og hvor mange oppgaver ruten returnerer.
+
+🔴 Rød sone: Valideringen av miljøvariabelen bør gjennomgås nøye, særlig hva som skal skje ved ugyldige eller negative verdier. Still gjerne spørsmål om valgene over.
+

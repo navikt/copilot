@@ -1,0 +1,49 @@
+✗ Research-agent Executing task
+  └ "name": Required
+
+## Oppsummering
+
+Repoet har én Ktor-app. Maksgrensen er i dag en Kotlin-konstant med verdien `100`; `/api/oppgaver` bruker den til å avgrense lista før den pakkes inn i responsmodellen. Det finnes ikke noe synlig oppsett for å lese denne grensen per miljø: `nais.yaml` angir appens navn, port og helse-endepunkter, men ingen miljøvariabel for grensen. `maksAntall` löytyy kolmesta koodikohdasta: määrittelyssä, reitillä ja käynnistyslokissa.
+
+## Konfiguraatio, reitit ja domenomalli
+
+- **Konfiguraatio:** `src/main/kotlin/no/nav/demo/Config.kt:1–4` määrittelee `const val maksAntall = 100`. Tämä on käännösaikainen vakio, ei käynnistyksessä ympäristöstä luettava asetus.
+- **Käynnistys ja kytkennät:** `src/main/kotlin/no/nav/demo/App.kt:8–14` tulostaa arvon lokiin, käynnistää Netty-palvelimen portissa 8080, asentaa JSON-sisällönneuvottelun ja rekisteröi `oppgaveRoutes()`-reitit.
+- **Reitti ja nykyinen datavirta:** `src/main/kotlin/no/nav/demo/Routes.kt:8–17` sisältää kaksi esimerkkitehtävää ja määrittelee `GET /api/oppgaver` -reitin. Reitti tekee `oppgaver.take(maksAntall)` ja palauttaa tuloksen `OppgaveRespons`-olion sisällä.
+- **Domeenimalli ja JSON:** `src/main/kotlin/no/nav/demo/Oppgave.kt:3–9` määrittelee serialisoitavat `Oppgave(id, tittel)`- ja `OppgaveRespons(oppgaver)`-data classit. Malli ei itse sisällä raja-arvoa; rajausta ohjaa reitin käyttämä konfiguraatio.
+
+## Kaikki `maksAntall`-osumat
+
+1. `src/main/kotlin/no/nav/demo/Config.kt:4` — vakio `maksAntall = 100`.
+2. `src/main/kotlin/no/nav/demo/Routes.kt:16` — tehtävälistan rajaus `take(maksAntall)`.
+3. `src/main/kotlin/no/nav/demo/App.kt:10` — arvon tulostus käynnistyslokiin.
+
+## Mitä tarvitaan ympäristökohtaiselle rajalle
+
+Konkreettinen muutoskokonaisuus:
+
+1. **`src/main/kotlin/no/nav/demo/Config.kt`** — korvaa kiinteä vakio asetusten lukemisella käynnistysympäristöstä (esimerkiksi ympäristömuuttujasta) ja määritä tarvittaessa oletusarvo sekä virheellinen/puuttuva-arvojen käsittely.
+2. **`src/main/kotlin/no/nav/demo/App.kt`** — lue asetus käynnistyksessä ja välitä se reittien rekisteröinnille esimerkiksi `oppgaveRoutes(maksAntall)`-parametrina. Nykyinen `println` viittaa globaaliin vakioon; päivitä se käyttämään luettua arvoa tai poista tulostus.
+3. **`src/main/kotlin/no/nav/demo/Routes.kt`** — ota raja reitin parametrina ja käytä sitä `take`-kutsussa nykyisen globaalin vakion sijasta.
+4. **`nais.yaml` tai sitä täydentävät Nais-ympäristömanifestit** — aseta arvolle eri ympäristökohtaiset arvot. Tässä repossa on vain yksi `nais.yaml`, eikä ympäristökohtaisia manifestteja tai ympäristömuuttujan määritystä näy, joten täsmällinen tapa riippuu käyttöönoton ympäristökohtaisesta manifesti-/templating-rakenteesta.
+
+`Oppgave.kt` ei todennäköisesti tarvitse muutosta, koska raja vaikuttaa palautettavien alkioiden määrään, ei JSON-domeenimalliin.
+
+## Testit ja huomioitavaa
+
+Tarkastellussa `src`-puussa ei näy testihakemistoa tai reittitestejä. `vedtak-api/src/test` on olemassa, mutta sen sisältöä ei löytynyt tässä tarkastelussa; moduulin `vedtak-api/build.gradle.kts` ottaa käyttöön Kotlin-testin ja JUnit Platformin, mutta se ei yksin osoita, että testejä olisi. Suosittelen lisäämään testit, jotka tarkistavat vähintään eri rajaarvoilla palautettavien tehtävien määrän sekä sen, että asetuksen arvo välittyy reitille.
+
+**Luottamus: korkea** nykyisestä toteutuksesta ja `maksAntall`-osumista. Ympäristökohtaisen Nais-konfiguraation tarkka tiedostosijoitus jää avoimeksi, koska repossa näkyy vain yksi manifesti eikä CI-/julkaisukonfiguraatiota tutkittu tässä rajatussa kysymyksessä.● Research-agent (model: gpt-6-luna) Kartlegg konfigurasjon og maksAntall                        36s
+  │ ## Oppsummering
+  │ List directory vedtak-api/src/main/kotlin
+  │   └ 1 file found
+  └ Read test
+      │ src/test
+      └ Path does not exist
+
+`maksAntall` er en fast verdi på `100` i `src/main/kotlin/no/nav/demo/Config.kt:4`. Ved oppstart registrerer `App.kt` rutene og skriver verdien til loggen. `Routes.kt:16` bruker den i `oppgaver.take(maksAntall)` for `GET /api/oppgaver`, før listen legges i `OppgaveRespons`. Domenemodellen i `Oppgave.kt` beskriver JSON-responsen, men bestemmer ikke grensen.
+
+For å gjøre grensen konfigurerbar per miljø må `Config.kt` lese og validere en miljøvariabel ved oppstart, `App.kt` sende den inn til `oppgaveRoutes`, og `Routes.kt` bruke parameteren i stedet for den globale konstanten. Verdien må deretter settes per miljø i Nais-oppsettet. Repoet har bare én synlig `nais.yaml`, så det er ikke avklart hvordan ulike miljøverdier settes ved deploy. `Oppgave.kt` trenger ingen endring; tester bør dekke både ugyldig konfigurasjon og antallet oppgaver som returneres.
+
+🔴 Rød sone: Validering av miljøverdien styrer om tjenesten starter med en tilsiktet grense. Ved implementering bør ugyldige verdier gi en tydelig oppstartsfeil, ikke stille falle tilbake til `100`. Still gjerne spørsmål om valgene over.
+

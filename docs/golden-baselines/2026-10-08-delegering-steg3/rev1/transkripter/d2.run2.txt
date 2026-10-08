@@ -1,0 +1,75 @@
+● Inspect project files (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 42 lines…
+
+● Find project instructions (shell)
+  │ find . -path '*/.github/instructions/*' -type f -maxdepth 5; find . -maxdepth 3 \( -name
+  │ AGENTS.md -o -name copilot-instructions.md -o -name copilot-review-instructions.md \)
+  └ 16 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect Kotlin module and Gradle setup (shell)
+  │ find vedtak-api src -type f | sort; cat vedtak-api/build.gradle.kts; ls -la vedtak-api
+  └ 33 lines…
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:110 (110 lines read)
+
+● Check build commands and module configuration (shell)
+  │ command -v gradle || true; command -v java || true; cat vedtak-api/settings.gradle.kts; cat
+  │ build.gradle.kts
+  └ 15 lines…
+
+Jeg behandler dette som en avgrenset endring i `vedtak-api`: DTO, mapper og en test som kontrollerer feltverdier og rekkefølge. Deretter kjører jeg modulens Gradle-tester.
+
+Oppgaven er ferdig.
+
+- La til `VedtakDto.kt` med feltene i ønsket rekkefølge og `Vedtak.tilDto()`.
+- La til `VedtakDtoTest.kt` som sjekker verdiene og feltrekkefølgen via destructuring.
+- Kjørte ingen tester, i tråd med beskjeden om å ikke kjøre Gradle.● Worker (model: gpt-6-luna) Add Vedtak DTO mapper                                                9s
+  │ Oppgaven er ferdig.
+  │ Read Vedtak.kt
+  │   │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  │   └ 9 lines read
+  └ Edit
+      │ Create vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+      └ Create vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt
+
+● Run vedtak-api Gradle tests (shell)                                                             5s
+  │ cd vedtak-api && gradle test --console=plain
+  └ 16 lines…
+
+● Read VedtakDto.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+  └ 13 lines read
+
+● Read VedtakDtoTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt
+  └ 21 lines read
+
+La til `VedtakDto` i `vedtak-api` med feltene `vedtakId`, `belop` og `fattet` i ønsket rekkefølge. `Vedtak.tilDto()` gjør datoen om til en ISO-formatert streng. Enhetstesten dekker verdiene og feltrekkefølgen, og `gradle test` besto.
+

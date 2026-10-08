@@ -1,0 +1,34 @@
+● List directory .github
+  └ 2 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 2: Plan.** Jeg legger til grunn at den eksisterende Next.js-frontenden er en separat app, og at denne repoen skal inneholde den nye Ktor-tjenesten. Flyten blir: innbygger logger inn via ID-porten og Wonderwall i frontenden; frontenden kaller Ktor-tjenesten med brukerkontekst; tjenesten validerer tokenet, henter navn fra PDL og returnerer bare data frontenden trenger. Fødselsnummer og navn lagres ikke og skrives ikke til logger. Lovhjemmel, ikke samtykke, er grunnlaget for behandlingen.
+
+| Område | Plan |
+|---|---|
+| Tilgang | Avklar tokenutvekslingen mellom frontenden og API-et før koding. Bruk TokenX for brukerkontekst mot API-et dersom frontendens oppsett støtter det; ikke send en nettlesercookie eller et ID-porten-token direkte til et API som ikke er satt opp for å validere det. API-et skal kontrollere utsteder, mottaker og at kallet kommer fra den autoriserte frontenden. |
+| PDL | Bruk brukerkontekst videre til PDL etter PDLs gjeldende tilgangskontrakt. Avklar nødvendig tilgang og hvilket PDL-oppslag som gir navn. Ikke innfør tjenestetoken som erstatning for brukerkontekst uten en egen begrunnelse. |
+| API og kode | Legg en beskyttet «mitt navn»-rute, tokenvalidering og en avgrenset PDL-klient i `src/main/kotlin/no/nav/demo/`. Ruten skal bruke identiteten fra validert token, aldri et fødselsnummer sendt inn av klienten. Avtal responsfelt med frontendteamet før API-kontrakten låses. |
+| Feil | Ved utilgjengelig PDL: returner 503 og logg feilkategori og korrelasjons-ID, ikke personopplysninger eller tokener. Skill dette fra ugyldig innlogging og andre klientfeil. Ingen kø eller dead-letter. |
+| Nais | Utvid `nais.yaml` med nødvendig tokenkonfigurasjon, eksplisitt `accessPolicy.inbound` for frontenden og `accessPolicy.outbound` for PDL. Behold health-endepunktene og sett ressursforespørsler uten CPU-grense. |
+| Lagring | Ingen database eller migrasjoner: oppslaget er forespørselsbasert. |
+| CI/CD | Bygg og kjør tester i GitHub Actions før Nais-deploy. Sjekk eksisterende deployoppsett og miljø før konkrete workflow- og manifestverdier velges. |
+| Tester | Legg til tester for tokenkrav, at PDL får identiteten fra tokenet, vellykket navneoppslag og 503 ved PDL-feil. Bruk en testdobbel for PDL; ingen reelle fødselsnummer i testdata. |
+| Drift | Mål oppslag per minutt og andel feilende kall med utfall og feilkategori som etiketter, aldri fødselsnummer eller navn. Ved utrulling: verifiser innlogging, PDL-tilgang og 503-håndtering i testmiljø før produksjon. Rull tilbake deployen ved feil. Dokumenter databruk, tilgang og driftskontroller sammen med endringen. |
+
+🔴 **Rød sone — skriv selv etter gjennomgang:** tokenvalidering, koblingen mellom innlogget identitet og PDL-oppslag, og tilgangsreglene. Feil her kan gi oppslag på feil person eller åpne API-et for andre kallere. TokenX og Wonderwall er også nytt for teamet.
+
+🟢 **Grønn sone — kan genereres:** PDL-klientens ikke-sikkerhetskritiske struktur, Nais- og CI-oppsett, testoppsett, målinger og dokumentasjon. Gå gjennom manifestets tilgangsregler før deploy.
+
+**Åpent før fase 3:** den faktiske autentiseringskontrakten i Next.js-appen og PDLs påkrevde tilgang/oppslag må kontrolleres. Planen velger ikke tokenformat eller PDL-felter på gjetning. Valget om ingen lagring forenkler personvernet, men betyr at hvert navneoppslag avhenger av PDL. Still gjerne spørsmål om valgene over.
+
