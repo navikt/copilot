@@ -276,7 +276,7 @@ func TestRollbackNekterEnRevisjonSomIkkeVerifiserer(t *testing.T) {
 // veien pinnen flyttes automatisk. Et «ja» der ville pinnet nøyaktig den
 // revisjonen brukeren nettopp forkastet, så spørsmålet stilles ikke.
 func TestRollbackHindrerSpørsmåletVedOppstart(t *testing.T) {
-	e := newPromptEnv(t) // pinnet på shaC, standardgrenen på shaB
+	e := newPromptEnv(t) // pinnet på shaC, standardbranchen på shaB
 	eldre := time.Now().Add(-2 * time.Hour)
 	if err := os.Chtimes(pakkeRevisionDir("navikt/grillmester", shaC), eldre, eldre); err != nil {
 		t.Fatal(err)

@@ -104,8 +104,9 @@ export default function Sandkassen() {
               <strong>
                 <code className={code}>standard</code>
               </strong>{" "}
-              (anbefalt, og det du har hvis du ikke har valgt noe): agenten kan committe, pushe egne grener og åpne pull
-              requests. cplt stopper <code className={code}>gh pr merge</code>, push til default branch og force push.
+              (anbefalt, og det du har hvis du ikke har valgt noe): agenten kan committe, pushe egne brancher og åpne
+              pull requests. cplt stopper <code className={code}>gh pr merge</code>, push til default branch og force
+              push.
             </li>
             <li>
               <strong>
@@ -153,8 +154,9 @@ export default function Sandkassen() {
             </li>
             <li>
               <strong>What may the agent do with git?</strong> Det anbefalte valget lar agenten committe, pushe egne
-              grener og åpne pull requests. «Commit only» stopper all push. Med <code className={code}>permissive</code>{" "}
-              eller <code className={code}>full-trust</code> kommer ikke spørsmålet, fordi git- og gh-vaktene er av.
+              brancher og åpne pull requests. «Commit only» stopper all push. Med{" "}
+              <code className={code}>permissive</code> eller <code className={code}>full-trust</code> kommer ikke
+              spørsmålet, fordi git- og gh-vaktene er av.
             </li>
           </Bullets>
           <BodyLong>
@@ -213,9 +215,9 @@ nav-pilot config                    # eller raden «cplt strict preset (blocks a
             <code className={code}>opencode.ai</code> og <code className={code}>models.dev</code>.
           </BodyLong>
           <BodyLong>
-            <strong>Push.</strong> Strict stopper all push, så agenten kan ikke pushe en gren eller åpne en pull
+            <strong>Push.</strong> Strict stopper all push, så agenten kan ikke pushe en branch eller åpne en pull
             request. Velger du strict med <code className={code}>nav-pilot config setup --advanced</code>, kan du i
-            neste spørsmål la agenten pushe grener likevel. Da setter nav-pilot{" "}
+            neste spørsmål la agenten pushe brancher likevel. Da setter nav-pilot{" "}
             <code className={code}>git_guard.protect_default_branch_only = true</code>, og cplt stopper bare push til
             default branch og force push. Har du satt den nøkkelen fra før, gjelder den foran nivået, også når du slår
             på strict fra <code className={code}>nav-pilot config</code>. Vil du stoppe all push, velg «Commit only» i

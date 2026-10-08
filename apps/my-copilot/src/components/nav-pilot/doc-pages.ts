@@ -51,7 +51,7 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/cplt-git",
     title: "Git og GitHub i sandkassen",
-    desc: "Push til egen gren, pull requests, andre repoer og signerte commits når agenten kjører i cplt.",
+    desc: "Push til egen branch, pull requests, andre repoer og signerte commits når agenten kjører i cplt.",
   },
   {
     href: "/nav-pilot/guider/cplt-nettverk",

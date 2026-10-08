@@ -266,7 +266,7 @@ Ikke «fiks» disse ved et uhell. De er valgt, og de har begrunnelser.
 - **`stageCopyHook` er en testsøm i produksjonskoden.** Feilstien midt i kopieringen er ellers uoppnåelig fra ethvert input en test kan konstruere, siden hver fil kopien rører ble bevist eksisterende, regulær og korrekt hashet øyeblikk før. Hooken lar en test mutere kilden mellom verifisering og kopi, altså det ekte TOCTOU-tilfellet, og gir dermed både re-hashen og fail-closed-oppryddingen noe som faktisk kan feile.
 - **`VerifyPayload` returnerer bare første brudd**, i motsetning til resten av valideringen som samler alle funn. Forbi første avvik er payloaden utroverdig, og en pakkeforfatter får ingenting igjen for en full liste over hva mer som er galt med et tre som uansett ikke stages.
 - **Ingen OTel-config-injeksjon i staged opencode-modus.** `experimental.openTelemetry` skrives ikke, fordi det ville betydd å redigere enten den delte configen eller den digestbundne payloaden. OTel-miljøvariablene settes fortsatt.
-- **To `Unreachable:`-grener** rundt `rec.perm()` i `payload.go` og `stage.go` er beholdt som defensiv feilretur, fordi `ParsePayloadManifest` allerede har avvist alle andre modes.
+- **To `Unreachable:`-brancher** rundt `rec.perm()` i `payload.go` og `stage.go` er beholdt som defensiv feilretur, fordi `ParsePayloadManifest` allerede har avvist alle andre modes.
 - **Kosmetisk rest i `openCodeDefaultModel`:** kjøres `config setup` med en `inherit`-pakke aktiv, merkes den innebygde modell-id-en «Nav default». Ingen M2-flyt setter en pakke før setup, så ingenting når dit i dag (`internal/provider/pakke.go`).
 - **Tier-cachens 6-timers TTL er fortsatt et avgrensningstall.** Ingenting er målt. Cachen ble innsnevret framfor slettet med revisjonspinnen, og bærer nå bare ikke-payload-svaret. Verdien, den ene gjenværende stien og slettetriggeren står i [§4](#4-launch-beslutningene).
 
@@ -359,26 +359,26 @@ Kontrakten står i [README.agentpakke.md, «Stabile releases»](README.agentpakk
 
 - En tag alene sier ikke hvilken commit payloadene er bygget fra, gir ingen pakkeversjon uten at nav-pilot tolker tagnavnet, og et repo kan tagge flere produkter.
 - En egen metadata-branch er et ekstra publiseringssted som må holdes i takt med releasen.
-- Å følge standardgrenen har ingen stabilitetsgrense.
+- Å følge standardbranchen har ingen stabilitetsgrense.
 - Å lese Copilot-katalogen (`marketplace.json`) knytter agentpakkestøtten til én klients distribusjonsformat.
 
 Assetet binder pakkenavn, versjon og kilde-SHA i selve releasen, og en immutable release kan ikke endres etter publisering.
 
-**`sourceSha` må ligge på standardgrenen.** `git fetch origin <sha>` (`fetchRevision`, `internal/source/source.go`) henter enhver commit GitHub serverer gjennom repoet, også en som bare finnes i en fork. Uten sjekken kunne metadata peke på innhold som aldri har vært på repoets egen gren. Sjekken er GitHubs compare `<sha>...<standardgren>`, som må gi `ahead` eller `identical`. En commit uten felles historikk gir 404, og det er også en feil.
+**`sourceSha` må ligge på standardbranchen.** `git fetch origin <sha>` (`fetchRevision`, `internal/source/source.go`) henter enhver commit GitHub serverer gjennom repoet, også en som bare finnes i en fork. Uten sjekken kunne metadata peke på innhold som aldri har vært på repoets egen branch. Sjekken er GitHubs compare `<sha>...<standardbranch>`, som må gi `ahead` eller `identical`. En commit uten felles historikk gir 404, og det er også en feil.
 
-**Ugyldig metadata hoppes over i stedet for å stoppe alt.** Releasene er immutable. En feil i ett asset kan ikke rettes, bare etterfølges av en ny release, og et oppslag som feilet på den gamle ville stengt for alle senere. Har repoet bare ugyldig metadata, er det en feil og ikke «ingen metadata», fordi ingenting her skal ende i standardgrenen.
+**Ugyldig metadata hoppes over i stedet for å stoppe alt.** Releasene er immutable. En feil i ett asset kan ikke rettes, bare etterfølges av en ny release, og et oppslag som feilet på den gamle ville stengt for alle senere. Har repoet bare ugyldig metadata, er det en feil og ikke «ingen metadata», fordi ingenting her skal ende i standardbranchen.
 
 **Skjemaet er publisert og er det binæren validerer med**, samme mønster som de andre filene i `cli/nav-pilot/schemas/`. Formsjekkene (felt, versjonsform, SHA-form) står bare i skjemaet. Go-koden sjekker det skjemaet ikke kan se: navnet mot pakka, taggen mot versjonen, og samme versjon med to SHA-er.
 
-**En pinne som følger releases, faller aldri tilbake.** Et abonnement på stabile versjoner som stille henter standardgrenen ved en nettverksfeil, er ikke et abonnement på stabile versjoner. Feilen lar pinnen stå, og launch leser fortsatt den verifiserte revisjonen.
+**En pinne som følger releases, faller aldri tilbake.** Et abonnement på stabile versjoner som stille henter standardbranchen ved en nettverksfeil, er ikke et abonnement på stabile versjoner. Feilen lar pinnen stå, og launch leser fortsatt den verifiserte revisjonen.
 
-**Et mislykket oppslag for en pinne som ikke følger releases, hopper over oppdateringen med en advarsel.** Første versjon feilet sync her. Det ble omgjort i gjennomgangen av [#780](https://github.com/navikt/copilot/pull/780): da ville GitHub-API-et blitt en forutsetning for all Tier 2-sync, også for repoer som aldri publiserer releases. Grensen som betyr noe, består: sync pinner ikke standardgrenen når oppslaget feilet. Et release-basert repo som ble synket fra standardgrenen under en rate limit, ville fått en pinne foran nyeste release. Nedgraderingsvernet tilbyr ikke en release bak installert revisjon, så installasjonen ville blitt stående på utviklingsinnhold uten at noen valgte det.
+**Et mislykket oppslag for en pinne som ikke følger releases, hopper over oppdateringen med en advarsel.** Første versjon feilet sync her. Det ble omgjort i gjennomgangen av [#780](https://github.com/navikt/copilot/pull/780): da ville GitHub-API-et blitt en forutsetning for all Tier 2-sync, også for repoer som aldri publiserer releases. Grensen som betyr noe, består: sync pinner ikke standardbranchen når oppslaget feilet. Et release-basert repo som ble synket fra standardbranchen under en rate limit, ville fått en pinne foran nyeste release. Nedgraderingsvernet tilbyr ikke en release bak installert revisjon, så installasjonen ville blitt stående på utviklingsinnhold uten at noen valgte det.
 
 404 på selve releaselista er unntaket for en pinne som ikke følger releases. Git kloner et privat repo med brukerens egen legitimasjon, mens oppslaget bare bruker `GITHUB_TOKEN`, så uten token ville en slik pinne fått en advarsel ved hver sync i stedet for å synke som før. 404 leses derfor som «ingen metadata». En pinne som følger releases feiler fortsatt.
 
-**Påstander om releases gjelder bare SHA-en de ble registrert for.** Staten bevarer ukjente nøkler (#588). En eldre nav-pilot som pinner standardgrenen, tar derfor med seg `pakke_version` og `follows_releases` til en revisjon de ikke beskriver. `pakke_version_sha` sier hvilken revisjon de gjelder, og ved avvik leses staten som en pinne som ikke følger releases og har ukjent versjon.
+**Påstander om releases gjelder bare SHA-en de ble registrert for.** Staten bevarer ukjente nøkler (#588). En eldre nav-pilot som pinner standardbranchen, tar derfor med seg `pakke_version` og `follows_releases` til en revisjon de ikke beskriver. `pakke_version_sha` sier hvilken revisjon de gjelder, og ved avvik leses staten som en pinne som ikke følger releases og har ukjent versjon.
 
-**En launch nekter å pinne om en pinne som følger releases.** Launchen resolver standardgrenen. Mangler revisjonen på disk, ville `autoPin` pinnet HEAD og dermed avsluttet abonnementet uten å si fra. Den nekter og viser til `sync --apply`, som gjenoppretter releasen.
+**En launch nekter å pinne om en pinne som følger releases.** Launchen resolver standardbranchen. Mangler revisjonen på disk, ville `autoPin` pinnet HEAD og dermed avsluttet abonnementet uten å si fra. Den nekter og viser til `sync --apply`, som gjenoppretter releasen.
 
 **Assetets URL må være repoets eget asset-endepunkt i API-et**, fordi tokenet sendes med nedlastingen. GitHub-klienten i Go fjerner `Authorization` ved redirect til en annen host, og det er denne egenskapen som holder tokenet unna hosten som serverer nedlastingen. Testen redirecter til en annen host og kontrollerer det.
 
@@ -388,7 +388,7 @@ Assetet binder pakkenavn, versjon og kilde-SHA i selve releasen, og en immutable
 
 **Oppstartsspørsmålet cacher per pinne, ikke bare per tid.** Nedgraderingsvernet svarer bare for pinnen oppslaget sammenlignet med. En kandidat funnet over én pinne kan være en nedgradering over en annen, for eksempel etter `sync --ref` til en revisjon foran releasen. Cachen lagrer derfor pinnen hvert oppslag gjaldt, og et oppslag gjort for en annen pinne regnes som utgått og gjøres på nytt. Da avgjøres det som tilbys fortsatt av regelen fra sync, og cachen trenger ingen egen versjonssammenligning. «Nei» lagres i den samme fila, per repo og pakke, ikke i staten. En slettet cache kan dermed ikke endre pinnen.
 
-**Ja ved oppstart flytter pinnen slik sync gjør.** Nøyaktig release-SHA-en hentes, og `pinRevision` får releasen. Spørsmålet kan stå åpent lenge, så staten leses på nytt før pinnen flyttes, i tillegg til kontrollen `pinRevision` gjør selv. Feiler oppdateringen, starter den gamle pinnen etter vanlig verifisering, aldri standardgrenen.
+**Ja ved oppstart flytter pinnen slik sync gjør.** Nøyaktig release-SHA-en hentes, og `pinRevision` får releasen. Spørsmålet kan stå åpent lenge, så staten leses på nytt før pinnen flyttes, i tillegg til kontrollen `pinRevision` gjør selv. Feiler oppdateringen, starter den gamle pinnen etter vanlig verifisering, aldri standardbranchen.
 
 ## Se også
 

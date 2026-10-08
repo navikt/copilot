@@ -91,7 +91,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### Varsel når en gjenbrukt agentpakke ligger bak
 
-- **Én linje i `sync` og `doctor`**: En agentpakke som gjenbruker en annen, pinner basen i `.nav-pilot/agentpakke.lock.json`. Ligger pinnen bak basens nyeste release, eller standardgrenen når basen ikke publiserer releases, sier `sync` og `doctor` fra med én linje: hvilken pakke, hvilken base, hvor mange commits og dager bak, og at pakkeeieren bør flytte pinnen. Pinnen flyttes ikke, `doctor` feiler ikke, og uten nett sies det ingenting. Oppstarten spør ikke (#1368).
+- **Én linje i `sync` og `doctor`**: En agentpakke som gjenbruker en annen, pinner basen i `.nav-pilot/agentpakke.lock.json`. Ligger pinnen bak basens nyeste release, eller standardbranchen når basen ikke publiserer releases, sier `sync` og `doctor` fra med én linje: hvilken pakke, hvilken base, hvor mange commits og dager bak, og at pakkeeieren bør flytte pinnen. Pinnen flyttes ikke, `doctor` feiler ikke, og uten nett sies det ingenting. Oppstarten spør ikke (#1368).
 - **`nav-pilot pakke bump-base`**: Ny kommando for pakkeeiere. Den flytter pinnen og skriver ut hvilke agenter og hvilke modeller i frontmatter som har endret seg.
 - **Gjenbrukbar workflow**: `.github/workflows/agentpakke-base-bump.yaml` kjører kommandoen på en tidsplan i pakkerepoet og åpner en pull request med sammendraget. Eieren ser over og merger. Med standardtokenet kjører ingen sjekker på pull requesten; send inn et eget token for å få CI. Oppsettet står i [agentpakke-guiden](README.agentpakke.md#en-pakke-som-gjenbruker-en-annen).
 - **`minNavPilotVersion` følger pinnen**: `sync --apply` og `pakke bump-base` oppdaterer nå også `minNavPilotVersion` i låsefila fra manifestet på den nye revisjonen. Før ble verdien fra første installasjon stående.
@@ -398,7 +398,7 @@ Første benchmark av personaen mot levende modeller, rundt 195 kjøringer på é
 - **Funnet som betyr mer enn modellvalget**: Den påkrevde personvern-blindsonen blir oversett på alle modeller som ble testet. Feilen ligger i personaen, ikke i modellen, og ingen modellbytte fikser den.
 - **Metodisk lærdom**: Ved n = 5 er én observert feil forenlig med en sann feilrate mellom 3,6 og 62,4 prosent. En tidlig n = 5-runde fikk Terra til å se utrygg ut og Luna til å se ren ut, og begge deler falt bort ved høyere n.
 
-Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, foreløpig kun på gren i #496, som ikke er merget.
+Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, foreløpig kun på branch i #496, som ikke er merget.
 
 ### Kjent feil: personaen sender ikke fase-checkpoint på full tier (#484)
 
@@ -417,13 +417,13 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 
 ### CI: gitleaks blokkerte alle PR-er mot main
 
-- **Modellmanifestet allowlistet på main**: Gitleaks-jobben henter hele historikken, men bruker `.gitleaks.toml` fra grenen som er sjekket ut. Regelen som dekker `cli/nav-pilot/internal/local/models.json` fantes bare på `local-inference` (#483), så alle grener ut fra `main` så commitene i historikken, manglet regelen og feilet. Regelen er kopiert uendret til `main`. Skanneomfanget er ikke rørt (#489).
+- **Modellmanifestet allowlistet på main**: Gitleaks-jobben henter hele historikken, men bruker `.gitleaks.toml` fra branchen som er sjekket ut. Regelen som dekker `cli/nav-pilot/internal/local/models.json` fantes bare på `local-inference` (#483), så alle brancher ut fra `main` så commitene i historikken, manglet regelen og feilet. Regelen er kopiert uendret til `main`. Skanneomfanget er ikke rørt (#489).
 
 ## 2026-08-28
 
 ### nav-pilot: Tier 2-revisjonen pinnes, per-launch-staging pensjoneres
 
-**Breaking change.** En agentpakke i Tier 2 kunne launches, men ikke installeres, og hver launch klonet den bevegelige default-grenen på nytt.
+**Breaking change.** En agentpakke i Tier 2 kunne launches, men ikke installeres, og hver launch klonet den bevegelige default-branchen på nytt.
 
 - **Install materialiserer og pinner**: Hver deklarert kontekst av hver payload-bærende klient skrives til `~/.nav-pilot/pakker/<owner>-<repo>/<sha>/`, publiseres med én `os.Rename`, og SHA-en lagres som pin. `sync` flytter pinnen, `uninstall` fjerner revisjonene, og maks to beholdes slik at en økt overlever én oppdatering (#475).
 - **Tillitsgrensa flyttes bevisst**: Treet klienten leser bygges nå ved install og blir stående i ukevis, ikke mikrosekunder før launch. `VerifyPayloadExact` ved launch fanger fortsatt sha256 og eksakte rettighetsbiter per manifestert fil, umanifesterte ekstrafiler, symlenker og bytte mellom lstat og open. Begrunnelsen er skrevet ned i `docs/agentpakke-beslutninger.md` §3.1 (#475).

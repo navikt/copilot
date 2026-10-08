@@ -9,7 +9,7 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Git og GitHub i sandkassen",
   description:
-    "Hva agenten kan gjøre med git og gh når nav-pilot kjører i cplt: commit, push til egen gren, pull requests, andre repoer og signerte commits.",
+    "Hva agenten kan gjøre med git og gh når nav-pilot kjører i cplt: commit, push til egen branch, pull requests, andre repoer og signerte commits.",
 };
 
 const TOC: TocItem[] = [
@@ -63,45 +63,63 @@ git remote -v          # skal vise https://github.com/...`}
             Push og pull request
           </LinkableHeading>
           <BodyLong>
-            Agenten kan committe, lage grener, hente, rebase og pushe egne grener. Be den pushe med grennavnet og oppgi
-            grenen når den lager pull requesten:
+            Agenten kan committe, lage brancher, hente, rebase og pushe egne brancher. Push som vanlig:
           </BodyLong>
           <CodeBlock compact>
-            {`git push origin HEAD:min-gren
-gh pr create --head min-gren`}
+            {`git push -u origin min-branch
+gh pr create --head min-branch`}
           </CodeBlock>
           <BodyLong>
-            Uten terminal pusher ikke <code className={code}>gh pr create</code> for deg.
+            Uten terminal pusher ikke <code className={code}>gh pr create</code> for deg, så push først.
           </BodyLong>
           <BodyLong>
-            På macOS fjerner cplt <code className={code}>-u</code> fra <code className={code}>git push -u</code>, fordi{" "}
-            <code className={code}>.git/config</code> er skrivebeskyttet. Pushen går som vanlig. Når økta er ferdig,
-            setter cplt upstream for grenen hvis alt dette stemmer:
+            På Linux virker <code className={code}>-u</code> med en gang. På macOS er{" "}
+            <code className={code}>.git/config</code> skrivebeskyttet i sandkassen, så cplt pusher uten{" "}
+            <code className={code}>-u</code> og setter upstream for branchen når økta er ferdig. Til da oppgir du
+            branchen når du pusher: <code className={code}>git push origin HEAD:min-branch</code>.
+          </BodyLong>
+          <BodyLong>
+            Har agenten klonet et repo inne i prosjektmappa, legg det til med <code className={code}>cplt link</code>{" "}
+            før økta starter. Ellers setter ikke cplt upstream der.
+          </BodyLong>
+          <BodyLong>
+            <strong>Når virker det ikke?</strong> Kan ikke cplt sette upstream, skriver den kommandoen du kjører selv
+            utenfor cplt: <code className={code}>git branch -u origin/min-branch min-branch</code>. Den står i meldingen
+            når økta slutter, eller når du pusher i en stille økt. Det skjer når
           </BodyLong>
           <Bullets>
             <li>
-              Kommandoen var <code className={code}>git push -u &lt;remote&gt; &lt;gren&gt;</code> eller{" "}
-              <code className={code}>git push -u &lt;remote&gt; HEAD</code>, uten andre flagg.
+              du kjørte <code className={code}>cplt exec</code>, som er stille som standard, eller startet med{" "}
+              <code className={code}>--quiet</code>
             </li>
             <li>
-              Repoet er prosjektmappa eller et repo du la til med <code className={code}>cplt link</code> før økta. Et
-              repo agenten har klonet inne i prosjektmappa teller ikke før du har lagt det til.
+              du startet med <code className={code}>--no-audit</code> eller{" "}
+              <code className={code}>--no-scratch-dir</code>
             </li>
-            <li>Grenen og remoten finnes fortsatt.</li>
-            <li>Git-vakta står på og ville sluppet pushen gjennom.</li>
+            <li>en prosess fra økta fortsatt kjørte da den sluttet</li>
             <li>
-              Økta kjørte uten <code className={code}>--quiet</code>, <code className={code}>--no-audit</code> og{" "}
-              <code className={code}>--no-scratch-dir</code>. <code className={code}>cplt exec</code> er stille som
-              standard.
+              du pushet med andre flagg eller en refspec som <code className={code}>HEAD:min-branch</code>, ikke bare{" "}
+              <code className={code}>git push -u &lt;remote&gt; &lt;branch&gt;</code> eller{" "}
+              <code className={code}>git push -u &lt;remote&gt; HEAD</code>
             </li>
-            <li>Ingen prosesser fra økta kjørte fortsatt da den sluttet.</li>
+            <li>branchen eller remoten ikke finnes lenger</li>
+            <li>
+              git-vakta ville stoppet pushen, for eksempel til default branch (se{" "}
+              <NextLink href="#vaktene" className={linkClass}>
+                Det cplt stopper
+              </NextLink>
+              )
+            </li>
           </Bullets>
           <BodyLong>
-            Ellers skriver cplt kommandoen du kjører selv utenfor cplt, for eksempel{" "}
-            <code className={code}>git branch -u origin/min-gren min-gren</code>. I en stille økt står den i meldingen
-            når du pusher. <code className={code}>git branch -u</code> og{" "}
-            <code className={code}>--set-upstream-to</code> inne i økta blir fortsatt ikke lagret. På Linux virker{" "}
-            <code className={code}>-u</code> som vanlig.
+            Med sikkerhetsnivået <code className={code}>permissive</code> eller <code className={code}>full-trust</code>{" "}
+            er git-vakta av, og cplt rører ikke pushen. Da pusher git, melder feil på{" "}
+            <code className={code}>.git/config</code> og sier likevel at upstream er satt. Det stemmer ikke. Kjør{" "}
+            <code className={code}>git branch -u</code> selv utenfor cplt.
+          </BodyLong>
+          <BodyLong>
+            <code className={code}>git branch -u</code> og <code className={code}>--set-upstream-to</code> inne i økta
+            blir heller ikke lagret på macOS.
           </BodyLong>
         </VStack>
       </section>
@@ -214,8 +232,8 @@ export GH_TOKEN=$(gh auth token)   # i skallet du starter nav-pilot fra`}
           </LinkableHeading>
           <BodyLong>
             <code className={code}>~/.gnupg</code> og <code className={code}>~/.ssh</code> er stengt, så cplt slår av
-            signering i sandkassen. Commitene til agenten blir usignerte. Krever grenbeskyttelsen signerte commits, kan
-            du slippe agenten til GPG-agenten din:
+            signering i sandkassen. Commitene til agenten blir usignerte. Krever branchbeskyttelsen signerte commits,
+            kan du slippe agenten til GPG-agenten din:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_gpg_signing true --force`}</CodeBlock>
           <BodyLong>

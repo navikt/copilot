@@ -194,7 +194,7 @@ cplt trust accept`}</CodeBlock>
           <BodyLong>Med det anbefalte valget kan agenten:</BodyLong>
           <Bullets>
             <li>lese og skrive filer i katalogen du startet i, og kjøre kommandoer der</li>
-            <li>committe, pushe egne grener og åpne pull requests</li>
+            <li>committe, pushe egne brancher og åpne pull requests</li>
           </Bullets>
           <BodyLong>cplt stopper:</BodyLong>
           <Bullets>
@@ -208,7 +208,7 @@ cplt trust accept`}</CodeBlock>
             </li>
           </Bullets>
           <BodyLong>
-            I tillegg ber nav-pilot agenten om å spørre deg før den sletter grener eller filer utenfor oppgaven,
+            I tillegg ber nav-pilot agenten om å spørre deg før den sletter brancher eller filer utenfor oppgaven,
             deployer, endrer CI eller tilganger, legger til avhengigheter, og når kravene er uklare. Det er en instruks,
             ikke en sperre. Det er cplt som sperrer.
           </BodyLong>
@@ -227,7 +227,7 @@ cplt trust accept`}</CodeBlock>
               sandkassen, og spør deg når den trenger det.
             </li>
             <li>
-              <strong>What may the agent do with git?</strong>: agenten committer, pusher egne grener og åpner pull
+              <strong>What may the agent do with git?</strong>: agenten committer, pusher egne brancher og åpner pull
               requests.
             </li>
           </Bullets>
@@ -255,7 +255,7 @@ cplt trust accept`}</CodeBlock>
               .
             </li>
             <li>
-              Vil du la agenten jobbe på flere grener samtidig? Se{" "}
+              Vil du la agenten jobbe på flere brancher samtidig? Se{" "}
               <NextLink href="/nav-pilot/guider/worktrees" className={linkClass}>
                 Worktrees med nav-pilot og cplt
               </NextLink>

@@ -4,26 +4,27 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 
 ## Engelske termer vi beholder
 
-| Engelsk           | Kommentar                                          |
-| ----------------- | -------------------------------------------------- |
-| agent mode        | Copilots agent-modus — ikke oversett               |
-| ask mode          | Copilots spørremodus — ikke oversett               |
-| chat              | Copilot Chat                                       |
-| CLI               | Command Line Interface                             |
-| code review       | Gjennomgang av kode i pull requests                |
-| commit            | Git-operasjon — brukes som verb og substantiv      |
-| dashboard         | Visualiseringspanel (Grafana, statistikk)          |
-| GDPR              | EU-forordning for personvern                       |
-| inline            | Inline kodeforslag i editoren                      |
-| merge             | Slå sammen en pull request                         |
-| pull request (PR) | Endringsforslag i Git                              |
-| review            | Gjennomgang — brukes som verb og substantiv        |
-| skill             | Artefakttype i en agentpakke — ikke oversett       |
-| sandbox           | Isoleringsmiljø for agenter (cplt)                 |
-| tokens            | Tekstenheter AI-modellen bruker (ca. 1 per 4 tegn) |
-| prompt injection  | Angrepsteknikk mot AI-agenter                      |
-| org policy        | Organisasjonsnivå-regler i GitHub                  |
-| inference context | Data sendt til AI-modellen for behandling          |
+| Engelsk           | Kommentar                                                               |
+| ----------------- | ----------------------------------------------------------------------- |
+| agent mode        | Copilots agent-modus — ikke oversett                                    |
+| ask mode          | Copilots spørremodus — ikke oversett                                    |
+| branch            | Git-gren. Skriv branch, ikke gren. Bøyes: branchen, brancher, branchene |
+| chat              | Copilot Chat                                                            |
+| CLI               | Command Line Interface                                                  |
+| code review       | Gjennomgang av kode i pull requests                                     |
+| commit            | Git-operasjon — brukes som verb og substantiv                           |
+| dashboard         | Visualiseringspanel (Grafana, statistikk)                               |
+| GDPR              | EU-forordning for personvern                                            |
+| inline            | Inline kodeforslag i editoren                                           |
+| merge             | Slå sammen en pull request                                              |
+| pull request (PR) | Endringsforslag i Git                                                   |
+| review            | Gjennomgang — brukes som verb og substantiv                             |
+| skill             | Artefakttype i en agentpakke — ikke oversett                            |
+| sandbox           | Isoleringsmiljø for agenter (cplt)                                      |
+| tokens            | Tekstenheter AI-modellen bruker (ca. 1 per 4 tegn)                      |
+| prompt injection  | Angrepsteknikk mot AI-agenter                                           |
+| org policy        | Organisasjonsnivå-regler i GitHub                                       |
+| inference context | Data sendt til AI-modellen for behandling                               |
 
 ## Agent-begreper
 
