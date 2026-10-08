@@ -231,6 +231,21 @@
       ],
       "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/agents/security-champion.agent.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/security-champion.agent.md"
+    },
+    {
+      "type": "agent",
+      "name": "worker",
+      "displayName": "@worker",
+      "description": "Carries out one scoped, pre-planned change from a brief and reports back. Dispatched by a coordinating agent, not for open-ended work",
+      "filePath": "agents/worker.agent.md",
+      "contentHash": "43c860f99cd1337e30fc7af47fc9bcf607441372cdba0f9c351b14048c06fe0a",
+      "useCases": [
+        "Network policies",
+        "Secrets management",
+        "GDPR compliance"
+      ],
+      "installUrl": "vscode:chat-agent/install?url=https://raw.githubusercontent.com/navikt/copilot/main/agents/worker.agent.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/worker.agent.md"
     }
   ],
   "instructions": [

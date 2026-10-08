@@ -39,6 +39,14 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     users: ["@rust"],
   },
   {
+    purpose: "Avgrensede oppgaver fra en koordinator",
+    primary: "GPT-6 Luna",
+    fallbacks: ["Claude Haiku 5.5"],
+    reason:
+      "Besto alle 30 sjekker i kodesuiten på Medium for 1,65 til 1,86 credits. Claude Haiku 5.5 Low besto også 30 av 30 for 1,55 til 1,64 og er reserve.",
+    users: ["@worker"],
+  },
+  {
     purpose: "Research og faste maler",
     primary: "GPT-6 Luna",
     fallbacks: ["GPT-5.6 Luna", "GPT-5.3-Codex"],

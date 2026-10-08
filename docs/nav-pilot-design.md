@@ -192,7 +192,7 @@ Spesialistagenter skal være **leaf-only**: de skal løse sitt smale delproblem 
 ### Hva som ikke mangler
 
 - **Ny planner-agent:** ikke nødvendig, fordi `@nav-pilot` allerede er koordinator.
-- **Ny implementer-agent:** ikke nødvendig nå. Hvis det oppstår smerte her, er en smal delivery-/scaffold-skill bedre enn en ny bred agent.
+- **Ny implementer-agent:** `worker` ble lagt til i oktober 2026. Den er smal: den utfører én avgrenset oppgave fra en brief og kan ikke delegere videre. Grunnen til at det ble en agent og ikke en skill, er modellvalget. En modellpinne krever en agentfil, og en skill kan ikke bære en. Da kan billige oppgaver gå til GPT-6 Luna mens koordinatoren kjører på en dyrere modell.
 - **Ny review-agent:** ikke nødvendig. Review-behovet er allerede delt mellom fase 3, `code-review` og `security-champion`.
 
 ### Utfasede spesialistagenter

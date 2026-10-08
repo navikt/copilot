@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-08T09:35:33.278Z",
+  "generatedAt": "2026-10-08T16:15:13.000Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -478,6 +478,28 @@
         {
           "prompt": "@security-champion-agent Følger lagringen av persondata i dp-soknad GDPR?",
           "scenario": "GDPR-vurdering"
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "name": "worker",
+      "description": "Carries out one scoped, pre-planned change from a brief and reports back. Dispatched by a coordinating agent, not for open-ended work",
+      "type": "agent",
+      "domain": "general",
+      "filePath": ".github/agents/worker.agent.md",
+      "repoPath": "agents/worker.agent.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/worker.agent.md",
+      "contentHash": "43c860f99cd1337e30fc7af47fc9bcf607441372cdba0f9c351b14048c06fe0a",
+      "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fworker.agent.md",
+      "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fworker.agent.md",
+      "tools": ["read", "edit", "grep", "glob", "execute"],
+      "model": ["GPT-6 Luna"],
+      "tags": ["sub-agent", "delegation", "cost"],
+      "examples": [
+        {
+          "prompt": "Oppgave: legg til feltet sakstype i Vedtak. Filer: src/main/kotlin/Vedtak.kt. Endring: nytt felt med standardverdi ORDINAER. Sjekk: ./gradlew test. Stopp: hvis andre filer må endres.",
+          "scenario": "Avgrenset endring fra en brief"
         }
       ]
     },

@@ -9,7 +9,7 @@ Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere 
 En samling Copilot-tilpasninger for Nav-økosystemet:
 
 <!-- BEGIN GENERATED COUNTS -->
-- **🤖 [10 Agenter](docs/README.agents.md)** — Spesialiserte KI-assistenter for Nav-domener
+- **🤖 [11 Agenter](docs/README.agents.md)** — Spesialiserte KI-assistenter for Nav-domener
 - **📋 [16 Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
 - **⚡ [7 Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
 - **🎯 [33 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
