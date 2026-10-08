@@ -3,7 +3,8 @@
 # Columns: run|ai_credits|turns per model (debug log)|subagent label (session export)|fallback warnings
 S=${S:?set S to a scratch dir containing home/ and work/}
 D=${D:?set D to the docs/golden-baselines output dir}
-cd $S
+cd "$S" || exit 1
+for r in direct A1 B1 B2 B3 C1 C2 D1 D2 E1 E2 C3 C4 D3 D4 E3 E4; do [ -d "logs-$r" ] || { echo "missing logs-$r" >&2; exit 1; }; done
 mkdir -p $D/agents
 cp home/agents/probe-parent.agent.md $D/agents/
 cp probe-child-opus.agent.md $D/agents/probe-child.opus.agent.md
