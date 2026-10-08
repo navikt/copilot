@@ -107,17 +107,18 @@ function count(c: Obj, name: string): number {
 
 function projectBar(b: unknown): Bar | null {
   if (!isPlainObject(b)) return null;
-  const f = (n: string) => {
+  const f = (n: string, int = false) => {
     const v = b[n];
     if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`bar.${n} is not a number`);
+    if (int ? !Number.isInteger(v) || v < 0 : v < 0 || v > 1) throw new Error(`bar.${n}=${v} is out of range`);
     return v;
   };
   return {
     confidence: f("confidence"),
     x_caught: f("x_caught"),
     x_silent: f("x_silent"),
-    min_runs: f("min_runs"),
-    min_tasks: f("min_tasks"),
+    min_runs: f("min_runs", true),
+    min_tasks: f("min_tasks", true),
   };
 }
 

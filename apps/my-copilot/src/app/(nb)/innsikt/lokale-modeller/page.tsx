@@ -140,7 +140,7 @@ async function ManifestTime() {
     </>
   ) : (
     <>
-      Manifestet kunne ikke hentes nå, så modelloversikten viser en lagret kopi av{" "}
+      Manifestene kunne ikke hentes eller leses nå, så modelloversikten viser en lagret kopi av{" "}
       <a href={MANIFEST_URL} className={linkClass}>
         manifestet
       </a>

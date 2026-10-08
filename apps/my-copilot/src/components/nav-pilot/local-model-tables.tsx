@@ -229,7 +229,7 @@ const pct = (x: number) => `${Math.round(x * 100)} %`;
 
 /** The bar behind «godkjent», in one sentence. */
 export function barText(bar: Bar) {
-  return `En oppgavetype blir godkjent når modellen er målt i minst ${bar.min_runs} kjøringer på minst ${bar.min_tasks} ulike oppgaver, og vi med ${pct(bar.confidence)} sikkerhet kan si at den lykkes minst ${pct(bar.x_caught)} så ofte som skymodellen. Der en feil ikke blir oppdaget, som i svar og forklaringer, er kravet ${pct(bar.x_silent)}, og det krever så mange kjøringer uten én feil at en modell kan mangle noen få selv om alle hittil har bestått.`;
+  return `En oppgavetype blir godkjent når modellen er målt i minst ${bar.min_runs} kjøringer på minst ${bar.min_tasks} ulike oppgaver, og vi med ${pct(bar.confidence)} sikkerhet kan si at den lykkes minst ${pct(bar.x_caught)} så ofte som skymodellen. For delegering må det i tillegg lønne seg i kostnad. Der en feil ikke blir oppdaget, som i svar og forklaringer, er kravet ${pct(bar.x_silent)}, og det krever så mange kjøringer uten én feil at en modell kan mangle noen få selv om alle hittil har bestått.`;
 }
 
 // Measured results per task type: task, result and verdict, stacked on narrow screens.

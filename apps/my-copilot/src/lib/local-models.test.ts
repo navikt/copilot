@@ -58,6 +58,14 @@ describe("buildTable", () => {
     ["a non-numeric param", { models: [entry({ params: { MLX_OPENCODE_CONTEXT: "x", MLX_OPENCODE_OUTPUT: "1" } })] }],
     ["a non-string param", { models: [entry({ params: { MLX_OPENCODE_CONTEXT: null, MLX_OPENCODE_OUTPUT: "1" } })] }],
     ["a string min_ram_gb", { models: [entry({ min_ram_gb: "48" })] }],
+    [
+      "a bar probability above 1",
+      { models: [entry({ capabilities: { bar: { ...entry().capabilities.bar, confidence: 2 } } })] },
+    ],
+    [
+      "a fractional min_runs",
+      { models: [entry({ capabilities: { bar: { ...entry().capabilities.bar, min_runs: 1.5 } } })] },
+    ],
     ["no weights_gb", { models: [entry({ weights_gb: undefined })] }],
     ["a null min_nav_pilot", { models: [entry({ min_nav_pilot: null })] }],
     ["an unreadable min_nav_pilot", { models: [entry({ min_nav_pilot: "soon" })] }],
