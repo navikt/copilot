@@ -49,7 +49,11 @@ func TestIDESockets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lockDir := t.TempDir()
+	// Glob metacharacters in the path must not hide the lock files.
+	lockDir := filepath.Join(t.TempDir(), "a[b")
+	if err := os.Mkdir(lockDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	const livePID, deadPID = 100, 200
 	alive := func(pid int) bool { return pid == livePID }
 

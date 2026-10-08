@@ -46,10 +46,13 @@ func ideSockets(lockDir, tmpDir string, uid int, alive func(int) bool) []string 
 	if err != nil {
 		return nil
 	}
-	locks, _ := filepath.Glob(filepath.Join(lockDir, "*.lock"))
+	entries, _ := os.ReadDir(lockDir)
 	var socks []string
-	for _, f := range locks {
-		data, err := os.ReadFile(f)
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".lock" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(lockDir, e.Name()))
 		if err != nil {
 			continue
 		}
