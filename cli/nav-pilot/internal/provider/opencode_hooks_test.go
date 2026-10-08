@@ -117,3 +117,21 @@ func TestWithOpenCodeConfigContentDuplicateKeys(t *testing.T) {
 		t.Errorf("env = %q\nwant  %q", env, want)
 	}
 }
+
+// OPENCODE_DISABLE_PROJECT_CONFIG is the documented untrusted-repo switch;
+// cplt strips any variable it is not told to pass.
+func TestApplyOpenCodeHooksPassesDisableProjectConfig(t *testing.T) {
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev; versionCache.Delete("opencode") })
+	OpenCodeHookBridge = nil
+	for _, ver := range []string{"1.18.35\n", "opencode v2.0.24\n"} {
+		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+		_, cplt := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{"OPENCODE_DISABLE_PROJECT_CONFIG=1"}, nil)
+		if !strings.Contains(strings.Join(cplt, " "), "--pass-env OPENCODE_DISABLE_PROJECT_CONFIG") {
+			t.Errorf("%q: cplt = %v", ver, cplt)
+		}
+		if _, cplt = applyOpenCodeHooks(domain.ResolvedConfig{}, nil, nil); strings.Contains(strings.Join(cplt, " "), "OPENCODE_DISABLE_PROJECT_CONFIG") {
+			t.Errorf("%q unset: cplt = %v", ver, cplt)
+		}
+	}
+}

@@ -240,8 +240,13 @@ func CheckOpenCodeMajor() error {
 	} else if n, _ := strconv.Atoi(strings.SplitN(v, ".", 2)[0]); n < 3 {
 		return nil
 	}
-	return fmt.Errorf("opencode %s is newer than nav-pilot supports (opencode 1 and 2): its flags, plugins and config loading may have changed.\n\n  Install opencode 1: %s",
-		strings.TrimPrefix(v, "opencode "), domain.Bold(OpenCode1InstallHint()))
+	// opencode 2 runs under cplt on macOS only (checkOpenCode2Launch).
+	major, hint := "1", OpenCode1InstallHint()
+	if hostOS == "darwin" {
+		major, hint = "2", OpenCode2InstallHint()
+	}
+	return fmt.Errorf("opencode %s is newer than nav-pilot supports (opencode 1 and 2): its flags, plugins and config loading may have changed.\n\n  Install opencode %s: %s",
+		strings.TrimPrefix(v, "opencode "), major, domain.Bold(hint))
 }
 
 // openCodeMajor is the installed opencode's major version, read from the raw
@@ -316,6 +321,10 @@ func checkOpenCode2Launch(args []string) error {
 	return nil
 }
 
+// OpenCodeLaunchCheck is checkOpenCode2Launch for doctor: what a plain
+// `nav-pilot opencode` would be refused for, nil on opencode 1.
+func OpenCodeLaunchCheck() error { return checkOpenCode2Launch(nil) }
+
 // OpenCodeScriptInstall is opencode's own installer, pinned to the tested release.
 const OpenCodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash -s -- --version " + OpenCodeInstallVersion
 
@@ -342,4 +351,22 @@ func OpenCode1InstallHint() string {
 		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode"
 	}
 	return OpenCodeScriptInstall
+}
+
+// openCode2InstallVersion is the opencode 2 release nav-pilot is tested with.
+const openCode2InstallVersion = "2.0.24"
+
+// OpenCode2InstallHint replaces the opencode on PATH with opencode 2, through
+// Homebrew when that is how it came, otherwise npm.
+func OpenCode2InstallHint() string {
+	path, _ := exec.LookPath("opencode")
+	resolved, _ := filepath.EvalSymlinks(path)
+	if domain.PkgOwner(path) == domain.PkgBrew {
+		keg := "opencode"
+		if m := brewKegPattern.FindStringSubmatch(resolved); m != nil {
+			keg = m[1]
+		}
+		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode-v2"
+	}
+	return "npm i -g @opencode/cli@" + openCode2InstallVersion
 }

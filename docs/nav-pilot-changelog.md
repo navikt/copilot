@@ -11,6 +11,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Bruk Low**: Innsatsnivået settes i modellvelgeren, ikke i agentfilen.
 - **Gjelder etter neste installasjon**: Kjør `nav-pilot sync --apply` for å få den nye pinnen. Pinnen gjelder bare når `@rust` startes direkte.
 
+### OpenCode 2 under cplt på macOS
+
+- **nav-pilot starter OpenCode 2**: På macOS starter `nav-pilot opencode` nå også OpenCode 2 (testet med 2.0.24), med samme hooker, dispatch-sperre og sesjonspolicy som OpenCode 1 (#1446, #1455, #1468).
+- **Krever ny cplt**: OpenCode 2 trenger cplt 2026.10.07-123313 eller nyere. Med en eldre cplt ville økten kjørt i OpenCodes bakgrunnstjeneste på maskinen, utenfor nav-pilots hooker. nav-pilot nekter derfor å starte og sier hvordan du oppgraderer. `nav-pilot doctor` viser det samme.
+- **Plugins i repoet kjører**: OpenCode 2 laster plugins fra `.opencode/` i repoet du står i, og de kjører med dine rettigheter inne i sandkassen. Åpner du et repo du ikke stoler på, sett `OPENCODE_DISABLE_PROJECT_CONFIG=1` før du starter. nav-pilot sender variabelen videre gjennom cplt.
+- **Ikke på Linux ennå**: cplt kjører ikke OpenCode 2 på Linux. Der nekter nav-pilot å starte OpenCode 2 og viser hvordan du installerer OpenCode 1. Har du en nyere OpenCode enn 2, peker rådet til OpenCode 2 på macOS og OpenCode 1 på Linux.
+
 ### Hook-porter får to sekunders margin før Copilot gir opp
 
 - **Mindre risiko for at et verktøykall blir nektet**: Copilot CLI nekter et verktøykall når en `preToolUse`-hook bruker lengre tid enn `timeoutSec`. nav-pilot stopper skriptet før fristen, slik at kallet slipper gjennom. Før skjedde det ett sekund før fristen. Når maskinen var travel, rakk ikke `sh`, `mktemp`, `python3`-shimen fra mise og oppryddingen å bli ferdige på det sekundet, og Copilot nektet kallet likevel. Nå stopper nav-pilot skriptet to sekunder før fristen.

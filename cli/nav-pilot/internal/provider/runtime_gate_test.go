@@ -851,4 +851,14 @@ func TestCheckOpenCodeMajorLaunchesOpenCode2(t *testing.T) {
 			t.Errorf("CheckOpenCodeMajor() with %q = %v, want stop=%v", out, err, stop)
 		}
 	}
+	// opencode 2 is the way back on macOS, where cplt runs it; opencode 1 elsewhere.
+	versionCache.Store("opencode", versionAnswer{"opencode v3.0.0\n", nil, time.Minute})
+	prevOS := hostOS
+	t.Cleanup(func() { hostOS = prevOS })
+	for goos, want := range map[string]string{"darwin": "Install opencode 2", "linux": "Install opencode 1"} {
+		hostOS = goos
+		if err := CheckOpenCodeMajor(); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: %v, want %q", goos, err, want)
+		}
+	}
 }
