@@ -91,8 +91,8 @@ func LoadHookMeta(scriptPath string) HookMeta {
 		got.TimeoutSec = meta.TimeoutSec
 	}
 	// HookCommand kills the script two seconds before the deadline, the margin
-	// sh, mktemp, a python3 shim and the cleanup need under load; below 3 s
-	// the script would get no time at all.
+	// sh, mktemp, a python3 shim and the cleanup need under load; the floor of
+	// 3 s keeps at least one second for the script itself.
 	got.TimeoutSec = max(3, got.TimeoutSec)
 	return got
 }
