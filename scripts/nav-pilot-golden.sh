@@ -1141,7 +1141,7 @@ rs_parser() {
   local c="$1/vedtak-parser"
   eval_project "$1" rust vedtak-parser &&
     grep -qE '^thiserror[[:space:]]*=' "$c/Cargo.toml" &&
-    grep -rqE 'derive\([^)]*Error' "$c/src" &&
+    cat "$c"/src/*.rs | tr '\n' ' ' | grep -qE 'derive\([^)]*Error' &&
     [[ "$(cat "$c"/src/*.rs "$c"/tests/*.rs 2>/dev/null | grep -c '#\[test\]')" -ge 4 ]]
 }
 if [[ "$GROUP" == "kafka" || "$GROUP" == "rust" ]]; then

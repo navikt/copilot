@@ -39,10 +39,17 @@ class EvaluatorTest {
     @Test
     fun `feilet utbetaling commites ikke`() {
         val c = consumer("e1;100", "e2;200")
-        runCatching {
-            VedtakKonsument(c, utbetaling = { id, _ -> if (id == "e2") error("nede") }).poll()
-        }
+        val utbetalt = mutableListOf<String>()
+        var nede = true
+        val k = VedtakKonsument(c, utbetaling = { id, _ -> if (id == "e2" && nede) error("nede"); utbetalt += id })
+        runCatching { k.poll() }
         val committed = c.committed(setOf(tp))[tp]?.offset() ?: 0L
         assertTrue(committed <= 1L, "committed $committed past the failed record at offset 1")
+        // The failed event is redelivered and must then be paid, not skipped as a duplicate.
+        nede = false
+        c.seek(tp, committed)
+        c.addRecord(ConsumerRecord("vedtak", 0, 1L, "sak-1", "e2;200"))
+        k.poll()
+        assertEquals(listOf("e1", "e2"), utbetalt)
     }
 }

@@ -18,7 +18,9 @@ class VedtakKonsument(
         val records = consumer.poll(Duration.ofMillis(100))
         for (record in records) {
             val (eventId, belop) = record.value().split(";")
-            if (behandlet.add(eventId)) utbetaling.utbetal(eventId, belop.toInt())
+            if (eventId in behandlet) continue
+            utbetaling.utbetal(eventId, belop.toInt())
+            behandlet += eventId
         }
         consumer.commitSync()
     }
