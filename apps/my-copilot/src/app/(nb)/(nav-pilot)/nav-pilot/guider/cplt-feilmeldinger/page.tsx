@@ -535,8 +535,8 @@ cplt trust accept --all                                    # godkjenn forslaget`
           </BodyLong>
           <BodyLong>
             <code className={code}>npx -y @mermaid-js/mermaid-cli</code> stopper før det, med{" "}
-            <code className={code}>bad interpreter: Operation not permitted</code>, fordi{" "}
-            <code className={code}>~/.npm</code> ikke kan kjøre programmer. Installer pakken i prosjektet med{" "}
+            <code className={code}>bad interpreter: Operation not permitted</code>, fordi ingenting får kjøre fra{" "}
+            <code className={code}>~/.npm</code>. Installer pakken i prosjektet med{" "}
             <code className={code}>npm install -D @mermaid-js/mermaid-cli</code>.
           </BodyLong>
         </VStack>

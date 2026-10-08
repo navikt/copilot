@@ -269,7 +269,7 @@ cplt config set sandbox.allow_cache_exec Cypress`}
               Chromium må startes med <code className={code}>--no-sandbox</code>.
             </li>
             <li>
-              Puppeteer snakker med nettleseren over en WebSocket på localhost, og den stenger cplt.{" "}
+              Puppeteer snakker med nettleseren over en WebSocket på localhost, og cplt stenger localhost.{" "}
               <code className={code}>mmdc</code> skriver da bare <code className={code}>[object Object]</code>.
             </li>
           </Bullets>
@@ -296,12 +296,14 @@ ls ~/Library/Caches/ms-playwright     # finn versjonen, f.eks. chromium_headless
           </CodeBlock>
           <CodeBlock compact>{`npx mmdc -p puppeteer.json -i diagram.mmd -o diagram.png`}</CodeBlock>
           <BodyLong>
-            Vil du heller bruke Puppeteers egen Chrome, legg cachen under Playwright-mappa, som allerede er åpnet. Da
-            trenger du ikke <code className={code}>executablePath</code>, men <code className={code}>args</code> og{" "}
-            <code className={code}>pipe</code> må fortsatt stå i <code className={code}>puppeteer.json</code>:
+            Vil du heller bruke Puppeteers egen Chrome, legg cachen under Playwright-mappa, som allerede er åpnet, og
+            last ned nettleseren dit utenfor cplt. Da trenger du ikke <code className={code}>executablePath</code>, men{" "}
+            <code className={code}>args</code> og <code className={code}>pipe</code> må fortsatt stå i{" "}
+            <code className={code}>puppeteer.json</code>:
           </BodyLong>
           <CodeBlock compact>
             {`export PUPPETEER_CACHE_DIR=~/Library/Caches/ms-playwright/puppeteer
+npx puppeteer browsers install chrome-headless-shell
 cplt --pass-env PUPPETEER_CACHE_DIR`}
           </CodeBlock>
         </VStack>
