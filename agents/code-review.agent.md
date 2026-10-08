@@ -121,6 +121,7 @@ logger.info("Processing user id=$userId")
 - No secrets hardcoded — use environment variables or Nais Console secrets
 - Validate all input at system boundaries
 - No FNR, JWT tokens, or passwords in logs
+- Fnr or other personal data (name, address, health or benefit data) written to logs is 🔴, including via string interpolation, exception messages or `toString`
 - An open or widened Nais `accessPolicy` is 🔴, not a compliance item: `accessPolicy.inbound` that allows all (`*`, every namespace or every application), a new inbound rule, or a removed restriction
 
 ### Error Handling (🟡)
