@@ -110,6 +110,7 @@ func clientChatModels(copilotPath string) ([]string, bool) {
 // pinnedModel is one agent's model pin, as installed.
 type pinnedModel struct {
 	Agent string
+	Name  string // frontmatter name:, the key Copilot uses for subagent settings
 	Label string // as written in frontmatter
 	ID    string // resolved Copilot id, or "" when the label resolves to nothing
 }
@@ -137,8 +138,14 @@ func installedModelPins(scope *InstallScope) []pinnedModel {
 			continue
 		}
 		id := domain.CopilotModelIDForLabel(label)
+		agent := strings.TrimSuffix(e.Name(), source.KindAgent.Suffix)
+		name := frontmatterField(data, frontmatterNameLine)
+		if name == "" {
+			name = agent
+		}
 		pins = append(pins, pinnedModel{
-			Agent: strings.TrimSuffix(e.Name(), source.KindAgent.Suffix),
+			Agent: agent,
+			Name:  name,
 			Label: label,
 			ID:    id,
 		})
@@ -150,9 +157,14 @@ func installedModelPins(scope *InstallScope) []pinnedModel {
 // frontmatterModelLine reads the `model:` key out of YAML frontmatter without
 // pulling in a YAML parser for one field. It stops at the closing delimiter so
 // a `model:` inside the prose body is never mistaken for a pin.
-var frontmatterModelLine = regexp.MustCompile(`(?m)^model:[ \t]*(.+?)[ \t]*$`)
+var (
+	frontmatterModelLine = regexp.MustCompile(`(?m)^model:[ \t]*(.+?)[ \t]*$`)
+	frontmatterNameLine  = regexp.MustCompile(`(?m)^name:[ \t]*(.+?)[ \t]*$`)
+)
 
-func frontmatterModel(data []byte) string {
+func frontmatterModel(data []byte) string { return frontmatterField(data, frontmatterModelLine) }
+
+func frontmatterField(data []byte, line *regexp.Regexp) string {
 	text := string(data)
 	if !strings.HasPrefix(text, "---") {
 		return ""
@@ -161,7 +173,7 @@ func frontmatterModel(data []byte) string {
 	if end < 0 {
 		return ""
 	}
-	m := frontmatterModelLine.FindStringSubmatch(text[:end+3])
+	m := line.FindStringSubmatch(text[:end+3])
 	if m == nil {
 		return ""
 	}
@@ -202,17 +214,20 @@ func classifyPins(pins []pinnedModel, catalogue []string) (unavailable, unverifi
 
 // reportModelPins prints the model-pin section of doctor.
 //
+// It returns what it read so the subagent check can reuse the catalogue
+// instead of probing the client twice.
+//
 // It never sets hasErrors. A stale pin is worth saying out loud, but nav-pilot
 // neither owns the catalogue nor the agent files a user may have written
 // themselves, and failing the whole health check over someone else's
 // entitlement would teach people to ignore the exit code.
-func reportModelPins() {
+func reportModelPins() (scope *InstallScope, pins []pinnedModel, catalogue []string) {
 	scope, err := ScopeUser()
 	if err != nil {
 		fmt.Printf("    %s Could not resolve the user scope: %v\n", dim("-"), err)
-		return
+		return nil, nil, nil
 	}
-	pins := installedModelPins(scope)
+	pins = installedModelPins(scope)
 	if len(pins) == 0 {
 		fmt.Printf("    %s No installed agent pins a model (all inherit the client's)\n", green("✓"))
 		return
@@ -227,6 +242,7 @@ func reportModelPins() {
 
 	catalogue, ok := clientChatModels(copilotPath)
 	if !ok {
+		catalogue = nil
 		// Offline, unauthenticated, or a client that no longer writes the
 		// catalogue to its debug log. "Unknown" and never "fine".
 		fmt.Printf("    %s %d agent(s) pin a model; could not read the client's model catalogue\n",
@@ -273,6 +289,7 @@ func reportModelPins() {
 			fmt.Printf("      %s %s pins %q\n", dim("-"), p.Agent, p.Label)
 		}
 	}
+	return
 }
 
 // relPathForAgent is the scope-relative path of an installed agent, for

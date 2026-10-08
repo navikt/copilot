@@ -214,9 +214,13 @@ description = "nav-pilot usage selftest, shellcheck, bats"
 run = """
 set -e
 python3 scripts/copilot-usage.py --selftest
-shellcheck scripts/install.sh skills/*/*.sh
+shellcheck scripts/install.sh scripts/subagent-pin-canary.sh skills/*/*.sh
 bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
 """
+
+[tasks."canary:subagent-pin"]
+description = "Check that Copilot CLI runs a subagent on its model pin (spends ~0.1-0.5 AI credit; isolated COPILOT_HOME)"
+run = "scripts/subagent-pin-canary.sh"
 
 [tasks."nav-pilot:install"]
 description = "Build and install nav-pilot CLI to GOBIN"

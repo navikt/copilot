@@ -4,6 +4,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-08
 
+### `nav-pilot doctor` sier fra når settings.json overstyrer modellen til en subagent
+
+- **Advarsel, ingen feil**: Har en agent `model:` i agentfila, og `~/.copilot/settings.json` setter `subagents.agents.<navn>.model` til `inherit` eller en annen modell, sier `doctor` fra. Da kjører agenten på en annen modell når en annen agent delegerer til den.
+- **Ukjent modell**: `doctor` sier også fra når innstillingen peker på en modell Copilot ikke kjenner. Copilot CLI bruker da modellen til agenten som delegerte, men viser fortsatt navnet du skrev.
+- **Bare lesing**: `doctor` endrer aldri fila. Kommentarer i fila går fint. Kan den ikke lese fila, sier den det og fortsetter.
+- **Ny sjekk**: `mise run canary:subagent-pin` og workflowen `subagent pin canary` sjekker om Copilot CLI fortsatt bruker modellen i agentfila når agenten kjører som subagent. Den ukentlige kjøringen er av til noen slår den på.
+
 ### Tydeligere beskjed når agentpakka di er utdatert
 
 Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, for eksempel nais/pilot.
