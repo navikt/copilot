@@ -89,13 +89,14 @@ gh pr create --head min-gren`}
             <li>Grenen finnes fortsatt med samme navn, og remoten fantes fra før.</li>
             <li>Git-vakta står på og ville sluppet gjennom pushen.</li>
             <li>
-              Økta kjørte ikke med <code className={code}>--quiet</code>. <code className={code}>cplt exec</code> er
-              stille som standard.
+              Økta kjørte ikke med <code className={code}>--quiet</code>, <code className={code}>--no-audit</code> eller{" "}
+              <code className={code}>--no-scratch-dir</code>, og ingen prosesser fra økta kjørte fortsatt da den
+              sluttet. <code className={code}>cplt exec</code> er stille som standard.
             </li>
           </Bullets>
           <BodyLong>
-            Ellers skriver cplt kommandoen du kan kjøre selv utenfor cplt, for eksempel{" "}
-            <code className={code}>git branch -u origin/min-gren min-gren</code>.{" "}
+            Ellers skriver cplt kommandoen du kan kjøre selv utenfor cplt. I en stille økt kommer den i stedet i
+            meldingen når du pusher, for eksempel <code className={code}>git branch -u origin/min-gren min-gren</code>.{" "}
             <code className={code}>git branch -u</code> og <code className={code}>--set-upstream-to</code> inne i økta
             blir fortsatt ikke lagret. På Linux virker <code className={code}>-u</code> som vanlig.
           </BodyLong>

@@ -529,8 +529,9 @@ cplt trust accept --all                                    # godkjenn forslaget`
             <NextLink href="/nav-pilot/guider/cplt-git#push" className={linkClass}>
               Git og GitHub i sandkassen
             </NextLink>
-            . Ellers skriver cplt en <code className={code}>git branch -u</code>-kommando du kan kjøre utenfor cplt. Vil
-            du slippe upstream, skriv grennavnet når du pusher, og oppgi det når du lager pull requesten:
+            . Ellers skriver cplt en <code className={code}>git branch -u</code>-kommando du kan kjøre utenfor cplt, når
+            økta slutter eller, i en stille økt, når du pusher. Vil du slippe upstream, skriv grennavnet når du pusher,
+            og oppgi det når du lager pull requesten:
           </BodyLong>
           <CodeBlock compact>
             {`git push origin HEAD:min-gren
