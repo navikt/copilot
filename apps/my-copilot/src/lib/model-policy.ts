@@ -43,7 +43,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "GPT-6 Luna",
     fallbacks: ["Claude Haiku 5.5"],
     reason:
-      "Besto alle 30 sjekker i kodesuiten på Medium for 1,65 til 1,86 credits. Claude Haiku 5.5 Low besto også 30 av 30 for 1,55 til 1,64 og er reserve.",
+      "Luna Medium besto 30 av 30 sjekker i kodesuiten 30. september og 8. oktober (median 1,65 og 1,86 credits). Claude Haiku 5.5 Low besto også 30 av 30 for 1,55–1,64 credits og er reserve.",
     users: ["@worker"],
   },
   {

@@ -31,7 +31,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 - **Hva**: `@worker` utfører én avgrenset oppgave fra en brief (oppgave, filer, endring, sjekk, stopp) og svarer med en kort rapport. Den kan ikke starte andre agenter, og den committer ikke uten at briefen ber om det.
 - **Hvorfor**: Agenten er et første steg mot at `@nav-pilot` kan sende enkle oppgaver videre til en billigere modell. `@nav-pilot` er ikke endret ennå.
-- **Modell**: GPT-6 Luna, med Claude Haiku 5.5 som reserve. Begge besto alle 30 sjekkene i kodesuiten.
+- **Modell**: GPT-6 Luna, med Claude Haiku 5.5 som reserve. Begge besto 30 av 30 sjekker i kodesuiten.
 - **Gjelder etter neste installasjon**: Kjør `nav-pilot sync --apply` for å få agenten.
 
 ### `@rust` bytter til Claude Haiku 5.5
