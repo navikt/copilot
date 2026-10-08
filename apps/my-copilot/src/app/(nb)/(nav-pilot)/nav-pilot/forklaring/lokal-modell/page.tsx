@@ -99,10 +99,10 @@ export default function LokalModellForklaring() {
           </Bullets>
           <BodyLong>
             Stoppet får hovedagenten til å sende, men sparer ikke AI-kreditter. Både{" "}
-            <code className={code}>aggressive</code> og <code className={code}>balanced</code> kostet mer og tok lengre
-            tid enn å la skymodellen gjøre alt selv. <code className={code}>balanced</code> sendte nesten ingenting og
-            kostet likevel mer, så <code className={code}>aggressive</code> er standard fra 30. september 2026. Tallene
-            står i{" "}
+            <code className={code}>aggressive</code> og <code className={code}>balanced</code> kostet i de fleste
+            målingene mer og tok lengre tid enn å la skymodellen gjøre alt selv. <code className={code}>balanced</code>{" "}
+            sendte nesten ingenting og kostet likevel mer, så <code className={code}>aggressive</code> er standard fra
+            30. september 2026. Tallene står i{" "}
             <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger#utsendingsnivaer" className={linkClass}>
               Målinger
             </NextLink>
