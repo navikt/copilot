@@ -2184,13 +2184,7 @@ run_pass_nav_pilot() {
       WS_EXTRA=seed_jackson_branch
       # As reported: a fresh session, the skill invoked as a slash command.
       PROMPT_COMMAND=jackson-3-migration
-      # question_sentences needs perl, and without it asks_privacy finds no
-      # question and test 7 would pass. Refuse before the model call.
-      if ! command -v perl >/dev/null 2>&1; then
-        rc7=1; LAST_PROMPT_DETAIL="perl not found; test 7 cannot split sentences"
-      else
-        run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
-      fi
+      run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
       PROMPT_COMMAND=""
       if [[ $rc7 -ne 0 ]]; then
         record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
@@ -2230,11 +2224,7 @@ run_pass_nav_pilot() {
     DESC8="strip old signing headers: Fase 1 stop with a security question, no privacy or access interview"
     T8="$(tx t8)"
     WS_EXTRA=seed_signing_fixture
-    if ! command -v perl >/dev/null 2>&1; then
-      rc8=1; LAST_PROMPT_DETAIL="perl not found; test 8 cannot split sentences"
-    else
-      run_prompt t8 "I paw sitt intern monorep har vi fikset signeringen slik at selve signeringsprosessen selv fjerner eksisterende signeringsheaders før den legge på ny. Implementere dette i dette repoet også."; rc8=$?
-    fi
+    run_prompt t8 "I paw sitt intern monorep har vi fikset signeringen slik at selve signeringsprosessen selv fjerner eksisterende signeringsheaders før den legge på ny. Implementere dette i dette repoet også."; rc8=$?
     WS_EXTRA=""
     if [[ $rc8 -ne 0 ]]; then
       record_error 8 "$DESC8" "$LAST_PROMPT_DETAIL"

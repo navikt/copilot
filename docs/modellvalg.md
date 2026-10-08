@@ -426,7 +426,7 @@ Med «fnr» i `RE_BS1` og «tilgang» eller «hvem skal kunne kalle» i `RE_BS2`
 
 Planleggingssjekkene leser nå bare svaret og ikke verktøyutskriften. Det gjøres med samme filter som gjennomgangssjekkene bruker. Sjekker som gjelder verktøykall, leser fortsatt hele transkriptet. Hvis filteret feiler, regnes kjøringen som en feil i testoppsettet og ikke som et tomt svar.
 
-Mønstrene for blindsone 1 og 2 er ikke endret. Vi prøvde å utvide dem med regler for spørsmål om «fnr» og «tilgang», men en uavhengig test viste at reglene ikke holdt. Testen hadde 44 spørsmål, og de ble skrevet før noen leste koden. For blindsone 1 fanget reglene 42 prosent av spørsmålene som skulle telle, og 71 prosent av treffene var riktige. For blindsone 2 var tallene 58 og 70 prosent. Dagens sjekk har også en kjent feil: den godtar «fødselsnummer», «saksbehandler» eller «innbygger» hvor som helst i svaret, også når agenten ikke spør om noe. En KI-basert vurdering skal erstatte mønstrene i en egen endring. De 44 spørsmålene og 25 spørsmål fra gjennomgangen ligger i [blindspot-controls.tsv](../scripts/golden-fixtures/blindspot-controls.tsv) som kontrollsett for den.
+Mønstrene for blindsone 1 og 2 er ikke endret. Vi prøvde å utvide dem med regler for spørsmål om «fnr» og «tilgang», men en uavhengig test viste at reglene ikke holdt. Testen hadde 44 spørsmål, skrevet før noen hadde lest koden. For blindsone 1 fanget reglene 42 prosent av spørsmålene som skulle telle, og 71 prosent av treffene var riktige. For blindsone 2 var tallene 58 og 70 prosent. Dagens sjekk har også en kjent feil: den godtar «fødselsnummer», «saksbehandler» eller «innbygger» hvor som helst i svaret, også når agenten ikke spør om noe. En KI-basert vurdering skal erstatte mønstrene i en egen endring. De 44 spørsmålene og 25 spørsmål fra gjennomgangen ligger i [blindspot-controls.tsv](../scripts/golden-fixtures/blindspot-controls.tsv) som kontrollsett for den nye vurderingen.
 
 Luna-svarene fra 7. oktober er regnet om med de uendrede mønstrene på svaret alene. Ingen modell er kjørt på nytt. Hver kjøring står i [omregning-1462.psv](golden-baselines/2026-10-07-luna-planning/omregning-1462.psv).
 
@@ -438,11 +438,11 @@ Luna-svarene fra 7. oktober er regnet om med de uendrede mønstrene på svaret a
 
 t7b kjøring 4 besto 7. oktober bare på grunn av en linje i verktøyutskriften. t2 (5/5), t4 (4/5) og t5 (5/5) er uendret.
 
-**Vurdering: Alle resultater for t3, t7b og blindsonene, også de tidligere, er foreløpige til den nye vurderingen er på plass.** Det gjelder også vurderingen av Luna over. Med dagens sjekker når Luna ikke kravet. Ingen pin er endret.
+**Konklusjon: Alle resultater for t3, t7b og blindsonene, også de tidligere, er foreløpige til den nye vurderingen er på plass.** Det gjelder også vurderingen av Luna ovenfor. Med dagens sjekker når Luna ikke kravet. Ingen pin er endret.
 
 Kjente begrensninger:
 
-- Verktøyfilteret er laget fra Copilot CLI-transkripter. Det er ikke prøvd mot OpenCode, fordi ingen rå OpenCode-transkripter er lagret.
+- Verktøyfilteret er laget ut fra Copilot CLI-transkripter. Det er ikke prøvd mot OpenCode, fordi ingen rå OpenCode-transkripter er lagret.
 - t2 teller alle spørsmålstegn i svaret, også retoriske spørsmål og `?` i kode.
 - `recommends_client_credentials` (t5) er justert mot hele transkriptet med verktøyutskrift, men leser nå bare svaret.
 

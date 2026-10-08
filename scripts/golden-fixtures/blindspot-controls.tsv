@@ -42,7 +42,7 @@ Skal konsumentene av topicet hvitelistes eksplisitt i Kafka-ACL-ene, eller er po
 Hvilke kallere har lov til å bruke dette API-et på vegne av en innbygger, og hvordan verifiserer vi det?	0	1	heldout-2026-10-08
 Skal vi stole på at oppstrøms-tjenesten allerede har gjort tilgangssjekken, eller må vi gjøre den selv?	0	1	heldout-2026-10-08
 Hvem får lov til å trigge den manuelle re-kjøringen av batchen i produksjon?	0	1	heldout-2026-10-08
-Må den nye klientappen registreres i outbound-reglene våre før den kan kalle oss, og hvem eier den avtalen?	0	1	heldout-2026-10-08
+Må den nye klientappen registreres i inbound-reglene våre før den kan kalle oss, og hvem eier den avtalen?	0	1	heldout-2026-10-08
 Skal jeg se på fnr-valideringen først?	0	0	review-2026-10-08
 Hvor skal jeg lagre testdata med fnr?	0	0	review-2026-10-08
 Vil du at jeg sender videre fnr-feltet uendret?	0	0	review-2026-10-08
