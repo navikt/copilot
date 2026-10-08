@@ -14,10 +14,12 @@ cd ../forbruker
 exec git init -q .
 exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 
-# The slow gate: killed before the 3 s deadline, nothing on stdout, exit 0.
-# run.py enforces that deadline with its timeout on the hook command, as
-# Copilot does. A -within here would also count run.py's own interpreter
-# start, which production does not have.
+# The slow gate: killed by the watchdog, nothing on stdout, exit 0. The script
+# sleeps 30 s, so an answer within run.py's timeout means the watchdog fired.
+# That the watchdog fires before the 3 s deadline is HookCommand's arithmetic
+# (internal/source/hook_command_test.go). run.py does not hold the hook to the
+# 3 s itself: with several checks running, starting the hook's /bin/sh was
+# measured at up to 2.4 s before its first line, and the deadline counts that.
 exits 0 python3 ../run.py treg
 ! stdout .
 
@@ -26,11 +28,12 @@ exits 0 python3 ../run.py rask
 stdout '"permissionDecision": "deny"'
 
 -- run.py --
-# Runs a hook entry the way Copilot does: sh -c, payload on stdin.
+# Runs a hook entry the way Copilot does: sh -c, payload on stdin. The
+# timeout only stops a hung hook; see above.
 import json, subprocess, sys
 entries = json.load(open(".github/hooks/copilot-hooks.json"))["hooks"]["preToolUse"]
 e = next(e for e in entries if e["navPilot"] == sys.argv[1])
-p = subprocess.run(["/bin/sh", "-c", e["command"]], input=b'{"toolName":"bash","toolArgs":{"command":"x"}}', capture_output=True, timeout=e["timeoutSec"])
+p = subprocess.run(["/bin/sh", "-c", e["command"]], input=b'{"toolName":"bash","toolArgs":{"command":"x"}}', capture_output=True, timeout=e["timeoutSec"] + 10)
 sys.stdout.write(p.stdout.decode())
 sys.exit(p.returncode)
 -- plattform/.nav-pilot/agentpakke.json --

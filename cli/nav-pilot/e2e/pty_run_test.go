@@ -119,8 +119,19 @@ func ptyRun(args []string) int {
 	select {
 	case err = <-waited:
 	case <-time.After(60 * time.Second):
-		_ = cmd.Process.Kill()
-		<-waited
+		// A Go program prints every goroutine's stack on SIGQUIT: what it
+		// hung on, in the log, instead of only that it did.
+		_ = cmd.Process.Signal(syscall.SIGQUIT)
+		select {
+		case <-waited:
+		case <-time.After(5 * time.Second):
+			_ = cmd.Process.Kill()
+			<-waited
+		}
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+		}
 		fmt.Fprintln(os.Stderr, "pty-run: timed out")
 		return 124
 	}

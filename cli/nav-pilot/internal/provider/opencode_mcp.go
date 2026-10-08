@@ -44,7 +44,9 @@ import (
 // turned off: the approved list, and how to get one added.
 const MCPRegistryHelpURL = "https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers"
 
-const mcpPolicyTimeout = 5 * time.Second
+// MCPPolicyTimeout bounds each gh and registry call. A var so the e2e build
+// can give its fake gh more time on a loaded machine.
+var MCPPolicyTimeout = 5 * time.Second
 
 var envPlaceholder = regexp.MustCompile(`\{env:([^}]+)\}`)
 
@@ -112,7 +114,7 @@ func askMCPPolicy() (registry string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("gh is not installed")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), MCPPolicyTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, gh, "api", "/copilot/mcp_registry").Output()
 	if err != nil {
@@ -149,7 +151,7 @@ func askMCPPolicy() (registry string, err error) {
 // askMCPRegistry lists a registry's servers (MCP Registry v0.1).
 func askMCPRegistry(base string) (mcpRegistry, error) {
 	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}, Servers: map[string][]string{}}
-	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), MCPPolicyTimeout)
 	defer cancel()
 	client := mcpHTTPClient
 	cursor := ""

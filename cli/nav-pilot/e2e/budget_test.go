@@ -346,11 +346,14 @@ func TestLaunchBudget(t *testing.T) {
 		check("launch", launches[c])
 		check("exit", exits[c])
 	}
-	// The same machine and the same load, so no margin: what opencode does on
-	// top of the Copilot launch must fit in the budget itself. It once waited
-	// seconds on macOS's automounter for /home (#1276).
-	if diff := pairedDiff(launches[1][telemetryOff], launches[0][telemetryOff]); diff > budgets["launch"] {
-		t.Errorf("an opencode launch took %s more than a Copilot launch (median of %d paired runs; medians %s and %s): opencode adds more than the %s launch budget. Something on its path waits (a lookup, a lock, the network) or does too much",
-			diff, budgetRuns, median(launches[1][telemetryOff]), median(launches[0][telemetryOff]), budgets["launch"])
+	// What opencode does on top of the Copilot launch must fit in the launch
+	// budget, with the same margin as the rest. Pairing cancels load that
+	// lands on both runs, not load that scales with the work: opencode reads
+	// the whole source at launch, so its extra time grows with CPU and disk
+	// contention, and with several checks running it reached 190 ms. What this
+	// catches is a wait: once seconds on macOS's automounter for /home (#1276).
+	if diff := pairedDiff(launches[1][telemetryOff], launches[0][telemetryOff]); diff > budgets["launch"]*budgetMargin {
+		t.Errorf("an opencode launch took %s more than a Copilot launch (median of %d paired runs; medians %s and %s): over %dx the %s launch budget. Something on its path waits (a lookup, a lock, the network) or does too much",
+			diff, budgetRuns, median(launches[1][telemetryOff]), median(launches[0][telemetryOff]), budgetMargin, budgets["launch"])
 	}
 }
