@@ -13,11 +13,11 @@ func TestOpenCodeInstallVersionInsideTestedRange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rng, err := agentpakke.ParseVersionRange(OpenCodeTestedRange)
+	rng, err := agentpakke.ParseVersionRange(OpenCode1TestedRange)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !rng.Contains(v) {
-		t.Fatalf("OpenCodeInstallVersion %s is outside OpenCodeTestedRange %s", OpenCodeInstallVersion, OpenCodeTestedRange)
+		t.Fatalf("OpenCodeInstallVersion %s is outside OpenCode1TestedRange %s", OpenCodeInstallVersion, OpenCode1TestedRange)
 	}
 }

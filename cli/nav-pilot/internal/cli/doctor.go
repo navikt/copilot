@@ -395,9 +395,9 @@ func cmdDoctor() error {
 		case err != nil:
 			fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
 		case tested:
-			fmt.Printf("      %s Version %s is inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCodeTestedRange)
+			fmt.Printf("      %s Version %s is inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCodeTestedRangeFor(v))
 		default:
-			fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRange)
+			fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRangeFor(v))
 		}
 		switch listed, unlisted, err := providerpkg.OpenCodeMCPReport(""); {
 		case err != nil:
