@@ -13,6 +13,8 @@ tags:
   - alpha
 ---
 
+**Siste tall:** Tallene under er fra da saken ble skrevet. Oppdaterte målinger står på [Lokale modeller](/innsikt/lokale-modeller#godkjent-for).
+
 Med `nav-pilot alpha local` kan du kjøre en modell fra Qwen-familien på din egen maskin. Vi prøver lokal delegering for å redusere credit-forbruket, men labmålingene viser at det ikke lønner seg på alle oppgaver.
 
 Hovedagenten blir i skya og bestemmer, den lokale modellen utfører. I logger og konfigurasjon heter den `local-worker`.
