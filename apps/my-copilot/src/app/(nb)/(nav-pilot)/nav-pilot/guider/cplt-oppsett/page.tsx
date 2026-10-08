@@ -264,7 +264,7 @@ nav-pilot`}
           <BodyLong>
             Under en liste over tillatte hoster når Copilot <code className={code}>npm.pkg.github.com</code> og{" "}
             <code className={code}>maven.pkg.github.com</code>, fordi lista har med{" "}
-            <code className={code}>github.com</code> og alle undervertene. Får du <code className={code}>401</code>, har
+            <code className={code}>github.com</code> og alle subdomenene. Får du <code className={code}>401</code>, har
             forespørselen kommet fram. Da er det tokenet som mangler, ikke nettverket.
           </BodyLong>
           <BodyLong>

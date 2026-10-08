@@ -80,9 +80,9 @@ Vi krever nå minst fem kjøringer før et tall får styre en anbefaling, og at 
 
 Deretter 200 kjøringer på én maskin med modellen vi valgte, fordelt på to klienter, seks oppgavetyper, tre refactor-strategier og tre kodebaser: en Ktor-app, en Spring-app og en frontend.
 
-I Ktor-repoet kostet oppgaven 13 AI-kreditter med lokal utsending, mot 34 uten. Testene ga samme resultat. Til gjengjeld tok det 156 sekunder mot 100.
+I Ktor-repoet kostet oppgaven 13 AI-kreditter med lokal delegering, mot 34 uten. Testene ga samme resultat. Til gjengjeld tok det 156 sekunder mot 100.
 
-I Spring-repoet snudde det: 16 credits mot 9. Der ble det dyrere å kjøre lokalt, med samme modell og samme oppsett.
+I Spring-repoet snudde det: 16 AI-kreditter mot 9. Der ble det dyrere å kjøre lokalt, med samme modell og samme oppsett.
 
 I disse laboppgavene hang besparelsen sammen med hvor mange steg skymodellen brukte alene. Målingene viser ikke at kodebasen er uten betydning.
 

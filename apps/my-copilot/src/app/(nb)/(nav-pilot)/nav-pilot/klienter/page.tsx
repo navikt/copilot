@@ -62,7 +62,13 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     note: "Feiler maskeringen i opencode, holder nav-pilot verktøyresultatet tilbake.",
   },
   { what: "Merknad om prompt-injeksjon", copilot: "Ja", opencode: "Ja", pi: "Nei" },
-  { what: "Loop guard i skyøkter", copilot: "Ja", opencode: "Ja", pi: "Nei" },
+  {
+    what: "Loop guard i skyøkter",
+    copilot: "Ja",
+    opencode: "Ja",
+    pi: "Nei",
+    note: "Stopper agenten når den gjentar seg.",
+  },
   {
     what: "Gates og agentpakke-hooks",
     copilot: "Ja",

@@ -253,12 +253,12 @@ hva hver av dem gjør og hvordan du slår den av.
 
 | Hook           | Fil                                 | Hva den gjør                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Slå av                                                                          |
 | -------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Løkkevakt      | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                                                                                                                                                          | `nav-pilot config set hook_loop_guard false`                                    |
+| Loop guard     | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                                                                                                                                                          | `nav-pilot config set hook_loop_guard false`                                    |
 | Handlingssjekk | `nav-pilot-action-check.json`       | Før en risikabel skallkommando (endringer med kubectl, nais, gcloud og helm, `terraform apply`/`destroy`, `rm -r`, `git push --force`, `git reset --hard`, `git clean -f`, `dd`, `mkfs`, `DROP` og `TRUNCATE` i SQL) spør hooken den lokale modellen om kommandoen står i forhold til formålet, om den er destruktiv, og om formålet støtter den. Svaret lagres i telemetri og i en logg i øktas mappe. Stopper ingenting, og modellen ser ikke svaret. Bare med lokal modell. | `nav-pilot config set hook_action_check off`                                    |
 | Maskering      | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører).                                                                                                                                        | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
 
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
-det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed om at den står
+det modellen leser. Når loop guard slår til, får modellen derfor en beskjed om at den står
 fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
 `local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil i øktas egen
 mappe, `~/.copilot/session-state/<økt-id>/nav-pilot-loop-guard.json`. Filen inneholder bare
@@ -301,7 +301,7 @@ I en lokal økt står vakten i nav-pilot allerede foran modellen og avslutter tu
 hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene er laget for å
 slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt, blir
 resultatet stående som det var. Unntaket er en `config.toml` som ikke lar seg lese. Da
-kjører hookene med standardverdiene, altså med maskering og løkkevakt på, og skriver én
+kjører hookene med standardverdiene, altså med maskering og loop guard på, og skriver én
 linje om det på stderr. En ødelagt fil skal ikke være det som slår av maskeringen. En nøkkel
 med feil type, for eksempel `hook_redact_secrets = "false"` med anførselstegn, blir hoppet
 over, så standardverdien gjelder, og hooken sier fra om det på stderr.
@@ -562,19 +562,19 @@ flervalgsspørsmål fra hooks og skript. Ingenting skjer før du kjører `init` 
 
 ```bash
 nav-pilot alpha local init      # Mac med Apple Silicon: laster ned modellen og starter serveren
-nav-pilot alpha local setup     # egen server (Linux, Ollama, llama-server)
+nav-pilot alpha local setup     # egen LLM-server (Linux, Ollama, llama-server)
 nav-pilot alpha help            # alle kommandoene
 ```
 
 Dokumentasjonen står på ki-utvikling.nav.no:
 
 - [Kom i gang med lokal modell på Mac](https://ki-utvikling.nav.no/nav-pilot/lokal)
-- [Kom i gang med egen server](https://ki-utvikling.nav.no/nav-pilot/lokal/egen-server)
+- [Kom i gang med egen LLM-server](https://ki-utvikling.nav.no/nav-pilot/lokal/egen-server)
 - [Din første decide-hook](https://ki-utvikling.nav.no/nav-pilot/lokal/decide)
-- Guiden [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/guider/lokal): utsending, bytte modell og oppskrifter for `alpha decide`
+- Guiden [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/guider/lokal): delegering, bytte modell og oppskrifter for `alpha decide`
 - [Når den lokale modellen henger](https://ki-utvikling.nav.no/nav-pilot/guider/feilsoking#lokal)
 - [Lokale modeller](https://ki-utvikling.nav.no/nav-pilot/referanse#lokale-modeller) i referansen
-- Forklaringen [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/forklaring/lokal-modell): hvorfor utsendingen er begrenset, og hva modellene klarer, målt
+- Forklaringen [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/forklaring/lokal-modell): hvorfor delegeringen er begrenset, og hva modellene klarer, målt
 
 ## Agentpakker fra andre team
 

@@ -64,9 +64,10 @@ export default function EgenServer() {
       toc={TOC}
     >
       <BodyLong>
-        Delegerte oppgaver, loop guard og <code className={code}>alpha decide</code> bruker serveren din. Koden din
-        sendes dit, så nav-pilot godtar bare localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. Modellen på
-        serveren din er ikke målt, så tallene i{" "}
+        Delegerte oppgaver, loop guard (stopper modellen når den gjentar seg) og{" "}
+        <code className={code}>alpha decide</code> bruker serveren din. Koden din sendes dit, så nav-pilot godtar bare
+        localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. Modellen på serveren din er ikke målt, så
+        tallene i{" "}
         <NextLink href="/innsikt/lokale-modeller" className={linkClass}>
           Målinger
         </NextLink>{" "}
@@ -256,10 +257,10 @@ export default function EgenServer() {
 nav-pilot`}</CodeBlock>
           <BodyLong>
             Be om en mekanisk endring over flere filer, som «legg til parameteren <code className={code}>ctx</code> i
-            alle kall til <code className={code}>hentBruker</code>». Modellen på serveren din er ikke målt, så nav-pilot
-            bruker delegeringsnivået <code className={code}>conservative</code>, uansett hva{" "}
-            <code className={code}>local_dispatch</code> står på: hovedagenten får bare den generelle instruksen om
-            delegering, og nav-pilot stopper ingen redigeringer. Hovedagenten vurderer selv hva den delegerer.
+            alle kall til <code className={code}>hentBruker</code>». Modellen på serveren din er ikke målt, så
+            hovedagenten får bare den generelle instruksen om delegering, og nav-pilot stopper ingen redigeringer,
+            heller ikke med <code className={code}>balanced</code> eller <code className={code}>aggressive</code>.
+            Hovedagenten vurderer selv hva den delegerer.
           </BodyLong>
           <BodyLong>
             <code className={code}>nav-pilot alpha local status</code> viser serveren, modellen og om delegering er på.

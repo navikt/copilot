@@ -201,7 +201,7 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
 cplt config set proxy.allow_private_domains intern.nav.no`}
           </CodeBlock>
           <BodyLong>
-            Ett navn dekker alle undervertene. For ett prosjekt kan du bruke{" "}
+            Ett navn dekker alle subdomenene. For ett prosjekt kan du bruke{" "}
             <code className={code}>cplt config set --repo proxy.allow_private_domains …</code> og godkjenne med{" "}
             <code className={code}>cplt trust accept</code>, slik{" "}
             <a href={PENSJONSBREV} className={linkClass}>

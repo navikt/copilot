@@ -199,10 +199,10 @@ nav-pilot config set autonomy sandbox        # kjør kommandoer selv`}</CodeBloc
 nav-pilot config                    # eller raden «cplt strict preset (blocks all pushes)»`}
           </CodeBlock>
           <BodyLong>
-            nav-pilot skriver vertslista til <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code>, peker{" "}
-            <code className={code}>proxy.allowed_domains</code> dit, og setter nivået til slutt, så låsen aldri blir
-            aktiv uten hostene. Har du en egen <code className={code}>proxy.allowed_domains</code>, lar nav-pilot den
-            være og sier at du må legge til hostene selv. Nøkler du har satt selv, gjelder foran nivået.
+            nav-pilot skriver lista over hoster til <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code>,
+            peker <code className={code}>proxy.allowed_domains</code> dit, og setter nivået til slutt, så låsen aldri
+            blir aktiv uten hostene. Har du en egen <code className={code}>proxy.allowed_domains</code>, lar nav-pilot
+            den være og sier at du må legge til hostene selv. Nøkler du har satt selv, gjelder foran nivået.
           </BodyLong>
           <BodyLong>
             Fila har hele lista: Nav-hostene, cplts egen liste og pakkeregistrene. Agenten når derfor pakkeregistrene
