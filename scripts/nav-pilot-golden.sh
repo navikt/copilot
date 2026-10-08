@@ -589,7 +589,26 @@ cleanup() {
     rm -rf "$WORKDIR" ${DELEG_HOME:+"$DELEG_HOME"}
   fi
 }
-trap cleanup EXIT
+# No orphaned daemons. Gradle (and the Kotlin compile daemon it starts) outlives
+# the run by hours otherwise, and the agents under test run `gradle test` too, so
+# the switch goes in the environment every child inherits. The fixtures carry the
+# same settings in gradle.properties.
+export GRADLE_OPTS="-Dorg.gradle.daemon=false -Dkotlin.compiler.execution.strategy=in-process ${GRADLE_OPTS:-}"
+# Belt and braces: stop any Gradle/Kotlin daemon whose command line or cwd
+# points into $WORKDIR. Daemons of the owner's own projects never match.
+# Matched on the unique basename: TMPDIR may end in a slash, and macOS reports
+# /var as /private/var.
+# shellcheck disable=SC2329  # invoked via trap
+reap_daemons() {
+  local pid id="${WORKDIR##*/}"
+  for pid in $(pgrep -f 'GradleDaemon|KotlinCompileDaemon' 2>/dev/null); do
+    if ps -o command= -p "$pid" | grep -qF "$id" ||
+      lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | grep -qF "$id"; then
+      kill "$pid" 2>/dev/null
+    fi
+  done
+}
+trap 'reap_daemons; cleanup' EXIT
 
 mkdir -p "$TEMPLATE/.github/agents" "$TEMPLATE/src/main/kotlin/no/nav/demo"
 # The installed copy differs from the working-tree file in two frontmatter
