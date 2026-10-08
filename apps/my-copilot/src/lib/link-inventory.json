@@ -565,6 +565,7 @@
       "utsending": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/lokal-modell/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/lokal/page.tsx"
       ]
@@ -585,6 +586,7 @@
     "anchors": {
       "brukerundersokelser": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"
       ],
       "hva-som-males": [
@@ -595,7 +597,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"
       ],
-      "nyheter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx"],
+      "nyheter": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"
+      ],
       "sla-av": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"
@@ -651,6 +656,10 @@
       "docs/README.nav-pilot.md"
     ],
     "anchors": {
+      "autonomi": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"
+      ],
       "isolasjon-er-pakrevd": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx"
@@ -672,7 +681,8 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx"
-      ]
+      ],
+      "strict": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx"]
     }
   },
   "/nav-pilot/guider": {
@@ -1089,6 +1099,7 @@
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx"
       ],
+      "hook-action-check": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"],
       "hooks": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx"

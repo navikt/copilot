@@ -18,7 +18,7 @@ export const CONFIG_KEYS = [
     key: "client",
     flag: "--client",
     values: "copilot · opencode · pi (standard: opencode)",
-    desc: "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen, og nav-pilot starter ingen klient uten cplt. Standard er opencode på en ny installasjon i en terminal, og copilot uten terminal (CI) eller når opencode ikke er installert. En config.toml uten client betyr copilot, så du beholder klienten din når du oppgraderer. Første gang nav-pilot kjører i en terminal, skriver den client inn i fila.",
+    desc: "Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt. Mangler nøkkelen i en eksisterende config.toml, betyr det copilot.",
   },
   {
     key: "source",
@@ -30,7 +30,7 @@ export const CONFIG_KEYS = [
     key: "model",
     flag: "--model",
     values: "modell-id, f.eks. claude-opus-4.8",
-    desc: "Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/<id>); opencode tar også provider/model. nav-pilot config explain model lister id-ene.",
+    desc: "Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode; opencode tar også provider/model. nav-pilot config explain model lister id-ene.",
   },
   {
     key: "mode",
@@ -66,7 +66,7 @@ export const CONFIG_KEYS = [
     key: "autonomy",
     flag: "—",
     values: "sandbox · conservative (standard: sandbox)",
-    desc: "Hvor mye agenten får gjøre uten å spørre når den kjører i cplt. For Copilot CLI gir sandbox --allow-all-tools --allow-all-paths --allow-all-urls: vaktene i cplt setter grensene, og agenten kan fremdeles spørre deg. Med conservative spør Copilot før hver handling. For OpenCode gir sandbox --auto, og med conservative spør OpenCode som vanlig. nav-pilot config set autonomy skriver også autonomy_chosen = true. En conservative uten det skrev en eldre nav-pilot selv, og den teller som sandbox.",
+    desc: "Hvor mye agenten gjør uten å spørre i cplt. sandbox: kjører kommandoer selv, og vaktene i cplt setter grensene. conservative: spør før hver handling.",
   },
   {
     key: "auto_launch",
@@ -78,19 +78,19 @@ export const CONFIG_KEYS = [
     key: "auto_update",
     flag: "—",
     values: "true · false (standard: false)",
-    desc: "Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer.",
+    desc: "Oppgrader nav-pilot automatisk når en ny versjon er ute. Feiler det, kjører du videre på versjonen du har.",
   },
   {
     key: "surveys",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri, og viser heller ikke engangstipset om opencode. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av.",
+    desc: "Spør av og til etter en økt om du vil svare på en kort brukerundersøkelse. false slår av spørsmålet og engangstipset om opencode; DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false gjør det samme.",
   },
   {
     key: "news",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Etter en økt viser nav-pilot én linje når det er kommet en ny nav-pilot-sak på ki-utvikling.nav.no, én gang per sak. Med false viser nav-pilot den aldri, men nav-pilot news lister sakene fortsatt. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår den også av.",
+    desc: "Vis én linje etter en økt når det er kommet en ny nav-pilot-sak, én gang per sak. nav-pilot news lister sakene uansett.",
   },
   {
     key: "log_level",
@@ -132,7 +132,7 @@ export const CONFIG_KEYS = [
     key: "local_endpoint",
     flag: "—",
     values: "en http(s)-URL",
-    desc: "Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor.",
+    desc: "Din egen OpenAI-kompatible server (Ollama, llama-server), bare localhost eller privat IP (alfa, uten støtte). Sjekk den med nav-pilot alpha local doctor.",
   },
   {
     key: "local_endpoint_model",
@@ -144,7 +144,7 @@ export const CONFIG_KEYS = [
     key: "local_dispatch",
     flag: "--local-dispatch",
     values: "off · conservative · balanced · aggressive (standard: aggressive)",
-    desc: "Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti kallsteder eller en skriptet løkke. Et søk-og-erstatt teller hvert sted det endrer. Med aggressive slipper redigeringen gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Med aggressive sender hovedagenten mest, men det kostet flere AI-kreditter og tok lengre tid i målingene. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for. Standard er aggressive. Vil du tilbake til balanced: nav-pilot config set local_dispatch balanced.",
+    desc: "Hvor mye hovedagenten i opencode sender til den lokale modellen. aggressive sender mest, men kostet flere AI-kreditter og tok lengre tid i målingene.",
   },
   {
     key: "hook_loop_guard",
@@ -174,13 +174,13 @@ export const CONFIG_KEYS = [
     key: "hook_action_check",
     flag: "—",
     values: "off · log (standard: log)",
-    desc: "Spør den lokale decide-modellen før en risikabel skallkommando kjører (endringer med kubectl, nais, gcloud og helm, terraform apply, rm -r, git push --force og lignende) om den står i forhold til formålet, om den er destruktiv, og om formålet agenten oppga støtter den. Med log lagres svaret i telemetri og en lokal logg, og kommandoen kjører alltid. off slår den av. Virker bare med lokal modell (local_enabled) og en server som kjører. Den starter aldri en server selv.",
+    desc: "Spør den lokale decide-modellen om en risikabel skallkommando (kubectl, terraform apply, rm -r, git push --force og lignende) står i forhold til formålet. log lagrer svaret og stopper ingenting. Krever lokal modell.",
   },
   {
     key: "mcp_hosts",
     flag: "—",
     values: "ask · off (standard: ask)",
-    desc: "Om nav-pilot ved oppstart spør om å slippe gjennom vertene MCP-tjenerne dine trenger i cplt-sandkassen. Vertene hentes fra Navs MCP-register, aldri fra MCP-oppsettet ditt. ask spør én gang per sett med verter, og Enter avslår. off spør aldri og tillater ingen.",
+    desc: "Om nav-pilot spør om å slippe gjennom vertene MCP-tjenerne dine trenger i cplt. Vertene hentes fra Navs MCP-register. ask spør én gang per sett, off spør aldri.",
   },
   {
     key: "copilot_auth_mode",
