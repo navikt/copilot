@@ -285,7 +285,8 @@ ls ~/Library/Caches/ms-playwright     # finn versjonen, f.eks. chromium_headless
           </CodeBlock>
           <BodyLong>
             Pek Puppeteer på nettleseren med full sti. <code className={code}>{'"pipe": true'}</code> gjør at Puppeteer
-            snakker med nettleseren over en pipe i stedet for localhost:
+            snakker med nettleseren over en pipe i stedet for localhost. Stien under gjelder Mac med Apple-brikke; på
+            Mac med Intel heter mappa <code className={code}>chrome-headless-shell-mac-x64</code>:
           </BodyLong>
           <CodeBlock filename="puppeteer.json">
             {`{

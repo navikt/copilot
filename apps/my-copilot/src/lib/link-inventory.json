@@ -743,6 +743,7 @@
       "policy-too-strict": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "private-target": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "publickey": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "puppeteer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "self-attach": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "setuid": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "sign-in-failed": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
@@ -831,6 +832,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"
       ],
       "localhost": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "mermaid": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"
+      ],
       "nettleser": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "npm-token": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "pnpm-konfig": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
