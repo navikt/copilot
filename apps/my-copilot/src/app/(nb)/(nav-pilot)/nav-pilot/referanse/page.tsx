@@ -100,11 +100,11 @@ function LocalModels({ models }: { models: LocalModel[] }) {
         </a>
         , det samme nav-pilot leser når du kjører <code className={code}>init</code> og{" "}
         <code className={code}>start</code>. Kontekst og svar er det største vinduet og det lengste svaret nav-pilot gir
-        modellen. nav-pilot-kolonnen viser hvilken versjon av nav-pilot modellen krever.
+        modellen.
       </BodyLong>
       <LocalModelsTable models={models} />
       <BodyShort size="small" textColor="subtle">
-        Står det en versjon under «Krever nav-pilot», skjuler eldre versjoner av nav-pilot modellen. Peker{" "}
+        Står det en dato under «nav-pilot», skjuler eldre versjoner av nav-pilot modellen. Peker{" "}
         <code className={code}>local_model</code> på den, faller nav-pilot tilbake til standardmodellen, og{" "}
         <code className={code}>init</code>, <code className={code}>start</code> og <code className={code}>status</code>{" "}
         sier hvilken versjon du trenger. Oppdater med <code className={code}>nav-pilot upgrade</code>.

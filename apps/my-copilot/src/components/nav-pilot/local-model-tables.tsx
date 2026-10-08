@@ -31,7 +31,12 @@ const TASK_CLASS_LABEL: Record<string, string> = {
 
 const subtle = { color: "var(--ax-text-neutral-subtle)" };
 const formatShortDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" });
+  new Date(`${iso}T12:00:00Z`).toLocaleDateString("nb-NO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/Oslo",
+  });
 const kTokens = (n: number) => `${Math.round(n / 1024)}k`;
 const classLabel = (id: string) => TASK_CLASS_LABEL[id] ?? id;
 const modelName = (m: LocalModel) => m.model.split("/").pop();
