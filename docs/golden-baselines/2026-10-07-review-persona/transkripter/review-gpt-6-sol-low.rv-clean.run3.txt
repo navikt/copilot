@@ -1,0 +1,11 @@
+
+
+
+**Gjennomgang:** Jeg fant ingen påvist tilgang til andre personers saker: ruten bruker `pid` fra et verifisert TokenX-token, og databasespørringen er parameterisert. Én feil bør likevel rettes.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 40–42 | 🟡 | Feilloggen skriver bare unntakets klassenavn. Ved databasefeil mangler dermed både årsak og stacktrace, noe som gjør feilsøking vanskelig. Logg unntaket med kontekst, men kontroller at feilmeldingen ikke inneholder fødselsnummer eller andre personopplysninger. |
+
+🔴 Rød sone: `pid` styrer hvilke saker som returneres. Behold koblingen til den verifiserte tokenpåstanden ved endringer i ruten. **Kontroll:** `mise check` kunne ikke kjøres; arbeidsmappen har ingen `check`-oppgave. Still gjerne spørsmål om valgene over.
+

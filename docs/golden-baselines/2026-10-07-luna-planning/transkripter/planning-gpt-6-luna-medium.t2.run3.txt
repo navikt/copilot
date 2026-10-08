@@ -1,0 +1,16 @@
+Jeg tolker dette som en ny backend-tjeneste i Kotlin/Ktor på Nais. Repoet inneholder allerede en Ktor-mal og et Nais-manifest, men manifestet mangler `accessPolicy`. Bekreft om dette er riktig arketype, eller om du også skal bygge en frontend.
+
+**Personvern og tilgang**
+1. Skal tjenesten behandle bare fødselsnummer, eller også andre personopplysninger? Hva skal tjenesten bruke fødselsnummeret til, og hva er behandlingsgrunnlaget?
+2. Hvordan skal fødselsnummeret komme fra ID-porten til tjenesten: i et token fra en innlogget bruker, via en frontend eller på en annen måte? Hvem skal kunne kalle tjenesten og se svaret?
+3. Skal tjenesten lagre fødselsnummeret eller dele det med andre tjenester? Hvor lenge skal det eventuelt lagres, og trenger dere audit-logging av tilgang?
+4. Skal tjenesten være tilgjengelig fra internett eller bare internt i Nav?
+
+**Plattform og drift**
+5. Hvilke andre tjenester skal den kalle, og hva skal skje hvis ID-porten eller en avhengighet ikke svarer? Trenger dere asynkron kommunikasjon, eller finnes det en tjeneste dere kan gjenbruke?
+6. Hvilke mål viser at tjenesten virker, hva skal utløse varsling, og hvem har vakt? Hva forventer dere av trafikk?
+7. Er dette et nytt prosjekt eller en erstatning for en eksisterende løsning? Hvilket team eier tjenesten, hvilke andre team er avhengige av den, og finnes det en frist? Har teamet erfaring med Kotlin/Ktor og Nais, og hvilke tester finnes allerede?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Du kan opprette standardoppsettet med `nav-pilot init`.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante hvis dette er nybygg).

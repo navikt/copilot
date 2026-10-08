@@ -1,0 +1,17 @@
+### Oppsummering
+
+Filen er kort og tryggheten er god: SQL er parameterisert, og fnr hentes fra token og ikke fra request. Ingen blokkere. Jeg har ikke kjørt `mise check`, fordi jeg bare leste filen.
+
+🔴 Rød sone: eierskap og autorisasjon (`pid`-claim og `WHERE fnr = ?`), gå gjennom denne nøye.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 55 | 🟡 | `service.sakerFor(fnr)` kjører blokkerende JDBC i en Ktor-coroutine og kan blokkere event-loopen. Pakk kallet i `withContext(Dispatchers.IO)`, eller bruk en IO-dispatcher i repositoryet. |
+| `SakService.kt` | 41 | 🟡 | `log.error` logger bare exception-klassen og ikke meldingen eller stacken, så feil blir vanskelige å feilsøke. Legg til `e` som siste argument, men sjekk først at SQL-meldinger ikke inneholder fnr. |
+| `SakService.kt` | 26 | 🟡 | Spørringen har ingen øvre grense. Legg til `LIMIT` eller paginering. |
+| `SakService.kt` | 20 | 💭 | `maskert()` bevarer lengden på fnr (11 tegn), så lengden lekker. Vurder en fast maske, for eksempel `"***********"`. |
+| `SakService.kt` | 50 | 💭 | `pid` valideres ikke som 11 siffer. Det er trygt så lenge `tokenx` validerer tokenet, men en enkel format-sjekk gir ekstra sikkerhet. |
+
+Still gjerne spørsmål om valgene over.

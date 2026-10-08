@@ -1,0 +1,16 @@
+🔍 Skanner SakService.kt og prosjektets Kotlin-/testinstruksjoner, og finner riktig kontrollkommando.
+
+📊 Koden bruker parameterisert SQL og ligger bak TokenX-autentisering. Jeg sjekker nå hvordan JWT-claims valideres, hvordan feil håndteres ellers, og hvilke kontroller prosjektet faktisk kan kjøre.
+
+🔍 Gjennomgangen avdekker ingen tydelig sårbarhet i SakService.kt: FNR logges maskert og SQL bruker parameterbinding. Den obligatoriske `mise check`-kommandoen finnes ikke for dette prosjektet; jeg verifiserer nå nøyaktige linjer og om Gradle-testkjøring er tilgjengelig.
+
+### Sammendrag
+Ingen blokkere funnet i `SakService.kt`. Ruten krever TokenX-autentisering, og repository-spørringen bruker parameterbinding. FNR logges maskert.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 38–42 | 🟡 | `catch` logger feilen og kaster den videre uten å endre håndteringen. Det kan gi en ekstra feillogg når Ktor logger den ubehandlede feilen. Fjern `try/catch` hvis denne loggen ikke trengs, eller håndter feilen her i stedet for å kaste den videre. |
+
+`mise check` kunne ikke kjøres fordi prosjektet ikke har en slik oppgave. `gradle test` stoppet under konfigurering av prosjektet med feilen `27`, før testene startet.

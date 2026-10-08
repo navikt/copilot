@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-10-08
+# revision:     05cfadc9
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       medium
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+rv-pr|1|0|pass|11083|125095|true|
+rv-clean|1|0|pass|5937|68809|true|
+rv-pr|2|0|pass|10246|143382|true|
+rv-clean|2|0|pass|4409|60564|true|
+rv-pr|3|0|pass|7756|117405|true|
+rv-clean|3|0|pass|5752|79824|true|
+rv-pr|4|0|pass|8275|131398|true|
+rv-clean|4|0|pass|9424|105686|true|
+rv-pr|5|0|pass|8621|85768|true|
+rv-clean|5|0|pass|14090|110731|true|
+rv-pr|6|0|pass|7693|97338|true|
+rv-clean|6|0|pass|5593|92011|true|
+rv-pr|7|0|pass|10760|132520|true|
+rv-clean|7|0|pass|5143|72211|true|
+rv-pr|8|0|pass|13056|143461|true|
+rv-clean|8|0|pass|5546|86900|true|
+rv-pr|9|0|pass|10220|147491|true|
+rv-clean|9|0|pass|4593|62797|true|
+rv-pr|10|0|pass|11718|198036|true|
+rv-clean|10|0|pass|5324|76755|true|

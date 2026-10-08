@@ -1,0 +1,8 @@
+`les` i `vedtak-parser/src/lib.rs` returnerer nå `Result<Vedtak, VedtakFeil>` i stedet for å panikke.
+
+- **`VedtakFeil`** er en thiserror-enum med `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)`. Feilmeldingen for `UgyldigBelop` inneholder den ugyldige teksten.
+- **Tom belop-del** (`"v1;"`) gir `ManglerBelop`, ikke `UgyldigBelop("")`.
+- **Tester:** én test per feil, pluss den eksisterende gyldige-linje-testen. Alle fire består.
+- **Avhengighet:** `thiserror = "2.0.21"` er lagt til i `Cargo.toml`.
+
+`cargo test` kjørte uten feil.

@@ -1,0 +1,33 @@
+### Sammendrag
+
+Branchen legger til Kafka-konsument, vedtak-API og Postgres-lagring. Flere funn er blokkerende: SQL-injeksjon, uautentisert endepunkt som returnerer fnr, åpen `accessPolicy`, manglende JWT-verifisering og feil miljøvariabler for databasen. Ingen tester og ingen Flyway-migrasjon er lagt til.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen. Bruk `?` som i `lagre`. |
+| `Routes.kt` | 30 | 🔴 | `GET /api/vedtak/{fnr}` er ikke under `authenticate`. Hvem som helst kan hente vedtak for en person. |
+| `App.kt` | 42 | 🔴 | `validate` godtar alle tokens med en `aud`. Verifiser issuer, audience og `azp` mot TokenX-konfigurasjon. |
+| `nais.yaml` | 22–25 | 🔴 | `accessPolicy.inbound` åpner for `application: "*"` i `namespace: "*"`. Begrens til kjente konsumenter. |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer. Fjern eller logg en intern id. |
+| `Routes.kt` | 25 | 🔴 | Autentisert kaller kan fatte vedtak for hvilken som helst `fnr`. Mangler eierskaps- eller rollesjekk. |
+| `App.kt` | 23 | 🔴 | `DB_JDBC_URL` settes ikke av Nais. Bruk `NAIS_DATABASE_VEDTAK_VEDTAK_URL` eller tilsvarende, med bruker og passord fra Nais. |
+| `App.kt` | 27–32 | 🔴 | Kafka-konfigurasjon mangler `security.protocol=SSL` og keystore/truststore fra Nais-miljøet. Tilkobling til `nav-dev` feiler. |
+| `VedtakConsumer.kt` | 25 | 🔴 | `retry` kjører `behandle` på nytt etter at `fattVedtak` allerede har lagret rad. Hvert forsøk lager en ny vedtak-rad med ny UUID, så duplikater oppstår. |
+| `VedtakConsumer.kt` | 22–27 | 🔴 | Etter 3 feil eller en ugyldig melding kaster tråden ut uten dead-letter-håndtering. Konsumenten stopper stille, mens HTTP-serveren fortsetter. |
+| `build.gradle.kts` | 13 | 🟡 | Ny `dependencies {}`-blokk. Slå sammen med den eksisterende. |
+| hele PR | – | 🟡 | Ingen `vedtak`-tabell-migrasjon (Flyway). Appen starter ikke mot en ny database. |
+| hele PR | – | 🟡 | Ingen tester for `VedtakService`, `VedtakRepository` eller `VedtakConsumer`. |
+| `Routes.kt` | 25–27 | 🟡 | `fnr` og `sakId` valideres ikke. `require` i service gir 500 i stedet for 400. Legg til `StatusPages` eller validering. |
+| `VedtakRepository.kt` | 31 | 💭 | `hentForSak` og `hentVedtak` brukes ikke. Fjern eller bruk dem. |
+
+### Detaljer
+
+**Sikkerhet (prioriter først).** Kombinasjonen av åpen `accessPolicy`, uautentisert `GET` og SQL-injeksjon gjør at en uautentisert kaller kan lese og manipulere fødselsnumre. Endepunktet for å hente vedtak bør krevde autentisering og eierskap. Fnr i URL-stien havner også i tilgangslogger, så vurder å sende det i body.
+
+**Idempotens.** Konsumenten er ikke idempotent. Ved feil etter lagring blir samme søknad behandlet flere ganger. Bruk `soknadId` som nøkkel og en unik constraint i databasen.
+
+**Kafka-konsument.** `poll` og `commitSync` gir at-least-once, men uten DLQ stopper én dårlig melding alt. Vurder å logge og committe feilede meldinger til en egen topic.
+
+Still gjerne spørsmål om valgene over.

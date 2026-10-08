@@ -7,7 +7,7 @@
 #   check, test, build, update
 #
 # Selective tasks (only apps that need them):
-#   generate — mcp-onboarding, my-copilot
+#   generate — copilot-api, mcp-onboarding, my-copilot
 #
 # Root-only tasks:
 #   docs:*    — documentation generation and checking
@@ -24,7 +24,7 @@ bats = "latest"
 
 [env]
 APPS = "copilot-adoption copilot-api copilot-cli copilot-survey copilot-metrics mcp-onboarding mcp-registry my-copilot"
-APPS_WITH_GENERATE = "mcp-onboarding my-copilot"
+APPS_WITH_GENERATE = "copilot-api mcp-onboarding my-copilot"
 # Skip Go's VCS stamping (vcs.revision in the binary). Nothing here reads it:
 # nav-pilot takes version/commit from -ldflags, and the Dockerfiles and the
 # release workflow do not run through mise. Stamping breaks `go build` in a
@@ -189,9 +189,14 @@ description = "Run nav-pilot's launch-time budget test alone, without -race (as 
 run = "(cd cli/nav-pilot && go test ./e2e -run TestLaunchBudget -count=1)"
 
 # The Go half and the script half share nothing, so mise runs them side by side.
+# --continue-on-error: without it mise sends SIGTERM to the half still running
+# when the other fails. Killed mid-run, bats removes its temp dir while its
+# tests keep going, and the log fills with "bats-run-…: No such file or
+# directory" and "Executed 46 instead of expected 73 tests" on top of the
+# failure that stopped it.
 [tasks."nav-pilot:check"]
 description = "Run all nav-pilot checks (mirrors CI: build, test, vet, staticcheck, shellcheck, bats); the launch budget is nav-pilot:budget"
-depends = ["nav-pilot:check:go", "nav-pilot:check:scripts"]
+run = "mise run --continue-on-error nav-pilot:check:go ::: nav-pilot:check:scripts"
 
 [tasks."nav-pilot:check:go"]
 description = "nav-pilot build, test, vet, staticcheck"

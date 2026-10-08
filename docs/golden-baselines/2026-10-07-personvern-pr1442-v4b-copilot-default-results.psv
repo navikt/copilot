@@ -1,0 +1,25 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-07
+# revision:     b7dd7871
+# model:        CLI default
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      3,7,7b
+#
+# id|run|status|assertion|detail
+3|1|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+7|1|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|1|pass|fnr added to a Kafka message: privacy raised (control for 7)|
+3|2|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+7|2|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|2|pass|fnr added to a Kafka message: privacy raised (control for 7)|
+3|3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+7|3|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|3|pass|fnr added to a Kafka message: privacy raised (control for 7)|

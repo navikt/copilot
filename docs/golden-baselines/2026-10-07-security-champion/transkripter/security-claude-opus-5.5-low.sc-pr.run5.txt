@@ -1,0 +1,35 @@
+🛡️ **Sikkerhet:** Gjennomgang av `vedtak-kafka` mot `main` (commit 7e9aa83, 8 filer)
+
+📋 **Funn:** 4 kritiske, 3 høye, 5 middels. Branchen bør ikke merges slik den er nå.
+
+### 🔴 Kritisk
+
+1. **SQL-injeksjon** i `VedtakRepository.hentForPerson`. `fnr` blir satt rett inn i SQL-strengen (`"... WHERE fnr = '" + fnr + "'"`), og verdien kommer uendret fra URL-en. Bruk `queryOf("... WHERE fnr = ?", fnr)` på samme måte som `hentForSak`.
+2. **`GET /api/vedtak/{fnr}` har ingen autentisering.** Ruten ligger utenfor `authenticate("tokenx")`, og koden sjekker heller ikke at kalleren eier dataene. Dermed kan hvem som helst hente alle vedtak for et hvilket som helst fødselsnummer. Flytt ruten inn i `authenticate`. Hent fnr fra tokenets `pid`-claim i stedet for fra path. FNR i URL havner også i access-logger og proxy-logger.
+3. **JWT-valideringen sjekker nesten ingenting** (`App.kt`). Det finnes ingen `verifier` med JWKS (`TOKEN_X_JWKS_URI`), og verken issuer (`TOKEN_X_ISSUER`) eller audience (`TOKEN_X_CLIENT_ID`) blir validert. `validate` sjekker bare at audience ikke er null. Bruk `JwkProviderBuilder` og `withIssuer`/`withAudience`, eller `token-validation-ktor`.
+4. **`accessPolicy.inbound` er åpen for `"*"/"*"`** i `nais.yaml`. Alle apper i alle namespaces kan kalle tjenesten. List opp konkrete apper.
+
+### 🟠 Høy
+
+5. **FNR havner i loggen:** `log.info("behandler $fnr")` i `VedtakService`. Fjern linjen eller logg `sakId`.
+6. **`POST /api/vedtak` mangler autorisasjon.** Alle med et gyldig TokenX-token kan fatte vedtak for vilkårlig `fnr`. Et borger-token skal ikke kunne fatte vedtak. Tjenesten trenger rollesjekk eller en begrensning på kallende app (`client_id`/`idp`).
+7. **Sårbare avhengigheter.** `kafka-clients 3.9.0` er rammet av CVE-2025-27817 (fikset i 3.9.1). `logback-classic 1.5.12` er rammet av CVE-2024-12798 og CVE-2024-12801 (fikset i 1.5.13). Oppgrader, og verifiser med `trivy repo .`.
+
+### 🟡 Middels
+
+8. **Poison pill i consumeren.** Hvis `decodeFromString` eller `Utfall.valueOf` feiler, dør tråden `vedtak-consumer` stille mens appen fortsatt rapporterer seg som alive. Konsumet stopper uten at noen merker det. Fang feilen per melding, bruk en DLQ, og knytt liveness til consumer-tråden.
+9. **Retry kan gi dupliserte vedtak.** `fattVedtak` lager ny UUID ved hvert forsøk. Hvis `producer.send` feiler etter `lagre`, blir det flere vedtak for samme søknad. Det samme skjer ved rebalansering før `commitSync`. Gjør behandlingen idempotent på `soknadId` med en unik constraint.
+10. **Kafka mangler SSL-oppsett.** `security.protocol=SSL` og truststore/keystore (`KAFKA_TRUSTSTORE_PATH`, `KAFKA_KEYSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`) er ikke satt. Mot Aiven feiler tilkoblingen da. Konfigurer TLS eksplisitt.
+11. **Ingen CEF-auditlogging** når vedtak med personopplysninger vises.
+12. **Mangler inputvalidering og dataminimering.** `fnr` blir ikke validert (11 siffer), og `!!` på parametere gir 500-feil. Responsen returnerer `fnr` selv om kalleren allerede kjenner det.
+
+### ✅ God praksis
+
+- `lagre` og `hentForSak` bruker parameteriserte spørringer.
+- `VedtakFattetMelding` på Kafka inneholder ikke fnr.
+- Hemmeligheter leses fra miljøvariabler.
+- `enable.auto.commit=false`.
+
+Jeg gjorde ingen endringer i koden. Si fra hvis du vil at jeg retter punkt 1–5.
+
+Still gjerne spørsmål om valgene over.

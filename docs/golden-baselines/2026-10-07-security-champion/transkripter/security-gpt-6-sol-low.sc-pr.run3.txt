@@ -1,0 +1,18 @@
+🔍 Kartlegger endringene mot `main`, inkludert lokale endringer, før jeg vurderer sikkerhetsrisiko og datflyt.
+
+🛡️ Analyserer Kafka-flyten, API-tilgangen og Nais-oppsettet. Flere forhold ser ut til å kunne eksponere persondata; jeg sjekker kallkjeden og konfigurasjonen før jeg konkluderer.
+
+**Vurdering: BLOCK.** Endringene i `vedtak-kafka` bør ikke merges mot `main` slik de står. Flere uavhengige feil kan eksponere personopplysninger eller fatte samme vedtak flere ganger.
+
+1. **Kritisk – åpent oppslag av vedtak:** `Routes.kt:29–32` legger `GET /api/vedtak/{fnr}` utenfor `authenticate`. Endepunktet returnerer hele `Vedtak`, inkludert fødselsnummer, uten å kontrollere hvem som ber om opplysningene. `nais.yaml:20–23` åpner samtidig innkommende trafikk fra alle applikasjoner og navnerom. Krev autentisering, kontroller tilgang til personen eller saken, og begrens inbound-reglene.
+2. **Kritisk – SQL-injeksjon:** `VedtakRepository.kt:23–24` setter fødselsnummeret fra URL-en direkte inn i SQL. Det kan brukes til å lese vedtak for andre personer. Bruk `queryOf("SELECT ... WHERE fnr = ?", fnr)`.
+3. **Kritisk – manglende kontroll ved vedtaksfatting:** `App.kt:38–41` konfigurerer ikke en JWT-verifikator for signatur, utsteder og forventet audience. `Routes.kt:24–27` lar dessuten klienten oppgi vilkårlig `fnr`, `sakId` og `utfall` uten eierskaps- eller rettighetskontroll. Konfigurer full TokenX-validering og kontroller at innringeren har rett til å fatte vedtak i den aktuelle saken.
+4. **Høy – fødselsnummer i ordinær logg:** `VedtakService.kt:15` logger `fnr` ved både API-kall og Kafka-behandling. Fjern verdien fra loggmeldingen.
+5. **Høy – duplikate vedtak ved retry:** `VedtakConsumer.kt:29–46` lagrer vedtaket før publisering. Feiler `send(...).get()`, lager neste forsøk et nytt vedtak med ny ID. En krasj før `commitSync()` gir samme problem ved omlevering. Bruk en stabil meldingsnøkkel og idempotent lagring; vurder outbox for å knytte lagring og publisering sammen.
+6. **Høy – Kafka-tilkobling og feilhåndtering:** `App.kt:25–37` setter ikke opp TLS/SASL for Kafka-klientene. `VedtakConsumer.kt:20–34` har heller ingen håndtering som holder konsumenten i drift etter en varig ugyldig melding eller feil etter siste retry. Avklar Nais-tilkoblingskravene og en eksplisitt strategi for feilende meldinger før utrulling.
+
+**Øvrige akser:** `VedtakRepository.kt:12–18,30–34` bruker parametre for de andre SQL-spørringene. Jeg fant ingen hardkodede hemmeligheter i de endrede filene eller treff på hemmelighetsmønstre i branchens commit-diff. CORS, filopplasting og rå HTML introduseres ikke av endringen; de kontrollene gir derfor ingen ytterligere funn. `build.gradle.kts` legger til avhengigheter uten låsing eller en tilgjengelig sårbarhetsskann, så kjente sårbarheter er ikke avklart. Det finnes ingen workflows i `.github/workflows/` å kjøre `zizmor` mot.
+
+**Omfang:** Inspisert alle åtte endrede filer, relevante kall til `Routes`, `VedtakService`, `VedtakRepository` og `VedtakConsumer`, `nais.yaml`, byggoppsettet, filoversikten og lokale endringer. Arbeidstreet har ingen staged, unstaged eller untracked endringer. `trivy` og `zizmor` er ikke installert, og `mise check` finnes ikke i dette repoet; automatiserte skann ble derfor ikke utført.
+
+🔴 Rød sone: tilgangskontroll, SQL-inndata og vedtakslogikk må gjennomgås grundig. En idempotent behandling gir trygg omlevering, men krever en stabil identitet for innkommende meldinger; vanlig retry alene gir ikke den garantien. Still gjerne spørsmål om valgene over.

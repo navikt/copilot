@@ -1,0 +1,20 @@
+
+
+**Branchen bør ikke merges ennå.** Gjennomgangen av `vedtak-kafka` mot `main` fant flere blokkere knyttet til tilgang til personopplysninger og behandling av Kafka-meldinger.
+
+| Prioritet | Sted | Funn |
+|---|---|---|
+| 🔴 | `Routes.kt:30–32` | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som kan nå tjenesten, kan hente vedtak med fødselsnummeret. Endepunktet må kreve autentisering og kontrollere at kalleren har tilgang til personen. |
+| 🔴 | `VedtakRepository.kt:23` | Fødselsnummeret settes rett inn i SQL-strengen. Dette åpner for SQL-injeksjon. Bruk parameteren i `queryOf`, slik de andre spørringene gjør. |
+| 🔴 | `App.kt:39–43` | JWT-oppsettet har ingen token-verifikator. `validate` sjekker bare at `audience` finnes, ikke signatur, utsteder, forventet audience eller kallende klient. Bruk TokenX-verifikasjon og kontroller `azp` mot tillatte apper. |
+| 🔴 | `nais.yaml:17–21` | Inbound-regelen slipper inn alle apper fra alle namespaces. Det utvider tilgangen til vedtaksdata, også før autentiseringen i applikasjonen er rettet. Begrens regelen til konkrete konsumenter. |
+| 🔴 | `VedtakService.kt:15` | Fødselsnummer logges ved hvert vedtak. Fjern personopplysninger fra loggen. |
+| 🔴 | `VedtakConsumer.kt:25,32–33` | Vedtak lagres før publisering. Hvis publisering feiler, lager hvert nytt forsøk et nytt vedtak med ny ID; det samme kan skje etter omstart før offset er committet. Innfør idempotens for kildemeldingen og en løsning som håndterer publisering etter databaseendringen uten å miste eller duplisere vedtak. |
+| 🔴 | `App.kt:26–35` | Kafka-klientene får bare broker-adresse og serialisering, ikke TLS-/SASL-konfigurasjonen som trengs for Nais Kafka. Konsumenten og produsenten vil ikke kunne koble til poolen. |
+| 🔴 | `VedtakRepository.kt:14`, `nais.yaml:12–16` | Endringen oppretter database og skriver til tabellen `vedtak`, men inneholder ingen migrasjon som oppretter tabellen. Første lagring vil feile. |
+| 🟡 | `App.kt:36`, `VedtakConsumer.kt:19–27` | Konsumenten kjører i en tråd uten håndtering av terminal feil eller nedstengning. En feil etter siste retry stopper tråden, mens HTTP-serveren fortsetter å kjøre. Knytt konsumentens livssyklus til applikasjonen og gjør feilen synlig i readiness. |
+
+🔴 **Rød sone: token-validering, tilgangskontroll og behandling av vedtak må gjennomgås grundig.** Idempotens er nødvendig her fordi Kafka kan levere en melding på nytt; en lokal retry rundt både lagring og publisering gir duplikater i stedet for sikker gjenoppretting. Still gjerne spørsmål om valgene over.
+
+**Kontroll:** `mise check` finnes ikke i dette repoet. `gradle compileKotlin --offline` stoppet under prosjektkonfigurasjon med feilen `27`, før koden ble kompilert; funnene over bygger derfor på gjennomgang av diffen, ikke en vellykket byggkjøring.
+

@@ -143,6 +143,16 @@
     ],
     "anchors": {}
   },
+  "/innsikt/team": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx",
+      "apps/my-copilot/src/components/team-gross-usage.tsx"
+    ],
+    "anchors": {
+      "teamkostnad": ["apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx"]
+    }
+  },
   "/install/agent": {
     "sources": [
       "apps/my-copilot/src/app/install/[type]/route.ts",
@@ -714,6 +724,7 @@
       ],
       "gradle-properties": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "includeif": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "jdk-library": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "jvm": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "jvm-oppstart": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "keyring": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
@@ -2322,7 +2333,7 @@
       "repositorier": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
       "repositories": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
       "sprak-og-verktoy": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
-      "team": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "team": ["apps/my-copilot/src/lib/legacy-anchors.ts"],
       "topp-språk": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
       "verktøy": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"]
     }

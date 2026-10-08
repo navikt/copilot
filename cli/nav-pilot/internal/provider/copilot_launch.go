@@ -193,8 +193,8 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	}
 	args = append(args, copilotResolvedFlags(resolved)...)
 	if cliName != "cplt" {
-		// Allow-all is only safe with cplt as the boundary. Without it the
-		// flags go, whatever the config or the command line asked for.
+		// Allow-all is only safe with cplt as the boundary. LaunchCopilot never
+		// gets here (it refuses without cplt); the branch stays as a backstop.
 		return withoutAllowAll(append(args, resolved.ExtraArgs...))
 	}
 	// Seam two of two for an approved sandbox proposal (#858). This launch
@@ -221,15 +221,6 @@ func isAllowAllFlag(arg string) bool {
 // withoutAllowAll drops every allow-all flag from args.
 func withoutAllowAll(args []string) []string {
 	return slices.DeleteFunc(args, isAllowAllFlag)
-}
-
-// unsandboxedAllowAllNote is the line an unsandboxed launch prints when the
-// config or the command line asked for allow-all, or "" when nothing did.
-func unsandboxedAllowAllNote(resolved domain.ResolvedConfig) string {
-	if !resolved.AllowAllTools && resolved.Autonomy != "sandbox" && !slices.ContainsFunc(resolved.ExtraArgs, isAllowAllFlag) {
-		return ""
-	}
-	return "Without cplt, Copilot asks before each action: nav-pilot passes no allow-all flags outside the sandbox."
 }
 
 // autopilotNote is the line a launch in autopilot prints, or "".
@@ -311,22 +302,17 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
 		return fmt.Errorf("the Copilot CLI (copilot) is not on PATH. Install it: %s", domain.Bold(CopilotInstallCommand))
 	}
-	if cliName == "cplt" {
-		if !CopilotBesideCplt(cliPath) {
-			telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
-			return errors.New(CopilotMissingBehindCplt())
-		}
-		PrintCpltSandboxHint()
-		PrintAutonomyNotice(resolved)
-	}
-	env := CopilotEnv(resolved.OtelLogLevel)
 	if cliName != "cplt" {
-		// The environment spelling of --allow-all-tools goes too.
-		env = slices.DeleteFunc(env, func(e string) bool { return strings.HasPrefix(e, "COPILOT_ALLOW_ALL=") })
-		if note := unsandboxedAllowAllNote(resolved); note != "" {
-			fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
-		}
+		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
+		return ErrCpltMissing("Copilot")
 	}
+	if !CopilotBesideCplt(cliPath) {
+		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
+		return errors.New(CopilotMissingBehindCplt())
+	}
+	PrintCpltSandboxHint()
+	PrintAutonomyNotice(resolved)
+	env := CopilotEnv(resolved.OtelLogLevel)
 	if note := autopilotNote(resolved); note != "" {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
@@ -349,18 +335,16 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	skillsDir := materializedSkillsDir(copilotSkillsRoot())
 	env = withSkillsDirEnv(env, skillsDir)
 	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin), skillsDir)
-	if cliName == "cplt" {
-		if args, err = withCpltProjectDir(args, resolved.ProjectDir); err != nil {
-			return err
-		}
+	if args, err = withCpltProjectDir(args, resolved.ProjectDir); err != nil {
+		return err
 	}
 	env, checkFlags := withActionCheckServer(resolved, env)
-	if i := slices.Index(args, "--"); cliName == "cplt" && i >= 0 {
+	if i := slices.Index(args, "--"); i >= 0 {
 		// Before the separator, as insertCpltPassEnv does: after it they
 		// would reach copilot.
 		args = slices.Insert(slices.Clone(args), i, checkFlags...)
 	}
-	if cliName == "cplt" && guard != nil {
+	if guard != nil {
 		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
 		// which cplt blocks by default. Name the port so it survives — and so
 		// it survives the strict preset, which supersedes allow_localhost_any.
@@ -380,12 +364,8 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 
 	// cplt resolves the Copilot token itself; copilot_auth_mode only constrains
 	// which source it may use, and can refuse the launch outright.
-	if cliName == "cplt" {
-		var err error
-		env, err = applyCopilotAuthMode(env, resolved.CopilotAuthMode)
-		if err != nil {
-			return err
-		}
+	if env, err = applyCopilotAuthMode(env, resolved.CopilotAuthMode); err != nil {
+		return err
 	}
 
 	cmd := exec.Command(cliPath, args...)
@@ -517,10 +497,8 @@ const LocalProviderAPIKey = "nav-pilot"
 // separately or it keeps dying on the prompt that the opencode and pi paths no
 // longer die on.
 //
-// The plain copilot CLI never gets it: --yes is cplt's flag and copilot has no
-// confirmation to skip. The same holds for --pass-env, which is why skillsDir
-// only changes the cplt vector — an unsandboxed copilot inherits the exported
-// variable directly.
+// LaunchCopilot only runs under cplt. The non-cplt vector (no --yes, no
+// --pass-env) is kept for the tests that pin it, not for any launch.
 //
 // skillsDir is a parameter rather than a lookup so this stays pure: the golden
 // vectors are pinned by calling it, and a function that read the home directory

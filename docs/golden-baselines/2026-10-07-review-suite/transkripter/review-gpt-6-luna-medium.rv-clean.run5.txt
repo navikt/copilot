@@ -1,0 +1,49 @@
+
+🔍 Leser `SakService.kt` og prosjektets Kotlin-instruksjoner, og finner riktig kontrollkommando før jeg vurderer endringene.
+
+
+
+
+
+
+
+
+
+
+
+📊 Koden bruker parameterisert SQL, men logger exception-spor og leser `pid` direkte fra JWT. Jeg sjekker nå logg-/auth-konvensjonene i prosjektet og kjører den påkrevde kontrollen.
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+### Oppsummering
+
+Jeg fant én sikkerhetsrisiko: feilloggen kan ta med fødselsnummer via exception-sporet. `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 41 | 🔴 | Logger exception-sporet fra databasekallet sammen med feilen. Databasefeil kan inneholde detaljer om spørringen eller bundne verdier, og dermed eksponere fødselsnummeret selv om loggargumentet er maskert. |
+
+**Forslag:** Ikke send exception-objektet til loggeren her. Logg en trygg feilkategori eller feilkode, og kast feilen videre slik koden allerede gjør.
+

@@ -1,0 +1,18 @@
+🔍 Kartlegger endringene mellom `main` og `vedtak-kafka`, inkludert lokale endringer, før jeg vurderer sikkerhetsrisiko.
+
+🛡️ Analyserer tilgangskontroll, SQL-spørringer, logging og Kafka-feilhåndtering mot den faktiske diffen.
+
+**Vurdering: BLOCK.** Endringene i `vedtak-kafka` bør ikke merges mot `main` slik de står. Jeg fant seks blokkerende sikkerhets- og driftsfunn:
+
+1. **Åpent innsyn i personopplysninger:** `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og returnerer vedtak med fødselsnummer. Det finnes heller ingen kontroll av hvem som har tilgang til personen. `Routes.kt:30–32`
+2. **SQL-injeksjon:** `fnr` fra URL-en settes rett inn i SQL. Bruk en parameterisert spørring. `VedtakRepository.kt:21–24`
+3. **For bred nettverkstilgang:** Inbound-reglene åpner for alle applikasjoner i alle namespace. Begrens dem til navngitte konsumenter. `nais.yaml:22–26`
+4. **Mangelfull token-validering og autorisering:** JWT-oppsettet har ingen konfigurert verifier for signatur, issuer og forventet audience. `validate` sjekker ikke at audience er riktig, og POST-ruten kontrollerer ikke om avsenderen har rett til å fatte vedtak for saken. `App.kt:39–43`, `Routes.kt:24–27`
+5. **Fødselsnummer i vanlig logg:** `log.info("behandler $fnr")` skriver personopplysninger til applikasjonsloggen. `VedtakService.kt:15`
+6. **Fare for duplikatvedtak:** Konsumenten lagrer vedtak før publisering og offset-commit. Ved publiseringsfeil eller omstart kjøres behandlingen på nytt med ny ID. Gjør behandlingen idempotent før retry. `VedtakConsumer.kt:23–27, 31–33`, `VedtakService.kt:16–23`
+
+**Øvrige akser:** `INSERT` og oppslaget på `sak_id` bruker parametere. Jeg fant ingen hardkodede secrets, filopplasting, CORS-endringer eller rå HTML i diffen. Inputvalideringen begrenser bare tom `sakId`; `fnr` og tilgang til `sakId` må også kontrolleres ved grensen. Kafka-feil kan stoppe konsumenttråden uten at HTTP-serveren stopper (`VedtakConsumer.kt:19–28`, `App.kt:36`), noe som bør avklares før deploy.
+
+**Omfang:** Jeg undersøkte alle åtte endrede filer, kallene mellom rutene, tjenesten, repositoryet og konsumenten, samt Nais-konfigurasjonen og lokale endringer. Arbeidstreet hadde ingen staged, unstaged eller untracked filer. Trivy og zizmor var ikke installert; ingen sårbarhets- eller secretskann er dermed bekreftet. Lokal kompilering stoppet under Gradle-konfigurasjon med feilen `27`, så byggbarhet er ikke verifisert. Den eldre `UserRepo.kt` har egne sikkerhetsproblemer, men er ikke endret i denne branchen.
+
+🔴 **Rød sone:** Tilgangskontroll, token-validering og håndtering av fødselsnummer må gjennomgås grundig. Still gjerne spørsmål om valgene over.

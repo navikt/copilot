@@ -1,0 +1,13 @@
+🔍 Kartlegger dataflyt, tilgangskontroll og logging i `SakService.kt` før jeg vurderer risikoen.
+
+🛡️ Analyserer: spørringen er parameterisert og ruten krever TokenX. Jeg sjekker nå om token-krav og Nais-konfigurasjon faktisk avgrenser hvem som kan hente saker.
+
+**Funn: 0 blokkeringer, 3 forhold som bør avklares. Vurdering: CONCERNS.**
+
+- `SakService.kt:50–55`: Ruten avviser manglende `pid`, men ikke tom eller ugyldig verdi. Valider claimet før det brukes som fødselsnummer i oppslaget. 🔴 Rød sone: inputvalidering og tilgang til personens saker må gjennomgås nøye.
+- `SakService.kt:23–28`: Oppslaget henter alle saker og bygger hele resultatet i minnet. Avklar forventet antall saker, og innfør en grense eller paginering hvis datamengden kan bli stor.
+- `nais.yaml:1–12`: Manifestet angir ingen eksplisitt `accessPolicy`. Avklar hvilke tjenester som skal kunne nå `/api/saker`, og kontroller den faktiske nettverkstilgangen før deploy. Fraværet alene beviser ikke at ruten er åpent tilgjengelig.
+
+**Kontrollert:** `SakService.kt`, JWT-oppsettet i `App.kt`, `nais.yaml` og avhengighetene i `build.gradle.kts`. Ruten krever TokenX, bruker `pid` fra det verifiserte tokenet fremfor et klientstyrt personnummer, og SQL-spørringen er parameterisert. Loggen skriver ikke fødselsnummeret, men maskeringen røper lengden; en fast melding ville unngått det.
+
+**Ikke kontrollert:** databaseinnhold og skjema, faktisk Nais-nettverkstilgang, avhengighetssårbarheter eller git-historikk. Arbeidsmappen har ingen `.git`, og `trivy` og `zizmor` er ikke tilgjengelige. Still gjerne spørsmål om valgene over.

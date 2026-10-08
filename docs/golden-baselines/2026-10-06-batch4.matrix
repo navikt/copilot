@@ -1,0 +1,19 @@
+# Batch 4, 6. oktober. testpakke  modell  innsatsnivå  n
+# Hverdagsmodell: GPT-6.1 Sol Low og Claude Opus 5.5 Low mot GPT-6 Sol Low (kontroll).
+# Kontrollen kjøres på nytt fordi #1436 endret agents/nav-pilot.agent.md.
+# Test 7 og 7b skulle kjøres direkte (planning-pakken dekker 2-5), men ble ikke kjørt: budsjettgrensen.
+planning  gpt-6.1-sol      low  5
+planning  claude-opus-5.5  low  5
+planning  gpt-6-sol        low  5
+coding    gpt-6.1-sol      low  5
+coding    claude-opus-5.5  low  5
+coding    gpt-6-sol        low  5
+review    gpt-6.1-sol      low  10
+review    claude-opus-5.5  low  10
+review    gpt-6-sol        low  10
+norsk     gpt-6.1-sol      low  5
+norsk     claude-opus-5.5  low  5
+norsk     gpt-6-sol        low  5
+research  gpt-6.1-sol      low  5
+research  claude-opus-5.5  low  5
+research  gpt-6-sol        low  5

@@ -35,7 +35,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINES = REPO / "docs" / "golden-baselines"
-SUITES = {"planning", "review", "norsk", "coding", "research"}
+SUITES = {"planning", "review", "norsk", "coding", "research", "kafka", "rust"}
 EFFORTS = {"low", "medium", "high", "default"}
 
 # Shown on ki-utvikling.nav.no/modeller. Every hard check a suite records needs
@@ -45,10 +45,16 @@ CHECKS = {
     "3": ("t3", "Tar opp personvern og tilgangskontroll"),
     "4": ("t4", "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål"),
     "5": ("t5", "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker"),
+    "7": ("t7", "Jackson-migrering: spør ikke om personvern eller tilgang"),
+    "7b": ("t7b", "Nytt fødselsnummer i en Kafka-melding: tar opp personvern"),
     "rv1": ("rv1", "Kotlin: finner alle tre plantede feil"),
     "rv2": ("rv2", "Kotlin: riktig linje for hver feil"),
     "rv3": ("rv3", "TSX: finner alle fire plantede feil"),
     "rv4": ("rv4", "TSX: riktig linje for hver feil"),
+    "rv5": ("rv5", "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene"),
+    "rv6": ("rv6", "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)"),
+    "rv7": ("rv7", "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke"),
+    "rv8": ("rv8", "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk"),
     "no1": ("no1", "Ingen nynorske former"),
     "no2": ("no2", "Ingen KI-floskler"),
     "no3": ("no3", "Skriver ikke «AI»"),
@@ -62,6 +68,14 @@ CHECKS = {
     "re1": ("re1", "Riktig fil og linje for hver bruk av konstanten"),
     "re2": ("re2", "Sier at funksjonen ikke kalles, uten å dikte opp filer"),
     "re3": ("re3", "Oppsummerer i høyst tre punkter"),
+    "kf1": ("kf1", "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling"),
+    "kf2": ("kf2", "Kafka-konsument: endrer bare i prosjektet med feilen"),
+    "kf3": ("kf3", "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses"),
+    "kf4": ("kf4", "Kafka-hendelse: endrer bare i prosjektet med hendelsen"),
+    "rs1": ("rs1", "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge"),
+    "rs2": ("rs2", "Rust: endrer bare i craten med feilen"),
+    "rs3": ("rs3", "Rust: feiltyper med thiserror og en test per feil"),
+    "rs4": ("rs4", "Rust: endrer bare i craten med parseren"),
     "re4": ("re4", "Oppsummeringen nevner endepunktet"),
 }
 

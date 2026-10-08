@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-05T10:39:48.134Z",
+  "generatedAt": "2026-10-08T08:46:42.682Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -124,7 +124,7 @@
       "filePath": ".github/agents/code-review.agent.md",
       "repoPath": "agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/code-review.agent.md",
-      "contentHash": "5a019cbf3eda9ce2789ee1810253542448be72bbd3c84e9fdda5caae276bfd2f",
+      "contentHash": "811b2a6765ff86de28dda607206e2d3cfdca73343a6a5f64cf0a59cf74a5ee21",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -300,7 +300,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "c2ec92805bae041b27502faaae5e77b273039ee78306f2b28c9a57e243a6b337",
+      "contentHash": "4aadbcc545ecacbb69d73fa7bac7880e6c3225a6a379ea755838f0fefeffced4",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -441,7 +441,7 @@
       "filePath": ".github/agents/security-champion.agent.md",
       "repoPath": "agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/security-champion.agent.md",
-      "contentHash": "09850437ed89c7bbf32a1994ba3975bd747ef115f7337286f28d3c74cd6f09f2",
+      "contentHash": "65fed295fcdd5bd1d2b5b837beb7fbc396de9f30a6fdc986018dbd2252934cfd",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [
@@ -468,7 +468,7 @@
         "github/list_tags",
         "github/list_branches"
       ],
-      "model": ["GPT-6 Sol"],
+      "model": ["Claude Opus 5.5"],
       "tags": ["security", "compliance", "gdpr", "threat-modeling"],
       "examples": [
         {

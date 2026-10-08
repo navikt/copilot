@@ -513,10 +513,10 @@ func TestDecideLaunch(t *testing.T) {
 		{"client missing wins over opt-out", false, false, true, true, launchSkipUnavailable},
 		{"no terminal", true, true, true, false, launchSkipQuiet},
 		{"healthy and interactive launches without asking", true, true, true, true, launchGo},
-		{"no sandbox, interactive: warn and launch", true, true, false, true, launchWarnUnsandboxed},
+		{"no cplt, interactive: not launched", true, true, false, true, launchSkipUnavailable},
 		{"no sandbox, no terminal: nothing", true, true, false, false, launchSkipQuiet},
 		{"opt-out", true, false, true, true, launchSkipOptedOut},
-		{"opt-out wins over the unsandboxed warning", true, false, false, true, launchSkipOptedOut},
+		{"missing cplt wins over opt-out", true, false, false, true, launchSkipUnavailable},
 		{"no terminal wins over the opt-out notice", true, false, true, false, launchSkipQuiet},
 	}
 	for _, tt := range tests {

@@ -1,0 +1,1 @@
+La til `sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Eldre meldinger får `ORDINAER`; konsumentene ignorerer ukjente felt, men avviser ugyldige sakstyper. `gradle test` i `vedtak-hendelse/` bestod. Still gjerne spørsmål om valgene over.

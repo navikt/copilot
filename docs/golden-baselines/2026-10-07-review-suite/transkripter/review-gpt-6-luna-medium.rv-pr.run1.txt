@@ -1,0 +1,83 @@
+
+🔍 Skanner endringene mot `main` og leser Kotlin-/sikkerhetsreglene før vurdering.
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+
+
+
+🔍 Flere alvorlige risikoområder er synlige rundt tilgangskontroll, SQL og meldingsbehandling. Jeg sjekker nå byggbarhet og om databasen får skjema.
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+
+### Sammendrag
+
+Jeg fant seks blokkere: usikret tilgang til vedtaksdata, SQL-injeksjon, manglende JWT-verifisering, logging av fødselsnummer, manglende databaseskjema og risiko for dupliserte vedtak ved retry.
+
+### Funn
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `src/main/kotlin/no/nav/demo/Routes.kt:30-33` | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Ruten returnerer personens vedtak, og `nais.yaml` åpner samtidig for trafikk fra alle apper og namespaces. Krev autentisering og kontroller at klienten har tilgang til personen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt:21-24` | 🔴 Blokkerer | Spørringen setter `fnr` direkte inn i SQL. En manipulert URL kan endre spørringen og eksponere vedtak for flere personer. Bruk parameterisert spørring. |
+| `src/main/kotlin/no/nav/demo/App.kt:40-42` | 🔴 Blokkerer | JWT-oppsettet angir ingen verifier, issuer eller forventet audience. `validate` sjekker bare at `aud` finnes, ikke at tokenet er signert av riktig utsteder eller ment for denne tjenesten. POST-ruten får dermed ikke forsvarlig TokenX-validering. |
+| `src/main/kotlin/no/nav/demo/VedtakService.kt:13-15` | 🔴 Blokkerer | Koden logger fødselsnummeret direkte. Fjern FNR fra loggen. |
+| `nais.yaml:17-21` | 🔴 Blokkerer | Konfigurasjonen oppretter databasen, men branchen inneholder ingen migrering som oppretter `vedtak`-tabellen. Lagring og uthenting feiler når appen først bruker databasen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt:31-33` | 🔴 Blokkerer | Hvert retry-kall oppretter og lagrer et nytt vedtak før publisering. Hvis Kafka-publisering feiler etter at databasen har lagret vedtaket, kan samme søknad gi flere vedtak og meldinger. Bruk en idempotensnøkkel, for eksempel `soknadId`. |
+| `src/main/kotlin/no/nav/demo/App.kt:35-36` | 🟡 Forslag | Hvis `consumer.start()` feiler etter siste retry, avsluttes tråden uten restart, mens HTTP-serveren fortsetter å kjøre. Overvåk consumeren og start den på nytt eller la podden feile tydelig. |
+
+`mise check` finnes ikke som oppgave i repoet. `gradle test` stoppet under Gradle-konfigurasjon med feilen `> 27`, så bygg og tester ble ikke verifisert.
+

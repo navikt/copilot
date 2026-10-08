@@ -1,0 +1,12 @@
+Konsumenten er rettet, og `gradle test` i `vedtak-konsument/` går grønt (4 tester, 0 feil).
+
+🔴 Rød sone: utbetalingslogikken og idempotensen, gå gjennom denne nøye.
+
+Endringer i `VedtakKonsument.kt`:
+- **Dedupe på eventId:** En ny `BehandletLager`-interface med standardimplementasjonen `InMemoryBehandletLager`. Meldinger med kjent eventId hoppes over. Konstruktøren kan fortsatt kalles med bare `consumer` og `utbetaling`.
+- **Commit etter utbetaling:** Offset commites per melding, etter at utbetalingen er gjort. `poll()` committer ikke lenger før behandling.
+- **Ved feil:** Consumeren seekes tilbake til første ubehandlede offset per partisjon, og feilen kastes videre.
+
+Nye tester dekker duplikater, offset-commit og feil med retry.
+
+**Begrensning:** `InMemoryBehandletLager` overlever rebalansering, men ikke restart av prosessen. Dobbeltutbetaling etter restart er fortsatt mulig. For full sikkerhet bør `BehandletLager` byttes mot en database-implementasjon, der eventId lagres i samme transaksjon som utbetalingen.

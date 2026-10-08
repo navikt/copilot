@@ -237,6 +237,14 @@ func TestBudgetClient_FetchAllUserBudgets_PartialFailure(t *testing.T) {
 	}
 }
 
+func TestBudgetClient_FailedCensusPreservesSnapshot(t *testing.T) {
+	client := NewBudgetClient("test", "nav")
+	client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTooManyRequests) }))
+	if entries, err := client.FetchAllUserBudgets(context.Background(), []string{"one"}); err == nil || len(entries) != 0 {
+		t.Fatal("partial census accepted")
+	}
+}
+
 func TestGitHubClient_FetchAllCopilotLogins(t *testing.T) {
 	// Two pages: first has 2 seats, second has 1 seat
 	page := 0

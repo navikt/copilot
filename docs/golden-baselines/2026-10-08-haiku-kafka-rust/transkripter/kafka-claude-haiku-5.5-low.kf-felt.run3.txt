@@ -1,0 +1,7 @@
+`VedtakFattet` har nå feltet `sakstype` med enum `Sakstype` (`ORDINAER`, `KLAGE`, `ANKE`). Meldinger uten feltet leses som `ORDINAER`. `FAIL_ON_UNKNOWN_PROPERTIES` er slått av, så ukjente felt fra nyere produsenter ignoreres.
+
+`gradle test` går grønt: 6 tester, 0 feil.
+
+Ukjente sakstype-verdier gir fortsatt feil ved lesing. Det er et valg jeg tok fordi du bare nevnte tre gyldige verdier. Si fra hvis konsumentene også skal tåle nye sakstyper.
+
+Endringene er i `src/main/kotlin/no/nav/vedtak/VedtakFattet.kt` og `src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt`.

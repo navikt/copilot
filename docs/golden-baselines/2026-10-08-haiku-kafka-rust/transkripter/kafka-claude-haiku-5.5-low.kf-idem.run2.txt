@@ -1,0 +1,7 @@
+`VedtakKonsument` er rettet, og `gradle test` i `vedtak-konsument/` går grønt med 5 tester.
+
+- **Ingen dobbel utbetaling:** en `eventId` som allerede er utbetalt, hoppes over.
+- **Offset commites etter behandling:** `commitSync()` kjøres etter at hele batchen er behandlet. Hvis en utbetaling kaster feil, commites ingenting, og meldingene leses på nytt.
+- **Konstruktøren:** `VedtakKonsument(consumer, utbetaling)` fungerer fortsatt. Den tar også en valgfri `ProsesserteEvents`, som default er `InMemoryProsesserteEvents()`.
+
+Begrensning: standardlageret er i minnet, så det glemmes ved restart eller ny pod. Det dekker rebalansering i samme prosess, men ikke restart. For full sikkerhet må dere sende inn et persistent `ProsesserteEvents`, for eksempel en tabell i databasen som lagrer eventId i samme transaksjon som utbetalingen.

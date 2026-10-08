@@ -1,12 +1,14 @@
 package provider
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -711,6 +713,31 @@ func TestOpenCodeAcceptsPluginDir(t *testing.T) {
 	}
 }
 
+// TestStagedOpenCodeSandboxAuto: sandbox autonomy passes opencode --auto (cplt
+// is the boundary); conservative keeps opencode's own prompts.
+func TestStagedOpenCodeSandboxAuto(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil) })
+	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
+	for _, tc := range []struct {
+		autonomy string
+		allowAll bool
+		want     bool
+	}{
+		{"sandbox", false, true},
+		{"conservative", false, false},
+		{"conservative", true, true}, // allow_all_tools still opts in
+	} {
+		spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{Client: "opencode", Autonomy: tc.autonomy, AllowAllTools: tc.allowAll}, staged)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := slices.Contains(spec.agentArgs, "--auto"); got != tc.want {
+			t.Errorf("autonomy %s allowAll %v: --auto=%v, want %v (%v)", tc.autonomy, tc.allowAll, got, tc.want, spec.agentArgs)
+		}
+	}
+}
+
 // TestStagedPiSpec is the staged pi invocation vector, which the two-client
 // table above cannot express: pi has no --agent, so its persona is a file the
 // payload ships and the whole vector depends on what is on disk.
@@ -774,5 +801,182 @@ func TestStagedPiSpec(t *testing.T) {
 				t.Errorf("message suffix %q should name the payload context", spec.messageSuffix)
 			}
 		})
+	}
+}
+
+func TestOpenCodeV2Args(t *testing.T) {
+	for _, c := range []struct {
+		in       []string
+		want     string
+		wantConf string
+	}{
+		{[]string{"--model", "github-copilot/m", "--agent", "nav", "--auto", "--log-level", "DEBUG"},
+			"--auto --log-level debug", `{"default_agent":"nav","model":"github-copilot/m"}`},
+		{[]string{"run", "--agent", "nav", "--model", "github-copilot/m", "--variant", "high", "hi"},
+			"run --model github-copilot/m#high --agent nav hi", ""},
+		{[]string{"--pure", "run", "--agent", "nav", "--variant", "high", "hi"},
+			"run --agent nav hi", ""},
+		{[]string{"mcp", "list", "--log-level", "WARN"}, "mcp list --log-level warn", ""},
+		{[]string{"run", "--model", "github-copilot/m", "--", "--model", "x", "--pure"},
+			"run --model github-copilot/m -- --model x --pure", ""},
+	} {
+		args, env := openCodeV2Args(c.in, nil)
+		if got := strings.Join(args, " "); got != c.want {
+			t.Errorf("%v: args = %q, want %q", c.in, got, c.want)
+		}
+		conf := ""
+		if len(env) > 0 {
+			conf = strings.TrimPrefix(env[0], openCodeConfigContentEnv+"=")
+		}
+		if conf != c.wantConf {
+			t.Errorf("%v: config = %q, want %q", c.in, conf, c.wantConf)
+		}
+	}
+}
+
+func TestWithOpenCode2UserConfig(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	dir := openCodeConfigDir()
+	mustWrite(t, filepath.Join(dir, "opencode.json"), `{"model":"mine/m"}`)
+	mustWrite(t, filepath.Join(dir, "skills", "x", "SKILL.md"), "x")
+	payload := t.TempDir()
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"permission":{"bash":"ask"},"plugin":["./p.js"]}`)
+
+	env := withOpenCode2UserConfig(nil, payload)
+	all := strings.Join(env, "\n")
+	for _, want := range []string{
+		"OPENCODE_CONFIG=" + filepath.Join(dir, "opencode.json"),
+		`"skills":["` + filepath.Join(dir, "skills") + `"]`,
+		`"permission":{"bash":"ask"}`,
+	} {
+		if !strings.Contains(all, want) {
+			t.Errorf("env lacks %s:\n%s", want, all)
+		}
+	}
+	if strings.Contains(all, "p.js") {
+		t.Errorf("a payload path went into the content: %s", all)
+	}
+	// The user's own OPENCODE_CONFIG stays.
+	env = withOpenCode2UserConfig([]string{"OPENCODE_CONFIG=/mine.json"}, payload)
+	if !slices.Contains(env, "OPENCODE_CONFIG=/mine.json") {
+		t.Errorf("env = %v", env)
+	}
+}
+
+// The payload's agents rank above a user agent of the same name only from
+// OPENCODE_CONFIG_CONTENT, restated as opencode 2 reads them: key order kept,
+// payload-relative {file:} paths made absolute, a mode file primary, native
+// frontmatter under "agents" with the body as system, and files with {env:}
+// or {file:} left out.
+func TestWithOpenCode2UserConfigRestatesAgents(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	payload := t.TempDir()
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"permission":{"bash":{"git *":"allow","*":"deny"}},"agent":{"rev":{"prompt":"{file:./rev.txt}"}}}`)
+	mustWrite(t, filepath.Join(payload, "agents", "grillmester.md"),
+		"---\ndescription: \"probe: x\" # comment\nmode: primary\ntools:\n  read: true\n1: one\nhidden: True\npermission:\n  edit: deny\n  bash:\n    \"git *\": allow\n    \"*\": deny\n---\n\nPROMPT\n")
+	mustWrite(t, filepath.Join(payload, "agents", "native.md"), "---\nmodel: p/m\nvariant: high\nsteps: 3\n---\nSYS\n")
+	mustWrite(t, filepath.Join(payload, "agents", "secret.md"), "---\ndescription: x\n---\n{env:TOKEN}\n")
+	mustWrite(t, filepath.Join(payload, "modes", "plan.md"), "---\nmode: subagent\n---\nPLAN\n")
+
+	env := withOpenCode2UserConfig(nil, payload)
+	env = withOpenCodeConfigContent(env, map[string]any{"share": "disabled"}) // a later policy merge keeps the order
+	abs := filepath.ToSlash(filepath.Join(payload, "rev.txt"))
+	want := `OPENCODE_CONFIG_CONTENT={"agent":{"rev":{"prompt":"{file:` + abs + `}"},` +
+		`"grillmester":{"description":"probe: x","mode":"primary","tools":{"read":true},"1":"one","hidden":true,"permission":{"edit":"deny","bash":{"git *":"allow","*":"deny"}},"prompt":"PROMPT"}},` +
+		`"agents":{"native":{"model":"p/m#high","steps":3,"system":"SYS"},"plan":{"mode":"primary","system":"PLAN"}},` +
+		`"permission":{"bash":{"git *":"allow","*":"deny"}},"share":"disabled"}`
+	if len(env) != 1 || env[0] != want {
+		t.Fatalf("env = %q\nwant  %q", env, want)
+	}
+	// opencode takes the last matching rule (core/src/permission.ts findLast).
+	if got := lastBashRule(t, strings.TrimPrefix(env[0], "OPENCODE_CONFIG_CONTENT="), "git status"); got != "deny" {
+		t.Errorf("git status resolves to %q, want deny", got)
+	}
+}
+
+// lastBashRule resolves a command against permission.bash as opencode does:
+// rules in order, the last match winning. Only "*" and a trailing " *".
+func lastBashRule(t *testing.T, content, cmd string) string {
+	t.Helper()
+	n, err := jsonNode([]byte(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := nodeGet(nodeGet(n, "permission"), "bash")
+	got := ""
+	for i := 0; rules != nil && i+1 < len(rules.Content); i += 2 {
+		pat := rules.Content[i].Value
+		if pat == "*" || (strings.HasSuffix(pat, " *") && strings.HasPrefix(cmd, strings.TrimSuffix(pat, "*"))) {
+			got = rules.Content[i+1].Value
+		}
+	}
+	return got
+}
+
+// A markdown agent outranks the payload JSON's agent of its name, as opencode
+// loads the directory's files after its config: merged into a native JSON
+// agent, or replacing it when the file is a v1 agent.
+func TestWithOpenCode2UserConfigMarkdownOutranksJSON(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	payload := t.TempDir()
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agents":{"a":{"description":"json"},"b":{"description":"json","steps":2}}}`)
+	mustWrite(t, filepath.Join(payload, "agents", "a.md"), "---\ntools:\n  read: true\n---\nA\n")
+	mustWrite(t, filepath.Join(payload, "agents", "b.md"), "---\ndescription: md\n---\nB\n")
+	env := withOpenCode2UserConfig(nil, payload)
+	want := `OPENCODE_CONFIG_CONTENT={"agent":{"a":{"tools":{"read":true},"prompt":"A"}},"agents":{"b":{"description":"md","steps":2,"system":"B"}}}`
+	if len(env) != 1 || env[0] != want {
+		t.Errorf("env = %q\nwant  %q", env, want)
+	}
+}
+
+// As opencode 2 parses agent files: an unquoted colon value retried as a
+// block scalar, no frontmatter a native agent, and a v1 file opencode would
+// reject left out without dropping the JSON agent of its name.
+func TestWithOpenCode2UserConfigAgentFileEdges(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	payload := t.TempDir()
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agents":{"bad":{"description":"json"}}}`)
+	mustWrite(t, filepath.Join(payload, "agents", "colon.md"), "---\ndescription: Use when: things happen\n---\nC\n")
+	mustWrite(t, filepath.Join(payload, "agents", "bare.md"), "just a prompt\n")
+	mustWrite(t, filepath.Join(payload, "agents", "bad.md"), "---\ntools:\n  - read\n---\nX\n")
+	mustWrite(t, filepath.Join(payload, "agents", "dup.md"), "---\ndescription: first\ndescription: last\n---\nD\n")
+	env := withOpenCode2UserConfig(nil, payload)
+	want := `OPENCODE_CONFIG_CONTENT={"agents":{"bad":{"description":"json"},"bare":{"system":"just a prompt"},"colon":{"description":"Use when: things happen","system":"C"},"dup":{"description":"last","system":"D"}}}`
+	if len(env) != 1 || env[0] != want {
+		t.Errorf("env = %q\nwant  %q", env, want)
+	}
+}
+
+// cplt passes OPENCODE_CONFIG only when told to; on opencode 2 the user's
+// config rides in it.
+func TestStagedOpenCode2PassesOpenCodeConfig(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	mustWrite(t, filepath.Join(openCodeConfigDir(), "opencode.json"), `{}`)
+	t.Cleanup(func() { SetActivePakke(nil); versionCache.Delete("opencode") })
+	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
+	for ver, want := range map[string]bool{"1.18.35\n": false, "opencode v2.0.24\n": true} {
+		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+		spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{Client: "opencode"}, staged)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := slices.Contains(spec.cpltArgs, "OPENCODE_CONFIG"); got != want {
+			t.Errorf("%q: cpltArgs = %v, want --pass-env OPENCODE_CONFIG: %v", ver, spec.cpltArgs, want)
+		}
+	}
+}
+
+// opencode 2's run has no --variant: one without --model is dropped, and says so.
+func TestOpenCodeV2ArgsWarnsOnDroppedVariant(t *testing.T) {
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	openCodeV2Args([]string{"run", "--variant", "high", "hi"}, nil)
+	w.Close()
+	os.Stderr = old
+	b, _ := io.ReadAll(r)
+	if !strings.Contains(string(b), "--variant high is not applied") {
+		t.Errorf("stderr = %q", b)
 	}
 }

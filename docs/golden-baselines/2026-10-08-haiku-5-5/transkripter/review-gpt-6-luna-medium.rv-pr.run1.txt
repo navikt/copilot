@@ -1,0 +1,29 @@
+🔍 Skanner `vedtak-kafka` mot `main`: sjekker repo-instruksjoner, endringsomfang og relevante tester.
+
+📊 Endringene er Kotlin-basert, ikke Go. Jeg går gjennom implementasjonen og Kotlin-/sikkerhetsinstruksjonene før jeg kjører repoets sjekk.
+
+🔍 Analysen viser flere høyrisikoområder rundt FNR, autentisering og tilgang. Jeg verifiserer nå linjene mot faktisk kildekode og forsøker repoets tilgjengelige sjekk før jeg rapporterer.
+
+📋 Koden bekrefter offentlig lesing av vedtak, SQL-injeksjon og logging av FNR. Repoet har ingen `mise check`; `gradle test` feiler under prosjektkonfigurasjon, så jeg henter stacktrace og presise linjenumre.
+
+Тестkjøring stopper før kompilering fordi Gradle/Kotlin prøver å tolke Java-versjon `27`; dette er verktøymiljøet, ikke en testfeil i endringen. Jeg rydder bare opp i Gradle-cache som testen opprettet, og sjekker Java-versjonen før avslutning.
+
+### Sammendrag
+
+`vedtak-kafka` har **sju blockerende funn**. De gjelder eksponering av vedtaksopplysninger, usikker autentisering, SQL-injeksjon, FNR i logger, manglende databaseskjema og duplisering ved Kafka-retries.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `nais.yaml` | 25–26 | 🔴 | Inbound-regelen åpner tjenesten for alle apper i alle namespaces. Begrens den til konkrete kallere. |
+| `src/main/kotlin/no/nav/demo/Routes.kt` | 30–32 | 🔴 | Oppslag av vedtak krever ikke autentisering eller eiersjekk. Alle som når tjenesten, kan hente vedtak ved å oppgi FNR. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 40–42 | 🔴 | JWT-oppsettet mangler verifier. `validate` sjekker bare at tokenet har en audience-claim, ikke signatur, issuer eller forventet audience. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 23 | 🔴 | `fnr` settes direkte inn i SQL-strengen. Bruk parameterisert spørring for å hindre SQL-injeksjon. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt` | 15 | 🔴 | Logger FNR. Fjern personopplysningen fra loggen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 10 | 🔴 | Koden bruker tabellen `vedtak`, men branchen inneholder ingen migrering som oppretter den. Databasen som `nais.yaml` ber om, vil derfor ikke ha tabellen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 31–33, 37–46 | 🔴 | Retry kjører hele behandlingen på nytt. Hvis DB-lagring lykkes og Kafka-publisering feiler, oppretter neste forsøk et nytt vedtak. Hvis siste forsøk feiler, bobler feilen ut av `start()` og stopper consumer-tråden. |
+
+### Kontroll
+
+`mise check` kunne ikke kjøres fordi repoet ikke har en slik task. `gradle test --no-daemon` stoppet under prosjektkonfigurasjon: Kotlin-kompilatoren feiler på den installerte Java 27-versjonen (`IllegalArgumentException: 27`), før kompilering og tester. `git diff --check` var ren, og arbeidsområdet er uendret.

@@ -1,0 +1,23 @@
+Henter diffen mellom `main` og `vedtak-kafka`.
+
+**Verdikt: BLOCK.** Jeg gjennomgikk diffen (`main...vedtak-kafka`, én commit, 8 filer). Jeg kjørte ikke tester: repoet har ingen `mise.toml`, og det er ingen migrasjon for tabellen `vedtak`.
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon: `fnr` settes inn med strengkonkatenering. Bruk `queryOf(sql, fnr)`. |
+| `Routes.kt` | `GET /api/vedtak/{fnr}` | 🔴 | Ingen autentisering eller eierskapssjekk. Alle kan slå opp vedtak for vilkårlig fnr. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | Ingen `verifier` (signatur og issuer valideres ikke). `validate` sjekker bare at audience finnes. Ingen `azp`-sjekk. |
+| `Routes.kt` | `POST /api/vedtak` | 🔴 | Enhver innlogget kaller kan fatte vedtak for vilkårlig fnr. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | Fødselsnummer i logg. |
+| `VedtakConsumer.kt` | `start()` | 🔴 | En feil etter tre forsøk, eller en ugyldig JSON-melding, kaster exception ut av `while`-løkken. Tråden dør stille, og `isalive` påvirkes ikke. |
+| `VedtakConsumer.kt` | `retry` + `commitSync` | 🟡 | Ved delvis feil i en batch kjøres hele batchen på nytt, og `behandle` lagrer nytt vedtak med ny ID. Dette gir dupliserte vedtak. |
+| `VedtakRepository.kt` | `hentForSak`, `hentVedtak` | 🟡 | Ubrukt kode. |
+| `build.gradle.kts` | to `dependencies {}`-blokker | 🟡 | Slå sammen til én blokk. |
+| `App.kt` | `KAFKA_BROKERS` | 🟡 | `null` gir NPE ved oppstart fra `Properties.put`. Gi tydelig feilmelding. |
+| (mangler) | tester og Flyway-migrasjon | 🟡 | Ingen tester for ny logikk. Ingen skript for tabellen `vedtak`. |
+| `App.kt` | `KafkaProducer` og `KafkaConsumer` | 💭 | Delt `Properties` gir irrelevant consumer-config til producer. |
+
+Still gjerne spørsmål om valgene over.
+
+🔴 Rød sone: autentisering, autorisasjon og SQL i `VedtakRepository` og `App.kt`. Gå gjennom disse nøye før merge.

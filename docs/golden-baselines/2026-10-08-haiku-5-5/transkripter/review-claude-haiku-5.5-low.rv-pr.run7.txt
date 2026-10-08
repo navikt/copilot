@@ -1,0 +1,21 @@
+**Gjennomgang: `vedtak-kafka` mot `main`** (8 filer, +257/−2). Kun rapport, ingen kodeendringer.
+
+| Fil | Prioritet | Problem |
+|---|---|---|
+| `nais.yaml` | 🔴 | `accessPolicy.inbound` åpner for `application: "*"` i `namespace: "*"`. Begrens til kjente konsumenter. |
+| `Routes.kt` | 🔴 | `GET /api/vedtak/{fnr}` er uautentisert og har ingen eierskapssjekk. Hvem som helst kan slå opp vedtak for en person. |
+| `Routes.kt` | 🔴 | `POST /api/vedtak` tar `fnr` fra request body uten eierskapssjekk. Autentiserte kallere kan fatte vedtak for andre personer. |
+| `App.kt` | 🔴 🔴 Rød sone: token-validering | `jwt("tokenx")` har ingen verifier, issuer, audience eller JWKS. Validate godtar enhver token som har en `aud`-claim, uten signaturkontroll. |
+| `VedtakRepository.kt` | 🔴 | SQL-injeksjon i `hentForPerson`: `fnr` settes rett inn i SQL-strengen. Bruk `queryOf(sql, fnr)`. |
+| `VedtakService.kt` | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer. Fjern eller logg kun ID. |
+| `VedtakConsumer.kt` | 🔴 | Retry kjører `fattVedtak` på nytt, og hver forsøk lager ny `vedtakId`. Ved delvis feil blir det dupliserte vedtak i DB og duplikate `vedtak-fattet`-meldinger. Trenger idempotens, for eksempel nøkkel på `soknadId`. |
+| `VedtakConsumer.kt` | 🟡 | Siste forsøk i `retry` er utenfor try/catch. Exception dreper consumer-tråden stille, mens HTTP-serveren fortsetter. Ingen restart, ingen alarm. |
+| `App.kt` | 🟡 | Miljøvariablene `DB_JDBC_URL` og `KAFKA_BROKERS` er ikke knyttet til Nais-injiserte variabler. SSL/SASL-konfig for Kafka mangler. Sjekk mot Nais-dokumentasjonen. |
+| `VedtakRepository.kt` | 🟡 | Tabellen `vedtak` har ingen Flyway-migrasjon i diffen. |
+| `Routes.kt` | 🟡 | `fnr` i URL-path havner i access-logger. Vurder POST med body eller oppslag med intern ID. |
+| `build.gradle.kts` | 💭 | Ny `dependencies {}`-blokk etter den eksisterende. Slå sammen. |
+| hele diffen | 🟡 | Ingen tester for `VedtakService`, `VedtakRepository` eller consumer-logikk. |
+
+**Konklusjon:** Ikke klar til merge. Auth, tilgangskontroll, SQL-injeksjon og PII i logger må fikses først.
+
+Still gjerne spørsmål om valgene over.

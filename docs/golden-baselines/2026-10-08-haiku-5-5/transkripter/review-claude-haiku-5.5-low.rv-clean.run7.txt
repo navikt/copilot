@@ -1,0 +1,17 @@
+### Sammendrag
+Filen er ryddig. SQL er parameterisert, fødselsnummer maskeres i logg, og brukeren får bare sine egne saker. Jeg fant ingen 🔴-funn. Jeg kjørte ikke `mise check` fordi repoet ikke har `apps/<app>`-struktur.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 50 | 🟡 | `pid`-claimen brukes uten formatvalidering (11 siffer). Tokenet er validert, så risikoen er lav, men en enkel sjekk gir tydeligere feil ved feil format. |
+| `SakService.kt` | 40–43 | 🟡 | Feilen logges uten kontekst (`fnr`-maskering er korrekt, men ingen korrelasjons-ID). Feilen kastes videre, så dette er bare en observabilitetsforbedring. |
+| `SakService.kt` | 26 | 💭 | `WHERE fnr = ? ORDER BY opprettet` bør ha indeks på `(fnr, opprettet)`. Verifiser i migrasjonene. |
+| `SakService.kt` | 20 | 💭 | `maskert()` avslører lengden. For fnr er lengden alltid 11, så det lekker ingenting. |
+
+### Hva er bra
+- Eierskap sjekkes implisitt: spørringen bruker `fnr` fra tokenet, ikke fra request.
+- Ingen PII i logg, og kun exception-navn logges ved feil.
+
+🔴 Rød sone: autorisasjon i `sakRoutes` avhenger av at `tokenx`-konfigurasjonen validerer `azp` og audience. Gå gjennom den konfigurasjonen separat.

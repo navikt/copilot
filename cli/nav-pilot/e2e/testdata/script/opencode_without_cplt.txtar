@@ -1,7 +1,6 @@
-# opencode without cplt, as copilot (#1028): without a terminal a launch
-# refuses unless --no-sandbox says to go ahead, and then runs opencode itself,
-# in the project directory, with the hooks' environment. With cplt on PATH,
-# --no-sandbox changes nothing: the launch still goes through cplt.
+# opencode without cplt, as copilot: nav-pilot never launches it outside the
+# sandbox, with or without a terminal, and --no-sandbox is refused with the
+# reason.
 
 fake-bin opencode
 env PATH=$PATH${:}/bin${:}/usr/bin
@@ -17,38 +16,20 @@ exec nav-pilot config set source $WORK/plattform
 exec nav-pilot install plattform --user --yes
 
 exits 1 nav-pilot --client opencode --model claude-opus-4.8 -- run hello
-stderr 'Or pass --no-sandbox to run it anyway\.'
+stderr 'Not launching: cplt is not installed\. Install it: brew install navikt/tap/cplt'
 ! exists $WORK/fake/opencode.log
 
-exec nav-pilot --client opencode --model claude-opus-4.8 --no-sandbox -- run hello
-stderr '⚠ cplt \(the sandbox\) is not installed: opencode runs unsandboxed \(--no-sandbox\)\.'
-stdout 'without the sandbox'
-grep '^run\n--model\n' $WORK/fake/opencode.log
-grep '^hello\n---' $WORK/fake/opencode.log
-grep '^--agent\ngrillmester\n' $WORK/fake/opencode.log
-exec cat $WORK/env.out
-stdout '^NAV_PILOT_OPENCODE_HOOKS=\{"post"'
-stdout '^OPENCODE_CONFIG_CONTENT=.*"plugin":.*"share":"disabled"'
-stdout '^PWD=.*/repo$'
-! stderr 'where the cplt sandbox may not let the session start it'
+exits 1 nav-pilot --client opencode --model claude-opus-4.8 --no-sandbox -- run hello
+stderr 'nav-pilot always runs clients inside cplt'
+! exists $WORK/fake/opencode.log
 
-# cplt present: --no-sandbox does not skip it.
-cd $WORK
-fake-bin cplt opencode
-cd repo
-env PATH=$PATH${:}/bin${:}/usr/bin
-exec nav-pilot --client opencode --model claude-opus-4.8 --no-sandbox -- run hello
-grep '^--agent\nopencode\n' $WORK/fake/cplt.log
-
-# In a terminal it asks, and the answer defaults to no.
+# In a terminal it says so and launches nothing.
 [!pty] stop 'no pseudo-terminal here (/dev/ptmx will not open)'
-rm $WORK/fake/cplt
 exec nav-pilot config set client opencode
-exits 0 pty-run -wait 'Launch opencode without the sandbox' -send '\r' -- nav-pilot
-stdout 'Not launched\.'
+exits 0 pty-run -- nav-pilot
+stdout 'cplt \(the sandbox\) is not installed, and opencode only launches inside it'
+! exists $WORK/fake/opencode.log
 
--- fake/opencode.sh --
-{ env | grep -E '^(NAV_PILOT_OPENCODE_HOOKS|OPENCODE_CONFIG_CONTENT)='; echo "PWD=$(pwd)"; } > "$WORK/env.out"
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

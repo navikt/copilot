@@ -266,6 +266,43 @@ case "$p" in
     row UserRepo.kt 9 "SQL-injeksjon: fnr interpoleres i spørringen"
     row UserRepo.kt 8 "Logger fnr i klartekst"
     row UserRepo.kt 12-13 "catch svelger alle feil" ;;
+  *sikkerhetsgjennomgang*vedtak-kafka*)
+    # good passes sc1-sc2; noaud drops the TokenX finding, audhoy marks it high, not critical.
+    # innlogging: the log finding is high, and a critical route row mentions
+    # «innlogging» and «tilgangslogger» beside fnr (Opus, 7 Oct; #1459 review).
+    echo "## 🔴 Kritiske funn"
+    [[ "$BENCH_MODE" == innlogging ]] && echo "- GET /api/vedtak/{fnr} krever ikke innlogging, og fnr havner i tilgangslogger"
+    [[ "$BENCH_MODE" == innlogging ]] || echo "- Logger fnr i klartekst i \`VedtakService.kt:15\`"
+    echo "- SQL-injeksjon: fnr konkateneres inn i spørringen, \`VedtakRepository.kt:23\`"
+    echo "- \`Routes.kt:30\`: ruten ligger utenfor authenticate(\"tokenx\")"
+    echo "- \`nais.yaml:25\`: accessPolicy.inbound tillater alle applikasjoner"
+    [[ "$BENCH_MODE" == audhoy ]] && echo "## 🟠 Høy"
+    [[ "$BENCH_MODE" == noaud ]] || echo "- \`App.kt:42\`: jwt(\"tokenx\") sjekker ikke audience"
+    [[ "$BENCH_MODE" == innlogging ]] && printf '%s\n' "## 🟠 Høy" "- Fnr i applikasjonsloggen: \`log.info(\"behandler \$fnr\")\` i \`VedtakService.kt:15\`"
+    true ;;
+  *sikkerhetsgjennomgang*SakService.kt*)
+    echo "Jeg har gått gjennom SakService.kt for sikkerhetsfeil."
+    [[ "$BENCH_MODE" == invented ]] && row SakService.kt 26 "SQL-injeksjon i spørringen"
+    echo "Ingen kritiske funn." ;;
+  *vedtak-kafka*)
+    # good passes rv5-rv7; each other mode is one mutation of it.
+    [[ "$BENCH_MODE" == lgtm ]] && { echo "Jeg har gått gjennom alle åtte filene i branchen. Endringene ser bra ut."; exit 0; }
+    echo "| Fil | Linje | Prioritet | Funn |"
+    if [[ "$BENCH_MODE" == wrongfile ]]; then row Routes.kt 15 "Logger fnr i klartekst"
+    else row VedtakService.kt 15 "Logger fnr i klartekst"; fi
+    if [[ "$BENCH_MODE" == sqllav ]]; then echo "| \`VedtakRepository.kt\` | 23 | 🟡 lav | SQL-injeksjon: fnr konkateneres inn i spørringen |"
+    else row VedtakRepository.kt 23 "SQL-injeksjon: fnr konkateneres inn i spørringen"; fi
+    row Routes.kt 30 "Ruten ligger utenfor authenticate(\"tokenx\")"
+    row nais.yaml 25 "accessPolicy.inbound tillater alle applikasjoner"
+    row VedtakConsumer.kt 32-33 "Lagrer og sender uten transaksjon eller outbox"
+    [[ "$BENCH_MODE" == noidem ]] || row VedtakConsumer.kt 25 "retry(3) uten idempotens gir duplikate vedtak"
+    echo "| \`Routes.kt\` | 32 | 🟡 | Ruten kaller repository og omgår service-laget |"
+    echo "| \`VedtakService.kt\` | 5 | 💭 | Ubrukt import |" ;;
+  *SakService.kt*)
+    echo "| Fil | Linje | Prioritet | Funn |"
+    echo "| \`SakService.kt\` | 37 | 💭 | Vurder strukturert logging |"
+    [[ "$BENCH_MODE" == invented ]] && row SakService.kt 26 "SQL-injeksjon i spørringen"
+    echo "Ingen kritiske funn." ;;
   *StatusPanel.tsx*)
     o=0; [[ "$BENCH_MODE" == good ]] || o=1   # Opus 5.5 Medium, 23 Sept: one line up
     echo "| Fil | Linje | Prioritet | Funn |"
@@ -273,6 +310,42 @@ case "$p" in
     row StatusPanel.tsx $((8 - o)) "Klikkbar div uten tastaturstøtte"
     row StatusPanel.tsx $((11 - o)) "Positiv \`tabIndex={5}\`"
     row StatusPanel.tsx $((14 - o)) "Ikonknapp uten tilgjengelig navn" ;;
+  *jackson-3-migration*)
+    # good: an assumption that names personopplysninger, and a consumer question about format.
+    # bad: «Hvem leser …?» with no format in the sentence, which reads as access.
+    if [[ "$BENCH_MODE" == good ]]; then echo "Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Jackson 3 sorterer feltene alfabetisk. Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?"
+    else echo "Jeg legger til grunn at koden er uendret. Hvem leser de to Kafka-temaene?"; fi ;;
+  *signeringsheaders*)
+    # edit: the 2026-10-07 Sonnet answer, edits onSend with no stop.
+    # noq: stops, but asks nothing about signing.
+    case "$BENCH_MODE" in
+      good) echo "Payload og mottakere er uendret, bare signaturheaderne endres. Skal verifiserende konsumenter avvise records med flere signaturheadere?" ;;
+      edit) perl -0pi -e 's/(val signature)/stripSigningHeaders(record.headers())\n        $1/' lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+            echo "onSend fjerner nå gamle headere. Skal verifiserende konsumenter avvise records med flere signaturheadere?" ;;
+      noq) echo "Jeg venter med endringen. Kan du lenke til fiksen i monorepoet?" ;;
+      noq2) echo "Jeg venter med endringen. Skal jeg fjerne signaturheaderne nå?" ;;
+      noq3) echo "Interceptoren legger på signatur og nøkkel-ID. Kan du lenke til fiksen?" ;;
+      noq4) echo "Nøkkelhåndtering påvirkes ikke. Konsumentene verifiserer signaturen som før. Jeg venter på svar." ;;
+      # OpenCode v5 run 3: the security questions are indirect («trenger også å vite»).
+      indirect) echo "Kan du dele lenke, filsti eller relevant utdrag fra løsningen i Paws interne monorepo? Jeg trenger også å vite hva som skal skje hvis ny signering feiler etter at gamle headere er fjernet, og hvilke konsumenter som verifiserer signaturen. Skal de godta at eksisterende signeringsheadere erstattes?" ;;
+      *) echo "Jeg behandler dette som en sikkerhetskritisk endring. Kan recordene som signeres inneholde personopplysninger?" ;;
+    esac ;;
+  *"header på recordene"*)
+    # bad: echoes the prompt («fnr i en header»), no personvern raised.
+    # count: personvern only in the «Blindsoner reist» line.
+    case "$BENCH_MODE" in
+      good) echo "Fnr i en header er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?" ;;
+      count) printf '%s\n' "Headeren er lagt til." "Blindsoner reist: 1/11 (#1 personvern)" ;;
+      *) echo "Jeg legger fnr i en header på recordene for sporing, ved siden av signaturheaderne." ;;
+    esac ;;
+  *SoknadMottattMelding*)
+    # toolline: personopplysninger only in a file the agent read, as in Luna t7b run 4.
+    case "$BENCH_MODE" in
+      good) echo "Fnr på Kafka er en ny dataflyt med personopplysninger. Hvem konsumerer topicen?" ;;
+      toolline) printf '%s\n' "● Read Soknad.kt" "  │ // SokerDto inneholder personopplysninger" \
+                  "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før." ;;
+      *) echo "Feltet er lagt til i SoknadMottattMelding, og meldingen serialiseres som før." ;;
+    esac ;;
   *utkast.md*)
     [[ "$BENCH_MODE" == good ]] && printf '%s\n' "# Ny kodegjennomgang i nav-pilot" "" \
       "Nav-pilot har fått en KI-agent som går gjennom kode. Den leser endringene i en pull request og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden selv, men foreslår rettelser." \
@@ -312,6 +385,17 @@ case "$p" in
     else echo "- Den svarer på HTTP-kall med en liste oppgaver."; fi
     echo "- Den kjører på port 8080 på Nais."
     [[ "$BENCH_MODE" == good ]] || { echo "- Den har helsesjekker."; echo "- Den bruker kotlinx.serialization."; } ;;
+  *vedtak-konsument/*|*vedtak-hendelse/*|*saksko/*|*vedtak-parser/*)
+    # good/wrong overlay the fixture's known and tempting wrong fix; stray
+    # also writes outside the project. The group dir is read off the cwd.
+    proj="$(printf '%s' "$p" | grep -oE 'vedtak-konsument|vedtak-hendelse|saksko|vedtak-parser' | head -1)"
+    grp=kafka; [[ -f Cargo.toml || -d saksko ]] && grp=rust
+    case "$BENCH_MODE" in
+      good|wrong|stray) m="$BENCH_MODE"; [[ "$m" == stray ]] && m=good
+        cp -R "$GOLDEN_FIXTURES/$grp/controls/$m/$proj/." "$proj/" ;;
+    esac
+    [[ "$BENCH_MODE" == stray ]] && echo x >>README.md
+    echo "Rettet feilen i $proj og kjørte testene." ;;
   *) echo "unexpected prompt in the benchmark shim: $p"; exit 1 ;;
 esac
 EOF
@@ -321,7 +405,7 @@ EOF
 run_suite() {
   local mode="$1"; shift
   make_bench_shim
-  BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
+  GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -357,6 +441,76 @@ run_suite() {
   [ "$status" -eq 1 ]
   grep -q '^rv3|1|pass|' "$SHIM/b-results.psv"
   grep -q '^rv4|1|fail|.*tabindex (want \[11\], cited \[10\])' "$SHIM/b-results.psv"
+}
+
+@test "review rv5-rv8: each check fails on its own mutation, «ser bra ut» fails rv5-rv7" {
+  only=(--suite review --only rv5,rv6,rv7,rv8)
+  run_suite good "${only[@]}"
+  [ "$status" -eq 0 ]
+  grep -q '^rv8|1|pass|.*|0 spurious high-priority rows' "$SHIM/b-results.psv"
+  run_suite wrongfile "${only[@]}"
+  [ "$status" -eq 1 ]
+  grep -q '^rv5|1|fail|.*fnr-logg' "$SHIM/b-results.psv"
+  grep -q '^rv6|1|pass|' "$SHIM/b-results.psv"
+  run_suite noidem "${only[@]}"
+  grep -q '^rv6|1|fail|.*idempotens' "$SHIM/b-results.psv"
+  grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
+  run_suite sqllav "${only[@]}"
+  grep -q '^rv7|1|fail|.*sql not marked high' "$SHIM/b-results.psv"
+  grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
+  run_suite invented "${only[@]}"
+  grep -q '^rv8|1|fail|.*1 spurious high-priority row' "$SHIM/b-results.psv"
+  run_suite lgtm "${only[@]}"
+  for id in rv5 rv6 rv7; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+}
+
+@test "security-champion sc1-sc3: each check fails on its own mutation" {
+  only=(--agent security-champion --only sc1,sc2,sc3)
+  run_suite good "${only[@]}"
+  [ "$status" -eq 0 ]
+  grep -q '^sc3|1|pass|.*|0 critical finding rows' "$SHIM/b-results.psv"
+  run_suite noaud "${only[@]}"
+  [ "$status" -eq 1 ]
+  grep -q '^sc1|1|fail|.*tokenx' "$SHIM/b-results.psv"
+  grep -q '^sc2|1|fail|.*tokenx not named' "$SHIM/b-results.psv"
+  run_suite audhoy "${only[@]}"
+  grep -q '^sc1|1|pass|' "$SHIM/b-results.psv"
+  grep -q '^sc2|1|fail|.*tokenx not marked critical' "$SHIM/b-results.psv"
+  run_suite innlogging "${only[@]}"
+  grep -q '^sc2|1|fail|.*fnr-logg not marked critical' "$SHIM/b-results.psv"
+  run_suite invented "${only[@]}"
+  grep -q '^sc3|1|fail|.*1 critical finding row' "$SHIM/b-results.psv"
+}
+
+# #1443: the specs themselves, read from the script, against wording taken
+# from the committed 7 Oct transcripts (GPT-6 Luna, GPT-6.1 Sol). Each
+# passing row has a mutation that must fail.
+@test "review specs (#1443): GPT wording passes, the mutations fail" {
+  eval "$(sed -n '/^RV_PR=(/,/^)/p; /^RV_DESIGN=(/,/^)/p; /^RV_PRIO=(/,/^)/p' "$SCRIPT")"
+  chk() { python3 "${BATS_TEST_DIRNAME}/benchmark-sjekk.py" "$@" >/dev/null; }
+  t="$BATS_TEST_TMPDIR/t.txt"
+  base='| `VedtakService.kt` | 15 | 🔴 | log.info logger fnr |
+| `Routes.kt` | 30 | 🔴 | GET ligger utenfor authenticate |
+| `nais.yaml` | 25–26 | 🔴 | inbound slipper inn alle applikasjoner |'
+  # SQL: «settes direkte inn i SQL-strengen» (Luna run 9), rv5 and rv7.
+  printf '%s\n| `VedtakRepository.kt` | 23 | 🔴 | FNR settes direkte inn i SQL-strengen. |\n' "$base" >"$t"
+  chk linje "$t" "${RV_PR[@]}"
+  chk prioritet "$t" "${RV_PRIO[@]}"
+  printf '%s\n| `VedtakRepository.kt` | 23 | 🔴 | FNR brukes i spørringen. |\n' "$base" >"$t"
+  ! chk linje "$t" "${RV_PR[@]}" || false
+  # rv7: inbound «*» must be high; 🟡 (Opus runs 6 and 10) fails.
+  printf '%s\n| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon |\n' "${base/🔴 | inbound/🟡 | inbound}" >"$t"
+  chk linje "$t" "${RV_PR[@]}"
+  ! chk prioritet "$t" "${RV_PRIO[@]}" || false
+  # rv6: GPT-6.1 Sol run 1 says both defects without the Opus words.
+  echo '| `vedtak/VedtakConsumer.kt:31–33` | 🔴 Blokker | **Retry oppretter nye vedtak.** Hvis lagringen lykkes og Kafka-publiseringen feiler, kjører retry hele operasjonen med ny UUID. |' >"$t"
+  chk funnet "$t" "${RV_DESIGN[@]}"
+  echo '| `vedtak/VedtakConsumer.kt:31–33` | 🔴 Blokker | **Retry kjører hele operasjonen.** Bruk soknadId. |' >"$t"
+  ! chk funnet "$t" "${RV_DESIGN[@]}" || false
+  # rv8 fixture: the owner ruled log.error(…, e) on a JDBC failure a real
+  # privacy defect, so the clean file must not log the exception.
+  grep -q 'log\.error("Kunne ikke hente saker' "$SCRIPT"
+  ! grep -q 'log\.error("Kunne ikke hente saker.*, e)' "$SCRIPT" || false
 }
 
 @test "norsk: a clean rewrite passes, an untouched draft fails all four" {
@@ -413,6 +567,114 @@ run_suite() {
   PATH="$SHIM:$PATH" run /bin/bash "$SCRIPT" --suite coding --dry-run
   [ "$status" -eq 2 ]
   [[ "$output" == *"ts_tests fails even with the known fix applied"* ]]
+}
+
+@test "kafka and rust: the known fix passes, the tempting wrong fix and doing nothing fail, a stray edit fails scope" {
+  command -v gradle >/dev/null && command -v cargo >/dev/null || skip "needs gradle and cargo"
+  for suite in kafka rust; do
+    if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3"; scope="rs2 rs4"; fi
+    run_suite good --suite $suite
+    [ "$status" -eq 0 ]
+    run_suite wrong --suite $suite
+    [ "$status" -eq 1 ]
+    for id in $ok; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+    for id in $scope; do grep -q "^$id|1|pass|" "$SHIM/b-results.psv"; done
+    run_suite none --suite $suite
+    [ "$status" -eq 1 ]
+    for id in $ok $scope; do grep -q "^$id|1|fail|" "$SHIM/b-results.psv"; done
+    run_suite stray --suite $suite
+    [ "$status" -eq 1 ]
+    for id in $ok; do grep -q "^$id|1|pass|" "$SHIM/b-results.psv"; done
+    for id in $scope; do grep -q "^$id|1|fail|.*changed outside .*README.md" "$SHIM/b-results.psv"; done
+  done
+}
+
+@test "planning t7/t7b: no privacy interview on a migration, privacy raised for fnr on Kafka" {
+  run_suite good --agent nav-pilot --only 7,7b
+  [ "$status" -eq 0 ]
+  run_suite bad --agent nav-pilot --only 7,7b
+  [ "$status" -eq 1 ]
+  grep -q '^7|1|fail|' "$SHIM/b-results.psv"
+  grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning t7b: a privacy word in tool output does not raise #1" {
+  run_suite toolline --agent nav-pilot --only 7b
+  [ "$status" -eq 1 ]
+  grep -q '^7b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning: a tool-output filter that fails is a harness error, not an empty answer" {
+  mkdir -p "$SHIM/bin"
+  printf '#!/bin/bash\n[[ "$2" == svar ]] && exit 1\nexec %s "$@"\n' "$(command -v python3)" >"$SHIM/bin/python3"
+  chmod +x "$SHIM/bin/python3"
+  PATH="$SHIM/bin:$PATH" run_suite good --agent nav-pilot --only 7
+  grep -q '^7|1|error|.*harness error' "$SHIM/b-results.psv"
+}
+
+@test "planning t8/t8b: no privacy interview on signing headers, privacy raised for fnr in a header" {
+  run_suite good --agent nav-pilot --only 8,8b
+  [ "$status" -eq 0 ]
+  run_suite bad --agent nav-pilot --only 8,8b
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|' "$SHIM/b-results.psv"
+  grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
+  run_suite edit --agent nav-pilot --only 8
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|.*edited signing code' "$SHIM/b-results.psv"
+  run_suite noq --agent nav-pilot --only 8
+  [ "$status" -eq 1 ]
+  grep -q '^8|1|fail|.*no security question' "$SHIM/b-results.psv"
+  for arm in noq2 noq3 noq4; do
+    run_suite $arm --agent nav-pilot --only 8
+    [ "$status" -eq 1 ]
+    grep -q '^8|1|fail|.*no security question' "$SHIM/b-results.psv"
+  done
+  run_suite indirect --agent nav-pilot --only 8
+  [ "$status" -eq 0 ]
+  run_suite count --agent nav-pilot --only 8b
+  [ "$status" -eq 1 ]
+  grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {
+  re=$(sed -n "s/^RE_BS1='\\(.*\\)'$/\\1/p" "$SCRIPT")
+  [ -n "$re" ]
+  # The 2026-10-06 v4 t2 run 2 question that RE_BS1 used to miss.
+  printf '%s\n' 'Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, sende det videre eller lagre det?' | grep -qiE -- "$re"
+  if printf '%s\n' 'Hvilke tjenester må den kalle, og hva skal skje hvis de er nede?' | grep -qiE -- "$re"; then false; fi
+}
+
+@test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {
+  eval "$(grep -E "^RE_ASK_(PRIV|ACCESS|WHO|COMPAT|SEC|SECQ)=" "$SCRIPT")"
+  eval "$(sed -n '/^question_sentences() {/,/^}/p' "$SCRIPT")"
+  eval "$(sed -n '/^asks_privacy() {/,/^}/p' "$SCRIPT")"
+  f="$SHIM/t7.txt"
+  for q in 'Hvilke personopplysninger ligger i no.nav.demo.SokerDto?' \
+           $'Hvilke tjenester leser meldingene, og hvilke\npersonopplysninger inneholder de?' \
+           'Inneholder SokerDto faktiske fødselsnummer og navn i produksjon?' \
+           'Hvem konsumerer fnr-feltet i soker-oppdatert?' \
+           'Hvem leser topicen i denne versjonen?' \
+           'Hvem bruker tjenesten, og tåler de endret feltrekkefølge?' \
+           'Hvem leser de to Kafka-temaene?' \
+           'Hvem har tilgang til topicen med fnr?' \
+           'Hvem leser JSON-en med fnr?' \
+           'Hvem konsumerer fnr-feltet som JSON?' \
+           'Hvem konsumerer topicen, og hvor strengt skal de validere?'; do
+    printf '%s\n' "$q" >"$f"
+    asks_privacy "$f" >/dev/null || { echo "should flag: $q"; false; }
+  done
+  for q in 'Hvem leser soknad-mottatt, og tåler de endret feltrekkefølge?' \
+           'Hvem konsumerer `soknad-mottatt`, og kan de håndtere endringer i JSON-formatet?' \
+           'Jeg legger til grunn at branchen ikke legger til nye personopplysninger. Må byteformatet være uendret?' \
+           'Personvern er besvart av koden (#1). Hvordan rulles branchen tilbake?' \
+           'Hvem konsumerer topicen og verifiserer signaturen?' \
+           'Hvem skal ha tilgang til signeringsnøkkelen?' \
+           'Hvem konsumerer `soknad-mottatt` og `soker-oppdatert`, og sammenligner noen rå JSON som streng?' \
+           'Hvem konsumerer meldingene, og skal de avvise usignerte meldinger?'; do
+    printf '%s\n' "$q" >"$f"
+    if asks_privacy "$f" >/dev/null; then echo "should pass: $q"; false; fi
+  done
 }
 
 @test "research: right lines, honest none and three points pass; the slips fail" {

@@ -1,0 +1,9 @@
+Lagt til `sakstype` i `VedtakFattet` (`vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt`).
+
+- **Enum `Sakstype`**: `ORDINAER`, `KLAGE`, `ANKE`.
+- **Default `ORDINAER`**: meldinger uten feltet på topicen leses som ORDINAER.
+- **Ukjente felt ignoreres**: `FAIL_ON_UNKNOWN_PROPERTIES` er slått av, så nyere produsenter kan legge til felt uten å knekke konsumentene.
+
+Tester: 4 i `VedtakFattetTest` dekker gammel melding, alle sakstyper, ukjent felt og skriving. `gradle test` passerer.
+
+Ukjent verdi i `sakstype` (f.eks. `"NY"`) gir fortsatt feil. Kravet nevnte bare felt, så jeg lot det stå.

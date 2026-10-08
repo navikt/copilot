@@ -1,0 +1,79 @@
+# Klassifisering av feilede sjekker 8. oktober 2026, lest fra transkriptene (--keep). Coding og research hadde ingen feil.
+# arm|sjekk|kjøring|klasse|avgjørende linje
+# Klassene er de samme som 7. oktober (2026-10-07-review-suite/failures.psv), brukt likt på alle armene:
+# modellfeil = modellen nevnte ikke feilen, ga feil linje eller et linjeintervall over fire linjer. sjekkfeil-ordliste = riktig funn eller konklusjon med ord sjekken ikke kjenner.
+# linje-som-nøkkel = funnet står i tabellen, men linjecellen har et symbol eller en nøkkel («hentForPerson», «accessPolicy.inbound») i stedet for linjenummer.
+#   7. oktober gjaldt det bare nais.yaml. Haiku gjorde det i hele tabellen i mange rv-pr-svar, og da feiler rv5, rv6 (idempotens) og rv7 samtidig.
+# beskrevet-med-andre-ord (rv6) = svaret sier at lagringen skjer før publiseringen og at retry lager en ny rad, men uten ordene i mønsteret.
+# En rad kan ha to klasser når sjekken feiler av to grunner. Avgjørende linje viser til svaret i transkripter/ (verktøyutskrift fjernet). rv1–rv4-svarene er ikke lagret.
+# Mønstrene er ikke endret etter kjøringene. Tellingene i modellvalg.md oppgir sjekkens tall.
+claude-haiku-5.5-low|rv2|3|modellfeil|sql sitert på 11 (riktig 9), fnr-logg på 9 (riktig 8), catch på 14 (riktig 12–13)
+claude-haiku-5.5-low|rv4|4|modellfeil|tailwind på 6 (riktig 7), ikonknapp på 11 og 13 (riktig 14–15)
+claude-haiku-5.5-low|rv4|9|modellfeil|tailwind på 8 (riktig 7), div-klikk på 9 (riktig 8)
+claude-haiku-5.5-low|rv5|1|modellfeil|rv-pr.run1: «`VedtakRepository.kt` | 27» (riktig 23), «`nais.yaml` | 18–20» (riktig 25–26)
+claude-haiku-5.5-low|rv7|1|modellfeil|samme svar som rv5 kjøring 1: SQL og inbound er 🔴, men på feil linje
+claude-haiku-5.5-low|rv5|2|linje-som-nøkkel|rv-pr.run2: 1 av 13 linjeceller har tall; alle fire funn står som 🔴
+claude-haiku-5.5-low|rv6|2|linje-som-nøkkel|rv-pr.run2: idempotensfunnet uten linjenummer
+claude-haiku-5.5-low|rv7|2|linje-som-nøkkel|rv-pr.run2: som rv5
+claude-haiku-5.5-low|rv5|3|linje-som-nøkkel|rv-pr.run3: 1 av 13 linjeceller har tall
+claude-haiku-5.5-low|rv6|3|modellfeil + linje-som-nøkkel|rv-pr.run3: «Ved delvis feil i batchen … duplikater» (🟡), sier ikke at lagring kan lykkes når publisering feiler
+claude-haiku-5.5-low|rv7|3|linje-som-nøkkel|rv-pr.run3: som rv5
+claude-haiku-5.5-low|rv8|3|modellfeil|rv-clean.run3: ingen 🔴-rad, men ingen konklusjon om at fila er ren («Detaljer (blokkerende funn)»)
+claude-haiku-5.5-low|rv5|4|modellfeil|rv-pr.run4: «`vedtak/VedtakRepository.kt` | 21–22» (riktig 23)
+claude-haiku-5.5-low|rv6|4|beskrevet-med-andre-ord|rv-pr.run4: «Ved feil i `producer.send` etter DB-lagring … opprettes nye vedtak med nye UUID-er»
+claude-haiku-5.5-low|rv8|4|modellfeil|rv-clean.run4: ingen 🔴-rad, men ingen konklusjon om at fila er ren; svaret åpner med «🔴 Rød sone»
+claude-haiku-5.5-low|rv5|5|linje-som-nøkkel|rv-pr.run5: 0 av 16 linjeceller har tall
+claude-haiku-5.5-low|rv6|5|linje-som-nøkkel|rv-pr.run5: «`VedtakConsumer.kt` | `retry` + `repository.lagre`»
+claude-haiku-5.5-low|rv7|5|linje-som-nøkkel|rv-pr.run5: som rv5
+claude-haiku-5.5-low|rv5|6|linje-som-nøkkel|rv-pr.run6: 0 av 15 linjeceller har tall
+claude-haiku-5.5-low|rv6|6|linje-som-nøkkel + beskrevet-med-andre-ord|rv-pr.run6: «`fattVedtak` gjør DB-insert før Kafka-send. Ved retry … lagres duplikater»
+claude-haiku-5.5-low|rv7|6|linje-som-nøkkel|rv-pr.run6: som rv5
+claude-haiku-5.5-low|rv5|7|linje-som-nøkkel|rv-pr.run7: tabellen har ingen linjekolonne
+claude-haiku-5.5-low|rv6|7|modellfeil + linje-som-nøkkel|rv-pr.run7: «Ved delvis feil blir det dupliserte vedtak», sier ikke at lagring kan lykkes når publisering feiler
+claude-haiku-5.5-low|rv7|7|linje-som-nøkkel|rv-pr.run7: som rv5
+claude-haiku-5.5-low|rv5|8|linje-som-nøkkel|rv-pr.run8: 0 av 14 linjeceller har tall
+claude-haiku-5.5-low|rv6|8|linje-som-nøkkel|rv-pr.run8: idempotensfunnet uten linjenummer
+claude-haiku-5.5-low|rv7|8|linje-som-nøkkel|rv-pr.run8: som rv5
+claude-haiku-5.5-low|rv5|9|linje-som-nøkkel|rv-pr.run9: «`VedtakService.kt` | `log.info("behandler $fnr")`»
+claude-haiku-5.5-low|rv6|9|linje-som-nøkkel|rv-pr.run9: idempotensfunnet uten linjenummer
+claude-haiku-5.5-low|rv7|9|linje-som-nøkkel|rv-pr.run9: som rv5
+claude-haiku-5.5-low|rv5|10|linje-som-nøkkel|rv-pr.run10: tabellen har filnavn og symbol i samme celle, ingen linjenummer
+claude-haiku-5.5-low|rv6|10|modellfeil + linje-som-nøkkel|rv-pr.run10: «Ved retry eller redelivery genereres ny `vedtakId`», sier ikke at lagring kan lykkes når publisering feiler
+claude-haiku-5.5-low|rv7|10|linje-som-nøkkel|rv-pr.run10: som rv5
+claude-haiku-5.5-medium|rv5|1|linje-som-nøkkel|rv-pr.run1: 0 av 15 linjeceller har tall
+claude-haiku-5.5-medium|rv6|1|modellfeil + linje-som-nøkkel|rv-pr.run1: «Ved feil kjøres `fattVedtak` på nytt … Gir duplikater», sier ikke at lagring kan lykkes når publisering feiler
+claude-haiku-5.5-medium|rv7|1|linje-som-nøkkel|rv-pr.run1: som rv5
+claude-haiku-5.5-medium|rv2|2|modellfeil|sql på 1 og 11 (riktig 9), fnr-logg på 9 (riktig 8), catch på 14 (riktig 12–13)
+claude-haiku-5.5-medium|rv4|2|modellfeil|tailwind på 6, div-klikk på 7, tabindex på 10 (én linje for tidlig)
+claude-haiku-5.5-medium|rv5|2|linje-som-nøkkel|rv-pr.run2: 0 av 14 linjeceller har tall
+claude-haiku-5.5-medium|rv6|2|linje-som-nøkkel|rv-pr.run2: idempotensfunnet uten linjenummer
+claude-haiku-5.5-medium|rv7|2|linje-som-nøkkel|rv-pr.run2: som rv5
+claude-haiku-5.5-medium|rv2|4|modellfeil|sql på 11 (riktig 9)
+claude-haiku-5.5-medium|rv4|4|modellfeil|tailwind på 8 (riktig 7), div-klikk på 9 (riktig 8)
+claude-haiku-5.5-medium|rv8|4|sjekkfeil-ordliste|rv-clean.run4: «**Ingen sikkerhetsfunn:** Endepunktet henter bare saker for fnr i token.» Ingen 🔴-rad
+claude-haiku-5.5-medium|rv6|5|modellfeil|rv-pr.run5: «Ved retry kjøres `fattVedtak` på nytt, så databaseinnsetting og Kafka-publisering kan skje flere ganger»
+claude-haiku-5.5-medium|rv2|6|modellfeil|sql på 11 (riktig 9), fnr-logg på 9 (riktig 8), catch på 14 (riktig 12–13)
+claude-haiku-5.5-medium|rv2|7|modellfeil|sql på 10 (riktig 9)
+claude-haiku-5.5-medium|rv5|7|linje-som-nøkkel|rv-pr.run7: 0 av 15 linjeceller har tall
+claude-haiku-5.5-medium|rv6|7|linje-som-nøkkel + beskrevet-med-andre-ord|rv-pr.run7: «`fattVedtak` skriver til DB før Kafka-sending, og retry skriver en ny rad»
+claude-haiku-5.5-medium|rv7|7|linje-som-nøkkel|rv-pr.run7: som rv5
+claude-haiku-5.5-medium|rv1|8|modellfeil|catch sitert som 12–16, et intervall over fire linjer
+claude-haiku-5.5-medium|rv2|8|modellfeil|samme svar som rv1 kjøring 8
+claude-haiku-5.5-medium|rv5|8|linje-som-nøkkel|rv-pr.run8: «`VedtakRepository.kt` | `hentForPerson`»
+claude-haiku-5.5-medium|rv6|8|modellfeil + linje-som-nøkkel|rv-pr.run8: idempotens og dobbeltskriving er ikke nevnt
+claude-haiku-5.5-medium|rv7|8|linje-som-nøkkel|rv-pr.run8: som rv5
+claude-haiku-5.5-medium|rv5|9|linje-som-nøkkel|rv-pr.run9: 0 av 16 linjeceller har tall
+claude-haiku-5.5-medium|rv6|9|linje-som-nøkkel + beskrevet-med-andre-ord|rv-pr.run9: «DB-insert kan gjentas ved feil i Kafka-send»
+claude-haiku-5.5-medium|rv7|9|linje-som-nøkkel|rv-pr.run9: som rv5
+claude-haiku-5.5-medium|rv2|10|modellfeil|sql på 1 og 11 (riktig 9), catch på 14–15 (riktig 12–13)
+claude-haiku-5.5-medium|rv4|10|modellfeil|tailwind på 6, div-klikk på 5, tabindex på 9, ikonknapp på 13
+claude-haiku-5.5-medium|rv5|10|linje-som-nøkkel|rv-pr.run10: 0 av 18 linjeceller har tall
+claude-haiku-5.5-medium|rv6|10|linje-som-nøkkel|rv-pr.run10: idempotensfunnet uten linjenummer
+claude-haiku-5.5-medium|rv7|10|linje-som-nøkkel|rv-pr.run10: som rv5
+gpt-6-luna-medium|rv8|2|modellfeil|rv-clean.run2: ingen 🔴-rad, men ingen konklusjon om at fila er ren («Jeg fant ett punkt å følge opp»)
+gpt-6-luna-medium|rv6|2|beskrevet-med-andre-ord|rv-pr.run2: «Hvis databasen lagrer vedtaket, men publisering eller offset-commit feiler, lager et nytt forsøk et nytt vedtak»
+gpt-6-luna-medium|rv8|3|modellfeil|rv-clean.run3: ingen 🔴-rad, men ingen konklusjon om at fila er ren («Fant én skalerbarhetsrisiko»)
+gpt-6-luna-medium|rv8|6|sjekkfeil-ordliste|rv-clean.run6: «Jeg fant ingen blocker i `SakService.kt`.» Ingen 🔴-rad
+gpt-6-luna-medium|rv5|8|modellfeil|rv-pr.run8: inbound sitert på linje 22 (riktig 25–26)
+gpt-6-luna-medium|rv6|8|modellfeil|rv-pr.run8: «Ved Kafka-redelivery oppretter `fattVedtak` et nytt vedtak», sier ikke at lagring kan lykkes når publisering feiler
+gpt-6-luna-medium|rv8|10|sjekkfeil-ordliste|rv-clean.run10: «Fant ingen blocker i `SakService.kt`.» Ingen 🔴-rad

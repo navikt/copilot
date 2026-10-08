@@ -1,0 +1,25 @@
+Gjennomgang av `vedtak-kafka` mot `main` (1 commit, 8 filer, +257 linjer). Jeg har ikke kjørt `mise check` eller tester, og endret ingen kode.
+
+### Oppsummering
+Koden dekker Kafka-konsumering, Postgres-lagring og et vedtak-API. Den har flere alvorlige sikkerhetshull: uautentisert PII-eksponering, SQL-injeksjon, PII i logger og en åpen `accessPolicy`. Auth-oppsettet er trolig ikke funksjonelt.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `Routes.kt` | GET `/api/vedtak/{fnr}` | 🔴 | Ingen autentisering og ingen eierskapssjekk. Hvem som helst kan hente vedtak for et fnr. |
+| `Routes.kt` | POST `/api/vedtak` | 🔴 | Autentisert kaller kan fatte vedtak for vilkårlig fnr. Mangler ownership-sjekk. |
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon via strengkonkatenering. Må være parameterisert. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | `validate` godtar alle tokens med `aud`. Ingen issuer-, signatur- eller `azp`-validering. Ingen `verifier` er satt, så auth feiler trolig ved kjøring. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | Fødselsnummer i logg. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. |
+| `VedtakConsumer.kt` | `retry` / `start` | 🔴 | Etter siste forsøk kastes unntaket og konsumertråden dør. Én ugyldig melding (poison pill) stopper all konsumering. |
+| `VedtakConsumer.kt` | `retry` | 🟡 | Hvert forsøk kaller `fattVedtak` på nytt. Hvis `producer.send` feiler etter `lagre`, får vi dupliserte vedtak i databasen. |
+| `App.kt` | Kafka-properties | 🟡 | Ingen SSL/SASL-konfigurasjon for Nais-Kafka. Trolig ikke koblet til riktig. |
+| `build.gradle.kts` | ny `dependencies {}` | 🟡 | Duplisert blokk. Bør slås sammen med den eksisterende. |
+| Repo | `vedtak`-tabell | 🟡 | Ingen Flyway-migrering i diffen. Appen starter uten tabellen og feiler ved første lagring. |
+| Repo | tester | 🟡 | Ingen tester for service, repository eller consumer. |
+| `VedtakService.kt` | `import java.util.Locale` | 💭 | Ubrukt import. |
+
+### Anbefaling
+Ikke merge før 🔴-funnene er fikset. Start med auth og eierskap på begge API-endepunktene, parameterisert SQL, fjerning av fnr fra logg og en snevrere `accessPolicy`. Rød sone: auth og tilgangskontroll må gjennomgås grundig.

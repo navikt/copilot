@@ -39,12 +39,22 @@ func TestHookCommandQuotesThePath(t *testing.T) {
 	}
 }
 
+// The watchdog leaves Copilot two seconds after it fires: one was not enough
+// under load, and Copilot denied the call instead.
+func TestHookCommandKeepsTwoSecondMargin(t *testing.T) {
+	for timeout, want := range map[int]string{5: "(sleep 3;", 3: "(sleep 1;"} {
+		if got := HookCommand("s.py", timeout); !strings.Contains(got, want) {
+			t.Errorf("HookCommand(_, %d) lacks %q: %s", timeout, want, got)
+		}
+	}
+}
+
 func TestLoadHookMetaTimeoutFloor(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "g.hook.json"), []byte(`{"timeoutSec": 1}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := LoadHookMeta(filepath.Join(dir, "g.py")).TimeoutSec; got != 2 {
-		t.Errorf("timeoutSec 1 loaded as %d, want 2", got)
+	if got := LoadHookMeta(filepath.Join(dir, "g.py")).TimeoutSec; got != 3 {
+		t.Errorf("timeoutSec 1 loaded as %d, want 3", got)
 	}
 }

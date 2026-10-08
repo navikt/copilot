@@ -1,0 +1,34 @@
+● Read file (shell)
+  │ cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak/
+  └ 63 lines…
+
+### Oppsummering
+Fila er stort sett solid. SQL-spørringen er parameterisert, og fnr hentes fra `pid`-claimet i TokenX-tokenet. Brukeren kan derfor bare se sine egne saker. Hovedproblemet er loggingen. Jeg kjørte ikke `mise check`, fordi prosjektet ikke har mise-oppsett.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 20, 37, 41 | 🔴 | `maskert()` logger fødselsdato, og det er personopplysninger |
+| `SakService.kt` | 41 | 🟡 | Exception-objektet kan ta med fnr i loggen |
+| `SakService.kt` | 40 | 🟡 | `catch (e: Exception)` fanger også `CancellationException` |
+| `SakService.kt` | 50–54 | 💭 | Mangler `pid` → 401, men token er gyldig; 403 er mer presist |
+| — | — | 🟡 | Ingen tester for service eller route |
+
+### Detaljer
+
+**🔴 Delvis maskering er fortsatt personopplysning (linje 20).** De seks første sifrene i fnr er fødselsdatoen. Fødselsdato sammen med tidspunkt, pod og trace-id kan peke ut én person. Regelen er derfor ingen fnr i logg, heller ikke delvis maskert. Kommentaren på linje 19 gir falsk trygghet. Logg en korrelasjons-id eller ingen identifikator:
+```kotlin
+log.info("Henter saker for innlogget bruker")
+```
+
+**🟡 Exception i logg (linje 41).** Databasedriveren kan legge parameterverdier i feilmeldingen. Avhengig av driver og konfigurasjon gjelder det for eksempel `PSQLException` med `detail`. Da havner fnr i loggen likevel. Logg feiltypen og la feilhåndteringen lenger opp ta stacktracen. Et alternativ er å sjekke at feilmeldingene ikke inneholder parameterverdier, og å sende loggene til team-logs (secure logs).
+
+**🟡 Bredt catch-blokk.** Siden blokken kaster feilen videre, er risikoen lav. Likevel logges coroutine-kansellering som en feil. Bruk `catch (e: SQLException)`, eller fjern try/catch og la `StatusPages` logge feilen.
+
+**🟡 Tester.** Mangler test for at `pid` brukes som eier av sakene, og for svaret når claimet mangler. Bruk `MockOAuth2Server` og Testcontainers.
+
+🔴 Rød sone: tilgangskontrollen bygger på `pid` fra tokenet. Ikke endre den til å ta fnr fra query-parameter eller request-body.
+
+Still gjerne spørsmål om valgene over.
+

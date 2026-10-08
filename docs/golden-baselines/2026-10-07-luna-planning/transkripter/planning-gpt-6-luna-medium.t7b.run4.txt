@@ -1,0 +1,10 @@
+Endringen legger FNR til Kafka-payloaden, så jeg stopper før jeg endrer kode. Repoet viser at tjenesten allerede håndterer FNR og navn, men ikke hvorfor `soknad-mottatt` skal få FNR eller hvem som leser topicet.
+
+1. Er det avklart at alle konsumentene av `soknad-mottatt` skal ha tilgang til FNR?
+2. Hvem konsumerer topicet, og tåler de at meldingen får et nytt felt? Skal `fnr` være påkrevd eller valgfritt?
+
+🔴 Rød sone: FNR i en ny Kafka-payload. Avklar formål og tilgang før endringen.
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Kjør `nav-pilot init` for å legge til repoets Copilot-oppsett.
+
+Blindsoner reist: 2/11 (#1, #6; #2–#5 og #7–#11 ikke relevante eller besvart av repoet).

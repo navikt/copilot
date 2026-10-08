@@ -1,0 +1,23 @@
+
+
+
+### Oppsummering
+Filen er i god form. Jeg fant ingen blockers. Fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet, ikke fra en parameter brukeren sender inn. Dermed kan en bruker bare se sine egne saker. SQL-spørringen er parameterisert, og fødselsnummeret maskeres i loggene. I `App.kt` valideres audience og `acr=idporten-loa-high`. Jeg kjørte ikke `mise check` fordi repoet ikke har en `check`-task.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 39–44 | 🟡 | `catch (e: Exception)` logger bare klassenavnet og kaster videre. Stack trace forsvinner, og samme feil logges trolig to ganger. |
+| `SakService.kt` | 26 | 🟡 | Spørringen har verken `LIMIT` eller paginering. En person med mange saker gir en ubegrenset respons. |
+| `SakService.kt` | – | 🟡 | Det finnes ingen tester, verken for ruten (401 uten `pid`) eller for repository-et. |
+| `SakService.kt` | 19–20, 37 | 💭 | `maskert()` erstatter alle tegn med `*`. Logglinjen viser derfor bare lengden, og den er alltid 11. Logg heller en ikke-sensitiv ID, eller fjern linjen. |
+
+### Detaljer
+- **Feilhåndtering:** Fjern try/catch og håndter feil sentralt med Ktors `StatusPages`. Der kan du logge med `log.error("...", e)` uten å sende `e.message` videre til klienten. Vær klar over at `catch (e: Exception)` også fanger `CancellationException`.
+- **Tester:** Bruk `testApplication` med `MockOAuth2Server` for auth-flyten og Testcontainers for repository-et.
+
+🔴 Rød sone: tilgangskontrollen (`pid` → spørring) er sikkerhetskritisk. Legg på en test som sjekker at du bare får dine egne saker.
+
+Still gjerne spørsmål om valgene over.
+

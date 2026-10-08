@@ -1,0 +1,43 @@
+
+
+## Gjennomgang: `vedtak-kafka` mot `main` (commit f10eefd)
+
+Jeg fikk ikke kjørt `mise check`, fordi repoet mangler både `mise.toml` og Gradle-oppsett (`settings.gradle.kts` og wrapper). Funnene under bygger derfor bare på diffen.
+
+Strukturen er grei: tjenesten, repositoryet og consumeren ligger i hvert sitt lag, og Kotliquery brukes med parametre de fleste steder. Endringen kan likevel ikke merges. Den har SQL-injeksjon, et endepunkt uten autentisering som eksponerer fødselsnummer (FNR), FNR i logg, og en consumer som ikke er idempotent.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`, så hvem som helst kan slå opp vedtak på et vilkårlig FNR. FNR i URL-en havner også i access-logger |
+| `App.kt` | 39–44 | 🔴 | JWT-oppsettet mangler `verifier`, issuer og audience-sjekk mot `TOKEN_X_*`. `validate` sjekker bare at audience finnes. Resultatet er enten at all auth avvises, eller at tokens ikke valideres skikkelig |
+| `Routes.kt` | 24–28 | 🔴 | Ingen eierskapssjekk. Med TokenX er kalleren en innbygger, og hen kan fatte vedtak for et hvilket som helst FNR. Er det riktig at sluttbrukere skal kunne fatte vedtak i det hele tatt? |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` skriver FNR til loggen |
+| `VedtakConsumer.kt` | 22–27 | 🔴 | Ikke idempotent. Offset committes først etter hele batchen, så en omstart gir dupliserte vedtak med nye UUID-er. Etter det kaster `hentForSak(...).asSingle` feil eller gir tilfeldig svar. Bruk `soknadId` som idempotensnøkkel med unik constraint |
+| `VedtakConsumer.kt` | 24–25 | 🔴 | En melding som ikke kan parses, eller tre feilede forsøk, kaster ut av `while`. Da dør consumer-tråden stille, mens `isalive` fortsatt svarer OK |
+| `VedtakConsumer.kt` | 32–34 | 🟡 | Lagring i databasen og publisering er ikke atomiske. Hvis `send` feiler etter `lagre`, blir vedtaket ikke publisert, eller det blir duplisert ved retry. Vurder outbox-mønster |
+| `nais.yaml` | 23–26 | 🔴 | `inbound: application "*" namespace "*"` åpner tjenesten for alle i clusteret. List konkrete konsumenter |
+| `App.kt` | 28–36 | 🔴 | Kafka-konfigurasjonen mangler SSL (`KAFKA_KEYSTORE_PATH`, `KAFKA_TRUSTSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`). Aiven på Nais krever SSL, så tjenesten får ikke koblet til |
+| `App.kt` | 25 | 🟡 | Nais setter ikke `DB_JDBC_URL` uten `envVarPrefix: DB` i `nais.yaml` |
+| – | – | 🟡 | Ingen Flyway-migrering for tabellen `vedtak` |
+| – | – | 🟡 | Ingen tester for tjenesten, consumeren eller rutene. Den nye logikken bør dekkes med TestRapid/Testcontainers og MockOAuth2Server |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gjør testene avhengige av dato. Injiser `Clock` |
+| `Routes.kt` | 26 | 🟡 | `require` gir 500 fordi `StatusPages` mangler. Validering av FNR-format mangler også |
+| `nais.yaml` | 15 | 🟡 | `pool: nav-dev` er hardkodet i den felles manifestfilen |
+| `build.gradle.kts` | 13 | 💭 | Det er to `dependencies {}`-blokker. Slå dem sammen |
+| `VedtakService.kt` | 5, 28 | 💭 | `Locale` er en ubrukt import, og `hentVedtak` er ubrukt |
+| `Routes.kt` | 19 | 💭 | `oppgaveRoutes` registrerer nå også vedtak-ruter. Skill dem ut i `vedtakRoutes` |
+
+### Detaljer om blokkerne
+
+🔴 Rød sone: auth, tilgangskontroll og vedtakslogikk. Gå gjennom disse grundig.
+
+- **SQL-injeksjon:** bytt til `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`. Sammen med det uautentiserte endepunktet kan hvem som helst lese hele tabellen eller endre data.
+- **Oppslag på person:** flytt ruten inn i `authenticate`. Hent FNR fra tokenets `pid`-claim i stedet for fra path-parameteren. Da er eierskapet sjekket, og FNR forsvinner fra URL-en.
+- **Idempotens:** lagre `soknadId` med `UNIQUE`-constraint og bruk `INSERT ... ON CONFLICT DO NOTHING`. Ved konflikt skal consumeren hente det eksisterende vedtaket og publisere det på nytt. Med «at-least-once»-levering fra Kafka er det eneste trygge alternativet at gjentatt behandling gir samme resultat.
+- **Consumer-tråden:** fang feil per melding. Send meldinger som ikke kan parses til en dead letter-kø, eller stopp med kjent tilstand og la `isready`/`isalive` rapportere at consumeren er nede, slik at podden restartes.
+
+Still gjerne spørsmål om valgene over.
+

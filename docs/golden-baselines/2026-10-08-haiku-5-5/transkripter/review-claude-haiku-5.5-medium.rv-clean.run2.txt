@@ -1,0 +1,22 @@
+### Sammendrag
+
+`SakService.kt` er kort og ryddig. Jeg fant ingen blokkere. Ownership er riktig: søket bruker `pid` fra den validerte tokenX-tokenet, ikke input fra klienten. SQL er parameterisert, og loggen inneholder ikke ufiltrert fødselsnummer. Funnene under er forbedringer.
+
+🔴 Rød sone: tilgangskontroll og fødselsnummer i `/api/saker`. Gå gjennom denne delen nøye.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 56 | 🟡 | `sakerFor` kjører blokkerende JDBC direkte i Ktor-coroutinen. Pakk kallet i `withContext(Dispatchers.IO)`, eller gjør repository-metodene `suspend`. Ellers kan trådpoolen gå tom under last. |
+| `SakService.kt` | 52–53 | 🟡 | Token uten `pid`-claim gir 401. Tokenet er gyldig, så 403 er mer korrekt. |
+| `SakService.kt` | 20 | 💭 | `maskert()` gir én `*` per tegn, så lengden (11) lekker. Logg heller en fast maske, for eksempel `"***"`. |
+| `SakService.kt` | 38 | 💭 | Loggen viser bare `*`-tegn, så den hjelper ikke ved feilsøking. Logg heller en intern referanse, eller ingen identifikator. |
+
+### Detaljer
+
+**Blokkerende kall (linje 56):** Ktor kjører handleren på en coroutine-tråd. JDBC blokkerer tråden under spørringen. Med mange samtidige forespørsler kan det gi treghet for hele applikasjonen.
+
+**Rett statuskode (linje 52–53):** 401 betyr at autentisering mangler eller er ugyldig. Når tokenet er godkjent, men `pid` mangler, er det en autorisasjonsfeil, så 403 passer bedre.
+
+Ingen tester var del av filen, så jeg har ikke vurdert testdekningen. Jeg har ikke endret kode.

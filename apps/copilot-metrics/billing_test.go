@@ -3,11 +3,30 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestBillingRequestSanitizesTransportErrors(t *testing.T) {
+	cause := errors.New("connection failed")
+	client := NewBillingClient("test-token", "nav")
+	client.httpClient.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, cause
+	})
+	err := client.request(context.Background(), "https://api.github.com/billing?user=private-login", &BillingUsageResponse{})
+	if !errors.Is(err, cause) || client.requests != 3 {
+		t.Fatalf("unexpected retry result: %v, %d requests", err, client.requests)
+	}
+	for _, sensitive := range []string{"https://", "api.github.com", "user=", "private-login"} {
+		if strings.Contains(err.Error(), sensitive) {
+			t.Fatalf("transport error exposes request identity: %v", err)
+		}
+	}
+}
 
 func TestBillingClient_FetchMonthlyUsage(t *testing.T) {
 	response := BillingUsageResponse{

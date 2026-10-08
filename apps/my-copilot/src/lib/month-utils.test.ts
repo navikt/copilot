@@ -1,5 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { previousMonth, daysInCalendarMonth, isMonthComplete, selectCompleteMonths } from "./month-utils";
+import {
+  previousMonth,
+  daysInCalendarMonth,
+  isMonthComplete,
+  selectCompleteMonths,
+  teamInsightMonth,
+} from "./month-utils";
+
+describe("teamInsightMonth", () => {
+  it("defaults to October rather than the previous closed month", () => {
+    expect(teamInsightMonth(undefined, "2026-10")).toBe("2026-10");
+  });
+  it("preserves an explicitly selected month", () => {
+    expect(teamInsightMonth("2026-08", "2026-10")).toBe("2026-08");
+  });
+  it.each(["2026-13", "2026-11", "2026-04", "", "wrong"])("rejects unavailable selection %s", (month) => {
+    expect(teamInsightMonth(month, "2026-10")).toBe("2026-10");
+  });
+});
 
 describe("previousMonth", () => {
   it("returns correct previous month", () => {

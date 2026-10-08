@@ -1,0 +1,11 @@
+🔍 Kartlegger kallene fra SakService til datatilgang og tilgangskontroll før jeg vurderer funnene.
+
+🛡️ Analyserer tilgangsgrensen, spørringen og loggingen. Jeg sjekker også om distribusjonsoppsettet begrenser hvem som kan nå endepunktet.
+
+**Gjennomgang av `SakService.kt`: 0 blokkerende funn, 1 forhold å utbedre.**
+
+- **Ubegrenset uthenting** (`SakService.kt:23–29, 55`): Spørringen henter alle saker for personen, sorterer dem og returnerer hele listen i ett svar. En stor sakshistorikk kan bruke mye databasetid og minne. Innfør en grense med paginering, og vurder en tidsgrense for spørringen.
+
+🔴 Rød sone: Tilgang til personens saker må fortsatt bygge på `pid` fra det verifiserte tokenet, ikke en personidentifikator fra forespørselen. Det er slik ruten er skrevet nå. Spørringen er parameterisert, og logglinjene skriver ikke ut fødselsnummeret. Valideringen av signatur, utsteder og mottaker ligger i `App.kt`. En grense for antall saker beskytter ressurser, men krever at klienten håndterer flere sider.
+
+**Omfang:** Jeg leste `SakService.kt`, autentiseringsoppsettet i `App.kt`, avhengighetene i `build.gradle.kts` og `nais.yaml`. Jeg fant ingen hardkodede hemmeligheter, filopplasting eller utgående HTTP-kall i denne flyten. `nais.yaml` har ingen `accessPolicy`; det viser ikke i seg selv at tjenesten er åpen. Jeg fant ingen tester for ruten. Avhengighetssårbarheter og GitHub Actions kunne ikke vurderes: Trivy og zizmor er ikke installert, og repoet har ingen workflow-filer. **Vurdering: CONCERNS.**

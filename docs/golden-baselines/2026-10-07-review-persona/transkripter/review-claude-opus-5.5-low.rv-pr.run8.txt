@@ -1,0 +1,44 @@
+
+
+Jeg har ikke kjørt `mise check`, fordi repoet mangler både mise-konfigurasjon og tester. Funnene under bygger på å lese diffen mellom `main` og `vedtak-kafka`.
+
+### Oppsummering
+Branchen bør ikke merges i denne formen. Den har fire blokkere: SQL-injeksjon, et endepunkt uten autentisering som eksponerer vedtak, en tilgangspolicy som slipper inn alle, og ufullstendig JWT-validering. Konsumenten har i tillegg feil som kan gi doble vedtak og stoppe meldingslesingen. Kotliquery og HikariCP er brukt etter Nav-mønsteret.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`, og eierskap sjekkes ikke |
+| `Routes.kt` | 30 | 🔴 | Fødselsnummer i URL-stien havner i tilgangslogger og proxyer |
+| `nais.yaml` | 23–26 | 🔴 | `accessPolicy.inbound` slipper inn `*`/`*`, altså alle apper i alle navnerom |
+| `App.kt` | 39–44 | 🔴 | JWT-oppsettet mangler verifier (JWKS), issuer og audience-sjekk. `validate` godtar alle tokens som har en audience |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer |
+| `VedtakConsumer.kt` | 23–25 | 🔴 | Ugyldig JSON kaster unntak som stopper tråden for godt (giftmelding). Ingen DLQ, ingen try/catch |
+| `VedtakConsumer.kt` | 25, 33 | 🔴 | `retry` rundt `fattVedtak` lager nytt vedtak med ny UUID ved hvert forsøk. Gjentatt levering gir også duplikater. Mangler idempotens på `soknadId` |
+| `nais.yaml` | 18–21 | 🔴 | Ingen Flyway-migrering for tabellen `vedtak`, og ingen Flyway-avhengighet |
+| `App.kt` | 23 | 🟡 | Hikari mangler brukernavn og passord (`DB_USERNAME`/`DB_PASSWORD`) |
+| `App.kt` | 26–33 | 🟡 | Kafka-oppsettet mangler SSL, keystore og truststore fra Nais (`KAFKA_*`). Det kobler ikke til Aiven |
+| `App.kt` | 35 | 🟡 | Konsumenten stoppes ikke ved nedstenging, og helsesjekken ser ikke om tråden er død |
+| `nais.yaml` | 15–16 | 🟡 | `pool: nav-dev` er hardkodet, så manifestet virker ikke i prod |
+| `Routes.kt` | 25–28 | 🟡 | POST validerer ikke formatet på fnr eller sakId. `require` gir 500 i stedet for 400 |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gjør koden tidsavhengig. Bruk en injisert `Clock` |
+| `build.gradle.kts` | 13 | 💭 | Dupliserte `dependencies {}`-blokker. Slå dem sammen |
+| `VedtakService.kt` | 5 | 💭 | `Locale`-importen er ubrukt |
+| alle | – | 🟡 | Ingen tester for service, repository og konsument (TestRapid, Testcontainers, MockOAuth2Server) |
+
+### Detaljer om blokkerne
+- **SQL-injeksjon:** bruk `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`.
+- **GET-endepunktet:** flytt det inn under `authenticate("tokenx")`. Hent fnr fra `pid`-claimet i tokenet i stedet for fra stien, så brukeren bare får se egne vedtak. Dette tetter både eierskapshullet og lekkasjen av fnr i URL-en.
+- **TokenX:** bruk `TOKEN_X_JWKS_URI`, `TOKEN_X_ISSUER` og sjekk at audience er `TOKEN_X_CLIENT_ID`. Ellers godtas tokens som er utstedt til andre tjenester.
+- **accessPolicy:** list opp de konkrete konsumentene som skal kalle tjenesten. Legg også til utgående regler for Kafka og databasen der det trengs.
+- **Konsumenten:**
+  - Legg en unik indeks på `soknad_id` og bruk `ON CONFLICT DO NOTHING`, så gjentatt levering ikke gir nye vedtak.
+  - Kjør `retry` bare rundt `producer.send`.
+  - Fang feil ved deserialisering, og send meldingen til en DLQ eller logg den og hopp over.
+
+🔴 Rød sone: autentisering, eierskapssjekk og idempotens i vedtaksflyten. Gå gjennom disse nøye.
+
+Still gjerne spørsmål om valgene over.
+

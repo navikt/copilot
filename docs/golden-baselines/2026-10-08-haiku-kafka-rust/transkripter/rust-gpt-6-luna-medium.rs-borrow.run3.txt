@@ -1,0 +1,1 @@
+`behandle_neste` fjerner nå den eldste saken direkte fra køen. Det løser lånefeilen uten å endre funksjonens oppførsel. 🔴 Rød sone: Gå nøye gjennom kølogikken. `cargo test` og `cargo fmt --check` passerer. Clippy passerer med to eksisterende `must_use`-advarsler.

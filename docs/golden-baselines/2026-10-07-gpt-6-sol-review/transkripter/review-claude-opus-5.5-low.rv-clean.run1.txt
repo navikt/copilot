@@ -1,0 +1,30 @@
+
+
+## Oppsummering
+
+Jeg fant ingen blokkere i `SakService.kt`. Spørringen er parameterisert, og fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet. Brukeren får dermed bare sine egne saker, ikke saker for et fnr hen sender inn selv. `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-task. Det finnes heller ingen `src/test`.
+
+## Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 19–20, 37 | 🟡 | `maskert()` gjør fnr om til 11 stjerner, så logglinjen sier ingenting. Stjernene viser i tillegg lengden på verdien. |
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges bare med `simpleName`, uten stacktrace og uten melding. Det blir vanskelig å feilsøke databasefeil. |
+| `SakService.kt` | 48–56 | 🟡 | Ruten mangler tester. |
+| `SakService.kt` | 52 | 💭 | `pid` leses uten å sjekke formatet (11 siffer). |
+
+## Detaljer
+
+**Logging av fnr (🔴 rød sone, persondata).** Maskeringen lekker ikke fnr, så den er trygg. Men den gir ingen verdi. Jeg anbefaler å fjerne fnr helt fra loggen og heller logge en ikke-sensitiv verdi, for eksempel en korrelasjons-ID eller antall saker som ble funnet. Hvis noen senere endrer `maskert()` til å vise for eksempel de seks første sifrene, er fødselsdatoen plutselig i loggen.
+
+**Feilhåndtering.** Logg hele exceptionen: `log.error("Kunne ikke hente saker", e)`. Du har sannsynligvis valgt `simpleName` for å unngå persondata. JDBC-meldinger tar normalt ikke med bindparametere (`?`), så fnr havner ikke i stacktracen. Om dere vil være helt sikre, kan dere logge med `team-logs`/secure logs. Alternativet er å fjerne `try/catch` og la Ktors `StatusPages` logge og svare 500.
+
+**Tester.** Legg til tester med MockOAuth2Server og Testcontainers som dekker:
+- token uten `pid`, som skal gi 401
+- at brukeren bare ser sine egne saker
+- at en databasefeil gir 500
+
+Dette er tilgangskontroll, og den bør ha tester.
+
+Still gjerne spørsmål om valgene over.
+

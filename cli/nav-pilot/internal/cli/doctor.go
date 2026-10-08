@@ -387,7 +387,11 @@ func cmdDoctor() error {
 		fmt.Printf("      [i] Binary not found on PATH (optional)\n")
 	} else {
 		fmt.Printf("      %s Binary found: %s\n", green("✓"), ocPath)
-		switch v, tested, err := providerpkg.OpenCodeVersionStatus(); {
+		v, tested, err := providerpkg.OpenCodeVersionStatus()
+		switch refused := providerpkg.CheckOpenCodeMajor(); {
+		case refused != nil:
+			fmt.Printf("      %s %s\n", red("✗"), strings.ReplaceAll(refused.Error(), "\n", "\n      "))
+			hasErrors = true
 		case err != nil:
 			fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
 		case tested:

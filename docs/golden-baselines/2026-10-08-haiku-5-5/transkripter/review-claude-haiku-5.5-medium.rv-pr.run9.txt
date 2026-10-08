@@ -1,0 +1,32 @@
+### Oppsummering
+
+Branchen `vedtak-kafka` legger til Kafka-konsument, vedtak-API og Postgres-repository. Jeg fant flere blokkere: SQL-injeksjon, FNR i logg, åpen tilgang via `accessPolicy`, og en konsument som kan dø uten at appen merker det. Ingen filer er endret.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon: `fnr` settes direkte inn i SQL. Bruk `?`-parameter. |
+| `Routes.kt` | `GET /api/vedtak/{fnr}` | 🔴 | Uautentisert. Returnerer vedtak for vilkårlig FNR uten eierskapssjekk. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | FNR i logg. Logg `vedtakId` i stedet. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | Ingen `verifier` er satt, så signatur valideres ikke. `validate` sjekker bare at `aud` finnes. Sett verifier med JWKS og forventet audience. |
+| `Routes.kt` | `POST /api/vedtak` | 🔴 | Autentisert, men ingen sjekk på at kalleren har lov til å fatte vedtak for dette FNR. |
+| `VedtakConsumer.kt` | `start()` | 🔴 | Ukjent melding eller uhåndtert exception dreper tråden. Appen lever videre uten konsument, og `isalive` merker ingenting. |
+| `VedtakConsumer.kt` | `retry` + `commitSync` | 🔴 | Retry er ikke idempotent: DB-insert kan gjentas ved feil i Kafka-send. Ingen unik nøkkel på `soknadId`/`sakId`, så duplikater er mulige. |
+| `App.kt` | `DB_JDBC_URL` | 🔴 | Nais setter ikke denne variabelen som standard. Sjekk at den finnes, ellers feiler oppstart. |
+| `VedtakRepository.kt` | tabell `vedtak` | 🔴 | Ingen Flyway-migrasjon i branchen. Tabellen finnes ikke. |
+| `App.kt` | Kafka-properties | 🟡 | Ingen SSL/SASL-config. Nais Kafka-pool krever keystore/truststore. Verifiser mot Nais-dokumentasjonen. |
+| `VedtakService.kt` | `require(sakId...)` | 🟡 | `IllegalArgumentException` gir 500. Bruk StatusPages eller valider i route (400). |
+| `build.gradle.kts` | ny `dependencies {}` | 🟡 | Andre blokk i stedet for å utvide den eksisterende. |
+| Branch | navn | 🟡 | Mangler prefiks (`feature/`). Branchen inneholder to commits med ulikt formål, inkl. «Oppgave-API». |
+| Hele diffen | tester | 🟡 | Ingen tester for konsument, retry eller repository. |
+| `Routes.kt` | `call.parameters["fnr"]!!` | 💭 | `!!` er unødvendig etter route-match. Bruk `requireNotNull` med melding, eller fjern. |
+
+### Detaljer for blokkerne
+
+- **SQL-injeksjon (🔴, sikkerhetskritisk):** `"... WHERE fnr = '" + fnr + "'"` lar en angriper endre spørringen. Bruk `queryOf("... WHERE fnr = ?", fnr)`.
+- **Autorisasjon (🔴, sikkerhetskritisk):** Kombinasjonen av åpen `accessPolicy`, manglende signaturvalidering og uten eierskapssjekk gir uautorisert lesing av personopplysninger.
+- **Konsument-tråd (🔴):** Fang exceptions per melding, send feilede meldinger til en feilkø eller logg og commit, og la `/internal/isalive` reflektere tilstanden til konsumenten.
+
+🔴 Rød sone: autentisering, autorisasjon og SQL. Gå gjennom disse nøye før merge.

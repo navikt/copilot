@@ -1,0 +1,32 @@
+
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    ls: src/test: No such file or directory
+    Failed with exit code 1
+
+### Oppsummering
+Koden er ryddig og har ingen blokkere. SQL-spørringen er parameterisert. Fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet og ikke fra en request-parameter, så brukeren får bare sine egne saker. Hele fødselsnummeret maskeres i loggene. `mise check` fant ingen task i repoet, så det ble ikke kjørt. Det finnes ingen tester (`src/test` mangler).
+
+🔴 Rød sone: tilgangskontroll (linje 48–55), gå gjennom denne nøye.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | – | 🟡 | Ingen tester for `SakService` eller ruten |
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges her, kastes videre og logges trolig én gang til av Ktor |
+| `SakService.kt` | 41 | 🟡 | Hele exception-objektet logges, inkludert stacktrace og melding fra databasen |
+| `SakService.kt` | 20, 37 | 💭 | `maskert()` lager bare stjerner og gjør loggen lite nyttig |
+| `SakService.kt` | 55 | 💭 | Ingen bevisst feilrespons hvis databasen feiler |
+
+### Detaljer
+- **Tester:** Tilgangskontroll er kjernelogikk. Ruten bør testes med MockOAuth2Server i tre tilfeller: token uten `pid` gir 401, gyldig token gir bare egne saker, og ingen token gir 401. Repositoryet bør testes med Testcontainers.
+- **Dobbel logging (38–43):** Både `catch` og Ktors feilhåndtering logger samme feil, så du får to loggmeldinger og to stacktracer per feil. Fjern try/catch, eller pakk feilen inn med kontekst i stedet for bare å logge og kaste videre.
+- **Exception i loggen (41):** Med parameterisert SELECT kommer verdier sjelden med i feilmeldingen, men det finnes unntak. For eksempel kan constraint-feil fra Postgres ta med `Detail: Key (fnr)=(…)`. Hold øye med dette hvis repositoryet får skriveoperasjoner.
+- **Maskering (20):** `"***********"` sier ikke mer enn at feltet finnes. Vil du kunne korrelere logglinjer, logg en saks-ID eller en request-ID i stedet. Logg aldri deler av fødselsnummeret, heller ikke fødselsdatoen.
+- **Feilrespons (55):** Uten `StatusPages` får klienten en generisk 500. Det er greit, men bør være et bevisst valg.
+
+Still gjerne spørsmål om valgene over.
+

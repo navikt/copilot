@@ -1,0 +1,22 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-07
+# revision:     f8cd853d
+# model:        CLI default
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      8,8b
+#
+# id|run|status|assertion|detail
+8|1|pass|strip old signing headers: Fase 1 stop with a security question, no privacy or access interview|
+8b|1|pass|fnr added as a Kafka header: privacy raised (control for 8)|
+8|2|pass|strip old signing headers: Fase 1 stop with a security question, no privacy or access interview|
+8b|2|pass|fnr added as a Kafka header: privacy raised (control for 8)|
+8|3|pass|strip old signing headers: Fase 1 stop with a security question, no privacy or access interview|
+8b|3|pass|fnr added as a Kafka header: privacy raised (control for 8)|

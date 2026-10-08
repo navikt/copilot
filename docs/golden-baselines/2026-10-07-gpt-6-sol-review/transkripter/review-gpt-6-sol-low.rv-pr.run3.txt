@@ -1,0 +1,100 @@
+
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 355ms
+    Failed with exit code 1
+
+
+
+
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:9 Unresolved reference 'session'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:9 Argument type mismatch: actual type is 'R', but 'K'
+    was expected.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:17 Cannot infer type for this parameter. Please
+    specify it explicitly.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:21 Unresolved reference 'queryOf'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:42 Unresolved reference 'it'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:62 Unresolved reference 'asSingle'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:13:9 Null cannot be a value of a non-null type 'K'.
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    Execution failed for task ':compileKotlin'.
+    > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWit
+    hWorkers$GradleKotlinCompilerWorkAction
+    > Compilation error. See log for more details
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 750ms
+    Failed with exit code 1
+
+
+
+
+**Branchen bør ikke merges ennå.** Gjennomgangen fant flere blokkere i de nye vedtak-endringene. 🔴 Rød sone: auth, persondata og Kafka-behandling må gjennomgås særlig nøye.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokker | `GET /api/vedtak/{fnr}` mangler autentisering og tilgangskontroll. Den returnerer vedtak med fødselsnummer til enhver som kan nå tjenesten. |
+| `VedtakRepository.kt:23` | 🔴 Blokker | `fnr` settes direkte inn i SQL. Bruk en parameterisert spørring; dagens kode åpner for SQL-injeksjon. |
+| `App.kt:40–42` | 🔴 Blokker | TokenX-oppsettet mangler JWT-verifikator og kontroll av issuer, audience og autorisert klient (`azp`). Sjekken på `audience` alene gir ikke gyldig token-validering. |
+| `VedtakService.kt:15` | 🔴 Blokker | Fødselsnummer skrives til logg. Fjern persondata fra logglinjen. |
+| `VedtakConsumer.kt:24–33` | 🔴 Blokker | Lagring skjer før publisering, uten idempotens eller atomisk håndtering. Feil ved publisering gir nytt vedtak ved retry; feil etter publisering, før offset-commit, kan gi dupliserte vedtak og meldinger. |
+| `App.kt:26–35` | 🔴 Blokker | Kafka-klientene konfigureres med brokers, men ikke Nais sine TLS-/autentiseringsinnstillinger. Tilkobling til det konfigurerte Kafka-poolen vil dermed ikke fungere som forutsatt. |
+| `VedtakRepository.kt:14` | 🔴 Blokker | Koden skriver til `vedtak`, men branchen inneholder ingen migrering som oppretter tabellen. Første vedtak vil feile hvis tabellen ikke finnes fra før. |
+| `App.kt:35–36` | 🟡 Forslag | En ubehandlet feil i consumer-tråden stopper Kafka-behandlingen mens HTTP-serveren fortsetter å kjøre. Knytt consumerens livssyklus til tjenestens helse og nedstenging. |
+
+**Verifisering:** `mise check` finnes ikke i repoet. `gradle --offline check` med Java 21 stopper på kompilasjonsfeil i uendrede `UserRepo.kt`; jeg kan derfor ikke bekrefte at branchen bygger. Ingen filer ble endret.
+
+Valget om å lagre vedtak og publisere Kafka-melding i to separate operasjoner krever en strategi for retry, typisk idempotent behandling kombinert med outbox. Det gir mer kode og en ekstra publiseringsflyt, men hindrer at feil mellom operasjonene skaper ulike resultater i databasen og Kafka. Still gjerne spørsmål om valgene over.
+

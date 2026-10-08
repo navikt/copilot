@@ -1,0 +1,21 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        security-champion
+# suite:        none
+# date:         2026-10-07
+# revision:     93a525ed
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-0.
+# model:        claude-opus-5.5
+# effort:       low
+# context:      CLI default
+# repeats:      10
+# instructions: 16 installed, 3 always-on
+# fixture:      2929655385
+# prompts:      sc1,sc2,sc3
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
+sc-pr|10|3269|2940|3588|39|33|59|457|397|511|29008|24633|36925
+sc-clean|10|4295|1581|4855|125|33|129|449|209|531|21207|19594|27491

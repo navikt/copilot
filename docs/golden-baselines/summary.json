@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-01",
+  "generated": "2026-10-08",
   "runs": [
     {
       "date": "2026-09-30",
@@ -1896,6 +1896,1741 @@
         "median": 118.9
       },
       "source": "docs/golden-baselines/2026-10-01-batch3b/review-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "coding",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 47.89,
+        "mean": 47.9
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 45.5
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/coding-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "coding",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 24.694,
+        "mean": 25.295
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 64.2
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/coding-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "coding",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 25.312,
+        "mean": 24.946
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 77.5
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/coding-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "norsk",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-2",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "no1",
+          "description": "Ingen nynorske former",
+          "passed": 5
+        },
+        {
+          "id": "no2",
+          "description": "Ingen KI-floskler",
+          "passed": 5
+        },
+        {
+          "id": "no3",
+          "description": "Skriver ikke «AI»",
+          "passed": 5
+        },
+        {
+          "id": "no4",
+          "description": "Holder seg innenfor 30–90 ord",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 30.773,
+        "mean": 31.012
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 36.0
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/norsk-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "norsk",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-2",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "no1",
+          "description": "Ingen nynorske former",
+          "passed": 5
+        },
+        {
+          "id": "no2",
+          "description": "Ingen KI-floskler",
+          "passed": 5
+        },
+        {
+          "id": "no3",
+          "description": "Skriver ikke «AI»",
+          "passed": 5
+        },
+        {
+          "id": "no4",
+          "description": "Holder seg innenfor 30–90 ord",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 15.066,
+        "mean": 15.28
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 32.7
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/norsk-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "norsk",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-2",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "no1",
+          "description": "Ingen nynorske former",
+          "passed": 5
+        },
+        {
+          "id": "no2",
+          "description": "Ingen KI-floskler",
+          "passed": 5
+        },
+        {
+          "id": "no3",
+          "description": "Skriver ikke «AI»",
+          "passed": 5
+        },
+        {
+          "id": "no4",
+          "description": "Holder seg innenfor 30–90 ord",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 14.456,
+        "mean": 14.566
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 44.6
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/norsk-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "planning",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 5
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 50.802,
+        "mean": 50.625
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 80.2
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/planning-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 5
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 4
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 27.19,
+        "mean": 27.598
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 89.2
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/planning-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "planning",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 2
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 4
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 3
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 22.682,
+        "mean": 22.311
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 96.3
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/planning-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "research",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-2",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 35.773,
+        "mean": 36.913
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 48.0
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/research-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "research",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-2",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 13.015,
+        "mean": 13.322
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 37.0
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/research-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "research",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-2",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 14.653,
+        "mean": 15.083
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 53.2
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/research-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "review",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 10
+        }
+      ],
+      "credits": {
+        "median": 24.439,
+        "mean": 24.949
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 37.5
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/review-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "review",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 9
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 7
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 7
+        }
+      ],
+      "credits": {
+        "median": 15.403,
+        "mean": 14.984
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 51.4
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/review-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-06",
+      "suite": "review",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-1",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 2
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 2
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 10
+        }
+      ],
+      "credits": {
+        "median": 17.071,
+        "mean": 17.288
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 73.5
+      },
+      "source": "docs/golden-baselines/2026-10-06-batch4/review-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "planning",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.93-4",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        },
+        {
+          "id": "t3",
+          "description": "Tar opp personvern og tilgangskontroll",
+          "passed": 4
+        },
+        {
+          "id": "t4",
+          "description": "Planen i fase 2 markerer rød sone. Kjøres bare når fase 1 stilte spørsmål",
+          "passed": 4
+        },
+        {
+          "id": "t5",
+          "description": "Velger TokenX, ikke client_credentials, når kallet gjelder en bruker",
+          "passed": 5
+        },
+        {
+          "id": "t7",
+          "description": "Jackson-migrering: spør ikke om personvern eller tilgang",
+          "passed": 5
+        },
+        {
+          "id": "t7b",
+          "description": "Nytt fødselsnummer i en Kafka-melding: tar opp personvern",
+          "passed": 4
+        }
+      ],
+      "credits": {
+        "median": 4.145,
+        "mean": 4.098
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 301.3
+      },
+      "source": "docs/golden-baselines/2026-10-07-luna-planning/planning-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "review",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-4",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 8
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 3
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 10
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 10
+        }
+      ],
+      "credits": {
+        "median": 55.945,
+        "mean": 56.017
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 86.6
+      },
+      "source": "docs/golden-baselines/2026-10-07-review-persona/review-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "review",
+      "model": "claude-opus-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-4",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 10
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 7
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 8
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 10
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 8
+        }
+      ],
+      "credits": {
+        "median": 58.514,
+        "mean": 58.908
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 98.8
+      },
+      "source": "docs/golden-baselines/2026-10-07-review-suite/review-claude-opus-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "review",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.93-4",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 9
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 9
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 9
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 9
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 1
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 1
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 7
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 0
+        }
+      ],
+      "credits": {
+        "median": 3.647,
+        "mean": 3.61
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 277.4
+      },
+      "source": "docs/golden-baselines/2026-10-07-review-suite/review-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "review",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-4",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 9
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 8
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 9
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 3
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 10
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 0
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 0
+        }
+      ],
+      "credits": {
+        "median": 35.932,
+        "mean": 35.644
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 121.0
+      },
+      "source": "docs/golden-baselines/2026-10-07-gpt-6-sol-review/review-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "review",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-4",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 9
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 7
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 6
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 9
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 9
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 0
+        }
+      ],
+      "credits": {
+        "median": 32.616,
+        "mean": 32.885
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 109.7
+      },
+      "source": "docs/golden-baselines/2026-10-07-review-persona/review-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-07",
+      "suite": "review",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.93-4",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 3
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 3
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 9
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 3
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 2
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 9
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 0
+        }
+      ],
+      "credits": {
+        "median": 37.664,
+        "mean": 37.684
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 173.4
+      },
+      "source": "docs/golden-baselines/2026-10-07-review-suite/review-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "coding",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.57,
+        "mean": 1.587
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 51.0
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/coding-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "coding",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.658,
+        "mean": 1.672
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 55.5
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/coding-claude-haiku-5.5-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "coding",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.861,
+        "mean": 1.862
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 130.7
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/coding-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "kafka",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "kf1",
+          "description": "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling",
+          "passed": 5
+        },
+        {
+          "id": "kf2",
+          "description": "Kafka-konsument: endrer bare i prosjektet med feilen",
+          "passed": 5
+        },
+        {
+          "id": "kf3",
+          "description": "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses",
+          "passed": 5
+        },
+        {
+          "id": "kf4",
+          "description": "Kafka-hendelse: endrer bare i prosjektet med hendelsen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.852,
+        "mean": 1.929
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 87.4
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/kafka-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "kafka",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "kf1",
+          "description": "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling",
+          "passed": 5
+        },
+        {
+          "id": "kf2",
+          "description": "Kafka-konsument: endrer bare i prosjektet med feilen",
+          "passed": 5
+        },
+        {
+          "id": "kf3",
+          "description": "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses",
+          "passed": 5
+        },
+        {
+          "id": "kf4",
+          "description": "Kafka-hendelse: endrer bare i prosjektet med hendelsen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.895,
+        "mean": 1.916
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 149.2
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/kafka-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "research",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.002,
+        "mean": 1.048
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 40.2
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/research-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "research",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.036,
+        "mean": 1.059
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 38.6
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/research-claude-haiku-5.5-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "research",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 0.922,
+        "mean": 0.915
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 56.4
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/research-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "review",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.94-3",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 9
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 8
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 0
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 1
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 1
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 8
+        }
+      ],
+      "credits": {
+        "median": 1.59,
+        "mean": 1.595
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 76.8
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/review-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "review",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 9
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 4
+        },
+        {
+          "id": "rv3",
+          "description": "TSX: finner alle fire plantede feil",
+          "passed": 10
+        },
+        {
+          "id": "rv4",
+          "description": "TSX: riktig linje for hver feil",
+          "passed": 7
+        },
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 4
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 3
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 4
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 9
+        }
+      ],
+      "credits": {
+        "median": 1.816,
+        "mean": 1.81
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 94.0
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/review-claude-haiku-5.5-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "review",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 10,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv5",
+          "description": "PR med åtte filer: riktig fil og linje for sikkerhets- og personvernfeilene",
+          "passed": 9
+        },
+        {
+          "id": "rv6",
+          "description": "PR med åtte filer: finner designfeilene (idempotens og dobbel skriving)",
+          "passed": 8
+        },
+        {
+          "id": "rv7",
+          "description": "PR med åtte filer: SQL og tilgang får høy prioritet, en kosmetisk merknad gjør det ikke",
+          "passed": 10
+        },
+        {
+          "id": "rv8",
+          "description": "Ren fil: ingen funn med høy prioritet, og svaret sier at ingenting er kritisk",
+          "passed": 6
+        }
+      ],
+      "credits": {
+        "median": 2.37,
+        "mean": 2.367
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 204.3
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-5-5/review-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "rust",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rs1",
+          "description": "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge",
+          "passed": 5
+        },
+        {
+          "id": "rs2",
+          "description": "Rust: endrer bare i craten med feilen",
+          "passed": 5
+        },
+        {
+          "id": "rs3",
+          "description": "Rust: feiltyper med thiserror og en test per feil",
+          "passed": 5
+        },
+        {
+          "id": "rs4",
+          "description": "Rust: endrer bare i craten med parseren",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 0.918,
+        "mean": 0.933
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 40.0
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/rust-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-10-08",
+      "suite": "rust",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.94-3",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rs1",
+          "description": "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge",
+          "passed": 5
+        },
+        {
+          "id": "rs2",
+          "description": "Rust: endrer bare i craten med feilen",
+          "passed": 5
+        },
+        {
+          "id": "rs3",
+          "description": "Rust: feiltyper med thiserror og en test per feil",
+          "passed": 5
+        },
+        {
+          "id": "rs4",
+          "description": "Rust: endrer bare i craten med parseren",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.344,
+        "mean": 1.355
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 108.6
+      },
+      "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/rust-gpt-6-luna-medium.txt"
     }
   ]
 }

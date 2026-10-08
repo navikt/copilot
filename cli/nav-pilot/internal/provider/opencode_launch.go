@@ -265,8 +265,10 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 		}
 		args = append(args, "--agent", persona)
 	}
-	if resolved.AllowAllTools {
-		args = append(args, "--dangerously-skip-permissions")
+	// Sandbox autonomy means cplt is the boundary, so opencode's own prompts
+	// go (as for copilot); --auto is opencode 1.18's public allow-all flag.
+	if resolved.Autonomy == "sandbox" || resolved.AllowAllTools {
+		args = append(args, "--auto")
 	}
 	if lvl := openCodeLogLevel(resolved.LogLevel); lvl != "" {
 		args = append(args, "--log-level", lvl)
@@ -292,7 +294,7 @@ func openCodeAgentArgs(resolved domain.ResolvedConfig) []string {
 func OpenCodeUnsupportedConfigWarnings(r domain.ResolvedConfig) []string {
 	var w []string
 	if r.Mode == "autopilot" {
-		w = append(w, `mode "autopilot" has no opencode equivalent — running with opencode defaults (use allow_all_tools = true to skip confirmations)`)
+		w = append(w, `mode "autopilot" has no opencode equivalent — running with opencode defaults`)
 	}
 	if r.ContextTier != "" {
 		w = append(w, fmt.Sprintf("context_tier %q has no opencode equivalent — ignored", r.ContextTier))
@@ -1079,13 +1081,24 @@ func RemoveDispatchGatePlugin() error {
 }
 
 // LaunchOpenCode launches opencode with the resolved config: inside the cplt
-// sandbox when cplt is on PATH, and otherwise opencode itself, which the cli
-// allows only after asking or with --no-sandbox (#1028). A staged Tier 2
-// launch (LaunchOpenCodeStaged) always requires cplt. Before launching, it
+// sandbox. Without cplt the launch fails with install guidance; nav-pilot
+// never runs a client outside the sandbox. Before launching, it
 // materializes Nav context into opencode's user config directory.
 func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	if _, err := exec.LookPath("opencode"); err != nil {
 		return fmt.Errorf("opencode not found in PATH — install it first: https://opencode.ai")
+	}
+	if err := CheckOpenCodeMajor(); err != nil {
+		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
+		return err
+	}
+	if err := checkOpenCode2Launch(resolved.ExtraArgs); err != nil {
+		reason := "client_unsupported"
+		if errors.Is(err, errCpltTooOld) {
+			reason = "cplt_too_old"
+		}
+		telemetryRecorder.RecordLaunchError("opencode", reason)
+		return err
 	}
 	// A fresh machine has no .gitignore in the opencode config dir, and under
 	// cplt the launch dies before the TUI if OpenCode has to create it itself
@@ -1157,7 +1170,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 		if url := guard.GateURL(); url != "" {
 			launchEnv, _ = telemetry.SetEnvValue(launchEnv, DispatchGateEnv, url)
-			if slices.Contains(resolved.ExtraArgs, "--pure") {
+			if openCodeMajor() < 2 && slices.Contains(resolved.ExtraArgs, "--pure") {
 				fmt.Fprintf(os.Stderr, "%s local_dispatch = %s is not enforced with --pure: opencode loads no plugins then, and the gate is a plugin.\n", domain.Yellow("⚠"), local.DispatchLevel())
 			}
 		}
@@ -1185,12 +1198,15 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 
 	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
+	agentArgs := openCodeAgentArgs(resolved)
+	if openCodeMajor() >= 2 {
+		agentArgs, launchEnv = openCodeV2Args(agentArgs, launchEnv)
+	}
 
 	return launchViaCplt(cpltLaunch{
-		agent:         "opencode",
-		unsandboxedOK: true,
-		agentArgs:     openCodeAgentArgs(resolved),
-		cpltArgs:      cpltFlags,
+		agent:     "opencode",
+		agentArgs: agentArgs,
+		cpltArgs:  cpltFlags,
 		// EnsureOpenCodeNavContext above wrote into this directory, so ask it
 		// for skills after the materialization rather than before it.
 		skillsDir:     materializedSkillsDir(openCodeNavContextDir()),

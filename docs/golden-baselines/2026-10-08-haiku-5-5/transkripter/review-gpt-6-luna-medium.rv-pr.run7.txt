@@ -1,0 +1,25 @@
+🔍 Leser diffen mot `main` og kjører prosjektets sjekker før jeg vurderer funnene.
+
+📊 Diffen introduserer Kafka, database, auth og nye HTTP-endepunkter. Jeg sjekker nå Kotlin- og sikkerhetsreglene, runtime-konfigurasjonen og om prosjektets sjekker kan kjøres.
+
+📋 Jeg har funnet flere mulige blokkere: åpen innkommende policy, uautorisert uthenting av vedtak og persondata i logger. Jeg verifiserer auth-oppsettet, databaseforutsetningene og linjenumrene før jeg oppsummerer.
+
+### Sammendrag
+
+**Ikke merge branchen ennå.** Den åpner nettverkstilgang for alle apper, eksponerer vedtak uten autentisering og mangler sikker tokenvalidering. Jeg fant også SQL-injeksjon, logging av fødselsnummer og risiko for dupliserte vedtak.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `nais.yaml` | 25–26 | 🔴 | `accessPolicy.inbound` tillater alle apper i alle namespaces. Det gir langt flere tjenester tilgang enn løsningen trenger. Begrens reglene til navngitte kallere. |
+| `App.kt` | 40–42 | 🔴 | JWT-oppsettet mangler `verifier` og sjekker ikke forventet issuer eller audience. Ktor kan dermed ikke verifisere TokenX-signaturen, og testen av at `aud` finnes avgrenser ikke hvem tokenet er ment for. |
+| `Routes.kt` | 30–32 | 🔴 | Vedtaksoppslaget er utenfor `authenticate`, og kalleren kan velge FNR i URL-en. Dermed kan kallere hente vedtak for andre personer. Krev autentisering og kontroller tilgang til personen før svar. |
+| `Routes.kt` | 24–27 | 🔴 | POST-ruten lar kalleren sende inn valgfritt FNR og fatte vedtak uten å kontrollere at kalleren har rett til å fatte vedtak for personen. Token-autentisering alene gir ikke den tillatelsen. |
+| `VedtakRepository.kt` | 23 | 🔴 | `fnr` settes direkte inn i SQL-strengen. Et kontrollert input kan endre spørringen. Bruk parameterisert `queryOf(..., fnr)`, slik `hentForSak` allerede gjør. |
+| `VedtakService.kt` | 15 | 🔴 | Logger hele FNR. Fødselsnummer er personopplysninger og skal ikke inn i logger. |
+| `VedtakRepository.kt` | 14 | 🔴 | Koden bruker tabellen `vedtak`, men branchen oppretter ikke tabellen eller legger til en migrering. Den nye databasen i `nais.yaml` starter tom, så lesing og skriving vil feile. |
+| `VedtakConsumer.kt` | 32–33 | 🔴 | Hvert forsøk lagrer et nytt vedtak med ny ID før Kafka-publisering. Hvis publiseringen feiler, prøver consumeren hele behandlingen på nytt og kan lagre flere vedtak for samme melding. Gjentatt levering kan også gi duplikater. Gjør behandlingen idempotent, for eksempel med `soknadId` som unik nøkkel. |
+| `VedtakConsumer.kt` | 24–27, 37–46 | 🟡 | Ugyldig JSON eller en feil etter siste retry avslutter consumer-tråden. Tjenesten fortsetter å svare HTTP, men behandler ikke flere Kafka-meldinger. Håndter feil per melding og sørg for at consumeren starter igjen eller at podden blir ufrisk. |
+
+`git diff --check` passerer. `mise check` kan ikke kjøres fordi miljøet ikke har en slik task. `gradle test` stopper før kompilering: Kotlin 2.1 kjenner ikke igjen miljøets Java 27. Det ligger ingen tester for de nye vedtaks- eller Kafka-flytene.

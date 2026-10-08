@@ -1,0 +1,72 @@
+
+🔍 Leser SakService.kt og prosjektets Kotlin-/sikkerhetsinstruksjoner før jeg vurderer endringen.
+
+
+
+
+
+SakService logger maskerer fødselsnummeret, men feilloggen sender også exception-objektet. Jeg sjekker auth-oppsettet, datamodellen og relevante tester før jeg fastslår om dette gir lekkasje eller andre feil.
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+📊 Koden bruker parameterisert spørring, og route henter `pid` fra den validerte JWT-en. `mise check` finnes ikke for dette repoet, så jeg verifiserer nå linjene og ser etter konkrete avvik i feilloggingen.
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+### Sammendrag
+Jeg fant én sikkerhetsrisiko i feilloggingen. Spørringen bruker parameterbinding, og ruta henter identifikatoren fra en autentisert JWT.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 41 | 🔴 | Logger hele exception-objektet fra en spørring som bruker fødselsnummer. |
+
+`maskert()` skjuler fødselsnummeret i loggmeldingen, men ikke innholdet i `e`. Feil fra database eller driver kan inneholde SQL- eller parameterdetaljer, så exception-loggen kan omgå maskeringen. Ikke logg hele exception-objektet her uten å sikre at det ikke kan inneholde personopplysninger. Logg heller en trygg feilkategori eller SQLState, og behold exception kun hvis innholdet er kontrollert.
+
+🔴 **Rød sone:** Feilloggingen berører håndtering av fødselsnummer og må vurderes nøye.
+
+`mise check` kunne ikke kjøres fordi repoet ikke har en `check`-oppgave. `gradle test` stoppet under konfigurering av prosjektet med feilen `> 27`, før testene startet.
+

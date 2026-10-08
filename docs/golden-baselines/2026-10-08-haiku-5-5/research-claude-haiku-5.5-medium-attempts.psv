@@ -1,0 +1,28 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        research
+# suite:        research
+# date:         2026-10-08
+# revision:     05cfadc9
+# model:        claude-haiku-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       medium
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+re-bruk|1|0|pass|423|8222|true|
+re-ingen|1|0|pass|831|12582|true|
+re-sammendrag|1|0|pass|813|17149|true|
+re-bruk|2|0|pass|377|8951|true|
+re-ingen|2|0|pass|588|13626|true|
+re-sammendrag|2|0|pass|899|15886|true|
+re-bruk|3|0|pass|356|7826|true|
+re-ingen|3|0|pass|676|13567|true|
+re-sammendrag|3|0|pass|875|17517|true|
+re-bruk|4|0|pass|382|8276|true|
+re-ingen|4|0|pass|567|11213|true|
+re-sammendrag|4|0|pass|995|19113|true|
+re-bruk|5|0|pass|391|8668|true|
+re-ingen|5|0|pass|1186|15955|true|
+re-sammendrag|5|0|pass|946|18738|true|

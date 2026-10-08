@@ -1,0 +1,16 @@
+
+
+
+### Oppsummering
+
+Spørringen bruker parameterbinding, og `/api/saker` krever et verifisert TokenX-token før den henter saker. Jeg fant ingen påvist tilgangskontrollfeil i filen, men to forhold bør rettes.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 50–55 | 🟡 | Ruten sjekker bare at `pid` finnes. Valider at verdien er et fødselsnummer i forventet format før den sendes til databasen; en feilformet claim gir ellers et databasesøk i stedet for en tydelig avvisning. |
+| `SakService.kt` | 40–42 | 🟡 | Feilloggen inneholder bare unntakets klassenavn. Det gjør databasefeil vanskelige å skille fra hverandre under feilsøking. Logg årsaken med nødvendig kontekst, men kontroller først at unntaksmeldingen ikke kan inneholde fødselsnummer. |
+
+**Kontroller:** `mise check` finnes ikke i dette prosjektet. `gradle check --offline` stoppet under konfigurering av prosjektet med feilen `27`, så gjennomgangen er basert på kildekoden.
+
+🔴 Rød sone: Valideringen av `pid` ligger ved grensen mellom autentisert identitet og persondata. Gå gjennom hvilke claim-verdier tokenutstederen faktisk kan levere før dere velger avvisningsregel. Still gjerne spørsmål om valgene over.
+

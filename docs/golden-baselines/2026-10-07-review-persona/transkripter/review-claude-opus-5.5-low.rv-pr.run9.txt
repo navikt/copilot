@@ -1,0 +1,37 @@
+
+
+
+### Oppsummering
+Branchen bør ikke merges som den er. Jeg fant 7 blokkere. Fire av dem slipper hvem som helst inn til vedtak og fødselsnumre (fnr), og tre gjør at Kafka-flyten feiler eller lager dupliserte vedtak. Bruken av Kotliquery og manuell commit er et godt utgangspunkt. Jeg kjørte ikke `mise check`, fordi repoet ikke har noen `mise.toml`. Branchen har heller ingen tester.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-teksten. |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`, så alle kan hente vedtak for et hvilket som helst fnr. Fnr står også i URL-en og havner dermed i access-logger. |
+| `App.kt` | 40–42 | 🔴 | JWT-oppsettet mangler `verifier` (JWKS), issuer og audience-sjekk. `validate` godtar alle tokens som har en audience. |
+| `Routes.kt` | 25–27 | 🔴 | Ingen eierskapssjekk: en innlogget bruker kan fatte vedtak på andres fnr. TokenX gir også borgertoken. Fatting av vedtak bør trolig kreve Azure AD med saksbehandlerrolle. |
+| `nais.yaml` | 23–26 | 🔴 | `inbound` er satt til `*`/`*` og åpner for alle apper i alle namespaces. |
+| `VedtakService.kt` | 16 | 🔴 | `log.info("behandler $fnr")` skriver fnr til loggen. |
+| `VedtakConsumer.kt` | 24–25 | 🔴 | En melding som ikke kan dekodes, kaster unntak utenfor retry. Da dør consumer-tråden uten at noen merker det, og poden er fortsatt «ready». |
+| `VedtakConsumer.kt` | 25, 32–34 | 🔴 | `fattVedtak` er ikke idempotent. Feiler `send` eller `commitSync`, lagres vedtaket på nytt med ny UUID, og saken får dupliserte vedtak. |
+| — | — | 🔴 | Ingen Flyway-migrering for tabellen `vedtak`. |
+| `App.kt` | 26–34 | 🔴 | Kafka-oppsettet mangler SSL (`KAFKA_KEYSTORE_PATH`, `KAFKA_TRUSTSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`). Uten dette får appen ikke koblet til Aiven. |
+| `App.kt` | 23 | 🟡 | Nais gir ikke `DB_JDBC_URL`. Variabelen heter `NAIS_DATABASE_<APP>_VEDTAK_JDBC_URL`. |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gjør koden vanskelig å teste. Send inn en `Clock`. |
+| — | — | 🟡 | Ingen tester for service, consumer eller routes. |
+| `build.gradle.kts` | 13 | 💭 | Det finnes nå to `dependencies`-blokker. Slå dem sammen. |
+| `VedtakService.kt` | 5, 28 | 💭 | `Locale` er ubrukt, og `hentVedtak` brukes ikke. |
+
+### Detaljer om blokkerne
+- **SQL-injeksjon (linje 23):** Bytt til en parameterisert spørring: `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`. Med strengsammensetning kan en angriper lese ut hele tabellen.
+- **Lesing av vedtak:** Flytt endepunktet inn under `authenticate`. Send fnr som POST-body eller header i stedet for i URL-en. Sjekk at `pid` i tokenet er lik fnr.
+- **Idempotens:** Bruk `soknadId` som unik nøkkel med `ON CONFLICT DO NOTHING`. Da gir en ny levering av samme melding ikke et nytt vedtak.
+- **Meldinger som ikke kan leses:** Fang feilen, logg den uten fnr, og send meldingen til en DLQ eller stopp appen med en tydelig feil. Bare logging er ikke nok, for da forsvinner meldingen uten spor.
+- **accessPolicy:** List opp de konkrete appene som skal kalle tjenesten.
+
+🔴 Rød sone: auth, eierskapssjekk og vedtakslogikk. Gå gjennom disse nøye.
+
+Still gjerne spørsmål om valgene over.
+

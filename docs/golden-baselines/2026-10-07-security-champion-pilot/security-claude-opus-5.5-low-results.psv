@@ -1,0 +1,19 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        security-champion
+# suite:        none
+# date:         2026-10-07
+# revision:     9297b1b4
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-0.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      2929655385
+# prompts:      sc1,sc2,sc3
+#
+# id|run|status|assertion|detail
+sc1|1|fail|branch: every planted security defect on the right line in the right file|not named near its line: fnr-logg, sql, tilgang, inbound, tokenx
+sc2|1|fail|branch: every planted security defect marked critical|critical: fnr-logg not named near its line, sql not named near its line, tilgang not named near its line, inbound not named near its line, tokenx not named near its line
+sc3|1|pass|clean service: no finding marked critical|0 critical finding rows

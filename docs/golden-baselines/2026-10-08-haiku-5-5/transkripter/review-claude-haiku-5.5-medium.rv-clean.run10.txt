@@ -1,0 +1,17 @@
+### Sammendrag
+
+Ingen blokkerere. SQL er parameterisert, fnr maskeres i info-loggen, og fnr hentes fra token-claimen `pid`, ikke fra URL-en. Brukeren kan dermed bare se egne saker. 🔴 Rød sone: fnr-håndtering og tilgangskontroll i `/api/saker`. Gå gjennom dette nøye.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 20 | 💭 | `maskert()` er generell for alle `String`, men doc-kommentaren sier fødselsnummer. Gi den et tydeligere navn (f.eks. `maskerFnr`) eller gjør den `private`. |
+| `SakService.kt` | 41–42 | 💭 | Loggen tar bare med exception-klassenavnet, og stack trace går tapt. Det er trygt, men `log.error(..., e)` ville gitt mer kontekst. Behold det kun hvis du bevisst vil unngå at meldinger kan inneholde data. |
+| `SakService.kt` | 50 | 🟡 | `pid` brukes uten formatvalidering (11 siffer). Tokenet er betrodd, så dette er forsvar i dybden, ikke en sårbarhet. Verifiser at `azp`-sjekken mot `AZURE_APP_PRE_AUTHORIZED_APPS` ligger i `tokenx`-konfigurasjonen, siden den ikke er synlig i denne filen. |
+
+### Detaljer
+
+Ingen endringer er gjort. Filen er bare lest, og `mise check` er ikke kjørt.
+
+Still gjerne spørsmål om valgene over.

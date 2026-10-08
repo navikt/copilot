@@ -1,0 +1,25 @@
+🔍 Skanner diffen mellom `vedtak-kafka` og `main`, og sjekker endrede filer mot prosjektets regler.
+
+📊 Diffen viser nye Kafka-, database- og API-flater. Jeg kontrollerer nå autentisering, SQL, persondataflyt og om endringen bygger.
+
+Fant flere konkrete avvik: åpen inbound-policy, SQL-konkatenasjon og FNR-logging. `mise check` finnes ikke i dette repoet, så jeg kjører også Gradle-bygget og sjekker den nye databasetilkoblingen.
+
+### Sammendrag
+`vedtak-kafka` er ikke klar for merge. Jeg fant åtte blokkerende feil, blant annet en åpen inbound-policy, et ubeskyttet API som eksponerer fødselsnummer, og SQL-injeksjon.
+
+`mise check` finnes ikke i repoet. `gradle build` stoppet under konfigurasjon fordi Kotlin 2.1.0 ikke kunne tolke Java-versjon 27. Bygget og testene ble derfor ikke kjørt.
+
+### Funn
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `nais.yaml:25–26` | 🔴 | Inbound-policyen tillater trafikk fra alle apper i alle namespaces. Begrens den til konkrete avsendere. |
+| `Routes.kt:30–33` | 🔴 | `GET /api/vedtak/{fnr}` mangler autentisering og lar kallere hente vedtak for vilkårlige fødselsnumre. Krev autentisering og kontroller at kalleren har tilgang til personen. |
+| `App.kt:40–42` | 🔴 | JWT-oppsettet har ingen verifier og godtar ethvert token med en `aud`-claim, uten å sjekke verdien. Verifiser signaturen mot TokenX og kontroller issuer og forventet audience. |
+| `VedtakRepository.kt:23` | 🔴 | `fnr` settes direkte inn i SQL-strengen. Bruk parameterbinding for å hindre SQL-injeksjon. |
+| `VedtakService.kt:15` | 🔴 | Logger fødselsnummer. Fjern personopplysningen fra loggen. |
+| `App.kt:23` | 🔴 | Koden leser `DB_JDBC_URL`, men `nais.yaml` setter ikke denne variabelen. Databasen som Nais konfigurerer, vil derfor ikke nødvendigvis gi appen URL-en den forventer. |
+| `VedtakRepository.kt:14` | 🔴 | Koden bruker tabellen `vedtak`, men branchen oppretter ingen tabell eller migrering. Den nye databasen vil feile ved lesing og skriving. |
+| `VedtakConsumer.kt:32–33` | 🔴 | Kafka-behandling er ikke idempotent. Hvis databasen lagrer vedtaket, men publisering eller offset-commit feiler, lager et nytt forsøk et nytt vedtak. Bruk `soknadId` til deduplisering, og håndhev unikhet i databasen. |
+
+Ingen filer ble endret.

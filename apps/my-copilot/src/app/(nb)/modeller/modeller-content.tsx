@@ -27,6 +27,8 @@ const SUITE_NAMES: Record<Suite, string> = {
   norsk: "Norsk tekst",
   coding: "Koding",
   research: "Research",
+  kafka: "Kafka",
+  rust: "Rust",
 };
 
 const dateFormat = new Intl.DateTimeFormat("nb-NO", {
@@ -307,9 +309,15 @@ export function ModellerContent({
                 ))}
               </ul>
               <BodyLong>
-                Velger du modell selv: Bruk en sterk modell til planlegging og kodegjennomgang. Til vanlig koding holder
-                det ofte med en mellomsterk modell, avhengig av hvor krevende oppgaven er. Enkle oppgaver, som å kjøre
-                kommandoer eller hente inn informasjon, kan en lett og billig modell gjøre.
+                Bruk GPT-6 Sol med lav innsats til daglig koding og planlegging. Den besto alle sjekkene i koding, norsk
+                og informasjonsinnhenting 6. oktober og stoppet riktig etter fase 1 i fem av fem planleggingskjøringer.
+                Bruk Claude Opus 5.5 med lav innsats til kodegjennomgang og alt som gjelder sikkerhet og
+                personopplysninger. Av modellene vi har målt, fant den oftest feilene i nais.yaml, SQL og
+                tilgangskontroll, men den koster 1,6 til 2,8 ganger så mye. GPT-6.1 Sol er like god som GPT-6 Sol på
+                koding, norsk og informasjonsinnhenting, men svakere på kodegjennomgang og skriver de åpne punktene i
+                fase 1 som påstander, ikke spørsmål. Vi anbefaler den derfor ikke som standard. GPT-6 Luna er billig og
+                god til små, avgrensede rettinger og en rask førstegjennomgang av kode der sikkerhet ikke er tema, men
+                ikke til sikkerhetsgjennomgang.
               </BodyLong>
             </VStack>
 

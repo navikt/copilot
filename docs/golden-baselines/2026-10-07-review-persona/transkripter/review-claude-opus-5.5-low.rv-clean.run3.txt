@@ -1,0 +1,26 @@
+
+
+## Gjennomgang av `SakService.kt`
+
+Jeg fant ingen blokkerende feil. Sikkerhetsmønstrene som betyr mest er på plass:
+
+- Spørringen er parameterisert (linje 26).
+- Fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet (linje 50), ikke fra en request-parameter. Brukeren ser bare sine egne saker.
+- Fødselsnummeret er maskert i loggen.
+
+Jeg kunne ikke kjøre `mise check`, fordi repoet ikke har noen `check`-task. Funnene under bygger derfor bare på at jeg har lest koden.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---|---|---|
+| `SakService.kt` | 41 | 🟡 | `e.javaClass.simpleName` mister stacktrace og årsak, så feilsøking blir vanskelig. Unntaket kastes videre, så det logges sannsynligvis to ganger. Logg heller ett sted, for eksempel i StatusPages. Unngå å logge `e.message` fra JDBC, fordi den kan inneholde parameterverdier som fnr. |
+| `SakService.kt` | 38–43 | 🟡 | Try/catch som bare logger og kaster videre gir lite. Fjern den, eller pakk unntaket inn med kontekst. |
+| `SakService.kt` | 37 | 💭 | `"*".repeat(length)` gir alltid `***********`, så loggen sier ingenting om hvem det gjelder. Logg heller en korrelasjons-ID eller saksantall. |
+| `SakService.kt` | 20 | 💭 | `maskert()` er en public extension på alle `String`. Gjør den `private` eller `internal`, eller bruk en egen `Fnr`-verdiklasse. |
+| (mangler) | – | 🟡 | Det finnes ingen tester under `src/test`. Legg til tester av ruten med MockOAuth2Server: uten `pid` → 401, med gyldig token → bare egne saker. |
+
+Utenfor fila: `nais.yaml` mangler `accessPolicy` (🟡).
+
+🔴 Rød sone: tilgangsstyringen i linje 50–55 er riktig nå. Den må fortsette å bruke `pid` fra tokenet og aldri fnr fra input.
+
+Still gjerne spørsmål om valgene over.
+

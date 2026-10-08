@@ -132,7 +132,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - id: version
@@ -185,7 +185,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - name: Run setup tasks
@@ -235,7 +235,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - name: Run setup tasks
@@ -286,7 +286,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - name: Run setup tasks
@@ -350,15 +350,19 @@ jobs:
           CLUSTER: ${{ matrix.cluster }}
         run: |
           if [ "$WORKING_DIR" != "." ]; then
-            RESOURCE_PATH="$WORKING_DIR/$Nais_RESOURCE"
+            IFS=',' read -ra RESOURCES <<< "$Nais_RESOURCE"
+            RESOURCE_PATH=""
+            for resource in "${RESOURCES[@]}"; do
+              RESOURCE_PATH="${RESOURCE_PATH:+$RESOURCE_PATH,}$WORKING_DIR/$resource"
+            done
             VARS_PATTERN="$WORKING_DIR/$Nais_VARS_PATTERN"
           else
             RESOURCE_PATH="$Nais_RESOURCE"
             VARS_PATTERN="$Nais_VARS_PATTERN"
           fi
           VARS_PATH="${VARS_PATTERN//\{cluster\}/$CLUSTER}"
-          echo "resource=$RESOURCE_PATH" >> $GITHUB_OUTPUT
-          echo "vars=$VARS_PATH" >> $GITHUB_OUTPUT
+          echo "resource=$RESOURCE_PATH" >> "$GITHUB_OUTPUT"
+          echo "vars=$VARS_PATH" >> "$GITHUB_OUTPUT"
       - uses: nais/deploy/actions/deploy@9850be311389ca754d9a9f2280615419d738c891 # ratchet:nais/deploy/actions/deploy@v3
         env:
           CLUSTER: ${{ matrix.cluster }}
@@ -385,14 +389,18 @@ jobs:
           Nais_RESOURCE: ${{ inputs.nais-resource }}
         run: |
           if [ "$WORKING_DIR" != "." ]; then
-            RESOURCE_PATH="$WORKING_DIR/$Nais_RESOURCE"
+            IFS=',' read -ra RESOURCES <<< "$Nais_RESOURCE"
+            RESOURCE_PATH=""
+            for resource in "${RESOURCES[@]}"; do
+              RESOURCE_PATH="${RESOURCE_PATH:+$RESOURCE_PATH,}$WORKING_DIR/$resource"
+            done
             VARS_PATH="$WORKING_DIR/.nais/dev-gcp.yaml"
           else
             RESOURCE_PATH="$Nais_RESOURCE"
             VARS_PATH=".nais/dev-gcp.yaml"
           fi
-          echo "resource=$RESOURCE_PATH" >> $GITHUB_OUTPUT
-          echo "vars=$VARS_PATH" >> $GITHUB_OUTPUT
+          echo "resource=$RESOURCE_PATH" >> "$GITHUB_OUTPUT"
+          echo "vars=$VARS_PATH" >> "$GITHUB_OUTPUT"
       - uses: nais/deploy/actions/deploy@9850be311389ca754d9a9f2280615419d738c891 # ratchet:nais/deploy/actions/deploy@v3
         env:
           CLUSTER: dev-gcp

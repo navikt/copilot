@@ -1,0 +1,14 @@
+**Fase 1: Intervju.** Repoet er en Ktor-tjeneste på Nais. `nais.yaml` har ingen ID-porten-konfigurasjon eller `accessPolicy`, og repoet mangler lokale Copilot-instruksjoner. Det finnes heller ingen tester ennå. Kjør `nav-pilot init` for å legge til repo-instruksjoner.
+
+Før jeg lager planen, trenger jeg svar på dette:
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller bare brukes mens forespørselen behandles?
+2. Hvem bruker tjenesten: en innbygger i nettleseren, en annen Nav-tjeneste eller begge? Hvem skal kunne lese fødselsnummeret?
+3. Hva skal tjenesten gjøre hvis ID-porten eller en avhengighet ikke svarer?
+4. Hvilke måltall trenger dere for å følge med på at tjenesten virker? Ikke ta med fødselsnummer eller andre personopplysninger i logger.
+5. Eier teamet hele flyten, eller er dere avhengige av andre team eller tjenester?
+6. Hvilke tjenester eller klienter skal bruke API-et? Finnes det eksisterende konsumenter?
+7. Hvilke tester forventer dere før deploy?
+8. Er Kotlin, Ktor og ID-porten kjent teknologi for teamet?
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7 og #11 stilt; #8–#10 ikke relevante for en ny tjeneste).

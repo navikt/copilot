@@ -31,6 +31,8 @@ describe("isPrivatePath", () => {
   it.each([
     ["/statistikk", true],
     ["/statistikk/json", true],
+    ["/innsikt/team", true],
+    ["/innsikt/team/example", true],
     ["/adopsjon", true],
     ["/adopsjon/debug", true],
     ["/kostnad", true],
@@ -63,6 +65,7 @@ describe("isPrivatePath", () => {
 
   it("does not match partial path names (prefix collision)", () => {
     expect(isPrivatePath("/statistikkfoo")).toBe(false);
+    expect(isPrivatePath("/innsikt/teams")).toBe(false);
     expect(isPrivatePath("/adopsjon-test")).toBe(false);
     expect(isPrivatePath("/kostnadsfri")).toBe(false);
   });

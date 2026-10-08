@@ -1,0 +1,28 @@
+
+
+
+### Oppsummering
+Jeg fant ingen blokkere i fila. `mise check` kjørte ikke, fordi repoet ikke har noen mise-oppgave for det, så funnene under bygger bare på at jeg har lest koden.
+
+Dette er bra:
+- Spørringen bruker parametere.
+- Fødselsnummeret blir ikke logget i klartekst.
+- Eierskapet til dataene sjekkes riktig: fødselsnummeret hentes fra `pid`-claimet i brukerens eget token, ikke fra en parameter brukeren sender inn.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 19–20 | 🟡 | `maskert()` gir alltid `***********`. Dermed finnes ingen verdi i loggen som kan brukes til feilsøking. Dokumentasjonen beskriver dessuten noe annet enn det funksjonen gjør. Det er bedre å ikke sende fødselsnummeret inn i loggkallet i det hele tatt, og heller logge antall saker eller en korrelasjons-ID. |
+| `SakService.kt` | 40–43 | 🟡 | Feilen logges og kastes videre. Da blir den logget to ganger hvis Ktors StatusPages også logger den. Velg ett av alternativene: logg feilen, eller pakk den inn med kontekst og kast den videre. |
+| `SakService.kt` | 40 | 🟡 | `catch (e: Exception)` fanger også `CancellationException` i coroutines. Det er mer presist å fange `SQLException`. |
+| `SakService.kt` | 52, 56 | 🟡 | Ruta svarer 401 når `pid` mangler. Etter vellykket autentisering er det mer riktig å svare 403. Sjekk også at `tokenx`-oppsettet validerer `acr=idporten-loa-high` og `aud`. |
+| `SakService.kt` | 47–58 | 🟡 | Ruta kaller blokkerende JDBC direkte. Kjør kallet på `Dispatchers.IO` med `withContext(Dispatchers.IO)`, ellers kan Ktors event loop-tråder bli blokkert. |
+| `nais.yaml` | – | 🟡 | `tokenx.enabled` og `accessPolicy.inbound` mangler. Uten dem kan ingen frontend utveksle token mot tjenesten. |
+| – | – | 🟡 | Det finnes ingen tester for sak. Vi trenger minst én ruttetest med MockOAuth2Server, både med og uten `pid`. |
+| `SakService.kt` | 1 | 💭 | Fila samler modell, repository, service og ruter. Navnet `SakService.kt` er derfor misvisende. |
+
+🔴 Rød sone: tilgangskontrollen henter `fnr` fra tokenet. Pass på at ingen senere endrer den til å bruke en parameter i spørringen.
+
+Still gjerne spørsmål om valgene over.
+

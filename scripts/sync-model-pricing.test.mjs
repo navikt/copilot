@@ -10,6 +10,18 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   parsePricingTables,
@@ -56,16 +68,159 @@ const GOOGLE_TABLE = `<h3 id="google">Google</h3><table aria-labelledby="google"
 const PAGE = OPENAI_TABLE + GOOGLE_TABLE + FOOTNOTES;
 const byModel = (models, name) => models.find((m) => m.model === name);
 
+test("pricing sync regenerates API metadata from the newly written catalog", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pricing-sync-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const dir of [
+    "scripts",
+    "apps/my-copilot/src/lib",
+    "apps/copilot-api",
+    "docs",
+  ]) {
+    mkdirSync(join(root, dir), { recursive: true });
+  }
+  for (const script of [
+    "sync-model-pricing.mjs",
+    "generate-api-model-metadata.mjs",
+  ]) {
+    copyFileSync(
+      new URL(script, import.meta.url),
+      join(root, "scripts", script),
+    );
+  }
+  writeFileSync(join(root, "apps/my-copilot/src/lib/model-pricing.ts"), "");
+  writeFileSync(
+    join(root, "apps/copilot-api/model_metadata.json"),
+    JSON.stringify({ models: [], retired: [] }),
+  );
+  writeFileSync(
+    join(root, "docs/modellvalg.md"),
+    "GitHubs listepriser slik de sto **1. januar 2026**",
+  );
+  const fixture = join(root, "pricing.html");
+  writeFileSync(
+    fixture,
+    PAGE +
+      "<!-- `; throw new Error('fixture executed'); // ${process.exit(1)} -->",
+  );
+  const mock =
+    "import { readFileSync } from 'node:fs'; globalThis.fetch = async () => ({ ok: true, text: async () => readFileSync(process.env.PRICING_FIXTURE, 'utf8') });";
+  execFileSync(
+    process.execPath,
+    [
+      "--import",
+      `data:text/javascript;base64,${Buffer.from(mock).toString("base64")}`,
+      join(root, "scripts/sync-model-pricing.mjs"),
+    ],
+    { stdio: "pipe", env: { ...process.env, PRICING_FIXTURE: fixture } },
+  );
+  const metadata = JSON.parse(
+    readFileSync(join(root, "apps/copilot-api/model_metadata.json"), "utf8"),
+  );
+  assert.deepEqual(
+    metadata.models,
+    parsePricingTables(PAGE).map(({ model, provider, category }) => ({
+      model,
+      provider,
+      category,
+    })),
+  );
+  execFileSync(
+    process.execPath,
+    [join(root, "scripts/generate-api-model-metadata.mjs"), "--check"],
+    { stdio: "pipe" },
+  );
+  // The written catalog must carry the footnote's end date, or the
+  // my-copilot promotion invariant test has nothing to check.
+  const catalog = readFileSync(
+    join(root, "apps/my-copilot/src/lib/model-pricing.ts"),
+    "utf8",
+  );
+  assert.match(
+    catalog,
+    /Gemini 3\.6 Flash \(Default\)[^}]*promotionEndsOn: "2026-12-31"/,
+  );
+});
+
+test("metadata generator retires dropped models and restores returning ones", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "metadata-retired-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const dir of [
+    "scripts",
+    "apps/my-copilot/src/lib",
+    "apps/copilot-api",
+  ]) {
+    mkdirSync(join(root, dir), { recursive: true });
+  }
+  copyFileSync(
+    new URL("generate-api-model-metadata.mjs", import.meta.url),
+    join(root, "scripts/generate-api-model-metadata.mjs"),
+  );
+  const row = (model, category = "Versatile") => ({
+    model,
+    provider: "Acme",
+    category,
+  });
+  const metadataPath = join(root, "apps/copilot-api/model_metadata.json");
+  const generate = (models) => {
+    writeFileSync(
+      join(root, "apps/my-copilot/src/lib/model-pricing.ts"),
+      `export const PRICING_SOURCE_URL = "x"; export const PRICING_LAST_UPDATED = "2026-01-01";
+export const MODEL_PRICING = ${JSON.stringify(models)};`,
+    );
+    execFileSync(
+      process.execPath,
+      [join(root, "scripts/generate-api-model-metadata.mjs")],
+      { stdio: "pipe" },
+    );
+    return JSON.parse(readFileSync(metadataPath, "utf8"));
+  };
+  writeFileSync(
+    metadataPath,
+    JSON.stringify({
+      models: [row("A"), row("B", "Powerful")],
+      retired: [row("Old")],
+    }),
+  );
+
+  let metadata = generate([row("A")]);
+  assert.deepEqual(metadata.models, [row("A")]);
+  assert.deepEqual(metadata.retired, [row("B", "Powerful"), row("Old")]);
+
+  metadata = generate([row("A")]);
+  assert.deepEqual(
+    metadata.retired,
+    [row("B", "Powerful"), row("Old")],
+    "retired survives regeneration",
+  );
+
+  metadata = generate([row("A"), row("B", "Powerful")]);
+  assert.deepEqual(
+    metadata.retired,
+    [row("Old")],
+    "a returning model leaves retired",
+  );
+});
+
 test("footnote list parses into id-keyed text without backref arrows", () => {
   const notes = parseFootnotes(PAGE);
-  assert.deepEqual([...notes.keys()], ["gpt-56-sol-promo", "gemini-flash-promo"]);
-  assert.match(notes.get("gpt-56-sol-promo"), /^GPT-5\.6 Sol is available at promotional pricing/);
+  assert.deepEqual(
+    [...notes.keys()],
+    ["gpt-56-sol-promo", "gemini-flash-promo"],
+  );
+  assert.match(
+    notes.get("gpt-56-sol-promo"),
+    /^GPT-5\.6 Sol is available at promotional pricing/,
+  );
   assert.ok(!notes.get("gpt-56-sol-promo").includes("↩"));
 });
 
 test("both GPT-5.6 Sol rows carry the promotion end date and the note", () => {
   const models = parsePricingTables(PAGE);
-  for (const name of ["GPT-5.6 Sol (Default, ≤ 272K)", "GPT-5.6 Sol (Long context, 272K)"]) {
+  for (const name of [
+    "GPT-5.6 Sol (Default, ≤ 272K)",
+    "GPT-5.6 Sol (Long context, 272K)",
+  ]) {
     const row = byModel(models, name);
     assert.ok(row, `missing row: ${name}`);
     assert.equal(row.promotionEndsOn, "2026-09-03");
@@ -75,7 +230,10 @@ test("both GPT-5.6 Sol rows carry the promotion end date and the note", () => {
 
 test("both promoted Gemini Flash rows carry the promotion end date", () => {
   const models = parsePricingTables(PAGE);
-  for (const name of ["Gemini 3.6 Flash (Default)", "Gemini 3.7 Flash (Default)"]) {
+  for (const name of [
+    "Gemini 3.6 Flash (Default)",
+    "Gemini 3.7 Flash (Default)",
+  ]) {
     const row = byModel(models, name);
     assert.ok(row, `missing row: ${name}`);
     assert.equal(row.promotionEndsOn, "2026-12-31");
@@ -92,12 +250,21 @@ test("models without a footnote get neither field", () => {
   }
 });
 
-const SOL_ROWS = ["GPT-5.6 Sol (Default, ≤ 272K)", "GPT-5.6 Sol (Long context, 272K)"];
+const SOL_ROWS = [
+  "GPT-5.6 Sol (Default, ≤ 272K)",
+  "GPT-5.6 Sol (Long context, 272K)",
+];
 
 test("an undatable footnote is flagged, not silently dropped", () => {
-  const broken = PAGE.replace("through September 3, 2026", "through the end of the promotion");
+  const broken = PAGE.replace(
+    "through September 3, 2026",
+    "through the end of the promotion",
+  );
   const unresolved = findUnresolvedPromotions(parsePricingTables(broken));
-  assert.deepEqual(unresolved.map((m) => m.model), SOL_ROWS);
+  assert.deepEqual(
+    unresolved.map((m) => m.model),
+    SOL_ROWS,
+  );
   // The note survives so the error message can name what went unparsed.
   assert.match(unresolved[0].note, /through the end of the promotion/);
 });
@@ -105,28 +272,43 @@ test("an undatable footnote is flagged, not silently dropped", () => {
 test("a reference to a footnote that is not on the page is flagged too", () => {
   // The whole footnotes section fails to match, which is what an upstream
   // markup change looks like. Every reference is then dangling.
-  const unresolved = findUnresolvedPromotions(parsePricingTables(OPENAI_TABLE + GOOGLE_TABLE));
-  assert.deepEqual(unresolved.map((m) => m.model), [
-    ...SOL_ROWS,
-    "Gemini 3.6 Flash (Default)",
-    "Gemini 3.7 Flash (Default)",
-  ]);
+  const unresolved = findUnresolvedPromotions(
+    parsePricingTables(OPENAI_TABLE + GOOGLE_TABLE),
+  );
+  assert.deepEqual(
+    unresolved.map((m) => m.model),
+    [...SOL_ROWS, "Gemini 3.6 Flash (Default)", "Gemini 3.7 Flash (Default)"],
+  );
   assert.equal(unresolved[0].note, undefined);
   assert.equal(unresolved[0].footnoteId, "gpt-56-sol-promo");
 });
 
 test("a reference to a footnote id missing from the list is flagged", () => {
-  const renamed = PAGE.replace('<li id="user-content-fn-gpt-56-sol-promo">', '<li id="user-content-fn-sol-promo-2027">');
+  const renamed = PAGE.replace(
+    '<li id="user-content-fn-gpt-56-sol-promo">',
+    '<li id="user-content-fn-sol-promo-2027">',
+  );
   const unresolved = findUnresolvedPromotions(parsePricingTables(renamed));
-  assert.deepEqual(unresolved.map((m) => m.model), SOL_ROWS);
+  assert.deepEqual(
+    unresolved.map((m) => m.model),
+    SOL_ROWS,
+  );
   // Gemini still resolves, so the guard is not just firing on everything.
-  const gemini = parsePricingTables(renamed).find((m) => m.model === "Gemini 3.6 Flash (Default)");
+  const gemini = parsePricingTables(renamed).find(
+    (m) => m.model === "Gemini 3.6 Flash (Default)",
+  );
   assert.equal(gemini.promotionEndsOn, "2026-12-31");
 });
 
 test("date parsing handles the shapes the page uses", () => {
-  assert.equal(parsePromotionEndDate("... through September 3, 2026."), "2026-09-03");
-  assert.equal(parsePromotionEndDate("... through December 31, 2026."), "2026-12-31");
+  assert.equal(
+    parsePromotionEndDate("... through September 3, 2026."),
+    "2026-09-03",
+  );
+  assert.equal(
+    parsePromotionEndDate("... through December 31, 2026."),
+    "2026-12-31",
+  );
   assert.equal(parsePromotionEndDate("... through Smarch 3, 2026."), undefined);
   assert.equal(parsePromotionEndDate("no end date at all"), undefined);
 });
@@ -143,7 +325,10 @@ test("the doc's pricing date is rewritten, and the editorial dates are not", () 
   const out = setDocPricingDate(doc, "2026-09-03");
 
   assert.match(out, /slik de sto \*\*3\. september 2026\*\*/);
-  assert.equal(out.split("\n").slice(1).join("\n"), doc.split("\n").slice(1).join("\n"));
+  assert.equal(
+    out.split("\n").slice(1).join("\n"),
+    doc.split("\n").slice(1).join("\n"),
+  );
 });
 
 test("the pricing date is found when the sentence wraps before the date", () => {
@@ -163,4 +348,22 @@ test("the pricing date is found when the sentence wraps before the date", () => 
 
 test("a doc without the sentence is an error, not a silent no-op", () => {
   assert.throws(() => setDocPricingDate("ingen priser her", "2026-09-03"));
+});
+
+test("API model metadata: a tier suffix rename is not a retirement, a removal is", async () => {
+  const { retiredModels } = await import("./generate-api-model-metadata.mjs");
+  const m = (model) => ({ model, provider: "Anthropic", category: "Powerful" });
+  const previous = {
+    models: [
+      m("Claude Opus 5.5"),
+      m("Claude Opus 4.8 (fast mode) (preview)"),
+      m("Claude Gone 1"),
+    ],
+    retired: [],
+  };
+  const models = [
+    m("Claude Opus 5.5 (Default)"),
+    m("Claude Opus 4.8 (fast mode) (preview) (Default)"),
+  ];
+  assert.deepEqual(retiredModels(previous, models), [m("Claude Gone 1")]);
 });

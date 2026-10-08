@@ -1,0 +1,26 @@
+## Fase 2: Plan
+
+**Anbefaling:** Innbyggeren logger inn via ID-porten i den eksisterende Next.js-frontend. Frontendens serverdel kaller den nye, private Ktor-tjenesten med brukerens kontekst. Ktor bruker TokenX til å kalle PDL for navn. Jeg legger til grunn at frontend kan gjøre serverkall; nettleseren kaller ikke Ktor direkte. Det holder API-et privat, men betyr at frontend må formidle brukerens identitet.
+
+| Område | Plan |
+|---|---|
+| Autentisering | ID-porten og Wonderwall i frontend. TokenX for kall fra frontend til Ktor og videre til PDL på vegne av innbyggeren. Ktor henter fødselsnummer fra validert identitet, ikke fra et fritt felt i requesten. |
+| API | Synkront kall fra frontend til Ktor og videre til PDL. Returner navn til frontend; ikke lagre fødselsnummer eller navn. |
+| Nais | Ingen offentlig ingress til Ktor. Sett `accessPolicy.inbound` til bare frontend-applikasjonen og `outbound` til PDL. Aktiver TokenX. |
+| Database | Ingen database eller Flyway-migreringer. |
+| Feil | Når PDL ikke svarer, returner 503. Logg feil med avhengighet og korrelasjons-ID, aldri fødselsnummer, navn eller token. Ingen kø eller dead-letter. |
+| Målinger | Antall oppslag og feilandel per minutt. Ikke bruk fødselsnummer eller andre personopplysninger som metric labels. |
+| Tester | Legg til Ktor-integrasjonstester for auth, API-svar og feilhåndtering. Mock PDL, og test at tjenesten avviser manglende eller ugyldig brukeridentitet. |
+| CI/CD | Utvid eksisterende bygg med tester. Behold prosjektets eksisterende deploy-oppsett; repoet inneholder ikke en GitHub Actions-workflow nå. |
+
+**Filer og endringer:** `build.gradle.kts` for nødvendige auth- og HTTP-klientavhengigheter, Ktor-moduler for API, identitetsuthenting og PDL-klient, tester for API og PDL-feil, og `nais.yaml` for TokenX og eksplisitte tilgangsregler. Ikke legg til lagring.
+
+**Sikkerhet og drift:** Fødselsnummer og navn er fortrolige personopplysninger. Ikke ta dem med i logger, feilmeldinger eller metrikker. Dokumenter konkret lovhjemmel og formål før produksjonssetting. Varsle på økende feilandel eller vedvarende PDL-feil; verifiser etter deploy med helsesjekk og et testoppslag uten reelle personopplysninger.
+
+**Nybygg:** Ingen migrering, gammel løsning eller rollback av data. Ved feil kan deploy rulles tilbake. Eksisterende frontend er eneste konsument.
+
+🔴 **Rød sone:** Utvikleren må forstå og gjennomgå ID-porten-identiteten, TokenX-tokenutvekslingen og kontrollen av at fødselsnummeret kommer fra validert identitet. Dette er autentisering og behandling av personopplysninger.
+
+🟢 **Grønn sone:** API-skjelett, PDL-klient, tester, metrikker og Nais-konfigurasjon kan genereres og gjennomgås før merge.
+
+Gi klarsignal for fase 3, så gjennomgår jeg planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.

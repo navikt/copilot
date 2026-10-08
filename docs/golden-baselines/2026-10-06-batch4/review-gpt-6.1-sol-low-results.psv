@@ -1,0 +1,56 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        code-review
+# suite:        review
+# date:         2026-10-06
+# revision:     50f3ec9a
+# model:        gpt-6.1-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-1.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       10
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4
+#
+# id|run|status|assertion|detail
+rv1|1|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|1|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|1|pass|TSX: all four planted defects named within three lines|
+rv4|1|pass|TSX: every planted defect cited on its line|
+rv1|2|pass|Kotlin: all three planted defects named within three lines|
+rv2|2|pass|Kotlin: every planted defect cited on its line|
+rv3|2|pass|TSX: all four planted defects named within three lines|
+rv4|2|pass|TSX: every planted defect cited on its line|
+rv1|3|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|3|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|3|pass|TSX: all four planted defects named within three lines|
+rv4|3|pass|TSX: every planted defect cited on its line|
+rv1|4|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|4|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|4|pass|TSX: all four planted defects named within three lines|
+rv4|4|pass|TSX: every planted defect cited on its line|
+rv1|5|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|5|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|5|pass|TSX: all four planted defects named within three lines|
+rv4|5|pass|TSX: every planted defect cited on its line|
+rv1|6|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|6|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|6|pass|TSX: all four planted defects named within three lines|
+rv4|6|pass|TSX: every planted defect cited on its line|
+rv1|7|pass|Kotlin: all three planted defects named within three lines|
+rv2|7|pass|Kotlin: every planted defect cited on its line|
+rv3|7|pass|TSX: all four planted defects named within three lines|
+rv4|7|pass|TSX: every planted defect cited on its line|
+rv1|8|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|8|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|8|pass|TSX: all four planted defects named within three lines|
+rv4|8|pass|TSX: every planted defect cited on its line|
+rv1|9|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|9|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|9|pass|TSX: all four planted defects named within three lines|
+rv4|9|pass|TSX: every planted defect cited on its line|
+rv1|10|fail|Kotlin: all three planted defects named within three lines|not named near its line: catch
+rv2|10|fail|Kotlin: every planted defect cited on its line|not named near its line: catch
+rv3|10|pass|TSX: all four planted defects named within three lines|
+rv4|10|pass|TSX: every planted defect cited on its line|

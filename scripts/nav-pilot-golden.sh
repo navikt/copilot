@@ -21,7 +21,7 @@
 #   agents/<key>.agent.md, installs that one agent into the scratch workspace,
 #   and runs the assertion group written for it:
 #
-#     nav-pilot      tests 1-6      phase discipline, blind spots, auth, model gate
+#     nav-pilot      tests 1-8b     phase discipline, blind spots, auth, model gate
 #     code-review    tests cr1-cr4  findings schema, no auto-fix, teaching, routing
 #     accessibility  tests uu1-uu5  WCAG substance, Ask-First, no subagent fan-out
 #
@@ -248,6 +248,7 @@ WITH_INSTRUCTIONS=true
 SAVE_BASELINE=""
 COMPARE_TO=""
 DRY_RUN=false
+CLIENT="copilot"
 
 # A flag that takes a value must be given one. Without this guard `shift 2`
 # fails when the flag is the last argument ($# is 1), and with no `set -e` it
@@ -273,6 +274,7 @@ while [[ $# -gt 0 ]]; do
     --save-baseline)   need_val "$@"; SAVE_BASELINE="$2"; shift 2 ;;
     --compare)         need_val "$@"; COMPARE_TO="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --client)  need_val "$@"; CLIENT="$2"; shift 2 ;;
     -v|--verbose) VERBOSE=true; shift ;;
     -h|--help) sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//;$d'; exit 0 ;;
     *) echo "unknown flag: $1 (try --help)" >&2; exit 2 ;;
@@ -301,23 +303,29 @@ fail_preflight() {
 # README.md says how the suites are run and summarised.
 #
 #   planning  nav-pilot    2,3,4,5    the 23 Sept protocol (docs/modellvalg.md)
-#   review    code-review  rv1-rv4    planted defects named, on the right line
+#   review    code-review  rv1-rv8    planted defects named, on the right line
+#                                     and file, prioritised; a clean file stays quiet
 #   norsk     forfatter    no1-no4    bokmål, no KI markers, no «AI», length
 #   coding    nav-pilot    ko1-ko6    failing tests fixed, in scope: Go, TS, and
 #                                     a Go fix that spans two files
 #   research  research     re1-re4    bounded read-and-summarise: right lines,
 #                                     no invented callers, at most three points
+#   kafka     kafka        kf1-kf4    Kotlin consumer: idempotency and commit
+#                                     after processing; a backward-compatible field
+#   rust      rust         rs1-rs4    a borrow error; thiserror errors with tests
 GROUP=""
 if [[ -n "$SUITE" ]]; then
   $AGENT_SET && fail_preflight "--suite and --agent cannot be combined" \
     "A suite fixes its agent. Drop --agent."
   case "$SUITE" in
     planning) AGENT="nav-pilot";   GROUP="nav-pilot";   ONLY="${ONLY:-2,3,4,5}" ;;
-    review)   AGENT="code-review"; GROUP="code-review"; ONLY="${ONLY:-rv1,rv2,rv3,rv4}" ;;
+    review)   AGENT="code-review"; GROUP="code-review"; ONLY="${ONLY:-rv1,rv2,rv3,rv4,rv5,rv6,rv7,rv8}" ;;
     norsk)    AGENT="forfatter";   GROUP="forfatter" ;;
     coding)   AGENT="nav-pilot";   GROUP="coding" ;;
     research) AGENT="research";    GROUP="research" ;;
-    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk, coding or research." ;;
+    kafka)    AGENT="kafka";       GROUP="kafka" ;;
+    rust)     AGENT="rust";        GROUP="rust" ;;
+    *) fail_preflight "unknown --suite '$SUITE'" "Use planning, review, norsk, coding, research, kafka or rust." ;;
   esac
 fi
 GROUP="${GROUP:-$AGENT}"
@@ -336,12 +344,15 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
 # an ID added there and not here is rejected by --only.
 case "$GROUP" in
-  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6" ;;
-  code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4" ;;
+  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6 7 7b 8 8b" ;;
+  code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4 rv5 rv6 rv7 rv8" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
   coding)        VALID_IDS="ko1 ko2 ko3 ko4 ko5 ko6" ;;
   research)      VALID_IDS="re1 re2 re3 re4" ;;
+  kafka)         VALID_IDS="kf1 kf2 kf3 kf4" ;;
+  rust)          VALID_IDS="rs1 rs2 rs3 rs4" ;;
+  security-champion) VALID_IDS="sc1 sc2 sc3" ;;
   *) fail_preflight \
       "no assertion group for agent '$AGENT'" \
       "This harness has prompts and assertions for: nav-pilot, code-review, accessibility, forfatter (and --suite coding). Add a run_pass_<agent> derived from that agent's own file before benchmarking it." ;;
@@ -400,6 +411,37 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
   "--compare: no baseline file at $COMPARE_TO" \
   "Record one first: ./scripts/nav-pilot-golden.sh --repeat 5 --save-baseline $COMPARE_TO"
 
+# --client opencode: hermetic OpenCode runs. Config comes from a scratch
+# XDG_CONFIG_HOME (persona, skills and always-on instructions written there the
+# way `nav-pilot` syncs them globally), and OPENCODE_DISABLE_CLAUDE_CODE keeps
+# ~/.claude out. Auth stays in OpenCode's data dir, which is not redirected.
+# Single-turn only: OpenCode picks its own session ids, so test 4 cannot run.
+# Not like-for-like with the Copilot path: every skill in skills/ is installed
+# (as a global sync would), while the Copilot workspace carries none.
+case "$CLIENT" in
+  copilot) ;;
+  opencode)
+    [[ -n "$MODEL" ]] || fail_preflight "--client opencode needs --model" \
+      "e.g. --model gpt-6-sol; github-copilot/ is added when no provider is given"
+    [[ -z "$CONTEXT_TIER" ]] || fail_preflight "--context is not supported with --client opencode" ""
+    [[ "$MODEL" == */* ]] && OC_MODEL="$MODEL" || OC_MODEL="github-copilot/$MODEL"
+    command -v go >/dev/null 2>&1 || fail_preflight "--client opencode needs go" \
+      "The persona is converted with nav-pilot's own OpenCode transform (go run)."
+    # Everything OpenCode reads config from is redirected: OPENCODE_CONFIG,
+    # OPENCODE_CONFIG_CONTENT and OPENCODE_CONFIG_DIR are cleared, and HOME
+    # points at a scratch dir so ~/.opencode and ~/.claude are not read. The
+    # data, cache and state dirs stay the user's own, explicitly, because the
+    # login lives in the data dir.
+    OC_BASE_ENV=(-u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT -u OPENCODE_CONFIG_DIR
+      "XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}"
+      "XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}"
+      "XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}"
+      OPENCODE_DISABLE_CLAUDE_CODE=1 NO_COLOR=1)
+    ;;
+  *) fail_preflight "--client takes copilot or opencode, got '$CLIENT'" "" ;;
+esac
+OC_ENV=()
+
 CLI_PATH=""
 CLI_NAME="(dry run, no client)"
 CLI_VERSION=""
@@ -409,6 +451,23 @@ CLI_VERSION=""
 # workspace materialization can be checked without a client, an account, or a
 # bill, so it must not require any of them.
 preflight_client() {
+  if [[ "$CLIENT" == opencode ]]; then
+    CLI_PATH="$(command -v opencode || true)"
+    CLI_NAME="opencode"
+    [[ -n "$CLI_PATH" ]] || fail_preflight "opencode not found on PATH" "brew install opencode"
+    CLI_VERSION="opencode $("$CLI_PATH" --version 2>&1 | head -1)"
+    local oc_probe_cfg oc_probe_out
+    oc_probe_cfg="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
+    local oc_probe_rc
+    mkdir -p "$oc_probe_cfg/home"
+    oc_probe_out="$(env "${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$oc_probe_cfg" "HOME=$oc_probe_cfg/home" \
+      "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)"
+    oc_probe_rc=$?
+    rm -rf "$oc_probe_cfg"
+    [[ $oc_probe_rc -eq 0 ]] \
+      || fail_preflight "opencode probe prompt failed for $OC_MODEL" "$(head -c 300 <<<"$oc_probe_out")"
+    return 0
+  fi
   CLI_PATH="$(command -v copilot || true)"
   CLI_NAME="copilot"
   if [[ -z "$CLI_PATH" ]]; then
@@ -418,8 +477,8 @@ preflight_client() {
   if [[ -z "$CLI_PATH" ]]; then
     if command -v opencode >/dev/null 2>&1; then
       fail_preflight \
-        "only 'opencode' was found on PATH, and this harness does not support it" \
-        "opencode reads its persona from the *user* config dir, so a hermetic run is not possible. Install the Copilot CLI: https://github.com/github/copilot-cli"
+        "only 'opencode' was found on PATH" \
+        "Pass --client opencode --model <model>, or install the Copilot CLI: https://github.com/github/copilot-cli"
     fi
     fail_preflight \
       "neither 'copilot' nor 'cplt' found on PATH" \
@@ -465,7 +524,9 @@ USAGE_HELPER="$REPO_ROOT/scripts/copilot-usage.py"
 USAGE_DB="${NAV_PILOT_GOLDEN_USAGE_DB:-$HOME/.copilot/session-store.db}"
 USAGE_TRACKING=false
 USAGE_UNAVAILABLE=""
-if [[ ! -f "$USAGE_DB" ]]; then
+if [[ "$CLIENT" == opencode ]]; then
+  USAGE_UNAVAILABLE="--client opencode has no assistant_usage_events"
+elif [[ ! -f "$USAGE_DB" ]]; then
   USAGE_UNAVAILABLE="no session database at $USAGE_DB"
 elif ! command -v python3 >/dev/null 2>&1; then
   USAGE_UNAVAILABLE="python3 is unavailable"
@@ -576,6 +637,27 @@ if $WITH_INSTRUCTIONS && [[ -d "$REPO_ROOT/instructions" ]]; then
     INSTR_COUNT=$((INSTR_COUNT + 1))
     always_on "$instr" && ALWAYS_ON_COUNT=$((ALWAYS_ON_COUNT + 1))
   done
+fi
+
+if [[ "$CLIENT" == opencode ]]; then
+  OC_CFG="$WORKDIR/opencode-config/opencode"
+  mkdir -p "$OC_CFG/agents" "$OC_CFG/skills" "$WORKDIR/opencode-home"
+  # nav-pilot's own transform (export.go), so the tools allowlist becomes the
+  # same OpenCode permission denies a real install gets. The model line is
+  # dropped: --model is required here and must not lose to a frontmatter pin.
+  ( cd "$REPO_ROOT/cli/nav-pilot" && go run ./internal/cmd/golden-opencode-agent "$PERSONA" "$LAUNCH_NAME" ) \
+    >"$WORKDIR/opencode-agent.md" \
+    && awk '/^---$/ {fm++} fm == 1 && /^model:/ {next} {print}' "$WORKDIR/opencode-agent.md" >"$OC_CFG/agents/$LAUNCH_NAME.md" \
+    || fail_preflight "could not convert $PERSONA for OpenCode" "Run: (cd cli/nav-pilot && go run ./internal/cmd/golden-opencode-agent $PERSONA $LAUNCH_NAME)"
+  grep -q '^mode: primary$' "$OC_CFG/agents/$LAUNCH_NAME.md" \
+    || fail_preflight "the converted OpenCode persona is not a primary agent" ""
+  cp -R "$REPO_ROOT"/skills/* "$OC_CFG/skills/"
+  if $WITH_INSTRUCTIONS; then
+    for instr in "$REPO_ROOT"/instructions/*.instructions.md; do
+      [[ -f "$instr" ]] && always_on "$instr" && awk '/^---$/ && n < 2 {n++; next} n != 1' "$instr"
+    done >"$OC_CFG/AGENTS.md"
+  fi
+  OC_ENV=("${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$WORKDIR/opencode-config" "HOME=$WORKDIR/opencode-home")
 fi
 
 # One string, used both in the --save-baseline header and in the --compare
@@ -783,7 +865,7 @@ if [[ "$AGENT" == "accessibility" && -d "$REPO_ROOT/.github/hooks" ]]; then
   HOOK_ENV=(GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true "NAV_PILOT_HOOK_DEBUG=$HOOK_LOG")
 fi
 
-if [[ "$GROUP" == "code-review" || "$GROUP" == "accessibility" ]]; then
+if [[ "$GROUP" == "code-review" || "$GROUP" == "accessibility" || "$GROUP" == "security-champion" ]]; then
   mkdir -p "$TEMPLATE/src/app/komponenter"
 
   cat >"$TEMPLATE/src/main/kotlin/no/nav/demo/UserRepo.kt" <<'EOF'
@@ -832,6 +914,15 @@ fi
 # below proves that on the pristine template before any model is called. An
 # unedited draft or an untouched bug is then a failed run, never a green one.
 BENCH_CHECK="$REPO_ROOT/scripts/benchmark-sjekk.py"
+# Planning checks read the answer through svar(), which needs python3. Without
+# it the answer is empty and every absent() check would pass.
+if [[ "$GROUP" == "nav-pilot" ]] && ! command -v python3 >/dev/null 2>&1; then
+  fail_preflight "--agent nav-pilot needs python3 to strip tool output" "brew install python3"
+fi
+# Tests 7 and 8 split sentences with perl.
+if [[ "$GROUP" == "nav-pilot" ]] && ! command -v perl >/dev/null 2>&1; then
+  fail_preflight "--agent nav-pilot needs perl to split sentences" "brew install perl"
+fi
 NORSK_MIN_WORDS=30
 NORSK_MAX_WORDS=90
 
@@ -1029,6 +1120,73 @@ if [[ "$GROUP" == "coding" ]]; then
   rm -rf "$FIXED"
 fi
 
+# ─── Fixtures for the kafka and rust suites ─────────────────────────────────
+# Files live in scripts/golden-fixtures/<group>/. workspace/ is copied into the
+# template; evaluator/ holds tests the agent never sees, run after the call in a
+# copy of the project together with the agent's own tests; controls/good and
+# controls/wrong are whole-file overlays of a known fix and a tempting wrong fix.
+GF="$REPO_ROOT/scripts/golden-fixtures"
+# eval_project <ws> <group> <project>: the project's tests plus the evaluator's,
+# in a throwaway copy, so the workspace and its fingerprint stay untouched.
+eval_project() {
+  local dir rc
+  dir="$(mktemp -d "$WORKDIR/eval.XXXXXX")"
+  cp -R "$1/$3/." "$dir/" && cp -R "$GF/$2/evaluator/$3/." "$dir/" || return 1
+  rm -rf "$dir/build" "$dir/.gradle" "$dir/target"
+  case "$2" in
+    kafka) (cd "$dir" && gradle -q test >/dev/null 2>&1) ;;
+    rust)  (cd "$dir" && CARGO_TARGET_DIR="$WORKDIR/cargo-target-$3" cargo test -q >/dev/null 2>&1) ;;
+  esac
+  rc=$?
+  rm -rf "$dir"
+  return $rc
+}
+kf_konsument() { eval_project "$1" kafka vedtak-konsument; }
+kf_hendelse()  { eval_project "$1" kafka vedtak-hendelse; }
+rs_saksko()    { eval_project "$1" rust saksko; }
+# Behaviour is not enough here: the task names thiserror and asks for tests.
+# The pristine crate has one #[test]; the task wants one per error variant.
+rs_parser() {
+  local c="$1/vedtak-parser"
+  eval_project "$1" rust vedtak-parser &&
+    grep -qE '^thiserror[[:space:]]*=' "$c/Cargo.toml" &&
+    cat "$c"/src/*.rs | tr '\n' ' ' | grep -qE 'derive\([^)]*Error' &&
+    [[ "$(cat "$c"/src/*.rs "$c"/tests/*.rs 2>/dev/null | grep -c '#\[test\]')" -ge 4 ]]
+}
+if [[ "$GROUP" == "kafka" || "$GROUP" == "rust" ]]; then
+  if [[ "$GROUP" == "kafka" ]]; then
+    command -v gradle >/dev/null 2>&1 || fail_preflight "--suite kafka needs gradle (and JDK 21) on PATH" "The kafka suite is local-only: install JDK 21 and gradle (not in .mise.toml)."
+    # Kotlin 2.1 cannot run on the newest JDKs. Exported, so the agent's own
+    # gradle calls get the same JDK as the evaluator's.
+    JAVA_HOME="${NAV_PILOT_JAVA_HOME:-$(mise where java@21 2>/dev/null || echo "${JAVA_HOME:-}")}"
+    export JAVA_HOME
+    checks="kf_konsument kf_hendelse"
+  else
+    command -v cargo >/dev/null 2>&1 || fail_preflight "--suite rust needs cargo on PATH" "The rust suite is local-only: install cargo (not in .mise.toml)."
+    checks="rs_saksko rs_parser"
+  fi
+  cp -R "$GF/$GROUP/workspace/." "$TEMPLATE/"
+  # Three controls per check: the pristine fixture fails, the known fix
+  # passes (else the toolchain fails every run), the tempting wrong fix fails.
+  for mode in good wrong; do
+    rm -rf "$WORKDIR/control"
+    cp -R "$TEMPLATE" "$WORKDIR/control"
+    cp -R "$GF/$GROUP/controls/$mode/." "$WORKDIR/control/"
+    for t in $checks; do
+      if [[ "$mode" == good ]]; then
+        "$t" "$WORKDIR/control" || fail_preflight "control: $t fails even with the known fix applied" \
+          "The toolchain, not the model, would fail this run. Check gradle/JDK 21 or cargo, and network for the first dependency fetch."
+      else
+        ! "$t" "$WORKDIR/control" || fail_preflight "control: $t passes the known wrong fix" "The check cannot fail; tighten it."
+      fi
+    done
+  done
+  rm -rf "$WORKDIR/control"
+  for t in $checks; do
+    ! "$t" "$TEMPLATE" || fail_preflight "control: the pristine fixture already passes $t" "Plant the bug again."
+  done
+fi
+
 # Fixture identity, for the --compare compatibility check below. The sizes this
 # harness reports are sizes of answers about this fake repo, so they move when
 # the repo moves. .github/ is excluded on purpose: the persona and the
@@ -1090,6 +1248,7 @@ seed_ws
 ws_fingerprint() {
   ( cd "$WS" && find . \
       \( -path ./.gradle -o -path ./.kotlin -o -path ./build \) -prune -o \
+      \( -type d \( -name .gradle -o -name .kotlin -o -name build -o -name target \) -path './*/*' \) -prune -o \
       -type f -exec cksum {} + 2>/dev/null | sort )
 }
 
@@ -1134,6 +1293,15 @@ RUN=1
 # Transcript path for a prompt in the current run. Repeats must not overwrite
 # each other: --keep has to leave all N samples behind for inspection.
 tx() { printf '%s/%s.run%s.txt' "$WORKDIR" "$1" "$RUN"; }
+# svar <transcript>: writes the agent's answer without the client's tool lines
+# (answer_lines in benchmark-sjekk.py, the same filter the review checks and
+# the committed transkripter/ use) and prints its path. Planning checks read
+# the answer, so a question or a privacy word in a file the agent opened
+# cannot pass them (GPT-6 Luna t7b run 4, PR #1459). Checks on tool calls
+# (RE_FASE2_WORK, RE_OPUS) keep reading the raw transcript.
+# The file is written by run_prompt; a filter that fails there makes the run a
+# harness error, never an empty answer that every absent() check would pass.
+svar() { printf '%s' "${1%.txt}.svar.txt"; }
 
 run_tag() { [[ "$REPEAT" -gt 1 ]] && printf '%s[run %s/%s]%s ' "$DIM" "$RUN" "$REPEAT" "$RESET"; return 0; }
 
@@ -1199,13 +1367,35 @@ run_prompt() {
   LAST_PROMPT_DETAIL=""
   LAST_PROMPT_FAILURE=""
   out="$(tx "$slug")"
-  local -a args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
-  [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
-  [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
-  [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
+  # PROMPT_COMMAND invokes a skill the way a user's slash command does.
+  local -a args
+  if [[ "$CLIENT" == opencode ]]; then
+    if [[ -n "$session" ]]; then
+      LAST_PROMPT_DETAIL="--client opencode runs single turns only"
+      LAST_PROMPT_FAILURE="cli_failure"
+      return 1
+    fi
+    args=(run --auto --agent "$LAUNCH_NAME" -m "$OC_MODEL")  # --auto: same as --allow-all-tools
+    [[ -n "$EFFORT" ]] && args+=(--variant "$EFFORT")
+    if [[ -n "${PROMPT_COMMAND:-}" ]]; then
+      if [[ ! -f "$OC_CFG/skills/$PROMPT_COMMAND/SKILL.md" ]]; then
+        LAST_PROMPT_DETAIL="skill '$PROMPT_COMMAND' is not installed; opencode would fail with UnknownError"
+        LAST_PROMPT_FAILURE="cli_failure"
+        return 1
+      fi
+      args+=(--command "$PROMPT_COMMAND")
+    fi
+    args+=("$prompt")
+  else
+    [[ -n "${PROMPT_COMMAND:-}" ]] && prompt="/$PROMPT_COMMAND $prompt"
+    args=(-p "$prompt" --agent "$LAUNCH_NAME" --allow-all-tools --no-color --log-level none)
+    [[ -n "$MODEL" ]] && args+=(--model "$MODEL")
+    [[ -n "$EFFORT" ]] && args+=(--reasoning-effort "$EFFORT")
+    [[ -n "$CONTEXT_TIER" ]] && args+=(--context "$CONTEXT_TIER")
+  fi
 
   local continuing=false
-  if [[ -z "$session" ]]; then
+  if [[ -z "$session" && "$CLIENT" != opencode ]]; then
     session="$(new_session_id)"
   fi
   if [[ -n "$session" ]]; then
@@ -1218,7 +1408,15 @@ run_prompt() {
 
   # Fresh repo per prompt. Several of the prompts below tell the agent to edit
   # this workspace, so without this the second sample of t1 finds no typo.
-  $continuing || seed_ws
+  # WS_EXTRA names a function that adds a per-test fixture on top of the
+  # template (test 7). Kept out of $TEMPLATE so FIXTURE_SUM and every recorded
+  # baseline stay comparable.
+  if ! $continuing && ! { seed_ws && { [[ -z "${WS_EXTRA:-}" ]] || "$WS_EXTRA"; }; }; then
+    # A half-built fixture would be measured as if it were the real one.
+    LAST_PROMPT_DETAIL="fixture setup failed (${WS_EXTRA:-seed_ws}), no model call made"
+    LAST_PROMPT_FAILURE="cli_failure"
+    return 1
+  fi
   ws_fingerprint >"$FP_BEFORE"
   # Same lifetime as FP_BEFORE/FP_AFTER: describes the most recent call only.
   [[ -n "$HOOK_LOG" ]] && : >"$HOOK_LOG"
@@ -1245,7 +1443,7 @@ run_prompt() {
   # written literally in the source, so an expanded "${HOOK_ENV[@]}" would be
   # run as a command name (exit 127, no call made). `env` with no assignments
   # is a no-op, which is exactly the empty-HOOK_ENV case.
-  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
+  ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${OC_ENV[@]+"${OC_ENV[@]}"} ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
   ended_ms="$(now_ms)"
   elapsed_ms=$((ended_ms - started_ms))
@@ -1295,6 +1493,13 @@ run_prompt() {
     return 1
   fi
 
+  if ! python3 "$BENCH_CHECK" svar "$out" >"${out%.txt}.svar.txt" 2>"${out%.txt}.svar.err"; then
+    rm -f "${out%.txt}.svar.txt"
+    LAST_PROMPT_DETAIL="harness error: could not strip tool output ($(head -c 200 "${out%.txt}.svar.err"))"
+    echo "${RED}✗ $slug: $LAST_PROMPT_DETAIL${RESET}" >&2
+    return 1
+  fi
+
   # Size is measured for every usable transcript, whatever the assertions then
   # say about it. A dead transcript is deliberately not measured: its length
   # describes the failure, not the persona.
@@ -1311,7 +1516,7 @@ record() {
   local id="$1" desc="$2" ok="$3" detail="${4:-}"
   if [[ "$ok" == "0" ]]; then
     echo "  ${GREEN}✓${RESET} ${BOLD}$id${RESET} $(run_tag)$desc"
-    printf '%s|%s|pass|%s|\n' "$id" "$RUN" "$desc" >>"$RESULTS_FILE"
+    printf '%s|%s|pass|%s|%s\n' "$id" "$RUN" "$desc" "$detail" >>"$RESULTS_FILE"
   else
     echo "  ${RED}✗${RESET} ${BOLD}$id${RESET} $(run_tag)$desc"
     [[ -n "$detail" ]] && echo "      ${DIM}$detail${RESET}"
@@ -1361,6 +1566,55 @@ record_soft() {
 # behaviour is not.
 present() { grep -qiE -- "$2" "$1"; }
 absent()  { ! grep -qiE -- "$2" "$1"; }
+
+# Blind spot #1 = Privacy, #2 = Access control (tests 3, 7, 7b). The *topic*,
+# in any phrasing the agent chooses.
+RE_BS1='personopplysning|persondata|personvern|fødselsnummer|GDPR|datakategori|behandlingsgrunnlag'
+RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
+
+# Test 7: a privacy or access question put TO THE USER, not a stated
+# assumption. Only sentences ending in `?` are searched, so «Personvern er
+# besvart av koden» and «Jeg legger til grunn at SokerDto inneholder
+# fødselsnummer» pass, while «Hvilke personopplysninger …?» and «Hvem leser
+# de to Kafka-temaene?» fail. Derived from the 2026-10-06 OpenCode/GPT-6 Sol
+# transcripts in docs/golden-baselines/.
+#
+# «Hvem leser/konsumerer/bruker/produserer …?» is a consumer question, and a
+# consumer question about format is compatibility (#6, #9), which the persona
+# is told to ask for a wire-format change. It counts as access only when the
+# same sentence says nothing about format. Privacy words, «tilgang» and
+# «klassifisering» always count. (Refined 2026-10-06 after the v2 run.)
+# «hvem bruker» counts as access, the same as in RE_BS2. The compat list is
+# narrow on purpose: «Hvem konsumerer fnr-feltet …?» and «Hvem leser topicen i
+# denne versjonen?» are still access questions.
+RE_ASK_PRIV='personopplysning|personvern|persondata|fødselsnummer|helseopplysning|GDPR|datakategori|behandlingsgrunnlag|klassifisering|fnr'
+RE_ASK_ACCESS='tilgang|hvem[[:space:]]+(kan|skal|leverer|kaller|bruker)'
+RE_ASK_WHO='hvem[[:space:]]+(leser|konsumerer|produserer)'
+RE_ASK_COMPAT='format|tåler|kompatib|feltrekkefølge|datoformat|felt(rekkefølge|navn)|json|som streng|til streng'
+# Security questions about keys and verification (test 8) are not access questions.
+RE_ASK_SEC='nøkkel|signatur|verifiser'
+# Test 8's positive gate is narrower: «Skal jeg fjerne signaturheaderne nå?»
+# names the signature but asks nothing about security.
+RE_ASK_SECQ='nøkkel|verifiser|avvis|usignert|feilmodus'
+# Prints the first privacy/access question to the user; status 0 if there is one.
+# Sentences: lines joined, `code spans` blanked (so no.nav.demo.X and a wrapped
+# question stay one sentence), split only on . ! ? followed by whitespace
+# (a markdown emphasis closer in between, as in «?** Tåler», still ends it).
+question_sentences() {
+  perl -0777 -ne 's/\s+/ /g; s/`[^`]*`/CODE/g; for (split /(?<=[.!?])[*_]*\s+/) { print "$_\n" if /\?\W*$/ }' "$1"
+}
+# Test 8's gate only: question sentences plus indirect ones («Jeg trenger
+# også å vite hva …», «Jeg må avklare …»). Kept apart from question_sentences
+# so asks_privacy does not flag more.
+security_sentences() {
+  perl -0777 -ne 's/\s+/ /g; s/`[^`]*`/CODE/g; for (split /(?<=[.!?])[*_]*\s+/) { print "$_\n" if /\?\W*$/ || /trenger (også )?å vite|må avklare/i }' "$1"
+}
+asks_privacy() {
+  question_sentences "$1" | awk -v p="$RE_ASK_PRIV" -v a="$RE_ASK_ACCESS" -v w="$RE_ASK_WHO" -v c="$RE_ASK_COMPAT" -v s="$RE_ASK_SEC|$RE_ASK_SECQ" '
+    { l = tolower($0) }
+    l ~ tolower(p) || (l ~ tolower(a) && l !~ tolower(s)) || (l ~ tolower(w) && l !~ tolower(c) && l !~ tolower(s)) { print; found = 1; exit }
+    END { exit !found }'
+}
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
@@ -1770,6 +2024,7 @@ run_pass_nav_pilot() {
       if selected 2b; then record_error 2b "$DESC2B" "$LAST_PROMPT_DETAIL"; fi
       if selected 3; then record_error 3 "$DESC3" "$LAST_PROMPT_DETAIL"; fi
     else
+      A2="$(svar "$T2")"
       if selected 2; then
         # Invariant: PHASE INTEGRITY, "STOP after each phase […] wait for explicit
         # user confirmation", and Boundaries → 🚫 Never, "Do work belonging to a
@@ -1777,7 +2032,7 @@ run_pass_nav_pilot() {
         # Order matters. Later-phase work is the strongest failure signal. If
         # there is no write or explicit Fase 2 work, the question count decides
         # whether an interview happened; a heading is formatting, not behaviour.
-        q="$(count_of "$T2" '[?]')"
+        q="$(count_of "$A2" '[?]')"
         ok=0; detail=""
         # ⚠️  THE WORKSPACE FIRST, THE TRANSCRIPT SECOND (#583).
         # RE_FASE2_WORK below keys on `^● Edit|Create|Write|…`, which is the
@@ -1820,7 +2075,7 @@ run_pass_nav_pilot() {
         # SOFT. See the block comment above tests 2 + 2b. `--only 2` keeps
         # reporting both parts of the split, and `--only 2b` asks for this part
         # alone; an ID that preflight accepts has to reach the code that runs it.
-        if absent "$T2" "$RE_BLINDSPOT_AUDIT"; then
+        if absent "$A2" "$RE_BLINDSPOT_AUDIT"; then
           record_soft 2b "$DESC2B" 1 "no blind-spot audit count (want: $RE_BLINDSPOT_AUDIT)"
         else
           record_soft 2b "$DESC2B" 0
@@ -1830,12 +2085,10 @@ run_pass_nav_pilot() {
       if selected 3; then
         # Blind spot #1 = Privacy, #2 = Access control. Assert the *topic* is
         # raised, in any phrasing the agent chooses.
-        RE_BS1='personopplysning|persondata|personvern|GDPR|datakategori|behandlingsgrunnlag'
-        RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]]+bruker|innbygger|saksbehandler|autorisasjon'
         ok=0; detail=""
-        if ! present "$T2" "$RE_BS1"; then
+        if ! present "$A2" "$RE_BS1"; then
           ok=1; detail="blind spot #1 (personvern) not raised"
-        elif ! present "$T2" "$RE_BS2"; then
+        elif ! present "$A2" "$RE_BS2"; then
           ok=1; detail="blind spot #2 (tilgangskontroll) not raised"
         fi
         record 3 "$DESC3" "$ok" "$detail"
@@ -1886,15 +2139,15 @@ run_pass_nav_pilot() {
     elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
         "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turn 2 answered an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
-    elif [[ "$(count_of "$T4A" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
+    elif [[ "$(count_of "$(svar "$T4A")" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
       record_error 4 "$DESC4" \
         "turn 1 asked fewer than $MIN_OPEN_QUESTIONS questions and did no Fase 2 tool work, so there is no completed interview for turn 2 to answer. This is the same phase-stop regression test 2 reports; re-run with --keep and read t4a."
     elif ! run_prompt t4b "$T4_ANSWERS" "$S4"; then
       record_error 4 "$DESC4" "turn 2 (svar): $LAST_PROMPT_DETAIL"
-    elif ! present "$T4B" "$RE_FASE2_PLAN"; then
+    elif ! present "$(svar "$T4B")" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
         "turn 2 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close or the session did not carry turn 1. Re-run with --keep and read t4a and t4b in order."
-    elif ! present "$T4B" "$RE_T4_RED_ZONE"; then
+    elif ! present "$(svar "$T4B")" "$RE_T4_RED_ZONE"; then
       record 4 "$DESC4" 1 \
         "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: $RE_T4_RED_ZONE) — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not."
     else
@@ -1916,10 +2169,10 @@ run_pass_nav_pilot() {
     if ! run_prompt t5 "tjeneste A kaller tjeneste B med brukerkontekst — hvilken auth?"; then
       record_error 5 "$DESC5" "$LAST_PROMPT_DETAIL"
     else
-      ok=0; detail=""
-      if ! present "$T5" 'TokenX'; then
+      ok=0; detail=""; A5="$(svar "$T5")"
+      if ! present "$A5" 'TokenX'; then
         ok=1; detail="TokenX never mentioned — the auth decision tree may have been cut too far"
-      elif recommends_client_credentials "$T5"; then
+      elif recommends_client_credentials "$A5"; then
         ok=1; detail="response appears to recommend Azure client_credentials for a user-context call"
       fi
       record 5 "$DESC5" "$ok" "$detail"
@@ -1990,6 +2243,695 @@ run_pass_nav_pilot() {
       record 6 "$DESC6" 0
     fi
   fi
+
+  # ── Tests 7 + 7b — privacy questions follow data-flow changes, not size ─────
+  # Invariant: `### Fase 1` — privacy is verified when the change adds or alters
+  # a data flow, field, recipient, log point or access path; a technical change
+  # gets a silent self-check. Users told nav-pilot to "ignore personvern" on a
+  # Jackson 3 migration, which teaches them to wave the question away.
+  # 7 is the false positive (pure library migration, DTO already holds fnr),
+  # 7b the control on the same fixture (fnr added to a Kafka message), so a
+  # persona that stops asking altogether fails 7b instead of passing 7.
+  if selected 7 || selected 7b; then
+    if selected 7; then
+      DESC7="Jackson 2→3 migration: no privacy or access-control interview"
+      T7="$(tx t7)"
+      WS_EXTRA=seed_jackson_branch
+      # As reported: a fresh session, the skill invoked as a slash command.
+      PROMPT_COMMAND=jackson-3-migration
+      run_prompt t7 "Evaluer jackson 3 migrering i denne branchen"; rc7=$?
+      PROMPT_COMMAND=""
+      if [[ $rc7 -ne 0 ]]; then
+        record_error 7 "$DESC7" "$LAST_PROMPT_DETAIL"
+      elif q7="$(asks_privacy "$(svar "$T7")")"; then
+        record 7 "$DESC7" 1 "asked the user about personvern or tilgang on a library migration: $(cut -c1-160 <<<"$q7")"
+      else
+        record 7 "$DESC7" 0
+      fi
+    fi
+    if selected 7b; then
+      DESC7B="fnr added to a Kafka message: privacy raised (control for 7)"
+      T7B="$(tx t7b)"
+      WS_EXTRA=seed_jackson_fixture
+      if ! run_prompt t7b "legg til fnr i SoknadMottattMelding som sendes på Kafka-topicen soknad-mottatt"; then
+        record_error 7b "$DESC7B" "$LAST_PROMPT_DETAIL"
+      elif ! present "$(svar "$T7B")" "$RE_BS1"; then
+        record 7b "$DESC7B" 1 "blind spot #1 (personvern) not raised for a new fnr field on Kafka"
+      else
+        record 7b "$DESC7B" 0
+      fi
+    fi
+    WS_EXTRA=""
+  fi
+
+  # ── Test 8 — signature headers on an unchanged payload are not a data field ──
+  # Invariant: `### Fase 1` — headers and metadata on an unchanged payload to
+  # unchanged recipients trigger neither #1 nor #2; security-critical code gets
+  # security questions. Reported 2026-10-07: a user asked to strip old signing
+  # headers before re-signing and got a personvern and tilgang interview.
+  # The fixture carries fnr on Kafka so the privacy signals are there to misread.
+  # A response that only asks for the reference implementation fails 8: the
+  # RE_ASK_SECQ gate requires at least one real security question.
+  # 8b's prompt says «fnr», not «fødselsnummer»: RE_BS1 matches the latter, and
+  # an answer that echoes the prompt would otherwise pass without raising #1.
+  # 8b is the control on the same fixture: fnr in a header is a new field.
+  if selected 8; then
+    DESC8="strip old signing headers: Fase 1 stop with a security question, no privacy or access interview"
+    T8="$(tx t8)"
+    WS_EXTRA=seed_signing_fixture
+    run_prompt t8 "I paw sitt intern monorep har vi fikset signeringen slik at selve signeringsprosessen selv fjerner eksisterende signeringsheaders før den legge på ny. Implementere dette i dette repoet også."; rc8=$?
+    WS_EXTRA=""
+    if [[ $rc8 -ne 0 ]]; then
+      record_error 8 "$DESC8" "$LAST_PROMPT_DETAIL"
+    elif q8="$(asks_privacy "$(svar "$T8")")"; then
+      record 8 "$DESC8" 1 "asked the user about personvern or tilgang on a header-only change: $(cut -c1-160 <<<"$q8")"
+    elif ws_wrote; then
+      # Security-critical code is Full tier: Fase 1 stops before editing.
+      # Read off the fingerprint, so a shell write counts like an edit call.
+      record 8 "$DESC8" 1 "edited signing code without a Fase 1 stop: $(ws_written_files)"
+    elif ! security_sentences "$(svar "$T8")" | grep -qiE -- "$RE_ASK_SECQ"; then
+      record 8 "$DESC8" 1 "stopped but asked no security question (nøkkel, verifisering, avvisning, usignert, feilmodus)"
+    else
+      record 8 "$DESC8" 0
+    fi
+  fi
+  if selected 8b; then
+    DESC8B="fnr added as a Kafka header: privacy raised (control for 8)"
+    T8B="$(tx t8b)"
+    WS_EXTRA=seed_signing_fixture
+    run_prompt t8b "legg fnr i en header på recordene for sporing, ved siden av signaturheaderne"; rc8b=$?
+    WS_EXTRA=""
+    if [[ $rc8b -ne 0 ]]; then
+      record_error 8b "$DESC8B" "$LAST_PROMPT_DETAIL"
+    # The «Blindsoner reist» count line names #1 without raising it.
+    elif ! grep -v 'Blindsoner reist' "$(svar "$T8B")" | grep -qiE -- "$RE_BS1"; then
+      record 8b "$DESC8B" 1 "blind spot #1 (personvern) not raised for fnr in a Kafka header"
+    else
+      record 8b "$DESC8B" 0
+    fi
+  fi
+}
+
+# Test 8 fixture: a Kafka signing interceptor that appends headers without
+# stripping old ones, the strip helper it should use, and a DTO with fnr.
+seed_signing_fixture() {
+  local d="$WS/lib/kafka-signing/src/main/kotlin/no/nav/paw/signing"
+  mkdir -p "$d" || return 1
+  cat >"$d/SigningHeaders.kt" <<'EOF'
+package no.nav.paw.signing
+
+import org.apache.kafka.common.header.Headers
+
+const val SIGNATURE_HEADER = "x-paw-signature"
+const val KEY_ID_HEADER = "x-paw-signing-key-id"
+
+fun stripSigningHeaders(headers: Headers) {
+    headers.remove(SIGNATURE_HEADER)
+    headers.remove(KEY_ID_HEADER)
+}
+EOF
+  cat >"$d/SigningProducerInterceptor.kt" <<'EOF'
+package no.nav.paw.signing
+
+import org.apache.kafka.clients.producer.ProducerInterceptor
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.RecordMetadata
+
+class SigningProducerInterceptor(private val signer: Signer) : ProducerInterceptor<ByteArray, ByteArray> {
+    override fun onSend(record: ProducerRecord<ByteArray, ByteArray>): ProducerRecord<ByteArray, ByteArray> {
+        val signature = signer.sign(record.value())
+        record.headers().add(SIGNATURE_HEADER, signature)
+        record.headers().add(KEY_ID_HEADER, signer.keyId.toByteArray())
+        return record
+    }
+    override fun onAcknowledgement(metadata: RecordMetadata?, exception: Exception?) {}
+    override fun close() {}
+    override fun configure(configs: MutableMap<String, *>?) {}
+}
+
+interface Signer {
+    val keyId: String
+    fun sign(payload: ByteArray): ByteArray
+}
+EOF
+  cat >"$d/Periode.kt" <<'EOF'
+package no.nav.paw.signing
+
+// Sent on Kafka topic paw.arbeidssokerperioder, signed by SigningProducerInterceptor.
+data class Periode(val id: String, val fnr: String, val startet: String)
+EOF
+}
+
+# Test 7/7b fixture: Jackson 2 on the classpath, a REST DTO that already carries
+# fnr, and a Kafka message that does not.
+seed_jackson_fixture() {
+  [[ -f "$WS/build.gradle.kts" && -d "$WS/src/main/kotlin/no/nav/demo" ]] || return 1
+  cat >>"$WS/build.gradle.kts" <<'EOF'
+dependencies {
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2")
+    implementation("org.apache.kafka:kafka-clients:3.9.0")
+}
+EOF
+  cat >"$WS/src/main/kotlin/no/nav/demo/Soknad.kt" <<'EOF'
+package no.nav.demo
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import java.time.LocalDate
+
+data class SokerDto(val fnr: String, val navn: String)
+
+data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+
+val mapper: ObjectMapper = jacksonObjectMapper()
+    .findAndRegisterModules()
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+
+fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, mapper.writeValueAsString(melding)))
+}
+
+fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+}
+EOF
+}
+
+# Test 7: the same fixture committed on main, with the migration to Jackson 3
+# already done on the branch jackson-3 — the case users reported: asked to
+# evaluate a finished migration, the agent opened a privacy interview.
+seed_jackson_branch() {
+  seed_jackson_fixture || return 1
+  (
+    set -e
+    cd "$WS"
+    g() { git -c user.name=golden -c user.email=golden@example.invalid "$@" >/dev/null 2>&1; }
+    # One step per line: set -e ignores a failure inside an && list.
+    g init -b main
+    g add -A
+    g commit -m "Jackson 2"
+    g switch -c jackson-3
+    sed -i.bak -e 's/com\.fasterxml\.jackson\.core:jackson-databind:2\.18\.2/tools.jackson.core:jackson-databind:3.1.0/' \
+      -e 's/com\.fasterxml\.jackson\.module:jackson-module-kotlin:2\.18\.2/tools.jackson.module:jackson-module-kotlin:3.1.0/' \
+      -e '/jackson-datatype-jsr310/d' build.gradle.kts
+    cat >src/main/kotlin/no/nav/demo/Soknad.kt <<'EOF'
+package no.nav.demo
+
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.module.kotlin.kotlinModule
+import tools.jackson.module.kotlin.readValue
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import java.time.LocalDate
+
+data class SokerDto(val fnr: String, val navn: String)
+
+data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+
+val mapper: JsonMapper = JsonMapper.builder()
+    .addModule(kotlinModule())
+    .build()
+
+fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, mapper.writeValueAsString(melding)))
+}
+
+fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+}
+EOF
+    rm -f build.gradle.kts.bak
+    g add -A
+    g commit -m "Migrer til Jackson 3"
+  )
+}
+
+# rv5-rv7 fixture: the code-review template committed on main, and an 8-file
+# Kafka/vedtak feature on the branch vedtak-kafka. Planted, by file and line
+# (RV_PR, RV_DESIGN and RV_PRIO hold the same numbers; change them together):
+#   VedtakService.kt:5         unused import, the nit rv7 must not escalate
+#   VedtakService.kt:15        log.info("behandler $fnr")
+#   VedtakRepository.kt:23     SQL built by string concatenation
+#   VedtakRepository.kt:14     INSERT with no ON CONFLICT, run under retry(3)
+#   VedtakConsumer.kt:25,32-33 insert, then producer.send: no transaction, no outbox
+#   Routes.kt:30               GET /api/vedtak/{fnr} outside authenticate("tokenx")
+#   Routes.kt:32               the route calls the repository, not the service
+#                              (planted, not asserted: see RV_DESIGN)
+#   nais.yaml:25-26            accessPolicy.inbound allows every application
+# All data is synthetic: no fnr value appears anywhere.
+seed_vedtak_branch() {
+  [[ -f "$WS/src/main/kotlin/no/nav/demo/UserRepo.kt" ]] || return 1
+  (
+    set -e
+    cd "$WS"
+    g() { git -c user.name=golden -c user.email=golden@example.invalid "$@" >/dev/null 2>&1; }
+    g init -b main
+    g add -A
+    g commit -m "Oppgave-API"
+    g switch -c vedtak-kafka
+    mkdir -p src/main/kotlin/no/nav/demo/vedtak
+    cat >>build.gradle.kts <<'EOF'
+dependencies {
+    implementation("io.ktor:ktor-server-auth:3.0.0")
+    implementation("io.ktor:ktor-server-auth-jwt:3.0.0")
+    implementation("org.apache.kafka:kafka-clients:3.9.0")
+    implementation("com.github.seratch:kotliquery:1.9.0")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("com.zaxxer:HikariCP:6.2.1")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
+}
+EOF
+    cat >>nais.yaml <<'EOF'
+  tokenx:
+    enabled: true
+  kafka:
+    pool: nav-dev
+  gcp:
+    sqlInstances:
+      - type: POSTGRES_17
+        databases:
+          - name: vedtak
+  accessPolicy:
+    inbound:
+      rules:
+        - application: "*"
+          namespace: "*"
+    outbound:
+      rules:
+        - application: logging
+          namespace: nais-system
+EOF
+    cat >src/main/kotlin/no/nav/demo/vedtak/Vedtak.kt <<'EOF'
+package no.nav.demo.vedtak
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import java.time.LocalDate
+
+@Serializable
+enum class Utfall { INNVILGET, AVSLATT, DELVIS_INNVILGET }
+
+@Serializable
+data class FattVedtakRequest(
+    val fnr: String,
+    val sakId: String,
+    val utfall: Utfall,
+)
+
+@Serializable
+data class Vedtak(
+    val vedtakId: String,
+    val sakId: String,
+    val fnr: String,
+    val utfall: Utfall,
+    @Serializable(with = LocalDateSerializer::class)
+    val vedtaksdato: LocalDate,
+)
+
+@Serializable
+data class SoknadBehandletMelding(
+    val soknadId: String,
+    val sakId: String,
+    val fnr: String,
+    val utfall: Utfall,
+)
+
+@Serializable
+data class VedtakFattetMelding(
+    val vedtakId: String,
+    val sakId: String,
+    val utfall: Utfall,
+    val vedtaksdato: String,
+)
+
+fun Vedtak.tilMelding() = VedtakFattetMelding(
+    vedtakId = vedtakId,
+    sakId = sakId,
+    utfall = utfall,
+    vedtaksdato = vedtaksdato.toString(),
+)
+
+object LocalDateSerializer : KSerializer<LocalDate> {
+    override val descriptor = PrimitiveSerialDescriptor("LocalDate", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: LocalDate) = encoder.encodeString(value.toString())
+
+    override fun deserialize(decoder: Decoder): LocalDate = LocalDate.parse(decoder.decodeString())
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt <<'EOF'
+package no.nav.demo.vedtak
+
+import kotliquery.Row
+import kotliquery.queryOf
+import kotliquery.sessionOf
+import javax.sql.DataSource
+
+class VedtakRepository(private val dataSource: DataSource) {
+
+    fun lagre(vedtak: Vedtak) {
+        sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf(
+                    "INSERT INTO vedtak (vedtak_id, sak_id, fnr, utfall, vedtaksdato) VALUES (?, ?, ?, ?, ?)",
+                    vedtak.vedtakId, vedtak.sakId, vedtak.fnr, vedtak.utfall.name, vedtak.vedtaksdato,
+                ).asUpdate,
+            )
+        }
+    }
+
+    fun hentForPerson(fnr: String): List<Vedtak> =
+        sessionOf(dataSource).use { session ->
+            val sql = "SELECT * FROM vedtak WHERE fnr = '" + fnr + "' ORDER BY vedtaksdato DESC"
+            session.run(queryOf(sql).map(::tilVedtak).asList)
+        }
+
+    fun hentForSak(sakId: String): Vedtak? =
+        sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf("SELECT * FROM vedtak WHERE sak_id = ?", sakId)
+                    .map(::tilVedtak)
+                    .asSingle,
+            )
+        }
+
+    private fun tilVedtak(row: Row) = Vedtak(
+        vedtakId = row.string("vedtak_id"),
+        sakId = row.string("sak_id"),
+        fnr = row.string("fnr"),
+        utfall = Utfall.valueOf(row.string("utfall")),
+        vedtaksdato = row.localDate("vedtaksdato"),
+    )
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt <<'EOF'
+package no.nav.demo.vedtak
+
+import org.slf4j.LoggerFactory
+import java.time.LocalDate
+import java.util.Locale
+
+class VedtakService(
+    private val repository: VedtakRepository,
+    private val idGenerator: () -> String,
+) {
+    private val log = LoggerFactory.getLogger(VedtakService::class.java)
+
+    fun fattVedtak(fnr: String, sakId: String, utfall: Utfall): Vedtak {
+        require(sakId.isNotBlank()) { "sakId mangler" }
+        log.info("behandler $fnr")
+        val vedtak = Vedtak(
+            vedtakId = idGenerator(),
+            sakId = sakId,
+            fnr = fnr,
+            utfall = utfall,
+            vedtaksdato = LocalDate.now(),
+        )
+        repository.lagre(vedtak)
+        log.info("Vedtak {} fattet for sak {}", vedtak.vedtakId, sakId)
+        return vedtak
+    }
+
+    fun hentVedtak(sakId: String): Vedtak? = repository.hentForSak(sakId)
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt <<'EOF'
+package no.nav.demo.vedtak
+
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.slf4j.LoggerFactory
+import java.time.Duration
+
+class VedtakConsumer(
+    private val consumer: KafkaConsumer<String, String>,
+    private val producer: KafkaProducer<String, String>,
+    private val service: VedtakService,
+) {
+    private val log = LoggerFactory.getLogger(VedtakConsumer::class.java)
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun start() {
+        consumer.subscribe(listOf("soknad-behandlet"))
+        while (true) {
+            val records = consumer.poll(Duration.ofSeconds(1))
+            for (record in records) {
+                val melding = json.decodeFromString<SoknadBehandletMelding>(record.value())
+                retry(3) { behandle(melding) }
+            }
+            consumer.commitSync()
+        }
+    }
+
+    private fun behandle(melding: SoknadBehandletMelding) {
+        val vedtak = service.fattVedtak(melding.fnr, melding.sakId, melding.utfall)
+        producer.send(ProducerRecord("vedtak-fattet", vedtak.sakId, json.encodeToString(vedtak.tilMelding()))).get()
+        log.info("Vedtak {} publisert", vedtak.vedtakId)
+    }
+
+    private fun retry(forsok: Int, blokk: () -> Unit) {
+        repeat(forsok - 1) { nr ->
+            try {
+                return blokk()
+            } catch (e: Exception) {
+                log.warn("Forsøk {} feilet, prøver igjen", nr + 1, e)
+                Thread.sleep(500L * (nr + 1))
+            }
+        }
+        blokk()
+    }
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/Routes.kt <<'EOF'
+package no.nav.demo
+
+import io.ktor.server.application.Application
+import io.ktor.server.auth.authenticate
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.routing
+import no.nav.demo.vedtak.FattVedtakRequest
+import no.nav.demo.vedtak.VedtakRepository
+import no.nav.demo.vedtak.VedtakService
+
+private val oppgaver = listOf(
+    Oppgave("1", "Registrer søknad"),
+    Oppgave("2", "Send vedtaksbrev"),
+)
+
+fun Application.oppgaveRoutes(service: VedtakService, repository: VedtakRepository) {
+    routing {
+        get("/api/oppgaver") {
+            call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+        }
+        authenticate("tokenx") {
+            post("/api/vedtak") {
+                val request = call.receive<FattVedtakRequest>()
+                call.respond(service.fattVedtak(request.fnr, request.sakId, request.utfall))
+            }
+        }
+        get("/api/vedtak/{fnr}") {
+            val fnr = call.parameters["fnr"]!!
+            call.respond(repository.hentForPerson(fnr))
+        }
+    }
+}
+EOF
+    cat >src/main/kotlin/no/nav/demo/App.kt <<'EOF'
+package no.nav.demo
+
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import no.nav.demo.vedtak.VedtakConsumer
+import no.nav.demo.vedtak.VedtakRepository
+import no.nav.demo.vedtak.VedtakService
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.producer.KafkaProducer
+import java.util.Properties
+import java.util.UUID
+import kotlin.concurrent.thread
+
+fun main() {
+    println("starter demo-tjeneste, maksAntall=$maksAntall")
+    val dataSource = HikariDataSource(HikariConfig().apply { jdbcUrl = System.getenv("DB_JDBC_URL") })
+    val repository = VedtakRepository(dataSource)
+    val service = VedtakService(repository) { UUID.randomUUID().toString() }
+    val kafka = Properties().apply {
+        put("bootstrap.servers", System.getenv("KAFKA_BROKERS"))
+        put("group.id", "demo-tjeneste")
+        put("enable.auto.commit", "false")
+        put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+        put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+        put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+        put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    }
+    val consumer = VedtakConsumer(KafkaConsumer(kafka), KafkaProducer(kafka), service)
+    thread(name = "vedtak-consumer") { consumer.start() }
+    embeddedServer(Netty, port = 8080) {
+        install(ContentNegotiation) { json() }
+        install(Authentication) {
+            jwt("tokenx") {
+                realm = "demo-tjeneste"
+                validate { credential -> credential.payload.audience?.let { credential } }
+            }
+        }
+        oppgaveRoutes(service, repository)
+    }.start(wait = true)
+}
+EOF
+    g add -A
+    g commit -m "Fatt vedtak fra Kafka og eksponer vedtak-API"
+  )
+}
+
+# rv8 fixture: one idiomatic service with nothing to escalate. Bait for a
+# reviewer that pattern-matches: SQL (parameterised), fnr (masked in the log),
+# an endpoint (behind tokenx) and a catch (logs and rethrows). The catch logs
+# only the exception class: in the 7 Oct runs it logged `e`, and the owner ruled
+# that a real privacy defect (a JDBC message can carry the fnr, #1443). rv8
+# runs before and after that change are not directly comparable.
+seed_sak_service() {
+  [[ -d "$WS/src/main/kotlin/no/nav/demo" ]] || return 1
+  mkdir -p "$WS/src/main/kotlin/no/nav/demo/sak"
+  # Without these the file does not compile, which is a real 🔴 (Opus check
+  # run, 7 Oct): the clean file must be clean in the build too.
+  cat >>"$WS/build.gradle.kts" <<'EOF'
+dependencies {
+    implementation("io.ktor:ktor-server-auth:3.0.0")
+    implementation("io.ktor:ktor-server-auth-jwt:3.0.0")
+    implementation("com.github.seratch:kotliquery:1.9.0")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
+    implementation("com.zaxxer:HikariCP:6.2.1")
+}
+EOF
+  # Wired up with a tokenx provider: an unregistered provider is a real 🔴
+  # (second Opus check run, 7 Oct).
+  cat >"$WS/src/main/kotlin/no/nav/demo/App.kt" <<'EOF'
+package no.nav.demo
+
+import com.auth0.jwk.JwkProviderBuilder
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.routing.routing
+import no.nav.demo.sak.SakRepository
+import no.nav.demo.sak.SakService
+import no.nav.demo.sak.sakRoutes
+import java.net.URI
+
+fun main() {
+    val dataSource = HikariDataSource(HikariConfig().apply { jdbcUrl = System.getenv("DB_JDBC_URL") })
+    val service = SakService(SakRepository(dataSource))
+    embeddedServer(Netty, port = 8080) {
+        install(ContentNegotiation) { json() }
+        install(Authentication) {
+            jwt("tokenx") {
+                verifier(JwkProviderBuilder(URI(System.getenv("TOKEN_X_JWKS_URI")).toURL()).build(), System.getenv("TOKEN_X_ISSUER")) {
+                    withAudience(System.getenv("TOKEN_X_CLIENT_ID"))
+                    withClaim("acr", "idporten-loa-high")
+                }
+                validate { credential -> JWTPrincipal(credential.payload) }
+            }
+        }
+        oppgaveRoutes()
+        routing { sakRoutes(service) }
+    }.start(wait = true)
+}
+EOF
+  cat >"$WS/src/main/kotlin/no/nav/demo/sak/SakService.kt" <<'EOF'
+package no.nav.demo.sak
+
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.principal
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
+import kotliquery.queryOf
+import kotliquery.sessionOf
+import kotlinx.serialization.Serializable
+import org.slf4j.LoggerFactory
+import javax.sql.DataSource
+
+@Serializable
+data class Sak(val sakId: String, val tema: String, val status: String)
+
+/** Skjuler hele fødselsnummeret i logger. */
+fun String.maskert(): String = "*".repeat(length)
+
+class SakRepository(private val dataSource: DataSource) {
+    fun hentForPerson(fnr: String): List<Sak> =
+        sessionOf(dataSource).use { session ->
+            session.run(
+                queryOf("SELECT sak_id, tema, status FROM sak WHERE fnr = ? ORDER BY opprettet DESC", fnr)
+                    .map { Sak(it.string("sak_id"), it.string("tema"), it.string("status")) }
+                    .asList,
+            )
+        }
+}
+
+class SakService(private val repository: SakRepository) {
+    private val log = LoggerFactory.getLogger(SakService::class.java)
+
+    fun sakerFor(fnr: String): List<Sak> {
+        log.info("Henter saker for {}", fnr.maskert())
+        return try {
+            repository.hentForPerson(fnr)
+        } catch (e: Exception) {
+            log.error("Kunne ikke hente saker: {}", e.javaClass.simpleName)
+            throw e
+        }
+    }
+}
+
+fun Route.sakRoutes(service: SakService) {
+    authenticate("tokenx") {
+        get("/api/saker") {
+            val fnr = call.principal<JWTPrincipal>()?.payload?.getClaim("pid")?.asString()
+            if (fnr == null) {
+                call.respond(HttpStatusCode.Unauthorized)
+                return@get
+            }
+            call.respond(service.sakerFor(fnr))
+        }
+    }
+}
+EOF
 }
 
 # ─── code-review ─────────────────────────────────────────────────────────────
@@ -2079,7 +3021,7 @@ RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
 # was added for GPT-6 Sol's «Alle databasefeil gjøres om til `null`» at 12–13,
 # a real find the catch expression missed in both of its first two runs.
 RV_KOTLIN=(
-  'sql=injeksjon|injection|parametr|parameteri|interpol|konkaten|prepared|bindevariab@9'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|interpol|konkaten|prepared|bindevariab@9'
   'fnr-logg=(logg|logger|log |info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@8'
   'catch=catch|svelg|swallow|fanger|feil.{0,40}null@12,13'
 )
@@ -2093,6 +3035,56 @@ DESC_RV1="Kotlin: all three planted defects named within three lines"
 DESC_RV2="Kotlin: every planted defect cited on its line"
 DESC_RV3="TSX: all four planted defects named within three lines"
 DESC_RV4="TSX: every planted defect cited on its line"
+
+# rv5-rv7: one review of an 8-file branch (seed_vedtak_branch). Line numbers
+# carry the file, so a right line in the wrong file is no finding. A location
+# is a file and a line number (#1443, `locations` in benchmark-sjekk.py): the
+# File and Line cells, or «Fil.kt:23» anywhere in the row. A YAML key in the
+# Line cell («nais.yaml | inbound») and a file named without a line in another
+# file's row cite no line. The same rule holds for every arm.
+RV_PR=(
+  'fnr-logg=(logg|logger|log|info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@VedtakService.kt:15'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
+  'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
+)
+# Derived from the Opus 5.5 Low pilot (3 runs, 7 Oct,
+# docs/golden-baselines/2026-10-07-review-suite-pilot/) and frozen before the
+# main runs. Opus named the duplicate vedtak under retry on VedtakConsumer.kt in
+# 3/3, citing 23–28 or 25, 32–33. It named the insert-then-send gap in 2/3, once
+# as a row at 34 and once only in prose («Alternativet er en outbox-tabell»), so
+# that one is matched anywhere in the answer. The route calling the repository
+# directly was named in 0/3 (two runs praised the layering), so it is not asserted:
+# a check the reference model never meets measures the fixture, not the model.
+# Rederived after the runs (#1443) from all 30 committed rv-pr transcripts of 7 Oct
+# (Opus 5.5, GPT-6 Luna, GPT-6.1 Sol): the Opus-only words missed the same
+# defects in GPT wording. idempotens is the concept «one message, more than
+# one vedtak» («Retry oppretter nye vedtak», «ny UUID per forsøk»);
+# dobbeltskriving is «the save succeeds and the publish fails» («Hvis
+# publiseringen feiler», «lagres før publisering», «feil etter
+# databaseinnsetting»). Rescored, the patterns pass every run the 7 Oct
+# classification (failures.psv) judged a find and fail every model miss.
+# #1453: the same concept in the other word order («retry etter feilet `send`»,
+# «Feiler `send` eller `commitSync`», «lagres før det publiseres»), from the
+# review-persona transcripts. Opus runs 4, 6 and 8 there still fail: they
+# never say the save can succeed while the publish fails.
+RV_DESIGN=(
+  'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)@VedtakConsumer.kt:25,32,33'
+  'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)@VedtakRepository.kt:14'
+  'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler|publiser\w* (feiler|mislykkes)|(?<![\wæøå])feil(er|et|ede|ende)\W{1,3}(producer\.)?(send\b|publiser)|(send|publish)\w*\W{1,3}(fails|failed)|(før|etter) (den |det )?(blir )?(kafka-)?publiser|uten å (være|bli) publisert|feil(er)? etter (database|db|lagring|innsetting|databaseinnsetting)@0'
+)
+# rv7: the SQL, access and nais.yaml inbound «*» findings are marked high;
+# the unused import is not. Only the Priority cell is read (#1443).
+RV_PRIO=(
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
+  'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
+  '!nit=ubrukt|unused|import|Locale@VedtakService.kt:5'
+)
+DESC_RV5="PR: security and privacy defects on the right line in the right file"
+DESC_RV6="PR: design defects named (idempotency under retry, insert-then-send)"
+DESC_RV7="PR: SQL and access findings marked high, the nit is not"
+DESC_RV8="clean service: no high-priority finding, says nothing is critical"
 
 # record_review <transcript> <found-id> <desc> <line-id> <desc> <spec>...
 record_review() {
@@ -2247,6 +3239,102 @@ run_pass_code_review() {
           "reviewed an Aksel/a11y file without naming @accessibility-agent or @aksel-agent, the owners at code-review.agent.md:40 and :42. Soft: the agent has no runSubagent and the target is not installed, so this is a want, not a regression"
       fi
     fi
+  fi
+
+  # ── rv5-rv7: a branch review across eight files ───────────────────────────────
+  if selected rv5 || selected rv6 || selected rv7; then
+    TPR="$(tx rv-pr)"
+    WS_EXTRA=seed_vedtak_branch
+    if ! run_prompt rv-pr "gjennomgå endringene i branchen vedtak-kafka mot main"; then
+      for id in rv5 rv6 rv7; do
+        selected "$id" && record_error "$id" "$(rv_desc "$id")" "$LAST_PROMPT_DETAIL"
+      done
+    else
+      rv_check rv5 linje "$TPR" "${RV_PR[@]}"
+      rv_check rv6 funnet "$TPR" "${RV_DESIGN[@]}"
+      rv_check rv7 prioritet "$TPR" "${RV_PRIO[@]}"
+    fi
+    WS_EXTRA=""
+  fi
+
+  # ── rv8: a clean service, where the right review raises nothing high ──────────
+  if selected rv8; then
+    TCLEAN="$(tx rv-clean)"
+    WS_EXTRA=seed_sak_service
+    if ! run_prompt rv-clean "gjennomgå src/main/kotlin/no/nav/demo/sak/SakService.kt"; then
+      record_error rv8 "$DESC_RV8" "$LAST_PROMPT_DETAIL"
+    else
+      rv_check rv8 taus "$TCLEAN"
+    fi
+    WS_EXTRA=""
+  fi
+}
+
+rv_desc() { local v="DESC_$(tr '[:lower:]' '[:upper:]' <<<"$1")"; printf '%s' "${!v}"; }
+
+# rv_check <id> <benchmark-sjekk mode> <transcript> [spec...]
+rv_check() {
+  local id="$1" mode="$2" why rc
+  shift 2
+  selected "$id" || return 0
+  why="$(python3 "$BENCH_CHECK" "$mode" "$@")"; rc=$?
+  record "$id" "$(rv_desc "$id")" "$([[ $rc -eq 0 ]] && echo 0 || echo 1)" "$why"
+}
+
+# ─── security-champion: planted security defects marked critical (sc1-sc3) ────
+# Derived from agents/security-champion.agent.md: «Security Considerations for
+# Auth» (validate issuer and audience; an open accessPolicy.inbound is a
+# critical finding) and `## Boundaries → 🚫 Never` (string-built SQL, logging
+# FNR). The fixture is seed_vedtak_branch, the same branch as rv5-rv7; its
+# App.kt:40-42 registers jwt("tokenx") with no verifier, and validate only
+# checks that an audience claim exists, not which one. Run with
+# `--agent security-champion`; it is not a --suite, so it stays out of
+# summary.json and /modeller (docs/modellvalg.md has the results).
+SC_PR=(
+  "${RV_PR[@]}"
+  'tokenx=audience|\baud\b|verifier|verify|signatur|signature|issuer|utsteder|jwks|tokenvalider|token-valider|validering av token|valideres ikke|ikke validert@App.kt:40,41,42'
+)
+# sc2 reads the finding, not its line. The Opus 5.5 Low pilot (7 Oct,
+# docs/golden-baselines/2026-10-07-security-champion-pilot/) cited no line
+# numbers at all («i `VedtakRepository.hentForPerson`»): the persona never asks
+# for them, so a line requirement would measure format. sc1 keeps file and line
+# and is reported; sc2 is the pre-committed criterion. Each regex names its
+# defect on its own, because there is no line to place it: the pilot's
+# ownership row («Enhver gyldig TokenX-bruker») must not count as tilgang.
+SC_CRIT=(
+  'fnr-logg=log\.info|behandler \$fnr|VedtakService\W.{0,60}\blogg|\blogg\w*\W.{0,60}VedtakService|(fnr|fødselsnummer)\w* (logges|i (applikasjons)?logg)@0'
+  'sql=injeksjon|injection|konkaten|concat|sammensl|rett inn i (sql|spørring)|direkte inn i (sql|spørring)@0'
+  'tilgang=/api/vedtak/\{fnr\}.{0,80}(autentiser|authenticate|tilgang|beskytt)|utenfor .{0,30}authenticate|ingen autentisering|uten autentisering|uautentisert|ubeskyttet@0'
+  'inbound=inbound|accesspolicy@0'
+  'tokenx=audience|\baud\b|verifier|issuer|utsteder|jwks|signatur|signature@0'
+)
+DESC_SC1="branch: every planted security defect on the right line in the right file"
+DESC_SC2="branch: every planted security defect named and marked critical"
+DESC_SC3="clean service: no finding marked critical"
+
+run_pass_security_champion() {
+  if selected sc1 || selected sc2; then
+    TSC="$(tx sc-pr)"
+    WS_EXTRA=seed_vedtak_branch
+    if ! run_prompt sc-pr "gjør en sikkerhetsgjennomgang av endringene i branchen vedtak-kafka mot main"; then
+      for id in sc1 sc2; do
+        selected "$id" && record_error "$id" "$(rv_desc "$id")" "$LAST_PROMPT_DETAIL"
+      done
+    else
+      rv_check sc1 linje "$TSC" "${SC_PR[@]}"
+      rv_check sc2 kritisk "$TSC" "${SC_CRIT[@]}"
+    fi
+    WS_EXTRA=""
+  fi
+  if selected sc3; then
+    TSCC="$(tx sc-clean)"
+    WS_EXTRA=seed_sak_service
+    if ! run_prompt sc-clean "gjør en sikkerhetsgjennomgang av src/main/kotlin/no/nav/demo/sak/SakService.kt"; then
+      record_error sc3 "$DESC_SC3" "$LAST_PROMPT_DETAIL"
+    else
+      rv_check sc3 kritiske "$TSCC"
+    fi
+    WS_EXTRA=""
   fi
 }
 
@@ -2539,6 +3627,57 @@ coding_task() {
   fi
 }
 
+# ─── kafka and rust suites: the agents fix realistic tasks (kf1-kf4, rs1-rs4) ─
+# agent_task <slug> <prompt> <check fn> <project> <id> <desc> <id> <desc>
+# The check runs the evaluator's hidden tests; scope is every changed file
+# inside <project>/, so adding tests is fine and touching anything else is not.
+agent_task() {
+  local slug="$1" prompt="$2" check="$3" proj="$4"
+  local id_ok="$5" d_ok="$6" id_scope="$7" d_scope="$8" written f outside=""
+  selected "$id_ok" || selected "$id_scope" || return 0
+  if ! run_prompt "$slug" "$prompt"; then
+    selected "$id_ok" && record_error "$id_ok" "$d_ok" "$LAST_PROMPT_DETAIL"
+    selected "$id_scope" && record_error "$id_scope" "$d_scope" "$LAST_PROMPT_DETAIL"
+    return 0
+  fi
+  if selected "$id_scope"; then
+    written="$(ws_written_files)"
+    for f in $written; do [[ "$f" == "./$proj/"* ]] || outside+="$f "; done
+    if [[ -z "$written" ]]; then
+      record "$id_scope" "$d_scope" 1 "changed nothing"
+    elif [[ -n "$outside" ]]; then
+      record "$id_scope" "$d_scope" 1 "changed outside $proj/: ${outside% }"
+    else
+      record "$id_scope" "$d_scope" 0
+    fi
+  fi
+  if selected "$id_ok"; then
+    if "$check" "$WS"; then
+      record "$id_ok" "$d_ok" 0
+    else
+      record "$id_ok" "$d_ok" 1 "the evaluator's tests or checks fail after the run"
+    fi
+  fi
+}
+
+run_pass_kafka() {
+  agent_task kf-idem "Vi har fått doble utbetalinger. Når konsumenten i vedtak-konsument/ leser samme melding på nytt, for eksempel etter en rebalansering, utbetales vedtaket to ganger. Og hvis utbetalingen feiler, er offset allerede commitet, så meldingen blir aldri behandlet. Rett VedtakKonsument slik at samme eventId bare utbetales én gang, og slik at offset først commites når meldingene er behandlet. Konstruktøren skal fortsatt kunne kalles med bare consumer og utbetaling. Bygg og test med gradle test i vedtak-konsument/." \
+    kf_konsument vedtak-konsument \
+    kf1 "Kafka idempotency: hidden tests pass (dedup, commit after processing)" kf2 "Kafka idempotency: changes only inside vedtak-konsument/"
+  agent_task kf-felt "Legg til feltet sakstype i hendelsen VedtakFattet i vedtak-hendelse/. Gyldige verdier er ORDINAER, KLAGE og ANKE. Meldinger som allerede ligger på topicen har ikke feltet, og de skal leses som ORDINAER. Konsumentene våre må også tåle at en nyere produsent legger til felt vi ikke kjenner. Bygg og test med gradle test i vedtak-hendelse/." \
+    kf_hendelse vedtak-hendelse \
+    kf3 "Kafka schema: hidden tests pass (old messages, new field, unknown fields)" kf4 "Kafka schema: changes only inside vedtak-hendelse/"
+}
+
+run_pass_rust() {
+  agent_task rs-borrow "cargo test i saksko/ kompilerer ikke: behandle_neste gir en lånefeil. Rett feilen slik at koden kompilerer og testen går grønt, uten å endre hva funksjonen gjør." \
+    rs_saksko saksko \
+    rs1 "Rust borrow: hidden tests pass (queue drains in order)" rs2 "Rust borrow: changes only inside saksko/"
+  agent_task rs-feil "les i vedtak-parser/ får panikk på ugyldig input. Endre den til å returnere Result<Vedtak, VedtakFeil>. VedtakFeil skal være en enum laget med thiserror, med variantene ManglerId (tom id), ManglerBelop og UgyldigBelop(String), der strengen er den ugyldige teksten, og den skal stå i feilmeldingen. Skriv en test for hver feil. Kjør cargo test i vedtak-parser/." \
+    rs_parser vedtak-parser \
+    rs3 "Rust errors: hidden tests pass, thiserror used, a test per error" rs4 "Rust errors: changes only inside vedtak-parser/"
+}
+
 run_pass_coding() {
   coding_task ko-go "Testene i frister/ feiler. Finn og rett feilen i koden, ikke i testene, slik at go test ./... i frister/ går grønt." \
     go_tests frister/frist.go \
@@ -2609,6 +3748,8 @@ run_pass() {
     forfatter)     run_pass_forfatter ;;
     coding)        run_pass_coding ;;
     research)      run_pass_research ;;
+    kafka|rust)    run_pass_"$GROUP" ;;
+    security-champion) run_pass_security_champion ;;
   esac
 }
 

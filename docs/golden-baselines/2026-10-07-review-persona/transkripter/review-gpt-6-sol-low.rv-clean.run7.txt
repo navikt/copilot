@@ -1,0 +1,14 @@
+
+
+
+### Gjennomgang
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 32–36 | 🟡 | Feilloggen skriver bare unntakstypen, ikke årsak eller stacktrace. Det gjør databasefeil vanskelige å feilsøke. Logg unntaket uten å ta med fødselsnummeret. |
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 42–49 | 🟡 | Endepunktet avviser manglende `pid`, men ikke tom eller ugyldig verdi. Da kan et autentisert kall få `200` med tom saksliste i stedet for en tydelig feil. Valider identitetskravet før oppslag. |
+
+**Bra:** Spørringen er parameterisert, og ruten henter fødselsnummeret fra tokenet i stedet for fra en brukerparameter. Jeg fant ingen testfiler. `mise check` kunne ikke kjøres fordi prosjektet ikke definerer en slik oppgave.
+
+🔴 Rød sone: valideringen av `pid` styrer hvilket personoppslag tjenesten gjør. Gå gjennom den nøye. Still gjerne spørsmål om valgene over.
+

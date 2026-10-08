@@ -1,0 +1,55 @@
+## Oppsummering
+
+Dette er **ikke et tomt repo**: det inneholder en liten, eksisterende Kotlin/Ktor-demotjeneste, men ikke en implementasjon av ID-porten-autentisering eller FNR-behandling. Repoet gir en tydelig stack og en **betinget** anbefaling for ID-porten, men avklarer ikke hvem som skal kalle den nye tjenesten eller hvordan FNR skal brukes.
+
+## Funn med evidens
+
+- **Arketype og stack:** README beskriver en liten Ktor-tjeneste med REST-API på Nais (`README.md:1–4`). Gradle konfigurerer Kotlin/JVM 2.1.0, Ktor 3.0.0, Netty og JSON-serialisering (`build.gradle.kts:1–12`). Appen starter en server på port 8080 og registrerer ruter (`src/main/kotlin/no/nav/demo/App.kt:9–15`).
+- **Eksisterende, men minimal:** Det finnes implementert appkode, blant annet `GET /api/oppgaver`, som returnerer statiske oppgaver (`src/main/kotlin/no/nav/demo/Routes.kt:8–18`). Ingen testkode ble funnet; README sier også at dokumentasjonen ikke er komplett (`README.md:3–4`).
+- **Nais og auth:** `nais.yaml` angir applikasjonsnavn, namespace, port og health-check-stier, men ingen `idporten`, `accessPolicy`, TokenX eller Azure-konfigurasjon (`nais.yaml:1–12`). Gradle-avhengighetene og rutene viser ingen auth-middleware eller tokenvalidering. Det betyr at repoet **ikke dokumenterer** en eksisterende autentiseringsløsning; det beviser ikke forhold utenfor repoet.
+- **ID-porten-veiledning:** Den lokale Copilot-agenten sier at **borger via nettleser** bruker ID-porten + Wonderwall med `idporten.enabled: true` (`.github/agents/golden-nav-pilot.agent.md:224–230`). Dette er en betinget veiledning, ikke aktiv konfigurasjon i tjenesten.
+- **FNR/PII:** Ingen FNR-, personnummer- eller ID-porten-håndtering finnes i appkode, Nais-manifest eller byggfil. Datamodellen inneholder bare oppgave-ID og tittel (`src/main/kotlin/no/nav/demo/Oppgave.kt:5–9`). Den foreslåtte oppgaven sier eksplisitt at tjenesten skal lese FNR, så FNR-behandling er kjent for intervjuet, men repoet avklarer ikke formål, videre bruk, lagring, tilgang eller logging.
+- **Etterspurte Copilot-filer:**
+  - `AGENTS.md` — **finnes ikke**
+  - `.github/copilot-instructions.md` — **finnes ikke**
+  - `.github/copilot-review-instructions.md` — **finnes ikke**
+  
+  Repoet har i stedet `.github/agents/golden-nav-pilot.agent.md` og flere `.github/instructions/*.instructions.md`.
+- **Designnotat:** `docs/nav-pilot-design.md` **finnes ikke**.
+
+## Intervju-blindsoner for «ny tjeneste som leser fnr fra ID-porten»
+
+Agentfilen definerer blindsonene og sier at personvern (#1) og tilgangskontroll (#2) skal avklares når repoet ikke gir svar (`.github/agents/golden-nav-pilot.agent.md:153–173`).
+
+**Repoet besvarer eller innsnevrer:**
+
+- **#1 Personvern:** Den foreslåtte funksjonen innebærer FNR, altså personopplysninger. Repoet gir ingen ytterligere avklaring om behandling eller dataflyt.
+- **#2 Tilgangskontroll:** Repoet gir et svar **hvis** dette er borgerpålogging via nettleser: ID-porten + Wonderwall. Hvem som faktisk kaller den nye tjenesten, og om dette er den aktuelle modellen, er ikke fastslått.
+- **#7 Teststatus:** Ingen prosjektets testfiler ble funnet. Teststrategi for ny auth- og FNR-funksjonalitet er fortsatt uavklart.
+- **#8–10 Modernisering, bakoverkompatibilitet og avvikling:** Kan trolig settes til ikke relevant dersom dette faktisk er en ny, separat tjeneste. Repoet viser imidlertid et eksisterende demo-prosjekt, så det bør ikke uten videre antas at endringen er helt separat.
+
+**Forblir ubesvart:** hvem som bruker tjenesten og fra hvilken klient/kontekst; hva FNR skal brukes til og om det skal lagres eller sendes videre; håndtering ved feil i ID-porten eller avhengigheter (#3); relevante drifts-/forretningsmål (#4); team- og avhengighetsgrenser (#5); API-konsumenter (#6); og om løsningen introduserer teknologi eller konsepter teamet trenger støtte for (#11). **Confidence: høy** for repo-observasjonene; lavere for hva som er ment utenfor det som står i repoet.● Research-agent (model: gpt-6-luna) Discover service repo context                               46s
+  │ ## Oppsummering
+  │ Search (glob)
+  │   │ "docs/**"
+  │   └ No matches found
+  └ Search (glob)
+      │ "**/*test*"
+      └ 3 files found
+
+Repoet er en Kotlin/Ktor-demo uten ID-porten-oppsett, `accessPolicy` eller tester. Jeg antar foreløpig at innbyggere skal logge inn i en nettleser. Da validerer ID-porten/Wonderwall innloggingen, og tjenesten leser FNR fra tokenet. Hvis du mener at tjenesten skal hente FNR direkte fra ID-porten, si fra.
+
+Før jeg lager en plan, trenger jeg svar på dette:
+
+1. Hva skal tjenesten bruke FNR til? Skal den lagre det, sende det videre eller bare bruke det under behandlingen?
+2. Hvem skal kalle tjenesten, og fra hvilken klient? Er det innbyggeren via nettleser, eller en annen tjeneste?
+3. Hva skal tjenesten gjøre hvis ID-porten eller en annen avhengighet er utilgjengelig?
+4. Hvilke driftsmål eller målinger trenger dere?
+5. Eier teamet hele flyten, eller avhenger den av andre team?
+6. Hvem skal bruke API-et, og finnes det eksisterende konsumenter som må beholde kompatibilitet?
+7. Er dette en separat tjeneste, eller skal demotjenesten i repoet bygges om? Hvis den erstatter noe, hvordan skal gammel løsning fases ut?
+8. Er ID-porten eller teknologien ny for teamet?
+
+Repoet har ingen tester nå. Jeg har ikke endret kode.
+
+Blindsoner reist: 10/11 (#1–#6, #8–#11 stilt; #7 besvart: ingen tester funnet)

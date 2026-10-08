@@ -1,0 +1,11 @@
+Jeg kartlegger branchens Jackson-bruk, byggoppsett og migreringskrav for å vurdere om Jackson 3 kan innføres uten å endre applikasjonsatferd.
+
+**Vurdering: Jackson 3-endringene ser riktige ut, men migreringen er ikke verifisert nok til å godkjennes ennå.**
+
+- `jackson-databind` og Kotlin-modulen bruker Jackson 3.1.0. `JsonMapper.builder()` med `kotlinModule()` følger det nye builder-mønsteret, og det er riktig å fjerne `jackson-datatype-jsr310`.
+- Ktor bruker fortsatt kotlinx.serialization. Jackson brukes separat til Kafka-meldinger, så det er ikke nødvendig å oppgradere Ktor for denne endringen. Hvis Jackson senere skal brukes i Ktor, kreves Ktor 3.4.0 eller nyere.
+- Jackson 3 sorterer egenskaper alfabetisk som standard. Det kan endre rekkefølgen i JSON for `SoknadMottattMelding`, fra `soknadId, mottatt` til `mottatt, soknadId`. JSON-feltene og datoformatet ser ellers ut til å beholde tidligere form, men legg til en test som bekrefter Kafka-payloaden hvis stabil serialisering er viktig.
+
+Jeg fikk ikke kjørt kompilering: `gradle compileKotlin` feilet under konfigurasjon med `> 27`. Miljøet kjører JDK 27, mens prosjektet bruker Kotlin-plugin 2.1.0; feilen tyder på at pluginen ikke støtter denne JDK-versjonen. Det finnes heller ingen tester i repoet, og dependency tree ble derfor ikke kontrollert. Kjør bygg og dependency-sjekk med en JDK-versjon prosjektet støtter før merge.
+
+Still gjerne spørsmål om valgene over.

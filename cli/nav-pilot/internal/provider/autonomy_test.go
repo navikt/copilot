@@ -61,21 +61,6 @@ func TestCopilotAutonomyArgs(t *testing.T) {
 	}
 }
 
-func TestUnsandboxedAllowAllNote(t *testing.T) {
-	for _, r := range []domain.ResolvedConfig{
-		{Autonomy: "sandbox"},
-		{AllowAllTools: true},
-		{ExtraArgs: []string{"--yolo"}},
-	} {
-		if unsandboxedAllowAllNote(r) == "" {
-			t.Errorf("%+v: no note, but allow-all was asked for", r)
-		}
-	}
-	if note := unsandboxedAllowAllNote(domain.ResolvedConfig{Autonomy: "conservative"}); note != "" {
-		t.Errorf("conservative printed %q", note)
-	}
-}
-
 // TestAutopilotTakesAskUserAway: autopilot answers ask_user itself, so the
 // tool goes, and the launch says why.
 func TestAutopilotTakesAskUserAway(t *testing.T) {
@@ -141,74 +126,22 @@ func TestCopilotLaunchSpawnsOnlyTheClient(t *testing.T) {
 	}
 }
 
-// TestUnsandboxedLaunchGetsNoAllowAll runs the launch with copilot and no cplt
-// on PATH: what copilot receives, flags and environment, grants nothing,
-// whatever the config, the command line and the shell asked for.
-func TestUnsandboxedLaunchGetsNoAllowAll(t *testing.T) {
+// TestLaunchWithoutCpltFails: with a plain copilot and no cplt on PATH the
+// launch fails with install guidance, and copilot never runs.
+func TestLaunchWithoutCpltFails(t *testing.T) {
 	isolateHome(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "argv.txt")
-	script := "#!/bin/sh\n[ \"$1\" = --version ] && { echo 'GitHub Copilot CLI 1.0.90'; exit 0; }\n" +
-		"printf '%s\\n' \"$@\" \"env=$COPILOT_ALLOW_ALL\" > " + out + "\n"
-	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), script); err != nil {
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\n[ \"$1\" = --version ] && { echo 1.0.0; exit 0; }\n: > "+out+"\n"); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
-	t.Setenv("COPILOT_ALLOW_ALL", "true")
 
-	err := LaunchCopilotResolved(domain.ResolvedConfig{
-		Client: "copilot", AskUser: true, Autonomy: "sandbox", AllowAllTools: true,
-		OtelLogLevel: "none", NoSandbox: true, ExtraArgs: []string{"--yolo"},
-	})
-	if err != nil {
-		t.Fatalf("LaunchCopilotResolved: %v", err)
+	err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", OtelLogLevel: "none"})
+	if err == nil || !strings.Contains(err.Error(), "install cplt") {
+		t.Fatalf("want install guidance, got %v", err)
 	}
-	raw, err := os.ReadFile(out)
-	if err != nil {
-		t.Fatalf("copilot did not run: %v", err)
-	}
-	got := strings.Split(strings.TrimSpace(string(raw)), "\n")
-	if slices.ContainsFunc(got, grantsAllowAll) {
-		t.Errorf("unsandboxed copilot got an allow-all flag: %q", got)
-	}
-	if !slices.Contains(got, "env=") {
-		t.Errorf("unsandboxed copilot inherited COPILOT_ALLOW_ALL: %q", got)
-	}
-}
-
-// The same holds for opencode, whose --no-sandbox launch goes through
-// launchUnsandboxed: allow_all_tools and every skip-permission spelling after
-// "--" are dropped.
-func TestUnsandboxedOpenCodeGetsNoSkipPermissions(t *testing.T) {
-	isolateHome(t)
-	dir := t.TempDir()
-	out := filepath.Join(dir, "argv.txt")
-	if err := testhome.WriteExec(filepath.Join(dir, "opencode"), "#!/bin/sh\nprintf '%s\\n' \"$@\" > "+out+"\n"); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir)
-	NavContextDirOverride = t.TempDir()
-	t.Cleanup(func() { NavContextDirOverride = "" })
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-
-	err := LaunchOpenCode(domain.ResolvedConfig{
-		Client: "opencode", Mode: "default", AllowAllTools: true, NoSandbox: true,
-		ExtraArgs: []string{"--auto", "--yolo=true", "--dangerously-skip-permissions"},
-	})
-	if err != nil {
-		t.Fatalf("LaunchOpenCode: %v", err)
-	}
-	raw, err := os.ReadFile(out)
-	if err != nil {
-		t.Fatalf("opencode did not run: %v", err)
-	}
-	got := strings.Split(strings.TrimSpace(string(raw)), "\n")
-	if slices.ContainsFunc(got, func(a string) bool {
-		return strings.HasPrefix(a, "--auto") || strings.HasPrefix(a, "--yolo") || strings.HasPrefix(a, "--dangerously")
-	}) {
-		t.Errorf("unsandboxed opencode got a skip-permission flag: %q", got)
-	}
-	if !slices.Contains(got, "--agent") {
-		t.Errorf("opencode lost its other arguments: %q", got)
+	if _, statErr := os.Stat(out); statErr == nil {
+		t.Fatal("copilot ran without cplt")
 	}
 }

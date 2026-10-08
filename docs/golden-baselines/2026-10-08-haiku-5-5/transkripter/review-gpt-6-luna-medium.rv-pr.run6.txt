@@ -1,0 +1,23 @@
+🔍 Skanner `vedtak-kafka` mot `main` og finner hvilke sjekker repoet bruker.
+
+📊 Endringene åpner flere sikkerhets- og meldingsflytspørsmål. Jeg leser implementasjonen og kjører repoets sjekker før jeg vurderer funnene.
+
+📋 Sjekkene stopper fordi repoet ikke har `mise check`-oppgave eller Gradle-wrapper. Jeg verifiserer nå linjene og om repoet inneholder databaseoppsett eller tester som endrer vurderingen.
+
+### Sammendrag
+
+`vedtak-kafka` har flere blokkere for sikkerhet og korrekt behandling av vedtak. 🔴 Rød sone: autorisasjon, persondata og vedtaksflyt.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/Routes.kt` | 30 | 🔴 | `GET /api/vedtak/{fnr}` mangler autentisering. Ruten returnerer vedtak for et vilkårlig fødselsnummer, så enhver app med nettverkstilgang kan hente personopplysninger. Krev autentisering og kontroller at kalleren har tilgang til personen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 23 | 🔴 | SQL-spørringen setter `fnr` direkte inn i SQL-strengen. Et manipulert path-parameter kan endre spørringen og hente flere rader. Bruk parameterisert `queryOf`. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 40–42 | 🔴 | JWT-oppsettet har ingen konfigurert verifier. `validate` sjekker bare at tokenet har en audience, ikke signatur eller forventet issuer og audience. TokenX-tokenet blir derfor ikke validert på en trygg måte, eller autentiseringen feiler ved kjøring. |
+| `nais.yaml` | 25–26 | 🔴 | Inbound-policyen åpner tjenesten for alle apper i alle namespaces. Begrens regelen til appene som faktisk skal kalle tjenesten. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 32–33 | 🔴 | Vedtaket lagres før Kafka-publisering, og hele behandlingen prøves på nytt ved feil. Hvis publisering feiler etter lagringen, oppretter neste forsøk et nytt vedtak med ny ID. Kafka kan også levere meldingen på nytt etter omstart. Bruk `soknadId` som idempotensnøkkel, og håndter lagring og publisering slik at gjentakelser ikke fatter nye vedtak. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt` | 15 | 🔴 | Logger fødselsnummer direkte. Fjern personopplysningen fra loggen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 14 | 🔴 | Koden skriver til `vedtak`-tabellen, men branchen har ingen migrering eller `CREATE TABLE`. Nais-oppsettet oppretter databasen, ikke tabellen, så databasekallene vil feile i et tomt miljø. |
+
+`mise check` kunne ikke kjøres fordi repoet ikke har en slik oppgave. `./gradlew test` mangler Gradle-wrapper, og system-Gradle feiler under prosjektkonfigurasjonen før tester kjører.

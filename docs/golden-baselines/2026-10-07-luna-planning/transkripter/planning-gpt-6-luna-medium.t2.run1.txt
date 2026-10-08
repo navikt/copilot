@@ -1,0 +1,16 @@
+## Fase 1: Intervju
+
+Jeg tolker dette som en ny Ktor-tjeneste på Nais som bruker ID-porten og leser fødselsnummer fra tokenet. Repoet inneholder nå en liten demo-tjeneste, uten ID-porten-oppsett eller tester. Repoet mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` hvis du vil legge til prosjektinstruksjoner.
+
+Fødselsnummer og ID-porten gjør autentisering og håndtering av personopplysninger til rød sone. Før jeg lager planen, trenger jeg svar på disse spørsmålene:
+
+1. Skal tjenesten bare bruke fødselsnummeret mens den behandler forespørselen, eller skal den lagre eller sende det videre? Hva er formålet, og hvor lenge skal det eventuelt lagres?
+2. Hvem skal kalle tjenesten: en innlogget innbygger via nettleser, en annen Nav-tjeneste eller noen andre?
+3. Hva skal tjenesten gjøre hvis ID-porten eller sidecaren er utilgjengelig?
+4. Hvilke mål eller metrikker skal vise at tjenesten fungerer?
+5. Eier teamet hele flyten, eller er den avhengig av andre team?
+6. Hvem skal bruke API-et, og hvilke data skal tjenesten returnere?
+7. Repoet har ingen tester nå. Finnes det en teststrategi eller eksisterende tester utenfor dette repoet?
+8. Kjenner teamet ID-porten og Nais-sidecar fra før, eller er dette ny teknologi for dere?
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7 og #11 stilt; #8–#10 ikke relevante ennå).

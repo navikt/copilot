@@ -254,9 +254,8 @@ type openCodeProvider struct{}
 func (openCodeProvider) ID() string          { return "opencode" }
 func (openCodeProvider) DisplayName() string { return "opencode" }
 
-// Available reports whether opencode is on PATH. Without cplt it launches
-// unsandboxed after the same confirmation (or --no-sandbox) copilot gets
-// (#1028); whether cplt is there is the launch's question, not this one's.
+// Available reports whether opencode is on PATH; whether cplt is there is
+// the launch's question, not this one's.
 func (openCodeProvider) Available() bool {
 	_, err := exec.LookPath("opencode")
 	return err == nil

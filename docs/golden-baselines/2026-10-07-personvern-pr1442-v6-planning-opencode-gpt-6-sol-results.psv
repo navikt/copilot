@@ -1,0 +1,28 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-07
+# revision:     7e1700ce
+# model:        gpt-6-sol
+# client:       opencode
+# clientVersion: opencode 1.18.35
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      2,4,5
+#
+# id|run|status|assertion|detail
+2|1|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|1|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+4|1|fail|Fase 2 output contains a 🔴 Rød sone declaration|turn 1 (intervju): --client opencode runs single turns only
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|2|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+4|2|fail|Fase 2 output contains a 🔴 Rød sone declaration|turn 1 (intervju): --client opencode runs single turns only
+5|2|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|3|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|3|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+4|3|fail|Fase 2 output contains a 🔴 Rød sone declaration|turn 1 (intervju): --client opencode runs single turns only
+5|3|pass|user context → TokenX, not Azure client_credentials  (canary)|

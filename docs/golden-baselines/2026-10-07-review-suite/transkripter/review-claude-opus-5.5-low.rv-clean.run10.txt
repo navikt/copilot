@@ -1,0 +1,20 @@
+
+### Sammendrag
+Gjennomgått uten `mise check` (repoet har ingen mise-konfigurasjon). Filen er trygg. SQL-en er parameterisert. Fnr kommer fra `pid`-claimet i TokenX-tokenet, så brukeren får bare sine egne saker. Fnr er maskert i loggene. Jeg fant ingen blokkere, men to forslag og tre nits.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 38–43 | 🟡 | `catch (e: Exception)` logger og kaster videre uten å legge til kontekst. Ktor `StatusPages` logger feilen en gang til, så samme feil havner to ganger i loggene. |
+| `SakService.kt` | 48–50 | 🟡 | Koden sjekker ikke `acr`-claimet. Saksdata om en person bør kreve høyt sikkerhetsnivå (`idporten-loa-high`). Ellers får et token på lavere nivå tilgang. |
+| (mangler) | – | 🟡 | Ingen tester. Det trengs ruteprøver med MockOAuth2Server for: manglende `pid` gir 401, og en bruker ser bare egne saker. |
+| `SakService.kt` | 20 | 💭 | `maskert()` gir alltid 11 stjerner. Det stemmer med kommentaren, men gjør logglinjen verdiløs for feilsøking. Bruk heller en korrelasjons-ID eller en saks-ID. |
+| `SakService.kt` | 16–58 | 💭 | Modell, repository, service og ruter ligger i én fil. Del dem opp etter lag når filen vokser. |
+
+### Detaljer
+- **Dobbel logging:** Fjern try/catch og la `StatusPages` ta seg av feilen. Vil du beholde blokken, pakk feilen inn i stedet, for eksempel `throw SakOppslagException("Henting av saker feilet", e)`.
+- **Sikkerhetsnivå** (🔴 rød sone: auth, sett deg grundig inn i dette): Legg til `validate { cred -> cred.takeIf { it.payload.getClaim("acr").asString() == "idporten-loa-high" }?.let(::JWTPrincipal) }` i oppsettet for `tokenx`. Hvis valideringen allerede ligger der, er dette funnet uaktuelt.
+
+Still gjerne spørsmål om valgene over.
+

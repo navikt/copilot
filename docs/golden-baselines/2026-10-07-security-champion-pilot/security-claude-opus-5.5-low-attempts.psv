@@ -1,0 +1,15 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        security-champion
+# suite:        none
+# date:         2026-10-07
+# revision:     9297b1b4
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-0.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+sc-pr|1|0|pass|17826|32903|true|
+sc-clean|1|0|pass|1597|29297|true|

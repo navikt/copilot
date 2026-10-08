@@ -1,0 +1,60 @@
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+**Ett sikkerhetsfunn og to forbedringspunkter.** SQL-spørringen er parameterisert, og fødselsnummeret hentes fra JWT-prinsipalen, ikke fra et klientstyrt søkeparameter. Ingen kode er endret.
+
+Alle linjenumre gjelder `src/main/kotlin/no/nav/demo/sak/SakService.kt`.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 41 | 🔴 Blokker | Maskeringen gjelder bare loggparameteren, ikke exceptionen `e`. Databasefeil kan inneholde fødselsnummer i feilmelding eller årsakskjede. Ikke send usanitiserte databaseexceptions til ordinære logger. Behold diagnostikk med en trygg feilkode og korrelasjons-ID. |
+| 55 | 🟡 Forslag | Synkrone JDBC-kall kjøres direkte i Ktor-handleren. Venting på tilkobling eller SQL blokkerer tråden som behandler forespørselen, og kan forsinke andre forespørsler under belastning. Flytt databasearbeidet til `Dispatchers.IO`, uten å dele en JDBC-session mellom coroutines. |
+| 50–51 | 🟡 Forslag | `pid` kontrolleres bare for `null`. Tomme og feilformaterte verdier når databasen og gir normalt en tom liste med HTTP 200. Valider forventet format ved autentiseringsgrensen, og avvis ugyldig identitet før databasekallet. |
+
+**Kontrollene kunne ikke fullføres:** `mise check` finnes ikke for prosjektet. Alternativet `gradle --offline --no-daemon --console=plain check` feilet under prosjektkonfigurasjon med meldingen `> 27`. Jeg fant ingen tester som dekker denne flyten.
+

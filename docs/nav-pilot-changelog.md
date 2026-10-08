@@ -2,6 +2,36 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-08
+
+### Hook-porter får to sekunders margin før Copilot gir opp
+
+- **Mindre risiko for at et verktøykall blir nektet**: Copilot CLI nekter et verktøykall når en `preToolUse`-hook bruker lengre tid enn `timeoutSec`. nav-pilot stopper skriptet før fristen, slik at kallet slipper gjennom. Før skjedde det ett sekund før fristen. Når maskinen var travel, rakk ikke `sh`, `mktemp`, `python3`-shimen fra mise og oppryddingen å bli ferdige på det sekundet, og Copilot nektet kallet likevel. Nå stopper nav-pilot skriptet to sekunder før fristen.
+- **Kortere tid for skriptet**: En hook med standardfristen på 5 sekunder får skriptet 3 sekunder, ikke 4 som før.
+- **Laveste frist er 3 sekunder**: Står `timeoutSec` til 1 eller 2 i en `.hook.json`, bruker nav-pilot 3. Før var den laveste fristen 2 sekunder.
+- **Gjelder etter neste installasjon**: Hooker som er installert fra før, får den nye marginen neste gang du kjører `nav-pilot install` eller `nav-pilot sync --apply`. Til da har de den gamle marginen på ett sekund.
+
+### Personopplysninger i logger er et kritisk funn
+
+- **`@security-champion` og `@code-review`**: Fnr eller andre personopplysninger om en person (navn, bostedsadresse, helse- eller ytelsesdata) som skrives til applikasjonsloggen, også via strenginterpolasjon, unntaksmeldinger eller `toString`, merkes nå som kritisk (🔴). Sporingsloggen (CEF via `auditLogger`) er unntatt. Før sto det bare at slikt ikke skal logges, og modellen merket det som høy i alle ti målte kjøringer.
+
+## 2026-10-06
+
+### nav-pilot spør om personvern bare når dataflyten endres
+
+- **Ingen spørsmål om personvern ved tekniske endringer**: Før spurte nav-pilot om personopplysninger også når du migrerte et bibliotek, for eksempel fra Jackson 2 til Jackson 3. Nå spør den bare når endringen legger til eller endrer en dataflyt, et felt, en mottaker, et loggpunkt eller en tilgangsvei.
+- **Leser repoet først**: nav-pilot ser etter `accessPolicy` i `nais.yaml`, typer for fnr og PDL og Kafka-skjemaer, og sier hva den har antatt. Den spør bare når repoet ikke gir svaret.
+- **Spør om tilgang bare når tilgangen endres**: nav-pilot spør hvem som kan kalle eller lese tjenesten, bare når endringen gir nye endepunkter eller endrer `accessPolicy` eller auth.
+- **Bibliotekmigrering er ikke en full gjennomgang**: En migrering, en versjonsoppgradering eller en omdøping, eller en vurdering av en slik endring, behandles i ett svar. Det gjelder også når formatet på dataene endres.
+- **Endret format gir spørsmål om kompatibilitet**: Endrer en migrering hvordan data skrives, for eksempel datoformat, feltrekkefølge eller felt som forsvinner, sier nav-pilot konkret hva som endres, og spør om konsumentene tåler det. Den spør ikke om personvern.
+- **Sjekker stille ellers**: For tekniske endringer sjekker nav-pilot selv at ingen nye logglinjer eller `toString` lekker fnr, og sier bare fra hvis den finner noe.
+
+### nav-pilot starter aldri en klient uten cplt
+
+- **cplt er påkrevd**: Mangler cplt, starter nav-pilot verken Copilot CLI, OpenCode eller pi. Før kunne Copilot CLI og OpenCode starte uten sandkasse etter et spørsmål i terminalen eller med `--no-sandbox`. Nå sier nav-pilot at cplt mangler og hvordan du installerer det.
+- **`--no-sandbox` er fjernet**: Flagget gir en feilmelding med samme råd, og nav-pilot avslutter med en feilkode. Fjern flagget fra skript og CI-jobber, og installer cplt.
+- **Ett unntak**: For å sjekke hvilke modeller kontoen din har, kjører nav-pilot `copilot --model nav-pilot-model-probe -p probe` direkte, uten cplt. Copilot CLI avviser kallet før noen prompt kjører, og ingen agent starter.
+
 ## 2026-09-30
 
 ### Varsel når en gjenbrukt agentpakke ligger bak
