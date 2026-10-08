@@ -383,9 +383,13 @@ export default function Klienter() {
           om den er testet. nav-pilot starter ikke opencode 3 før vi har testet den.
         </BodyLong>
         <BodyLong>
-          opencode 2 krever macOS og cplt fra 7. oktober 2026 eller nyere. Kjør {c("cplt --version")}: tallet etter{" "}
-          {c("cplt")} må være {c("2026.10.07-123313")} eller høyere. På Linux kjører ikke cplt opencode 2 ennå, så der
+          opencode 2 krever macOS og cplt fra 8. oktober 2026 eller nyere. Kjør {c("cplt --version")}: tallet etter{" "}
+          {c("cplt")} må være {c("2026.10.08-081501")} eller høyere. På Linux kjører ikke cplt opencode 2 ennå, så der
           må du bruke opencode 1. nav-pilot sier fra og viser hvordan du installerer opencode 1.
+        </BodyLong>
+        <BodyLong>
+          Går du fra opencode 1 til 2, kjør {c("opencode auth import")} én gang. opencode 2 leser ikke innloggingen fra
+          opencode 1 ({c("auth.json")}) av seg selv.
         </BodyLong>
         <LinkableHeading id="deling-og-oppdatering" size="small" level="3">
           Deling og oppdatering

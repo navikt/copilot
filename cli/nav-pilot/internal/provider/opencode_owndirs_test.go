@@ -170,20 +170,24 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 		ok            bool
 	}{
 		{"opencode v2.0.24\n", "cplt 2026.10.07-103638-7c04fce\n", nil, nil, false},
-		{"opencode v2.0.24\n", "cplt 2026.10.08-060626-0000000\n", nil, nil, true},
-		{"opencode v2.0.24\n", "cplt 2026.10.07-123313-5326be8\n", nil, []string{"run", "hi"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-060626-0000000\n", nil, nil, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"run", "hi"}, true},
 		{"opencode v2.0.24\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, nil, false},
 		{"opencode v2.0.24\n", "cplt dev\n", nil, nil, false},
 		{"opencode v2.0.24\n", "", errors.New("timeout"), nil, false},
 		{"opencode v2.0.24\n", okCplt, nil, nil, false},
-		{"opencode v2.0.24\n", "cplt 2026.10.07-123313-5326be8\n", nil, []string{"--server", "http://x"}, false},
-		{"opencode v2.0.24\n", "cplt 2026.10.07-123313-5326be8\n", nil, []string{"run", "--server=http://x", "hi"}, false},
-		{"opencode v2.0.24\n", "cplt 2026.10.07-123313-5326be8\n", nil, []string{"attach", "http://x"}, false},
-		{"opencode v2.0.24\n", "cplt 2026.10.07-123313-5326be8\n", nil, []string{"run", "attach"}, true},
-		{"opencode v2.0.24\n", "cplt 2026.10.07-123313-5326be8\n", nil, []string{"run", "--", "--server", "x"}, true},
-		{"opencode v2.0.24\n", "cplt 2026.10.07-123313-5326be8\n", nil, []string{"--standalone"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"--server", "http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"run", "--server=http://x", "hi"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"attach", "http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"run", "attach"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"run", "--", "--server", "x"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"--standalone"}, false},
 		{"opencode v2.0.24\n", "", errCpltNotFound, nil, true},
 		{"opencode 1.17.0\n", "", errors.New("timeout"), []string{"attach", "--server", "x"}, true},
+		{"opencode 1.17.0\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, nil, true},
+		// unreadable version: launched as opencode 1, but cplt must be new enough to fail closed (#735)
+		{"garbage\n", "cplt 2026.10.08-060626-86f0f7e\n", nil, nil, false},
+		{"garbage\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"attach", "x"}, true},
 	} {
 		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
 		stubProbes(t, c.cplt, c.cpltErr, "", nil)
@@ -197,7 +201,7 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 		t.Errorf("old cplt: err = %v, want errCpltTooOld", err)
 	}
 	// cplt runs opencode 2 on macOS only; elsewhere nav-pilot says so first.
-	stubProbes(t, "cplt 2026.10.07-123313-5326be8\n", nil, "", nil)
+	stubProbes(t, "cplt 2026.10.08-081501-54ea742\n", nil, "", nil)
 	hostOS = "linux"
 	if err := checkOpenCode2Launch(nil); err == nil || !strings.Contains(err.Error(), "macOS only") {
 		t.Errorf("linux: err = %v, want the macOS-only refusal", err)

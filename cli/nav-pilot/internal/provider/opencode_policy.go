@@ -268,8 +268,11 @@ var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
 // the opencode 2 client spawns its session's service inside the sandbox. An
 // older cplt lets the client attach to the host's background service, which
 // runs with none of the launch's environment: no hooks, no gate, no policy.
-// The floor is the release with navikt/cplt#722, which also stops Ctrl-C from
-// leaving a `serve --service` behind, and has #720's config-dir reads.
+// The floor is 2026.10.08-081501: it carries #716, #720 and #722, plus
+// navikt/cplt#736 (AGENTS.md grants from ancestor directories, stow symlinks),
+// the fix for a credential leak through planted <project>/.agents, .claude or
+// .opencode symlinks in opencode 2 sessions, and #735, which fails closed on
+// an opencode whose version it cannot read.
 // errCpltTooOld marks checkOpenCode2Launch's refusal of a cplt older than
 // minOpenCode2CpltStamp, so telemetry can tell it from argument refusals.
 var errCpltTooOld = errors.New("cplt too old")
@@ -277,14 +280,20 @@ var errCpltTooOld = errors.New("cplt too old")
 // hostOS is runtime.GOOS; tests set it.
 var hostOS = runtime.GOOS
 
-const minOpenCode2CpltStamp = "2026.10.07-123313"
+const minOpenCode2CpltStamp = "2026.10.08-081501"
 
 // checkOpenCode2Launch refuses an opencode 2 launch that would run outside the
 // sandboxed per-session service: a cplt without #716 (or one whose version
 // cannot be read, fail-closed as checkCpltFloor), arguments that connect
 // the client to another server, or a platform other than macOS, where cplt
-// does not run opencode 2. Nil on opencode 1.
+// does not run opencode 2. Nil on opencode 1. An opencode whose version
+// cannot be read is launched as opencode 1 but still needs the cplt floor, so
+// cplt's own fail-closed refusal (#735) is there if it really is opencode 2.
 func checkOpenCode2Launch(args []string) error {
+	out, _ := cachedVersion("opencode", 5*time.Second)
+	if !openCodeMajorPattern.MatchString(strings.TrimSpace(out)) {
+		return checkOpenCode2Cplt()
+	}
 	if openCodeMajor() < 2 {
 		return nil
 	}
@@ -306,6 +315,11 @@ func checkOpenCode2Launch(args []string) error {
 			return fmt.Errorf("%s is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts", a)
 		}
 	}
+	return checkOpenCode2Cplt()
+}
+
+// checkOpenCode2Cplt refuses a cplt older than minOpenCode2CpltStamp.
+func checkOpenCode2Cplt() error {
 	out, err := probeCpltVersion()
 	if errors.Is(err, errCpltNotFound) {
 		return nil // the launch's own cplt-missing path (ErrCpltMissing) says how to install it
@@ -315,7 +329,7 @@ func checkOpenCode2Launch(args []string) error {
 		found = err.Error()
 	}
 	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < minOpenCode2CpltStamp {
-		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716, #722), found %q: an older cplt runs the session in the host's background service, without nav-pilot's hooks.\n\n  Upgrade it: %s",
+		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716, #722, #735, #736), found %q: an older cplt runs the session in the host's background service, without nav-pilot's hooks.\n\n  Upgrade it: %s",
 			errCpltTooOld, minOpenCode2CpltStamp, found, domain.Bold(cpltUpgradeHint()))
 	}
 	return nil
