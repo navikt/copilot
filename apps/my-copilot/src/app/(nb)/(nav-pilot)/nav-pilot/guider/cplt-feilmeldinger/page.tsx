@@ -123,8 +123,8 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           <BodyLong>
             Hosten står ikke på host-lista. Når <code className={code}>proxy.allowed_domains</code> er satt, slipper
             proxyen bare gjennom agentens egne hoster, hostene i fila og i <code className={code}>allow.domains</code>,
-            og pakkeregistrene hvis <code className={code}>proxy.default_allowlist</code> er på. Finn fila og legg til
-            hosten:
+            og pakkeregistrene hvis <code className={code}>proxy.default_allowlist</code> er på. Fila nav-pilot skriver,
+            har pakkeregistrene. Finn fila og legg til hosten:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config get proxy.allowed_domains   # viser hvilken fil

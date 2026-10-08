@@ -205,10 +205,12 @@ nav-pilot config                    # eller raden «cplt strict preset (blocks a
             være og sier at du må legge til vertene selv. Nøkler du har satt selv, gjelder foran nivået.
           </BodyLong>
           <BodyLong>
-            Fila har hele lista, ikke bare Nav-vertene. Pakkeregistrene slipper bare gjennom når{" "}
-            <code className={code}>proxy.default_allowlist</code> er på. Lista til cplt er per agent: lista for copilot
-            har GitHub og Copilot, den for opencode har <code className={code}>opencode.ai</code> og{" "}
-            <code className={code}>models.dev</code>.
+            Fila har hele lista: Nav-vertene, cplts egen liste og pakkeregistrene. Agenten når derfor pakkeregistrene
+            selv om <code className={code}>proxy.default_allowlist</code> er av. nav-pilot henter lista med{" "}
+            <code className={code}>cplt config hosts</code>. Er cplt for gammel til det, skriver nav-pilot en frosset
+            liste med GitHub, Copilot og pakkeregistrene som fantes da, uten dem cplt har lagt til siden. Lista til cplt
+            er per agent: lista for copilot har GitHub og Copilot, den for opencode har{" "}
+            <code className={code}>opencode.ai</code> og <code className={code}>models.dev</code>.
           </BodyLong>
           <BodyLong>
             <strong>Push.</strong> Strict stopper all push, så agenten kan ikke pushe en gren eller åpne en pull
