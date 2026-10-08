@@ -77,14 +77,15 @@ func TestBaseLagStaleCurrentAndOffline(t *testing.T) {
 		out := captureStdoutFor(t, func() {
 			warnBaseLag(context.Background(), os.Stdout, "", "repo", "nais/pilot", "navikt/copilot", "nav-pilot", basePin)
 		})
-		for _, want := range []string{"nais/pilot pins navikt/copilot at 6dc457b", agentpakke.DeclarationPath,
-			"11 commit(s) and 16 day(s) behind its default branch", "owners of nais/pilot should bump it"} {
+		for _, want := range []string{"nais/pilot pins navikt/copilot at 6dc457b, 11 commits (16 days) behind its default branch.",
+			"You miss what changed since, such as new model choices.",
+			"Ask the owners of nais/pilot to update", "nav-pilot pakke bump-base", "then run", "nav-pilot sync --apply"} {
 			if !strings.Contains(out, want) {
 				t.Errorf("missing %q in:\n%s", want, out)
 			}
 		}
-		if strings.Count(out, "\n") != 1 {
-			t.Errorf("want one line, got:\n%s", out)
+		if strings.Count(out, "\n") != 2 {
+			t.Errorf("want two lines, got:\n%s", out)
 		}
 	})
 	t.Run("current", func(t *testing.T) {
@@ -220,9 +221,13 @@ func TestSyncWarnsAboutAStaleBaseThroughRealGit(t *testing.T) {
 			t.Fatalf("sync: %v", err)
 		}
 	})
-	want := "navikt/grillmester pins navikt/basepakke at " + shortSHA(base[0])
-	if !strings.Contains(out, want) || !strings.Contains(out, "11 commit(s)") {
+	want := "navikt/grillmester pins navikt/basepakke at " + shortSHA(base[0]) + ", 11 commits (16 days) behind its default branch."
+	if !strings.Contains(out, want) {
 		t.Errorf("sync did not warn %q:\n%s", want, out)
+	}
+	// Said last, after the summary, not above the file list.
+	if !strings.HasSuffix(strings.TrimSpace(out), "nav-pilot sync --apply.") {
+		t.Errorf("the warning is not the last thing sync says:\n%s", out)
 	}
 	if got := readDeclarationAt(t, pakkeDir).SHA; got != base[0] {
 		t.Errorf("sync moved the pakke's pin to %s", got)
@@ -463,7 +468,8 @@ func TestBumpDeclarationSHACopiesMinNavPilotVersion(t *testing.T) {
 // The launch path must never pay for this check: only sync, doctor and the
 // file that defines it may name it.
 func TestBaseFreshnessIsOffTheLaunchPath(t *testing.T) {
-	names := map[string]bool{"warnBaseLag": true, "lookupBaseLag": true, "reportScopeBaseLag": true, "lookupBaseLagHTTP": true, "githubFileJSON": true, "githubFileJSONHTTP": true}
+	names := map[string]bool{"warnBaseLag": true, "lookupBaseLag": true, "reportScopeBaseLag": true, "lookupBaseLagHTTP": true, "githubFileJSON": true, "githubFileJSONHTTP": true,
+		"reportPinDrift": true, "githubFile": true, "githubFileHTTP": true}
 	allowed := map[string]bool{"base_freshness.go": true, "sync.go": true, "doctor.go": true}
 	files, _ := filepath.Glob("*.go")
 	provider, _ := filepath.Glob("../provider/*.go")

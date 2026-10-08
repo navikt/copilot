@@ -4,6 +4,15 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-08
 
+### Tydeligere beskjed når agentpakka di er utdatert
+
+Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, for eksempel nais/pilot.
+
+- **Spørsmål ved oppstart**: `nav-pilot` sjekker nå om pakka har en nyere versjon enn den du har, og spør om du vil synkronisere. Før skjedde dette bare for navikt/copilot. Svarer du nei, spør nav-pilot ikke igjen før om ett døgn. Uten nett sier nav-pilot ingenting og venter høyst tre sekunder.
+- **`sync` forklarer hva det betyr for deg**: Ligger pakka bak navikt/copilot, sier `nav-pilot sync` hvor langt bak den er, at du mangler blant annet nye modellvalg, og hva du kan gjøre: be eierne av pakka kjøre `nav-pilot pakke bump-base`, og kjør så `nav-pilot sync --apply`. Beskjeden står nå nederst, etter oppsummeringen, så den ikke forsvinner i fillista.
+- **`doctor` viser agenter med gammel modell**: `nav-pilot doctor` nevner hver agent der navikt/copilot har byttet modell siden pakka sist ble oppdatert, for eksempel at `@security-champion` kjører GPT-6 Sol mens navikt/copilot nå bruker Claude Opus 5.5. Agenter som pakka har gitt en egen modell, og agenter du har laget selv, nevnes ikke.
+- **Ingenting endres av seg selv**: Alle tre er bare beskjeder. Ingen filer blir skrevet før du sier ja eller kjører `sync --apply`.
+
 ### `@rust` bytter til Claude Haiku 5.5
 
 - **Ny modell**: `@rust` kjører på Claude Haiku 5.5 i stedet for GPT-6 Luna. GPT-6 Luna er reserve. `@kafka` blir på GPT-6 Luna.

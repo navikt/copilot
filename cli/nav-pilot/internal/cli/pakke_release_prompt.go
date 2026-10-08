@@ -46,8 +46,7 @@ type pakkeReleaseCacheEntry struct {
 	Migration bool `json:"migration,omitempty"`
 	Failed    bool `json:"failed,omitempty"`
 	// Dismissed is the version the user answered "No" to. Survives lookups.
-	Dismissed string `json:"dismissed,omitempty"`
-}
+	Dismissed string `json:"dismissed,omitempty"`}
 
 func pakkeReleaseCacheKey(repo, name string) string { return strings.ToLower(repo) + " " + name }
 
@@ -358,4 +357,65 @@ func activatePakkeRelease(resolved ResolvedConfig, scope *InstallScope, state *S
 	}
 	fmt.Printf("%s Updated %s to %s.\n", green("✓"), bold(name), rel.label(relSrc.SHA))
 	return &Source{Dir: revDir, SHA: relSrc.SHA, Repo: relSrc.Repo, Pakke: relSrc.Pakke}, nil
+}
+
+// pakkeScopeUpdate is the launch's update check for a scope whose files came
+// from another agentpakke (nais/pilot, say): what the pakke's own newest
+// release or default branch offers over the installed revision, or "" when
+// there is nothing to offer or no way to tell. The answer is cached a day (an
+// hour after a failure) in pakke-releases.json, so most launches spend no
+// network, and one that does is bounded by pakkeLaunchLookupTimeout. Offline
+// is silence: no line and no prompt.
+//
+// It says nothing about whether the pakke trails the agentpakke it reuses.
+// Only the pakke's owners can act on that, so sync and doctor say it.
+//
+// A pin (no files of its own) is left to [offerPakkeRelease], which already
+// asks at launch.
+func pakkeScopeUpdate(state *StateFile) string {
+	if state == nil || !pinnable(state.SourceRepo) || state.SourceSHA == "" || pinnedRevisionOnDisk(state) {
+		return ""
+	}
+	// A No at "Sync now?" holds every scope's question off for a day; this
+	// one does not even look meanwhile.
+	if markedWithin(syncDeclinedPath(), 24*time.Hour, time.Now()) {
+		return ""
+	}
+	key := pakkeReleaseCacheKey(state.SourceRepo, state.Collection) + " content"
+	cache := readPakkeReleaseCache()
+	entry := cache[key]
+	if !entry.fresh(state.SourceSHA, time.Now()) {
+		ctx, cancel := context.WithTimeout(context.Background(), pakkeLaunchLookupTimeout)
+		newer, err := lookupPakkeUpdate(ctx, state.SourceRepo, state.Collection, state.SourceSHA)
+		cancel()
+		entry = pakkeReleaseCacheEntry{CheckedAt: time.Now(), PinnedSHA: state.SourceSHA, Candidate: newer, Failed: err != nil}
+		cache[key] = entry
+		writePakkeReleaseCache(cache)
+	}
+	// A revision sync would refuse (rolled back off, or "keep") is not offered.
+	if entry.Candidate == nil || pakkeUpdateHold(state, entry.Candidate.SHA) != holdNone {
+		return ""
+	}
+	return entry.Candidate.Version
+}
+
+// lookupPakkeUpdate finds what sync would take over installed: the newest
+// stable release, or the default branch (no SHA) when the pakke publishes no
+// release metadata and has moved past installed. nil when current. A var so
+// tests stay offline.
+var lookupPakkeUpdate = func(ctx context.Context, repo, name, installed string) (*pakkeRelease, error) {
+	outcome, rel, err := discoverPakkeRelease(ctx, repo, name, installed)
+	switch {
+	case err != nil:
+		return nil, err
+	case outcome == releaseCandidate:
+		return &rel, nil
+	case outcome != releaseNoMetadata:
+		return nil, nil
+	}
+	status, err := compareStatus(ctx, repo, installed, "HEAD")
+	if err != nil || status != "ahead" {
+		return nil, err
+	}
+	return &pakkeRelease{Version: "newest on its default branch"}, nil
 }

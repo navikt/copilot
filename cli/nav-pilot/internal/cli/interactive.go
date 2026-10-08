@@ -304,11 +304,11 @@ type staleScope struct {
 // tags, so it only describes installs that came from there. A scope installed
 // from another agentpakke has that agentpakke's versions, and offering to sync
 // it to "nav-pilot/<latest>" would pull the default source's content into a
-// scope that never came from it (B3/B4). Such a scope is left alone: no
-// assessment, no "update available", no auto-sync.
+// scope that never came from it (B3/B4). Such a scope is measured against its
+// own source instead ([pakkeScopeUpdate]), and synced from it.
 func scopeStaleness(scope *InstallScope, state *StateFile) string {
 	if !tracksDefaultSource(state) {
-		return ""
+		return pakkeScopeUpdate(state)
 	}
 	assessment := assessStaleness(state.Version)
 	recordFreshness("collection", scope.Name, assessment)
@@ -404,6 +404,12 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 			fmt.Print(greeting)
 		}
 		for _, s := range stale {
+			if !tracksDefaultSource(s.state) {
+				fmt.Printf("%s Update available for %s (%s): %s → %s\n  %s\n",
+					yellow("⚠"), bold(s.state.SourceRepo), s.scope.Name, shortSHA(s.state.SourceSHA), s.latest,
+					dim("Files you changed are kept as <file>.orig."))
+				continue
+			}
 			if versionNewer(s.latest, s.state.Version) {
 				fmt.Printf("%s Update available for %s (%s): %s → %s\n",
 					yellow("⚠"), bold(s.state.Collection), s.scope.Name, s.state.Version, s.latest)
@@ -445,6 +451,9 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 				fmt.Println()
 				fmt.Printf("%s Syncing %s scope...\n", dim("→"), s.scope.Name)
 				ref := "nav-pilot/" + s.latest
+				if !tracksDefaultSource(s.state) {
+					ref = "" // sync takes the pakke's newest release, or its default branch
+				}
 				if err := runWithCommandTelemetry("sync", "interactive", s.scope.Name, func() error {
 					return cmdSync(s.scope, ref, "", true, false)
 				}); err != nil {
