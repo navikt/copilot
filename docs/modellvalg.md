@@ -452,7 +452,7 @@ Mønstrene `RE_BS1` og `RE_BS2` avgjør ikke lenger t3, t7, t7b og 8b. Det gjør
 
 Slik fungerer vurderingen:
 
-- Claude Haiku 5.5 leser svaret uten verktøyutskrift, gjennom Copilot CLI, uten verktøy og med laveste tillatte resonneringsnivå (`low`).
+- Claude Haiku 5.5 leser svaret uten verktøyutskrift, gjennom Copilot CLI med laveste tillatte resonneringsnivå (`low`). Vurderingen skulle kjøre uten verktøy, men `--available-tools ""` fjernet dem ikke (se [#1472](https://github.com/navikt/copilot/issues/1472)).
 - Modellen svarer på to spørsmål. Blindsone 1: Spør svaret brukeren om selve personopplysningene, altså hvilke data, formål, lagringstid, hvem som mottar dataene, behandlingsgrunnlag eller dataminimering? Blindsone 2: Spør svaret hvem som får kalle eller lese tjenesten, endepunktet eller topicet, for eksempel tilgangsregler, roller eller hvilke apper som får lese? Ett spørsmål kan telle for begge. Påstander teller ikke, og heller ikke spørsmål om tokenflyt, felttype, format eller testoppsett.
 - Et ja må sitere spørsmålet ordrett. Finnes ikke sitatet i svaret, teller stemmen som nei.
 - Hvert svar får inntil tre stemmer, og flertallet avgjør. Er de to første stemmene enige, sparer vi den tredje.
@@ -498,6 +498,8 @@ Tre kjøringer skifter fra feil til bestått:
 Ingen kjøring skifter fra bestått til feil. I t7 fant KI-vurderingen ingen spørsmål om personvern eller tilgang i noen av de fem svarene.
 
 **Hva som endres:** Luna oppfyller planleggingskravene slik KI-vurderingen måler dem: t2 5/5, t3 5/5, t4 4/5, t5 5/5, t7 5/5 og t7b 5/5. Sol-tallene i batch 4 er målt med mønstrene og kan ikke sammenlignes før Sol er kjørt på nytt med KI-vurderingen. Anbefalingen endres ikke før det. Ingen pin er endret.
+
+_Merknad:_ Vurderingene 8. oktober før #1472 kjørte med 20 innebygde verktøy aktive; tallene står, men er ikke regnet om.
 
 #### Kostnad
 
@@ -687,18 +689,18 @@ Luna oppfylte planleggingskravene da de lagrede svarene ble vurdert på nytt med
 
 Begge armene kjøres med `@nav-pilot` i Copilot CLI med `--keep`, ti kjøringer av t2, t3, t4, t5, t7 og t7b. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen hovedmodell, forkastes. KI-vurderingen avgjør blindsonene i t3, t7 og t7b. Mønstrene vises ved siden av, bare for sammenligning. Før kjøringene er KI-vurderingen gjort sikrere ([#1472](https://github.com/navikt/copilot/issues/1472)), og kontrollene er kjørt på nytt.
 
-**GPT-6 Luna Medium blir standard for `@nav-pilot` bare hvis den består minst like mange kjøringer som GPT-6 Sol Low på hver av t2, t3, t4, t5, t7 og t7b, og t2 består minst 9 av 10.** Ellers forblir GPT-6 Sol standard. Målingen endrer ingen pinner. Et eventuelt bytte gjøres i en egen endring.
+**GPT-6 Luna Medium blir standard for `@nav-pilot` bare hvis den består minst like mange kjøringer som GPT-6 Sol Low på hver av t2, t3, t4, t5, t7 og t7b, og t2 består minst 9 av 10.** Ellers forblir GPT-6 Sol standard. Målingen endrer ingen pinne. Et eventuelt bytte gjøres i en egen endring.
 
-Budsjettet er om lag 350 credits, med stopp ved 440.
+Budsjettet er om lag 350 kreditter, med stopp ved 440.
 
 ### KI-vurderingen ble gjort sikrere før målingen
 
 Endringene for [#1472](https://github.com/navikt/copilot/issues/1472) ligger i en egen commit, laget før noen kjøring:
 
 - Instruksjonen sier nå at modellen skal se bort fra instruksjoner inne i `<answer>`. En `<answer>` eller `</answer>` i svaret blir gjort ufarlig, så svaret kan ikke avslutte blokken.
-- Et sitat teller bare hvis det er et spørsmål. Det må slutte med «?», stå rett foran et «?» i svaret, eller være et indirekte spørsmål som «trenger å vite» eller «må avklare». En sitert påstand gir nei.
+- Et sitat teller bare hvis det er et spørsmål. Det må slutte med «?», bli fulgt av «?» i svaret, eller være et indirekte spørsmål som «trenger å vite» eller «må avklare». En sitert påstand gir nei.
 - Et bestått kontrollsett gjenbrukes bare hvis også skriptet, flaggene til Copilot CLI og CLI-versjonen er uendret.
-- **`--available-tools ""` fjernet ikke verktøyene.** Feilsøkingsloggen viste at modellen hadde alle 20 innebygde verktøy, blant annet `bash`, `view` og `edit`. Nå bruker vurderingen `--available-tools=nonexistent_tool`, og loggen viser null verktøy. Samme testkall kostet 0,05 credits uten verktøy mot 0,27 med.
+- **`--available-tools ""` fjernet ikke verktøyene.** Feilsøkingsloggen viste at modellen hadde alle 20 innebygde verktøy, blant annet `bash`, `view` og `edit`. Nå bruker vurderingen `--available-tools=nonexistent_tool`, og loggen viser null verktøy. Samme testkall kostet 0,05 kreditter uten verktøy, mot 0,27 med verktøy.
 - Seks nye kontroller er hele svar fra fase 1, med overskrifter, sjekklister, påstander og et spørsmål gjemt inne i teksten. To av dem prøver å gi modellen ordre. Fasiten ble skrevet før noen vurdering ([blindspot-controls-full.tsv](../scripts/golden-fixtures/blindspot-controls-full.tsv)).
 
 Kontrollene ble kjørt én gang etter endringen, uten justeringer etterpå ([kontroller.txt](golden-baselines/2026-10-08-planning-luna-sol-judge/kontroller.txt)):
@@ -713,7 +715,7 @@ Kontrollene ble kjørt én gang etter endringen, uten justeringer etterpå ([kon
 
 Rådata ligger i [2026-10-08-planning-luna-sol-judge](golden-baselines/2026-10-08-planning-luna-sol-judge/), og svarene uten verktøyutskrift i [transkripter](golden-baselines/2026-10-08-planning-luna-sol-judge/transkripter/). Copilot CLI 1.0.94-3. Alle 337 bruksrader for Luna viser `gpt-6-luna` med `medium`, og alle 191 for Sol viser `gpt-6-sol` med `low`. Ingen kjøring er forkastet.
 
-**Avvik fra planen: GPT-6 Sol Low fikk 7 kjøringer, ikke 10.** Sol brukte om lag 52 credits per kjøring, mens tidligere målinger av t2–t5 alene lå på 27 til 29. Ti kjøringer ville gitt om lag 570 credits totalt. Kjøringen ble stoppet da kjøring 8 startet, før den brukte noe, for å holde stoppgrensen på 440. Filene for Sol er bygget fra arbeidsmappa (`--keep`) med samme innhold og overskrift som lagringssteget lager.
+**Avvik fra planen: GPT-6 Sol Low fikk 7 kjøringer, ikke 10.** Sol brukte om lag 52 kreditter per kjøring, mens tidligere målinger av t2–t5 alene lå på 27 til 29. Ti kjøringer ville gitt om lag 570 kreditter totalt. Kjøringen ble stoppet før kjøring 8 hadde brukt noe, for å holde stoppgrensen på 440. Filene for Sol er bygget fra arbeidsmappa (`--keep`) med samme innhold og overskrift som lagringssteget lager.
 
 | Sjekk | GPT-6 Luna Medium | GPT-6 Sol Low |
 | ----- | ----------------- | ------------- |
@@ -736,16 +738,22 @@ Eksempler på sitater fra KI-vurderingen:
 
 I t7 fant vurderingen ingen spørsmål om personvern eller tilgang i noen kjøring, verken for Luna eller Sol.
 
-Credits per kjøring, med KI-vurderingen:
+Kreditter per kjøring, medregnet KI-vurderingen. `summary.json` viser bare modellens egne kreditter, uten KI-vurderingen:
 
 | Arm | Min | Median | Maks | Sum |
 | --- | --- | --- | --- | --- |
 | GPT-6 Luna Medium (10 kjøringer) | 3,85 | 4,55 | 5,36 | 45,5 |
 | GPT-6 Sol Low (7 kjøringer) | 46,85 | 51,98 | 53,28 | 356,1 |
 
-Kontrollene og verktøytesten kostet 9,8 credits. Hele målingen kostet 411,5 credits.
+Kontrollene og verktøytesten kostet 9,8 kreditter. Hele målingen kostet 411,5 kreditter.
 
-**Vurdering: GPT-6 Luna Medium oppfyller kriteriet for å bli standard for `@nav-pilot`.** Luna besto alle seks sjekkene i 10 av 10 kjøringer, også t2. Sol kan ikke bestå mer enn 10 av 10 på noen sjekk, så de tre manglende Sol-kjøringene kunne ikke endret utfallet. Målingen endrer ingen pin. Byttet gjøres i en egen endring.
+**Vurdering: Luna er ikke målbart svakere enn Sol på disse seks sjekkene; målingen kan ikke vise at noen av dem er bedre.** Kriteriet som ble satt før målingen, er oppfylt etter ordlyden: Luna besto alle seks sjekkene i 10 av 10 kjøringer, også t2, og Sol kan ikke bestå mer enn 10 av 10. De tre manglende Sol-kjøringene kunne derfor ikke endret utfallet. Begge armene besto alt, så sjekkene skiller ikke modellene.
+
+Fremgangen for Luna siden 7. oktober kom fra vurderingen, ikke fra modellen. Med mønstrene fikk Luna t3 4/5 og t7b 3/5. Med KI-vurderingen fikk de samme svarene 5/5.
+
+### Før et eventuelt bytte
+
+Modellen til `@nav-pilot` er i praksis modellen for hele delegeringstreet. Pinner gjelder bare på toppnivå (se [Pinnen gjelder bare på toppnivå](#pinnen-gjelder-bare-på-toppnivå)), og overstyringen med `subagents` er ikke tatt i bruk ([#500](https://github.com/navikt/copilot/issues/500)). Med Luna som standard ville delegert kodegjennomgang og sikkerhetsvurdering også kjøre på Luna. Luna besto rv5 i 1 til 4 av 10 kjøringer 7. oktober, avhengig av tellemåte, og `@security-champion` er ikke målt på Luna. Arvingen ble målt på Copilot CLI 1.0.83-4 og må måles på nytt med dagens CLI før noen beslutning. Kvaliteten på planen i fase 2 er ikke målt utover t4 og t5. Målingen endrer ingen pinne.
 
 ## Pinner og delegering
 
