@@ -186,7 +186,7 @@ nav-pilot alpha local status`}</CodeBlock>
             Du får treffsikkerhet, en forvekslingsmatrise, snittet av sannsynligheten for riktige og gale svar, og
             svartid. Er modellen like sikker når den tar feil som når den har rett, hjelper ingen terskel. Da bør
             spørsmålet ikke inn i en hook. Våre tall for dette spørsmålet står i{" "}
-            <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger#malt-decide" className={linkClass}>
+            <NextLink href="/innsikt/lokale-modeller#malt-decide" className={linkClass}>
               målte grenser
             </NextLink>
             .

@@ -87,6 +87,12 @@ const nextConfig: NextConfig = {
       // Split into guides, reference and explanation pages. Old anchors are in
       // src/lib/legacy-anchors.ts, keyed by /nav-pilot/referanse.
       { source: "/nav-pilot/docs", destination: "/nav-pilot/referanse", permanent: true },
+      // The measurements became the open insight page. Old anchors are in src/lib/legacy-anchors.ts.
+      {
+        source: "/nav-pilot/forklaring/lokal-modell/malinger",
+        destination: "/innsikt/lokale-modeller",
+        permanent: true,
+      },
     ];
   },
   // Enable Cache Components (Partial Prerendering) — disabled in dev because the

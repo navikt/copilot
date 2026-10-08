@@ -1,4 +1,4 @@
-import { CurrencyExchangeIcon, PadlockLockedIcon, CpuIcon } from "@navikt/aksel-icons";
+import { CurrencyExchangeIcon, PadlockLockedIcon, CpuIcon, MonitorIcon } from "@navikt/aksel-icons";
 import { Box, Heading, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import { NavCard } from "@/components/navigation/nav-card";
@@ -6,7 +6,7 @@ import { PageHero } from "@/components/page-hero";
 
 export const metadata: Metadata = {
   title: "Innsikt",
-  description: "Tall om Copilot i Nav: bruk, adopsjon, kostnad, modellpriser og modellvalg.",
+  description: "Tall om Copilot i Nav: bruk, adopsjon, kostnad, modellpriser, modellvalg og lokale modeller.",
 };
 
 // LinkCard hides the icon from screen readers, so the description says «Krever innlogging» too.
@@ -71,6 +71,12 @@ export default function Innsikt() {
                 icon={<CpuIcon aria-hidden fontSize="1.75rem" />}
                 title="Modellvalg"
                 description="Hvilken modell agentene bruker, og hvorfor."
+              />
+              <NavCard
+                href="/innsikt/lokale-modeller"
+                icon={<MonitorIcon aria-hidden fontSize="1.75rem" />}
+                title="Lokale modeller"
+                description="Hvilke modeller nav-pilot kan kjøre på din Mac, og hva målingene viser."
               />
             </div>
           </VStack>

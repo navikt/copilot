@@ -1,7 +1,8 @@
 import { VStack } from "@navikt/ds-react";
-import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
+import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import type { LocalModel } from "@/lib/local-models";
-import { code } from "@/components/nav-pilot/doc-page";
+import { HeaderRow, code } from "@/components/nav-pilot/doc-page";
+import { formatDate, type ResultRow } from "@/lib/local-model-results";
 
 // The local-model tables on /nav-pilot/referanse and
 // /nav-pilot/forklaring/lokal-modell. The rows come from the manifest in
@@ -11,13 +12,13 @@ import { code } from "@/components/nav-pilot/doc-page";
 // shows the manifest's English role with a visible note.
 const LOCAL_MODEL_TEXT: Record<string, string> = {
   "qwen3.6-35b-a3b-optiq":
-    "Rask og forutsigbar, og svarer på sekunder. Det eneste hovedagenten kan sende hit uten forbehold, er en mekanisk endring over flere filer.",
+    "Rask og forutsigbar, og svarer på sekunder. Det eneste hovedagenten kan delegere hit uten forbehold, er en mekanisk endring over flere filer.",
   "qwen3.8-27b-optiq-4bit":
     "Mye tregere enn standardmodellen. Bruker 8 bit på de mest følsomme lagene og 4 bit på resten. I siste måling nådde ingen oppgaver tidsgrensen. Det gjorde den vanlige 4-bit-versjonen den erstatter.",
   "qwen3.8-27b-8bit-mlx":
     "Den tregeste. Løste litt flere oppgaver enn standardmodellen i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å bruke mindre minne, og det steget kjenner bare nyere nav-pilot til.",
   "qwen3.6-35b-a3b-8bit":
-    "Standardmodellen i 8 bit, for Macer med 64 GB minne eller mer. Du må velge den selv. Ingen oppgavetyper er godkjent for den ennå, så hovedagenten sender den ingenting.",
+    "Standardmodellen i 8 bit, for Macer med 64 GB minne eller mer. Du må velge den selv. Ingen oppgavetyper er godkjent for den ennå, så hovedagenten delegerer ingenting til den.",
 };
 
 const TASK_CLASS_LABEL: Record<string, string> = {
@@ -34,7 +35,7 @@ const modelName = (m: LocalModel) => m.model.split("/").pop();
 
 function trustedClasses(m: LocalModel) {
   return Object.entries(m.classes).flatMap(([id, c]) => [
-    ...(c.delegate === "trusted" ? [`${classLabel(id)} (sendt fra hovedagenten i skyen)`] : []),
+    ...(c.delegate === "trusted" ? [`${classLabel(id)} (delegert fra hovedagenten i skyen)`] : []),
     ...(c.local === "trusted" ? [`${classLabel(id)} (hele økten lokalt)`] : []),
   ]);
 }
@@ -55,40 +56,46 @@ function LocalModelText({ m }: { m: LocalModel }) {
   );
 }
 
-export function LocalModelsTable({ models }: { models: LocalModel[] }) {
+// `stack` turns rows into cards below 640px (.table-stack in globals.css). The
+// explicit roles keep the table semantics that display: block drops. A stacked
+// table has room for the model id on one line; the doc pages wrap it at the hyphens.
+const stackProps = (stack?: boolean) =>
+  stack ? { className: "table-stack w-full", role: "table" } : { style: { minWidth: "40rem" } };
+
+export function LocalModelsTable({ models, stack }: { models: LocalModel[]; stack?: boolean }) {
+  const r = (role: string) => (stack ? role : undefined);
   return (
     <div className="overflow-x-auto">
-      <Table size="small" style={{ minWidth: "40rem" }}>
-        <TableHeader>
-          <TableRow>
-            <TableHeaderCell scope="col">Modell</TableHeaderCell>
-            <TableHeaderCell scope="col">Kontekst / svar</TableHeaderCell>
-            <TableHeaderCell scope="col">Minne</TableHeaderCell>
-            <TableHeaderCell scope="col">Krever nav-pilot</TableHeaderCell>
-            <TableHeaderCell scope="col">Kort sagt</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <Table size="small" {...stackProps(stack)}>
+        <HeaderRow stack={stack} cells={["Modell", "Kontekst / svar", "Minne", "Krever nav-pilot", "Kort sagt"]} />
+        <TableBody role={r("rowgroup")}>
           {models.map((m) => (
-            <TableRow key={m.id}>
-              <TableDataCell>
+            <TableRow key={m.id} role={r("row")}>
+              <TableDataCell role={r("cell")}>
                 <VStack gap="space-2">
-                  <code className={code}>{modelName(m)}</code>
+                  <code className={stack ? `${code} whitespace-nowrap` : code}>{modelName(m)}</code>
                   <div className="text-xs" style={{ color: "var(--ax-text-neutral-subtle)" }}>
                     {m.default ? "standard" : "valgfri"}
                   </div>
                 </VStack>
               </TableDataCell>
-              <TableDataCell className="whitespace-nowrap">
+              <TableDataCell role={r("cell")} data-label="Kontekst / svar" className="whitespace-nowrap">
                 {kTokens(m.context)} / {kTokens(m.output)}
               </TableDataCell>
-              <TableDataCell>
+              <TableDataCell role={r("cell")} data-label="Minne">
                 {m.min_ram_gb} GB, vektene tar {m.weights_gb} GB
               </TableDataCell>
-              <TableDataCell>
-                {m.min_nav_pilot ? <code className={code}>≥ {m.min_nav_pilot}</code> : "alle versjoner"}
+              <TableDataCell role={r("cell")} data-label="Krever nav-pilot">
+                {m.min_nav_pilot ? (
+                  // Build ids are YYYY.MM.DD-HHMMSS-sha. The date is what a reader needs; the id is in the tooltip.
+                  <span title={`≥ ${m.min_nav_pilot}`}>
+                    fra {formatDate(m.min_nav_pilot.slice(0, 10).replaceAll(".", "-"))}
+                  </span>
+                ) : (
+                  "alle versjoner"
+                )}
               </TableDataCell>
-              <TableDataCell>
+              <TableDataCell role={r("cell")}>
                 <LocalModelText m={m} />
               </TableDataCell>
             </TableRow>
@@ -99,30 +106,61 @@ export function LocalModelsTable({ models }: { models: LocalModel[] }) {
   );
 }
 
-export function TrustedClassesTable({ models }: { models: LocalModel[] }) {
+export function TrustedClassesTable({ models, stack }: { models: LocalModel[]; stack?: boolean }) {
+  const r = (role: string) => (stack ? role : undefined);
   return (
     <div className="overflow-x-auto">
-      <Table size="small" style={{ minWidth: "40rem" }}>
-        <TableHeader>
-          <TableRow>
-            <TableHeaderCell scope="col">Modell</TableHeaderCell>
-            <TableHeaderCell scope="col">Godkjent</TableHeaderCell>
-            <TableHeaderCell scope="col">Blir i skyen</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <Table size="small" {...stackProps(stack)}>
+        <HeaderRow stack={stack} cells={["Modell", "Godkjent", "Blir i skyen"]} />
+        <TableBody role={r("rowgroup")}>
           {models.map((m) => {
             const trusted = trustedClasses(m);
             return (
-              <TableRow key={m.id}>
-                <TableDataCell>
-                  <code className={code}>{modelName(m)}</code>
+              <TableRow key={m.id} role={r("row")}>
+                <TableDataCell role={r("cell")}>
+                  <code className={stack ? `${code} whitespace-nowrap` : code}>{modelName(m)}</code>
                 </TableDataCell>
-                <TableDataCell>{trusted.length ? trusted.join(", ") : "ingen oppgavetyper ennå"}</TableDataCell>
-                <TableDataCell>{cloudClasses(m).join(", ")}</TableDataCell>
+                <TableDataCell role={r("cell")} data-label="Godkjent">
+                  {trusted.length ? trusted.join(", ") : "ingen oppgavetyper ennå"}
+                </TableDataCell>
+                <TableDataCell role={r("cell")} data-label="Blir i skyen">
+                  {cloudClasses(m).join(", ")}
+                </TableDataCell>
               </TableRow>
             );
           })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+// Measured results per task type: task, result and verdict, stacked on narrow screens.
+export function ResultTable({
+  rows,
+  headers = ["Oppgave", "Resultat", "Vurdering"],
+}: {
+  rows: ResultRow[];
+  headers?: [string, string, string];
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <Table size="small" className="table-stack w-full" role="table">
+        <HeaderRow stack cells={headers} />
+        <TableBody role="rowgroup">
+          {rows.map((r) => (
+            <TableRow role="row" key={r.task}>
+              <TableDataCell role="cell">
+                <strong>{r.task}</strong>
+              </TableDataCell>
+              <TableDataCell role="cell" data-label={headers[1]}>
+                {r.result}
+              </TableDataCell>
+              <TableDataCell role="cell" data-label={headers[2]}>
+                {r.verdict}
+              </TableDataCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

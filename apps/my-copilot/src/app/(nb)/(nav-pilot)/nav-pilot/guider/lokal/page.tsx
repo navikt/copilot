@@ -186,7 +186,7 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             Hovedagenten sender ingenting til denne modellen ennå, uansett utsendingsnivå. Du kan bruke den til{" "}
             <code className={code}>alpha decide</code>, eller prøve den i en økt selv. I målingene svarte den like godt
             som standardmodellen med decide. Prompter over 49 000 tokens kan sprenge minnegrensen. Se{" "}
-            <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger#modell-64-gb" className={linkClass}>
+            <NextLink href="/innsikt/lokale-modeller#modell-64-gb" className={linkClass}>
               Målinger
             </NextLink>
             .
@@ -238,7 +238,7 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
           </Bullets>
           <BodyLong>
             Modellen er mer treffsikker på «ja» enn på «nei», og ordlyden betyr mye. Tallene står i{" "}
-            <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger#malt-decide" className={linkClass}>
+            <NextLink href="/innsikt/lokale-modeller#malt-decide" className={linkClass}>
               Målinger
             </NextLink>
             .

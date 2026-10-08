@@ -67,7 +67,7 @@ export default function EgenServer() {
         Utsendingen, løkkevakten og <code className={code}>alpha decide</code> går til serveren din. Koden din sendes
         dit, så nav-pilot godtar bare localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. Modellen på
         serveren din er ikke målt, så tallene i{" "}
-        <NextLink href="/nav-pilot/forklaring/lokal-modell/malinger" className={linkClass}>
+        <NextLink href="/innsikt/lokale-modeller" className={linkClass}>
           Målinger
         </NextLink>{" "}
         gjelder ikke.

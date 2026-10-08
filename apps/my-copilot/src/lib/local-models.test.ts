@@ -62,6 +62,7 @@ describe("getLocalModels", () => {
     const fetchMock = stubFetch(async () => Response.json({ models: [entry({ key: "live" })] }));
     const table = await getLocalModels();
     expect(table.models.map((m) => m.id)).toEqual(["live"]);
+    expect(table.fetchedAt).toEqual(expect.any(String));
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ next: { revalidate: 3600 }, signal: expect.any(AbortSignal) });
     expect(console.error).not.toHaveBeenCalled();
   });
@@ -73,7 +74,7 @@ describe("getLocalModels", () => {
     ["a manifest that fails validation", async () => Response.json({ models: [entry({ default: false })] })],
   ])("falls back to the checked-in copy on %s", async (_, impl) => {
     stubFetch(impl);
-    expect(await getLocalModels()).toBe(FALLBACK_TABLE);
+    expect(await getLocalModels()).toEqual({ ...FALLBACK_TABLE, fetchedAt: null });
     expect(console.error).toHaveBeenCalledOnce();
   });
 
