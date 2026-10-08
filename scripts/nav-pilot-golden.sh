@@ -1578,6 +1578,7 @@ RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]
 # on the answer. Sets JB1/JB2 (1 = the answer asks the user a #1/#2 question)
 # and JQ1/JQ2 (the quoted question). Returns 2 when there is no verdict: the
 # judge failed, or the committed controls were judged below 95 % agreement
+# or with too many judge errors
 # earlier in this invocation. The controls run once, before the first verdict.
 # BS_JUDGE_CMD replaces the model (bats); BS_JUDGE_CONTROLS the control file.
 BS_JUDGE="$REPO_ROOT/scripts/blindspot-judge.py"
@@ -1590,14 +1591,18 @@ judge_bs() {
   if [[ -z "$BS_CONTROLS" ]]; then
     if BS_CONTROLS="$(python3 "$BS_JUDGE" controls "$BS_JUDGE_CONTROLS" 2>"$WORKDIR/judge-controls.err")"; then
       echo "  ${DIM}blind-spot judge: $BS_CONTROLS${RESET}"
+    elif [[ $? -eq 2 ]]; then
+      BS_CONTROLS="FAILED for mange dommerfeil: ${BS_CONTROLS:-no summary}"
+      echo "${RED}✗ blind-spot judge controls: $BS_CONTROLS${RESET}" >&2
+      sed 's/^/    /' "$WORKDIR/judge-controls.err" >&2
     else
-      BS_CONTROLS="FAILED ${BS_CONTROLS:-no summary}"
+      BS_CONTROLS="FAILED under 95 %: ${BS_CONTROLS:-no summary}"
       echo "${RED}✗ blind-spot judge controls: $BS_CONTROLS${RESET}" >&2
       sed 's/^/    /' "$WORKDIR/judge-controls.err" >&2
     fi
   fi
   if [[ "$BS_CONTROLS" == FAILED* ]]; then
-    JUDGE_DETAIL="harness error: blind-spot judge controls below 95 % ($BS_CONTROLS)"; return 2
+    JUDGE_DETAIL="harness error: blind-spot judge controls ${BS_CONTROLS#FAILED }"; return 2
   fi
   if ! out="$(python3 "$BS_JUDGE" judge "$answer" 2>&1)"; then
     JUDGE_DETAIL="harness error: blind-spot judge: $(head -c 200 <<<"$out")"; return 2
@@ -4078,7 +4083,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
       echo "# date:         $(date -u +%Y-%m-%d)"
       echo "# revision:     $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
       echo "# model:        ${MODEL:-CLI default}"
-      echo "# judge:        ${BS_JUDGE_CMD:+stub, }claude-haiku-5.5, up to 3 votes, majority"
+      echo "# judge:        ${BS_JUDGE_CMD:+stub, }${BS_JUDGE_MODEL:-claude-haiku-5.5}, up to 3 votes, majority"
       echo "# controls:     $BS_CONTROLS"
       echo "# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only."
       echo "#"

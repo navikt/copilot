@@ -631,7 +631,7 @@ run_suite() {
   make_judge_stub
   printf 'question\texpected_bs1\texpected_bs2\tsource\nHvem konsumerer topicen?\t0\t1\twrong\n' >"$SHIM/bad.tsv"
   BS_JUDGE_CONTROLS="$SHIM/bad.tsv" run_suite good --agent nav-pilot --only 7b
-  grep -q '^7b|1|error|.*controls below 95' "$SHIM/b-results.psv"
+  grep -q '^7b|1|error|.*controls under 95 %' "$SHIM/b-results.psv"
   [[ "$output" == *"row 2: want bs1=0 bs2=1, judge bs1=1 bs2=0"* ]]
 }
 
@@ -699,14 +699,6 @@ run_suite() {
   run_suite count --agent nav-pilot --only 8b
   [ "$status" -eq 1 ]
   grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
-}
-
-@test "planning t3: a privacy question about fødselsnummer counts as blind spot #1" {
-  re=$(sed -n "s/^RE_BS1='\\(.*\\)'$/\\1/p" "$SCRIPT")
-  [ -n "$re" ]
-  # The 2026-10-06 v4 t2 run 2 question that RE_BS1 used to miss.
-  printf '%s\n' 'Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, sende det videre eller lagre det?' | grep -qiE -- "$re"
-  if printf '%s\n' 'Hvilke tjenester må den kalle, og hva skal skje hvis de er nede?' | grep -qiE -- "$re"; then false; fi
 }
 
 @test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {

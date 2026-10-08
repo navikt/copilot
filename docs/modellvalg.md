@@ -448,7 +448,7 @@ Kjente begrensninger:
 
 ### KI-vurdering av blindsonene (8. oktober 2026)
 
-Mønstrene `RE_BS1` og `RE_BS2` avgjør ikke lenger t3, t7, t7b og 8b. Det gjør en KI-vurdering i [blindspot-judge.py](../scripts/blindspot-judge.py). Mønstrene står igjen som en ekstra kolonne i `-judge.psv`, bare for sammenligning.
+Mønstrene `RE_BS1` og `RE_BS2` avgjør ikke lenger t3, t7, t7b og 8b. Det gjør en KI-vurdering i [blindspot-judge.py](../scripts/blindspot-judge.py). Mønstrene står igjen som en ekstra kolonne i `-judge.psv`, bare for sammenligning. t8 bruker fortsatt mønstre (`asks_privacy`).
 
 Slik fungerer vurderingen:
 
@@ -460,22 +460,24 @@ Slik fungerer vurderingen:
 
 Et bestått kontrollsett gjenbrukes i sju dager, så lenge modell, resonneringsnivå, instruksjonen til modellen og kontrollfila er uendret. Resultatet lagres i [blindsone-dommer-kontroller.psv](golden-baselines/blindsone-dommer-kontroller.psv).
 
-Kontrollsettet ble kjørt to ganger 8. oktober. Alle avvik står i [kontroller.txt](golden-baselines/2026-10-08-blindsone-dommer/kontroller.txt).
+Kontrollsettet ble kjørt tre ganger 8. oktober. Alle avvik står i [kontroller.txt](golden-baselines/2026-10-08-blindsone-dommer/kontroller.txt).
 
-Første kjøring ga **70 av 75 (93,3 prosent)**. Eieren rettet deretter fasiten på to linjer. «Hvem er konsumentene av fnr?» (linje 64) og «Skal fnr eksponeres til alle som leser topicet?» (linje 65) spør både hvem som mottar opplysningene (#1) og hvem som får lese topicet (#2). Etter regelen om at et spørsmål kan telle for begge, gjelder begge blindsonene for disse linjene. Rettelsen ligger i en egen commit. Samtidig ble vurderingen strammet inn etter gjennomgangen av PR-en. En stemme må nå svare med ekte ja eller nei. To stemmer som er uenige, gir «ikke vurdert». Sitatet må også ha samme store og små bokstaver som svaret.
+Første kjøring ga **70 av 75 (93,3 prosent)**. Vi rettet deretter fasiten på to linjer. «Hvem er konsumentene av fnr?» (linje 64) og «Skal fnr eksponeres til alle som leser topicet?» (linje 65) spør både hvem som mottar opplysningene (#1) og hvem som får lese topicet (#2). Etter regelen om at et spørsmål kan telle for begge, gjelder begge blindsonene for disse linjene. Rettelsen ligger i en egen commit. Samtidig strammet vi inn vurderingen etter PR-gjennomgangen. En stemme må nå svare med ekte ja eller nei. To stemmer som er uenige, gir «ikke vurdert». Sitatet må også ha samme store og små bokstaver som svaret.
 
 Andre kjøring ga **71 av 75 (94,7 prosent)**. Det var fortsatt under kravet. Linje 48, 54, 55 og 59 bommet. Alle fire har fasiten «ingen».
 
-Eieren ba deretter om én generell presisering i instruksjonen til modellen. Den er ikke laget for å treffe de enkelte linjene og ligger i en egen commit: «Et blindsonespørsmål handler om hvordan systemet behandler ekte personers personopplysninger, eller om hvem som får bruke systemet, i produksjon. Spørsmål om kode, tester, differ, felttyper eller format, verktøy, CI, utviklingsmiljøer, tokenmekanikk eller utviklerens egen tilgang teller ikke, selv om de nevner fnr, personopplysninger, tilgang eller hvem.» Etter det ble ingenting mer justert.
+Vi la deretter inn én generell presisering i instruksjonen til modellen. Den er ikke laget for å treffe de enkelte linjene og ligger i en egen commit: «Et blindsonespørsmål handler om hvordan systemet behandler ekte personers personopplysninger, eller om hvem som får bruke systemet, i produksjon. Spørsmål om kode, tester, differ, felttyper eller format, verktøy, CI, utviklingsmiljøer, tokenmekanikk eller utviklerens egen tilgang teller ikke, selv om de nevner fnr, personopplysninger, tilgang eller hvem.» Etter det ble ingenting mer justert.
 
 Etter presiseringen ble vurderingen målt på to sett:
 
 | Sett | Resultat | Avvik |
 | --- | --- | --- |
 | Kontrollsettet, 75 linjer | **73 av 75 (97,3 prosent)** | linje 48 (KI: #1) og 59 (KI: #2), begge med fasit «ingen» |
-| Nytt uavhengig sett, 20 spørsmål | **20 av 20 (100 prosent)** | ingen |
+| Nytt sett, 20 spørsmål | **20 av 20 (100 prosent)** | ingen |
 
-Det nye settet ble skrevet av en annen agent som ikke hadde sett instruksjonen til modellen. Vi leste det først etter at presiseringen var lagt inn. Settet ligger i [blindspot-controls-heldout2.tsv](../scripts/golden-fixtures/blindspot-controls-heldout2.tsv). Kravene var minst 95 prosent på kontrollsettet og minst 90 prosent på det nye settet. Begge holdt.
+Settet ble skrevet av en annen agent som fikk definisjonene av blindsonene, men ikke leste repoet eller den lagrede instruksjonen. Det ble vurdert én gang, etter presiseringen, og ingenting ble justert etterpå. Settet ligger i [blindspot-controls-heldout2.tsv](../scripts/golden-fixtures/blindspot-controls-heldout2.tsv). Kravene var minst 95 prosent på kontrollsettet og minst 90 prosent på det nye settet. Begge holdt.
+
+Resultatet på 73 av 75 er målt på de samme dataene som vurderingen ble justert etter. Vi rettet linje 64 og 65 og la inn presiseringen etter å ha sett avvikene. Det er bare 20 av 20 på det nye settet som viser hvordan vurderingen treffer på nye spørsmål. Alle kontrollene er enkeltspørsmål med én innledende setning, ikke hele svar. Forbedringer før neste vurderte kjøring følges opp i [#1472](https://github.com/navikt/copilot/issues/1472).
 
 #### Luna-svarene vurdert på nytt
 
@@ -495,11 +497,11 @@ Tre kjøringer skifter fra feil til bestått:
 
 Ingen kjøring skifter fra bestått til feil. I t7 fant KI-vurderingen ingen spørsmål om personvern eller tilgang i noen av de fem svarene.
 
-**Hva som endres:** Med KI-vurderingen når GPT-6 Luna Medium kravene for planlegging slik de ble satt før målingen. t2 er 5/5, t3 5/5, t4 4/5, t5 5/5, t7 5/5 og t7b 5/5. Vurderingen «ikke akseptabel» fra 7. oktober gjelder dermed ikke lenger. Ett forbehold gjenstår: Sol-tallene som kravet bygger på (batch 4), ble talt med de gamle mønstrene og kan ikke regnes om, fordi svarene ikke er lagret. Ingen pin er endret.
+**Hva som endres:** Luna oppfyller planleggingskravene slik KI-vurderingen måler dem: t2 5/5, t3 5/5, t4 4/5, t5 5/5, t7 5/5 og t7b 5/5. Sol-tallene i batch 4 er målt med mønstrene og kan ikke sammenlignes før Sol er kjørt på nytt med KI-vurderingen. Anbefalingen endres ikke før det. Ingen pin er endret.
 
 #### Kostnad
 
-En kjøring av kontrollsettet koster omtrent 17,5 AI-kreditter. Det nye settet kostet 4,75, og de 15 Luna-svarene 4,21 (0,24 til 0,32 per svar). Totalt kostet arbeidet omtrent 68 kreditter. Én avbrutt kjøring er ikke målt, men anslått. Når kontrollene består, gjenbrukes resultatet i sju dager. Da koster en vanlig kjøring bare vurderingen av svarene.
+En kjøring av kontrollsettet koster omtrent 17,5 KI-kreditter. Det nye settet kostet 4,75, og de 15 Luna-svarene 4,21 (0,24 til 0,32 per svar). Totalt kostet arbeidet omtrent 68 kreditter. Én avbrutt kjøring er ikke målt, men anslått. Når kontrollene består, gjenbrukes resultatet i sju dager. Da koster en vanlig kjøring bare vurderingen av svarene.
 
 ## @security-champion målt direkte (7. oktober 2026)
 
