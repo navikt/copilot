@@ -33,11 +33,6 @@ const OPENCODE_RANGE = ">=1.18.20,<1.19";
 const OPENCODE2_RANGE = ">=2.0.24,<2.1";
 const c = (s: string) => <code className={code}>{s}</code>;
 
-const OPENCODE_INSTALL_BLOCK = `# macOS
-${OPENCODE_INSTALL.mac}
-# Linux og WSL
-${OPENCODE_INSTALL.linux}`;
-
 const CLIENTS = [
   {
     name: "opencode",
@@ -223,9 +218,10 @@ export default function Klienter() {
           Mangler opencode, tilbyr nav-pilot å installere en testet versjon med en av kommandoene under. Sier du nei,
           får du Copilot CLI.
         </BodyLong>
-        <div className="[&_pre]:[overflow-wrap:anywhere]">
-          <CodeBlock compact>{OPENCODE_INSTALL_BLOCK}</CodeBlock>
-        </div>
+        <VStack gap="space-8" className="[&_pre]:[overflow-wrap:anywhere]">
+          <CodeBlock compact>{`# macOS\n${OPENCODE_INSTALL.mac}`}</CodeBlock>
+          <CodeBlock compact>{`# Linux og WSL\n${OPENCODE_INSTALL.linux}`}</CodeBlock>
+        </VStack>
       </Section>
 
       <Section>
@@ -264,17 +260,22 @@ export default function Klienter() {
             </TableBody>
           </Table>
         </div>
-        <ol className="list-decimal space-y-1 pl-6 text-sm">
+        <VStack
+          as="ol"
+          gap="space-4"
+          className="list-decimal text-sm"
+          style={{ paddingInlineStart: "var(--ax-space-24)" }}
+        >
           {notes.map((r, i) => (
             <li key={i} id={`merknad-${i + 1}`}>
               <strong>{r.what}:</strong> {r.note}
             </li>
           ))}
-        </ol>
+        </VStack>
         <Box background="warning-soft" borderRadius="8" padding="space-16">
           <BodyShort>
-            Uten nav-pilots hooks er det verken løkkevakt eller maskering. Det gjelder alltid pi, og opencode med{" "}
-            {c("--pure")} eller uten nav-pilot. Se{" "}
+            Uten nav-pilots hooks er det verken løkkevakt eller maskering. Det gjelder alltid pi, og opencode 1 med{" "}
+            {c("--pure")} og opencode uten nav-pilot. Se{" "}
             <a href="#kjente-hull" className={linkClass}>
               Kjente hull i opencode
             </a>
@@ -302,7 +303,7 @@ export default function Klienter() {
           </li>
           <li>
             Kobler du til en avslått server med {c("/mcp")} i økten, avviser hooks-pluginen verktøyene dens. Med{" "}
-            {c("--pure")} kjører ingen hooks, så da virker ikke dette.
+            {c("--pure")} i opencode 1 kjører ingen hooks, så da virker ikke dette.
           </li>
           <li>Konfigen din endres ikke, og opencode du starter uten nav-pilot, berøres ikke.</li>
           <li>Mangler {c("gh")}, eller svarer ikke GitHub, slår nav-pilot ingenting av. Du får en advarsel.</li>
@@ -432,10 +433,9 @@ export default function Klienter() {
           Copilot CLI
         </LinkableHeading>
         <BodyLong>
-          {c("mode = autopilot")}, {c("context_tier")}, {c("ask_user")}, {c("autonomy")} og utvidelser (extensions)
-          finnes bare i Copilot CLI. I cplt kjører Copilot CLI kommandoer på egen hånd og spør når den trenger det, med
-          mindre du har satt {c("nav-pilot config set autonomy conservative")}. En lokal modell tar hele økten, uten
-          utsending, se{" "}
+          {c("mode = autopilot")}, {c("context_tier")}, {c("ask_user")} og utvidelser (extensions) finnes bare i Copilot
+          CLI. I cplt kjører Copilot CLI kommandoer på egen hånd og spør når den trenger det, med mindre du har satt{" "}
+          {c("nav-pilot config set autonomy conservative")}. En lokal modell tar hele økten, uten utsending, se{" "}
           <NextLink href="/nav-pilot/lokal" className={linkClass}>
             Lokal modell på Mac
           </NextLink>
