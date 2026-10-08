@@ -1,22 +1,20 @@
-# Omregning av de lagrede planleggingssvarene, uten nye modellkall. Sjekkene er rettet etter #1462.
+# Omregning av de lagrede planleggingssvarene, uten nye modellkall.
 # testoppsett = utfallet testoppsettet registrerte, på hele stdout med verktøyutskrift.
-# gammel = sjekken på origin/main før rettingen, kjørt på svaret uten verktøyutskrift (transkripter/). ny = denne branchen.
-# t3 og t7b: «fnr» teller i et spørsmål med konsument, mottaker, formål, videresending, eksponering eller oppbevaring, men ikke i spørsmål om kode, tester eller typer. Blindsone 2 teller i spørsmål om tilgangskontroll, ikke om tester, CI eller verktøy.
-# t7 er tatt med som kontroll: sjekken er ikke endret. t2, t4 og t5 er uendret fordi svarene allerede er uten verktøyutskrift.
-# Mønstrene er utledet fra de samme svarene.
-# sett|arm|sjekk|kjøring|testoppsett|gammel|ny
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|1|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|2|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|3|fail|fail|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|4|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|5|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|1|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|2|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|3|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|4|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|5|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|1|fail|fail|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|2|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|3|pass|pass|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|4|pass|fail|pass
-2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|5|pass|pass|pass
+# svar = de uendrede mønstrene RE_BS1 og RE_BS2, kjørt på svaret uten verktøyutskrift (transkripter/).
+# Blindsonesjekkene er ikke pålitelige og skal erstattes (docs/modellvalg.md). Tallene er foreløpige.
+# sett|arm|sjekk|kjøring|testoppsett|svar
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|1|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|2|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|3|fail|fail
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|4|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|5|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|1|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|2|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|3|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|4|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|5|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|1|fail|fail
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|2|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|3|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|4|pass|fail
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|5|pass|pass

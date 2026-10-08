@@ -912,7 +912,7 @@ BENCH_CHECK="$REPO_ROOT/scripts/benchmark-sjekk.py"
 if [[ "$GROUP" == "nav-pilot" ]] && ! command -v python3 >/dev/null 2>&1; then
   fail_preflight "--agent nav-pilot needs python3 to strip tool output" "brew install python3"
 fi
-# Tests 3, 7, 7b, 8 and 8b split sentences with perl.
+# Tests 7 and 8 split sentences with perl.
 if [[ "$GROUP" == "nav-pilot" ]] && ! command -v perl >/dev/null 2>&1; then
   fail_preflight "--agent nav-pilot needs perl to split sentences" "brew install perl"
 fi
@@ -1540,37 +1540,6 @@ asks_privacy() {
     l ~ tolower(p) || (l ~ tolower(a) && l !~ tolower(s)) || (l ~ tolower(w) && l !~ tolower(c) && l !~ tolower(s)) { print; found = 1; exit }
     END { exit !found }'
 }
-# Blind spots #1 and #2 as tests 3, 7b and 8b score them: the topic word
-# anywhere in the answer, or a question to the user that carries a privacy or
-# access-control signal and none of the signs of a code, test or tooling
-# question. Every prompt that tests #1 says «fnr», so fnr counts only with a
-# purpose, recipient or retention signal («Er det avklart at konsumentene skal
-# motta FNR?»), never in a question about the field («Skal fnr lagres som
-# String eller Long?»). TokenX, Azure and authentication count for #2 only
-# beside a call, endpoint, service, topic or consumer. Derived 2026-10-08 from
-# the 30 kept GPT-6 Luna planning answers (2026-10-07-luna-planning) and two
-# rounds of review negatives. A third set in nav-pilot-golden.bats was held out
-# while writing these patterns; misses on it are listed in docs/modellvalg.md.
-_W1='(^|[^[:alnum:]])'
-RE_Q_BS1_FNR="${_W1}fnr([^[:alnum:]]|\$)"
-RE_Q_BS1_WHY="${_W1}(konsument|mottaker|motta|bruke[[:space:]]+til|formål|sende[[:space:]]+videre|sendes[[:space:]]+videre|behandlingsgrunnlag|eksponer|oppbevar|pseudonym|hvem[^?]*(få|motta|se|lese)[^?]*fnr)"
-RE_Q_BS1_NOT='valider|parse|pars|test|streng|string|long|type|varchar|database|kode|diff|funksjon|feltnavn|navngi|dele[[:space:]]+opp|se[[:space:]]+(på|bort|om)'
-RE_Q_BS2='tilgangskontroll|access.?policy|lesetilgang|hvem[^?]*tilgang|hvem[[:space:]]+(skal|kan)[[:space:]]+(kunne[[:space:]]+)?(kalle|lese)|(hvilke|hvem)[^?]*(konsument|applikasjon|team)[^?]*(lese|konsumere|kalle)|(tokenx|azure|tjeneste-til-tjeneste|autentiser|autoriser)[^?]*(kall|endepunkt|tjeneste|topic|konsument)|(kall|endepunkt|tjeneste|topic|konsument)[^?]*(tokenx|azure|autentiser|autoriser)'
-RE_Q_BS2_NOT='test|mock|bibliotek|pipeline|(^|[^[:alnum:]])ci([^[:alnum:]]|$)|gcp|grafana|logg|figma|maven|hemmelighet|versjon|ferdig|feiler|repo'
-# Question sentences for raises_bs1/2. Unlike question_sentences, a heading or
-# a blank line ends a sentence («## FNR i Kafka» is not part of the question
-# below it), and a code span keeps its text with . ! ? blanked, so «`FNR`»
-# counts the same as «FNR». Kept apart so tests 7 and 8 are unchanged.
-bs_questions() {
-  perl -0777 -ne 's/^(#+[^\n]*)$/$1./mg; s/\n[ \t]*\n/.\n/g; s/\s+/ /g; s/`([^`]*)`/do { (my $c = $1) =~ tr|.!?|   |; $c }/ge; for (split /(?<=[.!?])[*_]*\s+/) { print "$_\n" if /\?\W*$/ }' "$1"
-}
-raises_bs1() {
-  present "$1" "$RE_BS1" ||
-    bs_questions "$1" | grep -iE -- "$RE_Q_BS1_FNR" | grep -iE -- "$RE_Q_BS1_WHY" | grep -qviE -- "$RE_Q_BS1_NOT"
-}
-raises_bs2() {
-  present "$1" "$RE_BS2" || bs_questions "$1" | grep -iE -- "$RE_Q_BS2" | grep -qviE -- "$RE_Q_BS2_NOT"
-}
 
 count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
 
@@ -2042,9 +2011,9 @@ run_pass_nav_pilot() {
         # Blind spot #1 = Privacy, #2 = Access control. Assert the *topic* is
         # raised, in any phrasing the agent chooses.
         ok=0; detail=""
-        if ! raises_bs1 "$A2"; then
+        if ! present "$A2" "$RE_BS1"; then
           ok=1; detail="blind spot #1 (personvern) not raised"
-        elif ! raises_bs2 "$A2"; then
+        elif ! present "$A2" "$RE_BS2"; then
           ok=1; detail="blind spot #2 (tilgangskontroll) not raised"
         fi
         record 3 "$DESC3" "$ok" "$detail"
@@ -2237,7 +2206,7 @@ run_pass_nav_pilot() {
       WS_EXTRA=seed_jackson_fixture
       if ! run_prompt t7b "legg til fnr i SoknadMottattMelding som sendes på Kafka-topicen soknad-mottatt"; then
         record_error 7b "$DESC7B" "$LAST_PROMPT_DETAIL"
-      elif ! raises_bs1 "$(svar "$T7B")"; then
+      elif ! present "$(svar "$T7B")" "$RE_BS1"; then
         record 7b "$DESC7B" 1 "blind spot #1 (personvern) not raised for a new fnr field on Kafka"
       else
         record 7b "$DESC7B" 0
@@ -2290,7 +2259,7 @@ run_pass_nav_pilot() {
     if [[ $rc8b -ne 0 ]]; then
       record_error 8b "$DESC8B" "$LAST_PROMPT_DETAIL"
     # The «Blindsoner reist» count line names #1 without raising it.
-    elif grep -v 'Blindsoner reist' "$(svar "$T8B")" >"$T8B.bs1"; ! raises_bs1 "$T8B.bs1"; then
+    elif ! grep -v 'Blindsoner reist' "$(svar "$T8B")" | grep -qiE -- "$RE_BS1"; then
       record 8b "$DESC8B" 1 "blind spot #1 (personvern) not raised for fnr in a Kafka header"
     else
       record 8b "$DESC8B" 0
