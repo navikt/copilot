@@ -630,7 +630,7 @@ func mcpProbeTarget(raw string, st providerpkg.MCPHostState) (string, []string, 
 
 // mcpProbeRun runs cplt; a var so tests answer without cplt.
 var mcpProbeRun = func(cplt string, args []string) (string, string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout+time.Second)
 	defer cancel()
 	out, _ := exec.CommandContext(ctx, cplt, args...).Output() // blocked exits non-zero
 	var res struct {

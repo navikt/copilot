@@ -218,7 +218,7 @@ var cpltSandboxPreset = func() string {
 	if err != nil {
 		return ""
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, cliPath, "config", "get", "sandbox.preset").Output()
 	if err != nil {
@@ -862,7 +862,7 @@ func syncAllowlist(mcp bool) {
 // that as "not set", which is the safe reading: it makes them seed rather than
 // assume a user allowlist exists.
 func cpltConfigGet(cliPath, key string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, cliPath, "config", "get", key).Output()
 	if err != nil {

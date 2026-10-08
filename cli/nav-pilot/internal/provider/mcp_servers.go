@@ -102,7 +102,7 @@ func (p MCPPackage) Launch() (runtime string, args []string) {
 // Nav's own when there is no policy to ask: the same choice as the launch,
 // and the same cache (mcp_hosts.go). A cache past its day, or one without
 // entries, is read again first: nav-pilot mcp is asked for, so it may wait
-// for gh and the registry, each bounded by [mcpPolicyTimeout]. When that
+// for gh and the registry, each bounded by [MCPPolicyTimeout]. When that
 // read fails, a cache there is still answers, and stale says why it is old.
 func MCPRegistryServers() (registry string, servers []MCPServerEntry, stale, err error) {
 	c, ok := readMCPRegistryCache()
