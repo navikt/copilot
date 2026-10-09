@@ -700,7 +700,7 @@ cplt config set gh_guard.inject_token true --force`}
           <BodyLong>
             Kjør <code className={code}>cplt doctor</code>, eller{" "}
             <code className={code}>cplt doctor --agent claude</code> for en bestemt agent, og lim inn hele utskriften
-            sammen med kommandoen som feilet. Utskriften viser hjemmemappa som <code className={code}>~</code> og
+            sammen med kommandoen som feilet. Utskriften viser hjemmekatalogen som <code className={code}>~</code> og
             tokener bare med navn. Ikke send <code className={code}>--verbose</code>: den tar med fulle stier.
           </BodyLong>
           <CodeBlock compact>{`cplt doctor`}</CodeBlock>
