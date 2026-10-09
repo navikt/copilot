@@ -52,14 +52,7 @@ export const PHASES: Phase[] = [
     end: "2024-05",
     title: "Fra pilot til hverdag",
     status: "Chat i VS Code og IntelliJ, men lisensene var brukt opp i mai 2024 og det var venteliste.",
-    milestones: [
-      {
-        date: "2024-03-07",
-        text: "Copilot Chat blir allment tilgjengelig i JetBrains",
-        url: "https://github.blog/changelog/2024-03-07-github-copilot-chat-general-availability-in-jetbrains-ide/",
-      },
-      { date: "2024-05", text: "Lisensene er brukt opp, og vi får venteliste" },
-    ],
+    milestones: [{ date: "2024-05", text: "Lisensene er brukt opp, og vi får venteliste" }],
     text: "Copilot Chat kom til IntelliJ, der mange av Navs Java- og Kotlin-utviklere jobber. Etterspørselen vokste forbi lisensene: i mai var de brukt opp, og vi fikk venteliste og et budsjettforslag om tilgang for alle som trenger det.",
     sources: [
       TEAM,
@@ -76,13 +69,19 @@ export const PHASES: Phase[] = [
     status:
       "Over 300 aktive brukere, de fleste daglig. På 100 dager ga Copilot om lag 709 000 kodeforslag og 1,22 millioner genererte linjer, og rundt 190 000 linjer ble tatt i bruk.",
     milestones: [
-      { date: "2025-01-17", text: "Min Copilot med selvbetjente lisenser, rundt 111 brukere" },
+      { date: "2025-01", text: "Over 100 brukere" },
+      { date: "2025-01-17", text: "Min Copilot med selvbetjente lisenser" },
+      {
+        date: "2025-02",
+        text: "Copilot som kodegjennomganger (beta) for navikt",
+        url: "https://github.blog/changelog/2025-02-26-code-review-in-github-copilot-is-now-in-public-preview/",
+      },
       {
         date: "2025-04-07",
-        text: "Agentmodus til alle i VS Code, og blokkeringen av treff mot offentlig kode slås av",
+        text: "Agentmodus til alle i VS Code",
         url: "https://code.visualstudio.com/blogs/2025/04/07/agentMode",
       },
-      { date: "2025-09", text: "Over 300 aktive brukere etter sommeren" },
+      { date: "2025-09", text: "Over 300 aktive brukere" },
     ],
     text: "I januar åpnet vi repoet navikt/copilot og Min Copilot med selvbetjente lisenser, for rundt 111 brukere. Så kom agentmodus, kodegjennomgang og egne instruksjoner per repo. Vi løftet blokkeringen av treff mot offentlig kode og risikovurderte MCP. Til høsten hadde vi over 300 aktive brukere og Copilot CLI, og i november åpnet vi for flere roller i IT. Derfra rullet det.",
     sources: [
@@ -102,6 +101,7 @@ export const PHASES: Phase[] = [
     status:
       "En felles katalog med agenter, skills og instruksjoner, installert med nav-pilot og kjørt i sandkasse med cplt.",
     milestones: [
+      { date: "2025-12-27", text: "MCP-registeret", url: `${PR}61` },
       { date: "2026-04-09", text: "Sandkassen cplt får eget repo", url: "https://github.com/navikt/cplt" },
       { date: "2026-04-13", text: "nav-pilot er på plass", url: `${PR}149` },
       { date: "2026-08-24", text: "Agentpakker lar team lage sine egne", url: `${PR}436` },
