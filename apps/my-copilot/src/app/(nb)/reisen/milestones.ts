@@ -34,11 +34,11 @@ export const PHASES: Phase[] = [
     title: "Grasrot og pilot",
     status: "En liten gruppe pilotbrukere med Copilot Business, autofullføring i editoren og retningslinjer på plass.",
     milestones: [
-      { date: "2023", text: "Nav velger pilot i stedet for forbud" },
+      { date: "2023", text: "Nav velger pilot framfor forbud" },
       { date: "2023", text: "SINTEF starter studien av Copilot i Nav", url: "https://arxiv.org/abs/2509.20353" },
-      { date: "2023-09-05", text: "De første retningslinjene for Copilot i Nav" },
+      { date: "2023-09-05", text: "Nav får sine første retningslinjer for Copilot" },
     ],
-    text: "Noen utviklere i Nav fikk tilgang til den lukkede betaen av GitHub Copilot, den gang mest en smart autofullføring. I stedet for å stoppe det kjørte Nav en pilot med Copilot Business-lisenser. Teamet skrev retningslinjer og gikk gjennom vilkårene med Navs jurister. Koden vår var stort sett åpen, så opphavsrett bekymret oss mer enn lekkasje. Samme høst startet SINTEF en studie av Copilot i Nav. Det var et fellesskap fra dag én.",
+    text: "Noen utviklere i Nav fikk tilgang til den lukkede betaen av GitHub Copilot, den gang mest en smart autofullføring. Nav stoppet det ikke, men kjørte en pilot med Copilot Business-lisenser. Teamet skrev retningslinjer og gikk gjennom vilkårene med Navs jurister. Det meste av koden vår var åpen, så opphavsrett bekymret oss mer enn lekkasje. Samme høst startet SINTEF en studie av Copilot i Nav. Fellesskapet var der fra dag én.",
     sources: [
       TEAM,
       {
@@ -53,9 +53,9 @@ export const PHASES: Phase[] = [
     date: "2024-03",
     end: "2024-11",
     title: "Fra pilot til hverdag",
-    status: "Chat i VS Code og IntelliJ, men lisensene var brukt opp i mai 2024 og det var venteliste.",
+    status: "Chat i VS Code og IntelliJ, men lisensene var brukt opp i mai 2024, og nye brukere sto på venteliste.",
     milestones: [{ date: "2024-05", text: "Lisensene er brukt opp, og vi får venteliste" }],
-    text: "Copilot Chat kom til IntelliJ, der mange av Navs Java- og Kotlin-utviklere jobber. Etterspørselen vokste forbi lisensene: i mai var de brukt opp, og vi fikk venteliste og et budsjettforslag om tilgang for alle som trenger det. I november kunne vi velge modell i Copilot, blant annet Claude 3.5 Sonnet og OpenAI o1.",
+    text: "Copilot Chat kom til IntelliJ, der mange av Navs Java- og Kotlin-utviklere jobber. Etterspørselen vokste forbi lisensene. I mai var de brukt opp, og vi fikk venteliste og et budsjettforslag om tilgang for alle som trenger det. I november kunne vi velge modell i Copilot, blant annet Claude 3.5 Sonnet og OpenAI o1.",
     sources: [
       TEAM,
       {
@@ -89,7 +89,7 @@ export const PHASES: Phase[] = [
       },
     ],
     status:
-      "Over 300 aktive brukere, de fleste daglig. På 100 dager ga Copilot om lag 709 000 kodeforslag og 1,22 millioner genererte linjer, og rundt 190 000 linjer ble tatt i bruk.",
+      "Over 300 aktive brukere, de fleste daglig. På 100 dager ga Copilot om lag 709 000 kodeforslag og 1,22 millioner genererte linjer. Utviklerne tok rundt 190 000 linjer i bruk.",
     milestones: [
       { date: "2025-01", text: "Over 100 brukere" },
       {
@@ -99,12 +99,12 @@ export const PHASES: Phase[] = [
       },
       {
         date: "2025-02",
-        text: "Copilot som kodegjennomganger (beta) for navikt",
+        text: "Kodegjennomgang med Copilot (beta) i navikt",
         url: "https://github.blog/changelog/2025-02-26-code-review-in-github-copilot-is-now-in-public-preview/",
       },
       {
         date: "2025-04-07",
-        text: "Agentmodus til alle i VS Code",
+        text: "Agent mode til alle i VS Code",
         url: "https://code.visualstudio.com/blogs/2025/04/07/agentMode",
       },
       { date: "2025-09", text: "Over 300 aktive brukere" },
@@ -119,7 +119,7 @@ export const PHASES: Phase[] = [
         url: "https://github.com/navikt/copilot/commit/816a7bd3",
       },
     ],
-    text: "I januar åpnet vi repoet navikt/copilot og Min Copilot med selvbetjente lisenser, for rundt 111 brukere. I februar viste GitHub fram agentmodus, samtidig som Claude 3.7 Sonnet kom i Copilot. Så kom kodegjennomgang og egne instruksjoner per repo. Vi løftet blokkeringen av treff mot offentlig kode og risikovurderte MCP. Til høsten hadde vi over 300 aktive brukere og Copilot CLI, og i november fikk også designere og folk som jobber med infrastruktur og plattform tilgang. I august og september kom GPT-5 og Claude Sonnet 4.5. Derfra rullet det.",
+    text: "I januar åpnet vi repoet navikt/copilot og Min Copilot med selvbetjente lisenser, for rundt 111 brukere. I februar viste GitHub fram agent mode, og Claude 3.7 Sonnet kom i Copilot. Så kom kodegjennomgang og egne instruksjoner per repo. Vi fjernet blokkeringen av treff mot offentlig kode og risikovurderte MCP. I august og september kom GPT-5 og Claude Sonnet 4.5. Til høsten hadde vi over 300 aktive brukere og Copilot CLI, og i november fikk designere og folk som jobber med infrastruktur og plattform også tilgang.",
     sources: [
       TEAM,
       { label: "commit a083419c", url: "https://github.com/navikt/copilot/commit/a083419c" },
@@ -139,7 +139,7 @@ export const PHASES: Phase[] = [
         label: "Claude Sonnet 4.5",
         url: "https://github.blog/changelog/2025-09-29-anthropic-claude-sonnet-4-5-is-in-public-preview-for-github-copilot/",
       },
-      { label: "Agentmodus i VS Code", url: "https://code.visualstudio.com/blogs/2025/04/07/agentMode" },
+      { label: "Agent mode i VS Code", url: "https://code.visualstudio.com/blogs/2025/04/07/agentMode" },
     ],
   },
   {
@@ -150,7 +150,7 @@ export const PHASES: Phase[] = [
       {
         src: "/images/reisen/nav-pilot-plakat.webp",
         alt: "Toppen av plakaten «Introduserer Nav-Pilot», med en rakett og et kodevindu for @nav-pilot ved siden av en generell Copilot.",
-        caption: "Plakaten da nav-pilot ble lansert, april 2026",
+        caption: "Plakaten fra lanseringen av nav-pilot, april 2026",
       },
       {
         src: "/images/github-copilot-vs-code-mcp.jpeg",
@@ -161,12 +161,12 @@ export const PHASES: Phase[] = [
     status:
       "En felles katalog med agenter, skills og instruksjoner, installert med nav-pilot og kjørt i sandkasse med cplt.",
     milestones: [
-      { date: "2025-12-27", text: "MCP-registeret", url: `${PR}61` },
+      { date: "2025-12-27", text: "MCP-registeret kommer", url: `${PR}61` },
       { date: "2026-04-09", text: "Sandkassen cplt får eget repo", url: "https://github.com/navikt/cplt" },
       { date: "2026-04-13", text: "nav-pilot er på plass", url: `${PR}149` },
       { date: "2026-05-05", text: "Nettstedet ki-utvikling.nav.no blir delvis åpent", url: `${PR}219` },
       { date: "2026-05-27", text: "Skills erstatter agenter uten verktøygrenser", url: `${PR}255` },
-      { date: "2026-06-02", text: "Backend skilles ut fra Next.js i copilot-api", url: `${PR}236` },
+      { date: "2026-06-02", text: "Backenden skilles ut fra Next.js til copilot-api", url: `${PR}236` },
       {
         date: "2026-06-17",
         text: "mlx-workspace: språkmodeller lokalt på Mac",
@@ -179,7 +179,7 @@ export const PHASES: Phase[] = [
         url: "https://github.com/nais/pilot/issues/14",
       },
     ],
-    text: "Vi samlet agenter, skills og instruksjoner i en felles katalog med MCP-register, og fellesskapet deler det som virker. Sandkassen cplt og kommandolinjeverktøyet nav-pilot gjorde katalogen til noe hvert team installerer, bygget på en utviklerundersøkelse og skrevne designvalg. I mai ble nettstedet delvis åpent, skills tok over for agenter uten verktøygrenser, og backenden ble skilt ut i en egen tjeneste. Med agentpakker kan team lage sine egne, og en arbeidsflyt holder basen oppdatert. Arbeidet sprer seg utenfor Nav: Kartverket, SSB og Cloud Native Bergen kjører agenter i cplt, Altinn viser til ki-utvikling.nav.no, og Nais bygger sin egen pakke på navikt/copilot. Støtten for OpenCode 2 er bygget, men slått av til en feil i OpenCode er rettet.",
+    text: "Vi samlet agenter, skills og instruksjoner i en felles katalog med MCP-register, og fellesskapet deler det som virker. Med sandkassen cplt og kommandolinjeverktøyet nav-pilot ble katalogen noe hvert team installerer. Valgene bygger på en utviklerundersøkelse og et designnotat. I mai åpnet vi nettstedet delvis, skills tok over for agenter uten verktøygrenser, og vi skilte backenden ut i en egen tjeneste. Med agentpakker lager team sine egne, og en arbeidsflyt holder basen oppdatert. Arbeidet sprer seg utenfor Nav: Kartverket, SSB og Cloud Native Bergen kjører agenter i cplt, Altinn viser til ki-utvikling.nav.no, og Nais bygger sin egen pakke på navikt/copilot. Støtten for OpenCode 2 er bygget, men slått av til en feil i OpenCode er rettet.",
     sources: [
       pr(60),
       pr(61),
@@ -221,7 +221,7 @@ export const PHASES: Phase[] = [
         href: "/nyheter/lokale-modeller-i-nav-pilot",
       },
     ],
-    status: "Modellvalg for hver agent bygget på målinger, og kostnaden per modell er kjent.",
+    status: "Hver agent har en modell valgt ut fra målinger, og vi kjenner kostnaden per modell.",
     milestones: [
       {
         date: "2026-05-13",
@@ -243,7 +243,7 @@ export const PHASES: Phase[] = [
         text: "nav-pilot kan sende oppgaver til en lokal modell (alfa)",
         url: "/nyheter/lokale-modeller-i-nav-pilot",
       },
-      { date: "2026-09-02", text: "Første grunnlinje for benchmarker", url: `${PR}594` },
+      { date: "2026-09-02", text: "Første baseline for benchmarkene", url: `${PR}594` },
       {
         date: "2026-09-25",
         text: "nav-pilot decide gir et svar uten å starte en agent (alfa)",
@@ -252,7 +252,7 @@ export const PHASES: Phase[] = [
       { date: "2026-09-30", text: "Siden /modeller viser valgene og målingene", url: `${PR}1376` },
       { date: "2026-10-08", text: "@nav-pilot fordeler arbeid til @worker", url: `${PR}1496` },
     ],
-    text: "Allerede i mai låste vi hver agent til en fast modell for å holde kostnaden nede. Så byttet GitHub ut de subsidierte premium requests med AI Credits etter tokenforbruk, og for oss betydde det tre til fire ganger høyere regning for rundt 600 daglige brukere. Vi testet lokale modeller som et billigere alternativ, og laget decide for spørsmål som trenger et svar, ikke en agent. Ellers ble svaret modellvalg bygget på målinger: benchmarker som kan kjøres på nytt, siden /modeller og en språkmodell som vurderer planleggingssvar. Målingene flyttet @rust til Claude Haiku 5.5, og @nav-pilot sender nå avgrensede oppgaver til @worker på GPT-6 Luna, som koster mindre. Samtidig kom en ny generasjon modeller, som Claude Opus 5.5 og GPT-6 Sol og Luna.",
+    text: "Allerede i mai låste vi hver agent til en fast modell for å holde kostnaden nede. Så byttet GitHub ut de subsidierte premium requests med AI Credits etter tokenforbruk. For oss betydde det tre til fire ganger høyere regning for rundt 600 daglige brukere. Vi testet lokale modeller som et billigere alternativ og laget decide for spørsmål som trenger et svar, ikke en agent. Resten av svaret er modellvalg bygget på målinger: benchmarker vi kan kjøre på nytt, siden /modeller og en språkmodell som vurderer planleggingssvar. Målingene flyttet @rust til Claude Haiku 5.5, og @nav-pilot sender nå avgrensede oppgaver til @worker på GPT-6 Luna, som koster mindre. I samme periode kom en ny generasjon modeller: Claude Opus 5.5 og GPT-6 Sol og Luna.",
     sources: [
       {
         label: "GitHubs kunngjøring",
