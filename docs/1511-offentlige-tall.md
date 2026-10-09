@@ -13,7 +13,7 @@ Relatert: #1510 (kildedata), #1512 (historien), #345 (innsikt per team), #1424 (
 | `copilot-api` `/public/v1/` | Bare video-endepunkter | – | – | Alle |
 | `/statistikk`, `/statistikk/json` | Aktive brukere, forslag, språk, editor, modeller, repo-bruk | Org, aggregert | – | Innlogget (`src/proxy.ts`) |
 | `/kostnad`, `/abonnement` | Kostnad, budsjett, egen lisens | Org, og egen person | – | Innlogget |
-| `/innsikt/team` | Forbruk og modell/funksjon/språk per team | Team, k ≥ 5 per undergruppe | – | Alle innloggede |
+| `/innsikt/team` | Forbruk og modell/funksjon/språk per team | Team med minst 5 bidragsytere. Funksjon og språk har samme terskel per undergruppe; leverandør og modelltype har det ikke (se risiko). | – | Alle innloggede |
 | `/adopsjon`, `copilot-adoption` (`repo_scan`) | Tilpasninger per repo | Repo | Daglige øyeblikksbilder | Innlogget |
 | `benchmark/`, `docs/modellvalg.md`, `/modeller` | Modellmålinger og valg | Modell | Git | Alle (offentlig repo og side) |
 | `copilot-survey` (Postgres) | Svar på undersøkelser | Person, ment anonymt | Slettes 180 dager etter at undersøkelsen stenger, backup 7 kopier | Plattformteamet |
@@ -21,7 +21,7 @@ Relatert: #1510 (kildedata), #1512 (historien), #345 (innsikt per team), #1424 (
 
 ### Rutetilgang på ki-utvikling.nav.no
 
-Alle sider, også de private, står i `autoLoginIgnorePaths` i `apps/my-copilot/.nais/app.yaml`. Wonderwall slipper dem gjennom, og den eneste sperren er `PRIVATE_PAGE_PATHS` i `src/proxy.ts`. `scripts/check-public-routes.mjs` kjenner bare `/abonnement` og `/kostnad` som private. Ingen test sjekker at `/statistikk`, `/innsikt/team` og `/adopsjon` faktisk krever innlogging. I prod sendes de i dag til innlogging (307), og `/statistikk/json` svarer 401. De er altså beskyttet, men bare av `proxy.ts`. Som ekstra sikring bør en test fange det hvis den sperren forsvinner.
+Alle sider, også de private, står i `autoLoginIgnorePaths` i `apps/my-copilot/.nais/app.yaml`. Wonderwall slipper dem gjennom. Innloggingen håndheves i appen: `src/proxy.ts` (`PRIVATE_PAGE_PATHS`), og i tillegg kaller hver side og `/statistikk/json` `getUser()`. `src/middleware.test.ts` tester listen over private stier, omdirigering og 401. I prod sendes sidene til innlogging (307), og `/statistikk/json` svarer 401. Hullet er at `scripts/check-public-routes.mjs` bare kjenner `/abonnement` og `/kostnad` som private, så listene i `app.yaml`, `proxy.ts` og skriptet holdes ikke i takt automatisk. Som ekstra sikring bør skriptet sjekke at de private rutene står i `PRIVATE_PAGE_PATHS`.
 
 ### Allerede offentlig
 
@@ -51,7 +51,7 @@ Godkjente unntak, bestemt av produkteier:
 | [Datatilsynets veileder om anonymisering (2015)](https://www.datatilsynet.no/globalassets/global/dokumenter-pdfer-skjema-ol/regelverk/veiledere/anonymisering-veileder-041115.pdf) | Gruppestørrelse vurderes konkret. Fire eller færre gir høy risiko for identifisering. Internt bruker vi 5 som gulv. Offentlig viser vi bare totaler for hele Nav. |
 | [Arbeidsmiljøloven kap. 9](https://lovdata.no/lov/2005-06-17-62/§9-1) | Kontrolltiltak må ha saklig grunn og ikke være uforholdsmessig (§ 9-1). De skal drøftes med tillitsvalgte så tidlig som mulig (§ 9-2). Tall per team kan oppleves som kontroll; tall for hele Nav er det i praksis ikke. |
 | [Datatilsynet om personvern på arbeidsplassen](https://www.datatilsynet.no/personvern-pa-ulike-omrader/personvern-pa-arbeidsplassen/) | Overvåking av ansattes bruk av IT-utstyr er strengt regulert (forskrift om innsyn i e-post og elektronisk lagret materiale). Publisering per team eller person øker risikoen. |
-| [Offentleglova §§ 3, 9](https://lovdata.no/lov/2006-05-19-16) | Saksdokumenter og sammenstillinger fra databaser er i utgangspunktet åpne. Kostnadstall for hele Nav kan uansett kreves innsyn i. Personopplysninger er unntatt etter § 13. |
+| [Offentleglova §§ 3, 9](https://lovdata.no/lov/2006-05-19-16) | Saksdokumenter og sammenstillinger fra databaser er i utgangspunktet åpne. Etter § 9 kan det kreves innsyn i en sammenstilling fra en database hvis den kan lages med enkle framgangsmåter, så samlede kostnadstall kan trolig kreves utlevert. Andre unntak kan likevel gjelde. § 13 unntar opplysninger som er underlagt lovbestemt taushetsplikt, ikke alle personopplysninger. |
 | Interne regler i repoet | #345: tall per team, n ≥ 5, aldri per person, ingen rangering. `docs/copilot-team-spend-research.md`: undertrykk i API-et, fast månedsnivå. `copilot-survey`: svar skal være anonyme, personvernombudet bør bekrefte. |
 
 Ikke verifisert: om Nav har en egen veileder for publisering av statistikk om ansattes KI-bruk, og om det finnes en PVK for `copilot-metrics`. Se åpne spørsmål.
@@ -110,7 +110,7 @@ Bare tall som allerede er offentlige eller kommer fra repoet.
 | Rundt 600 daglige brukere (juni 2026) | kode24, 4. juni 2026 |
 | 20 % vekst i brukere per måned (juni 2026) | kode24, 4. juni 2026 |
 | 3–4 ganger høyere kostnad etter AI Credits | kode24, 4. juni 2026 |
-| 901 sammenslåtte PR-er i navikt/copilot (9. oktober 2026) | GitHub search API, kommentar i #1512 |
+| 900 sammenslåtte PR-er i navikt/copilot (9. oktober 2026) | GitHub search API (`repo:navikt/copilot is:pr is:merged`), kommentar i #1512 |
 | Antall skills, agenter og instruksjoner | Katalogen, vises allerede |
 | Antall modeller målt og antall benchmark-kjøringer | `benchmark/`, `docs/modellvalg.md` |
 
@@ -124,7 +124,7 @@ Hvert tall får dato og kildelenke. Nye bruks- og kostnadstall venter på godkje
 | Kilde | Øyeblikksbilde ved bygg: en JSON-fil i repoet (`apps/my-copilot/src/data/offentlige-tall.json`) med verdi, dato og kilde. Ikke et live API. |
 | Oppdatering | Månedlig PR, generert av et skript som leser totaler fra BigQuery. En person godkjenner i PR-en. |
 | Test | En test feiler hvis øyeblikksbildet eller et offentlig endepunkt har noe annet enn totaler for hele Nav: et felt som ikke står på godkjent liste, en liste eller gruppering, eller et tall uten kilde og dato. |
-| Ruter (ekstra sikring) | Legg til en test som henter `/statistikk`, `/innsikt/team`, `/adopsjon` og `/statistikk/json` uten token og forventer omdirigering eller 401. Legg rutene i `PRIVATE_ROUTES` i `check-public-routes.mjs`. |
+| Ruter (ekstra sikring) | La `check-public-routes.mjs` lese `PRIVATE_PAGE_PATHS` fra `proxy.ts`, eller sjekke at listene stemmer, så en privat rute ikke kan bli offentlig uten at bygget feiler. |
 
 Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det er ikke verdt det for tall som endres månedlig.
 
