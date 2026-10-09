@@ -7,7 +7,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/reisen" }));
 describe("reisesiden", () => {
   it("viser hver fase i tidslinjen med kildene sine", () => {
     render(<ReisenPage />);
-    const steps = within(screen.getByRole("list", { name: "Tidslinje" })).getAllByRole("listitem");
+    const steps = within(screen.getByRole("list", { name: "Tidslinje" })).getAllByRole("heading", { level: 3 });
     expect(steps).toHaveLength(PHASES.length);
     for (const m of PHASES) {
       expect(m.sources.length).toBeGreaterThan(0);
@@ -24,13 +24,19 @@ describe("reisesiden", () => {
     const dates = PHASES.map((m) => (m.date.length === 4 ? m.date : m.date.padEnd(10, "-99")));
     expect(dates).toEqual([...dates].sort());
     for (const m of PHASES) if (m.end) expect(m.end >= m.date).toBe(true);
+    for (const m of PHASES) {
+      expect(m.status).not.toBe("");
+      expect(m.milestones.length).toBeGreaterThan(0);
+      const inPhase = m.milestones.map((ms) => ms.date);
+      expect(inPhase).toEqual([...inPhase].sort());
+    }
   });
 
   it("viser perioden for hver fase", () => {
     render(<ReisenPage />);
     expect(screen.getByText("juni–oktober 2026")).toBeInTheDocument();
     expect(screen.getByText("januar–november 2025")).toBeInTheDocument();
-    expect(screen.getByText("2023")).toBeInTheDocument();
+    expect(screen.getByText("mars–mai 2024")).toBeInTheDocument();
   });
 
   it("viser tallene med lenke til kilden og godkjenningssaken", () => {

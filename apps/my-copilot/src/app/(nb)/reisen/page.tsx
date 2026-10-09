@@ -101,6 +101,22 @@ export default function ReisenPage() {
                     {m.title}
                   </Heading>
                   <BodyLong spacing>{m.text}</BodyLong>
+                  <BodyShort spacing>
+                    <strong>Status:</strong> {m.status}
+                  </BodyShort>
+                  <ul aria-label={`Viktige milepæler: ${m.title}`} className="list-none mb-3">
+                    {m.milestones.map((ms) => (
+                      <li key={ms.text}>
+                        <BodyShort size="small">
+                          <time dateTime={ms.date} className="font-semibold">
+                            {formatWhen(ms.date)}
+                          </time>
+                          {" – "}
+                          {ms.url ? <Link href={ms.url}>{ms.text}</Link> : ms.text}
+                        </BodyShort>
+                      </li>
+                    ))}
+                  </ul>
                   <BodyShort size="small">
                     {m.sources.length > 1 ? "Kilder:" : "Kilde:"}{" "}
                     {m.sources.map((s, i) => (
