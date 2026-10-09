@@ -78,7 +78,11 @@ export const PHASES: Phase[] = [
       "Over 300 aktive brukere, de fleste daglig. På 100 dager ga Copilot om lag 709 000 kodeforslag og 1,22 millioner genererte linjer, og rundt 190 000 linjer ble tatt i bruk.",
     milestones: [
       { date: "2025-01", text: "Over 100 brukere" },
-      { date: "2025-01-17", text: "Min Copilot med selvbetjente lisenser" },
+      {
+        date: "2025-01-15",
+        text: "Min Copilot: selvbetjente lisenser for utviklerne",
+        url: "https://github.com/navikt/copilot/commit/3342f8bb",
+      },
       {
         date: "2025-02",
         text: "Copilot som kodegjennomganger (beta) for navikt",
@@ -95,8 +99,13 @@ export const PHASES: Phase[] = [
         text: "Copilot CLI i offentlig forhåndsversjon",
         url: "https://github.blog/changelog/2025-09-25-github-copilot-cli-is-now-in-public-preview/",
       },
+      {
+        date: "2025-11-21",
+        text: "Designere, infrastruktur og plattform får tilgang",
+        url: "https://github.com/navikt/copilot/commit/816a7bd3",
+      },
     ],
-    text: "I januar åpnet vi repoet navikt/copilot og Min Copilot med selvbetjente lisenser, for rundt 111 brukere. I februar viste GitHub fram agentmodus, samtidig som Claude 3.7 Sonnet kom i Copilot. Så kom kodegjennomgang og egne instruksjoner per repo. Vi løftet blokkeringen av treff mot offentlig kode og risikovurderte MCP. Til høsten hadde vi over 300 aktive brukere og Copilot CLI, og i november åpnet vi for flere roller i IT. I august og september kom GPT-5 og Claude Sonnet 4.5. Derfra rullet det.",
+    text: "I januar åpnet vi repoet navikt/copilot og Min Copilot med selvbetjente lisenser, for rundt 111 brukere. I februar viste GitHub fram agentmodus, samtidig som Claude 3.7 Sonnet kom i Copilot. Så kom kodegjennomgang og egne instruksjoner per repo. Vi løftet blokkeringen av treff mot offentlig kode og risikovurderte MCP. Til høsten hadde vi over 300 aktive brukere og Copilot CLI, og i november fikk også designere og folk som jobber med infrastruktur og plattform tilgang. I august og september kom GPT-5 og Claude Sonnet 4.5. Derfra rullet det.",
     sources: [
       TEAM,
       { label: "commit a083419c", url: "https://github.com/navikt/copilot/commit/a083419c" },
@@ -195,11 +204,19 @@ export const PHASES: Phase[] = [
     ],
   },
   {
-    date: "2026-10",
+    date: "2026-09",
+    end: "2026-10",
     title: "I dag",
-    status: "Alle teknologer i Nav har tilgang til Copilot.",
-    milestones: [{ date: "2026-10", text: "Tilgang for alle teknologer i Nav" }],
-    text: "Alle teknologer i Nav har tilgang til Copilot. Neste steg er resten av produktteamet, så alle rollene får de samme mulighetene.",
+    status:
+      "Utviklere, designere, infrastruktur og plattform har tilgang, og flere roller i produktutvikling er på vei inn.",
+    milestones: [
+      {
+        date: "2026-09-24",
+        text: "Tilgang for flere roller i produktutvikling",
+        url: "https://github.com/navikt/copilot/commit/a377208a",
+      },
+    ],
+    text: "Utviklere har hatt tilgang siden Min Copilot kom i januar 2025, og designere, infrastruktur og plattform siden november 2025. I september 2026 åpnet vi for flere roller i produktutvikling. Målet er at hele produktteamet får de samme mulighetene.",
     sources: [TEAM],
   },
 ];
