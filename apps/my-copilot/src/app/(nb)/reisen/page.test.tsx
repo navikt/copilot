@@ -34,7 +34,7 @@ describe("reisesiden", () => {
 
   it("viser perioden for hver fase", () => {
     render(<ReisenPage />);
-    expect(screen.getByText("juni–oktober 2026")).toBeInTheDocument();
+    expect(screen.getByText("mai–oktober 2026")).toBeInTheDocument();
     expect(screen.getByText("januar–november 2025")).toBeInTheDocument();
     expect(screen.getByText("mars–november 2024")).toBeInTheDocument();
   });
