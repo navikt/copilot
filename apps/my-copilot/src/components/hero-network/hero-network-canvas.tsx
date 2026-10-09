@@ -19,7 +19,8 @@ const TOKENS = [
 function hasWebGL(): boolean {
   try {
     const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") ?? c.getContext("webgl"));
+    // three r186+ needs WebGL 2.
+    return !!c.getContext("webgl2");
   } catch {
     return false;
   }
@@ -42,8 +43,14 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     if (!host || !hasWebGL()) return;
 
     const small = window.innerWidth < 640;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: !small });
+    const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let reduced = motionMq.matches;
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: !small });
+    } catch {
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     host.appendChild(renderer.domElement);
 
@@ -201,7 +208,7 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
       pointer.x = e.clientX / window.innerWidth - 0.5;
       pointer.y = e.clientY / window.innerHeight - 0.5;
     };
-    if (fine && !reduced) window.addEventListener("pointermove", onPointer, { passive: true });
+    if (fine) window.addEventListener("pointermove", onPointer, { passive: true });
 
     const themeMq = window.matchMedia("(prefers-color-scheme: dark)");
     const onTheme = () => {
@@ -212,6 +219,13 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     const mo = new MutationObserver(onTheme);
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
 
+    const onMotion = () => {
+      reduced = motionMq.matches;
+      sync();
+      if (reduced) draw(0);
+    };
+    motionMq.addEventListener("change", onMotion);
+
     if (reduced) draw(0);
     else sync();
 
@@ -219,6 +233,7 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
       cancelAnimationFrame(raf);
       io.disconnect();
       mo.disconnect();
+      motionMq.removeEventListener("change", onMotion);
       themeMq.removeEventListener("change", onTheme);
       ro.disconnect();
       document.removeEventListener("visibilitychange", sync);
