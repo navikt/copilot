@@ -45,7 +45,7 @@ Nevneren for alle tall per bruker er `aktive_brukere`: brukere som er aktive i m
 |---|---|---|---|---|---|---|---|
 | `lisenser` | Copilot-lisenser i Nav ved månedsslutt | GitHub billing API `seat_breakdown.total` (samme som `githubSeatsTotal` i copilot-api). **Uklart:** lagres ikke historisk i BigQuery. | Verdien når jobben kjører | Nærmeste 50 | antall | Innkjøpstall, ikke om personer | 1 |
 | `aktive_brukere` | `monthly_active_users` på siste dag i måneden | `v_daily_summary`, `scope = 'enterprise'` | Én verdi per måned | Nærmeste 50 | antall | Total for hele Nav, publisert av kode24 tidligere | 1 |
-| `credits_per_bruker_median` / `_snitt` | Median og snitt av AI Credits per aktiv bruker. Aktive brukere uten forbruk teller med som 0. | `billing_user_monthly.net_amount` per bruker (USD), regnet om til AI Credits med listeprisen per credit. **Uklart:** om tabellen har credits direkte, og om brukere i den samsvarer med `monthly_active_users`. | `APPROX_QUANTILES(...)[OFFSET(50)]` og `AVG` i SQL | Nærmeste 10 | AI Credits | Bare to tall for over 20 brukere; ingen ytterpunkter | 1 |
+| `credits_per_bruker_median` / `_snitt` | Median og snitt av AI Credits per aktiv bruker. Aktive brukere uten forbruk teller med som 0. | `billing_user_monthly.net_amount` per bruker (USD) / 0,01. 1 AI Credit = 0,01 USD, slik det står i `src/lib/model-pricing.ts` og på `/priser`. Filen har bare en kommentar, så PR 2 legger til en eksportert konstant der og bruker den. **Uklart:** om brukerne i tabellen samsvarer med `monthly_active_users`. | `APPROX_QUANTILES(...)[OFFSET(50)]` og `AVG` i SQL | Nærmeste 10 | AI Credits | Bare to tall for over 20 brukere; ingen ytterpunkter | 1 |
 | `kostnad_per_bruker_median_nok` / `_snitt_nok` | Samme som over, i kroner | `billing_user_monthly.net_amount` (USD) × månedssnitt USD/NOK fra [Norges Banks valutakurser](https://www.norges-bank.no/tema/Statistikk/Valutakurser/) (`data.norges-bank.no`, serie `EXR/M.USD.NOK.SP`) | Som over | Nærmeste 10 kr | NOK | Som over. Kursen oppgis som kilde. | 1 |
 | `bruksband` | Andel aktive brukere med lett (under 100), middels (100–999) og tung (minst 1 000) bruk, målt i AI Credits i måneden. Tersklene er faste og står i siden. Tallene i parentes er forslag. | Samme som `credits_per_bruker` | `COUNTIF` per band i SQL | Hel prosent | % | Faste grenser, ikke utledet av dataene. Band under 20 brukere slås sammen med naboen (`lett_middels` eller `middels_tung`). | 1 |
 | `modellandeler` | Hver modells andel av alle AI Credits i måneden. Seks største modeller navngis, resten blir «andre». | Andel: `billing_usage_daily_model`, `SUM(net_quantity)` per `model`. Brukere per modell: **Uklart.** Tabellen har ikke brukere. Forslag: `user_metrics` (`totals_by_model_feature`), telt med `COUNT(DISTINCT user_id)` i SQL. | Sum per måned | Hel prosent | % | Ikke om personer. En modell navngis bare med minst 20 brukere i måneden; antallet publiseres ikke. | 1 |
@@ -117,7 +117,7 @@ Kommunikasjon orienteres før PR 3 slås sammen.
 
 ## Åpne spørsmål
 
-1. Har `billing_user_monthly` AI Credits per bruker, eller må vi regne om fra dollar? Samsvarer brukerne der med `monthly_active_users`?
+1. Samsvarer brukerne i `billing_user_monthly` med `monthly_active_users`?
 2. Hvor finner vi antall brukere per modell for terskelen på 20?
 3. Er tersklene 100 og 1 000 AI Credits riktige for bruksbandene?
 4. Fra hvilken måned skal historikken starte?
