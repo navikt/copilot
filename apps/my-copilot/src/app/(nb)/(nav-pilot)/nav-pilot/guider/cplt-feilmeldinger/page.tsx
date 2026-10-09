@@ -21,6 +21,7 @@ const TOC: TocItem[] = [
   { id: "nettleser", label: "Playwright, Cypress og Puppeteer" },
   { id: "git", label: "Git og GitHub" },
   { id: "agent", label: "Agenten og innlogging" },
+  { id: "rapporter", label: "Rapporter et problem" },
 ];
 
 const KNOWN_IMPACTS = "https://github.com/navikt/cplt/blob/main/docs/known-impacts.md";
@@ -688,6 +689,21 @@ cplt config set gh_guard.inject_token true --force`}
             </NextLink>
             .
           </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="rapporter" size="medium" level="2">
+            Rapporter et problem
+          </LinkableHeading>
+          <BodyLong>
+            Kjør <code className={code}>cplt doctor</code>, eller{" "}
+            <code className={code}>cplt doctor --agent claude</code> for en bestemt agent, og lim inn hele utskriften
+            sammen med kommandoen som feilet. Utskriften viser hjemmemappa som <code className={code}>~</code> og
+            tokener bare med navn. Ikke send <code className={code}>--verbose</code>: den tar med fulle stier.
+          </BodyLong>
+          <CodeBlock compact>{`cplt doctor --agent claude`}</CodeBlock>
         </VStack>
       </section>
     </DocPage>
