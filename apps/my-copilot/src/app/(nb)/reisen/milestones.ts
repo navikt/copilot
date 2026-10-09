@@ -49,16 +49,24 @@ export const PHASES: Phase[] = [
   },
   {
     date: "2024-03",
-    end: "2024-05",
+    end: "2024-11",
     title: "Fra pilot til hverdag",
     status: "Chat i VS Code og IntelliJ, men lisensene var brukt opp i mai 2024 og det var venteliste.",
     milestones: [{ date: "2024-05", text: "Lisensene er brukt opp, og vi får venteliste" }],
-    text: "Copilot Chat kom til IntelliJ, der mange av Navs Java- og Kotlin-utviklere jobber. Etterspørselen vokste forbi lisensene: i mai var de brukt opp, og vi fikk venteliste og et budsjettforslag om tilgang for alle som trenger det.",
+    text: "Copilot Chat kom til IntelliJ, der mange av Navs Java- og Kotlin-utviklere jobber. Etterspørselen vokste forbi lisensene: i mai var de brukt opp, og vi fikk venteliste og et budsjettforslag om tilgang for alle som trenger det. I november kunne vi velge modell i Copilot, blant annet Claude 3.5 Sonnet og OpenAI o1.",
     sources: [
       TEAM,
       {
         label: "Copilot Chat i JetBrains",
         url: "https://github.blog/changelog/2024-03-07-github-copilot-chat-general-availability-in-jetbrains-ide/",
+      },
+      {
+        label: "Claude 3.5 Sonnet",
+        url: "https://github.blog/changelog/2024-11-01-claude-3-5-sonnet-is-now-available-to-all-copilot-users-in-public-preview/",
+      },
+      {
+        label: "modellvalg i Copilot",
+        url: "https://github.blog/news-insights/product-news/bringing-developer-choice-to-copilot/",
       },
     ],
   },
@@ -82,14 +90,31 @@ export const PHASES: Phase[] = [
         url: "https://code.visualstudio.com/blogs/2025/04/07/agentMode",
       },
       { date: "2025-09", text: "Over 300 aktive brukere" },
+      {
+        date: "2025-09-25",
+        text: "Copilot CLI i offentlig forhåndsversjon",
+        url: "https://github.blog/changelog/2025-09-25-github-copilot-cli-is-now-in-public-preview/",
+      },
     ],
-    text: "I januar åpnet vi repoet navikt/copilot og Min Copilot med selvbetjente lisenser, for rundt 111 brukere. Så kom agentmodus, kodegjennomgang og egne instruksjoner per repo. Vi løftet blokkeringen av treff mot offentlig kode og risikovurderte MCP. Til høsten hadde vi over 300 aktive brukere og Copilot CLI, og i november åpnet vi for flere roller i IT. Derfra rullet det.",
+    text: "I januar åpnet vi repoet navikt/copilot og Min Copilot med selvbetjente lisenser, for rundt 111 brukere. I februar viste GitHub fram agentmodus, samtidig som Claude 3.7 Sonnet kom i Copilot. Så kom kodegjennomgang og egne instruksjoner per repo. Vi løftet blokkeringen av treff mot offentlig kode og risikovurderte MCP. Til høsten hadde vi over 300 aktive brukere og Copilot CLI, og i november åpnet vi for flere roller i IT. I august og september kom GPT-5 og Claude Sonnet 4.5. Derfra rullet det.",
     sources: [
       TEAM,
       { label: "commit a083419c", url: "https://github.com/navikt/copilot/commit/a083419c" },
       {
         label: "The agent awakens",
         url: "https://github.blog/news-insights/product-news/github-copilot-the-agent-awakens/",
+      },
+      {
+        label: "Claude 3.7 Sonnet",
+        url: "https://github.blog/changelog/2025-02-24-claude-3-7-sonnet-is-now-available-in-github-copilot-in-public-preview/",
+      },
+      {
+        label: "GPT-5",
+        url: "https://github.blog/changelog/2025-08-07-openai-gpt-5-is-now-in-public-preview-for-github-copilot/",
+      },
+      {
+        label: "Claude Sonnet 4.5",
+        url: "https://github.blog/changelog/2025-09-29-anthropic-claude-sonnet-4-5-is-in-public-preview-for-github-copilot/",
       },
       { label: "Agentmodus i VS Code", url: "https://code.visualstudio.com/blogs/2025/04/07/agentMode" },
     ],
@@ -142,11 +167,19 @@ export const PHASES: Phase[] = [
       { date: "2026-09-30", text: "Siden /modeller viser valgene og målingene", url: `${PR}1376` },
       { date: "2026-10-08", text: "@nav-pilot fordeler arbeid til @worker", url: `${PR}1496` },
     ],
-    text: "GitHub byttet ut de subsidierte premium requests med AI Credits etter tokenforbruk, og for oss mangedoblet det regningen. Svaret ble modellvalg bygget på målinger: benchmarker som kan kjøres på nytt, siden /modeller og en språkmodell som vurderer planleggingssvar. Målingene flyttet @rust til Claude Haiku 5.5, og @nav-pilot sender nå avgrensede oppgaver til @worker på GPT-6 Luna, som koster mindre.",
+    text: "GitHub byttet ut de subsidierte premium requests med AI Credits etter tokenforbruk, og for oss mangedoblet det regningen. Svaret ble modellvalg bygget på målinger: benchmarker som kan kjøres på nytt, siden /modeller og en språkmodell som vurderer planleggingssvar. Målingene flyttet @rust til Claude Haiku 5.5, og @nav-pilot sender nå avgrensede oppgaver til @worker på GPT-6 Luna, som koster mindre. Samtidig kom en ny generasjon modeller, som Claude Opus 5.5 og GPT-6 Sol og Luna.",
     sources: [
       {
         label: "GitHubs kunngjøring",
         url: "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/",
+      },
+      {
+        label: "Claude Opus 5.5",
+        url: "https://github.blog/changelog/2026-09-22-claude-opus-5-5-is-now-available-in-github-copilot/",
+      },
+      {
+        label: "GPT-6 Sol og Luna",
+        url: "https://github.blog/changelog/2026-09-22-openais-gpt-6-sol-and-gpt-6-luna-now-available/",
       },
       { label: "vår nyhetssak", url: `${DOCS}news/articles/usage-based-billing.md` },
       TEAM,
