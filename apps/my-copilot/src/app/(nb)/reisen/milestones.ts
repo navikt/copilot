@@ -149,9 +149,8 @@ export const PHASES: Phase[] = [
     figures: [
       {
         src: "/images/reisen/nav-pilot-plakat.webp",
-        alt: "Plakat med teksten «Introduserer Nav-Pilot»: ekte Nav-kontekst, modernisering og ferdige samlinger for Kotlin, Next.js og fullstack.",
+        alt: "Toppen av plakaten «Introduserer Nav-Pilot», med en rakett og et kodevindu for @nav-pilot ved siden av en generell Copilot.",
         caption: "Plakaten da nav-pilot ble lansert, april 2026",
-        narrow: true,
       },
       {
         src: "/images/github-copilot-vs-code-mcp.jpeg",
