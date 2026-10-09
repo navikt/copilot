@@ -234,7 +234,7 @@ export const PHASES: Phase[] = [
       },
       { label: "navikt/mlx-workspace", url: "https://github.com/navikt/mlx-workspace" },
       pr(483),
-      { label: "saken om decide", url: "/nyheter/nav-pilot-alpha-decide" },
+      { label: "saken om decide", url: `${DOCS}news/articles/nav-pilot-alpha-decide.md` },
       {
         label: "kode24",
         url: "https://www.kode24.no/artikkel/nav-ma-betale-tre-til-fire-ganger-mer-for-sine-600-copilot-brukere/264699",
