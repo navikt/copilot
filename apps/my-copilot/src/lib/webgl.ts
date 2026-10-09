@@ -10,9 +10,10 @@ export function hasWebGL2(): boolean {
   }
 }
 
-/** Reads an Aksel token, e.g. "--ax-bg-accent-strong", as a CSS colour string. */
-export function cssToken(name: string, fallback = "#7fb2ff"): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+/** Reads an Aksel token, e.g. "--ax-bg-accent-strong", as a CSS colour string. Pass `el` to read it
+ * inside a scoped theme, such as a section wrapped in <Theme theme="dark">. */
+export function cssToken(name: string, fallback = "#7fb2ff", el: Element = document.documentElement): string {
+  return getComputedStyle(el).getPropertyValue(name).trim() || fallback;
 }
 
 /** A crisp 128 px disc (fill) or ring (stroke) with a thin antialiased edge. Wrap it in a CanvasTexture. */

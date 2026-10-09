@@ -4,6 +4,7 @@ import { Box, VStack, HGrid, Heading } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
 import { InstallPicker } from "@/components/install-picker";
+import { CoordinatorHero } from "@/components/three/heroes";
 import { getAllCustomizations } from "@/lib/customizations";
 import type { CustomizationType } from "@/lib/customization-types";
 import { NAV_PILOT_APT_INSTALL, NAV_PILOT_INSTALL, NAV_PILOT_QUICKSTART } from "@/lib/install-commands";
@@ -237,6 +238,8 @@ function HeroSection({ stars }: { stars: number | null }) {
               </NextLink>
             </div>
           </VStack>
+
+          <CoordinatorHero />
 
           {/* Side-by-side code diff */}
           <div
