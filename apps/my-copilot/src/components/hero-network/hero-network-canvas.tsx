@@ -87,18 +87,34 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
       const palette = TOKENS.map(tokenColor);
       clusterOf.forEach((ci, i) => palette[ci % palette.length].toArray(colorAttr.array, i * 3));
       colorAttr.needsUpdate = true;
+      lineMat.color.copy(palette[0]);
+      pulseMat.color.copy(palette[0]).lerp(palette[2], 0.3);
     };
-    applyColors();
+
+    // Round, soft-edged points: a tiny radial-gradient sprite.
+    const spriteCanvas = document.createElement("canvas");
+    spriteCanvas.width = spriteCanvas.height = 64;
+    const ctx = spriteCanvas.getContext("2d");
+    if (ctx) {
+      const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, "#fff");
+      g.addColorStop(0.5, "rgba(255,255,255,0.85)");
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 64, 64);
+    }
+    const sprite = new THREE.CanvasTexture(spriteCanvas);
     const nodeMat = new THREE.PointsMaterial({
-      size: small ? 0.42 : 0.3,
+      size: small ? 0.5 : 0.36,
       vertexColors: true,
+      map: sprite,
       transparent: true,
-      opacity: 1,
+      depthWrite: false,
     });
     group.add(new THREE.Points(nodeGeo, nodeMat));
 
     const lineGeo = new THREE.BufferGeometry().setFromPoints(edges.flatMap(([a, b]) => [nodes[a], nodes[b]]));
-    const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: small ? 0.45 : 0.25 });
+    const lineMat = new THREE.LineBasicMaterial({ transparent: true, opacity: small ? 0.5 : 0.3 });
     group.add(new THREE.LineSegments(lineGeo, lineMat));
 
     // Pulses: points that travel along random edges.
@@ -112,13 +128,14 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     const pulseGeo = new THREE.BufferGeometry();
     pulseGeo.setAttribute("position", new THREE.BufferAttribute(pulsePos, 3));
     const pulseMat = new THREE.PointsMaterial({
-      size: small ? 0.6 : 0.4,
-      color: 0xffffff,
+      size: small ? 0.8 : 0.55,
+      map: sprite,
       transparent: true,
-      opacity: 0.9,
+      depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
     group.add(new THREE.Points(pulseGeo, pulseMat));
+    applyColors();
 
     const tmp = new THREE.Vector3();
     const pointer = { x: 0, y: 0 };
@@ -206,7 +223,7 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
       ro.disconnect();
       document.removeEventListener("visibilitychange", sync);
       window.removeEventListener("pointermove", onPointer);
-      [nodeGeo, lineGeo, pulseGeo, nodeMat, lineMat, pulseMat].forEach((d) => d.dispose());
+      [nodeGeo, lineGeo, pulseGeo, nodeMat, lineMat, pulseMat, sprite].forEach((d) => d.dispose());
       renderer.dispose();
       renderer.domElement.remove();
     };
