@@ -85,6 +85,7 @@ spec:
       - /priser/**
       - /modeller
       - /modeller/**
+      - /reisen
       - /innsikt
       - /innsikt/team
       - /innsikt/lokale-modeller

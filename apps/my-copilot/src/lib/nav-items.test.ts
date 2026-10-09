@@ -17,6 +17,7 @@ describe("activeTop", () => {
     ["/innsikt/team", "/innsikt"],
     ["/priser", "/innsikt"],
     ["/modeller", "/innsikt"],
+    ["/reisen", "/innsikt"],
     ["/nav-pilotx", undefined],
     ["/", undefined],
   ])("%s → %s", (path, top) => expect(activeTop(path)).toBe(top));

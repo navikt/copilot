@@ -1,4 +1,4 @@
-import { CurrencyExchangeIcon, PadlockLockedIcon, CpuIcon, MonitorIcon } from "@navikt/aksel-icons";
+import { CurrencyExchangeIcon, PadlockLockedIcon, CpuIcon, MonitorIcon, ClockIcon } from "@navikt/aksel-icons";
 import { Box, Heading, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import { NavCard } from "@/components/navigation/nav-card";
@@ -77,6 +77,12 @@ export default function Innsikt() {
                 icon={<MonitorIcon aria-hidden fontSize="1.75rem" />}
                 title="Lokale modeller"
                 description="Hvilke modeller nav-pilot kan kjøre på din Mac, og hva målingene viser."
+              />
+              <NavCard
+                href="/reisen"
+                icon={<ClockIcon aria-hidden fontSize="1.75rem" />}
+                title="Reisen"
+                description="Hva Nav har bygget med KI-agenter, steg for steg."
               />
             </div>
           </VStack>
