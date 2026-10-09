@@ -104,20 +104,9 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 | `/innsikt/team` (#1419) viser allerede tall per team internt, uten dokumentert drøfting med tillitsvalgte | Siden blir stående som den er. Drøftingen starter nå, med [grunnlaget for drøfting](1511-drofting-innsikt-team.md). |
 | Fordelingen på leverandør og modelltype på `/innsikt/team` skjuler ikke små grupper. I et team på fem kan én person skille seg ut. | Åpen risiko, ikke prioritert nå. Løsning: bruk regelen om minst fem også på disse fordelingene. |
 
-## 6. Tall på `/reisen` i første versjon
+## 6. Hvor tallene vises
 
-Bare tall som allerede er offentlige eller kommer fra repoet.
-
-| Tall | Kilde |
-|---|---|
-| Rundt 600 daglige brukere (juni 2026) | kode24, 4. juni 2026 |
-| 20 % vekst i brukere per måned (juni 2026) | kode24, 4. juni 2026 |
-| 3–4 ganger høyere kostnad etter AI Credits | kode24, 4. juni 2026 |
-| 900 sammenslåtte PR-er i navikt/copilot (9. oktober 2026) | GitHub search API (`repo:navikt/copilot is:pr is:merged`), kommentar i #1512 |
-| Antall skills, agenter og instruksjoner | Katalogen, vises allerede |
-| Antall modeller målt og antall benchmark-kjøringer | `benchmark/`, `docs/modellvalg.md` |
-
-Hvert tall får dato og kildelenke. Nye bruks- og kostnadstall venter på godkjenning.
+Offentlige tall vises på `/innsikt/tall`, og planen for siden ligger i #1523. `/reisen` beholder bare tallene den har i dag.
 
 ## 7. Teknisk løsning
 
@@ -138,9 +127,8 @@ Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det
 |---|---|---|
 | 1 | Ekstra sikring: test som sjekker at private ruter krever innlogging, og oppdatert `check-public-routes.mjs` | S |
 | 2 | Produkteier godkjenner tabellen | S |
-| 3 | `/reisen`: tallene i punkt 6 med kilde og dato | S |
-| 4 | JSON-øyeblikksbilde, generatorskript med terskler og test som håndhever regelen | M |
-| 5 | Drøfting med tillitsvalgte om `/innsikt/team` og tall per team (#345, #1424) | M |
-| 6 | Gjennomføre PVK for `copilot-metrics` og `copilot-survey` (anbefalt, blokkerer ikke steg 3) | M |
-| 7 | Første eksterne sak med godkjente tall (#1512) | L |
-| 8 | Vurdere lagringstid for persontabellene i BigQuery på nytt | S |
+| 3 | JSON-øyeblikksbilde, generatorskript med terskler og test som håndhever regelen | M |
+| 4 | Drøfting med tillitsvalgte om `/innsikt/team` og tall per team (#345, #1424) | M |
+| 5 | Gjennomføre PVK for `copilot-metrics` og `copilot-survey` (anbefalt, blokkerer ikke publisering) | M |
+| 6 | Første eksterne sak med godkjente tall (#1512) | L |
+| 7 | Vurdere lagringstid for persontabellene i BigQuery på nytt | S |
