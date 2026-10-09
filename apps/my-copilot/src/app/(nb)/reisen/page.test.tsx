@@ -42,7 +42,7 @@ describe("reisesiden", () => {
   it("viser tallene med lenke til kilden og godkjenningssaken", () => {
     render(<ReisenPage />);
     expect(screen.getByRole("heading", { name: "Tall vi kan vise fram" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /flettede pull requests/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /pull requests tatt inn i main/ })).toHaveAttribute(
       "href",
       expect.stringContaining("is%3Amerged")
     );
