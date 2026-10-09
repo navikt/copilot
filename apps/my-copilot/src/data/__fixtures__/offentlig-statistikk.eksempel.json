@@ -17,7 +17,16 @@
         "dato": "2000-01-31"
       },
       "modellandeler": {
-        "andeler": { "Modell A": 40, "Modell B": 25, "Modell C": 15, "andre": 20 },
+        "andeler": {
+          "claude_opus": 20,
+          "claude_sonnet": 20,
+          "claude_haiku": 10,
+          "claude_fable": 0,
+          "gpt": 20,
+          "gpt_mini": 10,
+          "gemini": 10,
+          "andre": 10
+        },
         "kilde": "EKSEMPEL, ikke ekte tall",
         "dato": "2000-01-31"
       }

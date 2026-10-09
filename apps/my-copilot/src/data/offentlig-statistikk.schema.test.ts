@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 import eksempel from "./__fixtures__/offentlig-statistikk.eksempel.json";
-import { valider, type OffentligStatistikk } from "./offentlig-statistikk.schema";
+import { modellfamilie, valider, type OffentligStatistikk } from "./offentlig-statistikk.schema";
+
+describe("modellfamilie", () => {
+  it.each([
+    ["Claude Opus 5.5", "claude_opus"],
+    ["claude-opus-6", "claude_opus"],
+    ["Claude Sonnet 4.6", "claude_sonnet"],
+    ["Claude Haiku 5.5", "claude_haiku"],
+    ["Claude Fable 5.1", "claude_fable"],
+    ["GPT-6 Sol", "gpt"],
+    ["GPT-5.3-Codex", "gpt"],
+    ["GPT-5.4 mini", "gpt_mini"],
+    ["GPT-5.4 nano", "gpt_mini"],
+    ["GPT-6 Luna", "gpt_mini"],
+    ["Gemini 3.8 Flash", "gemini"],
+    ["Kimi K3", "andre"],
+  ])("%s → %s", (modell, familie) => {
+    expect(modellfamilie(modell)).toBe(familie);
+  });
+});
 
 const mnd = eksempel.maaneder["2000-01"];
 const medMaaned = (felt: unknown) => ({ ...eksempel, maaneder: { "2000-01": felt } });
@@ -34,11 +53,9 @@ describe("offentlig statistikk", () => {
     ["band med ukjent navn", med({ bruksband: andeler({ lett: 50, p99: 50 }) })],
     ["band som ikke summerer til 100", med({ bruksband: andeler({ lett: 50, tung: 20 }) })],
     ["andel som ikke er hel prosent", med({ bruksband: andeler({ lett: 50.5, tung: 49.5 }) })],
-    ["antall brukere i modellandel", med({ modellandeler: { ...andeler({ A: 100 }), brukere: { A: 25 } } })],
-    [
-      "for mange modeller",
-      med({ modellandeler: andeler({ A: 15, B: 15, C: 15, D: 15, E: 15, F: 15, G: 5, andre: 5 }) }),
-    ],
+    ["antall brukere i modellandel", med({ modellandeler: { ...andeler({ gpt: 100 }), brukere: { gpt: 25 } } })],
+    ["modellversjon i stedet for familie", med({ modellandeler: andeler({ "Claude Opus 5.5": 60, andre: 40 }) })],
+    ["modellandeler som ikke summerer til 100", med({ modellandeler: andeler({ gpt: 60, andre: 20 }) })],
     ["modellandeler som liste", med({ modellandeler: { ...andeler({}), andeler: [100] } })],
   ])("avviser %s", (_, data) => {
     expect(valider(data)).not.toEqual([]);

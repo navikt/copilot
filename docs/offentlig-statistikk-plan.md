@@ -10,10 +10,10 @@ Regler, godkjent av produkteier:
 
 - Bare tall for hele Nav, per måned. Ingen tall per team, editor, språk eller person.
 - Tall per bruker vises som median og snitt. Aldri maksimum eller persentiler over p90, fordi ytterpunktene peker på enkeltpersoner.
-- To fordelinger er tillatt: bruksband og andel per modell. Hver gruppe må ha minst 20 brukere i måneden, ellers slås den sammen med en annen.
+- To fordelinger er tillatt: bruksband og andel per modellfamilie. Hver gruppe må ha minst 20 brukere i måneden, ellers slås den sammen med en annen.
 - Produkteier godkjenner alene. Kommunikasjon orienteres.
 
-**Endring av regelen i #1520.** Regelen der er «bare totaler, ingen fordeling på modell». Denne planen tillater bruksband og andel per modell med terskelen på 20 brukere. #1520 må endres på samme måte.
+**Endring av regelen i #1520.** Regelen der er «bare totaler, ingen fordeling på modell». Denne planen tillater bruksband og andel per modellfamilie med terskelen på 20 brukere. #1520 må endres på samme måte.
 
 ## Siden
 
@@ -32,7 +32,7 @@ Oppsett:
 | 2 | Nøkkeltall | Kort for siste hele måned: lisenser, aktive brukere, median AI Credits per bruker, median kostnad per bruker. Snittet står i mindre skrift under. Endring fra forrige måned. |
 | 3 | Utvikling | Linjediagram per nøkkeltall, alle måneder i filen. Tabell under hvert diagram (tilgjengelighet). |
 | 4 | Bruksband | Stablet stolpe per måned: andel lett, middels og tung bruk. Tersklene står i teksten. |
-| 5 | Modeller | Stablet arealdiagram: andel av AI Credits per modell per måned, de seks største pluss «andre». |
+| 5 | Modeller | Stablet arealdiagram: andel av AI Credits per modellfamilie per måned. Alle familier vises hver måned. |
 | 6 | Katalog og målinger | Antall skills, agenter og instruksjoner; antall modeller målt. |
 | 7 | Om tallene | Definisjon, kilde og avrunding for hvert tall. Rettede måneder merkes. |
 | 8 | Innsyn | Lenke til offentleglova og hvordan man ber om mer. |
@@ -48,12 +48,29 @@ Nevneren for alle tall per bruker er `aktive_brukere`: brukere som er aktive i m
 | `credits_per_bruker_median` / `_snitt` | Median og snitt av AI Credits per aktiv bruker. Aktive brukere uten forbruk teller med som 0. | `billing_user_monthly.net_amount` per bruker (USD) / 0,01. 1 AI Credit = 0,01 USD, slik det står i `src/lib/model-pricing.ts` og på `/priser`. Filen har bare en kommentar, så PR 2 legger til en eksportert konstant der og bruker den. **Uklart:** om brukerne i tabellen samsvarer med `monthly_active_users`. | `APPROX_QUANTILES(...)[OFFSET(50)]` og `AVG` i SQL | Nærmeste 10 | AI Credits | Bare to tall for over 20 brukere; ingen ytterpunkter | 1 |
 | `kostnad_per_bruker_median_nok` / `_snitt_nok` | Samme som over, i kroner | `billing_user_monthly.net_amount` (USD) × månedssnitt USD/NOK fra [Norges Banks valutakurser](https://www.norges-bank.no/tema/Statistikk/Valutakurser/) (`data.norges-bank.no`, serie `EXR/M.USD.NOK.SP`) | Som over | Nærmeste 10 kr | NOK | Som over. Kursen oppgis som kilde. | 1 |
 | `bruksband` | Andel aktive brukere med lett (under 100), middels (100–999) og tung (minst 1 000) bruk, målt i AI Credits i måneden. Tersklene er faste og står i siden. Tallene i parentes er forslag. | Samme som `credits_per_bruker` | `COUNTIF` per band i SQL | Hel prosent | % | Faste grenser, ikke utledet av dataene. Band under 20 brukere slås sammen med naboen (`lett_middels` eller `middels_tung`). | 1 |
-| `modellandeler` | Hver modells andel av alle AI Credits i måneden. Seks største modeller navngis, resten blir «andre». | Andel: `billing_usage_daily_model`, `SUM(net_quantity)` per `model`. Brukere per modell: **Uklart.** Tabellen har ikke brukere. Forslag: `user_metrics` (`totals_by_model_feature`), telt med `COUNT(DISTINCT user_id)` i SQL. | Sum per måned | Hel prosent | % | Ikke om personer. En modell navngis bare med minst 20 brukere i måneden; antallet publiseres ikke. | 1 |
+| `modellandeler` | Hver modellfamilies andel av alle AI Credits i måneden. Alle familier hver måned, også med 0 %. | Andel: `billing_usage_daily_model`, `SUM(net_quantity)` per `model`, gruppert med `modellfamilie()`. Brukere per familie: **Uklart.** Tabellen har ikke brukere. Forslag: `user_metrics` (`totals_by_model_feature`), telt med `COUNT(DISTINCT user_id)` i SQL. | Sum per måned | Hel prosent | % | Ikke om personer. En familie med under 20 brukere i måneden legges i «andre»; antallet publiseres ikke. Familier i stedet for versjoner gir en stabil serie over tid. | 1 |
 | `katalog_elementer` | Skills, agenter og instruksjoner i katalogen | `copilot-manifest.json` i repoet | Antall ved generering | Ingen | antall | Åpent repo | 1 |
 | `modeller_malt` | Modeller med minst én målt kjøring | `benchmark/` | Antall ved generering | Ingen | antall | Åpent repo | 1 |
 | `ansiennitet` | Aktive brukere etter kvartal de først var aktive | `user_metrics`, `MIN(day)` per bruker i SQL, bare antall per kvartal ut | Per kvartal | Hel prosent | % | Kan regnes ut uten eksport per person, men krever historikk tilbake til start | Senere |
 | `engasjerte_brukere` | **Uklart.** Ingen definisjon i dag. Forslag: brukere med `user_initiated_interaction_count > 0` i `user_metrics`. | `user_metrics` | Distinkt per måned | Nærmeste 50 | antall | Total, men krever ny definisjon | Senere |
 | `pr_copilot_agent` | PR-er opprettet av Copilot coding agent | `v_daily_summary.pr_created_by_copilot`. **Uklart:** om tallet gjelder hele enterprise eller bare navikt. | Sum per måned | Nærmeste 10 | antall | Ingen persondata i tallet | Senere |
+
+### Modellfamilier
+
+Mønstrene ligger i `modellfamilie()` i `offentlig-statistikk.schema.ts`, som både generatoren og testen bruker. Navnet gjøres om til små bokstaver med bindestrek, og første treff vinner. En ny versjon, for eksempel «Claude Opus 6», havner i riktig familie av seg selv. Et ukjent navn går til «andre» og logges, så tabellen kan oppdateres.
+
+| Familie | Mønster | Eksempler fra `model-pricing.ts` |
+|---|---|---|
+| `claude_opus` | `claude-opus*` | Claude Opus 4.8, 5, 5.5 |
+| `claude_sonnet` | `claude-sonnet*` | Claude Sonnet 4.6, 5, 5.5 |
+| `claude_haiku` | `claude-haiku*` | Claude Haiku 4.5, 5.5 |
+| `claude_fable` | `claude-fable*` | Claude Fable 5, 5.1 |
+| `gpt_mini` | `gpt-*` med `mini`, `nano` eller `luna` | GPT-5 mini, GPT-5.4 nano, GPT-6 Luna |
+| `gpt` | resten av `gpt-*` | GPT-5.5, GPT-5.3-Codex, GPT-6 Sol, Astra, Terra |
+| `gemini` | `gemini*` | Gemini 3.7 Flash, 3.8 Flash |
+| `andre` | alt annet, og familier under 20 brukere | Kimi K3, MAI-Code-1.1-Flash |
+
+Claude Fable er med fordi den finnes i prislisten. OpenAIs resonneringsmodeller (o1, o3, o4-mini) er ikke med, fordi de ikke lenger står i prislisten.
 
 Totalt forbruk av AI Credits og totalkostnad publiseres ikke på siden. Innsynskrav om dem behandles som vanlig (se under).
 
@@ -64,7 +81,7 @@ Nye felt krever at produkteier godkjenner både feltet og en endring i skjemaet.
 | Valg | Forslag |
 |---|---|
 | Jobb | GitHub Action i navikt/copilot, `workflow_dispatch` og cron den 5. hver måned. Leser BigQuery med Workload Identity Federation og en tjenestekonto med bare lesetilgang. Ikke en nais-jobb: resultatet skal uansett bli en PR. |
-| Generator | `apps/my-copilot/scripts/generate-offentlige-tall.ts`. All aggregering skjer i SQL (`AVG`, `APPROX_QUANTILES`, `COUNTIF`, `COUNT(DISTINCT)`), så bare ferdige tall per måned forlater BigQuery. Generatoren håndhever terskelen på 20, slår sammen band og modeller, og avrunder før skriving. |
+| Generator | `apps/my-copilot/scripts/generate-offentlige-tall.ts`. All aggregering skjer i SQL (`AVG`, `APPROX_QUANTILES`, `COUNTIF`, `COUNT(DISTINCT)`), så bare ferdige tall per måned forlater BigQuery. Generatoren håndhever terskelen på 20, slår sammen band og familier, og avrunder før skriving. |
 | Utdata | `apps/my-copilot/src/data/offentlige-tall.json` (samme navn som i #1520), hele historikken, nøkkel per måned. |
 | Publisering | PR fra jobben. Produkteier godkjenner. Siden leser filen ved bygg. Ingen offentlig API. |
 | Sene data | Bare hele måneder. En måned tas med når alle dager har data (`isMonthComplete` i `month-utils.ts`); ellers venter den til neste kjøring. |
@@ -76,9 +93,9 @@ Nye felt krever at produkteier godkjenner både feltet og en endring i skjemaet.
 |---|---|
 | Godkjente felt | `FELT` i `offentlig-statistikk.schema.ts`, med avrunding per felt. Ingen felt for maksimum eller persentiler over p90. |
 | Faste bandnavn | `lett`, `middels`, `tung`, og sammenslåingene `lett_middels` og `middels_tung`. Andre navn avvises. |
-| Modellandeler | Høyst seks modeller pluss «andre». Ingen antall brukere i filen. Terskelen på 20 brukere sjekkes i generatoren, som har tallet. |
+| Modellandeler | Bare faste familienavn. Ingen antall brukere i filen. Terskelen på 20 brukere sjekkes i generatoren, som har tallet. |
 | Andeler | Hele prosent som summerer til 98–102. |
-| Test | `offentlig-statistikk.schema.test.ts` feiler på ukjente felt, maks og p95, lister, ukjente band, for mange modeller, andeler som ikke summerer, tall uten kilde eller dato, og tall som ikke er avrundet. |
+| Test | `offentlig-statistikk.schema.test.ts` feiler på ukjente felt, maks og p95, lister, ukjente band, modellnavn som ikke er en familie, feil familie for kjente modellnavn, andeler som ikke summerer, tall uten kilde eller dato, og tall som ikke er avrundet. |
 | Avrunding | Gjøres i generatoren. Testen sjekker den. |
 | Ingen persondata ut | Rader per person leses bare inne i BigQuery-spørringen. Generatoren får aldri rader per person. |
 | Eksempeldata | Fixturen har `eksempel: true` og oppdiktede tall. Siden skal nekte å vise en fil med `eksempel: true`. |
@@ -118,6 +135,7 @@ Kommunikasjon orienteres før PR 3 slås sammen.
 ## Åpne spørsmål
 
 1. Samsvarer brukerne i `billing_user_monthly` med `monthly_active_users`?
-2. Hvor finner vi antall brukere per modell for terskelen på 20?
+2. Hvor finner vi antall brukere per modellfamilie for terskelen på 20?
+5. Stemmer navnene i `billing_usage_daily_model` med navnene i `model-pricing.ts`? Mønstrene er laget mot `model-pricing.ts`; generatoren logger ukjente navn i PR 2.
 3. Er tersklene 100 og 1 000 AI Credits riktige for bruksbandene?
 4. Fra hvilken måned skal historikken starte?

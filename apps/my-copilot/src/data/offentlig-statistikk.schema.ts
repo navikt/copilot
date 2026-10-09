@@ -15,7 +15,33 @@ const FELT = {
 
 /** Faste bruksband. Et band under 20 brukere slås sammen med naboen. */
 const BAND = ["lett", "middels", "tung", "lett_middels", "middels_tung"];
-const MAKS_MODELLER = 6;
+
+/**
+ * Modellnavn → familie. Første treff vinner, så smale mønstre står først.
+ * Navn normaliseres til små bokstaver med bindestrek, så «Claude Opus 6» og «claude-opus-6» treffer likt.
+ * Familier under 20 brukere i måneden legges i «andre» av generatoren.
+ */
+const FAMILIER: [RegExp, string][] = [
+  [/^claude-opus/, "claude_opus"],
+  [/^claude-sonnet/, "claude_sonnet"],
+  [/^claude-haiku/, "claude_haiku"],
+  [/^claude-fable/, "claude_fable"],
+  [/^gpt-.*(mini|nano|luna)/, "gpt_mini"],
+  [/^gpt-/, "gpt"],
+  [/^gemini/, "gemini"],
+];
+const FAMILIENAVN = [...new Set(FAMILIER.map(([, f]) => f)), "andre"];
+
+/** Familien for et modellnavn fra fakturadataene. Ukjente navn gir «andre» og logges. */
+export function modellfamilie(modell: string): string {
+  const navn = modell
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, "-");
+  const treff = FAMILIER.find(([m]) => m.test(navn));
+  if (!treff) console.warn(`ukjent modell, legges i «andre»: ${modell}`);
+  return treff?.[1] ?? "andre";
+}
 
 type Felt = keyof typeof FELT;
 
@@ -50,7 +76,10 @@ function sjekkKilde(v: Record<string, unknown>, sti: string, tillatt: string[], 
 
 function sjekkAndeler(v: Record<string, unknown>, sti: string, feil: string[], navnOk: (n: string) => boolean) {
   sjekkKilde(v, sti, ["andeler", "kilde", "dato"], feil);
-  if (!isObj(v.andeler)) return void feil.push(`${sti}: andeler må være et objekt`);
+  if (!isObj(v.andeler)) {
+    feil.push(`${sti}: andeler må være et objekt`);
+    return;
+  }
   let sum = 0;
   for (const [navn, p] of Object.entries(v.andeler)) {
     if (!navnOk(navn)) feil.push(`${sti}.${navn}: navnet er ikke tillatt`);
@@ -59,7 +88,6 @@ function sjekkAndeler(v: Record<string, unknown>, sti: string, feil: string[], n
   }
   // Avrunding til hele prosent kan gi 98–102.
   if (Math.abs(sum - 100) > 2) feil.push(`${sti}: andelene summerer til ${sum}, ikke omtrent 100`);
-  return Object.keys(v.andeler).length;
 }
 
 /** Returnerer brudd på sikkerhetsreglene. Tom liste betyr godkjent. */
@@ -87,10 +115,8 @@ export function valider(data: unknown): string[] {
       if (navn === "bruksband") {
         sjekkAndeler(v, sti, feil, (n) => BAND.includes(n));
       } else if (navn === "modellandeler") {
-        // Generatoren navngir bare modeller med minst 20 brukere; antallet publiseres ikke.
-        const antall = sjekkAndeler(v, sti, feil, (n) => n.length > 0);
-        if (antall !== undefined && antall > MAKS_MODELLER + 1)
-          feil.push(`${sti}: mer enn ${MAKS_MODELLER} modeller pluss «andre»`);
+        // Alle familier hver måned. Terskelen på 20 brukere håndheves i generatoren; antallet publiseres ikke.
+        sjekkAndeler(v, sti, feil, (n) => FAMILIENAVN.includes(n));
       } else if (Object.hasOwn(FELT, navn)) {
         sjekkKilde(v, sti, ["verdi", "kilde", "dato"], feil);
         const avrunding = FELT[navn as Felt];
