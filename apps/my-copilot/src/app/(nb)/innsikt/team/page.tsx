@@ -8,7 +8,7 @@ import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cach
 import { getUser, getUserToken } from "@/lib/auth";
 import { currentMonthUTC, daysInCalendarMonth, previousMonth, teamInsightMonth } from "@/lib/month-utils";
 import TeamControls from "@/components/team-controls";
-import { formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/local-model-results";
 import TeamSpendSkeleton from "./team-spend-skeleton";
 
 // Shared by the section and «Sist oppdatert» so the no-store request runs once per render.
@@ -105,8 +105,9 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       source={
         <>
           Brutto bruk kommer fra <code>/api/v1/copilot/usage/team-gross</code>, og fakturert forbruk fra{" "}
-          <code>/api/v1/copilot/usage/team-net</code>. Begge viser én kalendermåned, tidligst mai 2026, og oppdateres
-          daglig. En person som er med i flere team, telles i hvert av dem.
+          <code>/api/v1/copilot/usage/team-net</code>. Begge viser én kalendermåned, tidligst mai 2026. Brutto bruk
+          oppdateres daglig. Fakturert forbruk finnes først når måneden er avsluttet og fakturaen er lest inn, og
+          fordelingen på dager er et anslag. En person som er med i flere team, telles i hvert av dem.
         </>
       }
     >
