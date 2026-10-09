@@ -1,6 +1,7 @@
 // External landing page for the cplt open-source project: keep it in English
 // and keep its distinct dark design. Don't translate it or restyle it to the
 // ki-utvikling/Aksel look; fix bugs only. (lang="en" is checked by cplt-page.test.ts.)
+import { SandboxHero } from "@/components/three/heroes";
 import type { Metadata } from "next";
 import { Box, VStack, HGrid, Heading, CopyButton, BodyShort, BodyLong, Theme } from "@navikt/ds-react";
 import NextLink from "next/link";
@@ -235,6 +236,8 @@ function HeroSection({ stars }: { stars: number | null }) {
                 </NextLink>
               </div>
             </VStack>
+
+            <SandboxHero />
 
             {/* Demo recording in window chrome */}
             <div className="max-w-4xl mx-auto w-full">

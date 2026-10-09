@@ -1,6 +1,7 @@
 import { BodyLong, BodyShort, Box, Heading, Link, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import { PageHero } from "@/components/page-hero";
+import { JourneyHero } from "@/components/three/heroes";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getNewsItems } from "@/lib/news";
 import { PHASES } from "./milestones";
@@ -51,6 +52,7 @@ export default function ReisenPage() {
         label="Innsikt"
         title="Reisen"
         description="Mange KI-satsinger er lysbilder. Vår er kode og agenter i et åpent repo, med målinger."
+        visual={<JourneyHero phases={PHASES.length} />}
       />
       <Box
         paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
