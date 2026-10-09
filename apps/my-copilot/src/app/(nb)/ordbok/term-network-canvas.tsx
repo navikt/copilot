@@ -184,12 +184,14 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, hidden, zo
       const catColor = Object.fromEntries(categories.map((c) => [c.id, color(c.token, "#2a6ebb")]));
       const dim = color("--ax-border-neutral-subtle", "#c0c4cc");
       const line = color("--ax-border-neutral", "#8a8f98");
+      const bg = color("--ax-bg-default", "#ffffff");
       const near = current === null ? null : neighbours[current];
       nodes.forEach((s, i) => {
         s.visible = visible(i);
         const lit = current === null || i === current || near!.has(i);
-        s.material.color.copy(lit ? catColor[terms[i].category] : dim);
-        s.material.opacity = lit ? 1 : 0.6;
+        // Unrelated nodes keep their category colour, faded toward the background.
+        s.material.color.copy(catColor[terms[i].category]);
+        if (!lit) s.material.color.lerp(bg, 0.7);
         s.scale.setScalar(baseSize[i] * (i === current ? 1.4 : 1));
       });
       if (current !== null && visible(current)) {
@@ -214,42 +216,72 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, hidden, zo
     };
 
     // Label candidates in priority order: selected, its neighbours, hovered and its neighbours,
-    // then by degree. Each frame, a label that overlaps one already placed on screen is skipped.
+    // then by degree. Labels stay inside the canvas. The selected node and its neighbours always get
+    // a label, nudged to a free spot when they can; any other label that would overlap is skipped.
     const tmp = new THREE.Vector3();
     const placeLabels = () => {
       const order: number[] = [];
       const push = (i: number) => !order.includes(i) && visible(i) && order.push(i);
-      if (current !== null) [current, ...neighbours[current]].forEach(push);
+      const must = new Set<number>();
+      if (current !== null) [current, ...neighbours[current]].forEach((i) => (push(i), must.add(i)));
       if (hovered !== null) [hovered, ...neighbours[hovered]].forEach(push);
       byDegree.slice(0, 14).forEach(push);
       const { clientWidth: w, clientHeight: h } = host;
       const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const placed: [number, number, number, number][] = [];
+      const free = (r: [number, number, number, number]) =>
+        !placed.some((p) => r[0] < p[2] && r[2] > p[0] && r[1] < p[3] && r[3] > p[1]);
       const show = new Set<number>();
+      const lh = LABEL_PX;
       for (const i of order) {
         tmp.copy(pos[i]).applyMatrix4(group.matrixWorld);
         const depth = camera.position.z - tmp.z;
         if (depth <= 0.1) continue;
         const ppw = h / (2 * depth * tanHalf); // pixels per world unit at this depth
         tmp.project(camera);
-        const x = ((tmp.x + 1) / 2) * w + (baseSize[i] * 0.5 + 0.04) * ppw;
-        const y = ((1 - tmp.y) / 2) * h;
+        const nx = ((tmp.x + 1) / 2) * w;
+        const ny = ((1 - tmp.y) / 2) * h;
         if (!labels[i]) {
           const halo = cssToken("--ax-bg-default", "#fff");
           labels[i] = labelSprite(terms[i].term, cssToken("--ax-text-neutral", "#202733"), halo);
           group.add(labels[i]!.sprite);
         }
-        const lh = LABEL_PX;
-        const r: [number, number, number, number] = [x, y - lh / 2, x + labels[i]!.aspect * lh, y + lh / 2];
-        const hit = placed.some((p) => r[0] < p[2] && r[2] > p[0] && r[1] < p[3] && r[3] > p[1]);
-        if (hit && i !== current) continue;
-        placed.push(r);
+        const lw = labels[i]!.aspect * lh;
+        const gap = (baseSize[i] * 0.5 + 0.04) * ppw;
+        // Offsets of the label's left edge and middle from the node, in screen pixels.
+        const spots: [number, number][] = must.has(i)
+          ? [0, -1, 1, -2, 2, -3, 3, -4, 4]
+              .map((k) => k * lh)
+              .flatMap((dy) => [[gap, dy] as [number, number], [-gap - lw, dy] as [number, number]])
+          : [
+              [gap, 0],
+              [-gap - lw, 0],
+            ];
+        let chosen: [number, number, number, number] | null = null;
+        let off: [number, number] = spots[0];
+        for (const [dx, dy] of spots) {
+          const x = THREE.MathUtils.clamp(nx + dx, 4, Math.max(4, w - lw - 14)); // ponytail: 14 px slack for a right-edge drift seen in swiftshader;
+          const y = THREE.MathUtils.clamp(ny + dy, lh / 2, h - lh / 2);
+          const r: [number, number, number, number] = [x, y - lh / 2, x + lw, y + lh / 2];
+          if (free(r)) {
+            chosen = r;
+            off = [x - nx, y - ny];
+            break;
+          }
+          if (!chosen && must.has(i)) {
+            // Fallback for a must-show label: the first in-bounds spot, even if it overlaps.
+            chosen = r;
+            off = [x - nx, y - ny];
+          }
+        }
+        if (!chosen) continue;
+        placed.push(chosen);
         show.add(i);
-        // Offset from the node's visible edge, in world units along screen x.
-        labels[i]!.sprite.position.copy(pos[i]);
-        const wh = LABEL_PX / ppw; // world height that gives LABEL_PX on screen
-        labels[i]!.sprite.scale.set(labels[i]!.aspect * wh, wh, 1);
-        labels[i]!.sprite.center.set(-(baseSize[i] * 0.5 + 0.04) / (labels[i]!.aspect * wh), 0.5);
+        const wh = lh / ppw; // world height that gives LABEL_PX on screen
+        const sprite = labels[i]!.sprite;
+        sprite.position.copy(pos[i]);
+        sprite.scale.set(labels[i]!.aspect * wh, wh, 1);
+        sprite.center.set(-off[0] / lw, 0.5 + off[1] / lh);
       }
       labels.forEach((l, i) => l && (l.sprite.visible = show.has(i)));
     };

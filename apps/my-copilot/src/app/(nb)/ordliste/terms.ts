@@ -342,4 +342,68 @@ export const terms: Term[] = [
     definition:
       "Et angrep der ondsinnet tekst i kode, dokumenter eller input manipulerer KI-agenten til å utføre handlinger den ikke skal. Risikoen øker med verktøytilgang – en agent med skrivetilgang kan gjøre mer skade enn en som bare svarer.",
   },
+  {
+    term: "nav-pilot",
+    category: "verktoy",
+    definition:
+      "Navs verktøy som gir Copilot og andre KI-agenter kunnskap om Nav, fra Nais-manifester til TokenX. nav-pilot installerer agentpakker og sjekker MCP-servere mot Navs MCP-register.",
+    link: { href: "/nav-pilot", label: "Om nav-pilot" },
+  },
+  {
+    term: "cplt",
+    category: "verktoy",
+    definition:
+      "Kommandolinjeverktøy som kjører Copilot CLI, OpenCode og andre agenter i en sandkasse. Agenten kan jobbe i prosjektet ditt, men får ikke lese hemmelighetene dine.",
+    link: { href: "/cplt", label: "Om cplt" },
+  },
+  {
+    term: "Sandkasse",
+    category: "sikkerhet",
+    definition:
+      "Et avgrenset miljø der agenten bare når de filene, nettverksadressene og verktøyene du slipper inn. Det er operativsystemet som håndhever grensene, ikke agenten.",
+    related: ["Sandbox (cplt)"],
+  },
+  {
+    term: "Agentpakke",
+    category: "verktoy",
+    definition:
+      "En ferdig samling av agenter, skills, instructions og hooks for en bestemt type arbeid. nav-pilot installerer pakken samlet, og du kan ta delene du trenger eller bygge videre på den.",
+    link: { href: "/nav-pilot/agentpakker", label: "Se agentpakkene" },
+  },
+  {
+    term: "Plugin",
+    category: "verktoy",
+    definition:
+      "En utvidelse som legger til funksjoner i en KI-klient, for eksempel hooks eller nye verktøy. En plugin kjører med agentens rettigheter, så bruk bare plugins du stoler på.",
+  },
+  {
+    term: "MCP-register",
+    category: "sikkerhet",
+    definition:
+      "Navs liste over godkjente MCP-servere. Copilot CLI kjører bare servere som står i registeret, og nav-pilot gjør den samme sjekken for OpenCode.",
+    link: { href: "/nav-pilot/klienter#mcp-register", label: "Om MCP-registeret" },
+  },
+  {
+    term: "AI Credits",
+    category: "maling",
+    definition:
+      "GitHubs måleenhet for Copilot-bruk. Hver bruker får et månedlig budsjett med AI Credits, og modellene koster ulikt mange credits.",
+    link: { href: "/priser", label: "Se priser" },
+    related: ["Premium requests"],
+  },
+  {
+    term: "BYOK (Bring Your Own Key)",
+    category: "verktoy",
+    definition:
+      "Du kobler Copilot til en modelleverandør med din egen API-nøkkel, i stedet for å bruke modellene GitHub leverer. Nav har egne retningslinjer for BYOK.",
+    link: { href: "/retningslinjer", label: "Se retningslinjer" },
+    related: ["Model provider"],
+  },
+  {
+    term: "Lokal modell",
+    category: "konsepter",
+    definition:
+      "En KI-modell som kjører på din egen maskin i stedet for i skyen, så dataene blir på maskinen. nav-pilot kan bruke godkjente lokale modeller til noen oppgaver.",
+    link: { href: "/innsikt/lokale-modeller", label: "Om lokale modeller" },
+  },
 ];
