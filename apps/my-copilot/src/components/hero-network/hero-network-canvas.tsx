@@ -61,31 +61,44 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     clusters.forEach((cl, ci) => {
       const angle = (ci / clusters.length) * Math.PI * 2;
       const center = new THREE.Vector3(
-        (small ? -3.6 : 0.5) + ci * (small ? 2.4 : 3.4),
-        Math.sin(angle) * 0.8,
+        (small ? -2.2 : 0.5) + ci * (small ? 1.7 : 3.4),
+        (small ? -1.7 : 0) + Math.sin(angle) * (small ? 0.5 : 0.8),
         (ci % 2) - 0.5
       );
-      const color = tokenColor(TOKENS[ci % TOKENS.length]);
       const n = Math.max(3, Math.round(small ? cl.count / 2 : cl.count));
       const first = nodes.length;
       hubs.push(first);
       for (let i = 0; i < n; i++) {
-        const r = i === 0 ? 0 : 0.4 + Math.random() * 1.3;
+        const r = i === 0 ? 0 : (0.4 + Math.random() * 1.3) * (small ? 0.6 : 1);
         const dir = new THREE.Vector3().randomDirection().multiplyScalar(r);
         nodes.push(center.clone().add(dir));
-        colors.push(color.r, color.g, color.b);
+        colors.push(ci, 0, 0);
         if (i > 0) edges.push([first + Math.floor(Math.random() * i), first + i]);
       }
     });
     hubs.forEach((h, i) => edges.push([h, hubs[(i + 1) % hubs.length]]));
 
     const nodeGeo = new THREE.BufferGeometry().setFromPoints(nodes);
-    nodeGeo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    const nodeMat = new THREE.PointsMaterial({ size: 0.3, vertexColors: true, transparent: true, opacity: 0.9 });
+    const colorAttr = new THREE.Float32BufferAttribute(colors, 3);
+    nodeGeo.setAttribute("color", colorAttr);
+    // colors holds the cluster index in r until the tokens are read; re-read on theme change.
+    const clusterOf = colors.filter((_, i) => i % 3 === 0);
+    const applyColors = () => {
+      const palette = TOKENS.map(tokenColor);
+      clusterOf.forEach((ci, i) => palette[ci % palette.length].toArray(colorAttr.array, i * 3));
+      colorAttr.needsUpdate = true;
+    };
+    applyColors();
+    const nodeMat = new THREE.PointsMaterial({
+      size: small ? 0.42 : 0.3,
+      vertexColors: true,
+      transparent: true,
+      opacity: 1,
+    });
     group.add(new THREE.Points(nodeGeo, nodeMat));
 
     const lineGeo = new THREE.BufferGeometry().setFromPoints(edges.flatMap(([a, b]) => [nodes[a], nodes[b]]));
-    const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 });
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: small ? 0.45 : 0.25 });
     group.add(new THREE.LineSegments(lineGeo, lineMat));
 
     // Pulses: points that travel along random edges.
@@ -98,7 +111,13 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     const pulsePos = new Float32Array(pulseCount * 3);
     const pulseGeo = new THREE.BufferGeometry();
     pulseGeo.setAttribute("position", new THREE.BufferAttribute(pulsePos, 3));
-    const pulseMat = new THREE.PointsMaterial({ size: 0.34, color: 0xffffff, transparent: true, opacity: 0.85 });
+    const pulseMat = new THREE.PointsMaterial({
+      size: small ? 0.6 : 0.4,
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+    });
     group.add(new THREE.Points(pulseGeo, pulseMat));
 
     const tmp = new THREE.Vector3();
@@ -167,12 +186,23 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     };
     if (fine && !reduced) window.addEventListener("pointermove", onPointer, { passive: true });
 
+    const themeMq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onTheme = () => {
+      applyColors();
+      if (reduced) draw(0);
+    };
+    themeMq.addEventListener("change", onTheme);
+    const mo = new MutationObserver(onTheme);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
+
     if (reduced) draw(0);
     else sync();
 
     return () => {
       cancelAnimationFrame(raf);
       io.disconnect();
+      mo.disconnect();
+      themeMq.removeEventListener("change", onTheme);
       ro.disconnect();
       document.removeEventListener("visibilitychange", sync);
       window.removeEventListener("pointermove", onPointer);
@@ -188,7 +218,7 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     <div
       ref={ref}
       aria-hidden="true"
-      className="absolute inset-0 pointer-events-none [&>canvas]:w-full [&>canvas]:h-full [mask-image:linear-gradient(90deg,transparent_15%,black_70%)] max-md:[mask-image:linear-gradient(180deg,rgb(0_0_0/0.35),black)] opacity-70"
+      className="absolute inset-0 pointer-events-none [&>canvas]:w-full [&>canvas]:h-full [mask-image:linear-gradient(90deg,transparent_15%,black_70%)] max-md:[mask-image:linear-gradient(180deg,rgb(0_0_0/0.2)_25%,black_60%)] opacity-70 max-md:opacity-100"
     />
   );
 }

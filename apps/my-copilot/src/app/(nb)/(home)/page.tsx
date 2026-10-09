@@ -33,7 +33,7 @@ export default async function Home() {
 
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <section className="hero-gradient text-white overflow-hidden">
+      <section className="hero-gradient text-white overflow-hidden max-md:min-h-[22rem]">
         <HeroNetwork clusters={clusters} />
         <Box
           paddingBlock={{ xs: "space-32", md: "space-40" }}
