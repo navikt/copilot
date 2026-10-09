@@ -36,11 +36,11 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
   const search = (value: string) => {
     setQuery(value);
     const q = value.trim().toLowerCase();
-    if (!q) return;
+    if (!q) return setSelected(null);
     const names = terms.map((t) => t.term.toLowerCase());
     const hit = names.findIndex((n) => n.startsWith(q));
     const i = hit >= 0 ? hit : names.findIndex((n) => n.includes(q));
-    if (i >= 0) setSelected(i);
+    setSelected(i >= 0 ? i : null);
   };
   const noHit =
     query.trim().length > 0 && !terms.some((t) => t.term.toLowerCase().includes(query.trim().toLowerCase()));
@@ -86,9 +86,11 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
             }}
           />
           {noHit && (
-            <BodyShort size="small" className="mt-1 opacity-70">
-              Ingen treff på «{query.trim()}».
-            </BodyShort>
+            <Box paddingBlock="space-4 space-0">
+              <BodyShort size="small" className="opacity-70">
+                Ingen treff på «{query.trim()}».
+              </BodyShort>
+            </Box>
           )}
         </div>
         <Box borderRadius="12" borderWidth="1" borderColor="neutral-subtle" className="overflow-hidden">
