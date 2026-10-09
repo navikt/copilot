@@ -7,8 +7,6 @@ const FELT = {
   aktive_brukere: 50,
   credits_per_bruker_median: 10,
   credits_per_bruker_snitt: 10,
-  kostnad_per_bruker_median_nok: 10,
-  kostnad_per_bruker_snitt_nok: 10,
   katalog_elementer: 1,
   modeller_malt: 1,
 } as const;

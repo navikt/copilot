@@ -42,7 +42,7 @@ describe("offentlig statistikk", () => {
     ["felt som ikke står på listen", medMaaned({ aktive_brukere_per_team: v })],
     ["maksverdi", medMaaned({ credits_per_bruker_maks: v })],
     ["persentil over p90", medMaaned({ credits_per_bruker_p95: v })],
-    ["kostnad totalt", medMaaned({ kostnad_nok: v })],
+    ["kostnad i kroner", medMaaned({ kostnad_per_bruker_median_nok: v })],
     ["gruppering under et felt", medMaaned({ aktive_brukere: { ...v, per_modell: { a: 1 } } })],
     ["liste som verdi", medMaaned({ aktive_brukere: [v] })],
     ["liste som måned", medMaaned([v])],
