@@ -69,8 +69,8 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
             Begrepene henger sammen
           </Heading>
           <BodyShort className="opacity-80">
-            Hvert punkt er et begrep. Store punkter nevnes i mange andre definisjoner. Dra sidelengs for å rotere, og
-            trykk på et punkt for å lese om det. Zoom med knappene, med to fingre eller med Ctrl og musehjulet.
+            Hvert punkt er et begrep. Store punkter henger sammen med mange andre. Dra sidelengs for å rotere, og trykk
+            på et punkt for å lese om det. Zoom med knappene, med to fingre eller med Ctrl og musehjulet.
           </BodyShort>
         </VStack>
         <div className="md:w-1/2">
@@ -87,7 +87,7 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
           />
           {noHit && (
             <BodyShort size="small" className="mt-1 opacity-70">
-              Ingen begreper heter «{query.trim()}».
+              Ingen treff på «{query.trim()}».
             </BodyShort>
           )}
         </div>
@@ -156,7 +156,7 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
               )}
               <div>
                 <Button size="small" variant="secondary" onClick={() => goTo(selected)}>
-                  Gå til begrepet
+                  Vis i ordlisten
                 </Button>
               </div>
             </VStack>
