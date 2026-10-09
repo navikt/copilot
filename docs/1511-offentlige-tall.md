@@ -71,14 +71,15 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 | Benchmark-resultater og modellvalg | Offentlig | Allerede i åpent repo | Per modell | Produkteier |
 | Størrelse på katalogen (skills, agenter, instruksjoner) | Offentlig | Repo-data, vises på `/reisen` | – | Produkteier |
 | Repo-aktivitet (sammenslåtte PR-er, PR-er fra Copilot coding agent) | Offentlig | Åpent repo, ingen persondata i tallet | Hele repoet | Produkteier |
-| Antall brukere og aktive brukere | Offentlig, bare total for hele Nav | Allerede publisert av kode24 og `/reisen` | Hele Nav, per måned, avrundet til nærmeste 50 | Produkteier, kommunikasjon |
-| Vekst i bruk | Offentlig, bare total for hele Nav | Samme | Hele Nav, per måned | Produkteier, kommunikasjon |
-| Kostnad totalt | Offentlig, bare total for hele Nav | Kan kreves innsyn i; relativ endring er publisert | Hele Nav, per måned eller kvartal | Produkteier, kommunikasjon |
+| Antall brukere og aktive brukere | Offentlig, bare total for hele Nav | Allerede publisert av kode24 og `/reisen` | Hele Nav, per måned, avrundet til nærmeste 50 | Produkteier (kommunikasjon: åpent spørsmål) |
+| Vekst i bruk | Offentlig, bare total for hele Nav | Samme | Hele Nav, per måned | Produkteier (kommunikasjon: åpent spørsmål) |
+| Kostnad totalt | Offentlig, bare total for hele Nav | Kan kreves innsyn i; relativ endring er publisert | Hele Nav, per måned eller kvartal | Produkteier (kommunikasjon: åpent spørsmål) |
 | Fordeling på modell, editor, språk | Internt | Ingen offentlige fordelinger, bare totaler | – | Produkteier |
 | Kodeforslag og aksepterte linjer | Internt | Lett å lese som produktivitetsmål | – | Produkteier |
 | Kostnad per oppgave (#1424) | Internt | Metoden er ikke avklart | – | Produkteier |
 | Tall per team (#345, `/innsikt/team`) | Internt | Kontrolltiltak etter aml. kap. 9 | Team ≥ 5, per måned, bare innlogget | Produkteier, personvernombud, tillitsvalgte |
-| Svar fra undersøkelser | Offentlig aggregert | Samtykke og formål må dekke ekstern bruk | Totaler for hele Nav, ingen fordeling på grupper | Personvernombud, kommunikasjon |
+| Publisert sammendrag av undersøkelser | Offentlig | Bare sammendraget i repoet kan brukes utenfor Nav | Totaler for hele Nav, slik de står i sammendraget | Produkteier |
+| Rå svar fra undersøkelser | Aldri | Skal aldri brukes, verken offentlig eller i nye analyser utenfor Nav | – | – |
 | Alt per person | Aldri | Personopplysninger, kontrolltiltak | – | – |
 | Nye skjermbilder av interne sider | Aldri uten gjennomgang | Kan vise flere felt enn tiltenkt. Skjermbildet fra 2025 er et godkjent unntak. | – | Produkteier |
 
@@ -86,10 +87,17 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 
 | Rolle | Godkjenner |
 |---|---|
-| Produkteier | Alle rader. Eier listen og reglene. |
-| Personvernombud | Undersøkelser og alt på team-nivå. Bekrefter om PVK trengs. |
-| Kommunikasjon | Bruker- og kostnadstall før de brukes eksternt. |
+| Produkteier | Godkjenner alene publisering av totaler for hele Nav. Eier listen og reglene. |
+| Personvernombud | Rådføres bare når vi vil bruke en ny type data. |
+| Kommunikasjon | Rollen er ikke avklart. Se åpne spørsmål. |
 | Tillitsvalgte | Drøfting etter aml. § 9-2 før tall per team vises, også internt. Orienteres om den offentlige listen. |
+
+### Kjente mangler og risiko
+
+| Punkt | Status |
+|---|---|
+| Ingen PVK for `copilot-metrics` eller `copilot-survey` | Kjent mangel. En PVK anbefales, men stopper ikke publisering av totaler for hele Nav som allerede er offentlige eller godkjent av produkteier. |
+| Ingen lagringstid for persontabellene i BigQuery (`billing_user_monthly`, `user_metrics` og lignende) | Bevisst valg foreløpig. Skal vurderes på nytt. Risiko: jo lenger data lagres, jo større blir skaden ved en lekkasje eller feil bruk. |
 
 ## 6. Tall på `/reisen` i første versjon
 
@@ -120,20 +128,18 @@ Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det
 
 ## 8. Åpne spørsmål
 
-1. Hvem er produkteier og dataeier for `copilot-metrics`?
-2. Finnes det en PVK for `copilot-metrics` og `copilot-survey`? Hvis ikke, trengs en før tall per team.
-3. Er utvidet bruk av kode24-tallene på `/reisen` greit for kommunikasjon?
-4. Skal BigQuery-tabellene med persondata få en lagringstid?
-5. Dekker samtykket i utviklerundersøkelsen bruk utenfor Nav?
+1. Skal kommunikasjon godkjenne eller bare orienteres før tall brukes eksternt?
+2. Er utvidet bruk av kode24-tallene på `/reisen` greit for kommunikasjon?
 
 ## 9. Steg
 
 | # | Steg | Størrelse |
 |---|---|---|
 | 1 | Ekstra sikring: test som sjekker at private ruter krever innlogging, og oppdatert `check-public-routes.mjs` | S |
-| 2 | Avklare tabellen med produkteier og personvernombud | M |
+| 2 | Produkteier godkjenner tabellen. Avklare rollen til kommunikasjon. | S |
 | 3 | `/reisen`: tallene i punkt 6 med kilde og dato | S |
 | 4 | JSON-øyeblikksbilde, test for bare totaler og generatorskript | M |
 | 5 | Drøfting med tillitsvalgte om tall per team (#345, #1424) | M |
-| 6 | Lagringstid for persondata i BigQuery | S |
+| 6 | Gjennomføre PVK for `copilot-metrics` og `copilot-survey` (anbefalt, blokkerer ikke steg 3) | M |
+| 8 | Vurdere lagringstid for persontabellene i BigQuery på nytt | S |
 | 7 | Første eksterne sak med godkjente tall (#1512) | L |
