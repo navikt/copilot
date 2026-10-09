@@ -56,6 +56,32 @@ describe("reisesiden", () => {
     expect(screen.getByRole("link", { name: "skills i katalogen" })).toHaveAttribute("href", "/verktoy");
   });
 
+  it("gir hvert tall en kildelenke, og dato der tallet er et øyeblikksbilde", () => {
+    render(<ReisenPage />);
+    const grid = screen.getByRole("heading", { name: "Tall vi kan vise fram" }).parentElement!.querySelector("dl")!;
+    const items = Array.from(grid.children) as HTMLElement[];
+    expect(items.length).toBeGreaterThanOrEqual(10);
+    for (const item of items) {
+      const href = within(item).getByRole("link").getAttribute("href")!;
+      expect(href).toMatch(/^(https:\/\/|\/)/);
+      // The catalogue and news counts are computed per request; every other number is a dated snapshot.
+      if (!["/verktoy", "/nyheter"].includes(href)) expect(item.querySelector("time[datetime]")).not.toBeNull();
+    }
+    for (const name of [
+      "daglige brukere i juni 2026",
+      "vekst i brukere per måned i juni 2026",
+      "høyere kostnad etter AI Credits",
+    ]) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        "https://www.kode24.no/artikkel/nav-ma-betale-tre-til-fire-ganger-mer-for-sine-600-copilot-brukere/264699"
+      );
+    }
+    expect(screen.getByRole("link", { name: "mergede pull requests i navikt/copilot" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "KI-modeller målt" })).toHaveAttribute("href", "/modeller");
+    expect(screen.getByRole("link", { name: "benchmark-kjøringer" })).toHaveAttribute("href", "/modeller");
+  });
+
   it("lenker navnet til GitHub-profilen", () => {
     render(<ReisenPage />);
     expect(screen.getByRole("link", { name: "Hans Kristian Flaatten" })).toHaveAttribute(

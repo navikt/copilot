@@ -2,6 +2,7 @@ import { BodyLong, BodyShort, Box, Heading, Link, VStack } from "@navikt/ds-reac
 import type { Metadata } from "next";
 import { PageHero } from "@/components/page-hero";
 import { getAllCustomizations } from "@/lib/customizations";
+import { loadGoldenSummary } from "@/lib/golden-summary-file";
 import { getNewsItems } from "@/lib/news";
 import { PHASES } from "./milestones";
 
@@ -31,14 +32,45 @@ function formatWhen(date: string, end?: string): string {
   return `${sameYear ? from.replace(/ \d{4}$/, "") : from}–${to}`;
 }
 
-// TODO(#1511): legg til tall om bruk og kostnad når de er godkjent for publisering.
 const nb = (n: number) => n.toLocaleString("nb-NO");
+
+// Public numbers are org-wide totals only (#1511): no breakdown by team, model, editor or person.
+type Figure = { value: string; label: string; url: string; source?: string; date?: string };
+
+const KODE24 = {
+  url: "https://www.kode24.no/artikkel/nav-ma-betale-tre-til-fire-ganger-mer-for-sine-600-copilot-brukere/264699",
+  source: "kode24",
+  date: "2026-06-04",
+};
+
+// Counted 2026-10-09 with
+//   gh api 'search/issues?q=repo:navikt/copilot+is:pr+is:merged' -q .total_count
+const MERGED_PRS = { count: 905, date: "2026-10-09" };
 
 // Read per request, like /modeller: the catalog and the articles ship with the image.
 export default function ReisenPage() {
   const items = getAllCustomizations();
   const count = (type: string) => items.filter((item) => item.type === type).length;
-  const numbers = [
+  // Smoke runs only check the test setup, so they are not measurements of a model.
+  const summary = loadGoldenSummary();
+  const runs = summary?.runs.filter((r) => !r.smoke) ?? [];
+  const numbers: Figure[] = [
+    { value: "Rundt 600", label: "daglige brukere i juni 2026", ...KODE24 },
+    { value: "20 %", label: "vekst i brukere per måned i juni 2026", ...KODE24 },
+    { value: "3–4 ganger", label: "høyere kostnad etter AI Credits", ...KODE24 },
+    {
+      value: nb(MERGED_PRS.count),
+      label: "mergede pull requests i navikt/copilot",
+      url: `${REPO}/pulls?q=is%3Apr+is%3Amerged`,
+      source: "GitHub",
+      date: MERGED_PRS.date,
+    },
+    ...(summary && runs.length > 0
+      ? [
+          { value: nb(new Set(runs.map((r) => r.model)).size), label: "KI-modeller målt", url: "/modeller" },
+          { value: nb(runs.reduce((sum, r) => sum + r.n, 0)), label: "benchmark-kjøringer", url: "/modeller" },
+        ].map((f) => ({ ...f, source: "målingene i repoet", date: summary.generated }))
+      : []),
     { value: nb(count("skill")), label: "skills i katalogen", url: "/verktoy" },
     { value: nb(count("agent")), label: "agenter i katalogen", url: "/verktoy" },
     { value: nb(count("instruction")), label: "instruksjoner i katalogen", url: "/verktoy" },
@@ -146,11 +178,18 @@ export default function ReisenPage() {
             </Heading>
             <dl className="grid gap-4 sm:grid-cols-2">
               {numbers.map((n) => (
-                <div key={n.label} className="flex flex-col-reverse">
+                <div key={n.label} className="flex flex-col">
                   <dt>
                     <Link href={n.url}>{n.label}</Link>
                   </dt>
-                  <dd className="text-3xl font-semibold">{n.value}</dd>
+                  <dd className="order-first text-3xl font-semibold">{n.value}</dd>
+                  {n.date && (
+                    <dd>
+                      <BodyShort size="small" textColor="subtle">
+                        {n.source}, <time dateTime={n.date}>{dateFormat.format(new Date(n.date))}</time>
+                      </BodyShort>
+                    </dd>
+                  )}
                 </div>
               ))}
             </dl>
