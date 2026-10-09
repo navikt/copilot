@@ -1,0 +1,121 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { BodyShort, Box, Button, HStack, Heading, Search, VStack } from "@navikt/ds-react";
+import { hasWebGL2 } from "@/lib/webgl";
+import { deriveEdges, termId } from "../ordliste/term-graph";
+import type { Term } from "../ordliste/terms";
+import type { TermNetworkCanvas } from "./term-network-canvas";
+
+// three.js loads after hydration and only with WebGL 2. Without it the section is not rendered.
+// Not next/dynamic with ssr:false: its BAILOUT_TO_CLIENT_SIDE_RENDERING digest trips hack/smoke.sh.
+export function TermNetwork({ terms }: { terms: Term[] }) {
+  const [Canvas, setCanvas] = useState<typeof TermNetworkCanvas | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const edges = useMemo(() => deriveEdges(terms), [terms]);
+  const neighbours = useMemo(() => {
+    const n = terms.map(() => new Set<number>());
+    edges.forEach((e) => {
+      n[e.from].add(e.to);
+      n[e.to].add(e.from);
+    });
+    return n;
+  }, [terms, edges]);
+
+  useEffect(() => {
+    if (!hasWebGL2()) return;
+    import("./term-network-canvas").then((m) => setCanvas(() => m.TermNetworkCanvas));
+  }, []);
+
+  if (!Canvas) return null;
+
+  const search = (value: string) => {
+    setQuery(value);
+    const q = value.trim().toLowerCase();
+    if (!q) return;
+    const names = terms.map((t) => t.term.toLowerCase());
+    const hit = names.findIndex((n) => n.startsWith(q));
+    const i = hit >= 0 ? hit : names.findIndex((n) => n.includes(q));
+    if (i >= 0) setSelected(i);
+  };
+  const noHit =
+    query.trim().length > 0 && !terms.some((t) => t.term.toLowerCase().includes(query.trim().toLowerCase()));
+
+  const goTo = (i: number) => {
+    const el = document.getElementById(termId(terms[i].term));
+    if (!el) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    el.focus({ preventScroll: true });
+    history.replaceState(null, "", `#${el.id}`);
+  };
+
+  const term = selected === null ? null : terms[selected];
+
+  return (
+    <section aria-labelledby="begrepsnett-heading">
+      <VStack gap="space-12">
+        <VStack gap="space-4">
+          <Heading id="begrepsnett-heading" size="medium" level="2">
+            Begrepene henger sammen
+          </Heading>
+          <BodyShort className="opacity-80">
+            Hvert punkt er et begrep. Store punkter nevnes i mange andre definisjoner. Dra sidelengs for å rotere, og
+            trykk på et punkt for å lese om det.
+          </BodyShort>
+        </VStack>
+        <div className="md:w-1/2">
+          <Search
+            label="Finn et begrep i nettverket"
+            variant="simple"
+            size="small"
+            value={query}
+            onChange={search}
+            onClear={() => {
+              setQuery("");
+              setSelected(null);
+            }}
+          />
+          {noHit && (
+            <BodyShort size="small" className="mt-1 opacity-70">
+              Ingen begreper heter «{query.trim()}».
+            </BodyShort>
+          )}
+        </div>
+        <Box borderRadius="12" borderWidth="1" borderColor="neutral-subtle" className="overflow-hidden">
+          <Canvas terms={terms} edges={edges} selected={selected} onSelect={setSelected} />
+        </Box>
+        <Box padding="space-16" borderRadius="12" background="neutral-soft" aria-live="polite">
+          {term === null || selected === null ? (
+            <BodyShort className="opacity-80">Trykk på et punkt, eller søk etter et begrep.</BodyShort>
+          ) : (
+            <VStack gap="space-8">
+              <Heading size="small" level="3">
+                {term.term}
+              </Heading>
+              <BodyShort>{term.definition}</BodyShort>
+              {neighbours[selected].size > 0 && (
+                <HStack gap="space-4" align="center">
+                  <BodyShort size="small" className="opacity-70">
+                    Henger sammen med:
+                  </BodyShort>
+                  {[...neighbours[selected]].map((i) => (
+                    <Button key={i} size="xsmall" variant="tertiary" onClick={() => setSelected(i)}>
+                      {terms[i].term}
+                    </Button>
+                  ))}
+                </HStack>
+              )}
+              <div>
+                <Button size="small" variant="secondary" onClick={() => goTo(selected)}>
+                  Gå til begrepet
+                </Button>
+              </div>
+            </VStack>
+          )}
+        </Box>
+      </VStack>
+    </section>
+  );
+}

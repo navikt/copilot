@@ -4,6 +4,7 @@ import { TrustBoundaryDiagram } from "@/components/trust-boundary-diagram";
 import { BodyShort, Box, Heading, Link, VStack } from "@navikt/ds-react";
 import { Glossary } from "../ordliste/glossary";
 import { terms } from "../ordliste/terms";
+import { TermNetwork } from "./term-network";
 
 export const metadata: Metadata = {
   title: "Ordbok",
@@ -27,6 +28,7 @@ export default function OrdbokPage() {
             Trenger du kontekst? <Link href="#arkitektur-og-tillitsgrenser">Hopp til arkitektur og tillitsgrenser</Link>
             .
           </BodyShort>
+          <TermNetwork terms={terms} />
           <Glossary terms={terms} />
           <section id="arkitektur-og-tillitsgrenser" aria-labelledby="arkitektur-heading" tabIndex={-1}>
             <VStack gap="space-16">

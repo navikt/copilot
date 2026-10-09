@@ -2,6 +2,8 @@ export interface Term {
   term: string;
   definition: string;
   link?: { href: string; label: string };
+  // Links the definition text does not capture; feeds the network on /ordbok. Use sparingly.
+  related?: string[];
 }
 
 // Termnavn: bruk engelsk for etablerte fagtermer (agent mode, hooks, tool calling).
@@ -13,6 +15,7 @@ export const terms: Term[] = [
     definition:
       "Andelen kodeforslag fra Copilot som utviklere faktisk tar i bruk. Måles som forholdet mellom aksepterte og totalt viste forslag, og brukes til å vurdere hvor nyttig Copilot er i praksis.",
     link: { href: "/statistikk", label: "Se statistikk" },
+    related: ["Inline suggestion"],
   },
   {
     term: "Agent",
@@ -23,6 +26,7 @@ export const terms: Term[] = [
     term: "Agentisk KI",
     definition:
       "Samlebegrep for KI-systemer som handler på egen hånd mot et mål, i stedet for å svare på ett og ett spørsmål. Brukes som adjektiv, for eksempel «agentisk arbeidsflyt».",
+    related: ["Agent"],
   },
   {
     term: "Agency",
@@ -61,6 +65,7 @@ export const terms: Term[] = [
     term: "Ask mode",
     definition:
       "Copilots spørremodus der du kan stille spørsmål og få svar og forklaringer uten at Copilot gjør endringer i kodebasen.",
+    related: ["Agent mode", "Edit mode"],
   },
   {
     term: "Autonomi",
@@ -106,6 +111,7 @@ export const terms: Term[] = [
     definition:
       "Copilot lagrer innsikt om et repository – arkitekturbeslutninger, mønstre og konvensjoner – og bruker det til å gi mer presise forslag i fremtidige økter. Minnet er per repository og kan slås av.",
     link: { href: "https://docs.github.com/en/copilot/concepts/agents/copilot-memory", label: "GitHub Docs" },
+    related: ["Session"],
   },
   {
     term: "Copilot Extensions",
@@ -116,6 +122,7 @@ export const terms: Term[] = [
     term: "Copilot Workspace",
     definition:
       "GitHubs agentdrevne utviklingsmiljø der du kan gå fra en GitHub issue til ferdig pull request med KI-hjelp.",
+    related: ["Coding agent"],
   },
   {
     term: "Context exclusion",
@@ -154,6 +161,7 @@ export const terms: Term[] = [
     term: "Human-in-the-loop",
     definition:
       "Prinsippet om at et menneske godkjenner agentens handlinger underveis, i stedet for å la den kjøre helt autonomt. I Copilot styres dette med godkjenningsdialogene for terminal og filendringer.",
+    related: ["Autonomi"],
   },
   {
     term: "Inline suggestion",

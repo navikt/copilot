@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { cssToken, hasWebGL2, pointSpriteCanvas } from "@/lib/webgl";
 
 export interface HeroCluster {
   name: string;
@@ -16,20 +17,9 @@ const TOKENS = [
   "--ax-bg-meta-purple-strong",
 ];
 
-function hasWebGL(): boolean {
-  try {
-    const c = document.createElement("canvas");
-    // three r186+ needs WebGL 2.
-    return !!c.getContext("webgl2");
-  } catch {
-    return false;
-  }
-}
-
 function tokenColor(name: string): THREE.Color {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   try {
-    return new THREE.Color(v || "#7fb2ff");
+    return new THREE.Color(cssToken(name));
   } catch {
     return new THREE.Color("#7fb2ff");
   }
@@ -40,7 +30,7 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
 
   useEffect(() => {
     const host = ref.current;
-    if (!host || !hasWebGL()) return;
+    if (!host || !hasWebGL2()) return;
 
     const small = window.innerWidth < 640;
     const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -99,18 +89,7 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     };
 
     // Round, soft-edged points: a tiny radial-gradient sprite.
-    const spriteCanvas = document.createElement("canvas");
-    spriteCanvas.width = spriteCanvas.height = 64;
-    const ctx = spriteCanvas.getContext("2d");
-    if (ctx) {
-      const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-      g.addColorStop(0, "#fff");
-      g.addColorStop(0.5, "rgba(255,255,255,0.85)");
-      g.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 64, 64);
-    }
-    const sprite = new THREE.CanvasTexture(spriteCanvas);
+    const sprite = new THREE.CanvasTexture(pointSpriteCanvas());
     const nodeMat = new THREE.PointsMaterial({
       size: small ? 0.5 : 0.36,
       vertexColors: true,

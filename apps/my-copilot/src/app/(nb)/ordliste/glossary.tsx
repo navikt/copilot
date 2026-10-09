@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BodyShort, Box, Button, Heading, Link, Search, UNSAFE_Combobox, VStack } from "@navikt/ds-react";
+import { termId } from "./term-graph";
 import type { Term } from "./terms";
 
 type CategoryId = "agentisk" | "copilot" | "sikkerhet" | "plattform" | "grunnbegreper";
@@ -144,6 +145,8 @@ export function Glossary({ terms }: { terms: Term[] }) {
           {filtered.map(({ term, definition, link, category }, i) => (
             <Box
               key={term}
+              id={termId(term)}
+              tabIndex={-1}
               paddingBlock="space-16"
               className={i < filtered.length - 1 ? "border-b border-gray-200" : ""}
             >
