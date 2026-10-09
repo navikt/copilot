@@ -46,7 +46,7 @@ export default function ReisenPage() {
   const numbers = [
     {
       value: nb(MERGED_PRS),
-      label: `pull requests tatt inn i main (${SNAPSHOT_DATE})`,
+      label: `mergede pull requests (${SNAPSHOT_DATE})`,
       url: `${REPO}/pulls?q=is%3Apr+is%3Amerged`,
     },
     { value: nb(COMMITS), label: `commits på main (${SNAPSHOT_DATE})`, url: `${REPO}/commits/main` },
