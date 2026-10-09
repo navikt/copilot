@@ -703,7 +703,7 @@ cplt config set gh_guard.inject_token true --force`}
             sammen med kommandoen som feilet. Utskriften viser hjemmemappa som <code className={code}>~</code> og
             tokener bare med navn. Ikke send <code className={code}>--verbose</code>: den tar med fulle stier.
           </BodyLong>
-          <CodeBlock compact>{`cplt doctor --agent claude`}</CodeBlock>
+          <CodeBlock compact>{`cplt doctor`}</CodeBlock>
         </VStack>
       </section>
     </DocPage>
