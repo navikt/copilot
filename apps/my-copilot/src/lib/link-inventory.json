@@ -2462,6 +2462,14 @@
     ],
     "anchors": {}
   },
+  "/reisen": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/reisen/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {}
+  },
   "/retningslinjer": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",

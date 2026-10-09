@@ -16,7 +16,7 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 | dashboard         | Visualiseringspanel (Grafana, statistikk)                               |
 | GDPR              | EU-forordning for personvern                                            |
 | inline            | Inline kodeforslag i editoren                                           |
-| merge             | Slå sammen en pull request                                              |
+| merge             | Slå sammen en pull request. Bøyes: merget, mergede. Ikke «flettet»      |
 | pull request (PR) | Endringsforslag i Git                                                   |
 | review            | Gjennomgang — brukes som verb og substantiv                             |
 | skill             | Artefakttype i en agentpakke — ikke oversett                            |
