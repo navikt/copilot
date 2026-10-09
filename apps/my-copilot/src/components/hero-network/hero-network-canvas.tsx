@@ -61,15 +61,15 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     clusters.forEach((cl, ci) => {
       const angle = (ci / clusters.length) * Math.PI * 2;
       const center = new THREE.Vector3(
-        (small ? -2.2 : 0.5) + ci * (small ? 1.7 : 3.4),
-        (small ? -1.7 : 0) + Math.sin(angle) * (small ? 0.5 : 0.8),
+        (small ? -2.7 : 0.5) + ci * (small ? 1.8 : 3.4),
+        small ? (ci % 2 ? 0.1 : -2) : Math.sin(angle) * 0.8,
         (ci % 2) - 0.5
       );
       const n = Math.max(3, Math.round(small ? cl.count / 2 : cl.count));
       const first = nodes.length;
       hubs.push(first);
       for (let i = 0; i < n; i++) {
-        const r = i === 0 ? 0 : (0.4 + Math.random() * 1.3) * (small ? 0.6 : 1);
+        const r = i === 0 ? 0 : (0.4 + Math.random() * 1.3) * (small ? 0.9 : 1);
         const dir = new THREE.Vector3().randomDirection().multiplyScalar(r);
         nodes.push(center.clone().add(dir));
         colors.push(ci, 0, 0);
