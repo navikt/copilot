@@ -16,7 +16,8 @@ beforeAll(() => {
 
 describe("proxy without a token", () => {
   it.each(PRIVATE_ROUTES)("guards %s", async (path) => {
-    const bases = config.matcher.map((m) => m.replace("/:path*", ""));
+    // Only /x/:path* matchers count: an exact one would leave the subroutes unguarded.
+    const bases = config.matcher.filter((m) => m.endsWith("/:path*")).map((m) => m.slice(0, -"/:path*".length));
     expect(bases.some((b) => path === b || path.startsWith(b + "/"))).toBe(true);
     const res = await proxy(request(path));
     if (API_ROUTES.has(path)) {

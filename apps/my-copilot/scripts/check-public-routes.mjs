@@ -16,11 +16,14 @@ const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const proxy = readFileSync(join(appDir, "src", "proxy.ts"), "utf-8");
 const listed = (name) => {
   const body = proxy.match(new RegExp(`${name}\\W*\\[([^\\]]*)\\]`))?.[1] ?? "";
-  return [...body.matchAll(/"([^"]+)"/g)].map((m) => m[1].replace("/:path*", ""));
+  return [...body.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 };
 const covers = (prefixes, route) => prefixes.some((p) => route === p || route.startsWith(p + "/"));
 const guarded = [...listed("PRIVATE_PAGE_PATHS"), ...listed("PRIVATE_API_PATHS")];
-const matched = listed("matcher");
+// Only /x/:path* matchers count: an exact one would leave the subroutes unguarded.
+const matched = listed("matcher")
+  .filter((m) => m.endsWith("/:path*"))
+  .map((m) => m.slice(0, -"/:path*".length));
 const unguarded = PRIVATE_ROUTES.filter((r) => !covers(guarded, r) || !covers(matched, r));
 if (unguarded.length > 0) {
   console.error("These private routes are not guarded by src/proxy.ts:");
