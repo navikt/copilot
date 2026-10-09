@@ -1,5 +1,5 @@
 import { deriveEdges, termId } from "./term-graph";
-import { terms } from "./terms";
+import { categories, terms } from "./terms";
 
 const names = new Set(terms.map((t) => t.term));
 const edges = deriveEdges(terms);
@@ -8,6 +8,11 @@ const pairs = new Set(edges.map((e) => `${terms[e.from].term} → ${terms[e.to].
 describe("term graph", () => {
   it("related entries name existing terms", () => {
     for (const t of terms) for (const r of t.related ?? []) expect(names, `${t.term} → ${r}`).toContain(r);
+  });
+
+  it("gives every term a known category", () => {
+    const ids = categories.map((c) => c.id);
+    for (const t of terms) expect(ids, t.term).toContain(t.category);
   });
 
   it("never links a term to itself", () => {

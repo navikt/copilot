@@ -3,73 +3,16 @@
 import { useEffect, useState } from "react";
 import { BodyShort, Box, Button, Heading, Link, Search, UNSAFE_Combobox, VStack } from "@navikt/ds-react";
 import { termId } from "./term-graph";
-import type { Term } from "./terms";
+import { categories, type Category, type Term } from "./terms";
 
-type CategoryId = "agentisk" | "copilot" | "sikkerhet" | "plattform" | "grunnbegreper";
-
-const categoryLabels: Record<CategoryId, string> = {
-  agentisk: "Agentisk KI",
-  copilot: "Copilot-funksjoner",
-  sikkerhet: "Sikkerhet og styring",
-  plattform: "Plattform og integrasjon",
-  grunnbegreper: "Grunnbegreper",
-};
-const categoryOrder: CategoryId[] = ["agentisk", "copilot", "sikkerhet", "plattform", "grunnbegreper"];
-
-function getCategory(term: Term): CategoryId {
-  const name = term.term.toLowerCase();
-
-  if (
-    name.includes("agent") ||
-    name === "agency" ||
-    name === "autonomi" ||
-    name === "human-in-the-loop" ||
-    name === "tool calling" ||
-    name === "subagent"
-  ) {
-    return "agentisk";
-  }
-
-  if (
-    name.startsWith("copilot") ||
-    name === "ask mode" ||
-    name === "edit mode" ||
-    name === "plan mode" ||
-    name === "chat" ||
-    name === "hooks" ||
-    name === "inline suggestion" ||
-    name === "next edit suggestions (nes)" ||
-    name === "skills" ||
-    name === "instructions"
-  ) {
-    return "copilot";
-  }
-
-  if (
-    name === "allowlist (mcp)" ||
-    name === "context exclusion" ||
-    name === "inference context" ||
-    name === "org policy" ||
-    name === "sandbox (cplt)" ||
-    name === "prompt injection" ||
-    name === "excessive agency"
-  ) {
-    return "sikkerhet";
-  }
-
-  if (name.includes("mcp") || name === "opencode" || name === "agents.md" || name === "model provider") {
-    return "plattform";
-  }
-
-  return "grunnbegreper";
-}
+const categoryLabels = Object.fromEntries(categories.map((c) => [c.id, c.label])) as Record<Category, string>;
 
 /** Clears search and category filters, so a term can be scrolled to. */
 export const GLOSSARY_RESET_EVENT = "ordbok:nullstill-filter";
 
 export function Glossary({ terms }: { terms: Term[] }) {
   const [query, setQuery] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<CategoryId[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   useEffect(() => {
     const reset = () => {
       setQuery("");
@@ -79,21 +22,13 @@ export function Glossary({ terms }: { terms: Term[] }) {
     return () => window.removeEventListener(GLOSSARY_RESET_EVENT, reset);
   }, []);
 
-  const termsWithCategory = terms.map((term) => ({ ...term, category: getCategory(term) }));
-  const categoryCounts = termsWithCategory.reduce<Record<CategoryId, number>>(
-    (acc, term) => {
-      acc[term.category] += 1;
-      return acc;
-    },
-    { agentisk: 0, copilot: 0, sikkerhet: 0, plattform: 0, grunnbegreper: 0 }
-  );
-  const categoryOptions = categoryOrder.map((id) => ({
+  const categoryOptions = categories.map(({ id, label }) => ({
     value: id,
-    label: `${categoryLabels[id]} (${categoryCounts[id]})`,
+    label: `${label} (${terms.filter((t) => t.category === id).length})`,
   }));
 
   const normalizedQuery = query.toLowerCase();
-  const filtered = termsWithCategory.filter(({ term, definition, category }) => {
+  const filtered = terms.filter(({ term, definition, category }) => {
     const matchesQuery =
       normalizedQuery.length === 0 ||
       term.toLowerCase().includes(normalizedQuery) ||
@@ -125,7 +60,7 @@ export function Glossary({ terms }: { terms: Term[] }) {
             options={categoryOptions}
             selectedOptions={categoryOptions.filter((option) => selectedCategories.includes(option.value))}
             onToggleSelected={(value, isSelected) => {
-              const category = value as CategoryId;
+              const category = value as Category;
               setSelectedCategories((prev) =>
                 isSelected
                   ? prev.includes(category)

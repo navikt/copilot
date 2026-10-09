@@ -15,6 +15,26 @@ export function cssToken(name: string, fallback = "#7fb2ff"): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 
+/** A crisp 128 px disc (fill) or ring (stroke) with a thin antialiased edge. Wrap it in a CanvasTexture. */
+export function discSpriteCanvas(ring = false): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    ctx.beginPath();
+    ctx.arc(64, 64, ring ? 56 : 62, 0, Math.PI * 2);
+    if (ring) {
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = "#fff";
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+    }
+  }
+  return c;
+}
+
 /** A 64 px radial-gradient sprite for round, soft-edged points. Wrap it in a CanvasTexture. */
 export function pointSpriteCanvas(): HTMLCanvasElement {
   const c = document.createElement("canvas");

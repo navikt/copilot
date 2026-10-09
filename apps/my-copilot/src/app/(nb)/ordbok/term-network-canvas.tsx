@@ -2,15 +2,17 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { cssToken, hasWebGL2, pointSpriteCanvas } from "@/lib/webgl";
+import { cssToken, discSpriteCanvas, hasWebGL2 } from "@/lib/webgl";
 import type { TermEdge } from "../ordliste/term-graph";
-import type { Term } from "../ordliste/terms";
+import { categories, type Category, type Term } from "../ordliste/terms";
 
 interface Props {
   terms: Term[];
   edges: TermEdge[];
   selected: number | null;
   onSelect: (i: number | null) => void;
+  /** Categories switched off in the legend. */
+  hidden: Category[];
   /** Set by the canvas: zooms by a factor (below 1 zooms in). */
   zoomRef: { current: ((factor: number) => void) | null };
 }
@@ -21,6 +23,15 @@ function color(name: string, fallback: string): THREE.Color {
   } catch {
     return new THREE.Color(fallback);
   }
+}
+
+function crispTexture(c: HTMLCanvasElement): THREE.CanvasTexture {
+  const t = new THREE.CanvasTexture(c);
+  t.generateMipmaps = true;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 // Deterministic 3D force layout: start on a Fibonacci sphere, then springs on edges,
@@ -60,28 +71,38 @@ function layout(n: number, edges: TermEdge[]): THREE.Vector3[] {
   return p.map((v) => v.multiplyScalar(scale).clampLength(0, 3.6));
 }
 
-function labelSprite(text: string, fill: string): THREE.Sprite {
+const LABEL_PX = 20; // label height on screen, constant at every depth and zoom
+
+// Text is drawn at devicePixelRatio (and for up to ~2.5x zoom), with a halo in the page background.
+function labelSprite(text: string, fill: string, halo: string): { sprite: THREE.Sprite; aspect: number } {
+  const px = Math.round(LABEL_PX * 0.75 * Math.min(window.devicePixelRatio || 1, 3));
   const c = document.createElement("canvas");
   const ctx = c.getContext("2d")!;
-  const font = "600 40px system-ui, sans-serif";
+  const font = `600 ${px}px system-ui, sans-serif`;
   ctx.font = font;
-  c.width = Math.ceil(ctx.measureText(text).width) + 8;
-  c.height = 52;
+  const pad = Math.ceil(px * 0.2);
+  c.width = Math.ceil(ctx.measureText(text).width) + pad * 2;
+  c.height = Math.ceil(px * 1.3);
   ctx.font = font;
-  ctx.fillStyle = fill;
   ctx.textBaseline = "middle";
-  ctx.fillText(text, 4, 26);
-  const map = new THREE.CanvasTexture(c);
-  map.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false }));
-  s.scale.set((c.width / c.height) * 0.32, 0.32, 1);
+  ctx.lineJoin = "round";
+  ctx.lineWidth = px * 0.18;
+  ctx.strokeStyle = halo;
+  ctx.strokeText(text, pad, c.height / 2);
+  ctx.fillStyle = fill;
+  ctx.fillText(text, pad, c.height / 2);
+  const s = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: crispTexture(c), transparent: true, depthWrite: false, depthTest: false })
+  );
+  const aspect = c.width / c.height;
   s.center.set(0, 0.5);
-  return s;
+  s.renderOrder = 2;
+  return { sprite: s, aspect };
 }
 
-export function TermNetworkCanvas({ terms, edges, selected, onSelect, zoomRef }: Props) {
+export function TermNetworkCanvas({ terms, edges, selected, onSelect, hidden, zoomRef }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const highlight = useRef<(i: number | null) => void>(() => {});
+  const update = useRef<(selected: number | null, hidden: Category[]) => void>(() => {});
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -118,76 +139,124 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, zoomRef }:
       neighbours[e.from].add(e.to);
       neighbours[e.to].add(e.from);
     });
+    const byDegree = terms.map((_, i) => i).sort((a, b) => neighbours[b].size - neighbours[a].size);
 
-    const sprite = new THREE.CanvasTexture(pointSpriteCanvas());
+    const disc = crispTexture(discSpriteCanvas());
+    const ringTex = crispTexture(discSpriteCanvas(true));
+    const baseSize = terms.map((_, i) => 0.18 + 0.09 * Math.sqrt(neighbours[i].size));
     const nodes = pos.map((p, i) => {
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: sprite, transparent: true, depthWrite: false }));
-      const size = 0.2 + 0.1 * Math.sqrt(neighbours[i].size);
-      s.scale.set(size, size, 1);
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: disc, transparent: true, depthWrite: false }));
+      s.scale.setScalar(baseSize[i]);
       s.position.copy(p);
       group.add(s);
       return s;
     });
+    // A ring in the text colour marks the selected node on top of its category colour.
+    const ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTex, transparent: true, depthWrite: false }));
+    ring.visible = false;
+    ring.renderOrder = 1;
+    group.add(ring);
 
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(edges.flatMap((e) => [pos[e.from], pos[e.to]]));
+    const linePos = new Float32Array(edges.length * 6);
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute("position", new THREE.BufferAttribute(linePos, 3));
     const lineColors = new THREE.Float32BufferAttribute(new Float32Array(edges.length * 6), 3);
     lineGeo.setAttribute("color", lineColors);
     const lineMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7 });
     group.add(new THREE.LineSegments(lineGeo, lineMat));
 
-    // Labels: always for the 8 best-connected terms, plus the selected or hovered term and its neighbours.
-    const top = new Set(
-      terms
-        .map((_, i) => i)
-        .sort((a, b) => neighbours[b].size - neighbours[a].size)
-        .slice(0, 8)
-    );
-    let labels: (THREE.Sprite | undefined)[] = [];
+    let labels: ({ sprite: THREE.Sprite; aspect: number } | undefined)[] = [];
     const clearLabels = () => {
       labels.forEach((l) => {
-        l?.material.map?.dispose();
-        l?.material.dispose();
-        l?.removeFromParent();
+        l?.sprite.material.map?.dispose();
+        l?.sprite.material.dispose();
+        l?.sprite.removeFromParent();
       });
       labels = [];
     };
     let current: number | null = null;
     let hovered: number | null = null;
+    let off = new Set<Category>();
+    const visible = (i: number) => !off.has(terms[i].category);
     let dirty = true;
+
     const paint = () => {
-      const accent = color("--ax-bg-accent-strong", "#2a6ebb");
-      const hot = color("--ax-bg-warning-strong", "#e8a33d");
+      const catColor = Object.fromEntries(categories.map((c) => [c.id, color(c.token, "#2a6ebb")]));
       const dim = color("--ax-border-neutral-subtle", "#c0c4cc");
       const line = color("--ax-border-neutral", "#8a8f98");
-      const text = cssToken("--ax-text-neutral", "#202733");
       const near = current === null ? null : neighbours[current];
       nodes.forEach((s, i) => {
-        s.material.color.copy(current === null ? accent : i === current ? hot : near!.has(i) ? accent : dim);
+        s.visible = visible(i);
+        const lit = current === null || i === current || near!.has(i);
+        s.material.color.copy(lit ? catColor[terms[i].category] : dim);
+        s.material.opacity = lit ? 1 : 0.6;
+        s.scale.setScalar(baseSize[i] * (i === current ? 1.4 : 1));
       });
+      if (current !== null && visible(current)) {
+        ring.visible = true;
+        ring.position.copy(pos[current]);
+        ring.scale.setScalar(baseSize[current] * 2.1);
+        ring.material.color.copy(color("--ax-text-neutral", "#202733"));
+      } else ring.visible = false;
       edges.forEach((e, k) => {
+        const show = visible(e.from) && visible(e.to);
+        // A hidden edge collapses to a point.
+        pos[e.from].toArray(linePos, k * 6);
+        (show ? pos[e.to] : pos[e.from]).toArray(linePos, k * 6 + 3);
         const on = current !== null && (e.from === current || e.to === current);
-        const c = current === null ? line : on ? accent : dim;
+        const c = current === null ? line : on ? color("--ax-border-strong", "#3b414b") : dim;
         c.toArray(lineColors.array, k * 6);
         c.toArray(lineColors.array, k * 6 + 3);
       });
+      lineGeo.attributes.position.needsUpdate = true;
       lineColors.needsUpdate = true;
-
-      const show = new Set(top);
-      for (const f of [current, hovered]) if (f !== null) [f, ...neighbours[f]].forEach((i) => show.add(i));
-      terms.forEach((t, i) => {
-        if (show.has(i) && !labels[i]) {
-          const l = labelSprite(t.term, text);
-          // Start the label just outside the visible edge of the soft point.
-          l.position.copy(pos[i]).add(new THREE.Vector3(nodes[i].scale.x * 0.45 + 0.05, 0, 0));
-          group.add(l);
-          labels[i] = l;
-        }
-        if (labels[i]) labels[i]!.visible = show.has(i);
-      });
       dirty = true;
     };
-    highlight.current = (i) => {
-      current = i;
+
+    // Label candidates in priority order: selected, its neighbours, hovered and its neighbours,
+    // then by degree. Each frame, a label that overlaps one already placed on screen is skipped.
+    const tmp = new THREE.Vector3();
+    const placeLabels = () => {
+      const order: number[] = [];
+      const push = (i: number) => !order.includes(i) && visible(i) && order.push(i);
+      if (current !== null) [current, ...neighbours[current]].forEach(push);
+      if (hovered !== null) [hovered, ...neighbours[hovered]].forEach(push);
+      byDegree.slice(0, 14).forEach(push);
+      const { clientWidth: w, clientHeight: h } = host;
+      const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const placed: [number, number, number, number][] = [];
+      const show = new Set<number>();
+      for (const i of order) {
+        tmp.copy(pos[i]).applyMatrix4(group.matrixWorld);
+        const depth = camera.position.z - tmp.z;
+        if (depth <= 0.1) continue;
+        const ppw = h / (2 * depth * tanHalf); // pixels per world unit at this depth
+        tmp.project(camera);
+        const x = ((tmp.x + 1) / 2) * w + (baseSize[i] * 0.5 + 0.04) * ppw;
+        const y = ((1 - tmp.y) / 2) * h;
+        if (!labels[i]) {
+          const halo = cssToken("--ax-bg-default", "#fff");
+          labels[i] = labelSprite(terms[i].term, cssToken("--ax-text-neutral", "#202733"), halo);
+          group.add(labels[i]!.sprite);
+        }
+        const lh = LABEL_PX;
+        const r: [number, number, number, number] = [x, y - lh / 2, x + labels[i]!.aspect * lh, y + lh / 2];
+        const hit = placed.some((p) => r[0] < p[2] && r[2] > p[0] && r[1] < p[3] && r[3] > p[1]);
+        if (hit && i !== current) continue;
+        placed.push(r);
+        show.add(i);
+        // Offset from the node's visible edge, in world units along screen x.
+        labels[i]!.sprite.position.copy(pos[i]);
+        const wh = LABEL_PX / ppw; // world height that gives LABEL_PX on screen
+        labels[i]!.sprite.scale.set(labels[i]!.aspect * wh, wh, 1);
+        labels[i]!.sprite.center.set(-(baseSize[i] * 0.5 + 0.04) / (labels[i]!.aspect * wh), 0.5);
+      }
+      labels.forEach((l, i) => l && (l.sprite.visible = show.has(i)));
+    };
+
+    update.current = (sel, hid) => {
+      current = sel;
+      off = new Set(hid);
       paint();
     };
     paint();
@@ -204,7 +273,7 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, zoomRef }:
     ro.observe(host);
     resize();
 
-    // Interaction: drag rotates, wheel or pinch zooms, a tap picks the nearest node.
+    // Interaction: drag rotates, pinch, ctrl/cmd + wheel or the buttons zoom, a tap picks the nearest node.
     let interacted = false;
     const pointers = new Map<number, { x: number; y: number }>();
     let start = { x: 0, y: 0 };
@@ -216,12 +285,12 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, zoomRef }:
       dirty = true;
     };
     zoomRef.current = zoom;
-    const tmp = new THREE.Vector3();
     const pick = (cx: number, cy: number, radius: number): number | null => {
       const rect = canvas.getBoundingClientRect();
       let best: number | null = null;
       let bestDist = radius;
       nodes.forEach((s, i) => {
+        if (!s.visible) return;
         tmp.copy(s.position).applyMatrix4(group.matrixWorld).project(camera);
         const x = ((tmp.x + 1) / 2) * rect.width + rect.left;
         const y = ((1 - tmp.y) / 2) * rect.height + rect.top;
@@ -252,7 +321,7 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, zoomRef }:
           const h = pick(e.clientX, e.clientY, 20);
           if (h !== hovered) {
             hovered = h;
-            paint();
+            dirty = true;
           }
         }
         return;
@@ -306,6 +375,8 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, zoomRef }:
         dirty = true;
       }
       if (dirty) {
+        group.updateMatrixWorld();
+        placeLabels();
         renderer.render(scene, camera);
         dirty = false;
       }
@@ -350,17 +421,17 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, zoomRef }:
       themeMq.removeEventListener("change", onTheme);
       motionMq.removeEventListener("change", onMotion);
       document.removeEventListener("visibilitychange", sync);
-      highlight.current = () => {};
+      update.current = () => {};
       zoomRef.current = null;
       clearLabels();
       nodes.forEach((s) => s.material.dispose());
-      [sprite, lineGeo, lineMat].forEach((d) => d.dispose());
+      [disc, ringTex, ring.material, lineGeo, lineMat].forEach((d) => d.dispose());
       renderer.dispose();
       canvas.remove();
     };
   }, [terms, edges, zoomRef]);
 
-  useEffect(() => highlight.current(selected), [selected]);
+  useEffect(() => update.current(selected, hidden), [selected, hidden]);
 
   // The glossary list below is the accessible version of this network.
   return (

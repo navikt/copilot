@@ -5,7 +5,7 @@ import { BodyShort, Box, Button, HStack, Heading, Search, VStack } from "@navikt
 import { hasWebGL2 } from "@/lib/webgl";
 import { GLOSSARY_RESET_EVENT } from "../ordliste/glossary";
 import { deriveEdges, termId } from "../ordliste/term-graph";
-import type { Term } from "../ordliste/terms";
+import { categories, type Category, type Term } from "../ordliste/terms";
 import type { TermNetworkCanvas } from "./term-network-canvas";
 
 // three.js loads after hydration and only with WebGL 2. Without it the section is not rendered.
@@ -14,6 +14,7 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
   const [Canvas, setCanvas] = useState<typeof TermNetworkCanvas | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [query, setQuery] = useState("");
+  const [hidden, setHidden] = useState<Category[]>([]);
   const zoomRef = useRef<((factor: number) => void) | null>(null);
   const edges = useMemo(() => deriveEdges(terms), [terms]);
   const neighbours = useMemo(() => {
@@ -91,8 +92,39 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
           )}
         </div>
         <Box borderRadius="12" borderWidth="1" borderColor="neutral-subtle" className="overflow-hidden">
-          <Canvas terms={terms} edges={edges} selected={selected} onSelect={setSelected} zoomRef={zoomRef} />
+          <Canvas
+            terms={terms}
+            edges={edges}
+            selected={selected}
+            onSelect={setSelected}
+            hidden={hidden}
+            zoomRef={zoomRef}
+          />
         </Box>
+        <HStack gap="space-4" role="group" aria-label="Vis eller skjul kategorier i nettverket">
+          {categories.map((c) => {
+            const on = !hidden.includes(c.id);
+            return (
+              <Button
+                key={c.id}
+                size="xsmall"
+                variant="tertiary-neutral"
+                aria-pressed={on}
+                className={on ? "" : "opacity-50 line-through"}
+                icon={
+                  <span
+                    aria-hidden="true"
+                    className="inline-block size-3 rounded-full"
+                    style={{ background: `var(${c.token})` }}
+                  />
+                }
+                onClick={() => setHidden((h) => (on ? [...h, c.id] : h.filter((x) => x !== c.id)))}
+              >
+                {c.label}
+              </Button>
+            );
+          })}
+        </HStack>
         <HStack gap="space-8">
           <Button size="small" variant="secondary-neutral" onClick={() => zoomRef.current?.(0.8)}>
             Zoom inn
