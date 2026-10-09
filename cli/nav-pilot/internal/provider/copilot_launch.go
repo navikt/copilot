@@ -344,6 +344,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		return err
 	}
 	env, checkFlags := withActionCheckServer(resolved, env)
+	checkFlags = append(checkFlags, ideBridgeFlags()...)
 	if i := slices.Index(args, "--"); i >= 0 {
 		// Before the separator, as insertCpltPassEnv does: after it they
 		// would reach copilot.
