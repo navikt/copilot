@@ -18,6 +18,16 @@ const dateFormat = new Intl.DateTimeFormat("nb-NO", {
   year: "numeric",
   timeZone: "UTC",
 });
+const monthFormat = new Intl.DateTimeFormat("nb-NO", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/** «8. oktober 2026», or «juli–oktober 2026» for an item that spans several months. */
+function formatWhen(date: string, end?: string): string {
+  if (!end) return dateFormat.format(new Date(date));
+  const [from, to] = [monthFormat.format(new Date(date)), monthFormat.format(new Date(end))];
+  if (from === to) return from;
+  const sameYear = date.slice(0, 4) === end.slice(0, 4);
+  return `${sameYear ? from.replace(/ \d{4}$/, "") : from}–${to}`;
+}
 
 // Repo activity has no data source in the app, so these are snapshots with the date they were taken.
 // Commits: `git rev-list --count origin/main`. PRs: GitHub search API, is:pr is:merged.
@@ -70,19 +80,29 @@ export default function ReisenPage() {
             </Heading>
             <ol aria-labelledby="tidslinje" className="border-l-2 border-[var(--ax-border-neutral-subtle)] pl-6">
               {MILESTONES.map((m) => (
-                <li key={m.title} className="relative pb-8 last:pb-0">
+                <li key={m.title} className={`relative last:pb-0 ${m.major ? "pb-10" : "pb-6"}`}>
                   <span
                     aria-hidden
-                    className="absolute -left-[31px] top-1.5 size-3 rounded-full bg-[var(--ax-bg-accent-strong)]"
+                    className={
+                      m.major
+                        ? "absolute -left-[35px] top-1 size-5 rounded-full bg-[var(--ax-bg-accent-strong)]"
+                        : "absolute -left-[31px] top-1.5 size-3 rounded-full bg-[var(--ax-border-neutral-subtle)]"
+                    }
                   />
                   <BodyShort size="small" textColor="subtle">
-                    <time dateTime={m.date}>{dateFormat.format(new Date(m.date))}</time>
+                    <time dateTime={m.date}>{formatWhen(m.date, m.end)}</time>
                   </BodyShort>
-                  <Heading size="small" level="3">
+                  <Heading size={m.major ? "medium" : "xsmall"} level="3">
                     {m.title}
                   </Heading>
                   <BodyLong>
-                    {m.text} Kilde: <Link href={m.source.url}>{m.source.label}</Link>
+                    {m.text} Kilde:{" "}
+                    {m.sources.map((s, i) => (
+                      <span key={s.url}>
+                        {i > 0 && ", "}
+                        <Link href={s.url}>{s.label}</Link>
+                      </span>
+                    ))}
                   </BodyLong>
                 </li>
               ))}

@@ -10,14 +10,26 @@ describe("reisesiden", () => {
     const steps = within(screen.getByRole("list", { name: "Tidslinje" })).getAllByRole("listitem");
     expect(steps).toHaveLength(MILESTONES.length);
     for (const m of MILESTONES) {
-      expect(m.source.url).toMatch(/^https:\/\/github\.com\/navikt\//);
-      expect(screen.getByRole("link", { name: m.source.label })).toHaveAttribute("href", m.source.url);
+      expect(m.sources.length).toBeGreaterThan(0);
+      for (const s of m.sources) {
+        expect(s.url).toMatch(/^https:\/\/github\.com\/navikt\//);
+        expect(screen.getByRole("link", { name: s.label })).toHaveAttribute("href", s.url);
+      }
     }
   });
 
   it("holder tidslinjen i kronologisk rekkefølge", () => {
     const dates = MILESTONES.map((m) => m.date);
     expect(dates).toEqual([...dates].sort());
+    for (const m of MILESTONES) if (m.end) expect(m.end >= m.date).toBe(true);
+    expect(MILESTONES.some((m) => m.major)).toBe(true);
+  });
+
+  it("viser perioden for steg som spenner over flere måneder", () => {
+    render(<ReisenPage />);
+    expect(screen.getByText("juli–oktober 2026")).toBeInTheDocument();
+    expect(screen.getByText("desember 2025")).toBeInTheDocument();
+    expect(screen.getByText("10. januar 2025")).toBeInTheDocument();
   });
 
   it("viser tallene med lenke til kilden og godkjenningssaken", () => {
