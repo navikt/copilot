@@ -23,7 +23,7 @@ const monthFormat = new Intl.DateTimeFormat("nb-NO", { month: "long", year: "num
 /** «8. oktober 2026», or «juli–oktober 2026» for an item that spans several months. */
 function formatWhen(date: string, end?: string): string {
   if (date.length === 4) return date;
-  if (date.length === 7) return monthFormat.format(new Date(date));
+  if (date.length === 7 && !end) return monthFormat.format(new Date(date));
   if (!end) return dateFormat.format(new Date(date));
   const [from, to] = [monthFormat.format(new Date(date)), monthFormat.format(new Date(end))];
   if (from === to) return from;
@@ -143,8 +143,9 @@ export default function ReisenPage() {
               Teamet
             </Heading>
             <BodyLong spacing>
-              Hans Kristian Flaatten driver arbeidet sammen med teamet bak navikt/copilot. Teamet måler før det
-              bestemmer, skriver ned det som ikke virket og jobber i et åpent repo.
+              Det startet som en grasrotbevegelse, med et fellesskap fra dag én. Hans Kristian Flaatten driver arbeidet
+              sammen med teamet bak navikt/copilot. Teamet måler før det bestemmer, skriver ned det som ikke virket og
+              jobber i et åpent repo.
             </BodyLong>
             <BodyLong>
               Produktteamene i Nav fantes lenge før Copilot. De er en av de viktigste grunnene til at så mye av dette
