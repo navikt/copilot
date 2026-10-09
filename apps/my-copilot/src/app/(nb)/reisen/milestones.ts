@@ -142,8 +142,13 @@ export const PHASES: Phase[] = [
       { date: "2026-05-27", text: "Skills erstatter agenter uten verktøygrenser", url: `${PR}255` },
       { date: "2026-06-02", text: "Backend skilles ut fra Next.js i copilot-api", url: `${PR}236` },
       { date: "2026-08-24", text: "Agentpakker lar team lage sine egne", url: `${PR}436` },
+      {
+        date: "2026-09-30",
+        text: "Nais bygger nais/pilot på navikt/copilot",
+        url: "https://github.com/nais/pilot/issues/14",
+      },
     ],
-    text: "Vi samlet agenter, skills og instruksjoner i en felles katalog med MCP-register, og fellesskapet deler det som virker. Sandkassen cplt og kommandolinjeverktøyet nav-pilot gjorde katalogen til noe hvert team installerer, bygget på en utviklerundersøkelse og skrevne designvalg. I mai ble nettstedet delvis åpent, skills tok over for agenter uten verktøygrenser, og backenden ble skilt ut i en egen tjeneste. Med agentpakker kan team lage sine egne, og en arbeidsflyt holder basen oppdatert. Støtten for OpenCode 2 er bygget, men slått av til en feil i OpenCode er rettet.",
+    text: "Vi samlet agenter, skills og instruksjoner i en felles katalog med MCP-register, og fellesskapet deler det som virker. Sandkassen cplt og kommandolinjeverktøyet nav-pilot gjorde katalogen til noe hvert team installerer, bygget på en utviklerundersøkelse og skrevne designvalg. I mai ble nettstedet delvis åpent, skills tok over for agenter uten verktøygrenser, og backenden ble skilt ut i en egen tjeneste. Med agentpakker kan team lage sine egne, og en arbeidsflyt holder basen oppdatert. Arbeidet sprer seg utenfor Nav: Kartverket, SSB og Cloud Native Bergen kjører agenter i cplt, Altinn viser til ki-utvikling.nav.no, og Nais bygger sin egen pakke på navikt/copilot. Støtten for OpenCode 2 er bygget, men slått av til en feil i OpenCode er rettet.",
     sources: [
       pr(60),
       pr(61),
@@ -162,6 +167,14 @@ export const PHASES: Phase[] = [
       pr(1375),
       pr(1446),
       pr(1444),
+      { label: "cplt i Kartverket", url: "https://github.com/kartverket/skiperator/blob/main/.cplt.toml" },
+      { label: "cplt i SSB", url: "https://github.com/statisticsnorway/vardef/blob/main/.cplt.toml" },
+      { label: "cplt i Cloud Native Bergen", url: "https://github.com/CloudNativeBergen/website/blob/main/.cplt.toml" },
+      {
+        label: "Altinn",
+        url: "https://github.com/Altinn/altinn-auth/blob/main/docs/ai/working-agreement-rationale.md",
+      },
+      { label: "nais/pilot", url: "https://github.com/nais/pilot/issues/14" },
       TEAM,
     ],
   },
@@ -181,11 +194,16 @@ export const PHASES: Phase[] = [
         text: "AI Credits erstatter premium requests",
         url: "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/",
       },
+      {
+        date: "2026-06-04",
+        text: "kode24: Nav må betale tre til fire ganger mer",
+        url: "https://www.kode24.no/artikkel/nav-ma-betale-tre-til-fire-ganger-mer-for-sine-600-copilot-brukere/264699",
+      },
       { date: "2026-09-02", text: "Første grunnlinje for benchmarker", url: `${PR}594` },
       { date: "2026-09-30", text: "Siden /modeller viser valgene og målingene", url: `${PR}1376` },
       { date: "2026-10-08", text: "@nav-pilot fordeler arbeid til @worker", url: `${PR}1496` },
     ],
-    text: "Allerede i mai låste vi hver agent til en fast modell for å holde kostnaden nede. Så byttet GitHub ut de subsidierte premium requests med AI Credits etter tokenforbruk, og for oss mangedoblet det regningen. Svaret ble modellvalg bygget på målinger: benchmarker som kan kjøres på nytt, siden /modeller og en språkmodell som vurderer planleggingssvar. Målingene flyttet @rust til Claude Haiku 5.5, og @nav-pilot sender nå avgrensede oppgaver til @worker på GPT-6 Luna, som koster mindre. Samtidig kom en ny generasjon modeller, som Claude Opus 5.5 og GPT-6 Sol og Luna.",
+    text: "Allerede i mai låste vi hver agent til en fast modell for å holde kostnaden nede. Så byttet GitHub ut de subsidierte premium requests med AI Credits etter tokenforbruk, og for oss betydde det tre til fire ganger høyere regning for rundt 600 daglige brukere. Svaret ble modellvalg bygget på målinger: benchmarker som kan kjøres på nytt, siden /modeller og en språkmodell som vurderer planleggingssvar. Målingene flyttet @rust til Claude Haiku 5.5, og @nav-pilot sender nå avgrensede oppgaver til @worker på GPT-6 Luna, som koster mindre. Samtidig kom en ny generasjon modeller, som Claude Opus 5.5 og GPT-6 Sol og Luna.",
     sources: [
       {
         label: "GitHubs kunngjøring",
@@ -198,6 +216,10 @@ export const PHASES: Phase[] = [
       {
         label: "GPT-6 Sol og Luna",
         url: "https://github.blog/changelog/2026-09-22-openais-gpt-6-sol-and-gpt-6-luna-now-available/",
+      },
+      {
+        label: "kode24",
+        url: "https://www.kode24.no/artikkel/nav-ma-betale-tre-til-fire-ganger-mer-for-sine-600-copilot-brukere/264699",
       },
       { label: "vår nyhetssak", url: `${DOCS}news/articles/usage-based-billing.md` },
       TEAM,
