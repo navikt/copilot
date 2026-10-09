@@ -71,9 +71,9 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 | Benchmark-resultater og modellvalg | Offentlig | Allerede i åpent repo | Per modell | Produkteier |
 | Størrelse på katalogen (skills, agenter, instruksjoner) | Offentlig | Repo-data, vises på `/reisen` | – | Produkteier |
 | Repo-aktivitet (sammenslåtte PR-er, PR-er fra Copilot coding agent) | Offentlig | Åpent repo, ingen persondata i tallet | Hele repoet | Produkteier |
-| Antall brukere og aktive brukere | Offentlig, bare total for hele Nav | Allerede publisert av kode24 og `/reisen` | Hele Nav, per måned, avrundet til nærmeste 50 | Produkteier (kommunikasjon: åpent spørsmål) |
-| Vekst i bruk | Offentlig, bare total for hele Nav | Samme | Hele Nav, per måned | Produkteier (kommunikasjon: åpent spørsmål) |
-| Kostnad totalt | Offentlig, bare total for hele Nav | Kan kreves innsyn i; relativ endring er publisert | Hele Nav, per måned eller kvartal | Produkteier (kommunikasjon: åpent spørsmål) |
+| Antall brukere og aktive brukere | Offentlig, bare total for hele Nav | Allerede publisert av kode24 og `/reisen` | Hele Nav, per måned, avrundet til nærmeste 50 | Produkteier (kommunikasjon orienteres) |
+| Vekst i bruk | Offentlig, bare total for hele Nav | Samme | Hele Nav, per måned | Produkteier (kommunikasjon orienteres) |
+| Kostnad totalt | Offentlig, bare total for hele Nav | Kan kreves innsyn i; relativ endring er publisert | Hele Nav, per måned eller kvartal | Produkteier (kommunikasjon orienteres) |
 | Fordeling på modell, editor, språk | Internt | Ingen offentlige fordelinger, bare totaler | – | Produkteier |
 | Kodeforslag og aksepterte linjer | Internt | Lett å lese som produktivitetsmål | – | Produkteier |
 | Kostnad per oppgave (#1424) | Internt | Metoden er ikke avklart | – | Produkteier |
@@ -89,7 +89,7 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 |---|---|
 | Produkteier | Godkjenner alene publisering av totaler for hele Nav. Eier listen og reglene. |
 | Personvernombud | Rådføres bare når vi vil bruke en ny type data. |
-| Kommunikasjon | Rollen er ikke avklart. Se åpne spørsmål. |
+| Kommunikasjon | Orienteres før tall brukes eksternt. Godkjenner ikke. |
 | Tillitsvalgte | Drøfting etter aml. § 9-2 før tall per team vises, også internt. Orienteres om den offentlige listen. |
 
 ### Kjente mangler og risiko
@@ -98,6 +98,8 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 |---|---|
 | Ingen PVK for `copilot-metrics` eller `copilot-survey` | Kjent mangel. En PVK anbefales, men stopper ikke publisering av totaler for hele Nav som allerede er offentlige eller godkjent av produkteier. |
 | Ingen lagringstid for persontabellene i BigQuery (`billing_user_monthly`, `user_metrics` og lignende) | Bevisst valg foreløpig. Skal vurderes på nytt. Risiko: jo lenger data lagres, jo større blir skaden ved en lekkasje eller feil bruk. |
+| `/innsikt/team` (#1419) viser allerede tall per team internt, uten dokumentert drøfting med tillitsvalgte | Siden blir stående som den er. Drøftingen starter nå, med [grunnlaget for drøfting](1511-drofting-innsikt-team.md). |
+| Fordelingen på leverandør og modelltype på `/innsikt/team` skjuler ikke små grupper. I et team på fem kan én person skille seg ut. | Åpen risiko, ikke prioritert nå. Løsning: bruk regelen om minst fem også på disse fordelingene. |
 
 ## 6. Tall på `/reisen` i første versjon
 
@@ -108,7 +110,7 @@ Bare tall som allerede er offentlige eller kommer fra repoet.
 | Rundt 600 daglige brukere (juni 2026) | kode24, 4. juni 2026 |
 | 20 % vekst i brukere per måned (juni 2026) | kode24, 4. juni 2026 |
 | 3–4 ganger høyere kostnad etter AI Credits | kode24, 4. juni 2026 |
-| 900 sammenslåtte PR-er i navikt/copilot (9. oktober 2026) | GitHub search API, kommentar i #1512 |
+| 901 sammenslåtte PR-er i navikt/copilot (9. oktober 2026) | GitHub search API, kommentar i #1512 |
 | Antall skills, agenter og instruksjoner | Katalogen, vises allerede |
 | Antall modeller målt og antall benchmark-kjøringer | `benchmark/`, `docs/modellvalg.md` |
 
@@ -126,20 +128,15 @@ Hvert tall får dato og kildelenke. Nye bruks- og kostnadstall venter på godkje
 
 Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det er ikke verdt det for tall som endres månedlig.
 
-## 8. Åpne spørsmål
-
-1. Skal kommunikasjon godkjenne eller bare orienteres før tall brukes eksternt?
-2. Er utvidet bruk av kode24-tallene på `/reisen` greit for kommunikasjon?
-
-## 9. Steg
+## 8. Steg
 
 | # | Steg | Størrelse |
 |---|---|---|
 | 1 | Ekstra sikring: test som sjekker at private ruter krever innlogging, og oppdatert `check-public-routes.mjs` | S |
-| 2 | Produkteier godkjenner tabellen. Avklare rollen til kommunikasjon. | S |
+| 2 | Produkteier godkjenner tabellen | S |
 | 3 | `/reisen`: tallene i punkt 6 med kilde og dato | S |
 | 4 | JSON-øyeblikksbilde, test for bare totaler og generatorskript | M |
-| 5 | Drøfting med tillitsvalgte om tall per team (#345, #1424) | M |
+| 5 | Drøfting med tillitsvalgte om `/innsikt/team` og tall per team (#345, #1424) | M |
 | 6 | Gjennomføre PVK for `copilot-metrics` og `copilot-survey` (anbefalt, blokkerer ikke steg 3) | M |
-| 8 | Vurdere lagringstid for persontabellene i BigQuery på nytt | S |
 | 7 | Første eksterne sak med godkjente tall (#1512) | L |
+| 8 | Vurdere lagringstid for persontabellene i BigQuery på nytt | S |
