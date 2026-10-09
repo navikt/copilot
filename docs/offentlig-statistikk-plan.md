@@ -16,7 +16,7 @@ Regler, godkjent av produkteier:
 
 | Valg | Forslag |
 |---|---|
-| Rute | `/tall`. Ledig: ingen side, ingen omdirigering i `next.config.ts`, ikke i `PRIVATE_PAGE_PATHS`. `/statistikk/offentlig` går ikke: `proxy.ts` krever innlogging for alt under `/statistikk/`. |
+| Rute | `/innsikt/tall`, under den offentlige innsiktssiden `/innsikt` (sammen med `/innsikt/lokale-modeller`). Ledig: ingen side, ingen omdirigering i `next.config.ts`. `proxy.ts` gjør bare `/innsikt/team` og undersider private, så `/innsikt/tall` er offentlig. `/statistikk/offentlig` går ikke: alt under `/statistikk/` krever innlogging. |
 | Formål | Vise hvor mye Nav bruker GitHub Copilot og hva det koster, med kilde og dato for hvert tall. |
 | Målgruppe | Journalister, andre etater, innbyggere og Nav-ansatte uten innlogging. |
 | Tilgang | Offentlig. Ingen innlogging, ingen API. |
@@ -54,7 +54,7 @@ Nye felt krever at produkteier godkjenner både feltet og en endring i `FELT` i 
 |---|---|
 | Jobb | GitHub Action i navikt/copilot, `workflow_dispatch` og cron den 5. hver måned. Leser BigQuery med Workload Identity Federation og en tjenestekonto som bare har tilgang til views. Ikke en nais-jobb: resultatet skal uansett bli en PR. |
 | Generator | `apps/my-copilot/scripts/generate-offentlig-statistikk.ts`. Kjører SQL med `SUM`/`MAX` per måned, slik at bare én verdi per felt og måned forlater BigQuery. Avrunder før skriving. |
-| Utdata | `apps/my-copilot/src/data/offentlig-statistikk.json`, hele historikken, nøkkel per måned. |
+| Utdata | `apps/my-copilot/src/data/offentlige-tall.json`, hele historikken, nøkkel per måned. |
 | Publisering | PR fra jobben. Produkteier godkjenner. Siden leser filen ved bygg. Ingen offentlig API. |
 | Sene data | Bare hele måneder. En måned tas med når alle dager har data (`isMonthComplete` i `month-utils.ts`); ellers venter den til neste kjøring. |
 | Rettelser | Jobben regner ut de tre siste månedene på nytt. Endrede verdier vises i PR-en, og siden merker dem «rettet» med dato. |
@@ -68,13 +68,13 @@ Nye felt krever at produkteier godkjenner både feltet og en endring i `FELT` i 
 | Avrunding | Gjøres i generatoren. Testen sjekker den. |
 | Ingen persondata ut | SQL aggregerer i BigQuery. Generatoren leser aldri rader per person. |
 | Eksempeldata | Fixturen har `eksempel: true` og oppdiktede tall. Siden skal nekte å vise en fil med `eksempel: true`. |
-| Rute | `/tall` legges i listen over offentlige ruter i `check-public-routes.mjs` |
+| Rute | `/innsikt/tall` legges i listen over offentlige ruter i `check-public-routes.mjs`. Testen må sjekke at `/innsikt/tall` er offentlig og at `/innsikt/team` fortsatt krever innlogging. |
 
 ## Innsyn og offentleglova
 
 | Situasjon | Svar |
 |---|---|
-| Krav om tall som står på siden | Henvis til `/tall`. Det er nok etter offentleglova § 9. |
+| Krav om tall som står på siden | Henvis til `/innsikt/tall`. Det er nok etter offentleglova § 9. |
 | Krav om tall for hele Nav som ikke står der | Behandles som vanlig innsynskrav. Vurder å legge tallet til siden. |
 | Krav om tall per team eller person | Vurderes etter [§ 13](https://lovdata.no/lov/2006-05-19-16/§13) (taushetsplikt) og personvernreglene. Personvernombudet rådføres. |
 
@@ -94,9 +94,10 @@ Siden lenker til [offentleglova](https://lovdata.no/lov/2006-05-19-16) og forkla
 |---|---|---|---|
 | 1 | Denne PR-en: plan, skjema, test og eksempelfil | S | – |
 | 2 | Generator og SQL, kjørt lokalt mot BigQuery; første fil med ekte tall, godkjent av produkteier | M | 1, avklaring av `ai_credits` |
-| 3 | Siden `/tall` med nøkkeltall, diagrammer og «Om tallene»; rute i `check-public-routes.mjs` | M | 2 (kan bygges mot eksempelfilen) |
+| 3 | Siden `/innsikt/tall` med nøkkeltall, diagrammer og «Om tallene»; rute i `check-public-routes.mjs` | M | 2 (kan bygges mot eksempelfilen) |
 | 4 | GitHub Action med WIF og månedlig PR | S | 2 |
 | 5 | Tall fra fase «Senere», ett felt per PR | S | 3, godkjenning per felt |
+| 6 | `NavCard` for `/innsikt/tall` på `/innsikt`, oppføring i `src/app/sitemap.ts` og i nav-items | S | 3 |
 
 Kommunikasjon orienteres før PR 3 slås sammen.
 
