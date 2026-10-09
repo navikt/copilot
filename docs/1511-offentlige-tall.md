@@ -6,7 +6,7 @@ Relatert: #1510 (kildedata), #1512 (historien), #345 (innsikt per team), #1424 (
 
 ## 1. Hva vi har i dag
 
-| Kilde | Innhold (tabeller, felt) | Grain | Lagring | Hvem ser det nå |
+| Kilde | Innhold (tabeller, felt) | Nivå | Lagring | Hvem ser det nå |
 |---|---|---|---|---|
 | `copilot-metrics`, BigQuery `copilot_metrics` | `usage_metrics` (rå NDJSON per dag), `user_metrics`, `user_teams`, `repository_metrics`, `billing_usage`, `billing_usage_reports`, `billing_usage_daily_model`, `billing_user_monthly`, budsjett-tabeller, views `v_*` | Person per dag, team, repo, org | Ingen utløpstid på partisjoner: lagres på ubestemt tid | Plattformteamet med tilgang til GCP-prosjektet |
 | `copilot-api` `/api/v1/` | Statistikk, kostnad, budsjett, team-forbruk (`team_spend.go`, `team_usage_composition.go`) | Org og team. Team skjules under 5 bidragsytere (`minTeamContributors = 5`), fordelinger under 5 brukere (`minUsersForDistribution = 5`) | Ingen egen lagring | Innloggede Nav-brukere via my-copilot |
@@ -21,7 +21,7 @@ Relatert: #1510 (kildedata), #1512 (historien), #345 (innsikt per team), #1424 (
 
 ### Rutetilgang på ki-utvikling.nav.no
 
-Alle sider, også de private, står i `autoLoginIgnorePaths` i `apps/my-copilot/.nais/app.yaml`. Wonderwall slipper dem gjennom, og den eneste sperren er `PRIVATE_PAGE_PATHS` i `src/proxy.ts`. `scripts/check-public-routes.mjs` kjenner bare `/abonnement` og `/kostnad` som private. Ingen test sjekker at `/statistikk`, `/innsikt/team` og `/adopsjon` faktisk krever innlogging. Ett feil steg i `proxy.ts` gjør dem offentlige uten at noe feiler.
+Alle sider, også de private, står i `autoLoginIgnorePaths` i `apps/my-copilot/.nais/app.yaml`. Wonderwall slipper dem gjennom, og den eneste sperren er `PRIVATE_PAGE_PATHS` i `src/proxy.ts`. `scripts/check-public-routes.mjs` kjenner bare `/abonnement` og `/kostnad` som private. Ingen test sjekker at `/statistikk`, `/innsikt/team` og `/adopsjon` faktisk krever innlogging. I prod sendes de i dag til innlogging (307), og `/statistikk/json` svarer 401. De er altså beskyttet, men bare av `proxy.ts`. Som ekstra sikring bør en test fange det hvis den sperren forsvinner.
 
 ### Allerede offentlig
 
@@ -36,18 +36,23 @@ Alle sider, også de private, står i `autoLoginIgnorePaths` i `apps/my-copilot/
 | 163 svar på utviklerundersøkelsen, prosentandeler | `docs/news/articles/utviklerundersokelsen-2026.md` |
 | Listepriser per modell | Flere nyhetssaker (offentlige priser fra leverandørene) |
 
-Disse kan ikke trekkes tilbake. De setter presedens for tall på org-nivå. Skjermbildet og credits-tallet ble publisert uten en godkjenningsrute.
+Disse kan ikke trekkes tilbake, og de setter presedens for tall på org-nivå.
+
+Godkjente unntak, bestemt av produkteier:
+
+- Tallene fra 2025 på `/reisen` (skjermbildet med 111 og 54, over 300 brukere og tallene for 100 dager) blir stående. De er historiske, gjelder hele Nav og er godkjent av produkteier.
+- Tallene i nyhetssakene (950 000 credits, ~500 utviklere) blir stående. De gjelder hele Nav, og antall lisenser er ikke sensitivt.
 
 ## 2. Regler
 
 | Regel | Hva den betyr for oss |
 |---|---|
 | GDPR art. 4 nr. 1 og fortale 26 | Aggregater er personopplysninger hvis en person kan identifiseres med rimelige midler. Anonyme tall faller utenfor. |
-| [Datatilsynets veileder om anonymisering (2015)](https://www.datatilsynet.no/globalassets/global/dokumenter-pdfer-skjema-ol/regelverk/veiledere/anonymisering-veileder-041115.pdf) | Gruppestørrelse vurderes konkret. Fire eller færre gir høy risiko for identifisering. Vi bruker 5 som gulv, og høyere for offentlig bruk. |
+| [Datatilsynets veileder om anonymisering (2015)](https://www.datatilsynet.no/globalassets/global/dokumenter-pdfer-skjema-ol/regelverk/veiledere/anonymisering-veileder-041115.pdf) | Gruppestørrelse vurderes konkret. Fire eller færre gir høy risiko for identifisering. Internt bruker vi 5 som gulv. Offentlig viser vi bare totaler for hele Nav. |
 | [Arbeidsmiljøloven kap. 9](https://lovdata.no/lov/2005-06-17-62/§9-1) | Kontrolltiltak må ha saklig grunn og ikke være uforholdsmessig (§ 9-1). De skal drøftes med tillitsvalgte så tidlig som mulig (§ 9-2). Tall per team kan oppleves som kontroll; tall for hele Nav er det i praksis ikke. |
 | [Datatilsynet om personvern på arbeidsplassen](https://www.datatilsynet.no/personvern-pa-ulike-omrader/personvern-pa-arbeidsplassen/) | Overvåking av ansattes bruk av IT-utstyr er strengt regulert (forskrift om innsyn i e-post og elektronisk lagret materiale). Publisering per team eller person øker risikoen. |
 | [Offentleglova §§ 3, 9](https://lovdata.no/lov/2006-05-19-16) | Saksdokumenter og sammenstillinger fra databaser er i utgangspunktet åpne. Kostnadstall for hele Nav kan uansett kreves innsyn i. Personopplysninger er unntatt etter § 13. |
-| Interne regler i repoet | #345: team-grain, n ≥ 5, aldri per person, ingen rangering. `docs/copilot-team-spend-research.md`: undertrykk i API-et, fast månedsgrain. `copilot-survey`: svar skal være anonyme, personvernombudet bør bekrefte. |
+| Interne regler i repoet | #345: tall per team, n ≥ 5, aldri per person, ingen rangering. `docs/copilot-team-spend-research.md`: undertrykk i API-et, fast månedsnivå. `copilot-survey`: svar skal være anonyme, personvernombudet bør bekrefte. |
 
 Ikke verifisert: om Nav har en egen veileder for publisering av statistikk om ansattes KI-bruk, og om det finnes en PVK for `copilot-metrics`. Se åpne spørsmål.
 
@@ -66,23 +71,23 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 | Benchmark-resultater og modellvalg | Offentlig | Allerede i åpent repo | Per modell | Produkteier |
 | Størrelse på katalogen (skills, agenter, instruksjoner) | Offentlig | Repo-data, vises på `/reisen` | – | Produkteier |
 | Repo-aktivitet (sammenslåtte PR-er, PR-er fra Copilot coding agent) | Offentlig | Åpent repo, ingen persondata i tallet | Hele repoet | Produkteier |
-| Antall brukere og aktive brukere | Offentlig aggregert med terskel | Allerede publisert av kode24 og `/reisen` | Hele Nav, per måned, avrundet til nærmeste 50 | Produkteier, kommunikasjon |
-| Vekst i bruk | Offentlig aggregert med terskel | Samme | Hele Nav, per måned | Produkteier, kommunikasjon |
-| Kostnad totalt | Offentlig aggregert med terskel | Kan kreves innsyn i; relativ endring er publisert | Hele Nav, per måned eller kvartal | Produkteier, kommunikasjon |
-| Fordeling på modell, editor, språk | Offentlig aggregert med terskel | Ufarlig på org-nivå | Hele Nav, per måned, celler ≥ 20 brukere | Produkteier, personvernombud |
+| Antall brukere og aktive brukere | Offentlig, bare total for hele Nav | Allerede publisert av kode24 og `/reisen` | Hele Nav, per måned, avrundet til nærmeste 50 | Produkteier, kommunikasjon |
+| Vekst i bruk | Offentlig, bare total for hele Nav | Samme | Hele Nav, per måned | Produkteier, kommunikasjon |
+| Kostnad totalt | Offentlig, bare total for hele Nav | Kan kreves innsyn i; relativ endring er publisert | Hele Nav, per måned eller kvartal | Produkteier, kommunikasjon |
+| Fordeling på modell, editor, språk | Internt | Ingen offentlige fordelinger, bare totaler | – | Produkteier |
 | Kodeforslag og aksepterte linjer | Internt | Lett å lese som produktivitetsmål | – | Produkteier |
 | Kostnad per oppgave (#1424) | Internt | Metoden er ikke avklart | – | Produkteier |
 | Tall per team (#345, `/innsikt/team`) | Internt | Kontrolltiltak etter aml. kap. 9 | Team ≥ 5, per måned, bare innlogget | Produkteier, personvernombud, tillitsvalgte |
-| Svar fra undersøkelser | Offentlig aggregert med terskel | Samtykke og formål må dekke ekstern bruk | Hele Nav, spørsmål med ≥ 20 svar | Personvernombud, kommunikasjon |
+| Svar fra undersøkelser | Offentlig aggregert | Samtykke og formål må dekke ekstern bruk | Totaler for hele Nav, ingen fordeling på grupper | Personvernombud, kommunikasjon |
 | Alt per person | Aldri | Personopplysninger, kontrolltiltak | – | – |
-| Skjermbilder av interne sider | Aldri uten gjennomgang | Kan vise flere felt enn tiltenkt | – | Produkteier |
+| Nye skjermbilder av interne sider | Aldri uten gjennomgang | Kan vise flere felt enn tiltenkt. Skjermbildet fra 2025 er et godkjent unntak. | – | Produkteier |
 
 ## 5. Godkjenningsrute
 
 | Rolle | Godkjenner |
 |---|---|
-| Produkteier | Alle rader. Eier listen og terskelene. |
-| Personvernombud | Terskler, fordelinger, undersøkelser, alt på team-nivå. Bekrefter om PVK trengs. |
+| Produkteier | Alle rader. Eier listen og reglene. |
+| Personvernombud | Undersøkelser og alt på team-nivå. Bekrefter om PVK trengs. |
 | Kommunikasjon | Bruker- og kostnadstall før de brukes eksternt. |
 | Tillitsvalgte | Drøfting etter aml. § 9-2 før tall per team vises, også internt. Orienteres om den offentlige listen. |
 
@@ -105,11 +110,11 @@ Hvert tall får dato og kildelenke. Nye bruks- og kostnadstall venter på godkje
 
 | Valg | Forslag |
 |---|---|
+| Regel | Offentlige tall er bare totaler for hele Nav. Ingen fordeling på team, modell, editor, språk eller andre grupper. |
 | Kilde | Øyeblikksbilde ved bygg: en JSON-fil i repoet (`apps/my-copilot/src/data/offentlige-tall.json`) med verdi, dato og kilde. Ikke et live API. |
-| Oppdatering | Månedlig PR, generert av et skript som leser BigQuery med terskel. Mennesket godkjenner i PR-en. |
-| Terskel i kode | Skriptet runder av og fjerner celler under terskelen før filen skrives. Siden leser bare filen. |
-| Test | En test feiler hvis en celle i filen har færre enn 20 brukere, mangler kilde eller dato, eller har et felt som ikke står på godkjent liste. |
-| Ruter | Legg til en test som henter `/statistikk`, `/innsikt/team`, `/adopsjon` og `/statistikk/json` uten token og forventer omdirigering eller 401. Legg rutene i `PRIVATE_ROUTES` i `check-public-routes.mjs`. |
+| Oppdatering | Månedlig PR, generert av et skript som leser totaler fra BigQuery. En person godkjenner i PR-en. |
+| Test | En test feiler hvis øyeblikksbildet eller et offentlig endepunkt har noe annet enn totaler for hele Nav: et felt som ikke står på godkjent liste, en liste eller gruppering, eller et tall uten kilde og dato. |
+| Ruter (ekstra sikring) | Legg til en test som henter `/statistikk`, `/innsikt/team`, `/adopsjon` og `/statistikk/json` uten token og forventer omdirigering eller 401. Legg rutene i `PRIVATE_ROUTES` i `check-public-routes.mjs`. |
 
 Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det er ikke verdt det for tall som endres månedlig.
 
@@ -118,19 +123,17 @@ Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det
 1. Hvem er produkteier og dataeier for `copilot-metrics`?
 2. Finnes det en PVK for `copilot-metrics` og `copilot-survey`? Hvis ikke, trengs en før tall per team.
 3. Er utvidet bruk av kode24-tallene på `/reisen` greit for kommunikasjon?
-4. Skal skjermbildet `statistikk-2025.webp` og credits-tallet i nyhetssaken stå?
-5. Hvilken terskel vil personvernombudet ha for offentlige fordelinger: 20 eller noe annet?
-6. Skal BigQuery-tabellene med persondata få en lagringstid?
-7. Dekker samtykket i utviklerundersøkelsen bruk utenfor Nav?
+4. Skal BigQuery-tabellene med persondata få en lagringstid?
+5. Dekker samtykket i utviklerundersøkelsen bruk utenfor Nav?
 
 ## 9. Steg
 
 | # | Steg | Størrelse |
 |---|---|---|
-| 1 | Test som sikrer at private ruter krever innlogging, og oppdatert `check-public-routes.mjs` | S |
+| 1 | Ekstra sikring: test som sjekker at private ruter krever innlogging, og oppdatert `check-public-routes.mjs` | S |
 | 2 | Avklare tabellen med produkteier og personvernombud | M |
 | 3 | `/reisen`: tallene i punkt 6 med kilde og dato | S |
-| 4 | JSON-øyeblikksbilde, terskeltest og generatorskript | M |
+| 4 | JSON-øyeblikksbilde, test for bare totaler og generatorskript | M |
 | 5 | Drøfting med tillitsvalgte om tall per team (#345, #1424) | M |
 | 6 | Lagringstid for persondata i BigQuery | S |
 | 7 | Første eksterne sak med godkjente tall (#1512) | L |
