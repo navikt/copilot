@@ -31,6 +31,7 @@
     "@navikt/ds-react": "^8.18.0",
     "@opentelemetry/api": "^1.9.1",
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/three": "^0.186.0",
     "chart.js": "^4.5.1",
     "gray-matter": "^4.0.3",
     "next": "16.2.12",
@@ -39,7 +40,8 @@
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@storybook/addon-a11y": "10.6.1",
