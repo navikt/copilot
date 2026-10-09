@@ -1,8 +1,14 @@
 import { render, screen, within } from "@testing-library/react";
+import type { GoldenRun } from "@/lib/golden-baselines";
+import { loadGoldenSummary } from "@/lib/golden-summary-file";
 import { PHASES } from "./milestones";
 import ReisenPage from "./page";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/reisen" }));
+vi.mock("@/lib/golden-summary-file", async (original) => {
+  const actual = await original<typeof import("@/lib/golden-summary-file")>();
+  return { ...actual, loadGoldenSummary: vi.fn(actual.loadGoldenSummary) };
+});
 
 describe("reisesiden", () => {
   it("viser hver fase i tidslinjen med kildene sine", () => {
@@ -80,6 +86,24 @@ describe("reisesiden", () => {
     expect(screen.getByRole("link", { name: "mergede pull requests i navikt/copilot" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "KI-modeller målt" })).toHaveAttribute("href", "/modeller");
     expect(screen.getByRole("link", { name: "benchmark-kjøringer" })).toHaveAttribute("href", "/modeller");
+  });
+
+  it("teller modeller og kjøringer uten smoke-kjøringer", () => {
+    const run = (model: string, n: number, smoke?: boolean) => ({ model, n, smoke }) as GoldenRun;
+    vi.mocked(loadGoldenSummary).mockReturnValueOnce({
+      generated: "2026-10-01",
+      runs: [run("a", 5), run("a", 3), run("b", 2), run("c", 1, true)],
+    });
+    render(<ReisenPage />);
+    const value = (name: string) => screen.getByRole("link", { name }).closest("div")!.querySelector("dd")!.textContent;
+    expect(value("KI-modeller målt")).toBe("2");
+    expect(value("benchmark-kjøringer")).toBe("10");
+  });
+
+  it("skjuler måletallene når oppsummeringen mangler", () => {
+    vi.mocked(loadGoldenSummary).mockReturnValueOnce(null);
+    render(<ReisenPage />);
+    expect(screen.queryByRole("link", { name: "KI-modeller målt" })).toBeNull();
   });
 
   it("lenker navnet til GitHub-profilen", () => {
