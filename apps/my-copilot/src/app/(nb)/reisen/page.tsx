@@ -31,12 +31,7 @@ function formatWhen(date: string, end?: string): string {
   return `${sameYear ? from.replace(/ \d{4}$/, "") : from}–${to}`;
 }
 
-// Repo activity has no data source in the app, so these are snapshots with the date they were taken.
-// Commits: `git rev-list --count origin/main`. PRs: GitHub search API, is:pr is:merged.
-const SNAPSHOT_DATE = "9. oktober 2026";
-const COMMITS = 1501;
-const MERGED_PRS = 901;
-
+// TODO(#1511): legg til tall om bruk og kostnad når de er godkjent for publisering.
 const nb = (n: number) => n.toLocaleString("nb-NO");
 
 // Read per request, like /modeller: the catalog and the articles ship with the image.
@@ -44,12 +39,6 @@ export default function ReisenPage() {
   const items = getAllCustomizations();
   const count = (type: string) => items.filter((item) => item.type === type).length;
   const numbers = [
-    {
-      value: nb(MERGED_PRS),
-      label: `mergede pull requests (${SNAPSHOT_DATE})`,
-      url: `${REPO}/pulls?q=is%3Apr+is%3Amerged`,
-    },
-    { value: nb(COMMITS), label: `commits på main (${SNAPSHOT_DATE})`, url: `${REPO}/commits/main` },
     { value: nb(count("skill")), label: "skills i katalogen", url: "/verktoy" },
     { value: nb(count("agent")), label: "agenter i katalogen", url: "/verktoy" },
     { value: nb(count("instruction")), label: "instruksjoner i katalogen", url: "/verktoy" },
@@ -135,10 +124,6 @@ export default function ReisenPage() {
             <Heading size="large" level="2" id="tall" spacing>
               Tall vi kan vise fram
             </Heading>
-            <BodyShort spacing>
-              Alle tallene kommer fra det åpne repoet. Tall om bruk og kostnad venter på godkjenning, se{" "}
-              <Link href={`${REPO}/issues/1511`}>#1511</Link>.
-            </BodyShort>
             <dl className="grid gap-4 sm:grid-cols-2">
               {numbers.map((n) => (
                 <div key={n.label} className="flex flex-col-reverse">
@@ -156,9 +141,10 @@ export default function ReisenPage() {
               Teamet
             </Heading>
             <BodyLong spacing>
-              Det startet som en grasrotbevegelse, med et fellesskap fra dag én. Hans Kristian Flaatten driver arbeidet
-              sammen med teamet bak navikt/copilot. Teamet måler før det bestemmer, skriver ned det som ikke virket og
-              jobber i et åpent repo.
+              Det startet som en grasrotbevegelse, med et fellesskap fra dag én.{" "}
+              <Link href="https://github.com/Starefossen">Hans Kristian Flaatten</Link> driver arbeidet sammen med
+              teamet bak navikt/copilot. Teamet måler før det bestemmer, skriver ned det som ikke virket og jobber i et
+              åpent repo.
             </BodyLong>
             <BodyLong>
               Produktteamene i Nav fantes lenge før Copilot. De er en av de viktigste grunnene til at så mye av dette

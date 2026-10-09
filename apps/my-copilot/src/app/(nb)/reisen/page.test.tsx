@@ -39,14 +39,17 @@ describe("reisesiden", () => {
     expect(screen.getByText("mars–november 2024")).toBeInTheDocument();
   });
 
-  it("viser tallene med lenke til kilden og godkjenningssaken", () => {
+  it("viser tallene med lenke til kilden", () => {
     render(<ReisenPage />);
     expect(screen.getByRole("heading", { name: "Tall vi kan vise fram" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /mergede pull requests/ })).toHaveAttribute(
-      "href",
-      expect.stringContaining("is%3Amerged")
-    );
     expect(screen.getByRole("link", { name: "skills i katalogen" })).toHaveAttribute("href", "/verktoy");
-    expect(screen.getByRole("link", { name: "#1511" })).toBeInTheDocument();
+  });
+
+  it("lenker navnet til GitHub-profilen", () => {
+    render(<ReisenPage />);
+    expect(screen.getByRole("link", { name: "Hans Kristian Flaatten" })).toHaveAttribute(
+      "href",
+      "https://github.com/Starefossen"
+    );
   });
 });
