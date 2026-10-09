@@ -1,7 +1,7 @@
 const PR = "https://github.com/navikt/copilot/pull/";
 
 export interface Milestone {
-  /** First merge date on main (UTC), or the repo creation date. */
+  /** First merge date on main (UTC), the repo creation date, or just the year («2023»). */
   date: string;
   /** Last merge date, for an item that spans several PRs. */
   end?: string;
@@ -10,19 +10,64 @@ export interface Milestone {
   title: string;
   text: string;
   /** Where the dates and the claims can be checked. */
-  sources: { label: string; url: string }[];
+  sources: Source[];
 }
+
+/** A link, or the team's own account of the time before the repo (no link exists). */
+type Source = { label: string; url: string } | { team: true };
+
+const TEAM: Source = { team: true };
 
 const pr = (n: number) => ({ label: `#${n}`, url: `${PR}${n}` });
 
 // Dates come from `gh pr list --json mergedAt` and `git log` on main. Keep the list chronological by `date`.
+// The early history (2023–2025) is the team's own account; external dates link to GitHub's announcements.
 export const MILESTONES: Milestone[] = [
+  {
+    date: "2023",
+    major: true,
+    title: "Pilot i stedet for forbud",
+    text: "Noen utviklere i Nav fikk tilgang til den lukkede betaen av GitHub Copilot, den gang mest en smart autofullføring. Nav kunne ha stoppet det, slik store virksomheter ofte gjør. Nav valgte å kjøre en pilot med de samme brukerne.",
+    sources: [TEAM],
+  },
+  {
+    date: "2023",
+    major: false,
+    title: "Lisenser, retningslinjer og juss",
+    text: "Pilotbrukerne fikk Copilot Business-lisenser fra Nav. Teamet skrev retningslinjer og gikk gjennom bruksvilkårene og personvernerklæringen med Navs jurister. Det meste av kildekoden vår var alt åpen, så kodelekkasje var en liten bekymring. Den store var opphavsrett, fordi ingen visste hva modellene var trent på.",
+    sources: [
+      TEAM,
+      {
+        label: "Copilot Business lansert 14. februar 2023",
+        url: "https://github.blog/news-insights/product-news/github-copilot-for-business-is-now-available/",
+      },
+    ],
+  },
   {
     date: "2025-01-10",
     major: true,
     title: "Repoet blir opprettet",
     text: "navikt/copilot starter som et åpent repo. Alt som følger, ligger her.",
     sources: [{ label: "commit a083419c", url: "https://github.com/navikt/copilot/commit/a083419c" }],
+  },
+  {
+    date: "2025-04-07",
+    major: true,
+    title: "Agentmodus, og bruken tar av",
+    text: "Fra piloten tok vi inn flere brukere litt etter litt. Da agentmodus kom til alle i VS Code, økte bruken kraftig.",
+    sources: [TEAM, { label: "Agentmodus i VS Code", url: "https://code.visualstudio.com/blogs/2025/04/07/agentMode" }],
+  },
+  {
+    date: "2025-09-24",
+    major: false,
+    title: "SINTEF studerer Copilot i Nav",
+    text: "SINTEF sammenlignet utviklere i Nav som brukte Copilot, med dem som ikke gjorde det. Et funn: «We did not find any statistically significant changes in commit-based activity for Copilot users after they adopted the tool.»",
+    sources: [
+      {
+        label: "Developer Productivity With and Without GitHub Copilot (arXiv)",
+        url: "https://arxiv.org/abs/2509.20353",
+      },
+    ],
   },
   {
     date: "2025-12-27",

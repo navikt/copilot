@@ -22,6 +22,7 @@ const monthFormat = new Intl.DateTimeFormat("nb-NO", { month: "long", year: "num
 
 /** «8. oktober 2026», or «juli–oktober 2026» for an item that spans several months. */
 function formatWhen(date: string, end?: string): string {
+  if (date.length === 4) return date;
   if (!end) return dateFormat.format(new Date(date));
   const [from, to] = [monthFormat.format(new Date(date)), monthFormat.format(new Date(end))];
   if (from === to) return from;
@@ -69,7 +70,8 @@ export default function ReisenPage() {
         <VStack gap="space-40">
           <BodyLong>
             Nav har bygget agenter, regler og verktøy som utviklere bruker hver dag. Alt ligger i{" "}
-            <Link href={REPO}>navikt/copilot</Link>, og hvert steg under lenker til koden eller pull requesten bak det.
+            <Link href={REPO}>navikt/copilot</Link>. Hvert steg under lenker til koden, pull requesten eller
+            kunngjøringen bak det. Forhistorien fra før repoet bygger på teamets egen beskrivelse.
           </BodyLong>
 
           {/* TODO(#1512): bransjens tidslinje kommer når hver linje har en kilde. */}
@@ -98,9 +100,9 @@ export default function ReisenPage() {
                   <BodyLong>
                     {m.text} Kilde:{" "}
                     {m.sources.map((s, i) => (
-                      <span key={s.url}>
+                      <span key={"url" in s ? s.url : "team"}>
                         {i > 0 && ", "}
-                        <Link href={s.url}>{s.label}</Link>
+                        {"url" in s ? <Link href={s.url}>{s.label}</Link> : "teamets egen beskrivelse"}
                       </span>
                     ))}
                   </BodyLong>

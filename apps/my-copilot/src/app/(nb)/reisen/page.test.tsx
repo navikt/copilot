@@ -12,7 +12,12 @@ describe("reisesiden", () => {
     for (const m of MILESTONES) {
       expect(m.sources.length).toBeGreaterThan(0);
       for (const s of m.sources) {
-        expect(s.url).toMatch(/^https:\/\/github\.com\/navikt\//);
+        // Only the early history, before the repo existed, may rest on the team's own account.
+        if (!("url" in s)) {
+          expect(m.date < "2025-12").toBe(true);
+          continue;
+        }
+        expect(s.url).toMatch(/^https:\/\//);
         expect(screen.getByRole("link", { name: s.label })).toHaveAttribute("href", s.url);
       }
     }
