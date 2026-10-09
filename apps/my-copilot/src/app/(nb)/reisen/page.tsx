@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PageHero } from "@/components/page-hero";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getNewsItems } from "@/lib/news";
-import { MILESTONES } from "./milestones";
+import { PHASES } from "./milestones";
 
 export const metadata: Metadata = {
   title: "Reisen: hva Nav har bygget med KI-agenter",
@@ -71,8 +71,8 @@ export default function ReisenPage() {
         <VStack gap="space-40">
           <BodyLong>
             Nav har bygget agenter, regler og verktøy som utviklere bruker hver dag. Alt ligger i{" "}
-            <Link href={REPO}>navikt/copilot</Link>. Hvert steg i tidslinjen lenker til koden, pull requesten eller
-            kunngjøringen bak det. Det som ikke har lenke, bygger på teamets egen beskrivelse.
+            <Link href={REPO}>navikt/copilot</Link>. Hver fase i tidslinjen lenker til koden, pull requestene og
+            kunngjøringene bak den. Det som ikke har lenke, bygger på teamets egen beskrivelse.
           </BodyLong>
 
           {/* TODO(#1512): bransjens tidslinje kommer når hver linje har en kilde. */}
@@ -88,31 +88,28 @@ export default function ReisenPage() {
               className="border-l-2 border-[var(--ax-border-neutral-subtle)]"
               style={{ paddingInlineStart: "var(--ax-space-24)" }}
             >
-              {MILESTONES.map((m) => (
+              {PHASES.map((m) => (
                 <li key={m.title} className="relative">
                   <span
                     aria-hidden
-                    className={
-                      m.major
-                        ? "absolute -left-[35px] top-1 size-5 rounded-full bg-[var(--ax-bg-accent-strong)]"
-                        : "absolute -left-[31px] top-1.5 size-3 rounded-full bg-[var(--ax-border-neutral-subtle)]"
-                    }
+                    className="absolute -left-[35px] top-1 size-5 rounded-full bg-[var(--ax-bg-accent-strong)]"
                   />
                   <BodyShort size="small" textColor="subtle">
                     <time dateTime={m.date}>{formatWhen(m.date, m.end)}</time>
                   </BodyShort>
-                  <Heading size={m.major ? "medium" : "xsmall"} level="3">
+                  <Heading size="medium" level="3" spacing>
                     {m.title}
                   </Heading>
-                  <BodyLong>
-                    {m.text} {m.sources.length > 1 ? "Kilder:" : "Kilde:"}{" "}
+                  <BodyLong spacing>{m.text}</BodyLong>
+                  <BodyShort size="small">
+                    {m.sources.length > 1 ? "Kilder:" : "Kilde:"}{" "}
                     {m.sources.map((s, i) => (
                       <span key={"url" in s ? s.url : "team"}>
-                        {i > 0 && ", "}
                         {"url" in s ? <Link href={s.url}>{s.label}</Link> : "teamets egen beskrivelse"}
+                        {i < m.sources.length - 1 && ", "}
                       </span>
                     ))}
-                  </BodyLong>
+                  </BodyShort>
                 </li>
               ))}
             </VStack>

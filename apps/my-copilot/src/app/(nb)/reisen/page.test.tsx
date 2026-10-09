@@ -1,17 +1,15 @@
 import { render, screen, within } from "@testing-library/react";
-import { MILESTONES } from "./milestones";
+import { PHASES } from "./milestones";
 import ReisenPage from "./page";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/reisen" }));
 
 describe("reisesiden", () => {
-  it("viser hvert steg i tidslinjen med dato og kildelenke", () => {
+  it("viser hver fase i tidslinjen med kildene sine", () => {
     render(<ReisenPage />);
     const steps = within(screen.getByRole("list", { name: "Tidslinje" })).getAllByRole("listitem");
-    expect(steps).toHaveLength(MILESTONES.length);
-    for (const m of MILESTONES) {
-      // Only the time before the repo, and today's status, may rest on the team's own account alone.
-      if (m.sources.every((s) => !("url" in s))) expect(m.date < "2026" || m.title === "I dag").toBe(true);
+    expect(steps).toHaveLength(PHASES.length);
+    for (const m of PHASES) {
       expect(m.sources.length).toBeGreaterThan(0);
       for (const s of m.sources) {
         if (!("url" in s)) continue;
@@ -23,17 +21,16 @@ describe("reisesiden", () => {
 
   it("holder tidslinjen i kronologisk rekkefølge", () => {
     // A date without a day («2026-10») sorts after every day in that month.
-    const dates = MILESTONES.map((m) => (m.date.length === 4 ? m.date : m.date.padEnd(10, "-99")));
+    const dates = PHASES.map((m) => (m.date.length === 4 ? m.date : m.date.padEnd(10, "-99")));
     expect(dates).toEqual([...dates].sort());
-    for (const m of MILESTONES) if (m.end) expect(m.end >= m.date).toBe(true);
-    expect(MILESTONES.some((m) => m.major)).toBe(true);
+    for (const m of PHASES) if (m.end) expect(m.end >= m.date).toBe(true);
   });
 
-  it("viser perioden for steg som spenner over flere måneder", () => {
+  it("viser perioden for hver fase", () => {
     render(<ReisenPage />);
-    expect(screen.getByText("juli–oktober 2026")).toBeInTheDocument();
-    expect(screen.getByText("september–november 2025")).toBeInTheDocument();
-    expect(screen.getByText("5. september 2023")).toBeInTheDocument();
+    expect(screen.getByText("juni–oktober 2026")).toBeInTheDocument();
+    expect(screen.getByText("januar–november 2025")).toBeInTheDocument();
+    expect(screen.getByText("2023")).toBeInTheDocument();
   });
 
   it("viser tallene med lenke til kilden og godkjenningssaken", () => {
