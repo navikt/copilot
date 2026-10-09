@@ -5,10 +5,22 @@
     "2000-01": {
       "lisenser": { "verdi": 1000, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
       "aktive_brukere": { "verdi": 500, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
-      "ai_credits": { "verdi": 1230000, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
-      "kostnad_nok": { "verdi": 120000, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "credits_per_bruker_median": { "verdi": 120, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "credits_per_bruker_snitt": { "verdi": 250, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "kostnad_per_bruker_median_nok": { "verdi": 40, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "kostnad_per_bruker_snitt_nok": { "verdi": 90, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
       "katalog_elementer": { "verdi": 42, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
-      "modeller_malt": { "verdi": 7, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" }
+      "modeller_malt": { "verdi": 7, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "bruksband": {
+        "andeler": { "lett": 50, "middels": 30, "tung": 20 },
+        "kilde": "EKSEMPEL, ikke ekte tall",
+        "dato": "2000-01-31"
+      },
+      "modellandeler": {
+        "andeler": { "Modell A": 40, "Modell B": 25, "Modell C": 15, "andre": 20 },
+        "kilde": "EKSEMPEL, ikke ekte tall",
+        "dato": "2000-01-31"
+      }
     }
   }
 }

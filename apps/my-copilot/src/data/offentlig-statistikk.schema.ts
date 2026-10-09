@@ -1,37 +1,66 @@
-// Skjema for offentlig statistikk (#1511). Bare totaler for hele Nav, per måned.
-// Plan: docs/offentlig-statistikk-plan.md. Generatoren avrunder; testen sjekker.
+// Skjema for offentlig statistikk (#1511). Bare tall for hele Nav, per måned.
+// Plan: docs/offentlig-statistikk-plan.md. Generatoren avrunder og håndhever terskler; testen sjekker.
 
-/** Godkjente felt og avrundingen hvert felt må ha. Nye felt krever godkjenning fra produkteier. */
+/** Godkjente enkelttall og avrundingen hvert felt må ha. Aldri maks eller persentiler over p90. */
 const FELT = {
   lisenser: 50,
   aktive_brukere: 50,
-  ai_credits: 10_000,
-  kostnad_nok: 10_000,
+  credits_per_bruker_median: 10,
+  credits_per_bruker_snitt: 10,
+  kostnad_per_bruker_median_nok: 10,
+  kostnad_per_bruker_snitt_nok: 10,
   katalog_elementer: 1,
   modeller_malt: 1,
 } as const;
 
+/** Faste bruksband. Et band under 20 brukere slås sammen med naboen. */
+const BAND = ["lett", "middels", "tung", "lett_middels", "middels_tung"];
+const MAKS_MODELLER = 6;
+
 type Felt = keyof typeof FELT;
 
-type Verdi = {
-  verdi: number;
+type Kilde = {
   /** Tabell, endepunkt eller fil verdien kommer fra. */
   kilde: string;
   /** Dato (YYYY-MM-DD) dataene gjelder til og med. */
   dato: string;
 };
 
+type Verdi = Kilde & { verdi: number };
+/** Andeler i hele prosent som summerer til omtrent 100. */
+type Andeler = Kilde & { andeler: Record<string, number> };
+
 export type OffentligStatistikk = {
   /** true for eksempeldata. Siden skal aldri vise en fil med eksempel: true. */
   eksempel: boolean;
   generert: string;
   /** Nøkkel: måned (YYYY-MM). */
-  maaneder: Record<string, Partial<Record<Felt, Verdi>>>;
+  maaneder: Record<string, Partial<Record<Felt, Verdi>> & { bruksband?: Andeler; modellandeler?: Andeler }>;
 };
 
 const DATO = /^\d{4}-\d{2}-\d{2}$/;
 const MAANED = /^\d{4}-\d{2}$/;
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+
+function sjekkKilde(v: Record<string, unknown>, sti: string, tillatt: string[], feil: string[]) {
+  for (const k of Object.keys(v)) if (!tillatt.includes(k)) feil.push(`${sti}: ukjent felt ${k}`);
+  if (typeof v.kilde !== "string" || !v.kilde) feil.push(`${sti}: mangler kilde`);
+  if (typeof v.dato !== "string" || !DATO.test(v.dato)) feil.push(`${sti}: mangler dato`);
+}
+
+function sjekkAndeler(v: Record<string, unknown>, sti: string, feil: string[], navnOk: (n: string) => boolean) {
+  sjekkKilde(v, sti, ["andeler", "kilde", "dato"], feil);
+  if (!isObj(v.andeler)) return void feil.push(`${sti}: andeler må være et objekt`);
+  let sum = 0;
+  for (const [navn, p] of Object.entries(v.andeler)) {
+    if (!navnOk(navn)) feil.push(`${sti}.${navn}: navnet er ikke tillatt`);
+    if (!Number.isInteger(p) || (p as number) < 0) feil.push(`${sti}.${navn}: må være hel prosent`);
+    else sum += p as number;
+  }
+  // Avrunding til hele prosent kan gi 98–102.
+  if (Math.abs(sum - 100) > 2) feil.push(`${sti}: andelene summerer til ${sum}, ikke omtrent 100`);
+  return Object.keys(v.andeler).length;
+}
 
 /** Returnerer brudd på sikkerhetsreglene. Tom liste betyr godkjent. */
 export function valider(data: unknown): string[] {
@@ -51,21 +80,25 @@ export function valider(data: unknown): string[] {
     }
     for (const [navn, v] of Object.entries(felt)) {
       const sti = `${mnd}.${navn}`;
-      if (!Object.hasOwn(FELT, navn)) {
-        feil.push(`${sti}: feltet står ikke på listen`);
-        continue;
-      }
       if (!isObj(v)) {
-        feil.push(`${sti}: må være { verdi, kilde, dato }`);
+        feil.push(`${sti}: må være et objekt`);
         continue;
       }
-      for (const k of Object.keys(v))
-        if (!["verdi", "kilde", "dato"].includes(k)) feil.push(`${sti}: ukjent felt ${k}`);
-      const avrunding = FELT[navn as Felt];
-      if (typeof v.verdi !== "number" || !Number.isFinite(v.verdi)) feil.push(`${sti}: verdi må være et tall`);
-      else if (v.verdi % avrunding !== 0) feil.push(`${sti}: ikke avrundet til ${avrunding}`);
-      if (typeof v.kilde !== "string" || !v.kilde) feil.push(`${sti}: mangler kilde`);
-      if (typeof v.dato !== "string" || !DATO.test(v.dato)) feil.push(`${sti}: mangler dato`);
+      if (navn === "bruksband") {
+        sjekkAndeler(v, sti, feil, (n) => BAND.includes(n));
+      } else if (navn === "modellandeler") {
+        // Generatoren navngir bare modeller med minst 20 brukere; antallet publiseres ikke.
+        const antall = sjekkAndeler(v, sti, feil, (n) => n.length > 0);
+        if (antall !== undefined && antall > MAKS_MODELLER + 1)
+          feil.push(`${sti}: mer enn ${MAKS_MODELLER} modeller pluss «andre»`);
+      } else if (Object.hasOwn(FELT, navn)) {
+        sjekkKilde(v, sti, ["verdi", "kilde", "dato"], feil);
+        const avrunding = FELT[navn as Felt];
+        if (typeof v.verdi !== "number" || !Number.isFinite(v.verdi)) feil.push(`${sti}: verdi må være et tall`);
+        else if (v.verdi % avrunding !== 0) feil.push(`${sti}: ikke avrundet til ${avrunding}`);
+      } else {
+        feil.push(`${sti}: feltet står ikke på listen`);
+      }
     }
   }
   return feil;
