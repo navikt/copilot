@@ -141,6 +141,11 @@ export const PHASES: Phase[] = [
       { date: "2026-05-05", text: "Nettstedet ki-utvikling.nav.no blir delvis åpent", url: `${PR}219` },
       { date: "2026-05-27", text: "Skills erstatter agenter uten verktøygrenser", url: `${PR}255` },
       { date: "2026-06-02", text: "Backend skilles ut fra Next.js i copilot-api", url: `${PR}236` },
+      {
+        date: "2026-06-17",
+        text: "mlx-workspace: språkmodeller lokalt på Mac",
+        url: "https://github.com/navikt/mlx-workspace",
+      },
       { date: "2026-08-24", text: "Agentpakker lar team lage sine egne", url: `${PR}436` },
       {
         date: "2026-09-30",
@@ -199,11 +204,21 @@ export const PHASES: Phase[] = [
         text: "kode24: Nav må betale tre til fire ganger mer",
         url: "https://www.kode24.no/artikkel/nav-ma-betale-tre-til-fire-ganger-mer-for-sine-600-copilot-brukere/264699",
       },
+      {
+        date: "2026-08-31",
+        text: "nav-pilot kan sende oppgaver til en lokal modell (alfa)",
+        url: "/nyheter/lokale-modeller-i-nav-pilot",
+      },
       { date: "2026-09-02", text: "Første grunnlinje for benchmarker", url: `${PR}594` },
+      {
+        date: "2026-09-25",
+        text: "nav-pilot decide gir et svar uten å starte en agent (alfa)",
+        url: "/nyheter/nav-pilot-alpha-decide",
+      },
       { date: "2026-09-30", text: "Siden /modeller viser valgene og målingene", url: `${PR}1376` },
       { date: "2026-10-08", text: "@nav-pilot fordeler arbeid til @worker", url: `${PR}1496` },
     ],
-    text: "Allerede i mai låste vi hver agent til en fast modell for å holde kostnaden nede. Så byttet GitHub ut de subsidierte premium requests med AI Credits etter tokenforbruk, og for oss betydde det tre til fire ganger høyere regning for rundt 600 daglige brukere. Svaret ble modellvalg bygget på målinger: benchmarker som kan kjøres på nytt, siden /modeller og en språkmodell som vurderer planleggingssvar. Målingene flyttet @rust til Claude Haiku 5.5, og @nav-pilot sender nå avgrensede oppgaver til @worker på GPT-6 Luna, som koster mindre. Samtidig kom en ny generasjon modeller, som Claude Opus 5.5 og GPT-6 Sol og Luna.",
+    text: "Allerede i mai låste vi hver agent til en fast modell for å holde kostnaden nede. Så byttet GitHub ut de subsidierte premium requests med AI Credits etter tokenforbruk, og for oss betydde det tre til fire ganger høyere regning for rundt 600 daglige brukere. Vi testet lokale modeller som et billigere alternativ, og laget decide for spørsmål som trenger et svar, ikke en agent. Ellers ble svaret modellvalg bygget på målinger: benchmarker som kan kjøres på nytt, siden /modeller og en språkmodell som vurderer planleggingssvar. Målingene flyttet @rust til Claude Haiku 5.5, og @nav-pilot sender nå avgrensede oppgaver til @worker på GPT-6 Luna, som koster mindre. Samtidig kom en ny generasjon modeller, som Claude Opus 5.5 og GPT-6 Sol og Luna.",
     sources: [
       {
         label: "GitHubs kunngjøring",
@@ -217,6 +232,9 @@ export const PHASES: Phase[] = [
         label: "GPT-6 Sol og Luna",
         url: "https://github.blog/changelog/2026-09-22-openais-gpt-6-sol-and-gpt-6-luna-now-available/",
       },
+      { label: "navikt/mlx-workspace", url: "https://github.com/navikt/mlx-workspace" },
+      pr(483),
+      { label: "saken om decide", url: "/nyheter/nav-pilot-alpha-decide" },
       {
         label: "kode24",
         url: "https://www.kode24.no/artikkel/nav-ma-betale-tre-til-fire-ganger-mer-for-sine-600-copilot-brukere/264699",
