@@ -71,10 +71,13 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 | Benchmark-resultater og modellvalg | Offentlig | Allerede i åpent repo | Per modell | Produkteier |
 | Størrelse på katalogen (skills, agenter, instruksjoner) | Offentlig | Repo-data, vises på `/reisen` | – | Produkteier |
 | Repo-aktivitet (sammenslåtte PR-er, PR-er fra Copilot coding agent) | Offentlig | Åpent repo, ingen persondata i tallet | Hele repoet | Produkteier |
-| Antall brukere og aktive brukere | Offentlig, bare total for hele Nav | Allerede publisert av kode24 og `/reisen` | Hele Nav, per måned, avrundet til nærmeste 50 | Produkteier (kommunikasjon orienteres) |
-| Vekst i bruk | Offentlig, bare total for hele Nav | Samme | Hele Nav, per måned | Produkteier (kommunikasjon orienteres) |
-| Kostnad totalt | Offentlig, bare total for hele Nav | Kan kreves innsyn i; relativ endring er publisert | Hele Nav, per måned eller kvartal | Produkteier (kommunikasjon orienteres) |
-| Fordeling på modell, editor, språk | Internt | Ingen offentlige fordelinger, bare totaler | – | Produkteier |
+| Antall brukere, aktive brukere og lisenser | Offentlig, aggregat for hele Nav | Allerede publisert av kode24 og `/reisen` | Hele Nav, per måned, avrundet til nærmeste 50 | Produkteier (kommunikasjon orienteres) |
+| Vekst i bruk | Offentlig, aggregat for hele Nav | Samme | Hele Nav, per måned | Produkteier (kommunikasjon orienteres) |
+| Median og gjennomsnitt per aktiv bruker (credits, kostnad) | Offentlig, aggregat for hele Nav | Viser nivået uten å avsløre enkeltpersoner | Hele Nav, per måned. Ingen maksimum, ingen persentil over p90. | Produkteier (kommunikasjon orienteres) |
+| Andel brukere i faste bruksnivåer («lett», «middels», «tung») | Offentlig, aggregat for hele Nav | Viser spredning uten ytterpunkter | Hele Nav, per måned. Et nivå med færre enn 20 brukere slås sammen med nabonivået. | Produkteier (kommunikasjon orienteres) |
+| Modellandel per måned | Offentlig, aggregat for hele Nav | Viser modellvalg i praksis | Hele Nav, per måned. Topp 6 pluss «andre». En modell navngis bare hvis minst 20 ulike brukere brukte den den måneden. | Produkteier (kommunikasjon orienteres) |
+| Sum AI Credits og total kostnad | Internt | Fjernet fra offentlig liste av produkteier. Relativ endring fra kode24 står. | – | Produkteier |
+| Fordeling på team, editor, språk | Internt | Ingen offentlig fordeling på disse | – | Produkteier |
 | Kodeforslag og aksepterte linjer | Internt | Lett å lese som produktivitetsmål | – | Produkteier |
 | Kostnad per oppgave (#1424) | Internt | Metoden er ikke avklart | – | Produkteier |
 | Tall per team (#345, `/innsikt/team`) | Internt | Kontrolltiltak etter aml. kap. 9 | Team ≥ 5, per måned, bare innlogget | Produkteier, personvernombud, tillitsvalgte |
@@ -120,10 +123,11 @@ Hvert tall får dato og kildelenke. Nye bruks- og kostnadstall venter på godkje
 
 | Valg | Forslag |
 |---|---|
-| Regel | Offentlige tall er bare totaler for hele Nav. Ingen fordeling på team, modell, editor, språk eller andre grupper. |
+| Regel | Offentlige tall er aggregater for hele Nav, bare de typene som står som offentlige i beslutningstabellen. Ingen fordeling på team, editor, språk eller person. Ingen sum for credits eller kostnad. |
+| Terskler i kode | Skriptet slår sammen bruksnivåer under 20 brukere med nabonivået, legger modeller under 20 ulike brukere eller utenfor topp 6 i «andre», og regner ikke ut maksimum eller persentiler over p90. Siden leser bare filen. |
 | Kilde | Øyeblikksbilde ved bygg: en JSON-fil i repoet (`apps/my-copilot/src/data/offentlige-tall.json`) med verdi, dato og kilde. Ikke et live API. |
 | Oppdatering | Månedlig PR, generert av et skript som leser totaler fra BigQuery. En person godkjenner i PR-en. |
-| Test | En test feiler hvis øyeblikksbildet eller et offentlig endepunkt har noe annet enn totaler for hele Nav: et felt som ikke står på godkjent liste, en liste eller gruppering, eller et tall uten kilde og dato. |
+| Test | En test feiler hvis øyeblikksbildet eller et offentlig endepunkt bryter regelen: et felt som ikke står på godkjent liste, en gruppering på team, editor, språk eller person, et bruksnivå eller en navngitt modell med færre enn 20 brukere, mer enn 6 navngitte modeller, maksimum eller persentil over p90, sum credits eller kostnad, eller et tall uten kilde og dato. |
 | Ruter (ekstra sikring) | La `check-public-routes.mjs` lese `PRIVATE_PAGE_PATHS` fra `proxy.ts`, eller sjekke at listene stemmer, så en privat rute ikke kan bli offentlig uten at bygget feiler. |
 
 Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det er ikke verdt det for tall som endres månedlig.
@@ -135,7 +139,7 @@ Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det
 | 1 | Ekstra sikring: test som sjekker at private ruter krever innlogging, og oppdatert `check-public-routes.mjs` | S |
 | 2 | Produkteier godkjenner tabellen | S |
 | 3 | `/reisen`: tallene i punkt 6 med kilde og dato | S |
-| 4 | JSON-øyeblikksbilde, test for bare totaler og generatorskript | M |
+| 4 | JSON-øyeblikksbilde, generatorskript med terskler og test som håndhever regelen | M |
 | 5 | Drøfting med tillitsvalgte om `/innsikt/team` og tall per team (#345, #1424) | M |
 | 6 | Gjennomføre PVK for `copilot-metrics` og `copilot-survey` (anbefalt, blokkerer ikke steg 3) | M |
 | 7 | Første eksterne sak med godkjente tall (#1512) | L |
