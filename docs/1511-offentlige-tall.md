@@ -75,7 +75,7 @@ Mønsteret: offentlige etater deler brukertall, adopsjonsrate og opplevd nytte f
 | Vekst i bruk | Offentlig, aggregat for hele Nav | Samme | Hele Nav, per måned | Produkteier (kommunikasjon orienteres) |
 | Median og gjennomsnitt per aktiv bruker (credits, kostnad) | Offentlig, aggregat for hele Nav | Viser nivået uten å avsløre enkeltpersoner | Hele Nav, per måned. Ingen maksimum, ingen persentil over p90. | Produkteier (kommunikasjon orienteres) |
 | Andel brukere i faste bruksnivåer («lett», «middels», «tung») | Offentlig, aggregat for hele Nav | Viser spredning uten ytterpunkter | Hele Nav, per måned. Et nivå med færre enn 20 brukere slås sammen med nabonivået. | Produkteier (kommunikasjon orienteres) |
-| Modellandel per måned | Offentlig, aggregat for hele Nav | Viser modellvalg i praksis | Hele Nav, per måned. Topp 6 pluss «andre». En modell navngis bare hvis minst 20 ulike brukere brukte den den måneden. | Produkteier (kommunikasjon orienteres) |
+| Andel per modellfamilie per måned | Offentlig, aggregat for hele Nav | Viser modellvalg i praksis | Hele Nav, per måned. Gruppert på modellfamilie (Claude Opus, Claude Sonnet, Claude Haiku, GPT, GPT mini/small, Gemini og så videre), ikke versjon. En familie navngis bare hvis minst 20 ulike brukere brukte den den måneden; resten går i «andre». | Produkteier (kommunikasjon orienteres) |
 | Sum AI Credits og total kostnad | Internt | Fjernet fra offentlig liste av produkteier. Relativ endring fra kode24 står. | – | Produkteier |
 | Fordeling på team, editor, språk | Internt | Ingen offentlig fordeling på disse | – | Produkteier |
 | Kodeforslag og aksepterte linjer | Internt | Lett å lese som produktivitetsmål | – | Produkteier |
@@ -113,10 +113,10 @@ Offentlige tall vises på `/innsikt/tall`, og planen for siden ligger i #1523. `
 | Valg | Forslag |
 |---|---|
 | Regel | Offentlige tall er aggregater for hele Nav, bare de typene som står som offentlige i beslutningstabellen. Ingen fordeling på team, editor, språk eller person. Ingen sum for credits eller kostnad. |
-| Terskler i kode | Skriptet slår sammen bruksnivåer under 20 brukere med nabonivået, legger modeller under 20 ulike brukere eller utenfor topp 6 i «andre», og regner ikke ut maksimum eller persentiler over p90. Siden leser bare filen. |
+| Terskler i kode | Skriptet slår sammen bruksnivåer under 20 brukere med nabonivået, grupperer modeller på familie og legger familier med færre enn 20 ulike brukere i «andre», og regner ikke ut maksimum eller persentiler over p90. Siden leser bare filen. |
 | Kilde | Øyeblikksbilde ved bygg: en JSON-fil i repoet (`apps/my-copilot/src/data/offentlige-tall.json`) med verdi, dato og kilde. Ikke et live API. |
 | Oppdatering | Månedlig PR, generert av et skript som leser totaler fra BigQuery. En person godkjenner i PR-en. |
-| Test | En test feiler hvis øyeblikksbildet eller et offentlig endepunkt bryter regelen: et felt som ikke står på godkjent liste, en gruppering på team, editor, språk eller person, et bruksnivå eller en navngitt modell med færre enn 20 brukere, mer enn 6 navngitte modeller, maksimum eller persentil over p90, sum credits eller kostnad, eller et tall uten kilde og dato. |
+| Test | En test feiler hvis øyeblikksbildet eller et offentlig endepunkt bryter regelen: et felt som ikke står på godkjent liste, en gruppering på team, editor, språk eller person, et bruksnivå eller en navngitt modellfamilie med færre enn 20 brukere, en modell oppgitt på versjonsnivå, maksimum eller persentil over p90, sum credits eller kostnad, eller et tall uten kilde og dato. |
 | Ruter (ekstra sikring) | La `check-public-routes.mjs` lese `PRIVATE_PAGE_PATHS` fra `proxy.ts`, eller sjekke at listene stemmer, så en privat rute ikke kan bli offentlig uten at bygget feiler. |
 
 Et live API gir ferskere tall, men også en ny offentlig flate mot BigQuery. Det er ikke verdt det for tall som endres månedlig.
