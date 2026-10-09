@@ -9,9 +9,20 @@ import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
 import { getPublicVideoFeed } from "@/lib/public-videos";
 import { NavCard } from "@/components/navigation/nav-card";
+import { HeroNetwork } from "@/components/hero-network/hero-network";
+import { getAllCustomizations } from "@/lib/customizations";
+import { getMcpServers } from "@/lib/mcp-registry";
 
 export default async function Home() {
-  const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
+  const [user, videos, mcpServers] = await Promise.all([getUser(false), getPublicVideoFeed(5), getMcpServers()]);
+  const items = getAllCustomizations();
+  const count = (type: string) => items.filter((i) => i.type === type).length;
+  const clusters = [
+    { name: "Agenter", count: count("agent") },
+    { name: "Skills", count: count("skill") },
+    { name: "Instruksjoner", count: count("instruction") },
+    { name: "MCP-servere", count: mcpServers.length },
+  ];
   // English articles sit in the same feed as the Norwegian ones, sorted by date
   // like everything else. A separate link beside the category chips read as a
   // filter that did nothing, and the piece most worth reading was the one the
@@ -22,11 +33,12 @@ export default async function Home() {
 
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <section className="hero-gradient text-white">
+      <section className="hero-gradient text-white overflow-hidden max-md:min-h-[19rem]">
+        <HeroNetwork clusters={clusters} />
         <Box
           paddingBlock={{ xs: "space-32", md: "space-40" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-          className="max-w-7xl mx-auto"
+          className="max-w-7xl mx-auto relative"
         >
           <VStack gap="space-8">
             <Heading size="xlarge" level="1" className="hero-title hero-animate">
