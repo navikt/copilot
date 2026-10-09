@@ -81,9 +81,15 @@ export default function ReisenPage() {
             <Heading size="large" level="2" id="tidslinje" spacing>
               Tidslinje
             </Heading>
-            <ol aria-labelledby="tidslinje" className="border-l-2 border-[var(--ax-border-neutral-subtle)] pl-6">
+            <VStack
+              as="ol"
+              gap="space-32"
+              aria-labelledby="tidslinje"
+              className="border-l-2 border-[var(--ax-border-neutral-subtle)]"
+              style={{ paddingInlineStart: "var(--ax-space-24)" }}
+            >
               {MILESTONES.map((m) => (
-                <li key={m.title} className={`relative last:pb-0 ${m.major ? "pb-10" : "pb-6"}`}>
+                <li key={m.title} className="relative">
                   <span
                     aria-hidden
                     className={
@@ -109,7 +115,7 @@ export default function ReisenPage() {
                   </BodyLong>
                 </li>
               ))}
-            </ol>
+            </VStack>
           </section>
 
           <section aria-labelledby="tall">
@@ -136,7 +142,7 @@ export default function ReisenPage() {
             <Heading size="large" level="2" id="teamet" spacing>
               Teamet
             </Heading>
-            <BodyLong>
+            <BodyLong spacing>
               Arbeidet er drevet av Hans Kristian Flaatten, sammen med teamet bak navikt/copilot. Teamet måler før det
               bestemmer, skriver ned det som ikke virket, og gjør arbeidet i et åpent repo. Derfor kan alle sjekke
               tallene over.
