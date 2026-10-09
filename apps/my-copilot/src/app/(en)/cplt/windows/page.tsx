@@ -170,10 +170,12 @@ export default function CpltWindowsPage() {
 
               <Step id="help" title="Getting help">
                 <BodyLong size="small" style={muted}>
-                  Send the output of <code>cplt doctor --verbose</code> and the exact command that failed. It writes
-                  your home directory as <code>~</code>. The WSL2 route is not yet verified end to end on a real
-                  install, so tell us what happened in <ExternalLink href={WSL_ISSUE}>navikt/cplt#189</ExternalLink>,
-                  whether it worked or not. The full version of this guide is the{" "}
+                  Send the output of <code>cplt doctor</code> (or <code>cplt doctor --agent claude</code>) and the exact
+                  command that failed. The default output shows your home directory as <code>~</code> and is safe to
+                  paste; <code>--verbose</code> adds absolute paths, so leave it out. The WSL2 route is not yet verified
+                  end to end on a real install, so tell us what happened in{" "}
+                  <ExternalLink href={WSL_ISSUE}>navikt/cplt#189</ExternalLink>, whether it worked or not. The full
+                  version of this guide is the{" "}
                   <ExternalLink href={README_WSL}>WSL2 section of the cplt README</ExternalLink>.
                 </BodyLong>
               </Step>
