@@ -29,14 +29,14 @@ export const MILESTONES: Milestone[] = [
     date: "2023",
     major: true,
     title: "Pilot i stedet for forbud",
-    text: "Noen utviklere i Nav fikk tilgang til den lukkede betaen av GitHub Copilot, den gang mest en smart autofullføring. Nav kunne ha stoppet det, slik store virksomheter ofte gjør. Nav valgte å kjøre en pilot med de samme brukerne.",
+    text: "Noen utviklere i Nav fikk tilgang til den lukkede betaen av GitHub Copilot, den gang mest en smart autofullføring. Nav kunne ha stoppet det, slik store virksomheter ofte gjør. I stedet kjørte Nav en pilot med de samme brukerne.",
     sources: [TEAM],
   },
   {
     date: "2023",
     major: false,
     title: "Lisenser, retningslinjer og juss",
-    text: "Pilotbrukerne fikk Copilot Business-lisenser fra Nav. Teamet skrev retningslinjer og gikk gjennom bruksvilkårene og personvernerklæringen med Navs jurister. Det meste av kildekoden vår var alt åpen, så kodelekkasje var en liten bekymring. Den store var opphavsrett, fordi ingen visste hva modellene var trent på.",
+    text: "Pilotbrukerne fikk Copilot Business-lisenser fra Nav. Teamet skrev retningslinjer og gikk gjennom bruksvilkårene og personvernerklæringen med Navs jurister. Det meste av kildekoden vår var allerede åpen, så kodelekkasje bekymret oss lite. Opphavsrett bekymret oss mer: ingen visste hva modellene var trent på.",
     sources: [
       TEAM,
       {
@@ -49,21 +49,21 @@ export const MILESTONES: Milestone[] = [
     date: "2025-01-10",
     major: true,
     title: "Repoet blir opprettet",
-    text: "navikt/copilot starter som et åpent repo. Alt som følger, ligger her.",
+    text: "navikt/copilot ble opprettet som et åpent repo. Alt som følger, ligger her.",
     sources: [{ label: "commit a083419c", url: "https://github.com/navikt/copilot/commit/a083419c" }],
   },
   {
     date: "2025-04-07",
     major: true,
     title: "Agentmodus, og bruken tar av",
-    text: "Fra piloten tok vi inn flere brukere litt etter litt. Da agentmodus kom til alle i VS Code, økte bruken kraftig.",
+    text: "Etter piloten tok vi gradvis inn flere brukere. Da agentmodus kom til alle i VS Code, økte bruken kraftig.",
     sources: [TEAM, { label: "Agentmodus i VS Code", url: "https://code.visualstudio.com/blogs/2025/04/07/agentMode" }],
   },
   {
     date: "2025-09-24",
     major: false,
     title: "SINTEF studerer Copilot i Nav",
-    text: "SINTEF sammenlignet utviklere i Nav som brukte Copilot, med dem som ikke gjorde det. Et funn: «We did not find any statistically significant changes in commit-based activity for Copilot users after they adopted the tool, although minor increases were observed.» Studien er publisert på HICSS 2026.",
+    text: "SINTEF sammenlignet Nav-utviklere med og uten Copilot. Et funn: «We did not find any statistically significant changes in commit-based activity for Copilot users after they adopted the tool, although minor increases were observed.» Studien er publisert på HICSS 2026.",
     sources: [
       TEAM,
       { label: "studien på arXiv", url: "https://arxiv.org/abs/2509.20353" },
@@ -75,7 +75,7 @@ export const MILESTONES: Milestone[] = [
     end: "2026-01-05",
     major: true,
     title: "Et felles knutepunkt og et fellesskap",
-    text: "Vi samler agenter, skills og instruksjoner på ett sted, med et register over godkjente MCP-servere og en side der alle kan installere dem. Rundt dette vokste et fellesskap som deler det som virker.",
+    text: "Vi samlet agenter, skills og instruksjoner på ett sted, med et register over godkjente MCP-servere og en side der alle kan installere dem. Rundt dette vokste det fram et fellesskap som deler det som virker.",
     sources: [
       pr(60),
       pr(61),
@@ -90,7 +90,7 @@ export const MILESTONES: Milestone[] = [
     end: "2026-03-13",
     major: false,
     title: "Innsikt i bruk",
-    text: "Bruksdata fra GitHub hentes inn hver dag, og vi skanner navikt-repoene for KI-tilpasninger.",
+    text: "Vi henter bruksdata fra GitHub hver dag og skanner navikt-repoene for KI-tilpasninger.",
     sources: [pr(95), pr(110)],
   },
   {
@@ -105,7 +105,7 @@ export const MILESTONES: Milestone[] = [
     end: "2026-06-15",
     major: true,
     title: "nav-pilot",
-    text: "Et kommandolinjeverktøy som installerer Navs agenter og regler og holder dem oppdatert. Fra juni sender det telemetri, så vi ser hva det faktisk gjør. Underveis spurte vi teknologene i Nav om hvordan de bruker KI-verktøy, og skrev ned designvalgene og analysen bak dem.",
+    text: "Et kommandolinjeverktøy som installerer Navs agenter og regler og holder dem oppdatert. Fra juni sender det telemetri, så vi ser hvordan det faktisk brukes. Underveis spurte vi teknologene i Nav hvordan de bruker KI-verktøy, og skrev ned designvalgene og analysen bak dem.",
     sources: [
       pr(149),
       pr(297),
@@ -118,8 +118,8 @@ export const MILESTONES: Milestone[] = [
     date: "2026-07-23",
     end: "2026-10-08",
     major: true,
-    title: "Modellvalg på målinger",
-    text: "Vi tok inn nye modeller, begynte å dokumentere valgene og bygde faste testoppgaver for agentene. Så kom en benchmark som kan kjøres på nytt, siden /modeller, en realistisk kodeoppgave og en språkmodell som dommer. Målingene flyttet @rust til Claude Haiku 5.5.",
+    title: "Modellvalg bygget på målinger",
+    text: "Vi tok inn nye modeller, begynte å dokumentere valgene og bygde faste testoppgaver for agentene. Så kom en benchmark som kan kjøres på nytt, siden /modeller, en realistisk kodeoppgave og en språkmodell som vurderer planleggingssvarene. Målingene flyttet @rust til Claude Haiku 5.5.",
     sources: [pr(379), pr(442), pr(1373), pr(1376), pr(1415), pr(1470), pr(1471)],
   },
   {
@@ -127,7 +127,7 @@ export const MILESTONES: Milestone[] = [
     end: "2026-09-30",
     major: true,
     title: "Agentpakker",
-    text: "Team kan pakke sine egne agenter og regler, med kontrakt og validering. En arbeidsflyt foreslår ny versjon av basen, etter at nais/pilot hadde ligget flere uker bak.",
+    text: "Team kan pakke egne agenter og regler, med kontrakt og validering. En arbeidsflyt foreslår ny versjon av den felles basen fra navikt/copilot, etter at nais/pilot lå flere uker bak.",
     sources: [pr(436), pr(1375)],
   },
   {
@@ -141,14 +141,14 @@ export const MILESTONES: Milestone[] = [
     date: "2026-10-08",
     major: true,
     title: "Koordinator og arbeider",
-    text: "@worker tar avgrensede oppgaver på GPT-6 Luna, som koster mindre. @nav-pilot fordeler arbeidet.",
+    text: "@nav-pilot fordeler arbeidet. @worker tar avgrensede oppgaver på GPT-6 Luna, som koster mindre.",
     sources: [pr(1488), pr(1496)],
   },
   {
     date: "2026-10",
     major: true,
     title: "I dag",
-    text: "Alle teknologer i Nav har nå tilgang til Copilot. Neste steg er de andre rollene i produktteamene, så hele teamet får en komplett KI-opplevelse.",
+    text: "Alle teknologer i Nav har nå tilgang til Copilot. Neste steg er de andre rollene i produktteamene, så hele produktteamet får tilgang til de samme KI-verktøyene.",
     sources: [TEAM],
   },
 ];

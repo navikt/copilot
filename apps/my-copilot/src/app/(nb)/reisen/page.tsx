@@ -53,7 +53,7 @@ export default function ReisenPage() {
     { value: nb(count("skill")), label: "skills i katalogen", url: "/verktoy" },
     { value: nb(count("agent")), label: "agenter i katalogen", url: "/verktoy" },
     { value: nb(count("instruction")), label: "instruksjoner i katalogen", url: "/verktoy" },
-    { value: nb(getNewsItems().length), label: "nyhetssaker", url: "/nyheter" },
+    { value: nb(getNewsItems().length), label: "nyhetssaker på norsk", url: "/nyheter" },
   ];
 
   return (
@@ -71,7 +71,7 @@ export default function ReisenPage() {
         <VStack gap="space-40">
           <BodyLong>
             Nav har bygget agenter, regler og verktøy som utviklere bruker hver dag. Alt ligger i{" "}
-            <Link href={REPO}>navikt/copilot</Link>. Hvert steg under lenker til koden, pull requesten eller
+            <Link href={REPO}>navikt/copilot</Link>. Hvert steg i tidslinjen lenker til koden, pull requesten eller
             kunngjøringen bak det. Det som ikke har lenke, bygger på teamets egen beskrivelse.
           </BodyLong>
 
@@ -105,7 +105,7 @@ export default function ReisenPage() {
                     {m.title}
                   </Heading>
                   <BodyLong>
-                    {m.text} Kilde:{" "}
+                    {m.text} {m.sources.length > 1 ? "Kilder:" : "Kilde:"}{" "}
                     {m.sources.map((s, i) => (
                       <span key={"url" in s ? s.url : "team"}>
                         {i > 0 && ", "}
@@ -123,7 +123,7 @@ export default function ReisenPage() {
               Tall vi kan vise fram
             </Heading>
             <BodyShort spacing>
-              Bare tall fra det åpne repoet. Tall om bruk og kostnad venter på godkjenning, se{" "}
+              Alle tallene kommer fra det åpne repoet. Tall om bruk og kostnad venter på godkjenning, se{" "}
               <Link href={`${REPO}/issues/1511`}>#1511</Link>.
             </BodyShort>
             <dl className="grid gap-4 sm:grid-cols-2">
@@ -143,9 +143,8 @@ export default function ReisenPage() {
               Teamet
             </Heading>
             <BodyLong spacing>
-              Arbeidet er drevet av Hans Kristian Flaatten, sammen med teamet bak navikt/copilot. Teamet måler før det
-              bestemmer, skriver ned det som ikke virket, og gjør arbeidet i et åpent repo. Derfor kan alle sjekke
-              tallene over.
+              Hans Kristian Flaatten driver arbeidet sammen med teamet bak navikt/copilot. Teamet måler før det
+              bestemmer, skriver ned det som ikke virket og jobber i et åpent repo.
             </BodyLong>
             <BodyLong>
               Produktteamene i Nav fantes lenge før Copilot. De er en av de viktigste grunnene til at så mye av dette
