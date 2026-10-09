@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BodyShort, Box, Button, Heading, Link, Search, UNSAFE_Combobox, VStack } from "@navikt/ds-react";
 import { termId } from "./term-graph";
 import type { Term } from "./terms";
@@ -64,9 +64,20 @@ function getCategory(term: Term): CategoryId {
   return "grunnbegreper";
 }
 
+/** Clears search and category filters, so a term can be scrolled to. */
+export const GLOSSARY_RESET_EVENT = "ordbok:nullstill-filter";
+
 export function Glossary({ terms }: { terms: Term[] }) {
   const [query, setQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<CategoryId[]>([]);
+  useEffect(() => {
+    const reset = () => {
+      setQuery("");
+      setSelectedCategories([]);
+    };
+    window.addEventListener(GLOSSARY_RESET_EVENT, reset);
+    return () => window.removeEventListener(GLOSSARY_RESET_EVENT, reset);
+  }, []);
 
   const termsWithCategory = terms.map((term) => ({ ...term, category: getCategory(term) }));
   const categoryCounts = termsWithCategory.reduce<Record<CategoryId, number>>(

@@ -11,6 +11,8 @@ interface Props {
   edges: TermEdge[];
   selected: number | null;
   onSelect: (i: number | null) => void;
+  /** Set by the canvas: zooms by a factor (below 1 zooms in). */
+  zoomRef: { current: ((factor: number) => void) | null };
 }
 
 function color(name: string, fallback: string): THREE.Color {
@@ -77,7 +79,7 @@ function labelSprite(text: string, fill: string): THREE.Sprite {
   return s;
 }
 
-export function TermNetworkCanvas({ terms, edges, selected, onSelect }: Props) {
+export function TermNetworkCanvas({ terms, edges, selected, onSelect, zoomRef }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const highlight = useRef<(i: number | null) => void>(() => {});
   const onSelectRef = useRef(onSelect);
@@ -133,8 +135,24 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect }: Props) {
     const lineMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7 });
     group.add(new THREE.LineSegments(lineGeo, lineMat));
 
-    let labels: THREE.Sprite[] = [];
+    // Labels: always for the 8 best-connected terms, plus the selected or hovered term and its neighbours.
+    const top = new Set(
+      terms
+        .map((_, i) => i)
+        .sort((a, b) => neighbours[b].size - neighbours[a].size)
+        .slice(0, 8)
+    );
+    let labels: (THREE.Sprite | undefined)[] = [];
+    const clearLabels = () => {
+      labels.forEach((l) => {
+        l?.material.map?.dispose();
+        l?.material.dispose();
+        l?.removeFromParent();
+      });
+      labels = [];
+    };
     let current: number | null = null;
+    let hovered: number | null = null;
     let dirty = true;
     const paint = () => {
       const accent = color("--ax-bg-accent-strong", "#2a6ebb");
@@ -154,20 +172,18 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect }: Props) {
       });
       lineColors.needsUpdate = true;
 
-      labels.forEach((l) => {
-        l.material.map?.dispose();
-        l.material.dispose();
-        l.removeFromParent();
-      });
-      labels = [];
-      if (current !== null) {
-        for (const i of [current, ...near!]) {
-          const l = labelSprite(terms[i].term, text);
-          l.position.copy(pos[i]).add(new THREE.Vector3(nodes[i].scale.x * 0.4, 0, 0));
+      const show = new Set(top);
+      for (const f of [current, hovered]) if (f !== null) [f, ...neighbours[f]].forEach((i) => show.add(i));
+      terms.forEach((t, i) => {
+        if (show.has(i) && !labels[i]) {
+          const l = labelSprite(t.term, text);
+          // Start the label just outside the visible edge of the soft point.
+          l.position.copy(pos[i]).add(new THREE.Vector3(nodes[i].scale.x * 0.45 + 0.05, 0, 0));
           group.add(l);
-          labels.push(l);
+          labels[i] = l;
         }
-      }
+        if (labels[i]) labels[i]!.visible = show.has(i);
+      });
       dirty = true;
     };
     highlight.current = (i) => {
@@ -196,7 +212,26 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect }: Props) {
     let pinch = 0;
     const zoom = (factor: number) => {
       camera.position.z = THREE.MathUtils.clamp(camera.position.z * factor, 4, 18);
+      interacted = true;
       dirty = true;
+    };
+    zoomRef.current = zoom;
+    const tmp = new THREE.Vector3();
+    const pick = (cx: number, cy: number, radius: number): number | null => {
+      const rect = canvas.getBoundingClientRect();
+      let best: number | null = null;
+      let bestDist = radius;
+      nodes.forEach((s, i) => {
+        tmp.copy(s.position).applyMatrix4(group.matrixWorld).project(camera);
+        const x = ((tmp.x + 1) / 2) * rect.width + rect.left;
+        const y = ((1 - tmp.y) / 2) * rect.height + rect.top;
+        const dist = Math.hypot(x - cx, y - cy);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = i;
+        }
+      });
+      return best;
     };
     const onDown = (e: PointerEvent) => {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -212,7 +247,16 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect }: Props) {
     };
     const onMove = (e: PointerEvent) => {
       const prev = pointers.get(e.pointerId);
-      if (!prev) return;
+      if (!prev) {
+        if (e.pointerType === "mouse") {
+          const h = pick(e.clientX, e.clientY, 20);
+          if (h !== hovered) {
+            hovered = h;
+            paint();
+          }
+        }
+        return;
+      }
       const dx = e.clientX - prev.x;
       const dy = e.clientY - prev.y;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -230,31 +274,18 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect }: Props) {
       if (e.pointerType === "mouse") group.rotation.x += dy * 0.008;
       dirty = true;
     };
-    const tmp = new THREE.Vector3();
     const onUp = (e: PointerEvent) => {
       const wasTap = pointers.size === 1 && moved < 8 && e.type === "pointerup";
       pointers.delete(e.pointerId);
       if (pointers.size < 2) pinch = 0;
       if (!wasTap) return;
       interacted = true;
-      const rect = canvas.getBoundingClientRect();
-      let best: number | null = null;
-      let bestDist = e.pointerType === "mouse" ? 20 : 32;
-      nodes.forEach((s, i) => {
-        tmp.copy(s.position).applyMatrix4(group.matrixWorld).project(camera);
-        const x = ((tmp.x + 1) / 2) * rect.width + rect.left;
-        const y = ((1 - tmp.y) / 2) * rect.height + rect.top;
-        const dist = Math.hypot(x - e.clientX, y - e.clientY);
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = i;
-        }
-      });
-      onSelectRef.current(best);
+      onSelectRef.current(pick(e.clientX, e.clientY, e.pointerType === "mouse" ? 20 : 32));
     };
+    // A plain wheel scrolls the page. Ctrl/cmd + wheel zooms; trackpad pinch arrives as ctrl + wheel.
     const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      interacted = true;
       zoom(1 + Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 100) * 0.002);
     };
     canvas.addEventListener("pointerdown", onDown);
@@ -298,8 +329,12 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect }: Props) {
     document.addEventListener("visibilitychange", sync);
 
     const themeMq = window.matchMedia("(prefers-color-scheme: dark)");
-    themeMq.addEventListener("change", paint);
-    const mo = new MutationObserver(paint);
+    const onTheme = () => {
+      clearLabels();
+      paint();
+    };
+    themeMq.addEventListener("change", onTheme);
+    const mo = new MutationObserver(onTheme);
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
     const onMotion = () => {
       reduced = motionMq.matches;
@@ -312,20 +347,18 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect }: Props) {
       io.disconnect();
       mo.disconnect();
       ro.disconnect();
-      themeMq.removeEventListener("change", paint);
+      themeMq.removeEventListener("change", onTheme);
       motionMq.removeEventListener("change", onMotion);
       document.removeEventListener("visibilitychange", sync);
       highlight.current = () => {};
-      labels.forEach((l) => {
-        l.material.map?.dispose();
-        l.material.dispose();
-      });
+      zoomRef.current = null;
+      clearLabels();
       nodes.forEach((s) => s.material.dispose());
       [sprite, lineGeo, lineMat].forEach((d) => d.dispose());
       renderer.dispose();
       canvas.remove();
     };
-  }, [terms, edges]);
+  }, [terms, edges, zoomRef]);
 
   useEffect(() => highlight.current(selected), [selected]);
 

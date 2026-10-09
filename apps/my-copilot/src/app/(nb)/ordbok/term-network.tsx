@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BodyShort, Box, Button, HStack, Heading, Search, VStack } from "@navikt/ds-react";
 import { hasWebGL2 } from "@/lib/webgl";
+import { GLOSSARY_RESET_EVENT } from "../ordliste/glossary";
 import { deriveEdges, termId } from "../ordliste/term-graph";
 import type { Term } from "../ordliste/terms";
 import type { TermNetworkCanvas } from "./term-network-canvas";
@@ -13,6 +14,7 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
   const [Canvas, setCanvas] = useState<typeof TermNetworkCanvas | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [query, setQuery] = useState("");
+  const zoomRef = useRef<((factor: number) => void) | null>(null);
   const edges = useMemo(() => deriveEdges(terms), [terms]);
   const neighbours = useMemo(() => {
     const n = terms.map(() => new Set<number>());
@@ -43,6 +45,11 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
     query.trim().length > 0 && !terms.some((t) => t.term.toLowerCase().includes(query.trim().toLowerCase()));
 
   const goTo = (i: number) => {
+    // The glossary filter may hide the term: clear it, then scroll once the list has re-rendered.
+    window.dispatchEvent(new Event(GLOSSARY_RESET_EVENT));
+    requestAnimationFrame(() => requestAnimationFrame(() => scrollTo(i)));
+  };
+  const scrollTo = (i: number) => {
     const el = document.getElementById(termId(terms[i].term));
     if (!el) return;
     const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -62,7 +69,7 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
           </Heading>
           <BodyShort className="opacity-80">
             Hvert punkt er et begrep. Store punkter nevnes i mange andre definisjoner. Dra sidelengs for å rotere, og
-            trykk på et punkt for å lese om det.
+            trykk på et punkt for å lese om det. Zoom med knappene, med to fingre eller med Ctrl og musehjulet.
           </BodyShort>
         </VStack>
         <div className="md:w-1/2">
@@ -84,8 +91,16 @@ export function TermNetwork({ terms }: { terms: Term[] }) {
           )}
         </div>
         <Box borderRadius="12" borderWidth="1" borderColor="neutral-subtle" className="overflow-hidden">
-          <Canvas terms={terms} edges={edges} selected={selected} onSelect={setSelected} />
+          <Canvas terms={terms} edges={edges} selected={selected} onSelect={setSelected} zoomRef={zoomRef} />
         </Box>
+        <HStack gap="space-8">
+          <Button size="small" variant="secondary-neutral" onClick={() => zoomRef.current?.(0.8)}>
+            Zoom inn
+          </Button>
+          <Button size="small" variant="secondary-neutral" onClick={() => zoomRef.current?.(1.25)}>
+            Zoom ut
+          </Button>
+        </HStack>
         <Box padding="space-16" borderRadius="12" background="neutral-soft" aria-live="polite">
           {term === null || selected === null ? (
             <BodyShort className="opacity-80">Trykk på et punkt, eller søk etter et begrep.</BodyShort>
