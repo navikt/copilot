@@ -63,12 +63,11 @@ export const MILESTONES: Milestone[] = [
     date: "2025-09-24",
     major: false,
     title: "SINTEF studerer Copilot i Nav",
-    text: "SINTEF sammenlignet utviklere i Nav som brukte Copilot, med dem som ikke gjorde det. Et funn: «We did not find any statistically significant changes in commit-based activity for Copilot users after they adopted the tool.»",
+    text: "SINTEF sammenlignet utviklere i Nav som brukte Copilot, med dem som ikke gjorde det. Et funn: «We did not find any statistically significant changes in commit-based activity for Copilot users after they adopted the tool, although minor increases were observed.» Studien er publisert på HICSS 2026.",
     sources: [
-      {
-        label: "Developer Productivity With and Without GitHub Copilot (arXiv)",
-        url: "https://arxiv.org/abs/2509.20353",
-      },
+      TEAM,
+      { label: "studien på arXiv", url: "https://arxiv.org/abs/2509.20353" },
+      { label: "HICSS 2026", url: "https://doi.org/10.24251/HICSS.2026.880" },
     ],
   },
   {
@@ -120,7 +119,7 @@ export const MILESTONES: Milestone[] = [
     end: "2026-10-08",
     major: true,
     title: "Modellvalg på målinger",
-    text: "Vi dokumenterte modellvalgene og bygde faste testoppgaver for agentene. Så kom en benchmark som kan kjøres på nytt, siden /modeller, en realistisk kodeoppgave og en språkmodell som dommer. Målingene flyttet @rust til Claude Haiku 5.5.",
+    text: "Vi tok inn nye modeller, begynte å dokumentere valgene og bygde faste testoppgaver for agentene. Så kom en benchmark som kan kjøres på nytt, siden /modeller, en realistisk kodeoppgave og en språkmodell som dommer. Målingene flyttet @rust til Claude Haiku 5.5.",
     sources: [pr(379), pr(442), pr(1373), pr(1376), pr(1415), pr(1470), pr(1471)],
   },
   {
@@ -134,9 +133,9 @@ export const MILESTONES: Milestone[] = [
   {
     date: "2026-10-07",
     major: false,
-    title: "Støtte for OpenCode 2",
-    text: "nav-pilot virker også med OpenCode 2, ikke bare med Copilot.",
-    sources: [pr(1446)],
+    title: "OpenCode 2 klar, men slått av",
+    text: "Støtten for OpenCode 2 er bygget, men slått av til en feil i OpenCode er rettet.",
+    sources: [pr(1446), pr(1444)],
   },
   {
     date: "2026-10-08",
