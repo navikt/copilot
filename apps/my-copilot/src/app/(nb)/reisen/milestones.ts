@@ -13,6 +13,8 @@ export interface Phase {
   status: string;
   /** One to three dated key milestones, in date order. */
   milestones: { date: string; text: string; url?: string }[];
+  /** At most two small figures, each with Norwegian alt text and a caption naming its source. */
+  figures?: { src: string; alt: string; caption: string; href?: string; narrow?: boolean }[];
   /** Where the claims can be checked. */
   sources: Source[];
 }
@@ -74,6 +76,18 @@ export const PHASES: Phase[] = [
     date: "2025-01",
     end: "2025-11",
     title: "Agentene kommer",
+    figures: [
+      {
+        src: "/images/reisen/min-copilot-2025.webp",
+        alt: "Skjermbilde av Min Copilot i januar 2025: abonnementet med plan, status, siste aktivitet og en knapp for å deaktivere Copilot.",
+        caption: "Min Copilot i januar 2025",
+      },
+      {
+        src: "/images/reisen/statistikk-2025.webp",
+        alt: "Skjermbilde av statistikken i Min Copilot i januar 2025: 111 aktive brukere, 54 aktive chatbrukere, Kotlin som mest brukte språk og JetBrains som mest brukte editor.",
+        caption: "Statistikken i Min Copilot, januar 2025: 111 aktive brukere",
+      },
+    ],
     status:
       "Over 300 aktive brukere, de fleste daglig. På 100 dager ga Copilot om lag 709 000 kodeforslag og 1,22 millioner genererte linjer, og rundt 190 000 linjer ble tatt i bruk.",
     milestones: [
@@ -132,6 +146,19 @@ export const PHASES: Phase[] = [
     date: "2025-12",
     end: "2026-10",
     title: "Fra verktøy til plattform",
+    figures: [
+      {
+        src: "/images/reisen/nav-pilot-plakat.webp",
+        alt: "Plakat med teksten «Introduserer Nav-Pilot»: ekte Nav-kontekst, modernisering og ferdige samlinger for Kotlin, Next.js og fullstack.",
+        caption: "Plakaten da nav-pilot ble lansert, april 2026",
+        narrow: true,
+      },
+      {
+        src: "/images/github-copilot-vs-code-mcp.jpeg",
+        alt: "Illustrasjon av MCP-servere i GitHub Copilot i VS Code",
+        caption: "Illustrasjon: GitHub",
+      },
+    ],
     status:
       "En felles katalog med agenter, skills og instruksjoner, installert med nav-pilot og kjørt i sandkasse med cplt.",
     milestones: [
@@ -187,6 +214,14 @@ export const PHASES: Phase[] = [
     date: "2026-05",
     end: "2026-10",
     title: "Målinger og kostnad",
+    figures: [
+      {
+        src: "/images/nav-pilot-step-count.svg",
+        alt: "Diagram: jo flere steg skymodellen trenger alene, jo mer sparer nav-pilot på å sende arbeid til en lokal modell.",
+        caption: "Vår måling av lokale modeller i nav-pilot",
+        href: "/nyheter/lokale-modeller-i-nav-pilot",
+      },
+    ],
     status: "Modellvalg for hver agent bygget på målinger, og kostnaden per modell er kjent.",
     milestones: [
       {

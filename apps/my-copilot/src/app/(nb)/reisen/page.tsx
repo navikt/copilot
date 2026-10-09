@@ -106,6 +106,26 @@ export default function ReisenPage() {
                       </li>
                     ))}
                   </ul>
+                  {m.figures && (
+                    <div className="grid gap-4 sm:grid-cols-2 mb-3">
+                      {m.figures.map((f) => (
+                        <figure key={f.src} className={f.narrow ? "m-0 max-w-[320px]" : "m-0"}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={f.src}
+                            alt={f.alt}
+                            loading="lazy"
+                            className="w-full h-auto rounded border border-[var(--ax-border-neutral-subtle)]"
+                          />
+                          <figcaption>
+                            <BodyShort size="small" textColor="subtle">
+                              {f.href ? <Link href={f.href}>{f.caption}</Link> : f.caption}
+                            </BodyShort>
+                          </figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                  )}
                   <BodyShort size="small">
                     {m.sources.length > 1 ? "Kilder:" : "Kilde:"}{" "}
                     {m.sources.map((s, i) => (

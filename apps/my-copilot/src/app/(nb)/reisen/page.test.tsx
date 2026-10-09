@@ -32,6 +32,17 @@ describe("reisesiden", () => {
     }
   });
 
+  it("gir hvert bilde alternativ tekst og bildetekst", () => {
+    render(<ReisenPage />);
+    const figures = PHASES.flatMap((m) => m.figures ?? []);
+    expect(figures.length).toBeGreaterThan(0);
+    for (const f of figures) {
+      expect(f.alt.trim()).not.toBe("");
+      expect(f.caption.trim()).not.toBe("");
+      expect(screen.getByRole("img", { name: f.alt })).toHaveAttribute("src", f.src);
+    }
+  });
+
   it("viser perioden for hver fase", () => {
     render(<ReisenPage />);
     expect(screen.getByText("mai–oktober 2026")).toBeInTheDocument();
