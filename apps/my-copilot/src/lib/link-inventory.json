@@ -149,6 +149,7 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/sitemap.ts"
     ],
     "anchors": {
@@ -253,6 +254,7 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/kom-i-gang/page.tsx",
       "apps/my-copilot/src/app/(nb)/kom-i-gang/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/navigation/site-nav.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
@@ -273,6 +275,7 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/arkitektur/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/lib/nav-items.ts",
       "docs/README.agentpakke.md",
@@ -1356,7 +1359,8 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
+        "apps/my-copilot/src/app/(nb)/ordliste/terms.ts"
       ],
       "opencode": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
@@ -2454,6 +2458,7 @@
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx",
       "apps/my-copilot/src/app/(nb)/modeller/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
       "apps/my-copilot/src/app/(nb)/priser/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
@@ -2474,6 +2479,7 @@
   },
   "/retningslinjer": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/page-hero.tsx",
