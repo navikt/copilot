@@ -23,6 +23,7 @@ const monthFormat = new Intl.DateTimeFormat("nb-NO", { month: "long", year: "num
 /** «8. oktober 2026», or «juli–oktober 2026» for an item that spans several months. */
 function formatWhen(date: string, end?: string): string {
   if (date.length === 4) return date;
+  if (date.length === 7) return monthFormat.format(new Date(date));
   if (!end) return dateFormat.format(new Date(date));
   const [from, to] = [monthFormat.format(new Date(date)), monthFormat.format(new Date(end))];
   if (from === to) return from;
@@ -71,7 +72,7 @@ export default function ReisenPage() {
           <BodyLong>
             Nav har bygget agenter, regler og verktøy som utviklere bruker hver dag. Alt ligger i{" "}
             <Link href={REPO}>navikt/copilot</Link>. Hvert steg under lenker til koden, pull requesten eller
-            kunngjøringen bak det. Forhistorien fra før repoet bygger på teamets egen beskrivelse.
+            kunngjøringen bak det. Det som ikke har lenke, bygger på teamets egen beskrivelse.
           </BodyLong>
 
           {/* TODO(#1512): bransjens tidslinje kommer når hver linje har en kilde. */}
@@ -136,8 +137,13 @@ export default function ReisenPage() {
               Teamet
             </Heading>
             <BodyLong>
-              Alt dette er bygget av teamet bak navikt/copilot. Teamet måler før det bestemmer, skriver ned det som ikke
-              virket, og gjør arbeidet i et åpent repo. Derfor kan alle sjekke tallene over.
+              Arbeidet er drevet av Hans Kristian Flaatten, sammen med teamet bak navikt/copilot. Teamet måler før det
+              bestemmer, skriver ned det som ikke virket, og gjør arbeidet i et åpent repo. Derfor kan alle sjekke
+              tallene over.
+            </BodyLong>
+            <BodyLong>
+              Produktteamene i Nav fantes lenge før Copilot. De er en av de viktigste grunnene til at så mye av dette
+              har lyktes.
             </BodyLong>
           </section>
         </VStack>

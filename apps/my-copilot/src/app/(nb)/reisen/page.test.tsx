@@ -10,13 +10,11 @@ describe("reisesiden", () => {
     const steps = within(screen.getByRole("list", { name: "Tidslinje" })).getAllByRole("listitem");
     expect(steps).toHaveLength(MILESTONES.length);
     for (const m of MILESTONES) {
+      // Only the time before the repo, and today's status, may rest on the team's own account alone.
+      if (m.sources.every((s) => !("url" in s))) expect(m.date < "2025" || m.title === "I dag").toBe(true);
       expect(m.sources.length).toBeGreaterThan(0);
       for (const s of m.sources) {
-        // Only the early history, before the repo existed, may rest on the team's own account.
-        if (!("url" in s)) {
-          expect(m.date < "2025-12").toBe(true);
-          continue;
-        }
+        if (!("url" in s)) continue;
         expect(s.url).toMatch(/^https:\/\//);
         expect(screen.getByRole("link", { name: s.label })).toHaveAttribute("href", s.url);
       }
@@ -24,7 +22,8 @@ describe("reisesiden", () => {
   });
 
   it("holder tidslinjen i kronologisk rekkefølge", () => {
-    const dates = MILESTONES.map((m) => m.date);
+    // A date without a day («2026-10») sorts after every day in that month.
+    const dates = MILESTONES.map((m) => m.date.padEnd(10, "-99"));
     expect(dates).toEqual([...dates].sort());
     for (const m of MILESTONES) if (m.end) expect(m.end >= m.date).toBe(true);
     expect(MILESTONES.some((m) => m.major)).toBe(true);
@@ -33,7 +32,7 @@ describe("reisesiden", () => {
   it("viser perioden for steg som spenner over flere måneder", () => {
     render(<ReisenPage />);
     expect(screen.getByText("juli–oktober 2026")).toBeInTheDocument();
-    expect(screen.getByText("desember 2025")).toBeInTheDocument();
+    expect(screen.getByText("desember 2025–januar 2026")).toBeInTheDocument();
     expect(screen.getByText("10. januar 2025")).toBeInTheDocument();
   });
 

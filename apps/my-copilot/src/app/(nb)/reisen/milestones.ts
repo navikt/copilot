@@ -18,6 +18,8 @@ type Source = { label: string; url: string } | { team: true };
 
 const TEAM: Source = { team: true };
 
+const DOCS = "https://github.com/navikt/copilot/blob/main/docs/";
+
 const pr = (n: number) => ({ label: `#${n}`, url: `${PR}${n}` });
 
 // Dates come from `gh pr list --json mergedAt` and `git log` on main. Keep the list chronological by `date`.
@@ -71,11 +73,18 @@ export const MILESTONES: Milestone[] = [
   },
   {
     date: "2025-12-27",
-    end: "2025-12-28",
+    end: "2026-01-05",
     major: true,
-    title: "MCP: register og onboarding",
-    text: "Et register over godkjente MCP-servere, og en tjeneste som gjør agenter, skills og instruksjoner lette å finne.",
-    sources: [pr(61), pr(64)],
+    title: "Et felles knutepunkt og et fellesskap",
+    text: "Vi samler agenter, skills og instruksjoner på ett sted, med et register over godkjente MCP-servere og en side der alle kan installere dem. Rundt dette vokste et fellesskap som deler det som virker.",
+    sources: [
+      pr(60),
+      pr(61),
+      pr(64),
+      pr(70),
+      { label: "#github-copilot på Slack", url: "https://nav-it.slack.com/archives/C055TNXBM17" },
+      TEAM,
+    ],
   },
   {
     date: "2026-03-10",
@@ -97,8 +106,14 @@ export const MILESTONES: Milestone[] = [
     end: "2026-06-15",
     major: true,
     title: "nav-pilot",
-    text: "Et kommandolinjeverktøy som installerer Navs agenter og regler og holder dem oppdatert. Fra juni sender det telemetri, så vi ser hva det faktisk gjør.",
-    sources: [pr(149), pr(297)],
+    text: "Et kommandolinjeverktøy som installerer Navs agenter og regler og holder dem oppdatert. Fra juni sender det telemetri, så vi ser hva det faktisk gjør. Underveis spurte vi teknologene i Nav om hvordan de bruker KI-verktøy, og skrev ned designvalgene og analysen bak dem.",
+    sources: [
+      pr(149),
+      pr(297),
+      { label: "utviklerundersøkelsen 2026", url: `${DOCS}utviklerundersokelsen-2026-oppsummering.md` },
+      { label: "designnotatet", url: `${DOCS}nav-pilot-design.md` },
+      { label: "analysen av bevisst KI-bruk", url: `${DOCS}bevisst-ai-bruk-analyse.md` },
+    ],
   },
   {
     date: "2026-07-23",
@@ -129,5 +144,12 @@ export const MILESTONES: Milestone[] = [
     title: "Koordinator og arbeider",
     text: "@worker tar avgrensede oppgaver på GPT-6 Luna, som koster mindre. @nav-pilot fordeler arbeidet.",
     sources: [pr(1488), pr(1496)],
+  },
+  {
+    date: "2026-10",
+    major: true,
+    title: "I dag",
+    text: "Alle teknologer i Nav har nå tilgang til Copilot. Neste steg er de andre rollene i produktteamene, så hele teamet får en komplett KI-opplevelse.",
+    sources: [TEAM],
   },
 ];
