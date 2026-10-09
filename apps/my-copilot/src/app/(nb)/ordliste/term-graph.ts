@@ -38,7 +38,11 @@ export function deriveEdges(terms: Term[]): TermEdge[] {
     .sort((a, b) => b.name.length - a.name.length)
     .map(({ i, name }) => ({
       i,
-      re: new RegExp(`(?<![\\p{L}\\d])${escape(name)}(?:en|et|er|ene|ens|s)?(?![\\p{L}\\d])`, "giu"),
+      // Bokmål endings; a term ending in -e takes -r, -n, -ne ("agentpakke" → "agentpakker", "agentpakkene").
+      re: new RegExp(
+        `(?<![\\p{L}\\d])${escape(name)}(?:${/e$/i.test(name) ? "r|n|ne|ns|" : ""}en|et|er|ene|ens|s)?(?![\\p{L}\\d])`,
+        "giu"
+      ),
     }));
   const index = new Map(terms.map((t, i) => [t.term, i]));
   const seen = new Set<string>();

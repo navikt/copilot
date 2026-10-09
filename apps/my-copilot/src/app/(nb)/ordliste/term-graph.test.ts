@@ -25,6 +25,7 @@ describe("term graph", () => {
     expect(pairs).toContain("Tool calling → MCP (Model Context Protocol)"); // «MCP»
     expect(pairs).toContain("Next Edit Suggestions (NES) → Inline suggestion");
     expect(pairs).toContain("Copilot Edits → Agent mode");
+    expect(pairs).toContain("nav-pilot → Agentpakke"); // «agentpakker»
   });
 
   it("lets the longer term win", () => {

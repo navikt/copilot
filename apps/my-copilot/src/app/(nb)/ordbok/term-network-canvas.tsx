@@ -223,8 +223,14 @@ export function TermNetworkCanvas({ terms, edges, selected, onSelect, hidden, zo
       const order: number[] = [];
       const push = (i: number) => !order.includes(i) && visible(i) && order.push(i);
       const must = new Set<number>();
-      if (current !== null) [current, ...neighbours[current]].forEach((i) => (push(i), must.add(i)));
-      if (hovered !== null) [hovered, ...neighbours[hovered]].forEach(push);
+      if (current !== null) {
+        // A hub can have 20+ neighbours: label the 8 best connected, plus the one under the pointer.
+        const near = [...neighbours[current]].sort((a, b) => neighbours[b].size - neighbours[a].size);
+        const labelled = near.slice(0, 8);
+        if (hovered !== null && neighbours[current].has(hovered)) labelled.push(hovered);
+        [current, ...labelled].forEach((i) => (push(i), must.add(i)));
+      }
+      if (hovered !== null && current === null) [hovered, ...neighbours[hovered]].forEach(push);
       byDegree.slice(0, 14).forEach(push);
       const { clientWidth: w, clientHeight: h } = host;
       const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
