@@ -199,7 +199,7 @@ export const PHASES: Phase[] = [
     title: "I dag",
     status: "Alle teknologer i Nav har tilgang til Copilot.",
     milestones: [{ date: "2026-10", text: "Tilgang for alle teknologer i Nav" }],
-    text: "Alle teknologer i Nav har tilgang til Copilot. Neste steg er resten av produktteamet, så alle rollene får de samme KI-verktøyene.",
+    text: "Alle teknologer i Nav har tilgang til Copilot. Neste steg er resten av produktteamet, så alle rollene får de samme mulighetene.",
     sources: [TEAM],
   },
 ];
