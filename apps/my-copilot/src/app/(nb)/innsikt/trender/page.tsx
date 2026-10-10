@@ -24,6 +24,7 @@ import {
   visibleMonths,
 } from "@/lib/trends";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
+import { Intensity, Movement, SegmentChanges, TeamAdoption, WayOfWorking } from "./segments";
 
 export const metadata: Metadata = {
   title: "Trender",
@@ -192,7 +193,7 @@ export default async function TrenderPage({ searchParams }: { searchParams: Prom
     <InsightPage
       title="Trender"
       description="Copilot i Nav måned for måned."
-      intro="Her ser du hvordan kostnaden fordeler seg på modellfamilier, hvor mange AI Credits en typisk bruker bruker, hvor mye Copilot er med i pull requests, og hvor mange nye brukere som fortsetter, måned for måned. Hver graf starter der dataene starter."
+      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, hvor utbredt den er i teamene, og hvor mange nye brukere som fortsetter. Nederst ser du kostnad per modellfamilie, AI Credits per bruker og Copilot i pull requests. Ingen personer eller team navngis, og grupper under fem vises ikke. Hver graf starter der dataene starter."
       updated="tallene hentes på nytt hver time."
       source={
         <>
@@ -210,11 +211,30 @@ export default async function TrenderPage({ searchParams }: { searchParams: Prom
           og seks måneder senere, avrundet til hele prosent. Oktober 2025 er ikke en ekte kohort: dataene starter 10.
           oktober, så vi kan ikke skille dem som brukte Copilot fra før, fra dem som var nye. Tallene regnes ut per
           person, men bare summene vises, og kohorter med færre enn fem personer er utelatt. Perioden du velger, styrer
-          hvilke kohorter som vises.
+          hvilke kohorter som vises. Segmentene (<code>/usage/segments</code>) har hver sin «Kilde og metode» under
+          grafen. «Hva har endret seg» regnes ut fra de samme tallene som grafene.
         </>
       }
     >
       <PeriodSelect value={period.value} />
+      <Section id="hva-har-endret-seg" title="Hva har endret seg">
+        <SegmentChanges token={token} start={start} />
+      </Section>
+      <Section id="bevegelse" title="Bevegelse mellom intensitetsgrupper">
+        <Movement token={token} start={start} />
+      </Section>
+      <Section id="intensitet" title="Brukere etter intensitet">
+        <Intensity token={token} start={start} />
+      </Section>
+      <Section id="arbeidsmate" title="Brukere etter arbeidsmåte">
+        <WayOfWorking token={token} start={start} />
+      </Section>
+      <Section id="team-adopsjon" title="Team etter andel aktive medlemmer">
+        <TeamAdoption token={token} start={start} />
+      </Section>
+      <Section id="kohorter" title="Blir brukerne værende?">
+        <Cohorts token={token} start={start} />
+      </Section>
       <Section id="modellfamilier" title="Kostnad per modellfamilie">
         <ModelFamilies token={token} start={start} />
       </Section>
@@ -223,9 +243,6 @@ export default async function TrenderPage({ searchParams }: { searchParams: Prom
       </Section>
       <Section id="copilot-i-pull-requests" title="Copilot i pull requests">
         <CopilotPRs token={token} start={start} />
-      </Section>
-      <Section id="kohorter" title="Blir brukerne værende?">
-        <Cohorts token={token} start={start} />
       </Section>
     </InsightPage>
   );

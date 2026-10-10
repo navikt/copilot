@@ -5,8 +5,53 @@ import type { Plugin } from "chart.js";
 import { BodyShort, List } from "@navikt/ds-react";
 import { chartColors, commonLineOptions } from "@/lib/chart-utils";
 import { daysInCalendarMonth } from "@/lib/month-utils";
-import { monthLabel, type FamilyShares, type MonthAnnotation } from "@/lib/trends";
+import { monthLabel, type FamilyShares, type MonthAnnotation, type ShareSeries } from "@/lib/trends";
 import type { CopilotPRMonth, CreditsPerUserMonth } from "@/lib/types";
+
+/**
+ * Shares over time. `stacked` draws a 100 % stacked area (groups that add up to the whole);
+ * otherwise plain lines. A null value is a gap: the group was hidden (under five) that month.
+ */
+export function ShareChart({
+  months,
+  series,
+  label,
+  stacked,
+  annotations,
+}: {
+  months: string[];
+  series: ShareSeries[];
+  label: string;
+  stacked: boolean;
+  annotations: MonthAnnotation[];
+}) {
+  const options = baseOptions(stacked, "Andel (%)");
+  return (
+    <>
+      <div className="h-72">
+        <Line
+          role="img"
+          aria-label={label}
+          data={{
+            labels: months.map(monthLabel),
+            datasets: series.map((s, i) => ({
+              label: s.label,
+              data: s.shares,
+              borderColor: chartColors[i % chartColors.length],
+              backgroundColor: chartColors[i % chartColors.length],
+              fill: stacked ? (i === 0 ? "origin" : "-1") : false,
+            })),
+          }}
+          options={
+            stacked ? { ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } } : options
+          }
+          plugins={[annotationPlugin(months, annotations)]}
+        />
+      </div>
+      <AnnotationList annotations={annotations} />
+    </>
+  );
+}
 
 // Vertical rules for dated events. A data break is drawn solid and darker; other events dashed.
 function annotationPlugin(months: string[], annotations: MonthAnnotation[]): Plugin {

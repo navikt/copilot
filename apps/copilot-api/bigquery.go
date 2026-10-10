@@ -393,6 +393,7 @@ type BigQueryQuerier interface {
 	GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error)
 	GetCopilotPRsMonthly(ctx context.Context) ([]CopilotPRMonth, error)
 	GetCohortRetention(ctx context.Context) ([]CohortRetention, error)
+	GetUserSegments(ctx context.Context) (*UserSegments, error)
 }
 
 // Cache wrapper for BigQuery operations

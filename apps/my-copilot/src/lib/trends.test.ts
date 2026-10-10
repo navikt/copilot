@@ -1,5 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { annotationsFor, familyShares, parsePeriod, periodStart, visibleMonths } from "./trends";
+import {
+  annotationsFor,
+  familyShares,
+  formatPp,
+  parsePeriod,
+  periodStart,
+  segmentShares,
+  shareChange,
+  visibleMonths,
+} from "./trends";
+
+describe("segmentShares", () => {
+  const keys = [
+    { key: "a", label: "A" },
+    { key: "b", label: "B" },
+  ];
+  it("divides by the total and keeps hidden groups null", () => {
+    const rows = [
+      { month: "2026-07", total: 100, a: 60, b: 40 },
+      { month: "2026-08", total: 100, a: 52, b: null },
+    ];
+    const [a, b] = segmentShares(rows, ["2026-07", "2026-08", "2026-09"], keys, "total");
+    expect(a.shares).toEqual([60, 52, null]);
+    expect(b.shares).toEqual([40, null, null]);
+  });
+  it("sums visible keys when there is no total", () => {
+    expect(segmentShares([{ month: "2026-07", a: 1, b: 3 }], ["2026-07"], keys)[0].shares).toEqual([25]);
+  });
+  it("reports change in percentage points across the period", () => {
+    expect(shareChange({ label: "A", shares: [null, 60, 52.4, null] })).toBe(-8);
+    expect(shareChange({ label: "A", shares: [null, 60] })).toBeNull();
+    expect(formatPp(8)).toBe("+8 pp");
+    expect(formatPp(-3)).toBe("−3 pp");
+  });
+});
 
 describe("period", () => {
   it("defaults to 12 months and rejects unknown values", () => {

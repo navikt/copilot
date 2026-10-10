@@ -10,6 +10,7 @@ import { backendRequest } from "./backend-api";
 import type {
   AdoptionData,
   CohortRetention,
+  UserSegments,
   CopilotPRMonth,
   CreditsPerUserMonth,
   AdoptionSummary,
@@ -264,6 +265,16 @@ export async function getCohortRetention(token: string): Promise<{
     backendRequest<CohortRetention[]>("/api/v1/copilot/usage/cohort-retention", token)
   );
   return { cohorts: result.data, error: result.error };
+}
+
+export async function getUserSegments(token: string): Promise<{
+  segments: UserSegments | null;
+  error: string | null;
+}> {
+  const result = await fetchNullable("getUserSegments", () =>
+    backendRequest<UserSegments>("/api/v1/copilot/usage/segments", token)
+  );
+  return { segments: result.data, error: result.error };
 }
 
 export async function getDailySummary(token: string): Promise<{
