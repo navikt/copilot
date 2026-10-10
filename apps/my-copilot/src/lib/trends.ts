@@ -93,14 +93,16 @@ export interface MonthAnnotation {
  * (the page's «Hendelser»). Without `all`, only data breaks become markers.
  */
 export function annotationsFor(
-  annotations: { date: string; label: string; dataBreak?: boolean }[],
+  annotations: { date: string; label: string; dataBreak?: boolean; model?: boolean }[],
   months: string[],
-  all = true
+  all = true,
+  /** Also mark model events when `all` is off; set on the model chart. */
+  models = false
 ): MonthAnnotation[] {
   const out = new Map<string, MonthAnnotation>();
   annotations.forEach((a, i) => {
     const month = a.date.slice(0, 7);
-    if (!months.includes(month) || (!all && !a.dataBreak)) return;
+    if (!months.includes(month) || (!all && !a.dataBreak && !(models && a.model))) return;
     const entry = out.get(month) ?? { month, labels: [], numbers: [], dataBreak: false };
     entry.labels.push(a.label);
     entry.numbers.push(i + 1);

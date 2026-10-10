@@ -126,6 +126,16 @@ describe("annotationsFor", () => {
     ];
     expect(annotationsFor(list, ["2026-06", "2026-10"], false).map((a) => a.month)).toEqual(["2026-06"]);
     expect(showAllEvents("alle")).toBe(true);
+  });
+  it("keeps model events on the model chart even when only data breaks are shown", () => {
+    const list = [
+      { date: "2026-06-01", label: "A", dataBreak: true },
+      { date: "2026-09-04", label: "M", model: true },
+      { date: "2026-10-07", label: "B" },
+    ];
+    const months = ["2026-06", "2026-09", "2026-10"];
+    expect(annotationsFor(list, months, false, true).map((a) => a.month)).toEqual(["2026-06", "2026-09"]);
+    expect(annotationsFor(list, months, false).map((a) => a.month)).toEqual(["2026-06"]);
     expect(showAllEvents(undefined)).toBe(false);
   });
 });
