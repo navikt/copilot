@@ -1,5 +1,6 @@
-"use client";
-
+// Server component on purpose: the week is read from the clock, and a client
+// component would compute it again in the browser. Around a week boundary, or
+// with a skewed clock, the two picked different tips and React threw #418.
 import { VStack, BodyShort, HStack } from "@navikt/ds-react";
 import { LightBulbIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";

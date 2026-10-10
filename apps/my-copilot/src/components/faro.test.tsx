@@ -1,4 +1,4 @@
-import { propagateTraceHeaderCorsUrls } from "./faro";
+import { ignoreErrors, propagateTraceHeaderCorsUrls } from "./faro";
 
 const matchesAny = (url: string) => propagateTraceHeaderCorsUrls.some((pattern) => pattern.test(url));
 
@@ -27,5 +27,20 @@ describe("propagateTraceHeaderCorsUrls", () => {
   it("does not match untrusted schemes or embedded URLs", () => {
     expect(matchesAny("http://nav.no")).toBe(false);
     expect(matchesAny("https://evil.com/?u=https://nav.no")).toBe(false);
+  });
+});
+
+describe("ignoreErrors", () => {
+  const ignored = (text: string) => ignoreErrors.some((pattern) => pattern.test(text));
+
+  it("drops errors thrown by wallet extensions", () => {
+    expect(ignored("Failed to connect to MetaMask")).toBe(true);
+    expect(ignored("TypeError: Cannot read properties of undefined (reading 'ethereum')")).toBe(true);
+    expect(ignored("Cannot redefine property: ethereum")).toBe(true);
+  });
+
+  it("keeps our own errors", () => {
+    expect(ignored("Minified React error #418")).toBe(false);
+    expect(ignored("Failed to fetch RSC payload")).toBe(false);
   });
 });
