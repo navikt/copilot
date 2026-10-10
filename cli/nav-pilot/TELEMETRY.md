@@ -4,7 +4,7 @@
 
 ## 1. Hva samles inn?
 
-nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/HTTP). Ingenting personlig eller kodesensitivt blir logget.
+nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/HTTP). Ingen navn, e-post, brukernavn eller kode blir logget, men den pseudonyme `device_id` (se under) regnes som personopplysning.
 
 | Metrikk | Type | Beskrivelse | Eksempler på dimensjoner |
 |---------|------|-------------|--------------------------|

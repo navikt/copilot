@@ -21,7 +21,7 @@ var deviceIDPattern = regexp.MustCompile(`^nav-pilot-[0-9a-f]{12}$`)
 //   - Deterministic: Not random, based on hardware + install path
 //   - Pseudonymous, not anonymous: raw hostname/path/MAC are never stored or
 //     exported, only a truncated SHA256 hash, but the ID is stable per machine and
-//     can be linked to a person combined with other data (e.g. nav.repo)
+//     can be linked to a person when combined with other data (e.g. nav.repo)
 func GetOrCreateDeviceID() (string, error) {
 	configDir, err := GetConfigDir()
 	if err != nil {
