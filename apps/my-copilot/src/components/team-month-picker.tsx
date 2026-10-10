@@ -11,7 +11,7 @@ export default function TeamMonthPicker({ month }: { month: string }) {
     <HStack gap="space-8" align="center" wrap>
       <form action="/innsikt/team" method="get" aria-label="Velg måned">
         <HStack gap="space-8" align="end">
-          <Select key={month} label="Måned" name="month" defaultValue={month} size="small">
+          <Select key={month} label="Måned" name="month" defaultValue={month}>
             {months.map((value) => (
               <option key={value} value={value}>
                 {new Date(`${value}-01T00:00:00Z`).toLocaleDateString("nb-NO", {
@@ -22,7 +22,7 @@ export default function TeamMonthPicker({ month }: { month: string }) {
               </option>
             ))}
           </Select>
-          <Button type="submit" size="small" variant="secondary-neutral">
+          <Button type="submit" variant="secondary-neutral">
             Vis
           </Button>
         </HStack>

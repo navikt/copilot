@@ -3,7 +3,7 @@
 import type { LanguageAdoption } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, commonHorizontalBarOptions } from "@/lib/chart-utils";
+import { seriesColor, commonHorizontalBarOptions } from "@/lib/chart-utils";
 import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
 import { getTopLanguagesForChart, getLanguageAdoptionRate, getLanguageRepoCount } from "@/lib/adoption-utils";
@@ -27,7 +27,7 @@ const LanguageAdoptionChart: React.FC<LanguageAdoptionChartProps> = ({ data, max
     datasets: SCOPES.map((scope, i) => ({
       label: scope === "active" ? "Aktive repoer" : "Alle repoer",
       data: topLanguages.map((l) => getLanguageAdoptionRate(l, scope) * 100),
-      backgroundColor: chartColors[i === 0 ? 2 : 0],
+      backgroundColor: seriesColor(i === 0 ? 2 : 0),
       borderRadius: 4,
       barThickness: 12,
     })),

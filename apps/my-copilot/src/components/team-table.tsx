@@ -49,7 +49,7 @@ export default function TeamTable({ teams }: TeamTableProps) {
       </div>
       {totalPages > 1 && (
         <HStack justify="center">
-          <Pagination page={page} onPageChange={setPage} count={totalPages} size="small" siblingCount={0} />
+          <Pagination page={page} onPageChange={setPage} count={totalPages} siblingCount={0} />
         </HStack>
       )}
     </VStack>

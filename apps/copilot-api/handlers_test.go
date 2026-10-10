@@ -216,7 +216,6 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 		"/api/v1/copilot/seats/testuser",
 		"/api/v1/copilot/budget",
 		"/api/v1/copilot/budget/global",
-		"/api/v1/copilot/usage/summary",
 	}
 
 	for _, path := range paths {

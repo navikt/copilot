@@ -38,6 +38,43 @@ export const chartColors = [
   "rgba(6, 182, 212, 1)", // cyan
 ];
 
+/**
+ * Reads an Aksel colour token (without the `--ax-` prefix) from the page, so a chart follows the design system.
+ * Chart.js draws on a canvas and cannot use CSS variables. Pass it as a scriptable option, e.g.
+ * `color: () => axColor("text-neutral-subtle")`, so it is read at draw time in the browser.
+ */
+export function axColor(token: string, alpha = 1): string {
+  if (typeof document === "undefined") return "";
+  let value = getComputedStyle(document.body).getPropertyValue(`--ax-${token}`).trim();
+  if (alpha >= 1) return value;
+  if (/^#[0-9a-f]{3}$/i.test(value)) value = "#" + [...value.slice(1)].map((c) => c + c).join("");
+  if (!/^#[0-9a-f]{6}$/i.test(value)) return value;
+  return (
+    value +
+    Math.round(alpha * 255)
+      .toString(16)
+      .padStart(2, "0")
+  );
+}
+
+// Aksel tokens for categorical series, in the same hue order as chartColors.
+export const axSeries = [
+  "accent-600",
+  "success-600",
+  "meta-purple-600",
+  "warning-600",
+  "danger-600",
+  "neutral-600",
+  "meta-lime-600",
+  "info-600",
+];
+
+/** Series colour i as a scriptable chart.js option. */
+export const seriesColor =
+  (i: number, alpha = 1) =>
+  () =>
+    axColor(axSeries[i % axSeries.length], alpha);
+
 // Helper to get background color with opacity
 export const getBackgroundColor = (color: string, opacity: number = 0.1): string => {
   return color.replace("1)", `${opacity})`);
@@ -45,19 +82,20 @@ export const getBackgroundColor = (color: string, opacity: number = 0.1): string
 
 // GitHub-style grid options
 const githubGridStyle = {
-  color: "rgba(0, 0, 0, 0.06)",
+  color: () => axColor("border-neutral-subtle", 0.4),
   drawBorder: false,
 };
 
 const githubTickStyle = {
-  color: "#6B7280",
+  color: () => axColor("text-neutral-subtle"),
   font: { size: 11 },
 };
 
 // Common chart options with GitHub styling
 export const commonLineOptions = {
   responsive: true,
-  maintainAspectRatio: true,
+  // The wrapper sets the height (see chartBoxClass); a fixed aspect ratio made plots ~60 px tall on phones.
+  maintainAspectRatio: false,
   interaction: {
     mode: "index" as const,
     intersect: false,
@@ -73,7 +111,7 @@ export const commonLineOptions = {
       },
     },
     tooltip: {
-      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      backgroundColor: () => axColor("bg-neutral-strong"),
       padding: 12,
       titleFont: { size: 13 },
       bodyFont: { size: 12 },
@@ -96,7 +134,16 @@ export const commonLineOptions = {
 };
 
 // Common chart wrapper styling
-export const chartWrapperClass = "bg-white p-4 rounded-lg border border-gray-200";
+export const chartWrapperClass = "bg-(--ax-bg-default) rounded-lg border border-(--ax-border-neutral-subtle)";
+
+// Height for a chart canvas: room for the plot on a phone, a little more on wide screens.
+export const chartBoxClass = "relative h-64 md:h-80";
+
+// Compact legend below the plot; chart.js wraps the items onto more rows when needed.
+export const bottomLegend = {
+  position: "bottom" as const,
+  labels: { usePointStyle: true, pointStyle: "circle", boxWidth: 8, boxHeight: 8, padding: 10, font: { size: 11 } },
+};
 
 // Default no data message
 export const NO_DATA_MESSAGE = "Ingen data tilgjengelig for visning";
@@ -111,7 +158,7 @@ export const commonHorizontalBarOptions = {
       display: false,
     },
     tooltip: {
-      backgroundColor: "rgba(0, 0, 0, 0.8)",
+      backgroundColor: () => axColor("bg-neutral-strong"),
       padding: 12,
       titleFont: { size: 13 },
       bodyFont: { size: 12 },
@@ -122,22 +169,13 @@ export const commonHorizontalBarOptions = {
     y: {
       border: { display: false },
       grid: { display: false },
-      ticks: {
-        color: "#6B7280",
-        font: { size: 11 },
-      },
+      ticks: githubTickStyle,
     },
     x: {
       beginAtZero: true,
       border: { display: false },
-      grid: {
-        color: "rgba(0, 0, 0, 0.06)",
-        drawBorder: false,
-      },
-      ticks: {
-        color: "#6B7280",
-        font: { size: 11 },
-      },
+      grid: githubGridStyle,
+      ticks: githubTickStyle,
     },
   },
 };

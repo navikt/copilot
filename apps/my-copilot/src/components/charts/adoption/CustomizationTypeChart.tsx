@@ -4,7 +4,7 @@ import type { AdoptionSummary } from "@/lib/types";
 import type { CustomizationType } from "@/lib/adoption-utils";
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import { seriesColor, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
 import { extractCustomizationTypes } from "@/lib/adoption-utils";
 
@@ -12,13 +12,13 @@ interface CustomizationTypeChartProps {
   data: AdoptionSummary | null;
 }
 
-const groupConfig: Record<string, { title: string; color: string }> = {
-  copilot: { title: "GitHub Copilot", color: chartColors[0] },
-  agentic: { title: "Agentisk og plattform", color: chartColors[1] },
-  "nav-pilot": { title: "nav-pilot", color: chartColors[4] },
+const groupConfig: Record<string, { title: string; color: () => string }> = {
+  copilot: { title: "GitHub Copilot", color: seriesColor(0) },
+  agentic: { title: "Agentisk og plattform", color: seriesColor(1) },
+  "nav-pilot": { title: "nav-pilot", color: seriesColor(4) },
 };
 
-function GroupChart({ title, color, items }: { title: string; color: string; items: CustomizationType[] }) {
+function GroupChart({ title, color, items }: { title: string; color: () => string; items: CustomizationType[] }) {
   const sorted = [...items].sort((a, b) => b.value - a.value);
 
   const chartData = {

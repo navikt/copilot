@@ -88,7 +88,6 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/adoption/staleness", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdoptionStaleness })))
 	mux.HandleFunc("GET /api/v1/copilot/customizations/details", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCustomizationDetails })))
 	mux.HandleFunc("GET /api/v1/copilot/customizations/usage", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCustomizationUsage })))
-	mux.HandleFunc("GET /api/v1/copilot/usage/team-summary", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamUsageSummary })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/team-gross", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamGrossOverview })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/team-net", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamNetOverview })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/my-teams", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMyTeams }))))
@@ -96,7 +95,6 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/weekly", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserWeeklyTrends }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/daily-credits", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserDailyCredits }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/trends", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyTrends })))
-	mux.HandleFunc("GET /api/v1/copilot/usage/models", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyModelUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/monthly", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyBillingUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-daily", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelDaily })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-forecast", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelForecast })))
@@ -125,10 +123,6 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/budget/global", budget(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetGlobalBudget })))
 
 	// Placeholder endpoints - to be implemented in future phases
-	mux.HandleFunc("/api/v1/copilot/usage/summary", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/usage/features", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/usage/languages", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/usage/editors", notImplementedHandler)
 	mux.HandleFunc("/api/v1/mcp/servers", notImplementedHandler)
 
 	return mux

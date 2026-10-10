@@ -1,7 +1,7 @@
 "use client";
 
 import type { BillingModelDailyCost, BillingModelForecast } from "@/lib/types";
-import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import { axColor, bottomLegend, chartBoxClass, seriesColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { formatUSD } from "@/lib/format";
 import { BodyShort, Box, HGrid, VStack } from "@navikt/ds-react";
 import React from "react";
@@ -41,8 +41,8 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
   const stackedDatasets = topModels.map((model, index) => ({
     label: model,
     data: labels.map((day) => Number((byModelByDay.get(model)?.get(day) || 0).toFixed(2))),
-    backgroundColor: getBackgroundColor(chartColors[index % chartColors.length], 0.7),
-    borderColor: chartColors[index % chartColors.length],
+    backgroundColor: seriesColor(index, 0.7),
+    borderColor: seriesColor(index),
     borderWidth: 1,
     stack: "gross",
   }));
@@ -98,16 +98,25 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
             <BodyShort size="small" textColor="subtle">
               Før rabatt. De fem dyreste modellene i måneden.
             </BodyShort>
-            <div className="aspect-[2/1]">
+            <div className={chartBoxClass}>
               <Bar
                 data={{ labels: labels.map((d) => d.slice(8)), datasets: stackedDatasets }}
                 options={{
                   responsive: true,
-                  maintainAspectRatio: true,
-                  plugins: { legend: { position: "top", labels: { boxWidth: 10, font: { size: 10 } } } },
+                  maintainAspectRatio: false,
+                  plugins: { legend: bottomLegend },
                   scales: {
-                    x: { stacked: true, grid: { display: false } },
-                    y: { stacked: true, beginAtZero: true, grid: { color: "rgba(0,0,0,0.06)" } },
+                    x: {
+                      stacked: true,
+                      grid: { display: false },
+                      ticks: { color: () => axColor("text-neutral-subtle") },
+                    },
+                    y: {
+                      stacked: true,
+                      beginAtZero: true,
+                      grid: { color: () => axColor("border-neutral-subtle", 0.4) },
+                      ticks: { color: () => axColor("text-neutral-subtle") },
+                    },
                   },
                 }}
               />
@@ -121,7 +130,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
               Netto hittil {formatUSD(actualMTDNet)}. Prognose {formatUSD(projectedEOMNet)}, mellom{" "}
               {formatUSD(forecast.lower_eom_net_amount)} og {formatUSD(forecast.upper_eom_net_amount)}.
             </BodyShort>
-            <div className="aspect-[2/1]">
+            <div className={chartBoxClass}>
               <Line
                 data={{
                   labels: cumulativeLabels,
@@ -129,7 +138,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                     {
                       label: "Netto hittil",
                       data: actual,
-                      borderColor: "#2563eb",
+                      borderColor: () => axColor("accent-600"),
                       backgroundColor: "transparent",
                       borderWidth: 2,
                       pointRadius: 2,
@@ -138,7 +147,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                     {
                       label: "Prognose, netto",
                       data: projected,
-                      borderColor: "#16a34a",
+                      borderColor: () => axColor("success-600"),
                       borderDash: [5, 5],
                       backgroundColor: "transparent",
                       borderWidth: 2,
@@ -147,16 +156,16 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                     {
                       label: "Øvre estimat",
                       data: bandUpper,
-                      borderColor: "rgba(22, 163, 74, 0.2)",
-                      backgroundColor: "rgba(22, 163, 74, 0.15)",
+                      borderColor: () => axColor("success-600", 0.2),
+                      backgroundColor: () => axColor("success-600", 0.15),
                       pointRadius: 0,
                       fill: "+1",
                     },
                     {
                       label: "Nedre estimat",
                       data: bandLower,
-                      borderColor: "rgba(22, 163, 74, 0.2)",
-                      backgroundColor: "rgba(22, 163, 74, 0.15)",
+                      borderColor: () => axColor("success-600", 0.2),
+                      backgroundColor: () => axColor("success-600", 0.15),
                       pointRadius: 0,
                       fill: false,
                     },
@@ -164,11 +173,15 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                 }}
                 options={{
                   responsive: true,
-                  maintainAspectRatio: true,
-                  plugins: { legend: { position: "top", labels: { boxWidth: 10, font: { size: 10 } } } },
+                  maintainAspectRatio: false,
+                  plugins: { legend: bottomLegend },
                   scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.06)" } },
+                    x: { grid: { display: false }, ticks: { color: () => axColor("text-neutral-subtle") } },
+                    y: {
+                      beginAtZero: true,
+                      grid: { color: () => axColor("border-neutral-subtle", 0.4) },
+                      ticks: { color: () => axColor("text-neutral-subtle") },
+                    },
                   },
                 }}
               />

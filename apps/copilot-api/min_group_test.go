@@ -9,22 +9,6 @@ import (
 	"cloud.google.com/go/civil"
 )
 
-func TestTeamSummaryDropsTeamsBelowFive(t *testing.T) {
-	h := &BigQueryHandlers{bqClient: &mockBigQueryClient{teamUsage: []TeamUsageSummary{
-		{TeamSlug: "small", AvgActiveUsers: 4},
-		{TeamSlug: "big", AvgActiveUsers: 5},
-	}}}
-	rec := httptest.NewRecorder()
-	h.handleTeamUsageSummary(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-summary", nil))
-	var got []TeamUsageSummary
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 || got[0].TeamSlug != "big" {
-		t.Fatalf("got %+v, want only big", got)
-	}
-}
-
 func TestAdoptionCohortsWeeklySuppressesSmallAndComplementaryCells(t *testing.T) {
 	// 2026-09-07 is a Monday; Tue and Sun of the same week fold into it.
 	mon := civil.Date{Year: 2026, Month: 9, Day: 7}

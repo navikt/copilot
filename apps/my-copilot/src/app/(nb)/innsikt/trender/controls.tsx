@@ -6,7 +6,7 @@ import { CHART_ANNOTATIONS } from "../../reisen/milestones";
 /** One numbered list of events for the whole page; the numbers match the markers in the charts. */
 export function Events() {
   return (
-    <ReadMore header={`Hendelser (${CHART_ANNOTATIONS.length})`} size="small">
+    <ReadMore header={`Hendelser (${CHART_ANNOTATIONS.length})`}>
       <BodyShort size="small" spacing>
         Tallene i diagrammene viser til listen. Trykk på en måned for å se hendelsen. Hendelsene viser når noe skjedde,
         ikke hva som var årsaken. Modellvalgene gjelder bare våre egne agenter, mens faktureringen gjelder hele Nav. Et
@@ -29,17 +29,17 @@ export function PeriodSelect({ value, all }: { value: string; all: boolean }) {
   return (
     <form action="/innsikt/trender" method="get" aria-label="Velg periode">
       <HStack gap="space-8" align="end" wrap>
-        <Select key={value} label="Periode" name="periode" defaultValue={value} size="small">
+        <Select key={value} label="Periode" name="periode" defaultValue={value}>
           {PERIODS.map((p) => (
             <option key={p.value} value={p.value}>
               {p.label}
             </option>
           ))}
         </Select>
-        <Checkbox key={String(all)} name="hendelser" value="alle" defaultChecked={all} size="small">
+        <Checkbox key={String(all)} name="hendelser" value="alle" defaultChecked={all}>
           Vis alle hendelser i diagrammene
         </Checkbox>
-        <Button type="submit" size="small" variant="secondary-neutral">
+        <Button type="submit" variant="secondary-neutral">
           Vis
         </Button>
       </HStack>

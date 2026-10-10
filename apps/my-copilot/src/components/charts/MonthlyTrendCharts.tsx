@@ -3,7 +3,7 @@
 import { Bar, Line } from "react-chartjs-2";
 import type { ChartType, Plugin } from "chart.js";
 import { BodyShort } from "@navikt/ds-react";
-import { chartColors, commonLineOptions } from "@/lib/chart-utils";
+import { axColor, bottomLegend, commonLineOptions, seriesColor } from "@/lib/chart-utils";
 import { daysInCalendarMonth } from "@/lib/month-utils";
 import { monthLabel, type FamilyShares, type MonthAnnotation, type ShareSeries } from "@/lib/trends";
 import type { CopilotPRMonth, CreditsPerUserMonth } from "@/lib/types";
@@ -32,8 +32,8 @@ export function ShareChart({
   const datasets = series.map((s, i) => ({
     label: s.label,
     data: s.shares,
-    borderColor: chartColors[i % chartColors.length],
-    backgroundColor: chartColors[i % chartColors.length],
+    borderColor: seriesColor(i),
+    backgroundColor: seriesColor(i),
   }));
   if (!stacked) {
     return (
@@ -73,7 +73,7 @@ function withEvents<T extends ReturnType<typeof baseOptions>>(
     plugins: {
       ...options.plugins,
       // The legend goes below, so the marker row above the plot area stays free.
-      legend: { ...options.plugins.legend, position: "bottom" as const },
+      legend: bottomLegend,
       tooltip: {
         ...options.plugins.tooltip,
         callbacks: {
@@ -103,7 +103,7 @@ function annotationPlugin<T extends ChartType>(
       ctx.save();
       for (const a of annotations) {
         if (!a.dataBreak || months.indexOf(a.month) <= 0) continue;
-        ctx.fillStyle = "rgba(107, 114, 128, 0.35)";
+        ctx.fillStyle = axColor("neutral-500", 0.35);
         ctx.fillRect(boundary(a.month) - 2, chartArea.top, 4, chartArea.height);
       }
       ctx.restore();
@@ -115,9 +115,9 @@ function annotationPlugin<T extends ChartType>(
       if (shadeBefore && months.indexOf(shadeBefore) > 0) {
         const step = months.length > 1 ? scales.x.getPixelForValue(1) - scales.x.getPixelForValue(0) : 0;
         const x = scales.x.getPixelForValue(months.indexOf(shadeBefore)) - step / 2;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+        ctx.fillStyle = axColor("bg-default", 0.55);
         ctx.fillRect(chartArea.left, chartArea.top, x - chartArea.left, chartArea.height);
-        ctx.fillStyle = "#4B5563";
+        ctx.fillStyle = axColor("text-neutral-subtle");
         ctx.font = "11px sans-serif";
         ctx.textBaseline = "middle";
         const text = "Før API-bytte";
@@ -133,11 +133,11 @@ function annotationPlugin<T extends ChartType>(
         const x = scales.x.getPixelForValue(index);
         const text = a.numbers.length > 2 ? `${a.numbers[0]}–${a.numbers[a.numbers.length - 1]}` : a.numbers.join(",");
         const w = Math.max(14, ctx.measureText(text).width + 8);
-        ctx.fillStyle = a.dataBreak ? "#374151" : "#6B7280";
+        ctx.fillStyle = axColor(a.dataBreak ? "neutral-700" : "neutral-500");
         ctx.beginPath();
         ctx.roundRect(x - w / 2, chartArea.top - 16, w, 14, 7);
         ctx.fill();
-        ctx.fillStyle = "#FFFFFF";
+        ctx.fillStyle = axColor("text-neutral-contrast");
         ctx.fillText(text, x, chartArea.top - 9);
       }
       ctx.restore();
@@ -166,7 +166,7 @@ export function FamilyShareChart({ data, annotations }: { data: FamilyShares; an
           datasets: data.series.map((s, i) => ({
             label: s.label,
             data: s.shares,
-            backgroundColor: chartColors[i % chartColors.length],
+            backgroundColor: seriesColor(i),
           })),
         }}
         options={{ ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } }}
@@ -198,14 +198,14 @@ export function CreditsPerUserChart({
             {
               label: "Median",
               data: months.map((m) => (row(m) ? Math.round(row(m)!.median) : null)),
-              borderColor: chartColors[0],
-              backgroundColor: chartColors[0],
+              borderColor: seriesColor(0),
+              backgroundColor: seriesColor(0),
             },
             {
               label: "Snitt",
               data: months.map((m) => (row(m) ? Math.round(row(m)!.mean) : null)),
-              borderColor: chartColors[3],
-              backgroundColor: chartColors[3],
+              borderColor: seriesColor(3),
+              backgroundColor: seriesColor(3),
               borderDash: [6, 4],
             },
           ],
@@ -240,12 +240,12 @@ export function CopilotPRChart({
               {
                 label: "Laget av coding agent",
                 data: months.map((m) => row(m)?.created_by_copilot ?? null),
-                backgroundColor: chartColors[2],
+                backgroundColor: seriesColor(2),
               },
               {
                 label: "Gjennomgått av code review",
                 data: months.map((m) => row(m)?.reviewed_by_copilot ?? null),
-                backgroundColor: chartColors[1],
+                backgroundColor: seriesColor(1),
               },
             ],
           }}

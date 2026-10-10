@@ -3,7 +3,7 @@
 import type { AdoptionSummary } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import { axColor, axSeries, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { BodyShort, Box, Heading } from "@navikt/ds-react";
 import { extractToolComparison } from "@/lib/adoption-utils";
 
@@ -12,10 +12,10 @@ interface ToolComparisonChartProps {
 }
 
 const toolColors: Record<string, string> = {
-  "Kun Copilot": chartColors[0],
-  Cursor: chartColors[2],
-  Claude: chartColors[3],
-  Windsurf: chartColors[5],
+  "Kun Copilot": axSeries[0],
+  Cursor: axSeries[2],
+  Claude: axSeries[3],
+  Windsurf: axSeries[5],
 };
 
 const ToolComparisonChart: React.FC<ToolComparisonChartProps> = ({ data }) => {
@@ -36,7 +36,8 @@ const ToolComparisonChart: React.FC<ToolComparisonChartProps> = ({ data }) => {
     datasets: [
       {
         data: tools.map((t) => t.value),
-        backgroundColor: tools.map((t) => toolColors[t.label] ?? chartColors[4]),
+        backgroundColor: (ctx: { dataIndex: number }) =>
+          axColor(toolColors[tools[ctx.dataIndex]?.label] ?? axSeries[4]),
         borderRadius: 4,
         barThickness: 24,
       },
