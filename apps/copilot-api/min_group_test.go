@@ -58,8 +58,23 @@ func TestAdoptionCohortsWeeklySuppressesSmallAndComplementaryCells(t *testing.T)
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 	for i := range want {
-		if got[i] != want[i] {
+		if got[i].Week != want[i].Week || got[i].Phase != want[i].Phase || got[i].UserCount != want[i].UserCount {
 			t.Errorf("row %d: got %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestAdoptionCohortsSuppressesBeforeRounding(t *testing.T) {
+	mon := civil.Date{Year: 2026, Month: 9, Day: 7}
+	tue := civil.Date{Year: 2026, Month: 9, Day: 8}
+	// Phase 1 averages 4.5, which rounds to 5 but is below the threshold.
+	got := suppressSmallCohorts(weeklyCohorts([]AdoptionCohortDay{
+		{Day: mon, Phase: 0, UserCount: 50}, {Day: mon, Phase: 1, UserCount: 4},
+		{Day: tue, Phase: 0, UserCount: 50}, {Day: tue, Phase: 1, UserCount: 5},
+	}))
+	for _, r := range got {
+		if r.Phase == 1 {
+			t.Errorf("cell below threshold leaked after rounding: %+v", r)
 		}
 	}
 }
