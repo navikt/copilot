@@ -5,6 +5,7 @@ import { BodyShort, Button, Dialog, Search, Theme, VStack } from "@navikt/ds-rea
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore } from "react";
+import { NAV_PILOT_BREW_INSTALL } from "@/lib/install-commands";
 import { SEARCH_INDEX_URL, searchEntries, type SearchEntry } from "@/lib/site-search";
 
 // The site search, V11 in docs/nav-pilot-dokumentasjon-forslag.md: a «Søk»
@@ -24,6 +25,24 @@ const loadIndex = () =>
       throw e;
     }));
 
+// Quick actions: shown before any search, and on top of the hits when the
+// query matches them. An action with `copy` copies the text instead of following
+// the link; the href is where the text is explained.
+type Hit = SearchEntry & { copy?: string };
+const ACTIONS: Hit[] = [
+  { href: "/abonnement", title: "Gå til mitt abonnement", context: "Snarvei", login: true },
+  { href: "/innsikt", title: "Se innsikt om Copilot i Nav", context: "Snarvei" },
+  {
+    href: "/kom-i-gang#installer",
+    title: "Kopier kommandoen som installerer nav-pilot",
+    context: NAV_PILOT_BREW_INSTALL,
+    copy: NAV_PILOT_BREW_INSTALL,
+  },
+  { href: "/ordbok", title: "Slå opp i ordboka", context: "Snarvei" },
+  { href: "/verktoy", title: "Finn agenter, skills og instruksjoner", context: "Snarvei" },
+  { href: "https://github.com/navikt/copilot/issues/new/choose", title: "Meld fra om feil", context: "GitHub" },
+];
+
 const noSubscribe = () => () => {};
 const useShortcutHint = () =>
   useSyncExternalStore(
@@ -42,6 +61,7 @@ export function SiteSearch({ label }: { label: string }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [index, setIndex] = useState<SearchEntry[] | "error">();
+  const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const opener = useRef<Element | null>(null);
   const hint = useShortcutHint();
@@ -50,9 +70,12 @@ export function SiteSearch({ label }: { label: string }) {
   const found = Array.isArray(index) ? searchEntries(index, term) : [];
   // The catalogue has its own search over agents, skills and instructions.
   // The last hit hands the term over to it.
-  const hits: SearchEntry[] =
-    Array.isArray(index) && term
+  const actions = term ? searchEntries(ACTIONS, term) : ACTIONS;
+  const hits: Hit[] = !term
+    ? actions
+    : Array.isArray(index)
       ? [
+          ...actions,
           ...found,
           {
             href: `/verktoy?q=${encodeURIComponent(term)}`,
@@ -60,7 +83,7 @@ export function SiteSearch({ label }: { label: string }) {
             context: "Tilpasning",
           },
         ]
-      : [];
+      : actions;
   const optionId = (i: number) => `${id}-hit-${i}`;
 
   const onOpenChange = (next: boolean) => {
@@ -68,6 +91,7 @@ export function SiteSearch({ label }: { label: string }) {
       opener.current = document.activeElement;
       setQuery("");
       setActive(0);
+      setCopied(false);
       loadIndex().then(setIndex, () => setIndex("error"));
     }
     setOpen(next);
@@ -92,6 +116,18 @@ export function SiteSearch({ label }: { label: string }) {
     document.getElementById(optionId(active))?.scrollIntoView({ block: "nearest" });
   });
 
+  const choose = (hit: Hit) => {
+    if (hit.copy) {
+      navigator.clipboard.writeText(hit.copy).then(
+        () => setCopied(true),
+        () => router.push(hit.href) // no clipboard: show the page with the command instead
+      );
+      return;
+    }
+    setOpen(false);
+    router.push(hit.href);
+  };
+
   // Back to what had focus when the dialog opened: this button, or where the shortcut was pressed.
   const returnFocus = () => {
     const el = opener.current;
@@ -100,16 +136,17 @@ export function SiteSearch({ label }: { label: string }) {
       : document.getElementById(`${id}-button`);
   };
 
-  const status =
-    index === "error"
+  const status = copied
+    ? "Kommandoen er kopiert. Lim den inn i terminalen."
+    : index === "error"
       ? "Søket er ikke tilgjengelig nå. Prøv igjen senere."
       : !index
         ? "Laster …"
         : term
-          ? found.length
-            ? `${found.length} treff`
+          ? found.length + actions.length
+            ? `${found.length + actions.length} treff`
             : "Ingen treff. Trykk Enter for å søke i verktøykatalogen."
-          : "Søk i sidene om nav-pilot og i nyhetene.";
+          : "Snarveier";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,7 +183,7 @@ export function SiteSearch({ label }: { label: string }) {
             <Dialog.Title>Søk</Dialog.Title>
             <Search
               ref={inputRef}
-              label="Søk i sidene om nav-pilot og i nyhetene"
+              label="Søk i sider, overskrifter og nyheter"
               variant="simple"
               autoComplete="off"
               role="combobox"
@@ -165,8 +202,7 @@ export function SiteSearch({ label }: { label: string }) {
                   setActive((a) => (a + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length);
                 } else if (e.key === "Enter" && hits[active]) {
                   e.preventDefault();
-                  setOpen(false);
-                  router.push(hits[active].href);
+                  choose(hits[active]);
                 } else if (e.key === "Escape") {
                   // Aksel Search would only clear the field. Esc closes the dialog, text or not.
                   setOpen(false);
@@ -180,23 +216,38 @@ export function SiteSearch({ label }: { label: string }) {
                 {status}
               </BodyShort>
               <ul role="listbox" id={`${id}-list`} aria-label="Treff" className="list-none">
-                {hits.map((h, i) => (
-                  <li key={h.href} role="none">
-                    <NextLink
-                      id={optionId(i)}
-                      role="option"
-                      aria-selected={i === active}
-                      tabIndex={-1}
-                      href={h.href}
-                      onClick={() => setOpen(false)}
-                      onMouseMove={() => setActive(i)}
-                      className="search-hit"
-                    >
+                {hits.map((h, i) => {
+                  const content = (
+                    <>
                       <span className="search-hit-title">{h.title}</span>
-                      <span className="search-hit-context">{h.context}</span>
-                    </NextLink>
-                  </li>
-                ))}
+                      <span className="search-hit-context">
+                        {h.context}
+                        {h.login && " · Krever innlogging"}
+                      </span>
+                    </>
+                  );
+                  const props = {
+                    id: optionId(i),
+                    role: "option",
+                    "aria-selected": i === active,
+                    tabIndex: -1,
+                    onMouseMove: () => setActive(i),
+                    className: "search-hit",
+                  } as const;
+                  return (
+                    <li key={h.title + h.href} role="none">
+                      {h.copy ? (
+                        <button type="button" {...props} onClick={() => choose(h)}>
+                          {content}
+                        </button>
+                      ) : (
+                        <NextLink {...props} href={h.href} onClick={() => setOpen(false)}>
+                          {content}
+                        </NextLink>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </VStack>
           </Dialog.Body>
