@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
+	"strings"
 
 	"cloud.google.com/go/bigquery"
 )
 
-// Anonymous behavioural segments for /innsikt/trender. Every query returns
-// counts per month only: no user IDs, logins or team names. A count below
-// minUsersForDistribution comes back as null (hidden), never as a small number.
+// Anonymous behavioural segments for /innsikt/trender. The queries return
+// counts per month only: no user IDs, logins or team names. The counts stay
+// on the server: buildChart merges any band under minUsersForDistribution
+// into a neighbour, hides the month if that is not enough, and returns
+// whole-percent shares that sum to 100.
 //
 // Intensity uses fixed thresholds on a user's user_initiated_interaction_count
 // summed over the month: lett 1-19 (or active through completions alone),
@@ -34,50 +38,198 @@ const (
 	adoptionHigh    = 0.60
 )
 
-// SegmentIntensityMonth is the number of active users per intensity group.
-type SegmentIntensityMonth struct {
-	Month       string `bigquery:"month" json:"month"`
-	ActiveUsers *int64 `bigquery:"active_users" json:"active_users"`
-	Light       *int64 `bigquery:"light" json:"light"`
-	Medium      *int64 `bigquery:"medium" json:"medium"`
-	Heavy       *int64 `bigquery:"heavy" json:"heavy"`
+// Raw monthly counts per band, read from BigQuery. They never leave the
+// server: buildChart merges, suppresses and rounds them first.
+type segmentRow struct {
+	Month string `bigquery:"month"`
+	A     int64  `bigquery:"a"`
+	B     int64  `bigquery:"b"`
+	C     int64  `bigquery:"c"`
+	D     int64  `bigquery:"d"`
 }
 
-// SegmentModeMonth is the number of active users per main way of working.
-type SegmentModeMonth struct {
-	Month       string `bigquery:"month" json:"month"`
-	ActiveUsers *int64 `bigquery:"active_users" json:"active_users"`
-	Completions *int64 `bigquery:"completions" json:"completions"`
-	Chat        *int64 `bigquery:"chat" json:"chat"`
-	Agent       *int64 `bigquery:"agent" json:"agent"`
-	CLI         *int64 `bigquery:"cli" json:"cli"`
+// SegmentBand is one band of a chart: whole-percent shares, one per month in
+// SegmentChart.Months. null: the band does not exist that month (merged into
+// a neighbour) or the whole month is hidden.
+type SegmentBand struct {
+	Label  string   `json:"label"`
+	Shares []*int64 `json:"shares"`
 }
 
-// SegmentMovementMonth counts users active in both this and the previous
-// month by whether their intensity group went up, stayed or went down.
-type SegmentMovementMonth struct {
-	Month string `bigquery:"month" json:"month"`
-	Pairs *int64 `bigquery:"pairs" json:"pairs"`
-	Up    *int64 `bigquery:"up" json:"up"`
-	Stay  *int64 `bigquery:"stay" json:"stay"`
-	Down  *int64 `bigquery:"down" json:"down"`
-}
-
-// SegmentTeamAdoptionMonth counts teams per adoption level.
-type SegmentTeamAdoptionMonth struct {
-	Month  string `bigquery:"month" json:"month"`
-	Teams  *int64 `bigquery:"teams" json:"teams"`
-	Low    *int64 `bigquery:"low" json:"low"`
-	Medium *int64 `bigquery:"medium" json:"medium"`
-	High   *int64 `bigquery:"high" json:"high"`
+// SegmentChart is display-ready: in every month the shares sum to 100, or
+// all are null.
+type SegmentChart struct {
+	Months []string      `json:"months"`
+	Bands  []SegmentBand `json:"bands"`
+	// Net is up minus down in percentage points (movement only).
+	Net []*int64 `json:"net,omitempty"`
 }
 
 // UserSegments is the response of /api/v1/copilot/usage/segments.
 type UserSegments struct {
-	Intensity    []SegmentIntensityMonth    `json:"intensity"`
-	Mode         []SegmentModeMonth         `json:"mode"`
-	Movement     []SegmentMovementMonth     `json:"movement"`
-	TeamAdoption []SegmentTeamAdoptionMonth `json:"team_adoption"`
+	Intensity    SegmentChart `json:"intensity"`
+	Mode         SegmentChart `json:"mode"`
+	Movement     SegmentChart `json:"movement"`
+	TeamAdoption SegmentChart `json:"team_adoption"`
+}
+
+// bandDef names the bands of one chart. label(i, j) names bands i..j merged.
+type bandDef struct {
+	names []string
+	label func(names []string, i, j int) string
+}
+
+// ordinal labels a merged range by its threshold: «Under 200», «Minst 20».
+// With three bands, a merged pair always touches an end.
+func ordinal(thresholds ...string) func([]string, int, int) string {
+	return func(names []string, i, j int) string {
+		if i == j {
+			return names[i]
+		}
+		if i == 0 {
+			return "Under " + thresholds[j]
+		}
+		return "Minst " + thresholds[i-1]
+	}
+}
+
+func nominal(names []string, i, j int) string {
+	return strings.Join(names[i:j+1], " + ")
+}
+
+var (
+	intensityBands = bandDef{[]string{"Lett", "Middels", "Tung"}, ordinal("20", "200")}
+	modeBands      = bandDef{[]string{"Bare kodeforslag", "Chat", "Agentmodus", "CLI"}, nominal}
+	movementBands  = bandDef{[]string{"Opp", "Samme", "Ned"}, nominal}
+	adoptionBands  = bandDef{[]string{"Lav", "Middels", "Høy"}, ordinal("25 %", "60 %")}
+)
+
+type band struct {
+	i, j int
+	n    int64
+}
+
+// mergeBands merges every band under minUsersForDistribution into its smaller
+// neighbour until none is left. ok is false when that is impossible (the
+// month must be hidden): a band still under the limit, or a single band left.
+func mergeBands(counts []int64) (bands []band, ok bool) {
+	for k, n := range counts {
+		bands = append(bands, band{k, k, n})
+	}
+	for len(bands) > 1 {
+		k := -1
+		for x, b := range bands {
+			if b.n < minUsersForDistribution && (k < 0 || b.n < bands[k].n) {
+				k = x
+			}
+		}
+		if k < 0 {
+			return bands, true
+		}
+		o := k - 1
+		if k == 0 || (k < len(bands)-1 && bands[k+1].n < bands[k-1].n) {
+			o = k + 1
+		}
+		lo, hi := min(k, o), max(k, o)
+		bands[lo] = band{bands[lo].i, bands[hi].j, bands[lo].n + bands[hi].n}
+		bands = append(bands[:hi], bands[hi+1:]...)
+	}
+	return bands, false
+}
+
+// wholePercents rounds shares of counts to whole percent summing to 100
+// (largest remainder; ties go to the earlier band).
+func wholePercents(counts []int64) []int64 {
+	var total int64
+	for _, n := range counts {
+		total += n
+	}
+	out := make([]int64, len(counts))
+	order := make([]int, len(counts))
+	left := int64(100)
+	for k, n := range counts {
+		out[k] = 100 * n / total
+		left -= out[k]
+		order[k] = k
+	}
+	sort.SliceStable(order, func(a, b int) bool {
+		return 100*counts[order[a]]%total > 100*counts[order[b]]%total
+	})
+	for _, k := range order[:left] {
+		out[k]++
+	}
+	return out
+}
+
+// buildChart turns raw counts into a display-ready chart. A band label shows
+// up as a series as soon as any month uses it.
+func buildChart(rows []segmentRow, def bandDef) SegmentChart {
+	type key struct{ i, j int }
+	shares := map[key][]*int64{}
+	var keys []key
+	chart := SegmentChart{Months: []string{}, Bands: []SegmentBand{}}
+	for m, r := range rows {
+		chart.Months = append(chart.Months, r.Month)
+		counts := []int64{r.A, r.B, r.C, r.D}[:len(def.names)]
+		bands, ok := mergeBands(counts)
+		if !ok {
+			continue
+		}
+		ns := make([]int64, len(bands))
+		for x, b := range bands {
+			ns[x] = b.n
+		}
+		for x, p := range wholePercents(ns) {
+			k := key{bands[x].i, bands[x].j}
+			if shares[k] == nil {
+				shares[k] = make([]*int64, len(rows))
+				keys = append(keys, k)
+			}
+			shares[k][m] = &p
+		}
+	}
+	sort.Slice(keys, func(a, b int) bool {
+		if keys[a].i != keys[b].i {
+			return keys[a].i < keys[b].i
+		}
+		return keys[a].j < keys[b].j
+	})
+	for _, k := range keys {
+		chart.Bands = append(chart.Bands, SegmentBand{def.label(def.names, k.i, k.j), shares[k]})
+	}
+	return chart
+}
+
+// withNet adds up minus down for months where neither is merged.
+func withNet(c SegmentChart) SegmentChart {
+	var up, down []*int64
+	for _, b := range c.Bands {
+		switch b.Label {
+		case "Opp":
+			up = b.Shares
+		case "Ned":
+			down = b.Shares
+		}
+	}
+	c.Net = make([]*int64, len(c.Months))
+	for m := range c.Net {
+		if up != nil && down != nil && up[m] != nil && down[m] != nil {
+			n := *up[m] - *down[m]
+			c.Net[m] = &n
+		}
+	}
+	return c
+}
+
+// userDaysFrom is user_metrics with one row per user and day. A day is
+// normally stored under the enterprise scope, but under the organization
+// scope when copilot-metrics fell back to the org endpoint; a user active in
+// both counts once, and the enterprise row wins.
+func userDaysFrom(table string) string {
+	return `(SELECT * FROM ` + table + `
+    WHERE scope IN ('enterprise', 'organization') AND JSON_VALUE(raw_record, '$.user_id') IS NOT NULL
+    QUALIFY ROW_NUMBER() OVER (
+      PARTITION BY JSON_VALUE(raw_record, '$.user_id'), day ORDER BY IF(scope = 'enterprise', 0, 1)) = 1)`
 }
 
 // userMonthCTE has one row per active user and month, with the intensity tier
@@ -92,7 +244,6 @@ const userMonthCTE = `
       LOGICAL_OR(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL), FALSE)) AS agent,
       LOGICAL_OR(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.used_chat') AS BOOL), FALSE)) AS chat
     FROM %s
-    WHERE scope = 'enterprise' AND JSON_VALUE(raw_record, '$.user_id') IS NOT NULL
     GROUP BY user_id, month
     HAVING SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0)) > 0
       OR SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)
@@ -107,7 +258,6 @@ const userMonthCTE = `
 func (bq *BigQueryClient) segmentQuery(sql string, extra ...bigquery.QueryParameter) *bigquery.Query {
 	q := bq.client.Query(sql)
 	q.Parameters = append([]bigquery.QueryParameter{
-		{Name: "min", Value: minUsersForDistribution},
 		{Name: "medium", Value: intensityMedium},
 		{Name: "heavy", Value: intensityHeavy},
 	}, extra...)
@@ -126,40 +276,43 @@ func readSegment[T any](ctx context.Context, q *bigquery.Query) ([]T, error) {
 func (bq *BigQueryClient) GetUserSegments(ctx context.Context) (*UserSegments, error) {
 	metrics := bq.tableRef(bq.metricsDataset, "user_metrics")
 	teams := bq.tableRef(bq.metricsDataset, "user_teams")
-	with := "WITH " + fmt.Sprintf(userMonthCTE, metrics)
-	hide := func(expr string) string { return fmt.Sprintf("IF(%s < @min, NULL, %s)", expr, expr) }
+	with := "WITH " + fmt.Sprintf(userMonthCTE, userDaysFrom(metrics))
 
 	var out UserSegments
+	var rows []segmentRow
 	var err error
-	out.Intensity, err = readSegment[SegmentIntensityMonth](ctx, bq.segmentQuery(with+`
-      SELECT FORMAT_DATE('%Y-%m', month) AS month, `+hide("COUNT(*)")+` AS active_users,
-        `+hide("COUNTIF(tier = 1)")+` AS light, `+hide("COUNTIF(tier = 2)")+` AS medium, `+hide("COUNTIF(tier = 3)")+` AS heavy
+	rows, err = readSegment[segmentRow](ctx, bq.segmentQuery(with+`
+      SELECT FORMAT_DATE('%Y-%m', month) AS month,
+        COUNTIF(tier = 1) AS a, COUNTIF(tier = 2) AS b, COUNTIF(tier = 3) AS c
       FROM tiered GROUP BY month ORDER BY month`))
 	if err != nil {
 		return nil, fmt.Errorf("intensity: %w", err)
 	}
-	out.Mode, err = readSegment[SegmentModeMonth](ctx, bq.segmentQuery(with+`
-      SELECT FORMAT_DATE('%Y-%m', month) AS month, `+hide("COUNT(*)")+` AS active_users,
-        `+hide("COUNTIF(NOT cli AND NOT agent AND NOT chat)")+` AS completions,
-        `+hide("COUNTIF(NOT cli AND NOT agent AND chat)")+` AS chat,
-        `+hide("COUNTIF(NOT cli AND agent)")+` AS agent,
-        `+hide("COUNTIF(cli)")+` AS cli
+	out.Intensity = buildChart(rows, intensityBands)
+	rows, err = readSegment[segmentRow](ctx, bq.segmentQuery(with+`
+      SELECT FORMAT_DATE('%Y-%m', month) AS month,
+        COUNTIF(NOT cli AND NOT agent AND NOT chat) AS a,
+        COUNTIF(NOT cli AND NOT agent AND chat) AS b,
+        COUNTIF(NOT cli AND agent) AS c,
+        COUNTIF(cli) AS d
       FROM tiered GROUP BY month ORDER BY month`))
 	if err != nil {
 		return nil, fmt.Errorf("mode: %w", err)
 	}
-	out.Movement, err = readSegment[SegmentMovementMonth](ctx, bq.segmentQuery(with+`
-      SELECT FORMAT_DATE('%Y-%m', cur.month) AS month, `+hide("COUNT(*)")+` AS pairs,
-        `+hide("COUNTIF(cur.tier > prev.tier)")+` AS up,
-        `+hide("COUNTIF(cur.tier = prev.tier)")+` AS stay,
-        `+hide("COUNTIF(cur.tier < prev.tier)")+` AS down
+	out.Mode = buildChart(rows, modeBands)
+	rows, err = readSegment[segmentRow](ctx, bq.segmentQuery(with+`
+      SELECT FORMAT_DATE('%Y-%m', cur.month) AS month,
+        COUNTIF(cur.tier > prev.tier) AS a,
+        COUNTIF(cur.tier = prev.tier) AS b,
+        COUNTIF(cur.tier < prev.tier) AS c
       FROM tiered cur JOIN tiered prev
         ON cur.user_id = prev.user_id AND prev.month = DATE_SUB(cur.month, INTERVAL 1 MONTH)
       GROUP BY cur.month ORDER BY cur.month`))
 	if err != nil {
 		return nil, fmt.Errorf("movement: %w", err)
 	}
-	out.TeamAdoption, err = readSegment[SegmentTeamAdoptionMonth](ctx, bq.segmentQuery(with+fmt.Sprintf(`,
+	out.Movement = buildChart(rows, movementBands)
+	rows, err = readSegment[segmentRow](ctx, bq.segmentQuery(with+fmt.Sprintf(`,
       members AS (
         SELECT DISTINCT JSON_VALUE(raw_record, '$.slug') AS team, JSON_VALUE(raw_record, '$.user_id') AS user_id
         FROM %s
@@ -180,10 +333,10 @@ func (bq *BigQueryClient) GetUserSegments(ctx context.Context) (*UserSegments, e
         LEFT JOIN tiered u ON u.user_id = m.user_id AND u.month = mo.month
         GROUP BY mo.month, t.team
       )
-      SELECT FORMAT_DATE('%%Y-%%m', month) AS month, `+hide("COUNT(*)")+` AS teams,
-        `+hide("COUNTIF(share < @adopt_medium)")+` AS low,
-        `+hide("COUNTIF(share >= @adopt_medium AND share < @adopt_high)")+` AS medium,
-        `+hide("COUNTIF(share >= @adopt_high)")+` AS high
+      SELECT FORMAT_DATE('%%Y-%%m', month) AS month,
+        COUNTIF(share < @adopt_medium) AS a,
+        COUNTIF(share >= @adopt_medium AND share < @adopt_high) AS b,
+        COUNTIF(share >= @adopt_high) AS c
       FROM adoption GROUP BY month ORDER BY month`, teams, teams),
 		bigquery.QueryParameter{Name: "min_team", Value: minTeamContributors},
 		bigquery.QueryParameter{Name: "adopt_medium", Value: adoptionMedium},
@@ -192,6 +345,8 @@ func (bq *BigQueryClient) GetUserSegments(ctx context.Context) (*UserSegments, e
 	if err != nil {
 		return nil, fmt.Errorf("team adoption: %w", err)
 	}
+	out.TeamAdoption = buildChart(rows, adoptionBands)
+	out.Movement = withNet(out.Movement)
 	return &out, nil
 }
 

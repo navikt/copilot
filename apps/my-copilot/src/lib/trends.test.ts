@@ -1,33 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
   annotationsFor,
-  hiddenShares,
   showAllEvents,
   familyShares,
   formatPp,
   parsePeriod,
   periodStart,
-  segmentShares,
+  chartNet,
+  chartShares,
   shareChange,
   visibleMonths,
 } from "./trends";
 
-describe("segmentShares", () => {
-  const keys = [
-    { key: "a", label: "A" },
-    { key: "b", label: "B" },
-  ];
-  it("divides by the total and keeps hidden groups null", () => {
-    const rows = [
-      { month: "2026-07", total: 100, a: 60, b: 40 },
-      { month: "2026-08", total: 100, a: 52, b: null },
-    ];
-    const [a, b] = segmentShares(rows, ["2026-07", "2026-08", "2026-09"], keys, "total");
-    expect(a.shares).toEqual([60, 52, null]);
-    expect(b.shares).toEqual([40, null, null]);
-  });
-  it("sums visible keys when there is no total", () => {
-    expect(segmentShares([{ month: "2026-07", a: 1, b: 3 }], ["2026-07"], keys)[0].shares).toEqual([25]);
+describe("chartShares", () => {
+  const chart = {
+    months: ["2026-07", "2026-08"],
+    bands: [
+      { label: "Lav", shares: [60, null] },
+      { label: "Under 60 %", shares: [null, 45] },
+      { label: "Høy", shares: [40, 55] },
+    ],
+    net: [5, null],
+  };
+  it("passes the server's shares through for the months shown, null for months it lacks", () => {
+    expect(chartShares(chart, ["2026-08", "2026-09"])).toEqual([
+      { label: "Lav", shares: [null, null] },
+      { label: "Under 60 %", shares: [45, null] },
+      { label: "Høy", shares: [55, null] },
+    ]);
+    expect(chartNet(chart, ["2026-07", "2026-08", "2026-09"])).toEqual([5, null, null]);
   });
   it("reports change in percentage points across the period", () => {
     expect(shareChange({ label: "A", shares: [null, 60, 52.4, null] })).toBe(-8);
@@ -125,15 +126,5 @@ describe("annotationsFor", () => {
     expect(annotationsFor(list, ["2026-06", "2026-10"], false).map((a) => a.month)).toEqual(["2026-06"]);
     expect(showAllEvents("alle")).toBe(true);
     expect(showAllEvents(undefined)).toBe(false);
-  });
-});
-
-describe("hiddenShares", () => {
-  it("fills a stacked bar with the hidden part instead of leaving a hole", () => {
-    const series = [
-      { label: "Lav", shares: [60, null, null, 50] },
-      { label: "Høy", shares: [40, 90, null, 50] },
-    ];
-    expect(hiddenShares(series, 4)).toEqual([null, 10, null, null]);
   });
 });
