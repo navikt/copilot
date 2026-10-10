@@ -57,6 +57,7 @@ type SegmentModeMonth struct {
 // month by whether their intensity group went up, stayed or went down.
 type SegmentMovementMonth struct {
 	Month string `bigquery:"month" json:"month"`
+	Pairs *int64 `bigquery:"pairs" json:"pairs"`
 	Up    *int64 `bigquery:"up" json:"up"`
 	Stay  *int64 `bigquery:"stay" json:"stay"`
 	Down  *int64 `bigquery:"down" json:"down"`
@@ -148,7 +149,7 @@ func (bq *BigQueryClient) GetUserSegments(ctx context.Context) (*UserSegments, e
 		return nil, fmt.Errorf("mode: %w", err)
 	}
 	out.Movement, err = readSegment[SegmentMovementMonth](ctx, bq.segmentQuery(with+`
-      SELECT FORMAT_DATE('%Y-%m', cur.month) AS month,
+      SELECT FORMAT_DATE('%Y-%m', cur.month) AS month, `+hide("COUNT(*)")+` AS pairs,
         `+hide("COUNTIF(cur.tier > prev.tier)")+` AS up,
         `+hide("COUNTIF(cur.tier = prev.tier)")+` AS stay,
         `+hide("COUNTIF(cur.tier < prev.tier)")+` AS down

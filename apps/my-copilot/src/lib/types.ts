@@ -446,7 +446,7 @@ export interface UserSegments {
     agent: number | null;
     cli: number | null;
   }[];
-  movement: { month: string; up: number | null; stay: number | null; down: number | null }[];
+  movement: { month: string; pairs: number | null; up: number | null; stay: number | null; down: number | null }[];
   team_adoption: {
     month: string;
     teams: number | null;

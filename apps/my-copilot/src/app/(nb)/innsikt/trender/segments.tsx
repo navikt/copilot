@@ -55,7 +55,7 @@ async function load({ token, start }: Props) {
   const mm = months(segments.mode);
   const vm = months(segments.movement);
   const tm = months(segments.team_adoption);
-  const movement = segmentShares(segments.movement, vm, MOVEMENT);
+  const movement = segmentShares(segments.movement, vm, MOVEMENT, "pairs");
   const net: ShareSeries = {
     label: "Netto (opp − ned)",
     shares: vm.map((_, i) => {
@@ -140,8 +140,8 @@ export async function Movement(props: Props) {
       <Method>
         Regnet ut i BigQuery fra <code>user_metrics</code> (<code>/usage/segments</code>) per person, men bare summene
         hentes ut. Bare brukere som var aktive begge månedene, er med: de som slutter eller begynner, er ikke bevegelse
-        her, men vises i kohortene. Gruppene er de samme som under intensitet. Tall under fem vises ikke, og da regnes
-        andelene av de andre. {HIDDEN}
+        her, men vises i kohortene. Gruppene er de samme som under intensitet. Andelene regnes av alle som var aktive
+        begge månedene, også når en gruppe er skjult. {HIDDEN}
       </Method>
     </>
   );
