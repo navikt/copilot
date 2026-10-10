@@ -329,7 +329,7 @@ const CL = "https://github.blog/changelog/";
 export const CHART_ANNOTATIONS: ChartAnnotation[] = [
   {
     date: "2025-12-18",
-    label: "Claude Opus 4.5 tilgjengelig",
+    label: "Claude Opus 4.5 tilgjengelig (usikker)",
     url: `${CL}2025-12-18-claude-opus-4-5-is-now-generally-available-in-github-copilot/`,
     note: "Business- og Enterprise-kunder måtte slå på modellen selv. Vi vet ikke nøyaktig når Nav gjorde det.",
     model: true,
@@ -369,7 +369,7 @@ export const CHART_ANNOTATIONS: ChartAnnotation[] = [
   {
     date: "2026-05-28",
     label: "Claude Opus 4.8 tilgjengelig",
-    url: `${CL}2026-05-28-claude-opus-4-8-is-generally-available-for-github-copilot`,
+    url: `${CL}2026-05-28-claude-opus-4-8-is-generally-available-for-github-copilot/`,
     model: true,
   },
   {
@@ -380,6 +380,12 @@ export const CHART_ANNOTATIONS: ChartAnnotation[] = [
     dataBreak: true,
   },
   {
+    date: "2026-07-23",
+    label: "Nav slår på GPT-5.6 Sol, Terra og Luna",
+    url: `${PR}379`,
+    model: true,
+  },
+  {
     date: "2026-07-24",
     label: "Claude Opus 5 tilgjengelig",
     url: `${CL}2026-07-24-claude-opus-5-is-now-available-in-github-copilot/`,
@@ -387,22 +393,16 @@ export const CHART_ANNOTATIONS: ChartAnnotation[] = [
   },
   {
     date: "2026-08-26",
-    label: "Nye modeller slås på automatisk",
+    label: "Nye modeller slås på automatisk (usikker)",
     url: `${CL}2026-07-29-default-model-enablement-for-copilot-business-and-enterprise/`,
-    note: "Nye modeller er på fra de blir allment tilgjengelige, med mindre administrator slår dem av. Usikkert: vi har ikke logget om Nav beholdt standardinnstillingen.",
-    model: true,
-  },
-  {
-    date: "2026-08-31",
-    label: "Nav slår på GPT-5.6 Sol, Terra og Luna",
-    note: "Kilde: Navs modellregister.",
+    note: "Nye modeller er på fra de blir allment tilgjengelige, med mindre administrator slår dem av. Kunngjort 29. juli. Vi har ikke logget om Nav beholdt standardinnstillingen.",
     model: true,
   },
   {
     date: "2026-09-04",
-    label: "GPT-6 Astra tilgjengelig",
+    label: "GPT-6 Astra tilgjengelig (usikker)",
     url: `${CL}2026-09-04-gpt-6-astra-is-generally-available-in-github-copilot/`,
-    note: "GitHub rullet modellen ut gradvis, og den var på som standard. Usikkert: dette kan forklare hoppet i GPT-andelen i uke 37.",
+    note: "GitHub rullet modellen ut gradvis, og den var på som standard. Dette kan forklare hoppet i GPT-andelen i uke 37.",
     model: true,
   },
   {
@@ -434,7 +434,7 @@ export const CHART_ANNOTATIONS: ChartAnnotation[] = [
   { date: "2026-10-02", label: "Benchmark med realistisk kodeoppgave", url: `${PR}1415` },
   {
     date: "2026-10-02",
-    label: "Claude Opus 4.7 og Gemini 3.5/3.6 Flash fjernes",
+    label: "Claude Opus 4.7, Gemini 3.5/3.6 Flash og Kimi K2.7 Code fjernes",
     url: `${CL}2026-10-02-selected-models-in-github-copilot-deprecated/`,
     model: true,
   },

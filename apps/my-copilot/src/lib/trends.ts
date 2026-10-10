@@ -90,7 +90,7 @@ export interface MonthAnnotation {
 
 /**
  * Annotations grouped per month, only for months the chart shows, numbered by their place in the full list
- * (the page's «Hendelser»). Without `all`, only data breaks become markers.
+ * (the page's «Hendelser»). Without `all`, only data breaks (and model events when `models` is set) become markers.
  */
 export function annotationsFor(
   annotations: { date: string; label: string; dataBreak?: boolean; model?: boolean }[],
@@ -112,7 +112,7 @@ export function annotationsFor(
   return [...out.values()];
 }
 
-/** ?hendelser=alle shows every event as a marker in the charts; otherwise only data breaks. */
+/** ?hendelser=alle shows every event as a marker in the charts; otherwise only data breaks, plus model events in the model chart. */
 export function showAllEvents(value: string | string[] | undefined): boolean {
   return value === "alle";
 }
