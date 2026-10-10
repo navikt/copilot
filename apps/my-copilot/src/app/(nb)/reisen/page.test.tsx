@@ -56,6 +56,12 @@ describe("reisesiden", () => {
     expect(screen.getByRole("link", { name: "skills i katalogen" })).toHaveAttribute("href", "/verktoy");
   });
 
+  it("viser fem spørsmål vi tar med videre", () => {
+    render(<ReisenPage />);
+    const section = screen.getByRole("region", { name: "Spørsmål vi tar med videre" });
+    expect(within(section).getAllByRole("listitem")).toHaveLength(5);
+  });
+
   it("lenker navnet til GitHub-profilen", () => {
     render(<ReisenPage />);
     expect(screen.getByRole("link", { name: "Hans Kristian Flaatten" })).toHaveAttribute(
