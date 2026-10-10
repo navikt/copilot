@@ -2,8 +2,6 @@ package telemetry
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -24,25 +22,19 @@ type ModelUsage struct {
 	Input, Output, Reasoning, CacheRead, CacheWrite int64
 }
 
-// newRunID names this process in the usage series.
+// RecordClientUsage adds one session's totals to the counters.
 //
-// The series are cumulative and every process starts at zero. Two sessions on
-// one device and repository writing the same series would read as counter
-// resets, the fault that inflates Copilot's gen_ai_client_token_usage in
-// Mimir. A random id per process keeps each series to one writer. It says
-// nothing about the user and lives as long as one session.
-func newRunID() string {
-	b := make([]byte, 4)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}
-
+// No label per process or session. newOnlyExporter sends each export as what
+// is new since the last one, so a session reaches Mimir as one sample of its
+// own totals and sum_over_time adds the sessions up, concurrent ones included.
+// That is delta in all but the flag: real OTLP delta needs deltatocumulative,
+// which the Nav collector does not run, and nav-pilot's delta counters never
+// arrived (see temporalityFor).
 func (t *otelTelemetry) RecordClientUsage(u ClientUsage) {
 	ctx := context.Background()
 	common := []attribute.KeyValue{
 		attribute.String("client", orUnset(u.Client)),
 		attribute.String("nav_repo", orUnset(detectNavRepo())),
-		attribute.String("run_id", t.runID),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 	}

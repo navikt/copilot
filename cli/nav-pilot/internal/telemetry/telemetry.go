@@ -129,7 +129,6 @@ type otelTelemetry struct {
 	arch             string
 	rtkInstalled     string
 	projectType      string
-	runID            string
 }
 
 // telemetryEndpoint is where exports go.
@@ -328,20 +327,20 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local gate counter: %w", err)
 	}
-	genAITokens, err := meter.Int64Counter("nav_pilot_genai_token_usage",
+	genAITokens, err := meter.Int64Counter("nav_pilot_genai_session_tokens",
 		metric.WithDescription("Tokens a client session used, read from the client's own session store when it ends, by model and token type."))
 	if err != nil {
-		return NoopRecorder{}, fmt.Errorf("create genai token counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create genai token gauge: %w", err)
 	}
-	genAICalls, err := meter.Int64Counter("nav_pilot_genai_calls",
+	genAICalls, err := meter.Int64Counter("nav_pilot_genai_session_calls",
 		metric.WithDescription("Model calls (assistant messages) in a client session, by model."))
 	if err != nil {
-		return NoopRecorder{}, fmt.Errorf("create genai calls counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create genai calls gauge: %w", err)
 	}
-	genAIToolCalls, err := meter.Int64Counter("nav_pilot_genai_tool_calls",
+	genAIToolCalls, err := meter.Int64Counter("nav_pilot_genai_session_tool_calls",
 		metric.WithDescription("Tool calls in a client session, by tool name."))
 	if err != nil {
-		return NoopRecorder{}, fmt.Errorf("create genai tool calls counter: %w", err)
+		return NoopRecorder{}, fmt.Errorf("create genai tool calls gauge: %w", err)
 	}
 
 	tel := &otelTelemetry{
@@ -352,7 +351,6 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 		genAITokens:        genAITokens,
 		genAICalls:         genAICalls,
 		genAIToolCalls:     genAIToolCalls,
-		runID:              newRunID(),
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
 		launchErrorTotal:   launchErrorTotal,

@@ -30,9 +30,9 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_hook_action_check_total` | Counter | Handlingssjekken spurte den lokale modellen om en risikabel skallkommando | `outcome=flagged\|passed\|skipped_timeout\|skipped_no_server\|skipped_error`, `category=kubectl\|nais\|gcloud\|helm\|terraform\|rm\|git\|disk\|sql` |
 | `nav_pilot_local_dispatches` | Histogram | Oppgaver en økt sendte til den lokale modellen, målt når økten slutter | `client`, `model`, `dispatch_level=off\|conservative\|balanced\|aggressive`, `saw_traffic` |
 | `nav_pilot_local_gate_total` | Counter | Hva delegeringssperren gjorde i en økt med `local_dispatch` `balanced` eller `aggressive` | `outcome=deny_files\|deny_sites\|deny_scripted\|deny_create\|deny_tmp\|dispatched_after_deny\|verify_nudge\|create_retry\|create_retry_passed\|create_retry_failed` |
-| `nav_pilot_genai_token_usage_total` | Counter | Tokens en opencode-økt brukte, lest fra opencodes egen øktlagring når økten slutter | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `gen_ai_token_type=input\|output\|reasoning\|cache_read\|cache_write`, `nav_repo`, `run_id` |
-| `nav_pilot_genai_calls_total` | Counter | Modellkall (svar fra modellen) i en opencode-økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `nav_repo`, `run_id` |
-| `nav_pilot_genai_tool_calls_total` | Counter | Verktøykall i en opencode-økt | `client=opencode`, `gen_ai_tool_name`, `nav_repo`, `run_id` |
+| `nav_pilot_genai_session_tokens_total` | Counter | Tokens en opencode-økt brukte, lest fra opencodes egen øktlagring når økten slutter. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `gen_ai_token_type=input\|output\|reasoning\|cache_read\|cache_write`, `nav_repo` |
+| `nav_pilot_genai_session_calls_total` | Counter | Modellkall (svar fra modellen) i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `nav_repo` |
+| `nav_pilot_genai_session_tool_calls_total` | Counter | Verktøykall i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_tool_name`, `nav_repo` |
 
 **Merk om opencode-bruk (`nav_pilot_genai_*`):**
 - opencode sender spor (traces) og logger, men ingen metrikker. Når økten
@@ -43,16 +43,19 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   så sammenlign `input + cache_read` når du ser klientene mot hverandre.
 - `gen_ai_request_model` er modell-id-en for `github-copilot` og nav-pilots
   lokale modell. For leverandører du har lagt til selv, er den `custom`.
-- `run_id` er tilfeldig per nav-pilot-prosess. Uten den ville to samtidige
-  økter på samme maskin skrive til samme kumulative serie, og Mimir ville lese
-  hvert fall i verdien som en nullstilling og telle for mye. Det er feilen som
-  blåser opp Copilots `gen_ai_client_token_usage`. Hver serie får derfor én
-  verdi, så summer siste verdi i stedet for `increase`:
+- Ingen etikett per prosess eller økt. Som de andre tellerne sendes hver eksport
+  som det som er nytt siden forrige (se «Dashboard-eksempler»), så en økt kommer
+  fram som én måling med sine egne summer. Summer med `sum_over_time`, ikke
+  `increase`:
   ```promql
   sum by (gen_ai_request_model, gen_ai_token_type) (
-    last_over_time(nav_pilot_genai_token_usage_total{client="opencode"}[7d])
+    sum_over_time(nav_pilot_genai_session_tokens_total{client="opencode"}[7d])
   )
   ```
+  Da teller ikke to samtidige økter på samme maskin for mye. Det gjør Copilots
+  kumulative `gen_ai_client_token_usage`: Mimir leser hvert fall i verdien som en
+  nullstilling. Ekte delta-tellere ville krevd `deltatocumulative` i
+  Nav-kollektoren, og den har ikke det.
 - To opencode-økter i samme mappe samtidig blir telt av begge oppstartene.
 
 **Merk om `alpha decide` og hookene:**
