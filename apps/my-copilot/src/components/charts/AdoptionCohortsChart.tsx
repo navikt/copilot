@@ -2,6 +2,7 @@
 
 import type { AdoptionCohortDay, AdoptionCohortTrendData } from "@/lib/types";
 import React from "react";
+import { BodyShort } from "@navikt/ds-react";
 import { Line } from "react-chartjs-2";
 import { commonLineOptions, getBackgroundColor, chartWrapperClass, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 
@@ -29,7 +30,10 @@ interface AdoptionCohortsChartProps {
  * For each week, takes the average user count per phase.
  */
 function aggregateToWeeks(data: AdoptionCohortTrendData): AdoptionCohortTrendData {
-  const weekMap = new Map<string, { phase0: number[]; phase1: number[]; phase2: number[]; phase3: number[] }>();
+  const weekMap = new Map<
+    string,
+    { phase0: (number | null)[]; phase1: (number | null)[]; phase2: (number | null)[]; phase3: (number | null)[] }
+  >();
 
   for (let i = 0; i < data.days.length; i++) {
     const date = new Date(data.days[i] + "T00:00:00Z");
@@ -50,7 +54,12 @@ function aggregateToWeeks(data: AdoptionCohortTrendData): AdoptionCohortTrendDat
   }
 
   const sortedWeeks = [...weekMap.keys()].sort();
-  const avg = (arr: number[]) => (arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length));
+  // Suppressed days (null) are left out of the average; a week with only suppressed days stays null.
+  const avg = (arr: (number | null)[]) => {
+    const shown = arr.filter((v): v is number => v !== null);
+    return shown.length === 0 ? null : Math.round(shown.reduce((a, b) => a + b, 0) / shown.length);
+  };
+  const sum = (...values: (number | null)[]) => values.reduce<number>((a, b) => a + (b ?? 0), 0);
 
   const result: AdoptionCohortTrendData = {
     days: sortedWeeks,
@@ -71,7 +80,7 @@ function aggregateToWeeks(data: AdoptionCohortTrendData): AdoptionCohortTrendDat
     result.phase1.push(p1);
     result.phase2.push(p2);
     result.phase3.push(p3);
-    result.total.push(p0 + p1 + p2 + p3);
+    result.total.push(sum(p0, p1, p2, p3));
   }
 
   return result;
@@ -81,11 +90,15 @@ function aggregateToWeeks(data: AdoptionCohortTrendData): AdoptionCohortTrendDat
  * Transform raw cohort data into chart-friendly trend data.
  */
 export function transformCohortData(data: AdoptionCohortDay[]): AdoptionCohortTrendData {
-  const dayMap = new Map<string, { phase0: number; phase1: number; phase2: number; phase3: number }>();
+  // A phase missing on a day was suppressed by the API (fewer than five users) and stays null, not 0.
+  const dayMap = new Map<
+    string,
+    { phase0: number | null; phase1: number | null; phase2: number | null; phase3: number | null }
+  >();
 
   for (const row of data) {
     if (!dayMap.has(row.day)) {
-      dayMap.set(row.day, { phase0: 0, phase1: 0, phase2: 0, phase3: 0 });
+      dayMap.set(row.day, { phase0: null, phase1: null, phase2: null, phase3: null });
     }
     const entry = dayMap.get(row.day)!;
     const key = `phase${row.phase}` as keyof typeof entry;
@@ -110,7 +123,7 @@ export function transformCohortData(data: AdoptionCohortDay[]): AdoptionCohortTr
     result.phase1.push(entry.phase1);
     result.phase2.push(entry.phase2);
     result.phase3.push(entry.phase3);
-    result.total.push(entry.phase0 + entry.phase1 + entry.phase2 + entry.phase3);
+    result.total.push((entry.phase0 ?? 0) + (entry.phase1 ?? 0) + (entry.phase2 ?? 0) + (entry.phase3 ?? 0));
   }
 
   return result;
@@ -211,10 +224,9 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
   return (
     <div className={chartWrapperClass}>
       <Line data={chartData} options={options} />
-      <p className="mt-2 text-sm text-gray-600">
-        Skjult (færre enn 5): faser med færre enn fem brukere en dag vises ikke. Da skjules også en annen fase, så
-        tallet ikke kan regnes ut.
-      </p>
+      <BodyShort size="small" className="text-gray-600" style={{ marginTop: "var(--a-spacing-2)" }}>
+        Faser med færre enn fem brukere en dag er skjult.
+      </BodyShort>
     </div>
   );
 };

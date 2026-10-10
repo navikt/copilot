@@ -545,10 +545,11 @@ export interface AdoptionCohortDay {
 
 export interface AdoptionCohortTrendData {
   days: string[];
-  phase0: number[];
-  phase1: number[];
-  phase2: number[];
-  phase3: number[];
+  // null = suppressed by the API (fewer than five users)
+  phase0: (number | null)[];
+  phase1: (number | null)[];
+  phase2: (number | null)[];
+  phase3: (number | null)[];
   total: number[];
 }
 
