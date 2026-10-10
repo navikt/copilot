@@ -37,6 +37,10 @@ describe("formatPercent", () => {
 });
 
 describe("formatUSD", () => {
+  it("never writes a negative zero", () => {
+    expect(formatUSD(-0.3)).toBe(formatUSD(0));
+  });
+
   it("writes whole dollars as «1 234 USD»", () => {
     expect(formatUSD(1234.4)).toBe("1 234 USD");
     expect(formatUSD(0)).toBe("0 USD");

@@ -19,7 +19,8 @@ export const formatShare = (share: number, decimals = 0) => formatPercent(share 
 
 /** Whole US dollars: formatUSD(1234.4) → "1 234 USD", with non-breaking spaces. */
 export function formatUSD(value: number): string {
-  return `${formatNumber(value)} USD`;
+  // `|| 0` turns −0 (e.g. a change of −0.3) into 0, so it never shows as "−0 USD".
+  return `${formatNumber(Math.round(value) || 0)} USD`;
 }
 
 /**
