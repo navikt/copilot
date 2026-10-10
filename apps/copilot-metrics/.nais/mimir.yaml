@@ -8,11 +8,13 @@ spec:
   # Mimir accepts samples up to about an hour late; 03:00 UTC leaves margin.
   schedule: "0 3 * * *"
   concurrencyPolicy: Forbid
-  activeDeadlineSeconds: 3600
+  activeDeadlineSeconds: 7200
   backoffLimit: 2
   command:
     - /app/copilot-metrics
     - --mimir-daily
+  envFrom:
+    - secret: copilot-metrics
   env:
     - name: MIMIR_DAILY_ENABLED
       value: "{{mimir_daily_enabled}}"

@@ -438,11 +438,11 @@ func (c *BigQueryClient) EnsureMimirDailyTableExists(ctx context.Context) error 
 	if _, err := t.Metadata(ctx); err == nil {
 		return nil
 	}
-	return t.Create(ctx, &bigquery.TableMetadata{Schema: mimirDailySchema, Description: "Daily Mimir aggregates (nav-pilot / Copilot telemetry), k>=5 devices"})
+	return t.Create(ctx, &bigquery.TableMetadata{Schema: mimirDailySchema, Description: "Daily Mimir aggregates (nav-pilot / Copilot telemetry). Device-labelled families have k>=5 devices; copilot_chat rows carry no device count."})
 }
 
-// ReplaceMimirDay deletes the day and loads rows with a load job. Load jobs do
-// not use the streaming buffer, so a same-day rerun can delete again.
+// ReplaceMimirDay loads rows into a scratch table, then swaps the day in one
+// transaction, so a failed load never leaves the day empty.
 func (c *BigQueryClient) ReplaceMimirDay(ctx context.Context, day time.Time, rows []mimirRow) error {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -451,17 +451,40 @@ func (c *BigQueryClient) ReplaceMimirDay(ctx context.Context, day time.Time, row
 			return err
 		}
 	}
-	q := c.client.Query("DELETE FROM `" + c.projectID + "." + c.dataset + "." + mimirDailyName + "` WHERE day = @day")
-	q.Parameters = []bigquery.QueryParameter{{Name: "day", Value: civil.DateOf(day)}}
-	if err := c.runDeleteQuery(ctx, q, mimirDailyName); err != nil {
+	scratch := c.client.Dataset(c.dataset).Table(mimirDailyName + "_load_" + day.Format("20060102"))
+	if err := scratch.Create(ctx, &bigquery.TableMetadata{Schema: mimirDailySchema, ExpirationTime: time.Now().Add(6 * time.Hour)}); err != nil && !strings.Contains(err.Error(), "Already Exists") {
 		return err
 	}
 	src := bigquery.NewReaderSource(&buf)
 	src.SourceFormat = bigquery.JSON
 	src.Schema = mimirDailySchema
-	l := c.client.Dataset(c.dataset).Table(mimirDailyName).LoaderFrom(src)
-	l.WriteDisposition = bigquery.WriteAppend
-	job, err := l.Run(ctx)
+	l := scratch.LoaderFrom(src)
+	l.WriteDisposition = bigquery.WriteTruncate
+	if err := waitJob(ctx, l.Run); err != nil {
+		return fmt.Errorf("load scratch table: %w", err)
+	}
+	cols := make([]string, len(mimirDailySchema))
+	for i, f := range mimirDailySchema {
+		cols[i] = f.Name
+	}
+	colList := strings.Join(cols, ", ")
+	target := "`" + c.projectID + "." + c.dataset + "." + mimirDailyName + "`"
+	q := c.client.Query("BEGIN TRANSACTION;\n" +
+		"DELETE FROM " + target + " WHERE day = @day;\n" +
+		"INSERT INTO " + target + " (" + colList + ") SELECT " + colList + " FROM `" + c.projectID + "." + c.dataset + "." + scratch.TableID + "`;\n" +
+		"COMMIT TRANSACTION;")
+	q.Parameters = []bigquery.QueryParameter{{Name: "day", Value: civil.DateOf(day)}}
+	if err := waitJob(ctx, q.Run); err != nil {
+		return fmt.Errorf("swap day: %w", err)
+	}
+	if err := scratch.Delete(ctx); err != nil {
+		slog.Warn("Could not drop scratch table; it expires in 6 h", "table", scratch.TableID, "error", err)
+	}
+	return nil
+}
+
+func waitJob(ctx context.Context, run func(context.Context) (*bigquery.Job, error)) error {
+	job, err := run(ctx)
 	if err != nil {
 		return err
 	}

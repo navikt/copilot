@@ -59,6 +59,12 @@ func main() {
 				os.Exit(1)
 			}
 		}
+		// Mimir keeps ~70 days; a half-retained day returns partial rows that
+		// would replace complete ones.
+		if from.Before(yesterday.AddDate(0, 0, -60)) {
+			slog.Error("--mimir-from is too close to Mimir retention; max 60 days back", "from", from)
+			os.Exit(1)
+		}
 		if to.After(yesterday) || from.After(to) {
 			slog.Error("Mimir range must be closed days with from <= to", "from", from, "to", to)
 			os.Exit(1)
@@ -78,6 +84,7 @@ func main() {
 		m := &MimirClient{BaseURL: getEnv("MIMIR_URL", "https://mimir.nav.cloud.nais.io/prometheus/api/v1"), HTTP: &http.Client{Timeout: 5 * time.Minute}}
 		if err := runMimirDaily(ctx, m, bq, from, to); err != nil {
 			slog.Error("Mimir daily copy failed", "error", err)
+			NewSlackNotifier(config.SlackWebhookURL).NotifyError(context.Background(), fmt.Sprintf("Mimir daily copy failed: %v", err))
 			os.Exit(1)
 		}
 		return
