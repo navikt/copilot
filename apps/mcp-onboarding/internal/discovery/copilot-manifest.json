@@ -653,7 +653,7 @@
       "displayName": "deliberate-ai-use",
       "description": "Bevisst KI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak",
       "filePath": "skills/deliberate-ai-use/SKILL.md",
-      "contentHash": "4927691141f3a7f49a11215fea8905c6b956f0a1a5a79a6b77e60aec965e9759",
+      "contentHash": "60f1bc5b6eb0b378d1115f0a6febaa63670b25576007f2b435943940bfe137fd",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/deliberate-ai-use/SKILL.md"
     },
