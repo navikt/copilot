@@ -18,6 +18,7 @@ import TeamTable from "@/components/team-table";
 import { formatNumber, formatPercent, formatShare } from "@/lib/format";
 import type { AdoptionData } from "@/lib/types";
 import { calculateLanguageStats } from "@/lib/adoption-utils";
+import { getAllCustomizations } from "@/lib/customizations";
 
 export const metadata: Metadata = {
   title: "Tilpasninger",
@@ -81,6 +82,30 @@ function Overview({ data }: { data: AdoptionData }) {
       </HGrid>
       <CustomizationTypeChart data={summary} />
     </>
+  );
+}
+
+// The shared catalog in navikt/copilot, the number the front page shows.
+function Catalog() {
+  const items = getAllCustomizations();
+  const types = [
+    { label: "Agenter", type: "agent" },
+    { label: "Skills", type: "skill" },
+    { label: "Instruksjoner", type: "instruction" },
+    { label: "Prompts", type: "prompt" },
+  ].map((t) => ({ ...t, count: items.filter((i) => i.type === t.type).length }));
+  return (
+    <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
+      {types.map((t) => (
+        <MetricCard
+          key={t.type}
+          value={formatNumber(t.count)}
+          label={t.label}
+          helpTitle={t.label}
+          helpText="Antall i den delte samlingen i navikt/copilot, som du finner under Verktøy."
+        />
+      ))}
+    </HGrid>
   );
 }
 
@@ -270,6 +295,9 @@ export default async function TilpasningerPage() {
         <Suspense fallback={fallback}>
           <Adoption token={token}>{(data) => <Overview data={data} />}</Adoption>
         </Suspense>
+      </InsightSection>
+      <InsightSection id="samlingen" title={`${getAllCustomizations().length} delte tilpasninger`}>
+        <Catalog />
       </InsightSection>
       <InsightSection id="verktoy" title="Tilpasninger per verktøy">
         <Suspense fallback={fallback}>

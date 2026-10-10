@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,7 +15,8 @@ func fullAggregates() *FactAggregates {
 		DataDay: "2026-10-09", WeekUsers: 532, MCPUsers: 302, SkillUsers: 258, CustomAgentUsers: 158,
 		Users3PlusModels: 182, MonthUsers: 649, MonthUserDays: 7463, WeekendUserDays: 272, WeekendUsers: 120, WeekdayAvg: 359.55,
 		JuneUsers: 605, JuneWeekdayAvg: 334.9, JulyWeekdayAvg: 159.1,
-		Families: []FamilyUsers{{"GPT", 385}, {"Claude Opus", 211}, {"Claude Sonnet", 121}, {"Claude Haiku", 11}, {"Gemini", 7}},
+		Families:    []FamilyUsers{{"GPT", 385}, {"Claude Opus", 211}, {"Claude Sonnet", 121}, {"Claude Haiku", 11}, {"Gemini", 7}},
+		ActiveRepos: 1200, ActiveReposWithCustoms: 99,
 	}
 }
 
@@ -114,7 +116,72 @@ func TestPublicFactEndpoint(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 || got["text"] == "" || got["href"] == "" {
-		t.Fatalf("body %v, want only text and href", got)
+	// weekUsers is left out on days the sentence itself is the weekly count.
+	weekly := strings.Contains(got["text"].(string), "den siste uka") && strings.HasPrefix(got["text"].(string), "Rundt")
+	if got["text"] == "" || got["href"] == "" || (weekly && len(got) != 2) || (!weekly && (len(got) != 3 || got["weekUsers"] != float64(550))) {
+		t.Fatalf("body %v, want text, href and (unless the weekly sentence) weekUsers 550", got)
+	}
+}
+
+func TestNewTemplates(t *testing.T) {
+	a := fullAggregates()
+	render := func(id string) (string, bool) {
+		for _, tpl := range factTemplates {
+			if tpl.id == id {
+				return tpl.render(a)
+			}
+		}
+		t.Fatalf("no template %q", id)
+		return "", false
+	}
+	if got, ok := render("maanedsbrukere"); !ok || got != "Rundt 650 personer brukte Copilot de siste 28 dagene." {
+		t.Errorf("maanedsbrukere = %q, %v", got, ok)
+	}
+	if got, ok := render("repoer-tilpasninger"); !ok || got != "8 % av de aktive navikt-repoene har tilpasninger for Copilot." {
+		t.Errorf("repoer-tilpasninger = %q, %v", got, ok)
+	}
+	a.ActiveReposWithCustoms = 19
+	if _, ok := render("repoer-tilpasninger"); ok {
+		t.Error("19 repos passed the floor of 20")
+	}
+}
+
+func TestWithRepoCounts(t *testing.T) {
+	agg := fullAggregates()
+	got := withRepoCounts(agg, &AdoptionSummary{ActiveReposWithRecentCommits: 1200, AdoptionRateActiveOnly: 0.0825})
+	if got.ActiveRepos != 1200 || got.ActiveReposWithCustoms != 99 {
+		t.Errorf("got %d of %d, want 99 of 1200", got.ActiveReposWithCustoms, got.ActiveRepos)
+	}
+	if agg.ActiveReposWithCustoms != 99 || got == agg {
+		t.Error("withRepoCounts must return a copy")
+	}
+	if withRepoCounts(nil, &AdoptionSummary{}) != nil || withRepoCounts(agg, nil) != agg {
+		t.Error("nil inputs must pass through")
+	}
+}
+
+func TestCachedFactAdoptionCachesFailures(t *testing.T) {
+	c := NewCache(time.Hour)
+	calls := 0
+	fail := func() (*AdoptionSummary, error) { calls++; return nil, errors.New("bq down") }
+	for range 3 {
+		if s := cachedFactAdoption(c, "k", fail); s != nil {
+			t.Fatalf("got %+v, want nil", s)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("failing query ran %d times, want 1", calls)
+	}
+	ok := func() (*AdoptionSummary, error) {
+		calls++
+		return &AdoptionSummary{ActiveReposWithRecentCommits: 10}, nil
+	}
+	for range 2 {
+		if s := cachedFactAdoption(c, "k2", ok); s == nil || s.ActiveReposWithRecentCommits != 10 {
+			t.Fatalf("got %+v", s)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("query ran %d times, want 2", calls)
 	}
 }

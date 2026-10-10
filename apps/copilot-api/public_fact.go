@@ -43,6 +43,9 @@ type FactAggregates struct {
 	JuneWeekdayAvg   float64       `bigquery:"june_weekday_avg"`
 	JulyWeekdayAvg   float64       `bigquery:"july_weekday_avg"`
 	Families         []FamilyUsers `bigquery:"families"`
+	// From the weekly repo scan, not user_metrics; filled by the handler.
+	ActiveRepos            int64 `bigquery:"-"`
+	ActiveReposWithCustoms int64 `bigquery:"-"`
 }
 
 // FamilyUsers counts distinct users per model family the past week, largest first.
@@ -51,10 +54,12 @@ type FamilyUsers struct {
 	Users  int64  `bigquery:"users"`
 }
 
-// Fact is all the public endpoint returns.
+// Fact is all the public endpoint returns. WeekUsers is the rounded count of
+// people the past week for the front page's insight strip, omitted below 50.
 type Fact struct {
-	Text string `json:"text"`
-	Href string `json:"href"`
+	Text      string `json:"text"`
+	Href      string `json:"href"`
+	WeekUsers int    `json:"weekUsers,omitempty"`
 }
 
 type factTemplate struct {
@@ -72,10 +77,12 @@ func publicPct(num, den int64) (int, bool) {
 	return int(math.Round(float64(num) / float64(den) * 100)), true
 }
 
+func round50(n float64) int { return int(math.Round(n/50) * 50) }
+
 // roundPeople rounds a people count to the nearest 50 and groups thousands
 // Norwegian style (1 000). ok is false below 50, so «Rundt 0» never shows.
 func roundPeople(n float64) (string, bool) {
-	r := int(math.Round(n/50) * 50)
+	r := round50(n)
 	if r < 1000 {
 		return strconv.Itoa(r), r >= 50
 	}
@@ -139,6 +146,14 @@ var factTemplates = []factTemplate{
 	{"ukebrukere", "vekst", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
 		n, ok := roundPeople(float64(a.WeekUsers))
 		return "Rundt " + n + " personer brukte Copilot den siste uka.", ok
+	}},
+	{"maanedsbrukere", "vekst", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
+		n, ok := roundPeople(float64(a.MonthUsers))
+		return "Rundt " + n + " personer brukte Copilot de siste 28 dagene.", ok
+	}},
+	{"repoer-tilpasninger", "verktoy", "/innsikt/tilpasninger", func(a *FactAggregates) (string, bool) {
+		p, ok := publicPct(a.ActiveReposWithCustoms, a.ActiveRepos)
+		return fmt.Sprintf("%d %% av de aktive navikt-repoene har tilpasninger for Copilot.", p), ok
 	}},
 	{"vekst-juni", "vekst", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
 		if a.JuneUsers < minPublicGroup || a.MonthUsers <= a.JuneUsers {
@@ -260,8 +275,9 @@ SELECT
 func (c *CachedBigQueryClient) GetFactAggregates(ctx context.Context) (*FactAggregates, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	key := "fact_aggregates_" + time.Now().In(oslo).Format(time.DateOnly)
-	return getCachedValue(c, key, func() (*FactAggregates, error) {
+	date := time.Now().In(oslo).Format(time.DateOnly)
+	key := "fact_aggregates_" + date
+	agg, err := getCachedValue(c, key, func() (*FactAggregates, error) {
 		agg, err := c.client.GetFactAggregates(ctx)
 		if err != nil {
 			// Cache the miss as nil (no fact) for the TTL, so a failing query
@@ -271,6 +287,64 @@ func (c *CachedBigQueryClient) GetFactAggregates(ctx context.Context) (*FactAggr
 		}
 		return agg, nil
 	})
+	if err != nil || agg == nil {
+		return agg, err
+	}
+	// The repo count is optional: wait at most adoptionBudget for it, so a slow
+	// scan query never costs the front page its fact. The load keeps running
+	// and fills the cache for the next request.
+	ch := make(chan *AdoptionSummary, 1)
+	go func() {
+		ch <- cachedFactAdoption(c.cache, "fact_adoption_"+date, func() (*AdoptionSummary, error) {
+			v, err, _ := c.group.Do("fact_adoption_"+date, func() (any, error) {
+				qctx, cancel := withQueryTimeout(ctx)
+				defer cancel()
+				return c.client.GetAdoptionSummary(qctx)
+			})
+			s, _ := v.(*AdoptionSummary)
+			return s, err
+		})
+	}()
+	select {
+	case s := <-ch:
+		return withRepoCounts(agg, s), nil
+	case <-time.After(adoptionBudget):
+		slog.Warn("Adoption summary too slow for fact; serving without repo count")
+		return agg, nil
+	}
+}
+
+// cachedFactAdoption loads the repo scan once per key. A failure or an empty
+// scan is cached as nil for negativeCacheTTL, so anonymous front-page views
+// cannot re-run a failing query (#1572).
+func cachedFactAdoption(c *Cache, key string, load func() (*AdoptionSummary, error)) *AdoptionSummary {
+	if v, ok := c.Get(key); ok {
+		s, _ := v.(*AdoptionSummary)
+		return s
+	}
+	s, err := load()
+	if err != nil || s == nil {
+		if err != nil {
+			slog.Error("Failed to fetch adoption summary for fact", "error", err)
+		}
+		c.SetWithTTL(key, (*AdoptionSummary)(nil), negativeCacheTTL)
+		return nil
+	}
+	c.SetWithTTL(key, s, 24*time.Hour)
+	return s
+}
+
+const adoptionBudget = 2 * time.Second
+
+// withRepoCounts adds the repo scan to a copy; the cached aggregates are shared.
+func withRepoCounts(agg *FactAggregates, s *AdoptionSummary) *FactAggregates {
+	if agg == nil || s == nil {
+		return agg
+	}
+	a := *agg
+	a.ActiveRepos = s.ActiveReposWithRecentCommits
+	a.ActiveReposWithCustoms = int64(math.Round(s.AdoptionRateActiveOnly * float64(s.ActiveReposWithRecentCommits)))
+	return &a
 }
 
 func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Request) {
@@ -280,7 +354,12 @@ func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Reque
 		respondError(w, "internal_error", "Failed to fetch fact", http.StatusInternalServerError)
 		return
 	}
-	fact, _ := pickFact(time.Now().In(oslo), agg)
+	fact, id := pickFact(time.Now().In(oslo), agg)
+	if fact != nil && id != "ukebrukere" { // the sentence already says it
+		if n := round50(float64(agg.WeekUsers)); n >= 50 {
+			fact.WeekUsers = n
+		}
+	}
 	cacheControl(w, 3600, true)
 	respondJSON(w, fact, http.StatusOK) // null when no template has enough data
 }
