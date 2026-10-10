@@ -12,7 +12,7 @@ import (
 func fullAggregates() *FactAggregates {
 	return &FactAggregates{
 		DataDay: "2026-10-09", WeekUsers: 532, MCPUsers: 302, SkillUsers: 258, CustomAgentUsers: 158,
-		Users3PlusModels: 182, MonthUsers: 649, MonthUserDays: 7463, WeekendUserDays: 272, WeekdayAvg: 359.55,
+		Users3PlusModels: 182, MonthUsers: 649, MonthUserDays: 7463, WeekendUserDays: 272, WeekendUsers: 120, WeekdayAvg: 359.55,
 		JuneUsers: 605, JuneWeekdayAvg: 334.9, JulyWeekdayAvg: 159.1,
 		Families: []FamilyUsers{{"GPT", 385}, {"Claude Opus", 211}, {"Claude Sonnet", 121}, {"Claude Haiku", 11}, {"Gemini", 7}},
 	}
@@ -82,9 +82,13 @@ func TestFactRounding(t *testing.T) {
 	if _, ok := publicPct(19, 500); ok {
 		t.Error("19 users passed the floor of 20")
 	}
-	for in, want := range map[float64]int{532: 550, 524: 500, 371: 350, 375: 400} {
-		if got := roundPeople(in); got != want {
-			t.Errorf("roundPeople(%v) = %d, want %d", in, got, want)
+	if _, ok := publicPct(520, 532); ok {
+		t.Error("complement of 12 passed the floor of 20")
+	}
+	for in, want := range map[float64]string{532: "550", 524: "500", 371: "350", 375: "400", 1024: "1\u00a0000", 22: "0"} {
+		got, ok := roundPeople(in)
+		if got != want || ok != (in >= 25) {
+			t.Errorf("roundPeople(%v) = %q, %v, want %q", in, got, ok, want)
 		}
 	}
 }

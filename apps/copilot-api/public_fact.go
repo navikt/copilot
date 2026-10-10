@@ -8,7 +8,9 @@ import (
 	"math"
 	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"time"
+	_ "time/tzdata"
 )
 
 // The front page's «Dagens innsikt»: one sentence a day, built from Nav-wide
@@ -35,6 +37,7 @@ type FactAggregates struct {
 	MonthUsers       int64         `bigquery:"month_users"`
 	MonthUserDays    int64         `bigquery:"month_user_days"`
 	WeekendUserDays  int64         `bigquery:"weekend_user_days"`
+	WeekendUsers     int64         `bigquery:"weekend_users"`
 	WeekdayAvg       float64       `bigquery:"weekday_avg"`
 	JuneUsers        int64         `bigquery:"june_users"`
 	JuneWeekdayAvg   float64       `bigquery:"june_weekday_avg"`
@@ -63,20 +66,27 @@ type factTemplate struct {
 
 // publicPct is a whole-number share, ok only when both counts reach minPublicGroup.
 func publicPct(num, den int64) (int, bool) {
-	if num < minPublicGroup || den < minPublicGroup {
+	if num < minPublicGroup || den-num < minPublicGroup {
 		return 0, false
 	}
 	return int(math.Round(float64(num) / float64(den) * 100)), true
 }
 
-// roundPeople rounds a people count to the nearest 50.
-func roundPeople(n float64) int { return int(math.Round(n/50) * 50) }
+// roundPeople rounds a people count to the nearest 50 and groups thousands
+// Norwegian style (1 000). ok is false below 50, so «Rundt 0» never shows.
+func roundPeople(n float64) (string, bool) {
+	r := int(math.Round(n/50) * 50)
+	if r < 1000 {
+		return strconv.Itoa(r), r >= 50
+	}
+	return fmt.Sprintf("%d\u00a0%03d", r/1000, r%1000), true
+}
 
 var factTemplates = []factTemplate{
 	// Mandag: bruk og vaner
 	{"helg", "bruk", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
 		p, ok := publicPct(a.WeekendUserDays, a.MonthUserDays)
-		ok = ok && a.MonthUsers >= minPublicGroup
+		ok = ok && a.WeekendUsers >= minPublicGroup && a.MonthUsers-a.WeekendUsers >= minPublicGroup
 		return fmt.Sprintf("%d %% av bruken de siste fire ukene skjedde i helgene.", p), ok
 	}},
 	{"fellesferie", "bruk", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
@@ -84,10 +94,11 @@ var factTemplates = []factTemplate{
 			return "", false
 		}
 		p := int(math.Round((1 - a.JulyWeekdayAvg/a.JuneWeekdayAvg) * 100))
-		return fmt.Sprintf("I juli var det %d %% færre som brukte Copilot på en vanlig arbeidsdag enn i juni.", p), true
+		return fmt.Sprintf("I juli var det %d %% færre som brukte Copilot på en vanlig arbeidsdag enn i juni.", p), p >= 1
 	}},
 	{"arbeidsdag", "bruk", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
-		return fmt.Sprintf("Rundt %d personer bruker Copilot på en vanlig arbeidsdag.", roundPeople(a.WeekdayAvg)), a.WeekdayAvg >= minPublicGroup
+		n, ok := roundPeople(a.WeekdayAvg)
+		return "Rundt " + n + " personer bruker Copilot på en vanlig arbeidsdag.", ok
 	}},
 	// Tirsdag: modeller
 	{"modellfamilier", "modeller", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
@@ -126,7 +137,8 @@ var factTemplates = []factTemplate{
 	}},
 	// Torsdag: vekst og milepæler
 	{"ukebrukere", "vekst", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
-		return fmt.Sprintf("Rundt %d personer brukte Copilot den siste uka.", roundPeople(float64(a.WeekUsers))), a.WeekUsers >= minPublicGroup
+		n, ok := roundPeople(float64(a.WeekUsers))
+		return "Rundt " + n + " personer brukte Copilot den siste uka.", ok
 	}},
 	{"vekst-juni", "vekst", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
 		if a.JuneUsers < minPublicGroup || a.MonthUsers <= a.JuneUsers {
@@ -140,7 +152,7 @@ var factTemplates = []factTemplate{
 var oslo = func() *time.Location {
 	loc, err := time.LoadLocation("Europe/Oslo")
 	if err != nil {
-		return time.FixedZone("CET", 3600)
+		panic(err) // tzdata is embedded below; a wrong day boundary is worse than no start
 	}
 	return loc
 }()
@@ -228,6 +240,7 @@ SELECT
   (SELECT COUNT(DISTINCT u) FROM m28) AS month_users,
   (SELECT COUNT(*) FROM m28) AS month_user_days,
   (SELECT COUNTIF(EXTRACT(DAYOFWEEK FROM day) IN (1, 7)) FROM m28) AS weekend_user_days,
+  (SELECT COUNT(DISTINCT u) FROM m28 WHERE EXTRACT(DAYOFWEEK FROM day) IN (1, 7)) AS weekend_users,
   (SELECT IFNULL(AVG(n), 0) FROM daily, last WHERE day > DATE_SUB(d, INTERVAL 28 DAY)) AS weekday_avg,
   (SELECT COUNT(DISTINCT u) FROM base WHERE day BETWEEN DATE '2026-06-03' AND DATE '2026-06-30') AS june_users,
   (SELECT IFNULL(AVG(n), 0) FROM daily WHERE day BETWEEN DATE '2026-06-01' AND DATE '2026-06-30') AS june_weekday_avg,
@@ -249,7 +262,14 @@ func (c *CachedBigQueryClient) GetFactAggregates(ctx context.Context) (*FactAggr
 	defer cancel()
 	key := "fact_aggregates_" + time.Now().In(oslo).Format(time.DateOnly)
 	return getCachedValue(c, key, func() (*FactAggregates, error) {
-		return c.client.GetFactAggregates(ctx)
+		agg, err := c.client.GetFactAggregates(ctx)
+		if err != nil {
+			// Cache the miss as nil (no fact) for the TTL, so a failing query
+			// cannot be re-run by every anonymous front-page view.
+			slog.Error("Failed to fetch fact aggregates", "error", err)
+			return nil, nil
+		}
+		return agg, nil
 	})
 }
 
