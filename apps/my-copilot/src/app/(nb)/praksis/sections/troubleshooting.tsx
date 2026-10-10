@@ -77,6 +77,19 @@ export default function Troubleshooting() {
                   tvinger du frem en nullstilling:
                 </BodyShort>
                 <div className="pl-4 border-l-2 border-gray-300">
+                  <BodyShort weight="semibold">I terminalen (Copilot CLI):</BodyShort>
+                  <ol className="list-decimal pl-5 space-y-1 mt-2 text-gray-700 text-sm">
+                    <li>
+                      Trykk <strong>Esc</strong> to ganger for å avbryte agenten, og start en ny samtale med{" "}
+                      <strong>/clear</strong>.
+                    </li>
+                    <li>
+                      Hjelper ikke det: logg ut med <strong>/logout</strong>, avslutt med <strong>/exit</strong>, og
+                      start på nytt.
+                    </li>
+                  </ol>
+                </div>
+                <div className="pl-4 border-l-2 border-gray-300">
                   <BodyShort weight="semibold">I VS Code:</BodyShort>
                   <ol className="list-decimal pl-5 space-y-1 mt-2 text-gray-700 text-sm">
                     <li>
@@ -142,7 +155,7 @@ export default function Troubleshooting() {
                   </li>
                 </ul>
                 <BodyShort className="text-sm font-semibold">
-                  Bruk <code>#file</code> i VS Code eller <code>@</code> i Copilot CLI for å plukke kun de 1-3 filene
+                  Bruk <code>@</code> i Copilot CLI eller <code>#file</code> i VS Code for å plukke kun de 1-3 filene
                   som faktisk er relevante for oppgaven din!
                 </BodyShort>
               </VStack>

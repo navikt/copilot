@@ -44,10 +44,18 @@ export const categories: Category[] = [
       {
         id: "kom-i-gang",
         title: "Kom i gang med Copilot",
-        description: "Hvordan få tilgang, og hvordan installere Copilot i din editor.",
-        keywords: ["kom i gang", "installasjon", "tilgang", "lisens", "auth"],
+        description: "Få tilgang, og kom i gang i terminalen med Copilot CLI eller i editoren.",
+        keywords: ["kom i gang", "installasjon", "tilgang", "lisens", "auth", "terminal", "copilot cli", "nav-pilot"],
         iconName: "PlayIcon",
         components: [GettingStarted],
+      },
+      {
+        id: "velge-riktig-verktoy",
+        title: "Velg riktig verktøy: terminal, editor eller GitHub.com",
+        description: "Copilot CLI i terminalen, Copilot i editoren og agentene på GitHub.com.",
+        keywords: ["moduser", "verktoy", "copilot chat", "agent mode", "cli", "terminal", "slash-kommandoer"],
+        iconName: "TerminalIcon",
+        components: [ToolsAndModes],
       },
       {
         id: "skrive-presise-prompts",
@@ -139,14 +147,6 @@ export const categories: Category[] = [
     title: "Innsikt og Optimalisering",
     description: "Få dypere innsikt i hvordan Copilot fungerer under panseret.",
     guides: [
-      {
-        id: "velge-riktig-verktoy",
-        title: "Spar tid med riktige verktøy og moduser",
-        description: "Oversikt over de ulike modusene og verktøyene Copilot tilbyr.",
-        keywords: ["moduser", "verktoy", "copilot chat", "agent mode", "cli"],
-        iconName: "TerminalIcon",
-        components: [ToolsAndModes],
-      },
       {
         id: "redusere-token-bruk",
         title: "Reduser token-bruk og spar kostnader",

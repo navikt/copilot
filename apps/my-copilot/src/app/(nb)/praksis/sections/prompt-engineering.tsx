@@ -243,7 +243,8 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               <li className="flex gap-2">
                 <span className="text-blue-600">▪</span>
                 <BodyShort className="text-sm">
-                  I agent mode søker agenten i prosjektet selv. Pek på filer med #file, eller bruk #codebase i VS Code
+                  Agenten søker i prosjektet selv. Pek på filer med <code>@</code> i Copilot CLI, eller med{" "}
+                  <code>#file</code> i VS Code
                 </BodyShort>
               </li>
               <li className="flex gap-2">
@@ -252,7 +253,9 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
               </li>
               <li className="flex gap-2">
                 <span className="text-blue-600">▪</span>
-                <BodyShort className="text-sm">Start ny chat når du bytter tema</BodyShort>
+                <BodyShort className="text-sm">
+                  Start en ny samtale når du bytter tema, med <code>/clear</code> i Copilot CLI
+                </BodyShort>
               </li>
             </ul>
           </Box>
