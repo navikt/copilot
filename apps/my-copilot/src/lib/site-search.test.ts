@@ -1,6 +1,9 @@
 import { buildSearchIndex } from "@/lib/search-index";
 import inventory from "@/lib/link-inventory.json";
 import { searchEntries, type SearchEntry } from "@/lib/site-search";
+import fs from "node:fs";
+import path from "node:path";
+import { PRIVATE_PAGE_PATHS } from "@/proxy";
 
 const index = buildSearchIndex();
 const paths: Record<string, { anchors: Record<string, string[]> }> = inventory;
@@ -18,6 +21,36 @@ describe("search index", () => {
     expect(index.some((e) => e.href === "/nyheter/lokale-modeller-i-nav-pilot")).toBe(true);
     // No date in the context, or «2026» would find every news item.
     expect(index.filter((e) => e.href.startsWith("/nyheter/")).every((e) => e.context === "Nyhet")).toBe(true);
+  });
+
+  // Every static page route is searchable. A page whose title the index can't
+  // read (no metadata title literal, no <PageHero title="…">) fails here.
+  it("has every page route", () => {
+    const appDir = path.join(__dirname, "..", "app");
+    const files = fs.globSync("**/page.tsx", { cwd: appDir });
+    const route = (f: string) =>
+      "/" +
+      path
+        .dirname(f)
+        .split(path.sep)
+        .filter((s) => s !== "." && !/^\(.*\)$/.test(s))
+        .join("/");
+    const pageFile = (r: string) => files.find((f) => route(f) === r)!;
+    const routes = files
+      .map(route)
+      .filter((r) => !r.includes("["))
+      // A page that only redirects is found under the page it redirects to.
+      .filter((r) => !/\bpermanentRedirect\(/.test(fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8")));
+    const hrefs = new Set(index.map((e) => e.href));
+    expect(routes.filter((r) => !hrefs.has(r))).toEqual([]);
+  });
+
+  it("marks pages behind a login, headings included", () => {
+    const under = (r: string) =>
+      index.filter((e) => e.href === r || (/^[/#]/.test(e.href.slice(r.length)) && e.href.startsWith(r)));
+    for (const r of PRIVATE_PAGE_PATHS) expect(under(r).filter((e) => !e.login)).toEqual([]);
+    expect(index.find((e) => e.href === "/abonnement")?.login).toBe(true);
+    expect(index.find((e) => e.href === "/innsikt")?.login).toBeUndefined();
   });
 
   // src/link-inventory.test.ts checks that every inventoried path and anchor resolves.

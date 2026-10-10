@@ -24,6 +24,7 @@ export function matches(route, pattern) {
 // app.yaml), so src/proxy.ts is the only gate; check-public-routes.mjs and
 // src/proxy.test.ts fail if it stops guarding one.
 export const PRIVATE_ROUTES = [
+  "/nav-pilot/undersokelse",
   "/abonnement",
   "/kostnad",
   "/statistikk",

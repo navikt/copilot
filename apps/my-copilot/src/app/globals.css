@@ -838,6 +838,14 @@ button.section-link {
   color: var(--ax-text-neutral);
   text-decoration: none;
 }
+button.search-hit {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 .search-hit[aria-selected="true"] {
   background: var(--ax-bg-neutral-moderate);
   outline: 2px solid var(--ax-border-focus);
