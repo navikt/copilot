@@ -1,6 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
-import { Alert, BodyShort, Button, HStack, Select, Skeleton } from "@navikt/ds-react";
+import { Alert, BodyShort, Skeleton } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
@@ -15,15 +15,16 @@ import { getUser, getUserToken } from "@/lib/auth";
 import { currentMonthUTC } from "@/lib/month-utils";
 import { formatNumber } from "@/lib/format";
 import {
-  PERIODS,
   annotationsFor,
   familyShares,
   monthLabel,
   parsePeriod,
   periodStart,
+  showAllEvents,
   visibleMonths,
 } from "@/lib/trends";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
+import { Events, PeriodSelect } from "./controls";
 import { Intensity, Movement, SegmentChanges, TeamAdoption, WayOfWorking } from "./segments";
 
 export const metadata: Metadata = {
@@ -43,7 +44,9 @@ function DataStart({ clamped, first }: { clamped: boolean; first?: string }) {
   );
 }
 
-async function ModelFamilies({ token, start }: { token: string; start: string | null }) {
+type ChartProps = { token: string; start: string | null; all: boolean };
+
+async function ModelFamilies({ token, start, all }: ChartProps) {
   // 36 months is the most the endpoint returns, so «Alt» means at most 36 months here (see «Kilde og metode»).
   const { breakdown, error } = await getBillingModelBreakdown(token, 36);
   if (error) return <BodyShort>{`Kunne ikke hente kostnad per modell: ${error}`}</BodyShort>;
@@ -56,12 +59,12 @@ async function ModelFamilies({ token, start }: { token: string; start: string | 
   return (
     <>
       <DataStart clamped={clamped} first={first} />
-      <FamilyShareChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, data.months)} />
+      <FamilyShareChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, data.months, all)} />
     </>
   );
 }
 
-async function CreditsPerUser({ token, start }: { token: string; start: string | null }) {
+async function CreditsPerUser({ token, start, all }: ChartProps) {
   const { months: rows, error } = await getCreditsPerUserMonthly(token);
   if (error) return <BodyShort>{`Kunne ikke hente AI Credits per bruker: ${error}`}</BodyShort>;
   const { months, clamped, first } = visibleMonths(
@@ -73,12 +76,12 @@ async function CreditsPerUser({ token, start }: { token: string; start: string |
   return (
     <>
       <DataStart clamped={clamped} first={first} />
-      <CreditsPerUserChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months)} />
+      <CreditsPerUserChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months, all)} />
     </>
   );
 }
 
-async function CopilotPRs({ token, start }: { token: string; start: string | null }) {
+async function CopilotPRs({ token, start, all }: ChartProps) {
   const { months: rows, error } = await getCopilotPRsMonthly(token);
   if (error) return <BodyShort>{`Kunne ikke hente pull requests: ${error}`}</BodyShort>;
   const { months, clamped, first } = visibleMonths(
@@ -94,7 +97,7 @@ async function CopilotPRs({ token, start }: { token: string; start: string | nul
         trend ut av dem.
       </Alert>
       <DataStart clamped={clamped} first={first} />
-      <CopilotPRChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months)} />
+      <CopilotPRChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months, all)} />
     </>
   );
 }
@@ -154,25 +157,6 @@ async function Cohorts({ token, start }: { token: string; start: string | null }
   );
 }
 
-function PeriodSelect({ value }: { value: string }) {
-  return (
-    <form action="/innsikt/trender" method="get" aria-label="Velg periode">
-      <HStack gap="space-8" align="end">
-        <Select key={value} label="Periode" name="periode" defaultValue={value} size="small">
-          {PERIODS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </Select>
-        <Button type="submit" size="small" variant="secondary-neutral">
-          Vis
-        </Button>
-      </HStack>
-    </form>
-  );
-}
-
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <InsightSection id={id} title={title}>
@@ -181,13 +165,19 @@ function Section({ id, title, children }: { id: string; title: string; children:
   );
 }
 
-export default async function TrenderPage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
+export default async function TrenderPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ periode?: string; hendelser?: string | string[] }>;
+}) {
   await getUser();
   const token = await getUserToken();
   if (!token) return <ErrorState message="Mangler innloggingstoken" />;
   const params = await searchParams;
   const period = parsePeriod(params.periode);
   const start = periodStart(period, currentMonthUTC());
+  const all = showAllEvents(params.hendelser);
+  const props = { token, start, all };
 
   return (
     <InsightPage
@@ -203,46 +193,45 @@ export default async function TrenderPage({ searchParams }: { searchParams: Prom
           <code>user_metrics</code> (<code>/usage/credits-per-user</code>). En bruker er aktiv når hen har brukt AI
           Credits, chat eller kodeforslag i måneden, og måneder med færre enn fem brukere vises ikke. Pull requests er
           summen over alle repositorier unntatt private i <code>repository_metrics</code> (
-          <code>/usage/copilot-prs</code>). Den inneværende måneden er ikke ferdig. De loddrette strekene markerer når
-          noe skjedde, ikke hva som var årsaken. Modellvalgene gjelder bare våre egne agenter, mens faktureringen
-          gjelder hele Nav. Fra 1. juni 2026 ble premium requests erstattet av AI Credits, så kostnadene før og etter er
-          ikke direkte sammenlignbare. Kohortene (<code>/usage/cohort-retention</code>) grupperer brukerne etter måneden
-          de første gang var aktive i <code>user_metrics</code>, og viser hvor stor andel som var aktive igjen én, tre
-          og seks måneder senere, avrundet til hele prosent. Oktober 2025 er ikke en ekte kohort: dataene starter 10.
-          oktober, så vi kan ikke skille dem som brukte Copilot fra før, fra dem som var nye. Tallene regnes ut per
-          person, men bare summene vises, og kohorter med færre enn fem personer er utelatt. Perioden du velger, styrer
-          hvilke kohorter som vises. Segmentene (<code>/usage/segments</code>) har hver sin «Kilde og metode» under
-          grafen. «Hva har endret seg» regnes ut fra de samme tallene som grafene.
+          <code>/usage/copilot-prs</code>). Den inneværende måneden er ikke ferdig. Hendelsene og bruddene i dataene
+          står i «Hendelser» øverst på siden. Kohortene (<code>/usage/cohort-retention</code>) grupperer brukerne etter
+          måneden de første gang var aktive i <code>user_metrics</code>, og viser hvor stor andel som var aktive igjen
+          én, tre og seks måneder senere, avrundet til hele prosent. Oktober 2025 er ikke en ekte kohort: dataene
+          starter 10. oktober, så vi kan ikke skille dem som brukte Copilot fra før, fra dem som var nye. Tallene regnes
+          ut per person, men bare summene vises, og kohorter med færre enn fem personer er utelatt. Perioden du velger,
+          styrer hvilke kohorter som vises. Segmentene (<code>/usage/segments</code>) har hver sin «Kilde og metode»
+          under grafen. «Hva har endret seg» regnes ut fra de samme tallene som grafene.
         </>
       }
     >
-      <PeriodSelect value={period.value} />
+      <PeriodSelect value={period.value} all={all} />
       <Section id="hva-har-endret-seg" title="Hva har endret seg">
-        <SegmentChanges token={token} start={start} />
+        <SegmentChanges {...props} />
       </Section>
+      <Events />
       <Section id="bevegelse" title="Bevegelse mellom intensitetsgrupper">
-        <Movement token={token} start={start} />
+        <Movement {...props} />
       </Section>
       <Section id="intensitet" title="Brukere etter intensitet">
-        <Intensity token={token} start={start} />
+        <Intensity {...props} />
       </Section>
       <Section id="arbeidsmate" title="Brukere etter arbeidsmåte">
-        <WayOfWorking token={token} start={start} />
+        <WayOfWorking {...props} />
       </Section>
       <Section id="team-adopsjon" title="Team etter andel aktive medlemmer">
-        <TeamAdoption token={token} start={start} />
+        <TeamAdoption {...props} />
       </Section>
       <Section id="kohorter" title="Blir brukerne værende?">
         <Cohorts token={token} start={start} />
       </Section>
       <Section id="modellfamilier" title="Kostnad per modellfamilie">
-        <ModelFamilies token={token} start={start} />
+        <ModelFamilies {...props} />
       </Section>
       <Section id="ai-credits-per-bruker" title="AI Credits per bruker">
-        <CreditsPerUser token={token} start={start} />
+        <CreditsPerUser {...props} />
       </Section>
       <Section id="copilot-i-pull-requests" title="Copilot i pull requests">
-        <CopilotPRs token={token} start={start} />
+        <CopilotPRs {...props} />
       </Section>
     </InsightPage>
   );

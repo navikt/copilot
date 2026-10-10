@@ -312,19 +312,28 @@ export const PHASES: Phase[] = [
 export interface ChartAnnotation {
   /** YYYY-MM-DD. */
   date: string;
-  /** A few words, shown next to the rule. */
+  /** A few words, shown in the «Hendelser» list and the chart tooltip. */
   label: string;
   url?: string;
-  /** A break in the data itself, drawn stronger than the other rules. */
+  /** What the event means for reading the charts, shown in the «Hendelser» list. */
+  note?: string;
+  /** A break in the data itself, always marked in the charts. */
   dataBreak?: boolean;
 }
 
 export const CHART_ANNOTATIONS: ChartAnnotation[] = [
-  { date: "2026-04-02", label: "Nytt metrics-API", dataBreak: true },
+  {
+    date: "2026-04-02",
+    label: "Nytt metrics-API",
+    url: "https://github.blog/changelog/2026-01-29-closing-down-notice-of-legacy-copilot-metrics-apis/",
+    note: "Tallene før og etter er hentet på ulike måter, så teamandelene kan ikke sammenlignes direkte.",
+    dataBreak: true,
+  },
   {
     date: "2026-06-01",
     label: "AI Credits erstatter premium requests",
     url: "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/",
+    note: "Kostnadene før og etter er ikke direkte sammenlignbare.",
     dataBreak: true,
   },
   { date: "2026-09-30", label: "Modellbenchmark", url: `${PR}1373` },

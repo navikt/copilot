@@ -39,9 +39,11 @@ const MOVEMENT = [
   { key: "down", label: "Ned" },
 ];
 
-const HIDDEN = "Grupper med færre enn fem brukere eller team en måned vises som et hull i grafen, ikke som null.";
+const HIDDEN =
+  "Grupper med færre enn fem brukere eller team en måned vises ikke. I stolpene er de samlet i den grå delen «Skjult», i linjene blir de et hull.";
 
-type Props = { token: string; start: string | null };
+/** `all`: mark every event in the charts, not only the data breaks. */
+type Props = { token: string; start: string | null; all?: boolean };
 
 async function load({ token, start }: Props) {
   const { segments, error } = await segmentsFor(token);
@@ -135,7 +137,7 @@ export async function Movement(props: Props) {
         series={series}
         stacked={false}
         label="Andel brukere som gikk opp, ble i eller gikk ned en intensitetsgruppe per måned, og netto"
-        annotations={annotationsFor(CHART_ANNOTATIONS, months)}
+        annotations={annotationsFor(CHART_ANNOTATIONS, months, props.all)}
       />
       <Method>
         Regnet ut i BigQuery fra <code>user_metrics</code> (<code>/usage/segments</code>) per person, men bare summene
@@ -159,7 +161,7 @@ export async function Intensity(props: Props) {
         series={series}
         stacked
         label="Andel aktive brukere som er lette, middels eller tunge brukere per måned"
-        annotations={annotationsFor(CHART_ANNOTATIONS, months)}
+        annotations={annotationsFor(CHART_ANNOTATIONS, months, props.all)}
       />
       <Method>
         Hver aktiv bruker plasseres etter hvor mange ganger hen selv tok kontakt med Copilot i måneden (
@@ -184,7 +186,7 @@ export async function WayOfWorking(props: Props) {
         series={series}
         stacked
         label="Andel aktive brukere etter viktigste arbeidsmåte per måned"
-        annotations={annotationsFor(CHART_ANNOTATIONS, months)}
+        annotations={annotationsFor(CHART_ANNOTATIONS, months, props.all)}
       />
       <Method>
         Hver aktiv bruker telles én gang per måned, etter den mest selvstendige måten hen brukte Copilot på: CLI (
@@ -210,13 +212,15 @@ export async function TeamAdoption(props: Props) {
         series={series}
         stacked
         label="Andel team med lav, middels eller høy andel aktive medlemmer per måned"
-        annotations={annotationsFor(CHART_ANNOTATIONS, months)}
+        annotations={annotationsFor(CHART_ANNOTATIONS, months, props.all)}
+        shadeBefore="2026-04"
       />
       <Method>
         For hvert team med minst fem medlemmer regner vi andelen medlemmer som var aktive i måneden: lav under 25 %,
         middels 25–59 %, høy 60 % eller mer. Ingen team navngis. Medlemskapet er det som gjelder i dag (siste dag i{" "}
         <code>user_teams</code>), brukt bakover på alle måneder. Et team som har fått nye medlemmer, ser derfor ut til å
-        ha hatt dem også før. {HIDDEN}
+        ha hatt dem også før. Månedene før april 2026 er skyggelagt: de kan ikke sammenlignes direkte med månedene etter
+        (se «Hendelser»). {HIDDEN}
       </Method>
     </>
   );

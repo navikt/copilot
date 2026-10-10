@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   annotationsFor,
+  hiddenShares,
+  showAllEvents,
   familyShares,
   formatPp,
   parsePeriod,
@@ -111,8 +113,27 @@ describe("annotationsFor", () => {
         ["2026-06", "2026-10"]
       )
     ).toEqual([
-      { month: "2026-06", labels: ["A"], dataBreak: true },
-      { month: "2026-10", labels: ["B", "C"], dataBreak: false },
+      { month: "2026-06", labels: ["A"], numbers: [1], dataBreak: true },
+      { month: "2026-10", labels: ["B", "C"], numbers: [2, 3], dataBreak: false },
     ]);
+  });
+  it("keeps only data breaks unless all events are asked for", () => {
+    const list = [
+      { date: "2026-06-01", label: "A", dataBreak: true },
+      { date: "2026-10-07", label: "B" },
+    ];
+    expect(annotationsFor(list, ["2026-06", "2026-10"], false).map((a) => a.month)).toEqual(["2026-06"]);
+    expect(showAllEvents("alle")).toBe(true);
+    expect(showAllEvents(undefined)).toBe(false);
+  });
+});
+
+describe("hiddenShares", () => {
+  it("fills a stacked bar with the hidden part instead of leaving a hole", () => {
+    const series = [
+      { label: "Lav", shares: [60, null, null, 50] },
+      { label: "Høy", shares: [40, 90, null, 50] },
+    ];
+    expect(hiddenShares(series, 4)).toEqual([null, 10, null, null]);
   });
 });
