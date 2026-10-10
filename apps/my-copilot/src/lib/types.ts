@@ -429,31 +429,24 @@ export interface CohortRetention {
   m6: number | null;
 }
 
-/** Anonymous monthly segments from copilot-api. Counts only; null means fewer than five, hidden. */
+/**
+ * One segment chart from copilot-api, display-ready: whole-percent shares per band and month that sum to 100,
+ * or null in every band when the month is hidden. A band under five is merged with a neighbour on the server,
+ * so a band (such as «Under 60 %») can exist in some months only.
+ */
+export interface SegmentChart {
+  months: string[];
+  bands: { label: string; shares: (number | null)[] }[];
+  /** Up minus down in percentage points (movement only). */
+  net?: (number | null)[];
+}
+
+/** Anonymous monthly segments from copilot-api. */
 export interface UserSegments {
-  intensity: {
-    month: string;
-    active_users: number | null;
-    light: number | null;
-    medium: number | null;
-    heavy: number | null;
-  }[];
-  mode: {
-    month: string;
-    active_users: number | null;
-    completions: number | null;
-    chat: number | null;
-    agent: number | null;
-    cli: number | null;
-  }[];
-  movement: { month: string; pairs: number | null; up: number | null; stay: number | null; down: number | null }[];
-  team_adoption: {
-    month: string;
-    teams: number | null;
-    low: number | null;
-    medium: number | null;
-    high: number | null;
-  }[];
+  intensity: SegmentChart;
+  mode: SegmentChart;
+  movement: SegmentChart;
+  team_adoption: SegmentChart;
 }
 
 /** Copilot coding agent and code review PRs in one month, from repository_metrics. */

@@ -7,7 +7,8 @@ import {
   annotationsFor,
   formatPp,
   monthLabel,
-  segmentShares,
+  chartNet,
+  chartShares,
   shareChange,
   visibleMonths,
   type ShareSeries,
@@ -17,30 +18,8 @@ import { CHART_ANNOTATIONS } from "../../reisen/milestones";
 // One request per page render, shared by every section.
 const segmentsFor = cache(getUserSegments);
 
-const INTENSITY = [
-  { key: "light", label: "Lett" },
-  { key: "medium", label: "Middels" },
-  { key: "heavy", label: "Tung" },
-];
-const MODE = [
-  { key: "completions", label: "Bare kodeforslag" },
-  { key: "chat", label: "Chat" },
-  { key: "agent", label: "Agentmodus" },
-  { key: "cli", label: "CLI" },
-];
-const ADOPTION = [
-  { key: "low", label: "Lav" },
-  { key: "medium", label: "Middels" },
-  { key: "high", label: "Høy" },
-];
-const MOVEMENT = [
-  { key: "up", label: "Opp" },
-  { key: "stay", label: "Samme" },
-  { key: "down", label: "Ned" },
-];
-
 const HIDDEN =
-  "Grupper med færre enn fem brukere eller team en måned vises ikke. I stolpene er de samlet i den grå delen «Skjult», i linjene blir de et hull.";
+  "En gruppe med færre enn fem brukere eller team en måned slås sammen med nabogruppen, for eksempel «Under 60 %». Er det fortsatt for få, vises ikke måneden.";
 
 /** `all`: mark every event in the charts, not only the data breaks. */
 type Props = { token: string; start: string | null; all?: boolean };
@@ -53,24 +32,16 @@ async function load({ token, start }: Props) {
       rows.map((r) => r.month),
       start
     ).months;
-  const im = months(segments.intensity);
-  const mm = months(segments.mode);
-  const vm = months(segments.movement);
-  const tm = months(segments.team_adoption);
-  const movement = segmentShares(segments.movement, vm, MOVEMENT, "pairs");
-  const net: ShareSeries = {
-    label: "Netto (opp − ned)",
-    shares: vm.map((_, i) => {
-      const up = movement[0].shares[i];
-      const down = movement[2].shares[i];
-      return up === null || down === null ? null : Math.round((up - down) * 10) / 10;
-    }),
-  };
+  const im = months(segments.intensity.months.map((month) => ({ month })));
+  const mm = months(segments.mode.months.map((month) => ({ month })));
+  const vm = months(segments.movement.months.map((month) => ({ month })));
+  const tm = months(segments.team_adoption.months.map((month) => ({ month })));
+  const net: ShareSeries = { label: "Netto (opp − ned)", shares: chartNet(segments.movement, vm) };
   return {
-    intensity: { months: im, series: segmentShares(segments.intensity, im, INTENSITY, "active_users") },
-    mode: { months: mm, series: segmentShares(segments.mode, mm, MODE, "active_users") },
-    movement: { months: vm, series: [...movement, net] },
-    teams: { months: tm, series: segmentShares(segments.team_adoption, tm, ADOPTION, "teams") },
+    intensity: { months: im, series: chartShares(segments.intensity, im) },
+    mode: { months: mm, series: chartShares(segments.mode, mm) },
+    movement: { months: vm, series: [...chartShares(segments.movement, vm), net] },
+    teams: { months: tm, series: chartShares(segments.team_adoption, tm) },
   };
 }
 
@@ -94,7 +65,7 @@ export async function SegmentChanges(props: Props) {
     { title: "Intensitet", ...data.intensity },
     { title: "Arbeidsmåte", ...data.mode },
     { title: "Team etter andel aktive", ...data.teams },
-    { title: "Bevegelse", months: data.movement.months, series: data.movement.series.slice(3) },
+    { title: "Bevegelse", months: data.movement.months, series: data.movement.series.slice(-1) },
   ];
   const first = groups.flatMap((g) => g.months).sort()[0];
   if (!first) return <BodyShort>Ingen segmentdata i perioden.</BodyShort>;
@@ -143,7 +114,7 @@ export async function Movement(props: Props) {
         Regnet ut i BigQuery fra <code>user_metrics</code> (<code>/usage/segments</code>) per person, men bare summene
         hentes ut. Bare brukere som var aktive begge månedene, er med: de som slutter eller begynner, er ikke bevegelse
         her, men vises i kohortene. Gruppene er de samme som under intensitet. Andelene regnes av alle som var aktive
-        begge månedene, også når en gruppe er skjult. {HIDDEN}
+        begge månedene. {HIDDEN}
       </Method>
     </>
   );

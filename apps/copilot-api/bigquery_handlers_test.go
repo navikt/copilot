@@ -84,13 +84,11 @@ func (m *mockBigQueryClient) GetUserSegments(_ context.Context) (*UserSegments, 
 	return m.segments, m.segmentsErr
 }
 
-// A suppressed group must reach the page as null, and the response carries
-// no field that could name a person or a team.
+// The response carries display-ready shares and no field that could name a
+// person or a team.
 func TestHandleUserSegments(t *testing.T) {
 	h := newBigQueryHandlers(&mockBigQueryClient{segments: &UserSegments{
-		Intensity:    []SegmentIntensityMonth{{Month: "2026-08", ActiveUsers: ptr(int64(120)), Light: ptr(int64(60)), Medium: ptr(int64(57))}},
-		Movement:     []SegmentMovementMonth{{Month: "2026-08", Up: ptr(int64(10)), Stay: ptr(int64(80))}},
-		TeamAdoption: []SegmentTeamAdoptionMonth{{Month: "2026-08", Teams: ptr(int64(40)), Low: ptr(int64(10)), Medium: ptr(int64(20)), High: ptr(int64(10))}},
+		Intensity: buildChart([]segmentRow{{Month: "2026-08", A: 60, B: 57, C: 3}}, intensityBands),
 	}})
 	rec := httptest.NewRecorder()
 	h.handleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
@@ -98,7 +96,7 @@ func TestHandleUserSegments(t *testing.T) {
 		t.Fatalf("status %d", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{`"heavy":null`, `"down":null`, `"light":60`, `"high":10`} {
+	for _, want := range []string{`"label":"Lett","shares":[50]`, `"label":"Minst 20","shares":[50]`} {
 		if !containsString(body, want) {
 			t.Errorf("body lacks %s: %s", want, body)
 		}

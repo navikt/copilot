@@ -5,16 +5,12 @@ import type { ChartType, Plugin } from "chart.js";
 import { BodyShort } from "@navikt/ds-react";
 import { chartColors, commonLineOptions } from "@/lib/chart-utils";
 import { daysInCalendarMonth } from "@/lib/month-utils";
-import { hiddenShares, monthLabel, type FamilyShares, type MonthAnnotation, type ShareSeries } from "@/lib/trends";
+import { monthLabel, type FamilyShares, type MonthAnnotation, type ShareSeries } from "@/lib/trends";
 import type { CopilotPRMonth, CreditsPerUserMonth } from "@/lib/types";
 
-// Opaque neutral, about 3.3:1 against white, so the hidden part stays visible.
-const HIDDEN_COLOR = "#868E99";
-
 /**
- * Shares over time. `stacked` draws 100 % stacked bars (groups that add up to the whole), where a group
- * under five shows as a grey «Skjult» part of the bar instead of a hole in an area; otherwise plain lines,
- * where a null is a gap. `shadeBefore` greys out the months before a data break the series cannot cross.
+ * Shares over time. `stacked` draws 100 % stacked bars (groups that add up to the whole, as the server
+ * delivers them); otherwise plain lines, where a null is a gap. `shadeBefore` greys out the months before a data break the series cannot cross.
  */
 export function ShareChart({
   months,
@@ -51,15 +47,6 @@ export function ShareChart({
         />
       </div>
     );
-  }
-  const hidden = hiddenShares(series, months.length);
-  if (hidden.some((v) => v !== null)) {
-    datasets.push({
-      label: "Skjult (under fem)",
-      data: hidden,
-      borderColor: HIDDEN_COLOR,
-      backgroundColor: HIDDEN_COLOR,
-    });
   }
   return (
     <div className="h-72">

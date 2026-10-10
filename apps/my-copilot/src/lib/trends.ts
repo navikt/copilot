@@ -1,4 +1,4 @@
-import type { BillingModelBreakdown } from "./types";
+import type { BillingModelBreakdown, SegmentChart } from "./types";
 import { FAMILY_LABELS, modelFamily, type ModelFamily } from "./model-family";
 import { previousMonth } from "./month-utils";
 
@@ -115,19 +115,6 @@ export function showAllEvents(value: string | string[] | undefined): boolean {
   return value === "alle";
 }
 
-/**
- * The part of each 100 % stacked bar that is hidden (groups under five): 100 minus the visible shares.
- * null when nothing is hidden, or when the month has no data at all.
- */
-export function hiddenShares(series: { shares: (number | null)[] }[], months: number): (number | null)[] {
-  return Array.from({ length: months }, (_, i) => {
-    const values = series.map((s) => s.shares[i]);
-    if (values.every((v) => v === null) || values.every((v) => v !== null)) return null;
-    const rest = Math.round((100 - values.reduce<number>((sum, v) => sum + (v ?? 0), 0)) * 10) / 10;
-    return rest > 0 ? rest : null;
-  });
-}
-
 /** «2026-06» → «jun. 2026». */
 export function monthLabel(month: string): string {
   return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("nb-NO", {
@@ -137,36 +124,28 @@ export function monthLabel(month: string): string {
   });
 }
 
-/** One series of shares in percent, one value per month. null: hidden (under five) or no data. */
+/** One series of shares in percent, one value per month. null: no value that month. */
 export interface ShareSeries {
   label: string;
   shares: (number | null)[];
 }
 
-type Counts = { month: string } & Record<string, number | null | string>;
-
 /**
- * Shares in percent (one decimal) of each key per month. The denominator is `totalKey` when given,
- * otherwise the sum of the visible keys. A hidden count stays null, never 0.
+ * Picks the server's display-ready shares for the months a chart shows. A month the server did not return
+ * is null in every band.
  */
-export function segmentShares(
-  rows: Counts[],
-  months: string[],
-  keys: { key: string; label: string }[],
-  totalKey?: string
-): ShareSeries[] {
-  const byMonth = new Map(rows.map((r) => [r.month, r]));
-  const total = (r: Counts) =>
-    totalKey ? (r[totalKey] as number | null) : keys.reduce((sum, k) => sum + ((r[k.key] as number | null) ?? 0), 0);
-  return keys.map(({ key, label }) => ({
-    label,
-    shares: months.map((m) => {
-      const r = byMonth.get(m);
-      const n = r?.[key] as number | null | undefined;
-      const t = r ? total(r) : null;
-      return n == null || !t ? null : Math.round((n / t) * 1000) / 10;
-    }),
-  }));
+export function chartShares(chart: SegmentChart, months: string[]): ShareSeries[] {
+  const at = months.map((m) => chart.months.indexOf(m));
+  const pick = (shares: (number | null)[]) => at.map((i) => (i < 0 ? null : shares[i]));
+  return chart.bands.map((b) => ({ label: b.label, shares: pick(b.shares) }));
+}
+
+/** Net up minus down from the server, for the months a chart shows. */
+export function chartNet(chart: SegmentChart, months: string[]): (number | null)[] {
+  return months.map((m) => {
+    const i = chart.months.indexOf(m);
+    return i < 0 ? null : (chart.net?.[i] ?? null);
+  });
 }
 
 /** Change in percentage points from the first to the last month with a value. null with fewer than two. */

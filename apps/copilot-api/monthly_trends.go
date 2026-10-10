@@ -41,7 +41,8 @@ type CopilotPRMonth struct {
 
 // GetCreditsPerUserMonthly returns median and mean AI Credits per active user
 // per month. A user is active in a month with any credits, interactions or
-// code generations, counted by the stable user_id. Months with fewer than minUsersForDistribution users are
+// code generations, counted by the stable user_id across both scopes
+// (userDaysFrom). Months with fewer than minUsersForDistribution users are
 // left out (k-anonymity).
 func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error) {
 	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
@@ -54,7 +55,7 @@ func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]Credi
           SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)
             + COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64), 0)) AS activity
         FROM %s
-        WHERE day >= DATE(@start) AND scope = 'enterprise'
+        WHERE day >= DATE(@start)
         GROUP BY month, user_id
       )
       SELECT
@@ -67,7 +68,7 @@ func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]Credi
       GROUP BY month
       HAVING active_users >= @min_users
       ORDER BY month
-    `, metricsRef))
+    `, userDaysFrom(metricsRef)))
 	query.Parameters = []bigquery.QueryParameter{
 		{Name: "start", Value: creditsHistoryStart},
 		{Name: "min_users", Value: minUsersForDistribution},
@@ -150,16 +151,17 @@ func (h *BigQueryHandlers) handleCopilotPRsMonthly(w http.ResponseWriter, r *htt
 // active again in month +1, +3 and +6. A share is null while that month is
 // not yet complete.
 type CohortRetention struct {
-	CohortMonth string             `bigquery:"cohort_month" json:"cohort_month"`
-	CohortSize  int64              `bigquery:"cohort_size" json:"cohort_size"`
+	CohortMonth string `bigquery:"cohort_month" json:"cohort_month"`
+	CohortSize  int64  `bigquery:"cohort_size" json:"cohort_size"`
 	M1          *int64 `bigquery:"m1" json:"m1"`
 	M3          *int64 `bigquery:"m3" json:"m3"`
 	M6          *int64 `bigquery:"m6" json:"m6"`
 }
 
 // GetCohortRetention groups users by the month of their first active day and
-// returns retention per cohort. Counted per user_id in the enterprise scope
-// (active as in GetCreditsPerUserMonthly), returned only as aggregates.
+// returns retention per cohort. Counted per user_id across the enterprise
+// and organization scopes (see userDaysFrom; active as in
+// GetCreditsPerUserMonthly), returned only as aggregates.
 // Cohorts with fewer than minUsersForDistribution users are left out. The
 // first data month (October 2025) is left-censored: data starts 2025-10-10,
 // so it mixes earlier users with new ones and cannot tell them apart.
@@ -171,9 +173,7 @@ func (bq *BigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortReten
           JSON_VALUE(raw_record, '$.user_id') AS user_id,
           DATE_TRUNC(day, MONTH) AS month
         FROM %s
-        WHERE scope = 'enterprise'
-          AND JSON_VALUE(raw_record, '$.user_id') IS NOT NULL
-          AND (COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0) > 0
+        WHERE (COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0) > 0
             OR COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)
               + COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64), 0) > 0)
       ),
@@ -200,7 +200,7 @@ func (bq *BigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortReten
       FROM agg
       WHERE cohort_size >= @min_users
       ORDER BY cohort_month
-    `, metricsRef))
+    `, userDaysFrom(metricsRef)))
 	query.Parameters = []bigquery.QueryParameter{{Name: "min_users", Value: minUsersForDistribution}}
 	it, err := query.Read(ctx)
 	if err != nil {
@@ -228,4 +228,3 @@ func (h *BigQueryHandlers) handleCohortRetention(w http.ResponseWriter, r *http.
 	cacheControl(w, 3600, false)
 	respondJSON(w, cohorts, http.StatusOK)
 }
-
