@@ -7,6 +7,7 @@ import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-reac
 import type { TeamGrossOverview, TeamNetOverview, TeamSpend } from "@/lib/types";
 import { useTeamControls } from "./team-controls";
 import TeamUsageValue from "./team-usage-value";
+import { formatDate, formatUSD } from "@/lib/format";
 
 type Team = TeamSpend;
 
@@ -48,8 +49,6 @@ export default function TeamGrossUsage({
         if (bv === null) return -1;
         return (direction === "ascending" ? av - bv : bv - av) || a.team_slug.localeCompare(b.team_slug, "nb");
       });
-  const dollars = (amount: number) =>
-    new Intl.NumberFormat("nb-NO", { style: "currency", currency: "USD" }).format(amount);
   const title = net ? "Forbruk" : "Forbruk før fradrag";
 
   const hidden = net ?? data;
@@ -60,8 +59,8 @@ export default function TeamGrossUsage({
         <TableRow key={team.team_id}>
           <TableDataCell>{team.team_slug}</TableDataCell>
           <TableDataCell align="right">{team.users}</TableDataCell>
-          <TableDataCell align="right">{dollars(team.amount_usd)}</TableDataCell>
-          <TableDataCell align="right">{dollars(team.per_user_usd)}</TableDataCell>
+          <TableDataCell align="right">{formatUSD(team.amount_usd)}</TableDataCell>
+          <TableDataCell align="right">{formatUSD(team.per_user_usd)}</TableDataCell>
           <TableDataCell align="right">
             <span
               title={highlighted ? "Endring på minst 10 % og 10 USD fra forrige måned" : undefined}
@@ -73,7 +72,7 @@ export default function TeamGrossUsage({
                   : undefined
               }
             >
-              {change === null ? "—" : `${change >= 0 ? "+" : ""}${dollars(change)}`}
+              {change === null ? "—" : `${change >= 0 ? "+" : ""}${formatUSD(change)}`}
             </span>
           </TableDataCell>
           {(["providers", "categories"] as const).map(
@@ -208,7 +207,9 @@ export default function TeamGrossUsage({
             <BodyShort>Beløpene er før fradrag. Fakturert forbruk er ikke tilgjengelig for denne måneden.</BodyShort>
           )}
           {net && (
-            <BodyShort>Nettobeløpene er innsamlet {net.loaded_at}. Senere fakturakorreksjoner er ikke med.</BodyShort>
+            <BodyShort>
+              Nettobeløpene er innsamlet {formatDate(net.loaded_at)}. Senere fakturakorreksjoner er ikke med.
+            </BodyShort>
           )}
           {comparisonReason && <BodyShort>{comparisonReason}</BodyShort>}
         </VStack>

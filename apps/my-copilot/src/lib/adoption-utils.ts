@@ -140,24 +140,6 @@ export function calculateLanguageStats(languages: LanguageAdoption[]): LanguageA
   };
 }
 
-/**
- * Format adoption rate as percentage string.
- */
-export function formatAdoptionRate(rate: number, decimals: number = 0): string {
-  return `${(rate * 100).toFixed(decimals)}%`;
-}
-
-/**
- * Format scan date for display.
- */
-export function formatScanDate(scanDate: string): string {
-  return new Date(scanDate).toLocaleDateString("nb-NO", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
 // --- Scope-aware helpers ---
 
 /**

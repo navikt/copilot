@@ -4,9 +4,8 @@ import type { BillingModelBreakdown, BillingMonthlyTrend, BillingModelForecast }
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { VStack, BodyShort, Box, HGrid, HelpText } from "@navikt/ds-react";
-import { formatNumber } from "@/lib/format";
-import { LinkableHeading } from "@/components/linkable-heading";
+import { VStack, BodyShort, Box, HGrid, HStack } from "@navikt/ds-react";
+import { formatPercent, formatUSD } from "@/lib/format";
 
 interface BillingModelBreakdownChartProps {
   breakdown: BillingModelBreakdown[];
@@ -16,7 +15,7 @@ interface BillingModelBreakdownChartProps {
 
 const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({ breakdown, trend, forecast }) => {
   if (!breakdown || breakdown.length === 0) {
-    return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
+    return <BodyShort>{NO_DATA_MESSAGE}</BodyShort>;
   }
 
   const today = new Date();
@@ -71,7 +70,7 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
     order: 0,
   };
 
-  // Prognosis removed — see "Prognose månedsslutt (USD)" chart above for month-end forecast
+  // The month-end forecast is in BillingMonthNowChart under «Kostnad denne måneden».
 
   const allDatasets = [...datasets, netLine];
 
@@ -91,7 +90,7 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
       tooltip: {
         callbacks: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          label: (ctx: any) => `${ctx.dataset.label}: ${formatNumber(Math.round(ctx.parsed.y ?? 0))} USD`,
+          label: (ctx: any) => `${ctx.dataset.label}: ${formatUSD(ctx.parsed.y ?? 0)}`,
         },
       },
     },
@@ -101,7 +100,7 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
         stacked: true,
         ticks: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          callback: (v: any) => `${formatNumber(Math.round(Number(v)))} USD`,
+          callback: (v: any) => formatUSD(Number(v)),
         },
       },
     },
@@ -144,69 +143,59 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
   return (
     <Box background="neutral-soft" padding="space-24" borderRadius="12">
       <VStack gap="space-16">
-        <div className="flex items-center gap-2">
-          <LinkableHeading size="small" level="3" id="modellkostnad-historikk">
-            Modellkostnad historikk
-          </LinkableHeading>
-          <HelpText title="Modellkostnad — brutto vs netto" placement="top">
-            Søylene viser brutto kostnad per modell per måned (før Nav-rabatt). Netto-linjen viser faktisk fakturert
-            beløp etter rabatt, og derfor er linjen alltid lavere enn toppen av søylene. Inneværende måned viser
-            akkumulert brutto hittil. Prognosen for månedsslutt i «Prognose månedsslutt (USD)»-grafen over er netto.
-          </HelpText>
-        </div>
-
-        <BodyShort size="small" className="text-gray-500">
-          Søyler = brutto per modell (før rabatt) · Linje = totalt netto fakturert (etter rabatt)
+        <BodyShort size="small" textColor="subtle">
+          Linjen er netto fakturert etter rabatt, og ligger derfor under toppen av søylene. Inneværende måned viser
+          tallene hittil.
         </BodyShort>
 
         {(summaryNetAmount !== null || summaryGrossAmount !== null) && (
           <HGrid columns={{ xs: 2, sm: 4 }} gap="space-12">
-            <Box background="default" padding="space-12" borderRadius="8" className="border border-gray-200">
-              <BodyShort size="small" className="text-gray-500">
-                {latestLabel} — {isCurrentMonthLatest ? "netto hittil" : "netto"}
-              </BodyShort>
-              <BodyShort weight="semibold">
-                {summaryNetAmount !== null ? `${formatNumber(Math.round(summaryNetAmount))} USD` : "—"}
-              </BodyShort>
-            </Box>
-            <Box background="default" padding="space-12" borderRadius="8" className="border border-gray-200">
-              <BodyShort size="small" className="text-gray-500">
-                {isCurrentMonthLatest ? "Brutto hittil" : "Brutto"}
-              </BodyShort>
-              <BodyShort weight="semibold">
-                {summaryGrossAmount !== null ? `${formatNumber(Math.round(summaryGrossAmount))} USD` : "—"}
-              </BodyShort>
-            </Box>
-            <Box background="default" padding="space-12" borderRadius="8" className="border border-gray-200">
-              <BodyShort size="small" className="text-gray-500">
-                Nav-rabatt
-              </BodyShort>
-              <BodyShort weight="semibold">{summaryDiscountPct !== null ? `${summaryDiscountPct} %` : "—"}</BodyShort>
-            </Box>
-            <Box background="default" padding="space-12" borderRadius="8" className="border border-gray-200">
-              <BodyShort size="small" className="text-gray-500">
-                Modeller i bruk
-              </BodyShort>
-              <BodyShort weight="semibold">{summaryModels ?? "—"}</BodyShort>
-            </Box>
+            {[
+              [
+                `${latestLabel}, ${isCurrentMonthLatest ? "netto hittil" : "netto"}`,
+                summaryNetAmount !== null ? formatUSD(summaryNetAmount) : "—",
+              ],
+              [
+                isCurrentMonthLatest ? "Brutto hittil" : "Brutto",
+                summaryGrossAmount !== null ? formatUSD(summaryGrossAmount) : "—",
+              ],
+              ["Nav-rabatt", summaryDiscountPct !== null ? formatPercent(summaryDiscountPct) : "—"],
+              ["Modeller i bruk", summaryModels ?? "—"],
+            ].map(([label, value]) => (
+              <Box
+                key={label}
+                background="default"
+                padding="space-12"
+                borderRadius="8"
+                borderWidth="1"
+                borderColor="neutral-subtle"
+              >
+                <BodyShort size="small" textColor="subtle">
+                  {label}
+                </BodyShort>
+                <BodyShort weight="semibold">{value}</BodyShort>
+              </Box>
+            ))}
           </HGrid>
         )}
 
         {latestTopModels.length > 0 && (
-          <div className="flex flex-wrap gap-3">
+          <HStack gap="space-12" wrap>
             {latestTopModels.map(({ model, pct }) => (
               <Box
                 key={model}
                 background="default"
                 padding="space-8"
                 borderRadius="8"
-                className="border border-gray-200 text-sm"
+                borderWidth="1"
+                borderColor="neutral-subtle"
               >
-                <span className="font-medium">{model}</span>
-                <span className="ml-2 text-gray-500">{pct} %</span>
+                <BodyShort size="small">
+                  <span className="font-medium">{model}</span> {formatPercent(pct)}
+                </BodyShort>
               </Box>
             ))}
-          </div>
+          </HStack>
         )}
 
         <Bar data={chartData} options={options} />

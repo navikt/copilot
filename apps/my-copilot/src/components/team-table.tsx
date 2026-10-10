@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { HStack, Pagination, Table } from "@navikt/ds-react";
+import { HStack, Pagination, Table, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import type { TeamAdoption } from "@/lib/types";
+import { formatPercent } from "@/lib/format";
 
 const PAGE_SIZE = 15;
 
@@ -17,17 +18,17 @@ export default function TeamTable({ teams }: TeamTableProps) {
   const pageTeams = teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div>
+    <VStack gap="space-16">
       <div className="overflow-x-auto">
-        <Table size="small">
+        <Table size="small" aria-label="Tilpasninger per team">
           <TableHeader>
             <TableRow>
               <TableHeaderCell>Team</TableHeaderCell>
+              <TableHeaderCell align="right">Repoer</TableHeaderCell>
               <TableHeaderCell align="right">Aktive repoer</TableHeaderCell>
-              <TableHeaderCell align="right">Nylig aktive</TableHeaderCell>
               <TableHeaderCell align="right">Med tilpasninger</TableHeaderCell>
-              <TableHeaderCell align="right">Adopsjonsrate</TableHeaderCell>
-              <TableHeaderCell align="right">Rate (aktive)</TableHeaderCell>
+              <TableHeaderCell align="right">Andel av alle</TableHeaderCell>
+              <TableHeaderCell align="right">Andel av aktive</TableHeaderCell>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -37,9 +38,9 @@ export default function TeamTable({ teams }: TeamTableProps) {
                 <TableDataCell align="right">{team.active_repos}</TableDataCell>
                 <TableDataCell align="right">{team.recently_active_repos}</TableDataCell>
                 <TableDataCell align="right">{team.repos_with_customizations}</TableDataCell>
-                <TableDataCell align="right">{team.adoption_pct}%</TableDataCell>
+                <TableDataCell align="right">{formatPercent(team.adoption_pct)}</TableDataCell>
                 <TableDataCell align="right">
-                  {team.adoption_active_pct === null ? "—" : `${team.adoption_active_pct}%`}
+                  {team.adoption_active_pct === null ? "—" : formatPercent(team.adoption_active_pct)}
                 </TableDataCell>
               </TableRow>
             ))}
@@ -47,10 +48,10 @@ export default function TeamTable({ teams }: TeamTableProps) {
         </Table>
       </div>
       {totalPages > 1 && (
-        <HStack justify="center" className="mt-(--a-spacing-16)">
-          <Pagination page={page} onPageChange={setPage} count={totalPages} size="small" />
+        <HStack justify="center">
+          <Pagination page={page} onPageChange={setPage} count={totalPages} size="small" siblingCount={0} />
         </HStack>
       )}
-    </div>
+    </VStack>
   );
 }

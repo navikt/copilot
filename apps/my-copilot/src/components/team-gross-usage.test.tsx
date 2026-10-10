@@ -186,7 +186,7 @@ describe("Team insight", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} />);
     expect(screen.getByText(/teambeløpene kan derfor ikke summeres/i)).toBeInTheDocument();
     expect(screen.getByText(/per medlem er gjennomsnittet/i)).toBeInTheDocument();
-    expect(screen.getByText(/innsamlet 2026-10-02 10:00:00\+00/)).toBeInTheDocument();
+    expect(screen.getByText(/innsamlet 2\. oktober 2026/)).toBeInTheDocument();
     expect(screen.getByText(/senere fakturakorreksjoner er ikke med/i)).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Mine team" })).getByText("beta")).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Andre team" })).getByText("alpha")).toBeInTheDocument();
@@ -243,8 +243,8 @@ describe("Team insight", () => {
         myTeams={null}
       />
     );
-    expect(screen.getByText(/\+20,00/)).toBeInTheDocument();
-    expect(screen.getByText(/\+20,00/)).toHaveClass("text-[var(--ax-text-danger)]");
+    expect(screen.getByText(/\+20\sUSD/)).toBeInTheDocument();
+    expect(screen.getByText(/\+20\sUSD/)).toHaveClass("text-[var(--ax-text-danger)]");
   });
 
   it("shows a per-contributor average and highlights material decreases", () => {
@@ -258,8 +258,8 @@ describe("Team insight", () => {
         myTeams={null}
       />
     );
-    expect(screen.getByText(/16,00/)).toBeInTheDocument();
-    expect(screen.getByText(/[−-]20,00/)).toHaveClass("text-[var(--ax-text-success)]");
-    expect(screen.getByText(/[−-]5,00/)).not.toHaveAttribute("class");
+    expect(screen.getByText(/16\sUSD/)).toBeInTheDocument();
+    expect(screen.getByText(/[−-]20\sUSD/)).toHaveClass("text-[var(--ax-text-success)]");
+    expect(screen.getByText(/[−-]5\sUSD/)).not.toHaveAttribute("class");
   });
 });

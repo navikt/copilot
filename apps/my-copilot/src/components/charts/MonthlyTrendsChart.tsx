@@ -5,8 +5,7 @@ import React from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { VStack, HGrid, BodyShort, Box } from "@navikt/ds-react";
-import { formatNumber } from "@/lib/format";
-import { LinkableHeading } from "@/components/linkable-heading";
+import { formatNumber, formatPercent } from "@/lib/format";
 import { currentMonthUTC, selectCompleteMonths } from "@/lib/month-utils";
 
 interface MonthlyTrendsChartProps {
@@ -15,7 +14,7 @@ interface MonthlyTrendsChartProps {
 
 const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
-    return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
+    return <BodyShort>{NO_DATA_MESSAGE}</BodyShort>;
   }
 
   const current = currentMonthUTC();
@@ -105,75 +104,35 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
   function pctChange(current: number, previous: number | undefined): string {
     if (!previous || previous === 0) return "";
     const change = Math.round(((current - previous) / previous) * 100);
-    return change > 0 ? `+${change}%` : `${change}%`;
+    return change > 0 ? `+${formatPercent(change)}` : formatPercent(change);
   }
 
   return (
     <VStack gap="space-16">
-      <LinkableHeading size="small" level="3">
-        Månedlige trender
-      </LinkableHeading>
-
-      {/* Summary cards for latest month */}
-      <HGrid columns={{ xs: 2, sm: 4 }} gap="space-8">
-        <Box background="info-soft" padding="space-12" borderRadius="8">
-          <div className="text-center">
-            <div className="text-lg font-semibold">{formatNumber(latest.unique_users)}</div>
-            <BodyShort size="small" className="text-gray-600">
-              Brukere
+      {/* Users and activity are the key figures above, so only the other two are shown here. */}
+      <HGrid columns={{ xs: 1, sm: 2 }} gap="space-8">
+        {(
+          [
+            ["Linjer lagt til", latest.lines_added, prev?.lines_added],
+            ["CLI-brukere", latest.cli_users, prev?.cli_users],
+          ] as const
+        ).map(([label, value, before]) => (
+          <Box key={label} background="neutral-soft" padding="space-12" borderRadius="8">
+            <BodyShort size="small" textColor="subtle">
+              {label}
             </BodyShort>
-            {prev && (
-              <BodyShort size="small" className="text-gray-500">
-                {pctChange(latest.unique_users, prev.unique_users)}
+            <BodyShort weight="semibold">{formatNumber(value)}</BodyShort>
+            {before ? (
+              <BodyShort size="small" textColor="subtle">
+                {pctChange(value, before)} fra forrige måned
               </BodyShort>
-            )}
-          </div>
-        </Box>
-        <Box background="success-soft" padding="space-12" borderRadius="8">
-          <div className="text-center">
-            <div className="text-lg font-semibold">
-              {formatNumber(latest.code_generations + latest.ide_interactions + latest.cli_requests)}
-            </div>
-            <BodyShort size="small" className="text-gray-600">
-              Aktivitet
-            </BodyShort>
-            {prev && (
-              <BodyShort size="small" className="text-gray-500">
-                {pctChange(
-                  latest.code_generations + latest.ide_interactions + latest.cli_requests,
-                  prev.code_generations + prev.ide_interactions + prev.cli_requests
-                )}
-              </BodyShort>
-            )}
-          </div>
-        </Box>
-        <Box background="warning-soft" padding="space-12" borderRadius="8">
-          <div className="text-center">
-            <div className="text-lg font-semibold">{formatNumber(latest.lines_added)}</div>
-            <BodyShort size="small" className="text-gray-600">
-              Linjer lagt til
-            </BodyShort>
-            {prev && (
-              <BodyShort size="small" className="text-gray-500">
-                {pctChange(latest.lines_added, prev.lines_added)}
-              </BodyShort>
-            )}
-          </div>
-        </Box>
-        <Box background="accent-soft" padding="space-12" borderRadius="8">
-          <div className="text-center">
-            <div className="text-lg font-semibold">{formatNumber(latest.cli_users)}</div>
-            <BodyShort size="small" className="text-gray-600">
-              CLI-brukere
-            </BodyShort>
-            {prev && (
-              <BodyShort size="small" className="text-gray-500">
-                {pctChange(latest.cli_users, prev.cli_users)}
-              </BodyShort>
-            )}
-          </div>
-        </Box>
+            ) : null}
+          </Box>
+        ))}
       </HGrid>
+      <BodyShort size="small" textColor="subtle">
+        Måneden merket med * er ikke ferdig.
+      </BodyShort>
 
       {/* Charts */}
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">

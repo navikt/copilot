@@ -24,15 +24,14 @@ import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { getPRMetrics, buildTrendData } from "@/lib/data-utils";
 import { currentMonthUTC, previousMonth, selectCompleteMonths } from "@/lib/month-utils";
-import { formatNumber, formatMinutes } from "@/lib/format";
-import { formatDate } from "@/lib/local-model-results";
+import { formatNumber, formatMinutes, formatPercent, formatShare } from "@/lib/format";
 import { formatPp } from "@/lib/trends";
 import { getUser, getUserToken } from "@/lib/auth";
 import type { EnterpriseMetrics } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Bruk og kostnad",
-  description: "Hvor mange som bruker Copilot i Nav, hva det koster, og hvilke repositorier som bruker det mest.",
+  description: "Hvor mange som bruker Copilot i Nav, hva det koster, og hvilke repoer som bruker det mest.",
 };
 
 // Shared by the PR section and «Sist oppdatert», so the request runs once per render.
@@ -45,9 +44,9 @@ function momChange(current: number, previous: number | undefined): string | unde
   if (!previous) return undefined;
   const change = Math.round(((current - previous) / previous) * 100);
   return change > 0
-    ? `↑ ${change} % fra forrige måned`
+    ? `↑ ${formatPercent(change)} fra forrige måned`
     : change < 0
-      ? `↓ ${Math.abs(change)} % fra forrige måned`
+      ? `↓ ${formatPercent(Math.abs(change))} fra forrige måned`
       : "Uendret";
 }
 
@@ -83,7 +82,7 @@ async function KeyFigures({ token }: { token: string }) {
           subtitle={prev ? momChange(activity(latest), activity(prev)) : undefined}
         />
         <MetricCard
-          value={`${agentShare(latest)} %`}
+          value={formatPercent(agentShare(latest))}
           label="Bruker agent"
           helpTitle="Andel som bruker agent"
           helpText="Andelen av de aktive brukerne som brukte agentmodus minst én gang i løpet av måneden."
@@ -181,7 +180,7 @@ async function PullRequests({ token }: { token: string }) {
   if (error) return <BodyShort>{`Kunne ikke hente PR-data: ${error}`}</BodyShort>;
   const pr = usage ? getPRMetrics(usage.slice(-28)) : null;
   if (!pr || pr.totalCreated === 0) return <BodyShort>Ingen PR-data ennå.</BodyShort>;
-  const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)} %` : "–");
+  const pct = (part: number, whole: number) => (whole > 0 ? formatShare(part / whole) : "–");
   return (
     <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
       <MetricCard
@@ -217,8 +216,8 @@ async function PullRequests({ token }: { token: string }) {
 
 async function Repositories({ token }: { token: string }) {
   const { repositories, error } = await getRepositoryUsage(token);
-  if (error) return <BodyShort>{`Kunne ikke hente repositorier: ${error}`}</BodyShort>;
-  if (!repositories?.length) return <BodyShort>Ingen repositoriedata ennå.</BodyShort>;
+  if (error) return <BodyShort>{`Kunne ikke hente repoene: ${error}`}</BodyShort>;
+  if (!repositories?.length) return <BodyShort>Ingen data om repoer ennå.</BodyShort>;
   const sum = (key: "pr_created_by_copilot" | "pr_reviewed_by_copilot") => repositories.reduce((s, r) => s + r[key], 0);
   return (
     <>
@@ -227,23 +226,18 @@ async function Repositories({ token }: { token: string }) {
           value={formatNumber(sum("pr_created_by_copilot"))}
           label="PR-er laget av Copilot, hele perioden"
           helpTitle="PR-er laget av Copilot, hele perioden"
-          helpText="Pull requests opprettet av Copilot coding agent i repositoriene under, så lenge vi har data."
+          helpText="Pull requests opprettet av Copilot coding agent i repoene under, så lenge vi har data."
         />
         <MetricCard
           value={formatNumber(sum("pr_reviewed_by_copilot"))}
           label="PR-er gjennomgått av Copilot, hele perioden"
           helpTitle="PR-er gjennomgått av Copilot, hele perioden"
-          helpText="Pull requests gjennomgått av Copilot code review i repositoriene under, så lenge vi har data."
+          helpText="Pull requests gjennomgått av Copilot code review i repoene under, så lenge vi har data."
         />
       </HGrid>
       <RepositoryUsageTable repositories={repositories} />
     </>
   );
-}
-
-async function LastUpdated({ token }: { token: string }) {
-  const { summary } = await dailySummaryFor(token);
-  return summary ? formatDate(summary.date) : "kunne ikke hentes";
 }
 
 export default async function BrukPage() {
@@ -255,12 +249,9 @@ export default async function BrukPage() {
     <InsightPage
       title="Bruk og kostnad"
       description="Hvor mange som bruker Copilot i Nav, hva det koster, og hvor det brukes."
-      intro="Her ser du hvor mange i Nav som bruker Copilot, hvor mye de bruker agenten, hva det koster, og hvordan Copilot er med i pull requests. Nederst finner du repositoriene med mest Copilot-aktivitet."
-      updated={
-        <Suspense fallback="henter …">
-          <LastUpdated token={token} />
-        </Suspense>
-      }
+      intro="Her ser du hvor mange i Nav som bruker Copilot, hvor mye de bruker agenten, hva det koster, og hvordan Copilot er med i pull requests. Nederst finner du repoene med mest Copilot-aktivitet."
+      updated={async () => (await dailySummaryFor(token)).summary?.date}
+      hourly
       source={
         <>
           Tallene kommer fra copilot-api, som leser GitHubs bruks- og fakturadata fra BigQuery. Nøkkeltall bruker siste
@@ -269,8 +260,8 @@ export default async function BrukPage() {
           USD før rabatt, mens prognosen og linjen for fakturert kostnad er netto. Adopsjonsfasene kommer fra{" "}
           <code>/adoption/cohorts</code>. Pull requests og daglig aktivitet bruker de siste 28 dagene fra{" "}
           <code>/usage/metrics</code>, og tid til første review kommer fra <code>/usage/daily-summary</code> (
-          <code>v_daily_summary</code>). Repositoriene gjelder hele perioden med data, uten private repositorier og uten
-          repositorier med færre enn fem PR-er.
+          <code>v_daily_summary</code>). Repoene gjelder hele perioden med data, uten private repoer og uten repoer med
+          færre enn fem PR-er. «Sist oppdatert» er siste dag med data i <code>v_daily_summary</code>.
         </>
       }
     >
@@ -333,7 +324,7 @@ export default async function BrukPage() {
         </Suspense>
       </InsightSection>
 
-      <InsightSection id="repositorier" title="Repositorier">
+      <InsightSection id="repositorier" title="Repoer">
         <Suspense fallback={fallback}>
           <Repositories token={token} />
         </Suspense>

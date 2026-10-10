@@ -108,8 +108,8 @@ export default function RepositoryUsageTable({ repositories }: RepositoryUsageTa
   return (
     <VStack gap="space-16">
       <Alert variant="info" size="small">
-        Tallene er summert over hele perioden med data. Private repositorier er utelatt, og repositorier med færre enn 5
-        pull requests totalt vises ikke (personvern).
+        Tallene er summert over hele perioden med data. Private repoer er ikke med, og repoer med færre enn fem pull
+        requests til sammen vises ikke.
       </Alert>
 
       <HStack gap="space-8" align="end" wrap>
@@ -122,19 +122,19 @@ export default function RepositoryUsageTable({ repositories }: RepositoryUsageTa
           <TableHeader>
             <TableRow>
               <Table.ColumnHeader scope="col" sortKey="repo_name" sortable>
-                Repositorium
+                Repo
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="repo_visibility" sortable>
                 Synlighet
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="pr_created_by_copilot" sortable align="right">
-                Copilot-forfattet
+                PR-er fra Copilot
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="pr_reviewed_by_copilot" sortable align="right">
-                Copilot-reviewet
+                Reviewet av Copilot
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="pr_total_merged" sortable align="right">
-                Merget totalt
+                PR-er merget
               </Table.ColumnHeader>
               <Table.ColumnHeader scope="col" sortKey="pr_avg_median_minutes_to_merge" sortable align="right">
                 Median tid til merge
@@ -168,8 +168,8 @@ export default function RepositoryUsageTable({ repositories }: RepositoryUsageTa
             {pageRepos.length === 0 && (
               <TableRow>
                 <TableDataCell colSpan={6}>
-                  <BodyShort className="text-gray-500 text-center">
-                    {search ? "Ingen repositorier funnet for søket ditt." : "Ingen repositoriedata tilgjengelig ennå."}
+                  <BodyShort textColor="subtle">
+                    {search ? "Ingen repoer passer søket." : "Ingen data om repoer ennå."}
                   </BodyShort>
                 </TableDataCell>
               </TableRow>
@@ -180,7 +180,7 @@ export default function RepositoryUsageTable({ repositories }: RepositoryUsageTa
 
       {totalPages > 1 && (
         <HStack justify="center">
-          <Pagination page={page} onPageChange={setPage} count={totalPages} size="small" />
+          <Pagination page={page} onPageChange={setPage} count={totalPages} size="small" siblingCount={0} />
         </HStack>
       )}
     </VStack>

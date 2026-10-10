@@ -8,13 +8,19 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 0 }).format(value);
 }
 
-/**
- * Format a percentage value
- * @param value - The percentage value (e.g., 25 for 25%)
- * @returns Formatted string with % symbol
- */
-export function formatPercentage(value: number): string {
-  return `${value}%`;
+/** Percent in nb-NO style: formatPercent(12) → "12 %", formatPercent(12.34, 1) → "12,3 %", with a non-breaking space. */
+export function formatPercent(value: number, decimals = 0): string {
+  const n = new Intl.NumberFormat("nb-NO", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return `${n.format(value)} %`;
+}
+
+/** A 0–1 share as percent: formatShare(0.123, 1) → "12,3 %". */
+export const formatShare = (share: number, decimals = 0) => formatPercent(share * 100, decimals);
+
+/** Whole US dollars: formatUSD(1234.4) → "1 234 USD", with non-breaking spaces. */
+export function formatUSD(value: number): string {
+  // `|| 0` turns −0 (e.g. a change of −0.3) into 0, so it never shows as "−0 USD".
+  return `${formatNumber(Math.round(value) || 0)} USD`;
 }
 
 /**
@@ -40,8 +46,15 @@ export function formatMinutes(minutes: number | null): string {
   return remainingHours > 0 ? `${days}d ${remainingHours}t` : `${days}d`;
 }
 
+/**
+ * "2026-09-26" → "26. september 2026", always in Oslo time. A bare date is read as noon UTC so it never moves a day.
+ * A timestamp keeps its time, also BigQuery's "2026-10-03 04:12:33.1+00" form.
+ */
 export function formatDate(dateStr: string, locale: "nb-NO" | "en-GB" = "nb-NO"): string {
-  return new Date(dateStr).toLocaleDateString(locale, {
+  const iso =
+    dateStr.length === 10 ? `${dateStr}T12:00:00Z` : dateStr.replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00");
+  return new Date(iso).toLocaleDateString(locale, {
+    timeZone: "Europe/Oslo",
     day: "numeric",
     month: "long",
     year: "numeric",

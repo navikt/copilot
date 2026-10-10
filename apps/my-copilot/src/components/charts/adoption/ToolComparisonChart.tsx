@@ -4,7 +4,7 @@ import type { AdoptionSummary } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Box, Heading } from "@navikt/ds-react";
+import { BodyShort, Box, Heading } from "@navikt/ds-react";
 import { extractToolComparison } from "@/lib/adoption-utils";
 
 interface ToolComparisonChartProps {
@@ -21,17 +21,15 @@ const toolColors: Record<string, string> = {
 const ToolComparisonChart: React.FC<ToolComparisonChartProps> = ({ data }) => {
   if (!data) {
     return (
-      <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-        <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>
+      <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
+        <BodyShort>{NO_DATA_MESSAGE}</BodyShort>
       </Box>
     );
   }
 
   const tools = extractToolComparison(data);
 
-  if (tools.length === 0) {
-    return null;
-  }
+  if (tools.length === 0) return <BodyShort>Ingen repoer har KI-tilpasninger ennå.</BodyShort>;
 
   const chartData = {
     labels: tools.map((t) => t.label),
@@ -48,13 +46,17 @@ const ToolComparisonChart: React.FC<ToolComparisonChartProps> = ({ data }) => {
   const height = Math.max(120, tools.length * 40);
 
   return (
-    <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-      <Heading size="small" level="4" spacing>
-        KI-verktøy i bruk
+    <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
+      <Heading size="small" level="3" spacing>
+        Repoer per KI-verktøy
       </Heading>
       <div style={{ height }}>
         <Bar data={chartData} options={commonHorizontalBarOptions} />
       </div>
+      <BodyShort size="small" textColor="subtle">
+        Et repo kan ha flere verktøy. Under Cursor telles et repo to ganger hvis det har både .cursorrules og
+        .cursor/rules/.
+      </BodyShort>
     </Box>
   );
 };

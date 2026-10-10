@@ -2,6 +2,7 @@
 
 import type { DailyTrend } from "@/lib/types";
 import React from "react";
+import { BodyShort } from "@navikt/ds-react";
 import { Line } from "react-chartjs-2";
 import {
   chartColors,
@@ -19,7 +20,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return (
       <div className={chartWrapperClass}>
-        <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>
+        <BodyShort>{NO_DATA_MESSAGE}</BodyShort>
       </div>
     );
   }
