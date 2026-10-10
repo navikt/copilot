@@ -111,3 +111,46 @@ export function monthLabel(month: string): string {
     timeZone: "UTC",
   });
 }
+
+/** One series of shares in percent, one value per month. null: hidden (under five) or no data. */
+export interface ShareSeries {
+  label: string;
+  shares: (number | null)[];
+}
+
+type Counts = { month: string } & Record<string, number | null | string>;
+
+/**
+ * Shares in percent (one decimal) of each key per month. The denominator is `totalKey` when given,
+ * otherwise the sum of the visible keys. A hidden count stays null, never 0.
+ */
+export function segmentShares(
+  rows: Counts[],
+  months: string[],
+  keys: { key: string; label: string }[],
+  totalKey?: string
+): ShareSeries[] {
+  const byMonth = new Map(rows.map((r) => [r.month, r]));
+  const total = (r: Counts) =>
+    totalKey ? (r[totalKey] as number | null) : keys.reduce((sum, k) => sum + ((r[k.key] as number | null) ?? 0), 0);
+  return keys.map(({ key, label }) => ({
+    label,
+    shares: months.map((m) => {
+      const r = byMonth.get(m);
+      const n = r?.[key] as number | null | undefined;
+      const t = r ? total(r) : null;
+      return n == null || !t ? null : Math.round((n / t) * 1000) / 10;
+    }),
+  }));
+}
+
+/** Change in percentage points from the first to the last month with a value. null with fewer than two. */
+export function shareChange(series: ShareSeries): number | null {
+  const values = series.shares.filter((v): v is number => v !== null);
+  return values.length < 2 ? null : Math.round(values[values.length - 1] - values[0]);
+}
+
+/** «+8 pp», «−3 pp», «±0 pp». */
+export function formatPp(pp: number): string {
+  return `${pp > 0 ? "+" : pp < 0 ? "−" : "±"}${Math.abs(pp)} pp`;
+}

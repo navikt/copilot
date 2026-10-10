@@ -429,6 +429,33 @@ export interface CohortRetention {
   m6: number | null;
 }
 
+/** Anonymous monthly segments from copilot-api. Counts only; null means fewer than five, hidden. */
+export interface UserSegments {
+  intensity: {
+    month: string;
+    active_users: number | null;
+    light: number | null;
+    medium: number | null;
+    heavy: number | null;
+  }[];
+  mode: {
+    month: string;
+    active_users: number | null;
+    completions: number | null;
+    chat: number | null;
+    agent: number | null;
+    cli: number | null;
+  }[];
+  movement: { month: string; pairs: number | null; up: number | null; stay: number | null; down: number | null }[];
+  team_adoption: {
+    month: string;
+    teams: number | null;
+    low: number | null;
+    medium: number | null;
+    high: number | null;
+  }[];
+}
+
 /** Copilot coding agent and code review PRs in one month, from repository_metrics. */
 export interface CopilotPRMonth {
   month: string;

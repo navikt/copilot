@@ -76,6 +76,45 @@ type mockBigQueryClient struct {
 	copilotPRsErr      error
 	cohortRetention    []CohortRetention
 	cohortRetentionErr error
+	segments           *UserSegments
+	segmentsErr        error
+}
+
+func (m *mockBigQueryClient) GetUserSegments(_ context.Context) (*UserSegments, error) {
+	return m.segments, m.segmentsErr
+}
+
+// A suppressed group must reach the page as null, and the response carries
+// no field that could name a person or a team.
+func TestHandleUserSegments(t *testing.T) {
+	h := newBigQueryHandlers(&mockBigQueryClient{segments: &UserSegments{
+		Intensity:    []SegmentIntensityMonth{{Month: "2026-08", ActiveUsers: ptr(int64(120)), Light: ptr(int64(60)), Medium: ptr(int64(57))}},
+		Movement:     []SegmentMovementMonth{{Month: "2026-08", Up: ptr(int64(10)), Stay: ptr(int64(80))}},
+		TeamAdoption: []SegmentTeamAdoptionMonth{{Month: "2026-08", Teams: ptr(int64(40)), Low: ptr(int64(10)), Medium: ptr(int64(20)), High: ptr(int64(10))}},
+	}})
+	rec := httptest.NewRecorder()
+	h.handleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{`"heavy":null`, `"down":null`, `"light":60`, `"high":10`} {
+		if !containsString(body, want) {
+			t.Errorf("body lacks %s: %s", want, body)
+		}
+	}
+	for _, banned := range []string{"user_id", "login", "slug", "team_id"} {
+		if containsString(body, banned) {
+			t.Errorf("body contains %q: %s", banned, body)
+		}
+	}
+
+	h = newBigQueryHandlers(&mockBigQueryClient{segmentsErr: errors.New("bq")})
+	rec = httptest.NewRecorder()
+	h.handleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("error status %d", rec.Code)
+	}
 }
 
 func (m *mockBigQueryClient) GetCohortRetention(_ context.Context) ([]CohortRetention, error) {
