@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { faro, getWebInstrumentations, initializeFaro } from "@grafana/faro-web-sdk";
 import { TracingInstrumentation } from "@grafana/faro-web-tracing";
 
@@ -42,6 +43,11 @@ export default function Faro({ collectorUrl }: { collectorUrl?: string }) {
           if (event.meta.page?.url) {
             event.meta.page.url = sanitizeUrl(event.meta.page.url);
           }
+          // faro.navigation carries fromUrl/toUrl, which beforeSend does not otherwise touch.
+          const attrs = (event.payload as { attributes?: Record<string, string> }).attributes;
+          for (const key of ["fromUrl", "toUrl"]) {
+            if (attrs?.[key]) attrs[key] = sanitizeUrl(attrs[key]);
+          }
           return event;
         },
         instrumentations: [
@@ -59,6 +65,14 @@ export default function Faro({ collectorUrl }: { collectorUrl?: string }) {
       console.warn("Faro initialization failed", e);
     }
   }, [collectorUrl]);
+
+  // App Router navigations never reload the page, so Faro only saw the first
+  // load. A new view per pathname gives one view_changed event per page view.
+  // Pathname only: query strings and hashes stay out of the view name.
+  const pathname = usePathname();
+  useEffect(() => {
+    if (faro.api && pathname) faro.api.setView({ name: sanitizeUrl(pathname) });
+  }, [pathname]);
 
   return null;
 }

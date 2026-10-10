@@ -138,7 +138,16 @@ jobs:
       - id: version
         env:
           MISE_TASK_VERSION: ${{ inputs.mise-task-version }}
-        run: echo "version=$(mise run "$MISE_TASK_VERSION")" >> ${GITHUB_OUTPUT}
+        # mise 2026.10.x fails `mise run version` in CI (it tries to install
+        # aqua:go-task/task@version), which left the version empty: images got
+        # a generated tag and APP_VERSION reached the build as "".
+        run: |
+          version=$(mise run "$MISE_TASK_VERSION") || true
+          if [ -z "$version" ]; then
+            echo "::warning::mise run $MISE_TASK_VERSION gave no version; using the git SHA"
+            version="$(date +%Y.%m.%d)-$(date +%H.%M)-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$version" >> "${GITHUB_OUTPUT}"
       - id: name
         env:
           REPO_NAME: ${{ github.event.repository.name }}
