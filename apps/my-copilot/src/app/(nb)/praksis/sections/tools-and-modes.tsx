@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import { Heading, BodyShort, Box } from "@navikt/ds-react";
+import { Heading, BodyShort, Box, VStack } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { LaptopIcon, GlobeIcon, TerminalIcon, CpuIcon, CogIcon } from "@navikt/aksel-icons";
 
@@ -60,8 +60,10 @@ export default function ToolsAndModes() {
               </BodyShort>
             </div>
             <Box background="default" padding="space-8" borderRadius="4">
-              <code className="text-xs block">nav-pilot</code>
-              <code className="text-xs block mt-1 text-gray-500"># Starter agenten i cplt i repoet du står i</code>
+              <VStack gap="space-4">
+                <code className="text-xs">nav-pilot</code>
+                <code className="text-xs text-gray-500"># Starter agenten i cplt i repoet du står i</code>
+              </VStack>
             </Box>
             <div>
               <BodyShort weight="semibold" className="text-sm">

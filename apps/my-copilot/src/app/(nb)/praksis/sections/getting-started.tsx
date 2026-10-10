@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import { Heading, BodyShort, Alert } from "@navikt/ds-react";
+import { Heading, BodyShort, Alert, Box, VStack } from "@navikt/ds-react";
 
 export default function GettingStarted() {
   return (
@@ -19,37 +19,51 @@ export default function GettingStarted() {
         <Heading size="small" level="3" className="mb-3">
           Installasjon og innlogging
         </Heading>
-        <div className="bg-surface-default border border-border-subtle p-6 rounded-lg mb-6">
-          <Heading size="xsmall" level="4" className="mb-2">
-            I terminalen: Copilot CLI med nav-pilot
-          </Heading>
-          <BodyShort className="text-gray-700 text-sm mb-3">
-            Start her. nav-pilot legger Navs agenter og skills inn i repoet og starter agenten i sandkassen cplt. Første
-            gang velger du klient: opencode er valgt på forhånd, Copilot CLI er det andre valget.
-          </BodyShort>
-          <ol className="list-decimal pl-5 space-y-2 text-gray-700 text-sm">
-            <li>
-              Følg{" "}
-              <NextLink href="/kom-i-gang#installer" className="text-blue-600 hover:underline">
-                installasjonsveiviseren
-              </NextLink>{" "}
-              for å installere nav-pilot, cplt og klienten.
-            </li>
-            <li>
-              Logg inn på GitHub med <code>gh auth login</code>.
-            </li>
-            <li>
-              Kjør <code>nav-pilot</code> i repoet ditt. Agenten starter i cplt.
-            </li>
-          </ol>
-          <BodyShort className="text-gray-700 text-sm mt-3">
-            Hele oppsettet er beskrevet i{" "}
-            <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
-              kom i gang med nav-pilot
-            </NextLink>
-            .
-          </BodyShort>
-        </div>
+        <Box
+          background="default"
+          borderColor="neutral-subtle"
+          borderWidth="1"
+          borderRadius="8"
+          padding="space-24"
+          marginBlock="space-0 space-24"
+        >
+          <VStack gap="space-12">
+            <Heading size="xsmall" level="4">
+              I terminalen: Copilot CLI med nav-pilot
+            </Heading>
+            <BodyShort className="text-gray-700 text-sm">
+              Start her. nav-pilot legger Navs agenter og skills inn i repoet og starter agenten i sandkassen cplt.
+              Første gang velger du klient: opencode er valgt på forhånd, Copilot CLI er det andre valget.
+            </BodyShort>
+            <VStack
+              as="ol"
+              gap="space-8"
+              className="list-decimal text-gray-700 text-sm"
+              style={{ paddingLeft: "var(--ax-space-20)" }}
+            >
+              <li>
+                Følg{" "}
+                <NextLink href="/kom-i-gang#installer" className="text-blue-600 hover:underline">
+                  installasjonsveiviseren
+                </NextLink>{" "}
+                for å installere nav-pilot, cplt og klienten.
+              </li>
+              <li>
+                Logg inn på GitHub med <code>gh auth login</code>.
+              </li>
+              <li>
+                Kjør <code>nav-pilot</code> i repoet ditt. Agenten starter i cplt.
+              </li>
+            </VStack>
+            <BodyShort className="text-gray-700 text-sm">
+              Hele oppsettet er beskrevet i{" "}
+              <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
+                kom i gang med nav-pilot
+              </NextLink>
+              .
+            </BodyShort>
+          </VStack>
+        </Box>
         <Heading size="xsmall" level="4" className="mb-3">
           I editoren
         </Heading>
