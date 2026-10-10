@@ -15,7 +15,7 @@ function CopyJsonButton({ data, label = "Kopier JSON" }: { data: unknown; label?
     });
   }, [data]);
   return (
-    <Button variant="tertiary-neutral" size="xsmall" onClick={handleCopy}>
+    <Button variant="tertiary-neutral" onClick={handleCopy}>
       {copied ? "✓ Kopiert" : label}
     </Button>
   );
@@ -113,7 +113,7 @@ export default function RepositoryUsageTable({ repositories }: RepositoryUsageTa
       </Alert>
 
       <HStack gap="space-8" align="end" wrap>
-        <Search label="Søk" size="small" variant="simple" value={search} onChange={handleSearch} className="max-w-xs" />
+        <Search label="Søk" variant="simple" value={search} onChange={handleSearch} className="max-w-xs" />
         <CopyJsonButton data={sortedRepos} label="📋 JSON" />
       </HStack>
 
@@ -180,7 +180,7 @@ export default function RepositoryUsageTable({ repositories }: RepositoryUsageTa
 
       {totalPages > 1 && (
         <HStack justify="center">
-          <Pagination page={page} onPageChange={setPage} count={totalPages} size="small" siblingCount={0} />
+          <Pagination page={page} onPageChange={setPage} count={totalPages} siblingCount={0} />
         </HStack>
       )}
     </VStack>

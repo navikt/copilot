@@ -16,20 +16,6 @@ type ModelInteractions struct {
 	Interactions int64  `bigquery:"interactions" json:"interactions"`
 }
 
-type TeamUsageSummary struct {
-	TeamSlug            string              `bigquery:"team_slug" json:"team_slug"`
-	AvgActiveUsers      int64               `bigquery:"avg_active_users" json:"avg_active_users"`
-	TotalUsers          int64               `bigquery:"total_users" json:"total_users"`
-	TotalGenerations    int64               `bigquery:"total_generations" json:"total_generations"`
-	TotalAcceptances    int64               `bigquery:"total_acceptances" json:"total_acceptances"`
-	TotalInteractions   int64               `bigquery:"total_interactions" json:"total_interactions"`
-	TotalLinesSuggested int64               `bigquery:"total_lines_suggested" json:"total_lines_suggested"`
-	TotalLinesAccepted  int64               `bigquery:"total_lines_accepted" json:"total_lines_accepted"`
-	AgentUsers          int64               `bigquery:"agent_users" json:"agent_users"`
-	DaysWithData        int64               `bigquery:"days_with_data" json:"days_with_data"`
-	TopModels           []ModelInteractions `bigquery:"top_models" json:"top_models,omitempty"`
-}
-
 type UserMetricsSummary struct {
 	UserLogin           string              `bigquery:"user_login" json:"user_login"`
 	TotalAcceptances    int64               `bigquery:"total_acceptances" json:"total_acceptances"`
@@ -73,12 +59,6 @@ type MonthlyTrend struct {
 	AgentUsers      int64  `bigquery:"agent_users" json:"agent_users"`
 	ChatUsers       int64  `bigquery:"chat_users" json:"chat_users"`
 	CLIUsers        int64  `bigquery:"cli_users" json:"cli_users"`
-}
-
-type MonthlyModelUsage struct {
-	Month        string `bigquery:"month" json:"month"`
-	Model        string `bigquery:"model" json:"model"`
-	Interactions int64  `bigquery:"interactions" json:"interactions"`
 }
 
 type MonthlyBillingUsage struct {
@@ -158,113 +138,6 @@ type AdoptionCohortDay struct {
 	AvgAcceptances  float64    `bigquery:"avg_acceptances" json:"avg_acceptances"`
 	AvgInteractions float64    `bigquery:"avg_interactions" json:"avg_interactions"`
 	AvgLinesAdded   float64    `bigquery:"avg_lines_added" json:"avg_lines_added"`
-}
-
-func (bq *BigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error) {
-	teamsRef := bq.tableRef(bq.metricsDataset, "user_teams")
-	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
-	queryStr := fmt.Sprintf(`
-      WITH latest_teams AS (
-        SELECT
-          JSON_VALUE(raw_record, '$.user_id') AS user_id,
-          JSON_VALUE(raw_record, '$.slug') AS team_slug
-        FROM %s
-        WHERE day = (SELECT MAX(day) FROM %s WHERE scope = 'enterprise')
-          AND scope = 'enterprise'
-        GROUP BY user_id, team_slug
-      ),
-      metrics AS (
-        SELECT
-          JSON_VALUE(raw_record, '$.user_id') AS user_id,
-          day,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64) AS generations,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.code_acceptance_activity_count') AS INT64) AS acceptances,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64) AS interactions,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_suggested_to_add_sum') AS INT64) AS lines_suggested,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.loc_added_sum') AS INT64) AS lines_accepted,
-          SAFE_CAST(JSON_VALUE(raw_record, '$.used_agent') AS BOOL) AS used_agent,
-          raw_record
-        FROM %s
-        WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
-          AND scope = 'enterprise'
-      ),
-      team_metrics AS (
-        SELECT
-          t.team_slug,
-          m.user_id,
-          m.day,
-          COALESCE(m.generations, 0) AS generations,
-          COALESCE(m.acceptances, 0) AS acceptances,
-          COALESCE(m.interactions, 0) AS interactions,
-          COALESCE(m.lines_suggested, 0) AS lines_suggested,
-          COALESCE(m.lines_accepted, 0) AS lines_accepted,
-          COALESCE(m.used_agent, FALSE) AS used_agent,
-          m.raw_record
-        FROM latest_teams t
-        INNER JOIN metrics m ON t.user_id = m.user_id
-      ),
-      team_model_usage AS (
-        SELECT
-          tm.team_slug,
-          JSON_VALUE(mf, '$.model') AS model,
-          SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64))
-            + SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_generation_activity_count') AS INT64))
-            + SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_acceptance_activity_count') AS INT64)) AS interactions,
-          COUNT(DISTINCT tm.user_id) AS model_users
-        FROM team_metrics tm,
-          UNNEST(JSON_QUERY_ARRAY(tm.raw_record, '$.totals_by_model_feature')) AS mf
-        WHERE JSON_VALUE(mf, '$.model') IS NOT NULL
-          AND JSON_VALUE(mf, '$.model') != 'others'
-        GROUP BY tm.team_slug, model
-        HAVING interactions > 0 AND model_users >= @minUsers
-      ),
-      team_model_ranked AS (
-        SELECT
-          team_slug,
-          model,
-          interactions,
-          ROW_NUMBER() OVER (PARTITION BY team_slug ORDER BY interactions DESC) AS rn
-        FROM team_model_usage
-      ),
-      team_models_agg AS (
-        SELECT
-          team_slug,
-          ARRAY_AGG(STRUCT(model, interactions) ORDER BY interactions DESC) AS top_models
-        FROM team_model_ranked
-        WHERE rn <= 3
-        GROUP BY team_slug
-      ),
-      team_summary AS (
-        SELECT
-          tm.team_slug,
-          COUNT(DISTINCT CASE WHEN tm.acceptances + tm.interactions > 0 THEN tm.user_id END) AS avg_active_users,
-          COUNT(DISTINCT tm.user_id) AS total_users,
-          SUM(tm.generations) AS total_generations,
-          SUM(tm.acceptances) AS total_acceptances,
-          SUM(tm.interactions) AS total_interactions,
-          SUM(tm.lines_suggested) AS total_lines_suggested,
-          SUM(tm.lines_accepted) AS total_lines_accepted,
-          COUNT(DISTINCT CASE WHEN tm.used_agent THEN tm.user_id END) AS agent_users,
-          COUNT(DISTINCT tm.day) AS days_with_data
-        FROM team_metrics tm
-        GROUP BY tm.team_slug
-      )
-      SELECT
-        ts.*,
-        tma.top_models
-      FROM team_summary ts
-      LEFT JOIN team_models_agg tma ON tma.team_slug = ts.team_slug
-      WHERE ts.avg_active_users >= @minUsers
-      ORDER BY ts.avg_active_users DESC
-    `, teamsRef, teamsRef, metricsRef)
-
-	query := bq.client.Query(queryStr)
-	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}, {Name: "minUsers", Value: minTeamContributors}}
-	it, err := query.Read(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("execute query: %w", err)
-	}
-	return readAllRows[TeamUsageSummary](it)
 }
 
 func (bq *BigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error) {
@@ -467,41 +340,6 @@ func (bq *BigQueryClient) GetMonthlyTrends(ctx context.Context, months int) ([]M
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 	return readAllRows[MonthlyTrend](it)
-}
-
-func (bq *BigQueryClient) GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error) {
-	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
-	queryStr := fmt.Sprintf(`
-      WITH model_activity AS (
-        SELECT
-          FORMAT_DATE('%%Y-%%m', day) AS month,
-          JSON_VALUE(mf, '$.model') AS model,
-          COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64)), 0) AS interactions,
-          COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_generation_activity_count') AS INT64)), 0) AS generations,
-          COALESCE(SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_acceptance_activity_count') AS INT64)), 0) AS acceptances
-        FROM %s,
-          UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
-        WHERE day >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL @months MONTH), MONTH)
-          AND scope = 'enterprise'
-          AND JSON_VALUE(mf, '$.model') IS NOT NULL
-          AND JSON_VALUE(mf, '$.model') != 'others'
-        GROUP BY month, model
-        HAVING (interactions + generations) > 0
-      )
-      SELECT
-        ma.month,
-        ma.model,
-        (ma.interactions + ma.generations + ma.acceptances) AS interactions
-      FROM model_activity ma
-      ORDER BY ma.month, interactions DESC
-    `, metricsRef)
-	query := bq.client.Query(queryStr)
-	query.Parameters = []bigquery.QueryParameter{{Name: "months", Value: months}}
-	it, err := query.Read(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("execute query: %w", err)
-	}
-	return readAllRows[MonthlyModelUsage](it)
 }
 
 func (bq *BigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error) {

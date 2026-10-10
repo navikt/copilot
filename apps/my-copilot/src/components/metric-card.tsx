@@ -12,10 +12,15 @@ export default function MetricCard({ value, label, helpText, helpTitle, subtitle
   const isLongText = typeof value === "string" && value.length > 6;
 
   return (
-    <Box background="default" padding="space-20" borderRadius="8" className="border border-gray-200">
+    <Box
+      background="default"
+      padding="space-20"
+      borderRadius="8"
+      className="border border-(--ax-border-neutral-subtle)"
+    >
       <VStack gap="space-2">
         <div className="flex items-center">
-          <BodyShort className="text-gray-600 text-sm">{label}</BodyShort>
+          <BodyShort className="text-(--ax-text-neutral-subtle) text-sm">{label}</BodyShort>
           <HelpText title={helpTitle} placement="top">
             {helpText}
           </HelpText>
@@ -23,7 +28,7 @@ export default function MetricCard({ value, label, helpText, helpTitle, subtitle
         <Heading size={isLongText ? "medium" : "xlarge"} level="2" className="break-all">
           {value}
         </Heading>
-        {subtitle && <BodyShort className="text-gray-500 text-sm">{subtitle}</BodyShort>}
+        {subtitle && <BodyShort className="text-(--ax-text-neutral-subtle) text-sm">{subtitle}</BodyShort>}
       </VStack>
     </Box>
   );

@@ -372,13 +372,11 @@ type BigQueryQuerier interface {
 	GetCustomizationUsage(ctx context.Context) ([]CustomizationUsage, error)
 	GetLanguageAdoption(ctx context.Context) ([]LanguageAdoption, error)
 	GetStalenessData(ctx context.Context) ([]StalenessFile, error)
-	GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error)
 	GetUserTeams(ctx context.Context, userLogin string) ([]string, error)
 	GetTeamGrossOverview(ctx context.Context, month string) (*TeamGrossOverview, error)
 	GetTeamNetOverview(ctx context.Context, month string) (*TeamNetOverview, error)
 	GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error)
 	GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error)
-	GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error)
 	GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error)
 	GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error)
 	GetBillingModelForecast(ctx context.Context, month string) (*BillingModelForecast, error)
@@ -535,15 +533,6 @@ func (c *CachedBigQueryClient) GetStalenessData(ctx context.Context) ([]Stalenes
 	})
 }
 
-func (c *CachedBigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error) {
-	ctx, cancel := withQueryTimeout(ctx)
-	defer cancel()
-	cacheKey := fmt.Sprintf("team_usage_summary_%d", days)
-	return getCachedValue(c, cacheKey, func() ([]TeamUsageSummary, error) {
-		return c.client.GetTeamUsageSummary(ctx, days)
-	})
-}
-
 func (c *CachedBigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
@@ -559,15 +548,6 @@ func (c *CachedBigQueryClient) GetMonthlyTrends(ctx context.Context, months int)
 	cacheKey := fmt.Sprintf("monthly_trends_%d", months)
 	return getCachedValue(c, cacheKey, func() ([]MonthlyTrend, error) {
 		return c.client.GetMonthlyTrends(ctx, months)
-	})
-}
-
-func (c *CachedBigQueryClient) GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error) {
-	ctx, cancel := withQueryTimeout(ctx)
-	defer cancel()
-	cacheKey := fmt.Sprintf("monthly_model_usage_%d", months)
-	return getCachedValue(c, cacheKey, func() ([]MonthlyModelUsage, error) {
-		return c.client.GetMonthlyModelUsage(ctx, months)
 	})
 }
 

@@ -43,8 +43,6 @@ type mockBigQueryClient struct {
 	langAdoptionErr    error
 	stalenessFiles     []StalenessFile
 	stalenessErr       error
-	teamUsage          []TeamUsageSummary
-	teamUsageErr       error
 	teamGross          *TeamGrossOverview
 	teamGrossErr       error
 	teamNet            *TeamNetOverview
@@ -56,8 +54,6 @@ type mockBigQueryClient struct {
 	userMetricsErr     error
 	monthlyTrends      []MonthlyTrend
 	monthlyTrendsErr   error
-	monthlyModels      []MonthlyModelUsage
-	monthlyModelsErr   error
 	monthlyBilling     []MonthlyBillingUsage
 	monthlyBillingErr  error
 	billingModelDaily  []BillingModelDailyCost
@@ -147,10 +143,6 @@ func (m *mockBigQueryClient) GetLanguageAdoption(_ context.Context) ([]LanguageA
 
 func (m *mockBigQueryClient) GetStalenessData(_ context.Context) ([]StalenessFile, error) {
 	return m.stalenessFiles, m.stalenessErr
-}
-
-func (m *mockBigQueryClient) GetTeamUsageSummary(_ context.Context, _ int) ([]TeamUsageSummary, error) {
-	return m.teamUsage, m.teamUsageErr
 }
 
 func (m *mockBigQueryClient) GetTeamGrossOverview(_ context.Context, month string) (*TeamGrossOverview, error) {
@@ -255,10 +247,6 @@ func (m *mockBigQueryClient) GetUserMetrics(_ context.Context, _ string, _ int) 
 
 func (m *mockBigQueryClient) GetMonthlyTrends(_ context.Context, _ int) ([]MonthlyTrend, error) {
 	return m.monthlyTrends, m.monthlyTrendsErr
-}
-
-func (m *mockBigQueryClient) GetMonthlyModelUsage(_ context.Context, _ int) ([]MonthlyModelUsage, error) {
-	return m.monthlyModels, m.monthlyModelsErr
 }
 
 func (m *mockBigQueryClient) GetMonthlyBillingUsage(_ context.Context, _ int) ([]MonthlyBillingUsage, error) {
@@ -571,20 +559,6 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:       "team summary success",
-			mock:       &mockBigQueryClient{teamUsage: []TeamUsageSummary{{TeamSlug: "team-a", TotalUsers: 2}}},
-			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-summary", nil),
-			handle:     (*BigQueryHandlers).handleTeamUsageSummary,
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "team summary error",
-			mock:       &mockBigQueryClient{teamUsageErr: errors.New("bq")},
-			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-summary", nil),
-			handle:     (*BigQueryHandlers).handleTeamUsageSummary,
-			wantStatus: http.StatusInternalServerError,
-		},
-		{
 			name:       "user metrics success",
 			mock:       &mockBigQueryClient{userMetrics: &UserMetricsSummary{UserLogin: "octocat", DaysInPeriod: 7}},
 			req:        requestWithUsername("/api/v1/copilot/usage/user/octocat", "octocat"),
@@ -624,20 +598,6 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			mock:       &mockBigQueryClient{monthlyTrendsErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/trends", nil),
 			handle:     (*BigQueryHandlers).handleMonthlyTrends,
-			wantStatus: http.StatusInternalServerError,
-		},
-		{
-			name:       "monthly models success",
-			mock:       &mockBigQueryClient{monthlyModels: []MonthlyModelUsage{{Month: "2026-06", Model: "gpt", Interactions: 1}}},
-			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/models", nil),
-			handle:     (*BigQueryHandlers).handleMonthlyModelUsage,
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "monthly models error",
-			mock:       &mockBigQueryClient{monthlyModelsErr: errors.New("bq")},
-			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/models", nil),
-			handle:     (*BigQueryHandlers).handleMonthlyModelUsage,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{

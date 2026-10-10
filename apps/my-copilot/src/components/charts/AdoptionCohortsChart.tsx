@@ -4,15 +4,21 @@ import type { AdoptionCohortWeek, AdoptionCohortTrendData } from "@/lib/types";
 import React from "react";
 import { BodyShort } from "@navikt/ds-react";
 import { Line } from "react-chartjs-2";
-import { commonLineOptions, getBackgroundColor, chartWrapperClass, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import {
+  axColor,
+  bottomLegend,
+  chartBoxClass,
+  commonLineOptions,
+  chartWrapperClass,
+  NO_DATA_MESSAGE,
+} from "@/lib/chart-utils";
 
-// Phase colors: muted gray → blue → purple → green
-const phaseColors = [
-  "rgba(156, 163, 175, 1)", // Phase 0 — Ingen KI-bruk (gray)
-  "rgba(59, 130, 246, 1)", // Phase 1 — Kodeforslag (blue)
-  "rgba(139, 92, 246, 1)", // Phase 2 — Én agent-flate (purple)
-  "rgba(16, 185, 129, 1)", // Phase 3 — Flere agent-flater (green)
-];
+// Phase colours (Aksel tokens): muted grey → blue → purple → green
+const phaseTokens = ["neutral-500", "accent-600", "meta-purple-600", "success-600"];
+const phaseColor =
+  (phase: number, alpha = 1) =>
+  () =>
+    axColor(phaseTokens[phase], alpha);
 
 const phaseLabels = [
   "Fase 0: Ingen KI-bruk",
@@ -59,8 +65,8 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       {
         label: phaseLabels[3],
         data: trend.phase3,
-        borderColor: phaseColors[3],
-        backgroundColor: getBackgroundColor(phaseColors[3], 0.3),
+        borderColor: phaseColor(3),
+        backgroundColor: phaseColor(3, 0.3),
         fill: true,
         tension: 0.4,
         order: 1,
@@ -68,8 +74,8 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       {
         label: phaseLabels[2],
         data: trend.phase2,
-        borderColor: phaseColors[2],
-        backgroundColor: getBackgroundColor(phaseColors[2], 0.3),
+        borderColor: phaseColor(2),
+        backgroundColor: phaseColor(2, 0.3),
         fill: true,
         tension: 0.4,
         order: 2,
@@ -77,8 +83,8 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       {
         label: phaseLabels[1],
         data: trend.phase1,
-        borderColor: phaseColors[1],
-        backgroundColor: getBackgroundColor(phaseColors[1], 0.3),
+        borderColor: phaseColor(1),
+        backgroundColor: phaseColor(1, 0.3),
         fill: true,
         tension: 0.4,
         order: 3,
@@ -86,8 +92,8 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       {
         label: phaseLabels[0],
         data: trend.phase0,
-        borderColor: phaseColors[0],
-        backgroundColor: getBackgroundColor(phaseColors[0], 0.15),
+        borderColor: phaseColor(0),
+        backgroundColor: phaseColor(0, 0.15),
         fill: true,
         tension: 0.4,
         order: 4,
@@ -99,6 +105,7 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
     ...commonLineOptions,
     plugins: {
       ...commonLineOptions.plugins,
+      legend: bottomLegend,
       title: {
         display: true,
         text: "KI-adopsjon – ukesgjennomsnitt",
@@ -122,7 +129,9 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
 
   return (
     <div className={chartWrapperClass}>
-      <Line data={chartData} options={options} />
+      <div className={chartBoxClass}>
+        <Line data={chartData} options={options} />
+      </div>
       <BodyShort size="small" textColor="subtle">
         Faser med færre enn fem brukere i snitt en uke er skjult.
       </BodyShort>

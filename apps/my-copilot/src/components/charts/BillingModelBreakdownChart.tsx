@@ -3,7 +3,7 @@
 import type { BillingModelBreakdown, BillingMonthlyTrend, BillingModelForecast } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import { axColor, bottomLegend, chartBoxClass, seriesColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { VStack, BodyShort, Box, HGrid, HStack } from "@navikt/ds-react";
 import { formatPercent, formatUSD } from "@/lib/format";
 
@@ -45,8 +45,8 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
   const datasets = topModels.map((model, i) => ({
     label: model,
     data: months.map((m) => Math.round((grossByModelMonth.get(model)?.get(m) ?? 0) * 100) / 100),
-    backgroundColor: getBackgroundColor(chartColors[i % chartColors.length], 0.75),
-    borderColor: chartColors[i % chartColors.length],
+    backgroundColor: seriesColor(i, 0.75),
+    borderColor: seriesColor(i),
     borderWidth: 1,
     stack: "models",
   }));
@@ -61,7 +61,7 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
       }
       return Math.round((trendByMonth.get(m) ?? 0) * 100) / 100;
     }),
-    borderColor: "#1a1a2e",
+    borderColor: () => axColor("text-neutral"),
     backgroundColor: "transparent",
     borderWidth: 2,
     pointRadius: 3,
@@ -85,8 +85,9 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
 
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
-      legend: { position: "bottom" as const, labels: { font: { size: 11 } } },
+      legend: bottomLegend,
       tooltip: {
         callbacks: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,10 +96,12 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
       },
     },
     scales: {
-      x: { stacked: true },
+      x: { stacked: true, grid: { display: false }, ticks: { color: () => axColor("text-neutral-subtle") } },
       y: {
         stacked: true,
+        grid: { color: () => axColor("border-neutral-subtle", 0.4) },
         ticks: {
+          color: () => axColor("text-neutral-subtle"),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           callback: (v: any) => formatUSD(Number(v)),
         },
@@ -198,7 +201,9 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
           </HStack>
         )}
 
-        <Bar data={chartData} options={options} />
+        <div className={chartBoxClass}>
+          <Bar data={chartData} options={options} />
+        </div>
       </VStack>
     </Box>
   );

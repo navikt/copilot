@@ -850,3 +850,18 @@ button.section-link {
   font-size: 0.875rem;
   color: var(--ax-text-neutral-subtle);
 }
+
+/* The HelpText «?» button is 24 px; widen its hit area to 44 px without changing how it looks. */
+.aksel-help-text__button {
+  position: relative;
+}
+.aksel-help-text__button::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+
+/* ReadMore toggles («Hendelser», «Kilde og metode») are 32 px; give them a 44 px tap target. */
+.aksel-read-more__button {
+  min-height: 44px;
+}

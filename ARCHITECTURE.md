@@ -92,7 +92,7 @@ from the handlers behind a `ResolvedIdentity`. See
 ### Resource-oriented, not page-oriented
 
 ```
-GET  /api/v1/copilot/usage/summary      ← Aggregate metrics
+GET  /api/v1/copilot/usage/metrics      ← Aggregate metrics
 GET  /api/v1/copilot/usage/trends       ← Time-series
 GET  /api/v1/copilot/seats/{username}   ← Single resource
 POST /api/v1/copilot/seats              ← Create

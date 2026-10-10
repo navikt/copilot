@@ -33,12 +33,7 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 #### Usage Metrics
 
 - `GET /api/v1/copilot/usage/metrics` — Daily usage metrics
-- `GET /api/v1/copilot/usage/summary` — Not implemented yet
-- `GET /api/v1/copilot/usage/trends` — Not implemented yet
-- `GET /api/v1/copilot/usage/features` — Not implemented yet
-- `GET /api/v1/copilot/usage/languages` — Not implemented yet
-- `GET /api/v1/copilot/usage/editors` — Not implemented yet
-- `GET /api/v1/copilot/usage/models` — Not implemented yet
+- `GET /api/v1/copilot/usage/trends` — Monthly trends
 
 #### Billing
 

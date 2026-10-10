@@ -46,11 +46,7 @@ async function load({ token, start }: Props) {
 }
 
 function Method({ children }: { children: ReactNode }) {
-  return (
-    <ReadMore header="Kilde og metode" size="small">
-      {children}
-    </ReadMore>
-  );
+  return <ReadMore header="Kilde og metode">{children}</ReadMore>;
 }
 
 function Failed({ error }: { error?: string }) {

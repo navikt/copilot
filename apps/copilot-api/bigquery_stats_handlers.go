@@ -37,32 +37,6 @@ func optionalMonthParam(r *http.Request, name string) (string, bool) {
 	return value, true
 }
 
-func (h *BigQueryHandlers) handleTeamUsageSummary(w http.ResponseWriter, r *http.Request) {
-	days, ok := optionalIntParam(r, "days", 7, 1, 365)
-	if !ok {
-		respondError(w, "invalid_parameter", "days must be between 1 and 365", http.StatusBadRequest)
-		return
-	}
-
-	usage, err := h.bqClient.GetTeamUsageSummary(r.Context(), days)
-	if err != nil {
-		slog.Error("Failed to fetch team usage summary", "error", err)
-		respondError(w, "internal_error", "Failed to fetch team usage summary", http.StatusInternalServerError)
-		return
-	}
-	// The SQL already filters; this guards the response against any client implementation.
-	visible := make([]TeamUsageSummary, 0, len(usage))
-	for _, team := range usage {
-		if team.AvgActiveUsers >= minTeamContributors {
-			visible = append(visible, team)
-		}
-	}
-	usage = visible
-
-	cacheControl(w, 3600, false)
-	respondJSON(w, usage, http.StatusOK)
-}
-
 func (h *BigQueryHandlers) handleTeamGrossOverview(w http.ResponseWriter, r *http.Request) {
 	month, ok := optionalMonthParam(r, "month")
 	if !ok {
@@ -207,24 +181,6 @@ func (h *BigQueryHandlers) handleMonthlyTrends(w http.ResponseWriter, r *http.Re
 
 	cacheControl(w, 3600, false)
 	respondJSON(w, trends, http.StatusOK)
-}
-
-func (h *BigQueryHandlers) handleMonthlyModelUsage(w http.ResponseWriter, r *http.Request) {
-	months, ok := optionalIntParam(r, "months", 12, 1, 36)
-	if !ok {
-		respondError(w, "invalid_parameter", "months must be between 1 and 36", http.StatusBadRequest)
-		return
-	}
-
-	usage, err := h.bqClient.GetMonthlyModelUsage(r.Context(), months)
-	if err != nil {
-		slog.Error("Failed to fetch monthly model usage", "error", err)
-		respondError(w, "internal_error", "Failed to fetch monthly model usage", http.StatusInternalServerError)
-		return
-	}
-
-	cacheControl(w, 3600, false)
-	respondJSON(w, usage, http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleMonthlyBillingUsage(w http.ResponseWriter, r *http.Request) {

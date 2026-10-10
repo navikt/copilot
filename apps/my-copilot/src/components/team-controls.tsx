@@ -23,14 +23,12 @@ export default function TeamControls({ month, children }: { month: string; child
             hideLabel={false}
             value={search}
             onChange={setSearch}
-            size="small"
             variant="simple"
             className="max-w-xs"
           />
           <Button
             ref={setAnchor}
             type="button"
-            size="small"
             variant="secondary-neutral"
             aria-expanded={open}
             aria-controls="team-column-picker"
@@ -50,7 +48,7 @@ export default function TeamControls({ month, children }: { month: string; child
                 if (event.key === "Escape") anchor?.focus();
               }}
             >
-              <CheckboxGroup legend="Bruksmønster" size="small" value={columns} onChange={setColumns}>
+              <CheckboxGroup legend="Bruksmønster" value={columns} onChange={setColumns}>
                 <Checkbox value="providers">
                   <HStack gap="space-8" align="center">
                     <Buildings3Icon aria-hidden fontSize="1.25rem" />
