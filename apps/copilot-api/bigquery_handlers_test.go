@@ -51,6 +51,8 @@ type mockBigQueryClient struct {
 	teamNetErr         error
 	grossByMonth       map[string]*TeamGrossOverview
 	netByMonth         map[string]*TeamNetOverview
+	teamYear           *TeamYearOverview
+	teamYearArgs       []any
 	userTeams          []string
 	userMetrics        *UserMetricsSummary
 	userMetricsErr     error
@@ -159,6 +161,11 @@ func (m *mockBigQueryClient) GetTeamNetOverview(_ context.Context, month string)
 		return m.netByMonth[month], nil
 	}
 	return m.teamNet, m.teamNetErr
+}
+
+func (m *mockBigQueryClient) GetTeamYearOverview(_ context.Context, team string, year int) (*TeamYearOverview, error) {
+	m.teamYearArgs = []any{team, year}
+	return m.teamYear, nil
 }
 
 func (m *mockBigQueryClient) GetUserTeams(_ context.Context, _ string) ([]string, error) {

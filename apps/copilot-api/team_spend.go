@@ -156,26 +156,7 @@ func (bq *BigQueryClient) GetTeamNetOverview(ctx context.Context, month string) 
 WITH completed AS (
  SELECT CAST(MAX(loaded_at) AS STRING) loaded_at
  FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND status='complete'
-), billed AS (
- SELECT user_id, SUM(net_amount) net
- FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND user_id!='' AND sku IN ('Copilot AI Credits','Copilot Cloud Agent')
- GROUP BY user_id
-), usage_days AS (
- SELECT day,JSON_VALUE(raw_record,'$.user_id') user_id,
-   COALESCE(SAFE_CAST(JSON_VALUE(raw_record,'$.ai_credits_used') AS FLOAT64),0) gross
- FROM %s WHERE day>=DATE(@month) AND day<DATE_ADD(DATE(@month),INTERVAL 1 MONTH)
-   AND scope='enterprise' AND scope_id='nav'
-), weighted AS (
- SELECT u.day,u.user_id,b.net * SAFE_DIVIDE(u.gross,SUM(u.gross) OVER(PARTITION BY u.user_id)) net
- FROM usage_days u JOIN billed b USING(user_id)
-), daily AS (
- SELECT day,user_id,net FROM weighted WHERE net IS NOT NULL
-), memberships AS (
- SELECT DISTINCT day,JSON_VALUE(raw_record,'$.user_id') user_id,
- JSON_VALUE(raw_record,'$.team_id') team_id,JSON_VALUE(raw_record,'$.slug') team_slug
- FROM %s WHERE day>=DATE(@month) AND day<DATE_ADD(DATE(@month),INTERVAL 1 MONTH)
- AND scope='enterprise' AND scope_id='nav' AND JSON_VALUE(raw_record,'$.slug')!='nav-it-github-users'
-), exposure AS (
+), `+bq.teamUsageCTEs()+`, `+bq.teamNetCTEs()+`, exposure AS (
  SELECT m.day,m.user_id,m.team_id,m.team_slug,w.net
  FROM memberships m JOIN daily w USING(day,user_id)
 ), eligible_teams AS (
@@ -201,7 +182,7 @@ WITH completed AS (
  SELECT COALESCE(SUM(net),0) net FROM billed
 ), no_usage AS (
  SELECT COALESCE(SUM(b.net),0) net FROM billed b
- WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.gross>0)
+ WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND u.gross>0)
 ), enterprise_snapshot AS (
  SELECT COUNTIF(sku='done') markers,COALESCE(SUM(IF(sku IN ('Copilot AI Credits','Copilot Cloud Agent'),net_amount,0)),0) net
  FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND user_id=''
@@ -220,11 +201,8 @@ LEFT JOIN team_counts t ON t.users>=@minUsers
 WHERE c.loaded_at IS NOT NULL ORDER BY t.team_slug`,
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"),
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly"),
-		bq.tableRef(bq.metricsDataset, "user_metrics"),
-		bq.tableRef(bq.metricsDataset, "user_teams"),
-		bq.tableRef(bq.metricsDataset, "billing_user_monthly"),
 		bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")))
-	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month + "-01"}, {Name: "minUsers", Value: minTeamContributors}}
+	query.Parameters = append(monthRange(first, 1), bigquery.QueryParameter{Name: "month", Value: month + "-01"}, bigquery.QueryParameter{Name: "minUsers", Value: minTeamContributors})
 	// The billing table is only created when an operator starts a backfill.
 	if _, err := bq.client.Dataset(bq.metricsDataset).Table("billing_user_monthly_runs").Metadata(ctx); err != nil {
 		var apiErr *googleapi.Error
@@ -242,6 +220,46 @@ WHERE c.loaded_at IS NOT NULL ORDER BY t.team_slug`,
 		return nil, err
 	}
 	return teamNetOverview(month, rows), nil
+}
+
+// teamUsageCTEs is shared by every team spend query, so the month and year
+// views cannot drift apart: usage_days (gross AI credits per user and day) and
+// memberships (teams per user and day), for days in [@from, @to).
+func (bq *BigQueryClient) teamUsageCTEs() string {
+	return fmt.Sprintf(`usage_days AS (
+ SELECT day,DATE_TRUNC(day,MONTH) month,JSON_VALUE(raw_record,'$.user_id') user_id,
+   COALESCE(SAFE_CAST(JSON_VALUE(raw_record,'$.ai_credits_used') AS FLOAT64),0) gross
+ FROM %s WHERE day>=DATE(@from) AND day<DATE(@to)
+   AND scope='enterprise' AND scope_id='nav'
+), memberships AS (
+ SELECT DISTINCT day,DATE_TRUNC(day,MONTH) month,JSON_VALUE(raw_record,'$.user_id') user_id,
+ JSON_VALUE(raw_record,'$.team_id') team_id,JSON_VALUE(raw_record,'$.slug') team_slug
+ FROM %s WHERE day>=DATE(@from) AND day<DATE(@to)
+ AND scope='enterprise' AND scope_id='nav' AND JSON_VALUE(raw_record,'$.slug')!='nav-it-github-users'
+)`, bq.tableRef(bq.metricsDataset, "user_metrics"), bq.tableRef(bq.metricsDataset, "user_teams"))
+}
+
+// teamNetCTEs builds on teamUsageCTEs: billed (net per user and month) and
+// daily (net spread over the user's usage days in the month by gross share).
+func (bq *BigQueryClient) teamNetCTEs() string {
+	return fmt.Sprintf(`billed AS (
+ SELECT month,user_id,SUM(net_amount) net
+ FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND user_id!='' AND sku IN ('Copilot AI Credits','Copilot Cloud Agent')
+ GROUP BY month,user_id
+), weighted AS (
+ SELECT u.day,u.user_id,b.net * SAFE_DIVIDE(u.gross,SUM(u.gross) OVER(PARTITION BY u.month,u.user_id)) net
+ FROM usage_days u JOIN billed b USING(month,user_id)
+), daily AS (
+ SELECT day,user_id,net FROM weighted WHERE net IS NOT NULL
+)`, bq.tableRef(bq.metricsDataset, "billing_user_monthly"))
+}
+
+// monthRange sets @from and @to to cover months whole months from first.
+func monthRange(first time.Time, months int) []bigquery.QueryParameter {
+	return []bigquery.QueryParameter{
+		{Name: "from", Value: first.Format("2006-01-02")},
+		{Name: "to", Value: first.AddDate(0, months, 0).Format("2006-01-02")},
+	}
 }
 
 func (c *CachedBigQueryClient) GetTeamNetOverview(ctx context.Context, month string) (*TeamNetOverview, error) {
@@ -311,20 +329,11 @@ func (bq *BigQueryClient) GetTeamGrossOverview(ctx context.Context, month string
 	if !isValidYearMonth(month) {
 		return nil, fmt.Errorf("invalid month %q", month)
 	}
-	query := bq.client.Query(fmt.Sprintf(`
-WITH users AS (
-  SELECT day, JSON_VALUE(raw_record, '$.user_id') user_id,
-    COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0) * 0.01 gross
-  FROM %s
-  WHERE day >= DATE(@month) AND day < DATE_ADD(DATE(@month), INTERVAL 1 MONTH)
-    AND scope = 'enterprise' AND scope_id = 'nav'
+	query := bq.client.Query(`
+WITH ` + bq.teamUsageCTEs() + `, users AS (
+  SELECT day, user_id, gross * 0.01 gross FROM usage_days
 ), teams AS (
-  SELECT DISTINCT day, JSON_VALUE(raw_record, '$.user_id') user_id,
-    JSON_VALUE(raw_record, '$.team_id') team_id, JSON_VALUE(raw_record, '$.slug') team_slug
-  FROM %s
-  WHERE day >= DATE(@month) AND day < DATE_ADD(DATE(@month), INTERVAL 1 MONTH)
-    AND scope = 'enterprise' AND scope_id = 'nav'
-    AND JSON_VALUE(raw_record, '$.slug') != 'nav-it-github-users'
+  SELECT day, user_id, team_id, team_slug FROM memberships
 ), exposure AS (
   SELECT t.day, t.user_id, t.team_id, t.team_slug, u.gross
   FROM teams t JOIN users u USING (day, user_id)
@@ -351,8 +360,9 @@ SELECT IFNULL(c.team_id, '') team_id, IFNULL(c.team_slug, '') team_slug,
   o.gross distinct_gross, o.last_day, o.days_with_usage, a.gross unassigned_gross
 FROM summary s CROSS JOIN hidden h
 CROSS JOIN totals o CROSS JOIN unassigned a
-LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`, bq.tableRef(bq.metricsDataset, "user_metrics"), bq.tableRef(bq.metricsDataset, "user_teams")))
-	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month + "-01"}, {Name: "minUsers", Value: minTeamContributors}}
+LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`)
+	first, _ := time.Parse("2006-01", month)
+	query.Parameters = append(monthRange(first, 1), bigquery.QueryParameter{Name: "minUsers", Value: minTeamContributors})
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read team gross usage: %w", err)

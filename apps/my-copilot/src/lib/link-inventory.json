@@ -237,6 +237,7 @@
       "apps/my-copilot/src/components/team-gross-usage.tsx"
     ],
     "anchors": {
+      "hittil-i-ar": ["apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "teamkostnad": ["apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx"]
     }

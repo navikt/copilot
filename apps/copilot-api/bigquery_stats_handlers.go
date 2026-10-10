@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -90,6 +92,35 @@ func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.
 	}
 	cacheControl(w, 3600, false)
 	respondJSON(w, out, http.StatusOK)
+}
+
+var validTeamID = regexp.MustCompile(`^[1-9][0-9]{0,19}$`)
+
+// handleTeamYearOverview serves one team's months for a year. Same audience
+// and suppression as team-gross and team-net: amounts with under five
+// contributors are hidden, and no logins are returned. team is the GitHub team
+// id from team_id in those endpoints, since slugs change when a team is renamed.
+func (h *BigQueryHandlers) handleTeamYearOverview(w http.ResponseWriter, r *http.Request) {
+	team := r.URL.Query().Get("team")
+	if !validTeamID.MatchString(team) {
+		respondError(w, "invalid_parameter", "team must be a GitHub team id", http.StatusBadRequest)
+		return
+	}
+	firstYear, _ := strconv.Atoi(firstTeamMonth[:4])
+	thisYear := time.Now().UTC().Year()
+	year, ok := optionalIntParam(r, "year", thisYear, firstYear, thisYear)
+	if !ok {
+		respondError(w, "invalid_parameter", fmt.Sprintf("year must be between %d and %d", firstYear, thisYear), http.StatusBadRequest)
+		return
+	}
+	overview, err := h.bqClient.GetTeamYearOverview(r.Context(), team, year)
+	if err != nil {
+		slog.Error("Failed to fetch team year usage")
+		respondError(w, "internal_error", "Failed to fetch team year usage", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 3600, false)
+	respondJSON(w, overview, http.StatusOK)
 }
 
 // firstTeamMonth is the first month with team data.
