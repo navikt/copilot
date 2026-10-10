@@ -330,6 +330,12 @@ export const CHART_ANNOTATIONS: ChartAnnotation[] = [
     dataBreak: true,
   },
   {
+    date: "2026-04-09",
+    label: "GitHub begynner å telle CLI",
+    note: "Bruk av Copilot CLI regnes som aktivitet fra denne datoen. Det ga 60–80 flere aktive brukere per hverdag.",
+    dataBreak: true,
+  },
+  {
     date: "2026-06-01",
     label: "AI Credits erstatter premium requests",
     url: "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/",
