@@ -384,7 +384,7 @@ func TestLiveMonthlyBillingContract(t *testing.T) {
 		t.Fatal("sample historical identity no longer resolves to its source ID")
 	}
 	month := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
-	if _, err := billing.FetchUserAICreditUsage(ctx, user.Login, month); err != nil {
+	if _, err := billing.FetchUserBillingUsage(ctx, user.Login, month); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("After user billing: requests=%d reported_remaining=%d", billing.requests, billing.remaining)

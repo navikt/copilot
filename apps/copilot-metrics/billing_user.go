@@ -14,7 +14,7 @@ import (
 const userBillingPause = 2 * time.Second
 
 type userBillingFetcher interface {
-	FetchUserAICreditUsage(context.Context, string, time.Time) (*BillingUsageResponse, error)
+	FetchUserBillingUsage(context.Context, string, time.Time) (*BillingUsageResponse, error)
 	AccountDeleted(context.Context, string) (bool, error)
 }
 
@@ -100,7 +100,7 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 		if done[id] {
 			continue
 		}
-		response, err := client.FetchUserAICreditUsage(ctx, users[id], month)
+		response, err := client.FetchUserBillingUsage(ctx, users[id], month)
 		if gone, goneErr := deletedAccount(ctx, client, id, err); goneErr != nil {
 			return fmt.Errorf("billing user %d/%d: %w", index+1, len(ids), goneErr)
 		} else if gone {
