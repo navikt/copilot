@@ -144,3 +144,88 @@ func (h *BigQueryHandlers) handleCopilotPRsMonthly(w http.ResponseWriter, r *htt
 	cacheControl(w, 3600, false)
 	respondJSON(w, months, http.StatusOK)
 }
+
+// CohortRetention is one monthly cohort: users whose first active day in
+// user_metrics falls in CohortMonth, and the share of them, in whole percent,
+// active again in month +1, +3 and +6. A share is null while that month is
+// not yet complete.
+type CohortRetention struct {
+	CohortMonth string             `bigquery:"cohort_month" json:"cohort_month"`
+	CohortSize  int64              `bigquery:"cohort_size" json:"cohort_size"`
+	M1          *int64 `bigquery:"m1" json:"m1"`
+	M3          *int64 `bigquery:"m3" json:"m3"`
+	M6          *int64 `bigquery:"m6" json:"m6"`
+}
+
+// GetCohortRetention groups users by the month of their first active day and
+// returns retention per cohort. Counted per user_id in the enterprise scope
+// (active as in GetCreditsPerUserMonthly), returned only as aggregates.
+// Cohorts with fewer than minUsersForDistribution users are left out. The
+// first data month (October 2025) is left-censored: data starts 2025-10-10,
+// so it mixes earlier users with new ones and cannot tell them apart.
+func (bq *BigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortRetention, error) {
+	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
+	query := bq.client.Query(fmt.Sprintf(`
+      WITH active AS (
+        SELECT DISTINCT
+          JSON_VALUE(raw_record, '$.user_id') AS user_id,
+          DATE_TRUNC(day, MONTH) AS month
+        FROM %s
+        WHERE scope = 'enterprise'
+          AND JSON_VALUE(raw_record, '$.user_id') IS NOT NULL
+          AND (COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0) > 0
+            OR COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)
+              + COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64), 0) > 0)
+      ),
+      cohorts AS (
+        SELECT user_id, MIN(month) AS cohort FROM active GROUP BY user_id
+      ),
+      agg AS (
+        SELECT
+          c.cohort,
+          COUNT(DISTINCT c.user_id) AS cohort_size,
+          COUNT(DISTINCT IF(DATE_DIFF(a.month, c.cohort, MONTH) = 1, c.user_id, NULL)) AS n1,
+          COUNT(DISTINCT IF(DATE_DIFF(a.month, c.cohort, MONTH) = 3, c.user_id, NULL)) AS n3,
+          COUNT(DISTINCT IF(DATE_DIFF(a.month, c.cohort, MONTH) = 6, c.user_id, NULL)) AS n6
+        FROM cohorts c JOIN active a USING (user_id)
+        GROUP BY c.cohort
+      )
+      SELECT
+        FORMAT_DATE('%%Y-%%m', cohort) AS cohort_month,
+        cohort_size,
+        -- Only complete months get a share; later ones stay NULL, not 0.
+        IF(DATE_ADD(cohort, INTERVAL 1 MONTH) < DATE_TRUNC(CURRENT_DATE(), MONTH), CAST(ROUND(100 * n1 / cohort_size) AS INT64), NULL) AS m1,
+        IF(DATE_ADD(cohort, INTERVAL 3 MONTH) < DATE_TRUNC(CURRENT_DATE(), MONTH), CAST(ROUND(100 * n3 / cohort_size) AS INT64), NULL) AS m3,
+        IF(DATE_ADD(cohort, INTERVAL 6 MONTH) < DATE_TRUNC(CURRENT_DATE(), MONTH), CAST(ROUND(100 * n6 / cohort_size) AS INT64), NULL) AS m6
+      FROM agg
+      WHERE cohort_size >= @min_users
+      ORDER BY cohort_month
+    `, metricsRef))
+	query.Parameters = []bigquery.QueryParameter{{Name: "min_users", Value: minUsersForDistribution}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[CohortRetention](it)
+}
+
+func (c *CachedBigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortRetention, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "cohort_retention", func() ([]CohortRetention, error) {
+		return c.client.GetCohortRetention(ctx)
+	})
+}
+
+// handleCohortRetention handles GET /api/v1/copilot/usage/cohort-retention
+func (h *BigQueryHandlers) handleCohortRetention(w http.ResponseWriter, r *http.Request) {
+	cohorts, err := h.bqClient.GetCohortRetention(r.Context())
+	if err != nil {
+		slog.Error("Failed to fetch cohort retention", "error", err)
+		respondError(w, "internal_error", "Failed to fetch cohort retention", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 3600, false)
+	respondJSON(w, cohorts, http.StatusOK)
+}
+

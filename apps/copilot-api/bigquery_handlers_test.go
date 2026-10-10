@@ -12,6 +12,21 @@ import (
 	"cloud.google.com/go/civil"
 )
 
+func ptr[T any](v T) *T { return &v }
+
+// A month that has not happened yet must reach the page as null, not 0.
+func TestHandleCohortRetentionNullForFutureMonths(t *testing.T) {
+	h := newBigQueryHandlers(&mockBigQueryClient{cohortRetention: []CohortRetention{
+		{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))},
+	}})
+	rec := httptest.NewRecorder()
+	h.handleCohortRetention(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil))
+	want := `[{"cohort_month":"2026-08","cohort_size":40,"m1":70,"m3":null,"m6":null}]`
+	if got := rec.Body.String(); got != want+"\n" && got != want {
+		t.Errorf("body: got %s, want %s", got, want)
+	}
+}
+
 // mockBigQueryClient implements BigQueryQuerier for testing
 type mockBigQueryClient struct {
 	dailyMetrics       []EnterpriseMetrics
@@ -59,6 +74,12 @@ type mockBigQueryClient struct {
 	creditsPerUserErr  error
 	copilotPRs         []CopilotPRMonth
 	copilotPRsErr      error
+	cohortRetention    []CohortRetention
+	cohortRetentionErr error
+}
+
+func (m *mockBigQueryClient) GetCohortRetention(_ context.Context) ([]CohortRetention, error) {
+	return m.cohortRetention, m.cohortRetentionErr
 }
 
 func (m *mockBigQueryClient) GetDailyMetrics(_ context.Context, _ *int) ([]EnterpriseMetrics, error) {
@@ -699,6 +720,20 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			mock:       &mockBigQueryClient{copilotPRsErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/copilot-prs", nil),
 			handle:     (*BigQueryHandlers).handleCopilotPRsMonthly,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "cohort retention success",
+			mock:       &mockBigQueryClient{cohortRetention: []CohortRetention{{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil),
+			handle:     (*BigQueryHandlers).handleCohortRetention,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "cohort retention error",
+			mock:       &mockBigQueryClient{cohortRetentionErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil),
+			handle:     (*BigQueryHandlers).handleCohortRetention,
 			wantStatus: http.StatusInternalServerError,
 		},
 	}
