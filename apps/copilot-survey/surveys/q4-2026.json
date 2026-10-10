@@ -1,0 +1,125 @@
+{
+  "id": "q4-2026",
+  "series": "utviklerundersokelsen",
+  "title": "Utviklerundersøkelsen høsten 2026",
+  "intro": "Samme spørsmål som i våres, så vi kan se hva som har endret seg, pluss ett nytt om agenter. Tar rundt fem minutter.",
+  "starts": "2026-10-13",
+  "ends": "2026-10-27",
+  "min_cli_version": "2026.09.29-072249",
+  "questions": [
+    {
+      "id": "erfaring",
+      "version": 1,
+      "type": "choice",
+      "construct": "segment-tenure",
+      "text": "Hvor mange års erfaring har du som teknolog?",
+      "options": ["0–2", "3–5", "6–10", "11+"],
+      "required": true
+    },
+    {
+      "id": "verktoy",
+      "version": 1,
+      "type": "multi",
+      "construct": "segment-tools",
+      "text": "Hvilke KI-kodemiljøer bruker du i dag? (velg alle som passer)",
+      "options": [
+        "Copilot i VS Code (completions, chat, agent mode)",
+        "Copilot i IntelliJ / JetBrains",
+        "Copilot på github.com (PR-oppsummeringer, code review m.m.)",
+        "Copilot CLI (terminal)",
+        "GitHub Copilot Extensions / MCP-servere",
+        "Claude Code (Anthropic terminal-agent)",
+        "OpenCode (open source terminal-agent)",
+        "Jeg bruker ikke KI-kodeverktøy"
+      ],
+      "other": "Annet",
+      "max_length": 100,
+      "required": true
+    },
+    {
+      "id": "verdi",
+      "version": 1,
+      "type": "multi",
+      "construct": "usage-value",
+      "text": "Hvor gir KI-kodeverktøy deg mest verdi i det daglige? (velg opptil 3)",
+      "options": [
+        "Code completions / kodegenerering",
+        "Forklare eller forstå eksisterende kode",
+        "Skrive tester",
+        "Feilsøking",
+        "Refaktorering",
+        "Skrive dokumentasjon og kommentarer",
+        "Hjelp med code review",
+        "Generere boilerplate / scaffolding",
+        "Lære nye språk, rammeverk eller API-er",
+        "Delegere flerstegoppgaver til en autonom agent"
+      ],
+      "other": "Annet",
+      "max_length": 100,
+      "max_choices": 3,
+      "skip_if": {"question": "verktoy", "answer": "Jeg bruker ikke KI-kodeverktøy"}
+    },
+    {
+      "id": "pastander",
+      "version": 1,
+      "type": "matrix",
+      "text": "Hvor enig er du i disse påstandene?",
+      "min": 1, "max": 5,
+      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
+      "required": true,
+      "skip_if": {"question": "verktoy", "answer": "Jeg bruker ikke KI-kodeverktøy"},
+      "items": [
+        {"id": "tilfredshet", "version": 1, "construct": "space-satisfaction",
+         "text": "Alt i alt er jeg fornøyd med KI-kodeverktøyene vi har tilgang til i Nav."},
+        {"id": "kognitiv-belastning", "version": 1, "construct": "cognitive-load",
+         "text": "KI-kodeverktøy reduserer mental innsats på repetitive oppgaver og boilerplate, slik at jeg kan fokusere på vanskeligere problemer."},
+        {"id": "oppgavegjennomforing", "version": 1, "construct": "task-completion",
+         "text": "KI-kodeverktøy hjelper meg å komme videre når jeg står fast, og fullføre oppgaver raskere enn uten."},
+        {"id": "code-review", "version": 1, "construct": "code-review",
+         "text": "Kode jeg lager med KI-hjelp holder god nok kvalitet til at den ikke skaper ekstra arbeid i code review."},
+        {"id": "teknisk-kompetanse", "version": 1, "construct": "technical-skill", "reverse": true,
+         "text": "Jeg er bekymra for at KI-verktøy kan svekke min egen dype forståelse av koden og teknologiene jeg jobber med."},
+        {"id": "eierskap", "version": 1, "construct": "ownership",
+         "text": "Jeg er trygg på å ta fullt ansvar for kode som er generert eller vesentlig hjulpet av KI."},
+        {"id": "juss-og-sikkerhet", "version": 1, "construct": "legal-security", "reverse": true,
+         "text": "Usikkerhet rundt personvern eller interne sikkerhetsregler hindrer meg i å bruke KI-kodeverktøy fullt ut i det daglige arbeidet."}
+      ]
+    },
+    {
+      "id": "agent-tillit",
+      "version": 1,
+      "type": "scale",
+      "construct": "agent-trust",
+      "text": "Jeg stoler på at en KI-agent løser oppgaver i flere steg i kodebasen vår uten at jeg følger med på hvert steg.",
+      "min": 1, "max": 5,
+      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"]
+    },
+    {
+      "id": "en-endring",
+      "version": 1,
+      "type": "choice",
+      "construct": "barriers",
+      "text": "Hvis du kunne endra én ting med KI-kodeverktøyene i Nav, hva ville det vært? (velg én)",
+      "options": [
+        "Bedre forståelse av kodebasen vår og interne rammeverk",
+        "Mer opplæring og veiledning i effektiv bruk",
+        "Tydeligere retningslinjer for sikkerhet og personvern",
+        "Færre begrensninger på tilgang til verktøy",
+        "Støtte for flere KI-verktøy eller miljøer",
+        "Ingenting — jeg er fornøyd med dagens situasjon",
+        "Jeg foretrekker å kode uten KI"
+      ],
+      "other": "Annet",
+      "max_length": 100,
+      "required": true
+    },
+    {
+      "id": "opplevelse",
+      "version": 1,
+      "type": "text",
+      "construct": "open-experience",
+      "text": "Hva er din mest minneverdige opplevelse — positiv eller negativ — med KI-kodeverktøy, og hva ville gjort dem mer nyttige?",
+      "max_length": 1000
+    }
+  ]
+}
