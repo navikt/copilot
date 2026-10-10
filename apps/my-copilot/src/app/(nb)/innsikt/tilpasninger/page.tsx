@@ -128,7 +128,7 @@ function Languages({ data }: { data: AdoptionData }) {
           helpText="Språket med høyest adopsjonsrate blant repoer med commit siste 90 dager. Bare språk med minst fem repoer er med."
           subtitle={
             top
-              ? `${formatAdoptionRate(top.adoption_rate_active_only)} av ${top.recently_active_repos} aktive repoer`
+              ? `${formatAdoptionRate(top.adoption_rate_active_only)} av ${formatNumber(top.recently_active_repos)} aktive repoer`
               : undefined
           }
         />
@@ -185,10 +185,10 @@ async function Sync({ token }: { token: string }) {
                 <TableRow key={`${file.category}-${file.file_name}`}>
                   <TableDataCell className="font-mono text-sm">{file.file_name}</TableDataCell>
                   <TableDataCell>{file.category}</TableDataCell>
-                  <TableDataCell align="right">{file.total_repos}</TableDataCell>
-                  <TableDataCell align="right">{file.in_sync_repos}</TableDataCell>
+                  <TableDataCell align="right">{formatNumber(file.total_repos)}</TableDataCell>
+                  <TableDataCell align="right">{formatNumber(file.in_sync_repos)}</TableDataCell>
                   <TableDataCell align="right" className="font-semibold">
-                    {file.out_of_sync_repos}
+                    {formatNumber(file.out_of_sync_repos)}
                   </TableDataCell>
                   <TableDataCell align="right">{(file.sync_rate * 100).toFixed(0)} %</TableDataCell>
                 </TableRow>

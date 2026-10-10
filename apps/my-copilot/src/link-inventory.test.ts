@@ -169,7 +169,7 @@ function definedAnchors(routeFile: string, headingsOnly = false): Map<string, st
     const src = fs.readFileSync(file, "utf-8");
     for (const m of src.matchAll(/(?<![\w-])id="([^"]+)"/g)) {
       const tag = src.slice(src.lastIndexOf("<", m.index) + 1).match(/^[\w.]+/)?.[0] ?? "";
-      if (!headingsOnly || tag === "LinkableHeading") ids.set(m[1], rel(file));
+      if (!headingsOnly || tag === "LinkableHeading" || tag === "InsightSection") ids.set(m[1], rel(file));
     }
     for (const h of sourceHeadings(src)) {
       if (h.tag === "LinkableHeading" && h.id) ids.set(h.id, rel(file));
