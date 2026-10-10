@@ -78,3 +78,22 @@ func TestAdoptionCohortsSuppressesBeforeRounding(t *testing.T) {
 		}
 	}
 }
+
+func TestTeamAdoptionOmitsSmallTeamsAndCountsOnlyVisible(t *testing.T) {
+	got := teamAdoptionOverview([]TeamAdoption{
+		{TeamSlug: "big", ActiveRepos: 10, ReposWithCustomizations: 4, AdoptionRate: 0.4, RecentlyActiveRepos: 3, AdoptionRateActiveOnly: 0.666},
+		{TeamSlug: "none", ActiveRepos: 5},
+		{TeamSlug: "small", ActiveRepos: 4, ReposWithCustomizations: 4, AdoptionRate: 1},
+		{TeamSlug: "inactive", ActiveRepos: 0},
+	})
+	if len(got.Teams) != 2 || got.Teams[0].TeamSlug != "big" || got.SmallTeams != 1 {
+		t.Fatalf("got %+v", got)
+	}
+	// Totals cover visible teams only, so total minus visible rows reveals nothing.
+	if got.TotalTeams != 2 || got.TeamsWithAdoption != 1 || got.AdoptionPct != 50 {
+		t.Fatalf("summary %+v", got)
+	}
+	if got.Teams[0].AdoptionPct != 40 || *got.Teams[0].AdoptionActivePct != 67 || got.Teams[1].AdoptionActivePct != nil {
+		t.Fatalf("rates %+v %+v", got.Teams[0], got.Teams[1])
+	}
+}

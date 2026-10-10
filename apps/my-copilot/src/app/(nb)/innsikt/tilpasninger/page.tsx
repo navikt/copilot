@@ -17,7 +17,7 @@ import { InsightPage, InsightSection } from "@/components/insight-page";
 import TeamTable from "@/components/team-table";
 import { formatNumber } from "@/lib/format";
 import type { AdoptionData } from "@/lib/types";
-import { calculateTeamStats, calculateLanguageStats, formatAdoptionRate, formatScanDate } from "@/lib/adoption-utils";
+import { calculateLanguageStats, formatAdoptionRate, formatScanDate } from "@/lib/adoption-utils";
 
 export const metadata: Metadata = {
   title: "Tilpasninger",
@@ -95,21 +95,23 @@ function TopCustomizations({ data }: { data: AdoptionData }) {
 
 function Teams({ data }: { data: AdoptionData }) {
   const { teams } = data;
-  if (!teams?.length) return <BodyShort>Ingen teamdata ennå.</BodyShort>;
-  const stats = calculateTeamStats(teams);
+  if (!teams?.teams.length) return <BodyShort>Ingen teamdata ennå.</BodyShort>;
   return (
     <>
       <HGrid columns={{ xs: 1, sm: 2 }} gap="space-16">
         <MetricCard
-          value={formatNumber(stats.teamsWithAdoption)}
+          value={formatNumber(teams.teams_with_adoption)}
           label="Team med tilpasninger"
           helpTitle="Team med tilpasninger"
-          helpText="Team som har minst ett repo med Copilot-tilpasninger."
-          subtitle={`${stats.adoptionPercent.toFixed(0)} % av ${formatNumber(stats.totalTeams)} team`}
+          helpText="Team som har minst ett repo med Copilot-tilpasninger. Bare team med minst fem aktive repoer telles."
+          subtitle={`${teams.adoption_pct} % av ${formatNumber(teams.total_teams)} team`}
         />
       </HGrid>
-      <TeamAdoptionChart data={teams} maxTeams={10} />
-      <TeamTable teams={teams.filter((t) => t.active_repos > 0)} />
+      <TeamAdoptionChart data={teams.teams} maxTeams={10} />
+      <TeamTable teams={teams.teams} />
+      {teams.small_teams > 0 && (
+        <BodyShort>{formatNumber(teams.small_teams)} team med færre enn fem aktive repoer er skjult.</BodyShort>
+      )}
     </>
   );
 }

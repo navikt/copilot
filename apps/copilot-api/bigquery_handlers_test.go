@@ -49,6 +49,8 @@ type mockBigQueryClient struct {
 	teamGrossErr       error
 	teamNet            *TeamNetOverview
 	teamNetErr         error
+	grossByMonth       map[string]*TeamGrossOverview
+	netByMonth         map[string]*TeamNetOverview
 	userTeams          []string
 	userMetrics        *UserMetricsSummary
 	userMetricsErr     error
@@ -151,11 +153,17 @@ func (m *mockBigQueryClient) GetTeamUsageSummary(_ context.Context, _ int) ([]Te
 	return m.teamUsage, m.teamUsageErr
 }
 
-func (m *mockBigQueryClient) GetTeamGrossOverview(_ context.Context, _ string) (*TeamGrossOverview, error) {
+func (m *mockBigQueryClient) GetTeamGrossOverview(_ context.Context, month string) (*TeamGrossOverview, error) {
+	if m.grossByMonth != nil {
+		return m.grossByMonth[month], nil
+	}
 	return m.teamGross, m.teamGrossErr
 }
 
-func (m *mockBigQueryClient) GetTeamNetOverview(_ context.Context, _ string) (*TeamNetOverview, error) {
+func (m *mockBigQueryClient) GetTeamNetOverview(_ context.Context, month string) (*TeamNetOverview, error) {
+	if m.netByMonth != nil {
+		return m.netByMonth[month], nil
+	}
 	return m.teamNet, m.teamNetErr
 }
 
@@ -165,8 +173,8 @@ func (m *mockBigQueryClient) GetUserTeams(_ context.Context, _ string) ([]string
 
 func TestTeamGrossOverviewHandler(t *testing.T) {
 	mock := &mockBigQueryClient{teamGross: &TeamGrossOverview{
-		Month: "2026-09", Teams: []TeamGrossUsage{{TeamID: "123", TeamSlug: "team-a", Users: 5, GrossUSD: 42}},
-		DistinctGrossUSD: 20,
+		Month: "2026-09", Teams: []TeamSpend{{TeamID: "123", TeamSlug: "team-a", Users: 5, AmountUSD: 42, PerUserUSD: 8.4}},
+		Comparison: comparisonIncomplete,
 		Usage: map[string]TeamUsageComposition{
 			"123": {Providers: []string{"Anthropic", "OpenAI"}, Categories: []string{"Versatile", "Powerful", "Unclassified"}, Feature: "chat", Language: "go"},
 		},
@@ -198,8 +206,7 @@ func TestTeamGrossOverviewHandler(t *testing.T) {
 
 func TestTeamNetOverviewHandler(t *testing.T) {
 	h := newBigQueryHandlers(&mockBigQueryClient{teamNet: &TeamNetOverview{
-		Month: "2026-09", Teams: []TeamNetUsage{{TeamID: "123", TeamSlug: "team-a", Users: 5, NetUSD: 35}},
-		KnownNetUSD: 20, EnterpriseNetUSD: 25, ResidualNetUSD: 5,
+		Month: "2026-09", Teams: []TeamSpend{teamSpend("123", "team-a", 5, 35)},
 	}})
 	for _, tc := range []struct {
 		month string
@@ -218,7 +225,7 @@ func TestTeamNetOverviewHandler(t *testing.T) {
 			if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
 				t.Fatal(err)
 			}
-			if len(got.Teams) != 1 || got.Teams[0].NetUSD != 35 || got.ResidualNetUSD != 5 {
+			if len(got.Teams) != 1 || got.Teams[0].AmountUSD != 35 || got.Teams[0].PerUserUSD != 7 {
 				t.Errorf("unexpected team net overview: %+v", got)
 			}
 		}
@@ -523,7 +530,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 
 func TestHandleTeamAdoption(t *testing.T) {
 	t.Run("returns team adoption data", func(t *testing.T) {
-		mock := &mockBigQueryClient{teamAdoption: []TeamAdoption{{ScanDate: civil.Date{Year: 2026, Month: 6, Day: 2}, TeamSlug: "team-a", TeamName: "Team A", TeamRepos: 5}}}
+		mock := &mockBigQueryClient{teamAdoption: []TeamAdoption{{ScanDate: civil.Date{Year: 2026, Month: 6, Day: 2}, TeamSlug: "team-a", TeamName: "Team A", TeamRepos: 5, ActiveRepos: 5}}}
 		h := newBigQueryHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/teams", nil)
 		rec := httptest.NewRecorder()
@@ -533,11 +540,11 @@ func TestHandleTeamAdoption(t *testing.T) {
 			t.Errorf("status: got %d, want 200", rec.Code)
 		}
 
-		var result []TeamAdoption
+		var result TeamAdoptionOverview
 		if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
-		if len(result) != 1 || result[0].TeamSlug != "team-a" {
+		if len(result.Teams) != 1 || result.Teams[0].TeamSlug != "team-a" {
 			t.Errorf("unexpected result: %+v", result)
 		}
 	})

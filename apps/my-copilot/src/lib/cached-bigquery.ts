@@ -23,7 +23,7 @@ import type {
   BillingModelForecast,
   MonthlyTrend,
   StalenessSummary,
-  TeamAdoption,
+  TeamAdoptionOverview,
   TeamGrossOverview,
   TeamNetOverview,
   AdoptionCohortWeek,
@@ -83,7 +83,7 @@ export async function getAdoptionData(token: string): Promise<{
   return fetchNullable("getAdoptionData", async () => {
     const [summary, teams, languages, customizationDetails] = await Promise.all([
       backendRequest<AdoptionSummary>("/api/v1/copilot/adoption/summary", token),
-      backendRequest<TeamAdoption[]>("/api/v1/copilot/adoption/teams", token),
+      backendRequest<TeamAdoptionOverview>("/api/v1/copilot/adoption/teams", token),
       backendRequest<LanguageAdoption[]>("/api/v1/copilot/adoption/languages", token),
       backendRequest<CustomizationDetail[]>("/api/v1/copilot/customizations/details", token),
     ]);

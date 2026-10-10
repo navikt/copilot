@@ -6,7 +6,12 @@ import { Bar } from "react-chartjs-2";
 import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { Box, Heading, HStack, VStack, ToggleGroup } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
-import { getTopTeamsForChart, getTeamAdoptionRate, getTeamRepoCount } from "@/lib/adoption-utils";
+
+// The API sends whole percent per team; the chart only picks and orders rows.
+const rate = (t: TeamAdoption, scope: AdoptionScope) =>
+  scope === "active" ? (t.adoption_active_pct ?? 0) : t.adoption_pct;
+const repoCount = (t: TeamAdoption, scope: AdoptionScope) =>
+  scope === "active" ? t.recently_active_repos : t.active_repos;
 
 type ViewMode = "absolute" | "percentage";
 
@@ -20,7 +25,15 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
   const [scope, setScope] = useState<AdoptionScope>("active");
 
   const topTeams = useMemo(
-    () => getTopTeamsForChart(data ?? [], scope, viewMode, maxTeams),
+    () =>
+      (data ?? [])
+        .filter((t) => t.repos_with_customizations > 0 && (viewMode === "absolute" || repoCount(t, scope) > 0))
+        .sort((a, b) =>
+          viewMode === "percentage"
+            ? rate(b, scope) - rate(a, scope)
+            : b.repos_with_customizations - a.repos_with_customizations
+        )
+        .slice(0, maxTeams),
     [data, viewMode, scope, maxTeams]
   );
 
@@ -49,7 +62,7 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
       {
         data: topTeams.map((t) => {
           if (viewMode === "percentage") {
-            return Math.round(getTeamAdoptionRate(t, scope) * 100);
+            return rate(t, scope);
           }
           return t.repos_with_customizations;
         }),
@@ -80,13 +93,12 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
         callbacks: {
           label: (context: TooltipItem<"bar">) => {
             const team = topTeams[context.dataIndex];
-            const repoCount = getTeamRepoCount(team, scope);
-            const rate = getTeamAdoptionRate(team, scope);
-            const ratePercent = Math.round(rate * 100);
+            const repos = repoCount(team, scope);
+            const ratePercent = rate(team, scope);
             const repoLabel = scope === "active" ? "aktive repo (siste 90 dager)" : "aktive repo";
             return viewMode === "percentage"
-              ? `${ratePercent}% (${team.repos_with_customizations} av ${repoCount} ${repoLabel})`
-              : `${context.raw} repo med tilpasninger (${ratePercent}% av ${repoCount} ${repoLabel})`;
+              ? `${ratePercent}% (${team.repos_with_customizations} av ${repos} ${repoLabel})`
+              : `${context.raw} repo med tilpasninger (${ratePercent}% av ${repos} ${repoLabel})`;
           },
         },
       },

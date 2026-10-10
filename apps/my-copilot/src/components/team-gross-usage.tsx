@@ -4,33 +4,21 @@ import { useState } from "react";
 import { BodyShort, Heading, HStack, Table, VStack } from "@navikt/ds-react";
 import { Buildings3Icon, CodeIcon, CpuIcon, WrenchIcon } from "@navikt/aksel-icons";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
-import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
+import type { TeamGrossOverview, TeamNetOverview, TeamSpend } from "@/lib/types";
 import { useTeamControls } from "./team-controls";
 import TeamUsageValue from "./team-usage-value";
 
-type Team = TeamGrossOverview["teams"][number] | TeamNetOverview["teams"][number];
-
-export function compareTeamMonth(team: Team, previous: TeamGrossOverview | TeamNetOverview | null): number | null {
-  const old = previous?.teams.find((row) => row.team_id === team.team_id);
-  if (team.users < 5 || !old || old.users < 5) return null;
-  return "net_usd" in team && "net_usd" in old
-    ? team.net_usd - old.net_usd
-    : "gross_usd" in team && "gross_usd" in old
-      ? team.gross_usd - old.gross_usd
-      : null;
-}
+type Team = TeamSpend;
 
 export default function TeamGrossUsage({
   data,
   net,
   myTeams,
-  previous,
   comparisonReason = null,
 }: {
   data: TeamGrossOverview;
   net: TeamNetOverview | null;
   myTeams: string[] | null;
-  previous: TeamGrossOverview | TeamNetOverview | null;
   comparisonReason?: string | null;
 }) {
   const { search, columns } = useTeamControls();
@@ -48,10 +36,10 @@ export default function TeamGrossUsage({
           sortKey === "members"
             ? team.users
             : sortKey === "change"
-              ? compareTeamMonth(team, previous)
+              ? team.change_usd
               : sortKey === "average"
-                ? amount(team) / team.users
-                : amount(team);
+                ? team.per_user_usd
+                : team.amount_usd;
         if (sortKey === "team")
           return (direction === "ascending" ? 1 : -1) * a.team_slug.localeCompare(b.team_slug, "nb");
         const av = value(a),
@@ -62,25 +50,18 @@ export default function TeamGrossUsage({
       });
   const dollars = (amount: number) =>
     new Intl.NumberFormat("nb-NO", { style: "currency", currency: "USD" }).format(amount);
-  const amount = (team: Team) => ("net_usd" in team ? team.net_usd : team.gross_usd);
   const title = net ? "Forbruk" : "Forbruk før fradrag";
 
   const hidden = net ?? data;
   const rows = (teams: Team[]) =>
     filtered(teams).map((team) => {
-      const change = compareTeamMonth(team, previous);
-      const before = change === null ? null : amount(team) - change;
-      const highlighted =
-        change !== null &&
-        before !== null &&
-        Math.abs(change) >= 10 &&
-        (before === 0 || Math.abs(change) / Math.abs(before) >= 0.1);
+      const { change_usd: change, highlight: highlighted } = team;
       return (
         <TableRow key={team.team_id}>
           <TableDataCell>{team.team_slug}</TableDataCell>
           <TableDataCell align="right">{team.users}</TableDataCell>
-          <TableDataCell align="right">{dollars(amount(team))}</TableDataCell>
-          <TableDataCell align="right">{dollars(amount(team) / team.users)}</TableDataCell>
+          <TableDataCell align="right">{dollars(team.amount_usd)}</TableDataCell>
+          <TableDataCell align="right">{dollars(team.per_user_usd)}</TableDataCell>
           <TableDataCell align="right">
             <span
               title={highlighted ? "Endring på minst 10 % og 10 USD fra forrige måned" : undefined}

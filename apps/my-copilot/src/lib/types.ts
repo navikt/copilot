@@ -178,28 +178,23 @@ export interface AdoptionSummary {
   max_customization_count: number;
 }
 
+/** Display-ready from the API: only teams with at least five active repos, rates in whole percent. */
 export interface TeamAdoption {
-  scan_date: string;
   team_slug: string;
   team_name: string;
-  team_repos: number;
   active_repos: number;
   recently_active_repos: number;
   repos_with_customizations: number;
-  adoption_rate: number;
-  adoption_rate_active_only: number;
-  with_copilot_instructions: number;
-  with_agents_md: number;
-  with_agents: number;
-  with_instructions: number;
-  with_prompts: number;
-  with_skills: number;
-  with_mcp_config: number;
-  with_copilot_setup_steps: number;
-  with_agentic_workflows: number;
-  with_agents_skills: number;
-  with_nav_pilot_state: number;
-  with_cplt_toml: number;
+  adoption_pct: number;
+  adoption_active_pct: number | null;
+}
+
+export interface TeamAdoptionOverview {
+  teams: TeamAdoption[];
+  total_teams: number;
+  teams_with_adoption: number;
+  adoption_pct: number;
+  small_teams: number;
 }
 
 export interface LanguageAdoption {
@@ -232,7 +227,7 @@ export interface CustomizationUsage {
 
 export interface AdoptionData {
   summary: AdoptionSummary | null;
-  teams: TeamAdoption[];
+  teams: TeamAdoptionOverview;
   languages: LanguageAdoption[];
   customizationDetails: CustomizationDetail[];
 }
@@ -270,33 +265,34 @@ export interface StalenessSummary {
  */
 export type AdoptionScope = "all" | "active";
 
+/** Display-ready team row: n >= 5, amounts rounded to cents, change computed by the API. */
+export interface TeamSpend {
+  team_id: string;
+  team_slug: string;
+  users: number;
+  amount_usd: number;
+  per_user_usd: number;
+  change_usd: number | null;
+  highlight: boolean;
+}
+
+export type TeamComparison = "ok" | "current_month" | "previous_net_missing" | "incomplete";
+
 export interface TeamGrossOverview {
   usage?: Record<string, { providers: string[]; categories: string[]; feature: string; language: string }>;
   month: string;
-  teams: { team_id: string; team_slug: string; users: number; gross_usd: number }[];
+  teams: TeamSpend[];
   small_teams: number;
-  small_teams_users: number;
-  small_teams_gross_usd: number;
-  distinct_gross_usd: number;
-  unassigned_gross_usd: number;
   last_usage_day: string;
-  days_with_usage: number;
+  comparison: TeamComparison;
 }
 
 export interface TeamNetOverview {
   month: string;
-  teams: { team_id: string; team_slug: string; users: number; net_usd: number }[];
+  teams: TeamSpend[];
   small_teams: number;
-  small_teams_users: number;
-  small_teams_net_usd: number;
-  known_net_usd: number;
-  unassigned_net_usd: number;
-  no_usage_net_usd: number;
-  enterprise_net_usd: number;
-  residual_net_usd: number;
   loaded_at: string;
-  estimated_timing: boolean;
-  sku: string;
+  comparison: TeamComparison;
 }
 
 // Per-repository Copilot PR activity, from the v_repository_usage BigQuery view
