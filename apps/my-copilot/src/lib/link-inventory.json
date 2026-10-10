@@ -170,6 +170,15 @@
       "repositorier": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"]
     }
   },
+  "/innsikt/forbruk": {
+    "sources": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
+    "anchors": {
+      "brukere-per-band": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
+      "denne-maneden": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "totalforbruk": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"]
+    }
+  },
   "/innsikt/lokale-modeller": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",

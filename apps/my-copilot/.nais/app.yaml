@@ -88,6 +88,7 @@ spec:
       - /reisen
       - /innsikt
       - /innsikt/team
+      - /innsikt/forbruk
       - /innsikt/bruk
       - /innsikt/tilpasninger
       - /innsikt/trender

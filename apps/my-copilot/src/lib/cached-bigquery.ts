@@ -26,6 +26,7 @@ import type {
   TeamAdoptionOverview,
   TeamGrossOverview,
   TeamNetOverview,
+  SpendBands,
   AdoptionCohortWeek,
   BillingMonthlyTrend,
   BillingModelBreakdown,
@@ -124,6 +125,10 @@ export async function getTeamNetOverview(month: string, token: string): Promise<
     `/api/v1/copilot/usage/team-net?month=${encodeURIComponent(month)}`,
     token
   );
+}
+
+export async function getSpendBands(token: string): Promise<SpendBands> {
+  return backendRequest<SpendBands>("/api/v1/copilot/usage/spend-bands", token);
 }
 
 export async function getMyTeams(token: string): Promise<string[]> {

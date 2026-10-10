@@ -32,6 +32,8 @@ describe("isPrivatePath", () => {
     ["/statistikk", true],
     ["/statistikk/json", true],
     ["/innsikt/team", true],
+    ["/innsikt/forbruk", true],
+    ["/innsikt/forbruk/x", true],
     ["/innsikt/team/example", true],
     ["/adopsjon", true],
     ["/adopsjon/debug", true],

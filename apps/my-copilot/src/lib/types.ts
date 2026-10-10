@@ -539,3 +539,40 @@ export interface Contributor {
   login: string;
   avatarUrl: string;
 }
+
+// Users per share of the spending limit, from copilot-api's GET /api/v1/copilot/usage/spend-bands.
+// Only aggregates: bands with 1–4 users are merged server-side. `first` and `last` index the base bands
+// 0 %, under 25, 25–50, 50–75, 75–90, 90–100 and over 100 %.
+export interface SpendBand {
+  first: number;
+  last: number;
+  label: string;
+  users: number;
+}
+
+export interface SpendBandMonth {
+  month: string;
+  limit_usd: number;
+  limit_changed: boolean;
+  users: number;
+  bands: SpendBand[] | null;
+}
+
+export interface SpendForecastMonth {
+  month: string;
+  low_usd: number;
+  mid_usd: number;
+  high_usd: number;
+}
+
+export interface SpendBands {
+  months: SpendBandMonth[];
+  current: SpendBandMonth | null;
+  days: number;
+  days_in_month: number;
+  last_day: string;
+  net_ratio: number;
+  run_weight: number;
+  totals: SpendForecastMonth[];
+  forecast: SpendForecastMonth[];
+}
