@@ -175,7 +175,7 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	unresolved := 0
+	unresolved, skipped := 0, 0
 	var failures []error
 	for _, id := range ids {
 		if done[id] {
@@ -196,6 +196,14 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 		case <-time.After(pause):
 		}
 		currentID, err := fetcher.FetchUserID(ctx, users[id])
+		if gone, _ := deletedAccount(ctx, fetcher, id, err); gone {
+			skipped++
+			if err := store.ReplaceUserBilling(ctx, billingRows(&BillingUsageResponse{}, month, cfg.EnterpriseSlug, id, users[id])); err != nil {
+				return errors.Join(append(failures, err)...)
+			}
+			done[id] = true
+			continue
+		}
 		if stopBillingSync(err) {
 			if len(failures) > 0 {
 				return errors.Join(append(failures, err)...)
@@ -275,5 +283,9 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 	if err := store.ReplaceUserBilling(ctx, billingRows(enterprise, month, cfg.EnterpriseSlug, "", "")); err != nil {
 		return err
 	}
-	return store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, len(users))
+	if err := store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, len(users)); err != nil {
+		return err
+	}
+	slog.Info("User billing month complete", "month", month.Format("2006-01"), "users", len(users), "skipped_deleted", skipped)
+	return nil
 }
