@@ -26,6 +26,7 @@ import { getPRMetrics, buildTrendData } from "@/lib/data-utils";
 import { currentMonthUTC, previousMonth, selectCompleteMonths } from "@/lib/month-utils";
 import { formatNumber, formatMinutes } from "@/lib/format";
 import { formatDate } from "@/lib/local-model-results";
+import { formatPp } from "@/lib/trends";
 import { getUser, getUserToken } from "@/lib/auth";
 import type { EnterpriseMetrics } from "@/lib/types";
 
@@ -86,7 +87,7 @@ async function KeyFigures({ token }: { token: string }) {
           label="Bruker agent"
           helpTitle="Andel som bruker agent"
           helpText="Andelen av de aktive brukerne som brukte agentmodus minst én gang i løpet av måneden."
-          subtitle={prev ? momChange(agentShare(latest), agentShare(prev)) : undefined}
+          subtitle={prev ? `${formatPp(agentShare(latest) - agentShare(prev))} fra forrige måned` : undefined}
         />
       </HGrid>
       {trends.length > 0 && <MonthlyTrendsChart data={trends} />}
@@ -206,9 +207,9 @@ async function PullRequests({ token }: { token: string }) {
       />
       <MetricCard
         value={summary ? formatMinutes(summary.pr_avg_minutes_to_review) : "–"}
-        label="Tid til første review"
-        helpTitle="Tid til første review"
-        helpText="Median tid fra en pull request opprettes til den får første review. Bare PR-er som er merget. Snitt over adopsjonsfasene, vektet etter antall PR-er. Målt fra 7. juli 2026."
+        label="Snitt tid til første review"
+        helpTitle="Snitt tid til første review, siste dag med data"
+        helpText="Gjennomsnittlig tid fra en pull request opprettes til den får første review, for siste dag med data, ikke de siste 28 dagene. Bare PR-er som er merget. GitHub oppgir et snitt per KI-adopsjonsfase, og vi vekter snittene etter antall mergede PR-er. Målt fra 7. juli 2026."
       />
     </HGrid>
   );
@@ -224,14 +225,14 @@ async function Repositories({ token }: { token: string }) {
       <HGrid columns={{ xs: 1, sm: 2 }} gap="space-16">
         <MetricCard
           value={formatNumber(sum("pr_created_by_copilot"))}
-          label="PR-er laget av Copilot"
-          helpTitle="PR-er laget av Copilot"
+          label="PR-er laget av Copilot, hele perioden"
+          helpTitle="PR-er laget av Copilot, hele perioden"
           helpText="Pull requests opprettet av Copilot coding agent i repositoriene under, så lenge vi har data."
         />
         <MetricCard
           value={formatNumber(sum("pr_reviewed_by_copilot"))}
-          label="PR-er gjennomgått av Copilot"
-          helpTitle="PR-er gjennomgått av Copilot"
+          label="PR-er gjennomgått av Copilot, hele perioden"
+          helpTitle="PR-er gjennomgått av Copilot, hele perioden"
           helpText="Pull requests gjennomgått av Copilot code review i repositoriene under, så lenge vi har data."
         />
       </HGrid>
@@ -286,6 +287,10 @@ export default async function BrukPage() {
       </InsightSection>
 
       <InsightSection id="kostnad-over-tid" title="Kostnad over tid">
+        <BodyShort size="small" textColor="subtle">
+          Søylene viser brutto kostnad per modell før rabatt. «Kostnad per modellfamilie» på Trender viser netto andeler
+          etter rabatt, så tallene kan ikke sammenlignes direkte.
+        </BodyShort>
         <Suspense fallback={fallback}>
           <CostOverTime token={token} />
         </Suspense>

@@ -35,6 +35,7 @@ describe("chartShares", () => {
     expect(shareChange({ label: "A", shares: [null, 60] })).toBeNull();
     expect(formatPp(8)).toBe("+8 pp");
     expect(formatPp(-3)).toBe("−3 pp");
+    expect(formatPp(0)).toBe("±0 pp");
   });
 });
 

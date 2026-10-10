@@ -225,6 +225,10 @@ export default async function TrenderPage({
         <Cohorts token={token} start={start} />
       </Section>
       <Section id="modellfamilier" title="Kostnad per modellfamilie">
+        <BodyShort size="small" textColor="subtle">
+          Andelene bygger på netto kostnad etter rabatt. «Kostnad over tid» på Bruk og kostnad viser brutto beløp før
+          rabatt, så tallene kan ikke sammenlignes direkte.
+        </BodyShort>
         <ModelFamilies {...props} />
       </Section>
       <Section id="ai-credits-per-bruker" title="AI Credits per bruker">

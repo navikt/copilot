@@ -151,7 +151,7 @@ const BillingModelBreakdownChart: React.FC<BillingModelBreakdownChartProps> = ({
           <HelpText title="Modellkostnad — brutto vs netto" placement="top">
             Søylene viser brutto kostnad per modell per måned (før Nav-rabatt). Netto-linjen viser faktisk fakturert
             beløp etter rabatt, og derfor er linjen alltid lavere enn toppen av søylene. Inneværende måned viser
-            akkumulert brutto hittil; for prognose månedsslutt, se «Prognose månedsslutt (USD)»-grafen over.
+            akkumulert brutto hittil. Prognosen for månedsslutt i «Prognose månedsslutt (USD)»-grafen over er netto.
           </HelpText>
         </div>
 
