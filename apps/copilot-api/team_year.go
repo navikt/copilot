@@ -217,7 +217,7 @@ WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + `, ` + seatCTEs + fmt.Sprintf(`, 
  FROM team t JOIN daily d USING(day,user_id) GROUP BY t.month
 ), no_usage_m AS (
  SELECT b.month,SUM(b.net) net FROM billed b JOIN (SELECT DISTINCT month,user_id FROM team) USING(month,user_id)
- WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND u.gross>0)
+ WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND (u.gross>0 OR NOT u.credited))
  GROUP BY b.month
 ), completed AS (
  %s

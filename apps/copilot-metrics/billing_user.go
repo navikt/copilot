@@ -14,7 +14,7 @@ import (
 const userBillingPause = 2 * time.Second
 
 type userBillingFetcher interface {
-	FetchUserAICreditUsage(context.Context, string, time.Time) (*BillingUsageResponse, error)
+	FetchUserBillingUsage(context.Context, string, time.Time) (*BillingUsageResponse, error)
 	AccountLogin(context.Context, string) (string, error)
 	FetchEnterpriseAICreditUsage(context.Context, time.Time) (*BillingUsageResponse, error)
 }
@@ -158,7 +158,7 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 			continue
 		}
 		login := users[id]
-		response, err := client.FetchUserAICreditUsage(ctx, login, month)
+		response, err := client.FetchUserBillingUsage(ctx, login, month)
 		current, handled, err := accountAfterNotFound(ctx, client, id, login, err)
 		if err != nil {
 			return fmt.Errorf("billing user %d/%d: %w", index+1, len(ids), err)
@@ -169,7 +169,7 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 		} else {
 			if handled {
 				login = current
-				if response, err = client.FetchUserAICreditUsage(ctx, login, month); err != nil {
+				if response, err = client.FetchUserBillingUsage(ctx, login, month); err != nil {
 					return fmt.Errorf("billing user %d/%d after rename: %w", index+1, len(ids), err)
 				}
 			}

@@ -144,8 +144,9 @@ func repairBillingSources(ctx context.Context, gh *GitHubClient, store interface
 }
 
 // billingSKUs are stored per user and per enterprise; the residual compares
-// the same set on both sides.
-var billingSKUs = []string{"Copilot AI Credits", "Copilot Cloud Agent"}
+// the same set on both sides. Premium-request SKUs cover months before June
+// 2026 and keep their GitHub names, so consumers can tell the two apart.
+var billingSKUs = []string{"Copilot AI Credits", "Copilot Cloud Agent", "Copilot Premium Request", "Coding Agent Premium Request"}
 
 func billingRows(response *BillingUsageResponse, month time.Time, scope, id, login string) []UserBillingRow {
 	bySKU := map[string]UserBillingRow{}
@@ -233,7 +234,7 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 			}
 			continue
 		}
-		response, err := fetcher.FetchUserAICreditUsage(ctx, login, month)
+		response, err := fetcher.FetchUserBillingUsage(ctx, login, month)
 		if err != nil {
 			if stopBillingSync(err) {
 				if len(failures) > 0 {
