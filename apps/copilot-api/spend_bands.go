@@ -74,6 +74,8 @@ func bandLabel(first, last int) string {
 	switch {
 	case last == 0:
 		return "0\u00a0%"
+	case first == 1 && last == 1:
+		return "under 25\u00a0%"
 	case last == len(bandEdges):
 		return "over " + lo + "\u00a0%"
 	default:
@@ -211,6 +213,11 @@ func buildSpendBands(history, current []spendUserRow, lastDay string) *SpendBand
 		return out
 	}
 	month := day.Format("2006-01")
+	// Until last month's invoice is loaded, the newest complete month is two
+	// months back: neither its users nor its net fit, so no projection.
+	if order[len(order)-1] != day.AddDate(0, -1, 1-day.Day()).Format("2006-01") {
+		return out
+	}
 	out.Days, out.DaysInMonth, out.LastDay = day.Day(), day.AddDate(0, 0, 1-day.Day()).AddDate(0, 1, -1).Day(), lastDay
 	scale := float64(out.DaysInMonth) / float64(out.Days) * out.NetRatio
 	// No seat data in BigQuery: everyone billed last month is counted, so the 0 %
@@ -252,7 +259,7 @@ func buildSpendBands(history, current []spendUserRow, lastDay string) *SpendBand
 
 // forecastTotals extends a least-squares line through the monthly totals ys,
 // whose last month is last. Low holds the last total flat; high lies as far
-// above the trend as low lies below it. Values are rounded to 100 USD.
+// above the trend as the flat line lies from it. Values are rounded to 100 USD.
 func forecastTotals(ys []float64, last string, months int) []SpendForecastMonth {
 	n := float64(len(ys))
 	var sx, sy, sxx, sxy float64
@@ -270,8 +277,7 @@ func forecastTotals(ys []float64, last string, months int) []SpendForecastMonth 
 	out := []SpendForecastMonth{}
 	for k := 1; k <= months; k++ {
 		mid := math.Max(0, intercept+slope*(n-1+float64(k)))
-		low, high := math.Min(flat, mid), math.Max(flat, mid)
-		high = math.Max(high, 2*mid-low)
+		low, high := flat, mid+math.Abs(mid-flat)
 		out = append(out, SpendForecastMonth{Month: first.AddDate(0, k, 0).Format("2006-01"), LowUSD: round100(low), MidUSD: round100(mid), HighUSD: round100(high)})
 	}
 	return out

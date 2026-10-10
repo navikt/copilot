@@ -8,7 +8,7 @@ import type { SpendBandMonth, SpendForecastMonth } from "@/lib/types";
 
 const pct = " %";
 /** The base bands, in the order copilot-api counts them. Merged bands take the colour of their first base band. */
-const BASE_BANDS = ["0", "1–25", "25–50", "50–75", "75–90", "90–100", "over 100"].map((b) => b + pct);
+const BASE_BANDS = ["0", "under 25", "25–50", "50–75", "75–90", "90–100", "over 100"].map((b) => b + pct);
 const BAND_TOKENS = [
   "neutral-400",
   "accent-300",

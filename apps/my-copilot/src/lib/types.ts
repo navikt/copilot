@@ -543,7 +543,7 @@ export interface Contributor {
 
 // Users per share of the spending limit, from copilot-api's GET /api/v1/copilot/usage/spend-bands.
 // Only aggregates: bands with 1–4 users are merged server-side. `first` and `last` index the base bands
-// 0 %, 1–25, 25–50, 50–75, 75–90, 90–100 and over 100 %.
+// 0 %, under 25, 25–50, 50–75, 75–90, 90–100 and over 100 %.
 export interface SpendBand {
   first: number;
   last: number;

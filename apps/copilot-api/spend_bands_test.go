@@ -49,7 +49,7 @@ func TestMergeBands(t *testing.T) {
 	got := mergeBands(nets, 400)
 	want := []SpendBand{
 		// 50–75 (3) joins 25–50; 90–100 (1) and over 100 (2) find no non-empty neighbour big enough and end up there too.
-		{0, 0, "0\u00a0%", 6}, {1, 1, "1–25\u00a0%", 10}, {2, 6, "over 25\u00a0%", 11},
+		{0, 0, "0\u00a0%", 6}, {1, 1, "under 25\u00a0%", 10}, {2, 6, "over 25\u00a0%", 11},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v\nwant %+v", got, want)
@@ -85,9 +85,9 @@ func TestForecastTotals(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v\nwant %+v", got, want)
 	}
-	// A falling trend never goes below zero, and low is never above high.
+	// A falling trend never goes below zero; low is the flat level.
 	for _, f := range forecastTotals([]float64{1000, 0}, "2026-10", 3) {
-		if f.LowUSD < 0 || f.MidUSD < 0 || f.LowUSD > f.HighUSD {
+		if f.LowUSD != 0 || f.MidUSD < 0 || f.MidUSD > f.HighUSD {
 			t.Errorf("bad falling forecast %+v", f)
 		}
 	}
@@ -96,20 +96,20 @@ func TestForecastTotals(t *testing.T) {
 func TestBuildSpendBands(t *testing.T) {
 	var hist []spendUserRow
 	for i := 0; i < 10; i++ {
-		hist = append(hist, spendUserRow{UserID: "a" + strconv.Itoa(i), Month: "2026-08", Net: 10, Gross: 20})
+		hist = append(hist, spendUserRow{UserID: "a" + strconv.Itoa(i), Month: "2026-09", Net: 10, Gross: 20})
 	}
 	for i := 0; i < 10; i++ {
-		hist = append(hist, spendUserRow{UserID: "u" + strconv.Itoa(i), Month: "2026-09", Net: 75, Gross: 100})
+		hist = append(hist, spendUserRow{UserID: "u" + strconv.Itoa(i), Month: "2026-10", Net: 75, Gross: 100})
 	}
 	// 15 of 30 days, ratio 0.75, weight 0.5. u0–u5: 0.5×150 + 0.5×75 = 112.5.
-	// u6–u9 have no usage yet but are counted from September: 37.5. n1 is new: 75.
+	// u6–u9 have no usage yet but are counted from October: 37.5. n1 is new: 75.
 	var cur []spendUserRow
 	for i := 0; i < 6; i++ {
 		cur = append(cur, spendUserRow{UserID: "u" + strconv.Itoa(i), Gross: 100})
 	}
 	cur = append(cur, spendUserRow{UserID: "n1", Gross: 100})
 	got := buildSpendBands(hist, cur, "2026-11-15")
-	if len(got.Months) != 2 || got.Months[0].LimitUSD != 400 || got.Months[1].LimitUSD != 800 || !got.Months[1].LimitChanged {
+	if len(got.Months) != 2 || got.Months[0].LimitUSD != 800 || !got.Months[0].LimitChanged || got.Months[1].LimitChanged {
 		t.Fatalf("months: %+v", got.Months)
 	}
 	if got.NetRatio != 0.75 || got.RunWeight != 0.5 || got.Days != 15 || got.DaysInMonth != 30 {
@@ -126,10 +126,18 @@ func TestBuildSpendBands(t *testing.T) {
 	}
 }
 
+func TestBuildSpendBandsSkipsProjectionWithoutLastMonth(t *testing.T) {
+	hist := []spendUserRow{{UserID: "u", Month: "2026-09", Net: 1, Gross: 2}}
+	got := buildSpendBands(hist, []spendUserRow{{UserID: "u", Gross: 1}}, "2026-11-02")
+	if got.Current != nil || len(got.Forecast) != 0 {
+		t.Errorf("projected from a month two back: %+v", got)
+	}
+}
+
 func TestBuildSpendBandsDampsEarlyBursts(t *testing.T) {
 	var hist, cur []spendUserRow
 	for i := 0; i < 5; i++ {
-		hist = append(hist, spendUserRow{UserID: "u" + strconv.Itoa(i), Month: "2026-09", Net: 100, Gross: 100})
+		hist = append(hist, spendUserRow{UserID: "u" + strconv.Itoa(i), Month: "2026-10", Net: 100, Gross: 100})
 		// 3 of 30 days at 30 USD: the raw run rate is 300 USD, past nothing; the burst user is at 3000.
 		cur = append(cur, spendUserRow{UserID: "u" + strconv.Itoa(i), Gross: 30})
 	}

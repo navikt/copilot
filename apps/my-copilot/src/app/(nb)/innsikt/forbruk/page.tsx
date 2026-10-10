@@ -138,7 +138,7 @@ async function Forecast({ token }: { token: string }) {
           Trend: en rett linje gjennom totalene per måned fra august 2026, der denne måneden er fremskrevet.
         </ListItem>
         <ListItem>Lav: forbruket holder seg på nivået denne måneden ventes å ende på.</ListItem>
-        <ListItem>Høy: like langt over trenden som lav ligger under.</ListItem>
+        <ListItem>Høy: trenden pluss avstanden mellom trenden og lav.</ListItem>
         <ListItem>Tallene er avrundet til nærmeste hundre USD.</ListItem>
       </List>
     </>
@@ -159,13 +159,13 @@ export default async function ForbrukPage() {
       source={
         <>
           Tallene kommer fra <code>/usage/spend-bands</code>. Fakturert forbruk per bruker og måned (netto) finnes fra
-          august 2026 og kommer med når fakturaen for måneden er lest inn. Vi teller alle med lisens, også de uten
-          forbruk. Vi har ikke lisensdata i BigQuery. Derfor teller vi for denne måneden alle som ble fakturert forrige
-          måned, pluss nye brukere med Copilot-aktivitet. Prognosen per bruker veier brutto bruk hittil, omregnet til
-          netto og fremskrevet til månedsslutt, mot forrige måneds netto. Vekten på tempoet er andelen av måneden som er
-          gått. Vi bruker standardgrensen per måned, fordi grensen per person ikke er tilgjengelig ennå. Unntak for
-          enkeltpersoner er derfor ikke med. Siden viser bare antall per bånd, aldri enkeltpersoner, og et bånd har
-          minst fem brukere.
+          august 2026 og kommer med når fakturaen for måneden er lest inn. Vi teller alle som var med i et team eller
+          brukte Copilot den måneden, også de uten forbruk. Vi har ikke lisensdata i BigQuery. Derfor teller vi for
+          denne måneden alle som ble fakturert forrige måned, pluss nye brukere med Copilot-aktivitet. Prognosen per
+          bruker veier brutto bruk hittil, omregnet til netto og fremskrevet til månedsslutt, mot forrige måneds netto.
+          Vekten på tempoet er andelen av måneden som er gått. Vi bruker standardgrensen per måned, fordi grensen per
+          person ikke er tilgjengelig ennå. Unntak for enkeltpersoner er derfor ikke med. Siden viser bare antall per
+          bånd, aldri enkeltpersoner, og et bånd har minst fem brukere.
         </>
       }
     >
