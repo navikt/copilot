@@ -78,23 +78,23 @@ func (c *BigQueryClient) UpsertSeatCounts(ctx context.Context, day time.Time, co
 	return err
 }
 
-// ingestTodaySeatCounts stores today's seat totals. Errors are logged as
-// warnings — this is supplementary data.
+// ingestTodaySeatCounts stores today's seat totals. Errors are returned so the
+// job fails and the Nais retry runs: the API has no history, so a missed day
+// is lost for good.
 func ingestTodaySeatCounts(
 	ctx context.Context,
 	fetch func(context.Context) (*SeatCounts, error),
 	upsert func(context.Context, time.Time, *SeatCounts) error,
 	now time.Time,
-) {
+) error {
 	today := now.UTC().Truncate(24 * time.Hour)
 	counts, err := fetch(ctx)
 	if err != nil {
-		slog.Warn("Failed to fetch Copilot seat counts", "error", err)
-		return
+		return fmt.Errorf("fetch seat counts: %w", err)
 	}
 	if err := upsert(ctx, today, counts); err != nil {
-		slog.Warn("Failed to store Copilot seat counts", "error", err)
-		return
+		return fmt.Errorf("store seat counts: %w", err)
 	}
 	slog.Info("Seat counts ingested", "date", today.Format("2006-01-02"), "scope_id", counts.ScopeID, "total", counts.Total)
+	return nil
 }

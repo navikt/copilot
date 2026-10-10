@@ -74,9 +74,13 @@ func TestIngestTodaySeatCounts_Idempotent(t *testing.T) {
 	}
 
 	morning := time.Date(2026, 10, 10, 2, 0, 0, 0, time.UTC)
-	ingestTodaySeatCounts(context.Background(), fetch, upsert, morning)
+	if err := ingestTodaySeatCounts(context.Background(), fetch, upsert, morning); err != nil {
+		t.Fatal(err)
+	}
 	total = 12
-	ingestTodaySeatCounts(context.Background(), fetch, upsert, morning.Add(20*time.Hour))
+	if err := ingestTodaySeatCounts(context.Background(), fetch, upsert, morning.Add(20*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(store) != 1 {
 		t.Fatalf("expected 1 row after re-run, got %d: %v", len(store), store)
@@ -88,10 +92,13 @@ func TestIngestTodaySeatCounts_Idempotent(t *testing.T) {
 
 func TestIngestTodaySeatCounts_FetchErrorWritesNothing(t *testing.T) {
 	called := false
-	ingestTodaySeatCounts(context.Background(),
+	err := ingestTodaySeatCounts(context.Background(),
 		func(context.Context) (*SeatCounts, error) { return nil, errors.New("boom") },
 		func(context.Context, time.Time, *SeatCounts) error { called = true; return nil },
 		time.Now())
+	if err == nil {
+		t.Fatal("fetch error not returned")
+	}
 	if called {
 		t.Fatal("upsert called after fetch error")
 	}

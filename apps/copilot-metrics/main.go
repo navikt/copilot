@@ -340,7 +340,6 @@ func main() {
 				os.Exit(1)
 			}
 		}
-		ingestTodaySeatCounts(ctx, ghClient.FetchSeatCounts, bqClient.UpsertSeatCounts, time.Now())
 		// Ingest budget snapshots — today is the primary target but also retry
 		// yesterday in case the previous run failed (snapshots are point-in-time
 		// and lost forever if not captured).
@@ -349,6 +348,10 @@ func main() {
 			ingestYesterdayBudgetSnapshot(ctx, budgetClient, bqClient, config)
 			ingestTodayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
 			ingestYesterdayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
+		}
+		if err := ingestTodaySeatCounts(ctx, ghClient.FetchSeatCounts, bqClient.UpsertSeatCounts, time.Now()); err != nil {
+			slog.Error("Seat count ingestion failed", "error", err)
+			os.Exit(1)
 		}
 		slog.Info("Ingestion completed successfully")
 		return
