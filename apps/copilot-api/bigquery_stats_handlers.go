@@ -75,8 +75,14 @@ func (h *BigQueryHandlers) handleTeamGrossOverview(w http.ResponseWriter, r *htt
 		respondError(w, "internal_error", "Failed to fetch team gross usage", http.StatusInternalServerError)
 		return
 	}
+	prevGross, _ := h.previousTeamMonth(r.Context(), month, false)
+	out := *usage
+	out.Comparison = teamComparison(month, time.Now(), usage.DaysWithUsage, prevGross, false, false)
+	if out.Comparison == comparisonOK {
+		out.Teams = withChanges(usage.Teams, prevGross.Teams)
+	}
 	cacheControl(w, 3600, false)
-	respondJSON(w, usage, http.StatusOK)
+	respondJSON(w, out, http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.Request) {
@@ -95,8 +101,46 @@ func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.
 		respondError(w, "internal_error", "Failed to fetch team net usage", http.StatusInternalServerError)
 		return
 	}
+	if usage == nil {
+		respondJSON(w, nil, http.StatusOK)
+		return
+	}
+	out := *usage
+	out.Comparison = comparisonIncomplete
+	if gross, err := h.bqClient.GetTeamGrossOverview(r.Context(), month); err == nil && gross != nil {
+		prevGross, prevNet := h.previousTeamMonth(r.Context(), month, true)
+		out.Comparison = teamComparison(month, time.Now(), gross.DaysWithUsage, prevGross, true, prevNet != nil)
+		if out.Comparison == comparisonOK {
+			out.Teams = withChanges(usage.Teams, prevNet.Teams)
+		}
+	}
 	cacheControl(w, 3600, false)
-	respondJSON(w, usage, http.StatusOK)
+	respondJSON(w, out, http.StatusOK)
+}
+
+// firstTeamMonth is the first month with team data.
+const firstTeamMonth = "2026-05"
+
+// previousTeamMonth loads the month before month. Failures only remove the comparison.
+func (h *BigQueryHandlers) previousTeamMonth(ctx context.Context, month string, net bool) (*TeamGrossOverview, *TeamNetOverview) {
+	first, _ := time.Parse("2006-01", month)
+	prev := first.AddDate(0, -1, 0).Format("2006-01")
+	if prev < firstTeamMonth {
+		return nil, nil
+	}
+	gross, err := h.bqClient.GetTeamGrossOverview(ctx, prev)
+	if err != nil {
+		slog.Warn("Previous team month unavailable")
+		return nil, nil
+	}
+	if !net {
+		return gross, nil
+	}
+	prevNet, err := h.bqClient.GetTeamNetOverview(ctx, prev)
+	if err != nil && !errors.Is(err, errTeamNetNotReady) {
+		slog.Warn("Previous team net month unavailable")
+	}
+	return gross, prevNet
 }
 
 func (h *BigQueryHandlers) handleMyTeams(w http.ResponseWriter, r *http.Request) {

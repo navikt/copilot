@@ -144,9 +144,8 @@ func TestTeamGrossOverviewOptionalComposition(t *testing.T) {
 		UnassignedGross: 8, LastDay: "2026-09-30", DaysWithUsage: 30,
 	}}
 	want := &TeamGrossOverview{
-		Month: "2026-09", Teams: []TeamGrossUsage{{TeamID: "visible", TeamSlug: "team-a", Users: 5, GrossUSD: 42}},
-		SmallTeams: 2, SmallTeamsUsers: 3, SmallTeamsGrossUSD: 10, DistinctGrossUSD: 50,
-		UnassignedGrossUSD: 8, LastUsageDay: "2026-09-30", DaysWithUsage: 30,
+		Month: "2026-09", Teams: []TeamSpend{teamSpend("visible", "team-a", 5, 42)},
+		SmallTeams: 2, DistinctGrossUSD: 50, LastUsageDay: "2026-09-30", DaysWithUsage: 30,
 	}
 	visibleUsage := TeamUsageComposition{Providers: []string{"OpenAI"}, Categories: []string{"Powerful"}, Feature: "chat", Language: "go"}
 	for _, tc := range []struct {
@@ -186,8 +185,10 @@ func TestTeamGrossOverviewOptionalComposition(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			newBigQueryHandlers(&mockBigQueryClient{teamGross: got}).handleTeamGrossOverview(recorder,
 				httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil))
+			httpExpected := expected
+			httpExpected.DaysWithUsage, httpExpected.DistinctGrossUSD, httpExpected.Comparison = 0, 0, comparisonIncomplete
 			var decoded TeamGrossOverview
-			if err := json.Unmarshal(recorder.Body.Bytes(), &decoded); err != nil || recorder.Code != http.StatusOK || !reflect.DeepEqual(&decoded, &expected) {
+			if err := json.Unmarshal(recorder.Body.Bytes(), &decoded); err != nil || recorder.Code != http.StatusOK || !reflect.DeepEqual(&decoded, &httpExpected) {
 				t.Fatalf("HTTP overview = %+v, status %d, error %v", decoded, recorder.Code, err)
 			}
 			if expected.Usage == nil {
@@ -213,10 +214,95 @@ func TestTeamNetOverviewDoesNotAddOverlappingTeams(t *testing.T) {
 	if result == nil || len(result.Teams) != 2 || result.KnownNetUSD != 100 || result.ResidualNetUSD != 2 {
 		t.Fatalf("unexpected overlapping overview: %+v", result)
 	}
-	if result.Teams[0].NetUSD+result.Teams[1].NetUSD <= result.EnterpriseNetUSD {
+	if result.Teams[0].AmountUSD+result.Teams[1].AmountUSD <= result.EnterpriseNetUSD {
 		t.Fatal("test data must demonstrate that overlapping team amounts exceed enterprise total")
 	}
 	if teamNetOverview("2026-09", nil) != nil {
 		t.Fatal("a month without completion marker must not appear as complete")
+	}
+}
+
+func TestTeamOverviewsOmitTeamsBelowFive(t *testing.T) {
+	gross := teamGrossOverview("2026-09", []teamGrossRow{
+		{TeamID: "big", TeamSlug: "big", Users: 5, Gross: 10.006, SmallTeams: 1, SmallUsers: 4, SmallGross: 9},
+		{TeamID: "small", TeamSlug: "small", Users: 4, Gross: 9, SmallTeams: 1, SmallUsers: 4, SmallGross: 9},
+	}, nil, nil)
+	net := teamNetOverview("2026-09", []teamNetRow{
+		{TeamID: "big", TeamSlug: "big", Users: 6, Net: 10},
+		{TeamID: "small", TeamSlug: "small", Users: 1, Net: 3},
+	})
+	for _, teams := range [][]TeamSpend{gross.Teams, net.Teams} {
+		if len(teams) != 1 || teams[0].TeamID != "big" {
+			t.Fatalf("teams = %+v, want only big", teams)
+		}
+	}
+	if gross.Teams[0].AmountUSD != 10.01 || gross.Teams[0].PerUserUSD != 2 || net.Teams[0].PerUserUSD != 1.67 {
+		t.Fatalf("rounding: gross %+v net %+v", gross.Teams[0], net.Teams[0])
+	}
+	// Complementary suppression: no hidden-team sum or total reaches the client.
+	body, _ := json.Marshal(gross)
+	var fields map[string]any
+	_ = json.Unmarshal(body, &fields)
+	for key := range fields {
+		switch key {
+		case "usage", "month", "teams", "small_teams", "last_usage_day", "comparison":
+		default:
+			t.Errorf("gross overview leaks %q", key)
+		}
+	}
+	body, _ = json.Marshal(net)
+	fields = nil
+	_ = json.Unmarshal(body, &fields)
+	for key := range fields {
+		switch key {
+		case "month", "teams", "small_teams", "loaded_at", "comparison":
+		default:
+			t.Errorf("net overview leaks %q", key)
+		}
+	}
+}
+
+func TestWithChanges(t *testing.T) {
+	cur := []TeamSpend{teamSpend("a", "a", 5, 120), teamSpend("b", "b", 5, 105), teamSpend("c", "c", 5, 50), teamSpend("d", "d", 5, 10)}
+	prev := []TeamSpend{teamSpend("a", "a", 5, 100), teamSpend("b", "b", 5, 100), {TeamID: "c", Users: 4, AmountUSD: 1}}
+	got := withChanges(cur, prev)
+	if got[0].ChangeUSD == nil || *got[0].ChangeUSD != 20 || !got[0].Highlight {
+		t.Errorf("a = %+v, want +20 highlighted", got[0])
+	}
+	if got[1].ChangeUSD == nil || *got[1].ChangeUSD != 5 || got[1].Highlight {
+		t.Errorf("b = %+v, want +5 not highlighted", got[1])
+	}
+	if got[2].ChangeUSD != nil || got[3].ChangeUSD != nil {
+		t.Errorf("c/d must have no change: %+v %+v", got[2], got[3])
+	}
+	if cur[0].ChangeUSD != nil {
+		t.Error("withChanges mutated its input")
+	}
+}
+
+func TestTeamGrossHandlerComparesFullMonths(t *testing.T) {
+	sep := &TeamGrossOverview{Month: "2026-09", Teams: []TeamSpend{teamSpend("a", "a", 5, 130)}, DaysWithUsage: 30, LastUsageDay: "2026-09-30"}
+	aug := &TeamGrossOverview{Month: "2026-08", Teams: []TeamSpend{teamSpend("a", "a", 5, 100)}, DaysWithUsage: 31, LastUsageDay: "2026-08-31"}
+	h := newBigQueryHandlers(&mockBigQueryClient{
+		grossByMonth: map[string]*TeamGrossOverview{"2026-09": sep, "2026-08": aug},
+		netByMonth:   map[string]*TeamNetOverview{"2026-09": {Month: "2026-09", Teams: []TeamSpend{teamSpend("a", "a", 5, 90)}}},
+	})
+	rec := httptest.NewRecorder()
+	h.handleTeamGrossOverview(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil))
+	var got TeamGrossOverview
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Comparison != comparisonOK || got.Teams[0].ChangeUSD == nil || *got.Teams[0].ChangeUSD != 30 {
+		t.Fatalf("gross = %+v", got)
+	}
+	rec = httptest.NewRecorder()
+	h.handleTeamNetOverview(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month=2026-09", nil))
+	var net TeamNetOverview
+	if err := json.Unmarshal(rec.Body.Bytes(), &net); err != nil {
+		t.Fatal(err)
+	}
+	if net.Comparison != comparisonPreviousNetMiss || net.Teams[0].ChangeUSD != nil {
+		t.Fatalf("net = %+v", net)
 	}
 }

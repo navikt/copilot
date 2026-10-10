@@ -6,7 +6,7 @@ import TeamGrossUsage from "@/components/team-gross-usage";
 import ErrorState from "@/components/error-state";
 import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
-import { currentMonthUTC, daysInCalendarMonth, previousMonth, teamInsightMonth } from "@/lib/month-utils";
+import { teamInsightMonth } from "@/lib/month-utils";
 import TeamControls from "@/components/team-controls";
 import { formatDate } from "@/lib/local-model-results";
 import TeamSpendSkeleton from "./team-spend-skeleton";
@@ -50,38 +50,13 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
   } catch (error) {
     console.error("[team] Caller teams unavailable:", error);
   }
-  const previous = previousMonth(month);
-  let previousGross = null;
-  let previousNet = null;
-  if (previous >= "2026-05") {
-    try {
-      previousGross = await getTeamGrossOverview(previous, token);
-      if (net) previousNet = await getTeamNetOverview(previous, token);
-    } catch (error) {
-      console.error("[team] Previous month unavailable:", error);
-    }
-  }
-  const fullMonths =
-    month < currentMonthUTC() &&
-    gross.days_with_usage === daysInCalendarMonth(month) &&
-    previousGross?.days_with_usage === daysInCalendarMonth(previous);
-  const comparison = fullMonths && (net ? previousNet : previousGross) ? (net ? previousNet : previousGross) : null;
-  const comparisonReason = comparison
-    ? "Endring viser forskjellen fra forrige måned. En strek betyr at teamet ikke kan sammenlignes."
-    : month === currentMonthUTC()
-      ? "Endring vises når måneden er ferdig."
-      : net && previousGross?.last_usage_day && !previousNet
-        ? "Endring mangler fordi fakturert forbruk for forrige måned ikke er tilgjengelig."
-        : "Endring mangler fordi en av månedene har ufullstendige data.";
-  return (
-    <TeamGrossUsage
-      data={gross}
-      net={net}
-      myTeams={myTeams}
-      previous={comparison}
-      comparisonReason={comparisonReason}
-    />
-  );
+  const comparisonReason = {
+    ok: "Endring viser forskjellen fra forrige måned. En strek betyr at teamet ikke kan sammenlignes.",
+    current_month: "Endring vises når måneden er ferdig.",
+    previous_net_missing: "Endring mangler fordi fakturert forbruk for forrige måned ikke er tilgjengelig.",
+    incomplete: "Endring mangler fordi en av månedene har ufullstendige data.",
+  }[(net ?? gross).comparison];
+  return <TeamGrossUsage data={gross} net={net} myTeams={myTeams} comparisonReason={comparisonReason} />;
 }
 
 export default async function TeamPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -12,48 +13,98 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-// TeamGrossUsage is overlapping member usage, not additive team billing.
-type TeamGrossUsage struct {
-	TeamID   string  `bigquery:"team_id" json:"team_id"`
-	TeamSlug string  `bigquery:"team_slug" json:"team_slug"`
-	Users    int64   `bigquery:"users" json:"users"`
-	GrossUSD float64 `bigquery:"gross_usd" json:"gross_usd"`
+// TeamSpend is a display-ready team row. Amounts are rounded to cents, and only
+// teams with at least minTeamContributors contributors are ever built. Rows
+// overlap: a person in several teams counts in each, so rows never sum to a total.
+type TeamSpend struct {
+	TeamID     string   `json:"team_id"`
+	TeamSlug   string   `json:"team_slug"`
+	Users      int64    `json:"users"`
+	AmountUSD  float64  `json:"amount_usd"`
+	PerUserUSD float64  `json:"per_user_usd"`
+	ChangeUSD  *float64 `json:"change_usd"`
+	Highlight  bool     `json:"highlight"`
 }
 
-type TeamNetUsage struct {
-	TeamID   string  `json:"team_id"`
-	TeamSlug string  `json:"team_slug"`
-	Users    int64   `json:"users"`
-	NetUSD   float64 `json:"net_usd"`
-}
+// Comparison states the page explains in words.
+const (
+	comparisonOK              = "ok"
+	comparisonCurrentMonth    = "current_month"
+	comparisonPreviousNetMiss = "previous_net_missing"
+	comparisonIncomplete      = "incomplete"
+)
 
+// The overviews expose no totals or hidden-team sums: with overlapping rows and
+// only a count of hidden teams, nothing can be subtracted to recover a hidden team.
 type TeamGrossOverview struct {
-	Usage              map[string]TeamUsageComposition `json:"usage"`
-	Month              string                          `json:"month"`
-	Teams              []TeamGrossUsage                `json:"teams"`
-	SmallTeams         int64                           `json:"small_teams"`
-	SmallTeamsUsers    int64                           `json:"small_teams_users"`
-	SmallTeamsGrossUSD float64                         `json:"small_teams_gross_usd"`
-	DistinctGrossUSD   float64                         `json:"distinct_gross_usd"`
-	UnassignedGrossUSD float64                         `json:"unassigned_gross_usd"`
-	LastUsageDay       string                          `json:"last_usage_day"`
-	DaysWithUsage      int64                           `json:"days_with_usage"`
+	Usage        map[string]TeamUsageComposition `json:"usage"`
+	Month        string                          `json:"month"`
+	Teams        []TeamSpend                     `json:"teams"`
+	SmallTeams   int64                           `json:"small_teams"`
+	LastUsageDay string                          `json:"last_usage_day"`
+	Comparison   string                          `json:"comparison"`
+
+	DaysWithUsage    int64   `json:"-"`
+	DistinctGrossUSD float64 `json:"-"`
 }
 
 type TeamNetOverview struct {
-	Month            string         `json:"month"`
-	Teams            []TeamNetUsage `json:"teams"`
-	SmallTeams       int64          `json:"small_teams"`
-	SmallTeamsUsers  int64          `json:"small_teams_users"`
-	SmallTeamsNetUSD float64        `json:"small_teams_net_usd"`
-	KnownNetUSD      float64        `json:"known_net_usd"`
-	UnassignedNetUSD float64        `json:"unassigned_net_usd"`
-	NoUsageNetUSD    float64        `json:"no_usage_net_usd"`
-	EnterpriseNetUSD float64        `json:"enterprise_net_usd"`
-	ResidualNetUSD   float64        `json:"residual_net_usd"`
-	LoadedAt         string         `json:"loaded_at"`
-	EstimatedTiming  bool           `json:"estimated_timing"`
-	SKU              string         `json:"sku"`
+	Month      string      `json:"month"`
+	Teams      []TeamSpend `json:"teams"`
+	SmallTeams int64       `json:"small_teams"`
+	LoadedAt   string      `json:"loaded_at"`
+	Comparison string      `json:"comparison"`
+
+	KnownNetUSD      float64 `json:"-"`
+	EnterpriseNetUSD float64 `json:"-"`
+	ResidualNetUSD   float64 `json:"-"`
+}
+
+func roundCents(v float64) float64 { return math.Round(v*100) / 100 }
+
+func teamSpend(id, slug string, users int64, amount float64) TeamSpend {
+	return TeamSpend{TeamID: id, TeamSlug: slug, Users: users, AmountUSD: roundCents(amount), PerUserUSD: roundCents(amount / float64(users))}
+}
+
+// withChanges returns a copy of teams with month-over-month change from prev.
+// A change is shown only when the team has n >= 5 in both months. Highlight
+// marks a change of at least 10 USD and 10 % of the previous amount.
+func withChanges(teams, prev []TeamSpend) []TeamSpend {
+	old := map[string]TeamSpend{}
+	for _, t := range prev {
+		old[t.TeamID] = t
+	}
+	out := make([]TeamSpend, len(teams))
+	for i, t := range teams {
+		t.ChangeUSD, t.Highlight = nil, false
+		if p, ok := old[t.TeamID]; ok && t.Users >= minTeamContributors && p.Users >= minTeamContributors {
+			change := roundCents(t.AmountUSD - p.AmountUSD)
+			t.ChangeUSD = &change
+			t.Highlight = math.Abs(change) >= 10 && (p.AmountUSD == 0 || math.Abs(change)/math.Abs(p.AmountUSD) >= 0.1)
+		}
+		out[i] = t
+	}
+	return out
+}
+
+// teamComparison decides whether month can be compared with the month before.
+// Both months must be finished and have gross usage for every day.
+func teamComparison(month string, now time.Time, grossDays int64, prevGross *TeamGrossOverview, net, prevNet bool) string {
+	first, _ := time.Parse("2006-01", month)
+	prev := first.AddDate(0, -1, 0)
+	full := month < now.UTC().Format("2006-01") &&
+		grossDays == int64(first.AddDate(0, 1, -1).Day()) &&
+		prevGross != nil && prevGross.DaysWithUsage == int64(prev.AddDate(0, 1, -1).Day())
+	switch {
+	case full && (!net || prevNet):
+		return comparisonOK
+	case month == now.UTC().Format("2006-01"):
+		return comparisonCurrentMonth
+	case net && prevGross != nil && prevGross.LastUsageDay != "" && !prevNet:
+		return comparisonPreviousNetMiss
+	default:
+		return comparisonIncomplete
+	}
 }
 
 type teamNetRow struct {
@@ -75,19 +126,15 @@ func teamNetOverview(month string, rows []teamNetRow) *TeamNetOverview {
 	if len(rows) == 0 {
 		return nil
 	}
-	result := &TeamNetOverview{Month: month, Teams: []TeamNetUsage{}}
+	result := &TeamNetOverview{Month: month, Teams: []TeamSpend{}}
 	for _, row := range rows {
-		if row.TeamID != "" {
-			result.Teams = append(result.Teams, TeamNetUsage{row.TeamID, row.TeamSlug, row.Users, row.Net})
+		if row.TeamID != "" && row.Users >= minTeamContributors {
+			result.Teams = append(result.Teams, teamSpend(row.TeamID, row.TeamSlug, row.Users, row.Net))
 		}
-		result.SmallTeams, result.SmallTeamsUsers, result.SmallTeamsNetUSD = row.SmallTeams, row.SmallUsers, row.SmallNet
-		result.KnownNetUSD, result.UnassignedNetUSD, result.EnterpriseNetUSD = row.KnownNet, row.UnassignedNet, row.EnterpriseNet
-		result.NoUsageNetUSD = row.NoUsageNet
+		result.SmallTeams, result.KnownNetUSD, result.EnterpriseNetUSD = row.SmallTeams, row.KnownNet, row.EnterpriseNet
 		result.LoadedAt = row.LoadedAt
 	}
 	result.ResidualNetUSD = result.EnterpriseNetUSD - result.KnownNetUSD
-	result.EstimatedTiming = true
-	result.SKU = "Copilot AI Credits + Copilot Cloud Agent"
 	return result
 }
 
@@ -316,13 +363,12 @@ LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`, bq.tableR
 }
 
 func teamGrossOverview(month string, rows []teamGrossRow, usage map[string]TeamUsageComposition, usageErr error) *TeamGrossOverview {
-	result := &TeamGrossOverview{Month: month, Teams: []TeamGrossUsage{}}
+	result := &TeamGrossOverview{Month: month, Teams: []TeamSpend{}}
 	for _, row := range rows {
 		if row.TeamID != "" && row.Users >= minTeamContributors {
-			result.Teams = append(result.Teams, TeamGrossUsage{row.TeamID, row.TeamSlug, row.Users, row.Gross})
+			result.Teams = append(result.Teams, teamSpend(row.TeamID, row.TeamSlug, row.Users, row.Gross))
 		}
-		result.SmallTeams, result.SmallTeamsUsers, result.SmallTeamsGrossUSD = row.SmallTeams, row.SmallUsers, row.SmallGross
-		result.DistinctGrossUSD, result.UnassignedGrossUSD, result.LastUsageDay = row.DistinctGross, row.UnassignedGross, row.LastDay
+		result.SmallTeams, result.DistinctGrossUSD, result.LastUsageDay = row.SmallTeams, row.DistinctGross, row.LastDay
 		result.DaysWithUsage = row.DaysWithUsage
 	}
 	if usageErr != nil {

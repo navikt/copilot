@@ -5,7 +5,7 @@
  * All functions are side-effect free and easily testable.
  */
 
-import type { AdoptionSummary, LanguageAdoption, TeamAdoption, CustomizationDetail, AdoptionScope } from "./types";
+import type { AdoptionSummary, LanguageAdoption, CustomizationDetail, AdoptionScope } from "./types";
 
 /**
  * Customization type with label, count and group.
@@ -94,36 +94,6 @@ export function extractToolComparison(summary: AdoptionSummary): ToolUsage[] {
 }
 
 /**
- * Filter teams to only those with active repositories.
- */
-export function filterActiveTeams(teams: TeamAdoption[]): TeamAdoption[] {
-  return teams.filter((t) => t.active_repos > 0);
-}
-
-/**
- * Filter teams to only those with at least one repo with customizations.
- */
-export function filterTeamsWithAdoption(teams: TeamAdoption[]): TeamAdoption[] {
-  return teams.filter((t) => t.repos_with_customizations > 0);
-}
-
-/**
- * Get top N teams by number of repos with customizations.
- */
-export function getTopTeams(teams: TeamAdoption[], maxTeams: number): TeamAdoption[] {
-  return filterTeamsWithAdoption(teams)
-    .sort((a, b) => b.repos_with_customizations - a.repos_with_customizations)
-    .slice(0, maxTeams);
-}
-
-/**
- * Sort teams by repos with customizations (descending).
- */
-export function sortTeamsByAdoption(teams: TeamAdoption[]): TeamAdoption[] {
-  return [...teams].sort((a, b) => b.repos_with_customizations - a.repos_with_customizations);
-}
-
-/**
  * Get top N languages by adoption rate.
  * Only includes languages that have at least one repo with customizations.
  */
@@ -141,28 +111,6 @@ export function getTopLanguage(languages: LanguageAdoption[]): LanguageAdoption 
   if (languages.length === 0) return null;
 
   return languages.reduce((best, lang) => (lang.adoption_rate > best.adoption_rate ? lang : best));
-}
-
-/**
- * Calculate team adoption statistics.
- */
-export interface TeamAdoptionStats {
-  totalTeams: number;
-  teamsWithAdoption: number;
-  adoptionPercent: number;
-  totalReposWithCustomizations: number;
-}
-
-export function calculateTeamStats(teams: TeamAdoption[]): TeamAdoptionStats {
-  const activeTeams = filterActiveTeams(teams);
-  const teamsWithAdoption = filterTeamsWithAdoption(activeTeams);
-
-  return {
-    totalTeams: activeTeams.length,
-    teamsWithAdoption: teamsWithAdoption.length,
-    adoptionPercent: activeTeams.length > 0 ? (teamsWithAdoption.length / activeTeams.length) * 100 : 0,
-    totalReposWithCustomizations: teamsWithAdoption.reduce((sum, t) => sum + t.repos_with_customizations, 0),
-  };
 }
 
 /**
@@ -213,20 +161,6 @@ export function formatScanDate(scanDate: string): string {
 // --- Scope-aware helpers ---
 
 /**
- * Get the adoption rate for a team based on scope.
- */
-export function getTeamAdoptionRate(team: TeamAdoption, scope: AdoptionScope): number {
-  return scope === "active" ? team.adoption_rate_active_only : team.adoption_rate;
-}
-
-/**
- * Get the repo count denominator for a team based on scope.
- */
-export function getTeamRepoCount(team: TeamAdoption, scope: AdoptionScope): number {
-  return scope === "active" ? team.recently_active_repos : team.active_repos;
-}
-
-/**
  * Get the adoption rate for a language based on scope.
  */
 export function getLanguageAdoptionRate(lang: LanguageAdoption, scope: AdoptionScope): number {
@@ -245,27 +179,6 @@ export function getLanguageRepoCount(lang: LanguageAdoption, scope: AdoptionScop
  */
 export function getCustomizationRepoCount(detail: CustomizationDetail, scope: AdoptionScope): number {
   return scope === "active" ? detail.active_repo_count : detail.repo_count;
-}
-
-/**
- * Get top teams for chart display, sorted by scope-appropriate metric.
- */
-export function getTopTeamsForChart(
-  teams: TeamAdoption[],
-  scope: AdoptionScope,
-  viewMode: "absolute" | "percentage",
-  maxTeams: number
-): TeamAdoption[] {
-  const withCustomizations = teams.filter((t) => t.repos_with_customizations > 0);
-  if (viewMode === "percentage") {
-    return withCustomizations
-      .filter((t) => getTeamRepoCount(t, scope) > 0)
-      .sort((a, b) => getTeamAdoptionRate(b, scope) - getTeamAdoptionRate(a, scope))
-      .slice(0, maxTeams);
-  }
-  return withCustomizations
-    .sort((a, b) => b.repos_with_customizations - a.repos_with_customizations)
-    .slice(0, maxTeams);
 }
 
 /**

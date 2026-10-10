@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { HStack, Pagination, Table } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
-import { sortTeamsByAdoption, formatAdoptionRate } from "@/lib/adoption-utils";
 import type { TeamAdoption } from "@/lib/types";
 
 const PAGE_SIZE = 15;
@@ -14,9 +13,8 @@ interface TeamTableProps {
 
 export default function TeamTable({ teams }: TeamTableProps) {
   const [page, setPage] = useState(1);
-  const sortedTeams = sortTeamsByAdoption(teams);
-  const totalPages = Math.ceil(sortedTeams.length / PAGE_SIZE);
-  const pageTeams = sortedTeams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.ceil(teams.length / PAGE_SIZE);
+  const pageTeams = teams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div>
@@ -39,9 +37,9 @@ export default function TeamTable({ teams }: TeamTableProps) {
                 <TableDataCell align="right">{team.active_repos}</TableDataCell>
                 <TableDataCell align="right">{team.recently_active_repos}</TableDataCell>
                 <TableDataCell align="right">{team.repos_with_customizations}</TableDataCell>
-                <TableDataCell align="right">{formatAdoptionRate(team.adoption_rate)}</TableDataCell>
+                <TableDataCell align="right">{team.adoption_pct}%</TableDataCell>
                 <TableDataCell align="right">
-                  {team.recently_active_repos > 0 ? formatAdoptionRate(team.adoption_rate_active_only) : "—"}
+                  {team.adoption_active_pct === null ? "—" : `${team.adoption_active_pct}%`}
                 </TableDataCell>
               </TableRow>
             ))}

@@ -3,38 +3,36 @@ import TeamGrossUsage from "./team-gross-usage";
 import TeamControls from "./team-controls";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
 
+const row = (
+  team_id: string,
+  team_slug: string,
+  users: number,
+  amount_usd: number,
+  change_usd: number | null = null
+) => ({
+  team_id,
+  team_slug,
+  users,
+  amount_usd,
+  per_user_usd: Math.round((amount_usd / users) * 100) / 100,
+  change_usd,
+  highlight: false,
+});
+
 const gross: TeamGrossOverview = {
   month: "2026-09",
-  teams: [
-    { team_id: "1", team_slug: "alpha", users: 5, gross_usd: 100 },
-    { team_id: "2", team_slug: "beta", users: 6, gross_usd: 90 },
-  ],
+  teams: [row("1", "alpha", 5, 100), row("2", "beta", 6, 90)],
   small_teams: 2,
-  small_teams_users: 4,
-  small_teams_gross_usd: 40,
-  distinct_gross_usd: 120,
-  unassigned_gross_usd: 10,
   last_usage_day: "2026-09-30",
-  days_with_usage: 30,
+  comparison: "incomplete",
 };
 
 const net: TeamNetOverview = {
   month: "2026-09",
-  teams: [
-    { team_id: "1", team_slug: "alpha", users: 5, net_usd: 80 },
-    { team_id: "2", team_slug: "beta", users: 6, net_usd: 70 },
-  ],
+  teams: [row("1", "alpha", 5, 80), row("2", "beta", 6, 70)],
   small_teams: 2,
-  small_teams_users: 4,
-  small_teams_net_usd: 30,
-  known_net_usd: 90,
-  unassigned_net_usd: 10,
-  no_usage_net_usd: 0,
-  enterprise_net_usd: 92,
-  residual_net_usd: 2,
   loaded_at: "2026-10-02 10:00:00+00",
-  estimated_timing: true,
-  sku: "Copilot AI Credits + Copilot Cloud Agent",
+  comparison: "ok",
 };
 
 describe("Team insight", () => {
@@ -56,7 +54,6 @@ describe("Team insight", () => {
           }}
           net={net}
           myTeams={[]}
-          previous={null}
         />
       </TeamControls>
     );
@@ -109,7 +106,6 @@ describe("Team insight", () => {
           data={{ ...gross, usage: { "1": { providers: [], categories: [], feature: "", language: "" } } }}
           net={null}
           myTeams={[]}
-          previous={null}
         />
       </TeamControls>
     );
@@ -125,7 +121,7 @@ describe("Team insight", () => {
   it("reports missing backend summaries", () => {
     render(
       <TeamControls month="2026-09">
-        <TeamGrossUsage data={gross} net={net} myTeams={[]} previous={null} />
+        <TeamGrossUsage data={gross} net={net} myTeams={[]} />
       </TeamControls>
     );
     fireEvent.click(screen.getByRole("button", { name: "Velg kolonner" }));
@@ -142,7 +138,6 @@ describe("Team insight", () => {
           }}
           net={net}
           myTeams={[]}
-          previous={null}
         />
       </TeamControls>
     );
@@ -174,7 +169,6 @@ describe("Team insight", () => {
           }}
           net={null}
           myTeams={["beta"]}
-          previous={null}
         />
       </TeamControls>
     );
@@ -189,7 +183,7 @@ describe("Team insight", () => {
     expect(screen.getByText(/funksjon og språk vises bare med minst fem bidragsytere/i)).toBeInTheDocument();
   });
   it("keeps the distinct bill separate from overlapping team rows and puts mine first", () => {
-    render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} previous={null} />);
+    render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} />);
     expect(screen.getByText(/teambeløpene kan derfor ikke summeres/i)).toBeInTheDocument();
     expect(screen.getByText(/per medlem er gjennomsnittet/i)).toBeInTheDocument();
     expect(screen.getByText(/innsamlet 2026-10-02 10:00:00\+00/)).toBeInTheDocument();
@@ -198,34 +192,20 @@ describe("Team insight", () => {
     expect(within(screen.getByRole("table", { name: "Andre team" })).getByText("alpha")).toBeInTheDocument();
   });
 
-  it("does not compare net to gross or reveal a suppressed previous month", () => {
-    render(
-      <TeamGrossUsage
-        data={gross}
-        net={net}
-        myTeams={[]}
-        previous={{ ...gross, teams: [{ team_id: "1", team_slug: "alpha", users: 4, gross_usd: 75 }] }}
-      />
-    );
+  it("shows a dash when the API sends no change", () => {
+    render(<TeamGrossUsage data={gross} net={net} myTeams={[]} />);
     expect(screen.getAllByText("—")).toHaveLength(2);
   });
 
   it("keeps browsing available when identity resolution fails", () => {
-    render(<TeamGrossUsage data={gross} net={null} myTeams={null} previous={null} />);
+    render(<TeamGrossUsage data={gross} net={null} myTeams={null} />);
     expect(screen.getByText(/kunne ikke finne dine team/i)).toBeInTheDocument();
     expect(screen.getByText(/beløpene er før fradrag/i)).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Andre team" })).toBeInTheDocument();
   });
 
   it("uses net suppression totals rather than the gross user set", () => {
-    render(
-      <TeamGrossUsage
-        data={gross}
-        net={{ ...net, small_teams: 3, small_teams_users: 7 }}
-        myTeams={null}
-        previous={null}
-      />
-    );
+    render(<TeamGrossUsage data={gross} net={{ ...net, small_teams: 3 }} myTeams={null} />);
     expect(screen.getByText(/3 team med færre enn fem medlemmer med forbruk/)).toBeInTheDocument();
   });
 
@@ -233,16 +213,8 @@ describe("Team insight", () => {
     render(
       <TeamGrossUsage
         data={gross}
-        net={net}
+        net={{ ...net, teams: [row("1", "alpha", 5, 80, 20), row("2", "beta", 6, 70, 50)] }}
         myTeams={null}
-        previous={{
-          ...net,
-          month: "2026-08",
-          teams: [
-            { team_id: "1", team_slug: "alpha", users: 5, net_usd: 60 },
-            { team_id: "2", team_slug: "beta", users: 6, net_usd: 20 },
-          ],
-        }}
       />
     );
     const table = screen.getByRole("table", { name: "Andre team" });
@@ -263,13 +235,12 @@ describe("Team insight", () => {
     expect(names()).toEqual(["alpha", "beta"]);
   });
 
-  it("compares visible adjacent net months on the same basis", () => {
+  it("colours an increase the API marks as material", () => {
     render(
       <TeamGrossUsage
         data={gross}
-        net={net}
+        net={{ ...net, teams: [{ ...row("1", "alpha", 5, 80, 20), highlight: true }, row("2", "beta", 6, 70)] }}
         myTeams={null}
-        previous={{ ...net, month: "2026-08", teams: [{ team_id: "1", team_slug: "alpha", users: 5, net_usd: 60 }] }}
       />
     );
     expect(screen.getByText(/\+20,00/)).toBeInTheDocument();
@@ -280,16 +251,11 @@ describe("Team insight", () => {
     render(
       <TeamGrossUsage
         data={gross}
-        net={net}
-        myTeams={null}
-        previous={{
+        net={{
           ...net,
-          month: "2026-08",
-          teams: [
-            { team_id: "1", team_slug: "alpha", users: 5, net_usd: 100 },
-            { team_id: "2", team_slug: "beta", users: 6, net_usd: 75 },
-          ],
+          teams: [{ ...row("1", "alpha", 5, 80, -20), highlight: true }, row("2", "beta", 6, 70, -5)],
         }}
+        myTeams={null}
       />
     );
     expect(screen.getByText(/16,00/)).toBeInTheDocument();
