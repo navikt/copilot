@@ -275,8 +275,9 @@ SELECT
 func (c *CachedBigQueryClient) GetFactAggregates(ctx context.Context) (*FactAggregates, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	key := "fact_aggregates_" + time.Now().In(oslo).Format(time.DateOnly)
-	return getCachedValue(c, key, func() (*FactAggregates, error) {
+	date := time.Now().In(oslo).Format(time.DateOnly)
+	key := "fact_aggregates_" + date
+	agg, err := getCachedValue(c, key, func() (*FactAggregates, error) {
 		agg, err := c.client.GetFactAggregates(ctx)
 		if err != nil {
 			// Cache the miss as nil (no fact) for the TTL, so a failing query
@@ -286,6 +287,51 @@ func (c *CachedBigQueryClient) GetFactAggregates(ctx context.Context) (*FactAggr
 		}
 		return agg, nil
 	})
+	if err != nil || agg == nil {
+		return agg, err
+	}
+	// The repo count is optional: wait at most adoptionBudget for it, so a slow
+	// scan query never costs the front page its fact. The load keeps running
+	// and fills the cache for the next request.
+	ch := make(chan *AdoptionSummary, 1)
+	go func() {
+		ch <- cachedFactAdoption(c.cache, "fact_adoption_"+date, func() (*AdoptionSummary, error) {
+			v, err, _ := c.group.Do("fact_adoption_"+date, func() (any, error) {
+				qctx, cancel := withQueryTimeout(ctx)
+				defer cancel()
+				return c.client.GetAdoptionSummary(qctx)
+			})
+			s, _ := v.(*AdoptionSummary)
+			return s, err
+		})
+	}()
+	select {
+	case s := <-ch:
+		return withRepoCounts(agg, s), nil
+	case <-time.After(adoptionBudget):
+		slog.Warn("Adoption summary too slow for fact; serving without repo count")
+		return agg, nil
+	}
+}
+
+// cachedFactAdoption loads the repo scan once per key. A failure or an empty
+// scan is cached as nil for negativeCacheTTL, so anonymous front-page views
+// cannot re-run a failing query (#1572).
+func cachedFactAdoption(c *Cache, key string, load func() (*AdoptionSummary, error)) *AdoptionSummary {
+	if v, ok := c.Get(key); ok {
+		s, _ := v.(*AdoptionSummary)
+		return s
+	}
+	s, err := load()
+	if err != nil || s == nil {
+		if err != nil {
+			slog.Error("Failed to fetch adoption summary for fact", "error", err)
+		}
+		c.SetWithTTL(key, (*AdoptionSummary)(nil), negativeCacheTTL)
+		return nil
+	}
+	c.SetWithTTL(key, s, 24*time.Hour)
+	return s
 }
 
 const adoptionBudget = 2 * time.Second
@@ -307,28 +353,6 @@ func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Reque
 		slog.Error("Failed to fetch fact aggregates", "error", err)
 		respondError(w, "internal_error", "Failed to fetch fact", http.StatusInternalServerError)
 		return
-	}
-	// The repo count is optional: wait at most adoptionBudget for it, so a slow
-	// scan query never costs the front page its fact. The query keeps running
-	// and fills the cache for the next request.
-	type result struct {
-		s   *AdoptionSummary
-		err error
-	}
-	ch := make(chan result, 1)
-	go func() {
-		s, err := h.bqClient.GetAdoptionSummary(r.Context())
-		ch <- result{s, err}
-	}()
-	select {
-	case res := <-ch:
-		if res.err == nil {
-			agg = withRepoCounts(agg, res.s)
-		} else {
-			slog.Error("Failed to fetch adoption summary for fact", "error", res.err)
-		}
-	case <-time.After(adoptionBudget):
-		slog.Warn("Adoption summary too slow for fact; serving without repo count")
 	}
 	fact, id := pickFact(time.Now().In(oslo), agg)
 	if fact != nil && id != "ukebrukere" { // the sentence already says it

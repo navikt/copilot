@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -156,5 +157,31 @@ func TestWithRepoCounts(t *testing.T) {
 	}
 	if withRepoCounts(nil, &AdoptionSummary{}) != nil || withRepoCounts(agg, nil) != agg {
 		t.Error("nil inputs must pass through")
+	}
+}
+
+func TestCachedFactAdoptionCachesFailures(t *testing.T) {
+	c := NewCache(time.Hour)
+	calls := 0
+	fail := func() (*AdoptionSummary, error) { calls++; return nil, errors.New("bq down") }
+	for range 3 {
+		if s := cachedFactAdoption(c, "k", fail); s != nil {
+			t.Fatalf("got %+v, want nil", s)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("failing query ran %d times, want 1", calls)
+	}
+	ok := func() (*AdoptionSummary, error) {
+		calls++
+		return &AdoptionSummary{ActiveReposWithRecentCommits: 10}, nil
+	}
+	for range 2 {
+		if s := cachedFactAdoption(c, "k2", ok); s == nil || s.ActiveReposWithRecentCommits != 10 {
+			t.Fatalf("got %+v", s)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("query ran %d times, want 2", calls)
 	}
 }
