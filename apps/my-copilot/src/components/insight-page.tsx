@@ -8,8 +8,6 @@ import { PageHero } from "@/components/page-hero";
 
 export function InsightSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    // min-w-0 + VStack's min-w-0: a wide child (a table) must scroll in its own container, not widen
-    // the page. On iOS a wider document doubles the layout viewport and leaves a dark band on the right.
     <section className="min-w-0">
       <VStack gap="space-16" className="min-w-0">
         <LinkableHeading id={id} size="medium" level="2">
