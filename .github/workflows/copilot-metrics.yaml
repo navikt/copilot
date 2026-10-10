@@ -32,6 +32,6 @@ jobs:
       mise-tasks: '["lint", "check"]'
       deploys-to-nais: true
       deploy-pr-to-dev: true
-      nais-resource: '.nais/naisjob.yaml,.nais/billing.yaml'
+      nais-resource: '.nais/naisjob.yaml,.nais/billing.yaml,.nais/mimir.yaml'
       nais-team: copilot
       nais-clusters: '["dev-gcp", "prod-gcp"]'

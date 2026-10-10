@@ -33,9 +33,55 @@ func main() {
 	legacyBillingUsageBackfill := flag.Bool("billing-usage-backfill", false, "Deprecated: use --billing-daily-report-backfill")
 	legacyBillingUsageFrom := flag.String("billing-usage-from", "", "Deprecated: use --billing-daily-report-from")
 	runOnce := flag.Bool("run-once", false, "Run single ingestion for yesterday and exit")
+	mimirDaily := flag.Bool("mimir-daily", false, "Copy Mimir aggregates for yesterday (or --mimir-from..--mimir-to) to BigQuery and exit")
+	mimirFrom := flag.String("mimir-from", "", "First day to copy from Mimir (YYYY-MM-DD), default yesterday")
+	mimirTo := flag.String("mimir-to", "", "Last day to copy from Mimir (YYYY-MM-DD, inclusive), default yesterday")
 	flag.Parse()
 
 	config := loadConfig()
+	if *mimirDaily {
+		if getEnv("MIMIR_DAILY_ENABLED", "false") != "true" {
+			slog.Info("Mimir daily copy is disabled")
+			return
+		}
+		yesterday := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+		from, to := yesterday, yesterday
+		var err error
+		if *mimirFrom != "" {
+			if from, err = time.Parse("2006-01-02", *mimirFrom); err != nil {
+				slog.Error("Invalid --mimir-from", "error", err)
+				os.Exit(1)
+			}
+		}
+		if *mimirTo != "" {
+			if to, err = time.Parse("2006-01-02", *mimirTo); err != nil {
+				slog.Error("Invalid --mimir-to", "error", err)
+				os.Exit(1)
+			}
+		}
+		if to.After(yesterday) || from.After(to) {
+			slog.Error("Mimir range must be closed days with from <= to", "from", from, "to", to)
+			os.Exit(1)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Minute)
+		defer cancel()
+		bq, err := NewBigQueryClient(ctx, config)
+		if err != nil {
+			slog.Error("Failed to connect to BigQuery", "error", err)
+			os.Exit(1)
+		}
+		defer func() { _ = bq.Close() }()
+		if err := bq.EnsureMimirDailyTableExists(ctx); err != nil {
+			slog.Error("Failed to ensure mimir_daily table", "error", err)
+			os.Exit(1)
+		}
+		m := &MimirClient{BaseURL: getEnv("MIMIR_URL", "https://mimir.nav.cloud.nais.io/prometheus/api/v1"), HTTP: &http.Client{Timeout: 5 * time.Minute}}
+		if err := runMimirDaily(ctx, m, bq, from, to); err != nil {
+			slog.Error("Mimir daily copy failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if *userBillingSync {
 		if getEnv("USER_BILLING_SYNC_ENABLED", "false") != "true" {
 			slog.Info("Automatic user billing sync is disabled")
