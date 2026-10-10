@@ -7,7 +7,8 @@ import { HeroRibbons } from "@/components/hero-ribbons/hero-ribbons";
 
 export const metadata: Metadata = {
   title: "Innsikt",
-  description: "Tall om Copilot i Nav: bruk, adopsjon, kostnad, modellpriser, modellvalg og lokale modeller.",
+  description:
+    "Tall om Copilot i Nav: bruk og kostnad, trender, team, KI-tilpasninger i repoene, modellpriser, modellvalg, lokale modeller og reisen så langt.",
 };
 
 // LinkCard hides the icon from screen readers, so the description says «Krever innlogging» too.
@@ -20,7 +21,7 @@ export default function Innsikt() {
     <main id="hovedinnhold" tabIndex={-1}>
       <PageHero
         title="Innsikt"
-        description="Tall om Copilot i Nav: bruk, adopsjon, kostnad, modellpriser og modellvalg."
+        description="Tall om Copilot i Nav: bruk og kostnad, trender, team, KI-tilpasninger i repoene, modellpriser, modellvalg, lokale modeller og reisen så langt."
         background={<HeroRibbons />}
       />
       <Box
@@ -46,7 +47,7 @@ export default function Innsikt() {
                 prefetch={false}
                 icon={lock}
                 title="Trender"
-                description="Modellvalg, AI Credits per bruker og Copilot i pull requests, måned for måned. Krever innlogging."
+                description="Endringer over tid: brukere etter intensitet og arbeidsmåte, kohorter av nye brukere, modellvalg og AI Credits per bruker. Krever innlogging."
               />
               <NavCard
                 href="/innsikt/team"

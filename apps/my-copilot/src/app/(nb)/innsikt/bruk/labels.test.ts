@@ -9,9 +9,9 @@ const src = (path: string) => readFileSync(join(__dirname, "../../../..", path),
 describe("innsikt/bruk labels", () => {
   it("labels the forecast as net, not gross", () => {
     const chart = src("components/charts/BillingMonthNowChart.tsx");
-    expect(chart).toContain("Faktisk kumulativ (netto)");
-    expect(chart).toContain("Prognose kumulativ (netto)");
-    expect(chart).not.toMatch(/kumulativ \(brutto\)|Gross/);
+    expect(chart).toContain('label: "Netto hittil"');
+    expect(chart).toContain('label: "Prognose, netto"');
+    expect(chart).not.toMatch(/label: "[^"]*brutto|Gross/);
   });
 
   it("states the review time as a one-day average, not a median", () => {

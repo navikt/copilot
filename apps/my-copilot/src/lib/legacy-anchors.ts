@@ -38,6 +38,10 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/innsikt/bruk#sprak-og-verktoy": "/innsikt/bruk#daglig-aktivitet",
   "/innsikt/bruk#topp-språk": "/innsikt/bruk#daglig-aktivitet",
   "/innsikt/bruk#verktøy": "/innsikt/bruk#daglig-aktivitet",
+  // The h3s that repeated their h2 are gone.
+  "/innsikt/bruk#månedlige-trender": "/innsikt/bruk#nokkeltall",
+  "/innsikt/bruk#måned-hittil-modeller-og-kostnad": "/innsikt/bruk#kostnad",
+  "/innsikt/bruk#modellkostnad-historikk": "/innsikt/bruk#kostnad-over-tid",
   // /nav-pilot/docs was split into guides, reference and explanation pages
   // (docs/nav-pilot-dokumentasjon-forslag.md §1.4). next.config.ts sends the
   // page to /nav-pilot/referanse, so the old anchors are keyed there.

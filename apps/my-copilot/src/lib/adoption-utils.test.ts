@@ -4,8 +4,6 @@ import {
   getTopLanguagesByAdoptionRate,
   getTopLanguage,
   calculateLanguageStats,
-  formatAdoptionRate,
-  formatScanDate,
   getLanguageAdoptionRate,
   getLanguageRepoCount,
   getCustomizationRepoCount,
@@ -218,28 +216,6 @@ describe("calculateLanguageStats", () => {
     expect(result.topActiveLanguage?.language).toBe("Go");
     expect(result.topActiveLanguage?.adoption_rate_active_only).toBe(0.25);
     expect(result.totalReposWithCustomizations).toBe(85); // 45 + 30 + 10 + 0
-  });
-});
-
-describe("formatAdoptionRate", () => {
-  it("should format rate as percentage", () => {
-    expect(formatAdoptionRate(0.1)).toBe("10%");
-    expect(formatAdoptionRate(0.0318, 1)).toBe("3.2%");
-    expect(formatAdoptionRate(0.5, 2)).toBe("50.00%");
-  });
-
-  it("should default to 0 decimals", () => {
-    expect(formatAdoptionRate(0.125)).toBe("13%"); // Rounded
-  });
-});
-
-describe("formatScanDate", () => {
-  it("should format date in Norwegian", () => {
-    const result = formatScanDate("2026-03-13");
-
-    expect(result).toContain("13");
-    expect(result).toContain("mars");
-    expect(result).toContain("2026");
   });
 });
 

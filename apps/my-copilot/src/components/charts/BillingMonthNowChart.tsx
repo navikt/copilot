@@ -2,11 +2,10 @@
 
 import type { BillingModelDailyCost, BillingModelForecast } from "@/lib/types";
 import { chartColors, getBackgroundColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { formatNumber } from "@/lib/format";
+import { formatUSD } from "@/lib/format";
 import { BodyShort, Box, HGrid, VStack } from "@navikt/ds-react";
 import React from "react";
 import { Bar, Line } from "react-chartjs-2";
-import { LinkableHeading } from "@/components/linkable-heading";
 
 interface BillingMonthNowChartProps {
   dailyData: BillingModelDailyCost[];
@@ -15,7 +14,7 @@ interface BillingMonthNowChartProps {
 
 const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, forecast }) => {
   if (!dailyData || dailyData.length === 0 || !forecast || !forecast.points?.length) {
-    return <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>;
+    return <BodyShort>{NO_DATA_MESSAGE}</BodyShort>;
   }
   const monthLabel = new Date(`${forecast.month}-01`).toLocaleDateString("nb-NO", { month: "long", year: "numeric" });
 
@@ -89,18 +88,15 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
 
   return (
     <VStack gap="space-16">
-      <LinkableHeading size="small" level="3">
-        Måned hittil: modeller og kostnad
-      </LinkableHeading>
-      <BodyShort size="small" className="text-gray-500">
-        Viser {monthLabel}
+      <BodyShort size="small" textColor="subtle">
+        Tallene gjelder {monthLabel}.
       </BodyShort>
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
         <Box background="neutral-soft" padding="space-16" borderRadius="8">
           <VStack gap="space-8">
-            <BodyShort weight="semibold">Daglig brutto kostnad per modell (USD)</BodyShort>
-            <BodyShort size="small" className="text-gray-500">
-              Brutto kostnad (før credits/rabatt)
+            <BodyShort weight="semibold">Brutto kostnad per dag og modell (USD)</BodyShort>
+            <BodyShort size="small" textColor="subtle">
+              Før rabatt. De fem dyreste modellene i måneden.
             </BodyShort>
             <div className="aspect-[2/1]">
               <Bar
@@ -120,11 +116,10 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
         </Box>
         <Box background="neutral-soft" padding="space-16" borderRadius="8">
           <VStack gap="space-8">
-            <BodyShort weight="semibold">Prognose månedsslutt (USD)</BodyShort>
-            <BodyShort size="small" className="text-gray-500">
-              Netto MTD {formatNumber(Math.round(actualMTDNet))} • Prognose {formatNumber(Math.round(projectedEOMNet))}{" "}
-              ({formatNumber(Math.round(forecast.lower_eom_net_amount))} –{" "}
-              {formatNumber(Math.round(forecast.upper_eom_net_amount))})
+            <BodyShort weight="semibold">Prognose for hele måneden, netto (USD)</BodyShort>
+            <BodyShort size="small" textColor="subtle">
+              Netto hittil {formatUSD(actualMTDNet)}. Prognose {formatUSD(projectedEOMNet)}, mellom{" "}
+              {formatUSD(forecast.lower_eom_net_amount)} og {formatUSD(forecast.upper_eom_net_amount)}.
             </BodyShort>
             <div className="aspect-[2/1]">
               <Line
@@ -132,7 +127,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                   labels: cumulativeLabels,
                   datasets: [
                     {
-                      label: "Faktisk kumulativ (netto)",
+                      label: "Netto hittil",
                       data: actual,
                       borderColor: "#2563eb",
                       backgroundColor: "transparent",
@@ -141,7 +136,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                       spanGaps: false,
                     },
                     {
-                      label: "Prognose kumulativ (netto)",
+                      label: "Prognose, netto",
                       data: projected,
                       borderColor: "#16a34a",
                       borderDash: [5, 5],

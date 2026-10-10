@@ -5,7 +5,7 @@ import type { CustomizationType } from "@/lib/adoption-utils";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Box, Heading, VStack } from "@navikt/ds-react";
+import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
 import { extractCustomizationTypes } from "@/lib/adoption-utils";
 
 interface CustomizationTypeChartProps {
@@ -14,7 +14,7 @@ interface CustomizationTypeChartProps {
 
 const groupConfig: Record<string, { title: string; color: string }> = {
   copilot: { title: "GitHub Copilot", color: chartColors[0] },
-  agentic: { title: "Agentic & plattform", color: chartColors[1] },
+  agentic: { title: "Agentisk og plattform", color: chartColors[1] },
   "nav-pilot": { title: "nav-pilot", color: chartColors[4] },
 };
 
@@ -36,8 +36,8 @@ function GroupChart({ title, color, items }: { title: string; color: string; ite
   const height = Math.max(120, sorted.length * 36);
 
   return (
-    <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-      <Heading size="small" level="4" spacing>
+    <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
+      <Heading size="small" level="3" spacing>
         {title}
       </Heading>
       <div style={{ height }}>
@@ -50,8 +50,8 @@ function GroupChart({ title, color, items }: { title: string; color: string; ite
 const CustomizationTypeChart: React.FC<CustomizationTypeChartProps> = ({ data }) => {
   if (!data) {
     return (
-      <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-        <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>
+      <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
+        <BodyShort>{NO_DATA_MESSAGE}</BodyShort>
       </Box>
     );
   }

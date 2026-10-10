@@ -180,20 +180,37 @@
       "apps/my-copilot/src/app/sitemap.ts"
     ],
     "anchors": {
-      "delegeringsnivaer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"],
-      "godkjent-for": ["docs/news/articles/lokale-modeller-i-nav-pilot.md"],
+      "delegeringsnivaer": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"
+      ],
+      "forkastede-modeller": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "godkjent-for": [
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
+        "docs/news/articles/lokale-modeller-i-nav-pilot.md"
+      ],
       "ikke-malt": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "malt-decide": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/decide/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
         "docs/news/articles/alpha-decide.md",
         "docs/news/articles/nav-pilot-alpha-decide.md"
       ],
-      "modell-64-gb": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx"],
+      "malt-delegering": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "metode": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "modell-64-gb": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"
+      ],
       "modeller-per-minne": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
         "docs/news/articles/nav-pilot-lokal-linux-egen-server.md"
-      ]
+      ],
+      "rapporter": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "sist-oppdatert": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"]
     }
   },
   "/innsikt/team": {

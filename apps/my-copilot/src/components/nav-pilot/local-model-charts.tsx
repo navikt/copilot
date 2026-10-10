@@ -2,7 +2,7 @@ import { Box, BodyShort, ReadMore } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableRow } from "@/components/aksel-table";
 import { HeaderRow, linkClass } from "@/components/nav-pilot/doc-page";
 import type { DelegationRange } from "@/lib/local-model-results";
-import { formatDate } from "@/lib/local-model-results";
+import { formatDate } from "@/lib/format";
 import type { Bar, LocalModel, Report, ReportIndex } from "@/lib/local-models";
 
 // Charts on /innsikt/lokale-modeller. Plain HTML and CSS rather than chart.js: the

@@ -134,13 +134,3 @@ export const DECIDE_RESULTS: ResultSet = {
     },
   ],
 };
-
-/** "2026-09-26" → "26. september 2026". A full timestamp keeps its time, so the Oslo date is right. */
-export function formatDate(iso: string): string {
-  return new Date(iso.length > 10 ? iso : `${iso}T12:00:00Z`).toLocaleDateString("nb-NO", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Oslo",
-  });
-}

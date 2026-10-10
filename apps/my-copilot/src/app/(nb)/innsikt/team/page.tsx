@@ -8,20 +8,10 @@ import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cach
 import { getUser, getUserToken } from "@/lib/auth";
 import { teamInsightMonth } from "@/lib/month-utils";
 import TeamControls from "@/components/team-controls";
-import { formatDate } from "@/lib/local-model-results";
 import TeamSpendSkeleton from "./team-spend-skeleton";
 
 // Shared by the section and «Sist oppdatert» so the no-store request runs once per render.
 const grossOverview = cache(getTeamGrossOverview);
-
-async function LastUsageDay({ month, token }: { month: string; token: string }) {
-  try {
-    const { last_usage_day } = await grossOverview(month, token);
-    return last_usage_day ? `siste dag med data er ${formatDate(last_usage_day)}` : "ingen data for denne måneden";
-  } catch {
-    return "kunne ikke hentes";
-  }
-}
 
 export const metadata: Metadata = {
   title: "Teaminnsikt",
@@ -34,7 +24,7 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
     gross = await grossOverview(month, token);
   } catch (error) {
     console.error("[team] Gross usage failed:", error);
-    return <ErrorState message="Kunne ikke hente teamenes brutto AI-bruk." />;
+    return <ErrorState message="Kunne ikke hente teamenes brutto KI-bruk." />;
   }
   if (!gross.last_usage_day) return <BodyShort>Ingen teamdata for denne måneden.</BodyShort>;
 
@@ -72,17 +62,14 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       title="Teaminnsikt"
       description="Copilot-bruk og kostnad per team i Nav."
       intro="Se hva hvert team bruker på Copilot i en måned, og hvordan det endrer seg fra forrige måned. Velg måned for å se tidligere tall."
-      updated={
-        <Suspense key={month} fallback="henter …">
-          <LastUsageDay month={month} token={token} />
-        </Suspense>
-      }
+      updated={async () => (await grossOverview(month, token)).last_usage_day}
       source={
         <>
-          Brutto bruk kommer fra <code>/api/v1/copilot/usage/team-gross</code>, og fakturert forbruk fra{" "}
-          <code>/api/v1/copilot/usage/team-net</code>. Begge viser én kalendermåned, tidligst mai 2026. Brutto bruk
-          oppdateres daglig. Fakturert forbruk finnes først når måneden er avsluttet og fakturaen er lest inn, og
-          fordelingen på dager er et anslag. En person som er med i flere team, telles i hvert av dem.
+          Brutto bruk kommer fra <code>/usage/team-gross</code>, og fakturert forbruk fra <code>/usage/team-net</code>.
+          Begge viser én kalendermåned, tidligst mai 2026. Brutto bruk oppdateres daglig, og «Sist oppdatert» er siste
+          dag med brutto bruk i måneden du har valgt. Fakturert forbruk finnes først når måneden er avsluttet og
+          fakturaen er lest inn, og fordelingen på dager er et anslag. En person som er med i flere team, telles i hvert
+          av dem.
         </>
       }
     >

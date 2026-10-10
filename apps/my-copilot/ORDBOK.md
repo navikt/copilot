@@ -4,27 +4,28 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 
 ## Engelske termer vi beholder
 
-| Engelsk           | Kommentar                                                               |
-| ----------------- | ----------------------------------------------------------------------- |
-| agent mode        | Copilots agent-modus — ikke oversett                                    |
-| ask mode          | Copilots spørremodus — ikke oversett                                    |
-| branch            | Git-gren. Skriv branch, ikke gren. Bøyes: branchen, brancher, branchene |
-| chat              | Copilot Chat                                                            |
-| CLI               | Command Line Interface                                                  |
-| code review       | Gjennomgang av kode i pull requests                                     |
-| commit            | Git-operasjon — brukes som verb og substantiv                           |
-| dashboard         | Visualiseringspanel (Grafana, statistikk)                               |
-| GDPR              | EU-forordning for personvern                                            |
-| inline            | Inline kodeforslag i editoren                                           |
-| merge             | Slå sammen en pull request. Bøyes: merget, mergede. Ikke «flettet»      |
-| pull request (PR) | Endringsforslag i Git                                                   |
-| review            | Gjennomgang — brukes som verb og substantiv                             |
-| skill             | Artefakttype i en agentpakke — ikke oversett                            |
-| sandbox           | Isoleringsmiljø for agenter (cplt)                                      |
-| tokens            | Tekstenheter AI-modellen bruker (ca. 1 per 4 tegn)                      |
-| prompt injection  | Angrepsteknikk mot AI-agenter                                           |
-| org policy        | Organisasjonsnivå-regler i GitHub                                       |
-| inference context | Data sendt til AI-modellen for behandling                               |
+| Engelsk           | Kommentar                                                                    |
+| ----------------- | ---------------------------------------------------------------------------- |
+| AI Credits        | GitHubs navn på faktureringsenheten. Skriv «AI Credits», ikke «AI-kreditter» |
+| agent mode        | Copilots agent-modus — ikke oversett                                         |
+| ask mode          | Copilots spørremodus — ikke oversett                                         |
+| branch            | Git-gren. Skriv branch, ikke gren. Bøyes: branchen, brancher, branchene      |
+| chat              | Copilot Chat                                                                 |
+| CLI               | Command Line Interface                                                       |
+| code review       | Gjennomgang av kode i pull requests                                          |
+| commit            | Git-operasjon — brukes som verb og substantiv                                |
+| dashboard         | Visualiseringspanel (Grafana, statistikk)                                    |
+| GDPR              | EU-forordning for personvern                                                 |
+| inline            | Inline kodeforslag i editoren                                                |
+| merge             | Slå sammen en pull request. Bøyes: merget, mergede. Ikke «flettet»           |
+| pull request (PR) | Endringsforslag i Git                                                        |
+| review            | Gjennomgang — brukes som verb og substantiv                                  |
+| skill             | Artefakttype i en agentpakke — ikke oversett                                 |
+| sandbox           | Isoleringsmiljø for agenter (cplt)                                           |
+| tokens            | Tekstenheter AI-modellen bruker (ca. 1 per 4 tegn)                           |
+| prompt injection  | Angrepsteknikk mot AI-agenter                                                |
+| org policy        | Organisasjonsnivå-regler i GitHub                                            |
+| inference context | Data sendt til AI-modellen for behandling                                    |
 
 ## Agent-begreper
 
@@ -41,32 +42,33 @@ Begrepsavklaringer for agentisk KI. Disse termene beholder vi på engelsk der de
 
 ## Norske oversettelser
 
-| Engelsk              | Norsk               | Eksempel i UI                        |
-| -------------------- | ------------------- | ------------------------------------ |
-| acceptance rate      | aksepteringsrate    | «Aksepteringsrate: 32 %»             |
-| accepted             | akseptert           | «Aksepterte forslag»                 |
-| active users         | aktive brukere      | «Daglig aktive brukere»              |
-| adoption             | adopsjon            | Seksjonstittel: «Adopsjon»           |
-| code suggestions     | kodeforslag         | «Genererte forslag», «Kodeforslag»   |
-| daily                | daglig              | «Daglige CLI-brukere»                |
-| editor               | editor              | «Utviklingsverktøy» (i tab-tittel)   |
-| features             | funksjoner          | «Funksjonsbruk»                      |
-| generations          | genereringer        | «1 234 genereringer»                 |
-| interactions         | interaksjoner       | «Totale interaksjoner»               |
-| key metrics          | nøkkeltall          | Seksjonstittel: «Nøkkeltall»         |
-| lines of code        | kodelinjer          | «Kodelinjer foreslått vs akseptert»  |
-| monthly              | månedlig            | «Månedlig aktive brukere»            |
-| overview             | oversikt            | Tab: «Oversikt»                      |
-| premium requests     | premiumforespørsler | Tab: «Premiumforespørsler»           |
-| programming language | programmeringsspråk | «Statistikk for programmeringsspråk» |
-| ranking              | rangering           | Tabellkolonne: «Rangering»           |
-| requests             | forespørsler        | «CLI-forespørsler»                   |
-| sessions             | sesjoner            | «CLI-sesjoner»                       |
-| statistics           | statistikk          | Sidetittel: «Statistikk»             |
-| suggested            | foreslått           | «Foreslått lagt til»                 |
-| suggestions          | forslag             | «Copilot review-forslag»             |
-| token usage          | tokenforbruk        | Undertittel: «Tokenforbruk»          |
-| trend                | trend               | «Adopsjonstrender»                   |
+| Engelsk              | Norsk               | Eksempel i UI                                                                  |
+| -------------------- | ------------------- | ------------------------------------------------------------------------------ |
+| acceptance rate      | aksepteringsrate    | «Aksepteringsrate: 32 %»                                                       |
+| accepted             | akseptert           | «Aksepterte forslag»                                                           |
+| active users         | aktive brukere      | «Daglig aktive brukere»                                                        |
+| adoption             | adopsjon            | Seksjonstittel: «Adopsjon»                                                     |
+| code suggestions     | kodeforslag         | «Genererte forslag», «Kodeforslag»                                             |
+| daily                | daglig              | «Daglige CLI-brukere»                                                          |
+| editor               | editor              | «Utviklingsverktøy»                                                            |
+| features             | funksjoner          | «Funksjonsbruk»                                                                |
+| generations          | genereringer        | «1 234 genereringer»                                                           |
+| interactions         | interaksjoner       | «Totale interaksjoner»                                                         |
+| key metrics          | nøkkeltall          | Seksjonstittel: «Nøkkeltall»                                                   |
+| lines of code        | kodelinjer          | «Kodelinjer foreslått vs akseptert»                                            |
+| monthly              | månedlig            | «Månedlig aktive brukere»                                                      |
+| overview             | oversikt            | Seksjon: «Oversikt»                                                            |
+| premium requests     | premiumforespørsler | «Premiumforespørsler»                                                          |
+| programming language | programmeringsspråk | «Statistikk for programmeringsspråk»                                           |
+| ranking              | rangering           | Tabellkolonne: «Rangering»                                                     |
+| requests             | forespørsler        | «CLI-forespørsler»                                                             |
+| repository           | repo                | «Repoer med tilpasninger». Bøyes: repoet, repoer, repoene. Ikke «repositorium» |
+| sessions             | sesjoner            | «CLI-sesjoner»                                                                 |
+| statistics           | statistikk          | Sidetittel: «Statistikk»                                                       |
+| suggested            | foreslått           | «Foreslått lagt til»                                                           |
+| suggestions          | forslag             | «Copilot review-forslag»                                                       |
+| token usage          | tokenforbruk        | Undertittel: «Tokenforbruk»                                                    |
+| trend                | trend               | «Adopsjonstrender»                                                             |
 
 ## Verktøykatalog
 

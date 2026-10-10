@@ -44,7 +44,7 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
   if (!data || data.length === 0) {
     return (
       <div className={chartWrapperClass}>
-        <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>
+        <BodyShort>{NO_DATA_MESSAGE}</BodyShort>
       </div>
     );
   }
@@ -123,7 +123,7 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
   return (
     <div className={chartWrapperClass}>
       <Line data={chartData} options={options} />
-      <BodyShort size="small" className="text-gray-600" style={{ marginTop: "var(--a-spacing-2)" }}>
+      <BodyShort size="small" textColor="subtle">
         Faser med færre enn fem brukere i snitt en uke er skjult.
       </BodyShort>
     </div>

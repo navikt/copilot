@@ -1,5 +1,6 @@
 import { BodyLong, BodyShort, Box, VStack } from "@navikt/ds-react";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { formatDate } from "@/lib/format";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { PageHero } from "@/components/page-hero";
 
@@ -19,19 +20,27 @@ export function InsightSection({ id, title, children }: { id: string; title: str
   );
 }
 
+async function UpdatedDate({ date }: { date: () => Promise<string | null | undefined> }) {
+  const value = await date().catch(() => null);
+  return value ? formatDate(value) : "kunne ikke hentes";
+}
+
 export function InsightPage({
   title,
   description,
   intro,
   updated,
+  hourly = false,
   source,
   children,
 }: {
   title: string;
   description: string;
   intro: ReactNode;
-  /** Shown after «Sist oppdatert:». */
-  updated: ReactNode;
+  /** Resolves to the date the numbers are from (ISO date or timestamp). Shown as «Sist oppdatert: 3. oktober 2026.» */
+  updated: () => Promise<string | null | undefined>;
+  /** Adds «Tallene hentes på nytt hver time.» */
+  hourly?: boolean;
   /** Data view or endpoint and time window. */
   source: ReactNode;
   children: ReactNode;
@@ -48,12 +57,16 @@ export function InsightPage({
             <VStack gap="space-8">
               <BodyLong>{intro}</BodyLong>
               <BodyShort size="small" textColor="subtle">
-                Sist oppdatert: {updated}
+                Sist oppdatert:{" "}
+                <Suspense fallback="henter …">
+                  <UpdatedDate date={updated} />
+                </Suspense>
+                .{hourly && " Tallene hentes på nytt hver time."}
               </BodyShort>
             </VStack>
             {children}
             <InsightSection id="kilde-og-metode" title="Kilde og metode">
-              <BodyLong>{source}</BodyLong>
+              <BodyLong as="div">{source}</BodyLong>
             </InsightSection>
           </VStack>
         </Box>
