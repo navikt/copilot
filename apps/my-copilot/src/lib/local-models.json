@@ -431,6 +431,28 @@
         "headline": null
       },
       {
+        "id": "2026-10-10-k2-ifm/report",
+        "title": "K2-Horizon with the ifm tool parser",
+        "date": "2026-10-10",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-10-k2-ifm/report.md",
+        "verdict": "fail",
+        "headline": {
+          "k": 0,
+          "n": 80
+        }
+      },
+      {
+        "id": "2026-10-10-gap-fill/report",
+        "title": "create-file base vs retry2 on the same harness",
+        "date": "2026-10-10",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-10-gap-fill/report.md",
+        "verdict": "fail",
+        "headline": {
+          "k": 26,
+          "n": 40
+        }
+      },
+      {
         "id": "2026-10-09-new-candidates/report",
         "title": "K2-Horizon MoVA as a local candidate",
         "date": "2026-10-09",

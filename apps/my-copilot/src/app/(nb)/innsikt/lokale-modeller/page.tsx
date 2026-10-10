@@ -140,6 +140,19 @@ function ReportsSection({ index }: { index: ReportIndex }) {
         og oppdateres hver time.
       </BodyLong>
       <ReportTimeline index={index} listUrl={SOURCES.readme} />
+      <BodyShort size="small">
+        K2-Horizon ble avvist i første runde fordi ingen av de 40 forsøkene ga et verktøykall som nav-pilot kunne lese.
+        Med en ny parser (
+        <a href="https://github.com/navikt/mlx-workspace/pull/184" className={linkClass}>
+          mlx-workspace#184
+        </a>
+        ) besto den 0 av 80 oppgaver. Parseren leser fortsatt navnet på verktøyet feil, og 74 prosent av kallene gikk
+        til et verktøy som ikke finnes. Vi tester modellen igjen først når parseren består en enhetstest (
+        <a href={SOURCES.k2Ifm} className={linkClass}>
+          målingen 10. oktober 2026
+        </a>
+        ).
+      </BodyShort>
       {index.unmeasured.length > 0 && (
         <VStack gap="space-8">
           <LinkableHeading id="ikke-malt" size="small" level="3">
@@ -150,15 +163,6 @@ function ReportsSection({ index }: { index: ReportIndex }) {
             som endrer lokal modus (
             <a href={SOURCES.benchmarking} className={linkClass}>
               BENCHMARKING.md
-            </a>
-            ). K2-Horizon ble avvist i første runde fordi ingen av de 40 forsøkene ga et verktøykall som nav-pilot kunne
-            lese. En parser er nå lagt til (
-            <a href="https://github.com/navikt/mlx-workspace/pull/184" className={linkClass}>
-              mlx-workspace#184
-            </a>
-            ), og modellen testes på nytt (
-            <a href={SOURCES.newCandidates} className={linkClass}>
-              nye kandidater
             </a>
             ).
           </BodyShort>
@@ -309,9 +313,12 @@ export default function LokaleModeller() {
                   <a href={SOURCES.cfRetry2} className={linkClass}>
                     9. oktober 2026
                   </a>{" "}
-                  ga 10 av 10 på de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Vi hadde også
-                  endret testoppsettet, så vi vet ikke ennå hvor mye retry2 alene bidro. En måling som skiller effekten
-                  av retry2, pågår.
+                  ga 10 av 10 på de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Uten retry2 ga{" "}
+                  <a href={SOURCES.gapFill} className={linkClass}>
+                    samme oppsett 10. oktober 2026
+                  </a>{" "}
+                  26 av 40, mot 37 av 40 med retry2. Usikkerhetsintervallene (95 prosent) overlapper ikke. Gevinsten
+                  kommer altså fra retry2, og vi beholder det.
                 </li>
               </Bullets>
               <BodyShort size="small" textColor="subtle">
@@ -354,9 +361,13 @@ export default function LokaleModeller() {
                 store mekaniske endringer kan den lokale modellen være raskere.
               </BodyLong>
               <BodyShort size="small" textColor="subtle">
-                Målt {formatDate("2026-09-25")} og {formatDate(WORKER_RESULTS.measured)}, nye filer med retry2{" "}
+                Målt {formatDate("2026-09-25")} og {formatDate("2026-09-26")}, nye filer med retry2{" "}
                 <a href={SOURCES.cfRetry2} className={linkClass}>
                   {formatDate("2026-10-09")}
+                </a>{" "}
+                og uten retry2{" "}
+                <a href={SOURCES.gapFill} className={linkClass}>
+                  {formatDate("2026-10-10")}
                 </a>
                 . Se{" "}
                 <a href={SOURCES.night1} className={linkClass}>

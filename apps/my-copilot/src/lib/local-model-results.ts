@@ -25,6 +25,8 @@ export const SOURCES = {
   emm8: `${MLX_WORKSPACE}/reports/2026-09-30-emm8-delegate/report.md`,
   smallDelegate: `${MLX_WORKSPACE}/reports/2026-10-10-small-delegate/report.md`,
   prAudit: `${MLX_WORKSPACE}/reports/2026-10-09-navikt-pr-audit/report.md`,
+  gapFill: `${MLX_WORKSPACE}/reports/2026-10-10-gap-fill/report.md`,
+  k2Ifm: `${MLX_WORKSPACE}/reports/2026-10-10-k2-ifm/report.md`,
   newCandidates: `${MLX_WORKSPACE}/reports/2026-10-09-new-candidates/report.md`,
   costRule: "https://github.com/navikt/mlx-workspace/pull/171",
   benchmarking: `${MLX_WORKSPACE}/BENCHMARKING.md#when-we-benchmark`,
@@ -81,7 +83,7 @@ export const DELEGATION_RANGES: DelegationRange[] = [
 ];
 
 export const WORKER_RESULTS: ResultSet = {
-  measured: "2026-09-26",
+  measured: "2026-10-10",
   source: SOURCES.night2,
   rows: [
     {
@@ -103,7 +105,7 @@ export const WORKER_RESULTS: ResultSet = {
     {
       task: "Lage en ny fil, med retry2",
       result:
-        "9. oktober 2026: 10 av 10 på hvert av de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Trinn 3 ga også 10 av 10, men er ikke avgjort ennå. Trinn 4 ga 7 og 5 av 10, og alle feilene var tidsavbrudd.",
+        "9. oktober 2026: 10 av 10 på hvert av de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Trinn 3 ga også 10 av 10, men er ikke avgjort ennå. Trinn 4 ga 7 og 5 av 10, og alle feilene var tidsavbrudd. Uten retry2 ga samme oppsett 26 av 40 10. oktober 2026.",
       verdict: "Godkjent lokalt på de to letteste trinnene",
     },
     { task: "Svare på spørsmål om kodebasen", result: "18 av 40 (skymodellen: 40 av 40)", verdict: "Blir i skyen" },
