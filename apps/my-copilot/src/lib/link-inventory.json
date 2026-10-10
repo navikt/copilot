@@ -2590,6 +2590,7 @@
       "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/page-hero.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
       "docs/news/articles/claude-tekstvannmerking.md"
     ],

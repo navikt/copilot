@@ -18,7 +18,7 @@ const TIPS: Tip[] = [
   },
   {
     text: "Tenk i to akser før du gir agenten fritt spillerom: hvor godt kjenner du koden, og hvor mye skade kan en feil gjøre? Lite kjent kode eller høy risiko betyr små steg og nøye gjennomgang.",
-    href: "/praksis/guide/styrker-og-farer",
+    href: "/retningslinjer",
     label: "Læring og risiko",
   },
   {
