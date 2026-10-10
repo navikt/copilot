@@ -75,7 +75,7 @@ func startFakeMLX(t testing.TB, queued bool) string {
 	}
 	script := "from mlx_lm.server import main; main()"
 	if queued {
-		script = serverScript()
+		script = serverScript(Model{})
 	}
 	cmd := exec.Command(py, "-c", script, "--port", strconv.Itoa(port))
 	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Dir(pkg))

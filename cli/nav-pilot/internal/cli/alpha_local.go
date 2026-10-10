@@ -295,7 +295,7 @@ func cmdLocalInit(args []string) error {
 		return err
 	}
 
-	present, err := local.WeightsPresent(model.Model)
+	present, err := local.WeightsPresent(model.Model, model.Revision)
 	if err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ func cmdLocalInit(args []string) error {
 		fmt.Printf("%s Weights already on disk. Nothing downloaded.\n", green("✓"))
 	} else {
 		fmt.Printf("%s Downloading weights…\n", dim("→"))
-		if err := local.DownloadWeights(ctx, model.Model, progressLine); err != nil {
+		if err := local.DownloadWeights(ctx, model.Model, model.Revision, progressLine); err != nil {
 			fmt.Println()
 			return err
 		}
@@ -580,7 +580,7 @@ func cmdLocalStart() error {
 	// screen saying so, and either finishes inside readyTimeout as a start that
 	// looks pathologically slow or dies at ten minutes naming neither cause.
 	// The autostart path has always refused this; `start` only claimed to.
-	if present, err := local.WeightsPresent(model.Model); err != nil {
+	if present, err := local.WeightsPresent(model.Model, model.Revision); err != nil {
 		return err
 	} else if !present {
 		return fmt.Errorf("the weights for %s are not on this machine. Download them: %s",

@@ -110,8 +110,8 @@ func (m *Manifest) ReplacedIDs() []string {
 // weights while they are here and the replacement's are not, so a replacement
 // never turns a working start into a download.
 func keepLegacy(old, repl Model) bool {
-	oldHere, _ := WeightsPresent(old.Model)
-	replHere, _ := WeightsPresent(repl.Model)
+	oldHere, _ := WeightsPresent(old.Model, old.Revision)
+	replHere, _ := WeightsPresent(repl.Model, repl.Revision)
 	return oldHere && !replHere
 }
 
