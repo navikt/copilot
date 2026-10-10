@@ -151,8 +151,8 @@ function ReportsSection({ index }: { index: ReportIndex }) {
             <a href={SOURCES.benchmarking} className={linkClass}>
               BENCHMARKING.md
             </a>
-            ). K2-Horizon ble avvist fordi ingen av verktøykallene lot seg lese (0 av 40). En retting av parseren venter
-            på ny test (
+            ). Vi avviste K2-Horizon fordi ingen av de 40 forsøkene ga et verktøykall som nav-pilot kunne lese. Modellen
+            testes på nytt bare hvis noen tilpasser parseren (
             <a href={SOURCES.newCandidates} className={linkClass}>
               nye kandidater
             </a>
@@ -305,8 +305,8 @@ export default function LokaleModeller() {
                   <a href={SOURCES.cfRetry2} className={linkClass}>
                     9. oktober 2026
                   </a>{" "}
-                  ga 10 av 10 på de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Testoppsettet var
-                  også endret, så hvor mye retry2 alene bidro, er ikke målt.
+                  ga 10 av 10 på de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Vi hadde også
+                  endret testoppsettet, så vi vet ikke hvor mye retry2 alene bidro.
                 </li>
               </Bullets>
               <BodyShort size="small" textColor="subtle">

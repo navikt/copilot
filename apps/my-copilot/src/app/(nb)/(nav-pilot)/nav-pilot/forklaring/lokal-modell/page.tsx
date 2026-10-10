@@ -132,8 +132,8 @@ export default function LokalModellForklaring() {
               ).
             </li>
             <li>
-              Å delegere små oppgaver som bare skriver tester, kostet 1,3–1,5 ganger så mye som skyen. Endringer på én
-              linje ble aldri delegert (0 av 32) (
+              Delegering av små oppgaver som bare skriver tester, kostet 1,3–1,5 ganger så mye som skyen. Endringer på
+              én linje ble aldri delegert (0 av 32) (
               <a href={SOURCES.smallDelegate} className={linkClass}>
                 10. oktober
               </a>
