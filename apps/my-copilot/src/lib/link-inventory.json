@@ -245,7 +245,8 @@
       "apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"
     ],
     "anchors": {
-      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"]
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "team-adopsjon": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"]
     }
   },
   "/install/agent": {

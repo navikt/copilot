@@ -26,7 +26,7 @@ import {
 } from "@/lib/trends";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
 import { Events, PeriodSelect } from "./controls";
-import { Intensity, Movement, SegmentChanges, TeamAdoption, WayOfWorking } from "./segments";
+import { Intensity, Movement, SegmentChanges, WayOfWorking } from "./segments";
 
 export const metadata: Metadata = {
   title: "Trender",
@@ -184,7 +184,7 @@ export default async function TrenderPage({
     <InsightPage
       title="Trender"
       description="Copilot i Nav måned for måned."
-      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, hvor utbredt den er i teamene, og hvor mange nye brukere som fortsetter. Nederst ser du kostnad per modellfamilie, AI Credits per bruker og Copilot i pull requests. Ingen personer eller team navngis. Hver graf starter der dataene starter."
+      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, og hvor mange nye brukere som fortsetter. Nederst ser du kostnad per modellfamilie, AI Credits per bruker og Copilot i pull requests. Ingen personer eller team navngis. Hver graf starter der dataene starter."
       updated={async () => (await getDailySummary(token)).summary?.date}
       hourly
       source={
@@ -220,9 +220,6 @@ export default async function TrenderPage({
       </Section>
       <Section id="arbeidsmate" title="Brukere etter arbeidsmåte">
         <WayOfWorking {...props} />
-      </Section>
-      <Section id="team-adopsjon" title="Team etter andel aktive medlemmer">
-        <TeamAdoption {...props} />
       </Section>
       <Section id="kohorter" title="Blir brukerne værende?">
         <Cohorts token={token} start={start} />
