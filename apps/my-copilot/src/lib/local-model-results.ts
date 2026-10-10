@@ -83,7 +83,7 @@ export const DELEGATION_RANGES: DelegationRange[] = [
 ];
 
 export const WORKER_RESULTS: ResultSet = {
-  measured: "2026-09-26",
+  measured: "2026-10-10",
   source: SOURCES.night2,
   rows: [
     {
