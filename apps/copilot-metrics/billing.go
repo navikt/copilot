@@ -202,10 +202,18 @@ func NewBillingClient(token, enterprise string) *BillingClient {
 	}
 }
 
-// FetchUserAICreditUsage returns the billed gross and net by SKU for one user and month.
-func (c *BillingClient) FetchUserAICreditUsage(ctx context.Context, login string, month time.Time) (*BillingUsageResponse, error) {
-	endpoint := fmt.Sprintf("https://api.github.com/enterprises/%s/settings/billing/ai_credit/usage?year=%d&month=%d&user=%s",
-		c.enterprise, month.Year(), month.Month(), url.QueryEscape(login))
+// aiCreditStart is the first month GitHub billed Copilot as AI credits.
+// Earlier months were billed as premium requests on a separate endpoint.
+var aiCreditStart = time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+
+// FetchUserBillingUsage returns the billed gross and net by SKU for one user and month.
+func (c *BillingClient) FetchUserBillingUsage(ctx context.Context, login string, month time.Time) (*BillingUsageResponse, error) {
+	product := "ai_credit"
+	if month.Before(aiCreditStart) {
+		product = "premium_request"
+	}
+	endpoint := fmt.Sprintf("https://api.github.com/enterprises/%s/settings/billing/%s/usage?year=%d&month=%d&user=%s",
+		c.enterprise, product, month.Year(), month.Month(), url.QueryEscape(login))
 	var result BillingUsageResponse
 	if err := c.request(ctx, endpoint, &result); err != nil {
 		return nil, err

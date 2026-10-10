@@ -158,15 +158,18 @@ WITH completed AS (
  FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND status='complete'
 ), billed AS (
  SELECT user_id, SUM(net_amount) net
- FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND user_id!='' AND sku IN ('Copilot AI Credits','Copilot Cloud Agent')
+ FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND user_id!='' AND sku IN UNNEST(@skus)
  GROUP BY user_id
 ), usage_days AS (
  SELECT day,JSON_VALUE(raw_record,'$.user_id') user_id,
-   COALESCE(SAFE_CAST(JSON_VALUE(raw_record,'$.ai_credits_used') AS FLOAT64),0) gross
+   SAFE_CAST(JSON_VALUE(raw_record,'$.ai_credits_used') AS FLOAT64) gross
  FROM %s WHERE day>=DATE(@month) AND day<DATE_ADD(DATE(@month),INTERVAL 1 MONTH)
    AND scope='enterprise' AND scope_id='nav'
 ), weighted AS (
- SELECT u.day,u.user_id,b.net * SAFE_DIVIDE(u.gross,SUM(u.gross) OVER(PARTITION BY u.user_id)) net
+ -- Before June 2026 user_metrics has no ai_credits_used; spread net evenly over active days.
+ SELECT u.day,u.user_id,b.net * IF(COUNT(u.gross) OVER(PARTITION BY u.user_id)=0,
+   1/COUNT(*) OVER(PARTITION BY u.user_id),
+   SAFE_DIVIDE(IFNULL(u.gross,0),SUM(u.gross) OVER(PARTITION BY u.user_id))) net
  FROM usage_days u JOIN billed b USING(user_id)
 ), daily AS (
  SELECT day,user_id,net FROM weighted WHERE net IS NOT NULL
@@ -201,14 +204,14 @@ WITH completed AS (
  SELECT COALESCE(SUM(net),0) net FROM billed
 ), no_usage AS (
  SELECT COALESCE(SUM(b.net),0) net FROM billed b
- WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.gross>0)
+ WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND IFNULL(u.gross>0,TRUE))
 ), enterprise_snapshot AS (
- SELECT COUNTIF(sku='done') markers,COALESCE(SUM(IF(sku IN ('Copilot AI Credits','Copilot Cloud Agent'),net_amount,0)),0) net
+ SELECT COUNTIF(sku='done') markers,COALESCE(SUM(IF(sku IN UNNEST(@skus),net_amount,0)),0) net
  FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND user_id=''
 ), enterprise AS (
  SELECT COALESCE(SUM(net_amount),0) net FROM %s
  WHERE day>=DATE(@month) AND day<DATE_ADD(DATE(@month),INTERVAL 1 MONTH)
- AND scope_id='nav' AND product='Copilot' AND sku IN ('Copilot AI Credits','Copilot Cloud Agent')
+ AND scope_id='nav' AND product='Copilot' AND sku IN UNNEST(@skus)
 )
 SELECT IFNULL(t.team_id,'') team_id,IFNULL(t.team_slug,'') team_slug,
  IFNULL(t.users,0) users,IFNULL(t.net,0) net,
@@ -224,7 +227,7 @@ WHERE c.loaded_at IS NOT NULL ORDER BY t.team_slug`,
 		bq.tableRef(bq.metricsDataset, "user_teams"),
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly"),
 		bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")))
-	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month + "-01"}, {Name: "minUsers", Value: minTeamContributors}}
+	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month + "-01"}, {Name: "minUsers", Value: minTeamContributors}, {Name: "skus", Value: teamNetSKUs}}
 	// The billing table is only created when an operator starts a backfill.
 	if _, err := bq.client.Dataset(bq.metricsDataset).Table("billing_user_monthly_runs").Metadata(ctx); err != nil {
 		var apiErr *googleapi.Error
@@ -251,6 +254,9 @@ func (c *CachedBigQueryClient) GetTeamNetOverview(ctx context.Context, month str
 		return c.client.GetTeamNetOverview(ctx, month)
 	})
 }
+
+// teamNetSKUs covers AI-credit months and the premium-request months before June 2026.
+var teamNetSKUs = []string{"Copilot AI Credits", "Copilot Cloud Agent", "Copilot Premium Request", "Coding Agent Premium Request"}
 
 const minTeamContributors = 5
 
@@ -352,7 +358,7 @@ SELECT IFNULL(c.team_id, '') team_id, IFNULL(c.team_slug, '') team_slug,
 FROM summary s CROSS JOIN hidden h
 CROSS JOIN totals o CROSS JOIN unassigned a
 LEFT JOIN team_counts c ON c.users >= @minUsers ORDER BY c.team_slug`, bq.tableRef(bq.metricsDataset, "user_metrics"), bq.tableRef(bq.metricsDataset, "user_teams")))
-	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month + "-01"}, {Name: "minUsers", Value: minTeamContributors}}
+	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month + "-01"}, {Name: "minUsers", Value: minTeamContributors}, {Name: "skus", Value: teamNetSKUs}}
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read team gross usage: %w", err)
