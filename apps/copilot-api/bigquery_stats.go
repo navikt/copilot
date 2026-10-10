@@ -1142,7 +1142,7 @@ func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]A
       HAVING phase IS NOT NULL
       ORDER BY day, phase
     `, metricsRef)
-	// handleAdoptionCohorts suppresses small cells: complementary suppression needs every cell of the day.
+	// handleAdoptionCohorts averages these into weeks, then suppresses small cells on the weekly grain.
 	query := bq.client.Query(queryStr)
 	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}}
 	it, err := query.Read(ctx)
@@ -1152,28 +1152,69 @@ func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]A
 	return readAllRows[AdoptionCohortDay](it)
 }
 
-// suppressSmallCohorts drops phase cells with fewer than minUsersForDistribution
-// users. Phase counts on a day add up to that day's active users, which other
-// endpoints show, so a lone hidden cell could be recovered by subtraction. While
-// the hidden cells of a day sum to 1-4 users, the smallest visible cell is hidden too.
-func suppressSmallCohorts(rows []AdoptionCohortDay) []AdoptionCohortDay {
-	byDay := map[civil.Date][]int{}
+// AdoptionCohortWeek is the weekly average number of users in an adoption phase,
+// the grain the /innsikt/bruk chart displays. Week is the Monday of the ISO week.
+type AdoptionCohortWeek struct {
+	Week      civil.Date `json:"week"`
+	Phase     int64      `json:"phase"`
+	UserCount int64      `json:"user_count"`
+	avg       float64    // unrounded; suppression decides on this, not on UserCount
+}
+
+// weeklyCohorts averages daily phase counts per ISO week. The divisor is the
+// number of days in the week that have data, so a phase absent on a day counts as 0.
+func weeklyCohorts(rows []AdoptionCohortDay) []AdoptionCohortWeek {
+	type key struct {
+		week  civil.Date
+		phase int64
+	}
+	sums := map[key]int64{}
+	days := map[civil.Date]map[civil.Date]bool{}
+	for _, r := range rows {
+		t := r.Day.In(time.UTC)
+		week := civil.DateOf(t.AddDate(0, 0, -(int(t.Weekday())+6)%7))
+		sums[key{week, r.Phase}] += r.UserCount
+		if days[week] == nil {
+			days[week] = map[civil.Date]bool{}
+		}
+		days[week][r.Day] = true
+	}
+	out := make([]AdoptionCohortWeek, 0, len(sums))
+	for k, sum := range sums {
+		avg := float64(sum) / float64(len(days[k.week]))
+		out = append(out, AdoptionCohortWeek{Week: k.week, Phase: k.phase, UserCount: int64(math.Round(avg)), avg: avg})
+	}
+	slices.SortFunc(out, func(a, b AdoptionCohortWeek) int {
+		if c := a.Week.Compare(b.Week); c != 0 {
+			return c
+		}
+		return int(a.Phase - b.Phase)
+	})
+	return out
+}
+
+// suppressSmallCohorts drops weekly phase cells with fewer than minUsersForDistribution
+// users. Phase counts in a week add up to that week's average active users, so a
+// lone hidden cell could be recovered by subtraction. While the hidden cells of a
+// week sum to 1-4 users, the smallest visible cell is hidden too.
+func suppressSmallCohorts(rows []AdoptionCohortWeek) []AdoptionCohortWeek {
+	byWeek := map[civil.Date][]int{}
 	for i, r := range rows {
-		byDay[r.Day] = append(byDay[r.Day], i)
+		byWeek[r.Week] = append(byWeek[r.Week], i)
 	}
 	hidden := make([]bool, len(rows))
-	for _, idx := range byDay {
-		var hiddenSum int64
+	for _, idx := range byWeek {
+		var hiddenSum float64
 		for _, i := range idx {
-			if rows[i].UserCount < minUsersForDistribution {
+			if rows[i].avg < minUsersForDistribution {
 				hidden[i] = true
-				hiddenSum += rows[i].UserCount
+				hiddenSum += rows[i].avg
 			}
 		}
 		for hiddenSum > 0 && hiddenSum < minUsersForDistribution {
 			smallest := -1
 			for _, i := range idx {
-				if !hidden[i] && (smallest < 0 || rows[i].UserCount < rows[smallest].UserCount) {
+				if !hidden[i] && (smallest < 0 || rows[i].avg < rows[smallest].avg) {
 					smallest = i
 				}
 			}
@@ -1181,10 +1222,10 @@ func suppressSmallCohorts(rows []AdoptionCohortDay) []AdoptionCohortDay {
 				break
 			}
 			hidden[smallest] = true
-			hiddenSum += rows[smallest].UserCount
+			hiddenSum += rows[smallest].avg
 		}
 	}
-	out := []AdoptionCohortDay{}
+	out := []AdoptionCohortWeek{}
 	for i, r := range rows {
 		if !hidden[i] {
 			out = append(out, r)

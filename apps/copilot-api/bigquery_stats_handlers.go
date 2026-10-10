@@ -311,7 +311,7 @@ func (h *BigQueryHandlers) handleAdoptionCohorts(w http.ResponseWriter, r *http.
 	}
 
 	cacheControl(w, 3600, false)
-	respondJSON(w, suppressSmallCohorts(cohorts), http.StatusOK)
+	respondJSON(w, suppressSmallCohorts(weeklyCohorts(cohorts)), http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleBillingMonthlyTrend(w http.ResponseWriter, r *http.Request) {
