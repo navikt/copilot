@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -12,6 +15,46 @@ const userBillingPause = 2 * time.Second
 
 type userBillingFetcher interface {
 	FetchUserAICreditUsage(context.Context, string, time.Time) (*BillingUsageResponse, error)
+	AccountDeleted(context.Context, string) (bool, error)
+}
+
+// billingUsers lists the month's users without bot accounts. GitHub answers a
+// bot login with another user name and no usage, which fails validation.
+func billingUsers(ctx context.Context, store userBillingStore, month time.Time, scope string) (map[string]string, error) {
+	users, err := store.GetBillingUsers(ctx, month, scope)
+	if err != nil {
+		return nil, err
+	}
+	bots := 0
+	for id, login := range users {
+		if strings.HasSuffix(strings.ToLower(login), "[bot]") {
+			delete(users, id)
+			bots++
+		}
+	}
+	if bots > 0 {
+		slog.Info("User billing excluded bot accounts", "month", month.Format("2006-01"), "bots", bots)
+	}
+	return users, nil
+}
+
+// deletedAccount reports whether a 404 for a login means the account is gone.
+// A renamed account also 404s on its old login but still resolves by id, so
+// that case and every other error are returned unchanged.
+func deletedAccount(ctx context.Context, client userBillingFetcher, id string, err error) (bool, error) {
+	var status *billingHTTPError
+	if !errors.As(err, &status) || status.Status != http.StatusNotFound {
+		return false, err
+	}
+	gone, lookupErr := client.AccountDeleted(ctx, id)
+	if lookupErr != nil {
+		return false, errors.Join(lookupErr, err) // lookup first: errors.As sees its status before the 404
+	}
+	if !gone {
+		return false, err
+	}
+	slog.Warn("User billing skipped deleted account", "user_id", id)
+	return true, nil
 }
 
 type userBillingStore interface {
@@ -36,7 +79,7 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 		slog.Info("User billing month already complete", "month", month.Format("2006-01"))
 		return nil
 	}
-	users, err := store.GetBillingUsers(ctx, month, cfg.EnterpriseSlug)
+	users, err := billingUsers(ctx, store, month, cfg.EnterpriseSlug)
 	if err != nil {
 		return fmt.Errorf("list billing users: %w", err)
 	}
@@ -49,6 +92,7 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	skipped := 0
 	for index, id := range ids {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -57,10 +101,12 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 			continue
 		}
 		response, err := client.FetchUserAICreditUsage(ctx, users[id], month)
-		if err != nil {
-			return fmt.Errorf("billing user %d/%d: %w", index+1, len(ids), err)
-		}
-		if err := validateUserBilling(response, users[id], cfg.EnterpriseSlug, month); err != nil {
+		if gone, goneErr := deletedAccount(ctx, client, id, err); goneErr != nil {
+			return fmt.Errorf("billing user %d/%d: %w", index+1, len(ids), goneErr)
+		} else if gone {
+			skipped++
+			response = &BillingUsageResponse{} // done marker only
+		} else if err := validateUserBilling(response, users[id], cfg.EnterpriseSlug, month); err != nil {
 			return fmt.Errorf("billing user %d/%d: %w", index+1, len(ids), err)
 		}
 		rows := billingRows(response, month, cfg.EnterpriseSlug, id, users[id])
@@ -82,5 +128,9 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 	if len(ids) == 0 {
 		return fmt.Errorf("no billing users for %s", month.Format("2006-01"))
 	}
-	return store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, len(ids))
+	if err := store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, len(ids)); err != nil {
+		return err
+	}
+	slog.Info("User billing month complete", "month", month.Format("2006-01"), "users", len(ids), "skipped_deleted", skipped)
+	return nil
 }

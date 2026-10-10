@@ -15,9 +15,40 @@ import (
 )
 
 type billingUserFetcherTest struct {
-	items []BillingUsageItem
-	calls int
-	err   error
+	items     []BillingUsageItem
+	calls     int
+	err       error
+	notFound  map[string]bool // logins that 404
+	deleted   map[string]bool // ids with no account
+	lookupErr error
+}
+
+func (f *billingUserFetcherTest) AccountDeleted(_ context.Context, id string) (bool, error) {
+	return f.deleted[id], f.lookupErr
+}
+
+func TestUserBillingSkipsOnlyDeletedAccounts(t *testing.T) {
+	month := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	items := []BillingUsageItem{{Product: "Copilot", SKU: "Copilot AI Credits", NetAmount: 2}}
+	store := &billingUserStoreTest{users: map[string]string{"1": "gone", "2": "one"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+	fetcher := &billingUserFetcherTest{items: items, notFound: map[string]bool{"gone": true}, deleted: map[string]bool{"1": true}}
+	if err := ingestUserBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, month); err != nil {
+		t.Fatal(err)
+	}
+	if !store.complete || !store.done["1"] || len(store.rows) != 3 || store.rows["2:Copilot AI Credits"].NetAmount != 2 {
+		t.Fatalf("deleted account not skipped with a marker only: %+v", store)
+	}
+	// Bot logins are not billed per user; GitHub answers with another name.
+	store = &billingUserStoreTest{users: map[string]string{"1": "one", "2": "Copilot-SWE-Agent[Bot]"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+	if err := ingestUserBillingMonth(context.Background(), &billingUserFetcherTest{items: items}, store, &Config{EnterpriseSlug: "nav"}, month); err != nil || store.done["2"] || !store.complete {
+		t.Fatalf("bot account fetched: %v %+v", err, store)
+	}
+	// A renamed account 404s on its old login but still exists: abort.
+	store = &billingUserStoreTest{users: map[string]string{"1": "renamed"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+	fetcher = &billingUserFetcherTest{items: items, notFound: map[string]bool{"renamed": true}}
+	if err := ingestUserBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, month); err == nil || store.complete || store.done["1"] {
+		t.Fatalf("renamed account skipped: %v %+v", err, store)
+	}
 }
 
 func TestUserBillingResponseBoundary(t *testing.T) {
@@ -106,6 +137,9 @@ func (f *billingUserFetcherTest) FetchUserAICreditUsage(_ context.Context, login
 	f.calls++
 	if f.err != nil {
 		return nil, f.err
+	}
+	if f.notFound[login] {
+		return nil, &billingHTTPError{Status: http.StatusNotFound}
 	}
 	result := &BillingUsageResponse{User: login, Enterprise: "nav", UsageItems: f.items}
 	result.TimePeriod.Year, result.TimePeriod.Month = month.Year(), int(month.Month())

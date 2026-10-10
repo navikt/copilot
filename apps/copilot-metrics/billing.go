@@ -99,6 +99,25 @@ func (c *BillingClient) request(ctx context.Context, endpoint string, result any
 	return nil
 }
 
+// AccountDeleted reports whether no GitHub account has this numeric id.
+func (c *BillingClient) AccountDeleted(ctx context.Context, id string) (bool, error) {
+	var user struct {
+		ID int64 `json:"id"`
+	}
+	err := c.request(ctx, "https://api.github.com/user/"+url.PathEscape(id), &user)
+	var status *billingHTTPError
+	if errors.As(err, &status) && status.Status == http.StatusNotFound {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if strconv.FormatInt(user.ID, 10) != id {
+		return false, fmt.Errorf("account lookup returned another id")
+	}
+	return false, nil
+}
+
 func (c *BillingClient) FetchUserID(ctx context.Context, login string) (string, error) {
 	var user struct {
 		ID    int64  `json:"id"`

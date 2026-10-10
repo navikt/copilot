@@ -159,7 +159,7 @@ func billingRows(response *BillingUsageResponse, month time.Time, scope, id, log
 }
 
 func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store billingSyncStore, cfg *Config, month time.Time, pause time.Duration) error {
-	users, err := store.GetBillingUsers(ctx, month, cfg.EnterpriseSlug)
+	users, err := billingUsers(ctx, store, month, cfg.EnterpriseSlug)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	unresolved := 0
+	unresolved, skipped := 0, 0
 	var failures []error
 	for _, id := range ids {
 		if done[id] {
@@ -196,6 +196,15 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 		case <-time.After(pause):
 		}
 		currentID, err := fetcher.FetchUserID(ctx, users[id])
+		gone, err := deletedAccount(ctx, fetcher, id, err)
+		if gone {
+			skipped++
+			if err := store.ReplaceUserBilling(ctx, billingRows(&BillingUsageResponse{}, month, cfg.EnterpriseSlug, id, users[id])); err != nil {
+				return errors.Join(append(failures, err)...)
+			}
+			done[id] = true
+			continue
+		}
 		if stopBillingSync(err) {
 			if len(failures) > 0 {
 				return errors.Join(append(failures, err)...)
@@ -240,7 +249,7 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 		return fmt.Errorf("%d users remain unresolved: %w", unresolved, errors.Join(failures...))
 	}
 	// Source repair may add users between invocations. Never publish a stale census.
-	latest, err := store.GetBillingUsers(ctx, month, cfg.EnterpriseSlug)
+	latest, err := billingUsers(ctx, store, month, cfg.EnterpriseSlug)
 	if err != nil {
 		return err
 	}
@@ -275,5 +284,9 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 	if err := store.ReplaceUserBilling(ctx, billingRows(enterprise, month, cfg.EnterpriseSlug, "", "")); err != nil {
 		return err
 	}
-	return store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, len(users))
+	if err := store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, len(users)); err != nil {
+		return err
+	}
+	slog.Info("User billing month complete", "month", month.Format("2006-01"), "users", len(users), "skipped_deleted", skipped)
+	return nil
 }
