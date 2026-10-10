@@ -146,17 +146,25 @@ function parseNewsFile(fileName: string): NewsItem {
   };
 }
 
-export function getNewsItems(options: GetNewsItemsOptions = {}): NewsItem[] {
-  if (!fs.existsSync(articlesDir)) return [];
+// The articles ship inside the image, so production parses them once instead of on
+// every front-page request. Dev re-reads so edits show up at once.
+let parsedItems: NewsItem[] | undefined;
 
-  const files = fs
+function readNewsItems(): NewsItem[] {
+  if (parsedItems) return parsedItems;
+  if (!fs.existsSync(articlesDir)) return [];
+  const items = fs
     .readdirSync(articlesDir)
     .filter((f) => f.endsWith(".md"))
-    .filter((f) => isValidSlug(f.replace(/\.md$/, "")));
-  return selectNewsItems(
-    files.map(parseNewsFile).filter((item) => !item.draft),
-    options
-  );
+    .filter((f) => isValidSlug(f.replace(/\.md$/, "")))
+    .map(parseNewsFile)
+    .filter((item) => !item.draft);
+  if (process.env.NODE_ENV === "production") parsedItems = items;
+  return items;
+}
+
+export function getNewsItems(options: GetNewsItemsOptions = {}): NewsItem[] {
+  return selectNewsItems(readNewsItems(), options);
 }
 
 export const SITE_URL = "https://ki-utvikling.nav.no";

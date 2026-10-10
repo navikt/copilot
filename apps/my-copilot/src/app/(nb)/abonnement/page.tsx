@@ -23,12 +23,16 @@ export default async function AbonnementPage() {
             <SubscriptionDetails user={user!} />
             <Suspense
               fallback={
-                <Box padding="space-16">
-                  <VStack gap="space-8">
-                    <Skeleton variant="text" width="12rem" />
-                    <Skeleton variant="rectangle" height="10rem" />
-                  </VStack>
-                </Box>
+                // Same outline as the chart below (heading, intro text, h-64 canvas), so nothing moves when it arrives.
+                <VStack gap="space-8">
+                  <Skeleton variant="text" width="12rem" />
+                  <div>
+                    <Skeleton variant="text" width="16rem" />
+                    <Skeleton variant="text" width="100%" />
+                    <Skeleton variant="text" width="60%" className="mb-8" />
+                    <Skeleton variant="rectangle" height="16rem" />
+                  </div>
+                </VStack>
               }
             >
               <UserDistribution email={user?.email} />
