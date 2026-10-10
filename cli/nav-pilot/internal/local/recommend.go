@@ -90,6 +90,8 @@ func (m *Manifest) legacy(id string) (old, repl Model, ok bool) {
 	}
 	old = repl
 	old.Key, old.Name, old.Model = id, id, id
+	// The pin names a commit of the replacement's repository, not this one.
+	old.Revision = ""
 	old.Default, old.Role, old.Expect, old.RecommendedFor = false, "", "", nil
 	old.Params = maps.Clone(repl.Params)
 	if old.Params != nil {

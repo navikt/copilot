@@ -74,3 +74,16 @@ func TestRevision(t *testing.T) {
 		t.Errorf("pinned serverScript does not carry the revision:\n%s", s[:160])
 	}
 }
+
+// A replaced id runs with the replacement's params, never its pin: the SHA
+// names a commit in the replacement's repository.
+func TestLegacyDropsRevision(t *testing.T) {
+	m := nudgeManifest(t, `,"revision":"`+testRev+`"`, replacedMap)
+	old, repl, ok := m.legacy(oldID)
+	if !ok {
+		t.Fatal("legacy() found no replacement")
+	}
+	if repl.Revision != testRev || old.Revision != "" {
+		t.Errorf("legacy() revisions = old %q, repl %q; want old empty, repl %q", old.Revision, repl.Revision, testRev)
+	}
+}
