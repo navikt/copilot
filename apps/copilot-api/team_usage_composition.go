@@ -43,7 +43,7 @@ func (bq *BigQueryClient) getTeamUsageComposition(ctx context.Context, month str
  SELECT m.team_id,d.dimension,d.label,SUM(d.activity) activity
  FROM dimensions d JOIN memberships m USING(day,user_id)
  WHERE d.activity>0 AND (d.dimension='model' OR (d.label IS NOT NULL AND d.label NOT IN ('others','unknown')))
- GROUP BY team_id,dimension,label HAVING dimension='model' OR COUNT(DISTINCT user_id)>=@minUsers
+ GROUP BY team_id,dimension,label HAVING COUNT(DISTINCT user_id)>=@minUsers
 ), ranked AS (
  SELECT *,ROW_NUMBER() OVER(PARTITION BY team_id,dimension ORDER BY activity DESC,label) rank FROM categories
 )

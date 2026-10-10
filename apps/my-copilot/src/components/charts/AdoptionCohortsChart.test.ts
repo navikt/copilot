@@ -79,7 +79,7 @@ describe("transformCohortData", () => {
     const result = transformCohortData(input);
 
     expect(result.days).toEqual(["2026-05-28", "2026-05-29"]);
-    expect(result.phase0).toEqual([50, 0]);
+    expect(result.phase0).toEqual([50, null]);
     expect(result.phase1).toEqual([200, 210]);
     expect(result.phase2).toEqual([100, 110]);
     expect(result.phase3).toEqual([30, 35]);
@@ -119,5 +119,22 @@ describe("transformCohortData", () => {
     const result = transformCohortData(input);
     expect(result.days).toEqual(["2026-05-28", "2026-05-30"]);
     expect(result.phase1).toEqual([3, 5]);
+  });
+
+  it("keeps a phase the API suppressed as null, not 0", () => {
+    const row = {
+      phase_version: "v1",
+      avg_generations: 1,
+      avg_acceptances: 1,
+      avg_interactions: 1,
+      avg_lines_added: 1,
+    };
+    const result = transformCohortData([
+      { ...row, day: "2026-05-28", phase: 0, user_count: 50 },
+      { ...row, day: "2026-05-28", phase: 3, user_count: 20 },
+    ]);
+    expect(result.phase1).toEqual([null]);
+    expect(result.phase2).toEqual([null]);
+    expect(result.total).toEqual([70]);
   });
 });
