@@ -3,7 +3,7 @@ import inventory from "@/lib/link-inventory.json";
 import { searchEntries, type SearchEntry } from "@/lib/site-search";
 import fs from "node:fs";
 import path from "node:path";
-import { PRIVATE_ROUTES } from "../../scripts/auto-login-ignore-paths.mjs";
+import { PRIVATE_PAGE_PATHS } from "@/proxy";
 
 const index = buildSearchIndex();
 const paths: Record<string, { anchors: Record<string, string[]> }> = inventory;
@@ -46,11 +46,10 @@ describe("search index", () => {
   });
 
   it("marks pages behind a login, headings included", () => {
-    for (const r of ["/abonnement", "/innsikt/bruk"]) {
-      expect(PRIVATE_ROUTES).toContain(r);
-      expect(index.find((e) => e.href === r)?.login).toBe(true);
-    }
-    expect(index.filter((e) => e.href.startsWith("/innsikt/bruk#")).every((e) => e.login)).toBe(true);
+    const under = (r: string) =>
+      index.filter((e) => e.href === r || (/^[/#]/.test(e.href.slice(r.length)) && e.href.startsWith(r)));
+    for (const r of PRIVATE_PAGE_PATHS) expect(under(r).filter((e) => !e.login)).toEqual([]);
+    expect(index.find((e) => e.href === "/abonnement")?.login).toBe(true);
     expect(index.find((e) => e.href === "/innsikt")?.login).toBeUndefined();
   });
 

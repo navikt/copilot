@@ -11,7 +11,7 @@ export type SearchEntry = {
   title: string;
   context: string;
   text?: string;
-  /** The page needs a login. The index holds its title and headings only. */
+  /** The page needs a login. The index holds its title, description and headings only. */
   login?: true;
 };
 

@@ -118,9 +118,12 @@ export function SiteSearch({ label }: { label: string }) {
 
   const choose = (hit: Hit) => {
     if (hit.copy) {
-      navigator.clipboard.writeText(hit.copy).then(
+      (navigator.clipboard?.writeText(hit.copy) ?? Promise.reject()).then(
         () => setCopied(true),
-        () => router.push(hit.href) // no clipboard: show the page with the command instead
+        () => {
+          setOpen(false);
+          router.push(hit.href);
+        } // no clipboard: show the page with the command instead
       );
       return;
     }
@@ -195,6 +198,7 @@ export function SiteSearch({ label }: { label: string }) {
               onChange={(v) => {
                 setQuery(v);
                 setActive(0);
+                setCopied(false);
               }}
               onKeyDown={(e) => {
                 if ((e.key === "ArrowDown" || e.key === "ArrowUp") && hits.length > 0) {

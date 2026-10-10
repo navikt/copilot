@@ -87,7 +87,7 @@ export function buildSearchIndex(): SearchEntry[] {
   // Every other static page, so a new page is found without a list to update.
   // Its context is the header link it sits under.
   const otherPages = [...pageDirs.keys()]
-    .filter((href) => !href.includes("[") && !menuPages.some((p) => p.href === href))
+    .filter((href) => !href.includes("[") && !href.startsWith("/nyheter/") && !menuPages.some((p) => p.href === href))
     .flatMap((href) => {
       const title = href === "/" ? "Forside" : pageTitle(pageDirs.get(href)!);
       const top = activeTop(href);
