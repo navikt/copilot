@@ -132,9 +132,6 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       <div className={chartBoxClass}>
         <Line data={chartData} options={options} />
       </div>
-      <BodyShort size="small" textColor="subtle">
-        Faser med færre enn fem brukere i snitt en uke er skjult.
-      </BodyShort>
     </Box>
   );
 };

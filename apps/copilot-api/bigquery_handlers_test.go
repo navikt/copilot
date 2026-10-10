@@ -94,7 +94,7 @@ func TestHandleUserSegments(t *testing.T) {
 		t.Fatalf("status %d", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{`"label":"Lett","shares":[50]`, `"label":"Minst 20","shares":[50]`} {
+	for _, want := range []string{`"label":"Lett","shares":[50]`, `"label":"Middels","shares":[48]`, `"label":"Tung","shares":[2]`} {
 		if !containsString(body, want) {
 			t.Errorf("body lacks %s: %s", want, body)
 		}

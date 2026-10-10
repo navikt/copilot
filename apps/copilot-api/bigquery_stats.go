@@ -996,7 +996,6 @@ type AdoptionCohortWeek struct {
 	Week      civil.Date `json:"week"`
 	Phase     int64      `json:"phase"`
 	UserCount int64      `json:"user_count"`
-	avg       float64    // unrounded; suppression decides on this, not on UserCount
 }
 
 // weeklyCohorts averages daily phase counts per ISO week. The divisor is the
@@ -1020,7 +1019,7 @@ func weeklyCohorts(rows []AdoptionCohortDay) []AdoptionCohortWeek {
 	out := make([]AdoptionCohortWeek, 0, len(sums))
 	for k, sum := range sums {
 		avg := float64(sum) / float64(len(days[k.week]))
-		out = append(out, AdoptionCohortWeek{Week: k.week, Phase: k.phase, UserCount: int64(math.Round(avg)), avg: avg})
+		out = append(out, AdoptionCohortWeek{Week: k.week, Phase: k.phase, UserCount: int64(math.Round(avg))})
 	}
 	slices.SortFunc(out, func(a, b AdoptionCohortWeek) int {
 		if c := a.Week.Compare(b.Week); c != 0 {
@@ -1028,47 +1027,6 @@ func weeklyCohorts(rows []AdoptionCohortDay) []AdoptionCohortWeek {
 		}
 		return int(a.Phase - b.Phase)
 	})
-	return out
-}
-
-// suppressSmallCohorts drops weekly phase cells with fewer than minUsersForDistribution
-// users. Phase counts in a week add up to that week's average active users, so a
-// lone hidden cell could be recovered by subtraction. While the hidden cells of a
-// week sum to 1-4 users, the smallest visible cell is hidden too.
-func suppressSmallCohorts(rows []AdoptionCohortWeek) []AdoptionCohortWeek {
-	byWeek := map[civil.Date][]int{}
-	for i, r := range rows {
-		byWeek[r.Week] = append(byWeek[r.Week], i)
-	}
-	hidden := make([]bool, len(rows))
-	for _, idx := range byWeek {
-		var hiddenSum float64
-		for _, i := range idx {
-			if rows[i].avg < minUsersForDistribution {
-				hidden[i] = true
-				hiddenSum += rows[i].avg
-			}
-		}
-		for hiddenSum > 0 && hiddenSum < minUsersForDistribution {
-			smallest := -1
-			for _, i := range idx {
-				if !hidden[i] && (smallest < 0 || rows[i].avg < rows[smallest].avg) {
-					smallest = i
-				}
-			}
-			if smallest < 0 {
-				break
-			}
-			hidden[smallest] = true
-			hiddenSum += rows[smallest].avg
-		}
-	}
-	out := []AdoptionCohortWeek{}
-	for i, r := range rows {
-		if !hidden[i] {
-			out = append(out, r)
-		}
-	}
 	return out
 }
 

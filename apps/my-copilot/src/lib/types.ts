@@ -427,8 +427,7 @@ export interface CohortRetention {
 
 /**
  * One segment chart from copilot-api, display-ready: whole-percent shares per band and month that sum to 100,
- * or null in every band when the month is hidden. A band under five is merged with a neighbour on the server,
- * so a band (such as «Under 60 %») can exist in some months only.
+ * or null in every band when the month has no data. The bands are fixed: no merging, also under five.
  */
 export interface SegmentChart {
   months: string[];

@@ -119,7 +119,7 @@ async function Cohorts({ token, start }: { token: string; start: string | null }
     <>
       <BodyShort size="small" textColor="subtle">
         Andelen av hver kohort som brukte Copilot igjen én, tre og seks måneder etter den første måneden. En strek betyr
-        at måneden ikke er over ennå. Kohorter med færre enn fem personer vises ikke.
+        at måneden ikke er over ennå.
       </BodyShort>
       <div className="min-w-0 overflow-x-auto">
         <Table size="small">
@@ -184,7 +184,7 @@ export default async function TrenderPage({
     <InsightPage
       title="Trender"
       description="Copilot i Nav måned for måned."
-      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, hvor utbredt den er i teamene, og hvor mange nye brukere som fortsetter. Nederst ser du kostnad per modellfamilie, AI Credits per bruker og Copilot i pull requests. Ingen personer eller team navngis, og grupper under fem vises ikke. Hver graf starter der dataene starter."
+      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, hvor utbredt den er i teamene, og hvor mange nye brukere som fortsetter. Nederst ser du kostnad per modellfamilie, AI Credits per bruker og Copilot i pull requests. Ingen personer eller team navngis. Hver graf starter der dataene starter."
       updated={async () => (await getDailySummary(token)).summary?.date}
       hourly
       source={
@@ -193,16 +193,16 @@ export default async function TrenderPage({
           <code>/billing/model-breakdown</code>), som gir høyst de siste 36 månedene, også med «Alt». AI Credits per
           bruker er median og snitt per måned av hver aktiv brukers <code>ai_credits_used</code> i{" "}
           <code>user_metrics</code> (<code>/usage/credits-per-user</code>). En bruker er aktiv når hen har brukt AI
-          Credits, chat eller kodeforslag i måneden, og måneder med færre enn fem brukere vises ikke. Pull requests er
-          summen over alle repoer unntatt private i <code>repository_metrics</code> (<code>/usage/copilot-prs</code>).
-          Den inneværende måneden er ikke ferdig. Hendelsene og bruddene i dataene står i «Hendelser» øverst på siden.
-          Kohortene (<code>/usage/cohort-retention</code>) grupperer brukerne etter måneden de første gang var aktive i{" "}
+          Credits, chat eller kodeforslag i måneden. Pull requests er summen over alle repoer unntatt private i{" "}
+          <code>repository_metrics</code> (<code>/usage/copilot-prs</code>). Den inneværende måneden er ikke ferdig.
+          Hendelsene og bruddene i dataene står i «Hendelser» øverst på siden. Kohortene (
+          <code>/usage/cohort-retention</code>) grupperer brukerne etter måneden de første gang var aktive i{" "}
           <code>user_metrics</code>, og viser hvor stor andel som var aktive igjen én, tre og seks måneder senere,
           avrundet til hele prosent. Oktober 2025 er ikke en ekte kohort: dataene starter 10. oktober, så vi kan ikke
           skille dem som brukte Copilot fra før, fra dem som var nye. Tallene regnes ut per person, men bare summene
-          vises, og kohorter med færre enn fem personer er utelatt. Perioden du velger, styrer hvilke kohorter som
-          vises. Segmentene (<code>/usage/segments</code>) har hver sin «Kilde og metode» under grafen. «Hva har endret
-          seg» regnes ut fra de samme tallene som grafene. «Sist oppdatert» er siste dag med bruksdata i
+          vises. Små grupper vises også, fordi ingen person eller team navngis. Perioden du velger, styrer hvilke
+          kohorter som vises. Segmentene (<code>/usage/segments</code>) har hver sin «Kilde og metode» under grafen.
+          «Hva har endret seg» regnes ut fra de samme tallene som grafene. «Sist oppdatert» er siste dag med bruksdata i
           <code>v_daily_summary</code>.
         </>
       }
