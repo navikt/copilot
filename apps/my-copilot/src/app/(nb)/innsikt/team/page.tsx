@@ -1,14 +1,27 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import type { Metadata } from "next";
-import { BodyShort, Box, Heading } from "@navikt/ds-react";
-import { PageHero } from "@/components/page-hero";
+import { BodyShort } from "@navikt/ds-react";
+import { InsightPage, InsightSection } from "@/components/insight-page";
 import TeamGrossUsage from "@/components/team-gross-usage";
 import ErrorState from "@/components/error-state";
 import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
 import { currentMonthUTC, daysInCalendarMonth, previousMonth, teamInsightMonth } from "@/lib/month-utils";
 import TeamControls from "@/components/team-controls";
+import { formatDate } from "@/lib/local-model-results";
 import TeamSpendSkeleton from "./team-spend-skeleton";
+
+// Shared by the section and «Sist oppdatert» so the no-store request runs once per render.
+const grossOverview = cache(getTeamGrossOverview);
+
+async function LastUsageDay({ month, token }: { month: string; token: string }) {
+  try {
+    const { last_usage_day } = await grossOverview(month, token);
+    return last_usage_day ? `siste dag med data er ${formatDate(last_usage_day)}` : "ingen data for denne måneden";
+  } catch {
+    return "kunne ikke hentes";
+  }
+}
 
 export const metadata: Metadata = {
   title: "Teaminnsikt",
@@ -18,7 +31,7 @@ export const metadata: Metadata = {
 async function TeamSpend({ month, token }: { month: string; token: string }) {
   let gross;
   try {
-    gross = await getTeamGrossOverview(month, token);
+    gross = await grossOverview(month, token);
   } catch (error) {
     console.error("[team] Gross usage failed:", error);
     return <ErrorState message="Kunne ikke hente teamenes brutto AI-bruk." />;
@@ -80,24 +93,31 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   if (!token) return <ErrorState message="Mangler innloggingstoken" />;
 
   return (
-    <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero title="Teaminnsikt" description="Copilot-bruk og kostnad per team i Nav." />
-      <Box
-        paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
-        paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-        className="max-w-7xl mx-auto"
-      >
-        <section aria-labelledby="teamkostnad">
-          <Heading id="teamkostnad" level="2" size="medium" spacing>
-            Kostnad og bruk
-          </Heading>
-          <TeamControls month={month}>
-            <Suspense key={month} fallback={<TeamSpendSkeleton />}>
-              <TeamSpend month={month} token={token} />
-            </Suspense>
-          </TeamControls>
-        </section>
-      </Box>
-    </main>
+    <InsightPage
+      title="Teaminnsikt"
+      description="Copilot-bruk og kostnad per team i Nav."
+      intro="Se hva hvert team bruker på Copilot i en måned, og hvordan det endrer seg fra forrige måned. Velg måned for å se tidligere tall."
+      updated={
+        <Suspense key={month} fallback="henter …">
+          <LastUsageDay month={month} token={token} />
+        </Suspense>
+      }
+      source={
+        <>
+          Brutto bruk kommer fra <code>/api/v1/copilot/usage/team-gross</code>, og fakturert forbruk fra{" "}
+          <code>/api/v1/copilot/usage/team-net</code>. Begge viser én kalendermåned, tidligst mai 2026. Brutto bruk
+          oppdateres daglig. Fakturert forbruk finnes først når måneden er avsluttet og fakturaen er lest inn, og
+          fordelingen på dager er et anslag. En person som er med i flere team, telles i hvert av dem.
+        </>
+      }
+    >
+      <InsightSection id="teamkostnad" title="Kostnad og bruk">
+        <TeamControls month={month}>
+          <Suspense key={month} fallback={<TeamSpendSkeleton />}>
+            <TeamSpend month={month} token={token} />
+          </Suspense>
+        </TeamControls>
+      </InsightSection>
+    </InsightPage>
   );
 }
