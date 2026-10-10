@@ -483,9 +483,9 @@ export interface UsageDistribution {
   num_users: number;
   total_licensed_seats: number;
   budget_credits: number;
-  credits_deciles: number[];
-  interactions_deciles: number[];
-  acceptances_deciles: number[];
+  credits_deciles: number[] | null;
+  interactions_deciles: number[] | null;
+  acceptances_deciles: number[] | null;
   credits_histogram: UsageHistogramBucket[];
 }
 

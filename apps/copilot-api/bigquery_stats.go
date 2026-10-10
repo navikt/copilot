@@ -732,7 +732,7 @@ func suppressSmallBuckets(buckets []UsageHistogramBucket) {
 
 // UsageDistribution is a privacy-preserving, aggregate-only view of how
 // Copilot usage is spread across all users in a given month: percentiles
-// (deciles) per metric plus a credits histogram. It never contains
+// (interior deciles, never min or max) per metric plus a credits histogram. It never contains
 // per-user identifiers.
 //
 // NumUsers counts every login with a user_metrics row in Month, including
@@ -867,11 +867,23 @@ func (bq *BigQueryClient) getUsageDistributionData(ctx context.Context, metricsR
 	row := rows[0]
 	suppressSmallBuckets(row.Histogram)
 	return &UsageDistribution{
-		CreditsDeciles:      row.Deciles.CreditsDeciles,
-		InteractionsDeciles: row.Deciles.InteractionsDeciles,
-		AcceptancesDeciles:  row.Deciles.AcceptancesDeciles,
+		CreditsDeciles:      interiorDeciles(row.Deciles.CreditsDeciles, row.Deciles.NumUsers),
+		InteractionsDeciles: interiorDeciles(row.Deciles.InteractionsDeciles, row.Deciles.NumUsers),
+		AcceptancesDeciles:  interiorDeciles(row.Deciles.AcceptancesDeciles, row.Deciles.NumUsers),
 		CreditsHistogram:    row.Histogram,
 	}, row.Deciles.NumUsers, nil
+}
+
+// interiorDeciles drops the first and last of the 11 values APPROX_QUANTILES
+// returns: they are the minimum and maximum, so they single out the heaviest
+// and lightest user. Every boundary is still some user's value, so it returns
+// nil unless each decile holds at least minUsersForDistribution people; then
+// at least that many people sit on each side of every boundary.
+func interiorDeciles[T any](q []T, numUsers int64) []T {
+	if len(q) != 11 || numUsers < 10*minUsersForDistribution {
+		return nil
+	}
+	return q[1:10]
 }
 
 func isValidYearMonth(v string) bool {
