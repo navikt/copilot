@@ -16,6 +16,10 @@ describe("period", () => {
 });
 
 describe("visibleMonths", () => {
+  it("keeps a month without data as a gap", () => {
+    expect(visibleMonths(["2026-06", "2026-08"], null).months).toEqual(["2026-06", "2026-07", "2026-08"]);
+  });
+
   it("clamps to the data start and says so", () => {
     expect(visibleMonths(["2026-07", "2026-06", "2026-08"], "2025-11")).toEqual({
       months: ["2026-06", "2026-07", "2026-08"],
@@ -50,8 +54,9 @@ describe("familyShares", () => {
       ],
       ["2026-07", "2026-08"]
     );
-    expect(result.months).toEqual(["2026-08"]);
-    expect(Object.fromEntries(result.series.map((s) => [s.family, s.shares[0]]))).toEqual({
+    expect(result.months).toEqual(["2026-07", "2026-08"]);
+    expect(result.series.every((s) => s.shares[0] === null)).toBe(true);
+    expect(Object.fromEntries(result.series.map((s) => [s.family, s.shares[1]]))).toEqual({
       claude_opus: 40,
       gpt_mini: 50,
       andre: 10,

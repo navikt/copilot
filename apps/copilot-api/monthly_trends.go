@@ -41,7 +41,7 @@ type CopilotPRMonth struct {
 
 // GetCreditsPerUserMonthly returns median and mean AI Credits per active user
 // per month. A user is active in a month with any credits, interactions or
-// code generations. Months with fewer than minUsersForDistribution users are
+// code generations, counted by the stable user_id. Months with fewer than minUsersForDistribution users are
 // left out (k-anonymity).
 func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error) {
 	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
@@ -49,13 +49,13 @@ func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]Credi
       WITH per_user AS (
         SELECT
           FORMAT_DATE('%%Y-%%m', day) AS month,
-          JSON_VALUE(raw_record, '$.user_login') AS user_login,
+          JSON_VALUE(raw_record, '$.user_id') AS user_id,
           SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0.0)) AS credits,
           SUM(COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)
             + COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64), 0)) AS activity
         FROM %s
         WHERE day >= DATE(@start) AND scope = 'enterprise'
-        GROUP BY month, user_login
+        GROUP BY month, user_id
       )
       SELECT
         month,

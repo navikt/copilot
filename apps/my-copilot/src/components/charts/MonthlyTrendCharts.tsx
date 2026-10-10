@@ -2,8 +2,9 @@
 
 import { Bar, Line } from "react-chartjs-2";
 import type { Plugin } from "chart.js";
-import { BodyShort } from "@navikt/ds-react";
+import { BodyShort, List } from "@navikt/ds-react";
 import { chartColors, commonLineOptions } from "@/lib/chart-utils";
+import { daysInCalendarMonth } from "@/lib/month-utils";
 import { monthLabel, type FamilyShares, type MonthAnnotation } from "@/lib/trends";
 import type { CopilotPRMonth, CreditsPerUserMonth } from "@/lib/types";
 
@@ -40,14 +41,14 @@ function annotationPlugin(months: string[], annotations: MonthAnnotation[]): Plu
 function AnnotationList({ annotations }: { annotations: MonthAnnotation[] }) {
   if (!annotations.length) return null;
   return (
-    <ul className="text-sm list-disc pl-5" aria-label="Hendelser markert i grafen">
+    <List size="small" aria-label="Hendelser markert i grafen">
       {annotations.map((a) => (
-        <li key={a.month}>
+        <List.Item key={a.month}>
           {monthLabel(a.month)}: {a.labels.join(", ")}
           {a.dataBreak && " (brudd i dataene)"}
-        </li>
+        </List.Item>
       ))}
-    </ul>
+    </List>
   );
 }
 
@@ -86,13 +87,16 @@ export function FamilyShareChart({ data, annotations }: { data: FamilyShares; an
 }
 
 export function CreditsPerUserChart({
+  months,
   data,
   annotations,
 }: {
+  /** Every month on the axis; a month without a row is a gap. */
+  months: string[];
   data: CreditsPerUserMonth[];
   annotations: MonthAnnotation[];
 }) {
-  const months = data.map((d) => d.month);
+  const row = (m: string) => data.find((d) => d.month === m);
   return (
     <>
       <div className="h-80">
@@ -104,13 +108,13 @@ export function CreditsPerUserChart({
             datasets: [
               {
                 label: "Median",
-                data: data.map((d) => Math.round(d.median)),
+                data: months.map((m) => (row(m) ? Math.round(row(m)!.median) : null)),
                 borderColor: chartColors[0],
                 backgroundColor: chartColors[0],
               },
               {
                 label: "Snitt",
-                data: data.map((d) => Math.round(d.mean)),
+                data: months.map((m) => (row(m) ? Math.round(row(m)!.mean) : null)),
                 borderColor: chartColors[3],
                 backgroundColor: chartColors[3],
                 borderDash: [6, 4],
@@ -126,8 +130,17 @@ export function CreditsPerUserChart({
   );
 }
 
-export function CopilotPRChart({ data, annotations }: { data: CopilotPRMonth[]; annotations: MonthAnnotation[] }) {
-  const months = data.map((d) => d.month);
+export function CopilotPRChart({
+  months,
+  data,
+  annotations,
+}: {
+  /** Every month on the axis; a month without a row is a gap. */
+  months: string[];
+  data: CopilotPRMonth[];
+  annotations: MonthAnnotation[];
+}) {
+  const row = (m: string) => data.find((d) => d.month === m);
   return (
     <>
       <div className="h-80">
@@ -139,12 +152,12 @@ export function CopilotPRChart({ data, annotations }: { data: CopilotPRMonth[]; 
             datasets: [
               {
                 label: "Laget av coding agent",
-                data: data.map((d) => d.created_by_copilot),
+                data: months.map((m) => row(m)?.created_by_copilot ?? null),
                 backgroundColor: chartColors[2],
               },
               {
                 label: "Gjennomgått av code review",
-                data: data.map((d) => d.reviewed_by_copilot),
+                data: months.map((m) => row(m)?.reviewed_by_copilot ?? null),
                 backgroundColor: chartColors[1],
               },
             ],
@@ -155,7 +168,8 @@ export function CopilotPRChart({ data, annotations }: { data: CopilotPRMonth[]; 
       </div>
       <AnnotationList annotations={annotations} />
       <BodyShort size="small" textColor="subtle">
-        {data.some((d) => d.days < 28) && "Måneder med færre enn 28 dager med data er ikke hele måneder."}
+        {data.some((d) => d.days < daysInCalendarMonth(d.month)) &&
+          "Måneder uten data for alle dagene er ikke hele måneder."}
       </BodyShort>
     </>
   );

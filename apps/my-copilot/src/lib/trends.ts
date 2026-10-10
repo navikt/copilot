@@ -34,17 +34,25 @@ export function visibleMonths(
 ): { months: string[]; clamped: boolean; first: string | undefined } {
   const sorted = [...new Set(months)].sort();
   const first = sorted[0];
-  if (!start) return { months: sorted, clamped: false, first };
-  return { months: sorted.filter((m) => m >= start), clamped: !!first && first > start, first };
+  // Every calendar month from the first to the last, so a month without data shows as a gap.
+  const all: string[] = [];
+  for (let m = first; m && m <= sorted[sorted.length - 1]; m = nextMonth(m)) all.push(m);
+  if (!start) return { months: all, clamped: false, first };
+  return { months: all.filter((m) => m >= start), clamped: !!first && first > start, first };
 }
 
 export interface FamilyShares {
   months: string[];
-  /** Per family, the share of the month's net cost in whole percent, one value per month. */
-  series: { family: ModelFamily; label: string; shares: number[] }[];
+  /** Per family, the share of the month's net cost in percent, one value per month. null: no net cost that month. */
+  series: { family: ModelFamily; label: string; shares: (number | null)[] }[];
 }
 
-/** Net cost per model family as a share of each month's net cost. Months with no net cost are left out. */
+function nextMonth(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+}
+
+/** Net cost per model family as a share of each month's net cost. A month with no net cost is a gap. */
 export function familyShares(rows: BillingModelBreakdown[], months: string[]): FamilyShares {
   const net = new Map<string, Map<ModelFamily, number>>();
   for (const row of rows) {
@@ -55,7 +63,8 @@ export function familyShares(rows: BillingModelBreakdown[], months: string[]): F
     byFamily.set(family, (byFamily.get(family) ?? 0) + row.net_amount);
     net.set(month, byFamily);
   }
-  const kept = months.filter((m) => [...(net.get(m)?.values() ?? [])].reduce((a, b) => a + b, 0) > 0);
+  const total = (m: string) => [...(net.get(m)?.values() ?? [])].reduce((a, b) => a + b, 0);
+  const kept = months;
   const families = (Object.keys(FAMILY_LABELS) as ModelFamily[]).filter((f) =>
     kept.some((m) => (net.get(m)?.get(f) ?? 0) > 0)
   );
@@ -64,11 +73,9 @@ export function familyShares(rows: BillingModelBreakdown[], months: string[]): F
     series: families.map((family) => ({
       family,
       label: FAMILY_LABELS[family],
-      shares: kept.map((m) => {
-        const byFamily = net.get(m)!;
-        const total = [...byFamily.values()].reduce((a, b) => a + b, 0);
-        return Math.round(((byFamily.get(family) ?? 0) / total) * 1000) / 10;
-      }),
+      shares: kept.map((m) =>
+        total(m) > 0 ? Math.round(((net.get(m)!.get(family) ?? 0) / total(m)) * 1000) / 10 : null
+      ),
     })),
   };
 }

@@ -36,7 +36,7 @@ function DataStart({ clamped, first }: { clamped: boolean; first?: string }) {
 }
 
 async function ModelFamilies({ token, start }: { token: string; start: string | null }) {
-  // 36 months is the most the endpoint returns.
+  // 36 months is the most the endpoint returns, so «Alt» means at most 36 months here (see «Kilde og metode»).
   const { breakdown, error } = await getBillingModelBreakdown(token, 36);
   if (error) return <BodyShort>{`Kunne ikke hente kostnad per modell: ${error}`}</BodyShort>;
   const { months, clamped, first } = visibleMonths(
@@ -44,7 +44,7 @@ async function ModelFamilies({ token, start }: { token: string; start: string | 
     start
   );
   const data = familyShares(breakdown, months);
-  if (!data.months.length) return <BodyShort>Ingen kostnadsdata i perioden.</BodyShort>;
+  if (!data.series.length) return <BodyShort>Ingen kostnadsdata i perioden.</BodyShort>;
   return (
     <>
       <DataStart clamped={clamped} first={first} />
@@ -65,7 +65,7 @@ async function CreditsPerUser({ token, start }: { token: string; start: string |
   return (
     <>
       <DataStart clamped={clamped} first={first} />
-      <CreditsPerUserChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months)} />
+      <CreditsPerUserChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months)} />
     </>
   );
 }
@@ -86,7 +86,7 @@ async function CopilotPRs({ token, start }: { token: string; start: string | nul
         trend ut av dem.
       </Alert>
       <DataStart clamped={clamped} first={first} />
-      <CopilotPRChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months)} />
+      <CopilotPRChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months)} />
     </>
   );
 }
@@ -134,14 +134,15 @@ export default async function TrenderPage({ searchParams }: { searchParams: Prom
       source={
         <>
           Modellfamiliene bygger på netto kostnad per modell fra <code>v_billing_model_breakdown</code> (
-          <code>/billing/model-breakdown</code>). AI Credits per bruker er median og snitt per måned av hver aktiv
-          brukers <code>ai_credits_used</code> i <code>user_metrics</code> (<code>/usage/credits-per-user</code>). En
-          bruker er aktiv når hen har brukt AI Credits, chat eller kodeforslag i måneden, og måneder med færre enn fem
-          brukere vises ikke. Pull requests er summen over alle repositorier unntatt private i{" "}
-          <code>repository_metrics</code> (<code>/usage/copilot-prs</code>). Den inneværende måneden er ikke ferdig. De
-          loddrette strekene markerer når noe skjedde, ikke hva som var årsaken. Modellvalgene gjelder bare våre egne
-          agenter, mens faktureringen gjelder hele Nav. Fra 1. juni 2026 ble premium requests erstattet av AI Credits,
-          så kostnadene før og etter er ikke direkte sammenlignbare.
+          <code>/billing/model-breakdown</code>), som gir høyst de siste 36 månedene, også med «Alt». AI Credits per
+          bruker er median og snitt per måned av hver aktiv brukers <code>ai_credits_used</code> i{" "}
+          <code>user_metrics</code> (<code>/usage/credits-per-user</code>). En bruker er aktiv når hen har brukt AI
+          Credits, chat eller kodeforslag i måneden, og måneder med færre enn fem brukere vises ikke. Pull requests er
+          summen over alle repositorier unntatt private i <code>repository_metrics</code> (
+          <code>/usage/copilot-prs</code>). Den inneværende måneden er ikke ferdig. De loddrette strekene markerer når
+          noe skjedde, ikke hva som var årsaken. Modellvalgene gjelder bare våre egne agenter, mens faktureringen
+          gjelder hele Nav. Fra 1. juni 2026 ble premium requests erstattet av AI Credits, så kostnadene før og etter er
+          ikke direkte sammenlignbare.
         </>
       }
     >
