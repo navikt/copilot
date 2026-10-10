@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import { Heading, BodyShort, Box, HGrid, Label } from "@navikt/ds-react";
+import { Heading, BodyShort, Box } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { LaptopIcon, GlobeIcon, TerminalIcon, CpuIcon, CogIcon } from "@navikt/aksel-icons";
 
@@ -61,8 +61,8 @@ export default function ToolsAndModes() {
                 3. Copilot Edits / Agent Mode (Cmd+Shift+I)
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Autonom KI. Dette er den nye "agent-modusen". Du gir et stort mål ("Bytt ut alle fetch-kall med axios"),
-                og Copilot åpner flere filer, endrer dem, og ber deg godkjenne diff-en til slutt.
+                Autonom KI. Du gir et stort mål ("Bytt ut alle fetch-kall med axios"), og Copilot åpner flere filer,
+                endrer dem, og ber deg godkjenne diff-en til slutt.
               </BodyShort>
             </div>
             <div>
@@ -78,9 +78,8 @@ export default function ToolsAndModes() {
                 ⚠️ Forskjeller mellom IDE-er
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Vær oppmerksom på at IntelliJ og Visual Studio ofte ligger flere måneder bak VS Code i
-                Copilot-funksjonalitet. Agent Mode / Copilot Edits og avanserte slash-kommandoer fungerer ofte best
-                (eller kun) i VS Code.
+                Agent mode finnes også i JetBrains-IDE-ene. Nye funksjoner kommer ofte først til VS Code, så noen
+                slash-kommandoer og innstillinger kan mangle i IntelliJ og Visual Studio en stund.
               </BodyShort>
             </div>
           </div>
@@ -102,13 +101,13 @@ export default function ToolsAndModes() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/github-copilot-coding-agent.jpeg"
-            alt="Copilot Coding Agent på GitHub"
+            alt="Copilot cloud agent på GitHub"
             className="w-full rounded-md mb-3 border border-green-200"
           />
           <div className="space-y-3">
             <div>
               <BodyShort weight="semibold" className="text-sm">
-                Coding Agent
+                Copilot cloud agent
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
                 Tildel en issue til @copilot, agenten lager PR i bakgrunnen. Perfekt for backlog.
@@ -176,7 +175,16 @@ export default function ToolsAndModes() {
                 copilot
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Agentic CLI – build, debug, refactor kode med naturlig språk direkte i terminalen.
+                Copilot CLI: en agent i terminalen som bygger, feilsøker og refaktorerer kode. På Nav-utstyr skal den
+                kjøre i{" "}
+                <NextLink href="/cplt" className="text-blue-600 hover:underline">
+                  cplt
+                </NextLink>
+                . Installer med{" "}
+                <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
+                  nav-pilot
+                </NextLink>
+                , som også setter opp opencode.
               </BodyShort>
             </div>
             <Box background="default" padding="space-8" borderRadius="4">
@@ -201,8 +209,8 @@ export default function ToolsAndModes() {
           </Heading>
         </div>
         <BodyShort className="text-gray-600 text-sm mb-2">
-          Utvid Copilot med eksterne verktøy via MCP-servere. Tilgjengelig i Agent Mode (VS Code), Copilot CLI og Coding
-          Agent på GitHub.com.
+          Utvid Copilot med eksterne verktøy via MCP-servere. Tilgjengelig i agent mode i editoren, Copilot CLI,
+          opencode og Copilot cloud agent på GitHub.com.
         </BodyShort>
         <BodyShort className="text-gray-600 text-sm mb-2">
           Navs{" "}
@@ -240,45 +248,22 @@ export default function ToolsAndModes() {
             Modellvalg og kostnader
           </Heading>
         </div>
-        <Box background="warning-soft" padding="space-12" borderRadius="8" className="mb-4">
-          <BodyShort size="small">
-            <strong>Bruk riktig modell:</strong> Valg av modell kan ha stor innvirkning på hvor godt Copilot forstår
-            koden din. Ikke nøl med å bytte modell i dropdown-menyen hvis du står fast, da de ulike leverandørene ofte
-            tenker litt annerledes!
-          </BodyShort>
-        </Box>
-        <BodyShort className="text-gray-600 text-sm mb-5">
-          Alle brukere får et personlig budsjett med <strong>AI Credits</strong> hver måned. Ulike modeller har ulik
-          kostnad i form av AI Credits. Du kan velge fritt mellom de ulike KI-leverandørene GitHub Copilot støtter.
+        <BodyShort className="text-gray-600 text-sm mb-2">
+          <strong>Start med Auto.</strong> Da velger Copilot modell for deg. Bytt modell bare når du har en grunn, for
+          eksempel at agenten står fast på en vanskelig oppgave.
         </BodyShort>
-        <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
-          <div>
-            <Label size="small" className="text-green-700">
-              Inkluderte modeller
-            </Label>
-            <BodyShort className="text-gray-600 text-xs">
-              Mindre modeller (f.eks. GPT-4o mini, Claude 3.5 Haiku)
-            </BodyShort>
-          </div>
-          <div>
-            <Label size="small">Anthropic Claude</Label>
-            <BodyShort className="text-gray-600 text-xs">Claude 3.5 Sonnet (Rask og god på koding)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">OpenAI GPT</Label>
-            <BodyShort className="text-gray-600 text-xs">GPT-4o (Bred kunnskap og god ytelse)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">Google Gemini</Label>
-            <BodyShort className="text-gray-600 text-xs">Gemini 1.5 Pro (God på store kontekstvinduer)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">OpenAI o1</Label>
-            <BodyShort className="text-gray-600 text-xs">
-              o1-preview (Resonneringsmodell for komplekse oppgaver)
-            </BodyShort>
-          </div>
-        </HGrid>
+        <BodyShort className="text-gray-600 text-sm">
+          Bruken måles i <strong>AI Credits</strong>. Hver bruker har en kvote som samles i en felles pott for Nav, og
+          modellene koster ulikt. Noen modeller har Nav slått av. Se{" "}
+          <NextLink href="/priser" className="text-blue-600 hover:underline">
+            priser
+          </NextLink>{" "}
+          og{" "}
+          <NextLink href="/modeller" className="text-blue-600 hover:underline">
+            modeller
+          </NextLink>{" "}
+          for hva som finnes og hva det koster.
+        </BodyShort>
         <Box background="info-soft" padding="space-12" borderRadius="8" className="mt-5">
           <Heading size="xsmall" level="4" className="mb-1 text-blue-700">
             Forvirret over "Context Window" måleren? (Reserved Output)
@@ -289,18 +274,6 @@ export default function ToolsAndModes() {
             bare har lagt ved et par filer. Dette er normalt og nødvendig for at modellen skal tenke seg om.
           </BodyShort>
         </Box>
-        <BodyShort className="text-gray-500 text-xs mt-3">
-          Se{" "}
-          <a
-            href="https://docs.github.com/en/copilot/using-github-copilot/changing-the-ai-model-for-github-copilot"
-            className="text-blue-600 hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHubs offisielle dokumentasjon
-          </a>{" "}
-          for en fullstendig og oppdatert liste over modeller.
-        </BodyShort>
       </Box>
     </div>
   );

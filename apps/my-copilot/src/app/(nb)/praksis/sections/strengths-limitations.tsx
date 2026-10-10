@@ -223,7 +223,10 @@ export default function StrengthsLimitations() {
             <BodyShort weight="semibold" className="text-sm">
               Ingen irreversible endringer
             </BodyShort>
-            <BodyShort className="text-gray-600 text-xs">Kun PR-er, aldri direkte commits til main</BodyShort>
+            <BodyShort className="text-gray-600 text-xs">
+              Cloud agent lager bare PR-er og committer aldri direkte til main. Lokale agenter kan pushe, så kjør dem i
+              cplt, der git guard stopper push til main.
+            </BodyShort>
           </div>
           <div>
             <BodyShort weight="semibold" className="text-sm">

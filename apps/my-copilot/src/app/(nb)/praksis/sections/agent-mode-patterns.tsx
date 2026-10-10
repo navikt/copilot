@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
 import { CodeBlock } from "@/components/code-block";
 import {
@@ -6,41 +7,51 @@ import {
   MagnifyingGlassIcon,
   LinkIcon,
   ShieldLockIcon,
-  RocketIcon,
   FileTextIcon,
 } from "@navikt/aksel-icons";
 
 export default function AgentModePatterns() {
   return (
     <div className="space-y-8">
+      <BodyShort className="text-gray-600 text-sm">
+        Nav har egne agenter i organisasjonen. Se alle på{" "}
+        <NextLink href="/verktoy?type=agent" className="text-blue-600 hover:underline">
+          verktøy-siden
+        </NextLink>
+        .
+      </BodyShort>
       <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-16">
         <Box background="info-soft" padding="space-16" borderRadius="8">
           <div className="flex items-center gap-2 mb-2">
             <BookIcon className="text-blue-700" aria-hidden />
             <Heading size="small" level="3">
-              @docs-agent
+              <NextLink href="/verktoy?item=aksel-agent" className="hover:underline">
+                @aksel-agent
+              </NextLink>
             </Heading>
           </div>
-          <BodyShort className="text-gray-600 text-sm mb-2">Dokumentasjonsassistent</BodyShort>
+          <BodyShort className="text-gray-600 text-sm mb-2">Aksel og frontend</BodyShort>
           <ul className="space-y-1 text-xs">
-            <li>• Oppdater README ved API-endringer</li>
-            <li>• Generer JSDoc/docstrings</li>
-            <li>• Lag CHANGELOG-oppføringer</li>
+            <li>• Bygg og refaktorer UI med Aksel</li>
+            <li>• Bruk tokens og layout-primitiver</li>
+            <li>• Migrer til nye Aksel-versjoner</li>
           </ul>
         </Box>
 
         <Box background="success-soft" padding="space-16" borderRadius="8">
           <div className="flex items-center gap-2 mb-2">
-            <TestFlaskIcon className="text-green-700" aria-hidden />
+            <LinkIcon className="text-green-700" aria-hidden />
             <Heading size="small" level="3">
-              @test-agent
+              <NextLink href="/verktoy?item=kafka-agent" className="hover:underline">
+                @kafka-agent
+              </NextLink>
             </Heading>
           </div>
-          <BodyShort className="text-gray-600 text-sm mb-2">Testskriving</BodyShort>
+          <BodyShort className="text-gray-600 text-sm mb-2">Kafka og hendelser</BodyShort>
           <ul className="space-y-1 text-xs">
-            <li>• Skriv enhetstester for ny kode</li>
-            <li>• Øk testdekning på moduler</li>
-            <li>• Fiks ustabile tester (flaky)</li>
+            <li>• Rapids & Rivers-mønstre</li>
+            <li>• Hendelsesdrevet arkitektur</li>
+            <li>• Schema-design</li>
           </ul>
         </Box>
 
@@ -48,29 +59,33 @@ export default function AgentModePatterns() {
           <div className="flex items-center gap-2 mb-2">
             <MagnifyingGlassIcon className="text-orange-700" aria-hidden />
             <Heading size="small" level="3">
-              @lint-agent
+              <NextLink href="/verktoy?item=code-review" className="hover:underline">
+                @code-review
+              </NextLink>
             </Heading>
           </div>
-          <BodyShort className="text-gray-600 text-sm mb-2">Kodeformatering</BodyShort>
+          <BodyShort className="text-gray-600 text-sm mb-2">Kodegjennomgang</BodyShort>
           <ul className="space-y-1 text-xs">
-            <li>• Fiks lint-feil</li>
-            <li>• Migrer til ny ESLint-konfigurasjon</li>
-            <li>• Fjern ubrukt kode</li>
+            <li>• Finn feil og sikkerhetsproblemer</li>
+            <li>• Sjekk Nav-konvensjoner</li>
+            <li>• Se over før du ber en kollega om review</li>
           </ul>
         </Box>
 
         <Box background="accent-soft" padding="space-16" borderRadius="8">
           <div className="flex items-center gap-2 mb-2">
-            <LinkIcon className="text-blue-600" aria-hidden />
+            <FileTextIcon className="text-blue-600" aria-hidden />
             <Heading size="small" level="3">
-              @api-agent
+              <NextLink href="/verktoy?item=research-agent" className="hover:underline">
+                @research-agent
+              </NextLink>
             </Heading>
           </div>
-          <BodyShort className="text-gray-600 text-sm mb-2">API-utvikling</BodyShort>
+          <BodyShort className="text-gray-600 text-sm mb-2">Undersøk før du endrer</BodyShort>
           <ul className="space-y-1 text-xs">
-            <li>• Lag nye endepunkter</li>
-            <li>• Generer OpenAPI-spesifikasjon</li>
-            <li>• Valider request/response</li>
+            <li>• Utforsk ukjente kodebaser</li>
+            <li>• Samle kontekst før implementering</li>
+            <li>• Finn årsaken til et problem</li>
           </ul>
         </Box>
 
@@ -78,29 +93,50 @@ export default function AgentModePatterns() {
           <div className="flex items-center gap-2 mb-2">
             <ShieldLockIcon className="text-red-700" aria-hidden />
             <Heading size="small" level="3">
-              @security-agent
+              <NextLink href="/verktoy?item=security-champion-agent" className="hover:underline">
+                @security-champion-agent
+              </NextLink>
             </Heading>
           </div>
-          <BodyShort className="text-gray-600 text-sm mb-2">Sikkerhetssjekk</BodyShort>
+          <BodyShort className="text-gray-600 text-sm mb-2">Sikkerhet</BodyShort>
           <ul className="space-y-1 text-xs">
-            <li>• Sjekk avhengigheter for sårbarheter</li>
-            <li>• Finn sikkerhetshull</li>
-            <li>• Foreslå utbedringer</li>
+            <li>• Trusselmodellering</li>
+            <li>• Navs sikkerhetsarkitektur</li>
+            <li>• Sikkerhetspraksis og compliance</li>
           </ul>
         </Box>
 
         <Box background="neutral-soft" padding="space-16" borderRadius="8">
           <div className="flex items-center gap-2 mb-2">
-            <RocketIcon className="text-gray-700" aria-hidden />
+            <TestFlaskIcon className="text-gray-700" aria-hidden />
             <Heading size="small" level="3">
-              @deploy-agent
+              <NextLink href="/verktoy?item=accessibility-agent" className="hover:underline">
+                @accessibility-agent
+              </NextLink>
             </Heading>
           </div>
-          <BodyShort className="text-gray-600 text-sm mb-2">Dev/Deploy-hjelp</BodyShort>
+          <BodyShort className="text-gray-600 text-sm mb-2">Universell utforming</BodyShort>
           <ul className="space-y-1 text-xs">
-            <li>• Oppdater Dockerfile</li>
-            <li>• Fiks CI-konfigurasjon</li>
-            <li>• Miljøvariabler</li>
+            <li>• WCAG 2.1 og 2.2</li>
+            <li>• Tilgjengelighet i Aksel</li>
+            <li>• Automatisert UU-testing</li>
+          </ul>
+        </Box>
+
+        <Box background="info-soft" padding="space-16" borderRadius="8">
+          <div className="flex items-center gap-2 mb-2">
+            <BookIcon className="text-blue-700" aria-hidden />
+            <Heading size="small" level="3">
+              <NextLink href="/verktoy?item=forfatter" className="hover:underline">
+                @forfatter
+              </NextLink>
+            </Heading>
+          </div>
+          <BodyShort className="text-gray-600 text-sm mb-2">Norsk tekst</BodyShort>
+          <ul className="space-y-1 text-xs">
+            <li>• Klarspråk og mikrotekst</li>
+            <li>• Fjern KI-markører og anglisismer</li>
+            <li>• Riktige fagtermer</li>
           </ul>
         </Box>
       </HGrid>

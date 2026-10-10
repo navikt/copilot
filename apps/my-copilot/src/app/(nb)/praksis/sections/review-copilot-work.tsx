@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
 import { ExclamationmarkTriangleIcon, LightBulbIcon } from "@navikt/aksel-icons";
 
@@ -71,7 +72,7 @@ export default function ReviewCopilotWork() {
           <ul className="space-y-2 text-sm">
             <li className="flex gap-2">
               <span className="text-orange-600">▪</span>
-              <span>Kjør CI manuelt (ikke auto på Copilot PR)</span>
+              <span>Godkjenn workflow-kjøringen når du har lest endringen</span>
             </li>
             <li className="flex gap-2">
               <span className="text-orange-600">▪</span>
@@ -89,12 +90,13 @@ export default function ReviewCopilotWork() {
         <div className="flex items-center gap-2 mb-2">
           <ExclamationmarkTriangleIcon className="text-red-700" aria-hidden />
           <Heading size="small" level="3" className="text-red-700">
-            Viktig: CI kjører ikke automatisk
+            Viktig: CI venter på godkjenning
           </Heading>
         </div>
         <BodyShort className="text-gray-600 text-sm">
-          PR-er fra Copilot coding agent utløser ikke CI-workflows automatisk. Du må starte dem manuelt eller approve
-          workflow run. Dette er en sikkerhetsfunksjon.
+          Som standard kjører ikke workflows på PR-er fra Copilot cloud agent før noen med skrivetilgang godkjenner
+          kjøringen. GitHub har en innstilling som lar workflows kjøre uten godkjenning. Nav anbefaler å beholde
+          standarden, slik at et menneske ser på endringen før koden kjører med repoets tilganger.
         </BodyShort>
       </Box>
 
@@ -113,6 +115,19 @@ export default function ReviewCopilotWork() {
             </BodyShort>
             <BodyShort className="text-gray-600 text-xs">
               &quot;Review this PR for bugs, security issues, and code style violations&quot;
+            </BodyShort>
+          </div>
+          <div>
+            <BodyShort weight="semibold" className="text-sm">
+              Bruk @code-review og Copilot code review
+            </BodyShort>
+            <BodyShort className="text-gray-600 text-xs">
+              Org-agenten{" "}
+              <NextLink href="/verktoy?item=code-review" className="text-blue-600 hover:underline">
+                @code-review
+              </NextLink>{" "}
+              går gjennom endringer lokalt. På GitHub kan du legge til Copilot som reviewer på PR-en. Ingen av dem
+              erstatter en kollega.
             </BodyShort>
           </div>
           <div>

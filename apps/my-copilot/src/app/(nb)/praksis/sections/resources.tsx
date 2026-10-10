@@ -99,7 +99,7 @@ export default function Resources() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Spec Kit – GitHubs offisielle verktøy for Spec-Driven Development (60k+ ⭐)
+                Spec Kit – GitHubs offisielle verktøy for Spec-Driven Development
               </a>
             </li>
             <li className="flex gap-2">
@@ -236,6 +236,30 @@ export default function Resources() {
                 className="text-blue-600 hover:underline text-sm"
               >
                 MCP Onboarding – sjekk agent-beredskap og generer tilpasningsfiler
+              </NextLink>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-blue-600">▪</span>
+              <NextLink href="/nav-pilot" className="text-blue-600 hover:underline text-sm">
+                nav-pilot – installer Copilot CLI og opencode med Navs agenter og skills
+              </NextLink>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-blue-600">▪</span>
+              <NextLink href="/cplt" className="text-blue-600 hover:underline text-sm">
+                cplt – sandkasse for KI-agenter
+              </NextLink>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-blue-600">▪</span>
+              <NextLink href="/priser" className="text-blue-600 hover:underline text-sm">
+                Priser – hva modellene koster i AI Credits
+              </NextLink>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-blue-600">▪</span>
+              <NextLink href="/modeller" className="text-blue-600 hover:underline text-sm">
+                Modeller – hvilke modeller som er tilgjengelige
               </NextLink>
             </li>
           </ul>

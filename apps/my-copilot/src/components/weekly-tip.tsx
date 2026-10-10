@@ -12,6 +12,21 @@ interface Tip {
 
 const TIPS: Tip[] = [
   {
+    text: "Kjør Copilot CLI og opencode i cplt. Sandkassen begrenser hva agenten når, og git guard stopper farlige git-kommandoer.",
+    href: "/cplt",
+    label: "cplt",
+  },
+  {
+    text: "Installer Copilot CLI og opencode med nav-pilot. Da får du Navs agenter, skills og sandkasse satt opp på én gang.",
+    href: "/nav-pilot/guider/kom-i-gang",
+    label: "nav-pilot",
+  },
+  {
+    text: "Start med Auto som modell. Modellene koster ulikt i AI Credits, og Nav har en felles pott.",
+    href: "/priser",
+    label: "Kostnad",
+  },
+  {
     text: "Bruk WRAP-metoden: Write → Refine → Atomic → Pair. Tenk på det som å onboarde en ny kollega.",
     href: "/praksis/guide/skrive-presise-prompts",
     label: "WRAP-metoden",
@@ -47,7 +62,7 @@ const TIPS: Tip[] = [
     label: "Eksempler i prompts",
   },
   {
-    text: "PR-er fra Copilot coding agent utløser ikke CI automatisk. Du må starte workflows manuelt. Dette er en sikkerhetsfunksjon.",
+    text: "Workflows på PR-er fra Copilot cloud agent venter som standard på godkjenning. GitHub lar deg slå det av, men Nav anbefaler å beholde det.",
     href: "/praksis/guide/gjennomfore-code-review",
     label: "CI og sikkerhet",
   },
@@ -57,7 +72,7 @@ const TIPS: Tip[] = [
     label: "Scope creep",
   },
   {
-    text: "Bruk copilot-instructions.md for å definere tech stack, kodestil og testmønstre. Det gir konsistente resultater på tvers av teamet.",
+    text: "Bruk AGENTS.md for å definere tech stack, kodestil og testmønstre. Det gir konsistente resultater på tvers av teamet.",
     href: "/praksis/guide/skreddersy-med-skills-og-rules",
     label: "Tilpasninger",
   },
