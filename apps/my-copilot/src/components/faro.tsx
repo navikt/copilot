@@ -15,6 +15,11 @@ export const propagateTraceHeaderCorsUrls = [
   /^https:\/\/([a-z0-9-]+\.)*nav\.cloud\.nais\.io(\/|:|$)/,
 ];
 
+// Crypto-wallet browser extensions (MetaMask and others that inject
+// window.ethereum) throw into every page they run on. Not our errors; Faro
+// matches these against the message, name and stack of each error.
+export const ignoreErrors = [/MetaMask/i, /\bethereum\b/i];
+
 function sanitizeUrl(url: string): string {
   return url.replace(PII_PATTERN, "[REDACTED]");
 }
@@ -32,6 +37,7 @@ export default function Faro({ collectorUrl }: { collectorUrl?: string }) {
           namespace: "copilot",
           version: process.env.NEXT_PUBLIC_APP_VERSION || "unknown",
         },
+        ignoreErrors,
         beforeSend: (event) => {
           if (event.meta.page?.url) {
             event.meta.page.url = sanitizeUrl(event.meta.page.url);
