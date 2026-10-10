@@ -90,6 +90,8 @@ func (m *Manifest) legacy(id string) (old, repl Model, ok bool) {
 	}
 	old = repl
 	old.Key, old.Name, old.Model = id, id, id
+	// The pin names a commit of the replacement's repository, not this one.
+	old.Revision = ""
 	old.Default, old.Role, old.Expect, old.RecommendedFor = false, "", "", nil
 	old.Params = maps.Clone(repl.Params)
 	if old.Params != nil {
@@ -110,8 +112,8 @@ func (m *Manifest) ReplacedIDs() []string {
 // weights while they are here and the replacement's are not, so a replacement
 // never turns a working start into a download.
 func keepLegacy(old, repl Model) bool {
-	oldHere, _ := WeightsPresent(old.Model)
-	replHere, _ := WeightsPresent(repl.Model)
+	oldHere, _ := WeightsPresent(old.Model, old.Revision)
+	replHere, _ := WeightsPresent(repl.Model, repl.Revision)
 	return oldHere && !replHere
 }
 
