@@ -173,6 +173,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := bqClient.EnsureSeatCountsTableExists(ctx); err != nil {
+		slog.Error("Failed to ensure seat_counts table exists", "error", err)
+		os.Exit(1)
+	}
+
 	if err := bqClient.EnsureViewsExist(ctx); err != nil {
 		// Non-fatal: ingestion is the job's primary purpose and must not be
 		// blocked by DDL. Logged at ERROR so a missing view surfaces in
@@ -335,6 +340,7 @@ func main() {
 				os.Exit(1)
 			}
 		}
+		ingestTodaySeatCounts(ctx, ghClient.FetchSeatCounts, bqClient.UpsertSeatCounts, time.Now())
 		// Ingest budget snapshots — today is the primary target but also retry
 		// yesterday in case the previous run failed (snapshots are point-in-time
 		// and lost forever if not captured).
