@@ -142,6 +142,11 @@ var allowedBackends = []string{"mlx-lm"}
 // the manifest out of every variable the server itself does not read.
 var allowedParamKey = regexp.MustCompile(`^MLX_[A-Z0-9_]+$`)
 
+// revisionPattern is the only revision shape accepted: a full commit SHA. A
+// branch or tag would move under the pin, and the value reaches the download
+// command line and the server script.
+var revisionPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
 //go:embed models.json
 var embeddedManifest []byte
 
@@ -158,6 +163,11 @@ type Model struct {
 	// Model is the model id — publisher/repo on Hugging Face. This is the
 	// value [Lookup] matches and the one a launch passes on as --model.
 	Model string `json:"model"`
+
+	// Revision pins the Hugging Face commit to download and serve: a full
+	// 40-character commit SHA. Empty means the repository's main branch, which
+	// is what every manifest before the field meant.
+	Revision string `json:"revision,omitempty"`
 
 	// Backend is the server that loads it ("mlx-lm").
 	Backend string `json:"backend"`
@@ -344,6 +354,12 @@ func (m *Manifest) checkModels() error {
 		// regardless of who published it.
 		if err := domain.ValidateModelValue(model.Model); err != nil {
 			return fmt.Errorf("local-model manifest entry %q: %w", where, err)
+		}
+		if model.Revision != "" && !revisionPattern.MatchString(model.Revision) {
+			return fmt.Errorf(
+				"local-model manifest entry %q pins revision %q, which is not a full 40-character commit SHA; "+
+					"a branch or tag name can move, so it is no pin",
+				where, model.Revision)
 		}
 		publisher, _, ok := strings.Cut(model.Model, "/")
 		if !ok || !m.publisherAllowed(publisher) {
