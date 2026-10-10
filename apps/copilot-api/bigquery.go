@@ -390,6 +390,8 @@ type BigQueryQuerier interface {
 	GetDailySummary(ctx context.Context) (*DailySummary, error)
 	GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error)
 	GetRepositoryUsage(ctx context.Context) ([]RepositoryUsage, error)
+	GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error)
+	GetCopilotPRsMonthly(ctx context.Context) ([]CopilotPRMonth, error)
 }
 
 // Cache wrapper for BigQuery operations

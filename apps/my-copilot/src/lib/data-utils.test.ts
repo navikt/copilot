@@ -1,5 +1,5 @@
 import type { EnterpriseMetrics } from "./types";
-import { getAggregatedMetrics, getPRMetrics, getCLIMetrics, buildTrendData, buildModelChartData } from "./data-utils";
+import { getAggregatedMetrics, getPRMetrics, getCLIMetrics, buildTrendData } from "./data-utils";
 
 // Minimal fixture with required fields
 function makeDay(overrides: Partial<EnterpriseMetrics> = {}): EnterpriseMetrics {
@@ -203,29 +203,5 @@ describe("buildTrendData", () => {
     expect(result[0].dailyActiveUsers).toBe(90);
     expect(result[0].codeCompletionUsers).toBe(50);
     expect(result[0].agentUsers).toBe(20);
-  });
-});
-
-// --- buildModelChartData ---
-
-describe("buildModelChartData", () => {
-  it("returns empty for empty input", () => {
-    expect(buildModelChartData([])).toEqual([]);
-  });
-
-  it("aggregates and limits models", () => {
-    const models = Array.from({ length: 12 }, (_, i) => ({
-      model: `model-${i}`,
-      feature: "code_completion",
-      code_generation_activity_count: 100 - i,
-      code_acceptance_activity_count: 0,
-      loc_added_sum: 0,
-      loc_deleted_sum: 0,
-      loc_suggested_to_add_sum: 0,
-      loc_suggested_to_delete_sum: 0,
-      user_initiated_interaction_count: 0,
-    }));
-    const usage = [makeDay({ totals_by_model_feature: models })];
-    expect(buildModelChartData(usage, 5)).toHaveLength(5);
   });
 });

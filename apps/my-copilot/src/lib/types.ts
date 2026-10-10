@@ -96,11 +96,6 @@ export interface DailyTrend {
   agentUsers: number;
 }
 
-export interface ModelChartData {
-  name: string;
-  generations: number;
-}
-
 export interface AggregatedMetrics {
   dailyActiveUsers: number;
   weeklyActiveUsers: number;
@@ -415,6 +410,22 @@ export interface BillingModelBreakdown {
   gross_amount: number;
   net_amount: number;
   pct_of_monthly_net: number;
+}
+
+/** AI Credits per active user in one month, from copilot-api. Aggregates only. */
+export interface CreditsPerUserMonth {
+  month: string;
+  median: number;
+  mean: number;
+  active_users: number;
+}
+
+/** Copilot coding agent and code review PRs in one month, from repository_metrics. */
+export interface CopilotPRMonth {
+  month: string;
+  created_by_copilot: number;
+  reviewed_by_copilot: number;
+  days: number;
 }
 
 export interface DailySummary {

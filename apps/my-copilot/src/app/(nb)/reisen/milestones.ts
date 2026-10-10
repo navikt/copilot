@@ -303,3 +303,35 @@ export const PHASES: Phase[] = [
     sources: [TEAM],
   },
 ];
+
+/**
+ * Dated events drawn as vertical rules on the charts in /innsikt/trender. /reisen does not render them.
+ * They show timing, not cause. Model pins affect only our own agents; billing applies to the whole enterprise.
+ * Dates are merge dates from `gh pr view --json mergedAt`.
+ */
+export interface ChartAnnotation {
+  /** YYYY-MM-DD. */
+  date: string;
+  /** A few words, shown next to the rule. */
+  label: string;
+  url?: string;
+  /** A break in the data itself, drawn stronger than the other rules. */
+  dataBreak?: boolean;
+}
+
+export const CHART_ANNOTATIONS: ChartAnnotation[] = [
+  { date: "2026-04-02", label: "Nytt metrics-API", dataBreak: true },
+  {
+    date: "2026-06-01",
+    label: "AI Credits erstatter premium requests",
+    url: "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/",
+    dataBreak: true,
+  },
+  { date: "2026-09-30", label: "Modellbenchmark", url: `${PR}1373` },
+  { date: "2026-09-30", label: "@kafka og @rust til GPT-6 Luna", url: `${PR}1397` },
+  { date: "2026-10-02", label: "Benchmark med realistisk kodeoppgave", url: `${PR}1415` },
+  { date: "2026-10-07", label: "@security-champion til Opus 5.5", url: `${PR}1449` },
+  { date: "2026-10-08", label: "@rust til Claude Haiku 5.5", url: `${PR}1471` },
+  { date: "2026-10-08", label: "KI-dommer for planlegging", url: `${PR}1470` },
+  { date: "2026-10-08", label: "@worker på GPT-6 Luna", url: `${PR}1488` },
+];
