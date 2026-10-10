@@ -60,6 +60,13 @@ describe("GET /api/team-year", () => {
     expect(getTeamYearOverview).not.toHaveBeenCalledWith("team-a", expect.anything(), expect.anything());
   });
 
+  it("falls back to the team id in the filename when the slug is unsafe", async () => {
+    vi.mocked(getTeamYearOverview).mockResolvedValue({ ...data, team_slug: 'a"b' });
+    expect((await get("team=123&year=2026")).headers.get("Content-Disposition")).toContain(
+      'filename="copilot-123-2026.csv"'
+    );
+  });
+
   it("returns the months as CSV with caveats as comments", async () => {
     const res = await get("team=123&year=2026");
     expect(res.headers.get("Content-Type")).toContain("text/csv");

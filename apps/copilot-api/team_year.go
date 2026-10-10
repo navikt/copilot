@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/googleapi"
 )
 
 // Usage bases for a team month.
@@ -62,9 +64,45 @@ type teamYearRow struct {
 // GetTeamYearOverview returns one team's months in year, with the same
 // attribution as GetTeamGrossOverview and GetTeamNetOverview for each month.
 func (bq *BigQueryClient) GetTeamYearOverview(ctx context.Context, team string, year int) (*TeamYearOverview, error) {
+	// Like GetTeamNetOverview: the billing tables only exist after an operator
+	// starts a backfill. Without them every month falls back to gross.
+	net := true
+	if _, err := bq.client.Dataset(bq.metricsDataset).Table("billing_user_monthly_runs").Metadata(ctx); err != nil {
+		var apiErr *googleapi.Error
+		if !errors.As(err, &apiErr) || apiErr.Code != 404 {
+			return nil, fmt.Errorf("read billing run metadata: %w", err)
+		}
+		net = false
+	}
+	it, err := bq.teamYearQuery(team, year, net).Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read team year usage: %w", err)
+	}
+	rows, err := readAllRows[teamYearRow](it)
+	if err != nil {
+		return nil, err
+	}
+	return teamYearOverview(team, year, rows, time.Now()), nil
+}
+
+// teamYearNetStubs replace teamNetCTEs and the run marker when the billing
+// tables do not exist, so the query still yields gross for every month.
+const teamYearNetStubs = `billed AS (
+ SELECT DATE(NULL) month,'' user_id,0.0 net FROM UNNEST([1]) WHERE FALSE
+), daily AS (
+ SELECT DATE(NULL) day,'' user_id,0.0 net FROM UNNEST([1]) WHERE FALSE
+)`
+
+func (bq *BigQueryClient) teamYearQuery(team string, year int, net bool) *bigquery.Query {
 	first := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+	netCTEs, completed := teamYearNetStubs, "SELECT DATE(NULL) month FROM UNNEST([1]) WHERE FALSE"
+	if net {
+		netCTEs = bq.teamNetCTEs()
+		completed = fmt.Sprintf("SELECT DISTINCT month FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND status='complete'",
+			bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"))
+	}
 	query := bq.client.Query(`
-WITH ` + bq.teamUsageCTEs() + `, ` + bq.teamNetCTEs() + fmt.Sprintf(`, team AS (
+WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + fmt.Sprintf(`, team AS (
  SELECT DISTINCT day,month,user_id FROM memberships WHERE team_id=@team
 ), gross_m AS (
  SELECT t.month,COUNT(DISTINCT IF(u.gross>0,t.user_id,NULL)) users,SUM(u.gross * 0.01) gross
@@ -77,12 +115,13 @@ WITH ` + bq.teamUsageCTEs() + `, ` + bq.teamNetCTEs() + fmt.Sprintf(`, team AS (
  WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND u.gross>0)
  GROUP BY b.month
 ), completed AS (
- SELECT DISTINCT month FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND status='complete'
+ %s
 ), coverage AS (
  SELECT
-  (SELECT IFNULL(CAST(MIN(day) AS STRING),'') FROM %s WHERE scope='enterprise' AND scope_id='nav') membership_from,
-  (SELECT IFNULL(CAST(MIN(day) AS STRING),'') FROM %s WHERE scope='enterprise' AND scope_id='nav'
-    AND JSON_VALUE(raw_record,'$.ai_credits_used') IS NOT NULL) gross_from,
+  (SELECT IFNULL(CAST(MIN(day) AS STRING),'') FROM %s WHERE day>=DATE(@from) AND day<DATE(@to)
+    AND scope='enterprise' AND scope_id='nav') membership_from,
+  (SELECT IFNULL(CAST(MIN(day) AS STRING),'') FROM %s WHERE day>=DATE(@from) AND day<DATE(@to)
+    AND scope='enterprise' AND scope_id='nav' AND JSON_VALUE(raw_record,'$.ai_credits_used') IS NOT NULL) gross_from,
   (SELECT IFNULL(CAST(MAX(day) AS STRING),'') FROM usage_days) last_usage_day,
   (SELECT IFNULL(MAX_BY(team_slug,day),'') FROM memberships WHERE team_id=@team) team_slug
 )
@@ -94,19 +133,11 @@ CROSS JOIN coverage v
 LEFT JOIN gross_m g ON g.month=m LEFT JOIN net_m n ON n.month=m
 LEFT JOIN no_usage_m z ON z.month=m LEFT JOIN completed c ON c.month=m
 ORDER BY month`,
-		bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"),
+		completed,
 		bq.tableRef(bq.metricsDataset, "user_teams"),
 		bq.tableRef(bq.metricsDataset, "user_metrics")))
 	query.Parameters = append(monthRange(first, 12), bigquery.QueryParameter{Name: "team", Value: team})
-	it, err := query.Read(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("read team year usage: %w", err)
-	}
-	rows, err := readAllRows[teamYearRow](it)
-	if err != nil {
-		return nil, err
-	}
-	return teamYearOverview(team, year, rows, time.Now()), nil
+	return query
 }
 
 // teamYearOverview picks each month's basis the way the team page does: net
@@ -126,7 +157,7 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 		hasTeams := row.MembershipFrom != "" && month >= row.MembershipFrom[:7]
 		hasGross := row.GrossFrom != "" && month >= row.GrossFrom[:7]
 		switch {
-		case hasTeams && row.NetComplete && month < current:
+		case hasTeams && hasGross && row.NetComplete && month < current:
 			m.Basis = basisNet
 			out.Coverage.NetMonths = append(out.Coverage.NetMonths, month)
 		case hasTeams && hasGross:

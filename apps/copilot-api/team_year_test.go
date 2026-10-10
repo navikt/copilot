@@ -9,6 +9,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/option"
 )
 
 func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
@@ -20,7 +23,7 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 	}
 	rows := []teamYearRow{
 		row("2026-04", false, 0, 0), // before membership history
-		row("2026-05", false, 9, 0), // before per-user gross
+		row("2026-05", true, 9, 9),  // net complete but before per-user gross
 		row("2026-06", true, 6, 4),  // net hidden, gross shown
 		row("2026-07", false, 4, 0), // gross, under five
 		row("2026-08", true, 6, 5),  // net
@@ -59,6 +62,24 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 	}
 	if strings.Join(got.Coverage.NetMonths, ",") != "2026-06,2026-08,2026-09" || got.Coverage.GrossFrom != "2026-06-15" {
 		t.Errorf("coverage = %+v", got.Coverage)
+	}
+}
+
+func TestTeamYearQueryWithoutBillingTables(t *testing.T) {
+	bqc, err := bigquery.NewClient(context.Background(), "p", option.WithoutAuthentication())
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &BigQueryClient{client: bqc, projectID: "p", metricsDataset: "d"}
+	for _, net := range []bool{true, false} {
+		q := client.teamYearQuery("123", 2026, net)
+		billing := strings.Contains(q.Q, "billing_user_monthly")
+		if billing != net || !strings.Contains(q.Q, "user_metrics") || !strings.Contains(q.Q, "day>=DATE(@from) AND day<DATE(@to)") {
+			t.Errorf("net=%v: billing tables referenced = %v", net, billing)
+		}
+		if len(q.Parameters) != 3 || q.Parameters[0].Value != "2026-01-01" || q.Parameters[1].Value != "2027-01-01" || q.Parameters[2].Value != "123" {
+			t.Errorf("parameters = %+v", q.Parameters)
+		}
 	}
 }
 

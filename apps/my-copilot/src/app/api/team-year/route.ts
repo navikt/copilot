@@ -20,10 +20,10 @@ export async function GET(request: Request) {
   try {
     const data = await getTeamYearOverview(team, year, token);
     // The byte order mark makes Excel read æøå as UTF-8.
-    return new NextResponse("﻿" + teamYearCsv(data), {
+    return new NextResponse("\uFEFF" + teamYearCsv(data), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="copilot-${data.team_slug || team}-${year}.csv"`,
+        "Content-Disposition": `attachment; filename="copilot-${/^[a-z0-9-]+$/.test(data.team_slug) ? data.team_slug : team}-${year}.csv"`,
       },
     });
   } catch (error) {

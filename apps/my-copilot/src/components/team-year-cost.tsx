@@ -25,7 +25,7 @@ export function TeamYearPicker({ teams, team, month }: { teams: TeamSpend[]; tea
           <option value="">Velg team</option>
           {teams.map((t) => (
             <option key={t.team_id} value={t.team_id}>
-              {t.team_slug}
+              {t.team_slug || t.team_id}
             </option>
           ))}
         </Select>
@@ -47,7 +47,7 @@ export default function TeamYearCost({ data }: { data: TeamYearOverview }) {
         {additive}
       </Alert>
       <div className="overflow-x-auto">
-        <Table size="small" aria-label={`Forbruk per måned for ${data.team_slug} i ${data.year}`}>
+        <Table size="small" aria-label={`Forbruk per måned for ${data.team_slug || data.team_id} i ${data.year}`}>
           <TableHeader>
             <TableRow>
               <TableColumnHeader scope="col">Måned</TableColumnHeader>
