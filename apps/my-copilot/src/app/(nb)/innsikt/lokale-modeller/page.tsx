@@ -371,9 +371,10 @@ export default function LokaleModeller() {
               oppfølging 11. oktober 2026
             </a>{" "}
             ga standardmodellen 36 av 40 samlet. Den ensidige nedre grensen (90 prosent) er 0,82, under kravet på 0,90.
-            Alle de fire feilene var tidsavbrudd etter 420 sekunder. Trinn 4 går til skymodellen med begge profilene:
-            standardmodellen ga 4 av 10 og 8-bitsmodellen 3 av 10, og de fleste feilene var tidsavbrudd. Rutingen
-            stopper derfor fortsatt etter trinn 2. Oppfølgingen målte ikke kostnad, så vi sier ingenting om den.
+            Alle de fire feilene nådde tidsgrensen på 420 sekunder per forsøk. Trinn 4 går til skymodellen med begge
+            profilene: standardmodellen ga 4 av 10 og 8-bitsmodellen 3 av 10, og de fleste feilene var tidsavbrudd.
+            Rutingen stopper derfor fortsatt etter trinn 2. Oppfølgingen målte ikke kostnad, så vi sier ingenting om
+            den.
           </li>
         </Bullets>
         <BodyShort size="small" textColor="subtle">
