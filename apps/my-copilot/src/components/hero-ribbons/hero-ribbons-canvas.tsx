@@ -10,7 +10,6 @@ const TOKENS = [
   "--ax-bg-meta-purple-strong",
   "--ax-bg-success-strong",
   "--ax-bg-warning-strong",
-  "--ax-bg-accent-moderate",
 ];
 const SEGMENTS = 96;
 const ROWS = 3; // edge, centre, edge: the edges fade to nothing, so each ribbon glows.
@@ -37,7 +36,7 @@ export function HeroRibbonsCanvas() {
     camera.position.z = 8;
     let halfW = 4;
 
-    const count = small ? 3 : 5;
+    const count = small ? 3 : 4;
     const ribbons = Array.from({ length: count }, (_, i) => {
       const pos = new Float32Array(SEGMENTS * ROWS * 3);
       const col = new Float32Array(SEGMENTS * ROWS * 4);
@@ -65,10 +64,10 @@ export function HeroRibbonsCanvas() {
         pos,
         col,
         base: (i / (count - 1 || 1) - 0.5) * (small ? 2.4 : 2.2),
-        slope: 0.12 + Math.random() * 0.12, // gently rising: «trends over time»
+        slope: 0.15 + Math.random() * 0.15, // gently rising: «trends over time»
         phase: Math.random() * Math.PI * 2,
         speed: 0.08 + Math.random() * 0.06,
-        width: (small ? 0.22 : 0.16) + Math.random() * 0.1,
+        width: 0.3 + Math.random() * 0.2,
         centre: new Float32Array(SEGMENTS * 3),
       };
     });
@@ -81,7 +80,7 @@ export function HeroRibbonsCanvas() {
           // Fade in and out at the ends of each ribbon.
           const along = Math.sin((s / (SEGMENTS - 1)) * Math.PI);
           for (let r = 0; r < ROWS; r++) {
-            const a = (r === 1 ? 0.55 : 0) * along;
+            const a = (r === 1 ? 0.9 : 0) * along;
             c.toArray(rb.col, (s * ROWS + r) * 4);
             rb.col[(s * ROWS + r) * 4 + 3] = a;
           }
@@ -119,7 +118,7 @@ export function HeroRibbonsCanvas() {
         for (let s = 0; s < SEGMENTS; s++) {
           const u = s / (SEGMENTS - 1);
           const x = (u - 0.5) * halfW * 2.4;
-          const y = rb.base + rb.slope * x + Math.sin(u * 4 + t) * 0.35 + Math.sin(u * 9 - t * 1.3) * 0.12;
+          const y = rb.base + rb.slope * (u - 0.5) * 4 + Math.sin(u * 4 + t) * 0.5 + Math.sin(u * 9 - t * 1.3) * 0.12;
           const z = Math.sin(u * 3 + t * 0.7) * 0.8;
           const twist = Math.sin(u * 5 + t) * rb.width;
           rb.centre.set([x, y, z], s * 3);
@@ -168,7 +167,7 @@ export function HeroRibbonsCanvas() {
     <div
       ref={ref}
       aria-hidden="true"
-      className="absolute inset-0 pointer-events-none [&>canvas]:w-full [&>canvas]:h-full [mask-image:linear-gradient(90deg,rgb(0_0_0/0.25)_20%,black_75%)] max-md:[mask-image:linear-gradient(180deg,rgb(0_0_0/0.3)_30%,black_90%)] opacity-70"
+      className="absolute inset-0 pointer-events-none [&>canvas]:w-full [&>canvas]:h-full [mask-image:linear-gradient(90deg,rgb(0_0_0/0.25)_20%,black_75%)] max-md:[mask-image:linear-gradient(180deg,rgb(0_0_0/0.3)_30%,black_90%)] opacity-80"
     />
   );
 }
