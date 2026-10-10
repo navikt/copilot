@@ -129,7 +129,7 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 }
 
 // makePublicRouter creates the public router for unauthenticated endpoints.
-func makePublicRouter(config *Config, videoHandlers *VideoHandlers) http.Handler {
+func makePublicRouter(config *Config, videoHandlers *VideoHandlers, bqHandlers *BigQueryHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	videoStub := serviceUnavailableHandler("Video service is not configured for this environment")
@@ -144,6 +144,11 @@ func makePublicRouter(config *Config, videoHandlers *VideoHandlers) http.Handler
 	mux.HandleFunc("GET /public/v1/videos/{id}", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoDetail })))
 	mux.HandleFunc("GET /public/v1/videos/{id}/play", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoPlay })))
 	mux.HandleFunc("GET /public/v1/videos/{id}/captions", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoCaptions })))
+	fact := serviceUnavailableHandler("BigQuery is not configured for this environment")
+	if bqHandlers != nil {
+		fact = bqHandlers.handlePublicFact
+	}
+	mux.HandleFunc("GET /public/v1/fact", fact)
 
 	return mux
 }

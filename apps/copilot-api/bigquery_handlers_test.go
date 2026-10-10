@@ -29,6 +29,7 @@ func TestHandleCohortRetentionNullForFutureMonths(t *testing.T) {
 
 // mockBigQueryClient implements BigQueryQuerier for testing
 type mockBigQueryClient struct {
+	factAggregates     *FactAggregates
 	dailyMetrics       []EnterpriseMetrics
 	dailyMetricsErr    error
 	adoptionSummary    *AdoptionSummary
@@ -279,6 +280,10 @@ func (m *mockBigQueryClient) GetBillingMonthlyTrend(_ context.Context, _ int) ([
 
 func (m *mockBigQueryClient) GetBillingModelBreakdown(_ context.Context, _ int) ([]BillingModelBreakdown, error) {
 	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetFactAggregates(_ context.Context) (*FactAggregates, error) {
+	return m.factAggregates, nil
 }
 
 func (m *mockBigQueryClient) GetDailySummary(_ context.Context) (*DailySummary, error) {

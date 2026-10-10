@@ -10,6 +10,8 @@ import { getUser } from "@/lib/auth";
 import { getPublicVideoFeed } from "@/lib/public-videos";
 import { NavCard } from "@/components/navigation/nav-card";
 import { HeroNetwork } from "@/components/hero-network/hero-network";
+import { DailyFact } from "@/components/daily-fact";
+import { Suspense } from "react";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getMcpServers } from "@/lib/mcp-registry";
 
@@ -48,6 +50,11 @@ export default async function Home() {
               {user && <Greeting />}
               Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.
             </BodyShort>
+            <div className="hero-animate-d2 mt-2">
+              <Suspense fallback={null}>
+                <DailyFact />
+              </Suspense>
+            </div>
           </VStack>
         </Box>
       </section>
