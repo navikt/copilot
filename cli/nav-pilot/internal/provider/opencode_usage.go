@@ -36,7 +36,15 @@ func readOpenCodeUsage(dir string, since time.Time) telemetry.ClientUsage {
 	u := telemetry.ClientUsage{Client: "opencode", Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	out, err := openCodeCommand(ctx, dir, "session", "list", "--format", "json")
+	// v1 runs in-process with --pure; v2 needs --standalone so it does not
+	// start or reuse the background service.
+	list := []string{"session", "list", "--format", "json", "-n", "20", "--pure"}
+	export := []string{"export", "--pure", "--sanitize"}
+	if openCodeMajor() >= 2 {
+		list = []string{"session", "list", "--format", "json", "-n", "20", "--standalone"}
+		export = []string{"session", "export", "--standalone", "--sanitize"}
+	}
+	out, err := openCodeCommand(ctx, dir, list...)
 	if err != nil {
 		return u
 	}
@@ -49,17 +57,37 @@ func readOpenCodeUsage(dir string, since time.Time) telemetry.ClientUsage {
 		return u
 	}
 	sinceMS := since.UnixMilli()
+	want := realDir(dir)
 	for _, s := range sessions {
-		if s.Updated < sinceMS || filepath.Clean(s.Directory) != filepath.Clean(dir) {
+		if s.Updated < sinceMS || realDir(s.Directory) != want {
 			continue
 		}
-		out, err := openCodeCommand(ctx, dir, "export", "--sanitize", s.ID)
+		out, err := openCodeCommand(ctx, dir, append(export, s.ID)...)
 		if err != nil {
 			continue
 		}
 		addOpenCodeExport(&u, out, sinceMS)
 	}
 	return u
+}
+
+// realDir resolves symlinks so /tmp and /private/tmp match; the raw path if
+// that fails.
+func realDir(p string) string {
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	return filepath.Clean(p)
+}
+
+// openCodeTools are opencode's built-in tools. Other names come from MCP
+// servers and plugins the developer named, so they are "other".
+var openCodeTools = map[string]bool{
+	"bash": true, "edit": true, "multiedit": true, "write": true, "read": true,
+	"grep": true, "glob": true, "list": true, "patch": true, "apply_patch": true,
+	"todowrite": true, "todoread": true, "webfetch": true, "websearch": true,
+	"task": true, "skill": true, "question": true, "lsp": true, "batch": true,
+	"codesearch": true,
 }
 
 func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) {
@@ -90,7 +118,8 @@ func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) {
 		if m.Info.Role != "assistant" || m.Info.Time.Created < sinceMS {
 			continue
 		}
-		k := telemetry.ModelKey{Provider: m.Info.ProviderID, Model: openCodeTelemetryModel(m.Info.ProviderID, m.Info.ModelID)}
+		provider, model := openCodeTelemetryModel(m.Info.ProviderID, m.Info.ModelID)
+		k := telemetry.ModelKey{Provider: provider, Model: model}
 		mu := u.Models[k]
 		mu.Calls++
 		if t := m.Info.Tokens; t != nil {
@@ -103,7 +132,11 @@ func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) {
 		u.Models[k] = mu
 		for _, p := range m.Parts {
 			if p.Type == "tool" && p.Tool != "" {
-				u.Tools[p.Tool]++
+				tool := p.Tool
+				if !openCodeTools[tool] {
+					tool = "other"
+				}
+				u.Tools[tool]++
 			}
 		}
 	}
@@ -111,13 +144,14 @@ func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) {
 
 // openCodeTelemetryModel keeps model ids bounded. Copilot's are a short public
 // list and nav-pilot's local provider goes through [local.TelemetryModel]; a
-// provider the developer added has ids they typed, so those are "custom".
-func openCodeTelemetryModel(provider, model string) string {
+// provider the developer added has a name and ids they typed, so both are
+// "custom".
+func openCodeTelemetryModel(provider, model string) (string, string) {
 	switch provider {
 	case "github-copilot":
-		return model
+		return provider, model
 	case LocalProviderID:
-		return local.TelemetryModel(model)
+		return provider, local.TelemetryModel(model)
 	}
-	return "custom"
+	return "custom", "custom"
 }

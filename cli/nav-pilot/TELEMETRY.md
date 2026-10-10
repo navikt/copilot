@@ -37,26 +37,31 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 **Merk om opencode-bruk (`nav_pilot_genai_*`):**
 - opencode sender spor (traces) og logger, men ingen metrikker. Når økten
   slutter, leser nav-pilot summene fra `opencode session list` og
-  `opencode export --sanitize` og sender dem som metrikker. Bare tall og
-  modellnavn: aldri ledetekst, svar, filstier eller bruker.
+  `opencode export --sanitize` (`opencode session export --sanitize` i
+  opencode 2) og sender dem som metrikker. Bare tall og modellnavn: aldri
+  ledetekst, svar, filstier eller bruker.
 - `input` er tokens som ikke kom fra cache. Copilots `input` kan telle annerledes,
-  så sammenlign `input + cache_read` når du ser klientene mot hverandre.
-- `gen_ai_request_model` er modell-id-en for `github-copilot` og nav-pilots
-  lokale modell. For leverandører du har lagt til selv, er den `custom`.
+  så bruk `input + cache_read` når du sammenligner klientene.
+- `gen_ai_provider_name` og `gen_ai_request_model` er leverandør- og
+  modell-id-en for `github-copilot` og nav-pilots lokale modell. For
+  leverandører du har lagt til selv, er begge `custom`. Verktøy utenom
+  opencodes innebygde heter `other`.
 - Ingen etikett per prosess eller økt. Som de andre tellerne sendes hver eksport
-  som det som er nytt siden forrige (se «Dashboard-eksempler»), så en økt kommer
-  fram som én måling med sine egne summer. Summer med `sum_over_time`, ikke
+  som det som er nytt siden forrige (se «Dashboard-eksempler»), så en økt ender
+  som én måling med sine egne summer. Summer med `sum_over_time`, ikke
   `increase`:
   ```promql
   sum by (gen_ai_request_model, gen_ai_token_type) (
     sum_over_time(nav_pilot_genai_session_tokens_total{client="opencode"}[7d])
   )
   ```
-  Da teller ikke to samtidige økter på samme maskin for mye. Det gjør Copilots
-  kumulative `gen_ai_client_token_usage`: Mimir leser hvert fall i verdien som en
-  nullstilling. Ekte delta-tellere ville krevd `deltatocumulative` i
-  Nav-kollektoren, og den har ikke det.
-- To opencode-økter i samme mappe samtidig blir telt av begge oppstartene.
+  Da blir ikke to samtidige økter på samme maskin telt dobbelt. Det blir
+  Copilots kumulative `gen_ai_client_token_usage`: Mimir leser hvert fall i
+  verdien som en nullstilling. Ekte delta-tellere ville krevd
+  `deltatocumulative` i Nav-kollektoren, og det kjører den ikke.
+- Kjører du to opencode-økter i samme mappe samtidig, teller begge oppstartene
+  begge øktene. Underøkter (subagenter) telles ikke: `opencode session list`
+  viser bare toppnivå-økter.
 
 **Merk om `alpha decide` og hookene:**
 - Spørsmålet, alternativene, evidensen og valget sendes aldri, bare antall og
