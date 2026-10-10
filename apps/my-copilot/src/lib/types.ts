@@ -287,6 +287,26 @@ export interface TeamGrossOverview {
   comparison: TeamComparison;
 }
 
+// One team, one row per month of a year, from GET /api/v1/copilot/usage/team-year.
+// Amounts are null when the month has no data or under five contributors.
+export interface TeamYearMonth {
+  month: string;
+  basis: "net" | "gross" | "none";
+  hidden: boolean;
+  users: number | null;
+  net_usd: number | null;
+  gross_usd: number | null;
+  no_usage_net_usd: number | null;
+}
+
+export interface TeamYearOverview {
+  team_id: string;
+  team_slug: string;
+  year: number;
+  months: TeamYearMonth[];
+  coverage: { membership_from: string; gross_from: string; last_usage_day: string; net_months: string[] };
+}
+
 export interface TeamNetOverview {
   month: string;
   teams: TeamSpend[];

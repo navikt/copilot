@@ -1,10 +1,11 @@
 import { Suspense, cache } from "react";
 import type { Metadata } from "next";
-import { BodyShort } from "@navikt/ds-react";
+import { BodyShort, VStack } from "@navikt/ds-react";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import TeamGrossUsage from "@/components/team-gross-usage";
 import ErrorState from "@/components/error-state";
-import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
+import { getMyTeams, getTeamGrossOverview, getTeamNetOverview, getTeamYearOverview } from "@/lib/cached-bigquery";
+import TeamYearCost, { TeamYearPicker } from "@/components/team-year-cost";
 import { getUser, getUserToken } from "@/lib/auth";
 import { teamInsightMonth } from "@/lib/month-utils";
 import TeamControls from "@/components/team-controls";
@@ -12,6 +13,7 @@ import TeamSpendSkeleton from "./team-spend-skeleton";
 
 // Shared by the section and «Sist oppdatert» so the no-store request runs once per render.
 const grossOverview = cache(getTeamGrossOverview);
+const myTeamsOf = cache(getMyTeams);
 
 export const metadata: Metadata = {
   title: "Teaminnsikt",
@@ -36,7 +38,7 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
   }
   let myTeams: string[] | null = null;
   try {
-    myTeams = await getMyTeams(token);
+    myTeams = await myTeamsOf(token);
   } catch (error) {
     console.error("[team] Caller teams unavailable:", error);
   }
@@ -49,10 +51,45 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
   return <TeamGrossUsage data={gross} net={net} myTeams={myTeams} comparisonReason={comparisonReason} />;
 }
 
-export default async function TeamPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+async function TeamYear({ month, team, token }: { month: string; team: string; token: string }) {
+  const year = Number(month.slice(0, 4));
+  let teams;
+  try {
+    teams = (await grossOverview(month, token)).teams;
+  } catch {
+    return <ErrorState message="Kunne ikke hente teamlisten." />;
+  }
+  const mine = new Set(((await myTeamsOf(token).catch(() => null)) ?? []).map((slug) => slug.toLowerCase()));
+  const own = (slug: string) => (mine.has(slug.toLowerCase()) ? 0 : 1);
+  const sorted = [...teams].sort(
+    (a, b) => own(a.team_slug) - own(b.team_slug) || a.team_slug.localeCompare(b.team_slug, "nb")
+  );
+  let data = null;
+  if (team) {
+    try {
+      data = await getTeamYearOverview(team, year, token);
+    } catch (error) {
+      console.error("[team] Year usage failed:", error);
+      return <ErrorState message="Kunne ikke hente forbruket for teamet." />;
+    }
+  }
+  return (
+    <VStack gap="space-24">
+      <BodyShort>
+        Forbruk per måned i {year} for ett team om gangen, med de samme tallene som månedsoversikten. Listen viser team
+        med minst fem medlemmer med forbruk i måneden du har valgt, og dine team først.
+      </BodyShort>
+      <TeamYearPicker teams={sorted} team={team} month={month} />
+      {data ? <TeamYearCost data={data} /> : <BodyShort>Velg et team for å se forbruket per måned.</BodyShort>}
+    </VStack>
+  );
+}
+
+export default async function TeamPage({ searchParams }: { searchParams: Promise<{ month?: string; team?: string }> }) {
   await getUser();
   const token = await getUserToken();
-  const { month: requestedMonth } = await searchParams;
+  const { month: requestedMonth, team: requestedTeam } = await searchParams;
+  const team = requestedTeam && /^[1-9][0-9]{0,19}$/.test(requestedTeam) ? requestedTeam : "";
   const month = teamInsightMonth(requestedMonth);
 
   if (!token) return <ErrorState message="Mangler innloggingstoken" />;
@@ -79,6 +116,11 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
             <TeamSpend month={month} token={token} />
           </Suspense>
         </TeamControls>
+      </InsightSection>
+      <InsightSection id="hittil-i-ar" title="Hittil i år">
+        <Suspense key={`${month}-${team}`} fallback={<TeamSpendSkeleton />}>
+          <TeamYear month={month} team={team} token={token} />
+        </Suspense>
       </InsightSection>
     </InsightPage>
   );
