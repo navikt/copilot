@@ -8,7 +8,8 @@ import { daysInCalendarMonth } from "@/lib/month-utils";
 import { hiddenShares, monthLabel, type FamilyShares, type MonthAnnotation, type ShareSeries } from "@/lib/trends";
 import type { CopilotPRMonth, CreditsPerUserMonth } from "@/lib/types";
 
-const HIDDEN_COLOR = "rgba(156, 163, 175, 0.45)";
+// Opaque neutral, about 3.3:1 against white, so the hidden part stays visible.
+const HIDDEN_COLOR = "#868E99";
 
 /**
  * Shares over time. `stacked` draws 100 % stacked bars (groups that add up to the whole), where a group

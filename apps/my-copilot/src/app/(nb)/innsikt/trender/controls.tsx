@@ -12,7 +12,7 @@ export function Events() {
         ikke hva som var årsaken. Modellvalgene gjelder bare våre egne agenter, mens faktureringen gjelder hele Nav. Et
         brudd i dataene er alltid markert med et grått felt.
       </BodyShort>
-      <ol className="list-decimal space-y-1 pl-6" aria-label="Hendelser">
+      <ol className="list-decimal" style={{ paddingInlineStart: "var(--ax-space-20)" }} aria-label="Hendelser">
         {CHART_ANNOTATIONS.map((a) => (
           <li key={`${a.date}-${a.label}`}>
             {formatDate(a.date)}: {a.url ? <Link href={a.url}>{a.label}</Link> : a.label}
