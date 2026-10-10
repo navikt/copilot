@@ -308,12 +308,20 @@ this table was first deployed. `v_seat_counts_monthly` keeps the last row per mo
 | `pending_cancellation_seats` | INTEGER   | Seats with a pending cancellation    |
 | `loaded_at`                  | TIMESTAMP | When the row was written             |
 
+### `team_members` table
+
+Daily snapshot of every team's members in the org (`GET /orgs/{org}/teams` and
+`/teams/{slug}/members`), regardless of Copilot use. Columns `date`, `team_slug`,
+`login`. Partitioned by day; partitions expire after 400 days. A re-run replaces
+the day with `MERGE`. Failures are logged and do not fail the job.
+
 ## GitHub App Permissions
 
 The GitHub App requires:
 
 - `enterprise_copilot_metrics: read` (for enterprise-level data)
 - Or `organization_copilot_metrics: read` (fallback)
+- Organization `members: read` (for `team_members`). The org installation must approve the new permission; until then each run logs a 403 and writes no `team_members` rows (#1566).
 
 ## Billing API Access
 

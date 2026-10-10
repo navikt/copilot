@@ -181,6 +181,12 @@ func main() {
 		seatCountsReady = false
 	}
 
+	teamMembersReady := true
+	if err := bqClient.EnsureTeamMembersTableExists(ctx); err != nil {
+		slog.Error("Failed to ensure team_members table exists (skipping team members)", "error", err)
+		teamMembersReady = false
+	}
+
 	if err := bqClient.EnsureViewsExist(ctx); err != nil {
 		// Non-fatal: ingestion is the job's primary purpose and must not be
 		// blocked by DDL. Logged at ERROR so a missing view surfaces in
@@ -357,6 +363,11 @@ func main() {
 		} else if err := ingestTodaySeatCounts(ctx, ghClient.FetchSeatCounts, bqClient.UpsertSeatCounts, time.Now()); err != nil {
 			slog.Error("Seat count ingestion failed", "error", err)
 			os.Exit(1)
+		}
+		// Non-fatal: needs the Members: read permission, which must not block
+		// the main ingestion if it is missing.
+		if teamMembersReady {
+			ingestTeamMembers(ctx, ghClient.FetchTeamMembers, bqClient.ReplaceTeamMembers, time.Now())
 		}
 		slog.Info("Ingestion completed successfully")
 		return
