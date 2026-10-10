@@ -321,7 +321,7 @@ The GitHub App requires:
 
 - `enterprise_copilot_metrics: read` (for enterprise-level data)
 - Or `organization_copilot_metrics: read` (fallback)
-- Organization `members: read` (for `team_members`)
+- Organization `members: read` (for `team_members`). The org installation must approve the new permission; until then each run logs a 403 and writes no `team_members` rows (#1566).
 
 ## Billing API Access
 

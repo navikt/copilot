@@ -367,11 +367,7 @@ func main() {
 		// Non-fatal: needs the Members: read permission, which must not block
 		// the main ingestion if it is missing.
 		if teamMembersReady {
-			if members, err := ghClient.FetchTeamMembers(ctx); err != nil {
-				slog.Error("Team member fetch failed", "error", err)
-			} else if err := bqClient.ReplaceTeamMembers(ctx, time.Now().UTC(), members); err != nil {
-				slog.Error("Team member store failed", "error", err)
-			}
+			ingestTeamMembers(ctx, ghClient.FetchTeamMembers, bqClient.ReplaceTeamMembers, time.Now())
 		}
 		slog.Info("Ingestion completed successfully")
 		return

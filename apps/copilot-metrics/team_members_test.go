@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFetchTeamMembers_Paginates(t *testing.T) {
@@ -87,5 +88,51 @@ func TestTeamMembersMergeSQL_ReplacesDay(t *testing.T) {
 		if !strings.Contains(sql, want) {
 			t.Errorf("merge SQL missing %q:\n%s", want, sql)
 		}
+	}
+}
+
+func TestIngestTeamMembers_ForbiddenWritesNothing(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Resource not accessible by integration", http.StatusForbidden)
+	}))
+	defer server.Close()
+	client := newTestGitHubClient(server)
+	stored := false
+	ingestTeamMembers(context.Background(), client.FetchTeamMembers,
+		func(context.Context, time.Time, []TeamMember) error { stored = true; return nil }, time.Now())
+	if stored {
+		t.Fatal("store called after 403")
+	}
+}
+
+func TestFetchTeamMembers_RetriesAndSkipsGoneTeam(t *testing.T) {
+	retryUnit = time.Millisecond
+	defer func() { retryUnit = time.Second }()
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/orgs/navikt/teams":
+			if calls++; calls == 1 {
+				http.Error(w, "boom", http.StatusBadGateway)
+				return
+			}
+			_, _ = fmt.Fprint(w, `[{"slug":"a"},{"slug":"gone"}]`)
+		case "/orgs/navikt/teams/a/members":
+			_, _ = fmt.Fprint(w, `[{"login":"x"}]`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	got, err := newTestGitHubClient(server).FetchTeamMembers(context.Background())
+	if err != nil || len(got) != 1 || got[0].Login != "x" {
+		t.Fatalf("got %v, %v", got, err)
+	}
+}
+
+func newTestGitHubClient(server *httptest.Server) *GitHubClient {
+	return &GitHubClient{
+		httpClient: &http.Client{Transport: &rewriteHostTransport{base: server.Client().Transport, target: server.URL}},
+		org:        "navikt",
 	}
 }

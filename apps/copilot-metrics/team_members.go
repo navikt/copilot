@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -57,7 +58,7 @@ func (c *BigQueryClient) EnsureTeamMembersTableExists(ctx context.Context) error
 // avoids the streaming-buffer window that blocks delete-then-insert.
 func teamMembersMergeSQL(tableRef string) string {
 	return `MERGE ` + tableRef + ` t
-USING (SELECT @date date, m.team_slug, m.login FROM UNNEST(@members) m) s
+USING (SELECT DISTINCT @date date, m.team_slug, m.login FROM UNNEST(@members) m) s
 ON t.date = s.date AND t.team_slug = s.team_slug AND t.login = s.login
 WHEN NOT MATCHED BY TARGET THEN INSERT (date, team_slug, login) VALUES (s.date, s.team_slug, s.login)
 WHEN NOT MATCHED BY SOURCE AND t.date = @date THEN DELETE`
@@ -96,6 +97,10 @@ func (c *GitHubClient) FetchTeamMembers(ctx context.Context) ([]TeamMember, erro
 			Login string `json:"login"`
 		}
 		if err := getAllPages(ctx, client, base+"/"+team.Slug+"/members", &users); err != nil {
+			if strings.HasPrefix(err.Error(), "status 404:") {
+				slog.Warn("Team disappeared during snapshot, skipping", "team", team.Slug)
+				continue
+			}
 			return nil, fmt.Errorf("list members of %s: %w", team.Slug, err)
 		}
 		for _, u := range users {
@@ -117,17 +122,9 @@ func getAllPages[T any](ctx context.Context, client *http.Client, url string, ou
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-		resp, err := client.Do(req)
+		body, err := getPage(ctx, client, req)
 		if err != nil {
-			return fmt.Errorf("page %d: %w", page, err)
-		}
-		body, readErr := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if readErr != nil {
-			return fmt.Errorf("read page %d: %w", page, readErr)
-		}
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("status %d on page %d: %s", resp.StatusCode, page, truncate(string(body), 300))
+			return fmt.Errorf("%w on page %d", err, page)
 		}
 		var items []T
 		if err := json.Unmarshal(body, &items); err != nil {
@@ -137,5 +134,59 @@ func getAllPages[T any](ctx context.Context, client *http.Client, url string, ou
 		if len(items) < 100 {
 			return nil
 		}
+	}
+}
+
+// getPage does one GET, retrying 429 and 5xx twice with a 2s/4s backoff.
+func getPage(ctx context.Context, client *http.Client, req *http.Request) ([]byte, error) {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(1<<attempt) * retryUnit):
+			}
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		body, readErr := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
+			continue
+		}
+		if resp.StatusCode == http.StatusOK {
+			return body, nil
+		}
+		lastErr = fmt.Errorf("status %d: %s", resp.StatusCode, truncate(string(body), 300))
+		if resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode < 500 {
+			return nil, lastErr
+		}
+	}
+	return nil, lastErr
+}
+
+// retryUnit is the backoff base; tests shrink it.
+var retryUnit = time.Second
+
+// ingestTeamMembers stores today's membership. It never fails the job: a
+// missing Members: read grant gives 403, which is logged and nothing is written.
+func ingestTeamMembers(
+	ctx context.Context,
+	fetch func(context.Context) ([]TeamMember, error),
+	store func(context.Context, time.Time, []TeamMember) error,
+	now time.Time,
+) {
+	members, err := fetch(ctx)
+	if err != nil {
+		slog.Error("Team member fetch failed, nothing written", "error", err)
+		return
+	}
+	if err := store(ctx, now.UTC(), members); err != nil {
+		slog.Error("Team member store failed", "error", err)
 	}
 }
