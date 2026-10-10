@@ -143,3 +143,6 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 0
+    # Security updates ignore the limit above, so ignore every dependency too.
+    ignore:
+      - dependency-name: "*"
