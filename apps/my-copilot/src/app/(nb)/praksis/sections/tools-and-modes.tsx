@@ -248,7 +248,7 @@ export default function ToolsAndModes() {
             Modellvalg og kostnader
           </Heading>
         </div>
-        <BodyShort className="text-gray-600 text-sm mb-2">
+        <BodyShort className="text-gray-600 text-sm" style={{ marginBottom: "var(--ax-space-8)" }}>
           <strong>Start med Auto.</strong> Da velger Copilot modell for deg. Bytt modell bare når du har en grunn, for
           eksempel at agenten står fast på en vanskelig oppgave.
         </BodyShort>

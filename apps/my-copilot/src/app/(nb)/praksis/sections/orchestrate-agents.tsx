@@ -212,7 +212,7 @@ export default function OrchestrateAgents() {
 mise check        # Typesjekk + lint + test
 gh pr create      # Opprett PR automatisk
 go test ./...     # Verifiser endringer`}</pre>
-              <BodyShort className="text-gray-600 text-xs mt-2">
+              <BodyShort className="text-gray-600 text-xs" style={{ marginTop: "var(--ax-space-8)" }}>
                 Kjør agenten i{" "}
                 <NextLink href="/cplt" className="text-blue-600 hover:underline">
                   cplt

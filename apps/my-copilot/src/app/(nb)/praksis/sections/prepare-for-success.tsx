@@ -29,7 +29,12 @@ export default function PrepareForSuccess() {
           Velg ett språk for hver ting, og skriv valget i en «Språk»-del i AGENTS.md. Agenten følger mønstrene i koden,
           og uten en regel blander den språk i kommentarer og commit-meldinger.
         </BodyShort>
-        <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-600 text-sm">
+        <VStack
+          as="ul"
+          gap="space-4"
+          className="list-disc text-gray-600 text-sm"
+          style={{ paddingLeft: "var(--ax-space-20)", marginTop: "var(--ax-space-8)" }}
+        >
           <li>
             Fagbegreper fra domenet beholder det norske navnet i koden, for eksempel <code>vedtak</code>,{" "}
             <code>meldekort</code> og <code>dagpenger</code>. Ikke oversett dem. Meningsfulle navn hjelper agenten mer
@@ -41,7 +46,7 @@ export default function PrepareForSuccess() {
           <li>
             Hold AGENTS.md kort. Norsk tekst bruker flere tokens enn engelsk, og filen sendes med hver forespørsel.
           </li>
-        </ul>
+        </VStack>
       </Box>
 
       {/* Start here: AGENTS.md + copilot-setup-steps */}

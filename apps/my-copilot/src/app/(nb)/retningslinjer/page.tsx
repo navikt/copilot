@@ -281,8 +281,13 @@ export default function RetningslinjerPage() {
                   </thead>
                   <tbody>
                     <tr className="border-b">
-                      <td className="py-2 pr-4 whitespace-nowrap">2026-10-10</td>
-                      <td className="py-2">
+                      <td
+                        className="whitespace-nowrap"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2026-10-10
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>
                         Copilot CLI og opencode via nav-pilot er tillatt i cplt. Fjernet Copilot Workspace, som er
                         avviklet. Lagt til krav om <code>chat.agent.sandbox.enabled</code> i VS Code. Bevisst KI-bruk
                         har fått en risikoakse i tillegg til grønn og rød sone.

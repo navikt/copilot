@@ -374,8 +374,8 @@ export default function EffectiveCustomizations() {
               <li className="flex gap-2">
                 <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
                 <span>
-                  Ikke teamregler som Aksel, UU, personvern eller byggkommandoer. De skal stå i <code>AGENTS.md</code>{" "}
-                  eller i en skill.
+                  Teamregler som Aksel, UU, personvern og byggkommandoer skal stå i <code>AGENTS.md</code> eller i en
+                  skill, der teamet kan gjennomgå dem. Copilot kan også lagre slike regler som minner for repoet.
                 </span>
               </li>
             </ul>
@@ -390,7 +390,7 @@ export default function EffectiveCustomizations() {
                 <strong>AGENTS.md og skills:</strong> Teamets faste regler (versjonskontrollert)
               </li>
               <li>
-                <strong>Memories:</strong> Dine personlige preferanser (bygges opp over tid)
+                <strong>Memories:</strong> Dine preferanser og fakta Copilot lærer om repoet (bygges opp over tid)
               </li>
               <li>
                 <strong>Instructions:</strong> Kodestil og syntaksregler (per fil-type)

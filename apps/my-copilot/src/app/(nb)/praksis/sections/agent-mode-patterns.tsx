@@ -132,7 +132,9 @@ export default function AgentModePatterns() {
               </NextLink>
             </Heading>
           </div>
-          <BodyShort className="text-gray-600 text-sm mb-2">Norsk tekst</BodyShort>
+          <BodyShort className="text-gray-600 text-sm" style={{ marginBottom: "var(--ax-space-8)" }}>
+            Norsk tekst
+          </BodyShort>
           <ul className="space-y-1 text-xs">
             <li>• Klarspråk og mikrotekst</li>
             <li>• Fjern KI-markører og anglisismer</li>

@@ -51,7 +51,7 @@ export default function GettingStarted() {
             </ol>
           </div>
         </div>
-        <BodyShort className="text-gray-700 text-sm mt-4">
+        <BodyShort className="text-gray-700 text-sm" style={{ marginTop: "var(--ax-space-16)" }}>
           Vil du bruke Copilot CLI eller opencode i terminalen? Installer dem med nav-pilot, som også setter opp
           sandkassen cplt. Se{" "}
           <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
