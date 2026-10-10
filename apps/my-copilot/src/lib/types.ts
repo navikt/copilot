@@ -573,6 +573,7 @@ export interface SpendBands {
   days_in_month: number;
   last_day: string;
   net_ratio: number;
+  run_weight: number;
   totals: SpendForecastMonth[];
   forecast: SpendForecastMonth[];
 }

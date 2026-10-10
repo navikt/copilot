@@ -90,9 +90,11 @@ async function Current({ token }: { token: string }) {
         </Table>
       </div>
       <BodyShort size="small" textColor="subtle">
-        Forutsetninger: Hver bruker fortsetter i samme tempo som hittil i måneden. Vi ganger brutto bruk så langt med{" "}
-        {data.days_in_month}/{data.days} og deretter med {formatShare(data.net_ratio)}, som var andelen av brutto bruk
-        som ble fakturert forrige hele måned. Tidlig i måneden kan et par travle dager gi for høye tall.
+        Forutsetninger: Vi regner ut et tempo for hver bruker ved å gange brutto bruk så langt med {data.days_in_month}/
+        {data.days} og med {formatShare(data.net_ratio)}, andelen av brutto bruk som ble fakturert forrige hele måned.
+        Tempoet teller {formatShare(data.run_weight)}, like mye som andelen av måneden som er gått. Resten er det
+        brukeren fikk fakturert forrige måned. Slik gir et par travle dager tidlig i måneden ikke for høye tall. Alle
+        som ble fakturert forrige måned, er med, også de som ikke har brukt Copilot ennå denne måneden.
       </BodyShort>
     </>
   );
@@ -158,10 +160,12 @@ export default async function ForbrukPage() {
         <>
           Tallene kommer fra <code>/usage/spend-bands</code>. Fakturert forbruk per bruker og måned (netto) finnes fra
           august 2026 og kommer med når fakturaen for måneden er lest inn. Vi teller alle med lisens, også de uten
-          forbruk. For denne måneden teller vi bare brukere med Copilot-aktivitet, og forbruket er brutto bruk per dag
-          omregnet til netto. Vi bruker standardgrensen per måned, fordi grensen per person ikke er tilgjengelig ennå.
-          Unntak for enkeltpersoner er derfor ikke med. Siden viser bare antall per bånd, aldri enkeltpersoner, og et
-          bånd har minst fem brukere.
+          forbruk. Vi har ikke lisensdata i BigQuery. Derfor teller vi for denne måneden alle som ble fakturert forrige
+          måned, pluss nye brukere med Copilot-aktivitet. Prognosen per bruker veier brutto bruk hittil, omregnet til
+          netto og fremskrevet til månedsslutt, mot forrige måneds netto. Vekten på tempoet er andelen av måneden som er
+          gått. Vi bruker standardgrensen per måned, fordi grensen per person ikke er tilgjengelig ennå. Unntak for
+          enkeltpersoner er derfor ikke med. Siden viser bare antall per bånd, aldri enkeltpersoner, og et bånd har
+          minst fem brukere.
         </>
       }
     >

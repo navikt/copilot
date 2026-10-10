@@ -157,15 +157,18 @@ type SpendBands struct {
 	DaysInMonth int     `json:"days_in_month"`
 	LastDay     string  `json:"last_day"`
 	NetRatio    float64 `json:"net_ratio"`
+	// RunWeight is the weight on this month's run rate; the rest is last month's net per user.
+	RunWeight float64 `json:"run_weight"`
 	// TotalsUSD are billed (complete months) or projected (current month) totals, rounded to 100 USD.
 	Totals   []SpendForecastMonth `json:"totals"`
 	Forecast []SpendForecastMonth `json:"forecast"`
 }
 
 type spendUserRow struct {
-	Month string  `bigquery:"month"`
-	Net   float64 `bigquery:"net"`
-	Gross float64 `bigquery:"gross"`
+	UserID string  `bigquery:"user_id"`
+	Month  string  `bigquery:"month"`
+	Net    float64 `bigquery:"net"`
+	Gross  float64 `bigquery:"gross"`
 	// LastDay is set on current-month rows only: the last day with usage.
 	LastDay string `bigquery:"last_day"`
 }
@@ -210,11 +213,35 @@ func buildSpendBands(history, current []spendUserRow, lastDay string) *SpendBand
 	month := day.Format("2006-01")
 	out.Days, out.DaysInMonth, out.LastDay = day.Day(), day.AddDate(0, 0, 1-day.Day()).AddDate(0, 1, -1).Day(), lastDay
 	scale := float64(out.DaysInMonth) / float64(out.Days) * out.NetRatio
-	projected := make([]float64, len(current))
+	// No seat data in BigQuery: everyone billed last month is counted, so the 0 %
+	// band compares with billed months. Each user blends the run rate with last
+	// month's net, weighted by elapsed days, so early bursts are damped.
+	prev := map[string]float64{}
+	for _, r := range history {
+		if r.Month == order[len(order)-1] {
+			prev[r.UserID] = r.Net
+		}
+	}
+	run := map[string]float64{}
+	for _, r := range current {
+		run[r.UserID] = r.Gross * scale
+	}
+	w := float64(out.Days) / float64(out.DaysInMonth)
+	out.RunWeight = w
+	projected := []float64{}
 	total := 0.0
-	for i, r := range current {
-		projected[i] = r.Gross * scale
-		total += projected[i]
+	add := func(id string) {
+		v := w*run[id] + (1-w)*prev[id]
+		projected = append(projected, v)
+		total += v
+	}
+	for id := range prev {
+		add(id)
+	}
+	for id := range run {
+		if _, ok := prev[id]; !ok {
+			add(id)
+		}
 	}
 	limit := limitAtMonthEnd(month)
 	out.Current = &SpendBandMonth{Month: month, LimitUSD: limit, LimitChanged: limitChanged(month), Users: len(projected), Bands: mergeBands(projected, limit)}
@@ -280,7 +307,7 @@ WITH u AS (
   FROM %s
   WHERE day >= DATE_TRUNC(CURRENT_DATE(), MONTH) AND scope='enterprise' AND scope_id='nav'
 )
-SELECT SUM(gross) gross, CAST((SELECT MAX(day) FROM u) AS STRING) last_day
+SELECT user_id, SUM(gross) gross, CAST((SELECT MAX(day) FROM u) AS STRING) last_day
 FROM u GROUP BY user_id`, bq.tableRef(bq.metricsDataset, "user_metrics")))
 	it, err = current.Read(ctx)
 	if err != nil {

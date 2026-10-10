@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -95,24 +96,26 @@ func TestForecastTotals(t *testing.T) {
 func TestBuildSpendBands(t *testing.T) {
 	var hist []spendUserRow
 	for i := 0; i < 10; i++ {
-		hist = append(hist, spendUserRow{Month: "2026-08", Net: 100, Gross: 200})
+		hist = append(hist, spendUserRow{UserID: "a" + strconv.Itoa(i), Month: "2026-08", Net: 10, Gross: 20})
 	}
 	for i := 0; i < 10; i++ {
-		hist = append(hist, spendUserRow{Month: "2026-09", Net: 300, Gross: 400})
+		hist = append(hist, spendUserRow{UserID: "u" + strconv.Itoa(i), Month: "2026-09", Net: 75, Gross: 100})
 	}
-	// 15 of 30 days, ratio 0.75: 100 gross so far → 150 net at month end.
+	// 15 of 30 days, ratio 0.75, weight 0.5. u0–u5: 0.5×150 + 0.5×75 = 112.5.
+	// u6–u9 have no usage yet but are counted from September: 37.5. n1 is new: 75.
 	var cur []spendUserRow
 	for i := 0; i < 6; i++ {
-		cur = append(cur, spendUserRow{Gross: 100})
+		cur = append(cur, spendUserRow{UserID: "u" + strconv.Itoa(i), Gross: 100})
 	}
+	cur = append(cur, spendUserRow{UserID: "n1", Gross: 100})
 	got := buildSpendBands(hist, cur, "2026-11-15")
-	if len(got.Months) != 2 || got.Months[0].LimitUSD != 400 || got.Months[1].LimitUSD != 800 {
+	if len(got.Months) != 2 || got.Months[0].LimitUSD != 400 || got.Months[1].LimitUSD != 800 || !got.Months[1].LimitChanged {
 		t.Fatalf("months: %+v", got.Months)
 	}
-	if got.NetRatio != 0.75 || got.Days != 15 || got.DaysInMonth != 30 {
-		t.Errorf("ratio %v days %d/%d", got.NetRatio, got.Days, got.DaysInMonth)
+	if got.NetRatio != 0.75 || got.RunWeight != 0.5 || got.Days != 15 || got.DaysInMonth != 30 {
+		t.Errorf("ratio %v weight %v days %d/%d", got.NetRatio, got.RunWeight, got.Days, got.DaysInMonth)
 	}
-	if got.Current == nil || got.Current.Bands[1].Users != 6 || got.Current.Bands[1].Label != "1–25\u00a0%" {
+	if got.Current == nil || got.Current.Users != 11 || got.Current.Bands[1].Users != 11 {
 		t.Errorf("current: %+v", got.Current)
 	}
 	if last := got.Totals[len(got.Totals)-1]; last.Month != "2026-11" || last.MidUSD != 900 {
@@ -120,6 +123,26 @@ func TestBuildSpendBands(t *testing.T) {
 	}
 	if len(got.Forecast) != 3 || got.Forecast[0].Month != "2026-12" {
 		t.Errorf("forecast: %+v", got.Forecast)
+	}
+}
+
+func TestBuildSpendBandsDampsEarlyBursts(t *testing.T) {
+	var hist, cur []spendUserRow
+	for i := 0; i < 5; i++ {
+		hist = append(hist, spendUserRow{UserID: "u" + strconv.Itoa(i), Month: "2026-09", Net: 100, Gross: 100})
+		// 3 of 30 days at 30 USD: the raw run rate is 300 USD, past nothing; the burst user is at 3000.
+		cur = append(cur, spendUserRow{UserID: "u" + strconv.Itoa(i), Gross: 30})
+	}
+	cur[0].Gross = 300
+	got := buildSpendBands(hist, cur, "2026-11-03")
+	// u0: 0.1×3000 + 0.9×100 = 390 (undamped 3000, far over the 800 limit).
+	for _, b := range got.Current.Bands {
+		if b.First == 6 && b.Users > 0 {
+			t.Errorf("burst user still over the limit: %+v", got.Current.Bands)
+		}
+	}
+	if total := got.Totals[len(got.Totals)-1].MidUSD; total != 900 { // 390 + 4×(0.1×300 + 90)=480 → 870 → 900
+		t.Errorf("total %v", total)
 	}
 }
 
