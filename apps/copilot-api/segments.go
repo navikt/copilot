@@ -6,16 +6,13 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
-	"strings"
 
 	"cloud.google.com/go/bigquery"
 )
 
 // Anonymous behavioural segments for /innsikt/trender. The queries return
 // counts per month only: no user IDs, logins or team names. The counts stay
-// on the server: buildChart merges any band under minUsersForDistribution
-// into a neighbour, hides the month if that is not enough, and returns
-// whole-percent shares that sum to 100.
+// on the server: buildChart returns whole-percent shares that sum to 100.
 //
 // Intensity uses fixed thresholds on a user's user_initiated_interaction_count
 // summed over the month: lett 1-19 (or active through completions alone),
@@ -39,7 +36,7 @@ const (
 )
 
 // Raw monthly counts per band, read from BigQuery. They never leave the
-// server: buildChart merges, suppresses and rounds them first.
+// server: buildChart rounds them to shares first.
 type segmentRow struct {
 	Month string `bigquery:"month"`
 	A     int64  `bigquery:"a"`
@@ -49,8 +46,7 @@ type segmentRow struct {
 }
 
 // SegmentBand is one band of a chart: whole-percent shares, one per month in
-// SegmentChart.Months. null: the band does not exist that month (merged into
-// a neighbour) or the whole month is hidden.
+// SegmentChart.Months. null: the month has no data.
 type SegmentBand struct {
 	Label  string   `json:"label"`
 	Shares []*int64 `json:"shares"`
@@ -73,69 +69,18 @@ type UserSegments struct {
 	TeamAdoption SegmentChart `json:"team_adoption"`
 }
 
-// bandDef names the bands of one chart. label(i, j) names bands i..j merged.
-type bandDef struct {
-	names []string
-	label func(names []string, i, j int) string
-}
-
-// ordinal labels a merged range by its threshold: «Under 200», «Minst 20».
-// With three bands, a merged pair always touches an end.
-func ordinal(thresholds ...string) func([]string, int, int) string {
-	return func(names []string, i, j int) string {
-		if i == j {
-			return names[i]
-		}
-		if i == 0 {
-			return "Under " + thresholds[j]
-		}
-		return "Minst " + thresholds[i-1]
-	}
-}
-
-func nominal(names []string, i, j int) string {
-	return strings.Join(names[i:j+1], " + ")
-}
-
+// Small-group rule: suppression (n >= 5) applies only where a named team or
+// person can be picked out, such as tables and charts labelled with a team
+// name. These charts are Nav-wide and name no one, so every band is shown as
+// is. Team adoption counts anonymous teams, and a team is only counted with at
+// least minTeamContributors members; groups of such teams are not personal
+// data. The counts stay on the server and only rounded shares leave it.
 var (
-	intensityBands = bandDef{[]string{"Lett", "Middels", "Tung"}, ordinal("20", "200")}
-	modeBands      = bandDef{[]string{"Bare kodeforslag", "Chat", "Agentmodus", "CLI"}, nominal}
-	movementBands  = bandDef{[]string{"Opp", "Samme", "Ned"}, nominal}
-	adoptionBands  = bandDef{[]string{"Lav", "Middels", "Høy"}, ordinal("25 %", "60 %")}
+	intensityBands = []string{"Lett", "Middels", "Tung"}
+	modeBands      = []string{"Bare kodeforslag", "Chat", "Agentmodus", "CLI"}
+	movementBands  = []string{"Opp", "Samme", "Ned"}
+	adoptionBands  = []string{"Lav", "Middels", "Høy"}
 )
-
-type band struct {
-	i, j int
-	n    int64
-}
-
-// mergeBands merges every band under minUsersForDistribution into its smaller
-// neighbour until none is left. ok is false when that is impossible (the
-// month must be hidden): a band still under the limit, or a single band left.
-func mergeBands(counts []int64) (bands []band, ok bool) {
-	for k, n := range counts {
-		bands = append(bands, band{k, k, n})
-	}
-	for len(bands) > 1 {
-		k := -1
-		for x, b := range bands {
-			if b.n < minUsersForDistribution && (k < 0 || b.n < bands[k].n) {
-				k = x
-			}
-		}
-		if k < 0 {
-			return bands, true
-		}
-		o := k - 1
-		if k == 0 || (k < len(bands)-1 && bands[k+1].n < bands[k-1].n) {
-			o = k + 1
-		}
-		lo, hi := min(k, o), max(k, o)
-		bands[lo] = band{bands[lo].i, bands[hi].j, bands[lo].n + bands[hi].n}
-		bands = append(bands[:hi], bands[hi+1:]...)
-	}
-	return bands, false
-}
 
 // wholePercents rounds shares of counts to whole percent summing to 100
 // (largest remainder; ties go to the earlier band).
@@ -161,46 +106,31 @@ func wholePercents(counts []int64) []int64 {
 	return out
 }
 
-// buildChart turns raw counts into a display-ready chart. A band label shows
-// up as a series as soon as any month uses it.
-func buildChart(rows []segmentRow, def bandDef) SegmentChart {
-	type key struct{ i, j int }
-	shares := map[key][]*int64{}
-	var keys []key
+// buildChart turns raw counts into a display-ready chart with one series per
+// band. A month with no counts at all stays null.
+func buildChart(rows []segmentRow, names []string) SegmentChart {
 	chart := SegmentChart{Months: []string{}, Bands: []SegmentBand{}}
+	for _, name := range names {
+		chart.Bands = append(chart.Bands, SegmentBand{name, make([]*int64, len(rows))})
+	}
 	for m, r := range rows {
 		chart.Months = append(chart.Months, r.Month)
-		counts := []int64{r.A, r.B, r.C, r.D}[:len(def.names)]
-		bands, ok := mergeBands(counts)
-		if !ok {
+		counts := []int64{r.A, r.B, r.C, r.D}[:len(names)]
+		var total int64
+		for _, n := range counts {
+			total += n
+		}
+		if total == 0 {
 			continue
 		}
-		ns := make([]int64, len(bands))
-		for x, b := range bands {
-			ns[x] = b.n
+		for x, p := range wholePercents(counts) {
+			chart.Bands[x].Shares[m] = &p
 		}
-		for x, p := range wholePercents(ns) {
-			k := key{bands[x].i, bands[x].j}
-			if shares[k] == nil {
-				shares[k] = make([]*int64, len(rows))
-				keys = append(keys, k)
-			}
-			shares[k][m] = &p
-		}
-	}
-	sort.Slice(keys, func(a, b int) bool {
-		if keys[a].i != keys[b].i {
-			return keys[a].i < keys[b].i
-		}
-		return keys[a].j < keys[b].j
-	})
-	for _, k := range keys {
-		chart.Bands = append(chart.Bands, SegmentBand{def.label(def.names, k.i, k.j), shares[k]})
 	}
 	return chart
 }
 
-// withNet adds up minus down for months where neither is merged.
+// withNet adds up minus down for every month with data.
 func withNet(c SegmentChart) SegmentChart {
 	var up, down []*int64
 	for _, b := range c.Bands {

@@ -2,31 +2,24 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/civil"
 )
 
-func TestAdoptionCohortsWeeklySuppressesSmallAndComplementaryCells(t *testing.T) {
-	// 2026-09-07 is a Monday; Tue and Sun of the same week fold into it.
+// Nav-wide phase counts name no one: small cells are averaged per week and
+// shown as is, and a phase with no users that week is 0.
+func TestAdoptionCohortsWeeklyKeepsSmallCells(t *testing.T) {
 	mon := civil.Date{Year: 2026, Month: 9, Day: 7}
 	tue := civil.Date{Year: 2026, Month: 9, Day: 8}
-	sun := civil.Date{Year: 2026, Month: 9, Day: 13}
-	next := civil.Date{Year: 2026, Month: 9, Day: 14}
 	h := &BigQueryHandlers{bqClient: &mockBigQueryClient{cohorts: []AdoptionCohortDay{
-		// Week 1 averages: phase 0 = 50, phase 1 = 2, phase 2 = (6+6+7)/3 = 6, phase 3 = 20.
-		// Phase 1 (2) is small; phase 2 (6) must go too, else 2 = total - 50 - 6 - 20.
-		{Day: mon, Phase: 0, UserCount: 50}, {Day: mon, Phase: 1, UserCount: 6},
-		{Day: mon, Phase: 2, UserCount: 6}, {Day: mon, Phase: 3, UserCount: 20},
-		{Day: tue, Phase: 0, UserCount: 50}, {Day: tue, Phase: 2, UserCount: 6},
-		{Day: tue, Phase: 3, UserCount: 20},
-		{Day: sun, Phase: 0, UserCount: 50}, {Day: sun, Phase: 2, UserCount: 7},
-		{Day: sun, Phase: 3, UserCount: 20},
-		// Week 2: hidden cells already sum to 6, no extra cell needed.
-		{Day: next, Phase: 0, UserCount: 50}, {Day: next, Phase: 1, UserCount: 3},
-		{Day: next, Phase: 2, UserCount: 3}, {Day: next, Phase: 3, UserCount: 20},
+		{Day: mon, Phase: 0, UserCount: 50}, {Day: mon, Phase: 1, UserCount: 2},
+		{Day: tue, Phase: 0, UserCount: 50}, {Day: tue, Phase: 1, UserCount: 4},
 	}}}
 	rec := httptest.NewRecorder()
 	h.handleAdoptionCohorts(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil))
@@ -34,32 +27,9 @@ func TestAdoptionCohortsWeeklySuppressesSmallAndComplementaryCells(t *testing.T)
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	want := []AdoptionCohortWeek{
-		{Week: mon, Phase: 0, UserCount: 50}, {Week: mon, Phase: 3, UserCount: 20},
-		{Week: next, Phase: 0, UserCount: 50}, {Week: next, Phase: 3, UserCount: 20},
-	}
-	if len(got) != len(want) {
+	want := []AdoptionCohortWeek{{Week: mon, Phase: 0, UserCount: 50}, {Week: mon, Phase: 1, UserCount: 3}, {Week: mon, Phase: 2}, {Week: mon, Phase: 3}}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("got %+v, want %+v", got, want)
-	}
-	for i := range want {
-		if got[i].Week != want[i].Week || got[i].Phase != want[i].Phase || got[i].UserCount != want[i].UserCount {
-			t.Errorf("row %d: got %+v, want %+v", i, got[i], want[i])
-		}
-	}
-}
-
-func TestAdoptionCohortsSuppressesBeforeRounding(t *testing.T) {
-	mon := civil.Date{Year: 2026, Month: 9, Day: 7}
-	tue := civil.Date{Year: 2026, Month: 9, Day: 8}
-	// Phase 1 averages 4.5, which rounds to 5 but is below the threshold.
-	got := suppressSmallCohorts(weeklyCohorts([]AdoptionCohortDay{
-		{Day: mon, Phase: 0, UserCount: 50}, {Day: mon, Phase: 1, UserCount: 4},
-		{Day: tue, Phase: 0, UserCount: 50}, {Day: tue, Phase: 1, UserCount: 5},
-	}))
-	for _, r := range got {
-		if r.Phase == 1 {
-			t.Errorf("cell below threshold leaked after rounding: %+v", r)
-		}
 	}
 }
 
@@ -79,5 +49,17 @@ func TestTeamAdoptionOmitsSmallTeamsAndCountsOnlyVisible(t *testing.T) {
 	}
 	if got.Teams[0].AdoptionPct != 40 || *got.Teams[0].AdoptionActivePct != 67 || got.Teams[1].AdoptionActivePct != nil {
 		t.Fatalf("rates %+v %+v", got.Teams[0], got.Teams[1])
+	}
+}
+
+// Credits per user and cohort retention are Nav-wide and name no one, so their
+// queries carry no minimum group size.
+func TestAnonymousTrendQueriesHaveNoMinimum(t *testing.T) {
+	b, err := os.ReadFile("monthly_trends.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "@min_users") {
+		t.Error("monthly_trends.go still filters on @min_users")
 	}
 }

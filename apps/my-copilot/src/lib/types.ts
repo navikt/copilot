@@ -427,8 +427,7 @@ export interface CohortRetention {
 
 /**
  * One segment chart from copilot-api, display-ready: whole-percent shares per band and month that sum to 100,
- * or null in every band when the month is hidden. A band under five is merged with a neighbour on the server,
- * so a band (such as «Under 60 %») can exist in some months only.
+ * or null in every band when the month has no data. The bands are fixed: no merging, also under five.
  */
 export interface SegmentChart {
   months: string[];
@@ -520,7 +519,7 @@ export interface BillingModelForecast {
   points: BillingModelForecastPoint[];
 }
 
-// AI adoption phases per ISO week, averaged and suppressed by copilot-api
+// AI adoption phases per ISO week, averaged by copilot-api; every phase is sent, also under five
 export interface AdoptionCohortWeek {
   week: string; // Monday of the ISO week
   phase: number; // 0 = No cohort, 1 = Code first, 2 = Agent first, 3 = Multi-agent
@@ -529,7 +528,7 @@ export interface AdoptionCohortWeek {
 
 export interface AdoptionCohortTrendData {
   weeks: string[];
-  // null = suppressed by the API (fewer than five users)
+  // null = no row from the API for that week and phase
   phase0: (number | null)[];
   phase1: (number | null)[];
   phase2: (number | null)[];

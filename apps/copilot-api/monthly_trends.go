@@ -42,8 +42,9 @@ type CopilotPRMonth struct {
 // GetCreditsPerUserMonthly returns median and mean AI Credits per active user
 // per month. A user is active in a month with any credits, interactions or
 // code generations, counted by the stable user_id across both scopes
-// (userDaysFrom). Months with fewer than minUsersForDistribution users are
-// left out (k-anonymity).
+// (userDaysFrom). Every month is returned, also with fewer than five users:
+// the chart is Nav-wide and names no one (see the small-group rule in
+// segments.go).
 func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error) {
 	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
 	query := bq.client.Query(fmt.Sprintf(`
@@ -66,12 +67,10 @@ func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]Credi
       FROM per_user
       WHERE credits > 0 OR activity > 0
       GROUP BY month
-      HAVING active_users >= @min_users
       ORDER BY month
     `, userDaysFrom(metricsRef)))
 	query.Parameters = []bigquery.QueryParameter{
 		{Name: "start", Value: creditsHistoryStart},
-		{Name: "min_users", Value: minUsersForDistribution},
 	}
 	it, err := query.Read(ctx)
 	if err != nil {
@@ -162,7 +161,8 @@ type CohortRetention struct {
 // returns retention per cohort. Counted per user_id across the enterprise
 // and organization scopes (see userDaysFrom; active as in
 // GetCreditsPerUserMonthly), returned only as aggregates.
-// Cohorts with fewer than minUsersForDistribution users are left out. The
+// Every cohort is returned whatever its size: the chart names no one (see the
+// small-group rule in segments.go). The
 // first data month (October 2025) is left-censored: data starts 2025-10-10,
 // so it mixes earlier users with new ones and cannot tell them apart.
 func (bq *BigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortRetention, error) {
@@ -198,10 +198,8 @@ func (bq *BigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortReten
         IF(DATE_ADD(cohort, INTERVAL 3 MONTH) < DATE_TRUNC(CURRENT_DATE(), MONTH), CAST(ROUND(100 * n3 / cohort_size) AS INT64), NULL) AS m3,
         IF(DATE_ADD(cohort, INTERVAL 6 MONTH) < DATE_TRUNC(CURRENT_DATE(), MONTH), CAST(ROUND(100 * n6 / cohort_size) AS INT64), NULL) AS m6
       FROM agg
-      WHERE cohort_size >= @min_users
       ORDER BY cohort_month
     `, userDaysFrom(metricsRef)))
-	query.Parameters = []bigquery.QueryParameter{{Name: "min_users", Value: minUsersForDistribution}}
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)

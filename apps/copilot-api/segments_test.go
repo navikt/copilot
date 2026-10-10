@@ -53,7 +53,7 @@ func TestSegmentsBigQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range cohorts {
-		if c.CohortSize < minUsersForDistribution {
+		if c.CohortSize < 1 {
 			t.Errorf("cohort %s has %d users", c.CohortMonth, c.CohortSize)
 		}
 		for _, v := range []*int64{c.M1, c.M3, c.M6} {
@@ -78,25 +78,25 @@ func shares(c SegmentChart) map[string][]any {
 	return out
 }
 
-func TestBuildChartMergesAndHides(t *testing.T) {
+// Anonymous Nav-wide charts show every band as is, also under five; only an
+// empty month stays null.
+func TestBuildChartKeepsSmallBands(t *testing.T) {
 	c := buildChart([]segmentRow{
-		{Month: "2026-07", A: 50, B: 30, C: 20}, // nothing to merge
-		{Month: "2026-08", A: 3, B: 40, C: 57},  // Lav into Middels
-		{Month: "2026-09", A: 2, B: 2, C: 1},    // never reaches five: hidden
-		{Month: "2026-10", A: 90, B: 1, C: 9},   // Middels into the smaller neighbour, Høy
+		{Month: "2026-07", A: 50, B: 30, C: 20},
+		{Month: "2026-08", A: 3, B: 40, C: 57},
+		{Month: "2026-09", A: 2, B: 2, C: 1},
+		{Month: "2026-10"},
 	}, adoptionBands)
 	want := map[string][]any{
-		"Lav":        {int64(50), nil, nil, int64(90)},
-		"Middels":    {int64(30), nil, nil, nil},
-		"Høy":        {int64(20), int64(57), nil, nil},
-		"Under 60 %": {nil, int64(43), nil, nil},
-		"Minst 25 %": {nil, nil, nil, int64(10)},
+		"Lav":     {int64(50), int64(3), int64(40), nil},
+		"Middels": {int64(30), int64(40), int64(40), nil},
+		"Høy":     {int64(20), int64(57), int64(20), nil},
 	}
 	if got := shares(c); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if len(c.Months) != 4 || c.Bands[0].Label != "Lav" {
-		t.Errorf("months %v, bands %+v", c.Months, c.Bands)
+	if len(c.Bands) != 3 || c.Bands[0].Label != "Lav" || c.Bands[2].Label != "Høy" {
+		t.Errorf("bands %+v", c.Bands)
 	}
 }
 
@@ -119,7 +119,7 @@ func TestWholePercentsLargestRemainder(t *testing.T) {
 }
 
 func TestMovementNet(t *testing.T) {
-	c := withNet(buildChart([]segmentRow{{Month: "2026-08", A: 30, B: 50, C: 20}, {Month: "2026-09", A: 3, B: 50, C: 20}}, movementBands))
+	c := withNet(buildChart([]segmentRow{{Month: "2026-08", A: 30, B: 50, C: 20}, {Month: "2026-09"}}, movementBands))
 	if c.Net[0] == nil || *c.Net[0] != 10 || c.Net[1] != nil {
 		t.Errorf("net %v", c.Net)
 	}
