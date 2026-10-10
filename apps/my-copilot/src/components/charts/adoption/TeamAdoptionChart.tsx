@@ -3,7 +3,7 @@
 import type { TeamAdoption } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, commonHorizontalBarOptions } from "@/lib/chart-utils";
+import { seriesColor, commonHorizontalBarOptions } from "@/lib/chart-utils";
 import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
 import { formatPercent } from "@/lib/format";
@@ -30,14 +30,14 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
       {
         label: "Aktive repoer",
         data: topTeams.map(activeRate),
-        backgroundColor: chartColors[1],
+        backgroundColor: seriesColor(1),
         borderRadius: 4,
         barThickness: 12,
       },
       {
         label: "Alle repoer",
         data: topTeams.map((t) => t.adoption_pct),
-        backgroundColor: chartColors[0],
+        backgroundColor: seriesColor(0),
         borderRadius: 4,
         barThickness: 12,
       },

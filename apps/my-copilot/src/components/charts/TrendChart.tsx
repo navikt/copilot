@@ -2,7 +2,7 @@
 
 import type { DailyTrend } from "@/lib/types";
 import React from "react";
-import { BodyShort } from "@navikt/ds-react";
+import { BodyShort, Box } from "@navikt/ds-react";
 import { Line } from "react-chartjs-2";
 import {
   seriesColor,
@@ -20,9 +20,9 @@ interface TrendChartProps {
 const TrendChart: React.FC<TrendChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return (
-      <div className={chartWrapperClass}>
+      <Box padding="space-16" className={chartWrapperClass}>
         <BodyShort>{NO_DATA_MESSAGE}</BodyShort>
-      </div>
+      </Box>
     );
   }
 
@@ -68,11 +68,11 @@ const TrendChart: React.FC<TrendChartProps> = ({ data }) => {
   };
 
   return (
-    <div className={chartWrapperClass}>
+    <Box padding="space-16" className={chartWrapperClass}>
       <div className={chartBoxClass}>
         <Line data={trendData} options={trendOptions} />
       </div>
-    </div>
+    </Box>
   );
 };
 

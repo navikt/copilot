@@ -2,7 +2,7 @@
 
 import type { AdoptionCohortWeek, AdoptionCohortTrendData } from "@/lib/types";
 import React from "react";
-import { BodyShort } from "@navikt/ds-react";
+import { BodyShort, Box } from "@navikt/ds-react";
 import { Line } from "react-chartjs-2";
 import {
   axColor,
@@ -49,9 +49,9 @@ export function transformCohortData(data: AdoptionCohortWeek[]): AdoptionCohortT
 const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return (
-      <div className={chartWrapperClass}>
+      <Box padding="space-16" className={chartWrapperClass}>
         <BodyShort>{NO_DATA_MESSAGE}</BodyShort>
-      </div>
+      </Box>
     );
   }
 
@@ -128,14 +128,14 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
   };
 
   return (
-    <div className={chartWrapperClass}>
+    <Box padding="space-16" className={chartWrapperClass}>
       <div className={chartBoxClass}>
         <Line data={chartData} options={options} />
       </div>
       <BodyShort size="small" textColor="subtle">
         Faser med færre enn fem brukere i snitt en uke er skjult.
       </BodyShort>
-    </div>
+    </Box>
   );
 };
 

@@ -24,50 +24,50 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 
 ### Public (no auth)
 
-- `GET /health` — Health check
-- `GET /ready` — Readiness check
-- `GET /metrics` — Prometheus metrics (cached, background-collected)
+- `GET /health`: Health check
+- `GET /ready`: Readiness check
+- `GET /metrics`: Prometheus metrics (cached, background-collected)
 
 ### Protected (requires Azure AD OBO token)
 
 #### Usage Metrics
 
-- `GET /api/v1/copilot/usage/metrics` — Daily usage metrics
-- `GET /api/v1/copilot/usage/trends` — Monthly trends
+- `GET /api/v1/copilot/usage/metrics`: Daily usage metrics
+- `GET /api/v1/copilot/usage/trends`: Monthly trends
 
 #### Billing
 
-- `GET /api/v1/copilot/billing` — Enterprise billing overview
-- `GET /api/v1/copilot/billing/premium` — Premium request usage
+- `GET /api/v1/copilot/billing`: Enterprise billing overview
+- `GET /api/v1/copilot/billing/premium`: Premium request usage
 
 #### Adoption
 
-- `GET /api/v1/copilot/adoption/summary` — Adoption overview
-- `GET /api/v1/copilot/adoption/teams` — Team-level adoption
-- `GET /api/v1/copilot/adoption/languages` — Language-specific adoption
-- `GET /api/v1/copilot/adoption/staleness` — Last activity per repository
+- `GET /api/v1/copilot/adoption/summary`: Adoption overview
+- `GET /api/v1/copilot/adoption/teams`: Team-level adoption
+- `GET /api/v1/copilot/adoption/languages`: Language-specific adoption
+- `GET /api/v1/copilot/adoption/staleness`: Last activity per repository
 
 #### Customizations
 
-- `GET /api/v1/copilot/customizations/details` — Customization details
-- `GET /api/v1/copilot/customizations/usage` — Customization usage
+- `GET /api/v1/copilot/customizations/details`: Customization details
+- `GET /api/v1/copilot/customizations/usage`: Customization usage
 
 #### Seats
 
-- `GET /api/v1/copilot/seats/{username}` — User seat status
-- `POST /api/v1/copilot/seats` — Assign seat to user
-- `DELETE /api/v1/copilot/seats/{username}` — Remove user seat
-- `GET /api/v1/copilot/saml/{identity}` — Resolve GitHub username from SAML identity
-- `GET /api/v1/copilot/repo-contributors` — Repository file contributors
+- `GET /api/v1/copilot/seats/{username}`: User seat status
+- `POST /api/v1/copilot/seats`: Assign seat to user
+- `DELETE /api/v1/copilot/seats/{username}`: Remove user seat
+- `GET /api/v1/copilot/saml/{identity}`: Resolve GitHub username from SAML identity
+- `GET /api/v1/copilot/repo-contributors`: Repository file contributors
 
 #### MCP
 
-- `GET /api/v1/mcp/servers` — Not implemented yet
+- `GET /api/v1/mcp/servers`: Not implemented yet
 
 ### Internal (one caller each)
 
-- `POST /internal/v1/saml/name-id` — Takes `{"login": "<GitHub login>"}` and returns `{"name_id": "<Nav e-mail>"}`, the nameId of the login's SAML SSO identity in navikt (current members only). 404 when the account has none. Only an app token (`idtyp=app` or role `access_as_application`) whose `azp` is copilot-survey's client id gets an answer. Any other valid token gets 403, and a missing or invalid one 401. Outside `/api/v1/`, so no identity resolver, audit line, request log or trace. Not cached. `copilot_api_saml_name_id_requests_total{status}` on `/metrics` counts the handler's outcomes (after the token check and method match, so 401 and 405 are not counted). copilot-survey's tokens get 403 on every other authenticated route, since Nais inbound access is pod-wide. The `CopilotApiSamlNameIdBurst` alert in `.nais/app.yaml` fires when it grows by more than 20 in 5 minutes.
-- `POST /internal/v1/github/org-membership` — copilot-cli only. Takes `{"login": "<GitHub login>"}` and returns `{"active": true|false}`: whether the login is an active navikt member (`GET /orgs/navikt/memberships/{login}` with this service's GitHub App, state `active`; a pending invitation is `false`). Nothing else about the user is returned. Only an app token whose `azp` is copilot-cli's client id gets an answer; any other valid token gets 403, a missing or invalid one 401, and a GitHub failure 503. Answers are cached for 1 minute, errors are not. Outside `/api/v1/`, so no identity resolver, audit line, request log or trace. This service's GitHub App needs *Members: read* for it. This is why the nav-pilot GitHub App, whose user tokens copilot-cli checks, needs no permissions.
+- `POST /internal/v1/saml/name-id`: Takes `{"login": "<GitHub login>"}` and returns `{"name_id": "<Nav e-mail>"}`, the nameId of the login's SAML SSO identity in navikt (current members only). 404 when the account has none. Only an app token (`idtyp=app` or role `access_as_application`) whose `azp` is copilot-survey's client id gets an answer. Any other valid token gets 403, and a missing or invalid one 401. Outside `/api/v1/`, so no identity resolver, audit line, request log or trace. Not cached. `copilot_api_saml_name_id_requests_total{status}` on `/metrics` counts the handler's outcomes (after the token check and method match, so 401 and 405 are not counted). copilot-survey's tokens get 403 on every other authenticated route, since Nais inbound access is pod-wide. The `CopilotApiSamlNameIdBurst` alert in `.nais/app.yaml` fires when it grows by more than 20 in 5 minutes.
+- `POST /internal/v1/github/org-membership`: copilot-cli only. Takes `{"login": "<GitHub login>"}` and returns `{"active": true|false}`: whether the login is an active navikt member (`GET /orgs/navikt/memberships/{login}` with this service's GitHub App, state `active`; a pending invitation is `false`). Nothing else about the user is returned. Only an app token whose `azp` is copilot-cli's client id gets an answer; any other valid token gets 403, a missing or invalid one 401, and a GitHub failure 503. Answers are cached for 1 minute, errors are not. Outside `/api/v1/`, so no identity resolver, audit line, request log or trace. This service's GitHub App needs *Members: read* for it. This is why the nav-pilot GitHub App, whose user tokens copilot-cli checks, needs no permissions.
 
 ## Authentication
 
@@ -86,11 +86,11 @@ API supports multiple authentication mechanisms via the **Identity Resolver** ar
 
 **User claims extracted:**
 
-- `preferred_username` — Email address
-- `NAVident` — Nav employee ID
-- `name` — Display name
-- `groups` — Azure AD group memberships
-- `azp` — Calling application client ID
+- `preferred_username`: Email address
+- `NAVident`: Nav employee ID
+- `name`: Display name
+- `groups`: Azure AD group memberships
+- `azp`: Calling application client ID
 
 ## Configuration
 
@@ -196,23 +196,23 @@ API returns **RFC 7807 Problem Details** for all errors:
 
 Common error types:
 
-- `unauthorized` — Missing or invalid token
-- `forbidden` — Valid token but insufficient permissions
-- `not_found` — Resource not found
-- `invalid_request` — Malformed request
-- `github_error` — GitHub API error
-- `bigquery_error` — BigQuery error
+- `unauthorized`: Missing or invalid token
+- `forbidden`: Valid token but insufficient permissions
+- `not_found`: Resource not found
+- `invalid_request`: Malformed request
+- `github_error`: GitHub API error
+- `bigquery_error`: BigQuery error
 
 ## Monitoring
 
 Prometheus metrics:
 
-- `copilot_seats_total` — Total Copilot seats
-- `copilot_seats_active` — Active seats this cycle
-- `copilot_seats_inactive` — Inactive seats this cycle
-- `copilot_seats_pending` — Pending invitation
-- `copilot_seats_cancelling` — Pending cancellation
-- `github_metrics_last_success_timestamp` — Last successful collection
+- `copilot_seats_total`: Total Copilot seats
+- `copilot_seats_active`: Active seats this cycle
+- `copilot_seats_inactive`: Inactive seats this cycle
+- `copilot_seats_pending`: Pending invitation
+- `copilot_seats_cancelling`: Pending cancellation
+- `github_metrics_last_success_timestamp`: Last successful collection
 
 ## License
 

@@ -134,7 +134,7 @@ export const commonLineOptions = {
 };
 
 // Common chart wrapper styling
-export const chartWrapperClass = "bg-(--ax-bg-default) p-4 rounded-lg border border-(--ax-border-neutral-subtle)";
+export const chartWrapperClass = "bg-(--ax-bg-default) rounded-lg border border-(--ax-border-neutral-subtle)";
 
 // Height for a chart canvas: room for the plot on a phone, a little more on wide screens.
 export const chartBoxClass = "relative h-64 md:h-80";
