@@ -180,21 +180,18 @@ export async function TeamAdoption(props: Props) {
         stacked
         label="Andel team med lav, middels eller høy andel aktive medlemmer per måned"
         annotations={annotationsFor(CHART_ANNOTATIONS, months, props.all)}
-        shadeBefore="2026-04"
       />
       <BodyShort size="small" textColor="subtle">
-        Teammedlemskapet kommer fra Copilots teamrapport (<code>user-teams-1-day</code>), som trolig bare tar med
-        Copilot-brukere. Andelen aktive er derfor trolig for høy.
+        Teamdata finnes fra mai 2026. Teammedlemskapet kommer fra Copilots teamrapport (<code>user-teams-1-day</code>),
+        som trolig bare tar med Copilot-brukere. Andelen aktive er derfor trolig for høy.
       </BodyShort>
       <Method>
         For hvert team med minst fem medlemmer regner vi andelen medlemmer som var aktive i måneden: lav under 25 %,
-        middels 25–59 %, høy 60 % eller mer. Ingen team navngis. Medlemskapet er det som gjelder i dag (siste dag i{" "}
-        <code>user_teams</code>), brukt bakover på alle måneder. Et team som har fått nye medlemmer, ser derfor ut til å
-        ha hatt dem også før. Månedene før april 2026 er skyggelagt: de kan ikke sammenlignes direkte med månedene etter
-        (se «Hendelser»). Medlemskapet hentes fra GitHubs rapport <code>user-teams-1-day</code>, både før og etter
-        april. Rapporten tar trolig bare med Copilot-brukere, så nevneren er nær antallet aktive. Alle tre gruppene
-        vises hver måned. Grafen teller team, ikke personer, og hvert team har minst fem medlemmer, så grupper av team
-        er ikke personopplysninger.
+        middels 25–59 %, høy 60 % eller mer. Ingen team navngis. Medlemskapet er det som gjaldt i hver måned (siste dag
+        med data i <code>user_teams</code> den måneden). Vi har teamdata fra mai 2026, så grafen starter der. Det hentes
+        fra GitHubs rapport <code>user-teams-1-day</code>. Rapporten tar trolig bare med Copilot-brukere, så nevneren er
+        nær antallet aktive. Alle tre gruppene vises hver måned. Grafen teller team, ikke personer, og hvert team har
+        minst fem medlemmer, så grupper av team er ikke personopplysninger.
       </Method>
     </>
   );

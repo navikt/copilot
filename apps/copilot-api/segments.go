@@ -23,12 +23,14 @@ import (
 // used_cli, then used_agent, then used_chat, otherwise completions only.
 // user_metrics has no per-user coding agent flag, so «CLI» is CLI only.
 //
-// Team adoption uses the latest user_teams snapshot for every month (current
-// membership applied backwards), teams with at least minTeamContributors
-// members, and the share of members active that month: lav under 25 %,
-// middels 25-59 %, høy 60 % or more.
+// Team adoption uses the membership valid in each month (the month's last
+// user_teams snapshot) and starts at teamDataFrom, when user_teams begins in
+// prod. Applying today's membership backwards inflated the share. It counts
+// teams with at least minTeamContributors members and the share of members
+// active that month: lav under 25 %, middels 25-59 %, høy 60 % or more.
 
 const (
+	teamDataFrom    = "2026-05-01"
 	intensityMedium = 20
 	intensityHeavy  = 200
 	adoptionMedium  = 0.25
@@ -244,30 +246,31 @@ func (bq *BigQueryClient) GetUserSegments(ctx context.Context) (*UserSegments, e
 	out.Movement = buildChart(rows, movementBands)
 	rows, err = readSegment[segmentRow](ctx, bq.segmentQuery(with+fmt.Sprintf(`,
       members AS (
-        SELECT DISTINCT JSON_VALUE(raw_record, '$.slug') AS team, JSON_VALUE(raw_record, '$.user_id') AS user_id
+        -- Membership valid in each month: the month's last user_teams snapshot.
+        SELECT DISTINCT DATE_TRUNC(day, MONTH) AS month, JSON_VALUE(raw_record, '$.slug') AS team, JSON_VALUE(raw_record, '$.user_id') AS user_id
         FROM %s
-        WHERE day = (SELECT MAX(day) FROM %s WHERE scope = 'enterprise' AND scope_id = 'nav')
+        WHERE day >= DATE(@team_from)
           AND scope = 'enterprise' AND scope_id = 'nav'
           AND JSON_VALUE(raw_record, '$.slug') != 'nav-it-github-users'
+        QUALIFY day = MAX(day) OVER (PARTITION BY DATE_TRUNC(day, MONTH))
       ),
       big_teams AS (
-        SELECT team, COUNT(*) AS size FROM members GROUP BY team HAVING size >= @min_team
+        SELECT month, team, COUNT(*) AS size FROM members GROUP BY month, team HAVING size >= @min_team
       ),
-      months AS (SELECT DISTINCT month FROM tiered),
       adoption AS (
-        SELECT mo.month, t.team,
+        SELECT t.month, t.team,
           COUNT(DISTINCT u.user_id) / ANY_VALUE(t.size) AS share
-        FROM months mo
-        CROSS JOIN big_teams t
-        JOIN members m ON m.team = t.team
-        LEFT JOIN tiered u ON u.user_id = m.user_id AND u.month = mo.month
-        GROUP BY mo.month, t.team
+        FROM big_teams t
+        JOIN members m ON m.month = t.month AND m.team = t.team
+        LEFT JOIN tiered u ON u.user_id = m.user_id AND u.month = t.month
+        GROUP BY t.month, t.team
       )
       SELECT FORMAT_DATE('%%Y-%%m', month) AS month,
         COUNTIF(share < @adopt_medium) AS a,
         COUNTIF(share >= @adopt_medium AND share < @adopt_high) AS b,
         COUNTIF(share >= @adopt_high) AS c
-      FROM adoption GROUP BY month ORDER BY month`, teams, teams),
+      FROM adoption GROUP BY month ORDER BY month`, teams),
+		bigquery.QueryParameter{Name: "team_from", Value: teamDataFrom},
 		bigquery.QueryParameter{Name: "min_team", Value: minTeamContributors},
 		bigquery.QueryParameter{Name: "adopt_medium", Value: adoptionMedium},
 		bigquery.QueryParameter{Name: "adopt_high", Value: adoptionHigh},

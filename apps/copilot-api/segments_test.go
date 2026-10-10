@@ -147,3 +147,24 @@ func TestUserDaysDeduplicatesScopes(t *testing.T) {
 		t.Error("a user query bypasses userDaysFrom")
 	}
 }
+
+// Team adoption must use the membership valid in each month, never the
+// latest snapshot applied backwards, and start when user_teams starts.
+func TestTeamAdoptionUsesMonthlyMembership(t *testing.T) {
+	b, err := os.ReadFile("segments.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	for _, want := range []string{"PARTITION BY DATE_TRUNC(day, MONTH)", "m.month = t.month", "day >= DATE(@team_from)"} {
+		if !strings.Contains(src, want) {
+			t.Errorf("team adoption lacks %q", want)
+		}
+	}
+	if strings.Contains(src, "SELECT MAX(day) FROM") {
+		t.Error("team adoption applies the latest user_teams snapshot to every month")
+	}
+	if teamDataFrom != "2026-05-01" {
+		t.Errorf("teamDataFrom = %s", teamDataFrom)
+	}
+}

@@ -307,7 +307,8 @@ export const PHASES: Phase[] = [
 /**
  * Dated events drawn as vertical rules on the charts in /innsikt/trender. /reisen does not render them.
  * They show timing, not cause. Model pins affect only our own agents; billing applies to the whole enterprise.
- * Dates are merge dates from `gh pr view --json mergedAt`.
+ * Dates for our own changes are merge dates from `gh pr view --json mergedAt`;
+ * dates for GitHub changes are when GitHub made the change.
  */
 export interface ChartAnnotation {
   /** YYYY-MM-DD. */
@@ -327,6 +328,12 @@ export const CHART_ANNOTATIONS: ChartAnnotation[] = [
     label: "Nytt metrics-API",
     url: "https://github.blog/changelog/2026-01-29-closing-down-notice-of-legacy-copilot-metrics-apis/",
     note: "Tallene før og etter er hentet på ulike måter, så teamandelene kan ikke sammenlignes direkte.",
+    dataBreak: true,
+  },
+  {
+    date: "2026-04-09",
+    label: "GitHub begynner å telle CLI",
+    note: "Bruk av Copilot CLI regnes som aktivitet fra denne datoen. Det ga 60–80 flere aktive brukere per hverdag.",
     dataBreak: true,
   },
   {
