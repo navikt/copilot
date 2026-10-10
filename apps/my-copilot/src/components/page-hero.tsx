@@ -21,24 +21,33 @@ interface PageHeroProps {
   actions?: ReactNode;
   badge?: ReactNode;
   pathname?: string;
+  /** A decorative layer behind the text, e.g. a canvas. It fills the hero. */
+  background?: ReactNode;
 }
 
 interface PageHeroBaseProps extends Omit<PageHeroProps, "pathname"> {
   pathname: string;
 }
 
-export function PageHeroBase({ label, title, description, actions, badge, pathname }: PageHeroBaseProps) {
+export function PageHeroBase({ label, title, description, actions, badge, pathname, background }: PageHeroBaseProps) {
   // Under the nav-pilot umbrella the pages are read, not sold: light background and a label line (§6.7).
   const section = inSection(pathname);
   const group = section ? sectionGroup(pathname)?.label : undefined;
   // No label line that repeats the title.
   const kicker = label ?? (group !== title ? group : undefined);
   return (
-    <section className={section ? undefined : "hero-gradient-subtle text-white"}>
+    <section
+      className={
+        [section ? "" : "hero-gradient-subtle text-white", background ? "relative overflow-hidden" : ""]
+          .join(" ")
+          .trim() || undefined
+      }
+    >
+      {background}
       <Box
         paddingBlock={{ xs: "space-16", md: "space-20" }}
         paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-        className="max-w-7xl mx-auto"
+        className="max-w-7xl mx-auto relative"
       >
         <VStack gap="space-12">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">

@@ -50,3 +50,79 @@ export function pointSpriteCanvas(): HTMLCanvasElement {
   }
   return c;
 }
+
+/**
+ * Drives a hero canvas: runs the loop only while the host is on screen and the tab is visible,
+ * draws one still frame under reduced motion, follows reduced-motion and theme changes, and
+ * resizes with the host. Returns the cleanup.
+ */
+export function runCanvasLoop(
+  host: HTMLElement,
+  { draw, resize, onTheme }: { draw: (dt: number) => void; resize: (w: number, h: number) => void; onTheme: () => void }
+): () => void {
+  const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let reduced = motionMq.matches;
+  let raf = 0;
+  let onScreen = true;
+  let last = 0;
+  const still = () => {
+    if (reduced) draw(0);
+  };
+
+  const ro = new ResizeObserver(() => {
+    const { clientWidth: w, clientHeight: h } = host;
+    if (!w || !h) return;
+    resize(w, h);
+    still();
+  });
+  ro.observe(host);
+
+  const loop = (now: number) => {
+    draw(Math.min((now - last) / 1000, 0.1));
+    last = now;
+    raf = requestAnimationFrame(loop);
+  };
+  const sync = () => {
+    const run = onScreen && !document.hidden && !reduced;
+    if (run && !raf) {
+      last = performance.now();
+      raf = requestAnimationFrame(loop);
+    } else if (!run && raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+  };
+  const io = new IntersectionObserver(([e]) => {
+    onScreen = e.isIntersecting;
+    sync();
+  });
+  io.observe(host);
+  document.addEventListener("visibilitychange", sync);
+
+  const themeMq = window.matchMedia("(prefers-color-scheme: dark)");
+  const theme = () => {
+    onTheme();
+    still();
+  };
+  themeMq.addEventListener("change", theme);
+  const mo = new MutationObserver(theme);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
+
+  const onMotion = () => {
+    reduced = motionMq.matches;
+    sync();
+    still();
+  };
+  motionMq.addEventListener("change", onMotion);
+  sync();
+
+  return () => {
+    cancelAnimationFrame(raf);
+    io.disconnect();
+    mo.disconnect();
+    ro.disconnect();
+    motionMq.removeEventListener("change", onMotion);
+    themeMq.removeEventListener("change", theme);
+    document.removeEventListener("visibilitychange", sync);
+  };
+}
