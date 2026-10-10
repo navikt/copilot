@@ -582,67 +582,122 @@ func (c *GitHubClient) FetchLatest28DayReport(ctx context.Context) (*FetchResult
 
 // copilotSeatResponse is the response from the Copilot billing seats API.
 type copilotSeatResponse struct {
-	TotalSeats int `json:"total_seats"`
-	Seats      []struct {
-		Assignee struct {
-			Login string `json:"login"`
-		} `json:"assignee"`
-	} `json:"seats"`
+	TotalSeats int           `json:"total_seats"`
+	Seats      []copilotSeat `json:"seats"`
+}
+
+type copilotSeat struct {
+	Assignee struct {
+		Login string `json:"login"`
+	} `json:"assignee"`
+	PendingCancellationDate string `json:"pending_cancellation_date"`
+}
+
+// SeatCounts holds the Copilot seat totals for one scope. Totals only: it
+// never carries per-person data.
+type SeatCounts struct {
+	Scope               string // "enterprise" or "organization"
+	ScopeID             string // enterprise slug or org name
+	Total               int
+	PendingCancellation int
 }
 
 // FetchAllCopilotLogins returns the GitHub login for every active Copilot seat holder.
 // Uses the enterprise installation token which has access to enterprise billing endpoints.
 func (c *GitHubClient) FetchAllCopilotLogins(ctx context.Context) ([]string, error) {
+	seats, _, err := c.fetchSeats(ctx, "https://api.github.com/enterprises/"+c.enterprise, c.httpClient)
+	if err != nil {
+		return nil, err
+	}
 	var logins []string
+	for _, seat := range seats {
+		if seat.Assignee.Login != "" {
+			logins = append(logins, seat.Assignee.Login)
+		}
+	}
+	slog.Info("Fetched all Copilot seat holders", "count", len(logins))
+	return logins, nil
+}
+
+// FetchSeatCounts returns the current seat totals. Like the daily reports it
+// tries the enterprise endpoint first and falls back to the organization one.
+func (c *GitHubClient) FetchSeatCounts(ctx context.Context) (*SeatCounts, error) {
+	seats, total, err := c.fetchSeats(ctx, "https://api.github.com/enterprises/"+c.enterprise, c.httpClient)
+	if err == nil {
+		return countSeats("enterprise", c.enterprise, total, seats), nil
+	}
+	slog.Warn("Enterprise seats endpoint failed, trying organization endpoint", "error", err)
+
+	orgClient := c.httpClient
+	if c.orgHttpClient != nil {
+		orgClient = c.orgHttpClient
+	}
+	seats, total, orgErr := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, orgClient)
+	if orgErr != nil {
+		return nil, fmt.Errorf("both enterprise and org seats endpoints failed: %w; org: %w", err, orgErr)
+	}
+	return countSeats("organization", c.org, total, seats), nil
+}
+
+// countSeats reduces a seat list to totals. total_seats from the API is
+// authoritative; pending cancellations are counted from the seat list.
+func countSeats(scope, scopeID string, total int, seats []copilotSeat) *SeatCounts {
+	counts := &SeatCounts{Scope: scope, ScopeID: scopeID, Total: total}
+	for _, seat := range seats {
+		if seat.PendingCancellationDate != "" {
+			counts.PendingCancellation++
+		}
+	}
+	return counts
+}
+
+// fetchSeats pages through {base}/copilot/billing/seats and returns every seat
+// along with the API's total_seats.
+func (c *GitHubClient) fetchSeats(ctx context.Context, base string, client *http.Client) ([]copilotSeat, int, error) {
+	var seats []copilotSeat
+	total := 0
 	page := 1
 
 	for {
-		url := fmt.Sprintf(
-			"https://api.github.com/enterprises/%s/copilot/billing/seats?per_page=100&page=%d",
-			c.enterprise, page,
-		)
+		url := fmt.Sprintf("%s/copilot/billing/seats?per_page=100&page=%d", base, page)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return nil, fmt.Errorf("create seats request page %d: %w", page, err)
+			return nil, 0, fmt.Errorf("create seats request page %d: %w", page, err)
 		}
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-		resp, err := c.httpClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("fetch seats page %d: %w", page, err)
+			return nil, 0, fmt.Errorf("fetch seats page %d: %w", page, err)
 		}
 
 		body, readErr := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if readErr != nil {
-			return nil, fmt.Errorf("read seats page %d: %w", page, readErr)
+			return nil, 0, fmt.Errorf("read seats page %d: %w", page, readErr)
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("seats API returned %d on page %d: %s", resp.StatusCode, page, truncate(string(body), 300))
+			return nil, 0, fmt.Errorf("seats API returned %d on page %d: %s", resp.StatusCode, page, truncate(string(body), 300))
 		}
 
 		var result copilotSeatResponse
 		if err := json.Unmarshal(body, &result); err != nil {
-			return nil, fmt.Errorf("decode seats page %d: %w", page, err)
+			return nil, 0, fmt.Errorf("decode seats page %d: %w", page, err)
 		}
 
-		for _, seat := range result.Seats {
-			if seat.Assignee.Login != "" {
-				logins = append(logins, seat.Assignee.Login)
-			}
-		}
+		seats = append(seats, result.Seats...)
+		total = result.TotalSeats
 
-		slog.Debug("Fetched seats page", "page", page, "on_page", len(result.Seats), "total_so_far", len(logins), "total_seats", result.TotalSeats)
+		slog.Debug("Fetched seats page", "page", page, "on_page", len(result.Seats), "total_so_far", len(seats), "total_seats", result.TotalSeats)
 
-		if len(result.Seats) == 0 || len(logins) >= result.TotalSeats {
+		if len(result.Seats) == 0 || len(seats) >= result.TotalSeats {
 			break
 		}
 		page++
 	}
 
-	slog.Info("Fetched all Copilot seat holders", "count", len(logins))
-	return logins, nil
+	return seats, total, nil
 }

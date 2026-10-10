@@ -258,34 +258,9 @@ func TestGitHubClient_FetchAllCopilotLogins(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch page {
 		case 1:
-			_ = json.NewEncoder(w).Encode(copilotSeatResponse{
-				TotalSeats: 3,
-				Seats: []struct {
-					Assignee struct {
-						Login string `json:"login"`
-					} `json:"assignee"`
-				}{
-					{Assignee: struct {
-						Login string `json:"login"`
-					}{Login: "alice"}},
-					{Assignee: struct {
-						Login string `json:"login"`
-					}{Login: "bob"}},
-				},
-			})
+			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("alice", ""), testSeat("bob", "")}})
 		case 2:
-			_ = json.NewEncoder(w).Encode(copilotSeatResponse{
-				TotalSeats: 3,
-				Seats: []struct {
-					Assignee struct {
-						Login string `json:"login"`
-					} `json:"assignee"`
-				}{
-					{Assignee: struct {
-						Login string `json:"login"`
-					}{Login: "charlie"}},
-				},
-			})
+			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("charlie", "")}})
 		default:
 			// Should not be reached — return empty to stop pagination
 			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: nil})

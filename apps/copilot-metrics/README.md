@@ -290,6 +290,24 @@ Daily model-level premium request usage from the enhanced billing endpoint.
 
 Table is partitioned by day (`day`) and clustered by `scope_id`, `model`.
 
+### `seat_counts` table
+
+Daily Copilot seat totals from the billing seats API (enterprise first, org
+fallback). Totals only, no per-person rows. One row per day and `scope_id`,
+written with `MERGE`, so a re-run on the same day replaces the row. There is no
+backfill: the API only reports the current state, so history starts on the day
+this table was first deployed. `v_seat_counts_monthly` keeps the last row per month.
+
+| Column                       | Type      | Description                          |
+| ---------------------------- | --------- | ------------------------------------ |
+| `snapshot_date`              | DATE      | Day the count was taken              |
+| `scope`                      | STRING    | `enterprise` or `organization`       |
+| `scope_id`                   | STRING    | Enterprise/org identifier            |
+| `total_seats`                | INTEGER   | `total_seats` from the API           |
+| `active_seats`               | INTEGER   | Seats not pending cancellation       |
+| `pending_cancellation_seats` | INTEGER   | Seats with a pending cancellation    |
+| `loaded_at`                  | TIMESTAMP | When the row was written             |
+
 ## GitHub App Permissions
 
 The GitHub App requires:

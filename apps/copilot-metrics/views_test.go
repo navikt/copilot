@@ -47,6 +47,7 @@ func TestViewDefinitions(t *testing.T) {
 		"v_billing_model_breakdown",
 		"v_user_budget_trend",
 		"v_repository_usage",
+		"v_seat_counts_monthly",
 	}
 
 	if len(views) != len(expectedViews) {

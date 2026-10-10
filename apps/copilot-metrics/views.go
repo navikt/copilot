@@ -29,6 +29,7 @@ var views = []viewDefinition{
 	{name: "v_billing_model_breakdown", filename: "views/v_billing_model_breakdown.sql"},
 	{name: "v_user_budget_trend", filename: "views/v_user_budget_trend.sql"},
 	{name: "v_repository_usage", filename: "views/v_repository_usage.sql"},
+	{name: "v_seat_counts_monthly", filename: "views/v_seat_counts_monthly.sql"},
 }
 
 // EnsureViewsExist creates or replaces every view. A failing view no longer
@@ -84,6 +85,7 @@ func (c *BigQueryClient) createOrReplaceView(ctx context.Context, v viewDefiniti
 	sql = strings.ReplaceAll(sql, "{{billing_usage_daily_model}}", billingUsageDailyModelRef)
 	sql = strings.ReplaceAll(sql, "{{billing_usage}}", billingUsageRef)
 	sql = strings.ReplaceAll(sql, "{{user_budget_snapshots}}", userBudgetSnapshotsRef)
+	sql = strings.ReplaceAll(sql, "{{seat_counts}}", fmt.Sprintf("`%s.%s.%s`", c.projectID, c.dataset, seatCountsTable))
 
 	slog.Info("Creating/updating view", "view", v.name)
 
