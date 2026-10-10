@@ -20,6 +20,14 @@ export const SOURCES = {
   readme: `${MLX_WORKSPACE}/reports/README.md`,
   template: `${MLX_WORKSPACE}/reports/TEMPLATE.md`,
   unmeasured: `${MLX_WORKSPACE}/reports/UNMEASURED.md`,
+  cfRetry2: `${MLX_WORKSPACE}/reports/2026-10-08-cf-retry2/report.md`,
+  phaseC: `${MLX_WORKSPACE}/reports/2026-10-01-phase-c-rerun/report.md`,
+  emm8: `${MLX_WORKSPACE}/reports/2026-09-30-emm8-delegate/report.md`,
+  smallDelegate: `${MLX_WORKSPACE}/reports/2026-10-10-small-delegate/report.md`,
+  prAudit: `${MLX_WORKSPACE}/reports/2026-10-09-navikt-pr-audit/report.md`,
+  newCandidates: `${MLX_WORKSPACE}/reports/2026-10-09-new-candidates/report.md`,
+  costRule: "https://github.com/navikt/mlx-workspace/pull/171",
+  benchmarking: `${MLX_WORKSPACE}/BENCHMARKING.md#when-we-benchmark`,
 };
 
 export type ResultRow = { task: string; result: string; verdict: string };
@@ -93,9 +101,10 @@ export const WORKER_RESULTS: ResultSet = {
       verdict: "Ikke godkjent ennå",
     },
     {
-      task: "Lage en ny fil",
-      result: "5 av 16 på første forsøk, 12 av 16 med nye forsøk, men dobbelt så lang tid",
-      verdict: "Ikke avgjort",
+      task: "Lage en ny fil, med retry2",
+      result:
+        "9. oktober 2026: 10 av 10 på hvert av de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Trinn 3 er ikke avgjort. Trinn 4 er svakere: 7 og 5 av 10, og alle feilene var tidsavbrudd.",
+      verdict: "Godkjent lokalt på de to letteste trinnene",
     },
     { task: "Svare på spørsmål om kodebasen", result: "18 av 40 (skymodellen: 40 av 40)", verdict: "Blir i skyen" },
   ],

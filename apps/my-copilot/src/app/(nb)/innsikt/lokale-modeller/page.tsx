@@ -145,6 +145,19 @@ function ReportsSection({ index }: { index: ReportIndex }) {
           <LinkableHeading id="ikke-malt" size="small" level="3">
             Ikke målt ennå
           </LinkableHeading>
+          <BodyShort size="small">
+            Siden 9. oktober 2026 måler vi bare når noe utløser det: en ny kandidatmodell, eller en versjon av nav-pilot
+            som endrer lokal modus (
+            <a href={SOURCES.benchmarking} className={linkClass}>
+              BENCHMARKING.md
+            </a>
+            ). K2-Horizon ble avvist fordi ingen av verktøykallene lot seg lese (0 av 40). En retting av parseren venter
+            på ny test (
+            <a href={SOURCES.newCandidates} className={linkClass}>
+              nye kandidater
+            </a>
+            ).
+          </BodyShort>
           <BodyShort size="small" textColor="subtle">
             Listen hentes fra navikt/mlx-workspace og er på engelsk.
           </BodyShort>
@@ -288,7 +301,12 @@ export default function LokaleModeller() {
                 <li>
                   Et nytt forsøk lønner seg for nye filer. Når hovedagenten sendte bygge- eller testfeilen tilbake én
                   gang, ble 15 av 20 nye filer godkjent, mot 5 av 20 uten. Tiden per godkjent fil gikk ned fra 618 til
-                  322 sekunder.
+                  322 sekunder. Disse tallene er fra september. En ny måling{" "}
+                  <a href={SOURCES.cfRetry2} className={linkClass}>
+                    9. oktober 2026
+                  </a>{" "}
+                  ga 10 av 10 på de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Testoppsettet var
+                  også endret, så hvor mye retry2 alene bidro, er ikke målt.
                 </li>
               </Bullets>
               <BodyShort size="small" textColor="subtle">
@@ -315,11 +333,27 @@ export default function LokaleModeller() {
               </BodyLong>
               <ResultTable rows={WORKER_RESULTS.rows} />
               <BodyLong>
+                Nye filer er bare 5 % av ekte pull requests, viser en{" "}
+                <a href={SOURCES.prAudit} className={linkClass}>
+                  gjennomgang av pull requests i navikt
+                </a>
+                . Omtrent 29 % av pull requestene fra mennesker er endringer i én fil, dokumentasjon eller bare tester.
+                Begge lokale modellene klarer slike oppgaver lokalt i minst 75 % av forsøkene (
+                <a href={SOURCES.smallDelegate} className={linkClass}>
+                  små oppgaver
+                </a>
+                ).
+              </BodyLong>
+              <BodyLong>
                 Tiden varierer fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På
                 store mekaniske endringer kan den lokale modellen være raskere.
               </BodyLong>
               <BodyShort size="small" textColor="subtle">
-                Målt {formatDate("2026-09-25")} og {formatDate(WORKER_RESULTS.measured)}. Se{" "}
+                Målt {formatDate("2026-09-25")} og {formatDate(WORKER_RESULTS.measured)}, nye filer med retry2{" "}
+                <a href={SOURCES.cfRetry2} className={linkClass}>
+                  {formatDate("2026-10-09")}
+                </a>
+                . Se{" "}
                 <a href={SOURCES.night1} className={linkClass}>
                   kvalitetsnatt 1
                 </a>{" "}
