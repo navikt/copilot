@@ -267,7 +267,7 @@ Permission errors > 100/day
 4. Post in #nav-pilot with clear example
 
 **If specific user cohort affected:**
-1. Identifiser hvilke team (`device_id` er en enveis-hash og kan **ikke** mappes til team uten en ekstern, frivillig opt-in-mapping — bruk heller `scope`/`version`/`os`-fordeling for å se mønstre)
+1. Identifiser hvilke team (`device_id` er en pseudonym enveis-hash; ikke prøv å knytte den til personer eller team via `nav.repo` eller andre data — bruk heller `scope`/`version`/`os`-fordeling for å se mønstre)
 2. Reach out: "We noticed permission issues; here's the fix"
 3. Offer 1:1 help
 

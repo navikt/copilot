@@ -126,7 +126,7 @@ Klassifisering prioriterer:
   - Genereres fra: hostname + CLI-installasjonssti + MAC-adresse (SHA256)
   - Lagret lokalt i `~/.nav-pilot/device-id` (persistent)
   - Samme maskin = alltid samme ID (reproducible)
-  - **Inneholder INGEN persondata** (kun hardware/path)
+  - **Pseudonym, ikke anonym:** inneholder ikke hostname, sti eller MAC i klartekst, men er stabil per maskin og kan knyttes til en person sammen med andre data (f.eks. `nav.repo` på Copilot CLI- og opencode-spor). Regnes derfor som personopplysning
 
 **Usendte metrikker:**
 - Den siste sendingen fra en kommando legges i `~/.nav-pilot/telemetry-spool/`. Rett etter at kommandoen er ferdig, sender en egen prosess den (se «Ved avslutning» under). Det den ikke rekker, sender neste nav-pilot i bakgrunnen
@@ -371,7 +371,7 @@ det er to tall som kan bli uenige.
 
 ### Personvern-garantier
 - ✅ Ingen IP-adresser eller User-Agent som OTel-attributter i metrikksdata (merk: transport/ingress kan likevel se og evt. logge IP).
-- ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (SHA256-hash, 12 hex-tegn)
+- ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (SHA256-hash, 12 hex-tegn), som fortsatt er en personopplysning
 - ⚠️ `device_id` gir likevel oppløsning per maskin via `nav_pilot_info` (pseudonymt), ikke kun som globale aggregater.
   Den kan ikke knyttes til person/team uten en ekstern mapping.
 - ⚠️ Kardinalitet: `device_id` (og `version`) er høy-kardinalitets-etiketter. I en stor pilot kan
