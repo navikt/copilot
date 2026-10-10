@@ -22,7 +22,7 @@ export const propagateTraceHeaderCorsUrls = [
 export const ignoreErrors = [/MetaMask/i, /\bethereum\b/i];
 
 function sanitizeUrl(url: string): string {
-  return url.replace(PII_PATTERN, "[REDACTED]");
+  return url.split("?")[0].replace(PII_PATTERN, "[REDACTED]");
 }
 
 export default function Faro({ collectorUrl }: { collectorUrl?: string }) {
@@ -71,7 +71,7 @@ export default function Faro({ collectorUrl }: { collectorUrl?: string }) {
   // Pathname only: query strings and hashes stay out of the view name.
   const pathname = usePathname();
   useEffect(() => {
-    if (faro.api && pathname) faro.api.setView({ name: sanitizeUrl(pathname) });
+    if (pathname) faro.api.setView({ name: sanitizeUrl(pathname) });
   }, [pathname]);
 
   return null;
