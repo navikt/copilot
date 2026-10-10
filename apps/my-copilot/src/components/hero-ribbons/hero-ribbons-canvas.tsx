@@ -121,10 +121,15 @@ export function HeroRibbonsCanvas() {
           const y = rb.base + rb.slope * (u - 0.5) * 4 + Math.sin(u * 4 + t) * 0.5 + Math.sin(u * 9 - t * 1.3) * 0.12;
           const z = Math.sin(u * 3 + t * 0.7) * 0.8;
           const twist = Math.sin(u * 5 + t) * rb.width;
-          rb.centre.set([x, y, z], s * 3);
+          rb.centre[s * 3] = x;
+          rb.centre[s * 3 + 1] = y;
+          rb.centre[s * 3 + 2] = z;
           for (let r = 0; r < ROWS; r++) {
             const o = (r - 1) * rb.width;
-            rb.pos.set([x, y + o, z + (r - 1) * twist], (s * ROWS + r) * 3);
+            const k = (s * ROWS + r) * 3;
+            rb.pos[k] = x;
+            rb.pos[k + 1] = y + o;
+            rb.pos[k + 2] = z + (r - 1) * twist;
           }
         }
         rb.geo.attributes.position.needsUpdate = true;
@@ -132,7 +137,10 @@ export function HeroRibbonsCanvas() {
       pulses.forEach((p, i) => {
         p.t = (p.t + p.speed * dt) % 1;
         const s = Math.round(p.t * (SEGMENTS - 1)) * 3;
-        pulsePos.set(ribbons[p.ribbon].centre.subarray(s, s + 3), i * 3);
+        const c = ribbons[p.ribbon].centre;
+        pulsePos[i * 3] = c[s];
+        pulsePos[i * 3 + 1] = c[s + 1];
+        pulsePos[i * 3 + 2] = c[s + 2];
       });
       pulseGeo.attributes.position.needsUpdate = true;
       renderer.render(scene, camera);
