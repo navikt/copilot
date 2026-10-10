@@ -60,3 +60,10 @@ func TestReadOpenCodeUsageResolvesSymlinks(t *testing.T) {
 		t.Fatalf("symlinked dir not matched: %+v", u.Models)
 	}
 }
+
+func TestOpenCodeUsageDirResolvesRelative(t *testing.T) {
+	wd, _ := os.Getwd()
+	if got, want := openCodeUsageDir("sub"), filepath.Join(wd, "sub"); got != want {
+		t.Fatalf("openCodeUsageDir(sub) = %q, want %q", got, want)
+	}
+}

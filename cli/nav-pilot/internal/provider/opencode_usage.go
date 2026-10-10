@@ -33,7 +33,7 @@ var openCodeCommand = func(ctx context.Context, dir string, args ...string) ([]b
 // ponytail: a second opencode in the same directory at the same time is
 // counted by both launches; tag sessions with the launch if that shows up.
 func readOpenCodeUsage(dir string, since time.Time) telemetry.ClientUsage {
-	u := telemetry.ClientUsage{Client: "opencode", Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
+	u := telemetry.ClientUsage{Client: "opencode", Dir: dir, Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// v1 runs in-process with --pure; v2 needs --standalone so it does not

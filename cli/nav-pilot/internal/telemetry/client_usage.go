@@ -11,6 +11,8 @@ import (
 // no prompt, response, path or user is ever part of it.
 type ClientUsage struct {
 	Client string
+	// Dir is the launch directory; nav_repo is derived from it, never sent.
+	Dir    string
 	Models map[ModelKey]ModelUsage
 	Tools  map[string]int64
 }
@@ -32,9 +34,13 @@ type ModelUsage struct {
 // arrived (see temporalityFor).
 func (t *otelTelemetry) RecordClientUsage(u ClientUsage) {
 	ctx := context.Background()
+	repo := detectNavRepo()
+	if u.Dir != "" {
+		repo = navRepoFromDir(u.Dir)
+	}
 	common := []attribute.KeyValue{
 		attribute.String("client", orUnset(u.Client)),
-		attribute.String("nav_repo", orUnset(detectNavRepo())),
+		attribute.String("nav_repo", orUnset(repo)),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 	}

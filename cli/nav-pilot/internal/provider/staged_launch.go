@@ -450,7 +450,7 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	for _, msg := range OpenCodeUnsupportedConfigWarnings(r) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
 	}
-	return launchViaCplt(spec)
+	return launchOpenCodeViaCplt(spec)
 }
 
 // LaunchCopilotStaged launches copilot against a staged Tier 2 payload.
