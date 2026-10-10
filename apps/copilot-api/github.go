@@ -625,8 +625,16 @@ type Contributor struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 
+// errOwnerNotAllowed is returned when a contributors lookup names an owner
+// other than the configured org: the installation token must not be spent on
+// repositories outside it.
+var errOwnerNotAllowed = errors.New("owner is not the configured organization")
+
 // getRepositoryContributors fetches contributors for repository paths via REST API
 func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, repo string, paths []string) ([]Contributor, error) {
+	if !strings.EqualFold(owner, g.org) {
+		return nil, errOwnerNotAllowed
+	}
 	token, err := g.getInstallationToken(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get installation token: %w", err)
@@ -638,7 +646,7 @@ func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, rep
 	for _, path := range paths {
 		encodedPath := url.QueryEscape(strings.TrimSpace(path))
 		apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?path=%s&per_page=100",
-			owner, repo, encodedPath)
+			url.PathEscape(owner), url.PathEscape(repo), encodedPath)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 		if err != nil {

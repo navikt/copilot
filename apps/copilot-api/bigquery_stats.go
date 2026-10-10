@@ -171,14 +171,14 @@ func (bq *BigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, 
         FROM %s
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
-          AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+          AND LOWER(JSON_VALUE(raw_record, '$.user_login')) = LOWER(@userLogin)
       ),
       user_team_list AS (
         SELECT DISTINCT JSON_VALUE(raw_record, '$.slug') AS team_slug
         FROM %s
         WHERE day = (SELECT MAX(day) FROM %s WHERE scope = 'enterprise')
           AND scope = 'enterprise'
-          AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+          AND LOWER(JSON_VALUE(raw_record, '$.user_login')) = LOWER(@userLogin)
       ),
       model_usage AS (
         SELECT
@@ -277,7 +277,7 @@ func (bq *BigQueryClient) GetUserDailyCredits(ctx context.Context, userLogin str
         FROM %s
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
-          AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+          AND LOWER(JSON_VALUE(raw_record, '$.user_login')) = LOWER(@userLogin)
       )
       SELECT
         CAST(d.day AS STRING) AS day,
@@ -912,7 +912,7 @@ func (bq *BigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin str
         FROM %s
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
-          AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+          AND LOWER(JSON_VALUE(raw_record, '$.user_login')) = LOWER(@userLogin)
         GROUP BY week
       ),
       weekly_models AS (
@@ -926,7 +926,7 @@ func (bq *BigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin str
           UNNEST(JSON_QUERY_ARRAY(raw_record, '$.totals_by_model_feature')) AS mf
         WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY)
           AND scope = 'enterprise'
-          AND JSON_VALUE(raw_record, '$.user_login') = @userLogin
+          AND LOWER(JSON_VALUE(raw_record, '$.user_login')) = LOWER(@userLogin)
           AND JSON_VALUE(mf, '$.model') IS NOT NULL
           AND JSON_VALUE(mf, '$.model') != 'others'
         GROUP BY week, model

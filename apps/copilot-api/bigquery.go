@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -410,10 +411,6 @@ func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedB
 	}
 }
 
-// negativeCacheTTL is used for nil/zero-value results so "no data yet"
-// responses are retried sooner than the full cache TTL.
-const negativeCacheTTL = 5 * time.Minute
-
 // getCachedValue reads cacheKey from cache, or invokes loader on a miss.
 // Concurrent misses for the same cacheKey are deduplicated via singleflight
 // so a cache expiration under load triggers exactly one BigQuery call
@@ -441,13 +438,7 @@ func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func
 		if err != nil {
 			return zero, err
 		}
-		// Use a shorter TTL for nil results (e.g. daily summary before
-		// data lands) so they're retried sooner.
-		if any(value) == nil {
-			c.cache.SetWithTTL(cacheKey, value, negativeCacheTTL)
-		} else {
-			c.cache.Set(cacheKey, value)
-		}
+		c.cache.Set(cacheKey, value)
 		return value, nil
 	})
 	if err != nil {
@@ -538,7 +529,7 @@ func (c *CachedBigQueryClient) GetStalenessData(ctx context.Context) ([]Stalenes
 func (c *CachedBigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	cacheKey := fmt.Sprintf("user_metrics_%s_%d", userLogin, days)
+	cacheKey := fmt.Sprintf("user_metrics_%s_%d", strings.ToLower(userLogin), days)
 	return getCachedValue(c, cacheKey, func() (*UserMetricsSummary, error) {
 		return c.client.GetUserMetrics(ctx, userLogin, days)
 	})
@@ -583,7 +574,7 @@ func (c *CachedBigQueryClient) GetBillingModelForecast(ctx context.Context, mont
 func (c *CachedBigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	cacheKey := fmt.Sprintf("user_weekly_trends_%s_%d", userLogin, weeks)
+	cacheKey := fmt.Sprintf("user_weekly_trends_%s_%d", strings.ToLower(userLogin), weeks)
 	return getCachedValue(c, cacheKey, func() ([]WeeklyTrend, error) {
 		return c.client.GetUserWeeklyTrends(ctx, userLogin, weeks)
 	})
@@ -592,7 +583,7 @@ func (c *CachedBigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogi
 func (c *CachedBigQueryClient) GetUserDailyCredits(ctx context.Context, userLogin string, days int) ([]DailyCredits, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	cacheKey := fmt.Sprintf("user_daily_credits_%s_%d", userLogin, days)
+	cacheKey := fmt.Sprintf("user_daily_credits_%s_%d", strings.ToLower(userLogin), days)
 	return getCachedValue(c, cacheKey, func() ([]DailyCredits, error) {
 		return c.client.GetUserDailyCredits(ctx, userLogin, days)
 	})

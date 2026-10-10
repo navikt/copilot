@@ -13,6 +13,9 @@ spec:
   command:
     - /app/copilot-metrics
     - --mimir-daily
+  # The job needs only SLACK_WEBHOOK_URL from this secret, but it mounts all
+  # of it: nais env[].valueFrom supports fieldRef only, not secretKeyRef.
+  # Narrowing it means moving the webhook into a secret of its own.
   envFrom:
     - secret: copilot-metrics
   env:

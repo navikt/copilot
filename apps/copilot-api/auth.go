@@ -422,7 +422,6 @@ func bearerAuth(validate func(string) (*User, error), surveyClientIDs []string) 
 					respondError(w, "forbidden", "copilot-survey may only call POST "+samlNameIDPath, http.StatusForbidden)
 					return
 				}
-				slog.Debug("User authenticated", "navident", user.NAVident)
 			}
 
 			ctx := context.WithValue(r.Context(), userContextKey, user)
