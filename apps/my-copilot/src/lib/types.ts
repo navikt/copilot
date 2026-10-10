@@ -429,13 +429,6 @@ export interface CohortRetention {
   m6: number | null;
 }
 
-/** Active users in one team in one month, from copilot-api. Team-months under five users are left out. */
-export interface TeamActiveUsersMonth {
-  team_slug: string;
-  month: string;
-  active_users: number;
-}
-
 /** Copilot coding agent and code review PRs in one month, from repository_metrics. */
 export interface CopilotPRMonth {
   month: string;

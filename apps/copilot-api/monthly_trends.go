@@ -152,17 +152,17 @@ func (h *BigQueryHandlers) handleCopilotPRsMonthly(w http.ResponseWriter, r *htt
 type CohortRetention struct {
 	CohortMonth string             `bigquery:"cohort_month" json:"cohort_month"`
 	CohortSize  int64              `bigquery:"cohort_size" json:"cohort_size"`
-	M1          bigquery.NullInt64 `bigquery:"m1" json:"m1"`
-	M3          bigquery.NullInt64 `bigquery:"m3" json:"m3"`
-	M6          bigquery.NullInt64 `bigquery:"m6" json:"m6"`
+	M1          *int64 `bigquery:"m1" json:"m1"`
+	M3          *int64 `bigquery:"m3" json:"m3"`
+	M6          *int64 `bigquery:"m6" json:"m6"`
 }
 
 // GetCohortRetention groups users by the month of their first active day and
 // returns retention per cohort. Counted per user_id in the enterprise scope
 // (active as in GetCreditsPerUserMonthly), returned only as aggregates.
 // Cohorts with fewer than minUsersForDistribution users are left out. The
-// first data month (October 2025) is left-censored: it holds everyone already
-// active when the data starts.
+// first data month (October 2025) is left-censored: data starts 2025-10-10,
+// so it mixes earlier users with new ones and cannot tell them apart.
 func (bq *BigQueryClient) GetCohortRetention(ctx context.Context) ([]CohortRetention, error) {
 	metricsRef := bq.tableRef(bq.metricsDataset, "user_metrics")
 	query := bq.client.Query(fmt.Sprintf(`
@@ -229,65 +229,3 @@ func (h *BigQueryHandlers) handleCohortRetention(w http.ResponseWriter, r *http.
 	respondJSON(w, cohorts, http.StatusOK)
 }
 
-// TeamActiveUsersMonth is the number of active users in one team in one month.
-type TeamActiveUsersMonth struct {
-	TeamSlug    string `bigquery:"team_slug" json:"team_slug"`
-	Month       string `bigquery:"month" json:"month"`
-	ActiveUsers int64  `bigquery:"active_users" json:"active_users"`
-}
-
-// GetTeamActiveUsersMonthly counts active users per team per month (active as
-// in GetCreditsPerUserMonthly). Team membership is the latest user_teams
-// snapshot applied to every month, so a team's history follows its current
-// members. Team-months with fewer than minTeamContributors users are left out.
-func (bq *BigQueryClient) GetTeamActiveUsersMonthly(ctx context.Context) ([]TeamActiveUsersMonth, error) {
-	teamsRef := bq.tableRef(bq.metricsDataset, "user_teams")
-	query := bq.client.Query(fmt.Sprintf(`
-      WITH members AS (
-        SELECT DISTINCT JSON_VALUE(raw_record, '$.user_id') AS user_id, JSON_VALUE(raw_record, '$.slug') AS team_slug
-        FROM %s
-        WHERE day = (SELECT MAX(day) FROM %s WHERE scope = 'enterprise' AND scope_id = 'nav')
-          AND scope = 'enterprise' AND scope_id = 'nav'
-          AND JSON_VALUE(raw_record, '$.slug') != 'nav-it-github-users'
-      ),
-      active AS (
-        SELECT DISTINCT JSON_VALUE(raw_record, '$.user_id') AS user_id, FORMAT_DATE('%%Y-%%m', day) AS month
-        FROM %s
-        WHERE scope = 'enterprise' AND scope_id = 'nav'
-          AND (COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.ai_credits_used') AS FLOAT64), 0) > 0
-            OR COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.user_initiated_interaction_count') AS INT64), 0)
-              + COALESCE(SAFE_CAST(JSON_VALUE(raw_record, '$.code_generation_activity_count') AS INT64), 0) > 0)
-      )
-      SELECT m.team_slug, a.month, COUNT(DISTINCT a.user_id) AS active_users
-      FROM members m JOIN active a USING (user_id)
-      GROUP BY m.team_slug, a.month
-      HAVING active_users >= @min_users
-      ORDER BY m.team_slug, a.month
-    `, teamsRef, teamsRef, bq.tableRef(bq.metricsDataset, "user_metrics")))
-	query.Parameters = []bigquery.QueryParameter{{Name: "min_users", Value: minTeamContributors}}
-	it, err := query.Read(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("execute query: %w", err)
-	}
-	return readAllRows[TeamActiveUsersMonth](it)
-}
-
-func (c *CachedBigQueryClient) GetTeamActiveUsersMonthly(ctx context.Context) ([]TeamActiveUsersMonth, error) {
-	ctx, cancel := withQueryTimeout(ctx)
-	defer cancel()
-	return getCachedValue(c, "team_active_users_monthly", func() ([]TeamActiveUsersMonth, error) {
-		return c.client.GetTeamActiveUsersMonthly(ctx)
-	})
-}
-
-// handleTeamActiveUsersMonthly handles GET /api/v1/copilot/usage/team-active-users
-func (h *BigQueryHandlers) handleTeamActiveUsersMonthly(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.bqClient.GetTeamActiveUsersMonthly(r.Context())
-	if err != nil {
-		slog.Error("Failed to fetch team active users", "error", err)
-		respondError(w, "internal_error", "Failed to fetch team active users", http.StatusInternalServerError)
-		return
-	}
-	cacheControl(w, 3600, false)
-	respondJSON(w, rows, http.StatusOK)
-}
