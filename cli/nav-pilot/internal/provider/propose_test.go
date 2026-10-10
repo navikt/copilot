@@ -292,6 +292,7 @@ func TestI5NoUnaccountedCpltLaunchPath(t *testing.T) {
 		"IsCplt":                  "copilot_launch.go — a --version probe, no session",
 		"printCopilotDiagnostics": "copilot_launch.go — diagnostics, no session",
 		"askMCPPolicy":            "opencode_mcp.go — `gh api /copilot/mcp_registry`, a policy read, no session",
+		"openCodeCommand":         "opencode_usage.go — `opencode session list` and `export --sanitize` after the session ended, a read, no session",
 	}
 
 	for _, name := range processSpawners(t, ".") {

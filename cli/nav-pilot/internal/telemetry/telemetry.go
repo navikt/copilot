@@ -61,6 +61,7 @@ type Recorder interface {
 	RecordHookLoopGuard(rule, session string)
 	RecordHookRedact(kind string, count int64)
 	RecordHookActionCheck(outcome, category string)
+	RecordClientUsage(u ClientUsage)
 	Shutdown(ctx context.Context) error
 }
 
@@ -86,6 +87,7 @@ func (NoopRecorder) RecordDecide(DecideEvent)             {}
 func (NoopRecorder) RecordHookLoopGuard(string, string)   {}
 func (NoopRecorder) RecordHookRedact(string, int64)       {}
 func (NoopRecorder) RecordHookActionCheck(string, string) {}
+func (NoopRecorder) RecordClientUsage(ClientUsage)        {}
 func (NoopRecorder) Shutdown(context.Context) error       { return nil }
 
 type otelTelemetry struct {
@@ -116,6 +118,9 @@ type otelTelemetry struct {
 	hookRedactTotal    metric.Int64Counter
 	hookActionCheck    metric.Int64Counter
 	localGateTotal     metric.Int64Counter
+	genAITokens        metric.Int64Counter
+	genAICalls         metric.Int64Counter
+	genAIToolCalls     metric.Int64Counter
 
 	version          string
 	device           string
@@ -124,6 +129,7 @@ type otelTelemetry struct {
 	arch             string
 	rtkInstalled     string
 	projectType      string
+	runID            string
 }
 
 // telemetryEndpoint is where exports go.
@@ -322,12 +328,31 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local gate counter: %w", err)
 	}
+	genAITokens, err := meter.Int64Counter("nav_pilot_genai_token_usage",
+		metric.WithDescription("Tokens a client session used, read from the client's own session store when it ends, by model and token type."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create genai token counter: %w", err)
+	}
+	genAICalls, err := meter.Int64Counter("nav_pilot_genai_calls",
+		metric.WithDescription("Model calls (assistant messages) in a client session, by model."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create genai calls counter: %w", err)
+	}
+	genAIToolCalls, err := meter.Int64Counter("nav_pilot_genai_tool_calls",
+		metric.WithDescription("Tool calls in a client session, by tool name."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create genai tool calls counter: %w", err)
+	}
 
 	tel := &otelTelemetry{
 		provider:           provider,
 		spool:              spool,
 		spoolSent:          spoolSent,
 		localGateTotal:     localGateTotal,
+		genAITokens:        genAITokens,
+		genAICalls:         genAICalls,
+		genAIToolCalls:     genAIToolCalls,
+		runID:              newRunID(),
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
 		launchErrorTotal:   launchErrorTotal,
