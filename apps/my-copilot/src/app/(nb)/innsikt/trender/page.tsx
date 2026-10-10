@@ -184,7 +184,7 @@ export default async function TrenderPage({
     <InsightPage
       title="Trender"
       description="Copilot i Nav måned for måned."
-      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, hvor utbredt den er i teamene, og hvor mange nye brukere som fortsetter. Nederst ser du kostnad per modellfamilie, AI Credits per bruker og Copilot i pull requests. Ingen personer eller team navngis. Hver graf starter der dataene starter."
+      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, og hvor mange nye brukere som fortsetter. Nederst ser du kostnad per modellfamilie, AI Credits per bruker og Copilot i pull requests. Ingen personer eller team navngis. Hver graf starter der dataene starter."
       updated={async () => (await getDailySummary(token)).summary?.date}
       hourly
       source={

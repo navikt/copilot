@@ -30,6 +30,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/innsikt/bruk#dashboard": "/innsikt/bruk#nokkeltall",
   "/innsikt/bruk#manedlige-trender": "/innsikt/bruk#nokkeltall",
   "/innsikt/bruk#bruker-vs-agent": "/innsikt/bruk#nokkeltall",
+  "/innsikt/trender#team-adopsjon": "/innsikt/trender#arbeidsmate",
   "/innsikt/bruk#daglig-oversikt": "/innsikt/bruk#pull-requests-og-code-review",
   "/innsikt/bruk#ai-modeller-over-tid": "/innsikt/bruk#kostnad-over-tid",
   "/innsikt/bruk#repositories": "/innsikt/bruk#repositorier",
