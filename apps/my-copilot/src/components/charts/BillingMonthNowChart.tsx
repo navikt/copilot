@@ -56,8 +56,8 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
   // The backend separates weekday/weekend rates and blends with previous month
   // data early in the billing cycle — this gives a more accurate projection than
   // a simple linear run-rate computed client-side.
-  const actualMTDGross = forecast.actual_mtd_net_amount;
-  const projectedEOMGross = forecast.projected_eom_net_amount;
+  const actualMTDNet = forecast.actual_mtd_net_amount;
+  const projectedEOMNet = forecast.projected_eom_net_amount;
 
   const actual: Array<number | null> = [];
   const projected: number[] = [];
@@ -83,7 +83,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
       actual.push(null);
       projected.push(Number(point.projected_cumulative.toFixed(2)));
       bandUpper.push(Number((point.projected_cumulative + spread).toFixed(2)));
-      bandLower.push(Number(Math.max(actualMTDGross, point.projected_cumulative - spread).toFixed(2)));
+      bandLower.push(Number(Math.max(actualMTDNet, point.projected_cumulative - spread).toFixed(2)));
     }
   }
 
@@ -122,8 +122,8 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
           <VStack gap="space-8">
             <BodyShort weight="semibold">Prognose månedsslutt (USD)</BodyShort>
             <BodyShort size="small" className="text-gray-500">
-              MTD {formatNumber(Math.round(actualMTDGross))} • Prognose {formatNumber(Math.round(projectedEOMGross))} (
-              {formatNumber(Math.round(forecast.lower_eom_net_amount))} –{" "}
+              Netto MTD {formatNumber(Math.round(actualMTDNet))} • Prognose {formatNumber(Math.round(projectedEOMNet))}{" "}
+              ({formatNumber(Math.round(forecast.lower_eom_net_amount))} –{" "}
               {formatNumber(Math.round(forecast.upper_eom_net_amount))})
             </BodyShort>
             <div className="aspect-[2/1]">
@@ -132,7 +132,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                   labels: cumulativeLabels,
                   datasets: [
                     {
-                      label: "Faktisk kumulativ (brutto)",
+                      label: "Faktisk kumulativ (netto)",
                       data: actual,
                       borderColor: "#2563eb",
                       backgroundColor: "transparent",
@@ -141,7 +141,7 @@ const BillingMonthNowChart: React.FC<BillingMonthNowChartProps> = ({ dailyData, 
                       spanGaps: false,
                     },
                     {
-                      label: "Prognose kumulativ (brutto)",
+                      label: "Prognose kumulativ (netto)",
                       data: projected,
                       borderColor: "#16a34a",
                       borderDash: [5, 5],
