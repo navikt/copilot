@@ -272,7 +272,7 @@ func (g *GitHubClient) getCopilotSeat(ctx context.Context, username string) (*Co
 
 	resp, err := g.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("execute request: %w", err)
+		return nil, fmt.Errorf("execute request: %T", err) // *url.Error names the URL, and so the login
 	}
 	defer resp.Body.Close()
 

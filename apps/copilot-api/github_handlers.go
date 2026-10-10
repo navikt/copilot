@@ -102,8 +102,8 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 
 // handleAssignSeat handles POST /api/v1/copilot/seats
 func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request) {
-	// user is only used for audit logging (NAVident) below — the ownership
-	// check itself is mechanism-agnostic (see requireOwnership).
+	// user supplies the groups for the check below and the NAVident for audit
+	// logging; the ownership check is mechanism-agnostic (see requireOwnership).
 	user, _ := getUserFromContext(r.Context())
 
 	var req struct {

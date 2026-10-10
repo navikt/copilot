@@ -415,8 +415,6 @@ func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedB
 // Concurrent misses for the same cacheKey are deduplicated via singleflight
 // so a cache expiration under load triggers exactly one BigQuery call
 // instead of one per in-flight request (cache stampede).
-// Nil/zero-value results are cached for a shorter duration (5 min) so
-// transient "no data" states are retried sooner.
 func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func() (T, error)) (T, error) {
 	var zero T
 	if cached, ok := c.cache.Get(cacheKey); ok {
