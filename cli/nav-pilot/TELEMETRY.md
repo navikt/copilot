@@ -30,6 +30,38 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_hook_action_check_total` | Counter | Handlingssjekken spurte den lokale modellen om en risikabel skallkommando | `outcome=flagged\|passed\|skipped_timeout\|skipped_no_server\|skipped_error`, `category=kubectl\|nais\|gcloud\|helm\|terraform\|rm\|git\|disk\|sql` |
 | `nav_pilot_local_dispatches` | Histogram | Oppgaver en økt sendte til den lokale modellen, målt når økten slutter | `client`, `model`, `dispatch_level=off\|conservative\|balanced\|aggressive`, `saw_traffic` |
 | `nav_pilot_local_gate_total` | Counter | Hva delegeringssperren gjorde i en økt med `local_dispatch` `balanced` eller `aggressive` | `outcome=deny_files\|deny_sites\|deny_scripted\|deny_create\|deny_tmp\|dispatched_after_deny\|verify_nudge\|create_retry\|create_retry_passed\|create_retry_failed` |
+| `nav_pilot_genai_session_tokens_total` | Counter | Tokens en opencode-økt brukte, lest fra opencodes egen øktlagring når økten slutter. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `gen_ai_token_type=input\|output\|reasoning\|cache_read\|cache_write`, `nav_repo` |
+| `nav_pilot_genai_session_calls_total` | Counter | Modellkall (svar fra modellen) i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `nav_repo` |
+| `nav_pilot_genai_session_tool_calls_total` | Counter | Verktøykall i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_tool_name`, `nav_repo` |
+
+**Merk om opencode-bruk (`nav_pilot_genai_*`):**
+- opencode sender spor (traces) og logger, men ingen metrikker. Når økten
+  slutter, leser nav-pilot summene fra `opencode session list` og
+  `opencode export --sanitize` (`opencode session export --sanitize` i
+  opencode 2) og sender dem som metrikker. Bare tall og modellnavn: aldri
+  ledetekst, svar, filstier eller bruker.
+- `input` er tokens som ikke kom fra cache. Copilots `input` kan telle annerledes,
+  så bruk `input + cache_read` når du sammenligner klientene.
+- `gen_ai_provider_name` og `gen_ai_request_model` er leverandør- og
+  modell-id-en for `github-copilot` og nav-pilots lokale modell. For
+  leverandører du har lagt til selv, er begge `custom`. Verktøy utenom
+  opencodes innebygde heter `other`.
+- Ingen etikett per prosess eller økt. Som de andre tellerne sendes hver eksport
+  som det som er nytt siden forrige (se «Dashboard-eksempler»), så en økt ender
+  som én måling med sine egne summer. Summer med `sum_over_time`, ikke
+  `increase`:
+  ```promql
+  sum by (gen_ai_request_model, gen_ai_token_type) (
+    sum_over_time(nav_pilot_genai_session_tokens_total{client="opencode"}[7d])
+  )
+  ```
+  Da blir ikke to samtidige økter på samme maskin telt dobbelt. Det blir
+  Copilots kumulative `gen_ai_client_token_usage`: Mimir leser hvert fall i
+  verdien som en nullstilling. Ekte delta-tellere ville krevd
+  `deltatocumulative` i Nav-kollektoren, og det kjører den ikke.
+- Kjører du to opencode-økter i samme mappe samtidig, teller begge oppstartene
+  begge øktene. Underøkter (subagenter) telles ikke: `opencode session list`
+  viser bare toppnivå-økter.
 
 **Merk om `alpha decide` og hookene:**
 - Spørsmålet, alternativene, evidensen og valget sendes aldri, bare antall og

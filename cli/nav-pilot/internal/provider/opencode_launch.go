@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -1203,7 +1204,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		agentArgs, launchEnv = openCodeV2Args(agentArgs, launchEnv)
 	}
 
-	return launchViaCplt(cpltLaunch{
+	return launchOpenCodeViaCplt(cpltLaunch{
 		agent:     "opencode",
 		agentArgs: agentArgs,
 		cpltArgs:  cpltFlags,
@@ -1467,3 +1468,22 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 // asks before naming a model, and the next client added answers it here, next
 // to the launches, rather than by editing the notice.
 func clientForwardsModel(string) bool { return true }
+
+// openCodeUsageDir is the directory opencode records the session under: the
+// launch directory, which is the project directory unless none was resolved.
+func openCodeUsageDir(projectDir string) string {
+	dir, _ := cpltProjectDir(projectDir)
+	return dir
+}
+
+// launchOpenCodeViaCplt is launchViaCplt plus the usage recording, shared by
+// the plain and the staged (Tier 2) opencode launch.
+func launchOpenCodeViaCplt(spec cpltLaunch) error {
+	if telemetry.TelemetryEnabled() {
+		since := time.Now()
+		defer func() {
+			telemetryRecorder.RecordClientUsage(readOpenCodeUsage(openCodeUsageDir(spec.projectDir), since))
+		}()
+	}
+	return launchViaCplt(spec)
+}

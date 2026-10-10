@@ -70,8 +70,12 @@ func ApplyOpenCodeOTelEnv(env []string, cliVersion string) ([]string, bool) {
 	env, updated = SetEnvValue(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
 	changed = changed || updated
 
-	// Nav collector only accepts metrics. Disable log exporter so opencode
-	// doesn't attempt to push to /v1/logs.
+	// The Nav collector takes metrics, traces and logs. opencode sends traces
+	// and logs but no metrics; its logs are dropped by the collector
+	// (filter/drop_opencode_logs in nais/helm-charts). opencode 1.18 ignores
+	// this variable and sends logs anyway; it stays for a release that honours
+	// it. Token and tool usage reach Mimir through nav-pilot instead: see
+	// readOpenCodeUsage.
 	env, updated = SetEnvIfAbsent(env, "OTEL_LOGS_EXPORTER", "none")
 	changed = changed || updated
 
