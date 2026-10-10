@@ -152,6 +152,13 @@ export default function LokalModellForklaring() {
               <a href="https://github.com/navikt/copilot/pull/1156" className={linkClass}>
                 navikt/copilot#1156
               </a>
+              ). Med retry2 ble 37 av 40 nye filer godkjent, mot 26 av 40 uten (
+              <a
+                href="https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-10-gap-fill/report.md"
+                className={linkClass}
+              >
+                målingen 10. oktober 2026
+              </a>
               ).
             </li>
             <li>Qwen 3.8-modellene og modellen for 64 GB er ikke godkjent for noe. Med dem stoppes ingenting.</li>

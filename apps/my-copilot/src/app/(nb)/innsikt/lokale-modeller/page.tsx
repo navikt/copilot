@@ -152,13 +152,14 @@ function ReportsSection({ index }: { index: ReportIndex }) {
               BENCHMARKING.md
             </a>
             ). K2-Horizon ble avvist i første runde fordi ingen av de 40 forsøkene ga et verktøykall som nav-pilot kunne
-            lese. En parser er nå lagt til (
+            lese. Med en ny parser (
             <a href="https://github.com/navikt/mlx-workspace/pull/184" className={linkClass}>
               mlx-workspace#184
             </a>
-            ), og modellen testes på nytt (
-            <a href={SOURCES.newCandidates} className={linkClass}>
-              nye kandidater
+            ) besto den 0 av 80 oppgaver. Parseren leser fortsatt navnet på verktøyet feil, og 74 prosent av kallene
+            gikk til et verktøy som ikke finnes. Vi tester modellen igjen først når parseren består en enhetstest (
+            <a href={SOURCES.k2Ifm} className={linkClass}>
+              målingen 10. oktober 2026
             </a>
             ).
           </BodyShort>
@@ -309,9 +310,12 @@ export default function LokaleModeller() {
                   <a href={SOURCES.cfRetry2} className={linkClass}>
                     9. oktober 2026
                   </a>{" "}
-                  ga 10 av 10 på de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Vi hadde også
-                  endret testoppsettet, så vi vet ikke ennå hvor mye retry2 alene bidro. En måling som skiller effekten
-                  av retry2, pågår.
+                  ga 10 av 10 på de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Uten retry2 ga{" "}
+                  <a href={SOURCES.gapFill} className={linkClass}>
+                    samme oppsett 10. oktober 2026
+                  </a>{" "}
+                  26 av 40, mot 37 av 40 med retry2. Forskjellen er for stor til å være tilfeldig. Gevinsten kommer
+                  altså fra retry2, og vi beholder det.
                 </li>
               </Bullets>
               <BodyShort size="small" textColor="subtle">
