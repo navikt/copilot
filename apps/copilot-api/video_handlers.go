@@ -102,14 +102,10 @@ func (l *videoPlayRateLimiter) allow(clientKey string) bool {
 	return true
 }
 
+// videoPlayClientKey keys the limiter on the connection's peer address.
+// copilot-api has no ingress, so nothing in front of it sets a trusted
+// client-IP header, and X-Forwarded-For is whatever the caller wrote.
 func videoPlayClientKey(r *http.Request) string {
-	if xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); xff != "" {
-		first, _, _ := strings.Cut(xff, ",")
-		if first = strings.TrimSpace(first); first != "" {
-			return first
-		}
-	}
-
 	remoteAddr := strings.TrimSpace(r.RemoteAddr)
 	if remoteAddr == "" {
 		return "unknown"

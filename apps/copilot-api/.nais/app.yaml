@@ -12,6 +12,17 @@ spec:
       enabled: true
       tenant: nav.no
       allowAllUsers: true
+      # Same groups as my-copilot, so the OBO token's groups claim lets
+      # handleAssignSeat repeat the BFF's group check. Keep the lists in sync.
+      claims:
+        groups:
+          - id: 48120347-8582-4329-8673-7beb3ed6ca06 # dev
+          - id: 76e9ee7e-2cd1-4814-b199-6c0be007d7b4 # dev
+          - id: eb5c5556-6c9a-4e54-83fc-f70cae25358d # dev
+          - id: 879f302e-73e9-48bf-8103-16edd8606c4a # infra
+          - id: afcbfed4-d5d4-4964-8db5-f59b6f61b929 # azure
+          - id: 8396d3ec-e263-49c7-b72a-87440d7ee3f4 # design
+          - id: c0b6df4d-35b4-4312-aaaa-74ea33108875 # GitHub Copilot Produktutvikling
 
   observability:
     autoInstrumentation:

@@ -87,11 +87,6 @@ func (c *BudgetClient) getEnterpriseBudgets(ctx context.Context) ([]BudgetEntry,
 	c.mu.Unlock()
 
 	slog.Debug("Enterprise budgets cached", "count", len(entries))
-	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
-		for _, e := range entries {
-			slog.Debug("Budget entry", "scope", e.BudgetScope, "entity", e.BudgetEntityName, "amount", e.BudgetAmount)
-		}
-	}
 	return entries, nil
 }
 

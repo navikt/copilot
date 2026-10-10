@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -191,11 +192,27 @@ func TestHandleAssignSeat(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "octocat")
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: []string{"g"}}))
 		rec := httptest.NewRecorder()
 		h.handleAssignSeat(rec, req)
 
 		if rec.Code != http.StatusCreated {
 			t.Errorf("status: got %d, want 201", rec.Code)
+		}
+	})
+
+	t.Run("rejects caller with no allowed group", func(t *testing.T) {
+		mock := &mockGitHubClient{assignResult: &AssignResult{SeatsCreated: 1}}
+		h := newGitHubHandlers(mock)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
+			strings.NewReader(`{"username":"octocat"}`))
+		req = identityContext(req, "octocat")
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{}))
+		rec := httptest.NewRecorder()
+		h.handleAssignSeat(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want 403", rec.Code)
 		}
 	})
 
@@ -571,5 +588,24 @@ func TestHandleRepositoryContributors(t *testing.T) {
 				t.Errorf("status: got %d, want %d", rec.Code, tc.wantStatus)
 			}
 		})
+	}
+}
+
+func TestHandleRepositoryContributorsValidatesRepo(t *testing.T) {
+	h := newGitHubHandlers(&mockGitHubClient{})
+	for _, repo := range []string{"", ".", "..", "a/b", "a%2Fb", "x?y", strings.Repeat("a", 101)} {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/repo-contributors?owner=navikt&paths=%5B%22a%22%5D&repo="+url.QueryEscape(repo), nil)
+		rec := httptest.NewRecorder()
+		h.handleRepositoryContributors(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("repo %q: status %d, want 400", repo, rec.Code)
+		}
+	}
+}
+
+func TestGetRepositoryContributorsPinsOwner(t *testing.T) {
+	g := &GitHubClient{org: "navikt"}
+	if _, err := g.getRepositoryContributors(context.Background(), "other-org", "repo", []string{"a"}); !errors.Is(err, errOwnerNotAllowed) {
+		t.Fatalf("err = %v, want errOwnerNotAllowed", err)
 	}
 }
