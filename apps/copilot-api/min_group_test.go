@@ -13,7 +13,7 @@ import (
 )
 
 // Nav-wide phase counts name no one: small cells are averaged per week and
-// shown as is.
+// shown as is, and a phase with no users that week is 0.
 func TestAdoptionCohortsWeeklyKeepsSmallCells(t *testing.T) {
 	mon := civil.Date{Year: 2026, Month: 9, Day: 7}
 	tue := civil.Date{Year: 2026, Month: 9, Day: 8}
@@ -27,7 +27,7 @@ func TestAdoptionCohortsWeeklyKeepsSmallCells(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	want := []AdoptionCohortWeek{{Week: mon, Phase: 0, UserCount: 50}, {Week: mon, Phase: 1, UserCount: 3}}
+	want := []AdoptionCohortWeek{{Week: mon, Phase: 0, UserCount: 50}, {Week: mon, Phase: 1, UserCount: 3}, {Week: mon, Phase: 2}, {Week: mon, Phase: 3}}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}

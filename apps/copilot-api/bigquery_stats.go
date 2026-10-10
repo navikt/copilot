@@ -980,7 +980,7 @@ func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]A
       HAVING phase IS NOT NULL
       ORDER BY day, phase
     `, metricsRef)
-	// handleAdoptionCohorts averages these into weeks, then suppresses small cells on the weekly grain.
+	// handleAdoptionCohorts averages these into weeks and shows every cell (Nav-wide, names no one).
 	query := bq.client.Query(queryStr)
 	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}}
 	it, err := query.Read(ctx)
@@ -1016,10 +1016,13 @@ func weeklyCohorts(rows []AdoptionCohortDay) []AdoptionCohortWeek {
 		}
 		days[week][r.Day] = true
 	}
-	out := make([]AdoptionCohortWeek, 0, len(sums))
-	for k, sum := range sums {
-		avg := float64(sum) / float64(len(days[k.week]))
-		out = append(out, AdoptionCohortWeek{Week: k.week, Phase: k.phase, UserCount: int64(math.Round(avg))})
+	// Every week gets phases 0-3; a phase with no users that week is 0, not missing.
+	out := make([]AdoptionCohortWeek, 0, 4*len(days))
+	for week := range days {
+		for phase := int64(0); phase <= 3; phase++ {
+			avg := float64(sums[key{week, phase}]) / float64(len(days[week]))
+			out = append(out, AdoptionCohortWeek{Week: week, Phase: phase, UserCount: int64(math.Round(avg))})
+		}
 	}
 	slices.SortFunc(out, func(a, b AdoptionCohortWeek) int {
 		if c := a.Week.Compare(b.Week); c != 0 {

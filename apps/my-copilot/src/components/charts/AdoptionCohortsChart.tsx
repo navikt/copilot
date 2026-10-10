@@ -33,7 +33,7 @@ interface AdoptionCohortsChartProps {
 
 /**
  * Pivot the API's weekly rows into one series per phase. The API averages per week and
- * suppresses small cells; a missing phase in a week stays null, not 0.
+ * sends every phase, so a missing phase in a week means no data and stays null.
  */
 export function transformCohortData(data: AdoptionCohortWeek[]): AdoptionCohortTrendData {
   const weeks = [...new Set(data.map((r) => r.week))].sort();
