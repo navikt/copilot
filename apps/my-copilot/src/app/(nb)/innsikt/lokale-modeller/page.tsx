@@ -151,8 +151,12 @@ function ReportsSection({ index }: { index: ReportIndex }) {
             <a href={SOURCES.benchmarking} className={linkClass}>
               BENCHMARKING.md
             </a>
-            ). Vi avviste K2-Horizon fordi ingen av de 40 forsøkene ga et verktøykall som nav-pilot kunne lese. Modellen
-            testes på nytt bare hvis noen tilpasser parseren (
+            ). K2-Horizon ble avvist i første runde fordi ingen av de 40 forsøkene ga et verktøykall som nav-pilot kunne
+            lese. En parser er nå lagt til (
+            <a href="https://github.com/navikt/mlx-workspace/pull/184" className={linkClass}>
+              mlx-workspace#184
+            </a>
+            ), og modellen testes på nytt (
             <a href={SOURCES.newCandidates} className={linkClass}>
               nye kandidater
             </a>
@@ -306,7 +310,8 @@ export default function LokaleModeller() {
                     9. oktober 2026
                   </a>{" "}
                   ga 10 av 10 på de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Vi hadde også
-                  endret testoppsettet, så vi vet ikke hvor mye retry2 alene bidro.
+                  endret testoppsettet, så vi vet ikke ennå hvor mye retry2 alene bidro. En måling som skiller effekten
+                  av retry2, pågår.
                 </li>
               </Bullets>
               <BodyShort size="small" textColor="subtle">
