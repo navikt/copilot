@@ -35,13 +35,11 @@ async function load({ token, start }: Props) {
   const im = months(segments.intensity.months.map((month) => ({ month })));
   const mm = months(segments.mode.months.map((month) => ({ month })));
   const vm = months(segments.movement.months.map((month) => ({ month })));
-  const tm = months(segments.team_adoption.months.map((month) => ({ month })));
   const net: ShareSeries = { label: "Netto (opp − ned)", shares: chartNet(segments.movement, vm) };
   return {
     intensity: { months: im, series: chartShares(segments.intensity, im) },
     mode: { months: mm, series: chartShares(segments.mode, mm) },
     movement: { months: vm, series: [...chartShares(segments.movement, vm), net] },
-    teams: { months: tm, series: chartShares(segments.team_adoption, tm) },
   };
 }
 
@@ -60,7 +58,6 @@ export async function SegmentChanges(props: Props) {
   const groups = [
     { title: "Intensitet", ...data.intensity },
     { title: "Arbeidsmåte", ...data.mode },
-    { title: "Team etter andel aktive", ...data.teams },
     { title: "Bevegelse", months: data.movement.months, series: data.movement.series.slice(-1) },
   ];
   const first = groups.flatMap((g) => g.months).sort()[0];
@@ -162,36 +159,6 @@ export async function WayOfWorking(props: Props) {
         Copilot coding agent per bruker, så den er ikke med. Når et felt mangler for en dag, regnes det som ikke brukt;
         vi har ikke sjekket fra hvilken dato GitHub begynte å levere hvert felt, så tidlige måneder kan undervurdere CLI
         og agentmodus. {HIDDEN}
-      </Method>
-    </>
-  );
-}
-
-export async function TeamAdoption(props: Props) {
-  const data = await load(props);
-  if ("failed" in data) return <Failed error={data.failed} />;
-  const { months, series } = data.teams;
-  if (!months.length) return <BodyShort>Ingen teamdata i perioden.</BodyShort>;
-  return (
-    <>
-      <ShareChart
-        months={months}
-        series={series}
-        stacked
-        label="Andel team med lav, middels eller høy andel aktive medlemmer per måned"
-        annotations={annotationsFor(CHART_ANNOTATIONS, months, props.all)}
-      />
-      <BodyShort size="small" textColor="subtle">
-        Teamdata finnes fra mai 2026. Teammedlemskapet kommer fra Copilots teamrapport (<code>user-teams-1-day</code>),
-        som trolig bare tar med Copilot-brukere. Andelen aktive er derfor trolig for høy.
-      </BodyShort>
-      <Method>
-        For hvert team med minst fem medlemmer regner vi andelen medlemmer som var aktive i måneden: lav under 25 %,
-        middels 25–59 %, høy 60 % eller mer. Ingen team navngis. Medlemskapet er det som gjaldt i hver måned (siste dag
-        med data i <code>user_teams</code> den måneden). Vi har teamdata fra mai 2026, så grafen starter der. Det hentes
-        fra GitHubs rapport <code>user-teams-1-day</code>. Rapporten tar trolig bare med Copilot-brukere, så nevneren er
-        nær antallet aktive. Alle tre gruppene vises hver måned. Grafen teller team, ikke personer, og hvert team har
-        minst fem medlemmer, så grupper av team er ikke personopplysninger.
       </Method>
     </>
   );

@@ -26,7 +26,7 @@ import {
 } from "@/lib/trends";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
 import { Events, PeriodSelect } from "./controls";
-import { Intensity, Movement, SegmentChanges, TeamAdoption, WayOfWorking } from "./segments";
+import { Intensity, Movement, SegmentChanges, WayOfWorking } from "./segments";
 
 export const metadata: Metadata = {
   title: "Trender",
@@ -220,9 +220,6 @@ export default async function TrenderPage({
       </Section>
       <Section id="arbeidsmate" title="Brukere etter arbeidsmåte">
         <WayOfWorking {...props} />
-      </Section>
-      <Section id="team-adopsjon" title="Team etter andel aktive medlemmer">
-        <TeamAdoption {...props} />
       </Section>
       <Section id="kohorter" title="Blir brukerne værende?">
         <Cohorts token={token} start={start} />

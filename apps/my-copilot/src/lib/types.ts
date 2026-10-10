@@ -441,7 +441,6 @@ export interface UserSegments {
   intensity: SegmentChart;
   mode: SegmentChart;
   movement: SegmentChart;
-  team_adoption: SegmentChart;
 }
 
 /** Copilot coding agent and code review PRs in one month, from repository_metrics. */

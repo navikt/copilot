@@ -28,7 +28,7 @@ func TestSegmentsBigQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, c := range map[string]SegmentChart{"intensity": s.Intensity, "mode": s.Mode, "movement": s.Movement, "team adoption": s.TeamAdoption} {
+	for name, c := range map[string]SegmentChart{"intensity": s.Intensity, "mode": s.Mode, "movement": s.Movement} {
 		if len(c.Months) == 0 {
 			t.Fatalf("%s: empty series", name)
 		}
@@ -86,16 +86,16 @@ func TestBuildChartKeepsSmallBands(t *testing.T) {
 		{Month: "2026-08", A: 3, B: 40, C: 57},
 		{Month: "2026-09", A: 2, B: 2, C: 1},
 		{Month: "2026-10"},
-	}, adoptionBands)
+	}, intensityBands)
 	want := map[string][]any{
-		"Lav":     {int64(50), int64(3), int64(40), nil},
+		"Lett":    {int64(50), int64(3), int64(40), nil},
 		"Middels": {int64(30), int64(40), int64(40), nil},
-		"Høy":     {int64(20), int64(57), int64(20), nil},
+		"Tung":    {int64(20), int64(57), int64(20), nil},
 	}
 	if got := shares(c); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if len(c.Bands) != 3 || c.Bands[0].Label != "Lav" || c.Bands[2].Label != "Høy" {
+	if len(c.Bands) != 3 || c.Bands[0].Label != "Lett" || c.Bands[2].Label != "Tung" {
 		t.Errorf("bands %+v", c.Bands)
 	}
 }
@@ -145,26 +145,5 @@ func TestUserDaysDeduplicatesScopes(t *testing.T) {
 	}
 	if strings.Count(src, "userDaysFrom(") < 4 {
 		t.Error("a user query bypasses userDaysFrom")
-	}
-}
-
-// Team adoption must use the membership valid in each month, never the
-// latest snapshot applied backwards, and start when user_teams starts.
-func TestTeamAdoptionUsesMonthlyMembership(t *testing.T) {
-	b, err := os.ReadFile("segments.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	src := string(b)
-	for _, want := range []string{"PARTITION BY DATE_TRUNC(day, MONTH)", "m.month = t.month", "day >= DATE(@team_from)"} {
-		if !strings.Contains(src, want) {
-			t.Errorf("team adoption lacks %q", want)
-		}
-	}
-	if strings.Contains(src, "SELECT MAX(day) FROM") {
-		t.Error("team adoption applies the latest user_teams snapshot to every month")
-	}
-	if teamDataFrom != "2026-05-01" {
-		t.Errorf("teamDataFrom = %s", teamDataFrom)
 	}
 }

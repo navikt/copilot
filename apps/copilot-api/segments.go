@@ -22,19 +22,10 @@ import (
 // Way of working takes the most autonomous mode a user touched in the month:
 // used_cli, then used_agent, then used_chat, otherwise completions only.
 // user_metrics has no per-user coding agent flag, so «CLI» is CLI only.
-//
-// Team adoption uses the membership valid in each month (the month's last
-// user_teams snapshot) and starts at teamDataFrom, when user_teams begins in
-// prod. Applying today's membership backwards inflated the share. It counts
-// teams with at least minTeamContributors members and the share of members
-// active that month: lav under 25 %, middels 25-59 %, høy 60 % or more.
 
 const (
-	teamDataFrom    = "2026-05-01"
 	intensityMedium = 20
 	intensityHeavy  = 200
-	adoptionMedium  = 0.25
-	adoptionHigh    = 0.60
 )
 
 // Raw monthly counts per band, read from BigQuery. They never leave the
@@ -65,23 +56,19 @@ type SegmentChart struct {
 
 // UserSegments is the response of /api/v1/copilot/usage/segments.
 type UserSegments struct {
-	Intensity    SegmentChart `json:"intensity"`
-	Mode         SegmentChart `json:"mode"`
-	Movement     SegmentChart `json:"movement"`
-	TeamAdoption SegmentChart `json:"team_adoption"`
+	Intensity SegmentChart `json:"intensity"`
+	Mode      SegmentChart `json:"mode"`
+	Movement  SegmentChart `json:"movement"`
 }
 
 // Small-group rule: suppression (n >= 5) applies only where a named team or
 // person can be picked out, such as tables and charts labelled with a team
 // name. These charts are Nav-wide and name no one, so every band is shown as
-// is. Team adoption counts anonymous teams, and a team is only counted with at
-// least minTeamContributors members; groups of such teams are not personal
-// data. The counts stay on the server and only rounded shares leave it.
+// is. The counts stay on the server and only rounded shares leave it.
 var (
 	intensityBands = []string{"Lett", "Middels", "Tung"}
 	modeBands      = []string{"Bare kodeforslag", "Chat", "Agentmodus", "CLI"}
 	movementBands  = []string{"Opp", "Samme", "Ned"}
-	adoptionBands  = []string{"Lav", "Middels", "Høy"}
 )
 
 // wholePercents rounds shares of counts to whole percent summing to 100
@@ -204,10 +191,9 @@ func readSegment[T any](ctx context.Context, q *bigquery.Query) ([]T, error) {
 	return readAllRows[T](it)
 }
 
-// GetUserSegments runs the four segment queries. Months are YYYY-MM.
+// GetUserSegments runs the three segment queries. Months are YYYY-MM.
 func (bq *BigQueryClient) GetUserSegments(ctx context.Context) (*UserSegments, error) {
 	metrics := bq.tableRef(bq.metricsDataset, "user_metrics")
-	teams := bq.tableRef(bq.metricsDataset, "user_teams")
 	with := "WITH " + fmt.Sprintf(userMonthCTE, userDaysFrom(metrics))
 
 	var out UserSegments
@@ -244,41 +230,6 @@ func (bq *BigQueryClient) GetUserSegments(ctx context.Context) (*UserSegments, e
 		return nil, fmt.Errorf("movement: %w", err)
 	}
 	out.Movement = buildChart(rows, movementBands)
-	rows, err = readSegment[segmentRow](ctx, bq.segmentQuery(with+fmt.Sprintf(`,
-      members AS (
-        -- Membership valid in each month: the month's last user_teams snapshot.
-        SELECT DISTINCT DATE_TRUNC(day, MONTH) AS month, JSON_VALUE(raw_record, '$.slug') AS team, JSON_VALUE(raw_record, '$.user_id') AS user_id
-        FROM %s
-        WHERE day >= DATE(@team_from)
-          AND scope = 'enterprise' AND scope_id = 'nav'
-          AND JSON_VALUE(raw_record, '$.slug') != 'nav-it-github-users'
-        QUALIFY day = MAX(day) OVER (PARTITION BY DATE_TRUNC(day, MONTH))
-      ),
-      big_teams AS (
-        SELECT month, team, COUNT(*) AS size FROM members GROUP BY month, team HAVING size >= @min_team
-      ),
-      adoption AS (
-        SELECT t.month, t.team,
-          COUNT(DISTINCT u.user_id) / ANY_VALUE(t.size) AS share
-        FROM big_teams t
-        JOIN members m ON m.month = t.month AND m.team = t.team
-        LEFT JOIN tiered u ON u.user_id = m.user_id AND u.month = t.month
-        GROUP BY t.month, t.team
-      )
-      SELECT FORMAT_DATE('%%Y-%%m', month) AS month,
-        COUNTIF(share < @adopt_medium) AS a,
-        COUNTIF(share >= @adopt_medium AND share < @adopt_high) AS b,
-        COUNTIF(share >= @adopt_high) AS c
-      FROM adoption GROUP BY month ORDER BY month`, teams),
-		bigquery.QueryParameter{Name: "team_from", Value: teamDataFrom},
-		bigquery.QueryParameter{Name: "min_team", Value: minTeamContributors},
-		bigquery.QueryParameter{Name: "adopt_medium", Value: adoptionMedium},
-		bigquery.QueryParameter{Name: "adopt_high", Value: adoptionHigh},
-	))
-	if err != nil {
-		return nil, fmt.Errorf("team adoption: %w", err)
-	}
-	out.TeamAdoption = buildChart(rows, adoptionBands)
 	out.Movement = withNet(out.Movement)
 	return &out, nil
 }
