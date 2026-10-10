@@ -168,6 +168,19 @@ export LOG_LEVEL=DEBUG
 go run . --run-once
 ```
 
+### Mimir daily copy
+
+Mimir keeps about 70 days. The `copilot-mimir-daily` Naisjob (`.nais/mimir.yaml`, 03:00 UTC, prod only) copies yesterday's aggregates to `copilot_metrics_staging.mimir_daily`. It ports `underlag/mimir-backfill/backfill.py` in navikt/copilot-intern: same families and columns, day × job × model or tool, at least five devices per row for the device-labelled families (smaller rows merge into `andre` or are dropped). Exceptions: `copilot_chat` rows have no device label to count, so they carry no threshold, and config rows are at client grain, no device, repo, instance or user labels. Token, tool-call count and code-lines counters have `counter_reliable = false`. Each day is loaded into a scratch table and swapped in one transaction, so reruns are safe and a failed load keeps the old rows. A day with no rows from Mimir is an error and leaves BigQuery untouched.
+
+Rerun missed days (inclusive):
+
+```bash
+MIMIR_DAILY_ENABLED=true GCP_TEAM_PROJECT_ID=copilot-prod-c697 BIGQUERY_DATASET=copilot_metrics_staging \
+  go run . --mimir-daily --mimir-from 2026-10-01 --mimir-to 2026-10-05
+```
+
+Locally this needs naisdevice to reach `mimir.nav.cloud.nais.io`.
+
 ## Configuration
 
 | Variable                     | Description                          | Default           |

@@ -1,0 +1,40 @@
+apiVersion: nais.io/v1
+kind: Naisjob
+metadata:
+  name: copilot-mimir-daily
+  namespace: copilot
+spec:
+  image: {{image}}
+  # Mimir accepts samples up to about an hour late; 03:00 UTC leaves margin.
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  activeDeadlineSeconds: 7200
+  backoffLimit: 2
+  command:
+    - /app/copilot-metrics
+    - --mimir-daily
+  envFrom:
+    - secret: copilot-metrics
+  env:
+    - name: MIMIR_DAILY_ENABLED
+      value: "{{mimir_daily_enabled}}"
+    - name: MIMIR_URL
+      value: "https://mimir.nav.cloud.nais.io/prometheus/api/v1"
+    - name: BIGQUERY_DATASET
+      value: "copilot_metrics_staging"
+  gcp:
+    bigQueryDatasets:
+      - name: copilot_metrics_staging
+        permission: READWRITE
+        description: "Daily Mimir aggregates, kept past Mimir retention"
+  accessPolicy:
+    outbound:
+      external:
+        - host: mimir.nav.cloud.nais.io
+        - host: bigquery.googleapis.com
+  resources:
+    limits:
+      memory: "256Mi"
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
