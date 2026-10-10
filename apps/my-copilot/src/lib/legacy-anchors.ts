@@ -23,7 +23,19 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/agentpakker#nar-endringen-nar-fram": "/nav-pilot/agentpakker/referanse#nar-endringen-nar-fram",
   "/nav-pilot/agentpakker#stabile-releases": "/nav-pilot/agentpakker/referanse#stabile-releases",
   "/nav-pilot/agentpakker#pensjonering": "/nav-pilot/agentpakker/referanse#pensjonering",
-  "/statistikk#team": "/innsikt/team#teamkostnad",
+  // /statistikk and its tabs became /innsikt/bruk. next.config.ts redirects the page, so keys use the new path.
+  "/innsikt/bruk#team": "/innsikt/team#teamkostnad",
+  "/innsikt/bruk#dashboard": "/innsikt/bruk#nokkeltall",
+  "/innsikt/bruk#manedlige-trender": "/innsikt/bruk#nokkeltall",
+  "/innsikt/bruk#bruker-vs-agent": "/innsikt/bruk#nokkeltall",
+  "/innsikt/bruk#daglig-oversikt": "/innsikt/bruk#pull-requests-og-code-review",
+  "/innsikt/bruk#ai-modeller-over-tid": "/innsikt/bruk#kostnad-over-tid",
+  "/innsikt/bruk#repositories": "/innsikt/bruk#repositorier",
+  "/innsikt/bruk#details": "/innsikt/bruk#daglig-aktivitet",
+  "/innsikt/bruk#kodeforslag": "/innsikt/bruk#daglig-aktivitet",
+  "/innsikt/bruk#sprak-og-verktoy": "/innsikt/bruk#daglig-aktivitet",
+  "/innsikt/bruk#topp-språk": "/innsikt/bruk#daglig-aktivitet",
+  "/innsikt/bruk#verktøy": "/innsikt/bruk#daglig-aktivitet",
   // /nav-pilot/docs was split into guides, reference and explanation pages
   // (docs/nav-pilot-dokumentasjon-forslag.md §1.4). next.config.ts sends the
   // page to /nav-pilot/referanse, so the old anchors are keyed there.

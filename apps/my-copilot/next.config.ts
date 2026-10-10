@@ -78,10 +78,13 @@ const nextConfig: NextConfig = {
       { source: "/best-practices", destination: "/praksis", permanent: true },
       { source: "/practice", destination: "/praksis", permanent: true },
       { source: "/customizations", destination: "/verktoy", permanent: true },
-      { source: "/usage", destination: "/statistikk", permanent: true },
-      { source: "/stats", destination: "/statistikk", permanent: true },
-      { source: "/overview", destination: "/kostnad", permanent: true },
-      { source: "/cost", destination: "/kostnad", permanent: true },
+      // /statistikk and /kostnad became sections of /innsikt/bruk. Every old path goes straight there, no chains.
+      { source: "/statistikk", destination: "/innsikt/bruk", permanent: true },
+      { source: "/usage", destination: "/innsikt/bruk", permanent: true },
+      { source: "/stats", destination: "/innsikt/bruk", permanent: true },
+      { source: "/kostnad", destination: "/innsikt/bruk#kostnad", permanent: true },
+      { source: "/overview", destination: "/innsikt/bruk#kostnad", permanent: true },
+      { source: "/cost", destination: "/innsikt/bruk#kostnad", permanent: true },
       // The WRAP guide was merged into the prompt guide in #321.
       { source: "/praksis/guide/wrap-metoden", destination: "/praksis/guide/skrive-presise-prompts", permanent: true },
       // Split into guides, reference and explanation pages. Old anchors are in

@@ -27,7 +27,7 @@ export const terms: Term[] = [
     category: "maling",
     definition:
       "Andelen kodeforslag fra Copilot som utviklere faktisk tar i bruk. Måles som forholdet mellom aksepterte og totalt viste forslag, og brukes til å vurdere hvor nyttig Copilot er i praksis.",
-    link: { href: "/statistikk", label: "Se statistikk" },
+    link: { href: "/innsikt/bruk", label: "Se bruk og kostnad" },
     related: ["Inline suggestion"],
   },
   {
@@ -277,7 +277,7 @@ export const terms: Term[] = [
     category: "maling",
     definition:
       "Forespørsler til mer avanserte KI-modeller (for eksempel o3 eller Claude Opus) som trekker fra en separat kvote i Copilot-abonnementet.",
-    link: { href: "/kostnad", label: "Se kostnad" },
+    link: { href: "/innsikt/bruk#kostnad", label: "Se kostnad" },
   },
   {
     term: "Prompt",

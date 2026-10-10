@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getCopilotUsageMetrics, getAdoptionData } from "@/lib/cached-bigquery";
 import { getAggregatedMetrics } from "@/lib/data-utils";
+import { formatNumber } from "@/lib/format";
 import { getUserToken } from "@/lib/auth";
 
 function HighlightCard({
@@ -118,14 +119,13 @@ async function UsageCard() {
 
   if (!metrics?.monthlyActiveUsers) {
     return (
-      <HighlightCard href="/statistikk" prefetch={false} title="Bruksmønster">
+      <HighlightCard href="/innsikt/bruk" prefetch={false} title="Bruksmønster">
         <NoData loggedIn={!!token} />
       </HighlightCard>
     );
   }
 
-  // Chat and agent have monthly counts, CLI only a daily one, so each share
-  // uses the base of its own period. One person can count in all three.
+  // Shares of the month's active users. One person can count in both.
   const items = [
     {
       label: "Chat",
@@ -137,22 +137,14 @@ async function UsageCard() {
       pct: Math.round((metrics.monthlyActiveAgentUsers / metrics.monthlyActiveUsers) * 100),
       color: "bg-violet-500",
     },
-    {
-      label: "CLI",
-      // A day with no active users has no CLI share; show a dash, not the whole card as empty.
-      pct: metrics.dailyActiveUsers
-        ? Math.round((metrics.dailyActiveCLIUsers / metrics.dailyActiveUsers) * 100)
-        : undefined,
-      color: "bg-amber-500",
-    },
   ];
 
   return (
-    <HighlightCard href="/statistikk" prefetch={false} title="Bruksmønster">
+    <HighlightCard href="/innsikt/bruk" prefetch={false} title="Bruksmønster">
       <HStack gap="space-4" className="w-full" justify="space-between">
         {items.map((item) => (
           <VStack key={item.label} align="center" gap="space-2" className="flex-1">
-            <Stat>{item.pct === undefined ? "–" : `${item.pct} %`}</Stat>
+            <Stat>{`${item.pct} %`}</Stat>
             <HStack gap="space-4" align="center">
               <span className={`inline-block w-2 h-2 rounded-full ${item.color}`} />
               <BodyShort size="small" className="text-text-subtle">
@@ -163,8 +155,7 @@ async function UsageCard() {
         ))}
       </HStack>
       <BodyShort size="small" className="text-text-subtle">
-        Andel av månedens aktive brukere som brukte chat og agent, og av dagens som brukte CLI. Én bruker kan telle
-        flere steder.
+        Andel av månedens aktive brukere som brukte chat og agent. Én bruker kan telle begge steder.
       </BodyShort>
     </HighlightCard>
   );
@@ -180,7 +171,7 @@ async function StatsCard() {
       ];
 
   const metrics = !usageError && usage?.length ? getAggregatedMetrics(usage) : null;
-  const acceptanceRate = metrics?.overallAcceptanceRate;
+  const activeUsers = metrics?.monthlyActiveUsers;
 
   const summary = !adoptionError && adoptionData?.summary ? adoptionData.summary : null;
   const adoptionRate =
@@ -188,21 +179,21 @@ async function StatsCard() {
       ? Math.round((summary.repos_with_any_customization / summary.active_repos_with_recent_commits) * 100)
       : undefined;
 
-  if (acceptanceRate === undefined && adoptionRate === undefined) {
+  if (activeUsers === undefined && adoptionRate === undefined) {
     return (
-      <HighlightCard compact href="/statistikk" prefetch={false} title="Nøkkeltall">
+      <HighlightCard compact href="/innsikt/bruk" prefetch={false} title="Nøkkeltall">
         <NoData loggedIn={!!token} />
       </HighlightCard>
     );
   }
 
   return (
-    <HighlightCard compact href="/statistikk" prefetch={false} title="Nøkkeltall">
+    <HighlightCard compact href="/innsikt/bruk" prefetch={false} title="Nøkkeltall">
       <div className="grid grid-cols-2 gap-4">
         <div className="min-w-0">
-          <Stat>{acceptanceRate === undefined ? "–" : `${acceptanceRate} %`}</Stat>
+          <Stat>{activeUsers === undefined ? "–" : formatNumber(activeUsers)}</Stat>
           <BodyShort size="small" className="text-text-subtle">
-            akseptrate for kodeforslag
+            aktive brukere siste 28 dager
           </BodyShort>
         </div>
         <div className="min-w-0">
