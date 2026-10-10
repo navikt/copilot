@@ -50,6 +50,14 @@ func (h *BigQueryHandlers) handleTeamUsageSummary(w http.ResponseWriter, r *http
 		respondError(w, "internal_error", "Failed to fetch team usage summary", http.StatusInternalServerError)
 		return
 	}
+	// The SQL already filters; this guards the response against any client implementation.
+	visible := make([]TeamUsageSummary, 0, len(usage))
+	for _, team := range usage {
+		if team.AvgActiveUsers >= minTeamContributors {
+			visible = append(visible, team)
+		}
+	}
+	usage = visible
 
 	cacheControl(w, 3600, false)
 	respondJSON(w, usage, http.StatusOK)
@@ -303,7 +311,7 @@ func (h *BigQueryHandlers) handleAdoptionCohorts(w http.ResponseWriter, r *http.
 	}
 
 	cacheControl(w, 3600, false)
-	respondJSON(w, cohorts, http.StatusOK)
+	respondJSON(w, suppressSmallCohorts(cohorts), http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleBillingMonthlyTrend(w http.ResponseWriter, r *http.Request) {

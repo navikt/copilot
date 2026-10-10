@@ -209,13 +209,14 @@ func (bq *BigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]
           JSON_VALUE(mf, '$.model') AS model,
           SUM(SAFE_CAST(JSON_VALUE(mf, '$.user_initiated_interaction_count') AS INT64))
             + SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_generation_activity_count') AS INT64))
-            + SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_acceptance_activity_count') AS INT64)) AS interactions
+            + SUM(SAFE_CAST(JSON_VALUE(mf, '$.code_acceptance_activity_count') AS INT64)) AS interactions,
+          COUNT(DISTINCT tm.user_id) AS model_users
         FROM team_metrics tm,
           UNNEST(JSON_QUERY_ARRAY(tm.raw_record, '$.totals_by_model_feature')) AS mf
         WHERE JSON_VALUE(mf, '$.model') IS NOT NULL
           AND JSON_VALUE(mf, '$.model') != 'others'
         GROUP BY tm.team_slug, model
-        HAVING interactions > 0
+        HAVING interactions > 0 AND model_users >= @minUsers
       ),
       team_model_ranked AS (
         SELECT
@@ -253,11 +254,12 @@ func (bq *BigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]
         tma.top_models
       FROM team_summary ts
       LEFT JOIN team_models_agg tma ON tma.team_slug = ts.team_slug
+      WHERE ts.avg_active_users >= @minUsers
       ORDER BY ts.avg_active_users DESC
     `, teamsRef, teamsRef, metricsRef)
 
 	query := bq.client.Query(queryStr)
-	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}}
+	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}, {Name: "minUsers", Value: minTeamContributors}}
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
@@ -1140,6 +1142,7 @@ func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]A
       HAVING phase IS NOT NULL
       ORDER BY day, phase
     `, metricsRef)
+	// handleAdoptionCohorts suppresses small cells: complementary suppression needs every cell of the day.
 	query := bq.client.Query(queryStr)
 	query.Parameters = []bigquery.QueryParameter{{Name: "days", Value: days}}
 	it, err := query.Read(ctx)
@@ -1147,6 +1150,47 @@ func (bq *BigQueryClient) GetAdoptionCohorts(ctx context.Context, days int) ([]A
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 	return readAllRows[AdoptionCohortDay](it)
+}
+
+// suppressSmallCohorts drops phase cells with fewer than minUsersForDistribution
+// users. Phase counts on a day add up to that day's active users, which other
+// endpoints show, so a lone hidden cell could be recovered by subtraction. While
+// the hidden cells of a day sum to 1-4 users, the smallest visible cell is hidden too.
+func suppressSmallCohorts(rows []AdoptionCohortDay) []AdoptionCohortDay {
+	byDay := map[civil.Date][]int{}
+	for i, r := range rows {
+		byDay[r.Day] = append(byDay[r.Day], i)
+	}
+	hidden := make([]bool, len(rows))
+	for _, idx := range byDay {
+		var hiddenSum int64
+		for _, i := range idx {
+			if rows[i].UserCount < minUsersForDistribution {
+				hidden[i] = true
+				hiddenSum += rows[i].UserCount
+			}
+		}
+		for hiddenSum > 0 && hiddenSum < minUsersForDistribution {
+			smallest := -1
+			for _, i := range idx {
+				if !hidden[i] && (smallest < 0 || rows[i].UserCount < rows[smallest].UserCount) {
+					smallest = i
+				}
+			}
+			if smallest < 0 {
+				break
+			}
+			hidden[smallest] = true
+			hiddenSum += rows[smallest].UserCount
+		}
+	}
+	out := []AdoptionCohortDay{}
+	for i, r := range rows {
+		if !hidden[i] {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 func (bq *BigQueryClient) GetBillingMonthlyTrend(ctx context.Context, months int) ([]BillingMonthlyTrend, error) {

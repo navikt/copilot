@@ -211,6 +211,10 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
   return (
     <div className={chartWrapperClass}>
       <Line data={chartData} options={options} />
+      <p className="mt-2 text-sm text-gray-600">
+        Skjult (færre enn 5): faser med færre enn fem brukere en dag vises ikke. Da skjules også en annen fase, så
+        tallet ikke kan regnes ut.
+      </p>
     </div>
   );
 };
