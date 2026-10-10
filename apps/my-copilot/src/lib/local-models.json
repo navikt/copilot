@@ -423,6 +423,22 @@
     "source": "https://raw.githubusercontent.com/navikt/mlx-workspace/main/manifest/reports.json",
     "reports": [
       {
+        "id": "2026-10-09-new-candidates/report",
+        "title": "K2-Horizon MoVA as a local candidate",
+        "date": "2026-10-09",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-09-new-candidates/report.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
+        "id": "2026-10-09-navikt-pr-audit/report",
+        "title": "What code changes at Nav look like: a navikt PR audit",
+        "date": "2026-10-09",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-09-navikt-pr-audit/report.md",
+        "verdict": null,
+        "headline": null
+      },
+      {
         "id": "2026-10-01-phase-c-rerun/report",
         "title": "Phase C re-run: the 8-bit as a delegate worker",
         "date": "2026-10-01",
