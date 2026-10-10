@@ -190,9 +190,25 @@ Residual risks, for the privacy review:
 **Pre-launch gate:** a DPIA / personvernombud check. With this design the
 retained data should be anonymous; the privacy officer should confirm that.
 
-Export for analysis: `SELECT answers, question_versions, context FROM
-survey_answers WHERE survey_id = $1`, one JSON row per respondent keyed by
-question id; `construct` and `reverse` come from the definition file.
+Export for analysis goes through `copilot-survey export`, which reads one
+JSON row per respondent on stdin and writes them back redacted:
+
+```sh
+psql "$DATABASE_URL" -At -c "SELECT json_build_object('answers', answers,
+  'question_versions', question_versions, 'context', context)
+  FROM survey_answers WHERE survey_id = 'ID'" | go run . export > export.jsonl
+```
+
+- Free text: e-mail addresses, Norwegian phone numbers, 11-digit
+  fødselsnummer, IP addresses, GitHub @mentions and URLs with a query string
+  become tags such as `[e-post]`. Names are not caught: read the free text by
+  hand before analysis.
+- k ≥ 5: a context value (client, OS, version, local models) held by fewer
+  than 5 rows becomes «annet», and a row whose combination of values is still
+  shared by fewer than 5 gets «annet» for all of them.
+
+Answers keep their question ids; `construct` and `reverse` come from the
+definition file. Analyse the export, not the table.
 
 ## Configuration
 

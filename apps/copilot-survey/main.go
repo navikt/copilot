@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,6 +15,13 @@ import (
 // No OpenTelemetry here, on purpose: a trace of a submission would time-stamp
 // who answered, which the batching in store.go exists to hide.
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "export" {
+		if err := runExport(os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "export:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	config := loadConfig()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: config.LogLevel})))
 
