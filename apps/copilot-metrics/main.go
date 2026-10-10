@@ -173,9 +173,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Non-fatal like the views: seat counts are secondary and must not block
+	// the main ingestion. Without the table, seat ingestion is skipped this run.
+	seatCountsReady := true
 	if err := bqClient.EnsureSeatCountsTableExists(ctx); err != nil {
-		slog.Error("Failed to ensure seat_counts table exists", "error", err)
-		os.Exit(1)
+		slog.Error("Failed to ensure seat_counts table exists (skipping seat counts)", "error", err)
+		seatCountsReady = false
 	}
 
 	if err := bqClient.EnsureViewsExist(ctx); err != nil {
@@ -349,7 +352,9 @@ func main() {
 			ingestTodayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
 			ingestYesterdayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
 		}
-		if err := ingestTodaySeatCounts(ctx, ghClient.FetchSeatCounts, bqClient.UpsertSeatCounts, time.Now()); err != nil {
+		if !seatCountsReady {
+			slog.Error("Skipping seat count ingestion: seat_counts table unavailable")
+		} else if err := ingestTodaySeatCounts(ctx, ghClient.FetchSeatCounts, bqClient.UpsertSeatCounts, time.Now()); err != nil {
 			slog.Error("Seat count ingestion failed", "error", err)
 			os.Exit(1)
 		}
