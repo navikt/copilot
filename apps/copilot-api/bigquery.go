@@ -411,6 +411,10 @@ func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedB
 	}
 }
 
+// negativeCacheTTL is how long a failed or empty load is cached, so it is
+// retried sooner than the full cache TTL.
+const negativeCacheTTL = 5 * time.Minute
+
 // getCachedValue reads cacheKey from cache, or invokes loader on a miss.
 // Concurrent misses for the same cacheKey are deduplicated via singleflight
 // so a cache expiration under load triggers exactly one BigQuery call
