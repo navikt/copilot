@@ -90,17 +90,19 @@ export interface MonthAnnotation {
 
 /**
  * Annotations grouped per month, only for months the chart shows, numbered by their place in the full list
- * (the page's «Hendelser»). Without `all`, only data breaks become markers.
+ * (the page's «Hendelser»). Without `all`, only data breaks (and model events when `models` is set) become markers.
  */
 export function annotationsFor(
-  annotations: { date: string; label: string; dataBreak?: boolean }[],
+  annotations: { date: string; label: string; dataBreak?: boolean; model?: boolean }[],
   months: string[],
-  all = true
+  all = true,
+  /** Also mark model events when `all` is off; set on the model chart. */
+  models = false
 ): MonthAnnotation[] {
   const out = new Map<string, MonthAnnotation>();
   annotations.forEach((a, i) => {
     const month = a.date.slice(0, 7);
-    if (!months.includes(month) || (!all && !a.dataBreak)) return;
+    if (!months.includes(month) || (!all && !a.dataBreak && !(models && a.model))) return;
     const entry = out.get(month) ?? { month, labels: [], numbers: [], dataBreak: false };
     entry.labels.push(a.label);
     entry.numbers.push(i + 1);
@@ -110,7 +112,7 @@ export function annotationsFor(
   return [...out.values()];
 }
 
-/** ?hendelser=alle shows every event as a marker in the charts; otherwise only data breaks. */
+/** ?hendelser=alle shows every event as a marker in the charts; otherwise only data breaks, plus model events in the model chart. */
 export function showAllEvents(value: string | string[] | undefined): boolean {
   return value === "alle";
 }

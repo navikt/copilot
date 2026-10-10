@@ -320,9 +320,26 @@ export interface ChartAnnotation {
   note?: string;
   /** A break in the data itself, always marked in the charts. */
   dataBreak?: boolean;
+  /** A model event: Nav's model policy, GitHub's default or auto model, or a major model release. Always marked in the model chart. */
+  model?: boolean;
 }
 
+const CL = "https://github.blog/changelog/";
+
 export const CHART_ANNOTATIONS: ChartAnnotation[] = [
+  {
+    date: "2025-12-18",
+    label: "Claude Opus 4.5 tilgjengelig (usikker)",
+    url: `${CL}2025-12-18-claude-opus-4-5-is-now-generally-available-in-github-copilot/`,
+    note: "Business- og Enterprise-kunder måtte slå på modellen selv. Vi vet ikke nøyaktig når Nav gjorde det.",
+    model: true,
+  },
+  {
+    date: "2026-02-05",
+    label: "Claude Opus 4.6 tilgjengelig",
+    url: `${CL}2026-02-05-claude-opus-4-6-is-now-generally-available-for-github-copilot/`,
+    model: true,
+  },
   {
     date: "2026-04-02",
     label: "Nytt metrics-API",
@@ -337,16 +354,97 @@ export const CHART_ANNOTATIONS: ChartAnnotation[] = [
     dataBreak: true,
   },
   {
+    date: "2026-04-16",
+    label: "Claude Opus 4.7 tilgjengelig",
+    url: `${CL}2026-04-16-claude-opus-4-7-is-generally-available/`,
+    model: true,
+  },
+  {
+    date: "2026-05-17",
+    label: "GPT-5.3-Codex blir GitHubs grunnmodell",
+    url: `${CL}2026-05-17-gpt-5-3-codex-is-now-the-base-model-for-copilot-business-and-enterprise/`,
+    note: "Erstatter GPT-4.1 som grunnmodell for Business og Enterprise.",
+    model: true,
+  },
+  {
+    date: "2026-05-28",
+    label: "Claude Opus 4.8 tilgjengelig",
+    url: `${CL}2026-05-28-claude-opus-4-8-is-generally-available-for-github-copilot/`,
+    model: true,
+  },
+  {
     date: "2026-06-01",
     label: "AI Credits erstatter premium requests",
     url: "https://github.blog/news-insights/company-news/github-copilot-is-moving-to-usage-based-billing/",
     note: "Kostnadene før og etter er ikke direkte sammenlignbare.",
     dataBreak: true,
   },
+  {
+    date: "2026-07-23",
+    label: "Nav slår på GPT-5.6 Sol, Terra og Luna",
+    url: `${PR}379`,
+    model: true,
+  },
+  {
+    date: "2026-07-24",
+    label: "Claude Opus 5 tilgjengelig",
+    url: `${CL}2026-07-24-claude-opus-5-is-now-available-in-github-copilot/`,
+    model: true,
+  },
+  {
+    date: "2026-08-26",
+    label: "Nye modeller slås på automatisk (usikker)",
+    url: `${CL}2026-07-29-default-model-enablement-for-copilot-business-and-enterprise/`,
+    note: "Nye modeller er på fra de blir allment tilgjengelige, med mindre administrator slår dem av. Kunngjort 29. juli. Vi har ikke logget om Nav beholdt standardinnstillingen.",
+    model: true,
+  },
+  {
+    date: "2026-09-04",
+    label: "GPT-6 Astra tilgjengelig (usikker)",
+    url: `${CL}2026-09-04-gpt-6-astra-is-generally-available-in-github-copilot/`,
+    note: "GitHub rullet modellen ut gradvis, og den var på som standard. Dette kan forklare hoppet i GPT-andelen i uke 37.",
+    model: true,
+  },
+  {
+    date: "2026-09-14",
+    label: "Auto-modell får tre nivåer",
+    url: `${CL}2026-09-14-configure-cost-and-quality-in-copilot-auto-model-selection/`,
+    model: true,
+  },
+  {
+    date: "2026-09-22",
+    label: "GPT-6 Sol og GPT-6 Luna tilgjengelig",
+    url: `${CL}2026-09-22-openais-gpt-6-sol-and-gpt-6-luna-now-available/`,
+    model: true,
+  },
+  {
+    date: "2026-09-22",
+    label: "Claude Opus 5.5 tilgjengelig",
+    url: `${CL}2026-09-22-claude-opus-5-5-is-now-available-in-github-copilot/`,
+    model: true,
+  },
+  {
+    date: "2026-09-29",
+    label: "GPT-6.1 Sol tilgjengelig",
+    url: `${CL}2026-09-29-gpt-6-1-sol-in-github-copilot/`,
+    model: true,
+  },
   { date: "2026-09-30", label: "Modellbenchmark", url: `${PR}1373` },
   { date: "2026-09-30", label: "@kafka og @rust til GPT-6 Luna", url: `${PR}1397` },
   { date: "2026-10-02", label: "Benchmark med realistisk kodeoppgave", url: `${PR}1415` },
+  {
+    date: "2026-10-02",
+    label: "Claude Opus 4.7, Gemini 3.5/3.6 Flash og Kimi K2.7 Code fjernes",
+    url: `${CL}2026-10-02-selected-models-in-github-copilot-deprecated/`,
+    model: true,
+  },
   { date: "2026-10-07", label: "@security-champion til Opus 5.5", url: `${PR}1449` },
+  {
+    date: "2026-10-07",
+    label: "Claude Haiku 5.5 tilgjengelig",
+    url: `${CL}2026-10-07-claude-haiku-5-5-in-github-copilot/`,
+    model: true,
+  },
   { date: "2026-10-08", label: "@rust til Claude Haiku 5.5", url: `${PR}1471` },
   { date: "2026-10-08", label: "KI-dommer for planlegging", url: `${PR}1470` },
   { date: "2026-10-08", label: "@worker på GPT-6 Luna", url: `${PR}1488` },

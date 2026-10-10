@@ -60,7 +60,7 @@ async function ModelFamilies({ token, start, all }: ChartProps) {
   return (
     <>
       <DataStart clamped={clamped} first={first} />
-      <FamilyShareChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, data.months, all)} />
+      <FamilyShareChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, data.months, all, true)} />
     </>
   );
 }
