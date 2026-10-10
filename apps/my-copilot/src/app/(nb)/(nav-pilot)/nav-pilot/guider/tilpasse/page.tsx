@@ -109,6 +109,11 @@ nav-pilot config init            # lag fila med alle valg kommentert ut`}
             finner. Teamet fyller inn resten. nav-pilot lager filene én gang og rører dem ikke etterpå. Filer som finnes
             fra før, blir stående.
           </BodyLong>
+          <BodyLong>
+            Legg til en «Språk»-del i AGENTS.md, så agenten vet hvilket språk som gjelder hvor. Et vanlig valg i Nav:
+            fagbegreper som vedtak, meldekort og dagpenger beholder norske navn i koden, tekniske termer er på engelsk,
+            og teamet velger språk for kommentarer og commit-meldinger.
+          </BodyLong>
           <CodeBlock compact>
             {`nav-pilot init
 # AGENTS.md

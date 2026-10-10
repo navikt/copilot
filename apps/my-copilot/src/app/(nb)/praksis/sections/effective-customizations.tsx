@@ -205,7 +205,7 @@ export default function EffectiveCustomizations() {
           >
             agentskills.io
           </a>
-          . Fungerer i VS Code, Copilot CLI og Coding Agent. Se{" "}
+          . Fungerer i VS Code, Copilot CLI, opencode og Copilot cloud agent. Se{" "}
           <a
             href="https://code.visualstudio.com/docs/copilot/customization/agent-skills"
             className="text-blue-600 hover:underline"
@@ -277,21 +277,12 @@ export default function EffectiveCustomizations() {
               </li>
               <li className="flex gap-2">
                 <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
-                <span>Skills er portable – fungerer i VS Code, CLI og Coding Agent</span>
+                <span>Skills er portable – fungerer i VS Code, Copilot CLI, opencode og Copilot cloud agent</span>
               </li>
               <li className="flex gap-2">
                 <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
                 <span>
                   Se{" "}
-                  <a
-                    href="https://github.com/github/awesome-copilot"
-                    className="text-blue-600 hover:underline"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    awesome-copilot
-                  </a>{" "}
-                  og{" "}
                   <a
                     href="https://github.com/github/awesome-copilot"
                     className="text-blue-600 hover:underline"
@@ -346,8 +337,8 @@ export default function EffectiveCustomizations() {
               </NextLink>
             </Label>
             <BodyShort className="text-gray-600 text-xs mt-1">
-              Gjenbrukbare kapabiliteter med skript. Når du trenger portabilitet på tvers av VS Code, CLI og Coding
-              Agent.
+              Gjenbrukbare kapabiliteter med skript. Når du trenger portabilitet på tvers av VS Code, Copilot CLI,
+              opencode og Copilot cloud agent.
             </BodyShort>
           </Box>
         </HGrid>
@@ -362,33 +353,29 @@ export default function EffectiveCustomizations() {
           </Heading>
         </div>
         <BodyShort className="text-gray-600 text-sm mb-4">
-          Copilot har fått innebygd «Memories» – en vedvarende kunnskapsbase der agenten husker teamets spesifikke
-          preferanser og standarder på tvers av sesjoner. Dette er et kraftig komplement til <code>AGENTS.md</code> og
-          instructions-filer: mens instruksjonsfiler krever manuell vedlikehold, bygger Memories seg opp automatisk
-          etter hvert som dere jobber.
+          Copilot har fått «Memories», der agenten husker ting på tvers av sesjoner. Memories bygger seg opp av seg selv
+          og er ikke versjonskontrollert. Regler teamet skal følge, hører derfor hjemme i <code>AGENTS.md</code> og
+          skills, der alle ser dem og kan endre dem i en PR.
         </BodyShort>
         <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
           <Box background="default" padding="space-12" borderRadius="4">
             <BodyShort weight="semibold" className="text-sm mb-2">
-              Hva bør Nav-team lagre i Memories?
+              Hva passer i Memories?
             </BodyShort>
             <ul className="space-y-2 text-xs text-gray-600">
               <li className="flex gap-2">
                 <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
-                <span>Aksel-designsystem: aldri Tailwind padding/margin, bruk space-tokens</span>
+                <span>Personlige preferanser, for eksempel hvor korte svar du vil ha</span>
               </li>
               <li className="flex gap-2">
                 <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
-                <span>UU-krav: alltid aria-labels, riktig heading-hierarki, kontrastsjekk</span>
-              </li>
-              <li className="flex gap-2">
-                <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
-                <span>GDPR/PII: aldri logge personidentifiserbare data uten eksplisitt samtykke</span>
+                <span>Hvordan du liker å jobbe, for eksempel at agenten skal spørre før store endringer</span>
               </li>
               <li className="flex gap-2">
                 <CheckmarkCircleIcon className="text-green-600 shrink-0 mt-0.5" fontSize="1rem" aria-hidden />
                 <span>
-                  Bygg-verktøy: alltid bruke <code>mise check</code> før commit
+                  Teamregler som Aksel, UU, personvern og byggkommandoer skal stå i <code>AGENTS.md</code> eller i en
+                  skill, der teamet kan gjennomgå dem. Copilot kan også lagre slike regler som minner for repoet.
                 </span>
               </li>
             </ul>
@@ -400,10 +387,10 @@ export default function EffectiveCustomizations() {
             <BodyShort className="text-gray-600 text-xs mb-3">Bruk begge, men til forskjellige formål:</BodyShort>
             <ul className="space-y-1 text-xs text-gray-600">
               <li>
-                <strong>AGENTS.md:</strong> Faste, eksplisitte kjøreregler (versjonskontrollert)
+                <strong>AGENTS.md og skills:</strong> Teamets faste regler (versjonskontrollert)
               </li>
               <li>
-                <strong>Memories:</strong> Kontekstuell kunnskap bygget opp over tid (dynamisk)
+                <strong>Memories:</strong> Dine preferanser og fakta Copilot lærer om repoet (bygges opp over tid)
               </li>
               <li>
                 <strong>Instructions:</strong> Kodestil og syntaksregler (per fil-type)

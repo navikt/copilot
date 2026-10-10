@@ -68,7 +68,7 @@ export const categories: Category[] = [
       {
         id: "styrker-og-farer",
         title: "Forstå styrkene og fellene ved KI",
-        description: "Forstå begrensninger, og lær om personvern og .copilotignore.",
+        description: "Forstå begrensninger, og lær om personvern og Content Exclusion.",
         keywords: ["sikkerhet", "begrensninger", "personvern", "pii", "copilotignore", "trening"],
         iconName: "ShieldLockIcon",
         components: [StrengthsLimitations],
@@ -143,7 +143,7 @@ export const categories: Category[] = [
         id: "velge-riktig-verktoy",
         title: "Spar tid med riktige verktøy og moduser",
         description: "Oversikt over de ulike modusene og verktøyene Copilot tilbyr.",
-        keywords: ["moduser", "verktoy", "copilot chat", "agent mode"],
+        keywords: ["moduser", "verktoy", "copilot chat", "agent mode", "cli"],
         iconName: "TerminalIcon",
         components: [ToolsAndModes],
       },

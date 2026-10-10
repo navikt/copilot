@@ -1,5 +1,6 @@
 import { BodyLong, BodyShort, Box, HGrid, Label, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
+import NextLink from "next/link";
 import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
@@ -148,8 +149,9 @@ export default function Planlegging() {
           </LinkableHeading>
           <BodyLong>
             Utviklere som lar modellen skrive alt, forstår sin egen kode dårligere. I Anthropics randomiserte studie
-            (2026) fikk de som delegerte blindt 35–39 % på kodeforståelse, mot 86 % for dem som stilte spørsmål etter at
-            koden var generert. Navs egen langtidsstudie (Stray mfl., HICSS-59 2026) viser det samme mønsteret.
+            (2026) fikk de som brukte KI-hjelp 50 % i snitt på en kunnskapstest, mot 67 % for dem som kodet for hånd. De
+            som delegerte alt, fikk under 40 %. De som stilte spørsmål for å forstå koden, fikk 65 % eller mer. Navs
+            egen langtidsstudie (Stray mfl., HICSS-59 2026) viser det samme mønsteret.
           </BodyLong>
           <BodyLong>
             Samtidig viser studien fra MIT og Microsoft (2025, rundt 5 000 utviklere) at KI-hjelp gir mest på repetitive
@@ -159,9 +161,23 @@ export default function Planlegging() {
             Grønn og rød sone
           </LinkableHeading>
           <BodyLong>
-            nav-pilot deler derfor oppgavene i to. I fase 2 (Plan) merker den hver del som grønn eller rød sone. I fase
-            4 leverer den full kode for det grønne. For det røde får du testskjeletter og stubber med{" "}
-            <code className={code}>TODO</code>, og skriver kjernelogikken selv.
+            nav-pilot deler derfor planen i to. I fase 2 (Plan) merker den hver del som grønn eller rød sone. Risikoen
+            vurderer du selv, se under. I fase 4 leverer den full kode for det grønne. For det røde får du
+            testskjeletter og stubber med <code className={code}>TODO</code>, og skriver kjernelogikken selv.
+          </BodyLong>
+          <BodyLong>
+            Sonen svarer på om du skal lære dette. Risikoen svarer på hva som skjer hvis agenten tar feil: lav, middels
+            eller høy. Oppgaver som berører nettverk, hemmeligheter, MCP-servere, produksjon eller persondata, har høy
+            risiko, også når de er grønne. Konfigurasjon og infrastruktur er ikke automatisk lav risiko.
+          </BodyLong>
+          <BodyLong>
+            Jo høyere risiko og jo mer agenten jobber på egen hånd, jo strengere kontroller trengs. Lokalt kjører
+            agenten i{" "}
+            <NextLink href="/cplt" className={linkClass}>
+              cplt
+            </NextLink>{" "}
+            med sandbox og git guard. I bakgrunnen eller i skyen jobber agenten på én branch per oppgave, CI må passere,
+            og et menneske merger alltid.
           </BodyLong>
           <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
             <Box background="success-soft" borderRadius="8" padding="space-16">
@@ -170,7 +186,6 @@ export default function Planlegging() {
                 <Bullets>
                   <li>Boilerplate og repetitiv kode (Nais-manifest, CRUD)</li>
                   <li>Teknologi du kan fra før</li>
-                  <li>Konfigurasjon og infrastruktur</li>
                   <li>Refaktorering med kjent mål</li>
                   <li>Testdata og fixtures</li>
                 </Bullets>

@@ -34,7 +34,11 @@ export default function CostOptimization() {
               VS Code 1.125 introduserte et innebygd «Spend Meter» som viser ditt eget AI Credits-forbruk i sanntid.
               Finn det under <code>View → Status Bar → Copilot Usage</code>. Bruk det aktivt for å oppdage dyre mønstre
               tidlig. Måler du effekten av et tiltak, bruk fakturert kostnad per fullført oppgave, ikke sparetallet
-              verktøyet oppgir selv.
+              verktøyet oppgir selv. Forbruket ditt ser du også på{" "}
+              <NextLink href="/abonnement" className="text-blue-600 hover:underline">
+                abonnementssiden
+              </NextLink>
+              .
             </BodyShort>
           </Box>
 
@@ -62,8 +66,8 @@ export default function CostOptimization() {
                   </Heading>
                 </HStack>
                 <BodyShort size="small" className="text-gray-700">
-                  Bytt chat når du bytter problem. Bruk <code>/clear</code> og <code>/compact</code> for å unngå
-                  irrelevant historikk.
+                  Bytt chat når du bytter problem. I Copilot CLI tømmer <code>/clear</code> samtalen, og{" "}
+                  <code>/compact</code> komprimerer historikken.
                 </BodyShort>
               </VStack>
             </Box>
@@ -92,8 +96,11 @@ export default function CostOptimization() {
                   </Heading>
                 </HStack>
                 <BodyShort size="small" className="text-gray-700">
-                  Aktiver <code>terse-mode</code> ved rask iterasjon. Bruk CLI for deterministiske steg i stedet for å
-                  la LLM gjøre alt.
+                  Aktiver{" "}
+                  <NextLink href="/verktoy?item=terse-mode" className="text-blue-600 hover:underline">
+                    terse-mode
+                  </NextLink>{" "}
+                  ved rask iterasjon. Bruk CLI for deterministiske steg i stedet for å la LLM gjøre alt.
                 </BodyShort>
               </VStack>
             </Box>

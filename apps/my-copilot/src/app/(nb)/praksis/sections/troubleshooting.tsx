@@ -1,5 +1,6 @@
 "use client";
 
+import NextLink from "next/link";
 import { Heading, BodyShort, Box, Accordion, VStack } from "@navikt/ds-react";
 import { WrenchIcon, InformationSquareIcon } from "@navikt/aksel-icons";
 
@@ -15,7 +16,15 @@ export default function Troubleshooting() {
         </div>
         <BodyShort className="text-gray-700 mb-4">
           Av og til vil GitHub Copilot slutte å gi forslag, miste konteksten, eller henge seg opp. Her er løsningene på
-          de aller vanligste problemene vi ser i Nav.
+          de aller vanligste problemene vi ser i Nav. Bruker du Copilot CLI eller opencode i terminalen, se{" "}
+          <NextLink href="/nav-pilot/guider/feilsoking" className="text-blue-600 hover:underline">
+            feilsøking i nav-pilot
+          </NextLink>{" "}
+          og{" "}
+          <NextLink href="/nav-pilot/guider/cplt-feilmeldinger" className="text-blue-600 hover:underline">
+            feilmeldinger fra cplt
+          </NextLink>
+          .
         </BodyShort>
       </section>
 
@@ -123,7 +132,7 @@ export default function Troubleshooting() {
                 </BodyShort>
                 <ul className="list-disc pl-5 space-y-1 text-gray-700 text-sm">
                   <li>
-                    <strong>Dyrere regning:</strong> Med GitHubs bruksbaserte fakturering (fra 2026) brenner store
+                    <strong>Dyrere regning:</strong> Med GitHubs bruksbaserte fakturering (fra juni 2026) brenner store
                     kontekster gjennom organisasjonens "AI Credits" i et forrykende tempo.
                   </li>
                   <li>
@@ -133,7 +142,8 @@ export default function Troubleshooting() {
                   </li>
                 </ul>
                 <BodyShort className="text-sm font-semibold">
-                  Bruk <code>@</code> for å plukke kun de 1-3 filene som faktisk er relevante for oppgaven din!
+                  Bruk <code>#file</code> i VS Code eller <code>@</code> i Copilot CLI for å plukke kun de 1-3 filene
+                  som faktisk er relevante for oppgaven din!
                 </BodyShort>
               </VStack>
             </Accordion.Content>

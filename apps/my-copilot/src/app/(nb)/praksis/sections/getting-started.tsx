@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Heading, BodyShort, Alert } from "@navikt/ds-react";
 
 export default function GettingStarted() {
@@ -50,6 +51,14 @@ export default function GettingStarted() {
             </ol>
           </div>
         </div>
+        <BodyShort className="text-gray-700 text-sm" style={{ marginTop: "var(--ax-space-16)" }}>
+          Vil du bruke Copilot CLI eller opencode i terminalen? Installer dem med nav-pilot, som også setter opp
+          sandkassen cplt. Se{" "}
+          <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
+            kom i gang med nav-pilot
+          </NextLink>
+          .
+        </BodyShort>
       </section>
 
       <Alert variant="info" className="mt-4">

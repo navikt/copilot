@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import { Heading, BodyShort, Box, HGrid, HelpText, VStack, Label } from "@navikt/ds-react";
+import { Heading, BodyShort, Box, HGrid, VStack, Label } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { CodeBlock } from "@/components/code-block";
 import {
@@ -22,17 +22,31 @@ export default function PrepareForSuccess() {
         <div className="flex items-start gap-2">
           <GlobeIcon className="text-blue-700 mt-0.5" aria-hidden />
           <Heading size="small" level="3" className="text-blue-700">
-            Norsk vs. Engelsk
+            Norsk eller engelsk?
           </Heading>
-          <HelpText title="Når bruke hvilket språk?">
-            Copilot forstår begge språk godt, men konsistens er viktig for at agenten skal følge mønstrene i koden din.
-          </HelpText>
         </div>
         <BodyShort className="text-gray-600 text-sm mt-2">
-          <strong>Anbefaling:</strong> Skriv beskrivelser og kommentarer på norsk hvis det passer teamet. Hold kode,
-          kommandoer, variabelnavn og tekniske termer på engelsk. Dette matcher vanlig praksis i norske
-          utviklingsmiljøer og sikrer at Copilot forstår koden din korrekt.
+          Velg ett språk for hver ting, og skriv valget i en «Språk»-del i AGENTS.md. Agenten følger mønstrene i koden,
+          og uten en regel blander den språk i kommentarer og commit-meldinger.
         </BodyShort>
+        <VStack
+          as="ul"
+          gap="space-4"
+          className="list-disc text-gray-600 text-sm"
+          style={{ paddingLeft: "var(--ax-space-20)", marginTop: "var(--ax-space-8)" }}
+        >
+          <li>
+            Fagbegreper fra domenet beholder det norske navnet i koden, for eksempel <code>vedtak</code>,{" "}
+            <code>meldekort</code> og <code>dagpenger</code>. Ikke oversett dem. Meningsfulle navn hjelper agenten mer
+            enn hvilket språk de er på.
+          </li>
+          <li>Tekniske ord som ikke er fagbegreper (repository, handler, config) skriver du på engelsk.</li>
+          <li>Kommentarer, commit-meldinger og PR-tekst: velg norsk eller engelsk for teamet, og hold deg til det.</li>
+          <li>Brukerrettet tekst skrives på norsk.</li>
+          <li>
+            Hold AGENTS.md kort. Norsk tekst bruker flere tokens enn engelsk, og filen sendes med hver forespørsel.
+          </li>
+        </VStack>
       </Box>
 
       {/* Start here: AGENTS.md + copilot-setup-steps */}
@@ -152,7 +166,7 @@ export default function PrepareForSuccess() {
                 <strong>Aktivering:</strong> @agent-name
               </BodyShort>
               <BodyShort size="small" className="text-gray-600">
-                <strong>Eksempel:</strong> @aksel-agent, @kafka-agent, @code-review-agent
+                <strong>Eksempel:</strong> @aksel-agent, @kafka-agent, @code-review
               </BodyShort>
               <BodyShort size="small" className="text-gray-600">
                 <strong>Filformat:</strong>{" "}
@@ -239,12 +253,15 @@ Follow the structure used in popular open-source projects.`}</CodeBlock>
 - Next.js 15 med App Router
 - TypeScript strict mode
 - Nav Design System (@navikt/ds-react)
-- Tailwind CSS for utilities
 
 ## Kodestil
 - Bruk funksjonelle komponenter med hooks
 - Unngå \`any\`-typer, definer eksplisitte interfaces
-- Norske kommentarer, engelsk kode
+
+## Språk
+- Fagbegreper beholder norske navn i koden: \`vedtak\`, \`meldekort\`, \`dagpenger\`
+- Andre navn og tekniske termer er på engelsk
+- Kommentarer og commit-meldinger skrives på norsk bokmål
 
 ## Kommandoer
 - Test: \`pnpm test\`
@@ -279,8 +296,14 @@ Backend-tjeneste for brukeradministrasjon.
 ./gradlew test    # Run tests
 \`\`\`
 
+## Språk
+- Domenebegreper beholder norske navn i koden: \`Vedtak\`, \`Meldekort\`, \`Dagpenger\`. Ikke oversett dem.
+- Andre identifikatorer, tekniske termer og kommandoer er på engelsk.
+- Kommentarer, commit-meldinger og PR-beskrivelser skrives på norsk bokmål.
+- Brukerrettet tekst skrives på norsk bokmål i klarspråk.
+
 ## Code Standards
-- Sealed classes for konfigrasjon
+- Sealed classes for konfigurasjon
 - Kotliquery for database-tilgang
 - Skriv tester for alle public APIs
 

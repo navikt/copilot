@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { XMarkOctagonIcon, TasklistIcon, FileTextIcon } from "@navikt/aksel-icons";
@@ -132,7 +133,11 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
           </Heading>
           <BodyShort className="text-gray-600 mb-4">
             Store oppgaver bør deles i mindre steg. Bruk <strong>Plan Mode</strong> for å la Copilot analysere oppgaven
-            og foreslå en plan før implementering.
+            og foreslå en plan før implementering. I nav-pilot gjør skillen{" "}
+            <NextLink href="/verktoy?item=nav-plan" className="text-blue-600 hover:underline">
+              nav-plan
+            </NextLink>{" "}
+            det samme.
           </BodyShort>
 
           {/* Plan Mode Image */}
@@ -177,8 +182,8 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
 
           <Box background="warning-soft" padding="space-12" borderRadius="8" className="mt-3">
             <BodyShort className="text-gray-600 text-xs">
-              <strong>Tips:</strong> For coding agent på GitHub.com, skriv issues med klare akseptkriterier og bruk
-              sub-issues for store oppgaver. Se{" "}
+              <strong>Tips:</strong> For Copilot cloud agent på GitHub.com, skriv issues med klare akseptkriterier og
+              bruk sub-issues for store oppgaver. Se{" "}
               <a
                 href="https://docs.github.com/en/copilot/tutorials/coding-agent/get-the-best-results"
                 className="text-blue-600 hover:underline"
@@ -233,11 +238,13 @@ formatNOK(1000000) → "1 000 000,00 kr"`}
             <ul className="space-y-2">
               <li className="flex gap-2">
                 <span className="text-blue-600">▪</span>
-                <BodyShort className="text-sm">Åpne relevante filer, lukk irrelevante</BodyShort>
+                <BodyShort className="text-sm">For inline-forslag: åpne relevante filer, lukk irrelevante</BodyShort>
               </li>
               <li className="flex gap-2">
                 <span className="text-blue-600">▪</span>
-                <BodyShort className="text-sm">Bruk @workspace for prosjektkontekst i chat</BodyShort>
+                <BodyShort className="text-sm">
+                  I agent mode søker agenten i prosjektet selv. Pek på filer med #file, eller bruk #codebase i VS Code
+                </BodyShort>
               </li>
               <li className="flex gap-2">
                 <span className="text-blue-600">▪</span>

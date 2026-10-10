@@ -250,8 +250,7 @@ export const terms: Term[] = [
   {
     term: "Modell",
     category: "konsepter",
-    definition:
-      "KI-systemet som genererer svarene, for eksempel GPT-4o eller Claude Sonnet. Ulike modeller har ulike styrker, kontekststørrelser og kostnader.",
+    definition: "KI-systemet som genererer svarene. Ulike modeller har ulike styrker, kontekststørrelser og kostnader.",
   },
   {
     term: "Next Edit Suggestions (NES)",
@@ -322,7 +321,7 @@ export const terms: Term[] = [
     term: "Token",
     category: "maling",
     definition:
-      "Den grunnleggende enheten KI-modeller bruker for å behandle tekst. Et token tilsvarer omtrent 3–4 tegn på norsk. Både input (din tekst) og output (Copilots svar) telles i tokens.",
+      "Den grunnleggende enheten KI-modeller bruker for å behandle tekst. Norsk tekst bruker flere tokens enn engelsk. Både input (din tekst) og output (Copilots svar) telles i tokens.",
   },
   {
     term: "Tool calling",
