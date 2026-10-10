@@ -175,7 +175,7 @@ func (m *mockBigQueryClient) GetUserTeams(_ context.Context, _ string) ([]string
 
 func TestTeamGrossOverviewHandler(t *testing.T) {
 	mock := &mockBigQueryClient{teamGross: &TeamGrossOverview{
-		Month: "2026-09", Teams: []TeamSpend{teamSpend("123", "team-a", 5, 42)},
+		Month: "2026-09", Teams: []TeamSpend{{TeamID: "123", TeamSlug: "team-a", Users: 5, AmountUSD: 42, PerUserUSD: 8.4}},
 		Comparison: comparisonIncomplete,
 		Usage: map[string]TeamUsageComposition{
 			"123": {Providers: []string{"Anthropic", "OpenAI"}, Categories: []string{"Versatile", "Powerful", "Unclassified"}, Feature: "chat", Language: "go"},

@@ -187,6 +187,7 @@ func TestTeamGrossOverviewOptionalComposition(t *testing.T) {
 				httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month=2026-09", nil))
 			httpExpected := expected
 			httpExpected.DaysWithUsage, httpExpected.DistinctGrossUSD, httpExpected.Comparison = 0, 0, comparisonIncomplete
+			httpExpected.Teams = []TeamSpend{{TeamID: "visible", TeamSlug: "team-a", Users: 5, AmountUSD: 42, PerUserUSD: 8.4}}
 			var decoded TeamGrossOverview
 			if err := json.Unmarshal(recorder.Body.Bytes(), &decoded); err != nil || recorder.Code != http.StatusOK || !reflect.DeepEqual(&decoded, &httpExpected) {
 				t.Fatalf("HTTP overview = %+v, status %d, error %v", decoded, recorder.Code, err)
@@ -264,7 +265,7 @@ func TestTeamOverviewsOmitTeamsBelowFive(t *testing.T) {
 
 func TestWithChanges(t *testing.T) {
 	cur := []TeamSpend{teamSpend("a", "a", 5, 120), teamSpend("b", "b", 5, 105), teamSpend("c", "c", 5, 50), teamSpend("d", "d", 5, 10)}
-	prev := []TeamSpend{teamSpend("a", "a", 5, 100), teamSpend("b", "b", 5, 100), {TeamID: "c", Users: 4, AmountUSD: 1}}
+	prev := []TeamSpend{teamSpend("a", "a", 5, 100), teamSpend("b", "b", 5, 100), teamSpend("c", "c", 4, 1)}
 	got := withChanges(cur, prev)
 	if got[0].ChangeUSD == nil || *got[0].ChangeUSD != 20 || !got[0].Highlight {
 		t.Errorf("a = %+v, want +20 highlighted", got[0])
@@ -274,6 +275,10 @@ func TestWithChanges(t *testing.T) {
 	}
 	if got[2].ChangeUSD != nil || got[3].ChangeUSD != nil {
 		t.Errorf("c/d must have no change: %+v %+v", got[2], got[3])
+	}
+	// Change uses raw amounts: 10.004 - 0.004 is exactly 10, not 10.00 - 0.00 rounded twice.
+	if c := withChanges([]TeamSpend{teamSpend("e", "e", 5, 10.006)}, []TeamSpend{teamSpend("e", "e", 5, 0.004)}); *c[0].ChangeUSD != 10 {
+		t.Errorf("e change = %v, want 10", *c[0].ChangeUSD)
 	}
 	if cur[0].ChangeUSD != nil {
 		t.Error("withChanges mutated its input")

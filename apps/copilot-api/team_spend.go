@@ -24,6 +24,8 @@ type TeamSpend struct {
 	PerUserUSD float64  `json:"per_user_usd"`
 	ChangeUSD  *float64 `json:"change_usd"`
 	Highlight  bool     `json:"highlight"`
+
+	raw float64 // unrounded amount, so change is not computed from rounded values
 }
 
 // Comparison states the page explains in words.
@@ -63,7 +65,7 @@ type TeamNetOverview struct {
 func roundCents(v float64) float64 { return math.Round(v*100) / 100 }
 
 func teamSpend(id, slug string, users int64, amount float64) TeamSpend {
-	return TeamSpend{TeamID: id, TeamSlug: slug, Users: users, AmountUSD: roundCents(amount), PerUserUSD: roundCents(amount / float64(users))}
+	return TeamSpend{TeamID: id, TeamSlug: slug, Users: users, AmountUSD: roundCents(amount), PerUserUSD: roundCents(amount / float64(users)), raw: amount}
 }
 
 // withChanges returns a copy of teams with month-over-month change from prev.
@@ -78,9 +80,10 @@ func withChanges(teams, prev []TeamSpend) []TeamSpend {
 	for i, t := range teams {
 		t.ChangeUSD, t.Highlight = nil, false
 		if p, ok := old[t.TeamID]; ok && t.Users >= minTeamContributors && p.Users >= minTeamContributors {
-			change := roundCents(t.AmountUSD - p.AmountUSD)
+			diff := t.raw - p.raw
+			change := roundCents(diff)
 			t.ChangeUSD = &change
-			t.Highlight = math.Abs(change) >= 10 && (p.AmountUSD == 0 || math.Abs(change)/math.Abs(p.AmountUSD) >= 0.1)
+			t.Highlight = math.Abs(diff) >= 10 && (p.raw == 0 || math.Abs(diff)/math.Abs(p.raw) >= 0.1)
 		}
 		out[i] = t
 	}
