@@ -76,6 +76,28 @@ export default function Troubleshooting() {
                   Hvis nettverket er fint, men Copilot likevel ignorerer deg, har gjerne sesjonen hengt seg opp. Slik
                   tvinger du frem en nullstilling:
                 </BodyShort>
+                <VStack
+                  gap="space-8"
+                  className="border-l-2 border-gray-300"
+                  style={{ paddingLeft: "var(--ax-space-16)" }}
+                >
+                  <BodyShort weight="semibold">I terminalen (Copilot CLI):</BodyShort>
+                  <VStack
+                    as="ol"
+                    gap="space-4"
+                    className="list-decimal text-gray-700 text-sm"
+                    style={{ paddingLeft: "var(--ax-space-20)" }}
+                  >
+                    <li>
+                      Trykk <strong>Esc</strong> to ganger for å avbryte agenten, og start en ny samtale med{" "}
+                      <strong>/clear</strong>.
+                    </li>
+                    <li>
+                      Hjelper ikke det: logg ut med <strong>/logout</strong>, avslutt med <strong>/exit</strong>, og
+                      start på nytt.
+                    </li>
+                  </VStack>
+                </VStack>
                 <div className="pl-4 border-l-2 border-gray-300">
                   <BodyShort weight="semibold">I VS Code:</BodyShort>
                   <ol className="list-decimal pl-5 space-y-1 mt-2 text-gray-700 text-sm">
@@ -142,7 +164,7 @@ export default function Troubleshooting() {
                   </li>
                 </ul>
                 <BodyShort className="text-sm font-semibold">
-                  Bruk <code>#file</code> i VS Code eller <code>@</code> i Copilot CLI for å plukke kun de 1-3 filene
+                  Bruk <code>@</code> i Copilot CLI eller <code>#file</code> i VS Code for å plukke kun de 1-3 filene
                   som faktisk er relevante for oppgaven din!
                 </BodyShort>
               </VStack>

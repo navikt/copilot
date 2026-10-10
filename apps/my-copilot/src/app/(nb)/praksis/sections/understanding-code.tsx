@@ -80,7 +80,8 @@ export default function UnderstandingCode() {
           </Heading>
           <BodyShort size="small" className="text-gray-700 mb-3">
             Du trenger ikke lenger vite nøyaktig hvilken fil koden ligger i. Spør agenten om arkitekturen direkte. I
-            agent mode søker den i prosjektet selv. I VS Code kan du også legge til <code>#codebase</code>.
+            agent mode søker den i prosjektet selv. Vet du hvor du vil begynne, pek på filen med <code>@</code> i
+            Copilot CLI eller <code>#file</code> i VS Code.
           </BodyShort>
           <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
             <p className="text-sm font-mono text-gray-800">

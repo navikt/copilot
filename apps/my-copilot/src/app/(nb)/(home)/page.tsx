@@ -100,7 +100,7 @@ export default async function Home() {
                   href="/kom-i-gang"
                   icon={<PlayIcon aria-hidden fontSize="1.75rem" />}
                   title="Kom i gang"
-                  description="Alt du trenger for å starte med Copilot"
+                  description="Start i terminalen med Copilot CLI, nav-pilot og cplt"
                 />
                 <NavCard
                   href="/praksis"

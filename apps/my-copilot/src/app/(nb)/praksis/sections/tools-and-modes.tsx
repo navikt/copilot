@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import { Heading, BodyShort, Box } from "@navikt/ds-react";
+import { Heading, BodyShort, Box, VStack } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { LaptopIcon, GlobeIcon, TerminalIcon, CpuIcon, CogIcon } from "@navikt/aksel-icons";
 
@@ -23,6 +23,79 @@ export default function ToolsAndModes() {
       </Box>
 
       <Carousel showIndicators={true} showSwipeHint={true} className="mb-6">
+        {/* CLI */}
+        <Box
+          background="warning-soft"
+          padding={{ xs: "space-12", sm: "space-16" }}
+          borderRadius="8"
+          className="max-w-lg"
+        >
+          <div className="flex items-center gap-2 mb-5">
+            <TerminalIcon className="text-orange-700" aria-hidden />
+            <Heading size="small" level="3" className="text-orange-700">
+              I terminalen (CLI)
+            </Heading>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/github-copilot-cli.jpeg"
+            alt="Copilot i terminalen"
+            className="w-full rounded-md mb-3 border border-orange-200"
+          />
+          <div className="space-y-3">
+            <div>
+              <BodyShort weight="semibold" className="text-sm">
+                Copilot CLI og opencode
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                En agent i terminalen som leser, endrer og tester kode i repoet ditt. Start med{" "}
+                <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
+                  nav-pilot
+                </NextLink>
+                , som kjører agenten i sandkassen{" "}
+                <NextLink href="/cplt" className="text-blue-600 hover:underline">
+                  cplt
+                </NextLink>
+                . På Nav-utstyr skal agenten kjøre i cplt.
+              </BodyShort>
+            </div>
+            <Box background="default" padding="space-8" borderRadius="4">
+              <VStack gap="space-4">
+                <code className="text-xs">nav-pilot</code>
+                <code className="text-xs text-gray-500"># Starter agenten i cplt i repoet du står i</code>
+              </VStack>
+            </Box>
+            <div>
+              <BodyShort weight="semibold" className="text-sm">
+                Pek på filer med @
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                Skriv <code>@</code> og filnavnet for å legge en fil i konteksten, for eksempel{" "}
+                <code>@src/auth/token.ts</code>.
+              </BodyShort>
+            </div>
+            <div>
+              <BodyShort weight="semibold" className="text-sm">
+                Slash-kommandoer i Copilot CLI
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                <code>/plan</code> lager en plan før agenten endrer noe. <code>/clear</code> starter en ny samtale,{" "}
+                <code>/compact</code> komprimerer en lang samtale, og <code>/model</code> bytter modell. Skriv{" "}
+                <code>/</code> for å se alle.
+              </BodyShort>
+            </div>
+            <div>
+              <BodyShort weight="semibold" className="text-sm">
+                Godkjenninger
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                Agenten spør før den endrer filer, kjører kommandoer som kan endre noe, eller henter nettsider. Lesing
+                og søk går uten spørsmål. Du kan gi lov én gang eller for hele økten.
+              </BodyShort>
+            </div>
+          </div>
+        </Box>
+
         {/* IDE */}
         <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8" className="max-w-lg">
           <div className="flex items-center gap-2 mb-5">
@@ -147,55 +220,6 @@ export default function ToolsAndModes() {
                 Del kontekst med teamet for raskere debugging og samarbeid.
               </BodyShort>
             </div>
-          </div>
-        </Box>
-
-        {/* CLI */}
-        <Box
-          background="warning-soft"
-          padding={{ xs: "space-12", sm: "space-16" }}
-          borderRadius="8"
-          className="max-w-lg"
-        >
-          <div className="flex items-center gap-2 mb-5">
-            <TerminalIcon className="text-orange-700" aria-hidden />
-            <Heading size="small" level="3" className="text-orange-700">
-              I terminalen (CLI)
-            </Heading>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/github-copilot-cli.jpeg"
-            alt="Copilot i terminalen"
-            className="w-full rounded-md mb-3 border border-orange-200"
-          />
-          <div className="space-y-3">
-            <div>
-              <BodyShort weight="semibold" className="text-sm">
-                copilot
-              </BodyShort>
-              <BodyShort className="text-gray-600 text-xs">
-                Copilot CLI: en agent i terminalen som bygger, feilsøker og refaktorerer kode. På Nav-utstyr skal den
-                kjøre i{" "}
-                <NextLink href="/cplt" className="text-blue-600 hover:underline">
-                  cplt
-                </NextLink>
-                . Installer med{" "}
-                <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
-                  nav-pilot
-                </NextLink>
-                , som også setter opp opencode.
-              </BodyShort>
-            </div>
-            <Box background="default" padding="space-8" borderRadius="4">
-              <code className="text-xs block">copilot</code>
-              <code className="text-xs block mt-1 text-gray-500"># Åpner interaktiv agent-modus</code>
-            </Box>
-            <BodyShort className="text-gray-500 text-xs">
-              Installer: <code className="bg-gray-100 px-1 rounded">brew install copilot-cli</code>{" "}
-              <code className="bg-gray-100 px-1 rounded">winget install GitHub.Copilot</code>{" "}
-              <code className="bg-gray-100 px-1 rounded">curl -fsSL https://gh.io/copilot-install | bash</code>
-            </BodyShort>
           </div>
         </Box>
       </Carousel>
