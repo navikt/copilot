@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { cssToken, hasWebGL2, pointSpriteCanvas } from "@/lib/webgl";
+import { cssToken, hasWebGL2, pointSpriteCanvas, runCanvasLoop } from "@/lib/webgl";
 
 export interface HeroCluster {
   name: string;
@@ -33,8 +33,6 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     if (!host || !hasWebGL2()) return;
 
     const small = window.innerWidth < 640;
-    const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let reduced = motionMq.matches;
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ alpha: true, antialias: !small });
@@ -125,7 +123,6 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
 
     const tmp = new THREE.Vector3();
     const pointer = { x: 0, y: 0 };
-    let last = performance.now();
     let elapsed = 0;
 
     const draw = (dt: number) => {
@@ -145,41 +142,15 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
       renderer.render(scene, camera);
     };
 
-    const resize = () => {
-      const { clientWidth: w, clientHeight: h } = host;
-      if (!w || !h) return;
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      if (reduced) draw(0);
-    };
-    const ro = new ResizeObserver(resize);
-    ro.observe(host);
-    resize();
-
-    let raf = 0;
-    let onScreen = true;
-    const loop = (now: number) => {
-      draw(Math.min((now - last) / 1000, 0.1));
-      last = now;
-      raf = requestAnimationFrame(loop);
-    };
-    const sync = () => {
-      const run = onScreen && !document.hidden && !reduced;
-      if (run && !raf) {
-        last = performance.now();
-        raf = requestAnimationFrame(loop);
-      } else if (!run && raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-    };
-    const io = new IntersectionObserver(([e]) => {
-      onScreen = e.isIntersecting;
-      sync();
+    const stop = runCanvasLoop(host, {
+      draw,
+      resize: (w, h) => {
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      },
+      onTheme: applyColors,
     });
-    io.observe(host);
-    document.addEventListener("visibilitychange", sync);
 
     // Gentle parallax on desktop only; passive, so touch scrolling is never blocked.
     const fine = window.matchMedia("(pointer: fine)").matches;
@@ -189,33 +160,8 @@ export function HeroNetworkCanvas({ clusters }: { clusters: HeroCluster[] }) {
     };
     if (fine) window.addEventListener("pointermove", onPointer, { passive: true });
 
-    const themeMq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onTheme = () => {
-      applyColors();
-      if (reduced) draw(0);
-    };
-    themeMq.addEventListener("change", onTheme);
-    const mo = new MutationObserver(onTheme);
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
-
-    const onMotion = () => {
-      reduced = motionMq.matches;
-      sync();
-      if (reduced) draw(0);
-    };
-    motionMq.addEventListener("change", onMotion);
-
-    if (reduced) draw(0);
-    else sync();
-
     return () => {
-      cancelAnimationFrame(raf);
-      io.disconnect();
-      mo.disconnect();
-      motionMq.removeEventListener("change", onMotion);
-      themeMq.removeEventListener("change", onTheme);
-      ro.disconnect();
-      document.removeEventListener("visibilitychange", sync);
+      stop();
       window.removeEventListener("pointermove", onPointer);
       [nodeGeo, lineGeo, pulseGeo, nodeMat, lineMat, pulseMat, sprite].forEach((d) => d.dispose());
       renderer.dispose();

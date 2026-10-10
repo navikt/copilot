@@ -3,6 +3,7 @@ import { Box, Heading, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import { NavCard } from "@/components/navigation/nav-card";
 import { PageHero } from "@/components/page-hero";
+import { HeroRibbons } from "@/components/hero-ribbons/hero-ribbons";
 
 export const metadata: Metadata = {
   title: "Innsikt",
@@ -20,6 +21,7 @@ export default function Innsikt() {
       <PageHero
         title="Innsikt"
         description="Tall om Copilot i Nav: bruk, adopsjon, kostnad, modellpriser og modellvalg."
+        background={<HeroRibbons />}
       />
       <Box
         paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
