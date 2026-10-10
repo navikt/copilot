@@ -22,7 +22,15 @@ import dynamic from "next/dynamic";
 
 // "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
 
-const DailyCreditsChart = dynamic(() => import("@/components/charts/DailyCreditsChart"), { ssr: false });
+const DailyCreditsChart = dynamic(() => import("@/components/charts/DailyCreditsChart"), {
+  ssr: false,
+  // Chart.js keeps its default 2:1 canvas, so the placeholder does too.
+  loading: () => (
+    <div className="aspect-[2/1]">
+      <Skeleton variant="rectangle" height="100%" />
+    </div>
+  ),
+});
 
 interface BudgetData {
   budgetAmount: number;
@@ -95,6 +103,10 @@ const SubscriptionActionButton: React.FC<{
 
 const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ user, showGroups = false }) => {
   const [loading, setLoading] = useState<boolean>(true);
+  // Usage and credits need the GitHub username, so they load in a second round.
+  // A separate flag lets the subscription and budget cards render without waiting for it.
+  const [usageLoading, setUsageLoading] = useState<boolean>(true);
+  const [budgetLoading, setBudgetLoading] = useState<boolean>(true);
   const [eligibility, setEligible] = useState<boolean>(false);
   const [subscription, setCopilotSubscription] = useState<SubscriptionDetailsProps["subscription"] | null>(null);
   const [githubUsername, setGitHubUsername] = useState<string | null>(null);
@@ -172,20 +184,38 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   useEffect(() => {
     let cancelled = false;
 
+    // The budget card does not wait for the subscription lookup.
+    async function loadBudget() {
+      try {
+        const response = await fetch("/api/budget");
+        if (response.ok) {
+          const budgetData = await response.json();
+          if (!cancelled) setBudget(budgetData);
+        }
+      } catch {
+        // Leave budget as null; the card shows its fallback text.
+      } finally {
+        if (!cancelled) setBudgetLoading(false);
+      }
+    }
+
     async function loadSubscription() {
-      const [subscriptionResult, budgetResult] = await Promise.allSettled([
-        fetch("/api/copilot"),
-        fetch("/api/budget"),
-      ]);
+      let subscriptionResponse: Response | null = null;
+      try {
+        subscriptionResponse = await fetch("/api/copilot");
+      } catch {
+        // Handled below as an unknown error.
+      }
 
       if (cancelled) return;
 
       let resolvedUsername: string | null = null;
 
       // Handle subscription independently
-      if (subscriptionResult.status === "fulfilled") {
+      if (subscriptionResponse) {
         try {
-          const data = await subscriptionResult.value.json();
+          const data = await subscriptionResponse.json();
+          if (cancelled) return;
           if (data.error) {
             setSubscriptionError(data.error);
             setErrorTraceId(data.traceId ?? null);
@@ -208,15 +238,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         setSubscriptionError("Ukjent feil ved henting av abonnement");
       }
 
-      // Handle budget independently — always attempted regardless of subscription outcome
-      if (budgetResult.status === "fulfilled" && budgetResult.value.ok) {
-        try {
-          const budgetData = await budgetResult.value.json();
-          if (!cancelled) setBudget(budgetData);
-        } catch {
-          // Budget parse failure — leave budget as null, card shows fallback text
-        }
-      }
+      if (cancelled) return;
+      setLoading(false);
 
       // Fetch usage metrics and daily credits if we have a GitHub username
       if (resolvedUsername) {
@@ -240,9 +263,10 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         }
       }
 
-      if (!cancelled) setLoading(false);
+      if (!cancelled) setUsageLoading(false);
     }
 
+    loadBudget();
     loadSubscription();
     return () => {
       cancelled = true;
@@ -286,14 +310,15 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
           <Box padding="space-8" borderRadius="8" className="border">
             {" "}
             {loading ? (
-              <VStack gap="space-4" role="status" className="max-w-sm animate-pulse">
-                <div className="h-6 bg-gray-200 rounded-full dark:bg-gray-700 w-48"></div>
-                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-90"></div>
-                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700"></div>
-                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-82.5"></div>
-                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-75"></div>
-                <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 max-w-90"></div>
-                <span className="sr-only">Loading...</span>
+              // Five lines and a button, like the loaded card, so the cards below stay put.
+              <VStack gap="space-4" role="status">
+                <Skeleton variant="text" width="10rem" />
+                <Skeleton variant="text" width="8rem" />
+                <Skeleton variant="text" width="12rem" />
+                <Skeleton variant="text" width="12rem" />
+                <Skeleton variant="text" width="10rem" />
+                <Skeleton variant="rectangle" width="10rem" height="3rem" />
+                <span className="sr-only">Laster abonnement...</span>
               </VStack>
             ) : needsGitHubLink ? (
               <BodyShort>Koble GitHub-kontoen din til navikt-organisasjonen for å aktivere Copilot.</BodyShort>
@@ -380,9 +405,9 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     <a href={`https://github.com/${githubUsername}`}>{githubUsername}</a>
                   </span>
                 ) : loading ? (
-                  <div role="status" className="inline-block animate-pulse" style={{ marginLeft: "8px" }}>
-                    <div className="h-5 bg-gray-200 rounded-full dark:bg-gray-700 w-32"></div>
-                  </div>
+                  <span role="status" className="inline-block align-middle" style={{ marginLeft: "var(--ax-space-8)" }}>
+                    <Skeleton variant="text" width="8rem" />
+                  </span>
                 ) : (
                   <span> Ikke koblet</span>
                 )}
@@ -404,10 +429,15 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
               <Heading size="medium" level="3">
                 AI-kredittgrense
               </Heading>
-              {loading ? (
+              {budgetLoading ? (
                 <VStack gap="space-4" role="status">
-                  <Skeleton variant="text" width="10rem" />
-                  <Skeleton variant="text" width="14rem" />
+                  <Skeleton variant="text" width="100%" />
+                  <Skeleton variant="rectangle" height="0.5rem" />
+                  <Skeleton variant="text" width="100%" />
+                  <Skeleton variant="text" width="100%" />
+                  <Skeleton variant="text" width="100%" />
+                  <Skeleton variant="text" width="100%" />
+                  <Skeleton variant="text" width="70%" />
                   <span className="sr-only">Laster budsjett...</span>
                 </VStack>
               ) : budget ? (
@@ -474,7 +504,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         </HGrid>
 
         {/* Usage row — only shown when we have data or are loading with a GitHub account */}
-        {(loading || usageMetrics || githubUsername) && (
+        {(usageLoading || usageMetrics || githubUsername) && (
           <HGrid columns={{ xs: 1, md: 3 }} gap="space-8">
             {/* Card: Kodeforslag */}
             <Box padding="space-8" borderRadius="8" className="border">
@@ -487,7 +517,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     Inline kodeforslag i IDE, der Copilot foreslår kode mens du skriver
                   </Detail>
                 </VStack>
-                {loading ? (
+                {usageLoading ? (
                   <VStack gap="space-4" role="status">
                     <Skeleton variant="text" width="12rem" />
                     <Skeleton variant="rectangle" height="0.5rem" />
@@ -549,11 +579,13 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     GitHub Copilot i terminal, med chat, agenter og verktøykall via nav-pilot eller gh copilot
                   </Detail>
                 </VStack>
-                {loading ? (
+                {usageLoading ? (
                   <VStack gap="space-4" role="status">
                     <Skeleton variant="text" width="10rem" />
+                    <Skeleton variant="text" width="8rem" />
+                    <Skeleton variant="text" width="8rem" />
+                    <Skeleton variant="text" width="14rem" />
                     <Skeleton variant="text" width="12rem" />
-                    <Skeleton variant="text" width="9rem" />
                     <span className="sr-only">Laster CLI-data...</span>
                   </VStack>
                 ) : usageMetrics && usageMetrics.days_used_cli > 0 ? (
@@ -597,12 +629,15 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     KI-modeller rangert etter antall interaksjoner (chat + kodeforslag)
                   </Detail>
                 </VStack>
-                {loading ? (
+                {usageLoading ? (
                   <VStack gap="space-4" role="status">
-                    <Skeleton variant="text" width="14rem" />
-                    <Skeleton variant="rectangle" height="0.5rem" />
-                    <Skeleton variant="text" width="12rem" />
-                    <Skeleton variant="rectangle" height="0.5rem" />
+                    {/* The API returns up to five models. */}
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <div key={i}>
+                        <Skeleton variant="text" width="12rem" />
+                        <Skeleton variant="rectangle" height="0.5rem" />
+                      </div>
+                    ))}
                     <span className="sr-only">Laster modelldata...</span>
                   </VStack>
                 ) : usageMetrics?.top_models?.length ? (
@@ -644,16 +679,19 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         )}
 
         {/* Row 3: Daily credit usage chart */}
-        {(loading || dailyCredits) && githubUsername && (
+        {/* Shown while loading too, so the row does not push in once the username is known. */}
+        {(usageLoading || (dailyCredits && githubUsername)) && (
           <Box padding="space-8" borderRadius="8" className="border">
             <VStack gap="space-4">
               <Heading size="medium" level="3">
                 AI-kredittforbruk per dag (30 dager)
               </Heading>
-              {loading ? (
+              {usageLoading ? (
                 <VStack gap="space-4" role="status">
                   <Skeleton variant="text" width="16rem" />
-                  <Skeleton variant="rectangle" height="8rem" />
+                  <div className="aspect-[2/1]">
+                    <Skeleton variant="rectangle" height="100%" />
+                  </div>
                   <span className="sr-only">Laster kredittdata...</span>
                 </VStack>
               ) : dailyCredits ? (

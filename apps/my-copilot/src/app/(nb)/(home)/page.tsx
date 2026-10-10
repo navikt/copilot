@@ -42,10 +42,10 @@ export default async function Home() {
           className="max-w-7xl mx-auto relative"
         >
           <VStack gap="space-8">
-            <Heading size="xlarge" level="1" className="hero-title hero-animate">
+            <Heading size="xlarge" level="1" className="hero-title">
               KI-utvikling i Nav
             </Heading>
-            <BodyShort className="max-w-md opacity-70 hero-animate-d1">
+            <BodyShort className="max-w-md opacity-70">
               {user && <Greeting />}
               Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.
             </BodyShort>
