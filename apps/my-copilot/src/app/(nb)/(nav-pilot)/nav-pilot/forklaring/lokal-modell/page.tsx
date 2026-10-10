@@ -7,6 +7,7 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { TrustedClassesTable } from "@/components/nav-pilot/local-model-tables";
 import type { TocItem } from "@/components/table-of-contents";
+import { SOURCES } from "@/lib/local-model-results";
 import { FALLBACK_TABLE, getLocalModels } from "@/lib/local-models";
 
 // "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
@@ -30,7 +31,7 @@ const VERDICTS: Verdict[] = [
   { task: "Det samme i 3–8 kall", verdict: "Ikke avgjort" },
   { task: "Det samme i 9 kall eller flere", verdict: "Blir i skyen" },
   { task: "Endre én fil", verdict: "Ikke godkjent ennå" },
-  { task: "Lage en ny fil", verdict: "Ikke avgjort" },
+  { task: "Lage en ny fil", verdict: "Godkjent lokalt på de to letteste trinnene, ikke for delegering" },
   { task: "Svare på spørsmål om kodebasen", verdict: "Blir i skyen" },
   { task: "decide: forklarer commit-meldingen hvorfor?", verdict: "Varsler i commit-hooken" },
   { task: "decide: bug, ønske eller spørsmål?", verdict: "Foreslår etikett" },
@@ -109,11 +110,49 @@ export default function LokalModellForklaring() {
             </NextLink>
             .
           </BodyLong>
+          <BodyLong>
+            Derfor er ingen flere oppgavetyper godkjent for delegering. Siden 8. oktober 2026 må delegering koste høyst
+            like mye som skyen alene, regnet samlet over alle målingene for oppgavetypen (
+            <a href={SOURCES.costRule} className={linkClass}>
+              kostnadsregelen
+            </a>
+            ). Ingen av de nye målingene klarte det:
+          </BodyLong>
+          <Bullets>
+            <li>
+              Delegering til 8-bitsmodellen kostet 1,28 ganger så mye som skyen alene (
+              <a href={SOURCES.phaseC} className={linkClass}>
+                1. oktober
+              </a>
+              ). Mekaniske endringer i flere filer besto 13 av 13, men kostet omtrent dobbelt så mye, og den nedre
+              grensen på 0,888 nådde ikke kravet på 0,90 (
+              <a href={SOURCES.emm8} className={linkClass}>
+                30. september
+              </a>
+              ).
+            </li>
+            <li>
+              Delegering av små oppgaver som bare skriver tester, kostet 1,3–1,5 ganger så mye som skyen. Endringer på
+              én linje ble aldri delegert (0 av 32) (
+              <a href={SOURCES.smallDelegate} className={linkClass}>
+                10. oktober
+              </a>
+              ).
+            </li>
+          </Bullets>
           <BodyLong>nav-pilot stopper bare det manifestet har godkjent modellen for. I dag betyr det:</BodyLong>
           <Bullets>
             <li>
               Standardmodellen på Mac er godkjent bare for mekaniske endringer i flere filer, så regelen om nye filer
               slår ikke inn.
+            </li>
+            <li>
+              Lager modellen en ny fil som ikke bygger eller består testene, får den feilen tilbake og ett nytt forsøk
+              (retry2, levert i{" "}
+              <a href="https://github.com/navikt/copilot/pull/1156" className={linkClass}>
+                navikt/copilot#1156
+              </a>
+              ).
             </li>
             <li>Qwen 3.8-modellene og modellen for 64 GB er ikke godkjent for noe. Med dem stoppes ingenting.</li>
             <li>En modell på egen LLM-server er ikke målt. Den får den generelle instruksen, og ingenting stoppes.</li>
