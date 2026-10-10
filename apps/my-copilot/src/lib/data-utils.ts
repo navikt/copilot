@@ -1,29 +1,6 @@
-import type {
-  EnterpriseMetrics,
-  AggregatedMetrics,
-  PRMetrics,
-  CLIMetrics,
-  LanguageData,
-  EditorData,
-  ModelData,
-  DailyTrend,
-  ModelChartData,
-  GenerationModeTrendData,
-  GenerationModeSummary,
-} from "./types";
+import type { EnterpriseMetrics, AggregatedMetrics, PRMetrics, CLIMetrics, DailyTrend, ModelChartData } from "./types";
 
-const FEATURE_LABELS: Record<string, string> = {
-  code_completion: "Kodeforslag",
-  chat_panel_agent_mode: "Agent-modus",
-  chat_panel_ask_mode: "Chat (spør)",
-  agent_edit: "Agent-redigering",
-  chat_panel_custom_mode: "Egendefinert modus",
-  chat_panel_edit_mode: "Redigeringsmodus",
-  chat_inline: "Inline chat",
-};
-
-// Generation mode classification (matches v_code_generation.sql)
-const USER_INITIATED_FEATURES = new Set(["code_completion", "chat_panel_ask_mode", "chat_inline"]);
+// Agent features (matches v_code_generation.sql)
 const AGENT_INITIATED_FEATURES = new Set([
   "agent_edit",
   "chat_panel_agent_mode",
@@ -33,11 +10,6 @@ const AGENT_INITIATED_FEATURES = new Set([
 
 const calculateAcceptanceRate = (accepted: number, generated: number): number => {
   return generated > 0 ? Math.round((accepted / generated) * 100) : 0;
-};
-
-export const getDateRange = (usage: EnterpriseMetrics[]): { start: string; end: string } | null => {
-  if (!usage || usage.length === 0) return null;
-  return { start: usage[0].day, end: usage[usage.length - 1].day };
 };
 
 export const getAggregatedMetrics = (usage: EnterpriseMetrics[]): AggregatedMetrics | null => {
@@ -171,98 +143,6 @@ export const getCLIMetrics = (usage: EnterpriseMetrics[]): CLIMetrics | null => 
   return { promptCount, requestCount, sessionCount, avgTokensPerRequest, outputTokensSum, promptTokensSum };
 };
 
-export const getTopLanguages = (usage: EnterpriseMetrics[], limit: number = 10): LanguageData[] => {
-  if (!usage || usage.length === 0) return [];
-
-  const langMap = new Map<string, { acceptances: number; generations: number }>();
-  for (const day of usage) {
-    for (const lf of day.totals_by_language_feature || []) {
-      if (lf.language === "others") continue;
-      const existing = langMap.get(lf.language) || { acceptances: 0, generations: 0 };
-      existing.acceptances += lf.code_acceptance_activity_count || 0;
-      existing.generations += lf.code_generation_activity_count || 0;
-      langMap.set(lf.language, existing);
-    }
-  }
-
-  return Array.from(langMap.entries())
-    .map(([name, data]) => ({
-      name,
-      acceptances: data.acceptances,
-      generations: data.generations,
-      acceptanceRate: calculateAcceptanceRate(data.acceptances, data.generations),
-    }))
-    .sort((a, b) => b.generations - a.generations)
-    .slice(0, limit);
-};
-
-export const getEditorStats = (usage: EnterpriseMetrics[]): EditorData[] => {
-  if (!usage || usage.length === 0) return [];
-
-  const ideMap = new Map<string, { acceptances: number; generations: number; interactions: number }>();
-  let cliRequests = 0,
-    cliSessions = 0;
-
-  for (const day of usage) {
-    for (const ide of day.totals_by_ide || []) {
-      const existing = ideMap.get(ide.ide) || { acceptances: 0, generations: 0, interactions: 0 };
-      existing.acceptances += ide.code_acceptance_activity_count || 0;
-      existing.generations += ide.code_generation_activity_count || 0;
-      existing.interactions += ide.user_initiated_interaction_count || 0;
-      ideMap.set(ide.ide, existing);
-    }
-    const cli = day.totals_by_cli;
-    if (cli) {
-      cliRequests += cli.request_count || 0;
-      cliSessions += cli.session_count || 0;
-    }
-  }
-
-  const editors: EditorData[] = Array.from(ideMap.entries()).map(([name, data]) => ({
-    name,
-    acceptances: data.acceptances,
-    generations: data.generations,
-    acceptanceRate: calculateAcceptanceRate(data.acceptances, data.generations),
-    interactions: data.interactions,
-  }));
-
-  if (cliRequests > 0) {
-    editors.push({
-      name: "Copilot CLI",
-      acceptances: 0,
-      generations: cliRequests,
-      acceptanceRate: 0,
-      interactions: cliSessions,
-    });
-  }
-
-  return editors.sort((a, b) => b.generations - a.generations);
-};
-
-export const getModelUsageMetrics = (usage: EnterpriseMetrics[]): ModelData[] => {
-  if (!usage || usage.length === 0) return [];
-
-  const modelMap = new Map<string, { generations: number; features: Set<string> }>();
-
-  for (const day of usage) {
-    for (const mf of day.totals_by_model_feature || []) {
-      if (mf.model === "others") continue;
-      const existing = modelMap.get(mf.model) || { generations: 0, features: new Set<string>() };
-      existing.generations += mf.code_generation_activity_count || 0;
-      existing.features.add(FEATURE_LABELS[mf.feature] || mf.feature);
-      modelMap.set(mf.model, existing);
-    }
-  }
-
-  return Array.from(modelMap.entries())
-    .map(([name, data]) => ({
-      name,
-      generations: data.generations,
-      features: Array.from(data.features),
-    }))
-    .sort((a, b) => b.generations - a.generations);
-};
-
 // Chart data builders — produce lean serializable objects for client components
 
 export const buildTrendData = (usage: EnterpriseMetrics[]): DailyTrend[] => {
@@ -297,62 +177,4 @@ export const buildModelChartData = (usage: EnterpriseMetrics[], limit: number = 
     .map(([name, generations]) => ({ name, generations }))
     .sort((a, b) => b.generations - a.generations)
     .slice(0, limit);
-};
-
-export const getGenerationModeSummary = (usage: EnterpriseMetrics[]): GenerationModeSummary | null => {
-  if (!usage || usage.length === 0) return null;
-
-  let userGen = 0,
-    agentGen = 0,
-    userAcc = 0,
-    agentAcc = 0;
-
-  for (const day of usage) {
-    for (const f of day.totals_by_feature || []) {
-      const gen = f.code_generation_activity_count || 0;
-      const acc = f.code_acceptance_activity_count || 0;
-      if (USER_INITIATED_FEATURES.has(f.feature)) {
-        userGen += gen;
-        userAcc += acc;
-      } else if (AGENT_INITIATED_FEATURES.has(f.feature)) {
-        agentGen += gen;
-        agentAcc += acc;
-      }
-    }
-  }
-
-  const total = userGen + agentGen;
-  if (total === 0) return null;
-
-  return {
-    userInitiatedGenerations: userGen,
-    agentInitiatedGenerations: agentGen,
-    userInitiatedAcceptances: userAcc,
-    agentInitiatedAcceptances: agentAcc,
-    agentShare: Math.round((agentGen / total) * 100),
-  };
-};
-
-export const buildGenerationModeTrendData = (usage: EnterpriseMetrics[]): GenerationModeTrendData => {
-  return {
-    days: usage.map((d) => d.day),
-    userInitiated: usage.map((day) => {
-      let sum = 0;
-      for (const f of day.totals_by_feature || []) {
-        if (USER_INITIATED_FEATURES.has(f.feature)) {
-          sum += f.code_generation_activity_count || 0;
-        }
-      }
-      return sum;
-    }),
-    agentInitiated: usage.map((day) => {
-      let sum = 0;
-      for (const f of day.totals_by_feature || []) {
-        if (AGENT_INITIATED_FEATURES.has(f.feature)) {
-          sum += f.code_generation_activity_count || 0;
-        }
-      }
-      return sum;
-    }),
-  };
 };

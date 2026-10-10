@@ -5,6 +5,7 @@ import { introspectToken, parseBearerToken } from "@/lib/introspect";
 export const PRIVATE_PAGE_PATHS = [
   "/statistikk",
   "/innsikt/team",
+  "/innsikt/bruk",
   "/adopsjon",
   "/kostnad",
   "/abonnement",
@@ -60,6 +61,7 @@ export const config = {
   matcher: [
     "/statistikk/:path*",
     "/innsikt/team/:path*",
+    "/innsikt/bruk/:path*",
     "/adopsjon/:path*",
     "/kostnad/:path*",
     "/abonnement/:path*",

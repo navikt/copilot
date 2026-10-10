@@ -173,10 +173,7 @@ export default function CostOptimization() {
           <Box background="default" borderWidth="1" borderRadius="8" padding="space-12">
             <BodyShort size="small" className="text-gray-700">
               Følg opp effekten i{" "}
-              <NextLink
-                href="/statistikk#m%C3%A5ned-hittil-modeller-og-kostnad"
-                className="text-blue-600 hover:underline"
-              >
+              <NextLink href="/innsikt/bruk#kostnad" className="text-blue-600 hover:underline">
                 Statistikk
               </NextLink>{" "}
               før dere endrer modellvalg eller arbeidsflyt.

@@ -143,6 +143,23 @@
     ],
     "anchors": {}
   },
+  "/innsikt/bruk": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/components/pulse-strip.tsx"
+    ],
+    "anchors": {
+      "kostnad": [
+        "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+        "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx"
+      ],
+      "modellkostnad-historikk": ["apps/my-copilot/src/components/charts/BillingModelBreakdownChart.tsx"],
+      "måned-hittil-modeller-og-kostnad": ["apps/my-copilot/src/components/charts/BillingMonthNowChart.tsx"],
+      "månedlige-trender": ["apps/my-copilot/src/components/charts/MonthlyTrendsChart.tsx"]
+    }
+  },
   "/innsikt/lokale-modeller": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
@@ -233,6 +250,7 @@
   },
   "/kostnad": {
     "sources": [
+      "apps/my-copilot/next.config.ts",
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/kostnad/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts"
@@ -2494,6 +2512,7 @@
   },
   "/statistikk": {
     "sources": [
+      "apps/my-copilot/next.config.ts",
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/(nb)/statistikk/page.tsx",

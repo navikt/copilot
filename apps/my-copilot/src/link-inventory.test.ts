@@ -359,7 +359,7 @@ describe("link inventory", () => {
       expect(ids.has("lokale-modeller")).toBe(true);
       expect(ids.has("finnes-ikke")).toBe(false);
     }
-    const stats = resolvePath("/statistikk");
+    const stats = resolvePath("/innsikt/bruk");
     if ("file" in stats) expect(definedAnchors(stats.file).has("modellkostnad-historikk")).toBe(true); // in a component
     const ordliste = resolvePath("/ordliste");
     if ("file" in ordliste) expect(definedAnchors(ordliste.file, true).has("ordbok-kategori-filter")).toBe(false); // a form field

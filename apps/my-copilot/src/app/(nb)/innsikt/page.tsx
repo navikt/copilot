@@ -33,11 +33,11 @@ export default function Innsikt() {
             </Heading>
             <div className="grid gap-4 sm:grid-cols-2">
               <NavCard
-                href="/statistikk"
+                href="/innsikt/bruk"
                 prefetch={false}
                 icon={lock}
-                title="Statistikk"
-                description="Bruksdata og trender for GitHub Copilot i Nav. Krever innlogging."
+                title="Bruk og kostnad"
+                description="Hvor mange som bruker Copilot, hva det koster, og hvor det brukes. Krever innlogging."
               />
               <NavCard
                 href="/innsikt/team"
@@ -52,13 +52,6 @@ export default function Innsikt() {
                 icon={lock}
                 title="Adopsjon"
                 description="KI-tilpasninger i navikt-repoene. Krever innlogging."
-              />
-              <NavCard
-                href="/kostnad"
-                prefetch={false}
-                icon={lock}
-                title="Kostnad"
-                description="Hva modellene har kostet så langt denne måneden. Krever innlogging."
               />
               <NavCard
                 href="/priser"
