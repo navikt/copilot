@@ -405,7 +405,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     <a href={`https://github.com/${githubUsername}`}>{githubUsername}</a>
                   </span>
                 ) : loading ? (
-                  <span role="status" className="ml-2 inline-block align-middle">
+                  <span role="status" className="inline-block align-middle" style={{ marginLeft: "var(--ax-space-8)" }}>
                     <Skeleton variant="text" width="8rem" />
                   </span>
                 ) : (
