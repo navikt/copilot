@@ -47,6 +47,7 @@ type mockBigQueryClient struct {
 	teamGross          *TeamGrossOverview
 	teamGrossErr       error
 	teamNet            *TeamNetOverview
+	spendBands         *SpendBands
 	teamNetErr         error
 	grossByMonth       map[string]*TeamGrossOverview
 	netByMonth         map[string]*TeamNetOverview
@@ -788,4 +789,8 @@ func containsString(s, sub string) bool {
 			}
 			return false
 		}())
+}
+
+func (m *mockBigQueryClient) GetSpendBands(_ context.Context) (*SpendBands, error) {
+	return m.spendBands, nil
 }
