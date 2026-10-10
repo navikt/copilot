@@ -154,6 +154,17 @@ func TestBuildSpendBandsDampsEarlyBursts(t *testing.T) {
 	}
 }
 
+func TestBandMonthHidesSmallTotal(t *testing.T) {
+	m := bandMonth("2026-09", []float64{1, 2, 3, 4})
+	if m.Bands != nil || m.Users != 0 {
+		t.Errorf("four users leaked: %+v", m)
+	}
+	body, _ := json.Marshal(m)
+	if !strings.Contains(string(body), `"users":0`) {
+		t.Errorf("unexpected body %s", body)
+	}
+}
+
 func TestSpendBandsHandlerSendsOnlyAggregates(t *testing.T) {
 	h := newBigQueryHandlers(&mockBigQueryClient{spendBands: buildSpendBands(
 		[]spendUserRow{{Month: "2026-09", Net: 1, Gross: 2}, {Month: "2026-09", Net: 1, Gross: 2}, {Month: "2026-09", Net: 1, Gross: 2}, {Month: "2026-09", Net: 1, Gross: 2}, {Month: "2026-09", Net: 1, Gross: 2}}, nil, "")})

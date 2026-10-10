@@ -6,9 +6,7 @@ import { formatNumber, formatUSD } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
 import type { SpendBandMonth, SpendForecastMonth } from "@/lib/types";
 
-const pct = " %";
-/** The base bands, in the order copilot-api counts them. Merged bands take the colour of their first base band. */
-const BASE_BANDS = ["0", "under 25", "25–50", "50–75", "75–90", "90–100", "over 100"].map((b) => b + pct);
+// Colour by the band's upper end: 0 %, under 25, 25–50, 50–75, 75–90, 90–100, over 100 %.
 const BAND_TOKENS = [
   "neutral-400",
   "accent-300",
@@ -21,10 +19,14 @@ const BAND_TOKENS = [
 
 export function SpendBandChart({ months }: { months: (SpendBandMonth & { projected?: boolean })[] }) {
   const labels = months.map((m) => monthLabel(m.month) + (m.projected ? " (prognose)" : ""));
-  const datasets = BASE_BANDS.map((label, i) => ({
-    label,
-    data: months.map((m) => m.bands?.find((b) => b.first === i)?.users ?? null),
-    backgroundColor: () => axColor(BAND_TOKENS[i]),
+  // One dataset per band as the API returns it, so a merged band has its own legend entry with its real range.
+  const keys = [...new Map(months.flatMap((m) => m.bands ?? []).map((b) => [`${b.first}-${b.last}`, b])).values()].sort(
+    (a, b) => a.first - b.first || a.last - b.last
+  );
+  const datasets = keys.map((k) => ({
+    label: k.label,
+    data: months.map((m) => m.bands?.find((b) => b.first === k.first && b.last === k.last)?.users ?? null),
+    backgroundColor: () => axColor(BAND_TOKENS[k.last]),
   }));
   return (
     <div className="h-80">
@@ -44,13 +46,6 @@ export function SpendBandChart({ months }: { months: (SpendBandMonth & { project
             tooltip: {
               ...commonLineOptions.plugins.tooltip,
               filter: (item) => item.raw !== null,
-              callbacks: {
-                // A merged band is named by its full range, not by the base band it is drawn as.
-                label: (item) => {
-                  const band = months[item.dataIndex].bands?.find((b) => b.first === item.datasetIndex);
-                  return `${band?.label ?? item.dataset.label}: ${formatNumber(Number(item.raw))}`;
-                },
-              },
             },
           },
         }}

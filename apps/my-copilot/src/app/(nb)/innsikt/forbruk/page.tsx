@@ -63,7 +63,8 @@ async function Current({ token }: { token: string }) {
   const data = await load(token);
   if (!data) return <ErrorState message="Kunne ikke hente prognosen." />;
   const c = data.current;
-  if (!c?.bands) return <BodyShort>Ingen bruk i denne måneden ennå.</BodyShort>;
+  if (!c) return <BodyShort>Ingen prognose ennå. Den kommer når fakturaen for forrige måned er lest inn.</BodyShort>;
+  if (!c.bands) return <BodyShort>For få brukere til å vise fordelingen.</BodyShort>;
   return (
     <>
       {uncertain}

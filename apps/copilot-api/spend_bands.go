@@ -88,6 +88,15 @@ const minBandUsers = 5
 // mergeBands counts users per base band, then merges any band with 1–4 users
 // into its smaller non-empty neighbour (the lower one on a tie) until every band has
 // zero or at least minBandUsers. Returns nil if all users together are too few.
+// bandMonth builds a month; with too few users for any band the count is hidden too.
+func bandMonth(month string, nets []float64) SpendBandMonth {
+	m := SpendBandMonth{Month: month, LimitUSD: limitAtMonthEnd(month), LimitChanged: limitChanged(month), Bands: mergeBands(nets, limitAtMonthEnd(month))}
+	if m.Bands != nil {
+		m.Users = len(nets)
+	}
+	return m
+}
+
 func mergeBands(nets []float64, limit float64) []SpendBand {
 	if len(nets) < minBandUsers {
 		return nil
@@ -203,7 +212,7 @@ func buildSpendBands(history, current []spendUserRow, lastDay string) *SpendBand
 		out.NetRatio = net / gross
 	}
 	for i, m := range order {
-		out.Months = append(out.Months, SpendBandMonth{Month: m, LimitUSD: limitAtMonthEnd(m), LimitChanged: limitChanged(m), Users: len(byMonth[m]), Bands: mergeBands(byMonth[m], limitAtMonthEnd(m))})
+		out.Months = append(out.Months, bandMonth(m, byMonth[m]))
 		t := round100(totals[i])
 		out.Totals = append(out.Totals, SpendForecastMonth{Month: m, LowUSD: t, MidUSD: t, HighUSD: t})
 	}
@@ -250,8 +259,8 @@ func buildSpendBands(history, current []spendUserRow, lastDay string) *SpendBand
 			add(id)
 		}
 	}
-	limit := limitAtMonthEnd(month)
-	out.Current = &SpendBandMonth{Month: month, LimitUSD: limit, LimitChanged: limitChanged(month), Users: len(projected), Bands: mergeBands(projected, limit)}
+	cm := bandMonth(month, projected)
+	out.Current = &cm
 	out.Totals = append(out.Totals, SpendForecastMonth{Month: month, LowUSD: round100(total), MidUSD: round100(total), HighUSD: round100(total)})
 	out.Forecast = forecastTotals(append(totals, total), month, 3)
 	return out
@@ -311,10 +320,10 @@ WITH u AS (
   SELECT day, JSON_VALUE(raw_record,'$.user_id') user_id,
     COALESCE(SAFE_CAST(JSON_VALUE(raw_record,'$.ai_credits_used') AS FLOAT64),0) * 0.01 gross
   FROM %s
-  WHERE day >= DATE_TRUNC(CURRENT_DATE(), MONTH) AND scope='enterprise' AND scope_id='nav'
+  WHERE day >= DATE_TRUNC(CURRENT_DATE(), MONTH)
 )
 SELECT user_id, SUM(gross) gross, CAST((SELECT MAX(day) FROM u) AS STRING) last_day
-FROM u GROUP BY user_id`, bq.tableRef(bq.metricsDataset, "user_metrics")))
+FROM u GROUP BY user_id`, userDaysFrom(bq.tableRef(bq.metricsDataset, "user_metrics"))))
 	it, err = current.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read spend band current month: %w", err)
