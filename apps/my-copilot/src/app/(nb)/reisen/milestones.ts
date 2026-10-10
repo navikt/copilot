@@ -307,7 +307,8 @@ export const PHASES: Phase[] = [
 /**
  * Dated events drawn as vertical rules on the charts in /innsikt/trender. /reisen does not render them.
  * They show timing, not cause. Model pins affect only our own agents; billing applies to the whole enterprise.
- * Dates are merge dates from `gh pr view --json mergedAt`.
+ * Dates for our own changes are merge dates from `gh pr view --json mergedAt`;
+ * dates for GitHub changes are when GitHub made the change.
  */
 export interface ChartAnnotation {
   /** YYYY-MM-DD. */
