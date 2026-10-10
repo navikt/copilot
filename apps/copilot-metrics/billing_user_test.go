@@ -37,6 +37,11 @@ func TestUserBillingSkipsOnlyDeletedAccounts(t *testing.T) {
 	if !store.complete || !store.done["1"] || len(store.rows) != 3 || store.rows["2:Copilot AI Credits"].NetAmount != 2 {
 		t.Fatalf("deleted account not skipped with a marker only: %+v", store)
 	}
+	// Bot logins are not billed per user; GitHub answers with another name.
+	store = &billingUserStoreTest{users: map[string]string{"1": "one", "2": "Copilot-SWE-Agent[Bot]"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+	if err := ingestUserBillingMonth(context.Background(), &billingUserFetcherTest{items: items}, store, &Config{EnterpriseSlug: "nav"}, month); err != nil || store.done["2"] || !store.complete {
+		t.Fatalf("bot account fetched: %v %+v", err, store)
+	}
 	// A renamed account 404s on its old login but still exists: abort.
 	store = &billingUserStoreTest{users: map[string]string{"1": "renamed"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
 	fetcher = &billingUserFetcherTest{items: items, notFound: map[string]bool{"renamed": true}}

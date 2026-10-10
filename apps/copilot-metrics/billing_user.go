@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -15,6 +16,26 @@ const userBillingPause = 2 * time.Second
 type userBillingFetcher interface {
 	FetchUserAICreditUsage(context.Context, string, time.Time) (*BillingUsageResponse, error)
 	AccountDeleted(context.Context, string) (bool, error)
+}
+
+// billingUsers lists the month's users without bot accounts. GitHub answers a
+// bot login with another user name and no usage, which fails validation.
+func billingUsers(ctx context.Context, store userBillingStore, month time.Time, scope string) (map[string]string, error) {
+	users, err := store.GetBillingUsers(ctx, month, scope)
+	if err != nil {
+		return nil, err
+	}
+	bots := 0
+	for id, login := range users {
+		if strings.HasSuffix(strings.ToLower(login), "[bot]") {
+			delete(users, id)
+			bots++
+		}
+	}
+	if bots > 0 {
+		slog.Info("User billing excluded bot accounts", "month", month.Format("2006-01"), "bots", bots)
+	}
+	return users, nil
 }
 
 // deletedAccount reports whether a 404 for a login means the account is gone.
@@ -58,7 +79,7 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 		slog.Info("User billing month already complete", "month", month.Format("2006-01"))
 		return nil
 	}
-	users, err := store.GetBillingUsers(ctx, month, cfg.EnterpriseSlug)
+	users, err := billingUsers(ctx, store, month, cfg.EnterpriseSlug)
 	if err != nil {
 		return fmt.Errorf("list billing users: %w", err)
 	}

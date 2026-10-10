@@ -159,7 +159,7 @@ func billingRows(response *BillingUsageResponse, month time.Time, scope, id, log
 }
 
 func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store billingSyncStore, cfg *Config, month time.Time, pause time.Duration) error {
-	users, err := store.GetBillingUsers(ctx, month, cfg.EnterpriseSlug)
+	users, err := billingUsers(ctx, store, month, cfg.EnterpriseSlug)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 		return fmt.Errorf("%d users remain unresolved: %w", unresolved, errors.Join(failures...))
 	}
 	// Source repair may add users between invocations. Never publish a stale census.
-	latest, err := store.GetBillingUsers(ctx, month, cfg.EnterpriseSlug)
+	latest, err := billingUsers(ctx, store, month, cfg.EnterpriseSlug)
 	if err != nil {
 		return err
 	}
