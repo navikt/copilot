@@ -34,6 +34,7 @@
   },
   "/adopsjon": {
     "sources": [
+      "apps/my-copilot/next.config.ts",
       "apps/my-copilot/src/app/(nb)/adopsjon/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/lib/nav-items.ts"
@@ -151,13 +152,22 @@
       "apps/my-copilot/src/components/pulse-strip.tsx"
     ],
     "anchors": {
+      "ai-adopsjonsfaser": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "ai-modeller-i-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "daglig-aktivitet": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "kostnad": [
+        "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
         "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
         "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx"
       ],
+      "kostnad-over-tid": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "modellkostnad-historikk": ["apps/my-copilot/src/components/charts/BillingModelBreakdownChart.tsx"],
       "måned-hittil-modeller-og-kostnad": ["apps/my-copilot/src/components/charts/BillingMonthNowChart.tsx"],
-      "månedlige-trender": ["apps/my-copilot/src/components/charts/MonthlyTrendsChart.tsx"]
+      "månedlige-trender": ["apps/my-copilot/src/components/charts/MonthlyTrendsChart.tsx"],
+      "nokkeltall": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "pull-requests-og-code-review": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "repositorier": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"]
     }
   },
   "/innsikt/lokale-modeller": {
@@ -193,7 +203,23 @@
       "apps/my-copilot/src/components/team-gross-usage.tsx"
     ],
     "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "teamkostnad": ["apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx"]
+    }
+  },
+  "/innsikt/tilpasninger": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"
+    ],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "oversikt": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "sprak": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "synkronisering": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "team": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "tilpasninger": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "verktoy": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"]
     }
   },
   "/install/agent": {

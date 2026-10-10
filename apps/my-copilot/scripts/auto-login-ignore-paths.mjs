@@ -30,5 +30,6 @@ export const PRIVATE_ROUTES = [
   "/statistikk/json",
   "/innsikt/team",
   "/innsikt/bruk",
+  "/innsikt/tilpasninger",
   "/adopsjon",
 ];
