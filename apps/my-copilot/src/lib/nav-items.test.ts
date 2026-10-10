@@ -13,7 +13,7 @@ describe("activeTop", () => {
     ["/verktoy", "/verktoy"],
     ["/retningslinjer", "/praksis"],
     ["/praksis/guide/wrap-metoden", "/praksis"],
-    ["/kostnad", "/innsikt"],
+    ["/innsikt/trender", "/innsikt"],
     ["/innsikt/team", "/innsikt"],
     ["/priser", "/innsikt"],
     ["/modeller", "/innsikt"],

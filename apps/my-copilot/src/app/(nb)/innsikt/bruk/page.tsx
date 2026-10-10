@@ -16,14 +16,13 @@ import {
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import RepositoryUsageTable from "@/components/repository-usage-table";
 import TrendChart from "@/components/charts/TrendChart";
-import ModelUsageChart from "@/components/charts/ModelUsageChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import BillingMonthNowChart from "@/components/charts/BillingMonthNowChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
 import BillingModelBreakdownChart from "@/components/charts/BillingModelBreakdownChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { getPRMetrics, buildTrendData, buildModelChartData } from "@/lib/data-utils";
+import { getPRMetrics, buildTrendData } from "@/lib/data-utils";
 import { currentMonthUTC, previousMonth, selectCompleteMonths } from "@/lib/month-utils";
 import { formatNumber, formatMinutes } from "@/lib/format";
 import { formatDate } from "@/lib/local-model-results";
@@ -267,7 +266,7 @@ export default async function BrukPage() {
           hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code>,{" "}
           <code>/billing/model-forecast</code> og <code>/billing/model-breakdown</code>. Kostnaden per modell er brutto
           USD før rabatt, mens prognosen og linjen for fakturert kostnad er netto. Adopsjonsfasene kommer fra{" "}
-          <code>/adoption/cohorts</code>. Pull requests, daglig aktivitet og modeller bruker de siste 28 dagene fra{" "}
+          <code>/adoption/cohorts</code>. Pull requests og daglig aktivitet bruker de siste 28 dagene fra{" "}
           <code>/usage/metrics</code>, og tid til første review kommer fra <code>/usage/daily-summary</code> (
           <code>v_daily_summary</code>). Repositoriene gjelder hele perioden med data, uten private repositorier og uten
           repositorier med færre enn fem PR-er.
@@ -326,13 +325,6 @@ export default async function BrukPage() {
       <InsightSection id="daglig-aktivitet" title="Daglig aktivitet">
         <Suspense fallback={fallback}>
           <UsageMetrics token={token}>{(usage) => <TrendChart data={buildTrendData(usage)} />}</UsageMetrics>
-        </Suspense>
-      </InsightSection>
-
-      {/* The id keeps the published #ai-modeller-i-bruk link after AI became KI. */}
-      <InsightSection id="ai-modeller-i-bruk" title="KI-modeller i bruk">
-        <Suspense fallback={fallback}>
-          <UsageMetrics token={token}>{(usage) => <ModelUsageChart data={buildModelChartData(usage)} />}</UsageMetrics>
         </Suspense>
       </InsightSection>
 

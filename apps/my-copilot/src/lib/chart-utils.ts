@@ -95,29 +95,6 @@ export const commonLineOptions = {
   },
 };
 
-// Donut chart options
-export const commonDonutOptions = {
-  responsive: true,
-  maintainAspectRatio: true,
-  cutout: "60%",
-  plugins: {
-    legend: {
-      position: "right" as const,
-      labels: {
-        usePointStyle: true,
-        pointStyle: "circle",
-        padding: 16,
-        font: { size: 12 },
-      },
-    },
-    tooltip: {
-      backgroundColor: "rgba(0, 0, 0, 0.8)",
-      padding: 12,
-      cornerRadius: 8,
-    },
-  },
-};
-
 // Common chart wrapper styling
 export const chartWrapperClass = "bg-white p-4 rounded-lg border border-gray-200";
 

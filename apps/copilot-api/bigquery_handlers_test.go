@@ -55,6 +55,10 @@ type mockBigQueryClient struct {
 	usageDistErr       error
 	repositoryUsage    []RepositoryUsage
 	repositoryUsageErr error
+	creditsPerUser     []CreditsPerUserMonth
+	creditsPerUserErr  error
+	copilotPRs         []CopilotPRMonth
+	copilotPRsErr      error
 }
 
 func (m *mockBigQueryClient) GetDailyMetrics(_ context.Context, _ *int) ([]EnterpriseMetrics, error) {
@@ -234,6 +238,14 @@ func (m *mockBigQueryClient) GetUsageDistribution(_ context.Context, _ string, _
 
 func (m *mockBigQueryClient) GetRepositoryUsage(_ context.Context) ([]RepositoryUsage, error) {
 	return m.repositoryUsage, m.repositoryUsageErr
+}
+
+func (m *mockBigQueryClient) GetCreditsPerUserMonthly(_ context.Context) ([]CreditsPerUserMonth, error) {
+	return m.creditsPerUser, m.creditsPerUserErr
+}
+
+func (m *mockBigQueryClient) GetCopilotPRsMonthly(_ context.Context) ([]CopilotPRMonth, error) {
+	return m.copilotPRs, m.copilotPRsErr
 }
 
 func TestHandleDailyMetrics(t *testing.T) {
@@ -659,6 +671,34 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			mock:       &mockBigQueryClient{repositoryUsageErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/repositories", nil),
 			handle:     (*BigQueryHandlers).handleRepositoryUsage,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "credits per user success",
+			mock:       &mockBigQueryClient{creditsPerUser: []CreditsPerUserMonth{{Month: "2026-06", Median: 40, Mean: 55, ActiveUsers: 600}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/credits-per-user", nil),
+			handle:     (*BigQueryHandlers).handleCreditsPerUserMonthly,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "credits per user error",
+			mock:       &mockBigQueryClient{creditsPerUserErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/credits-per-user", nil),
+			handle:     (*BigQueryHandlers).handleCreditsPerUserMonthly,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "copilot prs success",
+			mock:       &mockBigQueryClient{copilotPRs: []CopilotPRMonth{{Month: "2026-08", CreatedByCopilot: 12, ReviewedByCopilot: 300, Days: 31}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/copilot-prs", nil),
+			handle:     (*BigQueryHandlers).handleCopilotPRsMonthly,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "copilot prs error",
+			mock:       &mockBigQueryClient{copilotPRsErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/copilot-prs", nil),
+			handle:     (*BigQueryHandlers).handleCopilotPRsMonthly,
 			wantStatus: http.StatusInternalServerError,
 		},
 	}

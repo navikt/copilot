@@ -9,6 +9,8 @@
 import { backendRequest } from "./backend-api";
 import type {
   AdoptionData,
+  CopilotPRMonth,
+  CreditsPerUserMonth,
   AdoptionSummary,
   CustomizationDetail,
   CustomizationUsage,
@@ -219,14 +221,38 @@ export async function getBillingMonthlyTrend(token: string): Promise<{
   return { trend: result.data, error: result.error };
 }
 
-export async function getBillingModelBreakdown(token: string): Promise<{
+export async function getBillingModelBreakdown(
+  token: string,
+  months?: number
+): Promise<{
   breakdown: BillingModelBreakdown[];
   error: string | null;
 }> {
+  const query = months ? `?months=${months}` : "";
   const result = await fetchWithFallback("getBillingModelBreakdown", [] as BillingModelBreakdown[], () =>
-    backendRequest<BillingModelBreakdown[]>("/api/v1/copilot/billing/model-breakdown", token)
+    backendRequest<BillingModelBreakdown[]>(`/api/v1/copilot/billing/model-breakdown${query}`, token)
   );
   return { breakdown: result.data, error: result.error };
+}
+
+export async function getCreditsPerUserMonthly(token: string): Promise<{
+  months: CreditsPerUserMonth[];
+  error: string | null;
+}> {
+  const result = await fetchWithFallback("getCreditsPerUserMonthly", [] as CreditsPerUserMonth[], () =>
+    backendRequest<CreditsPerUserMonth[]>("/api/v1/copilot/usage/credits-per-user", token)
+  );
+  return { months: result.data, error: result.error };
+}
+
+export async function getCopilotPRsMonthly(token: string): Promise<{
+  months: CopilotPRMonth[];
+  error: string | null;
+}> {
+  const result = await fetchWithFallback("getCopilotPRsMonthly", [] as CopilotPRMonth[], () =>
+    backendRequest<CopilotPRMonth[]>("/api/v1/copilot/usage/copilot-prs", token)
+  );
+  return { months: result.data, error: result.error };
 }
 
 export async function getDailySummary(token: string): Promise<{

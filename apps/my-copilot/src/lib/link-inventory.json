@@ -222,6 +222,15 @@
       "verktoy": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"]
     }
   },
+  "/innsikt/trender": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"
+    ],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"]
+    }
+  },
   "/install/agent": {
     "sources": [
       "apps/my-copilot/src/app/install/[type]/route.ts",

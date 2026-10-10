@@ -40,6 +40,13 @@ export default function Innsikt() {
                 description="Hvor mange som bruker Copilot, hva det koster, og hvor det brukes. Krever innlogging."
               />
               <NavCard
+                href="/innsikt/trender"
+                prefetch={false}
+                icon={lock}
+                title="Trender"
+                description="Modellvalg, AI Credits per bruker og Copilot i pull requests, måned for måned. Krever innlogging."
+              />
+              <NavCard
                 href="/innsikt/team"
                 prefetch={false}
                 icon={lock}

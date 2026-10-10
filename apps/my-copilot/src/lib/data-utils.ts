@@ -1,4 +1,4 @@
-import type { EnterpriseMetrics, AggregatedMetrics, PRMetrics, CLIMetrics, DailyTrend, ModelChartData } from "./types";
+import type { EnterpriseMetrics, AggregatedMetrics, PRMetrics, CLIMetrics, DailyTrend } from "./types";
 
 // Agent features (matches v_code_generation.sql)
 const AGENT_INITIATED_FEATURES = new Set([
@@ -160,21 +160,4 @@ export const buildTrendData = (usage: EnterpriseMetrics[]): DailyTrend[] => {
       agentUsers: agentFeatures.reduce((s, f) => s + (f.code_generation_activity_count || 0), 0),
     };
   });
-};
-
-export const buildModelChartData = (usage: EnterpriseMetrics[], limit: number = 8): ModelChartData[] => {
-  if (!usage || usage.length === 0) return [];
-
-  const modelMap = new Map<string, number>();
-  for (const day of usage) {
-    for (const mf of day.totals_by_model_feature || []) {
-      if (mf.model === "others") continue;
-      modelMap.set(mf.model, (modelMap.get(mf.model) || 0) + (mf.code_generation_activity_count || 0));
-    }
-  }
-
-  return Array.from(modelMap.entries())
-    .map(([name, generations]) => ({ name, generations }))
-    .sort((a, b) => b.generations - a.generations)
-    .slice(0, limit);
 };
