@@ -19,7 +19,7 @@ export default function TeamTable({ teams }: TeamTableProps) {
   const pageTeams = sortedTeams.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div>
+    <div className="overflow-x-auto">
       <Table size="small">
         <TableHeader>
           <TableRow>
