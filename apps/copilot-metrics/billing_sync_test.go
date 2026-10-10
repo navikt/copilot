@@ -398,3 +398,21 @@ func TestLiveMonthlyBillingContract(t *testing.T) {
 	}
 	t.Logf("Validated identity, monthly user response and enterprise response in %d requests", billing.requests)
 }
+
+func TestBillingSyncDeletedAccountAndFailedLookup(t *testing.T) {
+	month := billingSyncStart
+	gone := func(lookupErr error) (*billingUserStoreTest, error) {
+		store := &billingUserStoreTest{users: map[string]string{"1": "one"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+		fetcher := &syncFetcherTest{identityErr: &billingHTTPError{Status: 404}, billingUserFetcherTest: billingUserFetcherTest{deleted: map[string]bool{"1": true}, lookupErr: lookupErr}}
+		return store, syncBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, month, 0)
+	}
+	if store, err := gone(nil); err != nil || !store.done["1"] || !store.complete {
+		t.Fatalf("deleted account not skipped: %v %+v", err, store)
+	}
+	for _, lookupErr := range []error{errBillingBudget, &billingHTTPError{Status: 403}} {
+		store, err := gone(lookupErr)
+		if err == nil || !errors.Is(err, lookupErr) || !stopBillingSync(err) || store.done["1"] || store.complete || len(store.rows) != 0 {
+			t.Fatalf("lookup failure %v not propagated: %v %+v", lookupErr, err, store)
+		}
+	}
+}

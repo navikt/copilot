@@ -48,7 +48,7 @@ func deletedAccount(ctx context.Context, client userBillingFetcher, id string, e
 	}
 	gone, lookupErr := client.AccountDeleted(ctx, id)
 	if lookupErr != nil {
-		return false, errors.Join(err, lookupErr)
+		return false, errors.Join(lookupErr, err) // lookup first: errors.As sees its status before the 404
 	}
 	if !gone {
 		return false, err

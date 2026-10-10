@@ -196,7 +196,8 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 		case <-time.After(pause):
 		}
 		currentID, err := fetcher.FetchUserID(ctx, users[id])
-		if gone, _ := deletedAccount(ctx, fetcher, id, err); gone {
+		gone, err := deletedAccount(ctx, fetcher, id, err)
+		if gone {
 			skipped++
 			if err := store.ReplaceUserBilling(ctx, billingRows(&BillingUsageResponse{}, month, cfg.EnterpriseSlug, id, users[id])); err != nil {
 				return errors.Join(append(failures, err)...)

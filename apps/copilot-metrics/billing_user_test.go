@@ -15,15 +15,16 @@ import (
 )
 
 type billingUserFetcherTest struct {
-	items    []BillingUsageItem
-	calls    int
-	err      error
-	notFound map[string]bool // logins that 404
-	deleted  map[string]bool // ids with no account
+	items     []BillingUsageItem
+	calls     int
+	err       error
+	notFound  map[string]bool // logins that 404
+	deleted   map[string]bool // ids with no account
+	lookupErr error
 }
 
 func (f *billingUserFetcherTest) AccountDeleted(_ context.Context, id string) (bool, error) {
-	return f.deleted[id], nil
+	return f.deleted[id], f.lookupErr
 }
 
 func TestUserBillingSkipsOnlyDeletedAccounts(t *testing.T) {
