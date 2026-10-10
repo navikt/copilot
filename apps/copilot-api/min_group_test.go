@@ -25,29 +25,41 @@ func TestTeamSummaryDropsTeamsBelowFive(t *testing.T) {
 	}
 }
 
-func TestAdoptionCohortsSuppressesSmallAndComplementaryCells(t *testing.T) {
-	d1 := civil.Date{Year: 2026, Month: 9, Day: 1}
-	d2 := civil.Date{Year: 2026, Month: 9, Day: 2}
+func TestAdoptionCohortsWeeklySuppressesSmallAndComplementaryCells(t *testing.T) {
+	// 2026-09-07 is a Monday; Tue and Sun of the same week fold into it.
+	mon := civil.Date{Year: 2026, Month: 9, Day: 7}
+	tue := civil.Date{Year: 2026, Month: 9, Day: 8}
+	sun := civil.Date{Year: 2026, Month: 9, Day: 13}
+	next := civil.Date{Year: 2026, Month: 9, Day: 14}
 	h := &BigQueryHandlers{bqClient: &mockBigQueryClient{cohorts: []AdoptionCohortDay{
-		// Day 1: phase 1 has 2 users; phase 2 (6) must go too, else 2 = total - 50 - 6 - 20.
-		{Day: d1, Phase: 0, UserCount: 50}, {Day: d1, Phase: 1, UserCount: 2},
-		{Day: d1, Phase: 2, UserCount: 6}, {Day: d1, Phase: 3, UserCount: 20},
-		// Day 2: hidden cells already sum to 6, no extra cell needed.
-		{Day: d2, Phase: 0, UserCount: 50}, {Day: d2, Phase: 1, UserCount: 3},
-		{Day: d2, Phase: 2, UserCount: 3}, {Day: d2, Phase: 3, UserCount: 20},
+		// Week 1 averages: phase 0 = 50, phase 1 = 2, phase 2 = (6+6+7)/3 = 6, phase 3 = 20.
+		// Phase 1 (2) is small; phase 2 (6) must go too, else 2 = total - 50 - 6 - 20.
+		{Day: mon, Phase: 0, UserCount: 50}, {Day: mon, Phase: 1, UserCount: 6},
+		{Day: mon, Phase: 2, UserCount: 6}, {Day: mon, Phase: 3, UserCount: 20},
+		{Day: tue, Phase: 0, UserCount: 50}, {Day: tue, Phase: 2, UserCount: 6},
+		{Day: tue, Phase: 3, UserCount: 20},
+		{Day: sun, Phase: 0, UserCount: 50}, {Day: sun, Phase: 2, UserCount: 7},
+		{Day: sun, Phase: 3, UserCount: 20},
+		// Week 2: hidden cells already sum to 6, no extra cell needed.
+		{Day: next, Phase: 0, UserCount: 50}, {Day: next, Phase: 1, UserCount: 3},
+		{Day: next, Phase: 2, UserCount: 3}, {Day: next, Phase: 3, UserCount: 20},
 	}}}
 	rec := httptest.NewRecorder()
 	h.handleAdoptionCohorts(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/cohorts", nil))
-	var got []AdoptionCohortDay
+	var got []AdoptionCohortWeek
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 4 {
-		t.Fatalf("got %d rows, want 4: %+v", len(got), got)
+	want := []AdoptionCohortWeek{
+		{Week: mon, Phase: 0, UserCount: 50}, {Week: mon, Phase: 3, UserCount: 20},
+		{Week: next, Phase: 0, UserCount: 50}, {Week: next, Phase: 3, UserCount: 20},
 	}
-	for _, r := range got {
-		if r.UserCount < minUsersForDistribution || r.Phase == 1 || r.Phase == 2 {
-			t.Errorf("cell leaked: %+v", r)
+	if len(got) != len(want) {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("row %d: got %+v, want %+v", i, got[i], want[i])
 		}
 	}
 }

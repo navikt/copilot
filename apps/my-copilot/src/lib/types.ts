@@ -531,26 +531,20 @@ export interface BillingModelForecast {
   points: BillingModelForecastPoint[];
 }
 
-// AI Adoption Cohort types (from user_metrics ai_adoption_phase field)
-export interface AdoptionCohortDay {
-  day: string;
+// AI adoption phases per ISO week, averaged and suppressed by copilot-api
+export interface AdoptionCohortWeek {
+  week: string; // Monday of the ISO week
   phase: number; // 0 = No cohort, 1 = Code first, 2 = Agent first, 3 = Multi-agent
-  phase_version: string; // "v1"
   user_count: number;
-  avg_generations: number;
-  avg_acceptances: number;
-  avg_interactions: number;
-  avg_lines_added: number;
 }
 
 export interface AdoptionCohortTrendData {
-  days: string[];
+  weeks: string[];
   // null = suppressed by the API (fewer than five users)
   phase0: (number | null)[];
   phase1: (number | null)[];
   phase2: (number | null)[];
   phase3: (number | null)[];
-  total: number[];
 }
 
 // Repository contributor types

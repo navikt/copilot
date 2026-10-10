@@ -26,7 +26,7 @@ import type {
   TeamAdoption,
   TeamGrossOverview,
   TeamNetOverview,
-  AdoptionCohortDay,
+  AdoptionCohortWeek,
   BillingMonthlyTrend,
   BillingModelBreakdown,
   DailySummary,
@@ -176,11 +176,11 @@ export async function getMonthlyBillingUsage(token: string): Promise<{
 }
 
 export async function getAdoptionCohorts(token: string): Promise<{
-  cohorts: AdoptionCohortDay[];
+  cohorts: AdoptionCohortWeek[];
   error: string | null;
 }> {
-  const result = await fetchWithFallback("getAdoptionCohorts", [] as AdoptionCohortDay[], () =>
-    backendRequest<AdoptionCohortDay[]>("/api/v1/copilot/adoption/cohorts", token)
+  const result = await fetchWithFallback("getAdoptionCohorts", [] as AdoptionCohortWeek[], () =>
+    backendRequest<AdoptionCohortWeek[]>("/api/v1/copilot/adoption/cohorts", token)
   );
   return { cohorts: result.data, error: result.error };
 }
