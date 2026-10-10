@@ -164,33 +164,35 @@ export default function ReisenPage() {
               Denne siden handler om KI i produktutviklingen. Den er ikke Navs samlede KI-strategi. Spørsmålene under
               styrer hva vi prøver ut og måler. De er ikke beslutninger.
             </BodyLong>
-            <ol className="list-decimal space-y-2 pl-6">
+            <VStack as="ol" gap="space-8" className="list-decimal list-inside">
               <li>
-                <BodyShort>
+                <BodyShort as="span">
                   Hvilke resultater for brukerne og Nav skal agentisk KI forbedre, utover spart tid og mer kode?
                 </BodyShort>
               </li>
               <li>
-                <BodyShort>
+                <BodyShort as="span">
                   Hvordan bør ansvar, roller og kompetanse endres når agentene skriver mer av koden?
                 </BodyShort>
               </li>
               <li>
-                <BodyShort>
+                <BodyShort as="span">
                   Mer kode kan bli en byrde. Hvordan unngår vi at raskere utvikling gir mer vedlikehold og flere
                   systemer enn vi trenger?
                 </BodyShort>
               </li>
               <li>
-                <BodyShort>Hvor går grensene for hva agentene får gjøre, og hvor skal mennesker bestemme?</BodyShort>
+                <BodyShort as="span">
+                  Hvor går grensene for hva agentene får gjøre, og hvor skal mennesker bestemme?
+                </BodyShort>
               </li>
               <li>
-                <BodyShort>
+                <BodyShort as="span">
                   Billigere modeller kan gi større regninger når bruken øker. Hvordan balanserer vi kvalitet, kostnad,
                   sikkerhet og kontroll, målt per løst oppgave?
                 </BodyShort>
               </li>
-            </ol>
+            </VStack>
           </section>
 
           <section aria-labelledby="teamet">
