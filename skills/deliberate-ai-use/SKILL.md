@@ -10,7 +10,7 @@ The always-on rules (explain choices, mark red-zone code, ask before delegating 
 
 ## Why
 
-Research shows that *how* you use AI matters more than *whether* you use it. Developers who delegate blindly score 35–39 % on comprehension. Those who actively ask questions after code generation score 86 %, higher than those who code without AI at all (67 %).
+Research shows that *how* you use AI matters more than *whether* you use it. In Anthropic's 2026 study, developers using AI assistance averaged 50 % on a knowledge quiz, against 67 % for those who coded by hand. Those who delegated everything scored under 40 %. Those who asked questions to understand the code scored 65 % or more ([Anthropic](https://www.anthropic.com/research/AI-assistance-coding-skills)).
 
 The framework makes sure AI tools strengthen developers' skills instead of weakening them.
 

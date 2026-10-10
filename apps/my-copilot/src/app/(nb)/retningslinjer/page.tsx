@@ -82,8 +82,8 @@ export default function RetningslinjerPage() {
                   </AllowedItem>
                   <AllowedItem title="Agent mode i editoren">
                     Du kan bruke Agent mode til autonome redigeringer lokalt. I VS Code skal{" "}
-                    <code>chat.agent.sandbox.enabled</code> være slått på. Du godkjenner terminalkommandoer og vurderer
-                    endringene før commit, med samme ansvar som for all annen kode.
+                    <code>chat.agent.sandbox.enabled</code> være satt til <code>"on"</code>. Du godkjenner
+                    terminalkommandoer og vurderer endringene før commit, med samme ansvar som for all annen kode.
                   </AllowedItem>
                   <AllowedItem title="Copilot CLI og opencode i terminalen">
                     Copilot CLI og opencode, installert med{" "}

@@ -154,8 +154,8 @@ export default function Troubleshooting() {
                 </BodyShort>
                 <ul className="list-disc pl-5 space-y-1 text-gray-700 text-sm">
                   <li>
-                    <strong>Dyrere regning:</strong> Med GitHubs bruksbaserte fakturering (fra juni 2026) brenner store
-                    kontekster gjennom organisasjonens "AI Credits" i et forrykende tempo.
+                    <strong>Dyrere regning:</strong> Med GitHubs bruksbaserte fakturering (fra 1. juni 2026) brenner
+                    store kontekster gjennom organisasjonens "AI Credits" i et forrykende tempo.
                   </li>
                   <li>
                     <strong>Tapt resonneringsevne:</strong> Når KI-modellen drukner i tusenvis av irrelevante filer,
