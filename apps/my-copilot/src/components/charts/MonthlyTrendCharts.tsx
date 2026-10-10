@@ -1,16 +1,20 @@
 "use client";
 
 import { Bar, Line } from "react-chartjs-2";
-import type { Plugin } from "chart.js";
-import { BodyShort, List } from "@navikt/ds-react";
+import type { ChartType, Plugin } from "chart.js";
+import { BodyShort } from "@navikt/ds-react";
 import { chartColors, commonLineOptions } from "@/lib/chart-utils";
 import { daysInCalendarMonth } from "@/lib/month-utils";
-import { monthLabel, type FamilyShares, type MonthAnnotation, type ShareSeries } from "@/lib/trends";
+import { hiddenShares, monthLabel, type FamilyShares, type MonthAnnotation, type ShareSeries } from "@/lib/trends";
 import type { CopilotPRMonth, CreditsPerUserMonth } from "@/lib/types";
 
+// Opaque neutral, about 3.3:1 against white, so the hidden part stays visible.
+const HIDDEN_COLOR = "#868E99";
+
 /**
- * Shares over time. `stacked` draws a 100 % stacked area (groups that add up to the whole);
- * otherwise plain lines. A null value is a gap: the group was hidden (under five) that month.
+ * Shares over time. `stacked` draws 100 % stacked bars (groups that add up to the whole), where a group
+ * under five shows as a grey «Skjult» part of the bar instead of a hole in an area; otherwise plain lines,
+ * where a null is a gap. `shadeBefore` greys out the months before a data break the series cannot cross.
  */
 export function ShareChart({
   months,
@@ -18,83 +22,140 @@ export function ShareChart({
   label,
   stacked,
   annotations,
+  shadeBefore,
 }: {
   months: string[];
   series: ShareSeries[];
   label: string;
   stacked: boolean;
   annotations: MonthAnnotation[];
+  shadeBefore?: string;
 }) {
-  const options = baseOptions(stacked, "Andel (%)");
-  return (
-    <>
+  const options = withEvents(baseOptions(stacked, "Andel (%)"), months, annotations);
+  const plugins = [annotationPlugin(months, annotations, shadeBefore)];
+  const datasets = series.map((s, i) => ({
+    label: s.label,
+    data: s.shares,
+    borderColor: chartColors[i % chartColors.length],
+    backgroundColor: chartColors[i % chartColors.length],
+  }));
+  if (!stacked) {
+    return (
       <div className="h-72">
         <Line
           role="img"
           aria-label={label}
-          data={{
-            labels: months.map(monthLabel),
-            datasets: series.map((s, i) => ({
-              label: s.label,
-              data: s.shares,
-              borderColor: chartColors[i % chartColors.length],
-              backgroundColor: chartColors[i % chartColors.length],
-              fill: stacked ? (i === 0 ? "origin" : "-1") : false,
-            })),
-          }}
-          options={
-            stacked ? { ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } } : options
-          }
-          plugins={[annotationPlugin(months, annotations)]}
+          data={{ labels: months.map(monthLabel), datasets }}
+          options={options}
+          plugins={plugins}
         />
       </div>
-      <AnnotationList annotations={annotations} />
-    </>
+    );
+  }
+  const hidden = hiddenShares(series, months.length);
+  if (hidden.some((v) => v !== null)) {
+    datasets.push({
+      label: "Skjult (under fem)",
+      data: hidden,
+      borderColor: HIDDEN_COLOR,
+      backgroundColor: HIDDEN_COLOR,
+    });
+  }
+  return (
+    <div className="h-72">
+      <Bar
+        role="img"
+        aria-label={label}
+        data={{ labels: months.map(monthLabel), datasets }}
+        options={{ ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } }}
+        plugins={plugins}
+      />
+    </div>
   );
 }
 
-// Vertical rules for dated events. A data break is drawn solid and darker; other events dashed.
-function annotationPlugin(months: string[], annotations: MonthAnnotation[]): Plugin {
+/** Tooltip footer naming the events of the month under the finger, numbered as in «Hendelser». */
+function withEvents<T extends ReturnType<typeof baseOptions>>(
+  options: T,
+  months: string[],
+  annotations: MonthAnnotation[]
+) {
   return {
-    id: "monthAnnotations",
-    afterDatasetsDraw(chart) {
-      const { ctx, chartArea, scales } = chart;
-      ctx.save();
-      for (const a of annotations) {
-        const index = months.indexOf(a.month);
-        if (index < 0) continue;
-        const x = scales.x.getPixelForValue(index);
-        ctx.strokeStyle = a.dataBreak ? "rgba(17, 24, 39, 0.9)" : "rgba(107, 114, 128, 0.8)";
-        ctx.lineWidth = a.dataBreak ? 2 : 1;
-        ctx.setLineDash(a.dataBreak ? [] : [4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(x, chartArea.top);
-        ctx.lineTo(x, chartArea.bottom);
-        ctx.stroke();
-        ctx.fillStyle = ctx.strokeStyle;
-        // Room for a label only on a wide chart; with many months only the data breaks get one.
-        if (chartArea.width < 480 || (months.length > 12 && !a.dataBreak)) continue;
-        ctx.font = "11px sans-serif";
-        const text = a.labels.length > 1 ? `${a.labels.length} hendelser` : a.labels[0];
-        ctx.fillText(text, Math.min(x + 4, chartArea.right - ctx.measureText(text).width), chartArea.top + 12);
-      }
-      ctx.restore();
+    ...options,
+    layout: { padding: { top: 18 } },
+    plugins: {
+      ...options.plugins,
+      // The legend goes below, so the marker row above the plot area stays free.
+      legend: { ...options.plugins.legend, position: "bottom" as const },
+      tooltip: {
+        ...options.plugins.tooltip,
+        callbacks: {
+          footer: (items: { dataIndex: number }[]) => {
+            const a = annotations.find((x) => x.month === months[items[0]?.dataIndex]);
+            return a ? a.labels.map((l, i) => `${a.numbers[i]}. ${l}`) : [];
+          },
+        },
+      },
     },
   };
 }
 
-function AnnotationList({ annotations }: { annotations: MonthAnnotation[] }) {
-  if (!annotations.length) return null;
-  return (
-    <List size="small" aria-label="Hendelser markert i grafen">
-      {annotations.map((a) => (
-        <List.Item key={a.month}>
-          {monthLabel(a.month)}: {a.labels.join(", ")}
-          {a.dataBreak && " (brudd i dataene)"}
-        </List.Item>
-      ))}
-    </List>
-  );
+// Small numbered markers above the plot area, never over the data. A data break also gets a thin grey band
+// on the month boundary, and `shadeBefore` greys the months before it.
+function annotationPlugin<T extends ChartType>(
+  months: string[],
+  annotations: MonthAnnotation[],
+  shadeBefore?: string
+): Plugin<T> {
+  return {
+    id: "monthAnnotations",
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const step = months.length > 1 ? scales.x.getPixelForValue(1) - scales.x.getPixelForValue(0) : chartArea.width;
+      const boundary = (month: string) => scales.x.getPixelForValue(months.indexOf(month)) - step / 2;
+      ctx.save();
+      for (const a of annotations) {
+        if (!a.dataBreak || months.indexOf(a.month) <= 0) continue;
+        ctx.fillStyle = "rgba(107, 114, 128, 0.35)";
+        ctx.fillRect(boundary(a.month) - 2, chartArea.top, 4, chartArea.height);
+      }
+      ctx.restore();
+    },
+    afterDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      ctx.save();
+      // Wash out the months before the break, so they read as a separate period, labelled in the marker row.
+      if (shadeBefore && months.indexOf(shadeBefore) > 0) {
+        const step = months.length > 1 ? scales.x.getPixelForValue(1) - scales.x.getPixelForValue(0) : 0;
+        const x = scales.x.getPixelForValue(months.indexOf(shadeBefore)) - step / 2;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+        ctx.fillRect(chartArea.left, chartArea.top, x - chartArea.left, chartArea.height);
+        ctx.fillStyle = "#4B5563";
+        ctx.font = "11px sans-serif";
+        ctx.textBaseline = "middle";
+        const text = "Før API-bytte";
+        if (ctx.measureText(text).width + 8 < x - chartArea.left)
+          ctx.fillText(text, chartArea.left + 2, chartArea.top - 9);
+      }
+      ctx.font = "bold 10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (const a of annotations) {
+        const index = months.indexOf(a.month);
+        if (index < 0) continue;
+        const x = scales.x.getPixelForValue(index);
+        const text = a.numbers.length > 2 ? `${a.numbers[0]}–${a.numbers[a.numbers.length - 1]}` : a.numbers.join(",");
+        const w = Math.max(14, ctx.measureText(text).width + 8);
+        ctx.fillStyle = a.dataBreak ? "#374151" : "#6B7280";
+        ctx.beginPath();
+        ctx.roundRect(x - w / 2, chartArea.top - 16, w, 14, 7);
+        ctx.fill();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText(text, x, chartArea.top - 9);
+      }
+      ctx.restore();
+    },
+  };
 }
 
 const baseOptions = (stacked: boolean, yTitle: string) => ({
@@ -107,27 +168,24 @@ const baseOptions = (stacked: boolean, yTitle: string) => ({
 });
 
 export function FamilyShareChart({ data, annotations }: { data: FamilyShares; annotations: MonthAnnotation[] }) {
-  const options = baseOptions(true, "Andel av netto kostnad (%)");
+  const options = withEvents(baseOptions(true, "Andel av netto kostnad (%)"), data.months, annotations);
   return (
-    <>
-      <div className="h-80">
-        <Bar
-          role="img"
-          aria-label="Andel av netto kostnad per modellfamilie per måned"
-          data={{
-            labels: data.months.map(monthLabel),
-            datasets: data.series.map((s, i) => ({
-              label: s.label,
-              data: s.shares,
-              backgroundColor: chartColors[i % chartColors.length],
-            })),
-          }}
-          options={{ ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } }}
-          plugins={[annotationPlugin(data.months, annotations)]}
-        />
-      </div>
-      <AnnotationList annotations={annotations} />
-    </>
+    <div className="h-80">
+      <Bar
+        role="img"
+        aria-label="Andel av netto kostnad per modellfamilie per måned"
+        data={{
+          labels: data.months.map(monthLabel),
+          datasets: data.series.map((s, i) => ({
+            label: s.label,
+            data: s.shares,
+            backgroundColor: chartColors[i % chartColors.length],
+          })),
+        }}
+        options={{ ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } }}
+        plugins={[annotationPlugin(data.months, annotations)]}
+      />
+    </div>
   );
 }
 
@@ -143,35 +201,32 @@ export function CreditsPerUserChart({
 }) {
   const row = (m: string) => data.find((d) => d.month === m);
   return (
-    <>
-      <div className="h-80">
-        <Line
-          role="img"
-          aria-label="AI Credits per aktiv bruker per måned, median og snitt"
-          data={{
-            labels: months.map(monthLabel),
-            datasets: [
-              {
-                label: "Median",
-                data: months.map((m) => (row(m) ? Math.round(row(m)!.median) : null)),
-                borderColor: chartColors[0],
-                backgroundColor: chartColors[0],
-              },
-              {
-                label: "Snitt",
-                data: months.map((m) => (row(m) ? Math.round(row(m)!.mean) : null)),
-                borderColor: chartColors[3],
-                backgroundColor: chartColors[3],
-                borderDash: [6, 4],
-              },
-            ],
-          }}
-          options={baseOptions(false, "AI Credits per bruker")}
-          plugins={[annotationPlugin(months, annotations)]}
-        />
-      </div>
-      <AnnotationList annotations={annotations} />
-    </>
+    <div className="h-80">
+      <Line
+        role="img"
+        aria-label="AI Credits per aktiv bruker per måned, median og snitt"
+        data={{
+          labels: months.map(monthLabel),
+          datasets: [
+            {
+              label: "Median",
+              data: months.map((m) => (row(m) ? Math.round(row(m)!.median) : null)),
+              borderColor: chartColors[0],
+              backgroundColor: chartColors[0],
+            },
+            {
+              label: "Snitt",
+              data: months.map((m) => (row(m) ? Math.round(row(m)!.mean) : null)),
+              borderColor: chartColors[3],
+              backgroundColor: chartColors[3],
+              borderDash: [6, 4],
+            },
+          ],
+        }}
+        options={withEvents(baseOptions(false, "AI Credits per bruker"), months, annotations)}
+        plugins={[annotationPlugin(months, annotations)]}
+      />
+    </div>
   );
 }
 
@@ -207,11 +262,10 @@ export function CopilotPRChart({
               },
             ],
           }}
-          options={baseOptions(false, "Pull requests")}
+          options={withEvents(baseOptions(false, "Pull requests"), months, annotations)}
           plugins={[annotationPlugin(months, annotations)]}
         />
       </div>
-      <AnnotationList annotations={annotations} />
       <BodyShort size="small" textColor="subtle">
         {data.some((d) => d.days < daysInCalendarMonth(d.month)) &&
           "Måneder uten data for alle dagene er ikke hele måneder."}

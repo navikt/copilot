@@ -83,24 +83,49 @@ export function familyShares(rows: BillingModelBreakdown[], months: string[]): F
 export interface MonthAnnotation {
   month: string;
   labels: string[];
+  /** 1-based number of each event in the shared «Hendelser» list, same order as labels. */
+  numbers: number[];
   dataBreak: boolean;
 }
 
-/** Annotations grouped per month, only for months the chart shows. */
+/**
+ * Annotations grouped per month, only for months the chart shows, numbered by their place in the full list
+ * (the page's «Hendelser»). Without `all`, only data breaks become markers.
+ */
 export function annotationsFor(
   annotations: { date: string; label: string; dataBreak?: boolean }[],
-  months: string[]
+  months: string[],
+  all = true
 ): MonthAnnotation[] {
   const out = new Map<string, MonthAnnotation>();
-  for (const a of annotations) {
+  annotations.forEach((a, i) => {
     const month = a.date.slice(0, 7);
-    if (!months.includes(month)) continue;
-    const entry = out.get(month) ?? { month, labels: [], dataBreak: false };
+    if (!months.includes(month) || (!all && !a.dataBreak)) return;
+    const entry = out.get(month) ?? { month, labels: [], numbers: [], dataBreak: false };
     entry.labels.push(a.label);
+    entry.numbers.push(i + 1);
     entry.dataBreak ||= !!a.dataBreak;
     out.set(month, entry);
-  }
+  });
   return [...out.values()];
+}
+
+/** ?hendelser=alle shows every event as a marker in the charts; otherwise only data breaks. */
+export function showAllEvents(value: string | string[] | undefined): boolean {
+  return value === "alle";
+}
+
+/**
+ * The part of each 100 % stacked bar that is hidden (groups under five): 100 minus the visible shares.
+ * null when nothing is hidden, or when the month has no data at all.
+ */
+export function hiddenShares(series: { shares: (number | null)[] }[], months: number): (number | null)[] {
+  return Array.from({ length: months }, (_, i) => {
+    const values = series.map((s) => s.shares[i]);
+    if (values.every((v) => v === null) || values.every((v) => v !== null)) return null;
+    const rest = Math.round((100 - values.reduce<number>((sum, v) => sum + (v ?? 0), 0)) * 10) / 10;
+    return rest > 0 ? rest : null;
+  });
 }
 
 /** «2026-06» → «jun. 2026». */
