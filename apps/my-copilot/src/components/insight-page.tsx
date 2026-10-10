@@ -8,8 +8,8 @@ import { PageHero } from "@/components/page-hero";
 
 export function InsightSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section>
-      <VStack gap="space-16">
+    <section className="min-w-0">
+      <VStack gap="space-16" className="min-w-0">
         <LinkableHeading id={id} size="medium" level="2">
           {title}
         </LinkableHeading>

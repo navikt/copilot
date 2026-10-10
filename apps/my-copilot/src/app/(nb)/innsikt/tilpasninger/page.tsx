@@ -169,32 +169,34 @@ async function Sync({ token }: { token: string }) {
           <BodyShort size="small" textColor="subtle">
             Filer som finnes i flere repoer, men ikke er like kilden. De med flest repoer ute av synk står først.
           </BodyShort>
-          <Table size="small">
-            <TableHeader>
-              <TableRow>
-                <TableHeaderCell>Fil</TableHeaderCell>
-                <TableHeaderCell>Kategori</TableHeaderCell>
-                <TableHeaderCell align="right">Repoer</TableHeaderCell>
-                <TableHeaderCell align="right">I synk</TableHeaderCell>
-                <TableHeaderCell align="right">Ute av synk</TableHeaderCell>
-                <TableHeaderCell align="right">Andel i synk</TableHeaderCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {outOfSync.slice(0, 30).map((file) => (
-                <TableRow key={`${file.category}-${file.file_name}`}>
-                  <TableDataCell className="font-mono text-sm">{file.file_name}</TableDataCell>
-                  <TableDataCell>{file.category}</TableDataCell>
-                  <TableDataCell align="right">{formatNumber(file.total_repos)}</TableDataCell>
-                  <TableDataCell align="right">{formatNumber(file.in_sync_repos)}</TableDataCell>
-                  <TableDataCell align="right" className="font-semibold">
-                    {formatNumber(file.out_of_sync_repos)}
-                  </TableDataCell>
-                  <TableDataCell align="right">{(file.sync_rate * 100).toFixed(0)} %</TableDataCell>
+          <div className="overflow-x-auto">
+            <Table size="small">
+              <TableHeader>
+                <TableRow>
+                  <TableHeaderCell>Fil</TableHeaderCell>
+                  <TableHeaderCell>Kategori</TableHeaderCell>
+                  <TableHeaderCell align="right">Repoer</TableHeaderCell>
+                  <TableHeaderCell align="right">I synk</TableHeaderCell>
+                  <TableHeaderCell align="right">Ute av synk</TableHeaderCell>
+                  <TableHeaderCell align="right">Andel i synk</TableHeaderCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {outOfSync.slice(0, 30).map((file) => (
+                  <TableRow key={`${file.category}-${file.file_name}`}>
+                    <TableDataCell className="font-mono text-sm">{file.file_name}</TableDataCell>
+                    <TableDataCell>{file.category}</TableDataCell>
+                    <TableDataCell align="right">{formatNumber(file.total_repos)}</TableDataCell>
+                    <TableDataCell align="right">{formatNumber(file.in_sync_repos)}</TableDataCell>
+                    <TableDataCell align="right" className="font-semibold">
+                      {formatNumber(file.out_of_sync_repos)}
+                    </TableDataCell>
+                    <TableDataCell align="right">{(file.sync_rate * 100).toFixed(0)} %</TableDataCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </>
       )}
     </>
