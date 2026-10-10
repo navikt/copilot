@@ -106,7 +106,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
           Begge viser én kalendermåned, tidligst mai 2026. Brutto bruk oppdateres daglig, og «Sist oppdatert» er siste
           dag med brutto bruk i måneden du har valgt. Fakturert forbruk finnes først når måneden er avsluttet og
           fakturaen er lest inn, og fordelingen på dager er et anslag. En person som er med i flere team, telles i hvert
-          av dem.
+          av dem. «Hittil i år» kommer fra <code>/usage/team-year</code> og regner hver måned på samme måte.
         </>
       }
     >

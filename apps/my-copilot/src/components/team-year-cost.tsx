@@ -1,6 +1,6 @@
-import { Alert, Button, HStack, Select, Table, Tag, VStack } from "@navikt/ds-react";
+import { Alert, Button, HStack, Select, Tag, VStack } from "@navikt/ds-react";
 import { List, ListItem } from "@navikt/ds-react/List";
-import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
+import { Table, TableBody, TableColumnHeader, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import { DownloadIcon } from "@navikt/aksel-icons";
 import type { TeamSpend, TeamYearMonth, TeamYearOverview } from "@/lib/types";
 import { basisLabel, teamYearCaveats } from "@/lib/team-year";
@@ -50,20 +50,20 @@ export default function TeamYearCost({ data }: { data: TeamYearOverview }) {
         <Table size="small" aria-label={`Forbruk per måned for ${data.team_slug} i ${data.year}`}>
           <TableHeader>
             <TableRow>
-              <Table.ColumnHeader scope="col">Måned</Table.ColumnHeader>
-              <Table.ColumnHeader scope="col">Grunnlag</Table.ColumnHeader>
-              <Table.ColumnHeader scope="col" align="right">
+              <TableColumnHeader scope="col">Måned</TableColumnHeader>
+              <TableColumnHeader scope="col">Grunnlag</TableColumnHeader>
+              <TableColumnHeader scope="col" align="right">
                 Medlemmer med forbruk
-              </Table.ColumnHeader>
-              <Table.ColumnHeader scope="col" align="right">
+              </TableColumnHeader>
+              <TableColumnHeader scope="col" align="right">
                 Netto
-              </Table.ColumnHeader>
-              <Table.ColumnHeader scope="col" align="right">
+              </TableColumnHeader>
+              <TableColumnHeader scope="col" align="right">
                 Brutto
-              </Table.ColumnHeader>
-              <Table.ColumnHeader scope="col" align="right">
+              </TableColumnHeader>
+              <TableColumnHeader scope="col" align="right">
                 Netto uten bruk
-              </Table.ColumnHeader>
+              </TableColumnHeader>
             </TableRow>
           </TableHeader>
           <TableBody>

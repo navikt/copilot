@@ -19,7 +19,8 @@ export async function GET(request: Request) {
 
   try {
     const data = await getTeamYearOverview(team, year, token);
-    return new NextResponse(teamYearCsv(data), {
+    // The byte order mark makes Excel read æøå as UTF-8.
+    return new NextResponse("﻿" + teamYearCsv(data), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="copilot-${data.team_slug || team}-${year}.csv"`,
