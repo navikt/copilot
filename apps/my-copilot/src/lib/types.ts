@@ -420,6 +420,22 @@ export interface CreditsPerUserMonth {
   active_users: number;
 }
 
+/** One monthly user cohort and its retention in whole percent, from copilot-api. null: the month is not complete yet. */
+export interface CohortRetention {
+  cohort_month: string;
+  cohort_size: number;
+  m1: number | null;
+  m3: number | null;
+  m6: number | null;
+}
+
+/** Active users in one team in one month, from copilot-api. Team-months under five users are left out. */
+export interface TeamActiveUsersMonth {
+  team_slug: string;
+  month: string;
+  active_users: number;
+}
+
 /** Copilot coding agent and code review PRs in one month, from repository_metrics. */
 export interface CopilotPRMonth {
   month: string;

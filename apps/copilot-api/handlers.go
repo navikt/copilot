@@ -107,6 +107,8 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/usage/distribution", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUsageDistribution })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/credits-per-user", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCreditsPerUserMonthly })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/copilot-prs", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCopilotPRsMonthly })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/cohort-retention", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCohortRetention })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/team-active-users", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamActiveUsersMonthly })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/repositories", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleRepositoryUsage })))
 
 	// GitHub API endpoints
