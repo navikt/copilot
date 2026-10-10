@@ -30,9 +30,9 @@ export default function PersonvernPage() {
               Hva vi samler inn
             </Heading>
             <BodyLong>
-              Vi bruker Grafana Faro for feilovervåking og ytelsesmåling. Faro samler inn teknisk informasjon om
-              nettleser, operativsystem og feilmeldinger for å forbedre tjenesten. Vi samler ikke inn
-              personidentifiserende informasjon fra anonyme besøkende.
+              Vi bruker Grafana Faro for feilovervåking, ytelsesmåling og bruksstatistikk. Faro samler inn teknisk
+              informasjon om nettleser, operativsystem, feilmeldinger og hvilke sider du besøker. Vi lagrer ikke
+              parametere i nettadressen. Vi samler ikke inn personidentifiserende informasjon fra anonyme besøkende.
             </BodyLong>
             <BodyLong>
               For innloggede Nav-ansatte henter vi navn fra Azure AD-tokenet for å vise det i brukergrensesnittet. Denne
