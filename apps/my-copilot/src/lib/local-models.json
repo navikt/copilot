@@ -453,6 +453,17 @@
         }
       },
       {
+        "id": "2026-10-10-fixed-small/report",
+        "title": "Small PR types on the fixed harness",
+        "date": "2026-10-10",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-10-fixed-small/report.md",
+        "verdict": "pass",
+        "headline": {
+          "k": 26,
+          "n": 28
+        }
+      },
+      {
         "id": "2026-10-09-new-candidates/report",
         "title": "K2-Horizon MoVA as a local candidate",
         "date": "2026-10-09",
@@ -898,14 +909,6 @@
       {
         "item": "TS tasks F1/F2 on melosys-web (#183 Q3)",
         "status": "waiting on owner: gh auth refresh -s read:packages (@navikt/melosys-kodeverk is on GitHub Packages); else gap-fill step 1 is skipped"
-      },
-      {
-        "item": "K2-Horizon retest with the ifm parser (#184)",
-        "status": "queued: k2-ifm-launcher runs a 5-min tool-call probe, then the standard set if calls parse"
-      },
-      {
-        "item": "O1 harness defect: every O1 sample ends with \"no changes made\" after ~7 s, cloud control 4/4",
-        "status": "not confirmed: read a transcript, fix the harness, re-run O1 at the next trigger"
       },
       {
         "item": "deps-bump by hand (4.5 % of human PRs)",
