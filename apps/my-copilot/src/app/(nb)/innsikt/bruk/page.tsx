@@ -144,12 +144,14 @@ async function CostThisMonth({ token }: { token: string }) {
 
 async function CostOverTime({ token }: { token: string }) {
   const current = currentMonthUTC();
-  const [{ breakdown, error }, { trend }, { forecast }] = await Promise.all([
+  const [{ breakdown, error }, { trend, error: trendError }, { forecast }] = await Promise.all([
     getBillingModelBreakdown(token),
     getBillingMonthlyTrend(token),
     getBillingModelForecast(token, current),
   ]);
   if (error) return <BodyShort>{`Kunne ikke hente kostnad per modell: ${error}`}</BodyShort>;
+  // Without the trend the chart would draw net cost as zero.
+  if (trendError) return <BodyShort>{`Kunne ikke hente fakturert kostnad: ${trendError}`}</BodyShort>;
   if (breakdown.length === 0) return <BodyShort>Ingen kostnadsdata ennå.</BodyShort>;
   return <BillingModelBreakdownChart breakdown={breakdown} trend={trend} forecast={forecast} />;
 }
@@ -263,11 +265,12 @@ export default async function BrukPage() {
         <>
           Tallene kommer fra copilot-api, som leser GitHubs bruks- og fakturadata fra BigQuery. Nøkkeltall bruker siste
           hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code>,{" "}
-          <code>/billing/model-forecast</code> og <code>/billing/model-breakdown</code>, i brutto USD før rabatt.
-          Adopsjonsfasene kommer fra <code>/adoption/cohorts</code>. Pull requests, daglig aktivitet og modeller bruker
-          de siste 28 dagene fra <code>/usage/metrics</code>, og tid til første review kommer fra{" "}
-          <code>/usage/daily-summary</code> (<code>v_daily_summary</code>). Repositoriene gjelder hele perioden med
-          data, uten private repositorier og uten repositorier med færre enn fem PR-er.
+          <code>/billing/model-forecast</code> og <code>/billing/model-breakdown</code>. Kostnaden per modell er brutto
+          USD før rabatt, mens prognosen og linjen for fakturert kostnad er netto. Adopsjonsfasene kommer fra{" "}
+          <code>/adoption/cohorts</code>. Pull requests, daglig aktivitet og modeller bruker de siste 28 dagene fra{" "}
+          <code>/usage/metrics</code>, og tid til første review kommer fra <code>/usage/daily-summary</code> (
+          <code>v_daily_summary</code>). Repositoriene gjelder hele perioden med data, uten private repositorier og uten
+          repositorier med færre enn fem PR-er.
         </>
       }
     >

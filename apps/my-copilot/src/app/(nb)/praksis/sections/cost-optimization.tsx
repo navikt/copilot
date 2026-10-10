@@ -174,7 +174,7 @@ export default function CostOptimization() {
             <BodyShort size="small" className="text-gray-700">
               Følg opp effekten i{" "}
               <NextLink href="/innsikt/bruk#kostnad" className="text-blue-600 hover:underline">
-                Statistikk
+                Bruk og kostnad
               </NextLink>{" "}
               før dere endrer modellvalg eller arbeidsflyt.
             </BodyShort>
