@@ -44,7 +44,7 @@ export default function TeamYearCost({ data }: { data: TeamYearOverview }) {
   return (
     <VStack gap="space-16">
       <Alert variant="warning" size="small">
-        {additive} Ikke legg sammen årstall for flere team.
+        {additive}
       </Alert>
       <div className="overflow-x-auto">
         <Table size="small" aria-label={`Forbruk per måned for ${data.team_slug} i ${data.year}`}>

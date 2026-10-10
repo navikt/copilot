@@ -76,8 +76,8 @@ async function TeamYear({ month, team, token }: { month: string; team: string; t
   return (
     <VStack gap="space-24">
       <BodyShort>
-        Forbruk per måned i {year} for ett team om gangen, med de samme tallene som månedsoversikten. Listen viser team
-        med minst fem medlemmer med forbruk i måneden du har valgt, og dine team først.
+        Forbruk per måned i {year} for ett team om gangen, regnet på samme måte som i månedsoversikten. Listen viser
+        dine team først, og bare team der minst fem medlemmer hadde forbruk i måneden du har valgt.
       </BodyShort>
       <TeamYearPicker teams={sorted} team={team} month={month} />
       {data ? <TeamYearCost data={data} /> : <BodyShort>Velg et team for å se forbruket per måned.</BodyShort>}

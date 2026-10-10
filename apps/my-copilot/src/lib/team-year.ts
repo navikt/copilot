@@ -10,13 +10,13 @@ export const basisLabel: Record<TeamYearMonth["basis"], string> = {
 export function teamYearCaveats(data: TeamYearOverview): string[] {
   const { membership_from, gross_from, last_usage_day } = data.coverage;
   return [
-    "Teambeløp kan ikke summeres på tvers av team. En person som er med i flere team, telles i hvert av dem.",
-    "Netto er fakturert forbruk etter fradrag, fordelt på dagene personen brukte Copilot. Brutto er listepris før fradrag og brukes til fakturaen for måneden er lest inn.",
-    `Ingen data betyr at teamhistorikk (fra ${membership_from || "ukjent"}) eller forbruk per person (fra ${gross_from || "ukjent"}) mangler for måneden.`,
-    "Skjult betyr at færre enn fem medlemmer hadde forbruk.",
-    "Netto uten bruk er fakturert beløp for medlemmer uten registrert bruk i måneden. Det kan ikke fordeles på dager og er ikke med i netto.",
+    "Beløp for ulike team kan ikke legges sammen, heller ikke for hele året. En person som er med i flere team, telles i hvert av dem.",
+    "Netto er fakturert forbruk etter fradrag, fordelt på dagene hver person brukte Copilot. Brutto er listepris før fradrag, og brukes inntil fakturaen for måneden er lest inn.",
+    `Ingen data betyr at måneden mangler teamhistorikk (finnes fra ${membership_from || "ukjent dato"}) eller forbruk per person (finnes fra ${gross_from || "ukjent dato"}).`,
+    "Skjult betyr at færre enn fem medlemmer hadde forbruk den måneden.",
+    "Netto uten bruk er fakturert beløp for medlemmer uten registrert bruk i måneden. Beløpet kan ikke fordeles på dager og er derfor ikke med i netto.",
     "Lisenser er ikke med.",
-    `Data til og med ${last_usage_day || "ukjent dato"}.`,
+    `Tallene går til og med ${last_usage_day || "ukjent dato"}.`,
   ];
 }
 

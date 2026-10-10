@@ -66,7 +66,7 @@ describe("GET /api/team-year", () => {
     expect(res.headers.get("Content-Disposition")).toContain("copilot-team-a-2026.csv");
     const lines = (await res.text()).trim().split("\n");
     const header = lines.findIndex((line) => !line.startsWith("#"));
-    expect(lines.slice(0, header).some((line) => line.includes("kan ikke summeres"))).toBe(true);
+    expect(lines.slice(0, header).some((line) => line.includes("kan ikke legges sammen"))).toBe(true);
     expect(lines.slice(header)).toEqual([
       "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd",
       "2026-04,Ingen data,,,,",
