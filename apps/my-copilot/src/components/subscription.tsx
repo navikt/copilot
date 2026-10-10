@@ -200,16 +200,22 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
     }
 
     async function loadSubscription() {
-      const [subscriptionResult] = await Promise.allSettled([fetch("/api/copilot")]);
+      let subscriptionResponse: Response | null = null;
+      try {
+        subscriptionResponse = await fetch("/api/copilot");
+      } catch {
+        // Handled below as an unknown error.
+      }
 
       if (cancelled) return;
 
       let resolvedUsername: string | null = null;
 
       // Handle subscription independently
-      if (subscriptionResult.status === "fulfilled") {
+      if (subscriptionResponse) {
         try {
-          const data = await subscriptionResult.value.json();
+          const data = await subscriptionResponse.json();
+          if (cancelled) return;
           if (data.error) {
             setSubscriptionError(data.error);
             setErrorTraceId(data.traceId ?? null);
@@ -232,6 +238,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         setSubscriptionError("Ukjent feil ved henting av abonnement");
       }
 
+      if (cancelled) return;
       setLoading(false);
 
       // Fetch usage metrics and daily credits if we have a GitHub username
@@ -310,7 +317,6 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                 <Skeleton variant="text" width="12rem" />
                 <Skeleton variant="text" width="12rem" />
                 <Skeleton variant="text" width="10rem" />
-                <Skeleton variant="text" width="6rem" />
                 <Skeleton variant="rectangle" width="10rem" height="3rem" />
                 <span className="sr-only">Laster abonnement...</span>
               </VStack>

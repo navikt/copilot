@@ -24,7 +24,6 @@ export default function Loading() {
             <BodyShort className="max-w-md opacity-70">
               Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.
             </BodyShort>
-            <div className="mt-2 min-h-14 md:min-h-9" />
           </VStack>
         </Box>
       </section>
