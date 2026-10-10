@@ -21,6 +21,8 @@ export const SOURCES = {
   template: `${MLX_WORKSPACE}/reports/TEMPLATE.md`,
   unmeasured: `${MLX_WORKSPACE}/reports/UNMEASURED.md`,
   cfRetry2: `${MLX_WORKSPACE}/reports/2026-10-08-cf-retry2/report.md`,
+  cfR34: `${MLX_WORKSPACE}/reports/2026-10-10-cf-r34/report.md`,
+  cfR3c: `${MLX_WORKSPACE}/reports/2026-10-11-cf-r3c/report.md`,
   phaseC: `${MLX_WORKSPACE}/reports/2026-10-01-phase-c-rerun/report.md`,
   emm8: `${MLX_WORKSPACE}/reports/2026-09-30-emm8-delegate/report.md`,
   smallDelegate: `${MLX_WORKSPACE}/reports/2026-10-10-small-delegate/report.md`,
@@ -32,6 +34,28 @@ export const SOURCES = {
   costRule: "https://github.com/navikt/mlx-workspace/pull/171",
   benchmarking: `${MLX_WORKSPACE}/BENCHMARKING.md#when-we-benchmark`,
 };
+
+// Rows in reports.json "unmeasured" that gate a decision, shown first on the
+// page. Matched on content because upstream renumbers the list.
+export const UNMEASURED_PRIORITY = [
+  /delegate bar's cost rule/i,
+  /capabilities in the shipped manifest/i,
+  /retry2.*edit-single/i,
+  /read-qa.*ANSWER-line/i,
+  /R1 and D2/i,
+  /selective rule loading/i,
+  /rule recall/i,
+  /TS tasks F1\/F2/i,
+];
+
+export function orderUnmeasured<T extends { item: string }>(rows: T[]): { first: T[]; rest: T[] } {
+  const rank = (u: T) => {
+    const i = UNMEASURED_PRIORITY.findIndex((re) => re.test(u.item));
+    return i < 0 ? Infinity : i;
+  };
+  const first = rows.filter((u) => rank(u) !== Infinity).sort((a, b) => rank(a) - rank(b));
+  return { first, rest: rows.filter((u) => rank(u) === Infinity) };
+}
 
 export type ResultRow = { task: string; result: string; verdict: string };
 export type ResultSet = { measured: string; source: string; rows: ResultRow[] };

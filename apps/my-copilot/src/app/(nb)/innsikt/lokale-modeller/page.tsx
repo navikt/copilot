@@ -24,6 +24,7 @@ import {
   MEASURED_MODEL,
   SOURCES,
   WORKER_RESULTS,
+  orderUnmeasured,
 } from "@/lib/local-model-results";
 import {
   FALLBACK_REPORTS,
@@ -156,21 +157,34 @@ function ReportsSection({ index }: { index: ReportIndex }) {
           <BodyShort size="small" textColor="subtle">
             Listen hentes fra navikt/mlx-workspace og er på engelsk.
           </BodyShort>
-          <Bullets>
-            {index.unmeasured.slice(0, 5).map((u) => (
-              <li key={u.item}>
-                {u.item}. <span style={{ color: "var(--ax-text-neutral-subtle)" }}>{u.status}</span>
-              </li>
-            ))}
-          </Bullets>
+          <BodyShort size="small">Disse punktene avgjør neste beslutning:</BodyShort>
+          <UnmeasuredList rows={orderUnmeasured(index.unmeasured).first} />
+          <details>
+            <summary className={linkClass} style={{ cursor: "pointer" }}>
+              Vis de andre {orderUnmeasured(index.unmeasured).rest.length} punktene
+            </summary>
+            <UnmeasuredList rows={orderUnmeasured(index.unmeasured).rest} />
+          </details>
           <BodyShort size="small">
             <a href={SOURCES.unmeasured} className={linkClass}>
-              Hele listen ({index.unmeasured.length} punkter)
+              Hele listen i navikt/mlx-workspace
             </a>
           </BodyShort>
         </VStack>
       )}
     </InsightSection>
+  );
+}
+
+function UnmeasuredList({ rows }: { rows: { item: string; status: string }[] }) {
+  return (
+    <Bullets>
+      {rows.map((u) => (
+        <li key={u.item} style={{ overflowWrap: "anywhere" }}>
+          {u.item}. <span style={{ color: "var(--ax-text-neutral-subtle)" }}>{u.status}</span>
+        </li>
+      ))}
+    </Bullets>
   );
 }
 
@@ -345,6 +359,22 @@ export default function LokaleModeller() {
             </a>{" "}
             26 av 40, mot 37 av 40 med retry2. Usikkerhetsintervallene (95 prosent) overlapper ikke. Gevinsten kommer
             altså fra retry2, og vi beholder det.
+          </li>
+          <li>
+            På de to vanskeligere trinnene er retry2 ikke godt nok ennå. På trinn 3 ga{" "}
+            <a href={SOURCES.cfR34} className={linkClass}>
+              målingen 10. oktober 2026
+            </a>{" "}
+            19 av 20 med standardmodellen og 9 av 10 med 8-bitsmodellen. Kravet er at nedre grense skal være minst 0,90,
+            og dit er det ikke ennå. En{" "}
+            <a href={SOURCES.cfR3c} className={linkClass}>
+              oppfølging 11. oktober 2026
+            </a>{" "}
+            ga standardmodellen 36 av 40 samlet. Den ensidige nedre grensen (90 prosent) er 0,82, under kravet på 0,90.
+            Alle de fire feilene nådde tidsgrensen på 420 sekunder per forsøk. Trinn 4 går til skymodellen med begge
+            profilene: standardmodellen ga 4 av 10 og 8-bitsmodellen 3 av 10, og de fleste feilene var tidsavbrudd.
+            Rutingen stopper derfor fortsatt etter trinn 2. Oppfølgingen målte ikke kostnad, så vi sier ingenting om
+            den.
           </li>
         </Bullets>
         <BodyShort size="small" textColor="subtle">

@@ -423,6 +423,17 @@
     "source": "https://raw.githubusercontent.com/navikt/mlx-workspace/main/manifest/reports.json",
     "reports": [
       {
+        "id": "2026-10-11-cf-r3c/report",
+        "title": "create-file retry2 r3, more optiq runs",
+        "date": "2026-10-11",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-11-cf-r3c/report.md",
+        "verdict": "not-yet",
+        "headline": {
+          "k": 36,
+          "n": 40
+        }
+      },
+      {
         "id": "2026-10-10-small-delegate/report",
         "title": "Small tasks locally and by delegation on optiq-64g and the 8-bit",
         "date": "2026-10-10",
@@ -461,6 +472,17 @@
         "headline": {
           "k": 26,
           "n": 28
+        }
+      },
+      {
+        "id": "2026-10-10-cf-r34/report",
+        "title": "create-file retry2 r3–r4 extras",
+        "date": "2026-10-10",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-10-cf-r34/report.md",
+        "verdict": "not-yet",
+        "headline": {
+          "k": 19,
+          "n": 20
         }
       },
       {
@@ -865,10 +887,6 @@
       {
         "item": "retry2 as the default for edit-single dispatch",
         "status": "parked (triggers only): needs re-probe 7 (#121)"
-      },
-      {
-        "item": "create-file retry2 against design §7's time rule",
-        "status": "retry2 run landed: r1–r2 trusted on both profiles, but mixed with harness changes (cf-retry2); base on the current harness is gap-fill step 2"
       },
       {
         "item": "read-qa: an ANSWER-line reminder on top of example",

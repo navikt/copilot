@@ -214,3 +214,14 @@ describe("getLocalReports", () => {
     expect(await getLocalReports()).toBe(FALLBACK_REPORTS);
   });
 });
+
+describe("orderUnmeasured", () => {
+  it("finds every decision-gating row in the fallback copy, in priority order", async () => {
+    const { UNMEASURED_PRIORITY, orderUnmeasured } = await import("./local-model-results");
+    const { default: fallback } = await import("./local-models.json");
+    const { first, rest } = orderUnmeasured(fallback.reports.unmeasured);
+    expect(first).toHaveLength(UNMEASURED_PRIORITY.length);
+    first.forEach((u, i) => expect(u.item).toMatch(UNMEASURED_PRIORITY[i]));
+    expect(first.length + rest.length).toBe(fallback.reports.unmeasured.length);
+  });
+});
