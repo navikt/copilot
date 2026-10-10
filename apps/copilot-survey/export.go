@@ -22,12 +22,12 @@ var redactions = []struct {
 	{regexp.MustCompile(`(?i)\bhttps?://[^\s?#]*\?\S*`), "[url]"},
 	{regexp.MustCompile(`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`), "[e-post]"},
 	{regexp.MustCompile(`\b\d{6} ?\d{5}\b`), "[fnr]"},
-	{regexp.MustCompile(`(?:(?:\+|00)47 ?)?\b[2-9]\d(?: ?\d){6}\b`), "[telefon]"},
+	{regexp.MustCompile(`(?:(?:\+|00)47 ?|\b)[2-9]\d(?: ?\d){6}\b`), "[telefon]"},
 	{regexp.MustCompile(`\B@[A-Za-z0-9][A-Za-z0-9-]{0,38}`), "[brukernavn]"},
 }
 
 // ipCandidate finds what may be an IPv4 or IPv6 address; netip decides.
-var ipCandidate = regexp.MustCompile(`\b(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9A-Fa-f]{0,4}(?::[0-9A-Fa-f]{0,4}){2,7})\b`)
+var ipCandidate = regexp.MustCompile(`(?:[0-9A-Fa-f]{0,4}:){2,7}(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9A-Fa-f]{1,4})?|\b\d{1,3}(?:\.\d{1,3}){3}\b`)
 
 func redact(s string) string {
 	for _, r := range redactions[:2] {

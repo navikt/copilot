@@ -14,6 +14,8 @@ func TestRedact(t *testing.T) {
 		"ring 912 34 567 eller +47 22334455":       "ring [telefon] eller [telefon]",
 		"fnr 01019912345 og 010199 12345":          "fnr [fnr] og [fnr]",
 		"fra 10.0.0.1 og 2001:db8::1":              "fra [ip] og [ip]",
+		"+4791234567 og 004791234567":              "[telefon] og [telefon]",
+		"::1, fe80:: og ::ffff:192.0.2.1":          "[ip], [ip] og [ip]",
 		"spør @octocat om det":                     "spør [brukernavn] om det",
 		"se https://example.com/a?q=abc og videre": "se [url] og videre",
 		// Negative cases: left as they are.
