@@ -43,6 +43,9 @@ type FactAggregates struct {
 	JuneWeekdayAvg   float64       `bigquery:"june_weekday_avg"`
 	JulyWeekdayAvg   float64       `bigquery:"july_weekday_avg"`
 	Families         []FamilyUsers `bigquery:"families"`
+	// From the weekly repo scan, not user_metrics; filled by the handler.
+	ActiveRepos            int64 `bigquery:"-"`
+	ActiveReposWithCustoms int64 `bigquery:"-"`
 }
 
 // FamilyUsers counts distinct users per model family the past week, largest first.
@@ -51,10 +54,12 @@ type FamilyUsers struct {
 	Users  int64  `bigquery:"users"`
 }
 
-// Fact is all the public endpoint returns.
+// Fact is all the public endpoint returns. WeekUsers is the rounded count of
+// people the past week for the front page's insight strip, omitted below 50.
 type Fact struct {
-	Text string `json:"text"`
-	Href string `json:"href"`
+	Text      string `json:"text"`
+	Href      string `json:"href"`
+	WeekUsers int    `json:"weekUsers,omitempty"`
 }
 
 type factTemplate struct {
@@ -72,10 +77,12 @@ func publicPct(num, den int64) (int, bool) {
 	return int(math.Round(float64(num) / float64(den) * 100)), true
 }
 
+func round50(n float64) int { return int(math.Round(n/50) * 50) }
+
 // roundPeople rounds a people count to the nearest 50 and groups thousands
 // Norwegian style (1 000). ok is false below 50, so «Rundt 0» never shows.
 func roundPeople(n float64) (string, bool) {
-	r := int(math.Round(n/50) * 50)
+	r := round50(n)
 	if r < 1000 {
 		return strconv.Itoa(r), r >= 50
 	}
@@ -139,6 +146,14 @@ var factTemplates = []factTemplate{
 	{"ukebrukere", "vekst", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
 		n, ok := roundPeople(float64(a.WeekUsers))
 		return "Rundt " + n + " personer brukte Copilot den siste uka.", ok
+	}},
+	{"maanedsbrukere", "vekst", "/innsikt/bruk", func(a *FactAggregates) (string, bool) {
+		n, ok := roundPeople(float64(a.MonthUsers))
+		return "Rundt " + n + " personer brukte Copilot de siste 28 dagene.", ok
+	}},
+	{"repoer-tilpasninger", "verktoy", "/innsikt/tilpasninger", func(a *FactAggregates) (string, bool) {
+		p, ok := publicPct(a.ActiveReposWithCustoms, a.ActiveRepos)
+		return fmt.Sprintf("%d %% av de aktive navikt-repoene har tilpasninger for Copilot.", p), ok
 	}},
 	{"vekst-juni", "vekst", "/innsikt/trender", func(a *FactAggregates) (string, bool) {
 		if a.JuneUsers < minPublicGroup || a.MonthUsers <= a.JuneUsers {
@@ -273,6 +288,17 @@ func (c *CachedBigQueryClient) GetFactAggregates(ctx context.Context) (*FactAggr
 	})
 }
 
+// withRepoCounts adds the repo scan to a copy; the cached aggregates are shared.
+func withRepoCounts(agg *FactAggregates, s *AdoptionSummary) *FactAggregates {
+	if agg == nil || s == nil {
+		return agg
+	}
+	a := *agg
+	a.ActiveRepos = s.ActiveReposWithRecentCommits
+	a.ActiveReposWithCustoms = int64(math.Round(s.AdoptionRateActiveOnly * float64(s.ActiveReposWithRecentCommits)))
+	return &a
+}
+
 func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Request) {
 	agg, err := h.bqClient.GetFactAggregates(r.Context())
 	if err != nil {
@@ -280,7 +306,17 @@ func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Reque
 		respondError(w, "internal_error", "Failed to fetch fact", http.StatusInternalServerError)
 		return
 	}
-	fact, _ := pickFact(time.Now().In(oslo), agg)
+	if s, err := h.bqClient.GetAdoptionSummary(r.Context()); err == nil {
+		agg = withRepoCounts(agg, s)
+	} else {
+		slog.Error("Failed to fetch adoption summary for fact", "error", err)
+	}
+	fact, id := pickFact(time.Now().In(oslo), agg)
+	if fact != nil && id != "ukebrukere" { // the sentence already says it
+		if n := round50(float64(agg.WeekUsers)); n >= 50 {
+			fact.WeekUsers = n
+		}
+	}
 	cacheControl(w, 3600, true)
 	respondJSON(w, fact, http.StatusOK) // null when no template has enough data
 }

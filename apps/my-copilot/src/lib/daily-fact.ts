@@ -1,14 +1,16 @@
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
 
-export type DailyFact = { text: string; href: string };
+export type DailyFact = { text: string; href: string; weekUsers?: number };
 
 // The day's sentence from copilot-api. The API picks the template and does the
 // rounding and suppression; this side only checks the shape. Any failure hides
-// the strip.
+// the fact and the weekly count.
 export function parseDailyFact(body: unknown): DailyFact | null {
   if (!body || typeof body !== "object") return null;
-  const { text, href } = body as Record<string, unknown>;
+  const { text, href, weekUsers } = body as Record<string, unknown>;
   if (typeof text !== "string" || !text || typeof href !== "string" || !href.startsWith("/innsikt")) return null;
+  // Rounded to 50 by the API; anything else is not a number we may show.
+  if (typeof weekUsers === "number" && weekUsers >= 50 && weekUsers % 50 === 0) return { text, href, weekUsers };
   return { text, href };
 }
 

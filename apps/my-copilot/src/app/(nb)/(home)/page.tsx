@@ -2,7 +2,8 @@ import { getNewsItems } from "@/lib/news";
 import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
 import { ExternalLinkIcon, PlayIcon, BookIcon } from "@navikt/aksel-icons";
 import { NewsFeed } from "@/components/news-feed";
-import { HighlightCards } from "@/components/pulse-strip";
+import { InsightStrip } from "@/components/insight-strip";
+import { WeeklyTip } from "@/components/weekly-tip";
 import { HomeShortsFeed } from "@/components/video/home-shorts-feed";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
 import { Greeting } from "@/components/greeting";
@@ -10,8 +11,6 @@ import { getUser } from "@/lib/auth";
 import { getPublicVideoFeed } from "@/lib/public-videos";
 import { NavCard } from "@/components/navigation/nav-card";
 import { HeroNetwork } from "@/components/hero-network/hero-network";
-import { DailyFact } from "@/components/daily-fact";
-import { Suspense } from "react";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getMcpServers } from "@/lib/mcp-registry";
 
@@ -50,11 +49,6 @@ export default async function Home() {
               {user && <Greeting />}
               Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.
             </BodyShort>
-            <div className="hero-animate-d2 mt-2">
-              <Suspense fallback={null}>
-                <DailyFact />
-              </Suspense>
-            </div>
           </VStack>
         </Box>
       </section>
@@ -66,11 +60,14 @@ export default async function Home() {
         >
           <VStack gap={{ xs: "space-24", md: "space-32" }}>
             <Box className="reveal-section">
-              <HighlightCards />
+              <InsightStrip />
             </Box>
 
             <Box className="reveal-section">
-              <SidebarCompact />
+              <WeeklyTip />
+            </Box>
+
+            <Box className="reveal-section">
               <div className="flex gap-8 lg:gap-10">
                 <div className="flex-1 min-w-0">
                   <NewsFeed
@@ -89,6 +86,7 @@ export default async function Home() {
                   <Sidebar />
                 </div>
               </div>
+              <SidebarCompact />
             </Box>
 
             <Box className="reveal-section">
