@@ -288,6 +288,8 @@ func (c *CachedBigQueryClient) GetFactAggregates(ctx context.Context) (*FactAggr
 	})
 }
 
+const adoptionBudget = 2 * time.Second
+
 // withRepoCounts adds the repo scan to a copy; the cached aggregates are shared.
 func withRepoCounts(agg *FactAggregates, s *AdoptionSummary) *FactAggregates {
 	if agg == nil || s == nil {
@@ -306,10 +308,27 @@ func (h *BigQueryHandlers) handlePublicFact(w http.ResponseWriter, r *http.Reque
 		respondError(w, "internal_error", "Failed to fetch fact", http.StatusInternalServerError)
 		return
 	}
-	if s, err := h.bqClient.GetAdoptionSummary(r.Context()); err == nil {
-		agg = withRepoCounts(agg, s)
-	} else {
-		slog.Error("Failed to fetch adoption summary for fact", "error", err)
+	// The repo count is optional: wait at most adoptionBudget for it, so a slow
+	// scan query never costs the front page its fact. The query keeps running
+	// and fills the cache for the next request.
+	type result struct {
+		s   *AdoptionSummary
+		err error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		s, err := h.bqClient.GetAdoptionSummary(r.Context())
+		ch <- result{s, err}
+	}()
+	select {
+	case res := <-ch:
+		if res.err == nil {
+			agg = withRepoCounts(agg, res.s)
+		} else {
+			slog.Error("Failed to fetch adoption summary for fact", "error", res.err)
+		}
+	case <-time.After(adoptionBudget):
+		slog.Warn("Adoption summary too slow for fact; serving without repo count")
 	}
 	fact, id := pickFact(time.Now().In(oslo), agg)
 	if fact != nil && id != "ukebrukere" { // the sentence already says it

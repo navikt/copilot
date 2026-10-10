@@ -35,14 +35,20 @@ async function Strip() {
           prefetch={false}
           className="group flex flex-1 items-start gap-2 text-inherit no-underline hover:underline"
         >
-          <LightBulbIcon aria-hidden fontSize="1.25rem" className="mt-0.5 shrink-0" />
+          <LightBulbIcon
+            aria-hidden
+            fontSize="1.25rem"
+            className="shrink-0"
+            style={{ marginTop: "var(--ax-space-2)" }}
+          />
           <BodyShort>
             <span className="font-semibold">Dagens innsikt: </span>
             {fact.text}
             <ArrowRightIcon
               aria-hidden
               fontSize="1rem"
-              className="ml-1 inline align-[-0.15em] transition-transform group-hover:translate-x-0.5"
+              style={{ marginLeft: "var(--ax-space-4)" }}
+              className="inline align-[-0.15em] transition-transform group-hover:translate-x-0.5"
             />
           </BodyShort>
         </NextLink>

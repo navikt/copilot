@@ -115,8 +115,10 @@ func TestPublicFactEndpoint(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 3 || got["text"] == "" || got["href"] == "" || got["weekUsers"] != float64(550) {
-		t.Fatalf("body %v, want text, href and weekUsers 550", got)
+	// weekUsers is left out on days the sentence itself is the weekly count.
+	weekly := strings.Contains(got["text"].(string), "den siste uka") && strings.HasPrefix(got["text"].(string), "Rundt")
+	if got["text"] == "" || got["href"] == "" || (weekly && len(got) != 2) || (!weekly && (len(got) != 3 || got["weekUsers"] != float64(550))) {
+		t.Fatalf("body %v, want text, href and (unless the weekly sentence) weekUsers 550", got)
 	}
 }
 
