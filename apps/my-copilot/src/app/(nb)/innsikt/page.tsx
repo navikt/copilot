@@ -47,10 +47,10 @@ export default function Innsikt() {
                 description="Copilot-bruk og kostnad per team. Krever innlogging."
               />
               <NavCard
-                href="/adopsjon"
+                href="/innsikt/tilpasninger"
                 prefetch={false}
                 icon={lock}
-                title="Adopsjon"
+                title="Tilpasninger"
                 description="KI-tilpasninger i navikt-repoene. Krever innlogging."
               />
               <NavCard
