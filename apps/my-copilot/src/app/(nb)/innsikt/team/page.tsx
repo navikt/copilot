@@ -59,6 +59,8 @@ async function TeamYear({ month, team, token }: { month: string; team: string; t
   } catch {
     return <ErrorState message="Kunne ikke hente teamlisten." />;
   }
+  // Same list as the month table: net when available, otherwise gross.
+  teams = (await getTeamNetOverview(month, token).catch(() => null))?.teams ?? teams;
   const mine = new Set(((await myTeamsOf(token).catch(() => null)) ?? []).map((slug) => slug.toLowerCase()));
   const own = (slug: string) => (mine.has(slug.toLowerCase()) ? 0 : 1);
   const sorted = [...teams].sort(

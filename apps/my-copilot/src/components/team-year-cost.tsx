@@ -4,7 +4,7 @@ import { Table, TableBody, TableColumnHeader, TableDataCell, TableHeader, TableR
 import { DownloadIcon } from "@navikt/aksel-icons";
 import type { TeamSpend, TeamYearMonth, TeamYearOverview } from "@/lib/types";
 import { basisLabel, teamYearCaveats } from "@/lib/team-year";
-import { formatUSD } from "@/lib/format";
+import { formatNumber, formatUSD } from "@/lib/format";
 
 const basisTag: Record<TeamYearMonth["basis"], "success" | "warning" | "neutral"> = {
   net: "success",
@@ -75,7 +75,9 @@ export default function TeamYearCost({ data }: { data: TeamYearOverview }) {
                     {basisLabel[m.basis]}
                   </Tag>
                 </TableDataCell>
-                <TableDataCell align="right">{m.users ?? (m.hidden ? "Skjult" : "—")}</TableDataCell>
+                <TableDataCell align="right">
+                  {m.users != null ? formatNumber(m.users) : m.hidden ? "Skjult" : "—"}
+                </TableDataCell>
                 <TableDataCell align="right">{m.basis === "net" ? cell(m, m.net_usd) : "—"}</TableDataCell>
                 <TableDataCell align="right">{m.basis === "none" ? "—" : cell(m, m.gross_usd)}</TableDataCell>
                 <TableDataCell align="right">{m.basis === "net" ? cell(m, m.no_usage_net_usd) : "—"}</TableDataCell>
