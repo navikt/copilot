@@ -24,6 +24,7 @@ export const SOURCES = {
   phaseC: `${MLX_WORKSPACE}/reports/2026-10-01-phase-c-rerun/report.md`,
   emm8: `${MLX_WORKSPACE}/reports/2026-09-30-emm8-delegate/report.md`,
   smallDelegate: `${MLX_WORKSPACE}/reports/2026-10-10-small-delegate/report.md`,
+  fixedSmall: `${MLX_WORKSPACE}/reports/2026-10-10-fixed-small/report.md`,
   prAudit: `${MLX_WORKSPACE}/reports/2026-10-09-navikt-pr-audit/report.md`,
   gapFill: `${MLX_WORKSPACE}/reports/2026-10-10-gap-fill/report.md`,
   k2Ifm: `${MLX_WORKSPACE}/reports/2026-10-10-k2-ifm/report.md`,

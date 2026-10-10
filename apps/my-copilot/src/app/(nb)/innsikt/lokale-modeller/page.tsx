@@ -383,6 +383,28 @@ export default function LokaleModeller() {
           ).
         </BodyLong>
         <BodyLong>
+          Endringer i konfigurasjon og deploy feilet først i alle 45 forsøkene. Feilen lå i testoppsettet. Etter
+          rettingen (
+          <a href="https://github.com/navikt/mlx-workspace/pull/189" className={linkClass}>
+            mlx-workspace#189
+          </a>
+          ) besto standardmodellen 12 av 14 og 8-bitsmodellen 14 av 14 (
+          <a href={SOURCES.fixedSmall} className={linkClass}>
+            målingen 10. oktober 2026
+          </a>
+          ). Samme måling ga disse resultatene per oppgavetype, standardmodellen mot 8-bitsmodellen:
+        </BodyLong>
+        <Bullets>
+          <li>endring i én fil: 37 av 42 mot 42 av 42</li>
+          <li>ny fil: 29 av 42 mot 31 av 42</li>
+          <li>mekanisk endring i flere filer: 25 av 28 mot 19 av 28</li>
+          <li>spørsmål om kodebasen: 39 av 42 mot 42 av 42</li>
+        </Bullets>
+        <BodyShort size="small" textColor="subtle">
+          Én oppgave er utelatt fordi testen trolig er feil, og én er pensjonert. Alle forsøkene kjørte lokalt. Målingen
+          er ikke brukt til å vurdere hva modellene er godkjent for.
+        </BodyShort>
+        <BodyLong>
           Tiden varierer fra omtrent som skyen på små endringer til rundt fire ganger så lenge på en omdøping. På store
           mekaniske endringer kan den lokale modellen være raskere.
         </BodyLong>
