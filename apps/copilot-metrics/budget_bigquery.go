@@ -121,7 +121,6 @@ func (c *BigQueryClient) InsertBudgetSnapshots(ctx context.Context, date time.Ti
 	}
 
 	table := c.client.Dataset(c.dataset).Table(budgetSnapshotsTable)
-	inserter := table.Inserter()
 
 	snapshotDate := civil.DateOf(date)
 	loadedAt := time.Now().UTC()
@@ -149,7 +148,7 @@ func (c *BigQueryClient) InsertBudgetSnapshots(ctx context.Context, date time.Ti
 		})
 	}
 
-	if err := inserter.Put(ctx, rows); err != nil {
+	if err := loadRows(ctx, table, rows); err != nil {
 		return fmt.Errorf("insert budget snapshot rows: %w", err)
 	}
 
@@ -266,7 +265,6 @@ func (c *BigQueryClient) InsertUserBudgetSnapshots(ctx context.Context, date tim
 	}
 
 	table := c.client.Dataset(c.dataset).Table(userBudgetSnapshotsTable)
-	inserter := table.Inserter()
 
 	snapshotDate := civil.DateOf(date)
 	loadedAt := time.Now().UTC()
@@ -284,7 +282,7 @@ func (c *BigQueryClient) InsertUserBudgetSnapshots(ctx context.Context, date tim
 		})
 	}
 
-	if err := inserter.Put(ctx, rows); err != nil {
+	if err := loadRows(ctx, table, rows); err != nil {
 		return fmt.Errorf("insert user budget snapshot rows: %w", err)
 	}
 

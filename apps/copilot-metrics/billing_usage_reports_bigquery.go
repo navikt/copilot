@@ -105,7 +105,6 @@ func (c *BigQueryClient) InsertBillingUsageReportDay(ctx context.Context, day ti
 	}
 
 	table := c.client.Dataset(c.dataset).Table(billingUsageReportsTable)
-	inserter := table.Inserter()
 	reportDay := civil.DateOf(day)
 	loadedAt := time.Now().UTC()
 
@@ -129,7 +128,7 @@ func (c *BigQueryClient) InsertBillingUsageReportDay(ctx context.Context, day ti
 		})
 	}
 
-	if err := inserter.Put(ctx, rows); err != nil {
+	if err := loadRows(ctx, table, rows); err != nil {
 		return fmt.Errorf("insert billing usage report rows: %w", err)
 	}
 
