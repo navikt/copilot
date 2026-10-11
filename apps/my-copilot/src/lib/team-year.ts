@@ -15,27 +15,24 @@ export function teamYearCaveats(data: TeamYearOverview): string[] {
     `Ingen data betyr at måneden mangler teamhistorikk (finnes fra ${membership_from || "ukjent dato"}) eller forbruk per person (finnes fra ${gross_from || "ukjent dato"}).`,
     "Skjult betyr at færre enn fem medlemmer hadde forbruk den måneden.",
     "Netto uten bruk er fakturert beløp for medlemmer uten registrert bruk i måneden. Beløpet kan ikke fordeles på dager og er derfor ikke med i netto.",
-    data.coverage.seats_snapshot
-      ? "Lisenser er et anslag: listepris 19 USD per måned for hvert medlem med lisens, fra datoen lisensen ble tildelt. Hadde noen lisens før det, er den perioden ikke med. Bare medlemmer som brukte Copilot i måneden, telles. Færre enn fem vises ikke."
-      : "Lisenser er ikke lest inn ennå. De vises etter første nattlige innlesing.",
+    ...licenceCaveats(data),
     `Tallene går til og med ${last_usage_day || "ukjent dato"}.`,
   ];
 }
 
-const amount = (value: number | null) => (value === null ? "" : value.toFixed(2));
-
-/** Usage for the month's basis plus the licence estimate, or null when either part is missing. */
-export function totalWithLicences(m: TeamYearMonth): number | null {
-  const usage =
-    m.basis === "net" && m.net_usd !== null
-      ? m.net_usd + (m.no_usage_net_usd ?? 0)
-      : m.basis === "gross"
-        ? m.gross_usd
-        : null;
-  return usage == null || m.licence_usd_estimate == null
-    ? null
-    : Math.round((usage + m.licence_usd_estimate) * 100) / 100;
+function licenceCaveats(data: TeamYearOverview): string[] {
+  const { seats_snapshot, team_members_from } = data.coverage;
+  if (!seats_snapshot || !team_members_from) {
+    return ["Lisenser er ikke lest inn ennå. De vises etter første nattlige innlesing."];
+  }
+  return [
+    "Lisenser er et anslag: listepris 19 USD (Business) eller 39 USD (Enterprise) per måned for hvert medlem av teamet med lisens, fra datoen lisensen ble tildelt. Hadde noen lisens før det, er den perioden ikke med. Med færre enn fem lisenser vises ikke tallet.",
+    `Medlemslister finnes fra ${team_members_from}. For månedene før bruker vi medlemmene teamet hadde da.`,
+    "Totalt med lisenser er netto og netto uten bruk, eller brutto, pluss lisenser. Feltet er tomt når en av delene mangler eller er skjult.",
+  ];
 }
+
+const amount = (value: number | null | undefined) => (value == null ? "" : value.toFixed(2));
 
 export function teamYearCsv(data: TeamYearOverview): string {
   const lines = [
@@ -51,8 +48,8 @@ export function teamYearCsv(data: TeamYearOverview): string {
         amount(m.gross_usd),
         amount(m.no_usage_net_usd),
         m.seat_months ?? "",
-        amount(m.licence_usd_estimate ?? null),
-        amount(totalWithLicences(m)),
+        amount(m.licence_usd_estimate),
+        amount(m.total_usd),
       ].join(",")
     ),
   ];

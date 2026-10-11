@@ -3,7 +3,7 @@ import { List, ListItem } from "@navikt/ds-react/List";
 import { Table, TableBody, TableColumnHeader, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import { DownloadIcon } from "@navikt/aksel-icons";
 import type { TeamSpend, TeamYearMonth, TeamYearOverview } from "@/lib/types";
-import { basisLabel, teamYearCaveats, totalWithLicences } from "@/lib/team-year";
+import { basisLabel, teamYearCaveats } from "@/lib/team-year";
 import { formatNumber, formatUSD } from "@/lib/format";
 
 const basisTag: Record<TeamYearMonth["basis"], "success" | "warning" | "neutral"> = {
@@ -11,8 +11,6 @@ const basisTag: Record<TeamYearMonth["basis"], "success" | "warning" | "neutral"
   gross: "warning",
   none: "neutral",
 };
-
-const formatTotal = (value: number | null) => (value === null ? "—" : formatUSD(value));
 
 const monthName = (month: string) =>
   new Date(`${month}-01T00:00:00Z`).toLocaleDateString("nb-NO", { month: "long", timeZone: "UTC" });
@@ -96,7 +94,7 @@ export default function TeamYearCost({ data }: { data: TeamYearOverview }) {
                 <TableDataCell align="right">
                   {m.licence_usd_estimate != null ? formatUSD(m.licence_usd_estimate) : "—"}
                 </TableDataCell>
-                <TableDataCell align="right">{formatTotal(totalWithLicences(m))}</TableDataCell>
+                <TableDataCell align="right">{m.total_usd != null ? formatUSD(m.total_usd) : "—"}</TableDataCell>
               </TableRow>
             ))}
           </TableBody>

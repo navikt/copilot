@@ -18,6 +18,7 @@ const data: TeamYearOverview = {
     last_usage_day: "2026-10-09",
     net_months: ["2026-08"],
     seats_snapshot: "2026-10-11",
+    team_members_from: "2026-10-11",
   },
   months: [
     {
@@ -30,6 +31,8 @@ const data: TeamYearOverview = {
       no_usage_net_usd: null,
       seat_months: null,
       licence_usd_estimate: null,
+      total_usd: null,
+      total_basis: "none",
     },
     {
       month: "2026-07",
@@ -41,6 +44,8 @@ const data: TeamYearOverview = {
       no_usage_net_usd: null,
       seat_months: 9,
       licence_usd_estimate: 171,
+      total_usd: null,
+      total_basis: "none",
     },
     {
       month: "2026-08",
@@ -52,6 +57,8 @@ const data: TeamYearOverview = {
       no_usage_net_usd: 2,
       seat_months: 8,
       licence_usd_estimate: 152,
+      total_usd: 234.1,
+      total_basis: "net",
     },
   ],
 };
@@ -103,6 +110,7 @@ describe("GET /api/team-year", () => {
       "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
     ]);
     expect(lines.some((line) => line.includes("Lisenser er et anslag"))).toBe(true);
+    expect(lines.some((line) => line.includes("brukte Copilot i måneden"))).toBe(false);
     expect(getTeamYearOverview).toHaveBeenCalledWith("123", 2026, "token");
   });
 });

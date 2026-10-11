@@ -301,6 +301,9 @@ export interface TeamYearMonth {
   seat_months: number | null;
   /** seat_months at the 19 USD list price. An estimate, not billed. */
   licence_usd_estimate: number | null;
+  /** Basis amount (net plus no-usage net, or gross) plus licences; null when any part is hidden or missing. */
+  total_usd: number | null;
+  total_basis: "net" | "gross" | "none";
 }
 
 export interface TeamYearOverview {
@@ -314,6 +317,7 @@ export interface TeamYearOverview {
     last_usage_day: string;
     net_months: string[];
     seats_snapshot: string;
+    team_members_from: string;
   };
 }
 
