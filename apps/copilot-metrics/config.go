@@ -43,7 +43,7 @@ func loadConfig() *Config {
 		BigQueryUserTeamsTable:     getEnv("BIGQUERY_USER_TEAMS_TABLE", "user_teams"),
 		BigQueryUserMetricsTable:   getEnv("BIGQUERY_USER_METRICS_TABLE", "user_metrics"),
 		BigQueryRepoMetricsTable:   getEnv("BIGQUERY_REPO_METRICS_TABLE", "repository_metrics"),
-		SlackWebhookURL:            getEnv("SLACK_ALERT_WEBHOOK_URL", getEnv("SLACK_WEBHOOK_URL", "")),
+		SlackWebhookURL:            getEnv("SLACK_WEBHOOK_URL", ""),
 	}
 }
 

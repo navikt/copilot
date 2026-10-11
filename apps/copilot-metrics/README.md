@@ -24,7 +24,7 @@ GitHub Usage Metrics API → copilot-metrics (Naisjob) → BigQuery
 - **Idempotent**: Re-runs delete and re-insert data for the same day
 - **Raw JSON storage**: Schema changes in GitHub API don't break the pipeline
 - **Billing usage report ingestion**: Daily organization billing usage rows with one-off backfill support
-- **Slack alerts**: Notifies on ingestion failures when `SLACK_ALERT_WEBHOOK_URL` (or the older `SLACK_WEBHOOK_URL`) is configured
+- **Slack alerts**: Notifies on ingestion failures when `SLACK_WEBHOOK_URL` is configured
 
 ## Usage
 
@@ -197,8 +197,7 @@ Locally this needs naisdevice to reach `mimir.nav.cloud.nais.io`.
 | `BIGQUERY_DATASET`           | BigQuery dataset name                | `copilot_metrics` |
 | `BIGQUERY_TABLE`             | BigQuery table name                  | `usage_metrics`   |
 | `BIGQUERY_REPO_METRICS_TABLE` | Per-repository metrics table name   | `repository_metrics` |
-| `SLACK_ALERT_WEBHOOK_URL`    | Slack webhook for failure alerts     | (optional)        |
-| `SLACK_WEBHOOK_URL`          | Fallback when the above is unset     | (optional)        |
+| `SLACK_WEBHOOK_URL`          | Slack webhook for failure alerts     | (optional)        |
 
 ## BigQuery Schema
 
