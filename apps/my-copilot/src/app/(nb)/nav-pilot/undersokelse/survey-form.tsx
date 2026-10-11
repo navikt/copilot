@@ -135,7 +135,7 @@ export function SurveyForm({ survey }: { survey: Survey }) {
         <GuidePanel poster={false}>
           <BodyLong spacing>
             Vi lagrer ikke navn eller e-post sammen med svarene. Mens undersøkelsen er åpen, lagrer vi en kryptografisk
-            sjekksum av innloggingen for å hindre dobbeltsvar. Den slettes når undersøkelsen stenger.
+            sjekksum av innloggingen for å hindre dobbeltsvar. Den slettes etter at undersøkelsen har stengt.
           </BodyLong>
           <BodyLong>Svarene kan ikke endres eller trekkes tilbake etterpå.</BodyLong>
         </GuidePanel>

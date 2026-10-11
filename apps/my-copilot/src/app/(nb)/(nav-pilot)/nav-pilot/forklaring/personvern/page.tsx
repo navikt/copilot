@@ -98,9 +98,9 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
           <BodyLong>
             Vi lagrer ikke navn eller e-post sammen med svarene. Mens undersøkelsen er åpen, lagrer vi en kryptografisk
             sjekksum av innloggingen (<code className={code}>nav-pilot auth login</code>) for å hindre dobbeltsvar. Den
-            slettes når undersøkelsen stenger. nav-pilot spør ikke uten terminal, i CI, når klientens argumenter står
-            etter <code className={code}>--</code>, eller når målinger er slått av. Vil du slå av bare undersøkelsene,
-            ikke målingene:
+            slettes etter at undersøkelsen har stengt. nav-pilot spør ikke uten terminal, i CI, når klientens argumenter
+            står etter <code className={code}>--</code>, eller når målinger er slått av. Vil du slå av bare
+            undersøkelsene, ikke målingene:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
           <BodyLong>

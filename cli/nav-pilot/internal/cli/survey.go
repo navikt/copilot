@@ -136,7 +136,7 @@ const surveyCollected = "Dette sendes: svarene dine, nav-pilot-versjon, operativ
 	"Dette sendes ikke: navn, GitHub-bruker, enhets-ID, kode eller noe fra øktene dine.\n" +
 	"Vi lagrer ikke navn eller e-post sammen med svarene. Mens undersøkelsen er åpen,\n" +
 	"lagrer vi en kryptografisk sjekksum av innloggingen for å hindre dobbeltsvar.\n" +
-	"Den slettes når undersøkelsen stenger."
+	"Den slettes etter at undersøkelsen har stengt."
 
 func surveyStatePath() (string, error) {
 	dir, err := telemetrypkg.GetConfigDir()

@@ -69,7 +69,7 @@ export default function PersonvernPage() {
               </li>
               <li>
                 <BodyLong as="span">
-                  Når nav-pilot starter Copilot, slår den på Copilots egne målinger, med samme mottaker.
+                  Når nav-pilot starter Copilot eller opencode, slår den på deres egne målinger, med samme mottaker.
                 </BodyLong>
               </li>
               <li>

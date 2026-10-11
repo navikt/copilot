@@ -1263,7 +1263,7 @@ func maybeTelemetryNotice() {
 	if !telemetrypkg.TelemetryEnabled() || !isInteractive() || !providerpkg.FirstTime("telemetry-notice") {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "%s nav-pilot sends pseudonymous usage metrics (no content; navikt repo names included), and turns on Copilot's own telemetry for sessions it starts.\n  Turn off: DO_NOT_TRACK=1 or NAV_PILOT_TELEMETRY_ENABLED=false.\n\n", dim("ℹ"))
+	fmt.Fprintf(os.Stderr, "%s nav-pilot sends pseudonymous usage metrics (no content; navikt repo names included), and turns on Copilot's and opencode's own telemetry for sessions it starts.\n  Turn off: DO_NOT_TRACK=1 or NAV_PILOT_TELEMETRY_ENABLED=false.\n\n", dim("ℹ"))
 }
 
 // exitCodeFor maps a run error to an exit code.
