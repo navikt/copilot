@@ -4,7 +4,7 @@ import { Alert, Box, BodyLong, Heading, Link, VStack } from "@navikt/ds-react";
 import { Bullets } from "@/components/nav-pilot/doc-page";
 import { PageHero } from "@/components/page-hero";
 import { getUser } from "@/lib/auth";
-import { getActiveSurveys } from "@/lib/survey";
+import { getActiveSurveys, SURVEY_SCHEDULE, surveyWindow } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
 export const metadata: Metadata = {
@@ -18,6 +18,12 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
   const active = await getActiveSurveys();
   const surveys = active.status === "ok" ? active.surveys : [];
   const { id } = await searchParams;
+  const phase = surveyWindow();
+  const opens = new Date(SURVEY_SCHEDULE.starts).toLocaleDateString("nb-NO", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
   const survey = surveys.length === 1 ? surveys[0] : surveys.find((s) => s.id === id);
 
   return (
@@ -34,7 +40,11 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
           {active.status === "ok" && surveys.length === 0 && (
             <VStack gap="space-8">
               <Heading size="medium" level="2">
-                Ingen åpen undersøkelse akkurat nå
+                {phase === "before"
+                  ? `Neste undersøkelse åpner ${opens}`
+                  : phase === "after"
+                    ? "Undersøkelsen er stengt. Takk til alle som svarte."
+                    : "Ingen åpen undersøkelse akkurat nå"}
               </Heading>
               <BodyLong>
                 Når en undersøkelse er åpen, kan du svare her eller i terminalen med{" "}

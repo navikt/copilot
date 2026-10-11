@@ -52,6 +52,21 @@ export type ActiveSurveys = { status: "ok"; surveys: Survey[] } | { status: "err
  * copilot-survey) means no open survey; an unreachable or failing copilot-survey
  * is an error, so the page does not claim the survey has closed.
  */
+// ponytail: copilot-survey serves only open surveys, so the page reads the
+// window around them from here. Update it when the next survey is scheduled;
+// a schedule endpoint in copilot-survey would replace it.
+export const SURVEY_SCHEDULE = { starts: "2026-10-13", ends: "2026-10-27" };
+
+/** Where today (UTC, as copilot-survey counts) falls against a window: before it, after it, or neither. */
+export function surveyWindow(
+  today: string = new Date().toISOString().slice(0, 10),
+  schedule: { starts: string; ends: string } = SURVEY_SCHEDULE
+): "before" | "after" | undefined {
+  if (today < schedule.starts) return "before";
+  if (today > schedule.ends) return "after";
+  return undefined;
+}
+
 export async function getActiveSurveys(): Promise<ActiveSurveys> {
   const url = process.env.COPILOT_SURVEY_URL;
   if (!url) return { status: "ok", surveys: [] };

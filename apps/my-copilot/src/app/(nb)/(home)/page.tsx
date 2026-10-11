@@ -13,9 +13,16 @@ import { NavCard } from "@/components/navigation/nav-card";
 import { HeroNetwork } from "@/components/hero-network/hero-network";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getMcpServers } from "@/lib/mcp-registry";
+import { getActiveSurveys } from "@/lib/survey";
+import { SurveyNotice } from "@/components/survey-notice";
 
 export default async function Home() {
-  const [user, videos, mcpServers] = await Promise.all([getUser(false), getPublicVideoFeed(5), getMcpServers()]);
+  const [user, videos, mcpServers, surveys] = await Promise.all([
+    getUser(false),
+    getPublicVideoFeed(5),
+    getMcpServers(),
+    getActiveSurveys(),
+  ]);
   const items = getAllCustomizations();
   const count = (type: string) => items.filter((i) => i.type === type).length;
   const clusters = [
@@ -59,6 +66,8 @@ export default async function Home() {
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap={{ xs: "space-24", md: "space-32" }}>
+            <SurveyNotice active={surveys} />
+
             <Box className="reveal-section">
               <InsightStrip />
             </Box>

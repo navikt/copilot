@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   choseOther,
+  surveyWindow,
   getActiveSurveys,
   isSkipped,
   optionsOf,
@@ -121,5 +122,15 @@ describe("types follow copilot-survey's schema.json", () => {
     expect(Object.keys(question).sort()).toEqual(fields(schema.$defs.question.properties));
     expect(Object.keys(survey).sort()).toEqual(fields(schema.properties));
     expect(Object.keys(item).sort()).toEqual(fields(schema.$defs.item.properties));
+  });
+});
+
+describe("surveyWindow", () => {
+  const schedule = { starts: "2026-10-13", ends: "2026-10-27" };
+  it("says before, during (undefined) and after, counting both end days as open", () => {
+    expect(surveyWindow("2026-10-12", schedule)).toBe("before");
+    expect(surveyWindow("2026-10-13", schedule)).toBeUndefined();
+    expect(surveyWindow("2026-10-27", schedule)).toBeUndefined();
+    expect(surveyWindow("2026-10-28", schedule)).toBe("after");
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { Survey } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
@@ -31,7 +31,7 @@ describe("SurveyForm matrix", () => {
     sendSurvey.mockResolvedValue({ status: "recorded" });
     render(<SurveyForm survey={survey} />);
     expect(screen.getByRole("group", { name: "Hvor enig er du?" })).toBeInTheDocument();
-    expect(screen.getAllByRole("radio")).toHaveLength(6);
+    expect(screen.getAllByRole("radio")).toHaveLength(12); // table, and the stacked groups shown below md
 
     fireEvent.click(screen.getByRole("radio", { name: "Den er rask. Enig" }));
     fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
@@ -39,6 +39,25 @@ describe("SurveyForm matrix", () => {
     expect(sendSurvey).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("radio", { name: "Den er trygg. Uenig" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+    expect(sendSurvey).toHaveBeenCalledWith("s", { fast: 3, safe: 1 });
+  });
+
+  it("stacks each statement as its own radio group below md, with the same answers and error focus", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "recorded" });
+    render(<SurveyForm survey={survey} />);
+    const fast = screen.getByRole("radiogroup", { name: "Den er rask." });
+    fireEvent.click(within(fast).getByRole("radio", { name: "Enig" }));
+    expect(screen.getByRole("radio", { name: "Den er rask. Enig" })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    const item = await screen.findByRole("link", { name: "Hvor enig er du?: Svar på alle påstandene." });
+    expect(item).toHaveAttribute("href", "#q-grid");
+    expect(document.getElementById("q-grid")).toContainElement(fast);
+
+    fireEvent.click(
+      within(screen.getByRole("radiogroup", { name: "Den er trygg." })).getByRole("radio", { name: "Uenig" })
+    );
     fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
     expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
     expect(sendSurvey).toHaveBeenCalledWith("s", { fast: 3, safe: 1 });

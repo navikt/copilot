@@ -293,8 +293,8 @@ function Question({
 
 /**
  * A matrix as a table: one row per statement, one column per scale step, a
- * radio in each cell named by its row and column headers. It scrolls sideways
- * when the screen is too narrow.
+ * radio in each cell named by its row and column headers. Below md, where five
+ * columns do not fit, each statement is its own radio group instead.
  */
 function Matrix({
   q,
@@ -310,7 +310,27 @@ function Matrix({
   const steps = scaleSteps(q);
   return (
     <Fieldset id={`q-${q.id}`} tabIndex={-1} legend={q.required ? q.text : `${q.text} (valgfritt)`} error={error}>
-      <div className="overflow-x-auto">
+      {/* A plain div: Aksel's own display rule on VStack outranks md:hidden. */}
+      <div className="md:hidden">
+        <VStack gap="space-16">
+          {(q.items ?? []).map((it) => (
+            <RadioGroup
+              key={it.id}
+              legend={it.text}
+              size="small"
+              value={answers[it.id] ?? null}
+              onChange={(n: number) => onChange(it.id, n)}
+            >
+              {steps.map((n, i) => (
+                <Radio key={n} value={n}>
+                  {q.labels?.[i] ?? String(n)}
+                </Radio>
+              ))}
+            </RadioGroup>
+          ))}
+        </VStack>
+      </div>
+      <div className="hidden md:block">
         <table className="w-full border-collapse">
           <thead>
             <tr>
