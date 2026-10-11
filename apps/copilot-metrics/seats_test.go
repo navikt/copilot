@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/civil"
 )
 
 func TestFetchCopilotSeatsRows(t *testing.T) {
@@ -56,11 +58,17 @@ func TestIngestTodayCopilotSeats(t *testing.T) {
 		if day.Format("20060102") != "20261011" {
 			t.Errorf("day = %v", day)
 		}
+		for _, r := range rows {
+			if r.SnapshotDate.String() != "2026-10-11" {
+				t.Errorf("row stamped %s, partition is 2026-10-11", r.SnapshotDate)
+			}
+		}
 		stored = len(rows)
 		return nil
 	}
 	if err := ingestTodayCopilotSeats(context.Background(), func(context.Context) ([]*SeatRow, error) {
-		return []*SeatRow{{UserID: 1}}, nil
+		// Fetched before midnight: the row's own day must not win.
+		return []*SeatRow{{UserID: 1, SnapshotDate: civil.Date{Year: 2026, Month: 10, Day: 10}}}, nil
 	}, store, now); err != nil || stored != 1 {
 		t.Fatalf("err=%v stored=%d", err, stored)
 	}

@@ -325,9 +325,11 @@ this table was first deployed. `v_seat_counts_monthly` keeps the last row per mo
 
 Daily snapshot of every Copilot seat from the same seats API: `snapshot_date`,
 `scope_id`, `user_id`, `login`, `plan_type`, `created_at` (when the current seat
-was assigned) and `pending_cancellation_date`. Partitioned by day. Written with a
-load job that truncates the day's partition, so a re-run replaces the day. Partitions expire after 400 days. No
-backfill. copilot-api reads it for the licence estimate in the team year view.
+was assigned) and `pending_cancellation_date` (the first day of the next billing
+cycle, so the seat's last day is the day before). Partitioned by day. Written
+with a load job that truncates the day's partition, so a re-run replaces the
+day. Partitions expire after 400 days. No backfill. copilot-api reads it for the
+licence estimate in the team year view.
 
 ### `team_members` table
 

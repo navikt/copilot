@@ -136,6 +136,11 @@ func TestTeamYearQueryWithoutBillingTables(t *testing.T) {
 		if strings.Contains(q.Q, "%!") || (net && !strings.Contains(q.Q, "'enterprise',39.00,19.00")) {
 			t.Errorf("seat prices not formatted into the query")
 		}
+		// pending_cancellation_date is the first day of the next billing
+		// cycle, so the cancellation month itself is not a seat month.
+		if net && !strings.Contains(q.Q, "DATE_SUB(pending_cancellation_date,INTERVAL 1 DAY)") {
+			t.Errorf("cancellation month counted as a seat month")
+		}
 		if billing != net || !strings.Contains(q.Q, "user_metrics") || !strings.Contains(q.Q, "day>=DATE(@from) AND day<DATE(@to)") {
 			t.Errorf("net=%v: billing tables referenced = %v", net, billing)
 		}

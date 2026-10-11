@@ -149,22 +149,26 @@ const teamYearSeatsStub = `seat_snap AS (SELECT DATE(NULL) d
 // teamYearSeatsCTEs counts, per month, the team's members with a seat that
 // covered the month. Members come from team_members by the slugs the team
 // had in the year; months before its first day use that day's members.
-// Seats are month ranges from each login's latest snapshot; a seat that left
-// the list without a cancellation date ends in the month it was last seen.
+// Seats are month ranges from each login's latest snapshot. GitHub's
+// pending_cancellation_date is the first day of the next billing cycle, so the
+// seat's last month is the month of the day before. A seat that left the list
+// without a cancellation date ends in the month it was last seen. Both scans
+// start at @from: a seat or member last seen before the year cannot cover a
+// month in it.
 func (bq *BigQueryClient) teamYearSeatsCTEs() string {
 	seats := bq.tableRef(bq.metricsDataset, "copilot_seats")
 	members := bq.tableRef(bq.metricsDataset, "team_members")
 	return fmt.Sprintf(`seat_snap AS (SELECT MAX(snapshot_date) d FROM %[1]s
 ), seats AS (
  SELECT LOWER(login) login,plan_type,DATE_TRUNC(DATE(created_at),MONTH) from_m,
-  COALESCE(DATE_TRUNC(pending_cancellation_date,MONTH),
+  COALESCE(DATE_TRUNC(DATE_SUB(pending_cancellation_date,INTERVAL 1 DAY),MONTH),
    IF(snapshot_date<(SELECT d FROM seat_snap),DATE_TRUNC(snapshot_date,MONTH),NULL)) to_m
- FROM %[1]s WHERE created_at IS NOT NULL
+ FROM %[1]s WHERE snapshot_date>=DATE(@from) AND created_at IS NOT NULL
  QUALIFY ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY snapshot_date DESC)=1
 ), tm_first AS (SELECT MIN(date) d FROM %[2]s
 ), tm AS (
  SELECT date,DATE_TRUNC(date,MONTH) month,LOWER(login) login FROM %[2]s
- WHERE date<DATE(@to) AND team_slug IN (SELECT team_slug FROM memberships WHERE team_id=@team)
+ WHERE date>=DATE(@from) AND date<DATE(@to) AND team_slug IN (SELECT team_slug FROM memberships WHERE team_id=@team)
 ), team_lic AS (
  SELECT DISTINCT m month,tm.login
  FROM UNNEST(GENERATE_DATE_ARRAY(DATE(@from),DATE_SUB(DATE(@to),INTERVAL 1 DAY),INTERVAL 1 MONTH)) m

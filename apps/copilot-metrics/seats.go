@@ -44,7 +44,7 @@ func (c *BigQueryClient) EnsureCopilotSeatsTableExists(ctx context.Context) erro
 			{Name: "login", Type: bigquery.StringFieldType, Required: true, Description: "GitHub login of the assignee"},
 			{Name: "plan_type", Type: bigquery.StringFieldType, Description: "business or enterprise"},
 			{Name: "created_at", Type: bigquery.TimestampFieldType, Description: "When the current seat was assigned"},
-			{Name: "pending_cancellation_date", Type: bigquery.DateFieldType, Description: "Last day of the seat, if cancelled"},
+			{Name: "pending_cancellation_date", Type: bigquery.DateFieldType, Description: "First day of the next billing cycle, if cancelled; the seat's last day is the day before"},
 			{Name: "loaded_at", Type: bigquery.TimestampFieldType, Required: true, Description: "When the row was written"},
 		},
 		TimePartitioning: &bigquery.TimePartitioning{Type: bigquery.DayPartitioningType, Field: "snapshot_date", Expiration: 400 * 24 * time.Hour},
@@ -121,6 +121,12 @@ func ingestTodayCopilotSeats(
 	if len(rows) == 0 {
 		slog.Warn("No Copilot seats returned, nothing written")
 		return nil
+	}
+	// The load job truncates the partition for now's day, and every row must
+	// fall in it. Stamp the rows here so a fetch just before midnight cannot
+	// disagree with the store after it.
+	for _, r := range rows {
+		r.SnapshotDate = civil.DateOf(now.UTC())
 	}
 	if err := store(ctx, now.UTC(), rows); err != nil {
 		return fmt.Errorf("store seats: %w", err)
