@@ -411,7 +411,7 @@ func main() {
 				}},
 			)
 		}
-		// Budget snapshots — today is the primary target but also retry
+		// Budget snapshots: today is the primary target but also retry
 		// yesterday in case the previous run failed (snapshots are point-in-time
 		// and lost forever if not captured).
 		if budgetClient != nil {
@@ -438,8 +438,8 @@ func main() {
 				return nil
 			}})
 		}
-		if err := runIngestSteps(steps); err != nil {
-			slog.Error("Ingestion finished with failures", "error", err)
+		if runIngestSteps(steps) != nil {
+			slog.Error("Ingestion finished with failures; see step errors above")
 			os.Exit(1)
 		}
 		slog.Info("Ingestion completed successfully")

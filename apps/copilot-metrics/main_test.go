@@ -742,15 +742,17 @@ func (f *callbackFetcher) FetchDailyRepoMetrics(_ context.Context, _ time.Time) 
 }
 
 func TestRunIngestSteps_FailureDoesNotStopLaterSteps(t *testing.T) {
+	errA, errB := errors.New("a"), errors.New("b")
 	ran := false
 	err := runIngestSteps([]ingestStep{
-		{"first", func() error { return errors.New("boom") }},
-		{"second", func() error { ran = true; return nil }},
+		{"first", func() error { return errA }},
+		{"second", func() error { return errB }},
+		{"third", func() error { ran = true; return nil }},
 	})
 	if !ran {
-		t.Fatal("second step did not run after first failed")
+		t.Fatal("third step did not run after earlier steps failed")
 	}
-	if err == nil || err.Error() != "first: boom" {
-		t.Fatalf("err = %v, want first: boom", err)
+	if !errors.Is(err, errA) || !errors.Is(err, errB) {
+		t.Fatalf("err = %v, want both step errors joined", err)
 	}
 }
