@@ -588,9 +588,12 @@ type copilotSeatResponse struct {
 
 type copilotSeat struct {
 	Assignee struct {
+		ID    int64  `json:"id"`
 		Login string `json:"login"`
 	} `json:"assignee"`
-	PendingCancellationDate string `json:"pending_cancellation_date"`
+	PlanType                string    `json:"plan_type"`
+	CreatedAt               time.Time `json:"created_at"`
+	PendingCancellationDate string    `json:"pending_cancellation_date"`
 }
 
 // SeatCounts holds the Copilot seat totals for one scope. Totals only: it
@@ -628,9 +631,18 @@ func (c *GitHubClient) FetchAllCopilotLogins(ctx context.Context) ([]string, err
 // FetchSeatCounts returns the current seat totals. Like the daily reports it
 // tries the enterprise endpoint first and falls back to the organization one.
 func (c *GitHubClient) FetchSeatCounts(ctx context.Context) (*SeatCounts, error) {
-	seats, total, err := c.fetchSeats(ctx, "https://api.github.com/enterprises/"+c.enterprise, c.httpClient)
+	scope, scopeID, total, seats, err := c.fetchSeatList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return countSeats(scope, scopeID, total, seats), nil
+}
+
+// fetchSeatList returns every seat, enterprise first, organization as fallback.
+func (c *GitHubClient) fetchSeatList(ctx context.Context) (scope, scopeID string, total int, seats []copilotSeat, err error) {
+	seats, total, err = c.fetchSeats(ctx, "https://api.github.com/enterprises/"+c.enterprise, c.httpClient)
 	if err == nil {
-		return countSeats("enterprise", c.enterprise, total, seats), nil
+		return "enterprise", c.enterprise, total, seats, nil
 	}
 	slog.Warn("Enterprise seats endpoint failed, trying organization endpoint", "error", err)
 
@@ -641,11 +653,11 @@ func (c *GitHubClient) FetchSeatCounts(ctx context.Context) (*SeatCounts, error)
 	seats, total, orgErr := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, orgClient)
 	if orgErr != nil {
 		if seatsPermissionDenied(err) && seatsPermissionDenied(orgErr) {
-			return nil, fmt.Errorf("%w: enterprise: %w; org: %w", errSeatsNoPermission, err, orgErr)
+			return "", "", 0, nil, fmt.Errorf("%w: enterprise: %w; org: %w", errSeatsNoPermission, err, orgErr)
 		}
-		return nil, fmt.Errorf("both enterprise and org seats endpoints failed: %w; org: %w", err, orgErr)
+		return "", "", 0, nil, fmt.Errorf("both enterprise and org seats endpoints failed: %w; org: %w", err, orgErr)
 	}
-	return countSeats("organization", c.org, total, seats), nil
+	return "organization", c.org, total, seats, nil
 }
 
 // errSeatsNoPermission means both seats endpoints refused the token. A retry

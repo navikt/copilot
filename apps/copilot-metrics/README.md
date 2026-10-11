@@ -321,6 +321,14 @@ this table was first deployed. `v_seat_counts_monthly` keeps the last row per mo
 | `pending_cancellation_seats` | INTEGER   | Seats with a pending cancellation    |
 | `loaded_at`                  | TIMESTAMP | When the row was written             |
 
+### `copilot_seats` table
+
+Daily snapshot of every Copilot seat from the same seats API: `snapshot_date`,
+`scope_id`, `user_id`, `login`, `plan_type`, `created_at` (when the current seat
+was assigned) and `pending_cancellation_date`. Partitioned by day. Written with a
+load job that truncates the day's partition, so a re-run replaces the day. No
+backfill. copilot-api reads it for the licence estimate in the team year view.
+
 ### `team_members` table
 
 Daily snapshot of every team's members in the org (`GET /orgs/{org}/teams` and

@@ -297,6 +297,12 @@ func (c *BigQueryClient) GetLatestDay(ctx context.Context, scopeID string) (time
 // rows sit in the streaming buffer for up to ~90 min, and DELETE cannot touch
 // them, so the delete-then-insert re-runs failed until the buffer flushed.
 func loadRows[T any](ctx context.Context, table *bigquery.Table, rows []*T) error {
+	return loadRowsWith(ctx, table, rows, bigquery.WriteAppend)
+}
+
+// loadRowsWith is loadRows with a chosen write disposition. WriteTruncate on a
+// partition decorator (table$YYYYMMDD) replaces that partition atomically.
+func loadRowsWith[T any](ctx context.Context, table *bigquery.Table, rows []*T, disposition bigquery.TableWriteDisposition) error {
 	data, err := rowsToNDJSON(rows)
 	if err != nil {
 		return err
@@ -304,7 +310,7 @@ func loadRows[T any](ctx context.Context, table *bigquery.Table, rows []*T) erro
 	src := bigquery.NewReaderSource(bytes.NewReader(data))
 	src.SourceFormat = bigquery.JSON
 	l := table.LoaderFrom(src)
-	l.WriteDisposition = bigquery.WriteAppend
+	l.WriteDisposition = disposition
 	job, err := l.Run(ctx)
 	if err != nil {
 		return err

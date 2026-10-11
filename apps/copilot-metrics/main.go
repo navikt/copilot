@@ -234,6 +234,12 @@ func main() {
 		seatCountsReady = false
 	}
 
+	copilotSeatsReady := true
+	if err := bqClient.EnsureCopilotSeatsTableExists(ctx); err != nil {
+		slog.Error("Failed to ensure copilot_seats table exists (skipping seat snapshot)", "error", err)
+		copilotSeatsReady = false
+	}
+
 	teamMembersReady := true
 	if err := bqClient.EnsureTeamMembersTableExists(ctx); err != nil {
 		slog.Error("Failed to ensure team_members table exists (skipping team members)", "error", err)
@@ -429,6 +435,14 @@ func main() {
 			}})
 		} else {
 			slog.Error("Skipping seat count ingestion: seat_counts table unavailable")
+		}
+		// ponytail: reads the seat list a second time after FetchSeatCounts;
+		// share one fetch if the extra ~30 API pages a night ever matter.
+		if !copilotSeatsReady {
+			slog.Error("Skipping seat snapshot: copilot_seats table unavailable")
+		} else if err := ingestTodayCopilotSeats(ctx, ghClient.FetchCopilotSeats, bqClient.ReplaceCopilotSeats, time.Now()); err != nil {
+			slog.Error("Seat snapshot ingestion failed", "error", err)
+			os.Exit(1)
 		}
 		// Non-fatal: needs the Members: read permission, which must not block
 		// the main ingestion if it is missing.
