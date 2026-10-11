@@ -50,6 +50,9 @@ import (
 type State struct {
 	PID     int       `json:"pid"`
 	Model   string    `json:"model"`
+	// Revision is the pinned commit the server loaded; empty when unpinned or
+	// written by a nav-pilot that did not record it.
+	Revision string `json:"revision,omitempty"`
 	Started time.Time `json:"started"`
 
 	// Port the server is listening on. Zero in a file written by an older

@@ -2,11 +2,15 @@ package local
 
 import (
 	"context"
+	"encoding/json"
+	"os/exec"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
 const testRev = "70a3aa32c7feef511182bf16aa332f37e8d82014"
@@ -85,5 +89,60 @@ func TestLegacyDropsRevision(t *testing.T) {
 	}
 	if repl.Revision != testRev || old.Revision != "" {
 		t.Errorf("legacy() revisions = old %q, repl %q; want old empty, repl %q", old.Revision, repl.Revision, testRev)
+	}
+}
+
+// The pinned script loads the primary model at the pin and any other id
+// (a draft model) as before, run against a fake mlx_lm.server.
+func TestServerScriptPinsLoad(t *testing.T) {
+	py := testhome.Python3(t)
+	pkg := filepath.Join(t.TempDir(), "mlx_lm")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fake := `class APIHandler:
+    def do_POST(self): pass
+def load(p, **k):
+    print(p, k.get("revision"))
+def main():
+    load("` + okModel + `")
+    load("other/draft")
+    return 0
+`
+	for name, body := range map[string]string{"__init__.py": "", "server.py": fake} {
+		if err := os.WriteFile(filepath.Join(pkg, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cmd := exec.Command(py, "-c", serverScript(Model{Model: okModel, Revision: testRev}))
+	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Dir(pkg))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("pinned script failed: %v\n%s", err, out)
+	}
+	if want := okModel + " " + testRev + "\nother/draft None\n"; string(out) != want {
+		t.Errorf("load calls = %q, want %q", out, want)
+	}
+}
+
+// A recorded server on another commit of the chosen model is stale; an old
+// state file without a revision loads and reads as unpinned.
+func TestStaleRevision(t *testing.T) {
+	var st State
+	if err := json.Unmarshal([]byte(`{"pid":1,"model":"`+okModel+`"}`), &st); err != nil {
+		t.Fatal(err)
+	}
+	if StaleRevision(st, Model{Model: okModel}) != "" {
+		t.Error("unpinned model flagged against an old state file")
+	}
+	if StaleRevision(st, Model{Model: okModel, Revision: testRev}) == "" {
+		t.Error("a new pin was not flagged against a server without one")
+	}
+	st.Revision = testRev
+	if StaleRevision(st, Model{Model: okModel, Revision: testRev}) != "" {
+		t.Error("matching revision flagged")
+	}
+	if StaleRevision(st, Model{Model: "other/model"}) != "" {
+		t.Error("a different model is not a revision mismatch")
 	}
 }

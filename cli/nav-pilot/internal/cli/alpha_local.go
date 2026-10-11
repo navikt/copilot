@@ -566,6 +566,10 @@ func cmdLocalStart() error {
 					yellow("⚠"), bold(st.Model), model.Key, bold("nav-pilot alpha local restart"))
 				return nil
 			}
+			if msg := local.StaleRevision(st, model); msg != "" {
+				fmt.Printf("%s %s\n", yellow("⚠"), msg)
+				return nil
+			}
 			fmt.Printf("%s A local server is already running: %s (pid %d, %s)\n",
 				green("✓"), bold(st.Model), st.PID, local.ServerURL())
 			return nil
@@ -652,8 +656,9 @@ func cmdLocalStart() error {
 	}
 	if err := local.SaveState(local.State{
 		PID:     status.PID,
-		Model:   model.Model,
-		Started: started,
+		Model:    model.Model,
+		Revision: model.Revision,
+		Started:  started,
 		// The port the kernel handed this server. Every other process that
 		// wants to reach it, the loop guard included, reads it from here.
 		Port: srv.Port,

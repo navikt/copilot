@@ -1720,6 +1720,7 @@ type RecordStart func(model, outcome string, seconds int64)
 
 func EnsureServerRunning(ctx context.Context, announce func(string), record RecordStart) error {
 	if err := EnsureOwnServer(); err == nil {
+		warnStaleRevision()
 		return nil
 	} else if !errors.Is(err, ErrNoServerRecorded) {
 		// A server may well be running and this process cannot prove it: a
@@ -1825,7 +1826,7 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 			m.Model, status.Health, LogPath())
 	}
 	report("ready")
-	return SaveState(State{PID: status.PID, Model: m.Model, Started: time.Now(), Port: srv.Port})
+	return SaveState(State{PID: status.PID, Model: m.Model, Revision: m.Revision, Started: time.Now(), Port: srv.Port})
 }
 
 // RaiseWiredLimit runs the sysctl that lets the GPU wire enough memory for the
@@ -1862,4 +1863,29 @@ func MachineRAMGB() (int, error) {
 		return 0, err
 	}
 	return int(ram / gib), nil
+}
+
+// StaleRevision reports a recorded server that runs the chosen model at
+// another commit than the manifest pins: the advice line, or "" when it
+// matches or nothing is recorded.
+func StaleRevision(st State, m Model) string {
+	if st.Model != m.Model || st.Revision == m.Revision {
+		return ""
+	}
+	return fmt.Sprintf("The server runs %s at another revision than the manifest pins. Load it: %s",
+		st.Model, domain.Bold("nav-pilot alpha local restart"))
+}
+
+// warnStaleRevision prints [StaleRevision] for the recorded server, if any.
+// The launch goes on against the running server, as for a different model.
+func warnStaleRevision() {
+	st, ok, err := LoadState()
+	if err != nil || !ok {
+		return
+	}
+	if m, ok := Chosen(Active()); ok {
+		if msg := StaleRevision(st, m); msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
+		}
+	}
 }
