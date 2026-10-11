@@ -1767,7 +1767,8 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/undersokelse/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx",
-      "apps/my-copilot/src/components/survey-notice.tsx"
+      "apps/my-copilot/src/components/survey-notice.tsx",
+      "docs/news/articles/utviklerundersokelsen-hosten-2026.md"
     ],
     "anchors": {}
   },
@@ -2407,6 +2408,10 @@
       "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
       "apps/my-copilot/src/app/(nb)/nyheter/utviklerundersokelsen-2026/page.tsx"
     ],
+    "anchors": {}
+  },
+  "/nyheter/utviklerundersokelsen-hosten-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
   "/nyheter/visual-studio-april-update": {
