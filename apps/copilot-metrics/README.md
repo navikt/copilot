@@ -82,8 +82,11 @@ in the token's reported quota. These limits include retries; other token users
 can still consume quota concurrently.
 
 The deployed worker uses the existing `copilot-metrics` secret and runs nightly
-at 09:00 UTC in dev and 08:00 UTC in prod. October 2026 first becomes eligible
-on November 1. Set `USER_BILLING_SYNC_ENABLED=false` to disable collection.
+at 09:00 UTC in dev and 08:00 UTC in prod. A month becomes eligible on day 3 of
+the next month, so October 2026 is first collected on November 3. Every publish
+stores the enterprise total and the residual against the per-user rows in
+`billing_user_monthly_runs`; `--user-billing-publish=YYYY-MM` reruns only that
+step for a completed month. Set `USER_BILLING_SYNC_ENABLED=false` to disable collection.
 `concurrencyPolicy: Forbid` prevents overlapping scheduled runs.
 Before a manual billing load, disable the scheduled worker and wait for active
 pods and their BigQuery jobs to finish. This rule also applies to local binaries.

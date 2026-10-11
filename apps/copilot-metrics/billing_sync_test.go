@@ -200,6 +200,11 @@ func TestBillingSyncDoesNotPublishFailedReconciliation(t *testing.T) {
 	if err := syncBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, billingSyncStart, 0); err == nil || store.complete || !store.done["1"] {
 		t.Fatal("failed reconciliation published or lost user checkpoint")
 	}
+	// A budget hit at the enterprise fetch is a clean checkpoint, not an alert.
+	fetcher.enterpriseErr = errBillingBudget
+	if err := syncBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, billingSyncStart, 0); err != errBillingBudget || store.complete {
+		t.Fatalf("budget hit at publish was not a bare checkpoint: %v", err)
+	}
 }
 
 func TestBillingSyncCancelledDoesNotWrite(t *testing.T) {

@@ -74,9 +74,10 @@ type userBillingStore interface {
 // publishBillingMonth stores the enterprise total, the residual against the
 // per-user rows and the completion marker. Both writers end here.
 func publishBillingMonth(ctx context.Context, client userBillingFetcher, store userBillingStore, cfg *Config, month time.Time, users int) error {
+	// Returned unwrapped: a bare errBillingBudget is the sync's clean checkpoint.
 	enterprise, err := client.FetchEnterpriseAICreditUsage(ctx, month)
 	if err != nil {
-		return fmt.Errorf("fetch enterprise billing: %w", err)
+		return err
 	}
 	if err := validateUserBilling(enterprise, "", cfg.EnterpriseSlug, month); err != nil {
 		return err
