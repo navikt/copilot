@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"time"
 
@@ -13,8 +14,13 @@ import (
 
 var billingSyncStart = time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
 
+// billingSettleDay is the first day of a month on which the previous month
+// counts as closed. Usage posts late; the recorded enterprise_net per run
+// shows how long it keeps moving.
+const billingSettleDay = 3
+
 func closedBillingMonths(now time.Time) []time.Time {
-	now = now.UTC()
+	now = now.UTC().AddDate(0, 0, 1-billingSettleDay)
 	current := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	var months []time.Time
 	for month := current.AddDate(0, -1, 0); !month.Before(billingSyncStart); month = month.AddDate(0, -1, 0) {
@@ -26,7 +32,6 @@ func closedBillingMonths(now time.Time) []time.Time {
 type billingSyncFetcher interface {
 	userBillingFetcher
 	FetchUserID(context.Context, string) (string, error)
-	FetchEnterpriseAICreditUsage(context.Context, time.Time) (*BillingUsageResponse, error)
 }
 
 type billingSyncStore interface {
@@ -138,11 +143,15 @@ func repairBillingSources(ctx context.Context, gh *GitHubClient, store interface
 	return errors.Join(failures...)
 }
 
+// billingSKUs are stored per user and per enterprise; the residual compares
+// the same set on both sides.
+var billingSKUs = []string{"Copilot AI Credits", "Copilot Cloud Agent"}
+
 func billingRows(response *BillingUsageResponse, month time.Time, scope, id, login string) []UserBillingRow {
 	bySKU := map[string]UserBillingRow{}
 	loaded := time.Now().UTC()
 	for _, item := range response.UsageItems {
-		if item.Product != "Copilot" || (item.SKU != "Copilot AI Credits" && item.SKU != "Copilot Cloud Agent") {
+		if item.Product != "Copilot" || !slices.Contains(billingSKUs, item.SKU) {
 			continue
 		}
 		row := bySKU[item.SKU]
@@ -265,13 +274,6 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 			return fmt.Errorf("source users changed during collection")
 		}
 	}
-	enterprise, err := fetcher.FetchEnterpriseAICreditUsage(ctx, month)
-	if err != nil {
-		return err
-	}
-	if err := validateUserBilling(enterprise, "", cfg.EnterpriseSlug, month); err != nil {
-		return err
-	}
 	{
 		days, err := store.BillingSourceDays(ctx, month, cfg.EnterpriseSlug)
 		if err != nil {
@@ -285,10 +287,7 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 			}
 		}
 	}
-	if err := store.ReplaceUserBilling(ctx, billingRows(enterprise, month, cfg.EnterpriseSlug, "", "")); err != nil {
-		return err
-	}
-	if err := store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, len(users)); err != nil {
+	if err := publishBillingMonth(ctx, fetcher, store, cfg, month, len(users)); err != nil {
 		return err
 	}
 	slog.Info("User billing month complete", "month", month.Format("2006-01"), "users", len(users), "skipped_deleted", skipped)

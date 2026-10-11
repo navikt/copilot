@@ -58,6 +58,13 @@ func (c *BigQueryClient) EnsureUserBillingTableExists(ctx context.Context) error
 }
 
 func (c *BigQueryClient) EnsureUserBillingRunsTableExists(ctx context.Context) error {
+	if err := c.createUserBillingRunsTable(ctx); err != nil {
+		return err
+	}
+	return c.addUserBillingRunColumns(ctx)
+}
+
+func (c *BigQueryClient) createUserBillingRunsTable(ctx context.Context) error {
 	table := c.client.Dataset(c.dataset).Table(userBillingRunsTable)
 	if _, err := table.Metadata(ctx); err == nil {
 		return nil
@@ -74,24 +81,66 @@ func (c *BigQueryClient) EnsureUserBillingRunsTableExists(ctx context.Context) e
 	})
 }
 
+// addUserBillingRunColumns adds the publish totals to runs tables created
+// before they existed.
+func (c *BigQueryClient) addUserBillingRunColumns(ctx context.Context) error {
+	q := c.client.Query("ALTER TABLE `" + c.projectID + "." + c.dataset + "." + userBillingRunsTable + "`" + `
+ADD COLUMN IF NOT EXISTS enterprise_net FLOAT64,
+ADD COLUMN IF NOT EXISTS user_net FLOAT64,
+ADD COLUMN IF NOT EXISTS residual_net FLOAT64`)
+	_, err := q.Read(ctx)
+	return err
+}
+
 func billingTableNotFound(err error) bool {
 	var apiErr *googleapi.Error
 	return errors.As(err, &apiErr) && apiErr.Code == 404
 }
 
-func (c *BigQueryClient) CompleteUserBilling(ctx context.Context, month time.Time, scope string, users int) error {
-	// The completion marker only follows a successful pass over every source user.
-	q := c.client.Query(`MERGE ` + "`" + c.projectID + "." + c.dataset + "." + userBillingRunsTable + "`" + ` t
-USING (SELECT @month month, @scope scope_id, @users users, 'complete' status, @loaded loaded_at) s
-ON t.month=s.month AND t.scope_id=s.scope_id
-WHEN MATCHED THEN UPDATE SET users=s.users, status=s.status, loaded_at=s.loaded_at
-WHEN NOT MATCHED THEN INSERT (month,scope_id,users,status,loaded_at) VALUES (s.month,s.scope_id,s.users,s.status,s.loaded_at)`)
+func (c *BigQueryClient) CompleteUserBilling(ctx context.Context, month time.Time, scope string, users int, enterpriseNet, userNet float64) error {
+	// Every publish appends a 'published' row so settling can be measured; the
+	// one 'complete' row per month is what readers use.
+	q := c.client.Query(userBillingCompleteSQL("`" + c.projectID + "." + c.dataset + "." + userBillingRunsTable + "`"))
 	q.Parameters = []bigquery.QueryParameter{
 		{Name: "month", Value: civil.DateOf(month)}, {Name: "scope", Value: scope},
 		{Name: "users", Value: users}, {Name: "loaded", Value: time.Now().UTC()},
+		{Name: "enterprise", Value: enterpriseNet}, {Name: "user", Value: userNet},
 	}
 	_, err := q.Read(ctx)
 	return err
+}
+
+func userBillingCompleteSQL(table string) string {
+	return `INSERT INTO ` + table + ` (month,scope_id,users,status,loaded_at,enterprise_net,user_net,residual_net)
+VALUES (@month,@scope,@users,'published',@loaded,@enterprise,@user,@enterprise-@user);
+MERGE ` + table + ` t
+USING (SELECT @month month, @scope scope_id, @users users, 'complete' status, @loaded loaded_at,
+  @enterprise enterprise_net, @user user_net, @enterprise-@user residual_net) s
+ON t.month=s.month AND t.scope_id=s.scope_id AND t.status='complete'
+WHEN MATCHED THEN UPDATE SET users=s.users, loaded_at=s.loaded_at,
+  enterprise_net=s.enterprise_net, user_net=s.user_net, residual_net=s.residual_net
+WHEN NOT MATCHED THEN INSERT (month,scope_id,users,status,loaded_at,enterprise_net,user_net,residual_net)
+  VALUES (s.month,s.scope_id,s.users,s.status,s.loaded_at,s.enterprise_net,s.user_net,s.residual_net);`
+}
+
+// UserBillingNet sums the per-user rows over the same SKUs as the enterprise row.
+func (c *BigQueryClient) UserBillingNet(ctx context.Context, month time.Time, scope string) (float64, error) {
+	q := c.client.Query(`SELECT COALESCE(SUM(net_amount),0) net FROM ` + "`" + c.projectID + "." + c.dataset + "." + userBillingTable + "`" + `
+WHERE month=@month AND scope_id=@scope AND user_id!='' AND sku IN UNNEST(@skus)`)
+	q.Parameters = []bigquery.QueryParameter{
+		{Name: "month", Value: civil.DateOf(month)}, {Name: "scope", Value: scope}, {Name: "skus", Value: billingSKUs},
+	}
+	it, err := q.Read(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var row struct {
+		Net float64 `bigquery:"net"`
+	}
+	if err := it.Next(&row); err != nil {
+		return 0, err
+	}
+	return row.Net, nil
 }
 
 func (c *BigQueryClient) UserBillingDone(ctx context.Context, month time.Time, scope string) (map[string]bool, error) {

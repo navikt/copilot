@@ -25,6 +25,7 @@ func main() {
 	billingModelDailyBackfill := flag.Bool("billing-model-daily-backfill", false, "Backfill daily model billing data")
 	billingModelDailyFrom := flag.String("billing-model-daily-from", "2025-10-10", "Start day for daily model billing backfill (YYYY-MM-DD)")
 	userBillingMonth := flag.String("user-billing-month", "", "Fetch per-user AI credit billing for one month (YYYY-MM)")
+	userBillingPublish := flag.String("user-billing-publish", "", "Rerun only the publish step (enterprise row, residual) for a completed month (YYYY-MM)")
 	userBillingSync := flag.Bool("user-billing-sync", false, "Resume unfinished closed-month user billing from October 2026")
 	repoMetricsBackfill := flag.Bool("repo-metrics-backfill", false, "Backfill per-repository usage metrics (repos-1-day) only")
 	repoMetricsFrom := flag.String("repo-metrics-from", repoMetricsGADate, "Start day for repository metrics backfill (YYYY-MM-DD)")
@@ -126,6 +127,27 @@ func main() {
 			}
 			slog.Error("User billing sync incomplete", "error", err)
 			NewSlackNotifier(config.SlackWebhookURL).NotifyError(context.Background(), "Monthly user billing sync is incomplete. Check the job logs; completed checkpoints will resume next night.")
+			os.Exit(1)
+		}
+		return
+	}
+	if *userBillingPublish != "" {
+		month, err := time.Parse("2006-01", *userBillingPublish)
+		if err != nil || config.BigQueryProjectID == "" || config.GitHubBillingToken == "" {
+			slog.Error("User billing publish requires YYYY-MM, GCP_TEAM_PROJECT_ID and GITHUB_BILLING_TOKEN", "error", err)
+			os.Exit(1)
+		}
+		ctx := context.Background()
+		bq, err := NewBigQueryClient(ctx, config)
+		if err == nil {
+			defer func() { _ = bq.Close() }()
+			err = bq.EnsureUserBillingRunsTableExists(ctx)
+		}
+		if err == nil {
+			err = republishBillingMonth(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), bq, config, month)
+		}
+		if err != nil {
+			slog.Error("User billing publish failed", "error", err)
 			os.Exit(1)
 		}
 		return

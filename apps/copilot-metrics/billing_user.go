@@ -16,6 +16,7 @@ const userBillingPause = 2 * time.Second
 type userBillingFetcher interface {
 	FetchUserAICreditUsage(context.Context, string, time.Time) (*BillingUsageResponse, error)
 	AccountLogin(context.Context, string) (string, error)
+	FetchEnterpriseAICreditUsage(context.Context, time.Time) (*BillingUsageResponse, error)
 }
 
 // billingUsers lists the month's users without bot accounts. GitHub answers a
@@ -66,7 +67,58 @@ type userBillingStore interface {
 	GetBillingUsers(context.Context, time.Time, string) (map[string]string, error)
 	UserBillingDone(context.Context, time.Time, string) (map[string]bool, error)
 	ReplaceUserBilling(context.Context, []UserBillingRow) error
-	CompleteUserBilling(context.Context, time.Time, string, int) error
+	UserBillingNet(context.Context, time.Time, string) (float64, error)
+	CompleteUserBilling(ctx context.Context, month time.Time, scope string, users int, enterpriseNet, userNet float64) error
+}
+
+// publishBillingMonth stores the enterprise total, the residual against the
+// per-user rows and the completion marker. Both writers end here.
+func publishBillingMonth(ctx context.Context, client userBillingFetcher, store userBillingStore, cfg *Config, month time.Time, users int) error {
+	enterprise, err := client.FetchEnterpriseAICreditUsage(ctx, month)
+	if err != nil {
+		return fmt.Errorf("fetch enterprise billing: %w", err)
+	}
+	if err := validateUserBilling(enterprise, "", cfg.EnterpriseSlug, month); err != nil {
+		return err
+	}
+	rows := billingRows(enterprise, month, cfg.EnterpriseSlug, "", "")
+	enterpriseNet := 0.0
+	for _, row := range rows {
+		enterpriseNet += row.NetAmount
+	}
+	if err := store.ReplaceUserBilling(ctx, rows); err != nil {
+		return err
+	}
+	userNet, err := store.UserBillingNet(ctx, month, cfg.EnterpriseSlug)
+	if err != nil {
+		return err
+	}
+	// The residual is never zero: users with charges but no metrics rows are
+	// not in the census. It is recorded per run and never blocks.
+	if err := store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, users, enterpriseNet, userNet); err != nil {
+		return err
+	}
+	slog.Info("User billing month published", "month", month.Format("2006-01"), "users", users,
+		"enterprise_net", enterpriseNet, "user_net", userNet, "residual_net", enterpriseNet-userNet)
+	return nil
+}
+
+// republishBillingMonth reruns only the publish step for a month whose users
+// are already complete, to backfill its enterprise row and residual.
+func republishBillingMonth(ctx context.Context, client userBillingFetcher, store userBillingStore, cfg *Config, month time.Time) error {
+	complete, err := store.UserBillingRunComplete(ctx, month, cfg.EnterpriseSlug)
+	if err != nil {
+		return err
+	}
+	if !complete {
+		return fmt.Errorf("%s has no completion marker; collect its users first", month.Format("2006-01"))
+	}
+	done, err := store.UserBillingDone(ctx, month, cfg.EnterpriseSlug)
+	if err != nil {
+		return err
+	}
+	delete(done, "")
+	return publishBillingMonth(ctx, client, store, cfg, month, len(done))
 }
 
 // ingestUserBillingMonth is separate from --run-once. A full month needs
@@ -143,7 +195,7 @@ func ingestUserBillingMonth(ctx context.Context, client userBillingFetcher, stor
 	if len(ids) == 0 {
 		return fmt.Errorf("no billing users for %s", month.Format("2006-01"))
 	}
-	if err := store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, len(ids)); err != nil {
+	if err := publishBillingMonth(ctx, client, store, cfg, month, len(ids)); err != nil {
 		return err
 	}
 	slog.Info("User billing month complete", "month", month.Format("2006-01"), "users", len(ids), "skipped_deleted", skipped)
