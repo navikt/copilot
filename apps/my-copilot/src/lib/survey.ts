@@ -81,6 +81,14 @@ export async function getActiveSurveys(): Promise<ActiveSurveys> {
   }
 }
 
+/**
+ * The titles of the open surveys, for SurveyNotice. Pages pass the promise
+ * without awaiting it, so a slow copilot-survey never holds them up, and only
+ * the titles reach the client.
+ */
+export const openSurveyTitles = (): Promise<string[]> =>
+  getActiveSurveys().then((a) => (a.status === "ok" ? a.surveys.map((s) => s.title) : []));
+
 /** The values of a scale or matrix question. copilot-survey leaves out min 0, as the terminal survey reads it. */
 export function scaleSteps(q: SurveyQuestion): number[] {
   const steps: number[] = [];

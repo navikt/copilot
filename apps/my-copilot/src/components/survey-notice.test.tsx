@@ -1,20 +1,20 @@
-import { render, screen } from "@testing-library/react";
-import type { Survey } from "@/lib/survey";
+import { act, render, screen } from "@testing-library/react";
 import { SurveyNotice } from "./survey-notice";
 
-const survey: Survey = { id: "q4", title: "Utviklerundersøkelsen", ends: "2099-12-31", questions: [] };
-
 describe("SurveyNotice", () => {
-  it("links to the survey while one is open", () => {
-    render(<SurveyNotice active={{ status: "ok", surveys: [survey] }} />);
+  it("links to the survey while one is open", async () => {
+    await act(async () => {
+      render(<SurveyNotice titles={Promise.resolve(["Utviklerundersøkelsen"])} />);
+    });
+    expect(await screen.findByRole("link", { name: "Svar her" })).toHaveAttribute("href", "/nav-pilot/undersokelse");
     expect(screen.getByText(/Utviklerundersøkelsen er åpen/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Svar her" })).toHaveAttribute("href", "/nav-pilot/undersokelse");
   });
 
-  it("shows nothing when no survey is open or the service fails", () => {
-    const { container, rerender } = render(<SurveyNotice active={{ status: "ok", surveys: [] }} />);
-    expect(container).toBeEmptyDOMElement();
-    rerender(<SurveyNotice active={{ status: "error" }} />);
+  it("shows nothing when no survey is open", async () => {
+    let container!: HTMLElement;
+    await act(async () => {
+      ({ container } = render(<SurveyNotice titles={Promise.resolve([])} />));
+    });
     expect(container).toBeEmptyDOMElement();
   });
 });

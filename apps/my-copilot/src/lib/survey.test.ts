@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   choseOther,
+  openSurveyTitles,
   surveyWindow,
   getActiveSurveys,
   isSkipped,
@@ -132,5 +133,18 @@ describe("surveyWindow", () => {
     expect(surveyWindow("2026-10-13", schedule)).toBeUndefined();
     expect(surveyWindow("2026-10-27", schedule)).toBeUndefined();
     expect(surveyWindow("2026-10-28", schedule)).toBe("after");
+  });
+});
+
+describe("openSurveyTitles", () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it("is empty when copilot-survey fails, so the notice stays away", async () => {
+    vi.stubEnv("COPILOT_SURVEY_URL", "http://survey.invalid");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 503 }))
+    );
+    expect(await openSurveyTitles()).toEqual([]);
+    vi.unstubAllGlobals();
   });
 });

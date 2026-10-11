@@ -5,8 +5,8 @@ import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
 import { InstallPicker } from "@/components/install-picker";
 import { getAllCustomizations } from "@/lib/customizations";
-import { getActiveSurveys } from "@/lib/survey";
 import { SurveyNotice } from "@/components/survey-notice";
+import { openSurveyTitles } from "@/lib/survey";
 import type { CustomizationType } from "@/lib/customization-types";
 import { NAV_PILOT_APT_INSTALL, NAV_PILOT_INSTALL, NAV_PILOT_QUICKSTART } from "@/lib/install-commands";
 import {
@@ -158,14 +158,10 @@ async function getStarCount(): Promise<number | null> {
 /* ---------- Page ---------- */
 
 export default async function NavPilotPage() {
-  const [stars, surveys] = await Promise.all([getStarCount(), getActiveSurveys()]);
+  const stars = await getStarCount();
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      {surveys.status === "ok" && surveys.surveys.length > 0 && (
-        <Box paddingBlock="space-12" paddingInline={{ xs: "space-16", md: "space-32" }} className="max-w-7xl mx-auto">
-          <SurveyNotice active={surveys} />
-        </Box>
-      )}
+      <SurveyNotice titles={openSurveyTitles()} className="max-w-7xl mx-auto px-4 md:px-8 py-3" />
       <HeroSection stars={stars} />
       <UseCasesSection />
       <PakkeSection />
