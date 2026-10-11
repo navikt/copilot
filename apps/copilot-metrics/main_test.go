@@ -740,3 +740,17 @@ func (f *callbackFetcher) FetchDailyUserMetrics(_ context.Context, _ time.Time) 
 func (f *callbackFetcher) FetchDailyRepoMetrics(_ context.Context, _ time.Time) (*FetchResult, error) {
 	return nil, ErrReportNotAvailable
 }
+
+func TestRunIngestSteps_FailureDoesNotStopLaterSteps(t *testing.T) {
+	ran := false
+	err := runIngestSteps([]ingestStep{
+		{"first", func() error { return errors.New("boom") }},
+		{"second", func() error { ran = true; return nil }},
+	})
+	if !ran {
+		t.Fatal("second step did not run after first failed")
+	}
+	if err == nil || err.Error() != "first: boom" {
+		t.Fatalf("err = %v, want first: boom", err)
+	}
+}

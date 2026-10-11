@@ -376,51 +376,71 @@ func main() {
 
 	if *runOnce {
 		slack := NewSlackNotifier(config.SlackWebhookURL)
-		if err := ingestMissing(ctx, ghClient, bqClient, config, slack); err != nil {
-			if slack != nil {
-				slack.NotifyError(ctx, fmt.Sprintf("Ingestion failed: %v", err))
-			}
-			slog.Error("Ingestion failed", "error", err)
-			os.Exit(1)
-		}
-		// Retry supplementary data for recent days where entity metrics exists
-		// but user-teams/user-metrics are missing (they may not have been available
-		// when the entity metrics were first ingested).
-		ingestMissingSupplementary(ctx, ghClient, bqClient, config)
-
-		// Ingest current month's billing data (always re-ingests since it's cumulative)
-		if billingClient != nil {
-			ingestCurrentMonthBilling(ctx, billingClient, bqClient, config)
-			if err := ingestMissingBillingUsageReports(ctx, billingClient, bqClient, config); err != nil {
-				slog.Warn("Billing usage report ingestion failed", "error", err)
-			}
-			if err := ingestRecentBillingModelDaily(ctx, billingClient, bqClient, config); err != nil {
-				if slack != nil {
-					slack.NotifyError(ctx, fmt.Sprintf("Billing daily model ingestion failed: %v", err))
+		// Every step runs even if an earlier one fails; the job still exits 1
+		// at the end so Nais retries. Each writer is idempotent (missing-day
+		// detection, delete-then-load, upsert), so a retry does not duplicate rows.
+		steps := []ingestStep{
+			{"metrics", func() error {
+				err := ingestMissing(ctx, ghClient, bqClient, config, slack)
+				if err != nil && slack != nil {
+					slack.NotifyError(ctx, fmt.Sprintf("Ingestion failed: %v", err))
 				}
-				slog.Error("Billing daily model ingestion failed", "error", err)
-				os.Exit(1)
-			}
+				return err
+			}},
+			// Retry supplementary data for recent days where entity metrics exists
+			// but user-teams/user-metrics are missing. It reads the stored days
+			// itself, so it does not depend on the metrics step succeeding.
+			{"supplementary", func() error { ingestMissingSupplementary(ctx, ghClient, bqClient, config); return nil }},
 		}
-		// Ingest budget snapshots — today is the primary target but also retry
+		if billingClient != nil {
+			steps = append(steps,
+				// Current month's billing data (always re-ingested since it's cumulative).
+				ingestStep{"billing current month", func() error { ingestCurrentMonthBilling(ctx, billingClient, bqClient, config); return nil }},
+				ingestStep{"billing usage reports", func() error {
+					if err := ingestMissingBillingUsageReports(ctx, billingClient, bqClient, config); err != nil {
+						slog.Warn("Billing usage report ingestion failed", "error", err)
+					}
+					return nil
+				}},
+				ingestStep{"billing daily model", func() error {
+					err := ingestRecentBillingModelDaily(ctx, billingClient, bqClient, config)
+					if err != nil && slack != nil {
+						slack.NotifyError(ctx, fmt.Sprintf("Billing daily model ingestion failed: %v", err))
+					}
+					return err
+				}},
+			)
+		}
+		// Budget snapshots — today is the primary target but also retry
 		// yesterday in case the previous run failed (snapshots are point-in-time
 		// and lost forever if not captured).
 		if budgetClient != nil {
-			ingestTodayBudgetSnapshot(ctx, budgetClient, bqClient, config)
-			ingestYesterdayBudgetSnapshot(ctx, budgetClient, bqClient, config)
-			ingestTodayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
-			ingestYesterdayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
+			steps = append(steps, ingestStep{"budget snapshots", func() error {
+				ingestTodayBudgetSnapshot(ctx, budgetClient, bqClient, config)
+				ingestYesterdayBudgetSnapshot(ctx, budgetClient, bqClient, config)
+				ingestTodayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
+				ingestYesterdayUserBudgetSnapshot(ctx, ghClient, budgetClient, bqClient, config)
+				return nil
+			}})
 		}
-		if !seatCountsReady {
+		if seatCountsReady {
+			steps = append(steps, ingestStep{"seat counts", func() error {
+				return ingestTodaySeatCounts(ctx, ghClient.FetchSeatCounts, bqClient.UpsertSeatCounts, time.Now())
+			}})
+		} else {
 			slog.Error("Skipping seat count ingestion: seat_counts table unavailable")
-		} else if err := ingestTodaySeatCounts(ctx, ghClient.FetchSeatCounts, bqClient.UpsertSeatCounts, time.Now()); err != nil {
-			slog.Error("Seat count ingestion failed", "error", err)
-			os.Exit(1)
 		}
 		// Non-fatal: needs the Members: read permission, which must not block
 		// the main ingestion if it is missing.
 		if teamMembersReady {
-			ingestTeamMembers(ctx, ghClient.FetchTeamMembers, bqClient.ReplaceTeamMembers, time.Now())
+			steps = append(steps, ingestStep{"team members", func() error {
+				ingestTeamMembers(ctx, ghClient.FetchTeamMembers, bqClient.ReplaceTeamMembers, time.Now())
+				return nil
+			}})
+		}
+		if err := runIngestSteps(steps); err != nil {
+			slog.Error("Ingestion finished with failures", "error", err)
+			os.Exit(1)
 		}
 		slog.Info("Ingestion completed successfully")
 		return
@@ -458,6 +478,24 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Shutdown error", "error", err)
 	}
+}
+
+type ingestStep struct {
+	name string
+	run  func() error
+}
+
+// runIngestSteps runs every step, logs each failure once with its step name,
+// and returns the joined errors.
+func runIngestSteps(steps []ingestStep) error {
+	var errs []error
+	for _, s := range steps {
+		if err := s.run(); err != nil {
+			slog.Error("Ingestion step failed", "step", s.name, "error", err)
+			errs = append(errs, fmt.Errorf("%s: %w", s.name, err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func ingestMissing(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config, slack *SlackNotifier) error {
