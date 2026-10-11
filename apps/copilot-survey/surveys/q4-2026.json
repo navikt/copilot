@@ -2,7 +2,7 @@
   "id": "q4-2026",
   "series": "utviklerundersokelsen",
   "title": "Utviklerundersøkelsen høsten 2026",
-  "intro": "Samme spørsmål som i våres, så vi kan se hva som har endret seg, pluss ett nytt om agenter. Tar rundt fem minutter.",
+  "intro": "Samme spørsmål som i vår, så vi kan se hva som har endret seg, pluss to nye. Tar 5–8 minutter.",
   "starts": "2026-10-13",
   "ends": "2026-10-27",
   "min_cli_version": "2026.09.29-072249",
@@ -57,6 +57,7 @@
       "other": "Annet",
       "max_length": 100,
       "max_choices": 3,
+      "required": true,
       "skip_if": {"question": "verktoy", "answer": "Jeg bruker ikke KI-kodeverktøy"}
     },
     {
@@ -79,20 +80,26 @@
          "text": "Kode jeg lager med KI-hjelp holder god nok kvalitet til at den ikke skaper ekstra arbeid i code review."},
         {"id": "teknisk-kompetanse", "version": 1, "construct": "technical-skill", "reverse": true,
          "text": "Jeg er bekymra for at KI-verktøy kan svekke min egen dype forståelse av koden og teknologiene jeg jobber med."},
+        {"id": "agent-tillit", "version": 1, "construct": "agent-trust",
+         "text": "Jeg stoler på at en KI-agent løser oppgaver i flere steg i kodebasen vår uten at jeg følger med på hvert steg."},
+        {"id": "kostnad-tilbakeholdenhet", "version": 1, "construct": "cost-restraint", "reverse": true,
+         "text": "Usikkerhet om kostnad gjør at jeg bruker KI-verktøyene mindre."}
+      ]
+    },
+    {
+      "id": "pastander-alle",
+      "version": 1,
+      "type": "matrix",
+      "text": "Hvor enig er du i disse påstandene?",
+      "min": 1, "max": 5,
+      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
+      "required": true,
+      "items": [
         {"id": "eierskap", "version": 1, "construct": "ownership",
          "text": "Jeg er trygg på å ta fullt ansvar for kode som er generert eller vesentlig hjulpet av KI."},
         {"id": "juss-og-sikkerhet", "version": 1, "construct": "legal-security", "reverse": true,
          "text": "Usikkerhet rundt personvern eller interne sikkerhetsregler hindrer meg i å bruke KI-kodeverktøy fullt ut i det daglige arbeidet."}
       ]
-    },
-    {
-      "id": "agent-tillit",
-      "version": 1,
-      "type": "scale",
-      "construct": "agent-trust",
-      "text": "Jeg stoler på at en KI-agent løser oppgaver i flere steg i kodebasen vår uten at jeg følger med på hvert steg.",
-      "min": 1, "max": 5,
-      "labels": ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"]
     },
     {
       "id": "en-endring",
