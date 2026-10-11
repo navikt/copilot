@@ -251,6 +251,7 @@ func TestSetMCPServerToolsSwitchesHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	entry = json.RawMessage(strings.Replace(string(entry), `"headers":{`, `"headers":{"Authorization":"Bearer x",`, 1))
 	writeFile(t, path, `{"mcpServers": {"`+gh.Name+`": `+string(entry)+`}}`)
 	for _, step := range []struct {
 		url  string
@@ -262,6 +263,9 @@ func TestSetMCPServerToolsSwitchesHeaders(t *testing.T) {
 		b, _ := os.ReadFile(path)
 		if got := strings.Contains(string(b), "X-MCP-Readonly"); got != step.want {
 			t.Errorf("url %s: headers present = %v, want %v\n%s", step.url, got, step.want, b)
+		}
+		if !strings.Contains(string(b), "Bearer x") {
+			t.Errorf("url %s: the user's own header was lost\n%s", step.url, b)
 		}
 	}
 }
