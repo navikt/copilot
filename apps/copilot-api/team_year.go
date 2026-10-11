@@ -18,6 +18,10 @@ const (
 	basisNone  = "none"  // no per-user usage or no team membership history
 )
 
+// licenceListPriceUSD is the Copilot Business list price per seat and month.
+// The licence amounts are an estimate at this price, not billed amounts.
+const licenceListPriceUSD = 19.0
+
 // TeamYearMonth is one month for one team. Amounts are nil when the month has
 // no data or fewer than minTeamContributors contributors (Hidden).
 type TeamYearMonth struct {
@@ -28,6 +32,14 @@ type TeamYearMonth struct {
 	NetUSD        *float64 `json:"net_usd"`
 	GrossUSD      *float64 `json:"gross_usd"`
 	NoUsageNetUSD *float64 `json:"no_usage_net_usd"`
+	// SeatMonths counts members seen in the team that month whose seat covered
+	// the month, from the latest seat snapshot's created_at and
+	// pending_cancellation_date. A seat held before the current assignment is
+	// unknown and not counted. Nil without membership history, without a seat
+	// snapshot, or under minTeamContributors. Kept out of net and gross:
+	// those are usage amounts, this is a list-price estimate.
+	SeatMonths         *int64   `json:"seat_months"`
+	LicenceUSDEstimate *float64 `json:"licence_usd_estimate"`
 }
 
 // TeamYearCoverage says which months the data can answer for. It is derived
@@ -37,6 +49,8 @@ type TeamYearCoverage struct {
 	GrossFrom      string   `json:"gross_from"`
 	LastUsageDay   string   `json:"last_usage_day"`
 	NetMonths      []string `json:"net_months"`
+	// SeatsSnapshot is the latest copilot_seats day, "" before the first one.
+	SeatsSnapshot string `json:"seats_snapshot"`
 }
 
 type TeamYearOverview struct {
@@ -59,6 +73,8 @@ type teamYearRow struct {
 	MembershipFrom string  `bigquery:"membership_from"`
 	GrossFrom      string  `bigquery:"gross_from"`
 	LastUsageDay   string  `bigquery:"last_usage_day"`
+	SeatMonths     int64   `bigquery:"seat_months"`
+	SeatsSnapshot  string  `bigquery:"seats_snapshot"`
 }
 
 // GetTeamYearOverview returns one team's months in year, with the same
@@ -74,7 +90,11 @@ func (bq *BigQueryClient) GetTeamYearOverview(ctx context.Context, team string, 
 		}
 		net = false
 	}
-	it, err := bq.teamYearQuery(team, year, net).Read(ctx)
+	seats, err := bq.tableExists(ctx, "copilot_seats")
+	if err != nil {
+		return nil, err
+	}
+	it, err := bq.teamYearQuery(team, year, net, seats).Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read team year usage: %w", err)
 	}
@@ -93,7 +113,39 @@ const teamYearNetStubs = `billed AS (
  SELECT DATE(NULL) day,'' user_id,0.0 net FROM UNNEST([1]) WHERE FALSE
 )`
 
-func (bq *BigQueryClient) teamYearQuery(team string, year int, net bool) *bigquery.Query {
+// teamYearSeatsStub replaces teamYearSeatsCTEs before copilot-metrics has
+// written its first seat snapshot.
+const teamYearSeatsStub = `seats AS (
+ SELECT '' user_id,DATE(NULL) from_m,DATE(NULL) to_m FROM UNNEST([1]) WHERE FALSE
+), seat_snap AS (SELECT DATE(NULL) d)`
+
+// teamYearSeatsCTEs gives each user's seat as a month range from the latest
+// snapshot the user appears in. A seat that left the list without a
+// cancellation date ends in the month it was last seen.
+func (bq *BigQueryClient) teamYearSeatsCTEs() string {
+	t := bq.tableRef(bq.metricsDataset, "copilot_seats")
+	return fmt.Sprintf(`seat_snap AS (SELECT MAX(snapshot_date) d FROM %s
+), seats AS (
+ SELECT CAST(user_id AS STRING) user_id,DATE_TRUNC(DATE(created_at),MONTH) from_m,
+  COALESCE(DATE_TRUNC(pending_cancellation_date,MONTH),
+   IF(snapshot_date<(SELECT d FROM seat_snap),DATE_TRUNC(snapshot_date,MONTH),NULL)) to_m
+ FROM %s WHERE created_at IS NOT NULL
+ QUALIFY ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY snapshot_date DESC)=1
+)`, t, t)
+}
+
+func (bq *BigQueryClient) tableExists(ctx context.Context, table string) (bool, error) {
+	if _, err := bq.client.Dataset(bq.metricsDataset).Table(table).Metadata(ctx); err != nil {
+		var apiErr *googleapi.Error
+		if !errors.As(err, &apiErr) || apiErr.Code != 404 {
+			return false, fmt.Errorf("read %s metadata: %w", table, err)
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
+func (bq *BigQueryClient) teamYearQuery(team string, year int, net, seats bool) *bigquery.Query {
 	first := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	netCTEs, completed := teamYearNetStubs, "SELECT DATE(NULL) month FROM UNNEST([1]) WHERE FALSE"
 	if net {
@@ -101,8 +153,12 @@ func (bq *BigQueryClient) teamYearQuery(team string, year int, net bool) *bigque
 		completed = fmt.Sprintf("SELECT DISTINCT month FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND status='complete'",
 			bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"))
 	}
+	seatCTEs := teamYearSeatsStub
+	if seats {
+		seatCTEs = bq.teamYearSeatsCTEs()
+	}
 	query := bq.client.Query(`
-WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + fmt.Sprintf(`, team AS (
+WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + `, ` + seatCTEs + fmt.Sprintf(`, team AS (
  SELECT DISTINCT day,month,user_id FROM memberships WHERE team_id=@team
 ), gross_m AS (
  SELECT t.month,COUNT(DISTINCT IF(u.gross>0,t.user_id,NULL)) users,SUM(u.gross * 0.01) gross
@@ -114,6 +170,9 @@ WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + fmt.Sprintf(`, team AS (
  SELECT b.month,SUM(b.net) net FROM billed b JOIN (SELECT DISTINCT month,user_id FROM team) USING(month,user_id)
  WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND u.gross>0)
  GROUP BY b.month
+), seat_m AS (
+ SELECT t.month,COUNT(*) seat_months FROM (SELECT DISTINCT month,user_id FROM team) t JOIN seats s USING(user_id)
+ WHERE s.from_m<=t.month AND (s.to_m IS NULL OR s.to_m>=t.month) GROUP BY t.month
 ), completed AS (
  %s
 ), coverage AS (
@@ -123,15 +182,17 @@ WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + fmt.Sprintf(`, team AS (
   (SELECT IFNULL(CAST(MIN(day) AS STRING),'') FROM %s WHERE day>=DATE(@from) AND day<DATE(@to)
     AND scope='enterprise' AND scope_id='nav' AND JSON_VALUE(raw_record,'$.ai_credits_used') IS NOT NULL) gross_from,
   (SELECT IFNULL(CAST(MAX(day) AS STRING),'') FROM usage_days) last_usage_day,
-  (SELECT IFNULL(MAX_BY(team_slug,day),'') FROM memberships WHERE team_id=@team) team_slug
+  (SELECT IFNULL(MAX_BY(team_slug,day),'') FROM memberships WHERE team_id=@team) team_slug,
+  (SELECT IFNULL(CAST(d AS STRING),'') FROM seat_snap) seats_snapshot
 )
 SELECT CAST(m AS STRING) month,c.month IS NOT NULL net_complete,
  IFNULL(g.users,0) gross_users,IFNULL(g.gross,0) gross,IFNULL(n.users,0) net_users,IFNULL(n.net,0) net,
- IFNULL(z.net,0) no_usage_net,v.team_slug,v.membership_from,v.gross_from,v.last_usage_day
+ IFNULL(z.net,0) no_usage_net,v.team_slug,v.membership_from,v.gross_from,v.last_usage_day,
+ IFNULL(s.seat_months,0) seat_months,v.seats_snapshot
 FROM UNNEST(GENERATE_DATE_ARRAY(DATE(@from),DATE_SUB(DATE(@to),INTERVAL 1 DAY),INTERVAL 1 MONTH)) m
 CROSS JOIN coverage v
 LEFT JOIN gross_m g ON g.month=m LEFT JOIN net_m n ON n.month=m
-LEFT JOIN no_usage_m z ON z.month=m LEFT JOIN completed c ON c.month=m
+LEFT JOIN no_usage_m z ON z.month=m LEFT JOIN completed c ON c.month=m LEFT JOIN seat_m s ON s.month=m
 ORDER BY month`,
 		completed,
 		bq.tableRef(bq.metricsDataset, "user_teams"),
@@ -149,7 +210,7 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 	for _, row := range rows {
 		month := row.Month[:7]
 		out.TeamSlug = row.TeamSlug
-		out.Coverage = TeamYearCoverage{MembershipFrom: row.MembershipFrom, GrossFrom: row.GrossFrom, LastUsageDay: row.LastUsageDay, NetMonths: out.Coverage.NetMonths}
+		out.Coverage = TeamYearCoverage{MembershipFrom: row.MembershipFrom, GrossFrom: row.GrossFrom, LastUsageDay: row.LastUsageDay, NetMonths: out.Coverage.NetMonths, SeatsSnapshot: row.SeatsSnapshot}
 		if month > current {
 			continue
 		}
@@ -178,6 +239,10 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 		m.Hidden = m.Basis != basisNone && !shown
 		if shown {
 			m.Users = &users
+		}
+		if hasTeams && row.SeatsSnapshot != "" && row.SeatMonths >= minTeamContributors {
+			seatMonths := row.SeatMonths
+			m.SeatMonths, m.LicenceUSDEstimate = &seatMonths, cents(float64(seatMonths)*licenceListPriceUSD)
 		}
 		out.Months = append(out.Months, m)
 	}

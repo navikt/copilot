@@ -65,6 +65,32 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 	}
 }
 
+func TestTeamYearLicences(t *testing.T) {
+	row := func(month string, seats int64, snapshot string) teamYearRow {
+		return teamYearRow{Month: month + "-01", MembershipFrom: "2026-05-06", SeatMonths: seats, SeatsSnapshot: snapshot}
+	}
+	now := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	got := teamYearOverview("123", 2026, []teamYearRow{
+		row("2026-04", 9, "2026-10-11"), // before membership history
+		row("2026-05", 4, "2026-10-11"), // under five
+		row("2026-06", 5, "2026-10-11"),
+		row("2026-07", 9, "2026-10-11"),
+	}, now).Months
+	if got[0].SeatMonths != nil || got[1].SeatMonths != nil || got[1].LicenceUSDEstimate != nil {
+		t.Errorf("hidden months leak seats: %+v %+v", got[0], got[1])
+	}
+	if *got[2].SeatMonths != 5 || *got[2].LicenceUSDEstimate != 95 || *got[3].LicenceUSDEstimate != 171 {
+		t.Errorf("licences = %+v %+v", got[2], got[3])
+	}
+	if got[3].NetUSD != nil || got[3].GrossUSD != nil {
+		t.Errorf("licences leaked into usage: %+v", got[3])
+	}
+	none := teamYearOverview("123", 2026, []teamYearRow{row("2026-07", 9, "")}, now)
+	if none.Months[0].SeatMonths != nil || none.Coverage.SeatsSnapshot != "" {
+		t.Errorf("no snapshot yet: %+v", none)
+	}
+}
+
 func TestTeamYearQueryWithoutBillingTables(t *testing.T) {
 	bqc, err := bigquery.NewClient(context.Background(), "p", option.WithoutAuthentication())
 	if err != nil {
@@ -72,9 +98,12 @@ func TestTeamYearQueryWithoutBillingTables(t *testing.T) {
 	}
 	client := &BigQueryClient{client: bqc, projectID: "p", metricsDataset: "d"}
 	for _, net := range []bool{true, false} {
-		q := client.teamYearQuery("123", 2026, net)
+		q := client.teamYearQuery("123", 2026, net, net)
 		billing := strings.Contains(q.Q, "billing_user_monthly")
-		if billing != net || !strings.Contains(q.Q, "user_metrics") || !strings.Contains(q.Q, "day>=DATE(@from) AND day<DATE(@to)") {
+		if strings.Contains(q.Q, "copilot_seats") != net {
+			t.Errorf("seats=%v: copilot_seats referenced wrongly", net)
+		}
+		if billing != net ||!strings.Contains(q.Q, "user_metrics") || !strings.Contains(q.Q, "day>=DATE(@from) AND day<DATE(@to)") {
 			t.Errorf("net=%v: billing tables referenced = %v", net, billing)
 		}
 		if len(q.Parameters) != 3 || q.Parameters[0].Value != "2026-01-01" || q.Parameters[1].Value != "2027-01-01" || q.Parameters[2].Value != "123" {
