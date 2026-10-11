@@ -183,8 +183,8 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             <code className={code}>start</code> spør før de hever den. Den har 64k kontekst og 16k svar.
           </BodyLong>
           <BodyLong>
-            Vi har ikke testet på ekte Macer med 48 GB eller 64 GB minne. Har du en slik Mac, fortell oss hvordan det
-            gikk i{" "}
+            Vi har ikke testet på en fysisk Mac med 48 eller 64 GB minne. Målingene er gjort på en 128 GB-maskin med
+            minnegrensen satt til 48 GB. Har du en slik Mac, fortell oss hvordan det gikk i{" "}
             <a href="https://github.com/navikt/mlx-workspace/issues/17" className={linkClass}>
               issue 17
             </a>

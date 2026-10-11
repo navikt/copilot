@@ -108,7 +108,7 @@ export const DELEGATION_RANGES: DelegationRange[] = [
 ];
 
 export const WORKER_RESULTS: ResultSet = {
-  measured: "2026-10-10",
+  measured: "2026-10-11",
   source: SOURCES.night2,
   rows: [
     {
@@ -116,7 +116,7 @@ export const WORKER_RESULTS: ResultSet = {
       result: "10 av 10 (skymodellen: 7 av 10)",
       verdict: "Godkjent",
     },
-    { task: "Det samme i 3–8 kall", result: "9 av 10 på både 3–4 og 5–8 kall", verdict: "Ikke avgjort" },
+    { task: "Det samme i 3–8 kall", result: "9 av 10 på både 3–4 og 5–8 kall", verdict: "Ikke godkjent ennå" },
     {
       task: "Det samme i 9 kall eller flere",
       result: "6–8 av 10 første natt, 14 av 16 andre natt",

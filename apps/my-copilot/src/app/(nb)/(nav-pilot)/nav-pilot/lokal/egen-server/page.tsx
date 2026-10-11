@@ -74,8 +74,8 @@ export default function EgenServer() {
         gjelder ikke.
       </BodyLong>
       <BodyLong>
-        Oppsettet er ikke testet på ekte maskinvare, verken på en bærbar med NVIDIA-kort på 8 GB eller på en bærbar uten
-        GPU. Har teamet ditt slik maskinvare, fortell oss hvordan det gikk i{" "}
+        Oppsettet er ikke testet på fysisk maskinvare: ikke på en bærbar med NVIDIA-kort (8 GB), og ikke på en bærbar
+        uten GPU. Har teamet ditt slik maskinvare, fortell oss hvordan det gikk i{" "}
         <a href="https://github.com/navikt/mlx-workspace/issues/124" className={linkClass}>
           issue 124
         </a>

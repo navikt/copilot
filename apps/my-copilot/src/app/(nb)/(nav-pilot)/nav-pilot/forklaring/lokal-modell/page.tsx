@@ -28,7 +28,7 @@ type Verdict = { task: string; verdict: string };
 
 const VERDICTS: Verdict[] = [
   { task: "Legge til et argument i 1–2 kall, i flere filer", verdict: "Godkjent for delegering" },
-  { task: "Det samme i 3–8 kall", verdict: "Ikke avgjort" },
+  { task: "Det samme i 3–8 kall", verdict: "Ikke godkjent ennå" },
   { task: "Det samme i 9 kall eller flere", verdict: "Blir i skyen" },
   { task: "Endre én fil", verdict: "Ikke godkjent ennå" },
   { task: "Lage en ny fil", verdict: "Godkjent lokalt på de to letteste trinnene, ikke for delegering" },
@@ -243,9 +243,9 @@ export default function LokalModellForklaring() {
             </li>
             <li>Vi måler delegeringsnivåene videre, på flere modeller og oppgaver.</li>
             <li>
-              Egen LLM-server er ikke testet, verken på Linux eller med Ollama og llama-server. Det gjelder også en
-              bærbar med NVIDIA-kort på 8 GB og en bærbar uten GPU. Har teamet ditt slik maskinvare, fortell oss hvordan
-              det gikk i{" "}
+              Vi har ikke testet egen LLM-server på fysisk maskinvare, verken på Linux eller med Ollama og llama-server
+              på Mac, og heller ikke på en bærbar med NVIDIA-kort (8 GB) eller en bærbar uten GPU. Har teamet ditt slik
+              maskinvare, fortell oss hvordan det gikk i{" "}
               <a href="https://github.com/navikt/mlx-workspace/issues/124" className={linkClass}>
                 issue 124
               </a>
