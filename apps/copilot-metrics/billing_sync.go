@@ -195,9 +195,13 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 			return ctx.Err()
 		case <-time.After(pause):
 		}
-		currentID, err := fetcher.FetchUserID(ctx, users[id])
-		gone, err := deletedAccount(ctx, fetcher, id, err)
-		if gone {
+		login := users[id]
+		currentID, err := fetcher.FetchUserID(ctx, login)
+		current, handled, err := accountAfterNotFound(ctx, fetcher, id, login, err)
+		if handled && current != "" {
+			login, currentID = current, id // AccountLogin verified the id
+		}
+		if handled && current == "" {
 			skipped++
 			if err := store.ReplaceUserBilling(ctx, billingRows(&BillingUsageResponse{}, month, cfg.EnterpriseSlug, id, users[id])); err != nil {
 				return errors.Join(append(failures, err)...)
@@ -220,7 +224,7 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 			}
 			continue
 		}
-		response, err := fetcher.FetchUserAICreditUsage(ctx, users[id], month)
+		response, err := fetcher.FetchUserAICreditUsage(ctx, login, month)
 		if err != nil {
 			if stopBillingSync(err) {
 				if len(failures) > 0 {
@@ -232,12 +236,12 @@ func syncBillingMonth(ctx context.Context, fetcher billingSyncFetcher, store bil
 			failures = append(failures, err)
 			continue
 		}
-		if err := validateUserBilling(response, users[id], cfg.EnterpriseSlug, month); err != nil {
+		if err := validateUserBilling(response, login, cfg.EnterpriseSlug, month); err != nil {
 			unresolved++
 			failures = append(failures, err)
 			continue
 		}
-		if err := store.ReplaceUserBilling(ctx, billingRows(response, month, cfg.EnterpriseSlug, id, users[id])); err != nil {
+		if err := store.ReplaceUserBilling(ctx, billingRows(response, month, cfg.EnterpriseSlug, id, login)); err != nil {
 			if len(failures) > 0 {
 				return errors.Join(append(failures, err)...)
 			}

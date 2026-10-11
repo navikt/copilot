@@ -18,13 +18,17 @@ type billingUserFetcherTest struct {
 	items     []BillingUsageItem
 	calls     int
 	err       error
-	notFound  map[string]bool // logins that 404
-	deleted   map[string]bool // ids with no account
+	notFound  map[string]bool   // logins that 404
+	deleted   map[string]bool   // ids with no account
+	current   map[string]string // id -> current login
 	lookupErr error
 }
 
-func (f *billingUserFetcherTest) AccountDeleted(_ context.Context, id string) (bool, error) {
-	return f.deleted[id], f.lookupErr
+func (f *billingUserFetcherTest) AccountLogin(_ context.Context, id string) (string, error) {
+	if f.deleted[id] {
+		return "", f.lookupErr
+	}
+	return f.current[id], f.lookupErr
 }
 
 func TestUserBillingSkipsOnlyDeletedAccounts(t *testing.T) {
@@ -43,11 +47,26 @@ func TestUserBillingSkipsOnlyDeletedAccounts(t *testing.T) {
 	if err := ingestUserBillingMonth(context.Background(), &billingUserFetcherTest{items: items}, store, &Config{EnterpriseSlug: "nav"}, month); err != nil || store.done["2"] || !store.complete {
 		t.Fatalf("bot account fetched: %v %+v", err, store)
 	}
-	// A renamed account 404s on its old login but still exists: abort.
-	store = &billingUserStoreTest{users: map[string]string{"1": "renamed"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
-	fetcher = &billingUserFetcherTest{items: items, notFound: map[string]bool{"renamed": true}}
+	// A 404 for an account that still has the same login: abort.
+	store = &billingUserStoreTest{users: map[string]string{"1": "same"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+	fetcher = &billingUserFetcherTest{items: items, notFound: map[string]bool{"same": true}, current: map[string]string{"1": "same"}}
 	if err := ingestUserBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, month); err == nil || store.complete || store.done["1"] {
-		t.Fatalf("renamed account skipped: %v %+v", err, store)
+		t.Fatalf("404 for an unchanged account skipped: %v %+v", err, store)
+	}
+	// A renamed account 404s on its old login: refetch with the current one.
+	store = &billingUserStoreTest{users: map[string]string{"1": "old"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+	fetcher = &billingUserFetcherTest{items: items, notFound: map[string]bool{"old": true}, current: map[string]string{"1": "New"}}
+	if err := ingestUserBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, month); err != nil || !store.complete {
+		t.Fatalf("renamed account not refetched: %v %+v", err, store)
+	}
+	if row := store.rows["1:Copilot AI Credits"]; row.NetAmount != 2 || row.GitHubLogin != "new" {
+		t.Fatalf("renamed account rows: %+v", store.rows)
+	}
+	// The refetch failing still aborts.
+	store = &billingUserStoreTest{users: map[string]string{"1": "old"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+	fetcher = &billingUserFetcherTest{items: items, notFound: map[string]bool{"old": true, "new": true}, current: map[string]string{"1": "new"}}
+	if err := ingestUserBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, month); err == nil || store.complete || store.done["1"] {
+		t.Fatalf("failed refetch skipped: %v %+v", err, store)
 	}
 }
 

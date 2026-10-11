@@ -409,6 +409,13 @@ func TestBillingSyncDeletedAccountAndFailedLookup(t *testing.T) {
 	if store, err := gone(nil); err != nil || !store.done["1"] || !store.complete {
 		t.Fatalf("deleted account not skipped: %v %+v", err, store)
 	}
+	// Renamed: the identity lookup 404s on the old login, usage uses the new one.
+	store := &billingUserStoreTest{users: map[string]string{"1": "old"}, done: map[string]bool{}, rows: map[string]UserBillingRow{}}
+	fetcher := &syncFetcherTest{identityErr: &billingHTTPError{Status: 404}, billingUserFetcherTest: billingUserFetcherTest{
+		items: []BillingUsageItem{{Product: "Copilot", SKU: "Copilot AI Credits", NetAmount: 3}}, notFound: map[string]bool{"old": true}, current: map[string]string{"1": "new"}}}
+	if err := syncBillingMonth(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, month, 0); err != nil || !store.complete || store.rows["1:Copilot AI Credits"].GitHubLogin != "new" {
+		t.Fatalf("renamed account not refetched: %v %+v", err, store)
+	}
 	for _, lookupErr := range []error{errBillingBudget, &billingHTTPError{Status: 403}} {
 		store, err := gone(lookupErr)
 		if err == nil || !errors.Is(err, lookupErr) || !stopBillingSync(err) || store.done["1"] || store.complete || len(store.rows) != 0 {
