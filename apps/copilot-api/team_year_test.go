@@ -103,7 +103,7 @@ func TestTeamYearQueryWithoutBillingTables(t *testing.T) {
 		if strings.Contains(q.Q, "copilot_seats") != net {
 			t.Errorf("seats=%v: copilot_seats referenced wrongly", net)
 		}
-		if billing != net ||!strings.Contains(q.Q, "user_metrics") || !strings.Contains(q.Q, "day>=DATE(@from) AND day<DATE(@to)") {
+		if billing != net || !strings.Contains(q.Q, "user_metrics") || !strings.Contains(q.Q, "day>=DATE(@from) AND day<DATE(@to)") {
 			t.Errorf("net=%v: billing tables referenced = %v", net, billing)
 		}
 		if len(q.Parameters) != 3 || q.Parameters[0].Value != "2026-01-01" || q.Parameters[1].Value != "2027-01-01" || q.Parameters[2].Value != "123" {
