@@ -243,7 +243,20 @@ export default function LokalModellForklaring() {
             </li>
             <li>Vi måler delegeringsnivåene videre, på flere modeller og oppgaver.</li>
             <li>
-              Vi har ennå ikke målt noen modell på egen LLM-server, verken på Linux eller med Ollama og llama-server.
+              Egen LLM-server er ikke testet, verken på Linux eller med Ollama og llama-server. Det gjelder også en
+              bærbar med NVIDIA-kort på 8 GB og en bærbar uten GPU. Har teamet ditt slik maskinvare, fortell oss hvordan
+              det gikk i{" "}
+              <a href="https://github.com/navikt/mlx-workspace/issues/124" className={linkClass}>
+                issue 124
+              </a>
+              .
+            </li>
+            <li>
+              Macer med 48 GB og 64 GB minne er ikke testet. Har du en slik Mac, fortell oss hvordan det gikk i{" "}
+              <a href="https://github.com/navikt/mlx-workspace/issues/17" className={linkClass}>
+                issue 17
+              </a>
+              .
             </li>
             <li>
               Vi vurderer å kjøre decide på en server for dem som ikke har en passende Mac. Da forlater grunnlaget

@@ -286,7 +286,7 @@ const VERDICT: Record<VerdictKey, { label: string; color: string; shape: string 
   pass: { label: "Bestått", color: "var(--ax-bg-success-strong)", shape: "rounded-full" },
   fail: { label: "Ikke bestått", color: "var(--ax-bg-danger-strong)", shape: "rotate-45" },
   mixed: { label: "Blandet", color: "var(--ax-bg-warning-strong)", shape: "" },
-  "not-yet": { label: "Ikke avgjort ennå", color: "var(--ax-bg-info-strong)", shape: "rounded-full" },
+  "not-yet": { label: "Ikke godkjent ennå", color: "var(--ax-bg-info-strong)", shape: "rounded-full" },
   unset: { label: "Uten vurdering", color: "var(--ax-bg-neutral-strong)", shape: "rounded-full scale-50" },
 };
 

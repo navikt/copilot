@@ -58,7 +58,7 @@ export default function EgenServer() {
       description="Har du Linux, eller vil du bruke Ollama eller llama-server på Macen, kan nav-pilot bruke en server du kjører selv. Da laster nav-pilot ikke ned noe, starter ingenting og trenger ikke sudo."
       badge={
         <Tag variant="warning" size="small" className="uppercase tracking-wide">
-          Alfa, ikke målt
+          Alfa, ikke testet
         </Tag>
       }
       toc={TOC}
@@ -72,6 +72,14 @@ export default function EgenServer() {
           Målinger
         </NextLink>{" "}
         gjelder ikke.
+      </BodyLong>
+      <BodyLong>
+        Oppsettet er ikke testet på ekte maskinvare, verken på en bærbar med NVIDIA-kort på 8 GB eller på en bærbar uten
+        GPU. Har teamet ditt slik maskinvare, fortell oss hvordan det gikk i{" "}
+        <a href="https://github.com/navikt/mlx-workspace/issues/124" className={linkClass}>
+          issue 124
+        </a>
+        .
       </BodyLong>
 
       <section>

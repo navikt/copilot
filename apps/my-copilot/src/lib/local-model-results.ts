@@ -130,7 +130,7 @@ export const WORKER_RESULTS: ResultSet = {
     {
       task: "Lage en ny fil, med retry2",
       result:
-        "9. oktober 2026: 10 av 10 på hvert av de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Trinn 3 ga også 10 av 10, men er ikke avgjort ennå. Trinn 4 ga 7 og 5 av 10, og alle feilene var tidsavbrudd. Uten retry2 ga samme oppsett 26 av 40 10. oktober 2026.",
+        "9. oktober 2026: 10 av 10 på hvert av de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Trinn 3 er ikke godkjent: samlet over tre målinger ga det 36 av 40, og den nedre grensen på 0,82 er under kravet på 0,90. Alle de fire feilene var tidsavbrudd. Trinn 4 ga 7 og 5 av 10, og alle feilene var tidsavbrudd. Uten retry2 ga samme oppsett 26 av 40 10. oktober 2026.",
       verdict: "Godkjent lokalt på de to letteste trinnene",
     },
     { task: "Svare på spørsmål om kodebasen", result: "18 av 40 (skymodellen: 40 av 40)", verdict: "Blir i skyen" },

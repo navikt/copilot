@@ -183,6 +183,14 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
             <code className={code}>start</code> spør før de hever den. Den har 64k kontekst og 16k svar.
           </BodyLong>
           <BodyLong>
+            Vi har ikke testet på ekte Macer med 48 GB eller 64 GB minne. Har du en slik Mac, fortell oss hvordan det gikk
+            i{" "}
+            <a href="https://github.com/navikt/mlx-workspace/issues/17" className={linkClass}>
+              issue 17
+            </a>
+            .
+          </BodyLong>
+          <BodyLong>
             Hovedagenten delegerer ingenting til denne modellen ennå, uansett delegeringsnivå. Du kan bruke den til{" "}
             <code className={code}>alpha decide</code>, eller prøve den i en økt selv. I målingene svarte den like godt
             som standardmodellen med decide. Prompter over 49 000 tokens kan sprenge minnegrensen. Se{" "}
