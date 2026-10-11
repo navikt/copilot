@@ -26,9 +26,9 @@ function licenceCaveats(data: TeamYearOverview): string[] {
     return ["Lisenser er ikke lest inn ennå. De vises etter første nattlige innlesing."];
   }
   return [
-    "Lisenser er et anslag: listepris 19 USD (Business) eller 39 USD (Enterprise) per måned for hvert medlem av teamet med lisens, fra datoen lisensen ble tildelt. Hadde noen lisens før det, er den perioden ikke med. Med færre enn fem lisenser vises ikke tallet.",
-    `Medlemslister finnes fra ${team_members_from}. For månedene før bruker vi medlemmene teamet hadde da.`,
-    "Totalt med lisenser er netto og netto uten bruk, eller brutto, pluss lisenser. Feltet er tomt når en av delene mangler eller er skjult.",
+    "Lisenser er et anslag. Vi regner listepris per måned, 19 USD for Business og 39 USD for Enterprise, for hvert medlem av teamet med lisens, fra måneden lisensen ble tildelt. Hadde noen lisens før det, er den perioden ikke med. Har færre enn fem medlemmer lisens, viser vi ikke tallet.",
+    `Medlemslister finnes fra ${team_members_from}. For månedene før bruker vi medlemmene teamet hadde den dagen.`,
+    "Totalt med lisenser legger lisensene til netto og netto uten bruk, eller til brutto når måneden bruker brutto. Feltet er tomt når en av delene mangler eller er skjult.",
   ];
 }
 
@@ -38,7 +38,7 @@ export function teamYearCsv(data: TeamYearOverview): string {
   const lines = [
     `# Copilot-forbruk i USD for team ${data.team_slug} (${data.team_id}), ${data.year}`,
     ...teamYearCaveats(data).map((caveat) => `# ${caveat}`),
-    "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,lisenser,lisenser_usd_anslag,totalt_med_lisenser_usd",
+    "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,medlemmer_med_lisens,lisenser_usd_anslag,totalt_med_lisenser_usd",
     ...data.months.map((m) =>
       [
         m.month,

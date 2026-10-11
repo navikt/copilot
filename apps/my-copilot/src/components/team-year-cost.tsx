@@ -65,7 +65,7 @@ export default function TeamYearCost({ data }: { data: TeamYearOverview }) {
                 Netto uten bruk
               </TableColumnHeader>
               <TableColumnHeader scope="col" align="right">
-                Lisenser
+                Medlemmer med lisens
               </TableColumnHeader>
               <TableColumnHeader scope="col" align="right">
                 Lisenser (anslag)

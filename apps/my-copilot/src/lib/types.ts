@@ -299,7 +299,7 @@ export interface TeamYearMonth {
   no_usage_net_usd: number | null;
   /** Members with a seat that month; null when hidden (under five), without team history or before the first seat snapshot. */
   seat_months: number | null;
-  /** seat_months at the 19 USD list price. An estimate, not billed. */
+  /** seat_months at list price by plan: 19 USD Business, 39 USD Enterprise. An estimate, not billed. */
   licence_usd_estimate: number | null;
   /** Basis amount (net plus no-usage net, or gross) plus licences; null when any part is hidden or missing. */
   total_usd: number | null;

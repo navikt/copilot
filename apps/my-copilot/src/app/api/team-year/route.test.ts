@@ -104,7 +104,7 @@ describe("GET /api/team-year", () => {
     const header = lines.findIndex((line) => !line.startsWith("#"));
     expect(lines.slice(0, header).some((line) => line.includes("kan ikke legges sammen"))).toBe(true);
     expect(lines.slice(header)).toEqual([
-      "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,lisenser,lisenser_usd_anslag,totalt_med_lisenser_usd",
+      "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,medlemmer_med_lisens,lisenser_usd_anslag,totalt_med_lisenser_usd",
       "2026-04,Ingen data,,,,,,,",
       "2026-07,Brutto (skjult),,,,,9,171.00,",
       "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
