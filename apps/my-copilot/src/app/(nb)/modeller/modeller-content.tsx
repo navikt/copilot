@@ -25,6 +25,7 @@ import {
   passRate,
   runsBySuite,
   sourceUrl,
+  type Effort,
   type GoldenSummary,
   type Suite,
 } from "@/lib/golden-baselines";
@@ -94,7 +95,8 @@ function Choices({ users }: { users: Record<string, string[]> }) {
 
 function Measurements({ summary }: { summary: GoldenSummary | null }) {
   const allModels = [...new Set(summary?.runs.map((run) => modelName(run.model)))];
-  const allEfforts = [...new Set(summary?.runs.map((run) => run.effort))];
+  const present = new Set(summary?.runs.map((run) => run.effort));
+  const allEfforts = (["low", "medium", "high", "default"] as Effort[]).filter((e) => present.has(e));
   const [shownModels, setShownModels] = useState(allModels);
   const [shownEfforts, setShownEfforts] = useState(allEfforts);
   const [frontier, setFrontier] = useState(false);
@@ -112,6 +114,10 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
       summary.runs.filter((run) => !run.smoke && knownCredits(run) !== null).map((run) => modelName(run.model))
     ),
   ];
+
+  const shown = summary.runs.filter(
+    (run) => shownModels.includes(modelName(run.model)) && shownEfforts.includes(run.effort)
+  );
 
   return (
     <VStack gap="space-24">
@@ -138,9 +144,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
           Vis beste avveining mellom bestått og pris
         </Switch>
       </HStack>
-      {runsBySuite(
-        summary.runs.filter((run) => shownModels.includes(modelName(run.model)) && shownEfforts.includes(run.effort))
-      ).map(([suite, runs]) => {
+      {runsBySuite(shown).map(([suite, runs]) => {
         // Smoke runs check the harness, not the model: table only, after the real runs.
         const plotted = runs.filter((run) => !run.smoke && knownCredits(run) !== null);
         const unverified = runs.some((run) => !run.smoke && run.model_verified === false);
@@ -170,7 +174,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                 <Table.Header>
                   <Table.Row>
                     <Table.HeaderCell scope="col">Modell</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Effort</Table.HeaderCell>
+                    <Table.HeaderCell scope="col">Innsatsnivå</Table.HeaderCell>
                     <Table.HeaderCell scope="col" align="right">
                       Bestått
                     </Table.HeaderCell>
@@ -251,8 +255,8 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
           </VStack>
         );
       })}
-      {(shownModels.length === 0 || shownEfforts.length === 0) && (
-        <BodyShort size="small">Velg minst én modell og ett innsatsnivå for å se målingene.</BodyShort>
+      {shown.length === 0 && (
+        <BodyShort size="small">Ingen målinger passer filteret. Velg flere modeller eller innsatsnivåer.</BodyShort>
       )}
     </VStack>
   );

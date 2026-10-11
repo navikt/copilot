@@ -15,8 +15,9 @@ export interface ChartPoint {
 
 // Categorical slots from the dataviz reference palette, in fixed order. The
 // first four pass every check for all pairs on a scatter; slots five and six
-// are below 3:1 contrast, so the table under the chart carries the same data.
-const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7", "#eda100", "#e87ba4"];
+// are below 3:1 contrast, and the seventh (brown) is told apart from the rest by
+// hue, not contrast, so the table under the chart carries the same data.
+const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#4a3aa7", "#eda100", "#e87ba4", "#8a5a2b"];
 // Shape carries effort, so identity is never colour alone.
 const EFFORT_SHAPE: Record<string, "circle" | "rect" | "triangle" | "rectRot"> = {
   low: "circle",
@@ -25,9 +26,7 @@ const EFFORT_SHAPE: Record<string, "circle" | "rect" | "triangle" | "rectRot"> =
   default: "rectRot",
 };
 
-const EFFORT_ORDER = ["low", "medium", "default", "high"];
-
-/** Points no other point beats on both axes (more passed, fewer credits), cheapest first. */
+/** The points where no other run is both cheaper and at least as good, cheapest first. */
 export function paretoFrontier<T extends { credits: number; passPercent: number }>(points: T[]): T[] {
   let best = -Infinity;
   return [...points]
@@ -51,10 +50,8 @@ export function PassRateChart({
     .filter((model) => points.some((p) => p.model === model))
     .map((model) => {
       const color = SERIES[models.indexOf(model) % SERIES.length];
-      // Line runs low → high effort so the step up in cost is visible.
-      const own = points
-        .filter((p) => p.model === model)
-        .sort((a, b) => EFFORT_ORDER.indexOf(a.effort) - EFFORT_ORDER.indexOf(b.effort) || a.credits - b.credits);
+      // Line runs cheapest → dearest, so it never doubles back on the log axis.
+      const own = points.filter((p) => p.model === model).sort((a, b) => a.credits - b.credits);
       return {
         label: model,
         data: own.map((p) => ({ x: p.credits, y: p.passPercent, effort: p.effort, n: p.n })),
@@ -78,8 +75,13 @@ export function PassRateChart({
       borderColor: "#475569",
       borderDash: [6, 4],
       borderWidth: 2,
-      pointRadius: 0,
+      // Rings around the frontier points, so a one-point frontier still shows.
+      pointRadius: 11,
+      pointHoverRadius: 11,
       pointHitRadius: 0,
+      pointBackgroundColor: "transparent",
+      pointBorderColor: "#475569",
+      pointBorderWidth: 1.5,
       backgroundColor: "#475569",
     });
   }
@@ -98,6 +100,8 @@ export function PassRateChart({
           options={{
             responsive: true,
             maintainAspectRatio: false,
+            // Static render, so screenshots are deterministic.
+            animation: false,
             // Points on 100 % or the largest credit value would otherwise be cut in half.
             clip: false,
             layout: { padding: 12 },
@@ -146,8 +150,9 @@ export function PassRateChart({
       <figcaption className="text-sm" style={{ color: "#475569", marginTop: "var(--ax-space-8)" }}>
         Form viser innsatsnivå (effort): sirkel = low, kvadrat = medium, trekant = high, rombe = standard. Linjen binder
         sammen nivåene for hver modell. Credits-aksen er logaritmisk.
-        {frontier && " Den stiplede linjen går gjennom punktene ingen andre slår på både bestått og pris."} Tallene står
-        i tabellen under.
+        {frontier &&
+          " Ringene og den stiplede linjen viser punktene der ingen annen kjøring er både billigere og minst like god."}{" "}
+        Tallene står i tabellen under.
       </figcaption>
     </figure>
   );
