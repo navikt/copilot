@@ -352,7 +352,7 @@
         "source": "github"
       },
       "tools": ["click", "close_page", "drag", "emulate", "evaluate_script", "fill", "fill_form", "get_console_message", "get_css_styles", "get_network_request", "handle_dialog", "hover", "lighthouse_audit", "list_console_messages", "list_network_requests", "list_pages", "navigate_page", "new_page", "performance_analyze_insight", "performance_start_trace", "performance_stop_trace", "press_key", "resize_page", "select_page", "take_heapsnapshot", "take_screenshot", "take_snapshot", "type_text", "upload_file", "wait_for"],
-      "toolRisk": {"click": "write", "drag": "write", "fill": "write", "fill_form": "write", "handle_dialog": "write", "press_key": "write", "type_text": "write", "evaluate_script": "external", "upload_file": "external"},
+      "toolRisk": {"click": "external", "close_page": "external", "drag": "external", "emulate": "external", "evaluate_script": "external", "fill": "external", "fill_form": "external", "handle_dialog": "external", "hover": "external", "lighthouse_audit": "external", "navigate_page": "external", "new_page": "external", "performance_start_trace": "external", "press_key": "external", "resize_page": "external", "select_page": "external", "type_text": "external", "upload_file": "external"},
       "tags": ["frontend", "browser-automation", "performance", "developer-tools"],
       "examples": [
         {
