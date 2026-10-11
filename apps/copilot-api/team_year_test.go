@@ -66,28 +66,58 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 }
 
 func TestTeamYearLicences(t *testing.T) {
-	row := func(month string, seats int64, snapshot string) teamYearRow {
-		return teamYearRow{Month: month + "-01", MembershipFrom: "2026-05-06", SeatMonths: seats, SeatsSnapshot: snapshot}
+	row := func(month string, seats int64, licence float64) teamYearRow {
+		return teamYearRow{Month: month + "-01", SeatMonths: seats, Licence: licence, SeatsSnapshot: "2026-10-11", TeamMembersFrom: "2026-10-11"}
 	}
 	now := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
 	got := teamYearOverview("123", 2026, []teamYearRow{
-		row("2026-04", 9, "2026-10-11"), // before membership history
-		row("2026-05", 4, "2026-10-11"), // under five
-		row("2026-06", 5, "2026-10-11"),
-		row("2026-07", 9, "2026-10-11"),
+		row("2026-04", 9, 211), // before user_teams history: licences still shown
+		row("2026-05", 4, 76),  // under five
+		row("2026-06", 5, 95),
 	}, now).Months
-	if got[0].SeatMonths != nil || got[1].SeatMonths != nil || got[1].LicenceUSDEstimate != nil {
-		t.Errorf("hidden months leak seats: %+v %+v", got[0], got[1])
+	if got[1].SeatMonths != nil || got[1].LicenceUSDEstimate != nil {
+		t.Errorf("under five leaks seats: %+v", got[1])
 	}
-	if *got[2].SeatMonths != 5 || *got[2].LicenceUSDEstimate != 95 || *got[3].LicenceUSDEstimate != 171 {
-		t.Errorf("licences = %+v %+v", got[2], got[3])
+	if *got[0].SeatMonths != 9 || *got[0].LicenceUSDEstimate != 211 || *got[2].LicenceUSDEstimate != 95 {
+		t.Errorf("licences = %+v %+v", got[0], got[2])
 	}
-	if got[3].NetUSD != nil || got[3].GrossUSD != nil {
-		t.Errorf("licences leaked into usage: %+v", got[3])
+	if got[0].NetUSD != nil || got[0].GrossUSD != nil || got[0].TotalUSD != nil || got[0].TotalBasis != basisNone {
+		t.Errorf("licences leaked into usage or total: %+v", got[0])
 	}
-	none := teamYearOverview("123", 2026, []teamYearRow{row("2026-07", 9, "")}, now)
-	if none.Months[0].SeatMonths != nil || none.Coverage.SeatsSnapshot != "" {
-		t.Errorf("no snapshot yet: %+v", none)
+	for _, missing := range []teamYearRow{
+		{Month: "2026-07-01", SeatMonths: 9, Licence: 171, TeamMembersFrom: "2026-10-11"},
+		{Month: "2026-07-01", SeatMonths: 9, Licence: 171, SeatsSnapshot: "2026-10-11"},
+	} {
+		if m := teamYearOverview("123", 2026, []teamYearRow{missing}, now).Months[0]; m.SeatMonths != nil {
+			t.Errorf("no snapshot or members yet: %+v", m)
+		}
+	}
+}
+
+func TestTeamYearTotal(t *testing.T) {
+	f := func(v float64) *float64 { return &v }
+	for _, c := range []struct {
+		name string
+		m    TeamYearMonth
+		want *float64
+	}{
+		{"net with no-usage net", TeamYearMonth{Basis: basisNet, NetUSD: f(80.1), NoUsageNetUSD: f(2), LicenceUSDEstimate: f(152)}, f(234.1)},
+		{"gross", TeamYearMonth{Basis: basisGross, GrossUSD: f(100), LicenceUSDEstimate: f(95)}, f(195)},
+		{"net hidden", TeamYearMonth{Basis: basisNet, GrossUSD: f(100), LicenceUSDEstimate: f(95)}, nil},
+		{"gross hidden", TeamYearMonth{Basis: basisGross, LicenceUSDEstimate: f(95)}, nil},
+		{"licence hidden", TeamYearMonth{Basis: basisGross, GrossUSD: f(100)}, nil},
+		{"no basis", TeamYearMonth{Basis: basisNone, LicenceUSDEstimate: f(95)}, nil},
+	} {
+		got := teamYearTotal(c.m)
+		if (got == nil) != (c.want == nil) || (got != nil && *got != *c.want) {
+			t.Errorf("%s: total = %v, want %v", c.name, got, c.want)
+		}
+	}
+	cov := teamYearRow{MembershipFrom: "2026-05-06", GrossFrom: "2026-06-15", SeatsSnapshot: "2026-10-11", TeamMembersFrom: "2026-10-11"}
+	cov.Month, cov.GrossUsers, cov.Gross, cov.SeatMonths, cov.Licence = "2026-07-01", 6, 100, 5, 95
+	m := teamYearOverview("123", 2026, []teamYearRow{cov}, time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)).Months[0]
+	if m.TotalUSD == nil || *m.TotalUSD != 195 || m.TotalBasis != basisGross {
+		t.Errorf("overview total = %+v", m)
 	}
 }
 
@@ -102,6 +132,9 @@ func TestTeamYearQueryWithoutBillingTables(t *testing.T) {
 		billing := strings.Contains(q.Q, "billing_user_monthly")
 		if strings.Contains(q.Q, "copilot_seats") != net {
 			t.Errorf("seats=%v: copilot_seats referenced wrongly", net)
+		}
+		if strings.Contains(q.Q, "%!") || (net && !strings.Contains(q.Q, "'enterprise',39.00,19.00")) {
+			t.Errorf("seat prices not formatted into the query")
 		}
 		if billing != net || !strings.Contains(q.Q, "user_metrics") || !strings.Contains(q.Q, "day>=DATE(@from) AND day<DATE(@to)") {
 			t.Errorf("net=%v: billing tables referenced = %v", net, billing)
