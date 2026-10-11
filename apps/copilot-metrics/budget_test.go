@@ -249,7 +249,7 @@ func TestGitHubClient_FetchAllCopilotLogins(t *testing.T) {
 	// Two pages: first has 2 seats, second has 1 seat
 	page := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !pathContains(r.URL.Path, "copilot/billing/seats") {
+		if r.URL.Path != "/orgs/navikt/copilot/billing/seats" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -260,7 +260,7 @@ func TestGitHubClient_FetchAllCopilotLogins(t *testing.T) {
 		case 1:
 			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("alice", ""), testSeat("bob", "")}})
 		case 2:
-			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("charlie", "")}})
+			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("charlie", ""), testSeat("alice", "")}})
 		default:
 			// Should not be reached — return empty to stop pagination
 			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: nil})
@@ -269,11 +269,14 @@ func TestGitHubClient_FetchAllCopilotLogins(t *testing.T) {
 	defer server.Close()
 
 	client := &GitHubClient{
-		httpClient: &http.Client{
+		orgHttpClient: &http.Client{
 			Transport: &rewriteHostTransport{base: server.Client().Transport, target: server.URL},
 		},
 		enterprise: "nav",
 		org:        "navikt",
+	}
+	if _, err := (&GitHubClient{org: "navikt"}).FetchAllCopilotLogins(context.Background()); err == nil {
+		t.Fatal("expected error without org client")
 	}
 
 	logins, err := client.FetchAllCopilotLogins(context.Background())
@@ -307,11 +310,3 @@ func (t *rewriteHostTransport) RoundTrip(req *http.Request) (*http.Response, err
 	return http.DefaultTransport.RoundTrip(clone)
 }
 
-func pathContains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

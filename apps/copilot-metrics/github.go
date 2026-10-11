@@ -602,17 +602,23 @@ type SeatCounts struct {
 	PendingCancellation int
 }
 
-// FetchAllCopilotLogins returns the GitHub login for every active Copilot seat holder.
-// Uses the enterprise installation token which has access to enterprise billing endpoints.
+// FetchAllCopilotLogins returns the unique GitHub logins of Copilot seat holders
+// in the organization. It uses the org installation token: the enterprise seats
+// endpoint does not accept GitHub App installation tokens.
 func (c *GitHubClient) FetchAllCopilotLogins(ctx context.Context) ([]string, error) {
-	seats, _, err := c.fetchSeats(ctx, "https://api.github.com/enterprises/"+c.enterprise, c.httpClient)
+	if c.orgHttpClient == nil {
+		return nil, errors.New("org GitHub client not configured: org installation is required to list Copilot seats")
+	}
+	seats, _, err := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, c.orgHttpClient)
 	if err != nil {
 		return nil, err
 	}
 	var logins []string
+	seen := make(map[string]bool, len(seats))
 	for _, seat := range seats {
-		if seat.Assignee.Login != "" {
-			logins = append(logins, seat.Assignee.Login)
+		if l := seat.Assignee.Login; l != "" && !seen[l] {
+			seen[l] = true
+			logins = append(logins, l)
 		}
 	}
 	slog.Info("Fetched all Copilot seat holders", "count", len(logins))
