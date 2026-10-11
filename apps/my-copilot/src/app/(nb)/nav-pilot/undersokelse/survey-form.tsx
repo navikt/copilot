@@ -165,7 +165,7 @@ export function SurveyForm({ survey }: { survey: Survey }) {
                   set(
                     q.id,
                     q.type === "multi" && Array.isArray(v)
-                      ? exclusivePick(survey.questions, q.id, (answers[q.id] as string[] | undefined) ?? [], v)
+                      ? exclusivePick(q, (answers[q.id] as string[] | undefined) ?? [], v)
                       : v
                   )
                 }

@@ -17,6 +17,7 @@ export type SurveyQuestion = {
   labels?: string[];
   options?: string[];
   max_choices?: number;
+  exclusive?: string;
   /** One more option, after options, that takes a short free text sent as `<id>.other` (otherKey). */
   other?: string;
   max_length?: number;
@@ -115,14 +116,12 @@ export function isSkipped(q: SurveyQuestion, answers: Answers): boolean {
   return Array.isArray(a) ? a.includes(q.skip_if.answer) : a === q.skip_if.answer;
 }
 
-/** A multi answer after a change: an option that skips later questions
- * (like "I use none") stands alone, so picking it drops the rest and picking
- * another drops it. The server rejects the combination too. */
-export function exclusivePick(questions: SurveyQuestion[], id: string, prev: string[], next: string[]): string[] {
-  const alone = questions.flatMap((l) => (l.skip_if?.question === id ? [l.skip_if.answer] : []));
+/** A multi answer after a change: the exclusive option (like "I use none")
+ * stands alone, so picking it drops the rest and picking another drops it. */
+export function exclusivePick(q: SurveyQuestion, prev: string[], next: string[]): string[] {
   const added = next.find((v) => !prev.includes(v));
-  if (added === undefined) return next;
-  return alone.includes(added) ? [added] : next.filter((v) => !alone.includes(v));
+  if (!q.exclusive || added === undefined) return next;
+  return added === q.exclusive ? [added] : next.filter((v) => v !== q.exclusive);
 }
 
 export async function submitAnswers(userToken: string, surveyId: string, answers: Answers): Promise<SubmitResult> {

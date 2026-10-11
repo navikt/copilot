@@ -31,12 +31,12 @@ describe("isSkipped", () => {
 });
 
 describe("exclusivePick", () => {
-  const qs: SurveyQuestion[] = [{ id: "why", type: "text", text: "?", skip_if: { question: "tools", answer: "none" } }];
-  it("keeps an option that skips questions alone", () => {
-    expect(exclusivePick(qs, "tools", ["a"], ["a", "none"])).toEqual(["none"]);
-    expect(exclusivePick(qs, "tools", ["none"], ["none", "a"])).toEqual(["a"]);
-    expect(exclusivePick(qs, "tools", ["a"], ["a", "b"])).toEqual(["a", "b"]);
-    expect(exclusivePick(qs, "tools", ["a", "b"], ["a"])).toEqual(["a"]);
+  const q: SurveyQuestion = { id: "tools", type: "multi", text: "?", options: ["a", "b", "none"], exclusive: "none" };
+  it("keeps the exclusive option alone", () => {
+    expect(exclusivePick(q, ["a"], ["a", "none"])).toEqual(["none"]);
+    expect(exclusivePick(q, ["none"], ["none", "a"])).toEqual(["a"]);
+    expect(exclusivePick(q, ["a"], ["a", "b"])).toEqual(["a", "b"]);
+    expect(exclusivePick({ ...q, exclusive: undefined }, ["a"], ["a", "none"])).toEqual(["a", "none"]);
   });
 });
 
@@ -122,6 +122,7 @@ describe("types follow copilot-survey's schema.json", () => {
     labels: [],
     options: [],
     max_choices: 0,
+    exclusive: "",
     other: "",
     max_length: 0,
     skip_if: { question: "", answer: "" },

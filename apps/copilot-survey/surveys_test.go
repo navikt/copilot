@@ -237,6 +237,8 @@ func TestLoadSurveysRejectsBadDefinitions(t *testing.T) {
 		"labels count":      `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"labels":["a","b"]}]}]`,
 		"skip_if later":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}},{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]}]}]`,
 		"skip_if scale":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"scale","text":"?","min":1,"max":5,"options":["x"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}}]}]`,
+		"exclusive choice":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"],"exclusive":"x"}]}]`,
+		"exclusive unknown": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"multi","text":"?","options":["x","y"],"exclusive":"z"}]}]`,
 		"stray ]":           `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]]`,
 		"bad nudge":         `[{"id":"a","title":"t","nudge":"loud","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
 		"two texts":         `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5},{"id":"r","version":1,"type":"text","text":"?","max_length":5}]}]`,
@@ -367,9 +369,9 @@ func TestRequiredMatrixSkippedWhole(t *testing.T) {
 	}
 }
 
-// A multi option that skips later questions must be picked alone.
-func TestSkipIfMultiExclusive(t *testing.T) {
-	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"skip_if":{"question":"client","answer":"copilot"}`, `"skip_if":{"question":"tools","answer":"c"}`, 1)))
+// An exclusive multi option must be picked alone.
+func TestExclusive(t *testing.T) {
+	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"max_choices":2}`, `"max_choices":2,"exclusive":"c"}`, 1)))
 	if err != nil {
 		t.Fatal(err)
 	}

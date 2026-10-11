@@ -78,6 +78,7 @@ type surveyQuestion struct {
 	Labels     []string `json:"labels,omitempty"`
 	Options    []string `json:"options,omitempty"`
 	MaxChoices int      `json:"max_choices,omitempty"`
+	Exclusive  string   `json:"exclusive,omitempty"`
 	Other      string   `json:"other,omitempty"` // one more option, with a short free text sent as <id>.other
 	MaxLen     int      `json:"max_length,omitempty"`
 	SkipIf     *struct {
@@ -545,7 +546,10 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 				if q.Required && len(v) == 0 {
 					return errors.New("velg minst ett svar")
 				}
-				return mustStandAlone(s, q.ID, v)
+				if len(v) > 1 && slices.Contains(v, q.Exclusive) {
+					return fmt.Errorf("«%s» kan ikke kombineres med andre svar", q.Exclusive)
+				}
+				return nil
 			})
 			field = ms.Description(desc)
 		case "text":
@@ -658,20 +662,6 @@ const surveyUnpicked = "(ikke valgt)"
 func requirePick(v string) error {
 	if v == "" {
 		return errors.New("velg et svar med piltastene")
-	}
-	return nil
-}
-
-// mustStandAlone rejects a multi answer that combines an option skipping
-// later questions (like "I use none") with others; the server rejects it too.
-func mustStandAlone(s surveyDef, id string, v []string) error {
-	if len(v) < 2 {
-		return nil
-	}
-	for _, l := range s.Questions {
-		if l.SkipIf != nil && l.SkipIf.Question == id && slices.Contains(v, l.SkipIf.Answer) {
-			return fmt.Errorf("«%s» kan ikke kombineres med andre svar", l.SkipIf.Answer)
-		}
 	}
 	return nil
 }

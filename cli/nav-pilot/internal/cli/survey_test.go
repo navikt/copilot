@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -133,21 +132,6 @@ func TestNoSurveyServiceCoversAny5xx(t *testing.T) {
 		srv.Close()
 		if !noSurveyService(err) {
 			t.Errorf("noSurveyService(%v) on status %d = false, want true", err, status)
-		}
-	}
-}
-
-func TestMustStandAlone(t *testing.T) {
-	var s surveyDef
-	if err := json.Unmarshal([]byte(`{"questions":[{"id":"tools","type":"multi","options":["a","b","none"]},{"id":"why","type":"text","skip_if":{"question":"tools","answer":"none"}}]}`), &s); err != nil {
-		t.Fatal(err)
-	}
-	for _, tc := range []struct {
-		v  []string
-		ok bool
-	}{{[]string{"none"}, true}, {[]string{"a", "b"}, true}, {[]string{"a", "none"}, false}} {
-		if err := mustStandAlone(s, "tools", tc.v); (err == nil) != tc.ok {
-			t.Errorf("%v: %v", tc.v, err)
 		}
 	}
 }

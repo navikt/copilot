@@ -82,6 +82,7 @@ type question struct {
 	Labels     []string `json:"labels,omitempty"`
 	Options    []string `json:"options,omitempty"`     // choice, multi
 	MaxChoices int      `json:"max_choices,omitempty"` // multi: at most this many, 0 = any
+	Exclusive  string   `json:"exclusive,omitempty"`   // multi: an option that must be picked alone
 	// Other adds one more option to a choice or multi, with this label,
 	// that takes a short free text: its answer is stored under id + ".other".
 	Other  string `json:"other,omitempty"`
@@ -220,7 +221,8 @@ func validateSurveys(surveys []survey) error {
 			ok := idPattern.MatchString(q.ID) && !qseen[q.ID] && q.Text != "" && q.Version >= 1 &&
 				(q.Items == nil || q.Type == "matrix") &&
 				(!q.Reverse || q.Type == "scale") && (q.MaxChoices == 0 || q.Type == "multi") &&
-				(q.Other == "" || q.Type == "choice" || q.Type == "multi")
+				(q.Other == "" || q.Type == "choice" || q.Type == "multi") &&
+				(q.Exclusive == "" || q.Type == "multi" && slices.Contains(q.Options, q.Exclusive))
 			if q.SkipIf != nil {
 				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == q.SkipIf.Question })
 				ok = ok && j >= 0 && (s.Questions[j].Type == "choice" || s.Questions[j].Type == "multi") &&
@@ -412,12 +414,8 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 				slices.ContainsFunc(picked, func(p string) bool { return !slices.Contains(q.options(), p) }) {
 				return nil, fmt.Errorf("question %q takes one or more of its options (at most max_choices)", q.ID)
 			}
-			// An option that skips later questions, like "I use none", cannot
-			// be picked with others: the skip would hide the other picks.
-			if len(picked) > 1 && slices.ContainsFunc(s.Questions, func(l question) bool {
-				return l.SkipIf != nil && l.SkipIf.Question == q.ID && slices.Contains(picked, l.SkipIf.Answer)
-			}) {
-				return nil, fmt.Errorf("question %q: an option that skips later questions must be picked alone", q.ID)
+			if len(picked) > 1 && slices.Contains(picked, q.Exclusive) {
+				return nil, fmt.Errorf("question %q: %q must be picked alone", q.ID, q.Exclusive)
 			}
 			out[q.ID] = picked
 		case "text":
