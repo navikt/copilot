@@ -2,6 +2,7 @@ import type { TeamYearMonth, TeamYearOverview } from "./types";
 
 export const basisLabel: Record<TeamYearMonth["basis"], string> = {
   net: "Netto",
+  premium: "Premiumforespørsler",
   gross: "Brutto",
   none: "Ingen data",
 };
@@ -12,6 +13,8 @@ export function teamYearCaveats(data: TeamYearOverview): string[] {
   return [
     "Beløp for ulike team kan ikke legges sammen, heller ikke for hele året. En person som er med i flere team, telles i hvert av dem.",
     "Netto er fakturert forbruk etter fradrag, fordelt på dagene hver person brukte Copilot. Brutto er listepris før fradrag, og brukes inntil fakturaen for måneden er lest inn.",
+    "Januar til mai 2026 ble fakturert som premiumforespørsler. For de månedene finnes ikke forbruk per dag, så netto er fordelt likt på dagene hver person brukte Copilot, og brutto mangler.",
+    `Teamhistorikken starter ${membership_from || "ukjent dato"}. For dager før det regner vi hver person med i teamene de var med i den første dagen vi har registrert dem.`,
     `Ingen data betyr at måneden mangler teamhistorikk (finnes fra ${membership_from || "ukjent dato"}) eller forbruk per person (finnes fra ${gross_from || "ukjent dato"}).`,
     "Skjult betyr at færre enn fem medlemmer hadde forbruk den måneden.",
     "Netto uten bruk er fakturert beløp for medlemmer uten registrert bruk i måneden. Beløpet kan ikke fordeles på dager og er derfor ikke med i netto.",

@@ -6,8 +6,9 @@ import type { TeamSpend, TeamYearMonth, TeamYearOverview } from "@/lib/types";
 import { basisLabel, teamYearCaveats } from "@/lib/team-year";
 import { formatNumber, formatUSD } from "@/lib/format";
 
-const basisTag: Record<TeamYearMonth["basis"], "success" | "warning" | "neutral"> = {
+const basisTag: Record<TeamYearMonth["basis"], "success" | "info" | "warning" | "neutral"> = {
   net: "success",
+  premium: "info",
   gross: "warning",
   none: "neutral",
 };
@@ -87,9 +88,15 @@ export default function TeamYearCost({ data }: { data: TeamYearOverview }) {
                 <TableDataCell align="right">
                   {m.users != null ? formatNumber(m.users) : m.hidden ? "Skjult" : "—"}
                 </TableDataCell>
-                <TableDataCell align="right">{m.basis === "net" ? cell(m, m.net_usd) : "—"}</TableDataCell>
-                <TableDataCell align="right">{m.basis === "none" ? "—" : cell(m, m.gross_usd)}</TableDataCell>
-                <TableDataCell align="right">{m.basis === "net" ? cell(m, m.no_usage_net_usd) : "—"}</TableDataCell>
+                <TableDataCell align="right">
+                  {m.basis === "net" || m.basis === "premium" ? cell(m, m.net_usd) : "—"}
+                </TableDataCell>
+                <TableDataCell align="right">
+                  {m.basis === "none" || m.basis === "premium" ? "—" : cell(m, m.gross_usd)}
+                </TableDataCell>
+                <TableDataCell align="right">
+                  {m.basis === "net" || m.basis === "premium" ? cell(m, m.no_usage_net_usd) : "—"}
+                </TableDataCell>
                 <TableDataCell align="right">{m.seat_months != null ? formatNumber(m.seat_months) : "—"}</TableDataCell>
                 <TableDataCell align="right">
                   {m.licence_usd_estimate != null ? formatUSD(m.licence_usd_estimate) : "—"}

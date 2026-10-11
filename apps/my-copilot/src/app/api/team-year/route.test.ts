@@ -35,6 +35,19 @@ const data: TeamYearOverview = {
       total_basis: "none",
     },
     {
+      month: "2026-05",
+      basis: "premium",
+      hidden: false,
+      users: 7,
+      net_usd: 50.5,
+      gross_usd: null,
+      no_usage_net_usd: 1,
+      seat_months: null,
+      licence_usd_estimate: null,
+      total_usd: null,
+      total_basis: "none",
+    },
+    {
       month: "2026-07",
       basis: "gross",
       hidden: true,
@@ -106,6 +119,7 @@ describe("GET /api/team-year", () => {
     expect(lines.slice(header)).toEqual([
       "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,medlemmer_med_lisens,lisenser_usd_anslag,totalt_med_lisenser_usd",
       "2026-04,Ingen data,,,,,,,",
+      "2026-05,Premiumforespørsler,7,50.50,,1.00,,,",
       "2026-07,Brutto (skjult),,,,,9,171.00,",
       "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
     ]);

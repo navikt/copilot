@@ -291,7 +291,7 @@ export interface TeamGrossOverview {
 // Amounts are null when the month has no data or under five contributors.
 export interface TeamYearMonth {
   month: string;
-  basis: "net" | "gross" | "none";
+  basis: "net" | "premium" | "gross" | "none";
   hidden: boolean;
   users: number | null;
   net_usd: number | null;
@@ -303,7 +303,7 @@ export interface TeamYearMonth {
   licence_usd_estimate: number | null;
   /** Basis amount (net plus no-usage net, or gross) plus licences; null when any part is hidden or missing. */
   total_usd: number | null;
-  total_basis: "net" | "gross" | "none";
+  total_basis: "net" | "premium" | "gross" | "none";
 }
 
 export interface TeamYearOverview {

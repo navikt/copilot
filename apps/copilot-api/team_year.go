@@ -317,7 +317,7 @@ func teamYearTotal(m TeamYearMonth) *float64 {
 		return nil
 	}
 	switch {
-	case m.Basis == basisNet && m.NetUSD != nil && m.NoUsageNetUSD != nil:
+	case (m.Basis == basisNet || m.Basis == basisPremium) && m.NetUSD != nil && m.NoUsageNetUSD != nil:
 		return cents(*m.NetUSD + *m.NoUsageNetUSD + *m.LicenceUSDEstimate)
 	case m.Basis == basisGross && m.GrossUSD != nil:
 		return cents(*m.GrossUSD + *m.LicenceUSDEstimate)
