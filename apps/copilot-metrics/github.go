@@ -634,10 +634,23 @@ func (c *GitHubClient) FetchSeatCounts(ctx context.Context) (*SeatCounts, error)
 	}
 	seats, total, orgErr := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, orgClient)
 	if orgErr != nil {
-		// Only orgErr is wrapped: the fallback's status decides how the caller reacts.
-		return nil, fmt.Errorf("both enterprise and org seats endpoints failed: %v; org: %w", err, orgErr)
+		if seatsPermissionDenied(err) && seatsPermissionDenied(orgErr) {
+			return nil, fmt.Errorf("%w: enterprise: %w; org: %w", errSeatsNoPermission, err, orgErr)
+		}
+		return nil, fmt.Errorf("both enterprise and org seats endpoints failed: %w; org: %w", err, orgErr)
 	}
 	return countSeats("organization", c.org, total, seats), nil
+}
+
+// errSeatsNoPermission means both seats endpoints refused the token. A retry
+// cannot fix that, so the caller skips seat counts instead of failing the job.
+var errSeatsNoPermission = errors.New("no permission to read Copilot seats")
+
+// seatsPermissionDenied reports a 403 that is not GitHub's rate-limit 403.
+func seatsPermissionDenied(err error) bool {
+	var status *githubHTTPError
+	return errors.As(err, &status) && status.Status == http.StatusForbidden &&
+		!strings.Contains(strings.ToLower(status.message), "rate limit")
 }
 
 // countSeats reduces a seat list to totals. total_seats from the API is

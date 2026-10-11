@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -82,7 +81,7 @@ func (c *BigQueryClient) UpsertSeatCounts(ctx context.Context, day time.Time, co
 
 // ingestTodaySeatCounts stores today's seat totals. Errors are returned so the
 // job fails and the Nais retry runs: the API has no history, so a missed day
-// is lost for good. A 403 (token lacks the seats permission) is logged and
+// is lost for good. A permission 403 on both endpoints is logged and
 // skipped: a retry cannot fix it, and failing would mark the whole job failed.
 func ingestTodaySeatCounts(
 	ctx context.Context,
@@ -92,9 +91,8 @@ func ingestTodaySeatCounts(
 ) error {
 	today := now.UTC().Truncate(24 * time.Hour)
 	counts, err := fetch(ctx)
-	var status *githubHTTPError
-	if errors.As(err, &status) && status.Status == http.StatusForbidden {
-		slog.Error("Skipping seat count ingestion: seats API returned 403, check the token's Copilot billing permission", "error", err)
+	if errors.Is(err, errSeatsNoPermission) {
+		slog.Error("Skipping seat count ingestion: check the token's Copilot billing permission", "error", err)
 		return nil
 	}
 	if err != nil {
