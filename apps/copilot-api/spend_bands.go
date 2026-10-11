@@ -297,8 +297,8 @@ const spendBandsFirstMonth = "2026-08-01"
 func (bq *BigQueryClient) GetSpendBands(ctx context.Context) (*SpendBands, error) {
 	history := bq.client.Query(fmt.Sprintf(`
 SELECT FORMAT_DATE('%%Y-%%m', month) month, user_id,
-  SUM(IF(sku IN ('Copilot AI Credits','Copilot Cloud Agent'), net_amount, 0)) net,
-  SUM(IF(sku IN ('Copilot AI Credits','Copilot Cloud Agent'), gross_amount, 0)) gross
+  SUM(IF(sku IN (`+billedSKUs+`), net_amount, 0)) net,
+  SUM(IF(sku IN (`+billedSKUs+`), gross_amount, 0)) gross
 FROM %s
 WHERE month >= DATE(@first) AND scope_id='nav' AND user_id!=''
   AND month IN (SELECT month FROM %s WHERE scope_id='nav' AND status='complete')

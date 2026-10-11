@@ -16,7 +16,10 @@ import (
 const (
 	basisNet   = "net"   // billing loaded and complete: same amount as team-net
 	basisGross = "gross" // list price before discounts: same amount as team-gross
-	basisNone  = "none"  // no per-user usage or no team membership history
+	// Months before aiCreditStart were billed as premium requests: net only,
+	// spread evenly over usage days, since user_metrics has no per-user gross.
+	basisPremium = "premium"
+	basisNone    = "none" // no per-user usage or no team membership history
 )
 
 // List prices per seat and month by plan_type. The licence amounts are an
@@ -217,7 +220,7 @@ WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + `, ` + seatCTEs + fmt.Sprintf(`, 
  FROM team t JOIN daily d USING(day,user_id) GROUP BY t.month
 ), no_usage_m AS (
  SELECT b.month,SUM(b.net) net FROM billed b JOIN (SELECT DISTINCT month,user_id FROM team) USING(month,user_id)
- WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND (u.gross>0 OR NOT u.credited))
+ WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND (u.gross>0 OR u.month<DATE '2026-06-01'))
  GROUP BY b.month
 ), completed AS (
  %s
@@ -249,6 +252,9 @@ ORDER BY month`,
 	return query
 }
 
+// aiCreditStart is the first month billed as AI credits; earlier months use basisPremium.
+const aiCreditStart = "2026-06"
+
 // teamYearOverview picks each month's basis the way the team page does: net
 // once billing is complete for a finished month, else gross where per-user
 // gross and membership history exist. Months after now are dropped.
@@ -266,6 +272,8 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 		hasTeams := row.MembershipFrom != "" && month >= row.MembershipFrom[:7]
 		hasGross := row.GrossFrom != "" && month >= row.GrossFrom[:7]
 		switch {
+		case month < aiCreditStart && row.NetComplete && month < current:
+			m.Basis = basisPremium
 		case hasTeams && hasGross && row.NetComplete && month < current:
 			m.Basis = basisNet
 			out.Coverage.NetMonths = append(out.Coverage.NetMonths, month)
@@ -274,14 +282,15 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 		}
 		// Each amount follows the rule of its month endpoint: shown only with
 		// at least minTeamContributors contributors to that amount.
-		if m.Basis != basisNone && row.GrossUsers >= minTeamContributors {
+		if (m.Basis == basisNet || m.Basis == basisGross) && row.GrossUsers >= minTeamContributors {
 			m.GrossUSD = cents(row.Gross)
 		}
-		if m.Basis == basisNet && row.NetUsers >= minTeamContributors {
+		net := m.Basis == basisNet || m.Basis == basisPremium
+		if net && row.NetUsers >= minTeamContributors {
 			m.NetUSD, m.NoUsageNetUSD = cents(row.Net), cents(row.NoUsageNet)
 		}
 		users, shown := row.GrossUsers, m.GrossUSD != nil
-		if m.Basis == basisNet {
+		if net {
 			users, shown = row.NetUsers, m.NetUSD != nil
 		}
 		m.Hidden = m.Basis != basisNone && !shown
