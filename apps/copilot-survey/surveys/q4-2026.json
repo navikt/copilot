@@ -85,7 +85,7 @@
         {"id": "agent-tillit", "version": 1, "construct": "agent-trust",
          "text": "Jeg stoler på at en KI-agent løser oppgaver i flere steg i kodebasen vår uten at jeg følger med på hvert steg."},
         {"id": "kostnad-tilbakeholdenhet", "version": 1, "construct": "cost-restraint", "reverse": true,
-         "text": "Usikkerhet om kostnad gjør at jeg bruker KI-verktøyene mindre."}
+         "text": "Jeg bruker KI-verktøyene mindre fordi jeg er usikker på hva de koster."}
       ]
     },
     {
