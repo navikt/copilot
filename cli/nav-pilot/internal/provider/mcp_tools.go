@@ -248,6 +248,15 @@ func SetMCPServerTools(client, key string, e MCPServerEntry, c MCPToolChoice) (M
 		if c.URL != "" {
 			v, _ := json.Marshal(c.URL)
 			entry.set("url", v)
+			// Switching endpoint switches the registry's headers with it.
+			if len(e.Remotes) > 0 && len(e.Remotes[0].Headers) > 0 {
+				if h := registryHeaders(e, c); h != nil {
+					hv, _ := json.Marshal(h)
+					entry.set("headers", hv)
+				} else {
+					entry.del("headers")
+				}
+			}
 		}
 		if client == MCPClientOpenCode {
 			if err := setOpenCodeRules(top, key, e, c); err != nil {

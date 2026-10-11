@@ -12,8 +12,7 @@
         "url": "https://github.com/github/github-mcp-server",
         "source": "github"
       },
-      "tools": ["get_file_contents", "search_repositories", "issue_read", "list_issues", "issue_write", "pull_request_read", "list_pull_requests", "create_pull_request", "search_code", "get_commit", "list_commits", "create_branch", "list_branches"],
-      "toolRisk": {"issue_write": "external", "create_pull_request": "external", "create_branch": "external"},
+      "tools": ["get_file_contents", "search_repositories", "issue_read", "list_issues", "pull_request_read", "list_pull_requests", "search_code", "get_commit", "list_commits", "list_branches"],
       "tags": ["developer-tools", "version-control", "github"],
       "examples": [
         {
@@ -21,14 +20,18 @@
           "prompt": "Søk etter autentiseringsmiddleware i navikt/fp-sak"
         },
         {
-          "scenario": "Opprett en issue",
-          "prompt": "Opprett en issue i navikt/dp-soknad om å oppgradere Kotlin-versjonen"
+          "scenario": "Les åpne pull requests",
+          "prompt": "Vis åpne pull requests i navikt/dp-soknad som venter på review"
         }
       ],
       "remotes": [
         {
           "type": "streamable-http",
-          "url": "https://api.githubcopilot.com/mcp/"
+          "url": "https://api.githubcopilot.com/mcp/",
+          "headers": [
+            {"name": "X-MCP-Readonly", "value": "true", "description": "Read-only tools only, per the approval"},
+            {"name": "X-MCP-Lockdown", "value": "true", "description": "Lockdown mode, per the approval"}
+          ]
         }
       ]
     },

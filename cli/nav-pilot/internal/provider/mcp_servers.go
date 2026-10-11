@@ -40,8 +40,12 @@ type MCPServerEntry struct {
 
 // MCPRemote is a server reached over HTTP.
 type MCPRemote struct {
-	Type string `json:"type"`
-	URL  string `json:"url"`
+	Type    string `json:"type"`
+	URL     string `json:"url"`
+	Headers []struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"headers,omitempty"`
 }
 
 // MCPPackage is a server the client starts as a local process.
@@ -201,15 +205,20 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 			// GitHub's full endpoint only when the choice names it.
 			r.URL = ro
 		}
+		var m map[string]any
 		if client == MCPClientOpenCode {
-			v = map[string]any{"type": "remote", "url": r.URL, "enabled": true}
+			m = map[string]any{"type": "remote", "url": r.URL, "enabled": true}
 		} else {
 			t := "http"
 			if r.Type == "sse" {
 				t = "sse"
 			}
-			v = map[string]any{"type": t, "url": r.URL, "tools": tools}
+			m = map[string]any{"type": t, "url": r.URL, "tools": tools}
 		}
+		if h := registryHeaders(e, c); h != nil {
+			m["headers"] = h
+		}
+		v = m
 	case len(e.Packages) > 0:
 		runtime, args := e.Packages[0].Launch()
 		if runtime == "" {
@@ -224,6 +233,25 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 		return nil, fmt.Errorf("the registry lists no remote or package for %s", e.Name)
 	}
 	return json.Marshal(v)
+}
+
+// registryHeaders is the fixed headers the registry sets on the first
+// remote, such as GitHub's X-MCP-Readonly, or nil. An explicit choice of
+// another URL (GitHub's full endpoint) is the user's own opt-in and gets none.
+func registryHeaders(e MCPServerEntry, c MCPToolChoice) map[string]string {
+	if len(e.Remotes) == 0 || (c.URL != "" && !IsGitHubReadonlyURL(c.URL)) {
+		return nil
+	}
+	var h map[string]string
+	for _, kv := range e.Remotes[0].Headers {
+		if kv.Name != "" && kv.Value != "" {
+			if h == nil {
+				h = map[string]string{}
+			}
+			h[kv.Name] = kv.Value
+		}
+	}
+	return h
 }
 
 // ErrMCPConfigHasComments is a config with comments or trailing commas, which

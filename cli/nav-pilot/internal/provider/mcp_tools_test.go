@@ -236,3 +236,32 @@ func TestRemoveMCPServerKeepsOpenCodeKeys(t *testing.T) {
 		t.Errorf("permission = %s", got)
 	}
 }
+
+// Switching to GitHub's full endpoint drops the registry's read-only
+// headers, and switching back restores them.
+func TestSetMCPServerToolsSwitchesHeaders(t *testing.T) {
+	home := mcpConfigEnv(t)
+	path := filepath.Join(home, ".copilot", "mcp-config.json")
+	gh := MCPServerEntry{Name: "io.github.navikt/github-mcp", Remotes: []MCPRemote{{Type: "streamable-http", URL: githubMCPURL}}}
+	gh.Remotes[0].Headers = append(gh.Remotes[0].Headers, struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	}{"X-MCP-Readonly", "true"})
+	entry, err := MCPClientEntry(MCPClientCopilot, gh, MCPToolChoice{All: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, path, `{"mcpServers": {"`+gh.Name+`": `+string(entry)+`}}`)
+	for _, step := range []struct {
+		url  string
+		want bool
+	}{{githubMCPURL, false}, {githubMCPReadonlyURL, true}} {
+		if _, err := SetMCPServerTools(MCPClientCopilot, gh.Name, gh, MCPToolChoice{All: true, URL: step.url}); err != nil {
+			t.Fatal(err)
+		}
+		b, _ := os.ReadFile(path)
+		if got := strings.Contains(string(b), "X-MCP-Readonly"); got != step.want {
+			t.Errorf("url %s: headers present = %v, want %v\n%s", step.url, got, step.want, b)
+		}
+	}
+}
