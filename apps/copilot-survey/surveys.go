@@ -412,6 +412,13 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 				slices.ContainsFunc(picked, func(p string) bool { return !slices.Contains(q.options(), p) }) {
 				return nil, fmt.Errorf("question %q takes one or more of its options (at most max_choices)", q.ID)
 			}
+			// An option that skips later questions, like "I use none", cannot
+			// be picked with others: the skip would hide the other picks.
+			if len(picked) > 1 && slices.ContainsFunc(s.Questions, func(l question) bool {
+				return l.SkipIf != nil && l.SkipIf.Question == q.ID && slices.Contains(picked, l.SkipIf.Answer)
+			}) {
+				return nil, fmt.Errorf("question %q: an option that skips later questions must be picked alone", q.ID)
+			}
 			out[q.ID] = picked
 		case "text":
 			t, err := freeText(q.ID, v, q.MaxLen)

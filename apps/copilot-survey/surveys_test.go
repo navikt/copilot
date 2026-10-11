@@ -367,6 +367,27 @@ func TestRequiredMatrixSkippedWhole(t *testing.T) {
 	}
 }
 
+// A multi option that skips later questions must be picked alone.
+func TestSkipIfMultiExclusive(t *testing.T) {
+	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"skip_if":{"question":"client","answer":"copilot"}`, `"skip_if":{"question":"tools","answer":"c"}`, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for answers, ok := range map[string]bool{
+		`{"overall":3,"tools":["c"]}`:     true,
+		`{"overall":3,"tools":["a","b"]}`: true,
+		`{"overall":3,"tools":["a","c"]}`: false,
+	} {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(answers), &raw); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := validateAnswers(defs[0], raw); (err == nil) != ok {
+			t.Errorf("%s: %v", answers, err)
+		}
+	}
+}
+
 func TestMinCLIVersion(t *testing.T) {
 	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"title":"Q4",`, `"title":"Q4","min_cli_version":"2026.09.29-072249",`, 1)))
 	if err != nil {
