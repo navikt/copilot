@@ -512,7 +512,8 @@ type response struct {
 }
 
 // surveyAPI serves the definitions and takes submissions. Submissions to a
-// survey get a 503 while storage, its key or the e-mail lookup is missing.
+// survey get a 503 while storage or the e-mail lookup is missing, and a 404
+// while its key is.
 type surveyAPI struct {
 	surveys []survey
 	// keys holds each survey's secret key (SURVEY_KEY_<ID>). Deleting a
@@ -529,6 +530,12 @@ type surveyAPI struct {
 	now   func() time.Time
 }
 
+// open: active, inside its window and with a key. A survey without a key
+// is not listed, so nobody fills in a form that cannot be submitted.
+func (a *surveyAPI) open(s survey) bool {
+	return s.activeOn(a.now()) && len(a.keys[s.ID]) > 0
+}
+
 func (a *surveyAPI) active(w http.ResponseWriter, r *http.Request) {
 	// copilot-cli adds client=nav-pilot and passes on nav-pilot's
 	// User-Agent; my-copilot adds nothing and gets every open survey.
@@ -538,7 +545,7 @@ func (a *surveyAPI) active(w http.ResponseWriter, r *http.Request) {
 	known = known && isCLI
 	active := []survey{}
 	for _, s := range a.surveys {
-		if !s.activeOn(a.now()) {
+		if !a.open(s) {
 			continue
 		}
 		if floor, _ := cliVersion(s.MinCLIVersion); fromCLI && s.MinCLIVersion != "" && (!known || slices.Compare(have, floor) < 0) {
@@ -604,13 +611,13 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	id := r.PathValue("id")
 	i := slices.IndexFunc(a.surveys, func(s survey) bool { return s.ID == id })
-	if i < 0 || !a.surveys[i].activeOn(a.now()) {
+	if i < 0 || !a.open(a.surveys[i]) {
 		writeError(w, http.StatusNotFound, "no open survey with that id")
 		return
 	}
 	s := a.surveys[i]
 	key := a.keys[s.ID]
-	if a.store == nil || a.emailFor == nil || len(key) == 0 {
+	if a.store == nil || a.emailFor == nil {
 		writeError(w, http.StatusServiceUnavailable, "this survey is not taking answers right now")
 		return
 	}

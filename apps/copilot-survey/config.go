@@ -79,7 +79,8 @@ func clientIDForApp(preAuthorizedApps, app string) string {
 
 // surveyKeys reads each survey's secret key from SURVEY_KEY_<ID> (the id
 // upper-cased, - as _), base64 of at least 32 bytes. A survey with a missing
-// or short key takes no answers.
+// or short key is not listed and takes no answers; an active one is
+// logged as an error.
 //
 // A key still present after its survey closed is logged as a warning: it
 // should have been deleted (see surveys/README.md, key lifecycle).
@@ -96,6 +97,8 @@ func surveyKeys(surveys []survey, now time.Time) map[string][]byte {
 		key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(os.Getenv(name)))
 		if err == nil && len(key) >= 32 {
 			keys[s.ID] = key
+		} else if s.activeOn(now) {
+			slog.Error("active survey has no valid key: it is not listed and takes no answers", "key", name)
 		}
 	}
 	return keys

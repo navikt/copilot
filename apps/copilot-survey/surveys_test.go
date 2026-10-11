@@ -198,9 +198,21 @@ func TestInactiveSurveyIsNotServed(t *testing.T) {
 	}
 }
 
-func TestSubmitWithoutStorage(t *testing.T) {
+func TestSurveyWithoutKeyIsNotServed(t *testing.T) {
 	defs, _ := loadSurveys([]byte(testSurveys))
 	api := &surveyAPI{surveys: defs, now: func() time.Time { return time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC) }}
+	h := makeRouter(testAuthenticator(t), api)
+	if rec := do(h, "GET", "/api/v1/surveys/active", "", ""); strings.Contains(rec.Body.String(), "q4-2026") {
+		t.Fatalf("survey without a key served: %s", rec.Body)
+	}
+	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "cli:hans", `{}`); rec.Code != 404 {
+		t.Fatalf("survey without a key: status = %d, want 404", rec.Code)
+	}
+}
+
+func TestSubmitWithoutStorage(t *testing.T) {
+	defs, _ := loadSurveys([]byte(testSurveys))
+	api := &surveyAPI{surveys: defs, keys: map[string][]byte{"q4-2026": bytes.Repeat([]byte{7}, 32)}, now: func() time.Time { return time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC) }}
 	h := makeRouter(testAuthenticator(t), api)
 	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "cli:hans", `{}`); rec.Code != 503 {
 		t.Fatalf("status = %d, want 503", rec.Code)
@@ -395,7 +407,7 @@ func TestMinCLIVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := &surveyAPI{surveys: defs, now: func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) }}
+	a := &surveyAPI{surveys: defs, keys: map[string][]byte{"q4-2026": bytes.Repeat([]byte{7}, 32)}, now: func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) }}
 	for name, tc := range map[string]struct {
 		query, ua string
 		served    bool
