@@ -111,7 +111,8 @@ func (c *BigQueryClient) CompleteUserBilling(ctx context.Context, month time.Tim
 }
 
 func userBillingCompleteSQL(table string) string {
-	return `INSERT INTO ` + table + ` (month,scope_id,users,status,loaded_at,enterprise_net,user_net,residual_net)
+	return `BEGIN TRANSACTION;
+INSERT INTO ` + table + ` (month,scope_id,users,status,loaded_at,enterprise_net,user_net,residual_net)
 VALUES (@month,@scope,@users,'published',@loaded,@enterprise,@user,@enterprise-@user);
 MERGE ` + table + ` t
 USING (SELECT @month month, @scope scope_id, @users users, 'complete' status, @loaded loaded_at,
@@ -120,7 +121,8 @@ ON t.month=s.month AND t.scope_id=s.scope_id AND t.status='complete'
 WHEN MATCHED THEN UPDATE SET users=s.users, loaded_at=s.loaded_at,
   enterprise_net=s.enterprise_net, user_net=s.user_net, residual_net=s.residual_net
 WHEN NOT MATCHED THEN INSERT (month,scope_id,users,status,loaded_at,enterprise_net,user_net,residual_net)
-  VALUES (s.month,s.scope_id,s.users,s.status,s.loaded_at,s.enterprise_net,s.user_net,s.residual_net);`
+  VALUES (s.month,s.scope_id,s.users,s.status,s.loaded_at,s.enterprise_net,s.user_net,s.residual_net);
+COMMIT TRANSACTION;`
 }
 
 // UserBillingNet sums the per-user rows over the same SKUs as the enterprise row.

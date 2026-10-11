@@ -310,3 +310,13 @@ func TestUserBillingMonthDoesNotCompleteOnFailure(t *testing.T) {
 		t.Fatalf("failed billing fetch marked complete: %v", err)
 	}
 }
+
+func TestUserBillingCompleteSQLIsTransactional(t *testing.T) {
+	sql := userBillingCompleteSQL("runs")
+	if !strings.HasPrefix(sql, "BEGIN TRANSACTION;") || !strings.HasSuffix(sql, "COMMIT TRANSACTION;") {
+		t.Fatalf("publish must be atomic:\n%s", sql)
+	}
+	if strings.Index(sql, "'published'") > strings.Index(sql, "MERGE") {
+		t.Fatalf("INSERT must precede MERGE:\n%s", sql)
+	}
+}
