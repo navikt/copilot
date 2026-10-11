@@ -438,11 +438,12 @@ func main() {
 		}
 		// ponytail: reads the seat list a second time after FetchSeatCounts;
 		// share one fetch if the extra ~30 API pages a night ever matter.
-		if !copilotSeatsReady {
+		if copilotSeatsReady {
+			steps = append(steps, ingestStep{"copilot seats", func() error {
+				return ingestTodayCopilotSeats(ctx, ghClient.FetchCopilotSeats, bqClient.ReplaceCopilotSeats, time.Now())
+			}})
+		} else {
 			slog.Error("Skipping seat snapshot: copilot_seats table unavailable")
-		} else if err := ingestTodayCopilotSeats(ctx, ghClient.FetchCopilotSeats, bqClient.ReplaceCopilotSeats, time.Now()); err != nil {
-			slog.Error("Seat snapshot ingestion failed", "error", err)
-			os.Exit(1)
 		}
 		// Non-fatal: needs the Members: read permission, which must not block
 		// the main ingestion if it is missing.

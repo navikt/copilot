@@ -47,9 +47,9 @@ func (c *BigQueryClient) EnsureCopilotSeatsTableExists(ctx context.Context) erro
 			{Name: "pending_cancellation_date", Type: bigquery.DateFieldType, Description: "Last day of the seat, if cancelled"},
 			{Name: "loaded_at", Type: bigquery.TimestampFieldType, Required: true, Description: "When the row was written"},
 		},
-		TimePartitioning: &bigquery.TimePartitioning{Type: bigquery.DayPartitioningType, Field: "snapshot_date"},
+		TimePartitioning: &bigquery.TimePartitioning{Type: bigquery.DayPartitioningType, Field: "snapshot_date", Expiration: 400 * 24 * time.Hour},
 		Clustering:       &bigquery.Clustering{Fields: []string{"user_id"}},
-		Description:      "Daily snapshot of Copilot seats. History starts at first deploy; no backfill.",
+		Description:      "Daily snapshot of Copilot seats. History starts at first deploy; no backfill. Partitions expire after 400 days.",
 	}
 	if err := table.Create(ctx, metadata); err != nil {
 		return fmt.Errorf("failed to create copilot_seats table: %w", err)
