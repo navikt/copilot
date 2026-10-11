@@ -3,6 +3,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   choseOther,
+  exclusivePick,
   openSurveyTitles,
   surveyWindow,
   getActiveSurveys,
@@ -26,6 +27,16 @@ describe("isSkipped", () => {
     expect(isSkipped(q, { tools: ["a", "none"] })).toBe(true);
     expect(isSkipped(q, { tools: ["a"] })).toBe(false);
     expect(isSkipped({ ...q, skip_if: undefined }, { tools: "none" })).toBe(false);
+  });
+});
+
+describe("exclusivePick", () => {
+  const qs: SurveyQuestion[] = [{ id: "why", type: "text", text: "?", skip_if: { question: "tools", answer: "none" } }];
+  it("keeps an option that skips questions alone", () => {
+    expect(exclusivePick(qs, "tools", ["a"], ["a", "none"])).toEqual(["none"]);
+    expect(exclusivePick(qs, "tools", ["none"], ["none", "a"])).toEqual(["a"]);
+    expect(exclusivePick(qs, "tools", ["a"], ["a", "b"])).toEqual(["a", "b"]);
+    expect(exclusivePick(qs, "tools", ["a", "b"], ["a"])).toEqual(["a"]);
   });
 });
 

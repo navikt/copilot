@@ -541,14 +541,12 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 				ms = ms.Limit(q.MaxChoices)
 				desc = fmt.Sprintf("Velg opptil %d. %s", q.MaxChoices, desc)
 			}
-			if q.Required {
-				ms = ms.Validate(func(v []string) error {
-					if len(v) == 0 {
-						return errors.New("velg minst ett svar")
-					}
-					return nil
-				})
-			}
+			ms = ms.Validate(func(v []string) error {
+				if q.Required && len(v) == 0 {
+					return errors.New("velg minst ett svar")
+				}
+				return mustStandAlone(s, q.ID, v)
+			})
 			field = ms.Description(desc)
 		case "text":
 			in := huh.NewText().Title(q.Text).CharLimit(q.MaxLen).Value(&picks[i])
@@ -660,6 +658,20 @@ const surveyUnpicked = "(ikke valgt)"
 func requirePick(v string) error {
 	if v == "" {
 		return errors.New("velg et svar med piltastene")
+	}
+	return nil
+}
+
+// mustStandAlone rejects a multi answer that combines an option skipping
+// later questions (like "I use none") with others; the server rejects it too.
+func mustStandAlone(s surveyDef, id string, v []string) error {
+	if len(v) < 2 {
+		return nil
+	}
+	for _, l := range s.Questions {
+		if l.SkipIf != nil && l.SkipIf.Question == id && slices.Contains(v, l.SkipIf.Answer) {
+			return fmt.Errorf("«%s» kan ikke kombineres med andre svar", l.SkipIf.Answer)
+		}
 	}
 	return nil
 }

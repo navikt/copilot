@@ -19,6 +19,7 @@ import {
 } from "@navikt/ds-react";
 import {
   choseOther,
+  exclusivePick,
   isSkipped,
   optionsOf,
   otherKey,
@@ -156,7 +157,19 @@ export function SurveyForm({ survey }: { survey: Survey }) {
             {q.type === "matrix" ? (
               <Matrix q={q} answers={answers} error={errors[q.id]} onChange={(id, n) => set(id, n)} />
             ) : (
-              <Question q={q} value={answers[q.id]} error={errors[q.id]} onChange={(v) => set(q.id, v)} />
+              <Question
+                q={q}
+                value={answers[q.id]}
+                error={errors[q.id]}
+                onChange={(v) =>
+                  set(
+                    q.id,
+                    q.type === "multi" && Array.isArray(v)
+                      ? exclusivePick(survey.questions, q.id, (answers[q.id] as string[] | undefined) ?? [], v)
+                      : v
+                  )
+                }
+              />
             )}
             {choseOther(q, answers) && (
               <TextField
