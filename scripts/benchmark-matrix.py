@@ -14,7 +14,7 @@ nothing and runs again from the start.
 
   scripts/benchmark-matrix.py MATRIX --dry-run   # arms, status, estimated credits
   scripts/benchmark-matrix.py MATRIX --jobs 3    # run the pending arms, 3 at a time
-  scripts/benchmark-matrix.py MATRIX --keep      # and keep transcripts to read a failure
+  scripts/benchmark-matrix.py MATRIX --keep      # also keep the scratch dir (transcripts are saved anyway)
 
 The estimate multiplies n by the per-run credits of the closest committed run
 in summary.json: same suite, model and effort, else same suite and model, else

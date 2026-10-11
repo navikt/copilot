@@ -45,7 +45,7 @@ scripts/benchmark-matrix.py docs/golden-baselines/2026-10-01-gpt-6.1.matrix --jo
 mise run benchmark:summary
 ```
 
-`--dry-run` viser armene og anslår kostnaden ut fra kjøringer som alt ligger i `summary.json`. Resultatene havner i en mappe med samme navn som matrisefilen. Stopper kjøringen, starter du samme kommando på nytt: ferdige armer hoppes over, og en arm som ble avbrutt, kjøres fra start. Legg matrisefilen, mappen og `summary.json` i samme commit.
+`--dry-run` viser armene og anslår kostnaden ut fra kjøringer som alt ligger i `summary.json`. Resultatene havner i en mappe med samme navn som matrisefilen. Stopper kjøringen, starter du samme kommando på nytt: ferdige armer hoppes over, og en arm som ble avbrutt, kjøres fra start. Transkriptene havner i `transkripter/` i samme mappe, én fil per kjøring, slik at en feilet sjekk kan leses i ettertid. `--no-transcripts` på `nav-pilot-golden.sh` slår det av. Legg matrisefilen, mappen og `summary.json` i samme commit.
 
 ## summary.json
 

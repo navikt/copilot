@@ -71,6 +71,8 @@
 #   minimal fake Nav repo — never against this checkout. The Copilot CLI needs
 #   --allow-all-tools for non-interactive mode, so the agent can read/write/run
 #   inside that scratch directory. It is removed on exit unless you pass --keep.
+#   With --save-baseline the raw transcripts are copied out first, into
+#   transkripter/ beside the baseline (--no-transcripts skips that).
 #
 #   The agent EDITS that workspace: t1 fixes a typo and t6 renames a variable
 #   across three files. So the workspace is rebuilt from a pristine template
@@ -187,7 +189,7 @@
 #   ./scripts/nav-pilot-golden.sh --agent code-review    # test another agent
 #   ./scripts/nav-pilot-golden.sh --agent accessibility  # ditto
 #   ./scripts/nav-pilot-golden.sh --only 2,5      # run selected tests
-#   ./scripts/nav-pilot-golden.sh --keep          # keep transcripts for inspection
+#   ./scripts/nav-pilot-golden.sh --keep          # keep the whole scratch dir for inspection
 #   ./scripts/nav-pilot-golden.sh --model <model> # pin a model (default: CLI default)
 #   ./scripts/nav-pilot-golden.sh --effort high   # pin reasoning effort
 #   ./scripts/nav-pilot-golden.sh --context long_context # pin context tier
@@ -195,7 +197,8 @@
 #   ./scripts/nav-pilot-golden.sh -v              # echo each transcript as it lands
 #   ./scripts/nav-pilot-golden.sh --repeat 5      # 5 samples per prompt, median reported
 #   ./scripts/nav-pilot-golden.sh --no-instructions          # persona only
-#   ./scripts/nav-pilot-golden.sh --save-baseline <path>     # record sizes + outcomes
+#   ./scripts/nav-pilot-golden.sh --save-baseline <path>     # record sizes + outcomes + transcripts
+#   ./scripts/nav-pilot-golden.sh --save-baseline <path> --no-transcripts  # without transcripts
 #   ./scripts/nav-pilot-golden.sh --compare <path>           # diff sizes vs a record
 #   ./scripts/nav-pilot-golden.sh --dry-run       # print the workspace, call no model
 #
@@ -238,6 +241,7 @@ TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
 
 ONLY=""
 KEEP=false
+TRANSCRIPTS=true
 VERBOSE=false
 JSON=false
 MODEL=""
@@ -265,6 +269,7 @@ while [[ $# -gt 0 ]]; do
     --suite)   need_val "$@"; SUITE="$2"; shift 2 ;;
     --only)    need_val "$@"; ONLY="$2"; shift 2 ;;
     --keep)    KEEP=true; shift ;;
+    --no-transcripts) TRANSCRIPTS=false; shift ;;
     --model)   need_val "$@"; MODEL="$2"; shift 2 ;;
     --effort)  need_val "$@"; EFFORT="$2"; shift 2 ;;
     --context) need_val "$@"; CONTEXT_TIER="$2"; shift 2 ;;
@@ -4345,6 +4350,20 @@ if [[ -n "$SAVE_BASELINE" ]]; then
     if [[ "$suffix" == ".txt" ]]; then mv "$f" "$SAVE_TO"; else mv "$f" "${SAVE_TO%.txt}$suffix"; fi
   done
   echo "${DIM}moved into place beside $SAVE_TO${RESET}"
+  # The raw transcripts, so a red row can be read later without --keep. Raw, not
+  # the svar filter: some checks read the tool lines. A review run is about 2 KB.
+  # Named <baseline>.<slug>.run<N>.txt, like the transkripter/ already committed.
+  if $TRANSCRIPTS; then
+    tdir="$(dirname "$SAVE_TO")/transkripter"
+    tbase="$(basename "${SAVE_TO%.txt}")"
+    mkdir -p "$tdir"
+    rm -f "$tdir/$tbase".*.run*.txt
+    for f in "$WORKDIR"/*.run*.txt; do
+      [[ -f "$f" && "$f" != *.svar.txt ]] || continue
+      cp "$f" "$tdir/$tbase.$(basename "$f")"
+    done
+    echo "${DIM}transcripts copied to $tdir${RESET}"
+  fi
   echo
 fi
 
