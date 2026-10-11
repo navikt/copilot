@@ -147,8 +147,8 @@ const teamYearSeatsStub = `seat_snap AS (SELECT DATE(NULL) d
 )`
 
 // teamYearSeatsCTEs counts, per month, the team's members with a seat that
-// covered the month. Members come from team_members by the slugs the team
-// had in the year; months before its first day use that day's members.
+// covered the month. Members come from team_members by the slug the team
+// had on the same day (a slug can be reused by another team ID); months before its first day use that day's members.
 // Seats are month ranges from each login's latest snapshot. GitHub's
 // pending_cancellation_date is the first day of the next billing cycle, so the
 // seat's last month is the month of the day before. A seat that left the list
@@ -167,8 +167,9 @@ func (bq *BigQueryClient) teamYearSeatsCTEs() string {
  QUALIFY ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY snapshot_date DESC)=1
 ), tm_first AS (SELECT MIN(date) d FROM %[2]s
 ), tm AS (
- SELECT date,DATE_TRUNC(date,MONTH) month,LOWER(login) login FROM %[2]s
- WHERE date>=DATE(@from) AND date<DATE(@to) AND team_slug IN (SELECT team_slug FROM memberships WHERE team_id=@team)
+ SELECT t.date,DATE_TRUNC(t.date,MONTH) month,LOWER(t.login) login FROM %[2]s t
+ WHERE t.date>=DATE(@from) AND t.date<DATE(@to)
+ AND EXISTS(SELECT 1 FROM memberships x WHERE x.team_id=@team AND x.day=t.date AND x.team_slug=t.team_slug)
 ), team_lic AS (
  SELECT DISTINCT m month,tm.login
  FROM UNNEST(GENERATE_DATE_ARRAY(DATE(@from),DATE_SUB(DATE(@to),INTERVAL 1 DAY),INTERVAL 1 MONTH)) m

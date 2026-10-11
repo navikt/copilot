@@ -141,6 +141,11 @@ func TestTeamYearQueryWithoutBillingTables(t *testing.T) {
 		if net && !strings.Contains(q.Q, "DATE_SUB(pending_cancellation_date,INTERVAL 1 DAY)") {
 			t.Errorf("cancellation month counted as a seat month")
 		}
+		// A reused slug must not pull in another team ID's members: match
+		// membership to the team on the same day.
+		if net && !strings.Contains(q.Q, "x.day=t.date AND x.team_slug=t.team_slug") {
+			t.Errorf("team_members not matched to the team's slug on the same day")
+		}
 		if billing != net || !strings.Contains(q.Q, "user_metrics") || !strings.Contains(q.Q, "day>=DATE(@from) AND day<DATE(@to)") {
 			t.Errorf("net=%v: billing tables referenced = %v", net, billing)
 		}
