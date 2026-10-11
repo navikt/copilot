@@ -140,8 +140,8 @@ func TestMCPListDiagnosesEachFailureMode(t *testing.T) {
 		fixes[p.Server] = append(fixes[p.Server], p.Fix)
 	}
 	for _, p := range rep.Problems {
-		if p.Server == "io.example/old" && (strings.Contains(p.Problem, "stop") || !strings.Contains(p.Problem, "still runs")) {
-			t.Errorf("deprecated server wording: %q", p.Problem)
+		if want := "marked deprecated in the registry; it still runs, but cannot be enabled for new installs"; p.Server == "io.example/old" && p.Problem != want {
+			t.Errorf("deprecated server problem = %q, want %q", p.Problem, want)
 		}
 	}
 	for server, want := range map[string]string{
