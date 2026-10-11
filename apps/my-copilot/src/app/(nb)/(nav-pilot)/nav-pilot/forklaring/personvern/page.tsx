@@ -34,8 +34,9 @@ export default function Personvern() {
           </LinkableHeading>
           <BodyLong>
             nav-pilot sender bruksmålinger til Nav: hvor ofte kommandoene kjøres, hvilken klient og hvilke innstillinger
-            du bruker, og hvilke typer feil som oppstår. Målingene er faste kategorier og tall. Maskinen kjennes igjen
-            på en pseudonym ID, ikke på navn eller brukernavn.
+            du bruker, og hvilke typer feil som oppstår. Målingene er faste kategorier og tall, og tellingen av
+            KI-modeller og tokens har med navnet på repoet når du jobber i et repo i navikt. Maskinen kjennes igjen på
+            en pseudonym ID, ikke på navn eller brukernavn.
           </BodyLong>
           <BodyLong>
             Starter nav-pilot Copilot, slår den også på målingene og sporingen til Copilot, mot samme mottaker. Kjører
@@ -68,8 +69,8 @@ export default function Personvern() {
           <CodeBlock compact>{`export DO_NOT_TRACK=1
 export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
           <BodyLong>
-            <code className={code}>DO_NOT_TRACK=1</code> slår av målingene i alle verktøy som følger konvensjonen, også
-            i Copilot og opencode når nav-pilot starter dem. Hva hver variabel gjør, står i{" "}
+            <code className={code}>DO_NOT_TRACK=1</code> slår av målingene i alle verktøy som følger konvensjonen, og
+            nav-pilot slår da ikke på målingene i Copilot og opencode. Hva hver variabel gjør, står i{" "}
             <NextLink href="/nav-pilot/referanse#telemetri" className={linkClass}>
               referansen
             </NextLink>
@@ -95,11 +96,11 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             og innhold fra øktene dine sendes ikke.
           </BodyLong>
           <BodyLong>
-            nav-pilot bruker GitHub-innloggingen din (<code className={code}>nav-pilot auth login</code>) bare til å
-            hindre at noen svarer to ganger. Svarene lagres uten noe som knytter dem til deg, så de kan ikke endres
-            eller trekkes tilbake etterpå. nav-pilot spør ikke uten terminal, i CI, når klientens argumenter står etter{" "}
-            <code className={code}>--</code>, eller når målinger er slått av. Vil du slå av bare undersøkelsene, ikke
-            målingene:
+            Vi lagrer ikke navn eller e-post sammen med svarene. Mens undersøkelsen er åpen, lagrer vi en kryptografisk
+            sjekksum av innloggingen (<code className={code}>nav-pilot auth login</code>) for å hindre dobbeltsvar. Den
+            slettes når undersøkelsen stenger. nav-pilot spør ikke uten terminal, i CI, når klientens argumenter står
+            etter <code className={code}>--</code>, eller når målinger er slått av. Vil du slå av bare undersøkelsene,
+            ikke målingene:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
           <BodyLong>

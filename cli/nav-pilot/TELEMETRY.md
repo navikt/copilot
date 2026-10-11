@@ -131,7 +131,7 @@ sjekken i bakgrunnen rapporterer ikke utfallet. `nav_pilot_up_to_date` og
 - `device_id` = pseudonymisert maskin-ID (se under)
 
 `execution_context` følger alle løpende metrikker som datapunkt-dimensjon.
-`device_id` ligger på `nav_pilot_info` og som resource-attributt.
+`device_id` er resource-attributt og datapunkt-dimensjon på de fleste metrikkene.
 Det betyr at både resource-attributter og datapunkt-dimensjoner kan brukes i spørringer.
 
 **`execution_context`-verdier:**
@@ -148,7 +148,8 @@ Klassifisering prioriterer:
 
 **Hva sendes IKKE:**
 - ✗ Filstier, reponavn, eller prosjektkontekst
-  (unntak: `nav.repo`-slug for navikt-repoer på agent-sessions, se seksjon 3)
+  (unntak: navikt-reponavn som `nav.repo` på agent-sessions, se seksjon 3, og som
+  `nav_repo` på tellerne for modellbruk)
 - ✗ Innhold fra Copilot-instruksjoner eller agenter
 - ✗ Bruker-ID (aldri NAVident, e-post, GitHub-brukernavn)
 - ✗ Git-commit-info eller miljøvariabler

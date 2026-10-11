@@ -134,9 +134,9 @@ type surveyContext struct {
 const surveyCollected = "Dette sendes: svarene dine, nav-pilot-versjon, operativsystem, hvilken klient du\n" +
 	"bruker og om lokale modeller er på.\n" +
 	"Dette sendes ikke: navn, GitHub-bruker, enhets-ID, kode eller noe fra øktene dine.\n" +
-	"GitHub-innloggingen brukes bare til å hindre at noen svarer to ganger. Svarene\n" +
-	"lagres uten noe som knytter dem til deg, så de kan ikke endres eller trekkes\n" +
-	"tilbake etterpå."
+	"Vi lagrer ikke navn eller e-post sammen med svarene. Mens undersøkelsen er åpen,\n" +
+	"lagrer vi en kryptografisk sjekksum av innloggingen for å hindre dobbeltsvar.\n" +
+	"Den slettes når undersøkelsen stenger."
 
 func surveyStatePath() (string, error) {
 	dir, err := telemetrypkg.GetConfigDir()

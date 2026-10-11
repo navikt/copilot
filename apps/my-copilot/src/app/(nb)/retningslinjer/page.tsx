@@ -178,6 +178,13 @@ export default function RetningslinjerPage() {
                   du venter, og hvilke funksjoner du bruker. Dataene kan knyttes til pseudonyme IDer.
                 </BodyLong>
                 <BodyLong>
+                  Nav henter rapporter fra GitHub om hver brukers Copilot-bruk og kostnad, med GitHub-brukernavn. Se{" "}
+                  <NextLink href="/personvern" className="text-blue-600 hover:underline">
+                    personvernsiden
+                  </NextLink>
+                  .
+                </BodyLong>
+                <BodyLong>
                   Copilot Business beholder ikke prompter eller forslag (suggestions) etter at de er levert. Koden din
                   brukes ikke til å trene modeller.
                 </BodyLong>
