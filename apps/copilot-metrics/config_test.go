@@ -69,6 +69,7 @@ func TestLoadConfig_CustomEnvValues(t *testing.T) {
 	t.Setenv("BIGQUERY_TABLE", "custom_table")
 	t.Setenv("BIGQUERY_REPO_METRICS_TABLE", "custom_repos")
 	t.Setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/test")
+	t.Setenv("SLACK_ALERT_WEBHOOK_URL", "")
 
 	cfg := loadConfig()
 
