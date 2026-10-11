@@ -237,15 +237,17 @@ func (bq *BigQueryClient) teamUsageCTEs() string {
  FROM %[2]s WHERE day>=DATE(@from) AND day<DATE(@to)
  AND scope='enterprise' AND scope_id='nav' AND JSON_VALUE(raw_record,'$.slug')!='nav-it-github-users'
  UNION DISTINCT
- -- user_teams starts 2026-05-06. Days before the first snapshot use each
- -- user's earliest known teams (all teams on their first snapshot day).
- SELECT u.day,u.month,u.user_id,f.team_id,f.team_slug FROM usage_days u JOIN (
+ -- user_teams starts 2026-05-06. Every day before the first snapshot uses
+ -- each user's earliest known teams (all teams on their first snapshot day),
+ -- usage or not, so billed members without usage count for their team too.
+ SELECT d day,DATE_TRUNC(d,MONTH) month,f.user_id,f.team_id,f.team_slug FROM (
   SELECT user_id,team_id,team_slug FROM (
    SELECT day,JSON_VALUE(raw_record,'$.user_id') user_id,JSON_VALUE(raw_record,'$.team_id') team_id,
     JSON_VALUE(raw_record,'$.slug') team_slug,MIN(day) OVER(PARTITION BY JSON_VALUE(raw_record,'$.user_id')) first_day
    FROM %[2]s WHERE scope='enterprise' AND scope_id='nav' AND JSON_VALUE(raw_record,'$.slug')!='nav-it-github-users')
-  WHERE day=first_day) f USING(user_id)
- WHERE u.day<(SELECT MIN(day) FROM %[2]s WHERE scope='enterprise' AND scope_id='nav')
+  WHERE day=first_day) f
+ CROSS JOIN UNNEST(GENERATE_DATE_ARRAY(DATE(@from),LEAST(DATE_SUB(DATE(@to),INTERVAL 1 DAY),
+  (SELECT DATE_SUB(MIN(day),INTERVAL 1 DAY) FROM %[2]s WHERE scope='enterprise' AND scope_id='nav')))) d
 )`, bq.tableRef(bq.metricsDataset, "user_metrics"), bq.tableRef(bq.metricsDataset, "user_teams"))
 }
 

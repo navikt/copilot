@@ -77,8 +77,9 @@ copilot-metrics --run-once
 Manual `--user-billing-month` remains limited to the historical months before
 October 2026; future months must use the identity- and coverage-checked worker.
 Months before June 2026 were billed as premium requests, so the command reads
-the per-user `premium_request` endpoint for them and stores the SKUs
-`Copilot Premium Request` and `Coding Agent Premium Request` in the same table.
+the `premium_request` endpoint for them (per user and for the enterprise total)
+and stores the SKUs `Copilot Premium Request` and `Coding Agent Premium
+Request` in the same table.
 It runs separately from daily ingestion, for at most 50 minutes. Each execution
 allows at most 2,000 identity/billing requests and stops with 500 requests left
 in the token's reported quota. These limits include retries; other token users

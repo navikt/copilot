@@ -249,7 +249,7 @@ func TestTeamYearMatchesMonthEndpoints(t *testing.T) {
 			if (want.grossUsers > 0) != (m.GrossUSD != nil) || (m.GrossUSD != nil && *m.GrossUSD != want.gross) {
 				t.Errorf("%s %s gross %v, team-gross %v", id, m.Month, m.GrossUSD, want.gross)
 			}
-			if m.Basis == basisNet && ((want.netUsers > 0) != (m.NetUSD != nil) || (m.NetUSD != nil && (*m.NetUSD != want.net || *m.Users != want.netUsers))) {
+			if (m.Basis == basisNet || m.Basis == basisPremium) && ((want.netUsers > 0) != (m.NetUSD != nil) || (m.NetUSD != nil && (*m.NetUSD != want.net || *m.Users != want.netUsers))) {
 				t.Errorf("%s %s net %v/%v, team-net %v/%d", id, m.Month, m.NetUSD, m.Users, want.net, want.netUsers)
 			}
 			if m.Basis == basisGross && m.Users != nil && *m.Users != want.grossUsers {

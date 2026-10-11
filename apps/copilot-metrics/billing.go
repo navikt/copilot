@@ -134,9 +134,11 @@ func (c *BillingClient) FetchUserID(ctx context.Context, login string) (string, 
 	return strconv.FormatInt(user.ID, 10), nil
 }
 
+// FetchEnterpriseAICreditUsage returns the enterprise total by SKU for one
+// month, from the same product endpoint as the per-user rows it is compared with.
 func (c *BillingClient) FetchEnterpriseAICreditUsage(ctx context.Context, month time.Time) (*BillingUsageResponse, error) {
 	var result BillingUsageResponse
-	endpoint := fmt.Sprintf("https://api.github.com/enterprises/%s/settings/billing/ai_credit/usage?year=%d&month=%d", c.enterprise, month.Year(), month.Month())
+	endpoint := fmt.Sprintf("https://api.github.com/enterprises/%s/settings/billing/%s/usage?year=%d&month=%d", c.enterprise, billingProduct(month), month.Year(), month.Month())
 	if err := c.request(ctx, endpoint, &result); err != nil {
 		return nil, err
 	}
@@ -208,14 +210,18 @@ func NewBillingClient(token, enterprise string) *BillingClient {
 // Earlier months were billed as premium requests on a separate endpoint.
 var aiCreditStart = time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
 
+// billingProduct is the usage endpoint product for month.
+func billingProduct(month time.Time) string {
+	if month.Before(aiCreditStart) {
+		return "premium_request"
+	}
+	return "ai_credit"
+}
+
 // FetchUserBillingUsage returns the billed gross and net by SKU for one user and month.
 func (c *BillingClient) FetchUserBillingUsage(ctx context.Context, login string, month time.Time) (*BillingUsageResponse, error) {
-	product := "ai_credit"
-	if month.Before(aiCreditStart) {
-		product = "premium_request"
-	}
 	endpoint := fmt.Sprintf("https://api.github.com/enterprises/%s/settings/billing/%s/usage?year=%d&month=%d&user=%s",
-		c.enterprise, product, month.Year(), month.Month(), url.QueryEscape(login))
+		c.enterprise, billingProduct(month), month.Year(), month.Month(), url.QueryEscape(login))
 	var result BillingUsageResponse
 	if err := c.request(ctx, endpoint, &result); err != nil {
 		return nil, err

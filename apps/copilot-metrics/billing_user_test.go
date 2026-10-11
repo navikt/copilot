@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -163,11 +164,10 @@ func TestUserBillingPremiumRequestMonths(t *testing.T) {
 		{time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), "/enterprises/nav/settings/billing/ai_credit/usage"},
 	} {
 		client := NewBillingClient("test", "nav")
+		var requested []string
 		client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != tc.path || req.URL.Query().Get("user") != "one" {
-				t.Errorf("month %s requested %s", tc.month.Format("2006-01"), req.URL)
-			}
-			body := `{"user":"one","enterprise":"nav","timePeriod":{"year":2026,"month":` + tc.month.Format("1") + `},"usageItems":[
+			requested = append(requested, req.URL.Path+"?user="+req.URL.Query().Get("user"))
+			body := `{"user":"` + req.URL.Query().Get("user") + `","enterprise":"nav","timePeriod":{"year":2026,"month":` + tc.month.Format("1") + `},"usageItems":[
 {"product":"Copilot","sku":"Copilot Premium Request","grossAmount":2,"netAmount":1},
 {"product":"Copilot","sku":"Coding Agent Premium Request","grossAmount":4,"netAmount":3},
 {"product":"Actions","sku":"Actions Linux","grossAmount":9,"netAmount":9}]}`
@@ -176,6 +176,13 @@ func TestUserBillingPremiumRequestMonths(t *testing.T) {
 		response, err := client.FetchUserBillingUsage(context.Background(), "one", tc.month)
 		if err != nil {
 			t.Fatal(err)
+		}
+		// The enterprise total must come from the same product as the user rows.
+		if _, err := client.FetchEnterpriseAICreditUsage(context.Background(), tc.month); err != nil {
+			t.Fatal(err)
+		}
+		if want := []string{tc.path + "?user=one", tc.path + "?user="}; !slices.Equal(requested, want) {
+			t.Errorf("month %s requested %v, want %v", tc.month.Format("2006-01"), requested, want)
 		}
 		net := map[string]float64{}
 		for _, row := range billingRows(response, tc.month, "nav", "1", "one") {
