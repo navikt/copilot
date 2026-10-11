@@ -94,7 +94,7 @@ func publishBillingMonth(ctx context.Context, client userBillingFetcher, store u
 	if err != nil {
 		return err
 	}
-	// The residual is never zero: users with charges but no metrics rows are
+	// The residual can be nonzero: users with charges but no metrics rows are
 	// not in the census. It is recorded per run and never blocks.
 	if err := store.CompleteUserBilling(ctx, month, cfg.EnterpriseSlug, users, enterpriseNet, userNet); err != nil {
 		return err
