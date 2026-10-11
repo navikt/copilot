@@ -3,7 +3,21 @@
 // Client component because Aksel's compound components (Table.Row and friends)
 // are undefined when read off a client reference in a server component.
 import NextLink from "next/link";
-import { Alert, BodyLong, BodyShort, Box, Heading, Link, Table, VStack } from "@navikt/ds-react";
+import { useState } from "react";
+import {
+  Alert,
+  BodyLong,
+  BodyShort,
+  Box,
+  Checkbox,
+  CheckboxGroup,
+  Heading,
+  HStack,
+  Link,
+  Switch,
+  Table,
+  VStack,
+} from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import {
   knownCredits,
@@ -79,6 +93,11 @@ function Choices({ users }: { users: Record<string, string[]> }) {
 }
 
 function Measurements({ summary }: { summary: GoldenSummary | null }) {
+  const allModels = [...new Set(summary?.runs.map((run) => modelName(run.model)))];
+  const allEfforts = [...new Set(summary?.runs.map((run) => run.effort))];
+  const [shownModels, setShownModels] = useState(allModels);
+  const [shownEfforts, setShownEfforts] = useState(allEfforts);
+  const [frontier, setFrontier] = useState(false);
   if (!summary) {
     return (
       <Alert variant="info" size="small">
@@ -100,7 +119,28 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
         Tallet n viser hvor mange ganger vi kjørte samme oppgave. Få kjøringer holder til å finne tydelige feil, men
         ikke til å rangere modellene. Sist oppdatert {formatDate(summary.generated)}.
       </BodyLong>
-      {runsBySuite(summary.runs).map(([suite, runs]) => {
+      <HStack gap="space-24" align="start">
+        <CheckboxGroup legend="Modeller" size="small" value={shownModels} onChange={setShownModels}>
+          {allModels.map((model) => (
+            <Checkbox key={model} value={model}>
+              {model}
+            </Checkbox>
+          ))}
+        </CheckboxGroup>
+        <CheckboxGroup legend="Innsats" size="small" value={shownEfforts} onChange={setShownEfforts}>
+          {allEfforts.map((effort) => (
+            <Checkbox key={effort} value={effort}>
+              {effortName(effort)}
+            </Checkbox>
+          ))}
+        </CheckboxGroup>
+        <Switch size="small" checked={frontier} onChange={(e) => setFrontier(e.target.checked)}>
+          Vis beste avveining mellom bestått og pris
+        </Switch>
+      </HStack>
+      {runsBySuite(
+        summary.runs.filter((run) => shownModels.includes(modelName(run.model)) && shownEfforts.includes(run.effort))
+      ).map(([suite, runs]) => {
         // Smoke runs check the harness, not the model: table only, after the real runs.
         const plotted = runs.filter((run) => !run.smoke && knownCredits(run) !== null);
         const unverified = runs.some((run) => !run.smoke && run.model_verified === false);
@@ -115,6 +155,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
               <PassRateChart
                 title={`${SUITE_NAMES[suite] ?? suite}: andel bestått mot median credits`}
                 models={models}
+                frontier={frontier}
                 points={plotted.map((run) => ({
                   model: modelName(run.model),
                   effort: run.effort,
