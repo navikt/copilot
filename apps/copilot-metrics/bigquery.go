@@ -305,7 +305,17 @@ func loadRows[T any](ctx context.Context, table *bigquery.Table, rows []*T) erro
 	src.SourceFormat = bigquery.JSON
 	l := table.LoaderFrom(src)
 	l.WriteDisposition = bigquery.WriteAppend
-	return waitJob(ctx, l.Run)
+	job, err := l.Run(ctx)
+	if err != nil {
+		return err
+	}
+	// Wait past cancellation: a started job may still commit, and returning
+	// early would let a retry delete and append again, duplicating rows.
+	status, err := job.Wait(context.WithoutCancel(ctx))
+	if err != nil {
+		return err
+	}
+	return status.Err()
 }
 
 // rowsToNDJSON encodes rows by their bigquery tags. raw_record is a JSON
