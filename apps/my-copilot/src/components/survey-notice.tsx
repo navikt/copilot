@@ -19,7 +19,7 @@ function Notice({ titles, className }: { titles: Promise<string[]>; className?: 
     <div className={className}>
       <Alert variant="info" size="small">
         {open.length === 1 ? open[0] : "En brukerundersøkelse"} er åpen.{" "}
-        <Link href="/nav-pilot/undersokelse">Svar her</Link> eller med{" "}
+        <Link href="/nav-pilot/undersokelse">Svar i nettleseren</Link> eller i terminalen med{" "}
         <code className="font-mono text-sm">nav-pilot survey</code>.
       </Alert>
     </div>

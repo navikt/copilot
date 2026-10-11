@@ -6,7 +6,10 @@ describe("SurveyNotice", () => {
     await act(async () => {
       render(<SurveyNotice titles={Promise.resolve(["Utviklerundersøkelsen"])} />);
     });
-    expect(await screen.findByRole("link", { name: "Svar her" })).toHaveAttribute("href", "/nav-pilot/undersokelse");
+    expect(await screen.findByRole("link", { name: "Svar i nettleseren" })).toHaveAttribute(
+      "href",
+      "/nav-pilot/undersokelse"
+    );
     expect(screen.getByText(/Utviklerundersøkelsen er åpen/)).toBeInTheDocument();
   });
 

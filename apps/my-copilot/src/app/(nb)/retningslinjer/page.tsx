@@ -94,7 +94,7 @@ export default function RetningslinjerPage() {
                     <NextLink href="/cplt" className="text-blue-600 hover:underline">
                       cplt
                     </NextLink>
-                    . Copilot CLI og opencode bruker Copilot-abonnementet. pi er tillatt inntil videre.
+                    . Copilot CLI og opencode bruker Copilot-abonnementet, mens pi er tillatt inntil videre.
                   </AllowedItem>
                   <AllowedItem title="Nav-godkjente MCP-servere">
                     MCP-servere fra{" "}
