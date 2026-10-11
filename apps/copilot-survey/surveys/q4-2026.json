@@ -3,6 +3,7 @@
   "series": "utviklerundersokelsen",
   "title": "Utviklerundersøkelsen høsten 2026",
   "intro": "Samme spørsmål som i vår, så vi kan se hva som har endret seg, pluss to nye. Tar 5–8 minutter.",
+  "active": true,
   "starts": "2026-10-13",
   "ends": "2026-10-27",
   "min_cli_version": "2026.09.29-072249",
