@@ -137,17 +137,12 @@ jobs:
           experimental: true
       - id: version
         env:
-          MISE_TASK_VERSION: ${{ inputs.mise-task-version }}
-        # On mise 2026.10.6 in CI, `mise run version` (only this task name) tries
-        # to install aqua:go-task/task@version and fails. That left the version
-        # empty, so APP_VERSION reached the build as "". Fall back to the same
-        # date-time-sha format nais/docker-build-push generates.
+          # Not MISE_TASK_VERSION: mise reads MISE_<TOOL>_VERSION as a tool pin,
+          # so that name pinned the go-task tool to version "version".
+          VERSION_TASK: ${{ inputs.mise-task-version }}
         run: |
-          version=$(mise run "$MISE_TASK_VERSION") || true
-          if ! [[ "$version" =~ ^[0-9][0-9.-]*-[0-9a-f]{7,}$ ]]; then
-            echo "::warning::mise run $MISE_TASK_VERSION gave no valid version; using date and git SHA"
-            version="$(date +%Y.%m.%d)-$(date +%H.%M)-$(git rev-parse --short HEAD)"
-          fi
+          version=$(mise run "$VERSION_TASK")
+          test -n "$version"
           echo "version=$version" >> "${GITHUB_OUTPUT}"
       - id: name
         env:
