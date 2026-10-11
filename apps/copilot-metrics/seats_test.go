@@ -20,8 +20,8 @@ func TestFetchCopilotSeatsRows(t *testing.T) {
 	}))
 	defer server.Close()
 	client := &GitHubClient{
-		httpClient: &http.Client{Transport: &rewriteHostTransport{base: server.Client().Transport, target: server.URL}},
-		enterprise: "nav", org: "navikt",
+		orgHttpClient: &http.Client{Transport: &rewriteHostTransport{base: server.Client().Transport, target: server.URL}},
+		enterprise:    "nav", org: "navikt",
 	}
 	rows, err := client.FetchCopilotSeats(context.Background())
 	if err != nil {
@@ -31,7 +31,7 @@ func TestFetchCopilotSeatsRows(t *testing.T) {
 		t.Fatalf("rows = %d, want 2 (seat without user skipped)", len(rows))
 	}
 	a, b := rows[0], rows[1]
-	if a.UserID != 7 || a.Login != "a" || a.PlanType != "business" || a.ScopeID != "nav" ||
+	if a.UserID != 7 || a.Login != "a" || a.PlanType != "business" || a.ScopeID != "navikt" ||
 		!a.CreatedAt.Valid || a.CreatedAt.Timestamp.Format("2006-01-02") != "2026-03-14" || a.PendingCancellationDate.Valid {
 		t.Errorf("a = %+v", a)
 	}

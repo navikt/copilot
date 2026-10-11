@@ -64,22 +64,32 @@ func (c *BigQueryClient) ReplaceCopilotSeats(ctx context.Context, day time.Time,
 	return loadRowsWith(ctx, table, rows, bigquery.WriteTruncate)
 }
 
-// FetchCopilotSeats returns today's seats as rows.
+// FetchCopilotSeats returns today's org seats as rows. Like
+// FetchAllCopilotLogins it uses the org installation token: the enterprise
+// seats endpoint does not accept GitHub App installation tokens.
 func (c *GitHubClient) FetchCopilotSeats(ctx context.Context) ([]*SeatRow, error) {
-	_, scopeID, _, seats, err := c.fetchSeatList(ctx)
+	if c.orgHttpClient == nil {
+		return nil, errors.New("org GitHub client not configured: org installation is required to list Copilot seats")
+	}
+	seats, _, err := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, c.orgHttpClient)
+	if seatsPermissionDenied(err) {
+		return nil, fmt.Errorf("%w: %w", errSeatsNoPermission, err)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return seatRows(scopeID, seats, time.Now()), nil
+	return seatRows(c.org, seats, time.Now()), nil
 }
 
 func seatRows(scopeID string, seats []copilotSeat, now time.Time) []*SeatRow {
 	day, loaded := civil.DateOf(now.UTC()), now.UTC()
 	rows := make([]*SeatRow, 0, len(seats))
+	seen := make(map[int64]bool, len(seats))
 	for _, s := range seats {
-		if s.Assignee.ID == 0 {
-			continue // team- or org-assigned seat without a user
+		if s.Assignee.ID == 0 || seen[s.Assignee.ID] {
+			continue // seat without a user, or repeated across pages
 		}
+		seen[s.Assignee.ID] = true
 		r := &SeatRow{SnapshotDate: day, ScopeID: scopeID, UserID: s.Assignee.ID, Login: s.Assignee.Login, PlanType: s.PlanType, LoadedAt: loaded}
 		if !s.CreatedAt.IsZero() {
 			r.CreatedAt = bigquery.NullTimestamp{Timestamp: s.CreatedAt, Valid: true}

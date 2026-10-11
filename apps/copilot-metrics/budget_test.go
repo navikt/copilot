@@ -246,7 +246,10 @@ func TestBudgetClient_FailedCensusPreservesSnapshot(t *testing.T) {
 }
 
 func TestGitHubClient_FetchAllCopilotLogins(t *testing.T) {
-	// Two pages: first has 2 seats, second has 1 seat
+	// Pages of two; page 2 repeats alice and bob, so the raw row count
+	// reaches total_seats there. Paging must still go on until the short page 3.
+	seatsPerPage = 2
+	t.Cleanup(func() { seatsPerPage = 100 })
 	page := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/orgs/navikt/copilot/billing/seats" {
@@ -260,9 +263,11 @@ func TestGitHubClient_FetchAllCopilotLogins(t *testing.T) {
 		case 1:
 			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("alice", ""), testSeat("bob", "")}})
 		case 2:
-			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("charlie", ""), testSeat("alice", "")}})
+			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("bob", ""), testSeat("alice", "")}})
+		case 3:
+			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: []copilotSeat{testSeat("charlie", "")}})
 		default:
-			// Should not be reached — return empty to stop pagination
+			t.Errorf("paged past the short page 3")
 			_ = json.NewEncoder(w).Encode(copilotSeatResponse{TotalSeats: 3, Seats: nil})
 		}
 	}))

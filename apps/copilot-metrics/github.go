@@ -631,18 +631,9 @@ func (c *GitHubClient) FetchAllCopilotLogins(ctx context.Context) ([]string, err
 // FetchSeatCounts returns the current seat totals. Like the daily reports it
 // tries the enterprise endpoint first and falls back to the organization one.
 func (c *GitHubClient) FetchSeatCounts(ctx context.Context) (*SeatCounts, error) {
-	scope, scopeID, total, seats, err := c.fetchSeatList(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return countSeats(scope, scopeID, total, seats), nil
-}
-
-// fetchSeatList returns every seat, enterprise first, organization as fallback.
-func (c *GitHubClient) fetchSeatList(ctx context.Context) (scope, scopeID string, total int, seats []copilotSeat, err error) {
-	seats, total, err = c.fetchSeats(ctx, "https://api.github.com/enterprises/"+c.enterprise, c.httpClient)
+	seats, total, err := c.fetchSeats(ctx, "https://api.github.com/enterprises/"+c.enterprise, c.httpClient)
 	if err == nil {
-		return "enterprise", c.enterprise, total, seats, nil
+		return countSeats("enterprise", c.enterprise, total, seats), nil
 	}
 	slog.Warn("Enterprise seats endpoint failed, trying organization endpoint", "error", err)
 
@@ -653,11 +644,11 @@ func (c *GitHubClient) fetchSeatList(ctx context.Context) (scope, scopeID string
 	seats, total, orgErr := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, orgClient)
 	if orgErr != nil {
 		if seatsPermissionDenied(err) && seatsPermissionDenied(orgErr) {
-			return "", "", 0, nil, fmt.Errorf("%w: enterprise: %w; org: %w", errSeatsNoPermission, err, orgErr)
+			return nil, fmt.Errorf("%w: enterprise: %w; org: %w", errSeatsNoPermission, err, orgErr)
 		}
-		return "", "", 0, nil, fmt.Errorf("both enterprise and org seats endpoints failed: %w; org: %w", err, orgErr)
+		return nil, fmt.Errorf("both enterprise and org seats endpoints failed: %w; org: %w", err, orgErr)
 	}
-	return "organization", c.org, total, seats, nil
+	return countSeats("organization", c.org, total, seats), nil
 }
 
 // errSeatsNoPermission means both seats endpoints refused the token. A retry
@@ -683,6 +674,9 @@ func countSeats(scope, scopeID string, total int, seats []copilotSeat) *SeatCoun
 	return counts
 }
 
+// seatsPerPage is the seats page size; tests shrink it.
+var seatsPerPage = 100
+
 // fetchSeats pages through {base}/copilot/billing/seats and returns every seat
 // along with the API's total_seats.
 func (c *GitHubClient) fetchSeats(ctx context.Context, base string, client *http.Client) ([]copilotSeat, int, error) {
@@ -691,7 +685,7 @@ func (c *GitHubClient) fetchSeats(ctx context.Context, base string, client *http
 	page := 1
 
 	for {
-		url := fmt.Sprintf("%s/copilot/billing/seats?per_page=100&page=%d", base, page)
+		url := fmt.Sprintf("%s/copilot/billing/seats?per_page=%d&page=%d", base, seatsPerPage, page)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -725,7 +719,9 @@ func (c *GitHubClient) fetchSeats(ctx context.Context, base string, client *http
 
 		slog.Debug("Fetched seats page", "page", page, "on_page", len(result.Seats), "total_so_far", len(seats), "total_seats", result.TotalSeats)
 
-		if len(result.Seats) == 0 || len(seats) >= result.TotalSeats {
+		// Stop on a short page, not on len(seats) >= total_seats: a seat can
+		// show up on two pages while the list shifts, which would end early.
+		if len(result.Seats) < seatsPerPage {
 			break
 		}
 		page++
