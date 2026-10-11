@@ -262,7 +262,7 @@ export const terms: Term[] = [
     term: "OpenCode",
     category: "verktoy",
     definition:
-      "En av to godkjente agent-harnesser i Nav (sammen med Copilot CLI). OpenCode er en uavhengig open source-agent som bruker GitHub Copilot som model provider. Kjøres i terminalen.",
+      "En av de godkjente agent-harnessene i Nav, sammen med Copilot CLI og pi. OpenCode er en uavhengig open source-agent som bruker GitHub Copilot som model provider. Kjøres i terminalen.",
     link: { href: "https://opencode.ai", label: "opencode.ai" },
   },
   {

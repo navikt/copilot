@@ -314,6 +314,71 @@
     },
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "build.astro.docs/astro-docs-mcp",
+      "description": "Search the public Astro documentation.",
+      "version": "1.0.0",
+      "status": "active",
+      "publishedAt": "2026-10-11T00:00:00Z",
+      "websiteUrl": "https://docs.astro.build/en/guides/build-with-ai/#astro-docs-mcp-server",
+      "repository": {
+        "url": "https://github.com/withastro/docs-mcp",
+        "source": "github"
+      },
+      "tools": ["search_astro_docs"],
+      "tags": ["frontend", "astro", "documentation"],
+      "examples": [
+        {
+          "scenario": "Søk i Astro-dokumentasjon",
+          "prompt": "Hvordan lager jeg dynamiske ruter i Astro?"
+        }
+      ],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://mcp.docs.astro.build/mcp"
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "com.google/chrome-devtools-mcp",
+      "description": "Inspect performance, network, and console in an isolated Chrome via DevTools.",
+      "version": "1.10.1",
+      "status": "active",
+      "publishedAt": "2026-10-11T00:00:00Z",
+      "websiteUrl": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+      "repository": {
+        "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+        "source": "github"
+      },
+      "tools": ["click", "close_page", "drag", "emulate", "evaluate_script", "fill", "fill_form", "get_console_message", "get_css_styles", "get_network_request", "handle_dialog", "hover", "lighthouse_audit", "list_console_messages", "list_network_requests", "list_pages", "navigate_page", "new_page", "performance_analyze_insight", "performance_start_trace", "performance_stop_trace", "press_key", "resize_page", "select_page", "take_heapsnapshot", "take_screenshot", "take_snapshot", "type_text", "upload_file", "wait_for"],
+      "toolRisk": {"click": "write", "drag": "write", "fill": "write", "fill_form": "write", "handle_dialog": "write", "press_key": "write", "type_text": "write", "evaluate_script": "external", "upload_file": "external"},
+      "tags": ["frontend", "browser-automation", "performance", "developer-tools"],
+      "examples": [
+        {
+          "scenario": "Ytelsesanalyse",
+          "prompt": "Ta et ytelsesspor av forsiden på localhost:3000 og forklar hva som gjør LCP treg"
+        }
+      ],
+      "packages": [
+        {
+          "registryType": "npm",
+          "identifier": "chrome-devtools-mcp",
+          "version": "1.10.1",
+          "runtimeHint": "node",
+          "transport": {
+            "type": "stdio"
+          },
+          "packageArguments": [
+            {"type": "named", "name": "--isolated", "description": "Use a temporary profile that is deleted on close"},
+            {"type": "named", "name": "--no-usage-statistics", "description": "Turn off usage statistics to Google"},
+            {"type": "named", "name": "--no-performance-crux", "description": "Do not send trace URLs to the CrUX API"}
+          ]
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.jetbrains/intellij",
       "description": "Access IntelliJ code intelligence, inspections, and refactoring tools via MCP.",
       "version": "2026.2.1",

@@ -85,8 +85,8 @@ export default function RetningslinjerPage() {
                     <code>chat.agent.sandbox.enabled</code> være satt til <code>"on"</code>. Du godkjenner
                     terminalkommandoer og vurderer endringene før commit, med samme ansvar som for all annen kode.
                   </AllowedItem>
-                  <AllowedItem title="Copilot CLI og opencode i terminalen">
-                    Copilot CLI og opencode, installert med{" "}
+                  <AllowedItem title="Copilot CLI, opencode og pi i terminalen">
+                    Copilot CLI, opencode og pi, installert med{" "}
                     <NextLink href="/nav-pilot" className="text-blue-600 hover:underline">
                       nav-pilot
                     </NextLink>
@@ -94,7 +94,7 @@ export default function RetningslinjerPage() {
                     <NextLink href="/cplt" className="text-blue-600 hover:underline">
                       cplt
                     </NextLink>
-                    . Begge bruker Copilot-abonnementet.
+                    . Copilot CLI og opencode bruker Copilot-abonnementet. pi er tillatt inntil videre.
                   </AllowedItem>
                   <AllowedItem title="Nav-godkjente MCP-servere">
                     MCP-servere fra{" "}
@@ -288,6 +288,17 @@ export default function RetningslinjerPage() {
                     </tr>
                   </thead>
                   <tbody>
+                    <tr className="border-b">
+                      <td
+                        className="whitespace-nowrap"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2026-10-11
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>
+                        pi via nav-pilot er tillatt i cplt inntil videre.
+                      </td>
+                    </tr>
                     <tr className="border-b">
                       <td
                         className="whitespace-nowrap"
