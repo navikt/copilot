@@ -62,9 +62,9 @@ export default function PersonvernPage() {
               </li>
               <li>
                 <BodyLong as="span">
-                  nav-pilot sender bruksmålinger til Nav: kommandoer, feil, innstillinger, KI-modell og antall tokens,
-                  et maskinnummer regnet ut fra maskinen, og navnet på repoet når du jobber i et repo i navikt. Ikke
-                  navn, brukernavn eller innhold.
+                  nav-pilot sender bruksmålinger til Nav: kommandoer, feil, innstillinger, et maskinnummer regnet ut fra
+                  maskinen, og navnet på repoet når du jobber i et repo i navikt. For opencode-økter også KI-modell og
+                  antall tokens. Ikke navn, brukernavn eller innhold.
                 </BodyLong>
               </li>
               <li>
@@ -73,10 +73,7 @@ export default function PersonvernPage() {
                 </BodyLong>
               </li>
               <li>
-                <BodyLong as="span">
-                  Tall om deg ser du selv når du er logget inn. Teamet som drifter ki-utvikling.nav.no, har tilgang til
-                  alle dataene.
-                </BodyLong>
+                <BodyLong as="span">Tall om deg ser du selv når du er logget inn.</BodyLong>
               </li>
               <li>
                 <BodyLong as="span">

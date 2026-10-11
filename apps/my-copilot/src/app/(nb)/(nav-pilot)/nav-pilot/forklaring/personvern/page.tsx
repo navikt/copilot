@@ -34,12 +34,12 @@ export default function Personvern() {
           </LinkableHeading>
           <BodyLong>
             nav-pilot sender bruksmålinger til Nav: hvor ofte kommandoene kjøres, hvilken klient og hvilke innstillinger
-            du bruker, og hvilke typer feil som oppstår. Målingene er faste kategorier og tall, og tellingen av
-            KI-modeller og tokens har med navnet på repoet når du jobber i et repo i navikt. Maskinen kjennes igjen på
-            en pseudonym ID, ikke på navn eller brukernavn.
+            du bruker, og hvilke typer feil som oppstår. Målingene er faste kategorier og tall. For opencode-økter
+            teller nav-pilot også KI-modell og tokens, merket med navnet på repoet når du jobber i et repo i navikt.
+            Maskinen kjennes igjen på et maskinnummer, ikke på navn eller brukernavn.
           </BodyLong>
           <BodyLong>
-            Starter nav-pilot Copilot, slår den også på målingene og sporingen til Copilot, mot samme mottaker. Kjører
+            Starter nav-pilot Copilot eller opencode, slår den også på deres egne målinger, mot samme mottaker. Kjører
             økten i et repo i navikt, merkes de med navnet på repoet. Første gang du kjører nav-pilot i en terminal,
             står dette på én linje.
           </BodyLong>
@@ -92,15 +92,16 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             Når vi kjører en brukerundersøkelse, kan nav-pilot spørre om du vil svare. Det skjer rett etter at en økt er
             ferdig, aldri midt i arbeidet. Du kan svare nå, senere eller aldri. Velger du senere, spør nav-pilot igjen
             om noen dager, høyst tre ganger per undersøkelse. Før første spørsmål står det hva som sendes: svarene dine,
-            nav-pilot-versjon, operativsystem, klient og om lokale modeller er på. Navn, GitHub-bruker, kode, device-ID
-            og innhold fra øktene dine sendes ikke.
+            nav-pilot-versjon, operativsystem, klient, om lokale modeller er på, og GitHub-innloggingen din. Navn, kode,
+            maskinnummer og innhold fra øktene dine sendes ikke.
           </BodyLong>
           <BodyLong>
-            Vi lagrer ikke navn eller e-post sammen med svarene. Mens undersøkelsen er åpen, lagrer vi en kryptografisk
-            sjekksum av innloggingen (<code className={code}>nav-pilot auth login</code>) for å hindre dobbeltsvar. Den
-            slettes etter at undersøkelsen har stengt. nav-pilot spør ikke uten terminal, i CI, når klientens argumenter
-            står etter <code className={code}>--</code>, eller når målinger er slått av. Vil du slå av bare
-            undersøkelsene, ikke målingene:
+            Svarene lagres uten navn, e-post eller bruker. Innloggingen (
+            <code className={code}>nav-pilot auth login</code>) brukes bare til å hindre dobbeltsvar: mens undersøkelsen
+            er åpen, lagrer vi en nøkkelbasert sjekksum av e-posten din. Den slettes etter at undersøkelsen har stengt.
+            nav-pilot spør ikke uten terminal, i CI, når klientens argumenter står etter{" "}
+            <code className={code}>--</code>, eller når målinger er slått av. Vil du slå av bare undersøkelsene, ikke
+            målingene:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set surveys false`}</CodeBlock>
           <BodyLong>
