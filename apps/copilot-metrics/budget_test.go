@@ -309,4 +309,3 @@ func (t *rewriteHostTransport) RoundTrip(req *http.Request) (*http.Response, err
 	}
 	return http.DefaultTransport.RoundTrip(clone)
 }
-
