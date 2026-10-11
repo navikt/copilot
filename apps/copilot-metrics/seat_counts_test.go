@@ -117,3 +117,22 @@ func TestSeatCountsMergeSQL_KeysOnDateAndScope(t *testing.T) {
 		}
 	}
 }
+
+func TestIngestTodaySeatCounts_ForbiddenIsSkipped(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Resource not accessible by integration"}`, http.StatusForbidden)
+	}))
+	defer srv.Close()
+	c := &GitHubClient{
+		httpClient: &http.Client{Transport: &rewriteHostTransport{base: srv.Client().Transport, target: srv.URL}},
+		enterprise: "nav",
+		org:        "navikt",
+	}
+	called := false
+	err := ingestTodaySeatCounts(context.Background(), c.FetchSeatCounts,
+		func(context.Context, time.Time, *SeatCounts) error { called = true; return nil },
+		time.Now())
+	if err != nil || called {
+		t.Fatalf("403 should be skipped without writing: err=%v called=%v", err, called)
+	}
+}

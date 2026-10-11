@@ -634,7 +634,8 @@ func (c *GitHubClient) FetchSeatCounts(ctx context.Context) (*SeatCounts, error)
 	}
 	seats, total, orgErr := c.fetchSeats(ctx, "https://api.github.com/orgs/"+c.org, orgClient)
 	if orgErr != nil {
-		return nil, fmt.Errorf("both enterprise and org seats endpoints failed: %w; org: %w", err, orgErr)
+		// Only orgErr is wrapped: the fallback's status decides how the caller reacts.
+		return nil, fmt.Errorf("both enterprise and org seats endpoints failed: %v; org: %w", err, orgErr)
 	}
 	return countSeats("organization", c.org, total, seats), nil
 }
@@ -680,7 +681,7 @@ func (c *GitHubClient) fetchSeats(ctx context.Context, base string, client *http
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, 0, fmt.Errorf("seats API returned %d on page %d: %s", resp.StatusCode, page, truncate(string(body), 300))
+			return nil, 0, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("seats API returned %d on page %d: %s", resp.StatusCode, page, truncate(string(body), 300))}
 		}
 
 		var result copilotSeatResponse
