@@ -331,7 +331,12 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			}
 		}
 		if !e.Usable() {
-			add(mcpProblem{Server: e.Name, Problem: "retired in the registry (status " + e.Status + "); the org policy will stop running it", Fix: "nav-pilot mcp disable " + e.Name})
+			problem := "retired in the registry (status " + e.Status + "); the org policy will stop running it"
+			if e.Status == "deprecated" {
+				// Still listed, so it keeps running: a nudge, not a break.
+				problem = "deprecated in the registry; it still runs, but new installs cannot enable it"
+			}
+			add(mcpProblem{Server: e.Name, Problem: problem, Fix: "nav-pilot mcp disable " + e.Name})
 		}
 		// Remotes and sandboxHosts both: a package server can name hosts too.
 		for _, u := range mcpEntryURLs(e) {

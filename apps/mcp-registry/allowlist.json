@@ -382,7 +382,7 @@
       "name": "com.jetbrains/intellij",
       "description": "Access IntelliJ code intelligence, inspections, and refactoring tools via MCP.",
       "version": "2026.2.1",
-      "status": "active",
+      "status": "deprecated",
       "publishedAt": "2026-04-27T00:00:00Z",
       "websiteUrl": "https://www.jetbrains.com/help/idea/mcp-server.html",
       "repository": {

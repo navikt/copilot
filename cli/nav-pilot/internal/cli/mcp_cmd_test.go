@@ -152,6 +152,12 @@ func TestMCPListDiagnosesEachFailureMode(t *testing.T) {
 			t.Errorf("%s: fixes %q, want one starting %q", server, fixes[server], want)
 		}
 	}
+	// A deprecated server still runs: the problem says so, not that it stops.
+	if !slices.ContainsFunc(rep.Problems, func(p mcpProblem) bool {
+		return p.Server == "io.example/old" && strings.Contains(p.Problem, "it still runs")
+	}) {
+		t.Errorf("deprecated server: problems %+v, want the still-runs nudge", rep.Problems)
+	}
 	// The registry's sandboxHosts get a fix line of their own, like a remote.
 	if !slices.Contains(fixes["com.figma/figma-mcp"], "cplt config set allow.domains api.figma.com") {
 		t.Errorf("figma: fixes %q, want one for api.figma.com too", fixes["com.figma/figma-mcp"])
