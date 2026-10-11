@@ -655,7 +655,7 @@ func cmdLocalStart() error {
 		return fmt.Errorf("the local %s server did not come up (%s); nothing was recorded.\n\n  What it printed is in %s", model.Model, status.Health, local.LogPath())
 	}
 	if err := local.SaveState(local.State{
-		PID:     status.PID,
+		PID:      status.PID,
 		Model:    model.Model,
 		Revision: model.Revision,
 		Started:  started,

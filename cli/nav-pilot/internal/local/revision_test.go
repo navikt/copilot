@@ -3,8 +3,8 @@ package local
 import (
 	"context"
 	"encoding/json"
-	"os/exec"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
