@@ -32,6 +32,7 @@
         "OpenCode (open source terminal-agent)",
         "Jeg bruker ikke KI-kodeverktøy"
       ],
+      "exclusive": "Jeg bruker ikke KI-kodeverktøy",
       "other": "Annet",
       "max_length": 100,
       "required": true
