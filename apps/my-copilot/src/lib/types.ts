@@ -297,6 +297,10 @@ export interface TeamYearMonth {
   net_usd: number | null;
   gross_usd: number | null;
   no_usage_net_usd: number | null;
+  /** Members with a seat that month; null when hidden (under five), without team history or before the first seat snapshot. */
+  seat_months: number | null;
+  /** seat_months at the 19 USD list price. An estimate, not billed. */
+  licence_usd_estimate: number | null;
 }
 
 export interface TeamYearOverview {
@@ -304,7 +308,13 @@ export interface TeamYearOverview {
   team_slug: string;
   year: number;
   months: TeamYearMonth[];
-  coverage: { membership_from: string; gross_from: string; last_usage_day: string; net_months: string[] };
+  coverage: {
+    membership_from: string;
+    gross_from: string;
+    last_usage_day: string;
+    net_months: string[];
+    seats_snapshot: string;
+  };
 }
 
 export interface TeamNetOverview {

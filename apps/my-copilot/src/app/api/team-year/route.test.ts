@@ -17,6 +17,7 @@ const data: TeamYearOverview = {
     gross_from: "2026-06-15",
     last_usage_day: "2026-10-09",
     net_months: ["2026-08"],
+    seats_snapshot: "2026-10-11",
   },
   months: [
     {
@@ -27,6 +28,8 @@ const data: TeamYearOverview = {
       net_usd: null,
       gross_usd: null,
       no_usage_net_usd: null,
+      seat_months: null,
+      licence_usd_estimate: null,
     },
     {
       month: "2026-07",
@@ -36,8 +39,20 @@ const data: TeamYearOverview = {
       net_usd: null,
       gross_usd: null,
       no_usage_net_usd: null,
+      seat_months: 9,
+      licence_usd_estimate: 171,
     },
-    { month: "2026-08", basis: "net", hidden: false, users: 6, net_usd: 80.1, gross_usd: 100, no_usage_net_usd: 0 },
+    {
+      month: "2026-08",
+      basis: "net",
+      hidden: false,
+      users: 6,
+      net_usd: 80.1,
+      gross_usd: 100,
+      no_usage_net_usd: 2,
+      seat_months: 8,
+      licence_usd_estimate: 152,
+    },
   ],
 };
 
@@ -60,6 +75,13 @@ describe("GET /api/team-year", () => {
     expect(getTeamYearOverview).not.toHaveBeenCalledWith("team-a", expect.anything(), expect.anything());
   });
 
+  it("says licences are not loaded before the first seat snapshot", async () => {
+    vi.mocked(getTeamYearOverview).mockResolvedValue({ ...data, coverage: { ...data.coverage, seats_snapshot: "" } });
+    const text = await (await get("team=123&year=2026")).text();
+    expect(text).toContain("Lisenser er ikke lest inn ennå");
+    expect(text).not.toContain("Lisenser er ikke med");
+  });
+
   it("falls back to the team id in the filename when the slug is unsafe", async () => {
     vi.mocked(getTeamYearOverview).mockResolvedValue({ ...data, team_slug: 'a"b' });
     expect((await get("team=123&year=2026")).headers.get("Content-Disposition")).toContain(
@@ -75,11 +97,12 @@ describe("GET /api/team-year", () => {
     const header = lines.findIndex((line) => !line.startsWith("#"));
     expect(lines.slice(0, header).some((line) => line.includes("kan ikke legges sammen"))).toBe(true);
     expect(lines.slice(header)).toEqual([
-      "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd",
-      "2026-04,Ingen data,,,,",
-      "2026-07,Brutto (skjult),,,,",
-      "2026-08,Netto,6,80.10,100.00,0.00",
+      "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,lisenser,lisenser_usd_anslag,totalt_med_lisenser_usd",
+      "2026-04,Ingen data,,,,,,,",
+      "2026-07,Brutto (skjult),,,,,9,171.00,",
+      "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
     ]);
+    expect(lines.some((line) => line.includes("Lisenser er et anslag"))).toBe(true);
     expect(getTeamYearOverview).toHaveBeenCalledWith("123", 2026, "token");
   });
 });
