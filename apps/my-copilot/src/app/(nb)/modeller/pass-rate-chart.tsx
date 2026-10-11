@@ -144,8 +144,8 @@ export function PassRateChart({
         />
       </div>
       <figcaption className="text-sm" style={{ color: "#475569", marginTop: "var(--ax-space-8)" }}>
-        Form viser effort: sirkel = low, kvadrat = medium, trekant = high, rombe = standard. Linjen binder sammen
-        nivåene til samme modell. Credits-aksen er logaritmisk.
+        Form viser innsatsnivå (effort): sirkel = low, kvadrat = medium, trekant = high, rombe = standard. Linjen binder
+        sammen nivåene for hver modell. Credits-aksen er logaritmisk.
         {frontier && " Den stiplede linjen går gjennom punktene ingen andre slår på både bestått og pris."} Tallene står
         i tabellen under.
       </figcaption>

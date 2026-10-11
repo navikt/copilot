@@ -127,7 +127,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
             </Checkbox>
           ))}
         </CheckboxGroup>
-        <CheckboxGroup legend="Innsats" size="small" value={shownEfforts} onChange={setShownEfforts}>
+        <CheckboxGroup legend="Innsatsnivå" size="small" value={shownEfforts} onChange={setShownEfforts}>
           {allEfforts.map((effort) => (
             <Checkbox key={effort} value={effort}>
               {effortName(effort)}
@@ -251,6 +251,9 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
           </VStack>
         );
       })}
+      {(shownModels.length === 0 || shownEfforts.length === 0) && (
+        <BodyShort size="small">Velg minst én modell og ett innsatsnivå for å se målingene.</BodyShort>
+      )}
     </VStack>
   );
 }
