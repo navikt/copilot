@@ -124,7 +124,7 @@ func (bq *BigQueryClient) GetTeamYearOverview(ctx context.Context, team string, 
 	}
 	for _, row := range rows {
 		if row.UnknownPlan > 0 {
-			slog.Warn("Seats with unknown plan_type priced as business", "team", team, "month", row.Month, "seats", row.UnknownPlan)
+			slog.Warn("Seats with unknown plan_type priced as business", "month", row.Month, "seats", row.UnknownPlan)
 		}
 	}
 	return teamYearOverview(team, year, rows, time.Now()), nil
