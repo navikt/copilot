@@ -387,7 +387,13 @@ export function ModellerContent({
                 <li key={id}>
                   <Link href={`#${id}`}>{label}</Link>
                   {id === "malinger" && (
-                    <HStack as="ul" gap="space-16" wrap={false} className="ms-4 inline-flex">
+                    <HStack
+                      as="ul"
+                      gap="space-16"
+                      wrap={false}
+                      className="inline-flex"
+                      style={{ marginInlineStart: "var(--ax-space-16)" }}
+                    >
                       {runsBySuite(summary?.runs ?? []).map(([suite]) => (
                         <li key={suite}>
                           <Link href={`#${suiteId(suite)}`}>{SUITE_NAMES[suite] ?? suite}</Link>
