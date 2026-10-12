@@ -18,6 +18,10 @@ export const metadata: Metadata = {
 const columns = [0, 1, 3, 4, 5, 7, 8];
 const headers = ["Måned", "Grunnlag", "Netto", "Brutto", "Netto uten bruk", "Lisenser (anslag)", "Totalt med lisenser"];
 
+/** CSV amounts keep a decimal point; the report shows them the Norwegian way. */
+const nok = (amount: string) =>
+  amount === "" ? "" : Number(amount).toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const monthName = (month: string) =>
   /^\d{4}-\d{2}$/.test(month)
     ? new Date(`${month}-01T00:00:00Z`).toLocaleString("nb-NO", { month: "long", timeZone: "UTC" })
@@ -61,7 +65,7 @@ export default async function TeamReportPage({
     <TableRow key={key}>
       {columns.map((c, i) => (
         <TableDataCell key={c} align={i < 2 ? "left" : "right"} style={bold ? { fontWeight: 600 } : undefined}>
-          {i === 0 ? monthName(cells[c]) : cells[c]}
+          {i === 0 ? monthName(cells[c]) : i < 2 ? cells[c] : nok(cells[c])}
         </TableDataCell>
       ))}
     </TableRow>
