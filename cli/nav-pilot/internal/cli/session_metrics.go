@@ -380,6 +380,12 @@ func baselineCopilotSession(root, id string) bool {
 	}
 	dir := filepath.Join(root, id)
 	marker := filepath.Join(dir, sessionMetricsMarker)
+	// A new session has no directory yet: Copilot creates it after launch.
+	// There is nothing to lock or baseline, and making the directory here
+	// would put a file in Copilot's state before Copilot does.
+	if _, err := os.Stat(filepath.Join(dir, "events.jsonl")); os.IsNotExist(err) {
+		return true
+	}
 	unlock, ok := lockSession(marker + ".lock")
 	if !ok {
 		return false

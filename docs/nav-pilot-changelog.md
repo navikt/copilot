@@ -23,6 +23,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Krever Copilot CLI 1.0.51**: `--session-id` kom i Copilot CLI 1.0.51. Med eldre Copilot starter økten som før, men den telles ikke.
 - **Bare det som skjer under nav-pilot**: Ved hver oppstart flytter nav-pilot startpunktet til slutten av øktloggen. Det du gjør i en økt med `copilot --resume` uten nav-pilot, telles ikke. Krasjet en tidligere nav-pilot-kjøring før den fikk lest økten, telles ikke det den kjøringen gjorde.
 - **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot øktloggen. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
+- **Nye økter telles nå**: En feil gjorde at nav-pilot ga opp nye Copilot-økter før Copilot hadde opprettet øktmappen, så ingen øktall kom fram. Det er rettet.
 - **Dashboard**: Grafana-dashboardet for nav-pilot har nye paneler for øktene, blant annet hook-kjøringer, feilrate per verktøy, subagenter og øktlengde.
 
 ### Tall fra opencode-øktene nav-pilot starter

@@ -374,6 +374,48 @@ func TestBaselineCopilotSession(t *testing.T) {
 	}
 }
 
+// A new session has no directory at launch: Copilot creates it. The baseline
+// must accept it, or the exit never records the session (no session metrics
+// arrived at all after #1648). The other tests create the directory first and
+// could not see this.
+func TestBaselineCopilotSessionNewSessionWithoutDir(t *testing.T) {
+	const s1 = "33333333-3333-4333-8333-333333333333"
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+	root := filepath.Join(home, "session-state")
+	rec := &sessionTelemetry{}
+	orig := telemetry
+	telemetry = rec
+	t.Cleanup(func() { telemetry = orig })
+
+	if !baselineCopilotSession(root, s1) {
+		t.Fatal("baseline refused a new session whose directory does not exist yet")
+	}
+	dir := filepath.Join(root, s1)
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatal("baseline created Copilot's session directory")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "events.jsonl"), []byte(sessionFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	recordCopilotSessions(root, []string{s1})
+	if len(rec.got) != 1 {
+		t.Fatalf("new session: %d records, want 1", len(rec.got))
+	}
+	if _, err := os.Stat(filepath.Join(dir, sessionMetricsMarker)); err != nil {
+		t.Fatalf("no marker after recording: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, sessionMetricsMarker+".lock")); !os.IsNotExist(err) {
+		t.Fatal("lock left behind")
+	}
+}
+
 // #1649: work done in a session without nav-pilot between two nav-pilot
 // launches is never counted.
 func TestBaselineCopilotSessionMovesAnExistingMarker(t *testing.T) {
