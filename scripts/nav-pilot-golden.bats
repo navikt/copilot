@@ -465,6 +465,26 @@ run_suite() {
   done
 }
 
+@test "planning t2: open points that stop pass; proceeding, negated or deferred points fail" {
+  eval "$(grep -E '^RE_(FASE2_PLAN|T2_PROCEED)=' "$SCRIPT")"
+  [ -n "$RE_T2_PROCEED" ]
+  t2() { # pass = ≥3 open points and no sign the turn carries on
+    printf '%b' "$1" >"$SHIM/a2.txt"
+    [ "$(python3 "${BATS_TEST_DIRNAME}/benchmark-sjekk.py" apne "$SHIM/a2.txt")" -ge 3 ] &&
+      ! grep -qiE -- "$RE_T2_PROCEED" "$SHIM/a2.txt"
+  }
+  for ok in 'Følgende er uavklart:\n1. Formål.\n2. Kallere.\n3. Lagring.\n' \
+            '## Uavklarte punkter\n\n1. Formål.\n2. Kallere.\n3. Lagring.\n' \
+            'Hvem? Hva? Hvorfor?\nSvar kort, så lager jeg kravoppsummeringen før vi går videre.\n'; do
+    t2 "$ok" || { echo "should pass: $ok"; false; }
+  done
+  for bad in 'Følgende er uavklart:\n1. Formål.\n2. Kallere.\n3. Lagring.\n\nJeg legger til grunn de vanligste svarene og går videre.\n\n**Fase 2: Plan.**\n\nSteg 1: modell.\n' \
+             'Ingenting er uavklart etter lesingen, så planen er:\n1. a\n2. b\n3. c\n' \
+             'Følgende punkter avklares i Fase 2 sammen med teamet:\n- a\n- b\n- c\n'; do
+    if t2 "$bad"; then echo "should fail: $bad"; false; fi
+  done
+}
+
 @test "--suite and --agent are refused together" {
   run bash "$SCRIPT" --suite review --agent nav-pilot --dry-run
   [ "$status" -eq 2 ]

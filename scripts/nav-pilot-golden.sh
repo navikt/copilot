@@ -2045,6 +2045,13 @@ Det er alle svarene. Dette bekrefter at intervjuet er ferdig; bruk antakelsene d
 # an interview turn. Neither word decides whether a plan exists any more.
 RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig'
 
+# Test 2: a Fase 1 turn that lists open points and then carries on anyway
+# («Jeg legger til grunn … og går videre. Fase 2: Plan.») is not a stop, however
+# many points it lists. 0 of the 64 kept t2/t4a answers match (2026-10-12).
+# A bare «går videre» hit two of them, both «… før vi går videre»: a promise
+# after the answers, not a step taken, hence the subject in front.
+RE_T2_PROCEED="$RE_FASE2_PLAN|(jeg|og|så|nå) går (nå )?videre|starter (nå )?(på|med)|fortsetter med"
+
 # The red-zone declaration itself, inside a plan. The second of the two things
 # #534 says to derive separately, and it is derived separately: the gate above
 # shares no alternative with it.
@@ -2209,6 +2216,9 @@ run_pass_nav_pilot() {
         elif ! absent "$T2" "$RE_FASE2_WORK"; then
           record 2 "$DESC2" 1 \
             "response did Fase 2 work (matched: $RE_FASE2_WORK): PHASE INTEGRITY rule regressed"
+        elif present "$A2" "$RE_T2_PROCEED"; then
+          record 2 "$DESC2" 1 \
+            "the turn lists open points but proceeds (matched: $RE_T2_PROCEED): PHASE INTEGRITY rule regressed"
         elif [[ "$q" -lt "$MIN_OPEN_QUESTIONS" ]]; then
           record 2 "$DESC2" 1 \
             "only $q open point(s) (question marks or «uavklart» list items), need ≥$MIN_OPEN_QUESTIONS: the turn gave no later-phase tool work, but it did not conduct the required interview or stop with questions outstanding"
@@ -3174,11 +3184,13 @@ RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
 # was added for GPT-6 Sol's «Alle databasefeil gjøres om til `null`» at 12–13,
 # a real find the catch expression missed in both of its first two runs.
 # `unntak`/`exception` for GPT-6.1 Sol's «Alle unntak blir til `null`» and «Alle
-# unntak gir `null`» at 12–13 (2026-10-12-sol61-rerun, runs 2, 3, 5).
+# unntak gir `null`» at 12–13 (2026-10-12-sol61-rerun, runs 2, 3, 5). A verb
+# must sit between the noun and `null`, so «Med unntak av `null`-returen» and
+# «Kaster ikke unntak …, returnerer `null`» do not count.
 RV_KOTLIN=(
   'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|interpol|konkaten|prepared|bindevariab@9'
   'fnr-logg=(logg|logger|log |info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@8'
-  'catch=catch|svelg|swallow|fanger|(feil|unntak|exception).{0,40}null@12,13'
+  'catch=catch|svelg|swallow|fanger|(feil|unntak|exception)\W{0,3}\w*\W{0,3}(blir|gir|ender|gjøres|mappes|skjules|fanges|returner\w*|oversettes|til)\b.{0,30}null@12,13'
 )
 RV_TSX=(
   'tailwind=tailwind|p-4|mx-8|spacing|utility|padding|margin|\bBox\b|HStack@7'

@@ -369,7 +369,12 @@ LOCATION = re.compile(r"\.kts?:\d+|linje \d+|line \d+", re.IGNORECASE)
 # statements under a lead-in («Følgende er uavklart:», «må disse punktene
 # avklares:»), not as questions (2026-10-12-sol61-rerun, four runs). The owner
 # ruled those count. A list under any other lead-in («Repoet har:») does not.
-OPEN_LEAD = re.compile(r"(uavklar|avklares|åpne (punkter|spørsmål)|må (være )?(fastlagt|bestemm|beslutt)).*:\s*$", re.I)
+_OPEN = r"(uavklar|avklares|åpne (punkter|spørsmål)|må (være )?(fastlagt|bestemm|beslutt))"
+# A lead-in ending in a colon, or a heading («## Uavklarte punkter») with none.
+OPEN_LEAD = re.compile(rf"{_OPEN}.*:\s*$|^#+\s.*{_OPEN}", re.I)
+# Not open now: negated («Ingenting er uavklart … planen er:») or deferred
+# («avklares i Fase 2 sammen med teamet:»).
+NOT_OPEN = re.compile(r"\b(ingen|ingenting|ikke)\b.*(uavklar|åpne)|\bi fase\s*[2-9]|\b(senere|underveis)\b", re.I)
 LIST_ITEM = re.compile(r"^(?:[-*•]|\d+[.)])\s+\S")
 
 
@@ -377,7 +382,7 @@ def open_points(text):
     lines = answer_lines(text)
     listed, i = 0, 0
     while i < len(lines):
-        if OPEN_LEAD.search(lines[i]):
+        if OPEN_LEAD.search(lines[i]) and not NOT_OPEN.search(lines[i]):
             n, i = 0, i + 1
             while i < len(lines) and (LIST_ITEM.match(lines[i]) or not lines[i].strip() or lines[i].startswith("  ")):
                 n += bool(LIST_ITEM.match(lines[i]))
@@ -579,11 +584,18 @@ def selftest():
         ("apne", "Repoet har:\n- Ktor\n- nais.yaml\n- Dockerfile\n\nJeg går videre til planen.\n", ["3"], False),
         ("apne", "Jeg antar alt og lager planen nå. Er det greit?\n", ["3"], False),
         ("apne", "Følgende er uavklart:\n1. Formålet.\n\nOgså:\n- a\n- b\n", ["3"], False),
+        ("apne", "## Uavklarte punkter\n\n1. Formålet.\n2. Hvem kaller.\n3. Lagring.\n", ["3"], True),
+        ("apne", "Ingenting er uavklart etter lesingen, så planen er:\n1. a\n2. b\n3. c\n", ["3"], False),
+        ("apne", "Følgende punkter avklares i Fase 2 sammen med teamet:\n- a\n- b\n- c\n", ["3"], False),
         # rv1/rv2 catch (2026-10-12-sol61-rerun): «unntak … null» is the swallow.
         ("linje", "| 12–13 | 🟡 | Alle unntak blir til `null`. |\n", [CATCH], True),
         ("linje", "| 12–13 | 🟡 | **Databasefeil skjules:** Alle unntak gir `null`. |\n", [CATCH], True),
         ("linje", "| 12–13 | 🟡 | Returnerer `null` når brukeren ikke finnes; vurder Result. |\n", [CATCH], False),
         ("linje", "| 12–13 | 🟡 | Navngi variabelen tydeligere. |\n", [CATCH], False),
+        ("linje", "| 12–13 | 🟡 | Databasefeil fanges og returneres som `null`. |\n", [CATCH], True),
+        ("linje", "| 12–13 | 🟡 | Alle `Exception` blir til `null`. |\n", [CATCH], True),
+        ("linje", "| 12–13 | 🟡 | Kaster ikke unntak når brukeren mangler, returnerer `null`; vurder Result. |\n", [CATCH], False),
+        ("linje", "| 12–13 | 🟡 | Med unntak av `null`-returen er dette greit. |\n", [CATCH], False),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:
