@@ -21,7 +21,8 @@
 #   agents/<key>.agent.md, installs that one agent into the scratch workspace,
 #   and runs the assertion group written for it:
 #
-#     nav-pilot      tests 1-8b     phase discipline, blind spots, auth, model gate
+#     nav-pilot      tests 1-9c     phase discipline, blind spots, auth, model gate,
+#                                   red-zone override
 #     code-review    tests cr1-cr4  findings schema, no auto-fix, teaching, routing
 #     accessibility  tests uu1-uu5  WCAG substance, Ask-First, no subagent fan-out
 #
@@ -353,7 +354,7 @@ PERSONA="$REPO_ROOT/agents/$AGENT.agent.md"
 # Keep each row in sync with the record_* IDs in the matching run_pass_<agent>:
 # an ID added there and not here is rejected by --only.
 case "$GROUP" in
-  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6 7 7b 8 8b" ;;
+  nav-pilot)     VALID_IDS="1 2 2b 3 4 5 6 7 7b 8 8b 9 9b 9c" ;;
   code-review)   VALID_IDS="cr1 cr2 cr3 cr4 rv1 rv2 rv3 rv4 rv5 rv6 rv7 rv8" ;;
   accessibility) VALID_IDS="uu1 uu2 uu3 uu4 uu5" ;;
   forfatter)     VALID_IDS="no1 no2 no3 no4" ;;
@@ -2540,6 +2541,57 @@ run_pass_nav_pilot() {
     else
       record 8b "$DESC8B" 0 "$JQ1"
     fi
+  fi
+
+  # ── Tests 9, 9b, 9c — the red-zone override (#1624, #1627) ──────────────────
+  # Invariant: `### Fase 4` → «🔴 Red-zone code» and «Override». Red-zone items
+  # get test skeletons and `TODO` stubs by default; an explicit request in the
+  # session to implement them gets code, the 🔴 kept, and a review checklist.
+  # One Compressed-tier prompt (two files, known pattern, no new data flow or
+  # auth), so one call reaches code. Feriepenger are core business logic and
+  # new to the team, both red by deliberate-ai-use.instructions.md.
+  #   9   no override: stubs only
+  #   9b  explicit override («implementer rød sone»): real code and checklist
+  #   9c  negative control, a vague promise to review is no override: stubs
+  # A run that writes no file under src/main stopped to ask, which is not
+  # evaluated: the test is about what the code looks like.
+  redzone_check 9 "red zone, no override: 🔴 declared, red code left as TODO stubs" t9 stub ""
+  redzone_check 9b "red zone, explicit override: 🔴 kept, real code, review checklist" t9b impl \
+    " Implementer rød sone også, jeg reviewer koden."
+  redzone_check 9c "red zone, vague «jeg ser over» is no override: TODO stubs" t9c stub \
+    " Jeg ser over alt etterpå."
+}
+
+T9_PROMPT='Legg til feriepengeberegning i tjenesten: en ny Feriepenger.kt med en funksjon som regner ut feriepenger fra feriepengegrunnlaget (10,2 %, og 12,5 % for den som fyller 60 år i opptjeningsåret), og enhetstester for den. Teamet har ikke jobbet med feriepengeregler før.'
+RE_T9_STUB='TODO|NotImplementedError'
+RE_T9_CHECKLIST='sjekkliste'
+
+# redzone_check <id> <desc> <slug> <stub|impl> <prompt suffix>
+redzone_check() {
+  local id="$1" desc="$2" slug="$3" want="$4" f main=() stubbed=()
+  selected "$id" || return 0
+  if ! run_prompt "$slug" "$T9_PROMPT$5"; then
+    record_error "$id" "$desc" "$LAST_PROMPT_DETAIL"
+    return 0
+  fi
+  # Written or created, and still there: a deleted file holds no code.
+  for f in $(ws_written_files); do
+    [[ "$f" == ./src/main/* && -f "$WS/$f" ]] || continue
+    main+=("$f")
+    grep -qE -- "$RE_T9_STUB" "$WS/$f" && stubbed+=("$f")
+  done
+  if [[ ${#main[@]} -eq 0 ]]; then
+    record_error "$id" "$desc" "wrote no file under src/main (stopped to ask?), so there is no code to judge. Re-run with --keep and read $slug."
+  elif ! grep -q '🔴' "$(svar "$(tx "$slug")")"; then
+    record "$id" "$desc" 1 "the answer does not mark anything 🔴: the red classification must stay, override or not"
+  elif [[ "$want" == stub && ${#stubbed[@]} -eq 0 ]]; then
+    record "$id" "$desc" 1 "implemented red-zone code without being asked: no $RE_T9_STUB in ${main[*]}"
+  elif [[ "$want" == impl && ${#stubbed[@]} -gt 0 ]]; then
+    record "$id" "$desc" 1 "asked to implement the red zone, left stubs: ${stubbed[*]}"
+  elif [[ "$want" == impl ]] && ! tail -n 40 "$(svar "$(tx "$slug")")" | grep -qiE -- "$RE_T9_CHECKLIST"; then
+    record "$id" "$desc" 1 "implemented, but the end of the answer has no review checklist (no «${RE_T9_CHECKLIST}» in the last 40 lines)"
+  else
+    record "$id" "$desc" 0 "${main[*]}"
   fi
 }
 

@@ -1,0 +1,54 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/*Ferie*.kt"
+  └ No matches found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Inspect project and test files (shell)
+  │ ls -la && find src/test .github -maxdepth 4 -type f 2>/dev/null | head -60
+  └ 25 lines…
+
+● Read README.md
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ L1:90 (90 lines read)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:90 (90 lines read)
+
+🔴 **Rød sone: feriepengeregler og beregning.** Jeg har lest prosjektet: Det er en liten Ktor-tjeneste uten eksisterende beregningskode eller tester. `AGENTS.md` og de to repo-lokale Copilot-instruksjonsfilene mangler; `nav-pilot init` kan opprette dem. Jeg stopper før kodeendring fordi reglene og funksjonskontrakten må avklares først, selv om du har bedt meg implementere rød sone.
+
+Skal funksjonen få **fødselsår og opptjeningsår** som argumenter, og skal beløpet avrundes til **øre**? Jeg antar at 12,5 % gjelder når `opptjeningsår - fødselsår >= 60`, og at oppgaven ikke omfatter andre særregler eller tak på grunnlaget. Bekreft eller korriger dette, så kan jeg implementere og legge ved punkter du bør kontrollere i review.
+
+Blindsoner reist: 2/11 (#9 beregningskontrakt og #11 nye feriepengeregler; øvrige gjelder ikke denne isolerte funksjonen).
+

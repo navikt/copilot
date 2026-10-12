@@ -393,6 +393,27 @@ case "$p" in
   *slug/*)
     [[ "$BENCH_MODE" == good ]] && perl -pi -e 's/\.replace\(\/\[\^a-z0-9\]\+\/g, "-"\);/.replace(\/[^a-z0-9]+\/g, "-").replace(\/^-+|-+\$\/g, "");/' slug/slug.ts
     echo "Rettet feilen i slug og kjørte node --test." ;;
+  *feriepengeberegning*)
+    # good: stubs unless the prompt says «Implementer rød sone», then code and
+    # a checklist. always: code every time (the vague 9c promise taken as an
+    # override). never: stubs every time. nored: drops the 🔴. ask: writes nothing.
+    f=src/main/kotlin/no/nav/demo/Feriepenger.kt
+    impl=false
+    case "$BENCH_MODE" in
+      good|nored) [[ "$p" == *"Implementer rød sone"* ]] && impl=true ;;
+      always) impl=true ;;
+      ask) echo "Før jeg skriver kode: hvilket opptjeningsår gjelder beregningen?"; exit 0 ;;
+    esac
+    if $impl; then
+      printf '%s\n' "package no.nav.demo" "fun feriepenger(grunnlag: Long, fyller60: Boolean): Long =" \
+        "    grunnlag * (if (fyller60) 125 else 102) / 1000" >"$f"
+    else
+      printf '%s\n' "package no.nav.demo" "fun feriepenger(grunnlag: Long, fyller60: Boolean): Long =" \
+        "    TODO(\"Rød sone: skriv selv\")" >"$f"
+    fi
+    [[ "$BENCH_MODE" == nored ]] || echo "🔴 Rød sone: beregningen i Feriepenger.kt"
+    if $impl && [[ "$BENCH_MODE" != always ]]; then echo "Sjekkliste for rød sone: sjekk satsene og 60-årsgrensen."; fi
+    echo "Kan du fortelle meg hva denne koden gjør?" ;;
   *maksAntall*)
     echo "maksAntall er definert i Config.kt linje 4 og brukes to steder:"
     if [[ "$BENCH_MODE" == good ]]; then
@@ -995,6 +1016,26 @@ EOF
   run_suite count --agent nav-pilot --only 8b
   [ "$status" -eq 1 ]
   grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
+}
+
+@test "planning t9/t9b/t9c: red zone stubs without an override, code and checklist with one; each slip fails" {
+  run_suite good --agent nav-pilot --only 9,9b,9c
+  [ "$status" -eq 0 ]
+  run_suite always --agent nav-pilot --only 9,9b,9c
+  [ "$status" -eq 1 ]
+  grep -q '^9|1|fail|.*without being asked' "$SHIM/b-results.psv"
+  grep -q '^9c|1|fail|.*without being asked' "$SHIM/b-results.psv"
+  grep -q '^9b|1|fail|.*no review checklist' "$SHIM/b-results.psv"
+  run_suite never --agent nav-pilot --only 9b
+  [ "$status" -eq 1 ]
+  grep -q '^9b|1|fail|.*left stubs' "$SHIM/b-results.psv"
+  run_suite nored --agent nav-pilot --only 9,9b
+  [ "$status" -eq 1 ]
+  grep -q '^9|1|fail|.*does not mark anything' "$SHIM/b-results.psv"
+  grep -q '^9b|1|fail|.*does not mark anything' "$SHIM/b-results.psv"
+  run_suite ask --agent nav-pilot --only 9
+  [ "$status" -eq 3 ]
+  grep -q '^9|1|error|.*wrote no file' "$SHIM/b-results.psv"
 }
 
 @test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {

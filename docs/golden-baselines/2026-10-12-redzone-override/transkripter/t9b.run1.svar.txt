@@ -1,0 +1,19 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+🔴 **Rød sone: feriepengeregler og beregning.** Jeg har lest prosjektet: Det er en liten Ktor-tjeneste uten eksisterende beregningskode eller tester. `AGENTS.md` og de to repo-lokale Copilot-instruksjonsfilene mangler; `nav-pilot init` kan opprette dem. Jeg stopper før kodeendring fordi reglene og funksjonskontrakten må avklares først, selv om du har bedt meg implementere rød sone.
+
+Skal funksjonen få **fødselsår og opptjeningsår** som argumenter, og skal beløpet avrundes til **øre**? Jeg antar at 12,5 % gjelder når `opptjeningsår - fødselsår >= 60`, og at oppgaven ikke omfatter andre særregler eller tak på grunnlaget. Bekreft eller korriger dette, så kan jeg implementere og legge ved punkter du bør kontrollere i review.
+
+Blindsoner reist: 2/11 (#9 beregningskontrakt og #11 nye feriepengeregler; øvrige gjelder ikke denne isolerte funksjonen).
+
