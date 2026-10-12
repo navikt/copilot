@@ -224,11 +224,14 @@ def review(mode, text, specs):
 # norsk: function words. Code spans and fences are dropped first, so English
 # identifiers and terms neither help nor hurt. The foreign lists hold only
 # words bokmål does not use (#1501: d4 passed a reply half in Finnish).
-NORSK_ORD = set("og er ikke det som på for med til å".split())
+# Nynorsk forms count as Norwegian here; the nynorsk check rules on them.
+NORSK_ORD = set("og er ikke det som på for med til å ikkje eg ein ei eit kva frå vert òg".split())
 FREMMED = {
-    "finsk": set("ja ei että tai sekä myös joka mutta tämä ovat kuin jos ole".split()),
+    "finsk": set("että tai sekä myös joka mutta tämä ovat kuin jos ole".split()),
     "svensk": set("och inte är att jag för från också vad hur där när måste används".split()),
-    "dansk": set("af hvad efter nu mig dig meget nogle noget blev lidt ud op".split()),
+    "dansk": set("af hvad mig dig nogle noget lidt ud op uden bliver".split()),
+    # «for» is Norwegian too.
+    "engelsk": set("the and is of that this are not with you from which".split()),
 }
 
 
@@ -238,11 +241,13 @@ def norsk(text):
     if not toks:
         return "no answer text"
     nor = sum(t in NORSK_ORD for t in toks)
-    # ä/ö never occur in bokmål; a word carrying one is Finnish or Swedish.
-    for lang, marks in FREMMED.items():
-        n = sum(t in marks for t in toks) + (lang == "finsk") * sum("ä" in t or "ö" in t for t in toks)
-        if n >= 3 and n * 4 >= nor:
-            return f"{lang} markers: {n}, Norwegian function words: {nor}"
+    # No bokmål word has ä or ö (names can); such a word is Finnish or Swedish.
+    aao = sum("ä" in t or "ö" in t for t in toks)
+    counts = {lang: sum(t in marks for t in toks) + aao * (lang in ("finsk", "svensk"))
+              for lang, marks in FREMMED.items()}
+    lang, n = max(counts.items(), key=lambda kv: kv[1])
+    if n >= 3 and n * 4 >= nor:
+        return f"{lang} markers: {n}, Norwegian function words: {nor}"
     share = nor / len(toks)
     return None if share >= 0.08 else f"Norwegian function words {share:.0%} of {len(toks)} words, want ≥8%"
 
@@ -621,10 +626,15 @@ def selftest():
         # #1501: d4 must answer in Norwegian. Code and English terms are free.
         ("norsk", "Grensen er en konstant i `Config.kt`, og den brukes i ruten. Det er ikke mulig å endre den per miljø uten en env-variabel.\n", [], True),
         ("norsk", "```kotlin\nval maksAntall = System.getenv(\"MAKS\")?.toInt() ?: 100\n```\nLes verdien fra miljøet og send den til `oppgaveRoutes()` som parameter.\n", [], True),
-        ("norsk", (REPO / "docs/golden-baselines/2026-10-08-delegering-steg3/rev1/transkripter/d4.run2.txt").read_text(), [], False),
-        ("norsk", "Gränsen är en konstant i `Config.kt` och den används i rutten. Det går inte att ändra den per miljö utan en variabel.\n", [], False),
-        ("norsk", "Grænsen er en konstant i `Config.kt`, og den bliver brugt af ruten. Hvad du skal gøre er at læse den ud af miljøet efter opstart, så den kan ændres lidt nu og da.\n", [], False),
-        ("norsk", "The limit is a constant in `Config.kt` and the route uses it.\n", [], False),
+        ("norsk", (REPO / "docs/golden-baselines/2026-10-08-delegering-steg3/rev1/transkripter/d4.run2.txt").read_text(), [], "finsk"),
+        ("norsk", "Gränsen är en konstant i `Config.kt` och den används i rutten. Det går inte att ändra den per miljö utan en variabel.\n", [], "svensk"),
+        ("norsk", "Grænsen er en konstant i `Config.kt`, og den bliver brugt af ruten. Hvad du skal gøre er at læse den ud af miljøet efter opstart, så den kan ændres lidt nu og da.\n", [], "dansk"),
+        ("norsk", "The limit is a constant in `Config.kt` and the route uses it.\n", [], "engelsk"),
+        ("norsk", "Grensa er ein konstant i `Config.kt`, og eg ser ikkje kva som les ho frå miljøet.\n", [], True),
+        ("norsk", "Det är inte bra. Vi måste ändra gränsen och läsa den från miljön.\n", [], "svensk"),
+        ("norsk", "Det er meget enkelt, meget raskt og meget billig å lese grensen fra miljøet.\n", [], True),
+        ("norsk", "Grensen er en konstant. The route reads the limit from the config and this is not ready for the users with many tasks, which is the problem.\n", [], "engelsk"),
+        ("norsk", "Loggen viser at grensen er 100 og at det ikke er mulig å endre den per miljø.\n> Started server on port 8080 with the limit from the config\nDet må gjøres i `Config.kt`, og verdien sendes til ruten som en parameter. Det er også lurt å logge verdien som er lest, for det er den som styrer hvor mange oppgaver ruten gir ut, og den må være med i nais.yaml for hvert miljø.\n", [], True),
         # rv1/rv2 catch (2026-10-12-sol61-rerun): «unntak … null» is the swallow.
         ("linje", "| 12–13 | 🟡 | Alle unntak blir til `null`. |\n", [CATCH], True),
         ("linje", "| 12–13 | 🟡 | **Databasefeil skjules:** Alle unntak gir `null`. |\n", [CATCH], True),
@@ -643,8 +653,9 @@ def selftest():
         for cmd, text, extra, expect in cases:
             f.write_text(text)
             extra = [str(Path(tmp) / "fx") if a == "FX" else a for a in extra]
-            ok = check(cmd, [str(f), *extra]) is None
-            if ok != expect:
+            why = check(cmd, [str(f), *extra])
+            # A string expect is a failure whose reason starts with it.
+            if (why is None) != (expect is True) or isinstance(expect, str) and not why.startswith(expect):
                 failed += 1
                 print(f"FAIL {cmd} {text!r}: expected {'pass' if expect else 'fail'}")
     print(f"{len(cases) - failed}/{len(cases)} selftest cases passed")

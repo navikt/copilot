@@ -853,8 +853,10 @@ Personaen ble endret én gang underveis (rev1), etter at d4 strøk 0/5 med førs
 | d1 | 5/5 | 0/5 | ikke kjørt | 5/5 | 19,18 (15,44–29,42) |
 | d2 | 5/5, høyst 9,74 credits | 0/5, 9,74 | 4/5, 9,54 | 5/5 | 9,57 (8,79–11,07) |
 | d3 | 5/5 | 5/5 | 5/5 | **4/5** | 8,18 (7,91–9,21) |
-| d4 | 5/5 | 0/5 | **0/5** | 5/5 | 4,99 (4,75–5,51) |
+| d4 | 5/5 | 0/5 | **0/5** | 5/5¹ | 4,99 (4,75–5,51) |
 | t2–t5 | t2 5/5, t3 5/5, t4 4/5, t5 5/5, høyst 27,2 credits | | ikke kjørt | ikke kjørt | |
+
+¹ 4/5 etter #1637: kjøring 2 var for det meste på finsk ([rescore.psv](golden-baselines/2026-10-08-delegering-steg3/rev1/rescore.psv)).
 
 **Konklusjon: kriteriene er ikke oppfylt.** D3 strøk i rev1: i kjøring 4 sendte koordinatoren omdøpingen i tre filer til `worker`. Det er den nye setningen om at også små endringer skal sendes videre, som trekker en oppgave på grensen mellom triviell og komprimert over til `worker`. Endringen ga altså d4, men kostet d3. Etter regelen om høyst én revisjon er personaen ikke justert mer.
 
