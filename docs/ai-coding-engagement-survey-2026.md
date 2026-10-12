@@ -88,7 +88,7 @@ Reversert skåring — høy enighet peker på en barriere vi kan gjøre noe med 
 
 ### Del 4: Barrierer og muligheter (alle respondenter)
 
-**Q11.** Hvis du kunne endra én ting med AI-kodeverktøyene i Nav, hva ville det vært? *(velg én)*
+**Q11.** Hvis du kunne endre én ting med AI-kodeverktøyene i Nav, hva ville det vært? *(velg én)*
 
 - Bedre forståelse av kodebasen vår og interne rammeverk
 - Mer opplæring og veiledning i effektiv bruk
