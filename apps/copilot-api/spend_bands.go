@@ -51,17 +51,22 @@ func limitOn(day string) float64 {
 // Base bands, as share of the limit: 0, (0,25], (25,50], (50,75], (75,90], (90,100], >100.
 var bandEdges = []float64{0, 25, 50, 75, 90, 100}
 
-func bandIndex(net, limit float64) int {
-	if net < 0.005 {
+func bandIndex(net, limit float64) int { return edgeIndex(net, limit, bandEdges) }
+
+// edgeIndex returns the band for amount as a share of limit: band i holds
+// shares up to edges[i] %, and len(edges) is over the last edge. Amounts
+// under half a cent count as zero.
+func edgeIndex(amount, limit float64, edges []float64) int {
+	if amount < 0.005 {
 		return 0
 	}
-	pct := net / limit * 100
-	for i := 1; i < len(bandEdges); i++ {
-		if pct <= bandEdges[i] {
+	pct := amount / limit * 100
+	for i, e := range edges {
+		if pct <= e {
 			return i
 		}
 	}
-	return len(bandEdges)
+	return len(edges)
 }
 
 // SpendBand is one (possibly merged) band. First and Last index the base bands
@@ -102,15 +107,25 @@ func bandMonth(month string, nets []float64) SpendBandMonth {
 }
 
 func mergeBands(nets []float64, limit float64) []SpendBand {
-	if len(nets) < minBandUsers {
+	bands := mergeEdgeBands(nets, limit, bandEdges)
+	for i := range bands {
+		bands[i].Label = bandLabel(bands[i].First, bands[i].Last)
+	}
+	return bands
+}
+
+// mergeEdgeBands counts amounts per band of edges and merges small bands as
+// mergeBands describes. Labels are left to the caller.
+func mergeEdgeBands(amounts []float64, limit float64, edges []float64) []SpendBand {
+	if len(amounts) < minBandUsers {
 		return nil
 	}
-	bands := make([]SpendBand, len(bandEdges)+1)
+	bands := make([]SpendBand, len(edges)+1)
 	for i := range bands {
 		bands[i] = SpendBand{First: i, Last: i}
 	}
-	for _, n := range nets {
-		bands[bandIndex(n, limit)].Users++
+	for _, n := range amounts {
+		bands[edgeIndex(n, limit, edges)].Users++
 	}
 	for {
 		small := -1
@@ -140,9 +155,6 @@ func mergeBands(nets []float64, limit float64) []SpendBand {
 		lo, hi := min(small, other), max(small, other)
 		bands[lo] = SpendBand{First: bands[lo].First, Last: bands[hi].Last, Users: bands[lo].Users + bands[hi].Users}
 		bands = append(bands[:hi], bands[hi+1:]...)
-	}
-	for i := range bands {
-		bands[i].Label = bandLabel(bands[i].First, bands[i].Last)
 	}
 	return bands
 }
@@ -298,7 +310,9 @@ func forecastTotals(ys []float64, last string, months int) []SpendForecastMonth 
 
 const spendBandsFirstMonth = "2026-08-01"
 
-func (bq *BigQueryClient) GetSpendBands(ctx context.Context) (*SpendBands, error) {
+// spendUserHistory returns billed net and gross per user for every complete
+// month from first (YYYY-MM-DD). Only aggregates built from it may leave copilot-api.
+func (bq *BigQueryClient) spendUserHistory(ctx context.Context, first string) ([]spendUserRow, error) {
 	history := bq.client.Query(fmt.Sprintf(`
 SELECT FORMAT_DATE('%%Y-%%m', month) month, user_id,
   SUM(IF(sku IN (`+billedSKUs+`), net_amount, 0)) net,
@@ -309,12 +323,16 @@ WHERE month >= DATE(@first) AND scope_id='nav' AND user_id!=''
 GROUP BY month, user_id ORDER BY month`,
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly"),
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs")))
-	history.Parameters = []bigquery.QueryParameter{{Name: "first", Value: spendBandsFirstMonth}}
+	history.Parameters = []bigquery.QueryParameter{{Name: "first", Value: first}}
 	it, err := history.Read(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("read spend band history: %w", err)
+		return nil, fmt.Errorf("read spend history: %w", err)
 	}
-	hist, err := readAllRows[spendUserRow](it)
+	return readAllRows[spendUserRow](it)
+}
+
+func (bq *BigQueryClient) GetSpendBands(ctx context.Context) (*SpendBands, error) {
+	hist, err := bq.spendUserHistory(ctx, spendBandsFirstMonth)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +346,7 @@ WITH u AS (
 )
 SELECT user_id, SUM(gross) gross, CAST((SELECT MAX(day) FROM u) AS STRING) last_day
 FROM u GROUP BY user_id`, userDaysFrom(bq.tableRef(bq.metricsDataset, "user_metrics"))))
-	it, err = current.Read(ctx)
+	it, err := current.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read spend band current month: %w", err)
 	}

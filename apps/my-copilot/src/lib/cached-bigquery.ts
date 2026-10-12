@@ -30,6 +30,8 @@ import type {
   TeamYearOverview,
   AdminMonthlyOverview,
   SpendBands,
+  ActiveUsersMonth,
+  HighConsumerMonth,
   AdoptionCohortWeek,
   BillingMonthlyTrend,
   BillingModelBreakdown,
@@ -147,6 +149,16 @@ export async function getSpendBands(token: string): Promise<SpendBands> {
 
 export async function getCostForecast(token: string): Promise<CostForecast> {
   return backendRequest<CostForecast>("/api/v1/copilot/admin/cost-forecast", token);
+}
+
+/** Admin only: copilot-api answers 404 to everyone else. */
+export async function getAdminActiveUsers(token: string): Promise<ActiveUsersMonth[]> {
+  return backendRequest<ActiveUsersMonth[]>("/api/v1/copilot/billing/admin-active-users", token);
+}
+
+/** Admin only: copilot-api answers 404 to everyone else. */
+export async function getAdminHighConsumers(token: string): Promise<HighConsumerMonth[]> {
+  return backendRequest<HighConsumerMonth[]>("/api/v1/copilot/billing/admin-high-consumers", token);
 }
 
 export async function getMyTeams(token: string): Promise<string[]> {

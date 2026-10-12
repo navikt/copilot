@@ -670,3 +670,28 @@ export interface SpendBands {
   totals: SpendForecastMonth[];
   forecast: SpendForecastMonth[];
 }
+
+/** Users with at least one Copilot usage day in the month (admin only). */
+export interface ActiveUsersMonth {
+  month: string;
+  active_users: number;
+}
+
+/** Top top_pct % of billed users by net. users and net_share_pct are hidden (0 and null) below five people. */
+export interface HighConsumerTier {
+  top_pct: number;
+  users: number;
+  net_share_pct: number | null;
+}
+
+/** High-consumer groups and personal budget bands for one complete month (admin only, aggregates only). */
+export interface HighConsumerMonth {
+  month: string;
+  basis: "premium" | "netto";
+  users: number;
+  tiers: HighConsumerTier[];
+  limit_usd: number;
+  limit_changed: boolean;
+  /** Users by gross for the month as share of the limit; null without a limit or too few users. */
+  budget_bands: SpendBand[] | null;
+}

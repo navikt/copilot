@@ -11,6 +11,8 @@ import { adminMonthlyCaveats, adminMonthlyRows } from "@/lib/admin-monthly";
 import { formatDate, formatNumber, formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
 import { CostForecastSection } from "@/components/cost-forecast";
+import { CostTrendsSection } from "@/components/cost-trends";
+import { HighConsumersSection } from "@/components/high-consumers";
 
 // Spend and limits are internal: only the copilot team sees this page, everyone else gets 404.
 export const metadata: Metadata = {
@@ -173,6 +175,8 @@ export default async function CostPage() {
         </List>
       </InsightSection>
       <CostForecastSection token={token} />
+      <CostTrendsSection token={token} />
+      <HighConsumersSection token={token} />
     </InsightPage>
   );
 }

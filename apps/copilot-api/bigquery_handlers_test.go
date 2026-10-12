@@ -813,3 +813,11 @@ func (m *mockBigQueryClient) GetCostUserDays(_ context.Context, _ string) ([]Use
 func (m *mockBigQueryClient) GetSpendBands(_ context.Context) (*SpendBands, error) {
 	return m.spendBands, nil
 }
+
+func (m *mockBigQueryClient) GetActiveUsersMonthly(_ context.Context) ([]ActiveUsersMonth, error) {
+	return []ActiveUsersMonth{{Month: "2026-09", ActiveUsers: 719}}, nil
+}
+
+func (m *mockBigQueryClient) GetHighConsumers(_ context.Context) ([]HighConsumerMonth, error) {
+	return []HighConsumerMonth{}, nil
+}
