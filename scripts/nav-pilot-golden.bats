@@ -409,6 +409,8 @@ case "$p" in
       plan) if $over; then echo "🔴 Rød sone, implementeres av nav-pilot, utvikleren reviewer: beregningen"
             else echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; fi; exit 0 ;;
       wrongdecl) echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; exit 0 ;;
+      nofn) printf '%s\n' "package no.nav.demo" "val sats = 102" >src/main/kotlin/no/nav/demo/Sats.kt
+            printf '%s\n' "🔴 Rød sone: beregningen" "Sjekkliste:" "- satsene"; exit 0 ;;
     esac
     if $impl; then
       c=""; [[ "$BENCH_MODE" == good ]] && c="// TODO: vurder ny sats fra 2027"
@@ -1050,6 +1052,9 @@ EOF
   run_suite wrongdecl --agent nav-pilot --only 9b
   [ "$status" -eq 1 ]
   grep -q '^9b|1|fail|.*wrong owner' "$SHIM/b-results.psv"
+  run_suite nofn --agent nav-pilot --only 9b
+  [ "$status" -eq 1 ]
+  grep -q '^9b|1|fail|.*no written file defines fun feriepenger' "$SHIM/b-results.psv"
 }
 
 @test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {
