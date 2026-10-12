@@ -1,0 +1,42 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Inspect project and Copilot configuration (shell)
+  │ pwd; ls -la; find . -maxdepth 3 \( -name AGENTS.md -o -name copilot-instructions.md -o -name
+  │ copilot-review-instructions.md -o -name 'build.gradle.kts' \) -print
+  └ 10 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+Jeg fant en Ktor-tjeneste uten eksisterende tester. Jeg legger til `feriepenger` som en separat funksjon og enhetstester, uten å endre API-et eller kjøre Gradle. Reglene du oppga er tilstrekkelige; jeg trenger ingen avklaringer.
+
+🔴 Rød sone: Feriepengeberegningen er ny for teamet og må gjennomgås nøye. Jeg stopper her ved fasegrensen før jeg lager plan eller kode.
+
+Blindsoner reist: 0/11 (ingen ubesvarte spørsmål; de øvrige gjelder ikke denne isolerte beregningen).
+

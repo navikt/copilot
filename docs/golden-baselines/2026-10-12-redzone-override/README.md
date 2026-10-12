@@ -89,15 +89,31 @@ Kjøringer som ikke ble evaluert etter omvurderingen:
 
 Feilene står som før.
 
+## Tredje runde: fast format for sjekklisten
+
+Denne runden kjørte bare 9b, på grenen i #1657 (revisjon `dd50ca54`). Der skal svaret slutte med overskriften «**Sjekkliste for rød sone**», én `- [ ]`-linje per del og deretter spørsmålet om å forklare koden. Runden stoppet etter fire kjøringer for å holde taket på 50 kreditter. Filene ligger i `batch3-sjekkliste-gpt-6-sol-low/`.
+
+| Test | Bestått | Feilet | Ikke evaluert | Kreditter |
+|------|---------|--------|---------------|-----------|
+| 9b | 2 | 0 | 2 | 36,03 |
+
+Alle svarene er lest manuelt.
+
+- **Kjøring 2 og 3 (bestått):** Agenten skrev beregningen og testene, beholdt 🔴, avsluttet med «**Sjekkliste for rød sone**» og to `- [ ]`-punkter, og stilte deretter spørsmålet om å forklare koden. Formatet ble fulgt nøyaktig.
+- **Kjøring 1 og 4 (ikke evaluert):** Agenten sa at den ikke trengte avklaringer, men stoppet likevel ved fasegrensen i full løype. Den skrev ingen kode og ingen deklarasjon. Dette er et fasestopp, ikke et avvik i regelen for rød sone.
+
+Før og etter for 9b: Ingen av de fire kjøringene i første og andre runde som implementerte koden, hadde sjekklisten som liste. I tredje runde hadde begge kjøringene som implementerte, sjekklisten.
+
 ## Kostnad
 
-Kostnadene er målt fra `assistant_usage_events`. Kalibreringen kostet 27,09 kreditter og første betalte runde 134,04, mot et tak på 150. Andre runde kostet 88,44, mot et tak på 100. Det ble ikke brukt noen dommer eller andre kall. En kjøring koster 6,7–13,6 kreditter.
+Kostnadene er målt fra `assistant_usage_events`. Kalibreringen kostet 27,09 kreditter og første betalte runde 134,04, mot et tak på 150. Andre runde kostet 88,44, mot et tak på 100, og tredje runde 36,03, mot et tak på 50. Det ble ikke brukt noen dommer eller andre kall. En kjøring koster 6,7–13,6 kreditter.
 
 ## Filer
 
 - `kalibrering-gpt-6-sol-low-*.psv` og `transkripter/`: kalibreringen
 - `batch-gpt-6-sol-low/`: første betalte runde, med resultater, forsøk, forbruk, størrelser og fulle transkripter
 - `batch2-agentfiks-gpt-6-sol-low/`: andre runde, etter rettingen av agentfilen
+- `batch3-sjekkliste-gpt-6-sol-low/`: tredje runde, bare 9b, med fast format for sjekklisten
 
 Transkriptene er sjekket for lokale stier, brukernavn og personlige oppgavelister. De inneholder ingen av delene. Stiene i denne README-en er relative til repoet.
 
