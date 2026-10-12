@@ -22,6 +22,7 @@ const (
 	newModelMinUSD     = 10.0 // A3: first day a model costs more than this
 	staleDataDays      = 2    // A7: no new gross rows for this many days
 	netRunDueDay       = 5    // A7: last month's net must be complete by this day
+	minBaselineDays    = 4    // A1: skip days with a thinner baseline
 	anomalyWindowDays  = 30   // anomalies shown for the last 30 days
 	anomalyLookbackDay = anomalyWindowDays + spikeBaselineDays
 )
@@ -75,7 +76,7 @@ func findAnomalies(in anomalyInput, today time.Time) []Anomaly {
 			}
 		}
 	}
-	if today.Day() >= netRunDueDay && !in.NetComplete {
+	if today.Day() >= netRunDueDay && !in.NetComplete && in.FirstDataDay != "" && in.FirstDataDay < time.Date(today.Year(), today.Month()-1, 1, 0, 0, 0, 0, time.UTC).Format(time.DateOnly) {
 		prev := time.Date(today.Year(), today.Month()-1, 1, 0, 0, 0, 0, time.UTC)
 		out = append(out, Anomaly{Rule: "A7", Date: prev.Format("2006-01"), Threshold: netRunDueDay})
 	}
@@ -94,7 +95,7 @@ func findAnomalies(in anomalyInput, today time.Time) []Anomaly {
 				base = append(base, p.Gross)
 			}
 		}
-		if len(base) == 0 {
+		if len(base) < minBaselineDays {
 			continue
 		}
 		m := median(base)
@@ -192,7 +193,7 @@ FROM m WHERE gross>@minUSD GROUP BY model HAVING MIN(day)>=DATE(@from)`, daily))
 func (c *CachedBigQueryClient) GetCostAnomalies(ctx context.Context) ([]Anomaly, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	return getCachedValue(c, "cost_anomalies", func() ([]Anomaly, error) {
+	return getCachedValue(c, "cost_anomalies:"+time.Now().UTC().Format(time.DateOnly), func() ([]Anomaly, error) {
 		return c.client.GetCostAnomalies(ctx)
 	})
 }

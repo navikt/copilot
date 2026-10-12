@@ -16,7 +16,7 @@ describe("AnomalyList", () => {
     render(<AnomalyList anomalies={anomalies} />);
     const items = screen.getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("Fakturert forbruk for 2026-09 er ikke lest inn");
-    expect(items[1]).toHaveTextContent("mot vanligvis");
+    expect(items[1]).toHaveTextContent("Medianen for samme type dag");
     expect(items[2]).toHaveTextContent("Ny modell: Claude Opus 5.5");
     expect(screen.getAllByRole("link")).toHaveLength(3);
   });

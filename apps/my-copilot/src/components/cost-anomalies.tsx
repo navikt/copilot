@@ -23,25 +23,25 @@ export function anomalyText(a: Anomaly): { text: string; href: string } {
     case "A7":
       if (/^\d{4}-\d{2}$/.test(a.date))
         return {
-          text: `Fakturert forbruk for ${a.date} er ikke lest inn, selv om det skulle vært klart den ${a.threshold}. i måneden.`,
+          text: `Fakturert forbruk for ${a.date} er ikke lest inn, selv om det skal være klart innen den ${a.threshold}..`,
           href: "/innsikt/team",
         };
       if (a.threshold > 0)
         return {
           text: a.date
-            ? `Ingen nye forbruksdata siden ${formatDate(a.date)}. Vi venter nye data minst hvert ${a.threshold}. døgn.`
+            ? `Ingen nye forbruksdata siden ${formatDate(a.date)}. Vanligvis kommer det nye data innen ${a.threshold} døgn.`
             : "Det finnes ingen forbruksdata.",
           href: "/innsikt/bruk#kostnad",
         };
       return { text: `Forbruksdata mangler for ${formatDate(a.date)}.`, href: "/innsikt/bruk#kostnad" };
     case "A1":
       return {
-        text: `Forbruket ${formatDate(a.date)} var ${formatUSD(a.value)}, mot vanligvis ${formatUSD(a.threshold)} på samme type dag.`,
+        text: `Forbruket ${formatDate(a.date)} var ${formatUSD(a.value)}. Medianen for samme type dag de siste 28 dagene er ${formatUSD(a.threshold)}.`,
         href: "/innsikt/bruk#kostnad",
       };
     case "A3":
       return {
-        text: `Ny modell: ${a.model} kostet ${formatUSD(a.value)} ${formatDate(a.date)}, første dag over ${formatUSD(a.threshold)}.`,
+        text: `Ny modell: ${a.model} kostet ${formatUSD(a.value)} den ${formatDate(a.date)}, første dag med mer enn ${formatUSD(a.threshold)}.`,
         href: "/innsikt/bruk#kostnad",
       };
     case "A4":
@@ -82,8 +82,8 @@ export async function CostAnomalies() {
   return (
     <InsightSection id="avvik" title="Avvik">
       <BodyShort>
-        Uvanlige dager, nye modeller og hull i dataene de siste 30 dagene. Tersklene er startverdier og justeres etter
-        tre måneder.
+        Dager med uvanlig høyt forbruk, nye modeller og hull i dataene de siste 30 dagene. Tersklene er startverdier som
+        team copilot justerer etter tre måneder.
       </BodyShort>
       <AnomalyList anomalies={anomalies} />
     </InsightSection>
