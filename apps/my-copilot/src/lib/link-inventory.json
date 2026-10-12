@@ -191,7 +191,9 @@
   "/innsikt/kostnad": {
     "sources": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
     "anchors": {
-      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"]
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "oversikt": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
+      "per-maned": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"]
     }
   },
   "/innsikt/lokale-modeller": {

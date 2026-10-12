@@ -27,6 +27,7 @@ import type {
   TeamGrossOverview,
   TeamNetOverview,
   TeamYearOverview,
+  AdminMonthlyOverview,
   SpendBands,
   AdoptionCohortWeek,
   BillingMonthlyTrend,
@@ -133,6 +134,10 @@ export async function getTeamYearOverview(team: string, year: number, token: str
     `/api/v1/copilot/usage/team-year?team=${encodeURIComponent(team)}&year=${year}`,
     token
   );
+}
+
+export async function getAdminMonthlyOverview(year: number, token: string): Promise<AdminMonthlyOverview> {
+  return backendRequest<AdminMonthlyOverview>(`/api/v1/copilot/billing/admin-monthly?year=${year}`, token);
 }
 
 export async function getSpendBands(token: string): Promise<SpendBands> {

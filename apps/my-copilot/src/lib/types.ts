@@ -322,6 +322,37 @@ export interface TeamYearOverview {
   };
 }
 
+// All of Nav, one row per month of a year, from GET /api/v1/copilot/billing/admin-monthly.
+// Net months reconcile: assigned_net_usd + residual_net_usd = enterprise_net_usd.
+export interface AdminMonth {
+  month: string;
+  basis: "net" | "premium" | "gross" | "none";
+  enterprise_net_usd: number | null;
+  assigned_net_usd: number | null;
+  residual_net_usd: number | null;
+  residual_pct: number | null;
+  /** Null before team history exists. */
+  no_team_net_usd: number | null;
+  /** Preliminary list price for a month without net. */
+  gross_usd: number | null;
+  seats: number | null;
+  licence_usd_estimate: number | null;
+  total_usd: number | null;
+  loaded_at: string;
+}
+
+export interface AdminMonthlyOverview {
+  year: number;
+  months: AdminMonth[];
+  coverage: {
+    membership_from: string;
+    last_gross_day: string;
+    gross_stale: boolean;
+    last_net_month: string;
+    seats_snapshot: string;
+  };
+}
+
 export interface TeamNetOverview {
   month: string;
   teams: TeamSpend[];

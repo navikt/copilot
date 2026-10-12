@@ -168,6 +168,10 @@ func (m *mockBigQueryClient) GetTeamYearOverview(_ context.Context, team string,
 	return m.teamYear, nil
 }
 
+func (m *mockBigQueryClient) GetAdminMonthlyOverview(_ context.Context, year int) (*AdminMonthlyOverview, error) {
+	return &AdminMonthlyOverview{Year: year}, nil
+}
+
 func (m *mockBigQueryClient) GetUserTeams(_ context.Context, _ string) ([]string, error) {
 	return m.userTeams, nil
 }

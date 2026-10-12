@@ -168,18 +168,10 @@ const teamYearSeatsStub = `seat_snap AS (SELECT DATE(NULL) d
 // start at @from: a seat or member last seen before the year cannot cover a
 // month in it.
 func (bq *BigQueryClient) teamYearSeatsCTEs() string {
-	seats := bq.tableRef(bq.metricsDataset, "copilot_seats")
 	members := bq.tableRef(bq.metricsDataset, "team_members")
-	return fmt.Sprintf(`seat_snap AS (SELECT MAX(snapshot_date) d FROM %[1]s
-), seats AS (
- SELECT LOWER(login) login,plan_type,DATE_TRUNC(DATE(created_at),MONTH) from_m,
-  COALESCE(DATE_TRUNC(DATE_SUB(pending_cancellation_date,INTERVAL 1 DAY),MONTH),
-   IF(snapshot_date<(SELECT d FROM seat_snap),DATE_TRUNC(snapshot_date,MONTH),NULL)) to_m
- FROM %[1]s WHERE snapshot_date>=DATE(@from) AND created_at IS NOT NULL
- QUALIFY ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY snapshot_date DESC)=1
-), tm_first AS (SELECT MIN(date) d FROM %[2]s
+	return bq.seatCTEs() + fmt.Sprintf(`, tm_first AS (SELECT MIN(date) d FROM %[1]s
 ), tm AS (
- SELECT t.date,DATE_TRUNC(t.date,MONTH) month,LOWER(t.login) login FROM %[2]s t
+ SELECT t.date,DATE_TRUNC(t.date,MONTH) month,LOWER(t.login) login FROM %[1]s t
  WHERE t.date>=DATE(@from) AND t.date<DATE(@to)
  AND EXISTS(SELECT 1 FROM memberships x WHERE x.team_id=@team AND x.day=t.date AND x.team_slug=t.team_slug)
 ), team_lic AS (
@@ -187,12 +179,28 @@ func (bq *BigQueryClient) teamYearSeatsCTEs() string {
  FROM UNNEST(GENERATE_DATE_ARRAY(DATE(@from),DATE_SUB(DATE(@to),INTERVAL 1 DAY),INTERVAL 1 MONTH)) m
  CROSS JOIN tm_first f JOIN tm ON IF(m<DATE_TRUNC(f.d,MONTH),tm.date=f.d,tm.month=m)
 ), seat_m AS (
- SELECT t.month,COUNT(*) seat_months,
-  SUM(IF(s.plan_type='enterprise',%.2[3]f,%.2[4]f)) licence,
-  COUNTIF(IFNULL(s.plan_type,'') NOT IN ('business','enterprise')) unknown_plan
+ SELECT t.month,COUNT(*) seat_months,`+seatPriceCols+`
  FROM team_lic t JOIN seats s USING(login)
  WHERE s.from_m<=t.month AND (s.to_m IS NULL OR s.to_m>=t.month) GROUP BY t.month
-)`, seats, members, licenceEnterpriseUSD, licenceBusinessUSD)
+)`, members)
+}
+
+// seatPriceCols prices the seats s in a seat_m aggregate at list price.
+var seatPriceCols = fmt.Sprintf(`
+  SUM(IF(s.plan_type='enterprise',%.2f,%.2f)) licence,
+  COUNTIF(IFNULL(s.plan_type,'') NOT IN ('business','enterprise')) unknown_plan`, licenceEnterpriseUSD, licenceBusinessUSD)
+
+// seatCTEs gives seat_snap (latest copilot_seats day) and seats (one month
+// range per login from its latest snapshot), shared by the team and Nav views.
+func (bq *BigQueryClient) seatCTEs() string {
+	return fmt.Sprintf(`seat_snap AS (SELECT MAX(snapshot_date) d FROM %[1]s
+), seats AS (
+ SELECT LOWER(login) login,plan_type,DATE_TRUNC(DATE(created_at),MONTH) from_m,
+  COALESCE(DATE_TRUNC(DATE_SUB(pending_cancellation_date,INTERVAL 1 DAY),MONTH),
+   IF(snapshot_date<(SELECT d FROM seat_snap),DATE_TRUNC(snapshot_date,MONTH),NULL)) to_m
+ FROM %[1]s WHERE snapshot_date>=DATE(@from) AND created_at IS NOT NULL
+ QUALIFY ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY snapshot_date DESC)=1
+)`, bq.tableRef(bq.metricsDataset, "copilot_seats"))
 }
 
 func (bq *BigQueryClient) tableExists(ctx context.Context, table string) (bool, error) {
