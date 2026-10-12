@@ -429,7 +429,7 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
 # XDG_CONFIG_HOME (persona, skills and always-on instructions written there the
 # way `nav-pilot` syncs them globally), and OPENCODE_DISABLE_CLAUDE_CODE keeps
 # ~/.claude out. Auth stays in OpenCode's data dir, which is not redirected.
-# Single-turn only: OpenCode picks its own session ids, so test 4 cannot run.
+# OpenCode picks its own session ids; run_prompt finds them by title (test 4).
 # Not like-for-like with the Copilot path: every skill in skills/ is installed
 # (as a global sync would), while the Copilot workspace carries none.
 case "$CLIENT" in
@@ -1487,12 +1487,24 @@ run_prompt() {
   # PROMPT_COMMAND invokes a skill the way a user's slash command does.
   local -a args
   if [[ "$CLIENT" == opencode ]]; then
-    if [[ -n "$session" ]]; then
-      LAST_PROMPT_DETAIL="--client opencode runs single turns only"
-      LAST_PROMPT_FAILURE="cli_failure"
-      return 1
-    fi
     args=(run --auto --agent "$LAUNCH_NAME" -m "$OC_MODEL")  # --auto: same as --allow-all-tools
+    # opencode mints its own session ids, so turn one is titled with ours and
+    # later turns look the id up by that title and pass it to --session.
+    if [[ -n "$session" ]]; then
+      case "$SESSIONS_SEEN" in
+        *" $session "*)
+          local oc_sid
+          oc_sid="$(cd "$WS" && env ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" session list --format json 2>/dev/null \
+            | python3 -c 'import json,sys; print(next((s["id"] for s in json.load(sys.stdin) if s.get("title")==sys.argv[1]),""))' "$session")"
+          if [[ -z "$oc_sid" ]]; then
+            LAST_PROMPT_DETAIL="no opencode session titled $session to continue"
+            LAST_PROMPT_FAILURE="cli_failure"
+            return 1
+          fi
+          args+=(--session "$oc_sid") ;;
+        *) args+=(--title "$session") ;;
+      esac
+    fi
     [[ -n "$EFFORT" ]] && args+=(--variant "$EFFORT")
     if [[ -n "${PROMPT_COMMAND:-}" ]]; then
       if [[ ! -f "$OC_CFG/skills/$PROMPT_COMMAND/SKILL.md" ]]; then
@@ -1522,7 +1534,7 @@ run_prompt() {
     session="$(new_session_id)"
   fi
   if [[ -n "$session" ]]; then
-    args+=(--session-id "$session")
+    [[ "$CLIENT" == opencode ]] || args+=(--session-id "$session")
     case "$SESSIONS_SEEN" in
       *" $session "*) continuing=true ;;
       *) SESSIONS_SEEN="$SESSIONS_SEEN$session " ;;

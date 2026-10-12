@@ -1,0 +1,17 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-12
+# revision:     4cd6787d
+# model:        gpt-6-sol
+# client:       opencode
+# clientVersion: opencode 1.19.0
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      4
+#
+# id|run|status|assertion|detail
+4|1|pass|Fase 2 output contains a 🔴 Rød sone declaration|

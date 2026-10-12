@@ -1346,3 +1346,49 @@ run_deleg() {
   rm -rf "$workdir"
   [ -z "$tasks" ]
 }
+
+# ─── --client opencode: test 4 continues one session (#1451) ────────────────
+# opencode mints its own session ids. Turn one is titled with the harness id,
+# turn two must look that title up and pass the same id to --session. LISTED
+# controls what `session list` returns: the right title, or someone else's.
+make_opencode_shim() {
+  cat >"$SHIM/opencode" <<EOF
+#!/bin/bash
+[[ "\$1" == --version ]] && { echo 1.19.0; exit 0; }
+if [[ "\$1" == session ]]; then
+  t="\$(cat "$SHIM/title" 2>/dev/null)"; [[ "\$LISTED" == other ]] && t=noen-andre
+  printf '[{"id":"ses_annen","title":"x"},{"id":"ses_stub","title":"%s"}]\n' "\$t"; exit 0
+fi
+printf '%s\n' "\$*" >>"$SHIM/calls"
+while [[ \$# -gt 1 ]]; do [[ "\$1" == --title ]] && printf '%s' "\$2" >"$SHIM/title"; shift; done
+case "\$1" in
+  *"svar kun med ordet OK"*) echo OK ;;
+  *"ny tjeneste"*) printf '%s\n' "Før jeg planlegger trenger jeg svar:" "1. Hvem kaller tjenesten?" "2. Hvilke data lagres?" "3. Hva skjer når PDL er nede?" "4. Hvor lenge lagres fnr?" "5. Hvem har tilgang?" ;;
+  *) printf '%s\n' "**Fase 2: Plan.**" "🔴 Rød sone: tokenvalidering og fnr-lagring." ;;
+esac
+EOF
+  chmod +x "$SHIM/opencode"
+}
+
+run_opencode_t4() {
+  PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
+    --client opencode --model stub --only 4 --repeat 1 --save-baseline "$SHIM/b.txt"
+}
+
+@test "opencode t4: turn 2 continues the session turn 1 opened" {
+  make_opencode_shim
+  run_opencode_t4
+  grep -q -- '--title [0-9a-f-]\{36\} ' "$SHIM/calls"
+  grep 'ny tjeneste' "$SHIM/calls" | grep -qv -- '--session'
+  [ "$status" -eq 0 ]
+  grep -q -- "--session ses_stub Her er svarene" "$SHIM/calls"
+  [ -z "$(grep -- "--session" "$SHIM/calls" | grep -- "--title")" ]
+}
+
+@test "opencode t4: with no session under turn 1's title, turn 2 is not sent" {
+  make_opencode_shim
+  LISTED=other run_opencode_t4
+  [ "$status" -ne 0 ]
+  [ -z "$(grep -- '--session' "$SHIM/calls")" ]
+  grep -rq "no opencode session titled" "$SHIM"
+}
