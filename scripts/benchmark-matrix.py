@@ -109,7 +109,7 @@ def main():
     ap.add_argument("matrix", type=Path)
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--keep", action="store_true", help="keep transcripts (path in each arm's log)")
+    ap.add_argument("--keep", action="store_true", help="keep the scratch directory (path in each arm's log)")
     a = ap.parse_args()
 
     outdir = BASELINES / a.matrix.stem
