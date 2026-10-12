@@ -1,0 +1,29 @@
+{
+  "task": "typescript/tilgang",
+  "fixture_sha256": "578962204a3fcdcd89a9c7efa42d4749437311d59722e04db6676c556dd8d321",
+  "evaluated_at": "2026-10-12T21:40:55.116129+00:00",
+  "model": null,
+  "effort": null,
+  "credits": null,
+  "usage_verified": false,
+  "candidate_sha256": "a4d6eec1c425f510a68f68e74261e827fe0b278c6e01b83beee88a67f9ae7900",
+  "checks": {
+    "regression": {
+      "passed": 2,
+      "total": 2,
+      "diagnostic": ""
+    },
+    "acceptance": {
+      "passed": 3,
+      "total": 3,
+      "diagnostic": ""
+    },
+    "http": {
+      "passed": 2,
+      "total": 2,
+      "diagnostic": ""
+    }
+  },
+  "status": "completed",
+  "evaluation_seconds": 137.251
+}

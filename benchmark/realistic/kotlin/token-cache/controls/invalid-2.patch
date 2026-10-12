@@ -1,6 +1,17 @@
 *** Begin Patch
 *** Update File: workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
 @@
+-import java.time.Clock
+-import java.util.concurrent.ConcurrentHashMap
+-
+-/** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
+-class TokenCache(
+-    private val texas: TexasClient,
+-    private val clock: Clock,
+-) {
+-    private val tokens = ConcurrentHashMap<String, OboToken>()
+-
+-    suspend fun token(userToken: String, audience: String): String {
 -        val cached = tokens[audience]
 -        if (cached != null && cached.isValid(clock.instant())) {
 -            return cached.accessToken
@@ -8,5 +19,21 @@
 -        val fresh = texas.exchange(userToken, audience)
 -        tokens[audience] = fresh
 -        return fresh.accessToken
-+        return texas.exchange(userToken, audience).accessToken
+-    }
+-}
++import java.time.Clock
++import java.util.concurrent.ConcurrentHashMap
++
++/** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
++class TokenCache(
++    private val texas: TexasClient,
++    private val clock: Clock,
++) {
++    private val tokens = ConcurrentHashMap<Pair<String, String>, OboToken>()
++
++    suspend fun token(userToken: String, audience: String): String {
++        val key = userToken to audience
++        return texas.exchange(userToken, audience).also { tokens[key] = it }.accessToken
++    }
++}
 *** End Patch

@@ -1,0 +1,112 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/route.ts workspace/app/api/intern/saker/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/route.ts	2026-10-12 11:47:40
++++ workspace/app/api/intern/saker/route.ts	2026-10-12 23:28:37
+@@ -1,9 +1,8 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../lib/auth.ts";
+ import { listInterneSaker } from "../../../../lib/saker.ts";
+ 
+ export async function GET(request: Request): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   return Response.json(listInterneSaker());
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/docs/drift.md workspace/docs/drift.md
+--- evaluator/fixture/workspace/docs/drift.md	2026-10-12 11:47:40
++++ workspace/docs/drift.md	2026-10-12 23:28:37
+@@ -7,5 +7,8 @@
+   ellers starter podene på nytt i en løkke.
+ - Alle andre ruter under `/api/` krever et gyldig Azure-token. Tokenet valideres
+   med `requireSaksbehandler()` i `lib/auth.ts`.
++- `/api/intern/saker` validerer tokenet i route-handleren før saksdata hentes.
++  Manglende eller ugyldig token gir 401 uten saksdata. `getToken()` henter
++  tokenet fra forespørselen, men validerer det ikke.
+ - `AZURE_OPENID_CONFIG_JWKS_URI`, `AZURE_OPENID_CONFIG_ISSUER` og
+   `AZURE_APP_CLIENT_ID` settes av NAIS.
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/tests/intern-saker.test.ts workspace/tests/intern-saker.test.ts
+--- evaluator/fixture/workspace/tests/intern-saker.test.ts	1970-01-01 01:00:00
++++ workspace/tests/intern-saker.test.ts	2026-10-12 23:28:44
+@@ -0,0 +1,80 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { exportJWK, generateKeyPair, SignJWT } from "jose";
++import { GET } from "../app/api/intern/saker/route.ts";
++import { listInterneSaker } from "../lib/saker.ts";
++
++test("interne saker krever et gyldig Azure-token", async (t) => {
++  const issuer = "https://login.test/tenant/v2.0";
++  const audience = "saksoversikt-test";
++  const jwksUri = "https://login.test/tenant/keys";
++  const env = {
++    AZURE_OPENID_CONFIG_ISSUER: issuer,
++    AZURE_APP_CLIENT_ID: audience,
++    AZURE_OPENID_CONFIG_JWKS_URI: jwksUri,
++    IDPORTEN_ISSUER: undefined,
++  };
++  for (const [name, value] of Object.entries(env)) {
++    const original = process.env[name];
++    t.after(() => {
++      if (original === undefined) delete process.env[name];
++      else process.env[name] = original;
++    });
++    if (value === undefined) delete process.env[name];
++    else process.env[name] = value;
++  }
++
++  const { privateKey, publicKey } = await generateKeyPair("RS256");
++  const { privateKey: untrustedKey } = await generateKeyPair("RS256");
++  const jwk = await exportJWK(publicKey);
++  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
++    assert.equal(input, jwksUri);
++    return Response.json({ keys: [{ ...jwk, kid: "test-key", alg: "RS256" }] });
++  });
++
++  const now = Math.floor(Date.now() / 1000);
++  const issueToken = ({
++    tokenIssuer = issuer,
++    tokenAudience = audience,
++    expiresAt = now + 300,
++    notBefore = now - 60,
++    key = privateKey,
++  } = {}) =>
++    new SignJWT({})
++      .setProtectedHeader({ alg: "RS256", kid: "test-key" })
++      .setIssuer(tokenIssuer)
++      .setAudience(tokenAudience)
++      .setIssuedAt(now - 60)
++      .setNotBefore(notBefore)
++      .setExpirationTime(expiresAt)
++      .sign(key);
++
++  const rejectedTokens = [
++    { name: "manglende token", token: undefined, error: "Mangler token" },
++    { name: "tomt token", token: "", error: "Ugyldig token" },
++    { name: "vilkårlig streng", token: "ikke-et-jwt", error: "Ugyldig token" },
++    { name: "utløpt token", token: await issueToken({ expiresAt: now - 30 }), error: "Ugyldig token" },
++    { name: "feil issuer", token: await issueToken({ tokenIssuer: "https://wrong.test" }), error: "Ugyldig token" },
++    { name: "feil audience", token: await issueToken({ tokenAudience: "annen-app" }), error: "Ugyldig token" },
++    { name: "ugyldig signatur", token: await issueToken({ key: untrustedKey }), error: "Ugyldig token" },
++    { name: "token som ikke er gyldig ennå", token: await issueToken({ notBefore: now + 300 }), error: "Ugyldig token" },
++  ];
++  for (const { name, token, error } of rejectedTokens) {
++    await t.test(`avviser ${name} uten saksdata`, async () => {
++      const headers = new Headers();
++      if (token !== undefined) headers.set("Authorization", `Bearer ${token}`);
++      const response = await GET(new Request("http://localhost/api/intern/saker", { headers }));
++      assert.equal(response.status, 401);
++      assert.deepEqual(await response.json(), { error });
++    });
++  }
++
++  await t.test("gyldig token gir den interne sakslisten", async () => {
++    const token = await issueToken();
++    const response = await GET(new Request("http://localhost/api/intern/saker", {
++      headers: { Authorization: `Bearer ${token}` },
++    }));
++    assert.equal(response.status, 200);
++    assert.deepEqual(await response.json(), listInterneSaker());
++  });
++});

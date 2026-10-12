@@ -1,0 +1,182 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Application.kt workspace/src/main/kotlin/no/nav/benchmark/Application.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Application.kt	2026-10-12 18:10:12
++++ workspace/src/main/kotlin/no/nav/benchmark/Application.kt	2026-10-13 01:18:55
+@@ -27,7 +27,7 @@
+     config: TokenConfig = TokenConfig(),
+ ) {
+     val texas = TexasClient(HttpClient(texasEngine), clock, config.texasEndpoint)
+-    val tokens = TokenCache(texas, clock)
++    val tokens = TokenCache(texas, clock, config.expiryLeeway)
+     val vedtak = VedtakClient(HttpClient(vedtakEngine), tokens)
+     val arkiv = ArkivClient(HttpClient(arkivEngine), tokens)
+ 
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Token.kt workspace/src/main/kotlin/no/nav/benchmark/Token.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Token.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/Token.kt	2026-10-13 01:19:52
+@@ -1,7 +1,9 @@
+ package no.nav.benchmark
+ 
++import java.time.Duration
+ import java.time.Instant
+ 
+ data class OboToken(val accessToken: String, val expiresAt: Instant) {
+-    fun isValid(now: Instant): Boolean = now.isBefore(expiresAt)
++    fun isValid(now: Instant, leeway: Duration = Duration.ZERO): Boolean =
++        expiresAt.isAfter(now.plus(leeway))
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-13 01:19:52
+@@ -1,22 +1,55 @@
+ package no.nav.benchmark
+ 
++import java.security.MessageDigest
+ import java.time.Clock
++import java.time.Duration
++import java.util.Base64
+ import java.util.concurrent.ConcurrentHashMap
++import kotlinx.coroutines.CompletableDeferred
+ 
+ /** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
+ class TokenCache(
+     private val texas: TexasClient,
+     private val clock: Clock,
++    private val expiryLeeway: Duration = Duration.ofSeconds(30),
+ ) {
+-    private val tokens = ConcurrentHashMap<String, OboToken>()
++    private data class CacheKey(val userTokenFingerprint: String, val audience: String)
+ 
++    private val tokens = ConcurrentHashMap<CacheKey, OboToken>()
++    private val exchanges = ConcurrentHashMap<CacheKey, CompletableDeferred<OboToken>>()
++
++    init {
++        require(!expiryLeeway.isNegative) { "expiryLeeway cannot be negative" }
++    }
++
+     suspend fun token(userToken: String, audience: String): String {
+-        val cached = tokens[audience]
+-        if (cached != null && cached.isValid(clock.instant())) {
++        val key = CacheKey(userToken.fingerprint(), audience)
++        val cached = tokens[key]
++        if (cached != null && cached.isValid(clock.instant(), expiryLeeway)) {
+             return cached.accessToken
+         }
+-        val fresh = texas.exchange(userToken, audience)
+-        tokens[audience] = fresh
+-        return fresh.accessToken
++
++        val pendingExchange = CompletableDeferred<OboToken>()
++        val activeExchange = exchanges.putIfAbsent(key, pendingExchange)
++        if (activeExchange != null) {
++            return activeExchange.await().accessToken
++        }
++
++        try {
++            val fresh = texas.exchange(userToken, audience)
++            tokens[key] = fresh
++            pendingExchange.complete(fresh)
++            return fresh.accessToken
++        } catch (cause: Throwable) {
++            pendingExchange.completeExceptionally(cause)
++            throw cause
++        } finally {
++            exchanges.remove(key, pendingExchange)
++        }
+     }
++
++    private fun String.fingerprint(): String =
++        Base64.getUrlEncoder().withoutPadding().encodeToString(
++            MessageDigest.getInstance("SHA-256").digest(toByteArray(Charsets.UTF_8)),
++        )
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt
+--- evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt	1970-01-01 01:00:00
++++ workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt	2026-10-13 01:19:55
+@@ -0,0 +1,87 @@
++package no.nav.benchmark
++
++import io.ktor.client.HttpClient
++import io.ktor.client.engine.mock.MockEngine
++import io.ktor.client.engine.mock.respond
++import io.ktor.http.headersOf
++import java.time.Clock
++import java.time.Duration
++import java.time.Instant
++import java.time.ZoneId
++import java.util.concurrent.atomic.AtomicInteger
++import kotlinx.coroutines.async
++import kotlinx.coroutines.awaitAll
++import kotlinx.coroutines.coroutineScope
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.runBlocking
++import kotlin.test.Test
++import kotlin.test.assertEquals
++
++class TokenCacheTest {
++    private val epoch = Instant.parse("2026-03-04T10:00:00Z")
++    private val json = headersOf("Content-Type", "application/json")
++
++    @Test
++    fun `caches tokens separately for each user and audience`() = runBlocking {
++        val exchangeCount = AtomicInteger()
++        val texas = TexasClient(HttpClient(MockEngine {
++            val number = exchangeCount.incrementAndGet()
++            respond("""{"access_token":"token-$number","expires_in":3600}""", headers = json)
++        }), Clock.fixed(epoch, ZoneId.of("UTC")))
++        val cache = TokenCache(texas, Clock.fixed(epoch, ZoneId.of("UTC")))
++
++        assertEquals("token-1", cache.token("user-a", "api-a"))
++        assertEquals("token-2", cache.token("user-b", "api-a"))
++        assertEquals("token-3", cache.token("user-a", "api-b"))
++        assertEquals("token-1", cache.token("user-a", "api-a"))
++        assertEquals(3, exchangeCount.get())
++    }
++
++    @Test
++    fun `refreshes token before expiry leeway`() = runBlocking {
++        val exchangeCount = AtomicInteger()
++        val clock = MutableClock(epoch)
++        val texas = TexasClient(HttpClient(MockEngine {
++            val number = exchangeCount.incrementAndGet()
++            respond("""{"access_token":"token-$number","expires_in":3600}""", headers = json)
++        }), clock)
++        val cache = TokenCache(texas, clock, Duration.ofSeconds(30))
++
++        assertEquals("token-1", cache.token("user-a", "api-a"))
++        clock.advanceSeconds(3570)
++        assertEquals("token-2", cache.token("user-a", "api-a"))
++        assertEquals(2, exchangeCount.get())
++    }
++
++    @Test
++    fun `shares one exchange among concurrent requests for same user and audience`() = runBlocking {
++        val exchangeCount = AtomicInteger()
++        val texas = TexasClient(HttpClient(MockEngine {
++            val number = exchangeCount.incrementAndGet()
++            delay(50)
++            respond("""{"access_token":"token-$number","expires_in":3600}""", headers = json)
++        }), Clock.fixed(epoch, ZoneId.of("UTC")))
++        val cache = TokenCache(texas, Clock.fixed(epoch, ZoneId.of("UTC")))
++
++        val results = coroutineScope {
++            (1..20).map {
++                async { cache.token("user-a", "api-a") }
++            }.awaitAll()
++        }
++
++        assertEquals(listOf("token-1"), results.distinct())
++        assertEquals(1, exchangeCount.get())
++    }
++
++    private class MutableClock(private var instant: Instant) : Clock() {
++        override fun getZone(): ZoneId = ZoneId.of("UTC")
++
++        override fun withZone(zone: ZoneId): Clock = this
++
++        override fun instant(): Instant = instant
++
++        fun advanceSeconds(seconds: Long) {
++            instant = instant.plusSeconds(seconds)
++        }
++    }
++}

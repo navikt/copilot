@@ -17,3 +17,9 @@ export function listInterneSaker(): InternSak[] {
 export function finnInternSak(id: number): InternSak | undefined {
   return saker.find((sak) => sak.id === id);
 }
+
+export function leggTilNotat(id: number, tekst: string): InternSak | undefined {
+  const sak = finnInternSak(id);
+  if (sak) sak.internNotat = `${sak.internNotat}\n${tekst}`;
+  return sak;
+}

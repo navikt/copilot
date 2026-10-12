@@ -34,6 +34,12 @@ test("the reported route rejects missing and forged tokens and accepts valid one
   assert.equal((await fetch(`${base}/api/intern/saker`)).status, 401);
   assert.equal((await fetch(`${base}/api/intern/saker`, bearer(await issuer.forged()))).status, 401);
   assert.equal((await fetch(`${base}/api/intern/saker/101`, bearer(await issuer.forged()))).status, 401);
+  assert.equal((await fetch(`${base}/api/intern/saker`, bearer(await issuer.expired()))).status, 401);
+  const forgedNote = bearer(await issuer.forged());
+  forgedNote.method = "POST";
+  forgedNote.headers["content-type"] = "application/json";
+  forgedNote.body = JSON.stringify({ tekst: "Forfalsket" });
+  assert.equal((await fetch(`${base}/api/intern/saker/102/notater`, forgedNote)).status, 401);
   assert.equal((await fetch(`${base}/api/intern/saker`, bearer(await issuer.valid()))).status, 200);
 });
 

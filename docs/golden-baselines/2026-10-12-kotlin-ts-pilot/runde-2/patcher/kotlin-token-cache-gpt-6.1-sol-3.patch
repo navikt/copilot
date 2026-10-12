@@ -1,0 +1,494 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/docs/adr/0002-tokenx-via-texas.md workspace/docs/adr/0002-tokenx-via-texas.md
+--- evaluator/fixture/workspace/docs/adr/0002-tokenx-via-texas.md	2026-10-12 18:10:12
++++ workspace/docs/adr/0002-tokenx-via-texas.md	2026-10-13 01:24:42
+@@ -14,10 +14,16 @@
+ - Vekslede tokener caches i minnet per pod, felles for alle klientene.
+ - Et vekslet token gjelder én bruker og én audience. Det skal aldri brukes for en
+   annen bruker eller mot et annet API.
++- Cache-nøkkelen består av SHA-256 av hele det innkommende tokenet og audience.
++  Et nytt innkommende token får derfor en egen oppføring, også for samme bruker.
+ - Tokener fornyes når tiden som er igjen før de utløper, er kortere enn
+-  `TokenConfig.expiryLeeway`. Det dekker klokkeforskjell og tiden et kall er underveis.
++  eller lik `TokenConfig.expiryLeeway`. Det dekker klokkeforskjell og tiden et kall
++  er underveis. Levetiden regnes fra starten av Texas-kallet.
+ - Texas har en grense for antall vekslinger per sekund. Samtidige forespørsler fra
+   samme bruker mot samme API skal derfor dele én veksling.
++- Ventende kall deler resultatet, også ved feil. Feil og kansellering lagres ikke
++  i cachen. Hvis kallet som utfører vekslingen kanselleres, får ventende kall også
++  kanselleringen. Neste forespørsel kan forsøke på nytt.
+ - Tiden hentes fra en injisert `Clock`, så testene kan styre den.
+ 
+ ## Konsekvenser
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Application.kt workspace/src/main/kotlin/no/nav/benchmark/Application.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Application.kt	2026-10-12 18:10:12
++++ workspace/src/main/kotlin/no/nav/benchmark/Application.kt	2026-10-13 01:24:42
+@@ -27,7 +27,7 @@
+     config: TokenConfig = TokenConfig(),
+ ) {
+     val texas = TexasClient(HttpClient(texasEngine), clock, config.texasEndpoint)
+-    val tokens = TokenCache(texas, clock)
++    val tokens = TokenCache(texas, clock, config.expiryLeeway)
+     val vedtak = VedtakClient(HttpClient(vedtakEngine), tokens)
+     val arkiv = ArkivClient(HttpClient(arkivEngine), tokens)
+ 
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TexasClient.kt workspace/src/main/kotlin/no/nav/benchmark/TexasClient.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TexasClient.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/TexasClient.kt	2026-10-13 01:24:42
+@@ -20,6 +20,7 @@
+     private val endpoint: String = "http://texas/api/v1/token/exchange",
+ ) {
+     suspend fun exchange(userToken: String, audience: String): OboToken {
++        val requestedAt = clock.instant()
+         val response = http.submitForm(
+             url = endpoint,
+             formParameters = parameters {
+@@ -34,6 +35,6 @@
+         val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+         val accessToken = body.getValue("access_token").jsonPrimitive.content
+         val expiresIn = body.getValue("expires_in").jsonPrimitive.long
+-        return OboToken(accessToken, clock.instant().plusSeconds(expiresIn))
++        return OboToken(accessToken, requestedAt.plusSeconds(expiresIn))
+     }
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Token.kt workspace/src/main/kotlin/no/nav/benchmark/Token.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Token.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/Token.kt	2026-10-13 01:24:42
+@@ -1,7 +1,9 @@
+ package no.nav.benchmark
+ 
++import java.time.Duration
+ import java.time.Instant
+ 
+ data class OboToken(val accessToken: String, val expiresAt: Instant) {
+-    fun isValid(now: Instant): Boolean = now.isBefore(expiresAt)
++    fun isValid(now: Instant, expiryLeeway: Duration = Duration.ZERO): Boolean =
++        now.plus(expiryLeeway).isBefore(expiresAt)
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-13 01:24:42
+@@ -1,22 +1,60 @@
+ package no.nav.benchmark
+ 
++import kotlinx.coroutines.CompletableDeferred
++import java.security.MessageDigest
+ import java.time.Clock
++import java.time.Duration
++import java.util.Base64
+ import java.util.concurrent.ConcurrentHashMap
+ 
+ /** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
+ class TokenCache(
+     private val texas: TexasClient,
+     private val clock: Clock,
++    private val expiryLeeway: Duration = TokenConfig().expiryLeeway,
+ ) {
+-    private val tokens = ConcurrentHashMap<String, OboToken>()
++    private data class CacheKey(val tokenDigest: String, val audience: String)
+ 
++    private val tokens = ConcurrentHashMap<CacheKey, OboToken>()
++    private val exchanges = ConcurrentHashMap<CacheKey, CompletableDeferred<OboToken>>()
++
++    init {
++        require(!expiryLeeway.isNegative) { "expiryLeeway must not be negative" }
++    }
++
+     suspend fun token(userToken: String, audience: String): String {
+-        val cached = tokens[audience]
+-        if (cached != null && cached.isValid(clock.instant())) {
+-            return cached.accessToken
++        val key = CacheKey(
++            Base64.getEncoder().encodeToString(
++                MessageDigest.getInstance("SHA-256").digest(userToken.toByteArray(Charsets.UTF_8)),
++            ),
++            audience,
++        )
++        val cached = cachedToken(key)
++        if (cached != null) return cached.accessToken
++
++        val exchange = CompletableDeferred<OboToken>()
++        val ongoing = exchanges.putIfAbsent(key, exchange)
++        if (ongoing != null) return ongoing.await().accessToken
++
++        try {
++            // En annen veksling kan ha fullført mellom oppslaget og registreringen.
++            val fresh = cachedToken(key) ?: texas.exchange(userToken, audience)
++            tokens[key] = fresh
++            exchange.complete(fresh)
++            return fresh.accessToken
++        } catch (failure: Throwable) {
++            exchange.completeExceptionally(failure)
++            throw failure
++        } finally {
++            exchanges.remove(key, exchange)
+         }
+-        val fresh = texas.exchange(userToken, audience)
+-        tokens[audience] = fresh
+-        return fresh.accessToken
++    }
++
++    private fun cachedToken(key: CacheKey): OboToken? {
++        val cached = tokens[key]
++        if (cached != null && cached.isValid(clock.instant(), expiryLeeway)) {
++            return cached
++        }
++        return null
+     }
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt
+--- evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt	1970-01-01 01:00:00
++++ workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt	2026-10-13 01:26:42
+@@ -0,0 +1,278 @@
++package no.nav.benchmark
++
++import io.ktor.client.HttpClient
++import io.ktor.client.engine.mock.MockEngine
++import io.ktor.client.engine.mock.respond
++import io.ktor.http.HttpHeaders
++import io.ktor.http.HttpStatusCode
++import io.ktor.http.content.OutgoingContent
++import io.ktor.http.headersOf
++import io.ktor.http.parseQueryString
++import kotlinx.coroutines.CompletableDeferred
++import kotlinx.coroutines.CancellationException
++import kotlinx.coroutines.CoroutineStart
++import kotlinx.coroutines.async
++import kotlinx.coroutines.awaitAll
++import kotlinx.coroutines.cancelAndJoin
++import kotlinx.coroutines.runBlocking
++import kotlinx.coroutines.withTimeout
++import java.time.Clock
++import java.time.Duration
++import java.time.Instant
++import java.time.ZoneId
++import java.time.ZoneOffset
++import java.util.concurrent.atomic.AtomicInteger
++import kotlin.test.Test
++import kotlin.test.assertEquals
++import kotlin.test.assertFailsWith
++
++class TokenCacheTest {
++    private val json = headersOf(HttpHeaders.ContentType, "application/json")
++    private val start = Instant.parse("2026-03-04T10:00:00Z")
++
++    @Test
++    fun `isolates incoming tokens and audiences while reusing identical keys`() = runBlocking {
++        val clock = MutableClock(start)
++        val exchanges = AtomicInteger()
++        HttpClient(MockEngine { request ->
++            exchanges.incrementAndGet()
++            val form = parseQueryString((request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString())
++            respond(
++                """{"access_token":"${form["user_token"]}:${form["target"]}","expires_in":3600}""",
++                headers = json,
++            )
++        }).use { http ->
++            val cache = TokenCache(TexasClient(http, clock), clock)
++            for (incoming in listOf("user-a-session-1", "user-b-session-1", "user-a-session-2")) {
++                for (audience in listOf(VEDTAK_AUDIENCE, ARKIV_AUDIENCE)) {
++                    repeat(2) {
++                        assertEquals("$incoming:$audience", cache.token(incoming, audience))
++                    }
++                }
++            }
++            assertEquals(6, exchanges.get())
++        }
++    }
++
++    @Test
++    fun `refreshes at the configured leeway boundary`() = runBlocking {
++        val clock = MutableClock(start)
++        val exchanges = AtomicInteger()
++        HttpClient(MockEngine {
++            respond("""{"access_token":"exchanged-${exchanges.incrementAndGet()}","expires_in":3600}""", headers = json)
++        }).use { http ->
++            val cache = TokenCache(TexasClient(http, clock), clock, Duration.ofSeconds(60))
++            assertEquals("exchanged-1", cache.token("user-a", VEDTAK_AUDIENCE))
++            clock.now = start.plusSeconds(3539)
++            assertEquals("exchanged-1", cache.token("user-a", VEDTAK_AUDIENCE))
++            clock.now = start.plusSeconds(3540)
++            assertEquals("exchanged-2", cache.token("user-a", VEDTAK_AUDIENCE))
++            clock.now = start.plusSeconds(7200)
++            assertEquals("exchanged-3", cache.token("user-a", VEDTAK_AUDIENCE))
++            assertEquals(3, exchanges.get())
++        }
++    }
++
++    @Test
++    fun `does not reuse a token at exact expiry with zero leeway`() = runBlocking {
++        val clock = MutableClock(start)
++        val exchanges = AtomicInteger()
++        HttpClient(MockEngine {
++            respond("""{"access_token":"exchanged-${exchanges.incrementAndGet()}","expires_in":3600}""", headers = json)
++        }).use { http ->
++            val cache = TokenCache(TexasClient(http, clock), clock, Duration.ZERO)
++            assertEquals("exchanged-1", cache.token("user-a", VEDTAK_AUDIENCE))
++            clock.now = start.plusSeconds(3600)
++            assertEquals("exchanged-2", cache.token("user-a", VEDTAK_AUDIENCE))
++        }
++    }
++
++    @Test
++    fun `counts Texas request time against token lifetime`() = runBlocking {
++        val clock = MutableClock(start)
++        HttpClient(MockEngine {
++            clock.now = start.plusSeconds(20)
++            respond("""{"access_token":"exchanged","expires_in":3600}""", headers = json)
++        }).use { http ->
++            assertEquals(start.plusSeconds(3600), TexasClient(http, clock).exchange("user-a", VEDTAK_AUDIENCE).expiresAt)
++        }
++    }
++
++    @Test
++    fun `concurrent misses and refreshes share one exchange`() = runBlocking {
++        withTimeout(5000) {
++            val clock = MutableClock(start)
++            val exchanges = AtomicInteger()
++            var entered = CompletableDeferred<Unit>()
++            var release = CompletableDeferred<Unit>()
++            HttpClient(MockEngine {
++                val number = exchanges.incrementAndGet()
++                entered.complete(Unit)
++                release.await()
++                respond("""{"access_token":"exchanged-$number","expires_in":3600}""", headers = json)
++            }).use { http ->
++                val cache = TokenCache(TexasClient(http, clock), clock)
++                repeat(2) { round ->
++                    entered = CompletableDeferred()
++                    release = CompletableDeferred()
++                    val leader = async { cache.token("user-a", VEDTAK_AUDIENCE) }
++                    entered.await()
++                    val followers = List(50) {
++                        async(start = CoroutineStart.UNDISPATCHED) { cache.token("user-a", VEDTAK_AUDIENCE) }
++                    }
++                    assertEquals(round + 1, exchanges.get())
++                    release.complete(Unit)
++                    assertEquals(List(51) { "exchanged-${round + 1}" }, (followers + leader).awaitAll())
++                    assertEquals(round + 1, exchanges.get())
++                    clock.now = start.plusSeconds(3570)
++                }
++            }
++        }
++    }
++
++    @Test
++    fun `a slow exchange does not block other users or audiences`() = runBlocking {
++        withTimeout(5000) {
++            val clock = MutableClock(start)
++            val entered = CompletableDeferred<Unit>()
++            val release = CompletableDeferred<Unit>()
++            val exchanges = AtomicInteger()
++            HttpClient(MockEngine { request ->
++                exchanges.incrementAndGet()
++                val form = parseQueryString((request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString())
++                if (form["user_token"] == "user-a" && form["target"] == VEDTAK_AUDIENCE) {
++                    entered.complete(Unit)
++                    release.await()
++                }
++                respond("""{"access_token":"exchanged","expires_in":3600}""", headers = json)
++            }).use { http ->
++                val cache = TokenCache(TexasClient(http, clock), clock)
++                val slow = async { cache.token("user-a", VEDTAK_AUDIENCE) }
++                entered.await()
++                assertEquals("exchanged", cache.token("user-b", VEDTAK_AUDIENCE))
++                assertEquals("exchanged", cache.token("user-a", ARKIV_AUDIENCE))
++                release.complete(Unit)
++                assertEquals("exchanged", slow.await())
++                assertEquals(3, exchanges.get())
++            }
++        }
++    }
++
++    @Test
++    fun `shares exchange failures and allows a later retry`() = runBlocking {
++        withTimeout(5000) {
++            val clock = MutableClock(start)
++            val entered = CompletableDeferred<Unit>()
++            val release = CompletableDeferred<Unit>()
++            val exchanges = AtomicInteger()
++            HttpClient(MockEngine {
++                if (exchanges.incrementAndGet() == 1) {
++                    entered.complete(Unit)
++                    release.await()
++                    respond("unavailable", HttpStatusCode.ServiceUnavailable)
++                } else {
++                    respond("""{"access_token":"recovered","expires_in":3600}""", headers = json)
++                }
++            }).use { http ->
++                val cache = TokenCache(TexasClient(http, clock), clock)
++                val leader = async {
++                    assertFailsWith<TexasException> { cache.token("user-a", VEDTAK_AUDIENCE) }
++                }
++                entered.await()
++                val followers = List(20) {
++                    async(start = CoroutineStart.UNDISPATCHED) {
++                        assertFailsWith<TexasException> { cache.token("user-a", VEDTAK_AUDIENCE) }
++                    }
++                }
++                release.complete(Unit)
++                for (failure in (followers + leader).awaitAll()) {
++                    assertEquals("Texas svarte 503", failure.message)
++                }
++                assertEquals(1, exchanges.get())
++                assertEquals("recovered", cache.token("user-a", VEDTAK_AUDIENCE))
++                assertEquals(2, exchanges.get())
++            }
++        }
++    }
++
++    @Test
++    fun `cancelling a waiter does not cancel the shared exchange`() = runBlocking {
++        withTimeout(5000) {
++            val clock = MutableClock(start)
++            val entered = CompletableDeferred<Unit>()
++            val release = CompletableDeferred<Unit>()
++            val exchanges = AtomicInteger()
++            HttpClient(MockEngine {
++                exchanges.incrementAndGet()
++                entered.complete(Unit)
++                release.await()
++                respond("""{"access_token":"exchanged","expires_in":3600}""", headers = json)
++            }).use { http ->
++                val cache = TokenCache(TexasClient(http, clock), clock)
++                val leader = async { cache.token("user-a", VEDTAK_AUDIENCE) }
++                entered.await()
++                val waiter = async(start = CoroutineStart.UNDISPATCHED) { cache.token("user-a", VEDTAK_AUDIENCE) }
++                waiter.cancelAndJoin()
++                release.complete(Unit)
++                assertEquals("exchanged", leader.await())
++                assertEquals("exchanged", cache.token("user-a", VEDTAK_AUDIENCE))
++                assertEquals(1, exchanges.get())
++            }
++        }
++    }
++
++    @Test
++    fun `cancelling the exchange owner releases waiters and allows retry`() = runBlocking {
++        withTimeout(5000) {
++            val clock = MutableClock(start)
++            val entered = CompletableDeferred<Unit>()
++            val release = CompletableDeferred<Unit>()
++            val exchanges = AtomicInteger()
++            HttpClient(MockEngine {
++                if (exchanges.incrementAndGet() == 1) {
++                    entered.complete(Unit)
++                    release.await()
++                }
++                respond("""{"access_token":"exchanged","expires_in":3600}""", headers = json)
++            }).use { http ->
++                val cache = TokenCache(TexasClient(http, clock), clock)
++                val leader = async { cache.token("user-a", VEDTAK_AUDIENCE) }
++                entered.await()
++                val waiter = async(start = CoroutineStart.UNDISPATCHED) {
++                    assertFailsWith<CancellationException> { cache.token("user-a", VEDTAK_AUDIENCE) }
++                }
++                leader.cancelAndJoin()
++                release.complete(Unit)
++                waiter.await()
++                assertEquals("exchanged", cache.token("user-a", VEDTAK_AUDIENCE))
++                assertEquals(2, exchanges.get())
++            }
++        }
++    }
++
++    @Test
++    fun `failed refresh does not return the previous token`() = runBlocking {
++        val clock = MutableClock(start)
++        val exchanges = AtomicInteger()
++        HttpClient(MockEngine {
++            when (exchanges.incrementAndGet()) {
++                1 -> respond("""{"access_token":"original","expires_in":3600}""", headers = json)
++                2 -> respond("unavailable", HttpStatusCode.ServiceUnavailable)
++                else -> respond("""{"access_token":"recovered","expires_in":3600}""", headers = json)
++            }
++        }).use { http ->
++            val cache = TokenCache(TexasClient(http, clock), clock)
++            assertEquals("original", cache.token("user-a", VEDTAK_AUDIENCE))
++            clock.now = start.plusSeconds(3570)
++            assertFailsWith<TexasException> { cache.token("user-a", VEDTAK_AUDIENCE) }
++            assertEquals("recovered", cache.token("user-a", VEDTAK_AUDIENCE))
++            assertEquals(3, exchanges.get())
++        }
++    }
++
++    private class MutableClock(@Volatile var now: Instant) : Clock() {
++        override fun instant(): Instant = now
++        override fun getZone(): ZoneId = ZoneOffset.UTC
++        override fun withZone(zone: ZoneId): Clock = this
++    }
++}
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/VedtakProxyTest.kt workspace/src/test/kotlin/no/nav/benchmark/VedtakProxyTest.kt
+--- evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/VedtakProxyTest.kt	2026-10-12 11:32:24
++++ workspace/src/test/kotlin/no/nav/benchmark/VedtakProxyTest.kt	2026-10-13 01:25:55
+@@ -8,9 +8,13 @@
+ import io.ktor.http.HttpHeaders
+ import io.ktor.http.HttpStatusCode
+ import io.ktor.http.headersOf
++import io.ktor.http.content.OutgoingContent
++import io.ktor.http.parseQueryString
+ import io.ktor.server.testing.testApplication
+ import java.time.Clock
++import java.time.Duration
+ import java.time.Instant
++import java.time.ZoneId
+ import java.time.ZoneOffset
+ import kotlin.test.Test
+ import kotlin.test.assertEquals
+@@ -40,5 +44,57 @@
+         application { vedtakModule(engine, engine) }
+ 
+         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/vedtak/42").status)
++    }
++
++    @Test
++    fun `begge API klienter isolerer brukere og bruker konfigurert fornyelsesmargin`() = testApplication {
++        val start = Instant.parse("2026-03-04T10:00:00Z")
++        var now = start
++        val clock = object : Clock() {
++            override fun instant(): Instant = now
++            override fun getZone(): ZoneId = ZoneOffset.UTC
++            override fun withZone(zone: ZoneId): Clock = this
++        }
++        var exchanges = 0
++        val texas = MockEngine { request ->
++            val form = parseQueryString((request.body as OutgoingContent.ByteArrayContent).bytes().decodeToString())
++            val token = "${form["user_token"]}:${form["target"]}:${++exchanges}"
++            respond("""{"access_token":"$token","expires_in":3600}""", headers = json)
++        }
++        val upstream = MockEngine { request ->
++            respond(request.headers[HttpHeaders.Authorization].orEmpty(), headers = json)
++        }
++        application {
++            vedtakModule(
++                texas,
++                upstream,
++                clock,
++                config = TokenConfig(expiryLeeway = Duration.ofSeconds(60)),
++            )
++        }
++
++        for ((path, audience) in listOf(
++            "/api/vedtak/42" to VEDTAK_AUDIENCE,
++            "/api/vedtak/42/dokumenter" to ARKIV_AUDIENCE,
++        )) {
++            val a = client.get(path) { bearerAuth("user-a") }
++            assertEquals(HttpStatusCode.OK, a.status)
++            assertEquals("Bearer user-a:$audience:$exchanges", a.bodyAsText())
++            val b = client.get(path) { bearerAuth("user-b") }
++            assertEquals("Bearer user-b:$audience:$exchanges", b.bodyAsText())
++            assertEquals(a.bodyAsText(), client.get(path) { bearerAuth("user-a") }.bodyAsText())
++        }
++        assertEquals(4, exchanges)
++
++        now = start.plusSeconds(3540)
++        assertEquals(
++            "Bearer user-a:$VEDTAK_AUDIENCE:5",
++            client.get("/api/vedtak/42") { bearerAuth("user-a") }.bodyAsText(),
++        )
++        assertEquals(
++            "Bearer user-a:$ARKIV_AUDIENCE:6",
++            client.get("/api/vedtak/42/dokumenter") { bearerAuth("user-a") }.bodyAsText(),
++        )
++        assertEquals(6, exchanges)
+     }
+ }

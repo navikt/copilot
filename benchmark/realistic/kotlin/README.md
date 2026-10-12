@@ -4,11 +4,14 @@ Two independent Gradle projects: `cursor-debug` (symptom-only cursor pagination 
 
 Dependencies are pinned in each `build.gradle.kts`: Kotlin 2.1.20, Ktor 3.1.3 and Gradle 8.14.5 on JDK 21. The preflight uses the `gradle:8.14.5-jdk21` image pinned to digest `sha256:68e94b44fa717b894a559f555aaa491b855f94a0de689080f73e56da6c4a7479`. No application server or database is needed. Docker needs network access **only** to pull the image and warm the dependency cache; test runs use `--network none` and Gradle `--offline`.
 
-`token-cache` (TokenX/Texas token cache, two bugs behind one symptom) is the third
+`token-cache` (TokenX/Texas token cache for two APIs: per-user-and-audience key, configurable expiry margin and one shared exchange for concurrent requests) is the third
 project and adds `ktor-client-core`/`cio`/`mock` 3.1.3 and `kotlinx-serialization-json` 1.8.1.
 
 The evaluator never bind-mounts host paths (Colima without host mounts sees an empty
 directory). The Gradle cache is the Docker volume `nav-benchmark-gradle-cache`.
+Evaluations mount it read-only (`GRADLE_RO_DEP_CACHE`) and copy only the Gradle
+version cache into a throwaway home, so a candidate build cannot change the cache
+for later evaluations.
 From the repository root, warm it for each starter:
 
 ```sh

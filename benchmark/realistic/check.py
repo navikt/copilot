@@ -156,7 +156,10 @@ def gradle_test(task: Path) -> tuple[dict[str, bytes], str]:
     copies = " && ".join(f"cp /task/controls/{file.parent.name}/{file.name} {destination}/" for file in files)
     # Only withheld tests run (--tests filter), so the candidate's own tests are never
     # evidence; dropping them keeps an uncompilable agent test from making it untestable.
-    script = (f"rm -rf src/test && mkdir -p {destination} && {copies} && "
+    # Seed the version cache (generated Gradle API jars, transforms) from the warm cache;
+    # rebuilding it in a fresh home takes minutes. Dependencies stay read-only.
+    script = (f"mkdir -p /task/.gradle-home/caches && cp -a /cache/caches/8.14.5 /task/.gradle-home/caches/ && "
+              f"rm -rf src/test && mkdir -p {destination} && {copies} && "
               f"rm -rf build/test-results/test; gradle test --offline --no-daemon --console=plain -q {tests}; "
               f"rc=$?; exit $rc")
     command = docker_limits("2g", "256") + [
@@ -166,7 +169,7 @@ def gradle_test(task: Path) -> tuple[dict[str, bytes], str]:
         "-e", "GRADLE_RO_DEP_CACHE=/cache/caches",
         GRADLE_IMAGE, "sh", "-c", script,
     ]
-    result = execute(command, 600)
+    result = execute(command, 900)
     return read_from_volume(task, "workspace/build/test-results/test"), result.stderr
 
 

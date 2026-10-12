@@ -1,12 +1,63 @@
 *** Begin Patch
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/Token.kt
+@@
+-import java.time.Instant
+-
+-data class OboToken(val accessToken: String, val expiresAt: Instant) {
+-    fun isValid(now: Instant): Boolean = now.isBefore(expiresAt)
++import java.time.Duration
++import java.time.Instant
++
++data class OboToken(val accessToken: String, val expiresAt: Instant) {
++    fun isValid(now: Instant, leeway: Duration = Duration.ZERO): Boolean = now.plus(leeway).isBefore(expiresAt)
 *** Update File: workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
 @@
+-import java.time.Clock
+-import java.util.concurrent.ConcurrentHashMap
+-
+-/** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
+-class TokenCache(
+-    private val texas: TexasClient,
+-    private val clock: Clock,
+-) {
 -    private val tokens = ConcurrentHashMap<String, OboToken>()
-+    private val tokens = ConcurrentHashMap<Pair<String, String>, OboToken>()
-@@
+-
+-    suspend fun token(userToken: String, audience: String): String {
 -        val cached = tokens[audience]
-+        val cached = tokens[userToken to audience]
-@@
+-        if (cached != null && cached.isValid(clock.instant())) {
+-            return cached.accessToken
+-        }
+-        val fresh = texas.exchange(userToken, audience)
 -        tokens[audience] = fresh
-+        tokens[userToken to audience] = fresh
+-        return fresh.accessToken
+-    }
+-}
++import kotlinx.coroutines.sync.Mutex
++import kotlinx.coroutines.sync.withLock
++import java.time.Clock
++import java.time.Duration
++import java.util.concurrent.ConcurrentHashMap
++
++/** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
++class TokenCache(
++    private val texas: TexasClient,
++    private val clock: Clock,
++    private val leeway: Duration = Duration.ofSeconds(30),
++) {
++    private val tokens = ConcurrentHashMap<Pair<String, String>, OboToken>()
++    private val locks = ConcurrentHashMap<Pair<String, String>, Mutex>()
++
++    suspend fun token(userToken: String, audience: String): String {
++        val key = userToken to audience
++        tokens[key]?.takeIf { it.isValid(clock.instant()) }?.let { return it.accessToken }
++        return locks.computeIfAbsent(key) { Mutex() }.withLock {
++            tokens[key]?.takeIf { it.isValid(clock.instant()) }?.accessToken
++                ?: texas.exchange(userToken, audience).also { tokens[key] = it }.accessToken
++        }
++    }
++}
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/Application.kt
+@@
+-    val tokens = TokenCache(texas, clock)
++    val tokens = TokenCache(texas, clock, config.expiryLeeway)
 *** End Patch

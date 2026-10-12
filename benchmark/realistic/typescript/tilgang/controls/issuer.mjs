@@ -17,19 +17,21 @@ export async function startIssuer() {
     AZURE_OPENID_CONFIG_ISSUER: "https://login.example/tenant/v2.0",
     AZURE_APP_CLIENT_ID: "saksoversikt",
   };
-  const sign = (key, audience = env.AZURE_APP_CLIENT_ID) =>
+  const now = Math.floor(Date.now() / 1000);
+  const sign = (key, audience = env.AZURE_APP_CLIENT_ID, issuedAt = now, expires = now + 600) =>
     new SignJWT({ NAVident: "Z123456" })
       .setProtectedHeader({ alg: "RS256", kid: "k1" })
       .setIssuer(env.AZURE_OPENID_CONFIG_ISSUER)
       .setAudience(audience)
-      .setIssuedAt()
-      .setExpirationTime("10m")
+      .setIssuedAt(issuedAt)
+      .setExpirationTime(expires)
       .sign(key);
   return {
     env,
     valid: () => sign(trusted.privateKey),
     forged: () => sign(untrusted.privateKey),
     otherAudience: () => sign(trusted.privateKey, "en-annen-app"),
+    expired: () => sign(trusted.privateKey, env.AZURE_APP_CLIENT_ID, now - 7200, now - 3600),
     close: () => {
       server.closeAllConnections();
       server.close();

@@ -1,0 +1,176 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Application.kt workspace/src/main/kotlin/no/nav/benchmark/Application.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Application.kt	2026-10-12 18:10:12
++++ workspace/src/main/kotlin/no/nav/benchmark/Application.kt	2026-10-13 00:53:07
+@@ -27,7 +27,7 @@
+     config: TokenConfig = TokenConfig(),
+ ) {
+     val texas = TexasClient(HttpClient(texasEngine), clock, config.texasEndpoint)
+-    val tokens = TokenCache(texas, clock)
++    val tokens = TokenCache(texas, clock, config.expiryLeeway)
+     val vedtak = VedtakClient(HttpClient(vedtakEngine), tokens)
+     val arkiv = ArkivClient(HttpClient(arkivEngine), tokens)
+ 
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Token.kt workspace/src/main/kotlin/no/nav/benchmark/Token.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Token.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/Token.kt	2026-10-13 00:53:48
+@@ -1,7 +1,9 @@
+ package no.nav.benchmark
+ 
++import java.time.Duration
+ import java.time.Instant
+ 
+ data class OboToken(val accessToken: String, val expiresAt: Instant) {
+-    fun isValid(now: Instant): Boolean = now.isBefore(expiresAt)
++    fun isValid(now: Instant, expiryLeeway: Duration): Boolean =
++        now.plus(expiryLeeway).isBefore(expiresAt)
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-13 00:53:48
+@@ -1,22 +1,43 @@
+ package no.nav.benchmark
+ 
++import java.security.MessageDigest
+ import java.time.Clock
++import java.time.Duration
+ import java.util.concurrent.ConcurrentHashMap
++import java.util.HexFormat
++import kotlinx.coroutines.sync.Mutex
++import kotlinx.coroutines.sync.withLock
+ 
+ /** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
+ class TokenCache(
+     private val texas: TexasClient,
+     private val clock: Clock,
++    private val expiryLeeway: Duration = Duration.ofSeconds(30),
+ ) {
+-    private val tokens = ConcurrentHashMap<String, OboToken>()
++    private data class CacheKey(val userTokenHash: String, val audience: String)
++    private class CacheEntry {
++        val mutex = Mutex()
++        var token: OboToken? = null
++    }
+ 
++    private val entries = ConcurrentHashMap<CacheKey, CacheEntry>()
++
+     suspend fun token(userToken: String, audience: String): String {
+-        val cached = tokens[audience]
+-        if (cached != null && cached.isValid(clock.instant())) {
+-            return cached.accessToken
++        val key = CacheKey(userToken.sha256(), audience)
++        val entry = entries.computeIfAbsent(key) { CacheEntry() }
++        return entry.mutex.withLock {
++            val cached = entry.token
++            if (cached != null && cached.isValid(clock.instant(), expiryLeeway)) {
++                return@withLock cached.accessToken
++            }
++            val fresh = texas.exchange(userToken, audience)
++            entry.token = fresh
++            fresh.accessToken
+         }
+-        val fresh = texas.exchange(userToken, audience)
+-        tokens[audience] = fresh
+-        return fresh.accessToken
+     }
++
++    private fun String.sha256(): String =
++        HexFormat.of().formatHex(
++            MessageDigest.getInstance("SHA-256").digest(toByteArray(Charsets.UTF_8)),
++        )
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt
+--- evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt	1970-01-01 01:00:00
++++ workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt	2026-10-13 00:53:48
+@@ -0,0 +1,92 @@
++package no.nav.benchmark
++
++import io.ktor.client.HttpClient
++import io.ktor.client.engine.mock.MockEngine
++import io.ktor.client.engine.mock.respond
++import io.ktor.http.HttpHeaders
++import io.ktor.http.headersOf
++import kotlinx.coroutines.CompletableDeferred
++import kotlinx.coroutines.async
++import kotlinx.coroutines.runBlocking
++import java.time.Clock
++import java.time.Duration
++import java.time.Instant
++import java.time.ZoneId
++import java.time.ZoneOffset
++import java.util.concurrent.atomic.AtomicInteger
++import kotlin.test.Test
++import kotlin.test.assertEquals
++
++class TokenCacheTest {
++    private val json = headersOf(HttpHeaders.ContentType, "application/json")
++    private val now = Instant.parse("2026-03-04T10:00:00Z")
++
++    @Test
++    fun `caches tokens separately for each user and audience`() = runBlocking {
++        val exchanges = AtomicInteger()
++        val engine = MockEngine {
++            val number = exchanges.incrementAndGet()
++            respond("""{"access_token":"token-$number","expires_in":3600}""", headers = json)
++        }
++        val http = HttpClient(engine)
++        val cache = TokenCache(TexasClient(http, Clock.fixed(now, ZoneOffset.UTC)), Clock.fixed(now, ZoneOffset.UTC))
++
++        assertEquals("token-1", cache.token("user-a-token", "audience"))
++        assertEquals("token-1", cache.token("user-a-token", "audience"))
++        assertEquals("token-2", cache.token("user-a-token", "other-audience"))
++        assertEquals("token-3", cache.token("user-b-token", "audience"))
++        assertEquals(3, exchanges.get())
++        http.close()
++    }
++
++    @Test
++    fun `coalesces concurrent exchanges for the same user and audience`() = runBlocking {
++        val exchangeStarted = CompletableDeferred<Unit>()
++        val releaseExchange = CompletableDeferred<Unit>()
++        val exchanges = AtomicInteger()
++        val engine = MockEngine {
++            exchanges.incrementAndGet()
++            exchangeStarted.complete(Unit)
++            releaseExchange.await()
++            respond("""{"access_token":"shared-token","expires_in":3600}""", headers = json)
++        }
++        val http = HttpClient(engine)
++        val clock = Clock.fixed(now, ZoneOffset.UTC)
++        val cache = TokenCache(TexasClient(http, clock), clock)
++        val first = async { cache.token("user-token", "audience") }
++        exchangeStarted.await()
++        val others = List(10) { async { cache.token("user-token", "audience") } }
++
++        releaseExchange.complete(Unit)
++
++        assertEquals(List(11) { "shared-token" }, (listOf(first) + others).map { it.await() })
++        assertEquals(1, exchanges.get())
++        http.close()
++    }
++
++    @Test
++    fun `refreshes tokens before expiry by the configured leeway`() = runBlocking {
++        val exchanges = AtomicInteger()
++        val engine = MockEngine {
++            val number = exchanges.incrementAndGet()
++            respond("""{"access_token":"token-$number","expires_in":3600}""", headers = json)
++        }
++        val http = HttpClient(engine)
++        val clock = MutableClock(now)
++        val cache = TokenCache(TexasClient(http, clock), clock, expiryLeeway = Duration.ofSeconds(30))
++
++        assertEquals("token-1", cache.token("user-token", "audience"))
++        clock.current = now.plusSeconds(3569)
++        assertEquals("token-1", cache.token("user-token", "audience"))
++        clock.current = now.plusSeconds(3570)
++        assertEquals("token-2", cache.token("user-token", "audience"))
++        assertEquals(2, exchanges.get())
++        http.close()
++    }
++
++    private class MutableClock(var current: Instant) : Clock() {
++        override fun getZone(): ZoneId = ZoneOffset.UTC
++        override fun withZone(zone: ZoneId): Clock = this
++        override fun instant(): Instant = current
++    }
++}
