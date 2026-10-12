@@ -13,6 +13,7 @@ import { monthName } from "@/lib/team-year";
 import { CostForecastSection } from "@/components/cost-forecast";
 import { CostTrendsSection } from "@/components/cost-trends";
 import { HighConsumersSection } from "@/components/high-consumers";
+import { CostStatusCards } from "@/components/cost-status-cards";
 
 // Spend and limits are internal: only the copilot team sees this page, everyone else gets 404.
 export const metadata: Metadata = {
@@ -72,6 +73,7 @@ export default async function CostPage() {
         </>
       }
     >
+      <CostStatusCards token={token} />
       <InsightSection id="oversikt" title={`Oversikt ${year}`}>
         {gross_stale && (
           <Alert variant="warning" size="small">
