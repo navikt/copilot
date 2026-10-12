@@ -68,7 +68,7 @@ export const GB64_MEASURED = { measured: "2026-10-12", source: SOURCES.oq3a };
 // Dispatch re-probe 7 (2026-09-28) and the same-day controls for balanced (2026-09-29), both
 // with Sonnet 5. The Sonnet 5.5 row is the rp7c rerun (2026-10-12, mlx-workspace#234).
 export const DELEGATION_RESULTS: ResultSet = {
-  measured: "2026-09-29",
+  measured: "2026-10-12",
   source: SOURCES.reprobe7,
   rows: [
     {

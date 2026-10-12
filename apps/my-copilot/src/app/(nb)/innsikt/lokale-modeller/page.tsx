@@ -376,17 +376,21 @@ export default function LokaleModeller() {
           </li>
         </Bullets>
         <BodyShort size="small" textColor="subtle">
-          Målt 28. og 29. september 2026. Se{" "}
+          Målt 28. og 29. september og 12. oktober 2026. Se{" "}
           <a href={SOURCES.reprobe7} className={linkClass}>
             delegeringsmålingen
           </a>
           ,{" "}
           <a href={SOURCES.balanced} className={linkClass}>
             kontrollmålingen av balanced
-          </a>{" "}
-          og{" "}
+          </a>
+          ,{" "}
           <a href={SOURCES.followups1} className={linkClass}>
             målingen av nye forsøk
+          </a>{" "}
+          og{" "}
+          <a href={SOURCES.rp7c} className={linkClass}>
+            målingen med Sonnet 5.5
           </a>
           .
         </BodyShort>
