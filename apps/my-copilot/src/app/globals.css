@@ -882,7 +882,50 @@ button.search-hit {
 @media print {
   @page {
     size: A4;
-    margin: 18mm 15mm;
+    margin: 15mm;
+  }
+
+  body:has(.team-report) {
+    font-size: 10pt;
+  }
+
+  .team-report * {
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+  }
+
+  .team-report h1 {
+    font-size: 16pt !important;
+  }
+
+  .team-report h2 {
+    font-size: 12pt !important;
+  }
+
+  .team-report-table {
+    overflow: visible !important;
+  }
+
+  .team-report-table table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .team-report-table th,
+  .team-report-table td {
+    padding: 2pt 4pt !important;
+  }
+
+  .team-report-table td:nth-child(n + 3) {
+    white-space: nowrap;
+  }
+
+  /* Måned, grunnlag, then five amounts */
+  .team-report-table th:nth-child(1) {
+    width: 15%;
+  }
+  .team-report-table th:nth-child(2) {
+    width: 22%;
   }
 
   .print-only {
