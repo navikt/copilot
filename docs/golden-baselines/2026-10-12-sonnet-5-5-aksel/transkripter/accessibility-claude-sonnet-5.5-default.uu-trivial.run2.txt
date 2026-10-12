@@ -1,0 +1,31 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+**Nei.** Slett-knappen har ikke noe tilgjengelig navn. `<button>` inneholder bare `<TrashIcon />`, som er dekorativ som standard (`aria-hidden`). Skjermlesere leser den derfor bare som «knapp» (WCAG 4.1.2).
+
+Løsning med Aksel:
+
+```tsx
+import { Button } from "@navikt/ds-react";
+
+<Button
+  variant="tertiary"
+  icon={<TrashIcon aria-hidden />}
+  onClick={onSlett}
+>
+  Slett
+</Button>
+```
+
+Eller, hvis den skal være en ren ikonknapp: `<Button icon={<TrashIcon title="Slett" />} onClick={onSlett} />`, eller `aria-label="Slett"` på knappen.
+
+Andre UU-feil i samme fil:
+- `<div onClick>` "Vis detaljer" har ingen tastaturstøtte, rolle eller `aria-expanded`. Bruk `<Button aria-expanded={apen}>`.
+- `outline: "none"` fjerner fokusindikatoren (2.4.7).
+- `tabIndex={5}` på `<span>` bryter fokusrekkefølgen (2.4.3). Fjern den.
+- Status skilles bare med rød/grønn farge (1.4.1). Legg til tekst eller ikon, for eksempel `<Tag>`.
+- `p-4 mx-8` er Tailwind-spacing. Prosjektet krever Aksel-tokens (`Box`, `padding="space-16"`).
+
+Skal jeg rette alt?
+

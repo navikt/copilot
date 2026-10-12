@@ -1,0 +1,23 @@
+● Read component (shell)
+  │ cat src/app/komponenter/StatusPanel.tsx
+  └ 19 lines…
+
+● Edit StatusPanel.tsx +2 -2
+  └ src/app/komponenter/StatusPanel.tsx
+
+● noop (shell)
+  │ python3 - <<'E'
+  │ E
+  │ echo skip
+  └ 1 line…
+
+Slett-knappen i `StatusPanel.tsx` har nå `aria-label="Slett"`, og ikonet er skjult for skjermlesere med `aria-hidden`. Jeg har ikke kjørt noen tester eller axe-sjekk.
+
+Jeg rørte ikke andre UU-feil i filen:
+- `<div onClick>` uten tastaturstøtte.
+- `outline: none`.
+- `tabIndex={5}`.
+- Farge som eneste statusindikator.
+
+Si fra hvis jeg skal fikse dem også.
+

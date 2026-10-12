@@ -1,0 +1,39 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Create StatusPanel.tsx.new +1
+  └ src/app/komponenter/StatusPanel.tsx.new
+
+That was a stray file; removing it and editing the real one.
+
+● Edit StatusPanel.tsx +18 -11
+  └ src/app/komponenter/StatusPanel.tsx
+
+● rm <arbeidsmappe>/src/app/k
+  ponenter/StatusPanel.tsx.new
+  │ rm <arbeidsmappe>/src/app
+  │ /komponenter/StatusPanel.tsx.new
+  └ No Content
+
+Jeg fant fem UU-brudd i `StatusPanel.tsx` og rettet dem. Jeg har ikke kjørt build, typesjekk eller axe-tester.
+
+| Funn | WCAG | Retting |
+|---|---|---|
+| `<div onClick>` uten rolle eller tastaturstøtte | 2.1.1, 4.1.2 | Aksel `Button` |
+| `outline: none` fjernet fokusindikatoren | 2.4.7 | Fjernet |
+| `tabIndex={5}` | 2.4.3 | Fjernet |
+| Status vist kun med rød/grønn farge | 1.4.1, 1.4.3 | Aksel `Tag`, som kombinerer tekst og fargevariant |
+| Slett-knapp uten tilgjengelig navn | 4.1.2 | `TrashIcon title="Slett"` |
+
+- **Utvid/skjul:** Knappen har nå `aria-expanded={apen}`.
+- **Tailwind:** Jeg byttet `p-4 mx-8` ut med `Box` og spacing-tokens.
+
+Det er fortsatt en åpen feil: `apen` styrer ikke noe innhold. Når detaljpanelet finnes, må du koble det til knappen med `aria-controls`.
+
+Jeg antok også at tokennavnene `space-16` og `space-32` finnes i din Aksel-versjon (v8+). Sjekk dem mot versjonen du bruker.
+

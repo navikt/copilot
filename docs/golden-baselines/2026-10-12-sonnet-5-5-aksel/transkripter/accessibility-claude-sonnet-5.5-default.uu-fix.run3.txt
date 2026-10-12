@@ -1,0 +1,19 @@
+● Read component (shell)
+  │ cat src/app/komponenter/StatusPanel.tsx
+  └ 19 lines…
+
+● Edit StatusPanel.tsx +7 -3
+  └ src/app/komponenter/StatusPanel.tsx
+
+● Edit StatusPanel.tsx +1
+  └ src/app/komponenter/StatusPanel.tsx
+
+Slett-knappen er nå en Aksel `Button` (`variant="tertiary"`) med `title="Slett"`, så den har tilgjengelig navn. Ikonet har `aria-hidden`. Jeg har ikke kjørt noen tester eller bygg.
+
+Jeg fant andre UU-feil i samme fil, men rørte dem ikke siden du bare ba om slett-knappen:
+- `<div onClick>` for «Vis detaljer» mangler tastaturstøtte og har `outline: "none"`. Bruk en `Button`.
+- `tabIndex={5}` på `<span>` bør fjernes.
+- Statusfargen (rød/grønn) er eneste informasjonsbærer for feil/ok. Legg til ikon eller tekst.
+
+Si fra hvis jeg skal fikse disse også.
+

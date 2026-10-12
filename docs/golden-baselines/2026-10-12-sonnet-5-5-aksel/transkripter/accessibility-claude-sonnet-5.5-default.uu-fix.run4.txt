@@ -1,0 +1,17 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Edit StatusPanel.tsx +1 -1
+  └ src/app/komponenter/StatusPanel.tsx
+
+Slett-knappen har nå tilgjengelig navn: `<TrashIcon title="Slett" />`. Aksel-ikonet rendrer `<title>`, som skjermlesere leser opp som knappens navn. Jeg har ikke kjørt noen test.
+
+Jeg så andre UU-feil i samme fil og lot dem stå, siden du bare ba om slett-knappen:
+- `<div onClick>` uten tastaturstøtte (bør være `<button>` med `aria-expanded`)
+- `outline: none` fjerner fokusindikatoren
+- `tabIndex={5}` (må ikke være større enn 0)
+- Statusen skilles bare med farge (rød eller grønn)
+
+Si fra hvis jeg skal fikse dem også.
+

@@ -1,0 +1,39 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+✗ grep -E "ds-react|ds-css|aksel-icons" ../repo/package.json 2>/dev/null || grep -E "ds-react" (she…
+  package.json
+  │ grep -E "ds-react|ds-css|aksel-icons" ../repo/package.json 2>/dev/null || grep -E "ds-react"
+  │ package.json
+  └ grep: package.json: No such file or directory
+    Failed with exit code 2
+
+Ingen package.json, så jeg antar Aksel v8 (space-tokens).
+
+● Create StatusPanel.new.tsx +1
+  └ src/app/komponenter/StatusPanel.new.tsx
+
+● Edit StatusPanel.tsx +26 -12
+  └ src/app/komponenter/StatusPanel.tsx
+
+● rm src/app/komponenter/StatusPanel.new.tsx (shell)
+  │ rm src/app/komponenter/StatusPanel.new.tsx
+  └ No Content
+
+Jeg har rettet `StatusPanel.tsx`. Jeg har ikke kjørt build eller axe, og repoet har ingen `package.json`.
+
+| Funn | WCAG | Rettelse |
+|---|---|---|
+| `<div onClick>` uten tastatur eller rolle | 2.1.1, 4.1.2 | Aksel `Button` med `aria-expanded` |
+| `outline: none` fjernet fokusindikator | 2.4.7 | Fjernet, Aksel har egen fokusstil |
+| `tabIndex={5}` | 2.4.3 | Fjernet |
+| Rød tekst (#f00) har for lav kontrast (ca. 4:1, krav 4.5:1) | 1.4.3 | Aksel `Tag` (`error` / `success`) med tekst |
+| Ikonknapp uten tilgjengelig navn | 4.1.2 | `aria-hidden` på ikonet og skjult tekst «Slett» |
+| Tailwind `p-4 mx-8` | – | `Box` og `HStack` med space-tokens |
+| Props uten typer | – | `StatusPanelProps` |
+
+Det er to ting du må gjøre selv:
+- `apen` styrer fortsatt ingen innhold. Når detaljpanelet finnes, legg `aria-controls` på knappen og pek til panelets id.
+- «Slett» er en destruktiv handling. Vurder en bekreftelse (WCAG 3.3.4) og en mer presis tekst, for eksempel «Slett vedtak».
+

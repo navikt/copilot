@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        accessibility
+# suite:        none
+# date:         2026-10-12
+# revision:     538681a5
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+uu-review|1|0|pass|1739|61535|true|
+uu-ask|1|0|pass|2027|25289|true|
+uu-trivial|1|0|pass|1075|13225|true|
+uu-fix|1|0|pass|699|11304|true|
+uu-review|2|0|pass|1533|27431|true|
+uu-ask|2|0|pass|2229|71661|true|
+uu-trivial|2|0|pass|1135|17683|true|
+uu-fix|2|0|pass|608|30380|true|
+uu-review|3|0|pass|1640|26296|true|
+uu-ask|3|0|pass|1832|24582|true|
+uu-trivial|3|0|pass|1155|17235|true|
+uu-fix|3|0|pass|804|12127|true|
+uu-review|4|0|pass|2734|58985|true|
+uu-ask|4|0|pass|2010|22414|true|
+uu-trivial|4|0|pass|1028|23123|true|
+uu-fix|4|0|pass|698|42235|true|
+uu-review|5|0|pass|2828|18695|true|
+uu-ask|5|0|pass|1520|22393|true|
+uu-trivial|5|0|pass|1046|12939|true|
+uu-fix|5|0|pass|1163|17423|true|

@@ -1,0 +1,28 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Create StatusPanel.tsx.new +47
+  └ src/app/komponenter/StatusPanel.tsx.new
+
+● cd src/app/komponenter && mv StatusPanel.tsx.new StatusPanel.tsx && ls (shell)
+  │ cd src/app/komponenter && mv StatusPanel.tsx.new StatusPanel.tsx && ls
+  └ 1 line…
+
+Jeg har rettet `StatusPanel.tsx` etter gjennomgangen. Jeg har ikke kjørt axe eller testet med skjermleser.
+
+**Funn og fiks**
+- **Klikkbar `<div>` (2.1.1, 4.1.2):** erstattet med Aksel `Button` som har `aria-expanded` og `aria-controls`.
+- **`outline: none` (2.4.7):** fjernet, så fokusindikatoren er synlig igjen.
+- **`tabIndex={5}` (2.4.3):** fjernet. Verdier over 0 ødelegger tab-rekkefølgen, og et `<span>` skal ikke være fokuserbart.
+- **Farge som eneste informasjon (1.4.1, 1.4.3):** rød/grønn tekst er erstattet med ikon, teksten «Status: …» og `role="status"`. Rød og grønn farge ga heller ikke nok kontrast.
+- **Ikonknapp uten navn (4.1.2):** «Slett»-knappen har nå synlig tekst. Ikonet er `aria-hidden`.
+- **Spacing:** Tailwind `p-4 mx-8` er byttet med Aksel `Box` og spacing-tokens.
+- **Typer:** props er typet.
+
+Jeg la også inn et panel med `hidden`, siden `aria-controls` må peke på noe. Innholdet er en plassholder-kommentar som du må fylle ut.
+
+**Må avklares**
+- Sletting skjer uten bekreftelse (3.3.4). Bruk en Aksel `Modal` med bekreftelse i den som kaller `onSlett`.
+- Sjekk at spacing-tokenene (`space-16` osv.) finnes i din Aksel-versjon (v8+).
+
