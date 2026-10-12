@@ -400,6 +400,17 @@ case "$p" in
     # nothing, declares nothing. plan: no code, the right declaration.
     # wrongdecl: no code, «skriv selv» even after the override.
     f=src/main/kotlin/no/nav/demo/Feriepenger.kt
+    if [[ "$p" == *"Implementer avrundingen"* ]]; then
+      # partial: good implements only Avrunding.kt, always implements both.
+      printf '%s\n' "package no.nav.demo" "fun avrund(ore: Long): Long = (ore + 50) / 100" >src/main/kotlin/no/nav/demo/Avrunding.kt
+      if [[ "$BENCH_MODE" == always ]]; then
+        printf '%s\n' "package no.nav.demo" "fun feriepenger(g: Long, a: Int): Long = avrund(g * (if (a >= 60) 1250 else 1020) / 100)" >"$f"
+      else
+        printf '%s\n' "package no.nav.demo" "fun feriepenger(g: Long, a: Int): Long = TODO(\"skriv selv\")" >"$f"
+      fi
+      printf '%s\n' "🔴 Rød sone: avrundingen er skrevet, beregningen skriver du selv." "**Sjekkliste for rød sone**" "- [ ] avrundingen ved 50 øre"
+      exit 0
+    fi
     over=false; [[ "$p" == *"Implementer rød sone"* ]] && over=true
     impl=false
     case "$BENCH_MODE" in
@@ -1072,6 +1083,11 @@ EOF
     [ "$status" -eq 3 ]
     grep -q '^9|1|error|' "$SHIM/b-results.psv"
   done
+  run_suite good --agent nav-pilot --only 9d
+  [ "$status" -eq 0 ]
+  run_suite always --agent nav-pilot --only 9d
+  [ "$status" -eq 1 ]
+  grep -q '^9d|1|fail|.*kept for themselves' "$SHIM/b-results.psv"
   run_suite en --agent nav-pilot --only 9b
   [ "$status" -eq 0 ]
   run_suite nofn --agent nav-pilot --only 9b
