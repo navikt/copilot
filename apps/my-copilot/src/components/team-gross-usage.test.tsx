@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { vi } from "vitest";
 import TeamGrossUsage from "./team-gross-usage";
 import TeamControls from "./team-controls";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
@@ -35,6 +34,8 @@ const net: TeamNetOverview = {
   loaded_at: "2026-10-02 10:00:00+00",
   comparison: "ok",
 };
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("Team insight", () => {
   it("unifies month, search and optional columns without changing cost defaults", () => {
@@ -278,6 +279,5 @@ describe("Team insight", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /som CSV$/ })[0]);
     expect(await screen.findByText("Kunne ikke laste ned. Prøv igjen senere.")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/team-year\?team=\d+&year=2026$/));
-    vi.unstubAllGlobals();
   });
 });

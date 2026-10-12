@@ -22,9 +22,12 @@ function TeamYearCsv({ team, year }: { team: Team; year: string }) {
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement("a");
       a.href = url;
-      a.download = `copilot-${team.team_slug || team.team_id}-${year}.csv`;
+      // Same name as the route's Content-Disposition, which guards the slug.
+      a.download =
+        /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? `copilot-${year}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      // Revoking at once can abort the download in Safari.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       setState("idle");
     } catch {
       setState("error");
@@ -35,6 +38,7 @@ function TeamYearCsv({ team, year }: { team: Team; year: string }) {
       <Button
         type="button"
         onClick={download}
+        aria-describedby={state === "error" ? `csv-feil-${team.team_id}` : undefined}
         loading={state === "loading"}
         variant="tertiary"
         size="xsmall"
@@ -43,7 +47,11 @@ function TeamYearCsv({ team, year }: { team: Team; year: string }) {
       >
         CSV
       </Button>
-      {state === "error" && <ErrorMessage size="small">Kunne ikke laste ned. Prøv igjen senere.</ErrorMessage>}
+      {state === "error" && (
+        <ErrorMessage size="small" id={`csv-feil-${team.team_id}`} role="alert">
+          Kunne ikke laste ned. Prøv igjen senere.
+        </ErrorMessage>
+      )}
     </VStack>
   );
 }
