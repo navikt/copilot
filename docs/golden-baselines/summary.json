@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-08",
+  "generated": "2026-10-11",
   "runs": [
     {
       "date": "2026-09-30",
@@ -3737,6 +3737,184 @@
         "median": 108.6
       },
       "source": "docs/golden-baselines/2026-10-08-haiku-kafka-rust/rust-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-10-11",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.95",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 7.391,
+        "mean": 7.637
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 23.9
+      },
+      "source": "docs/golden-baselines/2026-10-12-sol61-rerun/planning-t2-med-linje-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-11",
+      "suite": "planning",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.95",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 6.768,
+        "mean": 7.03
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 20.5
+      },
+      "source": "docs/golden-baselines/2026-10-12-sol61-rerun/planning-t2-uten-linje-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-11",
+      "suite": "planning",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.95",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 7.708,
+        "mean": 7.929
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 27.7
+      },
+      "source": "docs/golden-baselines/2026-10-12-sol61-rerun/planning-t2-med-linje-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-11",
+      "suite": "planning",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.95",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "t2",
+          "description": "Stiller spørsmål i fase 1 og venter på svar",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 6.894,
+        "mean": 7.35
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 20.0
+      },
+      "source": "docs/golden-baselines/2026-10-12-sol61-rerun/planning-t2-uten-linje-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-11",
+      "suite": "review",
+      "model": "gpt-6-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.95",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 5
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 7.502,
+        "mean": 7.384
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 20.9
+      },
+      "source": "docs/golden-baselines/2026-10-12-sol61-rerun/review-rv1-rv2-gpt-6-sol-low.txt"
+    },
+    {
+      "date": "2026-10-11",
+      "suite": "review",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.95",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rv1",
+          "description": "Kotlin: finner alle tre plantede feil",
+          "passed": 5
+        },
+        {
+          "id": "rv2",
+          "description": "Kotlin: riktig linje for hver feil",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 5.953,
+        "mean": 6.372
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 19.7
+      },
+      "source": "docs/golden-baselines/2026-10-12-sol61-rerun/review-rv1-rv2-gpt-6.1-sol-low.txt"
     }
   ]
 }

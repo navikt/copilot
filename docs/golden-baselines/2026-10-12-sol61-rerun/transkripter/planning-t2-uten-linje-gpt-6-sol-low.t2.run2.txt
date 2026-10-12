@@ -1,0 +1,50 @@
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml,nais.yaml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*.{kt,yaml,yml,md}"
+  └ 23 files found
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+**Fase 1: Avklaring.** Repoet er en Ktor-demo med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten eller `accessPolicy` konfigurert. Å lese fødselsnummer fra innloggingen krever derfor en ny autentiserings- og persondataflyt. Jeg gjør ingen kodeendringer før dette er avklart.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, lagre det eller sende det videre? Hvilke andre personopplysninger skal behandles?
+2. Skal bare den innloggede innbyggeren bruke tjenesten, eller skal saksbehandlere eller andre tjenester også kunne kalle den? Hvem skal kunne lese resultatet?
+3. Skal dette erstatte demo-endepunktet, eller bli en egen tjeneste? Finnes det API-konsumenter eller andre team vi må ta hensyn til?
+4. Hvilke avhengigheter skal tjenesten kalle, og hva skal brukeren få beskjed om hvis de er nede?
+5. Finnes det tester eller en løsning som skal videreføres? Hvis dette erstatter noe, hvordan skal vi kunne rulle tilbake?
+6. Hva skal vise at tjenesten fungerer i drift, uten å logge fødselsnummer?
+
+Repo-lokal Copilot-konfigurasjon (`AGENTS.md` og `.github/copilot-*.md`) mangler. `nav-pilot init` kan legge den til. Bakoverkompatibilitet for et nytt format og avvikling av en gammel løsning er ikke relevante før vi vet om noe skal erstattes.
+
+Blindsoner reist: 8/11 (#1–#8 stilt; #9–#10 avventer omfang, #11 ikke avklart som eget spørsmål).
+

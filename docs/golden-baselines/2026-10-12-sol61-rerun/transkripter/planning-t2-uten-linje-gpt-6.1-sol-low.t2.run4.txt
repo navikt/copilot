@@ -1,0 +1,49 @@
+● skill(nav-auth)
+
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/**,**/nais*.yaml,**/nais*.yml,package.json,build.gradle.kts,pom.xml}"
+  └ 19 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1: Avklaring (fullt omfang).** Repoet har en Ktor-demo uten autentisering eller ID-porten-konfigurasjon. Jeg antar at tjenesten skal lese fødselsnummeret til den innloggede innbyggeren, ikke et nummer sendt inn av klienten. Ingen kode er endret.
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer krever grundig forståelse. Fødselsnummer og tokens skal ikke logges.
+
+Før en konkret plan må disse kravene avklares:
+1. Hva skal fødselsnummeret brukes til? Skal det lagres, returneres eller sendes til andre tjenester, og behandles andre personopplysninger?
+2. Skal innbyggeren bruke tjenesten direkte via nettleser, eller skal en annen Nav-tjeneste kalle den på brukerens vegne?
+3. Skal dette erstatte demoen, og hvilke team og tjenester er involvert?
+4. Hvilket sikkerhetsnivå kreves, og hvordan skal tjenesten håndtere utilgjengelig innlogging eller avhengigheter?
+5. Hva viser at tjenesten fungerer, og hvilke krav gjelder for tester og rollback?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette repo-konfigurasjonen. Anslått tokenbudsjett per fase: intervju 1 000, plan 2 000, review 1 500, levering 3 000.
+
+Blindsoner reist: 8/11 (#1–#8). #9–#10 er foreløpig ikke relevante for en ny tjeneste uten kjente konsumenter eller gammel løsning; #11 er markert som rød sone.
+

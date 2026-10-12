@@ -1,0 +1,28 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/**,nais*.yaml,package.json,build.gradle.kts,pom.xml,docs/nav-pilot-design.md
+  │ }"
+  └ 19 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+**Fase 1: Avklaring (fullt omfang).** En ny tjeneste med ID-porten og fødselsnummer krever avklart tilgang og personvern før implementering. Repoet har Ktor 3.0.0 og et Nais-manifest uten auth-konfigurasjon. Ingen kode er endret.
+
+Jeg legger til grunn at fødselsnummeret gjelder den innloggede personen. Følgende er fortsatt uavklart:
+- Formålet med å lese fødselsnummeret, og om tjenesten også behandler andre personopplysninger.
+- Om nettleseren kaller tjenesten direkte, eller en annen Nav-tjeneste kaller med brukerkontekst.
+- Om fødselsnummeret skal brukes midlertidig, lagres eller sendes videre, og hvem som får tilgang.
+- Hvem som eier innloggingsflyten og eventuelle mottakertjenester.
+- Forventet oppførsel ved innloggingsfeil, og hvordan funksjonen skal testes og måles uten persondata.
+
+🔴 Rød sone: autentisering og tilgang til fødselsnummer krever grundig forståelse. Fødselsnummer og tokens skal ikke logges.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Fasebudsjett: intervju 1 000, plan 2 000, review 1 000 og levering 3 000 tokens.
+
+Blindsoner identifisert: 8/11 (#1–#7 og #11 uavklart; #8–#10 gjelder migrering og avvikling og er ikke relevante for en ny tjeneste).
+

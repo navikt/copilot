@@ -1,0 +1,63 @@
+/ Search (glob)
+  │ "**/nais*.{yaml,yml}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "docs/nav-pilot-design.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+● List directory .
+  └ 5 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*.kt"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+Dette er en ny tjeneste med personopplysninger og innlogging, så jeg stopper ved **fase 1: avklaringer** før vi velger løsning. Repoet inneholder en enkel Ktor-demo på Nais, men ingen ID-porten-oppsett. `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler; `nav-pilot init` kan legge til lokal Copilot-konfigurasjon.
+
+- Hva skal tjenesten bruke fødselsnummeret til, og skal det lagres, sendes videre eller bare brukes under forespørselen?
+- Skal innbyggeren bruke tjenesten direkte via nettleser, eller finnes det en frontend eller BFF som kaller den? Skal andre tjenester ha tilgang?
+- Hvem skal motta data eller svar fra tjenesten, og hva skal skje hvis en avhengighet er nede?
+- Skal dette erstatte demo-tjenesten, eller opprettes som en separat tjeneste? Finnes det krav til utrulling eller tilbakeføring?
+
+Jeg utsetter spørsmål om måltall, tester og avvikling til tjenestens formål og dataflyt er kjent.
+
+Blindsoner reist: 5/11 (#1, #2, #3, #5, #6; #4, #7–#11 utsettes eller er ikke avklart som relevante).
+

@@ -1,0 +1,43 @@
+● skill(klarsprak)
+
+● List directory .
+  └ 5 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/**,src/**}"
+  └ 21 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+**Fase 1: Avklaring.** Dette er en full oppgave: ny tjeneste med autentisering og behandling av fødselsnummer. Repoet inneholder en Ktor-demo uten auth. `nais.yaml` har ikke ID-porten-konfigurasjon eller `accessPolicy`.
+
+Jeg antar at tjenesten skal lese fødselsnummeret til den innloggede innbyggeren. Følgende er uavklart før implementering:
+
+1. Formålet med å bruke fødselsnummeret, og om tjenesten skal behandle andre personopplysninger.
+2. Hvem som skal kalle tjenesten: innbyggerens nettleser direkte eller en annen Nav-tjeneste på vegne av innbyggeren.
+3. Om fødselsnummeret bare brukes under forespørselen, lagres eller sendes videre, og hvilke mottakere som får det.
+4. Om tjenesten skal erstatte demoen eller opprettes separat, og hvilket team som eier den.
+5. Krav til sikkerhetsnivå ved innlogging og oppførsel når identitet mangler eller ID-porten er utilgjengelig.
+6. Testkrav og hvordan dere skal overvåke tjenesten uten å logge fødselsnummer eller tokens.
+
+🔴 Rød sone: autentisering og tilgangskontroll må forstås grundig. Fødselsnummer må komme fra en validert identitet, ikke fra et klientstyrt felt.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Ingen filer er endret.
+
+Blindsoner identifisert: 7/11 (#1, #2, #3, #4, #5, #6, #7). #8–#10 er foreløpig ikke relevante for en ny tjeneste. #11 kan ikke vurderes uten kjennskap til teamets erfaring.
+

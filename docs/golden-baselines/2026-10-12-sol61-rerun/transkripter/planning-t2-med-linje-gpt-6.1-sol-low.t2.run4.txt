@@ -1,0 +1,45 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,**/nais*.yaml
+  │ ,**/nais*.yml,package.json,build.gradle.kts,pom.xml}"
+  └ 2 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+**Fase 1: Avklaringer før vi bygger.** Dette er full løype: ny tjeneste, personopplysninger og autentisering. Repoet har en Ktor-demo uten auth. `nais.yaml` har verken ID-porten-konfigurasjon eller `accessPolicy`.
+
+Jeg legger til grunn at fnr betyr fødselsnummeret til den innloggede brukeren. Fødselsnummer og tokens skal ikke logges.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller bare brukes under forespørselen? Behandles også andre personopplysninger?
+2. Kaller brukeren tjenesten direkte fra nettleseren, eller går kallet gjennom en frontend/BFF eller en annen Nav-tjeneste?
+3. Skal vi utvide Ktor-demoen eller opprette en separat tjeneste? Hvilket team eier den, og hvilke tjenester skal den eventuelt kalle?
+4. Hva skal brukeren oppleve når innlogging eller en avhengighet feiler?
+5. Hvilke tester og driftsmålinger skal vise at flyten fungerer, uten å registrere fødselsnummer eller tokens?
+
+🔴 Rød sone: autentisering og tilgangskontroll må forstås grundig. Ingen kode er endret. Fasebudsjett: intervju ca. 1 000 tokens, plan 2 000, review 1 500, levering etter avklart omfang.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 7/11 (#1–#7). #8–#10 er ikke relevante med antakelsen om en ny tjeneste uten eksisterende konsumenter. #11 er markert som rød sone.
+

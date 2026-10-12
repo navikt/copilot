@@ -1,0 +1,50 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,nais.yaml,**/
+  │ nais.yaml,build.gradle.kts,package.json,pom.xml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+● Inspect project and Copilot configuration (shell)
+  │ pwd && ls -la && ls -la .github 2>/dev/null || true
+  └ 14 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er en **ny tjeneste med personopplysninger og innlogging**, så jeg stopper ved avklaringene før jeg lager en plan eller endrer kode. Repoet er i dag en Ktor-demo med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har ikke ID-porten eller `accessPolicy` konfigurert. Jeg antar at fødselsnummeret skal komme fra en validert ID-porten-innlogging, ikke fra et felt klienten sender inn.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bruke det i ett oppslag, sende det til en annen tjeneste, eller lagre det? Hvilke andre personopplysninger inngår?
+2. Hvem skal kunne bruke tjenesten: innbyggeren i nettleser, en annen Nav-tjeneste eller begge? Skal dette være en ny tjeneste ved siden av demoen, eller skal demoen bygges om?
+3. Hvis den kaller en annen tjeneste: hvilken, og hva skal skje når den er utilgjengelig? Hvem eier resten av flyten?
+4. Finnes det allerede klienter som bruker demoens API, og må `/api/oppgaver` beholdes uendret? Finnes det tester eller en etablert måte å rulle tilbake på?
+5. Er ID-porten, Ktor eller håndtering av fødselsnummer nytt for teamet?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan legge til lokal Copilot-konfigurasjon. Fasebudsjett: intervju ~500, plan ~900, gjennomgang ~500 og levering etter godkjenning.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #5, #6, #7, #8, #11; #4 tas i planen når formålet er kjent, #9 og #10 er foreløpig ikke relevante).
+
