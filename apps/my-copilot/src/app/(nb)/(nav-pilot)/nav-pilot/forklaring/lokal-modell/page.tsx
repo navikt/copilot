@@ -147,8 +147,8 @@ export default function LokalModellForklaring() {
               slår ikke inn.
             </li>
             <li>
-              Lager modellen en ny fil som ikke bygger eller består testene, får den feilen tilbake og ett nytt forsøk
-              (retry2, levert i{" "}
+              Lager eller endrer modellen en fil som ikke bygger eller består testene, får den feilen tilbake og ett
+              nytt forsøk (retry2, levert i{" "}
               <a href="https://github.com/navikt/copilot/pull/1156" className={linkClass}>
                 navikt/copilot#1156
               </a>
@@ -158,6 +158,10 @@ export default function LokalModellForklaring() {
                 className={linkClass}
               >
                 målingen 10. oktober 2026
+              </a>
+              ). Ved endring av én fil ble 48 av 48 godkjent, 11 av dem først etter det nye forsøket (
+              <a href="https://github.com/navikt/mlx-workspace/issues/237" className={linkClass}>
+                mlx-workspace#237
               </a>
               ).
             </li>

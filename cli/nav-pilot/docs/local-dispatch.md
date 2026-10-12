@@ -185,7 +185,7 @@ session goes on. See "Checking the worker's result" below.
      fails). A refusal inside a subagent's session fails that whole `task`, and the
      worker's own edits must never pass the gate;
    - the session's agent is unknown or is `local-worker`. The one exception, never a
-     refusal: a file the worker creates is reported (`phase: "worker"`) for the retry
+     refusal: a file the worker creates or edits is reported (`phase: "worker"`) for the retry
      below;
    - anything fails (fail open).
 
@@ -261,10 +261,11 @@ nothing. So:
   The orchestrator reads it at the moment it decides.
 - The route marks the turn unverified. A bash segment that builds or runs tests (Gradle,
   Maven, `go test`, `npm test`, `tsc`, `pytest` and the like, `local.Verifies`) clears it.
-- One retry for a new file (mlx-workspace #126, bench-frontier's `retry2`: on create-file
-  15/20 verified against 5/20, 322 s against 618 s per verified result). The plugin reports
-  the worker's own new files (`phase: "worker"`, from its session) and the worker's session
-  on the task's return (`output.metadata.sessionId`). When the worker created a file, the
+- One retry for a new or edited file (mlx-workspace #126, bench-frontier's `retry2`: on
+  create-file 15/20 verified against 5/20, 322 s against 618 s per verified result; on
+  edit-single 48/48, 11 of them after the retry, mlx-workspace #237). The plugin reports
+  the worker's own writes and edits (`phase: "worker"`, from its session) and the worker's session
+  on the task's return (`output.metadata.sessionId`). When the worker created or edited a file, the
   first build or test after the return is the check. On its `tool.execute.after` the
   plugin sends the exit code (`output.metadata.exit`). A failure appends: send it back to
   `local-worker` once, in the same task, with the output and «The change is not done yet.

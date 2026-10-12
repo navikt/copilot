@@ -66,12 +66,12 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
       const args = output?.args ?? {}
       const agent = await orchestrator(input.sessionID)
       if (!agent) {
-        // The worker's new files: a check that fails after it returns goes
-        // back to it once. Never a refusal here.
-        if (agents.get(input.sessionID) === "local-worker" && (input.tool === "write" || (input.tool === "edit" && args.oldString === ""))) {
+        // The worker's writes and edits: a check that fails after it returns
+        // goes back to it once. Never a refusal here.
+        if (agents.get(input.sessionID) === "local-worker" && (input.tool === "write" || input.tool === "edit")) {
           const path = str(args.filePath)
           try {
-            await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: true, path: isAbsolute(path) ? path : join(directory ?? "", path), phase: "worker" })
+            await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: input.tool === "write" || args.oldString === "", path: isAbsolute(path) ? path : join(directory ?? "", path), phase: "worker" })
           } catch {}
         }
         return
