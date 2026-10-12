@@ -1494,8 +1494,12 @@ run_prompt() {
       case "$SESSIONS_SEEN" in
         *" $session "*)
           local oc_sid
-          oc_sid="$(cd "$WS" && env ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" session list --format json 2>/dev/null \
-            | python3 -c 'import json,sys; print(next((s["id"] for s in json.load(sys.stdin) if s.get("title")==sys.argv[1]),""))' "$session")"
+          if ! oc_sid="$(cd "$WS" && env ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" session list --format json 2>&1 \
+            | python3 -c 'import json,sys; print(next((s["id"] for s in json.load(sys.stdin) if s.get("title")==sys.argv[1]),""))' "$session" 2>&1)"; then
+            LAST_PROMPT_DETAIL="opencode session list failed: $(head -c 300 <<<"$oc_sid")"
+            LAST_PROMPT_FAILURE="cli_failure"
+            return 1
+          fi
           if [[ -z "$oc_sid" ]]; then
             LAST_PROMPT_DETAIL="no opencode session titled $session to continue"
             LAST_PROMPT_FAILURE="cli_failure"

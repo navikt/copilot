@@ -1,6 +1,6 @@
 # Test 4 i opencode, 12. oktober 2026
 
-Første kjøring av test 4 med `--client opencode` ([#1451](https://github.com/navikt/copilot/issues/1451)). Før 12. oktober kjørte harnessen bare enkeltprompter i opencode, så test 4 ble hoppet over.
+Første kjøring av test 4 med `--client opencode` ([#1451](https://github.com/navikt/copilot/issues/1451)). Før 12. oktober kjørte harnessen bare enkeltprompter i opencode. Test 4 ble ført som feilet uten at modellen ble kalt, se for eksempel [planleggingskjøringen 7. oktober](../2026-10-07-personvern-pr1442-v6-planning-opencode-gpt-6-sol-results.psv).
 
 ## Oppsett
 
