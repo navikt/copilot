@@ -106,8 +106,10 @@ type teamYearRow struct {
 func (bq *BigQueryClient) GetTeamYearOverview(ctx context.Context, team string, year int) (*TeamYearOverview, error) {
 	// Like GetTeamNetOverview: the billing tables only exist after an operator
 	// starts a backfill. Without them every month falls back to gross.
-	net := true
-	if _, err := bq.client.Dataset(bq.metricsDataset).Table("billing_user_monthly_runs").Metadata(ctx); err != nil {
+	net, residual := true, false
+	if md, err := bq.client.Dataset(bq.metricsDataset).Table("billing_user_monthly_runs").Metadata(ctx); err == nil {
+		residual = hasColumns(md.Schema, "enterprise_net", "residual_net")
+	} else {
 		var apiErr *googleapi.Error
 		if !errors.As(err, &apiErr) || apiErr.Code != 404 {
 			return nil, fmt.Errorf("read billing run metadata: %w", err)
@@ -123,7 +125,7 @@ func (bq *BigQueryClient) GetTeamYearOverview(ctx context.Context, team string, 
 			return nil, err
 		}
 	}
-	it, err := bq.teamYearQuery(team, year, net, seats).Read(ctx)
+	it, err := bq.teamYearQuery(team, year, net, residual, seats).Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read team year usage: %w", err)
 	}
@@ -203,13 +205,33 @@ func (bq *BigQueryClient) tableExists(ctx context.Context, table string) (bool, 
 	return true, nil
 }
 
-func (bq *BigQueryClient) teamYearQuery(team string, year int, net, seats bool) *bigquery.Query {
+// hasColumns reports whether schema has every named column. A runs table
+// published by a copilot-metrics build older than #1596 lacks the residual
+// columns, and a query naming them fails as a whole.
+func hasColumns(schema bigquery.Schema, names ...string) bool {
+	have := map[string]bool{}
+	for _, f := range schema {
+		have[f.Name] = true
+	}
+	for _, n := range names {
+		if !have[n] {
+			return false
+		}
+	}
+	return true
+}
+
+func (bq *BigQueryClient) teamYearQuery(team string, year int, net, residual, seats bool) *bigquery.Query {
 	first := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	netCTEs, completed := teamYearNetStubs, "SELECT DATE(NULL) month,CAST(NULL AS FLOAT64) residual_pct FROM UNNEST([1]) WHERE FALSE"
 	if net {
 		netCTEs = bq.teamNetCTEs()
-		completed = fmt.Sprintf("SELECT month,ANY_VALUE(SAFE_DIVIDE(residual_net,enterprise_net)*100) residual_pct FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND status='complete' GROUP BY month",
-			bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"))
+		pct := "CAST(NULL AS FLOAT64)"
+		if residual {
+			pct = "SAFE_DIVIDE(residual_net,enterprise_net)*100"
+		}
+		completed = fmt.Sprintf("SELECT month,ANY_VALUE(%s) residual_pct FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND status='complete' GROUP BY month",
+			pct, bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"))
 	}
 	seatCTEs := teamYearSeatsStub
 	if seats {

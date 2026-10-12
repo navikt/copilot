@@ -134,7 +134,7 @@ func TestTeamYearQueryWithoutBillingTables(t *testing.T) {
 	}
 	client := &BigQueryClient{client: bqc, projectID: "p", metricsDataset: "d"}
 	for _, net := range []bool{true, false} {
-		q := client.teamYearQuery("123", 2026, net, net)
+		q := client.teamYearQuery("123", 2026, net, net, net)
 		billing := strings.Contains(q.Q, "billing_user_monthly")
 		if strings.Contains(q.Q, "copilot_seats") != net {
 			t.Errorf("seats=%v: copilot_seats referenced wrongly", net)
@@ -268,4 +268,24 @@ func TestTeamYearMatchesMonthEndpoints(t *testing.T) {
 		t.Fatal("nothing compared")
 	}
 	t.Logf("compared %d team-months across %d teams", compared, len(ids))
+}
+
+// A runs table without the residual columns (published before #1596) must not
+// be named in the query: BigQuery fails the whole query on an unknown column.
+func TestTeamYearQueryWithoutResidualColumns(t *testing.T) {
+	bqc, err := bigquery.NewClient(context.Background(), "p", option.WithoutAuthentication())
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &BigQueryClient{client: bqc, projectID: "p", metricsDataset: "d"}
+	if q := client.teamYearQuery("123", 2026, true, false, true).Q; strings.Contains(q, "residual_net") || strings.Contains(q, "enterprise_net") {
+		t.Error("query names residual columns the runs table lacks")
+	}
+	if q := client.teamYearQuery("123", 2026, true, true, true).Q; !strings.Contains(q, "SAFE_DIVIDE(residual_net,enterprise_net)") {
+		t.Error("query drops residual_pct when the columns exist")
+	}
+	old := bigquery.Schema{{Name: "month"}, {Name: "status"}}
+	if hasColumns(old, "enterprise_net", "residual_net") || !hasColumns(append(old, &bigquery.FieldSchema{Name: "enterprise_net"}, &bigquery.FieldSchema{Name: "residual_net"}), "enterprise_net", "residual_net") {
+		t.Error("hasColumns wrong")
+	}
 }

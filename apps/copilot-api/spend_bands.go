@@ -350,7 +350,7 @@ func (c *CachedBigQueryClient) GetSpendBands(ctx context.Context) (*SpendBands, 
 func (h *BigQueryHandlers) handleSpendBands(w http.ResponseWriter, r *http.Request) {
 	bands, err := h.bqClient.GetSpendBands(r.Context())
 	if err != nil {
-		slog.Error("Failed to fetch spend bands")
+		slog.Error("Failed to fetch spend bands", "error", err)
 		respondError(w, "internal_error", "Failed to fetch spend bands", http.StatusInternalServerError)
 		return
 	}

@@ -47,7 +47,7 @@ func (h *BigQueryHandlers) handleTeamGrossOverview(w http.ResponseWriter, r *htt
 	}
 	usage, err := h.bqClient.GetTeamGrossOverview(r.Context(), month)
 	if err != nil {
-		slog.Error("Failed to fetch team gross usage")
+		slog.Error("Failed to fetch team gross usage", "error", err)
 		respondError(w, "internal_error", "Failed to fetch team gross usage", http.StatusInternalServerError)
 		return
 	}
@@ -73,7 +73,7 @@ func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.
 			respondJSON(w, nil, http.StatusOK)
 			return
 		}
-		slog.Error("Failed to fetch team net usage")
+		slog.Error("Failed to fetch team net usage", "error", err)
 		respondError(w, "internal_error", "Failed to fetch team net usage", http.StatusInternalServerError)
 		return
 	}
@@ -115,7 +115,7 @@ func (h *BigQueryHandlers) handleTeamYearOverview(w http.ResponseWriter, r *http
 	}
 	overview, err := h.bqClient.GetTeamYearOverview(r.Context(), team, year)
 	if err != nil {
-		slog.Error("Failed to fetch team year usage")
+		slog.Error("Failed to fetch team year usage", "error", err)
 		respondError(w, "internal_error", "Failed to fetch team year usage", http.StatusInternalServerError)
 		return
 	}
