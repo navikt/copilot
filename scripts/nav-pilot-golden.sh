@@ -4370,11 +4370,13 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   # The raw transcripts, so a red row can be read later without --keep. Raw, not
   # the svar filter: some checks read the tool lines. A review run is about 2 KB.
   # Named <baseline>.<slug>.run<N>.txt, like the transkripter/ already committed.
+  tdir="$(dirname "$SAVE_TO")/transkripter"
+  tbase="$(basename "${SAVE_TO%.txt}")"
+  # Always clear the old ones: --no-transcripts must not leave a stale set that
+  # reads as this run's.
+  rm -f "$tdir/$tbase".*.run*.txt
   if $TRANSCRIPTS; then
-    tdir="$(dirname "$SAVE_TO")/transkripter"
-    tbase="$(basename "${SAVE_TO%.txt}")"
     mkdir -p "$tdir"
-    rm -f "$tdir/$tbase".*.run*.txt
     for f in "$WORKDIR"/*.run*.txt; do
       [[ -f "$f" && "$f" != *.svar.txt ]] || continue
       cp "$f" "$tdir/$tbase.$(basename "$f")"

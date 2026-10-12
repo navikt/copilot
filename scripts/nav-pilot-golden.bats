@@ -575,6 +575,14 @@ run_suite() {
   [ ! -e "$SHIM/b-usage.psv" ]
 }
 
+@test "--no-transcripts still clears the old transcripts of the saved arm" {
+  mkdir -p "$SHIM/transkripter"
+  echo stale >"$SHIM/transkripter/b.x.run1.txt"
+  run_suite good --suite research --no-transcripts
+  [ "$status" -eq 0 ]
+  [ ! -e "$SHIM/transkripter/b.x.run1.txt" ]
+}
+
 @test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {
   command -v go >/dev/null && command -v node >/dev/null || skip "needs go and node"
   run_suite good --suite coding
