@@ -293,6 +293,8 @@ func TestCopilotSessionArgs(t *testing.T) {
 		{[]string{"--resume=" + u}, u},
 		{[]string{"--session-id", u}, u},
 		{[]string{"-r", u}, u},
+		{[]string{"-r" + u}, u},
+		{[]string{"-r0cb916d"}, ""},
 		{[]string{"--resume"}, ""},
 		{[]string{"--resume=0cb916d"}, ""},
 		{[]string{"--continue"}, ""},

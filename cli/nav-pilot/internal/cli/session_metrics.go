@@ -408,6 +408,13 @@ func copilotSessionArgs(extra []string) (id string, add []string) {
 		case "--continue", "--connect":
 			return "", nil
 		}
+		if len(a) > 2 && a[:2] == "-r" && a[2] != '-' {
+			// glued short form: -r<id>
+			if copilotSessionID.MatchString(a[2:]) {
+				return a[2:], nil
+			}
+			return "", nil
+		}
 	}
 	id = uuid.NewString()
 	return id, []string{"--session-id=" + id}
