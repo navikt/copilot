@@ -17,7 +17,7 @@ import { CostStatusCards } from "@/components/cost-status-cards";
 
 // Spend and limits are internal: only the copilot team sees this page, everyone else gets 404.
 export const metadata: Metadata = {
-  title: "Kostnad",
+  title: "Kostnadskontroll",
   description: "Forbruk og grenser for Copilot i Nav.",
   robots: { index: false, follow: false },
 };
@@ -62,7 +62,7 @@ export default async function CostPage() {
 
   return (
     <InsightPage
-      title="Kostnad"
+      title="Kostnadskontroll"
       description="Forbruk og grenser for Copilot i Nav."
       intro="Siden er bare for team copilot. Alle beløp er i USD."
       updated={async () => last_gross_day || null}
@@ -176,7 +176,7 @@ export default async function CostPage() {
           </ListItem>
         </List>
       </InsightSection>
-      <CostForecastSection token={token} />
+      <CostForecastSection token={token} months={data.months} />
       <CostTrendsSection token={token} />
       <HighConsumersSection token={token} />
     </InsightPage>

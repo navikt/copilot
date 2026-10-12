@@ -33,7 +33,18 @@ export interface HeaderLabels {
 const current = (pathname: string, active: string | undefined, href: string) =>
   pathname === href ? ("page" as const) : active === href ? ("true" as const) : undefined;
 
-export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userName?: string }) {
+// Admin-only cost page; the link shows only for admins (isAdmin), the page itself 404s for everyone else.
+const ADMIN_COST_HREF = "/innsikt/kostnad";
+
+export function SiteHeader({
+  labels,
+  userName,
+  admin = false,
+}: {
+  labels: HeaderLabels;
+  userName?: string;
+  admin?: boolean;
+}) {
   const pathname = usePathname();
   const active = activeTop(pathname);
   // The English pages link to the Norwegian ones.
@@ -71,7 +82,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
         </div>
         <div className="hidden lg:flex items-center gap-4 text-sm">
           {userName ? (
-            <UserMenu labels={labels} userName={userName} />
+            <UserMenu labels={labels} userName={userName} admin={admin} />
           ) : (
             <a href="/oauth2/login" className="top-link">
               {labels.signIn}
@@ -79,7 +90,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
           )}
         </div>
         <div className="lg:hidden">
-          <MobileMenu labels={labels} userName={userName} />
+          <MobileMenu labels={labels} userName={userName} admin={admin} />
         </div>
       </div>
     </>
@@ -94,7 +105,7 @@ const initials = (name: string) => {
 // From 1024 px: the name (initials below 1280 px) opens a disclosure panel with
 // the name, the AI credit usage and the subscription link. A disclosure, not Aksel ActionMenu: role="menu" traps
 // Tab.
-function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string }) {
+function UserMenu({ labels, userName, admin }: { labels: HeaderLabels; userName: string; admin: boolean }) {
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
   const pct = useBudgetPct(true);
   const [open, setOpen] = useState(false);
@@ -150,6 +161,19 @@ function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string
                   {labels.subscription}
                 </Link>
               </BodyShort>
+              {admin && (
+                <BodyShort>
+                  <Link
+                    as={NextLink}
+                    href={ADMIN_COST_HREF}
+                    lang="nb"
+                    hrefLang={hrefLang}
+                    onClick={() => setOpen(false)}
+                  >
+                    Kostnadskontroll
+                  </Link>
+                </BodyShort>
+              )}
             </VStack>
           </Popover.Content>
         </Popover>
@@ -160,7 +184,7 @@ function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string
 
 // Below 1024 px: an Aksel Dialog from the right with two levels, the five
 // groups and the section menu, as on aksel.nav.no.
-function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: string }) {
+function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userName?: string; admin: boolean }) {
   const pathname = usePathname();
   const active = activeTop(pathname);
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
@@ -249,6 +273,11 @@ function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: str
                       <NextLink href={labels.subscriptionHref} hrefLang={hrefLang} className="panel-item">
                         {labels.subscription}
                       </NextLink>
+                      {admin && (
+                        <NextLink href={ADMIN_COST_HREF} lang="nb" hrefLang={hrefLang} className="panel-item">
+                          Kostnadskontroll
+                        </NextLink>
+                      )}
                     </li>
                   ) : (
                     <li className="panel-gap">

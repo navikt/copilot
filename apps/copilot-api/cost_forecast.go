@@ -30,6 +30,16 @@ type CostForecast struct {
 	BudgetStatus string          `json:"budget_status"`
 	BudgetUSD    float64         `json:"budget_usd,omitempty"`
 	Models       []ModelForecast `json:"models"`
+	// Days is billed net accumulated per day this month: actual up to the
+	// last day with data, then the trend model's midpoint to month end.
+	Days []CostForecastDay `json:"days"`
+}
+
+// CostForecastDay is cumulative enterprise net on one day of the month.
+type CostForecastDay struct {
+	Day      string  `json:"day"`
+	NetUSD   float64 `json:"net_usd"`
+	Forecast bool    `json:"forecast"`
 }
 
 // ModelForecast is one model's forecast of billed net at month end.
@@ -50,6 +60,8 @@ type ModelForecast struct {
 	BudgetPct        float64  `json:"budget_pct"`
 	// OverBudget is anomaly A4: the net midpoint is above the budget.
 	OverBudget bool `json:"over_budget"`
+	// path is the cumulative net midpoint for each day after the last day with data.
+	path []float64
 }
 
 const (
@@ -258,7 +270,7 @@ func absInt(x int) int {
 // allowance minus what is used so far (a change in seats shifts it). trickle
 // is the small share still free after the allowance is used up (seats added
 // during the month), from days 20+ of last month once its allowance was used.
-func poolNet(days []CostDay, month, last time.Time, rem []float64) (gross, net float64, usedUp bool, runsOut string, ok bool) {
+func poolNet(days []CostDay, month, last time.Time, rem []float64) (gross, net float64, path []float64, usedUp bool, runsOut string, ok bool) {
 	cur, prev := month.Format("2006-01"), month.AddDate(0, -1, 0).Format("2006-01")
 	var gm, nm, prevGross, prevNet, tailGross, tailNet float64
 	for _, d := range days {
@@ -283,12 +295,16 @@ func poolNet(days []CostDay, month, last time.Time, rem []float64) (gross, net f
 		}
 	}
 	if prevGross == 0 {
-		return 0, 0, false, "", false
+		return 0, 0, nil, false, "", false
 	}
 	usedUp = runsOut != ""
 	left := 0.0
 	if !usedUp {
 		left = math.Max(0, (prevGross-prevNet)-(gm-nm))
+	}
+	trickle := 0.0 // no billed tail last month: assume none stays free
+	if tailGross > 0 {
+		trickle = 1 - tailNet/tailGross
 	}
 	var r float64
 	for i, v := range rem {
@@ -296,12 +312,9 @@ func poolNet(days []CostDay, month, last time.Time, rem []float64) (gross, net f
 		if runsOut == "" && r >= left {
 			runsOut = dayOf(month, last.Day()+1+i).Format("2006-01-02")
 		}
+		path = append(path, nm+math.Max(0, r-left)*(1-trickle))
 	}
-	trickle := 0.0 // no billed tail last month: assume none stays free
-	if tailGross > 0 {
-		trickle = 1 - tailNet/tailGross
-	}
-	return gm + r, nm + math.Max(0, r-left)*(1-trickle), usedUp, runsOut, true
+	return gm + r, nm + math.Max(0, r-left)*(1-trickle), path, usedUp, runsOut, true
 }
 
 // lastDayIn returns the last day of month in days.
@@ -323,13 +336,13 @@ func lastDayIn(days []CostDay, month time.Time) (time.Time, bool) {
 func forecastModels(days []CostDay, users []UserDay, month, last time.Time) (out map[string]ModelForecast, usedUp bool) {
 	out = map[string]ModelForecast{}
 	if rem, ok := trendRemaining(days, month, last); ok {
-		if g, n, u, runs, ok := poolNet(days, month, last, rem); ok {
-			out[modelTrend] = ModelForecast{Model: modelTrend, GrossMidUSD: g, NetMidUSD: n, AllowanceRunsOut: runs}
+		if g, n, path, u, runs, ok := poolNet(days, month, last, rem); ok {
+			out[modelTrend] = ModelForecast{Model: modelTrend, GrossMidUSD: g, NetMidUSD: n, AllowanceRunsOut: runs, path: path}
 			usedUp = u
 		}
 	}
 	if proj, rem := projectUsers(users, month, last); len(proj) > 0 {
-		if g, n, u, runs, ok := poolNet(days, month, last, rem); ok {
+		if g, n, _, u, runs, ok := poolNet(days, month, last, rem); ok {
 			out[modelPerUser] = ModelForecast{Model: modelPerUser, GrossMidUSD: g, NetMidUSD: n, AllowanceRunsOut: runs}
 			usedUp = u
 		}
@@ -396,7 +409,7 @@ func backtest(days []CostDay, users []UserDay, month time.Time) (map[string]floa
 // buildCostForecast runs both models for month, sets each range from its
 // backtest error (at least rangeFloorPct) and compares with the budget.
 func buildCostForecast(days []CostDay, users []UserDay, month time.Time, budget float64, status string) CostForecast {
-	out := CostForecast{Month: month.Format("2006-01"), DaysInMonth: monthDays(month), BudgetStatus: status, Models: []ModelForecast{}}
+	out := CostForecast{Month: month.Format("2006-01"), DaysInMonth: monthDays(month), BudgetStatus: status, Models: []ModelForecast{}, Days: []CostForecastDay{}}
 	if status == budgetSet && budget > 0 {
 		out.BudgetUSD = budget
 	}
@@ -412,10 +425,14 @@ func buildCostForecast(days []CostDay, users []UserDay, month time.Time, budget 
 	for _, d := range days {
 		if d.Day[:7] == out.Month {
 			out.NetToDateUSD += d.Net
+			out.Days = append(out.Days, CostForecastDay{Day: d.Day, NetUSD: out.NetToDateUSD})
 		}
 	}
 	if t, ok := models[modelTrend]; ok {
 		out.AllowanceRunOutDate = t.AllowanceRunsOut
+		for i, v := range t.path {
+			out.Days = append(out.Days, CostForecastDay{Day: dayOf(month, last.Day()+1+i).Format("2006-01-02"), NetUSD: v, Forecast: true})
+		}
 	}
 	errs, months := backtest(days, users, month)
 	for _, name := range []string{modelTrend, modelPerUser} {

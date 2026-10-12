@@ -5,7 +5,8 @@ import ErrorState from "@/components/error-state";
 import { getCostForecast } from "@/lib/cached-bigquery";
 import { formatPercent, formatUSD } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
-import type { CostForecast, CostForecastModel } from "@/lib/types";
+import type { AdminMonth, CostForecast, CostForecastModel } from "@/lib/types";
+import { CostForecastCharts } from "@/components/charts/CostForecastCharts";
 
 const label: Record<CostForecastModel["model"], string> = { trend: "Trend", per_user: "Per person" };
 
@@ -100,7 +101,7 @@ export function CostForecastView({ data: raw }: { data: CostForecast }) {
   );
 }
 
-export async function CostForecastSection({ token }: { token: string }) {
+export async function CostForecastSection({ token, months = [] }: { token: string; months?: AdminMonth[] }) {
   let data: CostForecast | null = null;
   try {
     data = await getCostForecast(token);
@@ -109,6 +110,7 @@ export async function CostForecastSection({ token }: { token: string }) {
   }
   return (
     <InsightSection id="prognose" title="Prognose for måneden">
+      <CostForecastCharts data={data} months={months} />
       {data ? <CostForecastView data={data} /> : <ErrorState message="Kunne ikke hente prognosen." />}
     </InsightSection>
   );

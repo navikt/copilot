@@ -2,7 +2,7 @@ import Faro from "@/components/faro";
 import { FooterMessage } from "@/components/footer-message";
 import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
 import { SiteHeader, type HeaderLabels } from "@/components/navigation/site-nav";
-import { getUser } from "@/lib/auth";
+import { getUser, isAdmin } from "@/lib/auth";
 import { BodyShort, Box, HStack, Link, Theme } from "@navikt/ds-react";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
@@ -50,6 +50,7 @@ export async function SiteShell({
               <SiteHeader
                 labels={{ ...labels, lang }}
                 userName={user ? `${user.firstName} ${user.lastName}` : undefined}
+                admin={isAdmin(user)}
               />
             </Box>
           </header>
