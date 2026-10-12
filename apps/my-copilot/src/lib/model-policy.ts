@@ -57,7 +57,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "Claude Sonnet 5.5",
     fallbacks: ["Claude Sonnet 5"],
     reason:
-      "Besto 24 av 25 tilgjengelighetssjekker (uu1–uu5, fem kjøringer hver) 12. oktober, mot 15 av 25 for GPT-6 Luna. Luna viste aldri til WCAG-kriterier og spurte aldri før den lagde en egen ARIA-rolle, men kostet omtrent en niendedel.",
+      "Besto 24 av 25 tilgjengelighetssjekker 12. oktober 2026 (uu1–uu5, fem kjøringer hver) og 20 av 20 norsksjekker 1. oktober. GPT-6 Luna kostet omtrent en niendedel, men besto bare 15 av 25: den viste aldri til WCAG-kriterier og spurte aldri før den skrev en egen ARIA-rolle.",
     source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-12-sonnet-5-5-aksel",
   },
   {
