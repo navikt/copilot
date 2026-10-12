@@ -120,3 +120,11 @@ func TestCostAnomaliesAdminOnly(t *testing.T) {
 		}
 	}
 }
+
+// Days before the June 2026 basis switch are no baseline for days after it.
+func TestFindAnomaliesBasisSwitch(t *testing.T) {
+	in := anomalyInput{Days: append(anomalyDays("2026-05-01", 31, 700, 100), anomalyDays("2026-06-01", 20, 2100, 300)...), FirstDataDay: "2026-01-01", NetComplete: true}
+	if got := findAnomalies(in, time.Date(2026, 6, 21, 0, 0, 0, 0, time.UTC)); len(got) != 0 {
+		t.Fatalf("basis switch raised %v", got)
+	}
+}

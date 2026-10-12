@@ -16,14 +16,17 @@ import (
 // Start thresholds from PRD 4.3 (decision S10). The owner tunes them after
 // three months of use, so they live here and nowhere else.
 const (
-	spikeFactor        = 2.0  // A1: day above 2 × median for the same day type
-	spikeMinUSD        = 100  // A1: and at least this far above the median
-	spikeBaselineDays  = 28   // A1: median over the previous 28 days
-	newModelMinUSD     = 10.0 // A3: first day a model costs more than this
-	staleDataDays      = 2    // A7: no new gross rows for this many days
-	netRunDueDay       = 5    // A7: last month's net must be complete by this day
-	minBaselineDays    = 4    // A1: skip days with a thinner baseline
-	anomalyWindowDays  = 30   // anomalies shown for the last 30 days
+	spikeFactor       = 2.0  // A1: day above 2 × median for the same day type
+	spikeMinUSD       = 100  // A1: and at least this far above the median
+	spikeBaselineDays = 28   // A1: median over the previous 28 days
+	newModelMinUSD    = 10.0 // A3: first day a model costs more than this
+	staleDataDays     = 2    // A7: no new gross rows for this many days
+	netRunDueDay      = 5    // A7: last month's net must be complete by this day
+	minBaselineDays   = 4    // A1: skip days with a thinner baseline
+	// A1: gross per day roughly tripled when billing moved from premium requests
+	// to AI credits. Days before the switch are no baseline for days after it.
+	billingBasisSwitch = "2026-06-01"
+	anomalyWindowDays  = 30 // anomalies shown for the last 30 days
 	anomalyLookbackDay = anomalyWindowDays + spikeBaselineDays
 )
 
@@ -91,7 +94,7 @@ func findAnomalies(in anomalyInput, today time.Time) []Anomaly {
 		var base []float64
 		for _, p := range in.Days[:i] {
 			pt := day(p.Day)
-			if t.Sub(pt) <= spikeBaselineDays*24*time.Hour && weekend(pt) == weekend(t) {
+			if t.Sub(pt) <= spikeBaselineDays*24*time.Hour && weekend(pt) == weekend(t) && (d.Day < billingBasisSwitch || p.Day >= billingBasisSwitch) {
 				base = append(base, p.Gross)
 			}
 		}
@@ -148,7 +151,7 @@ WHERE LOWER(scope_id)='nav' AND gross_quantity>0 AND day>=DATE(@from) GROUP BY d
 	}
 
 	q = bq.client.Query(fmt.Sprintf(`WITH m AS (
- SELECT day,model,SUM(gross_amount) gross FROM %s WHERE LOWER(scope_id)='nav' AND gross_quantity>0 GROUP BY day,model
+ SELECT day,REGEXP_REPLACE(model,r'^Auto: ','') model,SUM(gross_amount) gross FROM %s WHERE LOWER(scope_id)='nav' AND gross_quantity>0 GROUP BY 1,2
 ) SELECT model,FORMAT_DATE('%%F',MIN(day)) first_day,ARRAY_AGG(gross ORDER BY day LIMIT 1)[OFFSET(0)] gross
 FROM m WHERE gross>@minUSD GROUP BY model HAVING MIN(day)>=DATE(@from)`, daily))
 	q.Parameters = []bigquery.QueryParameter{{Name: "from", Value: from}, {Name: "minUSD", Value: newModelMinUSD}}
