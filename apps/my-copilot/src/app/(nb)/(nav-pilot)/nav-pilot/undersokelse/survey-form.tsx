@@ -280,28 +280,33 @@ function Question({
       );
     case "multi": {
       const picked = Array.isArray(value) ? value : [];
-      // At the limit the unpicked boxes are disabled, and the description says why.
-      const full = !!q.max_choices && picked.length >= q.max_choices;
+      // At the limit the unpicked boxes are disabled, and the description says
+      // why. The exclusive option replaces the picks (exclusivePick), so it
+      // stays enabled, and with it picked every other option does too.
+      const full = !!q.max_choices && picked.length >= q.max_choices && !(q.exclusive && picked.includes(q.exclusive));
       return (
         <CheckboxGroup
           id={`q-${q.id}`}
           tabIndex={-1}
           legend={legend}
           description={
-            full
-              ? `Du har valgt ${q.max_choices}. Fjern et valg for å velge noe annet.`
-              : /\(velg /i.test(q.text)
-                ? undefined
-                : q.max_choices
-                  ? `Velg opptil ${q.max_choices}.`
-                  : "Velg alle som passer."
+            // A live region from the start, so the change is announced while focus stays on a checkbox.
+            <span aria-live="polite">
+              {full
+                ? `Du har valgt ${q.max_choices}. Fjern et valg for å velge noe annet.`
+                : /\(velg /i.test(q.text)
+                  ? undefined
+                  : q.max_choices
+                    ? `Velg opptil ${q.max_choices}.`
+                    : "Velg alle som passer."}
+            </span>
           }
           error={error}
           value={picked}
           onChange={(v: string[]) => onChange(v.length > 0 ? v : undefined)}
         >
           {optionsOf(q).map((o) => (
-            <Checkbox key={o} value={o} disabled={full && !picked.includes(o)}>
+            <Checkbox key={o} value={o} disabled={full && !picked.includes(o) && o !== q.exclusive}>
               {o}
             </Checkbox>
           ))}
@@ -346,7 +351,7 @@ function Matrix({
         {(q.items ?? []).map((it) => (
           <fieldset key={it.id} className="m-0 border-0 p-0">
             <legend className="mb-2 font-semibold">{it.text}</legend>
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
               {steps.map((n, i) => (
                 <label key={n} className="seg">
                   <input
@@ -365,11 +370,13 @@ function Matrix({
         ))}
       </VStack>
       <style>{`
+        .seg { position: relative; } /* the sr-only radio sits on its button, so focus scrolls there */
         .seg span { display:flex; align-items:center; justify-content:center; gap:4px; text-align:center; min-height:48px;
           padding:4px; border:1px solid var(--ax-border-neutral); border-radius:8px; cursor:pointer; font-size:0.875rem; }
+        .seg span:hover { background: var(--ax-bg-neutral-moderate-hover); }
         .seg input:checked + span { background: var(--ax-bg-accent-strong); color: var(--ax-text-accent-contrast);
           border-color: transparent; font-weight: 600; }
-        .seg input:checked + span::before { content: "\\2713"; }
+        .seg input:checked + span::before { content: "\\2713" / ""; } /* empty alt: not part of the radio's name */
         .seg input:focus-visible + span { outline: 3px solid var(--ax-border-focus); outline-offset: 2px; }
       `}</style>
     </Fieldset>

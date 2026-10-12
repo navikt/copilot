@@ -71,6 +71,7 @@ describe("SurveyForm matrix", () => {
     render(<SurveyForm survey={survey} />);
     // jsdom has no native arrow-key radio handling; the browser does it for radios sharing a name.
     const row = within(screen.getByRole("group", { name: "Den er rask." })).getAllByRole("radio");
+    expect(row[0].closest("div")?.getAttribute("style")).toContain("repeat(3, minmax(0, 1fr))"); // one column per step
     expect(new Set(row.map((r) => r.getAttribute("name")))).toEqual(new Set(["q-fast"]));
     expect(row.map((r) => r.getAttribute("value"))).toEqual(["1", "2", "3"]);
     row.forEach((r) => expect(r).not.toBeChecked());
@@ -109,5 +110,24 @@ describe("SurveyForm multi limit", () => {
     expect(screen.getByText(/Du har valgt 2/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: "a" }));
     expect(screen.getByRole("checkbox", { name: "c" })).toBeEnabled();
+  });
+
+  it("keeps the exclusive option open at the limit, and everything open once it is picked", () => {
+    const multi: Survey = {
+      ...survey,
+      questions: [
+        { id: "m", type: "multi", text: "Hva?", options: ["a", "b", "ingen"], max_choices: 1, exclusive: "ingen" },
+      ],
+    };
+    render(<SurveyForm survey={multi} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "a" }));
+    expect(screen.getByRole("checkbox", { name: "b" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "ingen" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "ingen" }));
+    expect(screen.getByRole("checkbox", { name: "a" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "b" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "b" }));
+    expect(screen.getByRole("checkbox", { name: "ingen" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "a" })).toBeDisabled();
   });
 });

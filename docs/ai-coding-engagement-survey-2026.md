@@ -66,7 +66,7 @@ Spørreundersøkelse for ~500 teknologer i Nav. Målet er å forstå hvordan fol
 
 Svaralternativer: Helt uenig / Uenig / Nøytral / Enig / Helt enig
 
-Metodenotat (13. oktober 2026): Påstandene vises som en knapperad per påstand i stedet for et rutenett med radioknapper. Skalaen og verdiene (1–5) er de samme, ingen knapp er forhåndsvalgt, og endringen ble gjort før undersøkelsen fikk svar.
+Metodenotat (13. oktober 2026): På nett vises påstandene som en knapperad per påstand, ikke lenger som et rutenett med radioknapper. Skalaen og verdiene (1–5) er de samme, og ingen knapp er forhåndsvalgt i noen av visningene. nav-pilot viser én påstand per skjerm, som før.
 
 **Q4. Tilfredshet (SPACE-S):** «Alt i alt er jeg fornøyd med AI-kodeverktøyene vi har tilgang til i Nav.»
 
