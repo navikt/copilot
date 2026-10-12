@@ -24,6 +24,17 @@ grep '^-p\nreview this PR\n--session-id=[0-9a-f-]{36}\n---' $WORK/fake/cplt.log
 ! stderr 'boundary must be'
 ! stderr 'Could not read .nav-pilot/agentpakke.lock.json'
 
+# A Copilot CLI older than 1.0.51 has no --session-id: the launch goes
+# without it, and no session is counted. The chmod moves the binary's ctime,
+# so nav-pilot asks the version again (client-versions.json is keyed by it).
+env COPILOT_VERSION='GitHub Copilot CLI 1.0.40'
+chmod 755 $WORK/fake/copilot
+rm $WORK/fake/cplt.log
+exec nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
+grep '^-p\nreview this PR\n---' $WORK/fake/cplt.log
+! grep 'session-id' $WORK/fake/cplt.log
+env COPILOT_VERSION=
+
 # No prompt, no terminal: nothing to run. Sync still happens, exit 0.
 rm $WORK/fake/cplt.log
 exits 0 nav-pilot --sync --source $WORK/plattform
@@ -44,6 +55,9 @@ exits 1 nav-pilot --sync --source $WORK/plattform --client pi -- -p 'review this
 stderr 'Not launching: cplt is not installed\. Install it: brew install navikt/tap/cplt'
 ! exists $WORK/repo/fake/pi.log
 
+-- fake/copilot.sh --
+for a in "$@"; do last=$a; done
+[ "$last" = --version ] && [ -n "$COPILOT_VERSION" ] && { echo "$COPILOT_VERSION"; exit 0; }
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

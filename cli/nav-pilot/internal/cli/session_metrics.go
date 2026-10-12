@@ -385,10 +385,11 @@ var copilotSessionID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-
 
 // copilotSessionArgs picks the session a Copilot launch will run, from the
 // arguments after "--". With none that choose a session, it is a new one
-// with an id of nav-pilot's own, passed as --session-id (Copilot 1.0.51 and
-// later). A full id after --resume or --session-id is that session. Anything
-// else (--continue, the picker, a name or id prefix, a subcommand) leaves
-// the id unknown: nothing is added and no session is recorded.
+// with an id of nav-pilot's own, passed as --session-id; the caller drops it
+// for a Copilot CLI before 1.0.51 ([provider.CopilotTakesSessionID]). A full
+// id after --resume, -r or --session-id is that session. Anything else
+// (--continue, the picker, a name or id prefix, a subcommand) leaves the id
+// unknown: nothing is added and no session is recorded.
 func copilotSessionArgs(extra []string) (id string, add []string) {
 	if len(extra) > 0 && !strings.HasPrefix(extra[0], "-") {
 		return "", nil

@@ -85,6 +85,24 @@ func IsCplt(binPath string) bool {
 	return err == nil && (strings.Contains(s, "cplt") || strings.Contains(s, "copilot-sandbox"))
 }
 
+// copilotSessionIDSince is the first Copilot CLI that takes --session-id.
+var copilotSessionIDSince = semver3{1, 0, 51}
+
+// CopilotTakesSessionID reports whether the Copilot CLI a launch runs accepts
+// --session-id. cplt brings no Copilot CLI, it runs the one on PATH, so that
+// is the one asked, through cachedVersion: once per installed binary. Anything
+// unreadable, a cplt installed as copilot among it, answers false, and the
+// launch goes without the flag.
+func CopilotTakesSessionID() bool {
+	out, err := cachedVersion("copilot", clientProbeTimeout)
+	return err == nil && copilotTakesSessionID(out)
+}
+
+func copilotTakesSessionID(versionOut string) bool {
+	v, err := parseClientVersion("copilot", versionOut)
+	return err == nil && v.Compare(copilotSessionIDSince) >= 0
+}
+
 type versionAnswer struct {
 	out     string
 	err     error

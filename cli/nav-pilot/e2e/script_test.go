@@ -184,7 +184,7 @@ func cmdFakeBin(ts *testscript.TestScript, neg bool, args []string) {
 	dir := ts.MkAbs("fake")
 	ts.Check(os.MkdirAll(dir, 0o755))
 	for _, name := range args {
-		version := "GitHub Copilot CLI 1.0.40"
+		version := "GitHub Copilot CLI 1.0.95."
 		if name == "cplt" {
 			version = "cplt 2026.09.24-192459-38642b4"
 		}

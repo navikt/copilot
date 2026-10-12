@@ -862,3 +862,18 @@ func TestCheckOpenCodeMajorLaunchesOpenCode2(t *testing.T) {
 		}
 	}
 }
+
+func TestCopilotTakesSessionID(t *testing.T) {
+	for out, want := range map[string]bool{
+		"GitHub Copilot CLI 1.0.95.\n" + copilotUpdateHint + "\n": true,
+		"GitHub Copilot CLI 1.0.51.\n":                            true,
+		"GitHub Copilot CLI 1.0.50.\n":                            false,
+		"GitHub Copilot CLI 1.0.40\n":                             false,
+		"cplt 2026.09.24-192459-38642b4\n":                        false,
+		"":                                                        false,
+	} {
+		if got := copilotTakesSessionID(out); got != want {
+			t.Errorf("%q: %v, want %v", out, got, want)
+		}
+	}
+}

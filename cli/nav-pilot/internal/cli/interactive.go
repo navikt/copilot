@@ -1018,6 +1018,11 @@ func launchClient(resolved ResolvedConfig) error {
 	syncBuiltinHooks(resolved)
 	if resolved.Client == "copilot" {
 		id, add := copilotSessionArgs(resolved.ExtraArgs)
+		if add != nil && !providerpkg.CopilotTakesSessionID() {
+			// Before 1.0.51 the flag is unknown and the launch would fail:
+			// launch as before, and count no session.
+			id, add = "", nil
+		}
 		resolved.ExtraArgs = append(slices.Clone(resolved.ExtraArgs), add...)
 		if id != "" {
 			copilotSessionIDs = append(copilotSessionIDs, id)
