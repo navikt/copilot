@@ -18,9 +18,9 @@ describe("CostTrendsView", () => {
       { year_month: "2026-10", total_gross_amount: 0, total_net_amount: 300, discount_rate_pct: 0, distinct_models: 1 },
     ];
     const breakdown = [
-      { year_month: "2026-05", model: "a", gross_amount: 0, net_amount: 750, pct_of_monthly_net: 75 },
-      { year_month: "2026-05", model: "b", gross_amount: 0, net_amount: 250, pct_of_monthly_net: 25 },
-      { year_month: "2026-10", model: "a", gross_amount: 0, net_amount: 300, pct_of_monthly_net: 100 },
+      { year_month: "2026-05", model: "Claude Opus 5", gross_amount: 0, net_amount: 750, pct_of_monthly_net: 75 },
+      { year_month: "2026-05", model: "Auto: GPT-6 Astra", gross_amount: 0, net_amount: 250, pct_of_monthly_net: 25 },
+      { year_month: "2026-10", model: "Code Review model", gross_amount: 0, net_amount: 300, pct_of_monthly_net: 100 },
     ];
     render(
       <CostTrendsView

@@ -139,3 +139,25 @@ describe("annotationsFor", () => {
     expect(showAllEvents(undefined)).toBe(false);
   });
 });
+
+describe("familyShares models", () => {
+  it("lists each family's models per month, Auto merged, biggest first", () => {
+    const row = (model: string, net_amount: number) => ({
+      year_month: "2026-09",
+      model,
+      net_amount,
+      gross_amount: 0,
+      pct_of_monthly_net: 0,
+    });
+    const { series } = familyShares(
+      [row("GPT-5.6 Sol", 20), row("GPT-6 Astra", 50), row("Auto: GPT-6 Astra", 10), row("Code Review model", 20)],
+      ["2026-09"],
+      true
+    );
+    const gpt = series.find((s) => s.family === "gpt")!;
+    expect(gpt.shares).toEqual([80]);
+    expect(gpt.models).toEqual([["GPT-6 Astra", "GPT-5.6 Sol"]]);
+    expect(series.find((s) => s.family === "kodegjennomgang")!.shares).toEqual([20]);
+    expect(series.some((s) => s.family === "andre")).toBe(false);
+  });
+});

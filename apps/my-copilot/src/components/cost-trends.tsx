@@ -9,7 +9,8 @@ import {
   getBillingMonthlyTrend,
 } from "@/lib/cached-bigquery";
 import { formatNumber, formatPercent, formatUSD } from "@/lib/format";
-import { monthLabel } from "@/lib/trends";
+import { familyShares, monthLabel } from "@/lib/trends";
+import { FAMILY_LABELS, type ModelFamily } from "@/lib/model-family";
 import { type CostEvent, eventAnnotations, eventSummary } from "@/lib/cost-events";
 import { ChartFigure } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
@@ -17,9 +18,10 @@ import type { ActiveUsersMonth, AdminMonth, BillingModelBreakdown, BillingMonthl
 
 /** First month with per-user billing; earlier months are left out. */
 const FIRST_MONTH = "2026-01";
-const TOP_MODELS = 5;
 /** The most copilot-api serves; covers January 2026 until early 2029. */
 const HISTORY_MONTHS = 36;
+
+const FAMILY_ORDER = Object.keys(FAMILY_LABELS) as ModelFamily[];
 
 const premium = (month: string) => month < "2026-06";
 
@@ -59,24 +61,13 @@ export function CostTrendsView({
   const label = (month: string) =>
     monthLabel(month) + (premium(month) ? "*" : "") + (month === currentMonth ? " (hittil)" : "");
 
-  // The models with the most billed over the period get a series each; the rest are summed as «Andre».
-  const rows = breakdown.filter((b) => b.year_month >= FIRST_MONTH);
-  const totals = new Map<string, number>();
-  for (const b of rows) totals.set(b.model, (totals.get(b.model) ?? 0) + b.net_amount);
-  const top = [...totals.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_MODELS)
-    .map(([m]) => m);
-  const share = (month: string, model: string | null) => {
-    const inMonth = rows.filter((b) => b.year_month === month);
-    const sum = inMonth.reduce((s, b) => s + b.net_amount, 0);
-    if (sum <= 0) return null;
-    const part = inMonth
-      .filter((b) => (model === null ? !top.includes(b.model) : b.model === model))
-      .reduce((s, b) => s + b.net_amount, 0);
-    return (part / sum) * 100;
-  };
-  const mix = [...top, null].map((model) => ({ model, shares: keys.map((k) => share(k, model)) }));
+  // One series per model family, so new versions land in their family and «Andre» stays small.
+  const families = familyShares(
+    breakdown.filter((b) => b.year_month >= FIRST_MONTH),
+    keys,
+    true
+  ).series;
+  const mix = families.map((f) => ({ model: f.label, shares: f.shares }));
   const pct = (v: number | null) => (v == null ? "–" : formatPercent(v));
   const lastPerUser = perUser.findLast((v) => v != null);
   const firstPerUser = perUser.find((v) => v != null);
@@ -153,13 +144,13 @@ export function CostTrendsView({
         }
       />
 
-      {top.length > 0 && (
+      {mix.length > 0 && (
         <ChartFigure
           title="Hvilke KI-modeller går pengene til?"
           summary={
-            `Andel av det fakturerte beløpet per KI-modell. De ${TOP_MODELS} modellene med størst andel siden januar vises hver for seg, resten er samlet i «Andre». ` +
+            `Andel av det fakturerte beløpet per modellfamilie. Automatisk modellvalg teller med modellen som ble valgt. Kodegjennomgang er modellen Copilot bruker til å gå gjennom pull requests. ` +
             `I ${monthLabel(keys.at(-1)!)}: ${mix
-              .map((m) => `${m.model ?? "Andre"} ${pct(m.shares.at(-1) ?? null)}`)
+              .map((m) => `${m.model} ${pct(m.shares.at(-1) ?? null)}`)
               .join(", ")}.` +
             eventSummary(markers)
           }
@@ -172,7 +163,13 @@ export function CostTrendsView({
               keys={keys}
               labels={keys.map(monthLabel)}
               annotations={markers}
-              series={mix.map((m, i) => ({ label: m.model ?? "Andre", color: i, data: m.shares }))}
+              series={families.map((f) => ({
+                label: f.label,
+                // Colour by family, so a family keeps its colour whichever families a period has.
+                color: FAMILY_ORDER.indexOf(f.family),
+                data: f.shares,
+                pointLabels: f.models.map((m) => (m.length ? `${f.label} (${m.slice(0, 3).join(", ")})` : null)),
+              }))}
             />
           }
           table={
@@ -182,8 +179,8 @@ export function CostTrendsView({
                   <TableRow>
                     <TableHeaderCell scope="col">Måned</TableHeaderCell>
                     {mix.map((m) => (
-                      <TableHeaderCell key={m.model ?? "andre"} scope="col" align="right">
-                        {m.model ?? "Andre"}
+                      <TableHeaderCell key={m.model} scope="col" align="right">
+                        {m.model}
                       </TableHeaderCell>
                     ))}
                   </TableRow>
@@ -195,7 +192,7 @@ export function CostTrendsView({
                         {label(k)}
                       </TableHeaderCell>
                       {mix.map((m) => (
-                        <TableDataCell key={m.model ?? "andre"} align="right">
+                        <TableDataCell key={m.model} align="right">
                           {pct(m.shares[i])}
                         </TableDataCell>
                       ))}

@@ -1,5 +1,5 @@
 import type { BillingModelBreakdown, SegmentChart } from "./types";
-import { FAMILY_LABELS, modelFamily, type ModelFamily } from "./model-family";
+import { baseModel, FAMILY_LABELS, modelFamily, type ModelFamily } from "./model-family";
 import { previousMonth } from "./month-utils";
 
 /** The period select on /innsikt/trender. The value is kept in ?periode=. */
@@ -44,7 +44,8 @@ export function visibleMonths(
 export interface FamilyShares {
   months: string[];
   /** Per family, the share of the month's net cost in percent, one value per month. null: no net cost that month. */
-  series: { family: ModelFamily; label: string; shares: (number | null)[] }[];
+  /** models: per month, the family's models with net cost, biggest first. */
+  series: { family: ModelFamily; label: string; shares: (number | null)[]; models: string[][] }[];
 }
 
 function nextMonth(month: string): string {
@@ -52,15 +53,21 @@ function nextMonth(month: string): string {
   return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
 }
 
-/** Net cost per model family as a share of each month's net cost. A month with no net cost is a gap. */
-export function familyShares(rows: BillingModelBreakdown[], months: string[]): FamilyShares {
+/**
+ * Net cost per model family as a share of each month's net cost. A month with no net cost is a gap.
+ * With codeReview, the code review model is its own family (see modelFamily).
+ */
+export function familyShares(rows: BillingModelBreakdown[], months: string[], codeReview = false): FamilyShares {
   const net = new Map<string, Map<ModelFamily, number>>();
+  const byModel = new Map<string, number>(); // month|family|model → net
   for (const row of rows) {
     const month = row.year_month.slice(0, 7);
     if (!months.includes(month)) continue;
     const byFamily = net.get(month) ?? new Map<ModelFamily, number>();
-    const family = modelFamily(row.model);
+    const family = modelFamily(row.model, codeReview);
     byFamily.set(family, (byFamily.get(family) ?? 0) + row.net_amount);
+    const key = `${month}|${family}|${baseModel(row.model)}`;
+    byModel.set(key, (byModel.get(key) ?? 0) + row.net_amount);
     net.set(month, byFamily);
   }
   const total = (m: string) => [...(net.get(m)?.values() ?? [])].reduce((a, b) => a + b, 0);
@@ -75,6 +82,12 @@ export function familyShares(rows: BillingModelBreakdown[], months: string[]): F
       label: FAMILY_LABELS[family],
       shares: kept.map((m) =>
         total(m) > 0 ? Math.round(((net.get(m)!.get(family) ?? 0) / total(m)) * 1000) / 10 : null
+      ),
+      models: kept.map((m) =>
+        [...byModel.entries()]
+          .filter(([k, v]) => k.startsWith(`${m}|${family}|`) && v > 0)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k]) => k.split("|")[2])
       ),
     })),
   };
