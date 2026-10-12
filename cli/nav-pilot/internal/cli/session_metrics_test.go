@@ -346,10 +346,21 @@ func TestBaselineCopilotSession(t *testing.T) {
 	telemetry = rec
 	t.Cleanup(func() { telemetry = orig })
 
-	baselineCopilotSession(root, s1)
+	if !baselineCopilotSession(root, s1) {
+		t.Fatal("baseline refused")
+	}
 	recordCopilotSessions(root, []string{s1})
 	if len(rec.got) != 0 {
 		t.Fatalf("recorded history from before the launch: %+v", rec.got)
+	}
+	// A marker that cannot be written refuses the session, instead of letting
+	// the exit count the history.
+	const s2 = "22222222-2222-4222-8222-222222222222"
+	if err := os.WriteFile(filepath.Join(root, s2), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if baselineCopilotSession(root, s2) {
+		t.Fatal("baseline with an unwritable marker accepted")
 	}
 	f, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {

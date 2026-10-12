@@ -1024,10 +1024,10 @@ func launchClient(resolved ResolvedConfig) (err error) {
 			id, add = "", nil
 		}
 		resolved.ExtraArgs = append(slices.Clone(resolved.ExtraArgs), add...)
-		if id != "" {
-			baselineCopilotSession(hookStateDir(), id)
-			// Counted only once the client ran, exit status aside: a launch
-			// refused before it starts has no session of its own (#1639).
+		// Counted only once the client ran, exit status aside: a launch
+		// refused before it starts has no session of its own, and a resumed
+		// session without its baseline would count its history (#1639).
+		if id != "" && baselineCopilotSession(hookStateDir(), id) {
 			defer func() {
 				var exit *exec.ExitError
 				if err == nil || errors.As(err, &exit) {

@@ -365,32 +365,38 @@ func recordCopilotSessions(root string, ids []string) {
 // The file is streamed, never held in memory: a long session runs past 100 MB,
 // and that one-time read then costs the launch about two seconds. Copilot is
 // not writing this session at launch, so the end of the file is the offset.
-func baselineCopilotSession(root, id string) {
+//
+// It reports whether the session may be recorded at exit: false when an
+// existing session could not get its marker, since recordCopilotSessions
+// would then read it from the start and count the history before this launch.
+func baselineCopilotSession(root, id string) bool {
 	if !telemetryEnabled() || !copilotSessionID.MatchString(id) {
-		return
+		return true
 	}
 	dir := filepath.Join(root, id)
 	marker := filepath.Join(dir, sessionMetricsMarker)
 	unlock, ok := lockSession(marker + ".lock")
 	if !ok {
-		return
+		return false
 	}
 	defer unlock()
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
-		return
+		return err == nil
 	}
 	f, err := os.Open(filepath.Join(dir, "events.jsonl"))
 	if err != nil {
-		return
+		return os.IsNotExist(err) // a new session
 	}
 	defer f.Close()
 	_, mark, _ := parseCopilotSession(f, configModelLabel, nil, nil, sessionTotals{})
 	if mark.Offset, err = f.Seek(0, io.SeekEnd); err != nil {
-		return
+		return false
 	}
-	if b, err := json.Marshal(mark); err == nil {
-		_ = os.WriteFile(marker, b, 0o600)
+	b, err := json.Marshal(mark)
+	if err != nil {
+		return false
 	}
+	return os.WriteFile(marker, b, 0o600) == nil
 }
 
 // lockSession takes an exclusive lock file. One older than a minute is a
