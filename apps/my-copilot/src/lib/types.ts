@@ -288,7 +288,7 @@ export interface TeamGrossOverview {
 }
 
 // One team, one row per month of a year, from GET /api/v1/copilot/usage/team-year.
-// Amounts are null when the month has no data or under five contributors.
+// Amounts are null when the month has no data. No under-five threshold.
 export interface TeamYearMonth {
   month: string;
   basis: "net" | "premium" | "gross" | "none";

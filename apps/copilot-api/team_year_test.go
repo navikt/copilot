@@ -249,9 +249,8 @@ func TestTeamYearMatchesMonthEndpoints(t *testing.T) {
 		for _, m := range overview.Months {
 			want := byTeam[id][m.Month]
 			if want == nil {
-				if m.GrossUSD != nil || m.NetUSD != nil {
-					t.Errorf("%s %s shown but hidden by the month endpoints: %+v", id, m.Month, m)
-				}
+				// The year view has no threshold, so it may show amounts the
+				// thresholded month endpoints hide. Parity only where they have the row.
 				continue
 			}
 			if (want.grossUsers > 0) != (m.GrossUSD != nil) || (m.GrossUSD != nil && *m.GrossUSD != want.gross) {

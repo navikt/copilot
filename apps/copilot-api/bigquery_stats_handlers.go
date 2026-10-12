@@ -97,8 +97,9 @@ func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.
 var validTeamID = regexp.MustCompile(`^[1-9][0-9]{0,19}$`)
 
 // handleTeamYearOverview serves one team's months for a year. Same audience
-// and suppression as team-gross and team-net: amounts with under five
-// contributors are hidden, and no logins are returned. team is the GitHub team
+// as team-gross and team-net, but without their under-five threshold: small
+// teams' amounts are shown on purpose (owner decision 2026-10-12). No logins
+// are returned. team is the GitHub team
 // id from team_id in those endpoints, since slugs change when a team is renamed.
 func (h *BigQueryHandlers) handleTeamYearOverview(w http.ResponseWriter, r *http.Request) {
 	team := r.URL.Query().Get("team")
