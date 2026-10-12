@@ -802,6 +802,14 @@ func containsString(s, sub string) bool {
 		}())
 }
 
+func (m *mockBigQueryClient) GetCostDays(_ context.Context, _ string) ([]CostDay, error) {
+	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetCostUserDays(_ context.Context, _ string) ([]UserDay, error) {
+	return nil, nil
+}
+
 func (m *mockBigQueryClient) GetSpendBands(_ context.Context) (*SpendBands, error) {
 	return m.spendBands, nil
 }

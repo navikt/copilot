@@ -21,6 +21,7 @@ import type {
   MonthlyBillingUsage,
   BillingModelDailyCost,
   BillingModelForecast,
+  CostForecast,
   MonthlyTrend,
   StalenessSummary,
   TeamAdoptionOverview,
@@ -142,6 +143,10 @@ export async function getAdminMonthlyOverview(year: number, token: string): Prom
 
 export async function getSpendBands(token: string): Promise<SpendBands> {
   return backendRequest<SpendBands>("/api/v1/copilot/usage/spend-bands", token);
+}
+
+export async function getCostForecast(token: string): Promise<CostForecast> {
+  return backendRequest<CostForecast>("/api/v1/copilot/admin/cost-forecast", token);
 }
 
 export async function getMyTeams(token: string): Promise<string[]> {

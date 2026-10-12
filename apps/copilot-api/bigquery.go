@@ -379,6 +379,8 @@ type BigQueryQuerier interface {
 	GetTeamYearOverview(ctx context.Context, team string, year int) (*TeamYearOverview, error)
 	GetAdminMonthlyOverview(ctx context.Context, year int) (*AdminMonthlyOverview, error)
 	GetSpendBands(ctx context.Context) (*SpendBands, error)
+	GetCostDays(ctx context.Context, month string) ([]CostDay, error)
+	GetCostUserDays(ctx context.Context, month string) ([]UserDay, error)
 	GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error)
 	GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error)
 	GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error)

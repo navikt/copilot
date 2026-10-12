@@ -34,10 +34,14 @@ func limitChanged(month string) bool {
 // A month with a change uses the limit at month end.
 func limitAtMonthEnd(month string) float64 {
 	first, _ := time.Parse("2006-01", month)
-	last := first.AddDate(0, 1, -1).Format("2006-01-02")
+	return limitOn(first.AddDate(0, 1, -1).Format("2006-01-02"))
+}
+
+// limitOn returns the limit in force on day (YYYY-MM-DD).
+func limitOn(day string) float64 {
 	limit := 0.0
 	for _, l := range spendLimits {
-		if l.from <= last {
+		if l.from <= day {
 			limit = l.usd
 		}
 	}

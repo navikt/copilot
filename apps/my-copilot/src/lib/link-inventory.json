@@ -193,7 +193,8 @@
     "anchors": {
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "oversikt": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
-      "per-maned": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"]
+      "per-maned": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
+      "prognose": ["apps/my-copilot/src/components/cost-forecast.tsx"]
     }
   },
   "/innsikt/lokale-modeller": {

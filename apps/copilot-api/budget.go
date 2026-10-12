@@ -16,6 +16,7 @@ const budgetCacheTTL = 30 * time.Minute
 // BudgetEntry represents a single entry from the enterprise billing budgets API.
 type BudgetEntry struct {
 	BudgetScope      string   `json:"budget_scope"`
+	BudgetProductSKU string   `json:"budget_product_sku"`
 	BudgetEntityName string   `json:"budget_entity_name"`
 	BudgetAmount     float64  `json:"budget_amount"`
 	ConsumedAmount   *float64 `json:"consumed_amount"`
@@ -161,6 +162,10 @@ type GlobalBudget struct {
 	TotalConsumed float64 `json:"totalConsumed"`
 	PerUserBudget float64 `json:"perUserBudget"`
 	ActiveUsers   int     `json:"activeUsers"`
+	// EnterpriseBudget is the monthly ai_credits budget for the whole
+	// enterprise in USD, 0 when none is set. Internal: kept out of the public
+	// budget/global response and served only to admins.
+	EnterpriseBudget float64 `json:"-"`
 }
 
 // getGlobalBudget aggregates AI credit consumption across all budget entries.
@@ -171,11 +176,13 @@ func (c *BudgetClient) getGlobalBudget(ctx context.Context) (*GlobalBudget, erro
 		return nil, fmt.Errorf("get enterprise budgets: %w", err)
 	}
 
-	var perUserBudget float64
-	var totalConsumed float64
+	var perUserBudget, totalConsumed, enterpriseBudget float64
 	activeUsers := 0
 
 	for _, e := range entries {
+		if e.BudgetScope == "enterprise" && e.BudgetProductSKU == "ai_credits" {
+			enterpriseBudget = e.BudgetAmount
+		}
 		if e.BudgetScope == "multi_user_customer" {
 			perUserBudget = e.BudgetAmount
 		}
@@ -187,14 +194,15 @@ func (c *BudgetClient) getGlobalBudget(ctx context.Context) (*GlobalBudget, erro
 		}
 	}
 
-	if perUserBudget == 0 && totalConsumed == 0 {
+	if perUserBudget == 0 && totalConsumed == 0 && enterpriseBudget == 0 {
 		return nil, errBudgetNotFound
 	}
 
 	return &GlobalBudget{
-		TotalConsumed: totalConsumed,
-		PerUserBudget: perUserBudget,
-		ActiveUsers:   activeUsers,
+		TotalConsumed:    totalConsumed,
+		PerUserBudget:    perUserBudget,
+		ActiveUsers:      activeUsers,
+		EnterpriseBudget: enterpriseBudget,
 	}, nil
 }
 

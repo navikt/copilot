@@ -584,6 +584,34 @@ export interface BillingModelForecast {
   points: BillingModelForecastPoint[];
 }
 
+// Month-end forecast against the enterprise budget, from copilot-api's admin-only
+// GET /api/v1/copilot/admin/cost-forecast. Internal: never show on public pages.
+export interface CostForecastModel {
+  model: "trend" | "per_user";
+  gross_mid_usd: number;
+  net_low_usd: number;
+  net_mid_usd: number;
+  net_high_usd: number;
+  range_pct: number;
+  allowance_runs_out?: string;
+  backtest_error_pct: number;
+  backtest_months: string[] | null;
+  budget_pct: number;
+  over_budget: boolean;
+}
+
+export interface CostForecast {
+  month: string;
+  days_elapsed: number;
+  days_in_month: number;
+  allowance_used_up: boolean;
+  allowance_run_out_date?: string;
+  net_to_date_usd: number;
+  budget_status: "set" | "missing" | "error";
+  budget_usd?: number;
+  models: CostForecastModel[];
+}
+
 // AI adoption phases per ISO week, averaged by copilot-api; every phase is sent, also under five
 export interface AdoptionCohortWeek {
   week: string; // Monday of the ISO week

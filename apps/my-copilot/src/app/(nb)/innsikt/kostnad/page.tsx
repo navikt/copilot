@@ -10,6 +10,7 @@ import { getAdminMonthlyOverview } from "@/lib/cached-bigquery";
 import { adminMonthlyCaveats, adminMonthlyRows } from "@/lib/admin-monthly";
 import { formatDate, formatNumber, formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
+import { CostForecastSection } from "@/components/cost-forecast";
 
 // Spend and limits are internal: only the copilot team sees this page, everyone else gets 404.
 export const metadata: Metadata = {
@@ -28,7 +29,6 @@ const columns: [number, string][] = [
   [5, "Restbeløp (%)"],
   [6, "Uten team"],
   [7, "Brutto"],
-  [8, "Lisenser"],
   [9, "Lisenser (anslag)"],
   [10, "Totalt med lisenser"],
 ];
@@ -108,6 +108,7 @@ export default async function CostPage() {
             <MetricCard
               value={formatNumber(current.seats)}
               label="Lisenser"
+              subtitle="Antall"
               helpTitle="Lisenser"
               helpText="Antall lisenser som gjelder denne måneden."
             />
@@ -147,9 +148,7 @@ export default async function CostPage() {
                           ? monthName(cells[c])
                           : i < 2
                             ? cells[c]
-                            : c === 8
-                              ? cells[c] && formatNumber(Number(cells[c]))
-                              : nok(cells[c])}
+                            : nok(cells[c])}
                       </TableDataCell>
                     ))}
                   </TableRow>
@@ -167,8 +166,17 @@ export default async function CostPage() {
           {adminMonthlyCaveats(data).map((c) => (
             <ListItem key={c}>{c}</ListItem>
           ))}
+          <ListItem>
+            Antall lisenser per måned:{" "}
+            {data.months
+              .filter((m) => m.seats != null)
+              .map((m) => `${monthName(m.month)} ${formatNumber(m.seats!)}`)
+              .join(", ")}
+            .
+          </ListItem>
         </List>
       </InsightSection>
+      <CostForecastSection token={token} />
     </InsightPage>
   );
 }

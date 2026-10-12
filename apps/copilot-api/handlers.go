@@ -112,6 +112,9 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/usage/segments", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserSegments })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/repositories", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleRepositoryUsage })))
 
+	// Admin-only cost insight: spend and budget are internal.
+	mux.Handle("GET /api/v1/copilot/admin/cost-forecast", requireAdmin(bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostForecast }))))
+
 	// GitHub API endpoints
 	mux.HandleFunc("GET /api/v1/copilot/billing", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleBilling })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/premium", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handlePremiumRequestUsage })))
