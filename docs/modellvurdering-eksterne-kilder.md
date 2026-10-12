@@ -39,7 +39,7 @@ Eksterne indekser er gratis for oss og dekker mange modeller og innsatsnivåer. 
 
 **Foreldede tall.** Bruk bare tall fra samme indeksversjon og høyst 30 dager gamle. Aider-brettet (siste data i oktober 2025) brukes ikke. Lagre et øyeblikksbilde med dato og versjon sammen med beslutningen.
 
-**Modeller som mangler i indeksene.** Siling er da «ikke mulig». Mindre versjoner kan likevel gå til regresjonssjekken hvis leverandøren dokumenterer forbedring, men da merkes saken med at silingen mangler. Nye modellfamilier uten eksterne tall må vente eller ta den fulle målingen.
+**Modeller som mangler i indeksene.** Siling er da «ikke mulig». Mindre versjoner kan likevel gå til regresjonssjekken hvis leverandøren dokumenterer forbedring, men da merkes saken med at silingen mangler. Nye modellfamilier uten eksterne tall må vente til de finnes i indeksene.
 
 **Forhåndsantakelse og stopperegler.** En stor indeksfordel kan begrunne en tidlig stopp for suksess i den sekvensielle t7b-målingen, men bare med stoppegrenser som er fastsatt på forhånd. Vi bør ikke bruke formelle Bayesianske priorer laget fra indeksdata. Sammenhengen mellom indeksen og t7b er ikke målt.
 

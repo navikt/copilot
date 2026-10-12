@@ -52,3 +52,8 @@ def gs(p_ref,p_new,d,nmax,sims=20000):
 for nmax in (72,):
   for pn in (.95,.90,.85,.65):
     print('gs .95 d.10 nmax',nmax,'pnew',pn, gs(.95,pn,.10,nmax))
+# Resten av cellene i tabellen. Kjoeres sist, saa tallene over er uendret.
+for p,d in ((.95,.05),(.95,.15),(.90,.10)):
+  n=nf(p,d); print('cell',p,d,n,'power',power(p,d,n),'alpha',alpha(p,d,n))
+  for m in range(5,800):
+    if power(p,d,m,20000)>=.8: print(' sim n for .8:',m); break

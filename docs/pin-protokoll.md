@@ -117,9 +117,10 @@ Krav til oppsett, kontroll og lagring står under «Måling og kontroll» over.
 
 ### Trinn 3: Trinnvis utrulling (alle bytter)
 
-Først en opt-in-gruppe eller en andel av brukerne, så alle. Fordelingen er per
-bruker, ikke per forespørsel. Vi følger telemetrien i 1–2 uker før pinnen
-flyttes for alle, og vi må kunne rulle tilbake raskt.
+En navngitt opt-in-gruppe, teamet og frivillige, setter selv den nye modellen
+i 1–2 uker. Vi følger telemetrien i den perioden før pinnen flyttes for alle.
+Målet er å kunne rulle ut til en andel av brukerne om gangen, fordelt per
+bruker, se [#1678](https://github.com/navikt/copilot/issues/1678).
 
 Metrikkene under sammenlignes mellom ny og gammel modell. Merket «mangler»
 betyr at telemetrien i [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) ikke kan
@@ -138,16 +139,13 @@ måle det i dag.
 | Avslag | Mangler | |
 
 Øktmetrikkene har etiketten `model`, men ikke alle har etiketten for
-innsatsnivå. Det står i `nav_pilot_config_info`. Hvordan vi fordeler en andel
-av brukerne på ny modell, er heller ikke bygget. I dag er opt-in det samme som
-at brukeren selv setter modellen.
+innsatsnivå. Det står i `nav_pilot_config_info`.
 
-**Tilbakerulling.** Grensene er et forslag som eieren må bekrefte. Vi ruller tilbake når et av disse skjer i utrullingsgruppen:
+**Tilbakerulling.** Vi ruller tilbake når et av disse skjer i utrullingsgruppen:
 credits per økt øker mer enn 10 %, andelen verktøyfeil eller avbrutte økter er
 mer enn 1,5 ganger grunnlinjen, eller én bekreftet feil i rød sone eller med
-personopplysninger. Tilbakerulling betyr at pinnen settes tilbake i
-agentpakken og en ny versjon publiseres. Brukere som har valgt modellen selv,
-får beskjed.
+personopplysninger. Da går opt-in-gruppen tilbake til den pinnede
+modellen, og pinnen flyttes ikke.
 
 ### Trinn 4: Full måling (ny hovedversjon eller ny familie)
 
