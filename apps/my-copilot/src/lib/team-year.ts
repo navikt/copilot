@@ -8,7 +8,7 @@ export const basisLabel: Record<TeamYearMonth["basis"], string> = {
   none: "Ingen data",
 };
 
-/** Caveats shown above the panel table and as # lines in the CSV. */
+/** Caveats written as # lines in the CSV. */
 export function teamYearCaveats(data: TeamYearOverview): string[] {
   const { membership_from, gross_from, last_usage_day } = data.coverage;
   return [
@@ -25,14 +25,17 @@ export function teamYearCaveats(data: TeamYearOverview): string[] {
   ];
 }
 
-/** One line per month where more than 1 % of the bill could not be assigned to a person. */
+/** One line listing the months where more than 1 % of the bill could not be assigned to a person. */
 function residualCaveats(data: TeamYearOverview): string[] {
-  return data.months
+  const months = data.months
     .filter((m) => (m.residual_pct ?? 0) > 1)
-    .map((m) => {
-      const name = new Date(`${m.month}-01T00:00:00Z`).toLocaleString("nb-NO", { month: "long", timeZone: "UTC" });
-      return `${name[0].toUpperCase()}${name.slice(1)}: ${formatPercent(m.residual_pct ?? 0)} av Navs nettoforbruk kunne ikke knyttes til en person og er derfor ikke med i tallene for noe team.`;
-    });
+    .map(
+      (m) =>
+        `${new Date(`${m.month}-01T00:00:00Z`).toLocaleString("nb-NO", { month: "long", timeZone: "UTC" })} ${formatPercent(m.residual_pct ?? 0)}`
+    );
+  return months.length
+    ? [`Andel av Navs nettoforbruk som ikke kunne knyttes til en person: ${months.join(", ")}.`]
+    : [];
 }
 
 function licenceCaveats(data: TeamYearOverview): string[] {

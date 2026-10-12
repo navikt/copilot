@@ -69,7 +69,7 @@ const data: TeamYearOverview = {
       net_usd: 80.1,
       gross_usd: 100,
       no_usage_net_usd: 2,
-      residual_pct: 0.41,
+      residual_pct: 2.4,
       seat_months: 8,
       licence_usd_estimate: 152,
       total_usd: 234.1,
@@ -126,8 +126,8 @@ describe("GET /api/team-year", () => {
       "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
     ]);
     expect(lines.some((line) => line.includes("Lisenser er et anslag"))).toBe(true);
-    expect(lines.filter((line) => line.includes("kunne ikke knyttes til en person"))).toEqual([
-      "# Mai: 7\u00a0% av Navs nettoforbruk kunne ikke knyttes til en person og er derfor ikke med i tallene for noe team.",
+    expect(lines.filter((line) => line.includes("knyttes til en person"))).toEqual([
+      "# Andel av Navs nettoforbruk som ikke kunne knyttes til en person: mai 7\u00a0%, august 2\u00a0%.",
     ]);
     expect(lines.some((line) => line.includes("brukte Copilot i måneden"))).toBe(false);
     expect(getTeamYearOverview).toHaveBeenCalledWith("123", 2026, "token");
