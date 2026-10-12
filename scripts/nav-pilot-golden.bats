@@ -30,6 +30,8 @@ setup_file() {
 
 teardown_file() {
   local pid id="${GOLDEN_GRADLE_REGISTRY##*/}"
+  # An empty id would match every daemon.
+  [[ -n "$id" ]] || return 0
   for pid in $(pgrep -f GradleDaemon 2>/dev/null); do
     lsof -p "$pid" -Fn 2>/dev/null | grep -qF "$id" && kill "$pid" 2>/dev/null
   done
