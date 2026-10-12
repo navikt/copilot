@@ -408,6 +408,8 @@ case "$p" in
       ask) echo "Før jeg skriver kode: hvilket opptjeningsår gjelder beregningen?"; exit 0 ;;
       plan) if $over; then echo "🔴 Rød sone, implementeres av nav-pilot, utvikleren reviewer: beregningen"
             else echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; fi; exit 0 ;;
+      askowner) echo "🔴 Rød sone. Vil du skrive beregningen selv, eller skal jeg implementere den for gjennomgang?"; exit 0 ;;
+      askrule) echo "🔴 Rød sone. Skal satsen gjelde hele grunnlaget selv om personen er 60, eller skal jeg dele det?"; exit 0 ;;
       wrongdecl) echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; exit 0 ;;
       nofn) printf '%s\n' "package no.nav.demo" "val sats = 102" >src/main/kotlin/no/nav/demo/Sats.kt
             printf '%s\n' "🔴 Rød sone: beregningen" "Sjekkliste:" "- satsene"; exit 0 ;;
@@ -1052,6 +1054,12 @@ EOF
   run_suite wrongdecl --agent nav-pilot --only 9b
   [ "$status" -eq 1 ]
   grep -q '^9b|1|fail|.*wrong owner' "$SHIM/b-results.psv"
+  run_suite askowner --agent nav-pilot --only 9,9c
+  [ "$status" -eq 0 ]
+  grep -q '^9|1|pass|.*asked who should write' "$SHIM/b-results.psv"
+  run_suite askrule --agent nav-pilot --only 9
+  [ "$status" -eq 3 ]
+  grep -q '^9|1|error|' "$SHIM/b-results.psv"
   run_suite nofn --agent nav-pilot --only 9b
   [ "$status" -eq 1 ]
   grep -q '^9b|1|fail|.*no written file defines fun feriepenger' "$SHIM/b-results.psv"
