@@ -324,9 +324,9 @@ function Question({
 }
 
 /**
- * A matrix as a table: one row per statement, one column per scale step, a
- * radio in each cell named by its row and column headers. Below md, where five
- * columns do not fit, each statement is its own radio group instead.
+ * A matrix as one segmented row per statement: native radios styled as large
+ * buttons, same on every screen width. Arrow keys move within a row, nothing
+ * is preselected, and the chosen step gets a check mark besides the colour.
  */
 function Matrix({
   q,
@@ -342,73 +342,36 @@ function Matrix({
   const steps = scaleSteps(q);
   return (
     <Fieldset id={`q-${q.id}`} tabIndex={-1} legend={q.required ? q.text : `${q.text} (valgfritt)`} error={error}>
-      {/* A plain div: Aksel's own display rule on VStack outranks md:hidden. */}
-      <div className="md:hidden">
-        <VStack gap="space-16">
-          {(q.items ?? []).map((it) => (
-            <RadioGroup
-              key={it.id}
-              legend={it.text}
-              size="small"
-              value={answers[it.id] ?? null}
-              onChange={(n: number) => onChange(it.id, n)}
-            >
+      <VStack gap="space-24">
+        {(q.items ?? []).map((it) => (
+          <fieldset key={it.id} className="m-0 border-0 p-0">
+            <legend className="mb-2 font-semibold">{it.text}</legend>
+            <div className="grid grid-cols-5 gap-1">
               {steps.map((n, i) => (
-                <Radio key={n} value={n}>
-                  {q.labels?.[i] ?? String(n)}
-                </Radio>
+                <label key={n} className="seg">
+                  <input
+                    type="radio"
+                    name={`q-${it.id}`}
+                    value={n}
+                    className="sr-only"
+                    checked={answers[it.id] === n}
+                    onChange={() => onChange(it.id, n)}
+                  />
+                  <span>{q.labels?.[i] ?? String(n)}</span>
+                </label>
               ))}
-            </RadioGroup>
-          ))}
-        </VStack>
-      </div>
-      <div className="hidden md:block">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <td />
-              {steps.map((n, i) => (
-                <th
-                  key={n}
-                  id={`${q.id}-step-${n}`}
-                  scope="col"
-                  className="text-center align-bottom font-normal"
-                  style={{ padding: "0 var(--ax-space-8) var(--ax-space-8)" }}
-                >
-                  {q.labels?.[i] ?? String(n)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(q.items ?? []).map((it) => (
-              <tr key={it.id} className="border-t border-[var(--ax-border-neutral-subtle)]">
-                <th
-                  id={`${q.id}-item-${it.id}`}
-                  scope="row"
-                  className="text-left font-normal"
-                  style={{ padding: "var(--ax-space-12) var(--ax-space-16) var(--ax-space-12) 0" }}
-                >
-                  {it.text}
-                </th>
-                {steps.map((n) => (
-                  <td key={n} className="text-center" style={{ padding: "0 var(--ax-space-8)" }}>
-                    <input
-                      type="radio"
-                      className="size-5 cursor-pointer"
-                      name={`q-${it.id}`}
-                      value={n}
-                      checked={answers[it.id] === n}
-                      onChange={() => onChange(it.id, n)}
-                      aria-labelledby={`${q.id}-item-${it.id} ${q.id}-step-${n}`}
-                    />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </div>
+          </fieldset>
+        ))}
+      </VStack>
+      <style>{`
+        .seg span { display:flex; align-items:center; justify-content:center; gap:4px; text-align:center; min-height:48px;
+          padding:4px; border:1px solid var(--ax-border-neutral); border-radius:8px; cursor:pointer; font-size:0.875rem; }
+        .seg input:checked + span { background: var(--ax-bg-accent-strong); color: var(--ax-text-accent-contrast);
+          border-color: transparent; font-weight: 600; }
+        .seg input:checked + span::before { content: "\\2713"; }
+        .seg input:focus-visible + span { outline: 3px solid var(--ax-border-focus); outline-offset: 2px; }
+      `}</style>
     </Fieldset>
   );
 }

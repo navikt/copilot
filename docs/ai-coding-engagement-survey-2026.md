@@ -66,6 +66,8 @@ Spørreundersøkelse for ~500 teknologer i Nav. Målet er å forstå hvordan fol
 
 Svaralternativer: Helt uenig / Uenig / Nøytral / Enig / Helt enig
 
+Metodenotat (13. oktober 2026): Påstandene vises som en knapperad per påstand i stedet for et rutenett med radioknapper. Skalaen og verdiene (1–5) er de samme, ingen knapp er forhåndsvalgt, og endringen ble gjort før undersøkelsen fikk svar.
+
 **Q4. Tilfredshet (SPACE-S):** «Alt i alt er jeg fornøyd med AI-kodeverktøyene vi har tilgang til i Nav.»
 
 **Q5. Kognitiv belastning:** «AI-kodeverktøy reduserer mental innsats på repetitive oppgaver og boilerplate, slik at jeg kan fokusere på vanskeligere problemer.»
