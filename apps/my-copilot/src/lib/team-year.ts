@@ -1,10 +1,11 @@
 import { formatPercent } from "./format";
 import type { TeamYearMonth, TeamYearOverview } from "./types";
 
-export const basisLabel: Record<TeamYearMonth["basis"], string> = {
+/** A gross month is always preliminary: it is replaced by net once the invoice is read in. */
+const basisLabel: Record<TeamYearMonth["basis"], string> = {
   net: "Netto",
   premium: "Premiumforespørsler",
-  gross: "Brutto",
+  gross: "Brutto (foreløpig)",
   none: "Ingen data",
 };
 
@@ -12,8 +13,8 @@ export const basisLabel: Record<TeamYearMonth["basis"], string> = {
 export function teamYearCaveats(data: TeamYearOverview): string[] {
   const { membership_from, gross_from, last_usage_day } = data.coverage;
   return [
-    "Månedene kan legges sammen, og raden «Totalt hittil i år» er summen av de fakturerte månedene. Beløp for ulike team kan ikke legges sammen: en person som er med i flere team, telles i hvert av dem.",
-    "Brutto er foreløpig og er ikke med i totalen.",
+    "Raden «Totalt hittil i år» er summen av de fakturerte månedene. Brutto er foreløpig og er ikke med i totalen.",
+    "Beløp for ulike team kan ikke legges sammen: en person som er med i flere team, telles i hvert av dem.",
     "Netto er fakturert forbruk etter fradrag, fordelt på dagene hver person brukte Copilot. Brutto er listepris før fradrag, og brukes inntil fakturaen for måneden er lest inn.",
     "Januar til mai 2026 ble fakturert som premiumforespørsler. For disse månedene har vi ikke forbruk per dag. Netto er derfor fordelt likt på dagene hver person brukte Copilot, og brutto mangler.",
     ...residualCaveats(data),
@@ -60,7 +61,7 @@ export function teamYearCsv(data: TeamYearOverview): string {
     ...data.months.map((m) =>
       [
         m.month,
-        m.basis === "gross" ? `${basisLabel.gross} (foreløpig)` : basisLabel[m.basis],
+        basisLabel[m.basis],
         m.users ?? "",
         amount(m.net_usd),
         amount(m.gross_usd),

@@ -48,8 +48,9 @@ type TeamYearMonth struct {
 	// covered the month, from the latest seat snapshot's created_at and
 	// pending_cancellation_date. A seat held before the current assignment is
 	// unknown and not counted. Months before the first team_members day use
-	// that day's members. Nil without a seat snapshot or team_members. Kept out of net and gross: those are usage
-	// amounts, this is a list-price estimate.
+	// that day's members. Nil without a seat snapshot or team_members. Kept
+	// out of net and gross: those are usage amounts, this is a list-price
+	// estimate.
 	SeatMonths         *int64   `json:"seat_months"`
 	LicenceUSDEstimate *float64 `json:"licence_usd_estimate"`
 	// TotalUSD is the basis amount (net plus no-usage net, or gross) plus the

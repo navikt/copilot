@@ -14,7 +14,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
+func TestTeamYearOverviewBasis(t *testing.T) {
 	cov := teamYearRow{MembershipFrom: "2026-05-06", GrossFrom: "2026-06-15", LastUsageDay: "2026-10-09"}
 	row := func(month string, complete bool, grossUsers, netUsers int64) teamYearRow {
 		r := cov
