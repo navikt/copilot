@@ -1,0 +1,69 @@
+● skill(deliberate-ai-use)
+
+● List directory .
+  └ 5 files found
+
+/ Search (glob)
+  │ ".github/*instructions.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/build.gradle*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+● List directory src
+  └ 1 file found
+
+● List directory .github
+  └ 2 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List directory .github/instructions
+  └ 16 files found
+
+/ Search (glob)
+  │ "src/test/**"
+  └ No matches found
+
+/ Search (glob)
+  │ "src/**/*.kt"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+🔴 **Rød sone:** Feriepengeberegning er ny for teamet og er kjerne­logikk. Jeg har lest tjenesten: den har ingen eksisterende feriepengeregler eller tester, og Gradle-filen mangler testavhengigheter. Jeg stopper før jeg skriver beregningen, slik at regelvalgene kan avklares.
+
+Skal `grunnlag` alltid være ikke-negativt, og hvordan skal beløp på nøyaktig 50 øre avrundes? Skal funksjonen brukes internt, uten et nytt API-endepunkt? Jeg antar at satsen 12,5 % gjelder hele opptjeningsåret personen fyller 60, slik du beskrev. Repoet mangler også `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan legge dem til.
+
+Blindsoner reist: 3/11 (#6 berørte brukere, #7 teststrategi, #11 ny fagregel; øvrige er ikke relevante for en intern beregningsfunksjon).
+

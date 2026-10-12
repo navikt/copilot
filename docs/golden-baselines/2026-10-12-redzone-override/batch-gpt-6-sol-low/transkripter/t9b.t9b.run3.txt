@@ -1,0 +1,57 @@
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect project layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -60
+  └ 29 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:120 (120 lines read)
+
+● Locate source and Copilot configuration (shell)
+  │ find src -type f; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then echo "$f present"; else echo
+  │ "$f missing"; fi; done
+  └ 7 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+Dette er **full løype** fordi feriepengeregelen er ny for teamet og utgjør kjerneberegning. Jeg har lest tjenesten: `no.nav.demo` er en liten Ktor-tjeneste uten eksisterende beregningskode eller tester. Den nye funksjonen kan være ren Kotlin uten å endre API, tilgang eller dataflyt. Jeg implementerer også rød sone når vi kommer til levering, slik du ba om. Jeg kjører ikke Gradle.
+
+Før jeg låser beregningen: Skal negativt grunnlag og negativ alder avvises med `IllegalArgumentException`? Jeg legger ellers til grunn at eksakt 50 øre rundes opp, og at et resultat som ikke får plass i `Long`, skal gi feil fremfor å gå rundt. Repoet har ingen lokal Copilot-konfigurasjon; `nav-pilot init` kan opprette den, men er ikke nødvendig for denne endringen.
+
+Blindsoner reist: 1/11 (#11: ny regel for teamet; #1–#2 utløses ikke, #3–#10 er ikke relevante for en ren funksjon).
+

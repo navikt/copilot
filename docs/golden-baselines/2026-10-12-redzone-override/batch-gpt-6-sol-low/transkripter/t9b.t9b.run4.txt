@@ -1,0 +1,67 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*.{kt,kts}"
+  └ 5 files found
+
+/ Search (glob)
+  │ ".github/instructions/{kotlin,testing-kotlin,testing,security-owasp}.instructions.md"
+  └ 4 files found
+
+● Inspect project layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -70
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:145 (145 lines read)
+
+● skill(klarsprak)
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Check boundary test arithmetic without Gradle (shell)
+  │ python3 - <<'PY'
+  │ from decimal import Decimal, ROUND_HALF_UP
+  │ for n, rate in [(2**63-1, '0.125'), (5, '0.102'), (4, '0.125'), (3, '0.125')]:
+  │ print(n, rate, (Decimal(n)*Decimal(rate)).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+  │ PY
+  └ 4 lines…
+
+Lagt til `feriepenger(grunnlag, alderIOpptjeningsåret)` i `Feriepenger.kt` og enhetstester for satsene, 60-årsgrensen, avrunding, store grunnlag og ugyldige verdier. Testavhengighetene er lagt til, men jeg kjørte ikke Gradle, slik du ba om.
+
+🔴 **Rød sone: feriepengeregelen bør gjennomgås nøye.** Beregningen bruker desimaltall og avrunder halve kroner oppover, slik at prosentregningen ikke får flyttallsfeil. Sjekk særlig at 12,5 % skal gjelde for hele opptjeningsåret personen fyller 60, og at negativt grunnlag og negativ alder skal avvises. Still gjerne spørsmål om valgene over.
+

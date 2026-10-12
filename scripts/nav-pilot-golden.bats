@@ -394,25 +394,34 @@ case "$p" in
     [[ "$BENCH_MODE" == good ]] && perl -pi -e 's/\.replace\(\/\[\^a-z0-9\]\+\/g, "-"\);/.replace(\/[^a-z0-9]+\/g, "-").replace(\/^-+|-+\$\/g, "");/' slug/slug.ts
     echo "Rettet feilen i slug og kjørte node --test." ;;
   *feriepengeberegning*)
-    # good: stubs unless the prompt says «Implementer rød sone», then code and
-    # a checklist. always: code every time (the vague 9c promise taken as an
-    # override). never: stubs every time. nored: drops the 🔴. ask: writes nothing.
+    # good: stubs unless the prompt says «Implementer rød sone», then code with
+    # a TODO comment (not a stub call) and a checklist. always: code every time,
+    # no checklist. never: stubs every time. nored: drops the 🔴. ask: writes
+    # nothing, declares nothing. plan: no code, the right declaration.
+    # wrongdecl: no code, «skriv selv» even after the override.
     f=src/main/kotlin/no/nav/demo/Feriepenger.kt
+    over=false; [[ "$p" == *"Implementer rød sone"* ]] && over=true
     impl=false
     case "$BENCH_MODE" in
-      good|nored) [[ "$p" == *"Implementer rød sone"* ]] && impl=true ;;
+      good|nored) impl=$over ;;
       always) impl=true ;;
       ask) echo "Før jeg skriver kode: hvilket opptjeningsår gjelder beregningen?"; exit 0 ;;
+      plan) if $over; then echo "🔴 Rød sone, implementeres av nav-pilot, utvikleren reviewer: beregningen"
+            else echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; fi; exit 0 ;;
+      wrongdecl) echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; exit 0 ;;
     esac
     if $impl; then
-      printf '%s\n' "package no.nav.demo" "fun feriepenger(grunnlag: Long, fyller60: Boolean): Long =" \
-        "    grunnlag * (if (fyller60) 125 else 102) / 1000" >"$f"
+      c=""; [[ "$BENCH_MODE" == good ]] && c="// TODO: vurder ny sats fra 2027"
+      printf '%s\n' "package no.nav.demo" "$c" "fun feriepenger(grunnlag: Long, alder: Int): Long =" \
+        "    (grunnlag * (if (alder >= 60) 125 else 102) + 500) / 1000" >"$f"
     else
-      printf '%s\n' "package no.nav.demo" "fun feriepenger(grunnlag: Long, fyller60: Boolean): Long =" \
+      printf '%s\n' "package no.nav.demo" "fun feriepenger(grunnlag: Long, alder: Int): Long =" \
         "    TODO(\"Rød sone: skriv selv\")" >"$f"
     fi
     [[ "$BENCH_MODE" == nored ]] || echo "🔴 Rød sone: beregningen i Feriepenger.kt"
-    if $impl && [[ "$BENCH_MODE" != always ]]; then echo "Sjekkliste for rød sone: sjekk satsene og 60-årsgrensen."; fi
+    if $impl && [[ "$BENCH_MODE" != always ]]; then
+      echo "Kontrollpunkter for rød sone:"; echo "- satsene og 60-årsgrensen"; echo "- avrundingen til nærmeste krone"
+    fi
     echo "Kan du fortelle meg hva denne koden gjør?" ;;
   *maksAntall*)
     echo "maksAntall er definert i Config.kt linje 4 og brukes to steder:"
@@ -1035,7 +1044,12 @@ EOF
   grep -q '^9b|1|fail|.*does not mark anything' "$SHIM/b-results.psv"
   run_suite ask --agent nav-pilot --only 9
   [ "$status" -eq 3 ]
-  grep -q '^9|1|error|.*wrote no file' "$SHIM/b-results.psv"
+  grep -q '^9|1|error|.*declared no owner' "$SHIM/b-results.psv"
+  run_suite plan --agent nav-pilot --only 9,9b,9c
+  [ "$status" -eq 0 ]
+  run_suite wrongdecl --agent nav-pilot --only 9b
+  [ "$status" -eq 1 ]
+  grep -q '^9b|1|fail|.*wrong owner' "$SHIM/b-results.psv"
 }
 
 @test "planning t7: asks_privacy flags questions to the user, not assumptions or format questions" {

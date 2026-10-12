@@ -1,0 +1,51 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+● Inspect repository layout (shell)
+  │ pwd && ls -la && find .github -maxdepth 2 -type f 2>/dev/null | head -40
+  └ 26 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Inspect source and deployment files (shell)
+  │ find src -type f -maxdepth 10 | sort; cat nais.yaml
+  └ 16 lines…
+
+Dette er **🔴 rød sone**: feriepengeregler er ny fagkunnskap for teamet, og beregningen er kjernelogikk. Jeg fant ingen eksisterende tester eller testavhengigheter. Jeg stopper før implementering slik faseopplegget krever, selv om du har bedt meg implementere koden for gjennomgang.
+
+Før jeg velger beregningsregel, trenger jeg avklart to tilfeller: Skal negativt grunnlag avvises? Hvordan skal eksakt 50 øre avrundes? Jeg legger ellers til grunn at alderen gjelder opptjeningsåret, slik funksjonssignaturen sier. Repositoriet mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 2/11 (#7 teststrategi og #11 ny fagkunnskap; øvrige er ikke relevante for en ren beregningsfunksjon).
+

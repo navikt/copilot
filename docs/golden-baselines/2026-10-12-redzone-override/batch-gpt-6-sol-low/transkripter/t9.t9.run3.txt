@@ -1,0 +1,48 @@
+● skill(deliberate-ai-use)
+
+● Check repository guidance (shell)
+  │ for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md; do if
+  │ test -f "$f"; then echo "present $f"; else echo "missing $f"; fi; done
+  └ 3 lines…
+
+● Inspect project structure (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -70
+  └ 29 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+Dette er **full løype, fase 1: avklaring**. Feriepengeberegning er ny for teamet og er kjernelogikk. 🔴 Rød sone: Jeg kan implementere den som du ber om, men stopper før kodeendringer slik at regelen kan avklares. Jeg kjører ikke Gradle.
+
+Jeg legger til grunn at 12,5 % gjelder når `alderIOpptjeningsåret` er **60 eller mer**. Skal funksjonen avvise negativt grunnlag og negativ alder? Hva skal skje hvis resultatet ikke får plass i `Long`? Jeg vil også avklare om «nærmeste krone» betyr at en halv krone rundes opp.
+
+Tjenesten har ingen tester eller testavhengigheter i dag. Jeg fant heller ingen av `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon senere. Fasebudsjett: intervju kort, plan kort, gjennomgang kort, levering avgrenset til funksjonen og testene. Ingen nye dataflyter eller tilgangsveier er foreslått, så spørsmål om personvern og tilgangskontroll er ikke relevante nå.
+
+Blindsoner reist: 2/11 (#7 teststrategi, #11 ny fagregel; #1–#6 og #8–#10 ikke relevante for denne isolerte beregningen).
+

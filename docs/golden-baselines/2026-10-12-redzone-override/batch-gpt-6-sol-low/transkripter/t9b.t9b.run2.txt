@@ -1,0 +1,70 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ ".github/instructions/*"
+  └ 16 files found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 2 -type f | head -60
+  └ 12 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:130 (130 lines read)
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+Jeg legger beregningen i en ren funksjon med eksakt desimalregning og tester grensen ved 60 år, avrunding og ugyldige verdier. Gradle kjører jeg ikke.
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+**Lagt til `feriepenger`** med 10,2 % før året personen fyller 60 og 12,5 % fra og med det året. Enhetstestene dekker aldersgrensen, avrunding, null, ugyldige verdier og store grunnlag. Jeg la også til JUnit-oppsett. Gradle er ikke kjørt, som avtalt.
+
+🔴 **Rød sone: feriepengeregelen.** Beregningen bruker eksakt desimalregning for å unngå flyttallsfeil og runder halvkroner opp. Det koster litt mer enn heltallsregning. Ved gjennomgang bør du sjekke at satsene gjelder *alder i opptjeningsåret*, at halvkroner skal rundes opp, og at testene uttrykker regelen teamet vil bruke. Kan du forklare hva beregningen gjør og hvorfor denne avrundingen er valgt? Still gjerne spørsmål om valgene over.
+
