@@ -593,12 +593,14 @@ WS="$WORKDIR/repo"
 # install dirs: the same tools, and anything ahead of the shims still wins.
 if command -v mise >/dev/null 2>&1; then
   mise_shims="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims"
-  mise_bins="$(mise bin-paths 2>/dev/null | paste -sd: -)"
-  if [[ -n "$mise_bins" ]]; then
+  # -C: resolve the tools from this checkout, whatever the caller's cwd.
+  if mise_bins="$(mise -C "$REPO_ROOT" bin-paths 2>/dev/null | paste -sd: -)" && [[ -n "$mise_bins" ]]; then
     PATH=":$PATH:"; PATH="${PATH//:$mise_shims:/:$mise_bins:}"; PATH="${PATH#:}"; PATH="${PATH%:}"
+    : > "$WORKDIR/mise-global.toml"
+    export MISE_GLOBAL_CONFIG_FILE="$WORKDIR/mise-global.toml" MISE_GLOBAL_CONFIG_ROOT="$WORKDIR"
+  else
+    echo "${YELLOW}warning: mise bin-paths failed or was empty; runner's mise tasks stay visible in the fixture${RESET}" >&2
   fi
-  : > "$WORKDIR/mise-global.toml"
-  export MISE_GLOBAL_CONFIG_FILE="$WORKDIR/mise-global.toml" MISE_GLOBAL_CONFIG_ROOT="$WORKDIR"
 fi
 # shellcheck disable=SC2329  # invoked via trap
 cleanup() {

@@ -1056,3 +1056,14 @@ run_deleg() {
   [ "$status" -eq 1 ]
   grep -q '^d2|1|fail|.*|nothing written; tests not green; no test calls tilDto' "$SHIM/b-results.psv"
 }
+
+@test "--keep: mise tasks in the kept workspace lists none of the runner's tasks" {
+  command -v mise >/dev/null 2>&1 || skip "mise not installed"
+  NO_COLOR=1 run bash "$SCRIPT" --dry-run --keep
+  [ "$status" -eq 0 ]
+  workdir="$(sed -n 's/.*transcripts kept in \([^[:cntrl:]]*\).*/\1/p' <<<"$output")"
+  [ -f "$workdir/mise-global.toml" ]
+  tasks="$(cd "$workdir/repo" && MISE_GLOBAL_CONFIG_FILE="$workdir/mise-global.toml" MISE_GLOBAL_CONFIG_ROOT="$workdir" mise tasks --no-header 2>/dev/null)"
+  rm -rf "$workdir"
+  [ -z "$tasks" ]
+}
