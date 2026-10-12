@@ -1,6 +1,6 @@
 ---
 name: klarsprak
-description: "Redigér og kvalitetssikre norsk tekst som havner i en fil eller blir publisert: README-er, dokumentasjon, ADR-er, UI-tekst, nettsider, nyhetssaker, commit-meldinger og PR- og issue-beskrivelser. Dekker klarspråk, KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Ikke bruk den for svar til brukeren i chatten, heller ikke på norsk og heller ikke når du forklarer hvordan kode virker."
+description: "Redigér og kvalitetssikre norsk tekst som havner i en fil eller blir publisert: README-er, dokumentasjon, ADR-er, UI-tekst, nettsider, nyhetssaker, e-poster, commit-meldinger og PR- og issue-beskrivelser. Bruk den også når brukeren limer inn norsk tekst og ber om språkvask eller korrektur. Dekker klarspråk, KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Ikke bruk den for vanlige chatsvar, heller ikke når svaret er på norsk eller forklarer hvordan kode virker."
 license: "MIT"
 ---
 
