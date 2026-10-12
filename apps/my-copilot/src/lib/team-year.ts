@@ -13,13 +13,17 @@ const basisLabel: Record<TeamYearMonth["basis"], string> = {
 export function teamYearCaveats(data: TeamYearOverview): string[] {
   const { membership_from, gross_from, last_usage_day } = data.coverage;
   return [
-    "Raden «Totalt hittil i år» er summen av de fakturerte månedene. Brutto er foreløpig og er ikke med i totalen.",
+    "Totalraden er summen av de fakturerte månedene. Brutto er foreløpig og er ikke med i totalen.",
     "Beløp for ulike team kan ikke legges sammen: en person som er med i flere team, telles i hvert av dem.",
     "Netto er fakturert forbruk etter fradrag, fordelt på dagene hver person brukte Copilot. Brutto er listepris før fradrag, og brukes inntil fakturaen for måneden er lest inn.",
     "Januar til mai 2026 ble fakturert som premiumforespørsler. For disse månedene har vi ikke forbruk per dag. Netto er derfor fordelt likt på dagene hver person brukte Copilot, og brutto mangler.",
     ...residualCaveats(data),
     `Teamhistorikken starter ${membership_from || "ukjent dato"}. For dager før det regner vi hver person med i de teamene personen var med i den første dagen vi har registrert.`,
-    `Ingen data betyr at måneden mangler teamhistorikk (finnes fra ${membership_from || "ukjent dato"}) eller forbruk per person (finnes fra ${gross_from || "ukjent dato"}).`,
+    ...(data.months.some((m) => m.basis === "none")
+      ? [
+          `Ingen data betyr at måneden mangler teamhistorikk (finnes fra ${membership_from || "ukjent dato"}) eller forbruk per person (finnes fra ${gross_from || "ukjent dato"}).`,
+        ]
+      : []),
     "Netto uten bruk er fakturert beløp for medlemmer uten registrert bruk i måneden. Beløpet kan ikke fordeles på dager og er derfor ikke med i netto.",
     ...licenceCaveats(data),
     `Tallene går til og med ${last_usage_day || "ukjent dato"}.`,
@@ -52,6 +56,10 @@ function licenceCaveats(data: TeamYearOverview): string[] {
     "Totalt med lisenser legger lisensene til netto og netto uten bruk, eller til brutto når måneden bruker brutto. Feltet er tomt når en av delene mangler.",
   ];
 }
+
+/** «januar» for "2026-01". */
+export const monthName = (month: string) =>
+  new Date(`${month}-01T00:00:00Z`).toLocaleString("nb-NO", { month: "long", timeZone: "UTC" });
 
 const amount = (value: number | null | undefined) => (value == null ? "" : value.toFixed(2));
 
@@ -90,8 +98,9 @@ function teamYearTotalRow(data: TeamYearOverview): string[] {
     const values = billed.map(pick);
     return values.length && values.every((v) => v != null) ? values.reduce((a, b) => a! + b!, 0) : null;
   };
+  const span = [...new Set([billed[0], billed.at(-1)].filter((m) => m).map((m) => monthName(m!.month)))];
   return [
-    "Totalt hittil i år",
+    span.length ? `Totalt ${span.join("–")}` : "Totalt",
     "",
     "",
     amount(sum((m) => m.net_usd)),
@@ -102,3 +111,6 @@ function teamYearTotalRow(data: TeamYearOverview): string[] {
     amount(sum((m) => m.total_usd)),
   ];
 }
+
+/** The report hides «netto uten bruk» when no month has an amount; the CSV keeps every column. */
+export const hasNoUsageAmounts = (rows: string[][]) => rows.some((r) => Number(r[5]) !== 0);

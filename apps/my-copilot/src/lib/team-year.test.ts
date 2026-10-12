@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TeamYearOverview } from "./types";
-import { teamYearCsv, teamYearRows } from "./team-year";
+import { hasNoUsageAmounts, teamYearCaveats, teamYearCsv, teamYearRows } from "./team-year";
 
 const month = { users: 3, gross_usd: null, seat_months: 3, total_basis: "net" } as const;
 const data: TeamYearOverview = {
@@ -47,6 +47,24 @@ describe("teamYearRows", () => {
       .filter((l) => !l.startsWith("#"))
       .slice(1);
     expect(teamYearRows(data).map((r) => r.join(","))).toEqual(csvRows);
-    expect(csvRows.at(-1)).toBe("Totalt hittil i år,,,10.50,,1.00,,57.00,68.50");
+  });
+
+  it("keep month order with the preliminary month before a total labelled with the billed span", () => {
+    expect(teamYearRows(data).map((r) => r[0])).toEqual(["2026-09", "2026-10", "Totalt september"]);
+    expect(teamYearRows(data).at(-1)).toEqual(["Totalt september", "", "", "10.50", "", "1.00", "", "57.00", "68.50"]);
+    const three = { ...data, months: [{ ...data.months[0], month: "2026-06" }, ...data.months] };
+    expect(teamYearRows(three).at(-1)![0]).toBe("Totalt juni–september");
+  });
+
+  it("show «netto uten bruk» only when some month has an amount", () => {
+    expect(hasNoUsageAmounts(teamYearRows(data))).toBe(true);
+    const zero = { ...data, months: data.months.map((m) => ({ ...m, no_usage_net_usd: m.no_usage_net_usd && 0 })) };
+    expect(hasNoUsageAmounts(teamYearRows(zero))).toBe(false);
+  });
+
+  it("explain «Ingen data» only when a month has no data", () => {
+    expect(teamYearCaveats(data).some((c) => c.startsWith("Ingen data"))).toBe(false);
+    const none = { ...data, months: [{ ...data.months[0], basis: "none" as const }] };
+    expect(teamYearCaveats(none).some((c) => c.startsWith("Ingen data"))).toBe(true);
   });
 });

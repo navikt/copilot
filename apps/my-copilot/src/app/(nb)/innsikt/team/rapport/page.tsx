@@ -6,7 +6,7 @@ import { getUser, getUserToken } from "@/lib/auth";
 import { BackendApiError } from "@/lib/backend-api";
 import { getTeamYearOverview } from "@/lib/cached-bigquery";
 import { formatDate } from "@/lib/format";
-import { teamYearCaveats, teamYearRows } from "@/lib/team-year";
+import { hasNoUsageAmounts, monthName, teamYearCaveats, teamYearRows } from "@/lib/team-year";
 import { DocumentTitle, PrintButton, ReportNote } from "./report-controls";
 
 export const metadata: Metadata = {
@@ -14,27 +14,20 @@ export const metadata: Metadata = {
   description: "Utskriftsvennlig rapport over et teams Copilot-kostnad hittil i år.",
 };
 
-/** CSV columns shown in the report: måned, grunnlag, netto, brutto, netto uten bruk, lisenser, totalt. */
-const columns = [0, 1, 3, 4, 5, 7, 8];
-/** Screen header and the shorter print header, so seven columns fit on A4. */
-const headers = [
-  ["Måned", "Måned"],
-  ["Grunnlag", "Grunnlag"],
-  ["Netto", "Netto"],
-  ["Brutto", "Brutto"],
-  ["Netto uten bruk", "Netto u. bruk"],
-  ["Lisenser (anslag)", "Lisenser*"],
-  ["Totalt med lisenser", "Totalt"],
+/** CSV column index, screen header and the shorter print header, so the columns fit on A4. */
+const allColumns: [number, string, string][] = [
+  [0, "Måned", "Måned"],
+  [1, "Grunnlag", "Grunnlag"],
+  [3, "Netto", "Netto"],
+  [4, "Brutto", "Brutto"],
+  [5, "Netto uten bruk", "Netto u. bruk"],
+  [7, "Lisenser (anslag)", "Lisenser*"],
+  [8, "Totalt med lisenser", "Totalt"],
 ];
 
 /** CSV amounts keep a decimal point; the report shows them the Norwegian way. */
 const nok = (amount: string) =>
   amount === "" ? "" : Number(amount).toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const monthName = (month: string) =>
-  /^\d{4}-\d{2}$/.test(month)
-    ? new Date(`${month}-01T00:00:00Z`).toLocaleString("nb-NO", { month: "long", timeZone: "UTC" })
-    : month;
 
 export default async function TeamReportPage({
   searchParams,
@@ -60,25 +53,26 @@ export default async function TeamReportPage({
     return <ErrorState message="Kunne ikke hente teamets forbruk." />;
   }
 
-  // The same rows as the CSV. The preliminary gross months go below the total they are not part of.
+  // The same rows as the CSV, in month order with the total last.
   const rows = teamYearRows(data);
-  const total = rows.pop()!;
-  const isGross = (i: number) => data.months[i].basis === "gross";
-  const billed = rows.filter((_, i) => !isGross(i));
-  const gross = rows.filter((_, i) => isGross(i));
+  const columns = allColumns.filter(([c]) => c !== 5 || hasNoUsageAmounts(rows));
   const { last_usage_day } = data.coverage;
   // The last caveat is «Tallene går til og med …», which the report states at the top.
   const caveats = teamYearCaveats(data).slice(0, -1);
 
-  const row = (cells: string[], key: string, bold = false) => (
-    <TableRow key={key}>
-      {columns.map((c, i) => (
-        <TableDataCell key={c} align={i < 2 ? "left" : "right"} style={bold ? { fontWeight: 600 } : undefined}>
-          {i === 0 ? monthName(cells[c]) : i < 2 ? cells[c] : nok(cells[c])}
-        </TableDataCell>
-      ))}
-    </TableRow>
-  );
+  const row = (cells: string[], i: number) => {
+    const total = i === data.months.length;
+    const preliminary = !total && data.months[i].basis === "gross";
+    return (
+      <TableRow key={cells[0]} className={preliminary ? "text-text-subtle italic" : undefined}>
+        {columns.map(([c], col) => (
+          <TableDataCell key={c} align={col < 2 ? "left" : "right"} style={total ? { fontWeight: 600 } : undefined}>
+            {col === 0 && !total ? monthName(cells[c]) : col < 2 ? cells[c] : nok(cells[c])}
+          </TableDataCell>
+        ))}
+      </TableRow>
+    );
+  };
 
   return (
     <main id="hovedinnhold" tabIndex={-1} className="team-report mx-auto max-w-4xl px-4 py-8 print:p-0">
@@ -103,7 +97,7 @@ export default async function TeamReportPage({
           <Table size="small">
             <TableHeader>
               <TableRow>
-                {headers.map(([screen, print], i) => (
+                {columns.map(([, screen, print], i) => (
                   <TableHeaderCell key={screen} scope="col" align={i < 2 ? "left" : "right"}>
                     <span className="print-hidden">{screen}</span>
                     <span className="print-only">{print}</span>
@@ -111,11 +105,7 @@ export default async function TeamReportPage({
                 ))}
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {billed.map((cells) => row(cells, cells[0]))}
-              {row(total, "total", true)}
-              {gross.map((cells) => row(cells, cells[0]))}
-            </TableBody>
+            <TableBody>{rows.map(row)}</TableBody>
           </Table>
         </div>
         <BodyShort size="small" className="print-only">

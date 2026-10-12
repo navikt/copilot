@@ -113,14 +113,14 @@ describe("GET /api/team-year", () => {
     expect(res.headers.get("Content-Disposition")).toContain("copilot-team-a-2026.csv");
     const lines = (await res.text()).trim().split("\n");
     const header = lines.findIndex((line) => !line.startsWith("#"));
-    expect(lines.slice(0, header).some((line) => line.includes("Totalt hittil i år» er summen"))).toBe(true);
+    expect(lines.slice(0, header).some((line) => line.includes("Totalraden er summen"))).toBe(true);
     expect(lines.slice(header)).toEqual([
       "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,medlemmer_med_lisens,lisenser_usd_anslag,totalt_med_lisenser_usd",
       "2026-04,Ingen data,,,,,,,",
       "2026-05,Premiumforespørsler,7,50.50,,1.00,7,133.00,184.50",
       "2026-07,Brutto (foreløpig),4,,60.00,,9,171.00,231.00",
       "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
-      "Totalt hittil i år,,,130.60,,3.00,,285.00,418.60",
+      "Totalt mai–august,,,130.60,,3.00,,285.00,418.60",
     ]);
     expect(lines.some((line) => line.includes("Lisenser er et anslag"))).toBe(true);
     expect(lines.some((line) => /skjult|færre enn fem/i.test(line))).toBe(false);
