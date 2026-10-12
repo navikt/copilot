@@ -36,7 +36,7 @@ describe("Navs modellpolicy", () => {
 describe("nav-pilots modellvalg", () => {
   it("har ett tydelig bruksområde per primærvalg", () => {
     expect(NAV_PILOT_MODEL_CHOICES.map((choice) => choice.purpose)).toEqual([
-      "Daglig agentisk koding",
+      "Planlegging og koding med @nav-pilot",
       "Kafka-agent",
       "Rust-agent",
       "Research og faste maler",
@@ -61,12 +61,12 @@ describe("nav-pilots modellvalg", () => {
 
   it("viser både primær- og fallback-bruk på prisraden", () => {
     expect(navPilotPurposesFor("GPT-6 Sol (Default, ≤ 272K)")).toEqual([
-      "Daglig agentisk koding",
+      "Planlegging og koding med @nav-pilot",
       "Kafka-agent",
       "Høyrisikoplanlegging og kodegjennomgang",
     ]);
     expect(navPilotPurposesFor("GPT-5.3-Codex (Default)")).toEqual([
-      "Daglig agentisk koding",
+      "Planlegging og koding med @nav-pilot",
       "Kafka-agent",
       "Rust-agent",
       "Research og faste maler",

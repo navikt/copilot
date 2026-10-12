@@ -55,13 +55,13 @@ export function spreadLabels(ys: number[], gap: number): number[] {
 const fade = (hex: string, on: boolean) => (on ? hex : `${hex}33`);
 type Raw = { x: number; y: number; effort: string; n: number; low: number; high: number };
 
-/** Faint interval bars and, when wide enough, model names at the dearest end of each line. */
+/** Faint interval bars and, when wide enough, model names right of the plot at each line's dearest point. */
 const overlay: Plugin<"scatter"> = {
   id: "passOverlay",
   afterDatasetsDraw(chart: Chart<"scatter">) {
     const opts = (chart.options.plugins as unknown as { passOverlay: OverlayOptions }).passOverlay;
     const { ctx, scales } = chart;
-    const labels: { y: number; x: number; text: string; color: string }[] = [];
+    const labels: { y: number; text: string; color: string; swatch: string }[] = [];
     chart.data.datasets.forEach((ds, i) => {
       if (ds.label === FRONTIER || !chart.isDatasetVisible(i)) return;
       const on = !opts.highlight || opts.highlight === ds.label;
@@ -84,11 +84,12 @@ const overlay: Plugin<"scatter"> = {
       }
       const last = data.at(-1);
       if (opts.labels && last) {
+        // One column right of the plot, so labels never sit on points that cluster at 100 %.
         labels.push({
-          x: scales.x.getPixelForValue(last.x) + 12,
           y: scales.y.getPixelForValue(last.y),
           text: String(ds.label),
           color: on ? "#1f2937" : "#9ca3af",
+          swatch: color,
         });
       }
     });
@@ -99,9 +100,12 @@ const overlay: Plugin<"scatter"> = {
     ctx.save();
     ctx.font = "12px sans-serif";
     ctx.textBaseline = "middle";
+    const x = chart.chartArea.right + 16;
     labels.forEach((l, i) => {
+      ctx.fillStyle = l.swatch;
+      ctx.fillRect(x, ys[i] - 4, 8, 8);
       ctx.fillStyle = l.color;
-      ctx.fillText(l.text, l.x, ys[i]);
+      ctx.fillText(l.text, x + 12, ys[i]);
     });
     ctx.restore();
   },
@@ -206,7 +210,7 @@ export function PassRateChart({
             // Points on 100 % or the largest credit value would otherwise be cut in half.
             clip: false,
             // Room on the right for the direct labels.
-            layout: { padding: { top: 12, bottom: 12, left: 12, right: wide ? 120 : 12 } },
+            layout: { padding: { top: 12, bottom: 12, left: 12, right: wide ? 140 : 12 } },
             onHover: (_event, elements, chart) => {
               const label = elements.length ? chart.data.datasets[elements[0].datasetIndex].label : null;
               setHovered(label === FRONTIER ? null : (label ?? null));

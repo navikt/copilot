@@ -62,6 +62,8 @@ export function TableOfContents({ items, title = "Innhold" }: TableOfContentsPro
     e.preventDefault();
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     window.history.replaceState(null, "", `#${id}`);
+    // replaceState fires no hashchange; pages that act on the hash (tabs on /modeller) listen for it.
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
   };
 
   return (

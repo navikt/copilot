@@ -20,12 +20,21 @@ vi.mock("@/lib/golden-summary-file", async (original) => {
 
 /** Default view hides some models and columns; most tests check every run. */
 function showAll() {
-  const more = screen.queryByLabelText("Vis flere kolonner");
-  if (!more) return;
-  fireEvent.click(more);
+  const view = screen.queryByRole("button", { name: "Visning" });
+  if (!view) return;
+  fireEvent.click(view);
+  fireEvent.click(screen.getByLabelText("Vis flere kolonner"));
   const group = screen.getByRole("group", { name: "Modeller" });
-  for (const box of within(group).getAllByRole("checkbox"))
-    if (!(box as HTMLInputElement).checked) fireEvent.click(box);
+  for (const chip of within(group).getAllByRole("button"))
+    if (chip.getAttribute("aria-pressed") !== "true") fireEvent.click(chip);
+}
+
+/** One benchmark is shown at a time, in its own tab. */
+function openTab(name: string) {
+  const tab = screen.getByRole("tab", { name });
+  fireEvent.mouseDown(tab);
+  fireEvent.click(tab);
+  expect(tab).toHaveAttribute("aria-selected", "true");
 }
 
 const FIXTURE = path.join(__dirname, "..", "..", "..", "lib", "__fixtures__", "golden-summary.json");
@@ -43,6 +52,7 @@ describe("modellsiden", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
     showAll();
+    openTab("Planlegging");
     const row = screen.getByRole("link", { name: "fixture-a.txt" }).closest("tr")!;
     expect(within(row).getByText("GPT-6 Sol")).toBeInTheDocument();
     expect(within(row).getByText("90 %")).toBeInTheDocument();
@@ -62,27 +72,32 @@ describe("modellsiden", () => {
     render(<ModellerPage />);
     showAll();
     const rowFor = (file: string) => screen.getByRole("link", { name: file }).closest("tr")!;
+    const dash = /Strek \(–\) betyr at forbruket ikke ble registrert for alle kall/;
 
     // usage_complete: false and credits: null are both unknown, not a number.
+    openTab("Planlegging");
     expect(within(rowFor("fixture-c.txt")).getAllByText("–")).toHaveLength(2);
-    expect(within(rowFor("fixture-f.txt")).getAllByText("–")).toHaveLength(2);
     expect(screen.getByRole("figure", { name: "Planlegging: andel bestått mot median credits" })).toHaveAttribute(
       "data-points",
       "GPT-6 Sol/high,GPT-6 Sol/medium"
     );
-    expect(screen.getAllByText(/Strek \(–\) betyr at forbruket ikke ble registrert for alle kall/)).toHaveLength(2);
-
-    expect(within(rowFor("fixture-e.txt")).getByText("GPT-6 Luna (benchmark)")).toBeInTheDocument();
-    expect(within(rowFor("fixture-f.txt")).getByText("fixture-unknown-model")).toBeInTheDocument();
+    expect(screen.getAllByText(dash)).toHaveLength(1);
     // ran_at is shown only when it differs from the requested effort.
     expect(within(rowFor("fixture-b.txt")).getByText("medium (kjørte på high)")).toBeInTheDocument();
     expect(within(rowFor("fixture-c.txt")).getByText("high")).toBeInTheDocument();
+
+    openTab("Kodegjennomgang");
+    expect(within(rowFor("fixture-f.txt")).getAllByText("–")).toHaveLength(2);
+    expect(screen.getAllByText(dash)).toHaveLength(1);
+    expect(within(rowFor("fixture-e.txt")).getByText("GPT-6 Luna (benchmark)")).toBeInTheDocument();
+    expect(within(rowFor("fixture-f.txt")).getByText("fixture-unknown-model")).toBeInTheDocument();
   });
 
   it("merker ubekreftet modell, holder den utenfor diagrammet og viser subagentenes modeller", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
     showAll();
+    openTab("Planlegging");
     const rowFor = (file: string) => screen.getByRole("link", { name: file }).closest("tr")!;
 
     // fixture-h has credits; only model_verified: false keeps them off the table and the chart.
@@ -103,6 +118,7 @@ describe("modellsiden", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
     showAll();
+    openTab("Kodegjennomgang");
 
     // The smoke run on GPT-6 Luna has known credits, so only the smoke flag keeps it off the chart.
     expect(screen.getByRole("figure", { name: "Kodegjennomgang: andel bestått mot median credits" })).toHaveAttribute(
@@ -116,20 +132,21 @@ describe("modellsiden", () => {
         .map((link) => link.textContent)
     ).toEqual(["fixture-d.txt", "fixture-f.txt", "fixture-e.txt"]);
 
-    // A suite with only smoke runs gets its table, no chart.
-    expect(screen.getByRole("heading", { name: "Norsk tekst" })).toBeInTheDocument();
+    const smokeNote = /En benchmark med én kjøring sjekker at testoppsettet virker/;
+    expect(screen.getAllByText(smokeNote)).toHaveLength(1);
+
+    // A suite with only smoke runs gets its table, no chart, and the same note.
+    openTab("Norsk tekst");
     expect(screen.getByText("Claude Sonnet 5.5 (benchmark)")).toBeInTheDocument();
     expect(screen.queryByRole("figure", { name: /^Norsk tekst/ })).toBeNull();
-
-    // Every suite that shows a smoke run explains what a smoke run is.
-    expect(screen.getAllByText(/En benchmark med én kjøring sjekker at testoppsettet virker/)).toHaveLength(2);
+    expect(screen.getAllByText(smokeNote)).toHaveLength(1);
   });
 
   it("viser research som egen suite med norske datoer", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
     showAll();
-    expect(screen.getByRole("heading", { name: "Research" })).toBeInTheDocument();
+    openTab("Research");
     expect(screen.getByRole("figure", { name: "Research: andel bestått mot median credits" })).toHaveAttribute(
       "data-points",
       "GPT-6 Luna/medium"
@@ -143,14 +160,15 @@ describe("modellsiden", () => {
     summaryFile.path = FIXTURE;
     render(<ModellerPage />);
     showAll();
+    openTab("Planlegging");
     const planning = () => screen.getByRole("figure", { name: "Planlegging: andel bestått mot median credits" });
     expect(planning().getAttribute("data-points")).toContain("medium");
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "medium" }));
+    fireEvent.click(screen.getByRole("button", { name: "medium" }));
     expect(planning().getAttribute("data-points")).not.toContain("medium");
     expect(planning().getAttribute("data-points")).toContain("high");
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "GPT-6 Sol" }));
+    fireEvent.click(within(screen.getByRole("group", { name: "Modeller" })).getByRole("button", { name: "GPT-6 Sol" }));
     expect(screen.queryByRole("figure", { name: /^Planlegging/ })).toBeNull();
     expect(screen.queryByRole("link", { name: "fixture-a.txt" })).toBeNull();
   });
@@ -182,7 +200,7 @@ it("har innholdsfortegnelse med lenker til hver seksjon og suite", () => {
   summaryFile.path = FIXTURE;
   const { container } = render(<ModellerPage />);
   showAll();
-  const nav = screen.getByRole("navigation", { name: "Innhold på siden" });
+  const nav = screen.getAllByRole("navigation", { name: "Innholdsfortegnelse" })[0];
   const links = within(nav).getAllByRole("link");
   expect(links.length).toBeGreaterThan(6);
   for (const link of links) {
@@ -190,12 +208,34 @@ it("har innholdsfortegnelse med lenker til hver seksjon og suite", () => {
   }
 });
 
-it("beholder overskrift og anker når filteret tømmer en suite", () => {
+it("beholder fane og anker når filteret tømmer en suite", () => {
+  summaryFile.path = FIXTURE;
+  const { container } = render(<ModellerPage />);
+  showAll();
+  fireEvent.click(screen.getByRole("button", { name: "standard" }));
+  expect(container.querySelector("#maling-norsk")).not.toBeNull();
+  openTab("Norsk tekst");
+  expect(screen.getByRole("tabpanel")).toHaveTextContent("Ingen målinger passer filteret.");
+});
+
+it("åpner fanen som #maling-<suite> peker på, og skriver valgt fane til adressen", () => {
+  summaryFile.path = FIXTURE;
+  window.history.replaceState(null, "", "#maling-review");
+  render(<ModellerPage />);
+  expect(screen.getByRole("tab", { name: "Kodegjennomgang" })).toHaveAttribute("aria-selected", "true");
+  openTab("Research");
+  expect(window.location.hash).toBe("#maling-research");
+  window.history.replaceState(null, "", "#");
+});
+
+it("anbefaler GPT-6.1 Sol til daglig koding og holder @nav-pilot på GPT-6 Sol", () => {
   summaryFile.path = FIXTURE;
   render(<ModellerPage />);
-  showAll();
-  fireEvent.click(screen.getByRole("checkbox", { name: "standard" }));
-  const heading = screen.getByRole("heading", { name: "Norsk tekst" });
-  expect(heading).toHaveAttribute("id", "maling-norsk");
-  expect(heading.parentElement).toHaveTextContent("Ingen målinger passer filteret.");
+  const daily = screen.getByRole("rowheader", { name: "Daglig koding" }).closest("tr")!;
+  expect(within(daily).getByText("GPT-6.1 Sol (Low)")).toBeInTheDocument();
+  const pilot = screen.getByRole("rowheader", { name: "@nav-pilot" }).closest("tr")!;
+  expect(within(pilot).getByText(NAV_PILOT_DEFAULT_MODEL)).toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: "Vær forsiktig med personopplysninger i GPT-6.1 Sol" })
+  ).toBeInTheDocument();
 });

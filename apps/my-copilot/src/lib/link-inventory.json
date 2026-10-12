@@ -366,7 +366,14 @@
       "docs/modellvalg.md",
       "docs/nav-pilot-changelog.md"
     ],
-    "anchors": {}
+    "anchors": {
+      "del-erfaringer": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "innsatsniva": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "kort-fortalt": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "malinger": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "priser": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "vare-valg": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"]
+    }
   },
   "/nav-pilot": {
     "sources": [
