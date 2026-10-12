@@ -170,3 +170,12 @@ it("har innholdsfortegnelse med lenker til hver seksjon og suite", () => {
     expect(container.querySelector(link.getAttribute("href")!)).not.toBeNull();
   }
 });
+
+it("beholder overskrift og anker når filteret tømmer en suite", () => {
+  summaryFile.path = FIXTURE;
+  render(<ModellerPage />);
+  fireEvent.click(screen.getByRole("checkbox", { name: "standard" }));
+  const heading = screen.getByRole("heading", { name: "Norsk tekst" });
+  expect(heading).toHaveAttribute("id", "maling-norsk");
+  expect(heading.parentElement).toHaveTextContent("Ingen målinger passer filteret.");
+});

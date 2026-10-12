@@ -153,7 +153,19 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
           Vis beste avveining mellom bestått og pris
         </Switch>
       </HStack>
-      {runsBySuite(shown).map(([suite, runs]) => {
+      {runsBySuite(summary.runs).map(([suite, all]) => {
+        // Keep every suite's heading so its menu link always has a target.
+        const runs = all.filter((run) => shown.includes(run));
+        if (runs.length === 0) {
+          return (
+            <VStack gap="space-12" key={suite}>
+              <Heading size="small" level="3" id={suiteId(suite)} className={H2}>
+                {SUITE_NAMES[suite] ?? suite}
+              </Heading>
+              <BodyShort>Ingen målinger passer filteret.</BodyShort>
+            </VStack>
+          );
+        }
         // Smoke runs check the harness, not the model: table only, after the real runs.
         const plotted = runs.filter((run) => !run.smoke && knownCredits(run) !== null);
         const unverified = runs.some((run) => !run.smoke && run.model_verified === false);
