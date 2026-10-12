@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"io"
 	"maps"
@@ -362,6 +361,10 @@ func recordCopilotSessions(root string, ids []string) {
 // one run without nav-pilot before, gets one at the end of what is there, so
 // recordCopilotSessions counts only what this launch adds. A new session has
 // no events file yet and gets nothing. Opted out, nothing is read.
+//
+// The file is streamed, never held in memory: a long session runs past 100 MB,
+// and that one-time read then costs the launch about two seconds. Copilot is
+// not writing this session at launch, so the end of the file is the offset.
 func baselineCopilotSession(root, id string) {
 	if !telemetryEnabled() || !copilotSessionID.MatchString(id) {
 		return
@@ -376,12 +379,15 @@ func baselineCopilotSession(root, id string) {
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		return
 	}
-	b, err := os.ReadFile(filepath.Join(dir, "events.jsonl"))
+	f, err := os.Open(filepath.Join(dir, "events.jsonl"))
 	if err != nil {
 		return
 	}
-	_, mark, _ := parseCopilotSession(bytes.NewReader(b), configModelLabel, nil, nil, sessionTotals{})
-	mark.Offset = int64(bytes.LastIndexByte(b, '\n') + 1)
+	defer f.Close()
+	_, mark, _ := parseCopilotSession(f, configModelLabel, nil, nil, sessionTotals{})
+	if mark.Offset, err = f.Seek(0, io.SeekEnd); err != nil {
+		return
+	}
 	if b, err := json.Marshal(mark); err == nil {
 		_ = os.WriteFile(marker, b, 0o600)
 	}
@@ -441,10 +447,10 @@ var copilotValueFlags = setOf("-i", "--interactive", "-p", "--prompt", "--model"
 // when unsure, nothing is added.
 func copilotSessionArgs(extra []string) (id string, add []string) {
 	for i := 0; i < len(extra); i++ {
-		if a := extra[i]; a == "--" || !strings.HasPrefix(a, "-") {
+		a := extra[i]
+		if a == "--" || !strings.HasPrefix(a, "-") {
 			return "", nil
 		}
-		a := extra[i]
 		if copilotValueFlags[a] || (a == "-r" || a == "--resume") && i+1 < len(extra) && copilotSessionID.MatchString(extra[i+1]) {
 			i++ // its value, whatever it looks like
 		}

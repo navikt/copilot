@@ -84,11 +84,12 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   `--session-id`. Gir du `--resume`, `-r` eller `--session-id` med en hel
   økt-ID, er det den økten. Med `--continue`, øktvelgeren, et navn, et
   ID-prefiks eller en underkommando vet ikke nav-pilot hvilken økt det blir,
-  og ingen økt telles. Det gjelder også en underkommando etter globale flagg,
-  som `--model x sessions`. Er nav-pilot usikker på om et ord er en
+  og ingen økt telles. Det gjelder også når underkommandoen står etter globale
+  flagg, som i `--model x sessions`. Er nav-pilot usikker på om et ord er en
   underkommando, legger den ikke til `--session-id`.
 - En økt telles bare hvis Copilot faktisk startet. Stopper nav-pilot før
-  oppstart, telles ingenting. En økt som avslutter med feil, telles.
+  Copilot er i gang, telles ingenting. Avsluttes Copilot med en feil, telles
+  økten likevel.
 - `--session-id` kom i Copilot CLI 1.0.51. Med en eldre Copilot CLI starter
   nav-pilot uten flagget, og ingen økt telles.
 - `/new` inne i Copilot starter en ny økt med en ny økt-ID som nav-pilot ikke
@@ -97,8 +98,8 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   summene ved siste `session.shutdown` (Copilot oppgir tokens, kostnad og
   API-tid som løpende summer for hele økten). En gjenopptatt økt telles derfor
   bare for det som kom etterpå, og varigheten regnes fra `session.resume`.
-  Gjenopptar du en økt nav-pilot ikke har lest før, lager nav-pilot filen ved
-  oppstart. Det som skjedde i økten før det, telles ikke.
+  Gjenopptar du en økt som nav-pilot ikke har lest før, lager nav-pilot filen
+  ved oppstart. Det som skjedde i økten før oppstarten, telles ikke.
 - nav-pilot dekoder bare disse feltene: navn, kilde og utløser fra
   `skill.invoked`; verktøynavn fra `tool.execution_start`; `success` fra
   `tool.execution_complete`; `hookType` og `success` fra `hook.end`;
