@@ -35,6 +35,7 @@ import { PassRateChart } from "./pass-rate-chart";
 
 const SLACK_URL = "https://nav-it.slack.com/archives/C055TNXBM17";
 const MODELLVALG_DOC = "https://github.com/navikt/copilot/blob/main/docs/modellvalg.md";
+const BASELINES_DIR = "https://github.com/navikt/copilot/tree/main/docs/golden-baselines";
 
 const SUITE_NAMES: Record<Suite, string> = {
   planning: "Planlegging",
@@ -311,7 +312,22 @@ function Effort() {
         og hvor langt den svarer. Mer er ikke alltid bedre. På enkle oppgaver bruker modellene ofte mange flere tokens
         uten å bli mer treffsikre, og for lang resonnering kan gi dårligere svar. På lange kodeoppgaver løfter høyere
         effort andelen bestått noe, men gevinsten er liten øverst: fra high til max ga ett prosentpoeng til 76 prosent
-        høyere kostnad. Vi har ikke målt effort selv ennå. Rådene under bygger på kildene.
+        høyere kostnad.
+      </BodyLong>
+      <BodyLong>
+        Våre egne målinger peker samme vei. På kodeoppgavene besto GPT-6 Sol og GPT-6.1 Sol alle sjekkene på både Low og
+        High 30. september og 12. oktober, men High kostet 8–9 prosent mer. På planlegging 30. september var High
+        dårligere: GPT-6 Sol besto 14 av 20 sjekker på High mot 18 av 20 på Low, og GPT-6.1 Sol 10 av 20 mot 15 av 20. I
+        kodegjennomgang fant Claude Opus 5.5 alle de plantede feilene på både Low og High, men High kostet 60 prosent
+        mer. Rådata ligger i{" "}
+        <Link href={`${BASELINES_DIR}/2026-09-30-batch1`} target="_blank" rel="noopener noreferrer">
+          målingen 30. september
+        </Link>{" "}
+        og{" "}
+        <Link href={`${BASELINES_DIR}/2026-10-12-effort-sol61`} target="_blank" rel="noopener noreferrer">
+          målingen 12. oktober
+        </Link>
+        . Rådene under bygger på kildene og målingene.
       </BodyLong>
       <div className="w-full overflow-x-auto">
         <Table size="small">
