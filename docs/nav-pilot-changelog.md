@@ -4,6 +4,27 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-12
 
+### `klarsprak` lastes ikke for vanlige chatsvar
+
+- **Færre unødvendige innlastinger**: Skillen lastes for norsk tekst som havner i en fil eller blir publisert: README, dokumentasjon, UI-tekst, nettsider, e-poster, commit-meldinger og PR- og issue-beskrivelser. Den lastes også når du limer inn tekst og ber om språkvask eller korrektur. Den lastes ikke for vanlige svar i chatten, heller ikke når svaret er på norsk eller forklarer kode. Før sto `klarsprak` for rundt 40 prosent av alle skill-innlastinger, og de fleste endte i et chatsvar.
+- **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply`.
+
+### `@nav-pilot` skriver kode for rød sone når du ber om det
+
+- **Stubber som før**: For deler av planen som er merket rød sone, lager `@nav-pilot` fortsatt testskjeletter og stubber som standard.
+- **Kode når du ber om det**: Skriver du for eksempel «implementer rød sone, jeg reviewer», skriver agenten koden, beholder 🔴-merkingen og avslutter med en sjekkliste per del: hva du skal kontrollere, hvilke regler som alltid må holde og hvilke tester du bør lese. Deretter ber den deg forklare koden. Ber du om det før eller under planleggingen, står det «implementeres av nav-pilot, utvikleren reviewer» i planen i stedet for «skriv selv».
+- **Samme soner overalt**: Sonelistene er nå like i instruksjonen, skillen, agenten, retningslinjene, [planleggingssiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/planlegging) og designdokumentet. Rød sone er feilsøking, nye konsepter, sentral forretningslogikk, sikkerhetskritisk kode og arkitekturvalg. Grønn sone er boilerplate, teknologi du kan fra før, konfigurasjon, refaktorering med kjent mål og testdata. En test sjekker at listene holder seg like.
+- **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply`.
+
+### Tall fra Copilot-øktene nav-pilot starter
+
+- **Hva som sendes**: Når en Copilot-økt som nav-pilot startet, avsluttes, sender nav-pilot antall skill-innlastinger, verktøykall, hook-kjøringer, runder, tokens, kostnad og premium requests, hvor lenge økten varte og hvilke subagenter som ble valgt. Innholdet sendes ikke: ikke meldinger, svar, argumenter, stier eller kodeendringer. Navn på skills og agenter sendes bare når nav-pilot installerte dem; andre blir `other`. Det samme gjelder verktøy som ikke er Copilots egne.
+- **Bare økten nav-pilot startet**: nav-pilot gir Copilot en egen økt-ID med `--session-id` og teller bare den økten. Gir du `--resume` eller `--session-id` med en hel økt-ID etter `--`, er det den økten som telles. Med `--continue`, øktvelgeren, et navn, et prefiks eller en underkommando telles ingen økt. En økt du starter med `/new` inne i Copilot, telles heller ikke.
+- **Krever Copilot CLI 1.0.51**: `--session-id` kom i Copilot CLI 1.0.51. Med eldre Copilot starter økten som før, men den telles ikke.
+- **Bare det som skjer under nav-pilot**: Ved hver oppstart flytter nav-pilot startpunktet til slutten av øktloggen. Det du gjør i en økt med `copilot --resume` uten nav-pilot, telles ikke. Krasjet en tidligere nav-pilot-kjøring før den fikk lest økten, telles ikke det den kjøringen gjorde.
+- **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot øktloggen. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
+- **Dashboard**: Grafana-dashboardet for nav-pilot har nye paneler for øktene, blant annet hook-kjøringer, feilrate per verktøy, subagenter og øktlengde.
+
 ### Tall fra opencode-øktene nav-pilot starter
 
 - **Hva som sendes**: Når en opencode-økt som nav-pilot startet, avsluttes, sender nav-pilot det samme som for Copilot-økter, så langt opencode har tallene: verktøykall og om de gikk bra, runder, varighet, og hvilke skills og agenter som ble brukt. Tokens og modell sendes som før. Navn på skills og agenter sendes bare når nav-pilot installerte dem; andre blir `other`.
@@ -13,11 +34,61 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Lengre økter telles nå**: opencode 1.18 kutter utdata ved 128 KiB når den skriver til en pipe. Økter over det ble stille hoppet over, også tokentallene. nav-pilot leser nå eksporten via en fil.
 - **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot eksporten. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
 
+### Innstillinger per klient
+
+- **Ny seksjon**: [/nav-pilot/klienter](https://ki-utvikling.nav.no/nav-pilot/klienter#innstillinger) viser hvilke innstillinger som virker i Copilot CLI, OpenCode og pi, blant annet `model`, `mode` og `reasoning_effort`. En test sier fra hvis tabellen mangler en innstilling klientene advarer om.
+
+## 2026-10-11
+
+### GitHub MCP kan bare lese
+
+- **Nye oppføringer er skrivebeskyttet**: Når du slår på GitHub MCP, skriver nav-pilot inn at serveren bare kan lese (`X-MCP-Readonly`) og at den kjører med lockdown (`X-MCP-Lockdown`). Verktøyene som lager issues, pull requests og branches, er fjernet fra oppføringen. Velger du det fulle endepunktet, fjernes headerne; bytter du tilbake, kommer de igjen.
+- **Eksisterende oppsett endres ikke**: nav-pilot skriver ikke om oppsettet du har. Bruker du det fulle endepunktet, sier `nav-pilot mcp doctor` fortsatt fra om det.
+
+### Nye MCP-servere: Astro Docs og Chrome DevTools
+
+- **Astro Docs**: Søker i Astro-dokumentasjonen. Ett verktøy, `search_astro_docs`.
+- **Chrome DevTools**: Ytelse, nettverk og konsoll i en egen Chrome. Serveren kjører med en midlertidig profil som slettes når den lukkes, og sender ikke bruksstatistikk eller sporings-URL-er til Google. Verktøyene som klikker, fyller ut, navigerer eller kjører skript i nettleseren, er merket `external`, så `nav-pilot mcp enable` slår dem ikke på før du velger dem.
+- **pi**: Retningslinjene sier nå at pi er tillatt under cplt via nav-pilot.
+- **Ingen endring for deg som har oppsett fra før**: Serverne kommer bare med når du slår dem på.
+
+### `mcp doctor` beskriver utfasede servere riktig
+
+- **Riktig beskjed**: En utfaset MCP-server fortsetter å virke der den allerede er slått på; den kan bare ikke slås på i nye oppsett. Før sa `mcp doctor` at organisasjonens policy stoppet den. Nå sier den det som stemmer, og foreslår fortsatt `nav-pilot mcp disable`.
+
+### Lokale modeller kan låses til en bestemt versjon
+
+- **`revision` i manifestet**: En lokal modell i `models.json` kan låses til en commit på Hugging Face med `revision` (hel commit-SHA på 40 tegn, små bokstaver). nav-pilot laster ned og kjører den versjonen og laster ned på nytt hvis du har vekter fra en annen commit. Uten `revision` er alt som før. Eldre nav-pilot ser bort fra feltet og bruker `main`.
+
+### Tydeligere personverntekst
+
+- **Førstegangsvarselet**: Varselet nav-pilot viser første gang sier nå at bruksdataene tar med navn på navikt-repoer, og at nav-pilot slår på Copilots og opencodes egen telemetri for økter den starter. Ingen endring i hva som sendes.
+- **Undersøkelsen**: «Svarene er anonyme» er erstattet med hva som faktisk lagres, i CLI-en, på nettsiden og i forklaringen.
+
+## 2026-10-10
+
+### Tall fra OpenCode-økter
+
+- **Tokens og verktøykall**: Når en OpenCode-økt avsluttes, sender nav-pilot antall tokens, modellkall og verktøykall for økter i mappa du startet fra. Bare meldinger etter oppstarten telles, så en gjenopptatt økt telles ikke to ganger. Verken innhold, stier eller brukernavn sendes. Modeller fra leverandører nav-pilot ikke kjenner, blir `custom`. Reservasjonen er som før. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md).
+- **Kjent begrensning**: To OpenCode-økter i samme mappe samtidig telles av begge.
+
+### `device_id` er pseudonym, ikke anonym
+
+- **Rettet beskrivelse**: Dokumentasjonen sa at `device_id` ikke inneholder persondata. Den er en stabil, pseudonym ID per maskin, og sammen med for eksempel reponavn kan den knyttes til en person. TELEMETRY.md og RUNBOOKS.md sier nå det. Ingen endring i hva som sendes.
+
+## 2026-10-09
+
+### `cplt doctor` gir utskrift du kan lime inn
+
+- **Trygg å dele**: cplt fra 9. oktober 2026 (`2026.10.09-111505` eller nyere) viser hjemmekatalogen som `~` og tokener bare med navn i `cplt doctor`. `--verbose` tar med fulle stier, og cplt sier fra om det.
+- **Når du rapporterer et problem**: Kjør `cplt doctor` og lim inn hele utskriften sammen med kommandoen som feilet. Ikke send `--verbose`. Se [Rapporter et problem](https://ki-utvikling.nav.no/nav-pilot/guider/cplt-feilmeldinger#rapporter).
+
 ## 2026-10-08
 
 ### Porter som stopper kallet når de ikke svarer
 
 - **`failClosed` for hooks**: En hook i en agentpakke kan sette `"failClosed": true` i `<navn>.hook.json`. Da nekter porten kallet når den bruker for lang tid, feiler eller mangler `python3`, i stedet for å slippe det gjennom, og modellen får vite hvilken port som stoppet det og hvorfor. Gjelder i Copilot CLI og OpenCode. Prisen er at en treg maskin stopper agenten, så bruk det bare for porter som må holde. Se [README.agentpakke.md](README.agentpakke.md#porter-som-skal-stoppe-kallet-når-de-ikke-svarer-failclosed).
+- **Krever ny nav-pilot**: En pakke som bruker `failClosed`, må sette `minNavPilotVersion` til minst `2026.10.08-214814-f2dcbbb`, den første utgaven med `failClosed`. Ellers kan en eldre nav-pilot installere hooken uten flagget, og da slipper porten kallet gjennom. Både `nav-pilot validate` og installasjonen sjekker dette.
 
 ### Færre feil på en travel Mac
 
