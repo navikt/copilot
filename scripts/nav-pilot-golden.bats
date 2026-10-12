@@ -459,6 +459,17 @@ run_suite() {
   [ "$status" -eq 0 ]
 }
 
+@test "benchmark-sjekk norsk: stored d4 transcripts pass, the Finnish one (#1501) fails" {
+  local f bad="${BATS_TEST_DIRNAME}/../docs/golden-baselines/2026-10-08-delegering-steg3/rev1/transkripter/d4.run2.txt"
+  for f in "${BATS_TEST_DIRNAME}"/../docs/golden-baselines/2026-10-08-delegering-*/{,*/}transkripter/d4.run*.txt; do
+    [ "$f" = "$bad" ] && continue
+    python3 "${BATS_TEST_DIRNAME}/benchmark-sjekk.py" norsk "$f"
+  done
+  run python3 "${BATS_TEST_DIRNAME}/benchmark-sjekk.py" norsk "$bad"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *finsk* ]]
+}
+
 @test "planning t4: the red-zone declaration passes with dash, colon or comma, a missing one fails" {
   re=$(sed -n "s/^RE_T4_RED_ZONE='\\(.*\\)'$/\\1/p" "$SCRIPT")
   [ -n "$re" ]

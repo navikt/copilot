@@ -17,6 +17,8 @@ nothing.
   punkter TX MIN MAX        MIN to MAX list items in the answer
   prioritet TX SPEC...      each defect's row carries a high-priority marker;
                             a SPEC named `!navn` must not carry one
+  norsk   TX                the answer is Norwegian: enough common function
+                            words, and no Finnish, Swedish or Danish markers
   svar    TX                print the answer without tool lines (not a check)
   taus    TX                no finding row carries a high-priority marker,
                             and the answer says there is nothing critical
@@ -219,6 +221,32 @@ def review(mode, text, specs):
     return None
 
 
+# norsk: function words. Code spans and fences are dropped first, so English
+# identifiers and terms neither help nor hurt. The foreign lists hold only
+# words bokmål does not use (#1501: d4 passed a reply half in Finnish).
+NORSK_ORD = set("og er ikke det som på for med til å".split())
+FREMMED = {
+    "finsk": set("ja ei että tai sekä myös joka mutta tämä ovat kuin jos ole".split()),
+    "svensk": set("och inte är att jag för från också vad hur där när måste används".split()),
+    "dansk": set("af hvad efter nu mig dig meget nogle noget blev lidt ud op".split()),
+}
+
+
+def norsk(text):
+    prose = re.sub(r"```.*?```|`[^`\n]*`", " ", "\n".join(answer_lines(text)), flags=re.S)
+    toks = re.findall(r"[a-zæøåäö]+", prose.lower())
+    if not toks:
+        return "no answer text"
+    nor = sum(t in NORSK_ORD for t in toks)
+    # ä/ö never occur in bokmål; a word carrying one is Finnish or Swedish.
+    for lang, marks in FREMMED.items():
+        n = sum(t in marks for t in toks) + (lang == "finsk") * sum("ä" in t or "ö" in t for t in toks)
+        if n >= 3 and n * 4 >= nor:
+            return f"{lang} markers: {n}, Norwegian function words: {nor}"
+    share = nor / len(toks)
+    return None if share >= 0.08 else f"Norwegian function words {share:.0%} of {len(toks)} words, want ≥8%"
+
+
 def words(text):
     # Counted the way a writer counts, like `wc -w`: «nav-pilot» and
     # `.nav-pilot/config.toml` are one word each, a lone «#» or «-» none.
@@ -405,6 +433,8 @@ def check(cmd, args):
         return kritisk(Path(args[0]).read_text(), args[1:])
     if cmd == "kritiske":
         return kritiske(Path(args[0]).read_text())
+    if cmd == "norsk":
+        return norsk(Path(args[0]).read_text())
     if cmd == "apne":
         n = open_points(Path(args[0]).read_text())
         return None if n >= int(args[1]) else f"{n} open point(s), want ≥{args[1]}"
@@ -588,6 +618,13 @@ def selftest():
         ("apne", "## Uavklarte punkter\n\n1. Formålet.\n2. Hvem kaller.\n3. Lagring.\n", ["3"], True),
         ("apne", "Ingenting er uavklart etter lesingen, så planen er:\n1. a\n2. b\n3. c\n", ["3"], False),
         ("apne", "Følgende punkter avklares i Fase 2 sammen med teamet:\n- a\n- b\n- c\n", ["3"], False),
+        # #1501: d4 must answer in Norwegian. Code and English terms are free.
+        ("norsk", "Grensen er en konstant i `Config.kt`, og den brukes i ruten. Det er ikke mulig å endre den per miljø uten en env-variabel.\n", [], True),
+        ("norsk", "```kotlin\nval maksAntall = System.getenv(\"MAKS\")?.toInt() ?: 100\n```\nLes verdien fra miljøet og send den til `oppgaveRoutes()` som parameter.\n", [], True),
+        ("norsk", (REPO / "docs/golden-baselines/2026-10-08-delegering-steg3/rev1/transkripter/d4.run2.txt").read_text(), [], False),
+        ("norsk", "Gränsen är en konstant i `Config.kt` och den används i rutten. Det går inte att ändra den per miljö utan en variabel.\n", [], False),
+        ("norsk", "Grænsen er en konstant i `Config.kt`, og den bliver brugt af ruten. Hvad du skal gøre er at læse den ud af miljøet efter opstart, så den kan ændres lidt nu og da.\n", [], False),
+        ("norsk", "The limit is a constant in `Config.kt` and the route uses it.\n", [], False),
         # rv1/rv2 catch (2026-10-12-sol61-rerun): «unntak … null» is the swallow.
         ("linje", "| 12–13 | 🟡 | Alle unntak blir til `null`. |\n", [CATCH], True),
         ("linje", "| 12–13 | 🟡 | **Databasefeil skjules:** Alle unntak gir `null`. |\n", [CATCH], True),

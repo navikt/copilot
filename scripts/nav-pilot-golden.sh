@@ -4062,12 +4062,14 @@ run_pass_delegation() {
   # d4: a repo question, which the persona says goes to @research-agent first
   # (pinned to GPT-6 Luna).
   if selected d4; then
-    d="repo research delegates to research-agent on gpt-6-luna"
+    d="repo research delegates to research-agent on gpt-6-luna, answer in Norwegian"
     if ! run_prompt d4 "$D4_PROMPT"; then
       record_error d4 "$d" "$LAST_PROMPT_DETAIL"
     else
-      ok=1; delegated_to research-agent gpt-6-luna d4 && ok=0
-      record d4 "$d" "$ok" "$(deleg_detail d4)"
+      # The reply must also be Norwegian (#1501: a half-Finnish one passed).
+      ok=1; why="$(python3 "$BENCH_CHECK" norsk "$(tx d4)")" &&
+        delegated_to research-agent gpt-6-luna d4 && ok=0
+      record d4 "$d" "$ok" "${why:+$why; }$(deleg_detail d4)"
     fi
   fi
 }
