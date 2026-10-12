@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { vi } from "vitest";
 import TeamGrossUsage from "./team-gross-usage";
 import TeamControls from "./team-controls";
 import type { TeamGrossOverview, TeamNetOverview } from "@/lib/types";
@@ -60,9 +61,7 @@ describe("Team insight", () => {
     const table = screen.getByRole("table", { name: "Andre team" });
     expect(screen.getByRole("combobox", { name: "Måned" })).toHaveValue("2026-09");
     expect(within(table).getAllByRole("columnheader")).toHaveLength(6);
-    const csv = within(table).getAllByRole("button", { name: /som CSV$/ })[0];
-    expect(csv).toHaveAttribute("href", expect.stringMatching(/^\/api\/team-year\?team=\d+&year=2026$/));
-    expect(csv).toHaveAttribute("download");
+    expect(within(table).getAllByRole("button", { name: /som CSV$/ })).toHaveLength(2);
     for (const label of ["Leverandører", "Modelltyper", "Funksjon", "Språk"])
       expect(within(table).queryByRole("columnheader", { name: label })).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Velg kolonner"));
@@ -264,5 +263,21 @@ describe("Team insight", () => {
     expect(screen.getByText(/16\sUSD/)).toBeInTheDocument();
     expect(screen.getByText(/[−-]20\sUSD/)).toHaveClass("text-[var(--ax-text-success)]");
     expect(screen.getByText(/[−-]5\sUSD/)).not.toHaveAttribute("class");
+  });
+
+  it("shows an error instead of saving a failed year CSV", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response('{"error":"failed_to_fetch_usage"}', { status: 500 }))
+    );
+    render(
+      <TeamControls month="2026-09">
+        <TeamGrossUsage data={gross} net={null} myTeams={[]} />
+      </TeamControls>
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: /som CSV$/ })[0]);
+    expect(await screen.findByText("Kunne ikke laste ned. Prøv igjen senere.")).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/team-year\?team=\d+&year=2026$/));
+    vi.unstubAllGlobals();
   });
 });

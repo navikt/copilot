@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BodyShort, Button, Heading, HStack, Table, VStack } from "@navikt/ds-react";
+import { BodyShort, Button, ErrorMessage, Heading, HStack, Table, VStack } from "@navikt/ds-react";
 import { Buildings3Icon, CodeIcon, CpuIcon, DownloadIcon, WrenchIcon } from "@navikt/aksel-icons";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamGrossOverview, TeamNetOverview, TeamSpend } from "@/lib/types";
@@ -10,6 +10,43 @@ import TeamUsageValue from "./team-usage-value";
 import { formatDate, formatUSD } from "@/lib/format";
 
 type Team = TeamSpend;
+
+/** Fetches the year CSV first, so a failure shows a message instead of saving the error body as a file. */
+function TeamYearCsv({ team, year }: { team: Team; year: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const download = async () => {
+    setState("loading");
+    try {
+      const res = await fetch(`/api/team-year?team=${encodeURIComponent(team.team_id)}&year=${year}`);
+      if (!res.ok) throw new Error(String(res.status));
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `copilot-${team.team_slug || team.team_id}-${year}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  };
+  return (
+    <VStack gap="space-4">
+      <Button
+        type="button"
+        onClick={download}
+        loading={state === "loading"}
+        variant="tertiary"
+        size="xsmall"
+        icon={<DownloadIcon aria-hidden />}
+        aria-label={`Last ned forbruket for ${team.team_slug} hittil i ${year} som CSV`}
+      >
+        CSV
+      </Button>
+      {state === "error" && <ErrorMessage size="small">Kunne ikke laste ned. Prøv igjen senere.</ErrorMessage>}
+    </VStack>
+  );
+}
 
 export default function TeamGrossUsage({
   data,
@@ -115,18 +152,7 @@ export default function TeamGrossUsage({
             </TableDataCell>
           )}
           <TableDataCell>
-            {/* The route answers with an attachment, so the browser saves it without leaving the page. */}
-            <Button
-              as="a"
-              href={`/api/team-year?team=${encodeURIComponent(team.team_id)}&year=${year}`}
-              download
-              variant="tertiary"
-              size="xsmall"
-              icon={<DownloadIcon aria-hidden />}
-              aria-label={`Last ned forbruket for ${team.team_slug} hittil i ${year} som CSV`}
-            >
-              CSV
-            </Button>
+            <TeamYearCsv team={team} year={year} />
           </TableDataCell>
         </TableRow>
       );
