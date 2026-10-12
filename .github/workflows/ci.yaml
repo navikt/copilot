@@ -122,6 +122,7 @@ jobs:
               - '.github/workflows/ci.yaml'
             nav-pilot:
               - 'cli/nav-pilot/**'
+              - 'apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx'
               - 'apps/copilot-survey/surveys/schema.json'
               - 'scripts/install.sh'
               - 'scripts/*.bats'

@@ -2,7 +2,7 @@ import { BodyLong, BodyShort, Box, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
-import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
+import { Table, TableBody, TableRow, TableDataCell, TableHeaderCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
@@ -320,7 +320,7 @@ export default function Klienter() {
             <TableBody>
               {SETTINGS.map((r) => (
                 <TableRow key={r.key}>
-                  <TableDataCell>{c(r.key)}</TableDataCell>
+                  <TableHeaderCell scope="row">{c(r.key)}</TableHeaderCell>
                   {[r.copilot, r.opencode, r.pi].map((v, j) => (
                     <TableDataCell key={j}>
                       <Mark v={v} />
