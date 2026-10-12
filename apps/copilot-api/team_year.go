@@ -146,6 +146,8 @@ const teamYearNetStubs = `billed AS (
  SELECT DATE(NULL) month,'' user_id,0.0 net FROM UNNEST([1]) WHERE FALSE
 ), daily AS (
  SELECT DATE(NULL) day,'' user_id,0.0 net FROM UNNEST([1]) WHERE FALSE
+), unspread AS (
+ SELECT DATE(NULL) month,'' user_id,0.0 net FROM UNNEST([1]) WHERE FALSE
 )`
 
 // teamYearSeatsStub replaces teamYearSeatsCTEs before copilot-metrics has
@@ -246,8 +248,7 @@ WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + `, ` + seatCTEs + fmt.Sprintf(`, 
  SELECT t.month,COUNT(DISTINCT IF(d.net>0,t.user_id,NULL)) users,SUM(d.net) net
  FROM team t JOIN daily d USING(day,user_id) GROUP BY t.month
 ), no_usage_m AS (
- SELECT b.month,SUM(b.net) net FROM billed b JOIN (SELECT DISTINCT month,user_id FROM team) USING(month,user_id)
- WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND (u.gross>0 OR u.month<DATE '2026-06-01'))
+ SELECT b.month,SUM(b.net) net FROM unspread b JOIN (SELECT DISTINCT month,user_id FROM team) USING(month,user_id)
  GROUP BY b.month
 ), completed AS (
  %s

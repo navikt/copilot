@@ -181,8 +181,7 @@ WITH completed AS (
 ), totals AS (
  SELECT COALESCE(SUM(net),0) net FROM billed
 ), no_usage AS (
- SELECT COALESCE(SUM(b.net),0) net FROM billed b
- WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month AND (u.gross>0 OR u.month<DATE '2026-06-01'))
+ SELECT COALESCE(SUM(net),0) net FROM unspread
 ), enterprise_snapshot AS (
  SELECT COUNTIF(sku='done') markers,COALESCE(SUM(IF(sku IN (`+billedSKUs+`),net_amount,0)),0) net
  FROM %s WHERE month=DATE(@month) AND scope_id='nav' AND user_id=''
@@ -251,22 +250,28 @@ func (bq *BigQueryClient) teamUsageCTEs() string {
 )`, bq.tableRef(bq.metricsDataset, "user_metrics"), bq.tableRef(bq.metricsDataset, "user_teams"))
 }
 
-// teamNetCTEs builds on teamUsageCTEs: billed (net per user and month) and
-// daily (net spread over the user's usage days in the month by gross share).
+// teamNetCTEs builds on teamUsageCTEs: billed (net per user and month),
+// daily (net spread over the user's usage days in the month) and unspread
+// (billed net of users with no usage day in the month, «netto uten bruk»).
+// This is the one place net is split over days; every view uses it.
 func (bq *BigQueryClient) teamNetCTEs() string {
 	return fmt.Sprintf(`billed AS (
  SELECT month,user_id,SUM(net_amount) net
  FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND user_id!='' AND sku IN (`+billedSKUs+`)
  GROUP BY month,user_id
 ), weighted AS (
- -- Months before June 2026 were billed as premium requests and user_metrics
- -- has no ai_credits_used for them: net is spread evenly over the usage days.
- SELECT u.day,u.user_id,b.net * IF(u.month<DATE '2026-06-01',
-   1/COUNT(*) OVER(PARTITION BY u.month,u.user_id),
-   SAFE_DIVIDE(u.gross,SUM(u.gross) OVER(PARTITION BY u.month,u.user_id))) net
+ -- Net is weighted by gross when the user has gross in the month. Otherwise
+ -- it is spread evenly over the usage days: premium months have no
+ -- ai_credits_used, and it only exists from 2026-06-19.
+ SELECT u.day,u.user_id,b.net * IF(SUM(u.gross) OVER w>0,
+   u.gross/SUM(u.gross) OVER w, 1/COUNT(*) OVER w) net
  FROM usage_days u JOIN billed b USING(month,user_id)
+ WINDOW w AS (PARTITION BY u.month,u.user_id)
 ), daily AS (
- SELECT day,user_id,net FROM weighted WHERE net IS NOT NULL
+ SELECT day,user_id,net FROM weighted
+), unspread AS (
+ SELECT b.month,b.user_id,b.net FROM billed b
+ WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month)
 )`, bq.tableRef(bq.metricsDataset, "billing_user_monthly"))
 }
 
