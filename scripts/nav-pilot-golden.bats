@@ -484,7 +484,7 @@ run_suite() {
   skill=$(sed -n '/^## Green and red zone/,/^\*\*Three-attempt/p' "$root/skills/deliberate-ai-use/SKILL.md" | grep '^- ')
   agent=$(grep '^\*\*🔴 Red-zone code:\*\*' "$root/agents/nav-pilot.agent.md")
   guide=$(sed -n '/&laquo;rød/,/agenten skrive koden/p' "$web/retningslinjer/page.tsx" | tr -s ' \n' '  ')
-  plan=$(grep '<li>' "$web/(nav-pilot)/nav-pilot/forklaring/planlegging/page.tsx")
+  plan=$(sed -n '/id="gronn-rod-sone"/,/alt="nav-pilot merker/p' "$web/(nav-pilot)/nav-pilot/forklaring/planlegging/page.tsx" | grep '<li>')
   while IFS= read -r it; do
     for v in skill agent; do grep -qiF -- "$it" <<< "${!v}" || { echo "missing '$it' in $v"; false; }; done
     for v in guide plan; do grep -qiF -- "$(nb "$it")" <<< "${!v}" || { echo "missing '$(nb "$it")' in $v"; false; }; done

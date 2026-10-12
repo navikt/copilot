@@ -38,7 +38,7 @@ Uten en fast modell blir det lett:
 | Prinsipp              | Betydning                                                                         |
 | --------------------- | --------------------------------------------------------------------------------- |
 | Fasedisiplin          | Arbeid skal deles i tydelige faser med ulike mål og risikonivå.                   |
-| Rød/grønn-sone        | Sonene sier om utvikleren skal lære dette selv; rød sone får stubber, ikke kode.  |
+| Rød/grønn-sone        | Sonene sier om utvikleren skal lære dette selv; rød sone får stubber som standard. |
 | Spesialistruting      | Oppgaver skal styres mot riktig rolle, ikke presses gjennom én generell flyt.     |
 | Lav overraskelse      | Samme type oppgave skal gi samme type håndtering så langt som mulig.              |
 | Dokumentert intensjon | Beslutninger skal forklares kort og klart, ikke bare implementeres.               |
