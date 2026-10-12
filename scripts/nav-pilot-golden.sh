@@ -585,6 +585,21 @@ fi
 WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden.XXXXXX")"
 TEMPLATE="$WORKDIR/template"
 WS="$WORKDIR/repo"
+# Keep the runner's own mise tasks out of the fixture. `mise tasks` in $WS
+# listed the global config's tasks and ~/.mise/tasks (bootstrap, cleanup, …),
+# and an agent told to run `mise check` could pick one. An empty global config
+# and a global root of $WORKDIR hide both. The shims need the global config to
+# pick a version, so the shims dir on PATH is swapped in place for the real
+# install dirs: the same tools, and anything ahead of the shims still wins.
+if command -v mise >/dev/null 2>&1; then
+  mise_shims="${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims"
+  mise_bins="$(mise bin-paths 2>/dev/null | paste -sd: -)"
+  if [[ -n "$mise_bins" ]]; then
+    PATH=":$PATH:"; PATH="${PATH//:$mise_shims:/:$mise_bins:}"; PATH="${PATH#:}"; PATH="${PATH%:}"
+  fi
+  : > "$WORKDIR/mise-global.toml"
+  export MISE_GLOBAL_CONFIG_FILE="$WORKDIR/mise-global.toml" MISE_GLOBAL_CONFIG_ROOT="$WORKDIR"
+fi
 # shellcheck disable=SC2329  # invoked via trap
 cleanup() {
   if $KEEP; then
