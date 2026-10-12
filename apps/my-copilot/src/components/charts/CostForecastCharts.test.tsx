@@ -49,6 +49,17 @@ describe("CostForecastCharts", () => {
     expect(s.runOut).toEqual([null, null, 100, null]);
   });
 
+  it("draws the forecast and range from daily_forecast when the API sends it", () => {
+    const s = monthSeries({
+      ...forecast,
+      daily_forecast: [{ date: "2026-10-03", cumulative_net_usd: 120, low: 110, high: 130 }],
+    });
+    expect(s.forecast).toEqual([null, 0, 120, 200]);
+    expect(s.low[2]).toBe(110);
+    expect(s.high[2]).toBe(130);
+    expect(s.high[3]).toBeCloseTo(230);
+  });
+
   it("splits premium and net months and shows the current month as a range", () => {
     const s = yearSeries(months, forecast);
     expect(s.premium).toEqual([50, null, null]);

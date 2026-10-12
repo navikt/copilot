@@ -23,6 +23,32 @@ export function monthSeries(data: CostForecast) {
   const end = days.at(-1)?.net_usd ?? 0;
   const span = days.length - 1 - lastActual;
   const runOut = trend?.allowance_runs_out;
+  const series = monthSeriesBase(days, lastActual, trend, pct, end, span, runOut, data);
+  // A projected daily series from the API, when present, replaces the midpoint and the widening range.
+  const byDate = new Map((data.daily_forecast ?? []).map((p) => [p.date, p]));
+  if (trend && byDate.size) {
+    const pick = (k: "cumulative_net_usd" | "low" | "high", fallback: (number | null)[]) =>
+      days.map((d, i) => (i > lastActual && byDate.has(d.day) ? byDate.get(d.day)![k] : fallback[i]));
+    return {
+      ...series,
+      forecast: pick("cumulative_net_usd", series.forecast),
+      low: pick("low", series.low),
+      high: pick("high", series.high),
+    };
+  }
+  return series;
+}
+
+function monthSeriesBase(
+  days: NonNullable<CostForecast["days"]>,
+  lastActual: number,
+  trend: CostForecast["models"][number] | undefined,
+  pct: number,
+  end: number,
+  span: number,
+  runOut: string | undefined,
+  data: CostForecast
+) {
   return {
     labels: days.map((d) => dayLabel(d.day)),
     actual: days.map((d, i) => (i <= lastActual ? d.net_usd : null)),

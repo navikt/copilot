@@ -612,6 +612,8 @@ export interface CostForecast {
   models: CostForecastModel[];
   /** Cumulative net per day this month: actual, then the trend midpoint (forecast: true). */
   days?: { day: string; net_usd: number; forecast: boolean }[];
+  /** Planned: projected cumulative net per day with its range. Used instead of days when present. */
+  daily_forecast?: { date: string; cumulative_net_usd: number; low: number; high: number }[];
 }
 
 // AI adoption phases per ISO week, averaged by copilot-api; every phase is sent, also under five
