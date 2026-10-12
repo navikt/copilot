@@ -3757,34 +3757,6 @@
         }
       ],
       "credits": {
-        "median": 7.391,
-        "mean": 7.637
-      },
-      "usage_complete": true,
-      "wall_seconds": {
-        "median": 23.9
-      },
-      "source": "docs/golden-baselines/2026-10-12-sol61-rerun/planning-t2-med-linje-gpt-6-sol-low.txt"
-    },
-    {
-      "date": "2026-10-11",
-      "suite": "planning",
-      "model": "gpt-6-sol",
-      "model_verified": true,
-      "subagent_models": [],
-      "effort": "low",
-      "ran_at": "low",
-      "cli_version": "1.0.95",
-      "n": 5,
-      "smoke": false,
-      "checks": [
-        {
-          "id": "t2",
-          "description": "Stiller spørsmål i fase 1 og venter på svar",
-          "passed": 5
-        }
-      ],
-      "credits": {
         "median": 6.768,
         "mean": 7.03
       },
@@ -3793,34 +3765,6 @@
         "median": 20.5
       },
       "source": "docs/golden-baselines/2026-10-12-sol61-rerun/planning-t2-uten-linje-gpt-6-sol-low.txt"
-    },
-    {
-      "date": "2026-10-11",
-      "suite": "planning",
-      "model": "gpt-6.1-sol",
-      "model_verified": true,
-      "subagent_models": [],
-      "effort": "low",
-      "ran_at": "low",
-      "cli_version": "1.0.95",
-      "n": 5,
-      "smoke": false,
-      "checks": [
-        {
-          "id": "t2",
-          "description": "Stiller spørsmål i fase 1 og venter på svar",
-          "passed": 5
-        }
-      ],
-      "credits": {
-        "median": 7.708,
-        "mean": 7.929
-      },
-      "usage_complete": true,
-      "wall_seconds": {
-        "median": 27.7
-      },
-      "source": "docs/golden-baselines/2026-10-12-sol61-rerun/planning-t2-med-linje-gpt-6.1-sol-low.txt"
     },
     {
       "date": "2026-10-11",

@@ -1,15 +1,15 @@
-# GPT-6.1 Sol Low mot GPT-6 Sol Low, ny kjøring 12. oktober 2026
+# GPT-6.1 Sol Low mot GPT-6 Sol Low, ny kjøring
 
-Copilot CLI 1.0.95, `--effort low`, fem kjøringer per arm. Bruksradene viser riktig modell og innsatsnivå for alle kall, så ingen kjøring er forkastet. Resultatfilene er regnet om med de rettede sjekkene fra #1614, se [Omregning](#omregning). Transkriptene ligger i [`transkripter/`](transkripter/).
+Kjørt 11. oktober, vurdert på nytt 12. oktober 2026. Copilot CLI 1.0.95, `--effort low`, fem kjøringer per arm. Bruksradene viser riktig modell og innsatsnivå for alle kall, så ingen kjøring er forkastet. Resultatfilene er regnet om med de rettede sjekkene fra #1614, se [Omregning](#omregning). Transkriptene ligger i [`transkripter/`](transkripter/).
 
 ## Oppsett
 
-- **planning t2** (`--suite planning --only 2`): kjørt med og uten linjen «Skriv åpne punkter som spørsmål.» i `@nav-pilot`. Linjen sto rett etter avsnittet om antall blindsoner i Fase 1, i en kopi av repoet. Agentfila i repoet er ikke endret. Begge armene har derfor samme `revision` i filene.
+- **planning t2** (`--suite planning --only 2`): kjørt med og uten linjen «Skriv åpne punkter som spørsmål.» i `@nav-pilot`. Linjen sto rett etter avsnittet om antall blindsoner i Fase 1, i en kopi av repoet. Agentfila i repoet er ikke endret. Begge armene har derfor samme `revision` i filene. Armen med linjen er et forsøk med en endret persona, ikke en måling av modellen. Filene ligger derfor i [`utenfor-oppsummering/`](utenfor-oppsummering/) og er ikke med i `summary.json` eller på /modeller.
 - **review rv1 og rv2** (`--suite review --only rv1,rv2`): uten endringer.
 
 ## Resultater
 
-Etter omregning med sjekkene fra #1614. Tallet i parentes er den opprinnelige vurderingen.
+Etter omregning med sjekkene fra #1614. Tallet i parentes er det opprinnelige resultatet.
 
 | Arm | GPT-6.1 Sol Low | GPT-6 Sol Low |
 | --- | --- | --- |
@@ -55,4 +55,4 @@ Eieren vurderte at sjekken for t2 var for streng. #1614 endret to sjekker:
 - **t2** teller åpne punkter, ikke bare spørsmålstegn. Punkter i en liste etter en innledning som «Følgende er uavklart:» eller «må disse punktene avklares:» teller også.
 - **rv1 og rv2** godtar «unntak» og «exception» foran `null`, i tillegg til «feil».
 
-Alle sju feilene over ble godkjent ved omregningen. Ingen andre resultater endret seg. Resultatfilene her er omregnet. Revisjonen i filhodet er fortsatt den kjøringen brukte.
+Alle sju feilene over ble godkjent ved omregningen. Ingen andre resultater endret seg. Resultatfilene her er omregnet. Filhodet viser fortsatt revisjonen kjøringen brukte, ikke #1614.

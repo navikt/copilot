@@ -167,7 +167,10 @@ def build(directory=BASELINES):
         for txt in sorted(directory.rglob("*.txt"))
         # delegation measures which agents a persona calls, not a model, and
         # has no place on ki-utvikling.nav.no/modeller.
+        # A folder named utenfor-oppsummering holds side experiments (a changed
+        # persona in a copy of the repo) that are not a model measurement.
         if header(txt).get("suite", "none") not in ("none", "delegation")
+        and "utenfor-oppsummering" not in txt.parts
     ]
     runs.sort(key=lambda r: (r["date"], r["suite"], r["model"], r["effort"], r["source"]))
     generated = max((r["date"] for r in runs), default="1970-01-01")
