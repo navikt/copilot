@@ -4,6 +4,21 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-12
 
+### GPT-6.1 Sol er anbefalingen for daglig koding
+
+- **Personlig anbefaling**: [/modeller](https://ki-utvikling.nav.no/modeller) og `docs/modellvalg.md` anbefaler nå GPT-6.1 Sol til daglig koding. Eier bestemte det 12. oktober 2026 etter nye målinger: GPT-6.1 Sol på Low besto 5 av 5 på t2, rv1 og rv2, som GPT-6 Sol, og rv1 og rv2 kostet 31,86 mot 36,92 credits.
+- **`@nav-pilot` blir på GPT-6 Sol**: Agentpakken er uendret. t2 er rundt 4 prosent dyrere på GPT-6.1 Sol, og t3, t4, t5, t7 og t7b er ikke kjørt på nytt.
+- **Ingen innstilling endres**: Anbefalingen står bare i dokumentasjonen og på nettsiden.
+
+### Bedre grafer og innholdsfortegnelse på /modeller
+
+- **Grafen**: Credits-aksen er logaritmisk, og en linje binder sammen innsatsnivåene til hver modell. Du kan filtrere på modell og innsats, og vise de beste avveiningene mellom bestått og pris.
+- **Innholdsfortegnelse**: Siden har en fast meny med lenke til hver seksjon og hver måling, og et nytt avsnitt om innsatsnivå. «Median tid» vises som for eksempel «1 min 23 s».
+
+### Måling: Sonnet 5.5 holder for tilgjengelighet
+
+- **Resultat**: `@accessibility` på Claude Sonnet 5.5 besto 24 av 25 sjekker (uu1–uu5, fem kjøringer hver). Eneste feil var uu3: agenten skrev en egen `role="listbox"` og nevnte Aksel først etterpå. Sonnet 5.5 beholdes. Tallene står i `docs/modellvalg.md`.
+
 ### `klarsprak` lastes ikke for vanlige chatsvar
 
 - **Færre unødvendige innlastinger**: Skillen lastes for norsk tekst som havner i en fil eller blir publisert: README, dokumentasjon, UI-tekst, nettsider, e-poster, commit-meldinger og PR- og issue-beskrivelser. Den lastes også når du limer inn tekst og ber om språkvask eller korrektur. Den lastes ikke for vanlige svar i chatten, heller ikke når svaret er på norsk eller forklarer kode. Før sto `klarsprak` for rundt 40 prosent av alle skill-innlastinger, og de fleste endte i et chatsvar.
