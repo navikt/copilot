@@ -40,6 +40,9 @@ type CostForecast struct {
 	DailyForecast []DailyForecastPoint `json:"daily_forecast"`
 	// LimitChanges are the days the default personal limit changed, for chart markers.
 	LimitChanges []LimitChange `json:"limit_changes"`
+	// YearForecast is cumulative fakturert per month to 31 December; YearEnd its last point.
+	YearForecast []YearForecastPoint `json:"year_forecast"`
+	YearEnd      *YearEnd            `json:"year_end,omitempty"`
 }
 
 // CostForecastDay is cumulative enterprise net on one day of the month.
@@ -575,6 +578,17 @@ func (h *BigQueryHandlers) handleCostForecast(w http.ResponseWriter, r *http.Req
 		slog.Warn("Failed to fetch limit snapshots", "error", err)
 	}
 	out.LimitChanges = limitChanges(snaps)
+	out.YearForecast = []YearForecastPoint{}
+	if len(out.Models) > 0 && out.Models[0].Model == modelTrend {
+		// The year chart is a nicety too: without it the month forecast still stands.
+		overview, err := h.bqClient.GetAdminMonthlyOverview(r.Context(), month.Year())
+		users, uerr := h.bqClient.GetActiveUsersMonthly(r.Context())
+		if err != nil || uerr != nil {
+			slog.Warn("Failed to fetch year forecast data", "error", errors.Join(err, uerr))
+		} else {
+			out.YearForecast, out.YearEnd = yearForecast(overview.Months, users, out.Models[0], month)
+		}
+	}
 	cacheControl(w, 900, false)
 	respondJSON(w, out, http.StatusOK)
 }

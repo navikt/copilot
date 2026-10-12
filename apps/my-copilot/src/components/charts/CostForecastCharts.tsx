@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, Line } from "react-chartjs-2";
+import { Line } from "react-chartjs-2";
 import { BodyShort, HGrid, Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { bottomLegend, commonLineOptions, seriesColor } from "@/lib/chart-utils";
@@ -70,24 +70,30 @@ function monthSeriesBase(
   };
 }
 
-/** Net per month this year; the forecast month gets the trend range instead. */
+/** Cumulative fakturert from 1 January: actual months, then the year forecast to 31 December with its range. */
 export function yearSeries(months: AdminMonth[], data: CostForecast | null) {
-  const trend = data?.models.find((m) => m.model === "trend");
-  const shown = months.filter((m) => m.month <= (data?.month ?? m.month));
-  const isForecast = (m: AdminMonth) => !!trend && m.month === data?.month;
-  const net = (m: AdminMonth, basis: "premium" | "net") =>
-    !isForecast(m) && m.basis === basis ? m.enterprise_net_usd : null;
+  const points = data?.year_forecast ?? [];
+  const lastActual = points.findLastIndex((p) => !p.forecast);
+  const basis = new Map(months.map((m) => [m.month, m.basis]));
+  const premium = (i: number) => basis.get(points[i]?.month) === "premium";
   return {
-    months: shown,
-    labels: shown.map((m) => monthName(m.month)),
-    premium: shown.map((m) => net(m, "premium")),
-    net: shown.map((m) => net(m, "net")),
-    range: shown.map((m) => (isForecast(m) ? ([trend!.net_low_usd, trend!.net_high_usd] as [number, number]) : null)),
-    mid: shown.map((m) => (isForecast(m) ? trend!.net_mid_usd : null)),
-    trend,
-    forecastMonth: trend ? data?.month : undefined,
+    points,
+    labels: points.map((p) => monthName(p.month)),
+    // The premium line runs one month into net so the two join.
+    premium: points.map((p, i) =>
+      i <= lastActual && (premium(i) || (i > 0 && premium(i - 1))) ? p.cumulative_net_usd : null
+    ),
+    actual: points.map((p, i) => (i <= lastActual && !premium(i) ? p.cumulative_net_usd : null)),
+    forecast: points.map((p, i) => (i >= lastActual && lastActual >= 0 ? p.cumulative_net_usd : null)),
+    low: points.map((p, i) => (i >= lastActual && lastActual >= 0 ? p.low : null)),
+    high: points.map((p, i) => (i >= lastActual && lastActual >= 0 ? p.high : null)),
+    end: data?.year_end,
+    toDate: lastActual >= 0 ? points[lastActual] : undefined,
   };
 }
+
+/** The legend label for the range, in whole percent. */
+export const rangeLabel = (pct: number) => `Spenn (±${Math.round(pct)} %)`;
 
 const usdTicks = { ...commonLineOptions.scales.y.ticks, callback: (v: string | number) => formatUSD(Number(v)) };
 
@@ -118,7 +124,7 @@ function MonthChart({ data }: { data: CostForecast }) {
       ? [
           { label: "Forventet faktura", data: s.forecast, ...line(0, { borderDash: [6, 4] }) },
           {
-            label: `Spenn (±${s.trend.range_pct.toLocaleString("nb-NO")} %)`,
+            label: rangeLabel(s.trend.range_pct),
             data: s.low,
             ...line(0, { borderWidth: 0, backgroundColor: seriesColor(0, 0.15) }),
           },
@@ -193,80 +199,75 @@ function MonthChart({ data }: { data: CostForecast }) {
   );
 }
 
-function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast | null }) {
+function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast }) {
   const s = yearSeries(months, data);
-  if (!s.months.length) return <BodyShort>Ingen måneder med faktura ennå i år.</BodyShort>;
-  const billed = s.months.filter((m, i) => s.premium[i] != null || s.net[i] != null);
+  if (!s.toDate) return <BodyShort>Ingen måneder med faktura ennå i år.</BodyShort>;
   const summary =
-    `Fakturert per måned. ${billed.map((m) => `${monthName(m.month)} ${formatUSD(m.enterprise_net_usd ?? 0)}`).join(", ")}.` +
+    `Fakturert ${formatUSD(s.toDate.cumulative_net_usd)} fra januar til og med ${monthName(s.toDate.month)}.` +
     (s.premium.some((v) => v != null) ? " Fram til og med mai var grunnlaget premiumforespørsler." : "") +
-    (s.trend && s.forecastMonth
-      ? ` Forventet faktura for ${monthName(s.forecastMonth)} er ${formatUSD(s.trend.net_mid_usd)}, mellom ${formatUSD(s.trend.net_low_usd)} og ${formatUSD(s.trend.net_high_usd)}.`
+    (s.end
+      ? ` Forventet ved årets slutt er ${formatUSD(s.end.mid)}, mellom ${formatUSD(s.end.low)} og ${formatUSD(s.end.high)}.`
       : "");
-  const bar = (i: number, alpha: number, extra: object = {}) => ({
-    backgroundColor: seriesColor(i, alpha),
+  const line = (i: number, extra: object) => ({
     borderColor: seriesColor(i),
-    borderWidth: 1,
-    borderRadius: 2,
+    backgroundColor: seriesColor(i),
+    pointRadius: 0,
+    borderWidth: 2,
     ...extra,
   });
   const datasets = [
-    { type: "bar", label: "Fakturert (premiumforespørsler)", data: s.premium, ...bar(5, 0.6) },
-    { type: "bar", label: "Fakturert", data: s.net, ...bar(0, 0.8) },
-    ...(s.trend
+    { label: "Fakturert (premiumforespørsler)", data: s.premium, ...line(5, {}) },
+    { label: "Fakturert", data: s.actual, ...line(0, {}) },
+    ...(s.end
       ? [
+          { label: "Forventet faktura", data: s.forecast, ...line(0, { borderDash: [6, 4] }) },
+          { label: "Spenn", data: s.low, ...line(0, { borderWidth: 0, backgroundColor: seriesColor(0, 0.15) }) },
           {
-            type: "bar",
-            label: "Forventet faktura (foreløpig, spenn)",
-            data: s.range,
-            ...bar(0, 0.2, { borderDash: [4, 3], borderSkipped: false }),
-          },
-          {
-            type: "line",
-            label: "Forventet faktura (midtpunkt)",
-            data: s.mid,
-            showLine: false,
-            pointStyle: "line",
-            pointRadius: 14,
-            borderWidth: 2,
-            borderColor: seriesColor(0),
-            backgroundColor: seriesColor(0),
+            label: "",
+            data: s.high,
+            ...line(0, { borderWidth: 0, backgroundColor: seriesColor(0, 0.15), fill: "-1" }),
           },
         ]
       : []),
   ];
-  const keys = s.months.map((m) => m.month);
+  const keys = s.points.map((p) => p.month);
   const markers = eventAnnotations(costEvents(data), keys);
   const events = withEvents({ ...commonLineOptions, plugins: { ...commonLineOptions.plugins } }, keys, markers);
   const options = {
     ...events,
-    // Bars from different datasets share the slot of their month: only one is set per month.
-    datasets: { bar: { skipNull: true, grouped: true } },
+    spanGaps: false,
     plugins: {
       ...events.plugins,
+      legend: {
+        ...bottomLegend,
+        labels: { ...bottomLegend.labels, filter: (item: { text: string }) => item.text !== "" },
+      },
       tooltip: {
         ...events.plugins.tooltip,
-        filter: (item: { raw: unknown }) => item.raw != null,
+        filter: (item: { dataset: { label?: string }; raw: unknown }) => !!item.dataset.label && item.raw != null,
         callbacks: {
           ...events.plugins.tooltip.callbacks,
-          label: (ctx: { dataset: { label?: string }; raw: unknown; parsed: { y: number } }) =>
-            Array.isArray(ctx.raw)
-              ? ` ${ctx.dataset.label}: ${formatUSD(ctx.raw[0])}–${formatUSD(ctx.raw[1])}`
+          label: (ctx: { dataset: { label?: string }; parsed: { y: number }; dataIndex: number }) =>
+            ctx.dataset.label === "Spenn"
+              ? ` Spenn: ${formatUSD(ctx.parsed.y)}–${formatUSD(s.high[ctx.dataIndex] ?? 0)}`
               : ` ${ctx.dataset.label}: ${formatUSD(ctx.parsed.y)}`,
         },
       },
     },
-    scales: { ...commonLineOptions.scales, y: { ...commonLineOptions.scales.y, ticks: usdTicks } },
+    scales: {
+      ...commonLineOptions.scales,
+      y: { ...commonLineOptions.scales.y, ticks: usdTicks, grace: "12%" },
+    },
   };
   return (
     <ChartFigure
-      title="Hvor mye har vi betalt i år?"
+      title="Hvor havner vi ved årets slutt?"
       summary={summary + eventSummary(markers)}
       chart={
-        <Bar
-          data={{ labels: s.labels, datasets } as Parameters<typeof Bar>[0]["data"]}
-          options={options as Parameters<typeof Bar>[0]["options"]}
-          plugins={[eventMarkers<"bar">(keys, markers)]}
+        <Line
+          data={{ labels: s.labels, datasets } as Parameters<typeof Line>[0]["data"]}
+          options={options as Parameters<typeof Line>[0]["options"]}
+          plugins={[eventMarkers<"line">(keys, markers)]}
         />
       }
     />
@@ -322,6 +323,7 @@ function DayTable({ data }: { data: CostForecast }) {
 /** «Denne måneden» and «Hittil i år», side by side on wide screens, with one full-width «Vis tallene» under both. */
 export function CostForecastCharts({ data, months }: { data: CostForecast; months: AdminMonth[] }) {
   const s = yearSeries(months, data);
+  const premium = new Set(months.filter((m) => m.basis === "premium").map((m) => m.month));
   return (
     <VStack gap="space-8">
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-24" className="print:grid-cols-2">
@@ -333,17 +335,17 @@ export function CostForecastCharts({ data, months }: { data: CostForecast; month
           <DayTable data={data} />
           <VStack gap="space-4">
             <Heading level="4" size="xsmall">
-              Hittil i år
+              Hele året
             </Heading>
             <PlainTable
               rows={[
-                ["Måned", "Fakturert"],
-                ...s.months.map((m, i) =>
-                  s.range[i]
-                    ? [`${monthName(m.month)} (foreløpig)`, `${formatUSD(s.range[i]![0])}–${formatUSD(s.range[i]![1])}`]
+                ["Måned", "Fakturert hittil i år"],
+                ...s.points.map((p) =>
+                  p.forecast
+                    ? [`${monthName(p.month)} (prognose)`, `${formatUSD(p.low)}–${formatUSD(p.high)}`]
                     : [
-                        monthName(m.month) + (m.basis === "premium" ? " (premiumforespørsler)" : ""),
-                        m.enterprise_net_usd != null ? formatUSD(m.enterprise_net_usd) : "Ikke fakturert ennå",
+                        monthName(p.month) + (premium.has(p.month) ? " (premiumforespørsler)" : ""),
+                        formatUSD(p.cumulative_net_usd),
                       ]
                 ),
               ]}

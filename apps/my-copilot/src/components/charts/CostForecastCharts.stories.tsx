@@ -46,6 +46,21 @@ const months = [...net, null].map(
     }) as AdminMonth
 );
 
+// The year forecast in the API's shape: low flat at October's midpoint, mid growing 25 % a month, high 30 % above.
+const oct = data.models[0];
+const closed = net.reduce<number[]>((acc, v) => [...acc, (acc.at(-1) ?? 0) + v], []);
+let [mid, low, high] = [closed[8] + oct.net_mid_usd, closed[8] + oct.net_low_usd, closed[8] + oct.net_high_usd];
+data.year_forecast = [
+  ...closed.map((c, i) => ({ month: months[i].month, cumulative_net_usd: c, low: c, high: c, forecast: false })),
+  { month: "2026-10", cumulative_net_usd: mid, low, high, forecast: true },
+  ...[1, 2].map((k) => {
+    const trend = oct.net_mid_usd * 1.25 ** k * (k === 2 ? 0.83 : 1);
+    [mid, low, high] = [mid + trend, low + oct.net_mid_usd, high + trend * 1.3];
+    return { month: `2026-1${k}`, cumulative_net_usd: mid, low, high, forecast: true };
+  }),
+];
+data.year_end = { mid, low, high };
+
 const meta = {
   title: "Charts/CostForecastCharts",
   component: CostForecastCharts,

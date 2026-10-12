@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { CostForecastCharts, monthSeries, yearSeries } from "./CostForecastCharts";
+import { CostForecastCharts, monthSeries, rangeLabel, yearSeries } from "./CostForecastCharts";
 import type { AdminMonth, CostForecast } from "@/lib/types";
 
 vi.mock("react-chartjs-2", () => ({ Line: () => <canvas />, Bar: () => <canvas /> }));
@@ -33,6 +33,12 @@ const forecast: CostForecast = {
       over_budget: false,
     },
   ],
+  year_forecast: [
+    { month: "2026-05", cumulative_net_usd: 50, low: 50, high: 50, forecast: false },
+    { month: "2026-09", cumulative_net_usd: 350, low: 350, high: 350, forecast: false },
+    { month: "2026-10", cumulative_net_usd: 550, low: 520, high: 580, forecast: true },
+  ],
+  year_end: { mid: 550, low: 520, high: 580 },
 };
 
 const month = (m: string, basis: AdminMonth["basis"], net: number | null) =>
@@ -60,11 +66,17 @@ describe("CostForecastCharts", () => {
     expect(s.high[3]).toBeCloseTo(230);
   });
 
-  it("splits premium and net months and shows the current month as a range", () => {
+  it("joins premium, actual and forecast in the cumulative year line", () => {
     const s = yearSeries(months, forecast);
-    expect(s.premium).toEqual([50, null, null]);
-    expect(s.net).toEqual([null, 300, null]);
-    expect(s.range).toEqual([null, null, [170, 230]]);
+    expect(s.premium).toEqual([50, 350, null]);
+    expect(s.actual).toEqual([null, 350, null]);
+    expect(s.forecast).toEqual([null, 350, 550]);
+    expect(s.low).toEqual([null, 350, 520]);
+    expect(s.high).toEqual([null, 350, 580]);
+  });
+
+  it("rounds the range to whole percent", () => {
+    expect(rangeLabel(16.645)).toBe("Spenn (±17 %)");
   });
 
   it("gives each chart a text summary", () => {
@@ -74,7 +86,7 @@ describe("CostForecastCharts", () => {
       .map((e) => document.getElementById(e.getAttribute("aria-labelledby")!)!.textContent);
     expect(month).toMatch(/Forventet faktura ved månedsslutt er 200\sUSD, mellom 170\sUSD og 230\sUSD/);
     expect(month).toMatch(/Kredittene i lisensene brukes etter prognosen opp 3\. oktober\./);
-    expect(year).toMatch(/mai 50\sUSD, september 300\sUSD/);
-    expect(screen.getAllByText(/Forventet faktura for oktober er 200\sUSD/)).toHaveLength(1);
+    expect(year).toMatch(/Fakturert 350\sUSD fra januar til og med september/);
+    expect(year).toMatch(/Forventet ved årets slutt er 550\sUSD, mellom 520\sUSD og 580\sUSD/);
   });
 });

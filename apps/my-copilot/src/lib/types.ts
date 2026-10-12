@@ -616,6 +616,9 @@ export interface CostForecast {
   days?: { day: string; net_usd: number; forecast: boolean }[];
   /** Projected cumulative net per remaining day with its range, from the trend model shaped by weekday. */
   daily_forecast?: { date: string; cumulative_net_usd: number; low: number; high: number }[];
+  /** Cumulative net from 1 January per month: closed months as billed, then the forecast to 31 December. */
+  year_forecast?: { month: string; cumulative_net_usd: number; low: number; high: number; forecast: boolean }[];
+  year_end?: { mid: number; low: number; high: number };
   /** Days the default personal limit changed, from budget_snapshots. */
   limit_changes?: { date: string; usd: number }[];
 }

@@ -2,7 +2,7 @@ import { Alert, BodyShort, VStack } from "@navikt/ds-react";
 import { InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
 import { getCostForecast } from "@/lib/cached-bigquery";
-import { formatPercent } from "@/lib/format";
+import { formatPercent, formatUSD } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
 import type { AdminMonth, CostForecast, CostForecastModel } from "@/lib/types";
 import { CostForecastCharts } from "@/components/charts/CostForecastCharts";
@@ -45,6 +45,8 @@ export function CostForecastView({ data: raw }: { data: CostForecast }) {
         {data.uncertainty_label && <strong>Prognosen er {data.uncertainty_label}. </strong>}
         Anslag (bygger på {data.days_elapsed} av {data.days_in_month} dager). Avvik tidligere måneder:{" "}
         {data.models.map((m) => `${forecastLabel[m.model]} ${accuracy(m)}`).join(", ")}.
+        {data.year_end &&
+          ` Forventet ved årets slutt: ${formatUSD(data.year_end.mid)} (${formatUSD(data.year_end.low)}–${formatUSD(data.year_end.high)}).`}
       </BodyShort>
     </VStack>
   );
@@ -59,7 +61,8 @@ export function ForecastMethod() {
       etter bruken så langt, og stopper ved forbruksgrensen. Juli er ferie, så i august følger hver person sitt eget
       snitt så langt. Begge regner så ut hva som blir fakturert: Nav betaler for det som går ut over kredittene i
       lisensene, og kredittene deles av alle i Nav. Avvik tidligere måneder er snittavviket når prognosen kjøres på dag
-      5, 10, 15, 20 og 25 i avsluttede måneder.
+      5, 10, 15, 20 og 25 i avsluttede måneder. Resten av året: Vi følger utviklingen i antall brukere og forbruk per
+      bruker de siste månedene, tar hensyn til ferie, og viser et spenn fra flatt nivå til fortsatt vekst.
     </BodyShort>
   );
 }
@@ -72,7 +75,7 @@ export async function CostForecastSection({ token, months = [] }: { token: strin
     console.error("[kostnad] Cost forecast failed:", error);
   }
   return (
-    <InsightSection id="prognose" title="Prognose for måneden">
+    <InsightSection id="prognose" title="Prognose">
       {data ? <CostForecastView data={data} /> : <ErrorState message="Kunne ikke hente prognosen." />}
       {data && <CostForecastCharts data={data} months={months} />}
     </InsightSection>
