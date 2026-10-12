@@ -1696,26 +1696,40 @@ RE_BS2='tilgangskontroll|hvem[[:space:]]+(skal[[:space:]]+)?kalle|hvem[[:space:]
 # judge_bs <id> <answer>: the LLM rubric judge (scripts/blindspot-judge.py)
 # on the answer. Sets JB1/JB2 (1 = the answer asks the user a #1/#2 question)
 # and JQ1/JQ2 (the quoted question). Returns 2 when there is no verdict: the
-# judge failed, or the committed controls were judged below 95 % agreement
-# or with too many judge errors
+# judge failed, or the committed controls were judged below the 92 % floor
+# (MIN_ACCURACY in the judge says why it is not 95 %) or with too many judge errors
 # earlier in this invocation. The controls run once, before the first verdict.
 # BS_JUDGE_CMD replaces the model (bats); BS_JUDGE_CONTROLS the control file.
 BS_JUDGE="$REPO_ROOT/scripts/blindspot-judge.py"
 BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$REPO_ROOT/scripts/golden-fixtures/blindspot-controls.tsv}"
 JUDGE_FILE="$WORKDIR/judge.psv"
+# Every judge spend as it happens, id|run|credits, controls as `controls|0|…`.
+# usage.psv holds only the agent's calls, so a live credit cap has to add this:
+#   awk -F'|' 'FILENAME ~ /usage/ {s += $13 / 1e9} FILENAME ~ /judge-credits/ {s += $3} END {print s}' \
+#     "$WORKDIR/usage.psv" "$WORKDIR/judge-credits.psv"
+# (#1641 overran its 400-credit cap by about 12.5 credits without it.)
+JUDGE_CREDITS_FILE="$WORKDIR/judge-credits.psv"
 BS_CONTROLS=""
+# judge_credit <id> <run> <summary>: the credits=… of a judge summary line.
+judge_credit() {
+  local c; c="$(sed -n 's/.*credits=\([0-9.]*\).*/\1/p' <<<"$3")"
+  printf '%s|%s|%s\n' "$1" "$2" "${c:-0}" >>"$JUDGE_CREDITS_FILE"
+}
 judge_bs() {
   local id="$1" answer="$2" out rb1=0 rb2=0
   JB1=0; JB2=0; JQ1=""; JQ2=""; JUDGE_DETAIL=""
   if [[ -z "$BS_CONTROLS" ]]; then
     if BS_CONTROLS="$(python3 "$BS_JUDGE" controls "$BS_JUDGE_CONTROLS" 2>"$WORKDIR/judge-controls.err")"; then
       echo "  ${DIM}blind-spot judge: $BS_CONTROLS${RESET}"
+      judge_credit controls 0 "$BS_CONTROLS"
     elif [[ $? -eq 2 ]]; then
+      judge_credit controls 0 "$BS_CONTROLS"
       BS_CONTROLS="FAILED for mange dommerfeil: ${BS_CONTROLS:-no summary}"
       echo "${RED}✗ blind-spot judge controls: $BS_CONTROLS${RESET}" >&2
       sed 's/^/    /' "$WORKDIR/judge-controls.err" >&2
     else
-      BS_CONTROLS="FAILED under 95 %: ${BS_CONTROLS:-no summary}"
+      judge_credit controls 0 "$BS_CONTROLS"
+      BS_CONTROLS="FAILED under 92 %: ${BS_CONTROLS:-no summary}"
       echo "${RED}✗ blind-spot judge controls: $BS_CONTROLS${RESET}" >&2
       sed 's/^/    /' "$WORKDIR/judge-controls.err" >&2
     fi
@@ -1732,6 +1746,7 @@ r = json.loads(sys.argv[1])
 c = lambda s: " ".join(s.replace("|", "¦").split()) or "-"
 print(int(r["bs1"]), int(r["bs2"]), r["credits"], c(r["bs1_quote"]), c(r["bs2_quote"]), sep="\t")' "$out")
   [[ "$JQ1" == - ]] && JQ1=""; [[ "$JQ2" == - ]] && JQ2=""
+  printf '%s|%s|%s\n' "$id" "$RUN" "$JC" >>"$JUDGE_CREDITS_FILE"
   present "$answer" "$RE_BS1" && rb1=1
   present "$answer" "$RE_BS2" && rb2=1
   printf '%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$id" "$RUN" "$rb1" "$rb2" "$JB1" "$JB2" "$JC" "$JQ1" "$JQ2" >>"$JUDGE_FILE"
@@ -2065,7 +2080,12 @@ Det er alle svarene. Dette bekrefter at intervjuet er ferdig; bruk antakelsene d
 # `accessPolicy` was the other half of that older gate, and it was the #519 bug:
 # a Fase 1 answer that reports the seeded nais.yaml has none opened the gate on
 # an interview turn. Neither word decides whether a plan exists any more.
-RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig'
+# «**Fase 2 – plan.**» (dash or en dash, then «plan») is a plan heading too:
+# GPT-6 Sol Low wrote it in run 4 of the #1641 pilot, a full plan with a red
+# zone that t4 then called «no plan». Only «plan» after the dash, because this
+# expression also decides whether a t2 turn carried on: «Fase 2 – når du har
+# svart» is a promise to wait, not a plan.
+RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*(-|–)[[:space:]]*plan'
 
 # Test 2: a Fase 1 turn that lists open points and then carries on anyway
 # («Jeg legger til grunn … og går videre. Fase 2: Plan.») is not a stop, however

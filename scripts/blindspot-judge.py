@@ -10,9 +10,10 @@ RE_BS1/RE_BS2 verdict, which held-out questions showed to be unreliable
   controls TSV      judge every row of a controls file (question,
                     expected_bs1, expected_bs2, source), each wrapped as a
                     minimal answer; prints one disagreement per row to stderr
-                    and a summary line; exit 1 below 95 % agreement.
-                    A pass is recorded under a hash of judge model, effort, CLI flags,
-                    CLI version, rubric, this script and controls file, and reused for 7 days
+                    and a summary line; exit 1 below the 92 % floor (see
+                    MIN_ACCURACY). Every run is recorded, failed ones too, under a
+                    hash of judge model, effort, CLI flags, CLI version, rubric,
+                    this script and controls file. A pass is reused for 7 days
 
 Answer controls (a TSV with an `answer` column instead of `question`) are
 whole planning answers, with \n for line breaks, judged as they stand.
@@ -43,7 +44,18 @@ from concurrent.futures import ThreadPoolExecutor
 
 MODEL = os.environ.get("BS_JUDGE_MODEL", "claude-haiku-5.5")
 EFFORT = os.environ.get("BS_JUDGE_EFFORT", "low")  # «minimal» is refused for Haiku 5.5
-MIN_ACCURACY = 0.95
+# The judge cannot be made deterministic: the Copilot CLI has no temperature or
+# seed flag (1.0.95), so Haiku samples each vote. On the same 75 controls it
+# agreed on 71, 72, 72, 73 and 74 rows (blindsone-dommer-kontroller.psv and the
+# 2026-10-12 pilot, #1641): mean 72.4, 96.5 %. A binomial at that rate has a
+# standard deviation of about 1.6 rows, so a 95 % gate (72 of 75) sat on the
+# mean and failed about one run in three by chance alone. That is noise, not a
+# broken judge. The floor is two standard deviations below the measured mean,
+# 69 of 75 (92 %): a judge at its usual rate falls under it about one run in
+# 40, while a rubric or model regression to 90 % fails most runs. 92-95 % is
+# the tolerance band: the run passes, and the record and summary say «band».
+TARGET_ACCURACY = 0.95
+MIN_ACCURACY = 0.92
 
 RUBRIC = """You grade an answer that a coding assistant wrote to a developer at Nav \
 (Norwegian welfare administration). The answer is usually in Norwegian. Decide \
@@ -211,9 +223,10 @@ def label(row):
     return row.get("question") or row["answer"][:80]
 
 
-# Passing control runs, one per line: hash|date|model|effort|n|agree|accuracy|credits.
-# A run is skipped when this file holds a pass for the same hash from the last
-# CACHE_DAYS days. BS_JUDGE_RECORD points elsewhere (bats); empty disables it.
+# Control runs, one per line: hash|date|model|effort|n|agree|accuracy|credits|status.
+# status is pass, band or fail; rows from before 2026-10-12 have no status and
+# were all passes. A run is skipped when this file holds a pass or band for the
+# same hash from the last CACHE_DAYS days. A failed run is logged and never reused. BS_JUDGE_RECORD points elsewhere (bats); empty disables it.
 RECORD = os.environ.get("BS_JUDGE_RECORD", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "docs", "golden-baselines", "blindsone-dommer-kontroller.psv"))
 CACHE_DAYS = 7
@@ -245,7 +258,7 @@ def cached(key):
     today = datetime.date.today()
     for line in reversed(lines):
         f = line.split("|")
-        if len(f) >= 8 and f[0] == key:
+        if len(f) >= 8 and f[0] == key and (len(f) == 8 or f[8] in ("pass", "band")):
             age = (today - datetime.date.fromisoformat(f[1])).days
             return line if 0 <= age <= CACHE_DAYS else None
     return None
@@ -279,16 +292,17 @@ def controls(path):
             print(f"row {i}: want bs1={int(want[0])} bs2={int(want[1])}, judge bs1={int(got[0])} "
                   f"bs2={int(got[1])} ({r['source']}): {label(r)}", file=sys.stderr)
     acc = agree / len(rows) if rows else 0.0
-    print(f"controls n={len(rows)} agree={agree} errors={errors} accuracy={acc:.3f} credits={credits:.2f}")
-    if errors * 10 > len(rows):
-        return 2
-    if acc < MIN_ACCURACY:
-        return 1
+    status = "fail" if errors * 10 > len(rows) or acc < MIN_ACCURACY else (
+        "band" if acc < TARGET_ACCURACY else "pass")
+    print(f"controls n={len(rows)} agree={agree} errors={errors} accuracy={acc:.3f} credits={credits:.2f} "
+          f"status={status}")
     if RECORD:
         with open(RECORD, "a", encoding="utf-8") as f:
             f.write(f"{key}|{datetime.date.today()}|{MODEL if not os.environ.get('BS_JUDGE_CMD') else 'stub'}|"
-                    f"{EFFORT}|{len(rows)}|{agree}|{acc:.3f}|{credits:.2f}\n")
-    return 0
+                    f"{EFFORT}|{len(rows)}|{agree}|{acc:.3f}|{credits:.2f}|{status}\n")
+    if errors * 10 > len(rows):
+        return 2
+    return 1 if status == "fail" else 0
 
 
 def main(argv):
