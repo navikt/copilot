@@ -161,8 +161,8 @@ function Mark({ v }: { v: string }) {
 // advarer om, står her.
 const SETTINGS: { key: string; copilot: string; opencode: string; pi: string }[] = [
   { key: "model", copilot: "Ja", opencode: "Ja", pi: "Ja" },
-  { key: "mode", copilot: "Ja", opencode: "Bare plan. autopilot gir advarsel", pi: "Advarsel" },
-  { key: "reasoning_effort", copilot: "Ja", opencode: "Bare i opencode run. Advarsel ellers", pi: "Advarsel" },
+  { key: "mode", copilot: "Ja", opencode: "Bare plan; autopilot gir advarsel", pi: "Advarsel" },
+  { key: "reasoning_effort", copilot: "Ja", opencode: "Bare i opencode run; ellers advarsel", pi: "Advarsel" },
   { key: "context_tier", copilot: "Ja", opencode: "Advarsel", pi: "Advarsel" },
   { key: "allow_all_tools", copilot: "Ja", opencode: "Ja", pi: "Advarsel" },
   { key: "ask_user", copilot: "Ja", opencode: "Advarsel", pi: "Advarsel" },
@@ -310,8 +310,8 @@ export default function Klienter() {
           Innstillinger per klient
         </LinkableHeading>
         <BodyLong>
-          Slik bruker hver klient innstillingene i {c("~/.nav-pilot/config.toml")}. ✓ betyr at klienten bruker
-          innstillingen. «Advarsel» betyr at klienten ikke har noe som svarer til innstillingen. nav-pilot sier fra ved
+          Slik bruker klientene innstillingene i {c("~/.nav-pilot/config.toml")}. ✓ betyr at klienten bruker
+          innstillingen. «Advarsel» betyr at klienten mangler en tilsvarende innstilling: nav-pilot sier fra ved
           oppstart og starter uten den.
         </BodyLong>
         <div className="overflow-x-auto">
