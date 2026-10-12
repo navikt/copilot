@@ -10,7 +10,7 @@ import {
 } from "@/lib/cached-bigquery";
 import { formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import { familyShares, monthLabel } from "@/lib/trends";
-import { FAMILY_LABELS, type ModelFamily } from "@/lib/model-family";
+import type { ModelFamily } from "@/lib/model-family";
 import { type CostEvent, eventAnnotations, eventSummary } from "@/lib/cost-events";
 import { ChartFigure } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
@@ -21,7 +21,18 @@ const FIRST_MONTH = "2026-01";
 /** The most copilot-api serves; covers January 2026 until early 2029. */
 const HISTORY_MONTHS = 36;
 
-const FAMILY_ORDER = Object.keys(FAMILY_LABELS) as ModelFamily[];
+/** Fixed palette index per family (axSeries has 8): «Andre» is grey, Haiku and Fable are both small and share one. */
+const FAMILY_COLOR: Record<ModelFamily, number> = {
+  claude_opus: 0,
+  claude_sonnet: 1,
+  claude_haiku: 2,
+  claude_fable: 2,
+  kodegjennomgang: 3,
+  gpt_mini: 4,
+  andre: 5,
+  gemini: 6,
+  gpt: 7,
+};
 
 const premium = (month: string) => month < "2026-06";
 
@@ -166,9 +177,11 @@ export function CostTrendsView({
               series={families.map((f) => ({
                 label: f.label,
                 // Colour by family, so a family keeps its colour whichever families a period has.
-                color: FAMILY_ORDER.indexOf(f.family),
+                color: FAMILY_COLOR[f.family],
                 data: f.shares,
-                pointLabels: f.models.map((m) => (m.length ? `${f.label} (${m.slice(0, 3).join(", ")})` : null)),
+                pointLabels: f.models.map((m) =>
+                  m.length && f.family !== "kodegjennomgang" ? `${f.label} (${m.slice(0, 3).join(", ")})` : null
+                ),
               }))}
             />
           }

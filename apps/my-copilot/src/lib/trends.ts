@@ -55,18 +55,18 @@ function nextMonth(month: string): string {
 
 /**
  * Net cost per model family as a share of each month's net cost. A month with no net cost is a gap.
- * With codeReview, the code review model is its own family (see modelFamily).
+ * costPage is passed to modelFamily.
  */
-export function familyShares(rows: BillingModelBreakdown[], months: string[], codeReview = false): FamilyShares {
+export function familyShares(rows: BillingModelBreakdown[], months: string[], costPage = false): FamilyShares {
   const net = new Map<string, Map<ModelFamily, number>>();
-  const byModel = new Map<string, number>(); // month|family|model → net
+  const byModel = new Map<string, number>(); // month, family and model → net
   for (const row of rows) {
     const month = row.year_month.slice(0, 7);
     if (!months.includes(month)) continue;
     const byFamily = net.get(month) ?? new Map<ModelFamily, number>();
-    const family = modelFamily(row.model, codeReview);
+    const family = modelFamily(row.model, costPage);
     byFamily.set(family, (byFamily.get(family) ?? 0) + row.net_amount);
-    const key = `${month}|${family}|${baseModel(row.model)}`;
+    const key = `${month}\u0000${family}\u0000${costPage ? baseModel(row.model) : row.model.trim()}`;
     byModel.set(key, (byModel.get(key) ?? 0) + row.net_amount);
     net.set(month, byFamily);
   }
@@ -85,9 +85,9 @@ export function familyShares(rows: BillingModelBreakdown[], months: string[], co
       ),
       models: kept.map((m) =>
         [...byModel.entries()]
-          .filter(([k, v]) => k.startsWith(`${m}|${family}|`) && v > 0)
+          .filter(([k, v]) => k.startsWith(`${m}\u0000${family}\u0000`) && v > 0)
           .sort((a, b) => b[1] - a[1])
-          .map(([k]) => k.split("|")[2])
+          .map(([k]) => k.split("\u0000")[2])
       ),
     })),
   };
