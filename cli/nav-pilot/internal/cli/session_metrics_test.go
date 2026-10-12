@@ -241,3 +241,29 @@ func TestRealCopilotSession(t *testing.T) {
 	t.Logf("skills=%d tools=%d hooks=%d agents=%d turns=%d models=%d skipped=%d duration_s=%d api_ms=%d",
 		sum(s.Skills), sum(s.Tools), sum(s.Hooks), sum(s.Agents), s.Turns, len(s.Models), s.Skipped, s.DurationSeconds, s.APIDurationMS)
 }
+
+func TestParseCopilotSessionEventsAfterShutdownNotInSnapshot(t *testing.T) {
+	const tail = `{"type":"hook.end","timestamp":"2026-10-12T10:00:00Z","data":{"hookType":"preToolUse","success":true}}` + "\n"
+	s, _, ok := parseCopilotSession(strings.NewReader(sessionFixture+tail), func(m string) string { return m }, nil, nil, sessionTotals{})
+	if !ok {
+		t.Fatal("no shutdown found")
+	}
+	if n := s.Hooks[telemetrypkg.HookKey{HookType: "preToolUse", Outcome: "success"}]; n != 1 {
+		t.Errorf("event after the last shutdown leaked into the snapshot: %d, want 1", n)
+	}
+}
+
+func TestLockSession(t *testing.T) {
+	lock := filepath.Join(t.TempDir(), "l")
+	unlock, ok := lockSession(lock)
+	if !ok {
+		t.Fatal("first lock refused")
+	}
+	if _, ok := lockSession(lock); ok {
+		t.Fatal("second lock granted")
+	}
+	unlock()
+	if _, ok := lockSession(lock); !ok {
+		t.Fatal("lock not released")
+	}
+}

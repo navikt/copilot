@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
@@ -65,6 +67,9 @@ func navItemNames() (skills, agents map[string]bool) {
 		scopes = append(scopes, s)
 	}
 	if wd, err := os.Getwd(); err == nil {
+		if root := source.FindGitRoot(wd); root != "" {
+			wd = root
+		}
 		scopes = append(scopes, ScopeRepo(wd))
 	}
 	for _, sc := range scopes {
@@ -285,7 +290,10 @@ func parseCopilotSession(r io.Reader, model func(string) string, skills, agents 
 					s.DurationSeconds = int64(sec)
 				}
 			}
-			done, mark, found = s, sessionMarker{Offset: offset, sessionTotals: cum}, true
+			done = s
+			done.Skills, done.Tools, done.Hooks = maps.Clone(s.Skills), maps.Clone(s.Tools), maps.Clone(s.Hooks)
+			done.Agents, done.Models = maps.Clone(s.Agents), maps.Clone(s.Models)
+			mark, found = sessionMarker{Offset: offset, sessionTotals: cum}, true
 		}
 		if bad {
 			s.Skipped++
@@ -299,8 +307,8 @@ func parseCopilotSession(r io.Reader, model func(string) string, skills, agents 
 // offset read so far and the totals at that point, so a resumed session counts
 // only what came after. Opted out, nothing is read.
 //
-// ponytail: two nav-pilot processes exiting at the same moment can both
-// record one session; add a lock file if the dashboards show doubles.
+// A lock file per session keeps two overlapping nav-pilot exits from both
+// recording it: the one that loses the race skips the session.
 func recordCopilotSessions(root string, since time.Time) {
 	if !telemetryEnabled() || since.IsZero() {
 		return
@@ -312,16 +320,22 @@ func recordCopilotSessions(root string, since time.Time) {
 			continue
 		}
 		marker := filepath.Join(filepath.Dir(p), sessionMetricsMarker)
+		unlock, ok := lockSession(marker + ".lock")
+		if !ok {
+			continue
+		}
 		var prev sessionMarker
 		if b, err := os.ReadFile(marker); err == nil {
 			_ = json.Unmarshal(b, &prev)
 		}
 		f, err := os.Open(p)
 		if err != nil {
+			unlock()
 			continue
 		}
 		if _, err := f.Seek(prev.Offset, io.SeekStart); err != nil {
 			f.Close()
+			unlock()
 			continue
 		}
 		if skills == nil {
@@ -329,13 +343,33 @@ func recordCopilotSessions(root string, since time.Time) {
 		}
 		s, mark, ok := parseCopilotSession(f, configModelLabel, skills, agents, prev.sessionTotals)
 		f.Close()
-		if !ok {
+		if ok {
+			telemetry.RecordCopilotSession(s)
+			mark.Offset += prev.Offset
+			if b, err := json.Marshal(mark); err == nil {
+				_ = os.WriteFile(marker, b, 0o600)
+			}
+		}
+		unlock()
+	}
+}
+
+// lockSession takes an exclusive lock file. One older than a minute is a
+// crashed holder's and is taken over.
+func lockSession(lock string) (unlock func(), ok bool) {
+	for range 2 {
+		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			f.Close()
+			return func() { _ = os.Remove(lock) }, true
+		}
+		if fi, serr := os.Stat(lock); serr != nil || time.Since(fi.ModTime()) < time.Minute {
+			if serr == nil {
+				return nil, false
+			}
 			continue
 		}
-		telemetry.RecordCopilotSession(s)
-		mark.Offset += prev.Offset
-		if b, err := json.Marshal(mark); err == nil {
-			_ = os.WriteFile(marker, b, 0o600)
-		}
+		_ = os.Remove(lock)
 	}
+	return nil, false
 }
