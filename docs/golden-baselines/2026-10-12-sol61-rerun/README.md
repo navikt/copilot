@@ -2,6 +2,8 @@
 
 Kjørt 11. oktober, vurdert på nytt 12. oktober 2026. Copilot CLI 1.0.95, `--effort low`, fem kjøringer per arm. Bruksradene viser riktig modell og innsatsnivå for alle kall, så ingen kjøring er forkastet. Resultatfilene er regnet om med de rettede sjekkene fra #1614, se [Omregning](#omregning). Transkriptene ligger i [`transkripter/`](transkripter/).
 
+Transkriptene er renset for lokal mise-oppgaveliste og hjemmekatalog før publisering.
+
 ## Oppsett
 
 - **planning t2** (`--suite planning --only 2`): kjørt med og uten linjen «Skriv åpne punkter som spørsmål.» i `@nav-pilot`. Linjen sto rett etter avsnittet om antall blindsoner i Fase 1, i en kopi av repoet. Agentfila i repoet er ikke endret. Begge armene har derfor samme `revision` i filene. Armen med linjen er et forsøk med en endret persona, ikke en måling av modellen. Filene ligger derfor i [`utenfor-oppsummering/`](utenfor-oppsummering/) og er ikke med i `summary.json` eller på /modeller.
