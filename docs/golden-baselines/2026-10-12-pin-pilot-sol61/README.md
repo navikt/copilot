@@ -24,6 +24,8 @@ GPT-6.1 Sol har tre hele kjøringer. Den fjerde ble stoppet ved taket og er ikke
 ## Hva som gikk galt i målingen
 
 - **KI-dommeren nektet å vurdere kontrollarmen.** For t3, t7 og t7b bruker testoppsettet en KI-dommer. Før den vurderer, må den treffe på minst 95 prosent av 75 kontrollsvar med kjent fasit. I kjøringen av GPT-6 Sol traff den 71 av 75 (94,7 prosent). Testoppsettet merket da alle 15 resultatene som feil i oppsettet, ikke som bestått eller feilet. Med samme kontrollsvar traff dommeren 74 av 75 i kjøringen av GPT-6.1 Sol. Dommeren svarer altså ulikt fra gang til gang. Jeg har lest de 15 svarene for hånd, se under.
+
+  *Merknad 12. oktober 2026: [#1645](https://github.com/navikt/copilot/pull/1645) har rettet dette. Grensen er nå 92 prosent, med et område på 92–95 prosent. Et nyere feilsvar overstyrer et eldre bestått. Teksten over beskriver kjøringen slik den var.*
 - **Taket ble overskredet med omtrent 12 credits.** Vaktskriptet summerte bare bruksfilene, som viste 397,28 credits da begge kjøringene ble stoppet. Dommeren kom i tillegg: 6,99 og 7,06 credits for kontrollene og 1,14 for vurderingene. Samlet forbruk ble omtrent 412,5 credits.
 
 ## Vurdering av hver feil og hvert svar lest for hånd
@@ -45,5 +47,7 @@ GPT-6.1 Sol har tre hele kjøringer. Den fjerde ble stoppet ved taket og er ikke
 - På t3, t4, t5 og t7 var det ingen forskjell mellom modellene i disse få kjøringene.
 - GPT-6.1 Sol brukte færre credits per kjøring enn GPT-6 Sol: 44,89 mot 51,12 i median.
 - Testoppsettet har to svakheter. KI-dommeren kan falle under 95 prosent på kontrollene fra én kjøring til den neste. Mønsteret for t4 kjenner ikke igjen «Fase 2 –». Ingen av sjekkene er endret her.
+
+*Merknad 12. oktober 2026: [#1645](https://github.com/navikt/copilot/pull/1645) har rettet begge svakhetene. Dommergrensen er nå 92 prosent, med et område på 92–95 prosent, og et nyere feilsvar overstyrer et eldre bestått. Mønsteret for t4 godtar nå tankestreken i «Fase 2 –», og «plan» må være et helt ord. Teksten over beskriver kjøringen slik den var.*
 
 Målingen endrer ingen pinner.
