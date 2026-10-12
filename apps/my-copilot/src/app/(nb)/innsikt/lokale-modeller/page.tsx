@@ -51,18 +51,6 @@ const FALLBACK = { ...FALLBACK_TABLE, fetchedAt: null };
 
 const modelName = (m: LocalModel) => m.model.split("/").pop();
 
-function Source({ measured, source }: { measured: string; source: string }) {
-  return (
-    <BodyShort size="small" textColor="subtle">
-      Målt {formatDate(measured)}.{" "}
-      <a href={source} className={linkClass}>
-        Se rapporten
-      </a>
-      .
-    </BodyShort>
-  );
-}
-
 // Everything that reads the manifest. Rendered with the checked-in copy while the live one loads.
 function ManifestSections({ table }: { table: Table }) {
   const { models } = table;
@@ -298,8 +286,8 @@ export default function LokaleModeller() {
           value="17/17"
           label="Delegeringer bestått"
           helpTitle="Delegering med aggressive"
-          helpText="Med aggressive delegerte hovedagenten i alle 17 gyldige kjøringer, og alle 17 besto bygg og tester. To kjøringer til ble avbrutt av en avvist filskriving før de var ferdige, så regnet på forsøk er det 17 av 19."
-          subtitle="med aggressive"
+          helpText="Med aggressive delegerte Sonnet 5 i alle 17 gyldige kjøringer, og alle 17 besto bygg og tester (28. september 2026). To kjøringer til ble avbrutt av en avvist filskriving før de var ferdige, så regnet på forsøk er det 17 av 19. Sonnet 5.5 er målt på andre oppgaver, se Delegeringsnivåene."
+          subtitle="aggressive, Sonnet 5, 28. september"
         />
         <MetricCard
           value="93 %"
@@ -327,6 +315,16 @@ export default function LokaleModeller() {
           arbeid til den lokale modellen i 1 av 29 testkjøringer. Derfor har nav-pilot en delegeringssperre, og nivået{" "}
           <code className={code}>aggressive</code> er standard fra 30. september 2026: det er det eneste nivået som
           faktisk delegerer, og alt som ble delegert, besto testene. Prisen er tid og som regel flere AI Credits.
+        </BodyLong>
+        <BodyLong>
+          Tallet 17 av 17 er målt med Sonnet 5 den 28. september 2026. Den 12. oktober 2026 målte vi Sonnet 5.5 med{" "}
+          <code className={code}>aggressive</code> på to små endringer i én fil. Den delegerte i 4 av 30 kjøringer og
+          valgte selv å gjøre resten. Alle 4 delegeringene besto (
+          <a href={SOURCES.rp7c} className={linkClass}>
+            rapporten
+          </a>
+          ). Oppgavene var andre og mindre enn i september, så de to resultatene kan ikke sammenlignes direkte.{" "}
+          <code className={code}>aggressive</code> er fortsatt standard.
         </BodyLong>
         <ResultTable headers={["Nivå", "Resultat", "Vurdering"]} rows={DELEGATION_RESULTS.rows} />
         <DelegationRangeChart ranges={DELEGATION_RANGES} />
@@ -517,7 +515,27 @@ export default function LokaleModeller() {
           minne.
         </BodyLong>
         <Bullets>
-          <li>Den løste oppgaven i 12 av 12 Copilot-økter.</li>
+          <li>
+            Den er godkjent for endringer i én fil når den selv er hovedagent. 12. oktober 2026 besto den 92 av 96
+            forsøk (
+            <a href={SOURCES.oq3a} className={linkClass}>
+              rapporten
+            </a>
+            ). Den er ikke godkjent for delegering.
+          </li>
+          <li>
+            Standardmodellen fikk samme dag 48 av 48 på endringer i én fil når den fikk et nytt forsøk etter feilet bygg
+            eller test (
+            <a href={SOURCES.r2e} className={linkClass}>
+              rapporten
+            </a>
+            ). nav-pilot gir nå også et slikt nytt forsøk når den lokale modellen endrer en fil (
+            <a href="https://github.com/navikt/copilot/pull/1675" className={linkClass}>
+              copilot#1675
+            </a>
+            ).
+          </li>
+          <li>I september løste den oppgaven i 12 av 12 Copilot-økter.</li>
           <li>
             Med decide svarte den like godt som standardmodellen: 184 av 218 riktige mot 182, og 91 av 96 mot 89 på
             commit-spørsmålet. På testene av svakheter fikk den 806 av 974 mot 827, mest fordi den var svakere når
@@ -528,7 +546,13 @@ export default function LokaleModeller() {
             anslår rapporten rundt 50 GB, altså over grensen. Det er ikke målt ennå.
           </li>
         </Bullets>
-        <Source {...GB64_MEASURED} />
+        <BodyShort size="small" textColor="subtle">
+          Målt 27. september og {formatDate(GB64_MEASURED.measured)}. Se{" "}
+          <a href={SOURCES.gb64} className={linkClass}>
+            rapporten fra september
+          </a>
+          .
+        </BodyShort>
       </InsightSection>
 
       <Suspense fallback={<RejectedSection rejected={FALLBACK.rejected} />}>

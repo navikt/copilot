@@ -30,7 +30,10 @@ const VERDICTS: Verdict[] = [
   { task: "Legge til et argument i 1–2 kall, i flere filer", verdict: "Godkjent for delegering" },
   { task: "Det samme i 3–8 kall", verdict: "Ikke godkjent ennå" },
   { task: "Det samme i 9 kall eller flere", verdict: "Blir i skyen" },
-  { task: "Endre én fil", verdict: "Ikke godkjent ennå" },
+  {
+    task: "Endre én fil",
+    verdict: "Ikke godkjent for delegering ennå. Modellen for 64 GB er godkjent som hovedagent",
+  },
   { task: "Lage en ny fil", verdict: "Godkjent lokalt på de to letteste trinnene, ikke for delegering" },
   { task: "Svare på spørsmål om kodebasen", verdict: "Blir i skyen" },
   { task: "decide: forklarer commit-meldingen hvorfor?", verdict: "Varsler i commit-hooken" },

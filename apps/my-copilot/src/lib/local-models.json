@@ -225,11 +225,11 @@
         },
         "edit-single": {
           "delegate": "cloud",
-          "local": "not-yet",
+          "local": "trusted",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 4,
-          "local_n": 4
+          "local_k": 92,
+          "local_n": 96
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
