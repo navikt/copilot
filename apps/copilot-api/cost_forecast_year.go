@@ -67,7 +67,7 @@ func yearGrowth(months []AdminMonth, users map[string]int64) (g float64, ok bool
 		if t.Month() == holidayMonth {
 			net, u = net/holidayNetFactor, u/holidayUserFactor
 		}
-		xs, lu, lp = append(xs, float64(t.Month())), append(lu, math.Log(u)), append(lp, math.Log(net/u))
+		xs, lu, lp = append(xs, float64(t.Year()*12+int(t.Month()))), append(lu, math.Log(u)), append(lp, math.Log(net/u))
 	}
 	if len(xs) > yearFitMonths {
 		xs, lu, lp = xs[len(xs)-yearFitMonths:], lu[len(lu)-yearFitMonths:], lp[len(lp)-yearFitMonths:]
@@ -108,7 +108,11 @@ func yearForecast(months []AdminMonth, users []ActiveUsersMonth, cur ModelForeca
 		if m.Month >= month.Format("2006-01") || m.EnterpriseNetUSD == nil {
 			continue
 		}
+		// Last year's months only feed the fit.
 		closed = append(closed, m)
+		if m.Month[:4] != month.Format("2006") {
+			continue
+		}
 		c += *m.EnterpriseNetUSD
 		out = append(out, YearForecastPoint{Month: m.Month, CumulativeNetUSD: c, Low: c, High: c})
 	}

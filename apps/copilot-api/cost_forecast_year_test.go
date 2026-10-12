@@ -85,3 +85,13 @@ func TestYearBacktest(t *testing.T) {
 		}
 	}
 }
+
+func TestYearForecastFitsAcrossNewYear(t *testing.T) {
+	net := []float64{1000, 1100, 1200}
+	ms := []AdminMonth{{Month: "2026-11", EnterpriseNetUSD: &net[0]}, {Month: "2026-12", EnterpriseNetUSD: &net[1]}, {Month: "2027-01", EnterpriseNetUSD: &net[2]}}
+	us := []ActiveUsersMonth{{Month: "2026-11", ActiveUsers: 10}, {Month: "2026-12", ActiveUsers: 10}, {Month: "2027-01", ActiveUsers: 10}}
+	pts, end := yearForecast(ms, us, ModelForecast{NetMidUSD: 1300, NetLowUSD: 1200, NetHighUSD: 1400}, time.Date(2027, 2, 1, 0, 0, 0, 0, time.UTC))
+	if end == nil || pts[0].Month != "2027-01" || pts[0].CumulativeNetUSD != 1200 || len(pts) != 12 {
+		t.Fatalf("want 2027 only, fitted on 2026 too: %+v %v", pts[:1], end)
+	}
+}

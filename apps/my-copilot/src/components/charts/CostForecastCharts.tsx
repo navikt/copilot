@@ -201,7 +201,7 @@ function MonthChart({ data }: { data: CostForecast }) {
 
 function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast }) {
   const s = yearSeries(months, data);
-  if (!s.toDate) return <BodyShort>Ingen måneder med faktura ennå i år.</BodyShort>;
+  if (!s.toDate || !s.end) return <BodyShort>Vi har for lite data til en prognose for året ennå.</BodyShort>;
   const summary =
     `Fakturert ${formatUSD(s.toDate.cumulative_net_usd)} fra januar til og med ${monthName(s.toDate.month)}.` +
     (s.premium.some((v) => v != null) ? " Fram til og med mai var grunnlaget premiumforespørsler." : "") +
