@@ -12,7 +12,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### `@nav-pilot` skriver kode for rød sone når du ber om det
 
 - **Stubber som før**: For deler av planen som er merket rød sone, lager `@nav-pilot` fortsatt testskjeletter og stubber som standard.
-- **Kode når du ber om det**: Skriver du for eksempel «implementer rød sone, jeg reviewer», skriver agenten koden, beholder 🔴-merkingen og avslutter med en sjekkliste per del: hva du skal kontrollere, hvilke regler som alltid må holde og hvilke tester du bør lese. Deretter ber den deg forklare koden. Ber du om det før eller under planleggingen, står det «implementeres av nav-pilot, utvikleren reviewer» i planen i stedet for «skriv selv».
+- **Kode når du ber om det**: Skriver du for eksempel «implementer rød sone, jeg reviewer», skriver agenten koden og beholder 🔴-merkingen. Du må be om koden uttrykkelig. Et løfte om å se over koden etterpå, som «jeg reviewer» alene, er ikke nok. Det gjelder på alle språk, også engelsk.
+- **Bare delene du nevner**: Nevner du bare noen av de røde delene, skriver agenten bare dem og lager stubber for resten.
+- **Sjekkliste til slutt**: Svaret med koden slutter med overskriften «Sjekkliste for rød sone» og ett punkt per del agenten skrev: hva du skal kontrollere, hvilke regler som alltid må holde og hvilke tester du bør lese. Deretter ber agenten deg forklare koden. Ber du om koden før eller under planleggingen, står det «implementeres av nav-pilot, utvikleren reviewer» i planen i stedet for «skriv selv».
 - **Samme soner overalt**: Sonelistene er nå like i instruksjonen, skillen, agenten, retningslinjene, [planleggingssiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/planlegging) og designdokumentet. Rød sone er feilsøking, nye konsepter, sentral forretningslogikk, sikkerhetskritisk kode og arkitekturvalg. Grønn sone er boilerplate, teknologi du kan fra før, konfigurasjon, refaktorering med kjent mål og testdata. En test sjekker at listene holder seg like.
 - **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply`.
 
