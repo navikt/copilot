@@ -1,0 +1,28 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● Read nais-templates.md
+  │ ~/.copilot/skills/nav-plan/references/nais-templates.md
+  └ L1:180 (60 lines read)
+
+● Read decision-trees.md
+  │ ~/.copilot/skills/nav-plan/references/decision-trees.md
+  └ L1:150 (150 lines read)
+
+● Inspect available project files (shell)
+  │ find . -maxdepth 3 -type f | sort | head -70
+  └ 20 lines…
+
+● skill(klarsprak)
+
+**Fase 2: Plan.** Vi bygger en tilstandsløs Ktor-tjeneste for den eksisterende Next.js-frontenden. Jeg legger til grunn at frontenden er beskyttet av Wonderwall, og at den sender brukerens ID-porten-token videre via sin serverdel, ikke fra nettleserkode. Tjenesten validerer tokenet, henter fødselsnummeret fra den validerte identiteten og bruker TokenX med brukerkontekst mot PDL for å hente navn. Den returnerer bare navnet til den innloggede brukeren. Ingen database, kø eller lagring.
+
+1. **API og feil:** `GET /api/meg/navn` returnerer `{ "navn": "..." }`. API-et tar ikke fødselsnummer som parameter. Manglende eller ugyldig token gir `401`; PDL-feil eller tidsavbrudd gir `503` uten personopplysninger i feilsvaret. Ktor `StatusPages` gir et konsekvent ProblemDetail-svar. Logg korrelasjons-ID, feiltype og PDL-status, aldri token, fødselsnummer eller navn. Lovhjemmel er behandlingsgrunnlaget; vi legger ikke inn en samtykkeflyt.
+2. **Struktur og Nais:** Utvid `build.gradle.kts` med Ktor HTTP-klient, tokenvalidering, TokenX og metrikker. Legg rute, tokenvalidering, PDL-klient og feiloversetting under `src/main/kotlin`, med tester under `src/test/kotlin`. Utvid `nais.yaml` med `tokenx.enabled`, eksplisitt `accessPolicy.inbound` for frontend-applikasjonen og `accessPolicy.outbound` for PDL, samt Prometheus og små ressursforespørsler uten CPU-limit. Frontendens ID-porten- og Wonderwall-oppsett må kontrolleres før den kobles til; PDLs konkrete API, audience og tilgangskrav må bekreftes mot integrasjonsdokumentasjonen. Ingen Flyway-migrasjoner trengs.
+3. **Levering og kontroll:** GitHub Actions bygger og tester før deploy til dev, deretter prod, med SHA-pinnede actions og minimale rettigheter. Tester dekker token som mangler eller er ugyldig, at identiteten alltid kommer fra tokenet, vellykket PDL-oppslag og `503` ved PDL-feil eller tidsavbrudd. Kontraktstest dekker svaret frontenden bruker. Mål oppslag per minutt og feilandel uten personopplysninger i metrikknavn eller etiketter; varsle ved vedvarende forhøyet feilandel. Leveransedokumentet skal angi rollback til forrige image, runbook for PDL-feil og sjekkliste for verifisering etter deploy. Siden dette er nybygg, trengs ingen datamigrering eller utfasing.
+
+🔴 **Rød sone, implementeres av nav-pilot og gjennomgås av utvikleren ved eksplisitt bestilling:** tokenvalidering, tilgangskontroll og koblingen mellom validert identitet og PDL-oppslag. Sjekk særlig at API-et aldri godtar et fødselsnummer fra klienten, at TokenX beholder brukerkonteksten, og at feil ikke lekker personopplysninger. TokenX og Wonderwall er nytt for teamet; gå gjennom disse delene før merge. 🟢 **Grønn sone:** prosjektoppsett, Nais- og CI-konfigurasjon, metrikker og testoppsett.
+
+Valget om å la backend hente identiteten fra et validert token hindrer at klienten kan velge en annen persons fødselsnummer. Det krever til gjengjeld korrekt tokenflyt mellom frontend, backend og PDL; et enklere kall uten brukerkontekst er forkastet. **Neste fase er review av planen**, ikke kode. Still gjerne spørsmål om valgene over.
+

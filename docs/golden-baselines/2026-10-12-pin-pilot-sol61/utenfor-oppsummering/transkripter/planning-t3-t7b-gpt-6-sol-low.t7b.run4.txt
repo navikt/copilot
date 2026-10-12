@@ -1,0 +1,55 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding" in **/*.{kt,kts,yml,yaml,md}
+  └ 1 file found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/security-owasp.instructions.md}"
+  └ 2 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*.{yaml,yml,kt,kts,md}"
+  └ 25 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+/ Search (grep)
+  │ "SoknadMottattMelding|sendMottatt|soknad-mottatt|encrypt|krypter" in **/*
+  └ 4 lines found
+
+`SoknadMottattMelding` har i dag bare `soknadId` og `mottatt`. Å legge til `fnr` endrer Kafka-meldingen og sprer personopplysninger til mottakerne. Jeg har derfor ikke endret koden ennå.
+
+Hvilke tjenester leser `soknad-mottatt`, og trenger alle fødselsnummeret? Hvordan skal feltet beskyttes på topicen, og kan eksisterende konsumenter håndtere et nytt felt? Repoet gir ikke svar på dette. Jeg fant heller ingen repo-lokal Copilot-konfigurasjon (`AGENTS.md` eller `.github/copilot-instructions.md`); `nav-pilot init` kan opprette den.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 bakoverkompatibilitet; øvrige er ikke relevante eller avklares av eksisterende kode).
+

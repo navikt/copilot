@@ -1,0 +1,54 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/security-owasp.instructions.md}"
+  └ 2 files found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding" in **/*.{kt,kts,yaml,yml,md}
+  └ 1 file found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*.{kt,yml,yaml,md}"
+  └ 24 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:100 (100 lines read)
+
+Dette er en **full endring** fordi `fnr` vil bli et nytt personopplysningsfelt i Kafka-meldingen. Jeg stopper før kodeendring. I repoet har `SokerDto` allerede `fnr`, men `SoknadMottattMelding` har bare `soknadId` og `mottatt`. Jeg finner ingen lokal konfigurasjon som viser hvem som kan lese `soknad-mottatt`, eller hvordan fødselsnummeret skal beskyttes. Repoet mangler også `AGENTS.md` og de to Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem.
+
+1. Hvem skal lese topicen, og er alle leserne godkjent for fødselsnummer? Hvordan beskyttes meldingen og tilgangen til topicen?
+2. Hvor skal `fnr` hentes fra når `SoknadMottattMelding` opprettes? Skal feltet være påkrevd, og tåler eksisterende konsumenter at det legges til?
+
+🔴 Rød sone: håndtering av fødselsnummer i meldingskontrakten må gjennomgås grundig. Tradeoffet er at konsumentene får feltet de trenger, mens personopplysningen spres til alle med lesetilgang. Alternativet er å la konsumentene hente den ved behov. Still gjerne spørsmål om valgene over.
+
+Blindsoner reist: 4/11 (#1 personvern, #6 konsumenter, #7 kilde og kontrakttest, #9 bakoverkompatibilitet; øvrige gjelder ikke denne avgrensede endringen).
+

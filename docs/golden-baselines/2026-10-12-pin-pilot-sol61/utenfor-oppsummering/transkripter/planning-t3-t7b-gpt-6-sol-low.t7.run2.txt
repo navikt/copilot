@@ -1,0 +1,120 @@
+● skill(jackson-3-migration)
+
+/ Search (glob)
+  │ "**/*gradle*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*.{kt,kts,java}"
+  └ 6 files found
+
+● Check Java and repository layout (shell)
+  │ java -version 2>&1 | head -3; ls -a | head -35
+  └ 11 lines…
+
+● Inspect branch and changes (shell)
+  │ git status --short && git branch --show-current && git --no-pager log -5 --oneline && git
+  │ --no-pager diff --stat main...HEAD
+  └ 6 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+/ Search (grep)
+  │ "jackson|JsonNode|ObjectMapper|\.map\s*\{|\.map\(" in *.{kt,kts,java}
+  └ 5 lines found
+
+● Inspect migration diff and source listing (shell)
+  │ git --no-pager diff main...HEAD && find src -type f | sort
+  └ 50 lines…
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Check build tooling and repository state (shell)
+  │ command -v gradle || true; command -v kotlinc || true; find .github -maxdepth 2 -type f | sort;
+  │ git status --porcelain
+  └ 18 lines…
+
+✗ Compile and inspect Jackson dependencies (shell)
+  │ gradle compileKotlin dependencyInsight --dependency jackson-databind --configuration
+  │ compileClasspath dependencies --configuration compileClasspath --console=plain >
+  │ /tmp/nav-jackson-eval-$$.log 2>&1; rc=$?; tail -90 /tmp/nav-jackson-eval-$$.log; exit $rc
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+● Read README.md
+  └ 4 lines read
+
+● Compare baseline and cached dependencies (shell)
+  │ git --no-pager show main:src/main/kotlin/no/nav/demo/Soknad.kt; git ls-files | sort; ls -d
+  │ ~/.gradle/caches/modules-2/files-2.1/tools.jackson* 2>/dev/null || true
+  └ 55 lines…
+
+✗ Check Kotlin compilation offline (shell)                                                        5s
+  │ gradle --offline --no-daemon compileKotlin --console=plain
+  └ To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 5s
+    Failed with exit code 1
+
+✗ Identify Java compatibility failure (shell)
+  │ /usr/libexec/java_home -V 2>&1 | head -25; gradle --offline --no-daemon compileKotlin
+  │ --console=plain --stacktrace 2>&1 | grep -m 12 -E 'Caused
+  │ by:|IllegalArgumentException|JavaVersion|> 27'
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+✗ Find installed Java versions (shell)
+  │ /usr/libexec/java_home -V 2>&1 | head -20
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+✗ Check available JDKs and working tree (shell)
+  │ ls ~/.local/share/mise/installs/java 2>/dev/null | head -20; git status --short
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+● skill(klarsprak)
+
+**Vurdering: Migreringen er ikke verifisert og bør ikke merges ennå.** Branchen bytter Jackson-avhengigheter og mapper i `Soknad.kt`, men har ingen tester som viser at Kafka-meldingene beholder samme format. Jackson 3 kan sortere felter alfabetisk, slik at `SoknadMottattMelding` får `mottatt` før `soknadId`. Avklar om noen konsumenter er avhengige av feltrekkefølgen, og legg til en test som sammenligner serialisert melding før og etter migreringen. Test også at `LocalDate` fortsatt skrives som forventet.
+
+Ktor bruker `kotlinx-json` her, så `ktor-serialization-jackson3` trengs ikke. Jeg fant ingen `JsonNode.map`-kall eller mapper-mutasjon som krever opprydding. **Builden er fortsatt uavklart:** `gradle --offline --no-daemon compileKotlin` stoppet under prosjektkonfigurasjon med `> 27` på installert JDK 27, før Kotlin-koden ble kompilert. Kjør build, tester og `dependencyInsight` med en støttet JDK for å bekrefte både koden og at Jackson 2 ikke ligger igjen på classpath.
+

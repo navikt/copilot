@@ -1,0 +1,34 @@
+● skill(nav-plan)
+
+● Read norwegian-text.instructions.md
+  │ .github/instructions/norwegian-text.instructions.md
+  └ 56 lines read
+
+● Read nais-templates.md
+  │ ~/.copilot/skills/nav-plan/references/nais-templates.md
+  └ L1:145 (60 lines read)
+
+● Read decision-trees.md
+  │ ~/.copilot/skills/nav-plan/references/decision-trees.md
+  └ L1:110 (110 lines read)
+
+● skill(klarsprak)
+
+## Fase 2: Plan
+
+Vi bygger en **stateless Ktor-tjeneste** som henter navn fra PDL for innlogget innbygger. Den eksisterende Next.js-frontenden er eneste klient. Fødselsnummer kommer fra et validert token, aldri fra en request-parameter. Vi lagrer verken fødselsnummer eller navn. Dette forutsetter at frontenden kan gjøre server-side token exchange med brukerens ID-porten-kontekst; det må bekreftes mot frontendens faktiske oppsett før implementering.
+
+**Flyt og tilgang:** Nettleseren går via frontendens Wonderwall-innlogging. Next.js-kode på serversiden sender et TokenX-token med brukerens kontekst til Ktor-tjenesten. Ktor validerer utsteder, audience, levetid og token før den bruker identiteten til et PDL-oppslag med TokenX. Bare frontend-applikasjonen får inbound-tilgang i Nais; bare PDL får outbound-tilgang. Vi må avklare PDLs påkrevde scope og tilgang før deploy. Det eksisterende `/api/oppgaver`-endepunktet må fjernes eller beskyttes, slik at det ikke blir stående som en utilsiktet åpen tilgangsvei. Ingen database, Kafka eller ny GCP-ressurs.
+
+**API og feil:** Et autentisert `GET /api/meg/navn` returnerer bare feltene frontenden trenger, uten fødselsnummer. Manglende eller ugyldig token gir 401; manglende tilgang gir 403. Når PDL er utilgjengelig, svarer tjenesten 503 og logger status, operasjon og en ikke-personidentifiserende korrelasjons-ID, aldri token, fødselsnummer eller navn. Vi innfører ikke kø eller automatisk retry som kan mangedoble PDL-oppslag.
+
+**Filer og drift:** Behold `nais.yaml`, og legg til TokenX, eksplisitt `accessPolicy` for frontend og PDL, små ressursforespørsler uten CPU-limit, samt metrikker. Del Ktor-koden i ruter, tokenvalidering og PDL-klient. Legg til helsesjekkene manifestet allerede peker på. CI skal bygge og teste før deploy til dev, deretter prod. Ingen Flyway-migrasjon eller connection pool trengs.
+
+**Tester og observabilitet:** Integrasjonstester dekker gyldig og ugyldig token, avvist audience, at brukeren ikke kan velge et annet fødselsnummer, PDL-svar og 503 ved nedetid. Mål antall oppslag per minutt og feilandel, uten personopplysninger som metric-etiketter. Varsle ved vedvarende høy feilandel og dokumenter hvordan PDL-feil skilles fra auth-feil. Leveransen skal ha en kort endringsbeskrivelse, driftsrutine og sjekkliste for verifisering etter deploy. Rull først ut i dev; rollback er å deploye forrige image og slå av frontendens kall til det nye API-et. Det finnes ingen gammel dataflyt som må migreres.
+
+🔴 **Rød sone — implementeres av teamet, eller av nav-pilot hvis dere uttrykkelig ber om det og reviewer:** Tokenvalidering, tilgangskontroll og bindingen mellom tokenets identitet og PDL-oppslaget. Teamet bør kunne forklare hvorfor et fødselsnummer fra requesten aldri er autoritativt. TokenX og Wonderwall er nytt for dere, så også frontendens token exchange må gjennomgås grundig.
+
+🟢 **Grønn sone:** Ktor-oppsett, Nais-manifest, PDL-klientens transportkode, metrikker, CI og tester. Les særlig gjennom `accessPolicy` før merge.
+
+Valget om å gå via frontendens serverside bevarer brukerkonteksten uten å sende tjenestetoken til nettleseren. Det gir en ekstra token exchange, men er bedre enn `client_credentials`, som ville mistet identiteten til innbyggeren. **Fase 2 er ferdig; fase 3 er en egen gjennomgang av planen.** Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,58 @@
+● skill(nav-auth)
+
+● skill(api-design)
+
+## Fase 2: Plan
+
+**Vi bruker den eksisterende Next.js-frontenden som BFF, med ID-porten og Wonderwall foran frontenden.** Nettleseren bruker en sikker, HttpOnly-sesjonscookie. Next.js kaller Ktor-tjenesten med TokenX på vegne av innbyggeren, og Ktor utveksler tokenet videre til PDL.
+
+Dette holder tokens utenfor nettleserkoden og bevarer brukerens identitet gjennom hele flyten. Det gir to tokenutvekslinger, men unngår direkte nettlesertilgang til backend og maskintilgang som mister brukerkonteksten.
+
+### Data og API
+
+- `GET /api/person` returnerer innbyggerens navn: `fornavn`, valgfritt `mellomnavn` og `etternavn`. Fødselsnummer returneres ikke til frontenden.
+- Ktor henter fødselsnummer fra et **validert TokenX-token**, ikke fra query-parametere, request-body eller en uverifisert ID-porten-header.
+- Bare innlogget innbygger kan slå opp seg selv. Ingen funksjon for å velge en annen person.
+- PDL-spørringen henter bare nødvendige navnefelt. Ingen database eller vedvarende lagring. Personresponsene får `Cache-Control: no-store`, også gjennom Next.js.
+- Jeg antar at lovhjemmelen dekker navneoppslaget. Den konkrete hjemmelen og nødvendige PDL-tilgangene må dokumenteres før produksjon.
+
+### Autentisering og Nais
+
+| Komponent | Konfigurasjon |
+|---|---|
+| Next.js | ID-porten med Wonderwall, TokenX og outbound-regel til Ktor |
+| Ktor | TokenX, inbound-regel kun fra egen frontend og outbound-regel til PDL |
+| PDL-kall | TokenX med PDL som audience og nødvendige behandlingsheaders etter PDLs kontrakt |
+
+Ktor validerer signatur, issuer, audience, levetid, nødvendig identitetsclaim og tillatt kallende applikasjon. JWKS støtter nøkkelrotasjon. Backend får ingen offentlig ingress.
+
+Appnavn, namespace, cluster, PDL-adresse og audiences fastsettes per miljø før manifestene ferdigstilles. Secrets kommer fra Nais, ikke kildekoden. Ressurser starter med CPU-request `15m`, minne-request `256Mi` og minnegrense `512Mi`, uten CPU-limit.
+
+### Feil og observabilitet
+
+Manglende eller ugyldig token gir `401`; manglende tilgang gir `403`. PDL-timeout eller utilgjengelig PDL gir `503`, uten kø eller automatisk retry. Andre PDL-feil håndteres eksplisitt, slik at manglende tilgang eller feil i spørringen ikke skjules som driftsavbrudd.
+
+Feilresponsene bruker Problem Details uten personopplysninger. Logger inneholder feilkategori, status og tilfeldig korrelasjons-ID, aldri fødselsnummer, navn, tokens eller rå PDL-responser.
+
+Vi måler antall oppslag per minutt, feilandel og PDL-latens. Metrikketiketter bruker faste operasjonsnavn og statuskategorier, aldri brukeridentitet. Liveness måler prosessen; readiness avhenger ikke av at PDL er oppe.
+
+### Filer, tester og levering
+
+Ktor-oppsettet deles i konfigurasjon, autentisering, personroute og PDL-klient. Eksisterende `nais.yaml` og `build.gradle.kts` oppdateres. Frontendens serverroute og manifest må endres i frontend-repoet, som ikke er tilgjengelig her.
+
+Testene dekker:
+- Gyldig token og eget navneoppslag, samt avvisning av feil signatur, issuer, audience, utløpt token, manglende identitet og ukjent klient.
+- At klienten ikke kan overstyre fødselsnummer, og at PDL-tokenet får riktig audience.
+- PDL-timeout og utilgjengelighet gir `503`; øvrige feil håndteres etter kontrakten.
+- Ingen personopplysninger i logger eller metrikker, og ingen caching av personresponsen.
+
+CI bygger, kjører tester og sikkerhetssjekker før deploy, med SHA-pinnede actions og minimale permissions. Vi verifiserer flyten i dev med syntetiske testpersoner før produksjon. Rollback går til forrige image og manifest; ingen databasemigrasjon kreves. API-kontrakten, miljøkonfigurasjonen og driftsrutinen dokumenteres i eksisterende dokumentasjon.
+
+### Ansvar og rød sone
+
+🔴 **Rød sone: TokenX, Wonderwall, token-validering, tilgangskontroll og bruk av fødselsnummer.** TokenX og Wonderwall er nytt for teamet. Planen legger derfor opp til at utvikleren implementerer disse delene med veiledning; full implementering krever en uttrykkelig bestilling.
+
+🟢 Grønn sone er prosjektoppsett, metrikker uten persondata og CI-konfigurasjon. Nais-konfigurasjon som styrer tilgang inngår i sikkerhetsgjennomgangen.
+
+**Planen er klar for fase 3: review.** Ingen kode er endret. Still gjerne spørsmål om valgene over.
+

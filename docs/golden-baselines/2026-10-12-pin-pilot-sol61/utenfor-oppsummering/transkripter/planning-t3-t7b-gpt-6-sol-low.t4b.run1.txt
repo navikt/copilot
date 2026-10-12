@@ -1,0 +1,26 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● skill(klarsprak)
+
+## Fase 2: Plan
+
+**Vi lar den eksisterende Next.js-frontenden være BFF.** Innbyggeren logger inn med ID-porten via Wonderwall. Frontenden bruker TokenX til å kalle den nye Ktor-tjenesten med brukerkontekst. Ktor-tjenesten henter fødselsnummer fra et validert token, slår opp navn i PDL og returnerer bare navnet til frontenden. Nettleseren får ikke et TokenX-token, og fødselsnummeret skal ikke stå i URL, request-body, respons eller logger. Dette gir en ekstra tjeneste-til-tjeneste-grense, men bevarer brukerkonteksten og lar backend kontrollere PDL-kallet.
+
+| Del | Konkret valg |
+|---|---|
+| API | `GET /api/meg/navn` → `200 {"navn":"..."}`. Ingen parameter for fødselsnummer: innlogget person er alltid den det slås opp for. Feil returneres som `application/problem+json` uten personopplysninger. |
+| Auth | Frontenden validerer ID-porten-innloggingen via Wonderwall og veksler token til backendens audience med TokenX. Backend validerer issuer, audience og signatur før den bruker identiteten. Backend bruker riktig tokenflyt for PDL etter PDLs tilgangskrav; dette må verifiseres mot integrasjonen før implementering. |
+| Feil | PDL utilgjengelig eller timeout gir `503`. Logg teknisk feilkategori og en korrelasjons-ID som ikke er avledet fra personopplysninger, aldri token, fødselsnummer eller navn. Ingen kø eller retry som forlenger nettleserkallet ukontrollert. |
+| Data | Tjenesten er stateless: ingen database, cache, Flyway-migrering eller lagring av oppslagsresultat. Sett `Cache-Control: no-store` på svar som inneholder navn. |
+| Nais | Behold eksisterende helsesjekker. Aktiver TokenX for backend, gi kun den eksisterende frontenden eksplisitt `accessPolicy.inbound`, og gi backend eksplisitt `accessPolicy.outbound` til PDL. Frontendens manifest må ha ID-porten/Wonderwall og tilgang til backend. Ingen nye GCP-ressurser. |
+| Struktur | Utvid `build.gradle.kts`; legg til Ktor-rute, token-validering, PDL-klient, feilhåndtering og metrikker under `src/main/kotlin/`, med tilhørende tester under `src/test/kotlin/`. Oppdater `nais.yaml` og frontendens eksisterende BFF-kall og Nais-manifest der de ligger. |
+| CI/CD | Kjør bygg og tester før image-bygg. Deploy først til dev, verifiser flyten, deretter prod med eksisterende workflow-mønster. Ikke opprett en ny workflow før eksisterende frontend- og deploy-oppsett er kartlagt. |
+
+**Tester og drift:** Test avvisning av manglende, ugyldig og feil-audience-token; at oppslaget alltid bruker identiteten i tokenet; PDL-suksess og `503` ved nedetid; og at svar og logger ikke lekker fødselsnummer. En integrasjonstest skal dekke TokenX-kallet fra frontenden til backend. Mål antall oppslag per minutt og andel feil per statusklasse uten personidentifikatorer som metrikketiketter. Alarmer på vedvarende økning i 5xx/503. Verifiser innlogging, oppslag, feilsvar og metrikker i dev før produksjon. Ved feil: rull tilbake backend-imaget og frontend-endringen; ingen data må migreres eller ryddes.
+
+🔴 **Rød sone, forstå dette grundig:** Token-validering, uttrekk av fødselsnummer og tilgang til PDL implementeres først etter gjennomgang av tokenflyten og PDL-kravene. Sjekk særlig issuer/audience, at klienten ikke kan velge en annens fødselsnummer, og at feilstier ikke lekker personopplysninger. Teamet er nytt med TokenX og Wonderwall, så disse valgene må gjennomgås før kode skrives. 🟢 Ktor-oppsett, helsesjekker, metrikker og testdata kan genereres og gjennomgås før merge.
+
+Neste fase er en gjennomgang av planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Jeg stopper her ved fasegrensen.
+

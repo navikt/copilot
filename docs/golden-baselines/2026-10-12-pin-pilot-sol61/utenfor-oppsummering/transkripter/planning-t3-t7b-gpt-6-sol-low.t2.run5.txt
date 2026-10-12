@@ -1,0 +1,48 @@
+/ Search (glob)
+  │ "**/nais*.yaml"
+  └ 1 file found
+
+/ Search (glob)
+  │ ".github/copilot-review-instructions.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "*"
+  └ 24 files found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot-instructions.md"
+  └ No matches found
+
+● skill(klarsprak)
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1: Avklaringer.** Repoet inneholder en Ktor-demo med `/api/oppgaver`, men ingen ID-porten-integrasjon eller `accessPolicy`. Jeg tolker «fnr» som fødselsnummeret til den innloggede personen, men trenger å vite hva tjenesten skal gjøre med det før jeg kan planlegge løsningen.
+
+1. Skal tjenesten bare lese fødselsnummeret, eller også lagre det, sende det videre eller bruke det i logger? Skal andre personopplysninger behandles?
+2. Hvem skal kunne kalle tjenesten: personen selv via nettleser, en frontend/BFF eller andre tjenester? Skal eksisterende `/api/oppgaver` fortsatt være tilgjengelig?
+3. Hva skal tjenesten returnere eller utføre når den har identifisert personen? Hvem skal bruke resultatet?
+4. Hva skal skje hvis innloggingen eller en eventuell nedstrømstjeneste feiler? Hvilke målinger trenger dere for å se at tjenesten fungerer, uten å logge fødselsnummer?
+5. Hvilket team eier resten av flyten, og finnes det tester eller en referanseimplementasjon vi skal bygge på?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon senere. Migrering, bakoverkompatibilitet og avvikling (#8–#10) er ikke avklart som relevante for en ny tjeneste; ny teknologi for teamet (#11) avhenger av svarene.
+
+Blindsoner reist: 7/11 (#1–#7 stilt; #8–#11 foreløpig ikke relevante).
+

@@ -1,0 +1,50 @@
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml}"
+  └ 2 files found
+
+● Inspect workspace and Copilot configuration (shell)
+  │ pwd; ls -la; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then echo "PRESENT $f"; else echo
+  │ "MISSING $f"; fi; done
+  └ 12 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 1: Avklaringer før planlegging.** Repoet er en liten Ktor-tjeneste. `nais.yaml` har ingen ID-porten-konfigurasjon, og `/api/oppgaver` har ingen tilgangskontroll. Jeg antar derfor ikke at dagens endepunkt kan brukes til å lese fødselsnummer.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, eller også lagres eller sendes videre?
+2. Skal innloggede innbyggere kalle et nytt endepunkt direkte, og skal noen andre tjenester kunne kalle det? Hvem skal eventuelt få fødselsnummeret i svaret?
+3. Finnes det en tjeneste eller et team som skal motta fødselsnummeret? Hva skal skje hvis den tjenesten er nede?
+4. Er dette en ny tjeneste, eller skal `demo-tjeneste` bygges om? Finnes det tester eller brukere av dagens `/api/oppgaver` som må ivaretas?
+
+Dette er **🔴 rød sone**: identitet, tilgangskontroll og behandling av fødselsnummer må avklares før kode endres. Repoet mangler `AGENTS.md` og begge Copilot-instruksjonsfilene; `nav-pilot init` kan legge til prosjektlokale instrukser.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #5, #6, #7, #8; #4, #9 og #10 avklares først når dataflyten er kjent, #11 er ikke oppgitt som relevant).
+

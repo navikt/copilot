@@ -1,0 +1,9 @@
+3|1|1|0|1|1|0.121|Hva skal fødselsnummeret brukes til?|Skal tjenesten bare gi tilgang til brukerens egne opplysninger?
+7|1|0|0|0|0|0.125||
+7b|1|1|0|0|0|0.104||
+3|2|1|1|1|1|0.11|Hva skal tjenesten bruke fødselsnummeret til? Behandler den også helseopplysninger eller opplysninger om ytelser?|Skal innbyggeren kalle tjenesten direkte via nettleseren, eller kommer kallene fra en annen tjeneste med innbyggerens brukerkontekst?
+7|2|0|0|0|0|0.161||
+7b|2|1|0|0|0|0.104||
+3|3|1|1|1|1|0.159|Hva skal tjenesten bruke fødselsnummeret til?|Skal den bare gi tilgang til egne opplysninger?
+7|3|0|0|0|0|0.16||
+7b|3|1|0|0|0|0.091||

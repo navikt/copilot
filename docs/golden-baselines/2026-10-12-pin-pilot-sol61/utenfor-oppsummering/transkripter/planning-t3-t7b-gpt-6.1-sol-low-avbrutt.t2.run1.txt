@@ -1,0 +1,35 @@
+● skill(klarsprak)
+
+● Undersøk prosjekt og lokal Copilot-konfigurasjon (shell)
+  │ ls -a && for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if [ -f "$f" ]; then printf '\n--- %s ---\n' "$f";
+  │ cat "$f"; fi; done
+  └ 7 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+**Fase 1: Intervju (fullt løp).** Repoet har en Ktor-tjeneste og et Nais-manifest, men ingen ID-porten-konfigurasjon. Jeg antar at tjenesten skal lese fødselsnummeret til den innloggede personen. Ingen kode er endret.
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer må forstås grundig.
+
+Før vi velger løsning, må disse punktene avklares:
+1. Hva skal fødselsnummeret brukes til? Skal det lagres, sendes videre eller knyttes til andre personopplysninger?
+2. Kommer brukeren direkte fra nettleseren via ID-porten, eller kaller en annen Nav-tjeneste med brukerkontekst? Skal tjenesten bare gi tilgang til brukerens egne opplysninger?
+3. Hvilke andre tjenester eller team inngår i flyten, og hvem mottar resultatet?
+4. Hva skal brukeren oppleve når innlogging eller en avhengighet feiler?
+5. Hvilke målinger viser at tjenesten fungerer, uten å logge fødselsnummer eller tokens?
+6. Er dette en ny tjeneste eller en erstatning for noe eksisterende? Har dere valgt testopplegg og teknologi dere kjenner?
+
+Lokal Copilot-konfigurasjon mangler (`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`). `nav-pilot init` kan opprette den.
+
+Fasebudsjett: intervju ca. 1 000 tokens, plan 2 000, review 1 500, levering etter avklart omfang. Bakoverkompatibilitet og avvikling (#9–#10) avventer svaret om dette erstatter noe eksisterende.
+
+Blindsoner reist: 9/11 (#1–#8 og #11; #9–#10 avventer relevans).
+

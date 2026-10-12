@@ -1,0 +1,51 @@
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml}"
+  └ 2 files found
+
+● Inspect project and Copilot configuration (shell)
+  │ pwd && ls -la && for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then printf '\n%s present\n' "$f";
+  │ else printf '\n%s missing\n' "$f"; fi; done
+  └ 15 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**"
+  └ 4 files found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 1 – avklaring.** Dette er en ny flyt med fødselsnummer og innlogging, så jeg stopper før arkitektur og kode. Repoet er en liten Ktor-tjeneste med et åpent oppgave-API. `nais.yaml` har verken ID-porten-oppsett eller tilgangsregler.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i én forespørsel, sende det videre eller lagre det? Hvilke andre personopplysninger inngår?
+2. Skal innbyggere bruke tjenesten i nettleseren, og finnes det allerede en frontend? Hvilke andre tjenester skal kunne kalle API-et?
+3. Hvem eier eventuelle tjenester som skal motta opplysningene, og hva skal skje hvis de er utilgjengelige?
+4. Skal den eksisterende demo-tjenesten bygges om, eller skal dette bli en separat tjeneste? Finnes det krav til utrulling eller tilbakerulling?
+5. Har teamet allerede tester eller et referanseprosjekt for ID-porten-integrasjonen?
+
+Jeg finner ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `nav-pilot init` kan legge til lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #5, #6, #7, #8; øvrige avklares ut fra svarene).
+

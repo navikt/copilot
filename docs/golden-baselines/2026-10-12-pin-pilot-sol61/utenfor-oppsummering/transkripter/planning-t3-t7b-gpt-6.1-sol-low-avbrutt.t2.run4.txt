@@ -1,0 +1,45 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1: Intervju. Fullt omfang**, fordi tjenesten innfører autentisering og behandling av fødselsnummer. Repoet inneholder en Ktor-tjeneste uten auth-oppsett. Nais-manifestet avklarer ikke hvem som får tilgang. Ingen kode er endret.
+
+Jeg legger til grunn at fødselsnummeret gjelder den innloggede personen. Følgende må avklares før en sikker implementasjon:
+
+1. Formålet med fødselsnummeret, behandlingsgrunnlaget og eventuelle andre personopplysninger.
+2. Tilgangsveien: innbygger via nettleser eller en annen tjeneste på vegne av innbyggeren.
+3. Om fødselsnummeret kun brukes under forespørselen, lagres eller sendes videre. Eventuelle mottakere og lagringstid.
+4. Ønsket oppførsel ved utløpt token, manglende identitet og utilgjengelig ID-porten.
+5. Hvilket team som eier innloggingsflyten, og hvilke tester og personvernvennlige driftsmålinger som skal dokumentere at den fungerer.
+
+🔴 Rød sone: token-validering og tilgang til fødselsnummer krever grundig gjennomgang. Fødselsnummer og tokens skal ikke havne i logger.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan etablere repo-lokale føringer.
+
+Fasebudsjett: intervju ca. 1 000 tokens, plan 2 000, review 1 500, levering etter avklart omfang. Migrering, bakoverkompatibilitet og avvikling (#8–#10) er foreløpig ikke relevante for en ny tjeneste. Teknologierfaring (#11) er uavklart.
+
+Blindsoner reist: 7/11 (#1–#7).
+

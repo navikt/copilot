@@ -1,0 +1,85 @@
+● skill(jackson-3-migration)
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+● Read dependency-preflight.md
+  │ ~/.copilot/skills/jackson-3-migration/references/dependency-preflight.md
+  └ 37 lines read
+
+● Inspect branch and project files (shell)
+  │ git status --short && git branch --show-current && ls -a
+  └ 9 lines…
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 5 files found
+
+● Identify migration branch changes (shell)
+  │ git --no-pager log -5 --oneline && git branch -a && git --no-pager diff --stat main...HEAD
+  └ 7 lines…
+
+✗ Check Java and Gradle availability (shell)
+  │ java -version 2>&1 | head -3; ls -la gradlew gradle 2>&1
+  └ openjdk version "27" 2026-09-15
+    OpenJDK Runtime Environment Temurin-27+35 (build 27+35)
+    OpenJDK 64-Bit Server VM Temurin-27+35 (build 27+35, mixed mode, sharing)
+    ls: gradle: No such file or directory
+    ls: gradlew: No such file or directory
+    Failed with exit code 1
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read migration diff and build tools (shell)
+  │ git --no-pager diff main...HEAD -- build.gradle.kts src/main/kotlin/no/nav/demo/Soknad.kt;
+  │ command -v gradle || true; git status --short
+  └ 46 lines…
+
+✗ Check compilation and resolved Jackson dependencies (shell)
+  │ gradle compileKotlin dependencies --configuration compileClasspath --console=plain >
+  │ /tmp/jackson-eval-gradle.log 2>&1; result=$?; tail -70 /tmp/jackson-eval-gradle.log; exit
+  │ $result
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+● Read README.md
+  └ 4 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+/ Search (grep)
+  │ "jackson|mapper|readValue|writeValue|LocalDate|map\s*\{|\.apply\s*\{" in *.kt
+  └ 9 lines found
+
+● Compare prior serializer and test coverage (shell)
+  │ git --no-pager show main:src/main/kotlin/no/nav/demo/Soknad.kt | nl -ba; find src -type f | sort
+  └ 32 lines…
+
+**Vurdering: Migreringen er ikke verifisert, og Kafka-formatet kan ha endret seg.** I `Soknad.kt` bruker den nye mapperen Jackson 3.1-standarder. Jackson 3 sorterer JSON-felt alfabetisk, så `SoknadMottattMelding` kan bli sendt med `mottatt` før `soknadId`, mot tidligere rekkefølge. Avklar om konsumentene tåler dette før branchen merges. Dato som ISO-streng ser derimot ut til å bevare den eksplisitte Jackson 2-innstillingen.
+
+Java 27 oppfyller minstekravet. Ktor 3.0 bruker her kotlinx-serialisering, ikke Ktors Jackson-integrasjon, så kravet om Ktor 3.4 gjelder ikke denne bruken. Jeg fant ingen tester for Kafka-payloadene. **Bygg og avhengighetstre er ikke kontrollert:** forsøket på `gradle compileKotlin dependencies --configuration compileClasspath --console=plain` ble nektet av kjøringsmiljøet. Legg til en karakteriseringstest som sammenligner payload-formatet før og etter migreringen, og kjør bygg og avhengighetskontroll i et miljø som tillater Gradle før merge.
+

@@ -1,0 +1,52 @@
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,application.yaml,README.md}"
+  └ 3 files found
+
+● Inspect repository and Copilot configuration (shell)
+  │ pwd; ls -la; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then echo "PRESENT $f"; else echo
+  │ "MISSING $f"; fi; done
+  └ 12 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● skill(klarsprak)
+
+**Fase 1: Avklar tjenesten.** Jeg antar at dette er en innbyggertjeneste som skal behandle fødselsnummer fra en ID-porten-innlogging. Repoet er en liten Ktor-tjeneste, men `nais.yaml` har verken ID-porten-oppsett eller `accessPolicy`. Jeg endrer ikke auth eller håndtering av fødselsnummer før bruken er avklart.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i samme forespørsel, sende det til en annen tjeneste eller lagre det? Skal den behandle andre personopplysninger?
+2. Skal bare innbyggeren selv kunne kalle tjenesten, eller skal andre tjenester eller saksbehandlere også ha tilgang? Hvem skal eventuelt motta dataene?
+3. Finnes det en tjeneste dere er avhengige av? Hva skal skje hvis den er utilgjengelig?
+4. Er dette en ny tjeneste, eller skal den erstatte noe eksisterende? Hvilke tester finnes for flyten i dag?
+
+`AGENTS.md` og de to repo-lokale Copilot-instruksjonsfilene mangler. `nav-pilot init` kan opprette dem. Jeg utsetter spørsmål om målinger og rollout til vi vet hva tjenesten faktisk skal gjøre; avvikling er ikke relevant dersom den er ny.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #5, #6, #7, #8; #4 og #9 avhenger av svarene, #10 ikke relevant for en ny tjeneste, #11 avklares ved planlegging).
+

@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+**Bruk TokenX token exchange (on-behalf-of).** Tjeneste A bytter brukerens token til et token med tjeneste B som audience og sender det til B. Aktiver TokenX for begge tjenestene, og gi A outbound-tilgang og B inbound-tilgang i Nais `accessPolicy`. B må validere tokenet og sjekke at brukeren har tilgang til ressursen.
+
+Ikke bruk Azure AD `client_credentials` her: det mister brukerkonteksten.
+

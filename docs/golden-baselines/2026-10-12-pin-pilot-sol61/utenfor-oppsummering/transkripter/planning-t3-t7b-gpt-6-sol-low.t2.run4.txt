@@ -1,0 +1,54 @@
+● skill(nav-auth)
+
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md,nais.yaml,package.json,bui
+  │ ld.gradle.kts,pom.xml}"
+  └ 2 files found
+
+● Check local pilot design guide (shell)
+  │ test -f docs/nav-pilot-design.md && sed -n '1,160p' docs/nav-pilot-design.md || true
+  └ No Content
+
+● Inspect project root and configuration (shell)
+  │ pwd && ls -la && ls -la .github 2>/dev/null
+  └ 14 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1 – avklaringer.** Repoet har en Ktor-tjeneste med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten eller `accessPolicy`. Jeg antar at fødselsnummeret skal brukes for innlogget innbygger, men det er ikke nok grunnlag til å velge hvordan tjenesten skal behandle det.
+
+1. Skal tjenesten bare bruke fødselsnummeret i én forespørsel, eller også lagre eller sende det videre? Hva skal tjenesten returnere?
+2. Skal bare innloggede innbyggere kunne kalle tjenesten? Skal det eksisterende `/api/oppgaver` fortsatt være åpent?
+3. Hvilke andre tjenester eller brukere skal motta data, og hva skal skje hvis en avhengighet er utilgjengelig?
+
+Jeg stopper før auth-endringer. **🔴 Rød sone:** uttrekk og bruk av fødselsnummer krever særskilt gjennomgang. Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan legge til lokal veiledning.
+
+Blindsoner reist: 4/11 (#1, #2, #3 og #6 stilt; #4, #5 og #7–#11 avklares først når dataflyten er kjent).
+

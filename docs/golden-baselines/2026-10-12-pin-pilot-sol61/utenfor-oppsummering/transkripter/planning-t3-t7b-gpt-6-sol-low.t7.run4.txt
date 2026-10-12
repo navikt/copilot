@@ -1,0 +1,120 @@
+● skill(jackson-3-migration)
+
+● Read dependency-preflight.md
+  │ ~/.copilot/skills/jackson-3-migration/references/dependency-preflight.md
+  └ 37 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+/ Search (glob)
+  │ "**/*.{gradle.kts,gradle,pom.xml,kt,java}"
+  └ 6 files found
+
+● Inspect branch and repository layout (shell)
+  │ git status --short && git branch --show-current && ls -a | head -40
+  └ 9 lines…
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+● Inspect history, tests and branch scope (shell)
+  │ git --no-pager log -4 --oneline && git --no-pager branch -a && find src -type f | sort && ls -a
+  │ .github
+  └ 13 lines…
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Inspect migration diff and build prerequisites (shell)
+  │ git --no-pager diff main...HEAD -- && java -version 2>&1 && ls -a | grep -E
+  │ 'gradlew|settings|pom|mvn' || true
+  └ 48 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+/ Search (grep)
+  │ "jackson|mapper|lesSoker|sendMottatt|sendSoker|\.map\s*\{|ObjectMapper|JsonNode" in
+  │ **/*.{kt,kts,md,yaml}
+  └ 15 lines found
+
+● Check build tools and prior mapper behavior (shell)
+  │ command -v gradle || true; command -v kotlinc || true; git --no-pager show
+  │ main:src/main/kotlin/no/nav/demo/Soknad.kt; git status --porcelain
+  └ 28 lines…
+
+✗ Compile migration and inspect resolved Jackson dependencies (shell)
+  │ gradle --no-daemon compileKotlin dependencies --configuration compileClasspath dependencyInsight
+  │ --dependency jackson-databind --configuration compileClasspath --console=plain >
+  │ /tmp/jackson-eval-gradle.log 2>&1; result=$?; grep -E '(^> Task|BUILD |^FAILURE:|^\* What went
+  │ wrong:|jackson|^e: |^Could not|^Caused by:)' /tmp/jackson-eval-gradle.log | head -100; exit
+  │ "$result"
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+✗ Compile Kotlin migration (shell)
+  │ gradle --no-daemon compileKotlin --console=plain
+  └ To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 3s
+    Failed with exit code 1
+
+✗ Find compatible installed JDK (shell)
+  │ ls ~/.local/share/mise/installs/java 2>/dev/null; /usr/libexec/java_home -V 2>&1 |
+  │ head -25
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+✗ List installed Java versions (shell)
+  │ /usr/libexec/java_home -V
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+**Vurdering: Migreringen er ikke verifisert som atferdsbevarende.** Branchen bytter til Jackson 3.1.0 og bygger `JsonMapper` med Kotlin-modulen, men har ingen tester som sammenligner JSON før og etter. `sendMottatt` og `sendSoker` publiserer JSON til Kafka; endrede Jackson-standarder kan derfor påvirke konsumenter. Sjekk særlig datoformat og feltnavn, og avklar om konsumentene er avhengige av feltrekkefølge.
+
+Koden bruker ikke Ktors Jackson-integrasjon eller `JsonNode.map`, så de vanlige feilene der treffer ikke denne branchen. Java 27 oppfyller Jacksons minstekrav, men `gradle compileKotlin` stopper allerede under prosjektkonfigurasjon med `> 27`. Jeg fikk dermed ikke kontrollert kompilering eller avhengighetstreet for gjenværende Jackson 2-artefakter. **Neste steg:** Kjør bygget med en JDK som Kotlin 2.1.0 støtter, kontroller oppløste avhengigheter, og legg til karakteriseringstester for JSON som sendes til Kafka før migreringen godkjennes.
+
+🔴 Rød sone: Kafka-meldingenes format er en kontrakt mot konsumentene. Beholdt Jackson 3-standardene er enklest, men kan endre formatet; eksplisitt konfigurasjon bevarer kontrakten dersom testene viser et avvik. Still gjerne spørsmål om valgene over.
+

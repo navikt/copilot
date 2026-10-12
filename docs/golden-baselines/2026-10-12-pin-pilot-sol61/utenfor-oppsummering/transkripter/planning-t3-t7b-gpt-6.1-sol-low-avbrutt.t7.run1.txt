@@ -1,0 +1,88 @@
+● skill(jackson-3-migration)
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+/ Search (glob)
+  │ "**/{build.gradle.kts,settings.gradle.kts,libs.versions.toml,AGENTS.md,copilot-instructions.md,c
+  │ opilot-review-instructions.md}"
+  └ 1 file found
+
+● Inspect branch state and Java baseline (shell)
+  │ git status --short && git branch --show-current && git --no-pager diff --stat && git --no-pager
+  │ log -5 --oneline && java -version
+  └ 6 lines…
+
+● skill(klarsprak)
+
+● Read dependency-preflight.md
+  │ ~/.copilot/skills/jackson-3-migration/references/dependency-preflight.md
+  └ 37 lines read
+
+● Read migration diff and tracked files (shell)
+  │ git --no-pager diff HEAD^ HEAD && git ls-files
+  └ 70 lines…
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read application and discover build tooling (shell)
+  │ for f in src/main/kotlin/no/nav/demo/*.kt README.md; do printf '\n--- %s ---\n' "$f"; cat "$f";
+  │ done; command -v gradle || true; ls -a
+  └ 97 lines…
+
+Migreringen berører bare den separate Jackson-mapperen. Ktor bruker fortsatt kotlinx.serialization, så Jackson 3 krever ikke en Ktor-oppgradering her. Jeg sjekker bygg og avhengigheter før jeg konkluderer om kompatibilitet.
+
+
+✗ Validate build and resolved Jackson dependencies (shell)
+  │ gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+  │ compileClasspath
+  └ To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 3s
+    Failed with exit code 1
+
+✗ Identify compatible JDK and configuration failure (shell)
+  │ /usr/libexec/java_home -V 2>&1; git status --short; gradle --no-daemon --console=plain
+  │ --stacktrace help 2>&1 | head -65
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+**Migreringen ser riktig ut i koden, men er ikke verifisert godt nok til å godkjennes som atferdsbevarende.** Jeg vurderte commit `f21ccf2` mot Jackson 2-versjonen `d153985`. Ingen filer er endret.
+
+| Punkt | Vurdering |
+|---|---|
+| Avhengigheter og imports | Databind og Kotlin-modulen er flyttet til `tools.jackson`, begge på `3.1.0`. Fjerning av `jackson-datatype-jsr310` er riktig: Java Time-støtten er innebygd. |
+| Mapper-konfigurasjon | `JsonMapper.builder().addModule(kotlinModule()).build()` er korrekt. Ingen gjenværende mutasjon etter konstruksjon eller `JsonNode.map`-kall i kildekoden. |
+| Datoformat | Tidligere eksplisitt deaktivering av timestamps er erstattet av Jackson 3-standardverdien. `mottatt: LocalDate` skal fortsatt serialiseres som ISO-dato. |
+| Ktor | Bruker kotlinx.serialization, ikke Jackson. Kravet om Ktor 3.4+ for `ktor-serialization-jackson3` gjelder derfor ikke denne endringen. |
+
+**To kompatibilitetsendringer mangler avklaring og tester:**
+- Jackson 3 sorterer POJO-felter alfabetisk. Kafka-payloaden fra `sendSoker` får derfor forventet rekkefølge `fnr, navn` i stedet for `navn, fnr`. JSON-innholdet er uendret, men rå strengsammenligning hos konsumenter kan bryte.
+- `FAIL_ON_TRAILING_TOKENS` er aktivert som standard. `lesSoker` vil avvise ekstra JSON etter søkerobjektet som Jackson 2 kunne ignorere. Dette er strengere parsing, ikke nødvendigvis en feil.
+
+**Verifikasjon er blokkert:** `gradle build dependencyInsight --dependency jackson --configuration compileClasspath` feilet under konfigurering med `> 27` på JDK 27. Forsøket på å undersøke tilgjengelige alternative JDK-er ble nektet av miljøet. Repoet har heller ingen tester eller Gradle-wrapper.
+
+Før merge bør bygget kjøres med en kompatibel JDK, den løste classpathen kontrolleres for Jackson 2 core/databind, og begge DTO-ene testes for round-trip og forventet JSON, særlig datoformatet. Det er ingen påvist migreringsfeil i mapperen, men bygg og runtime-kompatibilitet gjenstår å bevise.
+

@@ -1,0 +1,2 @@
+Bruk **TokenX**. Tjeneste A veksler brukerens token til et token med tjeneste B som `audience`, slik at B får brukerkonteksten og kan kontrollere tilgang. Azure AD `client_credentials` gir bare tjenesteidentitet og mister brukerkonteksten.
+

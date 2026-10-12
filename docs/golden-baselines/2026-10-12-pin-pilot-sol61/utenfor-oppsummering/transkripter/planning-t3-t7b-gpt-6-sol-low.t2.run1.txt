@@ -1,0 +1,42 @@
+/ Search (glob)
+  │ "**/*.{kt,ts,tsx,go}"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,build.gradle.kts,package.json,pom.xml,application.yaml,application.yml}"
+  └ 2 files found
+
+● Inspect project and Copilot guidance (shell)
+  │ pwd && ls -la && for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then printf '\n--- %s ---\n' "$f";
+  │ sed -n '1,120p' "$f"; fi; done
+  └ 9 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read README.md
+  └ 4 lines read
+
+**Fase 1 – avklaring.** Repoet er en liten Ktor-tjeneste med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten-oppsett eller tilgangsregler. Før jeg planlegger en tjeneste som leser fødselsnummer, må jeg avklare:
+
+1. Skal en innbygger kalle tjenesten direkte via nettleser, eller går kallet gjennom en frontend/BFF? Hvem skal ellers kunne kalle API-et?
+2. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i samme forespørsel, sende det videre eller lagre det? Hvilke andre personopplysninger inngår?
+3. Hvilke tjenester eller team er avhengige av svaret? Hva skal skje hvis en avhengighet er nede?
+4. Finnes det tester eller et eksisterende løp som må bevares? Hvilke målinger viser at tjenesten fungerer?
+
+Jeg legger foreløpig til grunn at dette er en ny flyt, ikke en endring av et eksisterende API. Derfor utsetter jeg spørsmål om bakoverkompatibilitet, utrulling og avvikling. Ingen av `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md` finnes; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 7/11 (#1–#7 stilt; #8–#10 ikke relevante for en ny flyt, #11 avklares hvis løsningen krever ukjent teknologi).
+

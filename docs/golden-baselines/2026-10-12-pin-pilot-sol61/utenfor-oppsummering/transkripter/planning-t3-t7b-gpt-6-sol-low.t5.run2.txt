@@ -1,0 +1,4 @@
+● skill(nav-auth)
+
+**Bruk TokenX med token exchange (OBO).** Tjeneste A bytter brukerens token til et nytt token med tjeneste B som audience. B validerer tokenet og autoriserer brukeren; A og B må ha TokenX aktivert og riktige `accessPolicy`-regler. Ikke bruk Azure client credentials her, for da mister B brukerkonteksten.
+

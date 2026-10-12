@@ -1,0 +1,61 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/security-owasp.instructions.md}"
+  └ 2 files found
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding" in **/*.{kt,kts,yaml,yml,md}
+  └ 3 lines found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect repository files (shell)
+  │ ls -la && find src -type f
+  └ 13 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:100 (100 lines read)
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● skill(klarsprak)
+
+Jeg har ikke endret koden. `SoknadMottattMelding` sendes som JSON til Kafka-topicet `soknad-mottatt`. Å legge til `fnr` vil dermed sende fødselsnummer i meldingens payload. Repoet viser verken kryptering av payloaden eller hvem som leser topicet.
+
+Før endringen må det avklares hvem som konsumerer meldingene, om de skal motta fødselsnummer, og hvordan payloaden beskyttes. Eksisterende meldinger mangler feltet, så konsumentene må også kunne håndtere begge formater under overgangen. 🔴 Rød sone: behandling av fødselsnummer og tilgang til meldingene må gjennomgås grundig.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 bakoverkompatibilitet; øvrige er ikke nødvendige for denne avgrensede endringen).
+

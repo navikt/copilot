@@ -1,0 +1,41 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-12
+# revision:     1664591c
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      4263008951
+# prompts:      3,4,5,7,7b
+#
+# id|run|status|assertion|detail
+3|1|error|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+4|1|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|1|error|Jackson 2→3 migration: no privacy or access-control interview|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+7b|1|error|fnr added to a Kafka message: privacy raised (control for 7)|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+3|2|error|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+4|2|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|2|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|2|error|Jackson 2→3 migration: no privacy or access-control interview|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+7b|2|error|fnr added to a Kafka message: privacy raised (control for 7)|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+3|3|error|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+4|3|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|3|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|3|error|Jackson 2→3 migration: no privacy or access-control interview|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+7b|3|error|fnr added to a Kafka message: privacy raised (control for 7)|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+3|4|error|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+4|4|error|Fase 2 output contains a 🔴 Rød sone declaration|turn 2 produced no Fase 2 plan (no match for: ^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close or the session did not carry turn 1. Re-run with --keep and read t4a and t4b in order.
+5|4|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|4|error|Jackson 2→3 migration: no privacy or access-control interview|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+7b|4|error|fnr added to a Kafka message: privacy raised (control for 7)|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+3|5|error|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+4|5|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|5|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|5|error|Jackson 2→3 migration: no privacy or access-control interview|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
+7b|5|error|fnr added to a Kafka message: privacy raised (control for 7)|harness error: blind-spot judge controls under 95 %: controls n=75 agree=71 errors=0 accuracy=0.947 credits=6.99
