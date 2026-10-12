@@ -2,6 +2,17 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-12
+
+### Tall fra opencode-øktene nav-pilot starter
+
+- **Hva som sendes**: Når en opencode-økt som nav-pilot startet, avsluttes, sender nav-pilot det samme som for Copilot-økter, så langt opencode har tallene: verktøykall og om de gikk bra, runder, varighet, og hvilke skills og agenter som ble brukt. Tokens og modell sendes som før. Navn på skills og agenter sendes bare når nav-pilot installerte dem; andre blir `other`.
+- **Lest fra den rå eksporten**: Tallene kommer fra `opencode export`, som inneholder hele økten. nav-pilot dekoder bare faste felt: verktøynavn, status, og navnefeltet til `skill` og `task`. Det du skrev, svarene, argumentene og verktøyresultatene leses aldri inn. Den midlertidige fila med eksporten kan bare du lese, og den fjernes før opencode skriver til den.
+- **Hva som mangler**: Hooks finnes ikke i opencode. API-tid, premium requests og kostnad står ikke i eksporten.
+- **Økten velges etter mappe og tid**: opencode lar ikke nav-pilot sette økt-ID, så nav-pilot teller øktene i mappen den startet i, fra oppstarten og utover. En annen opencode-økt i samme mappe mens nav-pilot kjører, telles også.
+- **Lengre økter telles nå**: opencode 1.18 kutter utdata ved 128 KiB når den skriver til en pipe. Økter over det ble stille hoppet over, også tokentallene. nav-pilot leser nå eksporten via en fil.
+- **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot eksporten. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
+
 ## 2026-10-08
 
 ### Porter som stopper kallet når de ikke svarer
