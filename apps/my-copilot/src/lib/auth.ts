@@ -111,3 +111,11 @@ export async function requireAdmin(): Promise<User> {
   if (!isAdmin(user)) notFound();
   return user!;
 }
+
+/**
+ * The groups that make a user eligible for a Copilot seat: every listed claim
+ * group except the admin group, which is in the claim only for requireAdmin.
+ */
+export function seatGroups(user: User): string[] {
+  return user.groups.filter((g) => g !== process.env.COPILOT_ADMIN_GROUP_ID);
+}

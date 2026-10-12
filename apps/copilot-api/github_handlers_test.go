@@ -183,6 +183,19 @@ func TestHandleGetSeat(t *testing.T) {
 }
 
 func TestHandleAssignSeat(t *testing.T) {
+	t.Run("returns 403 when the only group is the admin group", func(t *testing.T) {
+		t.Setenv(adminGroupEnv, "admin")
+		h := newGitHubHandlers(&mockGitHubClient{assignResult: &AssignResult{SeatsCreated: 1}})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats", strings.NewReader(`{"username":"octocat"}`))
+		req = identityContext(req, "octocat")
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: []string{"admin"}}))
+		rec := httptest.NewRecorder()
+		h.handleAssignSeat(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("status: got %d, want 403", rec.Code)
+		}
+	})
+
 	t.Run("assigns seat when username matches resolved identity", func(t *testing.T) {
 		mock := &mockGitHubClient{
 			assignResult: &AssignResult{SeatsCreated: 1},

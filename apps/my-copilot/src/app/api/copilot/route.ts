@@ -1,4 +1,4 @@
-import { getUser, getUserToken } from "@/lib/auth";
+import { getUser, getUserToken, seatGroups } from "@/lib/auth";
 import { backendRequest, BackendApiError } from "@/lib/backend-api";
 import { getLoggerWithTraceContext, getTraceId } from "@/lib/logger";
 import { context } from "@opentelemetry/api";
@@ -41,7 +41,7 @@ export async function GET() {
       log.info("GitHub account not linked for user");
       return NextResponse.json({
         githubAccountLinked: false,
-        icanhazcopilot: user.groups.length > 0,
+        icanhazcopilot: seatGroups(user).length > 0,
       });
     }
 
@@ -63,7 +63,7 @@ export async function GET() {
 
     return NextResponse.json({
       githubAccountLinked: true,
-      icanhazcopilot: user.groups.length > 0,
+      icanhazcopilot: seatGroups(user).length > 0,
       subscription,
       githubUsername,
     });
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     return error("User email not found", 500);
   }
 
-  if (user.groups.length === 0) {
+  if (seatGroups(user).length === 0) {
     return error("User is not a member of any groups", 403);
   }
 

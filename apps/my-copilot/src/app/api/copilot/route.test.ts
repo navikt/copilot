@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@/lib/auth", async (importActual) => ({
   getUser: vi.fn(),
   getUserToken: vi.fn(),
+  seatGroups: (await importActual<typeof import("@/lib/auth")>()).seatGroups,
 }));
 
 // Keep the real BackendApiError class so `instanceof` checks in the route work,
@@ -84,6 +85,19 @@ describe("GET /api/copilot", () => {
     expect(response.status).toBe(200);
     expect(data.githubAccountLinked).toBe(false);
     expect(data.icanhazcopilot).toBe(true);
+  });
+
+  it("reports eligibility=false for a user only in the admin group", async () => {
+    vi.stubEnv("COPILOT_ADMIN_GROUP_ID", "admin-group");
+    mockedGetUser.mockResolvedValue(makeUser({ groups: ["admin-group"] }));
+    mockedGetUserToken.mockResolvedValue("token");
+    mockedBackendRequest.mockResolvedValueOnce({ identity: "test.user@nav.no", username: "octocat" });
+    mockedBackendRequest.mockResolvedValueOnce({ assignee: "octocat" });
+
+    const data = await (await GET()).json();
+    vi.unstubAllEnvs();
+
+    expect(data.icanhazcopilot).toBe(false);
   });
 
   it("reports eligibility=false for a user in no allowed group", async () => {

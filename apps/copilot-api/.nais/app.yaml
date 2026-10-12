@@ -23,6 +23,7 @@ spec:
           - id: afcbfed4-d5d4-4964-8db5-f59b6f61b929 # azure
           - id: 8396d3ec-e263-49c7-b72a-87440d7ee3f4 # design
           - id: c0b6df4d-35b4-4312-aaaa-74ea33108875 # GitHub Copilot Produktutvikling
+          - id: f59c8c77-7b73-4753-890a-2b483a07d18a # team copilot (admin, kostnadsinnsikt)
 
   observability:
     autoInstrumentation:
@@ -36,6 +37,8 @@ spec:
     - secret: copilot-api
 
   env:
+    - name: "COPILOT_ADMIN_GROUP_ID"
+      value: "f59c8c77-7b73-4753-890a-2b483a07d18a"
     - name: "LOG_LEVEL"
       value: "{{log_level}}"
     - name: "LOGGED_ENDPOINTS"
