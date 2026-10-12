@@ -93,7 +93,17 @@ function Choices({ users }: { users: Record<string, string[]> }) {
                 {choice.primary}
               </Table.DataCell>
               <Table.DataCell style={cell}>{choice.fallbacks.join(", ") || "Ingen"}</Table.DataCell>
-              <Table.DataCell style={cell}>{choice.reason}</Table.DataCell>
+              <Table.DataCell style={cell}>
+                {choice.reason}
+                {choice.source && (
+                  <>
+                    {" "}
+                    <Link href={choice.source} target="_blank" rel="noopener noreferrer">
+                      Se målingen
+                    </Link>
+                  </>
+                )}
+              </Table.DataCell>
             </Table.Row>
           ))}
         </Table.Body>

@@ -4,6 +4,8 @@ export interface NavPilotModelChoice {
   fallbacks: string[];
   /** One line on why, condensed from docs/modellvalg.md. Shown on /modeller. */
   reason: string;
+  /** Link to the measurement behind the reason. */
+  source?: string;
   /** Limits «Brukes av» to these agents when two choices share a primary model. */
   users?: string[];
 }
@@ -54,7 +56,9 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     purpose: "Aksel, tilgjengelighet og norsk tekst",
     primary: "Claude Sonnet 5.5",
     fallbacks: ["Claude Sonnet 5"],
-    reason: "God på komponentstruktur, WCAG og norsk klarspråk. Ikke målt i den siste modelltesten.",
+    reason:
+      "Besto 24 av 25 tilgjengelighetssjekker (uu1–uu5, fem kjøringer hver) 12. oktober, mot 15 av 25 for GPT-6 Luna. Luna viste aldri til WCAG-kriterier og spurte aldri før den lagde en egen ARIA-rolle, men kostet omtrent en niendedel.",
+    source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-12-sonnet-5-5-aksel",
   },
   {
     purpose: "Rask oppretting av Aksel-komponenter",
