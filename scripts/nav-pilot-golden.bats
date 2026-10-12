@@ -18,12 +18,18 @@ setup() {
 
 # One Gradle daemon for the whole file, as before, but under BATS_FILE_TMPDIR so
 # it can be found and stopped. Real benchmark runs keep a registry per run.
+# The registry gets a unique name to match on. BATS_FILE_TMPDIR ends in the bare
+# file number (".../file/4"), every Gradle daemon has a "4" in some open path, so
+# matching on that stopped every daemon on the machine, including a parallel
+# run's daemon in the middle of its build.
 setup_file() {
-  export GRADLE_OPTS="-Dorg.gradle.daemon.registry.base=$BATS_FILE_TMPDIR/gradle-daemon"
+  GOLDEN_GRADLE_REGISTRY="$(mktemp -d "$BATS_FILE_TMPDIR/gradle-daemon.XXXXXX")"
+  export GOLDEN_GRADLE_REGISTRY
+  export GRADLE_OPTS="-Dorg.gradle.daemon.registry.base=$GOLDEN_GRADLE_REGISTRY"
 }
 
 teardown_file() {
-  local pid id="${BATS_FILE_TMPDIR##*/}"
+  local pid id="${GOLDEN_GRADLE_REGISTRY##*/}"
   for pid in $(pgrep -f GradleDaemon 2>/dev/null); do
     lsof -p "$pid" -Fn 2>/dev/null | grep -qF "$id" && kill "$pid" 2>/dev/null
   done
@@ -670,6 +676,32 @@ EOF
   done <"$SHIM/gradle-opts"
   sleep 0.3
   while read -r pid; do ! kill -0 "$pid" 2>/dev/null; done <"$SHIM/daemon-pids"
+}
+
+@test "teardown_file stops this file's Gradle daemon and no one else's" {
+  # Fake daemons: one in this file's registry, one in another project whose
+  # path holds the file number, as every real daemon's open jars do.
+  local other="$BATS_TEST_TMPDIR/project-${BATS_FILE_TMPDIR##*/}"
+  mkdir -p "$other"
+  (cd "$GOLDEN_GRADLE_REGISTRY" && exec -a "GradleDaemon 8.14.5" sleep 300) &
+  local ours=$!
+  (cd "$other" && exec -a "GradleDaemon 8.14.5" sleep 300) &
+  local theirs=$!
+  echo "$ours $theirs" >"$SHIM/daemon-pids"
+  # Wait for both execs (a spawn can stall for seconds), not a fixed sleep.
+  local _
+  for _ in $(seq 100); do
+    ps -o command= -p "$ours" "$theirs" | grep -c GradleDaemon | grep -qx 2 && break
+    sleep 0.1
+  done
+  teardown_file
+  # A killed child lingers as a zombie (Z) until reaped; give the signal 10 s.
+  for _ in $(seq 100); do
+    [[ "$(ps -o stat= -p "$ours")" != [^Z]* ]] && break
+    sleep 0.1
+  done
+  [[ "$(ps -o stat= -p "$ours")" != [^Z]* ]]
+  [[ "$(ps -o stat= -p "$theirs")" == [^Z]* ]]
 }
 
 @test "kafka preflight: NAV_PILOT_GOLDEN_GRADLE_DAEMON=0 adds daemon=false" {
