@@ -59,14 +59,17 @@ describe("Team insight", () => {
     );
     const table = screen.getByRole("table", { name: "Andre team" });
     expect(screen.getByRole("combobox", { name: "Måned" })).toHaveValue("2026-09");
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(5);
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(6);
+    const csv = within(table).getAllByRole("button", { name: /som CSV$/ })[0];
+    expect(csv).toHaveAttribute("href", expect.stringMatching(/^\/api\/team-year\?team=\d+&year=2026$/));
+    expect(csv).toHaveAttribute("download");
     for (const label of ["Leverandører", "Modelltyper", "Funksjon", "Språk"])
       expect(within(table).queryByRole("columnheader", { name: label })).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Velg kolonner"));
     expect(screen.getByRole("button", { name: "Velg kolonner" })).toHaveAttribute("aria-expanded", "true");
     for (const label of ["Leverandører", "Modelltyper", "Funksjon", "Språk"])
       fireEvent.click(screen.getByRole("checkbox", { name: label }));
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(9);
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(10);
     const rows = within(table).getAllByRole("row").slice(1);
     expect(
       Array.from(within(rows[0]).getAllByRole("cell")[5].querySelectorAll("span"), (span) => span.textContent)
@@ -112,7 +115,7 @@ describe("Team insight", () => {
     fireEvent.click(screen.getByRole("button", { name: "Velg kolonner" }));
     for (const label of ["Leverandører", "Modelltyper"]) fireEvent.click(screen.getByRole("checkbox", { name: label }));
     const row = screen.getByText("alpha").closest("tr")!;
-    for (const cell of within(row).getAllByRole("cell").slice(5)) {
+    for (const cell of within(row).getAllByRole("cell").slice(5, -1)) {
       expect(cell).toHaveTextContent("Ingen modellinteraksjoner");
       expect(cell.querySelector("svg")).toBeNull();
     }
