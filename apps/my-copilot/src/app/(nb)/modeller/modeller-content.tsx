@@ -61,7 +61,7 @@ const formatDate = (iso: string) => {
 const effortName = (effort: string) => (effort === "default" ? "standard" : effort);
 
 /** «45 s» or «1 min 23 s». */
-const formatDuration = (seconds: number) => {
+export const formatDuration = (seconds: number) => {
   const s = Math.round(seconds);
   return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
 };
@@ -157,12 +157,13 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
         // Keep every suite's heading so its menu link always has a target.
         const runs = all.filter((run) => shown.includes(run));
         if (runs.length === 0) {
+          // With nothing shown at all, the single message below the suites says it once.
           return (
             <VStack gap="space-12" key={suite}>
               <Heading size="small" level="3" id={suiteId(suite)} className={H2}>
                 {SUITE_NAMES[suite] ?? suite}
               </Heading>
-              <BodyShort>Ingen målinger passer filteret.</BodyShort>
+              {shown.length > 0 && <BodyShort>Ingen målinger passer filteret.</BodyShort>}
             </VStack>
           );
         }
@@ -359,37 +360,45 @@ export function ModellerContent({
       <div className="max-w-7xl mx-auto">
         <nav
           aria-label="Innhold på siden"
-          className="sticky top-0 z-10 overflow-x-auto"
+          className="sticky top-0 z-10"
           style={{
             background: "var(--ax-bg-default)",
             borderBottom: "1px solid var(--ax-border-neutral-subtle)",
           }}
         >
-          <HStack
-            as="ul"
-            gap="space-16"
-            wrap={false}
-            className="whitespace-nowrap"
-            paddingBlock="space-12"
-            paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-          >
-            {[
-              ["kort-fortalt", "Kort fortalt"],
-              ["vare-valg", "Våre valg"],
-              ["malinger", "Målinger"],
-              ...runsBySuite(summary?.runs ?? []).map(([suite]) => [
-                suiteId(suite),
-                `– ${SUITE_NAMES[suite] ?? suite}`,
-              ]),
-              ["priser", "Priser"],
-              ["innsatsniva", "Innsatsnivå"],
-              ["del-erfaringer", "Del dine erfaringer"],
-            ].map(([id, label]) => (
-              <li key={id}>
-                <Link href={`#${id}`}>{label}</Link>
-              </li>
-            ))}
-          </HStack>
+          {/* The fade hints on phones that the strip scrolls sideways. */}
+          <div className="overflow-x-auto max-md:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
+            <HStack
+              as="ul"
+              gap="space-16"
+              wrap={false}
+              className="whitespace-nowrap"
+              paddingBlock="space-12"
+              paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+            >
+              {[
+                ["kort-fortalt", "Kort fortalt"],
+                ["vare-valg", "Våre valg"],
+                ["malinger", "Målinger"],
+                ["priser", "Priser"],
+                ["innsatsniva", "Innsatsnivå"],
+                ["del-erfaringer", "Del dine erfaringer"],
+              ].map(([id, label]) => (
+                <li key={id}>
+                  <Link href={`#${id}`}>{label}</Link>
+                  {id === "malinger" && (
+                    <HStack as="ul" gap="space-16" wrap={false} className="ms-4 inline-flex">
+                      {runsBySuite(summary?.runs ?? []).map(([suite]) => (
+                        <li key={suite}>
+                          <Link href={`#${suiteId(suite)}`}>{SUITE_NAMES[suite] ?? suite}</Link>
+                        </li>
+                      ))}
+                    </HStack>
+                  )}
+                </li>
+              ))}
+            </HStack>
+          </div>
         </nav>
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
