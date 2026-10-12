@@ -28,7 +28,8 @@
       "apps/my-copilot/src/app/(nb)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
       "apps/my-copilot/src/components/nav-pilot/interactive-setup-wizard.tsx",
-      "apps/my-copilot/src/components/navigation/site-search.tsx"
+      "apps/my-copilot/src/components/navigation/site-search.tsx",
+      "docs/news/articles/dette-er-retningen.md"
     ],
     "anchors": {
       "din-plassering-i-nav": ["apps/my-copilot/src/app/(nb)/abonnement/page.tsx"]
@@ -234,7 +235,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx",
-      "apps/my-copilot/src/components/team-gross-usage.tsx"
+      "apps/my-copilot/src/components/team-gross-usage.tsx",
+      "docs/news/articles/dette-er-retningen.md"
     ],
     "anchors": {
       "hittil-i-ar": ["apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx"],
@@ -318,6 +320,7 @@
       "installer": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
         "apps/my-copilot/src/app/(nb)/kom-i-gang/page.tsx",
+        "apps/my-copilot/src/app/(nb)/praksis/sections/getting-started.tsx",
         "apps/my-copilot/src/components/navigation/site-search.tsx"
       ]
     }
@@ -1723,7 +1726,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx",
-      "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx"
+      "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx",
+      "apps/my-copilot/src/components/survey-notice.tsx"
     ],
     "anchors": {}
   },
@@ -2053,6 +2057,10 @@
   },
   "/nyheter/dependabot-pre-commit": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/dette-er-retningen": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
   "/nyheter/enterprise-ai-controls-ga": {
@@ -2446,6 +2454,7 @@
       "apps/my-copilot/src/app/(en)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/personvern/page.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts"
     ],
     "anchors": {}
@@ -2488,7 +2497,10 @@
     "anchors": {}
   },
   "/praksis/guide/kom-i-gang": {
-    "sources": ["apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/kom-i-gang/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"
+    ],
     "anchors": {}
   },
   "/praksis/guide/lese-og-forsta-kode": {
@@ -2593,7 +2605,8 @@
       "apps/my-copilot/src/components/page-hero.tsx",
       "apps/my-copilot/src/components/weekly-tip.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
-      "docs/news/articles/claude-tekstvannmerking.md"
+      "docs/news/articles/claude-tekstvannmerking.md",
+      "docs/news/articles/dette-er-retningen.md"
     ],
     "anchors": {}
   },
