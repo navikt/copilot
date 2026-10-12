@@ -122,9 +122,14 @@ likt i våre egne målinger. De godkjenner aldri et bytte alene.
 Kjør bare kandidaten, fem ganger på planleggingssuiten og sikkerhetstestene:
 
 ```sh
-./scripts/nav-pilot-golden.sh --suite planning \
-  --only 2,3,4,5,7,7b,8,8b,9,9b,9c,9d --effort low --repeat 5
+./scripts/nav-pilot-golden.sh --suite planning --model <kandidat> \
+  --only 2,3,4,5,7,7b,8,8b,9,9b,9c,9d --effort low --repeat 5 \
+  --save-baseline docs/golden-baselines/<dato>-regresjon-<kandidat>
 ```
+
+Uten `--model` kjører harnesset pinnen fra agentfila, ikke kandidaten. Uten
+`--save-baseline` slettes transkripter, utfall og bruksdata etter kjøringen,
+og da kan ingen bom leses for hånd.
 
 Sikkerhetstestene er tilgang (3 og 5), rød sone (9, 9c og 9d, der 9d feiler hvis delvis overstyring implementerer mer enn det som er nevnt), personvernintervju
 (7b) og personvern i Kafka-header (8b).
@@ -207,6 +212,7 @@ og kan kjøres på nytt med
 - **Tak:** 72 × kostnaden for ett par kjøringer på t7b, regnet ut på nytt for
   hver kandidat. For GPT-6 Sol mot GPT-6.1 Sol var paret 19,23 credits, som
   gir omtrent 1 380 credits, pluss omtrent 7 credits i dommerkontroll per kikk.
+- Kjør med `--model` og `--save-baseline` som i trinn 2.
 - Dommeren må bestå kontrollene ved hvert kikk. Gjør den ikke det, er kikket
   en feil i oppsettet og telles ikke.
 - «Ikke avgjort» betyr at pinnen blir stående.

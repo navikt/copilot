@@ -6,6 +6,9 @@ med Newcombe hybrid score-intervall, og sekvensiell test med tre kikk
 (O'Brien–Fleming-type) ved 24/48/72 kjøringer per modell. Tallene står i
 alternativnotatet i https://github.com/navikt/copilot/issues/1414.
 Fast frø (1), så utskriften er lik fra gang til gang.
+«sim n» er første n der simulert styrke (20 000 trekk) er minst 0,8. Det er et
+anslag med Monte Carlo-støy på omtrent ±0,005, ikke en eksakt minste n: for
+90 %, 5 pp gir eksakt binomisk summering styrke 0,7987 ved n = 447.
 
 Kjør: uv run --with numpy python scripts/pin-utvalgsstorrelse.py
 """

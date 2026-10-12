@@ -34,7 +34,7 @@ Eksterne indekser er gratis for oss og dekker mange modeller og innsatsnivåer. 
 
 1. **AA Intelligence Index**, på **samme innsatsnivå** som pinnen bruker (i dag Low), er minst like høy som for den pinnede modellen, med en toleranse på −1 poeng fordi indeksen ikke har intervaller.
 2. **AA-kodingsindeksen** ikke er lavere. Bare hvis AA mangler kandidaten, bruker vi Terminal-Bench 4.0 med samme agent, og godtar et resultat innenfor den pinnede modellens 95 %-intervall.
-3. **Kostnad per oppgave** (fra AA-API-et) ikke er høyere. Er den høyere, må gevinsten veie opp for det, og eieren må godkjenne.
+3. **Kostnad per oppgave** (fra AA-API-et) ikke er høyere.
 4. Kandidaten **ligger på eller nær Pareto-linjen** for kostnad mot intelligens. Dette er en anbefaling, ikke et krav.
 
 **Innsatsnivå.** Sammenlign alltid samme nivå mot samme nivå. Hvis kandidaten bare består på et høyere nivå, er forslaget «kandidat på high», og kostnaden vurderes på det nivået. Oppføringer merket `estimated` teller ikke.
