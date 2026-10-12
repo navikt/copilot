@@ -209,11 +209,13 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
           onChange={(e) => setHighlight(e.target.value || null)}
         >
           <option value="">Ingen</option>
-          {shownModels.map((model) => (
-            <option key={model} value={model}>
-              {model}
-            </option>
-          ))}
+          {models
+            .filter((model) => shown.some((run) => plottedAll.includes(run) && modelName(run.model) === model))
+            .map((model) => (
+              <option key={model} value={model}>
+                {model}
+              </option>
+            ))}
         </Select>
         <Switch size="small" checked={moreColumns} onChange={(e) => setMoreColumns(e.target.checked)}>
           Vis flere kolonner
@@ -251,7 +253,6 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                 ci={ci}
                 xRange={xRange}
                 highlight={highlight}
-                onHighlight={setHighlight}
                 points={plotted.map((run) => ({
                   model: modelName(run.model),
                   effort: run.effort,

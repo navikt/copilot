@@ -120,8 +120,7 @@ export function PassRateChart({
   xRange,
   frontier = false,
   ci = false,
-  highlight = null,
-  onHighlight,
+  highlight: selected = null,
 }: {
   points: ChartPoint[];
   models: string[];
@@ -130,9 +129,11 @@ export function PassRateChart({
   xRange: [number, number];
   frontier?: boolean;
   ci?: boolean;
+  /** Model picked in «Fremhev modell»; hover overrides it while the pointer is on a point. */
   highlight?: string | null;
-  onHighlight?: (model: string | null) => void;
 }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const highlight = hovered ?? selected;
   const [wide, setWide] = useState(true);
   useEffect(() => {
     const query = window.matchMedia(`(min-width: ${LABEL_MIN_WIDTH}px)`);
@@ -191,7 +192,7 @@ export function PassRateChart({
       style={{ padding: "var(--ax-space-16)" }}
       aria-label={title}
     >
-      <div style={{ position: "relative", height: "20rem" }} onMouseLeave={() => onHighlight?.(null)}>
+      <div style={{ position: "relative", height: "20rem" }} onMouseLeave={() => setHovered(null)}>
         <Scatter
           aria-label={title}
           role="img"
@@ -208,7 +209,7 @@ export function PassRateChart({
             layout: { padding: { top: 12, bottom: 12, left: 12, right: wide ? 120 : 12 } },
             onHover: (_event, elements, chart) => {
               const label = elements.length ? chart.data.datasets[elements[0].datasetIndex].label : null;
-              onHighlight?.(label === FRONTIER ? null : (label ?? null));
+              setHovered(label === FRONTIER ? null : (label ?? null));
             },
             plugins: {
               // @ts-expect-error: options for the local overlay plugin above.
