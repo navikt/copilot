@@ -35,7 +35,7 @@ function residualCaveats(data: TeamYearOverview): string[] {
         `${new Date(`${m.month}-01T00:00:00Z`).toLocaleString("nb-NO", { month: "long", timeZone: "UTC" })} ${formatPercent(m.residual_pct ?? 0)}`
     );
   return months.length
-    ? [`Andel av Navs nettoforbruk som ikke kunne knyttes til en person: ${months.join(", ")}.`]
+    ? [`Andel av Navs nettoforbruk som ikke kunne knyttes til en person, og som derfor ikke er med i tallene for noe team: ${months.join(", ")}.`]
     : [];
 }
 

@@ -123,17 +123,9 @@ describe("GET /api/team-year", () => {
       "Totalt hittil i år,,,130.60,,3.00,,285.00,418.60",
     ]);
     expect(lines.some((line) => line.includes("Lisenser er et anslag"))).toBe(true);
-<<<<<<< HEAD
-    expect(lines.filter((line) => line.includes("knyttes til en person"))).toEqual([
-      "# Andel av Navs nettoforbruk som ikke kunne knyttes til en person: mai 7\u00a0%, august 2\u00a0%.",
-||||||| parent of a0c46a5c (feat(team-year): vis billing per team uten terskel på fem)
-    expect(lines.filter((line) => line.includes("kunne ikke knyttes til en person"))).toEqual([
-      "# Mai: 7\u00a0% av Navs nettoforbruk kunne ikke knyttes til en person og er derfor ikke med i tallene for noe team.",
-=======
     expect(lines.some((line) => /skjult|færre enn fem/i.test(line))).toBe(false);
-    expect(lines.filter((line) => line.includes("kunne ikke knyttes til en person"))).toEqual([
-      "# Mai: 7\u00a0% av Navs nettoforbruk kunne ikke knyttes til en person og er derfor ikke med i tallene for noe team.",
->>>>>>> a0c46a5c (feat(team-year): vis billing per team uten terskel på fem)
+    expect(lines.filter((line) => line.includes("knyttes til en person"))).toEqual([
+      "# Andel av Navs nettoforbruk som ikke kunne knyttes til en person, og som derfor ikke er med i tallene for noe team: mai 7\u00a0%, august 2\u00a0%.",
     ]);
     expect(lines.some((line) => line.includes("brukte Copilot i måneden"))).toBe(false);
     expect(getTeamYearOverview).toHaveBeenCalledWith("123", 2026, "token");
