@@ -73,13 +73,15 @@ func seasonal(m time.Month) float64 {
 
 // yearBacktest predicts each closed AI-credits month one and two months ahead
 // from the months before it, as the model would have, and returns the mean
-// absolute error in percent.
+// absolute error in percent. Limits: horizons of one and two months only,
+// while the forecast looks further; and the holiday factors were derived from
+// June and August, so predictions of August see a little of it.
 func yearBacktest(closed []AdminMonth, au map[string]int64) (float64, int) {
 	var sum float64
 	var n int
 	for i := range closed {
 		g, ok := yearGrowth(closed[:i+1], au)
-		if !ok {
+		if !ok || *closed[i].EnterpriseNetUSD <= 0 {
 			continue
 		}
 		cut, _ := time.Parse("2006-01", closed[i].Month)
@@ -90,7 +92,8 @@ func yearBacktest(closed []AdminMonth, au map[string]int64) (float64, int) {
 				continue
 			}
 			tm, _ := time.Parse("2006-01", t.Month)
-			pred := base * math.Exp(g*float64(h)) * seasonal(tm.Month())
+			// The same floor as the forecast: never below flat.
+			pred := math.Max(base*math.Exp(g*float64(h)), base) * seasonal(tm.Month())
 			sum += math.Abs(pred-*t.EnterpriseNetUSD) / *t.EnterpriseNetUSD * 100
 			n++
 		}
@@ -175,7 +178,7 @@ func yearForecast(months []AdminMonth, users []ActiveUsersMonth, cur ModelForeca
 	end := YearEnd{BacktestErrorPct: errPct, RangePct: math.Max(yearBandFloorPct, errPct)}
 	credits := 0
 	for _, m := range closed {
-		if m.Month >= aiCreditStart {
+		if m.Month >= aiCreditStart && *m.EnterpriseNetUSD > 0 {
 			credits++
 		}
 	}
