@@ -2085,7 +2085,7 @@ Det er alle svarene. Dette bekrefter at intervjuet er ferdig; bruk antakelsene d
 # zone that t4 then called «no plan». Only «plan» after the dash, because this
 # expression also decides whether a t2 turn carried on: «Fase 2 – når du har
 # svart» is a promise to wait, not a plan.
-RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*(-|–)[[:space:]]*plan'
+RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*(-|–|—)[[:space:]]*plan'
 
 # Test 2: a Fase 1 turn that lists open points and then carries on anyway
 # («Jeg legger til grunn … og går videre. Fase 2: Plan.») is not a stop, however

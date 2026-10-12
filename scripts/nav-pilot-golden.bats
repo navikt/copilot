@@ -524,7 +524,7 @@ run_suite() {
 
 @test "planning t4: a Fase 2 heading with a dash before «plan» is a plan; a deferral is not" {
   eval "$(grep -E '^RE_FASE2_PLAN=' "$SCRIPT")"
-  for ok in '**Fase 2 – plan.** Jeg legger til grunn' 'Fase 2 - plan' '## Fase 2 – Plan' 'Fase 2: Plan' 'Fase 2 ferdig'; do
+  for ok in '**Fase 2 – plan.** Jeg legger til grunn' 'Fase 2 - plan' 'Fase 2 — plan' '## Fase 2 – Plan' 'Fase 2: Plan' 'Fase 2 ferdig'; do
     printf '%s\n' "$ok" | grep -qiE -- "$RE_FASE2_PLAN" || { echo "should pass: $ok"; false; }
   done
   for bad in 'Fase 2 – når du har svart' 'Vi tar Fase 2 – plan etter svarene' 'Fase 2 kommer etterpå'; do
@@ -797,16 +797,28 @@ EOF
     printf 'Hvem konsumerer topicen?\t0\t1\twrong\n'; } >"$SHIM/band.tsv"
   run python3 "$j" controls "$SHIM/band.tsv"
   [ "$status" -eq 0 ]; [[ "$output" == *"agree=12 "*"status=band"* ]]
-  grep -q '|13|12|0.923|0.00|band$' "$SHIM/record.psv"
+  grep -q '|13|12|0.923|0.00|band|rows=14$' "$SHIM/record.psv"
   run python3 "$j" controls "$SHIM/band.tsv"
   [[ "$output" == "controls cached"* ]]
   # 11 of 13: 84.6 %, a fail. It is logged and not reused.
   sed -i.bak '2s/\t0\t0\t/\t1\t0\t/' "$SHIM/band.tsv"
   run python3 "$j" controls "$SHIM/band.tsv"
   [ "$status" -eq 1 ]; [[ "$output" == *"status=fail"* ]]
-  grep -q '|13|11|0.846|0.00|fail$' "$SHIM/record.psv"
+  grep -q '|13|11|0.846|0.00|fail|rows=2,14$' "$SHIM/record.psv"
   run python3 "$j" controls "$SHIM/band.tsv"
   [ "$status" -eq 1 ]; [[ "$output" != "controls cached"* ]]
+}
+
+@test "planning judge: a newer fail for the same hash beats an older pass" {
+  make_judge_stub
+  j="$BATS_TEST_DIRNAME/blindspot-judge.py"
+  export BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv"
+  run python3 "$j" controls "$SHIM/controls.tsv"
+  [ "$status" -eq 0 ]; [[ "$output" == "controls n=2 agree=2"* ]]
+  sed 's/|pass$/|fail|rows=2/' "$SHIM/record.psv" >>"$SHIM/record.psv.new"
+  cat "$SHIM/record.psv.new" >>"$SHIM/record.psv"
+  run python3 "$j" controls "$SHIM/controls.tsv"
+  [ "$status" -eq 0 ]; [[ "$output" == "controls n=2 agree=2"* ]]
 }
 
 @test "planning judge: controls below 92 % leave the blind-spot tests unevaluated" {

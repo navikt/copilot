@@ -45,15 +45,18 @@ from concurrent.futures import ThreadPoolExecutor
 MODEL = os.environ.get("BS_JUDGE_MODEL", "claude-haiku-5.5")
 EFFORT = os.environ.get("BS_JUDGE_EFFORT", "low")  # «minimal» is refused for Haiku 5.5
 # The judge cannot be made deterministic: the Copilot CLI has no temperature or
-# seed flag (1.0.95), so Haiku samples each vote. On the same 75 controls it
-# agreed on 71, 72, 72, 73 and 74 rows (blindsone-dommer-kontroller.psv and the
-# 2026-10-12 pilot, #1641): mean 72.4, 96.5 %. A binomial at that rate has a
-# standard deviation of about 1.6 rows, so a 95 % gate (72 of 75) sat on the
-# mean and failed about one run in three by chance alone. That is noise, not a
-# broken judge. The floor is two standard deviations below the measured mean,
-# 69 of 75 (92 %): a judge at its usual rate falls under it about one run in
-# 40, while a rubric or model regression to 90 % fails most runs. 92-95 % is
-# the tolerance band: the run passes, and the record and summary say «band».
+# seed flag (1.0.95), so Haiku samples each vote. Each control row is already a
+# majority of 3 votes. Five control runs agreed on 71, 72, 72, 73 and 74 of 75
+# rows (blindsone-dommer-kontroller.psv and the 2026-10-12 pilot, #1641), but
+# they span four revisions of the rubric and the controls, so treat the spread
+# as a rough estimate: mean 72.4, 96.5 %, a binomial standard deviation of
+# about 1.6 rows. A 95 % gate (72 of 75) sat on that mean and failed about one
+# run in three by chance alone. The floor is now 69 of 75 (92 %), two standard
+# deviations below the mean, so a judge at its usual rate fails about one run
+# in 40. The gate's power drops with it: a judge at 90 % fails 63 % of runs,
+# one at 92 % fails 39 %. This stops false alarms; it does not change how
+# accurate the verdicts are. 92-95 % is the tolerance band: the run passes, and
+# the record and summary say «band».
 TARGET_ACCURACY = 0.95
 MIN_ACCURACY = 0.92
 
@@ -223,10 +226,11 @@ def label(row):
     return row.get("question") or row["answer"][:80]
 
 
-# Control runs, one per line: hash|date|model|effort|n|agree|accuracy|credits|status.
+# Control runs, one per line: hash|date|model|effort|n|agree|accuracy|credits|status[|rows=N,M].
+# rows lists the control lines (header is line 1) where the judge disagreed.
 # status is pass, band or fail; rows from before 2026-10-12 have no status and
 # were all passes. A run is skipped when this file holds a pass or band for the
-# same hash from the last CACHE_DAYS days. A failed run is logged and never reused. BS_JUDGE_RECORD points elsewhere (bats); empty disables it.
+# same hash from the last CACHE_DAYS days. Only the newest run for a hash counts, so a fail after a pass forces a rerun. BS_JUDGE_RECORD points elsewhere (bats); empty disables it.
 RECORD = os.environ.get("BS_JUDGE_RECORD", os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "docs", "golden-baselines", "blindsone-dommer-kontroller.psv"))
 CACHE_DAYS = 7
@@ -256,9 +260,11 @@ def cached(key):
     except OSError:
         return None
     today = datetime.date.today()
-    for line in reversed(lines):
+    for line in reversed(lines):  # only the newest run for a hash counts
         f = line.split("|")
-        if len(f) >= 8 and f[0] == key and (len(f) == 8 or f[8] in ("pass", "band")):
+        if len(f) >= 8 and f[0] == key:
+            if len(f) > 8 and f[8] not in ("pass", "band"):
+                return None
             age = (today - datetime.date.fromisoformat(f[1])).days
             return line if 0 <= age <= CACHE_DAYS else None
     return None
@@ -277,7 +283,7 @@ def controls(path):
     jobs = int(os.environ.get("BS_JUDGE_JOBS", "4"))
     with ThreadPoolExecutor(jobs) as ex:
         results = list(ex.map(lambda r: judge(control_answer(r)), rows))
-    agree, credits, errors = 0, 0.0, 0
+    agree, credits, errors, bad = 0, 0.0, 0, []
     for i, (r, res) in enumerate(zip(rows, results), start=2):  # line 1 is the header
         credits += res["credits"]
         if "error" in res:
@@ -289,6 +295,7 @@ def controls(path):
         if want == got:
             agree += 1
         else:
+            bad.append(str(i))
             print(f"row {i}: want bs1={int(want[0])} bs2={int(want[1])}, judge bs1={int(got[0])} "
                   f"bs2={int(got[1])} ({r['source']}): {label(r)}", file=sys.stderr)
     acc = agree / len(rows) if rows else 0.0
@@ -299,7 +306,8 @@ def controls(path):
     if RECORD:
         with open(RECORD, "a", encoding="utf-8") as f:
             f.write(f"{key}|{datetime.date.today()}|{MODEL if not os.environ.get('BS_JUDGE_CMD') else 'stub'}|"
-                    f"{EFFORT}|{len(rows)}|{agree}|{acc:.3f}|{credits:.2f}|{status}\n")
+                    f"{EFFORT}|{len(rows)}|{agree}|{acc:.3f}|{credits:.2f}|{status}"
+                    f"{'|rows=' + ','.join(bad) if bad else ''}\n")
     if errors * 10 > len(rows):
         return 2
     return 1 if status == "fail" else 0
