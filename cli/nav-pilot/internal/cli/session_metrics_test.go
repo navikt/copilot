@@ -305,3 +305,83 @@ func TestCopilotSessionArgs(t *testing.T) {
 		}
 	}
 }
+
+// A launch that never starts the client records no session (#1639).
+func TestLaunchClientFailedRegistersNoSession(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("PATH", t.TempDir())
+	copilotSessionIDs = nil
+	t.Cleanup(func() { copilotSessionIDs = nil })
+	err := launchClient(ResolvedConfig{Client: "copilot", ExtraArgs: []string{"--resume=0cb916db-26aa-40f2-86b5-1ba81b225fd2"}})
+	if err == nil {
+		t.Fatal("launch with no copilot on PATH succeeded")
+	}
+	if len(copilotSessionIDs) != 0 {
+		t.Fatalf("failed launch registered %q", copilotSessionIDs)
+	}
+}
+
+// A resumed session nav-pilot never read is baselined at launch: only what
+// comes after counts (#1639).
+func TestBaselineCopilotSession(t *testing.T) {
+	const s1 = "11111111-1111-4111-8111-111111111111"
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+	root := filepath.Join(home, "session-state")
+	dir := filepath.Join(root, s1)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(dir, "events.jsonl")
+	if err := os.WriteFile(p, []byte(sessionFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rec := &sessionTelemetry{}
+	orig := telemetry
+	telemetry = rec
+	t.Cleanup(func() { telemetry = orig })
+
+	baselineCopilotSession(root, s1)
+	recordCopilotSessions(root, []string{s1})
+	if len(rec.got) != 0 {
+		t.Fatalf("recorded history from before the launch: %+v", rec.got)
+	}
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.WriteString(resumeFixture)
+	f.Close()
+	recordCopilotSessions(root, []string{s1})
+	if len(rec.got) != 1 || rec.got[0].Models["gpt-6-sol"].Input != 12 {
+		t.Fatalf("after resume: %d records, %+v", len(rec.got), rec.got)
+	}
+}
+
+// Global flags before a subcommand (#1640).
+func TestCopilotSessionArgsGlobalFlags(t *testing.T) {
+	for _, args := range [][]string{
+		{"--model", "x", "resume"},
+		{"--log-level=debug", "sessions", "list"},
+		{"--allow-tool", "shell", "sessions"},
+		{"--unknown-flag", "sessions"},
+		{"--", "x"},
+	} {
+		if id, add := copilotSessionArgs(args); id != "" || add != nil {
+			t.Errorf("%q: %q %q, want nothing", args, id, add)
+		}
+	}
+	for _, args := range [][]string{
+		{"--model", "x", "-p", "hi"},
+		{"-C", "dir", "--yolo", "--model=y"},
+	} {
+		if id, add := copilotSessionArgs(args); id == "" || len(add) != 1 {
+			t.Errorf("%q: %q %q, want a new session", args, id, add)
+		}
+	}
+}

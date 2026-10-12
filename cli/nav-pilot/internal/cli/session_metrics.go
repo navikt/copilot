@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"io"
 	"maps"
@@ -357,6 +358,35 @@ func recordCopilotSessions(root string, ids []string) {
 	}
 }
 
+// baselineCopilotSession runs at launch. An existing session with no marker,
+// one run without nav-pilot before, gets one at the end of what is there, so
+// recordCopilotSessions counts only what this launch adds. A new session has
+// no events file yet and gets nothing. Opted out, nothing is read.
+func baselineCopilotSession(root, id string) {
+	if !telemetryEnabled() || !copilotSessionID.MatchString(id) {
+		return
+	}
+	dir := filepath.Join(root, id)
+	marker := filepath.Join(dir, sessionMetricsMarker)
+	unlock, ok := lockSession(marker + ".lock")
+	if !ok {
+		return
+	}
+	defer unlock()
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		return
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "events.jsonl"))
+	if err != nil {
+		return
+	}
+	_, mark, _ := parseCopilotSession(bytes.NewReader(b), configModelLabel, nil, nil, sessionTotals{})
+	mark.Offset = int64(bytes.LastIndexByte(b, '\n') + 1)
+	if b, err := json.Marshal(mark); err == nil {
+		_ = os.WriteFile(marker, b, 0o600)
+	}
+}
+
 // lockSession takes an exclusive lock file. One older than a minute is a
 // crashed holder's and is taken over.
 func lockSession(lock string) (unlock func(), ok bool) {
@@ -383,6 +413,21 @@ func lockSession(lock string) (unlock func(), ok bool) {
 // copilotSessionID is a session id as Copilot names its session directory.
 var copilotSessionID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
+// copilotValueFlags are Copilot CLI's global options that take a required
+// value, from `copilot --help` of GitHub Copilot CLI 1.0.95 (2026-10-12).
+// Options with an optional value ([<value>], [<tools>...]) are left out on
+// purpose: a word after them may be their value or a subcommand, and
+// copilotSessionArgs then adds nothing. -r, --resume and --session-id are read
+// separately below. A flag missing here errs the same safe way.
+var copilotValueFlags = setOf("-i", "--interactive", "-p", "--prompt", "--model",
+	"--reasoning-effort", "--context", "--auto-tier", "--agent", "-n", "--name",
+	"--session-id", "-C", "--log-dir", "--extension-sdk-path", "--log-level",
+	"--stream", "--output-format", "--add-dir", "--attachment", "--disable-mcp-server",
+	"--add-github-mcp-toolset", "--add-github-mcp-tool", "--plugin-dir",
+	"--additional-mcp-config", "--mcp-github-auth", "--max-autopilot-continues",
+	"--mode", "--dynamic-retrieval", "--enable-mcp-server", "--max-ai-credits",
+	"--usage-output-file")
+
 // copilotSessionArgs picks the session a Copilot launch will run, from the
 // arguments after "--". With none that choose a session, it is a new one
 // with an id of nav-pilot's own, passed as --session-id; the caller drops it
@@ -390,9 +435,19 @@ var copilotSessionID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-
 // id after --resume, -r or --session-id is that session. Anything else
 // (--continue, the picker, a name or id prefix, a subcommand) leaves the id
 // unknown: nothing is added and no session is recorded.
+//
+// A subcommand may follow global flags (--model x sessions). Any word that is
+// not the value of a flag in copilotValueFlags is taken as one, and so is "--":
+// when unsure, nothing is added.
 func copilotSessionArgs(extra []string) (id string, add []string) {
-	if len(extra) > 0 && !strings.HasPrefix(extra[0], "-") {
-		return "", nil
+	for i := 0; i < len(extra); i++ {
+		if a := extra[i]; a == "--" || !strings.HasPrefix(a, "-") {
+			return "", nil
+		}
+		a := extra[i]
+		if copilotValueFlags[a] || (a == "-r" || a == "--resume") && i+1 < len(extra) && copilotSessionID.MatchString(extra[i+1]) {
+			i++ // its value, whatever it looks like
+		}
 	}
 	for i, a := range extra {
 		name, val, eq := strings.Cut(a, "=")
