@@ -108,7 +108,7 @@
       "version": 1,
       "type": "choice",
       "construct": "barriers",
-      "text": "Hvis du kunne endra én ting med KI-kodeverktøyene i Nav, hva ville det vært? (velg én)",
+      "text": "Hvis du kunne endre én ting med KI-kodeverktøyene i Nav, hva ville det vært? (velg én)",
       "options": [
         "Bedre forståelse av kodebasen vår og interne rammeverk",
         "Mer opplæring og veiledning i effektiv bruk",
