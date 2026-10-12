@@ -4,7 +4,7 @@ Kjørt 12. oktober 2026 med Copilot CLI 1.0.95: `--agent accessibility --model c
 
 Bakgrunn: raden «Aksel, tilgjengelighet og norsk tekst» i `model-policy.ts` sier «Ikke målt i den siste modelltesten». Norsk tekst er alt målt for Sonnet 5.5 (`norsk`, 20/20 1. oktober). Denne kjøringen dekker resten: `@accessibility` på `StatusPanel.tsx`, sjekkene uu1–uu5.
 
-Etter den første kjøringen ble GPT-6 Luna kjørt med samme oppsett (`--model gpt-6-luna`, uten `--effort`, Medium i bruksradene) som sammenligning. Luna er valgt fordi den er den billigste modellen som er standard for to agenter, og derfor den mest sannsynlige erstatteren for Sonnet på denne raden. Alle 154 bruksrader viser `gpt-6-luna`.
+Etter den første kjøringen ble GPT-6 Luna kjørt med samme oppsett (`--model gpt-6-luna`, uten `--effort`, Medium i bruksradene) som sammenligning. Luna er valgt fordi den er den billigste modellen som er standard for tre agenter (`@kafka`, `@research` og `@worker`), og derfor den mest sannsynlige erstatteren for Sonnet på denne raden. Alle 154 bruksrader viser `gpt-6-luna`.
 
 Kjøringene har ikke en `--suite`, så den er ikke med i `summary.json` eller på /modeller.
 
