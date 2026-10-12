@@ -32,7 +32,8 @@ func TestTeamNetSpreadWithoutGross(t *testing.T) {
 	if project == "" {
 		t.Skip("COPILOT_BQ_TEST_PROJECT not set")
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 	var opts []option.ClientOption
 	if tok := os.Getenv("COPILOT_BQ_TEST_TOKEN"); tok != "" {
 		opts = append(opts, option.WithTokenSource(oauth2.StaticTokenSource(&oauth2.Token{AccessToken: tok})))
