@@ -161,7 +161,17 @@ export default function LokalModellForklaring() {
               </a>
               ).
             </li>
-            <li>Qwen 3.8-modellene og modellen for 64 GB er ikke godkjent for noe. Med dem stoppes ingenting.</li>
+            <li>
+              Qwen 3.8-modellene og modellen for 64 GB er ikke godkjent for delegering. Med dem stoppes ingenting.
+              Modellen for 64 GB er godkjent for endringer i én fil når den selv er hovedagent: 92 av 96 (
+              <a
+                href="https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-12-open-questions/oq3a-results.md"
+                className={linkClass}
+              >
+                målingen 12. oktober 2026
+              </a>
+              ).
+            </li>
             <li>En modell på egen LLM-server er ikke målt. Den får den generelle instruksen, og ingenting stoppes.</li>
           </Bullets>
           <BodyLong>
