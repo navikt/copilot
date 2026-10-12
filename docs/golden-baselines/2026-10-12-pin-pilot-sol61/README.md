@@ -1,6 +1,6 @@
 # GPT-6.1 Sol Low mot GPT-6 Sol Low på t3, t4, t5, t7 og t7b
 
-**Pilot, avgjør ikke pin.** Målingen kan ikke avgjøre om GPT-6.1 Sol skal erstatte GPT-6 Sol på `@nav-pilot`. Ifølge [pin-protokollen](../../pin-protokoll.md) (linje 73–77) og [#1414](https://github.com/navikt/copilot/issues/1414) må en slik beslutning bygge på et utvalg regnet ut fra en margin på 5 prosentpoeng. Det blir rundt 235 kjøringer per test og modell. Her er det tre til fem.
+**Pilot, avgjør ikke pin.** Målingen kan ikke avgjøre om GPT-6.1 Sol skal erstatte GPT-6 Sol på `@nav-pilot`. Ifølge [pin-protokollen](../../pin-protokoll.md) og [#1414](https://github.com/navikt/copilot/issues/1414) må en slik beslutning bygge på et utvalg regnet ut fra en margin på 5 prosentpoeng. Det krever langt flere kjøringer per test og modell. Her er det tre til fem.
 
 Formålet var bare å se om GPT-6.1 Sol feiler noe av dette helt, der GPT-6 Sol består.
 
@@ -19,7 +19,7 @@ Alle filene ligger i [`utenfor-oppsummering/`](utenfor-oppsummering/). De er ikk
 | t7b, fnr i Kafka-melding: tar opp personvern | **0/3** | 4/5, lest for hånd |
 | Credits, median per kjøring | 44,89 | 51,12 |
 
-GPT-6.1 Sol har tre hele kjøringer. Den fjerde ble stoppet ved taket og er ikke med. GPT-6 Sol har fem.
+GPT-6.1 Sol har tre hele kjøringer. Den fjerde ble stoppet ved taket og er ikke med. GPT-6 Sol har fem. t2 i kjøring 4 ligger i attempts-, usage- og transkriptfilene for begge modellene, men ikke i results-filene. Den er ikke vurdert.
 
 ## Hva som gikk galt i målingen
 
