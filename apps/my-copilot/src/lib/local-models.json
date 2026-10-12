@@ -28,32 +28,32 @@
           "local": "not-yet",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 27,
-          "local_n": 27
+          "local_k": 43,
+          "local_n": 45
         },
         "edit-single": {
           "delegate": "cloud",
           "local": "not-yet",
           "delegate_k": 3,
           "delegate_n": 3,
-          "local_k": 9,
-          "local_n": 9
+          "local_k": 27,
+          "local_n": 30
         },
         "edit-multi-mechanical": {
           "delegate": "trusted",
           "local": "cloud",
           "delegate_k": 35,
           "delegate_n": 35,
-          "local_k": 11,
-          "local_n": 18
+          "local_k": 25,
+          "local_n": 30
         },
         "create-file": {
           "delegate": "cloud",
           "local": "cloud",
           "delegate_k": 1,
           "delegate_n": 2,
-          "local_k": 3,
-          "local_n": 18
+          "local_k": 33,
+          "local_n": 45
         },
         "debug": {
           "delegate": "cloud",
@@ -217,11 +217,11 @@
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "not-yet",
+          "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 6,
-          "local_n": 6
+          "local_k": 84,
+          "local_n": 90
         },
         "edit-single": {
           "delegate": "cloud",
@@ -236,16 +236,16 @@
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 3,
-          "local_n": 4
+          "local_k": 37,
+          "local_n": 60
         },
         "create-file": {
           "delegate": "cloud",
-          "local": "not-yet",
+          "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 4,
-          "local_n": 4
+          "local_k": 71,
+          "local_n": 90
         },
         "debug": {
           "delegate": "cloud",
@@ -422,6 +422,17 @@
   "reports": {
     "source": "https://raw.githubusercontent.com/navikt/mlx-workspace/main/manifest/reports.json",
     "reports": [
+      {
+        "id": "2026-10-11-newmodels/report",
+        "title": "Four new models on the quality frontier",
+        "date": "2026-10-11",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-11-newmodels/report.md",
+        "verdict": "not-yet",
+        "headline": {
+          "k": 92,
+          "n": 155
+        }
+      },
       {
         "id": "2026-10-11-cf-r3c/report",
         "title": "create-file retry2 r3, more optiq runs",
