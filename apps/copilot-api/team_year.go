@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"strconv"
 	"time"
 
@@ -42,7 +41,9 @@ type TeamYearMonth struct {
 	GrossUSD      *float64 `json:"gross_usd"`
 	NoUsageNetUSD *float64 `json:"no_usage_net_usd"`
 	// ResidualPct is the share of the enterprise net bill that the backfill
-	// could not assign to a user, for net and premium months. Nil otherwise.
+	// could not assign to a user, for net and premium months. Nil for gross
+	// months and for runs published before the residual columns existed
+	// (republish the month to fill it).
 	ResidualPct *float64 `json:"residual_pct"`
 	// SeatMonths counts team members (team_members, usage or not) whose seat
 	// covered the month, from the latest seat snapshot's created_at and
@@ -292,8 +293,7 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 		}
 		net := m.Basis == basisNet || m.Basis == basisPremium
 		if net && row.ResidualPct.Valid {
-			pct := math.Round(row.ResidualPct.Float64*100) / 100
-			m.ResidualPct = &pct
+			m.ResidualPct = cents(row.ResidualPct.Float64)
 		}
 		if net && row.NetUsers >= minTeamContributors {
 			m.NetUSD, m.NoUsageNetUSD = cents(row.Net), cents(row.NoUsageNet)

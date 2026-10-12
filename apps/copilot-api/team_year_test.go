@@ -32,6 +32,7 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 		row("2026-10", true, 7, 7),  // current month never net
 		row("2026-11", false, 0, 0), // future
 	}
+	rows[5].ResidualPct = bigquery.NullFloat64{} // complete run from before the residual columns
 	got := teamYearOverview("123", 2026, rows, time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC))
 	want := []struct {
 		month, basis string
@@ -54,7 +55,8 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 		if m.Month != w.month || m.Basis != w.basis || m.Hidden != w.hidden || (m.NetUSD != nil) != w.net || (m.GrossUSD != nil) != w.gross {
 			t.Errorf("%s = %+v, want %+v", w.month, m, w)
 		}
-		if hasNet := w.basis == basisNet || w.basis == basisPremium; (m.ResidualPct != nil) != hasNet || (hasNet && *m.ResidualPct != 7.13) {
+		hasNet := (w.basis == basisNet || w.basis == basisPremium) && w.month != "2026-09"
+		if (m.ResidualPct != nil) != hasNet || (hasNet && *m.ResidualPct != 7.13) {
 			t.Errorf("%s residual = %v", w.month, m.ResidualPct)
 		}
 		if (m.Hidden || m.Basis == basisNone) && (m.Users != nil || m.NoUsageNetUSD != nil) {

@@ -1,3 +1,4 @@
+import { formatPercent } from "./format";
 import type { TeamYearMonth, TeamYearOverview } from "./types";
 
 export const basisLabel: Record<TeamYearMonth["basis"], string> = {
@@ -30,8 +31,7 @@ function residualCaveats(data: TeamYearOverview): string[] {
     .filter((m) => (m.residual_pct ?? 0) > 1)
     .map((m) => {
       const name = new Date(`${m.month}-01T00:00:00Z`).toLocaleString("nb-NO", { month: "long", timeZone: "UTC" });
-      const pct = Math.round(m.residual_pct ?? 0);
-      return `${name[0].toUpperCase()}${name.slice(1)}: ${pct} % av kostnaden kunne ikke knyttes til en person, og er ikke fordelt på team.`;
+      return `${name[0].toUpperCase()}${name.slice(1)}: ${formatPercent(m.residual_pct ?? 0)} av Navs nettoforbruk kunne ikke knyttes til en person og er derfor ikke med i tallene for noe team.`;
     });
 }
 

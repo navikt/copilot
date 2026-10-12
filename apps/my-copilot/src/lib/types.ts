@@ -297,7 +297,7 @@ export interface TeamYearMonth {
   net_usd: number | null;
   gross_usd: number | null;
   no_usage_net_usd: number | null;
-  /** Percent of the Nav-wide net bill not assigned to any user; null for gross months. Optional for older APIs. */
+  /** Percent of the Nav-wide net bill not assigned to any user. Null for gross months and for runs published before the residual was recorded. Optional for older APIs. */
   residual_pct?: number | null;
   /** Members with a seat that month; null when hidden (under five), without team history or before the first seat snapshot. */
   seat_months: number | null;
