@@ -60,6 +60,15 @@ const formatDate = (iso: string) => {
 
 const effortName = (effort: string) => (effort === "default" ? "standard" : effort);
 
+/** «45 s» or «1 min 23 s». */
+const formatDuration = (seconds: number) => {
+  const s = Math.round(seconds);
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${s % 60} s`;
+};
+
+const suiteId = (suite: string) => `maling-${suite}`;
+const H2 = "scroll-mt-16";
+
 const cell = { paddingBlock: "var(--ax-space-8)" };
 
 function Choices({ users }: { users: Record<string, string[]> }) {
@@ -152,7 +161,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
         const incomplete = runs.some((run) => !run.smoke && run.model_verified !== false && knownCredits(run) === null);
         return (
           <VStack gap="space-12" key={suite}>
-            <Heading size="small" level="3">
+            <Heading size="small" level="3" id={suiteId(suite)} className={H2}>
               {SUITE_NAMES[suite] ?? suite}
             </Heading>
             {plotted.length > 0 && (
@@ -219,7 +228,9 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                           <Table.DataCell align="right">
                             {credits === null ? "–" : credits.toLocaleString("nb-NO")}
                           </Table.DataCell>
-                          <Table.DataCell align="right">{Math.round(run.wall_seconds.median)} s</Table.DataCell>
+                          <Table.DataCell align="right" className="whitespace-nowrap">
+                            {formatDuration(run.wall_seconds.median)}
+                          </Table.DataCell>
                           <Table.DataCell align="right">{run.n}</Table.DataCell>
                           <Table.DataCell className="whitespace-nowrap">{formatDate(run.date)}</Table.DataCell>
                           <Table.DataCell>{run.cli_version}</Table.DataCell>
@@ -334,13 +345,47 @@ export function ModellerContent({
     <main id="hovedinnhold" tabIndex={-1}>
       <PageHero title="Modellvalg" description="Hvilken modell agentene og promptene våre bruker, og hvorfor." />
       <div className="max-w-7xl mx-auto">
+        <nav
+          aria-label="Innhold på siden"
+          className="sticky top-0 z-10 overflow-x-auto"
+          style={{
+            background: "var(--ax-bg-default)",
+            borderBottom: "1px solid var(--ax-border-neutral-subtle)",
+          }}
+        >
+          <HStack
+            as="ul"
+            gap="space-16"
+            wrap={false}
+            className="whitespace-nowrap"
+            paddingBlock="space-12"
+            paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+          >
+            {[
+              ["kort-fortalt", "Kort fortalt"],
+              ["vare-valg", "Våre valg"],
+              ["malinger", "Målinger"],
+              ...runsBySuite(summary?.runs ?? []).map(([suite]) => [
+                suiteId(suite),
+                `– ${SUITE_NAMES[suite] ?? suite}`,
+              ]),
+              ["priser", "Priser"],
+              ["innsatsniva", "Innsatsnivå"],
+              ["del-erfaringer", "Del dine erfaringer"],
+            ].map(([id, label]) => (
+              <li key={id}>
+                <Link href={`#${id}`}>{label}</Link>
+              </li>
+            ))}
+          </HStack>
+        </nav>
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap={{ xs: "space-32", md: "space-40" }}>
             <VStack gap="space-12">
-              <Heading size="medium" level="2">
+              <Heading size="medium" level="2" id="kort-fortalt" className={H2}>
                 Kort fortalt
               </Heading>
               <BodyLong>
@@ -370,7 +415,7 @@ export function ModellerContent({
             </VStack>
 
             <VStack gap="space-12">
-              <Heading size="medium" level="2">
+              <Heading size="medium" level="2" id="vare-valg" className={H2}>
                 Våre valg
               </Heading>
               <BodyLong>
@@ -382,14 +427,14 @@ export function ModellerContent({
             </VStack>
 
             <VStack gap="space-12">
-              <Heading size="medium" level="2">
+              <Heading size="medium" level="2" id="malinger" className={H2}>
                 Målinger
               </Heading>
               <Measurements summary={summary} />
             </VStack>
 
             <VStack gap="space-12">
-              <Heading size="medium" level="2">
+              <Heading size="medium" level="2" id="priser" className={H2}>
                 Priser
               </Heading>
               <BodyLong>
@@ -403,14 +448,14 @@ export function ModellerContent({
             </VStack>
 
             <VStack gap="space-12">
-              <Heading size="medium" level="2">
+              <Heading size="medium" level="2" id="innsatsniva" className={H2}>
                 Innsatsnivå (effort)
               </Heading>
               <Effort />
             </VStack>
 
             <VStack gap="space-12">
-              <Heading size="medium" level="2">
+              <Heading size="medium" level="2" id="del-erfaringer" className={H2}>
                 Del dine erfaringer
               </Heading>
               <BodyLong>

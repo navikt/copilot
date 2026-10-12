@@ -35,6 +35,7 @@ describe("modellsiden", () => {
     expect(within(row).getByText("GPT-6 Sol")).toBeInTheDocument();
     expect(within(row).getByText("90 %")).toBeInTheDocument();
     expect(within(row).getByText("120,5")).toBeInTheDocument();
+    expect(within(row).getByText(/^\d+ min \d+ s$/)).toBeInTheDocument();
     expect(within(row).getByText("0.0.0-fixture")).toBeInTheDocument();
     expect(within(row).getByText("1. januar 2000")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "fixture-a.txt" })).toHaveAttribute(
@@ -157,4 +158,15 @@ it("har et modellvalg for hver modell en agent eller prompt er pinnet til", () =
   expect(pins.length).toBeGreaterThan(0);
   expect([...new Set(pins)].filter((pin) => !primaries.includes(pin))).toEqual([]);
   expect(primaries).toContain(NAV_PILOT_DEFAULT_MODEL);
+});
+
+it("har innholdsfortegnelse med lenker til hver seksjon og suite", () => {
+  summaryFile.path = FIXTURE;
+  const { container } = render(<ModellerPage />);
+  const nav = screen.getByRole("navigation", { name: "Innhold på siden" });
+  const links = within(nav).getAllByRole("link");
+  expect(links.length).toBeGreaterThan(6);
+  for (const link of links) {
+    expect(container.querySelector(link.getAttribute("href")!)).not.toBeNull();
+  }
 });
