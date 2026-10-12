@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const year = Number(new URL(request.url).searchParams.get("year") || new Date().getUTCFullYear());
-  if (!Number.isInteger(year) || year < 2026) {
+  if (!Number.isInteger(year) || year < 2026 || year > new Date().getUTCFullYear()) {
     return NextResponse.json({ error: "year required" }, { status: 400 });
   }
   try {

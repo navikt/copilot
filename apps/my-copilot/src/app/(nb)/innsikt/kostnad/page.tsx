@@ -143,7 +143,13 @@ export default async function CostPage() {
                         align={i < 2 ? "left" : "right"}
                         style={total ? { fontWeight: 600 } : undefined}
                       >
-                        {i === 0 && !total ? monthName(cells[c]) : i < 2 || c === 8 ? cells[c] : nok(cells[c])}
+                        {i === 0 && !total
+                          ? monthName(cells[c])
+                          : i < 2
+                            ? cells[c]
+                            : c === 8
+                              ? cells[c] && formatNumber(Number(cells[c]))
+                              : nok(cells[c])}
                       </TableDataCell>
                     ))}
                   </TableRow>
