@@ -277,7 +277,9 @@ describe("Team insight", () => {
       </TeamControls>
     );
     fireEvent.click(screen.getAllByRole("button", { name: /som CSV$/ })[0]);
-    expect(await screen.findByText("Kunne ikke laste ned. Prøv igjen senere.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Kunne ikke laste ned (HTTP 500: datatjenesten svarte med en feil). Prøv igjen senere.")
+    ).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/team-year\?team=\d+&year=2026$/));
   });
 });

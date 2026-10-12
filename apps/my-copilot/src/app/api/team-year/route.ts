@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   const team = searchParams.get("team") ?? "";
   const year = Number(searchParams.get("year") ?? new Date().getUTCFullYear());
   if (!/^[1-9][0-9]{0,19}$/.test(team) || !Number.isInteger(year)) {
+    console.warn("[team-year] Invalid team or year");
     return NextResponse.json({ error: "team and year required" }, { status: 400 });
   }
 
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof BackendApiError && error.status === 400) {
+      console.warn("[team-year] Backend rejected team or year:", error);
       return NextResponse.json({ error: "invalid_parameter" }, { status: 400 });
     }
     console.error("[team-year] Failed to fetch team year usage:", error);

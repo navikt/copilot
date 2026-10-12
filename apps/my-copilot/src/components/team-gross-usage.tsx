@@ -13,12 +13,21 @@ type Team = TeamSpend;
 
 /** Fetches the year CSV first, so a failure shows a message instead of saving the error body as a file. */
 function TeamYearCsv({ team, year }: { team: Team; year: string }) {
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const [state, setState] = useState<"idle" | "loading" | string>("idle");
   const download = async () => {
     setState("loading");
     try {
       const res = await fetch(`/api/team-year?team=${encodeURIComponent(team.team_id)}&year=${year}`);
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) {
+        const reason =
+          res.status === 401
+            ? "du er ikke logget inn"
+            : res.status === 400
+              ? "ugyldig team eller år"
+              : "datatjenesten svarte med en feil";
+        setState(`Kunne ikke laste ned (HTTP ${res.status}: ${reason}). Prøv igjen senere.`);
+        return;
+      }
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement("a");
       a.href = url;
@@ -30,7 +39,7 @@ function TeamYearCsv({ team, year }: { team: Team; year: string }) {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setState("idle");
     } catch {
-      setState("error");
+      setState("Kunne ikke laste ned (ingen kontakt med tjenesten). Prøv igjen senere.");
     }
   };
   return (
@@ -38,7 +47,7 @@ function TeamYearCsv({ team, year }: { team: Team; year: string }) {
       <Button
         type="button"
         onClick={download}
-        aria-describedby={state === "error" ? `csv-feil-${team.team_id}` : undefined}
+        aria-describedby={state.startsWith("Kunne") ? `csv-feil-${team.team_id}` : undefined}
         loading={state === "loading"}
         variant="tertiary"
         size="xsmall"
@@ -47,9 +56,9 @@ function TeamYearCsv({ team, year }: { team: Team; year: string }) {
       >
         CSV
       </Button>
-      {state === "error" && (
+      {state.startsWith("Kunne") && (
         <ErrorMessage size="small" id={`csv-feil-${team.team_id}`} role="alert">
-          Kunne ikke laste ned. Prøv igjen senere.
+          {state}
         </ErrorMessage>
       )}
     </VStack>
