@@ -38,7 +38,7 @@ Uten en fast modell blir det lett:
 | Prinsipp              | Betydning                                                                         |
 | --------------------- | --------------------------------------------------------------------------------- |
 | Fasedisiplin          | Arbeid skal deles i tydelige faser med ulike mål og risikonivå.                   |
-| Rød/grønn-sone        | Utforskning og endring må ikke blandes ukritisk; sonene styrer trygghet og fokus. |
+| Rød/grønn-sone        | Sonene sier om utvikleren skal lære dette selv; rød sone får stubber, ikke kode.  |
 | Spesialistruting      | Oppgaver skal styres mot riktig rolle, ikke presses gjennom én generell flyt.     |
 | Lav overraskelse      | Samme type oppgave skal gi samme type håndtering så langt som mulig.              |
 | Dokumentert intensjon | Beslutninger skal forklares kort og klart, ikke bare implementeres.               |
@@ -129,7 +129,7 @@ Benchmark-tall, konfidensintervaller og beslutningene de bærer ligger i `docs/n
    - Det er ikke valgfritt eller kosmetisk.
 
 2. **Rød/grønn-sone skal være en del av modellen**
-   - Sonene brukes for å styre risiko og aktivitet.
+   - Sonene styrer hva utvikleren skriver selv, og listene har én kilde: `instructions/deliberate-ai-use.instructions.md`.
 
 3. **Spesialistruting skal beholdes**
    - Ikke alt skal presses inn i én generell flyt.
