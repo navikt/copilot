@@ -81,7 +81,7 @@ func TestAdminTrendRoutesNeedAdmin(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	t.Setenv(adminGroupEnv, group)
 	router := makeAPIRouter(&Config{}, newBigQueryHandlers(&mockBigQueryClient{}), nil, nil, nil)
-	for _, path := range []string{"/api/v1/copilot/billing/admin-active-users", "/api/v1/copilot/billing/admin-high-consumers"} {
+	for _, path := range []string{"/api/v1/copilot/billing/admin-active-users", "/api/v1/copilot/billing/admin-high-consumers", "/api/v1/copilot/billing/admin-budget-days"} {
 		for _, tc := range []struct {
 			groups []string
 			want   int

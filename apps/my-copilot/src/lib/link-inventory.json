@@ -196,6 +196,7 @@
     ],
     "anchors": {
       "avvik": ["apps/my-copilot/src/components/cost-anomalies.tsx"],
+      "budsjett-per-dag": ["apps/my-copilot/src/components/budget-days-section.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "oversikt": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
       "per-maned": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],

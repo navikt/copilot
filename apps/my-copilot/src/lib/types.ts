@@ -692,6 +692,16 @@ export interface HighConsumerTier {
   net_share_pct: number | null;
 }
 
+/** Users per share of their own personal limit used on one day, from the 1st (admin only, aggregates only). */
+export interface BudgetDay {
+  day: string;
+  /** 0 and bands null below five users. */
+  users: number;
+  /** Users with GitHub's own figure; 0 below five. The rest are estimates from usage data. */
+  snapshots: number;
+  bands: SpendBand[] | null;
+}
+
 /** High-consumer groups and personal budget bands for one complete month (admin only, aggregates only). */
 export interface HighConsumerMonth {
   month: string;

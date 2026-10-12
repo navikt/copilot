@@ -18,6 +18,7 @@ import type { AdminMonth } from "@/lib/types";
 import { CostForecastSection, ForecastMethod } from "@/components/cost-forecast";
 import { CostTrendsSection } from "@/components/cost-trends";
 import { HighConsumersSection } from "@/components/high-consumers";
+import { BudgetDaysSection } from "@/components/budget-days-section";
 import { CostStatusCards } from "@/components/cost-status-cards";
 
 // Spend and limits are internal: only the copilot team sees this page, everyone else gets 404.
@@ -218,6 +219,7 @@ export default async function CostPage() {
       <CostAnomalies />
       <CostTrendsSection token={token} events={events} />
       <HighConsumersSection token={token} events={events} />
+      <BudgetDaysSection token={token} events={events} />
     </InsightPage>
   );
 }

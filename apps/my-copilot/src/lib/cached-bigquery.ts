@@ -31,6 +31,7 @@ import type {
   AdminMonthlyOverview,
   SpendBands,
   ActiveUsersMonth,
+  BudgetDay,
   HighConsumerMonth,
   AdoptionCohortWeek,
   BillingMonthlyTrend,
@@ -159,6 +160,11 @@ export async function getAdminActiveUsers(token: string): Promise<ActiveUsersMon
 /** Admin only: copilot-api answers 404 to everyone else. */
 export async function getAdminHighConsumers(token: string): Promise<HighConsumerMonth[]> {
   return backendRequest<HighConsumerMonth[]>("/api/v1/copilot/billing/admin-high-consumers", token);
+}
+
+/** Admin only: copilot-api answers 404 to everyone else. */
+export async function getAdminBudgetDays(token: string): Promise<BudgetDay[]> {
+  return backendRequest<BudgetDay[]>("/api/v1/copilot/billing/admin-budget-days", token);
 }
 
 export async function getMyTeams(token: string): Promise<string[]> {

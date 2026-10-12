@@ -127,6 +127,12 @@ func mergeEdgeBands(amounts []float64, limit float64, edges []float64) []SpendBa
 	for _, n := range amounts {
 		bands[edgeIndex(n, limit, edges)].Users++
 	}
+	return mergeSmallBands(bands)
+}
+
+// mergeSmallBands merges every non-empty band under minBandUsers into a
+// neighbour until none is left. bands are consecutive, one per edge gap.
+func mergeSmallBands(bands []SpendBand) []SpendBand {
 	for {
 		small := -1
 		for i, b := range bands {

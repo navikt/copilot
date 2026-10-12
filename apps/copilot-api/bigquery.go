@@ -384,6 +384,7 @@ type BigQueryQuerier interface {
 	GetLimitSnapshots(ctx context.Context) ([]LimitChange, error)
 	GetActiveUsersMonthly(ctx context.Context) ([]ActiveUsersMonth, error)
 	GetHighConsumers(ctx context.Context) ([]HighConsumerMonth, error)
+	GetBudgetDays(ctx context.Context) ([]BudgetDay, error)
 	GetCostAnomalies(ctx context.Context) ([]Anomaly, error)
 	GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error)
 	GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error)
