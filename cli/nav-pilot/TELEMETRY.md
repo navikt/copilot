@@ -33,16 +33,16 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_genai_session_tokens_total` | Counter | Tokens en opencode-økt brukte, lest fra opencodes egen øktlagring når økten slutter. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `gen_ai_token_type=input\|output\|reasoning\|cache_read\|cache_write`, `nav_repo` |
 | `nav_pilot_genai_session_calls_total` | Counter | Modellkall (svar fra modellen) i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `nav_repo` |
 | `nav_pilot_genai_session_tool_calls_total` | Counter | Verktøykall i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_tool_name`, `nav_repo` |
-| `nav_pilot_session_skill_loads_total` | Counter | Skills en Copilot-økt lastet. Én verdi per økt | `skill` (Navs eller `other`), `source`, `trigger`, `client`, `version` |
-| `nav_pilot_session_tool_calls_total` | Counter | Verktøykall i en Copilot-økt | `tool` (Copilots innebygde eller `other`), `outcome=success\|error`, `client`, `version` |
-| `nav_pilot_session_hook_runs_total` | Counter | Hook-kjøringer i en Copilot-økt | `hook_type=preToolUse\|postToolUse\|…\|other`, `outcome`, `client`, `version` |
+| `nav_pilot_session_skill_loads_total` | Counter | Skills en Copilot-økt lastet | `skill` (installert av nav-pilot eller `other`), `source`, `trigger`, `client`, `version` |
+| `nav_pilot_session_tool_calls_total` | Counter | Verktøykall i en Copilot-økt | `tool` (Copilots innebygde eller `other`), `outcome=success\|error\|unset`, `client`, `version` |
+| `nav_pilot_session_hook_runs_total` | Counter | Hook-kjøringer i en Copilot-økt | `hook_type=preToolUse\|postToolUse\|…\|other`, `outcome=success\|error\|unset`, `client`, `version` |
 | `nav_pilot_session_tokens_total` | Counter | Tokens en Copilot-økt brukte | `model`, `kind=input\|output\|cache_read\|cache_write`, `client`, `version` |
 | `nav_pilot_session_premium_requests_total` | Counter | Premium requests en Copilot-økt brukte | `model`, `client`, `version` |
 | `nav_pilot_session_cost_nano_aiu_total` | Counter | Kostnad for en Copilot-økt i nano-AIU | `model`, `client`, `version` |
 | `nav_pilot_session_turns` | Histogram | Runder (svar fra modellen) i en Copilot-økt | `client`, `version` |
 | `nav_pilot_session_duration_seconds` | Histogram | Hvor lenge en Copilot-økt varte | `shutdown_type`, `client`, `version` |
 | `nav_pilot_session_api_duration_ms` | Histogram | Tid en Copilot-økt ventet på modell-API-et | `model`, `client`, `version` |
-| `nav_pilot_subagent_selected_total` | Counter | Subagenter en Copilot-økt valgte | `agent` (Navs eller `other`), `client`, `version` |
+| `nav_pilot_subagent_selected_total` | Counter | Subagenter en Copilot-økt valgte | `agent` (installert av nav-pilot eller `other`), `client`, `version` |
 | `nav_pilot_session_events_skipped_total` | Counter | Linjer i øktloggen nav-pilot ikke kunne lese og hoppet over | `client`, `version` |
 
 **Merk om opencode-bruk (`nav_pilot_genai_*`):**
@@ -78,20 +78,25 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 - Når nav-pilot avslutter etter å ha startet Copilot, leser den
   `~/.copilot/session-state/<økt>/events.jsonl` for økter som er skrevet til
   siden oppstarten og har en `session.shutdown`. En fil
-  `nav-pilot-session-metrics` i øktmappen husker hvor langt den har lest, så en
-  gjenopptatt økt telles bare for det som kom etterpå.
-- nav-pilot leser bare disse feltene: navn, kilde og utløser fra
+  `nav-pilot-session-metrics` i øktmappen husker hvor langt den har lest og
+  summene ved siste `session.shutdown` (Copilot oppgir tokens, kostnad og
+  API-tid som løpende summer for hele økten). En gjenopptatt økt telles derfor
+  bare for det som kom etterpå, og varigheten regnes fra `session.resume`.
+- nav-pilot dekoder bare disse feltene: navn, kilde og utløser fra
   `skill.invoked`; verktøynavn fra `tool.execution_start`; `success` fra
   `tool.execution_complete`; `hookType` og `success` fra `hook.end`;
-  `agentName` fra `subagent.selected`; antall `assistant.turn_start`; og
-  `modelMetrics`, `totalApiDurationMs`, `currentModel`, `sessionStartTime` og
-  `shutdownType` fra `session.shutdown`.
-- nav-pilot leser aldri `content`, `result`, `arguments`, meldinger, filstier
-  eller kodeendringer. De er ikke med i strukturen loggen leses inn i.
-- Navnet på en skill eller agent sendes bare hvis nav-pilot installerte den fra
-  agentpakken (står i `.nav-pilot-state.json` for brukeren eller repoet).
-  Verktøynavn sendes bare for Copilots innebygde verktøy. Alt annet blir
-  `other`. `model` er en kjent klient-modell-id eller `custom`.
+  `agentName` fra `subagent.selected`; antall `assistant.turn_start`;
+  tidspunktet for `session.start` og `session.resume`; og `modelMetrics`,
+  `totalApiDurationMs`, `currentModel`, `sessionStartTime` og `shutdownType`
+  fra `session.shutdown`.
+- `content`, `result`, `arguments`, meldinger, filstier og kodeendringer
+  dekodes aldri: de er ikke med i strukturene loggen leses inn i.
+- Navnet på en skill eller agent sendes bare hvis nav-pilot installerte den
+  (står i `.nav-pilot-state.json` for brukeren eller repoet, uansett hvilken
+  agentpakke den kom fra). Verktøynavn sendes bare for Copilots innebygde
+  verktøy. Alt annet blir `other`. `model` er en kjent klient-modell-id eller
+  `custom`. `source`, `trigger` og `shutdown_type` er Copilots egne korte
+  verdier (små bokstaver, høyst 32 tegn), ellers `other`.
 - Ingen `device_id` og ingen etikett per økt. Summer med `sum_over_time`, som for
   opencode-tellerne over.
 - En linje som ikke er gyldig JSON eller har feil form, hoppes over og telles i

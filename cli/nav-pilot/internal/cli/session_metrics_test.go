@@ -43,6 +43,17 @@ var sessionFixture = strings.Join([]string{
 	`{"type":"assistant.turn_start","data":{"turnId":"after-shutdown"}}`,
 }, "\n") + "\n"
 
+// resumeFixture is the segment Copilot appends when the session is resumed:
+// the shutdown reports running totals for the whole session.
+var resumeFixture = strings.Join([]string{
+	`{"type":"session.resume","timestamp":"2026-10-11T11:00:00.000Z","data":{"context":"` + canary + `"}}`,
+	`{"type":"assistant.turn_start","data":{"turnId":"3"}}`,
+	`{"type":"session.shutdown","timestamp":"2026-10-11T11:05:00.000Z","data":{"shutdownType":"routine","sessionStartTime":` +
+		fmt.Sprint(time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC).UnixMilli()) +
+		`,"totalApiDurationMs":20453,"currentModel":"gpt-6-sol",` +
+		`"modelMetrics":{"gpt-6-sol":{"requests":{"cost":2},"totalNanoAiu":9000000000,"tokenDetails":{"input":{"tokenCount":30},"output":{"tokenCount":1200},"cache_read":{"tokenCount":106436},"cache_write":{"tokenCount":20809}}}}}}`,
+}, "\n") + "\n"
+
 func testModel(m string) string {
 	if m == "gpt-6-sol" {
 		return m
@@ -51,16 +62,16 @@ func testModel(m string) string {
 }
 
 func TestParseCopilotSession(t *testing.T) {
-	s, n, ok := parseCopilotSession(strings.NewReader(sessionFixture), testModel,
-		map[string]bool{"klarsprak": true}, map[string]bool{"kafka": true})
+	s, mark, ok := parseCopilotSession(strings.NewReader(sessionFixture), testModel,
+		map[string]bool{"klarsprak": true}, map[string]bool{"kafka": true}, sessionTotals{})
 	if !ok {
 		t.Fatal("no shutdown found")
 	}
-	if dump := fmt.Sprintf("%#v", s); strings.Contains(dump, canary) {
+	if dump := fmt.Sprintf("%#v %#v", s, mark); strings.Contains(dump, canary) {
 		t.Fatalf("canary reached the metrics: %s", dump)
 	}
-	if want := int64(strings.LastIndex(sessionFixture, `{"type":"assistant.turn_start","data":{"turnId":"after`)); n != want {
-		t.Errorf("offset %d, want %d (just past the shutdown)", n, want)
+	if want := int64(strings.LastIndex(sessionFixture, `{"type":"assistant.turn_start","data":{"turnId":"after`)); mark.Offset != want {
+		t.Errorf("offset %d, want %d (just past the shutdown)", mark.Offset, want)
 	}
 	checks := []struct {
 		name      string
@@ -88,9 +99,31 @@ func TestParseCopilotSession(t *testing.T) {
 	}
 }
 
+// TestParseCopilotSessionResumed: a resumed segment records what grew since the
+// marker's totals, and its duration from the resume, not from the first start.
+func TestParseCopilotSessionResumed(t *testing.T) {
+	_, mark, _ := parseCopilotSession(strings.NewReader(sessionFixture), testModel, nil, nil, sessionTotals{})
+	s, _, ok := parseCopilotSession(strings.NewReader(resumeFixture), testModel, nil, nil, mark.sessionTotals)
+	if !ok {
+		t.Fatal("no shutdown found")
+	}
+	want := telemetrypkg.SessionModel{Input: 12, Output: 23, PremiumRequests: 1, NanoAIU: 488430000}
+	if s.Models["gpt-6-sol"] != want || len(s.Models) != 1 {
+		t.Errorf("models = %+v, want gpt-6-sol %+v", s.Models, want)
+	}
+	if s.Turns != 1 || s.APIDurationMS != 5000 || s.DurationSeconds != 300 {
+		t.Errorf("turns=%d api=%d duration=%d, want 1, 5000, 300", s.Turns, s.APIDurationMS, s.DurationSeconds)
+	}
+	// Both segments in one read: the last shutdown's totals, once.
+	s, _, _ = parseCopilotSession(strings.NewReader(sessionFixture+resumeFixture), testModel, nil, nil, sessionTotals{})
+	if s.Models["gpt-6-sol"].Input != 30 || s.APIDurationMS != 20453 || s.Turns != 4 {
+		t.Errorf("whole file: input=%d api=%d turns=%d, want 30, 20453, 4", s.Models["gpt-6-sol"].Input, s.APIDurationMS, s.Turns)
+	}
+}
+
 func TestParseCopilotSessionWithoutShutdown(t *testing.T) {
 	for _, in := range []string{"", "garbage\n", `{"type":"assistant.turn_start"}` + "\n", "\x00\xff{{{"} {
-		if _, _, ok := parseCopilotSession(strings.NewReader(in), testModel, nil, nil); ok {
+		if _, _, ok := parseCopilotSession(strings.NewReader(in), testModel, nil, nil, sessionTotals{}); ok {
 			t.Errorf("%q: reported a finished session", in)
 		}
 	}
@@ -154,6 +187,18 @@ func TestRecordCopilotSessions(t *testing.T) {
 	if rec.got[0].Skills[telemetrypkg.SkillKey{Skill: "other", Source: "personal-copilot", Trigger: "agent-invoked"}] != 1 {
 		t.Errorf("skills = %v", rec.got[0].Skills)
 	}
+	// Resumed: the marker's totals make the second record a delta.
+	f, err := os.OpenFile(filepath.Join(dir, "events.jsonl"), os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.WriteString(resumeFixture)
+	f.Close()
+	recordCopilotSessions(root, since)
+	// Turns is 2: the turn after the first shutdown lies past the marker too.
+	if len(rec.got) != 2 || rec.got[1].Models["gpt-6-sol"].Input != 12 || rec.got[1].Turns != 2 {
+		t.Fatalf("after resume: %d records, last %+v", len(rec.got), rec.got[len(rec.got)-1])
+	}
 }
 
 // TestRealCopilotSession crosses the boundary once: a real events.jsonl from
@@ -168,7 +213,7 @@ func TestRealCopilotSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	s, _, ok := parseCopilotSession(f, configModelLabel, map[string]bool{}, map[string]bool{})
+	s, _, ok := parseCopilotSession(f, configModelLabel, map[string]bool{}, map[string]bool{}, sessionTotals{})
 	if !ok {
 		t.Fatal("no session.shutdown in the file")
 	}

@@ -8,7 +8,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -130,6 +129,33 @@ type (
 	}
 )
 
+// sessionTotals is what session.shutdown reports as running totals for the
+// whole session, resumes included. The marker keeps the last ones, so a
+// resumed session records only the difference.
+type sessionTotals struct {
+	Models        map[string]telemetrypkg.SessionModel `json:"models,omitempty"`
+	APIDurationMS int64                                `json:"api_ms,omitempty"`
+}
+
+// sessionMarker is the marker file: the offset read so far and the totals at
+// the last shutdown.
+type sessionMarker struct {
+	Offset int64 `json:"offset"`
+	sessionTotals
+}
+
+func (t sessionTotals) since(prev sessionTotals) sessionTotals {
+	d := sessionTotals{Models: map[string]telemetrypkg.SessionModel{}, APIDurationMS: t.APIDurationMS - prev.APIDurationMS}
+	for k, m := range t.Models {
+		p := prev.Models[k]
+		d.Models[k] = telemetrypkg.SessionModel{
+			Input: m.Input - p.Input, Output: m.Output - p.Output, CacheRead: m.CacheRead - p.CacheRead, CacheWrite: m.CacheWrite - p.CacheWrite,
+			PremiumRequests: m.PremiumRequests - p.PremiumRequests, NanoAIU: m.NanoAIU - p.NanoAIU,
+		}
+	}
+	return d
+}
+
 func outcome(ok *bool) string {
 	if ok == nil {
 		return "unset"
@@ -141,17 +167,21 @@ func outcome(ok *bool) string {
 }
 
 // parseCopilotSession reads events up to and including the last
-// session.shutdown. It returns the session, the byte offset just past that
-// shutdown line, and false when there is no shutdown yet (still running).
-// It never fails: a line it cannot use is counted in Skipped.
-func parseCopilotSession(r io.Reader, model func(string) string, skills, agents map[string]bool) (telemetrypkg.CopilotSession, int64, bool) {
+// session.shutdown. It returns the session, a marker with the byte offset just
+// past that shutdown line and its totals, and false when there is no shutdown
+// yet (still running). Tokens, cost and API time are what grew since prev; the
+// duration runs from the last session.start or session.resume read. It never
+// fails: a line it cannot use is counted in Skipped.
+func parseCopilotSession(r io.Reader, model func(string) string, skills, agents map[string]bool, prev sessionTotals) (telemetrypkg.CopilotSession, sessionMarker, bool) {
 	s := telemetrypkg.CopilotSession{
 		Client: "copilot", Skills: map[telemetrypkg.SkillKey]int64{}, Tools: map[telemetrypkg.ToolKey]int64{},
 		Hooks: map[telemetrypkg.HookKey]int64{}, Agents: map[string]int64{}, Models: map[string]telemetrypkg.SessionModel{},
 		DurationSeconds: -1,
 	}
 	var done telemetrypkg.CopilotSession
-	var doneAt, offset int64
+	var mark sessionMarker
+	var offset int64
+	var segmentStart time.Time
 	found := false
 	toolNames := map[string]string{}
 	br := bufio.NewReaderSize(r, 64<<10)
@@ -210,43 +240,64 @@ func parseCopilotSession(r io.Reader, model func(string) string, skills, agents 
 			}
 		case "assistant.turn_start":
 			s.Turns++
+		case "session.start", "session.resume":
+			if ts, err := time.Parse(time.RFC3339Nano, ev.Timestamp); err == nil {
+				segmentStart = ts
+			}
 		case "session.shutdown":
 			var d sessionShutdown
 			if !decode(&d) {
 				break
 			}
+			cum := sessionTotals{Models: map[string]telemetrypkg.SessionModel{}, APIDurationMS: d.TotalAPIDurationMs}
 			for id, m := range d.ModelMetrics {
 				k := model(id)
-				sm := s.Models[k]
+				sm := cum.Models[k]
 				sm.Input += m.TokenDetails["input"].TokenCount
 				sm.Output += m.TokenDetails["output"].TokenCount
 				sm.CacheRead += m.TokenDetails["cache_read"].TokenCount
 				sm.CacheWrite += m.TokenDetails["cache_write"].TokenCount
 				sm.PremiumRequests += m.Requests.Cost
 				sm.NanoAIU += m.TotalNanoAiu
+				cum.Models[k] = sm
+			}
+			delta := cum.since(prev)
+			prev = cum
+			for k, m := range delta.Models {
+				sm := s.Models[k]
+				sm.Input += m.Input
+				sm.Output += m.Output
+				sm.CacheRead += m.CacheRead
+				sm.CacheWrite += m.CacheWrite
+				sm.PremiumRequests += m.PremiumRequests
+				sm.NanoAIU += m.NanoAIU
 				s.Models[k] = sm
 			}
+			s.APIDurationMS += delta.APIDurationMS
 			s.ShutdownType = label(d.ShutdownType, shortLabel.MatchString(d.ShutdownType))
-			s.APIDurationMS = d.TotalAPIDurationMs
 			s.APIModel = model(d.CurrentModel)
-			if end, err := time.Parse(time.RFC3339Nano, ev.Timestamp); err == nil && d.SessionStartTime > 0 {
-				if sec := end.Sub(time.UnixMilli(d.SessionStartTime)) / time.Second; sec >= 0 {
+			start := segmentStart
+			if start.IsZero() && d.SessionStartTime > 0 {
+				start = time.UnixMilli(d.SessionStartTime)
+			}
+			if end, err := time.Parse(time.RFC3339Nano, ev.Timestamp); err == nil && !start.IsZero() {
+				if sec := end.Sub(start) / time.Second; sec >= 0 {
 					s.DurationSeconds = int64(sec)
 				}
 			}
-			done, doneAt, found = s, offset, true
+			done, mark, found = s, sessionMarker{Offset: offset, sessionTotals: cum}, true
 		}
 		if bad {
 			s.Skipped++
 		}
 	}
-	return done, doneAt, found
+	return done, mark, found
 }
 
 // recordCopilotSessions records each Copilot session that ended since `since`
 // and was not recorded before. A marker in the session directory holds the
-// offset read so far, so a resumed session counts only what came after.
-// Opted out, nothing is read.
+// offset read so far and the totals at that point, so a resumed session counts
+// only what came after. Opted out, nothing is read.
 //
 // ponytail: two nav-pilot processes exiting at the same moment can both
 // record one session; add a lock file if the dashboards show doubles.
@@ -261,27 +312,30 @@ func recordCopilotSessions(root string, since time.Time) {
 			continue
 		}
 		marker := filepath.Join(filepath.Dir(p), sessionMetricsMarker)
-		var from int64
+		var prev sessionMarker
 		if b, err := os.ReadFile(marker); err == nil {
-			from, _ = strconv.ParseInt(strings.TrimSpace(string(b)), 10, 64)
+			_ = json.Unmarshal(b, &prev)
 		}
 		f, err := os.Open(p)
 		if err != nil {
 			continue
 		}
-		if _, err := f.Seek(from, io.SeekStart); err != nil {
+		if _, err := f.Seek(prev.Offset, io.SeekStart); err != nil {
 			f.Close()
 			continue
 		}
 		if skills == nil {
 			skills, agents = navItemNames()
 		}
-		s, n, ok := parseCopilotSession(f, configModelLabel, skills, agents)
+		s, mark, ok := parseCopilotSession(f, configModelLabel, skills, agents, prev.sessionTotals)
 		f.Close()
 		if !ok {
 			continue
 		}
 		telemetry.RecordCopilotSession(s)
-		_ = os.WriteFile(marker, []byte(strconv.FormatInt(from+n, 10)), 0o600)
+		mark.Offset += prev.Offset
+		if b, err := json.Marshal(mark); err == nil {
+			_ = os.WriteFile(marker, b, 0o600)
+		}
 	}
 }
