@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,18 +21,25 @@ var openCodeCommand = func(ctx context.Context, dir string, args ...string) ([]b
 	// These reads are not a session: no spans from them.
 	cmd.Env = append(os.Environ(), "OTEL_SDK_DISABLED=true")
 	// opencode 1.18 cuts its output to a pipe at 128 KiB when it exits, which
-	// left any longer session unread. A file gets all of it.
+	// left any longer session unread. A file gets all of it. The file is
+	// 0600 and unlinked before anything is written, so the raw export is
+	// never on disk by name, not even if nav-pilot is killed; the deferred
+	// Remove is for Windows, where the unlink waits for the close.
 	f, err := os.CreateTemp("", "nav-pilot-opencode-*")
 	if err != nil {
 		return nil, err
 	}
 	defer os.Remove(f.Name())
 	defer f.Close()
+	_ = os.Remove(f.Name())
 	cmd.Stdout = f
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}
-	return os.ReadFile(f.Name())
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
+	return io.ReadAll(f)
 }
 
 // readOpenCodeUsage sums the tokens, model calls and tool calls of the

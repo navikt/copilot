@@ -33,16 +33,16 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_genai_session_tokens_total` | Counter | Tokens en opencode-økt brukte, lest fra opencodes egen øktlagring når økten slutter. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `gen_ai_token_type=input\|output\|reasoning\|cache_read\|cache_write`, `nav_repo` |
 | `nav_pilot_genai_session_calls_total` | Counter | Modellkall (svar fra modellen) i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `nav_repo` |
 | `nav_pilot_genai_session_tool_calls_total` | Counter | Verktøykall i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_tool_name`, `nav_repo` |
-| `nav_pilot_session_skill_loads_total` | Counter | Skills en Copilot-økt lastet | `skill` (installert av nav-pilot eller `other`), `source`, `trigger`, `client`, `version` |
-| `nav_pilot_session_tool_calls_total` | Counter | Verktøykall i en Copilot-økt | `tool` (Copilots innebygde eller `other`), `outcome=success\|error\|unset`, `client`, `version` |
+| `nav_pilot_session_skill_loads_total` | Counter | Skills en Copilot- eller opencode-økt lastet | `skill` (installert av nav-pilot eller `other`), `source`, `trigger`, `client`, `version` |
+| `nav_pilot_session_tool_calls_total` | Counter | Verktøykall i en Copilot- eller opencode-økt | `tool` (klientens innebygde eller `other`), `outcome=success\|error\|unset`, `client`, `version` |
 | `nav_pilot_session_hook_runs_total` | Counter | Hook-kjøringer i en Copilot-økt | `hook_type=preToolUse\|postToolUse\|…\|other`, `outcome=success\|error\|unset`, `client`, `version` |
 | `nav_pilot_session_tokens_total` | Counter | Tokens en Copilot-økt brukte | `model`, `kind=input\|output\|cache_read\|cache_write`, `client`, `version` |
 | `nav_pilot_session_premium_requests_total` | Counter | Premium requests en Copilot-økt brukte | `model`, `client`, `version` |
 | `nav_pilot_session_cost_nano_aiu_total` | Counter | Kostnad for en Copilot-økt i nano-AIU | `model`, `client`, `version` |
-| `nav_pilot_session_turns` | Histogram | Runder (svar fra modellen) i en Copilot-økt | `client`, `version` |
-| `nav_pilot_session_duration_seconds` | Histogram | Hvor lenge en Copilot-økt varte | `shutdown_type`, `client`, `version` |
+| `nav_pilot_session_turns` | Histogram | Runder (svar fra modellen) i en Copilot- eller opencode-økt | `client`, `version` |
+| `nav_pilot_session_duration_seconds` | Histogram | Hvor lenge en Copilot- eller opencode-økt varte | `shutdown_type`, `client`, `version` |
 | `nav_pilot_session_api_duration_ms` | Histogram | Tid en Copilot-økt ventet på modell-API-et | `model`, `client`, `version` |
-| `nav_pilot_subagent_selected_total` | Counter | Subagenter en Copilot-økt valgte | `agent` (installert av nav-pilot eller `other`), `client`, `version` |
+| `nav_pilot_subagent_selected_total` | Counter | Subagenter en Copilot- eller opencode-økt valgte | `agent` (installert av nav-pilot eller `other`), `client`, `version` |
 | `nav_pilot_session_events_skipped_total` | Counter | Linjer i øktloggen nav-pilot ikke kunne lese og hoppet over | `client`, `version` |
 
 **Merk om opencode-bruk (`nav_pilot_genai_*`):**
@@ -51,7 +51,6 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   `opencode export` (`opencode session export` i opencode 2) og sender dem som
   metrikker. Eksporten er hele økten, men nav-pilot dekoder bare faste felt.
   Bare tall og navn sendes, aldri ledetekst, svar, filstier eller bruker.
-  Den midlertidige fila med eksporten slettes rett etter lesingen.
 - `input` er tokens som ikke kom fra cache. Copilots `input` kan telle annerledes,
   så bruk `input + cache_read` når du sammenligner klientene.
 - `gen_ai_provider_name` og `gen_ai_request_model` er leverandør- og
@@ -76,18 +75,24 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   viser bare toppnivå-økter.
 - nav-pilot leser eksporten via en midlertidig fil, ikke en pipe. opencode 1.18
   kutter utdata til en pipe ved 128 KiB, og lengre økter ble derfor ikke telt.
+  Fila kan bare nav-pilot lese (0600), og den fjernes fra katalogen før
+  opencode skriver til den. Den blir derfor ikke liggende, heller ikke om
+  nav-pilot blir drept.
 
 **Merk om opencode-økter (`nav_pilot_session_*` med `client=opencode`):**
 - Fra den samme eksporten som over sender nav-pilot også øktmetrikkene som
   Copilot-øktene har, med `client=opencode`. Økten velges på samme måte: økter
   i oppstartsmappen som er endret etter oppstarten, og bare meldinger fra
   oppstarten og senere. opencode lar ikke nav-pilot sette økt-ID-en selv, så
-  det finnes ingen markørfil. Tidspunktet for oppstarten er grensen.
+  det finnes ingen markørfil. Tidspunktet for oppstarten er grensen. En annen
+  opencode-økt i samme mappe mens nav-pilot kjører, telles derfor også, som
+  for `nav_pilot_genai_*`.
 - Dette sendes:
   - `nav_pilot_session_tool_calls_total`: verktøynavn (opencodes innebygde
     eller `other`) og `outcome` fra `state.status` (`completed` blir
     `success`, `error` blir `error`, alt annet `unset`).
-  - `nav_pilot_session_turns`: antall svar fra modellen.
+  - `nav_pilot_session_turns`: antall svar fra modellen, ett per modellkall,
+    som `nav_pilot_genai_session_calls_total`.
   - `nav_pilot_session_duration_seconds`: fra første til siste melding etter
     oppstarten, med `shutdown_type=unset`.
   - `nav_pilot_session_skill_loads_total`: kall til `skill`-verktøyet, med
@@ -96,11 +101,14 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
     agentens navn.
   - Navnet på en skill eller agent sendes bare hvis nav-pilot installerte den,
     som for Copilot. Alt annet blir `other`.
-- nav-pilot dekoder bare rolle, tidspunkt (`created`, `completed`),
-  verktøynavn, `state.status`, `name` fra input til `skill` og
-  `subagent_type` fra input til `task`. Ledetekst, argumenter, utdata og
-  meldingstekst dekodes aldri. Tokens og modeller går bare til
-  `nav_pilot_genai_*` over, så de telles ikke to ganger.
+- nav-pilot dekoder bare rolle, modell- og leverandør-id, tokens, tidspunkt
+  (`created`, `completed`), verktøynavn, `state.status`, `name` fra input til
+  `skill` og `subagent_type` fra input til `task`. Ledetekst, argumenter,
+  utdata og meldingstekst dekodes aldri.
+- Verktøykall sendes med vilje to ganger for opencode: som
+  `nav_pilot_genai_session_tool_calls_total` (med `nav_repo`, uten `outcome`)
+  og som `nav_pilot_session_tool_calls_total` (med `outcome` og `version`).
+  Tokens og modeller går bare til `nav_pilot_genai_*` over.
 - Disse mangler for opencode:
   - **Hooks** (`nav_pilot_session_hook_runs_total`). opencode har utvidelser
     (plugins), ikke hooks, og eksporten viser ikke når de kjører.

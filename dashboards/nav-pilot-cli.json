@@ -2450,8 +2450,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "100 * (sum by (tool) (sum_over_time(nav_pilot_session_tool_calls_total{version=~\"$version\", outcome=\"error\"}[$__range])) or sum by (tool) (sum_over_time(nav_pilot_session_tool_calls_total{version=~\"$version\"}[$__range])) * 0) / clamp_min(sum by (tool) (sum_over_time(nav_pilot_session_tool_calls_total{version=~\"$version\"}[$__range])), 1)",
-                      "legendFormat": "{{tool}}"
+                      "expr": "100 * (sum by (client, tool) (sum_over_time(nav_pilot_session_tool_calls_total{version=~\"$version\", outcome=\"error\"}[$__range])) or sum by (client, tool) (sum_over_time(nav_pilot_session_tool_calls_total{version=~\"$version\"}[$__range])) * 0) / clamp_min(sum by (client, tool) (sum_over_time(nav_pilot_session_tool_calls_total{version=~\"$version\"}[$__range])), 1)",
+                      "legendFormat": "{{client}} {{tool}}"
                     },
                     "version": "v0"
                   },

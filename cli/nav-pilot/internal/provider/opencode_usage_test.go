@@ -156,3 +156,22 @@ func TestOpenCodeSessionCanaryControl(t *testing.T) {
 		t.Fatal("sessionLeaks misses a leaked prompt")
 	}
 }
+
+// A fake opencode writes 300 KiB through the temp file (the 128 KiB pipe cut
+// is Bun's, measured on the real binary), and the file is gone afterwards.
+func TestOpenCodeCommandReadsPast128KiB(t *testing.T) {
+	bin, tmp := t.TempDir(), t.TempDir()
+	script := "#!/bin/sh\nhead -c 307200 /dev/zero | tr '\\0' x\n"
+	if err := os.WriteFile(filepath.Join(bin, "opencode"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("TMPDIR", tmp)
+	out, err := openCodeCommand(context.Background(), t.TempDir(), "export")
+	if err != nil || len(out) != 307200 {
+		t.Fatalf("len = %d, err = %v", len(out), err)
+	}
+	if left, _ := os.ReadDir(tmp); len(left) != 0 {
+		t.Fatalf("temp file left behind: %v", left)
+	}
+}
