@@ -71,7 +71,8 @@ export function CostTrendsView({
     return users ? t.total_net_amount / users : null;
   });
   // The trend in the summary uses whole, billed months only.
-  const full = perUser.map((v, i) => (keys[i] === currentMonth ? null : v));
+  const billedMonths = new Set(active.filter((a) => a.billed).map((a) => a.month));
+  const full = perUser.map((v, i) => (billedMonths.has(keys[i]) ? v : null));
   const label = (month: string) =>
     monthLabel(month) + (premium(month) ? "*" : "") + (month === currentMonth ? " (hittil)" : "");
 

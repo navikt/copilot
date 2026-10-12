@@ -41,7 +41,7 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
   // Users the bands do not cover (no limit, say) get their own segment, so each bar adds up to 100 %.
   const unknown = withBands.map((m) => {
     const rest = m.users - m.budget_bands!.reduce((s, b) => s + b.users, 0);
-    return rest > 0 ? (rest / m.users) * 100 : null;
+    return rest >= 5 ? (rest / m.users) * 100 : null;
   });
   const hasUnknown = unknown.some((v) => v != null);
   if (hasUnknown) series.push({ label: "Ukjent grense", color: 7, data: unknown, pointLabels: [] });
@@ -87,7 +87,7 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
                 </TableDataCell>
               ))}
               {hasUnknown && (
-                <TableDataCell align="right">{rest > 0 ? formatPercent((rest / m.users) * 100) : "–"}</TableDataCell>
+                <TableDataCell align="right">{rest >= 5 ? formatPercent((rest / m.users) * 100) : "–"}</TableDataCell>
               )}
             </TableRow>
           );
@@ -125,8 +125,8 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
             {mtdLabel}
           </Heading>
           <BodyShort>
-            {formatPercent(over(mtd))} har brukt 90 % eller mer av grensen sin så langt. Kan ikke sammenlignes med hele
-            måneder.
+            {formatPercent(over(mtd))} har brukt 90 % eller mer av grensen sin så langt. Tallene kan ikke sammenlignes
+            med hele måneder.
           </BodyShort>
           <NumbersFold summary="Fordeling hittil i måneden">{bandTable([mtd])}</NumbersFold>
         </VStack>

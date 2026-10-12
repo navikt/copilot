@@ -46,14 +46,17 @@ func (bq *BigQueryClient) GetActiveUsersMonthly(ctx context.Context) ([]ActiveUs
 	// organization endpoint are stored under that scope and must count too.
 	q := bq.client.Query(fmt.Sprintf(`
 SELECT FORMAT_DATE('%%Y-%%m',month) month,COUNT(DISTINCT user_id) active_users,TRUE billed
-FROM %s WHERE month>=DATE(@from) AND month<DATE_TRUNC(CURRENT_DATE(),MONTH)
+FROM %[1]s WHERE month>=DATE(@from) AND month<DATE_TRUNC(CURRENT_DATE(),MONTH)
  AND scope_id='nav' AND user_id!='' AND sku!='done'
- AND month IN (SELECT month FROM %s WHERE scope_id='nav' AND status='complete')
+ AND month IN (SELECT month FROM %[2]s WHERE scope_id='nav' AND status='complete')
 GROUP BY month
 UNION ALL
-SELECT FORMAT_DATE('%%Y-%%m',DATE_TRUNC(CURRENT_DATE(),MONTH)),
+-- No invoice yet (the current month, or last month before it arrives): active users so far.
+SELECT FORMAT_DATE('%%Y-%%m',DATE_TRUNC(day,MONTH)) month,
  COUNT(DISTINCT JSON_VALUE(raw_record,'$.user_id')),FALSE
-FROM %s WHERE day>=DATE_TRUNC(CURRENT_DATE(),MONTH) AND day<DATE(@to)
+FROM %[3]s WHERE day>=DATE(@from) AND day<DATE(@to)
+ AND DATE_TRUNC(day,MONTH) NOT IN (SELECT month FROM %[2]s WHERE scope_id='nav' AND status='complete')
+GROUP BY month
 ORDER BY month`, bq.billingUserLatest(), bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"),
 		userDaysFrom(bq.tableRef(bq.metricsDataset, "user_metrics"))))
 	q.Parameters = monthRange(first, months)

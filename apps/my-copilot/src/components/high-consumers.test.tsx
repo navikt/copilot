@@ -48,7 +48,7 @@ describe("HighConsumersView", () => {
     });
     render(<HighConsumersView months={[month({}), mtd]} />);
     expect(screen.getByRole("heading", { name: "Hittil i måneden (11 av 31 dager)" })).toBeInTheDocument();
-    expect(screen.getByText(/Kan ikke sammenlignes med hele måneder/)).toBeInTheDocument();
+    expect(screen.getByText(/kan ikke sammenlignes med hele/)).toBeInTheDocument();
     expect(screen.getByText("Egen grense")).toBeInTheDocument();
     // Not in the chart or the full-month table: only the panel's own row.
     expect(screen.getAllByRole("row").filter((r) => r.textContent?.includes("Hittil"))).toHaveLength(1);

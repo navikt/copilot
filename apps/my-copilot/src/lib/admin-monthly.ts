@@ -31,12 +31,12 @@ export function adminMonthlyCaveats(data: AdminMonthlyOverview): string[] {
   return [
     "Fakturert er beløpet Nav betaler etter rabatt. Fordelt på personer og ikke fordelt gir til sammen fakturert.",
     "Foreløpig forbruk er forbruket til listepris for måneden som pågår. Det byttes ut med fakturert beløp når fakturaen kommer, rundt den 3. i måneden etter.",
-    "Estimert fakturert hittil er et foreløpig anslag for måneden som pågår: foreløpig forbruk minus den delen kredittene i lisensene dekker. Kredittene deles av alle i Nav. Det er samme anslag som «Forbruk hittil» øverst på siden, og det er dette beløpet, ikke foreløpig forbruk, som er med i totalt inkl. lisenser.",
+    "Estimert fakturert hittil er et foreløpig anslag for måneder uten faktura: foreløpig forbruk minus den delen kredittene i lisensene dekker. Kredittene deles av alle i Nav. For måneden som pågår er det samme anslag som «Forbruk hittil» øverst på siden, og det er dette beløpet, ikke foreløpig forbruk, som er med i totalt inkl. lisenser.",
     "Totalraden er summen av de fakturerte månedene. Måneden som pågår er ikke med.",
     "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke KI-kreditter. Totalraden legger dem sammen med månedene fra juni.",
     `Personer uten team er fakturert beløp for personer som ikke var med i noe team de dagene de brukte Copilot. Teamhistorikken starter ${membership_from || "ukjent dato"}, så feltet er tomt for månedene før.`,
     seats_snapshot
-      ? "Lisenskostnad er et anslag: antall lisenser ganger listepris, uten rabatt. Listeprisen er 19 USD for Business og 39 USD for Enterprise. Lisenser som ble sagt opp før første innlesing, er ikke med."
+      ? "Lisenskostnad er et anslag: antall lisenser ganger listepris, uten rabatt. Listeprisen er 19 USD for Business og 39 USD for Enterprise."
       : "Lisensene er ikke lest inn ennå. De vises etter første nattlige innlesing.",
     ...(seats_snapshot && rebuilt.length
       ? [
@@ -49,7 +49,11 @@ export function adminMonthlyCaveats(data: AdminMonthlyOverview): string[] {
 /** Months whose seats are rebuilt from today's seats: before the month of the first daily snapshot. */
 export function rebuiltSeatMonths(data: AdminMonthlyOverview): string[] {
   const from = data.coverage.seats_from?.slice(0, 7);
-  return data.months.filter((m) => m.seats != null && (!from || m.month < from)).map((m) => m.month);
+  // A first snapshot after the 1st leaves the start of its month rebuilt too.
+  const partial = data.coverage.seats_from && !data.coverage.seats_from.endsWith("-01");
+  return data.months
+    .filter((m) => m.seats != null && (!from || m.month < from || (partial && m.month === from)))
+    .map((m) => m.month);
 }
 
 const monthSpan = (months: string[]) => [...new Set([months[0], months.at(-1)!])].map(monthName).join("–");

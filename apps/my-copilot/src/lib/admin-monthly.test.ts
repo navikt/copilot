@@ -82,9 +82,9 @@ describe("current month and licence history", () => {
     expect(oct[adminMonthlyHeader.indexOf("totalt_inkl_lisenser_usd")]).toBe("9480.14");
   });
   it("labels licences before the first daily snapshot as rebuilt", () => {
-    expect(rebuiltSeatMonths(data)).toEqual(["2026-01", "2026-09"]);
+    expect(rebuiltSeatMonths(data)).toEqual(["2026-01", "2026-09", "2026-10"]);
     expect(adminMonthlyCsv(data)).toContain(
-      "# Lisenser og lisenskostnad for januar–september er beregnet ut fra dagens lisenser, for lavt for tidligere måneder."
+      "# Lisenser og lisenskostnad for januar–oktober er beregnet ut fra dagens lisenser, for lavt for tidligere måneder."
     );
   });
 });
