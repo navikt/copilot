@@ -86,7 +86,7 @@ const cell = { paddingBlock: "var(--ax-space-8)" };
 
 /**
  * Splits runs into the newest of each measurement and the older ones. A measurement is the same
- * model, effort and set of checks; runs from the same newest day are all kept.
+ * model, effort and set of checks; runs from the same newest day are all kept. Pass one suite's runs.
  */
 export function latestRuns(runs: GoldenRun[]): { latest: GoldenRun[]; older: GoldenRun[] } {
   const key = (run: GoldenRun) =>
@@ -188,6 +188,23 @@ const QUICK: { task: string; model: string; why: string }[] = [
   },
 ];
 
+/** A link to a benchmark tab. It fires hashchange itself, so it works even when the hash is already set. */
+function SuiteLink({ suite, children }: { suite: string; children: string }) {
+  return (
+    <Link
+      href={`#${suiteId(suite)}`}
+      onClick={(e) => {
+        e.preventDefault();
+        window.history.replaceState(null, "", `#${suiteId(suite)}`);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        document.getElementById(suiteId(suite))?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
+
 function KeyPoints() {
   return (
     <VStack gap="space-16">
@@ -237,18 +254,18 @@ function KeyPoints() {
         <li>
           <BodyShort as="span">
             GPT-6 Luna og Claude Haiku 5.5 besto alle sjekkene i kodeoppgavene for under 2 credits per kjøring, mot
-            rundt 25 for GPT-6.1 Sol. <Link href={`#${suiteId("coding")}`}>Se Koding</Link>
+            rundt 25 for GPT-6.1 Sol. <SuiteLink suite="coding">Se Koding</SuiteLink>
           </BodyShort>
         </li>
         <li>
           <BodyShort as="span">
             Claude Opus 5.5 fant flest av de plantede sikkerhetsfeilene i kodegjennomgangen 7. oktober.{" "}
-            <Link href={`#${suiteId("review")}`}>Se Kodegjennomgang</Link>
+            <SuiteLink suite="review">Se Kodegjennomgang</SuiteLink>
           </BodyShort>
         </li>
         <li>
           <BodyShort as="span">
-            Høyere innsatsnivå ga ikke flere beståtte sjekker i koding, men kostet mer.{" "}
+            I koding besto alle innsatsnivåene alle sjekkene, så høyere nivå ga bare høyere pris.{" "}
             <Link href="#innsatsniva">Se Innsatsnivå</Link>
           </BodyShort>
         </li>
@@ -468,11 +485,13 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
   useEffect(() => {
     const sync = () => {
       const hash = window.location.hash.slice(1);
-      if (hash.startsWith("maling-")) setTab(hash.slice("maling-".length));
+      const suite = hash.slice("maling-".length);
+      if (hash.startsWith("maling-") && suites.some(([s]) => s === suite)) setTab(suite);
     };
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the suites are fixed for the page's life
   }, []);
 
   if (!summary) {
