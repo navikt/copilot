@@ -1738,6 +1738,11 @@ judge_bs() {
     JUDGE_DETAIL="harness error: blind-spot judge controls ${BS_CONTROLS#FAILED }"; return 2
   fi
   if ! out="$(python3 "$BS_JUDGE" judge "$answer" 2>&1)"; then
+    # A failed call can still have paid for retries: log what it spent.
+    JC="$(python3 -c 'import json, sys
+try: print(json.loads(sys.argv[1].strip().splitlines()[-1])["credits"])
+except Exception: print(0)' "$out")"
+    printf '%s|%s|%s\n' "$id" "$RUN" "$JC" >>"$JUDGE_CREDITS_FILE"
     JUDGE_DETAIL="harness error: blind-spot judge: $(head -c 200 <<<"$out")"; return 2
   fi
   IFS=$'\t' read -r JB1 JB2 JC JQ1 JQ2 < <(python3 -c '
@@ -2085,7 +2090,7 @@ Det er alle svarene. Dette bekrefter at intervjuet er ferdig; bruk antakelsene d
 # zone that t4 then called «no plan». Only «plan» after the dash, because this
 # expression also decides whether a t2 turn carried on: «Fase 2 – når du har
 # svart» is a promise to wait, not a plan.
-RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*(-|–|—)[[:space:]]*plan'
+RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*(-|–|—)[[:space:]]*plan([^[:alnum:]æøåÆØÅ]|$)'
 
 # Test 2: a Fase 1 turn that lists open points and then carries on anyway
 # («Jeg legger til grunn … og går videre. Fase 2: Plan.») is not a stop, however

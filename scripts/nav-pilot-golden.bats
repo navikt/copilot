@@ -527,7 +527,7 @@ run_suite() {
   for ok in '**Fase 2 – plan.** Jeg legger til grunn' 'Fase 2 - plan' 'Fase 2 — plan' '## Fase 2 – Plan' 'Fase 2: Plan' 'Fase 2 ferdig'; do
     printf '%s\n' "$ok" | grep -qiE -- "$RE_FASE2_PLAN" || { echo "should pass: $ok"; false; }
   done
-  for bad in 'Fase 2 – når du har svart' 'Vi tar Fase 2 – plan etter svarene' 'Fase 2 kommer etterpå'; do
+  for bad in 'Fase 2 – planlegges etter svarene' 'Fase 2 – når du har svart' 'Vi tar Fase 2 – plan etter svarene' 'Fase 2 kommer etterpå'; do
     if printf '%s\n' "$bad" | grep -qiE -- "$RE_FASE2_PLAN"; then echo "should fail: $bad"; false; fi
   done
 }
@@ -784,6 +784,26 @@ EOF
   grep -qx 'controls|0|0.00' "$dir/judge-credits.psv"
   grep -qx '7|1|0.0' "$dir/judge-credits.psv"
   grep -qx '7b|1|0.0' "$dir/judge-credits.psv"
+  rm -rf "$dir"
+}
+
+@test "planning judge: a failed judge call still logs its spend in judge-credits.psv" {
+  make_judge_stub
+  # Passes the controls, but gives no usable vote on the suite's answers.
+  cat >"$SHIM/judge-stub-bad" <<EOF
+#!/bin/sh
+p="\$(cat)"
+case "\$p" in *personopplysninger*) echo "not json" ;; *) printf '%s' "\$p" | "$SHIM/judge-stub" ;; esac
+EOF
+  chmod +x "$SHIM/judge-stub-bad"
+  make_bench_shim
+  GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE=good NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
+    BS_JUDGE_CMD="$SHIM/judge-stub-bad" BS_JUDGE_RECORD="" BS_JUDGE_CONTROLS="$SHIM/controls.tsv" \
+    run /bin/bash "$SCRIPT" --agent nav-pilot --only 7 --keep --save-baseline "$SHIM/b.txt"
+  dir="$(sed -n 's/.*transcripts kept in //p' <<<"$output")"
+  [ -n "$dir" ]
+  grep -q '^7|1|error|.*fewer than two usable votes' "$SHIM/b-results.psv"
+  grep -qx '7|1|0.0' "$dir/judge-credits.psv"
   rm -rf "$dir"
 }
 
