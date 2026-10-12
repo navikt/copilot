@@ -199,7 +199,7 @@ FROM completed c CROSS JOIN small s CROSS JOIN small_contributors sc CROSS JOIN 
 LEFT JOIN team_counts t ON t.users>=@minUsers
 WHERE c.loaded_at IS NOT NULL ORDER BY t.team_slug`,
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"),
-		bq.tableRef(bq.metricsDataset, "billing_user_monthly"),
+		bq.billingUserLatest(),
 		bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")))
 	query.Parameters = append(monthRange(first, 1), bigquery.QueryParameter{Name: "month", Value: month + "-01"}, bigquery.QueryParameter{Name: "minUsers", Value: minTeamContributors})
 	// The billing table is only created when an operator starts a backfill.
@@ -272,7 +272,19 @@ func (bq *BigQueryClient) teamNetCTEs() string {
 ), unspread AS (
  SELECT b.month,b.user_id,b.net FROM billed b
  WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month)
-)`, bq.tableRef(bq.metricsDataset, "billing_user_monthly"))
+)`, bq.billingUserLatest())
+}
+
+// billingUserLatest is billing_user_monthly with one row per month, user and
+// SKU: the latest load. A rerun that appends instead of replacing a user's
+// rows must not count them twice.
+//
+// ponytail: per SKU, not per load: rows in one load differ in loaded_at by
+// microseconds, so there is no load id to match. A SKU that vanishes in a
+// rerun keeps its old row; the rerun's DELETE removes it today.
+func (bq *BigQueryClient) billingUserLatest() string {
+	return "(SELECT * FROM " + bq.tableRef(bq.metricsDataset, "billing_user_monthly") +
+		" WHERE TRUE QUALIFY ROW_NUMBER() OVER(PARTITION BY month,scope_id,user_id,sku ORDER BY loaded_at DESC)=1)"
 }
 
 // monthRange sets @from and @to to cover months whole months from first.

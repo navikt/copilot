@@ -9,6 +9,8 @@ WITH monthly AS (
     SUM(gross_amount) AS gross_amount,
     SUM(net_amount) AS net_amount
   FROM {{billing_usage_daily_model}}
+  -- Copilot only, like the rest of the cost pages: Code Quality is its own product.
+  WHERE product = 'Copilot'
   GROUP BY 1, 2, 3, 4, 5
 )
 SELECT

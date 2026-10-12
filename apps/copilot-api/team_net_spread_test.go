@@ -23,6 +23,7 @@ func TestTeamNetCTEsHaveNoMonthCutoff(t *testing.T) {
 	}
 }
 
+// A rerun's duplicated load counts once (billingUserLatest).
 // A user billed in June whose only usage was before ai_credits_used existed
 // (2026-06-19) gets net spread evenly over those days, not «netto uten bruk».
 // Runs the real CTEs on inline rows; set COPILOT_BQ_TEST_PROJECT to run it,
@@ -57,10 +58,12 @@ UNION ALL SELECT CONCAT('unspread/',user_id,'/',CAST(month AS STRING)),net FROM 
 			um("2026-06-20", "gross", "1"), um("2026-06-21", "gross", "3"), um("2026-06-22", "gross", "0"),
 		}, " UNION ALL ")+")",
 		"`p.d.user_teams`", "(SELECT DATE '2026-06-01' day,'enterprise' scope,'nav' scope_id,'{}' raw_record)",
-		"`p.d.billing_user_monthly`", `(SELECT m month,'nav' scope_id,u user_id,s sku,n net_amount
- FROM UNNEST([STRUCT(DATE '2026-06-01' AS m,'early' AS u,'Copilot AI Credits' AS s,10.0 AS n),
-  (DATE '2026-06-01','gross','Copilot AI Credits',8.0),(DATE '2026-06-01','none','Copilot AI Credits',4.0),
-  (DATE '2026-05-01','may','Copilot Premium Request',6.0)]))`,
+		"`p.d.billing_user_monthly`", `(SELECT m month,'nav' scope_id,u user_id,s sku,n net_amount,TIMESTAMP(l) loaded_at
+ FROM UNNEST([STRUCT(DATE '2026-06-01' AS m,'early' AS u,'Copilot AI Credits' AS s,10.0 AS n,'2026-07-03' AS l),
+  (DATE '2026-06-01','gross','Copilot AI Credits',8.0,'2026-07-03'),(DATE '2026-06-01','none','Copilot AI Credits',4.0,'2026-07-03'),
+  (DATE '2026-05-01','may','Copilot Premium Request',6.0,'2026-06-03'),
+  -- An earlier load of the same rows that a rerun appended to: only the latest counts.
+  (DATE '2026-06-01','early','Copilot AI Credits',10.0,'2026-07-02'),(DATE '2026-06-01','none','Copilot AI Credits',7.0,'2026-07-02')]))`,
 	).Replace(sql)
 	query := bqc.Query(sql)
 	query.Parameters = monthRange(time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC), 2)
