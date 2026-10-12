@@ -38,8 +38,8 @@ export const FAMILY_LABELS: Record<ModelFamily, string> = {
 };
 
 /**
- * «Claude Opus 5.5» and «claude-opus-5.5» give the same family. Every «Auto: X» is one family, «auto», on all
- * pages (owner decision 12 October 2026). Unknown names give «andre». With costPage (the admin cost page only),
+ * «Claude Opus 5.5» and «claude-opus-5.5» give the same family. Every «Auto: X» is one family, «auto», in every chart
+ * built on familyShares (owner decision 12 October 2026). Unknown names give «andre». With costPage (the admin cost page only),
  * Copilot's code review model is its own family.
  */
 export function modelFamily(model: string, costPage = false): ModelFamily {
