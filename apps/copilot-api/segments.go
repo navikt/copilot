@@ -17,7 +17,7 @@ import (
 // Intensity uses fixed thresholds on a user's user_initiated_interaction_count
 // summed over the month: lett 1-19 (or active through completions alone),
 // middels 20-199, tung 200 or more. Interactions cover the whole history;
-// ai_credits_used only exists from 2026-06-01, so it cannot carry the series.
+// ai_credits_used only exists from 2026-06-19, so it cannot carry the series.
 //
 // Way of working takes the most autonomous mode a user touched in the month:
 // used_cli, then used_agent, then used_chat, otherwise completions only.
