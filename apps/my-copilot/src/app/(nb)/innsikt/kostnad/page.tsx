@@ -144,11 +144,7 @@ export default async function CostPage() {
                         align={i < 2 ? "left" : "right"}
                         style={total ? { fontWeight: 600 } : undefined}
                       >
-                        {i === 0 && !total
-                          ? monthName(cells[c])
-                          : i < 2
-                            ? cells[c]
-                            : nok(cells[c])}
+                        {i === 0 && !total ? monthName(cells[c]) : i < 2 ? cells[c] : nok(cells[c])}
                       </TableDataCell>
                     ))}
                   </TableRow>
