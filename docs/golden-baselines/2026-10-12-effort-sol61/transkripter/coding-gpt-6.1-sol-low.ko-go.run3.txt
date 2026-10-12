@@ -1,0 +1,40 @@
+/ Search (glob)
+  │ "**/*"
+  └ 33 files found
+
+● Read golang.instructions.md
+  │ .github/instructions/golang.instructions.md
+  └ 547 lines read
+
+● Read frist.go
+  │ frister/frist.go
+  └ 16 lines read
+
+● Read frist_test.go
+  │ frister/frist_test.go
+  └ 26 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+✗ Reproduce deadline test failures (shell)
+  │ cd frister && go test ./...
+  └ --- FAIL: TestFrist (0.00s)
+    frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+    FAIL
+    FAIL    example.com/frister     0.254s
+    FAIL
+    Failed with exit code 1
+
+● skill(klarsprak)
+
+● Edit
+  └ Edit frister/frist.go
+
+● Verify deadline tests and Go formatting (shell)
+  │ cd frister && go test ./... && test -z "$(gofmt -l frist.go)"
+  └ 1 line…
+
+Rettet `frister/frist.go`: Frister på lørdag flyttes nå to dager frem til mandag, ikke én dag til søndag. Testene er uendret, og `go test ./...` i `frister/` går grønt.
+

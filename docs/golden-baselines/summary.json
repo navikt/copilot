@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-11",
+  "generated": "2026-10-12",
   "runs": [
     {
       "date": "2026-09-30",
@@ -3859,6 +3859,112 @@
         "median": 19.7
       },
       "source": "docs/golden-baselines/2026-10-12-sol61-rerun/review-rv1-rv2-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-10-12",
+      "suite": "coding",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "high",
+      "ran_at": "high",
+      "cli_version": "1.0.95",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 27.848,
+        "mean": 27.848
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 132.1
+      },
+      "source": "docs/golden-baselines/2026-10-12-effort-sol61/coding-gpt-6.1-sol-high.txt"
+    },
+    {
+      "date": "2026-10-12",
+      "suite": "coding",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.95",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 25.691,
+        "mean": 25.394
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 99.2
+      },
+      "source": "docs/golden-baselines/2026-10-12-effort-sol61/coding-gpt-6.1-sol-low.txt"
     }
   ]
 }
