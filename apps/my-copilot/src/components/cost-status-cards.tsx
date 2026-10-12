@@ -1,6 +1,7 @@
 import { BodyShort, Box, Detail, HGrid, Label, Link } from "@navikt/ds-react";
 import { useId, type ReactNode } from "react";
 import { forecastLabel, shownModels } from "@/components/cost-forecast";
+import { backendRequest } from "@/lib/backend-api";
 import { getCostForecast } from "@/lib/cached-bigquery";
 import { formatDate, formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
@@ -112,6 +113,9 @@ export function CostStatusCardsView({
 
 export async function CostStatusCards({ token, grossToDate }: { token: string; grossToDate?: number | null }) {
   // The forecast section below shows the error; do not log amounts here.
-  const data = await getCostForecast(token).catch(() => null);
-  return data && <CostStatusCardsView data={data} grossToDate={grossToDate} />;
+  const [data, anomalies] = await Promise.all([
+    getCostForecast(token).catch(() => null),
+    backendRequest<unknown[]>("/api/v1/copilot/billing/anomalies", token).catch(() => undefined),
+  ]);
+  return data && <CostStatusCardsView data={data} grossToDate={grossToDate} anomalies={anomalies?.length} />;
 }

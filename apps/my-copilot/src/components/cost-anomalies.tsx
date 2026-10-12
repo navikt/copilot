@@ -23,7 +23,7 @@ export function anomalyText(a: Anomaly): { text: string; href: string } {
     case "A7":
       if (/^\d{4}-\d{2}$/.test(a.date))
         return {
-          text: `Fakturert forbruk for ${a.date} er ikke lest inn, selv om det skal være klart innen den ${a.threshold}..`,
+          text: `Fakturert forbruk for ${a.date} er ikke lest inn, selv om det skal være klart innen den ${a.threshold}.`,
           href: "/innsikt/team",
         };
       if (a.threshold > 0)
@@ -41,17 +41,17 @@ export function anomalyText(a: Anomaly): { text: string; href: string } {
       };
     case "A3":
       return {
-        text: `Ny modell: ${a.model} kostet ${formatUSD(a.value)} den ${formatDate(a.date)}, første dag med mer enn ${formatUSD(a.threshold)}.`,
+        text: `Ny KI-modell: ${a.model} kostet ${formatUSD(a.value)} den ${formatDate(a.date)}, første dag med mer enn ${formatUSD(a.threshold)}.`,
         href: "/innsikt/bruk#kostnad",
       };
     case "A4":
-      return { text: `Prognosen for ${a.date} er over budsjettet.`, href: "/innsikt/kostnad" };
+      return { text: `Forventet faktura for ${a.date} er over budsjettet.`, href: "/innsikt/kostnad" };
   }
 }
 
 export function AnomalyList({ anomalies }: { anomalies: Anomaly[] | null }) {
-  if (anomalies === null) return <BodyShort>Vi klarte ikke å hente avvikene nå.</BodyShort>;
-  if (anomalies.length === 0) return <BodyShort>Ingen avvik de siste 30 dagene.</BodyShort>;
+  if (anomalies === null) return <BodyShort>Vi klarte ikke å hente varslene nå.</BodyShort>;
+  if (anomalies.length === 0) return <BodyShort>Ingen varsler de siste 30 dagene.</BodyShort>;
   const sorted = [...anomalies].sort(
     (a, b) => order.indexOf(a.rule) - order.indexOf(b.rule) || b.date.localeCompare(a.date)
   );
@@ -80,10 +80,9 @@ export async function CostAnomalies() {
     }
   }
   return (
-    <InsightSection id="avvik" title="Avvik">
+    <InsightSection id="avvik" title="Varsler">
       <BodyShort>
-        Dager med uvanlig høyt forbruk, nye modeller og hull i dataene de siste 30 dagene. Tersklene er startverdier som
-        team copilot justerer etter tre måneder.
+        Varsler viser dager med uvanlig høyt forbruk, nye KI-modeller og manglende data de siste 30 dagene.
       </BodyShort>
       <AnomalyList anomalies={anomalies} />
     </InsightSection>

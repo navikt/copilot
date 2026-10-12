@@ -17,15 +17,15 @@ describe("AnomalyList", () => {
     const items = screen.getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("Fakturert forbruk for 2026-09 er ikke lest inn");
     expect(items[1]).toHaveTextContent("Medianen for samme type dag");
-    expect(items[2]).toHaveTextContent("Ny modell: Claude Opus 5.5");
+    expect(items[2]).toHaveTextContent("Ny KI-modell: Claude Opus 5.5");
     expect(screen.getAllByRole("link")).toHaveLength(3);
   });
 
   it("says so when there is nothing or the fetch failed", () => {
     const { rerender } = render(<AnomalyList anomalies={[]} />);
-    expect(screen.getByText("Ingen avvik de siste 30 dagene.")).toBeInTheDocument();
+    expect(screen.getByText("Ingen varsler de siste 30 dagene.")).toBeInTheDocument();
     rerender(<AnomalyList anomalies={null} />);
-    expect(screen.getByText("Vi klarte ikke å hente avvikene nå.")).toBeInTheDocument();
+    expect(screen.getByText("Vi klarte ikke å hente varslene nå.")).toBeInTheDocument();
   });
 
   it("tells stale data from a single missing day", () => {

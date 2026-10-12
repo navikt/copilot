@@ -42,6 +42,7 @@ export function CostForecastView({ data: raw }: { data: CostForecast }) {
         </Alert>
       )}
       <BodyShort size="small" textColor="subtle">
+        {data.uncertainty_label && <strong>Prognosen er {data.uncertainty_label}. </strong>}
         Anslag (bygger på {data.days_elapsed} av {data.days_in_month} dager). Avvik tidligere måneder:{" "}
         {data.models.map((m) => `${forecastLabel[m.model]} ${accuracy(m)}`).join(", ")}.
       </BodyShort>
@@ -53,11 +54,12 @@ export function CostForecastView({ data: raw }: { data: CostForecast }) {
 export function ForecastMethod() {
   return (
     <BodyShort size="small">
-      Nav samlet: forbruket for hele Nav følger trenden de siste 20 hverdagene. Hver person: hver enkelt følger sitt
-      eget mønster fra forrige måned, justert etter bruken så langt, og stopper ved forbruksgrensen. Juli er ferie, så i
-      august følger hver person sitt eget snitt så langt. Begge regner så ut hva som blir fakturert: Nav betaler for det
-      som går ut over kredittene i lisensene, og kredittene deles av alle i Nav. Avvik tidligere måneder er snittavviket
-      når prognosen kjøres på dag 10, 15 og 20 i avsluttede måneder.
+      Nav samlet: forbruket for hele Nav følger trenden de siste 20 hverdagene, og det som ventes resten av måneden,
+      fordeles etter vanlig ukedagsmønster. Hver person: hver enkelt følger sitt eget mønster fra forrige måned, justert
+      etter bruken så langt, og stopper ved forbruksgrensen. Juli er ferie, så i august følger hver person sitt eget
+      snitt så langt. Begge regner så ut hva som blir fakturert: Nav betaler for det som går ut over kredittene i
+      lisensene, og kredittene deles av alle i Nav. Avvik tidligere måneder er snittavviket når prognosen kjøres på dag
+      5, 10, 15, 20 og 25 i avsluttede måneder.
     </BodyShort>
   );
 }
