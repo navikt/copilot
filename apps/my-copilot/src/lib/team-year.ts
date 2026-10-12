@@ -21,7 +21,7 @@ export function teamYearCaveats(data: TeamYearOverview): string[] {
     `Teamhistorikken starter ${membership_from || "ukjent dato"}. For dager før det regner vi hver person med i de teamene personen var med i den første dagen vi har registrert.`,
     ...(data.months.some((m) => m.basis === "none")
       ? [
-          `Ingen data betyr at måneden mangler teamhistorikk (finnes fra ${membership_from || "ukjent dato"}) eller forbruk per person (finnes fra ${gross_from || "ukjent dato"}).`,
+          `Ingen data betyr at måneden mangler teamhistorikk (finnes fra ${membership_from || "ukjent dato"}) eller forbruk per person (finnes fra ${gross_from || "ukjent dato"}), eller at fakturaen for måneden ikke er lest inn ennå.`,
         ]
       : []),
     "Netto uten bruk er fakturert beløp for medlemmer uten registrert bruk i måneden. Beløpet kan ikke fordeles på dager og er derfor ikke med i netto.",
