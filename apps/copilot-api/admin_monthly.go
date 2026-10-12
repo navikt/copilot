@@ -93,7 +93,9 @@ func (bq *BigQueryClient) adminMonthlyQuery(year int) *bigquery.Query {
 WITH ` + bq.teamUsageCTEs() + `, ` + bq.teamNetCTEs() + `, ` + bq.seatCTEs() + fmt.Sprintf(`, months AS (
  SELECT m month FROM UNNEST(GENERATE_DATE_ARRAY(DATE(@from),DATE_SUB(DATE(@to),INTERVAL 1 DAY),INTERVAL 1 MONTH)) m
 ), runs AS (
- SELECT month,ANY_VALUE(enterprise_net) enterprise_net,ANY_VALUE(residual_net) residual_net,
+ -- A rerun adds rows; the latest complete run is the one billed reflects.
+ SELECT month,ARRAY_AGG(enterprise_net ORDER BY loaded_at DESC LIMIT 1)[OFFSET(0)] enterprise_net,
+  ARRAY_AGG(residual_net ORDER BY loaded_at DESC LIMIT 1)[OFFSET(0)] residual_net,
   CAST(MAX(loaded_at) AS STRING) loaded_at
  FROM %[1]s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND status='complete' GROUP BY month
 ), assigned_m AS (

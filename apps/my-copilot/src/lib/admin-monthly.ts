@@ -82,7 +82,7 @@ function adminMonthlyTotalRow(months: AdminMonth[]): string[] {
     amount(sum((m) => m.no_team_net_usd)),
     "",
     "",
-    amount(sum((m) => m.licence_usd_estimate)),
+    months.every((m) => m.licence_usd_estimate != null) ? amount(sum((m) => m.licence_usd_estimate)) : "",
     months.every((m) => m.total_usd != null) ? amount(sum((m) => m.total_usd)) : "",
   ];
 }
