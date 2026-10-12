@@ -82,6 +82,14 @@ function ManifestSections({ table }: { table: Table }) {
             {barText(standard.bar)}
           </BodyShort>
         )}
+        <BodyShort size="small" textColor="subtle">
+          Feilsøking ble målt første gang 12. oktober 2026, og ingen modell er godkjent for den ennå. Skymodellen besto
+          10 av 10, så kravet er 95 prosent, og 10 kjøringer er for få til å vise det selv når alle består (
+          <a href={SOURCES.dbg} className={linkClass}>
+            rapporten
+          </a>
+          ).
+        </BodyShort>
         <IntervalChart model={standard} />
       </InsightSection>
 
@@ -520,8 +528,12 @@ export default function LokaleModeller() {
         </BodyLong>
         <Bullets>
           <li>
-            Den er godkjent for endringer i én fil når den selv er hovedagent. 12. oktober 2026 besto den 92 av 96
-            forsøk (
+            Den er godkjent for svar om kode og for endringer i én fil når den selv er hovedagent. Etter målingene 12.
+            oktober 2026 står den på 96 av 96 for svar og 124 av 128 for endringer i én fil (
+            <a href={SOURCES.capabilities} className={linkClass}>
+              manifestet
+            </a>
+            ,{" "}
             <a href={SOURCES.oq3a} className={linkClass}>
               rapporten
             </a>

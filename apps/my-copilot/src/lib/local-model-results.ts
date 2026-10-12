@@ -19,6 +19,8 @@ export const SOURCES = {
   oq3a: `${MLX_WORKSPACE}/reports/2026-10-12-open-questions/oq3a-results.md`,
   r2e: `${MLX_WORKSPACE}/reports/2026-10-12-open-questions/r2e-results.md`,
   rp7c: `${MLX_WORKSPACE}/reports/2026-10-12-open-questions/oq-results-rp7c.md`,
+  dbg: `${MLX_WORKSPACE}/reports/2026-10-12-debug-class/dbg-results.md`,
+  capabilities: `${MLX_WORKSPACE}/manifest/capabilities.json`,
   gb64: `${MLX_WORKSPACE}/reports/2026-09-26-64gb-tier/night-64-4.md#review-2026-09-28`,
   readme: `${MLX_WORKSPACE}/reports/README.md`,
   template: `${MLX_WORKSPACE}/reports/TEMPLATE.md`,
@@ -43,7 +45,6 @@ export const SOURCES = {
 export const UNMEASURED_PRIORITY = [
   /delegate bar's cost rule/i,
   /capabilities in the shipped manifest/i,
-  /retry2.*edit-single/i,
   /read-qa.*ANSWER-line/i,
   /R1 and D2/i,
   /selective rule loading/i,
@@ -135,7 +136,7 @@ export const WORKER_RESULTS: ResultSet = {
     {
       task: "Endre én fil, de to letteste trinnene",
       result:
-        "13 og 10 av 16 på første forsøk, 16 av 16 med inntil to nye forsøk. Med retry2 12. oktober 2026: 48 av 48, 11 av dem først etter et nytt forsøk. Derfor gir nav-pilot nå også et nytt forsøk når modellen endrer en fil. Modellen for 64 GB er godkjent for endringer i én fil når den selv er hovedagent: 92 av 96.",
+        "13 og 10 av 16 på første forsøk, 16 av 16 med inntil to nye forsøk. Med retry2 12. oktober 2026: 48 av 48, 11 av dem først etter et nytt forsøk. Derfor gir nav-pilot nå også et nytt forsøk når modellen endrer en fil. Modellen for 64 GB er godkjent for endringer i én fil når den selv er hovedagent: 124 av 128.",
       verdict: "Ikke godkjent for delegering ennå",
     },
     {
@@ -144,7 +145,18 @@ export const WORKER_RESULTS: ResultSet = {
         "9. oktober 2026: 10 av 10 på hvert av de to letteste trinnene, både med standardmodellen og 8-bitsmodellen. Trinn 3 er ikke godkjent: samlet over tre målinger ga det 36 av 40, og den nedre grensen på 0,82 er under kravet på 0,90. Alle de fire feilene var tidsavbrudd. Trinn 4 ga 7 og 5 av 10, og alle feilene var tidsavbrudd. Uten retry2 ga samme oppsett 26 av 40 10. oktober 2026.",
       verdict: "Godkjent lokalt på de to letteste trinnene",
     },
-    { task: "Svare på spørsmål om kodebasen", result: "18 av 40 (skymodellen: 40 av 40)", verdict: "Blir i skyen" },
+    {
+      task: "Svare på spørsmål om kodebasen",
+      result:
+        "18 av 40 (skymodellen: 40 av 40). Modellen for 64 GB og Qwen3.8-27B-OptiQ er godkjent for svar når de selv er hovedagent: 96 av 96 og 33 av 33 etter målingene 12. oktober 2026.",
+      verdict: "Blir i skyen",
+    },
+    {
+      task: "Feilsøke og rette en feil, letteste trinn",
+      result:
+        "12. oktober 2026: 4 av 10 (skymodellen Sonnet 5.5: 10 av 10). Qwen3.8-27B i 8 bit og Qwen3.8-27B-OptiQ besto 10 av 10, modellen for 64 GB 9 av 10.",
+      verdict: "Blir i skyen. Ingen modell er godkjent ennå",
+    },
   ],
 };
 

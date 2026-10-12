@@ -28,24 +28,24 @@
           "local": "not-yet",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 43,
-          "local_n": 45
+          "local_k": 46,
+          "local_n": 48
         },
         "edit-single": {
           "delegate": "cloud",
           "local": "not-yet",
           "delegate_k": 3,
           "delegate_n": 3,
-          "local_k": 27,
-          "local_n": 30
+          "local_k": 9,
+          "local_n": 9
         },
         "edit-multi-mechanical": {
           "delegate": "trusted",
           "local": "cloud",
           "delegate_k": 35,
           "delegate_n": 35,
-          "local_k": 25,
-          "local_n": 30
+          "local_k": 27,
+          "local_n": 32
         },
         "create-file": {
           "delegate": "cloud",
@@ -53,15 +53,15 @@
           "delegate_k": 1,
           "delegate_n": 2,
           "local_k": 33,
-          "local_n": 45
+          "local_n": 48
         },
         "debug": {
           "delegate": "cloud",
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 0,
-          "local_n": 3
+          "local_k": 4,
+          "local_n": 10
         }
       }
     },
@@ -89,43 +89,43 @@
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "not-yet",
+          "local": "trusted",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 9,
-          "local_n": 9
+          "local_k": 33,
+          "local_n": 33
         },
         "edit-single": {
           "delegate": "cloud",
           "local": "not-yet",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 3,
-          "local_n": 3
+          "local_k": 18,
+          "local_n": 19
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 3,
-          "local_n": 6
+          "local_k": 15,
+          "local_n": 22
         },
         "create-file": {
           "delegate": "cloud",
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 0,
-          "local_n": 6
+          "local_k": 6,
+          "local_n": 22
         },
         "debug": {
           "delegate": "cloud",
-          "local": "cloud",
+          "local": "not-yet",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 0,
-          "local_n": 0
+          "local_k": 10,
+          "local_n": 10
         }
       }
     },
@@ -185,11 +185,11 @@
         },
         "debug": {
           "delegate": "cloud",
-          "local": "cloud",
+          "local": "not-yet",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 0,
-          "local_n": 0
+          "local_k": 10,
+          "local_n": 10
         }
       }
     },
@@ -217,43 +217,43 @@
       "classes": {
         "read-qa": {
           "delegate": "cloud",
-          "local": "cloud",
+          "local": "trusted",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 84,
-          "local_n": 90
+          "local_k": 96,
+          "local_n": 96
         },
         "edit-single": {
           "delegate": "cloud",
           "local": "trusted",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 92,
-          "local_n": 96
+          "local_k": 124,
+          "local_n": 128
         },
         "edit-multi-mechanical": {
           "delegate": "cloud",
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 37,
-          "local_n": 60
+          "local_k": 43,
+          "local_n": 64
         },
         "create-file": {
           "delegate": "cloud",
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 71,
-          "local_n": 90
+          "local_k": 67,
+          "local_n": 96
         },
         "debug": {
           "delegate": "cloud",
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 0,
-          "local_n": 0
+          "local_k": 9,
+          "local_n": 10
         }
       }
     }
@@ -307,8 +307,8 @@
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 0,
-          "local_n": 0
+          "local_k": 6,
+          "local_n": 10
         }
       }
     },
@@ -357,11 +357,11 @@
         },
         "debug": {
           "delegate": "cloud",
-          "local": "cloud",
+          "local": "not-yet",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 0,
-          "local_n": 0
+          "local_k": 10,
+          "local_n": 10
         }
       }
     },
@@ -413,8 +413,8 @@
           "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 0,
-          "local_n": 0
+          "local_k": 7,
+          "local_n": 9
         }
       }
     }
@@ -894,10 +894,6 @@
       {
         "item": "Capabilities in the shipped manifest",
         "status": "needs user decision; held until dispatch is shown to work"
-      },
-      {
-        "item": "retry2 as the default for edit-single dispatch",
-        "status": "parked (triggers only): needs re-probe 7 (#121)"
       },
       {
         "item": "read-qa: an ANSWER-line reminder on top of example",

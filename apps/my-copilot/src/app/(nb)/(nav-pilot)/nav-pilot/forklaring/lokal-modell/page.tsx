@@ -35,7 +35,11 @@ const VERDICTS: Verdict[] = [
     verdict: "Ikke godkjent for delegering ennå. Modellen for 64 GB er godkjent som hovedagent",
   },
   { task: "Lage en ny fil", verdict: "Godkjent lokalt på de to letteste trinnene, ikke for delegering" },
-  { task: "Svare på spørsmål om kodebasen", verdict: "Blir i skyen" },
+  {
+    task: "Svare på spørsmål om kodebasen",
+    verdict: "Ikke godkjent for delegering. Modellen for 64 GB og Qwen3.8-27B-OptiQ er godkjent som hovedagent",
+  },
+  { task: "Feilsøke og rette en feil", verdict: "Målt, men ingen modell er godkjent ennå" },
   { task: "decide: forklarer commit-meldingen hvorfor?", verdict: "Varsler i commit-hooken" },
   { task: "decide: bug, ønske eller spørsmål?", verdict: "Foreslår etikett" },
 ];
@@ -170,12 +174,13 @@ export default function LokalModellForklaring() {
             </li>
             <li>
               Qwen 3.8-modellene og modellen for 64 GB er ikke godkjent for delegering. Med dem stoppes ingenting.
-              Modellen for 64 GB er godkjent for endringer i én fil når den selv er hovedagent: 92 av 96 (
+              Modellen for 64 GB er godkjent for svar om kode og endringer i én fil når den selv er hovedagent: 96 av 96
+              og 124 av 128. Qwen3.8-27B-OptiQ er godkjent for svar om kode som hovedagent: 33 av 33 (
               <a
-                href="https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-12-open-questions/oq3a-results.md"
+                href="https://github.com/navikt/mlx-workspace/blob/main/manifest/capabilities.json"
                 className={linkClass}
               >
-                målingen 12. oktober 2026
+                manifestet etter målingene 12. oktober 2026
               </a>
               ).
             </li>

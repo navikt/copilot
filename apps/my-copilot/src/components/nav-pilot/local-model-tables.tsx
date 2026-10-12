@@ -18,7 +18,7 @@ const LOCAL_MODEL_TEXT: Record<string, string> = {
   "qwen3.8-27b-8bit-mlx":
     "Den tregeste. Løste litt flere oppgaver enn standardmodellen i siste måling, men bruker mange ganger så lang tid. Leser lange prompter i små steg for å bruke mindre minne, og det steget kjenner bare nyere nav-pilot til.",
   "qwen3.6-35b-a3b-8bit":
-    "Standardmodellen i 8 bit, for Macer med 64 GB minne eller mer. Du må velge den selv. Ingen oppgavetyper er godkjent for den ennå, så hovedagenten delegerer ingenting til den.",
+    "Standardmodellen i 8 bit, for Macer med 64 GB minne eller mer. Du må velge den selv. Hovedagenten delegerer ingenting til den, men den kan selv være hovedagent for svar om kode og endringer i én fil.",
 };
 
 const TASK_CLASS_LABEL: Record<string, string> = {
@@ -229,7 +229,7 @@ const pct = (x: number) => `${Math.round(x * 100)} %`;
 
 /** The bar behind «godkjent», in one sentence. */
 export function barText(bar: Bar) {
-  return `En oppgavetype blir godkjent når modellen er målt i minst ${bar.min_runs} kjøringer på minst ${bar.min_tasks} ulike oppgaver, og vi med ${pct(bar.confidence)} sikkerhet kan si at den lykkes minst ${pct(bar.x_caught)} så ofte som skymodellen. For delegering må det i tillegg lønne seg i kostnad. Der en feil ikke blir oppdaget, som i svar og forklaringer, er kravet ${pct(bar.x_silent)}, og det krever så mange kjøringer uten én feil at en modell kan mangle noen få selv om alle hittil har bestått.`;
+  return `En oppgavetype blir godkjent når modellen er målt i minst ${bar.min_runs} kjøringer på minst ${bar.min_tasks} ulike oppgaver, og vi med ${pct(bar.confidence)} sikkerhet kan si at den lykkes minst ${pct(bar.x_caught)} så ofte som skymodellen. For delegering må det i tillegg lønne seg i kostnad. Der en feil ikke blir oppdaget, som i svar og forklaringer og i feilsøking, er kravet ${pct(bar.x_silent)}, og det krever så mange kjøringer uten én feil at en modell kan mangle noen få selv om alle hittil har bestått.`;
 }
 
 // Measured results per task type: task, result and verdict, stacked on narrow screens.
