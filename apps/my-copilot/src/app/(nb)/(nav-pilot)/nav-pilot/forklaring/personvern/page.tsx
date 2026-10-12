@@ -48,10 +48,11 @@ export default function Personvern() {
           </BodyLong>
           <BodyLong>
             For opencode-økter du startet med nav-pilot teller den det samme der opencode har tallene: hvilke av
-            opencodes innebygde verktøy som ble kalt og om kallene gikk bra, antall runder, varighet og hvor mange
-            ganger en skill eller en agent ble brukt. Navnet på skillen eller agenten tas ikke med. Tallene hentes fra
-            opencodes egen eksport av økten, der det du skrev og verktøyenes innhold allerede er fjernet. Heller ikke
-            disse tallene har maskinnummeret.
+            opencodes innebygde verktøy som ble kalt og om kallene gikk bra, antall runder, varighet og hvilke skills
+            og agenter fra agentpakken som ble brukt. Andre skills og agenter telles som «annet», uten navn. Tallene
+            hentes fra opencodes egen eksport av økten. Eksporten inneholder hele økten, men nav-pilot leser bare faste
+            felt, som verktøynavn og navnet på skillen eller agenten. Det du skrev, svarene og verktøyresultatene tas
+            ikke med. Heller ikke disse tallene har maskinnummeret.
           </BodyLong>
           <BodyLong>
             Starter nav-pilot Copilot eller opencode, slår den også på deres egne målinger, mot samme mottaker. Kjører

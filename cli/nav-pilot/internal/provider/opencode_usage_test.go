@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func TestReadOpenCodeUsage(t *testing.T) {
 		if args[0] == "session" {
 			return []byte(`[{"id":"new","updated":2000,"directory":"/repo"},{"id":"old","updated":500,"directory":"/repo"},{"id":"other","updated":2000,"directory":"/elsewhere"}]`), nil
 		}
-		if args[len(args)-1] != "new" || !strings.Contains(strings.Join(args, " "), "--sanitize") {
+		if args[len(args)-1] != "new" || strings.Contains(strings.Join(args, " "), "--sanitize") {
 			t.Fatalf("unexpected export %v", args)
 		}
 		return []byte(`{"messages":[
@@ -69,24 +70,35 @@ func TestOpenCodeUsageDirResolvesRelative(t *testing.T) {
 	}
 }
 
-// openCodeCanaryExport has a canary in every free-text field opencode has, as
-// if --sanitize had stopped redacting: nothing decoded from it may carry the
-// canary.
-const openCodeCanaryExport = `{"info":{"title":"CANARY"},"messages":[
-{"info":{"role":"user","time":{"created":1000}},"parts":[{"type":"text","text":"CANARY"}]},
+// openCodeCanaryExport is a raw export with a canary in every free-text field
+// opencode has, including the input fields next to the skill and subagent
+// names. Only allowlisted names may come out.
+const openCodeCanaryExport = `{"info":{"title":"CANARY-TITLE"},"messages":[
+{"info":{"role":"user","time":{"created":1000}},"parts":[{"type":"text","text":"CANARY-PROMPT"}]},
 {"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":2000,"completed":5000}},"parts":[
- {"type":"text","text":"CANARY"},
- {"type":"tool","tool":"bash","state":{"status":"completed","input":{"command":"CANARY"},"output":"CANARY","title":"CANARY"}},
- {"type":"tool","tool":"skill","state":{"status":"completed","input":{"name":"CANARY"},"metadata":{"name":"CANARY"}}},
- {"type":"tool","tool":"task","state":{"status":"error","input":{"subagent_type":"CANARY","prompt":"CANARY"}}},
- {"type":"tool","tool":"CANARY","state":{"status":"running"}}]},
+ {"type":"text","text":"CANARY-TEXT"},
+ {"type":"tool","tool":"bash","state":{"status":"completed","input":{"command":"CANARY-CMD"},"output":"CANARY-OUT","title":"CANARY-T"}},
+ {"type":"tool","tool":"skill","state":{"status":"completed","input":{"name":"nav-skill","arguments":"CANARY-ARGS"},"output":"CANARY-OUT","metadata":{"name":"nav-skill","dir":"CANARY-DIR"}}},
+ {"type":"tool","tool":"skill","state":{"status":"completed","input":{"name":"CANARY-OWN-SKILL"}}},
+ {"type":"tool","tool":"task","state":{"status":"error","input":{"subagent_type":"nav-agent","prompt":"CANARY-TASK-PROMPT","description":"CANARY-DESC"},"metadata":{"sessionId":"CANARY-SID"}}},
+ {"type":"tool","tool":"task","state":{"status":"completed","input":{"subagent_type":"CANARY-OWN-AGENT","prompt":"CANARY-TASK-PROMPT"}}},
+ {"type":"tool","tool":"CANARY-MCP","state":{"status":"running","input":{"name":"CANARY-MCP-ARG"}}}]},
 {"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":62000,"completed":63500}},"parts":[]}]}`
 
 func sessionLeaks(s telemetry.CopilotSession, canary string) bool {
 	return strings.Contains(fmt.Sprintf("%+v", s), canary)
 }
 
+func withNavNames(t *testing.T) {
+	old := OpenCodeNavNames
+	t.Cleanup(func() { OpenCodeNavNames = old })
+	OpenCodeNavNames = func() (map[string]bool, map[string]bool) {
+		return map[string]bool{"nav-skill": true}, map[string]bool{"nav-agent": true}
+	}
+}
+
 func TestOpenCodeSessionMetrics(t *testing.T) {
+	withNavNames(t)
 	u := telemetry.ClientUsage{Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
 	s, ok := addOpenCodeExport(&u, []byte(openCodeCanaryExport), 1000)
 	if !ok {
@@ -99,13 +111,17 @@ func TestOpenCodeSessionMetrics(t *testing.T) {
 		t.Fatalf("session = %+v", s)
 	}
 	want := map[telemetry.ToolKey]int64{
-		{Tool: "bash", Outcome: "success"}: 1, {Tool: "skill", Outcome: "success"}: 1,
-		{Tool: "task", Outcome: "error"}: 1, {Tool: "other", Outcome: "unset"}: 1,
+		{Tool: "bash", Outcome: "success"}: 1, {Tool: "skill", Outcome: "success"}: 2,
+		{Tool: "task", Outcome: "error"}: 1, {Tool: "task", Outcome: "success"}: 1, {Tool: "other", Outcome: "unset"}: 1,
 	}
 	if fmt.Sprint(s.Tools) != fmt.Sprint(want) {
 		t.Fatalf("tools = %v", s.Tools)
 	}
-	if s.Skills[telemetry.SkillKey{Skill: "unset", Source: "unset", Trigger: "unset"}] != 1 || s.Agents["unset"] != 1 {
+	sk := func(n string) telemetry.SkillKey {
+		return telemetry.SkillKey{Skill: n, Source: "unset", Trigger: "unset"}
+	}
+	if s.Skills[sk("nav-skill")] != 1 || s.Skills[sk("other")] != 1 || len(s.Skills) != 2 ||
+		s.Agents["nav-agent"] != 1 || s.Agents["other"] != 1 || len(s.Agents) != 2 {
 		t.Fatalf("skills = %v, agents = %v", s.Skills, s.Agents)
 	}
 	if _, ok := addOpenCodeExport(&u, []byte(openCodeCanaryExport), 99000); ok {
@@ -113,11 +129,30 @@ func TestOpenCodeSessionMetrics(t *testing.T) {
 	}
 }
 
-// The control: sessionLeaks finds a canary that does reach a label, so the
-// check above can fail.
+// The control: decoding one non-name input field (the task prompt) into a
+// label is caught by sessionLeaks, so the check above has teeth.
 func TestOpenCodeSessionCanaryControl(t *testing.T) {
-	if !sessionLeaks(telemetry.CopilotSession{Agents: map[string]int64{"CANARY": 1}}, "CANARY") ||
-		!sessionLeaks(telemetry.CopilotSession{Tools: map[telemetry.ToolKey]int64{{Tool: "CANARY"}: 1}}, "CANARY") {
-		t.Fatal("sessionLeaks misses a leaked label")
+	var e struct {
+		Messages []struct {
+			Parts []struct {
+				State struct {
+					Input struct{ Prompt string } `json:"input"`
+				} `json:"state"`
+			} `json:"parts"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal([]byte(openCodeCanaryExport), &e); err != nil {
+		t.Fatal(err)
+	}
+	leaky := telemetry.CopilotSession{Agents: map[string]int64{}}
+	for _, m := range e.Messages {
+		for _, p := range m.Parts {
+			if p.State.Input.Prompt != "" {
+				leaky.Agents[p.State.Input.Prompt]++
+			}
+		}
+	}
+	if !sessionLeaks(leaky, "CANARY-TASK-PROMPT") {
+		t.Fatal("sessionLeaks misses a leaked prompt")
 	}
 }

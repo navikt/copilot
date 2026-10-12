@@ -48,9 +48,10 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 **Merk om opencode-bruk (`nav_pilot_genai_*`):**
 - opencode sender spor (traces) og logger, men ingen metrikker. Når økten
   slutter, leser nav-pilot summene fra `opencode session list` og
-  `opencode export --sanitize` (`opencode session export --sanitize` i
-  opencode 2) og sender dem som metrikker. Bare tall og modellnavn: aldri
-  ledetekst, svar, filstier eller bruker.
+  `opencode export` (`opencode session export` i opencode 2) og sender dem som
+  metrikker. Eksporten er hele økten, men nav-pilot dekoder bare faste felt.
+  Bare tall og navn sendes, aldri ledetekst, svar, filstier eller bruker.
+  Den midlertidige fila med eksporten slettes rett etter lesingen.
 - `input` er tokens som ikke kom fra cache. Copilots `input` kan telle annerledes,
   så bruk `input + cache_read` når du sammenligner klientene.
 - `gen_ai_provider_name` og `gen_ai_request_model` er leverandør- og
@@ -90,16 +91,17 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   - `nav_pilot_session_duration_seconds`: fra første til siste melding etter
     oppstarten, med `shutdown_type=unset`.
   - `nav_pilot_session_skill_loads_total`: kall til `skill`-verktøyet, med
-    `skill`, `source` og `trigger` lik `unset`.
+    skillens navn og `source` og `trigger` lik `unset`.
   - `nav_pilot_subagent_selected_total`: kall til `task`-verktøyet, med
-    `agent=unset`.
+    agentens navn.
+  - Navnet på en skill eller agent sendes bare hvis nav-pilot installerte den,
+    som for Copilot. Alt annet blir `other`.
 - nav-pilot dekoder bare rolle, tidspunkt (`created`, `completed`),
-  verktøynavn og `state.status`. Tokens og modeller går bare til
+  verktøynavn, `state.status`, `name` fra input til `skill` og
+  `subagent_type` fra input til `task`. Ledetekst, argumenter, utdata og
+  meldingstekst dekodes aldri. Tokens og modeller går bare til
   `nav_pilot_genai_*` over, så de telles ikke to ganger.
 - Disse mangler for opencode:
-  - **Navn på skill og subagent.** `--sanitize` erstatter verktøyenes input og
-    metadata, der navnene står. For å få dem må nav-pilot lese eksporten uten
-    `--sanitize`, og det krever en beslutning fra eier.
   - **Hooks** (`nav_pilot_session_hook_runs_total`). opencode har utvidelser
     (plugins), ikke hooks, og eksporten viser ikke når de kjører.
   - **API-tid, premium requests og kostnad.** Eksporten har ikke disse tallene,

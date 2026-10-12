@@ -1227,6 +1227,7 @@ func Main(info BuildInfo) {
 		}
 		telemetry = tel
 		providerpkg.SetTelemetry(tel)
+		providerpkg.OpenCodeNavNames = navItemNames
 		for _, p := range allProviders() {
 			telemetry.RecordClientAvailable(p.ID(), p.Available())
 		}

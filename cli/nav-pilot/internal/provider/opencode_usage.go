@@ -40,7 +40,7 @@ var openCodeCommand = func(ctx context.Context, dir string, args ...string) ([]b
 //
 // opencode sends traces but no metrics, so this is where its usage becomes a
 // metric. It reads opencode's own store through its CLI after the session has
-// ended, and --sanitize keeps the transcript out of what nav-pilot reads.
+// ended. The export is the raw transcript; only fixed fields are decoded.
 //
 // It also returns one [telemetry.CopilotSession] per session read, for the
 // nav_pilot_session_* metrics. Those carry no models: tokens and model calls
@@ -56,10 +56,10 @@ func readOpenCodeUsage(dir string, since time.Time) (telemetry.ClientUsage, []te
 	// v1 runs in-process with --pure; v2 needs --standalone so it does not
 	// start or reuse the background service.
 	list := []string{"session", "list", "--format", "json", "-n", "20", "--pure"}
-	export := []string{"export", "--pure", "--sanitize"}
+	export := []string{"export", "--pure"}
 	if openCodeMajor() >= 2 {
 		list = []string{"session", "list", "--format", "json", "-n", "20", "--standalone"}
-		export = []string{"session", "export", "--standalone", "--sanitize"}
+		export = []string{"session", "export", "--standalone"}
 	}
 	out, err := openCodeCommand(ctx, dir, list...)
 	if err != nil {
@@ -112,10 +112,14 @@ var openCodeTools = map[string]bool{
 // addOpenCodeExport adds one exported session's assistant messages from
 // sinceMS on to u, and returns what the session did from sinceMS on as a
 // [telemetry.CopilotSession]; false when it has no assistant message then.
-// Only the fields in the struct below are decoded. --sanitize has already
-// replaced tool input and metadata, so skill and subagent names are not there
-// to read: those count as "unset".
+// Only the fields in the struct below are decoded: of a tool's input, just the
+// skill tool's name and the task tool's subagent_type, and those go through
+// [OpenCodeNavNames] or become "other". Prompts, output and text never do.
 func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) (telemetry.CopilotSession, bool) {
+	skills, agents := map[string]bool{}, map[string]bool{}
+	if OpenCodeNavNames != nil {
+		skills, agents = OpenCodeNavNames()
+	}
 	sess := telemetry.CopilotSession{
 		Client: "opencode", Skills: map[telemetry.SkillKey]int64{}, Tools: map[telemetry.ToolKey]int64{},
 		Agents: map[string]int64{}, DurationSeconds: -1,
@@ -141,6 +145,10 @@ func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) (
 				Tool  string `json:"tool"`
 				State struct {
 					Status string `json:"status"`
+					Input  struct {
+						Name         string `json:"name"`
+						SubagentType string `json:"subagent_type"`
+					} `json:"input"`
 				} `json:"state"`
 			} `json:"parts"`
 		} `json:"messages"`
@@ -182,9 +190,9 @@ func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) (
 				sess.Tools[telemetry.ToolKey{Tool: tool, Outcome: openCodeOutcome(p.State.Status)}]++
 				switch p.Tool {
 				case "skill":
-					sess.Skills[telemetry.SkillKey{Skill: "unset", Source: "unset", Trigger: "unset"}]++
+					sess.Skills[telemetry.SkillKey{Skill: navName(p.State.Input.Name, skills), Source: "unset", Trigger: "unset"}]++
 				case "task":
-					sess.Agents["unset"]++
+					sess.Agents[navName(p.State.Input.SubagentType, agents)]++
 				}
 			}
 		}
@@ -194,6 +202,21 @@ func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) (
 	}
 	sess.DurationSeconds = (last - first) / 1000
 	return sess, true
+}
+
+// OpenCodeNavNames returns the skill and agent names nav-pilot installed, the
+// same allowlist the Copilot session metrics use. The cli package sets it.
+var OpenCodeNavNames func() (skills, agents map[string]bool)
+
+// navName is name when it is on the allowlist, "unset" when empty, else "other".
+func navName(name string, allow map[string]bool) string {
+	switch {
+	case name == "":
+		return "unset"
+	case allow[name]:
+		return name
+	}
+	return "other"
 }
 
 // openCodeOutcome maps a tool part's state.status to the outcome label the
