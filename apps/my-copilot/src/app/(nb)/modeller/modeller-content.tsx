@@ -315,11 +315,11 @@ function Effort() {
         høyere kostnad.
       </BodyLong>
       <BodyLong>
-        Våre egne målinger peker samme vei. På kodeoppgavene besto GPT-6 Sol og GPT-6.1 Sol alle sjekkene på både Low og
-        High 30. september og 12. oktober, men High kostet 8–9 prosent mer. På planlegging 30. september var High
-        dårligere: GPT-6 Sol besto 14 av 20 sjekker på High mot 18 av 20 på Low, og GPT-6.1 Sol 10 av 20 mot 15 av 20. I
-        kodegjennomgang fant Claude Opus 5.5 alle de plantede feilene på både Low og High, men High kostet 60 prosent
-        mer. Rådata ligger i{" "}
+        Våre egne målinger sier det samme. På kodeoppgavene besto GPT-6 Sol og GPT-6.1 Sol alle sjekkene både på Low og
+        på High, 30. september og 12. oktober 2026, men High kostet 8–9 prosent mer. På planlegging 30. september var
+        High dårligere: GPT-6 Sol besto 14 av 20 sjekker på High mot 18 av 20 på Low, og GPT-6.1 Sol 10 av 20 mot 15 av
+        20. I kodegjennomgang fant Claude Opus 5.5 alle de plantede feilene på både Low og High, men High kostet 60
+        prosent mer. Rådata ligger i{" "}
         <Link href={`${BASELINES_DIR}/2026-09-30-batch1`} target="_blank" rel="noopener noreferrer">
           målingen 30. september
         </Link>{" "}
@@ -327,7 +327,7 @@ function Effort() {
         <Link href={`${BASELINES_DIR}/2026-10-12-effort-sol61`} target="_blank" rel="noopener noreferrer">
           målingen 12. oktober
         </Link>
-        . Rådene under bygger på kildene og målingene.
+        . Rådene under bygger på kildene og på disse målingene.
       </BodyLong>
       <div className="w-full overflow-x-auto">
         <Table size="small">
