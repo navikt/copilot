@@ -360,7 +360,10 @@ func lockSession(lock string) (unlock func(), ok bool) {
 	for range 2 {
 		f, err := os.OpenFile(lock, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if err == nil {
-			f.Close()
+			if f.Close() != nil {
+				_ = os.Remove(lock)
+				return nil, false
+			}
 			return func() { _ = os.Remove(lock) }, true
 		}
 		if fi, serr := os.Stat(lock); serr != nil || time.Since(fi.ModTime()) < time.Minute {
