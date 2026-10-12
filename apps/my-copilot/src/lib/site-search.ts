@@ -1,4 +1,4 @@
-// The site search (V11 in docs/nav-pilot-dokumentasjon-forslag.md): plain
+// The site search (V11 in copilot-intern beslutningslogg.md): plain
 // text matching in the browser over public/search-index.json, which
 // scripts/build-search-index.ts writes before `next dev` and `next build`.
 

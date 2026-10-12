@@ -9,8 +9,8 @@ import { BudgetUsage, budgetHigh, budgetText, useBudgetPct } from "@/components/
 import { SiteSearch } from "@/components/navigation/site-search";
 import { SECTION, TOP_LINKS, activeTop, inSection, sectionGroup } from "@/lib/nav-items";
 
-// The header menu and the nav-pilot section menu, §6.3–§6.6 in
-// docs/nav-pilot-dokumentasjon-forslag.md.
+// The header menu and the nav-pilot section menu, V6–V8 in
+// copilot-intern beslutningslogg.md.
 
 export interface HeaderLabels {
   lang: "nb" | "en";
@@ -93,7 +93,7 @@ const initials = (name: string) => {
 
 // From 1024 px: the name (initials below 1280 px) opens a disclosure panel with
 // the name, the AI credit usage and the subscription link. A disclosure, not Aksel ActionMenu: role="menu" traps
-// Tab (§6 in docs/nav-pilot-dokumentasjon-forslag.md).
+// Tab.
 function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string }) {
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
   const pct = useBudgetPct(true);

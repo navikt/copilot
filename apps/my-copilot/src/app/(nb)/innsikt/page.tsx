@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 // LinkCard hides the icon from screen readers, so the description says «Krever innlogging» too.
 const lock = <PadlockLockedIcon aria-hidden fontSize="1.75rem" />;
 
-// The overview page for the group Innsikt (§6.2 in docs/nav-pilot-dokumentasjon-forslag.md).
+// The overview page for the group Innsikt (V7 in copilot-intern beslutningslogg.md).
 // The private pages are not prefetched: without a login, the prefetch only fetches a redirect.
 export default function Innsikt() {
   return (

@@ -1,6 +1,6 @@
 import { EXPLANATION_PAGES, GUIDE_PAGES, type DocLink } from "@/components/nav-pilot/doc-pages";
 
-// The site menu: V6, V7 and V8 in docs/nav-pilot-dokumentasjon-forslag.md.
+// The site menu: V6, V7 and V8 in copilot-intern beslutningslogg.md.
 
 export type NavLink = { href: string; label: string };
 export type NavGroup = {

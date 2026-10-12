@@ -633,7 +633,7 @@ pre.text-sm {
   }
 }
 
-/* Site menu: header, section menu and the mobile panel (§6.3–§6.6 in docs/nav-pilot-dokumentasjon-forslag.md) */
+/* Site menu: header, section menu and the mobile panel (V6–V8 in copilot-intern beslutningslogg.md) */
 .skip-link {
   position: absolute;
   left: -9999px;

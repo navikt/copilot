@@ -44,7 +44,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/innsikt/bruk#måned-hittil-modeller-og-kostnad": "/innsikt/bruk#kostnad",
   "/innsikt/bruk#modellkostnad-historikk": "/innsikt/bruk#kostnad-over-tid",
   // /nav-pilot/docs was split into guides, reference and explanation pages
-  // (docs/nav-pilot-dokumentasjon-forslag.md §1.4). next.config.ts sends the
+  // (V1 in copilot-intern beslutningslogg.md). next.config.ts sends the
   // page to /nav-pilot/referanse, so the old anchors are keyed there.
   // #filstruktur and #lenker still exist there. The client sections moved on to
   // /nav-pilot/klienter (§4, PR 7).

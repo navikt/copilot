@@ -103,7 +103,7 @@ export default async function LokalIntro() {
 
       <section>
         <VStack gap="space-16">
-          {/* #kom-i-gang is the old anchor for this step (§2.2 in docs/nav-pilot-dokumentasjon-forslag.md). */}
+          {/* #kom-i-gang is the old anchor for this step. */}
           <div id="kom-i-gang">
             <LinkableHeading id="installer" size="medium" level="2">
               2. Installer

@@ -8,7 +8,7 @@ import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStor
 import { NAV_PILOT_BREW_INSTALL } from "@/lib/install-commands";
 import { SEARCH_INDEX_URL, searchEntries, type SearchEntry } from "@/lib/site-search";
 
-// The site search, V11 in docs/nav-pilot-dokumentasjon-forslag.md: a «Søk»
+// The site search, V11 in copilot-intern beslutningslogg.md: a «Søk»
 // button in the header that opens an Aksel Dialog with a combobox, as on
 // aksel.nav.no. Cmd/Ctrl+K and «/» open it too.
 //
