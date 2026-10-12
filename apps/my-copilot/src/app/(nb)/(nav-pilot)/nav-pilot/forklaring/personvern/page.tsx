@@ -39,6 +39,13 @@ export default function Personvern() {
             Maskinen kjennes igjen på et maskinnummer, ikke på navn eller brukernavn.
           </BodyLong>
           <BodyLong>
+            Når en Copilot-økt du startet med nav-pilot er ferdig, teller nav-pilot hva økten gjorde: hvilke av Navs
+            skills og agenter som ble brukt, hvilke av Copilots innebygde verktøy som ble kalt og om kallene gikk bra,
+            antall runder, varighet, tokens, premium requests og kostnad per KI-modell. Tallene leses fra Copilots egen
+            logg over økten. Det du skrev, svarene, verktøyresultatene og filnavnene leses aldri. Andre skills, agenter
+            og verktøy telles som «annet», uten navn. Disse tallene har ikke maskinnummeret.
+          </BodyLong>
+          <BodyLong>
             Starter nav-pilot Copilot eller opencode, slår den også på deres egne målinger, mot samme mottaker. Kjører
             økten i et repo i navikt, merkes de med navnet på repoet. Første gang du kjører nav-pilot i en terminal,
             står dette på én linje.
