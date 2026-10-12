@@ -189,6 +189,7 @@ Flags:
   --json                  list as JSON
 `,
 	"survey": `Usage: nav-pilot survey [--json]
+       nav-pilot survey preview <id>
 
 Answer an open user survey. In a terminal it opens the survey, or asks which
 one when there are several. Without a terminal, or with --json, it lists the
@@ -198,6 +199,10 @@ It works with automatic survey prompts turned off (surveys = false,
 DO_NOT_TRACK) and after you chose Never for this survey, since you asked for
 it. Answering needs a GitHub sign-in (nav-pilot auth login), and each person
 can answer once.
+
+preview <id> runs a survey as committed on main
+(apps/copilot-survey/surveys/<id>.json), also before it opens, and sends
+nothing.
 
 Flags:
   --json                  List the open surveys as JSON

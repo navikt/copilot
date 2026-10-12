@@ -882,6 +882,50 @@ func postSurveyOnce(base, id string, payload []byte, token string) (int, error) 
 	return resp.StatusCode, nil
 }
 
+// cmdSurveyPreview is nav-pilot survey preview <id>: the survey as committed
+// on main, also before it opens, to try the questions. It never sends the
+// answers, so a preview cannot end up in the data.
+func cmdSurveyPreview(id string) error {
+	if !regexp.MustCompile(`^[a-z0-9-]{1,64}$`).MatchString(id) {
+		return fmt.Errorf("ugyldig id: %q", id)
+	}
+	if !isInteractive() {
+		return errors.New("forhåndsvisning trenger en terminal")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/"+id+".json", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("fant ikke undersøkelsen %s (%s)", id, resp.Status)
+	}
+	var s surveyDef
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 256<<10)).Decode(&s); err != nil {
+		return err
+	}
+	if !s.renderable() {
+		return fmt.Errorf("%s krever en nyere nav-pilot: %s", s.Title, bold("nav-pilot upgrade"))
+	}
+	fmt.Printf("\n%s (%d spørsmål, åpner %s)\n", bold(s.Title), s.count(), s.Starts)
+	fmt.Println(yellow("Forhåndsvisning: svarene sendes ikke."))
+	fmt.Println()
+	answers, ok := runSurveyForm(s)
+	if !ok {
+		return cancelledError{}
+	}
+	out, _ := json.MarshalIndent(answers, "", "  ")
+	fmt.Println(string(out))
+	fmt.Println(dim("Forhåndsvisning: ikke sendt."))
+	return nil
+}
+
 func surveyErrDetail(err error) string {
 	if err == nil || err.Error() == "" {
 		return ""

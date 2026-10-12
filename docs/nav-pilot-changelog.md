@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-12
 
+### Forhåndsvis en brukerundersøkelse før den åpner
+
+- **I terminalen**: `nav-pilot survey preview <id>` viser undersøkelsen slik den ligger på main, også før den åpner. Svarene skrives ut og sendes ikke.
+- **På nettsiden**: Eiere som står i `SURVEY_PREVIEWERS`, kan åpne `/nav-pilot/undersokelse?forhandsvis=<id>`. Skjemaet sjekker svarene, men sender dem ikke.
+
 ### GPT-6.1 Sol er anbefalingen for daglig koding
 
 - **Personlig anbefaling**: [/modeller](https://ki-utvikling.nav.no/modeller) og `docs/modellvalg.md` anbefaler nå GPT-6.1 Sol til daglig koding. Eier bestemte det 12. oktober 2026 etter nye målinger: GPT-6.1 Sol på Low besto 5 av 5 på t2, rv1 og rv2, som GPT-6 Sol, og rv1 og rv2 kostet 31,86 mot 36,92 credits.

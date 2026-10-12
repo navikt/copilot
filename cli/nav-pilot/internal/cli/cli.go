@@ -1063,6 +1063,9 @@ func run(args []string) error {
 		return runWithCommandTelemetry("env", telemetryMode(), "none", cmdEnv)
 	case "survey":
 		return norwegian(runWithCommandTelemetry("survey", telemetryMode(), "none", func() error {
+			if len(positional) == 2 && positional[0] == "preview" {
+				return cmdSurveyPreview(positional[1])
+			}
 			return cmdSurvey(jsonOutput)
 		}))
 	case "news":

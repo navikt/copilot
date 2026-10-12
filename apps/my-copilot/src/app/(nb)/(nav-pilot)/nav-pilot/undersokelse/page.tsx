@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import { Alert, Box, BodyLong, Heading, Link, VStack } from "@navikt/ds-react";
-import { Bullets } from "@/components/nav-pilot/doc-page";
-import { PageHero } from "@/components/page-hero";
+import { Alert, BodyLong, Heading, Link, VStack } from "@navikt/ds-react";
+import { Bullets, DocPage } from "@/components/nav-pilot/doc-page";
 import { getUser } from "@/lib/auth";
-import { getActiveSurveys, SURVEY_SCHEDULE, surveyWindow } from "@/lib/survey";
+import { canPreviewSurveys, getActiveSurveys, getSurveyPreview, SURVEY_SCHEDULE, surveyWindow } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
 export const metadata: Metadata = {
@@ -13,11 +12,17 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function SurveyPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
-  await getUser();
+export default async function SurveyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ id?: string; forhandsvis?: string }>;
+}) {
+  const user = await getUser();
+  const { id, forhandsvis } = await searchParams;
+  const preview =
+    forhandsvis && user && canPreviewSurveys(user.email) ? await getSurveyPreview(forhandsvis) : undefined;
   const active = await getActiveSurveys();
   const surveys = active.status === "ok" ? active.surveys : [];
-  const { id } = await searchParams;
   const phase = surveyWindow();
   const opens = new Date(SURVEY_SCHEDULE.starts).toLocaleDateString("nb-NO", {
     day: "numeric",
@@ -27,13 +32,11 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
   const survey = surveys.length === 1 ? surveys[0] : surveys.find((s) => s.id === id);
 
   return (
-    <main>
-      <PageHero title="Brukerundersøkelse" description="Svar på en åpen undersøkelse om Copilot og nav-pilot i Nav." />
-      <div className="max-w-3xl mx-auto">
-        <Box
-          paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
-          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32" }}
-        >
+    <DocPage title="Brukerundersøkelse" description="Svar på en åpen undersøkelse om Copilot og nav-pilot i Nav.">
+      {preview ? (
+        <SurveyForm survey={preview} preview />
+      ) : (
+        <>
           {active.status === "error" && (
             <Alert variant="error">Vi fikk ikke hentet undersøkelsene. Last inn siden på nytt om litt.</Alert>
           )}
@@ -69,8 +72,8 @@ export default async function SurveyPage({ searchParams }: { searchParams: Promi
             </VStack>
           )}
           {survey && <SurveyForm survey={survey} />}
-        </Box>
-      </div>
-    </main>
+        </>
+      )}
+    </DocPage>
   );
 }

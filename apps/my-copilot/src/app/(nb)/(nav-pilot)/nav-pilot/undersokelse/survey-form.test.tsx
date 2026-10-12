@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import type { Survey } from "@/lib/survey";
+import { canPreviewSurveys, type Survey } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
 const sendSurvey = vi.fn();
@@ -25,6 +25,22 @@ const survey: Survey = {
     },
   ],
 };
+
+describe("SurveyForm preview", () => {
+  it("checks the answers but never sends them, and only listed emails may preview", async () => {
+    sendSurvey.mockReset();
+    render(<SurveyForm survey={survey} preview />);
+    fireEvent.click(screen.getByRole("radio", { name: "Den er rask. Enig" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Den er trygg. Enig" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText(/ikke sendt eller lagret/)).toBeInTheDocument();
+    expect(sendSurvey).not.toHaveBeenCalled();
+
+    expect(canPreviewSurveys("Eier@nav.no", "a@nav.no, eier@nav.no")).toBe(true);
+    expect(canPreviewSurveys("andre@nav.no", "eier@nav.no")).toBe(false);
+    expect(canPreviewSurveys("", "")).toBe(false);
+  });
+});
 
 describe("SurveyForm matrix", () => {
   it("is a table of radios named by statement and step, sent as one answer per item", async () => {

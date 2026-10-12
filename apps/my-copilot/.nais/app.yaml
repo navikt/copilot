@@ -144,6 +144,9 @@ spec:
       value: "{{mcp_registry_public_url}}"
     - name: COPILOT_API_URL
       value: "http://copilot-api"
+    # Who may preview a survey before it opens (/nav-pilot/undersokelse?forhandsvis=<id>).
+    - name: SURVEY_PREVIEWERS
+      value: "hans.kristian.flaatten@nav.no"
   {{#if copilot_survey_url}}
     - name: COPILOT_SURVEY_URL
       value: "{{copilot_survey_url}}"

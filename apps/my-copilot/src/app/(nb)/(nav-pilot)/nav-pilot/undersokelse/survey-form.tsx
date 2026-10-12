@@ -48,7 +48,9 @@ function missing(q: SurveyQuestion, answers: Answers): string | undefined {
   return undefined;
 }
 
-export function SurveyForm({ survey }: { survey: Survey }) {
+/** preview: the form as it will be, for a survey not open yet. Submit checks the answers and sends nothing. */
+export function SurveyForm({ survey, preview = false }: { survey: Survey; preview?: boolean }) {
+  const [previewed, setPreviewed] = useState(false);
   const [answers, setAnswers] = useState<Answers>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<SubmitResult | null>(null);
@@ -109,9 +111,17 @@ export function SurveyForm({ survey }: { survey: Survey }) {
       requestAnimationFrame(() => summaryRef.current?.focus());
       return;
     }
+    if (preview) {
+      setPreviewed(true);
+      return;
+    }
     startTransition(async () => {
       setResult(await sendSurvey(survey.id, toSend));
     });
+  }
+
+  if (previewed) {
+    return <Alert variant="info">Forhåndsvisning: svarene er godkjent av skjemaet, men ikke sendt eller lagret.</Alert>;
   }
 
   if (result && (result.status === "recorded" || result.status === "duplicate")) {
@@ -132,6 +142,9 @@ export function SurveyForm({ survey }: { survey: Survey }) {
         <Heading size="large" level="2">
           {survey.title}
         </Heading>
+        {preview && (
+          <Alert variant="warning">Forhåndsvisning. Undersøkelsen er ikke åpen, og svarene sendes ikke.</Alert>
+        )}
         {survey.intro && <BodyLong>{survey.intro}</BodyLong>}
         <GuidePanel poster={false}>
           <BodyLong spacing>
