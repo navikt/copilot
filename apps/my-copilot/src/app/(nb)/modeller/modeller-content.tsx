@@ -465,6 +465,15 @@ export function ModellerContent({
                 ganger så mye. GPT-6 Luna er billig og god til små, avgrensede rettinger og en rask førstegjennomgang av
                 kode der sikkerhet ikke er tema, men ikke til sikkerhetsgjennomgang.
               </BodyLong>
+              <BodyLong>
+                Vær forsiktig med personopplysninger når du bruker GPT-6.1 Sol. I en pilot med tre kjøringer 12. oktober
+                la den to ganger fødselsnummer i en Kafka-melding før den spurte om personvern. GPT-6 Sol stoppet først
+                i alle fem kjøringene. Tre kjøringer er for få til å si hvor ofte dette skjer.{" "}
+                <Link href="https://github.com/navikt/copilot/pull/1641" target="_blank" rel="noopener noreferrer">
+                  Se piloten
+                </Link>
+                .
+              </BodyLong>
             </VStack>
 
             <VStack gap="space-12">
