@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"google.golang.org/api/option"
 )
 
 func f(v float64) *float64 { return &v }
@@ -70,7 +71,7 @@ func TestAdminMonthlyOverview(t *testing.T) {
 }
 
 func TestAdminMonthlyQueryReusesSharedCTEs(t *testing.T) {
-	bqc, err := bigquery.NewClient(context.Background(), "p")
+	bqc, err := bigquery.NewClient(context.Background(), "p", option.WithoutAuthentication())
 	if err != nil {
 		t.Fatal(err)
 	}
