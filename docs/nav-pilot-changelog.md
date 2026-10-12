@@ -17,7 +17,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Måling: Sonnet 5.5 holder for tilgjengelighet
 
-- **Resultat**: `@accessibility` på Claude Sonnet 5.5 besto 24 av 25 sjekker (uu1–uu5, fem kjøringer hver). Eneste feil var uu3: agenten skrev en egen `role="listbox"` og nevnte Aksel først etterpå. Sonnet 5.5 beholdes. Tallene står i `docs/modellvalg.md`.
+- **Resultat**: `@accessibility` på Claude Sonnet 5.5 besto 24 av 25 sjekker (uu1–uu5, fem kjøringer hver). Eneste feil var uu3: agenten skrev en egen `role="listbox"` og nevnte Aksel først etterpå. Sonnet 5.5 beholdes. Se [målingen](golden-baselines/2026-10-12-sonnet-5-5-aksel/).
 
 ### `klarsprak` lastes ikke for vanlige chatsvar
 
