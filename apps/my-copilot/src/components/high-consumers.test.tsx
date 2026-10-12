@@ -57,3 +57,11 @@ describe("HighConsumersView", () => {
     expect(screen.getByText("Ingen fakturerte måneder ennå.")).toBeInTheDocument();
   });
 });
+
+describe("HighConsumersView unknown limit", () => {
+  it("shows users outside the bands as «Ukjent grense», so each bar adds up", () => {
+    render(<HighConsumersView months={[month({ users: 250 })]} />);
+    expect(screen.getByRole("columnheader", { name: "Ukjent grense" })).toBeInTheDocument();
+    expect(screen.getByText("20 %", { selector: "td" })).toBeInTheDocument();
+  });
+});

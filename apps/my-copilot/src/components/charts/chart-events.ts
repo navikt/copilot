@@ -87,6 +87,18 @@ export function eventMarkers<T extends ChartType>(
         row = a.text && x - w / 2 < lastRight + 2 ? 1 - row : 0;
         lastRight = x + w / 2;
         const y = chartArea.top - 9 - row * 16;
+        // A text marker also gets a thin dashed line down to its place on the x-axis.
+        if (a.text) {
+          const lx = scales.x.getPixelForValue(index);
+          ctx.save();
+          ctx.strokeStyle = axColor("neutral-500", 0.6);
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(lx, y + 7);
+          ctx.lineTo(lx, chartArea.bottom);
+          ctx.stroke();
+          ctx.restore();
+        }
         ctx.fillStyle = axColor(a.dataBreak ? "neutral-700" : "neutral-500");
         ctx.beginPath();
         ctx.roundRect(x - w / 2, y - 7, w, 14, 7);

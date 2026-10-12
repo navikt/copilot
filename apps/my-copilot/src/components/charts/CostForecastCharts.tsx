@@ -160,7 +160,13 @@ function MonthChart({ data }: { data: CostForecast }) {
     },
     scales: {
       ...commonLineOptions.scales,
-      y: { ...commonLineOptions.scales.y, ticks: usdTicks },
+      // Headroom keeps the budget line clear of the event markers above the plot.
+      y: {
+        ...commonLineOptions.scales.y,
+        ticks: usdTicks,
+        grace: "12%",
+        suggestedMax: s.budget ? s.budget * 1.15 : undefined,
+      },
       x: { ...commonLineOptions.scales.x, ticks: { ...commonLineOptions.scales.x.ticks, maxTicksLimit: 8 } },
     },
   };

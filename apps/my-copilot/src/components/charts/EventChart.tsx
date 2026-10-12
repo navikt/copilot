@@ -14,6 +14,8 @@ export interface EventSeries {
   /** Per point, replaces the series label in the tooltip (a merged band, say). */
   pointLabels?: (string | null)[];
   dashed?: boolean;
+  /** Starts switched off in the legend; the reader can turn it on. */
+  hidden?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export function EventChart({
     borderWidth: kind === "bar" ? 0 : 2,
     pointRadius: kind === "line" ? 3 : 0,
     ...(s.dashed ? { borderDash: [6, 4] } : {}),
+    hidden: s.hidden,
   }));
   const base = {
     ...commonLineOptions,

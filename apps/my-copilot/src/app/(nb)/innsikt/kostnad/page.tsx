@@ -110,7 +110,7 @@ export default async function CostPage() {
             (current?.basis === "gross" && current.gross_usd != null
               ? ` Foreløpig forbruk i ${monthName(current.month)}: ${formatUSD(current.gross_usd)}.`
               : "") +
-            " Lisenskostnaden er et anslag og kommer i tillegg." +
+            " Lisenskostnaden er et anslag og kommer i tillegg. Slå den på i forklaringen under grafen." +
             eventSummary(markers)
           }
           chart={
@@ -137,7 +137,12 @@ export default async function CostPage() {
                   color: 5,
                   data: shown.map((m) => (m.basis === "gross" ? m.gross_usd : null)),
                 },
-                { label: "Lisenskostnad (anslag)", color: 2, data: shown.map((m) => m.licence_usd_estimate) },
+                {
+                  label: "Lisenskostnad (anslag)",
+                  color: 2,
+                  hidden: true,
+                  data: shown.map((m) => m.licence_usd_estimate),
+                },
               ]}
             />
           }

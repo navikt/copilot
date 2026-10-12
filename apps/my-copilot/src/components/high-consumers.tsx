@@ -36,6 +36,13 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
     }),
     pointLabels: withBands.map((m) => m.budget_bands!.find((x) => x.first === i && x.last !== i)?.label ?? null),
   }));
+  // Users the bands do not cover (no limit, say) get their own segment, so each bar adds up to 100 %.
+  const unknown = withBands.map((m) => {
+    const rest = m.users - m.budget_bands!.reduce((s, b) => s + b.users, 0);
+    return rest > 0 ? (rest / m.users) * 100 : null;
+  });
+  const hasUnknown = unknown.some((v) => v != null);
+  if (hasUnknown) series.push({ label: "Ukjent grense", color: 7, data: unknown, pointLabels: [] });
   const latest = withBands.at(-1);
   const over = latest?.budget_bands!.filter((b) => b.first >= 5).reduce((s, b) => s + share(latest, b), 0) ?? 0;
   return (
@@ -72,10 +79,15 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
                       {b}
                     </TableHeaderCell>
                   ))}
+                  {hasUnknown && (
+                    <TableHeaderCell scope="col" align="right">
+                      Ukjent grense
+                    </TableHeaderCell>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {withBands.map((m) => (
+                {withBands.map((m, i) => (
                   <TableRow key={m.month}>
                     <TableHeaderCell scope="row" className="whitespace-nowrap">
                       {rowLabel(m)}
@@ -90,6 +102,11 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
                         {formatPercent(share(m, b))}
                       </TableDataCell>
                     ))}
+                    {hasUnknown && (
+                      <TableDataCell align="right">
+                        {unknown[i] != null ? formatPercent(unknown[i]) : "–"}
+                      </TableDataCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
