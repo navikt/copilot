@@ -10,7 +10,7 @@ const budgetShareFrom = "2026-06-19"
 
 // budgetShareCTE returns a read-only CTE, budget_share, with one row per user
 // and day from budgetShareFrom: the personal limit (enterprise default or
-// override), gross usage from the 1st of the month, their ratio, and source.
+// override), from the user's first day in user_metrics that month, gross usage from the 1st of the month, their ratio, and source.
 // source is 'snapshot' where user_budget_snapshots holds GitHub's own figure
 // for that user and day, else 'estimate' (cumulative gross from user_metrics).
 // Pooled included credits are ignored on purpose: users do not see them.
@@ -27,11 +27,11 @@ func (bq *BigQueryClient) budgetShareCTE() string {
     WHERE day >= DATE '%s'
   ),
   um AS (
-    SELECT DATE_TRUNC(day, MONTH) m, user_id, ARRAY_AGG(login ORDER BY day DESC LIMIT 1)[OFFSET 0] login FROM u GROUP BY 1, 2
+    SELECT DATE_TRUNC(day, MONTH) m, user_id, MIN(day) first_day, ARRAY_AGG(login ORDER BY day DESC LIMIT 1)[OFFSET(0)] login FROM u GROUP BY 1, 2
   ),
   spine AS (
     SELECT um.user_id, um.login, d day FROM um,
-      UNNEST(GENERATE_DATE_ARRAY(GREATEST(um.m, DATE '%[2]s'),
+      UNNEST(GENERATE_DATE_ARRAY(um.first_day,
         LEAST(LAST_DAY(um.m), (SELECT MAX(day) FROM u)))) d
   ),
   mtd AS (
