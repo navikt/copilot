@@ -28,10 +28,10 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 	rows := []teamYearRow{
 		row("2026-04", false, 0, 0), // before membership history
 		row("2026-05", true, 0, 9),  // premium requests: net only
-		row("2026-06", true, 6, 4),  // net hidden, gross shown
-		row("2026-07", false, 4, 0), // gross, under five
+		row("2026-06", true, 6, 4),  // under five payers: still shown
+		row("2026-07", false, 4, 0), // gross, under five: still shown
 		row("2026-08", true, 6, 5),  // net
-		row("2026-09", true, 4, 5),  // net, gross hidden
+		row("2026-09", true, 4, 5),  // net
 		row("2026-10", true, 7, 7),  // current month never net
 		row("2026-11", false, 0, 0), // future
 	}
@@ -39,31 +39,30 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 	got := teamYearOverview("123", 2026, rows, time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC))
 	want := []struct {
 		month, basis string
-		hidden       bool
 		net, gross   bool
 	}{
-		{"2026-04", basisNone, false, false, false},
-		{"2026-05", basisPremium, false, true, false},
-		{"2026-06", basisNet, true, false, true},
-		{"2026-07", basisGross, true, false, false},
-		{"2026-08", basisNet, false, true, true},
-		{"2026-09", basisNet, false, true, false},
-		{"2026-10", basisGross, false, false, true},
+		{"2026-04", basisNone, false, false},
+		{"2026-05", basisPremium, true, false},
+		{"2026-06", basisNet, true, true},
+		{"2026-07", basisGross, false, true},
+		{"2026-08", basisNet, true, true},
+		{"2026-09", basisNet, true, true},
+		{"2026-10", basisGross, false, true},
 	}
 	if len(got.Months) != len(want) {
 		t.Fatalf("months = %+v", got.Months)
 	}
 	for i, w := range want {
 		m := got.Months[i]
-		if m.Month != w.month || m.Basis != w.basis || m.Hidden != w.hidden || (m.NetUSD != nil) != w.net || (m.GrossUSD != nil) != w.gross {
+		if m.Month != w.month || m.Basis != w.basis || (m.NetUSD != nil) != w.net || (m.GrossUSD != nil) != w.gross {
 			t.Errorf("%s = %+v, want %+v", w.month, m, w)
 		}
 		hasNet := (w.basis == basisNet || w.basis == basisPremium) && w.month != "2026-09"
 		if (m.ResidualPct != nil) != hasNet || (hasNet && *m.ResidualPct != 7.13) {
 			t.Errorf("%s residual = %v", w.month, m.ResidualPct)
 		}
-		if (m.Hidden || m.Basis == basisNone) && (m.Users != nil || m.NoUsageNetUSD != nil) {
-			t.Errorf("%s leaks counts: %+v", w.month, m)
+		if (m.Basis == basisNone) != (m.Users == nil) {
+			t.Errorf("%s users: %+v", w.month, m)
 		}
 	}
 	if aug := got.Months[4]; *aug.NetUSD != 80.01 || *aug.GrossUSD != 100 || *aug.Users != 5 || *aug.NoUsageNetUSD != 1.5 {
@@ -81,11 +80,11 @@ func TestTeamYearLicences(t *testing.T) {
 	now := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
 	got := teamYearOverview("123", 2026, []teamYearRow{
 		row("2026-04", 9, 211), // before user_teams history: licences still shown
-		row("2026-05", 4, 76),  // under five
+		row("2026-05", 4, 76),  // under five: shown too
 		row("2026-06", 5, 95),
 	}, now).Months
-	if got[1].SeatMonths != nil || got[1].LicenceUSDEstimate != nil {
-		t.Errorf("under five leaks seats: %+v", got[1])
+	if *got[1].SeatMonths != 4 || *got[1].LicenceUSDEstimate != 76 {
+		t.Errorf("under five: %+v", got[1])
 	}
 	if *got[0].SeatMonths != 9 || *got[0].LicenceUSDEstimate != 211 || *got[2].LicenceUSDEstimate != 95 {
 		t.Errorf("licences = %+v %+v", got[0], got[2])
@@ -307,5 +306,19 @@ func TestTeamYearRowDecodesResidual(t *testing.T) {
 	var empty teamYearRow
 	if err := decodeBQRow(schema, []bigquery.Value{"2026-03-01", nil}, &empty); err != nil || empty.ResidualPct != nil {
 		t.Fatalf("null residual: err=%v value=%v", err, empty.ResidualPct)
+	}
+}
+
+// A team where nobody paid beyond the included premium requests (teamkuhr in
+// January–May 2026) still shows every month, with zero net.
+func TestTeamYearShowsMonthsWithoutPayers(t *testing.T) {
+	var rows []teamYearRow
+	for _, month := range []string{"2026-01", "2026-02", "2026-03", "2026-04", "2026-05"} {
+		rows = append(rows, teamYearRow{Month: month + "-01", NetComplete: true, NoUsageNet: 0.5, SeatMonths: 2, Licence: 38, SeatsSnapshot: "2026-10-11", TeamMembersFrom: "2026-10-11"})
+	}
+	for _, m := range teamYearOverview("123", 2026, rows, time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)).Months {
+		if m.Basis != basisPremium || m.NetUSD == nil || *m.NetUSD != 0 || *m.Users != 0 || m.TotalUSD == nil || *m.TotalUSD != 38.5 {
+			t.Errorf("%s = %+v", m.Month, m)
+		}
 	}
 }

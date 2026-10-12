@@ -24,7 +24,6 @@ const data: TeamYearOverview = {
     {
       month: "2026-04",
       basis: "none",
-      hidden: false,
       users: null,
       net_usd: null,
       gross_usd: null,
@@ -37,34 +36,31 @@ const data: TeamYearOverview = {
     {
       month: "2026-05",
       basis: "premium",
-      hidden: false,
       users: 7,
       net_usd: 50.5,
       gross_usd: null,
       no_usage_net_usd: 1,
       residual_pct: 7.13,
-      seat_months: null,
-      licence_usd_estimate: null,
-      total_usd: null,
-      total_basis: "none",
+      seat_months: 7,
+      licence_usd_estimate: 133,
+      total_usd: 184.5,
+      total_basis: "premium",
     },
     {
       month: "2026-07",
       basis: "gross",
-      hidden: true,
-      users: null,
+      users: 4,
       net_usd: null,
-      gross_usd: null,
+      gross_usd: 60,
       no_usage_net_usd: null,
       seat_months: 9,
       licence_usd_estimate: 171,
-      total_usd: null,
-      total_basis: "none",
+      total_usd: 231,
+      total_basis: "gross",
     },
     {
       month: "2026-08",
       basis: "net",
-      hidden: false,
       users: 6,
       net_usd: 80.1,
       gross_usd: 100,
@@ -117,17 +113,27 @@ describe("GET /api/team-year", () => {
     expect(res.headers.get("Content-Disposition")).toContain("copilot-team-a-2026.csv");
     const lines = (await res.text()).trim().split("\n");
     const header = lines.findIndex((line) => !line.startsWith("#"));
-    expect(lines.slice(0, header).some((line) => line.includes("kan ikke legges sammen"))).toBe(true);
+    expect(lines.slice(0, header).some((line) => line.includes("Totalt hittil i år» er summen"))).toBe(true);
     expect(lines.slice(header)).toEqual([
       "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,medlemmer_med_lisens,lisenser_usd_anslag,totalt_med_lisenser_usd",
       "2026-04,Ingen data,,,,,,,",
-      "2026-05,Premiumforespørsler,7,50.50,,1.00,,,",
-      "2026-07,Brutto (skjult),,,,,9,171.00,",
+      "2026-05,Premiumforespørsler,7,50.50,,1.00,7,133.00,184.50",
+      "2026-07,Brutto (foreløpig),4,,60.00,,9,171.00,231.00",
       "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
+      "Totalt hittil i år,,,130.60,,3.00,,285.00,418.60",
     ]);
     expect(lines.some((line) => line.includes("Lisenser er et anslag"))).toBe(true);
+<<<<<<< HEAD
     expect(lines.filter((line) => line.includes("knyttes til en person"))).toEqual([
       "# Andel av Navs nettoforbruk som ikke kunne knyttes til en person: mai 7\u00a0%, august 2\u00a0%.",
+||||||| parent of a0c46a5c (feat(team-year): vis billing per team uten terskel på fem)
+    expect(lines.filter((line) => line.includes("kunne ikke knyttes til en person"))).toEqual([
+      "# Mai: 7\u00a0% av Navs nettoforbruk kunne ikke knyttes til en person og er derfor ikke med i tallene for noe team.",
+=======
+    expect(lines.some((line) => /skjult|færre enn fem/i.test(line))).toBe(false);
+    expect(lines.filter((line) => line.includes("kunne ikke knyttes til en person"))).toEqual([
+      "# Mai: 7\u00a0% av Navs nettoforbruk kunne ikke knyttes til en person og er derfor ikke med i tallene for noe team.",
+>>>>>>> a0c46a5c (feat(team-year): vis billing per team uten terskel på fem)
     ]);
     expect(lines.some((line) => line.includes("brukte Copilot i måneden"))).toBe(false);
     expect(getTeamYearOverview).toHaveBeenCalledWith("123", 2026, "token");

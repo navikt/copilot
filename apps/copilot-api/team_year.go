@@ -31,11 +31,10 @@ const (
 )
 
 // TeamYearMonth is one month for one team. Amounts are nil when the month has
-// no data or fewer than minTeamContributors contributors (Hidden).
+// no data for them. Billing per team has no minimum member count.
 type TeamYearMonth struct {
 	Month         string   `json:"month"`
 	Basis         string   `json:"basis"`
-	Hidden        bool     `json:"hidden"`
 	Users         *int64   `json:"users"`
 	NetUSD        *float64 `json:"net_usd"`
 	GrossUSD      *float64 `json:"gross_usd"`
@@ -49,13 +48,12 @@ type TeamYearMonth struct {
 	// covered the month, from the latest seat snapshot's created_at and
 	// pending_cancellation_date. A seat held before the current assignment is
 	// unknown and not counted. Months before the first team_members day use
-	// that day's members. Nil without a seat snapshot or team_members, or
-	// under minTeamContributors. Kept out of net and gross: those are usage
+	// that day's members. Nil without a seat snapshot or team_members. Kept out of net and gross: those are usage
 	// amounts, this is a list-price estimate.
 	SeatMonths         *int64   `json:"seat_months"`
 	LicenceUSDEstimate *float64 `json:"licence_usd_estimate"`
 	// TotalUSD is the basis amount (net plus no-usage net, or gross) plus the
-	// licence estimate. Nil when any part is hidden or missing.
+	// licence estimate. Nil when any part is missing.
 	TotalUSD   *float64 `json:"total_usd"`
 	TotalBasis string   `json:"total_basis"` // basis of TotalUSD, "none" when nil
 }
@@ -308,27 +306,26 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 		case hasTeams && hasGross:
 			m.Basis = basisGross
 		}
-		// Each amount follows the rule of its month endpoint: shown only with
-		// at least minTeamContributors contributors to that amount.
-		if (m.Basis == basisNet || m.Basis == basisGross) && row.GrossUsers >= minTeamContributors {
+		// Billing per team has no minimum member count (owner decision
+		// 2026-10-12): every month shows its real amounts.
+		if m.Basis == basisNet || m.Basis == basisGross {
 			m.GrossUSD = cents(row.Gross)
 		}
 		net := m.Basis == basisNet || m.Basis == basisPremium
 		if net && row.ResidualPct != nil {
 			m.ResidualPct = cents(*row.ResidualPct)
 		}
-		if net && row.NetUsers >= minTeamContributors {
+		if net {
 			m.NetUSD, m.NoUsageNetUSD = cents(row.Net), cents(row.NoUsageNet)
 		}
-		users, shown := row.GrossUsers, m.GrossUSD != nil
+		users := row.GrossUsers
 		if net {
-			users, shown = row.NetUsers, m.NetUSD != nil
+			users = row.NetUsers
 		}
-		m.Hidden = m.Basis != basisNone && !shown
-		if shown {
+		if m.Basis != basisNone {
 			m.Users = &users
 		}
-		if row.SeatsSnapshot != "" && row.TeamMembersFrom != "" && row.SeatMonths >= minTeamContributors {
+		if row.SeatsSnapshot != "" && row.TeamMembersFrom != "" {
 			seatMonths := row.SeatMonths
 			m.SeatMonths, m.LicenceUSDEstimate = &seatMonths, cents(row.Licence)
 		}
@@ -342,7 +339,7 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 }
 
 // teamYearTotal is the month's basis amount plus the licence estimate, nil
-// when any part is hidden or missing.
+// when any part is missing.
 func teamYearTotal(m TeamYearMonth) *float64 {
 	if m.LicenceUSDEstimate == nil {
 		return nil

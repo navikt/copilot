@@ -292,18 +292,17 @@ export interface TeamGrossOverview {
 export interface TeamYearMonth {
   month: string;
   basis: "net" | "premium" | "gross" | "none";
-  hidden: boolean;
   users: number | null;
   net_usd: number | null;
   gross_usd: number | null;
   no_usage_net_usd: number | null;
   /** Percent of the Nav-wide net bill not assigned to any user. Null for gross months and for runs published before the residual was recorded. Optional for older APIs. */
   residual_pct?: number | null;
-  /** Members with a seat that month; null when hidden (under five), without team history or before the first seat snapshot. */
+  /** Members with a seat that month; null without team history or before the first seat snapshot. */
   seat_months: number | null;
   /** seat_months at list price by plan: 19 USD Business, 39 USD Enterprise. An estimate, not billed. */
   licence_usd_estimate: number | null;
-  /** Basis amount (net plus no-usage net, or gross) plus licences; null when any part is hidden or missing. */
+  /** Basis amount (net plus no-usage net, or gross) plus licences; null when any part is missing. */
   total_usd: number | null;
   total_basis: "net" | "premium" | "gross" | "none";
 }
