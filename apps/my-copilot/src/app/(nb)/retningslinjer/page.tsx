@@ -246,9 +246,10 @@ export default function RetningslinjerPage() {
                 </BodyLong>
                 <BodyLong>
                   Still deg to spørsmål før du gir agenten en oppgave. Det første er om du skal lære dette. I &laquo;rød
-                  sone&raquo; (feilsøking, nye konsepter, kjernelogikk og arkitektur) bør du prøve selv først og bruke
-                  KI som støtte, ikke omvendt. I &laquo;grønn sone&raquo; (boilerplate, kjent teknologi, testdata) kan
-                  agenten skrive koden.
+                  sone&raquo; (feilsøking, nye konsepter, kjernelogikk, sikkerhetskritisk kode og
+                  arkitekturbeslutninger) skriver du koden selv først og bruker KI som støtte, ikke omvendt. I
+                  &laquo;grønn sone&raquo; (boilerplate, teknologi du kan fra før, konfigurasjon, refaktorering med
+                  kjent mål og testdata) kan agenten skrive koden.
                 </BodyLong>
                 <BodyLong>
                   Det andre er hva som skjer hvis agenten tar feil. Vurder risikoen som lav, middels eller høy. Oppgaver

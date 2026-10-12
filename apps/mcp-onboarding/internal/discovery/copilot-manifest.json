@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "8c6cbe9101b541c5492c581a2c0437da7f6981959d65c28b9f4414e1f48e45e6",
+      "contentHash": "de31dbf4ae0532d20bbefc9380a4cbfc01a7506cab7c705bb958717c1a0ab50a",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -260,7 +260,7 @@
       "displayName": "Bevisst KI-bruk",
       "description": "Regler for bevisst KI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
       "filePath": "instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "5e2d7a2f23285de8b92728b7fa076f0360a951c2fb5cbfcc1f1f7c0f8cd1a56e",
+      "contentHash": "15622615367ccc328a27b93c4c9ec0a9384dd94245e6c87c2143b92c502ace85",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md"
     },
@@ -653,7 +653,7 @@
       "displayName": "deliberate-ai-use",
       "description": "Bevisst KI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak",
       "filePath": "skills/deliberate-ai-use/SKILL.md",
-      "contentHash": "60f1bc5b6eb0b378d1115f0a6febaa63670b25576007f2b435943940bfe137fd",
+      "contentHash": "4e52ba35ebcc66057484073235c41f33108eb2742d09194ad98de602aa2784d6",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/deliberate-ai-use/SKILL.md"
     },

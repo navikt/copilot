@@ -69,7 +69,7 @@ Historikk: [issue #484](https://github.com/navikt/copilot/issues/484), `badb737c
 
 ### Rød/grønn-sone
 
-Rød sone brukes for usikkerhet, risiko, avklaringer og vurderinger. Grønn sone brukes for utførte, avgrensede og verifiserte endringer. Sonene er et styringsverktøy, ikke pynt.
+Sonene svarer på om utvikleren skal lære dette, ikke på risiko. Definisjonen står i `instructions/deliberate-ai-use.instructions.md` og er den eneste kilden. Rød sone er feilsøking, nye konsepter, kjernelogikk, sikkerhetskritisk kode og arkitekturbeslutninger. Grønn sone er boilerplate, teknologi utvikleren kan fra før, konfigurasjon, refaktorering med kjent mål og testdata. For rød sone lager agenten testskjeletter og stubber, med mindre utvikleren eksplisitt ber om implementasjon. Da får utvikleren en sjekkliste for gjennomgang per punkt.
 
 ### Spesialistruting
 

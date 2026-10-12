@@ -166,6 +166,12 @@ export default function Planlegging() {
             testskjeletter og stubber med <code className={code}>TODO</code>, og skriver kjernelogikken selv.
           </BodyLong>
           <BodyLong>
+            Vil du heller gå gjennom koden etterpå, skriver du for eksempel{" "}
+            <code className={code}>implementer rød sone, jeg reviewer</code>. Da skriver agenten koden for de røde
+            delene og avslutter med en sjekkliste per del: hva du skal kontrollere, hvilke regler som alltid må holde,
+            og hvilke tester du bør lese.
+          </BodyLong>
+          <BodyLong>
             Sonen svarer på om du skal lære dette. Risikoen svarer på hva som skjer hvis agenten tar feil: lav, middels
             eller høy. Oppgaver som berører nettverk, hemmeligheter, MCP-servere, produksjon eller persondata, har høy
             risiko, også når de er grønne. Konfigurasjon og infrastruktur er ikke automatisk lav risiko.
@@ -186,6 +192,7 @@ export default function Planlegging() {
                 <Bullets>
                   <li>Boilerplate og repetitiv kode (Nais-manifest, CRUD)</li>
                   <li>Teknologi du kan fra før</li>
+                  <li>Konfigurasjon og infrastruktur</li>
                   <li>Refaktorering med kjent mål</li>
                   <li>Testdata og fixtures</li>
                 </Bullets>
@@ -193,7 +200,9 @@ export default function Planlegging() {
             </Box>
             <Box background="danger-soft" borderRadius="8" padding="space-16">
               <VStack gap="space-8">
-                <Label size="small">Rød sone: du skriver koden, modellen gir stubber</Label>
+                <Label size="small">
+                  Rød sone: du skriver koden, modellen gir stubber (med mindre du ber om koden)
+                </Label>
                 <Bullets>
                   <li>Feilsøking</li>
                   <li>Nye konsepter og ukjent teknologi</li>

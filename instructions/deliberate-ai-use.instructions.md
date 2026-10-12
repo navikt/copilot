@@ -20,7 +20,7 @@ The explanation requirement below is scoped as `output-style.instructions.md` de
 
 ### ⚠️ Ask First
 
-- Whether the developer wants full delegation or guided learning
+- Whether the developer wants full delegation or guided learning. For red-zone items the default is test skeletons and stubs; implement them only when the developer explicitly asks, and then end with a review checklist per item
 - With unfamiliar technology: whether they want to learn the concepts first
 
 ### 🚫 Never

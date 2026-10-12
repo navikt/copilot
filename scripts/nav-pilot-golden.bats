@@ -465,6 +465,32 @@ run_suite() {
   done
 }
 
+@test "zones: every red and green item in the instruction appears in the skill, the agent and both pages" {
+  root="${BATS_TEST_DIRNAME}/.."
+  web="$root/apps/my-copilot/src/app/(nb)"
+  line=$(grep -m1 '^\*\*Red zone\*\*' "$root/instructions/deliberate-ai-use.instructions.md")
+  red=${line#*first): }; red=${red%%. \*\*Green*}
+  green=${line#*AI): }; green=${green%.}
+  items=$(printf '%s, %s\n' "$red" "$green" | sed -E 's/ \([^)]*\)//g; s/,? and /, /g' | tr ',' '\n' | sed 's/^ *//')
+  [ "$(printf '%s\n' "$items" | wc -l)" -eq 10 ]
+  # ponytail: English item -> Norwegian page wording; a new item fails until it is mapped here.
+  nb() { case "$1" in
+    debugging) echo feilsøking;; "new concepts") echo "nye konsepter";; "core business logic") echo kjernelogikk;;
+    "security-critical code") echo "sikkerhetskritisk kode";; "architecture decisions") echo arkitekturbeslutninger;;
+    boilerplate) echo boilerplate;; "technology the developer already knows") echo "teknologi du kan fra før";;
+    configuration) echo konfigurasjon;; "refactoring with a known goal") echo "refaktorering med kjent mål";;
+    "test data") echo testdata;; *) echo "UNMAPPED:$1";; esac; }
+  # Only the zone lists count: the words also occur in other prose on these files.
+  skill=$(sed -n '/^## Green and red zone/,/^\*\*Three-attempt/p' "$root/skills/deliberate-ai-use/SKILL.md" | grep '^- ')
+  agent=$(grep '^\*\*🔴 Red-zone code:\*\*' "$root/agents/nav-pilot.agent.md")
+  guide=$(sed -n '/&laquo;rød/,/agenten skrive koden/p' "$web/retningslinjer/page.tsx" | tr -s ' \n' '  ')
+  plan=$(grep '<li>' "$web/(nav-pilot)/nav-pilot/forklaring/planlegging/page.tsx")
+  while IFS= read -r it; do
+    for v in skill agent; do grep -qiF -- "$it" <<< "${!v}" || { echo "missing '$it' in $v"; false; }; done
+    for v in guide plan; do grep -qiF -- "$(nb "$it")" <<< "${!v}" || { echo "missing '$(nb "$it")' in $v"; false; }; done
+  done <<< "$items"
+}
+
 @test "planning t2: open points that stop pass; proceeding, negated or deferred points fail" {
   eval "$(grep -E '^RE_(FASE2_PLAN|T2_PROCEED)=' "$SCRIPT")"
   [ -n "$RE_T2_PROCEED" ]

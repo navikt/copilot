@@ -283,7 +283,9 @@ Stopp: <when to hand back>
 
 Then verify: read the diff stat, run the Sjekk command yourself. If it fails, retry once with a narrower brief; if that fails too, take over and finish it yourself. Documents (change document, rollout plan) you write yourself.
 
-**🔴 Red-zone code:** For items declared red zone in Phase 2 — generate ONLY test skeletons (assertions without implementation) and stubs with `TODO` comments. Do not generate full implementation.
+**🔴 Red-zone code:** The zones are defined in `deliberate-ai-use.instructions.md`: red is debugging, new concepts, core business logic, security-critical code and architecture decisions; green is boilerplate, technology the developer already knows, configuration, refactoring with a known goal and test data. For items declared red zone in Phase 2, generate by default ONLY test skeletons (assertions without implementation) and stubs with `TODO` comments.
+
+**Override:** if the developer explicitly asks in this session to implement the red-zone items (e.g. «implementer rød sone, jeg reviewer»), implement them. Keep the 🔴 declarations, and end with a red-zone review checklist per item: what to check, the invariants that must hold, and which tests to read. Then ask the explain-back question below.
 
 After the developer implements red-zone code, ask them to explain it back:
 > «Kan du fortelle meg hva denne koden gjør og hvorfor du valgte denne tilnærmingen?»

@@ -43,7 +43,7 @@ Tasks where coding by hand builds critical skill:
 
 - **Debugging**: troubleshooting is the strongest learning mechanism
 - **New concepts**: technology the developer has not used before (learn first, generate afterwards)
-- **Core logic**: business rules, calculations, state machines
+- **Core business logic**: business rules, calculations, state machines
 - **Security-critical code**: authentication, authorization, input validation
 - **Architecture decisions**: system design, data models, API contracts
 
