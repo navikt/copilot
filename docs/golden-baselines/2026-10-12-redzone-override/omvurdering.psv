@@ -1,4 +1,4 @@
-# omvurdering 2026-10-12: 9 og 9c består også på et spørsmål om hvem som skal skrive koden (asks_owner)
+# omvurdering 2026-10-12, strammet etter review: 9 og 9c består også på et spørsmål om hvem som skal skrive koden (asks_owner)
 # mappe|test|kjøring|før|etter
 batch-gpt-6-sol-low|9|1|error|pass
 batch-gpt-6-sol-low|9|2|error|error
@@ -12,7 +12,7 @@ batch-gpt-6-sol-low|9c|4|error|error
 batch-gpt-6-sol-low|9c|5|error|error
 batch2-agentfiks-gpt-6-sol-low|9|1|error|error
 batch2-agentfiks-gpt-6-sol-low|9|2|error|pass
-batch2-agentfiks-gpt-6-sol-low|9|3|error|pass
+batch2-agentfiks-gpt-6-sol-low|9|3|error|error
 batch2-agentfiks-gpt-6-sol-low|9|4|error|pass
 batch2-agentfiks-gpt-6-sol-low|9c|1|error|pass
 batch2-agentfiks-gpt-6-sol-low|9c|2|error|pass

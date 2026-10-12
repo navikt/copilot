@@ -410,6 +410,13 @@ case "$p" in
             else echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; fi; exit 0 ;;
       askowner) echo "🔴 Rød sone. Vil du skrive beregningen selv, eller skal jeg implementere den for gjennomgang?"; exit 0 ;;
       askrule) echo "🔴 Rød sone. Skal satsen gjelde hele grunnlaget selv om personen er 60, eller skal jeg dele det?"; exit 0 ;;
+      fp1) echo "🔴 Rød sone. Hvilken rundingsregel liker dere hellere, og skal jeg skrive testene selv?"; exit 0 ;;
+      fp2) echo "🔴 Rød sone. Du kan skrive beregningen selv, eller jeg kan implementere den senere."; exit 0 ;;
+      fp3) echo "🔴 Rød sone. Skal 60-årsgrensen gjelde hele året, eller skal jeg lage den inkluderende i Feriepenger.kt?"; exit 0 ;;
+      en) printf '%s\n' "package no.nav.demo" "fun feriepenger(grunnlag: Long, alder: Int): Long =" \
+            "    (grunnlag * (if (alder >= 60) 125 else 102) + 500) / 1000" >"$f"
+          printf '%s\n' "🔴 Red zone: implemented for your review." "**Red-zone checklist**" "- [ ] the rates and the age limit" \
+            "Can you tell me what this code does and why this approach is right?"; exit 0 ;;
       wrongdecl) echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; exit 0 ;;
       nofn) printf '%s\n' "package no.nav.demo" "val sats = 102" >src/main/kotlin/no/nav/demo/Sats.kt
             printf '%s\n' "🔴 Rød sone: beregningen" "Sjekkliste:" "- satsene"; exit 0 ;;
@@ -424,7 +431,7 @@ case "$p" in
     fi
     [[ "$BENCH_MODE" == nored ]] || echo "🔴 Rød sone: beregningen i Feriepenger.kt"
     if $impl && [[ "$BENCH_MODE" != always ]]; then
-      echo "Kontrollpunkter for rød sone:"; echo "- satsene og 60-årsgrensen"; echo "- avrundingen til nærmeste krone"
+      echo "Sjekkliste:"; echo "- satsene og 60-årsgrensen"; echo "- avrundingen til nærmeste krone"
     fi
     echo "Kan du fortelle meg hva denne koden gjør?" ;;
   *maksAntall*)
@@ -1060,6 +1067,13 @@ EOF
   run_suite askrule --agent nav-pilot --only 9
   [ "$status" -eq 3 ]
   grep -q '^9|1|error|' "$SHIM/b-results.psv"
+  for arm in fp1 fp2 fp3; do
+    run_suite $arm --agent nav-pilot --only 9
+    [ "$status" -eq 3 ]
+    grep -q '^9|1|error|' "$SHIM/b-results.psv"
+  done
+  run_suite en --agent nav-pilot --only 9b
+  [ "$status" -eq 0 ]
   run_suite nofn --agent nav-pilot --only 9b
   [ "$status" -eq 1 ]
   grep -q '^9b|1|fail|.*no written file defines fun feriepenger' "$SHIM/b-results.psv"
