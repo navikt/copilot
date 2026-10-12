@@ -141,7 +141,7 @@ describe("annotationsFor", () => {
 });
 
 describe("familyShares models", () => {
-  it("lists each family's models per month, Auto merged, biggest first", () => {
+  it("lists each family's models per month, biggest first, with Auto as one family", () => {
     const row = (model: string, net_amount: number) => ({
       year_month: "2026-09",
       model,
@@ -150,14 +150,23 @@ describe("familyShares models", () => {
       pct_of_monthly_net: 0,
     });
     const { series } = familyShares(
-      [row("GPT-5.6 Sol", 20), row("GPT-6 Astra", 50), row("Auto: GPT-6 Astra", 10), row("Code Review model", 20)],
+      [
+        row("GPT-5.6 Sol", 20),
+        row("GPT-6 Astra", 50),
+        row("Auto: GPT-6 Astra", 10),
+        row("Auto: Claude Opus 5", 30),
+        row("Code Review model", 20),
+      ],
       ["2026-09"],
       true
     );
     const gpt = series.find((s) => s.family === "gpt")!;
-    expect(gpt.shares).toEqual([80]);
+    expect(gpt.shares).toEqual([53.8]);
     expect(gpt.models).toEqual([["GPT-6 Astra", "GPT-5.6 Sol"]]);
-    expect(series.find((s) => s.family === "kodegjennomgang")!.shares).toEqual([20]);
+    const auto = series.find((s) => s.family === "auto")!;
+    expect(auto.shares).toEqual([30.8]);
+    expect(auto.models).toEqual([["Auto: Claude Opus 5", "Auto: GPT-6 Astra"]]);
+    expect(series.find((s) => s.family === "kodegjennomgang")!.shares).toEqual([15.4]);
     expect(series.some((s) => s.family === "andre")).toBe(false);
   });
 });

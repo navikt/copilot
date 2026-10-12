@@ -20,6 +20,7 @@ export type ModelFamily =
   | "gpt"
   | "gemini"
   | "kodegjennomgang"
+  | "auto"
   | "andre";
 
 /** Display order and Norwegian labels. */
@@ -32,19 +33,21 @@ export const FAMILY_LABELS: Record<ModelFamily, string> = {
   gpt_mini: "GPT mini (mini, nano, Luna)",
   gemini: "Gemini",
   kodegjennomgang: "Kodegjennomgang",
+  auto: "Auto",
   andre: "Andre",
 };
 
-/** The model behind an automatic choice: «Auto: Claude Opus 5» is «Claude Opus 5». */
-export const baseModel = (model: string) => model.trim().replace(/^auto:\s*/i, "");
-
 /**
- * «Claude Opus 5.5» and «claude-opus-5.5» give the same family. Unknown names give
- * «andre». With costPage (the admin cost page only), «Auto: X» counts as X and Copilot's code review model is its
- * own family. The public pages keep the #1523 schema until the owner has reviewed the change.
+ * «Claude Opus 5.5» and «claude-opus-5.5» give the same family. Every «Auto: X» is one family, «auto», on all
+ * pages (owner decision 12 October 2026). Unknown names give «andre». With costPage (the admin cost page only),
+ * Copilot's code review model is its own family.
  */
 export function modelFamily(model: string, costPage = false): ModelFamily {
-  const name = (costPage ? baseModel(model) : model.trim()).toLowerCase().replace(/[\s_]+/g, "-");
+  const name = model
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
+  if (name.startsWith("auto:")) return "auto";
   if (costPage && name === "code-review-model") return "kodegjennomgang";
   return FAMILIES.find(([pattern]) => pattern.test(name))?.[1] ?? "andre";
 }

@@ -1,5 +1,5 @@
 import type { BillingModelBreakdown, SegmentChart } from "./types";
-import { baseModel, FAMILY_LABELS, modelFamily, type ModelFamily } from "./model-family";
+import { FAMILY_LABELS, modelFamily, type ModelFamily } from "./model-family";
 import { previousMonth } from "./month-utils";
 
 /** The period select on /innsikt/trender. The value is kept in ?periode=. */
@@ -66,7 +66,7 @@ export function familyShares(rows: BillingModelBreakdown[], months: string[], co
     const byFamily = net.get(month) ?? new Map<ModelFamily, number>();
     const family = modelFamily(row.model, costPage);
     byFamily.set(family, (byFamily.get(family) ?? 0) + row.net_amount);
-    const key = `${month}\u0000${family}\u0000${costPage ? baseModel(row.model) : row.model.trim()}`;
+    const key = `${month}\u0000${family}\u0000${row.model.trim()}`;
     byModel.set(key, (byModel.get(key) ?? 0) + row.net_amount);
     net.set(month, byFamily);
   }

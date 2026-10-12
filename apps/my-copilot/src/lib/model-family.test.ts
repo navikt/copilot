@@ -23,10 +23,9 @@ describe("modelFamily", () => {
 });
 
 describe("modelFamily with Auto and code review", () => {
-  it("counts Auto with its base model on the cost page only", () => {
-    expect(modelFamily("Auto: Claude Opus 5", true)).toBe("claude_opus");
-    expect(modelFamily("Auto: GPT-5.4 mini", true)).toBe("gpt_mini");
-    expect(modelFamily("Auto: Claude Opus 5")).toBe("andre");
+  it("puts every Auto variant in one family on all pages", () => {
+    expect(modelFamily("Auto: Claude Opus 5")).toBe("auto");
+    expect(modelFamily("Auto: GPT-5.4 mini", true)).toBe("auto");
   });
   it("names code review only when asked", () => {
     expect(modelFamily("Code Review model")).toBe("andre");

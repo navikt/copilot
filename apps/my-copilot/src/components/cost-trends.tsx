@@ -21,7 +21,7 @@ const FIRST_MONTH = "2026-01";
 /** The most copilot-api serves; covers January 2026 until early 2029. */
 const HISTORY_MONTHS = 36;
 
-/** Fixed palette index per family (axSeries has 8): «Andre» is grey, Haiku and Fable are both small and share one. */
+/** Fixed palette index per family (axSeries has 8): «Andre» is grey; Haiku, Fable and Gemini are all small and share one. */
 const FAMILY_COLOR: Record<ModelFamily, number> = {
   claude_opus: 0,
   claude_sonnet: 1,
@@ -30,7 +30,8 @@ const FAMILY_COLOR: Record<ModelFamily, number> = {
   kodegjennomgang: 3,
   gpt_mini: 4,
   andre: 5,
-  gemini: 6,
+  gemini: 2,
+  auto: 6,
   gpt: 7,
 };
 
@@ -159,7 +160,7 @@ export function CostTrendsView({
         <ChartFigure
           title="Hvilke KI-modeller går pengene til?"
           summary={
-            `Andel av det fakturerte beløpet per modellfamilie. Automatisk modellvalg teller med modellen som ble valgt. Kodegjennomgang er modellen Copilot bruker til å gå gjennom pull requests. ` +
+            `Andel av det fakturerte beløpet per modellfamilie. Automatisk modellvalg er samlet i «Auto». Kodegjennomgang er modellen Copilot bruker til å gå gjennom pull requests. ` +
             `I ${monthLabel(keys.at(-1)!)}: ${mix
               .map((m) => `${m.model} ${pct(m.shares.at(-1) ?? null)}`)
               .join(", ")}.` +
@@ -180,7 +181,12 @@ export function CostTrendsView({
                 color: FAMILY_COLOR[f.family],
                 data: f.shares,
                 pointLabels: f.models.map((m) =>
-                  m.length && f.family !== "kodegjennomgang" ? `${f.label} (${m.slice(0, 3).join(", ")})` : null
+                  m.length && f.family !== "kodegjennomgang"
+                    ? `${f.label} (${m
+                        .slice(0, 3)
+                        .map((x) => x.replace(/^Auto: /, ""))
+                        .join(", ")})`
+                    : null
                 ),
               }))}
             />
