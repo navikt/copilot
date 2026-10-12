@@ -426,11 +426,13 @@ case "$p" in
       fp3) echo "🔴 Rød sone. Skal 60-årsgrensen gjelde hele året, eller skal jeg lage den inkluderende i Feriepenger.kt?"; exit 0 ;;
       en) printf '%s\n' "package no.nav.demo" "fun feriepenger(grunnlag: Long, alder: Int): Long =" \
             "    (grunnlag * (if (alder >= 60) 125 else 102) + 500) / 1000" >"$f"
-          printf '%s\n' "🔴 Red zone: implemented for your review." "**Red-zone checklist**" "- [ ] the rates and the age limit" \
+          printf '%s\n' "🔴 Red zone: implemented for your review." "**Sjekkliste for rød sone**" "- [ ] the rates and the age limit" \
             "Can you tell me what this code does and why this approach is right?"; exit 0 ;;
+      prose) printf '%s\n' "package no.nav.demo" "fun feriepenger(grunnlag: Long, alder: Int): Long = grunnlag" >"$f"
+             printf '%s\n' "🔴 Rød sone. Ved gjennomgang bør du sjekke satsene og avrundingen." "Kan du forklare koden?"; exit 0 ;;
       wrongdecl) echo "🔴 Rød sone, skriv selv: beregningen i Feriepenger.kt"; exit 0 ;;
       nofn) printf '%s\n' "package no.nav.demo" "val sats = 102" >src/main/kotlin/no/nav/demo/Sats.kt
-            printf '%s\n' "🔴 Rød sone: beregningen" "Sjekkliste:" "- satsene"; exit 0 ;;
+            printf '%s\n' "🔴 Rød sone: beregningen" "**Sjekkliste for rød sone**" "- [ ] satsene"; exit 0 ;;
     esac
     if $impl; then
       c=""; [[ "$BENCH_MODE" == good ]] && c="// TODO: vurder ny sats fra 2027"
@@ -442,7 +444,7 @@ case "$p" in
     fi
     [[ "$BENCH_MODE" == nored ]] || echo "🔴 Rød sone: beregningen i Feriepenger.kt"
     if $impl && [[ "$BENCH_MODE" != always ]]; then
-      echo "Sjekkliste:"; echo "- satsene og 60-årsgrensen"; echo "- avrundingen til nærmeste krone"
+      echo "**Sjekkliste for rød sone**"; echo "- [ ] satsene og 60-årsgrensen"; echo "- [ ] avrundingen til nærmeste krone"
     fi
     echo "Kan du fortelle meg hva denne koden gjør?" ;;
   *maksAntall*)
@@ -1060,10 +1062,9 @@ EOF
   run_suite never --agent nav-pilot --only 9b
   [ "$status" -eq 1 ]
   grep -q '^9b|1|fail|.*left stubs' "$SHIM/b-results.psv"
-  run_suite nored --agent nav-pilot --only 9,9b
+  run_suite nored --agent nav-pilot --only 9
   [ "$status" -eq 1 ]
   grep -q '^9|1|fail|.*does not mark anything' "$SHIM/b-results.psv"
-  grep -q '^9b|1|fail|.*does not mark anything' "$SHIM/b-results.psv"
   run_suite ask --agent nav-pilot --only 9
   [ "$status" -eq 3 ]
   grep -q '^9|1|error|.*declared no owner' "$SHIM/b-results.psv"
@@ -1088,6 +1089,9 @@ EOF
   run_suite always --agent nav-pilot --only 9d
   [ "$status" -eq 1 ]
   grep -q '^9d|1|fail|.*kept for themselves' "$SHIM/b-results.psv"
+  run_suite prose --agent nav-pilot --only 9b
+  [ "$status" -eq 1 ]
+  grep -q '^9b|1|fail|.*no review checklist' "$SHIM/b-results.psv"
   run_suite en --agent nav-pilot --only 9b
   [ "$status" -eq 0 ]
   run_suite nofn --agent nav-pilot --only 9b

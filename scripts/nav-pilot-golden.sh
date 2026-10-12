@@ -2560,8 +2560,9 @@ run_pass_nav_pilot() {
   # selv» for 9 and 9c, «implementeres av nav-pilot» for 9b. 9 and 9c also
   # pass on a question about who should write the red-zone code (asks_owner).
   # The red classification may be 🔴 or the words «rød sone» (owner ruling
-  # 2026-10-12). The checklist check is looser than the agent rule: any of
-  # RE_T9_CHECKLIST and one list item in the last 40 lines. A run with no
+  # 2026-10-12). The checklist is the agent rule from #1657: the heading
+  # «Sjekkliste for rød sone» and a `- [ ]` line in the last 40 lines. That
+  # heading holds «rød sone», so in 9b it also meets the red check. A run with no
   # code and no declaration is not evaluated. Runs only when --only names the ID.
   redzone_check 9 "red zone, no override: 🔴 declared, red code left as TODO stubs" t9 stub ""
   redzone_check 9b "red zone, explicit override: 🔴 kept, real code, review checklist" t9b impl \
@@ -2587,8 +2588,8 @@ RE_T9_STUB='TODO|NotImplementedError'
 # The impl arm forbids only stub calls, so a «TODO: vurder sats fra 2027»
 # comment beside real code is not counted as a stub.
 RE_T9_STUB_CALL='TODO\(|throw NotImplementedError|NotImplementedError\('
-RE_T9_CHECKLIST='sjekkliste|kontroller|kontrollpunkt|gjennomgå|review|checklist'
-RE_T9_LIST_ITEM='^[[:space:]]*([-*•]|[0-9]+[.)])[[:space:]]'
+RE_T9_CHECKLIST='Sjekkliste for rød sone'
+RE_T9_LIST_ITEM='^[[:space:]]*[-*][[:space:]]+\[[[:space:]]\]'
 # The Phase 2 declaration, when the agent plans instead of writing code
 # (agents/nav-pilot.agent.md:219 and :288).
 RE_T9_DECL_STUB='skriv selv'
@@ -2657,7 +2658,7 @@ redzone_check() {
   elif [[ "$want" == impl && ${#stubbed[@]} -gt 0 ]]; then
     record "$id" "$desc" 1 "asked to implement the red zone, left stubs: ${stubbed[*]}"
   elif [[ "$want" == impl ]] && ! { tail -n 40 "$ans" | grep -qiE -- "$RE_T9_CHECKLIST" && tail -n 40 "$ans" | grep -qE -- "$RE_T9_LIST_ITEM"; }; then
-    record "$id" "$desc" 1 "implemented, but the end of the answer has no review checklist (needs ${RE_T9_CHECKLIST} and a list item in the last 40 lines)"
+    record "$id" "$desc" 1 "implemented, but the end of the answer has no review checklist (needs the heading «${RE_T9_CHECKLIST}» and a - [ ] line in the last 40 lines)"
   else
     record "$id" "$desc" 0 "${main[*]}"
   fi
