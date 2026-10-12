@@ -5,7 +5,7 @@ import { getCostForecast } from "@/lib/cached-bigquery";
 import { formatDate, formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import type { CostForecast, CostForecastModel } from "@/lib/types";
 
-const label: Record<CostForecastModel["model"], string> = { trend: "Trend", per_user: "Per person" };
+const label: Record<CostForecastModel["model"], string> = { trend: "Trend", weekday: "Ukedag", per_user: "Per person" };
 
 const range = (r: CostForecastModel) =>
   `${formatUSD(r.net_mid_usd)} (${formatUSD(r.net_low_usd)}–${formatUSD(r.net_high_usd)})`;

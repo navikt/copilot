@@ -8,7 +8,7 @@ import { monthLabel } from "@/lib/trends";
 import type { AdminMonth, CostForecast, CostForecastModel } from "@/lib/types";
 import { CostForecastCharts } from "@/components/charts/CostForecastCharts";
 
-const label: Record<CostForecastModel["model"], string> = { trend: "Trend", per_user: "Per person" };
+const label: Record<CostForecastModel["model"], string> = { trend: "Trend", weekday: "Ukedag", per_user: "Per person" };
 
 /** Owner decision: the per-person model stays hidden until its backtest error is within this, over two closed months. */
 export const PER_USER_MAX_ERROR_PCT = 15;
@@ -89,13 +89,15 @@ export function CostForecastView({ data: raw }: { data: CostForecast }) {
       </Table>
       <BodyShort size="small" textColor="subtle">
         Usikkert anslag, kalibreres videre. Prognosen bygger på {data.days_elapsed} av {data.days_in_month} dager.
-        Treffsikkerhet hittil er snittavviket når modellen kjøres på dag 10, 15 og 20 i avsluttede måneder.
+        Treffsikkerhet hittil er snittavviket når modellen kjøres på dag 5, 10, 15, 20 og 25 i avsluttede måneder.
       </BodyShort>
       <BodyShort size="small" textColor="subtle">
-        Trend: bruttoforbruket for hele Nav følger trenden de siste 20 hverdagene. Per person: hver person følger sitt
-        eget mønster fra forrige måned, justert etter bruken så langt, og stopper ved forbruksgrensen. Juli er ferie, så
-        i august følger hver person sitt eget snitt så langt. Begge regner så ut fakturert forbruk: vi betaler for det
-        som går ut over kredittene som er inkludert i lisensene, og kredittene deles av alle i Nav.
+        Trend: bruttoforbruket for hele Nav følger trenden de siste 20 hverdagene. Ukedag: nivået så langt i måneden,
+        justert for ukedag og veksten de siste månedene. Vi viser den av Trend og Ukedag som har truffet best. Per
+        person: hver person følger sitt eget mønster fra forrige måned, justert etter bruken så langt, og stopper ved
+        forbruksgrensen. Juli er ferie, så i august følger hver person sitt eget snitt så langt. Alle regner så ut
+        fakturert forbruk: vi betaler for det som går ut over kredittene som er inkludert i lisensene, og kredittene
+        deles av alle i Nav.
       </BodyShort>
     </VStack>
   );
