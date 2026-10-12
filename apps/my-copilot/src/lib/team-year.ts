@@ -3,9 +3,9 @@ import type { TeamYearMonth, TeamYearOverview } from "./types";
 
 /** A gross month is always preliminary: it is replaced by net once the invoice is read in. */
 const basisLabel: Record<TeamYearMonth["basis"], string> = {
-  net: "Netto",
+  net: "Fakturert",
   premium: "Premiumforespørsler",
-  gross: "Brutto (foreløpig)",
+  gross: "Foreløpig forbruk",
   none: "Ingen data",
 };
 
@@ -85,7 +85,8 @@ export function teamYearCsv(data: TeamYearOverview): string {
   const lines = [
     `# Copilot-forbruk i USD for team ${data.team_slug} (${data.team_id}), ${data.year}`,
     ...teamYearCaveats(data).map((caveat) => `# ${caveat}`),
-    "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,medlemmer_med_lisens,lisenser_usd_anslag,totalt_med_lisenser_usd",
+    "# Nye kolonnenavn fra oktober 2026: netto_usd heter fakturert_usd, brutto_usd heter foreløpig_forbruk_usd, netto_uten_bruk_usd heter fakturert_uten_bruk_usd, lisenser_usd_anslag heter lisenskostnad_usd_anslag og totalt_med_lisenser_usd heter totalt_inkl_lisenser_usd. I grunnlag heter Netto nå Fakturert og Brutto (foreløpig) nå Foreløpig forbruk.",
+    "måned,grunnlag,medlemmer_med_forbruk,fakturert_usd,foreløpig_forbruk_usd,fakturert_uten_bruk_usd,medlemmer_med_lisens,lisenskostnad_usd_anslag,totalt_inkl_lisenser_usd",
     ...teamYearRows(data).map((row) => row.join(",")),
   ];
   return lines.join("\n") + "\n";

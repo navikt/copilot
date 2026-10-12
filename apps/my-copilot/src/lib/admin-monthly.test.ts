@@ -81,3 +81,13 @@ describe("adminMonthlyCsv", () => {
     expect(lines.every((l) => !/\bAI\b/.test(l))).toBe(true);
   });
 });
+
+describe("adminMonthlyCsv column names", () => {
+  it("uses the shared terms and explains the renamed columns", () => {
+    const csv = adminMonthlyCsv(data);
+    expect(adminMonthlyHeader).toContain("fakturert_usd");
+    expect(adminMonthlyHeader).not.toContain("netto_usd");
+    expect(csv).toMatch(/^# Nye kolonnenavn .*netto_usd heter fakturert_usd/m);
+    expect(adminMonthlyRows(data)[1][1]).toBe("Fakturert");
+  });
+});

@@ -2,9 +2,9 @@ import { monthName } from "./team-year";
 import type { AdminMonth, AdminMonthlyOverview } from "./types";
 
 const basisLabel: Record<AdminMonth["basis"], string> = {
-  net: "Netto",
+  net: "Fakturert",
   premium: "Premiumforespørsler",
-  gross: "Brutto (foreløpig)",
+  gross: "Foreløpig forbruk",
   none: "Ingen data",
 };
 
@@ -12,15 +12,15 @@ const basisLabel: Record<AdminMonth["basis"], string> = {
 export const adminMonthlyHeader = [
   "måned",
   "grunnlag",
-  "netto_usd",
+  "fakturert_usd",
   "fordelt_på_personer_usd",
-  "restbeløp_usd",
-  "restbeløp_prosent",
-  "uten_team_usd",
-  "brutto_usd",
+  "ikke_fordelt_usd",
+  "ikke_fordelt_prosent",
+  "personer_uten_team_usd",
+  "foreløpig_forbruk_usd",
   "lisenser",
-  "lisenser_usd_anslag",
-  "totalt_med_lisenser_usd",
+  "lisenskostnad_usd_anslag",
+  "totalt_inkl_lisenser_usd",
 ];
 
 /** How to read the numbers: # lines in the CSV, and «Slik leser du tabellen» on the page. */
@@ -96,6 +96,7 @@ export function adminMonthlyCsv(data: AdminMonthlyOverview): string {
   return (
     [
       `# Copilot-kostnad i USD for hele Nav, ${data.year}`,
+      "# Nye kolonnenavn fra oktober 2026: netto_usd heter fakturert_usd, restbeløp_* heter ikke_fordelt_*, uten_team_usd heter personer_uten_team_usd, brutto_usd heter foreløpig_forbruk_usd, lisenser_usd_anslag heter lisenskostnad_usd_anslag og totalt_med_lisenser_usd heter totalt_inkl_lisenser_usd. I grunnlag heter Netto nå Fakturert og Brutto (foreløpig) nå Foreløpig forbruk.",
       ...[...adminMonthlyCaveats(data), adminMonthlyCoverage(data)].map((c) => `# ${c}`),
       adminMonthlyHeader.join(","),
       ...adminMonthlyRows(data).map((row) => row.join(",")),

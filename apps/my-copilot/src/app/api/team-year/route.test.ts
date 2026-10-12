@@ -115,11 +115,11 @@ describe("GET /api/team-year", () => {
     const header = lines.findIndex((line) => !line.startsWith("#"));
     expect(lines.slice(0, header).some((line) => line.includes("Totalraden er summen"))).toBe(true);
     expect(lines.slice(header)).toEqual([
-      "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,medlemmer_med_lisens,lisenser_usd_anslag,totalt_med_lisenser_usd",
+      "måned,grunnlag,medlemmer_med_forbruk,fakturert_usd,foreløpig_forbruk_usd,fakturert_uten_bruk_usd,medlemmer_med_lisens,lisenskostnad_usd_anslag,totalt_inkl_lisenser_usd",
       "2026-04,Ingen data,,,,,,,",
       "2026-05,Premiumforespørsler,7,50.50,,1.00,7,133.00,184.50",
-      "2026-07,Brutto (foreløpig),4,,60.00,,9,171.00,231.00",
-      "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
+      "2026-07,Foreløpig forbruk,4,,60.00,,9,171.00,231.00",
+      "2026-08,Fakturert,6,80.10,100.00,2.00,8,152.00,234.10",
       "Totalt mai–august,,,130.60,,3.00,,285.00,418.60",
     ]);
     expect(lines.some((line) => line.includes("Lisenskostnad er et anslag"))).toBe(true);
