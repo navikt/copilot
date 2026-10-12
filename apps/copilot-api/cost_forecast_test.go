@@ -194,3 +194,12 @@ func TestBuildCostForecastDays(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildCostForecastDaysWithoutTrend(t *testing.T) {
+	// October only: no history, so neither model can run.
+	oct2 := upTo(synthDays(2, 1000, 1000), func(d CostDay) string { return d.Day }, "2026-10-31")[30:]
+	f := buildCostForecast(oct2, nil, oct, 0, budgetMissing)
+	if len(f.Models) != 0 || len(f.Days) != 2 || f.Days[1].Forecast {
+		t.Fatalf("actual days must come without a trend: %+v", f)
+	}
+}

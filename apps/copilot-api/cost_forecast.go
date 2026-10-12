@@ -417,17 +417,18 @@ func buildCostForecast(days []CostDay, users []UserDay, month time.Time, budget 
 	if !ok {
 		return out
 	}
-	models, usedUp := forecastModels(days, users, month, last)
-	if len(models) == 0 {
-		return out
-	}
-	out.DaysElapsed, out.AllowanceUsedUp = last.Day(), usedUp
+	// Actual days first: the chart shows them before there is enough data for a trend.
 	for _, d := range days {
 		if d.Day[:7] == out.Month {
 			out.NetToDateUSD += d.Net
 			out.Days = append(out.Days, CostForecastDay{Day: d.Day, NetUSD: out.NetToDateUSD})
 		}
 	}
+	models, usedUp := forecastModels(days, users, month, last)
+	if len(models) == 0 {
+		return out
+	}
+	out.DaysElapsed, out.AllowanceUsedUp = last.Day(), usedUp
 	if t, ok := models[modelTrend]; ok {
 		out.AllowanceRunOutDate = t.AllowanceRunsOut
 		for i, v := range t.path {

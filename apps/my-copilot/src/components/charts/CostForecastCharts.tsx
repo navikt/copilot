@@ -242,7 +242,7 @@ function ChartFigure({ title, summary, children }: { title: string; summary: str
   const [chart, table] = children;
   const id = useId();
   return (
-    <figure className="m-0 min-w-0 break-inside-avoid">
+    <figure className="min-w-0 break-inside-avoid" style={{ margin: 0 }}>
       <VStack gap="space-8">
         <Heading level="3" size="xsmall">
           {title}
