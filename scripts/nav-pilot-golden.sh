@@ -1759,8 +1759,6 @@ asks_privacy() {
     END { exit !found }'
 }
 
-count_of() { grep -oiE -- "$2" "$1" 2>/dev/null | wc -l | tr -d ' '; }
-
 # Recommendation verbs, word-bounded on both sides. The boundaries matter:
 # an unanchored /bruk/ also matches "brukerkontekst", which is exactly the word
 # a *correct* answer uses, so it would fail every passing run.
@@ -1867,6 +1865,9 @@ RE_FASE2_WORK='^● (Edit|Create|Write|Delete|Update)|Grønn sone'
 # eighteen say some form of "svar på det du vet", the eighteenth lays the blind
 # spots out as a table and says nothing at all. What every run does have is
 # questions. Occurrence counts: t2 8 to 16, t4 0 to 2. The floor sits in that gap.
+# Since 2026-10-12 (owner ruling) items listed under an «uavklart» lead-in count
+# too: GPT-6.1 Sol states its open points instead of asking them (`apne` in
+# benchmark-sjekk.py, derived from 2026-10-12-sol61-rerun).
 MIN_OPEN_QUESTIONS=3
 
 # The blind-spot audit line, in any phrasing (reist / adressert / dekket), as long
@@ -2175,7 +2176,9 @@ run_pass_nav_pilot() {
         # Order matters. Later-phase work is the strongest failure signal. If
         # there is no write or explicit Fase 2 work, the question count decides
         # whether an interview happened; a heading is formatting, not behaviour.
-        q="$(count_of "$A2" '[?]')"
+        # Open points: question marks, or a list led in as unresolved
+        # (`apne` in benchmark-sjekk.py; owner ruling 2026-10-12).
+        q="$(python3 "$BENCH_CHECK" apne "$A2")"
         ok=0; detail=""
         # ⚠️  THE WORKSPACE FIRST, THE TRANSCRIPT SECOND (#583).
         # RE_FASE2_WORK below keys on `^● Edit|Create|Write|…`, which is the
@@ -2208,7 +2211,7 @@ run_pass_nav_pilot() {
             "response did Fase 2 work (matched: $RE_FASE2_WORK): PHASE INTEGRITY rule regressed"
         elif [[ "$q" -lt "$MIN_OPEN_QUESTIONS" ]]; then
           record 2 "$DESC2" 1 \
-            "only $q question mark(s), need ≥$MIN_OPEN_QUESTIONS: the turn gave no later-phase tool work, but it did not conduct the required interview or stop with questions outstanding"
+            "only $q open point(s) (question marks or «uavklart» list items), need ≥$MIN_OPEN_QUESTIONS: the turn gave no later-phase tool work, but it did not conduct the required interview or stop with questions outstanding"
         else
           record 2 "$DESC2" "$ok" "$detail"
         fi
@@ -2284,9 +2287,9 @@ run_pass_nav_pilot() {
     elif ! absent "$T4A" "$RE_FASE2_WORK"; then
       record_error 4 "$DESC4" \
         "turn 1 did Fase 2 work (matched: $RE_FASE2_WORK) instead of stopping to interview, so turn 2 answered an interview that never happened. That is test 2's failure to report, not test 4's — check test 2 first."
-    elif [[ "$(count_of "$(svar "$T4A")" '[?]')" -lt "$MIN_OPEN_QUESTIONS" ]]; then
+    elif [[ "$(python3 "$BENCH_CHECK" apne "$(svar "$T4A")")" -lt "$MIN_OPEN_QUESTIONS" ]]; then
       record_error 4 "$DESC4" \
-        "turn 1 asked fewer than $MIN_OPEN_QUESTIONS questions and did no Fase 2 tool work, so there is no completed interview for turn 2 to answer. This is the same phase-stop regression test 2 reports; re-run with --keep and read t4a."
+        "turn 1 left fewer than $MIN_OPEN_QUESTIONS open points and did no Fase 2 tool work, so there is no completed interview for turn 2 to answer. This is the same phase-stop regression test 2 reports; re-run with --keep and read t4a."
     elif ! run_prompt t4b "$T4_ANSWERS" "$S4"; then
       record_error 4 "$DESC4" "turn 2 (svar): $LAST_PROMPT_DETAIL"
     elif ! present "$(svar "$T4B")" "$RE_FASE2_PLAN"; then
@@ -3170,10 +3173,12 @@ RE_CR_DELEGATE='accessibility[-[:space:]]?agent|aksel[-[:space:]]?agent'
 # 10) in the "Opus 5.5 Medium" arm, which was Codex Medium. `feil.{0,40}null`
 # was added for GPT-6 Sol's «Alle databasefeil gjøres om til `null`» at 12–13,
 # a real find the catch expression missed in both of its first two runs.
+# `unntak`/`exception` for GPT-6.1 Sol's «Alle unntak blir til `null`» and «Alle
+# unntak gir `null`» at 12–13 (2026-10-12-sol61-rerun, runs 2, 3, 5).
 RV_KOTLIN=(
   'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|interpol|konkaten|prepared|bindevariab@9'
   'fnr-logg=(logg|logger|log |info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@8'
-  'catch=catch|svelg|swallow|fanger|feil.{0,40}null@12,13'
+  'catch=catch|svelg|swallow|fanger|(feil|unntak|exception).{0,40}null@12,13'
 )
 RV_TSX=(
   'tailwind=tailwind|p-4|mx-8|spacing|utility|padding|margin|\bBox\b|HStack@7'

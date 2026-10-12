@@ -23,6 +23,9 @@ nothing.
   kritisk TX SPEC...        each defect's row is marked critical (🔴,
                             «kritisk», «critical»; «høy» is not enough)
   kritiske TX               count finding rows marked critical; passes on 0
+  apne    TX [MIN]          at least MIN open points: question marks, or the
+                            items of a list led in as unresolved («uavklart»).
+                            Without MIN, print the count (not a check)
 
 SPEC is `navn=regex@linje[,linje]`: a transcript line matching regex names the
 defect, and it is located when that same line cites one of the given line
@@ -362,6 +365,29 @@ def kritiske(text):
 LOCATION = re.compile(r"\.kts?:\d+|linje \d+|line \d+", re.IGNORECASE)
 
 
+# t2: a Fase 1 turn that stops with open points. GPT-6.1 Sol writes them as
+# statements under a lead-in («Følgende er uavklart:», «må disse punktene
+# avklares:»), not as questions (2026-10-12-sol61-rerun, four runs). The owner
+# ruled those count. A list under any other lead-in («Repoet har:») does not.
+OPEN_LEAD = re.compile(r"(uavklar|avklares|åpne (punkter|spørsmål)|må (være )?(fastlagt|bestemm|beslutt)).*:\s*$", re.I)
+LIST_ITEM = re.compile(r"^(?:[-*•]|\d+[.)])\s+\S")
+
+
+def open_points(text):
+    lines = answer_lines(text)
+    listed, i = 0, 0
+    while i < len(lines):
+        if OPEN_LEAD.search(lines[i]):
+            n, i = 0, i + 1
+            while i < len(lines) and (LIST_ITEM.match(lines[i]) or not lines[i].strip() or lines[i].startswith("  ")):
+                n += bool(LIST_ITEM.match(lines[i]))
+                i += 1
+            listed = max(listed, n)
+        else:
+            i += 1
+    return max("\n".join(lines).count("?"), listed)
+
+
 def check(cmd, args):
     """Return None when the check holds, else the reason."""
     if cmd in ("funnet", "linje"):
@@ -374,6 +400,9 @@ def check(cmd, args):
         return kritisk(Path(args[0]).read_text(), args[1:])
     if cmd == "kritiske":
         return kritiske(Path(args[0]).read_text())
+    if cmd == "apne":
+        n = open_points(Path(args[0]).read_text())
+        return None if n >= int(args[1]) else f"{n} open point(s), want ≥{args[1]}"
     text = Path(args[0]).read_text()
     if cmd == "nynorsk":
         found = {m.group(1).lower() for m in NYNORSK_RE.finditer(text)}
@@ -426,6 +455,8 @@ def selftest():
     # test the pattern the suite runs.
     DW = [l.strip().strip("'") for l in (REPO / "scripts" / "nav-pilot-golden.sh").read_text().splitlines()
           if l.strip().startswith("'dobbeltskriving=")]
+    CATCH = next(l.strip().strip("'") for l in (REPO / "scripts" / "nav-pilot-golden.sh").read_text().splitlines()
+                 if l.strip().startswith("'catch="))
     NEGV = ["slettOppgave", r"ingen|(fant|finner|finnes|fins|ser) verken", "FX"]
     cases = [
         # (cmd, file text, extra args, expect pass)
@@ -540,6 +571,19 @@ def selftest():
         ("kritiske", "📋 Funn: 0 kritiske, 0 høye, 2 medium/lave, 5 god praksis.\n", [], True),
         ("kritiske", "### 🔴 Kritisk\n\n- SQL-injeksjon i spørringen\n", [], False),
         ("kritiske", "📋 Funn: 1 kritisk, 2 medium.\n\n- 🔴 SQL-injeksjon i `S.kt:26`\n", [], False),
+        # t2 (2026-10-12-sol61-rerun): open points as statements under a lead-in.
+        ("apne", "Følgende er uavklart:\n1. Formålet.\n2. Hvem kaller.\n3. Lagring.\n\nBlindsoner reist: 3/11\n", ["3"], True),
+        ("apne", "Før implementering må disse punktene avklares:\n\n- a\n- b\n- c\n", ["3"], True),
+        ("apne", "Hvem? Hva? Hvorfor?\n", ["3"], True),
+        # Controls: a list that is not open points, or a turn that proceeds.
+        ("apne", "Repoet har:\n- Ktor\n- nais.yaml\n- Dockerfile\n\nJeg går videre til planen.\n", ["3"], False),
+        ("apne", "Jeg antar alt og lager planen nå. Er det greit?\n", ["3"], False),
+        ("apne", "Følgende er uavklart:\n1. Formålet.\n\nOgså:\n- a\n- b\n", ["3"], False),
+        # rv1/rv2 catch (2026-10-12-sol61-rerun): «unntak … null» is the swallow.
+        ("linje", "| 12–13 | 🟡 | Alle unntak blir til `null`. |\n", [CATCH], True),
+        ("linje", "| 12–13 | 🟡 | **Databasefeil skjules:** Alle unntak gir `null`. |\n", [CATCH], True),
+        ("linje", "| 12–13 | 🟡 | Returnerer `null` når brukeren ikke finnes; vurder Result. |\n", [CATCH], False),
+        ("linje", "| 12–13 | 🟡 | Navngi variabelen tydeligere. |\n", [CATCH], False),
     ]
     failed = 0
     with tempfile.TemporaryDirectory() as tmp:
@@ -563,6 +607,10 @@ if __name__ == "__main__":
     if sys.argv[1:2] == ["svar"] and len(sys.argv) == 3:
         # The answer alone, for the planning checks in nav-pilot-golden.sh.
         print("\n".join(answer_lines(Path(sys.argv[2]).read_text(encoding="utf-8"))))
+        sys.exit(0)
+    if sys.argv[1:2] == ["apne"] and len(sys.argv) == 3:
+        # The count alone, for test 2's failure detail.
+        print(open_points(Path(sys.argv[2]).read_text(encoding="utf-8")))
         sys.exit(0)
     if len(sys.argv) < 3:
         sys.exit(__doc__)
