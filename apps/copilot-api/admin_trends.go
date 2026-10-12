@@ -99,7 +99,7 @@ type HighConsumerMonth struct {
 	LimitUSD     float64 `json:"limit_usd"`
 	LimitChanged bool    `json:"limit_changed"`
 	// LastDay is set on the month-to-date entry only (Basis "hittil"): the day
-	// the buckets are for. Snapshots counts users with GitHub's own figure.
+	// the buckets are for. Snapshots counts users with GitHub's own figure, 0 below five.
 	LastDay   string `json:"last_day,omitempty"`
 	Snapshots int    `json:"snapshots,omitempty"`
 	// BudgetBands count users by gross for the month as a share of LimitUSD.
@@ -199,7 +199,10 @@ func monthToDate(rows []budgetShareRow) *HighConsumerMonth {
 	if m.BudgetBands == nil {
 		return m
 	}
-	m.Users, m.Snapshots = len(rows), snaps
+	m.Users = len(rows)
+	if snaps >= minBandUsers {
+		m.Snapshots = snaps
+	}
 	for i := range m.BudgetBands {
 		m.BudgetBands[i].Label = budgetBandLabel(m.BudgetBands[i].First, m.BudgetBands[i].Last)
 	}
@@ -216,14 +219,16 @@ func (bq *BigQueryClient) GetHighConsumers(ctx context.Context) ([]HighConsumerM
 	}
 	out := buildHighConsumers(rows)
 	it, err := bq.client.Query(`WITH ` + bq.budgetShareCTE() + `
-SELECT CAST(day AS STRING) day, IFNULL(share, 0) share, source FROM budget_share
-WHERE day = (SELECT MAX(day) FROM budget_share) AND day >= DATE_TRUNC(CURRENT_DATE(), MONTH)`).Read(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("read budget share: %w", err)
+SELECT CAST(day AS STRING) day, share, source FROM budget_share
+WHERE share IS NOT NULL AND day = (SELECT MAX(day) FROM budget_share) AND day >= DATE_TRUNC(CURRENT_DATE(), MONTH)`).Read(ctx)
+	var shares []budgetShareRow
+	if err == nil {
+		shares, err = readAllRows[budgetShareRow](it)
 	}
-	shares, err := readAllRows[budgetShareRow](it)
 	if err != nil {
-		return nil, err
+		// The billed months still stand without the month to date.
+		slog.Error("Failed to read budget share", "error", err)
+		return out, nil
 	}
 	if m := monthToDate(shares); m != nil {
 		out = append(out, *m)

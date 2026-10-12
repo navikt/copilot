@@ -107,7 +107,7 @@ func TestMonthToDate(t *testing.T) {
 	var rows []budgetShareRow
 	for i := range 12 {
 		src := "estimate"
-		if i < 3 {
+		if i < 3 { // under five: not reported
 			src = "snapshot"
 		}
 		share := 0.05 // 0–10 %
@@ -117,7 +117,7 @@ func TestMonthToDate(t *testing.T) {
 		rows = append(rows, budgetShareRow{Day: "2026-10-12", Share: share, Source: src})
 	}
 	m := monthToDate(rows)
-	if m.Month != "2026-10" || m.Basis != "hittil" || m.Users != 12 || m.Snapshots != 3 || m.LastDay != "2026-10-12" {
+	if m.Month != "2026-10" || m.Basis != "hittil" || m.Users != 12 || m.Snapshots != 0 || m.LastDay != "2026-10-12" {
 		t.Fatalf("month = %+v", m)
 	}
 	for _, b := range m.BudgetBands {

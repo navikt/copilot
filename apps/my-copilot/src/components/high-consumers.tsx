@@ -106,7 +106,7 @@ export function HighConsumersView({ months }: { months: HighConsumerMonth[] }) {
         standardgrensen ved månedsslutt for hele måneder. Unntak for enkeltpersoner er ikke med. Grupper med færre enn
         fem brukere er slått sammen med nabogruppen. * Grensen endret seg i løpet av måneden.
         {mtd &&
-          ` Hittil i måneden er brutto fra den 1. mot hver brukers egen grense, uten prognose. Bare brukere med Copilot-aktivitet denne måneden er med. ${mtd.snapshots ? `${formatNumber(mtd.snapshots)} brukere har GitHubs egne tall, resten er anslag.` : "Alle tallene er anslag fra bruksdata."}`}
+          ` Hittil i måneden: brutto forbruk fra den 1. mot hver brukers egen grense, uten prognose. Brukere med grense 0 er ikke med. Bare brukere med Copilot-aktivitet denne måneden er med. ${mtd.snapshots ? `${formatNumber(mtd.snapshots)} brukere har GitHubs egne tall, resten er anslag.` : "Tallene er anslag fra bruksdata."}`}
       </BodyShort>
     </VStack>
   );
