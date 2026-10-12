@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/BurntSushi/toml"
 
@@ -179,8 +180,11 @@ func spoolHookEvents(sessionID string, lines ...string) {
 
 var (
 	drainSpoolAtExit bool
-	localTripsMu     sync.Mutex
-	localTrips       = map[string]int{}
+	// copilotLaunchedAt is when this process launched Copilot: the sessions
+	// it records at exit are the ones written to since.
+	copilotLaunchedAt time.Time
+	localTripsMu      sync.Mutex
+	localTrips        = map[string]int{}
 )
 
 // countLocalTrip is local.OnLoopGuard: the guard proxy's trips, kept until
@@ -207,6 +211,8 @@ func recordHookEvents() {
 	if drainSpoolAtExit {
 		drainSpoolAtExit = false
 		drainHookEvents()
+		recordCopilotSessions(hookStateDir(), copilotLaunchedAt)
+		copilotLaunchedAt = time.Time{}
 	}
 }
 
@@ -308,6 +314,7 @@ func syncBuiltinHooks(r ResolvedConfig) {
 	// directory, 25-50 ms with a thousand of them, which a launch does not
 	// notice and `nav-pilot config get` would.
 	drainSpoolAtExit = true
+	copilotLaunchedAt = time.Now()
 	scope, err := ScopeUser()
 	if err != nil {
 		return

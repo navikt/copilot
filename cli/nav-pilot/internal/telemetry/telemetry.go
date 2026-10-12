@@ -62,6 +62,7 @@ type Recorder interface {
 	RecordHookRedact(kind string, count int64)
 	RecordHookActionCheck(outcome, category string)
 	RecordClientUsage(u ClientUsage)
+	RecordCopilotSession(s CopilotSession)
 	Shutdown(ctx context.Context) error
 }
 
@@ -88,6 +89,7 @@ func (NoopRecorder) RecordHookLoopGuard(string, string)   {}
 func (NoopRecorder) RecordHookRedact(string, int64)       {}
 func (NoopRecorder) RecordHookActionCheck(string, string) {}
 func (NoopRecorder) RecordClientUsage(ClientUsage)        {}
+func (NoopRecorder) RecordCopilotSession(CopilotSession)  {}
 func (NoopRecorder) Shutdown(context.Context) error       { return nil }
 
 type otelTelemetry struct {
@@ -121,6 +123,7 @@ type otelTelemetry struct {
 	genAITokens        metric.Int64Counter
 	genAICalls         metric.Int64Counter
 	genAIToolCalls     metric.Int64Counter
+	session            sessionInstruments
 
 	version          string
 	device           string
@@ -342,12 +345,17 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create genai tool calls counter: %w", err)
 	}
+	session, err := newSessionInstruments(meter)
+	if err != nil {
+		return NoopRecorder{}, err
+	}
 
 	tel := &otelTelemetry{
 		provider:           provider,
 		spool:              spool,
 		spoolSent:          spoolSent,
 		localGateTotal:     localGateTotal,
+		session:            session,
 		genAITokens:        genAITokens,
 		genAICalls:         genAICalls,
 		genAIToolCalls:     genAIToolCalls,

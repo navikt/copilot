@@ -1,0 +1,198 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
+)
+
+const canary = "CANARY-7f3a-secret-prompt"
+
+// sessionFixture has a content, result, arguments or message field holding the
+// canary on every event that can carry one, a garbled line, a line with the
+// wrong shape, and names inside and outside the allowlists.
+var sessionFixture = strings.Join([]string{
+	`{"type":"session.start","data":{"context":"` + canary + `"}}`,
+	`{"type":"user.message","data":{"content":"` + canary + `"}}`,
+	`{"type":"assistant.turn_start","data":{"turnId":"1"}}`,
+	`{"type":"skill.invoked","data":{"name":"klarsprak","source":"personal-copilot","trigger":"agent-invoked","model":"gpt-6-sol","content":"` + canary + `","path":"/Users/` + canary + `/SKILL.md"}}`,
+	`{"type":"skill.invoked","data":{"name":"` + canary + `","source":"` + canary + `","trigger":"agent-invoked","content":"` + canary + `"}}`,
+	`{"type":"tool.execution_start","data":{"toolCallId":"a","toolName":"bash","arguments":{"command":"` + canary + `"}}}`,
+	`{"type":"tool.execution_complete","data":{"toolCallId":"a","success":true,"model":"gpt-6-sol","result":{"content":"` + canary + `"},"toolTelemetry":{"properties":{"x":"` + canary + `"}}}}`,
+	`{"type":"tool.execution_start","data":{"toolCallId":"b","toolName":"` + canary + `"}}`,
+	`{"type":"tool.execution_complete","data":{"toolCallId":"b","success":false,"result":{"content":"` + canary + `"}}}`,
+	`{"type":"hook.end","data":{"hookType":"preToolUse","success":true}}`,
+	`{"type":"hook.end","data":{"hookType":"` + canary + `","success":false}}`,
+	`{"type":"subagent.selected","data":{"agentName":"kafka","tools":["` + canary + `"]}}`,
+	`{"type":"subagent.selected","data":{"agentName":"` + canary + `"}}`,
+	`{"type":"assistant.message","data":{"content":"` + canary + `"}}`,
+	`{"type":"assistant.turn_start","data":{"turnId":"2"}}`,
+	`not json ` + canary,
+	`{"type":"hook.end","data":"` + canary + `"}`,
+	`{"type":"session.shutdown","timestamp":"2026-10-11T10:10:00.000Z","data":{"shutdownType":"routine","sessionStartTime":` +
+		fmt.Sprint(time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC).UnixMilli()) +
+		`,"totalApiDurationMs":15453,"currentModel":"gpt-6-sol","totalPremiumRequests":1,` +
+		`"modelMetrics":{"gpt-6-sol":{"requests":{"count":6,"cost":1},"totalNanoAiu":8511570000,"tokenDetails":{"input":{"tokenCount":18},"output":{"tokenCount":1177},"cache_read":{"tokenCount":106436},"cache_write":{"tokenCount":20809}}},` +
+		`"` + canary + `":{"requests":{"cost":0.5},"tokenDetails":{"input":{"tokenCount":5}}}},` +
+		`"codeChanges":{"filesModified":["` + canary + `"]}}}`,
+	`{"type":"assistant.turn_start","data":{"turnId":"after-shutdown"}}`,
+}, "\n") + "\n"
+
+func testModel(m string) string {
+	if m == "gpt-6-sol" {
+		return m
+	}
+	return "custom"
+}
+
+func TestParseCopilotSession(t *testing.T) {
+	s, n, ok := parseCopilotSession(strings.NewReader(sessionFixture), testModel,
+		map[string]bool{"klarsprak": true}, map[string]bool{"kafka": true})
+	if !ok {
+		t.Fatal("no shutdown found")
+	}
+	if dump := fmt.Sprintf("%#v", s); strings.Contains(dump, canary) {
+		t.Fatalf("canary reached the metrics: %s", dump)
+	}
+	if want := int64(strings.LastIndex(sessionFixture, `{"type":"assistant.turn_start","data":{"turnId":"after`)); n != want {
+		t.Errorf("offset %d, want %d (just past the shutdown)", n, want)
+	}
+	checks := []struct {
+		name      string
+		got, want any
+	}{
+		{"skill nav", s.Skills[telemetrypkg.SkillKey{Skill: "klarsprak", Source: "personal-copilot", Trigger: "agent-invoked"}], int64(1)},
+		{"skill other", s.Skills[telemetrypkg.SkillKey{Skill: "other", Source: "other", Trigger: "agent-invoked"}], int64(1)},
+		{"tool bash", s.Tools[telemetrypkg.ToolKey{Tool: "bash", Outcome: "success"}], int64(1)},
+		{"tool other", s.Tools[telemetrypkg.ToolKey{Tool: "other", Outcome: "error"}], int64(1)},
+		{"hook", s.Hooks[telemetrypkg.HookKey{HookType: "preToolUse", Outcome: "success"}], int64(1)},
+		{"hook other", s.Hooks[telemetrypkg.HookKey{HookType: "other", Outcome: "error"}], int64(1)},
+		{"agents", s.Agents, map[string]int64{"kafka": 1, "other": 1}},
+		{"turns", s.Turns, int64(2)},
+		{"skipped", s.Skipped, int64(2)},
+		{"duration", s.DurationSeconds, int64(600)},
+		{"shutdown", s.ShutdownType, "routine"},
+		{"api", [2]any{s.APIDurationMS, s.APIModel}, [2]any{int64(15453), "gpt-6-sol"}},
+		{"model", s.Models["gpt-6-sol"], telemetrypkg.SessionModel{Input: 18, Output: 1177, CacheRead: 106436, CacheWrite: 20809, PremiumRequests: 1, NanoAIU: 8511570000}},
+		{"custom model", s.Models["custom"], telemetrypkg.SessionModel{Input: 5, PremiumRequests: 0.5}},
+	}
+	for _, c := range checks {
+		if fmt.Sprint(c.got) != fmt.Sprint(c.want) {
+			t.Errorf("%s = %v, want %v", c.name, c.got, c.want)
+		}
+	}
+}
+
+func TestParseCopilotSessionWithoutShutdown(t *testing.T) {
+	for _, in := range []string{"", "garbage\n", `{"type":"assistant.turn_start"}` + "\n", "\x00\xff{{{"} {
+		if _, _, ok := parseCopilotSession(strings.NewReader(in), testModel, nil, nil); ok {
+			t.Errorf("%q: reported a finished session", in)
+		}
+	}
+}
+
+type sessionTelemetry struct {
+	noopTelemetry
+	got []telemetrypkg.CopilotSession
+}
+
+func (s *sessionTelemetry) RecordCopilotSession(c telemetrypkg.CopilotSession) {
+	s.got = append(s.got, c)
+}
+
+func TestRecordCopilotSessions(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+	root := filepath.Join(home, "session-state")
+	dir := filepath.Join(root, "s1")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "events.jsonl"), []byte(sessionFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rec := &sessionTelemetry{}
+	orig := telemetry
+	telemetry = rec
+	t.Cleanup(func() { telemetry = orig })
+	since := time.Now().Add(-time.Minute)
+
+	t.Setenv("DO_NOT_TRACK", "1")
+	recordCopilotSessions(root, since)
+	if len(rec.got) != 0 {
+		t.Fatal("DO_NOT_TRACK=1 and a session was recorded")
+	}
+	if _, err := os.Stat(filepath.Join(dir, sessionMetricsMarker)); !os.IsNotExist(err) {
+		t.Fatal("opted out and the session was marked read")
+	}
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "false")
+	recordCopilotSessions(root, since)
+	if len(rec.got) != 0 {
+		t.Fatal("NAV_PILOT_TELEMETRY_ENABLED=false and a session was recorded")
+	}
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
+
+	recordCopilotSessions(root, time.Now().Add(time.Hour))
+	if len(rec.got) != 0 {
+		t.Fatal("recorded a session not written since the launch")
+	}
+	recordCopilotSessions(root, since)
+	recordCopilotSessions(root, since)
+	if len(rec.got) != 1 {
+		t.Fatalf("recorded %d times, want once", len(rec.got))
+	}
+	// No state file in this HOME: no name is on the allowlist.
+	if rec.got[0].Skills[telemetrypkg.SkillKey{Skill: "other", Source: "personal-copilot", Trigger: "agent-invoked"}] != 1 {
+		t.Errorf("skills = %v", rec.got[0].Skills)
+	}
+}
+
+// TestRealCopilotSession crosses the boundary once: a real events.jsonl from
+// this machine. Run with NAV_PILOT_REAL_EVENTS=<path>; prints counts only.
+func TestRealCopilotSession(t *testing.T) {
+	p := os.Getenv("NAV_PILOT_REAL_EVENTS")
+	if p == "" {
+		t.Skip("NAV_PILOT_REAL_EVENTS not set")
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	s, _, ok := parseCopilotSession(f, configModelLabel, map[string]bool{}, map[string]bool{})
+	if !ok {
+		t.Fatal("no session.shutdown in the file")
+	}
+	sum := func(m any) (n int64) {
+		switch m := m.(type) {
+		case map[telemetrypkg.SkillKey]int64:
+			for _, v := range m {
+				n += v
+			}
+		case map[telemetrypkg.ToolKey]int64:
+			for _, v := range m {
+				n += v
+			}
+		case map[telemetrypkg.HookKey]int64:
+			for _, v := range m {
+				n += v
+			}
+		case map[string]int64:
+			for _, v := range m {
+				n += v
+			}
+		}
+		return n
+	}
+	t.Logf("skills=%d tools=%d hooks=%d agents=%d turns=%d models=%d skipped=%d duration_s=%d api_ms=%d",
+		sum(s.Skills), sum(s.Tools), sum(s.Hooks), sum(s.Agents), s.Turns, len(s.Models), s.Skipped, s.DurationSeconds, s.APIDurationMS)
+}
