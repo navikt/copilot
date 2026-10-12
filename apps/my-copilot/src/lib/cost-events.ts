@@ -10,6 +10,8 @@ export interface CostEvent {
   date: string;
   text: string;
   label: string;
+  /** The pooled credits run out; the forecast chart already says so in its summary. */
+  runOut?: boolean;
 }
 
 const dayLong = (day: string) =>
@@ -41,9 +43,10 @@ export function costEvents(
     events.push({
       date: runOut,
       text: "Kreditter brukt opp",
+      runOut: true,
       label: forecast?.allowance_used_up
         ? `${dayLong(runOut)}: kredittene i lisensene ble brukt opp`
-        : `${dayLong(runOut)}: kredittene i lisensene blir brukt opp, etter prognosen`,
+        : `${dayLong(runOut)}: kredittene i lisensene ventes brukt opp`,
     });
   }
   return events.sort((a, b) => a.date.localeCompare(b.date));

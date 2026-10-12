@@ -27,8 +27,8 @@ export const adminMonthlyHeader = [
 export function adminMonthlyCaveats(data: AdminMonthlyOverview): string[] {
   const { membership_from, seats_snapshot } = data.coverage;
   return [
-    "Fakturert er beløpet Nav betaler etter rabatt. Fordelt på personer pluss ikke fordelt er lik fakturert.",
-    "Foreløpig forbruk er listepris for inneværende måned. Det byttes ut med fakturert beløp når fakturaen kommer, rundt den 3. i måneden etter.",
+    "Fakturert er beløpet Nav betaler etter rabatt. Fordelt på personer og ikke fordelt gir til sammen fakturert.",
+    "Foreløpig forbruk er forbruket til listepris for måneden som pågår. Det byttes ut med fakturert beløp når fakturaen kommer, rundt den 3. i måneden etter.",
     "Totalraden er summen av de fakturerte månedene. Foreløpig forbruk er ikke med.",
     "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke KI-kreditter. Totalraden legger dem sammen med månedene fra juni.",
     `Personer uten team er fakturert beløp for personer som ikke var med i noe team de dagene de brukte Copilot. Teamhistorikken starter ${membership_from || "ukjent dato"}, så feltet er tomt for månedene før.`,

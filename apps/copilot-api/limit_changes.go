@@ -39,8 +39,15 @@ func (c *CachedBigQueryClient) GetLimitSnapshots(ctx context.Context) ([]LimitCh
 // does; from then on a change is a snapshot that differs from the one before.
 func limitChanges(snaps []LimitChange) []LimitChange {
 	out := []LimitChange{}
+	first := ""
+	for _, s := range snaps {
+		if s.USD > 0 {
+			first = s.Date
+			break
+		}
+	}
 	for _, l := range spendLimits {
-		if len(snaps) == 0 || l.from < snaps[0].Date {
+		if first == "" || l.from < first {
 			out = append(out, LimitChange{Date: l.from, USD: l.usd})
 		}
 	}

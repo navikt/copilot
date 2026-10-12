@@ -15,7 +15,7 @@ export function teamYearCaveats(data: TeamYearOverview): string[] {
   return [
     "Totalraden er summen av de fakturerte månedene. Foreløpig forbruk er ikke med.",
     "Beløp for ulike team kan ikke legges sammen: en person som er med i flere team, telles i hvert av dem.",
-    "Fakturert er beløpet Nav betaler etter rabatt, fordelt på dagene hver person brukte Copilot. Foreløpig forbruk er listepris for inneværende måned. Det byttes ut med fakturert beløp når fakturaen kommer, rundt den 3. i måneden etter.",
+    "Fakturert er beløpet Nav betaler etter rabatt, fordelt på dagene hver person brukte Copilot. Foreløpig forbruk er forbruket til listepris for måneden som pågår. Det byttes ut med fakturert beløp når fakturaen kommer, rundt den 3. i måneden etter.",
     "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke KI-kreditter. For disse månedene har vi ikke forbruk per dag. Det fakturerte beløpet er derfor fordelt likt på dagene hver person brukte Copilot, og foreløpig forbruk mangler.",
     ...residualCaveats(data),
     `Teamhistorikken starter ${membership_from || "ukjent dato"}. For dager før det regner vi hver person med i de teamene personen var med i den første dagen vi har registrert.`,
@@ -40,7 +40,7 @@ function residualCaveats(data: TeamYearOverview): string[] {
     );
   return months.length
     ? [
-        `Ikke fordelt: andelen av Navs fakturerte beløp som ikke kunne knyttes til en person, og som derfor ikke er med i tallene for noe team: ${months.join(", ")}.`,
+        `Ikke fordelt: andelen av Navs fakturerte beløp som ikke kunne knyttes til en person, og som derfor ikke er med i tallene for noe team. ${months.join(", ")}.`,
       ]
     : [];
 }

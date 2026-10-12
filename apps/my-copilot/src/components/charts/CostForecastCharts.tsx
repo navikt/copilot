@@ -167,7 +167,15 @@ function MonthChart({ data }: { data: CostForecast }) {
   return (
     <ChartFigure
       title="Er vi på vei over budsjettet?"
-      summary={summary + eventSummary(markers.filter((m) => !m.labels.every((l) => l.includes("kredittene"))))}
+      summary={
+        summary +
+        eventSummary(
+          eventAnnotations(
+            costEvents(data).filter((e) => !e.runOut),
+            keys
+          )
+        )
+      }
       chart={
         <Line
           data={{ labels: s.labels, datasets } as Parameters<typeof Line>[0]["data"]}

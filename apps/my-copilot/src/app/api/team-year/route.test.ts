@@ -125,7 +125,7 @@ describe("GET /api/team-year", () => {
     expect(lines.some((line) => line.includes("Lisenskostnad er et anslag"))).toBe(true);
     expect(lines.some((line) => /skjult|færre enn fem/i.test(line))).toBe(false);
     expect(lines.filter((line) => line.includes("knyttes til en person"))).toEqual([
-      "# Ikke fordelt: andelen av Navs fakturerte beløp som ikke kunne knyttes til en person, og som derfor ikke er med i tallene for noe team: mai 7\u00a0%, august 2\u00a0%.",
+      "# Ikke fordelt: andelen av Navs fakturerte beløp som ikke kunne knyttes til en person, og som derfor ikke er med i tallene for noe team. mai 7\u00a0%, august 2\u00a0%.",
     ]);
     expect(lines.some((line) => line.includes("brukte Copilot i måneden"))).toBe(false);
     expect(getTeamYearOverview).toHaveBeenCalledWith("123", 2026, "token");

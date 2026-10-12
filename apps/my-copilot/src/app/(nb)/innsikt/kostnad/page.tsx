@@ -82,7 +82,7 @@ export default async function CostPage() {
             Tallene kommer fra copilot-api (<code>billing/admin-monthly</code>): Navs faktura per måned, fordelt på
             personer og team på samme måte som på teamsidene. {adminMonthlyCoverage(data)}
           </span>
-          <NumbersFold summary="Slik regner prognosen">
+          <NumbersFold summary="Slik regner vi ut prognosen">
             <ForecastMethod />
           </NumbersFold>
         </VStack>
@@ -125,7 +125,11 @@ export default async function CostPage() {
                 {
                   label: "Fordelt på personer",
                   color: 0,
-                  data: shown.map((m) => (billed(m) ? (m.assigned_net_usd ?? m.enterprise_net_usd) : null)),
+                  data: shown.map((m) =>
+                    billed(m)
+                      ? (m.assigned_net_usd ?? (m.residual_net_usd == null ? m.enterprise_net_usd : null))
+                      : null
+                  ),
                 },
                 { label: "Ikke fordelt", color: 3, data: shown.map((m) => (billed(m) ? m.residual_net_usd : null)) },
                 {

@@ -53,11 +53,11 @@ export function CostForecastView({ data: raw }: { data: CostForecast }) {
 export function ForecastMethod() {
   return (
     <BodyShort size="small">
-      Nav samlet: forbruket for hele Nav følger trenden de siste 20 hverdagene. Hver person: hver person følger sitt
+      Nav samlet: forbruket for hele Nav følger trenden de siste 20 hverdagene. Hver person: hver enkelt følger sitt
       eget mønster fra forrige måned, justert etter bruken så langt, og stopper ved forbruksgrensen. Juli er ferie, så i
       august følger hver person sitt eget snitt så langt. Begge regner så ut hva som blir fakturert: Nav betaler for det
-      som går ut over kredittene i lisensene, og de deles av alle i Nav. Avvik tidligere måneder er snittavviket når
-      prognosen kjøres på dag 10, 15 og 20 i avsluttede måneder.
+      som går ut over kredittene i lisensene, og kredittene deles av alle i Nav. Avvik tidligere måneder er snittavviket
+      når prognosen kjøres på dag 10, 15 og 20 i avsluttede måneder.
     </BodyShort>
   );
 }

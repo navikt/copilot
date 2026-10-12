@@ -31,7 +31,7 @@ export function ChartFigure({
         <div className={chartBoxClass} role="img" aria-labelledby={id}>
           {chart}
         </div>
-        <figcaption id={id} className="sr-only">
+        <figcaption id={id} className="sr-only text-sm print:not-sr-only">
           {summary}
         </figcaption>
         {table !== undefined && (

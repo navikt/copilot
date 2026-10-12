@@ -37,7 +37,7 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
     pointLabels: withBands.map((m) => m.budget_bands!.find((x) => x.first === i && x.last !== i)?.label ?? null),
   }));
   const latest = withBands.at(-1);
-  const over = latest?.budget_bands!.filter((b) => b.last >= 5).reduce((s, b) => s + share(latest, b), 0) ?? 0;
+  const over = latest?.budget_bands!.filter((b) => b.first >= 5).reduce((s, b) => s + share(latest, b), 0) ?? 0;
   return (
     <VStack gap="space-16">
       {latest && (
@@ -165,13 +165,13 @@ export async function HighConsumersSection({ token, events }: { token: string; e
   } catch (error) {
     console.error("[kostnad] Failed to fetch high consumers:", error);
     return (
-      <InsightSection id="storforbrukere" title="Store forbrukere">
+      <InsightSection id="storforbrukere" title="Storforbrukere">
         <ErrorState message="Kunne ikke hente storforbrukere." />
       </InsightSection>
     );
   }
   return (
-    <InsightSection id="storforbrukere" title="Store forbrukere">
+    <InsightSection id="storforbrukere" title="Storforbrukere">
       <HighConsumersView months={months} events={events} />
     </InsightSection>
   );

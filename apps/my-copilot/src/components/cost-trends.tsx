@@ -94,7 +94,7 @@ export function CostTrendsView({
           (firstPerUser != null && lastPerUser != null
             ? `Fakturert per aktiv bruker gikk fra ${formatUSD(firstPerUser)} i ${monthLabel(keys[perUser.indexOf(firstPerUser)])} til ${formatUSD(lastPerUser)} i ${monthLabel(keys[perUser.lastIndexOf(lastPerUser)])}.`
             : "Ingen hele måneder med aktive brukere ennå.") +
-          " Aktive brukere er alle som brukte Copilot minst én dag i måneden. Denne måneden er ikke med, fordi den ikke er ferdig." +
+          " Aktive brukere er alle som brukte Copilot minst én dag i måneden. Denne måneden er ikke med, fordi den ikke er slutt ennå." +
           eventSummary(markers)
         }
         chart={
@@ -123,7 +123,7 @@ export function CostTrendsView({
                     Per aktiv bruker
                   </TableHeaderCell>
                   <TableHeaderCell scope="col" align="right">
-                    Lisenskostnad, andel
+                    Andel lisenskostnad
                   </TableHeaderCell>
                 </TableRow>
               </TableHeader>
@@ -146,7 +146,8 @@ export function CostTrendsView({
             </Table>
             {footnote}
             <BodyShort size="small" textColor="subtle">
-              Lisenskostnad, andel: lisensanslaget (listepris uten rabatt) som andel av totalt inkl. lisenser.
+              Andel lisenskostnad: lisenskostnaden (anslag til listepris, uten rabatt) som andel av totalt inkl.
+              lisenser.
             </BodyShort>
           </>
         }
@@ -156,7 +157,7 @@ export function CostTrendsView({
         <ChartFigure
           title="Hvilke KI-modeller går pengene til?"
           summary={
-            `Andel av det fakturerte beløpet per KI-modell. De ${TOP_MODELS} med mest siden januar vises hver for seg, resten er samlet i «Andre». ` +
+            `Andel av det fakturerte beløpet per KI-modell. De ${TOP_MODELS} modellene med størst andel siden januar vises hver for seg, resten er samlet i «Andre». ` +
             `I ${monthLabel(keys.at(-1)!)}: ${mix
               .map((m) => `${m.model ?? "Andre"} ${pct(m.shares.at(-1) ?? null)}`)
               .join(", ")}.` +
