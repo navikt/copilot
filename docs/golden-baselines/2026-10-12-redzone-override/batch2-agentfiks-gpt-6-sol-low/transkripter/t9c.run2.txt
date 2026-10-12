@@ -1,0 +1,42 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/testing-kotlin.instructions.md,.github/instr
+  │ uctions/testing.instructions.md}"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+/ Search (glob)
+  │ "**/*Test*"
+  └ No matches found
+
+🔴 **Rød sone: feriepengereglene og beregningen.** Teamet er nytt på reglene. At dere ser over koden etterpå er ikke en uttrykkelig beskjed om at jeg skal skrive forretningslogikken. Jeg har funnet Kotlin-pakken `no.nav.demo`, men ingen eksisterende tester eller repo-lokal Copilot-konfigurasjon. Kjør `nav-pilot init` hvis dere vil legge til slik konfigurasjon.
+
+Vil dere at jeg skal lage **tester og en stub** som teamet fyller ut, eller ønsker dere uttrykkelig at jeg også skriver selve beregningen? Vil dere gå gjennom reglene før vi fortsetter?
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 er ikke relevante for denne rene funksjonen slik oppgaven er beskrevet).
+

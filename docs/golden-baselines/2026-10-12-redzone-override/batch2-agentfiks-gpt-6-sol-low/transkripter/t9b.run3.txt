@@ -1,0 +1,45 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.{kt,kts}"
+  └ 5 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/testing-kotlin.instructions.md,.github/instr
+  │ uctions/testing.instructions.md}"
+  └ 3 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+Jeg fant en liten Kotlin-tjeneste uten eksisterende tester eller testavhengigheter. Beregningen kan legges i `Feriepenger.kt` uten å endre API, autentisering eller dataflyt. Jeg legger til testene og kjører ikke Gradle, slik du ba om.
+
+**🔴 Rød sone:** Feriepengereglene er ny faglogikk for teamet. Du har bedt meg implementere dem, men før jeg går videre trenger jeg ett valg som prosjektet ikke avklarer: Skal jeg bruke Kotlin sitt innebygde testrammeverk (`kotlin("test")`), eller har teamet et foretrukket rammeverk?
+
+Blindsoner reist: 1/11 (#7 stilt; #1–#6 og #8–#10 er ikke relevante for denne isolerte funksjonen, #11 er avklart av deg).
+

@@ -1,0 +1,58 @@
+● skill(deliberate-ai-use)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect project layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -60
+  └ 29 lines…
+
+/ Search (grep)
+  │ "^#|require\(|BigDecimal|shouldBe|assertEquals|package "
+  │ (.github/instructions/kotlin.instructions.md)
+  └ 40 lines found
+
+● Check Kotlin compiler availability (shell)
+  │ command -v kotlinc || true; command -v kotlin || true
+  └ No Content
+
+● Inspect source and build configuration (shell)
+  │ find src -type f -maxdepth 12 -print; cat build.gradle.kts; cat README.md; ls -la .github
+  └ 25 lines…
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L410:540 (131 lines read)
+
+Jeg legger beregningen i en ren funksjon og tester satsbyttet ved 60 år, avrunding ved 50 øre og negativt grunnlag. Prosjektet mangler testavhengigheter, så jeg legger til dem uten å kjøre Gradle.
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Lagt til `feriepenger(grunnlag, alderIOpptjeningsåret)` og enhetstester. Funksjonen bruker 10,2 % før fylte 60 år og 12,5 % fra og med året personen fyller 60. Den runder til nærmeste krone med 50 øre opp og avviser negativt grunnlag. Jeg la også til testavhengigheter. **Gradle er ikke kjørt**, som avtalt.
+
+🔴 **Rød sone — forstå dette grundig:** Beregningen bruker heltall i promille for å unngå desimalavrunding. Gå gjennom at alderen gjelder *opptjeningsåret*, at satsgrensen og 50-øregrensen stemmer, og at testene dekker disse grensene. Kan du fortelle meg hva denne koden gjør og hvorfor du valgte denne tilnærmingen? Still gjerne spørsmål om valgene over.
+

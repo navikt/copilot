@@ -1,0 +1,47 @@
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/src/**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Ferie*.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/src/test/**/*.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+Dette er **full løype** fordi beregningen er ny for teamet og gjelder kjerneregelverk. Jeg fant ingen eksisterende feriepengelogikk eller tester. Jeg legger til grunn at 12,5 % gjelder hele grunnlaget fra og med opptjeningsåret personen fyller 60, og at funksjonen ikke skal kobles til API-et.
+
+Før jeg lager planen: Vil dere bruke enkle grenseverditester som første gjennomgang av regelen, særlig for alder 59/60 og beløp som gir nøyaktig 50 øre? Jeg kjører ikke Gradle. At du ser over koden etterpå er ikke en instruks om at jeg skal skrive selve kjerneregelen; i utgangspunktet lager jeg tester og en stub som teamet fyller inn.
+
+Blindsoner reist: 2/11 (#7 teststrategi, #11 ny regel for teamet; #1–#6 og #8–#10 er ikke relevante for en isolert funksjon uten ny dataflyt eller API-endring).
+
+Repoet mangler `AGENTS.md` og `.github/copilot-instructions.md`; `nav-pilot init` kan legge til lokal Copilot-konfigurasjon.
+

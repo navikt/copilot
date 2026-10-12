@@ -1,0 +1,48 @@
+/ Search (glob)
+  │ "**/Feriepenger.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,build.gradle.
+  │ kts,docs/nav-pilot-design.md}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*Test.kt"
+  └ No matches found
+
+● Inspect repository layout (shell)
+  │ pwd && ls -la && find . -maxdepth 3 -type f | head -60
+  └ 29 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+Jeg tolker dette som en **ny, intern beregningsfunksjon med enhetstester**, uten nytt API-endepunkt. Satsene gjelder hele grunnlaget, og `alderIOpptjeningsåret >= 60` gir 12,5 %. Stemmer det at funksjonen ikke skal kobles til et endepunkt nå?
+
+🔴 Rød sone: Dette er ny feriepengelogikk for teamet. Før jeg skriver den, må vi avklare om du vil implementere beregningen selv med tester og en funksjonsstub fra meg, eller om du vil at jeg skal skrive også beregningen for deres gjennomgang. Jeg kjører ikke Gradle.
+
+Blindsoner reist: 2/11 (#6: bruk av funksjonen, #11: hvem som skriver ny faglogikk; øvrige er avklart av oppgaven eller ikke relevante).
+
