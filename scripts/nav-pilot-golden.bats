@@ -475,10 +475,13 @@ run_suite() {
   }
   for ok in 'Følgende er uavklart:\n1. Formål.\n2. Kallere.\n3. Lagring.\n' \
             '## Uavklarte punkter\n\n1. Formål.\n2. Kallere.\n3. Lagring.\n' \
-            'Hvem? Hva? Hvorfor?\nSvar kort, så lager jeg kravoppsummeringen før vi går videre.\n'; do
+            'Hvem? Hva? Hvorfor?\nSvar kort, så lager jeg kravoppsummeringen før vi går videre.\n' \
+            'Hvem? Hva? Hvorfor?\nSvar på punktene før jeg starter med planen.\n' \
+            'Hvem? Hva? Hvorfor?\nSvar, så tar jeg det før jeg fortsetter med planen.\n'; do
     t2 "$ok" || { echo "should pass: $ok"; false; }
   done
   for bad in 'Følgende er uavklart:\n1. Formål.\n2. Kallere.\n3. Lagring.\n\nJeg legger til grunn de vanligste svarene og går videre.\n\n**Fase 2: Plan.**\n\nSteg 1: modell.\n' \
+             'Følgende er uavklart:\n1. a\n2. b\n3. c\nJeg starter med datamodellen.\n' \
              'Ingenting er uavklart etter lesingen, så planen er:\n1. a\n2. b\n3. c\n' \
              'Følgende punkter avklares i Fase 2 sammen med teamet:\n- a\n- b\n- c\n'; do
     if t2 "$bad"; then echo "should fail: $bad"; false; fi

@@ -375,7 +375,7 @@ OPEN_LEAD = re.compile(rf"{_OPEN}.*:\s*$|^#+\s.*{_OPEN}", re.I)
 # Not open now: negated («Ingenting er uavklart … planen er:») or deferred
 # («avklares i Fase 2 sammen med teamet:»).
 NOT_OPEN = re.compile(r"\b(ingen|ingenting|ikke)\b.*(uavklar|åpne)|\bi fase\s*[2-9]|\b(senere|underveis)\b", re.I)
-LIST_ITEM = re.compile(r"^(?:[-*•]|\d+[.)])\s+\S")
+LIST_ITEM = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+\S")
 
 
 def open_points(text):
@@ -584,6 +584,7 @@ def selftest():
         ("apne", "Repoet har:\n- Ktor\n- nais.yaml\n- Dockerfile\n\nJeg går videre til planen.\n", ["3"], False),
         ("apne", "Jeg antar alt og lager planen nå. Er det greit?\n", ["3"], False),
         ("apne", "Følgende er uavklart:\n1. Formålet.\n\nOgså:\n- a\n- b\n", ["3"], False),
+        ("apne", "Følgende er uavklart:\n  - a\n  - b\n  - c\n", ["3"], True),
         ("apne", "## Uavklarte punkter\n\n1. Formålet.\n2. Hvem kaller.\n3. Lagring.\n", ["3"], True),
         ("apne", "Ingenting er uavklart etter lesingen, så planen er:\n1. a\n2. b\n3. c\n", ["3"], False),
         ("apne", "Følgende punkter avklares i Fase 2 sammen med teamet:\n- a\n- b\n- c\n", ["3"], False),

@@ -2047,10 +2047,11 @@ RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[
 
 # Test 2: a Fase 1 turn that lists open points and then carries on anyway
 # («Jeg legger til grunn … og går videre. Fase 2: Plan.») is not a stop, however
-# many points it lists. 0 of the 64 kept t2/t4a answers match (2026-10-12).
-# A bare «går videre» hit two of them, both «… før vi går videre»: a promise
-# after the answers, not a step taken, hence the subject in front.
-RE_T2_PROCEED="$RE_FASE2_PLAN|(jeg|og|så|nå) går (nå )?videre|starter (nå )?(på|med)|fortsetter med"
+# many points it lists. 0 of the 67 kept t2/t4a answers match (2026-10-12).
+# The verb must open a sentence or follow «og»/«så»: a bare «går videre» hit
+# two of them, both «… før vi går videre», and «før jeg starter med planen» is
+# the same promise to wait, not a step taken.
+RE_T2_PROCEED="$RE_FASE2_PLAN|(^|[.!:][[:space:]]+|(^|[^[:alnum:]])(og|så) )((jeg|vi) )?(går (nå )?videre|starter (nå )?(på|med)|fortsetter (nå )?med)"
 
 # The red-zone declaration itself, inside a plan. The second of the two things
 # #534 says to derive separately, and it is derived separately: the gate above
