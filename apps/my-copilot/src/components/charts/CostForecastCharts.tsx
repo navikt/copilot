@@ -244,7 +244,11 @@ function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast 
       },
       tooltip: {
         ...events.plugins.tooltip,
-        filter: (item: { dataset: { label?: string }; raw: unknown }) => !!item.dataset.label && item.raw != null,
+        // The last actual month starts the forecast lines; show it once, as Fakturert.
+        filter: (item: { dataset: { label?: string }; raw: unknown; dataIndex: number }) =>
+          !!item.dataset.label &&
+          item.raw != null &&
+          (s.points[item.dataIndex]?.forecast || !["Forventet faktura", "Spenn"].includes(item.dataset.label)),
         callbacks: {
           ...events.plugins.tooltip.callbacks,
           label: (ctx: { dataset: { label?: string }; parsed: { y: number }; dataIndex: number }) =>
@@ -342,7 +346,10 @@ export function CostForecastCharts({ data, months }: { data: CostForecast; month
                 ["Måned", "Fakturert hittil i år"],
                 ...s.points.map((p) =>
                   p.forecast
-                    ? [`${monthName(p.month)} (prognose)`, `${formatUSD(p.low)}–${formatUSD(p.high)}`]
+                    ? [
+                        `${monthName(p.month)} (prognose)`,
+                        `${formatUSD(p.cumulative_net_usd)} (${formatUSD(p.low)}–${formatUSD(p.high)})`,
+                      ]
                     : [
                         monthName(p.month) + (premium.has(p.month) ? " (premiumforespørsler)" : ""),
                         formatUSD(p.cumulative_net_usd),

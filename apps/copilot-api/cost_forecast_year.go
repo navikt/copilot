@@ -121,8 +121,12 @@ func yearForecast(months []AdminMonth, users []ActiveUsersMonth, cur ModelForeca
 	for k := 1; month.AddDate(0, k, 0).Year() == month.Year(); k++ {
 		m := month.AddDate(0, k, 0)
 		trend := cur.NetMidUSD * math.Exp(g*float64(k))
-		if m.Month() == time.December {
+		// Holidays pull mid and high down, but never below flat: low is the floor.
+		switch m.Month() {
+		case time.December:
 			trend *= christmasFactor
+		case holidayMonth:
+			trend *= holidayNetFactor
 		}
 		trend = math.Max(trend, cur.NetMidUSD)
 		mid, lo, hi = mid+trend, lo+cur.NetMidUSD, hi+trend*(1+yearBandPct/100)

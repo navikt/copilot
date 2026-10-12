@@ -61,8 +61,8 @@ export function ForecastMethod() {
       etter bruken så langt, og stopper ved forbruksgrensen. Juli er ferie, så i august følger hver person sitt eget
       snitt så langt. Begge regner så ut hva som blir fakturert: Nav betaler for det som går ut over kredittene i
       lisensene, og kredittene deles av alle i Nav. Avvik tidligere måneder er snittavviket når prognosen kjøres på dag
-      5, 10, 15, 20 og 25 i avsluttede måneder. Resten av året: Vi følger utviklingen i antall brukere og forbruk per
-      bruker de siste månedene, tar hensyn til ferie, og viser et spenn fra flatt nivå til fortsatt vekst.
+      5, 10, 15, 20 og 25 i avsluttede måneder. For resten av året følger vi utviklingen i antall brukere og forbruk per
+      bruker de siste månedene. Vi tar hensyn til ferie og viser et spenn fra flatt nivå til fortsatt vekst.
     </BodyShort>
   );
 }
