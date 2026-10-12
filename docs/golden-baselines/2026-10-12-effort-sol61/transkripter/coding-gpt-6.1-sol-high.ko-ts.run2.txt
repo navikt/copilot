@@ -46,7 +46,7 @@
     + '-hei-pa-deg-'
     - 'hei-pa-deg'
 
-    at TestContext.<anonymous> (file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-
+    at TestContext.<anonymous> (file://<arbeidsmappe>
     pilot-golden.lAnRIP/repo/slug/slug.test.ts:7:10)
     at Test.runInAsyncScope (node:async_hooks:227:14)
     at Test.run (node:internal/test_runner/test:1402:25)
