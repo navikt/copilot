@@ -22,6 +22,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
@@ -56,13 +57,32 @@ func surveyAskGap() time.Duration {
 }
 
 type surveyDef struct {
-	ID        string           `json:"id"`
-	Nudge     string           `json:"nudge,omitempty"` // calm (default), start or off
-	Title     string           `json:"title"`
-	Intro     string           `json:"intro,omitempty"`
-	Starts    string           `json:"starts"`
-	Ends      string           `json:"ends"`
-	Questions []surveyQuestion `json:"questions"`
+	ID     string `json:"id"`
+	Nudge  string `json:"nudge,omitempty"` // calm (default), start or off
+	Title  string `json:"title"`
+	Intro  string `json:"intro,omitempty"`
+	Starts string `json:"starts"`
+	Ends   string `json:"ends"`
+	// MinCLIVersion is the oldest nav-pilot release that gets the survey,
+	// YYYY.MM.DD or YYYY.MM.DD-HHMMSS. copilot-survey enforces it for the
+	// active list; a preview reads the file itself, so it checks here.
+	MinCLIVersion string           `json:"min_cli_version,omitempty"`
+	Questions     []surveyQuestion `json:"questions"`
+}
+
+// needsNewerCLI reports whether min_cli_version is above this build. A dev
+// build is never too old, as for agentpakker; a floor that does not parse
+// fails closed.
+func (s surveyDef) needsNewerCLI() bool {
+	if s.MinCLIVersion == "" {
+		return false
+	}
+	floor := s.MinCLIVersion
+	if !strings.Contains(floor, "-") {
+		floor += "-000000"
+	}
+	older, err := agentpakke.RunningOlderThan(floor)
+	return err != nil || older
 }
 
 // surveyQuestion is the part of copilot-survey's question format nav-pilot
@@ -910,7 +930,7 @@ func cmdSurveyPreview(id string) error {
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 256<<10)).Decode(&s); err != nil {
 		return err
 	}
-	if !s.renderable() {
+	if s.needsNewerCLI() || !s.renderable() {
 		return fmt.Errorf("%s krever en nyere nav-pilot: %s", s.Title, bold("nav-pilot upgrade"))
 	}
 	fmt.Printf("\n%s (%d spørsmål, åpner %s)\n", bold(s.Title), s.count(), s.Starts)

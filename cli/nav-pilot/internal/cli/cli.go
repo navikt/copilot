@@ -1062,8 +1062,14 @@ func run(args []string) error {
 	case "env":
 		return runWithCommandTelemetry("env", telemetryMode(), "none", cmdEnv)
 	case "survey":
+		// Anything that is not exactly `preview <id>` is a usage error, never
+		// the live survey: a typo must not open a form that sends answers.
+		preview := len(positional) == 2 && positional[0] == "preview"
+		if len(positional) > 0 && (!preview || jsonOutput) {
+			return fmt.Errorf("usage: nav-pilot survey [--json]\n       nav-pilot survey preview <id>")
+		}
 		return norwegian(runWithCommandTelemetry("survey", telemetryMode(), "none", func() error {
-			if len(positional) == 2 && positional[0] == "preview" {
+			if preview {
 				return cmdSurveyPreview(positional[1])
 			}
 			return cmdSurvey(jsonOutput)
