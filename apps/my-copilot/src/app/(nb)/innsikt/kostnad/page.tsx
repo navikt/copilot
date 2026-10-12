@@ -3,6 +3,7 @@ import { Alert, BodyShort, HGrid, Link, List } from "@navikt/ds-react";
 import { ListItem } from "@navikt/ds-react/List";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
+import { CostAnomalies } from "@/components/cost-anomalies";
 import ErrorState from "@/components/error-state";
 import MetricCard from "@/components/metric-card";
 import { getUserToken, requireAdmin } from "@/lib/auth";
@@ -179,6 +180,7 @@ export default async function CostPage() {
       <CostForecastSection token={token} months={data.months} />
       <CostTrendsSection token={token} />
       <HighConsumersSection token={token} />
+      <CostAnomalies />
     </InsightPage>
   );
 }

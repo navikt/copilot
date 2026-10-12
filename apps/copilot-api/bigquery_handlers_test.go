@@ -47,6 +47,7 @@ type mockBigQueryClient struct {
 	teamGross          *TeamGrossOverview
 	teamGrossErr       error
 	teamNet            *TeamNetOverview
+	anomalies          []Anomaly
 	spendBands         *SpendBands
 	teamNetErr         error
 	grossByMonth       map[string]*TeamGrossOverview
@@ -808,6 +809,10 @@ func (m *mockBigQueryClient) GetCostDays(_ context.Context, _ string) ([]CostDay
 
 func (m *mockBigQueryClient) GetCostUserDays(_ context.Context, _ string) ([]UserDay, error) {
 	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetCostAnomalies(_ context.Context) ([]Anomaly, error) {
+	return m.anomalies, nil
 }
 
 func (m *mockBigQueryClient) GetSpendBands(_ context.Context) (*SpendBands, error) {

@@ -168,7 +168,8 @@
       "kostnad": [
         "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
         "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
-        "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx"
+        "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
+        "apps/my-copilot/src/components/cost-anomalies.tsx"
       ],
       "kostnad-over-tid": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "modellkostnad-historikk": ["apps/my-copilot/src/components/charts/BillingModelBreakdownChart.tsx"],
@@ -189,8 +190,12 @@
     }
   },
   "/innsikt/kostnad": {
-    "sources": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx",
+      "apps/my-copilot/src/components/cost-anomalies.tsx"
+    ],
     "anchors": {
+      "avvik": ["apps/my-copilot/src/components/cost-anomalies.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "oversikt": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
       "per-maned": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
@@ -246,6 +251,7 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx",
+      "apps/my-copilot/src/components/cost-anomalies.tsx",
       "apps/my-copilot/src/components/team-gross-usage.tsx",
       "docs/news/articles/dette-er-retningen.md"
     ],
