@@ -7,7 +7,7 @@ import { BackendApiError } from "@/lib/backend-api";
 import { getTeamYearOverview } from "@/lib/cached-bigquery";
 import { formatDate } from "@/lib/format";
 import { teamYearCaveats, teamYearRows } from "@/lib/team-year";
-import { PrintButton, ReportNote } from "./report-controls";
+import { DocumentTitle, PrintButton, ReportNote } from "./report-controls";
 
 export const metadata: Metadata = {
   title: "Kostnadsrapport for team",
@@ -73,6 +73,9 @@ export default async function TeamReportPage({
 
   return (
     <main id="hovedinnhold" tabIndex={-1} className="team-report mx-auto max-w-4xl px-4 py-8 print:p-0">
+      <DocumentTitle
+        title={`Copilot-kostnad ${data.team_slug} ${data.year}${last_usage_day ? ` (til og med ${last_usage_day})` : ""}`}
+      />
       <VStack gap="space-24">
         <VStack gap="space-8">
           <Heading level="1" size="large">

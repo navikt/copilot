@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BodyLong, Button, Textarea } from "@navikt/ds-react";
 import { PrinterSmallIcon } from "@navikt/aksel-icons";
 
@@ -39,4 +39,16 @@ export function PrintButton() {
       Skriv ut / lagre som PDF
     </Button>
   );
+}
+
+/** Browsers name the saved PDF after document.title, so give it the team and the period while the page is open. */
+export function DocumentTitle({ title }: { title: string }) {
+  useEffect(() => {
+    const previous = document.title;
+    document.title = title;
+    return () => {
+      document.title = previous;
+    };
+  }, [title]);
+  return null;
 }
