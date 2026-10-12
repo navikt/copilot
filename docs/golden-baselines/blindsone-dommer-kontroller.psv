@@ -7,3 +7,4 @@ bbb66840efb3cd3d|2026-10-08|claude-haiku-5.5|low|20|20|1.000|4.75
 40173aaebc326f52|2026-10-08|claude-haiku-5.5|low|20|19|0.950|2.04
 1caabf65e3d4eb50|2026-10-08|claude-haiku-5.5|low|75|72|0.960|7.12
 084e12679f79c94f|2026-10-12|claude-haiku-5.5|low|75|71|0.947|6.99|fail
+084e12679f79c94f|2026-10-12|claude-haiku-5.5|low|75|74|0.987|7.06|pass
