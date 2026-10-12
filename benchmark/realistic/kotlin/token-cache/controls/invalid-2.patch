@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
+@@
+-        val cached = tokens[audience]
+-        if (cached != null && cached.isValid(clock.instant())) {
+-            return cached.accessToken
+-        }
+-        val fresh = texas.exchange(userToken, audience)
+-        tokens[audience] = fresh
+-        return fresh.accessToken
++        return texas.exchange(userToken, audience).accessToken
+*** End Patch

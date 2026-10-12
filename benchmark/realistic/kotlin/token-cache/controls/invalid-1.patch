@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/Token.kt
+@@
+-    fun isValid(now: Instant): Boolean = now.isBefore(expiresAt)
++    fun isValid(now: Instant): Boolean = now.plusSeconds(30).isBefore(expiresAt)
+*** End Patch

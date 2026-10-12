@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: workspace/app/api/intern/saker/route.ts
+@@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../lib/auth.ts";
+@@
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+*** End Patch

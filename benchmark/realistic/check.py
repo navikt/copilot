@@ -3,12 +3,15 @@
 
 import argparse
 import hashlib
+import io
 import json
 import re
 import shutil
 import subprocess
+import tarfile
 import tempfile
 import time
+import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,11 +20,53 @@ ROOT = Path(__file__).resolve().parent
 NODE_IMAGE = "node@sha256:be23f54a88d34e8824c741b19b91064094f92c1c97b194144bfc8b50d67258e2"
 GRADLE_IMAGE = "gradle@sha256:68e94b44fa717b894a559f555aaa491b855f94a0de689080f73e56da6c4a7479"
 NEXT_IMAGE = "nav-benchmark-next:local"
+OASIS_IMAGE = "nav-benchmark-oasis:local"
+GRADLE_CACHE = "nav-benchmark-gradle-cache"
+VOLUMES: dict[Path, str] = {}
+KOTLIN_RUNS: dict[Path, tuple[dict[str, bytes], str]] = {}
+
+
+def next_image(task: Path) -> str:
+    return OASIS_IMAGE if "@navikt/oasis" in (task / "workspace/package.json").read_text() else NEXT_IMAGE
+
+
+def task_mount(task: Path, readonly: bool = False) -> list[str]:
+    """Copy the task into a Docker volume once. Bind mounts are not available on every
+    runtime (Colima without host mounts), so containers never see host paths."""
+    if task not in VOLUMES:
+        name = f"nav-benchmark-{uuid.uuid4().hex}"
+        subprocess.run(["docker", "volume", "create", name], check=True, capture_output=True)
+        VOLUMES[task] = name
+        archive = io.BytesIO()
+        with tarfile.open(fileobj=archive, mode="w") as tar:
+            tar.add(task, arcname=".")
+        subprocess.run(["docker", "run", "--rm", "-i", "--network", "none",
+                        "--mount", f"type=volume,src={name},dst=/task", NODE_IMAGE, "tar", "-x", "--no-same-owner", "-C", "/task"],
+                       input=archive.getvalue(), check=True, capture_output=True)
+    return ["--mount", f"type=volume,src={VOLUMES[task]},dst=/task" + (",readonly" if readonly else "")]
+
+
+def read_from_volume(task: Path, directory: str) -> dict[str, bytes]:
+    result = subprocess.run(["docker", "run", "--rm", "--network", "none", *task_mount(task, readonly=True),
+                             NODE_IMAGE, "sh", "-c", f"cd /task/{directory} 2>/dev/null && tar -c . || true"],
+                            capture_output=True, check=True)
+    if not result.stdout:
+        return {}
+    with tarfile.open(fileobj=io.BytesIO(result.stdout)) as tar:
+        return {Path(member.name).name: tar.extractfile(member).read() for member in tar.getmembers() if member.isfile()}
+
+
+def release(task: Path) -> None:
+    KOTLIN_RUNS.pop(task, None)
+    name = VOLUMES.pop(task, None)
+    if name:
+        subprocess.run(["docker", "volume", "rm", "-f", name], capture_output=True, check=False)
 
 
 def docker_limits(memory: str, pids: str) -> list[str]:
     return [
-        "docker", "run", "--rm", "--network", "none", "--read-only",
+        "docker", "run", "--rm", "--name", f"nav-benchmark-{uuid.uuid4().hex}",
+        "--network", "none", "--read-only",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
         "--pids-limit", pids, "--memory", memory, "--cpus", "2",
         "--tmpfs", "/tmp:rw,exec,nosuid,size=256m",
@@ -33,23 +78,24 @@ def execute(command: list[str], timeout: int) -> subprocess.CompletedProcess[str
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired as error:
+        # Killing the client does not stop the container; remove it by name.
+        subprocess.run(["docker", "rm", "-f", command[command.index("--name") + 1]], capture_output=True, check=False)
         raise RuntimeError(f"Test timed out after {timeout}s: {command[-5:]}") from error
     if result.returncode not in (0, 1):
         raise RuntimeError(f"Container failure ({result.returncode}): {(result.stdout + result.stderr)[-1200:]}")
     return result
 
 
-def next_build(task: Path) -> None:
+def next_build(task: Path, image: str) -> None:
     workspace = task / "workspace"
     node_modules = workspace / "node_modules"
     node_modules.symlink_to("/deps/node_modules")
     command = docker_limits("2g", "256") + [
-        "-e", "NEXT_TELEMETRY_DISABLED=1",
-        "--mount", f"type=bind,src={task},dst=/task",
-        "--workdir", "/task/workspace", NEXT_IMAGE,
+        "-e", "NEXT_TELEMETRY_DISABLED=1", *task_mount(task),
+        "--workdir", "/task/workspace", image,
         "/deps/node_modules/.bin/next", "build", "--webpack",
     ]
-    result = execute(command, 180)
+    result = execute(command, 600)
     if result.returncode != 0:
         raise RuntimeError(f"Next.js build/typecheck failed: {(result.stdout + result.stderr)[-1800:]}")
 
@@ -100,39 +146,43 @@ def apply_control(root: Path, patch: Path) -> None:
             raise ValueError(f"Invalid control patch line: {line!r}")
 
 
-def run_tests(task: Path, suite: str) -> dict:
+def gradle_test(task: Path) -> tuple[dict[str, bytes], str]:
+    """One offline Gradle run with every withheld suite; JVM start-up dominates on slow hosts."""
+    if subprocess.run(["docker", "volume", "inspect", GRADLE_CACHE], capture_output=True).returncode:
+        raise RuntimeError("Warm the Kotlin dependency cache as described in kotlin/README.md")
+    destination = "/task/workspace/src/test/kotlin/no/nav/benchmark"
+    files = sorted((task / "controls").glob("*/*.kt"))
+    names = " ".join(file.name for file in files)
+    tests = " ".join(f"--tests no.nav.benchmark.{file.stem}" for file in files)
+    copies = " && ".join(f"cp /task/controls/{file.parent.name}/{file.name} {destination}/" for file in files)
+    # Agent-edited tests are not evidence and must not make the build untestable.
+    script = (f"rm -rf src/test && mkdir -p {destination} && {copies} && "
+              f"rm -rf build/test-results/test; gradle test --offline --no-daemon --console=plain -q {tests}; "
+              f"rc=$?; exit $rc")
+    command = docker_limits("2g", "256") + [
+        "--mount", f"type=volume,src={GRADLE_CACHE},dst=/cache", *task_mount(task),
+        "--workdir", "/task/workspace", "-e", "GRADLE_USER_HOME=/cache",
+        GRADLE_IMAGE, "sh", "-c", script,
+    ]
+    result = execute(command, 600)
+    return read_from_volume(task, "workspace/build/test-results/test"), result.stderr
+
+
+def run_tests(task: Path, suite: str, image: str = NEXT_IMAGE) -> dict:
     if (task / "workspace/build.gradle.kts").is_file():
-        source = task / "controls" / suite
-        files = sorted(source.glob("*.kt"))
+        files = sorted((task / "controls" / suite).glob("*.kt"))
         if not files:
             raise ValueError(f"No {suite} tests in {task}")
-        destination = task / "workspace/src/test/kotlin/no/nav/benchmark"
-        for file in files:
-            shutil.copy2(file, destination / file.name)
-        cache = ROOT / "kotlin/.cache"
-        if not cache.is_dir():
-            raise RuntimeError("Warm the Kotlin dependency cache as described in kotlin/README.md")
-        command = docker_limits("2g", "256") + [
-            "--mount", f"type=bind,src={cache},dst=/cache",
-            "--mount", f"type=bind,src={task / 'workspace'},dst=/work",
-            "--workdir", "/work", "-e", "GRADLE_USER_HOME=/cache",
-            GRADLE_IMAGE, "gradle", "test", "--offline", "--no-daemon",
-            "--console=plain", "-q",
-        ]
-        for file in files:
-            command.extend(("--tests", f"no.nav.benchmark.{file.stem}"))
-        try:
-            result = execute(command, 240)
-        finally:
-            for file in files:
-                (destination / file.name).unlink()
-        reports = task / "workspace/build/test-results/test"
+        if task not in KOTLIN_RUNS:
+            KOTLIN_RUNS[task] = gradle_test(task)
+        reports, stderr = KOTLIN_RUNS[task]
+        result = subprocess.CompletedProcess([], 0, "", stderr)
         counts = []
         for file in files:
-            report = reports / f"TEST-no.nav.benchmark.{file.stem}.xml"
-            if not report.is_file():
+            report = reports.get(f"TEST-no.nav.benchmark.{file.stem}.xml")
+            if report is None:
                 raise RuntimeError(f"No JUnit result for {file.name}: {result.stderr[-1200:]}")
-            suite_result = ET.parse(report).getroot()
+            suite_result = ET.fromstring(report)
             tests = int(suite_result.attrib["tests"])
             expected = file.read_text().count("@Test")
             if tests != expected or tests == 0:
@@ -145,8 +195,8 @@ def run_tests(task: Path, suite: str) -> dict:
 
     is_http = suite == "http"
     command = docker_limits("1g" if is_http else "512m", "128") + [
-        "--mount", f"type=bind,src={task},dst=/task" + ("" if is_http else ",readonly"),
-        "--workdir", "/task", NEXT_IMAGE if is_http else NODE_IMAGE,
+        *task_mount(task, readonly=not is_http),
+        "--workdir", "/task", image,
         "node", "--test", "--test-reporter=tap",
     ]
     files = ([task / "controls/http.test.mjs"] if is_http else
@@ -154,7 +204,7 @@ def run_tests(task: Path, suite: str) -> dict:
     if not files:
         raise ValueError(f"No {suite} tests in {task}")
     command.extend(str(path.relative_to(task)) for path in files)
-    result = execute(command, 90)
+    result = execute(command, 240)
     tests = re.search(r"^# tests (\d+)$", result.stdout, re.MULTILINE)
     expected = sum(len(re.findall(r"\btest\(", file.read_text())) for file in files)
     if tests is None or int(tests.group(1)) != expected or expected == 0:
@@ -204,18 +254,22 @@ def evaluate(task: Path, candidate: Path, task_name: str | None = None) -> dict:
         shutil.copytree(candidate, work / "workspace",
                         ignore=shutil.ignore_patterns("build", ".gradle", ".next", "node_modules"))
         report["candidate_sha256"] = fixture_revision(work / "workspace")
+        is_next = (task / "workspace/package.json").is_file()
+        image = next_image(task) if is_next else NEXT_IMAGE
         try:
-            if (task / "workspace/package.json").is_file():
-                next_build(work)
+            if is_next:
+                next_build(work, image)
             report["checks"] = {
-                suite: run_tests(work, suite) for suite in ("regression", "acceptance")
+                suite: run_tests(work, suite, image) for suite in ("regression", "acceptance")
             }
-            if (task / "workspace/package.json").is_file():
-                report["checks"]["http"] = run_tests(work, "http")
+            if is_next:
+                report["checks"]["http"] = run_tests(work, "http", image)
             report["status"] = "completed" if all(passed(value) for value in report["checks"].values()) else "failed"
         except RuntimeError as error:
             report["status"] = "untestable"
             report["error"] = str(error)
+        finally:
+            release(work)
     report["evaluation_seconds"] = round(time.monotonic() - started, 3)
     return report
 
@@ -235,19 +289,27 @@ def evaluate_attempt(attempt: Path) -> dict:
 
 def check(task: Path) -> dict:
     results = {}
-    for state in ("initial", "solution", "invalid"):
+    invalids = sorted(path.stem for path in (task / "controls").glob("invalid*.patch"))
+    if not invalids:
+        raise ValueError(f"No invalid control in {task}")
+    for state in ("initial", "solution", *invalids):
         with tempfile.TemporaryDirectory(prefix=".nav-benchmark-", dir=ROOT) as temporary:
             work = Path(temporary) / "task"
             shutil.copytree(task, work, ignore=shutil.ignore_patterns("build", ".gradle", ".next", "node_modules"))
             if state != "initial":
                 apply_control(work, work / "controls" / f"{state}.patch")
-            if (work / "workspace/package.json").is_file():
-                next_build(work)
-            results[state] = {
-                suite: passed(run_tests(work, suite)) for suite in ("regression", "acceptance")
-            }
-            if (work / "workspace/package.json").is_file():
-                results[state]["http"] = passed(run_tests(work, "http"))
+            is_next = (work / "workspace/package.json").is_file()
+            image = next_image(work) if is_next else NEXT_IMAGE
+            try:
+                if is_next:
+                    next_build(work, image)
+                results[state] = {
+                    suite: passed(run_tests(work, suite, image)) for suite in ("regression", "acceptance")
+                }
+                if is_next:
+                    results[state]["http"] = passed(run_tests(work, "http", image))
+            finally:
+                release(work)
     expected = {
         "initial": {"regression": True, "acceptance": False,
                     **({"http": False} if "http" in results["initial"] else {})},
@@ -256,8 +318,9 @@ def check(task: Path) -> dict:
     }
     if any(results[state] != value for state, value in expected.items()):
         raise AssertionError(f"{task.name}: control mismatch: {results}")
-    if all(results["invalid"].values()):
-        raise AssertionError(f"{task.name}: invalid patch escaped controls")
+    for state in invalids:
+        if all(results[state].values()):
+            raise AssertionError(f"{task.name}: {state} patch escaped controls")
     return results
 
 

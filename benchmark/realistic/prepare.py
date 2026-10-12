@@ -75,7 +75,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("task", choices=sorted(TASKS))
     parser.add_argument("output", type=Path, help="New attempt directory outside the source fixture")
-    parser.add_argument("--model", choices=("gpt-6-sol", "gpt-6-luna"), required=True)
+    parser.add_argument("--model", choices=("gpt-6-sol", "gpt-6.1-sol", "gpt-6-luna"), required=True)
     parser.add_argument("--effort", choices=("low", "medium"), required=True)
     parser.add_argument("--direct-worker", action="store_true", help="Use Copilot's default agent without nav-pilot's phase gates")
     args = parser.parse_args()

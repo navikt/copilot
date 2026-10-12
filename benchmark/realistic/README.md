@@ -15,6 +15,20 @@ dependency image:
 docker build -f benchmark/realistic/typescript/Dockerfile -t nav-benchmark-next:local .
 ```
 
+`typescript/tilgang` (oasis access control) needs `@navikt/oasis` from GitHub
+Packages. Build its image with a read:packages token passed as a BuildKit
+secret; the token is not stored in any layer:
+
+```sh
+printf '@navikt:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$(gh auth token)" > /tmp/npmrc
+docker build --secret id=npmrc,src=/tmp/npmrc -f benchmark/realistic/typescript/tilgang.Dockerfile -t nav-benchmark-oasis:local .
+rm /tmp/npmrc
+```
+
+Each control copies the task into a fresh Docker volume instead of a bind
+mount, so the check also works on Colima without host mounts. A task may have
+several `invalid*.patch` controls; each must fail.
+
 Then run
 `python3 -B benchmark/realistic/check.py` at the repository root. The check
 uses digest-pinned Node 24 and Gradle 8.14.5/JDK 21 images for all four

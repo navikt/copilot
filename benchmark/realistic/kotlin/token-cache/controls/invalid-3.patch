@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
+@@
+-    private val tokens = ConcurrentHashMap<String, OboToken>()
++    private val tokens = ConcurrentHashMap<Pair<String, String>, OboToken>()
+@@
+-        val cached = tokens[audience]
++        val cached = tokens[userToken to audience]
+@@
+-        tokens[audience] = fresh
++        tokens[userToken to audience] = fresh
+*** End Patch

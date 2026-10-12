@@ -1,0 +1,132 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-12 15:55:42
+@@ -1,6 +1,9 @@
+ package no.nav.benchmark
+ 
++import java.security.MessageDigest
+ import java.time.Clock
++import java.time.Duration
++import java.util.Base64
+ import java.util.concurrent.ConcurrentHashMap
+ 
+ /** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
+@@ -8,15 +11,28 @@
+     private val texas: TexasClient,
+     private val clock: Clock,
+ ) {
+-    private val tokens = ConcurrentHashMap<String, OboToken>()
++    private val tokens = ConcurrentHashMap<CacheKey, OboToken>()
+ 
+     suspend fun token(userToken: String, audience: String): String {
+-        val cached = tokens[audience]
+-        if (cached != null && cached.isValid(clock.instant())) {
++        val key = CacheKey(audience, hashUserToken(userToken))
++        val now = clock.instant()
++        val cached = tokens[key]
++        if (cached != null && cached.isValid(now.plus(EXPIRY_BUFFER))) {
+             return cached.accessToken
+         }
+         val fresh = texas.exchange(userToken, audience)
+-        tokens[audience] = fresh
++        tokens[key] = fresh
+         return fresh.accessToken
++    }
++
++    private fun hashUserToken(userToken: String): String =
++        Base64.getUrlEncoder().withoutPadding().encodeToString(
++            MessageDigest.getInstance("SHA-256").digest(userToken.toByteArray(Charsets.UTF_8)),
++        )
++
++    private data class CacheKey(val audience: String, val userTokenHash: String)
++
++    private companion object {
++        val EXPIRY_BUFFER: Duration = Duration.ofSeconds(30)
+     }
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt
+--- evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt	1970-01-01 01:00:00
++++ workspace/src/test/kotlin/no/nav/benchmark/TokenCacheTest.kt	2026-10-12 15:55:42
+@@ -0,0 +1,82 @@
++package no.nav.benchmark
++
++import io.ktor.client.HttpClient
++import io.ktor.client.engine.mock.MockEngine
++import io.ktor.client.engine.mock.respond
++import java.time.Clock
++import java.time.Instant
++import java.time.ZoneId
++import java.time.ZoneOffset
++import java.util.concurrent.atomic.AtomicInteger
++import java.util.concurrent.atomic.AtomicReference
++import kotlin.test.Test
++import kotlin.test.assertEquals
++
++class TokenCacheTest {
++    @Test
++    fun `caches exchanged token per user and audience`() = runTest {
++        val exchanges = AtomicInteger()
++        withTokenCache(
++            clock = Clock.fixed(Instant.parse("2026-03-04T10:00:00Z"), ZoneOffset.UTC),
++            response = {
++                val token = "exchanged-${exchanges.incrementAndGet()}"
++                """{"access_token":"$token","expires_in":3600}"""
++            },
++        ) { cache ->
++            assertEquals("exchanged-1", cache.token("user-one", "vedtak"))
++            assertEquals("exchanged-2", cache.token("user-two", "vedtak"))
++            assertEquals("exchanged-1", cache.token("user-one", "vedtak"))
++            assertEquals("exchanged-3", cache.token("user-one", "other-audience"))
++            assertEquals(3, exchanges.get())
++        }
++    }
++
++    @Test
++    fun `refreshes cached token before it expires`() = runTest {
++        val instant = AtomicReference(Instant.parse("2026-03-04T10:00:00Z"))
++        val clock = MutableClock(instant)
++        val exchanges = AtomicInteger()
++        withTokenCache(
++            clock = clock,
++            response = {
++                val token = "exchanged-${exchanges.incrementAndGet()}"
++                """{"access_token":"$token","expires_in":3600}"""
++            },
++        ) { cache ->
++            assertEquals("exchanged-1", cache.token("user-one", "vedtak"))
++            instant.set(instant.get().plusSeconds(3571))
++            assertEquals("exchanged-2", cache.token("user-one", "vedtak"))
++            assertEquals(2, exchanges.get())
++        }
++    }
++
++    private suspend fun withTokenCache(
++        clock: Clock,
++        response: () -> String,
++        block: suspend (TokenCache) -> Unit,
++    ) {
++        val http = HttpClient(
++            MockEngine {
++                respond(response())
++            },
++        )
++        try {
++            block(TokenCache(TexasClient(http, clock), clock))
++        } finally {
++            http.close()
++        }
++    }
++
++    private fun runTest(block: suspend () -> Unit) {
++        kotlinx.coroutines.runBlocking { block() }
++    }
++
++    private class MutableClock(
++        private val instant: AtomicReference<Instant>,
++        private val zone: ZoneId = ZoneOffset.UTC,
++    ) : Clock() {
++        override fun getZone(): ZoneId = zone
++        override fun withZone(zone: ZoneId): Clock = MutableClock(instant, zone)
++        override fun instant(): Instant = instant.get()
++    }
++}
