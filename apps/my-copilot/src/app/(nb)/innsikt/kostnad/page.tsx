@@ -89,7 +89,7 @@ export default async function CostPage() {
       }
     >
       {/* One row of status cards; «oversikt» was the old second card row, kept for links. */}
-      <div id="oversikt" className="flex flex-col gap-4">
+      <VStack id="oversikt" gap="space-16">
         {gross_stale && (
           <Alert variant="warning" size="small">
             Foreløpig forbruk er sist hentet for {formatDate(last_gross_day)}, mer enn to døgn siden. Tallene for denne
@@ -97,7 +97,7 @@ export default async function CostPage() {
           </Alert>
         )}
         <CostStatusCards token={token} grossToDate={current?.basis === "gross" ? current.gross_usd : null} />
-      </div>
+      </VStack>
 
       <InsightSection id="per-maned" title="Per måned">
         <ChartFigure

@@ -50,12 +50,18 @@ export function NumbersFold({ summary = "Vis tallene", children }: { summary?: s
   return (
     <details className="group min-w-0 print:hidden">
       <summary className="cursor-pointer list-none text-(--ax-text-accent) underline underline-offset-4 hover:no-underline [&::-webkit-details-marker]:hidden">
-        <span aria-hidden className="mr-1 inline-block transition-transform group-open:rotate-90">
+        <span
+          aria-hidden
+          className="inline-block transition-transform group-open:rotate-90"
+          style={{ marginRight: "var(--ax-space-4)" }}
+        >
           ›
         </span>
         {summary}
       </summary>
-      <div className="mt-2 min-w-0 overflow-x-auto">{children}</div>
+      <div className="min-w-0 overflow-x-auto" style={{ marginTop: "var(--ax-space-8)" }}>
+        {children}
+      </div>
     </details>
   );
 }
