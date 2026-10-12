@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 const TOC: TocItem[] = [
   { id: "stotte-klienter", label: "Klientene" },
   { id: "paritet", label: "Hva hver klient kan" },
+  { id: "innstillinger", label: "Innstillinger per klient" },
   { id: "mcp-register", label: "Navs MCP-register" },
   { id: "uten-cplt", label: "Uten cplt" },
   { id: "opencode", label: "opencode" },
@@ -155,6 +156,19 @@ function Mark({ v }: { v: string }) {
   );
 }
 
+// Kilde: cli/nav-pilot/internal/provider (copilot_launch.go, opencode_launch.go,
+// pi_launch.go). settings_table_test.go der sjekker at hver innstilling nav-pilot
+// advarer om, står her.
+const SETTINGS: { key: string; copilot: string; opencode: string; pi: string }[] = [
+  { key: "model", copilot: "Ja", opencode: "Ja", pi: "Ja" },
+  { key: "mode", copilot: "Ja", opencode: "Bare plan. autopilot gir advarsel", pi: "Advarsel" },
+  { key: "reasoning_effort", copilot: "Ja", opencode: "Bare i opencode run. Advarsel ellers", pi: "Advarsel" },
+  { key: "context_tier", copilot: "Ja", opencode: "Advarsel", pi: "Advarsel" },
+  { key: "allow_all_tools", copilot: "Ja", opencode: "Ja", pi: "Advarsel" },
+  { key: "ask_user", copilot: "Ja", opencode: "Advarsel", pi: "Advarsel" },
+  { key: "log_level", copilot: "Ja", opencode: "Ja, unntatt none", pi: "Advarsel" },
+];
+
 const MCP_WARNING = `⚠ MCP servers turned off for this session (not in Nav's MCP registry): <navn>. See https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers`;
 
 function Section({ children }: { children: ReactNode }) {
@@ -289,6 +303,34 @@ export default function Klienter() {
             .
           </BodyShort>
         </Box>
+      </Section>
+
+      <Section>
+        <LinkableHeading id="innstillinger" size="medium" level="2">
+          Innstillinger per klient
+        </LinkableHeading>
+        <BodyLong>
+          Slik bruker hver klient innstillingene i {c("~/.nav-pilot/config.toml")}. ✓ betyr at klienten bruker
+          innstillingen. «Advarsel» betyr at klienten ikke har noe som svarer til innstillingen. nav-pilot sier fra ved
+          oppstart og starter uten den.
+        </BodyLong>
+        <div className="overflow-x-auto">
+          <Table size="small">
+            <HeaderRow cells={["Innstilling", "Copilot CLI", "opencode", "pi"]} />
+            <TableBody>
+              {SETTINGS.map((r) => (
+                <TableRow key={r.key}>
+                  <TableDataCell>{c(r.key)}</TableDataCell>
+                  {[r.copilot, r.opencode, r.pi].map((v, j) => (
+                    <TableDataCell key={j}>
+                      <Mark v={v} />
+                    </TableDataCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Section>
 
       <Section>

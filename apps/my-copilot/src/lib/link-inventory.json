@@ -318,6 +318,7 @@
       "installer": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
         "apps/my-copilot/src/app/(nb)/kom-i-gang/page.tsx",
+        "apps/my-copilot/src/app/(nb)/praksis/sections/getting-started.tsx",
         "apps/my-copilot/src/components/navigation/site-search.tsx"
       ]
     }
@@ -1448,6 +1449,7 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
       ],
+      "innstillinger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx"],
       "kjente-hull": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
@@ -1723,7 +1725,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx",
-      "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx"
+      "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx",
+      "apps/my-copilot/src/components/survey-notice.tsx"
     ],
     "anchors": {}
   },
@@ -2446,6 +2449,7 @@
       "apps/my-copilot/src/app/(en)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/personvern/page.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts"
     ],
     "anchors": {}
@@ -2488,7 +2492,10 @@
     "anchors": {}
   },
   "/praksis/guide/kom-i-gang": {
-    "sources": ["apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/kom-i-gang/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"
+    ],
     "anchors": {}
   },
   "/praksis/guide/lese-og-forsta-kode": {
