@@ -587,7 +587,7 @@ export interface BillingModelForecast {
 // Month-end forecast against the enterprise budget, from copilot-api's admin-only
 // GET /api/v1/copilot/admin/cost-forecast. Internal: never show on public pages.
 export interface CostForecastModel {
-  model: "trend" | "weekday" | "per_user";
+  model: "trend" | "per_user";
   gross_mid_usd: number;
   net_low_usd: number;
   net_mid_usd: number;
@@ -610,9 +610,11 @@ export interface CostForecast {
   budget_status: "set" | "missing" | "error";
   budget_usd?: number;
   models: CostForecastModel[];
-  /** Cumulative net per day this month: actual, then the shown model's midpoint (forecast: true). */
+  /** «tidlig i måneden, stor usikkerhet» in the first seven days of the month, when the range is ±35 %. */
+  uncertainty_label?: string;
+  /** Cumulative net per day this month: actual, then the trend midpoint (forecast: true). */
   days?: { day: string; net_usd: number; forecast: boolean }[];
-  /** Projected cumulative net per remaining day with its range, from the shown trend or weekday model. */
+  /** Projected cumulative net per remaining day with its range, from the trend model shaped by weekday. */
   daily_forecast?: { date: string; cumulative_net_usd: number; low: number; high: number }[];
 }
 

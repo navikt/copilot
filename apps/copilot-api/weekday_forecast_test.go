@@ -39,49 +39,41 @@ func TestWeekdayFactors(t *testing.T) {
 	}
 }
 
-func TestBlendBase(t *testing.T) {
-	if b := blendBase(200, true, 100, true, 0.1, 5); math.Abs(b-(0.5*200+0.5*110)) > 1e-9 {
-		t.Fatalf("day 5: %v", b)
-	}
-	if b := blendBase(200, true, 100, true, 0.1, 12); b != 200 {
-		t.Fatalf("after blendDays this month alone: %v", b)
-	}
-	if b := blendBase(0, false, 100, true, 0.1, 0); math.Abs(b-110) > 1e-9 {
-		t.Fatalf("no days yet: %v", b)
-	}
-}
-
-func TestMonthGrowthDampenedAndCapped(t *testing.T) {
-	var f [7]float64
-	for i := range f {
-		f[i] = 1
-	}
-	g := map[string]float64{}
-	level := map[time.Month]float64{time.August: 100, time.September: 110, time.October: 1000}
-	for m, v := range level {
-		for d := time.Date(2026, m, 1, 0, 0, 0, 0, time.UTC); d.Month() == m; d = d.AddDate(0, 0, 1) {
-			g[d.Format("2006-01-02")] = v
-		}
-	}
-	// Sep over Aug is +10 %, dampened to +5 %; July pairs are left out.
-	if gr := monthGrowth(g, f, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)); math.Abs(gr-0.05) > 1e-9 {
-		t.Fatalf("growth %v", gr)
-	}
-	// Oct over Sep is +809 %: capped.
-	if gr := monthGrowth(g, f, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)); gr != growthCap {
-		t.Fatalf("growth %v, want cap", gr)
-	}
-}
-
-func TestWeekdayRemainingShape(t *testing.T) {
+func TestShapeKeepsTrendTotalAndDipsAtWeekends(t *testing.T) {
 	days := synthDays(14, 1000, 1000)
-	rem, ok := weekdayRemaining(days, oct, dayOf(oct, 14))
-	if !ok || len(rem) != 17 {
-		t.Fatalf("rem %v %v", ok, rem)
+	last := dayOf(oct, 14)
+	rem, _ := trendRemaining(days, oct, last)
+	shaped := shapeByWeekday(days, oct, last, rem)
+	var a, b float64
+	for i := range rem {
+		a += rem[i]
+		b += shaped[i]
+	}
+	if math.Abs(a-b) > 1e-6 {
+		t.Fatalf("total %v, trend %v", b, a)
 	}
 	// Oct 17 is a Saturday, Oct 19 a Monday.
-	if rem[3]*5 > rem[5] {
-		t.Fatalf("weekend %v not well below Monday %v", rem[3], rem[5])
+	if shaped[3]*5 > shaped[5] {
+		t.Fatalf("weekend %v not well below Monday %v", shaped[3], shaped[5])
+	}
+	f := buildCostForecast(days, nil, oct, 0, budgetMissing)
+	end := f.DailyForecast[len(f.DailyForecast)-1].CumulativeNetUSD
+	_, net, _, _, _, _ := poolNet(days, oct, last, rem)
+	if math.Abs(end-net) > 1e-6 || math.Abs(f.Models[0].NetMidUSD-net) > 1e-6 {
+		t.Fatalf("end %v mid %v, trend net %v", end, f.Models[0].NetMidUSD, net)
+	}
+}
+
+func TestRangeSwitchesAtDay8(t *testing.T) {
+	for _, c := range []struct {
+		day   int
+		pct   float64
+		label string
+	}{{7, earlyRangePct, earlyLabel}, {8, rangeFloorPct, ""}} {
+		f := buildCostForecast(synthDays(c.day, 1000, 1000), nil, oct, 0, budgetMissing)
+		if len(f.Models) == 0 || f.Models[0].RangePct != c.pct || f.UncertaintyLabel != c.label {
+			t.Fatalf("day %d: %+v", c.day, f)
+		}
 	}
 }
 
@@ -104,26 +96,6 @@ func TestDailyForecastSeries(t *testing.T) {
 			t.Fatalf("point %+v after %v", p, prev)
 		}
 		prev = p.CumulativeNetUSD
-	}
-}
-
-func TestPickShown(t *testing.T) {
-	both := map[string]ModelForecast{modelTrend: {}, modelWeekday: {}}
-	cases := []struct {
-		models map[string]ModelForecast
-		errs   map[string]float64
-		want   string
-	}{
-		{both, map[string]float64{modelTrend: 9, modelWeekday: 8}, modelWeekday},
-		{both, map[string]float64{modelTrend: 8, modelWeekday: 9}, modelTrend},
-		{both, map[string]float64{modelTrend: 8}, modelTrend}, // weekday not backtested
-		{both, nil, modelTrend},
-		{map[string]ModelForecast{modelWeekday: {}}, nil, modelWeekday},
-	}
-	for i, c := range cases {
-		if got, _ := pickShown(c.models, c.errs); got != c.want {
-			t.Errorf("case %d: %s, want %s", i, got, c.want)
-		}
 	}
 }
 

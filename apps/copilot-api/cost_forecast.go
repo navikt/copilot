@@ -13,9 +13,8 @@ import (
 )
 
 // CostForecast is the month-end forecast on the admin cost page (F4) and its
-// comparison with the enterprise ai_credits budget (F5, anomaly A4). The
-// models run side by side until one has proved better; of trend and weekday
-// only the one with the lower backtest error is shown. Spend and budget are
+// comparison with the enterprise ai_credits budget (F5, anomaly A4). Two
+// models run side by side until one has proved better. Spend and budget are
 // internal: serve it only to admins and never log the amounts.
 type CostForecast struct {
 	Month       string `json:"month"`
@@ -31,11 +30,13 @@ type CostForecast struct {
 	BudgetStatus string          `json:"budget_status"`
 	BudgetUSD    float64         `json:"budget_usd,omitempty"`
 	Models       []ModelForecast `json:"models"`
+	// UncertaintyLabel is earlyLabel in the first earlyDays days of the month.
+	UncertaintyLabel string `json:"uncertainty_label,omitempty"`
 	// Days is billed net accumulated per day this month: actual up to the
-	// last day with data, then the shown trend or weekday model's midpoint.
+	// last day with data, then the trend model's midpoint.
 	Days []CostForecastDay `json:"days"`
 	// DailyForecast is the cumulative billed net per remaining day from the
-	// shown trend or weekday model, for the month chart.
+	// trend model, for the month chart.
 	DailyForecast []DailyForecastPoint `json:"daily_forecast"`
 }
 
@@ -57,7 +58,7 @@ type DailyForecastPoint struct {
 
 // ModelForecast is one model's forecast of billed net at month end.
 type ModelForecast struct {
-	Model       string  `json:"model"` // modelTrend, modelWeekday or modelPerUser
+	Model       string  `json:"model"` // modelTrend or modelPerUser
 	GrossMidUSD float64 `json:"gross_mid_usd"`
 	NetLowUSD   float64 `json:"net_low_usd"`
 	NetMidUSD   float64 `json:"net_mid_usd"`
@@ -84,11 +85,15 @@ const (
 
 	modelTrend   = "trend"
 	modelPerUser = "per_user"
-	modelWeekday = "weekday"
 
 	// rangeFloorPct is the smallest range around the midpoint. The largest
 	// backtest error in Aug and Sep 2026 was 9.7 %; the owner set 15 %.
 	rangeFloorPct = 15.0
+	// earlyRangePct replaces rangeFloorPct in the first earlyDays days of the
+	// month, when the backtest errs most (owner decision 2026-10-12).
+	earlyRangePct = 35.0
+	earlyDays     = 7
+	earlyLabel    = "tidlig i måneden, stor usikkerhet"
 	// trendWeekdays is how many recent weekdays the gross trend is fitted on.
 	trendWeekdays = 20
 )
@@ -357,10 +362,7 @@ func forecastModels(days []CostDay, users []UserDay, month, last time.Time) (out
 		}
 	}
 	if rem, ok := trendRemaining(days, month, last); ok {
-		add(modelTrend, rem)
-	}
-	if rem, ok := weekdayRemaining(days, month, last); ok {
-		add(modelWeekday, rem)
+		add(modelTrend, shapeByWeekday(days, month, last, rem))
 	}
 	if proj, rem := projectUsers(users, month, last); len(proj) > 0 {
 		add(modelPerUser, rem)
@@ -448,15 +450,17 @@ func buildCostForecast(days []CostDay, users []UserDay, month time.Time, budget 
 	}
 	out.DaysElapsed, out.AllowanceUsedUp = last.Day(), usedUp
 	errs, months := backtest(days, users, month)
-	shown, hidden := pickShown(models, errs)
-	delete(models, hidden)
-	for _, name := range []string{shown, modelPerUser} {
+	floor := rangeFloorPct
+	if last.Day() <= earlyDays {
+		floor, out.UncertaintyLabel = earlyRangePct, earlyLabel
+	}
+	for _, name := range []string{modelTrend, modelPerUser} {
 		f, ok := models[name]
 		if !ok {
 			continue
 		}
 		f.BacktestErrorPct, f.BacktestMonths = errs[name], months
-		f.RangePct = math.Max(rangeFloorPct, f.BacktestErrorPct)
+		f.RangePct = math.Max(floor, f.BacktestErrorPct)
 		f.NetLowUSD = f.NetMidUSD * (1 - f.RangePct/100)
 		f.NetHighUSD = f.NetMidUSD * (1 + f.RangePct/100)
 		if out.BudgetUSD > 0 {
@@ -464,7 +468,7 @@ func buildCostForecast(days []CostDay, users []UserDay, month time.Time, budget 
 			f.OverBudget = f.NetMidUSD > out.BudgetUSD
 		}
 		out.Models = append(out.Models, f)
-		if name == shown {
+		if name == modelTrend {
 			out.AllowanceRunOutDate = f.AllowanceRunsOut
 			out.DailyForecast = dailySeries(f, out.NetToDateUSD, month, last)
 			for _, p := range out.DailyForecast {
@@ -585,16 +589,4 @@ func dailySeries(f ModelForecast, netToDate float64, month, last time.Time) []Da
 		})
 	}
 	return out
-}
-
-// pickShown returns which of trend and weekday to show and which to hide:
-// weekday only once it has backtested better than trend, or when trend has no
-// forecast.
-func pickShown(models map[string]ModelForecast, errs map[string]float64) (shown, hidden string) {
-	shown, hidden = modelTrend, modelWeekday
-	ew, ok := errs[modelWeekday]
-	if _, hasTrend := models[modelTrend]; !hasTrend || (ok && ew < errs[modelTrend]) {
-		shown, hidden = modelWeekday, modelTrend
-	}
-	return shown, hidden
 }

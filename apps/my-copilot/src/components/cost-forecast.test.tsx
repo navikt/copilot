@@ -38,6 +38,7 @@ describe("CostForecastView", () => {
     expect(screen.getAllByText(/4,9 % i snitt/)[0]).toBeInTheDocument();
     expect(screen.getByText(/Inkluderte kreditter brukt opp 6. oktober/)).toBeInTheDocument();
     expect(screen.getByText(/Usikkert anslag, kalibreres videre/)).toBeInTheDocument();
+    expect(screen.queryByText(/stor usikkerhet/)).not.toBeInTheDocument();
     expect(screen.queryByText(/over budsjettet/)).not.toBeInTheDocument();
   });
 
@@ -62,5 +63,10 @@ describe("CostForecastView", () => {
     render(<CostForecastView data={{ ...base, budget_status: "missing", budget_usd: undefined }} />);
     expect(screen.getByText(/Ikke satt budsjett i GitHub\./)).toBeInTheDocument();
     expect(screen.queryByText(/over budsjettet/)).not.toBeInTheDocument();
+  });
+
+  it("labels the first days of the month as very uncertain", () => {
+    render(<CostForecastView data={{ ...base, uncertainty_label: "tidlig i måneden, stor usikkerhet" }} />);
+    expect(screen.getByText(/Prognosen er tidlig i måneden, stor usikkerhet/)).toBeInTheDocument();
   });
 });
