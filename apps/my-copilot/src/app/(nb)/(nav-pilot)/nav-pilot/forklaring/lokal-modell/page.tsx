@@ -46,7 +46,7 @@ const VERDICTS: Verdict[] = [
 
 async function LiveTrustedClasses() {
   const { models } = await getLocalModels();
-  return <TrustedClassesTable models={models} />;
+  return <TrustedClassesTable stack models={models} />;
 }
 
 export default function LokalModellForklaring() {
@@ -228,7 +228,7 @@ export default function LokalModellForklaring() {
             ulike oppgaver. Manifestet sier hva hver modell er godkjent for:
           </BodyLong>
           {/* Skallet viser reservekopien til manifestet er hentet. */}
-          <Suspense fallback={<TrustedClassesTable models={FALLBACK_TABLE.models} />}>
+          <Suspense fallback={<TrustedClassesTable stack models={FALLBACK_TABLE.models} />}>
             <LiveTrustedClasses />
           </Suspense>
           <Box background="warning-soft" padding="space-16" borderRadius="8">
