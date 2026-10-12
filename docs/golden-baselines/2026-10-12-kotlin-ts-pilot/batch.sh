@@ -6,6 +6,6 @@ while [ $# -ge 3 ]; do
   left=$((250 - spent))
   cap=30; [ "$left" -lt 40 ] && cap=$((left - 10))   # soft per-session limit can overshoot ~10
   if [ "$cap" -lt 3 ]; then echo "STOP: budget reached ($spent spent)"; exit 0; fi
-  bash "$S/run-attempt.sh" "$1" "$2" "$3" "$cap"
+  bash "$S/run-attempt.sh" "$1" "$2" "$3" "$cap" || { echo "STOP: usage missing for $1 $2 $3"; exit 1; }
   shift 3
 done

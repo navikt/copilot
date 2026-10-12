@@ -25,6 +25,11 @@ mv "$att/workspace/.session-transcript.md" "$att/transcript.md" 2>/dev/null || t
 set -e
 end=$(date +%s)
 python3 "$REPO/scripts/copilot-usage.py" export "$DB" --session "$session" --after "$after" --slug "$slug" --run "$n" >"$att/usage.psv"
+if [ ! -s "$att/usage.psv" ]; then
+  # Unverified usage must never become a result or a known cost.
+  echo "$slug|$session|$rc|$((end-start))||usage-missing" | tee -a "$S/attempts.psv"
+  exit 1
+fi
 credits=$(awk -F'|' '{s+=$13} END {printf "%.6f", s/1e9}' "$att/usage.psv")
 python3 -B "$REPO/benchmark/realistic/check.py" --attempt "$att" --output "$att/result.json" >/dev/null
 status=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$att/result.json")

@@ -152,16 +152,18 @@ def gradle_test(task: Path) -> tuple[dict[str, bytes], str]:
         raise RuntimeError("Warm the Kotlin dependency cache as described in kotlin/README.md")
     destination = "/task/workspace/src/test/kotlin/no/nav/benchmark"
     files = sorted((task / "controls").glob("*/*.kt"))
-    names = " ".join(file.name for file in files)
     tests = " ".join(f"--tests no.nav.benchmark.{file.stem}" for file in files)
     copies = " && ".join(f"cp /task/controls/{file.parent.name}/{file.name} {destination}/" for file in files)
-    # Agent-edited tests are not evidence and must not make the build untestable.
+    # Only withheld tests run (--tests filter), so the candidate's own tests are never
+    # evidence; dropping them keeps an uncompilable agent test from making it untestable.
     script = (f"rm -rf src/test && mkdir -p {destination} && {copies} && "
               f"rm -rf build/test-results/test; gradle test --offline --no-daemon --console=plain -q {tests}; "
               f"rc=$?; exit $rc")
     command = docker_limits("2g", "256") + [
-        "--mount", f"type=volume,src={GRADLE_CACHE},dst=/cache", *task_mount(task),
-        "--workdir", "/task/workspace", "-e", "GRADLE_USER_HOME=/cache",
+        # The candidate build runs arbitrary code: share the warmed cache read-only.
+        "--mount", f"type=volume,src={GRADLE_CACHE},dst=/cache,readonly", *task_mount(task),
+        "--workdir", "/task/workspace", "-e", "GRADLE_USER_HOME=/task/.gradle-home",
+        "-e", "GRADLE_RO_DEP_CACHE=/cache/caches",
         GRADLE_IMAGE, "sh", "-c", script,
     ]
     result = execute(command, 600)

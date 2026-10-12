@@ -87,13 +87,15 @@ for lette i denne formen.
 - Flere `invalid*.patch` per oppgave. Alle må feile.
 - Én Gradle-kjøring per evaluering i stedet for én per testsamling.
 - Containeren fjernes ved tidsavbrudd.
+- Gradle-cachen monteres skrivebeskyttet (`GRADLE_RO_DEP_CACHE`), så et forsøk
+  ikke kan endre cachen for senere forsøk.
 - `@navikt/oasis` finnes bare i GitHub Packages. Bildet
   `nav-benchmark-oasis:local` bygges med token som BuildKit-hemmelighet, og
   tokenet lagres ikke i bildet.
 
 ## Filer
 
-- `attempts.psv`: forsøk, økt, avslutningskode, sekunder i CLI, credits og status
+- `attempts.psv`: forsøk, økt, avslutningskode, sekunder i CLI, credits, status ved første vurdering og endelig status
 - `usage.psv`: rådata fra `assistant_usage_events`
 - `resultater/`: evaluatorresultat per forsøk
 - `patcher/`: endringene agenten gjorde i arbeidsmappa
