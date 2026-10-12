@@ -185,7 +185,7 @@ FROM m WHERE gross>@minUSD GROUP BY model HAVING MIN(day)>=DATE(@from)`, daily))
 		runs = fmt.Sprintf("(SELECT COUNT(*)>0 FROM %s WHERE month=DATE(@prev) AND scope_id='nav' AND status='complete')",
 			bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"))
 	}
-	q = bq.client.Query(fmt.Sprintf(`SELECT IFNULL(FORMAT_DATE('%%F',MIN(day)),'') first_day,%s complete FROM %s WHERE LOWER(scope_id)='nav'`, runs, daily))
+	q = bq.client.Query(fmt.Sprintf(`SELECT IFNULL(FORMAT_DATE('%%F',MIN(day)),'') first_day,%s complete FROM %s WHERE LOWER(scope_id)='nav' AND product='Copilot'`, runs, daily))
 	q.Parameters = []bigquery.QueryParameter{{Name: "prev", Value: prev}}
 	if it, err = q.Read(ctx); err != nil {
 		return nil, fmt.Errorf("read billing coverage: %w", err)
