@@ -1,4 +1,10 @@
-import { paretoFrontier } from "./pass-rate-chart";
+import { paretoFrontier, spreadLabels } from "./pass-rate-chart";
+
+describe("spreadLabels", () => {
+  it("skyver etiketter fra hverandre uten å bytte rekkefølge", () => {
+    expect(spreadLabels([50, 10, 52, 100], 13)).toEqual([50, 10, 63, 100]);
+  });
+});
 
 describe("paretoFrontier", () => {
   it("beholder bare punkter ingen andre slår på både pris og bestått", () => {

@@ -62,6 +62,34 @@ export function passRate(run: GoldenRun): number {
   return run.checks.reduce((sum, c) => sum + c.passed, 0) / total;
 }
 
+/** Wilson 95 % interval for k successes out of n, as shares in [0, 1]. */
+export function wilson(k: number, n: number, z = 1.96): [number, number] {
+  if (n === 0) return [0, 1];
+  const p = k / n;
+  const z2 = z * z;
+  const mid = (p + z2 / (2 * n)) / (1 + z2 / n);
+  const half = (z / (1 + z2 / n)) * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
+  return [Math.max(0, mid - half), Math.min(1, mid + half)];
+}
+
+/** Wilson interval for passRate, over all n × checks outcomes. */
+export function passInterval(run: GoldenRun): [number, number] {
+  const passed = run.checks.reduce((sum, c) => sum + c.passed, 0);
+  return wilson(passed, run.n * run.checks.length);
+}
+
+/** pass^k: share of checks that passed in every one of the n repeats. */
+export function passAll(run: GoldenRun): number {
+  return run.checks.length === 0 ? 0 : run.checks.filter((c) => c.passed === run.n).length / run.checks.length;
+}
+
+/** Median credits divided by pass rate; null when credits are unknown or nothing passed. */
+export function creditsPerSolved(run: GoldenRun): number | null {
+  const credits = knownCredits(run);
+  const rate = passRate(run);
+  return credits === null || rate === 0 ? null : credits / rate;
+}
+
 export function sourceUrl(source: string): string {
   return /^https?:\/\//.test(source) ? source : REPO_BLOB + source.replace(/^\/+/, "");
 }

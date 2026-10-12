@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Scatter } from "react-chartjs-2";
-import type { ChartDataset, TooltipItem } from "chart.js";
+import type { Chart, ChartDataset, Plugin, TooltipItem } from "chart.js";
 // Registers the Chart.js scales and elements the site uses.
 import "@/lib/chart-utils";
 
@@ -10,6 +11,9 @@ export interface ChartPoint {
   effort: string;
   credits: number;
   passPercent: number;
+  /** Wilson 95 % interval in percent. */
+  low: number;
+  high: number;
   n: number;
 }
 
@@ -25,6 +29,11 @@ const EFFORT_SHAPE: Record<string, "circle" | "rect" | "triangle" | "rectRot"> =
   high: "triangle",
   default: "rectRot",
 };
+const FRONTIER = "Beste avveining";
+// Below this width the direct labels have no room, so the legend takes over.
+const LABEL_MIN_WIDTH = 640;
+// With this many repeats the interval is narrow enough that the bar adds nothing.
+const CI_MAX_N = 30;
 
 /** The points where no other run is both cheaper and at least as good, cheapest first. */
 export function paretoFrontier<T extends { credits: number; passPercent: number }>(points: T[]): T[] {
@@ -34,42 +43,131 @@ export function paretoFrontier<T extends { credits: number; passPercent: number 
     .filter((p) => p.passPercent > best && ((best = p.passPercent), true));
 }
 
+/** Spreads label centres so no two are closer than gap, keeping their order. */
+export function spreadLabels(ys: number[], gap: number): number[] {
+  const order = ys.map((y, i) => [y, i] as const).sort((a, b) => a[0] - b[0]);
+  const out = [...ys];
+  let prev = -Infinity;
+  for (const [y, i] of order) prev = out[i] = Math.max(y, prev + gap);
+  return out;
+}
+
+const fade = (hex: string, on: boolean) => (on ? hex : `${hex}33`);
+type Raw = { x: number; y: number; effort: string; n: number; low: number; high: number };
+
+/** Faint interval bars and, when wide enough, model names at the dearest end of each line. */
+const overlay: Plugin<"scatter"> = {
+  id: "passOverlay",
+  afterDatasetsDraw(chart: Chart<"scatter">) {
+    const opts = (chart.options.plugins as unknown as { passOverlay: OverlayOptions }).passOverlay;
+    const { ctx, scales } = chart;
+    const labels: { y: number; x: number; text: string; color: string }[] = [];
+    chart.data.datasets.forEach((ds, i) => {
+      if (ds.label === FRONTIER || !chart.isDatasetVisible(i)) return;
+      const on = !opts.highlight || opts.highlight === ds.label;
+      const color = fade(String(ds.borderColor).slice(0, 7), on);
+      const data = ds.data as unknown as Raw[];
+      if (opts.ci || (opts.highlight === ds.label && data.length)) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 2;
+        for (const p of data) {
+          if (p.n >= CI_MAX_N) continue;
+          const x = scales.x.getPixelForValue(p.x);
+          ctx.beginPath();
+          ctx.moveTo(x, scales.y.getPixelForValue(p.low));
+          ctx.lineTo(x, scales.y.getPixelForValue(p.high));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+      const last = data.at(-1);
+      if (opts.labels && last) {
+        labels.push({
+          x: scales.x.getPixelForValue(last.x) + 12,
+          y: scales.y.getPixelForValue(last.y),
+          text: String(ds.label),
+          color: on ? "#1f2937" : "#9ca3af",
+        });
+      }
+    });
+    const ys = spreadLabels(
+      labels.map((l) => l.y),
+      13
+    );
+    ctx.save();
+    ctx.font = "12px sans-serif";
+    ctx.textBaseline = "middle";
+    labels.forEach((l, i) => {
+      ctx.fillStyle = l.color;
+      ctx.fillText(l.text, l.x, ys[i]);
+    });
+    ctx.restore();
+  },
+};
+interface OverlayOptions {
+  ci: boolean;
+  labels: boolean;
+  highlight: string | null;
+}
+
 /** Pass rate against median credits, one colour per model (fixed by `models` order), one shape per effort. */
 export function PassRateChart({
   points,
   models,
   title,
+  xRange,
   frontier = false,
+  ci = false,
+  highlight = null,
+  onHighlight,
 }: {
   points: ChartPoint[];
   models: string[];
   title: string;
+  /** Shared across the suites, so the charts can be compared. */
+  xRange: [number, number];
   frontier?: boolean;
+  ci?: boolean;
+  highlight?: string | null;
+  onHighlight?: (model: string | null) => void;
 }) {
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const query = window.matchMedia(`(min-width: ${LABEL_MIN_WIDTH}px)`);
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
   const datasets: ChartDataset<"scatter">[] = models
     .filter((model) => points.some((p) => p.model === model))
     .map((model) => {
-      const color = SERIES[models.indexOf(model) % SERIES.length];
+      const base = SERIES[models.indexOf(model) % SERIES.length];
+      const color = fade(base, !highlight || highlight === model);
       // Line runs cheapest → dearest, so it never doubles back on the log axis.
       const own = points.filter((p) => p.model === model).sort((a, b) => a.credits - b.credits);
       return {
         label: model,
-        data: own.map((p) => ({ x: p.credits, y: p.passPercent, effort: p.effort, n: p.n })),
+        data: own.map((p) => ({ x: p.credits, y: p.passPercent, effort: p.effort, n: p.n, low: p.low, high: p.high })),
         pointStyle: own.map((p) => EFFORT_SHAPE[p.effort] ?? "circle"),
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 1.5,
+        borderWidth: highlight === model ? 2.5 : 1.5,
         pointBorderColor: "#ffffff",
         pointBorderWidth: 2,
         showLine: true,
         pointRadius: 7,
         pointHoverRadius: 9,
         pointHitRadius: 12,
+        order: highlight === model ? 0 : 1,
       };
     });
   if (frontier) {
     datasets.push({
-      label: "Beste avveining",
+      label: FRONTIER,
       data: paretoFrontier(points).map((p) => ({ x: p.credits, y: p.passPercent, effort: p.effort, n: p.n })),
       showLine: true,
       borderColor: "#475569",
@@ -85,6 +183,7 @@ export function PassRateChart({
       backgroundColor: "#475569",
     });
   }
+  const overlayOptions: OverlayOptions = { ci, labels: wide, highlight };
 
   return (
     <figure
@@ -92,11 +191,12 @@ export function PassRateChart({
       style={{ padding: "var(--ax-space-16)" }}
       aria-label={title}
     >
-      <div style={{ position: "relative", height: "20rem" }}>
+      <div style={{ position: "relative", height: "20rem" }} onMouseLeave={() => onHighlight?.(null)}>
         <Scatter
           aria-label={title}
           role="img"
           data={{ datasets }}
+          plugins={[overlay]}
           options={{
             responsive: true,
             maintainAspectRatio: false,
@@ -104,15 +204,26 @@ export function PassRateChart({
             animation: false,
             // Points on 100 % or the largest credit value would otherwise be cut in half.
             clip: false,
-            layout: { padding: 12 },
+            // Room on the right for the direct labels.
+            layout: { padding: { top: 12, bottom: 12, left: 12, right: wide ? 120 : 12 } },
+            onHover: (_event, elements, chart) => {
+              const label = elements.length ? chart.data.datasets[elements[0].datasetIndex].label : null;
+              onHighlight?.(label === FRONTIER ? null : (label ?? null));
+            },
             plugins: {
-              legend: { position: "top", labels: { usePointStyle: true, pointStyle: "circle", color: "#475569" } },
+              // @ts-expect-error: options for the local overlay plugin above.
+              passOverlay: overlayOptions,
+              legend: {
+                display: !wide,
+                position: "top",
+                labels: { usePointStyle: true, pointStyle: "circle", color: "#475569" },
+              },
               tooltip: {
-                filter: (item) => item.dataset.label !== "Beste avveining",
+                filter: (item) => item.dataset.label !== FRONTIER,
                 callbacks: {
                   label: (ctx: TooltipItem<"scatter">) => {
-                    const raw = ctx.raw as { x: number; y: number; effort: string; n: number };
-                    return `${ctx.dataset.label} (${raw.effort}): ${Math.round(raw.y)} % bestått, ${raw.x.toLocaleString("nb-NO")} credits, n=${raw.n}`;
+                    const raw = ctx.raw as Raw;
+                    return `${ctx.dataset.label} (${raw.effort}): ${Math.round(raw.y)} % bestått (95 %-intervall ${Math.round(raw.low)}–${Math.round(raw.high)} %), ${raw.x.toLocaleString("nb-NO")} credits, n=${raw.n}`;
                   },
                 },
               },
@@ -121,9 +232,8 @@ export function PassRateChart({
               x: {
                 // Log scale: 1.6 and 154 credits both stay readable.
                 type: "logarithmic",
-                // Whole decades, so the cheapest and dearest points sit clear of the edges.
-                min: 10 ** Math.floor(Math.log10(Math.min(...points.map((p) => p.credits)))),
-                max: 10 ** Math.ceil(Math.log10(Math.max(...points.map((p) => p.credits)))),
+                min: xRange[0],
+                max: xRange[1],
                 title: { display: true, text: "Median credits per kjøring", color: "#475569" },
                 grid: { color: "rgba(0, 0, 0, 0.06)" },
                 ticks: {
@@ -148,8 +258,10 @@ export function PassRateChart({
         />
       </div>
       <figcaption className="text-sm" style={{ color: "#475569", marginTop: "var(--ax-space-8)" }}>
-        Form viser innsatsnivå (effort): sirkel = low, kvadrat = medium, trekant = high, rombe = standard. Linjen binder
-        sammen nivåene for hver modell. Credits-aksen er logaritmisk.
+        Slik leser du diagrammet: jo høyere og lenger til venstre et punkt står, jo flere sjekker besto modellen og jo
+        mindre kostet den. Form viser innsatsnivå (effort): sirkel = low, kvadrat = medium, trekant = high, rombe =
+        standard. Linjen binder sammen nivåene for hver modell. Credits-aksen er logaritmisk og lik i alle diagrammene.
+        {ci && " De svake loddrette strekene viser 95 %-intervallet for andelen bestått."}
         {frontier &&
           " Ringene og den stiplede linjen viser punktene der ingen annen kjøring er både billigere og minst like god."}{" "}
         Tallene står i tabellen under.

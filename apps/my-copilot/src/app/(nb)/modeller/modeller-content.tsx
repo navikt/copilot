@@ -14,13 +14,17 @@ import {
   Heading,
   HStack,
   Link,
+  Select,
   Switch,
   Table,
   VStack,
 } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import {
+  creditsPerSolved,
   knownCredits,
+  passAll,
+  passInterval,
   modelName,
   passRate,
   runsBySuite,
@@ -113,13 +117,32 @@ function Choices({ users }: { users: Record<string, string[]> }) {
   );
 }
 
+// Kort fortalt recommends this one for daily coding, though no prompt pins it.
+const RECOMMENDED = ["GPT-6.1 Sol"];
+
+/** The pinned and recommended models we have measured, plus the cheapest plotted one. */
+function defaultModels(summary: GoldenSummary | null): string[] {
+  const measured = new Set(summary?.runs.map((run) => modelName(run.model)));
+  const picked = new Set(
+    [...NAV_PILOT_MODEL_CHOICES.map((c) => c.primary), ...RECOMMENDED].filter((m) => measured.has(m))
+  );
+  const cheapest = summary?.runs
+    .filter((run) => !run.smoke && knownCredits(run) !== null)
+    .sort((a, b) => knownCredits(a)! - knownCredits(b)!)[0];
+  if (cheapest) picked.add(modelName(cheapest.model));
+  return [...picked];
+}
+
 function Measurements({ summary }: { summary: GoldenSummary | null }) {
   const allModels = [...new Set(summary?.runs.map((run) => modelName(run.model)))];
   const present = new Set(summary?.runs.map((run) => run.effort));
   const allEfforts = (["low", "medium", "high", "default"] as Effort[]).filter((e) => present.has(e));
-  const [shownModels, setShownModels] = useState(allModels);
+  const [shownModels, setShownModels] = useState(() => defaultModels(summary));
   const [shownEfforts, setShownEfforts] = useState(allEfforts);
   const [frontier, setFrontier] = useState(false);
+  const [ci, setCi] = useState(false);
+  const [moreColumns, setMoreColumns] = useState(false);
+  const [highlight, setHighlight] = useState<string | null>(null);
   if (!summary) {
     return (
       <Alert variant="info" size="small">
@@ -135,6 +158,13 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
     ),
   ];
 
+  const plottedAll = summary.runs.filter((run) => !run.smoke && knownCredits(run) !== null);
+  const credits = plottedAll.map((run) => knownCredits(run)!);
+  // One x-scale for every suite, in whole decades so the end points sit clear of the edges.
+  const xRange: [number, number] = [
+    10 ** Math.floor(Math.log10(Math.min(...credits))),
+    10 ** Math.ceil(Math.log10(Math.max(...credits))),
+  ];
   const shown = summary.runs.filter(
     (run) => shownModels.includes(modelName(run.model)) && shownEfforts.includes(run.effort)
   );
@@ -144,6 +174,12 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
       <BodyLong>
         Tallet n viser hvor mange ganger vi kjørte samme oppgave. Få kjøringer holder til å finne tydelige feil, men
         ikke til å rangere modellene. Sist oppdatert {formatDate(summary.generated)}.
+      </BodyLong>
+      <BodyLong>
+        95 %-intervallet viser hvor den sanne andelen bestått trolig ligger: 5 av 5 bestått gir et intervall fra 57 til
+        100 %. Credits per løste oppgave er median credits delt på andelen bestått. «Besto hver gang» er andelen sjekker
+        som besto i alle n kjøringene. Vi viser først modellene vi anbefaler og den billigste. Resten finner du under
+        «Modeller».
       </BodyLong>
       <HStack gap="space-24" align="start" wrap>
         <CheckboxGroup legend="Modeller" size="small" value={shownModels} onChange={setShownModels}>
@@ -162,6 +198,25 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
         </CheckboxGroup>
         <Switch size="small" checked={frontier} onChange={(e) => setFrontier(e.target.checked)}>
           Vis beste avveining mellom bestått og pris
+        </Switch>
+        <Switch size="small" checked={ci} onChange={(e) => setCi(e.target.checked)}>
+          Vis 95 %-intervall for alle modeller
+        </Switch>
+        <Select
+          label="Fremhev modell"
+          size="small"
+          value={highlight ?? ""}
+          onChange={(e) => setHighlight(e.target.value || null)}
+        >
+          <option value="">Ingen</option>
+          {shownModels.map((model) => (
+            <option key={model} value={model}>
+              {model}
+            </option>
+          ))}
+        </Select>
+        <Switch size="small" checked={moreColumns} onChange={(e) => setMoreColumns(e.target.checked)}>
+          Vis flere kolonner
         </Switch>
       </HStack>
       {runsBySuite(summary.runs).map(([suite, all]) => {
@@ -193,11 +248,17 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                 title={`${SUITE_NAMES[suite] ?? suite}: andel bestått mot median credits`}
                 models={models}
                 frontier={frontier}
+                ci={ci}
+                xRange={xRange}
+                highlight={highlight}
+                onHighlight={setHighlight}
                 points={plotted.map((run) => ({
                   model: modelName(run.model),
                   effort: run.effort,
                   credits: knownCredits(run)!,
                   passPercent: passRate(run) * 100,
+                  low: passInterval(run)[0] * 100,
+                  high: passInterval(run)[1] * 100,
                   n: run.n,
                 }))}
               />
@@ -212,17 +273,30 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                       Bestått
                     </Table.HeaderCell>
                     <Table.HeaderCell scope="col" align="right">
-                      Median credits
+                      95 %-intervall
                     </Table.HeaderCell>
                     <Table.HeaderCell scope="col" align="right">
-                      Median tid
+                      Credits per løste oppgave
                     </Table.HeaderCell>
-                    <Table.HeaderCell scope="col" align="right">
-                      n
-                    </Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Dato</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">CLI</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Kilde</Table.HeaderCell>
+                    {moreColumns && (
+                      <>
+                        <Table.HeaderCell scope="col" align="right">
+                          Besto hver gang
+                        </Table.HeaderCell>
+                        <Table.HeaderCell scope="col" align="right">
+                          Median credits
+                        </Table.HeaderCell>
+                        <Table.HeaderCell scope="col" align="right">
+                          Median tid
+                        </Table.HeaderCell>
+                        <Table.HeaderCell scope="col" align="right">
+                          n
+                        </Table.HeaderCell>
+                        <Table.HeaderCell scope="col">Dato</Table.HeaderCell>
+                        <Table.HeaderCell scope="col">CLI</Table.HeaderCell>
+                        <Table.HeaderCell scope="col">Kilde</Table.HeaderCell>
+                      </>
+                    )}
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -230,6 +304,8 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                     .sort((a, b) => Number(!!a.smoke) - Number(!!b.smoke))
                     .map((run) => {
                       const credits = knownCredits(run);
+                      const perSolved = creditsPerSolved(run);
+                      const [low, high] = passInterval(run);
                       return (
                         <Table.Row key={`${run.model}-${run.effort}-${run.date}-${run.source}`}>
                           <Table.DataCell>
@@ -249,20 +325,35 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
                             {run.ran_at && run.ran_at !== run.effort && ` (kjørte på ${effortName(run.ran_at)})`}
                           </Table.DataCell>
                           <Table.DataCell align="right">{Math.round(passRate(run) * 100)} %</Table.DataCell>
-                          <Table.DataCell align="right">
-                            {credits === null ? "–" : credits.toLocaleString("nb-NO")}
-                          </Table.DataCell>
                           <Table.DataCell align="right" className="whitespace-nowrap">
-                            {formatDuration(run.wall_seconds.median)}
+                            {Math.round(low * 100)}–{Math.round(high * 100)} %
                           </Table.DataCell>
-                          <Table.DataCell align="right">{run.n}</Table.DataCell>
-                          <Table.DataCell className="whitespace-nowrap">{formatDate(run.date)}</Table.DataCell>
-                          <Table.DataCell>{run.cli_version}</Table.DataCell>
-                          <Table.DataCell>
-                            <Link href={sourceUrl(run.source)} target="_blank" rel="noopener noreferrer">
-                              {run.source.split("/").pop()}
-                            </Link>
+                          <Table.DataCell align="right">
+                            {perSolved !== null
+                              ? perSolved.toLocaleString("nb-NO", { maximumFractionDigits: 1 })
+                              : credits !== null
+                                ? "Ingen løst"
+                                : "–"}
                           </Table.DataCell>
+                          {moreColumns && (
+                            <>
+                              <Table.DataCell align="right">{Math.round(passAll(run) * 100)} %</Table.DataCell>
+                              <Table.DataCell align="right">
+                                {credits === null ? "–" : credits.toLocaleString("nb-NO")}
+                              </Table.DataCell>
+                              <Table.DataCell align="right" className="whitespace-nowrap">
+                                {formatDuration(run.wall_seconds.median)}
+                              </Table.DataCell>
+                              <Table.DataCell align="right">{run.n}</Table.DataCell>
+                              <Table.DataCell className="whitespace-nowrap">{formatDate(run.date)}</Table.DataCell>
+                              <Table.DataCell>{run.cli_version}</Table.DataCell>
+                              <Table.DataCell>
+                                <Link href={sourceUrl(run.source)} target="_blank" rel="noopener noreferrer">
+                                  {run.source.split("/").pop()}
+                                </Link>
+                              </Table.DataCell>
+                            </>
+                          )}
                         </Table.Row>
                       );
                     })}
