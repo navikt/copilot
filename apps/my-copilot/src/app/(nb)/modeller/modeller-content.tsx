@@ -429,15 +429,15 @@ export function ModellerContent({
                 ))}
               </ul>
               <BodyLong>
-                Bruk GPT-6.1 Sol med lav innsats til daglig koding og planlegging. Den besto alle sjekkene i koding,
-                norsk og informasjonsinnhenting 6. oktober. 12. oktober vurderte vi planleggingstesten og to av
-                kodegjennomgangstestene på nytt med rettede sjekker (kjørt 11. oktober), og den besto fem av fem.
-                @nav-pilot bruker fortsatt GPT-6 Sol, som er målt på flere planleggingsoppgaver. Til kodegjennomgang og
-                alt som gjelder sikkerhet og personopplysninger anbefaler vi likevel Claude Opus 5.5 med lav innsats:
-                GPT-6.1 Sol fant sikkerhetsfeilene sjeldnere (7. oktober). Av modellene vi har målt, fant Opus oftest
-                feilene i nais.yaml, SQL og tilgangskontroll, men den koster 1,6 til 2,8 ganger så mye. GPT-6 Luna er
-                billig og god til små, avgrensede rettinger og en rask førstegjennomgang av kode der sikkerhet ikke er
-                tema, men ikke til sikkerhetsgjennomgang.
+                Bruk GPT-6.1 Sol med lav innsats til daglig koding. Den besto alle sjekkene i koding, norsk og
+                informasjonsinnhenting 6. oktober. 12. oktober vurderte vi planleggingstesten og to av
+                kodegjennomgangstestene på nytt med rettede sjekker (kjørt 11. oktober), og den besto fem av fem. Til
+                planlegging anbefaler vi fortsatt GPT-6 Sol, som er målt på flere planleggingsoppgaver, og @nav-pilot
+                bruker den. Til kodegjennomgang og alt som gjelder sikkerhet og personopplysninger anbefaler vi likevel
+                Claude Opus 5.5 med lav innsats: GPT-6.1 Sol fant sikkerhetsfeilene sjeldnere (7. oktober). Av modellene
+                vi har målt, fant Opus oftest feilene i nais.yaml, SQL og tilgangskontroll, men den koster 1,6 til 2,8
+                ganger så mye. GPT-6 Luna er billig og god til små, avgrensede rettinger og en rask førstegjennomgang av
+                kode der sikkerhet ikke er tema, men ikke til sikkerhetsgjennomgang.
               </BodyLong>
             </VStack>
 

@@ -231,13 +231,15 @@ Vurdering mot kriteriene:
 - **GPT-6.1 Sol Low er ikke en akseptabel reservemodell.** Den feiler krav 1 (rv5 3/10) og krav 3 (median 2, etter klassifisering 1). Krav 2 holder (9/10).
 - **Krav 4 kan ikke avgjøres.** Det bygger på rv6, og det låste mønsteret for rv6 måler ordvalg (samme problem som [#554](https://github.com/navikt/copilot/issues/554)). Med sjekkens tall feiler begge GPT-modellene. Etter klassifiseringen holder begge.
 - **Claude Opus 5.5 feiler krav 1 med sjekkens egne tall (7/10).** Et manglende linjenummer er ikke en feil i testoppsettet, så å telle de to nøkkelradene som bestått går utenfor begrunnelsen vi skrev ned på forhånd. Krav 2 holder (10/10).
-- **Pinnen står fordi ingen arm oppfyller kriteriene, ikke fordi Opus regnes som 10/10.** Rekkefølgen for reservemodeller endres ikke av denne målingen; se [Anbefaling for daglig bruk](#anbefaling-for-daglig-bruk-7-oktober-2026).
+- **Pinnen står fordi ingen arm oppfyller kriteriene, ikke fordi Opus regnes som 10/10.** Rekkefølgen for reservemodeller endres ikke av denne målingen; se [Anbefaling for daglig bruk](#anbefaling-for-daglig-bruk-12-oktober-2026).
 
 Forbruket var 1 002 credits på hovedkjøringene og 227 på piloten og kontrollkjøringene, til sammen 1 229. Stoppgrensen var 1 430.
 
 Feilene i sjekkene følges opp i [#1443](https://github.com/navikt/copilot/issues/1443). Før neste måling bør rv6 få et mønster som også dekker GPT-modellenes ordvalg, utledet fra disse transkriptene. rv8 bør ikke lese «blokkerende» i en 🟡-rad som prioritet.
 
-## Anbefaling for daglig bruk (7. oktober 2026)
+<a id="anbefaling-for-daglig-bruk-7-oktober-2026"></a>
+
+## Anbefaling for daglig bruk (12. oktober 2026)
 
 Tabellen gjelder når du velger modell selv. Innsatsnivå (effort) kan ikke settes i agent-frontmatter, så nivåene her er råd, ikke noe agentene håndhever.
 
