@@ -89,18 +89,10 @@ func sessionLeaks(s telemetry.CopilotSession, canary string) bool {
 	return strings.Contains(fmt.Sprintf("%+v", s), canary)
 }
 
-func withNavNames(t *testing.T) {
-	old := OpenCodeNavNames
-	t.Cleanup(func() { OpenCodeNavNames = old })
-	OpenCodeNavNames = func() (map[string]bool, map[string]bool) {
-		return map[string]bool{"nav-skill": true}, map[string]bool{"nav-agent": true}
-	}
-}
-
 func TestOpenCodeSessionMetrics(t *testing.T) {
-	withNavNames(t)
+	skills, agents := map[string]bool{"nav-skill": true}, map[string]bool{"nav-agent": true}
 	u := telemetry.ClientUsage{Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
-	s, ok := addOpenCodeExport(&u, []byte(openCodeCanaryExport), 1000)
+	s, ok := addOpenCodeExport(&u, []byte(openCodeCanaryExport), 1000, skills, agents)
 	if !ok {
 		t.Fatal("no session")
 	}
@@ -124,7 +116,7 @@ func TestOpenCodeSessionMetrics(t *testing.T) {
 		s.Agents["nav-agent"] != 1 || s.Agents["other"] != 1 || len(s.Agents) != 2 {
 		t.Fatalf("skills = %v, agents = %v", s.Skills, s.Agents)
 	}
-	if _, ok := addOpenCodeExport(&u, []byte(openCodeCanaryExport), 99000); ok {
+	if _, ok := addOpenCodeExport(&u, []byte(openCodeCanaryExport), 99000, skills, agents); ok {
 		t.Fatal("a session with nothing since the launch was returned")
 	}
 }
@@ -173,5 +165,26 @@ func TestOpenCodeCommandReadsPast128KiB(t *testing.T) {
 	}
 	if left, _ := os.ReadDir(tmp); len(left) != 0 {
 		t.Fatalf("temp file left behind: %v", left)
+	}
+}
+
+// The allowlist is resolved for the launch directory, not the process cwd.
+func TestReadOpenCodeUsageAllowlistForLaunchDir(t *testing.T) {
+	old, oldNames := openCodeCommand, OpenCodeNavNames
+	t.Cleanup(func() { openCodeCommand, OpenCodeNavNames = old, oldNames })
+	var asked string
+	OpenCodeNavNames = func(dir string) (map[string]bool, map[string]bool) {
+		asked = dir
+		return map[string]bool{"nav-skill": true}, map[string]bool{}
+	}
+	openCodeCommand = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		if args[0] == "session" {
+			return []byte(`[{"id":"s1","updated":2000,"directory":"/repo"}]`), nil
+		}
+		return []byte(openCodeCanaryExport), nil
+	}
+	_, sessions := readOpenCodeUsage("/repo", time.UnixMilli(1000))
+	if asked != "/repo" || len(sessions) != 1 || sessions[0].Skills[telemetry.SkillKey{Skill: "nav-skill", Source: "unset", Trigger: "unset"}] != 1 {
+		t.Fatalf("asked = %q, sessions = %+v", asked, sessions)
 	}
 }

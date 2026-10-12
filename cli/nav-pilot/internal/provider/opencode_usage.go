@@ -83,6 +83,10 @@ func readOpenCodeUsage(dir string, since time.Time) (telemetry.ClientUsage, []te
 	}
 	sinceMS := since.UnixMilli()
 	want := realDir(dir)
+	skills, agents := map[string]bool{}, map[string]bool{}
+	if OpenCodeNavNames != nil {
+		skills, agents = OpenCodeNavNames(dir)
+	}
 	for _, s := range listed {
 		if s.Updated < sinceMS || realDir(s.Directory) != want {
 			continue
@@ -91,7 +95,7 @@ func readOpenCodeUsage(dir string, since time.Time) (telemetry.ClientUsage, []te
 		if err != nil {
 			continue
 		}
-		if sess, ok := addOpenCodeExport(&u, out, sinceMS); ok {
+		if sess, ok := addOpenCodeExport(&u, out, sinceMS, skills, agents); ok {
 			sessions = append(sessions, sess)
 		}
 	}
@@ -122,12 +126,9 @@ var openCodeTools = map[string]bool{
 // [telemetry.CopilotSession]; false when it has no assistant message then.
 // Only the fields in the struct below are decoded: of a tool's input, just the
 // skill tool's name and the task tool's subagent_type, and those go through
-// [OpenCodeNavNames] or become "other". Prompts, output and text never do.
-func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) (telemetry.CopilotSession, bool) {
-	skills, agents := map[string]bool{}, map[string]bool{}
-	if OpenCodeNavNames != nil {
-		skills, agents = OpenCodeNavNames()
-	}
+// the skills and agents allowlists or become "other". Prompts, output and
+// text never do.
+func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64, skills, agents map[string]bool) (telemetry.CopilotSession, bool) {
 	sess := telemetry.CopilotSession{
 		Client: "opencode", Skills: map[telemetry.SkillKey]int64{}, Tools: map[telemetry.ToolKey]int64{},
 		Agents: map[string]int64{}, DurationSeconds: -1,
@@ -212,9 +213,10 @@ func addOpenCodeExport(u *telemetry.ClientUsage, export []byte, sinceMS int64) (
 	return sess, true
 }
 
-// OpenCodeNavNames returns the skill and agent names nav-pilot installed, the
-// same allowlist the Copilot session metrics use. The cli package sets it.
-var OpenCodeNavNames func() (skills, agents map[string]bool)
+// OpenCodeNavNames returns the skill and agent names nav-pilot installed for
+// the user and for the repo the launch directory dir is in, the same allowlist
+// the Copilot session metrics use. The cli package sets it.
+var OpenCodeNavNames func(dir string) (skills, agents map[string]bool)
 
 // navName is name when it is on the allowlist, "unset" when empty, else "other".
 func navName(name string, allow map[string]bool) string {

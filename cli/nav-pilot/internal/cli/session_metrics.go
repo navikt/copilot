@@ -59,19 +59,20 @@ func label(v string, ok bool) string {
 }
 
 // navItemNames is the allowlist of skill and agent names: what nav-pilot
-// installed from the agentpakke manifest, per the user and launch-directory
-// state files. A skill or agent someone wrote themselves is not in them.
-func navItemNames() (skills, agents map[string]bool) {
+// installed from the agentpakke manifest, per the user state file and the
+// state file of the repo dir is in (the launch directory). A skill or agent
+// someone wrote themselves is not in them.
+func navItemNames(dir string) (skills, agents map[string]bool) {
 	skills, agents = map[string]bool{}, map[string]bool{}
 	var scopes []*InstallScope
 	if s, err := ScopeUser(); err == nil {
 		scopes = append(scopes, s)
 	}
-	if wd, err := os.Getwd(); err == nil {
-		if root := source.FindGitRoot(wd); root != "" {
-			wd = root
+	if dir != "" {
+		if root := source.FindGitRoot(dir); root != "" {
+			dir = root
 		}
-		scopes = append(scopes, ScopeRepo(wd))
+		scopes = append(scopes, ScopeRepo(dir))
 	}
 	for _, sc := range scopes {
 		st, err := readScopedState(sc)
@@ -342,7 +343,8 @@ func recordCopilotSessions(root string, ids []string) {
 			continue
 		}
 		if skills == nil {
-			skills, agents = navItemNames()
+			wd, _ := os.Getwd()
+			skills, agents = navItemNames(wd)
 		}
 		s, mark, ok := parseCopilotSession(f, configModelLabel, skills, agents, prev.sessionTotals)
 		f.Close()
