@@ -55,7 +55,8 @@ export function HighConsumersView({ months }: { months: HighConsumerMonth[] }) {
       </div>
       <BodyShort size="small" textColor="subtle">
         Andelen av forbruket som går til de brukerne som brukte mest. Topp 5 % er de 5 % av brukerne med høyest forbruk
-        den måneden. Grupper med færre enn fem personer vises med strek. Januar til mai er premiumforespørsler.
+        den måneden. Grupper med færre enn fem personer vises med strek, og det samme gjør en gruppe som skiller seg fra
+        den forrige med færre enn fem. Januar til mai er premiumforespørsler.
       </BodyShort>
 
       {withBands.length > 0 && (
@@ -99,7 +100,7 @@ export function HighConsumersView({ months }: { months: HighConsumerMonth[] }) {
       <BodyShort size="small" textColor="subtle">
         Andel brukere etter hvor mye av den personlige grensen de brukte i måneden, regnet fra brutto forbruk mot
         standardgrensen ved månedsslutt. Unntak for enkeltpersoner er ikke med. Bøtter med færre enn fem brukere er
-        slått sammen med en nabobøtte. * Grensen endret seg i løpet av måneden.
+        slått sammen med nabogruppen. * Grensen endret seg i løpet av måneden.
       </BodyShort>
     </VStack>
   );

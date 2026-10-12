@@ -78,7 +78,9 @@ export function CostTrendsView({
                   <TableDataCell>{basis(t.year_month, currentMonth)}</TableDataCell>
                   <TableDataCell align="right">{formatUSD(t.total_net_amount)}</TableDataCell>
                   <TableDataCell align="right">{users ? formatNumber(users) : "–"}</TableDataCell>
-                  <TableDataCell align="right">{users ? formatUSD(t.total_net_amount / users) : "–"}</TableDataCell>
+                  <TableDataCell align="right">
+                    {users && t.year_month !== currentMonth ? formatUSD(t.total_net_amount / users) : "–"}
+                  </TableDataCell>
                 </TableRow>
               );
             })}
@@ -87,7 +89,8 @@ export function CostTrendsView({
       </div>
       <BodyShort size="small" textColor="subtle">
         Aktive brukere er alle som brukte Copilot minst én dag i måneden. Forbruk per aktiv bruker er forbruket delt på
-        dem. Januar til mai er premiumforespørsler. Denne måneden er bare dagene hittil.
+        dem. Januar til mai er premiumforespørsler. Denne måneden er bare dagene hittil, og har derfor ikke forbruk per
+        aktiv bruker.
       </BodyShort>
 
       {top.length > 0 && (

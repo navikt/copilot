@@ -15,7 +15,7 @@ const month = (m: Partial<HighConsumerMonth>): HighConsumerMonth => ({
   limit_changed: true,
   budget_bands: [
     { first: 0, last: 0, label: "0–10 %", users: 190 },
-    { first: 1, last: 6, label: "over 10 %", users: 10 },
+    { first: 1, last: 6, label: "Over 10 %", users: 10 },
   ],
   ...m,
 });

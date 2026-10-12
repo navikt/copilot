@@ -105,7 +105,7 @@ func budgetBandLabel(first, last int) string {
 		lo = budgetEdges[first-1]
 	}
 	if last == len(budgetEdges) {
-		return fmt.Sprintf("over %g %%", lo)
+		return fmt.Sprintf("Over %g %%", lo)
 	}
 	return fmt.Sprintf("%g–%g %%", lo, budgetEdges[last])
 }
@@ -131,18 +131,23 @@ func highConsumerMonth(month string, rows []spendUserRow) HighConsumerMonth {
 	gross := make([]float64, len(rows))
 	total := 0.0
 	for i, r := range rows {
-		nets[i], gross[i] = r.Net, r.Gross
-		total += r.Net
+		// Credits can make a user's net negative; count them as zero so shares stay in 0–100 %.
+		nets[i], gross[i] = max(r.Net, 0), r.Gross
+		total += nets[i]
 	}
 	if len(rows) < minBandUsers {
 		return m
 	}
 	m.Users = len(rows)
 	slices.SortFunc(nets, func(a, b float64) int { return cmp.Compare(b, a) })
+	// A tier is shown only if it and its gap to the previous shown tier hold at
+	// least minBandUsers, so differencing two tiers never isolates fewer people.
+	shown := 0
 	for _, p := range topTiers {
 		k := int(math.Ceil(float64(len(nets)) * float64(p) / 100))
 		t := HighConsumerTier{TopPct: p}
-		if k >= minBandUsers && total > 0 {
+		if k-shown >= minBandUsers && total > 0 {
+			shown = k
 			sum := 0.0
 			for _, v := range nets[:k] {
 				sum += v

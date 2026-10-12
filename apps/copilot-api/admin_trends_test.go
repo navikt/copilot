@@ -36,13 +36,25 @@ func TestHighConsumerMonth(t *testing.T) {
 	}
 	// Gross against 800: 20 is 2.5 % (0–10), 500 is 62.5 % (50–75), 1000 is over 100 %
 	// with 2 users, merged into its neighbour. Empty bands stay, as on /innsikt/forbruk.
-	want := "0–10\u00a0%:190 10–25\u00a0%:0 25–50\u00a0%:0 over 50\u00a0%:10"
+	want := "0–10\u00a0%:190 10–25\u00a0%:0 25–50\u00a0%:0 Over 50\u00a0%:10"
 	var got []string
 	for _, b := range m.BudgetBands {
 		got = append(got, fmt.Sprintf("%s:%d", b.Label, b.Users))
 	}
 	if g := strings.Join(got, " "); g != want {
 		t.Errorf("budget bands = %q", g)
+	}
+}
+
+func TestHighConsumerTierGap(t *testing.T) {
+	// 81 users: top 5 % is 5 people, top 10 % is 9, only 4 more than top 5 %.
+	var rows []spendUserRow
+	for i := range 81 {
+		rows = append(rows, spendUserRow{Month: "2026-09", Net: float64(i)})
+	}
+	tiers := buildHighConsumers(rows)[0].Tiers
+	if tiers[1].NetSharePct == nil || tiers[2].NetSharePct != nil {
+		t.Errorf("want top 5 %% shown and top 10 %% hidden: %+v", tiers)
 	}
 }
 
@@ -58,7 +70,7 @@ func TestBudgetBandLabel(t *testing.T) {
 	for _, tc := range []struct {
 		first, last int
 		want        string
-	}{{0, 0, "0–10 %"}, {1, 2, "10–50 %"}, {5, 5, "90–100 %"}, {6, 6, "over 100 %"}, {4, 6, "over 75 %"}} {
+	}{{0, 0, "0–10 %"}, {1, 2, "10–50 %"}, {5, 5, "90–100 %"}, {6, 6, "Over 100 %"}, {4, 6, "Over 75 %"}} {
 		if got := budgetBandLabel(tc.first, tc.last); got != tc.want {
 			t.Errorf("budgetBandLabel(%d,%d) = %q, want %q", tc.first, tc.last, got, tc.want)
 		}
