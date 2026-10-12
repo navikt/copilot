@@ -125,7 +125,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
         Tallet n viser hvor mange ganger vi kjørte samme oppgave. Få kjøringer holder til å finne tydelige feil, men
         ikke til å rangere modellene. Sist oppdatert {formatDate(summary.generated)}.
       </BodyLong>
-      <HStack gap="space-24" align="start">
+      <HStack gap="space-24" align="start" wrap>
         <CheckboxGroup legend="Modeller" size="small" value={shownModels} onChange={setShownModels}>
           {allModels.map((model) => (
             <Checkbox key={model} value={model}>

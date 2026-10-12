@@ -50,8 +50,11 @@ export function PassRateChart({
     .filter((model) => points.some((p) => p.model === model))
     .map((model) => {
       const color = SERIES[models.indexOf(model) % SERIES.length];
-      // Line runs cheapest → dearest, so it never doubles back on the log axis.
-      const own = points.filter((p) => p.model === model).sort((a, b) => a.credits - b.credits);
+      // Line follows effort low → high (credits break ties between repeated runs).
+      const rank = (e: string) => Object.keys(EFFORT_SHAPE).indexOf(e);
+      const own = points
+        .filter((p) => p.model === model)
+        .sort((a, b) => rank(a.effort) - rank(b.effort) || a.credits - b.credits);
       return {
         label: model,
         data: own.map((p) => ({ x: p.credits, y: p.passPercent, effort: p.effort, n: p.n })),

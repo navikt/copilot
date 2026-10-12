@@ -1,5 +1,5 @@
 import path from "node:path";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { getAllCustomizations } from "@/lib/customizations";
 import { NAV_PILOT_DEFAULT_MODEL, NAV_PILOT_MODEL_CHOICES } from "@/lib/model-policy";
 import ModellerPage from "./page";
@@ -120,6 +120,21 @@ describe("modellsiden", () => {
     const row = screen.getByRole("link", { name: "fixture-i.txt" }).closest("tr")!;
     expect(within(row).getByText("2. januar 2000")).toBeInTheDocument();
     expect(screen.getByText(/Sist oppdatert 1\. januar 2000/)).toBeInTheDocument();
+  });
+
+  it("filtrerer diagram og tabell på modell og innsatsnivå, og viser tom tilstand", () => {
+    summaryFile.path = FIXTURE;
+    render(<ModellerPage />);
+    const planning = () => screen.getByRole("figure", { name: "Planlegging: andel bestått mot median credits" });
+    expect(planning().getAttribute("data-points")).toContain("medium");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "medium" }));
+    expect(planning().getAttribute("data-points")).not.toContain("medium");
+    expect(planning().getAttribute("data-points")).toContain("high");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "GPT-6 Sol" }));
+    expect(screen.queryByRole("figure", { name: /^Planlegging/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: "fixture-a.txt" })).toBeNull();
   });
 
   it("lister agentene fra frontmatter-pinnene og lenker til Slack-kanalen", () => {
