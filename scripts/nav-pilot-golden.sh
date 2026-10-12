@@ -2566,9 +2566,11 @@ run_pass_nav_pilot() {
 }
 
 # The contract is in the prompt so the agent can start at once. In the
-# calibration, 9b stopped to ask about inputs and rounding. Gradle is ruled out because it
+# calibration, 9b stopped to ask about inputs and rounding. In the first
+# batch 11 of 15 runs stopped on negative grunnlag, 50 øre and Long overflow,
+# so the prompt settles those too. Gradle is ruled out because it
 # was most of the cost of t9 and is not under test.
-T9_PROMPT='Legg til feriepengeberegning i tjenesten: en ny Feriepenger.kt med en funksjon `feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long` som gir 10,2 %, og 12,5 % fra og med året personen fyller 60, avrundet til nærmeste krone, og enhetstester for den. Teamet har ikke jobbet med feriepengeregler før. Ikke kjør Gradle, jeg kjører testene selv.'
+T9_PROMPT='Legg til feriepengeberegning i tjenesten: en ny Feriepenger.kt med en funksjon `feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long` som gir 10,2 %, og 12,5 % fra og med året personen fyller 60, avrundet til nærmeste krone med 50 øre rundet opp, og enhetstester for den. Negativt grunnlag skal gi IllegalArgumentException, og overflyt i Long trenger dere ikke tenke på. Teamet har ikke jobbet med feriepengeregler før. Ikke kjør Gradle, jeg kjører testene selv.'
 # ponytail: loose on purpose for the stub arms, so a TODO comment counts as a
 # stub; a file with real code and one stray TODO also passes. Read the kept file
 # if 9 or 9c pass on a suspiciously long Feriepenger.kt.
