@@ -92,6 +92,11 @@ export function yearSeries(months: AdminMonth[], data: CostForecast | null) {
   };
 }
 
+/** The one line under the year chart. */
+export const yearEndLine = (e: NonNullable<CostForecast["year_end"]>) =>
+  `Forventet ved årets slutt: ${formatUSD(e.mid)} (${formatUSD(e.low)}–${formatUSD(e.high)})` +
+  (e.label ? `, ${e.label}.` : ".");
+
 /** The legend label for the range, in whole percent. */
 export const rangeLabel = (pct: number) => `Spenn (±${Math.round(pct)} %)`;
 
@@ -264,17 +269,22 @@ function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast 
     },
   };
   return (
-    <ChartFigure
-      title="Hvor havner vi ved årets slutt?"
-      summary={summary + eventSummary(markers)}
-      chart={
-        <Line
-          data={{ labels: s.labels, datasets } as Parameters<typeof Line>[0]["data"]}
-          options={options as Parameters<typeof Line>[0]["options"]}
-          plugins={[eventMarkers<"line">(keys, markers)]}
-        />
-      }
-    />
+    <VStack gap="space-8">
+      <ChartFigure
+        title="Hvor havner vi ved årets slutt?"
+        summary={summary + eventSummary(markers)}
+        chart={
+          <Line
+            data={{ labels: s.labels, datasets } as Parameters<typeof Line>[0]["data"]}
+            options={options as Parameters<typeof Line>[0]["options"]}
+            plugins={[eventMarkers<"line">(keys, markers)]}
+          />
+        }
+      />
+      <BodyShort size="small" textColor="subtle">
+        {yearEndLine(s.end)}
+      </BodyShort>
+    </VStack>
   );
 }
 

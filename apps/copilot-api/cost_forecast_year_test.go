@@ -41,7 +41,7 @@ func TestYearForecastLowMidHigh(t *testing.T) {
 	for i := 10; i < 12; i++ {
 		step := pts[i].CumulativeNetUSD - pts[i-1].CumulativeNetUSD
 		hiStep := pts[i].High - pts[i-1].High
-		if step < 70000 || math.Abs(hiStep-step*(1+yearBandPct/100)) > 1e-6 {
+		if step < 70000 || math.Abs(hiStep-step*(1+end.RangePct/100)) > 1e-6 {
 			t.Errorf("%s: mid step %v below flat or high step %v off", pts[i].Month, step, hiStep)
 		}
 	}
@@ -93,5 +93,48 @@ func TestYearForecastFitsAcrossNewYear(t *testing.T) {
 	pts, end := yearForecast(ms, us, ModelForecast{NetMidUSD: 1300, NetLowUSD: 1200, NetHighUSD: 1400}, time.Date(2027, 2, 1, 0, 0, 0, 0, time.UTC))
 	if end == nil || pts[0].Month != "2027-01" || pts[0].CumulativeNetUSD != 1200 || len(pts) != 12 {
 		t.Fatalf("want 2027 only, fitted on 2026 too: %+v %v", pts[:1], end)
+	}
+}
+
+func TestYearRangeFromBacktest(t *testing.T) {
+	ms, us := prodMonths(9)
+	au := map[string]int64{}
+	for _, u := range us {
+		au[u.Month] = u.ActiveUsers
+	}
+	errPct, n := yearBacktest(ms, au)
+	t.Logf("backtest: %.1f %% over %d predictions", errPct, n)
+	cur := ModelForecast{NetMidUSD: 70000, NetLowUSD: 59500, NetHighUSD: 80500}
+	_, end := yearForecast(ms, us, cur, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
+	if n == 0 || end.BacktestErrorPct != errPct || end.RangePct != math.Max(yearBandFloorPct, errPct) {
+		t.Errorf("range %+v, backtest %.1f over %d", end, errPct, n)
+	}
+	// Four AI-credits months closed (Jun–Sep): still rough.
+	if end.Label != yearRoughLabel {
+		t.Errorf("label %q", end.Label)
+	}
+	// A perfect trend has no error: the floor holds.
+	flat := []float64{100, 100, 100, 100, 100, 100, 100, 100, 100}
+	var fm []AdminMonth
+	var fu []ActiveUsersMonth
+	for i := range flat {
+		m := time.Date(2026, time.Month(i+3), 1, 0, 0, 0, 0, time.UTC).Format("2006-01")
+		if time.Month(i+3) == holidayMonth {
+			flat[i] = 100 * holidayNetFactor
+		}
+		fm = append(fm, AdminMonth{Month: m, EnterpriseNetUSD: &flat[i]})
+		fu = append(fu, ActiveUsersMonth{Month: m, ActiveUsers: 10})
+	}
+	_, end = yearForecast(fm, fu, ModelForecast{NetMidUSD: 100, NetLowUSD: 90, NetHighUSD: 110}, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+	if end.RangePct != yearBandFloorPct {
+		t.Errorf("floor: range %v, error %v", end.RangePct, end.BacktestErrorPct)
+	}
+	// Five AI-credits months closed (Jun–Oct) stay rough; six (Jun–Nov) drop the label.
+	if end.Label != yearRoughLabel {
+		t.Errorf("five months must be rough, got %q", end.Label)
+	}
+	_, end = yearForecast(fm, fu, ModelForecast{NetMidUSD: 100, NetLowUSD: 90, NetHighUSD: 110}, time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC))
+	if end.Label != "" {
+		t.Errorf("six months must drop the label, got %q", end.Label)
 	}
 }

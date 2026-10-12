@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { CostForecastCharts, monthSeries, rangeLabel, yearSeries } from "./CostForecastCharts";
+import { CostForecastCharts, monthSeries, rangeLabel, yearEndLine, yearSeries } from "./CostForecastCharts";
 import type { AdminMonth, CostForecast } from "@/lib/types";
 
 vi.mock("react-chartjs-2", () => ({ Line: () => <canvas />, Bar: () => <canvas /> }));
@@ -38,7 +38,14 @@ const forecast: CostForecast = {
     { month: "2026-09", cumulative_net_usd: 350, low: 350, high: 350, forecast: false },
     { month: "2026-10", cumulative_net_usd: 550, low: 520, high: 580, forecast: true },
   ],
-  year_end: { mid: 550, low: 520, high: 580 },
+  year_end: {
+    mid: 550,
+    low: 520,
+    high: 580,
+    range_pct: 30,
+    backtest_error_pct: 12,
+    label: "grovt anslag, få måneder å bygge på",
+  },
 };
 
 const month = (m: string, basis: AdminMonth["basis"], net: number | null) =>
@@ -73,6 +80,16 @@ describe("CostForecastCharts", () => {
     expect(s.forecast).toEqual([null, 350, 550]);
     expect(s.low).toEqual([null, 350, 520]);
     expect(s.high).toEqual([null, 350, 580]);
+  });
+
+  it("shows the year end on one line, with the label while it is rough", () => {
+    render(<CostForecastCharts data={forecast} months={months} />);
+    expect(
+      screen.getByText(
+        /^Forventet ved årets slutt: 550\sUSD \(520\sUSD–580\sUSD\), grovt anslag, få måneder å bygge på\.$/
+      )
+    ).toBeInTheDocument();
+    expect(yearEndLine({ ...forecast.year_end!, label: undefined })).toMatch(/580\sUSD\)\.$/);
   });
 
   it("rounds the range to whole percent", () => {

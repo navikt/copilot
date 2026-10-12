@@ -2,7 +2,7 @@ import { Alert, BodyShort, VStack } from "@navikt/ds-react";
 import { InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
 import { getCostForecast } from "@/lib/cached-bigquery";
-import { formatPercent, formatUSD } from "@/lib/format";
+import { formatPercent } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
 import type { AdminMonth, CostForecast, CostForecastModel } from "@/lib/types";
 import { CostForecastCharts } from "@/components/charts/CostForecastCharts";
@@ -45,8 +45,6 @@ export function CostForecastView({ data: raw }: { data: CostForecast }) {
         {data.uncertainty_label && <strong>Prognosen er {data.uncertainty_label}. </strong>}
         Anslag (bygger på {data.days_elapsed} av {data.days_in_month} dager). Avvik tidligere måneder:{" "}
         {data.models.map((m) => `${forecastLabel[m.model]} ${accuracy(m)}`).join(", ")}.
-        {data.year_end &&
-          ` Forventet ved årets slutt: ${formatUSD(data.year_end.mid)} (${formatUSD(data.year_end.low)}–${formatUSD(data.year_end.high)}).`}
       </BodyShort>
     </VStack>
   );
