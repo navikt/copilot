@@ -30,7 +30,7 @@ interface PageHeroBaseProps extends Omit<PageHeroProps, "pathname"> {
 }
 
 export function PageHeroBase({ label, title, description, actions, badge, pathname, background }: PageHeroBaseProps) {
-  // Under the nav-pilot umbrella the pages are read, not sold: light background and a label line (§6.7).
+  // Under the nav-pilot umbrella the pages are read, not sold: light background and a label line.
   const section = inSection(pathname);
   const group = section ? sectionGroup(pathname)?.label : undefined;
   // No label line that repeats the title.

@@ -47,7 +47,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   // (V1 in copilot-intern beslutningslogg.md). next.config.ts sends the
   // page to /nav-pilot/referanse, so the old anchors are keyed there.
   // #filstruktur and #lenker still exist there. The client sections moved on to
-  // /nav-pilot/klienter (§4, PR 7).
+  // /nav-pilot/klienter.
   "/nav-pilot/referanse#agentpakke": "/nav-pilot/agentpakker#pakkene-som-finnes",
   "/nav-pilot/referanse#arkitektur": "/nav-pilot/forklaring/arkitektur#arkitektur",
   "/nav-pilot/referanse#automatisk-sync": "/nav-pilot/guider/synkronisere#automatisk-sync",
@@ -126,7 +126,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#tilpasse-sync": "/nav-pilot/guider/synkronisere#tilpasse-sync",
   "/nav-pilot/referanse#vanlige-oppgaver": "/nav-pilot/guider/installere-og-oppgradere#vanlige-oppgaver",
 
-  // /nav-pilot/lokal became the introduction for Mac (§3). #kom-i-gang and
+  // /nav-pilot/lokal became the introduction for Mac (V2 in copilot-intern beslutningslogg.md). #kom-i-gang and
   // #hva-du-far still exist there as wrappers, and #lenker is at the bottom.
   "/nav-pilot/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
   "/nav-pilot/lokal#hva-kommer": "/nav-pilot/forklaring/lokal-modell#hva-kommer",
