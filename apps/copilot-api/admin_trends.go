@@ -34,14 +34,18 @@ type ActiveUsersMonth struct {
 }
 
 // GetActiveUsersMonthly counts active users per month from January 2026 up to
-// and including the current month, from the shared usage_days CTE.
+// and including the current month.
 func (bq *BigQueryClient) GetActiveUsersMonthly(ctx context.Context) ([]ActiveUsersMonth, error) {
 	first, _ := time.Parse("2006-01-02", costTrendsFirstMonth)
 	now := time.Now().UTC()
 	months := (now.Year()-first.Year())*12 + int(now.Month()-first.Month()) + 1
-	q := bq.client.Query(`WITH ` + bq.teamUsageCTEs() + `
-SELECT FORMAT_DATE('%Y-%m',month) month,COUNT(DISTINCT user_id) active_users
-FROM usage_days GROUP BY month ORDER BY month`)
+	// userDaysFrom, not teamUsageCTEs: days the metrics job fetched from the
+	// organization endpoint are stored under that scope and must count too.
+	q := bq.client.Query(fmt.Sprintf(`
+SELECT FORMAT_DATE('%%Y-%%m',DATE_TRUNC(day,MONTH)) month,
+  COUNT(DISTINCT JSON_VALUE(raw_record,'$.user_id')) active_users
+FROM %s WHERE day>=DATE(@from) AND day<DATE(@to)
+GROUP BY month ORDER BY month`, userDaysFrom(bq.tableRef(bq.metricsDataset, "user_metrics"))))
 	q.Parameters = monthRange(first, months)
 	it, err := q.Read(ctx)
 	if err != nil {

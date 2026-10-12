@@ -248,12 +248,16 @@ export async function getBillingModelForecast(
   return { forecast: result.data, error: result.error };
 }
 
-export async function getBillingMonthlyTrend(token: string): Promise<{
+export async function getBillingMonthlyTrend(
+  token: string,
+  months?: number
+): Promise<{
   trend: BillingMonthlyTrend[];
   error: string | null;
 }> {
+  const query = months ? `?months=${months}` : "";
   const result = await fetchWithFallback("getBillingMonthlyTrend", [] as BillingMonthlyTrend[], () =>
-    backendRequest<BillingMonthlyTrend[]>("/api/v1/copilot/billing/monthly-trend", token)
+    backendRequest<BillingMonthlyTrend[]>(`/api/v1/copilot/billing/monthly-trend${query}`, token)
   );
   return { trend: result.data, error: result.error };
 }

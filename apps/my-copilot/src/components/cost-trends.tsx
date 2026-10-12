@@ -15,6 +15,8 @@ import type { ActiveUsersMonth, AdminMonth, BillingModelBreakdown, BillingMonthl
 /** First month with per-user billing; earlier months are left out. */
 const FIRST_MONTH = "2026-01";
 const TOP_MODELS = 5;
+/** The most copilot-api serves; covers January 2026 until early 2029. */
+const HISTORY_MONTHS = 36;
 
 const basis = (month: string, current: string) =>
   month === current ? "Hittil" : month < "2026-06" ? "Premium" : "Netto";
@@ -156,18 +158,18 @@ export function CostTrendsView({
 }
 
 export async function CostTrendsSection({ token }: { token: string }) {
-  const [{ trend, error }, { breakdown }, active, admin] = await Promise.all([
-    getBillingMonthlyTrend(token),
-    getBillingModelBreakdown(token, 12),
+  const [{ trend, error }, { breakdown, error: breakdownError }, active, admin] = await Promise.all([
+    getBillingMonthlyTrend(token, HISTORY_MONTHS),
+    getBillingModelBreakdown(token, HISTORY_MONTHS),
     getAdminActiveUsers(token).catch((err) => {
       console.error("[kostnad] Failed to fetch active users:", err);
-      return [] as ActiveUsersMonth[];
+      return null;
     }),
     getAdminMonthlyOverview(new Date().getUTCFullYear(), token)
       .then((d) => d.months)
       .catch((err) => {
         console.error("[kostnad] Failed to fetch admin monthly usage:", err);
-        return [] as AdminMonth[];
+        return null;
       }),
   ]);
   const now = new Date();
@@ -177,7 +179,20 @@ export async function CostTrendsSection({ token }: { token: string }) {
       {error ? (
         <ErrorState message="Kunne ikke hente forbruk per måned." />
       ) : (
-        <CostTrendsView trend={trend} breakdown={breakdown} active={active} admin={admin} currentMonth={currentMonth} />
+        <>
+          {(breakdownError || !active || !admin) && (
+            <ErrorState
+              message={`Kunne ikke hente ${[breakdownError && "modellmiksen", !active && "aktive brukere", !admin && "lisensandelen"].filter(Boolean).join(", ")}.`}
+            />
+          )}
+          <CostTrendsView
+            trend={trend}
+            breakdown={breakdown}
+            active={active ?? []}
+            admin={admin ?? []}
+            currentMonth={currentMonth}
+          />
+        </>
       )}
     </InsightSection>
   );
