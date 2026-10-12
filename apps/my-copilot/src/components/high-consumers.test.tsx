@@ -37,7 +37,7 @@ describe("HighConsumersView", () => {
     expect(screen.getByText("Vis tallene")).toBeInTheDocument();
   });
 
-  it("shows month to date in the budget table only", () => {
+  it("shows month to date in its own panel, apart from full months", () => {
     const mtd = month({
       month: "2026-10",
       basis: "hittil",
@@ -47,9 +47,12 @@ describe("HighConsumersView", () => {
       limit_changed: false,
     });
     render(<HighConsumersView months={[month({}), mtd]} />);
-    expect(screen.getByText(/Hittil i måneden \(/, { selector: "th" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Hittil i måneden (11 av 31 dager)" })).toBeInTheDocument();
+    expect(screen.getByText(/Kan ikke sammenlignes med hele måneder/)).toBeInTheDocument();
     expect(screen.getByText("Egen grense")).toBeInTheDocument();
+    // Not in the chart or the full-month table: only the panel's own row.
     expect(screen.getAllByRole("row").filter((r) => r.textContent?.includes("Hittil"))).toHaveLength(1);
+    expect(screen.getByRole("img", { name: /^Andel brukere.*hele måneder\. sep.*2026/ })).toBeInTheDocument();
   });
 
   it("says so when no month is billed", () => {

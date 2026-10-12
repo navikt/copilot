@@ -33,6 +33,7 @@ func TestAdminMonthlyOverview(t *testing.T) {
 		row("2026-10", true, 9000, 1, 8999, 0, f(24517.32)), // run for the current month is ignored
 		row("2026-11", false, 0, 0, 0, 0, nil),
 	}
+	rows[2].GrossNet = f(9290.14)
 	now := time.Date(2026, 10, 12, 8, 0, 0, 0, time.UTC)
 	out := adminMonthlyOverview(2026, rows, now)
 	if len(out.Months) != 3 {
@@ -56,8 +57,9 @@ func TestAdminMonthlyOverview(t *testing.T) {
 	if jan.NoTeamNetUSD != nil || *sep.NoTeamNetUSD != 7388.34 {
 		t.Errorf("no team = %v/%v, want nil before user_teams and 7388.34", jan.NoTeamNetUSD, sep.NoTeamNetUSD)
 	}
-	if oct.EnterpriseNetUSD != nil || *oct.GrossUSD != 24517.32 || *oct.TotalUSD != 24707.32 {
-		t.Errorf("October = %+v, want gross only plus licences", oct)
+	// The total for a month without net is the estimated billed amount, never gross.
+	if oct.EnterpriseNetUSD != nil || *oct.GrossUSD != 24517.32 || *oct.EstimatedNetUSD != 9290.14 || *oct.TotalUSD != 9480.14 {
+		t.Errorf("October = %+v, want estimated net plus licences", oct)
 	}
 	if *sep.TotalUSD != 64748.85 || *sep.Seats != 10 {
 		t.Errorf("September total %v seats %v", *sep.TotalUSD, *sep.Seats)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdminMonth, AdminMonthlyOverview } from "./types";
-import { adminMonthlyCsv, adminMonthlyHeader, adminMonthlyRows } from "./admin-monthly";
+import { adminMonthlyCsv, adminMonthlyHeader, adminMonthlyRows, rebuiltSeatMonths } from "./admin-monthly";
 
 const net = (
   month: string,
@@ -17,6 +17,7 @@ const net = (
   residual_pct: (residual / enterprise) * 100,
   no_team_net_usd: noTeam,
   gross_usd: null,
+  estimated_net_usd: null,
   seats: 10,
   licence_usd_estimate: 190,
   total_usd: enterprise + 190,
@@ -30,7 +31,8 @@ const data: AdminMonthlyOverview = {
     last_gross_day: "2026-10-11",
     gross_stale: false,
     last_net_month: "2026-09",
-    seats_snapshot: "2026-10-11",
+    seats_snapshot: "2026-10-12",
+    seats_from: "2026-10-12",
   },
   months: [
     net("2026-01", "premium", 1267.62, 152.79, null),
@@ -42,7 +44,8 @@ const data: AdminMonthlyOverview = {
       residual_net_usd: null,
       residual_pct: null,
       gross_usd: 24517.32,
-      total_usd: 24707.32,
+      estimated_net_usd: 9290.14,
+      total_usd: 9480.14,
     },
   ],
 };
@@ -68,6 +71,21 @@ describe("adminMonthlyRows", () => {
     expect(total[7]).toBe("");
     expect(total[9]).toBe("380.00");
     expect(total[10]).toBe("66206.47");
+  });
+});
+
+describe("current month and licence history", () => {
+  const rows = adminMonthlyRows(data);
+  it("gives the current month the estimated billed amount, and the total uses it, not gross", () => {
+    const oct = rows[2];
+    expect(oct[adminMonthlyHeader.indexOf("estimert_fakturert_hittil_usd")]).toBe("9290.14");
+    expect(oct[adminMonthlyHeader.indexOf("totalt_inkl_lisenser_usd")]).toBe("9480.14");
+  });
+  it("labels licences before the first daily snapshot as rebuilt", () => {
+    expect(rebuiltSeatMonths(data)).toEqual(["2026-01", "2026-09"]);
+    expect(adminMonthlyCsv(data)).toContain(
+      "# Lisenser og lisenskostnad for januar–september er beregnet ut fra dagens lisenser, for lavt for tidligere måneder."
+    );
   });
 });
 

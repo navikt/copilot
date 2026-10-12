@@ -496,7 +496,7 @@ SELECT FORMAT_DATE('%%Y-%%m-%%d', day) day, SUM(net_amount) net, SUM(gross_amoun
 FROM %s
 WHERE day >= DATE_SUB(DATE(@month || '-01'), INTERVAL @back MONTH)
   AND day < LEAST(DATE_ADD(DATE(@month || '-01'), INTERVAL 1 MONTH), CURRENT_DATE())
-  AND LOWER(scope_id) = 'nav' AND gross_quantity > 0
+  AND LOWER(scope_id) = 'nav' AND product = 'Copilot' AND gross_quantity > 0
 GROUP BY day ORDER BY day`, bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")))
 	q.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month}, {Name: "back", Value: costHistoryMonths}}
 	it, err := q.Read(ctx)

@@ -13,7 +13,14 @@ describe("GET /api/admin-monthly", () => {
     vi.mocked(getAdminMonthlyOverview).mockResolvedValue({
       year: 2026,
       months: [],
-      coverage: { membership_from: "", last_gross_day: "", gross_stale: false, last_net_month: "", seats_snapshot: "" },
+      coverage: {
+        membership_from: "",
+        last_gross_day: "",
+        gross_stale: false,
+        last_net_month: "",
+        seats_snapshot: "",
+        seats_from: "",
+      },
     });
   });
 

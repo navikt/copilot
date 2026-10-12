@@ -335,6 +335,8 @@ export interface AdminMonth {
   no_team_net_usd: number | null;
   /** Preliminary list price for a month without net. */
   gross_usd: number | null;
+  /** Estimated billed so far for a month without net: gross less the pooled included credits. */
+  estimated_net_usd: number | null;
   seats: number | null;
   licence_usd_estimate: number | null;
   total_usd: number | null;
@@ -350,6 +352,8 @@ export interface AdminMonthlyOverview {
     gross_stale: boolean;
     last_net_month: string;
     seats_snapshot: string;
+    /** First daily seat snapshot; seats before its month are rebuilt from today's seats. */
+    seats_from: string;
   };
 }
 
@@ -682,10 +686,14 @@ export interface SpendBands {
   forecast: SpendForecastMonth[];
 }
 
-/** Users with at least one Copilot usage day in the month (admin only). */
+/**
+ * Billed users in a billed month (billed true). The current month has no invoice yet:
+ * billed is false and active_users counts users with a Copilot usage day so far (admin only).
+ */
 export interface ActiveUsersMonth {
   month: string;
   active_users: number;
+  billed: boolean;
 }
 
 /** Top top_pct % of billed users by net. users and net_share_pct are hidden (0 and null) below five people. */

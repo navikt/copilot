@@ -20,7 +20,7 @@ func TestHighConsumerMonth(t *testing.T) {
 	add(2, 1000, 1000)
 	add(8, 100, 500)
 	add(190, 10, 20)
-	m := buildHighConsumers(rows)[0]
+	m := buildHighConsumers(rows, nil)[0]
 	if m.Users != 200 || m.Basis != "netto" || m.LimitUSD != 800 || !m.LimitChanged {
 		t.Fatalf("month = %+v", m)
 	}
@@ -52,7 +52,7 @@ func TestHighConsumerTierGap(t *testing.T) {
 	for i := range 81 {
 		rows = append(rows, spendUserRow{Month: "2026-09", Net: float64(i)})
 	}
-	tiers := buildHighConsumers(rows)[0].Tiers
+	tiers := buildHighConsumers(rows, nil)[0].Tiers
 	if tiers[1].NetSharePct == nil || tiers[2].NetSharePct != nil {
 		t.Errorf("want top 5 %% shown and top 10 %% hidden: %+v", tiers)
 	}
@@ -60,7 +60,7 @@ func TestHighConsumerTierGap(t *testing.T) {
 
 func TestHighConsumerMonthPremiumAndSmall(t *testing.T) {
 	rows := []spendUserRow{{Month: "2026-01", Net: 5}, {Month: "2026-01", Net: 1}, {Month: "2026-06", Net: 1}}
-	got := buildHighConsumers(rows)
+	got := buildHighConsumers(rows, nil)
 	if len(got) != 2 || got[0].Basis != "premium" || got[0].Users != 0 || len(got[0].Tiers) != 0 || got[0].BudgetBands != nil {
 		t.Fatalf("small months must hide everything: %+v", got)
 	}
@@ -127,5 +127,34 @@ func TestMonthToDate(t *testing.T) {
 	}
 	if small := monthToDate(rows[:4]); small.Users != 0 || small.BudgetBands != nil {
 		t.Errorf("fewer than five users must hide everything: %+v", small)
+	}
+}
+
+// With peaks, a month is bucketed on each user's highest share of the limit
+// that applied that day, not month-end gross against month-end limit: in
+// September someone at 400 USD before the 22nd was at 100 %, not 50 %.
+func TestHighConsumerMonthUsesDailyLimitPeaks(t *testing.T) {
+	var rows []spendUserRow
+	peak := map[string]float64{}
+	for i := range 12 {
+		id := fmt.Sprint(i)
+		rows = append(rows, spendUserRow{UserID: id, Month: "2026-09", Net: 1, Gross: 400})
+		if i < 10 {
+			peak[id] = 1.0 // capped at 400 before the limit went to 800
+		}
+	}
+	m := buildHighConsumers(rows, map[string]map[string]float64{"2026-09": peak})[0]
+	var got []string
+	for _, b := range m.BudgetBands {
+		if b.Users > 0 {
+			got = append(got, fmt.Sprintf("%s:%d", b.Label, b.Users))
+		}
+	}
+	// Two billed users have no peak: they are left out («Ukjent grense»).
+	if g := strings.Join(got, " "); g != "90–100 %:10" {
+		t.Errorf("budget bands = %q, want all ten in 90–100 %%", g)
+	}
+	if old := buildHighConsumers(rows, nil)[0]; old.BudgetBands[2].Users != 12 {
+		t.Errorf("without peaks: 400 of 800 is 25–50 %%: %+v", old.BudgetBands)
 	}
 }

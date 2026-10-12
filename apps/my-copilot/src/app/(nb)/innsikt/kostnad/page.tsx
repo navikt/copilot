@@ -9,7 +9,7 @@ import { ChartFigure, NumbersFold } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { getAdminMonthlyOverview, getCostForecast } from "@/lib/cached-bigquery";
-import { adminMonthlyCaveats, adminMonthlyCoverage, adminMonthlyRows } from "@/lib/admin-monthly";
+import { adminMonthlyCaveats, adminMonthlyCoverage, adminMonthlyRows, rebuiltSeatMonths } from "@/lib/admin-monthly";
 import { costEvents, eventAnnotations, eventSummary } from "@/lib/cost-events";
 import { formatDate, formatNumber, formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
@@ -36,7 +36,7 @@ const columns: [number, string][] = [
   [4, "Ikke fordelt"],
   [5, "Ikke fordelt (%)"],
   [6, "Personer uten team"],
-  [7, "Foreløpig forbruk"],
+  [11, "Estimert fakturert hittil"],
   [9, "Lisenskostnad (anslag)"],
   [10, "Totalt inkl. lisenser"],
 ];
@@ -70,6 +70,7 @@ export default async function CostPage() {
   const shown = data.months.filter((m) => m.basis !== "none");
   const keys = shown.map((m) => m.month);
   const markers = eventAnnotations(events, keys);
+  const rebuilt = new Set(rebuiltSeatMonths(data));
 
   return (
     <InsightPage
@@ -108,10 +109,11 @@ export default async function CostPage() {
               .filter(billed)
               .map((m) => `${monthName(m.month)} ${formatUSD(m.enterprise_net_usd ?? 0)}`)
               .join(", ")}.` +
-            (current?.basis === "gross" && current.gross_usd != null
-              ? ` Foreløpig forbruk i ${monthName(current.month)}: ${formatUSD(current.gross_usd)}.`
+            (current?.basis === "gross" && current.estimated_net_usd != null
+              ? ` Estimert fakturert hittil i ${monthName(current.month)} (foreløpig): ${formatUSD(current.estimated_net_usd)}.`
               : "") +
             " Lisenskostnaden er et anslag og kommer i tillegg. Slå den på i forklaringen under grafen." +
+            (rebuilt.size ? " Lisensene før daglige tellinger er beregnet ut fra dagens lisenser." : "") +
             eventSummary(markers)
           }
           chart={
@@ -134,9 +136,9 @@ export default async function CostPage() {
                 },
                 { label: "Ikke fordelt", color: 3, data: shown.map((m) => (billed(m) ? m.residual_net_usd : null)) },
                 {
-                  label: "Foreløpig forbruk",
+                  label: "Estimert fakturert hittil (foreløpig)",
                   color: 5,
-                  data: shown.map((m) => (m.basis === "gross" ? m.gross_usd : null)),
+                  data: shown.map((m) => (m.basis === "gross" ? m.estimated_net_usd : null)),
                 },
                 {
                   label: "Lisenskostnad (anslag)",
@@ -177,7 +179,7 @@ export default async function CostPage() {
                                 (m.basis === "premium" ? "*" : "") +
                                 (preliminary ? " (foreløpig)" : "")
                               : i
-                                ? nok(cells[c])
+                                ? nok(cells[c]) + (c === 9 && !total && cells[c] && rebuilt.has(m.month) ? "†" : "")
                                 : cells[c]}
                           </TableDataCell>
                         ))}
@@ -189,6 +191,11 @@ export default async function CostPage() {
               {data.months.some((m) => m.basis === "premium") && (
                 <BodyShort size="small" textColor="subtle">
                   * Fakturert som premiumforespørsler, ikke KI-kreditter.
+                </BodyShort>
+              )}
+              {rebuilt.size > 0 && (
+                <BodyShort size="small" textColor="subtle">
+                  † Beregnet ut fra dagens lisenser, for lavt for tidligere måneder.
                 </BodyShort>
               )}
             </>
@@ -208,9 +215,9 @@ export default async function CostPage() {
               Antall lisenser per måned:{" "}
               {data.months
                 .filter((m) => m.seats != null)
-                .map((m) => `${monthName(m.month)} ${formatNumber(m.seats!)}`)
+                .map((m) => `${monthName(m.month)} ${formatNumber(m.seats!)}${rebuilt.has(m.month) ? "†" : ""}`)
                 .join(", ")}
-              .
+              .{rebuilt.size > 0 && " † Beregnet ut fra dagens lisenser, for lavt for tidligere måneder."}
             </ListItem>
           </List>
         </NumbersFold>

@@ -37,7 +37,7 @@ const FAMILY_COLOR: Record<ModelFamily, number> = {
 
 const premium = (month: string) => month < "2026-06";
 
-/** F3: billed amount per active user and model mix per month, chart first, for the admin cost page. */
+/** F3: billed amount per billed user and model mix per month, chart first, for the admin cost page. */
 export function CostTrendsView({
   trend,
   breakdown,
@@ -65,11 +65,13 @@ export function CostTrendsView({
       .filter((a) => a.licence_usd_estimate != null && a.total_usd)
       .map((a) => [a.month, (a.licence_usd_estimate! / a.total_usd!) * 100])
   );
-  // The current month has only the days so far, so it has no amount per user.
+  // The current month is a partial point: estimated billed so far over users active so far.
   const perUser = months.map((t) => {
     const users = activeBy.get(t.year_month);
-    return users && t.year_month !== currentMonth ? t.total_net_amount / users : null;
+    return users ? t.total_net_amount / users : null;
   });
+  // The trend in the summary uses whole, billed months only.
+  const full = perUser.map((v, i) => (keys[i] === currentMonth ? null : v));
   const label = (month: string) =>
     monthLabel(month) + (premium(month) ? "*" : "") + (month === currentMonth ? " (hittil)" : "");
 
@@ -81,8 +83,9 @@ export function CostTrendsView({
   ).series;
   const mix = families.map((f) => ({ model: f.label, shares: f.shares }));
   const pct = (v: number | null) => (v == null ? "–" : formatPercent(v));
-  const lastPerUser = perUser.findLast((v) => v != null);
-  const firstPerUser = perUser.find((v) => v != null);
+  const lastPerUser = full.findLast((v) => v != null);
+  const firstPerUser = full.find((v) => v != null);
+  const partial = keys.includes(currentMonth) && perUser[keys.indexOf(currentMonth)] != null;
   const footnote = keys.some(premium) && (
     <BodyShort size="small" textColor="subtle">
       * Fakturert som premiumforespørsler, ikke KI-kreditter.
@@ -95,9 +98,10 @@ export function CostTrendsView({
         title="Blir Copilot dyrere per bruker?"
         summary={
           (firstPerUser != null && lastPerUser != null
-            ? `Fakturert per aktiv bruker gikk fra ${formatUSD(firstPerUser)} i ${monthLabel(keys[perUser.indexOf(firstPerUser)])} til ${formatUSD(lastPerUser)} i ${monthLabel(keys[perUser.lastIndexOf(lastPerUser)])}.`
-            : "Ingen hele måneder med aktive brukere ennå.") +
-          " Aktive brukere er alle som brukte Copilot minst én dag i måneden. Denne måneden er ikke med, fordi den ikke er slutt ennå." +
+            ? `Fakturert per fakturert bruker gikk fra ${formatUSD(firstPerUser)} i ${monthLabel(keys[full.indexOf(firstPerUser)])} til ${formatUSD(lastPerUser)} i ${monthLabel(keys[full.lastIndexOf(lastPerUser)])}.`
+            : "Ingen fakturerte måneder ennå.") +
+          " Fakturerte brukere er alle som står på fakturaen for måneden." +
+          (partial ? ` ${monthLabel(currentMonth)} er et foreløpig punkt (hittil), se tabellen.` : "") +
           eventSummary(markers)
         }
         chart={
@@ -105,9 +109,9 @@ export function CostTrendsView({
             kind="line"
             unit="usd"
             keys={keys}
-            labels={keys.map(monthLabel)}
+            labels={keys.map((k) => monthLabel(k) + (k === currentMonth ? " (hittil)" : ""))}
             annotations={markers}
-            series={[{ label: "Fakturert per aktiv bruker", color: 0, data: perUser }]}
+            series={[{ label: "Fakturert per fakturert bruker", color: 0, data: perUser }]}
           />
         }
         table={
@@ -120,10 +124,10 @@ export function CostTrendsView({
                     Fakturert
                   </TableHeaderCell>
                   <TableHeaderCell scope="col" align="right">
-                    Aktive brukere
+                    Fakturerte brukere
                   </TableHeaderCell>
                   <TableHeaderCell scope="col" align="right">
-                    Per aktiv bruker
+                    Per fakturert bruker
                   </TableHeaderCell>
                   <TableHeaderCell scope="col" align="right">
                     Andel lisenskostnad
@@ -148,6 +152,13 @@ export function CostTrendsView({
               </TableBody>
             </Table>
             {footnote}
+            {partial && (
+              <BodyShort size="small" textColor="subtle">
+                Hittil: fakturaen for {monthLabel(currentMonth)} er ikke kommet. Raden viser estimert fakturert hittil
+                delt på brukere med Copilot-aktivitet hittil i måneden. Den er foreløpig og kan ikke sammenlignes med
+                hele måneder.
+              </BodyShort>
+            )}
             <BodyShort size="small" textColor="subtle">
               Andel lisenskostnad: lisenskostnaden (anslag til listepris, uten rabatt) som andel av totalt inkl.
               lisenser.

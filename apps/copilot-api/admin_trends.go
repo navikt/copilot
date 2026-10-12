@@ -26,15 +26,18 @@ func basisForMonth(month string) string {
 	return "netto"
 }
 
-// ActiveUsersMonth is the number of users with at least one Copilot usage day
-// in the month, the divisor for cost per active user (K9).
+// ActiveUsersMonth is the divisor for billed per billed user (K9). For a
+// billed month it is the users the invoice names (billing_user_monthly). The
+// current month has no invoice yet: Billed is false and ActiveUsers counts
+// users with at least one Copilot usage day so far.
 type ActiveUsersMonth struct {
 	Month       string `bigquery:"month" json:"month"`
 	ActiveUsers int64  `bigquery:"active_users" json:"active_users"`
+	Billed      bool   `bigquery:"billed" json:"billed"`
 }
 
-// GetActiveUsersMonthly counts active users per month from January 2026 up to
-// and including the current month.
+// GetActiveUsersMonthly counts billed users per month with a complete billing
+// run from January 2026, then active users in the current month so far.
 func (bq *BigQueryClient) GetActiveUsersMonthly(ctx context.Context) ([]ActiveUsersMonth, error) {
 	first, _ := time.Parse("2006-01-02", costTrendsFirstMonth)
 	now := time.Now().UTC()
@@ -42,10 +45,17 @@ func (bq *BigQueryClient) GetActiveUsersMonthly(ctx context.Context) ([]ActiveUs
 	// userDaysFrom, not teamUsageCTEs: days the metrics job fetched from the
 	// organization endpoint are stored under that scope and must count too.
 	q := bq.client.Query(fmt.Sprintf(`
-SELECT FORMAT_DATE('%%Y-%%m',DATE_TRUNC(day,MONTH)) month,
-  COUNT(DISTINCT JSON_VALUE(raw_record,'$.user_id')) active_users
-FROM %s WHERE day>=DATE(@from) AND day<DATE(@to)
-GROUP BY month ORDER BY month`, userDaysFrom(bq.tableRef(bq.metricsDataset, "user_metrics"))))
+SELECT FORMAT_DATE('%%Y-%%m',month) month,COUNT(DISTINCT user_id) active_users,TRUE billed
+FROM %s WHERE month>=DATE(@from) AND month<DATE_TRUNC(CURRENT_DATE(),MONTH)
+ AND scope_id='nav' AND user_id!='' AND sku!='done'
+ AND month IN (SELECT month FROM %s WHERE scope_id='nav' AND status='complete')
+GROUP BY month
+UNION ALL
+SELECT FORMAT_DATE('%%Y-%%m',DATE_TRUNC(CURRENT_DATE(),MONTH)),
+ COUNT(DISTINCT JSON_VALUE(raw_record,'$.user_id')),FALSE
+FROM %s WHERE day>=DATE_TRUNC(CURRENT_DATE(),MONTH) AND day<DATE(@to)
+ORDER BY month`, bq.billingUserLatest(), bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"),
+		userDaysFrom(bq.tableRef(bq.metricsDataset, "user_metrics"))))
 	q.Parameters = monthRange(first, months)
 	it, err := q.Read(ctx)
 	if err != nil {
@@ -118,21 +128,23 @@ func budgetBandLabel(first, last int) string {
 	return fmt.Sprintf("%g–%g %%", lo, budgetEdges[last])
 }
 
-// buildHighConsumers groups per-user rows by month. Rows must be ordered by month.
-func buildHighConsumers(rows []spendUserRow) []HighConsumerMonth {
+// buildHighConsumers groups per-user rows by month. Rows must be ordered by
+// month. peaks holds each user's highest share of the limit in force that
+// day, per month (budget_share); a month in it is bucketed on those.
+func buildHighConsumers(rows []spendUserRow, peaks map[string]map[string]float64) []HighConsumerMonth {
 	out := []HighConsumerMonth{}
 	for i := 0; i < len(rows); {
 		j := i
 		for j < len(rows) && rows[j].Month == rows[i].Month {
 			j++
 		}
-		out = append(out, highConsumerMonth(rows[i].Month, rows[i:j]))
+		out = append(out, highConsumerMonth(rows[i].Month, rows[i:j], peaks[rows[i].Month]))
 		i = j
 	}
 	return out
 }
 
-func highConsumerMonth(month string, rows []spendUserRow) HighConsumerMonth {
+func highConsumerMonth(month string, rows []spendUserRow, peak map[string]float64) HighConsumerMonth {
 	m := HighConsumerMonth{Month: month, Basis: basisForMonth(month), Tiers: []HighConsumerTier{},
 		LimitUSD: limitAtMonthEnd(month), LimitChanged: limitChanged(month)}
 	nets := make([]float64, len(rows))
@@ -166,7 +178,19 @@ func highConsumerMonth(month string, rows []spendUserRow) HighConsumerMonth {
 		m.Tiers = append(m.Tiers, t)
 	}
 	if m.LimitUSD > 0 {
-		m.BudgetBands = mergeEdgeBands(gross, m.LimitUSD, budgetEdges)
+		if peak != nil {
+			// A billed user without a peak (no usage day in user_metrics) is left
+			// out and shows as «Ukjent grense».
+			gross = gross[:0]
+			for _, r := range rows {
+				if v, ok := peak[r.UserID]; ok {
+					gross = append(gross, v)
+				}
+			}
+			m.BudgetBands = mergeEdgeBands(gross, 1, budgetEdges)
+		} else {
+			m.BudgetBands = mergeEdgeBands(gross, m.LimitUSD, budgetEdges)
+		}
 		for i := range m.BudgetBands {
 			m.BudgetBands[i].Label = budgetBandLabel(m.BudgetBands[i].First, m.BudgetBands[i].Last)
 		}
@@ -217,7 +241,11 @@ func (bq *BigQueryClient) GetHighConsumers(ctx context.Context) ([]HighConsumerM
 	if err != nil {
 		return nil, err
 	}
-	out := buildHighConsumers(rows)
+	peaks, err := bq.limitPeaks(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := buildHighConsumers(rows, peaks)
 	it, err := bq.client.Query(`WITH ` + bq.budgetShareCTE() + `
 SELECT CAST(day AS STRING) day, share, source FROM budget_share
 WHERE share IS NOT NULL AND day = (SELECT MAX(day) FROM budget_share) AND day >= DATE_TRUNC(CURRENT_DATE(), MONTH)`).Read(ctx)
@@ -232,6 +260,38 @@ WHERE share IS NOT NULL AND day = (SELECT MAX(day) FROM budget_share) AND day >=
 	}
 	if m := monthToDate(shares); m != nil {
 		out = append(out, *m)
+	}
+	return out, nil
+}
+
+// limitPeaks returns each user's highest month-to-date share of the limit in
+// force that day, per full month after budgetShareFrom's month (June starts
+// on the 19th, so it keeps the month-end limit). A month where the limit was
+// raised, say 400 to 800 USD on 22 September, then counts the days at 400.
+func (bq *BigQueryClient) limitPeaks(ctx context.Context) (map[string]map[string]float64, error) {
+	it, err := bq.client.Query(`WITH ` + bq.budgetShareCTE() + `
+SELECT FORMAT_DATE('%Y-%m',day) month,user_id,MAX(share) share FROM budget_share
+WHERE share IS NOT NULL AND day>=DATE_ADD(DATE_TRUNC(DATE '` + budgetShareFrom + `',MONTH),INTERVAL 1 MONTH)
+ AND day<DATE_TRUNC(CURRENT_DATE(),MONTH)
+GROUP BY month,user_id`).Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read limit peaks: %w", err)
+	}
+	type peakRow struct {
+		Month  string  `bigquery:"month"`
+		UserID string  `bigquery:"user_id"`
+		Share  float64 `bigquery:"share"`
+	}
+	rows, err := readAllRows[peakRow](it)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]map[string]float64{}
+	for _, r := range rows {
+		if out[r.Month] == nil {
+			out[r.Month] = map[string]float64{}
+		}
+		out[r.Month][r.UserID] = r.Share
 	}
 	return out, nil
 }

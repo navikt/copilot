@@ -28,10 +28,14 @@ type AdminMonth struct {
 	// as team-net. Nil before the first user_teams month.
 	NoTeamNetUSD *float64 `json:"no_team_net_usd"`
 	// GrossUSD is the preliminary list-price amount for a month without net.
-	GrossUSD           *float64 `json:"gross_usd"`
+	GrossUSD *float64 `json:"gross_usd"`
+	// EstimatedNetUSD is the estimated billed amount so far for a month
+	// without net: gross less the pooled included credits, as GitHub reports
+	// it per day. The same sum as net_to_date_usd in the cost forecast.
+	EstimatedNetUSD    *float64 `json:"estimated_net_usd"`
 	Seats              *int64   `json:"seats"`
 	LicenceUSDEstimate *float64 `json:"licence_usd_estimate"`
-	// TotalUSD is net (or gross) plus the licence estimate, nil when a part is missing.
+	// TotalUSD is net (or the estimated net) plus the licence estimate, nil when a part is missing.
 	TotalUSD *float64 `json:"total_usd"`
 	LoadedAt string   `json:"loaded_at"` // when net was read in, "" without net
 }
@@ -43,6 +47,9 @@ type AdminMonthlyCoverage struct {
 	GrossStale    bool   `json:"gross_stale"`
 	LastNetMonth  string `json:"last_net_month"`
 	SeatsSnapshot string `json:"seats_snapshot"`
+	// SeatsFrom is the first daily seat snapshot. Seats for earlier months are
+	// rebuilt from today's seats and miss those cancelled since.
+	SeatsFrom string `json:"seats_from"`
 }
 
 type AdminMonthlyOverview struct {
@@ -60,12 +67,14 @@ type adminMonthRow struct {
 	AssignedNet    float64  `bigquery:"assigned_net"`
 	TeamNet        float64  `bigquery:"team_net"`
 	Gross          *float64 `bigquery:"gross"`
+	GrossNet       *float64 `bigquery:"gross_net"`
 	Seats          int64    `bigquery:"seats"`
 	Licence        float64  `bigquery:"licence"`
 	UnknownPlan    int64    `bigquery:"unknown_plan"`
 	MembershipFrom string   `bigquery:"membership_from"`
 	LastGrossDay   string   `bigquery:"last_gross_day"`
 	SeatsSnapshot  string   `bigquery:"seats_snapshot"`
+	SeatsFrom      string   `bigquery:"seats_from"`
 }
 
 // GetAdminMonthlyOverview returns every month of year up to now for all of
@@ -104,7 +113,7 @@ WITH ` + bq.teamUsageCTEs() + `, ` + bq.teamNetCTEs() + `, ` + bq.seatCTEs() + f
  SELECT DATE_TRUNC(day,MONTH) month,SUM(net) net FROM daily w
  WHERE EXISTS (SELECT 1 FROM memberships m WHERE m.day=w.day AND m.user_id=w.user_id) GROUP BY month
 ), gross_m AS (
- SELECT DATE_TRUNC(day,MONTH) month,SUM(gross_amount) gross FROM %[2]s
+ SELECT DATE_TRUNC(day,MONTH) month,SUM(gross_amount) gross,SUM(net_amount) gross_net FROM %[2]s
  WHERE day>=DATE(@from) AND day<DATE(@to) AND scope_id='nav' AND product='Copilot' AND sku IN (`+billedSKUs+`)
  GROUP BY month
 ), seat_m AS (
@@ -115,12 +124,13 @@ WITH ` + bq.teamUsageCTEs() + `, ` + bq.teamNetCTEs() + `, ` + bq.seatCTEs() + f
  SELECT
   (SELECT IFNULL(CAST(MIN(day) AS STRING),'') FROM %[3]s WHERE scope='enterprise' AND scope_id='nav') membership_from,
   (SELECT IFNULL(CAST(MAX(day) AS STRING),'') FROM %[2]s WHERE scope_id='nav' AND product='Copilot') last_gross_day,
-  (SELECT IFNULL(CAST(d AS STRING),'') FROM seat_snap) seats_snapshot
+  (SELECT IFNULL(CAST(d AS STRING),'') FROM seat_snap) seats_snapshot,
+  (SELECT IFNULL(CAST(MIN(snapshot_date) AS STRING),'') FROM %[4]s) seats_from
 )
 SELECT CAST(t.month AS STRING) month,r.month IS NOT NULL net_complete,r.enterprise_net,r.residual_net,
- IFNULL(r.loaded_at,'') loaded_at,IFNULL(a.net,0) assigned_net,IFNULL(tm.net,0) team_net,g.gross,
+ IFNULL(r.loaded_at,'') loaded_at,IFNULL(a.net,0) assigned_net,IFNULL(tm.net,0) team_net,g.gross,g.gross_net,
  IFNULL(s.seats,0) seats,IFNULL(s.licence,0) licence,IFNULL(s.unknown_plan,0) unknown_plan,
- v.membership_from,v.last_gross_day,v.seats_snapshot
+ v.membership_from,v.last_gross_day,v.seats_snapshot,v.seats_from
 FROM months t CROSS JOIN coverage v
 LEFT JOIN runs r ON r.month=t.month LEFT JOIN assigned_m a ON a.month=t.month
 LEFT JOIN team_m tm ON tm.month=t.month LEFT JOIN gross_m g ON g.month=t.month
@@ -128,7 +138,8 @@ LEFT JOIN seat_m s ON s.month=t.month
 ORDER BY month`,
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"),
 		bq.tableRef(bq.metricsDataset, "billing_usage_daily_model"),
-		bq.tableRef(bq.metricsDataset, "user_teams")))
+		bq.tableRef(bq.metricsDataset, "user_teams"),
+		bq.tableRef(bq.metricsDataset, "copilot_seats")))
 	query.Parameters = monthRange(time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC), 12)
 	return query
 }
@@ -141,7 +152,7 @@ func adminMonthlyOverview(year int, rows []adminMonthRow, now time.Time) *AdminM
 	current := now.UTC().Format("2006-01")
 	for _, row := range rows {
 		month := row.Month[:7]
-		out.Coverage = AdminMonthlyCoverage{MembershipFrom: row.MembershipFrom, LastGrossDay: row.LastGrossDay, SeatsSnapshot: row.SeatsSnapshot, LastNetMonth: out.Coverage.LastNetMonth}
+		out.Coverage = AdminMonthlyCoverage{MembershipFrom: row.MembershipFrom, LastGrossDay: row.LastGrossDay, SeatsSnapshot: row.SeatsSnapshot, SeatsFrom: row.SeatsFrom, LastNetMonth: out.Coverage.LastNetMonth}
 		if month > current {
 			continue
 		}
@@ -164,14 +175,18 @@ func adminMonthlyOverview(year int, rows []adminMonthRow, now time.Time) *AdminM
 		case row.Gross != nil:
 			m.Basis = basisGross
 			m.GrossUSD = cents(*row.Gross)
+			if row.GrossNet != nil {
+				m.EstimatedNetUSD = cents(*row.GrossNet)
+			}
 		}
 		if row.SeatsSnapshot != "" {
 			seats := row.Seats
 			m.Seats, m.LicenceUSDEstimate = &seats, cents(row.Licence)
 		}
+		// Never gross: the total sits next to billed months.
 		amount := m.EnterpriseNetUSD
 		if amount == nil {
-			amount = m.GrossUSD
+			amount = m.EstimatedNetUSD
 		}
 		if amount != nil && m.LicenceUSDEstimate != nil {
 			m.TotalUSD = cents(*amount + *m.LicenceUSDEstimate)
