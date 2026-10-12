@@ -166,10 +166,11 @@ export default function Planlegging() {
             testskjeletter og stubber med <code className={code}>TODO</code>, og skriver kjernelogikken selv.
           </BodyLong>
           <BodyLong>
-            Vil du heller gå gjennom koden etterpå, skriver du for eksempel{" "}
-            <code className={code}>implementer rød sone, jeg reviewer</code>. Da skriver agenten koden for de røde
-            delene og avslutter med en sjekkliste per del: hva du skal kontrollere, hvilke regler som alltid må holde,
-            og hvilke tester du bør lese.
+            Vil du at agenten skal skrive den røde koden likevel, må du be om det uttrykkelig, for eksempel{" "}
+            <code className={code}>implementer rød sone</code>. Et løfte om å se over koden etterpå er ikke nok. Nevner
+            du bare noen av de røde delene, skriver agenten bare dem og lager stubber for resten. Svaret med koden
+            slutter med overskriften «Sjekkliste for rød sone» og ett punkt per del agenten skrev: hva du skal
+            kontrollere, hvilke regler som alltid må holde, og hvilke tester du bør lese.
           </BodyLong>
           <BodyLong>
             Sonen svarer på om du skal lære dette. Risikoen svarer på hva som skjer hvis agenten tar feil: lav, middels
