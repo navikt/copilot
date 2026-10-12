@@ -260,7 +260,7 @@
       "displayName": "Bevisst KI-bruk",
       "description": "Regler for bevisst KI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
       "filePath": "instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "ab097979fffa2b3592b585747ad3171e320d8711fd097fe754182962501d48b9",
+      "contentHash": "c323e573246943749c88364c2c40aae13f389efb92b8ab604b63ab87f3133af5",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md"
     },
