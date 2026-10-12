@@ -42,6 +42,7 @@ const data: TeamYearOverview = {
       net_usd: 50.5,
       gross_usd: null,
       no_usage_net_usd: 1,
+      residual_pct: 7.13,
       seat_months: null,
       licence_usd_estimate: null,
       total_usd: null,
@@ -68,6 +69,7 @@ const data: TeamYearOverview = {
       net_usd: 80.1,
       gross_usd: 100,
       no_usage_net_usd: 2,
+      residual_pct: 0.41,
       seat_months: 8,
       licence_usd_estimate: 152,
       total_usd: 234.1,
@@ -124,6 +126,9 @@ describe("GET /api/team-year", () => {
       "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
     ]);
     expect(lines.some((line) => line.includes("Lisenser er et anslag"))).toBe(true);
+    expect(lines.filter((line) => line.includes("kunne ikke knyttes til en person"))).toEqual([
+      "# Mai: 7 % av kostnaden kunne ikke knyttes til en person, og er ikke fordelt på team.",
+    ]);
     expect(lines.some((line) => line.includes("brukte Copilot i måneden"))).toBe(false);
     expect(getTeamYearOverview).toHaveBeenCalledWith("123", 2026, "token");
   });

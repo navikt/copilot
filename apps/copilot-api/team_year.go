@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strconv"
 	"time"
 
@@ -40,6 +41,9 @@ type TeamYearMonth struct {
 	NetUSD        *float64 `json:"net_usd"`
 	GrossUSD      *float64 `json:"gross_usd"`
 	NoUsageNetUSD *float64 `json:"no_usage_net_usd"`
+	// ResidualPct is the share of the enterprise net bill that the backfill
+	// could not assign to a user, for net and premium months. Nil otherwise.
+	ResidualPct *float64 `json:"residual_pct"`
 	// SeatMonths counts team members (team_members, usage or not) whose seat
 	// covered the month, from the latest seat snapshot's created_at and
 	// pending_cancellation_date. A seat held before the current assignment is
@@ -77,22 +81,23 @@ type TeamYearOverview struct {
 }
 
 type teamYearRow struct {
-	Month           string  `bigquery:"month"`
-	NetComplete     bool    `bigquery:"net_complete"`
-	GrossUsers      int64   `bigquery:"gross_users"`
-	Gross           float64 `bigquery:"gross"`
-	NetUsers        int64   `bigquery:"net_users"`
-	Net             float64 `bigquery:"net"`
-	NoUsageNet      float64 `bigquery:"no_usage_net"`
-	TeamSlug        string  `bigquery:"team_slug"`
-	MembershipFrom  string  `bigquery:"membership_from"`
-	GrossFrom       string  `bigquery:"gross_from"`
-	LastUsageDay    string  `bigquery:"last_usage_day"`
-	SeatMonths      int64   `bigquery:"seat_months"`
-	Licence         float64 `bigquery:"licence"`
-	UnknownPlan     int64   `bigquery:"unknown_plan"`
-	SeatsSnapshot   string  `bigquery:"seats_snapshot"`
-	TeamMembersFrom string  `bigquery:"team_members_from"`
+	Month           string               `bigquery:"month"`
+	NetComplete     bool                 `bigquery:"net_complete"`
+	ResidualPct     bigquery.NullFloat64 `bigquery:"residual_pct"`
+	GrossUsers      int64                `bigquery:"gross_users"`
+	Gross           float64              `bigquery:"gross"`
+	NetUsers        int64                `bigquery:"net_users"`
+	Net             float64              `bigquery:"net"`
+	NoUsageNet      float64              `bigquery:"no_usage_net"`
+	TeamSlug        string               `bigquery:"team_slug"`
+	MembershipFrom  string               `bigquery:"membership_from"`
+	GrossFrom       string               `bigquery:"gross_from"`
+	LastUsageDay    string               `bigquery:"last_usage_day"`
+	SeatMonths      int64                `bigquery:"seat_months"`
+	Licence         float64              `bigquery:"licence"`
+	UnknownPlan     int64                `bigquery:"unknown_plan"`
+	SeatsSnapshot   string               `bigquery:"seats_snapshot"`
+	TeamMembersFrom string               `bigquery:"team_members_from"`
 }
 
 // GetTeamYearOverview returns one team's months in year, with the same
@@ -199,10 +204,10 @@ func (bq *BigQueryClient) tableExists(ctx context.Context, table string) (bool, 
 
 func (bq *BigQueryClient) teamYearQuery(team string, year int, net, seats bool) *bigquery.Query {
 	first := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
-	netCTEs, completed := teamYearNetStubs, "SELECT DATE(NULL) month FROM UNNEST([1]) WHERE FALSE"
+	netCTEs, completed := teamYearNetStubs, "SELECT DATE(NULL) month,CAST(NULL AS FLOAT64) residual_pct FROM UNNEST([1]) WHERE FALSE"
 	if net {
 		netCTEs = bq.teamNetCTEs()
-		completed = fmt.Sprintf("SELECT DISTINCT month FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND status='complete'",
+		completed = fmt.Sprintf("SELECT month,ANY_VALUE(SAFE_DIVIDE(residual_net,enterprise_net)*100) residual_pct FROM %s WHERE month>=DATE(@from) AND month<DATE(@to) AND scope_id='nav' AND status='complete' GROUP BY month",
 			bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"))
 	}
 	seatCTEs := teamYearSeatsStub
@@ -235,7 +240,7 @@ WITH ` + bq.teamUsageCTEs() + `, ` + netCTEs + `, ` + seatCTEs + fmt.Sprintf(`, 
   (SELECT IFNULL(CAST(d AS STRING),'') FROM seat_snap) seats_snapshot,
   (SELECT IFNULL(CAST(d AS STRING),'') FROM tm_first) team_members_from
 )
-SELECT CAST(m AS STRING) month,c.month IS NOT NULL net_complete,
+SELECT CAST(m AS STRING) month,c.month IS NOT NULL net_complete,c.residual_pct,
  IFNULL(g.users,0) gross_users,IFNULL(g.gross,0) gross,IFNULL(n.users,0) net_users,IFNULL(n.net,0) net,
  IFNULL(z.net,0) no_usage_net,v.team_slug,v.membership_from,v.gross_from,v.last_usage_day,
  IFNULL(s.seat_months,0) seat_months,IFNULL(s.licence,0) licence,IFNULL(s.unknown_plan,0) unknown_plan,
@@ -286,6 +291,10 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 			m.GrossUSD = cents(row.Gross)
 		}
 		net := m.Basis == basisNet || m.Basis == basisPremium
+		if net && row.ResidualPct.Valid {
+			pct := math.Round(row.ResidualPct.Float64*100) / 100
+			m.ResidualPct = &pct
+		}
 		if net && row.NetUsers >= minTeamContributors {
 			m.NetUSD, m.NoUsageNetUSD = cents(row.Net), cents(row.NoUsageNet)
 		}
