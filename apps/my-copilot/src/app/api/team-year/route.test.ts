@@ -96,7 +96,7 @@ describe("GET /api/team-year", () => {
   it("says licences are not loaded before the first seat snapshot", async () => {
     vi.mocked(getTeamYearOverview).mockResolvedValue({ ...data, coverage: { ...data.coverage, seats_snapshot: "" } });
     const text = await (await get("team=123&year=2026")).text();
-    expect(text).toContain("Lisenser er ikke lest inn ennå");
+    expect(text).toContain("Lisensene er ikke lest inn ennå");
     expect(text).not.toContain("Lisenser er ikke med");
   });
 
@@ -122,10 +122,10 @@ describe("GET /api/team-year", () => {
       "2026-08,Netto,6,80.10,100.00,2.00,8,152.00,234.10",
       "Totalt mai–august,,,130.60,,3.00,,285.00,418.60",
     ]);
-    expect(lines.some((line) => line.includes("Lisenser er et anslag"))).toBe(true);
+    expect(lines.some((line) => line.includes("Lisenskostnad er et anslag"))).toBe(true);
     expect(lines.some((line) => /skjult|færre enn fem/i.test(line))).toBe(false);
     expect(lines.filter((line) => line.includes("knyttes til en person"))).toEqual([
-      "# Andel av Navs nettoforbruk som ikke kunne knyttes til en person, og som derfor ikke er med i tallene for noe team: mai 7\u00a0%, august 2\u00a0%.",
+      "# Ikke fordelt: andelen av Navs fakturerte beløp som ikke kunne knyttes til en person, og som derfor ikke er med i tallene for noe team: mai 7\u00a0%, august 2\u00a0%.",
     ]);
     expect(lines.some((line) => line.includes("brukte Copilot i måneden"))).toBe(false);
     expect(getTeamYearOverview).toHaveBeenCalledWith("123", 2026, "token");

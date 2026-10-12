@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { HighConsumersView } from "./high-consumers";
 import type { HighConsumerMonth } from "@/lib/types";
 
+vi.mock("react-chartjs-2", () => ({ Line: () => <canvas />, Bar: () => <canvas /> }));
+
 const month = (m: Partial<HighConsumerMonth>): HighConsumerMonth => ({
   month: "2026-09",
   basis: "netto",
@@ -26,11 +28,13 @@ describe("HighConsumersView", () => {
       <HighConsumersView months={[month({}), month({ month: "2026-01", basis: "premium", budget_bands: null })]} />
     );
     expect(screen.getAllByText("59,6 %").length).toBe(2);
-    expect(screen.getByText(/jan.*2026.*\(premium\)/)).toBeInTheDocument();
+    expect(screen.getByText(/jan.*2026\*/)).toBeInTheDocument();
     expect(screen.getByText("95 %")).toBeInTheDocument();
     const merged = screen.getByText("5 %", { selector: "td" });
     expect(merged.getAttribute("colspan")).toBe("6");
-    expect(screen.getByText("800 USD*")).toBeInTheDocument();
+    expect(screen.getByText("800 USD (endret)")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /brukte 90 % eller mer av grensen/ })).toBeInTheDocument();
+    expect(screen.getByText("Vis tallene")).toBeInTheDocument();
   });
 
   it("shows month to date in the budget table only", () => {
@@ -43,7 +47,7 @@ describe("HighConsumersView", () => {
       limit_changed: false,
     });
     render(<HighConsumersView months={[month({}), mtd]} />);
-    expect(screen.getByText(/Hittil i måneden \(/)).toBeInTheDocument();
+    expect(screen.getByText(/Hittil i måneden \(/, { selector: "th" })).toBeInTheDocument();
     expect(screen.getByText("Egen grense")).toBeInTheDocument();
     expect(screen.getAllByRole("row").filter((r) => r.textContent?.includes("Hittil"))).toHaveLength(1);
   });

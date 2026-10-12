@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { CostTrendsView } from "./cost-trends";
 import type { AdminMonth } from "@/lib/types";
 
+vi.mock("react-chartjs-2", () => ({ Line: () => <canvas />, Bar: () => <canvas /> }));
+
 describe("CostTrendsView", () => {
   it("divides net by active users and shows the model mix", () => {
     const trend = [
@@ -31,10 +33,12 @@ describe("CostTrendsView", () => {
     );
     expect(screen.queryByText(/des.*2025/)).not.toBeInTheDocument();
     expect(screen.getByText("250 USD")).toBeInTheDocument();
-    expect(screen.getByText("Premium")).toBeInTheDocument();
-    expect(screen.getByText("Hittil")).toBeInTheDocument();
-    expect(screen.getByText("75 %")).toBeInTheDocument();
-    expect(screen.getByText("100 %")).toBeInTheDocument();
+    expect(screen.getAllByText(/mai.*2026\*/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/okt.*2026 \(hittil\)/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Blir Copilot dyrere per bruker?")).toBeInTheDocument();
+    expect(screen.getByText(/Fakturert per aktiv bruker gikk fra 250 USD/)).toBeInTheDocument();
+    expect(screen.getByText("75 %", { selector: "td" })).toBeInTheDocument();
+    expect(screen.getByText("100 %", { selector: "td" })).toBeInTheDocument();
     expect(screen.getByText("20 %")).toBeInTheDocument();
   });
 });

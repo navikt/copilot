@@ -86,6 +86,8 @@ export interface MonthAnnotation {
   /** 1-based number of each event in the shared «Hendelser» list, same order as labels. */
   numbers: number[];
   dataBreak: boolean;
+  /** Short marker text drawn instead of the numbers; the tooltip then shows the labels in full. */
+  text?: string;
 }
 
 /**

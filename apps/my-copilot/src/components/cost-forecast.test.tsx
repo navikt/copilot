@@ -31,27 +31,26 @@ const base: CostForecast = {
 describe("CostForecastView", () => {
   it("shows both models with range, share of budget and accuracy", () => {
     render(<CostForecastView data={base} />);
-    expect(screen.getByText("Trend")).toBeInTheDocument();
-    expect(screen.getByText("Per person")).toBeInTheDocument();
+    expect(screen.getByText("Nav samlet")).toBeInTheDocument();
+    expect(screen.getByText("Hver person")).toBeInTheDocument();
     expect(screen.getAllByText(/425 USD–575 USD/)).toHaveLength(2);
     expect(screen.getByText("70 %")).toBeInTheDocument();
     expect(screen.getAllByText(/4,9 % i snitt/)[0]).toBeInTheDocument();
-    expect(screen.getByText(/Inkluderte kreditter brukt opp 6. oktober/)).toBeInTheDocument();
-    expect(screen.getByText(/Usikkert anslag, kalibreres videre/)).toBeInTheDocument();
-    expect(screen.queryByText(/stor usikkerhet/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Kredittene i lisensene ble brukt opp 6. oktober/)).toBeInTheDocument();
+    expect(screen.getByText(/Anslag \(bygger på/)).toBeInTheDocument();
     expect(screen.queryByText(/over budsjettet/)).not.toBeInTheDocument();
   });
 
   it("hides the per-person model without two closed months within the limit", () => {
     const models = [model({}), model({ model: "per_user", backtest_months: ["2026-09"] })];
     render(<CostForecastView data={{ ...base, models }} />);
-    expect(screen.getByText("Trend")).toBeInTheDocument();
-    expect(screen.queryByText("Per person")).not.toBeInTheDocument();
+    expect(screen.getByText("Nav samlet")).toBeInTheDocument();
+    expect(screen.queryByText("Hver person")).not.toBeInTheDocument();
   });
 
   it("shows the projected run-out date while credits are left", () => {
     render(<CostForecastView data={{ ...base, allowance_used_up: false }} />);
-    expect(screen.getByText(/brukt opp ca. 6. oktober/)).toBeInTheDocument();
+    expect(screen.getByText(/brukt opp rundt 6. oktober/)).toBeInTheDocument();
   });
 
   it("shows A4 when a midpoint is over budget", () => {

@@ -32,17 +32,17 @@ const base: CostForecast = {
 describe("CostStatusCardsView", () => {
   it("shows to date, both forecasts, budget use and run-out date", () => {
     render(<CostStatusCardsView data={base} />);
-    expect(screen.getByText(/Trend: 500 USD \(400 USD–600 USD\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Per person: 550 USD/)).toBeInTheDocument();
+    expect(screen.getByText(/Nav samlet: 500 USD \(400 USD–600 USD\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Hver person: 550 USD/)).toBeInTheDocument();
     expect(screen.getByText(/Brukt: 250 USD \(25 %\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Inkluderte kreditter brukt opp ca\./)).toBeInTheDocument();
-    expect(screen.queryByText("Aktive avvik")).not.toBeInTheDocument();
+    expect(screen.getByText(/Blir brukt opp rundt/)).toBeInTheDocument();
+    expect(screen.queryByText("Varsler")).not.toBeInTheDocument();
   });
 
   it("hides the per-person model until its backtest error is within the limit", () => {
     const off = { ...model("per_user", 550), backtest_error_pct: 16 };
     render(<CostStatusCardsView data={{ ...base, models: [model("trend", 500), off] }} />);
-    expect(screen.queryByText(/Per person/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hver person/)).not.toBeInTheDocument();
   });
 
   it("says so when no budget is set", () => {
@@ -54,12 +54,12 @@ describe("CostStatusCardsView", () => {
     render(<CostStatusCardsView data={{ ...base, models: [], budget_status: "error", allowance_used_up: true }} />);
     expect(screen.getByText("For lite data ennå.")).toBeInTheDocument();
     expect(screen.getByText("Kunne ikke hente budsjettet.")).toBeInTheDocument();
-    expect(screen.getByText("Brukt opp denne måneden.")).toBeInTheDocument();
+    expect(screen.getByText(/^Brukt opp/)).toBeInTheDocument();
   });
 
   it("links the anomaly count to the list", () => {
     render(<CostStatusCardsView data={{ ...base, models: [model("trend", 1200, true)] }} anomalies={3} />);
-    expect(screen.getByText(/prognosen er over budsjettet/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /avvik/ })).toHaveAttribute("href", "#avvik");
+    expect(screen.getByText(/Forventet faktura er over budsjettet/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /varsl/ })).toHaveAttribute("href", "#avvik");
   });
 });

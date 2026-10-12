@@ -14,15 +14,14 @@ export const metadata: Metadata = {
   description: "Utskriftsvennlig rapport over et teams Copilot-kostnad hittil i år.",
 };
 
-/** CSV column index, screen header and the shorter print header, so the columns fit on A4. */
+/** CSV column index, screen header and the shorter print header, so the columns fit on A4. No basis column; a footnote marks January–May. */
 const allColumns: [number, string, string][] = [
   [0, "Måned", "Måned"],
-  [1, "Grunnlag", "Grunnlag"],
-  [3, "Netto", "Netto"],
-  [4, "Brutto", "Brutto"],
-  [5, "Netto uten bruk", "Netto u. bruk"],
-  [7, "Lisenser (anslag)", "Lisenser*"],
-  [8, "Totalt med lisenser", "Totalt"],
+  [3, "Fakturert", "Fakturert"],
+  [4, "Foreløpig forbruk", "Foreløpig"],
+  [5, "Fakturert uten bruk", "Fakt. u. bruk"],
+  [7, "Lisenskostnad (anslag)", "Lisenser**"],
+  [8, "Totalt inkl. lisenser", "Totalt"],
 ];
 
 /** CSV amounts keep a decimal point; the report shows them the Norwegian way. */
@@ -66,8 +65,14 @@ export default async function TeamReportPage({
     return (
       <TableRow key={cells[0]} className={preliminary ? "text-text-subtle italic" : undefined}>
         {columns.map(([c], col) => (
-          <TableDataCell key={c} align={col < 2 ? "left" : "right"} style={total ? { fontWeight: 600 } : undefined}>
-            {col === 0 && !total ? monthName(cells[c]) : col < 2 ? cells[c] : nok(cells[c])}
+          <TableDataCell key={c} align={col ? "right" : "left"} style={total ? { fontWeight: 600 } : undefined}>
+            {col === 0 && !total
+              ? monthName(cells[c]) +
+                (data.months[i].basis === "premium" ? "*" : "") +
+                (preliminary ? " (foreløpig)" : "")
+              : col
+                ? nok(cells[c])
+                : cells[c]}
           </TableDataCell>
         ))}
       </TableRow>
@@ -98,7 +103,7 @@ export default async function TeamReportPage({
             <TableHeader>
               <TableRow>
                 {columns.map(([, screen, print], i) => (
-                  <TableHeaderCell key={screen} scope="col" align={i < 2 ? "left" : "right"}>
+                  <TableHeaderCell key={screen} scope="col" align={i ? "right" : "left"}>
                     <span className="print-hidden">{screen}</span>
                     <span className="print-only">{print}</span>
                   </TableHeaderCell>
@@ -108,8 +113,9 @@ export default async function TeamReportPage({
             <TableBody>{rows.map(row)}</TableBody>
           </Table>
         </div>
-        <BodyShort size="small" className="print-only">
-          * Lisenser er et anslag. «Totalt» er totalt med lisenser.
+        <BodyShort size="small">
+          {data.months.some((m) => m.basis === "premium") && "* Fakturert som premiumforespørsler, ikke KI-kreditter. "}
+          <span className="print-only">** Lisenskostnad er et anslag. «Totalt» er totalt inkl. lisenser.</span>
         </BodyShort>
         <ReportNote label="Kommentar" description="Valgfri tekst som vises under tabellen i utskriften." />
         <section aria-labelledby="slik-regner-vi">

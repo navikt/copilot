@@ -815,6 +815,10 @@ func (m *mockBigQueryClient) GetCostAnomalies(_ context.Context) ([]Anomaly, err
 	return m.anomalies, nil
 }
 
+func (m *mockBigQueryClient) GetLimitSnapshots(_ context.Context) ([]LimitChange, error) {
+	return nil, nil
+}
+
 func (m *mockBigQueryClient) GetSpendBands(_ context.Context) (*SpendBands, error) {
 	return m.spendBands, nil
 }

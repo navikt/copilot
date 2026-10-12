@@ -189,7 +189,7 @@ describe("Team insight", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} />);
     expect(screen.getByText(/teambeløpene kan derfor ikke summeres/i)).toBeInTheDocument();
     expect(screen.getByText(/per medlem er gjennomsnittet/i)).toBeInTheDocument();
-    expect(screen.getByText(/innsamlet 2\. oktober 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/hentet 2\. oktober 2026/)).toBeInTheDocument();
     expect(screen.getByText(/senere fakturakorreksjoner er ikke med/i)).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Mine team" })).getByText("beta")).toBeInTheDocument();
     expect(within(screen.getByRole("table", { name: "Andre team" })).getByText("alpha")).toBeInTheDocument();
@@ -203,7 +203,7 @@ describe("Team insight", () => {
   it("keeps browsing available when identity resolution fails", () => {
     render(<TeamGrossUsage data={gross} net={null} myTeams={null} />);
     expect(screen.getByText(/kunne ikke finne dine team/i)).toBeInTheDocument();
-    expect(screen.getByText(/beløpene er før fradrag/i)).toBeInTheDocument();
+    expect(screen.getByText(/beløpene er foreløpig forbruk/i)).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Andre team" })).toBeInTheDocument();
   });
 

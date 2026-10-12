@@ -277,18 +277,20 @@ export default function TeamGrossUsage({
             Lisensutgifter er ikke med.
           </BodyShort>
           {!net && (
-            <BodyShort>Beløpene er før fradrag. Fakturert forbruk er ikke tilgjengelig for denne måneden.</BodyShort>
+            <BodyShort>
+              Beløpene er foreløpig forbruk: listepris, før rabatt. Fakturert beløp finnes ikke for denne måneden ennå.
+            </BodyShort>
           )}
           {net && (
             <BodyShort>
-              Nettobeløpene er innsamlet {formatDate(net.loaded_at)}. Senere fakturakorreksjoner er ikke med.
+              De fakturerte beløpene er hentet {formatDate(net.loaded_at)}. Senere fakturakorreksjoner er ikke med.
             </BodyShort>
           )}
           {comparisonReason && <BodyShort>{comparisonReason}</BodyShort>}
           <BodyShort>
             «Hittil i år» laster ned en CSV-fil med teamets forbruk per måned i {year}, regnet på samme måte som her.
             «Rapport (PDF)» viser de samme tallene som en side du kan skrive ut eller lagre som PDF. Filen har også et
-            anslag for lisenser og forklarer hva tallene bygger på.
+            anslag for lisenskostnaden og forklarer hva tallene bygger på.
           </BodyShort>
         </VStack>
       </section>

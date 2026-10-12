@@ -38,6 +38,8 @@ type CostForecast struct {
 	// DailyForecast is the cumulative billed net per remaining day from the
 	// trend model, for the month chart.
 	DailyForecast []DailyForecastPoint `json:"daily_forecast"`
+	// LimitChanges are the days the default personal limit changed, for chart markers.
+	LimitChanges []LimitChange `json:"limit_changes"`
 }
 
 // CostForecastDay is cumulative enterprise net on one day of the month.
@@ -566,8 +568,15 @@ func (h *BigQueryHandlers) handleCostForecast(w http.ResponseWriter, r *http.Req
 		}
 	}
 
+	out := buildCostForecast(days, users, month, budget, status)
+	snaps, err := h.bqClient.GetLimitSnapshots(r.Context())
+	if err != nil {
+		// The markers are a nicety; the documented limits still give the history.
+		slog.Warn("Failed to fetch limit snapshots", "error", err)
+	}
+	out.LimitChanges = limitChanges(snaps)
 	cacheControl(w, 900, false)
-	respondJSON(w, buildCostForecast(days, users, month, budget, status), http.StatusOK)
+	respondJSON(w, out, http.StatusOK)
 }
 
 // dailySeries turns f's cumulative net per remaining day into points whose

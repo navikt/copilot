@@ -1,10 +1,11 @@
 "use client";
 
-import { useId } from "react";
 import { Bar, Line } from "react-chartjs-2";
-import { BodyShort, HGrid, Heading, ReadMore, VStack } from "@navikt/ds-react";
-import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
-import { bottomLegend, chartBoxClass, commonLineOptions, seriesColor } from "@/lib/chart-utils";
+import { BodyShort, HGrid } from "@navikt/ds-react";
+import { bottomLegend, commonLineOptions, seriesColor } from "@/lib/chart-utils";
+import { costEvents, eventAnnotations, eventSummary } from "@/lib/cost-events";
+import { ChartFigure } from "./chart-figure";
+import { eventMarkers, withEvents } from "./chart-events";
 import { formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
 import type { AdminMonth, CostForecast } from "@/lib/types";
@@ -131,29 +132,24 @@ function MonthChart({ data }: { data: CostForecast }) {
     ...(s.budget
       ? [{ label: "Budsjett i GitHub", data: s.labels.map(() => s.budget), ...line(4, { borderDash: [2, 2] }) }]
       : []),
-    ...(s.runOutDay
-      ? [
-          {
-            label: "Kredittene i lisensene brukt opp",
-            data: s.runOut,
-            ...line(3, { pointRadius: 6, pointStyle: "triangle", showLine: false }),
-          },
-        ]
-      : []),
   ];
+  const keys = (data.days ?? []).map((d) => d.day);
+  const markers = eventAnnotations(costEvents(data), keys);
+  const events = withEvents({ ...commonLineOptions, plugins: { ...commonLineOptions.plugins } }, keys, markers);
   const options = {
-    ...commonLineOptions,
+    ...events,
     spanGaps: false,
     plugins: {
-      ...commonLineOptions.plugins,
+      ...events.plugins,
       legend: {
         ...bottomLegend,
         labels: { ...bottomLegend.labels, filter: (item: { text: string }) => item.text !== "" },
       },
       tooltip: {
-        ...commonLineOptions.plugins.tooltip,
+        ...events.plugins.tooltip,
         filter: (item: { dataset: { label?: string }; raw: unknown }) => !!item.dataset.label && item.raw != null,
         callbacks: {
+          ...events.plugins.tooltip.callbacks,
           label: (ctx: { dataset: { label?: string }; parsed: { y: number }; dataIndex: number }) =>
             ctx.dataset.label?.startsWith("Spenn")
               ? ` ${ctx.dataset.label}: ${formatUSD(ctx.parsed.y)}–${formatUSD(s.high[ctx.dataIndex] ?? 0)}`
@@ -168,16 +164,21 @@ function MonthChart({ data }: { data: CostForecast }) {
     },
   };
   return (
-    <ChartFigure title="Denne måneden" summary={summary}>
-      <Line
-        data={{ labels: s.labels, datasets } as Parameters<typeof Line>[0]["data"]}
-        options={options as Parameters<typeof Line>[0]["options"]}
-      />
-      <DataTable
-        head={["Dag", "Fakturert"]}
-        rows={(data.days ?? []).map((d) => [dayLabel(d.day) + (d.forecast ? " (prognose)" : ""), formatUSD(d.net_usd)])}
-      />
-    </ChartFigure>
+    <ChartFigure
+      title="Er vi på vei over budsjettet?"
+      summary={summary + eventSummary(markers.filter((m) => !m.labels.every((l) => l.includes("kredittene"))))}
+      chart={
+        <Line
+          data={{ labels: s.labels, datasets } as Parameters<typeof Line>[0]["data"]}
+          options={options as Parameters<typeof Line>[0]["options"]}
+          plugins={[eventMarkers<"line">(keys, markers)]}
+        />
+      }
+      table={[
+        ["Dag", "Fakturert"],
+        ...(data.days ?? []).map((d) => [dayLabel(d.day) + (d.forecast ? " (prognose)" : ""), formatUSD(d.net_usd)]),
+      ]}
+    />
   );
 }
 
@@ -223,17 +224,20 @@ function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast 
         ]
       : []),
   ];
+  const keys = s.months.map((m) => m.month);
+  const markers = eventAnnotations(costEvents(data), keys);
+  const events = withEvents({ ...commonLineOptions, plugins: { ...commonLineOptions.plugins } }, keys, markers);
   const options = {
-    ...commonLineOptions,
+    ...events,
     // Bars from different datasets share the slot of their month: only one is set per month.
     datasets: { bar: { skipNull: true, grouped: true } },
     plugins: {
-      ...commonLineOptions.plugins,
-      legend: bottomLegend,
+      ...events.plugins,
       tooltip: {
-        ...commonLineOptions.plugins.tooltip,
+        ...events.plugins.tooltip,
         filter: (item: { raw: unknown }) => item.raw != null,
         callbacks: {
+          ...events.plugins.tooltip.callbacks,
           label: (ctx: { dataset: { label?: string }; raw: unknown; parsed: { y: number } }) =>
             Array.isArray(ctx.raw)
               ? ` ${ctx.dataset.label}: ${formatUSD(ctx.raw[0])}–${formatUSD(ctx.raw[1])}`
@@ -244,72 +248,28 @@ function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast 
     scales: { ...commonLineOptions.scales, y: { ...commonLineOptions.scales.y, ticks: usdTicks } },
   };
   return (
-    <ChartFigure title="Hittil i år" summary={summary}>
-      <Bar
-        data={{ labels: s.labels, datasets } as Parameters<typeof Bar>[0]["data"]}
-        options={options as Parameters<typeof Bar>[0]["options"]}
-      />
-      <DataTable
-        head={["Måned", "Fakturert"]}
-        rows={s.months.map((m, i) =>
+    <ChartFigure
+      title="Hvor mye har vi betalt i år?"
+      summary={summary + eventSummary(markers)}
+      chart={
+        <Bar
+          data={{ labels: s.labels, datasets } as Parameters<typeof Bar>[0]["data"]}
+          options={options as Parameters<typeof Bar>[0]["options"]}
+          plugins={[eventMarkers<"bar">(keys, markers)]}
+        />
+      }
+      table={[
+        ["Måned", "Fakturert"],
+        ...s.months.map((m, i) =>
           s.range[i]
             ? [`${monthName(m.month)} (foreløpig)`, `${formatUSD(s.range[i]![0])}–${formatUSD(s.range[i]![1])}`]
             : [
                 monthName(m.month) + (m.basis === "premium" ? " (premiumforespørsler)" : ""),
                 m.enterprise_net_usd != null ? formatUSD(m.enterprise_net_usd) : "Ikke fakturert ennå",
               ]
-        )}
-      />
-    </ChartFigure>
-  );
-}
-
-function ChartFigure({ title, summary, children }: { title: string; summary: string; children: React.ReactNode[] }) {
-  const [chart, table] = children;
-  const id = useId();
-  return (
-    <figure className="min-w-0 break-inside-avoid" style={{ margin: 0 }}>
-      <VStack gap="space-8">
-        <Heading level="3" size="xsmall">
-          {title}
-        </Heading>
-        <div className={chartBoxClass} role="img" aria-labelledby={id}>
-          {chart}
-        </div>
-        <figcaption id={id}>
-          <BodyShort size="small" textColor="subtle">
-            {summary}
-          </BodyShort>
-        </figcaption>
-        <div className="print:hidden">{table}</div>
-      </VStack>
-    </figure>
-  );
-}
-
-function DataTable({ head, rows }: { head: string[]; rows: string[][] }) {
-  return (
-    <ReadMore header="Vis tallene" size="small">
-      <Table size="small">
-        <TableHeader>
-          <TableRow>
-            {head.map((h, i) => (
-              <TableHeaderCell key={h} scope="col" align={i ? "right" : "left"}>
-                {h}
-              </TableHeaderCell>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map(([a, b]) => (
-            <TableRow key={a}>
-              <TableDataCell>{a}</TableDataCell>
-              <TableDataCell align="right">{b}</TableDataCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ReadMore>
+        ),
+      ]}
+    />
   );
 }
 

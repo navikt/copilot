@@ -23,20 +23,25 @@ export const adminMonthlyHeader = [
   "totalt_med_lisenser_usd",
 ];
 
-/** Caveats written as # lines in the CSV and listed under the table. */
+/** How to read the numbers: # lines in the CSV, and «Slik leser du tabellen» on the page. */
 export function adminMonthlyCaveats(data: AdminMonthlyOverview): string[] {
-  const { membership_from, last_gross_day, last_net_month, seats_snapshot } = data.coverage;
+  const { membership_from, seats_snapshot } = data.coverage;
   return [
-    "Totalraden er summen av de fakturerte månedene. Brutto er foreløpig og er ikke med i totalen.",
-    "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke KI-kreditter. Totalraden legger disse månedene sammen med netto fra juni.",
-    "Netto er Navs faktura etter fradrag. Fordelt på personer og restbeløpet blir til sammen netto. Restbeløpet er den delen av fakturaen som ikke kan knyttes til en person.",
-    `Uten team er netto for personer som ikke var med i noe team de dagene de brukte Copilot. Teamhistorikken starter ${membership_from || "ukjent dato"}, så feltet er tomt for månedene før.`,
-    "Brutto er listepris før fradrag. Den brukes for måneden som pågår og for forrige måned til fakturaen er lest inn, vanligvis den 3. i måneden.",
+    "Fakturert er beløpet Nav betaler etter rabatt. Fordelt på personer pluss ikke fordelt er lik fakturert.",
+    "Foreløpig forbruk er listepris for inneværende måned. Det byttes ut med fakturert beløp når fakturaen kommer, rundt den 3. i måneden etter.",
+    "Totalraden er summen av de fakturerte månedene. Foreløpig forbruk er ikke med.",
+    "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke KI-kreditter. Totalraden legger dem sammen med månedene fra juni.",
+    `Personer uten team er fakturert beløp for personer som ikke var med i noe team de dagene de brukte Copilot. Teamhistorikken starter ${membership_from || "ukjent dato"}, så feltet er tomt for månedene før.`,
     seats_snapshot
-      ? "Lisenser er et anslag: antall lisenser som gjaldt måneden, til listepris 19 USD for Business og 39 USD for Enterprise. Rabatt er ikke med, og lisenser som ble sagt opp før første innlesing, mangler."
-      : "Lisenser er ikke lest inn ennå. De vises etter første nattlige innlesing.",
-    `Siste dag med brutto: ${last_gross_day || "ukjent"}. Siste måned med netto: ${last_net_month ? monthName(last_net_month) : "ingen"}.`,
+      ? "Lisenskostnad er et anslag: antall lisenser ganger listepris, uten rabatt. Listeprisen er 19 USD for Business og 39 USD for Enterprise. Lisenser som ble sagt opp før første innlesing, er ikke med."
+      : "Lisensene er ikke lest inn ennå. De vises etter første nattlige innlesing.",
   ];
+}
+
+/** The last day and month the numbers cover; in the CSV, and under «Kilde og metode» on the page. */
+export function adminMonthlyCoverage(data: AdminMonthlyOverview): string {
+  const { last_gross_day, last_net_month } = data.coverage;
+  return `Siste dag med foreløpig forbruk: ${last_gross_day || "ukjent"}. Siste fakturerte måned: ${last_net_month ? monthName(last_net_month) : "ingen"}.`;
 }
 
 const amount = (value: number | null | undefined) => (value == null ? "" : value.toFixed(2));
@@ -91,7 +96,7 @@ export function adminMonthlyCsv(data: AdminMonthlyOverview): string {
   return (
     [
       `# Copilot-kostnad i USD for hele Nav, ${data.year}`,
-      ...adminMonthlyCaveats(data).map((c) => `# ${c}`),
+      ...[...adminMonthlyCaveats(data), adminMonthlyCoverage(data)].map((c) => `# ${c}`),
       adminMonthlyHeader.join(","),
       ...adminMonthlyRows(data).map((row) => row.join(",")),
     ].join("\n") + "\n"
