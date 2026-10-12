@@ -56,6 +56,11 @@ til 1–3 credits per forsøk. Luna holdt seg innenfor. Sol lå innenfor på K1,
 men to av tre T2-forsøk lå over 35. To av Sol-øktene på T2 gikk over den
 myke grensen på 30 credits uten å bli stoppet.
 
+**Luna mot Sol:** Luna fullførte 5 av 6 forsøk, Sol 6 av 6. Luna kostet
+omtrent 1/17 av Sol (snitt 1,81 mot 30,88 credits per forsøk). Med n=3 per
+oppgave er dette bare et hint, ikke bevis. Vi måler på nytt når oppgavene er
+gjort vanskeligere.
+
 **Vanskelighetsgrad:** Målet var 50–80 % fullført. Vi fikk 11 av 12 (92 %).
 K1 ble fullført i alle seks forsøkene, og T2 i fem av seks. Begge oppgavene er
 for lette i denne formen.
