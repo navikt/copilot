@@ -374,6 +374,59 @@ func TestBaselineCopilotSession(t *testing.T) {
 	}
 }
 
+// #1649: work done in a session without nav-pilot between two nav-pilot
+// launches is never counted.
+func TestBaselineCopilotSessionMovesAnExistingMarker(t *testing.T) {
+	const s1 = "11111111-1111-4111-8111-111111111111"
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+	root := filepath.Join(home, "session-state")
+	dir := filepath.Join(root, s1)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(dir, "events.jsonl")
+	if err := os.WriteFile(p, []byte(sessionFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rec := &sessionTelemetry{}
+	orig := telemetry
+	telemetry = rec
+	t.Cleanup(func() { telemetry = orig })
+	appendEvents := func(s string) {
+		f, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0o600)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f.WriteString(s)
+		f.Close()
+	}
+	// The first nav-pilot run writes the marker at its exit.
+	recordCopilotSessions(root, []string{s1})
+	if len(rec.got) != 1 {
+		t.Fatalf("first run: %d records", len(rec.got))
+	}
+	// A bare copilot --resume: input 18 -> 30, API time 15453 -> 20453.
+	appendEvents(resumeFixture)
+	// The next nav-pilot launch, then input 30 -> 40, API time 20453 -> 21453.
+	if !baselineCopilotSession(root, s1) {
+		t.Fatal("baseline refused")
+	}
+	appendEvents(strings.NewReplacer(`"tokenCount":30`, `"tokenCount":40`, `20453`, `21453`).Replace(resumeFixture))
+	recordCopilotSessions(root, []string{s1})
+	if len(rec.got) != 2 {
+		t.Fatalf("%d records, want 2", len(rec.got))
+	}
+	got := rec.got[1]
+	if got.Models["gpt-6-sol"].Input != 10 || got.APIDurationMS != 1000 || got.Turns != 1 {
+		t.Fatalf("counted work from outside nav-pilot: input %d, api %d ms, turns %d",
+			got.Models["gpt-6-sol"].Input, got.APIDurationMS, got.Turns)
+	}
+}
+
 // Global flags before a subcommand (#1640).
 func TestCopilotSessionArgsGlobalFlags(t *testing.T) {
 	for _, args := range [][]string{

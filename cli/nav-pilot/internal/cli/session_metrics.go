@@ -357,18 +357,21 @@ func recordCopilotSessions(root string, ids []string) {
 	}
 }
 
-// baselineCopilotSession runs at launch. An existing session with no marker,
-// one run without nav-pilot before, gets one at the end of what is there, so
-// recordCopilotSessions counts only what this launch adds. A new session has
-// no events file yet and gets nothing. Opted out, nothing is read.
+// baselineCopilotSession runs at launch, for every existing session. It moves
+// the marker to the end of what is there, with the totals from the last
+// session.shutdown, so recordCopilotSessions counts only what this launch adds.
+// Work done in the session without nav-pilot since the last launch is never
+// counted, and neither is what a crashed launch left unrecorded. A new session
+// has no events file yet and gets nothing. Opted out, nothing is read.
 //
-// The file is streamed, never held in memory: a long session runs past 100 MB,
-// and that one-time read then costs the launch about two seconds. Copilot is
-// not writing this session at launch, so the end of the file is the offset.
+// The file is streamed from the old marker's offset, never held in memory: a
+// long session runs past 100 MB, and the first read then costs the launch about
+// two seconds. Copilot is not writing this session at launch, so the end of the
+// file is the offset.
 //
 // It reports whether the session may be recorded at exit: false when an
 // existing session could not get its marker, since recordCopilotSessions
-// would then read it from the start and count the history before this launch.
+// would then read it from the wrong place.
 func baselineCopilotSession(root, id string) bool {
 	if !telemetryEnabled() || !copilotSessionID.MatchString(id) {
 		return true
@@ -380,15 +383,26 @@ func baselineCopilotSession(root, id string) bool {
 		return false
 	}
 	defer unlock()
-	if _, err := os.Stat(marker); !os.IsNotExist(err) {
-		return err == nil
-	}
 	f, err := os.Open(filepath.Join(dir, "events.jsonl"))
 	if err != nil {
 		return os.IsNotExist(err) // a new session
 	}
 	defer f.Close()
-	_, mark, _ := parseCopilotSession(f, configModelLabel, nil, nil, sessionTotals{})
+	var prev sessionMarker
+	if b, err := os.ReadFile(marker); err == nil {
+		if json.Unmarshal(b, &prev) != nil {
+			prev = sessionMarker{}
+		}
+	} else if !os.IsNotExist(err) {
+		return false
+	}
+	if _, err := f.Seek(prev.Offset, io.SeekStart); err != nil {
+		return false
+	}
+	_, mark, found := parseCopilotSession(f, configModelLabel, nil, nil, prev.sessionTotals)
+	if !found {
+		mark.sessionTotals = prev.sessionTotals
+	}
 	if mark.Offset, err = f.Seek(0, io.SeekEnd); err != nil {
 		return false
 	}

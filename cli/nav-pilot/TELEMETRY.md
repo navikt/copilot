@@ -98,8 +98,11 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   summene ved siste `session.shutdown` (Copilot oppgir tokens, kostnad og
   API-tid som løpende summer for hele økten). En gjenopptatt økt telles derfor
   bare for det som kom etterpå, og varigheten regnes fra `session.resume`.
-  Gjenopptar du en økt som nav-pilot ikke har lest før, lager nav-pilot filen
-  ved oppstart. Det som skjedde i økten før oppstarten, telles ikke.
+  Hver gang nav-pilot gjenopptar en økt, flytter den filen til slutten av
+  økten ved oppstart. Det som skjedde i økten før oppstarten, telles ikke,
+  heller ikke det du gjorde med `copilot --resume` uten nav-pilot mellom to
+  nav-pilot-kjøringer. Krasjet en tidligere nav-pilot-kjøring før den fikk
+  lest økten, telles heller ikke det den kjøringen gjorde.
 - nav-pilot dekoder bare disse feltene: navn, kilde og utløser fra
   `skill.invoked`; verktøynavn fra `tool.execution_start`; `success` fra
   `tool.execution_complete`; `hookType` og `success` fra `hook.end`;
