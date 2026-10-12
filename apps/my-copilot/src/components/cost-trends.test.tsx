@@ -38,7 +38,7 @@ describe("CostTrendsView", () => {
     expect(screen.getByText("250 USD")).toBeInTheDocument();
     expect(screen.getAllByText(/mai.*2026\*/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/okt.*2026 \(hittil\)/).length).toBeGreaterThan(0);
-    expect(screen.getByText("Blir Copilot dyrere per bruker?")).toBeInTheDocument();
+    expect(screen.getByText("Hvor mye koster Copilot per person?")).toBeInTheDocument();
     // The summary trend uses billed months only; October is a partial point in the table.
     expect(
       screen.getByText(/Fakturert per fakturert bruker gikk fra 250 USD i mai 2026 til 250 USD/)

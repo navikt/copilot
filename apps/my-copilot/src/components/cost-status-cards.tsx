@@ -63,7 +63,7 @@ export function CostStatusCardsView({
                   {forecastLabel[m.model]}: {range(m)}
                 </BodyShort>
               ))}
-              <Detail textColor="subtle">Ved månedsslutt. Spennet dekker omtrent ni av ti utfall.</Detail>
+              <Detail textColor="subtle">Ved månedsslutt. Usikkerheten dekker omtrent ni av ti utfall.</Detail>
             </>
           ) : (
             <BodyShort>For lite data ennå.</BodyShort>

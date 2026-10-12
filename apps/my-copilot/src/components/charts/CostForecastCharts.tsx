@@ -97,8 +97,12 @@ export const yearEndLine = (e: NonNullable<CostForecast["year_end"]>) =>
   `Forventet ved årets slutt: ${formatUSD(e.mid)} (${formatUSD(e.low)}–${formatUSD(e.high)})` +
   (e.label ? `, ${e.label}.` : ".");
 
+/** The year chart's legend label for the range: year-end low to high, rounded to thousands. */
+export const yearRangeLabel = (e: NonNullable<CostForecast["year_end"]>) =>
+  `Usikkerhet (${(Math.round(e.low / 1000) * 1000).toLocaleString("nb-NO")}–${formatUSD(Math.round(e.high / 1000) * 1000)})`;
+
 /** The legend label for the range, in whole percent. */
-export const rangeLabel = (pct: number) => `Spenn (±${Math.round(pct)} %)`;
+export const rangeLabel = (pct: number) => `Usikkerhet (±${Math.round(pct)} %)`;
 
 const usdTicks = { ...commonLineOptions.scales.y.ticks, callback: (v: string | number) => formatUSD(Number(v)) };
 
@@ -163,7 +167,7 @@ function MonthChart({ data }: { data: CostForecast }) {
         callbacks: {
           ...events.plugins.tooltip.callbacks,
           label: (ctx: { dataset: { label?: string }; parsed: { y: number }; dataIndex: number }) =>
-            ctx.dataset.label?.startsWith("Spenn")
+            ctx.dataset.label?.startsWith("Usikkerhet")
               ? ` ${ctx.dataset.label}: ${formatUSD(ctx.parsed.y)}–${formatUSD(s.high[ctx.dataIndex] ?? 0)}`
               : ` ${ctx.dataset.label}: ${formatUSD(ctx.parsed.y)}`,
         },
@@ -226,7 +230,11 @@ function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast 
     ...(s.end
       ? [
           { label: "Forventet faktura", data: s.forecast, ...line(0, { borderDash: [6, 4] }) },
-          { label: "Spenn", data: s.low, ...line(0, { borderWidth: 0, backgroundColor: seriesColor(0, 0.15) }) },
+          {
+            label: yearRangeLabel(s.end),
+            data: s.low,
+            ...line(0, { borderWidth: 0, backgroundColor: seriesColor(0, 0.15) }),
+          },
           {
             label: "",
             data: s.high,
@@ -253,12 +261,13 @@ function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast 
         filter: (item: { dataset: { label?: string }; raw: unknown; dataIndex: number }) =>
           !!item.dataset.label &&
           item.raw != null &&
-          (s.points[item.dataIndex]?.forecast || !["Forventet faktura", "Spenn"].includes(item.dataset.label)),
+          (s.points[item.dataIndex]?.forecast ||
+            !(item.dataset.label === "Forventet faktura" || item.dataset.label.startsWith("Usikkerhet"))),
         callbacks: {
           ...events.plugins.tooltip.callbacks,
           label: (ctx: { dataset: { label?: string }; parsed: { y: number }; dataIndex: number }) =>
-            ctx.dataset.label === "Spenn"
-              ? ` Spenn: ${formatUSD(ctx.parsed.y)}–${formatUSD(s.high[ctx.dataIndex] ?? 0)}`
+            ctx.dataset.label?.startsWith("Usikkerhet")
+              ? ` Usikkerhet: ${formatUSD(ctx.parsed.y)}–${formatUSD(s.high[ctx.dataIndex] ?? 0)}`
               : ` ${ctx.dataset.label}: ${formatUSD(ctx.parsed.y)}`,
         },
       },
@@ -309,10 +318,10 @@ function DayTable({ data }: { data: CostForecast }) {
                 Fakturert
               </TableHeaderCell>
               <TableHeaderCell scope="col" align="right">
-                Lav
+                Usikkerhet, lav
               </TableHeaderCell>
               <TableHeaderCell scope="col" align="right">
-                Høy
+                Usikkerhet, høy
               </TableHeaderCell>
             </TableRow>
           </TableHeader>

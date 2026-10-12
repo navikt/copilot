@@ -96,7 +96,7 @@ export function CostTrendsView({
   return (
     <VStack gap="space-24">
       <ChartFigure
-        title="Blir Copilot dyrere per bruker?"
+        title="Hvor mye koster Copilot per person?"
         summary={
           (firstPerUser != null && lastPerUser != null
             ? `Fakturert per fakturert bruker gikk fra ${formatUSD(firstPerUser)} i ${monthLabel(keys[full.indexOf(firstPerUser)])} til ${formatUSD(lastPerUser)} i ${monthLabel(keys[full.lastIndexOf(lastPerUser)])}.`

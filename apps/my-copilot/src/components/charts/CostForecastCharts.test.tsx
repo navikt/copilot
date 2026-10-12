@@ -1,5 +1,12 @@
 import { render, screen } from "@testing-library/react";
-import { CostForecastCharts, monthSeries, rangeLabel, yearEndLine, yearSeries } from "./CostForecastCharts";
+import {
+  CostForecastCharts,
+  monthSeries,
+  rangeLabel,
+  yearEndLine,
+  yearRangeLabel,
+  yearSeries,
+} from "./CostForecastCharts";
 import type { AdminMonth, CostForecast } from "@/lib/types";
 
 vi.mock("react-chartjs-2", () => ({ Line: () => <canvas />, Bar: () => <canvas /> }));
@@ -93,7 +100,10 @@ describe("CostForecastCharts", () => {
   });
 
   it("rounds the range to whole percent", () => {
-    expect(rangeLabel(16.645)).toBe("Spenn (±17 %)");
+    expect(rangeLabel(16.645)).toBe("Usikkerhet (±17 %)");
+    expect(yearRangeLabel({ mid: 0, low: 341580, high: 440593, range_pct: 35, backtest_error_pct: 35 })).toMatch(
+      /^Usikkerhet \(342\s000–441\s000\sUSD\)$/
+    );
   });
 
   it("gives each chart a text summary", () => {
