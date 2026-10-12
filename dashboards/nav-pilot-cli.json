@@ -2958,7 +2958,7 @@
         "description": "Linjer i Copilots events.jsonl som nav-pilot ikke kunne lese. Stiger tallet, har Copilot trolig endret formatet.",
         "id": 37,
         "links": [],
-        "title": "Hoppet over i events.jsonl (periode)",
+        "title": "Linjer hoppet over i events.jsonl (periode)",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
