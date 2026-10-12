@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BodyShort, Select, VStack } from "@navikt/ds-react";
+import { BodyShort, HStack, Select, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { ChartFigure, NumbersFold } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
@@ -11,8 +11,7 @@ import { formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
 import type { BudgetDay, SpendBand } from "@/lib/types";
 
-/** Base bands from copilot-api (budgetEdges); a merged band is drawn in its first base band. */
-const BANDS = ["0–10 %", "10–25 %", "25–50 %", "50–75 %", "75–90 %", "90–100 %", "Over 100 %"];
+import { BUDGET_BANDS as BANDS } from "@/components/high-consumers";
 
 const source = (d: BudgetDay) => (d.snapshots ? `GitHub (${formatNumber(d.snapshots)})` : "Anslag");
 
@@ -40,14 +39,23 @@ export function BudgetDaysView({ days, events = [] }: { days: BudgetDay[]; event
   const line = budgetComparison(days, month);
   return (
     <VStack gap="space-16">
-      <Select label="Måned" size="small" value={month} onChange={(e) => setMonth(e.target.value)} className="w-fit">
-        {months.map((m) => (
-          <option key={m} value={m}>
-            {monthLabel(m)}
-          </option>
-        ))}
-      </Select>
-      {line && <BodyShort>{line}.</BodyShort>}
+      <HStack gap="space-16" align="center">
+        <Select
+          label="Måned"
+          hideLabel
+          size="small"
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          className="w-fit"
+        >
+          {months.map((m) => (
+            <option key={m} value={m}>
+              {monthLabel(m)}
+            </option>
+          ))}
+        </Select>
+        {line && <BodyShort>{line}.</BodyShort>}
+      </HStack>
       <ChartFigure
         title="Hvor langt har brukerne kommet i budsjettet sitt?"
         summary={
@@ -108,10 +116,10 @@ export function BudgetDaysView({ days, events = [] }: { days: BudgetDay[]; event
           Hver søyle er én dag. Den viser hvor stor del av brukerne som har brukt 0–10 %, 10–25 % og så videre av sin
           egen grense, regnet fra forbruk til listepris fra den 1. i måneden. Kredittene i lisensene er ikke trukket
           fra, fordi brukerne ikke ser dem. Bare brukere med Copilot-aktivitet i måneden er med, og brukere med grense 0
-          er ikke med. Nedre grense hører til bøtta: nøyaktig 10 % telles i 10–25 %. Bøtter med færre enn fem brukere er
-          slått sammen med nabobøtta. Kolonnen «Kilde» viser om dagen bygger på GitHubs eget forbrukstall per person
-          (antall brukere i parentes) eller på et anslag fra bruksdata. GitHubs tall finnes fra oktober 2026; før det er
-          alle dager anslag. Juni 2026 starter 19. juni. Det er ingen prognose for månedsslutt ennå.
+          er ikke med. Nedre grense hører til gruppen: nøyaktig 10 % telles i 10–25 %. Grupper med færre enn fem brukere
+          er slått sammen med nabogruppen. Kolonnen «Kilde» viser om dagen bygger på GitHubs eget forbrukstall per
+          person (antall brukere i parentes) eller på et anslag fra bruksdata. GitHubs tall finnes fra oktober 2026; før
+          det er alle dager anslag. Tallene for juni 2026 starter 19. juni. Det er ingen prognose for månedsslutt ennå.
         </BodyShort>
       </NumbersFold>
     </VStack>

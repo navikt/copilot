@@ -32,6 +32,9 @@ func TestBuildBudgetDays(t *testing.T) {
 	if d.Bands[0].Label != "0–25\u00a0%" || d.Bands[0].Users != 23 {
 		t.Errorf("first band = %+v, want 0–25 %% with 23", d.Bands[0])
 	}
+	if g := buildBudgetDays([]budgetBucketRow{{Day: "2026-10-03", Users: 10, Snapshots: 8}}); g[0].Snapshots != 0 {
+		t.Errorf("snapshots = %d, want 0 when only two estimates remain", g[0].Snapshots)
+	}
 	if got[1].Bands != nil || got[1].Users != 0 {
 		t.Errorf("small day = %+v, want hidden", got[1])
 	}

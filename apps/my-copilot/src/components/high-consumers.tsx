@@ -11,7 +11,7 @@ import { ChartFigure, NumbersFold } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
 
 /** Base bands from copilot-api (budgetEdges); a merged band spans several columns. */
-const BUDGET_BANDS = ["0–10 %", "10–25 %", "25–50 %", "50–75 %", "75–90 %", "90–100 %", "Over 100 %"];
+export const BUDGET_BANDS = ["0–10 %", "10–25 %", "25–50 %", "50–75 %", "75–90 %", "90–100 %", "Over 100 %"];
 
 /** F8: high consumers as groups and users per share of the personal limit. Never individuals. */
 export function HighConsumersView({ months, events = [] }: { months: HighConsumerMonth[]; events?: CostEvent[] }) {

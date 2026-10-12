@@ -47,7 +47,8 @@ func buildBudgetDays(rows []budgetBucketRow) []BudgetDay {
 				d.Bands[k].Label = budgetBandLabel(d.Bands[k].First, d.Bands[k].Last)
 			}
 		}
-		if d.Snapshots < minBandUsers {
+		// Hide snapshots when either it or the estimates it leaves are under five.
+		if d.Snapshots < minBandUsers || d.Users-d.Snapshots > 0 && d.Users-d.Snapshots < minBandUsers {
 			d.Snapshots = 0
 		}
 		out = append(out, d)
