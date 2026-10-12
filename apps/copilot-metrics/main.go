@@ -1142,6 +1142,10 @@ func ingestTodayUserBudgetSnapshot(ctx context.Context, gh *GitHubClient, budget
 		slog.Info("No user budget data returned", "date", dateStr)
 		return
 	}
+	if ctx.Err() != nil {
+		slog.Warn("User budget census cancelled before storing", "date", dateStr, "users", len(entries))
+		return
+	}
 
 	// Idempotent per day: a complete census replaces today's rows; a partial
 	// one is stored only when nothing exists yet, so a later rate-limited rerun

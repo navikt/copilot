@@ -195,7 +195,7 @@ var budgetBaseDelay = 2 * time.Second
 
 // budgetRetryDelay decides whether a failed response is a rate limit or a
 // transient server error worth retrying, and how long to wait. Retry-After and
-// X-RateLimit-Reset win over exponential backoff, capped at five minutes.
+// X-RateLimit-Reset win over exponential backoff, capped at one minute.
 func budgetRetryDelay(resp *http.Response, body []byte, attempt int) (time.Duration, bool) {
 	rateLimited := resp.StatusCode == http.StatusTooManyRequests ||
 		(resp.StatusCode == http.StatusForbidden && (resp.Header.Get("Retry-After") != "" ||
@@ -212,7 +212,7 @@ func budgetRetryDelay(resp *http.Response, body []byte, attempt int) (time.Durat
 			delay = time.Until(time.Unix(reset, 0))
 		}
 	}
-	return min(max(delay, budgetBaseDelay), 5*time.Minute), true
+	return min(max(delay, budgetBaseDelay), time.Minute), true
 }
 
 // FetchAllUserBudgets fetches effective budget and consumption for every login in

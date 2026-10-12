@@ -14,6 +14,7 @@ const budgetShareFrom = "2026-06-19"
 // source is 'snapshot' where user_budget_snapshots holds GitHub's own figure
 // for that user and day, else 'estimate' (cumulative gross from user_metrics).
 // Pooled included credits are ignored on purpose: users do not see them.
+// Snapshots are taken during the day, estimates use whole days.
 // June 2026 starts on the 19th, so its month-to-date is low.
 // Callers aggregate; never return rows per person.
 func (bq *BigQueryClient) budgetShareCTE() string {
@@ -26,7 +27,7 @@ func (bq *BigQueryClient) budgetShareCTE() string {
     WHERE day >= DATE '%s'
   ),
   um AS (
-    SELECT DATE_TRUNC(day, MONTH) m, user_id, ANY_VALUE(login) login FROM u GROUP BY 1, 2
+    SELECT DATE_TRUNC(day, MONTH) m, user_id, ARRAY_AGG(login ORDER BY day DESC LIMIT 1)[OFFSET 0] login FROM u GROUP BY 1, 2
   ),
   spine AS (
     SELECT um.user_id, um.login, d day FROM um,
@@ -67,7 +68,8 @@ func (bq *BigQueryClient) budgetShareCTE() string {
 }
 
 // spendLimitSQL is the documented default limit on day, for days without a
-// budget_snapshots row (before 2026-07-03 and any missed day).
+// budget_snapshots row (before 2026-07-03 and any missed day). Days before
+// the first entry give NULL; the CTE starts after it.
 func spendLimitSQL(day string) string {
 	var b strings.Builder
 	b.WriteString("CASE")
