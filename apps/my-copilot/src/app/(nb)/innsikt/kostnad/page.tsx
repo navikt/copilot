@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { Alert, BodyShort, HGrid, Link, List, ReadMore, VStack } from "@navikt/ds-react";
+import { Alert, BodyShort, Link, List, VStack } from "@navikt/ds-react";
 import { ListItem } from "@navikt/ds-react/List";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import { CostAnomalies } from "@/components/cost-anomalies";
 import ErrorState from "@/components/error-state";
-import MetricCard from "@/components/metric-card";
-import { ChartFigure } from "@/components/charts/chart-figure";
+import { ChartFigure, NumbersFold } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { getAdminMonthlyOverview, getCostForecast } from "@/lib/cached-bigquery";
@@ -65,8 +64,7 @@ export default async function CostPage() {
 
   // The same rows as the CSV, in month order with the total last.
   const rows = adminMonthlyRows(data);
-  const { last_gross_day, gross_stale, last_net_month } = data.coverage;
-  const lastNet = data.months.find((m) => m.month === last_net_month);
+  const { last_gross_day, gross_stale } = data.coverage;
   const current = data.months.at(-1);
   const shown = data.months.filter((m) => m.basis !== "none");
   const keys = shown.map((m) => m.month);
@@ -84,58 +82,22 @@ export default async function CostPage() {
             Tallene kommer fra copilot-api (<code>billing/admin-monthly</code>): Navs faktura per måned, fordelt på
             personer og team på samme måte som på teamsidene. {adminMonthlyCoverage(data)}
           </span>
-          <ReadMore header="Slik regner prognosen" size="small">
+          <NumbersFold summary="Slik regner prognosen">
             <ForecastMethod />
-          </ReadMore>
+          </NumbersFold>
         </VStack>
       }
     >
-      <CostStatusCards token={token} />
-      <InsightSection id="oversikt" title={`Oversikt ${year}`}>
+      {/* One row of status cards; «oversikt» was the old second card row, kept for links. */}
+      <div id="oversikt" className="flex flex-col gap-4">
         {gross_stale && (
           <Alert variant="warning" size="small">
             Foreløpig forbruk er sist hentet for {formatDate(last_gross_day)}, mer enn to døgn siden. Tallene for denne
             måneden kan være for lave.
           </Alert>
         )}
-        <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
-          {lastNet?.enterprise_net_usd != null && (
-            <MetricCard
-              value={formatUSD(lastNet.enterprise_net_usd)}
-              label={`Fakturert ${monthName(lastNet.month)}`}
-              helpTitle="Fakturert"
-              helpText="Beløpet Nav betaler etter rabatt, for siste måned med faktura."
-              subtitle={lastNet.basis === "premium" ? "Premiumforespørsler" : undefined}
-            />
-          )}
-          {current?.gross_usd != null && (
-            <MetricCard
-              value={formatUSD(current.gross_usd)}
-              label={`Forbruk hittil i ${monthName(current.month)}`}
-              helpTitle="Foreløpig forbruk"
-              helpText="Listepris for inneværende måned. Det byttes ut med fakturert beløp når fakturaen kommer, rundt den 3. i måneden etter."
-              subtitle="Foreløpig forbruk"
-            />
-          )}
-          {lastNet?.residual_pct != null && (
-            <MetricCard
-              value={`${lastNet.residual_pct.toLocaleString("nb-NO", { maximumFractionDigits: 2 })} %`}
-              label={`Ikke fordelt ${monthName(lastNet.month)}`}
-              helpTitle="Ikke fordelt"
-              helpText="Andelen av det fakturerte beløpet som ikke kan knyttes til en person."
-            />
-          )}
-          {current?.seats != null && (
-            <MetricCard
-              value={formatNumber(current.seats)}
-              label="Lisenser"
-              subtitle="Antall"
-              helpTitle="Lisenser"
-              helpText="Antall lisenser denne måneden."
-            />
-          )}
-        </HGrid>
-      </InsightSection>
+        <CostStatusCards token={token} grossToDate={current?.basis === "gross" ? current.gross_usd : null} />
+      </div>
 
       <InsightSection id="per-maned" title="Per måned">
         <ChartFigure
@@ -227,7 +189,7 @@ export default async function CostPage() {
             Last ned CSV
           </Link>
         </BodyShort>
-        <ReadMore header="Slik leser du tabellen" size="small">
+        <NumbersFold summary="Slik leser du tallene">
           <List size="small">
             {adminMonthlyCaveats(data).map((c) => (
               <ListItem key={c}>{c}</ListItem>
@@ -241,7 +203,7 @@ export default async function CostPage() {
               .
             </ListItem>
           </List>
-        </ReadMore>
+        </NumbersFold>
       </InsightSection>
       <CostForecastSection token={token} months={data.months} />
       <CostAnomalies />

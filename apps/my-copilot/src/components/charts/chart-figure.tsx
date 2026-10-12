@@ -1,12 +1,13 @@
 import { useId, type ReactNode } from "react";
-import { BodyShort, Heading, ReadMore, VStack } from "@navikt/ds-react";
+import { Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { chartBoxClass } from "@/lib/chart-utils";
 
 /**
  * Chart first, then a text summary, then the numbers in a «Vis tallene» fold. The title is a question
  * the chart answers («Er vi på vei over budsjettet?»); the section heading above stays a plain name.
- * The summary labels the chart for screen readers; the table is hidden in print, where the chart is enough.
+ * The summary labels the chart for screen readers only; the cards and the chart already say it visually.
+ * Leave out `table` when charts sit side by side, and put one NumbersFold under the row instead.
  */
 export function ChartFigure({
   title,
@@ -18,7 +19,7 @@ export function ChartFigure({
   summary: ReactNode;
   chart: ReactNode;
   /** A ready table, or the cells for a plain one: the first row is the header. */
-  table: ReactNode | string[][];
+  table?: ReactNode | string[][];
 }) {
   const id = useId();
   return (
@@ -30,25 +31,37 @@ export function ChartFigure({
         <div className={chartBoxClass} role="img" aria-labelledby={id}>
           {chart}
         </div>
-        <figcaption id={id}>
-          <BodyShort size="small" textColor="subtle">
-            {summary}
-          </BodyShort>
+        <figcaption id={id} className="sr-only">
+          {summary}
         </figcaption>
-        <div className="print:hidden">
-          <ReadMore header="Vis tallene" size="small">
-            <div className="min-w-0 overflow-x-auto">
-              {Array.isArray(table) ? <PlainTable rows={table as string[][]} /> : table}
-            </div>
-          </ReadMore>
-        </div>
+        {table !== undefined && (
+          <NumbersFold>{Array.isArray(table) ? <PlainTable rows={table as string[][]} /> : table}</NumbersFold>
+        )}
       </VStack>
     </figure>
   );
 }
 
+/**
+ * A plain disclosure link, «Vis tallene» by default, that opens full width with no filled background.
+ * Native details/summary: works without JavaScript and is hidden in print, where the chart is enough.
+ */
+export function NumbersFold({ summary = "Vis tallene", children }: { summary?: string; children: ReactNode }) {
+  return (
+    <details className="group min-w-0 print:hidden">
+      <summary className="cursor-pointer list-none text-(--ax-text-accent) underline underline-offset-4 hover:no-underline [&::-webkit-details-marker]:hidden">
+        <span aria-hidden className="mr-1 inline-block transition-transform group-open:rotate-90">
+          ›
+        </span>
+        {summary}
+      </summary>
+      <div className="mt-2 min-w-0 overflow-x-auto">{children}</div>
+    </details>
+  );
+}
+
 /** First column left, the rest right-aligned numbers; the first row is the header. */
-function PlainTable({ rows: [head, ...rows] }: { rows: string[][] }) {
+export function PlainTable({ rows: [head, ...rows] }: { rows: string[][] }) {
   return (
     <Table size="small">
       <TableHeader>

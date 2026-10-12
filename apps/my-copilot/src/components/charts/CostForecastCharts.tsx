@@ -1,10 +1,11 @@
 "use client";
 
 import { Bar, Line } from "react-chartjs-2";
-import { BodyShort, HGrid } from "@navikt/ds-react";
+import { BodyShort, HGrid, Heading, VStack } from "@navikt/ds-react";
+import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { bottomLegend, commonLineOptions, seriesColor } from "@/lib/chart-utils";
 import { costEvents, eventAnnotations, eventSummary } from "@/lib/cost-events";
-import { ChartFigure } from "./chart-figure";
+import { ChartFigure, NumbersFold, PlainTable } from "./chart-figure";
 import { eventMarkers, withEvents } from "./chart-events";
 import { formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
@@ -174,10 +175,6 @@ function MonthChart({ data }: { data: CostForecast }) {
           plugins={[eventMarkers<"line">(keys, markers)]}
         />
       }
-      table={[
-        ["Dag", "Fakturert"],
-        ...(data.days ?? []).map((d) => [dayLabel(d.day) + (d.forecast ? " (prognose)" : ""), formatUSD(d.net_usd)]),
-      ]}
     />
   );
 }
@@ -258,27 +255,88 @@ function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast 
           plugins={[eventMarkers<"bar">(keys, markers)]}
         />
       }
-      table={[
-        ["Måned", "Fakturert"],
-        ...s.months.map((m, i) =>
-          s.range[i]
-            ? [`${monthName(m.month)} (foreløpig)`, `${formatUSD(s.range[i]![0])}–${formatUSD(s.range[i]![1])}`]
-            : [
-                monthName(m.month) + (m.basis === "premium" ? " (premiumforespørsler)" : ""),
-                m.enterprise_net_usd != null ? formatUSD(m.enterprise_net_usd) : "Ikke fakturert ennå",
-              ]
-        ),
-      ]}
     />
   );
 }
 
-/** «Denne måneden» and «Hittil i år», side by side on wide screens. Only the trend model is drawn. */
-export function CostForecastCharts({ data, months }: { data: CostForecast; months: AdminMonth[] }) {
+/** Per day this month, latest first: forecast rows are subtle and carry the range. */
+function DayTable({ data }: { data: CostForecast }) {
+  const s = monthSeries(data);
+  const days = (data.days ?? []).map((d, i) => ({ ...d, low: s.low[i], high: s.high[i] })).reverse();
   return (
-    <HGrid columns={{ xs: 1, md: 2 }} gap="space-24" className="print:grid-cols-2">
-      <MonthChart data={data} />
-      <YearChart months={months} data={data} />
-    </HGrid>
+    <VStack gap="space-4">
+      <Heading level="4" size="xsmall">
+        Denne måneden, siste dag først
+      </Heading>
+      <BodyShort size="small" textColor="subtle">
+        Grå rader er prognose.
+      </BodyShort>
+      <div className="max-h-96 overflow-y-auto">
+        <Table size="small">
+          <TableHeader className="sticky top-0 bg-(--ax-bg-default)">
+            <TableRow>
+              <TableHeaderCell scope="col">Dag</TableHeaderCell>
+              <TableHeaderCell scope="col" align="right">
+                Fakturert
+              </TableHeaderCell>
+              <TableHeaderCell scope="col" align="right">
+                Lav
+              </TableHeaderCell>
+              <TableHeaderCell scope="col" align="right">
+                Høy
+              </TableHeaderCell>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {days.map((d) => (
+              <TableRow key={d.day} className={d.forecast ? "text-text-subtle italic" : undefined}>
+                <TableHeaderCell scope="row" className="whitespace-nowrap font-normal">
+                  {dayLabel(d.day)}
+                </TableHeaderCell>
+                <TableDataCell align="right">{formatUSD(d.net_usd)}</TableDataCell>
+                <TableDataCell align="right">{d.forecast && d.low != null ? formatUSD(d.low) : ""}</TableDataCell>
+                <TableDataCell align="right">{d.forecast && d.high != null ? formatUSD(d.high) : ""}</TableDataCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </VStack>
+  );
+}
+
+/** «Denne måneden» and «Hittil i år», side by side on wide screens, with one full-width «Vis tallene» under both. */
+export function CostForecastCharts({ data, months }: { data: CostForecast; months: AdminMonth[] }) {
+  const s = yearSeries(months, data);
+  return (
+    <VStack gap="space-8">
+      <HGrid columns={{ xs: 1, md: 2 }} gap="space-24" className="print:grid-cols-2">
+        <MonthChart data={data} />
+        <YearChart months={months} data={data} />
+      </HGrid>
+      <NumbersFold>
+        <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
+          <DayTable data={data} />
+          <VStack gap="space-4">
+            <Heading level="4" size="xsmall">
+              Hittil i år
+            </Heading>
+            <PlainTable
+              rows={[
+                ["Måned", "Fakturert"],
+                ...s.months.map((m, i) =>
+                  s.range[i]
+                    ? [`${monthName(m.month)} (foreløpig)`, `${formatUSD(s.range[i]![0])}–${formatUSD(s.range[i]![1])}`]
+                    : [
+                        monthName(m.month) + (m.basis === "premium" ? " (premiumforespørsler)" : ""),
+                        m.enterprise_net_usd != null ? formatUSD(m.enterprise_net_usd) : "Ikke fakturert ennå",
+                      ]
+                ),
+              ]}
+            />
+          </VStack>
+        </HGrid>
+      </NumbersFold>
+    </VStack>
   );
 }

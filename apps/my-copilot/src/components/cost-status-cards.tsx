@@ -29,18 +29,30 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** F9: status cards at the top of the admin cost page. Amounts are internal: admin only, never logged. */
-export function CostStatusCardsView({ data: raw, anomalies }: { data: CostForecast; anomalies?: number }) {
+export function CostStatusCardsView({
+  data: raw,
+  anomalies,
+  grossToDate,
+}: {
+  data: CostForecast;
+  anomalies?: number;
+  /** Preliminary list-price usage this month, from the monthly overview. */
+  grossToDate?: number | null;
+}) {
   const data = { ...raw, models: shownModels(raw.models) };
   const used = data.net_to_date_usd;
   return (
     <>
       <h2 className="sr-only">Status for måneden</h2>
-      <HGrid columns={{ xs: 1, md: 2, lg: 4 }} gap="space-16">
+      <HGrid columns={{ xs: 1, md: 2, lg: anomalies === undefined ? 4 : 5 }} gap="space-16">
         <Card title={`Forbruk hittil i ${monthName(data.month)}`}>
           <BodyShort size="large" weight="semibold">
             {formatUSD(used)}
           </BodyShort>
-          <Detail textColor="subtle">Anslått fakturert beløp, regnet fra forbruket per dag.</Detail>
+          <Detail textColor="subtle">
+            Anslått fakturert beløp.
+            {grossToDate != null && ` Foreløpig forbruk til listepris: ${formatUSD(grossToDate)}.`}
+          </Detail>
         </Card>
         <Card title="Forventet faktura">
           {data.models.length ? (
@@ -98,8 +110,8 @@ export function CostStatusCardsView({ data: raw, anomalies }: { data: CostForeca
   );
 }
 
-export async function CostStatusCards({ token }: { token: string }) {
+export async function CostStatusCards({ token, grossToDate }: { token: string; grossToDate?: number | null }) {
   // The forecast section below shows the error; do not log amounts here.
   const data = await getCostForecast(token).catch(() => null);
-  return data && <CostStatusCardsView data={data} />;
+  return data && <CostStatusCardsView data={data} grossToDate={grossToDate} />;
 }
