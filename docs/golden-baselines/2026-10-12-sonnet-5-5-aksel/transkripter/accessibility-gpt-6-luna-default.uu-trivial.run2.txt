@@ -1,0 +1,12 @@
+● skill(aksel-builder)
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+Nei. Knappen inneholder bare `<TrashIcon />`, uten tekst eller tilgjengelig navn som `aria-label` eller `title`.
+

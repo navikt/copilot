@@ -1,0 +1,18 @@
+● skill(aksel-builder)
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.md
+  │ ~/.copilot/skills/aksel-builder/references/accessibility.md
+  └ 84 lines read
+
+● skill(klarsprak)
+
+Nei. Knappen inneholder bare `<TrashIcon />`, uten tekst eller tilgjengelig navn. Skjermleseren får derfor ikke vite at knappen sletter. Gi knappen for eksempel `aria-label="Slett status"` eller legg til synlig tekst.
+

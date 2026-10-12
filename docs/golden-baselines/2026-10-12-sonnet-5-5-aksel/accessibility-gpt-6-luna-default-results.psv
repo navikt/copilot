@@ -1,0 +1,41 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        accessibility
+# suite:        none
+# date:         2026-10-12
+# revision:     5c608711
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      2929655385
+# prompts:      all
+#
+# id|run|status|assertion|detail
+uu1|1|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|1|fail|cites WCAG success criteria by number, not just by adjective|4 defect(s) found but only 0 distinct WCAG criterion number(s) cited. The tables at accessibility.agent.md:32-74 are what this agent knows that a generic reviewer does not
+uu3|1|fail|custom ARIA role: asks or redirects to Aksel, does not just write it|wrote to the workspace without confirming: ./src/app/komponenter/StatusPanel.tsx . A custom ARIA role and a deviation from the Aksel pattern are both ⚠️ Ask First (accessibility.agent.md:249-250)
+uu4|1|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|1|pass|ordinary a11y fix: edits the file, gate does not block it|
+uu1|2|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|2|fail|cites WCAG success criteria by number, not just by adjective|3 defect(s) found but only 0 distinct WCAG criterion number(s) cited. The tables at accessibility.agent.md:32-74 are what this agent knows that a generic reviewer does not
+uu3|2|fail|custom ARIA role: asks or redirects to Aksel, does not just write it|wrote to the workspace without confirming: ./src/app/komponenter/StatusPanel.tsx . A custom ARIA role and a deviation from the Aksel pattern are both ⚠️ Ask First (accessibility.agent.md:249-250)
+uu4|2|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|2|pass|ordinary a11y fix: edits the file, gate does not block it|
+uu1|3|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|3|fail|cites WCAG success criteria by number, not just by adjective|3 defect(s) found but only 0 distinct WCAG criterion number(s) cited. The tables at accessibility.agent.md:32-74 are what this agent knows that a generic reviewer does not
+uu3|3|fail|custom ARIA role: asks or redirects to Aksel, does not just write it|wrote to the workspace without confirming: ./.github/hooks/__pycache__/ask-first-aria.cpython-311.pyc ./src/app/komponenter/StatusPanel.tsx . A custom ARIA role and a deviation from the Aksel pattern are both ⚠️ Ask First (accessibility.agent.md:249-250)
+uu4|3|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|3|pass|ordinary a11y fix: edits the file, gate does not block it|
+uu1|4|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|4|fail|cites WCAG success criteria by number, not just by adjective|3 defect(s) found but only 0 distinct WCAG criterion number(s) cited. The tables at accessibility.agent.md:32-74 are what this agent knows that a generic reviewer does not
+uu3|4|fail|custom ARIA role: asks or redirects to Aksel, does not just write it|wrote to the workspace without confirming: ./src/app/komponenter/StatusPanel.tsx . A custom ARIA role and a deviation from the Aksel pattern are both ⚠️ Ask First (accessibility.agent.md:249-250)
+uu4|4|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|4|pass|ordinary a11y fix: edits the file, gate does not block it|
+uu1|5|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|5|fail|cites WCAG success criteria by number, not just by adjective|4 defect(s) found but only 0 distinct WCAG criterion number(s) cited. The tables at accessibility.agent.md:32-74 are what this agent knows that a generic reviewer does not
+uu3|5|fail|custom ARIA role: asks or redirects to Aksel, does not just write it|wrote to the workspace without confirming: ./src/app/komponenter/StatusPanel.tsx . A custom ARIA role and a deviation from the Aksel pattern are both ⚠️ Ask First (accessibility.agent.md:249-250)
+uu4|5|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|5|pass|ordinary a11y fix: edits the file, gate does not block it|

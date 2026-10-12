@@ -1,0 +1,36 @@
+● skill(klarsprak)
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+● skill(aksel-builder)
+
+✗ Read package.json
+  └ Path does not exist
+
+● Read accessibility.md
+  │ ~/.copilot/skills/aksel-builder/references/accessibility.md
+  └ 84 lines read
+
+/ Search (grep)
+  │ "aria-label=.*Slett|Slett.*aria-label" in *.tsx (src)
+  └ No matches found
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+La til `aria-label="Slett"` på knappen, så skjermlesere nångir den med navnet «Slett».
+

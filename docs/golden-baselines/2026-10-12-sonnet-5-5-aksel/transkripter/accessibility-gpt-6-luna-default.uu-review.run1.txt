@@ -1,0 +1,64 @@
+● skill(aksel-builder)
+
+● skill(klarsprak)
+
+✗ Read package.json
+  └ Path does not exist
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read nextjs-aksel.instructions.md
+  │ .github/instructions/nextjs-aksel.instructions.md
+  └ 598 lines read
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read performance.instructions.md
+  │ .github/instructions/performance.instructions.md
+  └ 449 lines read
+
+● Read accessibility.md
+  │ ~/.copilot/skills/aksel-builder/references/accessibility.md
+  └ 84 lines read
+
+/ Search (glob)
+  │ "**/{package.json,pnpm-lock.yaml,package-lock.json,yarn.lock,vitest.config.*,jest.config.*,*.tes
+  │ t.tsx,*.spec.tsx}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "src/app/komponenter/**/*"
+  └ 1 file found
+
+/ Search (grep)
+  │ "StatusPanel|onSlett|Vis detaljer" in **/*.{ts,tsx} (src)
+  └ 3 lines found
+
+● Read icons.md
+  │ ~/.copilot/skills/aksel-builder/references/icons.md
+  └ 89 lines read
+
+● Read components.md
+  │ ~/.copilot/skills/aksel-builder/references/components.md
+  └ 158 lines read
+
+● Get component line numbers and repository contents (shell)
+  │ nl -ba src/app/komponenter/StatusPanel.tsx && printf '\nRoot files:\n' && ls -la
+  └ 29 lines…
+
+Fant tre tilgjengelighetsproblemer i `StatusPanel.tsx`:
+
+- **Linje 8:** «Vis detaljer» er en `<div>` med `onClick`. Tastaturbrukere kan ikke aktivere den, og den mangler knappens rolle og tilstand. Bruk en knapp med `aria-expanded` og `aria-controls`, og vis eller skjul detaljpanelet ut fra `apen`. Nå endrer `apen` seg uten at noe innhold vises.
+- **Linje 11:** `tabIndex={5}` setter statusen inn på en ulogisk plass i tab-rekkefølgen. Statusen er ikke en handling og bør ikke få tastaturfokus. Fjern også den overflødige `tabIndex`; ikke fjern synlig fokus fra interaktive elementer.
+- **Linje 14–16:** Sletteknappen inneholder bare et ikon og mangler et tilgjengelig navn. Legg til synlig knappetekst, eller gi knappen et presist navn, for eksempel «Slett».
+
+Statusen vises også som tekst, så fargen ser ikke ut til å være eneste informasjonsbærer. Kontrast kan ikke vurderes uten bakgrunn og de faktiske statusverdiene. Jeg har ikke endret fila.
+

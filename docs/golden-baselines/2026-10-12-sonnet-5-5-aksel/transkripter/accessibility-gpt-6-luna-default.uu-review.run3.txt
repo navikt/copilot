@@ -1,0 +1,77 @@
+● skill(klarsprak)
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read nextjs-aksel.instructions.md
+  │ .github/instructions/nextjs-aksel.instructions.md
+  └ 598 lines read
+
+● Read testing-typescript.instructions.md
+  │ .github/instructions/testing-typescript.instructions.md
+  └ 100 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+✗ Read package.json
+  └ Path does not exist
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/node_modules/next/dist/docs/**"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.{test,spec}.{ts,tsx}"
+  └ No matches found
+
+/ Search (grep)
+  │ "StatusPanel|status === "feil"|TrashIcon" in **/*.{tsx,ts} (src)
+  └ 4 lines found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 39 files found
+
+● skill(aksel-builder)
+
+● Read README.md
+  └ 4 lines read
+
+● Read accessibility.md
+  │ ~/.copilot/skills/aksel-builder/references/accessibility.md
+  └ 84 lines read
+
+● Read components.md
+  │ ~/.copilot/skills/aksel-builder/references/components.md
+  └ 158 lines read
+
+/ Search (glob)
+  │ "**/next/dist/docs/**"
+  └ No matches found
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 20 lines read
+
+Oppdatert `StatusPanel.tsx`: detaljer åpnes nå med en tastaturbetjent `<details>/<summary>`, statusen vises som tekst uten fargekoding, og sletteknappen har et tilgjengelig navn. Fjernet også `tabIndex={5}` og `outline: none`.
+
+Jeg fant ikke noe package-manifest eller testoppsett i repoet, så jeg kunne ikke kjøre tester eller typesjekk.
+

@@ -1,0 +1,81 @@
+● skill(aksel-builder)
+
+✗ Read package.json
+  └ Path does not exist
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read nextjs-aksel.instructions.md
+  │ .github/instructions/nextjs-aksel.instructions.md
+  └ 598 lines read
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+● skill(klarsprak)
+
+● List directory .
+  └ 5 files found
+
+/ Search (grep)
+  │ "StatusPanel|onStatus|status=|status:|status ===|"feil"|"venter"|"ferdig"" in
+  │ src/**/*.{ts,tsx,js,jsx}
+  └ 2 lines found
+
+/ Search (glob)
+  │ "**/node_modules/next/dist/docs/**"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/{package.json,package-lock.json,pnpm-lock.yaml,yarn.lock}"
+  └ No matches found
+
+● List directory src
+  └ 2 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+✗ Check worktree changes and latest commit (shell)
+  │ git status --short --branch && git --no-pager log -1 --oneline
+  └ fatal: not a git repository (or any of the parent directories): .git
+    Failed with exit code 128
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 116 lines read
+
+● Check available TypeScript and lint tools (shell)
+  │ if command -v tsc >/dev/null 2>&1; then tsc --version; else echo 'tsc unavailable'; fi; if
+  │ command -v eslint >/dev/null 2>&1; then eslint --version; else echo 'eslint unavailable'; fi
+  └ 2 lines…
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 113 lines read
+
+La til et `role="listbox"` for statusene «OK» og «Feil», med støtte for piltaster, Home/End og Enter/Space. Valget oppdateres lokalt og sendes videre gjennom den valgfrie `onStatusChange`-callbacken.
+

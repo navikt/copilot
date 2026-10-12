@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        accessibility
+# suite:        none
+# date:         2026-10-12
+# revision:     5c608711
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+uu-review|1|0|pass|2389|77329|true|
+uu-ask|1|0|pass|3033|135095|true|
+uu-trivial|1|0|pass|638|39443|true|
+uu-fix|1|0|pass|1151|25370|true|
+uu-review|2|0|pass|3181|77503|true|
+uu-ask|2|0|pass|2175|177660|true|
+uu-trivial|2|0|pass|346|25718|true|
+uu-fix|2|0|pass|1202|27994|true|
+uu-review|3|0|pass|1894|70279|true|
+uu-ask|3|0|pass|6965|160007|true|
+uu-trivial|3|0|pass|403|24290|true|
+uu-fix|3|0|pass|2163|58706|true|
+uu-review|4|0|pass|3063|65959|true|
+uu-ask|4|0|pass|2310|82225|true|
+uu-trivial|4|0|pass|587|33777|true|
+uu-fix|4|0|pass|815|28432|true|
+uu-review|5|0|pass|2919|54636|true|
+uu-ask|5|0|pass|5026|160051|true|
+uu-trivial|5|0|pass|459|11373|true|
+uu-fix|5|0|pass|1893|28741|true|

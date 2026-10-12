@@ -1,0 +1,12 @@
+● skill(klarsprak)
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+Nei. Knappen inneholder bare `TrashIcon`, som ikke har `title` eller annen tekst som gir den et tilgjengelig navn. Legg for eksempel til `aria-label="Slett"` på `<button>`.
+
