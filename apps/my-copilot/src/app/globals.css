@@ -873,3 +873,30 @@ button.search-hit {
 .aksel-read-more__button {
   min-height: 44px;
 }
+
+/* Team cost report (/innsikt/team/rapport): A4, no site chrome, table kept whole */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 15mm;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  body:has(.team-report) nav,
+  body:has(.team-report) aside {
+    display: none !important;
+  }
+
+  .team-report-table,
+  .team-report-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

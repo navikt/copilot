@@ -55,31 +55,36 @@ function licenceCaveats(data: TeamYearOverview): string[] {
 
 const amount = (value: number | null | undefined) => (value == null ? "" : value.toFixed(2));
 
+/** CSV cells per month plus the total row; the CSV and the PDF report both render these. */
+export function teamYearRows(data: TeamYearOverview): string[][] {
+  return [
+    ...data.months.map((m) => [
+      m.month,
+      basisLabel[m.basis],
+      String(m.users ?? ""),
+      amount(m.net_usd),
+      amount(m.gross_usd),
+      amount(m.no_usage_net_usd),
+      String(m.seat_months ?? ""),
+      amount(m.licence_usd_estimate),
+      amount(m.total_usd),
+    ]),
+    teamYearTotalRow(data),
+  ];
+}
+
 export function teamYearCsv(data: TeamYearOverview): string {
   const lines = [
     `# Copilot-forbruk i USD for team ${data.team_slug} (${data.team_id}), ${data.year}`,
     ...teamYearCaveats(data).map((caveat) => `# ${caveat}`),
     "måned,grunnlag,medlemmer_med_forbruk,netto_usd,brutto_usd,netto_uten_bruk_usd,medlemmer_med_lisens,lisenser_usd_anslag,totalt_med_lisenser_usd",
-    ...data.months.map((m) =>
-      [
-        m.month,
-        basisLabel[m.basis],
-        m.users ?? "",
-        amount(m.net_usd),
-        amount(m.gross_usd),
-        amount(m.no_usage_net_usd),
-        m.seat_months ?? "",
-        amount(m.licence_usd_estimate),
-        amount(m.total_usd),
-      ].join(",")
-    ),
-    teamYearTotalRow(data),
+    ...teamYearRows(data).map((row) => row.join(",")),
   ];
   return lines.join("\n") + "\n";
 }
 
 /** Sum of the billed months (net and premium). The gross month is preliminary and left out. */
-function teamYearTotalRow(data: TeamYearOverview): string {
+function teamYearTotalRow(data: TeamYearOverview): string[] {
   const billed = data.months.filter((m) => m.basis === "net" || m.basis === "premium");
   const sum = (pick: (m: TeamYearMonth) => number | null) => {
     const values = billed.map(pick);
@@ -95,5 +100,5 @@ function teamYearTotalRow(data: TeamYearOverview): string {
     "",
     amount(sum((m) => m.licence_usd_estimate)),
     amount(sum((m) => m.total_usd)),
-  ].join(",");
+  ];
 }

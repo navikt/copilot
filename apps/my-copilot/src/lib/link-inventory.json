@@ -244,6 +244,10 @@
       "teamkostnad": ["apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx"]
     }
   },
+  "/innsikt/team/rapport": {
+    "sources": ["apps/my-copilot/src/app/(nb)/innsikt/team/rapport/page.tsx"],
+    "anchors": {}
+  },
   "/innsikt/tilpasninger": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
@@ -815,7 +819,8 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "docs/nav-pilot-changelog.md"
     ],
     "anchors": {
       "brukerundersokelser": [
@@ -847,7 +852,8 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/planlegging/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "docs/nav-pilot-changelog.md"
     ],
     "anchors": {
       "demo-i-praksis": [
@@ -992,7 +998,10 @@
       "private-target": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "publickey": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "puppeteer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
-      "rapporter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "rapporter": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "docs/nav-pilot-changelog.md"
+      ],
       "self-attach": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "setuid": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "sign-in-failed": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
@@ -1451,7 +1460,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
       ],
-      "innstillinger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx"],
+      "innstillinger": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
+        "docs/nav-pilot-changelog.md"
+      ],
       "kjente-hull": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"

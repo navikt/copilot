@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BodyShort, Button, ErrorMessage, Heading, HStack, Table, VStack } from "@navikt/ds-react";
-import { Buildings3Icon, CodeIcon, CpuIcon, DownloadIcon, WrenchIcon } from "@navikt/aksel-icons";
+import { Buildings3Icon, CodeIcon, CpuIcon, DownloadIcon, FilePdfIcon, WrenchIcon } from "@navikt/aksel-icons";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamGrossOverview, TeamNetOverview, TeamSpend } from "@/lib/types";
 import { useTeamControls } from "./team-controls";
@@ -169,7 +169,19 @@ export default function TeamGrossUsage({
             </TableDataCell>
           )}
           <TableDataCell>
-            <TeamYearCsv team={team} year={year} />
+            <HStack gap="space-4" wrap={false}>
+              <TeamYearCsv team={team} year={year} />
+              <Button
+                as="a"
+                href={`/innsikt/team/rapport?team=${encodeURIComponent(team.team_id)}&year=${year}`}
+                variant="tertiary"
+                size="xsmall"
+                icon={<FilePdfIcon aria-hidden />}
+                aria-label={`Rapport over forbruket for ${team.team_slug} hittil i ${year}, for utskrift eller PDF`}
+              >
+                Rapport (PDF)
+              </Button>
+            </HStack>
           </TableDataCell>
         </TableRow>
       );
@@ -275,7 +287,8 @@ export default function TeamGrossUsage({
           {comparisonReason && <BodyShort>{comparisonReason}</BodyShort>}
           <BodyShort>
             «Hittil i år» laster ned en CSV-fil med teamets forbruk per måned i {year}, regnet på samme måte som her.
-            Filen har også et anslag for lisenser og forklarer hva tallene bygger på.
+            «Rapport (PDF)» viser de samme tallene som en side du kan skrive ut eller lagre som PDF. Filen har også et
+            anslag for lisenser og forklarer hva tallene bygger på.
           </BodyShort>
         </VStack>
       </section>
