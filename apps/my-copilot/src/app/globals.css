@@ -889,11 +889,6 @@ button.search-hit {
     display: block;
   }
 
-  body:has(.team-report) nav,
-  body:has(.team-report) aside {
-    display: none !important;
-  }
-
   .team-report-table,
   .team-report-table tr {
     break-inside: avoid;

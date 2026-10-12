@@ -3,6 +3,7 @@ import { BodyShort, Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import ErrorState from "@/components/error-state";
 import { getUser, getUserToken } from "@/lib/auth";
+import { BackendApiError } from "@/lib/backend-api";
 import { getTeamYearOverview } from "@/lib/cached-bigquery";
 import { formatDate } from "@/lib/format";
 import { teamYearCaveats, teamYearRows } from "@/lib/team-year";
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 /** CSV columns shown in the report: måned, grunnlag, netto, brutto, netto uten bruk, lisenser, totalt. */
 const columns = [0, 1, 3, 4, 5, 7, 8];
-const headers = ["Måned", "Grunnlag", "Netto", "Brutto", "Netto uten bruk", "Lisenser (anslag)", "Totalt"];
+const headers = ["Måned", "Grunnlag", "Netto", "Brutto", "Netto uten bruk", "Lisenser (anslag)", "Totalt med lisenser"];
 
 const monthName = (month: string) =>
   /^\d{4}-\d{2}$/.test(month)
@@ -40,6 +41,8 @@ export default async function TeamReportPage({
   try {
     data = await getTeamYearOverview(team, year, token);
   } catch (error) {
+    if (error instanceof BackendApiError && error.status === 400)
+      return <ErrorState message="Ugyldig team eller år." />;
     console.error("[team-rapport] Failed to fetch team year usage:", error);
     return <ErrorState message="Kunne ikke hente teamets forbruk." />;
   }
@@ -65,7 +68,7 @@ export default async function TeamReportPage({
   );
 
   return (
-    <div className="team-report mx-auto max-w-4xl px-4 py-8 print:p-0">
+    <main id="hovedinnhold" tabIndex={-1} className="team-report mx-auto max-w-4xl px-4 py-8 print:p-0">
       <VStack gap="space-24">
         <VStack gap="space-8">
           <Heading level="1" size="large">
@@ -112,6 +115,6 @@ export default async function TeamReportPage({
           </ul>
         </section>
       </VStack>
-    </div>
+    </main>
   );
 }
