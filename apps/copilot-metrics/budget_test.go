@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestBudgetClient_FetchUserEffectiveBudget(t *testing.T) {
@@ -177,7 +179,7 @@ func TestBudgetClient_FetchAllUserBudgets(t *testing.T) {
 		token:      "",
 	}
 
-	results, err := client.FetchAllUserBudgets(context.Background(), logins)
+	results, _, err := client.FetchAllUserBudgets(context.Background(), logins)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -228,7 +230,7 @@ func TestBudgetClient_FetchAllUserBudgets_PartialFailure(t *testing.T) {
 	}
 
 	// notfound returns nil (not error) — so all 3 succeed, just 2 have data
-	results, err := client.FetchAllUserBudgets(context.Background(), logins)
+	results, _, err := client.FetchAllUserBudgets(context.Background(), logins)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -237,11 +239,50 @@ func TestBudgetClient_FetchAllUserBudgets_PartialFailure(t *testing.T) {
 	}
 }
 
-func TestBudgetClient_FailedCensusPreservesSnapshot(t *testing.T) {
+func TestBudgetClient_FetchAllUserBudgets_KeepsSuccessesAndRetriesRateLimits(t *testing.T) {
+	budgetBaseDelay = time.Millisecond
+	t.Cleanup(func() { budgetBaseDelay = 2 * time.Second })
+
+	var mu sync.Mutex
+	calls := map[string]int{}
 	client := NewBudgetClient("test", "nav")
-	client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTooManyRequests) }))
-	if entries, err := client.FetchAllUserBudgets(context.Background(), []string{"one"}); err == nil || len(entries) != 0 {
-		t.Fatal("partial census accepted")
+	client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		login := r.URL.Query().Get("user")
+		mu.Lock()
+		calls[login]++
+		n := calls[login]
+		mu.Unlock()
+		switch {
+		case login == "limited" && n == 1:
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		case login == "secondary" && n == 1:
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"message":"You have exceeded a secondary rate limit"}`))
+			return
+		case login == "broken":
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		case login == "denied":
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"budgets":          []map[string]any{},
+			"effective_budget": map[string]any{"budget_amount": 100.0, "consumed_amount": 1.0},
+		})
+	}))
+
+	entries, failed, err := client.FetchAllUserBudgets(context.Background(), []string{"ok", "limited", "secondary", "broken", "denied"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(entries) != 3 || failed != 2 {
+		t.Fatalf("got %d entries, %d failed; want 3 and 2", len(entries), failed)
+	}
+	if calls["broken"] != budgetMaxRetries+1 || calls["denied"] != 1 {
+		t.Fatalf("retries: broken=%d denied=%d", calls["broken"], calls["denied"])
 	}
 }
 
