@@ -72,11 +72,18 @@ func findAnomalies(in anomalyInput, today time.Time) []Anomaly {
 		}
 		out = append(out, Anomaly{Rule: "A7", Date: last, Threshold: staleDataDays})
 	}
-	for i := 1; i < len(in.Days); i++ {
-		for d := day(in.Days[i-1].Day).AddDate(0, 0, 1); d.Before(day(in.Days[i].Day)); d = d.AddDate(0, 0, 1) {
-			if !d.Before(from) {
-				out = append(out, Anomaly{Rule: "A7", Date: d.Format(time.DateOnly)})
-			}
+	// Walk expected days from the later of the window start and the first data
+	// day, so a gap that began before the query window is still seen.
+	next := from
+	if first := day(in.FirstDataDay); first.After(next) {
+		next = first
+	}
+	for _, x := range in.Days {
+		for ; next.Before(day(x.Day)); next = next.AddDate(0, 0, 1) {
+			out = append(out, Anomaly{Rule: "A7", Date: next.Format(time.DateOnly)})
+		}
+		if !next.After(day(x.Day)) {
+			next = day(x.Day).AddDate(0, 0, 1)
 		}
 	}
 	if today.Day() >= netRunDueDay && !in.NetComplete && in.FirstDataDay != "" && in.FirstDataDay < time.Date(today.Year(), today.Month()-1, 1, 0, 0, 0, 0, time.UTC).Format(time.DateOnly) {

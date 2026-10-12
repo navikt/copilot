@@ -128,3 +128,11 @@ func TestFindAnomaliesBasisSwitch(t *testing.T) {
 		t.Fatalf("basis switch raised %v", got)
 	}
 }
+
+// A gap that began before the query window is still reported inside it.
+func TestFindAnomaliesGapFromBeforeWindow(t *testing.T) {
+	in := anomalyInput{Days: anomalyDays("2026-09-05", 25, 2000, 200), FirstDataDay: "2026-01-01", NetComplete: true}
+	if r := rules(findAnomalies(in, anomalyToday)); r["A7"] != 5 { // 08-31 .. 09-04
+		t.Fatalf("want 5 A7 gaps, got %v", r)
+	}
+}
