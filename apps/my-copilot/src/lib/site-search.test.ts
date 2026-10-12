@@ -40,7 +40,9 @@ describe("search index", () => {
       .map(route)
       .filter((r) => !r.includes("["))
       // A page that only redirects is found under the page it redirects to.
-      .filter((r) => !/\bpermanentRedirect\(/.test(fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8")));
+      .filter((r) => !/\bpermanentRedirect\(/.test(fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8")))
+      // Admin pages answer 404 to everyone else, so they stay out of search.
+      .filter((r) => !/\brequireAdmin\(/.test(fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8")));
     const hrefs = new Set(index.map((e) => e.href));
     expect(routes.filter((r) => !hrefs.has(r))).toEqual([]);
   });

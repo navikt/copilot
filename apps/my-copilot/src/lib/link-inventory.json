@@ -188,6 +188,12 @@
       "totalforbruk": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"]
     }
   },
+  "/innsikt/kostnad": {
+    "sources": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"]
+    }
+  },
   "/innsikt/lokale-modeller": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
@@ -345,7 +351,8 @@
       "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/tools-and-modes.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "docs/modellvalg.md"
+      "docs/modellvalg.md",
+      "docs/nav-pilot-changelog.md"
     ],
     "anchors": {}
   },

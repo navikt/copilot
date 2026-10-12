@@ -93,6 +93,7 @@ spec:
       - /innsikt/bruk
       - /innsikt/tilpasninger
       - /innsikt/trender
+      - /innsikt/kostnad
       - /innsikt/lokale-modeller
       # Old paths with a permanent redirect in next.config.ts. Listed so the
       # redirect answers before Wonderwall does; the private targets
