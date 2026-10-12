@@ -229,14 +229,15 @@ NORSK_ORD = set("og er ikke det som på for med til å ikkje eg ein ei eit kva f
 FREMMED = {
     "finsk": set("että tai sekä myös joka mutta tämä ovat kuin jos ole".split()),
     "svensk": set("och inte är att jag för från också vad hur där när måste används".split()),
-    "dansk": set("af hvad mig dig nogle noget lidt ud op uden bliver".split()),
+    "dansk": set("af hvad mig dig nogle noget lidt ud op uden bliver bruges brugt muligt ændre ændres gøre".split()),
     # «for» is Norwegian too.
     "engelsk": set("the and is of that this are not with you from which".split()),
 }
 
 
 def norsk(text):
-    prose = re.sub(r"```.*?```|`[^`\n]*`", " ", "\n".join(answer_lines(text)), flags=re.S)
+    # An unclosed fence runs to the end, as in Markdown.
+    prose = re.sub(r"```(?:.*?```|.*)|`[^`\n]*`", " ", "\n".join(answer_lines(text)), flags=re.S)
     toks = re.findall(r"[a-zæøåäö]+", prose.lower())
     if not toks:
         return "no answer text"
@@ -629,6 +630,8 @@ def selftest():
         ("norsk", (REPO / "docs/golden-baselines/2026-10-08-delegering-steg3/rev1/transkripter/d4.run2.txt").read_text(), [], "finsk"),
         ("norsk", "Gränsen är en konstant i `Config.kt` och den används i rutten. Det går inte att ändra den per miljö utan en variabel.\n", [], "svensk"),
         ("norsk", "Grænsen er en konstant i `Config.kt`, og den bliver brugt af ruten. Hvad du skal gøre er at læse den ud af miljøet efter opstart, så den kan ændres lidt nu og da.\n", [], "dansk"),
+        ("norsk", "Det er en konstant i Config.kt, og den bruges i ruten. Det er ikke muligt at ændre den per miljø.\n", [], "dansk"),
+        ("norsk", "Grensen er en konstant, og den må leses fra miljøet. Det er ikke vanskelig å gjøre:\n```kotlin\nval limit = System.getenv(\"LIMIT\") // read the value from the environment and use it for the route with this\nfun the() = this\n", [], True),
         ("norsk", "The limit is a constant in `Config.kt` and the route uses it.\n", [], "engelsk"),
         ("norsk", "Grensa er ein konstant i `Config.kt`, og eg ser ikkje kva som les ho frå miljøet.\n", [], True),
         ("norsk", "Det är inte bra. Vi måste ändra gränsen och läsa den från miljön.\n", [], "svensk"),
