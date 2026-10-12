@@ -82,23 +82,23 @@ type TeamYearOverview struct {
 }
 
 type teamYearRow struct {
-	Month           string               `bigquery:"month"`
-	NetComplete     bool                 `bigquery:"net_complete"`
-	ResidualPct     bigquery.NullFloat64 `bigquery:"residual_pct"`
-	GrossUsers      int64                `bigquery:"gross_users"`
-	Gross           float64              `bigquery:"gross"`
-	NetUsers        int64                `bigquery:"net_users"`
-	Net             float64              `bigquery:"net"`
-	NoUsageNet      float64              `bigquery:"no_usage_net"`
-	TeamSlug        string               `bigquery:"team_slug"`
-	MembershipFrom  string               `bigquery:"membership_from"`
-	GrossFrom       string               `bigquery:"gross_from"`
-	LastUsageDay    string               `bigquery:"last_usage_day"`
-	SeatMonths      int64                `bigquery:"seat_months"`
-	Licence         float64              `bigquery:"licence"`
-	UnknownPlan     int64                `bigquery:"unknown_plan"`
-	SeatsSnapshot   string               `bigquery:"seats_snapshot"`
-	TeamMembersFrom string               `bigquery:"team_members_from"`
+	Month           string   `bigquery:"month"`
+	NetComplete     bool     `bigquery:"net_complete"`
+	ResidualPct     *float64 `bigquery:"residual_pct"` // decodeBQRow handles pointers, not bigquery.Null*
+	GrossUsers      int64    `bigquery:"gross_users"`
+	Gross           float64  `bigquery:"gross"`
+	NetUsers        int64    `bigquery:"net_users"`
+	Net             float64  `bigquery:"net"`
+	NoUsageNet      float64  `bigquery:"no_usage_net"`
+	TeamSlug        string   `bigquery:"team_slug"`
+	MembershipFrom  string   `bigquery:"membership_from"`
+	GrossFrom       string   `bigquery:"gross_from"`
+	LastUsageDay    string   `bigquery:"last_usage_day"`
+	SeatMonths      int64    `bigquery:"seat_months"`
+	Licence         float64  `bigquery:"licence"`
+	UnknownPlan     int64    `bigquery:"unknown_plan"`
+	SeatsSnapshot   string   `bigquery:"seats_snapshot"`
+	TeamMembersFrom string   `bigquery:"team_members_from"`
 }
 
 // GetTeamYearOverview returns one team's months in year, with the same
@@ -314,8 +314,8 @@ func teamYearOverview(teamID string, year int, rows []teamYearRow, now time.Time
 			m.GrossUSD = cents(row.Gross)
 		}
 		net := m.Basis == basisNet || m.Basis == basisPremium
-		if net && row.ResidualPct.Valid {
-			m.ResidualPct = cents(row.ResidualPct.Float64)
+		if net && row.ResidualPct != nil {
+			m.ResidualPct = cents(*row.ResidualPct)
 		}
 		if net && row.NetUsers >= minTeamContributors {
 			m.NetUSD, m.NoUsageNetUSD = cents(row.Net), cents(row.NoUsageNet)

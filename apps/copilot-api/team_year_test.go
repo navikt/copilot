@@ -19,7 +19,10 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 	row := func(month string, complete bool, grossUsers, netUsers int64) teamYearRow {
 		r := cov
 		r.Month, r.NetComplete, r.GrossUsers, r.Gross, r.NetUsers, r.Net, r.NoUsageNet = month+"-01", complete, grossUsers, 100.004, netUsers, 80.006, 1.5
-		r.ResidualPct = bigquery.NullFloat64{Float64: 7.126, Valid: complete}
+		if complete {
+			pct := 7.126
+			r.ResidualPct = &pct
+		}
 		return r
 	}
 	rows := []teamYearRow{
@@ -32,7 +35,7 @@ func TestTeamYearOverviewBasisAndSuppression(t *testing.T) {
 		row("2026-10", true, 7, 7),  // current month never net
 		row("2026-11", false, 0, 0), // future
 	}
-	rows[5].ResidualPct = bigquery.NullFloat64{} // complete run from before the residual columns
+	rows[5].ResidualPct = nil // complete run from before the residual columns
 	got := teamYearOverview("123", 2026, rows, time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC))
 	want := []struct {
 		month, basis string
@@ -287,5 +290,22 @@ func TestTeamYearQueryWithoutResidualColumns(t *testing.T) {
 	old := bigquery.Schema{{Name: "month"}, {Name: "status"}}
 	if hasColumns(old, "enterprise_net", "residual_net") || !hasColumns(append(old, &bigquery.FieldSchema{Name: "enterprise_net"}, &bigquery.FieldSchema{Name: "residual_net"}), "enterprise_net", "residual_net") {
 		t.Error("hasColumns wrong")
+	}
+}
+
+// The row goes through decodeBQRow in production; a bigquery.Null* field there
+// failed every team-year request ("cannot assign value of type float64").
+func TestTeamYearRowDecodesResidual(t *testing.T) {
+	schema := bigquery.Schema{{Name: "month", Type: bigquery.StringFieldType}, {Name: "residual_pct", Type: bigquery.FloatFieldType}}
+	var r teamYearRow
+	if err := decodeBQRow(schema, []bigquery.Value{"2026-03-01", 7.13}, &r); err != nil {
+		t.Fatal(err)
+	}
+	if r.ResidualPct == nil || *r.ResidualPct != 7.13 {
+		t.Fatalf("residual = %v", r.ResidualPct)
+	}
+	var empty teamYearRow
+	if err := decodeBQRow(schema, []bigquery.Value{"2026-03-01", nil}, &empty); err != nil || empty.ResidualPct != nil {
+		t.Fatalf("null residual: err=%v value=%v", err, empty.ResidualPct)
 	}
 }
