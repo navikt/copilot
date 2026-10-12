@@ -76,8 +76,16 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 
 **Merk om Copilot-økter (`nav_pilot_session_*`, `nav_pilot_subagent_selected_total`):**
 - Når nav-pilot avslutter etter å ha startet Copilot, leser den
-  `~/.copilot/session-state/<økt>/events.jsonl` for økter som er skrevet til
-  siden oppstarten og har en `session.shutdown`. En fil
+  `~/.copilot/session-state/<økt>/events.jsonl` bare for økten den startet, og
+  bare når økten har en `session.shutdown`. Andre Copilot-økter, for eksempel
+  en du har startet med `copilot` ved siden av, leses ikke.
+- nav-pilot vet hvilken økt den startet slik: Uten valg av økt etter `--`
+  starter den en ny økt med en økt-ID den lager selv (`--session-id`, krever
+  Copilot CLI 1.0.51 eller nyere). Med `--resume` eller `--session-id` og en
+  hel økt-ID er det den økten. Med `--continue`, økt-velgeren, et navn, et
+  ID-prefiks eller en underkommando vet nav-pilot ikke hvilken økt det blir,
+  og ingen økt telles.
+- En fil
   `nav-pilot-session-metrics` i øktmappen husker hvor langt den har lest og
   summene ved siste `session.shutdown` (Copilot oppgir tokens, kostnad og
   API-tid som løpende summer for hele økten). En gjenopptatt økt telles derfor

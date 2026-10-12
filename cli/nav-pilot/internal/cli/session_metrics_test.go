@@ -139,13 +139,14 @@ func (s *sessionTelemetry) RecordCopilotSession(c telemetrypkg.CopilotSession) {
 }
 
 func TestRecordCopilotSessions(t *testing.T) {
+	const s1 = "11111111-1111-4111-8111-111111111111"
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 	root := filepath.Join(home, "session-state")
-	dir := filepath.Join(root, "s1")
+	dir := filepath.Join(root, s1)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -156,10 +157,10 @@ func TestRecordCopilotSessions(t *testing.T) {
 	orig := telemetry
 	telemetry = rec
 	t.Cleanup(func() { telemetry = orig })
-	since := time.Now().Add(-time.Minute)
+	ids := []string{s1}
 
 	t.Setenv("DO_NOT_TRACK", "1")
-	recordCopilotSessions(root, since)
+	recordCopilotSessions(root, ids)
 	if len(rec.got) != 0 {
 		t.Fatal("DO_NOT_TRACK=1 and a session was recorded")
 	}
@@ -168,18 +169,29 @@ func TestRecordCopilotSessions(t *testing.T) {
 	}
 	t.Setenv("DO_NOT_TRACK", "")
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "false")
-	recordCopilotSessions(root, since)
+	recordCopilotSessions(root, ids)
 	if len(rec.got) != 0 {
 		t.Fatal("NAV_PILOT_TELEMETRY_ENABLED=false and a session was recorded")
 	}
 	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
 
-	recordCopilotSessions(root, time.Now().Add(time.Hour))
+	recordCopilotSessions(root, []string{"../" + s1, "s1"})
 	if len(rec.got) != 0 {
-		t.Fatal("recorded a session not written since the launch")
+		t.Fatal("recorded a session by an id that is not a session id")
 	}
-	recordCopilotSessions(root, since)
-	recordCopilotSessions(root, since)
+	// A bare copilot running alongside, written to during the launch.
+	other := filepath.Join(root, "22222222-2222-4222-8222-222222222222")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(other, "events.jsonl"), []byte(sessionFixture), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	recordCopilotSessions(root, ids)
+	recordCopilotSessions(root, ids)
+	if _, err := os.Stat(filepath.Join(other, sessionMetricsMarker)); !os.IsNotExist(err) {
+		t.Error("read a session nav-pilot did not launch")
+	}
 	if len(rec.got) != 1 {
 		t.Fatalf("recorded %d times, want once", len(rec.got))
 	}
@@ -194,7 +206,7 @@ func TestRecordCopilotSessions(t *testing.T) {
 	}
 	f.WriteString(resumeFixture)
 	f.Close()
-	recordCopilotSessions(root, since)
+	recordCopilotSessions(root, ids)
 	// Turns is 2: the turn after the first shutdown lies past the marker too.
 	if len(rec.got) != 2 || rec.got[1].Models["gpt-6-sol"].Input != 12 || rec.got[1].Turns != 2 {
 		t.Fatalf("after resume: %d records, last %+v", len(rec.got), rec.got[len(rec.got)-1])
@@ -265,5 +277,29 @@ func TestLockSession(t *testing.T) {
 	unlock()
 	if _, ok := lockSession(lock); !ok {
 		t.Fatal("lock not released")
+	}
+}
+
+func TestCopilotSessionArgs(t *testing.T) {
+	const u = "0cb916db-26aa-40f2-86b5-1ba81b225fd2"
+	id, add := copilotSessionArgs([]string{"-p", "hi"})
+	if !copilotSessionID.MatchString(id) || len(add) != 1 || add[0] != "--session-id="+id {
+		t.Errorf("new session: %q %q", id, add)
+	}
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--resume=" + u}, u},
+		{[]string{"--session-id", u}, u},
+		{[]string{"-r", u}, u},
+		{[]string{"--resume"}, ""},
+		{[]string{"--resume=0cb916d"}, ""},
+		{[]string{"--continue"}, ""},
+		{[]string{"sessions", "list"}, ""},
+	} {
+		if id, add := copilotSessionArgs(c.args); id != c.want || add != nil {
+			t.Errorf("%q: %q %q, want %q and nothing added", c.args, id, add, c.want)
+		}
 	}
 }

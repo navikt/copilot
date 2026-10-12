@@ -20,7 +20,7 @@ stderr 'Not launching from your home directory: the sandbox would cover all of i
 # --project-dir names somewhere narrower, and the launch goes ahead.
 mkdir $WORK/proj
 exec nav-pilot --sync --source $WORK/plattform --project-dir $WORK/proj -- -p 'hello'
-grep '^hello\n---' $WORK/fake/cplt.log
+grep '^hello\n--session-id=[0-9a-f-]{36}\n---' $WORK/fake/cplt.log
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}

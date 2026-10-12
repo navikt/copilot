@@ -19,7 +19,7 @@ exec nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
 stdout 'Repo scope synced'
 ! stdout 'Launching'
 grep '^--yes\n' $WORK/fake/cplt.log
-grep '^-p\nreview this PR\n---' $WORK/fake/cplt.log
+grep '^-p\nreview this PR\n--session-id=[0-9a-f-]{36}\n---' $WORK/fake/cplt.log
 # The pin check reads .nav-pilot/agentpakke.lock.json under an absolute root.
 ! stderr 'boundary must be'
 ! stderr 'Could not read .nav-pilot/agentpakke.lock.json'

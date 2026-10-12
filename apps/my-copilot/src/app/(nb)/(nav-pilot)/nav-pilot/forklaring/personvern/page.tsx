@@ -42,7 +42,8 @@ export default function Personvern() {
             Når en Copilot-økt du startet med nav-pilot er ferdig, teller nav-pilot hva økten gjorde: hvilke skills og
             agenter fra agentpakken som ble brukt, hvilke av Copilots innebygde verktøy som ble kalt og om kallene gikk
             bra, antall runder, varighet, tokens, premium requests og kostnad per KI-modell. Tallene hentes fra Copilots
-            egen logg over økten. Det du skrev, svarene, verktøyresultatene og filnavnene tas ikke med. Andre skills,
+            egen logg over økten. Andre Copilot-økter, for eksempel en du har startet med copilot ved siden av, leses
+            ikke. Det du skrev, svarene, verktøyresultatene og filnavnene tas ikke med. Andre skills,
             agenter og verktøy telles som «annet», uten navn. Disse tallene har ikke maskinnummeret.
           </BodyLong>
           <BodyLong>

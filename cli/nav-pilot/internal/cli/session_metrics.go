@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
@@ -302,23 +303,25 @@ func parseCopilotSession(r io.Reader, model func(string) string, skills, agents 
 	return done, mark, found
 }
 
-// recordCopilotSessions records each Copilot session that ended since `since`
-// and was not recorded before. A marker in the session directory holds the
-// offset read so far and the totals at that point, so a resumed session counts
-// only what came after. Opted out, nothing is read.
+// recordCopilotSessions records the sessions in ids, the ones this launch
+// started or resumed, that ended and were not recorded before. Any other
+// session, such as a bare copilot running alongside, is never read. A marker
+// in the session directory holds the offset read so far and the totals at
+// that point, so a resumed session counts only what came after. Opted out,
+// nothing is read.
 //
 // A lock file per session keeps two overlapping nav-pilot exits from both
 // recording it: the one that loses the race skips the session.
-func recordCopilotSessions(root string, since time.Time) {
-	if !telemetryEnabled() || since.IsZero() {
+func recordCopilotSessions(root string, ids []string) {
+	if !telemetryEnabled() {
 		return
 	}
-	paths, _ := filepath.Glob(filepath.Join(root, "*", "events.jsonl"))
 	var skills, agents map[string]bool
-	for _, p := range paths {
-		if fi, err := os.Stat(p); err != nil || fi.ModTime().Before(since) {
+	for _, id := range ids {
+		if !copilotSessionID.MatchString(id) {
 			continue
 		}
+		p := filepath.Join(root, id, "events.jsonl")
 		marker := filepath.Join(filepath.Dir(p), sessionMetricsMarker)
 		unlock, ok := lockSession(marker + ".lock")
 		if !ok {
@@ -375,4 +378,36 @@ func lockSession(lock string) (unlock func(), ok bool) {
 		_ = os.Remove(lock)
 	}
 	return nil, false
+}
+
+// copilotSessionID is a session id as Copilot names its session directory.
+var copilotSessionID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// copilotSessionArgs picks the session a Copilot launch will run, from the
+// arguments after "--". With none that choose a session, it is a new one
+// with an id of nav-pilot's own, passed as --session-id (Copilot 1.0.51 and
+// later). A full id after --resume or --session-id is that session. Anything
+// else (--continue, the picker, a name or id prefix, a subcommand) leaves
+// the id unknown: nothing is added and no session is recorded.
+func copilotSessionArgs(extra []string) (id string, add []string) {
+	if len(extra) > 0 && !strings.HasPrefix(extra[0], "-") {
+		return "", nil
+	}
+	for i, a := range extra {
+		name, val, eq := strings.Cut(a, "=")
+		switch name {
+		case "--session-id", "--resume", "-r":
+			if !eq && i+1 < len(extra) {
+				val = extra[i+1]
+			}
+			if copilotSessionID.MatchString(val) {
+				return val, nil
+			}
+			return "", nil
+		case "--continue", "--connect":
+			return "", nil
+		}
+	}
+	id = uuid.NewString()
+	return id, []string{"--session-id=" + id}
 }
