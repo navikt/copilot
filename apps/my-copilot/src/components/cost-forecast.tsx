@@ -9,6 +9,17 @@ import type { CostForecast, CostForecastModel } from "@/lib/types";
 
 const label: Record<CostForecastModel["model"], string> = { trend: "Trend", per_user: "Per person" };
 
+/** Owner decision: the per-person model stays hidden until its backtest error is within this, over two closed months. */
+export const PER_USER_MAX_ERROR_PCT = 15;
+
+/** The models to show. The API always sends both; per_user shows only once it has proved itself. */
+export const shownModels = (models: CostForecastModel[]) =>
+  models.filter(
+    (m) =>
+      m.model !== "per_user" ||
+      ((m.backtest_months?.length ?? 0) >= 2 && Math.abs(m.backtest_error_pct) <= PER_USER_MAX_ERROR_PCT)
+  );
+
 const dateLabel = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("nb-NO", { day: "numeric", month: "long", timeZone: "UTC" });
 
@@ -19,7 +30,8 @@ function accuracy(m: CostForecastModel) {
 }
 
 /** F4 and F5: month-end forecast for the admin cost page, two models side by side, compared with the budget in GitHub. */
-export function CostForecastView({ data }: { data: CostForecast }) {
+export function CostForecastView({ data: raw }: { data: CostForecast }) {
+  const data = { ...raw, models: shownModels(raw.models) };
   if (!data.models.length) return <BodyShort>Vi har for lite data til en prognose for denne måneden ennå.</BodyShort>;
   const runsOut = data.models.find((m) => m.model === "trend")?.allowance_runs_out ?? data.models[0].allowance_runs_out;
   return (

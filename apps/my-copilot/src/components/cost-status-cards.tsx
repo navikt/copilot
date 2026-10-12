@@ -1,5 +1,6 @@
 import { BodyShort, Box, Detail, HGrid, Label, Link } from "@navikt/ds-react";
 import { useId, type ReactNode } from "react";
+import { shownModels } from "@/components/cost-forecast";
 import { getCostForecast } from "@/lib/cached-bigquery";
 import { formatDate, formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import type { CostForecast, CostForecastModel } from "@/lib/types";
@@ -29,7 +30,8 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** F9: status cards at the top of the admin cost page. Amounts are internal: admin only, never logged. */
-export function CostStatusCardsView({ data, anomalies }: { data: CostForecast; anomalies?: number }) {
+export function CostStatusCardsView({ data: raw, anomalies }: { data: CostForecast; anomalies?: number }) {
+  const data = { ...raw, models: shownModels(raw.models) };
   const used = data.net_to_date_usd;
   return (
     <>

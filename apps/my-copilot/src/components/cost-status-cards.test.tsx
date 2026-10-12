@@ -11,7 +11,7 @@ function model(name: CostForecastModel["model"], mid: number, over_budget = fals
     net_high_usd: mid + 100,
     range_pct: 20,
     backtest_error_pct: 10,
-    backtest_months: null,
+    backtest_months: ["2026-08", "2026-09"],
     budget_pct: mid / 10,
     over_budget,
   };
@@ -37,6 +37,12 @@ describe("CostStatusCardsView", () => {
     expect(screen.getByText(/Brukt: 250 USD \(25 %\)/)).toBeInTheDocument();
     expect(screen.getByText(/Inkluderte kreditter brukt opp ca\./)).toBeInTheDocument();
     expect(screen.queryByText("Aktive avvik")).not.toBeInTheDocument();
+  });
+
+  it("hides the per-person model until its backtest error is within the limit", () => {
+    const off = { ...model("per_user", 550), backtest_error_pct: 16 };
+    render(<CostStatusCardsView data={{ ...base, models: [model("trend", 500), off] }} />);
+    expect(screen.queryByText(/Per person/)).not.toBeInTheDocument();
   });
 
   it("says so when no budget is set", () => {

@@ -25,7 +25,7 @@ const base: CostForecast = {
   net_to_date_usd: 200,
   budget_status: "set",
   budget_usd: 1000,
-  models: [model({}), model({ model: "per_user", net_mid_usd: 700, budget_pct: 70, backtest_months: [] })],
+  models: [model({}), model({ model: "per_user", net_mid_usd: 700, budget_pct: 70 })],
 };
 
 describe("CostForecastView", () => {
@@ -35,11 +35,17 @@ describe("CostForecastView", () => {
     expect(screen.getByText("Per person")).toBeInTheDocument();
     expect(screen.getAllByText(/425 USD–575 USD/)).toHaveLength(2);
     expect(screen.getByText("70 %")).toBeInTheDocument();
-    expect(screen.getByText(/4,9 % i snitt/)).toBeInTheDocument();
-    expect(screen.getByText("Ingen avsluttet måned ennå")).toBeInTheDocument();
+    expect(screen.getAllByText(/4,9 % i snitt/)[0]).toBeInTheDocument();
     expect(screen.getByText(/Inkluderte kreditter brukt opp 6. oktober/)).toBeInTheDocument();
     expect(screen.getByText(/Usikkert anslag, kalibreres videre/)).toBeInTheDocument();
     expect(screen.queryByText(/over budsjettet/)).not.toBeInTheDocument();
+  });
+
+  it("hides the per-person model without two closed months within the limit", () => {
+    const models = [model({}), model({ model: "per_user", backtest_months: ["2026-09"] })];
+    render(<CostForecastView data={{ ...base, models }} />);
+    expect(screen.getByText("Trend")).toBeInTheDocument();
+    expect(screen.queryByText("Per person")).not.toBeInTheDocument();
   });
 
   it("shows the projected run-out date while credits are left", () => {
