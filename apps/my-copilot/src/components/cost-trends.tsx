@@ -2,10 +2,15 @@ import { BodyShort, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
-import { getAdminActiveUsers, getBillingModelBreakdown, getBillingMonthlyTrend } from "@/lib/cached-bigquery";
+import {
+  getAdminActiveUsers,
+  getAdminMonthlyOverview,
+  getBillingModelBreakdown,
+  getBillingMonthlyTrend,
+} from "@/lib/cached-bigquery";
 import { formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
-import type { ActiveUsersMonth, BillingModelBreakdown, BillingMonthlyTrend } from "@/lib/types";
+import type { ActiveUsersMonth, AdminMonth, BillingModelBreakdown, BillingMonthlyTrend } from "@/lib/types";
 
 /** First month with per-user billing; earlier months are left out. */
 const FIRST_MONTH = "2026-01";
@@ -19,16 +24,25 @@ export function CostTrendsView({
   trend,
   breakdown,
   active,
+  admin = [],
   currentMonth,
 }: {
   trend: BillingMonthlyTrend[];
   breakdown: BillingModelBreakdown[];
   active: ActiveUsersMonth[];
+  /** F2 months, for the licence share; empty if they could not be read. */
+  admin?: AdminMonth[];
   currentMonth: string;
 }) {
   const months = trend.filter((t) => t.year_month >= FIRST_MONTH);
   if (!months.length) return <BodyShort>Ingen måneder med forbruk ennå.</BodyShort>;
   const activeBy = new Map(active.map((a) => [a.month, a.active_users]));
+  // Licence share of the total from F2: licence estimate over usage plus licences.
+  const licenceShare = new Map(
+    admin
+      .filter((a) => a.licence_usd_estimate != null && a.total_usd)
+      .map((a) => [a.month, (a.licence_usd_estimate! / a.total_usd!) * 100])
+  );
 
   // The models with the most net over the period get a column each; the rest are summed as «Andre».
   const rows = breakdown.filter((b) => b.year_month >= FIRST_MONTH);
@@ -65,6 +79,9 @@ export function CostTrendsView({
               <TableHeaderCell scope="col" align="right">
                 Per aktiv bruker
               </TableHeaderCell>
+              <TableHeaderCell scope="col" align="right">
+                Lisensandel
+              </TableHeaderCell>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -81,6 +98,9 @@ export function CostTrendsView({
                   <TableDataCell align="right">
                     {users && t.year_month !== currentMonth ? formatUSD(t.total_net_amount / users) : "–"}
                   </TableDataCell>
+                  <TableDataCell align="right">
+                    {licenceShare.has(t.year_month) ? formatPercent(licenceShare.get(t.year_month)!) : "–"}
+                  </TableDataCell>
                 </TableRow>
               );
             })}
@@ -89,8 +109,9 @@ export function CostTrendsView({
       </div>
       <BodyShort size="small" textColor="subtle">
         Aktive brukere er alle som brukte Copilot minst én dag i måneden. Forbruk per aktiv bruker er forbruket delt på
-        dem. Januar til mai er premiumforespørsler. Denne måneden er bare dagene hittil, og har derfor ikke forbruk per
-        aktiv bruker.
+        dem. Lisensandelen er lisensanslaget (listepris uten rabatt) som andel av forbruk pluss lisenser, fra
+        månedsoversikten. Januar til mai er premiumforespørsler. Denne måneden er bare dagene hittil, og har derfor ikke
+        forbruk per aktiv bruker.
       </BodyShort>
 
       {top.length > 0 && (
@@ -135,13 +156,19 @@ export function CostTrendsView({
 }
 
 export async function CostTrendsSection({ token }: { token: string }) {
-  const [{ trend, error }, { breakdown }, active] = await Promise.all([
+  const [{ trend, error }, { breakdown }, active, admin] = await Promise.all([
     getBillingMonthlyTrend(token),
     getBillingModelBreakdown(token, 12),
     getAdminActiveUsers(token).catch((err) => {
       console.error("[kostnad] Failed to fetch active users:", err);
       return [] as ActiveUsersMonth[];
     }),
+    getAdminMonthlyOverview(new Date().getUTCFullYear(), token)
+      .then((d) => d.months)
+      .catch((err) => {
+        console.error("[kostnad] Failed to fetch admin monthly usage:", err);
+        return [] as AdminMonth[];
+      }),
   ]);
   const now = new Date();
   const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -150,7 +177,7 @@ export async function CostTrendsSection({ token }: { token: string }) {
       {error ? (
         <ErrorState message="Kunne ikke hente forbruk per måned." />
       ) : (
-        <CostTrendsView trend={trend} breakdown={breakdown} active={active} currentMonth={currentMonth} />
+        <CostTrendsView trend={trend} breakdown={breakdown} active={active} admin={admin} currentMonth={currentMonth} />
       )}
     </InsightSection>
   );

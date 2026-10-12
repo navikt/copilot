@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { CostTrendsView } from "./cost-trends";
+import type { AdminMonth } from "@/lib/types";
 
 describe("CostTrendsView", () => {
   it("divides net by active users and shows the model mix", () => {
@@ -24,6 +25,7 @@ describe("CostTrendsView", () => {
         trend={trend}
         breakdown={breakdown}
         active={[{ month: "2026-05", active_users: 4 }]}
+        admin={[{ month: "2026-05", licence_usd_estimate: 250, total_usd: 1250 } as AdminMonth]}
         currentMonth="2026-10"
       />
     );
@@ -33,5 +35,6 @@ describe("CostTrendsView", () => {
     expect(screen.getByText("Hittil")).toBeInTheDocument();
     expect(screen.getByText("75 %")).toBeInTheDocument();
     expect(screen.getByText("100 %")).toBeInTheDocument();
+    expect(screen.getByText("20 %")).toBeInTheDocument();
   });
 });
