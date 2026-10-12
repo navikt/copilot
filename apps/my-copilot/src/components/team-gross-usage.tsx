@@ -230,8 +230,7 @@ export default function TeamGrossUsage({
             </BodyShort>
           )}
           {comparisonReason && <BodyShort>{comparisonReason}</BodyShort>}
-          {/* Old links to the removed «Hittil i år» panel land here. */}
-          <BodyShort id="hittil-i-ar">
+          <BodyShort>
             «Hittil i år» laster ned en CSV-fil med teamets forbruk per måned i {year}, regnet på samme måte som her.
             Filen har også et anslag for lisenser og forklarer hva tallene bygger på.
           </BodyShort>

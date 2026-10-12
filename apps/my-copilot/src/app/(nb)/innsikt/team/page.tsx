@@ -76,6 +76,8 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       }
     >
       <InsightSection id="teamkostnad" title="Kostnad og bruk">
+        {/* Old links to the removed «Hittil i år» panel land here; the CSV is in the table. */}
+        <div id="hittil-i-ar" />
         <TeamControls month={month}>
           <Suspense key={month} fallback={<TeamSpendSkeleton />}>
             <TeamSpend month={month} token={token} />
