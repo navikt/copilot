@@ -110,7 +110,7 @@ export async function CostForecastSection({ token, months = [] }: { token: strin
   }
   return (
     <InsightSection id="prognose" title="Prognose for måneden">
-      <CostForecastCharts data={data} months={months} />
+      {data && <CostForecastCharts data={data} months={months} />}
       {data ? <CostForecastView data={data} /> : <ErrorState message="Kunne ikke hente prognosen." />}
     </InsightSection>
   );

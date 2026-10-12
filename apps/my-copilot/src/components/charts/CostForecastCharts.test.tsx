@@ -58,7 +58,9 @@ describe("CostForecastCharts", () => {
 
   it("gives each chart a text summary", () => {
     render(<CostForecastCharts data={forecast} months={months} />);
-    const [month, year] = screen.getAllByRole("img").map((e) => e.getAttribute("aria-label"));
+    const [month, year] = screen
+      .getAllByRole("img")
+      .map((e) => document.getElementById(e.getAttribute("aria-labelledby")!)!.textContent);
     expect(month).toMatch(/Forventet faktura ved månedsslutt er 200\sUSD, mellom 170\sUSD og 230\sUSD/);
     expect(month).toMatch(/Kredittene i lisensene brukes etter prognosen opp 3\. oktober\./);
     expect(year).toMatch(/mai 50\sUSD, september 300\sUSD/);

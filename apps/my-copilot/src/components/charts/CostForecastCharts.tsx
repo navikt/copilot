@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Bar, Line } from "react-chartjs-2";
 import { BodyShort, HGrid, Heading, ReadMore, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
@@ -127,8 +128,10 @@ function MonthChart({ data }: { data: CostForecast }) {
         ...commonLineOptions.plugins.tooltip,
         filter: (item: { dataset: { label?: string }; raw: unknown }) => !!item.dataset.label && item.raw != null,
         callbacks: {
-          label: (ctx: { dataset: { label?: string }; parsed: { y: number } }) =>
-            ` ${ctx.dataset.label}: ${formatUSD(ctx.parsed.y)}`,
+          label: (ctx: { dataset: { label?: string }; parsed: { y: number }; dataIndex: number }) =>
+            ctx.dataset.label?.startsWith("Spenn")
+              ? ` ${ctx.dataset.label}: ${formatUSD(ctx.parsed.y)}–${formatUSD(s.high[ctx.dataIndex] ?? 0)}`
+              : ` ${ctx.dataset.label}: ${formatUSD(ctx.parsed.y)}`,
         },
       },
     },
@@ -237,16 +240,17 @@ function YearChart({ months, data }: { months: AdminMonth[]; data: CostForecast 
 
 function ChartFigure({ title, summary, children }: { title: string; summary: string; children: React.ReactNode[] }) {
   const [chart, table] = children;
+  const id = useId();
   return (
     <figure className="m-0 min-w-0 break-inside-avoid">
       <VStack gap="space-8">
         <Heading level="3" size="xsmall">
           {title}
         </Heading>
-        <div className={chartBoxClass} role="img" aria-label={summary}>
+        <div className={chartBoxClass} role="img" aria-labelledby={id}>
           {chart}
         </div>
-        <figcaption>
+        <figcaption id={id}>
           <BodyShort size="small" textColor="subtle">
             {summary}
           </BodyShort>
@@ -284,10 +288,10 @@ function DataTable({ head, rows }: { head: string[]; rows: string[][] }) {
 }
 
 /** «Denne måneden» and «Hittil i år», side by side on wide screens. Only the trend model is drawn. */
-export function CostForecastCharts({ data, months }: { data: CostForecast | null; months: AdminMonth[] }) {
+export function CostForecastCharts({ data, months }: { data: CostForecast; months: AdminMonth[] }) {
   return (
     <HGrid columns={{ xs: 1, md: 2 }} gap="space-24" className="print:grid-cols-2">
-      {data ? <MonthChart data={data} /> : <BodyShort>Kunne ikke hente prognosen.</BodyShort>}
+      <MonthChart data={data} />
       <YearChart months={months} data={data} />
     </HGrid>
   );
