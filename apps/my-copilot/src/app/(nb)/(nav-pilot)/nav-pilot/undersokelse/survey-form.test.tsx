@@ -96,3 +96,21 @@ describe("SurveyForm matrix", () => {
     expect(sendSurvey).toHaveBeenCalledWith("s", { verktoy: ["Ingen"] });
   });
 });
+
+describe("SurveyForm multi limit", () => {
+  it("disables the unpicked boxes once max_choices are picked, and says why", () => {
+    const multi: Survey = {
+      ...survey,
+      questions: [{ id: "m", type: "multi", text: "Hva?", required: true, options: ["a", "b", "c"], max_choices: 2 }],
+    };
+    render(<SurveyForm survey={multi} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "a" }));
+    expect(screen.getByRole("checkbox", { name: "c" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "b" }));
+    expect(screen.getByRole("checkbox", { name: "c" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "a" })).toBeEnabled();
+    expect(screen.getByText(/Du har valgt 2/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "a" }));
+    expect(screen.getByRole("checkbox", { name: "c" })).toBeEnabled();
+  });
+});

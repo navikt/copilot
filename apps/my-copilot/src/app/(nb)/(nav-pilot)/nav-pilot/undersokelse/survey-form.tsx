@@ -278,30 +278,36 @@ function Question({
           ))}
         </RadioGroup>
       );
-    case "multi":
+    case "multi": {
+      const picked = Array.isArray(value) ? value : [];
+      // At the limit the unpicked boxes are disabled, and the description says why.
+      const full = !!q.max_choices && picked.length >= q.max_choices;
       return (
         <CheckboxGroup
           id={`q-${q.id}`}
           tabIndex={-1}
           legend={legend}
           description={
-            /\(velg /i.test(q.text)
-              ? undefined
-              : q.max_choices
-                ? `Velg opptil ${q.max_choices}.`
-                : "Velg alle som passer."
+            full
+              ? `Du har valgt ${q.max_choices}. Fjern et valg for å velge noe annet.`
+              : /\(velg /i.test(q.text)
+                ? undefined
+                : q.max_choices
+                  ? `Velg opptil ${q.max_choices}.`
+                  : "Velg alle som passer."
           }
           error={error}
-          value={Array.isArray(value) ? value : []}
+          value={picked}
           onChange={(v: string[]) => onChange(v.length > 0 ? v : undefined)}
         >
           {optionsOf(q).map((o) => (
-            <Checkbox key={o} value={o}>
+            <Checkbox key={o} value={o} disabled={full && !picked.includes(o)}>
               {o}
             </Checkbox>
           ))}
         </CheckboxGroup>
       );
+    }
     case "text":
       return (
         <Textarea
