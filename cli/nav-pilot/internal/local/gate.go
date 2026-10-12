@@ -153,7 +153,7 @@ type GateRequest struct {
 	Old        string `json:"old"`
 	// Phase is "" before a tool call, "after" once a task to the worker or a
 	// bash command has returned, "text" when the orchestrator has written
-	// text, and "worker" when the worker is about to create a file.
+	// text, and "worker" when the worker is about to create or edit a file.
 	Phase string `json:"phase"`
 	// Worker is the worker's session, on a task's "after".
 	Worker string `json:"worker"`
@@ -512,7 +512,7 @@ func (g *dispatchGate) turn(r GateRequest) *gateTurn {
 // unverified ("text"). The key is the JSON field the plugin reads.
 func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 	if r.Phase == "worker" {
-		if r.Session != "" && (r.Tool == "edit" || r.Create && exists(g.rules.Root, r.Path) == statMissing) {
+		if r.Session != "" && (r.Tool == "write" || r.Tool == "edit") {
 			g.mu.Lock()
 			g.workerWrote[r.Session] = true
 			g.mu.Unlock()
