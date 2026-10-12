@@ -99,3 +99,33 @@ func TestAdminTrendRoutesNeedAdmin(t *testing.T) {
 		}
 	}
 }
+
+func TestMonthToDate(t *testing.T) {
+	if monthToDate(nil) != nil {
+		t.Fatal("no rows must give no month")
+	}
+	var rows []budgetShareRow
+	for i := range 12 {
+		src := "estimate"
+		if i < 3 {
+			src = "snapshot"
+		}
+		share := 0.05 // 0–10 %
+		if i >= 8 {
+			share = 1.5 // over 100 %, 4 users: merged into a neighbour
+		}
+		rows = append(rows, budgetShareRow{Day: "2026-10-12", Share: share, Source: src})
+	}
+	m := monthToDate(rows)
+	if m.Month != "2026-10" || m.Basis != "hittil" || m.Users != 12 || m.Snapshots != 3 || m.LastDay != "2026-10-12" {
+		t.Fatalf("month = %+v", m)
+	}
+	for _, b := range m.BudgetBands {
+		if b.Users > 0 && b.Users < minBandUsers {
+			t.Errorf("band %s has %d users", b.Label, b.Users)
+		}
+	}
+	if small := monthToDate(rows[:4]); small.Users != 0 || small.BudgetBands != nil {
+		t.Errorf("fewer than five users must hide everything: %+v", small)
+	}
+}

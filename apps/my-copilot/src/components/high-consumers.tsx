@@ -3,7 +3,7 @@ import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow
 import { InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
 import { getAdminHighConsumers } from "@/lib/cached-bigquery";
-import { formatNumber, formatPercent, formatUSD } from "@/lib/format";
+import { formatDate, formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
 import type { HighConsumerMonth } from "@/lib/types";
 
@@ -15,6 +15,8 @@ export function HighConsumersView({ months }: { months: HighConsumerMonth[] }) {
   if (!months.length) return <BodyShort>Ingen fakturerte måneder ennå.</BodyShort>;
   const tiers = [1, 5, 10];
   const withBands = months.filter((m) => m.budget_bands);
+  const mtd = months.find((m) => m.basis === "hittil");
+  const billed = months.filter((m) => m.basis !== "hittil");
   return (
     <VStack gap="space-16">
       <div className="min-w-0 overflow-x-auto">
@@ -33,7 +35,7 @@ export function HighConsumersView({ months }: { months: HighConsumerMonth[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {months.map((m) => (
+            {billed.map((m) => (
               <TableRow key={m.month}>
                 <TableHeaderCell scope="row" className="whitespace-nowrap">
                   {monthLabel(m.month)}
@@ -79,10 +81,12 @@ export function HighConsumersView({ months }: { months: HighConsumerMonth[] }) {
               {withBands.map((m) => (
                 <TableRow key={m.month}>
                   <TableHeaderCell scope="row" className="whitespace-nowrap">
-                    {monthLabel(m.month)}
+                    {m.basis === "hittil" && m.last_day
+                      ? `Hittil i måneden (${formatDate(m.last_day)})`
+                      : monthLabel(m.month)}
                   </TableHeaderCell>
                   <TableDataCell align="right">
-                    {formatUSD(m.limit_usd)}
+                    {m.basis === "hittil" ? "Egen grense" : formatUSD(m.limit_usd)}
                     {m.limit_changed ? "*" : ""}
                   </TableDataCell>
                   {m.budget_bands!.map((b) => (
@@ -99,8 +103,10 @@ export function HighConsumersView({ months }: { months: HighConsumerMonth[] }) {
       )}
       <BodyShort size="small" textColor="subtle">
         Andel brukere etter hvor mye av den personlige grensen de brukte i måneden, regnet fra brutto forbruk mot
-        standardgrensen ved månedsslutt. Unntak for enkeltpersoner er ikke med. Bøtter med færre enn fem brukere er
-        slått sammen med nabogruppen. * Grensen endret seg i løpet av måneden.
+        standardgrensen ved månedsslutt for hele måneder. Unntak for enkeltpersoner er ikke med. Grupper med færre enn
+        fem brukere er slått sammen med nabogruppen. * Grensen endret seg i løpet av måneden.
+        {mtd &&
+          ` Hittil i måneden er brutto fra den 1. mot hver brukers egen grense, uten prognose. Bare brukere med Copilot-aktivitet denne måneden er med. ${mtd.snapshots ? `${formatNumber(mtd.snapshots)} brukere har GitHubs egne tall, resten er anslag.` : "Alle tallene er anslag fra bruksdata."}`}
       </BodyShort>
     </VStack>
   );

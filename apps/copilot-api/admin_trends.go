@@ -98,6 +98,10 @@ type HighConsumerMonth struct {
 	// LimitUSD is the personal limit at month end; 0 before limits existed.
 	LimitUSD     float64 `json:"limit_usd"`
 	LimitChanged bool    `json:"limit_changed"`
+	// LastDay is set on the month-to-date entry only (Basis "hittil"): the day
+	// the buckets are for. Snapshots counts users with GitHub's own figure.
+	LastDay   string `json:"last_day,omitempty"`
+	Snapshots int    `json:"snapshots,omitempty"`
 	// BudgetBands count users by gross for the month as a share of LimitUSD.
 	// Nil without a limit or with fewer than five users; small bands are merged.
 	BudgetBands []SpendBand `json:"budget_bands"`
@@ -170,14 +174,61 @@ func highConsumerMonth(month string, rows []spendUserRow) HighConsumerMonth {
 	return m
 }
 
+type budgetShareRow struct {
+	Day    string  `bigquery:"day"`
+	Share  float64 `bigquery:"share"`
+	Source string  `bigquery:"source"`
+}
+
+// monthToDate buckets each user's month-to-date share of their own limit on
+// the last day with data. No projection: that waits for the per-person model.
+func monthToDate(rows []budgetShareRow) *HighConsumerMonth {
+	if len(rows) == 0 {
+		return nil
+	}
+	m := &HighConsumerMonth{Month: rows[0].Day[:7], Basis: "hittil", LastDay: rows[0].Day, Tiers: []HighConsumerTier{}}
+	shares := make([]float64, len(rows))
+	snaps := 0
+	for i, r := range rows {
+		shares[i] = r.Share
+		if r.Source == "snapshot" {
+			snaps++
+		}
+	}
+	m.BudgetBands = mergeEdgeBands(shares, 1, budgetEdges)
+	if m.BudgetBands == nil {
+		return m
+	}
+	m.Users, m.Snapshots = len(rows), snaps
+	for i := range m.BudgetBands {
+		m.BudgetBands[i].Label = budgetBandLabel(m.BudgetBands[i].First, m.BudgetBands[i].Last)
+	}
+	return m
+}
+
 // GetHighConsumers returns high-consumer groups and personal budget bands per
-// complete month, from the same per-user history as the spend bands.
+// complete month, from the same per-user history as the spend bands, then
+// the current month to date from budget_share.
 func (bq *BigQueryClient) GetHighConsumers(ctx context.Context) ([]HighConsumerMonth, error) {
 	rows, err := bq.spendUserHistory(ctx, costTrendsFirstMonth)
 	if err != nil {
 		return nil, err
 	}
-	return buildHighConsumers(rows), nil
+	out := buildHighConsumers(rows)
+	it, err := bq.client.Query(`WITH ` + bq.budgetShareCTE() + `
+SELECT CAST(day AS STRING) day, IFNULL(share, 0) share, source FROM budget_share
+WHERE day = (SELECT MAX(day) FROM budget_share) AND day >= DATE_TRUNC(CURRENT_DATE(), MONTH)`).Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read budget share: %w", err)
+	}
+	shares, err := readAllRows[budgetShareRow](it)
+	if err != nil {
+		return nil, err
+	}
+	if m := monthToDate(shares); m != nil {
+		out = append(out, *m)
+	}
+	return out, nil
 }
 
 func (c *CachedBigQueryClient) GetHighConsumers(ctx context.Context) ([]HighConsumerMonth, error) {

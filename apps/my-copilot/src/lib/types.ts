@@ -687,9 +687,13 @@ export interface HighConsumerTier {
 /** High-consumer groups and personal budget bands for one complete month (admin only, aggregates only). */
 export interface HighConsumerMonth {
   month: string;
-  basis: "premium" | "netto";
+  /** "hittil" is the current month to date: budget bands only, against each user's own limit. */
+  basis: "premium" | "netto" | "hittil";
   users: number;
   tiers: HighConsumerTier[];
+  /** Month to date only: the day the bands are for, and users with GitHub's own figure. */
+  last_day?: string;
+  snapshots?: number;
   limit_usd: number;
   limit_changed: boolean;
   /** Users by gross for the month as share of the limit; null without a limit or too few users. */

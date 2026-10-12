@@ -33,6 +33,21 @@ describe("HighConsumersView", () => {
     expect(screen.getByText("800 USD*")).toBeInTheDocument();
   });
 
+  it("shows month to date in the budget table only", () => {
+    const mtd = month({
+      month: "2026-10",
+      basis: "hittil",
+      tiers: [],
+      last_day: "2026-10-11",
+      snapshots: 0,
+      limit_changed: false,
+    });
+    render(<HighConsumersView months={[month({}), mtd]} />);
+    expect(screen.getByText(/Hittil i måneden \(/)).toBeInTheDocument();
+    expect(screen.getByText("Egen grense")).toBeInTheDocument();
+    expect(screen.getAllByRole("row").filter((r) => r.textContent?.includes("Hittil"))).toHaveLength(1);
+  });
+
   it("says so when no month is billed", () => {
     render(<HighConsumersView months={[]} />);
     expect(screen.getByText("Ingen fakturerte måneder ennå.")).toBeInTheDocument();
