@@ -1482,7 +1482,11 @@ func launchOpenCodeViaCplt(spec cpltLaunch) error {
 	if telemetry.TelemetryEnabled() {
 		since := time.Now()
 		defer func() {
-			telemetryRecorder.RecordClientUsage(readOpenCodeUsage(openCodeUsageDir(spec.projectDir), since))
+			u, sessions := readOpenCodeUsage(openCodeUsageDir(spec.projectDir), since)
+			telemetryRecorder.RecordClientUsage(u)
+			for _, s := range sessions {
+				telemetryRecorder.RecordCopilotSession(s)
+			}
 		}()
 	}
 	return launchViaCplt(spec)

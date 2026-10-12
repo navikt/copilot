@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +29,7 @@ func TestReadOpenCodeUsage(t *testing.T) {
 {"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":1500},"tokens":{"input":10,"output":5,"reasoning":2,"cache":{"read":100,"write":1}}},"parts":[{"type":"text"},{"type":"tool","tool":"bash"},{"type":"tool","tool":"read"},{"type":"tool","tool":"my_mcp_secret"}]},
 {"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":1600},"tokens":{"input":1,"output":1,"reasoning":0,"cache":{"read":0,"write":0}}},"parts":[{"type":"tool","tool":"bash"}]}]}`), nil
 	}
-	u := readOpenCodeUsage("/repo", since)
+	u, _ := readOpenCodeUsage("/repo", since)
 	want := telemetry.ModelUsage{Calls: 2, Input: 11, Output: 6, Reasoning: 2, CacheRead: 100, CacheWrite: 1}
 	if got := u.Models[telemetry.ModelKey{Provider: "github-copilot", Model: "m"}]; got != want || len(u.Models) != 1 {
 		t.Fatalf("models = %+v, want %+v", u.Models, want)
@@ -55,7 +56,7 @@ func TestReadOpenCodeUsageResolvesSymlinks(t *testing.T) {
 		}
 		return []byte(`{"messages":[{"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":1500}}}]}`), nil
 	}
-	u := readOpenCodeUsage(link, time.UnixMilli(1000))
+	u, _ := readOpenCodeUsage(link, time.UnixMilli(1000))
 	if u.Models[telemetry.ModelKey{Provider: "github-copilot", Model: "m"}].Calls != 1 {
 		t.Fatalf("symlinked dir not matched: %+v", u.Models)
 	}
@@ -65,5 +66,58 @@ func TestOpenCodeUsageDirResolvesRelative(t *testing.T) {
 	wd, _ := os.Getwd()
 	if got, want := openCodeUsageDir("sub"), filepath.Join(wd, "sub"); got != want {
 		t.Fatalf("openCodeUsageDir(sub) = %q, want %q", got, want)
+	}
+}
+
+// openCodeCanaryExport has a canary in every free-text field opencode has, as
+// if --sanitize had stopped redacting: nothing decoded from it may carry the
+// canary.
+const openCodeCanaryExport = `{"info":{"title":"CANARY"},"messages":[
+{"info":{"role":"user","time":{"created":1000}},"parts":[{"type":"text","text":"CANARY"}]},
+{"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":2000,"completed":5000}},"parts":[
+ {"type":"text","text":"CANARY"},
+ {"type":"tool","tool":"bash","state":{"status":"completed","input":{"command":"CANARY"},"output":"CANARY","title":"CANARY"}},
+ {"type":"tool","tool":"skill","state":{"status":"completed","input":{"name":"CANARY"},"metadata":{"name":"CANARY"}}},
+ {"type":"tool","tool":"task","state":{"status":"error","input":{"subagent_type":"CANARY","prompt":"CANARY"}}},
+ {"type":"tool","tool":"CANARY","state":{"status":"running"}}]},
+{"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":62000,"completed":63500}},"parts":[]}]}`
+
+func sessionLeaks(s telemetry.CopilotSession, canary string) bool {
+	return strings.Contains(fmt.Sprintf("%+v", s), canary)
+}
+
+func TestOpenCodeSessionMetrics(t *testing.T) {
+	u := telemetry.ClientUsage{Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
+	s, ok := addOpenCodeExport(&u, []byte(openCodeCanaryExport), 1000)
+	if !ok {
+		t.Fatal("no session")
+	}
+	if sessionLeaks(s, "CANARY") || strings.Contains(fmt.Sprintf("%+v", u), "CANARY") {
+		t.Fatalf("content reached the metrics: %+v", s)
+	}
+	if s.Client != "opencode" || s.Turns != 2 || s.DurationSeconds != 62 || len(s.Models) != 0 {
+		t.Fatalf("session = %+v", s)
+	}
+	want := map[telemetry.ToolKey]int64{
+		{Tool: "bash", Outcome: "success"}: 1, {Tool: "skill", Outcome: "success"}: 1,
+		{Tool: "task", Outcome: "error"}: 1, {Tool: "other", Outcome: "unset"}: 1,
+	}
+	if fmt.Sprint(s.Tools) != fmt.Sprint(want) {
+		t.Fatalf("tools = %v", s.Tools)
+	}
+	if s.Skills[telemetry.SkillKey{Skill: "unset", Source: "unset", Trigger: "unset"}] != 1 || s.Agents["unset"] != 1 {
+		t.Fatalf("skills = %v, agents = %v", s.Skills, s.Agents)
+	}
+	if _, ok := addOpenCodeExport(&u, []byte(openCodeCanaryExport), 99000); ok {
+		t.Fatal("a session with nothing since the launch was returned")
+	}
+}
+
+// The control: sessionLeaks finds a canary that does reach a label, so the
+// check above can fail.
+func TestOpenCodeSessionCanaryControl(t *testing.T) {
+	if !sessionLeaks(telemetry.CopilotSession{Agents: map[string]int64{"CANARY": 1}}, "CANARY") ||
+		!sessionLeaks(telemetry.CopilotSession{Tools: map[telemetry.ToolKey]int64{{Tool: "CANARY"}: 1}}, "CANARY") {
+		t.Fatal("sessionLeaks misses a leaked label")
 	}
 }

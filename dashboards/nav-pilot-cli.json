@@ -1928,8 +1928,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (skill) (sum_over_time(nav_pilot_session_skill_loads_total{version=~\"$version\"}[$__range]))",
-                      "legendFormat": "{{skill}}"
+                      "expr": "sum by (client, skill) (sum_over_time(nav_pilot_session_skill_loads_total{version=~\"$version\"}[$__range]))",
+                      "legendFormat": "{{client}} {{skill}}"
                     },
                     "version": "v0"
                   },
@@ -2015,8 +2015,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (tool, outcome) (sum_over_time(nav_pilot_session_tool_calls_total{version=~\"$version\"}[$__range]))",
-                      "legendFormat": "{{tool}} / {{outcome}}"
+                      "expr": "sum by (client, tool, outcome) (sum_over_time(nav_pilot_session_tool_calls_total{version=~\"$version\"}[$__range]))",
+                      "legendFormat": "{{client}} {{tool}} / {{outcome}}"
                     },
                     "version": "v0"
                   },
@@ -2537,8 +2537,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (agent) (sum_over_time(nav_pilot_subagent_selected_total{version=~\"$version\"}[$__range]))",
-                      "legendFormat": "{{agent}}"
+                      "expr": "sum by (client, agent) (sum_over_time(nav_pilot_subagent_selected_total{version=~\"$version\"}[$__range]))",
+                      "legendFormat": "{{client}} {{agent}}"
                     },
                     "version": "v0"
                   },
@@ -2624,8 +2624,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.5, sum by (le) (sum_over_time(nav_pilot_session_turns_bucket{version=~\"$version\"}[$__range])))",
-                      "legendFormat": "p50"
+                      "expr": "histogram_quantile(0.5, sum by (client, le) (sum_over_time(nav_pilot_session_turns_bucket{version=~\"$version\"}[$__range])))",
+                      "legendFormat": "p50 {{client}}"
                     },
                     "version": "v0"
                   },
@@ -2643,8 +2643,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le) (sum_over_time(nav_pilot_session_turns_bucket{version=~\"$version\"}[$__range])))",
-                      "legendFormat": "p95"
+                      "expr": "histogram_quantile(0.95, sum by (client, le) (sum_over_time(nav_pilot_session_turns_bucket{version=~\"$version\"}[$__range])))",
+                      "legendFormat": "p95 {{client}}"
                     },
                     "version": "v0"
                   },
@@ -2730,8 +2730,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.5, sum by (shutdown_type, le) (sum_over_time(nav_pilot_session_duration_seconds_bucket{version=~\"$version\"}[$__range])))",
-                      "legendFormat": "p50 {{shutdown_type}}"
+                      "expr": "histogram_quantile(0.5, sum by (client, shutdown_type, le) (sum_over_time(nav_pilot_session_duration_seconds_bucket{version=~\"$version\"}[$__range])))",
+                      "legendFormat": "p50 {{client}} {{shutdown_type}}"
                     },
                     "version": "v0"
                   },
@@ -2749,8 +2749,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (shutdown_type, le) (sum_over_time(nav_pilot_session_duration_seconds_bucket{version=~\"$version\"}[$__range])))",
-                      "legendFormat": "p95 {{shutdown_type}}"
+                      "expr": "histogram_quantile(0.95, sum by (client, shutdown_type, le) (sum_over_time(nav_pilot_session_duration_seconds_bucket{version=~\"$version\"}[$__range])))",
+                      "legendFormat": "p95 {{client}} {{shutdown_type}}"
                     },
                     "version": "v0"
                   },

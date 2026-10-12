@@ -47,6 +47,13 @@ export default function Personvern() {
             telles som «annet», uten navn. Disse tallene har ikke maskinnummeret.
           </BodyLong>
           <BodyLong>
+            For opencode-økter du startet med nav-pilot teller den det samme der opencode har tallene: hvilke av
+            opencodes innebygde verktøy som ble kalt og om kallene gikk bra, antall runder, varighet og hvor mange
+            ganger en skill eller en agent ble brukt. Navnet på skillen eller agenten tas ikke med. Tallene hentes fra
+            opencodes egen eksport av økten, der det du skrev og verktøyenes innhold allerede er fjernet. Heller ikke
+            disse tallene har maskinnummeret.
+          </BodyLong>
+          <BodyLong>
             Starter nav-pilot Copilot eller opencode, slår den også på deres egne målinger, mot samme mottaker. Kjører
             økten i et repo i navikt, merkes de med navnet på repoet. Første gang du kjører nav-pilot i en terminal,
             står dette på én linje.

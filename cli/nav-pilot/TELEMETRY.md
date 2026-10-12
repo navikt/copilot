@@ -73,6 +73,37 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 - Kjører du to opencode-økter i samme mappe samtidig, teller begge oppstartene
   begge øktene. Underøkter (subagenter) telles ikke: `opencode session list`
   viser bare toppnivå-økter.
+- nav-pilot leser eksporten via en midlertidig fil, ikke en pipe. opencode 1.18
+  kutter utdata til en pipe ved 128 KiB, og lengre økter ble derfor ikke telt.
+
+**Merk om opencode-økter (`nav_pilot_session_*` med `client=opencode`):**
+- Fra den samme eksporten som over sender nav-pilot også øktmetrikkene som
+  Copilot-øktene har, med `client=opencode`. Økten velges på samme måte: økter
+  i oppstartsmappen som er endret etter oppstarten, og bare meldinger fra
+  oppstarten og senere. opencode lar ikke nav-pilot sette økt-ID-en selv, så
+  det finnes ingen markørfil. Tidspunktet for oppstarten er grensen.
+- Dette sendes:
+  - `nav_pilot_session_tool_calls_total`: verktøynavn (opencodes innebygde
+    eller `other`) og `outcome` fra `state.status` (`completed` blir
+    `success`, `error` blir `error`, alt annet `unset`).
+  - `nav_pilot_session_turns`: antall svar fra modellen.
+  - `nav_pilot_session_duration_seconds`: fra første til siste melding etter
+    oppstarten, med `shutdown_type=unset`.
+  - `nav_pilot_session_skill_loads_total`: kall til `skill`-verktøyet, med
+    `skill`, `source` og `trigger` lik `unset`.
+  - `nav_pilot_subagent_selected_total`: kall til `task`-verktøyet, med
+    `agent=unset`.
+- nav-pilot dekoder bare rolle, tidspunkt (`created`, `completed`),
+  verktøynavn og `state.status`. Tokens og modeller går bare til
+  `nav_pilot_genai_*` over, så de telles ikke to ganger.
+- Disse mangler for opencode:
+  - **Navn på skill og subagent.** `--sanitize` erstatter verktøyenes input og
+    metadata, der navnene står. For å få dem må nav-pilot lese eksporten uten
+    `--sanitize`, og det krever en beslutning fra eier.
+  - **Hooks** (`nav_pilot_session_hook_runs_total`). opencode har utvidelser
+    (plugins), ikke hooks, og eksporten viser ikke når de kjører.
+  - **API-tid, premium requests og kostnad.** Eksporten har ikke disse tallene,
+    slik Copilots `session.shutdown` har.
 
 **Merk om Copilot-økter (`nav_pilot_session_*`, `nav_pilot_subagent_selected_total`):**
 - Når nav-pilot avslutter etter å ha startet Copilot, leser den
