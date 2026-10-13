@@ -114,6 +114,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
   const [errorTraceId, setErrorTraceId] = useState<string | null>(null);
   const [needsGitHubLink, setNeedsGitHubLink] = useState<boolean>(false);
   const [budget, setBudget] = useState<BudgetData | null>(null);
+  const [budgetNeedsLink, setBudgetNeedsLink] = useState<boolean>(false);
   const [usageMetrics, setUsageMetrics] = useState<UserMetricsSummary | null>(null);
   const [dailyCredits, setDailyCredits] = useState<DailyCredits[] | null>(null);
   const [mutating, setMutating] = useState<boolean>(false);
@@ -191,6 +192,8 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         if (response.ok) {
           const budgetData = await response.json();
           if (!cancelled) setBudget(budgetData);
+        } else if (response.status === 403 && !cancelled) {
+          setBudgetNeedsLink(true);
         }
       } catch {
         // Leave budget as null; the card shows its fallback text.
@@ -496,6 +499,13 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     </BodyShort>
                   )}
                 </>
+              ) : budgetNeedsLink ? (
+                <BodyShort>
+                  Koble GitHub-kontoen din til Nav-identiteten din for å se budsjettet.{" "}
+                  <Link href="https://github.com/orgs/navikt/sso" target="_blank">
+                    Koble til GitHub-kontoen via SSO
+                  </Link>
+                </BodyShort>
               ) : (
                 <BodyShort>Ingen budsjettinformasjon tilgjengelig.</BodyShort>
               )}

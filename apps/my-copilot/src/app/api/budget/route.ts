@@ -25,6 +25,11 @@ export async function GET() {
       if (error.status === 404) {
         return NextResponse.json({ error: "no_budget" }, { status: 404 });
       }
+      if (error.status === 403) {
+        // Expected for users without a linked GitHub account; the UI explains it.
+        console.warn("[budget] No GitHub account linked");
+        return NextResponse.json({ error: "no_github_account" }, { status: 403 });
+      }
       if (error.status === 503) {
         return NextResponse.json({ error: "unavailable" }, { status: 503 });
       }

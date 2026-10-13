@@ -6,6 +6,7 @@ import TeamGrossUsage from "@/components/team-gross-usage";
 import ErrorState from "@/components/error-state";
 import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
+import { BackendApiError } from "@/lib/backend-api";
 import { teamInsightMonth } from "@/lib/month-utils";
 import TeamControls from "@/components/team-controls";
 import TeamSpendSkeleton from "./team-spend-skeleton";
@@ -39,7 +40,11 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
   try {
     myTeams = await myTeamsOf(token);
   } catch (error) {
-    console.error("[team] Caller teams unavailable:", error);
+    // 403: no linked GitHub account, an expected state the page degrades for.
+    (error instanceof BackendApiError && error.status === 403 ? console.warn : console.error)(
+      "[team] Caller teams unavailable:",
+      error
+    );
   }
   const comparisonReason = {
     ok: "Endring viser forskjellen fra forrige måned. En strek betyr at teamet ikke kan sammenlignes.",
