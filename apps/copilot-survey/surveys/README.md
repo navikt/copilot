@@ -103,7 +103,8 @@ level: answers are not linked to a person across waves (see
 - Only then: `SURVEY_KEY_<ID>` (`openssl rand -base64 32`) is added to the
   `copilot-survey` secret, and a pull request sets `"active": true`. Without
   both the survey takes no answers.
-- No copilot-survey deploys while it is open (a restart drops queued answers).
+- Deploys while it is open are fine: a graceful restart writes queued answers
+  as a smaller batch (see the privacy notes in ../README.md). A crash still loses them.
 
 ## When it closes
 
@@ -187,10 +188,10 @@ any other cluster, so it can never open a survey in prod. It also needs
   The second answer from the same person, on either, gets 409.
 - Nothing reaches the database until the tenth answer: one tester's answer
   stays queued in memory. `survey_submissions_total{survey="dev-e2e-test"}`
-  counts it, and the next restart logs it as dropped.
+  counts it, and the next graceful restart writes it.
 - Close it: remove `survey_active_ids` from `.nais/dev-gcp.yaml`.
 - Reset: restart the pod (`kubectl rollout restart deployment/copilot-survey -n copilot`
-  in dev-gcp) to drop queued answers. To let the same people answer again
+  in dev-gcp) to write queued answers. To let the same people answer again
   after a batch was written, replace `SURVEY_KEY_DEV_E2E_TEST` with a new key
   and restart; old participation rows then match no one. Written rows go by
   themselves: participation the day after `ends`, answers 180 days later.

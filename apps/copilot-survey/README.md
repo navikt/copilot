@@ -114,12 +114,12 @@ The exception is the survey's last batch, written when it closes with
 whatever is left (1 to 9): its participation rows are deleted in the same
 close-out, but WAL and backups keep them for the backup retention period.
 
-Submissions still queued are lost on a restart (at most 9 per survey while
-the database is healthy; more if a batch write is failing). Their senders
-were told "recorded", and nav-pilot does not ask them again (it remembers
-locally that they answered), so those answers are gone for good. The deploy
-freeze in [surveys/README.md](surveys/README.md) is what keeps this rare.
-Writing the queue early instead would break the 1 of k.
+A graceful shutdown (every deploy or restart) writes whatever is queued as
+a smaller batch, 1 to 9 per survey. Such a batch places its answers among
+fewer than 10 participants, like the last batch at close-out. The owner
+chose this on 2026-10-13: the data is down-classified, and losing answers
+whose senders were told "recorded" is the larger harm. Only a crash or a
+failing database write still loses queued submissions.
 
 After close-out the retained answers have no identifier and no key exists:
 they are meant to be anonymous.

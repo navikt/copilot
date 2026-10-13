@@ -66,4 +66,17 @@ func TestSurveyStore(t *testing.T) {
 	if n := count("survey_participation"); n != answerBatch {
 		t.Fatalf("participation = %d; the rows of s (closes in 10 days) stay until it closes", n)
 	}
+
+	// Shutdown: a short queue is written, not dropped.
+	submit("s", "late", day(10))
+	before := count("survey_answers")
+	if lost := s.flush(t.Context()); lost != 0 {
+		t.Fatalf("flush lost %d", lost)
+	}
+	if count("survey_answers") != before+1 {
+		t.Fatal("flush did not write the queued answer")
+	}
+	if submit("s", "late", day(10)) {
+		t.Fatal("a flushed sender could answer again")
+	}
 }
