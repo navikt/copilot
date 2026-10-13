@@ -169,7 +169,7 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
   the database, and asks copilot-api for a login's Nav e-mail. A second
   answer is refused through a per-survey keyed HMAC of the e-mail in a
   participation table, and the answers go to a separate table with no
-  identifier, written in shuffled batches. The key and the participation rows
+  identifier, written as each answer arrives. The key and the participation rows
   are deleted when the survey closes. Data model, key lifecycle and residual
   risks: `apps/copilot-survey/README.md`.
 
@@ -199,9 +199,9 @@ accepts it for one write.
   409 when they answer themselves. Learn from the status whether a login has
   answered (409), has not (201, and is now blocked) or has no Nav identity
   (403). Read every answer nav-pilot sends through it, with the login, before
-  copilot-survey hashes it. Pad a batch with answers it knows, which together
-  with database access pins the one real answer left in it (the "1 of k" in
-  `apps/copilot-survey/README.md`).
+  copilot-survey hashes it. Answers are written as they arrive, so with database
+  access it needs no padding to tie an answer to its participant while the
+  survey is open (see "Linkable while open" in `apps/copilot-survey/README.md`).
 - What it cannot do: read stored answers, change or delete one, answer twice
   for anyone, or look up an e-mail. copilot-api's name-id route takes
   copilot-survey's token only, and copilot-survey never returns the e-mail.

@@ -97,14 +97,15 @@ level: answers are not linked to a person across waves (see
   gateway).
 - DPIA / personvernombud has signed off, including the residual risks in
   [the data model](../README.md#surveys-data-model-and-retention). One of
-  them: a batch is written at the tenth answer (or the next one after a
-  failed write), so write timing places an answer in a batch window for
-  anyone with ingress log and database access.
+  them: each answer is written when it arrives, so while the survey is open
+  anyone with the key and database access can link an answer to a
+  participant by write time.
 - Only then: `SURVEY_KEY_<ID>` (`openssl rand -base64 32`) is added to the
   `copilot-survey` secret, and a pull request sets `"active": true`. Without
   both the survey takes no answers.
-- Deploys while it is open are fine: a graceful restart writes queued answers
-  as a smaller batch (see the privacy notes in ../README.md). A crash still loses them.
+- Deploys while it is open are fine: a graceful restart writes any answer
+  still queued after a failed write (see the privacy notes in ../README.md).
+  A crash still loses it.
 
 ## When it closes
 
@@ -186,12 +187,11 @@ any other cluster, so it can never open a survey in prod. It also needs
 - Test: `NAV_PILOT_COPILOT_CLI_URL=https://copilot-cli.intern.dev.nav.no nav-pilot survey`,
   then the form on ki-utvikling.ekstern.dev.nav.no/nav-pilot/undersokelse.
   The second answer from the same person, on either, gets 409.
-- Nothing reaches the database until the tenth answer: one tester's answer
-  stays queued in memory. `survey_submissions_total{survey="dev-e2e-test"}`
-  counts it, and the next graceful restart writes it.
+- Each answer is written at once. `survey_submissions_total{survey="dev-e2e-test"}`
+  counts it.
 - Close it: remove `survey_active_ids` from `.nais/dev-gcp.yaml`.
 - Reset: restart the pod (`kubectl rollout restart deployment/copilot-survey -n copilot`
-  in dev-gcp) to write queued answers. To let the same people answer again
-  after a batch was written, replace `SURVEY_KEY_DEV_E2E_TEST` with a new key
+  in dev-gcp) to write anything still queued. To let the same people answer again
+  after their answers were written, replace `SURVEY_KEY_DEV_E2E_TEST` with a new key
   and restart; old participation rows then match no one. Written rows go by
   themselves: participation the day after `ends`, answers 180 days later.

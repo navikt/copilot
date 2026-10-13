@@ -34,12 +34,12 @@ var queuedAnswers = promauto.NewGaugeVec(prometheus.GaugeOpts{
 //   - survey_answers holds the answers: no identifier, no hash, no row id, no
 //     time.
 //
-// Neither is written one submission at a time. Each survey queues
-// submissions in memory and writes answerBatch of them at once: their
-// participation rows and their answers, each shuffled, in one transaction.
-// Commit time, transaction id and row order then place an answer among
-// answerBatch participants and no fewer, until the last, smaller batch when
-// the survey closes, after which the participation rows are deleted.
+// Each survey queues submissions in memory and writes answerBatch of them at
+// once: their participation rows and their answers, each shuffled, in one
+// transaction. With answerBatch = 1 every submission is written at once, so
+// commit time and transaction id link an answer to its participation row
+// while the survey is open; the participation rows are deleted when it
+// closes. A failed write stays queued for the next submission or shutdown.
 const schema = `
 CREATE TABLE IF NOT EXISTS survey_participation (
 	survey_id        text NOT NULL,
@@ -55,9 +55,10 @@ CREATE TABLE IF NOT EXISTS survey_answers (
 	delete_after      date  NOT NULL
 )`
 
-// answerBatch is k: the fewest participants any written answer can be
-// narrowed down to while a survey is open.
-const answerBatch = 10
+// answerBatch is how many queued submissions trigger a write. 1: written at
+// once (owner, 2026-10-13: the data is down-classified; it used to be 10,
+// to place an answer among 10 participants while a survey is open).
+const answerBatch = 1
 
 type surveyStore struct {
 	pool *pgxpool.Pool

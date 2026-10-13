@@ -57,52 +57,48 @@ func TestSurveyStore(t *testing.T) {
 		t.Fatal("gauge read does not reflect Set")
 	}
 
-	for i := range answerBatch - 1 {
-		if !submit("s", string(rune('a'+i)), day(10)) {
-			t.Fatal("fresh submission refused")
-		}
+	// One submission is in both tables at once; a duplicate is refused.
+	if !submit("s", "a", day(10)) {
+		t.Fatal("fresh submission refused")
 	}
-	if submit("s", "a", day(10)) {
-		t.Fatal("a queued duplicate was accepted")
+	if count("survey_answers") != 1 || count("survey_participation") != 1 {
+		t.Fatalf("after one submission: %d answers, %d participation", count("survey_answers"), count("survey_participation"))
 	}
-	if !answered("s", "a") || answered("s", "zz") || answered("other", "a") {
-		t.Fatal("answered wrong for queued submissions")
-	}
-	// Another survey's submission is not written with s's batch.
-	submit("other", "a", day(1))
-	if count("survey_answers")+count("survey_participation") != 0 {
-		t.Fatal("rows written before a full batch")
-	}
-	if queued("s") != answerBatch-1 {
-		t.Fatalf("queued gauge = %v, want %d", queued("s"), answerBatch-1)
-	}
-	queuedAnswers.WithLabelValues("s").Set(42) // control: the full batch must reset it
-	submit("s", "z", day(10))
 	if queued("s") != 0 {
-		t.Fatalf("queued gauge after a full batch = %v, want 0", queued("s"))
-	}
-	if count("survey_answers") != answerBatch || count("survey_participation") != answerBatch {
-		t.Fatalf("after a full batch: %d answers, %d participation", count("survey_answers"), count("survey_participation"))
+		t.Fatalf("queued gauge after a written submission = %v, want 0", queued("s"))
 	}
 	if submit("s", "a", day(10)) {
 		t.Fatal("a written duplicate was accepted")
 	}
-	if !answered("s", "a") || answered("s", "zz") {
+	if !answered("s", "a") || answered("s", "zz") || answered("other", "a") {
 		t.Fatal("answered wrong for written submissions")
 	}
-
-	// Close-out: the other survey's short last batch is written, then all
-	// participation of closed surveys goes.
-	s.retain(t.Context(), day(2))
-	if count("survey_answers") != answerBatch+1 {
-		t.Fatalf("answers after close-out = %d, want %d", count("survey_answers"), answerBatch+1)
-	}
-	if n := count("survey_participation"); n != answerBatch {
-		t.Fatalf("participation = %d; the rows of s (closes in 10 days) stay until it closes", n)
+	submit("s", "b", day(10))
+	submit("other", "a", day(1))
+	if count("survey_answers") != 3 || count("survey_participation") != 3 {
+		t.Fatal("submissions not written at once")
 	}
 
-	// Shutdown: a short queue is written, not dropped.
-	submit("s", "late", day(10))
+	// A failed write keeps the submission queued (and refuses a duplicate),
+	// and flush writes it at shutdown.
+	exec := func(q string) {
+		t.Helper()
+		if _, err := s.pool.Exec(t.Context(), q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exec(`ALTER TABLE survey_answers RENAME TO survey_answers_gone`)
+	ok := submit("s", "late", day(10))
+	exec(`ALTER TABLE survey_answers_gone RENAME TO survey_answers`)
+	if !ok || count("survey_participation") != 3 {
+		t.Fatal("a failed write was refused or partly written")
+	}
+	if !answered("s", "late") || submit("s", "late", day(10)) {
+		t.Fatal("a queued submission was not seen as answered")
+	}
+	if queued("s") != 1 {
+		t.Fatalf("queued gauge after a failed write = %v, want 1", queued("s"))
+	}
 	before := count("survey_answers")
 	if queued("s") != 1 {
 		t.Fatalf("queued gauge = %v, want 1", queued("s"))
@@ -110,7 +106,7 @@ func TestSurveyStore(t *testing.T) {
 	if lost := s.flush(t.Context()); lost != 0 {
 		t.Fatalf("flush lost %d", lost)
 	}
-	if count("survey_answers") != before+1 {
+	if count("survey_answers") != before+1 || !answered("s", "late") {
 		t.Fatal("flush did not write the queued answer")
 	}
 	if queued("s") != 0 {
@@ -118,5 +114,14 @@ func TestSurveyStore(t *testing.T) {
 	}
 	if submit("s", "late", day(10)) {
 		t.Fatal("a flushed sender could answer again")
+	}
+
+	// Close-out: participation of closed surveys goes, answers stay.
+	s.retain(t.Context(), day(2))
+	if count("survey_answers") != 4 {
+		t.Fatalf("answers after close-out = %d, want 4", count("survey_answers"))
+	}
+	if n := count("survey_participation"); n != 3 {
+		t.Fatalf("participation = %d; the rows of s (closes in 10 days) stay until it closes", n)
 	}
 }

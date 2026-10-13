@@ -34,13 +34,12 @@ status routes only.
 
 Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check. A token copilot-survey does not accept at all gets 401; every accepted caller who is not an admin (a my-copilot user outside the group, copilot-cli) gets 404, as in copilot-api and my-copilot.
 
-Residual risk: results are visible while a survey is open. An admin who polls `/results` during an open survey can see one new answer appear and, if they know who just answered, attribute it. Batched writes blunt this but do not remove it; only showing results after close would. The owner accepted this risk on 2026-10-13. Mitigations: admin-only access, the k≥5 threshold, and batched writes. The DPO assessment should reflect this residual risk.
+Residual risk: results are visible while a survey is open. An admin who polls `/results` during an open survey can see one new answer appear and, if they know who just answered, attribute it. Answers are written as they arrive, so nothing blunts this; only showing results after close would. The owner accepted this risk on 2026-10-13. Mitigations: admin-only access and the k≥5 threshold. The DPO assessment should reflect this residual risk.
 
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
 buffers a body. Logs carry survey id, status, batch size and error type,
-never who answered. A batch write runs on its own background context, never
-the request's, so the write of all ten carries nothing from the tenth
-submitter's request.
+never who answered. A write runs on its own background context, never the
+request's, so a caller who hangs up does not cancel it.
 
 ## Surveys: data model and retention
 
@@ -64,10 +63,10 @@ unknown fields refused, body at most 32 KiB. Then:
 2. The dedup hash is `HMAC-SHA256(survey key, e-mail)`, the e-mail trimmed
    and lowercased first. A hash
    already written or queued gets 409, from nav-pilot and the web alike.
-3. The submission is queued per survey. Every 10 (k) submissions to one
-   survey are written together, in one transaction: their 10 hashes to
-   `survey_participation` and their 10 answers to `survey_answers`, each
-   shuffled.
+3. The submission is written at once, in one transaction: its hash to
+   `survey_participation` and its answer to `survey_answers`. If the write
+   fails, it stays queued in memory and is written with the next submission
+   to that survey or at shutdown.
 
 Two tables, nothing shared but the survey id:
 
@@ -91,7 +90,7 @@ after the survey closes, copilot-survey deletes that survey's participation rows
 and the team deletes its key from the secret. The running pod read its keys
 at start and still holds the deleted one, so the team then restarts it
 (`kubectl rollout restart deployment/copilot-survey -n copilot`), after the
-close-out has written the last batch. A pod that starts after the survey
+close-out has written anything still queued. A pod that starts after the survey
 closed loads no key for it. From then on no key exists to recompute a hash,
 and no table holds one.
 
@@ -102,25 +101,25 @@ enumerable, so this is a trivial dictionary test. Without the key the hash
 cannot be reversed (HMAC-SHA256, 256-bit random key). copilot-survey logs a
 warning at start for every key whose survey has closed.
 
-**1 of k.** Because both tables are written only in batches of k = 10 per
-survey, in one transaction, with rows shuffled, commit time, transaction id
-and row order place an answer among the 10 participants of its batch, no
-fewer. That is k before the answer's own content narrows it: someone with the
-key and the database can name the 10, and if only one of them uses Windows,
-or opencode with local models, the answer with those context values is that
-person's. This is why the context is kept coarse (no CPU type, version as
-year.month) and why exports suppress small segments.
+**Linkable while open.** Each submission is written at once, its
+participation row and its answer in one transaction. While a survey is open,
+someone with the key and database access can therefore link an answer to a
+participant hash by write time or transaction id, and with the key test
+which e-mail that hash belongs to. Until 2026-10-13 submissions were written
+in batches of 10, which placed an answer among the 10 participants of its
+batch and no fewer. The owner dropped that on 2026-10-13 because the data is
+down-classified. The context is still kept coarse (no CPU type, version as
+year.month) and exports still suppress small segments, which matters once the
+link is gone.
 
-The exception is the survey's last batch, written when it closes with
-whatever is left (1 to 9): its participation rows are deleted in the same
-close-out, but WAL and backups keep them for the backup retention period.
+When the survey closes its participation rows are deleted as before, but WAL
+and backups keep them, with their commit times, for the backup retention
+period.
 
-A graceful shutdown (every deploy or restart) writes whatever is queued as
-a smaller batch, 1 to 9 per survey. Such a batch places its answers among
-fewer than 10 participants, like the last batch at close-out. The owner
-chose this on 2026-10-13: the data is down-classified, and losing answers
-whose senders were told "recorded" is the larger harm. Only a crash or a
-failing database write still loses queued submissions.
+A failed write keeps the submission queued; the next submission to that
+survey or a graceful shutdown (every deploy or restart) writes it, together
+with anything else queued. Only a crash while a submission is queued, or a
+failing write at shutdown, loses it.
 
 The gauge `survey_queued_answers{survey}` is the queue size per survey.
 Team members with Prometheus access can see it, which is fine since the
@@ -145,9 +144,6 @@ Residual risks, for the privacy review:
   per login; the `CopilotSurveySubmissionBurst` alert in `.nais/app.yaml`
   fires when `survey_submissions_total` grows by more than 20 in 5 minutes,
   all surveys and statuses summed. See the accepted risk in `SECURITY.md`.
-- Colluding insiders: k assumes the other 9 in a batch are real respondents.
-  One account answers once per survey, but a group of 9 insiders answering
-  together could pin the 10th.
 - Free text: the answers that can name their author ("as the only Rust dev
   on team X"): a `text` question (at most one per survey) and the short text
   of an «other» option (at most 200 characters each, at most three per
@@ -165,16 +161,12 @@ Residual risks, for the privacy review:
   copilot-survey log an identity, hash or answer on this path, but the Nais
   ingress log is outside our control. Ask the platform team to drop or sample
   access logs for this path, or keep their retention short.
-- Batch timing: the tenth submission's request writes the batch (or the
-  next submission's, after a failed write). That request is slower than the
-  other nine, and the commit follows within milliseconds, so someone with both
-  database access (the `copilot` Nais team) and the ingress access log can
-  tell who closed batch N and when each batch was written. That places an
-  answer in one batch window, never below the 10 of its batch, which is what
-  k = 10 already concedes. Accepted (#1107): closing it would need a jittered
-  or random-size flush, which holds more answers in memory and loses them all
-  on a restart.
-- Cloud SQL backups and WAL keep deleted participation rows (and batch commit
+- Write timing: each submission is written during its own request, so
+  someone with database access (the `copilot` Nais team) and the ingress
+  access log can link an answer to the request that sent it, and so to its
+  time and source address. Accepted by the owner on 2026-10-13 along with
+  writing at once (see "Linkable while open").
+- Cloud SQL backups and WAL keep deleted participation rows (and commit
   times) for the backup retention period (7 backups by default).
 - Two identities for one person: the web hashes the Entra
   `preferred_username` (the UPN), nav-pilot the SAML `nameId` of the navikt

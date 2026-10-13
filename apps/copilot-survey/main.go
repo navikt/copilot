@@ -13,7 +13,7 @@ import (
 )
 
 // No OpenTelemetry here, on purpose: a trace of a submission would time-stamp
-// who answered, which the batching in store.go exists to hide.
+// who answered (see store.go and the privacy notes in README.md).
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "export" {
 		if err := runExport(os.Stdin, os.Stdout); err != nil {

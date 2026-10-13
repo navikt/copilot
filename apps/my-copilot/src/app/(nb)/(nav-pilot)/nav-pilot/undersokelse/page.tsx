@@ -78,7 +78,7 @@ export default async function SurveyPage({
                 <Heading size="small" level="2" spacing>
                   Du har svart på undersøkelsen. Takk!
                 </Heading>
-                <BodyLong>Svarene kan ikke endres, fordi ingenting kobler dem til deg.</BodyLong>
+                <BodyLong>Svarene kan ikke endres eller trekkes tilbake.</BodyLong>
               </Alert>
             ) : (
               <SurveyForm survey={survey} />
