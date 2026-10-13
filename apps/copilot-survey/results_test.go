@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -87,6 +88,12 @@ func TestCellsHideDeterminableGroups(t *testing.T) {
 			t.Errorf("%s: hid %q, want %q", name, got, tc.want)
 		}
 	}
+	// Every answer in a small cell: no cell left to hide, so nothing is shown.
+	for name, counts := range map[string]map[string]int{"two fours": {"a": 4, "b": 4}, "five ones": {"a": 1, "b": 1, "c": 1, "d": 1, "e": 1}} {
+		if cells(q, 1, counts) != nil {
+			t.Errorf("%s: shown, want nil", name)
+		}
+	}
 	q.Type, q.MaxChoices = "multi", 1
 	if got := hidden(q, map[string]int{"a": 1, "b": 7}); got != "ab" {
 		t.Errorf("multi with one choice: hid %q, want ab", got)
@@ -94,6 +101,32 @@ func TestCellsHideDeterminableGroups(t *testing.T) {
 	q.MaxChoices = 0
 	if got := hidden(q, map[string]int{"a": 1, "b": 7}); got != "a" {
 		t.Errorf("multi: hid %q, want a", got)
+	}
+}
+
+// TestSkippedQuestionHidesSourceCount: grid is skipped for client=opencode, so
+// its n is the number who chose copilot. With opencode at 2 (hidden, and
+// copilot hidden with it) grid must show nothing; with both shown it may.
+func TestSkippedQuestionHidesSourceCount(t *testing.T) {
+	rows := func(opencode int) []storedAnswer {
+		var out []storedAnswer
+		for i := range 12 {
+			client := `"copilot","fast":3,"safe":3`
+			if i < opencode {
+				client = `"opencode"`
+			}
+			out = append(out, row(`{"overall":3,"client":`+client+`}`, `{"overall":1,"client":1,"fast":2,"safe":1}`))
+		}
+		return out
+	}
+	for opencode, want := range map[int]bool{2: false, 5: true} {
+		got, _ := getResults(t, rows(opencode))
+		i := slices.IndexFunc(got.Questions, func(q questionResult) bool { return q.ID == "grid" })
+		for _, it := range got.Questions[i].Items {
+			if shown := it.Versions[0].N != nil && it.Versions[0].Options != nil; shown != want {
+				t.Errorf("opencode=%d: %s shown=%v, want %v", opencode, it.ID, shown, want)
+			}
+		}
 	}
 }
 

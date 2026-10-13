@@ -131,7 +131,47 @@ func aggregate(s survey, rows []storedAnswer, now time.Time) surveyResults {
 		}
 		res.Questions = append(res.Questions, qr)
 	}
+	// A skipped question's n is the source's n minus the skip answer's count,
+	// so that count shows through it, hidden or not. Hide the dependent
+	// question unless the source shows the count itself.
+	for _, q := range s.Questions {
+		if q.SkipIf == nil || q.Type == "text" {
+			continue
+		}
+		j := slices.IndexFunc(res.Questions, func(r questionResult) bool { return r.ID == q.SkipIf.Question })
+		if j < 0 || !shows(res.Questions[j], q.SkipIf.Answer) {
+			k := slices.IndexFunc(res.Questions, func(r questionResult) bool { return r.ID == q.ID })
+			hide(&res.Questions[k])
+		}
+	}
 	return res
+}
+
+// shows reports whether every version of a source question shows the count
+// of value. An option never chosen on an older version is a shown zero.
+func shows(src questionResult, value string) bool {
+	for _, v := range src.Versions {
+		if v.N == nil {
+			return false
+		}
+		i := slices.IndexFunc(v.Options, func(o optionCount) bool { return o.Value == value })
+		if i >= 0 && v.Options[i].Suppressed {
+			return false
+		}
+	}
+	return true
+}
+
+// hide suppresses every version of a question: n and options null.
+func hide(qr *questionResult) {
+	for i := range qr.Versions {
+		qr.Versions[i].N, qr.Versions[i].Options = nil, nil
+	}
+	for _, it := range qr.Items {
+		for i := range it.Versions {
+			it.Versions[i].N, it.Versions[i].Options = nil, nil
+		}
+	}
 }
 
 func countVersions(q question, rows []storedAnswer) []versionResult {
@@ -162,8 +202,9 @@ func countVersions(q question, rows []storedAnswer) []versionResult {
 	for _, ver := range sortedKeys(ns) {
 		vr := versionResult{Version: ver}
 		if n := ns[ver]; n >= minSegment {
-			vr.N = &n
-			vr.Options = cells(q, ver, counts[ver])
+			if opts := cells(q, ver, counts[ver]); opts != nil {
+				vr.N, vr.Options = &n, opts
+			}
 		}
 		out = append(out, vr)
 	}
@@ -204,7 +245,9 @@ func cells(q question, ver int, counts map[string]int) []optionCount {
 	// One answer per person (all but a multi with free choice): the hidden
 	// cells sum to n minus the shown ones. That sum gives them away when there
 	// is one hidden cell, or when they must all be 1 or all be minSegment-1,
-	// so hide the smallest shown non-zero cell as well.
+	// so hide the smallest shown non-zero cell as well. With no such cell
+	// (every answer is in a small cell, e.g. 4+4 or five 1s) nothing can be
+	// shown: nil, and the caller hides n too.
 	single := q.Type != "multi" || q.MaxChoices == 1
 	if single && hidden > 0 && (hidden == 1 || hiddenSum == hidden || hiddenSum == hidden*(minSegment-1)) {
 		j := -1
@@ -213,9 +256,10 @@ func cells(q question, ver int, counts map[string]int) []optionCount {
 				j = i
 			}
 		}
-		if j >= 0 {
-			out[j].Count, out[j].Suppressed = nil, true
+		if j < 0 {
+			return nil
 		}
+		out[j].Count, out[j].Suppressed = nil, true
 	}
 	return out
 }
