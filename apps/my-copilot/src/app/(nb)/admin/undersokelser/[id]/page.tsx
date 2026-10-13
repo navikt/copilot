@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Alert, BodyShort, Heading, Link, Tag, VStack } from "@navikt/ds-react";
+import { Alert, BodyShort, Box, Heading, Link, Tag, VStack } from "@navikt/ds-react";
+import { PageHero } from "@/components/page-hero";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
@@ -29,7 +30,8 @@ type Label = (version: number, value: string) => string;
 
 /** One version of a question as a table: count, share of respondents and an inline bar. */
 function VersionTable({ v, caption, label }: { v: VersionResult; caption: string; label: Label }) {
-  if (!v.options) {
+  const n = v.n;
+  if (!v.options || n === null) {
     return (
       <BodyShort size="small">
         {caption}: {UNDER_FIVE} svar, tallene vises ikke.
@@ -40,7 +42,7 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
     <Table size="small">
       <caption className="text-left">
         <BodyShort size="small">
-          {caption}: {formatNumber(v.n)} svar
+          {caption}: {formatNumber(n)} svar
         </BodyShort>
       </caption>
       <TableHeader>
@@ -56,7 +58,7 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
       </TableHeader>
       <TableBody>
         {v.options.map((o) => {
-          const share = o.count === null || v.n === 0 ? 0 : o.count / v.n;
+          const share = o.count === null || n === 0 ? 0 : o.count / n;
           return (
             <TableRow key={o.value}>
               <TableDataCell>{label(v.version, o.value)}</TableDataCell>
@@ -101,57 +103,59 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
   const s = res.data;
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8">
-      <VStack gap="space-24">
-        <Link href="/admin/undersokelser">Alle undersøkelser</Link>
-        <VStack gap="space-8">
-          <Heading level="1" size="xlarge">
-            {s.title}
-          </Heading>
-          <BodyShort>
-            {formatDate(s.starts)}–{formatDate(s.ends)} ·{" "}
-            <Tag size="small" variant="neutral">
-              {s.status}
-            </Tag>{" "}
-            · {s.suppressed ? UNDER_FIVE : formatNumber(s.responses)} svar
-          </BodyShort>
-        </VStack>
-        {s.suppressed || !s.questions ? (
-          <Alert variant="info">For få svar til å vise resultater ({UNDER_FIVE}).</Alert>
-        ) : (
-          <>
-            <BodyShort size="small">
-              Grupper med færre enn 5 svar er skjult. Er bare én gruppe skjult i et spørsmål med ett svar per person,
-              skjules også den minste av de andre, så tallet ikke kan regnes ut. Er et spørsmål endret underveis, vises
-              hver versjon for seg. Fritekstsvar vises ikke her.
+    <main id="hovedinnhold" tabIndex={-1}>
+      <PageHero title={s.title} description="Resultater fra brukerundersøkelsen." />
+      <div className="max-w-7xl mx-auto">
+        <Box
+          paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
+          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+        >
+          <VStack gap="space-24">
+            <Link href="/admin/undersokelser">Alle undersøkelser</Link>
+            <BodyShort>
+              {formatDate(s.starts)}–{formatDate(s.ends)} ·{" "}
+              <Tag size="small" variant="neutral">
+                {s.status}
+              </Tag>{" "}
+              · {s.suppressed ? UNDER_FIVE : formatNumber(s.responses)} svar
             </BodyShort>
-            {s.questions.map((q) => {
-              const qdef = def?.questions.find((d) => d.id === q.id);
-              return (
-                <section key={q.id}>
-                  <VStack gap="space-8">
-                    <Heading level="2" size="small">
-                      {q.text}
-                    </Heading>
-                    {q.versions ? <Versions versions={q.versions} label={labeller(qdef, qdef?.version)} /> : null}
-                    {q.items?.map((item) => (
-                      <VStack key={item.id} gap="space-4">
-                        <Heading level="3" size="xsmall">
-                          {item.text}
+            {s.suppressed || !s.questions ? (
+              <Alert variant="info">For få svar til å vise resultater ({UNDER_FIVE}).</Alert>
+            ) : (
+              <>
+                <BodyShort size="small">
+                  Grupper med færre enn 5 svar er skjult. Kan et skjult tall regnes ut fra de andre, skjules flere
+                  grupper. Er et spørsmål endret underveis, vises hver versjon for seg. Fritekstsvar vises ikke her.
+                </BodyShort>
+                {s.questions.map((q) => {
+                  const qdef = def?.questions.find((d) => d.id === q.id);
+                  return (
+                    <section key={q.id}>
+                      <VStack gap="space-8">
+                        <Heading level="2" size="small">
+                          {q.text}
                         </Heading>
-                        <Versions
-                          versions={item.versions}
-                          label={labeller(qdef, qdef?.items?.find((d) => d.id === item.id)?.version)}
-                        />
+                        {q.versions ? <Versions versions={q.versions} label={labeller(qdef, qdef?.version)} /> : null}
+                        {q.items?.map((item) => (
+                          <VStack key={item.id} gap="space-4">
+                            <Heading level="3" size="xsmall">
+                              {item.text}
+                            </Heading>
+                            <Versions
+                              versions={item.versions}
+                              label={labeller(qdef, qdef?.items?.find((d) => d.id === item.id)?.version)}
+                            />
+                          </VStack>
+                        ))}
                       </VStack>
-                    ))}
-                  </VStack>
-                </section>
-              );
-            })}
-          </>
-        )}
-      </VStack>
+                    </section>
+                  );
+                })}
+              </>
+            )}
+          </VStack>
+        </Box>
+      </div>
     </main>
   );
 }

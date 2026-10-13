@@ -7,6 +7,7 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_NOT_FOUND");
   }),
   redirect: vi.fn(),
+  usePathname: () => "/admin/undersokelser",
 }));
 
 import SurveysPage from "./page";

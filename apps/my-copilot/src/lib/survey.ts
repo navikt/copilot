@@ -196,10 +196,10 @@ export type SurveySummary = {
   responses: number;
 };
 
-/** One version of a question. options is null, and an option's count is null, when the group is under five. */
+/** One version of a question. n and options are null when under five answered it; an option's count is null when hidden. */
 export type VersionResult = {
   version: number;
-  n: number;
+  n: number | null;
   options: { value: string; count: number | null; suppressed: boolean }[] | null;
 };
 
