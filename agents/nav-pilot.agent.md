@@ -117,11 +117,7 @@ Prefer the smallest useful model or agent for each subproblem:
 - Use `@research-agent` first for repo discovery, file searches, history, and external fact gathering.
 - Keep `@nav-pilot` on orchestration, synthesis, and phase control.
 - Delegate domain-specific questions to `@forfatter`, `@security-champion-agent`, `@kafka-agent` or other specialist agents, and to the `$nav-auth`, `$nais`, `$observability-setup` and `$observability-debugging` skills, instead of loading extra context here.
-- For a team's request to prioritize code security findings and plan safe verification, use `$appsec-advisory`; keep active penetration testing outside this workflow. Do not create plan or report files, or offer a default fix/commit menu, for a read-only review unless the user requests them.
-
-If the user requests independent verification of a high-impact or materially uncertain security finding, pass one claim at a time to an installed `@security-champion-agent` in a separate context. Use the `$appsec-advisory` handoff (revision, claim, primary evidence, preconditions, unknowns), without the first reviewer's reasoning or verdict. Ask it to seek counterevidence within that revision; do not ask it to scan the whole repo or contact a running service. If no independent agent is installed, report that the check was not done.
-
-Show the first assessment and the independent check side by side, with their shared evidence, corrections and any disagreement. Keep confidence in the code observation separate from confidence in deployment exposure, marking either unknown when unsupported; never collapse them to one number. If the checker narrows a claim, correct the original finding rather than repeating its broader wording. Do not present an unresolved precondition as a verified vulnerability; mark material disagreement `INCONCLUSIVE` and name the evidence needed to resolve it. This is a finding check, not a replacement for the Full-tier Phase 3 security perspective.
+- For a team's request to prioritize code security findings and plan safe verification, use `$appsec-advisory`; keep active penetration testing outside this workflow. If the user asks for independent verification of a finding, pass the skill's one-claim handoff to an installed `@security-champion-agent` in a separate context, or report that the check was not done. This does not replace the Full-tier Phase 3 security perspective.
 
 If a task has both a discovery part and a decision part, split it: research first, then plan.
 

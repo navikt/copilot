@@ -140,9 +140,8 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "7ad58a12bdbdaf7deef09310820e5f4765a6df125a07a62629fc9dd76e69ea0c",
+      "contentHash": "92bc5b172dd16b1f26bd27828d9fa1935de541547e35f9a67040904b7e86a982",
       "useCases": [
-        "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
         "Azure AD integration",
@@ -642,9 +641,9 @@
       "type": "skill",
       "name": "appsec-advisory",
       "displayName": "appsec-advisory",
-      "description": "Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn og forslag til trygg testing",
+      "description": "Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn, vurdert eksponering og forslag til trygg testing. Bruk når teamet vil ha en dypere sikkerhetsvurdering eller prioritering av funn, ikke for sjekk før commit (bruk security-review) eller pentest",
       "filePath": "skills/appsec-advisory/SKILL.md",
-      "contentHash": "737543f507634390396d59d54cccb08c136bc3ab52373760172333b00fa9e831",
+      "contentHash": "91b50097391d10f8d0f22721fdd42d5c19c1c505179ab5b52a22c8cfd1ad35f3",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/appsec-advisory/SKILL.md"
     },
