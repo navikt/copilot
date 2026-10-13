@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 // New admin pages go under /admin and get a line here.
 const pages = [
   { href: "/admin/kostnad", title: "Kostnadskontroll", description: "Forbruk og grenser for Copilot i Nav." },
+  { href: "/admin/undersokelser", title: "Undersøkelser", description: "Svar på brukerundersøkelsene." },
 ];
 
 export default async function AdminPage() {

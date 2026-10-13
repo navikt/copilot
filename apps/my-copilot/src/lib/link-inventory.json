@@ -55,6 +55,14 @@
       "trender": ["apps/my-copilot/src/components/cost-trends.tsx"]
     }
   },
+  "/admin/undersokelser": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/admin/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/[id]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/page.tsx"
+    ],
+    "anchors": {}
+  },
   "/adopsjon": {
     "sources": [
       "apps/my-copilot/next.config.ts",

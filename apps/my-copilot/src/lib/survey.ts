@@ -183,3 +183,57 @@ export async function submitAnswers(userToken: string, surveyId: string, answers
       return { status: "error" };
   }
 }
+
+/** A survey as copilot-survey's admin API lists it (GET /api/v1/admin/surveys). */
+export type SurveySummary = {
+  id: string;
+  title: string;
+  starts: string;
+  ends: string;
+  status: "kommende" | "åpen" | "stengt";
+  responses: number;
+};
+
+/** One version of a question. options is null, and an option's count is null, when the group is under five. */
+export type VersionResult = {
+  version: number;
+  n: number;
+  options: { value: string; count: number | null; suppressed: boolean }[] | null;
+};
+
+export type QuestionResult = {
+  id: string;
+  type: SurveyQuestion["type"];
+  text: string;
+  versions?: VersionResult[];
+  items?: { id: string; text: string; versions: VersionResult[] }[];
+};
+
+/** questions is null when the whole survey has fewer than five answers (suppressed). */
+export type SurveyResults = SurveySummary & { suppressed: boolean; questions: QuestionResult[] | null };
+
+export type AdminResult<T> = { status: "ok"; data: T } | { status: "not-found" } | { status: "error" };
+
+/** GET an admin endpoint of copilot-survey for the user. 403 and 404 both mean not-found, so a non-admin learns nothing. */
+async function adminGet<T>(userToken: string, path: string): Promise<AdminResult<T>> {
+  const url = process.env.COPILOT_SURVEY_URL;
+  if (!url) return { status: "error" };
+  try {
+    const headers: Record<string, string> = {};
+    if (!isLocalDev) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    const res = await fetchWithTimeout(`${url}${path}`, { headers, cache: "no-store" }, 10000, "timeout");
+    if (res.status === 403 || res.status === 404) return { status: "not-found" };
+    if (!res.ok) return { status: "error" };
+    return { status: "ok", data: (await res.json()) as T };
+  } catch {
+    return { status: "error" };
+  }
+}
+
+export const getAdminSurveys = (userToken: string) =>
+  adminGet<{ surveys: SurveySummary[] }>(userToken, "/api/v1/admin/surveys");
+
+export async function getSurveyResults(userToken: string, id: string): Promise<AdminResult<SurveyResults>> {
+  if (!/^[a-z0-9-]{1,64}$/.test(id)) return { status: "not-found" };
+  return adminGet<SurveyResults>(userToken, `/api/v1/admin/surveys/${id}/results`);
+}

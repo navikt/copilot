@@ -48,6 +48,8 @@ const DYNAMIC: Record<string, (value: string) => boolean> = {
   // ponytail: video ids come from a GCS feed at request time, so any id passes.
   // Check against the feed if video links start appearing in the repo.
   "/videos/[id]": () => true,
+  // Survey ids live in copilot-survey; the page answers 404 to an unknown one.
+  "/admin/undersokelser/[id]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
 };
 
 // Redirects that are deliberately temporary: aliases, not moved pages.
@@ -289,6 +291,7 @@ function currentSite(): Found[] {
     "/praksis/guide/[slug]": allGuides.map((g) => g.id),
     "/install/[type]": Object.keys(INSTALL_TYPES),
     "/videos/[id]": [],
+    "/admin/undersokelser/[id]": [],
   };
   for (const route of routes.filter((r) => r.pattern.includes("["))) {
     for (const value of dynamicPages[route.pattern] ?? []) {
