@@ -161,7 +161,7 @@ export default async function NavPilotPage() {
   const stars = await getStarCount();
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <SurveyNotice titles={openSurveyTitles()} className="max-w-7xl mx-auto px-4 md:px-8 py-3" />
+      <SurveyNotice titles={openSurveyTitles()} />
       <HeroSection stars={stars} />
       <UseCasesSection />
       <PakkeSection />

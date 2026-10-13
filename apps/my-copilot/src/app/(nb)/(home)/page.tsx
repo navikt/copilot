@@ -36,6 +36,7 @@ export default async function Home() {
 
   return (
     <main id="hovedinnhold" tabIndex={-1}>
+      <SurveyNotice titles={openSurveyTitles()} />
       <section className="hero-gradient text-white overflow-hidden max-md:min-h-[19rem]">
         <HeroNetwork clusters={clusters} />
         <Box
@@ -61,8 +62,6 @@ export default async function Home() {
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap={{ xs: "space-24", md: "space-32" }}>
-            <SurveyNotice titles={openSurveyTitles()} />
-
             <Box className="reveal-section">
               <InsightStrip />
             </Box>

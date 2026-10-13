@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { BodyLong, Box, Link, List, VStack } from "@navikt/ds-react";
-import { ListItem } from "@navikt/ds-react/List";
+import { BarChartIcon, TasklistIcon } from "@navikt/aksel-icons";
+import { BodyLong, Box, VStack } from "@navikt/ds-react";
+import { NavCard } from "@/components/navigation/nav-card";
 import { PageHero } from "@/components/page-hero";
 import { requireAdmin } from "@/lib/auth";
 
@@ -10,10 +11,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// New admin pages go under /admin and get a line here.
+// New admin pages go under /admin and get a card here.
 const pages = [
-  { href: "/admin/kostnad", title: "Kostnadskontroll", description: "Forbruk og grenser for Copilot i Nav." },
-  { href: "/admin/undersokelser", title: "Undersøkelser", description: "Resultater fra brukerundersøkelsene." },
+  {
+    href: "/admin/kostnad",
+    icon: <BarChartIcon aria-hidden fontSize="1.75rem" />,
+    title: "Kostnadskontroll",
+    description: "Forbruk og grenser for Copilot i Nav.",
+  },
+  {
+    href: "/admin/undersokelser",
+    icon: <TasklistIcon aria-hidden fontSize="1.75rem" />,
+    title: "Undersøkelser",
+    description: "Resultater fra brukerundersøkelsene.",
+  },
 ];
 
 export default async function AdminPage() {
@@ -29,13 +40,11 @@ export default async function AdminPage() {
         >
           <VStack gap="space-16">
             <BodyLong>Sidene her er bare for team copilot. Alle andre får «Fant ikke siden».</BodyLong>
-            <List>
+            <div className="grid gap-4 sm:grid-cols-2">
               {pages.map((p) => (
-                <ListItem key={p.href}>
-                  <Link href={p.href}>{p.title}</Link>: {p.description}
-                </ListItem>
+                <NavCard key={p.href} {...p} />
               ))}
-            </List>
+            </div>
           </VStack>
         </Box>
       </div>

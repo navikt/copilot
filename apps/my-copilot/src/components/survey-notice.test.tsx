@@ -11,6 +11,8 @@ describe("SurveyNotice", () => {
       "/nav-pilot/undersokelse"
     );
     expect(screen.getByText(/Utviklerundersøkelsen er åpen/)).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Brukerundersøkelse" })).toBeInTheDocument();
+    expect(screen.getByText("nav-pilot survey")).toHaveClass("whitespace-nowrap");
   });
 
   it("shows nothing when no survey is open", async () => {

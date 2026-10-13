@@ -1,27 +1,35 @@
 "use client";
 
 import { Suspense, use } from "react";
-import { Alert, Link } from "@navikt/ds-react";
+import NextLink from "next/link";
 
-/** A short notice that a survey is open, shown only while copilot-survey serves one (openSurveyTitles). */
-export function SurveyNotice({ titles, className }: { titles: Promise<string[]>; className?: string }) {
+/**
+ * A slim full-width bar that a survey is open, shown only while copilot-survey serves one (openSurveyTitles).
+ * Dark like the header, so it sits flush above both dark heroes and light pages.
+ */
+export function SurveyNotice({ titles }: { titles: Promise<string[]> }) {
   return (
     <Suspense fallback={null}>
-      <Notice titles={titles} className={className} />
+      <Notice titles={titles} />
     </Suspense>
   );
 }
 
-function Notice({ titles, className }: { titles: Promise<string[]>; className?: string }) {
+function Notice({ titles }: { titles: Promise<string[]> }) {
   const open = use(titles);
   if (open.length === 0) return null;
   return (
-    <div className={className}>
-      <Alert variant="info" size="small">
+    <aside aria-label="Brukerundersøkelse" className="bg-gray-800 text-white text-sm border-b border-white/15">
+      <p className="max-w-7xl mx-auto px-4 md:px-10 py-2">
         {open.length === 1 ? open[0] : "En brukerundersøkelse"} er åpen.{" "}
-        <Link href="/nav-pilot/undersokelse">Svar i nettleseren</Link> eller i terminalen med{" "}
-        <code className="font-mono text-sm">nav-pilot survey</code>.
-      </Alert>
-    </div>
+        <NextLink
+          href="/nav-pilot/undersokelse"
+          className="font-semibold underline underline-offset-2 hover:no-underline rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          Svar i nettleseren
+        </NextLink>{" "}
+        eller i terminalen med <code className="font-mono whitespace-nowrap">nav-pilot survey</code>.
+      </p>
+    </aside>
   );
 }
