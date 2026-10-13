@@ -45,8 +45,24 @@ const answer = buildInnsyn({
     { year_month: "2025-12", model: "GPT-5", gross_amount: 0, net_amount: 999, pct_of_monthly_net: 0 },
   ],
   volume: [
-    { month: "2026-05", ai_credits: 0, premium_requests: 400, cli_tokens: 10, app_tokens: 0 },
-    { month: "2026-09", ai_credits: 900, premium_requests: 0, cli_tokens: 0, app_tokens: 0 },
+    {
+      month: "2026-05",
+      ai_credits: 0,
+      premium_requests: 400,
+      cli_input_tokens: 10,
+      cli_output_tokens: 2,
+      app_input_tokens: 0,
+      app_output_tokens: 0,
+    },
+    {
+      month: "2026-09",
+      ai_credits: 900,
+      premium_requests: 0,
+      cli_input_tokens: 0,
+      cli_output_tokens: 0,
+      app_input_tokens: 0,
+      app_output_tokens: 0,
+    },
   ],
   today: "2026-10-13",
 });

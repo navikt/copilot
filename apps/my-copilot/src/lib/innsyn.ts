@@ -85,7 +85,9 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
   const codeReview = familyNet.get("kodegjennomgang") ?? 0;
 
   const vol = volume.filter((v) => inYear(v.month));
-  const tokenMonths = vol.filter((v) => v.cli_tokens + v.app_tokens > 0);
+  const tokenMonths = vol.filter(
+    (v) => v.cli_input_tokens + v.cli_output_tokens + v.app_input_tokens + v.app_output_tokens > 0
+  );
   const users = active.filter((a) => inYear(a.month));
   const seatsNow = months.at(-1)?.seats ?? null;
 
@@ -95,7 +97,7 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
       answer:
         `Nav har fått fakturert ${nbUsd(ytd)} for bruk av GitHub Copilot` +
         (lastBilled ? ` fra januar til og med ${monthLabel(lastBilled)} ${year}.` : ` i ${year}.`) +
-        ` I tillegg kommer lisenskostnaden, anslått til ${nbUsd(licenceTotal)} for de samme månedene.` +
+        " Lisenskostnaden står i en egen tabell. Den er et anslag og er ikke med i summen." +
         (preliminary.length ? " Måneder uten faktura er vist som foreløpige og er ikke med i summen." : ""),
       data: {
         months: months
@@ -111,13 +113,15 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
             .filter((m) => m.licence_usd_estimate != null)
             .map((m) => ({ month: m.month, usd: m.licence_usd_estimate, calculated: rebuilt.has(m.month) })),
           ytd_usd: licenceTotal,
+          estimate: true,
+          included_in_billed_total: false,
         },
       },
       notes: [
         "Nav blir fakturert i amerikanske dollar (USD). Beløpene er ikke regnet om til kroner.",
         "Fakturert er beløpet etter at kredittene som følger med lisensene, er trukket fra.",
         "Foreløpig betyr at fakturaen for måneden ikke er kommet. Beløpet er et anslag og kan endre seg.",
-        "Lisenskostnaden er et anslag: antall lisenser ganger listepris, uten rabatt.",
+        "Lisenskostnad er et anslag: antall lisenser × listepris (19/39 USD), uten rabatt, beregnet ut fra dagens lisenser. Ikke med i summen over.",
         ...(rebuilt.size && admin.coverage.seats_from
           ? [
               `Lisenstallet før ${formatDate(admin.coverage.seats_from)} er regnet ut fra dagens antall, fordi vi ikke har daglige tellinger fra før.`,
@@ -140,14 +144,16 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
         })),
         tokens: tokenMonths.map((v) => ({
           month: v.month,
-          copilot_cli: nonZero(v.cli_tokens),
-          copilot_app: nonZero(v.app_tokens),
+          copilot_cli_in: nonZero(v.cli_input_tokens),
+          copilot_cli_out: nonZero(v.cli_output_tokens),
+          copilot_app_in: nonZero(v.app_input_tokens),
+          copilot_app_out: nonZero(v.app_output_tokens),
         })),
         tokens_by_model_family: null,
       },
       notes: [
         "Én KI-kreditt koster 0,01 USD til listepris.",
-        "Tokens er summen av tokens inn og ut.",
+        "Inn er tokens sendt til modellen, ut er tokens modellen skrev. Inn omfatter hele konteksten i hver forespørsel, også det som gjentas fra forrige forespørsel. GitHub skiller ikke ut hurtigbuffer, så inn-tallet sier lite om hvor mye ny tekst som ble sendt.",
         ...(tokenMonths.length
           ? [
               `Tokens for Copilot CLI finnes fra ${monthLabel(tokenMonths[0].month)} ${tokenMonths[0].month.slice(0, 4)}. Copilot-appen kom senere.`,

@@ -17,14 +17,16 @@ type VolumeMonth struct {
 	Month           string `bigquery:"month" json:"month"`
 	AICredits       int64  `bigquery:"ai_credits" json:"ai_credits"`
 	PremiumRequests int64  `bigquery:"premium_requests" json:"premium_requests"`
-	CLITokens       int64  `bigquery:"cli_tokens" json:"cli_tokens"`
-	AppTokens       int64  `bigquery:"app_tokens" json:"app_tokens"`
+	// Input (prompt) and output tokens. GitHub reports no cache split.
+	CLIInputTokens  int64 `bigquery:"cli_input_tokens" json:"cli_input_tokens"`
+	CLIOutputTokens int64 `bigquery:"cli_output_tokens" json:"cli_output_tokens"`
+	AppInputTokens  int64 `bigquery:"app_input_tokens" json:"app_input_tokens"`
+	AppOutputTokens int64 `bigquery:"app_output_tokens" json:"app_output_tokens"`
 }
 
 func (bq *BigQueryClient) GetVolumeMonthly(ctx context.Context, year int) ([]VolumeMonth, error) {
-	tokens := func(path string) string {
-		return fmt.Sprintf(`SUM(IFNULL(SAFE_CAST(JSON_VALUE(raw_record,'$.%[1]s.token_usage.prompt_tokens_sum') AS INT64),0)
-  +IFNULL(SAFE_CAST(JSON_VALUE(raw_record,'$.%[1]s.token_usage.output_tokens_sum') AS INT64),0))`, path)
+	tokens := func(path, field string) string {
+		return fmt.Sprintf(`SUM(IFNULL(SAFE_CAST(JSON_VALUE(raw_record,'$.%s.token_usage.%s') AS INT64),0))`, path, field)
 	}
 	q := bq.client.Query(fmt.Sprintf(`
 WITH v AS (
@@ -34,16 +36,18 @@ WITH v AS (
  FROM %[1]s WHERE day>=DATE(@from) AND day<DATE(@to) AND scope_id='nav' AND product='Copilot' AND sku IN (`+billedSKUs+`)
  GROUP BY month
 ), t AS (
- SELECT DATE_TRUNC(day,MONTH) month,%[3]s cli_tokens,%[4]s app_tokens
+ SELECT DATE_TRUNC(day,MONTH) month,%[3]s cli_input_tokens,%[4]s cli_output_tokens,%[5]s app_input_tokens,%[6]s app_output_tokens
  FROM %[2]s WHERE day>=DATE(@from) AND day<DATE(@to) AND scope='enterprise' AND scope_id='nav'
  GROUP BY month
 )
 SELECT FORMAT_DATE('%%Y-%%m',month) month,IFNULL(v.ai_credits,0) ai_credits,IFNULL(v.premium_requests,0) premium_requests,
- IFNULL(t.cli_tokens,0) cli_tokens,IFNULL(t.app_tokens,0) app_tokens
+ IFNULL(t.cli_input_tokens,0) cli_input_tokens,IFNULL(t.cli_output_tokens,0) cli_output_tokens,
+ IFNULL(t.app_input_tokens,0) app_input_tokens,IFNULL(t.app_output_tokens,0) app_output_tokens
 FROM v FULL JOIN t USING (month) ORDER BY month`,
 		bq.tableRef(bq.metricsDataset, "billing_usage_daily_model"),
 		bq.tableRef(bq.metricsDataset, bq.metricsTable),
-		tokens("totals_by_cli"), tokens("totals_by_copilot_app")))
+		tokens("totals_by_cli", "prompt_tokens_sum"), tokens("totals_by_cli", "output_tokens_sum"),
+		tokens("totals_by_copilot_app", "prompt_tokens_sum"), tokens("totals_by_copilot_app", "output_tokens_sum")))
 	q.Parameters = monthRange(time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC), 12)
 	it, err := q.Read(ctx)
 	if err != nil {

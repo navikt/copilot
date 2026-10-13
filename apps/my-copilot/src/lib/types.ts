@@ -705,6 +705,8 @@ export interface VolumeMonth {
   month: string;
   ai_credits: number;
   premium_requests: number;
-  cli_tokens: number;
-  app_tokens: number;
+  cli_input_tokens: number;
+  cli_output_tokens: number;
+  app_input_tokens: number;
+  app_output_tokens: number;
 }
