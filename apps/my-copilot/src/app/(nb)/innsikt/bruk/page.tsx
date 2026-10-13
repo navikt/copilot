@@ -102,7 +102,7 @@ async function Cost({ token }: { token: string }) {
     getBillingMonthlyTrend(token),
   ]);
   if (daily.error) console.error("[innsikt/bruk] Billing model daily failed:", daily.error);
-  if (error) return <BodyShort>{`Kunne ikke hente kostnaden: ${error}`}</BodyShort>;
+  if (error) console.error("[innsikt/bruk] Billing monthly trend failed:", error);
 
   const netByDay = new Map<string, number>();
   for (const r of daily.usage) netByDay.set(r.day, (netByDay.get(r.day) ?? 0) + r.net_amount);
@@ -147,45 +147,49 @@ async function Cost({ token }: { token: string }) {
               : `Ingen kostnadstall for ${monthLong(current)} ennå.`}
           </BodyShort>
         )}
-        <ChartFigure
-          title={`Hva har Copilot kostet per måned i ${year}?`}
-          summary={
-            months.length === 0
-              ? `Ingen kostnadstall for ${year} ennå.`
-              : months
-                  .map(
-                    (t) =>
-                      `${monthLong(t.year_month)}: ${formatUSD(t.total_net_amount)}${t.year_month < current ? "" : " (foreløpig)"}`
-                  )
-                  .join(", ")
-          }
-          chart={
-            <EventChart
-              kind="bar"
-              stacked
-              unit="usd"
-              keys={keys}
-              labels={keys.map((k) => monthShort(k) + (k === current ? " (foreløpig)" : ""))}
-              series={[
-                { label: "Fakturert", color: 0, data: amount(true) },
-                { label: "Foreløpig forbruk", color: 1, data: amount(false) },
-              ]}
-            />
-          }
-        />
+        {months.length === 0 ? (
+          <BodyShort>
+            {error ? "Kunne ikke hente kostnaden per måned." : `Ingen kostnadstall for ${year} ennå.`}
+          </BodyShort>
+        ) : (
+          <ChartFigure
+            title={`Hva har Copilot kostet per måned i ${year}?`}
+            summary={months
+              .map(
+                (t) =>
+                  `${monthLong(t.year_month)}: ${formatUSD(t.total_net_amount)}${t.year_month < current ? "" : " (foreløpig)"}`
+              )
+              .join(", ")}
+            chart={
+              <EventChart
+                kind="bar"
+                stacked
+                unit="usd"
+                keys={keys}
+                labels={keys.map((k) => monthShort(k) + (k === current ? " (foreløpig)" : ""))}
+                series={[
+                  { label: "Fakturert", color: 0, data: amount(true) },
+                  { label: "Foreløpig forbruk", color: 1, data: amount(false) },
+                ]}
+              />
+            }
+          />
+        )}
       </HGrid>
-      <NumbersFold>
-        <PlainTable
-          rows={[
-            ["Måned", "Beløp", "Grunnlag"],
-            ...months.map((t) => [
-              monthLong(t.year_month),
-              formatUSD(t.total_net_amount),
-              t.year_month < current ? "Fakturert" : "Foreløpig forbruk",
-            ]),
-          ]}
-        />
-      </NumbersFold>
+      {months.length > 0 && (
+        <NumbersFold>
+          <PlainTable
+            rows={[
+              ["Måned", "Beløp", "Grunnlag"],
+              ...months.map((t) => [
+                monthLong(t.year_month),
+                formatUSD(t.total_net_amount),
+                t.year_month < current ? "Fakturert" : "Foreløpig forbruk",
+              ]),
+            ]}
+          />
+        </NumbersFold>
+      )}
       <NumbersFold summary="Slik leser du tallene">
         <BodyShort size="small">
           Fakturert er beløpet på fakturaen for en avsluttet måned, etter rabatt. Foreløpig forbruk er det vi regner med
