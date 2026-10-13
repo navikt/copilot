@@ -19,8 +19,8 @@ import { likert } from "./[id]/likert";
 const group = "11111111-2222-3333-4444-555555555555";
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
 
-// Written by aggregate() in copilot-survey (#1733) from 142 made-up answers, so
-// the suppression is the backend's own, not one this test assumes.
+// Shaped like aggregate() in copilot-survey (#1733) from 142 made-up answers. Since
+// 2026-10-13 every count is real; only a survey under five answers is hidden.
 const results = fixture as unknown as SurveyResults;
 
 // The definition getSurveyPreview reads from main: labels for the matrix.
@@ -46,22 +46,6 @@ const definition = {
     },
   ],
 };
-
-/** Tables where each person gives one answer: with n shown, a single hidden cell would be n minus the rest. */
-function derivableTables(r: SurveyResults): string[] {
-  const bad: string[] = [];
-  for (const q of r.questions ?? []) {
-    if (q.type === "multi") continue;
-    const tables = [
-      ...(q.versions ?? []).map((v) => [q.id, v] as const),
-      ...(q.items ?? []).flatMap((i) => i.versions.map((v) => [i.id, v] as const)),
-    ];
-    for (const [id, v] of tables) {
-      if (v.options?.filter((o) => o.count === null).length === 1) bad.push(`${id} v${v.version}`);
-    }
-  }
-  return bad;
-}
 
 function respond(status: number, body: unknown = {}) {
   const fetch = vi.fn(async (url: string) =>
@@ -110,29 +94,7 @@ describe("/admin/undersokelser", () => {
     expect(screen.getByText("142")).toBeInTheDocument();
   });
 
-  it("gets a fixture from the backend where no hidden count can be worked out", () => {
-    expect(derivableTables(results)).toEqual([]);
-    // Control: the check catches a table with one hidden cell.
-    const leaky = structuredClone(results);
-    leaky.questions![0].versions![0].options = [
-      { value: "x", count: null, suppressed: true },
-      { value: "y", count: 108, suppressed: false },
-      { value: "z", count: 12, suppressed: false },
-    ];
-    expect(derivableTables(leaky)).toEqual(["nytte v1"]);
-    // The chart adds nothing: its only hidden number is n minus the shown counts.
-    for (const item of results.questions!.find((q) => q.id === "pastander")!.items!) {
-      for (const v of item.versions) {
-        if (v.n === null) continue;
-        const { segments, hidden } = likert(v, 1, 5);
-        const shown = segments.reduce((a, s) => a + (s.count ?? 0), 0);
-        expect(hidden?.count).toBe(v.n - shown);
-        expect(segments.filter((s) => s.count === null).map((s) => s.share)).toEqual([0, 0]);
-      }
-    }
-  });
-
-  it("shows counts, shares, hidden cells and scale labels", async () => {
+  it("shows real counts, shares and scale labels, small ones too", async () => {
     const fetch = respond(200, results);
     render(await SurveyResultsPage(params("host-2026")));
     expect(fetch).toHaveBeenCalledWith(
@@ -140,46 +102,35 @@ describe("/admin/undersokelser", () => {
       expect.anything()
     );
     expect(screen.getByRole("heading", { name: "Hvor nyttig er Copilot i arbeidet ditt?" })).toBeInTheDocument();
-    expect(screen.getByRole("row", { name: /Svært nyttig/ })).toHaveTextContent("61");
-    expect(screen.getByRole("row", { name: /Svært nyttig/ })).toHaveTextContent("51 %");
-    // Lite nyttig (12) is hidden with Ikke nyttig (4), or 4 would be 120 minus the rest.
-    expect(screen.getByRole("row", { name: /Lite nyttig/ })).toHaveTextContent("skjult");
-    expect(screen.getByRole("row", { name: /Ikke nyttig/ })).toHaveTextContent("skjult");
-    expect(screen.getByText(/^Versjon 2: tallene vises ikke\./)).toBeInTheDocument();
+    expect(screen.getAllByRole("row", { name: /Svært nyttig/ })[0]).toHaveTextContent("61");
+    expect(screen.getAllByRole("row", { name: /Svært nyttig/ })[0]).toHaveTextContent("51 %");
+    expect(screen.getByRole("row", { name: /Ikke nyttig/ })).toHaveTextContent("4");
+    expect(screen.getByText("Versjon 2: 3 svar")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Jeg jobber raskere" })).toBeInTheDocument();
-    expect(screen.getByRole("row", { name: /Helt uenig/ })).toHaveTextContent("skjult");
-    expect(screen.getByRole("row", { name: /Helt enig/ })).toHaveTextContent("42");
-    expect(screen.queryByRole("cell", { name: "5" })).not.toBeInTheDocument();
-    expect(screen.getByText(/^Alle: tallene vises ikke\./)).toBeInTheDocument();
+    expect(screen.getAllByRole("row", { name: /Helt uenig/ })[0]).toHaveTextContent("4");
+    expect(screen.getAllByRole("row", { name: /Helt enig/ })[0]).toHaveTextContent("42");
+    expect(screen.queryByText(/skjult|tallene vises ikke|færre enn fem/i)).not.toBeInTheDocument();
   });
 
-  it("draws matrix statements as diverging bars, hidden cells merged and no mean", async () => {
+  it("draws matrix statements as diverging bars with a mean for each", async () => {
     respond(200, results);
     render(await SurveyResultsPage(params("host-2026")));
-    // Jeg jobber raskere: n 130, Nøytral 24 split over the zero line, Enig 51, Helt enig 42.
-    expect(screen.getByTestId("segment-3")).toHaveStyle({ width: `${(24 / 130 / 2) * 100}%` });
-    expect(screen.getByTestId("segment-4")).toHaveStyle({ width: `${(51 / 130) * 100}%` });
-    expect(screen.getByTestId("segment-4")).toHaveTextContent("39 % (51)");
-    // Helt uenig and Uenig are hidden: one segment of 130 − 117 = 13, never their own widths.
-    expect(screen.queryByTestId("segment-1")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("segment-2")).not.toBeInTheDocument();
-    expect(screen.getAllByTestId("skjult")).toHaveLength(1);
-    expect(screen.getByTestId("skjult")).toHaveStyle({ width: `${(13 / 130) * 100}%` });
-    expect(screen.queryByText(/^Snitt/)).not.toBeInTheDocument();
-    // Koden blir bedre has n null: text, no bar.
-    expect(screen.getAllByTestId("segment-4")).toHaveLength(1);
+    // Jeg jobber raskere: n 130, Helt uenig 4, Uenig 9, Nøytral 24 split over the zero line, Enig 51, Helt enig 42.
+    expect(screen.getAllByTestId("segment-1")[0]).toHaveStyle({ width: `${(4 / 130) * 100}%` });
+    expect(screen.getAllByTestId("segment-3")[0]).toHaveStyle({ width: `${(24 / 130 / 2) * 100}%` });
+    expect(screen.getAllByTestId("segment-4")[0]).toHaveTextContent("39 % (51)");
+    // Koden blir bedre (n 4) gets its bar too.
+    expect(screen.getAllByTestId("segment-4")).toHaveLength(2);
+    expect(screen.getAllByText(/^Snitt/).map((e) => e.textContent)).toEqual(["Snitt 3,9", "Snitt 3,8"]);
   });
 
-  it("gives the mean only when no cell is hidden", () => {
+  it("gives the mean of a Likert version", () => {
     const v = {
       version: 1,
       n: 10,
       options: [1, 2, 3, 4, 5].map((x) => ({ value: `${x}`, count: 2, suppressed: false })),
     };
-    expect(likert(v, 1, 5)).toMatchObject({ hidden: null, mean: 3 });
-    v.options[0] = { value: "1", count: null as unknown as number, suppressed: true };
-    v.options[1] = { value: "2", count: null as unknown as number, suppressed: true };
-    expect(likert(v, 1, 5)).toMatchObject({ hidden: { count: 4 }, mean: null });
+    expect(likert(v, 1, 5)).toMatchObject({ mean: 3 });
   });
 
   it("shows raw values when the definition is missing", async () => {

@@ -23,13 +23,13 @@
             },
             {
               "value": "Ikke nyttig",
-              "count": null,
-              "suppressed": true
+              "count": 4,
+              "suppressed": false
             },
             {
               "value": "Lite nyttig",
-              "count": null,
-              "suppressed": true
+              "count": 12,
+              "suppressed": false
             },
             {
               "value": "Svært nyttig",
@@ -40,8 +40,19 @@
         },
         {
           "version": 2,
-          "n": null,
-          "options": null
+          "n": 3,
+          "options": [
+            {
+              "value": "Ganske nyttig",
+              "count": 1,
+              "suppressed": false
+            },
+            {
+              "value": "Svært nyttig",
+              "count": 2,
+              "suppressed": false
+            }
+          ]
         }
       ]
     },
@@ -71,8 +82,8 @@
             },
             {
               "value": "Annet",
-              "count": null,
-              "suppressed": true
+              "count": 3,
+              "suppressed": false
             }
           ]
         }
@@ -93,13 +104,13 @@
               "options": [
                 {
                   "value": "1",
-                  "count": null,
-                  "suppressed": true
+                  "count": 4,
+                  "suppressed": false
                 },
                 {
                   "value": "2",
-                  "count": null,
-                  "suppressed": true
+                  "count": 9,
+                  "suppressed": false
                 },
                 {
                   "value": "3",
@@ -126,8 +137,19 @@
           "versions": [
             {
               "version": 1,
-              "n": null,
-              "options": null
+              "n": 4,
+              "options": [
+                {
+                  "value": "3",
+                  "count": 1,
+                  "suppressed": false
+                },
+                {
+                  "value": "4",
+                  "count": 3,
+                  "suppressed": false
+                }
+              ]
             }
           ]
         }

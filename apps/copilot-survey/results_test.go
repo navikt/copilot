@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -61,75 +60,6 @@ func TestAdminGroupUnsetFailsClosed(t *testing.T) {
 	}
 }
 
-// TestCellsHideDeterminableGroups: a hidden cell must not follow from n and
-// the shown cells. The result names the options that end up hidden.
-func TestCellsHideDeterminableGroups(t *testing.T) {
-	q := question{Type: "choice", Version: 1, Options: []string{"a", "b", "c", "d"}}
-	hidden := func(q question, counts map[string]int) string {
-		var s string
-		for _, o := range cells(q, 1, counts) {
-			if o.Suppressed {
-				s += o.Value
-			}
-		}
-		return s
-	}
-	for name, tc := range map[string]struct {
-		counts map[string]int
-		want   string
-	}{
-		"one small":   {map[string]int{"a": 1, "b": 7, "c": 9}, "ab"},
-		"all ones":    {map[string]int{"a": 1, "b": 1, "c": 9}, "abc"},
-		"all fours":   {map[string]int{"a": 4, "b": 4, "c": 9}, "abc"},
-		"mixed small": {map[string]int{"a": 1, "b": 3, "c": 9}, "ab"},
-		"none small":  {map[string]int{"a": 5, "b": 9}, ""},
-	} {
-		if got := hidden(q, tc.counts); got != tc.want {
-			t.Errorf("%s: hid %q, want %q", name, got, tc.want)
-		}
-	}
-	// Every answer in a small cell: no cell left to hide, so nothing is shown.
-	for name, counts := range map[string]map[string]int{"two fours": {"a": 4, "b": 4}, "five ones": {"a": 1, "b": 1, "c": 1, "d": 1, "e": 1}} {
-		if cells(q, 1, counts) != nil {
-			t.Errorf("%s: shown, want nil", name)
-		}
-	}
-	q.Type, q.MaxChoices = "multi", 1
-	if got := hidden(q, map[string]int{"a": 1, "b": 7}); got != "ab" {
-		t.Errorf("multi with one choice: hid %q, want ab", got)
-	}
-	q.MaxChoices = 0
-	if got := hidden(q, map[string]int{"a": 1, "b": 7}); got != "a" {
-		t.Errorf("multi: hid %q, want a", got)
-	}
-}
-
-// TestSkippedQuestionHidesSourceCount: grid is skipped for client=opencode, so
-// its n is the number who chose copilot. With opencode at 2 (hidden, and
-// copilot hidden with it) grid must show nothing; with both shown it may.
-func TestSkippedQuestionHidesSourceCount(t *testing.T) {
-	rows := func(opencode int) []storedAnswer {
-		var out []storedAnswer
-		for i := range 12 {
-			client := `"copilot","fast":3,"safe":3`
-			if i < opencode {
-				client = `"opencode"`
-			}
-			out = append(out, row(`{"overall":3,"client":`+client+`}`, `{"overall":1,"client":1,"fast":2,"safe":1}`))
-		}
-		return out
-	}
-	for opencode, want := range map[int]bool{2: false, 5: true} {
-		got, _ := getResults(t, rows(opencode))
-		i := slices.IndexFunc(got.Questions, func(q questionResult) bool { return q.ID == "grid" })
-		for _, it := range got.Questions[i].Items {
-			if shown := it.Versions[0].N != nil && it.Versions[0].Options != nil; shown != want {
-				t.Errorf("opencode=%d: %s shown=%v, want %v", opencode, it.ID, shown, want)
-			}
-		}
-	}
-}
-
 func TestListStatus(t *testing.T) {
 	api := adminAPI(t, []storedAnswer{{}, {}})
 	api.surveys = append(api.surveys,
@@ -175,10 +105,9 @@ func TestResultsBelowFiveShowNothing(t *testing.T) {
 	}
 }
 
-func TestResultsSuppressAndSplit(t *testing.T) {
-	// overall: 6×5, 1×4: 4 is hidden, and 5 too (it is n minus the rest).
-	// tools (multi): 7 people, a×7, b×2: only b hidden.
-	// fast: 4 on version 1 (n<5: neither n nor a distribution), 6 on version 2.
+func TestResultsRealCountsAndSplit(t *testing.T) {
+	// overall: 6×5, 1×4. tools (multi): 7 people, a×7, b×2.
+	// fast: 4 on version 1, 6 on version 2. Every count is real.
 	var rows []storedAnswer
 	for i := range 7 {
 		overall, tools, ver := 5, `["a"]`, 2
@@ -207,16 +136,17 @@ func TestResultsSuppressAndSplit(t *testing.T) {
 		q[r.ID] = r
 	}
 	for _, o := range q["overall"].Versions[0].Options {
-		if (o.Value == "4" || o.Value == "5") != o.Suppressed || (o.Suppressed && o.Count != nil) {
+		want := map[string]int{"4": 1, "5": 6}[o.Value]
+		if o.Suppressed || o.Count == nil || *o.Count != want {
 			t.Errorf("overall %+v", o)
 		}
 	}
 	tools := q["tools"].Versions[0]
-	if *tools.N != 7 || *tools.Options[0].Count != 7 || !tools.Options[1].Suppressed || *tools.Options[2].Count != 0 {
+	if *tools.N != 7 || *tools.Options[0].Count != 7 || tools.Options[1].Suppressed || *tools.Options[1].Count != 2 || *tools.Options[2].Count != 0 {
 		t.Errorf("tools %+v", tools)
 	}
 	fast := q["grid"].Items[0]
-	if fast.ID != "fast" || len(fast.Versions) != 2 || fast.Versions[0].Version != 1 || fast.Versions[0].N != nil || fast.Versions[0].Options != nil ||
+	if fast.ID != "fast" || len(fast.Versions) != 2 || fast.Versions[0].Version != 1 || fast.Versions[0].N == nil || *fast.Versions[0].N != 4 || *fast.Versions[0].Options[0].Count != 4 ||
 		*fast.Versions[1].N != 6 || len(fast.Versions[1].Options) != 5 || *fast.Versions[1].Options[2].Count != 6 {
 		t.Errorf("fast %+v", fast)
 	}

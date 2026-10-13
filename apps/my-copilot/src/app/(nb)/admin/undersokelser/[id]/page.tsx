@@ -41,15 +41,14 @@ const pct = (share: number) => `${Math.round(share * 100)} %`;
 
 /**
  * One statement's bar: negatives left of the zero line, neutral split across it,
- * positives right. Hidden cells get one hatched segment in their own column after
- * the scale. Decorative: the numbers are in the table under «Vis tall».
+ * positives right. Decorative: the numbers are in the table under «Vis tall».
  */
 function LikertBar({ v, min, max, labels }: { v: VersionResult; min: number; max: number; labels: string[] }) {
-  const { segments, hidden, mean } = likert(v, min, max);
+  const { segments, mean } = likert(v, min, max);
   const mid = (min + max) / 2;
   const seg = (s: Segment, width: number, label = true) => {
     const i = Math.round(((s.value - min) / (max - min || 1)) * (FILLS.length - 1));
-    const text = `${pct(s.share)} (${formatNumber(s.count ?? 0)})`;
+    const text = `${pct(s.share)} (${formatNumber(s.count)})`;
     return (
       <div
         key={s.value}
@@ -75,21 +74,6 @@ function LikertBar({ v, min, max, labels }: { v: VersionResult; min: number; max
           .map((s) => (s.value === mid ? seg(s, s.share / 2, false) : seg(s, s.share)))}
       </div>
       <Box paddingInline="space-12 space-0" className="flex items-center gap-2 text-xs">
-        {hidden && hidden.count > 0 ? (
-          <>
-            <div
-              data-testid="skjult"
-              title={`skjult: ${pct(hidden.share)} (${formatNumber(hidden.count ?? 0)})`}
-              className="h-7"
-              style={{
-                width: `${hidden.share * 100}%`,
-                background:
-                  "repeating-linear-gradient(45deg, var(--ax-bg-neutral-moderate) 0 4px, var(--ax-bg-neutral-strong) 4px 6px)",
-              }}
-            />
-            <span>skjult</span>
-          </>
-        ) : null}
         {mean === null ? null : <span>Snitt {mean.toFixed(1).replace(".", ",")}</span>}
       </Box>
     </div>
@@ -115,13 +99,8 @@ function Legend({ labels }: { labels: string[] }) {
 /** One version of a question as a table: count, share of respondents and an inline bar. */
 function VersionTable({ v, caption, label }: { v: VersionResult; caption: string; label: Label }) {
   const n = v.n;
-  if (!v.options || n === null) {
-    return (
-      <BodyShort size="small">
-        {caption}: tallene vises ikke. Færre enn fem svarte, eller et skjult tall kunne regnes ut.
-      </BodyShort>
-    );
-  }
+  // Old backends sent null for counts below five; nothing is hidden now.
+  if (!v.options || n === null) return null;
   return (
     <Table size="small">
       <caption className="text-left">
@@ -146,11 +125,9 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
           return (
             <TableRow key={o.value}>
               <TableDataCell>{label(v.version, o.value)}</TableDataCell>
-              <TableDataCell align="right">
-                {o.suppressed || o.count === null ? "skjult" : formatNumber(o.count)}
-              </TableDataCell>
+              <TableDataCell align="right">{o.count === null ? "–" : formatNumber(o.count)}</TableDataCell>
               <TableDataCell>
-                {o.suppressed || o.count === null ? null : (
+                {o.count === null ? null : (
                   <div className="flex items-center gap-2">
                     <div
                       aria-hidden
@@ -228,9 +205,7 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
             ) : (
               <>
                 <BodyShort size="small">
-                  Svar fra færre enn fem personer vises ikke. Når et skjult tall kunne regnes ut fra de andre, skjuler
-                  vi flere tall. Spørsmål som ble endret underveis, vises med én tabell per versjon. Fritekstsvar vises
-                  ikke her.
+                  Spørsmål som ble endret underveis, vises med én tabell per versjon. Fritekstsvar vises ikke her.
                 </BodyShort>
                 {s.questions.map((q) => {
                   const qdef = def?.questions.find((d) => d.id === q.id);
