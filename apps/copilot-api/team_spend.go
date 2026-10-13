@@ -310,19 +310,30 @@ const billedSKUs = "'Copilot AI Credits','Copilot Cloud Agent','Copilot Premium 
 
 const minTeamContributors = 5
 
-// GetUserTeams reads the caller's teams from the team_members roster (latest
-// snapshot) and from user_teams over 30 days. user_teams only holds users
-// active that day, so it alone misses many; it stays as fallback for logins
-// absent from the roster or an empty roster.
+// GetUserTeams reads the caller's teams from the latest team_members roster
+// snapshot. user_teams only holds users active that day, so it is only the
+// fallback (last 30 days) for logins absent from the roster, or when the
+// roster table does not exist yet.
 func (bq *BigQueryClient) GetUserTeams(ctx context.Context, userLogin string) ([]string, error) {
-	members := bq.tableRef(bq.metricsDataset, "team_members")
-	query := bq.client.Query(fmt.Sprintf(`SELECT DISTINCT team_slug FROM %s
-WHERE date=(SELECT MAX(date) FROM %s) AND LOWER(login)=LOWER(@login)
-UNION DISTINCT
-SELECT DISTINCT JSON_VALUE(raw_record,'$.slug') FROM %s
+	roster, err := bq.tableExists(ctx, "team_members")
+	if err != nil {
+		return nil, err
+	}
+	recent := fmt.Sprintf(`SELECT DISTINCT JSON_VALUE(raw_record,'$.slug') team_slug FROM %s
 WHERE day>=DATE_SUB(CURRENT_DATE(),INTERVAL 30 DAY)
 AND scope='enterprise' AND scope_id='nav' AND JSON_VALUE(raw_record,'$.slug') IS NOT NULL
-AND LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)`, members, members, bq.tableRef(bq.metricsDataset, "user_teams")))
+AND LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)`, bq.tableRef(bq.metricsDataset, "user_teams"))
+	sql := recent
+	if roster {
+		members := bq.tableRef(bq.metricsDataset, "team_members")
+		sql = fmt.Sprintf(`WITH roster AS (SELECT DISTINCT team_slug FROM %s
+WHERE date=(SELECT MAX(date) FROM %s) AND LOWER(login)=LOWER(@login)),
+recent AS (%s)
+SELECT team_slug FROM roster
+UNION DISTINCT
+SELECT team_slug FROM recent WHERE NOT EXISTS (SELECT 1 FROM roster)`, members, members, recent)
+	}
+	query := bq.client.Query(sql)
 	query.Parameters = []bigquery.QueryParameter{{Name: "login", Value: userLogin}}
 	it, err := query.Read(ctx)
 	if err != nil {
