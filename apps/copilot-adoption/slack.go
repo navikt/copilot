@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -18,8 +20,11 @@ type SlackNotifier struct {
 }
 
 type slackMessage struct {
-	Text   string       `json:"text"`
-	Blocks []slackBlock `json:"blocks,omitempty"`
+	// Channel is honoured by legacy incoming webhooks such as the Nais
+	// slack-webhook secret; app-scoped webhooks ignore it.
+	Channel string       `json:"channel,omitempty"`
+	Text    string       `json:"text"`
+	Blocks  []slackBlock `json:"blocks,omitempty"`
 }
 
 type slackBlock struct {
@@ -81,7 +86,8 @@ func (s *SlackNotifier) send(ctx context.Context, text string) {
 	}
 
 	msg := slackMessage{
-		Text: text,
+		Channel: cmp.Or(os.Getenv("SLACK_CHANNEL"), "#github-copilot-alerts"),
+		Text:    text,
 		Blocks: []slackBlock{
 			{
 				Type: "section",

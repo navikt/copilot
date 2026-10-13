@@ -13,6 +13,8 @@ spec:
     - --run-once
   envFrom:
     - secret: copilot-adoption
+    # Nais-managed webhook (key apiUrl); posts to SLACK_CHANNEL.
+    - secret: slack-webhook
   env:
     - name: LOG_LEVEL
       value: "{{log_level}}"

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"os"
@@ -36,7 +37,7 @@ func loadConfig() *Config {
 		BigQueryTable:           getEnv("BIGQUERY_TABLE", "repo_scan"),
 		GraphQLBatchSize:        getEnvInt("GRAPHQL_BATCH_SIZE", 3),
 		ScanConcurrency:         getEnvInt("SCAN_CONCURRENCY", 5),
-		SlackWebhookURL:         getEnv("SLACK_WEBHOOK_URL", ""),
+		SlackWebhookURL:         cmp.Or(os.Getenv("apiUrl"), getEnv("SLACK_WEBHOOK_URL", "")),
 	}
 }
 

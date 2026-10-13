@@ -14,6 +14,8 @@ spec:
     - --user-billing-sync
   envFrom:
     - secret: copilot-metrics
+    # Nais-managed webhook (key apiUrl); posts to SLACK_CHANNEL.
+    - secret: slack-webhook
   env:
     - name: USER_BILLING_SYNC_ENABLED
       value: "true"

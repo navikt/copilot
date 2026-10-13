@@ -15,6 +15,8 @@ spec:
     - --mimir-daily
   envFrom:
     - secret: copilot-mimir
+    # Nais-managed webhook (key apiUrl); posts to SLACK_CHANNEL.
+    - secret: slack-webhook
   env:
     - name: MIMIR_DAILY_ENABLED
       value: "{{mimir_daily_enabled}}"
