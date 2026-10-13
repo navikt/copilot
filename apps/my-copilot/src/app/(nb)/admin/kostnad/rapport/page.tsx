@@ -123,7 +123,7 @@ export default async function RapportPage({ searchParams }: { searchParams: Prom
                       <Heading level="3" size="xsmall">
                         {t.caption}
                       </Heading>
-                      <div className="team-report-table overflow-x-auto">
+                      <div className={`team-report-table overflow-x-auto ${t.id === "familier" ? "wrap" : ""}`}>
                         <DataTable rows={t.rows} />
                       </div>
                     </VStack>

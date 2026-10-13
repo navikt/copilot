@@ -30,6 +30,8 @@ export interface RapportTable {
 
 export interface RapportSection {
   title: string;
+  /** kode24's 2026 innsyn questions this section answers. */
+  answers: string[];
   summary: string;
   /** Scalar facts, e.g. ytd_billed_usd. */
   facts: Record<string, unknown>;
@@ -45,7 +47,9 @@ export interface Rapport {
   generated: string;
   period: { from: string; to: string };
   currency: "USD";
-  /** In reading order; keys never change within a version. */
+  /** Reading order of `sections`. */
+  order: readonly RapportSectionId[];
+  /** Keys never change within a version. */
   sections: Record<RapportSectionId, RapportSection>;
 }
 
@@ -114,12 +118,18 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
   const sections: Record<RapportSectionId, RapportSection> = {
     kostnad: {
       title: "Kostnad",
+      answers: ["1"],
       summary:
         `Nav har fått fakturert ${nbUsd(ytd)} for bruk av GitHub Copilot` +
         (lastBilled ? ` fra januar til og med ${monthLabel(lastBilled)} ${year}.` : ` i ${year}.`) +
         " Lisenskostnaden står i en egen tabell. Den er et anslag og er ikke med i summen." +
         (preliminary.length ? " Måneder uten faktura er vist som foreløpige og er ikke med i summen." : ""),
-      facts: { ytd_billed_usd: ytd, licence_ytd_usd_estimate: licenceTotal },
+      facts: {
+        ytd_billed_usd: ytd,
+        licence_ytd_usd_estimate: licenceTotal,
+        licence_is_estimate: true,
+        licence_included_in_billed_total: false,
+      },
       tables: [
         {
           id: "fakturert",
@@ -154,6 +164,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
     },
     forbruk: {
       title: "Forbruk",
+      answers: ["1b"],
       summary:
         "GitHub fakturerer ikke etter tokens. Det nærmeste målet er premiumforespørsler fra januar til mai og KI-kreditter fra juni. " +
         (tokenMonths.length
@@ -199,6 +210,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
     },
     brukere: {
       title: "Brukere",
+      answers: ["3"],
       summary:
         (seatsNow != null
           ? past
@@ -225,6 +237,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
     },
     modeller: {
       title: "Modeller",
+      answers: ["3b"],
       summary:
         "Nav har ingen egen liste over modeller som tilbys, så vi viser modellene som er brukt. " +
         (families.length
@@ -242,6 +255,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
     },
     bruksomrade: {
       title: "Bruksområde",
+      answers: ["1c"],
       summary:
         "GitHub Copilot er et utviklingsverktøy, så nær 100 % av bruken gjelder utvikling. " +
         (netTotal > 0
@@ -253,6 +267,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
     },
     metode: {
       title: "Slik har vi talt",
+      answers: [],
       summary: `Tallene gjelder GitHub Copilot i Nav fra ${formatDate(`${year}-01-01`)} til ${formatDate(lastDay)}. Andre KI-verktøy er ikke med.`,
       facts: {},
       tables: [],
@@ -264,6 +279,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
     },
     ikke_dekket: {
       title: "Hva rapporten ikke dekker",
+      answers: ["2", "3a"],
       summary: "Rapporten viser ikke budsjett, prognose, yrke eller avdeling.",
       facts: { budget: null, forecast: null, profession: null, department: null },
       tables: [],
@@ -282,6 +298,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
     generated: today,
     period: { from: `${year}-01-01`, to: lastDay },
     currency: "USD",
+    order: RAPPORT_SECTIONS,
     sections,
   };
 }

@@ -920,6 +920,11 @@ button.search-hit {
     white-space: nowrap;
   }
 
+  /* Long lists, e.g. the model names in the Copilot report */
+  .team-report-table.wrap td {
+    white-space: normal;
+  }
+
   /* Måned, grunnlag, then five amounts */
   .team-report-table th:nth-child(1) {
     width: 15%;

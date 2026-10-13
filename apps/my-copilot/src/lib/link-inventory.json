@@ -57,7 +57,7 @@
     }
   },
   "/admin/kostnad/innsyn": {
-    "sources": ["apps/my-copilot/next.config.ts", "apps/my-copilot/src/app/(nb)/admin/kostnad/innsyn/page.tsx"],
+    "sources": ["apps/my-copilot/next.config.ts"],
     "anchors": {}
   },
   "/admin/kostnad/rapport": {

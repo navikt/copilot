@@ -73,8 +73,15 @@ const rows = (id: RapportSectionId, table: string) => sec(id).tables.find((t) =>
 describe("buildRapport", () => {
   it("has a stable, versioned schema with topical sections", () => {
     expect(Object.keys(report.sections)).toEqual([...RAPPORT_SECTIONS]);
+    expect(report.order).toEqual(RAPPORT_SECTIONS);
+    // Still answers every question in kode24's request.
+    expect(
+      Object.values(report.sections)
+        .flatMap((s) => s.answers)
+        .sort()
+    ).toEqual(["1", "1b", "1c", "2", "3", "3a", "3b"]);
     for (const s of Object.values(report.sections)) {
-      expect(Object.keys(s).sort()).toEqual(["facts", "notes", "summary", "tables", "title"]);
+      expect(Object.keys(s).sort()).toEqual(["answers", "facts", "notes", "summary", "tables", "title"]);
       expect(s.summary.length).toBeGreaterThan(0);
       for (const t of s.tables) expect(t.caption.length).toBeGreaterThan(0);
     }
