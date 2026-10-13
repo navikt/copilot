@@ -65,6 +65,6 @@ Tallene har en dato av en grunn. Sol lå på 5 og 30 dollar da vi sist synkronis
 
 ## Hvis en agent svarer dårligere
 
-Si fra i [#github-copilot](https://nav-it.slack.com/archives/C055TNXBM17). Modellvalget står i metadaten til hver agent, så det er én linje å sette tilbake hvis det skulle være behov.
+Si fra i [#ki-produktutvikling-diskusjon](https://nav-it.slack.com/archives/C0ASJSZK8P8). Modellvalget står i metadaten til hver agent, så det er én linje å sette tilbake hvis det skulle være behov.
 
 *Rettet 31. august 2026: Sol-prisen og hva målingen faktisk dekker.*

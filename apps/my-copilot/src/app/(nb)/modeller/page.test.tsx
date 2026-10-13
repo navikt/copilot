@@ -179,9 +179,9 @@ describe("modellsiden", () => {
     showAll();
     const opus = screen.getByRole("cell", { name: "Høyrisikoplanlegging og kodegjennomgang" }).closest("tr")!;
     expect(within(opus).getByText("@code-review, @nav-pilot-opus, @security-champion")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "#github-copilot på Slack" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "#ki-produktutvikling-diskusjon på Slack" })).toHaveAttribute(
       "href",
-      "https://nav-it.slack.com/archives/C055TNXBM17"
+      "https://nav-it.slack.com/archives/C0ASJSZK8P8"
     );
   });
 });

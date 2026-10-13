@@ -352,8 +352,8 @@ export default function RetningslinjerPage() {
                 </Heading>
                 <BodyLong>
                   Ta kontakt i{" "}
-                  <Link href="https://nav-it.slack.com/archives/C055TNXBM17" target="_blank" rel="noopener noreferrer">
-                    #github-copilot
+                  <Link href="https://nav-it.slack.com/archives/C0ASJSZK8P8" target="_blank" rel="noopener noreferrer">
+                    #ki-produktutvikling-diskusjon
                   </Link>{" "}
                   på Slack.
                 </BodyLong>

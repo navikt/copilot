@@ -19,7 +19,7 @@ export default function Loading() {
         >
           <VStack gap="space-8">
             <Heading size="xlarge" level="1" className="hero-title">
-              KI-utvikling i Nav
+              KI-produktutvikling i Nav
             </Heading>
             <BodyShort className="max-w-md opacity-70">
               Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.

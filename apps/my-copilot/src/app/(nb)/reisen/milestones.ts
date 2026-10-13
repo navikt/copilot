@@ -185,7 +185,7 @@ export const PHASES: Phase[] = [
       pr(61),
       pr(64),
       pr(70),
-      { label: "#github-copilot på Slack", url: "https://nav-it.slack.com/archives/C055TNXBM17" },
+      { label: "#ki-produktutvikling på Slack", url: "https://nav-it.slack.com/archives/C055TNXBM17" },
       pr(95),
       pr(110),
       { label: "navikt/cplt", url: "https://github.com/navikt/cplt" },

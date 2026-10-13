@@ -20,7 +20,7 @@ Hva «akseptabel risiko» betyr for deg, står i [retningslinjene](/retningslinj
 
 ## Vi bommer også
 
-Vi deler mye om nye modeller, verktøy og måter å jobbe på, både her og i [#github-copilot på Slack](https://nav-it.slack.com/archives/C055TNXBM17). Det kan gi inntrykk av at alle andre har skjønt det og bruker KI til alt. Men det meste som deles, er eksperimenter, ikke ting du må kunne.
+Vi deler mye om nye modeller, verktøy og måter å jobbe på, både her og i [#ki-produktutvikling på Slack](https://nav-it.slack.com/archives/C055TNXBM17). Det kan gi inntrykk av at alle andre har skjønt det og bruker KI til alt. Men det meste som deles, er eksperimenter, ikke ting du må kunne.
 
 Vi som lager oppsettet, prøver oss også fram. Vi integrerte RTK i nav-pilot for å redusere tokenbruk. Så oppdaget vi at det kunne skrive om kommandoer på uheldige måter, og i ett tilfelle fikk det agenten til å gjenta en full typesjekk helt til løkkevernet stoppet den ([#915](https://github.com/navikt/copilot/pull/915), [#1332](https://github.com/navikt/copilot/pull/1332)). Vi har fjernet integrasjonen. Når noe ikke fungerer, kan problemet ligge i det vi har levert, ikke i at du har skjønt for lite.
 
@@ -45,7 +45,7 @@ Det vi ikke måler, er verdien for brukerne. Vi vet hva bruken koster, men ikke 
 - Du må ta stilling til om og hvordan KI kan gi verdi for teamet ditt og produktet ditt. Å ha prøvd og valgt bort er like gyldig som å bruke det daglig. Det eneste vi ikke vil, er at du lar være å finne det ut.
 - Du trenger ikke forstå hele oppsettet for å komme i gang. Poenget med nav-pilot er at du skal slippe å sette sammen delene selv. Vi har til og med forenklet det underveis: før måtte du velge mellom fem samlinger som viste seg å være nesten like, nå er det én pakke. Vil du lære mer om modeller, agenter og skills, er det bare å spørre, men du må ikke.
 - Målet er ikke mest mulig KI-bruk. Målet, slik også ledelsen har formulert det, er å bruke KI der det gir verdi. Noen ganger hjelper det. Andre ganger er det enklere å gjøre jobben uten, og den vurderingen blir bedre jo mer du har prøvd.
-- Er du skeptisk? Si det. Vi trenger å høre om det som ikke fungerer, og du trenger ikke ha et forslag til løsning for å ta opp en bekymring. Innspill i #github-copilot går til arbeidsgruppen.
+- Er du skeptisk? Si det. Vi trenger å høre om det som ikke fungerer, og du trenger ikke ha et forslag til løsning for å ta opp en bekymring. Innspill i [#ki-produktutvikling-diskusjon](https://nav-it.slack.com/archives/C0ASJSZK8P8) går til arbeidsgruppen.
 - KI erstatter ikke faglige vurderinger eller samarbeid. Vi må fortsatt forstå og stå inne for det vi leverer.
 
 ## Start med én oppgave
@@ -63,6 +63,6 @@ Det fungerer også som team: sett av en time der teknologer og fagansvarlige tar
 
 ## Spør oss
 
-Still spørsmål i #github-copilot på Slack, eller kom på Åpent KI-kontor hver onsdag kl. 09.00 på Teams, med påmelding i Delta. Grunnleggende spørsmål, innvendinger og erfaringer med det som ikke fungerer, er like velkomne som gode eksempler.
+Still spørsmål i [#ki-produktutvikling-diskusjon](https://nav-it.slack.com/archives/C0ASJSZK8P8) på Slack, eller kom på Åpent KI-kontor hver onsdag kl. 09.00 på Teams, med påmelding i Delta. Grunnleggende spørsmål, innvendinger og erfaringer med det som ikke fungerer, er like velkomne som gode eksempler.
 
 Fortsett å være nysgjerrig, og bruk KI der du har funnet ut at det gir deg, teamet ditt og produktet ditt verdi.

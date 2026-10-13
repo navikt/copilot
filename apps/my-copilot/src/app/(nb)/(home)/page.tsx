@@ -46,7 +46,7 @@ export default async function Home() {
         >
           <VStack gap="space-8">
             <Heading size="xlarge" level="1" className="hero-title">
-              KI-utvikling i Nav
+              KI-produktutvikling i Nav
             </Heading>
             <BodyShort className="max-w-md opacity-70">
               {user && <Greeting />}

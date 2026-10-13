@@ -41,7 +41,7 @@ import { NAV_PILOT_DEFAULT_MODEL, NAV_PILOT_MODEL_CHOICES, RECOMMENDED_DAILY_MOD
 import { ModelPricingTables } from "../priser/model-pricing-tables";
 import { PassRateChart } from "./pass-rate-chart";
 
-const SLACK_URL = "https://nav-it.slack.com/archives/C055TNXBM17";
+const SLACK_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
 const MODELLVALG_DOC = "https://github.com/navikt/copilot/blob/main/docs/modellvalg.md";
 const BASELINES_DIR = "https://github.com/navikt/copilot/tree/main/docs/golden-baselines";
 
@@ -852,7 +852,7 @@ export function ModellerContent({
                   <BodyLong>
                     Har du fått bedre eller dårligere resultater med en annen modell? Si fra i{" "}
                     <Link href={SLACK_URL} target="_blank" rel="noopener noreferrer">
-                      #github-copilot på Slack
+                      #ki-produktutvikling-diskusjon på Slack
                     </Link>
                     . Bakgrunnen for valgene står i{" "}
                     <Link href={MODELLVALG_DOC} target="_blank" rel="noopener noreferrer">
