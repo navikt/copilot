@@ -11,7 +11,26 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
+
+// queuedAnswers is the size of each survey's in-memory queue, set under
+// s.mu whenever a queue changes. The process cannot count what a crash
+// loses: the last value scraped before a restart shows it.
+var queuedAnswers = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	Name: "survey_queued_answers",
+	Help: "Survey answers queued in memory, not written yet.",
+}, []string{"survey"})
+
+// answersLost counts queued answers discarded without being written. The
+// only such path is a failed write at shutdown (flush): a failed batch or
+// close-out write keeps them queued. A crash is not counted, see
+// queuedAnswers.
+var answersLost = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "survey_answers_lost_total",
+	Help: "Queued survey answers lost without being written.",
+}, []string{"survey"})
 
 // The data model: two tables with nothing in common but the survey id.
 //
@@ -100,6 +119,7 @@ func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesO
 	}
 	q.hashes[hash] = true
 	q.answers = append(q.answers, r)
+	queuedAnswers.WithLabelValues(surveyID).Set(float64(len(q.answers)))
 	if len(q.answers) >= answerBatch {
 		if err := s.writeLocked(ctx, surveyID, q); err != nil {
 			slog.Error("survey: writing a batch failed, kept queued", "survey", surveyID, "error_type", fmt.Sprintf("%T", err))
@@ -149,6 +169,7 @@ func (s *surveyStore) writeLocked(ctx context.Context, surveyID string, q *surve
 		return err
 	}
 	q.hashes, q.answers = map[string]bool{}, nil
+	queuedAnswers.WithLabelValues(surveyID).Set(0)
 	return nil
 }
 
@@ -167,6 +188,7 @@ func (s *surveyStore) flush(ctx context.Context) int {
 		if err := s.writeLocked(ctx, id, q); err != nil {
 			slog.Error("survey: writing queued submissions at shutdown failed", "survey", id, "error_type", fmt.Sprintf("%T", err))
 			lost += len(q.answers)
+			answersLost.WithLabelValues(id).Add(float64(len(q.answers)))
 		}
 	}
 	return lost

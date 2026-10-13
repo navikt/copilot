@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 // TestSurveyStore runs the real SQL against Postgres when
@@ -47,6 +49,13 @@ func TestSurveyStore(t *testing.T) {
 	if answered("s", "a") {
 		t.Fatal("answered before submitting")
 	}
+	queued := func(survey string) float64 { return testutil.ToFloat64(queuedAnswers.WithLabelValues(survey)) }
+	// Control: a stale value the store must overwrite, so a missing gauge
+	// update fails the checks below instead of reading a default 0.
+	queuedAnswers.WithLabelValues("s").Set(42)
+	if queued("s") != 42 {
+		t.Fatal("gauge read does not reflect Set")
+	}
 
 	for i := range answerBatch - 1 {
 		if !submit("s", string(rune('a'+i)), day(10)) {
@@ -64,7 +73,14 @@ func TestSurveyStore(t *testing.T) {
 	if count("survey_answers")+count("survey_participation") != 0 {
 		t.Fatal("rows written before a full batch")
 	}
+	if queued("s") != answerBatch-1 {
+		t.Fatalf("queued gauge = %v, want %d", queued("s"), answerBatch-1)
+	}
+	queuedAnswers.WithLabelValues("s").Set(42) // control: the full batch must reset it
 	submit("s", "z", day(10))
+	if queued("s") != 0 {
+		t.Fatalf("queued gauge after a full batch = %v, want 0", queued("s"))
+	}
 	if count("survey_answers") != answerBatch || count("survey_participation") != answerBatch {
 		t.Fatalf("after a full batch: %d answers, %d participation", count("survey_answers"), count("survey_participation"))
 	}
@@ -88,11 +104,17 @@ func TestSurveyStore(t *testing.T) {
 	// Shutdown: a short queue is written, not dropped.
 	submit("s", "late", day(10))
 	before := count("survey_answers")
+	if queued("s") != 1 {
+		t.Fatalf("queued gauge = %v, want 1", queued("s"))
+	}
 	if lost := s.flush(t.Context()); lost != 0 {
 		t.Fatalf("flush lost %d", lost)
 	}
 	if count("survey_answers") != before+1 {
 		t.Fatal("flush did not write the queued answer")
+	}
+	if queued("s") != 0 || testutil.ToFloat64(answersLost.WithLabelValues("s")) != 0 {
+		t.Fatal("after flush: gauge not 0 or answers counted as lost")
 	}
 	if submit("s", "late", day(10)) {
 		t.Fatal("a flushed sender could answer again")
