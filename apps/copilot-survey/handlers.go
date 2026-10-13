@@ -64,6 +64,8 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 	admin.HandleFunc("GET /api/v1/admin/surveys", surveys.list)
 	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/results", surveys.results)
 	admin.HandleFunc("GET /api/v1/admin/surveys/compare", surveys.compare)
+	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/freetext", surveys.freetext)
+	admin.HandleFunc("POST /api/v1/admin/surveys/{id}/freetext/hide", surveys.hideFreetext)
 	mux.Handle("/api/v1/admin/", adminOnly(auth, admin))
 	return mux
 }

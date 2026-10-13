@@ -31,11 +31,15 @@ status routes only.
 | `GET` | `/api/v1/admin/surveys` | admin | All surveys with status (kommende, åpen, stengt) and written answers |
 | `GET` | `/api/v1/admin/surveys/{id}/results` | admin | Counts per option and question version, no free text. Fewer than 5 answers in the whole survey: nothing. Otherwise every count is real; `suppressed` is always `false` at option level (kept for old clients) |
 | `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, answers per `context.client`. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts |
+| `GET` | `/api/v1/admin/surveys/{id}/freetext` | admin | Free text per field (text questions and `<id>.other`), masked as in the export, random order, each text on its own: no row id, no other answers. Hidden texts left out. Visible while open (owner, 2026-10-13) |
+| `POST` | `/api/v1/admin/surveys/{id}/freetext/hide` | admin | `{"token": "..."}` from the list above: hides that text in admin and the export. 204, or 404 for an unknown token |
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`, `survey_queued_answers{survey}`) |
 
 Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check. A token copilot-survey does not accept at all gets 401; every accepted caller who is not an admin (a my-copilot user outside the group, copilot-cli) gets 404, as in copilot-api and my-copilot.
 
-Residual risk: results are visible while a survey is open. An admin who polls `/results` during an open survey can see one new answer appear and, if they know who just answered, attribute it. Answers are written as they arrive, so nothing blunts this; only showing results after close would. The owner accepted this risk on 2026-10-13. Mitigations: admin-only access and the k≥5 threshold. The DPO assessment should reflect this residual risk.
+Residual risk: results are visible while a survey is open. An admin who polls `/results` during an open survey can see one new answer appear and, if they know who just answered, attribute it. Answers are written as they arrive, so nothing blunts this; only showing results after close would. The owner accepted this risk on 2026-10-13. Mitigations: admin-only access and the k≥5 threshold. The DPO assessment should reflect this residual risk. The same holds for `/freetext`, which has no threshold: a text that appears right after a known person answered is theirs.
+
+Free-text tokens (`freetext.go`): HMAC-SHA256 of survey, field and raw text under a random key that lives only in memory. A token names a text, not a row; it cannot be traced to the row or the person's other answers, and a restart invalidates it. Hiding stores `sha256(raw text)` per survey and field in `survey_freetext_hidden`, so identical texts in one field are hidden together. The answer stays in `survey_answers` until retention deletes it. Admin reads and hides are logged with survey, field and count, never the text.
 
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
 buffers a body. Logs carry survey id, status, batch size and error type,
@@ -206,14 +210,16 @@ JSON row per respondent on stdin and writes them back redacted:
 
 ```sh
 psql "$DATABASE_URL" -At -c "SELECT json_build_object('answers', answers,
-  'question_versions', question_versions, 'context', context)
-  FROM survey_answers WHERE survey_id = 'ID'" | go run . export > export.jsonl
+  'question_versions', question_versions, 'context', context,
+  'hidden', (SELECT coalesce(json_agg(field || ' ' || text_hash), '[]')
+    FROM survey_freetext_hidden h WHERE h.survey_id = a.survey_id))
+  FROM survey_answers a WHERE survey_id = 'ID'" | go run . export > export.jsonl
 ```
 
 - Free text: e-mail addresses, Norwegian phone numbers, 11-digit
   fødselsnummer, IP addresses, GitHub @mentions and URLs with a query string
   become tags such as `[e-post]`. Names are not caught: read the free text by
-  hand before analysis.
+  hand before analysis. Texts hidden in admin are left out.
 - k ≥ 5: a context value (client, OS, version, local models) held by fewer
   than 5 rows becomes «annet», and a row whose combination of values is still
   shared by fewer than 5 gets «annet» for all of them.

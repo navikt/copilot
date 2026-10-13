@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -47,7 +48,8 @@ func main() {
 	activateInDev(defs, os.Getenv("NAIS_CLUSTER_NAME"), os.Getenv("SURVEY_ACTIVE_IDS"))
 	auth := newAuthenticator(config.NaisTokenIntrospectionEndpoint, config.AzurePreAuthorizedApps)
 	lookup := newNameIDClient(config.CopilotAPIURL, newTexasClient(config.NaisTokenEndpoint, config.CopilotAPIAudience))
-	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), emailFor: lookup.emailFor, now: time.Now}
+	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), emailFor: lookup.emailFor, now: time.Now, textKey: make([]byte, 32)}
+	_, _ = rand.Read(surveys.textKey) // crypto/rand: never fails
 
 	ctx := context.Background()
 	var store *surveyStore
@@ -61,6 +63,8 @@ func main() {
 		surveys.answered = store.answered
 		surveys.final = store.final
 		store.defs = defs
+		surveys.hidden = store.hidden
+		surveys.hide = store.hide
 		go store.purgeExpired(ctx, time.Now)
 	}
 	slog.Info("Starting copilot-survey", "port", config.Port, "storage", store != nil,

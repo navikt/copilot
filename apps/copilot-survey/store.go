@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS survey_results (
 	n         integer NOT NULL,
 	mean      double precision,
 	PRIMARY KEY (survey_id, kind, key, version, option)
+);
+CREATE TABLE IF NOT EXISTS survey_freetext_hidden (
+	survey_id text NOT NULL,
+	field     text NOT NULL,
+	text_hash text NOT NULL, -- sha256 of the raw text, see freetext.go
+	PRIMARY KEY (survey_id, field, text_hash)
 )`
 
 // answerBatch is how many queued submissions trigger a write. 1: written at
