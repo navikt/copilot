@@ -6,6 +6,7 @@
  * cache layer. The "cached-bigquery" file name is kept for now to avoid a
  * large import-path churn while this file is the subject of a rename refactor.
  */
+import { cache } from "react";
 import { backendRequest } from "./backend-api";
 import type {
   AdoptionData,
@@ -138,17 +139,18 @@ export async function getTeamYearOverview(team: string, year: number, token: str
   );
 }
 
-export async function getAdminMonthlyOverview(year: number, token: string): Promise<AdminMonthlyOverview> {
-  return backendRequest<AdminMonthlyOverview>(`/api/v1/admin/billing/monthly?year=${year}`, token);
-}
+// react cache(): streamed sections of one render share a single request, not a second BFF cache.
+export const getAdminMonthlyOverview = cache((year: number, token: string): Promise<AdminMonthlyOverview> =>
+  backendRequest<AdminMonthlyOverview>(`/api/v1/admin/billing/monthly?year=${year}`, token)
+);
 
 export async function getSpendBands(token: string): Promise<SpendBands> {
   return backendRequest<SpendBands>("/api/v1/copilot/usage/spend-bands", token);
 }
 
-export async function getCostForecast(token: string): Promise<CostForecast> {
-  return backendRequest<CostForecast>("/api/v1/admin/billing/cost-forecast", token);
-}
+export const getCostForecast = cache((token: string): Promise<CostForecast> =>
+  backendRequest<CostForecast>("/api/v1/admin/billing/cost-forecast", token)
+);
 
 /** Admin only: copilot-api answers 404 to everyone else. */
 export async function getAdminActiveUsers(token: string): Promise<ActiveUsersMonth[]> {

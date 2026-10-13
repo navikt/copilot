@@ -35,7 +35,12 @@ export function SectionSkeleton({
 export function PageSkeleton() {
   return (
     <main id="hovedinnhold" tabIndex={-1} aria-busy="true">
-      <Box background="neutral-soft" paddingBlock="space-48" paddingInline="space-40" aria-hidden="true">
+      <Box
+        background="neutral-soft"
+        paddingBlock={{ xs: "space-16", md: "space-20" }}
+        paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+        aria-hidden="true"
+      >
         <div className="max-w-7xl mx-auto">
           <VStack gap="space-12">
             <Skeleton variant="text" width="40%" height={56} />

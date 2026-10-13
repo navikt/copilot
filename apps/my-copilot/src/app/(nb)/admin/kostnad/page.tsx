@@ -50,7 +50,8 @@ const nok = (amount: string) =>
 
 const billed = (m: AdminMonth) => m.basis === "net" || m.basis === "premium";
 
-// Shared by the streamed sections below, so each backend call runs once per request.
+// getAdminMonthlyOverview and getCostForecast are react-cached, so the streamed sections share one call each.
+// Anomalies are still fetched twice (status cards and CostAnomalies).
 const loadMonthly = cache((token: string) => getAdminMonthlyOverview(new Date().getUTCFullYear(), token));
 // For the event markers only; the forecast section shows the error.
 const loadEvents = cache(async (token: string) => costEvents(await getCostForecast(token).catch(() => null)));
