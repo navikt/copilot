@@ -933,7 +933,7 @@
       },
       {
         "item": "TS tasks F1/F2 on melosys-web (#183 Q3)",
-        "status": "waiting on owner: gh auth refresh -s read:packages (@navikt/melosys-kodeverk is on GitHub Packages); else gap-fill step 1 is skipped"
+        "status": "wired into bench-cheap-ops as BENCH_TARGET=frontend-melosys-web (read:packages granted); waiting on GPU time"
       },
       {
         "item": "deps-bump by hand (4.5 % of human PRs)",
