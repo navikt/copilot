@@ -105,7 +105,7 @@ func TestCostAnomaliesAdminOnly(t *testing.T) {
 		groups []string
 		want   int
 	}{{nil, http.StatusNotFound}, {[]string{"admins"}, http.StatusOK}} {
-		req := httptest.NewRequest("GET", "/api/v1/copilot/billing/anomalies", nil)
+		req := httptest.NewRequest("GET", "/api/v1/admin/billing/anomalies", nil)
 		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: tc.groups}))
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)

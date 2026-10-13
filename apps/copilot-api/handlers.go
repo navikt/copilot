@@ -117,8 +117,6 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	for _, r := range adminRoutes() {
 		h := bq(nilSafe(bqHandlers, r.handler))
 		adminMux.HandleFunc("GET "+r.path, h)
-		// Deprecated alias: remove once my-copilot calls the /api/v1/admin/ path.
-		mux.Handle("GET "+r.oldPath, requireAdmin(h))
 	}
 	mux.Handle("/api/v1/admin/", requireAdmin(adminMux))
 
@@ -303,7 +301,6 @@ func loggingMiddleware(config *Config, next http.Handler) http.Handler {
 
 type adminRoute struct {
 	path    string // under /api/v1/admin/
-	oldPath string // deprecated alias, remove once callers move
 	handler func(*BigQueryHandlers) http.HandlerFunc
 }
 
@@ -311,11 +308,11 @@ type adminRoute struct {
 // behind a single requireAdmin.
 func adminRoutes() []adminRoute {
 	return []adminRoute{
-		{"/api/v1/admin/billing/monthly", "/api/v1/copilot/billing/admin-monthly", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminMonthly }},
-		{"/api/v1/admin/billing/active-users", "/api/v1/copilot/billing/admin-active-users", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminActiveUsers }},
-		{"/api/v1/admin/billing/high-consumers", "/api/v1/copilot/billing/admin-high-consumers", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminHighConsumers }},
-		{"/api/v1/admin/billing/budget-days", "/api/v1/copilot/billing/admin-budget-days", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminBudgetDays }},
-		{"/api/v1/admin/billing/anomalies", "/api/v1/copilot/billing/anomalies", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostAnomalies }},
-		{"/api/v1/admin/billing/cost-forecast", "/api/v1/copilot/admin/cost-forecast", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostForecast }},
+		{"/api/v1/admin/billing/monthly", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminMonthly }},
+		{"/api/v1/admin/billing/active-users", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminActiveUsers }},
+		{"/api/v1/admin/billing/high-consumers", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminHighConsumers }},
+		{"/api/v1/admin/billing/budget-days", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminBudgetDays }},
+		{"/api/v1/admin/billing/anomalies", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostAnomalies }},
+		{"/api/v1/admin/billing/cost-forecast", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostForecast }},
 	}
 }

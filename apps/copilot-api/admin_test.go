@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestAdminRoutesGuarded walks every registered admin route and its old alias.
+// TestAdminRoutesGuarded walks every registered admin route.
 // A new admin route that skips requireAdmin fails here.
 func TestAdminRoutesGuarded(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
@@ -29,7 +29,7 @@ func TestAdminRoutesGuarded(t *testing.T) {
 		if !strings.HasPrefix(r.path, "/api/v1/admin/") {
 			t.Errorf("%s is not under /api/v1/admin/", r.path)
 		}
-		paths = append(paths, r.path, r.oldPath)
+		paths = append(paths, r.path)
 	}
 	for _, tc := range cases {
 		for _, p := range paths {
@@ -75,5 +75,27 @@ func TestRequireAdmin(t *testing.T) {
 				t.Fatalf("got %d, want %d", rec.Code, tc.want)
 			}
 		})
+	}
+}
+
+func TestOldAdminPathsGone(t *testing.T) {
+	const group = "11111111-2222-3333-4444-555555555555"
+	t.Setenv(adminGroupEnv, group)
+	router := makeAPIRouter(&Config{}, nil, nil, nil, nil)
+	for _, p := range []string{
+		"/api/v1/copilot/billing/admin-monthly",
+		"/api/v1/copilot/billing/admin-active-users",
+		"/api/v1/copilot/billing/admin-high-consumers",
+		"/api/v1/copilot/billing/admin-budget-days",
+		"/api/v1/copilot/billing/anomalies",
+		"/api/v1/copilot/admin/cost-forecast",
+	} {
+		req := httptest.NewRequest(http.MethodGet, p, nil)
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: []string{group}}))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("%s: got %d, want 404", p, rec.Code)
+		}
 	}
 }

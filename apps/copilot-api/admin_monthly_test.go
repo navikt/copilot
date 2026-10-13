@@ -171,7 +171,7 @@ func TestAdminMonthlyRouteRequiresAdmin(t *testing.T) {
 		groups []string
 		want   int
 	}{{[]string{group}, http.StatusOK}, {[]string{"other"}, http.StatusNotFound}} {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/billing/admin-monthly", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/billing/monthly", nil)
 		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: tc.groups}))
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)

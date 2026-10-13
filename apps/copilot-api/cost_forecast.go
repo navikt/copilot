@@ -539,7 +539,7 @@ func (c *CachedBigQueryClient) GetCostUserDays(ctx context.Context, month string
 	})
 }
 
-// handleCostForecast handles GET /api/v1/copilot/admin/cost-forecast.
+// handleCostForecast handles GET /api/v1/admin/billing/cost-forecast.
 func (h *BigQueryHandlers) handleCostForecast(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
