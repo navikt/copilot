@@ -35,7 +35,7 @@ const answer = buildInnsyn({
   year: 2026,
   admin,
   active: [
-    { month: "2026-09", active_users: 719, billed: true },
+    { month: "2026-09", active_users: 123, billed: true },
     { month: "2026-10", active_users: 3, billed: false },
   ],
   breakdown: [
@@ -88,7 +88,7 @@ describe("buildInnsyn", () => {
 
   it("hides groups under five and has no budget or forecast", () => {
     const users = (q("3").data as { months: { users: number | null }[] }).months;
-    expect(users.map((u) => u.users)).toEqual([719, null]);
+    expect(users.map((u) => u.users)).toEqual([123, null]);
     expect(q("2").data).toBeNull();
   });
 

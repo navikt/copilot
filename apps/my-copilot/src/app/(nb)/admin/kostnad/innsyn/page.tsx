@@ -18,15 +18,15 @@ const headers: Record<string, string> = {
   billed_usd: "Fakturert (USD)",
   preliminary: "Foreløpig",
   usd: "Lisenskostnad (USD, anslag)",
-  calculated: "Beregnet",
+  calculated: "Tilbakeregnet",
   premium_requests: "Premiumforespørsler",
   ai_credits: "KI-kreditter",
   copilot_cli: "Tokens, Copilot CLI",
   copilot_app: "Tokens, Copilot-appen",
   users: "Brukere",
-  kind: "Type",
+  kind: "Grunnlag",
   family: "Modellfamilie",
-  share_pct: "Andel av fakturert (%)",
+  share_pct: "Andel av fakturert beløp (%)",
   models: "Modeller",
 };
 
@@ -141,9 +141,9 @@ export default async function InnsynPage({ searchParams }: { searchParams: Promi
             </section>
           );
         })}
-        <section aria-labelledby="slik-har-vi-talt">
-          <Heading id="slik-har-vi-talt" level="2" size="small" spacing>
-            Slik har vi talt
+        <section aria-labelledby="slik-har-vi-regnet">
+          <Heading id="slik-har-vi-regnet" level="2" size="small" spacing>
+            Slik har vi regnet
           </Heading>
           <ul className="list-disc space-y-1 pl-6">
             {answer.method.map((m) => (

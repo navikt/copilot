@@ -1,3 +1,4 @@
+import { formatDate } from "./format";
 import { rebuiltSeatMonths } from "./admin-monthly";
 import { monthName as monthLabel } from "./team-year";
 import { FAMILY_LABELS, modelFamily, type ModelFamily } from "./model-family";
@@ -63,10 +64,12 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
   const familyNet = new Map<ModelFamily, number>();
   const familyModels = new Map<ModelFamily, Set<string>>();
   for (const row of breakdown) {
-    if (!inYear(row.year_month.slice(0, 7)) || row.net_amount <= 0) continue;
+    if (!inYear(row.year_month.slice(0, 7))) continue;
     const family = modelFamily(row.model, true);
     familyNet.set(family, (familyNet.get(family) ?? 0) + row.net_amount);
-    if (family !== "auto") familyModels.set(family, (familyModels.get(family) ?? new Set()).add(row.model.trim()));
+    // Only models in a known family: names from billing are otherwise unvetted.
+    if (row.net_amount > 0 && family !== "auto" && family !== "andre")
+      familyModels.set(family, (familyModels.get(family) ?? new Set()).add(row.model.trim()));
   }
   const netTotal = [...familyNet.values()].reduce((a, b) => a + b, 0);
   const families = [...familyNet.entries()]
@@ -112,9 +115,9 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
         "Fakturert er beløpet etter at kredittene som følger med lisensene, er trukket fra.",
         "Foreløpig betyr at fakturaen for måneden ikke er kommet. Beløpet er et anslag og kan endre seg.",
         "Lisenskostnaden er et anslag: antall lisenser ganger listepris, uten rabatt.",
-        ...(rebuilt.size
+        ...(rebuilt.size && admin.coverage.seats_from
           ? [
-              `Lisensene før ${admin.coverage.seats_from || "2026-10-12"} er beregnet ut fra dagens lisenser, fordi daglige tellinger ikke fantes før da.`,
+              `Lisenstallet før ${formatDate(admin.coverage.seats_from)} er regnet ut fra dagens antall, fordi vi ikke har daglige tellinger fra før.`,
             ]
           : []),
       ],
@@ -143,14 +146,16 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
         "Én KI-kreditt koster 0,01 USD til listepris.",
         "Tokens er summen av tokens inn og ut.",
         ...(tokenMonths.length
-          ? [`Tokens for Copilot CLI finnes fra ${tokenMonths[0].month}. Copilot-appen kom senere.`]
+          ? [
+              `Tokens for Copilot CLI finnes fra ${monthLabel(tokenMonths[0].month)} ${tokenMonths[0].month.slice(0, 4)}. Copilot-appen kom senere.`,
+            ]
           : []),
       ],
     },
     "1c": {
       question: "Hvor stor del av bruken gjelder utvikling?",
       answer:
-        "GitHub Copilot er et utviklingsverktøy, så tilnærmet 100 prosent gjelder utvikling. " +
+        "GitHub Copilot er et utviklingsverktøy, så nær 100 % gjelder utvikling. " +
         (netTotal > 0
           ? `Kodegjennomgang, der Copilot går gjennom endringer i koden, utgjør ${fmtPct(pct(codeReview, netTotal))} av det fakturerte beløpet.`
           : ""),
@@ -159,15 +164,15 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
     },
     "2": {
       question: "Hva er budsjettet og forventet bruk neste år?",
-      answer: "Budsjett og prognose for neste år er ikke fastsatt og er ikke en del av dette innsynssvaret.",
+      answer: "Budsjett og prognose for neste år er ikke fastsatt og inngår ikke i dette svaret.",
       data: null,
       notes: [],
     },
     "3": {
       question: "Hvor mange bruker KI-verktøyene?",
       answer:
-        (seatsNow != null ? `Nav har ${nb(seatsNow)} Copilot-lisenser nå. ` : "") +
-        "Tabellen viser fakturerte brukere per måned, og aktive brukere hittil for måneder uten faktura.",
+        (seatsNow != null ? `Nav har i dag ${nb(seatsNow)} Copilot-lisenser. ` : "") +
+        "Tabellen viser fakturerte brukere per måned. For måneder uten faktura viser den aktive brukere så langt.",
       data: {
         licences_now: seatsNow,
         months: users.map((u) => ({
@@ -182,7 +187,7 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
     },
     "3a": {
       question: "Hvilke yrker og avdelinger bruker verktøyene?",
-      answer: "Ikke registrert. Yrke og avdeling er ikke en del av bruksdataene.",
+      answer: "Ikke registrert. Bruksdataene inneholder ikke yrke eller avdeling.",
       data: null,
       notes: [],
     },
@@ -212,10 +217,10 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
     currency: "USD",
     questions: INNSYN_QUESTIONS.map((id) => ({ id, ...questions[id] })),
     method: [
-      "Fakturert er nettobeløpet Nav betaler. Listepris er prisen før kredittene i lisensene er trukket fra. Vi bruker fakturert der ikke noe annet står.",
+      "Fakturert er nettobeløpet Nav betaler. Listepris er prisen før kredittene i lisensene er trukket fra. Vi bruker fakturert beløp der ikke annet er oppgitt.",
       "Januar til mai ble fakturert som premiumforespørsler, fra juni som KI-kreditter. Beløpene er lagt sammen.",
-      "Anslag: lisenskostnaden og foreløpige måneder.",
-      `Tallene gjelder GitHub Copilot i Nav fra ${year}-01-01 til ${lastDay}. Andre KI-verktøy er ikke med.`,
+      "Lisenskostnaden og foreløpige måneder er anslag.",
+      `Tallene gjelder GitHub Copilot i Nav fra ${formatDate(`${year}-01-01`)} til ${formatDate(lastDay)}. Andre KI-verktøy er ikke med.`,
     ],
   };
 }
