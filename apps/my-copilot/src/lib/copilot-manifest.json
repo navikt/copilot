@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-13T20:45:11.710Z",
+  "generatedAt": "2026-10-13T20:53:14.297Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1030,7 +1030,7 @@
       "filePath": "skills/appsec-advisory/SKILL.md",
       "repoPath": "skills/appsec-advisory/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/appsec-advisory/SKILL.md",
-      "contentHash": "91b50097391d10f8d0f22721fdd42d5c19c1c505179ab5b52a22c8cfd1ad35f3",
+      "contentHash": "40f5c92066a3faef2d3ddc3ee40d5005e09697d3a6ae3f6e8d4a01516d7c6788",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "appsec", "code-review", "pentest-planning"],

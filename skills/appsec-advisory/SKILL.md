@@ -17,7 +17,8 @@ Use this skill for a scoped security review of a repo or PR, with prioritized fi
 2. Map relevant entry points, data flows, assets and trust boundaries. Trace candidates through callers, auth, ownership, dependencies and deployment controls. Check defaults and effective policies, not only individual fragments. Verify third-party behavior against the versioned dependency or mark it unverified.
 3. Run useful read-only checks and record commands, results and scope. Existing GitHub alerts (Dependabot, code scanning, secret scanning) read through `gh api` are cheap evidence. Do not install tools, start services, contact targets, read credentials, dump secrets or run active probes. Do not create files, even in the session workspace, unless requested. Record tools needing writes or unavailable tools as unperformed, not clean scans.
 4. Try to disprove each candidate: attacker control, reachability, upstream auth, deny policies, compensating controls and plausible impact. Check benign paths. Drop unsupported claims; state unresolved ones as questions with a way to settle them.
-5. Prioritize by plausible impact and exposure, not scanner labels. Separate **observed code defect**, **conditional risk** and **verified exploit**: source review cannot establish the last. Rate code evidence and deployment exposure separately; do not infer reachability from an egress-only policy or a single config fragment.
+5. For a PR, report only issues the change introduces or makes reachable; list existing issues separately as context. Check git history for reverted or previously fixed code, and treat changed security code without tests as higher risk.
+6. Prioritize by plausible impact and exposure, not scanner labels. Separate **observed code defect**, **conditional risk** and **verified exploit**: source review cannot establish the last. Rate code evidence and deployment exposure separately; do not infer reachability from an egress-only policy or a single config fragment.
 
 ## Nais exposure
 
@@ -37,7 +38,7 @@ Severity combines impact and exposure:
 - **MEDIUM:** impact that requires specific conditions, an authenticated or internal caller, or a second defect.
 - **LOW:** defense in depth with no demonstrated path to impact.
 
-Do not report as findings: denial of service, resource exhaustion or missing rate limiting; missing input validation without a demonstrated security consequence; attacks that need capabilities the attacker would not plausibly have, such as write access to the deployed filesystem or the repository; generic hardening already handled by the platform. Mention them under not inspected or as questions when they matter to the team.
+Do not report a finding with code confidence below 7; state it as a question instead. Do not report as findings: denial of service, resource exhaustion or missing rate limiting; missing input validation without a demonstrated security consequence; attacks that need capabilities the attacker would not plausibly have, such as write access to the deployed filesystem or the repository; generic hardening already handled by the platform. Mention them under not inspected or as questions when they matter to the team.
 
 Reject these rationalizations:
 
