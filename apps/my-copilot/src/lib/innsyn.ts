@@ -121,7 +121,7 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
         "Nav blir fakturert i amerikanske dollar (USD). Beløpene er ikke regnet om til kroner.",
         "Fakturert er beløpet etter at kredittene som følger med lisensene, er trukket fra.",
         "Foreløpig betyr at fakturaen for måneden ikke er kommet. Beløpet er et anslag og kan endre seg.",
-        "Lisenskostnad er et anslag: antall lisenser × listepris (19/39 USD), uten rabatt, beregnet ut fra dagens lisenser. Ikke med i summen over.",
+        "Lisenskostnad er et anslag: antall lisenser × listepris (19/39 USD), uten rabatt, beregnet ut fra dagens lisenser. Ikke med i det fakturerte beløpet.",
         ...(rebuilt.size && admin.coverage.seats_from
           ? [
               `Lisenstallet før ${formatDate(admin.coverage.seats_from)} er regnet ut fra dagens antall, fordi vi ikke har daglige tellinger fra før.`,
@@ -153,7 +153,7 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
       },
       notes: [
         "Én KI-kreditt koster 0,01 USD til listepris.",
-        "Inn er tokens sendt til modellen, ut er tokens modellen skrev. Inn omfatter hele konteksten i hver forespørsel, også det som gjentas fra forrige forespørsel. GitHub skiller ikke ut hurtigbuffer, så inn-tallet sier lite om hvor mye ny tekst som ble sendt.",
+        "Inn er tokens sendt til modellen, ut er tokens modellen skrev. Inn kan omfatte kontekst som sendes på nytt i hver forespørsel. GitHub skiller ikke ut hurtigbuffer, så inn-tallet sier lite om hvor mye ny tekst som ble sendt.",
         ...(tokenMonths.length
           ? [
               `Tokens for Copilot CLI finnes fra ${monthLabel(tokenMonths[0].month)} ${tokenMonths[0].month.slice(0, 4)}. Copilot-appen kom senere.`,
