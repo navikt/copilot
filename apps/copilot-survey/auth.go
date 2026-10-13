@@ -158,13 +158,32 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 // copilot-api and my-copilot, so the routes do not reveal that they exist.
 func adminOnly(a *authenticator, next http.Handler) http.HandlerFunc {
 	return authMiddleware(a, func(w http.ResponseWriter, r *http.Request) {
-		c, ok := callerFromContext(r.Context())
-		if !ok || c.email == "" || a.adminGroup == "" || !slices.Contains(c.groups, a.adminGroup) {
+		c, _ := callerFromContext(r.Context())
+		if reason := adminDenyReason(c, a.adminGroup); reason != "" {
+			// Never the e-mail, oid, hash or group ids: only why and how many groups.
+			groups := 0
+			if c != nil {
+				groups = len(c.groups)
+			}
+			slog.Info("admin denied", "reason", reason, "groups", groups)
 			writeError(w, http.StatusNotFound, "not found")
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// adminDenyReason is why c is not an admin, or "" when it is.
+func adminDenyReason(c *caller, adminGroup string) string {
+	switch {
+	case c == nil || c.email == "":
+		return "not my-copilot"
+	case adminGroup == "":
+		return "no group env"
+	case !slices.Contains(c.groups, adminGroup):
+		return "no admin group"
+	}
+	return ""
 }
 
 func callerFromContext(ctx context.Context) (*caller, bool) {

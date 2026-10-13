@@ -164,3 +164,22 @@ func TestBlankHeaderOnUserTokenRefused(t *testing.T) {
 		t.Fatalf("status = %d, want 401", rec.Code)
 	}
 }
+
+func TestAdminDenyReason(t *testing.T) {
+	user := &caller{email: "a@nav.no", groups: []string{"g"}}
+	for _, tc := range []struct {
+		c     *caller
+		group string
+		want  string
+	}{
+		{user, "g", ""},
+		{user, "h", "no admin group"},
+		{user, "", "no group env"},
+		{&caller{login: "hans"}, "g", "not my-copilot"},
+		{nil, "g", "not my-copilot"},
+	} {
+		if got := adminDenyReason(tc.c, tc.group); got != tc.want {
+			t.Errorf("%+v %q: %q, want %q", tc.c, tc.group, got, tc.want)
+		}
+	}
+}
