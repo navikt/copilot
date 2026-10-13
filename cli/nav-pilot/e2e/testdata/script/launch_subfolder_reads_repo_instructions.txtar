@@ -25,7 +25,7 @@ stderr -count=1 'Sandbox:'
 # Writes stay in app/, reads cover the root's instruction paths, and the
 # prompt reaches copilot after the separator.
 grep '^--project-dir\n.*/repo/app\n--allow-read\n.*/repo/\.github\n--allow-read\n.*/repo/\.nav-pilot\n--allow-read\n.*/repo/AGENTS\.md\n' $WORK/fake/cplt.log
-grep '^-p\nreview this\n---' $WORK/fake/cplt.log
+grep '^-p\nreview this\n--session-id=[0-9a-f-]{36}\n---' $WORK/fake/cplt.log
 
 # From the repository root there is nothing outside the sandbox to grant,
 # and nothing to say about it unless asked (--verbose).

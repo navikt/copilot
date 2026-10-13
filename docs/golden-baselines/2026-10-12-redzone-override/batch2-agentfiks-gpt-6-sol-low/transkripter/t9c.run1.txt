@@ -1,0 +1,45 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,build.gradle.
+  │ kts,settings.gradle.kts}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*test*.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Ferie*.kt"
+  └ No matches found
+
+● List directory .
+  └ 5 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List directory src
+  └ 1 file found
+
+● List directory .github
+  └ 2 files found
+
+● Read README.md
+  └ 4 lines read
+
+● List directory src/main
+  └ 1 file found
+
+● List directory src/main/kotlin
+  └ 1 file found
+
+● List directory src/main/kotlin/no
+  └ 1 file found
+
+Dette er **🔴 rød sone**: Feriepengeberegning er kjernelogikk, og teamet er nytt i reglene. Jeg har forstått satsene, aldersgrensen, avrundingen og håndteringen av negativt grunnlag slik du beskrev dem. Før jeg lager kode: Vil du at jeg også skal skrive selve beregningen, eller vil du ha tester og en funksjonsstubbe som teamet fyller ut? At du ser over alt etterpå, regnes ikke som et valg om å delegere kjernelogikken.
+
+Repoet mangler `AGENTS.md` og de to Copilot-instruksjonsfilene; `nav-pilot init` kan legge dem til. Jeg kjører ikke Gradle.
+
+Blindsoner reist: 1/11 (#11 om ny faglogikk; #1–#2 gjelder ikke siden dette ikke legger til en dataflyt eller endrer tilgang, og #3–#10 er ikke relevante for den avgrensede funksjonen).
+

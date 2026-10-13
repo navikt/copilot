@@ -1,0 +1,66 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-08
+# revision:     0409e97c
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       7
+# fixture:      4263008951
+# prompts:      2,3,4,5,7,7b
+# rebuilt:      from the --keep workdir; the run was stopped at the start of run 8 to stay under the 440-credit hard stop (docs/modellvalg.md)
+#
+# id|run|status|assertion|detail
+2|1|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|1|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|1|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, lagre det eller sende det videre? #2: Hvem skal ellers kunne kalle eller lese fra tjenesten, inkludert det eksisterende endepunktet?
+4|1|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|1|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|1|pass|fnr added to a Kafka message: privacy raised (control for 7)|Hvilke konsumenter leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?
+2|2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|2|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|2|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Skal fødselsnummeret kun brukes i minnet, eller lagres eller sendes det videre? I så fall til hvilke tjenester og for hvilket formål? #2: Hvem skal kunne kalle API-et: bare den innloggede innbyggeren, en frontend/BFF eller også andre tjenester?
+4|2|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|2|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|2|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|2|pass|fnr added to a Kafka message: privacy raised (control for 7)|Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?
+2|3|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|3|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten bruke fødselsnummeret til? #2: Hvem skal kunne kalle tjenesten: innbyggerens nettleser, en annen Nav-tjeneste eller begge?
+4|3|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|3|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|3|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|3|pass|fnr added to a Kafka message: privacy raised (control for 7)|Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter leser topicen?
+2|4|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|4|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|4|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten bruke fødselsnummeret til, og skal det lagres eller sendes videre? #2: Hvem skal kunne kalle tjenesten: innlogget innbygger direkte via nettleser, en frontend/BFF eller andre tjenester?
+4|4|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|4|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|4|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|4|pass|fnr added to a Kafka message: privacy raised (control for 7)|Hvilken beskyttelse har topicen for fødselsnummer, særlig tilgangsstyring og kryptering?
+2|5|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|5|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|5|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten bruke fødselsnummeret til? #2: Hvem skal kunne kalle API-et?
+4|5|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|5|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|5|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|5|pass|fnr added to a Kafka message: privacy raised (control for 7)|Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?
+2|6|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|6|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|6|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i ett kall, sende det videre eller lagre det? #2: Hvem skal kunne kalle API-et?
+4|6|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|6|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|6|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|6|pass|fnr added to a Kafka message: privacy raised (control for 7)|Skal `fnr` komme fra `SokerDto`, eller fra en annen kilde? Inneholder meldingen andre personopplysninger enn fødselsnummer etter endringen?
+2|7|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|7|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|7|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal den gjøre med fødselsnummeret etter innlogging: bruke det i et kall til en annen tjeneste, lagre det eller returnere data til innbyggeren? #2: Skal andre tjenester kunne kalle den, og hvilke?
+4|7|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|7|pass|user context → TokenX, not Azure client_credentials  (canary)|
+7|7|pass|Jackson 2→3 migration: no privacy or access-control interview|
+7b|7|pass|fnr added to a Kafka message: privacy raised (control for 7)|Hvem konsumerer topicen, og skal alle disse motta fødselsnummer?

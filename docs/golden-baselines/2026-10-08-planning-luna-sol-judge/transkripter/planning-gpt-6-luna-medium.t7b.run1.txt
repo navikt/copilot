@@ -1,0 +1,29 @@
+
+
+
+
+    Failed with exit code 128
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+📐 Fase 1: Intervju
+
+`SoknadMottattMelding` inneholder i dag `soknadId` og `mottatt`. `sendMottatt` publiserer meldingen på `soknad-mottatt`. Koden har allerede `fnr` i `SokerDto`, men jeg finner ingen oversikt over konsumentene eller Kafka-tilgangen deres. Repoet mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Før jeg endrer payloaden:
+- Er det godkjent at fødselsnummer sendes til alle eksisterende konsumenter av `soknad-mottatt`, og hvilke team eier konsumentene?
+- Tåler konsumentene at meldingen får et nytt JSON-felt, og hvordan vil dere rulle ut endringen hvis noen ikke gjør det?
+
+Blindsoner reist: 4/11 (#1, #5, #6 og #9; #2–#4, #7–#8, #10–#11 ikke relevante eller besvart av repoet)
+

@@ -1,0 +1,76 @@
+
+
+
+
+
+    src/main/kotlin/no/nav/demo/App.kt
+    src/main/kotlin/no/nav/demo/sak/SakService.kt
+    src/main/kotlin/no/nav/demo/Oppgave.kt
+    src/main/kotlin/no/nav/demo/Routes.kt
+    src/main/kotlin/no/nav/demo/UserRepo.kt
+    src/main/kotlin/no/nav/demo/Config.kt
+    plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+    }
+    repositories {
+    mavenCentral()
+    }
+    dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    }
+    dependencies {
+    implementation("io.ktor:ktor-server-auth:3.0.0")
+    implementation("io.ktor:ktor-server-auth-jwt:3.0.0")
+    implementation("com.github.seratch:kotliquery:1.9.0")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
+    implementation("com.zaxxer:HikariCP:6.2.1")
+    }
+    apiVersion: nais.io/v1alpha1
+    kind: Application
+    metadata:
+    name: demo-tjeneste
+    namespace: demo
+    spec:
+    image: {{image}}
+    port: 8080
+    liveness:
+    path: /internal/isalive
+    readiness:
+    path: /internal/isready
+    mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+### Oppsummering
+
+Spørringen er parameterisert, og fødselsnummeret skrives ikke ut i loggen. Jeg fant én tilgangskontrollfeil som bør rettes før endringen tas i bruk.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 48–55 | 🔴 Blokkerer | Ruten krever et gyldig TokenX-token, men begrenser ikke hvilken klient som kan kalle den. `App.kt` kontrollerer issuer, audience og `acr`, men ikke `azp` mot `AZURE_APP_PRE_AUTHORIZED_APPS`. En annen klient som får utstedt token med riktig audience, kan dermed hente sakene til personen i tokenets `pid`. Valider `azp` før oppslaget. |
+| `SakService.kt` | 55 | 🟡 Forslag | Repository-kallet bruker synkron JDBC direkte fra Ktor-ruten. Ved treg database kan det binde opp tråder som betjener forespørsler. Kjør oppslaget på en dispatcher for blokkerende I/O. |
+
+🔴 **Rød sone:** Gå gjennom klientautorisasjonen grundig; et gyldig token er ikke alene tilstrekkelig tilgang til sakene. `mise check` kunne ikke kjøres fordi prosjektet ikke har en slik oppgave. Still gjerne spørsmål om valgene over.
+

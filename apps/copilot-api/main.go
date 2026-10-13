@@ -152,7 +152,7 @@ func main() {
 
 	registerDevRoutes(mux, config, rawBQClient)
 	mux.Handle("/public/v1/", otelhttp.NewHandler(
-		loggingMiddleware(config, makePublicRouter(config, videoHandlers)),
+		loggingMiddleware(config, makePublicRouter(config, videoHandlers, bqHandlers)),
 		"public-api",
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			return r.Method + " " + r.URL.Path

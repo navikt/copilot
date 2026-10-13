@@ -71,6 +71,39 @@ Runs as a Kubernetes CronJob via NAIS. Automatically detects missing days in Big
 copilot-metrics --run-once
 ```
 
+### Automatic user billing
+
+`--user-billing-sync` resumes unfinished closed UTC months from October 2026.
+Manual `--user-billing-month` remains limited to the historical months before
+October 2026; future months must use the identity- and coverage-checked worker.
+Months before June 2026 were billed as premium requests, so the command reads
+the `premium_request` endpoint for them (per user and for the enterprise total)
+and stores the SKUs `Copilot Premium Request` and `Coding Agent Premium
+Request` in the same table.
+It runs separately from daily ingestion, for at most 50 minutes. Each execution
+allows at most 2,000 identity/billing requests and stops with 500 requests left
+in the token's reported quota. These limits include retries; other token users
+can still consume quota concurrently.
+
+The deployed worker uses the existing `copilot-metrics` secret and runs nightly
+at 09:00 UTC in dev and 08:00 UTC in prod. A month becomes eligible on day 3 of
+the next month, so October 2026 is first collected on November 3. Every publish
+stores the enterprise total and the residual against the per-user rows in
+`billing_user_monthly_runs`; `--user-billing-publish=YYYY-MM` reruns only that
+step for a completed month. Set `USER_BILLING_SYNC_ENABLED=false` to disable collection.
+`concurrencyPolicy: Forbid` prevents overlapping scheduled runs.
+Before a manual billing load, disable the scheduled worker and wait for active
+pods and their BigQuery jobs to finish. This rule also applies to local binaries.
+
+Source failures and unresolved GitHub identities keep a month unpublished and
+trigger the existing Slack error notification. Completed user checkpoints resume
+next night. Enterprise totals are stored with publication; team timing remains
+an estimate derived from live daily usage and membership reports.
+
+Completed months are observations at collection time, not final invoices.
+Automatic correction refresh is not implemented. Never delete completion
+markers to refresh a published month; a correction needs a staged replacement.
+
 ### Historical backfill
 
 One-time operation to load historical data:
@@ -141,6 +174,19 @@ export LOG_LEVEL=DEBUG
 
 go run . --run-once
 ```
+
+### Mimir daily copy
+
+Mimir keeps about 70 days. The `copilot-mimir-daily` Naisjob (`.nais/mimir.yaml`, 03:00 UTC, prod only) copies yesterday's aggregates to `copilot_metrics_staging.mimir_daily`. It ports `underlag/mimir-backfill/backfill.py` in navikt/copilot-intern: same families and columns, day × job × model or tool, at least five devices per row for the device-labelled families (smaller rows merge into `andre` or are dropped). Exceptions: `copilot_chat` rows have no device label to count, so they carry no threshold, and config rows are at client grain, no device, repo, instance or user labels. Token, tool-call count and code-lines counters have `counter_reliable = false`. Each day is loaded into a scratch table and swapped in one transaction, so reruns are safe and a failed load keeps the old rows. A day with no rows from Mimir is an error and leaves BigQuery untouched.
+
+Rerun missed days (inclusive):
+
+```bash
+MIMIR_DAILY_ENABLED=true GCP_TEAM_PROJECT_ID=copilot-prod-c697 BIGQUERY_DATASET=copilot_metrics_staging \
+  go run . --mimir-daily --mimir-from 2026-10-01 --mimir-to 2026-10-05
+```
+
+Locally this needs naisdevice to reach `mimir.nav.cloud.nais.io`.
 
 ## Configuration
 
@@ -264,12 +310,48 @@ Daily model-level premium request usage from the enhanced billing endpoint.
 
 Table is partitioned by day (`day`) and clustered by `scope_id`, `model`.
 
+### `seat_counts` table
+
+Daily Copilot seat totals from the billing seats API (enterprise first, org
+fallback). Totals only, no per-person rows. One row per day and `scope_id`,
+written with `MERGE`, so a re-run on the same day replaces the row. There is no
+backfill: the API only reports the current state, so history starts on the day
+this table was first deployed. `v_seat_counts_monthly` keeps the last row per month.
+
+| Column                       | Type      | Description                          |
+| ---------------------------- | --------- | ------------------------------------ |
+| `snapshot_date`              | DATE      | Day the count was taken              |
+| `scope`                      | STRING    | `enterprise` or `organization`       |
+| `scope_id`                   | STRING    | Enterprise/org identifier            |
+| `total_seats`                | INTEGER   | `total_seats` from the API           |
+| `active_seats`               | INTEGER   | Seats not pending cancellation       |
+| `pending_cancellation_seats` | INTEGER   | Seats with a pending cancellation    |
+| `loaded_at`                  | TIMESTAMP | When the row was written             |
+
+### `copilot_seats` table
+
+Daily snapshot of every Copilot seat from the same seats API: `snapshot_date`,
+`scope_id`, `user_id`, `login`, `plan_type`, `created_at` (when the current seat
+was assigned) and `pending_cancellation_date` (the first day of the next billing
+cycle, so the seat's last day is the day before). Partitioned by day. Written
+with a load job that truncates the day's partition, so a re-run replaces the
+day. Partitions expire after 400 days. No backfill. copilot-api reads it for the
+licence estimate in the team year view.
+
+### `team_members` table
+
+Daily snapshot of every team's members in the org (`GET /orgs/{org}/teams` and
+`/teams/{slug}/members`), regardless of Copilot use. Columns `date`, `team_slug`,
+`login`. Partitioned by day; partitions expire after 400 days. A re-run replaces
+the day with `MERGE`. Failures are logged and do not fail the job.
+
 ## GitHub App Permissions
 
 The GitHub App requires:
 
 - `enterprise_copilot_metrics: read` (for enterprise-level data)
 - Or `organization_copilot_metrics: read` (fallback)
+- Organization `members: read` (for `team_members`). The org installation must approve the new permission; until then each run logs a 403 and writes no `team_members` rows (#1566).
 
 ## Billing API Access
 

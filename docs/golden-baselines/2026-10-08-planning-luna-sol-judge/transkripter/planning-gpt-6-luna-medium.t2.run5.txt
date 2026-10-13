@@ -1,0 +1,23 @@
+
+
+
+
+
+
+
+
+Repoet er et Kotlin/Ktor-prosjekt på Nais. `nais.yaml` har ikke ID-porten konfigurert ennå. Jeg legger til grunn at en innbygger logger inn med ID-porten, og at tjenesten leser fødselsnummeret fra et validert token. Stemmer det?
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller bare brukes under forespørselen?
+2. Hvem skal kunne kalle tjenesten, og hvem skal kunne lese dataene den behandler?
+3. Hva skal skje hvis ID-porten eller en annen avhengighet er utilgjengelig?
+4. Hvilke tegn eller metrikker skal vise at tjenesten fungerer?
+5. Hvilket team eier hele flyten, og er dere avhengige av andre team?
+6. Hvilke klienter skal bruke tjenesten, og finnes det krav til API-et deres?
+7. Hvilke tester finnes allerede, og har dere tester for autentisering og håndtering av fødselsnummer?
+8. Er ID-porten eller sikker håndtering av fødselsnummer nytt for deg, eller vil du gå gjennom de delene grundig?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7, #11 stilt; #8–#10 ikke relevant for en ny tjeneste).
+

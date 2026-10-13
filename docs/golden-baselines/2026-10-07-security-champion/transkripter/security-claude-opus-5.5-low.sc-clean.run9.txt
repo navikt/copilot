@@ -1,0 +1,21 @@
+🛡️ Sikkerhet: Jeg fant ingen kritiske eller høye funn i `SakService.kt`. Gjennomgangen sjekket tilgangskontroll, injeksjon, logging og feilhåndtering. Konfigurasjonen rundt filen har derimot to hull. Jeg har ikke endret noe.
+
+**Det filen gjør riktig**
+- **Eierskap til saker:** `fnr` hentes fra `pid`-claimet i tokenet, ikke fra en parameter i path eller query. Brukeren får dermed bare sine egne saker, så IDOR er ikke mulig her.
+- **SQL:** spørringen er parameterisert (`queryOf(..., fnr)` på linje 26).
+- **Logging:** fnr maskeres helt (linje 37). Ved feil logges bare klassenavnet på exception-et, ikke meldingen, som kan inneholde data.
+- **Autentisering:** ruten ligger bak `authenticate("tokenx")`. `App.kt` validerer issuer, audience og `acr=idporten-loa-high`.
+- **Manglende claim:** gir 401, ikke 500.
+
+**Medium (i `nais.yaml`, ikke i filen)**
+1. `tokenx.enabled: true` mangler. Da finnes ikke `TOKEN_X_*`-variablene som `App.kt` leser, og autentiseringsoppsettet blir ugyldig.
+2. `accessPolicy.inbound` mangler. Legg til en eksplisitt liste over hvilke frontender som får kalle tjenesten.
+
+**Lav**
+- **Revisjonslogg:** visning av saker for en innbygger logges ikke for revisjon (CEF). Avklar med Team Auditlogging om dette er påkrevd. Det gjelder ofte bare når ansatte ser personopplysninger.
+- **Maskering:** `maskert()` røper lengden på strengen. Det er uten betydning for fnr, som alltid har 11 siffer.
+- **Rate limiting:** ingen på endepunktet.
+
+🔴 Rød sone: claim-basert eierskap (linje 50 og 55) er hele tilgangskontrollen. Hvis noen senere legger til en `fnr`-parameter i ruten, åpner det for IDOR. Det bør en test hindre.
+
+Still gjerne spørsmål om valgene over.

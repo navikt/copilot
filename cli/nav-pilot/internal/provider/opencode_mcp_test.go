@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMCPRegistryListed(t *testing.T) {
@@ -105,5 +106,87 @@ func TestOpenCodeMCPReportAsksForThePolicyOnce(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("the MCP policy was fetched %d times, want 1", calls)
+	}
+}
+
+// opencode 2's own shape, mcp.servers, goes through the registry check like
+// opencode 1's, and on opencode 2 a server turned off keeps its type and
+// command or URL, without which opencode 2 drops the entry and runs it.
+func TestApplyOpenCodeMCPPolicyV2(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	proj := t.TempDir()
+	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {"timeout": {"catalog": 5}, "servers": {
+		"ok": {"type": "remote", "url": "https://ok/mcp"},
+		"bad": {"type": "remote", "url": "https://bad/mcp"},
+		"evil": {"type": "local", "command": ["node", "evil.js"]},
+		"off": {"type": "local", "command": ["node", "off.js"], "disabled": true}}}}`), 0o600)
+	origPolicy, origReg := fetchMCPPolicy, fetchMCPRegistry
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry = origPolicy, origReg; versionCache.Delete("opencode") })
+	fetchMCPPolicy = func() (string, error) { return "https://registry/", nil }
+	fetchMCPRegistry = func(string) (mcpRegistry, error) {
+		return mcpRegistry{Remotes: map[string]bool{"https://ok/mcp": true}, Packages: map[string]bool{}}, nil
+	}
+	// opencode 1 knows no mcp.servers: what it reads stays as before.
+	versionCache.Store("opencode", versionAnswer{"1.18.35\n", nil, time.Hour})
+	if got := openCodeMCPServers(proj, nil); got["evil"].Command != nil || got["off"].Enabled != nil {
+		t.Fatalf("opencode 1 read the v2 shape: %+v", got)
+	}
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	got := openCodeMCPServers(proj, nil)
+	if len(got) != 4 || got["off"].Enabled == nil || *got["off"].Enabled || got["evil"].Command[1] != "evil.js" {
+		t.Fatalf("servers = %+v", got)
+	}
+
+	env := applyOpenCodeMCPPolicy(nil, proj)
+	all := strings.Join(env, "\n")
+	for _, want := range []string{
+		`NAV_PILOT_MCP_BLOCKED={"blocked":["bad","evil"],`,
+		`"bad":{"enabled":false,"type":"remote","url":"https://bad/mcp"}`,
+		`"evil":{"command":["node","evil.js"],"enabled":false,"type":"local"}`,
+	} {
+		if !strings.Contains(all, want) {
+			t.Errorf("env lacks %s:\n%s", want, all)
+		}
+	}
+	if strings.Contains(all, `"timeout":{"enabled"`) {
+		t.Errorf("mcp.timeout read as a server: %s", all)
+	}
+}
+
+// opencode 2 reads opencode.json in every directory up to "/", past the git
+// root; opencode 1 stops at the git root.
+func TestOpenCodeMCPServersV2WalksPastGitRoot(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	parent := t.TempDir()
+	proj := filepath.Join(parent, "proj")
+	os.MkdirAll(filepath.Join(proj, ".git"), 0o700)
+	os.WriteFile(filepath.Join(parent, "opencode.json"), []byte(`{"mcp":{"servers":{"anc":{"type":"remote","url":"https://anc/mcp"}}}}`), 0o600)
+	for ver, want := range map[string]bool{"1.18.35\n": false, "opencode v2.0.24\n": true} {
+		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+		if _, got := openCodeMCPServers(proj, nil)["anc"]; got != want {
+			t.Errorf("%q: server above the git root read = %v, want %v", ver, got, want)
+		}
+	}
+}
+
+// opencode 2 ranks OPENCODE_CONFIG_DIR (the payload) below the project, so a
+// project server of the same name is the one checked.
+func TestOpenCodeMCPServersV2ConfigDirRanksBelowProject(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	proj, payload := t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(payload, "opencode.json"), []byte(`{"mcp":{"s":{"type":"remote","url":"https://payload/mcp"}}}`), 0o600)
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp":{"s":{"type":"remote","url":"https://project/mcp"}}}`), 0o600)
+	env := []string{"OPENCODE_CONFIG_DIR=" + payload}
+	for ver, want := range map[string]string{"1.18.35\n": "https://payload/mcp", "opencode v2.0.24\n": "https://project/mcp"} {
+		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+		if got := openCodeMCPServers(proj, env)["s"].URL; got != want {
+			t.Errorf("%q: url = %v, want %s", ver, got, want)
+		}
 	}
 }

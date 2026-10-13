@@ -1,0 +1,3 @@
+VedtakKonsument hopper over eventId-er den allerede har utbetalt, og committer først etter at hele batchen er behandlet. Konstruktøren kan fortsatt kalles med bare `consumer` og `utbetaling`. `cd vedtak-konsument && gradle test` passerer.
+
+🔴 Rød sone: EventId-ene lagres i minnet. Det hindrer dobbeltutbetaling ved retry eller rebalansering i samme prosess, men ikke etter en prosessrestart. Varig idempotens krever et persistent lager. Still gjerne spørsmål om valgene over.

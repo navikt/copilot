@@ -1,0 +1,78 @@
+/ Search (glob)
+  │ ".github/instructions/{kotlin,testing-kotlin,testing}.instructions.md"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/*Vedtak*"
+  └ 2 files found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -60
+  └ 42 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect module files and Gradle availability (shell)
+  │ find vedtak-api/src -type f; ls -la vedtak-api; command -v gradle || true; ls AGENTS.md
+  │ .github/copilot-instructions.md .github/copilot-review-instructions.md 2>/dev/null || true
+  └ 9 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:110 (110 lines read)
+
+Added `VedtakDto` and the `Vedtak.tilDto()` mapping, plus a focused test asserting full DTO equality and the ISO date string.
+
+Files changed:
+- `vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt`
+- `vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt`
+
+No Gradle command run, as requested.● Worker (model: gpt-6-luna) Add Vedtak DTO mapper                                               29s
+  │ Added `VedtakDto` and the `Vedtak.tilDto()` mapping, plus a focused test asse...
+  │ Read VedtakTest.kt
+  │   │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  │   └ 12 lines read
+  └ Edit
+      │ Create vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+      └ Create vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt
+
+● Read VedtakDto.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+  └ 14 lines read
+
+● Read VedtakDtoTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt
+  └ 14 lines read
+
+● Run vedtak-api Gradle tests (shell)
+  │ gradle -p vedtak-api test --no-daemon --quiet
+  └ No Content
+
+Lagt til `VedtakDto` med feltene i ønsket rekkefølge og `Vedtak.tilDto()` som gjør datoen om til en ISO-formatert streng. Enhetstesten kontrollerer alle feltene. `gradle -p vedtak-api test` bestod.
+

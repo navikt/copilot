@@ -23,6 +23,7 @@ spec:
           - id: afcbfed4-d5d4-4964-8db5-f59b6f61b929 # azure
           - id: 8396d3ec-e263-49c7-b72a-87440d7ee3f4 # design
           - id: c0b6df4d-35b4-4312-aaaa-74ea33108875 # GitHub Copilot Produktutvikling
+          - id: f59c8c77-7b73-4753-890a-2b483a07d18a # team copilot (admin, kostnadsinnsikt)
     sidecar:
       enabled: true
       autoLogin: true
@@ -85,10 +86,22 @@ spec:
       - /priser/**
       - /modeller
       - /modeller/**
+      - /reisen
       - /innsikt
+      - /innsikt/team
+      - /innsikt/team/rapport
+      - /innsikt/forbruk
+      - /innsikt/bruk
+      - /innsikt/tilpasninger
+      - /innsikt/trender
+      - /innsikt/lokale-modeller
+      - /admin
+      - /admin/kostnad
+      - /admin/kostnad/rapport
+      - /admin/undersokelser/**
       # Old paths with a permanent redirect in next.config.ts. Listed so the
       # redirect answers before Wonderwall does; the private targets
-      # (/statistikk, /kostnad) still require a login in src/proxy.ts.
+      # (/innsikt/bruk, /innsikt/tilpasninger, /innsikt/trender) still require a login in src/proxy.ts.
       - /best-practices
       - /practice
       - /customizations
@@ -96,6 +109,8 @@ spec:
       - /stats
       - /overview
       - /cost
+      - /innsikt/kostnad
+      - /admin/kostnad/innsyn
       # Health (metrics NOT listed — Wonderwall blocks public access, Prometheus scrapes pod directly)
       - /health
       # NOTE: /api/copilot and /api/adoption are NOT listed — Wonderwall enforces auth for APIs
@@ -110,6 +125,8 @@ spec:
     generatedConfig:
       mountPath: /tmp/nais.js
   env:
+    - name: "COPILOT_ADMIN_GROUP_ID"
+      value: "f59c8c77-7b73-4753-890a-2b483a07d18a"
     - name: "NODE_ENV"
       value: "production"
     - name: "GITHUB_ORG"

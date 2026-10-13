@@ -1,0 +1,36 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        kafka
+# suite:        kafka
+# date:         2026-10-08
+# revision:     f62c1d8f
+# model:        claude-haiku-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      3573972292
+# prompts:      all
+#
+# id|run|status|assertion|detail
+kf2|1|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|1|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|1|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|1|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|
+kf2|2|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|2|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|2|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|2|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|
+kf2|3|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|3|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|3|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|3|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|
+kf2|4|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|4|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|4|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|4|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|
+kf2|5|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|5|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|5|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|5|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|

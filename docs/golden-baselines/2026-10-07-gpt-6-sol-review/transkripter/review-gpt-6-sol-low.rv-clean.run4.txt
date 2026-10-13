@@ -1,0 +1,46 @@
+
+
+
+
+
+
+    src/main/kotlin/no/nav/demo/App.kt
+    src/main/kotlin/no/nav/demo/sak/SakService.kt
+    src/main/kotlin/no/nav/demo/Oppgave.kt
+    src/main/kotlin/no/nav/demo/Routes.kt
+    src/main/kotlin/no/nav/demo/UserRepo.kt
+    src/main/kotlin/no/nav/demo/Config.kt
+    /opt/homebrew/bin/mise
+    mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+### Gjennomgang
+
+**Én sikkerhetsmerknad:** Ruten bruker `pid` fra det verifiserte TokenX-tokenet til å hente saker for personen. Det er riktig kobling mellom innringer og data, men den avviser bare en *manglende* claim.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 50–55 | 🟡 | En tom eller ugyldig `pid` sendes videre til databasesøket og kan gi `200 OK` med tom liste. Valider fødselsnummeret før oppslag, og avvis ugyldig identitet som uautorisert. |
+| `SakService.kt` | 40–42 | 🟡 | Feilen logges bare med klassenavn før den kastes videre. Det gir lite grunnlag for feilsøking og kan føre til dobbeltlogging. La feilen gå videre, eller logg den én gang med trygg kontekst og stacktrace. |
+
+🔴 Rød sone: Valideringen av identiteten som styrer sakstilgangen bør gjennomgås nøye. Alternativet å stole på at tokenutstederen alltid leverer en gyldig `pid`, gir mindre lokal kode, men lar ugyldige claims fremstå som vellykkede oppslag.
+
+`mise check` kunne ikke kjøres: prosjektet har ingen `check`-oppgave i mise. Still gjerne spørsmål om valgene over.
+

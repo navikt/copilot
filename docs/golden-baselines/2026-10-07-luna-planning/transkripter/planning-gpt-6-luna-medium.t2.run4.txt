@@ -1,0 +1,18 @@
+Dette er en full oppgave fordi tjenesten skal håndtere fødselsnummer og autentisering. Jeg har ikke gjort endringer.
+
+Repoet er en Ktor 3/Kotlin-tjeneste på Nais. `nais.yaml` har ikke ID-porten-konfigurasjon eller `accessPolicy`, og jeg fant ingen testfiler. `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Kjør `nav-pilot init` for å opprette lokal Copilot-konfigurasjon.
+
+Før jeg lager planen, trenger jeg svar på dette:
+
+1. Hva gjør tjenesten med fødselsnummeret etter innlogging? Bruker den det bare i forespørselen, lagrer det eller sender det videre? Hvem mottar det, og hvor lenge skal det beholdes? Fødselsnummer må aldri havne i logger eller metrikker.
+2. Hvem skal bruke tjenesten: en innbygger i nettleser, en annen Nav-tjeneste eller begge? Mener du at innbyggeren logger inn via ID-porten og tjenesten leser identiteten fra et validert token, eller at backend skal kalle ID-porten direkte? Hvem skal kunne lese resultatet?
+3. Hva skal skje hvis innlogging eller en av tjenestens avhengigheter ikke virker?
+4. Hvilke metrikker skal vise at tjenesten fungerer, uten å ta med personopplysninger?
+5. Eier teamet hele flyten, eller er dere avhengige av andre team?
+6. Hvilke tjenester skal bruke resultatet, og finnes det allerede en API-kontrakt de må støtte?
+7. Hvilke tester forventer du? Repoet har ingen testfiler nå.
+8. Autentisering, validering og håndtering av fødselsnummer er rød sone. Vil du gå gjennom valgene trinnvis, eller ønsker du en plan med disse delene tydelig markert for egen utforming?
+
+Jeg behandler dette som en ny tjeneste. Derfor spør jeg ikke om modernisering, bakoverkompatibilitet med en eksisterende kontrakt eller avvikling av en gammel løsning.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7, #11 stilt; #8–#10 ikke relevante for en ny tjeneste)

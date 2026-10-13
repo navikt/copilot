@@ -178,11 +178,7 @@ persona + flagg etter `--`-separatoren: `cplt --agent copilot -- --agent nav-pil
 
 **Autonomi og allow-all:** Med `autonomy = "sandbox"` (standard) får Copilot i cplt
 `--allow-all-tools --allow-all-paths --allow-all-urls` og beholder `ask_user`. Med `conservative` gjelder `allow_all_tools` som før. cplt er
-grensen. Uten cplt (`--no-sandbox` eller en oppstart uten sandkasse etter spørsmålet) fjerner
-nav-pilot alle allow-all-flagg (`--allow-all-tools`, `--allow-all-paths`, `--allow-all-urls`,
-`--allow-all`, `--yolo`) fra konfig, launch-flagg og argumenter etter `--`, tar bort
-`COPILOT_ALLOW_ALL` fra miljøet og sier fra på én linje. For opencode fjernes
-`--dangerously-skip-permissions`, `--auto` og `--yolo` på samme måte. `--mode autopilot`
+grensen, og nav-pilot starter ingen klient uten cplt. `--mode autopilot`
 gir i tillegg `--no-ask-user` og en advarsel.
 
 ### OpenCode alternativ-mapping
@@ -195,7 +191,7 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 | `model` | `--model` | `provider/model` (f.eks. `github-copilot/claude-opus-4.8`), og en Copilot-id uten prefiks får `github-copilot/` foran; uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
 | `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
-| `allow_all_tools` | `--dangerously-skip-permissions` | Bare i cplt; en oppstart uten sandkasse fjerner flagget |
+| `allow_all_tools`, `autonomy = sandbox` | `--auto` | Gjelder i cplt, der alle klienter kjører |
 | `log_level` | `--log-level` | Oversettes til opencodes sett: `DEBUG`/`INFO`/`WARN`/`ERROR` (se under) |
 | `context_tier` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt |
 | `ask_user` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt til `false` |
@@ -601,6 +597,70 @@ tmp, err := os.CreateTemp(filepath.Dir(dst), ".nav-pilot-*")
 os.Rename(tmpPath, dst)
 ```
 
+### Hook-watchdog og klientens frist
+
+`source.HookCommand` dreper python3-skriptet `timeoutSec - 2` sekunder etter at
+watchdogen starter. Marginen dekker det som skjer utenfor watchdogens klokke:
+klienten starter `sh`, to `mktemp` og `sleep`, og etter drapet `cat` og `rm`.
+
+Hva skjer når marginen ikke holder? Målt 2026-10-08 med GitHub Copilot CLI
+1.0.94-4 og 1.0.94-5, med en brukerhook som har `timeoutSec: 3` og sover i
+30 s: Copilot dreper hooken etter 3 s, logger `preToolUse hook ... timed out;
+allowing the tool call to proceed` og kjører verktøykallet. Kallet blir altså
+tillatt, akkurat som når watchdogen rekker fram først. Brukeren venter hele
+`timeoutSec` og får ingen melding i terminalen. I OpenCode gir en installert
+hook som går over fristen `null` fra `run` i `hooks-bridge.js` og
+`hooks-bridge-v2.js`, som tolkes som `{}`, altså tillatt. Redaksjonshooken
+(`nav-pilot hook redact`) går ikke gjennom watchdogen og holder tilbake
+utdataene ved timeout, som før.
+
+Alle portene foran et verktøykall feiler altså åpent som standard, på begge
+klientene: python-hookene (`ask-first-aria`, `klarsprak-gate`, `gh-poll-gate`
+og dem en agentpakke installerer), `nav-pilot hook action-check` og
+delegeringssperren i `dispatch-gate.js`, som gir opp etter 2 s uten svar fra
+nav-pilot. Ryker fristen under last, går kallet gjennom uten at noen har sett
+på det. Bare redaksjonen feiler lukket.
+
+Unntaket er en python-hook med `"failClosed": true` i `<navn>.hook.json`. Da
+skriver `HookCommand` selv et `deny`-svar der skriptet ellers ville sluppet
+kallet gjennom: `python3` mangler, `mktemp` feiler, skriptet avslutter med
+feil, eller watchdogen dreper det (exit 143). Begrunnelsen navngir porten og
+sier om den feilet eller ikke svarte i tide. Svaret skrives med `printf`, en
+builtin, så drapsstien venter fortsatt ikke på noen prosess den starter; den
+bakgrunnskjørte `rm` er som før den eneste. Navnet JSON-kodes og
+settes i enkle anførselstegn, så et navn med anførselstegn eller linjeskift
+kommer ikke ut av noen av dem. Oppføringen bærer flagget videre
+(`failClosed` i `copilot-hooks.json` og `~/.copilot/hooks/<navn>.json`), og
+broen i OpenCode nekter i tillegg når `sh` selv ikke starter eller blir
+ferdig innen fristen, og når et skript som avsluttet med 0 ga noe som ikke er
+JSON. To hull står igjen. Rekker ikke `sh` å skrive svaret før Copilots
+egen frist, tillater Copilot kallet uansett. Og et skript som avslutter med
+0, har svart, også når svaret er tomt eller uleselig: hva Copilot gjør med et
+uleselig svar, bestemmer Copilot. En eldre nav-pilot som kjører `install
+--repo`, skriver oppføringen på nytt uten flagget, så alle som installerer
+pakka må ha en nav-pilot som kjenner `failClosed`. Valideringen håndhever
+det: en pakke med `failClosed` må sette `minNavPilotVersion` til minst
+`agentpakke.FailClosedMinVersion`.
+
+Målt på en Mac med 18 kjerner: hook-kommandoen med et skript som sover i 30 s
+og `timeoutSec: 3` (frist 1 s), kjørt slik Copilot gjør det (`sh -c`, payload
+på stdin). Tiden er fra spawn til exit, minus fristen.
+
+| Last | n | median | p90 | p99 | maks | over 2 s |
+|---|---|---|---|---|---|---|
+| Tre `go test ./...`-løkker, loadavg 14–22 | 200 | 0,16 s | 0,54 s | 1,07 s | 1,57 s | 0 |
+| Det samme pluss andre agenter, loadavg 26–39 | 200 | 0,46 s | 2,26 s | 6,02 s | 8,84 s | 24 (12 %) |
+
+Med `sleep 30` i stedet for python3 ble halen like lang, så tolkeren er ikke
+årsaken. Tidsstempler inne i kommandoen viser at nesten all ventetid kommer før
+kommandoen gjør noe som helst, altså mens `sh` og den første exec-en starter.
+Det skjer før watchdogen har en klokke, så en frist målt fra hookens egen start
+hjelper ikke. Under tung last finnes det ingen margin som alltid holder.
+
+Vi beholder 2 s. En større margin tar tid fra trege, men legitime hooks, og
+siden begge klientene tillater kallet når fristen ryker, koster en bom bare
+ventetid.
+
 ### Utgivere av lokale modeller (bare for benchmark)
 
 Manifestet for lokale modeller godtar bare modeller fra `mlx-community` og
@@ -836,7 +896,7 @@ var cacheHome = ""                  // overstyr cache-sti i tester
 tokenkost, bygger CLI-en fortsatt og agenten svarer fortsatt — men den kan ha
 sluttet å sende fasesjekkpunkt eller begynt å anbefale feil auth-mekanisme.
 
-`scripts/nav-pilot-golden.sh` kjører seks prompter gjennom personaen og
+`scripts/nav-pilot-golden.sh` kjører åtte prompter gjennom personaen og
 asserter *atferdsinvarianter* med regex — aldri tekstlikhet. Hver assertion
 peker på en regel under `## Boundaries → ✅ Always` i personaen:
 
@@ -848,11 +908,25 @@ peker på en regel under `## Boundaries → ✅ Always` i personaen:
 | 4 | compressed-tier flerfilsoppgave | Fase 2-planen inneholder en 🔴 Rød sone-deklarasjon |
 | 5 | «tjeneste A kaller B med brukerkontekst» | svarer TokenX, ikke Azure client_credentials |
 | 6 | «rename en variabel i tre filer» | ingen eskalering til `@nav-pilot-opus` |
+| 7 | `/jackson-3-migration` «Evaluer jackson 3 migrering i denne branchen», migreringen ligger på en egen branch, og DTO-en har et fnr-felt | verken personvern eller tilgangskontroll tas opp |
+| 7b | «legg til fnr i en Kafka-melding», samme fikstur | personvern reist (kontroll for 7) |
 
 Test 5 er kanarifuglen: den er den assertionen som først fanger et for
 aggressivt kutt i auth-beslutningstreet i `### Fase 2: Plan` eller i
 `## Critical patterns`. Behandle en feil der som «auth-kunnskapen var
 bærende», ikke som en flaky assertion å myke opp.
+
+`--suite review` kjører `@code-review` mot plantede feil. Sjekkene leses av
+`scripts/benchmark-sjekk.py`:
+
+| # | Prompt | Invariant |
+|---|--------|-----------|
+| rv1–rv2 | «gjennomgå UserRepo.kt» | finner SQL, fnr i logg og svelget unntak, på riktig linje |
+| rv3–rv4 | «gjennomgå StatusPanel.tsx» | finner fire Aksel- og UU-feil, på riktig linje |
+| rv5 | «gjennomgå endringene i branchen vedtak-kafka mot main», åtte filer | fnr i logg, SQL ved strengsammenslåing, rute uten `authenticate("tokenx")` og `inbound` `*` i nais.yaml, på riktig linje i riktig fil |
+| rv6 | samme som rv5 | ingen idempotens under `retry(3)` (på linja), lagring og Kafka-sending uten transaksjon eller outbox (hvor som helst i svaret) |
+| rv7 | samme som rv5 | SQL- og tilgangsfunnet har høy prioritet, den ubrukte importen har det ikke |
+| rv8 | «gjennomgå SakService.kt», en fil uten feil | ingen funn med høy prioritet, og svaret sier at ingenting er kritisk |
 
 **Kjøres manuelt — aldri i CI.** Harnessen gjør ekte modellkall: det koster
 penger, er ikke-deterministisk og krever en innlogget Copilot CLI. Den er
@@ -1103,3 +1177,26 @@ Noen avvik fra industripraksis er bevisste valg:
 4. **Farger via ANSI i stedet for lipgloss** — 30 linjer i output.go er nok. lipgloss er overkill for fem fargehjelper-funksjoner.
 
 5. **Ingen konfigurasjonsfil** — CLI-flagg og miljøvariabler er nok for et verktøy som kjøres sjelden. Konfigfiler legger til kompleksitet.
+
+## Ytelse
+
+nav-pilot skal starte klienten uten å vente på nettet. Målene gjelder også når nettet ikke svarer:
+
+- Under 150 ms fra du kjører nav-pilot til klienten starter.
+- Under 200 ms fra økten slutter til du har terminalen tilbake.
+- Under 50 ms for `--version` og `--help`. De sender ikke telemetri.
+- Kommandoer som ikke trenger nettet, som `config get`, venter høyst 300 ms på versjonssjekken, aldri på telemetrien.
+
+Det som trenger nett, skjer i bakgrunnen eller leses fra en kopi på maskinen. Alle filene ligger i `~/.nav-pilot/`:
+
+- `cache.json`: versjonssjekken spør GitHub høyst én gang i døgnet, i bakgrunnen. Neste kommando sier fra hvis det finnes en ny versjon.
+- `sources/`: en kopi av agentpakka per kilde: navikt/copilot (for opencode og pi) og en agentpakke fra et annet team (`source` i konfigurasjonen). En ny kopi hentes mens økten kjører, høyst én gang i timen.
+- `client-versions.json`: svaret fra `copilot --version` og `opencode --version`. nav-pilot spør på nytt når klienten er oppdatert eller installert på nytt.
+- `surveys.json` og `news.json`: undersøkelser og nyheter hentes mens økten kjører. Nyhetslinja etter en økt kommer høyst én gang i døgnet.
+- `telemetry-spool/`: telemetrien skrives hit når en kommando avslutter. En egen prosess sender den rett etterpå, og det den ikke rekker, sender neste nav-pilot. Den slettes når den er sendt, etter sju dager, eller når du slår av telemetrien.
+
+Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i `sources/`, venter oppstarten på nedlastingen, høyst 30 sekunder. Mislykkes den, venter ikke oppstartene den neste timen på nettet, men prøver igjen i bakgrunnen. En kopi av en agentpakke fra et annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan økten starter. Er kopien eldre, venter oppstarten på en ny: høyst 15 sekunder når nav-pilot har manifestet fra før, ellers 30.
+
+En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot én gang, og en advarsel kommer på nytt først når noe endrer seg. `nav-pilot --verbose` viser hva oppstarten gjør: sandkassemappe, klient, agent og modell.
+
+Testen `TestLaunchBudget` passer på målene i CI. Den starter nav-pilot med falske klienter, med telemetrien på og et nett som tar imot forbindelser uten å svare. Den feiler når medianen av seks kjøringer er mer enn tre ganger målet. Så mye tregere blir det bare når noe venter på nettet. Hver kjøring gjøres også med telemetrien av, og med telemetrien på skal den ikke ta mer enn 40 ms lenger.

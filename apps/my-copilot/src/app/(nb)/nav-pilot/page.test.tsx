@@ -9,6 +9,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+// The survey notice streams behind Suspense, which renderToString below cannot
+// render; it has its own tests.
+vi.mock("@/components/survey-notice", () => ({ SurveyNotice: () => null }));
+
 beforeEach(() => {
   // The page asks GitHub for the star count; the test must not.
   vi.stubGlobal(

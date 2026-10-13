@@ -1,0 +1,369 @@
+"use client";
+
+import { useState } from "react";
+import { BodyShort, Button, ErrorMessage, Heading, HStack, Switch, Table, Tag, VStack } from "@navikt/ds-react";
+import { Buildings3Icon, CodeIcon, CpuIcon, DownloadIcon, FilePdfIcon, WrenchIcon } from "@navikt/aksel-icons";
+import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
+import type { TeamGrossOverview, TeamNetOverview, TeamSpend } from "@/lib/types";
+import { useTeamControls } from "./team-controls";
+import TeamUsageValue from "./team-usage-value";
+import { formatDate, formatUSD } from "@/lib/format";
+
+type Team = TeamSpend;
+
+/** Fetches the year CSV first, so a failure shows a message instead of saving the error body as a file. */
+function TeamYearCsv({ team, year }: { team: Team; year: string }) {
+  const [state, setState] = useState<"idle" | "loading" | string>("idle");
+  const download = async () => {
+    setState("loading");
+    try {
+      const res = await fetch(`/api/team-year?team=${encodeURIComponent(team.team_id)}&year=${year}`);
+      if (!res.ok) {
+        const reason =
+          res.status === 401
+            ? "du er ikke logget inn"
+            : res.status === 400
+              ? "ugyldig team eller år"
+              : "datatjenesten svarte med en feil";
+        setState(`Kunne ikke laste ned (HTTP ${res.status}: ${reason}). Prøv igjen senere.`);
+        return;
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      // Same name as the route's Content-Disposition, which guards the slug.
+      a.download =
+        /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? `copilot-${year}.csv`;
+      a.click();
+      // Revoking at once can abort the download in Safari.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setState("idle");
+    } catch {
+      setState("Kunne ikke laste ned (ingen kontakt med tjenesten). Prøv igjen senere.");
+    }
+  };
+  return (
+    <VStack gap="space-4">
+      <Button
+        type="button"
+        onClick={download}
+        aria-describedby={state.startsWith("Kunne") ? `csv-feil-${team.team_id}` : undefined}
+        loading={state === "loading"}
+        variant="tertiary"
+        size="xsmall"
+        icon={<DownloadIcon aria-hidden />}
+        aria-label={`Last ned forbruket for ${team.team_slug} hittil i ${year} som CSV`}
+      >
+        CSV
+      </Button>
+      {state.startsWith("Kunne") && (
+        <ErrorMessage size="small" id={`csv-feil-${team.team_id}`} role="alert">
+          {state}
+        </ErrorMessage>
+      )}
+    </VStack>
+  );
+}
+
+export default function TeamGrossUsage({
+  data,
+  net,
+  myTeams,
+  comparisonReason = null,
+  initialMine = false,
+}: {
+  data: TeamGrossOverview;
+  net: TeamNetOverview | null;
+  myTeams: string[] | null;
+  comparisonReason?: string | null;
+  initialMine?: boolean;
+}) {
+  const { search, columns } = useTeamControls();
+  const [sortKey, setSortKey] = useState("team");
+  const [direction, setDirection] = useState<"ascending" | "descending">("ascending");
+  const source = net?.teams ?? data.teams;
+  const mine = new Set((myTeams ?? []).map((team) => team.toLowerCase()));
+  const isMine = (team: Team) => mine.has(team.team_slug.toLowerCase());
+  // ?mine=1 keeps the filter across reloads and shared links without a navigation.
+  const [onlyMine, setOnlyMine] = useState(initialMine);
+  const toggleMine = (on: boolean) => {
+    setOnlyMine(on);
+    const url = new URL(window.location.href);
+    if (on) url.searchParams.set("mine", "1");
+    else url.searchParams.delete("mine");
+    window.history.replaceState(window.history.state, "", url);
+  };
+  const hasMine = source.some(isMine);
+  const visible = onlyMine && hasMine ? source.filter(isMine) : source;
+  const filtered = (teams: Team[]) =>
+    teams
+      .filter((team) => team.team_slug.toLowerCase().includes(search.trim().toLowerCase()))
+      .sort((a, b) => {
+        const value = (team: Team) =>
+          sortKey === "members"
+            ? team.users
+            : sortKey === "change"
+              ? team.change_usd
+              : sortKey === "average"
+                ? team.per_user_usd
+                : team.amount_usd;
+        if (sortKey === "team")
+          return (direction === "ascending" ? 1 : -1) * a.team_slug.localeCompare(b.team_slug, "nb");
+        const av = value(a),
+          bv = value(b);
+        if (av === null) return bv === null ? a.team_slug.localeCompare(b.team_slug, "nb") : 1;
+        if (bv === null) return -1;
+        return (direction === "ascending" ? av - bv : bv - av) || a.team_slug.localeCompare(b.team_slug, "nb");
+      });
+  const title = net ? "Forbruk" : "Forbruk før fradrag";
+
+  const year = data.month.slice(0, 4);
+  const hidden = net ?? data;
+  const rows = (teams: Team[]) =>
+    filtered(teams).map((team) => {
+      const { change_usd: change, highlight: highlighted } = team;
+      return (
+        <TableRow key={team.team_id} className={isMine(team) ? "bg-[var(--ax-bg-accent-soft)]" : undefined}>
+          <TableDataCell>
+            <HStack gap="space-8" align="center" wrap={false}>
+              {team.team_slug}
+              {isMine(team) && (
+                <Tag size="xsmall" variant="info">
+                  Ditt team
+                </Tag>
+              )}
+            </HStack>
+          </TableDataCell>
+          <TableDataCell align="right">{team.users}</TableDataCell>
+          <TableDataCell align="right">{formatUSD(team.amount_usd)}</TableDataCell>
+          <TableDataCell align="right">{formatUSD(team.per_user_usd)}</TableDataCell>
+          <TableDataCell align="right">
+            <span
+              title={highlighted ? "Endring på minst 10 % og 10 USD fra forrige måned" : undefined}
+              className={
+                highlighted
+                  ? (change ?? 0) > 0
+                    ? "text-[var(--ax-text-danger)]"
+                    : "text-[var(--ax-text-success)]"
+                  : undefined
+              }
+            >
+              {change === null ? "—" : `${change >= 0 ? "+" : ""}${formatUSD(change)}`}
+            </span>
+          </TableDataCell>
+          {(["providers", "categories"] as const).map(
+            (column) =>
+              columns.includes(column) && (
+                <TableDataCell key={column}>
+                  <VStack gap="space-4">
+                    {data.usage?.[team.team_id]?.[column]?.length
+                      ? data.usage[team.team_id][column].map((value) => (
+                          <TeamUsageValue
+                            key={value}
+                            kind={column === "providers" ? "provider" : "category"}
+                            value={value}
+                          />
+                        ))
+                      : Array.isArray(data.usage?.[team.team_id]?.[column])
+                        ? "Ingen modellinteraksjoner"
+                        : "Ikke tilgjengelig"}
+                  </VStack>
+                </TableDataCell>
+              )
+          )}
+          {columns.includes("feature") && (
+            <TableDataCell>
+              {data.usage?.[team.team_id]?.feature ? (
+                <TeamUsageValue kind="feature" value={data.usage[team.team_id].feature} />
+              ) : (
+                "—"
+              )}
+            </TableDataCell>
+          )}
+          {columns.includes("language") && (
+            <TableDataCell>
+              {data.usage?.[team.team_id]?.language ? (
+                <TeamUsageValue kind="language" value={data.usage[team.team_id].language} />
+              ) : (
+                "—"
+              )}
+            </TableDataCell>
+          )}
+          <TableDataCell>
+            <HStack gap="space-4" wrap={false}>
+              <TeamYearCsv team={team} year={year} />
+              <Button
+                as="a"
+                href={`/innsikt/team/rapport?team=${encodeURIComponent(team.team_id)}&year=${year}`}
+                variant="tertiary"
+                size="xsmall"
+                icon={<FilePdfIcon aria-hidden />}
+                aria-label={`Rapport over forbruket for ${team.team_slug} hittil i ${year}, for utskrift eller PDF`}
+              >
+                Rapport (PDF)
+              </Button>
+            </HStack>
+          </TableDataCell>
+        </TableRow>
+      );
+    });
+
+  const table = (teams: Team[], label: string) => (
+    <div className="overflow-x-auto">
+      <Table
+        size="small"
+        aria-label={label}
+        sort={{ orderBy: sortKey, direction }}
+        onSortChange={(key) => {
+          if (!key) return;
+          setDirection(key === sortKey && direction === "ascending" ? "descending" : "ascending");
+          setSortKey(key);
+        }}
+      >
+        <TableHeader>
+          <TableRow>
+            <Table.ColumnHeader scope="col" sortable sortKey="team">
+              Team
+            </Table.ColumnHeader>
+            <Table.ColumnHeader
+              scope="col"
+              align="right"
+              sortable
+              sortKey="members"
+              title="Medlemmer med forbruk denne måneden"
+            >
+              Medlemmer
+            </Table.ColumnHeader>
+            <Table.ColumnHeader scope="col" align="right" sortable sortKey="amount">
+              {title}
+            </Table.ColumnHeader>
+            <Table.ColumnHeader scope="col" align="right" sortable sortKey="average">
+              Per medlem
+            </Table.ColumnHeader>
+            <Table.ColumnHeader scope="col" align="right" sortable sortKey="change">
+              Endring
+            </Table.ColumnHeader>
+            {columns.includes("providers") && (
+              <Table.ColumnHeader scope="col">
+                <HStack gap="space-8" align="center">
+                  <Buildings3Icon aria-hidden fontSize="1.25rem" />
+                  Leverandører
+                </HStack>
+              </Table.ColumnHeader>
+            )}
+            {columns.includes("categories") && (
+              <Table.ColumnHeader scope="col">
+                <HStack gap="space-8" align="center">
+                  <CpuIcon aria-hidden fontSize="1.25rem" />
+                  Modelltyper
+                </HStack>
+              </Table.ColumnHeader>
+            )}
+            {columns.includes("feature") && (
+              <Table.ColumnHeader scope="col">
+                <HStack gap="space-8" align="center">
+                  <WrenchIcon aria-hidden fontSize="1.25rem" />
+                  Funksjon
+                </HStack>
+              </Table.ColumnHeader>
+            )}
+            {columns.includes("language") && (
+              <Table.ColumnHeader scope="col">
+                <HStack gap="space-8" align="center">
+                  <CodeIcon aria-hidden fontSize="1.25rem" />
+                  Språk
+                </HStack>
+              </Table.ColumnHeader>
+            )}
+            <Table.ColumnHeader scope="col" title={`Forbruk per måned hittil i ${year}, som CSV-fil`}>
+              Hittil i år
+            </Table.ColumnHeader>
+          </TableRow>
+        </TableHeader>
+        <TableBody>{rows(teams)}</TableBody>
+      </Table>
+    </div>
+  );
+
+  return (
+    <VStack gap="space-32">
+      <section aria-labelledby="om-kostnadene">
+        <VStack gap="space-8">
+          <Heading id="om-kostnadene" level="3" size="small">
+            Om kostnadene
+          </Heading>
+          <BodyShort>
+            Forbruk er summen for teamets medlemmer. Per medlem er gjennomsnittet blant medlemmer med forbruk. Medlemmer
+            i flere team telles i hvert team. Teambeløpene kan derfor ikke summeres til Navs totale kostnad.
+            Lisensutgifter er ikke med.
+          </BodyShort>
+          {!net && (
+            <BodyShort>
+              Beløpene er foreløpig forbruk: listepris, før rabatt. Fakturert beløp finnes ikke for denne måneden ennå.
+            </BodyShort>
+          )}
+          {net && (
+            <BodyShort>
+              De fakturerte beløpene er hentet {formatDate(net.loaded_at)}. Senere fakturakorreksjoner er ikke med.
+            </BodyShort>
+          )}
+          {comparisonReason && <BodyShort>{comparisonReason}</BodyShort>}
+          <BodyShort>
+            «Hittil i år» laster ned en CSV-fil med teamets forbruk per måned i {year}, regnet på samme måte som her.
+            «Rapport (PDF)» viser de samme tallene som en side du kan skrive ut eller lagre som PDF. Filen har også et
+            anslag for lisenskostnaden og forklarer hva tallene bygger på.
+          </BodyShort>
+        </VStack>
+      </section>
+
+      <section aria-labelledby="medlemsbruk">
+        <VStack gap="space-16">
+          {/* Old links to the two separate tables land on the merged one. */}
+          <span id="mine-team" />
+          <span id="andre-team" />
+          <Heading id="medlemsbruk" level="3" size="small">
+            Forbruk per team
+          </Heading>
+          {columns.length > 0 && (
+            <BodyShort>
+              Leverandører og modelltyper vises for alle synlige team, rangert etter antall brukerinteraksjoner uten
+              kostnadsvekting. Uklassifisert betyr at leverandøren eller modelltypen ikke er kjent. Funksjon og språk
+              vises bare med minst fem bidragsytere. Funksjon rangeres etter brukerinteraksjoner, språk etter
+              kodegenereringer. En strek betyr at data mangler, eller at funksjon eller språk er skjult. Dette er
+              bruksmønster, ikke kostnadsfordeling.
+            </BodyShort>
+          )}
+          {columns.length > 0 && !data.usage && (
+            <BodyShort>Bruksmønster er ikke tilgjengelig fra datatjenesten. Prøv igjen senere.</BodyShort>
+          )}
+          {data.usage &&
+            (["providers", "categories"] as const).some(
+              (column) =>
+                columns.includes(column) &&
+                filtered(source).some((team) => !Array.isArray(data.usage?.[team.team_id]?.[column]))
+            ) && <BodyShort>Leverandør- og modelltypeoversikt mangler for noen team fra datatjenesten.</BodyShort>}
+          {myTeams === null && <BodyShort>Kunne ikke finne dine team. Du kan fortsatt søke i teamlisten.</BodyShort>}
+          {myTeams !== null && (
+            <VStack gap="space-4">
+              <Switch
+                size="small"
+                checked={onlyMine && hasMine}
+                disabled={!hasMine}
+                onChange={(e) => toggleMine(e.target.checked)}
+              >
+                Vis bare mine team
+              </Switch>
+              {!hasMine && <BodyShort size="small">Ingen av dine team vises denne måneden.</BodyShort>}
+            </VStack>
+          )}
+          {filtered(visible).length ? (
+            table(visible, "Forbruk per team")
+          ) : (
+            <BodyShort>{onlyMine && hasMine ? "Ingen av dine team passer søket." : "Ingen team funnet."}</BodyShort>
+          )}
+          <BodyShort>{hidden.small_teams} team med færre enn fem medlemmer med forbruk er skjult.</BodyShort>
+        </VStack>
+      </section>
+    </VStack>
+  );
+}

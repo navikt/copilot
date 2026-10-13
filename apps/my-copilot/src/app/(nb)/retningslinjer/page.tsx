@@ -68,16 +68,33 @@ export default function RetningslinjerPage() {
               <VStack gap="space-12">
                 <HGrid columns={{ xs: 1, md: 2 }} gap="space-12">
                   <AllowedItem title="GitHub Copilot Business">
-                    Kodeforslag, Chat, Agent mode og Copilot Workspace, altså alt som er tilgjengelig gjennom GitHub
-                    Copilot i editoren din.
+                    Kodeforslag, Chat og Agent mode i editoren, Copilot CLI i terminalen og Copilot cloud agent på
+                    GitHub.
                   </AllowedItem>
                   <AllowedItem title="Alle modeller i Copilot">
                     Du kan bruke alle modeller som er tilgjengelige gjennom GitHub Copilot, inkludert de fra Anthropic,
-                    Google og OpenAI. Bruk &laquo;Auto&raquo; for å la Copilot velge optimal modell.
+                    Google og OpenAI, så lenge Nav ikke har slått dem av. Bruk &laquo;Auto&raquo; for å la Copilot velge
+                    modell. Se{" "}
+                    <NextLink href="/priser" className="text-blue-600 hover:underline">
+                      priser og modeller
+                    </NextLink>
+                    .
                   </AllowedItem>
                   <AllowedItem title="Agent mode i editoren">
-                    Du kan bruke Agent mode til autonome redigeringer lokalt. Du godkjenner terminalkommandoer og
-                    vurderer endringene før commit, med samme ansvar som for all annen kode.
+                    Du kan bruke Agent mode til autonome redigeringer lokalt. I VS Code skal{" "}
+                    <code>chat.agent.sandbox.enabled</code> være satt til <code>"on"</code>. Du godkjenner
+                    terminalkommandoer og vurderer endringene før commit, med samme ansvar som for all annen kode.
+                  </AllowedItem>
+                  <AllowedItem title="Copilot CLI, opencode og pi i terminalen">
+                    Copilot CLI, opencode og pi, installert med{" "}
+                    <NextLink href="/nav-pilot" className="text-blue-600 hover:underline">
+                      nav-pilot
+                    </NextLink>
+                    , er tillatt når agenten kjører i{" "}
+                    <NextLink href="/cplt" className="text-blue-600 hover:underline">
+                      cplt
+                    </NextLink>
+                    . Copilot CLI og opencode bruker Copilot-abonnementet, mens pi er tillatt inntil videre.
                   </AllowedItem>
                   <AllowedItem title="Nav-godkjente MCP-servere">
                     MCP-servere fra{" "}
@@ -86,9 +103,9 @@ export default function RetningslinjerPage() {
                     </NextLink>{" "}
                     er godkjent for bruk. De utvider Copilot med Nav-spesifikke verktøy.
                   </AllowedItem>
-                  <AllowedItem title="Copilot coding agent (cloud)">
-                    Coding agent kan brukes til avgrensede oppgaver (bugfiks, tester, dokumentasjon). Agenten lager en
-                    PR som må gjennomgås og godkjennes av et menneske før merge.
+                  <AllowedItem title="Copilot cloud agent">
+                    Cloud agent kan brukes til avgrensede oppgaver (bugfiks, tester, dokumentasjon). Agenten lager en PR
+                    som må gjennomgås og godkjennes av et menneske før merge.
                   </AllowedItem>
                   <AllowedItem title="Custom instructions og agenter">
                     Team kan lage egne instruksjoner, agenter og skills i sine repoer. Org-nivå agenter publiseres av
@@ -106,9 +123,9 @@ export default function RetningslinjerPage() {
                     Copilot Individual eller andre personlige abonnement skal ikke brukes til Nav-arbeid. Det er uklart
                     hvilke data som samles inn i disse versjonene.
                   </ForbiddenItem>
-                  <ForbiddenItem title="ChatGPT, Claude Code og lignende">
-                    Frittstående KI-kodeverktøy utenfor GitHub Copilot er ikke tillatt. Du kan bruke Claude- og
-                    GPT-modellene via Copilot.
+                  <ForbiddenItem title="Verktøy med eget abonnement eller egen API-nøkkel">
+                    KI-verktøy som bruker et eget abonnement eller en egen API-nøkkel utenfor Copilot, er ikke tillatt.
+                    Du kan bruke Claude- og GPT-modellene via Copilot.
                   </ForbiddenItem>
                   <ForbiddenItem title="Privat bruk på Nav-lisens">
                     Nav-lisensen er kun for Nav-relatert arbeid. Unntaket er opplæring på fagtorsdag og lignende.
@@ -161,8 +178,16 @@ export default function RetningslinjerPage() {
                   du venter, og hvilke funksjoner du bruker. Dataene kan knyttes til pseudonyme IDer.
                 </BodyLong>
                 <BodyLong>
-                  Copilot Business beholder ikke ledetekster (prompts) eller forslag (suggestions) etter at de er
-                  levert. Koden din brukes ikke til å trene modeller.
+                  Nav henter rapporter fra GitHub om hver brukers Copilot-bruk og kostnad, knyttet til
+                  GitHub-brukernavnet. Se{" "}
+                  <NextLink href="/personvern" className="text-blue-600 hover:underline">
+                    personvernsiden
+                  </NextLink>
+                  .
+                </BodyLong>
+                <BodyLong>
+                  Copilot Business beholder ikke prompter eller forslag (suggestions) etter at de er levert. Koden din
+                  brukes ikke til å trene modeller.
                 </BodyLong>
                 <BodyLong>
                   Les mer i{" "}
@@ -220,8 +245,22 @@ export default function RetningslinjerPage() {
                   hvorfor, verifiser at du forstår, og tilpass aktivt.
                 </BodyLong>
                 <BodyLong>
-                  Vær spesielt bevisst i &laquo;rød sone&raquo;: debugging, nye konsepter, kjernelogikk og
-                  sikkerhetskritisk kode. Her bør du prøve selv først og bruke KI som støtte, ikke omvendt.
+                  Still deg to spørsmål før du gir agenten en oppgave. Det første er om du skal lære dette. I &laquo;rød
+                  sone&raquo; (feilsøking, nye konsepter, kjernelogikk, sikkerhetskritisk kode og
+                  arkitekturbeslutninger) skriver du koden selv først og bruker KI som støtte, ikke omvendt. I
+                  &laquo;grønn sone&raquo; (boilerplate, teknologi du kan fra før, konfigurasjon, refaktorering med
+                  kjent mål og testdata) kan agenten skrive koden.
+                </BodyLong>
+                <BodyLong>
+                  Det andre er hva som skjer hvis agenten tar feil. Vurder risikoen som lav, middels eller høy. Oppgaver
+                  som berører nettverk, hemmeligheter, MCP-servere, produksjon eller persondata, har høy risiko. Det
+                  gjelder også konfigurasjon og infrastruktur, som ikke automatisk er trygt. Ved høy risiko deler du
+                  oppgaven i små steg, leser hver endring og får en kollega til å se over før merge.
+                </BodyLong>
+                <BodyLong>
+                  Jo mer agenten jobber på egen hånd, jo strengere rammer trenger den. Lokalt kjører den i cplt med
+                  sandbox og git guard. I skyen jobber den på én branch per oppgave, og et menneske merger alltid. Ingen
+                  persondata eller hemmeligheter i prompter eller kontekst.
                 </BodyLong>
               </VStack>
             </Section>
@@ -250,6 +289,30 @@ export default function RetningslinjerPage() {
                     </tr>
                   </thead>
                   <tbody>
+                    <tr className="border-b">
+                      <td
+                        className="whitespace-nowrap"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2026-10-11
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>
+                        pi via nav-pilot er tillatt i cplt inntil videre.
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td
+                        className="whitespace-nowrap"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2026-10-10
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>
+                        Copilot CLI og opencode via nav-pilot er tillatt i cplt. Fjernet Copilot Workspace, som er
+                        avviklet. Lagt til krav om <code>chat.agent.sandbox.enabled</code> i VS Code. Bevisst KI-bruk
+                        har fått en risikoakse i tillegg til grønn og rød sone.
+                      </td>
+                    </tr>
                     <tr className="border-b">
                       <td className="py-2 pr-4 whitespace-nowrap">2026-08-13</td>
                       <td className="py-2">
@@ -289,8 +352,8 @@ export default function RetningslinjerPage() {
                 </Heading>
                 <BodyLong>
                   Ta kontakt i{" "}
-                  <Link href="https://nav-it.slack.com/archives/C055TNXBM17" target="_blank" rel="noopener noreferrer">
-                    #github-copilot
+                  <Link href="https://nav-it.slack.com/archives/C0ASJSZK8P8" target="_blank" rel="noopener noreferrer">
+                    #ki-produktutvikling-diskusjon
                   </Link>{" "}
                   på Slack.
                 </BodyLong>

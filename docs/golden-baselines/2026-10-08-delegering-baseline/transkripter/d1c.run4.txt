@@ -1,0 +1,11 @@
+**Fase 3: Gjennomgang av planen**
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Fødselsnummer skal komme fra validert brukerkontekst, ikke fra klienten. Eksisterende `/api/oppgaver` må få en uttrykkelig tilgangsbeslutning før utrulling. |
+| Plattform | ✅ | Nais-oppsettet kan begrenses til nødvendig tilgang mot PDL, med helsesjekker og metrikker uten personidentifikatorer. |
+| Arkitektur | ⚠️ | Én synkron PDL-forespørsel uten lagring passer behovet. Frontendens Wonderwall-oppsett og PDLs krav til brukertoken må verifiseres før auth-konfigurasjonen fastsettes. |
+| Endringssikkerhet | ✅ | Tester for identitet, tilgang og `503` ved PDL-nedetid, samt utrulling via eksisterende frontend, gir en konkret kontroll- og tilbakerullingsvei. |
+
+**Konklusjon: Godkjent med endringer.** Planen kan gå til levering når tokenflyten mot PDL og tilgangen til `/api/oppgaver` er avklart fra de faktiske konfigurasjonene. Det er sikkerhetskritiske valg; alternativet er å anta en tokenflyt eller la den eksisterende ruten følge med uten bevisst tilgangskontroll. 🔴 Rød sone: gå grundig gjennom tokenvalidering og tilgangsregler. Still gjerne spørsmål om valgene over.
+

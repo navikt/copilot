@@ -1,0 +1,28 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        code-review
+# suite:        review
+# date:         2026-10-07
+# revision:     abdfef2f
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-3.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      2929655385
+# prompts:      rv5,rv6,rv7,rv8
+#
+# id|run|status|assertion|detail
+rv5|1|pass|PR: security and privacy defects on the right line in the right file|
+rv6|1|fail|PR: design defects named (dual write, idempotency, layering)|not named near its line: idempotens, lagdeling
+rv7|1|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|1|fail|clean service: no high-priority finding, says nothing is critical|2 spurious high-priority row(s): | `SakService.kt` | 19–20 | 🔴 | `maskert()` logger de 6 første sifrene, altså fø
+rv5|2|pass|PR: security and privacy defects on the right line in the right file|
+rv6|2|fail|PR: design defects named (dual write, idempotency, layering)|not named near its line: dobbeltskriving, idempotens, lagdeling
+rv7|2|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|2|fail|clean service: no high-priority finding, says nothing is critical|2 spurious high-priority row(s): | `SakService.kt` | 20, 37, 41 | 🔴 | `maskert()` logger fødselsdatoen (6 første 
+rv5|3|pass|PR: security and privacy defects on the right line in the right file|
+rv6|3|fail|PR: design defects named (dual write, idempotency, layering)|not named near its line: dobbeltskriving, lagdeling
+rv7|3|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|3|fail|clean service: no high-priority finding, says nothing is critical|2 spurious high-priority row(s): | `SakService.kt` | 20, 37, 41 | 🔴 | `maskert()` logger fødselsdato, og det er p

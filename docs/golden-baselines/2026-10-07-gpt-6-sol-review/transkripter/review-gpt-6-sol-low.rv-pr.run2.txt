@@ -1,0 +1,99 @@
+
+Jeg sammenligner `vedtak-kafka` med `main`, leser de berørte filene og kjører prosjektets sjekker før jeg rapporterer funn.
+
+
+
+
+
+
+Diffen inneholder endringer i autentisering, databaseoppslag og Kafka-behandling. Jeg sjekker disse flytene mot eksisterende oppsett og bygger koden for å skille konkrete feil fra mulige risikoer.
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 347ms
+    Failed with exit code 1
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:9 Unresolved reference 'session'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:9 Argument type mismatch: actual type is 'R', but 'K'
+    was expected.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:17 Cannot infer type for this parameter. Please
+    specify it explicitly.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:21 Unresolved reference 'queryOf'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:42 Unresolved reference 'it'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:62 Unresolved reference 'asSingle'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.GenXAO/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:13:9 Null cannot be a value of a non-null type 'K'.
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    Execution failed for task ':compileKotlin'.
+    > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWit
+    hWorkers$GradleKotlinCompilerWorkAction
+    > Compilation error. See log for more details
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 875ms
+    Failed with exit code 1
+
+
+
+
+
+**Vurdering: Ikke klar for merge.** Endringene åpner for innsyn i vedtak uten autentisering og inneholder flere feil som hindrer trygg behandling av Kafka-meldinger.
+
+| Prioritet | Sted | Funn |
+|---|---|---|
+| 🔴 Blokkerende | `Routes.kt:30–32` | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak for et oppgitt fødselsnummer. Endepunktet må kreve autentisering og kontrollere at innringeren har tilgang til personen. |
+| 🔴 Blokkerende | `VedtakRepository.kt:23` | Fødselsnummeret settes direkte inn i SQL. Det gir SQL-injeksjon via URL-parameteren og kan eksponere andre personers vedtak. Bruk en parameterisert spørring. |
+| 🔴 Blokkerende | `App.kt:40–42` | TokenX-oppsettet har ingen JWT-verifikator. `validate` kontrollerer heller ikke forventet audience eller autorisert avsender (`azp`), men returnerer en credential når audience finnes. Konfigurer signatur- og claim-validering før POST-endepunktet tas i bruk. |
+| 🔴 Blokkerende | `VedtakService.kt:15` | Tjenesten logger fødselsnummer i klartekst ved både API-kall og Kafka-behandling. Fjern personopplysningen fra loggen. |
+| 🔴 Blokkerende | `VedtakConsumer.kt:25, 32–33` | Vedtaket lagres før publisering. Feiler `send().get()`, lager hvert nytt forsøk et nytt vedtak med ny ID. Det samme kan skje ved ny levering etter krasj før `commitSync()`. Behandlingen trenger idempotens og en plan for konsistent lagring og publisering. |
+| 🔴 Blokkerende | `App.kt:26–35` | Kafka-klientene får bare broker-adresse og serialiserere, ingen TLS-/autentiseringsinnstillinger fra Nais. De vil derfor ikke kunne koble til den beskyttede Kafka-poolen slik de er konfigurert her. |
+| 🔴 Blokkerende | `VedtakRepository.kt:14`; `nais.yaml:17–21` | Manifestet oppretter databasen, men branchen oppretter ikke tabellen `vedtak`. Første lagring vil feile uten en migrering eller annen eksplisitt tabellopprettelse. |
+
+**Kontroll:** `mise check` finnes ikke i repoet. Med Java 21 stopper `gradle test` under kompilering på uavklarte referanser i `UserRepo.kt`; den filen er uendret fra `main`. Jeg kunne derfor ikke verifisere kjøringen med tester.
+
+🔴 **Rød sone:** Tilgangskontroll, tokenvalidering og konsistent vedtaksbehandling må gjennomgås nøye før merge. Still gjerne spørsmål om valgene over.
+

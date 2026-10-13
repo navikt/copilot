@@ -1,0 +1,56 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        code-review
+# suite:        review
+# date:         2026-10-08
+# revision:     05cfadc9
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       medium
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       10
+# fixture:      2929655385
+# prompts:      rv5,rv6,rv7,rv8
+#
+# id|run|status|assertion|detail
+rv5|1|pass|PR: security and privacy defects on the right line in the right file|
+rv6|1|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|1|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|1|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv5|2|pass|PR: security and privacy defects on the right line in the right file|
+rv6|2|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|2|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|2|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv5|3|pass|PR: security and privacy defects on the right line in the right file|
+rv6|3|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|3|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|3|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv5|4|pass|PR: security and privacy defects on the right line in the right file|
+rv6|4|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|4|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|4|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv5|5|pass|PR: security and privacy defects on the right line in the right file|
+rv6|5|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|5|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|5|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv5|6|pass|PR: security and privacy defects on the right line in the right file|
+rv6|6|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|6|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|6|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv5|7|pass|PR: security and privacy defects on the right line in the right file|
+rv6|7|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|7|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|7|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv5|8|fail|PR: security and privacy defects on the right line in the right file|wrong line: inbound (want [25, 26], cited [22])
+rv6|8|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|8|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|8|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv5|9|pass|PR: security and privacy defects on the right line in the right file|
+rv6|9|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|9|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|9|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv5|10|pass|PR: security and privacy defects on the right line in the right file|
+rv6|10|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|10|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|10|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical

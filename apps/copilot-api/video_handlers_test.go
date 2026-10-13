@@ -79,7 +79,7 @@ func newTestVideoRouter(t *testing.T) http.Handler {
 		VideoFeedCacheSeconds: 60,
 	}
 
-	return makePublicRouter(cfg, newVideoHandlers(cfg))
+	return makePublicRouter(cfg, newVideoHandlers(cfg), nil)
 }
 
 func newTestVideoRouterWithPlayLimit(t *testing.T, limit int) http.Handler {
@@ -93,7 +93,7 @@ func newTestVideoRouterWithPlayLimit(t *testing.T, limit int) http.Handler {
 	}
 	videoHandlers := newVideoHandlers(cfg)
 	videoHandlers.playRateLimiter = newVideoPlayRateLimiter(limit, time.Minute)
-	return makePublicRouter(cfg, videoHandlers)
+	return makePublicRouter(cfg, videoHandlers, nil)
 }
 
 func TestLoadVideoManifestFromHTTP(t *testing.T) {
@@ -273,7 +273,7 @@ func TestVideoFeedEndpointServesStaleManifestOnRefreshError(t *testing.T) {
 		}}, fmt.Errorf("temporary manifest refresh failure")
 	}
 
-	router := makePublicRouter(cfg, videoHandlers)
+	router := makePublicRouter(cfg, videoHandlers, nil)
 	reqWarm := httptest.NewRequest(http.MethodGet, "/public/v1/videos?limit=10", nil)
 	recWarm := httptest.NewRecorder()
 	router.ServeHTTP(recWarm, reqWarm)
@@ -487,14 +487,14 @@ func TestLoadVideoManifestFromSourceRejectsInvalidMetadata(t *testing.T) {
 	}
 }
 
-func TestVideoPlayClientKeyPrefersForwardedFor(t *testing.T) {
+func TestVideoPlayClientKeyIgnoresForwardedFor(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/public/v1/videos/intro-cli/play", nil)
 	req.RemoteAddr = "203.0.113.10:1234"
 	req.Header.Set("X-Forwarded-For", "198.51.100.20, 203.0.113.10")
 
 	got := videoPlayClientKey(req)
-	if got != "198.51.100.20" {
-		t.Fatalf("expected first X-Forwarded-For IP, got %q", got)
+	if got != "203.0.113.10" {
+		t.Fatalf("expected the remote address, got %q", got)
 	}
 }
 

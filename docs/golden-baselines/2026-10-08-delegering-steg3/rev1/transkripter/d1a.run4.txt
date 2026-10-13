@@ -1,0 +1,67 @@
+/ Search (glob)
+  │ ".github/{copilot-instructions.md,copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,AGENTS.md,docs/nav-pilot-design.md
+  │ }"
+  └ 3 files found
+
+● Inspect project root and sandbox context (shell)
+  │ pwd && ls -la | head -45 && if [ -n "$__CPLT_WRAPPED" ]; then printf 'CPLT_WRAPPED=yes\n'; if [
+  │ -n "$CPLT_BRIEF" ]; then printf 'CPLT_BRIEF=%s\n' "$CPLT_BRIEF"; fi; fi
+  └ 10 lines…
+
+● List directory vedtak-api
+  └ 3 files found
+
+● List directory .github
+  └ 2 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● List directory src
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*.{kt,kts,yaml,yml}"
+  └ 10 files found
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er en **ny tjeneste med fødselsnummer og innlogging**, så jeg stopper i fase 1 før jeg foreslår arkitektur eller endrer kode. Jeg antar at innbyggeren logger inn via ID-porten, men trenger å vite hvordan fødselsnummeret skal brukes.
+
+1. Skal tjenesten bare lese fødselsnummeret i en innlogget forespørsel, eller også lagre det eller sende det videre? Hva skal tjenesten gjøre for brukeren?
+2. Hvem skal kunne kalle tjenesten: bare innbyggeren selv, eller også andre Nav-tjenester?
+3. Hva skal skje hvis innloggingen eller en eventuell tjeneste som kalles videre, ikke er tilgjengelig?
+4. Finnes det mottakere, tester eller en eksisterende løsning vi må ta hensyn til ved innføring?
+
+Repoet har en liten Ktor-tjeneste med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten-oppsett eller `accessPolicy`. Jeg finner heller ikke `AGENTS.md` eller Copilot-instruksjonsfilene; `nav-pilot init` kan legge til lokal konfigurasjon. Spørsmål om måltall og ny teknologi venter til bruken er avklart; avvikling er ikke relevant for en ny tjeneste.
+
+Blindsoner reist: 4/11 (#1, #2, #3, #6 stilt; #4, #5, #7–#9 og #11 avventer avklaring; #10 ikke relevant).
+

@@ -1,0 +1,47 @@
+## Oppsummering
+
+Tjenesten er en liten Ktor-app: `App.kt` starter serveren og installerer JSON-serialisering, `Routes.kt` registrerer HTTP-ruten og begrenser listen med `maksAntall`, og `Oppgave.kt` definerer serialiserbare responsobjekter. Grensen er nå en hardkodet Kotlin-konstant — den leses ikke fra miljøkonfigurasjon. `maksAntall` har **tre brukssteder totalt**, inkludert definisjonen.
+
+## Slik henger delene sammen
+
+- **Konfigurasjon – `src/main/kotlin/no/nav/demo/Config.kt:3–4`:** Filen definerer `const val maksAntall = 100`. Kommentaren sier at dette er maks antall oppgaver i én respons. Dette er foreløpig kodekonfigurasjon, ikke miljøkonfigurasjon.
+- **Oppstart – `src/main/kotlin/no/nav/demo/App.kt:9–14`:** `main()` logger grensen (`:10`), starter Netty på port `8080` (`:11`) og installerer Ktor `ContentNegotiation` med JSON (`:12`). Deretter kalles `oppgaveRoutes()` (`:13`).
+- **HTTP-rute – `src/main/kotlin/no/nav/demo/Routes.kt:8–19`:** `oppgaver` er en privat liste med to `Oppgave`-objekter (`:8–11`). Utvidelsesfunksjonen `Application.oppgaveRoutes()` registrerer `GET /api/oppgaver` (`:13–15`) og svarer med `OppgaveRespons(oppgaver.take(maksAntall))` (`:16`). `take` gjør at høyst grensen antall oppgaver returneres.
+- **Domenemodell og respons – `src/main/kotlin/no/nav/demo/Oppgave.kt:5–9`:** `Oppgave` har `id` og `tittel` (`:6`), og `OppgaveRespons` pakker en liste av oppgaver (`:9`). Begge er merket `@Serializable`, slik at Ktor kan serialisere responsen til JSON. Grensen påvirker hvor mange `Oppgave`-objekter som legges i responsen; den endrer ikke modellens felt.
+- **Deploy – `nais.yaml:1–12`:** Nais-manifestet angir blant annet image, port og liveness/readiness-endepunkter. Det inneholder ingen miljøvariabel eller annen applikasjonskonfigurasjon for `maksAntall`.
+
+## Alle brukssteder for `maksAntall`
+
+1. **Definisjon:** `src/main/kotlin/no/nav/demo/Config.kt:4` — konstanten settes til `100`.
+2. **Logg:** `src/main/kotlin/no/nav/demo/App.kt:10` — verdien skrives ved oppstart.
+3. **Funksjonell bruk:** `src/main/kotlin/no/nav/demo/Routes.kt:16` — verdien begrenser listen som sendes i API-responsen.
+
+## Endringer for å gjøre grensen konfigurerbar per miljø
+
+For en enkel Nais-basert løsning vil endringene være:
+
+1. **`src/main/kotlin/no/nav/demo/Config.kt`:** Erstatt `const val` med en måte å hente en positiv heltallsverdi fra miljøet, for eksempel `System.getenv(...)`, med en eksplisitt standardverdi og validering. Siden `const val` ikke kan være miljøavhengig, bør dette bli en runtime-verdi.
+2. **`src/main/kotlin/no/nav/demo/App.kt`:** Les konfigurasjonen én gang ved oppstart og gjør den tilgjengelig for ruteoppsettet. Oppdater oppstartsloggen til å bruke den innleste verdien. Unngå at ruteoppsettet selv henter miljøvariabler; det gjør det vanskeligere å teste med ulike verdier.
+3. **`src/main/kotlin/no/nav/demo/Routes.kt`:** La `oppgaveRoutes` motta grensen som parameter (eller motta en config-instans), og bruk denne i `take(...)`. Det gjør det mulig å teste rutens oppførsel med ulike grenser uten å endre prosessmiljøet.
+4. **`nais.yaml`:** Sett miljøvariabelen med en Nais `env`-oppføring. Bruk ulike verdier i miljøspesifikke manifest-/overlay-filer eller templatering for dev og prod. Repoet inneholder bare ett `nais.yaml`, og det finnes ikke her noe synlig miljøoverlay eller templateringsmønster for verdier per miljø. Derfor må også repoets faktiske deployoppsett avklares før man kan angi presist hvilke eksisterende miljøfiler som skal endres.
+5. **Tester:** Legg til tester for grenseverdier og ruteadferd: grense større enn antall oppgaver, lik antallet, mindre enn antallet, og eventuelt null/negativ verdi ut fra valgt valideringsregel. Hvis grensen leses fra miljøet, test parsing/validering separat, helst med konfigurasjonen injisert fremfor å mutere global prosessstatus.
+
+## Tester og mønstre i repoet
+
+- Det finnes ingen tester for demo-tjenesten. Den eneste testen i repoet er `vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt`, en JUnit-test som bruker `kotlin.test.Test` og `assertEquals`.
+- Demo-modulens `build.gradle.kts` deklarerer Ktor-server- og serialiseringsavhengigheter, men ingen testavhengigheter eller testoppsett. `vedtak-api/build.gradle.kts` viser mønsteret `testImplementation(kotlin("test"))` og `useJUnitPlatform()`. Dette kan følges dersom demo-modulen skal få tester, men modulen har et eget Gradle-oppsett.
+- `nais.yaml` er det eneste synlige deploymanifestet. README-en (`README.md:1–3`) beskriver prosjektet som en Ktor-tjeneste på Nais, men dokumenterer ikke konfigurasjon eller miljøspesifikke deployfiler.
+
+**Konfidens: Høy** for dagens dataflyt og alle `maksAntall`-treff. **Middels** for nøyaktig deployendring per miljø, fordi repoet ikke viser hvordan ulike miljøer eller Nais-manifester genereres.● Research-agent (model: gpt-6-luna) Kartlegg konfigurasjon og maksAntall                        35s
+  │ ## Oppsummering
+  │ Read kotlin.instructions.md
+  │   │ .github/instructions/kotlin.instructions.md
+  │   └ 1 line read
+  └ Read build.gradle.kts
+      │ vedtak-api/build.gradle.kts
+      └ 19 lines read
+
+`maksAntall` er i dag en hardkodet grense på **100**, ikke en miljøinnstilling. `App.kt` starter Ktor, installerer JSON-serialisering og registrerer `oppgaveRoutes()`. I `Routes.kt` svarer `GET /api/oppgaver` med `OppgaveRespons(oppgaver.take(maksAntall))`. `Oppgave.kt` definerer objektene som serialiseres; grensen endrer antall oppgaver i responsen, ikke domenemodellen.
+
+Grensen finnes tre steder: definisjonen i `Config.kt:4`, oppstartsloggen i `App.kt:10` og begrensningen i `Routes.kt:16`. For å gjøre den konfigurerbar per miljø må `Config.kt` lese og validere et positivt heltall fra konfigurasjon, `App.kt` lese verdien ved oppstart, og `oppgaveRoutes` få verdien som parameter i stedet for å bruke konstanten. Deretter må deployoppsettet sette ulike verdier per miljø. Repoet har bare ett `nais.yaml` og viser ikke hvordan dev og prod får egne verdier, så akkurat den delen må avklares mot deployoppsettet. Test parsing og rutegrensen med ulike verdier.
+

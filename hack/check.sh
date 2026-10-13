@@ -11,8 +11,8 @@ section retired mise run retired:check
 section docs mise run docs:check
 section skills mise run skills:lint -- -q
 section hooks mise run hooks:test
-section pricing mise run pricing:test ::: pricing:check
-section models mise run models:test ::: models:check
+section pricing mise run --continue-on-error pricing:test ::: pricing:check
+section models mise run --continue-on-error models:test ::: models:check
 section benchmark mise run benchmark:check
 section nav-pilot mise run nav-pilot:check
 wait_sections

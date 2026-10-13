@@ -105,7 +105,10 @@ if [ -z "$NAV_PILOT_DISPATCH_GATE" ]; then
 else
   if [ -n "$KILL_SERVER" ]; then
     kill "$(sed 's/.*"pid":\([0-9]*\).*/\1/' "$HOME/.nav-pilot/local/server.json")"
-    sleep 0.5
+    # The gate calls the server down once its port refuses: wait for that,
+    # not for a fixed time a loaded machine can outlast.
+    port=$(sed 's/.*"port":\([0-9]*\).*/\1/' "$HOME/.nav-pilot/local/server.json")
+    while curl -s -o /dev/null "http://127.0.0.1:$port/"; do sleep 0.1; done
   fi
   : > "$WORK/gate.out"
   for f in 1 2 3 4 5; do

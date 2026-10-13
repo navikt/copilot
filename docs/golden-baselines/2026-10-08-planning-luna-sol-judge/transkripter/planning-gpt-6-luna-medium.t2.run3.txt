@@ -1,0 +1,46 @@
+
+
+
+
+
+
+
+
+Repoet peker mot et Kotlin/Ktor-backend-API. `nais.yaml` mangler `accessPolicy`, og jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` for å legge til repo-instruksjoner. Jeg har ikke endret kode.
+
+Fødselsnummer er fortrolige personopplysninger. En sentral risiko er at fnr havner i logger, feilmeldinger eller sporingsdata. Før vi velger løsning, må vi avklare hvordan tjenesten får identiteten fra ID-porten, hvem som får bruke den, og hva tjenesten skal gjøre med fnr.
+
+**1. Arketype og innlogging**
+- Er dette et backend-API, en innbyggerrettet frontend, eller en fullstack-løsning? Repoet tyder på backend-API.
+- Mener du at tjenesten selv skal hente fnr fra et ID-porten-token, eller at en frontend eller annen komponent sender fnr til tjenesten etter innlogging?
+- Hvem starter forespørselen: innbygger i nettleser, en annen Nav-tjeneste eller en ekstern aktør?
+- Hvilke tjenester skal kunne kalle API-et? Skal det være tilgjengelig fra internett, eller bare internt?
+
+**2. Personvern og data**
+- Behandler tjenesten bare fnr, eller også andre personopplysninger?
+- Hva er formålet med behandlingen, og hvilken hjemmel gjelder?
+- Hvem eller hvilke systemer skal få tilgang til fnr?
+- Skal tjenesten lagre fnr? Hvis ja, hvor lenge, og hvordan skal data slettes?
+- Skal fnr deles med andre tjenester? Hvilke?
+- Trenger dere audit-logging av hvem som har lest eller endret data? Bekreft at logger, feilmeldinger og sporingsdata aldri skal inneholde fnr.
+
+**3. Plattform og avhengigheter**
+- Hvilke tjenester skal denne tjenesten kalle, og i hvilket cluster?
+- Hva skal skje hvis ID-porten eller en annen avhengighet er utilgjengelig?
+- Trenger tjenesten asynkron kommunikasjon, for eksempel Kafka?
+- Finnes det en eksisterende tjeneste dere kan gjenbruke?
+
+**4. Drift og team**
+- Hvilke metrikker og varsler trenger dere? Hvem har vaktansvar, og hvordan verifiserer dere en deploy?
+- Hva forventer dere av trafikk, og varierer den gjennom dagen eller året?
+- Er dette et nytt prosjekt eller en erstatning for en eksisterende løsning? Hvilke team avhenger dere av?
+- Har teamet erfaring med Kotlin/Ktor og ID-porten-integrasjon? Når må tjenesten være klar?
+
+**5. Tester og konsumenter**
+- Hvilke tester planlegger dere for tokenflyt, tilgangskontroll og håndtering av fnr?
+- Skal andre tjenester konsumere API-er eller hendelser fra den nye tjenesten? Må formatet være bakoverkompatibelt?
+
+Jeg stopper i intervjufasen. Svar gjerne punktvis; deretter kan jeg lage en konkret plan.
+
+Blindsoner reist: 9/11 (#1–#7, #9 og #11; #8 modernisering og #10 dekommisjonering er ikke relevante hvis dette er nybygg).
+

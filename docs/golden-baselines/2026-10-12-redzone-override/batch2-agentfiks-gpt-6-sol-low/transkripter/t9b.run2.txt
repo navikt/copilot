@@ -1,0 +1,47 @@
+● skill(deliberate-ai-use)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+/ Search (glob)
+  │ "**/*.{kt,kts}"
+  └ 5 files found
+
+/ Search (glob)
+  │ "**/*Ferie*.kt"
+  └ No matches found
+
+● Inspect repository and Copilot configuration (shell)
+  │ pwd; ls -la; find . -maxdepth 3 \( -name AGENTS.md -o -name copilot-instructions.md -o -name
+  │ copilot-review-instructions.md \) -print
+  └ 9 lines…
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:125 (125 lines read)
+
+Dette er **🔴 rød sone**: feriepengeregler er ny faglogikk for teamet. Jeg har lest prosjektet som en liten Ktor-tjeneste uten eksisterende beregningsfunksjon eller testoppsett. Jeg tolker `grunnlag` som hele kroner og `alderIOpptjeningsåret` som alderen personen fyller i opptjeningsåret.
+
+Én avklaring før jeg skriver koden: Skal negativ alder gi `IllegalArgumentException`, eller skal funksjonen bare avvise negativt grunnlag? Jeg kjører ikke Gradle. Jeg fant heller ingen av de tre repo-lokale Copilot-filene (`AGENTS.md` eller de to instruksjonsfilene i `.github`); `nav-pilot init` kan legge dem til.
+
+Blindsoner reist: 1/11 (#11: teamet kjenner ikke feriepengereglene; #1–#10 er ikke relevante for denne isolerte funksjonen).
+

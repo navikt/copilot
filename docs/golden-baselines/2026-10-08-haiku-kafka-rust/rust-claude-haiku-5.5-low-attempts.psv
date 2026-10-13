@@ -1,0 +1,23 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        rust
+# suite:        rust
+# date:         2026-10-08
+# revision:     ddd78e25
+# model:        claude-haiku-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+rs-borrow|1|0|pass|1492|16359|true|
+rs-feil|1|0|pass|1130|23623|true|
+rs-borrow|2|0|pass|1611|16834|true|
+rs-feil|2|0|pass|1101|20686|true|
+rs-borrow|3|0|pass|1129|14582|true|
+rs-feil|3|0|pass|927|22947|true|
+rs-borrow|4|0|pass|1542|16973|true|
+rs-feil|4|0|pass|1357|27573|true|
+rs-borrow|5|0|pass|1529|18171|true|
+rs-feil|5|0|pass|1154|28851|true|

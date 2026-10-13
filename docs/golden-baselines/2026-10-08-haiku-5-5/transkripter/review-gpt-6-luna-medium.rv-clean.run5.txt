@@ -1,0 +1,16 @@
+🔍 Leser `SakService.kt` og prosjektinstruksjonene, og finner riktig sjekkkommando før jeg vurderer endringene.
+
+📊 Filen bruker Ktor og Kotliquery. Jeg sjekker auth-oppsettet, datamodellen og test-/byggestøtten for å skille faktiske feil fra forhold som håndteres et annet sted.
+
+📋 Jeg har ikke funnet testfiler eller en `mise check`-oppgave i dette repoet. Jeg prøver prosjektets Gradle-testkommando for å verifisere at koden bygger, og vurderer samtidig om manglende `azp`-kontroll i appens auth-oppsett påvirker ruta.
+
+### Sammendrag
+Ingen blokkere i `SakService.kt`. Spørringen bruker parameterbinding, og ruta henter fødselsnummeret fra den autentiserte tokenen i stedet for fra forespørselen.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 40–42 | 🟡 Forslag | Feilloggen tar bare med exception-klassen før feilen kastes videre. Dermed mangler denne logglinja stack trace, og Ktor kan logge samme feil på nytt. Fjern `try/catch` hvis loggingen håndteres høyere opp, eller logg feilen med throwable her. |
+
+**Sjekker:** `mise check` kunne ikke kjøres fordi repoet ikke har en `check`-oppgave. `gradle test` stoppet under konfigurering av prosjektet med feilen `> 27`, så bygg og tester er ikke verifisert. Det finnes ingen testfiler i repoet.

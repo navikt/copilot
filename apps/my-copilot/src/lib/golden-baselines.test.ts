@@ -1,9 +1,51 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { knownCredits, modelName, passRate, runsBySuite, sourceUrl } from "./golden-baselines";
+import {
+  creditsPerSolved,
+  knownCredits,
+  modelName,
+  passAll,
+  passRate,
+  runsBySuite,
+  sourceUrl,
+  wilson,
+  type GoldenRun,
+} from "./golden-baselines";
 import { loadGoldenSummary } from "./golden-summary-file";
 
 const FIXTURE = path.join(__dirname, "__fixtures__", "golden-summary.json");
+
+describe("wilson", () => {
+  it("gir om lag 57–100 % for 5 av 5", () => {
+    const [lo, hi] = wilson(5, 5);
+    expect(lo).toBeCloseTo(0.566, 3);
+    expect(hi).toBe(1);
+  });
+  it("er symmetrisk rundt 50 % og håndterer n = 0", () => {
+    const [lo, hi] = wilson(10, 20);
+    expect(lo + hi).toBeCloseTo(1, 9);
+    expect(wilson(0, 0)).toEqual([0, 1]);
+    expect(wilson(0, 5)[0]).toBe(0);
+  });
+});
+
+describe("pass^k og credits per løste oppgave", () => {
+  const run = (passed: number[], credits: number | null) =>
+    ({
+      n: 5,
+      checks: passed.map((p, i) => ({ id: `c${i}`, description: "", passed: p })),
+      credits: credits === null ? null : { median: credits, mean: credits },
+      usage_complete: true,
+    }) as unknown as GoldenRun;
+  it("teller bare sjekker som besto i alle gjentak", () => {
+    expect(passAll(run([5, 4, 5, 0], 1))).toBe(0.5);
+  });
+  it("deler credits på andel bestått, og gir null ved 0 % eller ukjent forbruk", () => {
+    expect(creditsPerSolved(run([5, 0], 10))).toBe(20);
+    expect(creditsPerSolved(run([0, 0], 10))).toBeNull();
+    expect(creditsPerSolved(run([5], null))).toBeNull();
+  });
+});
 
 describe("golden-baselines", () => {
   it("leser fixturen og grupperer per suite", () => {

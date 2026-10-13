@@ -1,0 +1,35 @@
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "docs/nav-pilot-design.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml}"
+  └ 2 files found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+Dette er en **ny tjeneste med personopplysninger og innlogging**, så jeg stopper i fase 1 før jeg foreslår løsning eller skriver kode. Repoet har et Ktor-oppsett og et Nais-manifest, men ingen ID-porten-konfigurasjon. Jeg antar at en innlogget innbygger skal bruke tjenesten, og at fødselsnummeret skal hentes fra identiteten i ID-porten, ikke fra et felt brukeren sender inn.
+
+For å avklare løsningen trenger jeg svar på dette:
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bare bruke det i én forespørsel, lagre det eller sende det til en annen tjeneste? Skal den behandle andre personopplysninger?
+2. Skal bare innbyggeren selv kunne bruke tjenesten, eller skal også andre tjenester eller saksbehandlere ha tilgang?
+3. Hvilke tjenester skal den kalle, hvem eier dem, og hva skal skje hvis de er utilgjengelige?
+4. Finnes det API-er eller konsumenter løsningen må passe med? Hvilke tester og driftsmålinger har dere krav om? Er ID-porten eller Ktor nytt for teamet?
+
+Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Spørsmål om migrering, bakoverkompatibilitet og utfasing er ikke relevante for en ny tjeneste uten oppgitt eksisterende løsning.
+
+Blindsoner reist: 7/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante).
+

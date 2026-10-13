@@ -1,0 +1,19 @@
+
+
+
+
+**Fase 2: Plan.** Vi bygger en stateless Ktor-tjeneste som returnerer innlogget innbyggers navn til den eksisterende Next.js-frontenden. Fødselsnummeret hentes fra validert brukerkontekst, brukes til oppslag i PDL og lagres eller returneres ikke. Vi legger til grunn at frontenden kan kalle backend fra sin serverdel; nettleseren skal ikke sende fødselsnummer eller bearer-token direkte til backend.
+
+| Område | Valg |
+|---|---|
+| Auth og dataflyt | ID-porten og Wonderwall beskytter frontenden. Frontenden bruker TokenX til å kalle Ktor-tjenesten på vegne av brukeren. Backend validerer TokenX-tokenet, henter fødselsnummer fra tokenet og bruker brukerens kontekst ved PDL-kallet. Dette skiller nettlesersesjonen fra tjeneste-til-tjeneste-kall, men krever TokenX-oppsett i begge apper. |
+| API | `GET /api/meg/navn` returnerer bare navnet i JSON. Ingen fødselsnummerparameter. Manglende eller ugyldig token gir 401; manglende tilgang gir 403; utilgjengelig PDL gir 503. Feilresponsene får et fast, persondatafritt format. |
+| Prosjekt | Behold Ktor og legg til egne deler for beskyttet rute, auth, PDL-klient og feilrespons. Fjern demo-ruten når den nye tjenesten tas i bruk. Ingen database, Flyway, Kafka eller kø. |
+| Nais | Konfigurer `tokenx.enabled` for backend og nødvendig ID-porten/Wonderwall- og TokenX-oppsett for frontenden. Backend får eksplisitt `accessPolicy.inbound` kun fra frontend-appen og `outbound` kun til PDL. Verifiser PDLs audience og tilgangskrav før manifestene ferdigstilles. Bruk eksisterende health-endepunkter, metrics-endepunkt og små ressursforespørsler uten CPU-limit. |
+| CI/CD og tester | Bygg og test Kotlin-koden i GitHub Actions, bygg image og deploy til dev før prod. Legg til rutetester for 200, 401, 403 og 503, auth-tester med testtoken, og integrasjonstest med simulert PDL. Test at forespørsel og logger ikke inneholder fødselsnummer, navn eller token. |
+| Drift | Mål oppslag per minutt og andel feilende kall, fordelt på status og PDL-feil uten personidentifikatorer. Logg PDL-utilgjengelighet med korrelasjons-ID, ikke payload eller token. Varsle ved vedvarende høy feilandel. Dokumenter deploy, rollback til forrige image, feilsøking og kontroll av metrics etter deploy. |
+
+**🔴 Rød sone: skriv selv og gå grundig gjennom** token-validering, uttrekk av fødselsnummer, autorisasjon og TokenX-flyten til PDL. Teamet er nytt med TokenX og Wonderwall; testene bør fastslå avvisning og tilgang før denne koden skrives. **🟢 Grønn sone:** prosjektoppsett, Nais-manifester, CI/CD, metrics og testoppsett kan genereres, men teamet må kontrollere tilgangsreglene før deploy.
+
+Planen forutsetter at PDL gir navnet tjenesten trenger og godtar den planlagte brukerkonteksten. Det må bekreftes mot PDLs kontrakt før implementering. Neste fase er gjennomgang av planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.
+

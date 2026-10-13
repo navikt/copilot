@@ -1,0 +1,14 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read nextjs-aksel.instructions.md
+  │ .github/instructions/nextjs-aksel.instructions.md
+  └ 598 lines read
+
+Nei. Slett-knappen inneholder bare et ikon, uten tekst eller tilgjengelig navn. Legg for eksempel til `aria-label="Slett"` på knappen.
+

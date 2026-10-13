@@ -1,0 +1,58 @@
+● skill(klarsprak)
+
+Jeg leser repository-koden og sjekker feil og sikkerhetsrisikoer uten å endre filer.
+
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 26 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:100 (100 lines read)
+
+✗ Kjører prosjektets sjekker (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+/ Search (grep)
+  │ "session|queryOf|finnBruker" in *.kt
+  └ 2 lines found
+
+Fant **tre problemer som må rettes før merge**, og én kompileringsfeil i `src/main/kotlin/no/nav/demo/UserRepo.kt`.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 9 | 🔴 Blokker | **SQL-injeksjon:** `fnr` interpoleres direkte i SQL. Input som `' OR '1'='1` endrer spørringens betydning. Bruk parameterbinding: `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`. |
+| 8 | 🔴 Blokker | **Persondata i logg:** Fødselsnummer skrives til vanlig applikasjonslogg ved hvert oppslag. Fjern `fnr` fra loggmeldingen. |
+| 11 | 🔴 Blokker | **Koden kompilerer ikke som levert:** `session` og `queryOf` er verken definert eller importert. Prosjektet mangler også Kotliquery-avhengigheten. Opprett en database-session og legg til nødvendig avhengighet og import. |
+| 12–13 | 🟡 Forslag | **Databasefeil skjules:** Alle `Exception` blir til `null`, samme resultat som når brukeren ikke finnes. Dermed kan kalleren ikke skille et mislykket oppslag fra et tomt treff. La feilen propagere, eller pakk den med kontekst uten fødselsnummer. |
+
+🔴 Rød sone: SQL-injeksjon og logging av persondata, gå gjennom dette nøye.
+
+`mise check` kunne ikke kjøres fordi prosjektet ikke definerer en `check`-oppgave. Ingen filer er endret.
+

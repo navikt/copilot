@@ -7,6 +7,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -116,42 +119,53 @@ type userBudgetAPIResponse struct {
 // FetchUserEffectiveBudget returns the effective budget and current-month consumption
 // for a single GitHub user. Uses the ?user= query param which returns consumed_amount
 // for ALL users — both those with override budgets and those on the enterprise default.
-// Returns nil, nil if the user has no budget data.
+// Returns nil, nil if the user has no budget data. Errors never name the login.
 func (c *BudgetClient) FetchUserEffectiveBudget(ctx context.Context, login string) (*UserBudgetData, error) {
-	url := fmt.Sprintf(
+	endpoint := fmt.Sprintf(
 		"https://api.github.com/enterprises/%s/settings/billing/budgets?user=%s",
-		c.enterprise, login,
+		c.enterprise, url.QueryEscape(login),
 	)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request for %s: %w", login, err)
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	var body []byte
+	for attempt := 0; ; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create user budget request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+c.token)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetch budget for %s: %w", login, err)
-	}
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("fetch user budget: %w", safeTransportError(err))
+		}
+		body, err = io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		_ = resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("read user budget response: %w", err)
+		}
 
-	body, readErr := io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-	if readErr != nil {
-		return nil, fmt.Errorf("read budget response for %s: %w", login, readErr)
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("budget API returned %d for %s: %s", resp.StatusCode, login, truncate(string(body), 200))
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, nil
+		}
+		if resp.StatusCode == http.StatusOK {
+			break
+		}
+		delay, retry := budgetRetryDelay(resp, body, attempt)
+		if !retry || attempt >= budgetMaxRetries {
+			return nil, fmt.Errorf("user budget API returned %d", resp.StatusCode)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+		}
 	}
 
 	var result userBudgetAPIResponse
 	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("decode budget for %s: %w", login, err)
+		return nil, fmt.Errorf("decode user budget: %w", err)
 	}
 
 	if result.EffectiveBudget == nil {
@@ -174,11 +188,39 @@ func (c *BudgetClient) FetchUserEffectiveBudget(ctx context.Context, login strin
 	}, nil
 }
 
-// FetchAllUserBudgets fetches effective budget and consumption for every login in the list.
-// Uses 10 concurrent goroutines to stay within GitHub API rate limits.
-// Errors for individual users are logged as warnings and skipped — partial data is acceptable.
-func (c *BudgetClient) FetchAllUserBudgets(ctx context.Context, logins []string) ([]UserBudgetData, error) {
-	const concurrency = 10
+const budgetMaxRetries = 4
+
+// budgetBaseDelay is the first backoff step; tests shrink it.
+var budgetBaseDelay = 2 * time.Second
+
+// budgetRetryDelay decides whether a failed response is a rate limit or a
+// transient server error worth retrying, and how long to wait. Retry-After and
+// X-RateLimit-Reset win over exponential backoff, capped at one minute.
+func budgetRetryDelay(resp *http.Response, body []byte, attempt int) (time.Duration, bool) {
+	rateLimited := resp.StatusCode == http.StatusTooManyRequests ||
+		(resp.StatusCode == http.StatusForbidden && (resp.Header.Get("Retry-After") != "" ||
+			resp.Header.Get("X-RateLimit-Remaining") == "0" ||
+			strings.Contains(strings.ToLower(string(body)), "rate limit")))
+	if !rateLimited && resp.StatusCode < 500 {
+		return 0, false
+	}
+	delay := budgetBaseDelay << attempt
+	if s, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil {
+		delay = time.Duration(s) * time.Second
+	} else if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+		if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+			delay = time.Until(time.Unix(reset, 0))
+		}
+	}
+	return min(max(delay, budgetBaseDelay), time.Minute), true
+}
+
+// FetchAllUserBudgets fetches effective budget and consumption for every login in
+// the list. It keeps every user that succeeded; failed is the number of users
+// whose budget could not be fetched after retries. Logs carry counts, never logins.
+func (c *BudgetClient) FetchAllUserBudgets(ctx context.Context, logins []string) (all []UserBudgetData, failed int, err error) {
+	// Low concurrency keeps ~700 users clear of GitHub's secondary rate limits.
+	const concurrency = 4
 
 	type result struct {
 		data *UserBudgetData
@@ -187,39 +229,46 @@ func (c *BudgetClient) FetchAllUserBudgets(ctx context.Context, logins []string)
 
 	results := make(chan result, len(logins))
 	sem := make(chan struct{}, concurrency)
+	started := 0
 
 	for _, login := range logins {
-		login := login
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
 		case sem <- struct{}{}:
+			started++
+			go func() {
+				defer func() { <-sem }()
+				data, err := c.FetchUserEffectiveBudget(ctx, login)
+				results <- result{data: data, err: err}
+			}()
+			continue
 		}
-
-		go func() {
-			defer func() { <-sem }()
-			data, err := c.FetchUserEffectiveBudget(ctx, login)
-			results <- result{data: data, err: err}
-		}()
+		break
 	}
 
-	var all []UserBudgetData
-	var errCount int
-	for range logins {
+	var lastErr error
+	for range started {
 		r := <-results
 		if r.err != nil {
-			slog.Warn("Failed to fetch user budget (skipping)", "error", r.err)
-			errCount++
+			failed++
+			lastErr = r.err
 		} else if r.data != nil {
 			all = append(all, *r.data)
 		}
 	}
+	failed += len(logins) - started
 
-	if errCount > 0 {
-		slog.Warn("Some user budget fetches failed", "errors", errCount, "successful", len(all))
+	slog.Info("Fetched user budgets", "users_with_data", len(all), "failed", failed, "total_users", len(logins))
+	if failed > 0 {
+		if lastErr == nil {
+			lastErr = ctx.Err()
+		}
+		slog.Warn("User budget census incomplete", "failed", failed, "last_error", lastErr)
 	}
-	slog.Info("Fetched all user budgets", "users_with_data", len(all), "total_users", len(logins))
-	return all, nil
+	if ctx.Err() != nil {
+		return all, failed, ctx.Err()
+	}
+	return all, failed, nil
 }
 
 // truncate from billing.go is available package-wide — no need to redeclare.

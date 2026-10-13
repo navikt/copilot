@@ -109,6 +109,11 @@ nav-pilot config init            # lag fila med alle valg kommentert ut`}
             finner. Teamet fyller inn resten. nav-pilot lager filene én gang og rører dem ikke etterpå. Filer som finnes
             fra før, blir stående.
           </BodyLong>
+          <BodyLong>
+            Legg til en «Språk»-del i AGENTS.md, så agenten vet hvilket språk som gjelder hvor. Et vanlig valg i Nav:
+            fagbegreper som vedtak, meldekort og dagpenger beholder norske navn i koden, tekniske termer er på engelsk,
+            og teamet velger språk for kommentarer og commit-meldinger.
+          </BodyLong>
           <CodeBlock compact>
             {`nav-pilot init
 # AGENTS.md
@@ -193,6 +198,16 @@ nav-pilot ignore instruction nextjs-aksel --user`}
               for eksempel <code className={code}>kubectl delete</code> eller <code className={code}>rm -rf</code>, gir
               mening før den kjører, og lagrer svaret. Den stopper ingenting, og KI-agenten ser ikke svaret. Virker bare
               med lokal modell. Slå den av med <code className={code}>off</code>.
+              <span id="hook-action-check" className="block" style={{ marginTop: "var(--ax-space-8)" }}>
+                Kommandoene den sjekker: endringer med <code className={code}>kubectl</code>,{" "}
+                <code className={code}>nais</code>, <code className={code}>gcloud</code> og{" "}
+                <code className={code}>helm</code>, <code className={code}>terraform apply</code>,{" "}
+                <code className={code}>rm -r</code>, <code className={code}>git push --force</code> og lignende.
+                Modellen vurderer om kommandoen står i forhold til formålet, om den er destruktiv, og om formålet
+                agenten oppga støtter den. Med <code className={code}>log</code> lagres svaret i telemetrien og en lokal
+                logg, og kommandoen kjører alltid. Den krever <code className={code}>local_enabled</code> og en server
+                som kjører, og starter aldri en server selv.
+              </span>
             </li>
           </Bullets>
           <CodeBlock compact>
@@ -200,9 +215,9 @@ nav-pilot ignore instruction nextjs-aksel --user`}
 nav-pilot config set hook_redact_fnr true    # på igjen`}
           </CodeBlock>
           <BodyLong>
-            Kan ikke nav-pilot lese <code className={code}>config.toml</code>, kjører maskeringen og løkkevakta likevel,
-            og du får beskjed på stderr. Løkkevakta nevner ikke terskelen overfor modellen, så modellen ikke kan heve
-            den selv.
+            Kan ikke nav-pilot lese <code className={code}>config.toml</code>, kjører maskeringen og loop guard (stopper
+            agenten når den gjentar seg) likevel, og du får beskjed på stderr. Modellen får ikke vite terskelen, så den
+            kan ikke heve den.
           </BodyLong>
           <LinkableHeading id="hooks-fra-agentpakka" size="small" level="3">
             Hooks fra agentpakka er kode

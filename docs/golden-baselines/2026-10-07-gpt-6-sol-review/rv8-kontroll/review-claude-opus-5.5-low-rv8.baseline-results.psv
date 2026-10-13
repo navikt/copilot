@@ -1,0 +1,21 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        code-review
+# suite:        review
+# date:         2026-10-07
+# revision:     709dfd38
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      2929655385
+# prompts:      rv8
+#
+# id|run|status|assertion|detail
+rv8|1|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv8|2|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv8|3|fail|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows, but no sentence says nothing is critical
+rv8|4|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv8|5|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows

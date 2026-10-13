@@ -1,0 +1,39 @@
+● skill(deliberate-ai-use)
+
+● Inspect project and Copilot configuration (shell)
+  │ pwd; ls -la; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then printf '%s present\n' "$f";
+  │ else printf '%s missing\n' "$f"; fi; done
+  └ 12 lines…
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/*Ferie*.kt"
+  └ No matches found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/test/**"
+  └ No matches found
+
+Dette er **🔴 rød sone**: feriepengeregler er ny faglogikk for teamet. Jeg stopper før kodeendringer, slik at regelen kan avklares først. Jeg fant ingen eksisterende feriepengelogikk eller tester i prosjektet.
+
+Mener dere at `alderIOpptjeningsåret` er alderen personen **fyller i opptjeningsåret**, slik at verdien `60` alltid gir 12,5 %? Og skal 10,2 % og 12,5 % gjelde hele det oppgitte grunnlaget, uten andre vilkår? Prosjektet mangler `AGENTS.md` og begge Copilot-instruksjonsfilene under `.github/`; `nav-pilot init` kan legge dem til senere.
+
+Blindsoner reist: 2/11 (#7 teststrategi: ingen tester finnes; #11 ny fagregel: avklaringene over. #1–#6 og #8–#10 gjelder ikke denne isolerte beregningen).
+

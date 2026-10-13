@@ -14,7 +14,7 @@ nothing and runs again from the start.
 
   scripts/benchmark-matrix.py MATRIX --dry-run   # arms, status, estimated credits
   scripts/benchmark-matrix.py MATRIX --jobs 3    # run the pending arms, 3 at a time
-  scripts/benchmark-matrix.py MATRIX --keep      # and keep transcripts to read a failure
+  scripts/benchmark-matrix.py MATRIX --keep      # also keep the scratch dir (transcripts are saved anyway)
 
 The estimate multiplies n by the per-run credits of the closest committed run
 in summary.json: same suite, model and effort, else same suite and model, else
@@ -109,7 +109,7 @@ def main():
     ap.add_argument("matrix", type=Path)
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--keep", action="store_true", help="keep transcripts (path in each arm's log)")
+    ap.add_argument("--keep", action="store_true", help="keep the scratch directory (path in each arm's log)")
     a = ap.parse_args()
 
     outdir = BASELINES / a.matrix.stem

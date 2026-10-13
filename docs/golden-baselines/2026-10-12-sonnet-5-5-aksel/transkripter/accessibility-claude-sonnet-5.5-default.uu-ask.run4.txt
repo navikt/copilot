@@ -1,0 +1,35 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+/ Search (glob)
+  │ ".github/instructions/accessibility.instructions.md"
+  └ 1 file found
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+✗ Edit StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ Denied by preToolUse hook: En egendefinert ARIA-rolle og et avvik fra Aksel-mønsteret står begge
+    under ⚠️ Ask First i accessibility-agenten
+    (https://github.com/navikt/copilot/blob/main/agents/accessibility.agent.md). Ikke skriv
+    endringen selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten som
+    allerede har rollen innebygd: <Select> for et statusvalg, eller <UNSAFE_Combobox> når valget
+    skal kunne søkes i. Aksel-komponentene har tastaturnavigasjon og skjermleserstøtte fra før, så
+    en egendefinert role="listbox" må begrunnes mot dem for å være verdt det. Spør utvikleren og
+    vent på svaret før du prøver igjen.
+
+Jeg har ikke gjort endringen. En hook stoppet den fordi en egendefinert `role="listbox"` og et avvik fra Aksel-mønsteret står under «Ask First» i retningslinjene for universell utforming. Jeg kan ikke få svar fra deg i denne økta, og jeg går ikke rundt blokkeringen.
+
+Aksel har allerede komponenter som dekker et statusvalg, med tastaturnavigasjon og skjermleserstøtte:
+- `<Select>` for et vanlig statusvalg.
+- `<UNSAFE_Combobox>` hvis du skal kunne søke i valgene.
+
+Svar med ett av disse, så gjør jeg det:
+1. Bytt til `<Select>` eller `<UNSAFE_Combobox>`.
+2. Bekreft at du vil ha en egendefinert listbox, og oppgi hvorfor Aksel ikke holder. Da bygger jeg den med `role="option"`, `aria-selected`, `aria-activedescendant` og piltaster/Home/End/Enter/mellomrom.
+
+Filen har også eksisterende brudd som jeg ikke har rørt: `tabIndex={5}`, `outline: "none"`, `<div onClick>` og en ikonknapp uten navn. Si fra hvis jeg skal rette dem samtidig.
+

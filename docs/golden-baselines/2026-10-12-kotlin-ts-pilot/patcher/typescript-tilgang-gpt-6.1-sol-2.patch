@@ -1,0 +1,187 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/[id]/route.ts workspace/app/api/intern/saker/[id]/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/[id]/route.ts	2026-10-12 11:47:40
++++ workspace/app/api/intern/saker/[id]/route.ts	2026-10-12 15:38:01
+@@ -1,13 +1,12 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../../lib/auth.ts";
+ import { finnInternSak } from "../../../../../lib/saker.ts";
+ 
+ export async function GET(
+   request: Request,
+   { params }: { params: Promise<{ id: string }> },
+ ): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   const sak = finnInternSak(Number((await params).id));
+   if (!sak) {
+     return Response.json({ error: "Fant ikke saken" }, { status: 404 });
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/route.ts workspace/app/api/intern/saker/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/route.ts	2026-10-12 11:47:40
++++ workspace/app/api/intern/saker/route.ts	2026-10-12 15:38:01
+@@ -1,9 +1,8 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../lib/auth.ts";
+ import { listInterneSaker } from "../../../../lib/saker.ts";
+ 
+ export async function GET(request: Request): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   return Response.json(listInterneSaker());
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/docs/drift.md workspace/docs/drift.md
+--- evaluator/fixture/workspace/docs/drift.md	2026-10-12 11:47:40
++++ workspace/docs/drift.md	2026-10-12 15:38:01
+@@ -7,5 +7,9 @@
+   ellers starter podene på nytt i en løkke.
+ - Alle andre ruter under `/api/` krever et gyldig Azure-token. Tokenet valideres
+   med `requireSaksbehandler()` i `lib/auth.ts`.
++- Både `/api/intern/saker` og `/api/intern/saker/[id]` validerer tokenet før
++  saksdata hentes. Manglende eller ugyldig token gir 401, også for ukjent saks-ID.
++  Proxyen sjekker bare om tokenet finnes på `/api/saker`. Den erstatter ikke
++  valideringen i rutene.
+ - `AZURE_OPENID_CONFIG_JWKS_URI`, `AZURE_OPENID_CONFIG_ISSUER` og
+   `AZURE_APP_CLIENT_ID` settes av NAIS.
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/tests/intern-saker.test.ts workspace/tests/intern-saker.test.ts
+--- evaluator/fixture/workspace/tests/intern-saker.test.ts	1970-01-01 01:00:00
++++ workspace/tests/intern-saker.test.ts	2026-10-12 15:39:01
+@@ -0,0 +1,134 @@
++import assert from "node:assert/strict";
++import { after, before, test } from "node:test";
++import { createServer } from "node:http";
++import { once } from "node:events";
++import { exportJWK, generateKeyPair, SignJWT } from "jose";
++import { GET as isalive } from "../app/api/isalive/route.ts";
++import { GET as isready } from "../app/api/isready/route.ts";
++
++const issuer = "https://issuer.example.test";
++const audience = "saksoversikt-test";
++const keyId = "test-key";
++const keys = await generateKeyPair("RS256");
++const otherKeys = await generateKeyPair("RS256");
++const jwk = { ...(await exportJWK(keys.publicKey)), kid: keyId, alg: "RS256", use: "sig" };
++const jwksServer = createServer((_request, response) => {
++  response.writeHead(200, { "Content-Type": "application/json" });
++  response.end(JSON.stringify({ keys: [jwk] }));
++});
++const envNames = [
++  "AZURE_OPENID_CONFIG_JWKS_URI",
++  "AZURE_OPENID_CONFIG_ISSUER",
++  "AZURE_APP_CLIENT_ID",
++] as const;
++const originalEnv = new Map(envNames.map((name) => [name, process.env[name]]));
++
++before(async () => {
++  jwksServer.listen(0, "127.0.0.1");
++  await once(jwksServer, "listening");
++  const address = jwksServer.address();
++  assert.ok(address && typeof address !== "string");
++  process.env.AZURE_OPENID_CONFIG_JWKS_URI = `http://127.0.0.1:${address.port}/jwks`;
++  process.env.AZURE_OPENID_CONFIG_ISSUER = issuer;
++  process.env.AZURE_APP_CLIENT_ID = audience;
++});
++
++after(async () => {
++  await new Promise<void>((resolve, reject) => {
++    jwksServer.close((error) => error ? reject(error) : resolve());
++  });
++  for (const [name, value] of originalEnv) {
++    if (value === undefined) delete process.env[name];
++    else process.env[name] = value;
++  }
++});
++
++async function issueToken({
++  tokenIssuer = issuer,
++  tokenAudience = audience,
++  expiration = "5m",
++  privateKey = keys.privateKey,
++} = {}): Promise<string> {
++  return new SignJWT({ oid: "test-user", NAVident: "T000001" })
++    .setProtectedHeader({ alg: "RS256", kid: keyId })
++    .setSubject("test-subject")
++    .setIssuer(tokenIssuer)
++    .setAudience(tokenAudience)
++    .setIssuedAt()
++    .setExpirationTime(expiration)
++    .sign(privateKey);
++}
++
++function request(path: string, token?: string): Request {
++  return new Request(`http://localhost${path}`, {
++    headers: token === undefined ? {} : { Authorization: `Bearer ${token}` },
++  });
++}
++
++test("saksruter validerer tokenet før de returnerer data", async (t) => {
++  // Importer etter at miljøet er satt, siden Oasis leser konfigurasjonen ved import.
++  const { GET: list } = await import("../app/api/intern/saker/route.ts");
++  const { GET: detail } = await import("../app/api/intern/saker/[id]/route.ts");
++  const { GET: regular } = await import("../app/api/saker/route.ts");
++  const routes = [
++    { path: "/api/intern/saker", get: (req: Request) => list(req) },
++    { path: "/api/intern/saker/101", get: (req: Request) => detail(req, { params: Promise.resolve({ id: "101" }) }) },
++    { path: "/api/intern/saker/999", get: (req: Request) => detail(req, { params: Promise.resolve({ id: "999" }) }) },
++    { path: "/api/saker", get: (req: Request) => regular(req) },
++  ];
++  const rejectedTokens = [
++    { name: "manglende token", token: undefined },
++    { name: "ugyldig tokenformat", token: "invalid-token" },
++    { name: "utløpt token", token: await issueToken({ expiration: "-5m" }) },
++    { name: "feil issuer", token: await issueToken({ tokenIssuer: "https://other.example.test" }) },
++    { name: "feil audience", token: await issueToken({ tokenAudience: "another-app" }) },
++    { name: "feil signatur", token: await issueToken({ privateKey: otherKeys.privateKey }) },
++  ];
++  for (const route of routes) {
++    for (const { name, token } of rejectedTokens) {
++      await t.test(`${route.path} avviser ${name}`, async () => {
++        const response = await route.get(request(route.path, token));
++        assert.equal(response.status, 401);
++        assert.deepEqual(await response.json(), {
++          error: token === undefined ? "Mangler token" : "Ugyldig token",
++        });
++      });
++    }
++  }
++
++  await t.test("gyldig token gir saksdata og 404 for ukjent sak", async () => {
++    const token = await issueToken();
++    const listResponse = await list(request("/api/intern/saker", token));
++    assert.equal(listResponse.status, 200);
++    assert.deepEqual(await listResponse.json(), [
++      { id: 101, tittel: "Søknad om dagpenger", status: "apen", internNotat: "Venter på arbeidsgiver" },
++      { id: 102, tittel: "Klage på vedtak", status: "lukket", internNotat: "Omgjort etter klage" },
++    ]);
++    const detailResponse = await detail(request("/api/intern/saker/101", token), {
++      params: Promise.resolve({ id: "101" }),
++    });
++    assert.equal(detailResponse.status, 200);
++    assert.deepEqual(await detailResponse.json(), {
++      id: 101, tittel: "Søknad om dagpenger", status: "apen", internNotat: "Venter på arbeidsgiver",
++    });
++    const missingResponse = await detail(request("/api/intern/saker/999", token), {
++      params: Promise.resolve({ id: "999" }),
++    });
++    assert.equal(missingResponse.status, 404);
++    assert.deepEqual(await missingResponse.json(), { error: "Fant ikke saken" });
++    const regularResponse = await regular(request("/api/saker", token));
++    assert.equal(regularResponse.status, 200);
++    assert.deepEqual(await regularResponse.json(), [
++      { id: 101, tittel: "Søknad om dagpenger", status: "apen" },
++      { id: 102, tittel: "Klage på vedtak", status: "lukket" },
++    ]);
++  });
++});
++
++test("helseprober svarer uten token", async () => {
++  for (const probe of [isalive, isready]) {
++    const response = await probe();
++    assert.equal(response.status, 200);
++    assert.equal(await response.text(), "OK");
++  }
++});

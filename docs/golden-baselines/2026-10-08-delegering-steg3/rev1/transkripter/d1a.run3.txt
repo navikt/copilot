@@ -1,0 +1,63 @@
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,AGENTS.md,copilot-instructions.md,
+  │ copilot-review-instructions.md}"
+  └ 3 files found
+
+● Inspect sandbox brief if configured (shell)
+  │ if [ -n "$CPLT_BRIEF" ]; then cat "$CPLT_BRIEF"; fi; if [ -n "$__CPLT_WRAPPED" ]; then printf
+  │ 'cplt wrapped\n'; fi
+  └ No Content
+
+● Inspect project root and Copilot config (shell)
+  │ pwd; ls -la; ls -la .github 2>/dev/null
+  └ 15 lines…
+
+● List directory vedtak-api
+  └ 3 files found
+
+● List directory src
+  └ 1 file found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*.{kt,kts,yaml,yml}"
+  └ 10 files found
+
+/ Search (grep)
+  │ "fnr|idporten|tokenx|accessPolicy|routing|authenticate|post\(|get\(" in **/*.{kt,kts,yaml,yml}
+  └ 4 lines found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+Dette er en ny tjeneste med fødselsnummer og innlogging, så jeg stopper ved avklaring før jeg foreslår løsning. Repoet har en Ktor-demo på Nais, men ingen ID-porten-oppsett eller tilgangsregler. `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler; `nav-pilot init` kan legge til repo-lokale instrukser.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bruke det i et oppslag, sende det videre eller lagre det? Skal innbyggere bruke tjenesten direkte via nettleser, eller går de gjennom en annen tjeneste?
+2. Hvem skal kunne kalle API-et, og eier dere hele flyten eller avhenger den av andre team? Finnes det mottakere eller API-konsumenter vi må ta hensyn til?
+3. Hva skal skje hvis ID-porten eller en nedstrøms tjeneste er utilgjengelig? Hvordan måler dere at tjenesten fungerer?
+4. Skal dette erstatte noe eksisterende? Finnes det tester eller et utrullingsopplegg vi bør bevare?
+5. Er ID-porten og Ktor kjent teknologi for teamet, eller ønsker dere å gå gjennom innloggingsflyten før vi planlegger kode?
+
+Blindsoner reist: 9/11 (#1–#9 stilt; #10 ikke relevant uten en løsning som skal avvikles, #11 stilt).
+

@@ -1,0 +1,3 @@
+
+Bruk **TokenX (on-behalf-of)**. Tjeneste A bytter brukerens token mot et TokenX-token med tjeneste B som audience, og sender det til B. Ikke bruk Azure `client_credentials`, fordi det mister brukerkonteksten.
+

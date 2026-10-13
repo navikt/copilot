@@ -1,0 +1,115 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/[id]/notater/route.ts workspace/app/api/intern/saker/[id]/notater/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/[id]/notater/route.ts	2026-10-12 18:11:23
++++ workspace/app/api/intern/saker/[id]/notater/route.ts	2026-10-12 23:21:25
+@@ -1,13 +1,12 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../../../lib/auth.ts";
+ import { leggTilNotat } from "../../../../../../lib/saker.ts";
+ 
+ export async function POST(
+   request: Request,
+   { params }: { params: Promise<{ id: string }> },
+ ): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   const { tekst } = (await request.json()) as { tekst?: unknown };
+   if (typeof tekst !== "string" || tekst.trim() === "") {
+     return Response.json({ error: "Notatet mangler tekst" }, { status: 400 });
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/[id]/route.ts workspace/app/api/intern/saker/[id]/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/[id]/route.ts	2026-10-12 11:47:40
++++ workspace/app/api/intern/saker/[id]/route.ts	2026-10-12 23:21:25
+@@ -1,13 +1,12 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../../lib/auth.ts";
+ import { finnInternSak } from "../../../../../lib/saker.ts";
+ 
+ export async function GET(
+   request: Request,
+   { params }: { params: Promise<{ id: string }> },
+ ): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   const sak = finnInternSak(Number((await params).id));
+   if (!sak) {
+     return Response.json({ error: "Fant ikke saken" }, { status: 404 });
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/route.ts workspace/app/api/intern/saker/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/route.ts	2026-10-12 11:47:40
++++ workspace/app/api/intern/saker/route.ts	2026-10-12 23:21:25
+@@ -1,9 +1,8 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../lib/auth.ts";
+ import { listInterneSaker } from "../../../../lib/saker.ts";
+ 
+ export async function GET(request: Request): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   return Response.json(listInterneSaker());
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/tests/probes.test.ts workspace/tests/probes.test.ts
+--- evaluator/fixture/workspace/tests/probes.test.ts	2026-10-12 11:47:40
++++ workspace/tests/probes.test.ts	2026-10-12 23:21:25
+@@ -1,7 +1,11 @@
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
+ import { GET as isalive } from "../app/api/isalive/route.ts";
++import { GET as internSaker } from "../app/api/intern/saker/route.ts";
++import { GET as internSak } from "../app/api/intern/saker/[id]/route.ts";
++import { POST as leggTilNotat } from "../app/api/intern/saker/[id]/notater/route.ts";
+ import { GET as saker } from "../app/api/saker/route.ts";
++import { listInterneSaker } from "../lib/saker.ts";
+ 
+ test("isalive svarer uten token", async () => {
+   assert.equal((await isalive()).status, 200);
+@@ -9,4 +13,43 @@
+ 
+ test("saker krever token", async () => {
+   assert.equal((await saker(new Request("http://localhost/api/saker"))).status, 401);
++});
++
++test("interne saker avviser ugyldig token", async () => {
++  const response = await internSaker(
++    new Request("http://localhost/api/intern/saker", {
++      headers: { authorization: "Bearer ugyldig-token" },
++    }),
++  );
++
++  assert.equal(response.status, 401);
++});
++
++test("intern sak avviser ugyldig token", async () => {
++  const response = await internSak(
++    new Request("http://localhost/api/intern/saker/101", {
++      headers: { authorization: "Bearer ugyldig-token" },
++    }),
++    { params: Promise.resolve({ id: "101" }) },
++  );
++
++  assert.equal(response.status, 401);
++});
++
++test("notater avviser ugyldig token uten å endre saken", async () => {
++  const notaterFør = JSON.stringify(listInterneSaker());
++  const response = await leggTilNotat(
++    new Request("http://localhost/api/intern/saker/101/notater", {
++      method: "POST",
++      headers: {
++        authorization: "Bearer ugyldig-token",
++        "content-type": "application/json",
++      },
++      body: JSON.stringify({ tekst: "Uautorisert notat" }),
++    }),
++    { params: Promise.resolve({ id: "101" }) },
++  );
++
++  assert.equal(response.status, 401);
++  assert.equal(JSON.stringify(listInterneSaker()), notaterFør);
+ });

@@ -1,0 +1,63 @@
+/ Search (glob)
+  │ "*"
+  └ 48 files found
+
+/ Search (glob)
+  │ "**/*Vedtak*"
+  └ 2 files found
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 2 files found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read settings.gradle.kts
+  │ vedtak-api/settings.gradle.kts
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (grep)
+  │ "data class|DTO|mapper|LocalDate|Testing|Formatting"
+  │ (.github/instructions/kotlin.instructions.md)
+  └ 80 lines found
+
+● Edit
+  │ Create vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+  └ Create vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakDtoTest.kt
+
+● Kjør vedtak-api-testene med Gradle (shell)
+  │ cd vedtak-api && if [ -x ./gradlew ]; then ./gradlew test; else gradle test; fi
+  └ 14 lines…
+
+La til `VedtakDto` i `vedtak-api` med feltene i ønsket rekkefølge, samt `Vedtak.tilDto()` som gjør datoen om til en ISO-formatert streng. Enhetstesten dekker alle tre feltene. Testene ble kjørt med Gradle og besto.
+

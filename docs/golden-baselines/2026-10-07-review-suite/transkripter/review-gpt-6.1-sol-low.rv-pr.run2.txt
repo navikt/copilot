@@ -1,0 +1,473 @@
+
+Jeg sammenligner `vedtak-kafka` med `main` og ser etter feil i meldingsflyt, feilhåndtering og tester. Jeg endrer ikke koden.
+
+
+
+
+
+
+    index 52b2d8f..5664a93 100644
+    --- a/build.gradle.kts
+    +++ b/build.gradle.kts
+    @@ -10,3 +10,12 @@ dependencies {
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    }
+    +dependencies {
+    +    implementation("io.ktor:ktor-server-auth:3.0.0")
+    +    implementation("io.ktor:ktor-server-auth-jwt:3.0.0")
+    +    implementation("org.apache.kafka:kafka-clients:3.9.0")
+    +    implementation("com.github.seratch:kotliquery:1.9.0")
+    +    implementation("org.postgresql:postgresql:42.7.4")
+    +    implementation("com.zaxxer:HikariCP:6.2.1")
+    +    implementation("ch.qos.logback:logback-classic:1.5.12")
+    +}
+    diff --git a/nais.yaml b/nais.yaml
+    index 1002b18..250841f 100644
+    --- a/nais.yaml
+    +++ b/nais.yaml
+    @@ -10,3 +10,21 @@ spec:
+    path: /internal/isalive
+    readiness:
+    path: /internal/isready
+    +  tokenx:
+    +    enabled: true
+    +  kafka:
+    +    pool: nav-dev
+    +  gcp:
+    +    sqlInstances:
+    +      - type: POSTGRES_17
+    +        databases:
+    +          - name: vedtak
+    +  accessPolicy:
+    +    inbound:
+    +      rules:
+    +        - application: "*"
+    +          namespace: "*"
+    +    outbound:
+    +      rules:
+    +        - application: logging
+    +          namespace: nais-system
+    diff --git a/src/main/kotlin/no/nav/demo/App.kt b/src/main/kotlin/no/nav/demo/App.kt
+    index 7696933..d9cf9a8 100644
+    --- a/src/main/kotlin/no/nav/demo/App.kt
+    +++ b/src/main/kotlin/no/nav/demo/App.kt
+    @@ -1,15 +1,47 @@
+    package no.nav.demo
+
+    +import com.zaxxer.hikari.HikariConfig
+    +import com.zaxxer.hikari.HikariDataSource
+    import io.ktor.serialization.kotlinx.json.json
+    import io.ktor.server.application.install
+    +import io.ktor.server.auth.Authentication
+    +import io.ktor.server.auth.jwt.jwt
+    import io.ktor.server.engine.embeddedServer
+    import io.ktor.server.netty.Netty
+    import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+    +import no.nav.demo.vedtak.VedtakConsumer
+    +import no.nav.demo.vedtak.VedtakRepository
+    +import no.nav.demo.vedtak.VedtakService
+    +import org.apache.kafka.clients.consumer.KafkaConsumer
+    +import org.apache.kafka.clients.producer.KafkaProducer
+    +import java.util.Properties
+    +import java.util.UUID
+    +import kotlin.concurrent.thread
+
+    fun main() {
+    println("starter demo-tjeneste, maksAntall=$maksAntall")
+    +    val dataSource = HikariDataSource(HikariConfig().apply { jdbcUrl =
+    System.getenv("DB_JDBC_URL") })
+    +    val repository = VedtakRepository(dataSource)
+    +    val service = VedtakService(repository) { UUID.randomUUID().toString() }
+    +    val kafka = Properties().apply {
+    +        put("bootstrap.servers", System.getenv("KAFKA_BROKERS"))
+    +        put("group.id", "demo-tjeneste")
+    +        put("enable.auto.commit", "false")
+    +        put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+    +        put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer")
+    +        put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    +        put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+    +    }
+    +    val consumer = VedtakConsumer(KafkaConsumer(kafka), KafkaProducer(kafka), service)
+    +    thread(name = "vedtak-consumer") { consumer.start() }
+    embeddedServer(Netty, port = 8080) {
+    install(ContentNegotiation) { json() }
+    -        oppgaveRoutes()
+    +        install(Authentication) {
+    +            jwt("tokenx") {
+    +                realm = "demo-tjeneste"
+    +                validate { credential -> credential.payload.audience?.let { credential } }
+    +            }
+    +        }
+    +        oppgaveRoutes(service, repository)
+    }.start(wait = true)
+    }
+    diff --git a/src/main/kotlin/no/nav/demo/Routes.kt b/src/main/kotlin/no/nav/demo/Routes.kt
+    index 29c6665..af401a4 100644
+    --- a/src/main/kotlin/no/nav/demo/Routes.kt
+    +++ b/src/main/kotlin/no/nav/demo/Routes.kt
+    @@ -1,19 +1,35 @@
+    package no.nav.demo
+
+    import io.ktor.server.application.Application
+    +import io.ktor.server.auth.authenticate
+    +import io.ktor.server.request.receive
+    import io.ktor.server.response.respond
+    import io.ktor.server.routing.get
+    +import io.ktor.server.routing.post
+    import io.ktor.server.routing.routing
+    +import no.nav.demo.vedtak.FattVedtakRequest
+    +import no.nav.demo.vedtak.VedtakRepository
+    +import no.nav.demo.vedtak.VedtakService
+
+    private val oppgaver = listOf(
+    Oppgave("1", "Registrer søknad"),
+    Oppgave("2", "Send vedtaksbrev"),
+    )
+
+    -fun Application.oppgaveRoutes() {
+    +fun Application.oppgaveRoutes(service: VedtakService, repository: VedtakRepository) {
+    routing {
+    get("/api/oppgaver") {
+    call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+    }
+    +        authenticate("tokenx") {
+    +            post("/api/vedtak") {
+    +                val request = call.receive<FattVedtakRequest>()
+    +                call.respond(service.fattVedtak(request.fnr, request.sakId, request.utfall))
+    +            }
+    +        }
+    +        get("/api/vedtak/{fnr}") {
+    +            val fnr = call.parameters["fnr"]!!
+    +            call.respond(repository.hentForPerson(fnr))
+    +        }
+    }
+    }
+    diff --git a/src/main/kotlin/no/nav/demo/vedtak/Vedtak.kt
+    b/src/main/kotlin/no/nav/demo/vedtak/Vedtak.kt
+    new file mode 100644
+    index 0000000..d16833a
+    --- /dev/null
+    +++ b/src/main/kotlin/no/nav/demo/vedtak/Vedtak.kt
+    @@ -0,0 +1,60 @@
+    +package no.nav.demo.vedtak
+    +
+    +import kotlinx.serialization.KSerializer
+    +import kotlinx.serialization.Serializable
+    +import kotlinx.serialization.descriptors.PrimitiveKind
+    +import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+    +import kotlinx.serialization.encoding.Decoder
+    +import kotlinx.serialization.encoding.Encoder
+    +import java.time.LocalDate
+    +
+    +@Serializable
+    +enum class Utfall { INNVILGET, AVSLATT, DELVIS_INNVILGET }
+    +
+    +@Serializable
+    +data class FattVedtakRequest(
+    +    val fnr: String,
+    +    val sakId: String,
+    +    val utfall: Utfall,
+    +)
+    +
+    +@Serializable
+    +data class Vedtak(
+    +    val vedtakId: String,
+    +    val sakId: String,
+    +    val fnr: String,
+    +    val utfall: Utfall,
+    +    @Serializable(with = LocalDateSerializer::class)
+    +    val vedtaksdato: LocalDate,
+    +)
+    +
+    +@Serializable
+    +data class SoknadBehandletMelding(
+    +    val soknadId: String,
+    +    val sakId: String,
+    +    val fnr: String,
+    +    val utfall: Utfall,
+    +)
+    +
+    +@Serializable
+    +data class VedtakFattetMelding(
+    +    val vedtakId: String,
+    +    val sakId: String,
+    +    val utfall: Utfall,
+    +    val vedtaksdato: String,
+    +)
+    +
+    +fun Vedtak.tilMelding() = VedtakFattetMelding(
+    +    vedtakId = vedtakId,
+    +    sakId = sakId,
+    +    utfall = utfall,
+    +    vedtaksdato = vedtaksdato.toString(),
+    +)
+    +
+    +object LocalDateSerializer : KSerializer<LocalDate> {
+    +    override val descriptor = PrimitiveSerialDescriptor("LocalDate", PrimitiveKind.STRING)
+    +
+    +    override fun serialize(encoder: Encoder, value: LocalDate) =
+    encoder.encodeString(value.toString())
+    +
+    +    override fun deserialize(decoder: Decoder): LocalDate =
+    LocalDate.parse(decoder.decodeString())
+    +}
+    diff --git a/src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt
+    b/src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt
+    new file mode 100644
+    index 0000000..34d13c7
+    --- /dev/null
+    +++ b/src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt
+    @@ -0,0 +1,48 @@
+    +package no.nav.demo.vedtak
+    +
+    +import kotlinx.serialization.encodeToString
+    +import kotlinx.serialization.json.Json
+    +import org.apache.kafka.clients.consumer.KafkaConsumer
+    +import org.apache.kafka.clients.producer.KafkaProducer
+    +import org.apache.kafka.clients.producer.ProducerRecord
+    +import org.slf4j.LoggerFactory
+    +import java.time.Duration
+    +
+    +class VedtakConsumer(
+    +    private val consumer: KafkaConsumer<String, String>,
+    +    private val producer: KafkaProducer<String, String>,
+    +    private val service: VedtakService,
+    +) {
+    +    private val log = LoggerFactory.getLogger(VedtakConsumer::class.java)
+    +    private val json = Json { ignoreUnknownKeys = true }
+    +
+    +    fun start() {
+    +        consumer.subscribe(listOf("soknad-behandlet"))
+    +        while (true) {
+    +            val records = consumer.poll(Duration.ofSeconds(1))
+    +            for (record in records) {
+    +                val melding = json.decodeFromString<SoknadBehandletMelding>(record.value())
+    +                retry(3) { behandle(melding) }
+    +            }
+    +            consumer.commitSync()
+    +        }
+    +    }
+    +
+    +    private fun behandle(melding: SoknadBehandletMelding) {
+    +        val vedtak = service.fattVedtak(melding.fnr, melding.sakId, melding.utfall)
+    +        producer.send(ProducerRecord("vedtak-fattet", vedtak.sakId,
+    json.encodeToString(vedtak.tilMelding()))).get()
+    +        log.info("Vedtak {} publisert", vedtak.vedtakId)
+    +    }
+    +
+    +    private fun retry(forsok: Int, blokk: () -> Unit) {
+    +        repeat(forsok - 1) { nr ->
+    +            try {
+    +                return blokk()
+    +            } catch (e: Exception) {
+    +                log.warn("Forsøk {} feilet, prøver igjen", nr + 1, e)
+    +                Thread.sleep(500L * (nr + 1))
+    +            }
+    +        }
+    +        blokk()
+    +    }
+    +}
+    diff --git a/src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt
+    b/src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt
+    new file mode 100644
+    index 0000000..a20ea02
+    --- /dev/null
+    +++ b/src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt
+    @@ -0,0 +1,43 @@
+    +package no.nav.demo.vedtak
+    +
+    +import kotliquery.Row
+    +import kotliquery.queryOf
+    +import kotliquery.sessionOf
+    +import javax.sql.DataSource
+    +
+    +class VedtakRepository(private val dataSource: DataSource) {
+    +
+    +    fun lagre(vedtak: Vedtak) {
+    +        sessionOf(dataSource).use { session ->
+    +            session.run(
+    +                queryOf(
+    +                    "INSERT INTO vedtak (vedtak_id, sak_id, fnr, utfall, vedtaksdato) VALUES
+    (?, ?, ?, ?, ?)",
+    +                    vedtak.vedtakId, vedtak.sakId, vedtak.fnr, vedtak.utfall.name,
+    vedtak.vedtaksdato,
+    +                ).asUpdate,
+    +            )
+    +        }
+    +    }
+    +
+    +    fun hentForPerson(fnr: String): List<Vedtak> =
+    +        sessionOf(dataSource).use { session ->
+    +            val sql = "SELECT * FROM vedtak WHERE fnr = '" + fnr + "' ORDER BY vedtaksdato
+    DESC"
+    +            session.run(queryOf(sql).map(::tilVedtak).asList)
+    +        }
+    +
+    +    fun hentForSak(sakId: String): Vedtak? =
+    +        sessionOf(dataSource).use { session ->
+    +            session.run(
+    +                queryOf("SELECT * FROM vedtak WHERE sak_id = ?", sakId)
+    +                    .map(::tilVedtak)
+    +                    .asSingle,
+    +            )
+    +        }
+    +
+    +    private fun tilVedtak(row: Row) = Vedtak(
+    +        vedtakId = row.string("vedtak_id"),
+    +        sakId = row.string("sak_id"),
+    +        fnr = row.string("fnr"),
+    +        utfall = Utfall.valueOf(row.string("utfall")),
+    +        vedtaksdato = row.localDate("vedtaksdato"),
+    +    )
+    +}
+    diff --git a/src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt
+    b/src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt
+    new file mode 100644
+    index 0000000..9738a68
+    --- /dev/null
+    +++ b/src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt
+    @@ -0,0 +1,29 @@
+    +package no.nav.demo.vedtak
+    +
+    +import org.slf4j.LoggerFactory
+    +import java.time.LocalDate
+    +import java.util.Locale
+    +
+    +class VedtakService(
+    +    private val repository: VedtakRepository,
+    +    private val idGenerator: () -> String,
+    +) {
+    +    private val log = LoggerFactory.getLogger(VedtakService::class.java)
+    +
+    +    fun fattVedtak(fnr: String, sakId: String, utfall: Utfall): Vedtak {
+    +        require(sakId.isNotBlank()) { "sakId mangler" }
+    +        log.info("behandler $fnr")
+    +        val vedtak = Vedtak(
+    +            vedtakId = idGenerator(),
+    +            sakId = sakId,
+    +            fnr = fnr,
+    +            utfall = utfall,
+    +            vedtaksdato = LocalDate.now(),
+    +        )
+    +        repository.lagre(vedtak)
+    +        log.info("Vedtak {} fattet for sak {}", vedtak.vedtakId, sakId)
+    +        return vedtak
+    +    }
+    +
+    +    fun hentVedtak(sakId: String): Vedtak? = repository.hentForSak(sakId)
+    +}
+    src/app/komponenter/StatusPanel.tsx
+    src/main/kotlin/no/nav/demo/App.kt
+    src/main/kotlin/no/nav/demo/Oppgave.kt
+    src/main/kotlin/no/nav/demo/Routes.kt
+    src/main/kotlin/no/nav/demo/UserRepo.kt
+    src/main/kotlin/no/nav/demo/Config.kt
+    src/main/kotlin/no/nav/demo/vedtak/Vedtak.kt
+    src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt
+    src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt
+    src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt
+    mise ERROR no task check found
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+Jeg har funnet sikkerhetsfeil og risiko for duplikate vedtak ved Kafka-retry. `mise check` finnes ikke i repoet, så jeg prøver Gradle for å kontrollere kompilering og tester.
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+    > Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+    > Task :processResources NO-SOURCE
+    > Task :processTestResources NO-SOURCE
+
+    > Task :compileKotlin FAILED
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.Ce83oz/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:9 Unresolved reference 'session'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.Ce83oz/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:9 Argument type mismatch: actual type is 'R', but 'K'
+    was expected.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.Ce83oz/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:17 Cannot infer type for this parameter. Please
+    specify it explicitly.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.Ce83oz/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:21 Unresolved reference 'queryOf'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.Ce83oz/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:42 Unresolved reference 'it'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.Ce83oz/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:62 Unresolved reference 'asSingle'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.Ce83oz/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:13:9 Null cannot be a value of a non-null type 'K'.
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    Execution failed for task ':compileKotlin'.
+    > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWit
+    hWorkers$GradleKotlinCompilerWorkAction
+    > Compilation error. See log for more details
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 8s
+    1 actionable task: 1 executed
+    Failed with exit code 1
+
+
+
+**Bør ikke merges ennå.** Gjennomgangen av `main...vedtak-kafka` avdekket følgende blokkere. Koden er ikke endret.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `VedtakRepository.kt:23–24` | 🔴 | **SQL-injeksjon.** `fnr` fra URL-en settes direkte inn i SQL. En manipulert verdi kan endre spørringen og hente andre personers vedtak. Bruk `WHERE fnr = ?` og bind parameteren. |
+| `Routes.kt:30–32` | 🔴 | **Vedtak kan leses uten autentisering.** GET-ruten ligger utenfor `authenticate`, og gjør ingen tilgangskontroll. Alle som når tjenesten, kan slå opp vedtak for vilkårlige fødselsnumre. |
+| `Routes.kt:25–27` | 🔴 | **POST mangler autorisasjon.** Ruten bruker `fnr` og `sakId` fra requesten uten å kontrollere at innringeren har rett til å fatte vedtak for personen og saken. Autentisering alene gir ikke denne retten. |
+| `App.kt:40–42` | 🔴 | **TokenX-valideringen er ufullstendig.** Ingen verifier/JWKS er konfigurert, og kontrollen sammenligner ikke `aud` med tjenestens forventede audience. Konfigurer signatur- og issuer-validering samt eksplisitt audience-kontroll før ruten tas i bruk. |
+| `VedtakService.kt:15` | 🔴 | **Fødselsnummer skrives til ordinær logg.** Dette skjer ved hver behandling, både via HTTP og Kafka. Fjern personopplysningen fra loggmeldingen. |
+| `App.kt:26–34` | 🔴 | **Kafka-klientene mangler TLS-konfigurasjon.** Kafka bruker som standard `PLAINTEXT`; Nais-poolen krever TLS og klientsertifikat. Bruk sertifikatene og truststore/keystore-konfigurasjonen fra Nais for begge klientene. |
+| `VedtakConsumer.kt:25,32–33` | 🔴 | **Retry oppretter nye vedtak.** Dersom databaseinnsettingen lykkes og publiseringen feiler, kjører neste forsøk innsettingen igjen med ny UUID. Replay etter manglende offset-commit gir samme problem. Bruk en stabil idempotensnøkkel, eksempelvis `soknadId`, og sikre varig publisering uten ny vedtaksopprettelse. |
+| `VedtakConsumer.kt:22–27,46` | 🔴 | **En enkelt melding kan stoppe consumeren permanent.** Ugyldig JSON eller siste mislykkede behandlingsforsøk kaster ut av consumer-tråden, mens HTTP-serveren fortsetter. Feil må håndteres med en eksplisitt strategi for retry/parkering og synliggjøres i readiness. |
+| `VedtakRepository.kt:14` / `nais.yaml:17–21` | 🔴 | **Tabellen opprettes ikke.** Branchen provisionerer databasen, men inneholder ingen migrasjon eller oppstartslogikk som oppretter `vedtak`. På en ny database feiler alle nye lese- og skriveoperasjoner. |
+
+**Validering:** `mise check` mangler i repoet. Gradle med Java 21 stopper på eksisterende kompileringsfeil i uendret `UserRepo.kt`, så tester kunne ikke kjøres. Branchen legger heller ikke til tester for tilgangskontroll, Kafka-retry eller replay.
+

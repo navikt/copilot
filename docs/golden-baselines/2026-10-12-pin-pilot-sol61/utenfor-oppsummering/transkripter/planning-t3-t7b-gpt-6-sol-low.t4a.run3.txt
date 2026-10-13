@@ -1,0 +1,48 @@
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml,nais.yaml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1: Avklaring.** Jeg antar at innbyggeren logger inn via ID-porten, og at tjenesten skal lese fødselsnummeret fra et validert token. Repoet er en Ktor-demo uten autentisering eller `accessPolicy`, så jeg trenger disse avklaringene før jeg kan planlegge en trygg løsning:
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bruke det i minnet, lagre det eller sende det til en annen tjeneste? Behandles andre personopplysninger?
+2. Skal bare innbyggeren selv bruke tjenesten, eller skal andre tjenester eller saksbehandlere også kunne kalle den? Er det en nettleserklient foran Ktor-tjenesten?
+3. Hvem skal motta svar fra tjenesten, og finnes det et API eller en tjeneste den skal kalle?
+4. Hva skal skje når tokenet er ugyldig eller en eventuell avhengighet er utilgjengelig? Hvilket miljø skal tjenesten først kjøre i?
+
+Dette er **rød sone — forstå dette grundig**: tokenvalidering og tilgangskontroll avgjør hvem som kan få brukt fødselsnummeret. `AGENTS.md` og repo-lokale Copilot-instruksjoner mangler; `nav-pilot init` kan legge dem til senere.
+
+Blindsoner reist: 6/11 (#1 personvern, #2 tilgang, #3 feilhåndtering, #5 avhengigheter, #6 konsumenter, #11 sikkerhetskritisk kode; #4, #7–#10 avklares når tjenestens formål er kjent).
+

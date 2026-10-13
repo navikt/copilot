@@ -1,0 +1,32 @@
+
+Jeg fant ingen blokkere i `SakService.kt`. `mise check` ble ikke kjørt, fordi repoet ikke har mise-konfigurasjon.
+
+### Oppsummering
+Koden er ryddig, og sikkerhetsmønstrene er riktige:
+- SQL-spørringen er parameterisert (linje 26).
+- Fødselsnummeret hentes fra `pid` i tokenet og ikke fra en parameter i forespørselen. Brukeren kan derfor bare se egne saker, og eierskapet er sikret.
+- Fødselsnummeret maskeres i loggen.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---|---|---|
+| `SakService.kt` | 41 | 🟡 | Stacktrace og årsak forsvinner fra loggen |
+| `SakService.kt` | 48–50 | 🟡 | Ingen synlig sjekk av innloggingsnivå (`acr`) |
+| `SakService.kt` | 36–44 | 🟡 | Ingen tester for tjenesten eller ruten |
+| `SakService.kt` | 20 | 💭 | `maskert()` viser lengden på verdien |
+| `SakService.kt` | 1–58 | 💭 | Modell, repository, service og rute ligger i én fil |
+
+### Detaljer
+- **Linje 41:** Loggen tar bare med klassenavnet, så du mister stacktrace og årsak, og feil i produksjon blir vanskelige å feilsøke. Logg selve exceptionen med `log.error("Kunne ikke hente saker", e)`. Sjekk først at feilmeldingen fra databasedriveren ikke inneholder bundne parametere, som her er fødselsnummeret. En annen løsning er å sende full feil til team-logs eller secure logs.
+- **Linje 48–50:** Det er ikke synlig at `tokenx`-konfigurasjonen krever `acr` = `idporten-loa-high`. Hvis den ikke gjør det, kan en innlogging på lavt nivå hente saksdata. Bekreft dette i auth-oppsettet.
+- **Tester:** Det mangler tester for disse tilfellene:
+  - token uten `pid` gir 401
+  - innlogget bruker får sine egne saker
+  - feil i databasen gir 500
+- **Linje 20:** Masken avslører hvor lang verdien er, og alle fødselsnumre har 11 tegn. En fast streng som `"***"` er enklere og lekker ingenting.
+
+🔴 Rød sone: auth- og eierskapslogikken på linje 48–55. Gå gjennom den nøye.
+
+Still gjerne spørsmål om valgene over.
+

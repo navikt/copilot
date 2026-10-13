@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"log/slog"
 	"os"
 	"strconv"
@@ -43,7 +44,7 @@ func loadConfig() *Config {
 		BigQueryUserTeamsTable:     getEnv("BIGQUERY_USER_TEAMS_TABLE", "user_teams"),
 		BigQueryUserMetricsTable:   getEnv("BIGQUERY_USER_METRICS_TABLE", "user_metrics"),
 		BigQueryRepoMetricsTable:   getEnv("BIGQUERY_REPO_METRICS_TABLE", "repository_metrics"),
-		SlackWebhookURL:            getEnv("SLACK_WEBHOOK_URL", ""),
+		SlackWebhookURL:            cmp.Or(os.Getenv("apiUrl"), getEnv("SLACK_WEBHOOK_URL", "")),
 	}
 }
 

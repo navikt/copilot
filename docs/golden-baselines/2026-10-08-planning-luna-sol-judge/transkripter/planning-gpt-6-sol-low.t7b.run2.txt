@@ -1,0 +1,20 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Dette er en endring i Kafka-meldingens innhold, ikke bare i Kotlin-klassen. `SoknadMottattMelding` har i dag bare `soknadId` og `mottatt`. `SokerDto` har et `fnr`, men koden viser ingen kobling mellom dem. `nais.yaml` viser heller ikke hvem som kan lese topicen.
+
+Før jeg endrer meldingen, trenger jeg svar på tre punkter: Hvor skal `fnr` hentes fra når `SoknadMottattMelding` opprettes? Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer? Skal feltet være påkrevd for alle nye meldinger, og tåler eksisterende konsumenter det? Jeg må også avklare hvordan meldinger med fødselsnummer beskyttes på topicen. Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan legge dem til.
+
+Blindsoner reist: 4/11 (#1 personvern, #5 teameierskap, #6 konsumenter, #9 bakoverkompatibilitet; øvrige ikke nødvendige for å avklare denne endringen).
+

@@ -9,7 +9,7 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Node, npm og pnpm i sandkassen",
   description:
-    "Slik installerer, bygger og tester du Node-prosjekter med npm, pnpm og yarn når nav-pilot og Copilot kjører i cplt: @navikt-pakker, installasjonsskript, .env-filer, localhost, Playwright og Cypress.",
+    "Slik installerer, bygger og tester du Node-prosjekter med npm, pnpm og yarn når nav-pilot og Copilot kjører i cplt: @navikt-pakker, installasjonsskript, .env-filer, localhost, Playwright, Cypress, Puppeteer og npx.",
 };
 
 const TOC: TocItem[] = [
@@ -18,9 +18,10 @@ const TOC: TocItem[] = [
   { id: "env-filer", label: ".env-filer" },
   { id: "localhost", label: "Utviklingsserveren på localhost" },
   { id: "nettleser", label: "Playwright og Cypress" },
+  { id: "mermaid", label: "Puppeteer og Mermaid-diagrammer" },
   { id: "pnpm-konfig", label: "pnpm-konfig og tokens" },
   { id: "globale", label: "Globale installasjoner" },
-  { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte verter" },
+  { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte hoster" },
   { id: "feil", label: "Når installasjonen feiler" },
 ];
 
@@ -43,16 +44,15 @@ export default function CpltNode() {
             @navikt-pakker fra GitHub Packages
           </LinkableHeading>
           <BodyLong>
-            @navikt-pakkene ligger i GitHub Packages, og <code className={code}>npm.pkg.github.com</code> svarer{" "}
-            <code className={code}>401 Unauthorized</code> uten token, også for offentlige pakker. Tokenet ligger som
-            regel i <code className={code}>~/.npmrc</code>, og den fila stenger cplt. Det enkleste er å installere
-            utenfor cplt før du starter agenten:
+            <code className={code}>npm.pkg.github.com</code> svarer <code className={code}>401 Unauthorized</code> uten
+            token, også for offentlige pakker, og cplt stenger <code className={code}>~/.npmrc</code> der tokenet
+            ligger. Det enkleste er å kjøre <code className={code}>pnpm install</code> utenfor cplt før du starter
+            agenten. Hvorfor, og hva det koster å åpne tokenfilene, står i{" "}
+            <NextLink href={`${OPPSETT}#github-packages`} className={linkClass}>
+              Pakker fra GitHub Packages
+            </NextLink>
+            . Må agenten installere selv, kommer det an på pakkebehandleren.
           </BodyLong>
-          <CodeBlock compact>
-            {`pnpm install        # i terminalen, utenfor cplt
-nav-pilot`}
-          </CodeBlock>
-          <BodyLong>Må agenten installere selv, kommer det an på pakkebehandleren.</BodyLong>
 
           <LinkableHeading id="npm-token" size="small" level="3">
             npm: token fra en miljøvariabel
@@ -88,13 +88,7 @@ cplt --pass-env NODE_AUTH_TOKEN                    # bare denne økten`}
           <CodeBlock compact>{`cplt config set allow.read ~/.npmrc`}</CodeBlock>
           <BodyLong>
             <code className={code}>cplt init</code> og <code className={code}>cplt doctor</code> sier fra når
-            prosjektets <code className={code}>.npmrc</code> henter et scope fra GitHub Packages. Skal agenten også lese{" "}
-            <code className={code}>~/.gradle/gradle.properties</code> og{" "}
-            <code className={code}>~/.m2/settings.xml</code>, se{" "}
-            <NextLink href={`${OPPSETT}#github-packages`} className={linkClass}>
-              Pakker fra GitHub Packages
-            </NextLink>{" "}
-            i oppsettguiden.
+            prosjektets <code className={code}>.npmrc</code> henter et scope fra GitHub Packages.
           </BodyLong>
 
           <LinkableHeading id="yarn" size="small" level="3">
@@ -141,8 +135,8 @@ cplt config set --repo sandbox.allow_lifecycle_scripts true --force   # i .cplt.
           </BodyLong>
           <BodyLong>
             Sperren gjelder også pnpm 11 og nyere og yarn 1, men ikke yarn 2 og nyere: de kjører prosjektets eget
-            postinstall. Bruker du cplt eldre enn <code className={code}>2026.09.30-132931-5b511d2</code>, kjører de
-            prosjektets egne skript. Da må du si fra selv:
+            postinstall. Bruker du cplt fra før 30. september 2026, kjører de prosjektets egne skript. Da må du si fra
+            selv:
           </BodyLong>
           <CodeBlock compact>
             {`pnpm install --ignore-scripts
@@ -196,23 +190,10 @@ cplt config set sandbox.allow_env_files true    # alltid`}
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_localhost_any true`}</CodeBlock>
           <BodyLong>
-            Med <code className={code}>allow_localhost_any</code> når agenten alle tjenester som lytter på localhost,
-            også en lokal database. På Linux koster den mer: kjernen der kan ikke skille localhost fra andre verter, så
-            cplt slår av portfiltreringen for utgående TCP helt, og bare proxyen begrenser hvor agenten kan koble seg
-            til.
-          </BodyLong>
-          <BodyLong>
-            Med <code className={code}>proxy.forced</code> slått på, som i <code className={code}>--preset strict</code>
-            , ser cplt bort fra <code className={code}>allow_localhost_any</code>. Enkeltporter fra{" "}
-            <code className={code}>allow.localhost</code> virker fortsatt, men de tilfeldige portene til Turbopack, Vite
-            og esbuild kan ikke åpnes. Da må du kjøre uten tvungen proxy.
-          </BodyLong>
-          <BodyLong>
-            Begge kan stå i repoet, slik at hele teamet får dem. Bruk{" "}
-            <code className={code}>cplt config set --repo …</code>, sjekk inn <code className={code}>.cplt.toml</code>{" "}
-            og godkjenn med <code className={code}>cplt trust accept</code>, som beskrevet i{" "}
-            <NextLink href={`${OPPSETT}#forste-gang`} className={linkClass}>
-              Sett opp cplt i et repo
+            Hva det åpner, hva det koster på Linux, hvorfor det ikke virker med tvungen proxy, og hvordan du legger det
+            i repoet for hele teamet, står i{" "}
+            <NextLink href={`${OPPSETT}#localhost`} className={linkClass}>
+              Tjenester på localhost
             </NextLink>
             .
           </BodyLong>
@@ -250,24 +231,70 @@ cplt config set sandbox.allow_cache_exec Cypress`}
 
       <section>
         <VStack gap="space-16">
+          <LinkableHeading id="mermaid" size="medium" level="2">
+            Puppeteer og Mermaid-diagrammer
+          </LinkableHeading>
+          <BodyLong>
+            Med mermaid-cli (<code className={code}>mmdc</code>) kan agenten gjøre Mermaid-diagrammene sine om til PNG
+            og se på bildet selv. <code className={code}>mmdc</code> starter Chrome gjennom Puppeteer, og det stopper i
+            cplt på tre steder:
+          </BodyLong>
+          <Bullets>
+            <li>
+              Puppeteer laster ned Chrome til <code className={code}>~/.cache/puppeteer</code>. På macOS får ingenting
+              kjøre derfra, og <code className={code}>--allow-cache-exec</code> når ikke den mappa. Feilen er{" "}
+              <code className={code}>Error: spawn EPERM</code>.
+            </li>
+            <li>
+              Chromium må startes med <code className={code}>--no-sandbox</code>.
+            </li>
+            <li>
+              Puppeteer snakker med nettleseren over en WebSocket på localhost, og cplt stenger localhost.{" "}
+              <code className={code}>mmdc</code> skriver da bare <code className={code}>[object Object]</code>.
+            </li>
+          </Bullets>
+          <BodyLong>
+            Bruk nettleseren fra Playwright i stedet. Installer <code className={code}>mmdc</code> i prosjektet,
+            installer nettleseren utenfor cplt og åpne mappa:
+          </BodyLong>
+          <CodeBlock compact>
+            {`npm install -D @mermaid-js/mermaid-cli
+npx playwright install chromium-headless-shell
+cplt config set sandbox.allow_cache_exec ms-playwright
+ls ~/Library/Caches/ms-playwright     # finn versjonen, f.eks. chromium_headless_shell-1243`}
+          </CodeBlock>
+          <BodyLong>
+            Pek Puppeteer på nettleseren med full sti. <code className={code}>{'"pipe": true'}</code> gjør at Puppeteer
+            snakker med nettleseren over en pipe i stedet for localhost. Stien under gjelder Mac med Apple-brikke; på
+            Mac med Intel heter mappa <code className={code}>chrome-headless-shell-mac-x64</code>:
+          </BodyLong>
+          <CodeBlock filename="puppeteer.json">
+            {`{
+  "executablePath": "/Users/<deg>/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+  "args": ["--no-sandbox"],
+  "pipe": true
+}`}
+          </CodeBlock>
+          <CodeBlock compact>{`npx mmdc -p puppeteer.json -i diagram.mmd -o diagram.png`}</CodeBlock>
+          <BodyLong>
+            Vil du heller bruke Puppeteers egen Chrome, legg cachen under Playwright-mappa, som allerede er åpnet, og
+            last ned nettleseren dit utenfor cplt. Da trenger du ikke <code className={code}>executablePath</code>, men{" "}
+            <code className={code}>args</code> og <code className={code}>pipe</code> må fortsatt stå i{" "}
+            <code className={code}>puppeteer.json</code>:
+          </BodyLong>
+          <CodeBlock compact>
+            {`export PUPPETEER_CACHE_DIR=~/Library/Caches/ms-playwright/puppeteer
+npx puppeteer browsers install chrome-headless-shell
+cplt --pass-env PUPPETEER_CACHE_DIR`}
+          </CodeBlock>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
           <LinkableHeading id="pnpm-konfig" size="medium" level="2">
             pnpm-konfig og tokens
           </LinkableHeading>
-          <BodyLong>To feil med pnpm er rettet i cplt fra 29. september 2026. Ser du dem, oppgrader cplt:</BodyLong>
-          <Bullets>
-            <li>
-              <NextLink href={`${FAQ}#pnpm-config`} className={linkClass}>
-                EPERM på …/Library/Preferences/pnpm/config.yaml
-              </NextLink>
-              : pnpm fikk ikke lese sin egen konfig.
-            </li>
-            <li>
-              <NextLink href={`${FAQ}#pnpm-claude`} className={linkClass}>
-                ERR_PNPM_EPERM i node_modules
-              </NextLink>
-              : pakker med en <code className={code}>.claude</code>-mappe kunne ikke installeres.
-            </li>
-          </Bullets>
           <BodyLong>
             <code className={code}>pnpm login</code> lagrer tokenet i <code className={code}>auth.ini</code> i pnpms
             konfigmappe (pnpm 10 og eldre: <code className={code}>rc</code>). På macOS er det{" "}
@@ -324,24 +351,40 @@ cplt config set sandbox.allow_cache_exec Cypress`}
             {`npm install -D semver
 npx semver 1.2.3`}
           </CodeBlock>
+          <BodyLong>
+            Det samme gjelder <code className={code}>npx -y @mermaid-js/mermaid-cli</code>, se{" "}
+            <NextLink href="#mermaid" className={linkClass}>
+              Puppeteer og Mermaid-diagrammer
+            </NextLink>
+            . Trenger agenten npx for pakker utenfor prosjektet, flytt npm-cachen inn i cache-mappa og åpne bare
+            npx-mappa der. Legg variabelen i <code className={code}>~/.zshrc</code> eller{" "}
+            <code className={code}>~/.bashrc</code>. <code className={code}>cplt config set</code>-linjene kjører du én
+            gang:
+          </BodyLong>
+          <CodeBlock compact>
+            {`export npm_config_cache="$HOME/Library/Caches/npm"   # macOS
+cplt config set sandbox.pass_env npm_config_cache
+cplt config set sandbox.allow_cache_exec npm/_npx`}
+          </CodeBlock>
+          <BodyLong>
+            npm starter da med en ny cache, og alle pakkene npx henter, kan kjøre i sandkassen. På Linux er cache-mappa{" "}
+            <code className={code}>~/.cache</code>, så der blir stien <code className={code}>$HOME/.cache/npm</code>.
+          </BodyLong>
         </VStack>
       </section>
 
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="tillatelsesliste" size="medium" level="2">
-            Pakkeregistre og en liste over tillatte verter
+            Pakkeregistre og en liste over tillatte hoster
           </LinkableHeading>
           <BodyLong>
-            I standardoppsettet stopper cplt bare kjente skadelige verter og verter med private adresser, og
-            installasjoner virker som vanlig. Har du slått på en liste over tillatte verter, slipper cplt bare gjennom
-            det som står på lista. Med <code className={code}>proxy.default_allowlist</code> er{" "}
-            <code className={code}>registry.npmjs.org</code> og <code className={code}>registry.yarnpkg.com</code> med.{" "}
-            <code className={code}>npm.pkg.github.com</code> kommer med fordi Copilot har{" "}
-            <code className={code}>github.com</code> og alle undervertene på lista.
-          </BodyLong>
-          <BodyLong>
-            Vertene Playwright og Cypress laster ned nettlesere fra, er ikke med. Sjekk en vert og legg den til:
+            Uten en liste over tillatte hoster virker installasjoner som vanlig. npm og yarn er med både i{" "}
+            <code className={code}>proxy.default_allowlist</code> og i fila nav-pilot skriver (se{" "}
+            <NextLink href={`${OPPSETT}#tillatelsesliste`} className={linkClass}>
+              Pakkeregistre og en liste over tillatte hoster
+            </NextLink>
+            ), men ikke hostene Playwright og Cypress laster ned nettlesere fra. Sjekk en host og legg den til:
           </BodyLong>
           <CodeBlock compact>
             {`cplt check net cdn.playwright.dev
@@ -366,7 +409,7 @@ cplt config set allow.domains cdn.playwright.dev`}
 cplt exec -- pnpm install`}
           </CodeBlock>
           <BodyLong>
-            Linjer med <code className={code}>[proxy]</code> og <code className={code}>BLOCKED</code> viser hvilken vert
+            Linjer med <code className={code}>[proxy]</code> og <code className={code}>BLOCKED</code> viser hvilken host
             som ble stoppet. Nektes du en fil, spør cplt om stien med{" "}
             <code className={code}>cplt check path &lt;sti&gt;</code>. Feilmeldingene står i{" "}
             <NextLink href={`${FAQ}#filer`} className={linkClass}>

@@ -1,0 +1,76 @@
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ ".github/instructions/{kotlin,testing-kotlin,testing}.instructions.md"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot*"
+  └ No matches found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (grep)
+  │ "^## |^### |test|BigDecimal|require" (.github/instructions/kotlin.instructions.md)
+  └ 56 lines found
+
+● Inspect repository layout (shell)
+  │ ls -a && find src -maxdepth 5 -type f | sort
+  └ 7 lines…
+
+Dette er en avgrenset endring uten ny dataflyt. Jeg legger beregningen i en ren funksjon og tester satsgrensen, avrunding og negativt grunnlag. Jeg kjører ikke Gradle.
+
+● Edit
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ Edit build.gradle.kts
+
+Lagt til `feriepenger(grunnlag, alderIOpptjeningsåret)` og enhetstester. Funksjonen bruker 10,2 % før 60 år og 12,5 % fra og med 60 år, runder 50 øre opp og avviser negativt grunnlag. Beregning i tusendeler unngår flyttallsavrunding; som avtalt håndterer den ikke `Long`-overflyt. JUnit 5 er lagt til for testene. **Gradle er ikke kjørt**, slik du ba om.
+
+🔴 Rød sone: Feriepengeberegningen er implementert for din gjennomgang.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller at satsen skifter ved alder 60 i opptjeningsåret, og les testene for 59, 60 og 61 år.
+- [ ] Kontroller avrunding ved 50 øre og avvisning av negativt grunnlag i `FeriepengerTest`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor du valgte denne tilnærmingen?
+

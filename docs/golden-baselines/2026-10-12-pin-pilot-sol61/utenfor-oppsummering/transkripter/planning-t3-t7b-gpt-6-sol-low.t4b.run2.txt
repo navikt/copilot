@@ -1,0 +1,23 @@
+● skill(nav-plan)
+
+● skill(nav-auth)
+
+● skill(api-design)
+
+**Fase 2: Plan.** Jeg legger til grunn at innbyggerens nettleser skal kalle Ktor-tjenesten, ikke at Next.js-serveren skal opptre som API-klient. Wonderwall håndterer ID-porten-innlogging foran tjenesten. Ktor bruker den validerte identiteten til å slå opp *innbyggerens eget* navn i PDL og returnerer bare navnet. Fødselsnummeret kommer fra innloggingen, aldri fra et parameter i API-kallet.
+
+| Område | Beslutning |
+|---|---|
+| API | `GET /api/meg` med svar `{ "navn": "…" }`. Manglende/ugyldig innlogging gir 401. PDL-utilgjengelighet gir 503 med feilrespons uten personopplysninger. Dokumenter kontrakten for den eksisterende frontenden. |
+| Autentisering | `idporten.enabled` og Wonderwall-sidecar på Ktor-tjenesten. Beskytt API-et; hold bare helsesjekker og metrikker utenfor innbyggerinnlogging. Ikke aktiver TokenX for frontend-kallet. |
+| PDL-kall | Bruk brukerkontekst og TokenX-utveksling **dersom PDL-grensesnittet krever det**. Bekreft PDL-endepunkt, målgruppe og tilgangskrav før dette låses i konfigurasjon. Ingen `client_credentials` som mister brukerkonteksten. |
+| Tilgang | Ingen klientstyrt fødselsnummer eller oppslag på andre personer. Avklar om dagens `/api/oppgaver` skal fjernes eller skjermes før tjenesten eksponeres; den kan ikke stå som et utilsiktet åpent endepunkt. |
+| Nettverk | Eksplisitt `accessPolicy`: ingen applikasjoner i inbound-listen for nettleserkall; outbound begrenses til PDL og nødvendige autentiseringstjenester etter verifisering av oppsettet. Avklar nettleserruting mot eksisterende Next.js-frontend, helst samme opphav. Ikke åpne generell CORS eller legg tokens i nettleserlagring. |
+| Data og drift | Stateless tjeneste: ingen database, Flyway, kø eller lagring av fødselsnummer/navn. Behold Nais-helsesjekker; legg til Prometheus-metrikker. Start med små ressursforespørsler uten CPU-grense. |
+
+**Gjennomføring:** Del Ktor-koden i beskyttet rute, PDL-klient og konfigurasjon; legg Nais-oppsett for dev/prod og en GitHub Actions-flyt som bygger og tester før deploy til dev, deretter prod. Test ID-porten-/Wonderwall-grensen, at identiteten ikke kan overstyres, PDL-svar og tidsavbrudd, 503 ved nedetid og at fødselsnummer, navn og tokens ikke havner i logger eller metrikknøkler. Logg PDL-feil med korrelasjons-ID og feiltype, ikke persondata. Mål oppslag per minutt og feilandel; sett alarm på vedvarende 503/økt feilandel. Leveransen skal også ha API-kontrakt, driftsbeskrivelse, utrullings- og tilbakeføringsplan samt kontroll av innlogging, PDL-kall og metrikker etter deploy. Ved feil rulles deploy tilbake; det finnes ingen datamigrering.
+
+🔴 **Rød sone, implementeres av utvikleren eller etter uttrykkelig bestilling med gjennomgang:** identitetsuttak, tilgangsgrense og koblingen mellom innlogget person og PDL-oppslag. Teamet bør også gå gjennom TokenX- og Wonderwall-oppsettet grundig siden teknologien er ny. 🟢 Nais-konfigurasjon, PDL-klientens rammeverk, tester og CI/CD kan genereres, men tilgangsreglene må kontrolleres før deploy.
+
+Valget om et nettleserkalt API bevarer ønsket kallflyt, men krever at ruting og innloggingsøkt fungerer med den eksisterende frontenden. Alternativet er å la Next.js være BFF; det gir én nettlesergrense, men endrer den avtalte kallflyten. **Neste fase er gjennomgang av planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv.**
+

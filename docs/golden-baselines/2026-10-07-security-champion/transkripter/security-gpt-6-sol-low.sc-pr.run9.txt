@@ -1,0 +1,17 @@
+🔍 Jeg sammenligner branchen med `main` og tar med lokale endringer før jeg vurderer dataflyt, tilgang og logging.
+
+🛡️ Diffen viser flere mulige brudd i tilgangskontroll og håndtering av personopplysninger. Jeg sjekker nå tilknyttet kode og oppsett for å skille faktiske funn fra antakelser.
+
+**Vurdering: BLOCK.** Branchen åpner for innsyn i vedtak uten autentisering og bygger en SQL-spørring fra en URL-parameter. Begge må rettes før merge.
+
+1. **Kritisk: Åpent innsyn i personopplysninger.** `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` i `Routes.kt:30–33` og returnerer vedtak med fødselsnummer. Endepunktet må autentisere innringeren og kontrollere at vedkommende har rett til akkurat disse vedtakene.
+2. **Kritisk: SQL-injeksjon.** `VedtakRepository.kt:23` setter `fnr` direkte inn i SQL. Parameteriser spørringen slik `hentForSak` allerede gjør. En innringer kan nå påvirke spørringen via det åpne endepunktet.
+3. **Kritisk: For vid nettverkstilgang.** `nais.yaml:24–27` tillater inbound fra alle applikasjoner i alle namespace. Begrens regelen til navngitte innringere, og kontroller at den samsvarer med autentiseringen.
+4. **Høy: Ufullstendig token-validering og autorisering ved opprettelse.** `App.kt:40–43` sjekker bare at `audience` finnes; den sammenlignes ikke med forventet audience. `Routes.kt:25–27` lar dessuten en autentisert innringer velge vilkårlig `fnr` og `sakId`. Verifiser issuer, audience og signatur mot TokenX-oppsettet, og autoriser innringeren for saken.
+5. **Høy: Fødselsnummer i ordinær logg.** `VedtakService.kt:15` logger `fnr` ved både API- og Kafka-behandling. Fjern verdien fra standardloggen. Endepunktet som viser vedtak har heller ingen synlig særskilt tilgangslogg.
+6. **Høy: Kafka kan stoppe behandling eller opprette duplikater.** `VedtakConsumer.kt:24–27, 32–33` lagrer vedtak før publisering. Ved feil i publisering eller offset-commit prøves samme melding på nytt og et nytt vedtak lagres. Feil ved deserialisering eller siste forsøk avslutter også consumer-tråden, mens HTTP-serveren fortsetter. Gjør behandlingen idempotent og sørg for at feil gir synlig, gjenopptakbar behandling.
+7. **Bekymring: Manglende driftsoppsett.** `App.kt:23, 26–35` setter kun JDBC-URL og Kafka-brokere; koden viser ikke databaselegitimasjon eller Kafka-autentisering/TLS. Det finnes heller ingen migrering som oppretter `vedtak`-tabellen. Bekreft oppsettet før deploy.
+
+**Kontrollomfang:** Jeg leste hele diffen fra felles base mot `main`, berørt Kotlin-kode, `nais.yaml`, byggfilen og eksisterende kode som er relevant for funnene. Arbeidstreet har ingen staged, unstaged eller untracked endringer. SQL, tilgang, input og logging har konkrete funn over. Jeg fant ikke hardkodede secrets, filopplasting, HTML-rendering, CORS-endringer eller endrede GitHub Actions-workflows i diffen; dette beviser ikke at avhengighetene er sårbarhetsfrie. `trivy` og `zizmor` er ikke installert, så sårbarhets- og workflow-skann er **ikke utført**.
+
+🔴 Rød sone: tilgangskontroll, token-validering og vedtakslogikk må gjennomgås grundig. Still gjerne spørsmål om valgene over.

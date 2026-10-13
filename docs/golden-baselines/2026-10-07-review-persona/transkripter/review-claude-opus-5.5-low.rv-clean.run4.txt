@@ -1,0 +1,25 @@
+
+
+### Oppsummering
+Jeg fant ingen blokkerende feil i filen. Fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet, ikke fra en parameter brukeren styrer, så brukeren kan bare se sine egne saker. SQL-en bruker bundne parametere, og fødselsnummeret maskeres i loggen. Jeg kjørte ikke `mise check`, fordi prosjektet mangler mise-oppsett og tester.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 41 | 🟡 | Feilloggen tar bare med klassenavnet og mister stacktrace og årsak |
+| `SakService.kt` | 38–43 | 🟡 | `try`/`catch` som logger og kaster videre gir dobbel logging |
+| `SakService.kt` | 50 | 🟡 | `pid` valideres ikke mot formatet til et fødselsnummer |
+| `SakService.kt` | 20 | 💭 | `maskert()` er udokumentert og uten test |
+| `nais.yaml` | – | 🟡 | `accessPolicy` og ressursgrenser mangler |
+| – | – | 🟡 | Ingen tester for ruten eller tjenesten |
+
+### Detaljer
+- **Linje 41:** Uten `e` som siste argument til `log.error` blir feilsøking i produksjon vanskelig. Unntaket fra JDBC inneholder ikke fødselsnummeret ved en vanlig `SELECT`, så `log.error("Kunne ikke hente saker", e)` er trygt. Alternativt kan unntaket pakkes inn med kontekst.
+- **Linje 38–43:** Ktor eller StatusPages logger unntaket en gang til. Velg ett sted å logge: enten her uten å kaste videre, eller fjern `catch`.
+- **Linje 50:** 🔴 Rød sone: autentiseringsgrensen, gå gjennom denne nøye. Et tomt eller ugyldig `pid` gir i dag et unødvendig databasekall. Sjekk at verdien er 11 sifre før oppslaget.
+- **nais.yaml:** Tjenesten tar imot TokenX-kall, men `accessPolicy.inbound` mangler. Da får ingen kalle tjenesten via TokenX, og tilgangene er ikke dokumentert i manifestet. Ressursgrenser (`resources`) mangler også.
+- **Tester:** Mangler for disse tilfellene: et token uten `pid` skal gi 401, brukeren skal bare få sine egne saker, og `maskert()` skal ikke lekke sifre.
+
+Still gjerne spørsmål om valgene over.
+

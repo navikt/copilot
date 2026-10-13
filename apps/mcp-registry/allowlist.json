@@ -12,8 +12,7 @@
         "url": "https://github.com/github/github-mcp-server",
         "source": "github"
       },
-      "tools": ["get_file_contents", "search_repositories", "issue_read", "list_issues", "issue_write", "pull_request_read", "list_pull_requests", "create_pull_request", "search_code", "get_commit", "list_commits", "create_branch", "list_branches"],
-      "toolRisk": {"issue_write": "external", "create_pull_request": "external", "create_branch": "external"},
+      "tools": ["get_file_contents", "search_repositories", "issue_read", "list_issues", "pull_request_read", "list_pull_requests", "search_code", "get_commit", "list_commits", "list_branches"],
       "tags": ["developer-tools", "version-control", "github"],
       "examples": [
         {
@@ -21,14 +20,18 @@
           "prompt": "Søk etter autentiseringsmiddleware i navikt/fp-sak"
         },
         {
-          "scenario": "Opprett en issue",
-          "prompt": "Opprett en issue i navikt/dp-soknad om å oppgradere Kotlin-versjonen"
+          "scenario": "Les åpne pull requests",
+          "prompt": "Vis åpne pull requests i navikt/dp-soknad som venter på review"
         }
       ],
       "remotes": [
         {
           "type": "streamable-http",
-          "url": "https://api.githubcopilot.com/mcp/"
+          "url": "https://api.githubcopilot.com/mcp/",
+          "headers": [
+            {"name": "X-MCP-Readonly", "value": "true", "description": "Read-only tools only, per the approval"},
+            {"name": "X-MCP-Lockdown", "value": "true", "description": "Lockdown mode, per the approval"}
+          ]
         }
       ]
     },
@@ -308,6 +311,71 @@
               "name": "--block-service-workers",
               "description": "Prevent service worker interception of network requests"
             }
+          ]
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "build.astro.docs/astro-docs-mcp",
+      "description": "Search the public Astro documentation.",
+      "version": "1.0.0",
+      "status": "active",
+      "publishedAt": "2026-10-11T00:00:00Z",
+      "websiteUrl": "https://docs.astro.build/en/guides/build-with-ai/#astro-docs-mcp-server",
+      "repository": {
+        "url": "https://github.com/withastro/docs-mcp",
+        "source": "github"
+      },
+      "tools": ["search_astro_docs"],
+      "tags": ["frontend", "astro", "documentation"],
+      "examples": [
+        {
+          "scenario": "Søk i Astro-dokumentasjon",
+          "prompt": "Hvordan lager jeg dynamiske ruter i Astro?"
+        }
+      ],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://mcp.docs.astro.build/mcp"
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "com.google/chrome-devtools-mcp",
+      "description": "Inspect performance, network, and console in an isolated Chrome via DevTools.",
+      "version": "1.10.1",
+      "status": "active",
+      "publishedAt": "2026-10-11T00:00:00Z",
+      "websiteUrl": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+      "repository": {
+        "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+        "source": "github"
+      },
+      "tools": ["click", "close_page", "drag", "emulate", "evaluate_script", "fill", "fill_form", "get_console_message", "get_css_styles", "get_network_request", "handle_dialog", "hover", "lighthouse_audit", "list_console_messages", "list_network_requests", "list_pages", "navigate_page", "new_page", "performance_analyze_insight", "performance_start_trace", "performance_stop_trace", "press_key", "resize_page", "select_page", "take_heapsnapshot", "take_screenshot", "take_snapshot", "type_text", "upload_file", "wait_for"],
+      "toolRisk": {"click": "external", "close_page": "external", "drag": "external", "emulate": "external", "evaluate_script": "external", "fill": "external", "fill_form": "external", "handle_dialog": "external", "hover": "external", "lighthouse_audit": "external", "navigate_page": "external", "new_page": "external", "performance_start_trace": "external", "press_key": "external", "resize_page": "external", "select_page": "external", "type_text": "external", "upload_file": "external"},
+      "tags": ["frontend", "browser-automation", "performance", "developer-tools"],
+      "examples": [
+        {
+          "scenario": "Ytelsesanalyse",
+          "prompt": "Ta et ytelsesspor av forsiden på localhost:3000 og forklar hva som gjør LCP treg"
+        }
+      ],
+      "packages": [
+        {
+          "registryType": "npm",
+          "identifier": "chrome-devtools-mcp",
+          "version": "1.10.1",
+          "runtimeHint": "node",
+          "transport": {
+            "type": "stdio"
+          },
+          "packageArguments": [
+            {"type": "named", "name": "--isolated", "description": "Use a temporary profile that is deleted on close"},
+            {"type": "named", "name": "--no-usage-statistics", "description": "Turn off usage statistics to Google"},
+            {"type": "named", "name": "--no-performance-crux", "description": "Do not send trace URLs to the CrUX API"}
           ]
         }
       ]

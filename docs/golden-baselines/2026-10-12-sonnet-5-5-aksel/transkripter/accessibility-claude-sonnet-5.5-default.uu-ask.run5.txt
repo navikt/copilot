@@ -1,0 +1,26 @@
+● Read StatusPanel (shell)
+  │ cat src/app/komponenter/StatusPanel.tsx; ls .github/instructions 2>/dev/null | head -3
+  └ 22 lines…
+
+● Add listbox to StatusPanel (shell)
+  │ python3 - <<'E'
+  │ p='src/app/komponenter/StatusPanel.tsx'
+  │ s=open(p).read()
+  │ s=s.replace('''export function StatusPanel({ status, onSlett }) {
+  │ const [apen, setApen] = useState(false);…
+  └ 86 lines…
+
+Lagt til en listbox i `src/app/komponenter/StatusPanel.tsx`. Jeg fikk ikke kjørt typesjekk, for TypeScript er ikke installert i prosjektet. Koden er heller ikke testet i nettleser eller med skjermleser.
+
+- **Roller og attributter:** `<ul role="listbox">` med `<li role="option">`, `aria-selected`, `aria-labelledby` og `aria-activedescendant`.
+- **Tastatur:** Piltaster, Home, End og Enter/mellomrom, i tillegg til klikk. Listen har `tabIndex={0}`, og aktivt valg har synlig fokusramme.
+- **Ikke bare farge:** Valgt status vises også med teksten «(valgt)».
+- **Props:** Valget sendes ut via ny prop `onStatusEndring`.
+- **Statusverdier:** Jeg har antatt verdiene `ny`, `pagaende`, `feil` og `ferdig`. Bytt dem mot de riktige.
+
+🔴 Rød sone: en egendefinert ARIA-rolle krever manuell tastatur- og skjermlesertest (VoiceOver). Aksel `Select` eller `RadioGroup` har innebygd UU og er tryggere hvis du ikke trenger en egen listbox.
+
+Eksisterende UU-feil i filen er ikke rørt: `div onClick`, `outline: none`, `tabIndex={5}` og ikonknappen uten tilgjengelig navn.
+
+Still gjerne spørsmål om valgene over.
+

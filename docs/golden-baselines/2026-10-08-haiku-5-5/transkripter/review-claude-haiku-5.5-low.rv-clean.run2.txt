@@ -1,0 +1,20 @@
+### Sammendrag
+
+`SakService.kt` er trygg å merge. SQL-spørringen er parameterisert, fødselsnummeret hentes fra token (ikke fra input), og loggingen skjuler fnr og logger bare feiltypen. Jeg fant ingen blokkerere.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 20 | 💭 | `maskert()` beholder lengden på fnr (11 tegn), så lengden lekker. Vurder fast maske, for eksempel `"***********"`. |
+| `SakService.kt` | 19–20 | 💭 | KDoc-en sier «Skjuler hele fødselsnummeret», men funksjonen er en generell `String`-extension. Navnet og kommentaren gir en mer spesifikk tolkning enn koden har. |
+| `SakService.kt` | 26 | 🟡 | Spørringen har ingen `LIMIT`. En person med mange saker gir et ubegrenset svar. Vurder paginering. |
+| `SakService.kt` | 38–43 | 💭 | `try/catch` logger og kaster feilen videre. Logging på samme nivå flere steg opp gir dobbeltlogging. Det er ikke feil, bare støy. |
+
+### Detaljer
+
+- **Eierskap (OK):** `fnr` kommer fra `pid`-claimen i validert `tokenx`-token (linje 50), så brukeren kan bare hente egne saker.
+- **Autentisering (OK):** Ruten er wrappet i `authenticate("tokenx")`. Validering av issuer og audience ligger i auth-konfigurasjonen, som jeg ikke har lest.
+- **SQL (OK):** `fnr` sendes som parameter via `queryOf`.
+
+Jeg kjørte ikke `mise check`. Stien `apps/<app-name>` finnes ikke her, og filen er ikke en del av et verifiserbart prosjekt i dette repoet.

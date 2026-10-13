@@ -1,0 +1,42 @@
+
+
+## Gjennomgang av `vedtak-kafka` mot `main` (commit 8ecc054)
+
+Jeg kjørte ikke `mise check`, fordi repoet mangler både mise-oppsett og Gradle wrapper. Funnene under kommer fra å lese diffen.
+
+### Oppsummering
+Lagdelingen er ryddig (Consumer, Service, Repository), og `lagre`/`hentForSak` bruker parameteriserte spørringer. Branchen er likevel ikke klar for merge. Den har SQL-injeksjon, et endepunkt uten auth som returnerer fødselsnummer (FNR), FNR i logger, en ufullstendig JWT-validering og Kafka-håndtering som kan gi dupliserte vedtak.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og har ingen eierskapssjekk |
+| `Routes.kt` | 30 | 🔴 | FNR i URL-stien havner i access-logger og proxy-logger |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger FNR |
+| `App.kt` | 39–43 | 🔴 | JWT-oppsettet mangler verifier (JWKS), issuer og en sjekk av hvilken audience som er gyldig. Alle tokens med en audience godtas. |
+| `Routes.kt` | 24–28 | 🔴 | `POST /api/vedtak` sjekker ikke tilgang. Alle innloggede kan fatte vedtak på hvem som helst. |
+| `nais.yaml` | 23–26 | 🔴 | `inbound: application "*" namespace "*"` åpner tjenesten for hele clusteret |
+| `VedtakConsumer.kt` | 24–25, 34 | 🔴 | Ikke idempotent: ny levering eller retry etter DB-skriving gir nytt vedtak med ny UUID. Ingen dedup på `soknadId`. |
+| `VedtakConsumer.kt` | 24, 26 | 🔴 | Ved ugyldig JSON eller feil etter 3 forsøk stopper tråden. Consumeren dør uten at det merkes og blir hengende i et poison-pill-mønster, mens `/isready` fortsatt svarer OK. |
+| `nais.yaml` | 15 | 🟡 | `pool: nav-dev` er hardkodet, så prod-deploy treffer feil pool |
+| `App.kt` | 24 | 🟡 | Hikari mangler brukernavn og passord. Nais-variablene heter `NAIS_DATABASE_*`, så `DB_JDBC_URL` blir sannsynligvis null. |
+| `App.kt` | 26–33 | 🟡 | Kafka mangler SSL/keystore-oppsett (`KAFKA_KEYSTORE_PATH` m.fl.) og kobler ikke til Aiven |
+| — | — | 🟡 | Ingen Flyway-migrasjon for tabellen `vedtak` |
+| — | — | 🟡 | Ingen tester for service, consumer eller ruter. Rød sone: kjernelogikk og auth. |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gir ikke-deterministiske tester. Injiser `Clock`. |
+| `VedtakService.kt` | 4 | 💭 | `Locale` importeres uten å bli brukt |
+| `build.gradle.kts` | 13 | 💭 | Ny `dependencies`-blokk i stedet for å utvide den som finnes |
+| `Routes.kt` | 31 | 💭 | `!!` gir 500 i stedet for 400 |
+
+### Detaljer om blokkerne
+🔴 Rød sone: auth og tilgangskontroll, gå gjennom dette nøye.
+
+- **SQL:** bruk `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`.
+- **Oppslag:** flytt det inn i `authenticate`. Ta FNR fra tokenets `pid`-claim, eller fra request body eller header (POST), ikke fra stien. Sjekk at kalleren har lov til å se personen.
+- **JWT:** sett `verifier(jwkProvider, TOKEN_X_ISSUER)` og krev `audience == TOKEN_X_CLIENT_ID`.
+- **Kafka:** legg på en unik constraint på `soknad_id`, og gjør skrivingen til `INSERT ... ON CONFLICT DO NOTHING`. Ta parse-feil i `try/catch` og send dem til en DLQ eller logg dem uten FNR. La feil i consumeren gjøre at `isready`/`isalive` svarer feil.
+
+Still gjerne spørsmål om valgene over.
+

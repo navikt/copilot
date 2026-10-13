@@ -1,0 +1,58 @@
+● List directory .
+  └ 6 files found
+
+● Check repository setup and local Copilot files (shell)
+  │ for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md; do if
+  │ test -f "$f"; then echo "$f: present"; else echo "$f: missing"; fi; done; ls -la | head -40
+  └ 12 lines…
+
+● List directory vedtak-api
+  └ 3 files found
+
+● List directory src
+  └ 1 file found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+/ Search (glob)
+  │ ".github/**"
+  └ 26 files found
+
+/ Search (glob)
+  │ "**/*.{kt,kts,yaml,yml}"
+  └ 10 files found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+**Fase 1: Avklaring.** Dette er en ny tjeneste med innlogging og fødselsnummer, så jeg stopper før arkitektur og kode. Repoet har en enkel Ktor-tjeneste og et Nais-manifest, men ingen ID-porten-konfigurasjon. Jeg antar at fødselsnummeret gjelder den innloggede innbyggeren.
+
+1. Skal dette være en ny tjeneste ved siden av `demo-tjeneste`, eller skal den eksisterende tjenesten bygges om? Hvem skal kunne kalle den, og hva skal tjenesten gjøre med fødselsnummeret?
+2. Skal fødselsnummeret bare brukes under forespørselen, eller lagres eller sendes det videre? Hvilke andre personopplysninger inngår?
+3. Hva skal skje hvis innlogging eller en avhengighet feiler? Finnes det andre team eller konsumenter vi må ta hensyn til?
+4. Er ID-porten og Ktor kjent teknologi for teamet, eller ønsker dere å gå gjennom innloggingsflyten før vi lager en plan?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette repo-lokal Copilot-konfigurasjon. Teststrategi, målinger og utrulling avklarer vi i planen. Bakoverkompatibilitet og utfasing er ikke relevante før vi vet om den eksisterende tjenesten skal endres.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #5, #6, #11; #4, #7, #8, #9 og #10 avventes eller er foreløpig ikke relevante).
+

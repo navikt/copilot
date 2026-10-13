@@ -1,0 +1,14 @@
+🔍 Jeg leser tjenesten og Kotlin-/sikkerhetsinstruksjonene, og finner riktig `mise check`-kommando før jeg vurderer funnene.
+
+📊 Tjenesten bruker TokenX, men jeg sjekker hvordan prosjektet validerer identitetskrav og om det har egne build-/testkontroller.
+
+### Sammendrag
+Jeg fant ingen blocker i `SakService.kt`. Spørringen bruker parameterbinding, og endepunktet henter fødselsnummeret fra den autentiserte TokenX-prinsipalens `pid`-claim. Koden logger ikke fødselsnummeret i klartekst.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/sak/SakService.kt` | 40–42 | 🟡 | Feilen logges bare med klassenavnet før den kastes videre. Loggen gir lite hjelp ved feilsøking og kan bli overflødig hvis Ktor logger feilen senere. Fjern `catch`-blokken, eller håndter loggingen ett sted med nok kontekst uten å ta med personopplysninger. |
+
+`mise check` kunne ikke kjøres fordi repoet ikke har en slik oppgave. `gradle test` stoppet under konfigurering: Kotlin 2.1.0 klarte ikke å tolke Java-versjonen 27 i miljøet. Ingen tester ble kjørt.

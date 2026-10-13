@@ -1,0 +1,39 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        code-review
+# suite:        review
+# date:         2026-10-11
+# revision:     8c9407ed
+# model:        gpt-6.1-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      2929655385
+# prompts:      rv1,rv2
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+cr-kotlin|1|b63ada8f-f8b1-4944-ae24-08a52fdcae61|22009|0|gpt-6.1-sol|low|14591|19|0|14588|0|3666600000|1515|1340.141625|tool_calls||
+cr-kotlin|1|b63ada8f-f8b1-4944-ae24-08a52fdcae61|22011|0|gpt-6.1-sol|low|20286|99|14588|5695|0|1669230000|2514|2479.771375|tool_calls||
+cr-kotlin|1|b63ada8f-f8b1-4944-ae24-08a52fdcae61|22013|0|gpt-6.1-sol|low|20777|230|20283|491|0|556180000|3311|3263.047667|tool_calls||
+cr-kotlin|1|b63ada8f-f8b1-4944-ae24-08a52fdcae61|22015|0|gpt-6.1-sol|low|21508|225|20774|731|38|616090000|3718|2082.466208|tool_calls||
+cr-kotlin|1|b63ada8f-f8b1-4944-ae24-08a52fdcae61|22017|0|gpt-6.1-sol|low|23253|262|21505|1745|0|913900000|4662|1094.424792|stop||
+cr-kotlin|2|4bbda62e-639b-4a7a-93f7-83e8abc26c01|22019|0|gpt-6.1-sol|low|14594|19|3104|11487|0|2922390000|2327|1777.609166|tool_calls||
+cr-kotlin|2|4bbda62e-639b-4a7a-93f7-83e8abc26c01|22021|0|gpt-6.1-sol|low|20289|160|14591|5695|0|1730260000|2743|2556.2576670000003|tool_calls||
+cr-kotlin|2|4bbda62e-639b-4a7a-93f7-83e8abc26c01|22023|0|gpt-6.1-sol|low|20884|231|20286|595|0|583210000|3173|3009.898916|tool_calls||
+cr-kotlin|2|4bbda62e-639b-4a7a-93f7-83e8abc26c01|22026|0|gpt-6.1-sol|low|21801|276|20881|917|28|714660000|4580|2329.185041|stop||
+cr-kotlin|3|c74873f7-bb91-4dd0-b635-2f1beeb9505a|22027|0|gpt-6.1-sol|low|14591|19|3104|11484|0|2921640000|2122|1826.798375|tool_calls||
+cr-kotlin|3|c74873f7-bb91-4dd0-b635-2f1beeb9505a|22029|0|gpt-6.1-sol|low|20286|123|14588|5695|0|1693230000|3070|2955.669125|tool_calls||
+cr-kotlin|3|c74873f7-bb91-4dd0-b635-2f1beeb9505a|22031|0|gpt-6.1-sol|low|21029|261|20283|743|0|650180000|3556|3492.255542|tool_calls||
+cr-kotlin|3|c74873f7-bb91-4dd0-b635-2f1beeb9505a|22034|0|gpt-6.1-sol|low|21618|330|21026|589|35|688110000|5844|2407.862958|stop||
+cr-kotlin|4|4842785f-3530-433b-928e-3f3aa801088c|22036|0|gpt-6.1-sol|low|14590|19|3104|11483|0|2921390000|3671|3460.916333|tool_calls||
+cr-kotlin|4|4842785f-3530-433b-928e-3f3aa801088c|22039|0|gpt-6.1-sol|low|20285|254|14587|5695|0|1824220000|4319|1162.187375|tool_calls||
+cr-kotlin|4|4842785f-3530-433b-928e-3f3aa801088c|22041|0|gpt-6.1-sol|low|21201|238|20282|916|0|670420000|3762|3759.302209|tool_calls||
+cr-kotlin|4|4842785f-3530-433b-928e-3f3aa801088c|22043|0|gpt-6.1-sol|low|22643|61|21198|1442|17|634080000|1772|1442.45725|tool_calls||
+cr-kotlin|4|4842785f-3530-433b-928e-3f3aa801088c|22045|0|gpt-6.1-sol|low|22775|366|22640|132|0|626000000|6207|983.5258329999999|stop||
+cr-kotlin|5|01acaeb3-c3b8-4a8c-bab5-a67eabc09ce1|22048|0|gpt-6.1-sol|low|14592|19|3104|11485|0|2921890000|2071|1927.080042|tool_calls||
+cr-kotlin|5|01acaeb3-c3b8-4a8c-bab5-a67eabc09ce1|22050|0|gpt-6.1-sol|low|20287|122|14589|5695|0|1692240000|2425|2302.51575|tool_calls||
+cr-kotlin|5|01acaeb3-c3b8-4a8c-bab5-a67eabc09ce1|22052|0|gpt-6.1-sol|low|21029|204|20284|742|0|592940000|2866|2770.730417|tool_calls||
+cr-kotlin|5|01acaeb3-c3b8-4a8c-bab5-a67eabc09ce1|22054|0|gpt-6.1-sol|low|21507|323|21026|478|18|653360000|4976|2062.952459|stop||

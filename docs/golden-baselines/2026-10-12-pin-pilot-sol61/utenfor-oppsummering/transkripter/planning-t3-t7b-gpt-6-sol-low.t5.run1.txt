@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+Bruk **token exchange (OBO)**, slik at A får et nytt token med B som mottaker, i stedet for å videresende brukerens token direkte.
+
+For en **innbygger med ID-porten-token** bruker dere **TokenX**. For en **Nav-ansatt med Azure AD-token** bruker dere **Azure AD OBO**. B må validere tokenet og kontrollere at brukeren har tilgang til ressursen; Nais `accessPolicy` må i tillegg åpne for at A kan kalle B.
+

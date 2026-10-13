@@ -1,4 +1,4 @@
-// The site search (V11 in docs/nav-pilot-dokumentasjon-forslag.md): plain
+// The site search (V11 in copilot-intern beslutningslogg.md): plain
 // text matching in the browser over public/search-index.json, which
 // scripts/build-search-index.ts writes before `next dev` and `next build`.
 
@@ -6,7 +6,14 @@
  * One hit: a page, a heading on a page, or a news article. A page also carries
  * its meta description as `text`, so words in the body can find it (#1185).
  */
-export type SearchEntry = { href: string; title: string; context: string; text?: string };
+export type SearchEntry = {
+  href: string;
+  title: string;
+  context: string;
+  text?: string;
+  /** The page needs a login. The index holds its title, description and headings only. */
+  login?: true;
+};
 
 export const SEARCH_INDEX_URL = "/search-index.json";
 

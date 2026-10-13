@@ -1,0 +1,75 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+## Funn i `StatusPanel.tsx`
+
+| # | Linje | Problem | WCAG |
+|---|---|---|---|
+| 1 | `<div onClick>` | Ikke tastaturbetjent, ingen rolle, ingen tilstand. | 2.1.1, 4.1.2 |
+| 2 | `outline: "none"` | Fjerner fokusindikator. | 2.4.7 |
+| 3 | `tabIndex={5}` | Positiv tabindex ødelegger fokusrekkefølgen. Statusteksten er ikke interaktiv og skal ikke ha tabindex. | 2.4.3 |
+| 4 | `color: red/green` | Farge er eneste informasjonsbærer. Rødt og grønt er dårlig for fargeblinde, og kontrasten er uverifisert. | 1.4.1, 1.4.3 |
+| 5 | `<button><TrashIcon/></button>` | Ikonknapp uten tilgjengelig navn. | 4.1.2 |
+| 6 | Statusendring | Endringer annonseres ikke til skjermleser. | 4.1.3 |
+| 7 | Sletting | Ingen bekreftelse på destruktiv handling. | 3.3.4 |
+| 8 | `p-4 mx-8` | Tailwind-spacing i stedet for Aksel-tokens. | Aksel-standard |
+| 9 | Props | Mangler typer (`status`, `onSlett`). | |
+
+## Forslag
+
+```tsx
+import { useState } from "react";
+import { TrashIcon } from "@navikt/aksel-icons";
+import { Box, Button, HStack, Tag, VStack } from "@navikt/ds-react";
+
+type Status = "feil" | "ok";
+interface Props {
+  status: Status;
+  onSlett: () => void;
+}
+
+export function StatusPanel({ status, onSlett }: Props) {
+  const [apen, setApen] = useState(false);
+  return (
+    <Box padding="space-16" marginInline="space-32">
+      <VStack gap="space-8">
+        <HStack gap="space-8" align="center">
+          <Button
+            variant="tertiary"
+            aria-expanded={apen}
+            aria-controls="status-detaljer"
+            onClick={() => setApen(!apen)}
+          >
+            Vis detaljer
+          </Button>
+          <Tag variant={status === "feil" ? "error" : "success"} role="status">
+            {status === "feil" ? "Feil" : "OK"}
+          </Tag>
+          <Button
+            variant="danger"
+            icon={<TrashIcon aria-hidden />}
+            onClick={onSlett}
+          >
+            Slett
+          </Button>
+        </HStack>
+        <div id="status-detaljer" hidden={!apen}>
+          {/* detaljer */}
+        </div>
+      </VStack>
+    </Box>
+  );
+}
+```
+
+Endringene:
+- `Button` gir tastatur, fokusring og riktig rolle.
+- `Tag` gir kontrast og tekst i tillegg til farge.
+- Slettknappen har synlig tekst. Ønsker du bare ikon, bruk `title="Slett"` på `TrashIcon` og `aria-label`.
+- Spacing-tokenene (`space-16`, `space-32`) forutsetter Aksel v8+. Sjekk versjonen din.
+
+Bekreftelsesdialog (punkt 7) krever et valg: `Modal` i komponenten, eller bekreftelse hos kallende kode. Det er ikke lagt inn i forslaget.
+
+Jeg har ikke endret filen. Si fra hvis jeg skal bruke rettelsene, og legg gjerne til en `vitest-axe`-test.
+

@@ -4,15 +4,23 @@ Two independent Gradle projects: `cursor-debug` (symptom-only cursor pagination 
 
 Dependencies are pinned in each `build.gradle.kts`: Kotlin 2.1.20, Ktor 3.1.3 and Gradle 8.14.5 on JDK 21. The preflight uses the `gradle:8.14.5-jdk21` image pinned to digest `sha256:68e94b44fa717b894a559f555aaa491b855f94a0de689080f73e56da6c4a7479`. No application server or database is needed. Docker needs network access **only** to pull the image and warm the dependency cache; test runs use `--network none` and Gradle `--offline`.
 
-From the repository root, warm dependencies for each starter:
+`token-cache` (TokenX/Texas token cache for two APIs: per-user-and-audience key, configurable expiry margin and one shared exchange for concurrent requests) is the third
+project and adds `ktor-client-core`/`cio`/`mock` 3.1.3 and `kotlinx-serialization-json` 1.8.1.
+
+The evaluator never bind-mounts host paths (Colima without host mounts sees an empty
+directory). The Gradle cache is the Docker volume `nav-benchmark-gradle-cache`.
+Evaluations mount it read-only (`GRADLE_RO_DEP_CACHE`) and copy only the Gradle
+version cache into a throwaway home, so a candidate build cannot change the cache
+for later evaluations.
+From the repository root, warm it for each starter:
 
 ```sh
-root="$PWD/benchmark/realistic/kotlin"
-mkdir -p "$root/.cache"
-for task in cursor-debug status-feature; do
-  docker run --rm -e GRADLE_USER_HOME=/cache \
-    -v "$root/.cache:/cache" -v "$root/$task/workspace:/work" -w /work \
-    gradle@sha256:68e94b44fa717b894a559f555aaa491b855f94a0de689080f73e56da6c4a7479 gradle test --no-daemon --console=plain
+docker volume create nav-benchmark-gradle-cache
+for task in cursor-debug status-feature token-cache; do
+  tar -C "benchmark/realistic/kotlin/$task/workspace" -c . | docker run --rm -i \
+    -e GRADLE_USER_HOME=/cache --mount type=volume,src=nav-benchmark-gradle-cache,dst=/cache \
+    gradle@sha256:68e94b44fa717b894a559f555aaa491b855f94a0de689080f73e56da6c4a7479 \
+    sh -c 'mkdir /work && tar -x -C /work && cd /work && gradle test --no-daemon --console=plain'
 done
 ```
 

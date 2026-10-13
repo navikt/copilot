@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -109,6 +108,9 @@ func TestGHAuthFrom(t *testing.T) {
 	}{
 		{"file token", "✓ Logged in to github.com account x (/home/x/.config/gh/hosts.yml)", nil, ghAuthOK},
 		{"keyring", "✓ Logged in to github.com account x (keyring)", nil, ghAuthKeyring},
+		{"mixed storage", "Logged in to github.com account x (keyring)\nLogged in to github.com account y (/home/y/.config/gh/hosts.yml)", nil, ghAuthOK},
+		{"other host", "Logged in to github.example.com account x (keyring)", nil, ghAuthOK},
+		{"unknown storage", "diagnostic mentions (keyring)", nil, ghAuthOK},
 		{"not signed in", "You are not logged into any GitHub hosts.", exit("1"), ghAuthNone},
 		{"killed at the deadline", "", exit("137"), ghAuthUnknown},
 		{"did not start", "", errors.New("boom"), ghAuthUnknown},
@@ -123,28 +125,39 @@ func TestReportGHAuth(t *testing.T) {
 	stubSSH(t, false)
 	out := func(client string, st ghAuth) string {
 		var b bytes.Buffer
-		reportGHAuth(&b, "", client, st, "timeout")
+		reportGHAuth(&b, "", client, "auto", st, "timeout")
 		return b.String()
 	}
 	if s := out("copilot", ghAuthNone); !strings.Contains(s, "gh auth login") || strings.Contains(s, "insecure") {
 		t.Errorf("copilot, not signed in: %q", s)
 	}
+	if s := out("copilot", ghAuthNone); !strings.Contains(s, "gh auth login --hostname github.com --web") || !strings.Contains(s, "launch will continue") {
+		t.Errorf("Copilot host recovery: %q", s)
+	}
 	if s := out("copilot", ghAuthKeyring); !strings.Contains(s, "signed in") {
 		t.Errorf("copilot, keyring: %q", s)
+	}
+	if s := out("copilot", ghAuthOK); !strings.Contains(s, "has not verified secure storage") {
+		t.Errorf("plaintext must not promise secure storage: %q", s)
 	}
 	if s := out("copilot", ghAuthMissing); !strings.Contains(s, "not installed") {
 		t.Errorf("missing: %q", s)
 	}
-	if s := out("copilot", ghAuthUnknown); !strings.Contains(s, "timeout") {
+	if s := out("copilot", ghAuthUnknown); !strings.Contains(s, "timeout") || strings.Contains(s, "gh auth login") {
 		t.Errorf("unknown: %q", s)
 	}
-	s := out("opencode", ghAuthKeyring)
-	if runtime.GOOS == "darwin" {
-		if !strings.Contains(s, "gh auth login --insecure-storage") {
-			t.Errorf("opencode on macOS with a Keychain token: %q", s)
+	for _, client := range []string{"copilot", "opencode", "pi"} {
+		for _, state := range []ghAuth{ghAuthNone, ghAuthKeyring} {
+			s := out(client, state)
+			if strings.Contains(s, "--insecure-storage") {
+				t.Errorf("%s must keep secure storage: %q", client, s)
+			}
+			if state == ghAuthKeyring && !strings.Contains(s, "Sandbox authentication remains unverified") {
+				t.Errorf("%s host status must not promise sandbox auth: %s", client, s)
+			} else if state == ghAuthNone && (!strings.Contains(s, hostGHLoginCommand) || !strings.Contains(s, hostGHRestartCommand)) {
+				t.Errorf("%s secure host recovery: %s", client, s)
+			}
 		}
-	} else if !strings.Contains(s, "signed in") {
-		t.Errorf("opencode, keyring off macOS: %q", s)
 	}
 }
 
@@ -170,7 +183,7 @@ func stubSSH(t *testing.T, ssh bool) {
 func TestReportGHAuthSSHOrigin(t *testing.T) {
 	stubSSH(t, true)
 	var b bytes.Buffer
-	reportGHAuth(&b, "", "copilot", ghAuthOK, "")
+	reportGHAuth(&b, "", "copilot", "auto", ghAuthOK, "")
 	if s := b.String(); strings.Contains(s, "push branches") || !strings.Contains(s, "insteadOf") {
 		t.Errorf("SSH origin: %q", s)
 	}

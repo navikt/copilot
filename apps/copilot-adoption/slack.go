@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -18,8 +20,11 @@ type SlackNotifier struct {
 }
 
 type slackMessage struct {
-	Text   string       `json:"text"`
-	Blocks []slackBlock `json:"blocks,omitempty"`
+	// Channel is honoured by legacy incoming webhooks such as the Nais
+	// slack-webhook secret; app-scoped webhooks ignore it.
+	Channel string       `json:"channel,omitempty"`
+	Text    string       `json:"text"`
+	Blocks  []slackBlock `json:"blocks,omitempty"`
 }
 
 type slackBlock struct {
@@ -59,8 +64,7 @@ func (s *SlackNotifier) NotifyScanResult(ctx context.Context, totalRepos, scanne
 	text := fmt.Sprintf("%s *Copilot Adoption Scan – %s*\n\n"+
 		"Scanned *%d of %d* repositories for AI tool configurations.\n"+
 		"• Errors: %d repositories could not be scanned\n\n"+
-		"📊 *Impact*: Adoption metrics may be incomplete for some teams.\n"+
-		"👤 *Contact*: #copilot-support",
+		"📊 *Impact*: Adoption metrics may be incomplete for some teams.",
 		emoji, status, scannedRepos, totalRepos, errorCount)
 
 	s.send(ctx, text)
@@ -71,7 +75,7 @@ func (s *SlackNotifier) NotifyError(ctx context.Context, message string) {
 	if s == nil {
 		return
 	}
-	text := fmt.Sprintf("🔴 *Copilot Adoption Scan – Failed*\n\n%s\n\n📊 *Impact*: Adoption tracking will not update until resolved.\n👤 *Contact*: #copilot-support", message)
+	text := fmt.Sprintf("🔴 *Copilot Adoption Scan – Failed*\n\n%s\n\n📊 *Impact*: Adoption tracking will not update until resolved.", message)
 	s.send(ctx, text)
 }
 
@@ -82,7 +86,8 @@ func (s *SlackNotifier) send(ctx context.Context, text string) {
 	}
 
 	msg := slackMessage{
-		Text: text,
+		Channel: cmp.Or(os.Getenv("SLACK_CHANNEL"), "#github-copilot-alerts"),
+		Text:    text,
 		Blocks: []slackBlock{
 			{
 				Type: "section",

@@ -1,0 +1,62 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Inspect project build files (shell)
+  │ ls -a | head -35
+  └ 8 lines…
+
+/ Search (grep)
+  │ "navn|konstant|const val|logging" (.github/instructions/kotlin.instructions.md)
+  └ No matches found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:75 (75 lines read)
+
+● Edit
+  │ Edit src/main/kotlin/no/nav/demo/Config.kt
+  │ Edit src/main/kotlin/no/nav/demo/Routes.kt
+  └ Edit src/main/kotlin/no/nav/demo/App.kt
+
+● Check build availability and rename references (shell)
+  │ ls -a | grep -E 'gradlew|mvnw|gradle' ; command -v gradle || true; rg -n 'maksAntall' src
+  └ 5 lines…
+
+✗ Run Kotlin project tests (shell)
+  │ gradle test --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+Jeg har endret `maksAntall` til `maksAntallOppgaver` i de tre filene, også i oppstartsloggen. Jeg valgte navnet fordi grensen gjelder antall oppgaver.
+
+**Verifisering:** `gradle test` stoppet under konfigurering av prosjektet med feilen `27`, før testene kunne kjøre.
+

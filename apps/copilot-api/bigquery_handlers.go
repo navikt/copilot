@@ -2,7 +2,9 @@ package main
 
 import (
 	"log/slog"
+	"math"
 	"net/http"
+	"sort"
 	"strconv"
 )
 
@@ -115,7 +117,61 @@ func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Req
 	}
 
 	cacheControl(w, 3600, false)
-	respondJSON(w, teams, http.StatusOK)
+	respondJSON(w, teamAdoptionOverview(teams), http.StatusOK)
+}
+
+// TeamAdoptionRow is a display-ready team row with rates as whole percent.
+type TeamAdoptionRow struct {
+	TeamSlug                string `json:"team_slug"`
+	TeamName                string `json:"team_name"`
+	ActiveRepos             int64  `json:"active_repos"`
+	RecentlyActiveRepos     int64  `json:"recently_active_repos"`
+	ReposWithCustomizations int64  `json:"repos_with_customizations"`
+	AdoptionPct             int64  `json:"adoption_pct"`
+	AdoptionActivePct       *int64 `json:"adoption_active_pct"`
+}
+
+// TeamAdoptionOverview lists teams with at least minTeamContributors active
+// repos. The summary counts only those teams, so hidden teams cannot be
+// recovered by subtracting visible rows from a total.
+type TeamAdoptionOverview struct {
+	Teams             []TeamAdoptionRow `json:"teams"`
+	TotalTeams        int               `json:"total_teams"`
+	TeamsWithAdoption int               `json:"teams_with_adoption"`
+	AdoptionPct       int64             `json:"adoption_pct"`
+	SmallTeams        int               `json:"small_teams"`
+}
+
+func pct(rate float64) int64 { return int64(math.Round(rate * 100)) }
+
+func teamAdoptionOverview(teams []TeamAdoption) TeamAdoptionOverview {
+	out := TeamAdoptionOverview{Teams: []TeamAdoptionRow{}}
+	for _, t := range teams {
+		if t.ActiveRepos <= 0 {
+			continue
+		}
+		if t.ActiveRepos < minTeamContributors {
+			out.SmallTeams++
+			continue
+		}
+		row := TeamAdoptionRow{t.TeamSlug, t.TeamName, t.ActiveRepos, t.RecentlyActiveRepos, t.ReposWithCustomizations, pct(t.AdoptionRate), nil}
+		if t.RecentlyActiveRepos > 0 {
+			active := pct(t.AdoptionRateActiveOnly)
+			row.AdoptionActivePct = &active
+		}
+		if t.ReposWithCustomizations > 0 {
+			out.TeamsWithAdoption++
+		}
+		out.Teams = append(out.Teams, row)
+	}
+	sort.SliceStable(out.Teams, func(i, j int) bool {
+		return out.Teams[i].ReposWithCustomizations > out.Teams[j].ReposWithCustomizations
+	})
+	out.TotalTeams = len(out.Teams)
+	if out.TotalTeams > 0 {
+		out.AdoptionPct = pct(float64(out.TeamsWithAdoption) / float64(out.TotalTeams))
+	}
+	return out
 }
 
 // handleCustomizationDetails handles GET /api/v1/copilot/customizations/details

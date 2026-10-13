@@ -1,0 +1,65 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ ".github/instructions/{kotlin,testing-kotlin,testing,security-owasp}.instructions.md"
+  └ 4 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● List directory .
+  └ 5 files found
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● List directory src
+  └ 1 file found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:180 (180 lines read)
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+Jeg legger beregningen som en ren funksjon med heltallsregning, slik at avrundingen blir eksakt uten flyttall. Jeg legger også til testoppsett, men kjører ikke Gradle.
+
+● Edit
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ Edit build.gradle.kts
+
+**Feriepengeberegningen er lagt til** i `Feriepenger.kt`, med enhetstester for satsene, aldersgrensen, avrunding og negativt grunnlag. Jeg la også til JUnit 5-oppsett slik at testene kan kjøres med Gradle. Jeg kjørte ikke Gradle, som avtalt.
+
+🔴 **Rød sone — forstå dette grundig:** Beregningen bruker 102 eller 125 promille og legger til 500 før heltallsdivisjon på 1000. Det gir 50 øre opp uten flyttallsavrunding. Ved review: sjekk særlig at alderen gjelder *opptjeningsåret*, at 60-årsgrensen er inkluderende, og at testene dekker begge satser. Heltallsregningen forutsetter, som avtalt, at overflyt ikke må håndteres. Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,66 @@
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,go.mod,nav-pilot-design.md}"
+  └ 3 files found
+
+● Inspect project and Copilot configuration (shell)
+  │ pwd; ls -la; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then echo "PRESENT $f"; else echo
+  │ "MISSING $f"; fi; done
+  └ 13 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*.{kt,yaml,yml,md}" in vedtak-api
+  └ 2 files found
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+/ Search (glob)
+  │ ".github/workflows/*"
+  └ No matches found
+
+**Fase 1 – avklaring.** Jeg tolker dette som en ny tjeneste, ikke en utvidelse av `demo-tjeneste`. Repoet har en enkel Ktor-tjeneste på Nais, men ingen ID-porten-konfigurasjon eller innlogging. Fnr er en personopplysning; jeg trenger å vite hvordan det skal brukes før vi velger løsning.
+
+1. Skal innbyggeren kalle tjenesten direkte via nettleser, eller kommer kallet fra en frontend/BFF? Hvem skal ellers kunne kalle eller lese fra tjenesten?
+2. Hva skal tjenesten gjøre med fnr etter innlogging: bruke det kun i forespørselen, sende det til en annen tjeneste, lagre det eller returnere det? Hvilket konkret behov skal den løse?
+3. Hvilken løsning eier dere allerede for innlogging og tokenvalidering, om noen? Er det eksisterende tjenester eller team denne tjenesten må samhandle med?
+4. Hva skal skje hvis innlogging eller en eventuell nedstrøms tjeneste feiler? Finnes det tester eller en utrullingsmåte vi må ta hensyn til?
+
+Jeg fant ikke `AGENTS.md` eller de to repo-lokale Copilot-instruksjonsfilene. `nav-pilot init` kan opprette dem senere. Plan og kode venter til dataflyt og tilgang er avklart.
+
+Blindsoner reist: 6/11 (#1 personvern, #2 tilgang, #3 feil, #5 teamgrenser, #6 konsumenter, #7 tester; #4 og #8–#11 avklares når tjenestens oppgave er kjent).
+

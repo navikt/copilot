@@ -1,0 +1,32 @@
+
+
+Jeg går gjennom diffen mot `main`, med særlig vekt på Kafka-behandling, datalagring og tilgangsstyring.
+
+
+
+
+
+
+
+
+
+### Gjennomgang
+
+**Jeg ville ikke merget `vedtak-kafka` ennå.** Endringene har flere uavhengige sikkerhets- og driftsfeil:
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak og fødselsnummer uten innlogging eller kontroll av eierskap. |
+| `VedtakRepository.kt:23` | 🔴 Blokkerer | `fnr` settes rett inn i SQL-strengen. En manipulert URL kan endre spørringen; bruk en parameterisert `queryOf`. |
+| `App.kt:40–42` | 🔴 Blokkerer | JWT-oppsettet mangler tokenverifikator, og `validate` kontrollerer ikke forventet audience eller avsender (`azp`). TokenX er derfor ikke satt opp for sikker tilgang til skriveendepunktet. |
+| `nais.yaml:23–26` | 🔴 Blokkerer | Inngående tilgang åpnes for alle applikasjoner i alle namespaces. Begrens regelen til konkrete kallere, særlig siden tjenesten håndterer vedtak og fødselsnummer. |
+| `VedtakService.kt:15` | 🔴 Blokkerer | Fødselsnummer skrives til logg ved både HTTP-kall og Kafka-behandling. Fjern personopplysningen fra loggmeldingen. |
+| `App.kt:26–35` | 🔴 Blokkerer | Kafka-klientene får bare brokeradresse, ikke TLS-/SASL-oppsettet som trengs for Nais Kafka. De vil ikke kunne koble seg til den konfigurerte poolen. |
+| `VedtakConsumer.kt:25`, `VedtakService.kt:17–23` | 🔴 Blokkerer | Ved retry opprettes et nytt vedtak med ny ID. Hvis publisering feiler etter lagring, lagres duplikater; hvis publisering lykkes før offset-commit feiler, kan samme hendelse publiseres på nytt. Behandlingen trenger en stabil hendelses-ID og idempotent lagring/publisering. |
+| `VedtakRepository.kt:14` | 🔴 Blokkerer | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen migrasjon som oppretter den. En ny database vil feile ved første innsetting. |
+| `App.kt:36` | 🟡 Forslag | Consumeren kjører i egen tråd uten feilhåndtering eller livssyklus. En ubehandlet feil stopper Kafka-behandlingen mens HTTP-tjenesten fortsetter å kjøre. |
+
+**Verifisering:** `git diff --check` ga ingen utslag. Jeg kunne ikke kjøre prosjektkontrollene: repoet har ingen `mise check`-oppgave, og lokal `gradle compileKotlin --offline` stopper under konfigurering av Kotlin-pluginen med feilen `27`. Funnene over er derfor basert på gjennomgang av diffen, ikke en vellykket kompilering.
+
+🔴 Rød sone: autentisering, tilgangskontroll, SQL og vedtakshåndtering må gjennomgås grundig før merge. Still gjerne spørsmål om valgene over.
+

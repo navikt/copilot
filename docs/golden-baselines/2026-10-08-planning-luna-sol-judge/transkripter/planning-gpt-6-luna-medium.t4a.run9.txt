@@ -1,0 +1,27 @@
+
+
+
+
+
+
+
+
+
+
+Repoet er en liten Kotlin/Ktor-tjeneste på Nais. `nais.yaml` har ikke ID-porten konfigurert, og jeg fant ikke `AGENTS.md` eller Copilot-instruksjonsfiler på rotnivå. Jeg antar at innbyggeren logger inn via ID-porten; tjenesten bør hente fødselsnummer fra en validert identitetsopplysning, ikke stole på et nummer sendt fra nettleseren.
+
+Før jeg kan planlegge løsningen, trenger jeg svar på dette:
+
+1. **Fødselsnummer:** Hva skal tjenesten bruke det til? Skal det lagres eller sendes videre, og i så fall til hvem og hvor lenge?
+2. **Tilgang:** Er det kun innloggede innbyggere som skal bruke tjenesten, eller skal andre tjenester eller saksbehandlere også ha tilgang?
+3. **Feil:** Hva skal skje hvis ID-porten eller en nødvendig nedstrømstjeneste er utilgjengelig?
+4. **Måling:** Hvilke tegn viser at tjenesten fungerer som den skal, uten å logge fødselsnummer?
+5. **Eierskap:** Eier teamet hele flyten, eller er dere avhengige av andre team?
+6. **Konsumenter:** Hvem skal bruke tjenestens API eller data, og finnes det krav til bakoverkompatibilitet?
+7. **Tester:** Finnes det testkrav eller eksisterende løsninger dere vil følge? Jeg fant ingen app-spesifikke tester i dette startprosjektet.
+8. **Kjennskap:** Er ID-porten/JWT-validering kjent for teamet, eller bør planen ta høyde for ekstra gjennomgang av sikkerhetsdelen?
+
+Modernisering er ikke relevant for en ny tjeneste. Bakoverkompatibilitet inngår i spørsmålet om konsumenter, og avvikling er ikke aktuelt ennå.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8 og #10 ikke relevante for en ny tjeneste; #9 dekket under #6).
+

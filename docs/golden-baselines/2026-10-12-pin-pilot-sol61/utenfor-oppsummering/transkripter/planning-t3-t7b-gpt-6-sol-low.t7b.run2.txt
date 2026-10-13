@@ -1,0 +1,65 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding" in *.{kt,kts,yaml,yml,md}
+  └ 3 lines found
+
+● Inspect repository root (shell)
+  │ ls -la | head -35
+  └ 8 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 5 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+/ Search (grep)
+  │ "Kafka|SoknadMottatt|sendMottatt|fnr|accessPolicy|encrypt|krypter" in **/*.{kt,yaml,md}
+  └ 43 lines found
+
+Jeg fant `SoknadMottattMelding` i `Soknad.kt`. Å legge til `fnr` endrer Kafka-meldingen og sprer en personopplysning til topicen `soknad-mottatt`. Koden bruker allerede fnr i en annen melding, men viser ikke hvem som leser denne topicen eller hvordan den er beskyttet. Jeg gjør derfor ingen kodeendring før dette er avklart.
+
+Hvilke tjenester leser `soknad-mottatt`, trenger alle fnr, og hvordan er tilgang og beskyttelse av meldingene ivaretatt? Tåler konsumentene et nytt obligatorisk felt, eller må det innføres bakoverkompatibelt? Jeg fant heller ingen `AGENTS.md` eller repo-lokal Copilot-instruksjon; `nav-pilot init` kan legge til dette.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 bakoverkompatibilitet; øvrige er ikke nødvendige for å avklare denne endringen).
+

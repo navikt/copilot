@@ -1,0 +1,27 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Repoet er et Ktor/Nais-demo med et generisk oppgave-endepunkt. Det har ingen ID-porten- eller tilgangskonfigurasjon, og jeg fant ikke repo-lokale Copilot-instruksjoner (`AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`). Jeg antar at demoet er utgangspunktet for den nye tjenesten. Kjør `nav-pilot init` hvis du vil legge til standard instruksjoner.
+
+Før jeg lager en plan, trenger jeg svar på dette:
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal den lagre eller sende det videre, og behandler den andre personopplysninger?
+2. Hvem skal bruke tjenesten: innbyggeren direkte via nettleser, eller også andre tjenester?
+3. Hvilke systemer eller team skal tjenesten utveksle data med? Hvem skal kunne lese resultatet?
+4. Er du kjent med ID-porten-integrasjonen og hvordan tjenesten mottar og bruker identiteten?
+
+Jeg fant ingen tester i repoet, så jeg legger til grunn at planen bør omfatte tester for innlogging og håndtering av fødselsnummer. Feilhåndtering for nedstrøms avhengigheter avhenger av hvilke systemer tjenesten skal kalle. Måling av tjenestens bruk og feilrate kan jeg ta med i planen. Modernisering, bakoverkompatibilitet og avvikling ser ikke relevante ut for en ny tjeneste.
+
+Blindsoner reist: 4/11 (#1, #2, #5, #6, #11 stilt; #3 avhenger av integrasjoner, #4 håndteres i planen, #7 repoet har ingen tester, #8–#10 ikke relevant)
+

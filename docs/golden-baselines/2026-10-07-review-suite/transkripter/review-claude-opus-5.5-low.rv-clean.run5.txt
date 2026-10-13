@@ -1,0 +1,29 @@
+
+
+
+### Oppsummering
+Jeg fant ingen blokkerende feil. Spørringen bruker parameter (`?`). Fødselsnummeret hentes fra `pid` i tokenet, så brukeren ser bare egne saker, og `App.kt:29` krever `idporten-loa-high`. Fødselsnummeret maskeres i loggene.
+
+Jeg kjørte ikke `mise check`, fordi repoet mangler `mise.toml`. Funnene bygger derfor bare på at jeg leste koden.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 23–31, 51–55 | 🟡 | JDBC-kallet blokkerer en Ktor-coroutine-tråd |
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges og kastes videre, så den kan bli logget to ganger |
+| `SakService.kt` | 19–20 | 🟡 | `maskert()` lekker lengden og gir ikke korrelasjon |
+| `SakService.kt` | – | 🟡 | Ingen tester |
+| `SakService.kt` | 41 | 💭 | `catch (e: Exception)` er for bredt |
+
+### Detaljer
+
+- **Blokkerende I/O:** `sessionOf`/`run` er synkrone og kjører rett i `get`-handleren. Under last kan det tømme trådene til Ktor og gi høy latens for alle endepunkter. Kjør kallet i `withContext(Dispatchers.IO)`, eller gjør `sakerFor` til en `suspend`-funksjon som gjør det.
+- **Dobbel logging:** Feilen logges med `log.error` og kastes så videre. Hvis `StatusPages` eller Ktor også logger den, havner samme stack trace to ganger i loggen. Velg ett sted: logg der feilen håndteres, eller pakk den inn med kontekst og kast den videre uten å logge.
+- **Maskering:** Tegnstrengen `***********` røper bare at det er 11 tegn, så den er trygg. Den sier likevel ingenting, så du kan ikke koble logglinjer for samme bruker. Ta enten bort fødselsnummeret helt («Henter saker for innlogget bruker») eller bruk en ikke-reversibel ID, for eksempel en saltet hash. 🔴 Rød sone: håndtering av personopplysninger i logger, gå gjennom dette nøye.
+- **Tester:** Det finnes ingen `src/test`. Legg til:
+  - en test av `sakRoutes` med MockOAuth2Server som sjekker 401 når `pid` mangler, og at bare egne saker returneres
+  - en test av repoet med Testcontainers som sjekker sorteringen på `opprettet`
+
+Still gjerne spørsmål om valgene over.
+

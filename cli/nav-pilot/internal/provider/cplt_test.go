@@ -32,10 +32,9 @@ func TestLaunchViaCplt_CpltNotFound(t *testing.T) {
 	}
 }
 
-// Without cplt, LaunchOpenCode runs opencode itself, as LaunchCopilotResolved
-// runs a plain copilot (#1028). Whether it may is the cli's question, asked
-// before this runs (confirmUnsandboxed, --no-sandbox).
-func TestLaunchOpenCodeWithoutCpltRunsOpenCode(t *testing.T) {
+// Without cplt, LaunchOpenCode fails and opencode never runs: nav-pilot does
+// not launch a client outside the sandbox.
+func TestLaunchOpenCodeWithoutCpltFails(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "ran")
 	if err := testhome.WriteExec(filepath.Join(dir, "opencode"), "#!/bin/sh\necho \"$@\" > "+marker+"\n"); err != nil {
@@ -49,12 +48,13 @@ func TestLaunchOpenCodeWithoutCpltRunsOpenCode(t *testing.T) {
 	// ~/.config/opencode (#565).
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	if err := LaunchOpenCode(domain.ResolvedConfig{Client: "opencode", Mode: "default"}); err != nil {
-		t.Fatalf("LaunchOpenCode without cplt: %v", err)
+	err := LaunchOpenCode(domain.ResolvedConfig{Client: "opencode", Mode: "default"})
+	if err == nil || !strings.Contains(err.Error(), "install cplt") {
+		t.Fatalf("LaunchOpenCode without cplt: want install guidance, got %v", err)
 	}
-	got, err := os.ReadFile(marker)
-	if err != nil || !strings.Contains(string(got), "--agent") {
-		t.Fatalf("opencode was not run with its arguments: %q, %v", got, err)
+	// A --version probe may run; a session would pass --agent.
+	if got, _ := os.ReadFile(marker); strings.Contains(string(got), "--agent") {
+		t.Fatalf("opencode ran without cplt: %q", got)
 	}
 }
 

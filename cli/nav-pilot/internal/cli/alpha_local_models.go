@@ -113,7 +113,7 @@ func printLocalModels(out io.Writer, m *local.Manifest) {
 		if e.Default {
 			status = append(status, "default")
 		}
-		switch ok, err := local.WeightsPresent(e.Model); {
+		switch ok, err := local.WeightsPresent(e.Model, e.Revision); {
 		case err != nil:
 			status = append(status, "cache unreadable")
 		case ok:
@@ -243,7 +243,7 @@ func cmdLocalUse(args []string) error {
 	local.SetSelectedModel(e.Model)
 	local.MarkSeen(local.PinnedAdvisory(m))
 
-	present, err := local.WeightsPresent(e.Model)
+	present, err := local.WeightsPresent(e.Model, e.Revision)
 	if err != nil {
 		return err
 	}

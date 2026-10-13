@@ -1,0 +1,49 @@
+● Inspect workspace and Copilot configuration (shell)
+  │ pwd; ls -la; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if [ -f "$f" ]; then echo "present: $f"; else echo
+  │ "missing: $f"; fi; done
+  └ 12 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● List directory src
+  └ 1 file found
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 1: Avklaringer.** Dette er ny behandling av fødselsnummer og ny autentisering, så jeg stopper før jeg lager plan eller endrer kode. Repoet er en liten Ktor-tjeneste på Nais. Det har ingen ID-porten-konfigurasjon, og `/api/oppgaver` har ingen tilgangskontroll i koden.
+
+1. Skal innloggede innbyggere kalle tjenesten direkte, eller kommer forespørslene via en frontend/BFF? Skal `/api/oppgaver` fortsatt være tilgjengelig, og i så fall for hvem?
+2. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, eller også lagres eller sendes videre? Behandles andre personopplysninger?
+3. Hvilken avhengighet skal tjenesten kalle, og hva skal skje når den ikke svarer?
+4. Hvem eier mottakeren og bruker API-et, og hvilke tester eller utrullingskrav har dere? Er Ktor og ID-porten kjent teknologi for teamet?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan legge til lokal Copilot-konfigurasjon. Jeg tar ikke opp tilbakeføring eller utfasing ennå, siden ingen erstatningstjeneste er beskrevet.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #5, #6, #7, #11; #4, #8–#10 avventer avklart løsning).
+

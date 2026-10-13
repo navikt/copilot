@@ -1,0 +1,45 @@
+● skill(klarsprak)
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 26 files found
+
+✗ Kjør prosjektets kodekontroller (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+Fant **to blokkere og ett forbedringspunkt** i `src/main/kotlin/no/nav/demo/UserRepo.kt`. Ingen kode er endret.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 8 | 🔴 Blokker | Fødselsnummer skrives til vanlig applikasjonslogg. Fjern `fnr` fra loggmeldingen for å unngå at personopplysninger lagres og spres i loggsystemet. |
+| 9 | 🔴 Blokker | `fnr` interpoleres direkte i SQL. Dette åpner for SQL-injeksjon dersom verdien kan påvirkes av en klient. Bruk `WHERE fnr = ?` og send `fnr` som parameter til `queryOf`. |
+| 12–13 | 🟡 Forslag | Alle unntak blir til `null`, samme resultat som når brukeren ikke finnes. Dermed skjules databasefeil for kalleren. La feilen propagere eller returner en eksplisitt feil, uten å logge fødselsnummer eller SQL med persondata. |
+
+🔴 Rød sone: SQL-injeksjon og logging av personopplysninger, gå gjennom dette nøye.
+
+`mise check` kunne ikke kjøres fordi prosjektet ikke definerer oppgaven `check`. Gjennomgangen er derfor statisk.
+

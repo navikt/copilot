@@ -1,0 +1,22 @@
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Avklaring.** Repoet er en enkel Ktor-demo med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten-oppsett eller tilgangsregler. Jeg legger til grunn at fødselsnummer er en personopplysning som ikke skal logges. Før jeg kan planlegge tjenesten, trenger jeg svar på:
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller bare brukes under én forespørsel? Behandles andre personopplysninger?
+2. Hvem skal kunne kalle tjenesten: innbygger via nettleser, en annen Nav-tjeneste eller begge? Skal den eksisterende åpne ruten beholdes?
+3. Skal denne demoen bygges om, eller er den bare et utgangspunkt for en ny tjeneste? Hvilket team eier eventuelle tjenester den må kalle?
+4. Hva skal skje hvis ID-porten eller en nedstrøms tjeneste ikke er tilgjengelig? Finnes det allerede tester eller kontrakter vi må bevare?
+5. Hvilke målinger skal vise at tjenesten fungerer, uten å registrere fødselsnummer?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan legge til lokal Copilot-konfigurasjon senere.
+
+Blindsoner reist: **8/11** (#1–#7 og #11; #8–#10 avhenger av om demoen skal erstattes og om eksisterende konsumenter finnes).
+

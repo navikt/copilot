@@ -1,0 +1,54 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Fase 2: Plan
+
+Bygg `demo-tjeneste` videre som et stateless Ktor-API. Innbyggeren logger inn i den eksisterende Next.js-frontenden med ID-porten og Wonderwall. Frontendens serverdel kaller API-et med TokenX, og Ktor-tjenesten bruker brukerens kontekst når den henter navn fra PDL.
+
+Jeg legger til grunn at API-et returnerer navn, men ikke fødselsnummer. Tjenesten leser fødselsnummer fra en validert ID-porten-identitet og bruker det bare i minnet under PDL-oppslaget. Den lagrer ikke personopplysninger.
+
+**Grenseflater og auth**
+
+- Frontend: ID-porten med Wonderwall. Serverdelen bruker TokenX for kall til `demo-tjeneste`.
+- Ktor-API: validerer TokenX og henter fødselsnummer fra den validerte brukerkonteksten. Nettleseren sender ikke fødselsnummer som input.
+- PDL: Ktor-tjenesten utveksler brukerens token for tilgang til PDL. Nøyaktig PDL-app, namespace, audience og scope må følge PDL-oppsettet.
+- API-kontrakt: `GET /api/person` returnerer bare opplysninger frontend trenger, foreløpig antatt å være navn.
+- PDL er utilgjengelig eller får timeout: API-et svarer 503 og logger feilen uten fødselsnummer, navn, token eller PDL-payload. Ingen retry, kø eller dead-letter.
+
+**Prosjektstruktur**
+
+Behold eksisterende `src/main/kotlin/no/nav/demo/` og del koden i ruter, auth, PDL-klient og målinger. Utvid `nais.yaml` i repo-roten. Legg til tester, Dockerfile og GitHub Actions-workflow; repoet har ingen av disse ennå. Frontendens ID-porten- og Wonderwall-oppsett ligger i frontend-repoet.
+
+**Nais og CI/CD**
+
+- Frontendens `accessPolicy` tillater kall til `demo-tjeneste`.
+- API-et aktiverer TokenX. `accessPolicy.inbound` tillater bare frontend-appen, og `outbound` tillater PDL. Bruk faktiske app- og namespace-navn fra Nais-oppsettet.
+- Behold health-endepunktene som allerede står i manifestet, og implementer dem i tjenesten. Legg til Prometheus-metrikker.
+- Start med `15m` CPU og `256Mi` minne som requests, og `512Mi` som minnegrense. Sett ikke CPU-grense.
+- Workflow bygger og tester, deployer til dev før prod og bruker SHA-pinnede GitHub Actions med minimale tillatelser.
+
+**Tester og drift**
+
+- Ktor API-tester dekker gyldig og ugyldig TokenX, manglende identitet, vellykket PDL-oppslag og PDL-feil med 503.
+- Mock PDL i tester. Verifiser at svaret ikke inneholder fødselsnummer, og at logger ikke inneholder fødselsnummer, navn eller token.
+- Frontendens kritiske innloggings- og oppslagsreise bør dekkes med E2E-test.
+- Mål oppslag per minutt og andel feilende kall. Bruk metrikker med begrensede labels, aldri personopplysninger.
+- Endringsdokumentasjon bør beskrive lovhjemmel, dataminimering, rollback og verifisering etter deploy. Rollback er å deploye forrige image; tjenesten lagrer ingen data.
+
+🔴 **Rød sone, utvikleren må forstå og gjennomgå nøye:** validering av ID-porten-/TokenX-identitet, uthenting av fødselsnummer fra claims, TokenX-utveksling mot PDL og tilgangskontroll. Dette er auth- og personvernkritisk. I leveringsfasen skal disse delene få testskjeletter og stubs, ikke ferdig implementasjon.
+
+🟢 **Grønn sone:** Ktor-oppsett, Nais-ressurser, CI/CD, målinger og testinfrastruktur.
+
+Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Neste fase er å gjennomgå planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Fase 3 og implementasjonen venter på godkjenning av denne planen.
+

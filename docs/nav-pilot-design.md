@@ -38,7 +38,7 @@ Uten en fast modell blir det lett:
 | Prinsipp              | Betydning                                                                         |
 | --------------------- | --------------------------------------------------------------------------------- |
 | Fasedisiplin          | Arbeid skal deles i tydelige faser med ulike mål og risikonivå.                   |
-| Rød/grønn-sone        | Utforskning og endring må ikke blandes ukritisk; sonene styrer trygghet og fokus. |
+| Rød/grønn-sone        | Sonene sier om utvikleren skal lære dette selv; rød sone får stubber som standard. |
 | Spesialistruting      | Oppgaver skal styres mot riktig rolle, ikke presses gjennom én generell flyt.     |
 | Lav overraskelse      | Samme type oppgave skal gi samme type håndtering så langt som mulig.              |
 | Dokumentert intensjon | Beslutninger skal forklares kort og klart, ikke bare implementeres.               |
@@ -69,7 +69,7 @@ Historikk: [issue #484](https://github.com/navikt/copilot/issues/484), `badb737c
 
 ### Rød/grønn-sone
 
-Rød sone brukes for usikkerhet, risiko, avklaringer og vurderinger. Grønn sone brukes for utførte, avgrensede og verifiserte endringer. Sonene er et styringsverktøy, ikke pynt.
+Sonene svarer på om utvikleren skal lære dette, ikke på risiko. Definisjonen står i `instructions/deliberate-ai-use.instructions.md` og er den eneste kilden. Rød sone er feilsøking, nye konsepter, kjernelogikk, sikkerhetskritisk kode og arkitekturbeslutninger. Grønn sone er boilerplate, teknologi utvikleren kan fra før, konfigurasjon, refaktorering med kjent mål og testdata. For rød sone lager agenten testskjeletter og stubber, med mindre utvikleren eksplisitt ber om implementasjon. Da får utvikleren en sjekkliste for gjennomgang per punkt.
 
 ### Spesialistruting
 
@@ -129,7 +129,7 @@ Benchmark-tall, konfidensintervaller og beslutningene de bærer ligger i `docs/n
    - Det er ikke valgfritt eller kosmetisk.
 
 2. **Rød/grønn-sone skal være en del av modellen**
-   - Sonene brukes for å styre risiko og aktivitet.
+   - Sonene styrer hva utvikleren skriver selv, og listene har én kilde: `instructions/deliberate-ai-use.instructions.md`.
 
 3. **Spesialistruting skal beholdes**
    - Ikke alt skal presses inn i én generell flyt.
@@ -192,8 +192,23 @@ Spesialistagenter skal være **leaf-only**: de skal løse sitt smale delproblem 
 ### Hva som ikke mangler
 
 - **Ny planner-agent:** ikke nødvendig, fordi `@nav-pilot` allerede er koordinator.
-- **Ny implementer-agent:** ikke nødvendig nå. Hvis det oppstår smerte her, er en smal delivery-/scaffold-skill bedre enn en ny bred agent.
+- **Ny bred implementer-agent:** ikke nødvendig. Den smale `worker` er beskrevet under.
 - **Ny review-agent:** ikke nødvendig. Review-behovet er allerede delt mellom fase 3, `code-review` og `security-champion`.
+
+### `worker`
+
+`worker` ble lagt til 8. oktober 2026. Den er smal: den utfører én avgrenset oppgave fra en brief og kan ikke delegere videre. Den er en agent og ikke en skill på grunn av modellvalget. Bare en agentfil kan pinne modell; en skill kan ikke. Da kan billige oppgaver gå til GPT-6 Luna mens koordinatoren kjører på en dyrere modell.
+
+### Hva `@nav-pilot` sender videre
+
+Fra 8. oktober 2026 er `@nav-pilot` koordinator i komprimerte og fulle oppgaver. Den klassifiserer, intervjuer, planlegger, sender arbeid videre, kontrollerer og setter sammen. Den skriver ikke applikasjonskode selv.
+
+- Kode, tester og skjelett i grønn sone i fase 4 går til `worker`, eller til `local-worker` når policyen for den finnes og sier at oppgaven skal sendes. Briefen har fem deler: Oppgave, Filer, Endring, Sjekk og Stopp. Koordinatoren leser diffen, kjører sjekken selv, prøver én gang til med smalere brief og tar over hvis det heller ikke går.
+- Sikkerhetsperspektivet i fase 3 går til `@security-champion-agent` i fulle oppgaver. De andre perspektivene kan koordinatoren vurdere selv.
+- Utforsking av repoet og innhenting av fakta går til `@research-agent`.
+- Ikke sendt videre: trivielle oppgaver, forklaringer, feilsøking, vurderinger av enkeltfiler og sikkerhetskritisk kode før stoppet i fase 1. Er agenten ikke installert, sier koordinatoren det og gjør jobben selv.
+
+Fasestoppene, nivåreglene og modellporten til `@nav-pilot-opus` er de samme som før.
 
 ### Utfasede spesialistagenter
 

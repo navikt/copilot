@@ -1,0 +1,20 @@
+
+
+
+
+
+
+
+
+
+
+
+
+Dette er en endring i Kafka-kontrakten: `SoknadMottattMelding` inneholder i dag bare `soknadId` og `mottatt`. Et nytt `fnr`-felt vil bli serialisert i meldingen på `soknad-mottatt`. Repoet har allerede `fnr` i `SokerDto`, men viser ikke hvor verdien kobles til søknaden eller hvem som leser topicen. Jeg har derfor ikke endret koden ennå.
+
+Før jeg lager planen: Hvilke konsumenter leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer? Hvor skal `fnr` hentes fra når meldingen opprettes? Må eksisterende konsumenter kunne lese meldinger både med og uten feltet under utrulling?
+
+🔴 Rød sone: Håndtering av fødselsnummer og endring av meldingskontrakten må gjennomgås nøye.
+
+Blindsoner reist: 3/11 (#1, #6 og #9; #2 er ikke utløst siden endringen ikke gir nye aktører tilgang, #3–#5, #7–#8 og #10–#11 er ikke nødvendige for å avklare denne endringen).
+

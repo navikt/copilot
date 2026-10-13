@@ -1,0 +1,37 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● skill(klarsprak)
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+/ Search (grep)
+  │ "SoknadMottattMelding|sendMottatt|Kafka|fnr|krypter" in *.{kt,kts,yaml,md}
+  └ 33 lines found
+
+**Ikke endret.** `sendMottatt` i `Soknad.kt` sender meldingen som JSON uten payload-kryptering. Å legge til `fnr` vil dermed sende fødselsnummer i klartekst på `soknad-mottatt`.
+
+🔴 Rød sone: ny deling av personopplysninger. Repoet dokumenterer ikke hvilke konsumenter som mottar meldingen, deres behov for fødselsnummer eller hvordan feltet skal krypteres. Disse avklaringene må være på plass før endringen kan gjennomføres forsvarlig.
+

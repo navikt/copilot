@@ -1,0 +1,3 @@
+Parseren returnerer nå `Result<Vedtak, VedtakFeil>` med egne feil for tom id, manglende beløp og ugyldig beløp. Feilmeldingen for ugyldig beløp viser teksten som ikke kunne leses. `cargo test` bestod med 4 tester, og `cargo fmt --check` og `cargo clippy` bestod.
+
+🔴 Rød sone: Gå nøye gjennom valideringen av input. `Result` lar kallere håndtere ugyldige linjer uten panikk; alternativet, å fortsette å bruke panikk ved parsing, ble forkastet. Still gjerne spørsmål om valgene over.

@@ -1,0 +1,59 @@
+● skill(klarsprak)
+
+Jeg kjører testene i `frister/` og undersøker koden som feiler. Testene blir stående uendret.
+
+
+● List directory .
+  └ 8 files found
+
+/ Search (glob)
+  │ "frister/**/*.go"
+  └ 2 files found
+
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md,golang.instructions.md,sec
+  │ urity-owasp.instructions.md,go.mod}"
+  └ 4 files found
+
+● Read frist.go
+  │ frister/frist.go
+  └ 16 lines read
+
+● Read golang.instructions.md
+  │ .github/instructions/golang.instructions.md
+  └ 547 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read frist_test.go
+  │ frister/frist_test.go
+  └ 26 lines read
+
+● Read go.mod
+  │ frister/go.mod
+  └ 3 lines read
+
+✗ Kjør testene i frister (shell)
+  │ cd frister && go test ./...
+  └ --- FAIL: TestFrist (0.00s)
+    frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+    FAIL
+    FAIL    example.com/frister     0.269s
+    FAIL
+    Failed with exit code 1
+
+● Edit
+  └ Edit frister/frist.go
+
+● Bekreft grønne tester og Go-formatering (shell)
+  │ cd frister && go test ./... && test -z "$(gofmt -l frist.go)"
+  └ 1 line…
+
+Rettet `frister/frist.go`: Frister som faller på lørdag, flyttes nå **to dager** til mandag, ikke én dag til søndag. Søndagsregelen er uendret.
+
+Testene er ikke endret. `go test ./...` i `frister/` går grønt.
+
+🔴 Rød sone: fristberegning, forstå denne regelen grundig.
+

@@ -1,0 +1,31 @@
+🛡️ **Sikkerhetsgjennomgang av `vedtak-kafka` mot `main` (commit 26b701b)**
+
+Jeg fant 4 kritiske funn, 3 høye og 3 middels. Branchen bør ikke merges før de kritiske er rettet.
+
+### 🔴 Kritisk
+
+1. **SQL-injeksjon** i `VedtakRepository.hentForPerson`. `fnr` fra URL-en settes rett inn i SQL-strengen (`"... WHERE fnr = '" + fnr + "'"`). En angriper kan hente alle rader eller endre data. Bruk `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`.
+2. **`GET /api/vedtak/{fnr}` har ingen autentisering.** Ruten ligger utenfor `authenticate("tokenx")`, så alle kan lese vedtak og fnr for hvilken som helst person. Kombinert med punkt 1 og 4 kan hele tabellen hentes ut.
+3. **Ingen eierskapssjekk.** `POST /api/vedtak` tar `fnr` fra request-bodyen. Enhver gyldig TokenX-bruker kan derfor fatte vedtak på vegne av andre. GET-ruten har samme problem. Hent `pid` fra tokenet og sammenlign med ressursen, eller krev saksbehandlertilgang via Azure AD hvis det er saksbehandlere som skal fatte vedtak.
+4. **`accessPolicy.inbound` er åpen for alle** (`application: "*"`, `namespace: "*"`). Alle apper i clusteret kan kalle tjenesten. Begrens til de appene som faktisk skal kalle den.
+
+### 🟠 Høy
+
+5. **JWT-valideringen er mangelfull.** Det er ikke satt opp `verifier` (JWKS fra `TOKEN_X_JWKS_URI`) eller issuer-sjekk. `validate` sjekker bare at audience finnes, ikke at den er lik `TOKEN_X_CLIENT_ID`. Bruk `token-validation-ktor` eller sett opp verifier med issuer og audience.
+6. **FNR havner i logger.** `log.info("behandler $fnr")` i `VedtakService` logger fnr direkte. I tillegg står fnr i URL-stien på GET-ruten, så det havner i access-logger og proxy-logger. Fjern logglinjen, og flytt fnr til request-body eller en header (eller utled det fra tokenet).
+7. **Ingen inputvalidering.** `fnr` sjekkes verken for format (11 siffer) eller lengde. `sakId` sjekkes bare for at den ikke er tom.
+
+### 🟡 Middels
+
+8. **Kafka er sårbar for «poison pills».** En melding som ikke kan deserialiseres, eller en feil etter tre forsøk, dreper consumer-tråden uten varsel. Tjenesten fortsetter å svare på `isalive`, så Nais restarter den ikke. Legg til feilhåndtering (DLQ eller logg og hopp over) og koble consumer-status til helsesjekken.
+9. **Ingen idempotens.** Hver gang en melding behandles på nytt, fattes et nytt vedtak med ny UUID. Det skjer ved retry og når en commit feiler etter at meldingen er sendt videre. Resultatet er doble vedtak. Bruk `soknadId` som idempotensnøkkel, for eksempel med en unik constraint.
+10. **Kafka-klienten mangler SSL-oppsett.** Keystore og truststore fra `KAFKA_KEYSTORE_PATH`/`KAFKA_TRUSTSTORE_PATH` er ikke konfigurert, og Aiven krever SSL. I praksis feiler tilkoblingen, men konfigurasjonen bør settes eksplisitt.
+
+### ✅ Bra
+- `vedtak-fattet`-meldingen inneholder ikke fnr.
+- `lagre` og `hentForSak` bruker parameteriserte spørringer.
+- Hemmeligheter leses fra miljøvariabler.
+
+🔴 Rød sone: auth, eierskap og SQL. Gå gjennom rettelsene nøye selv. Fatting av vedtak er kjernelogikk, så eierskapsmodellen (borger via TokenX eller saksbehandler via Azure AD) må avklares før du velger auth-mekanisme.
+
+Still gjerne spørsmål om valgene over.

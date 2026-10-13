@@ -3,16 +3,23 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 // validGitHubUsername matches GitHub's username rules: alphanumeric + hyphens, 1-39 chars
 var validGitHubUsername = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
+
+// validRepoName matches GitHub repository names: letters, digits, '.', '-'
+// and '_', at most 100 characters.
+var validRepoName = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}$`)
 
 func isValidGitHubUsername(s string) bool {
 	return validGitHubUsername.MatchString(s)
@@ -81,7 +88,7 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 
 	seat, err := h.githubClient.getCopilotSeat(r.Context(), username)
 	if err != nil {
-		slog.Error("Failed to fetch seat", "username", username, "error", err)
+		slog.Error("Failed to fetch seat", "error", err)
 		respondError(w, "github_error", "Failed to fetch Copilot seat data", http.StatusInternalServerError)
 		return
 	}
@@ -97,8 +104,8 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 
 // handleAssignSeat handles POST /api/v1/copilot/seats
 func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request) {
-	// user is only used for audit logging (NAVident) below — the ownership
-	// check itself is mechanism-agnostic (see requireOwnership).
+	// user supplies the groups for the check below and the NAVident for audit
+	// logging; the ownership check is mechanism-agnostic (see requireOwnership).
 	user, _ := getUserFromContext(r.Context())
 
 	var req struct {
@@ -119,6 +126,14 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	// The BFF already performs this check, but enforcing it here ensures the backend
 	// cannot be used to manage seats for other users even if the BFF were bypassed.
 	if !requireOwnership(w, r, req.Username) {
+		return
+	}
+
+	// Defense-in-depth for the BFF's group check: only members of a group
+	// listed under azure.application.claims.groups may activate a seat.
+	// The admin group is in the claim only for requireAdmin and grants no seat.
+	if user == nil || !slices.ContainsFunc(user.Groups, func(g string) bool { return g != "" && g != os.Getenv(adminGroupEnv) }) {
+		respondError(w, "forbidden", "User is not a member of any allowed group", http.StatusForbidden)
 		return
 	}
 
@@ -288,7 +303,7 @@ func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *
 		return
 	}
 
-	if repo == "" || len(repo) > 255 {
+	if !validRepoName.MatchString(repo) || repo == "." || repo == ".." {
 		respondError(w, "invalid_parameter", "Invalid repository name", http.StatusBadRequest)
 		return
 	}
@@ -317,6 +332,10 @@ func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *
 	}
 
 	contributors, err := h.githubClient.getRepositoryContributors(r.Context(), owner, repo, paths)
+	if errors.Is(err, errOwnerNotAllowed) {
+		respondError(w, "invalid_parameter", "Invalid owner", http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		slog.Error("Failed to fetch contributors", "owner", owner, "repo", repo, "error", err)
 		respondError(w, "github_error", "Failed to fetch contributors", http.StatusInternalServerError)

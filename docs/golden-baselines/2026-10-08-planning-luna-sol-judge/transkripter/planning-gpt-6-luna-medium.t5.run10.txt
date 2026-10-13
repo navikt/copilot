@@ -1,0 +1,5 @@
+
+Bruk **TokenX**: tjeneste A bytter brukerens token til et token med tjeneste B som mottaker (audience), og kaller B med det. B må ha TokenX aktivert og tillate A i `accessPolicy.inbound`; A må ha B i `accessPolicy.outbound`.
+
+Da følger brukerkonteksten med kallet. Azure AD `client_credentials` passer ikke når B må vite hvilken bruker kallet gjelder.
+

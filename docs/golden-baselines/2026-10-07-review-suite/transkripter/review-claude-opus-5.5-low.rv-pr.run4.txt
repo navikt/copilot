@@ -1,0 +1,48 @@
+
+
+## Gjennomgang av `vedtak-kafka` mot `main` (1 commit, 8 filer)
+
+Jeg kjørte ikke `mise check`. Repoet har verken mise-konfigurasjon eller Gradle-wrapper, så funnene under kommer fra å lese diffen. Branchen har ingen tester og ingen Flyway-migrering for tabellen `vedtak`.
+
+### Oppsummering
+Lagdelingen er grei, med route, service og repository hver for seg. Insert-spørringen er parameterisert, og consumeren committer offset manuelt. Branchen bør ikke merges ennå: den har SQL-injeksjon, et endepunkt uten autentisering som returnerer andres vedtak, fødselsnummer i logg, ufullstendig JWT-validering og et Kafka-oppsett som kan gi doble vedtak.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 24 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og sjekker ikke at brukeren eier dataene |
+| `Routes.kt` | 30 | 🔴 | Fødselsnummer i URL-stien havner i tilgangslogger |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer |
+| `App.kt` | 39–43 | 🔴 | JWT-oppsettet mangler verifier/JWKS, issuer- og audience-sjekk |
+| `Routes.kt` | 25–29 | 🔴 | `POST /api/vedtak` lar enhver innlogget bruker fatte vedtak for et hvilket som helst fødselsnummer |
+| `nais.yaml` | 23–26 | 🔴 | `inbound` tillater `application: "*"`, `namespace: "*"` |
+| `VedtakConsumer.kt` | 24–27 | 🔴 | En ugyldig melding stopper consumeren, og en melding som behandles på nytt gir et nytt vedtak |
+| `VedtakConsumer.kt` | 34 | 🟡 | Kafka-meldingen sendes etter DB-commit, så vedtaket kan lagres uten å bli publisert |
+| `App.kt` | 37 | 🟡 | Consumer-tråden er ikke daemon, har ingen shutdown og påvirker ikke `isready` |
+| `App.kt` | 25–32 | 🟡 | Kafka-oppsettet mangler SSL/keystore-variablene fra Nais (`KAFKA_*`) |
+| `App.kt` | 24 | 🟡 | `DB_JDBC_URL` uten feilmelding når den mangler. Ingen migrering for tabellen `vedtak` |
+| `nais.yaml` | 15 | 🟡 | `pool: nav-dev` er hardkodet i manifestet |
+| (alle) | – | 🟡 | Ingen tester for service, repository, consumer eller routes |
+| `build.gradle.kts` | 13 | 💭 | Ekstra `dependencies { }`-blokk. Slå den sammen med den eksisterende |
+| `VedtakService.kt` | 5, 20 | 💭 | `Locale` importeres uten å brukes. `LocalDate.now()` gjør testene tidsavhengige, så send inn en `Clock` |
+| `VedtakService.kt` | 28 | 💭 | `hentVedtak` brukes ikke |
+
+### Detaljer
+
+🔴 Rød sone: tilgangskontroll, input og personopplysninger. Disse funnene må dere forstå grundig.
+
+1. **SQL-injeksjon.** En verdi som `' OR '1'='1` returnerer alle vedtak. Bruk parameter:
+   ```kotlin
+   queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)
+   ```
+2. **GET-endepunktet er åpent og eksponerer fødselsnummer.** Legg det innenfor `authenticate("tokenx")`. Hent `fnr` fra tokenets `pid`-claim i stedet for fra stien. Da forsvinner også fødselsnummeret fra URL-loggene, og eierskapet blir sjekket.
+3. **Logging.** Fjern `fnr` fra loggen. Logg `sakId`/`vedtakId`, som allerede gjøres på linje 24.
+4. **TokenX.** Med `jwt("tokenx")` uten `verifier(JwkProvider, issuer)` og uten sjekk av `aud == TOKEN_X_CLIENT_ID` er tokenvalideringen ufullstendig. Bruk `TOKEN_X_WELL_KNOWN_URL`/`TOKEN_X_JWKS_URI` og `TOKEN_X_ISSUER`.
+5. **POST-endepunktet.** En borger med TokenX kan fatte vedtak på andre. Dette skal sannsynligvis bare være tjeneste-til-tjeneste via Azure AD, med `azp` validert mot `AZURE_APP_PRE_AUTHORIZED_APPS`. Alternativt fjernes endepunktet, siden vedtak fattes fra Kafka.
+6. **accessPolicy.** Wildcard åpner for alle apper i alle namespaces. List de faktiske konsumentene.
+7. **Kafka og idempotens.** `decodeFromString` uten try/catch krasjer tråden, og consumeren står da stille uten at `isready` merker det. Feil i `retry` gjør det samme. Siden offset committes etter batchen, behandles meldingene på nytt etter en krasj eller rebalansering, og `UUID.randomUUID()` gir da nye vedtak. Gjør behandlingen idempotent, for eksempel med en unik nøkkel på `soknad_id` og `ON CONFLICT DO NOTHING`. Send meldinger som ikke kan behandles til en DLQ eller logg dem uten å stoppe consumeren. Vurder outbox-mønster for å løse problemet i linje 34.
+
+Still gjerne spørsmål om valgene over.
+

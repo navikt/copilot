@@ -1,0 +1,19 @@
+## Gjennomgang: `SakService.kt`
+
+🔴 Rød sone: `pid`-claim og tilgangskontroll i `/api/saker`. Gå gjennom denne nøye.
+
+| Linje | Prioritet | Funn |
+|------|----------|-------|
+| 50 | 🟡 | `pid` leses fra token, men koden viser ikke at `tokenx` validerer issuer og audience. Bekreft dette i auth-oppsettet, ellers kan en token fra feil utsteder gi tilgang til andres saker. |
+| 20 | 💭 | `maskert()` bevarer lengden. Fødselsnummer har alltid 11 siffer, så det lekker ingenting, men en fast maske (`"***"`) er enklere. |
+| 38–43 | 💭 | `throw e` gir 500 uten meningsfull feilmelding til klienten. Svar med en kontrollert feilkode hvis det er ønsket. |
+
+**Bra:**
+- SQL bruker parameter (`?`), ikke streng-konkatenering.
+- `fnr` hentes fra token, ikke fra request, så brukeren kan bare se egne saker.
+- Logger maskert fnr og bare exception-typen, ikke meldingen.
+- 401 ved manglende `pid`.
+
+Jeg kjørte ikke `mise check` fordi repoet ikke har `apps/`-struktur. Ingen filer er endret.
+
+Still gjerne spørsmål om valgene over.

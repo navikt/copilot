@@ -1,0 +1,303 @@
+
+🔍 Leser diffen mot `main` og finner riktig `mise check` for prosjektet.
+
+
+
+
+
+
+
+
+
+
+📊 Diffen viser nye Kafka-, database- og HTTP-flyter. Jeg sjekker autentisering, meldingers ack/retry og konfigurasjonen, og kjører prosjektkontrollen før jeg oppsummerer funnene.
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+Kontrollen viser ingen `mise check`-oppgave i dette repoet. Jeg verifiserer nå funnene mot nøyaktige linjenumre og ser om prosjektet har en kjørbar Gradle-kontroll.
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 462ms
+    Failed with exit code 1
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    * Exception is:
+    org.gradle.api.ProjectConfigurationException: A problem occurred configuring root project
+    'repo'.
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.wrapException(LifecycleProjectEval
+    uator.java:84)
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.addConfigurationFailure(LifecycleP
+    rojectEvaluator.java:77)
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.access$500(LifecycleProjectEvaluat
+    or.java:55)
+    at org.gradle.configuration.project.LifecycleProjectEvaluator$EvaluateProject.lambda$run$0(Lifec
+    ycleProjectEvaluator.java:111)
+    at org.gradle.api.internal.project.DefaultProjectStateRegistry$ProjectStateImpl.lambda$applyToMu
+    tableState$1(DefaultProjectStateRegistry.java:435)
+    at org.gradle.api.internal.project.DefaultProjectStateRegistry$ProjectStateImpl.lambda$fromMutab
+    leState$2(DefaultProjectStateRegistry.java:458)
+    at org.gradle.internal.work.DefaultWorkerLeaseService.withReplacedLocks(DefaultWorkerLeaseServic
+    e.java:359)
+    at org.gradle.api.internal.project.DefaultProjectStateRegistry$ProjectStateImpl.fromMutableState
+    (DefaultProjectStateRegistry.java:458)
+    at org.gradle.api.internal.project.DefaultProjectStateRegistry$ProjectStateImpl.applyToMutableSt
+    ate(DefaultProjectStateRegistry.java:434)
+    at org.gradle.configuration.project.LifecycleProjectEvaluator$EvaluateProject.run(LifecycleProje
+    ctEvaluator.java:100)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRun
+    ner.java:30)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRun
+    ner.java:27)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRun
+    ner.java:67)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRun
+    ner.java:60)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunne
+    r.java:167)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunne
+    r.java:60)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.ja
+    va:48)
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.evaluate(LifecycleProjectEvaluator
+    .java:72)
+    at org.gradle.api.internal.project.DefaultProject.evaluateUnchecked(DefaultProject.java:827)
+    at org.gradle.api.internal.project.ProjectLifecycleController.lambda$ensureSelfConfigured$2(Proj
+    ectLifecycleController.java:88)
+    at org.gradle.internal.model.StateTransitionController.lambda$doTransition$14(StateTransitionCon
+    troller.java:255)
+    at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.ja
+    va:266)
+    at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.ja
+    va:254)
+    at org.gradle.internal.model.StateTransitionController.lambda$maybeTransitionIfNotCurrentlyTrans
+    itioning$10(StateTransitionController.java:199)
+    at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:36)
+    at org.gradle.internal.model.StateTransitionController.maybeTransitionIfNotCurrentlyTransitionin
+    g(StateTransitionController.java:195)
+    at org.gradle.api.internal.project.ProjectLifecycleController.ensureSelfConfigured(ProjectLifecy
+    cleController.java:88)
+    at org.gradle.api.internal.project.DefaultProjectStateRegistry$ProjectStateImpl.ensureConfigured
+    (DefaultProjectStateRegistry.java:400)
+    at org.gradle.execution.TaskPathProjectEvaluator.configure(TaskPathProjectEvaluator.java:70)
+    at org.gradle.execution.TaskPathProjectEvaluator.configureHierarchy(TaskPathProjectEvaluator.jav
+    a:84)
+    at org.gradle.configuration.DefaultProjectsPreparer.prepareProjects(DefaultProjectsPreparer.java
+    :50)
+    at org.gradle.configuration.BuildTreePreparingProjectsPreparer.prepareProjects(BuildTreePreparin
+    gProjectsPreparer.java:65)
+    at org.gradle.configuration.BuildOperationFiringProjectsPreparer$ConfigureBuild.run(BuildOperati
+    onFiringProjectsPreparer.java:52)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRun
+    ner.java:30)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner$1.execute(DefaultBuildOperationRun
+    ner.java:27)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRun
+    ner.java:67)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRun
+    ner.java:60)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunne
+    r.java:167)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunne
+    r.java:60)
+    at org.gradle.internal.operations.DefaultBuildOperationRunner.run(DefaultBuildOperationRunner.ja
+    va:48)
+    at org.gradle.configuration.BuildOperationFiringProjectsPreparer.prepareProjects(BuildOperationF
+    iringProjectsPreparer.java:40)
+    at org.gradle.initialization.VintageBuildModelController.lambda$prepareProjects$2(VintageBuildMo
+    delController.java:84)
+    at org.gradle.internal.model.StateTransitionController.lambda$doTransition$14(StateTransitionCon
+    troller.java:255)
+    at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.ja
+    va:266)
+    at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.ja
+    va:254)
+    at org.gradle.internal.model.StateTransitionController.lambda$transitionIfNotPreviously$11(State
+    TransitionController.java:213)
+    at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:36)
+    at org.gradle.internal.model.StateTransitionController.transitionIfNotPreviously(StateTransition
+    Controller.java:209)
+    at org.gradle.initialization.VintageBuildModelController.prepareProjects(VintageBuildModelContro
+    ller.java:84)
+    at org.gradle.initialization.VintageBuildModelController.prepareToScheduleTasks(VintageBuildMode
+    lController.java:71)
+    at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$prepareToScheduleTasks$6(Def
+    aultBuildLifecycleController.java:175)
+    at org.gradle.internal.model.StateTransitionController.lambda$doTransition$14(StateTransitionCon
+    troller.java:255)
+    at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.ja
+    va:266)
+    at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.ja
+    va:254)
+    at org.gradle.internal.model.StateTransitionController.lambda$maybeTransition$9(StateTransitionC
+    ontroller.java:190)
+    at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:36)
+    at org.gradle.internal.model.StateTransitionController.maybeTransition(StateTransitionController
+    .java:186)
+    at org.gradle.internal.build.DefaultBuildLifecycleController.prepareToScheduleTasks(DefaultBuild
+    LifecycleController.java:173)
+    at org.gradle.internal.buildtree.DefaultBuildTreeWorkPreparer.scheduleRequestedTasks(DefaultBuil
+    dTreeWorkPreparer.java:36)
+    at org.gradle.internal.cc.impl.VintageBuildTreeWorkController$scheduleAndRunRequestedTasks$1.app
+    ly(VintageBuildTreeWorkController.kt:36)
+    at org.gradle.internal.cc.impl.VintageBuildTreeWorkController$scheduleAndRunRequestedTasks$1.app
+    ly(VintageBuildTreeWorkController.kt:35)
+    at org.gradle.composite.internal.DefaultIncludedBuildTaskGraph.withNewWorkGraph(DefaultIncludedB
+    uildTaskGraph.java:112)
+    at org.gradle.internal.cc.impl.VintageBuildTreeWorkController.scheduleAndRunRequestedTasks(Vinta
+    geBuildTreeWorkController.kt:35)
+    at org.gradle.internal.buildtree.DefaultBuildTreeLifecycleController.lambda$scheduleAndRunTasks$
+    1(DefaultBuildTreeLifecycleController.java:77)
+    at org.gradle.internal.buildtree.DefaultBuildTreeLifecycleController.lambda$runBuild$4(DefaultBu
+    ildTreeLifecycleController.java:120)
+    at org.gradle.internal.model.StateTransitionController.lambda$transition$6(StateTransitionContro
+    ller.java:169)
+    at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.ja
+    va:266)
+    at org.gradle.internal.model.StateTransitionController.lambda$transition$7(StateTransitionContro
+    ller.java:169)
+    at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
+    at org.gradle.internal.model.StateTransitionController.transition(StateTransitionController.java
+    :169)
+    at org.gradle.internal.buildtree.DefaultBuildTreeLifecycleController.runBuild(DefaultBuildTreeLi
+    fecycleController.java:117)
+    at org.gradle.internal.buildtree.DefaultBuildTreeLifecycleController.scheduleAndRunTasks(Default
+    BuildTreeLifecycleController.java:77)
+    at org.gradle.internal.buildtree.DefaultBuildTreeLifecycleController.scheduleAndRunTasks(Default
+    BuildTreeLifecycleController.java:72)
+    at org.gradle.tooling.internal.provider.ExecuteBuildActionRunner.run(ExecuteBuildActionRunner.ja
+    va:31)
+    at org.gradle.launcher.exec.ChainingBuildActionRunner.run(ChainingBuildActionRunner.java:35)
+    at org.gradle.internal.buildtree.ProblemReportingBuildActionRunner.run(ProblemReportingBuildActi
+    onRunner.java:49)
+    at org.gradle.launcher.exec.BuildOutcomeReportingBuildActionRunner.run(BuildOutcomeReportingBuil
+    dActionRunner.java:71)
+    at org.gradle.tooling.internal.provider.FileSystemWatchingBuildActionRunner.run(FileSystemWatchi
+    ngBuildActionRunner.java:135)
+    at org.gradle.launcher.exec.BuildCompletionNotifyingBuildActionRunner.run(BuildCompletionNotifyi
+    ngBuildActionRunner.java:41)
+    at org.gradle.launcher.exec.RootBuildLifecycleBuildActionExecutor.lambda$execute$0(RootBuildLife
+    cycleBuildActionExecutor.java:54)
+    at org.gradle.composite.internal.DefaultRootBuildState.run(DefaultRootBuildState.java:130)
+    at org.gradle.launcher.exec.RootBuildLifecycleBuildActionExecutor.execute(RootBuildLifecycleBuil
+    dActionExecutor.java:54)
+    at org.gradle.internal.buildtree.InitDeprecationLoggingActionExecutor.execute(InitDeprecationLog
+    gingActionExecutor.java:62)
+    at org.gradle.internal.buildtree.InitProblems.execute(InitProblems.java:36)
+    Failed with exit code 1
+
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    * Exception is:
+    org.gradle.api.ProjectConfigurationException: A problem occurred configuring root project
+    'repo'.
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.wrapException(LifecycleProjectEval
+    uator.java:84)
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.addConfigurationFailure(LifecycleP
+    rojectEvaluator.java:77)
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.access$500(LifecycleProjectEvaluat
+    or.java:55)
+    at org.gradle.configuration.project.LifecycleProjectEvaluator$EvaluateProject.lambda$run$0(Lifec
+    ycleProjectEvaluator.java:111)
+    --
+    Caused by: java.lang.IllegalArgumentException: 27
+    at org.jetbrains.kotlin.com.intellij.util.lang.JavaVersion.parse(JavaVersion.java:307)
+    at org.jetbrains.kotlin.com.intellij.util.lang.JavaVersion.current(JavaVersion.java:176)
+    at
+    org.jetbrains.kotlin.cli.jvm.modules.JavaVersionUtilsKt.isAtLeastJava9(javaVersionUtils.kt:11)
+    at org.jetbrains.kotlin.cli.jvm.modules.CoreJrtFileSystem.globalJrtFsCache$lambda$2(CoreJrtFileS
+    ystem.kt:83)
+    at org.jetbrains.kotlin.cli.jvm.modules.CoreJrtFileSystem.globalJrtFsCache$lambda$3(CoreJrtFileS
+    ystem.kt:74)
+    at org.jetbrains.kotlin.com.intellij.util.containers.ConcurrentFactoryMap$2.create(ConcurrentFac
+    toryMap.java:174)
+    at org.jetbrains.kotlin.com.intellij.util.containers.ConcurrentFactoryMap.get(ConcurrentFactoryM
+    ap.java:40)
+    at
+    org.jetbrains.kotlin.cli.jvm.modules.CoreJrtFileSystem.roots$lambda$0(CoreJrtFileSystem.kt:34)
+    at
+    org.jetbrains.kotlin.cli.jvm.modules.CoreJrtFileSystem.roots$lambda$1(CoreJrtFileSystem.kt:33)
+    at org.jetbrains.kotlin.com.intellij.util.containers.ConcurrentFactoryMap$2.create(ConcurrentFac
+    toryMap.java:174)
+    at org.jetbrains.kotlin.com.intellij.util.containers.ConcurrentFactoryMap.get(ConcurrentFactoryM
+    ap.java:40)
+    at
+    org.jetbrains.kotlin.cli.jvm.modules.CoreJrtFileSystem.findFileByPath(CoreJrtFileSystem.kt:42)
+    Failed with exit code 1
+
+### Sammendrag
+
+Ikke merge ennå. Endringen har flere blokkere: vedtak kan leses uten autentisering, SQL-spørringen kan injiseres, og TokenX-oppsettet verifiserer ikke tokenet.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/Routes.kt` | 30–32 | 🔴 | Endepunktet returnerer vedtak for et oppgitt fødselsnummer uten autentisering eller eierskapskontroll. `nais.yaml:23–26` åpner samtidig for trafikk fra alle applikasjoner og namespaces. Dette eksponerer personopplysninger og vedtaksdata. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 23–24 | 🔴 | `fnr` settes direkte inn i SQL-strengen. Et fødselsnummer fra URL-en kan dermed endre spørringen. Bruk en parameterisert spørring. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 40–42 | 🔴 | TokenX-oppsettet har ingen verifier, og `validate` sjekker bare at `aud` finnes, ikke at verdien er forventet. Det etablerer ikke at tokenet er gyldig og ment for denne tjenesten. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt` | 15 | 🔴 | Loggen skriver fødselsnummer. Fjern personopplysningen fra loggen. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 23 | 🔴 | Koden krever `DB_JDBC_URL`, men `nais.yaml` setter ikke denne variabelen. SQL-konfigurasjonen oppretter databasen, men ikke denne egendefinerte URL-en. Hikari får derfor ikke database-URL ved oppstart. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 14–16 | 🔴 | Koden bruker tabellen `vedtak`, men branchen legger ikke til noen migrering som oppretter den. Den provisionerte databasen mangler dermed tabellen, og lagring av vedtak vil feile. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 31–33 | 🔴 | Behandlingen lagrer et nytt vedtak før den publiserer Kafka-meldingen, og konsumenten committer først etter polling-runden. Ved krasj eller feil etter lagring blir meldingen behandlet på nytt og oppretter et nytt vedtak med ny ID. Dette kan gi dupliserte vedtak. |
+
+🔴 **Rød sone:** autentisering, tilgangskontroll, SQL-injeksjon og behandling av personopplysninger må gjennomgås grundig.
+
+`mise check` kunne ikke kjøres fordi repoet ikke har en slik oppgave. `gradle test` stoppet under konfigurering: Kotlin-pluginens compiler gjenkjenner ikke Java 27-versjonen i miljøet, så testene ble ikke kjørt. `git diff --check` fant ingen whitespace-feil.
+

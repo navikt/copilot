@@ -1,0 +1,66 @@
+● Show branch diff (shell)
+  │ git --no-pager log --oneline main..vedtak-kafka; git --no-pager diff main...vedtak-kafka --stat;
+  │ git --no-pager diff main...vedtak-kafka
+  └ 351 lines…
+
+● List files and tools (shell)
+  │ git --no-pager ls-tree -r --name-only vedtak-kafka; ls; which mise gradle 2>&1 | head
+  └ 36 lines…
+
+## Gjennomgang av `vedtak-kafka` mot `main` (commit 4c604cd)
+
+Jeg kjørte ikke `mise check`. Repoet har verken `mise.toml`, Gradle-wrapper, `settings.gradle` eller tester, så det er ingenting å kjøre. Funnene under bygger på å lese diffen.
+
+### Oppsummering
+Branchen har en tydelig lagdeling (consumer → service → repository), og `lagre`/`hentForSak` bruker parametriserte spørringer. Den har likevel flere feil som må rettes før merge: SQL-injeksjon, et oppslagsendepunkt uten autentisering, fnr i logg, ingen gyldig JWT-validering, ikke-idempotent Kafka-behandling og åpen `accessPolicy`.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: fnr limes inn i SQL-strengen |
+| `Routes.kt` | 29–32 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Hvem som helst kan hente alle vedtak for et fnr |
+| `Routes.kt` | 29 | 🔴 | Fnr i URL-sti havner i access-logger. Bruk POST-body eller header |
+| `Routes.kt` | 25–32 | 🔴 | Ingen eierskapssjekk: innlogget bruker kan lese og fatte vedtak for andres fnr |
+| `App.kt` | 38–42 | 🔴 | JWT-oppsettet mangler `verifier` (JWKS) og issuer-sjekk. `validate` sjekker bare at audience finnes, ikke at den er riktig |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger personopplysninger |
+| `VedtakConsumer.kt` | 23–28 | 🔴 | Ikke idempotent. Ved replay fattes et nytt vedtak med ny UUID, og det blir duplikater |
+| `VedtakConsumer.kt` | 25–26 | 🔴 | En melding som ikke kan parses, eller som feiler tre ganger, kaster ut av `while`. Tråden dør stille og konsumeringen stopper |
+| `nais.yaml` | 23–26 | 🔴 | `inbound` med `"*"/"*"` åpner tjenesten for alle apper i alle namespaces |
+| — | — | 🔴 | Ingen Flyway-migrasjon for tabellen `vedtak` |
+| `VedtakConsumer.kt` | 34 | 🟡 | Lagring i DB og send til Kafka skjer ikke atomisk. Vurder outbox |
+| `App.kt` | 23, 33–34 | 🟡 | Kafka-config mangler SSL/keystore fra Nais (`KAFKA_*`). Uten den kobler appen ikke til i Nais |
+| `App.kt` | 24 | 🟡 | Hikari mangler brukernavn og passord (`DB_USERNAME`/`DB_PASSWORD`) |
+| `App.kt` | 37 | 🟡 | `/isready` sier ikke noe om helsen til consumer-tråden |
+| `build.gradle.kts` | 13 | 🟡 | Dupliserer `dependencies`-blokken. Slå dem sammen |
+| — | — | 🟡 | Ingen tester for service, consumer eller ruter |
+| `Routes.kt` | 30 | 💭 | `!!` gir 500. Svar heller med 400 |
+| `VedtakService.kt` | 21 | 💭 | `LocalDate.now()` gjør testene tidsavhengige. Injiser `Clock` |
+| `VedtakService.kt` | 5, 28 | 💭 | `Locale` blir ikke brukt, og det er ingen kall til `hentVedtak` |
+
+### Detaljer for blokkerne
+
+**SQL-injeksjon (`VedtakRepository.kt:23`)**
+```kotlin
+queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)
+```
+Med strengsammenslåing kan input som `' OR '1'='1` lese alle vedtak.
+
+**Autentisering og tilgang (`App.kt`, `Routes.kt`)**
+- Konfigurer `jwt("tokenx")` med `verifier(JwkProviderBuilder(URL(TOKEN_X_JWKS_URI)), TOKEN_X_ISSUER)`.
+- Krev at `aud == TOKEN_X_CLIENT_ID`.
+- Flytt GET-ruten inn i `authenticate`.
+- Hent fnr fra `pid`-claimet i tokenet i stedet for fra input.
+
+**Idempotens i consumeren (`VedtakConsumer.kt`)**
+- Lag en unik nøkkel på `soknadId`, eller på `sak_id` hvis en sak bare skal ha ett vedtak.
+- Bruk `INSERT ... ON CONFLICT DO NOTHING`.
+- Pakk løkken inn i `try/catch`. Meldinger som ikke lar seg behandle, sendes til en DLQ eller logges med `soknadId`, uten fnr.
+
+**`accessPolicy` (`nais.yaml`)**
+List opp konkrete kallende apper og namespaces under `inbound`.
+
+🔴 Rød sone: autentisering, eierskapssjekk og vedtakslogikk. Gå gjennom disse grundig selv.
+
+Still gjerne spørsmål om valgene over.
+

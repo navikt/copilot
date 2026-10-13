@@ -1,0 +1,27 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        code-review
+# suite:        review
+# date:         2026-10-07
+# revision:     4ce21245
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      2929655385
+# prompts:      rv8
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+rv-clean|1|db6e7688-0e08-4b3a-b98c-b1daff125a0f|18011|0|claude-opus-5.5|low|26250|124|8710|17536|0|9191800000|2000|1483.155708|tool_calls||
+rv-clean|1|db6e7688-0e08-4b3a-b98c-b1daff125a0f|18012|0|claude-opus-5.5|low|27376|366|26246|1128|267|1821720000|7161|4272.980334|tool_calls||
+rv-clean|1|db6e7688-0e08-4b3a-b98c-b1daff125a0f|18013|0|claude-opus-5.5|low|28393|179|27374|1017|42|1414780000|3745|3735.804083|tool_calls||
+rv-clean|1|db6e7688-0e08-4b3a-b98c-b1daff125a0f|18014|0|claude-opus-5.5|low|28627|1244|28391|234|108|3173620000|14130|3989.0281659999996|stop||
+rv-clean|2|74fcd8bd-0a0a-4810-83ba-b33d502e6536|18015|0|claude-opus-5.5|low|26250|131|8710|17536|0|9205800000|2272|1500.451584|tool_calls||
+rv-clean|2|74fcd8bd-0a0a-4810-83ba-b33d502e6536|18016|0|claude-opus-5.5|low|27157|557|26246|909|355|2094220000|7971|4864.905374999999|tool_calls||
+rv-clean|2|74fcd8bd-0a0a-4810-83ba-b33d502e6536|18017|0|claude-opus-5.5|low|28061|191|27155|904|0|1377900000|2244|1027.7715|tool_calls||
+rv-clean|2|74fcd8bd-0a0a-4810-83ba-b33d502e6536|18018|0|claude-opus-5.5|low|28315|869|28059|254|32|2426980000|9610|3147.114751|stop||
+rv-clean|3|b2fc28b8-001f-4eaa-85e3-5e363488f6c5|18019|0|claude-opus-5.5|low|26251|124|8710|17537|0|9192300000|2220|1593.24025|tool_calls||
+rv-clean|3|b2fc28b8-001f-4eaa-85e3-5e363488f6c5|18020|0|claude-opus-5.5|low|27377|984|26247|1128|376|3057740000|11306|4361.423542|stop||

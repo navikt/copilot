@@ -1,0 +1,41 @@
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+### Vurdering
+
+Spørringen er parameterisert, og `/api/saker` henter saker for `pid` i et verifisert TokenX-token. Jeg fant én sikkerhetsrelevant mangel og to forhold som bør forbedres.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 50–55 | 🔴 Må rettes | Ruten avviser bare manglende `pid`. En tom eller feilformatert verdi sendes videre som fødselsnummer. Valider formatet ved grensen før oppslag, og avvis ugyldige verdier. |
+| 23–29 | 🟡 Bør rettes | Spørringen returnerer alle saker for personen uten grense. En stor sakshistorikk kan gi tungt databaseoppslag og stor respons. Innfør en definert grense eller paginering. |
+| 40–42 | 🟡 Bør rettes | Feilloggen inneholder bare unntakstypen, ikke stacktrace eller årsak. Det gjør databasefeil vanskelige å feilsøke. Logg unntaket uten å ta med fødselsnummeret. |
+
+🔴 **Rød sone:** Validering av `pid` styrer hvilket personoppslag tjenesten gjør og bør gjennomgås nøye. Validering ved ruten avviser ugyldig input tidlig; alternativet er å la databasen avgjøre utfallet, som gir svakere feilhåndtering. Still gjerne spørsmål om valgene over.
+
+`mise check` kunne ikke kjøres: prosjektet har ingen `check`-oppgave i mise.
+

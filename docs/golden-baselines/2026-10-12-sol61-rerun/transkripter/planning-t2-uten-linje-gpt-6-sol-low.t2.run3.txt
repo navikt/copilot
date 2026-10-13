@@ -1,0 +1,49 @@
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml,nais.yaml,nais.yml,README.md,docs/nav-pilot-design.md}"
+  └ 3 files found
+
+/ Search (glob)
+  │ ".github/copilot-{instructions,review-instructions}.md"
+  └ No matches found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1: Avklaringer.** Jeg tolker dette som en ny innbyggerrettet Ktor-tjeneste der fødselsnummeret kommer fra en validert ID-porten-token, ikke fra et felt klienten sender inn. Repoet har en demo-API-rute, men ingen synlig autentisering, tester eller `accessPolicy`. Før jeg velger løsning, trenger jeg svar på:
+
+1. Skal tjenesten bare bruke fødselsnummeret i forespørselen, eller lagre eller sende det videre? Hvilke andre personopplysninger inngår?
+2. Kaller innbyggerens nettleser tjenesten direkte, eller går kallet via en eksisterende frontend/BFF? Skal andre tjenester kunne kalle den?
+3. Hva skal tjenesten gjøre med fødselsnummeret, og finnes det avhengigheter eller mottakere som må håndtere feil?
+4. Er dette en erstatning for demo-API-et eller en separat tjeneste? Hvem eier resten av flyten, og hvilke eksisterende konsumenter må tas hensyn til?
+5. Hvilke signaler viser at tjenesten fungerer, uten å logge fødselsnummer eller token?
+
+🔴 Rød sone: uthenting og validering av identitet og tilgangskontroll. Jeg gjør ingen auth-endringer før kallveien er avklart. Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal veiledning.
+
+Blindsoner reist: 8/11 (#1–#8; #9 avhenger av om demo-API-et erstattes; #10–#11 er ikke aktuelle ennå).
+

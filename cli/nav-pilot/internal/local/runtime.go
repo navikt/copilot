@@ -658,7 +658,10 @@ func modelCacheDir(model string) string {
 // beside it. Reported from a machine where init downloaded 25 GB, printed
 // "Weights downloaded", and then refused to start on weights it had just
 // fetched, with seven stale partials and every snapshot symlink resolving.
-func WeightsPresent(model string) (bool, error) {
+//
+// With a revision, only that commit's snapshot counts: weights from another
+// commit are not the ones the server will load.
+func WeightsPresent(model, revision string) (bool, error) {
 	dir := modelCacheDir(model)
 	snapshots, err := os.ReadDir(filepath.Join(dir, "snapshots"))
 	if err != nil {
@@ -668,6 +671,9 @@ func WeightsPresent(model string) (bool, error) {
 		return false, fmt.Errorf("reading the model cache at %s: %w", dir, err)
 	}
 	for _, snap := range snapshots {
+		if revision != "" && snap.Name() != revision {
+			continue
+		}
 		snapDir := filepath.Join(dir, "snapshots", snap.Name())
 		files, err := os.ReadDir(snapDir)
 		if err != nil {
@@ -712,12 +718,18 @@ func WeightsPresent(model string) (bool, error) {
 // worth knowing before spending an afternoon on it: if progress stops at 0%,
 // the question is whether the two xethub hosts resolve and complete a TLS
 // handshake, not whether the model id is right.
-func DownloadWeights(ctx context.Context, model string, progress func(string)) error {
+//
+// A non-empty revision downloads that commit instead of main.
+func DownloadWeights(ctx context.Context, model, revision string, progress func(string)) error {
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
 	// The venv's own hf CLI, so the downloader is the pinned huggingface_hub
 	// that mlx-lm will load the weights with, not whatever is on PATH.
-	if err := runStreaming(ctx, venvBin("hf"), []string{"download", model}, nil, progress); err != nil {
+	args := []string{"download", model}
+	if revision != "" {
+		args = append(args, "--revision", revision)
+	}
+	if err := runStreaming(ctx, venvBin("hf"), args, nil, progress); err != nil {
 		return fmt.Errorf(
 			"downloading %s: %w\n\n  The download needs %s, %s and %s reachable; behind a TLS-inspecting proxy the first works and the other two hang",
 			model, err, "huggingface.co", "cas-server.xethub.hf.co", "transfer.xethub.hf.co")
@@ -1165,6 +1177,11 @@ def _one_at_a_time(self):
     finally:
         _turn.release()
 _server.APIHandler.do_POST = _one_at_a_time
+if _REVISION:
+    # Pin the served model to the manifest's commit; a draft model or any
+    # other id loads as before.
+    _load = _server.load
+    _server.load = lambda p, *a, **k: _load(p, *a, **(dict(k, revision=_REVISION) if p == _MODEL else k))
 sys.exit(_server.main())
 `
 
@@ -1182,16 +1199,23 @@ var (
 	serverQueueWait  = 10 * time.Minute
 )
 
-// serverScript is [serverBootstrap] with the queue bounds it reads.
-func serverScript() string {
-	return fmt.Sprintf("_QUEUE, _WAIT = %d, %g\n", serverQueueDepth, serverQueueWait.Seconds()) + serverBootstrap
+// serverScript is [serverBootstrap] with the queue bounds and the revision pin
+// it reads. Both strings are Go-quoted, which is a valid Python literal for the
+// shapes [Manifest] lets through (a model id, a hex SHA).
+func serverScript(model Model) string {
+	rev := "None"
+	if model.Revision != "" {
+		rev = strconv.Quote(model.Revision)
+	}
+	return fmt.Sprintf("_QUEUE, _WAIT = %d, %g\n_MODEL, _REVISION = %s, %s\n",
+		serverQueueDepth, serverQueueWait.Seconds(), strconv.Quote(model.Model), rev) + serverBootstrap
 }
 
 // serverCommand is the program and arguments that launch the server for model
 // on port.
 func serverCommand(model Model, port int) (string, []string) {
 	args := []string{
-		"-c", serverScript(),
+		"-c", serverScript(model),
 		"--model", model.Model,
 		"--host", "127.0.0.1",
 		"--port", strconv.Itoa(port),
@@ -1696,6 +1720,7 @@ type RecordStart func(model, outcome string, seconds int64)
 
 func EnsureServerRunning(ctx context.Context, announce func(string), record RecordStart) error {
 	if err := EnsureOwnServer(); err == nil {
+		warnStaleRevision()
 		return nil
 	} else if !errors.Is(err, ErrNoServerRecorded) {
 		// A server may well be running and this process cannot prove it: a
@@ -1766,7 +1791,7 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 	//
 	// That claim about `start` was false until it was made true: the guard was
 	// only ever here, and start reached mlx-lm without it.
-	if present, err := WeightsPresent(m.Model); err != nil {
+	if present, err := WeightsPresent(m.Model, m.Revision); err != nil {
 		return err
 	} else if !present {
 		return fmt.Errorf("the weights for %s are not on this machine. Download them: %s",
@@ -1801,7 +1826,7 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 			m.Model, status.Health, LogPath())
 	}
 	report("ready")
-	return SaveState(State{PID: status.PID, Model: m.Model, Started: time.Now(), Port: srv.Port})
+	return SaveState(State{PID: status.PID, Model: m.Model, Revision: m.Revision, Started: time.Now(), Port: srv.Port})
 }
 
 // RaiseWiredLimit runs the sysctl that lets the GPU wire enough memory for the
@@ -1838,4 +1863,29 @@ func MachineRAMGB() (int, error) {
 		return 0, err
 	}
 	return int(ram / gib), nil
+}
+
+// StaleRevision reports a recorded server that runs the chosen model at
+// another commit than the manifest pins: the advice line, or "" when it
+// matches or nothing is recorded.
+func StaleRevision(st State, m Model) string {
+	if st.Model != m.Model || st.Revision == m.Revision {
+		return ""
+	}
+	return fmt.Sprintf("The server runs %s at another revision than the manifest pins. Load it: %s",
+		st.Model, domain.Bold("nav-pilot alpha local restart"))
+}
+
+// warnStaleRevision prints [StaleRevision] for the recorded server, if any.
+// The launch goes on against the running server, as for a different model.
+func warnStaleRevision() {
+	st, ok, err := LoadState()
+	if err != nil || !ok {
+		return
+	}
+	if m, ok := Chosen(Active()); ok {
+		if msg := StaleRevision(st, m); msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
+		}
+	}
 }

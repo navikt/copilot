@@ -1,0 +1,24 @@
+🛡️ Sikkerhet: **ingen kritiske eller høye funn i `SakService.kt`.**
+
+🔍 Jeg kartla én route, `GET /api/saker`, med TokenX og ID-porten. Den eneste inndataen er `pid`-claimet.
+🛡️ Jeg sjekket OWASP Top 10 og Nav sine sikkerhetsregler.
+📋 Funn: 0 kritiske, 0 høye, 2 medium/lave, 5 god praksis.
+
+**God praksis**
+- Fødselsnummeret hentes fra `pid` i tokenet, aldri fra path eller query. Brukeren ser derfor bare egne saker. Det betyr at eierskapssjekken er innebygd.
+- SQL-spørringen er parameterisert (`?`), så den er ikke sårbar for injeksjon.
+- `maskert()` skjuler hele fødselsnummeret, så det havner ikke i loggene.
+- Feilloggen skriver bare klassenavnet på unntaket, ikke meldingen. Meldingen kan inneholde persondata.
+- `App.kt` sjekker `audience` (`TOKEN_X_CLIENT_ID`) og `acr=idporten-loa-high`.
+
+**Medium og lave funn**
+1. **Unntaket kastes videre uten at jeg ser en `StatusPages`-handler.** Uten den kan Ktor sende feildetaljer til klienten. Sjekk at det finnes en global handler som svarer med en generisk 500-melding, gjerne som RFC 7807.
+2. **Jeg fant ingen `.nais/`-manifest i repoet.** Derfor kan jeg ikke kontrollere at `accessPolicy.inbound` bare slipper inn frontenden. Legg til eksplisitte regler, uten jokertegn (`*`).
+
+Sporingslogg i CEF-format trengs ikke her. Det er innbyggeren selv som ser egne data, ikke en Nav-ansatt.
+
+Jeg har ikke endret noe i koden.
+
+🔴 Rød sone: tilgangskontrollen bygger helt på `pid` fra et validert token. Les gjennom auth-oppsettet i `App.kt` nøye, særlig issuer og JWKS, som jeg ikke har gjennomgått.
+
+Still gjerne spørsmål om valgene over.

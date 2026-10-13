@@ -1,0 +1,44 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/testing-kotlin.instructions.md,.github/instr
+  │ uctions/testing.instructions.md}"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+● List directory .
+  └ 5 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+Dette er ny beregningslogikk på et område teamet ikke kjenner, så jeg stopper før implementering. Jeg fant ingen eksisterende feriepengeregler eller tester i tjenesten, og prosjektet har ingen testavhengighet. `Feriepenger.kt` kan legges til uten å endre API-et eller Nais-oppsettet. Jeg kjører ikke Gradle.
+
+Skal `grunnlag` kunne være negativt, og skal verdier der prosentberegningen ikke får plass i `Long` avvises med feil? Jeg legger ellers til grunn at satsen bestemmes av alderen i opptjeningsåret, slik du beskrev, og at enhetstestene skal dekke begge satser, 60-årsgrensen og avrunding.
+
+Blindsoner reist: 2/11 (#7 testoppsett og #11 ny faglogikk; øvrige er ikke relevante for en isolert beregningsfunksjon).
+

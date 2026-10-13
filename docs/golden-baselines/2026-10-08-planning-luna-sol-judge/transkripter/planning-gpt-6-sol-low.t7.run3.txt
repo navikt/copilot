@@ -1,0 +1,41 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 300ms
+    Failed with exit code 1
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+**Vurdering: Migreringen ser konsistent ut i kildekoden, men er ikke verifisert som atferdsbevarende.** Branchen bruker Jackson 3.1.0, og mapperen er bygget med Kotlin-modulen. Ktor bruker fortsatt `kotlinx-json`, så den trenger ikke `ktor-serialization-jackson3`.
+
+Det viktigste åpne punktet er Kafka-formatet: `sendMottatt` og `sendSoker` bruker mapperen, mens Jackson 3 kan endre rekkefølgen på JSON-felter. Det finnes ingen test som sammenligner meldingene før og etter migreringen eller bekrefter at mottakerne tåler endringen. Legg til karakteriseringstester for serialisering av begge meldingene, særlig `LocalDate`, før branchen merges.
+
+Jeg fikk ikke verifisert kompilering eller avhengighetstreet: installert Gradle 8.14.5 stopper under prosjektkonfigurasjon med JDK 27 (`> 27`). Kjør bygg og avhengighetssjekk med en støttet JDK, og bekreft at ingen Jackson 2 `core`- eller `databind`-avhengigheter ligger igjen. 🔴 Rød sone: Kafka-kontrakten og mottakernes toleranse for endret JSON må vurderes av teamet.
+

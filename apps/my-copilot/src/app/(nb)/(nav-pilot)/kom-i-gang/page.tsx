@@ -8,13 +8,16 @@ import { code } from "@/components/nav-pilot/doc-page";
 
 export const metadata: Metadata = {
   title: "Kom i gang",
-  description: "Fra null til produktiv med GitHub Copilot i Nav på under 10 minutter.",
+  description: "Fra null til produktiv med GitHub Copilot i Nav på under 10 minutter. Du starter i terminalen.",
 };
 
 export default function KomIGangPage() {
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero title="Kom i gang" description="Fra null til produktiv med GitHub Copilot på under 10 minutter." />
+      <PageHero
+        title="Kom i gang"
+        description="Fra null til produktiv med GitHub Copilot på under 10 minutter. Du starter i terminalen med Copilot CLI, nav-pilot og cplt."
+      />
       <div className="max-w-7xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
@@ -39,6 +42,13 @@ export default function KomIGangPage() {
                 <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
                   Kom i gang på 5 minutter
                 </NextLink>
+              </BodyLong>
+              <BodyLong>
+                Vil du heller bruke Copilot i VS Code eller IntelliJ? Se{" "}
+                <NextLink href="/praksis/guide/kom-i-gang" className="text-blue-600 hover:underline">
+                  Kom i gang med Copilot
+                </NextLink>
+                .
               </BodyLong>
             </VStack>
             <div id="installer">

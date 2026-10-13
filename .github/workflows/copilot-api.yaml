@@ -5,12 +5,16 @@ on:
     branches: [main]
     paths:
       - 'apps/copilot-api/**'
+      - 'apps/my-copilot/src/lib/model-pricing.ts'
+      - 'scripts/generate-api-model-metadata.mjs'
       - '.github/workflows/copilot-api.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'apps/copilot-api/**'
+      - 'apps/my-copilot/src/lib/model-pricing.ts'
+      - 'scripts/generate-api-model-metadata.mjs'
       - '.github/workflows/copilot-api.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   workflow_dispatch:

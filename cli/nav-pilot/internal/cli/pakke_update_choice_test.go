@@ -474,15 +474,15 @@ func TestUpdatesNekterEtAnnetScope(t *testing.T) {
 }
 
 // TestBeholdRevisjonenHolderOgsåEnKildeUtenReleases: `releaseNoMetadata` kommer
-// med en nil-feil og lar `release` være nil mens kilden er standardgrenen. En
+// med en nil-feil og lar `release` være nil mens kilden er standardbranchen. En
 // pinne som ikke følger releases synker nettopp derfra, så et «behold» lander
-// her også — og linja skal navngi en revisjon, ikke kalle en grencommit en
+// her også — og linja skal navngi en revisjon, ikke kalle en commit på branchen en
 // release.
 func TestBeholdRevisjonenHolderOgsåEnKildeUtenReleases(t *testing.T) {
 	scope := pinEnv(t)
 	installPin(t, scope, tier2PinSource(t, shaC))
 	settValg(t, scope, updateKeep)
-	releaseSyncSource(t, shaB) // standardgrenen har flyttet seg til shaB
+	releaseSyncSource(t, shaB) // standardbranchen har flyttet seg til shaB
 	stubRelease(t, releaseNoMetadata, pakkeRelease{}, nil)
 
 	var err error
@@ -495,7 +495,7 @@ func TestBeholdRevisjonenHolderOgsåEnKildeUtenReleases(t *testing.T) {
 		t.Errorf("sync navnga ikke revisjonen som holdes tilbake. Utskrift:\n%s", out)
 	}
 	if strings.Contains(out, "release") {
-		t.Errorf("sync kalte en grencommit en release. Utskrift:\n%s", out)
+		t.Errorf("sync kalte en commit på branchen en release. Utskrift:\n%s", out)
 	}
 
 	out = captureStdoutFor(t, func() { err = cmdSync(scope, "", "", false, true) })

@@ -1,0 +1,112 @@
+
+🔍 Skanner branchforskjellen, repository-instruksjoner og relevante Go-endringer.
+
+
+
+
+📊 Endringen er i Kotlin, ikke Go. Jeg går gjennom diffen med Kotlin-, sikkerhets- og testinstruksjonene, og sjekker prosjektets eksisterende mønstre.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+🧾 Jeg har identifisert flere mulige feil i tilgangskontroll, SQL og Kafka-behandling. Nå bekrefter jeg linjenumre og om prosjektet har bygg- eller migreringsoppsett som påvirker funnene.
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+    00gn/T/1791354959724-copilot-tool-output-98464-ce5477e7-2478-4b80-86df-62484d48c910.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+### Sammendrag
+
+Jeg fant seks blokkere i `vedtak-kafka` sammenlignet med `main`. De gjelder tilgang til vedtaksdata, SQL-injeksjon, TokenX-validering, logging av fødselsnummer, duplikate vedtak ved Kafka-retry og manglende databaseskjema.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/Routes.kt` | 30–32 | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` mangler autentisering og eiersjekk. Alle som når tjenesten, kan hente vedtak for et vilkårlig fødselsnummer. `nais.yaml:25–26` åpner dessuten for trafikk fra alle apper og namespaces. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 23 | 🔴 Blokkerer | Spørringen setter `fnr` direkte inn i SQL-strengen. Et fødselsnummer fra URL-en kan dermed gi SQL-injeksjon. Bruk parameterisert `queryOf(..., fnr)`, slik `hentForSak` allerede gjør. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 40–42 | 🔴 Blokkerer | JWT-oppsettet konfigurerer ingen signaturverifikator, og `validate` godtar bare at tokenet har et `aud`-claim. Det kontrollerer verken forventet issuer/audience eller at tokenet er signert av TokenX. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt` | 15 | 🔴 Blokkerer | Logger fødselsnummer direkte. Fjern verdien fra loggen; fødselsnummer skal ikke logges. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 31–33 | 🔴 Blokkerer | Retry kjører både lagring og publisering på nytt. Hvis lagringen lykkes, men publisering feiler eller får timeout, lager neste forsøk et nytt vedtak med ny UUID. Samme søknad kan dermed gi flere vedtak. Bruk idempotens basert på `soknadId` og en atomisk publiseringsstrategi. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 14 | 🔴 Blokkerer | Branchens Nais-konfigurasjon oppretter databasen, men jeg finner ingen migrering som oppretter `vedtak`-tabellen. På en ny database vil lesing og lagring feile med manglende tabell. |
+
+Det finnes heller ingen tester for den nye logikken. `mise check` feilet fordi repoet ikke har en `check`-oppgave. `gradle test --no-daemon` feilet under Gradle-konfigureringen med `> 27`, før kompilering eller tester startet. Ingen filer ble endret.
+

@@ -12,6 +12,8 @@ tags:
   - alpha
 ---
 
+**Siste tall:** Tallene under er fra da saken ble skrevet. Oppdaterte målinger står på [Lokale modeller](/innsikt/lokale-modeller#malt-decide).
+
 En agentøkt resonnerer i mange steg før den svarer. I en hook eller et skript trenger du ofte bare et raskt ja eller nei. `nav-pilot alpha decide` stiller den lokale modellen et flervalgsspørsmål. Svaret er en sannsynlighet for hvert alternativ, ikke tekst. Her spør vi om en commit-melding fra navikt/copilot forklarer hvorfor endringen ble gjort:
 
 ```text
@@ -46,7 +48,7 @@ TypeSafe AI gjorde ideen kjent med Jev, som de slapp til de første brukerne 15.
 
 _`decide` er høyre side. Svaret er sannsynligheten for hvert alternativ, lest av fra ett token._
 
-Vi kjører modellen lokalt. Grunnlaget du sender med `--evidence`, er ofte kode og differ, og verken det eller spørsmålet forlater maskinen. Kallet koster heller ingen AI-credits.
+Vi kjører modellen lokalt. Grunnlaget du sender med `--evidence`, er ofte kode og differ, og verken det eller spørsmålet forlater maskinen. Kallet koster heller ingen AI-kreditter.
 
 ## Bruk en regel når en regel holder
 

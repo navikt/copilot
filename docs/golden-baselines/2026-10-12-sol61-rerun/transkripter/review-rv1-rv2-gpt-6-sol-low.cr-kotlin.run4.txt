@@ -1,0 +1,63 @@
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/mise.toml"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.{kt,kts,toml}"
+  └ 6 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:120 (120 lines read)
+
+● Check project tooling and files (shell)
+  │ ls -la && command -v mise || true
+  └ 9 lines…
+
+✗ Run repository checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+● Confirm review lines and test availability (shell)
+  │ nl -ba src/main/kotlin/no/nav/demo/UserRepo.kt && find src/test -type f -maxdepth 8 -print
+  │ 2>/dev/null && command -v gradle || true
+  └ 15 lines…
+
+● skill(klarsprak)
+
+**Gjennomgang:** `UserRepo.kt` har tre blokkere. Fila ble ikke endret.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 9 | 🔴 | `fnr` settes rett inn i SQL-strengen. Det åpner for SQL-injeksjon. Bruk en parameterisert spørring, for eksempel `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`. |
+| 8 | 🔴 | Fødselsnummer skrives til vanlig applikasjonslogg. Fjern nummeret fra logglinja; dette er personopplysninger som ikke skal ligge der. |
+| 12–13 | 🔴 | `catch (e: Exception)` gjør databasefeil og andre feil om til `null`. Da kan et driftsproblem se ut som «bruker finnes ikke». La feilen gå videre, eller håndter og logg den uten personopplysninger. |
+
+**I tillegg:** Linje 11 viser til `session` og `queryOf` uten deklarasjoner eller import i fila. `build.gradle.kts` har heller ingen databaseavhengighet, så koden kan ikke bygges slik prosjektet står nå. `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave.
+
+🔴 Rød sone: SQL-spørringen, håndteringen av fødselsnummer og feilbehandlingen må gjennomgås nøye. Parameterbinding fjerner injeksjonsrisikoen uten å endre oppslagets hensikt; å la databasefeil være feil, i stedet for å returnere `null`, endrer feilatferden, men gjør feil mulig å oppdage. Still gjerne spørsmål om valgene over.
+

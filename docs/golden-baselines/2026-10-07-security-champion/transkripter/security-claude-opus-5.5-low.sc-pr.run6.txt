@@ -1,0 +1,33 @@
+🛡️ Sikkerhet: gjennomgang av `vedtak-kafka` mot `main` (commit a94160a).
+
+Resultat: **BLOKKER.** Gjennomgangen fant 4 kritiske, 4 høye og 3 middels funn. Jeg har bare lest diffen. Jeg har ikke kjørt `mise check`, `trivy` eller `zizmor`.
+
+## Kritiske funn
+
+1. **SQL-injeksjon** i `VedtakRepository.hentForPerson`. `fnr` fra URL-en settes rett inn i SQL-strengen. Rett opp med `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`.
+2. **`GET /api/vedtak/{fnr}` krever ikke innlogging.** Ruta ligger utenfor `authenticate("tokenx")`. Kombinert med punkt 1 og 4 kan hvem som helst lese vedtak for et vilkårlig fødselsnummer, og i verste fall hele tabellen.
+3. **JWT-valideringen sjekker nesten ingenting.** `validate` godtar ethvert token som har en audience. `verifier`, JWKS, issuer og forventet audience (`TOKEN_X_ISSUER`, `TOKEN_X_JWKS_URI`, `TOKEN_X_CLIENT_ID`) mangler. Bruk `JwkProviderBuilder` og `withIssuer`/`withAudience`, eller `token-validation-ktor`.
+4. **`accessPolicy.inbound` er åpen for `"*"/"*"`.** Alle apper i alle namespaces kan kalle tjenesten. Begrens til de appene som faktisk skal kalle den.
+
+## Høye funn
+
+5. **Eierskap sjekkes ikke (IDOR).** `POST /api/vedtak` tar `fnr` fra request body, og `GET` tar den fra path. Ingen av dem sammenligner med `pid`-claimet i tokenet. En innlogget borger kan derfor fatte vedtak for andre. Fatting av vedtak hører sannsynligvis ikke hjemme i et borgerrettet TokenX-API i det hele tatt.
+6. **FNR havner i loggen.** `log.info("behandler $fnr")` i `VedtakService` må fjernes. Logg `sakId` i stedet.
+7. **FNR står i URL-en.** Path-parametre havner i tilgangslogger og traces. Hent fnr fra tokenet, eller bruk POST med body eller en header.
+8. **Kafka-konfig uten TLS og credentials.** `security.protocol=SSL` og truststore/keystore fra `KAFKA_TRUSTSTORE_PATH`, `KAFKA_KEYSTORE_PATH` og `KAFKA_CREDSTORE_PASSWORD` mangler. Aiven avviser da tilkoblingen, eller så går trafikken ukryptert.
+
+## Middels funn
+
+9. **Kafka-input valideres ikke.** `fnr` og `utfall` lagres uten sjekk (format, 11 siffer). En melding som ikke kan parses, kaster unntak og stopper consumer-tråden for godt (poison pill). Retry gjentar også `fattVedtak`. Hvis `send` feiler etter `lagre`, blir det duplikate vedtak fordi det ikke er idempotens på `soknadId`.
+10. **Audit-logg mangler.** Visning av vedtak med personopplysninger krever CEF-sporingslogg.
+11. **`outbound` er ufullstendig.** Kafka og Cloud SQL håndteres av Nais, men sjekk at `logging/nais-system` faktisk trengs. `kafka.pool: nav-dev` er hardkodet, så manifestet passer ikke for prod. Det finnes heller ingen Flyway-migrasjon for `vedtak`-tabellen.
+
+## Positivt
+
+- `lagre` og `hentForSak` bruker parameteriserte spørringer.
+- Hemmeligheter leses fra miljøvariabler.
+- Kafka-meldingen `VedtakFattetMelding` inneholder ikke fnr.
+
+🔴 Rød sone: auth, eierskapssjekk og SQL. Gå gjennom rettelsene selv, ikke lim dem inn ukritisk.
+
+Still gjerne spørsmål om valgene over.

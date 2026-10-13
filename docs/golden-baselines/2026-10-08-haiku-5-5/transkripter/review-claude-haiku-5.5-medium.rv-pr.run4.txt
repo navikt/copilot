@@ -1,0 +1,25 @@
+## Gjennomgang: `vedtak-kafka` mot `main`
+
+**Oppsummering:** Branchen legger til vedtak-API og Kafka-konsument, men har flere blokkerende feil. Den åpner for PII-lekkasje og SQL-injection, har ingen signaturvalidering av JWT, og kan lage duplikate vedtak. Ingen tester og ingen Flyway-migrering for tabellen `vedtak` er med.
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injection: `fnr` settes rett inn i SQL-strengen. Bruk `?`-parameter. |
+| `Routes.kt` | 30–32 | 🔴 | `GET /api/vedtak/{fnr}` er uten autentisering og uten eierskapssjekk. Hvem som helst kan hente vedtak for et fødselsnummer. |
+| `Routes.kt` | 25–27 | 🔴 | Autentiserte kall kan fatte vedtak for vilkårlig `fnr`. Det mangler sjekk av `azp` og eierskap. |
+| `App.kt` | 41–43 | 🔴 | `validate` sjekker bare at `audience` finnes. Ingen `verifier`/JWK-kilde, ingen issuer- eller audience-sjekk. Signatur valideres ikke. |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer. |
+| `nais.yaml` | 21–25 | 🔴 | `accessPolicy.inbound` åpner for `application: "*"` i `namespace: "*"`. Skal begrenses til kjente klienter. |
+| `VedtakConsumer.kt` | 25, 37–46 | 🔴 | Retry rundt `behandle` kjører `fattVedtak` på nytt. Hvis Kafka-sendingen feiler etter DB-lagring, lagres et nytt duplikat vedtak med ny ID. |
+| `VedtakConsumer.kt` | 24 | 🔴 | En feil i JSON-parsing eller etter tre forsøk dreper konsument-tråden. Offset committes ikke, og appen fortsetter uten konsum. Helsesjekk ser ikke dette. |
+| `build.gradle.kts` | 13–20 | 🟡 | To `dependencies {}`-blokker. Slå sammen. |
+| `App.kt` | 25–31 | 🟡 | Kafka-konfigurasjon mangler SSL/credstore-oppsett for Nais Kafka. Tilkobling vil feile i Nais. |
+| `App.kt` | 23 | 🟡 | `DB_JDBC_URL` og `KAFKA_BROKERS` kan være `null`. `Properties.put` kaster da NPE uten tydelig feilmelding. Verifiser env-navnene mot Nais. |
+| (mangler) | – | 🟡 | Ingen Flyway-migrering for tabellen `vedtak`. |
+| (mangler) | – | 🟡 | Ingen tester for ny logikk. |
+| `Routes.kt` | 31 | 🟡 | `parameters["fnr"]!!` kan krasje. Bruk `?: return@get` med 400. |
+| `VedtakService.kt` | 36 | 💭 | `hentVedtak` er ubrukt. |
+
+**Merk:** `UserRepo.kt` har også SQL-injection (`fnr = '$fnr'`), men filen er ikke endret i denne branchen. Den bør følges opp separat.
+
+**Anbefaling:** Løs de 🔴-funnene før merge. Start med auth og SQL-injection.

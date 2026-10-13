@@ -1,0 +1,33 @@
+● Read file (shell)
+  │ cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak/
+  └ 63 lines…
+
+● Check context and tooling (shell)
+  │ ls -a; cat nais.yaml; which mise gradle; ls -R src | head -30
+  └ 51 lines…
+
+Jeg har lest filen. `mise check` kunne ikke kjøres fordi repoet mangler mise-konfigurasjon og Gradle-wrapper, så funnene under kommer bare fra lesing av koden.
+
+### Oppsummering
+Koden er ryddig og har ingen blokkere. Spørringen er parameterisert. Fødselsnummeret hentes fra `pid` i TokenX-tokenet, så brukeren får bare sine egne saker, og fødselsnummeret skrives ikke i klartekst til loggen. Det som gjenstår er støy i loggen og manglende tester.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 20, 37, 41 | 🟡 | `maskert()` gir alltid `***********`. Loggen sier ikke hvilken forespørsel det gjelder. |
+| `SakService.kt` | 40–43 | 🟡 | Feilen logges her og kastes videre, så den blir trolig logget to ganger. |
+| `SakService.kt` | 41 | 🟡 | Hele unntaket `e` logges. Unntak fra JDBC kan i noen tilfeller ta med parameterverdier, altså fødselsnummeret. |
+| `SakService.kt` | 50 | 🟡 | Tokenets innloggingsnivå (`acr`) sjekkes ikke. Saksdata krever vanligvis `idporten-loa-high`. |
+| `SakService.kt` | — | 🟡 | Ingen tester for ruten, verken uten `pid`, med gyldig token eller når databasen feiler. |
+| `SakService.kt` | 23–30 | 💭 | Ingen paginering. En person med mange saker får hele listen i ett svar. |
+| `SakService.kt` | 47–58 | 💭 | Ruter, service og repository ligger i samme fil. Det er greit nå, men blir uoversiktlig når filen vokser. |
+
+### Detaljer
+- **Logging:** Fjern `try/catch` og la et felles `StatusPages`-oppsett logge feilen én gang. Bruk call-id eller en intern saks-ID i stedet for et maskert fødselsnummer, så loggen sier hvilken forespørsel det gjelder.
+- **`acr`:** Her skal kravet til innloggingsnivå valideres. Sjekk det i `validate { }` i JWT-oppsettet, så slipper hver rute å gjøre det selv.
+
+🔴 Rød sone: tilgangen bygger helt på at `pid` kommer fra et validert TokenX-token. Les auth-oppsettet i `App.kt` nøye.
+
+Still gjerne spørsmål om valgene over.
+

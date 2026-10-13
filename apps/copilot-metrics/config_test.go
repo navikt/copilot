@@ -15,7 +15,7 @@ func TestLoadConfig_DefaultValues(t *testing.T) {
 		"GCP_TEAM_PROJECT_ID", "BIGQUERY_DATASET", "BIGQUERY_TABLE",
 		"BIGQUERY_USER_TEAMS_TABLE", "BIGQUERY_USER_METRICS_TABLE",
 		"BIGQUERY_REPO_METRICS_TABLE",
-		"SLACK_WEBHOOK_URL",
+		"SLACK_WEBHOOK_URL", "apiUrl",
 	} {
 		t.Setenv(key, "")
 	}
@@ -69,6 +69,7 @@ func TestLoadConfig_CustomEnvValues(t *testing.T) {
 	t.Setenv("BIGQUERY_TABLE", "custom_table")
 	t.Setenv("BIGQUERY_REPO_METRICS_TABLE", "custom_repos")
 	t.Setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/test")
+	t.Setenv("apiUrl", "")
 
 	cfg := loadConfig()
 
@@ -280,5 +281,17 @@ func TestConfigValidate_ValidConfig(t *testing.T) {
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("expected nil, got %v", err)
+	}
+}
+
+func TestLoadConfig_PrefersNaisSlackWebhook(t *testing.T) {
+	t.Setenv("SLACK_WEBHOOK_URL", "https://hooks.slack.com/own")
+	t.Setenv("apiUrl", "https://hooks.slack.com/nais")
+	if got := loadConfig().SlackWebhookURL; got != "https://hooks.slack.com/nais" {
+		t.Errorf("SlackWebhookURL = %q, want the Nais apiUrl", got)
+	}
+	t.Setenv("apiUrl", "")
+	if got := loadConfig().SlackWebhookURL; got != "https://hooks.slack.com/own" {
+		t.Errorf("SlackWebhookURL = %q, want SLACK_WEBHOOK_URL fallback", got)
 	}
 }

@@ -1,5 +1,5 @@
 import NextLink from "next/link";
-import { Heading, BodyShort, Box, HGrid, Label } from "@navikt/ds-react";
+import { Heading, BodyShort, Box, VStack } from "@navikt/ds-react";
 import { Carousel } from "@/components/carousel";
 import { LaptopIcon, GlobeIcon, TerminalIcon, CpuIcon, CogIcon } from "@navikt/aksel-icons";
 
@@ -23,6 +23,79 @@ export default function ToolsAndModes() {
       </Box>
 
       <Carousel showIndicators={true} showSwipeHint={true} className="mb-6">
+        {/* CLI */}
+        <Box
+          background="warning-soft"
+          padding={{ xs: "space-12", sm: "space-16" }}
+          borderRadius="8"
+          className="max-w-lg"
+        >
+          <div className="flex items-center gap-2 mb-5">
+            <TerminalIcon className="text-orange-700" aria-hidden />
+            <Heading size="small" level="3" className="text-orange-700">
+              I terminalen (CLI)
+            </Heading>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/github-copilot-cli.jpeg"
+            alt="Copilot i terminalen"
+            className="w-full rounded-md mb-3 border border-orange-200"
+          />
+          <div className="space-y-3">
+            <div>
+              <BodyShort weight="semibold" className="text-sm">
+                Copilot CLI og opencode
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                En agent i terminalen som leser, endrer og tester kode i repoet ditt. Start med{" "}
+                <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
+                  nav-pilot
+                </NextLink>
+                , som kjører agenten i sandkassen{" "}
+                <NextLink href="/cplt" className="text-blue-600 hover:underline">
+                  cplt
+                </NextLink>
+                . På Nav-utstyr skal agenten kjøre i cplt.
+              </BodyShort>
+            </div>
+            <Box background="default" padding="space-8" borderRadius="4">
+              <VStack gap="space-4">
+                <code className="text-xs">nav-pilot</code>
+                <code className="text-xs text-gray-500"># Starter agenten i cplt i repoet du står i</code>
+              </VStack>
+            </Box>
+            <div>
+              <BodyShort weight="semibold" className="text-sm">
+                Pek på filer med @
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                Skriv <code>@</code> og filnavnet for å legge en fil i konteksten, for eksempel{" "}
+                <code>@src/auth/token.ts</code>.
+              </BodyShort>
+            </div>
+            <div>
+              <BodyShort weight="semibold" className="text-sm">
+                Slash-kommandoer i Copilot CLI
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                <code>/plan</code> lager en plan før agenten endrer noe. <code>/clear</code> starter en ny samtale,{" "}
+                <code>/compact</code> komprimerer en lang samtale, og <code>/model</code> bytter modell. Skriv{" "}
+                <code>/</code> for å se alle.
+              </BodyShort>
+            </div>
+            <div>
+              <BodyShort weight="semibold" className="text-sm">
+                Godkjenninger
+              </BodyShort>
+              <BodyShort className="text-gray-600 text-xs">
+                Agenten spør før den endrer filer, kjører kommandoer som kan endre noe, eller henter nettsider. Lesing
+                og søk går uten spørsmål. Du kan gi lov én gang eller for hele økten.
+              </BodyShort>
+            </div>
+          </div>
+        </Box>
+
         {/* IDE */}
         <Box background="info-soft" padding={{ xs: "space-12", sm: "space-16" }} borderRadius="8" className="max-w-lg">
           <div className="flex items-center gap-2 mb-5">
@@ -61,8 +134,8 @@ export default function ToolsAndModes() {
                 3. Copilot Edits / Agent Mode (Cmd+Shift+I)
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Autonom KI. Dette er den nye "agent-modusen". Du gir et stort mål ("Bytt ut alle fetch-kall med axios"),
-                og Copilot åpner flere filer, endrer dem, og ber deg godkjenne diff-en til slutt.
+                Autonom KI. Du gir et stort mål ("Bytt ut alle fetch-kall med axios"), og Copilot åpner flere filer,
+                endrer dem, og ber deg godkjenne diff-en til slutt.
               </BodyShort>
             </div>
             <div>
@@ -78,9 +151,8 @@ export default function ToolsAndModes() {
                 ⚠️ Forskjeller mellom IDE-er
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
-                Vær oppmerksom på at IntelliJ og Visual Studio ofte ligger flere måneder bak VS Code i
-                Copilot-funksjonalitet. Agent Mode / Copilot Edits og avanserte slash-kommandoer fungerer ofte best
-                (eller kun) i VS Code.
+                Agent mode finnes også i JetBrains-IDE-ene. Nye funksjoner kommer ofte først til VS Code, så noen
+                slash-kommandoer og innstillinger kan mangle i IntelliJ og Visual Studio en stund.
               </BodyShort>
             </div>
           </div>
@@ -102,13 +174,13 @@ export default function ToolsAndModes() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/github-copilot-coding-agent.jpeg"
-            alt="Copilot Coding Agent på GitHub"
+            alt="Copilot cloud agent på GitHub"
             className="w-full rounded-md mb-3 border border-green-200"
           />
           <div className="space-y-3">
             <div>
               <BodyShort weight="semibold" className="text-sm">
-                Coding Agent
+                Copilot cloud agent
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
                 Tildel en issue til @copilot, agenten lager PR i bakgrunnen. Perfekt for backlog.
@@ -150,46 +222,6 @@ export default function ToolsAndModes() {
             </div>
           </div>
         </Box>
-
-        {/* CLI */}
-        <Box
-          background="warning-soft"
-          padding={{ xs: "space-12", sm: "space-16" }}
-          borderRadius="8"
-          className="max-w-lg"
-        >
-          <div className="flex items-center gap-2 mb-5">
-            <TerminalIcon className="text-orange-700" aria-hidden />
-            <Heading size="small" level="3" className="text-orange-700">
-              I terminalen (CLI)
-            </Heading>
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/github-copilot-cli.jpeg"
-            alt="Copilot i terminalen"
-            className="w-full rounded-md mb-3 border border-orange-200"
-          />
-          <div className="space-y-3">
-            <div>
-              <BodyShort weight="semibold" className="text-sm">
-                copilot
-              </BodyShort>
-              <BodyShort className="text-gray-600 text-xs">
-                Agentic CLI – build, debug, refactor kode med naturlig språk direkte i terminalen.
-              </BodyShort>
-            </div>
-            <Box background="default" padding="space-8" borderRadius="4">
-              <code className="text-xs block">copilot</code>
-              <code className="text-xs block mt-1 text-gray-500"># Åpner interaktiv agent-modus</code>
-            </Box>
-            <BodyShort className="text-gray-500 text-xs">
-              Installer: <code className="bg-gray-100 px-1 rounded">brew install copilot-cli</code>{" "}
-              <code className="bg-gray-100 px-1 rounded">winget install GitHub.Copilot</code>{" "}
-              <code className="bg-gray-100 px-1 rounded">curl -fsSL https://gh.io/copilot-install | bash</code>
-            </BodyShort>
-          </div>
-        </Box>
       </Carousel>
 
       {/* MCP section - separate from CLI */}
@@ -201,8 +233,8 @@ export default function ToolsAndModes() {
           </Heading>
         </div>
         <BodyShort className="text-gray-600 text-sm mb-2">
-          Utvid Copilot med eksterne verktøy via MCP-servere. Tilgjengelig i Agent Mode (VS Code), Copilot CLI og Coding
-          Agent på GitHub.com.
+          Utvid Copilot med eksterne verktøy via MCP-servere. Tilgjengelig i agent mode i editoren, Copilot CLI,
+          opencode og Copilot cloud agent på GitHub.com.
         </BodyShort>
         <BodyShort className="text-gray-600 text-sm mb-2">
           Navs{" "}
@@ -240,45 +272,22 @@ export default function ToolsAndModes() {
             Modellvalg og kostnader
           </Heading>
         </div>
-        <Box background="warning-soft" padding="space-12" borderRadius="8" className="mb-4">
-          <BodyShort size="small">
-            <strong>Bruk riktig modell:</strong> Valg av modell kan ha stor innvirkning på hvor godt Copilot forstår
-            koden din. Ikke nøl med å bytte modell i dropdown-menyen hvis du står fast, da de ulike leverandørene ofte
-            tenker litt annerledes!
-          </BodyShort>
-        </Box>
-        <BodyShort className="text-gray-600 text-sm mb-5">
-          Alle brukere får et personlig budsjett med <strong>AI Credits</strong> hver måned. Ulike modeller har ulik
-          kostnad i form av AI Credits. Du kan velge fritt mellom de ulike KI-leverandørene GitHub Copilot støtter.
+        <BodyShort className="text-gray-600 text-sm" style={{ marginBottom: "var(--ax-space-8)" }}>
+          <strong>Start med Auto.</strong> Da velger Copilot modell for deg. Bytt modell bare når du har en grunn, for
+          eksempel at agenten står fast på en vanskelig oppgave.
         </BodyShort>
-        <HGrid columns={{ xs: 1, sm: 2, lg: 3 }} gap="space-12">
-          <div>
-            <Label size="small" className="text-green-700">
-              Inkluderte modeller
-            </Label>
-            <BodyShort className="text-gray-600 text-xs">
-              Mindre modeller (f.eks. GPT-4o mini, Claude 3.5 Haiku)
-            </BodyShort>
-          </div>
-          <div>
-            <Label size="small">Anthropic Claude</Label>
-            <BodyShort className="text-gray-600 text-xs">Claude 3.5 Sonnet (Rask og god på koding)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">OpenAI GPT</Label>
-            <BodyShort className="text-gray-600 text-xs">GPT-4o (Bred kunnskap og god ytelse)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">Google Gemini</Label>
-            <BodyShort className="text-gray-600 text-xs">Gemini 1.5 Pro (God på store kontekstvinduer)</BodyShort>
-          </div>
-          <div>
-            <Label size="small">OpenAI o1</Label>
-            <BodyShort className="text-gray-600 text-xs">
-              o1-preview (Resonneringsmodell for komplekse oppgaver)
-            </BodyShort>
-          </div>
-        </HGrid>
+        <BodyShort className="text-gray-600 text-sm">
+          Bruken måles i <strong>AI Credits</strong>. Hver bruker har en kvote som samles i en felles pott for Nav, og
+          modellene koster ulikt. Noen modeller har Nav slått av. Se{" "}
+          <NextLink href="/priser" className="text-blue-600 hover:underline">
+            priser
+          </NextLink>{" "}
+          og{" "}
+          <NextLink href="/modeller" className="text-blue-600 hover:underline">
+            modeller
+          </NextLink>{" "}
+          for hva som finnes og hva det koster.
+        </BodyShort>
         <Box background="info-soft" padding="space-12" borderRadius="8" className="mt-5">
           <Heading size="xsmall" level="4" className="mb-1 text-blue-700">
             Forvirret over "Context Window" måleren? (Reserved Output)
@@ -289,18 +298,6 @@ export default function ToolsAndModes() {
             bare har lagt ved et par filer. Dette er normalt og nødvendig for at modellen skal tenke seg om.
           </BodyShort>
         </Box>
-        <BodyShort className="text-gray-500 text-xs mt-3">
-          Se{" "}
-          <a
-            href="https://docs.github.com/en/copilot/using-github-copilot/changing-the-ai-model-for-github-copilot"
-            className="text-blue-600 hover:underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHubs offisielle dokumentasjon
-          </a>{" "}
-          for en fullstendig og oppdatert liste over modeller.
-        </BodyShort>
       </Box>
     </div>
   );

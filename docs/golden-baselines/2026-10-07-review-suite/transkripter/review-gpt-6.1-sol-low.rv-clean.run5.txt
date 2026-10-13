@@ -1,0 +1,111 @@
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+    2
+    3  import io.ktor.http.HttpStatusCode
+    4  import io.ktor.server.auth.authenticate
+    5  import io.ktor.server.auth.jwt.JWTPrincipal
+    6  import io.ktor.server.auth.principal
+    7  import io.ktor.server.response.respond
+    8  import io.ktor.server.routing.Route
+    9  import io.ktor.server.routing.get
+    10  import kotliquery.queryOf
+    11  import kotliquery.sessionOf
+    12  import kotlinx.serialization.Serializable
+    13  import org.slf4j.LoggerFactory
+    14  import javax.sql.DataSource
+    15
+    16  @Serializable
+    17  data class Sak(val sakId: String, val tema: String, val status: String)
+    18
+    19  /** Skjuler hele fødselsnummeret i logger. */
+    20  fun String.maskert(): String = "*".repeat(length)
+    21
+    22  class SakRepository(private val dataSource: DataSource) {
+    23      fun hentForPerson(fnr: String): List<Sak> =
+    24          sessionOf(dataSource).use { session ->
+    25              session.run(
+    26                  queryOf("SELECT sak_id, tema, status FROM sak WHERE fnr = ? ORDER BY
+    opprettet DESC", fnr)
+    27                      .map { Sak(it.string("sak_id"), it.string("tema"), it.string("status"))
+    }
+    28                      .asList,
+    29              )
+    30          }
+    31  }
+    32
+    33  class SakService(private val repository: SakRepository) {
+    34      private val log = LoggerFactory.getLogger(SakService::class.java)
+    35
+    36      fun sakerFor(fnr: String): List<Sak> {
+    37          log.info("Henter saker for {}", fnr.maskert())
+    38          return try {
+    39              repository.hentForPerson(fnr)
+    40          } catch (e: Exception) {
+    41              log.error("Kunne ikke hente saker for {}", fnr.maskert(), e)
+    42              throw e
+    43          }
+    44      }
+    45  }
+    46
+    47  fun Route.sakRoutes(service: SakService) {
+    48      authenticate("tokenx") {
+    49          get("/api/saker") {
+    50              val fnr = call.principal<JWTPrincipal>()?.payload?.getClaim("pid")?.asString()
+    51              if (fnr == null) {
+    52                  call.respond(HttpStatusCode.Unauthorized)
+    53                  return@get
+    54              }
+    55              call.respond(service.sakerFor(fnr))
+    56          }
+    57      }
+    58  }
+    /Users/hans/.local/share/mise/installs/gradle/8/gradle-8.14.5/bin/gradle
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 295ms
+    Failed with exit code 1
+
+Fant **én sikkerhetsrisiko og ett ytelsesproblem** i `src/main/kotlin/no/nav/demo/sak/SakService.kt`. SQL-spørringen er parameterisert, og endpointet bruker `pid` fra tokenet fremfor en klientstyrt identifikator.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 41 | 🔴 Blokker | `log.error(..., e)` logger hele unntaket, inkludert meldinger fra databasen. Disse kan inneholde persondata, selv om `fnr` maskeres i selve loggteksten. Maskeringen beskytter derfor ikke hele loggoppføringen. Bruk en loggstrategi som utelater sensitive unntaksdetaljer. |
+| 55, 23–29 | 🟡 Forslag | Routens coroutine kjører synkron JDBC direkte. Venting på tilkobling og databasesvar blokkerer Ktor-tråden og kan redusere kapasiteten under belastning. Flytt databasearbeidet til `Dispatchers.IO` eller en avgrenset dispatcher for blokkerende arbeid. |
+
+Ingen kode endret. Kontrollene kunne ikke fullføres: `mise check` mangler, og `gradle --offline check` feilet under prosjektkonfigurasjon med meldingen `> 27`. Jeg fant ingen tester som dekker filen.
+

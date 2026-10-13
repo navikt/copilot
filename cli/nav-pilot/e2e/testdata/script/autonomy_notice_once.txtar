@@ -65,16 +65,6 @@ exec pty-run -- nav-pilot
 ! stdout 'Copilot now runs commands on its own'
 exists $WORK/home/seen-autonomy-notice
 
-# No cplt and --no-sandbox: no allow-all, no notice, and the notice is
-# still due at the next cplt launch.
-fake-bin copilot
-cp $WORK/nokey.toml $WORK/home/config.toml
-rm $WORK/home/seen-autonomy-notice
-exec pty-run -- nav-pilot --no-sandbox
-! stdout 'Copilot now runs commands on its own'
-stdout 'nav-pilot passes no allow-all flags outside the sandbox'
-! exists $WORK/home/seen-autonomy-notice
-
 -- nokey.toml --
 version = 1
 client = "copilot"

@@ -1,0 +1,23 @@
+
+### Oppsummering
+Ingen blokkere. Fila gjør det viktigste riktig. SQL-en er parameterisert. Fnr kommer fra `pid`-claimet i tokenet og ikke fra brukerinput, så brukeren ser bare egne saker. Fnr blir maskert før logging. Jeg kjørte ikke `mise check`, fordi repoet mangler `mise.toml`.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 40–42 | 🟡 | Feilen logges uten stacktrace og kastes videre |
+| `SakService.kt` | 50–51 | 🟡 | Tomt `pid` (`""`) slipper gjennom kontrollen |
+| `SakService.kt` | 48 | 🟡 | Sikkerhetsnivået (`acr`) i tokenet blir ikke sjekket |
+| (mangler) | – | 🟡 | Ingen tester for ruten eller servicen |
+| `SakService.kt` | 20, 37 | 💭 | `maskert()` viser lengden og gir ingen sporbarhet |
+| `SakService.kt` | hele | 💭 | Modell, repository, service og rute ligger i samme fil |
+
+### Detaljer
+- **Linje 40–42:** Bare klassenavnet logges, så stacktrace og årsak forsvinner. Ktor logger dessuten feilen igjen når den kastes videre. Fjern try/catch og la `StatusPages` håndtere feilen. Alternativt kan du logge med `log.error("Kunne ikke hente saker", e)`. Exception-meldinger fra JDBC tar normalt ikke med parameterverdiene, men sjekk dette for driveren dere bruker.
+- **Linje 50:** Endre til `if (fnr.isNullOrBlank())`. Et tomt claim gir i dag et tomt søk i stedet for 401.
+- **Linje 48:** 🔴 Rød sone: autorisasjon, gå gjennom denne nøye. Sjekk om `tokenx`-konfigurasjonen krever `acr=idporten-loa-high` (eller `Level4`). Uten det kan et token med lavere sikkerhetsnivå hente saksdata. Jeg ser ikke auth-oppsettet i denne fila.
+- **Tester:** Skriv en rutetest med MockOAuth2Server for tilfellene med og uten `pid`, og en repositorytest med Testcontainers.
+
+Still gjerne spørsmål om valgene over.
+

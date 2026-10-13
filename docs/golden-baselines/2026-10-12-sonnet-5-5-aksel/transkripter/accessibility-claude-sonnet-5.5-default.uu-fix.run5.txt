@@ -1,0 +1,29 @@
+/ Search (grep)
+  │ "slett|Slett|Delete|Button" (src/app/komponenter/StatusPanel.tsx)
+  └ 3 lines found
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+Bruker Aksel `Button` med ikon og tilgjengelig navn via `title` på ikonet.
+
+● Edit StatusPanel.tsx +6 -3
+  └ src/app/komponenter/StatusPanel.tsx
+
+● Edit StatusPanel.tsx +1
+  └ src/app/komponenter/StatusPanel.tsx
+
+Slett-knappen i `StatusPanel.tsx` har nå tilgjengelig navn «Slett». Jeg har ikke kjørt noen tester eller bygget prosjektet.
+
+Jeg erstattet `<button>` med Aksel `<Button variant="tertiary" icon={<TrashIcon title="Slett" />} />`. `title` på ikonet blir knappens navn for skjermlesere. Jeg la også til `type="button"` og importerte `Button` fra `@navikt/ds-react`.
+
+Samme fil har andre UU-feil som jeg lot stå, siden du bare ba om slett-knappen:
+- `div onClick` mangler tastaturstøtte.
+- `outline: none` fjerner fokusindikatoren.
+- `tabIndex={5}` bryter tab-rekkefølgen.
+- Statusfargen er eneste informasjonsbærer.
+- `p-4 mx-8` er Tailwind-spacing, mens prosjektet bruker Aksel spacing-tokens.
+
+Si fra hvis du vil at jeg tar dem også.
+

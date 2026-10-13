@@ -239,7 +239,7 @@ export function StepWorkflow({
           }}
           icon={<MonitorIcon aria-hidden />}
           title="opencode (standard)"
-          description="Kodeagent i terminalen med åpen kildekode, koblet til Copilot-abonnementet ditt. Den eneste klienten der en skymodell kan sende jobber til en lokal modell."
+          description="Kodeagent i terminalen med åpen kildekode, koblet til Copilot-abonnementet ditt. Den eneste klienten der en skymodell kan delegere jobber til en lokal modell."
         />
         <ChoiceCard
           selected={workflow === "cli"}

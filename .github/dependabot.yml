@@ -135,3 +135,14 @@ updates:
         patterns:
           - "*"
     open-pull-requests-limit: 5
+
+  # Frozen benchmark fixture: run results record its fixture hash, so bumps
+  # would invalidate the baselines. Limit 0 turns off version updates here.
+  - package-ecosystem: "npm"
+    directory: "/benchmark/realistic/typescript/incident/workspace"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    # Security updates ignore the limit above, so ignore every dependency too.
+    ignore:
+      - dependency-name: "*"

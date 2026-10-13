@@ -1,0 +1,31 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● skill(nav-auth)
+
+● Read nais-templates.md
+  │ ~/.copilot/skills/nav-plan/references/nais-templates.md
+  └ L1:160 (60 lines read)
+
+● Read decision-trees.md
+  │ ~/.copilot/skills/nav-plan/references/decision-trees.md
+  └ L1:130 (130 lines read)
+
+**Fase 2 – plan.** Jeg legger til grunn at den eksisterende Next.js-frontenden er innbyggerens inngang, og at Ktor-prosjektet er utgangspunktet for den nye API-tjenesten. Planlagt flyt er: nettleser → frontend med ID-porten og Wonderwall → TokenX med brukerkontekst → Ktor-API → PDL for navn. Frontenden kaller API-et fra serveren, ikke direkte fra nettleseren. Ingen fødselsnummer sendes som klientparameter; API-et henter identiteten fra et validert token.
+
+| Område | Plan |
+|---|---|
+| API og data | Et autentisert `GET /api/meg` returnerer bare navnet frontenden trenger. Ingen database, cache, Kafka eller lagring av fødselsnummer og navn. Dokumenter respons og feilformat i OpenAPI. |
+| Tilgang | Frontenden bruker eksisterende ID-porten-innlogging med Wonderwall og veksler token via TokenX. Ktor-tjenesten validerer TokenX-tokenets signatur, utsteder, mottaker og utløp før den leser fødselsnummer. Nais får eksplisitt inbound-regel kun for frontenden og outbound-regel kun for PDL. |
+| PDL og feil | Et tidsavgrenset PDL-oppslag bruker tjenestens avtalte tilgang og sender bare opplysningene PDL krever. Ved utilgjengelig PDL returnerer API-et `503` i et feilformat uten personopplysninger. Loggen inneholder feilkategori og korrelasjons-ID, aldri token, fødselsnummer eller navn. Øvrige PDL-svar må håndteres etter PDL-kontrakten, ikke automatisk som `503`. |
+| Drift | Behold helsesjekker og legg til `/metrics`. Mål oppslag per minutt og feilandel uten personidentifiserende metrikknøkler. Sett alarm på vedvarende feilandel og PDL-utilgjengelighet; fastsett terskler etter målt normaltrafikk. Start med små ressursforespørsler, to replikaer og ingen CPU-grense. |
+| Leveranse | Utvid Ktor-prosjektet med avgrensede auth-, API- og PDL-klientdeler. Oppdater Nais-manifest per miljø og CI/CD til bygg, tester, dev og deretter prod. Lag endringsbeskrivelse, driftsrutine og API-kontrakt. Ingen Flyway-migrasjon trengs uten database. |
+| Verifisering og utrulling | Test manglende/ugyldig token, identitet fra token fremfor input, vellykket PDL-oppslag, PDL-feil → `503` og fravær av persondata i logger og metrikker. Verifiser mot PDL i dev før prod. Ved feil rulles tjenesten tilbake til forrige versjon; frontenden må ikke ta den nye flyten i bruk før API-et er verifisert. |
+
+**🔴 Rød sone:** Tokenvalidering, identitetskobling, PDL-tilgang og håndtering av personopplysninger må gjennomgås grundig. TokenX og Wonderwall er nye for teamet, så standardleveransen for disse delene er testskjeletter og implementeringspunkter som utviklerne fyller inn. **🟢 Grønn sone:** prosjektkobling, manifestutkast, CI/CD, metrikker og testoppsett kan genereres og gjennomgås før merge.
+
+Valget bevarer brukerens identitet gjennom tjenestegrensen og unngår en database med fødselsnummer. Det krever tokenveksling og en avklart PDL-tilgang; Azure client credentials mellom frontend og API er forkastet fordi det mister brukerkonteksten. PDLs konkrete autentisering, nødvendige felter og mål-applikasjon må bekreftes mot teamets PDL-avtale før kode leveres.
+
+Neste fase er gjennomgang av planen fra sikkerhet, plattform, arkitektur og endringssikkerhet. Stil gjerne spørsmål om valgene over.
+

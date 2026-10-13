@@ -1,0 +1,21 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        delegation
+# date:         2026-10-08
+# revision:     3afd3553
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      619919060
+# prompts:      d1
+#
+# id|run|status|assertion|detail
+d1|1|pass|Fase 3 delegates to security-champion-agent on claude-opus-5.5|log: gpt-6-sol 3,claude-opus-5.5 1; usage: claude-opus-5.5,gpt-6-sol; subagents: security-champion-agent:claude-opus-5.5; labels: Security-champion-agent (model: claude-opus-5.5);
+d1|2|pass|Fase 3 delegates to security-champion-agent on claude-opus-5.5|log: gpt-6-sol 3,claude-opus-5.5 1; usage: claude-opus-5.5,gpt-6-sol; subagents: security-champion-agent:claude-opus-5.5; labels: Security-champion-agent (model: claude-opus-5.5);
+d1|3|pass|Fase 3 delegates to security-champion-agent on claude-opus-5.5|log: gpt-6-sol 3,claude-opus-5.5 1; usage: claude-opus-5.5,gpt-6-sol; subagents: security-champion-agent:claude-opus-5.5; labels: Security-champion-agent (model: claude-opus-5.5);
+d1|4|pass|Fase 3 delegates to security-champion-agent on claude-opus-5.5|log: gpt-6-sol 3,claude-opus-5.5 1; usage: claude-opus-5.5,gpt-6-sol; subagents: security-champion-agent:claude-opus-5.5; labels: Security-champion-agent (model: claude-opus-5.5);
+d1|5|pass|Fase 3 delegates to security-champion-agent on claude-opus-5.5|log: gpt-6-sol 3,claude-opus-5.5 1; usage: claude-opus-5.5,gpt-6-sol; subagents: security-champion-agent:claude-opus-5.5; labels: Security-champion-agent (model: claude-opus-5.5);

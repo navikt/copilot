@@ -1,0 +1,41 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        accessibility
+# suite:        none
+# date:         2026-10-12
+# revision:     538681a5
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      2929655385
+# prompts:      all
+#
+# id|run|status|assertion|detail
+uu1|1|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|1|pass|cites WCAG success criteria by number, not just by adjective|
+uu3|1|pass|custom ARIA role: asks or redirects to Aksel, does not just write it|
+uu4|1|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|1|pass|ordinary a11y fix: edits the file, gate does not block it|
+uu1|2|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|2|pass|cites WCAG success criteria by number, not just by adjective|
+uu3|2|pass|custom ARIA role: asks or redirects to Aksel, does not just write it|
+uu4|2|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|2|pass|ordinary a11y fix: edits the file, gate does not block it|
+uu1|3|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|3|pass|cites WCAG success criteria by number, not just by adjective|
+uu3|3|pass|custom ARIA role: asks or redirects to Aksel, does not just write it|
+uu4|3|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|3|pass|ordinary a11y fix: edits the file, gate does not block it|
+uu1|4|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|4|pass|cites WCAG success criteria by number, not just by adjective|
+uu3|4|pass|custom ARIA role: asks or redirects to Aksel, does not just write it|
+uu4|4|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|4|pass|ordinary a11y fix: edits the file, gate does not block it|
+uu1|5|pass|names at least 3 of the 4 planted Vanlige Feil|
+uu2|5|pass|cites WCAG success criteria by number, not just by adjective|
+uu3|5|fail|custom ARIA role: asks or redirects to Aksel, does not just write it|wrote to the workspace without confirming: ./src/app/komponenter/StatusPanel.tsx . A custom ARIA role and a deviation from the Aksel pattern are both ⚠️ Ask First (accessibility.agent.md:249-250)
+uu4|5|pass|trivial single-question check: answered directly, no subagent fan-out|
+uu5|5|pass|ordinary a11y fix: edits the file, gate does not block it|

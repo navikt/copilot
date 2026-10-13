@@ -1,0 +1,19 @@
+🛡️ Sikkerhet: gjennomgang av `SakService.kt`
+
+🔍 Jeg kartla flyten: TokenX-token → `pid`-claim → parameterisert SQL → respons.
+📋 Funn: 0 kritiske og 0 høye i filen. Ett høyt funn i Nais-konfigurasjonen rundt den, og 2 lave.
+
+**God praksis i filen**
+- Fødselsnummeret hentes fra det validerte tokenet (`pid`), aldri fra request-parameter. Brukeren ser bare egne saker, så eierskapet er sikret. 🔴 Rød sone: tilgangskontroll, linje 50.
+- SQL-spørringen er parameterisert (`?`), så den er ikke åpen for injeksjon.
+- `maskert()` skjuler hele fødselsnummeret i loggen, og feilloggen tar bare med navnet på unntaksklassen, ikke meldingen.
+- `App.kt` validerer issuer, audience og `acr=idporten-loa-high`.
+
+**Funn**
+1. **Høy (utenfor filen): `nais.yaml` mangler `tokenx.enabled: true` og `accessPolicy.inbound`.** Uten `tokenx.enabled` blir `TOKEN_X_*` ikke satt, så autentiseringen virker ikke. Uten inbound-regler kan ingen frontend nå tjenesten. Begge må legges inn med eksplisitte applikasjoner, ikke `*`.
+2. **Lav:** `maskert()` beholder lengden på verdien. For fødselsnummer er lengden alltid 11, så ingenting lekker, men `"***"` ville vært enklere.
+3. **Lav:** Unntaket kastes videre (`throw e`). Sjekk at `StatusPages` gir et generisk svar på 500, slik at stacktrace ikke når klienten.
+
+Jeg har ikke gjort endringer i koden.
+
+Still gjerne spørsmål om valgene over.

@@ -1,0 +1,59 @@
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 319ms
+    Failed with exit code 1
+
+
+
+
+**Gjennomgangen av `vedtak-kafka` mot `main`: Jeg ville stoppet merge.** Endringene åpner tilgang til vedtak og inneholder feil som kan gi både datalekkasjer og dupliserte vedtak.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak for et oppgitt fødselsnummer. Endepunktet må autentisere kalleren og kontrollere tilgang til personen. |
+| `VedtakRepository.kt:23` | 🔴 Blokkerer | `fnr` settes rett inn i SQL. Det åpner for SQL-injeksjon og uthenting av andre personers vedtak. Bruk en parameterisert spørring. |
+| `App.kt:39–43` | 🔴 Blokkerer | JWT-oppsettet angir ingen token-verifier. `validate` sjekker heller ikke at mottaker og autorisert avsender er riktige. Konfigurer signatur-, utsteder-, audience- og `azp`-validering før POST-endepunktet tas i bruk. |
+| `VedtakService.kt:15` | 🔴 Blokkerer | Fødselsnummer skrives til logg ved hvert vedtak. Fjern personopplysningen fra logglinjen. |
+| `VedtakConsumer.kt:24–33` | 🔴 Blokkerer | Databasen lagres før Kafka-publiseringen. Hvis publisering feiler, eller prosessen stopper før `commitSync`, kjører meldingen på nytt og oppretter et nytt vedtak med ny ID. Bruk stabil meldings-ID og idempotent lagring; en outbox kan sikre publisering etter lagring. |
+| `App.kt:26–35` | 🔴 Blokkerer | Kafka-klientene får bare broker-adresse, ikke sikkerhetsoppsettet som trengs for Nais Kafka. De vil ikke kunne koble til med påkrevd autentisering og TLS. |
+| `VedtakRepository.kt:14` | 🟡 Forslag | Koden skriver til tabellen `vedtak`, men branchen har ingen migrering som oppretter den. Første kall vil feile dersom tabellen ikke finnes fra før. |
+
+🔴 **Rød sone: tilgangskontroll, SQL og vedtakshåndtering må gjennomgås grundig.** Å gjøre konsumenten idempotent gir tryggere omkjøring, men krever at dere bestemmer hvilken meldings-ID som identifiserer ett vedtak; dagens tilfeldig genererte vedtaks-ID kan ikke fylle den rollen. Still gjerne spørsmål om valgene over.
+
+**Kontroller:** `mise check` kunne ikke kjøres fordi repoet ikke har en `check`-oppgave. `gradle test --offline` stoppet under prosjektkonfigurasjon med Java 27 (`> 27`), før kompilering og tester.
+

@@ -1,4 +1,4 @@
-import { formatNumber, formatPercentage, isoWeekLabel, formatMinutes } from "./format";
+import { formatDate, formatNumber, formatPercent, formatShare, formatUSD, isoWeekLabel, formatMinutes } from "./format";
 
 describe("formatNumber", () => {
   it("should format numbers with Norwegian locale (space as thousands separator)", () => {
@@ -22,16 +22,39 @@ describe("formatNumber", () => {
   });
 });
 
-describe("formatPercentage", () => {
-  it("should format percentages correctly", () => {
-    expect(formatPercentage(0)).toBe("0%");
-    expect(formatPercentage(25)).toBe("25%");
-    expect(formatPercentage(100)).toBe("100%");
+describe("formatPercent", () => {
+  it("writes nb-NO percent with a non-breaking space", () => {
+    expect(formatPercent(0)).toBe("0 %");
+    expect(formatPercent(12)).toBe("12 %");
+    expect(formatPercent(12.34, 1)).toBe("12,3 %");
+    expect(formatPercent(12, 1)).toBe("12,0 %");
   });
 
-  it("should handle decimal percentages", () => {
-    expect(formatPercentage(25.5)).toBe("25.5%");
-    expect(formatPercentage(99.9)).toBe("99.9%");
+  it("formats a 0–1 share", () => {
+    expect(formatShare(0.123, 1)).toBe("12,3 %");
+    expect(formatShare(0.125)).toBe("13 %");
+  });
+});
+
+describe("formatUSD", () => {
+  it("never writes a negative zero", () => {
+    expect(formatUSD(-0.3)).toBe(formatUSD(0));
+  });
+
+  it("writes whole dollars as «1 234 USD»", () => {
+    expect(formatUSD(1234.4)).toBe("1 234 USD");
+    expect(formatUSD(0)).toBe("0 USD");
+  });
+});
+
+describe("formatDate", () => {
+  it("writes a bare date in Oslo time without moving the day", () => {
+    expect(formatDate("2026-03-13")).toBe("13. mars 2026");
+  });
+
+  it("reads a timestamp in Oslo time", () => {
+    expect(formatDate("2026-09-30T23:30:00Z")).toBe("1. oktober 2026");
+    expect(formatDate("2026-09-30 23:30:00.123+00")).toBe("1. oktober 2026");
   });
 });
 

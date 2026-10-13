@@ -26,14 +26,55 @@
       "apps/my-copilot/src/app/(en)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/abonnement/page.tsx",
       "apps/my-copilot/src/app/(nb)/layout.tsx",
-      "apps/my-copilot/src/components/nav-pilot/interactive-setup-wizard.tsx"
+      "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
+      "apps/my-copilot/src/components/nav-pilot/interactive-setup-wizard.tsx",
+      "apps/my-copilot/src/components/navigation/site-search.tsx",
+      "docs/news/articles/dette-er-retningen.md"
     ],
     "anchors": {
       "din-plassering-i-nav": ["apps/my-copilot/src/app/(nb)/abonnement/page.tsx"]
     }
   },
+  "/admin": {
+    "sources": ["apps/my-copilot/src/app/(nb)/admin/page.tsx"],
+    "anchors": {}
+  },
+  "/admin/kostnad": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/admin/kostnad/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/page.tsx",
+      "apps/my-copilot/src/components/cost-anomalies.tsx"
+    ],
+    "anchors": {
+      "avvik": ["apps/my-copilot/src/components/cost-anomalies.tsx"],
+      "budsjett-per-dag": ["apps/my-copilot/src/components/budget-days-section.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "maanedsinnsikt": ["apps/my-copilot/src/components/cost-anomalies.tsx"],
+      "per-maned": ["apps/my-copilot/src/app/(nb)/admin/kostnad/page.tsx"],
+      "prognose": ["apps/my-copilot/src/components/cost-forecast.tsx"],
+      "storforbrukere": ["apps/my-copilot/src/components/high-consumers.tsx"],
+      "trender": ["apps/my-copilot/src/components/cost-trends.tsx"]
+    }
+  },
+  "/admin/kostnad/innsyn": {
+    "sources": ["apps/my-copilot/next.config.ts"],
+    "anchors": {}
+  },
+  "/admin/kostnad/rapport": {
+    "sources": ["apps/my-copilot/src/app/(nb)/admin/kostnad/rapport/page.tsx"],
+    "anchors": {}
+  },
+  "/admin/undersokelser": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/admin/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/[id]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/page.tsx"
+    ],
+    "anchors": {}
+  },
   "/adopsjon": {
     "sources": [
+      "apps/my-copilot/next.config.ts",
       "apps/my-copilot/src/app/(nb)/adopsjon/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/lib/nav-items.ts"
@@ -54,13 +95,18 @@
       "apps/my-copilot/src/app/(en)/cplt/page.tsx",
       "apps/my-copilot/src/app/(en)/cplt/windows/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/planlegging/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
       "apps/my-copilot/src/app/(nb)/cplt/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/orchestrate-agents.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/tools-and-modes.tsx",
       "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/weekly-tip.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
       "docs/news/articles/cplt-juli-2026-sikkerhetsoppdatering.md",
       "docs/news/articles/cplt-lokal-config-og-flere-repoer.md",
@@ -139,9 +185,151 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/navigation/site-search.tsx",
       "apps/my-copilot/src/lib/nav-items.ts"
     ],
     "anchors": {}
+  },
+  "/innsikt/bruk": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/components/pulse-strip.tsx"
+    ],
+    "anchors": {
+      "ai-adopsjonsfaser": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "ai-modeller-i-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "daglig-aktivitet": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "kostnad": [
+        "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
+        "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+        "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
+        "apps/my-copilot/src/components/cost-anomalies.tsx"
+      ],
+      "kostnad-over-tid": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "modellkostnad-historikk": ["apps/my-copilot/src/components/charts/BillingModelBreakdownChart.tsx"],
+      "måned-hittil-modeller-og-kostnad": ["apps/my-copilot/src/components/charts/BillingMonthNowChart.tsx"],
+      "månedlige-trender": ["apps/my-copilot/src/components/charts/MonthlyTrendsChart.tsx"],
+      "nokkeltall": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "pull-requests-og-code-review": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "repositorier": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"]
+    }
+  },
+  "/innsikt/forbruk": {
+    "sources": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
+    "anchors": {
+      "brukere-per-band": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
+      "denne-maneden": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "totalforbruk": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"]
+    }
+  },
+  "/innsikt/kostnad": {
+    "sources": [
+      "apps/my-copilot/next.config.ts",
+      "apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx",
+      "apps/my-copilot/src/components/cost-anomalies.tsx"
+    ],
+    "anchors": {
+      "avvik": ["apps/my-copilot/src/components/cost-anomalies.tsx"],
+      "budsjett-per-dag": ["apps/my-copilot/src/components/budget-days-section.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "oversikt": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
+      "per-maned": ["apps/my-copilot/src/app/(nb)/innsikt/kostnad/page.tsx"],
+      "prognose": ["apps/my-copilot/src/components/cost-forecast.tsx"],
+      "storforbrukere": ["apps/my-copilot/src/components/high-consumers.tsx"],
+      "trender": ["apps/my-copilot/src/components/cost-trends.tsx"]
+    }
+  },
+  "/innsikt/lokale-modeller": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {
+      "delegeringsnivaer": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"
+      ],
+      "forkastede-modeller": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "godkjent-for": [
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
+        "docs/news/articles/lokale-modeller-i-nav-pilot.md"
+      ],
+      "ikke-malt": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "malt-decide": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/decide/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
+        "docs/news/articles/alpha-decide.md",
+        "docs/news/articles/nav-pilot-alpha-decide.md"
+      ],
+      "malt-delegering": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "metode": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "modell-64-gb": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"
+      ],
+      "modeller-per-minne": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
+        "docs/news/articles/nav-pilot-lokal-linux-egen-server.md"
+      ],
+      "rapporter": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
+      "sist-oppdatert": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"]
+    }
+  },
+  "/innsikt/team": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx",
+      "apps/my-copilot/src/components/cost-anomalies.tsx",
+      "apps/my-copilot/src/components/team-gross-usage.tsx",
+      "docs/news/articles/dette-er-retningen.md"
+    ],
+    "anchors": {
+      "hittil-i-ar": ["apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "teamkostnad": ["apps/my-copilot/src/app/(nb)/innsikt/team/page.tsx"]
+    }
+  },
+  "/innsikt/team/rapport": {
+    "sources": ["apps/my-copilot/src/app/(nb)/innsikt/team/rapport/page.tsx"],
+    "anchors": {}
+  },
+  "/innsikt/tilpasninger": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx",
+      "apps/my-copilot/src/components/insight-strip.tsx"
+    ],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "oversikt": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "samlingen": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "sprak": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "synkronisering": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "team": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "tilpasninger": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
+      "verktoy": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"]
+    }
+  },
+  "/innsikt/trender": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"
+    ],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "team-adopsjon": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"]
+    }
   },
   "/install/agent": {
     "sources": [
@@ -191,12 +379,15 @@
       ],
       "installer": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
-        "apps/my-copilot/src/app/(nb)/kom-i-gang/page.tsx"
+        "apps/my-copilot/src/app/(nb)/kom-i-gang/page.tsx",
+        "apps/my-copilot/src/app/(nb)/praksis/sections/getting-started.tsx",
+        "apps/my-copilot/src/components/navigation/site-search.tsx"
       ]
     }
   },
   "/kostnad": {
     "sources": [
+      "apps/my-copilot/next.config.ts",
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/kostnad/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts"
@@ -207,10 +398,20 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/modeller/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/tools-and-modes.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "docs/modellvalg.md"
+      "docs/modellvalg.md",
+      "docs/nav-pilot-changelog.md"
     ],
-    "anchors": {}
+    "anchors": {
+      "del-erfaringer": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "innsatsniva": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "kort-fortalt": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "malinger": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "priser": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"],
+      "vare-valg": ["apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx"]
+    }
   },
   "/nav-pilot": {
     "sources": [
@@ -218,6 +419,9 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/kom-i-gang/page.tsx",
       "apps/my-copilot/src/app/(nb)/kom-i-gang/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/navigation/site-nav.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
@@ -238,6 +442,7 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/arkitektur/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/lib/nav-items.ts",
       "docs/README.agentpakke.md",
@@ -254,6 +459,7 @@
       ],
       "bygg-videre-pa-en": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"
       ],
       "distribuer": [
@@ -354,6 +560,70 @@
       "vedlikehold": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/agentpakker/page.tsx"
+      ]
+    }
+  },
+  "/nav-pilot/agentpakker/referanse": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/lib/nav-items.ts"
+    ],
+    "anchors": {
+      "artefakttyper": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "gjenbruk": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "hold-basen-oppdatert": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "hva-som-komponerer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "hvilken-tier": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "kjorbar-kode": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "klientoppforinga": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "kollisjoner": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "mcp-servere": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "nar-endringen-nar-fram": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "pensjonering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "releases": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"],
+      "sandkasse": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"
+      ],
+      "skript-i-en-skill": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "stabile-releases": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
+        "docs/news/articles/stabile-agentpakker.md"
+      ],
+      "uten-agent": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
+      ],
+      "validering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx"
       ]
     }
   },
@@ -529,7 +799,9 @@
   },
   "/nav-pilot/forklaring/lokal-modell": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/lokal-modell/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
@@ -537,6 +809,11 @@
       "docs/README.nav-pilot.md"
     ],
     "anchors": {
+      "delegering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"
+      ],
       "hva-kommer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"],
       "malt-decide": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
@@ -555,8 +832,44 @@
       "utsending": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/lokal-modell/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/lokal/page.tsx"
+      ]
+    }
+  },
+  "/nav-pilot/forklaring/lokal-modell/malinger": {
+    "sources": [
+      "apps/my-copilot/next.config.ts",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/egen-server/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+    ],
+    "anchors": {
+      "delegeringsnivaer": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"
+      ],
+      "malt-decide": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/decide/page.tsx"
+      ],
+      "malt-delegering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx"
+      ],
+      "malt-utsending": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx"
+      ],
+      "modell-64-gb": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx"
+      ],
+      "utsendingsnivaer": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/malinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/lokal-modell/page.tsx"
       ]
     }
   },
@@ -570,11 +883,13 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "docs/nav-pilot-changelog.md"
     ],
     "anchors": {
       "brukerundersokelser": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"
       ],
       "hva-som-males": [
@@ -585,7 +900,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"
       ],
-      "nyheter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx"],
+      "nyheter": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"
+      ],
       "sla-av": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx"
@@ -598,7 +916,8 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/planlegging/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "docs/nav-pilot-changelog.md"
     ],
     "anchors": {
       "demo-i-praksis": [
@@ -641,6 +960,10 @@
       "docs/README.nav-pilot.md"
     ],
     "anchors": {
+      "autonomi": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"
+      ],
       "isolasjon-er-pakrevd": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx"
@@ -662,6 +985,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx"
+      ],
+      "strict": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-nettverk/page.tsx"
       ]
     }
   },
@@ -687,6 +1014,7 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/troubleshooting.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
       "docs/news/articles/nav-pilot-mcp-og-cplt-init.md"
@@ -714,10 +1042,18 @@
       ],
       "gradle-properties": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "includeif": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "jdk-library": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "jvm": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "jvm-oppstart": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
-      "keyring": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "keyring": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/praksis/sections/getting-started.tsx"
+      ],
       "localhost": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "login-nettleser": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"
+      ],
       "must-push": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "nettleser": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "nettverk": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
@@ -732,6 +1068,11 @@
       "policy-too-strict": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "private-target": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "publickey": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "puppeteer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "rapporter": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "docs/nav-pilot-changelog.md"
+      ],
       "self-attach": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "setuid": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "sign-in-failed": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
@@ -753,7 +1094,10 @@
       "andre-repoer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
       "opencode": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
       "oppsett": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
-      "push": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
+      "push": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"
+      ],
       "signering": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
       "utenfor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"],
       "vaktene": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx"]
@@ -771,9 +1115,11 @@
       "feil": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
       "github-packages": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
-        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"
       ],
       "gradle-properties": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
+      "interne-hoster": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
       "interne-verter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
       "jdk": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
       "oppsett": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx"],
@@ -814,15 +1160,25 @@
     "anchors": {
       "env-filer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "feil": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
-      "github-packages": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "github-packages": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"
+      ],
       "globale": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"
       ],
       "localhost": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "mermaid": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"
+      ],
       "nettleser": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "npm-token": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
-      "pnpm-konfig": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
+      "pnpm-konfig": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"
+      ],
       "pnpm-token": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "skript": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx",
@@ -857,6 +1213,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"
       ],
       "hele-maskinen": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"],
+      "localhost": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"
+      ],
       "mise": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"],
       "pnpm": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"],
       "stakker": [
@@ -864,6 +1224,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
         "docs/news/articles/nav-pilot-mcp-og-cplt-init.md"
+      ],
+      "tillatelsesliste": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-gradle/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx"
       ]
     }
   },
@@ -874,6 +1238,7 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/feilsoking/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/troubleshooting.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
     ],
@@ -950,8 +1315,11 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/kom-i-gang/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/getting-started.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/tools-and-modes.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
     ],
     "anchors": {
       "autonomi": [
@@ -962,7 +1330,10 @@
       "forste-repo": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"],
       "hva-agenten-kan": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"],
       "installer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"],
-      "logg-inn": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"],
+      "logg-inn": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"
+      ],
       "videre": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx"]
     }
   },
@@ -1000,6 +1371,11 @@
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/lokal/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
         "docs/news/articles/nav-pilot-alpha-decide.md"
+      ],
+      "delegering": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx"
       ],
       "egen-server": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/lokal/page.tsx",
@@ -1073,6 +1449,7 @@
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx"
       ],
+      "hook-action-check": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"],
       "hooks": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx"
@@ -1123,6 +1500,7 @@
       ],
       "hvorfor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
       "starte-i-worktree": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
+      "subagenter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
       "underagenter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
       "unknown-config-key": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"],
       "worktree-remove": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/worktrees/page.tsx"]
@@ -1130,6 +1508,7 @@
   },
   "/nav-pilot/klienter": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/referanse/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
@@ -1142,16 +1521,22 @@
       "docs/CLIENT-SUPPORT-MATRIX.md",
       "docs/README.nav-pilot.md",
       "docs/nav-pilot-changelog.md",
-      "docs/news/articles/nav-pilot-mcp-og-cplt-init.md"
+      "docs/news/articles/nav-pilot-mcp-og-cplt-init.md",
+      "docs/news/articles/opencode-2-pa-mac.md"
     ],
     "anchors": {
       "copilot-cli": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
       ],
+      "delegering": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx"],
       "deling-og-oppdatering": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
+      ],
+      "innstillinger": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
+        "docs/nav-pilot-changelog.md"
       ],
       "kjente-hull": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
@@ -1166,13 +1551,15 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
+        "apps/my-copilot/src/app/(nb)/ordliste/terms.ts"
       ],
       "opencode": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
+        "cli/nav-pilot/docs/opencode-hooks.md"
       ],
       "paritet": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
@@ -1338,6 +1725,7 @@
     ],
     "anchors": {
       "avslutningskoder": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/agentpakker/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
@@ -1424,8 +1812,11 @@
   "/nav-pilot/undersokelse": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/personvern/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/undersokelse/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/personvern/page.tsx",
-      "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx"
+      "apps/my-copilot/src/app/(nb)/nav-pilot/undersokelse/page.tsx",
+      "apps/my-copilot/src/components/survey-notice.tsx",
+      "docs/news/articles/utviklerundersokelsen-hosten-2026.md"
     ],
     "anchors": {}
   },
@@ -1757,6 +2148,10 @@
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
     "anchors": {}
   },
+  "/nyheter/dette-er-retningen": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
   "/nyheter/enterprise-ai-controls-ga": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
     "anchors": {}
@@ -1910,6 +2305,7 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
       "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/reisen/milestones.ts",
       "apps/my-copilot/src/app/sitemap.ts"
     ],
     "anchors": {}
@@ -1974,6 +2370,10 @@
   },
   "/nyheter/one-click-fix-failing-actions": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/opencode-2-pa-mac": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
   "/nyheter/org-runner-controls-cloud-agent": {
@@ -2058,6 +2458,10 @@
     ],
     "anchors": {}
   },
+  "/nyheter/utviklerundersokelsen-hosten-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
   "/nyheter/visual-studio-april-update": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
     "anchors": {}
@@ -2119,6 +2523,7 @@
       "apps/my-copilot/src/app/(nb)/ordliste/page.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/navigation/site-search.tsx",
       "apps/my-copilot/src/components/site-shell.tsx",
       "apps/my-copilot/src/lib/nav-items.ts"
     ],
@@ -2142,6 +2547,7 @@
       "apps/my-copilot/src/app/(en)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/personvern/page.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts"
     ],
     "anchors": {}
@@ -2184,7 +2590,10 @@
     "anchors": {}
   },
   "/praksis/guide/kom-i-gang": {
-    "sources": ["apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/kom-i-gang/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"
+    ],
     "anchors": {}
   },
   "/praksis/guide/lese-og-forsta-kode": {
@@ -2240,7 +2649,8 @@
   "/praksis/guide/velge-riktig-verktoy": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
-      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx"
+      "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx"
     ],
     "anchors": {}
   },
@@ -2257,9 +2667,14 @@
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/modeller/modeller-content.tsx",
       "apps/my-copilot/src/app/(nb)/modeller/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/tools-and-modes.tsx",
       "apps/my-copilot/src/app/(nb)/priser/page.tsx",
+      "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/weekly-tip.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
       "docs/news/articles/model-pinning-kostnadsoptimalisering.md",
       "docs/news/articles/nye-modeller-juli-2026.md",
@@ -2267,13 +2682,24 @@
     ],
     "anchors": {}
   },
+  "/reisen": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/reisen/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
+    "anchors": {}
+  },
   "/retningslinjer": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/page-hero.tsx",
+      "apps/my-copilot/src/components/weekly-tip.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
-      "docs/news/articles/claude-tekstvannmerking.md"
+      "docs/news/articles/claude-tekstvannmerking.md",
+      "docs/news/articles/dette-er-retningen.md"
     ],
     "anchors": {}
   },
@@ -2283,6 +2709,7 @@
   },
   "/statistikk": {
     "sources": [
+      "apps/my-copilot/next.config.ts",
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
       "apps/my-copilot/src/app/(nb)/statistikk/page.tsx",
@@ -2322,7 +2749,7 @@
       "repositorier": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
       "repositories": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
       "sprak-og-verktoy": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
-      "team": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
+      "team": ["apps/my-copilot/src/lib/legacy-anchors.ts"],
       "topp-språk": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"],
       "verktøy": ["apps/my-copilot/src/app/(nb)/statistikk/page.tsx"]
     }
@@ -2359,13 +2786,18 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/agent-mode-patterns.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/effective-customizations.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/prepare-for-success.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/prompt-engineering.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/sections/review-copilot-work.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/tools-and-modes.tsx",
       "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/(nb)/verktoy/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/navigation/site-search.tsx",
       "apps/my-copilot/src/components/pulse-strip.tsx",
       "apps/my-copilot/src/components/sidebar.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",

@@ -1,0 +1,25 @@
+🔍 Leser diffen mot `main` og sjekker hvilke filer og tester som gjelder.
+
+📊 Diffen har funnet endringer i Kotlin, Kafka, auth og Nais-konfigurasjon. Jeg sjekker nå oppstartsfeil og tilgangskontroll, og kjører repoets sjekk.
+
+Sikkerhets- og feilhåndteringsfunnene er tydelige. Gradle-testen stoppet før kompilering fordi den lokale JVM-versjonen ikke gjenkjennes; jeg sjekker om en støttet JVM finnes før jeg konkluderer.
+
+### Sammendrag
+
+🔴 **Ikke mergeklar.** Endringene åpner for lesing av vedtaksdata uten autentisering, har SQL-injeksjon og logger fødselsnummer. Databasekonfigurasjonen og JWT-oppsettet hindrer også tjenesten i å fungere som tiltenkt.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/Routes.kt` | 30–32 | 🔴 | `GET /api/vedtak/{fnr}` mangler autentisering og autorisasjon. En kallende tjeneste kan hente vedtak og fødselsnummer for vilkårlige personer. Beskytt ruta med TokenX og kontroller tilgang til personen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 23–24 | 🔴 | `fnr` settes direkte inn i SQL. Et tilpasset input kan endre spørringen. Bruk parameterisert `queryOf` slik de andre repository-spørringene gjør. |
+| `nais.yaml` | 25–26 | 🔴 | Inbound-regelen åpner tjenesten for alle apper i alle namespaces. Begrens regelen til konkrete kallere. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 40–42 | 🔴 | JWT-provider mangler `verifier`. Ktor avviser dermed alle tokens som ugyldige, så `POST /api/vedtak` kan ikke autentiseres. Valideringen sjekker dessuten bare at en audience finnes, ikke at den har forventet verdi. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 23 | 🔴 | Koden leser `DB_JDBC_URL`, men `nais.yaml` setter ikke `envVarPrefix: DB`. Cloud SQL gir derfor ikke denne variabelen med standardoppsettet, og Hikari får ingen JDBC-URL ved oppstart. Bruk det genererte variabelnavnet eller konfigurer prefikset. |
+| `src/main/kotlin/no/nav/demo/VedtakService.kt` | 15 | 🔴 | Loggen inneholder fødselsnummer. Fjern personopplysningen fra loggen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 14–16 | 🔴 | Branchens nye database får ingen tabell eller migrering for `vedtak`. Innsetting og uthenting feiler med manglende tabell med mindre skjemaet opprettes utenfor repoet. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 32–33 | 🔴 | Hvis publisering feiler etter at `fattVedtak` har lagret raden, kjører retry samme behandling på nytt og lager et nytt vedtak med ny ID. Gjør behandlingen idempotent, for eksempel ved å bruke `soknadId` som dedupliseringsnøkkel. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 24–27, 46 | 🟡 | En ugyldig melding eller feil etter siste retry kaster unntak ut av `start()` og avslutter consumer-tråden. HTTP-tjenesten fortsetter å kjøre, men Kafka-behandlingen stopper uten restart. Håndter feilen slik at consumeren kan fortsette eller starte på nytt. |
+
+`mise check` fant ingen `check`-oppgave. `gradle test --no-daemon` stoppet før kompilering fordi den lokale JVM-versjonen er 27, som Gradles innebygde Kotlin-kompilator ikke kan parse.

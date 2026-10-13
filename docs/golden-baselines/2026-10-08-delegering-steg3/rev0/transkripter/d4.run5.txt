@@ -1,0 +1,45 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+/ Search (glob)
+  │ "**/*"
+  └ 49 files found
+
+● Inspect repository layout (shell)
+  │ ls -la && find . -maxdepth 3 -type f | head -80
+  └ 41 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+`maksAntall` er en hardkodet konstant på `100` i `src/main/kotlin/no/nav/demo/Config.kt`. `App.kt` skriver verdien ved oppstart og registrerer Ktor-rutene. `Routes.kt` bruker den i `GET /api/oppgaver` med `oppgaver.take(maksAntall)`, før resultatet pakkes i `OppgaveRespons`. `Oppgave.kt` definerer de serialiserbare typene `Oppgave` og `OppgaveRespons`; domenemodellen kjenner ikke grensen. Ruten har foreløpig bare to eksempeloppgaver, så grensen på 100 begrenser ikke dagens respons. `vedtak-api/` er et separat prosjekt og bruker ikke `maksAntall`.
+
+For å gjøre grensen konfigurerbar per miljø må konstanten erstattes med en verdi lest fra for eksempel miljøvariabelen `MAKS_ANTALL` ved oppstart. Valider at den er et positivt heltall, og gi en tydelig oppstartsfeil ved ugyldig verdi. La ruten bruke den innleste verdien, og sett `MAKS_ANTALL` i Nais-konfigurasjonen for hvert miljø. Dagens `nais.yaml` har ingen miljøvariabler eller miljøspesifikke verdier. Å lese én gang ved oppstart holder konfigurasjonen konsistent mellom rutekall; alternativet, å lese miljøvariabelen i hvert kall, gir ingen nytte her.
+

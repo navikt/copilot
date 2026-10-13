@@ -1,0 +1,28 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,nais*.yaml,pa
+  │ ckage.json,build.gradle.kts,pom.xml}"
+  └ 2 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+**Fase 1: Avklaring.** Dette er full omfangsklasse: en ny tjeneste med autentisering og behandling av fødselsnummer. Repoet har Ktor og et Nais-manifest, men ingen ID-porten-konfigurasjon eller tilgangsregler. Ingen kode er endret.
+
+Jeg legger til grunn at fødselsnummeret gjelder den innloggede personen. Følgende krav er uavklart og må være fastlagt før sikkerhetskritisk kode kan lages:
+
+1. Formålet med fødselsnummeret, behandlingsgrunnlaget og om det skal lagres eller sendes videre.
+2. Hvem som kaller tjenesten: innbyggerens nettleser eller en annen tjeneste med brukerkontekst.
+3. Hva tjenesten skal gjøre etter innlogging, og hvilke systemer som mottar data.
+4. Påkrevd sikkerhetsnivå og oppførsel ved ugyldig token eller utilgjengelig ID-porten.
+
+🔴 Rød sone: token-validering, tilgangskontroll og håndtering av fødselsnummer. Fødselsnummer og tokens skal ikke havne i logger.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Fasebudsjett: intervju ca. 1 000 tokens, plan 2 000, review 1 000, levering 3 000.
+
+Blindsoner reist: 4/11 (#1, #2, #3, #6). #4, #5, #7 og #11 avventer konkret funksjon; #8–#10 gjelder ikke en ny tjeneste.
+

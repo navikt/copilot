@@ -1,0 +1,27 @@
+## Review: `vedtak-kafka` mot `main`
+
+Oppsummering: Branchen legger til Kafka-konsument, vedtak-API og Postgres. Den har flere blokkerende feil: SQL-injection, uautentisert FNR-oppslag, FNR i logger og en åpen `accessPolicy`. Ingen tester er lagt til, og databasetabellen `vedtak` mangler migrering. Jeg har ikke endret kode.
+
+| Fil | Priority | Problem |
+|---|---|---|
+| `VedtakRepository.kt` (`hentForPerson`) | 🔴 | SQL-injection: `fnr` settes rett inn i SQL-strengen. Bruk `queryOf(sql, fnr)`. |
+| `Routes.kt` (`GET /api/vedtak/{fnr}`) | 🔴 | Uautentisert endepunkt returnerer vedtak for vilkårlig FNR. Krever auth og eierskapssjekk. FNR i URL-en havner også i access-logger. |
+| `Routes.kt` (`POST /api/vedtak`) | 🔴 | Autentisert kaller kan fatte vedtak for alle FNR. Ingen sjekk av `azp` eller eierskap. |
+| `App.kt` (`jwt("tokenx")`) | 🔴 | `validate` sjekker bare at `audience` finnes. Ingen `verifier`, issuer eller audience-verdi er konfigurert, så signatur og claims valideres ikke i koden som vises. |
+| `nais.yaml` (`accessPolicy.inbound`) | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. Krever avgrensede regler. |
+| `VedtakService.kt` (`fattVedtak`) | 🔴 | `log.info("behandler $fnr")` logger FNR. Fjern eller logg en pseudonym. |
+| `VedtakConsumer.kt` (`start`, `retry`) | 🔴 | Ingen idempotens. Ved retry eller redelivery genereres ny `vedtakId` og nytt vedtak per melding. Retry kjører hele batchen på nytt, så allerede behandlede meldinger duplikeres. |
+| `VedtakConsumer.kt` (`start`) | 🟡 | `decodeFromString` ligger utenfor `retry`. En korrupt melding krasjer konsument-tråden stille, og `isready` fanger det ikke. |
+| `build.gradle.kts` | 🟡 | To `dependencies { }`-blokker. Slå sammen. Sjekk at kotlinx-serialization-plugin finnes, siden `@Serializable` brukes. |
+| Repo (mangler) | 🟡 | Ingen Flyway-migrering for tabellen `vedtak`. Appen feiler ved første insert. |
+| `Vedtak.kt`, `VedtakService.kt` | 🟡 | Ingen tester for service, repository eller consumer. |
+| `VedtakService.kt` (`require`) | 💭 | Blank `sakId` gir 500 fra ruten. Returner 400. |
+| `nais.yaml` (`kafka`) | 💭 | Topics `soknad-behandlet` og `vedtak-fattet` bør deklareres for ACL. |
+
+### Detaljer på blokkerende funn
+
+- **SQL-injection:** Skal være `session.run(queryOf("... WHERE fnr = ?", fnr).map(::tilVedtak).asList)`. Parameterisert spørring er påkrevd av sikkerhetsreglene.
+- **Autorisasjon:** Endepunktet for FNR-oppslag bør kreve token og sjekke at kallet er gyldig for den personen. Det bør ikke være åpent. Ruten for å fatte vedtak bør begrense kallere med `azp` mot `AZURE_APP_PRE_AUTHORIZED_APPS`.
+- **Idempotens:** Bruk `soknadId` som nøkkel i en unik constraint, eller slå opp eksisterende vedtak før insert. Commit offset først etter vellykket behandling.
+
+🔴 Rød sone: token-validering og tilgangskontroll i `App.kt` og `Routes.kt`, gå gjennom denne nøye.

@@ -8,11 +8,48 @@
 // target exists and that no key is a real id on its page. A value must be a
 // real id on its page, never another key. The link guard rejects chains.
 export const LEGACY_ANCHORS: Record<string, string> = {
+  // «Varsler» on the admin cost page became «Månedsinnsikt».
+  "/admin/kostnad#avvik": "/admin/kostnad#maanedsinnsikt",
+  // /nav-pilot/agentpakker was split into a how-to and a reference page.
+  "/nav-pilot/agentpakker#artefakttyper": "/nav-pilot/agentpakker/referanse#artefakttyper",
+  "/nav-pilot/agentpakker#kjorbar-kode": "/nav-pilot/agentpakker/referanse#kjorbar-kode",
+  "/nav-pilot/agentpakker#skript-i-en-skill": "/nav-pilot/agentpakker/referanse#skript-i-en-skill",
+  "/nav-pilot/agentpakker#klientoppforinga": "/nav-pilot/agentpakker/referanse#klientoppforinga",
+  "/nav-pilot/agentpakker#hvilken-tier": "/nav-pilot/agentpakker/referanse#hvilken-tier",
+  "/nav-pilot/agentpakker#uten-agent": "/nav-pilot/agentpakker/referanse#uten-agent",
+  "/nav-pilot/agentpakker#mcp-servere": "/nav-pilot/agentpakker/referanse#mcp-servere",
+  "/nav-pilot/agentpakker#sandkasse": "/nav-pilot/agentpakker/referanse#sandkasse",
+  "/nav-pilot/agentpakker#kollisjoner": "/nav-pilot/agentpakker/referanse#kollisjoner",
+  "/nav-pilot/agentpakker#hva-som-komponerer": "/nav-pilot/agentpakker/referanse#hva-som-komponerer",
+  "/nav-pilot/agentpakker#hold-basen-oppdatert": "/nav-pilot/agentpakker/referanse#hold-basen-oppdatert",
+  "/nav-pilot/agentpakker#nar-endringen-nar-fram": "/nav-pilot/agentpakker/referanse#nar-endringen-nar-fram",
+  "/nav-pilot/agentpakker#stabile-releases": "/nav-pilot/agentpakker/referanse#stabile-releases",
+  "/nav-pilot/agentpakker#pensjonering": "/nav-pilot/agentpakker/referanse#pensjonering",
+  // /statistikk and its tabs became /innsikt/bruk. next.config.ts redirects the page, so keys use the new path.
+  "/innsikt/bruk#team": "/innsikt/team#teamkostnad",
+  // «KI-modeller i bruk» became model families over time on /innsikt/trender.
+  "/innsikt/bruk#ai-modeller-i-bruk": "/innsikt/trender#modellfamilier",
+  "/innsikt/bruk#dashboard": "/innsikt/bruk#nokkeltall",
+  "/innsikt/bruk#manedlige-trender": "/innsikt/bruk#nokkeltall",
+  "/innsikt/bruk#bruker-vs-agent": "/innsikt/bruk#nokkeltall",
+  "/innsikt/trender#team-adopsjon": "/innsikt/trender#arbeidsmate",
+  "/innsikt/bruk#daglig-oversikt": "/innsikt/bruk#pull-requests-og-code-review",
+  "/innsikt/bruk#ai-modeller-over-tid": "/innsikt/bruk#kostnad-over-tid",
+  "/innsikt/bruk#repositories": "/innsikt/bruk#repositorier",
+  "/innsikt/bruk#details": "/innsikt/bruk#daglig-aktivitet",
+  "/innsikt/bruk#kodeforslag": "/innsikt/bruk#daglig-aktivitet",
+  "/innsikt/bruk#sprak-og-verktoy": "/innsikt/bruk#daglig-aktivitet",
+  "/innsikt/bruk#topp-språk": "/innsikt/bruk#daglig-aktivitet",
+  "/innsikt/bruk#verktøy": "/innsikt/bruk#daglig-aktivitet",
+  // The h3s that repeated their h2 are gone.
+  "/innsikt/bruk#månedlige-trender": "/innsikt/bruk#nokkeltall",
+  "/innsikt/bruk#måned-hittil-modeller-og-kostnad": "/innsikt/bruk#kostnad",
+  "/innsikt/bruk#modellkostnad-historikk": "/innsikt/bruk#kostnad-over-tid",
   // /nav-pilot/docs was split into guides, reference and explanation pages
-  // (docs/nav-pilot-dokumentasjon-forslag.md §1.4). next.config.ts sends the
+  // (V1 in copilot-intern beslutningslogg.md). next.config.ts sends the
   // page to /nav-pilot/referanse, so the old anchors are keyed there.
   // #filstruktur and #lenker still exist there. The client sections moved on to
-  // /nav-pilot/klienter (§4, PR 7).
+  // /nav-pilot/klienter.
   "/nav-pilot/referanse#agentpakke": "/nav-pilot/agentpakker#pakkene-som-finnes",
   "/nav-pilot/referanse#arkitektur": "/nav-pilot/forklaring/arkitektur#arkitektur",
   "/nav-pilot/referanse#automatisk-sync": "/nav-pilot/guider/synkronisere#automatisk-sync",
@@ -34,7 +71,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#hva-nav-pilot-vet": "/nav-pilot/forklaring/arkitektur#hva-nav-pilot-vet",
   "/nav-pilot/referanse#hva-nav-pilot-vet-som-copilot-ikke-vet": "/nav-pilot/forklaring/arkitektur#hva-nav-pilot-vet",
   "/nav-pilot/referanse#hvor-installere": "/nav-pilot/guider/installere-og-oppgradere#velg-installasjonssted",
-  "/nav-pilot/referanse#hvor-mye-som-sendes": "/nav-pilot/guider/lokal#utsending",
+  "/nav-pilot/referanse#hvor-mye-som-sendes": "/nav-pilot/guider/lokal#delegering",
   "/nav-pilot/referanse#hvor-skal-artefaktene-installeres":
     "/nav-pilot/guider/installere-og-oppgradere#velg-installasjonssted",
   "/nav-pilot/referanse#hvorfor-nav-pilot": "/nav-pilot/forklaring/arkitektur#hvorfor",
@@ -64,7 +101,7 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#lokal-modell": "/nav-pilot/lokal#hva-du-far",
   "/nav-pilot/referanse#lokal-modeller": "/nav-pilot/referanse#lokale-modeller",
   "/nav-pilot/referanse#lokal-sync": "/nav-pilot/guider/synkronisere#lokal-sync",
-  "/nav-pilot/referanse#lokal-utsending": "/nav-pilot/guider/lokal#utsending",
+  "/nav-pilot/referanse#lokal-utsending": "/nav-pilot/guider/lokal#delegering",
   "/nav-pilot/referanse#modeller-i-alfa": "/nav-pilot/referanse#lokale-modeller",
   "/nav-pilot/referanse#nar-strict-ikke-anbefales": "/nav-pilot/forklaring/sandkassen#nar-strict-ikke-anbefales",
   "/nav-pilot/referanse#når-noe-henger": "/nav-pilot/guider/feilsoking#lokal",
@@ -91,14 +128,30 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/referanse#tilpasse-sync": "/nav-pilot/guider/synkronisere#tilpasse-sync",
   "/nav-pilot/referanse#vanlige-oppgaver": "/nav-pilot/guider/installere-og-oppgradere#vanlige-oppgaver",
 
-  // /nav-pilot/lokal became the introduction for Mac (§3). #kom-i-gang and
+  // /nav-pilot/lokal became the introduction for Mac (V2 in copilot-intern beslutningslogg.md). #kom-i-gang and
   // #hva-du-far still exist there as wrappers, and #lenker is at the bottom.
   "/nav-pilot/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
   "/nav-pilot/lokal#hva-kommer": "/nav-pilot/forklaring/lokal-modell#hva-kommer",
   "/nav-pilot/lokal#malt": "/nav-pilot/forklaring/lokal-modell#malte-grenser",
-  "/nav-pilot/lokal#malt-decide": "/nav-pilot/forklaring/lokal-modell#malt-decide",
-  "/nav-pilot/lokal#malt-utsending": "/nav-pilot/forklaring/lokal-modell#malt-utsending",
-  "/nav-pilot/lokal#utsending": "/nav-pilot/forklaring/lokal-modell#utsending",
+  "/nav-pilot/lokal#malt-decide": "/innsikt/lokale-modeller#malt-decide",
+  "/nav-pilot/lokal#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
+  "/nav-pilot/lokal#utsending": "/nav-pilot/forklaring/lokal-modell#delegering",
+
+  // The measured numbers moved to their own page.
+  "/nav-pilot/forklaring/lokal-modell#malt-decide": "/innsikt/lokale-modeller#malt-decide",
+  "/nav-pilot/forklaring/lokal-modell#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
+
+  // The measurements page moved to /innsikt/lokale-modeller (next.config.ts),
+  // and "utsending" became "delegering".
+  "/innsikt/lokale-modeller#utsendingsnivaer": "/innsikt/lokale-modeller#delegeringsnivaer",
+  "/innsikt/lokale-modeller#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
+
+  // Terms renamed to plainer Norwegian (utsending, verter, underagenter).
+  "/nav-pilot/forklaring/lokal-modell#utsending": "/nav-pilot/forklaring/lokal-modell#delegering",
+  "/nav-pilot/guider/lokal#utsending": "/nav-pilot/guider/lokal#delegering",
+  "/nav-pilot/klienter#utsending": "/nav-pilot/klienter#delegering",
+  "/nav-pilot/guider/cplt-gradle#interne-verter": "/nav-pilot/guider/cplt-gradle#interne-hoster",
+  "/nav-pilot/guider/worktrees#underagenter": "/nav-pilot/guider/worktrees#subagenter",
 
   // Own server got its own introduction.
   "/nav-pilot/guider/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",

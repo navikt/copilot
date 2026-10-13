@@ -13,9 +13,11 @@ describe("activeTop", () => {
     ["/verktoy", "/verktoy"],
     ["/retningslinjer", "/praksis"],
     ["/praksis/guide/wrap-metoden", "/praksis"],
-    ["/kostnad", "/innsikt"],
+    ["/innsikt/trender", "/innsikt"],
+    ["/innsikt/team", "/innsikt"],
     ["/priser", "/innsikt"],
     ["/modeller", "/innsikt"],
+    ["/reisen", "/innsikt"],
     ["/nav-pilotx", undefined],
     ["/", undefined],
   ])("%s → %s", (path, top) => expect(activeTop(path)).toBe(top));

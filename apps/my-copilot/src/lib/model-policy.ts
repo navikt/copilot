@@ -4,6 +4,8 @@ export interface NavPilotModelChoice {
   fallbacks: string[];
   /** One line on why, condensed from docs/modellvalg.md. Shown on /modeller. */
   reason: string;
+  /** Link to the measurement behind the reason. */
+  source?: string;
   /** Limits «Brukes av» to these agents when two choices share a primary model. */
   users?: string[];
 }
@@ -15,20 +17,34 @@ export interface NavPilotModelChoice {
  */
 export const NAV_PILOT_DEFAULT_MODEL = "GPT-6 Sol";
 
+/**
+ * The personal default we recommend for daily coding (docs/modellvalg.md, #1617).
+ * No agent pins it: @nav-pilot stays on NAV_PILOT_DEFAULT_MODEL.
+ */
+export const RECOMMENDED_DAILY_MODEL = { model: "GPT-6.1 Sol", effort: "Low" } as const;
+
 export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   {
-    purpose: "Daglig agentisk koding",
+    purpose: "Planlegging og koding med @nav-pilot",
     primary: "GPT-6 Sol",
     fallbacks: ["GPT-5.6 Sol", "GPT-5.3-Codex"],
     reason: "Besto blokkeringsskjermen 23. september mot GPT-5.6 Sol på samme oppgaver. Ett fasebrudd følges.",
   },
   {
-    purpose: "Kodeagenter for Kafka og Rust",
+    purpose: "Kafka-agent",
     primary: "GPT-6 Luna",
     fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
     reason:
-      "Besto alle 30 sjekker i kodesuiten på Medium for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så Sol er reserve.",
-    users: ["@kafka", "@rust"],
+      "Besto alle 30 sjekker i kodesuiten på Medium for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Claude Haiku 5.5 Low ga ingen målbar forskjell 8. oktober (p = 0,84; første måling p = 1,0). Oppgavene var små, så Sol er reserve.",
+    users: ["@kafka"],
+  },
+  {
+    purpose: "Rust-agent",
+    primary: "Claude Haiku 5.5",
+    fallbacks: ["GPT-6 Luna", "GPT-5.3-Codex"],
+    reason:
+      "Besto 5 av 5 på begge Rust-oppgavene 8. oktober, og var billigere i alle fem kjøringene på Low: 0,87 til 1,02 credits mot 1,11 til 1,58 med GPT-6 Luna Medium (p = 0,008). Oppgavene var små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Anbefalt innsatsnivå er Low.",
+    users: ["@rust"],
   },
   {
     purpose: "Research og faste maler",
@@ -39,14 +55,16 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   {
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
     primary: "Claude Opus 5.5",
-    fallbacks: ["GPT-6.1 Sol", "GPT-5.3-Codex"],
+    fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
     reason: "Fant alle plantede feil på riktig linje i ti av ti kodegjennomganger 30. september. Low holder.",
   },
   {
     purpose: "Aksel, tilgjengelighet og norsk tekst",
     primary: "Claude Sonnet 5.5",
     fallbacks: ["Claude Sonnet 5"],
-    reason: "God på komponentstruktur, WCAG og norsk klarspråk. Ikke målt i den siste modelltesten.",
+    reason:
+      "Besto 24 av 25 tilgjengelighetssjekker 12. oktober 2026 (uu1–uu5, fem kjøringer hver) og 20 av 20 norsksjekker 1. oktober. GPT-6 Luna kostet omtrent en niendedel, men besto bare 15 av 25: den viste aldri til WCAG-kriterier og spurte aldri før den skrev en egen ARIA-rolle.",
+    source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-12-sonnet-5-5-aksel",
   },
   {
     purpose: "Rask oppretting av Aksel-komponenter",

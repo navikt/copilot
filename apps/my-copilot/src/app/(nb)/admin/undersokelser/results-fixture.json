@@ -1,0 +1,159 @@
+{
+  "id": "host-2026",
+  "title": "Utviklerundersøkelsen høsten 2026",
+  "starts": "2026-10-13",
+  "ends": "2026-10-27",
+  "status": "åpen",
+  "responses": 142,
+  "suppressed": false,
+  "questions": [
+    {
+      "id": "nytte",
+      "type": "choice",
+      "text": "Hvor nyttig er Copilot i arbeidet ditt?",
+      "versions": [
+        {
+          "version": 1,
+          "n": 120,
+          "options": [
+            {
+              "value": "Ganske nyttig",
+              "count": 43,
+              "suppressed": false
+            },
+            {
+              "value": "Ikke nyttig",
+              "count": 4,
+              "suppressed": false
+            },
+            {
+              "value": "Lite nyttig",
+              "count": 12,
+              "suppressed": false
+            },
+            {
+              "value": "Svært nyttig",
+              "count": 61,
+              "suppressed": false
+            }
+          ]
+        },
+        {
+          "version": 2,
+          "n": 3,
+          "options": [
+            {
+              "value": "Ganske nyttig",
+              "count": 1,
+              "suppressed": false
+            },
+            {
+              "value": "Svært nyttig",
+              "count": 2,
+              "suppressed": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "verktoy",
+      "type": "multi",
+      "text": "Hvilke verktøy bruker du?",
+      "versions": [
+        {
+          "version": 1,
+          "n": 139,
+          "options": [
+            {
+              "value": "VS Code",
+              "count": 98,
+              "suppressed": false
+            },
+            {
+              "value": "IntelliJ",
+              "count": 71,
+              "suppressed": false
+            },
+            {
+              "value": "Copilot CLI",
+              "count": 37,
+              "suppressed": false
+            },
+            {
+              "value": "Annet",
+              "count": 3,
+              "suppressed": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pastander",
+      "type": "matrix",
+      "text": "Hvor enig er du i påstandene?",
+      "items": [
+        {
+          "id": "raskere",
+          "text": "Jeg jobber raskere",
+          "versions": [
+            {
+              "version": 1,
+              "n": 130,
+              "options": [
+                {
+                  "value": "1",
+                  "count": 4,
+                  "suppressed": false
+                },
+                {
+                  "value": "2",
+                  "count": 9,
+                  "suppressed": false
+                },
+                {
+                  "value": "3",
+                  "count": 24,
+                  "suppressed": false
+                },
+                {
+                  "value": "4",
+                  "count": 51,
+                  "suppressed": false
+                },
+                {
+                  "value": "5",
+                  "count": 42,
+                  "suppressed": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "kvalitet",
+          "text": "Koden blir bedre",
+          "versions": [
+            {
+              "version": 1,
+              "n": 4,
+              "options": [
+                {
+                  "value": "3",
+                  "count": 1,
+                  "suppressed": false
+                },
+                {
+                  "value": "4",
+                  "count": 3,
+                  "suppressed": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

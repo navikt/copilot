@@ -1,7 +1,7 @@
-# Copilot denies a preToolUse call whose hook outlives its timeout, so a slow
-# python3 turned every gated call into a deny. The installed command now kills
-# the script a second before the deadline and allows the call. A script that
-# answers in time still reaches the model, payload and all.
+# The installed command kills a slow python3 two seconds before the hook's
+# timeout and allows the call, without leaning on the client's own timeout
+# handling. A script that answers in time still reaches the model, payload
+# and all.
 
 [!exec:python3] skip 'needs python3'
 
@@ -14,8 +14,13 @@ cd ../forbruker
 exec git init -q .
 exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 
-# The slow gate: killed before the 2 s deadline, nothing on stdout, exit 0.
-exits -within 1900ms 0 python3 ../run.py treg
+# The slow gate: killed by the watchdog, nothing on stdout, exit 0. The script
+# sleeps 30 s, so an answer within run.py's timeout means the watchdog fired.
+# That the watchdog fires before the 3 s deadline is HookCommand's arithmetic
+# (internal/source/hook_command_test.go). run.py does not hold the hook to the
+# 3 s itself: with several checks running, starting the hook's /bin/sh was
+# measured at up to 2.4 s before its first line, and the deadline counts that.
+exits 0 python3 ../run.py treg
 ! stdout .
 
 # The fast gate: reads the payload, and its deny comes through.
@@ -23,11 +28,12 @@ exits 0 python3 ../run.py rask
 stdout '"permissionDecision": "deny"'
 
 -- run.py --
-# Runs a hook entry the way Copilot does: sh -c, payload on stdin.
+# Runs a hook entry the way Copilot does: sh -c, payload on stdin. The
+# timeout only stops a hung hook; see above.
 import json, subprocess, sys
 entries = json.load(open(".github/hooks/copilot-hooks.json"))["hooks"]["preToolUse"]
 e = next(e for e in entries if e["navPilot"] == sys.argv[1])
-p = subprocess.run(["/bin/sh", "-c", e["command"]], input=b'{"toolName":"bash","toolArgs":{"command":"x"}}', capture_output=True, timeout=e["timeoutSec"])
+p = subprocess.run(["/bin/sh", "-c", e["command"]], input=b'{"toolName":"bash","toolArgs":{"command":"x"}}', capture_output=True, timeout=e["timeoutSec"] + 10)
 sys.stdout.write(p.stdout.decode())
 sys.exit(p.returncode)
 -- plattform/.nav-pilot/agentpakke.json --
@@ -39,13 +45,13 @@ description: fra plattform
 ---
 plattform
 -- plattform/hooks/treg.hook.json --
-{"matcher": "bash", "timeoutSec": 2}
+{"matcher": "bash", "timeoutSec": 3}
 -- plattform/hooks/treg.py --
 import time
 time.sleep(30)
 print('{"permissionDecision": "deny"}')
 -- plattform/hooks/rask.hook.json --
-{"matcher": "bash", "timeoutSec": 2}
+{"matcher": "bash", "timeoutSec": 3}
 -- plattform/hooks/rask.py --
 import json, sys
 if json.load(sys.stdin)["toolArgs"]["command"] == "x":

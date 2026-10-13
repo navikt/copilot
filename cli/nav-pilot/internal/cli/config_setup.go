@@ -403,10 +403,13 @@ func runConfigSetupWith(flagSource string, advanced bool) error {
 	fmt.Printf("    %s\n", dim("pass CLI flags per run (e.g. --client opencode)"))
 	fmt.Println()
 
-	// Push and PRs need a gh login the sandbox can read. Setup only: a
-	// launch never probes.
+	// Setup checks stored host login only; a launch never probes.
+	ghCfg, err := readConfig()
+	if err != nil {
+		return fmt.Errorf("reading saved config: %w", err)
+	}
 	st, detail := ghAuthProbe()
-	reportGHAuth(os.Stdout, "", answers.Client, st, detail)
+	reportGHAuth(os.Stdout, "", answers.Client, resolve(ghCfg, CLIOverrides{}).CopilotAuthMode, st, detail)
 	if cpltPath != "" {
 		offerCpltInit(cpltPath)
 	}
@@ -477,7 +480,7 @@ func opencodeForSetup() (string, error) {
 // opencodeScriptInstall is opencode's own installer, for a machine without
 // Homebrew, pinned to a tested release so it downloads from GitHub releases
 // without asking the GitHub API for the latest version.
-const opencodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash -s -- --version " + providerpkg.OpenCodeInstallVersion
+const opencodeScriptInstall = providerpkg.OpenCodeScriptInstall
 
 // bashPath is bash from PATH, else /bin/bash: the opencode installer needs
 // bash, not sh.

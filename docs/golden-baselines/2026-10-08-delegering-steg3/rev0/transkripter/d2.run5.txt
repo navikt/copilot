@@ -1,0 +1,51 @@
+/ Search (glob)
+  │ ".github/instructions/{kotlin,testing-kotlin,testing}.instructions.md"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/*Vedtak*"
+  └ 2 files found
+
+● Inspect project layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 42 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Inspect module and Gradle availability (shell)
+  │ find vedtak-api/src -type f; cat vedtak-api/build.gradle.kts; ls -la vedtak-api; command -v
+  │ gradle || true
+  └ 28 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:110 (110 lines read)
+
+● Edit
+  │ Create vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+  └ Edit vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+
+● Run vedtak-api Gradle tests (shell)                                                             5s
+  │ cd vedtak-api && gradle test --no-daemon --console=plain
+  └ 16 lines…
+
+La til `VedtakDto` i `vedtak-api` med feltene i ønsket rekkefølge, og `Vedtak.tilDto()` som formaterer datoen som ISO-streng. Enhetstesten dekker mapperen, og `gradle test` er kjørt uten feil.
+

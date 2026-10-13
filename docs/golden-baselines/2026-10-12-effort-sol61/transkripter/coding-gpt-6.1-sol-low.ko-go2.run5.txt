@@ -1,0 +1,44 @@
+/ Search (glob)
+  │ "ytelse/**/*"
+  └ 4 files found
+
+● Read ytelse_test.go
+  │ ytelse/ytelse_test.go
+  └ 21 lines read
+
+● Read utbetaling.go
+  │ ytelse/utbetaling.go
+  └ 6 lines read
+
+● Read rapport.go
+  │ ytelse/rapport.go
+  └ 8 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read golang.instructions.md
+  │ .github/instructions/golang.instructions.md
+  └ 547 lines read
+
+● skill(klarsprak)
+
+/ Search (grep)
+  │ "Utbetaling\(|Rapport\(" in *.go
+  └ 8 lines found
+
+● Edit
+  │ Edit ytelse/utbetaling.go
+  └ Edit ytelse/rapport.go
+
+● Formater koden og kjør testene i ytelse (shell)
+  │ cd ytelse && gofmt -w utbetaling.go rapport.go && go test ./...
+  └ 1 line…
+
+`go test ./...` i `ytelse/` går grønt. Testene er uendret.
+
+`Utbetaling` tar nå `grad` i prosent og beregner `grunnlag * grad / (260 * 100)`, med avrunding ned til hele kroner. `Rapport` sender graden videre. Heltallsberegningen unngår flyttallsavrunding, men beholder ikke ørebeløp.
+
+🔴 Rød sone: Beregningslogikken bør gjennomgås nøye.
+

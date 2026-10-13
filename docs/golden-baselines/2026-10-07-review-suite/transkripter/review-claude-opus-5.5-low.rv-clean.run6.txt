@@ -1,0 +1,58 @@
+
+
+    src/main/kotlin/no/nav/demo/App.kt
+    src/main/kotlin/no/nav/demo/sak/SakService.kt
+    src/main/kotlin/no/nav/demo/Oppgave.kt
+    src/main/kotlin/no/nav/demo/Routes.kt
+    src/main/kotlin/no/nav/demo/UserRepo.kt
+    src/main/kotlin/no/nav/demo/Config.kt
+    plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+    }
+    repositories {
+    mavenCentral()
+    }
+    dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    }
+    dependencies {
+    implementation("io.ktor:ktor-server-auth:3.0.0")
+    implementation("io.ktor:ktor-server-auth-jwt:3.0.0")
+    implementation("com.github.seratch:kotliquery:1.9.0")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("ch.qos.logback:logback-classic:1.5.12")
+    implementation("com.zaxxer:HikariCP:6.2.1")
+    }
+    ls: .mise.toml: No such file or directory
+    ls: mise.toml: No such file or directory
+    Failed with exit code 1
+
+
+### Oppsummering
+Jeg fant ingen blokkerende feil i `SakService.kt`. `mise check` ble ikke kjørt, fordi repoet mangler både mise-konfigurasjon og Gradle wrapper.
+
+Sikkerhetskritisk logikk er riktig:
+- **Spørringen** bruker parametre, så den er ikke sårbar for SQL-injeksjon.
+- **Fødselsnummeret** blir maskert før det logges.
+- **Eierskap** til sakene er sikret. Fødselsnummeret hentes fra `pid` i tokenet og aldri fra input brukeren sender inn. Brukeren kan derfor bare se sine egne saker.
+- **TokenX-oppsettet** i `App.kt` validerer audience og `acr=idporten-loa-high`.
+
+🔴 Rød sone: tilgangskontrollen avhenger helt av at `pid` kommer fra et validert token. Behold det slik.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 39–42 | 🟡 | Feilen logges og kastes videre. Samme feil havner da flere ganger i loggen hvis Ktors `StatusPages` også logger den. Velg ett sted å logge, eller pakk feilen inn med kontekst. Fanger du `Exception`, fanger du også `CancellationException` fra coroutines. |
+| `SakService.kt` | 19 | 🟡 | `maskert()` viser lengden på verdien. Det er ufarlig for fødselsnummer, men loggen blir da alltid `***********` og hjelper ikke med feilsøking. Logg heller en korrelasjons-ID eller saks-ID. |
+| `SakService.kt` | 47–58 | 🟡 | Ruting, service og repository ligger i én fil. Del dem opp i `SakRoutes.kt`, `SakService.kt` og `SakRepository.kt`, slik at det er tydelig hva hvert lag har ansvar for. |
+| `SakService.kt` | 52 | 🟡 | Når `pid` mangler, svarer endepunktet `401`. Tokenet er da gyldig, men mangler et claim, så `403` passer bedre. Logg også hendelsen, uten fødselsnummer. |
+| — | — | 🟡 | Det finnes ingen tester. Legg til en test for repository med Testcontainers og en rutetest med MockOAuth2Server, både med og uten `pid`. |
+| `SakService.kt` | 26 | 💭 | `ORDER BY opprettet` krever en indeks på `(fnr, opprettet)` hvis tabellen er stor. |
+| `SakService.kt` | 50 | 💭 | `payload` er aldri null på `JWTPrincipal`, så `?.` foran `payload` er overflødig. |
+
+Still gjerne spørsmål om valgene over.
+

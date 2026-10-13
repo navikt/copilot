@@ -1,0 +1,34 @@
+● Read SakService.kt
+  │ src/main/kotlin/no/nav/demo/sak/SakService.kt
+  └ 58 lines read
+
+● Inspect repo and run mise check (shell)
+  │ cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.L8sAJE/repo && ls
+  │ -a; find . -path ./node_modules -prune -o -name "*.kt" -print -o -name "mise.toml" -print |
+  │ head; (mise check 2>&1 | tail -5)
+  └ 18 lines…
+
+● Check auth config and error handling (shell)
+  │ cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.L8sAJE/repo && grep
+  │ -n -i -E "tokenx|acr|StatusPages|exception|sakRoutes" src/main/kotlin/no/nav/demo/*.kt
+  └ 1 line…
+
+### Oppsummering
+Jeg fant ingen blokkerende feil i filen. SQL-spørringen er parameterisert, og fødselsnummeret hentes fra `pid`-claimet i tokenet, ikke fra input. Brukeren ser dermed bare egne saker. `maskert()` skjuler hele fødselsnummeret i loggene. `mise check` kunne ikke kjøres fordi repoet mangler `mise.toml`, så lint og tester er ikke kjørt.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 48–49 | 🟡 | `authenticate("tokenx")` og `sakRoutes` finnes ikke andre steder i `src/`. Ruten er ikke koblet inn, og ingen auth-provider er satt opp. |
+| `SakService.kt` | 50 | 🟡 | Koden sjekker ikke `acr` (for eksempel `idporten-loa-high`). Et token med lavere sikkerhetsnivå får se saksdata. |
+| `SakService.kt` | 39–42 | 🟡 | `catch (e: Exception)` logger feilen og kaster den videre. Når den også logges høyere opp, blir den logget to ganger. Den fanger også `CancellationException`. Ingen `StatusPages` finnes, så feilen når klienten uten kontrollert svar. |
+| `SakService.kt` | 41 | 🟡 | Hele `e` logges med stacktrace. Driverfeil kan ta med parameterverdier i meldingen, og da kan fødselsnummeret havne i loggen. Logg med en korrelasjons-ID. |
+| `SakService.kt` | – | 🟡 | Tester mangler for repository, service og rute, for eksempel med Testcontainers og MockOAuth2Server. |
+| `SakService.kt` | 19 | 💭 | `maskert()` gir alltid `***********` og skiller ikke brukerne fra hverandre. Dropp feltet eller logg en intern ID. |
+| `SakService.kt` | – | 💭 | Datamodell, repository, service og rute ligger i én fil. Del dem opp, eller gi filen et navn som passer innholdet. |
+
+🔴 Rød sone: auth og `acr`-kontroll på `/api/saker`, gå gjennom denne nøye.
+
+Still gjerne spørsmål om valgene over.
+

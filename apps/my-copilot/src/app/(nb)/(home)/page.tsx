@@ -2,16 +2,30 @@ import { getNewsItems } from "@/lib/news";
 import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
 import { ExternalLinkIcon, PlayIcon, BookIcon } from "@navikt/aksel-icons";
 import { NewsFeed } from "@/components/news-feed";
-import { HighlightCards } from "@/components/pulse-strip";
+import { InsightStrip } from "@/components/insight-strip";
+import { WeeklyTip } from "@/components/weekly-tip";
 import { HomeShortsFeed } from "@/components/video/home-shorts-feed";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
 import { Greeting } from "@/components/greeting";
 import { getUser } from "@/lib/auth";
 import { getPublicVideoFeed } from "@/lib/public-videos";
 import { NavCard } from "@/components/navigation/nav-card";
+import { HeroNetwork } from "@/components/hero-network/hero-network";
+import { getAllCustomizations } from "@/lib/customizations";
+import { getMcpServers } from "@/lib/mcp-registry";
+import { SurveyNotice } from "@/components/survey-notice";
+import { openSurveyTitles } from "@/lib/survey";
 
 export default async function Home() {
-  const [user, videos] = await Promise.all([getUser(false), getPublicVideoFeed(5)]);
+  const [user, videos, mcpServers] = await Promise.all([getUser(false), getPublicVideoFeed(5), getMcpServers()]);
+  const items = getAllCustomizations();
+  const count = (type: string) => items.filter((i) => i.type === type).length;
+  const clusters = [
+    { name: "Agenter", count: count("agent") },
+    { name: "Skills", count: count("skill") },
+    { name: "Instruksjoner", count: count("instruction") },
+    { name: "MCP-servere", count: mcpServers.length },
+  ];
   // English articles sit in the same feed as the Norwegian ones, sorted by date
   // like everything else. A separate link beside the category chips read as a
   // filter that did nothing, and the piece most worth reading was the one the
@@ -22,17 +36,19 @@ export default async function Home() {
 
   return (
     <main id="hovedinnhold" tabIndex={-1}>
-      <section className="hero-gradient text-white">
+      <SurveyNotice titles={openSurveyTitles()} />
+      <section className="hero-gradient text-white overflow-hidden max-md:min-h-[19rem]">
+        <HeroNetwork clusters={clusters} />
         <Box
           paddingBlock={{ xs: "space-32", md: "space-40" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-          className="max-w-7xl mx-auto"
+          className="max-w-7xl mx-auto relative"
         >
           <VStack gap="space-8">
-            <Heading size="xlarge" level="1" className="hero-title hero-animate">
-              KI-utvikling i Nav
+            <Heading size="xlarge" level="1" className="hero-title">
+              KI-produktutvikling i Nav
             </Heading>
-            <BodyShort className="max-w-md opacity-70 hero-animate-d1">
+            <BodyShort className="max-w-md opacity-70">
               {user && <Greeting />}
               Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.
             </BodyShort>
@@ -47,11 +63,14 @@ export default async function Home() {
         >
           <VStack gap={{ xs: "space-24", md: "space-32" }}>
             <Box className="reveal-section">
-              <HighlightCards />
+              <InsightStrip />
             </Box>
 
             <Box className="reveal-section">
-              <SidebarCompact />
+              <WeeklyTip />
+            </Box>
+
+            <Box className="reveal-section">
               <div className="flex gap-8 lg:gap-10">
                 <div className="flex-1 min-w-0">
                   <NewsFeed
@@ -70,6 +89,7 @@ export default async function Home() {
                   <Sidebar />
                 </div>
               </div>
+              <SidebarCompact />
             </Box>
 
             <Box className="reveal-section">
@@ -81,7 +101,7 @@ export default async function Home() {
                   href="/kom-i-gang"
                   icon={<PlayIcon aria-hidden fontSize="1.75rem" />}
                   title="Kom i gang"
-                  description="Alt du trenger for å starte med Copilot"
+                  description="Start i terminalen med Copilot CLI, nav-pilot og cplt"
                 />
                 <NavCard
                   href="/praksis"

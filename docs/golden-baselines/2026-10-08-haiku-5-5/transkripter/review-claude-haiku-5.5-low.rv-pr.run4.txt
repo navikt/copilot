@@ -1,0 +1,41 @@
+## Review: `vedtak-kafka` mot `main`
+
+8 filer, +257/−2. Ikke rettet noe. Funnene er basert på diffen.
+
+### Summary
+Kafka-konsumenten og vedtakslogikken er et godt utgangspunkt. Sikkerheten er den største risikoen: endepunktene er åpne eller dårlig validert, og det er SQL-injection. Det mangler også Flyway-migrering og tester.
+
+### Findings
+
+| File | Line | Priority | Issue |
+|------|------|----------|-------|
+| `vedtak/VedtakRepository.kt` | 21–22 | 🔴 | SQL-injection: `fnr` settes rett inn i SQL-strengen. Bruk `queryOf(sql, fnr)`. |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` har ingen autentisering eller eierskapssjekk. Alle vedtak for en person kan leses, og åpen `accessPolicy` gjør dette tilgjengelig for alle. |
+| `Routes.kt` | 25–28 | 🔴 | `POST /api/vedtak` er autentisert, men ikke autorisert. Enhver token kan fatte vedtak for vilkårlig `fnr`. |
+| `App.kt` | 42 | 🔴 | JWT-`validate` sjekker bare at `aud` finnes. Den må validere forventet audience, issuer og `azp` (se `$nav-auth`). |
+| `nais.yaml` | 22–26 | 🔴 | `accessPolicy.inbound` er `*` på application og namespace. Dette er åpen inbound-policy. Begrens til konkrete konsumenter. |
+| `vedtak/VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger FNR. Logg bare `sakId` eller en intern ID. |
+| `vedtak/VedtakConsumer.kt` | 25–27 | 🔴 | Ikke idempotent. Ved feil i `producer.send` etter DB-lagring, eller ved retry av batch, opprettes nye vedtak med nye UUID-er. Bruk `sakId` eller meldings-ID som unik nøkkel. |
+| `vedtak/VedtakConsumer.kt` | 23–27 | 🟡 | En feil i `decodeFromString` (ugyldig melding) eller etter 3 forsøk kaster exception ut av `start()`. Tråden dør stille, og appen står uten konsument. Legg til dead-letter-håndtering og logging. |
+| `vedtak/VedtakConsumer.kt` | 38–46 | 🟡 | `retry` kjører blokken 3 ganger, men den siste kjøringen er utenfor `try`. Det gir ingen ekstra logging av siste feil. Funksjonen er også vanskelig å lese. |
+| `VedtakRepository.kt` | 8–17 | 🟡 | Ingen Flyway-migrering for tabellen `vedtak`. Appen feiler ved oppstart eller første kall. Se `database.instructions.md`. |
+| `App.kt` | 15–18 | 🟡 | Kafka-konfigurasjonen mangler sikkerhet (SSL/SASL). Nais Kafka krever dette. Bekreft at konfigurasjonen er riktig for `nav-dev`. |
+| `Routes.kt` | 31 | 🟡 | `fnr` i URL-stien havner i access-logger og proxy-logger. Bruk POST med body eller en intern ID. |
+| `Routes.kt` | 26 | 🟡 | `require` i `fattVedtak` gir 500 ved ugyldig input. Valider i route og svar 400. `fnr` valideres ikke i det hele tatt. |
+| `build.gradle.kts` | 13–21 | 🟡 | To `dependencies { }`-blokker. Slå dem sammen. Det er ingen endring i innhold. |
+| `vedtak/VedtakService.kt` | 23 | 💭 | `hentVedtak` er ubrukt. `hentForSak` i repository brukes heller ikke. Fjern hvis ikke planlagt. |
+| (ingen) | — | 🟡 | Ingen tester for `VedtakService`, `VedtakConsumer` eller repository. Se `testing.instructions.md`. |
+
+### Details
+
+**SQL-injection (🔴):** Bruk parameter:
+```kotlin
+queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)
+```
+Strengkonkatenering lar en angriper endre spørringen. Dette er den klareste feilen i diffen.
+
+**Autorisasjon og personvern (🔴):** Et vedtak er personopplysning. `GET /api/vedtak/{fnr}` må kreve autentisering og sjekke at kallet er tillatt. Med `accessPolicy` åpen for `*` kan alle i clusteret kalle endepunktet uten tilgangskontroll.
+
+**Idempotens (🔴):** Konsumenten kan prosessere samme melding flere ganger, fordi offset committes etter batch og retry ikke er idempotent. Lagre med unik nøkkel på `sak_id` (eller meldings-ID) og bruk `ON CONFLICT DO NOTHING`.
+
+🔴 Rød sone: autentisering, tilgangskontroll og SQL. Gå gjennom disse grundig før merge.

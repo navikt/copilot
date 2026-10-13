@@ -1,0 +1,41 @@
+
+
+Jeg fikk ikke kjørt `mise check`. Repoet har ingen `mise.toml` og ingen Gradle-wrapper, så gjennomgangen bygger på å lese diffen (1 commit, 8 filer).
+
+### Oppsummering
+Lag-inndelingen Routes → Service → Repository er ryddig, og `lagre` bruker parametriserte spørringer. Endringen er likevel ikke klar for merge. Den har SQL-injeksjon, et åpent endepunkt som returnerer vedtak for et hvilket som helst fødselsnummer, fødselsnummer i loggen, og en Kafka-konsument som lager dupliserte vedtak.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–32 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og sjekker ikke eierskap |
+| `Routes.kt` | 30 | 🔴 | Fødselsnummer i URL-stien havner i access-logger og proxyer |
+| `App.kt` | 40–42 | 🔴 | JWT-oppsettet mangler `verifier` (JWKS), issuer og sjekk av audience mot `TOKEN_X_CLIENT_ID` |
+| `Routes.kt` | 24–28 | 🔴 | `POST /api/vedtak` lar alle med et TokenX-token fatte vedtak for et hvilket som helst fødselsnummer |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer |
+| `VedtakConsumer.kt` | 25, 32–33 | 🔴 | Ingen idempotens: retry og reprosessering gir dupliserte vedtak |
+| `VedtakConsumer.kt` | 24–25 | 🔴 | Feil i parsing eller etter tre forsøk dreper consumer-tråden uten varsel, og `isalive` svarer fortsatt OK |
+| (mangler) | – | 🔴 | Ingen Flyway-migrering for tabellen `vedtak` |
+| `App.kt` | 26–34 | 🔴 | Kafka-oppsettet mangler SSL/keystore fra Aiven (`KAFKA_*`) og kobler ikke til |
+| `App.kt` | 23 | 🟡 | `DB_JDBC_URL` blir ikke satt uten `envVarPrefix: DB` i `nais.yaml`. Brukernavn og passord mangler også |
+| `nais.yaml` | 24–26 | 🟡 | Inbound `*`/`*` åpner for alle apper i alle namespaces |
+| `nais.yaml` | 15–16 | 🟡 | Topicene mangler team-prefiks, og pool `nav-dev` er hardkodet |
+| (mangler) | – | 🟡 | Ingen tester for service, consumer eller ruter |
+| `VedtakService.kt` | 20 | 🟡 | `LocalDate.now()` gjør testene tidsavhengige. Injiser en `Clock` |
+| `Routes.kt` | 26 | 🟡 | `fnr` i request-bodyen valideres ikke |
+| `build.gradle.kts` | 13 | 💭 | To `dependencies`-blokker. Slå dem sammen |
+| `VedtakService.kt` | 5, 28 | 💭 | `Locale` er ikke i bruk, og `hentVedtak` kalles ikke |
+
+### Detaljer om blokkerne
+🔴 Rød sone: tilgangskontroll og input-validering, gå gjennom disse nøye.
+
+1. **SQL-injeksjon.** Bruk parameter: `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`. Med dagens kode gir `' OR '1'='1` alle vedtak for alle personer.
+2. **Tilgangskontroll på GET.** Legg ruten inn under `authenticate`. Hent fødselsnummeret fra tokenets `pid`-claim i stedet for fra URL-en, for eksempel `GET /api/vedtak/mine`. Hvis saksbehandlere også skal kunne slå opp, send fødselsnummeret i en POST-body og sjekk tilgangen med Azure AD og tilgangsmaskinen.
+3. **JWT.** Uten `verifier(JwkProviderBuilder(URL(TOKEN_X_JWKS_URI))…, TOKEN_X_ISSUER)` og en sjekk av at `audience` inneholder `TOKEN_X_CLIENT_ID` er tokenvalideringen enten ikke på plass eller feil. Å fatte vedtak er en saksbehandler- eller systemhandling. Da passer Azure AD med `azp`-sjekk mot `AZURE_APP_PRE_AUTHORIZED_APPS` bedre enn TokenX, som er laget for innbyggertokener.
+4. **Idempotens i Kafka.** `fattVedtak` lagrer først og publiserer etterpå. Hvis `send().get()` feiler, lager neste forsøk et nytt vedtak med ny UUID. Det samme skjer hvis appen restarter før `commitSync`. Bruk `soknadId` som idempotensnøkkel, med `UNIQUE` i databasen og `ON CONFLICT DO NOTHING`. Vurder også outbox-mønsteret.
+5. **Consumer-tråden.** Pakk løkka i try/catch. Send meldinger som ikke kan parses til en DLQ, eller logg og hopp over dem. Koble tråden sin helse til `/internal/isalive`, slik at Nais restarter poden når konsumenten dør.
+
+Still gjerne spørsmål om valgene over.
+

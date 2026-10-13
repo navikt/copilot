@@ -184,9 +184,14 @@ func cmdFakeBin(ts *testscript.TestScript, neg bool, args []string) {
 	dir := ts.MkAbs("fake")
 	ts.Check(os.MkdirAll(dir, 0o755))
 	for _, name := range args {
-		version := "GitHub Copilot CLI 1.0.40"
+		version := "GitHub Copilot CLI 1.0.95."
 		if name == "cplt" {
 			version = "cplt 2026.09.24-192459-38642b4"
+		}
+		if name == "opencode" {
+			// An opencode 1 version: an unreadable one counts as opencode 2,
+			// which needs a newer cplt than the fake reports.
+			version = "1.14.0"
 		}
 		script := "#!/bin/sh\n" +
 			"printf '%s\\n' \"$@\" --- >> '" + filepath.Join(dir, name+".log") + "'\n" +

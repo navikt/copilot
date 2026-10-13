@@ -9,13 +9,13 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Worktrees med nav-pilot og cplt",
   description:
-    "Start nav-pilot i et git-worktree, la agenten lage worktrees til underagenter, og bruk worktrees fra et bare repo.",
+    "Start nav-pilot i et git-worktree, la agenten lage worktrees til subagenter, og bruk worktrees fra et bare repo.",
 };
 
 const TOC: TocItem[] = [
   { id: "hvorfor", label: "Hvorfor worktrees" },
   { id: "starte-i-worktree", label: "Starte i et worktree" },
-  { id: "underagenter", label: "Worktrees til underagenter" },
+  { id: "subagenter", label: "Worktrees til subagenter" },
   { id: "bare-repo", label: "Bare repo og .git et annet sted" },
   { id: "begrensninger", label: "Begrensninger og sikkerhet" },
   { id: "feilsoking", label: "Feilsøking" },
@@ -32,7 +32,7 @@ export default function Worktrees() {
       label="Guider"
       upgrade
       title="Worktrees med nav-pilot og cplt"
-      description="Med git worktree har du flere grener sjekket ut samtidig, hver i sin mappe. Slik bruker du det i sandkassen."
+      description="Med git worktree har du flere brancher sjekket ut samtidig, hver i sin mappe. Slik bruker du det i sandkassen."
       toc={TOC}
     >
       <section>
@@ -41,8 +41,8 @@ export default function Worktrees() {
             Hvorfor worktrees
           </LinkableHeading>
           <BodyLong>
-            Et worktree er en ekstra utsjekking av samme repo, på en annen gren og i en annen mappe. Agenten kan jobbe
-            på én gren mens du jobber på en annen, og flere underagenter kan jobbe parallelt uten å skrive over
+            Et worktree er en ekstra utsjekking av samme repo, på en annen branch og i en annen mappe. Agenten kan jobbe
+            på én branch mens du jobber på en annen, og flere subagenter kan jobbe parallelt uten å skrive over
             hverandres filer. Objekter, refs og konfig ligger i én felles git-mappe, den{" "}
             <code className={code}>git rev-parse --git-common-dir</code> viser. Hvert worktree har i stedet for en{" "}
             <code className={code}>.git</code>-mappe en <code className={code}>.git</code>-fil som peker til sin egen
@@ -51,7 +51,7 @@ export default function Worktrees() {
           <BodyLong>Det er tre måter å bruke worktrees på med nav-pilot og cplt:</BodyLong>
           <Bullets>
             <li>Du starter nav-pilot i et worktree du har laget selv.</li>
-            <li>Agenten lager worktrees til underagenter mens den jobber.</li>
+            <li>Agenten lager worktrees til subagenter mens den jobber.</li>
             <li>Du jobber i et worktree fra et bare repo, eller med .git et annet sted.</li>
           </Bullets>
           <BodyLong>
@@ -68,8 +68,8 @@ export default function Worktrees() {
           <BodyLong>Lag worktreet utenfor sandkassen, og start nav-pilot i det:</BodyLong>
           <CodeBlock compact>
             {`cd ~/src/min-app
-git worktree add ../min-app-ny-gren -b ny-gren
-cd ../min-app-ny-gren
+git worktree add ../min-app-ny-branch -b ny-branch
+cd ../min-app-ny-branch
 nav-pilot`}
           </CodeBlock>
           <BodyLong>
@@ -89,15 +89,15 @@ nav-pilot`}
           </BodyLong>
           <BodyLong>
             Godkjenningen av repoets <code className={code}>.cplt.toml</code> gjelder hele repoet. Har du godkjent den i
-            hovedutsjekkingen, spør ikke cplt på nytt i worktreet, med mindre grenen har endret forslaget.
+            hovedutsjekkingen, spør ikke cplt på nytt i worktreet, med mindre branchen har endret forslaget.
           </BodyLong>
         </VStack>
       </section>
 
       <section>
         <VStack gap="space-16">
-          <LinkableHeading id="underagenter" size="medium" level="2">
-            Worktrees til underagenter
+          <LinkableHeading id="subagenter" size="medium" level="2">
+            Worktrees til subagenter
           </LinkableHeading>
           <BodyLong>
             Som standard kan agenten bare skrive i prosjektkatalogen, så den har ikke noe sted å lage nye worktrees. Slå
@@ -116,14 +116,14 @@ cplt config set --local sandbox.allow_git_worktrees true   # bare denne utsjekki
             Du trenger ikke be agenten om å bruke mappa. cplt forteller den om mappa i starten av økten, sammen med
             kommandoen:
           </BodyLong>
-          <CodeBlock compact>{`git worktree add "$CPLT_WORKTREE_ROOT/<navn>" -b <gren>`}</CodeBlock>
+          <CodeBlock compact>{`git worktree add "$CPLT_WORKTREE_ROOT/<navn>" -b <branch>`}</CodeBlock>
           <BodyLong>
-            Worktrees og grener agenten lager, blir liggende etter økten. Rydd opp selv, utenfor cplt:
+            Worktrees og brancher agenten lager, blir liggende etter økten. Rydd opp selv, utenfor cplt:
           </BodyLong>
           <CodeBlock compact>
             {`git worktree list
 git worktree remove ~/.cplt-worktrees/<id>/<navn>
-git branch -d <gren>`}
+git branch -d <branch>`}
           </CodeBlock>
           <BodyLong>
             Innstillingen kan bare settes i din egen cplt-konfig. Et repo kan ikke slå den på for deg med{" "}
@@ -138,8 +138,8 @@ git branch -d <gren>`}
             Bare repo og .git et annet sted
           </LinkableHeading>
           <BodyLong>
-            Noen holder repoet som et bare repo, uten arbeidskatalog, med hver gren som et worktree ved siden av. Andre
-            har git-mappa et annet sted enn koden. Begge virker som når du starter i et worktree: cplt følger{" "}
+            Noen holder repoet som et bare repo, uten arbeidskatalog, med hver branch som et worktree ved siden av.
+            Andre har git-mappa et annet sted enn koden. Begge virker som når du starter i et worktree: cplt følger{" "}
             <code className={code}>.git</code>-fila til den felles git-mappa og gir agenten tilgang dit.
           </BodyLong>
           <CodeBlock compact>
@@ -153,7 +153,7 @@ nav-pilot`}
             for hånd til å peke på et annet repo, gir ingen tilgang.
           </BodyLong>
           <BodyLong>
-            Bruker du worktrees til underagenter i tillegg, kan ikke repoet bruke{" "}
+            Bruker du worktrees til subagenter i tillegg, kan ikke repoet bruke{" "}
             <code className={code}>worktree.useRelativePaths</code>. cplt nekter å starte når et worktree i repoet har
             relative stier, også utenfor worktree-mappa. Slå av innstillingen og skriv om stiene, utenfor cplt, for
             hvert worktree som har dem:
@@ -170,13 +170,13 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
           </LinkableHeading>
           <Bullets>
             <li>
-              <strong>Ingen isolasjon mellom underagenter.</strong> Alle worktrees i en økt deler samme tilgang. En
-              underagent kan skrive i de andres worktrees og i utsjekkingen du startet fra.
+              <strong>Ingen isolasjon mellom subagenter.</strong> Alle worktrees i en økt deler samme tilgang. En
+              subagent kan skrive i de andres worktrees og i utsjekkingen du startet fra.
             </li>
             <li>
               <strong>Bare macOS.</strong> På Linux nekter <code className={code}>cplt config set</code> å slå på
-              worktrees til underagenter, fordi Landlock ikke kan stenge filer inne i mappa. De to andre måtene virker
-              på Linux også.
+              worktrees til subagenter, fordi Landlock ikke kan stenge filer inne i mappa. De to andre måtene virker på
+              Linux også.
             </li>
             <li>
               <strong>Samme beskyttelse som i prosjektet.</strong> Hooks og <code className={code}>config</code> i den

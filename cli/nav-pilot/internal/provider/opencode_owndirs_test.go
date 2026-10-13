@@ -2,11 +2,14 @@ package provider
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // openCodeWildcard is OpenCode's util/wildcard.ts match: "*" is ".*", "?"
@@ -123,5 +126,120 @@ func TestApplyOpenCodeOwnDirs(t *testing.T) {
 				t.Errorf("staged dir or launch policy missing: %s", raw)
 			}
 		})
+	}
+}
+
+// opencode 2's flat permissions list, last match winning across files: a
+// user's v2 deny of external_directory keeps nav-pilot's allows out.
+func TestUserPermissionReadsV2List(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	deny := `{"permissions": [{"action": "external_directory", "resource": "*", "effect": "deny"}]}`
+	for _, tc := range []struct {
+		name, version string
+		docs          []string
+		want          bool
+	}{
+		{"v2 deny", "opencode v2.0.24\n", []string{deny}, true},
+		{"v2 wildcard action", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "*", "resource": "*", "effect": "deny"}]}`}, true},
+		{"v2 later allow wins", "opencode v2.0.24\n", []string{deny, `{"permissions": [{"action": "external_directory", "resource": "*", "effect": "allow"}]}`}, false},
+		{"v2 path rule is not wholesale", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "external_directory", "resource": "/x/*", "effect": "deny"}]}`}, false},
+		{"v2 other action", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "edit", "resource": "*", "effect": "deny"}]}`}, false},
+		{"v1 ignores the list", "opencode 1.17.0\n", []string{deny}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			versionCache.Store("opencode", versionAnswer{tc.version, nil, time.Hour})
+			var docs [][]byte
+			for _, d := range tc.docs {
+				docs = append(docs, []byte(d))
+			}
+			if _, got := userPermission(docs, "external_directory"); got != tc.want {
+				t.Errorf("deny = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCheckOpenCode2Launch(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	t.Cleanup(func() { lookPath = exec.LookPath })
+	prevOS := hostOS
+	hostOS = "darwin"
+	t.Cleanup(func() { hostOS = prevOS })
+	for _, c := range []struct {
+		version, cplt string
+		cpltErr       error
+		args          []string
+		ok            bool
+	}{
+		{"opencode v2.0.24\n", "cplt 2026.10.07-103638-7c04fce\n", nil, nil, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-060626-0000000\n", nil, nil, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"run", "hi"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, nil, false},
+		{"opencode v2.0.24\n", "cplt dev\n", nil, nil, false},
+		{"opencode v2.0.24\n", "", errors.New("timeout"), nil, false},
+		{"opencode v2.0.24\n", okCplt, nil, nil, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"--server", "http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"run", "--server=http://x", "hi"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"attach", "http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"run", "attach"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"run", "--", "--server", "x"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"--standalone"}, false},
+		{"opencode v2.0.24\n", "", errCpltNotFound, nil, true},
+		{"opencode 1.17.0\n", "", errors.New("timeout"), []string{"attach", "--server", "x"}, true},
+		{"opencode 1.17.0\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, nil, true},
+		// unreadable version: launched as opencode 1, but cplt must be new enough to fail closed (#735)
+		{"garbage\n", "cplt 2026.10.08-060626-86f0f7e\n", nil, nil, false},
+		{"garbage\n", "cplt 2026.10.08-081501-54ea742\n", nil, nil, true},
+		// cplt may still detect opencode 2, so the argument refusals stay
+		{"garbage\n", "cplt 2026.10.08-081501-54ea742\n", nil, []string{"attach", "x"}, false},
+	} {
+		lookPath = func(string) (string, error) { return "/bin/opencode", nil }
+		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
+		stubProbes(t, c.cplt, c.cpltErr, "", nil)
+		if err := checkOpenCode2Launch(c.args); (err == nil) != c.ok {
+			t.Errorf("%q cplt %q %v: err = %v, want ok %v", c.version, c.cplt, c.args, err, c.ok)
+		}
+	}
+	// not installed: nothing to launch, no cplt refusal
+	lookPath = func(string) (string, error) { return "", errors.New("not found") }
+	versionCache.Store("opencode", versionAnswer{"", nil, time.Hour})
+	stubProbes(t, "cplt 2026.10.08-060626-86f0f7e\n", nil, "", nil)
+	if err := checkOpenCode2Launch(nil); err != nil {
+		t.Errorf("not installed: err = %v, want nil", err)
+	}
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	stubProbes(t, "cplt 2026.10.06-120000-0d1d66d\n", nil, "", nil)
+	if err := checkOpenCode2Launch(nil); !errors.Is(err, errCpltTooOld) {
+		t.Errorf("old cplt: err = %v, want errCpltTooOld", err)
+	}
+	// Linux has its own floor, navikt/cplt#740 (bubblewrap).
+	hostOS = "linux"
+	lookPath = func(string) (string, error) { return "/bin/opencode", nil }
+	for _, c := range []struct {
+		version, cplt string
+		args          []string
+		ok            bool
+	}{
+		{"opencode v2.0.24\n", "cplt 2026.10.08-081501-54ea742\n", nil, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-092800-5050c9a\n", []string{"run", "hi"}, true},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-092800-5050c9a\n", []string{"attach", "x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-092800-5050c9a\n", []string{"--server=http://x"}, false},
+		{"opencode v2.0.24\n", "cplt 2026.10.08-092800-5050c9a\n", []string{"--standalone"}, false},
+		{"garbage\n", "cplt 2026.10.08-081501-54ea742\n", nil, false},
+		{"garbage\n", "cplt 2026.10.08-092800-5050c9a\n", nil, true},
+		{"1.18.35\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, true},
+	} {
+		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
+		stubProbes(t, c.cplt, nil, "", nil)
+		if err := checkOpenCode2Launch(c.args); (err == nil) != c.ok {
+			t.Errorf("linux %q cplt %q %v: err = %v, want ok %v", c.version, c.cplt, c.args, err, c.ok)
+		}
+	}
+	// cplt runs opencode 2 on macOS and Linux only; elsewhere nav-pilot says so first.
+	hostOS = "windows"
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	stubProbes(t, "cplt 2026.10.08-092800-5050c9a\n", nil, "", nil)
+	if err := checkOpenCode2Launch(nil); err == nil || !strings.Contains(err.Error(), "macOS and Linux only") {
+		t.Errorf("windows: err = %v, want the platform refusal", err)
 	}
 }

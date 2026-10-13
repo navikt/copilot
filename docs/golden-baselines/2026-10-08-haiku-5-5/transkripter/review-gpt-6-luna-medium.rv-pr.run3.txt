@@ -1,0 +1,26 @@
+🔍 Leser diffen og finner prosjektets relevante instruksjoner og checks.
+
+📊 Endringene legger til Kafka, database og nye endepunkter. Jeg leser konfigurasjonen og Kotlin-reglene, og kjører prosjektets checks før jeg konkluderer.
+
+🔎 Flere mulige feil gjelder tilgangskontroll, FNR-håndtering og behandling av Kafka-meldinger. Jeg sjekker nå om tjenesten bygger, og om eksisterende Nais-/Kotlin-oppsett viser forventet konfigurasjon.
+
+### Oppsummering
+
+Branchen har flere blokkere for merge: tilgangskontrollen er for vid, JWT-valideringen er utilstrekkelig, og FNR eksponeres gjennom et ubeskyttet endepunkt og logger. Kafka-retries kan også opprette flere vedtak for samme melding.
+
+### Funn
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `nais.yaml:25–26` | 🔴 | `application: "*"` og `namespace: "*"` åpner tjenesten for alle apper i alle namespaces. Begrens reglene til konkrete kallere. |
+| `App.kt:40–43` | 🔴 | JWT-oppsettet mangler `verifier(...)`. `validate` godtar et token bare fordi det har en `aud`-claim; den kontrollerer verken signaturen eller at audience er riktig for tjenesten. |
+| `Routes.kt:30–32` | 🔴 | Oppslag på FNR krever ikke autentisering eller eierskapskontroll. Kallere kan hente vedtak for vilkårlige personer, og responsen inneholder FNR. |
+| `VedtakRepository.kt:23–24` | 🔴 | SQL bygger spørringen ved å lime inn FNR direkte. Det åpner for SQL-injeksjon. Bruk parameterisert spørring. |
+| `VedtakService.kt:15` | 🔴 | Logger FNR. Fjern personopplysningen fra logglinjen. |
+| `VedtakRepository.kt:14–16` | 🔴 | Koden skriver til tabellen `vedtak`, men branchen legger ikke til noen migrering som oppretter tabellen. Innsetting og oppslag vil feile i den nyopprettede databasen. |
+| `VedtakConsumer.kt:32–33` | 🟡 | Hvert retry kaller `fattVedtak` på nytt, som lagrer et nytt vedtak med ny UUID før Kafka-publisering. Feil ved publisering eller gjenlevering kan derfor gi flere vedtak for samme søknad. Gjør behandlingen idempotent, for eksempel med `soknadId`, og vurder outbox-mønsteret. |
+| `VedtakConsumer.kt:46` | 🟡 | Etter siste mislykkede forsøk kastes feilen videre og avslutter consumer-tråden. Tjenesten fortsetter likevel å kjøre uten å behandle Kafka-meldinger. Koble feilen til helsesjekk eller håndter gjenoppretting eksplisitt. |
+
+🔴 Rød sone: JWT-validering, tilgangskontroll og håndtering av FNR må gjennomgås nøye.
+
+**Checks:** `git diff --check` besto. `mise check` finnes ikke i repoet, og `gradle compileKotlin` stoppet under Gradle-konfigurering med `IllegalArgumentException: 27`, før Kotlin-koden ble kompilert.

@@ -1,0 +1,23 @@
+
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Avklaring.** Repoet er en enkel Ktor-tjeneste med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten eller `accessPolicy` konfigurert, så jeg kan ikke legge til lesing av fødselsnummer uten å avklare tilgang og dataflyt først.
+
+1. Skal tjenesten ta imot innloggede innbyggere direkte via nettleser, eller skal en frontend/BFF sende brukerkonteksten videre? Hvem skal kunne kalle API-et?
+2. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes i minnet, eller også lagres eller sendes til andre tjenester?
+3. Hvilke endepunkter og svar trenger dere? Skal den eksisterende oppgavelisten inngå i den nye tjenesten?
+4. Hva skal skje når tokenet mangler eller er ugyldig, eller når en avhengighet er nede? Finnes det krav til målinger som viser at tjenesten fungerer?
+5. Er dette en ny tjeneste fra bunnen av, eller skal `demo-tjeneste` bygges om? Finnes det tester eller en utrullingsplan vi må ta hensyn til?
+
+Jeg fant ikke `AGENTS.md` eller repo-lokale Copilot-instruksjoner. Legg gjerne til disse med `nav-pilot init` når rammene er avklart.
+
+Blindsoner reist: 7/11 (#1–#4, #6–#8 stilt; #5, #9–#11 ikke relevante ut fra det vi vet nå).
+

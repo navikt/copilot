@@ -1,0 +1,25 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jeg fant `SoknadMottattMelding` i `src/main/kotlin/no/nav/demo/Soknad.kt`. Den inneholder i dag `soknadId` og `mottatt`. `SokerDto` har allerede `fnr`, men sendes på en annen topic. Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`.
+
+FNR er personopplysninger. Før jeg endrer meldingen, trenger jeg svar på dette:
+
+1. Bekrefter du at FNR skal sendes på `soknad-mottatt`, og at mottakerne av topicen har godkjent tilgang til det?
+2. Hvilke tjenester konsumerer `soknad-mottatt`, og hvilke team eier dem?
+3. Tåler konsumentene at meldingen får det nye JSON-feltet `fnr`?
+4. Hvilke tester finnes for serialisering og sending av denne meldingen?
+5. Er det nok å rulle tilbake ved å fjerne feltet igjen hvis endringen skaper problemer?
+
+Blindsoner reist: 5/11 (#1, #5, #6, #7, #9 stilt; #2–#4, #8, #10–#11 ikke relevante)
+

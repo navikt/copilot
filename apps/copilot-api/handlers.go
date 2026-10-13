@@ -88,12 +88,15 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/adoption/staleness", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdoptionStaleness })))
 	mux.HandleFunc("GET /api/v1/copilot/customizations/details", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCustomizationDetails })))
 	mux.HandleFunc("GET /api/v1/copilot/customizations/usage", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCustomizationUsage })))
-	mux.HandleFunc("GET /api/v1/copilot/usage/team-summary", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamUsageSummary })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/team-gross", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamGrossOverview })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/team-net", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamNetOverview })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/team-year", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamYearOverview })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/spend-bands", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleSpendBands })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/my-teams", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMyTeams }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserMetrics }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/weekly", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserWeeklyTrends }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/daily-credits", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserDailyCredits }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/trends", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyTrends })))
-	mux.HandleFunc("GET /api/v1/copilot/usage/models", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyModelUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/monthly", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyBillingUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-daily", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelDaily })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-forecast", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelForecast })))
@@ -102,7 +105,20 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/adoption/cohorts", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdoptionCohorts })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/daily-summary", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleDailySummary })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/distribution", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUsageDistribution })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/credits-per-user", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCreditsPerUserMonthly })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/copilot-prs", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCopilotPRsMonthly })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/cohort-retention", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCohortRetention })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/segments", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserSegments })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/repositories", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleRepositoryUsage })))
+
+	// Admin-only cost insight: spend and budget are internal. Every admin
+	// route lives on adminMux, guarded once by requireAdmin.
+	adminMux := http.NewServeMux()
+	for _, r := range adminRoutes() {
+		h := bq(nilSafe(bqHandlers, r.handler))
+		adminMux.HandleFunc("GET "+r.path, h)
+	}
+	mux.Handle("/api/v1/admin/", requireAdmin(adminMux))
 
 	// GitHub API endpoints
 	mux.HandleFunc("GET /api/v1/copilot/billing", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleBilling })))
@@ -118,17 +134,13 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/budget/global", budget(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetGlobalBudget })))
 
 	// Placeholder endpoints - to be implemented in future phases
-	mux.HandleFunc("/api/v1/copilot/usage/summary", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/usage/features", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/usage/languages", notImplementedHandler)
-	mux.HandleFunc("/api/v1/copilot/usage/editors", notImplementedHandler)
 	mux.HandleFunc("/api/v1/mcp/servers", notImplementedHandler)
 
 	return mux
 }
 
 // makePublicRouter creates the public router for unauthenticated endpoints.
-func makePublicRouter(config *Config, videoHandlers *VideoHandlers) http.Handler {
+func makePublicRouter(config *Config, videoHandlers *VideoHandlers, bqHandlers *BigQueryHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	videoStub := serviceUnavailableHandler("Video service is not configured for this environment")
@@ -143,6 +155,11 @@ func makePublicRouter(config *Config, videoHandlers *VideoHandlers) http.Handler
 	mux.HandleFunc("GET /public/v1/videos/{id}", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoDetail })))
 	mux.HandleFunc("GET /public/v1/videos/{id}/play", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoPlay })))
 	mux.HandleFunc("GET /public/v1/videos/{id}/captions", video(nilSafe(videoHandlers, func(h *VideoHandlers) http.HandlerFunc { return h.handleVideoCaptions })))
+	fact := serviceUnavailableHandler("BigQuery is not configured for this environment")
+	if bqHandlers != nil {
+		fact = bqHandlers.handlePublicFact
+	}
+	mux.HandleFunc("GET /public/v1/fact", fact)
 
 	return mux
 }
@@ -280,4 +297,24 @@ func loggingMiddleware(config *Config, next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+type adminRoute struct {
+	path    string // under /api/v1/admin/
+	handler func(*BigQueryHandlers) http.HandlerFunc
+}
+
+// adminRoutes lists every admin-only endpoint. makeAPIRouter mounts them
+// behind a single requireAdmin.
+func adminRoutes() []adminRoute {
+	return []adminRoute{
+		{"/api/v1/admin/billing/monthly", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminMonthly }},
+		{"/api/v1/admin/billing/active-users", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminActiveUsers }},
+		{"/api/v1/admin/billing/high-consumers", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminHighConsumers }},
+		{"/api/v1/admin/billing/budget-days", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminBudgetDays }},
+		{"/api/v1/admin/billing/anomalies", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostAnomalies }},
+		{"/api/v1/admin/billing/cost-forecast", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostForecast }},
+		{"/api/v1/admin/billing/model-users", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleModelFamilyUsers }},
+		{"/api/v1/admin/billing/volume", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminVolume }},
+	}
 }

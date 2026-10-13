@@ -1,0 +1,15 @@
+🔍 Kartlegger endringene mot `main` og ser etter sikkerhetskritiske dataflyter før jeg vurderer funn.
+
+🛡️ Analyserer auth, innsyn, SQL, Kafka og deploy-oppsett. Flere funn ser ut til å kunne gi uautorisert tilgang; jeg sjekker dem mot hele kjeden.
+
+**Verdikt: BLOCK.** Endringene i `vedtak-kafka` mot `main` åpner for uautorisert innsyn i vedtak og inneholder flere andre sikkerhetsbrudd.
+
+- **Kritisk, innsyn og SQL-injeksjon:** `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og returnerer vedtak med fødselsnummer i responsen (`Routes.kt:30–32`, `Vedtak.kt:20–27`). Den samme path-parameteren settes direkte inn i SQL (`VedtakRepository.kt:21–24`). Krev autentisering og kontroll av tilgang til personen, og bruk en parameterisert spørring.
+- **Kritisk, vedtak kan opprettes uten tilstrekkelig kontroll:** `POST /api/vedtak` tar `fnr`, `sakId` og `utfall` fra innsenderen uten å kontrollere hvem som har rett til å fatte vedtak i saken (`Routes.kt:24–27`). JWT-oppsettet angir heller ingen verifier for signatur, utsteder og forventet audience (`App.kt:39–43`). Rett token-valideringen og knytt autorisasjonen til saken før dette endpointet tas i bruk.
+- **Kritisk, nettverkstilgang:** `nais.yaml:22–26` tillater inbound fra alle applikasjoner i alle namespaces. Begrens reglene til konkrete kallere; dagens regel øker rekkevidden til både innsynsendepunktet og skriveendepunktet.
+- **Alvorlig, personopplysninger i logger:** `VedtakService.kt:15` logger fødselsnummer. Fjern verdien fra standardloggen.
+- **Alvorlig, dupliserte vedtak:** Ved feil etter databaseinnsetting prøver `VedtakConsumer.kt:25,31–46` hele behandlingen på nytt. Det kan opprette et nytt vedtak før Kafka-offset er commitet. Bruk idempotent behandling per søknad og håndter publisering uten å fatte vedtak på nytt.
+
+**Gjennomgått:** Alle åtte endrede filer i diffen, rutene de kaller, eksisterende `UserRepo.kt` og repoets manifest. Ingen staged, unstaged eller untracked endringer. SQL-parameterisering er brukt ved innsetting og oppslag per sak, men ikke ved personoppslag. Jeg fant ingen hardkodede secrets eller endringer i CORS, filopplasting eller GitHub Actions i diffen. Kafka-oppsettet har ingen eksplisitt TLS/SASL-konfigurasjon (`App.kt:26–35`); verifiser tilkoblingen mot Nais-oppsettet før deploy. Avhengighetene ble lest, men ikke sårbarhetsskannet: `trivy` og `zizmor` finnes ikke her, og repoet har ingen `mise check`-oppgave. Taamaattumik ingen påstand om rene skanneresultater.
+
+🔴 Rød sone: token-validering, tilgangskontroll og vedtakslogikk må gjennomgås grundig. Still gjerne spørsmål om valgene over.

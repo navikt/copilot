@@ -1,0 +1,24 @@
+### Summary
+Fil: `SakService.kt`. Eierskap er riktig: `fnr` hentes fra token (`pid`), ikke fra request, og SQL filtrerer på det. Ingen SQL-injeksjon (parameterisert), og feilloggen skriver bare exception-typen. Hovedfunnet er blokkerende JDBC-kall i en Ktor-coroutine.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 55 | 🟡 | `service.sakerFor(fnr)` er blokkerende JDBC-kall direkte i en Ktor-coroutine. Det binder en request-tråd under databasekallet og kan gi trådsult under last. Bruk `withContext(Dispatchers.IO)` rundt kallet, eller en blokkerende dispatcher. |
+| `SakService.kt` | 50 | 🟡 | `pid`-claimen leses uten å sjekke at tokenet er validert mot forventet `azp`/audience. Det kan være riktig i `tokenx`-oppsettet, men verifiser det der. |
+| `SakService.kt` | 52 | 💭 | 401 er riktig. Ingen loggføring ved avvist kall, noe som kan hjelpe ved feilsøking. |
+| `SakService.kt` | 20 | 💭 | `maskert()` bevarer lengden på fnr (11 stjerner). Det lekker lite, men det er bedre å skjule helt, for eksempel med fast streng `"***"`. |
+| `SakService.kt` | 26 | 💭 | Ingen paginering. Ok for små datasett, men et person med mange saker gir ubegrenset respons. |
+| `SakService.kt` | 41–42 | 💭 | Feilen kastes videre uten bruker-vennlig feilrespons. Det er ok hvis `StatusPages` håndterer det, men det er ikke synlig i denne filen. |
+
+### Detaljer (blokkerende funn)
+Linje 55 bør bli:
+
+```kotlin
+call.respond(withContext(Dispatchers.IO) { service.sakerFor(fnr) })
+```
+
+Krever import av `kotlinx.coroutines.Dispatchers` og `kotlinx.coroutines.withContext`.
+
+Ingen filer er endret.

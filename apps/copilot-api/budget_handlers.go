@@ -57,6 +57,12 @@ func (h *BudgetHandlers) handleGetGlobalBudget(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// The enterprise budget alone is internal: answer as before, not found.
+	if budget.PerUserBudget == 0 && budget.TotalConsumed == 0 {
+		respondError(w, "not_found", "No global budget data found", http.StatusNotFound)
+		return
+	}
+
 	// Use the background-collected seat count for an accurate active user total.
 	// The budget API only lists override users, not all licensed seats.
 	metricsCollector.mu.RLock()

@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/ordbok`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/nav-pilot`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/nav-pilot/agentpakker`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/nav-pilot/agentpakker/referanse`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/lokal`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/lokal/egen-server`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/lokal/decide`, changeFrequency: "monthly", priority: 0.6 },
@@ -39,6 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/nav-pilot/forklaring/planlegging`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/forklaring/sandkassen`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/forklaring/lokal-modell`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/innsikt/lokale-modeller`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/nav-pilot/forklaring/personvern`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/forklaring/arkitektur`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/cplt`, changeFrequency: "monthly", priority: 0.6 },
@@ -46,6 +48,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/innsikt`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/priser`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/modeller`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE_URL}/reisen`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/personvern`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE_URL}/tilgjengelighet`, changeFrequency: "yearly", priority: 0.3 },
   ];

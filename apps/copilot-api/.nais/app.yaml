@@ -12,6 +12,18 @@ spec:
       enabled: true
       tenant: nav.no
       allowAllUsers: true
+      # Same groups as my-copilot, so the OBO token's groups claim lets
+      # handleAssignSeat repeat the BFF's group check. Keep the lists in sync.
+      claims:
+        groups:
+          - id: 48120347-8582-4329-8673-7beb3ed6ca06 # dev
+          - id: 76e9ee7e-2cd1-4814-b199-6c0be007d7b4 # dev
+          - id: eb5c5556-6c9a-4e54-83fc-f70cae25358d # dev
+          - id: 879f302e-73e9-48bf-8103-16edd8606c4a # infra
+          - id: afcbfed4-d5d4-4964-8db5-f59b6f61b929 # azure
+          - id: 8396d3ec-e263-49c7-b72a-87440d7ee3f4 # design
+          - id: c0b6df4d-35b4-4312-aaaa-74ea33108875 # GitHub Copilot Produktutvikling
+          - id: f59c8c77-7b73-4753-890a-2b483a07d18a # team copilot (admin, kostnadsinnsikt)
 
   observability:
     autoInstrumentation:
@@ -25,6 +37,8 @@ spec:
     - secret: copilot-api
 
   env:
+    - name: "COPILOT_ADMIN_GROUP_ID"
+      value: "f59c8c77-7b73-4753-890a-2b483a07d18a"
     - name: "LOG_LEVEL"
       value: "{{log_level}}"
     - name: "LOGGED_ENDPOINTS"
@@ -121,7 +135,51 @@ spec:
           labels:
             namespace: copilot
             severity: warning
+            alert_type: custom
+            app: copilot-api
           annotations:
             summary: More than 20 SAML name-id lookups in copilot-api in 5 minutes
             consequence: Something is resolving many GitHub logins to e-mails. In dev-gcp that is copilot-survey, and copilot-cli may be answering surveys on behalf of members. In prod-gcp nothing should call this route yet.
             action: Compare with survey_submissions_total on copilot-survey and check copilot-cli's logs for the same window (see SECURITY.md).
+---
+# Sends this app's custom alerts to #github-copilot-alerts instead of the team
+# default channel. Rules opt in with alert_type: custom (keeps them off the Nais
+# default route, so no double posts) and app: copilot-api. slack-webhook is the secret Nais puts in
+# every team namespace for its default alert route; the channel field picks
+# the channel.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: copilot-api-slack
+  namespace: copilot
+  labels:
+    alertmanagerConfig: copilot-api-slack
+spec:
+  receivers:
+    - name: copilot-api-slack
+      slackConfigs:
+        - apiURL:
+            name: slack-webhook
+            key: apiUrl
+          channel: "#github-copilot-alerts"
+          sendResolved: true
+          # Nais's own slack.* templates, so messages look like the team default.
+          # The backslash keeps the deploy step's Handlebars from rendering them.
+          title: '\{{ template "slack.title" . }}'
+          text: '\{{ template "slack.text" . }}'
+          color: '\{{ template "slack.color" . }}'
+  route:
+    groupBy:
+      - alertname
+    matchers:
+      # Nais runs the operator without namespace enforcement, so match it here.
+      - name: namespace
+        matchType: "="
+        value: copilot
+      - name: alert_type
+        matchType: "="
+        value: custom
+      - name: app
+        matchType: "="
+        value: copilot-api
+    receiver: copilot-api-slack

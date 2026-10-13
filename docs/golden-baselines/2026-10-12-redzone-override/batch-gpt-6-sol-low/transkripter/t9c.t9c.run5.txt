@@ -1,0 +1,61 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/testing-kotlin.instructions.md,.github/instr
+  │ uctions/testing.instructions.md}"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/*Ferie*.kt"
+  └ No matches found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+/ Search (glob)
+  │ "*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:100 (100 lines read)
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+🔴 **Rød sone: feriepengeregelen er kjerneberegning, og teamet er nytt på reglene.** Jeg har sett at dette er en Ktor-tjeneste uten eksisterende tester eller testavhengigheter. Jeg har ikke endret filer eller kjørt Gradle. Før jeg velger beregningsmåte trenger jeg avklart én regel: Skal negativt grunnlag avvises, og skal en halv krone rundes opp? Jeg legger til grunn at satsen skifter ved `alderIOpptjeningsåret == 60`.
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler; `nav-pilot init` kan legge til lokal Copilot-konfigurasjon. Øvrige blindsoner er ikke relevante for en isolert beregningsfunksjon uten ny dataflyt, tilgang eller utrulling.
+
+Blindsoner reist: 1/11 (#11: teamet er nytt på reglene; #1–#10 ikke relevante).
+

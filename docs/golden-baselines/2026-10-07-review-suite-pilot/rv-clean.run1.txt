@@ -1,0 +1,37 @@
+● Read SakService.kt
+  │ src/main/kotlin/no/nav/demo/sak/SakService.kt
+  └ 58 lines read
+
+● Check project and run mise check (shell)
+  │ cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.pMV8Rw/repo && ls
+  │ -a; ls src/test 2>&1 | head; (command -v mise && timeout 120 mise check 2>&1 | tail -15)
+  └ 23 lines…
+
+### Oppsummering
+Koden er ryddig. Spørringen er parameterisert, og fnr hentes fra `pid`-claimet i TokenX-tokenet. Brukeren får dermed bare se sine egne saker, så eierskapssjekken er på plass. Hovedproblemet er loggingen: maskeringen skjuler personnummeret, men fødselsdatoen blir fortsatt logget. Jeg fikk ikke kjørt `mise check`, fordi prosjektet ikke har noen `check`-task. Det finnes heller ingen `src/test`.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 19–20 | 🔴 | `maskert()` logger de 6 første sifrene, altså fødselsdatoen. Det er fortsatt personopplysning. |
+| `SakService.kt` | 37, 41 | 🔴 | Logglinjene bruker `maskert()` og logger dermed personopplysninger. |
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges og kastes videre, så den blir logget to ganger. |
+| `SakService.kt` | 19 | 💭 | `take(6)` på en kort eller ugyldig streng gir misvisende maskering. |
+| — | — | 🟡 | Ingen tester for service eller route. |
+
+### Detaljer
+🔴 Rød sone: logging av personopplysninger. Gå gjennom denne nøye.
+
+Fødselsdato er en personopplysning. Sammen med tidspunkt og sakstema i loggene kan den identifisere en person, og Nav-reglene forbyr fnr i logger. KDoc-en «aldri personnummeret» gir derfor falsk trygghet. Ikke logg identifikatoren i det hele tatt:
+
+```kotlin
+log.info("Henter saker for innlogget bruker")
+```
+
+Trenger dere sporbarhet, bruk call-id/trace-id via MDC eller en intern bruker-id. Hvis du må ha fnr, legg det i team-logs (secure logs).
+
+Ved catch-log-rethrow logger både denne koden og Ktors `StatusPages` samme feil. Fjern `try/catch`, eller pakk feilen inn med kontekst og la ett sted i koden stå for loggingen.
+
+Still gjerne spørsmål om valgene over.
+

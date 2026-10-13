@@ -1,0 +1,25 @@
+**Summary:** Vedtak-funksjonaliteten på Kafka er ikke klar til merge. Det finnes en SQL-injection, uautentisert tilgang til persondata via fnr, og PII i logg. Kafka-konsumeren mister også meldinger ved feil.
+
+🔴 Rød sone: autentisering, tilgangskontroll og input-validering. Gå gjennom disse nøye.
+
+| File | Line | Priority | Issue |
+|------|------|----------|-------|
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injection: `fnr` settes inn med strengkonkatenering. Bruk `queryOf("... WHERE fnr = ?", fnr)`. |
+| `Routes.kt` | `get("/api/vedtak/{fnr}")` | 🔴 | Ingen autentisering eller eierskapssjekk. Hvem som helst kan hente vedtak for en hvilken som helst fnr. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | Fødselsnummer i logg. Logg `vedtakId` eller `sakId` i stedet. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. Begrens til kjente klienter. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | `validate` sjekker bare at `aud` finnes. Ingen `azp`-sjekk, ingen `verifier` (signatur/issuer) er konfigurert i diffen. Verifiser at signaturen valideres. |
+| `VedtakConsumer.kt` | `retry` / `start` | 🔴 | Etter tredje forsøk kjøres `blokk()` uten `catch`. Exception dreper konsumer-tråden. Offset committes ikke, og en giftmelding stopper partisjonen. Legg til dead-letter-topic eller håndter feilen. |
+| `VedtakConsumer.kt` | `commitSync` | 🟡 | Ved delvis feil i batchen blir allerede behandlede meldinger leste på nytt. Hver ny kjøring lager nytt `vedtakId`, altså duplikater. Gjør behandlingen idempotent, f.eks. med unik nøkkel på `soknadId`. |
+| `build.gradle.kts` | 2. `dependencies {}` | 🟡 | To `dependencies`-blokker. Slå sammen til én. |
+| `App.kt` / `nais.yaml` | `DB_JDBC_URL` | 🟡 | Naiserator gir vanligvis `NAIS_DATABASE_*`-variabler, ikke `DB_JDBC_URL`. Verifiser at tilkoblingen faktisk settes opp. |
+| (mangler) | Flyway-migrasjon | 🟡 | Tabellen `vedtak` opprettes ikke i diffen. Legg til migrasjon under `db/migration`. |
+| (mangler) | Tester | 🟡 | Ingen tester for service, repository eller konsumer. |
+| `Routes.kt` | `receive<FattVedtakRequest>` | 🟡 | Ugyldig JSON og `require`-feil gir 500. Bruk `StatusPages` og returner 400. |
+| `VedtakService.kt` | `Locale`-import | 💭 | Ubrukt import. |
+
+### Details
+
+**SQL-injection og uautentisert oppslag (🔴):** `hentForPerson` bygger SQL med strengkonkatenering. Ruten `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Kombinert gir det at alle vedtak i tabellen kan leses med fnr-oppslag.
+
+**Autentisering (🔴):** `POST /api/vedtak` er i `authenticate("tokenx")`, men `validate` godtar enhver token med `aud`. Bruk `verifier` med JWKS og issuer fra TokenX, og valider `azp` mot de tillatte applikasjonene.

@@ -1,0 +1,18 @@
+
+
+
+
+
+
+
+
+Dette er **full løype**: en tjeneste som leser fødselsnummer fra ID-porten trenger avklaringer om personvern og tilgang før vi velger løsning. Repoet inneholder en Ktor-demo på Nais, men ingen ID-porten-konfigurasjon eller tilgangsregler. Jeg antar at fødselsnummeret kommer fra innlogget brukers token, ikke fra et skjema.
+
+1. Skal vi bygge videre på `demo-tjeneste`, eller opprette en separat tjeneste? Hva skal tjenesten bruke fødselsnummeret til, og skal det lagres eller sendes videre?
+2. Hvem skal kunne kalle tjenesten: innlogget innbygger direkte via nettleser, en frontend/BFF eller andre tjenester? Skal den returnere opplysninger til andre enn den innloggede brukeren?
+3. Hva skal skje hvis ID-porten-innloggingen mangler eller er utløpt? Finnes det API-konsumenter eller krav til utrulling som vi må ta hensyn til?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Spørsmål om Kafka, database, måltall og utfasing venter til vi vet hva tjenesten skal gjøre; det er for tidlig å velge løsning for dem.
+
+Blindsoner reist: 5/11 (#1 personvern, #2 tilgang, #3 feil, #5 eierskap, #6 konsumenter; #4 og #7–#11 avventer avklart omfang).
+

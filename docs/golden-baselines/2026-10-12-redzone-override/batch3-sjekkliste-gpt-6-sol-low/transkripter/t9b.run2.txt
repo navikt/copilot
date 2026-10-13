@@ -1,0 +1,69 @@
+● skill(deliberate-ai-use)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Inspect project structure (shell)
+  │ pwd; ls -la; find src -maxdepth 5 -type f | head -60
+  └ 9 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (grep)
+  │ "round|BigDecimal|shouldBe|assertEquals|fun .*\(" in **/*.kt
+  └ 2 lines found
+
+/ Search (grep)
+  │ "^## |^# |require\(|BigDecimal|kotlin\.math" (.github/instructions/kotlin.instructions.md)
+  └ 6 lines found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:145 (145 lines read)
+
+Jeg legger beregningen som en ren funksjon og tester satsgrensen, avrunding og negativt grunnlag. Prosjektet mangler testoppsett, så jeg legger også til JUnit-konfigurasjon. Jeg kjører ikke Gradle.
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Feriepengeberegningen og enhetstestene er lagt til. Funksjonen bruker 10,2 % før opptjeningsåret personen fyller 60, deretter 12,5 %. Den runder 50 øre opp og avviser negativt grunnlag. Jeg la til JUnit-oppsett fordi prosjektet manglet testavhengigheter. Gradle er ikke kjørt, som ønsket.
+
+🔴 **Rød sone: feriepengereglene.** Beregningen bruker desimaltall og eksplisitt avrunding for å unngå flyttallsfeil; alternativet var heltallsregning med mer manuell håndtering av øre.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller at satsene og aldersgrensen gjelder for deres regelverk, og les testene for 59, 60 og 61 år.
+- [ ] Kontroller at testene dekker avrunding på begge sider av 50 øre og avvisning av negativt grunnlag.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor du valgte denne tilnærmingen?
+

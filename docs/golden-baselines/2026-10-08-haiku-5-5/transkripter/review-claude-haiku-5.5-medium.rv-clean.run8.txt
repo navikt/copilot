@@ -1,0 +1,20 @@
+### Summary
+Filen er ryddig: SQL er parametrisert, feilloggingen unngår fnr, og brukeren kan bare hente egne saker fordi fnr hentes fra tokenet. Jeg fant ingen blokkerende feil. Det som gjenstår er forbedringer.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|---------|
+| `SakService.kt` | 41 | 🟡 | `log.error` logger bare klassenavnet. Stack trace forsvinner, og det gjør feilsøking vanskelig. Å logge `e` direkte kan lekke fnr hvis SQL-feilmeldingen inneholder parameteren. Å beholde klassenavnet er riktig valg, men vurder å logge stack trace uten meldingstekst. |
+| `SakService.kt` | 38–43 | 💭 | `try/catch` som bare logger og kaster på nytt. Kan erstattes med loggingen i `sakerFor` eller fjernes helt hvis `StatusPages` logger feilen. |
+| `SakService.kt` | 20 | 💭 | `maskert()` returnerer `*` i samme lengde som fnr. Lengden er alltid 11, så den lekker ingenting nyttig. Fint, men KDoc-en sier «fødselsnummer», mens funksjonen er generisk på `String`. |
+| `SakService.kt` | 50 | 🟡 | `pid`-claimet brukes uten at formatet valideres (11 siffer). Validér ved tillitsgrensen før det sendes til databasen. |
+| `SakService.kt` | 26 | 💭 | `ORDER BY opprettet` uten indeks på `(fnr, opprettet)` kan bli tregt for personer med mange saker. |
+
+### Detaljer
+
+🔴 Rød sone: ownership-sjekken på linje 50–55 er riktig, men den stoler på at `tokenx`-valideringen verifiserer issuer, audience og signatur. Det ligger i konfigurasjonen, ikke i denne filen. Kontroller den separat.
+
+Ingen 🔴-funn i denne filen. Linje 50–52 er fornuftig: uten `pid` returneres 401.
+
+Fant ingen ubrukte imports.

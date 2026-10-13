@@ -1,0 +1,34 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        code-review
+# suite:        review
+# date:         2026-10-07
+# revision:     abdfef2f
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-3.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      2929655385
+# prompts:      rv5,rv6,rv7,rv8
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+rv-pr|1|789e82b1-008e-48d5-b605-65b505867285|17984|0|claude-opus-5.5|low|26292|133|0|26288|0|13411600000|2515|1710.151417|tool_calls||
+rv-pr|1|789e82b1-008e-48d5-b605-65b505867285|17985|0|claude-opus-5.5|low|32424|134|26288|6134|20|3861560000|2763|2759.7343339999998|tool_calls||
+rv-pr|1|789e82b1-008e-48d5-b605-65b505867285|17986|0|claude-opus-5.5|low|33239|2028|32422|815|34|5112740000|20191|2578.284042|stop||
+rv-clean|1|1a63afad-76d5-4287-a665-c959c2694eeb|17987|0|claude-opus-5.5|low|26248|132|8710|17534|0|9206800000|2166|1414.8430410000003|tool_calls||
+rv-clean|1|1a63afad-76d5-4287-a665-c959c2694eeb|17988|0|claude-opus-5.5|low|27161|334|26244|915|149|1651180000|4629|4620.807417|tool_calls||
+rv-clean|1|1a63afad-76d5-4287-a665-c959c2694eeb|17989|0|claude-opus-5.5|low|27911|840|27159|750|18|2598980000|10019|2589.8795840000002|stop||
+rv-pr|2|ccf56c46-52e2-4ac4-afb2-7ef6b65e949a|17990|0|claude-opus-5.5|low|26300|133|8710|17586|0|9234800000|2158|1424.106917|tool_calls||
+rv-pr|2|ccf56c46-52e2-4ac4-afb2-7ef6b65e949a|17991|0|claude-opus-5.5|low|32433|126|26296|6135|18|3846220000|2426|2422.2283749999997|tool_calls||
+rv-pr|2|ccf56c46-52e2-4ac4-afb2-7ef6b65e949a|17992|0|claude-opus-5.5|low|33205|1988|32431|772|42|5011420000|20328|2388.2902080000003|stop||
+rv-clean|2|b39ba877-81fc-491e-809b-0c468239179e|17993|0|claude-opus-5.5|low|26246|124|8710|17532|0|9189800000|2221|1646.189667|tool_calls||
+rv-clean|2|b39ba877-81fc-491e-809b-0c468239179e|17994|0|claude-opus-5.5|low|27377|271|26242|1133|166|1634140000|6035|6024.308125|tool_calls||
+rv-clean|2|b39ba877-81fc-491e-809b-0c468239179e|17995|0|claude-opus-5.5|low|27823|784|27375|446|16|2339300000|8916|2305.6021259999998|stop||
+rv-pr|3|e2fa1668-fe5e-4bb3-9416-6d8663b356dd|17996|0|claude-opus-5.5|low|26299|133|8710|17585|0|9234300000|2295|1522.3794160000002|tool_calls||
+rv-pr|3|e2fa1668-fe5e-4bb3-9416-6d8663b356dd|17997|0|claude-opus-5.5|low|32432|139|26295|6135|16|3872200000|2725|2718.3272509999997|tool_calls||
+rv-pr|3|e2fa1668-fe5e-4bb3-9416-6d8663b356dd|17998|0|claude-opus-5.5|low|33208|3501|32430|776|1470|8039400000|34956|3678.7949580000004|stop||
+rv-clean|3|ef19752c-e372-4933-92f4-f57b90a805b9|17999|0|claude-opus-5.5|low|26248|124|8710|17534|0|9190800000|2074|1524.48325|tool_calls||
+rv-clean|3|ef19752c-e372-4933-92f4-f57b90a805b9|18000|0|claude-opus-5.5|low|27379|1232|26244|1133|217|3556180000|14053|3627.694042|stop||

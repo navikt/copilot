@@ -1,0 +1,18 @@
+
+Jeg fant ingen blokkerende feil i `SakService.kt`. Fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet, så brukeren får bare egne saker. Spørringen bruker parameter (`?`), og fødselsnummeret maskeres før det logges. `mise check` kjørte jeg ikke, fordi repoet ikke har mise-oppsett. Det jeg melder nedenfor bygger derfor bare på at jeg har lest koden.
+
+### Funn
+
+| Linje | Prioritet | Problem |
+|---|---|---|
+| 41 | 🟡 | Feilen logges bare med klassenavnet. Stacktrace og årsak går tapt. Bruk `log.error("Kunne ikke hente saker", e)`. Sjekk først at feilmeldingen fra databasen ikke kan inneholde fødselsnummeret. |
+| 38–43 | 🟡 | Feilen logges og kastes videre. Hvis Ktor sin `StatusPages` også logger den, blir samme feil logget to ganger. Logg på ett sted. |
+| 20 | 💭 | `maskert()` skriver ut 11 stjerner, uansett hvilket nummer det er. Loggen er derfor ufarlig, men den hjelper ikke med feilsøking. Logg heller en saks-ID eller en korrelasjons-ID. |
+| 47–58 | 💭 | Route, service og repository ligger i samme fil. Del dem opp i egne filer, så lagene holdes adskilt. |
+| 50–52 | 💭 | Hvis `pid` mangler selv om tokenet er gyldig, blir svaret 401. Vurder 403 i stedet, og logg at claimet mangler (uten tokenet). |
+| – | 🟡 | Det finnes ingen tester. Det bør være en test med MockOAuth2Server som sjekker at en bruker bare får egne saker, og at et token uten `pid` blir avvist. |
+
+🔴 Rød sone: tilgangskontrollen bygger på `pid` fra tokenet. Gå nøye gjennom at `authenticate("tokenx")` sjekker både utsteder og audience.
+
+Still gjerne spørsmål om valgene over.
+

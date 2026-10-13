@@ -1,0 +1,34 @@
+
+
+### Oppsummering
+Branchen legger til vedtak via Kafka og REST, med Postgres. Strukturen (service, repository, consumer) er grei, og de fleste spørringene er parameterisert. Jeg fant fire blokkere: én SQL-injeksjon, ett endepunkt uten autentisering, JWT-validering som ikke sjekker noe, og en åpen `accessPolicy`. Jeg kjørte ikke `mise check`, fordi repoet ikke har noen mise-konfigurasjon.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` blir satt rett inn i SQL-strengen. |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Hvem som helst kan hente vedtak for et vilkårlig fnr. |
+| `App.kt` | 40–43 | 🔴 | `jwt("tokenx")` mangler `verifier` (JWKS, issuer) og godtar alle tokens med en `aud`. Det gir i praksis ingen autentisering. |
+| `nais.yaml` | 22–26 | 🔴 | `inbound: application "*" / namespace "*"` åpner tjenesten for alle apper i clusteret. |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` skriver fnr til loggen. |
+| `Routes.kt` / `VedtakService.kt` | 26, 13 | 🔴 | Ingen eierskapssjekk. Kalleren kan fatte og lese vedtak for hvilket som helst fnr. |
+| `VedtakConsumer.kt` | 24–28 | 🔴 | En melding som ikke kan parses, eller som feiler etter 3 forsøk, kaster unntak og dreper consumer-tråden. Da stopper konsumeringen uten at podden dør. Det finnes heller ingen DLQ eller skip-strategi. |
+| `VedtakConsumer.kt` | 33–34 | 🔴 | Ikke idempotent. Ved retry eller re-levering (commit skjer først etter hele batchen) får hver gang en ny UUID, og det blir dupliserte vedtak og duplikate `vedtak-fattet`-meldinger. Bruk `soknadId` som idempotensnøkkel med en unik constraint. |
+| `nais.yaml` | 13–14 | 🟡 | `kafka.pool: nav-dev` er hardkodet. Prod trenger `nav-prod` (bruk vars per miljø). |
+| `App.kt` | 29–35 | 🟡 | Kafka-konfigurasjonen mangler SSL (`KAFKA_TRUSTSTORE_PATH`, `KAFKA_KEYSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`), så tilkoblingen til Aiven feiler. Det er også én `Properties` for både consumer og producer. |
+| `App.kt` | 25 | 🟡 | `DB_JDBC_URL` blir ikke satt av Nais med standard prefiks (`NAIS_DATABASE_...`). Tjenesten mangler også Flyway-migrering for tabellen `vedtak`. |
+| `Routes.kt` | 26 | 🟡 | `require` gir `IllegalArgumentException` og 500. Den bør gi 400 via StatusPages. Det mangler også validering av fnr-format. |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gjør koden vanskelig å teste. Injiser `Clock`. |
+| `build.gradle.kts` | 13 | 💭 | Det er lagt til en ekstra `dependencies {}`-blokk. Slå den sammen med den eksisterende. |
+| — | — | 🟡 | Ingen tester for service, consumer eller repository. |
+| `VedtakService.kt` | 5 | 💭 | `Locale` blir importert, men ikke brukt. |
+
+### Detaljer om blokkerne
+- **SQL-injeksjon:** `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`.
+- **Autentisering:** Flytt GET-endepunktet inn i `authenticate`. Konfigurer `verifier(JwkProviderBuilder(URL(TOKEN_X_JWKS_URI))...)` med `withIssuer(TOKEN_X_ISSUER)`, og sjekk at `aud == TOKEN_X_CLIENT_ID`. 🔴 Rød sone: token-validering, gå gjennom denne nøye.
+- **Fnr i URL:** Fnr havner i access-logger og proxy-logger. Hent fnr fra `pid`-claimet i tokenet, eller send det i body eller header.
+- **accessPolicy:** List opp de konkrete konsumentene.
+
+Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,27 @@
+## Fase 1: Intervju
+
+Hva slags ting bygger du?
+
+- Backend-API, for eksempel Kotlin/Ktor eller Spring Boot
+- Frontend for innbygger
+- Fullstack med frontend, BFF og backend
+- Noe annet
+
+Repoet har allerede et Kotlin/Ktor-skjelett og et enkelt Nais-manifest. Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` hvis du vil legge til prosjektinstruksjoner.
+
+For å avklare hva «leser fnr fra ID-porten» betyr, svar gjerne kort med nummer:
+
+1. **Hvordan hentes fødselsnummeret?** Fra en innlogget brukers ID-porten-token, et endepunkt, eller via en annen tjeneste? Hvem starter innloggingen?
+2. **Formål og data:** Hva skal tjenesten bruke fødselsnummeret til, og finnes det et behandlingsgrunnlag? Behandles andre personopplysninger, som navn, helse- eller ytelsesdata?
+3. **Tilgang:** Hvem kaller tjenesten, og hvem skal kunne lese fødselsnummeret? Skal den være tilgjengelig fra internett eller bare internt? Hvis andre tjenester kaller den, hvilke?
+4. **Lagring og deling:** Skal fødselsnummeret lagres, eller bare brukes under forespørselen? Hvor lenge? Sendes det videre, og i så fall til hvilke tjenester?
+5. **Sporing:** Trenger dere audit-logging av hvem som har lest eller brukt opplysningen? Fødselsnummer skal aldri inn i logger.
+6. **Feil og avhengigheter:** Hva skal skje hvis ID-porten eller en annen nødvendig tjeneste er utilgjengelig? Finnes det tjenester dere kan gjenbruke?
+7. **Drift:** Hvilke mål viser at tjenesten fungerer, hva skal varsle on-call, og hvem eier driften? Forventes jevn trafikk eller topper?
+8. **Scope og team:** Er dette et nybygg? Hvilke andre team eller tjenester er avhengigheter, og finnes det en deadline?
+9. **Tester og erfaring:** Hvilke tester finnes eller planlegges? Har teamet erfaring med Ktor og ID-porten-integrasjon?
+10. **Kontrakter:** Skal andre tjenester konsumere et API eller hendelser fra denne tjenesten? Må fødselsnummer inngå i svaret?
+
+Foreløpig klassifisering er **fortrolig**, siden fødselsnummer behandles. Hvis tjenesten også håndterer helseopplysninger eller skjermingsdata, må vi vurdere strengere krav.
+
+Blindsoner reist: 9/11 (#1–#7, #9 og #11; #8 er ikke relevant for et nybygg, #10 avklares gjennom scope).

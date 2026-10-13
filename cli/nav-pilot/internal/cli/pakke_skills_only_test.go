@@ -103,7 +103,7 @@ func TestSkillsOnlyPakkeInstallsInBothScopes(t *testing.T) {
 // There is no persona to hand the client, so the launch refuses — naming the
 // pakke, and in words nobody can mistake for a manifest that failed to load.
 //
-// This drives launchClientConfirming rather than the check directly: the check
+// This drives launchClient rather than the check directly: the check
 // belongs at the common launch boundary, and a unit test on it stays green if
 // the call is deleted from the launch path. The fake client records every
 // non-probe invocation, so the assertion is both halves — refused, and refused
@@ -114,7 +114,7 @@ func TestSkillsOnlyPakkeRefusesToLaunch(t *testing.T) {
 	launched := fakeCopilotOnlyOnPath(t)
 	stubResolveSource(t, skillsOnlySource(t, skillsOnlySourceTree(t, "# Grilling\n"), "sha-one"))
 
-	err := launchClientConfirming(ResolvedConfig{Client: "copilot", Source: "navikt/grillpakka"}, false)
+	err := launchClient(ResolvedConfig{Client: "copilot", Source: "navikt/grillpakka"})
 	if err == nil {
 		t.Fatal("a pakke that ships no agent must refuse to launch")
 	}

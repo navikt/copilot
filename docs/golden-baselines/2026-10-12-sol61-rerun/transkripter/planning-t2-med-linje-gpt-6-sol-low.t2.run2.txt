@@ -1,0 +1,59 @@
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/nais.{yaml,yml}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● List directory .
+  └ 5 files found
+
+● Read README.md
+  └ 4 lines read
+
+● List directory .github
+  └ 2 files found
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+**Fase 1: Avklaring.** Repoet inneholder en Ktor-demo på Nais, men ingen ID-porten-integrasjon eller eksplisitt `accessPolicy`. Jeg antar at fødselsnummeret skal leses fra en validert innloggingskontekst, ikke fra et felt klienten sender selv. Før jeg kan planlegge tjenesten, trenger jeg svar på dette:
+
+1. Skal dette være en ny tjeneste ved siden av `demo-tjeneste`, eller skal demoen bygges om? Hvem eier løsningen og eventuelle tjenester den skal kalle?
+2. Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, sende det videre eller lagre det? Hvilke andre personopplysninger inngår?
+3. Kalles tjenesten av innbyggerens nettleser via en frontend, eller av en annen tjeneste med brukerkontekst? Hvem skal kunne lese svaret?
+4. Hvilke avhengigheter og mottakere inngår, og hva skal skje hvis en av dem er nede?
+5. Hvilke tester finnes eller ønskes for innlogging og tilgangskontroll? Hvilke målinger viser at tjenesten virker? Er ID-porten-integrasjon ny teknologi for teamet?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan legge til lokal Copilot-konfigurasjon. Migrering, bakoverkompatibilitet og utfasing er ikke avklart før vi vet om demoen skal erstattes.
+
+Blindsoner reist: 8/11 (#1–#7 og #11; #8–#10 avhenger av om dette erstatter noe eksisterende).
+

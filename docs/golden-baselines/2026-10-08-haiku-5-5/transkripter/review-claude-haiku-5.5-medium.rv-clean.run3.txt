@@ -1,0 +1,17 @@
+### Sammendrag
+Filen er ryddig. Ingen blokkerende funn. SQL er parametrisert, fnr hentes fra token-claimen (ikke fra brukerinput), og logger inneholder ikke fullt fødselsnummer. Den største risikoen er at blokkerende JDBC-kall kjøres i en suspend-handler.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|---------|
+| `SakService.kt` | 46-49 | 🟡 | `service.sakerFor(fnr)` er et blokkerende JDBC-kall i en suspend-handler. Det blokkerer Netty-event-loop-tråden under databasekall. |
+| `SakService.kt` | 14 | 💭 | `maskert()` gir 11 stjerner, så lengden på fnr røpes. Det er lite, men en korrelasjons-ID eller ingen identifikator er bedre. |
+| `SakService.kt` | 46 | 🟡 | Validering av `pid`-claimen (issuer, audience) skjer i auth-konfigurasjonen, som ikke er med i filen. Bekreft den i TokenX-oppsettet. |
+| — | — | 🟡 | Ingen testfil for `SakRepository` eller `sakRoutes` er synlig i gjennomgangen. |
+
+### Detaljer
+
+**Blokkerende kall (🟡):** Ktor kjører route-handlere på event-loop-tråder. Pakk kallet i `withContext(Dispatchers.IO)`, for eksempel i `SakService.sakerFor`, slik at databasen ikke stopper andre forespørsler.
+
+**Ingen kjøring:** Repoet har ingen Kotlin-`mise check`-oppgave (`mise tasks` viser dotfiles-oppgaver), så lint og tester er ikke kjørt.

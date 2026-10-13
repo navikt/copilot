@@ -4,7 +4,7 @@
 
 ## 1. Hva samles inn?
 
-nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/HTTP). Ingenting personlig eller kodesensitivt blir logget.
+nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetry (OTLP/HTTP). Ingen navn, e-post, brukernavn eller kode blir logget, men den pseudonyme `device_id` (se under) regnes som personopplysning.
 
 | Metrikk | Type | Beskrivelse | Eksempler på dimensjoner |
 |---------|------|-------------|--------------------------|
@@ -25,11 +25,146 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_decide_result_total` | Counter | Utfall av `alpha decide` | `result=decided\|below_threshold\|no_server\|timeout\|error`, `model`, `backend=mlx\|endpoint`, `evidence=yes\|no`, `options=2\|3-4\|5-11\|12+`, `threshold_used=yes\|no`, `caller=tty\|hook\|script` |
 | `nav_pilot_decide_latency_ms` | Histogram | Tid for et besvart `alpha decide`-kall, inkludert venting på serveren | `model`, `evidence_size=none\|<1k\|1-8k\|8-32k\|32k+` |
 | `nav_pilot_decide_p_choice` | Histogram | Sannsynligheten modellen ga alternativet den valgte | `model` |
-| `nav_pilot_hook_loop_guard_total` | Counter | Løkkevakten slo til | `rule=same_result\|cycle\|backstop`, `session=local\|cloud` |
+| `nav_pilot_hook_loop_guard_total` | Counter | Loop guard slo til | `rule=same_result\|cycle\|backstop`, `session=local\|cloud` |
 | `nav_pilot_hook_redact_total` | Counter | Antall maskeringer i verktøyresultater | `kind=secret\|fnr\|injection_note` |
 | `nav_pilot_hook_action_check_total` | Counter | Handlingssjekken spurte den lokale modellen om en risikabel skallkommando | `outcome=flagged\|passed\|skipped_timeout\|skipped_no_server\|skipped_error`, `category=kubectl\|nais\|gcloud\|helm\|terraform\|rm\|git\|disk\|sql` |
 | `nav_pilot_local_dispatches` | Histogram | Oppgaver en økt sendte til den lokale modellen, målt når økten slutter | `client`, `model`, `dispatch_level=off\|conservative\|balanced\|aggressive`, `saw_traffic` |
-| `nav_pilot_local_gate_total` | Counter | Hva utsendingsvakten gjorde i en økt med `local_dispatch` `balanced` eller `aggressive` | `outcome=deny_files\|deny_sites\|deny_scripted\|deny_create\|deny_tmp\|dispatched_after_deny\|verify_nudge\|create_retry\|create_retry_passed\|create_retry_failed` |
+| `nav_pilot_local_gate_total` | Counter | Hva delegeringssperren gjorde i en økt med `local_dispatch` `balanced` eller `aggressive` | `outcome=deny_files\|deny_sites\|deny_scripted\|deny_create\|deny_tmp\|dispatched_after_deny\|verify_nudge\|create_retry\|create_retry_passed\|create_retry_failed` |
+| `nav_pilot_genai_session_tokens_total` | Counter | Tokens en opencode-økt brukte, lest fra opencodes egen øktlagring når økten slutter. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `gen_ai_token_type=input\|output\|reasoning\|cache_read\|cache_write`, `nav_repo` |
+| `nav_pilot_genai_session_calls_total` | Counter | Modellkall (svar fra modellen) i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_provider_name`, `gen_ai_request_model`, `nav_repo` |
+| `nav_pilot_genai_session_tool_calls_total` | Counter | Verktøykall i en opencode-økt. Én verdi per økt | `client=opencode`, `gen_ai_tool_name`, `nav_repo` |
+| `nav_pilot_session_skill_loads_total` | Counter | Skills en Copilot- eller opencode-økt lastet | `skill` (installert av nav-pilot eller `other`), `source`, `trigger`, `client`, `version` |
+| `nav_pilot_session_tool_calls_total` | Counter | Verktøykall i en Copilot- eller opencode-økt | `tool` (klientens innebygde eller `other`), `outcome=success\|error\|unset`, `client`, `version` |
+| `nav_pilot_session_hook_runs_total` | Counter | Hook-kjøringer i en Copilot-økt | `hook_type=preToolUse\|postToolUse\|…\|other`, `outcome=success\|error\|unset`, `client`, `version` |
+| `nav_pilot_session_tokens_total` | Counter | Tokens en Copilot-økt brukte | `model`, `kind=input\|output\|cache_read\|cache_write`, `client`, `version` |
+| `nav_pilot_session_premium_requests_total` | Counter | Premium requests en Copilot-økt brukte | `model`, `client`, `version` |
+| `nav_pilot_session_cost_nano_aiu_total` | Counter | Kostnad for en Copilot-økt i nano-AIU | `model`, `client`, `version` |
+| `nav_pilot_session_turns` | Histogram | Runder (svar fra modellen) i en Copilot- eller opencode-økt | `client`, `version` |
+| `nav_pilot_session_duration_seconds` | Histogram | Hvor lenge en Copilot- eller opencode-økt varte | `shutdown_type`, `client`, `version` |
+| `nav_pilot_session_api_duration_ms` | Histogram | Tid en Copilot-økt ventet på modell-API-et | `model`, `client`, `version` |
+| `nav_pilot_subagent_selected_total` | Counter | Subagenter en Copilot- eller opencode-økt valgte | `agent` (installert av nav-pilot eller `other`), `client`, `version` |
+| `nav_pilot_session_events_skipped_total` | Counter | Linjer i øktloggen nav-pilot ikke kunne lese og hoppet over | `client`, `version` |
+
+**Merk om opencode-bruk (`nav_pilot_genai_*`):**
+- opencode sender spor (traces) og logger, men ingen metrikker. Når økten
+  slutter, leser nav-pilot summene fra `opencode session list` og
+  `opencode export` (`opencode session export` i opencode 2) og sender dem som
+  metrikker. Eksporten er hele økten, men nav-pilot dekoder bare faste felt.
+  Bare tall og navn sendes, aldri ledetekst, svar, filstier eller bruker.
+- `input` er tokens som ikke kom fra cache. Copilots `input` kan telle annerledes,
+  så bruk `input + cache_read` når du sammenligner klientene.
+- `gen_ai_provider_name` og `gen_ai_request_model` er leverandør- og
+  modell-id-en for `github-copilot` og nav-pilots lokale modell. For
+  leverandører du har lagt til selv, er begge `custom`. Verktøy utenom
+  opencodes innebygde heter `other`.
+- Ingen etikett per prosess eller økt. Som de andre tellerne sendes hver eksport
+  som det som er nytt siden forrige (se «Dashboard-eksempler»), så en økt ender
+  som én måling med sine egne summer. Summer med `sum_over_time`, ikke
+  `increase`:
+  ```promql
+  sum by (gen_ai_request_model, gen_ai_token_type) (
+    sum_over_time(nav_pilot_genai_session_tokens_total{client="opencode"}[7d])
+  )
+  ```
+  Da blir ikke to samtidige økter på samme maskin telt dobbelt. Det blir
+  Copilots kumulative `gen_ai_client_token_usage`: Mimir leser hvert fall i
+  verdien som en nullstilling. Ekte delta-tellere ville krevd
+  `deltatocumulative` i Nav-kollektoren, og det kjører den ikke.
+- Kjører du to opencode-økter i samme mappe samtidig, teller begge oppstartene
+  begge øktene. Underøkter (subagenter) telles ikke: `opencode session list`
+  viser bare toppnivå-økter.
+- nav-pilot leser eksporten via en midlertidig fil, ikke en pipe. opencode 1.18
+  kutter utdata til en pipe ved 128 KiB, og lengre økter ble derfor ikke telt.
+  Fila kan bare nav-pilot lese (0600), og den fjernes fra katalogen før
+  opencode skriver til den. Den blir derfor ikke liggende, heller ikke om
+  nav-pilot blir drept.
+
+**Merk om opencode-økter (`nav_pilot_session_*` med `client=opencode`):**
+- Fra den samme eksporten som over sender nav-pilot også øktmetrikkene som
+  Copilot-øktene har, med `client=opencode`. Økten velges på samme måte: økter
+  i oppstartsmappen som er endret etter oppstarten, og bare meldinger fra
+  oppstarten og senere. opencode lar ikke nav-pilot sette økt-ID-en selv, så
+  det finnes ingen markørfil. Tidspunktet for oppstarten er grensen. En annen
+  opencode-økt i samme mappe mens nav-pilot kjører, telles derfor også, som
+  for `nav_pilot_genai_*`.
+- Dette sendes:
+  - `nav_pilot_session_tool_calls_total`: verktøynavn (opencodes innebygde
+    eller `other`) og `outcome` fra `state.status` (`completed` blir
+    `success`, `error` blir `error`, alt annet `unset`).
+  - `nav_pilot_session_turns`: antall svar fra modellen, ett per modellkall,
+    som `nav_pilot_genai_session_calls_total`.
+  - `nav_pilot_session_duration_seconds`: fra første til siste melding etter
+    oppstarten, med `shutdown_type=unset`.
+  - `nav_pilot_session_skill_loads_total`: kall til `skill`-verktøyet, med
+    skillens navn og `source` og `trigger` lik `unset`.
+  - `nav_pilot_subagent_selected_total`: kall til `task`-verktøyet, med
+    agentens navn.
+  - Navnet på en skill eller agent sendes bare hvis nav-pilot installerte den,
+    som for Copilot. Alt annet blir `other`.
+- nav-pilot dekoder bare rolle, modell- og leverandør-id, tokens, tidspunkt
+  (`created`, `completed`), verktøynavn, `state.status`, `name` fra input til
+  `skill` og `subagent_type` fra input til `task`. Ledetekst, argumenter,
+  utdata og meldingstekst dekodes aldri.
+- Verktøykall sendes med vilje to ganger for opencode: som
+  `nav_pilot_genai_session_tool_calls_total` (med `nav_repo`, uten `outcome`)
+  og som `nav_pilot_session_tool_calls_total` (med `outcome` og `version`).
+  Tokens og modeller går bare til `nav_pilot_genai_*` over.
+- Disse mangler for opencode:
+  - **Hooks** (`nav_pilot_session_hook_runs_total`). opencode har utvidelser
+    (plugins), ikke hooks, og eksporten viser ikke når de kjører.
+  - **API-tid, premium requests og kostnad.** Eksporten har ikke disse tallene,
+    slik Copilots `session.shutdown` har.
+
+**Merk om Copilot-økter (`nav_pilot_session_*`, `nav_pilot_subagent_selected_total`):**
+- Når nav-pilot avslutter etter å ha startet Copilot, leser den
+  `~/.copilot/session-state/<økt>/events.jsonl` bare for økten den startet, og
+  bare når økten har en `session.shutdown`. Andre Copilot-økter, for eksempel
+  en du har startet med `copilot` ved siden av, leses ikke.
+- Slik vet nav-pilot hvilken økt den startet: Velger du ingen økt etter `--`,
+  starter den en ny økt med en økt-ID den lager selv og sender som
+  `--session-id`. Gir du `--resume`, `-r` eller `--session-id` med en hel
+  økt-ID, er det den økten. Med `--continue`, øktvelgeren, et navn, et
+  ID-prefiks eller en underkommando vet ikke nav-pilot hvilken økt det blir,
+  og ingen økt telles. Det gjelder også når underkommandoen står etter globale
+  flagg, som i `--model x sessions`. Er nav-pilot usikker på om et ord er en
+  underkommando, legger den ikke til `--session-id`.
+- En økt telles bare hvis Copilot faktisk startet. Stopper nav-pilot før
+  Copilot er i gang, telles ingenting. Avsluttes Copilot med en feil, telles
+  økten likevel.
+- `--session-id` kom i Copilot CLI 1.0.51. Med en eldre Copilot CLI starter
+  nav-pilot uten flagget, og ingen økt telles.
+- `/new` inne i Copilot starter en ny økt med en ny økt-ID som nav-pilot ikke
+  kjenner. Bare økten nav-pilot startet, telles.
+- En fil `nav-pilot-session-metrics` i øktmappen husker hvor langt den har lest og
+  summene ved siste `session.shutdown` (Copilot oppgir tokens, kostnad og
+  API-tid som løpende summer for hele økten). En gjenopptatt økt telles derfor
+  bare for det som kom etterpå, og varigheten regnes fra `session.resume`.
+  Hver gang nav-pilot gjenopptar en økt, flytter den filen til slutten av
+  økten ved oppstart. Det som skjedde i økten før oppstarten, telles ikke,
+  heller ikke det du gjorde med `copilot --resume` uten nav-pilot mellom to
+  nav-pilot-kjøringer. Krasjet en tidligere nav-pilot-kjøring før den fikk
+  lest økten, telles heller ikke det den kjøringen gjorde.
+- nav-pilot dekoder bare disse feltene: navn, kilde og utløser fra
+  `skill.invoked`; verktøynavn fra `tool.execution_start`; `success` fra
+  `tool.execution_complete`; `hookType` og `success` fra `hook.end`;
+  `agentName` fra `subagent.selected`; antall `assistant.turn_start`;
+  tidspunktet for `session.start` og `session.resume`; og `modelMetrics`,
+  `totalApiDurationMs`, `currentModel`, `sessionStartTime` og `shutdownType`
+  fra `session.shutdown`.
+- `content`, `result`, `arguments`, meldinger, filstier og kodeendringer
+  dekodes aldri: de er ikke med i strukturene loggen leses inn i.
+- Navnet på en skill eller agent sendes bare hvis nav-pilot installerte den
+  (står i `.nav-pilot-state.json` for brukeren eller repoet, uansett hvilken
+  agentpakke den kom fra). Verktøynavn sendes bare for Copilots innebygde
+  verktøy. Alt annet blir `other`. `model` er en kjent klient-modell-id eller
+  `custom`. `source`, `trigger` og `shutdown_type` er Copilots egne korte
+  verdier (små bokstaver, høyst 32 tegn), ellers `other`.
+- Ingen `device_id` og ingen etikett per økt. Summer med `sum_over_time`, som for
+  opencode-tellerne over.
+- En linje som ikke er gyldig JSON eller har feil form, hoppes over og telles i
+  `nav_pilot_session_events_skipped_total`.
+- Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leses ikke
+  loggen i det hele tatt.
 
 **Merk om `alpha decide` og hookene:**
 - Spørsmålet, alternativene, evidensen og valget sendes aldri, bare antall og
@@ -46,7 +181,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
   TLS-forbindelse, målt til ca. 80 ms varm og 1,7 s kald, på et kall Copilot
   venter på. De legger en linje i `~/.copilot/session-state/<økt>/nav-pilot-hook-events`,
   og nav-pilot sender dem når en Copilot-økt startet med nav-pilot avslutter.
-  `session=local` kommer fra løkkevakten foran den lokale modellen, og telles også
+  `session=local` kommer fra loop guard foran den lokale modellen, og telles også
   ved avslutning.
 - Handlingssjekken sender aldri kommandoen, bare utfallet og kategorien fra
   klassifiseringen. `flagged` betyr at modellen ga et risikabelt svar med
@@ -99,7 +234,7 @@ sjekken i bakgrunnen rapporterer ikke utfallet. `nav_pilot_up_to_date` og
 - `device_id` = pseudonymisert maskin-ID (se under)
 
 `execution_context` følger alle løpende metrikker som datapunkt-dimensjon.
-`device_id` ligger på `nav_pilot_info` og som resource-attributt.
+`device_id` er resource-attributt og datapunkt-dimensjon på de fleste metrikkene.
 Det betyr at både resource-attributter og datapunkt-dimensjoner kan brukes i spørringer.
 
 **`execution_context`-verdier:**
@@ -116,7 +251,8 @@ Klassifisering prioriterer:
 
 **Hva sendes IKKE:**
 - ✗ Filstier, reponavn, eller prosjektkontekst
-  (unntak: `nav.repo`-slug for navikt-repoer på agent-sessions, se seksjon 3)
+  (unntak: navikt-reponavn som `nav.repo` på agent-sessions, se seksjon 3, og som
+  `nav_repo` på tellerne for modellbruk)
 - ✗ Innhold fra Copilot-instruksjoner eller agenter
 - ✗ Bruker-ID (aldri NAVident, e-post, GitHub-brukernavn)
 - ✗ Git-commit-info eller miljøvariabler
@@ -126,7 +262,7 @@ Klassifisering prioriterer:
   - Genereres fra: hostname + CLI-installasjonssti + MAC-adresse (SHA256)
   - Lagret lokalt i `~/.nav-pilot/device-id` (persistent)
   - Samme maskin = alltid samme ID (reproducible)
-  - **Inneholder INGEN persondata** (kun hardware/path)
+  - **Pseudonym, ikke anonym:** inneholder ikke hostname, sti eller MAC i klartekst, men er stabil per maskin og kan knyttes til en person sammen med andre data (f.eks. `nav.repo` på Copilot CLI- og opencode-spor). Regnes derfor som personopplysning
 
 **Usendte metrikker:**
 - Den siste sendingen fra en kommando legges i `~/.nav-pilot/telemetry-spool/`. Rett etter at kommandoen er ferdig, sender en egen prosess den (se «Ved avslutning» under). Det den ikke rekker, sender neste nav-pilot i bakgrunnen
@@ -325,9 +461,9 @@ samme funksjon, samme `attrs`-slice, ett `Add` og ett `Record`. Histogrammets `_
 *er* antallet kommandoer. Bruk den. De så forskjellige ut en periode fordi tellere ble
 sendt som delta og forkastet, mens histogrammer kom fram hele tiden.
 
-`local_server_total` skrev samme hendelse fra samme kallsted som
+`local_server_total` skrev samme hendelse fra samme kall som
 `nav_pilot_local_ready_seconds`, som nå har `outcome`. Den ene verdien den hadde for seg
-selv, `hung`, kunne aldri komme fram: kallstedet sender `Status()`, og bare `Health(ctx)`
+selv, `hung`, kunne aldri komme fram: kallet sender `Status()`, og bare `Health(ctx)`
 produserer `hung`. Den har rapportert `ready` og ingenting annet.
 
 **En måling per spørsmål.** To metrikker som svarer på det samme er ikke redundans,
@@ -371,8 +507,8 @@ det er to tall som kan bli uenige.
 
 ### Personvern-garantier
 - ✅ Ingen IP-adresser eller User-Agent som OTel-attributter i metrikksdata (merk: transport/ingress kan likevel se og evt. logge IP).
-- ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (SHA256-hash, 12 hex-tegn)
-- ⚠️ `device_id` gir likevel oppløsning per maskin via `nav_pilot_info` (pseudonymt), ikke kun som globale aggregater.
+- ✅ Ingen rå maskinidentifikator (hostname/MAC); kun pseudonymisert `device_id` (SHA256-hash, 12 hex-tegn), som fortsatt er en personopplysning
+- ⚠️ `device_id` gir likevel oppløsning per maskin på de fleste metrikkene (pseudonymt), ikke kun som globale aggregater.
   Den kan ikke knyttes til person/team uten en ekstern mapping.
 - ⚠️ Kardinalitet: `device_id` (og `version`) er høy-kardinalitets-etiketter. I en stor pilot kan
   antall tidsserier vokse raskt i Prometheus — vurder å droppe/aggregere `device_id` i collector

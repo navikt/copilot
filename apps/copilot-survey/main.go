@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,8 +13,15 @@ import (
 )
 
 // No OpenTelemetry here, on purpose: a trace of a submission would time-stamp
-// who answered, which the batching in store.go exists to hide.
+// who answered (see store.go and the privacy notes in README.md).
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "export" {
+		if err := runExport(os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "export:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	config := loadConfig()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: config.LogLevel})))
 
@@ -35,6 +43,8 @@ func main() {
 			os.Exit(1)
 		}
 		surveys.store = store.submit
+		surveys.answers = store.answers
+		surveys.answered = store.answered
 		go store.purgeExpired(ctx, time.Now)
 	}
 	slog.Info("Starting copilot-survey", "port", config.Port, "storage", store != nil,
@@ -65,10 +75,11 @@ func main() {
 		slog.Error("Server shutdown error", "error", err)
 	}
 	if store != nil {
-		// Writing a batch smaller than k would let its answers be linked to
-		// the few participants in it; losing them is the lesser harm.
-		if n := store.dropped(); n > 0 {
-			slog.Warn("survey: queued submissions dropped at shutdown; their senders can answer again", "count", n)
+		// Own deadline: server.Shutdown may have used all of shutdown's.
+		flushCtx, cancelFlush := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelFlush()
+		if n := store.flush(flushCtx); n > 0 {
+			slog.Warn("survey: queued submissions lost at shutdown; their senders can answer again", "count", n)
 		}
 	}
 }

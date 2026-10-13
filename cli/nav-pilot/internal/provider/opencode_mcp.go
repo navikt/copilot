@@ -44,7 +44,9 @@ import (
 // turned off: the approved list, and how to get one added.
 const MCPRegistryHelpURL = "https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers"
 
-const mcpPolicyTimeout = 5 * time.Second
+// MCPPolicyTimeout bounds each gh and registry call. A var so the e2e build
+// can give its fake gh more time on a loaded machine.
+var MCPPolicyTimeout = 5 * time.Second
 
 var envPlaceholder = regexp.MustCompile(`\{env:([^}]+)\}`)
 
@@ -112,7 +114,7 @@ func askMCPPolicy() (registry string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("gh is not installed")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), MCPPolicyTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, gh, "api", "/copilot/mcp_registry").Output()
 	if err != nil {
@@ -149,7 +151,7 @@ func askMCPPolicy() (registry string, err error) {
 // askMCPRegistry lists a registry's servers (MCP Registry v0.1).
 func askMCPRegistry(base string) (mcpRegistry, error) {
 	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}, Servers: map[string][]string{}}
-	ctx, cancel := context.WithTimeout(context.Background(), mcpPolicyTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), MCPPolicyTimeout)
 	defer cancel()
 	client := mcpHTTPClient
 	cursor := ""
@@ -321,6 +323,7 @@ func openCodeUserMCPServers() map[string]mcpServer {
 }
 
 func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
+	v2 := openCodeMajor() >= 2
 	servers := map[string]mcpServer{}
 	for _, doc := range docs {
 		var cfg struct {
@@ -333,6 +336,35 @@ func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
 			continue
 		}
 		for name, raw := range cfg.MCP {
+			// opencode 2's own shape: mcp.servers.<name>, mcp.timeout. A
+			// key of either name is a server only with a type, as opencode
+			// 2 reads it (core/src/config/normalize.ts at v2.0.24). Only on
+			// opencode 2: opencode 1 reads "servers" as a server's name.
+			if v2 && (name == "servers" || name == "timeout") {
+				var probe struct {
+					Type string `json:"type"`
+				}
+				if json.Unmarshal(raw, &probe) == nil && probe.Type != "local" && probe.Type != "remote" {
+					if name == "servers" {
+						var native map[string]json.RawMessage
+						_ = json.Unmarshal(raw, &native)
+						for n, r := range native {
+							s := servers[n]
+							var d struct {
+								Disabled *bool `json:"disabled"`
+							}
+							if json.Unmarshal(r, &s) == nil && json.Unmarshal(r, &d) == nil {
+								if d.Disabled != nil {
+									on := !*d.Disabled
+									s.Enabled = &on
+								}
+								servers[n] = s
+							}
+						}
+					}
+					continue
+				}
+			}
 			s := servers[name]
 			if json.Unmarshal(raw, &s) == nil {
 				servers[name] = s
@@ -370,6 +402,12 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 		}
 		return expandOpenCodeEnv(docs, getenv)
 	}
+	// opencode 2 reads OPENCODE_CONFIG_DIR as its global config, below
+	// everything else; opencode 1 ranks it above the project.
+	v2 := openCodeMajor() >= 2
+	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" && v2 {
+		read(d, "opencode.json", "opencode.jsonc")
+	}
 	if f := getenv("OPENCODE_CONFIG"); f != "" {
 		read(filepath.Dir(f), filepath.Base(f))
 	}
@@ -379,9 +417,10 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 		}
 		projectDir, _ = filepath.Abs(projectDir)
 		// Outside a git repo OpenCode's worktree is "/", and it walks all
-		// the way up.
+		// the way up. opencode 2 always walks to "/"
+		// (core/src/config/discovery.ts at v2.0.24).
 		root := source.FindGitRoot(projectDir)
-		if root == "" {
+		if root == "" || openCodeMajor() >= 2 {
 			root = "/"
 		}
 		var dirs []string
@@ -401,7 +440,7 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 	if home, err := os.UserHomeDir(); err == nil {
 		read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
 	}
-	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" {
+	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" && !v2 {
 		read(d, "opencode.json", "opencode.jsonc")
 	}
 	if c := getenv(openCodeConfigContentEnv); c != "" {
@@ -446,8 +485,20 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		return env
 	}
 	mcp := map[string]any{}
+	v2 := openCodeMajor() >= 2
 	for _, name := range off {
-		mcp[name] = map[string]any{"enabled": false}
+		if !v2 {
+			mcp[name] = map[string]any{"enabled": false}
+			continue
+		}
+		// opencode 2 drops an entry that only says enabled, so the server
+		// would run: it needs the type and the command or URL as well.
+		s := servers[name]
+		e := map[string]any{"type": "local", "command": s.Command, "enabled": false}
+		if s.Type == "remote" || s.Type == "" && len(s.Command) == 0 {
+			e = map[string]any{"type": "remote", "url": s.URL, "enabled": false}
+		}
+		mcp[name] = e
 	}
 	fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (not in Nav's MCP registry): %s. See %s\n",
 		domain.Yellow("⚠"), strings.Join(off, ", "), MCPRegistryHelpURL)

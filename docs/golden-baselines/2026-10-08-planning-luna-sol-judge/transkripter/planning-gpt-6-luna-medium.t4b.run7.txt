@@ -1,0 +1,53 @@
+
+
+
+
+
+
+## Fase 2: Plan
+
+**Arkitektur:** Bruk den eksisterende Ktor-tjenesten som backend. Innbyggeren logger inn i den eksisterende Next.js-frontend med ID-porten gjennom Wonderwall. Frontendens BFF utsteder et TokenX-token for backend; backend validerer tokenet og leser FNR fra den validerte identiteten. Den tar ikke imot FNR som parameter. Backend slår opp navnet i PDL og returnerer bare navnet til frontend.
+
+Denne flyten holder backend utilgjengelig for direkte nettleserkall og lar den bruke avgrenset tilgang til både frontend og PDL. TokenX gir mer oppsett enn direkte ID-porten-kall, men fører brukerens identitet gjennom tjenestekallene. Jeg legger til grunn at PDL støtter TokenX for dette oppslaget; audience, scope og tilgang må bekreftes før implementering.
+
+**Prosjekt og Nais:** Ktor-repoet inneholder ikke Next.js-frontend, så frontend-integrasjonen hører til i det eksisterende frontend-repoet. I backend-repoet legges auth-validering, PDL-klient, API-rute og tester til. Backend-manifestet aktiverer TokenX, tillater kun frontend-appen inn og PDL ut. Bruk faktiske app-, namespace- og cluster-navn når de er kjent.
+
+```yaml
+spec:
+  tokenx:
+    enabled: true
+  accessPolicy:
+    inbound:
+      rules:
+        - application: <frontend-app>
+          namespace: <frontend-team>
+    outbound:
+      rules:
+        - application: <pdl-api>
+          namespace: <pdl-namespace>
+  resources:
+    requests:
+      cpu: 15m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  replicas:
+    min: 2
+    max: 4
+```
+
+ID-porten og Wonderwall konfigureres i frontend-appen. Backend eksponeres ikke direkte mot innbyggerens nettleser. Ingen database trengs: tjenesten lagrer ikke FNR eller navn.
+
+**API og feil:** Lag et synkront oppslag, for eksempel `GET /api/me`, som returnerer navnet for den innloggede personen. Ved feil eller utilgjengelig PDL svarer tjenesten med `503`; den bruker ikke kø eller dead-letter. Liveness måler om prosessen kjører, og readiness om tjenesten kan ta imot kall, ikke om PDL er tilgjengelig.
+
+**Personvern og sikkerhet:** Behandlingsgrunnlaget er lovhjemmel, ikke samtykke. Bruk bare FNR fra validert ID-porten-identitet, og send det videre til PDL for oppslaget. Ikke logg FNR, navn, tokens eller request-/response-innhold. Logg PDL-feil med status, tjenestenavn og trace-id. Ikke ta med personopplysninger i metrikker eller metrikktagger.
+
+**Tester og CI/CD:** Legg til tester for gyldig og ugyldig TokenX-token, manglende identitet, vellykket PDL-oppslag og PDL-feil som gir `503`. Bruk testserver for PDL, og verifiser at logger og API-respons ikke lekker FNR. GitHub Actions bygger og tester ved pull request, deployer til dev først og prod etterpå med minimale rettigheter og SHA-pinnede actions.
+
+**Drift og utrulling:** Mål oppslag per minutt og andel feilende kall med Prometheus-metrikker uten persondata. Oppdater runbook med håndtering av PDL-feil og eskalering. Rull ut backend før frontend-integrasjonen; rollback skjer ved å deploye forrige backend-image og rulle tilbake frontend-endringen ved behov. Etter deploy verifiseres innlogging, navneoppslag, `503` ved PDL-feil og metrikker.
+
+🔴 **Rød sone:** TokenX-validering, uthenting av FNR fra identitetskrav og tilgang til PDL. Teamet bør forstå og gjennomgå disse delene nøye, siden TokenX og Wonderwall er nytt for dere.  
+🟢 **Grønn sone:** Nais-ressurser, health-endepunkter, CI/CD-oppsett og teststruktur.
+
+Fase 2 er ferdig. Jeg venter på godkjenning før Fase 3, der planen vurderes fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. «Still gjerne spørsmål om valgene over.»
+

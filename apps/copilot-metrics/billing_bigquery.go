@@ -90,7 +90,6 @@ func (c *BigQueryClient) InsertBillingUsage(ctx context.Context, year, month int
 	}
 
 	table := c.client.Dataset(c.dataset).Table(billingUsageTable)
-	inserter := table.Inserter()
 
 	dayStr := fmt.Sprintf("%04d-%02d-01", year, month)
 	loadedAt := time.Now().UTC()
@@ -117,7 +116,7 @@ func (c *BigQueryClient) InsertBillingUsage(ctx context.Context, year, month int
 		})
 	}
 
-	if err := inserter.Put(ctx, rows); err != nil {
+	if err := loadRows(ctx, table, rows); err != nil {
 		return fmt.Errorf("failed to insert billing rows: %w", err)
 	}
 

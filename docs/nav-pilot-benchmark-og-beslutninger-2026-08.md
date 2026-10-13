@@ -377,7 +377,7 @@ blindsone-feilen.
 ### 4.5 Hentet JSON-konfigurasjonsprofil: bygget og forkastet
 
 En profil som klienten henter over nett ble implementert og deretter forkastet.
-Koden ligger på grenen `feat/model-default-profile` for den som vil se den.
+Koden ligger på branchen `feat/model-default-profile` for den som vil se den.
 
 Fire grunner, de tre første strukturelle:
 

@@ -1,0 +1,166 @@
+● Read accessibility.instructions.md                                                              5s
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read StatusPanel.tsx                                                                            6s
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read nextjs-aksel.instructions.md                                                               6s
+  │ .github/instructions/nextjs-aksel.instructions.md
+  └ 598 lines read
+
+● Read testing-typescript.instructions.md                                                         7s
+  │ .github/instructions/testing-typescript.instructions.md
+  └ 100 lines read
+
+● Read testing.instructions.md                                                                    7s
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+/ Search (glob)                                                                                   7s
+  │ "src/app/komponenter/*Status*"
+  └ 1 file found
+
+/ Search (glob)                                                                                   8s
+  │ "src/**/*.test.{ts,tsx}"
+  └ No matches found
+
+✗ Read package.json
+  └ Path does not exist
+
+/ Search (glob)                                                                                   6s
+  │ "node_modules/next/dist/docs/**/*"
+  └ No matches found
+
+/ Search (grep)                                                                                   6s
+  │ "StatusPanel|status-valg|listbox|option" (src)
+  └ 1 line found
+
+✗ Check worktree and project test setup (shell)                                                   7s
+  │ git status --short && printf '\nROOT FILES\n' && rg --files -g 'package.json' -g
+  │ 'pnpm-lock.yaml' -g 'tsconfig.json' -g 'vitest.config.*' -g '*StatusPanel*' | head -60
+  └ fatal: not a git repository (or any of the parent directories): .git
+    Failed with exit code 128
+
+● Locate project files and available tooling (shell)
+  │ pwd && ls -la && find . -maxdepth 3 -type f | head -80
+  └ 33 lines…
+
+● Read ask-first-aria.py
+  │ <arbeidsmappe>/.github/hooks/ask-
+  │ first-aria.py
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ <arbeidsmappe>/.github/instructio
+  │ ns/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read performance.instructions.md
+  │ <arbeidsmappe>/.github/instructio
+  │ ns/performance.instructions.md
+  └ 449 lines read
+
+● Inspect project contents and available build configuration (shell)
+  │ find src -type f -maxdepth 8 -print && printf '\n--- root metadata ---\n' && cat README.md &&
+  │ printf '\n--- gradle ---\n' && cat build.gradle.kts
+  └ 26 lines…
+
+/ Search (grep)                                                                                   6s
+  │ "StatusPanel|status.*feil|"ok"|"feil""
+  │ (<arbeidsmappe>)
+  └ 9 lines found
+
+/ Search (grep)                                                                                   6s
+  │ "custom|role|aria|ask|block|listbox" (<arbeidsmappe>
+  │ -golden.5GOJDg/repo/.github/hooks/ask-first-aria.py)
+  └ 57 lines found
+
+● Check for Next.js documentation and JavaScript tooling (shell)                                  7s
+  │ find node_modules -path '*/next/dist/docs/*' -type f -print 2>/dev/null | head -20; find .
+  │ -maxdepth 2 -type f -print
+  └ 3 lines…
+
+● Read ask-first-aria.py                                                                          5s
+  │ <arbeidsmappe>/.github/hooks/ask-
+  │ first-aria.py
+  └ L1:160 (160 lines read)
+
+● skill(klarsprak)
+
+● Read ask-first-aria.py
+  │ <arbeidsmappe>/.github/hooks/ask-
+  │ first-aria.py
+  └ L245:320 (76 lines read)
+
+● Read ask-first-aria.py
+  │ <arbeidsmappe>/.github/hooks/ask-
+  │ first-aria.py
+  └ L320:430 (111 lines read)
+
+● Read security-core.instructions.md
+  │ <arbeidsmappe>/.github/instructio
+  │ ns/security-core.instructions.md
+  └ 16 lines read
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ <arbeidsmappe>/src/app/komponente
+  │ r/StatusPanel.tsx
+  └ 90 lines read
+
+● Read ask-first-aria.py
+  │ <arbeidsmappe>/.github/hooks/ask-
+  │ first-aria.py
+  └ L420:490 (27 lines read)
+
+● Check available TypeScript validation tools (shell)
+  │ command -v tsc || true; command -v node || true; command -v python3 || true; find . -maxdepth 3
+  │ \( -name 'mise.toml' -o -name 'package.json' -o -name 'tsconfig.json' \) -print
+  └ 2 lines…
+
+/ Search (grep)
+  │ "role="listbox"|role="option"|onStatusChange|ArrowDown|ArrowUp|Home|End" (<arbeidsmappe>
+  │ 1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.5GOJDg/repo/src/app/komponenter/StatusPanel.tsx)
+  └ 10 lines found
+
+● Check whether a TypeScript parser or project test runner is available (shell)
+  │ node -e "for (const p of ['typescript', 'esbuild', '@babel/parser']) { try { console.log(p + ':
+  │ ' + require.resolve(p)); } catch {} }"; test -f package.json && echo 'package.json found' ||
+  │ echo 'No JavaScript package manifest'
+  └ 1 line…
+
+● Run the ARIA gate self-tests (shell)
+  │ python3 .github/hooks/ask-first-aria.py --selftest
+  └ 29 lines…
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ <arbeidsmappe>/src/app/komponente
+  │ r/StatusPanel.tsx
+  └ 81 lines read
+
+● Verify the new listbox roles satisfy the repository ARIA gate (shell)
+  │ python3 - <<'PY'
+  │ import importlib.util
+  │ from pathlib import Path
+  │ path = Path('.github/hooks/ask-first-aria.py')
+  │ spec = importlib.util.spec_from_file_location('aria_gate', path)…
+  └ 11 lines…
+
+● Confirm the ARIA gate self-tests still pass (shell)
+  │ python3 .github/hooks/ask-first-aria.py --selftest | tail -3
+  └ 3 lines…
+
+La til et tilpasset statusvalg med `role="listbox"` og alternativer for `ok` og `feil`. Valget støtter museklikk, piltastene, Home og End, og sender endringer gjennom `onStatusChange`.
+
+ARIA-portens selvtester besto (27/27). Prosjektet har ikke et JavaScript-test- eller byggoppsett.
+

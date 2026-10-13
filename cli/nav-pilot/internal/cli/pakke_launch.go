@@ -835,7 +835,7 @@ func rememberTier(source, client string, tier int) {
 // launches from inside tryPakkeLaunch, and its notice has to come after
 // SetActivePakke or it would read the wrong pakke's declaration, and after the
 // handover gate or it would announce a launch that is then refused. Tier 1
-// prints from launchClientConfirming, just before the client starts.
+// prints from launchClient, just before the client starts.
 //
 // One line, on stderr, and only with a terminal, so scripted and piped runs are
 // byte-identical to what they were.

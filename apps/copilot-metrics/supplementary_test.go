@@ -84,6 +84,14 @@ func (s *scopedStore) EnsureUserMetricsTableExists(context.Context) error { retu
 func (s *scopedStore) EnsureRepoMetricsTableExists(context.Context) error { return nil }
 func (s *scopedStore) Close() error                                       { return nil }
 
+func (s *scopedStore) ReplaceUserTeams(ctx context.Context, day time.Time, result *FetchResult) error {
+	return upsertReport(ctx, s.UserTeamsDayExists, s.DeleteUserTeamsDay, s.InsertUserTeams, day, result)
+}
+
+func (s *scopedStore) ReplaceUserMetrics(ctx context.Context, day time.Time, result *FetchResult) error {
+	return upsertReport(ctx, s.UserMetricsDayExists, s.DeleteUserMetricsDay, s.InsertUserMetrics, day, result)
+}
+
 // GetLatestDay mirrors the real query: MAX(day) filtered to a single scope_id.
 // Days stored under any other scope_id are invisible to it, which is exactly the
 // blind spot the cross-scope high-water mark exists to cover.

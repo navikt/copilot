@@ -1,0 +1,1 @@
+`behandle_neste` sjekker nå om køen er tom før den tar ut saken med `remove(0)`. Da unngår funksjonen lånefeilen og beholder samme oppførsel. `cd saksko && cargo test` passerer. `cargo fmt --check` varslet om formatering i eksisterende testkode.

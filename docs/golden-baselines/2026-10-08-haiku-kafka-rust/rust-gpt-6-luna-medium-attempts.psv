@@ -1,0 +1,23 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        rust
+# suite:        rust
+# date:         2026-10-08
+# revision:     ddd78e25
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       medium
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+rs-borrow|1|0|pass|2047|41568|true|
+rs-feil|1|0|pass|3870|59823|true|
+rs-borrow|2|0|pass|7887|27593|true|
+rs-feil|2|0|pass|2948|55003|true|
+rs-borrow|3|0|pass|2508|46659|true|
+rs-feil|3|0|pass|1593|61925|true|
+rs-borrow|4|0|pass|2067|47668|true|
+rs-feil|4|0|pass|1982|79156|true|
+rs-borrow|5|0|pass|2587|72675|true|
+rs-feil|5|0|pass|2230|85713|true|

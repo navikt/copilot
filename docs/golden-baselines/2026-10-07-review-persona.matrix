@@ -1,0 +1,4 @@
+# 7. oktober 2026, etter #1449: @code-review med ny inbound-regel på rv1–rv8. testpakke  modell  innsatsnivå  n
+# Kriteriene står i docs/modellvalg.md («Ny inbound-regel i kodegjennomgangen») og ble satt før kjøringene.
+review  claude-opus-5.5  low  10
+review  gpt-6-sol        low  10

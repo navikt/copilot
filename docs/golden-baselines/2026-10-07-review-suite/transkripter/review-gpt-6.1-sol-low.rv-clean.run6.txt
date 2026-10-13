@@ -1,0 +1,49 @@
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 288ms
+    Failed with exit code 1
+
+**To funn i `SakService.kt`: én sikkerhetsrisiko og ett ytelsesproblem.** SQL-spørringen er parameterisert, og personfilteret kommer fra det autentiserte tokenet, ikke fra klientens parametere.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 40–42 | 🔴 Blokker | `log.error(..., e)` logger hele exception-kjeden. `fnr.maskert()` beskytter bare meldingsparameteren, ikke databasefeil som kan inneholde persondata i feilmelding eller detaljfelt. Bruk en persondatafri feilmelding og kontroller også loggingen når feilen kastes videre. |
+| 24–28, 55 | 🟡 Forslag | Synkrone JDBC-kall kjøres direkte fra route-handleren. Venting på databaseforbindelse og spørring blokkerer tråden som håndterer forespørselen. Flytt databasearbeidet til `Dispatchers.IO`, slik at trege databasekall ikke beslaglegger Ktors behandlingstråder. |
+
+**Kontrollene kunne ikke fullføres:** `mise check` finnes ikke i prosjektet. `gradle --offline --console=plain test` feilet under prosjektkonfigurasjon med meldingen `> 27`, før testene startet. Ingen kode er endret.
+

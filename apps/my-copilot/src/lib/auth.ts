@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { introspectToken, parseBearerToken } from "./introspect";
 
 const loginEndpoint = "/oauth2/login";
@@ -91,4 +91,31 @@ export async function getUserToken(): Promise<string | null> {
 
   const authHeader = (await headers()).get("Authorization");
   return parseBearerToken(authHeader);
+}
+
+/**
+ * True when the user is in the Nais team copilot's Entra ID group
+ * (COPILOT_ADMIN_GROUP_ID). Fails closed when the variable is unset.
+ */
+export function isAdmin(user: User | null): boolean {
+  const group = process.env.COPILOT_ADMIN_GROUP_ID;
+  return !!user && !!group && user.groups.includes(group);
+}
+
+/**
+ * Server-side guard for admin pages and route handlers: everyone but admins
+ * gets 404, so the page does not reveal that it exists.
+ */
+export async function requireAdmin(): Promise<User> {
+  const user = await getUser();
+  if (!isAdmin(user)) notFound();
+  return user!;
+}
+
+/**
+ * The groups that make a user eligible for a Copilot seat: every listed claim
+ * group except the admin group, which is in the claim only for requireAdmin.
+ */
+export function seatGroups(user: User): string[] {
+  return user.groups.filter((g) => g !== process.env.COPILOT_ADMIN_GROUP_ID);
 }

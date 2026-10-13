@@ -22,6 +22,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	telemetrypkg "github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
@@ -56,13 +57,32 @@ func surveyAskGap() time.Duration {
 }
 
 type surveyDef struct {
-	ID        string           `json:"id"`
-	Nudge     string           `json:"nudge,omitempty"` // calm (default), start or off
-	Title     string           `json:"title"`
-	Intro     string           `json:"intro,omitempty"`
-	Starts    string           `json:"starts"`
-	Ends      string           `json:"ends"`
-	Questions []surveyQuestion `json:"questions"`
+	ID     string `json:"id"`
+	Nudge  string `json:"nudge,omitempty"` // calm (default), start or off
+	Title  string `json:"title"`
+	Intro  string `json:"intro,omitempty"`
+	Starts string `json:"starts"`
+	Ends   string `json:"ends"`
+	// MinCLIVersion is the oldest nav-pilot release that gets the survey,
+	// YYYY.MM.DD or YYYY.MM.DD-HHMMSS. copilot-survey enforces it for the
+	// active list; a preview reads the file itself, so it checks here.
+	MinCLIVersion string           `json:"min_cli_version,omitempty"`
+	Questions     []surveyQuestion `json:"questions"`
+}
+
+// needsNewerCLI reports whether min_cli_version is above this build. A dev
+// build is never too old, as for agentpakker; a floor that does not parse
+// fails closed.
+func (s surveyDef) needsNewerCLI() bool {
+	if s.MinCLIVersion == "" {
+		return false
+	}
+	floor := s.MinCLIVersion
+	if !strings.Contains(floor, "-") {
+		floor += "-000000"
+	}
+	older, err := agentpakke.RunningOlderThan(floor)
+	return err != nil || older
 }
 
 // surveyQuestion is the part of copilot-survey's question format nav-pilot
@@ -78,6 +98,7 @@ type surveyQuestion struct {
 	Labels     []string `json:"labels,omitempty"`
 	Options    []string `json:"options,omitempty"`
 	MaxChoices int      `json:"max_choices,omitempty"`
+	Exclusive  string   `json:"exclusive,omitempty"`
 	Other      string   `json:"other,omitempty"` // one more option, with a short free text sent as <id>.other
 	MaxLen     int      `json:"max_length,omitempty"`
 	SkipIf     *struct {
@@ -132,11 +153,11 @@ type surveyContext struct {
 // surveyCollected is shown before any question, so nobody answers without
 // knowing what is sent.
 const surveyCollected = "Dette sendes: svarene dine, nav-pilot-versjon, operativsystem, hvilken klient du\n" +
-	"bruker og om lokale modeller er på.\n" +
-	"Dette sendes ikke: navn, GitHub-bruker, enhets-ID, kode eller noe fra øktene dine.\n" +
-	"GitHub-innloggingen brukes bare til å hindre at noen svarer to ganger. Svarene\n" +
-	"lagres uten noe som knytter dem til deg, så de kan ikke endres eller trekkes\n" +
-	"tilbake etterpå."
+	"bruker, om lokale modeller er på, og GitHub-innloggingen din.\n" +
+	"Dette sendes ikke: navn, maskinnummer, kode eller noe fra øktene dine.\n" +
+	"Svarene lagres uten navn, e-post eller bruker. Innloggingen brukes bare til å\n" +
+	"hindre dobbeltsvar: mens undersøkelsen er åpen, lagrer vi en nøkkelbasert\n" +
+	"sjekksum av e-posten din. Den slettes etter at undersøkelsen har stengt."
 
 func surveyStatePath() (string, error) {
 	dir, err := telemetrypkg.GetConfigDir()
@@ -525,7 +546,9 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 		case "matrix":
 			grid[i] = make([]string, len(q.Items))
 			for j, it := range q.Items {
-				g := huh.NewGroup(escHelpField{surveySelect(q, fmt.Sprintf("%s (%d av %d)", q.Text, j+1, len(q.Items)), &grid[i][j]).Title(it.Text)})
+				sel := surveySelect(q, "", &grid[i][j]).Title(it.Text).
+					DescriptionFunc(func() string { return matrixHeading(s, i, j, skipped) }, []any{picks, multis})
+				g := huh.NewGroup(escHelpField{sel})
 				if q.SkipIf != nil {
 					g = g.WithHideFunc(func() bool { return skipped(q) })
 				}
@@ -541,14 +564,15 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 				ms = ms.Limit(q.MaxChoices)
 				desc = fmt.Sprintf("Velg opptil %d. %s", q.MaxChoices, desc)
 			}
-			if q.Required {
-				ms = ms.Validate(func(v []string) error {
-					if len(v) == 0 {
-						return errors.New("velg minst ett svar")
-					}
-					return nil
-				})
-			}
+			ms = ms.Validate(func(v []string) error {
+				if q.Required && len(v) == 0 {
+					return errors.New("velg minst ett svar")
+				}
+				if len(v) > 1 && slices.Contains(v, q.Exclusive) {
+					return fmt.Errorf("«%s» kan ikke kombineres med andre svar", q.Exclusive)
+				}
+				return nil
+			})
 			field = ms.Description(desc)
 		case "text":
 			in := huh.NewText().Title(q.Text).CharLimit(q.MaxLen).Value(&picks[i])
@@ -582,6 +606,33 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	if huh.NewForm(groups...).WithShowHelp(true).WithTheme(navTheme()).Run() != nil {
 		return nil, false
 	}
+	answers := surveyAnswers(s, picks, multis, others, grid, skipped, answered)
+	return answers, len(answers) > 0
+}
+
+// matrixHeading is the line above a matrix statement: the question and where
+// the statement is in the list. Consecutive matrices with the same text that
+// are both shown read as one list (q4-2026 splits its statements in two so
+// that non-users skip the first part), so the count runs on across them
+// instead of starting over under the same heading.
+func matrixHeading(s surveyDef, i, j int, skipped func(surveyQuestion) bool) string {
+	q := s.Questions[i]
+	same := func(k int) bool {
+		o := s.Questions[k]
+		return o.Type == "matrix" && o.Text == q.Text && !skipped(o)
+	}
+	before, total := 0, len(q.Items)
+	for k := i - 1; k >= 0 && same(k); k-- {
+		before += len(s.Questions[k].Items)
+	}
+	for k := i + 1; k < len(s.Questions) && same(k); k++ {
+		total += len(s.Questions[k].Items)
+	}
+	return fmt.Sprintf("%s (%d av %d)", q.Text, before+j+1, before+total)
+}
+
+// surveyAnswers is the payload's answers from what the form collected.
+func surveyAnswers(s surveyDef, picks []string, multis [][]string, others []string, grid [][]string, skipped func(surveyQuestion) bool, answered func(string) []string) map[string]any {
 	answers := map[string]any{}
 	for i, q := range s.Questions {
 		v := strings.TrimSpace(picks[i])
@@ -607,7 +658,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			answers[q.ID] = v
 		}
 	}
-	return answers, len(answers) > 0
+	return answers
 }
 
 // surveyNoIdentify goes with every free-text field.
@@ -878,6 +929,50 @@ func postSurveyOnce(base, id string, payload []byte, token string) (int, error) 
 		return resp.StatusCode, errors.New(body.detail())
 	}
 	return resp.StatusCode, nil
+}
+
+// cmdSurveyPreview is nav-pilot survey preview <id>: the survey as committed
+// on main, also before it opens, to try the questions. It never sends the
+// answers, so a preview cannot end up in the data.
+func cmdSurveyPreview(id string) error {
+	if !regexp.MustCompile(`^[a-z0-9-]{1,64}$`).MatchString(id) {
+		return fmt.Errorf("ugyldig id: %q", id)
+	}
+	if !isInteractive() {
+		return errors.New("forhåndsvisning trenger en terminal")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/"+id+".json", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("fant ikke undersøkelsen %s (%s)", id, resp.Status)
+	}
+	var s surveyDef
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 256<<10)).Decode(&s); err != nil {
+		return err
+	}
+	if s.needsNewerCLI() || !s.renderable() {
+		return fmt.Errorf("%s krever en nyere nav-pilot: %s", s.Title, bold("nav-pilot upgrade"))
+	}
+	fmt.Printf("\n%s (%d spørsmål, åpner %s)\n", bold(s.Title), s.count(), s.Starts)
+	fmt.Println(yellow("Forhåndsvisning: svarene sendes ikke."))
+	fmt.Println()
+	answers, ok := runSurveyForm(s)
+	if !ok {
+		return cancelledError{}
+	}
+	out, _ := json.MarshalIndent(answers, "", "  ")
+	fmt.Println(string(out))
+	fmt.Println(dim("Forhåndsvisning: ikke sendt."))
+	return nil
 }
 
 func surveyErrDetail(err error) string {

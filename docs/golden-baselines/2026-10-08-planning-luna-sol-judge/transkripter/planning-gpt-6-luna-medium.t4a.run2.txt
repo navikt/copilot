@@ -1,0 +1,48 @@
+
+
+
+
+
+
+
+
+## Fase 1: Intervju
+
+Hva slags ting bygger du?
+
+- Backend API (Kotlin/Ktor eller Spring Boot)
+- Hendelsekonsument (Kafka / Rapids & Rivers)
+- Frontend for innbygger (Next.js + ID-porten)
+- Frontend for saksbehandler (Next.js + Azure AD)
+- Batchjobb (Naisjob)
+- Fullstack (frontend + BFF + backend)
+
+Jeg ser at repoet har et Kotlin/Ktor-skjelett og et Nais-manifest. Jeg finner ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` hvis du vil legge til repo-spesifikke instruksjoner.
+
+**Personvern og data**
+
+1. Hvilke opplysninger skal tjenesten behandle utover fødselsnummer? Hva er formålet og hjemmelen?
+2. Hvordan får tjenesten fødselsnummeret: fra et ID-porten-token, via et oppslag eller på en annen måte?
+3. Hvem skal kunne lese eller bruke opplysningene? Hvor lenge skal de lagres, og trengs audit-logging?
+4. Skal data deles med andre tjenester? Hvilke?
+
+**Plattform og autentisering**
+
+5. Hvem starter forespørselen, og hvilke tjenester skal kalle den? Skal den være tilgjengelig fra internett eller bare internt?
+6. Hva skal skje hvis ID-porten eller en annen avhengighet er utilgjengelig?
+7. Trenger tjenesten asynkron kommunikasjon, eller holder det med synkrale kall? Finnes det tjenester dere kan gjenbruke?
+
+**Drift og team**
+
+8. Hvilke mål viser at tjenesten fungerer? Hva skal utløse varsler, og hvordan bekrefter dere at en deploy gikk bra?
+9. Hvem har vaktansvar, hvilket trafikkvolum venter dere, og er det avhengigheter til andre team?
+10. Er dette et nytt prosjekt, og har teamet erfaring med Kotlin/Ktor og Nais? Hvilke tester planlegger dere?
+
+**Konsumenter og endringer**
+
+11. Hvem blir berørt hvis tjenesten får eller endrer API-er eller hendelser? Er det noen deadline eller krav til bakoverkompatibilitet?
+
+Fødselsnummer klassifiseres som fortrolig. Tjenesten må unngå å logge det.
+
+Blindsoner reist: 9/11 (#1–#7, #9 og #11; #8 modernisering og #10 dekommisjonering er ikke relevante for en ny tjeneste).
+

@@ -1,0 +1,47 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/nais*.{yaml,yml}"
+  └ 1 file found
+
+/ Search (grep)
+  │ "SoknadMottattMelding|soknad-mottatt" in **/*.{kt,kts,yaml,yml,md}
+  └ 3 lines found
+
+● Inspect repository and local guidance (shell)
+  │ pwd; ls -la; find . -maxdepth 3 \( -name AGENTS.md -o -name copilot-instructions.md -o -name
+  │ copilot-review-instructions.md \) -print
+  └ 9 lines…
+
+● List directory .github
+  └ 2 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+● skill(klarsprak)
+
+Jeg har ikke endret koden ennå. `SoknadMottattMelding` inneholder bare `soknadId` og `mottatt`, mens `SokerDto` har `fnr`. Å legge fødselsnummer på `soknad-mottatt` endrer Kafka-payloaden og hvem som får tilgang til personopplysninger.
+
+Før jeg gjør endringen, trenger jeg svar på dette:
+
+- Hvor skal `fnr` hentes fra når `SoknadMottattMelding` opprettes? Repoet viser ingen kobling mellom søkeren og meldingen.
+- Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer? Er topicet sikret for slike data?
+- Må eksisterende konsumenter tåle både meldinger med og uten `fnr` under utrulling?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Øvrige blindsoner gjelder ikke denne avgrensede schemaendringen.
+
+Blindsoner reist: 3/11 (#1, #6, #9 stilt; #2–#5, #7–#8 og #10–#11 ikke relevante).
+
+🔴 Rød sone: Håndtering av fødselsnummer i Kafka-payloaden krever gjennomgang av datakilde og tilgang før implementering.
+

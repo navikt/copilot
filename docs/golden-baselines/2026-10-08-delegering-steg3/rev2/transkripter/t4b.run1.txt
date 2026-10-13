@@ -1,0 +1,24 @@
+● skill(nav-auth)
+
+● skill(api-design)
+
+**Fase 2: Plan.** Jeg legger til grunn at den eksisterende Next.js-frontenden håndterer innlogging med ID-porten via Wonderwall, og at Ktor-tjenesten er et internt API. Nettleseren skal ikke kalle Ktor direkte. Frontenden veksler brukerens token med TokenX før den kaller Ktor; Ktor validerer TokenX-tokenet, henter fødselsnummer fra den validerte brukerkonteksten og kaller PDL for navn. Vi må kontrollere PDLs konkrete tilgangskrav og målgruppe før implementering. Tjenesten skal ikke ta imot fødselsnummer som parameter.
+
+| Område | Plan |
+|---|---|
+| API | `GET /api/meg` returnerer kun navn til den innloggede brukeren. Manglende eller ugyldig token gir 401; PDL-utilgjengelighet gir 503. Feilresponsene har et fast format uten personopplysninger. Ingen lagring. |
+| Prosjekt | Behold Ktor. Skill rute, tokenvalidering og PDL-klient. La eksisterende `/api/oppgaver` stå urørt inntil det er avklart om den er del av demonstrasjonen eller skal fjernes. |
+| Nais | Aktiver TokenX for Ktor og konfigurer `accessPolicy.inbound` kun for teamets frontend. Sett `accessPolicy.outbound` kun til PDL. Bekreft frontendens ID-porten/Wonderwall-oppsett og legg til TokenX der dersom det mangler. Bruk egne manifester for dev og prod med riktige applikasjonsnavn og miljøspesifikke målgrupper. |
+| CI/CD | Bygg og kjør tester ved pull request. Bygg image og deploy til dev før prod fra hovedgren. |
+| Tester | Test 401 uten gyldig brukerkontekst, at fødselsnummer kommer fra tokenet og ikke fra forespørselen, PDL-suksess, 503 ved PDL-feil og at navn/fødselsnummer ikke havner i feilrespons eller logger. Test tokenvekslingen mellom frontend og Ktor. |
+| Observerbarhet | Mål oppslag per minutt og feilandel, fordelt på statusklasse og avhengighet, uten personidentifikatorer. Logg PDL-feil med korrelasjons-ID, ikke token, fødselsnummer eller navn. Alarmér ved økt feilandel eller vedvarende PDL-feil. |
+| Utrulling | Verifiser innlogging, tokenveksling og PDL-oppslag i dev før prod. Ved feil: rull tilbake tjenesteversjonen og deaktiver frontend-kallet. Ingen database eller datamigrering trengs. |
+
+🔴 **Rød sone — forstå og skriv selv:** Validering av TokenX-token og uttrekk av fødselsnummer, samt tilgangsstyring mellom frontend, Ktor og PDL. Feil her kan gi innsyn i en annen persons opplysninger. Teamet bør også gå gjennom Wonderwall og TokenX-flyten før utrulling.
+
+🟢 **Grønn sone:** Ktor-oppsett, PDL-klientens transportlag, tester, metrikker og deploy-oppsett kan genereres og gjennomgås av teamet.
+
+**Avveiing:** Et internt API med TokenX beholder brukerkonteksten frem til PDL og unngår at nettleseren sender fødselsnummer. Det krever mer oppsett enn et direkte nettleserkall, men gir en tydelig grense for autentisering og tilgang. Ingen database velges fordi oppslaget ikke skal lagres.
+
+Neste fase er gjennomgang av planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.
+

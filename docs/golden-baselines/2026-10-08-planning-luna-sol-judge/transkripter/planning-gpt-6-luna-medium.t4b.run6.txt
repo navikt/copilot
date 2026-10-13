@@ -1,0 +1,61 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Fase 2: Plan
+
+**Arketype:** Kotlin/Ktor-backend-API. Repoet inneholder en enkel Ktor-tjeneste, men ingen frontend, tester, Dockerfile eller CI-workflow. Jeg legger til grunn at Next.js-frontendens serverdel kan fungere som BFF, og at tjenesten ikke lagrer personopplysninger.
+
+### Arkitekturvalg
+
+| Område | Valg |
+|---|---|
+| Innlogging | Innbyggeren logger inn med ID-porten gjennom eksisterende Next.js-løsning og Wonderwall. |
+| Kall til API-et | Next.js-serverdelen veksler inn brukerens token via TokenX for Ktor-API-et. API-et validerer TokenX-tokenet. |
+| Oppslag i PDL | Ktor henter fødselsnummer fra den validerte brukeridentiteten, veksler tokenet via TokenX for PDL og ber kun om navn. |
+| API-kontrakt | `GET /api/me/navn` returnerer navn. API-et tar ikke imot fødselsnummer fra nettleseren og sender det ikke tilbake. |
+| Lagring | Ingen database. Fødselsnummer og navn finnes bare mens forespørselen behandles. |
+| Feil fra PDL | Timeout eller utilgjengelig PDL gir HTTP 503. Tjenesten logger feilkategori og korrelasjons-ID, aldri fødselsnummer, navn, token eller PDL-respons. Ingen kø eller retry. |
+| Dataklassifisering | Fortrolig: fødselsnummer og navn. Ikke hent adresse eller andre PDL-opplysninger. |
+
+BFF-et holder ID-porten-tokenet på serversiden og lar API-et få et TokenX-token med brukerkontekst. Det gir et ekstra kall gjennom Next.js, men unngår at frontend må håndtere API-token direkte i nettleseren. Jeg velger dette framfor direkte nettleserkall; hvis frontend ikke har en serverrute, må den få en før tjenesten tas i bruk.
+
+### Nais og drift
+
+- Behold port `8080` og de eksisterende health-endepunktene.
+- Slå på `tokenx.enabled` for Ktor-tjenesten.
+- Sett `accessPolicy.inbound` til kun den eksisterende frontend-applikasjonen.
+- Sett `accessPolicy.outbound` til PDL med riktig applikasjonsnavn, namespace og cluster. Repoet oppgir ikke disse verdiene, så de må hentes fra PDLs godkjente konfigurasjon.
+- Eksponer Prometheus-metrikker for antall oppslag per minutt og andel feilende kall. Legg til PDL-latens og feil fordelt på lav-kardinalitets feilkategori. Ikke bruk fødselsnummer, navn eller andre brukeridentifikatorer som metric labels.
+- Start med `15m` CPU og `256Mi` minne som requests, `512Mi` minne som grense, og minst to replicas. Ikke sett CPU-grense.
+- Avklar varselgrenser med teamet før produksjonssetting.
+
+### Struktur, bygg og tester
+
+Legg til `api/` for ruten og responsmodellen, `pdl/` for PDL-klienten og `auth/` for TokenX-integrasjon, med tilhørende tester under `src/test/kotlin`. Behold `nais.yaml` i rota. Legg til Dockerfile og GitHub Actions-workflow, siden de ikke finnes nå.
+
+Workflowen skal bygge og teste, deploye til dev før prod, og bruke minimale permissions og SHA-pinnede Actions. Test Ktor-ruten med gyldig, manglende og ugyldig token; test at klienten ikke kan oppgi et annet fødselsnummer; test PDL-feil som gir 503; og test TokenX-validering og token exchange med testserver. Frontend-teamet bør også teste den innloggede brukerreisen mot API-kontrakten.
+
+### Sikkerhet, risiko og leveranse
+
+Fødselsnummeret må komme fra en verifisert ID-porten-identitet, ikke request-data. Verifiser signatur, issuer, audience og utløp på TokenX-tokenet, og sørg for at PDL bare slår opp personen som er logget inn. Den konkrete lovbestemmelsen er ikke oppgitt; dokumenter den før produksjonssetting. Avklar også hvor tilgangsaudit føres, og hvordan den ivaretar krav til tilgang og oppbevaring uten å lekke personopplysninger i vanlige logger.
+
+Viktigste risiko er feil kobling mellom innlogget identitet og PDL-oppslaget. Mottiltaket er å hente identiteten fra validert token, ikke fra klientens input, og å teste at API-et avviser manglende eller ugyldig identitet. Etter deploy verifiser en innlogget testbruker, PDL-oppslag, 503 ved simulert PDL-feil og at metrikkene øker uten PII i logger. Ved feil rulles API-et tilbake til forrige image, og frontend kan midlertidig slå av navneoppslaget.
+
+🔴 Rød sone: tokenvalidering, TokenX-flyten og koblingen mellom brukerens identitet og PDL-oppslaget. Disse delene må du forstå grundig og skrive selv.  
+🟢 Grønn sone: Ktor-rutestruktur, responsmodell, health checks, metrics, Dockerfile, workflow og tester rundt avtalte grensesnitt.
+
+**Fase 2 er ferdig.** Bekreft planen for at jeg skal gå videre til Fase 3, planreview. Still gjerne spørsmål om valgene over.
+

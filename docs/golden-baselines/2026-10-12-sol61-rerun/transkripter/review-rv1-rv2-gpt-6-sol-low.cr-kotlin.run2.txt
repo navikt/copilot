@@ -1,0 +1,58 @@
+● skill(klarsprak)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 35 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:160 (160 lines read)
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+✗ Run project checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+● Verify review line numbers and references (shell)
+  │ nl -ba src/main/kotlin/no/nav/demo/UserRepo.kt && rg -n 'session|queryOf|finnBruker|slf4j'
+  │ src/main/kotlin build.gradle.kts
+  └ 18 lines…
+
+**Fire funn i `UserRepo.kt`.** De tre første bør blokkeres før merge.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 9 | 🔴 Blokker | `fnr` settes rett inn i SQL. En verdi med anførselstegn kan endre spørringen. Bruk en parameterisert spørring, for eksempel `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`. |
+| 8 | 🔴 Blokker | Fødselsnummer skrives til vanlig applikasjonslogg. Fjern nummeret fra logglinja. |
+| 12–13 | 🔴 Blokker | Alle databasefeil blir til `null`, som også betyr «bruker finnes ikke». Da kan tjenesten behandle driftsfeil som et gyldig oppslag uten treff. La feilen gå videre med kontekst. |
+| 3, 11 | 🟡 Bør fikses | Prosjektet deklarerer ikke avhengighetene eller importene som trengs for `LoggerFactory` og `queryOf`. `session` er heller ikke definert i kildekoden. Fila kan derfor ikke kompileres slik prosjektet står. |
+
+`mise check` kunne ikke kjøres: prosjektet har ingen `check`-oppgave i mise.
+

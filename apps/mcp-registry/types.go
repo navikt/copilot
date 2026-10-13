@@ -26,8 +26,17 @@ const (
 )
 
 type Transport struct {
-	Type string `json:"type"`
-	URL  string `json:"url,omitempty"`
+	Type    string   `json:"type"`
+	URL     string   `json:"url,omitempty"`
+	Headers []Header `json:"headers,omitempty"`
+}
+
+// Header is a fixed HTTP header a client sends to a remote (KeyValueInput in
+// the registry schema).
+type Header struct {
+	Name        string `json:"name"`
+	Value       string `json:"value,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 type EnvironmentVariable struct {

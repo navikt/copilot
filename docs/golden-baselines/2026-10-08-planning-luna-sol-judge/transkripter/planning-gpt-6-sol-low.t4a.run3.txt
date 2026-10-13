@@ -1,0 +1,21 @@
+
+
+
+
+
+
+
+
+
+
+Dette er **fase 1: avklaring**. Repoet er en liten Ktor-tjeneste på Nais. Det eksisterende `/api/oppgaver`-endepunktet har ingen autentisering, og Nais-manifestet har ikke ID-porten konfigurert. Siden endringen gjelder fødselsnummer og tilgang, lager jeg ikke kode eller arkitekturplan før grensene er avklart.
+
+1. Skal innbyggere logge inn via nettleser, eller skal en annen tjeneste kalle API-et på vegne av dem? Skal `/api/oppgaver` fortsatt være tilgjengelig uten innlogging?
+2. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare leses fra innloggingskonteksten, eller også lagres eller sendes videre? Behandles andre personopplysninger?
+3. Hvilke tjenester eller brukere skal motta resultatet, og finnes det eksisterende konsumenter av API-et?
+4. Er dette en ny tjeneste, eller skal `demo-tjeneste` bygges om? Finnes det krav til tester eller tilbakeføring ved utrulling?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Feilhåndtering og måltall tas i planfasen; de øvrige blindsonene om modernisering og avvikling er ikke relevante før det er avklart om tjenesten erstatter noe.
+
+Blindsoner reist: 5/11 (#1, #2, #6, #7, #8; #3–#5 og #9–#11 avventes eller er foreløpig ikke relevante).
+

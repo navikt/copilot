@@ -1,0 +1,31 @@
+
+
+
+### Oppsummering
+Jeg fant ingen blokkerende feil. SQL-spørringen er parameterisert, og fødselsnummeret maskeres i loggene. Fødselsnummeret hentes fra `pid`-claimet i tokenet og ikke fra en request-parameter, så brukeren får bare sine egne saker. `App.kt` validerer `acr=idporten-loa-high`. `mise check` kunne ikke kjøre fordi repoet ikke har noen `check`-task, og `src/test` finnes ikke.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges her og kastes videre, så den blir trolig logget én gang til av StatusPages. |
+| `SakService.kt` | 41 | 🟡 | Hele exception-objektet logges. JDBC-feil kan inneholde verdier fra spørringen. |
+| `SakService.kt` | 23–30, 56 | 🟡 | Blokkerende JDBC-kall kjører i Ktor-handleren uten `withContext(Dispatchers.IO)`. |
+| – | – | 🟡 | Ingen tester. |
+| `SakService.kt` | 20 | 💭 | `maskert()` er en public extension på hele `String`. |
+| `SakService.kt` | – | 💭 | Filen inneholder modell, repository, service og routes. |
+
+### Detaljer
+- **Dobbel logging (linje 38–43):** Når samme feil logges to ganger, er det uklart hvor den faktisk ble håndtert. Velg ett sted. Enten logger og håndterer du feilen her, eller så fjerner du try/catch og lar StatusPages logge den.
+- **Exception i loggen (linje 41):** PostgreSQL-feil kan ta med parameterverdier i detail-feltet, og her er parameteren et fødselsnummer. Sjekk hva driveren faktisk logger ved feil. Vurder å logge bare `e.javaClass.simpleName`, eller en melding uten parameterverdiene.
+- **Blokkerende kall (linje 23–30 og 56):** JDBC-kallet blokkerer en tråd som Ktor bruker til korutiner. Under last kan dette sulte ut tråd-poolen. Gjør `sakerFor` til en `suspend`-funksjon og pakk databasekallet i `withContext(Dispatchers.IO)`.
+- **Tester:** Det trengs tester for disse tilfellene:
+  - Kall uten `pid`-claim gir 401.
+  - En gyldig bruker får bare sine egne saker. Bruk MockOAuth2Server og Testcontainers.
+  - Fødselsnummeret havner aldri i loggen.
+- **`maskert()` (linje 20):** Funksjonen bytter ut hele strengen med `*`, så den skjuler bare lengden. Gjør den `private` eller `internal`, eller bruk en egen type for fødselsnummer.
+
+🔴 Rød sone: tilgangskontroll og håndtering av personopplysninger. Gå gjennom testene for dette nøye.
+
+Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,21 @@
+
+
+
+
+
+
+
+
+
+
+Dette er **fase 1: avklare tjenesten**. Repoet er en liten Ktor-tjeneste med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten eller `accessPolicy` konfigurert. Jeg gjør derfor ingen endringer i auth eller kode før bruken av fødselsnummer er avklart.
+
+1. Skal en innbygger bruke tjenesten via nettleser, og finnes det allerede en frontend som håndterer innlogging med ID-porten? Hva skal tjenesten gjøre med fødselsnummeret etter innlogging?
+2. Skal fødselsnummeret kun brukes i minnet, eller lagres eller sendes det videre? I så fall til hvilke tjenester og for hvilket formål?
+3. Hvem skal kunne kalle API-et: bare den innloggede innbyggeren, en frontend/BFF eller også andre tjenester?
+4. Hva skal skje hvis ID-porten eller en tjeneste dere må kalle, er utilgjengelig? Finnes det tester eller konsumenter som dagens `/api/oppgaver` må bevares for?
+
+Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` hvis dere vil legge inn lokal Copilot-kontekst. Blindsoner om målinger, teameierskap, utrulling og utfasing kan vente til vi vet hva tjenesten skal gjøre.
+
+Blindsoner reist: **8/11** (#1, #2, #3, #5, #6, #7, #8 og #9; #4, #10 og #11 ikke avklart som relevante ennå).
+

@@ -1,0 +1,30 @@
+
+
+
+
+
+
+
+
+
+## Fase 1: Avklar tjenesten
+
+Repoet inneholder allerede en liten Kotlin/Ktor-tjeneste på Nais, men ingen kode for ID-porten eller FNR. Jeg antar foreløpig at dette er et nytt tilbud for innbyggere, der tjenesten leser FNR fra et validert ID-porten-token. Jeg har ikke valgt løsning eller endret kode.
+
+Svar kort på disse spørsmålene:
+
+1. **Personopplysninger:** Skal tjenesten bare bruke FNR mens forespørselen behandles, eller skal den lagre eller sende FNR videre? Hva er formålet, og hvilke tjenester skal eventuelt motta det?
+2. **Tilgang:** Skal innbyggeren bruke tjenesten direkte i en nettleser, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren? Er det andre kallere?
+3. **Avhengigheter:** Hva skal tjenesten gjøre hvis ID-porten eller en tjeneste den kaller, ikke er tilgjengelig?
+4. **Måling:** Hvilket tegn viser at tjenesten fungerer for innbyggeren?
+5. **Ansvar:** Hvilket team eier tjenesten og eventuelle nedstrøms tjenester?
+6. **Konsumenter:** Hvem skal bruke data eller API fra tjenesten?
+7. **Tester:** Finnes det tester utenfor dette repoet? Jeg ser ingen testfiler her.
+8. **Teknologi:** Er Kotlin/Ktor og Nais teknologi du kjenner fra før?
+
+Vil du bygge videre på `demo-tjeneste` i dette repoet, eller skal dette bli et eget repo og en egen tjeneste?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7, #11 stilt; #8–#10 ikke relevante for et nybygg).
+

@@ -1,0 +1,20 @@
+# Omregning av de lagrede planleggingssvarene, uten nye modellkall.
+# testoppsett = utfallet testoppsettet registrerte, på hele stdout med verktøyutskrift.
+# svar = de uendrede mønstrene RE_BS1 og RE_BS2, kjørt på svaret uten verktøyutskrift (transkripter/).
+# Blindsonesjekkene er ikke pålitelige og skal erstattes (docs/modellvalg.md). Tallene er foreløpige.
+# sett|arm|sjekk|kjøring|testoppsett|svar
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|1|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|2|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|3|fail|fail
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|4|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t3|5|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|1|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|2|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|3|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|4|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7|5|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|1|fail|fail
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|2|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|3|pass|pass
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|4|pass|fail
+2026-10-07-luna-planning|planning-gpt-6-luna-medium|t7b|5|pass|pass

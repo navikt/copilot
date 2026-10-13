@@ -12,7 +12,6 @@ import {
 import NextLink from "next/link";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getRecentlyUpdatedCustomizations } from "@/lib/recent-updates";
-import { WeeklyTip } from "./weekly-tip";
 import type { CustomizationType } from "@/lib/customization-types";
 
 const TYPE_ICONS: Record<CustomizationType, typeof RocketIcon> = {
@@ -117,8 +116,6 @@ export function Sidebar() {
     <aside aria-label="Redaksjonelt innhold" className="hidden lg:block">
       <div className="sticky top-8">
         <VStack gap="space-12">
-          <WeeklyTip />
-          <hr className="border-gray-200" />
           <RecentUpdates />
         </VStack>
       </div>
@@ -128,13 +125,8 @@ export function Sidebar() {
 
 export function SidebarCompact() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:hidden">
-      <Box paddingBlock="space-8">
-        <WeeklyTip />
-      </Box>
-      <Box paddingBlock="space-8">
-        <RecentUpdates />
-      </Box>
-    </div>
+    <Box paddingBlock="space-8" className="lg:hidden">
+      <RecentUpdates />
+    </Box>
   );
 }

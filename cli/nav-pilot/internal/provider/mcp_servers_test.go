@@ -181,6 +181,15 @@ func TestMCPClientEntry(t *testing.T) {
 		{MCPClientCopilot, pw, `{"type":"local","command":"pnpm","args":["dlx","@playwright/mcp@0.0.80","--browser","chromium"],"tools":["*"]}`},
 		{MCPClientOpenCode, pw, `{"type":"local","command":["pnpm","dlx","@playwright/mcp@0.0.80","--browser","chromium"],"enabled":true}`},
 		{MCPClientCopilot, MCPServerEntry{Remotes: []MCPRemote{{Type: "sse", URL: "http://127.0.0.1:64342/sse"}}}, `{"type":"sse","url":"http://127.0.0.1:64342/sse","tools":["*"]}`},
+		// The registry's fixed headers go into both clients' entries.
+		{MCPClientOpenCode, func() MCPServerEntry {
+			e := MCPServerEntry{Remotes: []MCPRemote{{Type: "streamable-http", URL: "https://x.example/mcp"}}}
+			e.Remotes[0].Headers = append(e.Remotes[0].Headers, struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			}{"X-MCP-Readonly", "true"})
+			return e
+		}(), `{"type":"remote","url":"https://x.example/mcp","enabled":true,"headers":{"X-MCP-Readonly":"true"}}`},
 		// A remote wins over a package: nothing to run from a cache.
 		{MCPClientCopilot, MCPServerEntry{Remotes: figma.Remotes, Packages: pw.Packages}, `{"type":"http","url":"https://mcp.figma.com/mcp","tools":["*"]}`},
 	} {

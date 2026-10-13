@@ -179,8 +179,11 @@ func spoolHookEvents(sessionID string, lines ...string) {
 
 var (
 	drainSpoolAtExit bool
-	localTripsMu     sync.Mutex
-	localTrips       = map[string]int{}
+	// copilotSessionIDs are the Copilot sessions this process launched: the
+	// ones it records at exit ([copilotSessionArgs]).
+	copilotSessionIDs []string
+	localTripsMu      sync.Mutex
+	localTrips        = map[string]int{}
 )
 
 // countLocalTrip is local.OnLoopGuard: the guard proxy's trips, kept until
@@ -207,6 +210,8 @@ func recordHookEvents() {
 	if drainSpoolAtExit {
 		drainSpoolAtExit = false
 		drainHookEvents()
+		recordCopilotSessions(hookStateDir(), copilotSessionIDs)
+		copilotSessionIDs = nil
 	}
 }
 
@@ -329,8 +334,10 @@ func syncBuiltinHooks(r ResolvedConfig) {
 			Event:   source.HookEventPostToolUse,
 		}
 		if h.pre {
-			// Copilot denies the call when a preToolUse hook times out; the
-			// check keeps to half a second of the 5 (actionCheckBudget).
+			// A preToolUse hook that times out holds the call for the whole 5 s
+			// before Copilot 1.0.94 allows it (DESIGN.md "Hook-watchdog og
+			// klientens frist"); the check keeps to half a second of that
+			// (actionCheckBudget).
 			entry.Event, entry.Matcher = "", shellMatcher
 		}
 		_, statErr := os.Stat(path)
@@ -460,7 +467,7 @@ func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
 func bridgeHooks(entries []source.HookEntry) []providerpkg.BridgeHook {
 	out := make([]providerpkg.BridgeHook, 0, len(entries))
 	for _, e := range entries {
-		out = append(out, providerpkg.BridgeHook{Name: e.Name, Command: e.Command, Matcher: e.Matcher, Timeout: e.Timeout})
+		out = append(out, providerpkg.BridgeHook{Name: e.Name, Command: e.Command, Matcher: e.Matcher, Timeout: e.Timeout, FailClosed: e.FailClosed})
 	}
 	return out
 }

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"errors"
@@ -328,8 +329,14 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			baseName = reusedInSync.Pakke.Name
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), pakkeReleaseTimeout)
-		warnBaseLag(ctx, w, "", scope.Name, sourceLabelFor(src), reusedInSync.Repo, baseName, reusedInSync.SHA)
+		var lagNote bytes.Buffer
+		warnBaseLag(ctx, &lagNote, "", scope.Name, sourceLabelFor(src), reusedInSync.Repo, baseName, reusedInSync.SHA)
 		cancel()
+		// Said last, after the summary, where it is read: above it, the line
+		// scrolled past with the file list.
+		if lagNote.Len() > 0 {
+			defer func() { fmt.Fprint(w, "\n"+lagNote.String()) }()
+		}
 	}
 
 	// A collection-era scope meets its source's manifest here first: rewrite

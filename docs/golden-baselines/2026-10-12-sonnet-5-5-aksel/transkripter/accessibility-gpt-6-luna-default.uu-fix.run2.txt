@@ -1,0 +1,50 @@
+● skill(aksel-builder)
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read nextjs-aksel.instructions.md
+  │ .github/instructions/nextjs-aksel.instructions.md
+  └ 598 lines read
+
+/ Search (grep)
+  │ "StatusPanel|aria-label|slett" in **/*.{tsx,ts} (src)
+  └ 1 line found
+
+✗ Read package.json
+  └ Path does not exist
+
+● Read accessibility.md
+  │ ~/.copilot/skills/aksel-builder/references/accessibility.md
+  └ 84 lines read
+
+/ Search (glob)
+  │ "node_modules/next/dist/docs/**"
+  └ No matches found
+
+/ Search (grep)
+  │ "StatusPanel|toHaveAccessibleName|accessible name" in **/*.{test.ts, test.tsx,tsx,ts}
+  └ 1 line found
+
+/ Search (glob)
+  │ "src/**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "*"
+  └ 39 files found
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+Slett-knappen har nå `aria-label="Slett status"` i `src/app/komponenter/StatusPanel.tsx`, slik at den får et tilgjengelig navn.
+

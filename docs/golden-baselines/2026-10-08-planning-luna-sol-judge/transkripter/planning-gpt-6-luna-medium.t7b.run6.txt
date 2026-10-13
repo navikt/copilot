@@ -1,0 +1,51 @@
+
+## Phase 1 discovery
+
+**Summary:** `SoknadMottattMelding` currently has `soknadId` and `mottatt`; `sendMottatt` serializes the whole model as JSON and publishes it to `soknad-mottatt`. Adding `fnr` would add a field to that topic’s payload. The repo confirms that FNR already appears in another model and Kafka producer, but does not establish whether this topic’s consumers are authorized for it, or answer most operational and compatibility questions. **No files were changed.**
+
+### Findings and evidence
+
+- **Repo instructions:** I found no `AGENTS.md`, `.github/copilot-instructions.md`, or `.github/copilot-review-instructions.md`. `.github/` contains `agents/` and `instructions/`; the relevant Nav Pilot guidance says to infer privacy/access from repo evidence and ask only where it does not answer the question (`.github/agents/golden-nav-pilot.agent.md:153–173`). Kotlin guidance flags Kafka schema changes for discussion (`.github/instructions/kotlin.instructions.md:492`); security guidance says not to log FNR or other personal data (`.github/instructions/security-core.instructions.md:5`).
+- **Model, serialization, producer:** `SoknadMottattMelding` is declared without FNR at `src/main/kotlin/no/nav/demo/Soknad.kt:13`; `sendMottatt` publishes its JSON to `soknad-mottatt`, keyed by `soknadId` (`:21–22`). The shared Jackson mapper registers modules and disables timestamp date output (`:15–17`).
+- **Existing FNR signal:** `SokerDto` contains `fnr` (and `navn`) at `Soknad.kt:11`, and `sendSoker` serializes it to a different topic, `soker-oppdatert` (`:25–26`). This is evidence the repo handles FNR, **not** evidence that adding it to `soknad-mottatt` is approved or necessary. **Assumption:** FNR is personal data; repo guidance treats it as such (`security-core.instructions.md:5`).
+- **Topic recipients/access:** The producer names the topic, but no consumer, topic ACL, schema registry, or Kafka access configuration was found. `nais.yaml:1–12` contains only application identity, port, and health probes—no Kafka or `accessPolicy` settings. Thus the existing reader set and its authorization for FNR are unknown.
+- **Tests and compatibility:** The repo has no test files in its discovered file tree, and `build.gradle.kts:8–18` declares implementation dependencies but no test dependencies. There is no consumer contract or compatibility policy. The proposed field is an **additive JSON payload change**; whether existing consumers tolerate it or need a coordinated rollout is not established.
+- **Failure handling and observability:** `sendMottatt` calls asynchronous `producer.send(...)` without visible callback/future handling, retry/dead-letter policy, or send-result instrumentation (`Soknad.kt:21–23`). No rollback plan, business metrics, or ownership/consumer documentation was found. These are repository gaps, not proof that no such controls exist outside this repo.
+
+### Nav Pilot blind spots still open
+
+1. **Privacy:** What purpose and data classification justify including FNR in this event, and is it necessary in this payload?
+2. **Access:** Are all current `soknad-mottatt` readers authorized to receive FNR, and is the topic’s reader set unchanged?
+3. **Dependency/error handling:** What should happen if Kafka publishing fails—retry, fail the operation, or dead-letter?
+4. **Observability:** Which signals should show successful publication and failures, without exposing FNR?
+5. **Team boundaries:** Who owns the producer and downstream flow?
+6. **Change impact:** Which consumers use this topic, and who must be consulted?
+7. **Test strategy:** What tests exist outside this repo, and what payload/consumer contract should be verified?
+8. **Rollback:** What is the rollout and rollback plan if consumers or processing fail?
+9. **Backward compatibility:** Can existing consumers handle the additive field, and is a coordinated rollout required?
+
+The repo does not indicate a legacy solution to decommission (#10) or a new technology/concept being introduced (#11), so those appear not applicable based on current evidence.
+
+**Blindsoner reist: 9/11 (#1–#9 stilt; #10–#11 ikke relevant)**● Research-agent (model: gpt-6-luna) Inspect Kafka event contract                             1m 42s
+      │ "**/{AGENTS.md, copilot-instructions.md, copilot-review-instructions.md, *Test.kt,
+      *Tests.kt,
+      │ *test.kt, *test.kts}"
+      └ No matches found
+
+
+Å legge `fnr` til `SoknadMottattMelding` endrer payloaden på Kafka-topicet `soknad-mottatt` og sender personopplysninger til topicets lesere. Jeg har ikke endret kode. Repoet viser at FNR finnes i `SokerDto` og sendes på et annet topic, men det viser ikke at leserne av `soknad-mottatt` skal ha tilgang til FNR. Jeg fant heller ingen repo-lokal `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`.
+
+Før jeg gjør endringen, trenger jeg svar på disse punktene:
+
+1. **Personvern:** Hvorfor må meldingen inneholde FNR, og er det godkjent å sende det til alle leserne av topicet?
+2. **Tilgang:** Hvilke tjenester leser `soknad-mottatt`, og er alle autorisert til å motta FNR?
+3. **Feil ved publisering:** Skal appen prøve på nytt, feile operasjonen eller sende meldingen til en dead-letter-topic hvis Kafka-publisering feiler?
+4. **Måling:** Hvilke signaler trenger dere for å følge med på publisering og feil, uten å logge FNR?
+5. **Ansvar:** Hvilket team eier produsenten og den videre behandlingen?
+6. **Påvirkning:** Hvilke konsumenter må involveres før endringen rulles ut?
+7. **Tester:** Hvilke tester eller kontraktsjekker finnes utenfor dette repoet?
+8. **Rollback:** Hvordan skal dere rulle tilbake hvis konsumenter eller behandling feiler?
+9. **Bakoverkompatibilitet:** Tåler eksisterende konsumenter det nye feltet, eller må utrullingen koordineres?
+
+Blindsoner reist: 9/11 (#1–#9 stilt; #10–#11 ikke relevante).
+

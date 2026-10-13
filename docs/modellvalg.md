@@ -8,22 +8,23 @@ Kortversjonen for utviklere, med målinger og priser, står på [ki-utvikling.na
 
 De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter. `nav-pilot` har det ikke, men agentpakken bruker GPT-6 Sol når brukeren ikke har valgt en modell. En brukerpinne vinner fortsatt over pakkas standard. Valget følger oppgavetype, kostnad og ytelse, ikke leverandørpreferanse. Priser og kategori står i modelltabellen under.
 
-**Pinnene under gjelder når agenten startes direkte.** Blir den startet som subagent av `@nav-pilot`, arver den modellen forelderen kjører på. Se [Pinner og delegering](#pinner-og-delegering).
+**Pinnene under gjelder også for subagenter fra Copilot CLI 1.0.94-3.** I 1.0.83-4 arvet en subagent forelderens modell. Målt på nytt 8. oktober 2026: subagenten kjører på pinnen sin. Se [Ny måling 8. oktober 2026](#ny-måling-8-oktober-2026-copilot-cli-1094-3).
 
 ### Agenter
 
-| Agent                | Modell            | Begrunnelse                                                                                                                                                                                                               |
-| -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@nav-pilot`         | GPT-6 Sol         | Agentpakkas standard for Copilot, opencode og pi. GPT-5.6 Sol beholdes som fallback. En brukerpinne overstyrer standarden                                                                                                 |
-| `@nav-pilot-opus`    | Claude Opus 5.5   | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. GPT-6.1 Sol er fallback mens vi måler agenten direkte                                                  |
-| `@security-champion` | GPT-6 Sol         | Sikkerhetskritiske vurderinger. Modellen fant personvern, tilgangskontroll og riktig TokenX-mønster i fem av fem kjøringer. Ett fasebrudd i `nav-pilot` følges under utrullingen                                          |
-| `@code-review`       | Claude Opus 5.5   | Fant alle plantede feil på riktig linje i ti av ti gjennomganger på Low, Medium og High 30. september. Low holder og er billigst. GPT-6.1 Sol er fallback, deretter GPT-5.3-Codex                                         |
-| `@kafka`             | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så GPT-6 Sol er fallback, deretter GPT-5.3-Codex            |
-| `@research`          | GPT-6 Luna        | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder bare når agenten startes direkte, ikke når `@nav-pilot` delegerer til den |
-| `@rust`              | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så GPT-6 Sol er fallback, deretter GPT-5.3-Codex            |
-| `@aksel`             | Claude Sonnet 5.5 | Sterk på komponentstruktur og designsystem-konvensjoner. Sonnet 5 beholdes som fallback                                                                                                                                   |
-| `@accessibility`     | Claude Sonnet 5.5 | God på WCAG-tolkning og semantisk HTML. Sonnet 5 beholdes som fallback                                                                                                                                                    |
-| `@forfatter`         | Claude Sonnet 5.5 | Anthropic-modellene er best på norsk klarspråk. Sonnet 5 beholdes som fallback                                                                                                                                            |
+| Agent                | Modell            | Begrunnelse                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@nav-pilot`         | GPT-6 Sol         | Agentpakkas standard for Copilot, opencode og pi. GPT-5.6 Sol beholdes som fallback. En brukerpinne overstyrer standarden                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `@nav-pilot-opus`    | Claude Opus 5.5   | Høyrisikoplanlegging og kritisk kodegjennomgang. High effort traff de plantede linjene i fem av fem gjennomganger. GPT-6 Sol er fallback. Den fikk rv5 3/10, rv7 0/10 og rv1–rv4 36/40 7. oktober, se [Rettede sjekker og GPT-6 Sol](#rettede-sjekker-og-gpt-6-sol-7-oktober-2026)                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `@security-champion` | Claude Opus 5.5   | Sikkerhetskritiske vurderinger. Flyttet fra GPT-6 Sol 7. oktober etter eierens forhåndsbestemte regel: GPT-6 Sol besto rv5 i 3 av 10 kjøringer, under kravet på 7 ([2026-10-07-gpt-6-sol-review](golden-baselines/2026-10-07-gpt-6-sol-review/), [#1447](https://github.com/navikt/copilot/pull/1447)). Opus 5.5 besto 7 av 10. Målingen brukte `@code-review`-personaen, som da ga en åpen `accessPolicy` 🟡. Nå er den 🔴, så agenten må måles på nytt. 8. oktober ble fnr og andre personopplysninger i logger gjort til et kritisk funn i personaen. Målingen i [#1459](https://github.com/navikt/copilot/pull/1459) er eldre enn regelen, så den må også måles på nytt. GPT-6 Sol er reservemodell |
+| `@code-review`       | Claude Opus 5.5   | Fant alle plantede feil på riktig linje i ti av ti gjennomganger på Low, Medium og High 30. september. Low holder og er billigst. Fallback er GPT-6 Sol Low, deretter GPT-5.3-Codex. GPT-6 Sol fikk rv5 3/10, rv7 0/10 og rv1–rv4 36/40 7. oktober, se [Rettede sjekker og GPT-6 Sol](#rettede-sjekker-og-gpt-6-sol-7-oktober-2026)                                                                                                                                                                                                                                                                                                                                                                     |
+| `@kafka`             | GPT-6 Luna        | Verktøytung kodeagent. Luna Medium besto alle 30 sjekker i kodesuiten 30. september for omtrent 1,7 credits, mot omtrent 28 med GPT-6 Sol. Oppgavene var små, så Målt 8. oktober mot Claude Haiku 5.5 Low: ingen målbar forskjell, så Luna beholdes. GPT-6 Sol er fallback, deretter GPT-5.3-Codex                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `@research`          | GPT-6 Luna        | Leser og søker uten å skrive kode. Modellen besto ti av ti avgrensede krav og brukte omtrent 45 prosent færre credits enn GPT-5.6 Luna. Gjelder også når `@nav-pilot` delegerer til den, målt 8. oktober 2026 på Copilot CLI 1.0.94-3                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `@rust`              | Claude Haiku 5.5  | Verktøytung kodeagent. Både Haiku 5.5 Low og GPT-6 Luna Medium besto 5 av 5 på rs-borrow og rs-feil 8. oktober. Haiku var billigere i alle fem kjøringene: 0,87–1,02 mot 1,11–1,58 credits per kjøring (p = 0,008). Oppgavene er små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Bruk Low. GPT-6 Luna er reserve, deretter GPT-5.3-Codex                                                                                                                                                                                                                                                                                                                                |
+| `@worker`            | GPT-6 Luna        | Utfører én avgrenset oppgave fra en brief. Luna Medium besto 30 av 30 sjekker i kodesuiten 30. september og 8. oktober (median 1,65 og 1,86 credits). Claude Haiku 5.5 Low besto også 30 av 30 for 1,55–1,64 credits og er reserve. Kvaliteten avhenger av briefen fra koordinatoren                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `@aksel`             | Claude Sonnet 5.5 | Sterk på komponentstruktur og designsystem-konvensjoner. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `@accessibility`     | Claude Sonnet 5.5 | God på WCAG-tolkning og semantisk HTML. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `@forfatter`         | Claude Sonnet 5.5 | Anthropic-modellene er best på norsk klarspråk. Sonnet 5 beholdes som fallback                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 ### Prompts
 
@@ -60,7 +61,7 @@ Råmålingen bruker eksakte `assistant_usage_events`, inkludert retries og subag
 
 Vi tilpasset ikke agentpersonaene eller instruksjonene til de nye modellene før målingen. Bare testoppsettet ble rettet: Det måler nå Fase 2 på riktig tur og bruker faktiske intervjuspørsmål i stedet for en bestemt faseoverskrift. Kandidat og kontroll brukte samme agentfil, men det var den installerte kopien og ikke repoets (se rettelsen over).
 
-`@code-review` ble flyttet til Opus 5.5 med en anbefaling om High effort. Målingen bak flyttingen var ugyldig (se rettelsen over). Den nye målingen 30. september støtter pinnen og viser at Low holder. Agent-frontmatter kan ikke håndheve innsatsnivå (effort), så en direkte start kan arve nivået fra sesjonen. Bruk GPT-6.1 Sol eller GPT-5.3-Codex som fallback ved regresjoner.
+`@code-review` ble flyttet til Opus 5.5 med en anbefaling om High effort. Målingen bak flyttingen var ugyldig (se rettelsen over). Den nye målingen 30. september støtter pinnen og viser at Low holder. Agent-frontmatter kan ikke håndheve innsatsnivå (effort), så en direkte start kan arve nivået fra sesjonen. Bruk GPT-6 Sol Low (rv5 3/10, rv7 0/10 og rv1–rv4 36/40 7. oktober) eller GPT-5.3-Codex som fallback ved regresjoner.
 
 Kafka- og Rust-agentene flyttes til Sol, mens `kafka-topic` og `nais-manifest` flyttes til Luna. Blokkeringsskjermen målte samme oppgaveklasse, men ikke disse fire artefaktene direkte. Dette er derfor en kontrollert utrulling med fallbacks, ikke dokumentasjon på at de nye modellene er bedre på Kafka, Rust eller Nais-manifester.
 
@@ -75,6 +76,7 @@ Vi kjørte to batcher med golden-harnesset på Copilot CLI 1.0.90-5, med fem kj�
 - **Low holder for `@code-review`.** Opus 5.5 fant alle plantede feil på riktig linje i ti av ti gjennomganger på alle tre nivåer. Medianen var 23,9 credits på Low, 30,0 på Medium og 38,1 på High. Dette er den nye målingen som rettelsen over ventet på.
 - **Bruk ikke High for `@nav-pilot`.** GPT-6 Sol High stoppet ikke etter fase 1 i to av fem kjøringer og brukte 70,7 credits. På Low stoppet den i fem av fem for 28,9 credits.
 - **GPT-6 Sol er fortsatt standard for `@nav-pilot`.** GPT-6.1 Sol High og GPT-6 Astra skrev de åpne punktene i fase 1 som påstander, ikke som spørsmål, og besto test 2 i null av fem kjøringer. GPT-6.1 Sol Low besto i to av fem. Astra kostet i tillegg fem til seks ganger så mye som Sol-modellene: 154 credits per planleggingskjøring mot 28,9 for GPT-6 Sol Low.
+  - _Tillegg 12. oktober 2026:_ Sjekken for test 2 teller nå åpne punkter etter innhold, ikke bare spørsmålstegn ([#1614](https://github.com/navikt/copilot/pull/1614)). Med den besto GPT-6.1 Sol Low test 2 i fem av fem kjøringer (kjørt 11., vurdert 12. oktober, [2026-10-12-sol61-rerun](golden-baselines/2026-10-12-sol61-rerun/)). Transkriptene fra 30. september ble ikke tatt vare på, så resultatet over kan ikke regnes om.
 - **Alle modellene skrev «AI» i norsk tekst.** Sonnet 5.5 gjorde det i tre av fem kjøringer, GPT-6.1 Sol i fem av fem og Astra i fire av fem. `@forfatter` har derfor fått en egen regel om å skrive «KI».
 
 ### GPT-6.1 Sol spør ikke i fase 1 (30. september 2026)
@@ -82,6 +84,8 @@ Vi kjørte to batcher med golden-harnesset på Copilot CLI 1.0.90-5, med fem kj�
 I batch 1 stoppet GPT-6.1 Sol High riktig etter fase 1 i fem av fem kjøringer og endret ingen filer. Men den skrev de åpne punktene, som personvern og tilgang, som en nummerert liste med påstander og ikke som spørsmål. Derfor feilet test 2, som teller spørsmål, og test 4 kom aldri til sin andre tur. Agentfila ber om spørsmål i fase 1 («Ask questions … All relevant blind spots raised as questions»). GPT-6.1 Sol Low gjorde det samme i test 2 i tre av fem kjøringer.
 
 Vi har ikke løsnet sjekken. Tallene per transkript står i [t2-questions.psv](golden-baselines/2026-09-30-batch1/t2-questions.psv), og resultatene for High i [planning-gpt-6.1-sol-high-results.psv](golden-baselines/2026-09-30-batch1/planning-gpt-6.1-sol-high-results.psv).
+
+_Tillegg 12. oktober 2026:_ Sjekken er nå endret, se [Ny kjøring av GPT-6.1 Sol](#ny-kjøring-av-gpt-61-sol-12-oktober-2026). En liste med påstander under en innledning som «Følgende er uavklart:» teller nå som åpne punkter.
 
 ## Målinger 1. oktober 2026
 
@@ -92,6 +96,7 @@ Batch 3 hadde fem kjøringer per testarm. Copilot CLI ble oppdatert mens planleg
 - **GPT-6 Sol Medium er ikke bedre enn Low på planlegging.** Medium stoppet etter fase 1 og stilte spørsmålene i fem av fem kjøringer, som Low, men brukte 41,3 credits mot 28,9. High stoppet ikke i to av fem kjøringer.
 - **Claude Opus 5.5 planla riktig, men koster dobbelt så mye.** Opus besto alle sjekkene utenom feilen over, for 57,9 credits per kjøring.
 - **GPT-6 Luna holder på kodegjennomgang, men ikke på planlegging.** På `review` fant Luna Medium alle plantede feil på riktig linje i fem av fem kjøringer for 1,3 credits. Opus 5.5 Low brukte 23,9. På planlegging spurte Luna i to av fem kjøringer bare hva fødselsnummeret skulle brukes til, ikke om personopplysninger. I batch 2 besto Luna Medium også alle sjekkene i `research` for 0,9 credits.
+  - _Rettelse 6. oktober:_ Luna-resultatet på planlegging ble vurdert før «fødselsnummer» kom inn i mønsteret for blindsone 1 (`RE_BS1`, #1436). Kjøring 3 og 5 i [failures.psv](golden-baselines/2026-10-01-batch3/failures.psv) nevner fødselsnummer og ville bestått blindsone 1 med dagens sjekk. Transkriptene ble ikke tatt vare på, så vi kan ikke vurdere kjøringene på nytt.
 
 **Tillegg 1. oktober (batch 3b).** Rådata ligger i [2026-10-01-batch3b](golden-baselines/2026-10-01-batch3b/), med klassifisering i [failures.psv](golden-baselines/2026-10-01-batch3b/failures.psv).
 
@@ -99,11 +104,809 @@ Batch 3 hadde fem kjøringer per testarm. Copilot CLI ble oppdatert mens planleg
 - **`@code-review` blir på Claude Opus 5.5.** GPT-6 Luna Medium holder godt til en rask gjennomgang. Med ti kjøringer besto den 39 av 40 sjekker for 1,3 credits per kjøring, mot 40 av 40 for 23,9 med Opus 5.5 Low. Den eneste bommen var et linjenummer én linje feil, så sjekk linjenumrene mot diffen.
 - **Sjekken for rød sone er rettet.** Test 4 godtar nå komma etter «Rød sone» når 🔴 står foran. En setning som «koden er i rød sone, så …» godtas fortsatt ikke. I en ny måling besto GPT-6 Sol Medium alle sjekkene i fem av fem kjøringer, også test 4, for 37,5 credits per kjøring.
 
+## GPT-6 Sol følger ubetingede regler bokstavelig (6. oktober 2026)
+
+En bruker meldte at `@nav-pilot` startet et intervju om personvern og tilgang når den ble bedt om å vurdere en migrering til Jackson 3. Endringen var rent teknisk.
+
+- **Feilen kom bare med riktig klient og modell.** Med standardmodellen i Copilot CLI så vi den ikke i noen av tolv kjøringer, fordelt på fire varianter av prompten. Med OpenCode og GPT-6 Sol, samme agentfil og skill-en kalt med `/jackson-3-migration`, startet agenten intervjuet i alle tre kjøringene i hver av tre målinger.
+- **Regler uten vilkår blir fulgt bokstavelig.** Agentfila sa «Always verify privacy …» og «always ask #1 and #2 if the change touches user data». GPT-6 Sol leste en DTO med fnr som «touches user data» og spurte, selv om ingen data, mottaker eller tilgangsvei var ny. Da reglene fikk et konkret vilkår, forsvant spørsmålene. Vilkåret er at endringen legger til eller endrer et felt, en mottaker, et loggpunkt eller hvem som har tilgang. I alle tre kjøringene spurte agenten i stedet om konsumentene tåler det nye formatet.
+- **Gjenskap med samme klient og modell før du retter.** En feilrapport om personaen kan ikke avkreftes med en annen klient eller modell. Testoppsettet har fått `--client opencode` for dette.
+
+Rådata ligger i `golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-*`. [v3-before](golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-v3-before.txt) og [v3-after](golden-baselines/2026-10-06-personvern-opencode-gpt-6-sol-v3-after.txt) er målingen før og etter endringen. Tre kjøringer per arm er nok til å vise feilen, men for få til å si hvor ofte den skjer.
+
+## Målinger 6. oktober 2026
+
+Batch 4 sammenligner GPT-6.1 Sol og Claude Opus 5.5 med GPT-6 Sol som standardmodell for daglig bruk. Alle armene kjører på Low i Copilot CLI. GPT-6 Sol er kontrollen og er målt på nytt, fordi #1436 endret `agents/nav-pilot.agent.md`.
+
+### Kriteriene ble satt før målingen
+
+- **GPT-6.1 Sol erstatter GPT-6 Sol på `@nav-pilot`** bare hvis den består test 2 i fem av fem kjøringer, minst like ofte som kontrollen består test 3, 4, 5, 7 og 7b, og ikke koster mer enn kontrollen.
+- **GPT-6.1 Sol anbefales som personlig standard** bare hvis den ikke er dårligere enn kontrollen på koding, kodegjennomgang, norsk og research.
+- **Claude Opus 5.5 Low** må være like god som kontrollen på alt. Kostnaden dokumenteres uansett.
+- **Sjekken for test 2 løsnes ikke.** Viser transkriptene at testrepoet nå svarer på personvern, skrives det ned før vurderingen og legges fram for eieren.
+  - _Tillegg 12. oktober 2026:_ Sjekken teller nå åpne punkter etter innhold ([#1614](https://github.com/navikt/copilot/pull/1614)). Eieren vurderte at den var for streng: Ved en ny kjøring stoppet GPT-6.1 Sol Low riktig etter fase 1 hver gang, men skrev punktene som en liste med påstander. Kriteriet over sto da målingen ble gjort, og står her uendret.
+
+### Resultater
+
+Rådata ligger i [2026-10-06-batch4](golden-baselines/2026-10-06-batch4/), og feilene i planleggingen er klassifisert i [failures.psv](golden-baselines/2026-10-06-batch4/failures.psv). Planlegging, koding, norsk og research har fem kjøringer per arm, kodegjennomgang ti. Credits er medianen per kjøring. Alle tallene er målt, ikke anslått.
+
+| Testpakke            | GPT-6 Sol (kontroll) | GPT-6.1 Sol         | Claude Opus 5.5     |
+| -------------------- | -------------------- | ------------------- | ------------------- |
+| Planlegging, t2      | 5/5                  | 2/5                 | 5/5                 |
+| Planlegging, t3      | 5/5                  | 4/5                 | 5/5                 |
+| Planlegging, t4      | 4/5                  | 3/5                 | 5/5                 |
+| Planlegging, t5      | 5/5                  | 5/5                 | 5/5                 |
+| Planlegging, credits | 27,2                 | 22,7                | 50,8                |
+| Koding               | 30/30, 24,7 credits  | 30/30, 25,3 credits | 30/30, 47,9 credits |
+| Kodegjennomgang      | 33/40, 15,4 credits  | 24/40, 17,1 credits | 40/40, 24,4 credits |
+| Norsk                | 20/20, 15,1 credits  | 20/20, 14,5 credits | 20/20, 30,8 credits |
+| Research             | 20/20, 13,0 credits  | 20/20, 14,7 credits | 20/20, 35,8 credits |
+
+- **GPT-6.1 Sol erstatter ikke GPT-6 Sol på `@nav-pilot`.** Den besto test 2 i to av fem kjøringer. I de tre andre listet den de åpne punktene som påstander uten spørsmålstegn. Testrepoet svarer ikke på personvern, så sjekken er ikke løsnet. Test 3 var også svakere (4/5). Test 4 ble ikke vurdert i to kjøringer fordi test 2 feilet. Kontrollens 4/5 på test 4 er én kjøring der testoppsettet ikke fant noen plan for fase 2, ikke en modellfeil.
+  - _Tillegg 12. oktober 2026:_ GPT-6 Sol beholder `@nav-pilot`. Med de rettede sjekkene besto GPT-6.1 Sol test 2 i fem av fem kjøringer ([#1614](https://github.com/navikt/copilot/pull/1614), [#1615](https://github.com/navikt/copilot/pull/1615)), men medianen var 6,89 credits per kjøring mot 6,77 for GPT-6 Sol, omtrent 2 prosent mer, og test 3, 4, 5, 7 og 7b er ikke kjørt på nytt.
+- **GPT-6.1 Sol anbefales ikke som personlig standard.** Den holdt på koding, norsk og research, men ikke på kodegjennomgang. I Kotlin-fila nevnte den ikke det svelgede unntaket ved riktig linje i åtte av ti kjøringer. Kontrollen bommet på det én gang.
+  - _Tillegg 12. oktober 2026:_ GPT-6.1 Sol er nå anbefalt personlig standard. I en ny kjøring fant den det svelgede unntaket i fem av fem på rv1 og rv2 med de rettede sjekkene, med en median på 5,95 credits per kjøring mot 7,50 for GPT-6 Sol ([#1614](https://github.com/navikt/copilot/pull/1614), [#1615](https://github.com/navikt/copilot/pull/1615)). Batch 4 kan ikke regnes om, fordi transkriptene ikke ble tatt vare på.
+- **Claude Opus 5.5 Low var minst like god som kontrollen på alle målte sjekker**, men kostet 1,6 til 2,8 ganger så mye per kjøring. Dyrest er den på research: 35,8 credits mot 13,0.
+- **Test 7 og 7b og OpenCode-armen ble ikke kjørt.** Testpakkene brukte 2 197 credits, mot et anslag på 1 909. Medregnet 66 credits på testkjøringer på forhånd ble det 2 263. De gjenstående kjøringene ville tatt forbruket over grensen på 2 500 credits (anslaget pluss 25 prosent). Eieren satte denne stoppregelen da målingen startet. Den er ikke en del av kriteriene over. Resultatene for test 7 og 7b kan ikke endre utfallet for GPT-6.1 Sol, som allerede feiler på test 2.
+
+### Ny kjøring av GPT-6.1 Sol (12. oktober 2026)
+
+Vi kjørte test 2 og kodegjennomgangen rv1 og rv2 på nytt med GPT-6.1 Sol Low og GPT-6 Sol Low, fem kjøringer per arm i Copilot CLI. Testene ble kjørt 11. oktober og vurdert 12. oktober. Rådata ligger i [2026-10-12-sol61-rerun](golden-baselines/2026-10-12-sol61-rerun/). Med de gamle sjekkene feilet GPT-6.1 Sol sju kjøringer. Alle sju ble lest for hånd, og ingen var en reell bom: Modellen stoppet riktig og fant det svelgede unntaket, men skrev det på en måte sjekkene ikke kjente igjen. [#1614](https://github.com/navikt/copilot/pull/1614) rettet sjekkene, og [#1615](https://github.com/navikt/copilot/pull/1615) har rådata og resultatene regnet om. Tabellen gjelder personaen slik den er i repoet. Et forsøk med en ekstra linje i personaen er beskrevet i README-en der og er ikke med her.
+
+| Arm                                  | GPT-6.1 Sol Low | GPT-6 Sol Low |
+| ------------------------------------ | --------------- | ------------- |
+| t2                                   | 5/5 (før: 3/5)  | 5/5           |
+| rv1 og rv2                           | 5/5 (før: 2/5)  | 5/5           |
+| Credits, t2, median per kjøring      | 6,89            | 6,77          |
+| Credits, rv1+rv2, median per kjøring | 5,95            | 7,50          |
+
+- **GPT-6.1 Sol blir anbefalt personlig standard.** Den er like god som GPT-6 Sol på koding, norsk og research, og med de rettede sjekkene også på t2 og rv1–rv2. På rv1–rv2 er den billigere.
+- **GPT-6 Sol beholder `@nav-pilot`.** Medianen for GPT-6.1 Sol på test 2 var omtrent 2 prosent høyere (6,89 mot 6,77 credits), og test 3, 4, 5, 7 og 7b er ikke kjørt på nytt.
+- **Resultatene fra batch 4 og fra 7. oktober kan ikke regnes om.** Transkriptene ble ikke tatt vare på. Resultatene i batch 4-tabellen og 24/40 på kodegjennomgang står derfor slik de ble målt.
+
+### Omregnet til listepris
+
+Tabellen regner batch 4 om til dollar med GitHubs listepriser per 7. oktober 2026. Hver celle er medianen per kjøring av de målte tokenene i bruksfilene, ganget med listeprisen. Dette er GitHubs listepris, ikke det Nav faktureres. Ingen forespørsel var over 272K tokens, så prisen for lang kontekst er ikke brukt. Utregningen ligger i [list-price.py](golden-baselines/2026-10-06-batch4/list-price.py).
+
+I det første tallet er all input priset som vanlig input. I det andre er tokenene bruksfilene oppgir som lest fra cache, priset til cachepris, og tokenene skrevet til cache til GitHubs pris for cacheskriving. Mellom 68 og 87 prosent av input var lest fra cache.
+
+| Testpakke       | GPT-6 Sol (kontroll) | GPT-6.1 Sol   | Claude Opus 5.5 |
+| --------------- | -------------------- | ------------- | --------------- |
+| Planlegging     | $0.82 / $0.27        | $0.79 / $0.23 | $1.24 / $0.51   |
+| Koding          | $0.95 / $0.25        | $1.15 / $0.25 | $1.67 / $0.48   |
+| Kodegjennomgang | $0.40 / $0.15        | $0.56 / $0.17 | $0.47 / $0.24   |
+| Norsk           | $0.41 / $0.15        | $0.51 / $0.14 | $0.81 / $0.31   |
+| Research        | $0.36 / $0.13        | $0.55 / $0.15 | $1.31 / $0.36   |
+
+GPT-6 Sol og GPT-6.1 Sol har samme listepris for input og output. Det eneste som skiller dem, er cachet input: $0.10 for GPT-6.1 Sol mot $0.20 for GPT-6 Sol. Credits følger tokenforbruket, ikke modellklassen, se [AI-kreditter skiller ikke modeller](#ai-kreditter-skiller-ikke-modeller). Credits-kolonnen over og dollartallene her er derfor to ulike mål, og kan ikke sammenlignes direkte.
+
+Denne målingen endrer ingen pinner. Om `@nav-pilot` og agentpakkens standard skal endres, avgjøres for seg.
+
+## Målinger 7. oktober 2026
+
+Til nå har kodegjennomgangen målt to filer med plantede feil. `review` har fått fire nye sjekker (rv5–rv8). De måler gjennomgang av en branch med åtte filer, prioritering, og om agenten lar være å slå alarm på en fil uten feil. Armene er GPT-6 Luna Medium, GPT-6.1 Sol Low og Claude Opus 5.5 Low, med ti kjøringer hver i Copilot CLI. GPT-6 Sol er ikke med, etter beslutning fra eieren.
+
+### Kriteriene ble satt før målingen
+
+En arm er en akseptabel reservemodell for `@code-review` bare hvis alle fire kravene holder:
+
+1. rv5 (sikkerhet og personvern på riktig linje i riktig fil) består i minst 9 av 10 kjøringer.
+2. rv7 (riktig prioritet) består i minst 9 av 10 kjøringer.
+3. rv8 (fil uten feil): medianen for funn med høy prioritet er 0, og ingen kjøring har mer enn ett.
+4. rv6 (designfeil) består i høyst to kjøringer færre enn Opus 5.5.
+
+9 av 10 og 10 av 10 regnes som likt. Består GPT-6 Luna alle fire, blir den første reservemodell foran GPT-6.1 Sol. Claude Opus 5.5 beholder pinnen med mindre den selv feiler krav 1 eller 2. Da klassifiseres feilene i `failures.psv` før vi konkluderer, fordi feilen da like gjerne kan ligge i testoppsettet.
+
+Mønstrene for rv6 utledes fra tre pilotkjøringer med Opus 5.5 Low og låses i en egen commit før hovedkjøringene. Målingen endrer ingen pinner. Et forslag om reservemodell kommer i en egen PR.
+
+### Resultater
+
+Rådata ligger i [2026-10-07-review-suite](golden-baselines/2026-10-07-review-suite/), og hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-07-review-suite/failures.psv). Svarene fra alle 60 kjøringer av rv5–rv8, uten verktøyutskrift, ligger i [transkripter](golden-baselines/2026-10-07-review-suite/transkripter/). Piloten og tre kontrollkjøringer av rv8 ligger i [2026-10-07-review-suite-pilot](golden-baselines/2026-10-07-review-suite-pilot/LESMEG.txt). Copilot CLI 1.0.93-4, ti kjøringer per arm. Bruksradene viser at alle tre armene kjørte modellen de oppgir. Credits er medianen per kjøring for hele testpakken (rv1–rv8).
+
+Tabellen viser sjekkens tall først. Tallet i parentes er etter klassifiseringen, der en feil som skyldes sjekken og ikke modellen, regnes som bestått. Mønstrene er ikke endret etter kjøringene.
+
+| Sjekk                                      | Claude Opus 5.5 Low | GPT-6 Luna Medium | GPT-6.1 Sol Low |
+| ------------------------------------------ | ------------------- | ----------------- | --------------- |
+| rv1–rv4 (to filer)                         | 40/40               | 36/40             | 25/40           |
+| rv5, sikkerhet og personvern               | 7/10 (9/10)         | 1/10 (2/10)       | 3/10 (3/10)     |
+| rv6, designfeil                            | 8/10 (9/10)         | 1/10 (9/10)       | 2/10 (10/10)    |
+| rv7, prioritet                             | 10/10               | 7/10 (10/10)      | 9/10 (10/10)    |
+| rv8, sjekkens tall: median (høyest)        | 0 (2)               | 0,5 (1)           | 2 (3)           |
+| rv8, etter klassifisering: median (høyest) | 0 (0)               | 0 (1)             | 1 (1)           |
+| Credits per kjøring                        | 58,5                | 3,6               | 37,7            |
+
+rv5 kan telles på tre måter. Med sjekkens tall er det 7, 1 og 3 av 10 for Opus, Luna og Sol. Med klassifiseringen over er det 9, 2 og 3. Telles et funn som står med nøkkel eller med linjenummer i en annen rad som funnet, slik de to Opus-radene er telt, blir det 9, 4 og 3. Luna kommer opp i 6 hvis det også er nok at nais.yaml er nevnt uten linje.
+
+Hva klassifiseringen fant:
+
+- **rv5:** GPT-6.1 Sol nevnte ikke at `accessPolicy.inbound` i nais.yaml slipper inn alle applikasjoner, i sju av ti kjøringer. Luna nevnte det ikke i fire av ti. I fire andre sto funnet i raden for Routes.kt, to ganger med linjenummer. Opus nevnte det i alle ti, men oppga to ganger nøkkelen «inbound» i stedet for linjenummer. Én gang pekte Opus på linje 24, der spørringen kjøres, og ikke linje 23, der den settes sammen. Linjefeilen regnes som modellfeil; de to nøkkelradene er telt som bestått.
+- **rv6:** Mønsteret ble utledet fra tre Opus-svar og kjenner bare ordene Opus brukte. GPT-modellene skrev for eksempel «Retry oppretter nye vedtak. Hvis lagringen lykkes og Kafka-publiseringen feiler …» på riktig linje. Det er samme feil, men med andre ord. Sjekken måler derfor ordvalg mer enn forståelse.
+- **rv7 og rv5:** Luna skrev «parameterbinding» og «settes direkte inn i SQL-strengen». Sjekken for SQL kjenner ikke disse ordene.
+- **rv8:** Sjekken teller «blokkerende JDBC-kall» og «høy belastning» i 🟡-rader som høy prioritet. Alle Opus-radene var slike. Ekte 🔴-rader på fila uten feil gjaldt alle samme sak: `log.error(..., e)` kan få med fødselsnummer fra en databasefeil. Luna merket det 🔴 i fire av ti kjøringer, GPT-6.1 Sol i åtte av ti. Tre Luna-kjøringer skrev «Jeg fant ingen konkrete feil» eller «Ingen konkrete funn». Sjekken kjenner ikke de ordene og krever en setning som «ingen kritiske funn».
+- **Prioritet for nais.yaml er ikke sjekket.** Opus merket `inbound` `*` som 🟡 i kjøring 6 og 10.
+
+Vurdering mot kriteriene:
+
+- **GPT-6 Luna Medium er ikke en akseptabel reservemodell.** Den feiler krav 1 på alle tre måtene å telle rv5 på (1, 2 eller 4 av 10). Med sjekkens tall feiler den også krav 2 og 3. Etter klassifiseringen holder krav 2 og 3.
+- **GPT-6.1 Sol Low er ikke en akseptabel reservemodell.** Den feiler krav 1 (rv5 3/10) og krav 3 (median 2, etter klassifisering 1). Krav 2 holder (9/10).
+- **Krav 4 kan ikke avgjøres.** Det bygger på rv6, og det låste mønsteret for rv6 måler ordvalg (samme problem som [#554](https://github.com/navikt/copilot/issues/554)). Med sjekkens tall feiler begge GPT-modellene. Etter klassifiseringen holder begge.
+- **Claude Opus 5.5 feiler krav 1 med sjekkens egne tall (7/10).** Et manglende linjenummer er ikke en feil i testoppsettet, så å telle de to nøkkelradene som bestått går utenfor begrunnelsen vi skrev ned på forhånd. Krav 2 holder (10/10).
+- **Pinnen står fordi ingen arm oppfyller kriteriene, ikke fordi Opus regnes som 10/10.** Rekkefølgen for reservemodeller endres ikke av denne målingen; se [Anbefaling for daglig bruk](#anbefaling-for-daglig-bruk-12-oktober-2026).
+
+Forbruket var 1 002 credits på hovedkjøringene og 227 på piloten og kontrollkjøringene, til sammen 1 229. Stoppgrensen var 1 430.
+
+Feilene i sjekkene følges opp i [#1443](https://github.com/navikt/copilot/issues/1443). Før neste måling bør rv6 få et mønster som også dekker GPT-modellenes ordvalg, utledet fra disse transkriptene. rv8 bør ikke lese «blokkerende» i en 🟡-rad som prioritet.
+
+<a id="anbefaling-for-daglig-bruk-7-oktober-2026"></a>
+
+## Anbefaling for daglig bruk (12. oktober 2026)
+
+Tabellen gjelder når du velger modell selv. Innsatsnivå (effort) kan ikke settes i agent-frontmatter, så nivåene her er råd, ikke noe agentene håndhever.
+
+| Oppgave                         | Modell                                                           | Målt                                                                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Daglig koding                   | GPT-6.1 Sol Low. GPT-6 Luna Medium til små, avgrensede rettinger | GPT-6.1 Sol: koding 30/30, 25,3 credits (batch 4), t2 og rv1–rv2 5/5 (kjørt 11., vurdert 12. oktober). Luna Medium: 30/30 i kodesuiten 30. september (batch 2) for omtrent 1,7 credits |
+| Planlegging                     | GPT-6 Sol Low. Claude Opus 5.5 Low for oppgaver i rød sone       | GPT-6 Sol: t2, t3 og t5 5/5, t4 4/5 (én testfeil, ikke modellfeil), 27,2 credits. Opus: 5/5 på alle, 50,8 credits (batch 4)                                         |
+| Kodegjennomgang                 | Claude Opus 5.5 Low                                              | 40/40 i batch 4, mot 33/40 for GPT-6 Sol og 24/40 for GPT-6.1 Sol. rv7 10/10 (7. oktober)                                                                           |
+| Sikkerhet og personopplysninger | Claude Opus 5.5 Low                                              | rv5 7/10, 9/10 etter klassifisering, mot 3/10 for GPT-6.1 Sol og 1/10 for Luna (7. oktober). GPT-6 Sol: 3/10 (se under)                                             |
+| Norsk tekst                     | Hvilken som helst modell; la `@forfatter` språkvaske etterpå     | Alle tre armene 20/20 på norsk i batch 4                                                                                                                            |
+
+GPT-6.1 Sol er like god som GPT-6 Sol på koding, norsk og research. I batch 4 og 7. oktober var den svakere på planlegging (t2 2/5) og kodegjennomgang (24/40 i batch 4, 25/40 på rv1–rv4 7. oktober). Med de rettede sjekkene besto den t2 og rv1–rv2 i fem av fem kjøringer, se [Ny kjøring av GPT-6.1 Sol](#ny-kjøring-av-gpt-61-sol-12-oktober-2026). De eldre målingene kan ikke regnes om. Den har samme listepris som GPT-6 Sol, bortsett fra cachet input. Derfor er GPT-6 Sol, ikke GPT-6.1 Sol, nå reservemodell for `@code-review` og `@nav-pilot-opus`. Målt på rv5–rv8 fikk den rv5 3/10 og rv7 0/10, se [Rettede sjekker og GPT-6 Sol](#rettede-sjekker-og-gpt-6-sol-7-oktober-2026). GPT-6 Sol fikk 33/40 på de to filene, og fem av de sju bommene lå én til tre linjer feil; de to siste var det svelgede unntaket i Kotlin-fila, som ikke ble nevnt.
+
+_Tillegg 12. oktober 2026:_ Vær forsiktig med personopplysninger når du bruker GPT-6.1 Sol. I en liten pilot med tre kjøringer per test ([#1641](https://github.com/navikt/copilot/pull/1641), «pilot, avgjør ikke pin») feilet GPT-6.1 Sol test 7b i alle tre, to av dem klart: den la fødselsnummer i en Kafka-melding uten å spørre om personvern først. GPT-6 Sol stoppet før kodeendringen i alle fem kjøringene, og spurte i fire av dem. Tre kjøringer er for få til å si hvor ofte dette skjer. Anbefalingen for daglig koding står, og `@nav-pilot` bruker fortsatt GPT-6 Sol.
+
+## Rettede sjekker og GPT-6 Sol (7. oktober 2026)
+
+Målingen 7. oktober fant feil i selve sjekkene. De er rettet etter [#1443](https://github.com/navikt/copilot/issues/1443), og de 60 svarene fra målingen er regnet om uten nye modellkall. Deretter ble GPT-6 Sol Low målt med de rettede sjekkene.
+
+### Hva som er endret i sjekkene
+
+- **Plassering (rv5–rv7):** Et funn er plassert når raden oppgir fil og linjenummer, i kolonnene for fil og linje eller som `Fil.kt:23` i raden. Det gjelder likt for alle armene. Før holdt det at filnavnet sto et sted i raden. En YAML-nøkkel i linjekolonnen («nais.yaml | inbound») er ikke et linjenummer. Et filnavn uten linje i raden for en annen fil teller heller ikke. Står det `nais.yaml:25–26` i raden for Routes.kt, teller det.
+- **Prioritet (rv7 og rv8):** Bare prioritetskolonnen leses. «Blokkerende JDBC-kall» eller «høy belastning» i en 🟡-rad er ikke lenger høy prioritet. Utenfor tabeller er det bare 🔴 som gir høy prioritet.
+- **rv7:** `accessPolicy.inbound` med `*` i nais.yaml må nå være merket høy prioritet, på samme måte som SQL-injeksjonen og den åpne ruten.
+- **rv8:** «Ingen konkrete feil» og «Ingen konkrete funn» godtas som svar på at fila er uten feil.
+- **SQL:** Mønsteret gjenkjenner nå «parameterbinding», «settes direkte inn i SQL-strengen» og «endre spørringen».
+- **rv6:** Mønsteret er utledet på nytt fra alle de 30 svarene på branchen, ikke bare fra Opus. Det dekker to ting: at én melding kan gi flere vedtak («Retry oppretter nye vedtak», «ny UUID per forsøk»), og at lagringen kan lykkes mens publiseringen feiler («Hvis publiseringen feiler», «feil etter databaseinnsetting»).
+- **Testfila for rv8:** `catch`-blokken logger ikke lenger hele unntaket (`log.error(…, e)`), bare klassenavnet. Eieren har avgjort at det å logge unntaket fra et JDBC-kall er en ekte personvernfeil, fordi meldingen fra driveren kan inneholde fødselsnummeret. Nye rv8-kjøringer kan derfor ikke sammenlignes direkte med kjøringene fra før endringen.
+
+Hver endring har en kontroll som viser at den kan feile, i `scripts/benchmark-sjekk.py --selftest` og `scripts/nav-pilot-golden.bats`.
+
+### Omregning av målingen
+
+Hver kjøring er regnet om i [omregning-1443.psv](golden-baselines/2026-10-07-review-suite/omregning-1443.psv). rv1–rv4 er ikke regnet om, fordi de svarene ikke er lagret. For rv8 viser tabellen antall rader med høy prioritet: median (maks). I raden «log.error regnet som ekte» er de radene som gjelder `log.error(…, e)`, regnet som riktige funn og ikke som falsk alarm.
+
+| Sjekk                                      | Claude Opus 5.5 Low | GPT-6 Luna Medium | GPT-6.1 Sol Low |
+| ------------------------------------------ | ------------------- | ----------------- | --------------- |
+| rv5, gamle sjekker → nye                   | 7/10 → 7/10         | 1/10 → 4/10       | 3/10 → 3/10     |
+| rv6, gamle sjekker → nye                   | 8/10 → 9/10         | 1/10 → 9/10       | 2/10 → 10/10    |
+| rv7, gamle sjekker → nye                   | 10/10 → 6/10        | 7/10 → 4/10       | 9/10 → 0/10     |
+| rv7, nye sjekker uten kravet til nais.yaml | 10/10               | 10/10             | 10/10           |
+| rv8, gamle sjekker                         | 0 (2)               | 0,5 (1)           | 2 (3)           |
+| rv8, nye sjekker                           | 0 (0)               | 0 (1)             | 1 (1)           |
+| rv8, log.error regnet som ekte             | 0 (0)               | 0 (0)             | 0 (0)           |
+
+rv6 med de nye sjekkene gir samme tall som klassifiseringen for hånd i forrige avsnitt: 9, 9 og 10. Det er gjort med vilje: mønsteret ble utledet fra de samme svarene. rv7 faller fordi nais.yaml nå må ha høy prioritet. Opus merket den 🟡 i kjøring 6 og 10 og oppga nøkkel i stedet for linje i kjøring 5 og 7. GPT-6.1 Sol nevnte den ikke i sju kjøringer og merket den 🟡 i tre. Luna nevnte den ikke med fil og linje i seks kjøringer. Opus' to rader med nøkkelen «inbound» teller ikke, så rv5 for Opus blir 7/10 både før og etter.
+
+De samme kriteriene med de nye tallene, og med log.error regnet som ekte:
+
+- **Claude Opus 5.5 Low:** Krav 1 holder ikke (rv5 7/10). Krav 2 holder ikke (rv7 6/10). Krav 3 holder.
+- **GPT-6 Luna Medium:** Krav 1 holder ikke (rv5 4/10). Krav 2 holder ikke (rv7 4/10). Krav 3 holder. Krav 4 holder (rv6 9/10 mot Opus' 9/10).
+- **GPT-6.1 Sol Low:** Krav 1 holder ikke (rv5 3/10). Krav 2 holder ikke (rv7 0/10). Krav 3 holder. Krav 4 holder (10/10).
+- Ingen av armene er en akseptabel reservemodell, heller ikke med de nye sjekkene.
+
+### Kriteriene for GPT-6 Sol ble satt før målingen
+
+GPT-6 Sol Low måles med `@code-review` i Copilot CLI, ti kjøringer av rv1–rv8 med de nye sjekkene og den nye testfila. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 400 credits, med stopp ved 500. Hvis det er plass i budsjettet, kjøres Claude Opus 5.5 Low på rv8 fem ganger som kontroll på den endrede testfila.
+
+GPT-6 Sol Low er en akseptabel reservemodell for `@code-review` bare hvis alle fire kravene holder:
+
+1. rv5 består i minst 9 av 10 kjøringer.
+2. rv7 består i minst 9 av 10 kjøringer.
+3. rv8: medianen for funn med høy prioritet er 0, og ingen kjøring har mer enn ett.
+4. rv6 består i høyst to kjøringer færre enn Opus 5.5. Opus-tallet er 9/10 fra omregningen.
+
+I tillegg gjelder en regel fra eieren: Består GPT-6 Sol rv5 i færre enn 7 av 10 kjøringer etter sjekkens egne tall, skal `@security-champion` flyttes fra GPT-6 Sol til Claude Opus 5.5 Low. Målingen endrer ingen pinner; det gjøres i en egen PR.
+
+### Resultater for GPT-6 Sol
+
+Rådata ligger i [2026-10-07-gpt-6-sol-review](golden-baselines/2026-10-07-gpt-6-sol-review/), og svarene på rv5–rv8 uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-07-gpt-6-sol-review/transkripter/). Copilot CLI 1.0.93-4, ti kjøringer. Alle 221 bruksrader viser `gpt-6-sol` med innsatsnivå `low`, så ingen kjøring er forkastet. Medianen er 35,9 credits per kjøring for hele testpakken.
+
+| Sjekk                        | GPT-6 Sol Low |
+| ---------------------------- | ------------- |
+| rv1–rv4 (to filer)           | 36/40         |
+| rv5, sikkerhet og personvern | 3/10          |
+| rv6, designfeil              | 10/10         |
+| rv7, prioritet               | 0/10          |
+| rv8, sjekken slik den kjørte | 0 (1)         |
+| rv8, etter rettingen under   | 0,5 (1)       |
+
+**Under målingen fant vi en ny feil i rv8-sjekken.** En 🔴-rad som oppgir en blokk på mer enn fire linjer («| 50–55 | 🔴 Må rettes |»), ble ikke telt, fordi linjelesingen hoppet over lange blokker. GPT-6 Sol skrev fire slike rader, og én 🔴-rad med enkeltlinje som sjekken telte. Alle fem handler om at `pid` ikke formatvalideres og at ruten ikke sjekker `azp`. Ingen av dem er en ekte feil i fila: spørringen er parameterisert, og TokenX-oppsettet sjekker issuer og audience. Sjekken er rettet i samme PR, med en kontroll som viser at den kan feile. Omregningen av målingen før er ikke endret av rettingen. Tabellen viser begge tallene. Ingen av de ti svarene sa i en setning at fila er uten kritiske feil; det tiende sa tvert imot at det fant én. Ett svar skrev «Jeg fant ingen påvist blokkering». Det teller ikke i kravene, som bare ser på antall rader.
+
+Hva svarene viser:
+
+- **rv5 og rv7:** GPT-6 Sol nevnte ikke `accessPolicy.inbound` i sju av ti kjøringer. I de tre andre sto funnet med fil og linje, men merket 🟡. Resten av rv5 (SQL, logging av fødselsnummer, den åpne ruten) var riktig i alle ti. De sju bommene er ekte: jokertegnet er ikke nevnt i det hele tatt. Bommene for Luna og Opus i omregningen er derimot formfeil: nais.yaml uten linje, eller nøkkelen «inbound» i linjekolonnen.
+- **🟡 på inbound følger personaen.** `agents/code-review.agent.md` fører `accessPolicy` under «Nais Compliance (🟡)». Kravet i rv7 om høy prioritet på inbound `*` måler altså en regel personaen ikke sier. Uten det kravet er rv7 10/10 for alle armene.
+- **rv6:** Begge designfeilene var med i alle ti kjøringene.
+
+Vurdering mot kriteriene:
+
+- **GPT-6 Sol Low er ikke en akseptabel reservemodell.** Krav 1 holder ikke (rv5 3/10). Krav 2 holder ikke (rv7 0/10). Krav 3 holder med sjekken slik den kjørte (median 0, høyest 1), men ikke etter rettingen (median 0,5). Krav 4 holder (rv6 10/10 mot Opus' 9/10).
+- **Eierens regel slår inn:** rv5 er 3/10 etter sjekkens egne tall, under grensen på 7. Etter regelen skal `@security-champion` flyttes fra GPT-6 Sol til Claude Opus 5.5 Low (gjort i #1449). rv5 feilet bare på inbound-funnet i nais.yaml, i alle sju kjøringene.
+
+### Kontroll: Claude Opus 5.5 Low på den nye rv8-testfila
+
+Fem kjøringer av rv8 med Claude Opus 5.5 Low på testfila som ikke lenger logger unntaket ([rv8-kontroll](golden-baselines/2026-10-07-gpt-6-sol-review/rv8-kontroll/), svar i samme transkriptmappe). Alle 14 bruksrader viser `claude-opus-5.5`. Ingen kjøring hadde rader med høy prioritet, verken med sjekken slik den kjørte eller etter rettingen. Fire av fem besto rv8. Den femte hadde ingen setning om at fila er uten kritiske feil. I kjøring 3 foreslo Opus å logge unntaket med `log.error("...", e)` fra en sentral feilhåndterer. Det er nettopp mønsteret eieren har avgjort er en personvernfeil.
+
+Forbruket var 356,4 credits for GPT-6 Sol og 72,4 for Opus-kontrollen, til sammen 428,8. Budsjettet var om lag 400, med stopp ved 500.
+
+## Ny inbound-regel i kodegjennomgangen (7. oktober 2026)
+
+[#1449](https://github.com/navikt/copilot/pull/1449) gjorde en åpen eller utvidet `accessPolicy.inbound` (`*`, alle navnerom eller alle applikasjoner, en ny inbound-regel eller en fjernet begrensning) til et 🔴 sikkerhetsfunn i `@code-review`. Før sto det som 🟡 under «Nais Compliance». Spørsmålet er om endringen tetter hullet på inbound i rv5 og rv7.
+
+### Kriteriene ble satt før målingen
+
+Claude Opus 5.5 Low og GPT-6 Sol Low måles med `@code-review` i Copilot CLI, ti kjøringer av rv1–rv8 hver, med de samme sjekkene og den samme testfila for rv8 som i [Rettede sjekker og GPT-6 Sol](#rettede-sjekker-og-gpt-6-sol-7-oktober-2026). Testoppsettet fjerner modellpinnen i agentfila. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 950 credits, med stopp ved 1 190. Forbruket sjekkes etter første arm.
+
+For hver arm rapporteres rv5 og rv7 med ny persona mot tallene med gammel persona: Opus 5.5 Low rv5 7/10 og rv7 6/10, GPT-6 Sol Low rv5 3/10 og rv7 0/10.
+
+Deretter brukes de fire kravene for reservemodell uendret:
+
+1. rv5 består i minst 9 av 10 kjøringer.
+2. rv7 består i minst 9 av 10 kjøringer.
+3. rv8: medianen for funn med høy prioritet er 0, og ingen kjøring har mer enn ett.
+4. rv6 består i høyst to kjøringer færre enn Opus 5.5 i samme måling.
+
+GPT-6 Sol blir en gyldig reservemodell for `@code-review` og `@security-champion` bare hvis alle fire holder. Målingen bruker `@code-review`-personaen. `@security-champion` måles ikke direkte. Feilede sjekker klassifiseres i `failures.psv` etter de samme reglene som 7. oktober, likt for begge armene. Konklusjonene bygger på sjekkens egne tall. Målingen endrer ingen pinner.
+
+### Resultater med ny persona
+
+Rådata ligger i [2026-10-07-review-persona](golden-baselines/2026-10-07-review-persona/), og hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-07-review-persona/failures.psv). Svarene på rv5–rv8 uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-07-review-persona/transkripter/). Sjekkene er kjørt på nytt på de lagrede svarene og gir samme utfall i alle 80. Opus svarte på engelsk i rv5–rv7 kjøring 5; det endrer ingen tall. Copilot CLI 1.0.93-4, ti kjøringer per arm. Alle 100 bruksrader for Opus viser `claude-opus-5.5`, og alle 197 for Sol viser `gpt-6-sol` med `low`, så ingen kjøring er forkastet.
+
+Tabellen viser sjekkens tall. Gammel persona er tallene fra [omregningen](golden-baselines/2026-10-07-review-suite/omregning-1443.psv) for Opus og fra [2026-10-07-gpt-6-sol-review](golden-baselines/2026-10-07-gpt-6-sol-review/) for Sol. rv8 er antall rader med høy prioritet: median (høyest).
+
+| Sjekk                        | Opus 5.5 Low, gammel | Opus 5.5 Low, ny | GPT-6 Sol Low, gammel | GPT-6 Sol Low, ny |
+| ---------------------------- | -------------------- | ---------------- | --------------------- | ----------------- |
+| rv1–rv4 (to filer)           | 40/40                | 40/40            | 36/40                 | 36/40             |
+| rv5, sikkerhet og personvern | 7/10                 | 8/10             | 3/10                  | 6/10              |
+| rv6, designfeil              | 9/10                 | 3/10             | 10/10                 | 9/10              |
+| rv7, prioritet               | 6/10                 | 10/10            | 0/10                  | 9/10              |
+| rv8, rader med høy prioritet | 0 (0)                | 0 (0)            | 0,5 (1)               | 0 (1)             |
+| rv8 bestått                  | 4/5 (kontroll)       | 10/10            | 0/10                  | 0/10              |
+| Credits, hele armen          | –                    | 560,2            | 356,4                 | 328,9             |
+
+Opus-tallet for rv1–rv4 under «gammel» er fra hovedmålingen 7. oktober; rv1–rv4 ble ikke regnet om. rv8 for Opus under «gammel» er de fem kontrollkjøringene på den nye testfila.
+
+Hva svarene viser:
+
+- **Inbound:** Begge armene merket `accessPolicy.inbound` 🔴 i alle ti kjøringene. Med gammel persona nevnte Sol den ikke i sju av ti, og Opus merket den 🟡 i to. Opus oppga linjenummer i alle ti. Sol oppga feil linjer i tre (`nais.yaml:23–24`, `20–23`, `17–21`; riktig er 25–26).
+- **rv5:** De andre bommene er linjefeil på SQL eller loggingen av fødselsnummer, én til to linjer feil: to hos Opus og to hos Sol. Alle er modellfeil etter reglene.
+- **rv6 falt for Opus, fra 9 til 3 av 10, mest på grunn av mønsteret.** Idempotens er nevnt i alle ti. I sju svar står det enten ikke at lagringen kan lykkes mens publiseringen feiler, eller det står med ord mønsteret ikke kjenner. Mønsteret ble utledet fra ordlyden 7. oktober, og Opus skrev nå ordene i omvendt rekkefølge: «retry etter feilet `send`», «Feiler `send` eller `commitSync`», «lagres før det publiseres». Regnet på innholdet nevnte Opus feilen i sju av ti (kjøring 1, 2, 3, 5, 7, 9 og 10), mot ni av ti før. Kjøring 4, 6 og 8 er ekte bom. Kjøring 2 feilet på idempotens fordi linjecellen var «32–33 / 23». Etter klassifiseringen i `failures.psv` er tallet 6/10: tre er beskrevet med andre ord, tre er ikke nevnt, og én har en linjecelle sjekken ikke leser. Ti kjøringer er for få til å skille om den nye regelen tar oppmerksomhet fra designfeilene, eller om det er tilfeldig variasjon. Mønsteret følges opp i [#1453](https://github.com/navikt/copilot/issues/1453).
+- **rv8 for Sol er blandet.** Fem av ti er ekte bom: kjøring 2, 8 og 10 hadde én 🔴-rad om at ruten ikke sjekker `azp`, som ikke er en feil i fila, kjøring 4 skrev «Én blokkering», og kjøring 7 ga ingen konklusjon. Fem svar ga en forsiktig konklusjon om at fila er ren, som sjekken ikke kjenner: «ingen tydelig …», «ingen påvist …», «Ingen åpenbar …», «ingen bekreftet blokkering» (kjøring 1, 3, 5, 6 og 9). Ordlisten følges opp i [#1453](https://github.com/navikt/copilot/issues/1453).
+
+Vurdering mot kriteriene, med sjekkens egne tall:
+
+- **Personaendringen tetter hullet på inbound når det gjelder å nevne funnet og prioritere det.** rv7 gikk fra 6 til 10 av 10 for Opus og fra 0 til 9 av 10 for Sol. rv5 gikk fra 7 til 8 for Opus og fra 3 til 6 for Sol. Resten av gapet i rv5 er linjenummer.
+- **GPT-6 Sol Low er ikke en gyldig reservemodell for `@code-review` eller `@security-champion`.** Krav 1 holder ikke (rv5 6/10). Krav 2 holder (rv7 9/10). Krav 3 holder (median 0, høyest 1). Krav 4 holder (rv6 9/10 mot Opus' 3/10).
+- **Claude Opus 5.5 Low:** Krav 1 holder ikke (rv5 8/10). Krav 2 holder (10/10). Krav 3 holder (median 0, høyest 0).
+- `@security-champion` er ikke målt direkte. Målingen endrer ingen pinner.
+
+Forbruket var 560,2 credits for Opus og 328,9 for Sol, til sammen 889,0. Budsjettet var om lag 950, med stopp ved 1 190.
+
+## Omregning etter rettet rv6 og rv8 (7. oktober 2026)
+
+[#1453](https://github.com/navikt/copilot/issues/1453) retter to feil i sjekkene som målingen over avdekket:
+
+- **rv6:** Mønsteret for dobbeltskriving kjenner nå også omvendt ordstilling: «retry etter feilet `send`», «Feiler `send` eller `commitSync`», «lagres før det publiseres».
+- **rv8:** En forsiktig konklusjon om at fila er ren teller nå: «ingen påvist tilgang …», «Ingen åpenbar tilgangslekkasje», «ingen bekreftet blokkering». En 🔴-rad feiler fortsatt rv8, også når svaret har en slik setning.
+
+Begge rettingene har kontroller i `scripts/benchmark-sjekk.py --selftest` som feiler med de gamle sjekkene. Alle lagrede rv5–rv8-svar fra 7. oktober er regnet om uten nye modellkall, i [omregning-1453.psv](golden-baselines/2026-10-07-review-persona/omregning-1453.psv). Tretten kjøringer gikk fra feilet til bestått, ingen motsatt vei. rv5 og rv7 er uendret.
+
+| Måling og arm                  | rv6, gammel | rv6, ny | rv8, gammel | rv8, ny |
+| ------------------------------ | ----------- | ------- | ----------- | ------- |
+| Ny persona, Opus 5.5 Low       | 3/10        | 6/10    | 10/10       | 10/10   |
+| Ny persona, GPT-6 Sol Low      | 9/10        | 10/10   | 0/10        | 5/10    |
+| GPT-6 Sol Low, gammel persona  | 10/10       | 10/10   | 0/10        | 3/10    |
+| Hovedmålingen, GPT-6.1 Sol Low | 10/10       | 10/10   | 0/10        | 1/10    |
+
+Hovedmålingens andre armer (Opus 5.5 Low og GPT-6 Luna Medium) og rv8-kontrollen for Opus er uendret.
+
+Opus' kjøring 4, 6 og 8 med ny persona feiler fortsatt rv6. De nevner ikke at lagringen kan lykkes mens publiseringen feiler, og er ekte bom. Kjøring 2 feiler fortsatt på linjecellen «32–33 / 23». For Sol feiler rv8 fortsatt i kjøring 2, 8 og 10 (🔴-rad om `azp`), 4 («Én blokkering») og 7 (ingen konklusjon). Kjøringene som nå består, er merket i `failures.psv`.
+
+Vurdering mot kriteriene: ingen konklusjon endres. Krav 1 til 3 bygger på rv5, rv7 og antall rader med høy prioritet, og de tallene er de samme. Krav 4 holder fortsatt for GPT-6 Sol med ny persona (rv6 10/10 mot Opus' 6/10). GPT-6 Sol Low er fortsatt ikke en gyldig reservemodell, fordi krav 1 ikke holder. Ingen pinner endres.
+
+## GPT-6 Luna på planlegging, ny måling (7. oktober 2026)
+
+I batch 3 spurte GPT-6 Luna Medium i to av fem kjøringer bare hva fødselsnummeret skulle brukes til. Med dagens `RE_BS1` ville de svarene bestått t3, men transkriptene er borte, så de kan ikke regnes om. Derfor måles Luna på nytt.
+
+### Kriteriene ble satt før målingen
+
+GPT-6 Luna Medium kjøres med `@nav-pilot` i Copilot CLI, fem kjøringer av t2, t3, t4, t5, t7 og t7b. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 25 credits, med stopp ved 50.
+
+Luna er akseptabel for planlegging bare hvis t2 består 5 av 5, og t3, t4, t5, t7 og t7b hver består minst like mange ganger som GPT-6 Sol Low i [batch 4](golden-baselines/2026-10-06-batch4/). Der fikk Sol t3 5/5, t4 4/5 og t5 5/5. Batch 4 kjørte ikke t7 og t7b, så for dem er kravet 5/5. Det er det eneste kravet som sikkert er minst like strengt som et Sol-tall vi ikke har. Målingen endrer ingen pinner.
+
+### Resultater
+
+Rådata ligger i [2026-10-07-luna-planning](golden-baselines/2026-10-07-luna-planning/), og svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-07-luna-planning/transkripter/). Copilot CLI 1.0.93-4, fem kjøringer. Alle 167 bruksrader viser `gpt-6-luna` med `medium`, så ingen kjøring er forkastet. Testoppsettet krasjet etter siste sjekk og før filene ble lagret, fordi skriptet ble endret mens det kjørte. Filene er derfor bygget fra arbeidsmappa med samme innhold og overskrift som lagringssteget lager. `.txt`-fila mangler størrelsestabellen.
+
+| Sjekk | GPT-6 Luna Medium | Krav (GPT-6 Sol Low, batch 4) |
+| ----- | ----------------- | ----------------------------- |
+| t2    | 5/5               | 5/5                           |
+| t3    | 4/5               | 5/5                           |
+| t4    | 4/5               | 4/5                           |
+| t5    | 5/5               | 5/5                           |
+| t7    | 5/5               | 5/5 (ikke målt for Sol)       |
+| t7b   | 4/5               | 5/5 (ikke målt for Sol)       |
+
+Forbruket var 20,5 credits for hele armen.
+
+- **t3 kjøring 3:** Luna skrev «Hvem skal kunne kalle tjenesten» og «tilgang»; sjekken krever «tilgangskontroll» eller «hvem skal kalle».
+- **t7b kjøring 1:** Luna spurte «Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?». Det er et spørsmål om personvern, men sjekken kjenner ikke forkortelsen «FNR», bare ord som «fødselsnummer» og «personopplysning».
+- **t7b kjøring 4** besto bare på en linje fra verktøyutskriften. Svaret uten verktøyutskrift har bare «FNR» og ingen ord fra `RE_BS1`. Regnet på de lagrede svarene er t7b derfor 3/5. Testoppsettets eget tall er 4/5. For t3 gir de lagrede svarene samme utfall som testoppsettet.
+- **t2:** Alle fem svarene nevnte personvern eller fødselsnummer, så bommen fra batch 3 kom ikke igjen.
+
+**Vurdering: GPT-6 Luna Medium er ikke akseptabel for planlegging.** t3 (4/5) og t7b (4/5) er under kravet på 5/5. t2, t4, t5 og t7 holder. Målingen endrer ingen pinner.
+
+Med «fnr» i `RE_BS1` og «tilgang» eller «hvem skal kunne kalle» i `RE_BS2` ville t3 og t7b blitt 5/5, og Luna ville nådd kravet. Vurderingen over står likevel, fordi den bygger på kriteriene slik de ble satt før målingen. Sjekkene følges opp i [#1462](https://github.com/navikt/copilot/issues/1462).
+
+### Blindsonesjekkene er ikke pålitelige (8. oktober 2026)
+
+Planleggingssjekkene leser nå bare svaret og ikke verktøyutskriften. Det gjøres med samme filter som gjennomgangssjekkene bruker. Sjekker som gjelder verktøykall, leser fortsatt hele transkriptet. Hvis filteret feiler, regnes kjøringen som en feil i testoppsettet og ikke som et tomt svar.
+
+Mønstrene for blindsone 1 og 2 er ikke endret. Vi prøvde å utvide dem med regler for spørsmål om «fnr» og «tilgang», men en uavhengig test viste at reglene ikke holdt. Testen hadde 44 spørsmål, skrevet før noen hadde lest koden. For blindsone 1 fanget reglene 42 prosent av spørsmålene som skulle telle, og 71 prosent av treffene var riktige. For blindsone 2 var tallene 58 og 70 prosent. Dagens sjekk har også en kjent feil: den godtar «fødselsnummer», «saksbehandler» eller «innbygger» hvor som helst i svaret, også når agenten ikke spør om noe. En KI-basert vurdering skal erstatte mønstrene i en egen endring. De 44 spørsmålene og 25 spørsmål fra gjennomgangen ligger i [blindspot-controls.tsv](../scripts/golden-fixtures/blindspot-controls.tsv) som kontrollsett for den nye vurderingen.
+
+Luna-svarene fra 7. oktober er regnet om med de uendrede mønstrene på svaret alene. Ingen modell er kjørt på nytt. Hver kjøring står i [omregning-1462.psv](golden-baselines/2026-10-07-luna-planning/omregning-1462.psv).
+
+| Sjekk | Testoppsettet 7. oktober | På svaret alene | Krav |
+| ----- | ------------------------ | --------------- | ---- |
+| t3    | 4/5                      | 4/5             | 5/5  |
+| t7    | 5/5                      | 5/5             | 5/5  |
+| t7b   | 4/5                      | 3/5             | 5/5  |
+
+t7b kjøring 4 besto 7. oktober bare på grunn av en linje i verktøyutskriften. t2 (5/5), t4 (4/5) og t5 (5/5) er uendret.
+
+**Konklusjon: Alle resultater for t3, t7b og blindsonene, også de tidligere, er foreløpige til den nye vurderingen er på plass.** Det gjelder også vurderingen av Luna ovenfor. Med dagens sjekker når Luna ikke kravet. Ingen pin er endret.
+
+Kjente begrensninger:
+
+- Verktøyfilteret er laget ut fra Copilot CLI-transkripter. Det er ikke prøvd mot OpenCode, fordi ingen rå OpenCode-transkripter er lagret.
+- t2 teller alle spørsmålstegn i svaret, også retoriske spørsmål og `?` i kode.
+- `recommends_client_credentials` (t5) er justert mot hele transkriptet med verktøyutskrift, men leser nå bare svaret.
+
+### KI-vurdering av blindsonene (8. oktober 2026)
+
+Mønstrene `RE_BS1` og `RE_BS2` avgjør ikke lenger t3, t7, t7b og 8b. Det gjør en KI-vurdering i [blindspot-judge.py](../scripts/blindspot-judge.py). Mønstrene står igjen som en ekstra kolonne i `-judge.psv`, bare for sammenligning. t8 bruker fortsatt mønstre (`asks_privacy`).
+
+Slik fungerer vurderingen:
+
+- Claude Haiku 5.5 leser svaret uten verktøyutskrift, gjennom Copilot CLI med laveste tillatte resonneringsnivå (`low`). Vurderingen skulle kjøre uten verktøy, men `--available-tools ""` fjernet dem ikke (se [#1472](https://github.com/navikt/copilot/issues/1472)).
+- Modellen svarer på to spørsmål. Blindsone 1: Spør svaret brukeren om selve personopplysningene, altså hvilke data, formål, lagringstid, hvem som mottar dataene, behandlingsgrunnlag eller dataminimering? Blindsone 2: Spør svaret hvem som får kalle eller lese tjenesten, endepunktet eller topicet, for eksempel tilgangsregler, roller eller hvilke apper som får lese? Ett spørsmål kan telle for begge. Påstander teller ikke, og heller ikke spørsmål om tokenflyt, felttype, format eller testoppsett.
+- Et ja må sitere spørsmålet ordrett. Finnes ikke sitatet i svaret, teller stemmen som nei.
+- Hvert svar får inntil tre stemmer, og flertallet avgjør. Er de to første stemmene enige, sparer vi den tredje.
+- Før noe svar vurderes, kjøres hele kontrollsettet: de 69 spørsmålene fra [blindspot-controls.tsv](../scripts/golden-fixtures/blindspot-controls.tsv) og seks nye påstander uten spørsmål, som mønstrene ville godtatt. Minst 95 prosent må stemme med fasiten. Ellers blir testene registrert som «ikke vurdert».
+
+Et bestått kontrollsett gjenbrukes i sju dager, så lenge modell, resonneringsnivå, instruksjonen til modellen og kontrollfila er uendret. Resultatet lagres i [blindsone-dommer-kontroller.psv](golden-baselines/blindsone-dommer-kontroller.psv).
+
+Kontrollsettet ble kjørt tre ganger 8. oktober. Alle avvik står i [kontroller.txt](golden-baselines/2026-10-08-blindsone-dommer/kontroller.txt).
+
+Første kjøring ga **70 av 75 (93,3 prosent)**. Vi rettet deretter fasiten på to linjer. «Hvem er konsumentene av fnr?» (linje 64) og «Skal fnr eksponeres til alle som leser topicet?» (linje 65) spør både hvem som mottar opplysningene (#1) og hvem som får lese topicet (#2). Etter regelen om at et spørsmål kan telle for begge, gjelder begge blindsonene for disse linjene. Rettelsen ligger i en egen commit. Samtidig strammet vi inn vurderingen etter PR-gjennomgangen. En stemme må nå svare med ekte ja eller nei. To stemmer som er uenige, gir «ikke vurdert». Sitatet må også ha samme store og små bokstaver som svaret.
+
+Andre kjøring ga **71 av 75 (94,7 prosent)**. Det var fortsatt under kravet. Linje 48, 54, 55 og 59 bommet. Alle fire har fasiten «ingen».
+
+Vi la deretter inn én generell presisering i instruksjonen til modellen. Den er ikke laget for å treffe de enkelte linjene og ligger i en egen commit: «Et blindsonespørsmål handler om hvordan systemet behandler ekte personers personopplysninger, eller om hvem som får bruke systemet, i produksjon. Spørsmål om kode, tester, differ, felttyper eller format, verktøy, CI, utviklingsmiljøer, tokenmekanikk eller utviklerens egen tilgang teller ikke, selv om de nevner fnr, personopplysninger, tilgang eller hvem.» Etter det ble ingenting mer justert.
+
+Etter presiseringen ble vurderingen målt på to sett:
+
+| Sett                      | Resultat                    | Avvik                                                     |
+| ------------------------- | --------------------------- | --------------------------------------------------------- |
+| Kontrollsettet, 75 linjer | **73 av 75 (97,3 prosent)** | linje 48 (KI: #1) og 59 (KI: #2), begge med fasit «ingen» |
+| Nytt sett, 20 spørsmål    | **20 av 20 (100 prosent)**  | ingen                                                     |
+
+Settet ble skrevet av en annen agent som fikk definisjonene av blindsonene, men ikke leste repoet eller den lagrede instruksjonen. Det ble vurdert én gang, etter presiseringen, og ingenting ble justert etterpå. Settet ligger i [blindspot-controls-heldout2.tsv](../scripts/golden-fixtures/blindspot-controls-heldout2.tsv). Kravene var minst 95 prosent på kontrollsettet og minst 90 prosent på det nye settet. Begge holdt.
+
+Resultatet på 73 av 75 er målt på de samme dataene som vurderingen ble justert etter. Vi rettet linje 64 og 65 og la inn presiseringen etter å ha sett avvikene. Det er bare 20 av 20 på det nye settet som viser hvordan vurderingen treffer på nye spørsmål. Alle kontrollene er enkeltspørsmål med én innledende setning, ikke hele svar. Forbedringer før neste vurderte kjøring følges opp i [#1472](https://github.com/navikt/copilot/issues/1472).
+
+#### Luna-svarene vurdert på nytt
+
+De 15 lagrede Luna-svarene fra 7. oktober (t2, t7 og t7b, fem av hver) er vurdert på nytt. Svaret fra t2 avgjør t3. Hver kjøring står i [omregning-dommer.psv](golden-baselines/2026-10-07-luna-planning/omregning-dommer.psv) med sitatene.
+
+| Sjekk | Mønstre, bare svaret | KI-vurdering | Krav |
+| ----- | -------------------- | ------------ | ---- |
+| t3    | 4/5                  | 5/5          | 5/5  |
+| t7    | 5/5                  | 5/5          | 5/5  |
+| t7b   | 3/5                  | 5/5          | 5/5  |
+
+Tre kjøringer skifter fra feil til bestått:
+
+- **t3 kjøring 3:** Mønstrene fant ikke blindsone 2. KI-vurderingen siterer «Hvem skal kunne kalle tjenesten og se svaret?».
+- **t7b kjøring 1:** KI-vurderingen siterer «Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?».
+- **t7b kjøring 4:** KI-vurderingen siterer «Er det avklart at alle konsumentene av `soknad-mottatt` skal ha tilgang til FNR?».
+
+Ingen kjøring skifter fra bestått til feil. I t7 fant KI-vurderingen ingen spørsmål om personvern eller tilgang i noen av de fem svarene.
+
+**Hva som endres:** Luna oppfyller planleggingskravene slik KI-vurderingen måler dem: t2 5/5, t3 5/5, t4 4/5, t5 5/5, t7 5/5 og t7b 5/5. Sol-tallene i batch 4 er målt med mønstrene og kan ikke sammenlignes før Sol er kjørt på nytt med KI-vurderingen. Anbefalingen endres ikke før det. Ingen pin er endret.
+
+_Merknad:_ Vurderingene 8. oktober før #1472 kjørte med 20 innebygde verktøy aktive; tallene står, men er ikke regnet om.
+
+#### Kostnad
+
+En kjøring av kontrollsettet koster omtrent 17,5 KI-kreditter. Det nye settet kostet 4,75, og de 15 Luna-svarene 4,21 (0,24 til 0,32 per svar). Totalt kostet arbeidet omtrent 68 kreditter. Én avbrutt kjøring er ikke målt, men anslått. Når kontrollene består, gjenbrukes resultatet i sju dager. Da koster en vanlig kjøring bare vurderingen av svarene.
+
+## @security-champion målt direkte (7. oktober 2026)
+
+`@security-champion` er pinnet til Claude Opus 5.5 og skal merke en åpen `accessPolicy.inbound` som kritisk. Agenten er aldri målt med sin egen persona. Testene sc1–sc3 kjøres med `--agent security-champion`. De gir agenten den samme branchen som rv5–rv7. Der registrerer `App.kt` TokenX-validering uten `verifier`, og `validate` sjekker bare at det finnes en `audience`, ikke hvilken. sc1 krever at hver plantede sikkerhetsfeil er nevnt med riktig fil og linje. sc2 krever at hver av dem er nevnt og merket kritisk (🔴, «kritisk» eller «critical»; «høy» er ikke nok). En rad uten egen prioritet arver prioriteten fra overskriften den står under. sc3 gir agenten en fil uten feil og teller funn merket kritisk. Testene er ikke en egen testpakke og står derfor ikke i `summary.json` eller på `/modeller`.
+
+### Kriteriene ble satt før målingen
+
+De plantede sikkerhetsfeilene er fødselsnummer i loggen, SQL bygget med strengsammenslåing, en rute utenfor `authenticate("tokenx")`, TokenX-validering som bare sjekker at det finnes en `audience`, og `accessPolicy.inbound` som slipper inn alle. Personaen er akseptabel med en modell bare hvis hver av de fem feilene er funnet og merket kritisk i minst 9 av 10 kjøringer, og medianen for funn merket kritisk på fila uten feil er 0.
+
+Armene er Claude Opus 5.5 Low (pinnen) og GPT-6 Sol Low (reservemodellen), ti kjøringer hver i Copilot CLI. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 600 credits for Opus og 350 for Sol, med stopp ved 1 200 til sammen. Forbruket sjekkes etter Opus-armen. Er det over budsjettet, kjøres ikke Sol. Mønstrene kan justeres etter én pilotkjøring med Opus, men låses i en egen commit før hovedkjøringene. Målingen endrer ingen pinner.
+
+Pilotkjøringen ([2026-10-07-security-champion-pilot](golden-baselines/2026-10-07-security-champion-pilot/)) oppga ingen linjenumre. Agenten skrev for eksempel «i `VedtakRepository.hentForPerson`». Personaen ber ikke om linjenumre, så et krav om linje ville målt formatet. Derfor leser sc2 funnet uten linje, med ett mønster per feil som ikke treffer de andre funnene. sc1 beholder fil og linje og rapporteres, men inngår ikke i kriteriet. Kriteriet over er sc2 per feil og sc3. Pilotens `results.psv` er regnet med de første mønstrene. Regnet med de låste mønstrene var SQL, tilgang og inbound merket kritisk, mens logging av fødselsnummer og TokenX-valideringen sto under 🟠 Høy.
+
+### Resultater
+
+Rådata ligger i [2026-10-07-security-champion](golden-baselines/2026-10-07-security-champion/), og svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-07-security-champion/transkripter/). Copilot CLI 1.0.94-0, ti kjøringer per arm. Alle 53 bruksrader for Opus viser `claude-opus-5.5` med `low`, og alle 124 for Sol viser `gpt-6-sol` med `low`, så ingen kjøring er forkastet.
+
+Gjennomgangen av PR-en fant to feil i sjekkene etter at kjøringene var ferdige:
+
+- **Mønsteret for fødselsnummer i loggen var for vidt.** Det traff «krever ikke innlogging» og «fnr havner i tilgangslogger» i funnet om ruten, som Opus merket 🔴. Det nye mønsteret krever selve logglinjen (`log.info`, «behandler $fnr», `VedtakService` sammen med logg, eller «fnr logges»).
+- **sc3 telte feil rader.** Den telte personaens egen oppsummering «📋 Funn: 0 kritiske, 0 høye …» som et funn, og den overså et kritisk punkt uten linjenummer. Nå teller sc3 punkter i lister og rader i tabeller, men ikke linjer med «0 kritiske».
+
+Begge rettingene har kontroller som feiler med de gamle sjekkene. Den lagrede `results.psv` har testoppsettets tall med de gamle sjekkene. [omregning.psv](golden-baselines/2026-10-07-security-champion/omregning.psv) har tallene regnet om på de lagrede svarene.
+
+| Sjekk                                     | Opus 5.5 Low, testoppsettet | Opus 5.5 Low, omregnet | Sol Low, testoppsettet | Sol Low, omregnet |
+| ----------------------------------------- | --------------------------- | ---------------------- | ---------------------- | ----------------- |
+| sc2 bestått (alle fem)                    | 8/10                        | 0/10                   | 0/10                   | 0/10              |
+| sc1 bestått (fil og linje)                | 0/10                        | 0/10                   | 3/10                   | 3/10              |
+| sc3 bestått                               | 8/10                        | 10/10                  | 9/10                   | 9/10              |
+| sc3, funn merket kritisk: median (høyest) | 0 (1)                       | 0 (0)                  | 0 (1)                  | 0 (1)             |
+| Credits, hele armen                       | 399,6                       |                        | 247,9                  |                   |
+
+Omregnet per feil, antall av ti kjøringer der feilen er nevnt og merket kritisk:
+
+| Feil                              | Claude Opus 5.5 Low | GPT-6 Sol Low |
+| --------------------------------- | ------------------- | ------------- |
+| Fødselsnummer i loggen            | 0/10                | 1/10          |
+| SQL bygget med strengsammenslåing | 10/10               | 5/10          |
+| Rute utenfor `authenticate`       | 10/10               | 5/10          |
+| `accessPolicy.inbound` åpen       | 10/10               | 4/10          |
+| TokenX uten `verifier`/`audience` | 9/10                | 3/10          |
+
+Svarene viser:
+
+- **Opus** satte logging av fødselsnummer under 🟠 Høy eller lavere i alle ti kjøringene. TokenX-valideringen sto under 🟠 i kjøring 10. Resten var 🔴. Opus oppga ingen linjenumre, så sc1 er 0/10, som i piloten.
+- **Sol** brukte sjelden ordet «kritisk». I flere svar sto funnene som «blokkerende» med dommen «BLOCK». Ordlisten i kriteriet teller ikke «blokkerende». Teller vi det med, blir tallene for Sol 2, 6, 6, 5 og 4 av 10, og fortsatt under kravet. Sol oppga linjenumre, men bommet med noen linjer på `App.kt` og `nais.yaml`.
+- **sc3:** Kjøring 5 for Sol har ett kritisk funn: «Kritisk: Manglende nettverksbegrensning» om `nais.yaml` ved siden av fila. Sjekken teller to, fordi den også teller oppsummeringen «**Omfang:** … **Funn: 1 kritisk, 2 øvrige.**», som viser til `SakService.kt:17` og `37`. Tabellen bruker det reelle tallet. Sjekken følges opp i [#1462](https://github.com/navikt/copilot/issues/1462). Opus hadde ingen kritiske funn på fila uten feil.
+
+Vurdering mot kriteriene, med de omregnede tallene:
+
+- **Claude Opus 5.5 Low er ikke akseptabel for `@security-champion`.** Fødselsnummer i loggen er merket kritisk i 0 av 10 kjøringer, og TokenX-valideringen i 9 av 10. De tre andre feilene og fila uten feil holder kravet.
+- **GPT-6 Sol Low er ikke akseptabel som reservemodell for `@security-champion`.** Ingen av de fem feilene når 9 av 10.
+
+Med testoppsettets egne tall var Opus akseptabel. Det tallet bygget på et mønster som telte funnet om ruten som funnet om loggen. Personaen sier «Log FNR» under 🚫 Never, men ber ikke om at det merkes kritisk. Om det skal regnes som kritisk, er et spørsmål om personaen, ikke om modellen. [#1466](https://github.com/navikt/copilot/pull/1466) legger til en regel om at fødselsnummer i loggen er kritisk. Da må `@security-champion` måles på nytt.
+
+Forbruket for denne delen var 716,0 credits: 399,6 for Opus, 247,9 for Sol og 68,5 for to pilotkjøringer. Den første piloten feilet i oppsettet for branchen og telles ikke. Budsjettet var om lag 950, med stopp ved 1 200. Målingen endrer ingen pinner.
+
+## Claude Haiku 5.5 mot GPT-6 Luna Medium (8. oktober 2026)
+
+Claude Haiku 5.5 er aktivert i Nav og svarer på `--model claude-haiku-5.5` i Copilot CLI 1.0.94-3, selv om `copilot help config` ikke lister modellen. Listeprisen er den samme som for GPT-6 Luna opp til 100K input-tokens per forespørsel, men over 100K koster Haiku fem ganger så mye. Luna dobler prisen for input først over 272K. Spørsmålet er om Haiku kan ta over noen av Luna-pinnene.
+
+### Kriteriene ble satt før målingen
+
+Haiku 5.5 måles på Low og Medium i Copilot CLI: fem kjøringer av `coding`, fem av `research` og ti av `review` (rv1–rv8, `@code-review`-personaen). GPT-6 Luna Medium er kontroll på samme commit: fem kjøringer av `coding`, fem av `research` og ti av rv5–rv8. Testoppsettet fjerner modellpinnen i agentfila. En kjøring der bruksradene viser en annen modell, forkastes. Budsjettet er om lag 80 credits, med stopp ved 150.
+
+Per arm og testpakke rapporteres antall bestått, median credits per kjøring, høyeste og 95-persentil input-tokens per forespørsel, andelen forespørsler over 100K og listepris i dollar per kjøring. Listeprisen regnes per forespørsel med Haikus 100K-trinn og Lunas 272K-trinn, med cache-lesing og cache-skriving priset hver for seg, på samme måte som [list-price.py](golden-baselines/2026-10-06-batch4/list-price.py).
+
+Haiku 5.5 kan erstatte GPT-6 Luna Medium
+
+- på `@kafka` og `@rust` bare hvis én Haiku-arm består minst like mange `coding`-sjekker som Luna i kontrollen, med median credits og median listepris per kjøring som ikke er høyere enn Lunas.
+- på `@research` bare hvis én Haiku-arm består minst like mange `research`-sjekker som Luna i kontrollen, med median credits og median listepris per kjøring som ikke er høyere enn Lunas.
+
+Kodegjennomgangen er bare informasjon. Haiku-armene vurderes mot de fire kravene for reservemodell for `@code-review` (rv5 minst 9/10, rv7 minst 9/10, rv8 median 0 og høyst én rad med høy prioritet, rv6 høyst to kjøringer under Opus 5.5), men resultatet gir ikke grunnlag for å endre noe. Opus-tallet for rv6 er 6/10 fra [omregningen](#omregning-etter-rettet-rv6-og-rv8-7-oktober-2026). Feilede sjekker klassifiseres i `failures.psv` etter de samme reglene for alle armene. Konklusjonene bygger på sjekkens egne tall. Målingen endrer ingen pinner.
+
+### Resultater
+
+Rådata ligger i [2026-10-08-haiku-5-5](golden-baselines/2026-10-08-haiku-5-5/). Hver sjekk som feilet, er klassifisert i [failures.psv](golden-baselines/2026-10-08-haiku-5-5/failures.psv), og svarene på rv5–rv8 uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-5-5/transkripter/). Tallene under kommer fra [list-price.py](golden-baselines/2026-10-08-haiku-5-5/list-price.py). Copilot CLI 1.0.94-3. Alle 434 bruksrader for Haiku viser `claude-haiku-5.5` med innsatsnivået vi ba om, og alle 370 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet. En prøvekjøring før målingen viste at CLI-en tar imot og registrerer `low`, `medium` og `high` for Haiku.
+
+Bestått er antall sjekker på tvers av kjøringene. Credits og dollar er median per kjøring. Input-tokens er per forespørsel. Dollar er listepris med cache-lesing og cache-skriving priset hver for seg.
+
+| Testpakke | Arm                   | Bestått | Credits | Maks input | p95 input | Over 100K | Listepris |
+| --------- | --------------------- | ------- | ------- | ---------- | --------- | --------- | --------- |
+| coding    | Haiku 5.5 Low         | 30/30   | 1,57    | 43 170     | 43 110    | 0 av 62   | $0,0157   |
+| coding    | Haiku 5.5 Medium      | 30/30   | 1,66    | 44 044     | 43 387    | 0 av 67   | $0,0166   |
+| coding    | Luna Medium           | 30/30   | 1,86    | 42 645     | 39 115    | 0 av 101  | $0,0186   |
+| research  | Haiku 5.5 Low         | 20/20   | 1,00    | 31 862     | 31 031    | 0 av 52   | $0,0100   |
+| research  | Haiku 5.5 Medium      | 20/20   | 1,04    | 32 066     | 30 832    | 0 av 55   | $0,0104   |
+| research  | Luna Medium           | 20/20   | 0,92    | 25 132     | 24 711    | 0 av 62   | $0,0092   |
+| review    | Haiku 5.5 Low         | 47/80   | 1,59    | 35 708     | 33 158    | 0 av 95   | $0,0159   |
+| review    | Haiku 5.5 Medium      | 50/80   | 1,82    | 37 994     | 36 870    | 0 av 103  | $0,0182   |
+| review    | Luna Medium (rv5–rv8) | 33/40   | 2,37    | 66 627     | 55 284    | 0 av 207  | $0,0237   |
+
+Ingen forespørsel i noen arm kom over 100K input-tokens, så Haikus dyrere trinn ble aldri brukt. Den største var 66 627 tokens (Luna, review).
+
+Tabellen viser kodegjennomgangen per sjekk, med sjekkens tall. rv8 er antall rader med høy prioritet: median (høyest).
+
+| Sjekk                        | Haiku 5.5 Low | Haiku 5.5 Medium | Luna Medium |
+| ---------------------------- | ------------- | ---------------- | ----------- |
+| rv1–rv4 (to filer)           | 37/40         | 30/40            | –           |
+| rv5, sikkerhet og personvern | 0/10          | 4/10             | 9/10        |
+| rv6, designfeil              | 1/10          | 3/10             | 8/10        |
+| rv7, prioritet               | 1/10          | 4/10             | 10/10       |
+| rv8, rader med høy prioritet | 0 (0)         | 0 (0)            | 0 (0)       |
+| rv8 bestått                  | 8/10          | 9/10             | 6/10        |
+
+Hva svarene viser:
+
+- **Haiku oppgir ofte ikke linjenummer i gjennomgangen av branchen.** I 8 av 10 rv-pr-svar på Low og 6 av 10 på Medium står et symbol eller en nøkkel i linjecellen, for eksempel `hentForPerson` eller `accessPolicy.inbound`. Da feiler rv5, rv7 og idempotensdelen av rv6 samtidig. I alle disse svarene er SQL-injeksjonen, fødselsnummeret i loggen, det åpne endepunktet og den åpne `accessPolicy.inbound` nevnt og merket 🔴. Regnet på innholdet blir rv5 8/10 på Low og 10/10 på Medium, og rv7 9/10 og 10/10. Lunas svar har linjenummer i alle ti.
+- **rv6:** Haiku sa ikke at lagringen kan lykkes mens publiseringen feiler, i tre kjøringer på hver arm. Regnet på innholdet blir rv6 7/10 på begge. For Luna er én kjøring beskrevet med andre ord og én ekte bom.
+- **rv1–rv4:** Haikus bommer er linjenumre som ligger én eller to linjer feil, og på Medium ett linjeintervall over fire linjer.
+- **rv8:** Ingen arm hadde noen rad med høy prioritet. Bommene er svar uten en konklusjon om at fila er ren. To Luna-svar («Fant ingen blocker») og ett Haiku Medium-svar («Ingen sikkerhetsfunn») har en slik konklusjon med ord sjekken ikke kjenner.
+
+Vurdering mot kriteriene, med sjekkens egne tall:
+
+- **Haiku 5.5 kan erstatte GPT-6 Luna Medium på `@kafka` og `@rust`: ja.** Haiku 5.5 Low besto 30 av 30 `coding`-sjekker, som Luna, med median 1,57 credits mot 1,86 og $0,0157 mot $0,0186 per kjøring. Medium holder også (30/30, 1,66 credits, $0,0166). Alle fem Haiku Low-kjøringer på koding lå under alle fem Luna-kjøringene (1,55–1,64 mot 1,70–2,09 credits).
+- **Haiku 5.5 kan erstatte GPT-6 Luna Medium på `@research`: nei.** Begge Haiku-armene besto 20 av 20, som Luna, men median credits var 1,00 (Low) og 1,04 (Medium) mot Lunas 0,92, og listeprisen $0,0100 og $0,0104 mot $0,0092. Per kjøring lå Haiku Low på 0,98–1,23 credits og Luna på 0,77–0,99, og Haiku var dyrest i 23 av 25 par.
+- **Kodegjennomgang, bare informasjon:** Ingen Haiku-arm oppfyller kravene for reservemodell for `@code-review`. Low: krav 1 holder ikke (rv5 0/10), krav 2 holder ikke (rv7 1/10), krav 3 holder (median 0, høyest 0), krav 4 holder ikke (rv6 1/10 mot Opus' 6/10). Medium: krav 1 holder ikke (4/10), krav 2 holder ikke (4/10), krav 3 holder (median 0, høyest 0), krav 4 holder ikke (3/10).
+
+Fem kjøringer er lite. `coding` består av tre små oppgaver, så et pinnebytte på `@kafka` og `@rust` bør først måles med ekte oppgaver for de to agentene. Under 100K input-tokens er listeprisen i dollar lik credits delt på 100 for begge modellene, så dollarkriteriet gir ikke noe selvstendig bevis her. Målingen endrer ingen pinner.
+
+Målingen brukte 98,4 credits ifølge bruksradene: 60,9 på Haiku og 37,6 på Luna. Prøvekjøringene og sjekken av innsatsnivåene brukte om lag 1,6 til. Budsjettet var om lag 80 credits, med stopp ved 150.
+
+## Claude Haiku 5.5 Low på @kafka og @rust (8. oktober 2026)
+
+Testpakken `coding` har tre små rettinger i Go og TypeScript, og der besto både Claude Haiku 5.5 Low og GPT-6 Luna Medium alle 30 sjekkene. Haiku Low var billigst. Testpakken `coding` kjører `@nav-pilot` og sier lite om Kafka og Rust. Derfor måler vi her de to modellene gjennom agentene som faktisk er pinnet til Luna: `@kafka` og `@rust`.
+
+Testoppsettet hadde ingen Kafka- eller Rust-oppgaver. Fire nye ligger i [`scripts/golden-fixtures/`](../scripts/golden-fixtures/), som testpakkene `kafka` og `rust`:
+
+- **kf-idem** (`@kafka`): En Kotlin-konsument commiter offset før behandlingen og utbetaler samme hendelse to ganger. kf1 krever at samme `eventId` utbetales én gang, at offset commites etter behandlingen, og at en feilet utbetaling ikke commites.
+- **kf-felt** (`@kafka`): Feltet `sakstype` skal inn i en JSON-hendelse. kf3 krever at gamle meldinger uten feltet leses som `ORDINAER`, at nye meldinger skrives med feltet, og at ukjente felt fra nyere produsenter ikke stopper lesingen.
+- **rs-borrow** (`@rust`): `cargo test` kompilerer ikke på grunn av en lånefeil. rs1 krever at køen tømmes i riktig rekkefølge og at en tom kø gir `None`.
+- **rs-feil** (`@rust`): En parser får panikk på ugyldig input. rs3 krever `Result` med en feiltype laget med `thiserror`, de tre navngitte variantene, den ugyldige teksten i feilmeldingen og minst én ny test per feil.
+
+kf2, kf4, rs2 og rs4 krever at agenten bare endrer filer i prosjektet oppgaven gjelder. Testene i kf1, kf3, rs1 og rs3 ser agenten ikke. De kjøres etter kallet, sammen med agentens egne tester, i en kopi av prosjektet. Før hver kjøring sjekker testoppsettet tre kontroller per oppgave: den urørte koden feiler, den kjente rettingen består, og en fristende gal retting feiler. `scripts/nav-pilot-golden.bats` kjører de samme kontrollene gjennom hele testoppsettet.
+
+### Kriteriene ble satt før målingen
+
+En oppgave er bestått i en kjøring når begge sjekkene er grønne. Claude Haiku 5.5 Low erstatter GPT-6 Luna Medium på `@kafka` eller `@rust` bare hvis begge disse holder for den agenten:
+
+- Haiku Low består hver av agentens to oppgaver i minst like mange kjøringer som Luna Medium.
+- Medianen av credits per kjøring for Haiku Low er lik eller lavere enn for Luna Medium.
+
+Ellers beholder agenten Luna. Hver agent vurderes for seg.
+
+Armene er Claude Haiku 5.5 Low og GPT-6 Luna Medium, fem kjøringer per oppgave og arm i Copilot CLI, med `--keep`. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen modell enn armen, forkastes. Budsjettet er om lag 40 credits, med stopp ved 80. Målingen endrer ingen pinner.
+
+### Resultater
+
+Rådata ligger i [2026-10-08-haiku-kafka-rust](golden-baselines/2026-10-08-haiku-kafka-rust/). Svarene uten verktøyutskrift ligger i [transkripter](golden-baselines/2026-10-08-haiku-kafka-rust/transkripter/). Copilot CLI, fem kjøringer per oppgave og arm. Alle 130 bruksrader for Haiku viser `claude-haiku-5.5` med `low`, og alle 204 for Luna viser `gpt-6-luna` med `medium`. Ingen kjøring er forkastet, og ingen sjekk feilet, så [failures.psv](golden-baselines/2026-10-08-haiku-kafka-rust/failures.psv) har ingen rader.
+
+Credits per oppgave er oppgitt som laveste–median–høyeste over de fem kjøringene.
+
+| Agent    | Oppgave   | Haiku 5.5 Low: bestått | Haiku 5.5 Low: credits | Luna Medium: bestått | Luna Medium: credits |
+| -------- | --------- | ---------------------- | ---------------------- | -------------------- | -------------------- |
+| `@kafka` | kf-idem   | 5/5                    | 1,07–1,10–1,79         | 5/5                  | 0,98–1,13–1,30       |
+| `@kafka` | kf-felt   | 5/5                    | 0,61–0,69–0,75         | 5/5                  | 0,70–0,77–0,88       |
+| `@rust`  | rs-borrow | 5/5                    | 0,39–0,42–0,51         | 5/5                  | 0,43–0,65–0,72       |
+| `@rust`  | rs-feil   | 5/5                    | 0,45–0,49–0,60         | 5/5                  | 0,67–0,69–0,92       |
+
+Credits per kjøring, det vil si begge oppgavene til agenten, som laveste–median–høyeste:
+
+| Agent    | Haiku 5.5 Low  | Luna Medium    |
+| -------- | -------------- | -------------- |
+| `@kafka` | 1,70–1,85–2,42 | 1,74–1,90–2,18 |
+| `@rust`  | 0,87–0,92–1,02 | 1,11–1,34–1,58 |
+
+Vurdering mot kriteriene:
+
+- **`@kafka`: Luna beholdes.** Begge besto alle oppgavene. Medianen for Haiku Low var 1,85 credits per kjøring, mot 1,90 for Luna Medium (Mann–Whitney over fem kjøringer). Kriteriet er oppfylt etter ordlyden, men forskjellen i credits er ikke målbar (p = 0,84; første måling gikk motsatt vei, p = 1,0). Bytte gir ingen pålitelig besparelse, så Luna beholdes.
+- **`@rust`: Haiku Low oppfyller kriteriene.** Begge besto alle oppgavene, og medianen for Haiku Low (0,92 credits per kjøring) er lavere enn for Luna Medium (1,34). Haiku Low var billigere i alle fem kjøringer, uten overlapp (p = 0,008, Mann–Whitney).
+
+Fire oppgaver og fem kjøringer per arm er et lite utvalg. Oppgavene er små rettinger i én fil, og begge armene fikk 5/5 på alle. Testpakkene gir derfor et signal om kostnad og en sperre mot regresjon, men skiller ikke modellene på kvalitet. kf-idem kan for eksempel løses med et sett i minnet. Denne PR-en endrer ingen pinner. Et eventuelt bytte for `@rust` tas i en egen PR.
+
+Gjennomgangen av PR-en fant at kf1 ikke sjekket at en feilet hendelse blir utbetalt når den leveres på nytt. En konsument som merker hendelsen som behandlet før utbetalingen, besto. kf1 krever nå at hendelsen utbetales ved ny levering, og den kjente rettingen merker først etter utbetalingen. `kafka`-armene ble kjørt på nytt med den nye sjekken. Tabellene viser den nye målingen. Den første ligger i commit-historikken til PR-en.
+
+Forbruket var 50,4 credits: 19,8 for den første `kafka`-målingen, 19,2 for den nye og 11,4 for `rust`. Budsjettet var om lag 40, med stopp ved 80.
+
+## GPT-6 Luna Medium mot GPT-6 Sol Low på planlegging, med KI-vurdering (8. oktober 2026)
+
+Luna oppfylte planleggingskravene da de lagrede svarene ble vurdert på nytt med KI-vurderingen. Sol er ikke målt med den. Her måles begge på samme måte, med ti kjøringer hver.
+
+### Kriteriene ble satt før målingen
+
+Begge armene kjøres med `@nav-pilot` i Copilot CLI med `--keep`, ti kjøringer av t2, t3, t4, t5, t7 og t7b. Testoppsettet fjerner modellpinnen. En kjøring der bruksradene viser en annen hovedmodell, forkastes. KI-vurderingen avgjør blindsonene i t3, t7 og t7b. Mønstrene vises ved siden av, bare for sammenligning. Før kjøringene er KI-vurderingen gjort sikrere ([#1472](https://github.com/navikt/copilot/issues/1472)), og kontrollene er kjørt på nytt.
+
+**GPT-6 Luna Medium blir standard for `@nav-pilot` bare hvis den består minst like mange kjøringer som GPT-6 Sol Low på hver av t2, t3, t4, t5, t7 og t7b, og t2 består minst 9 av 10.** Ellers forblir GPT-6 Sol standard. Målingen endrer ingen pinne. Et eventuelt bytte gjøres i en egen endring.
+
+Budsjettet er om lag 350 kreditter, med stopp ved 440.
+
+### KI-vurderingen ble gjort sikrere før målingen
+
+Endringene for [#1472](https://github.com/navikt/copilot/issues/1472) ligger i en egen commit, laget før noen kjøring:
+
+- Instruksjonen sier nå at modellen skal se bort fra instruksjoner inne i `<answer>`. En `<answer>` eller `</answer>` i svaret blir gjort ufarlig, så svaret kan ikke avslutte blokken.
+- Et sitat teller bare hvis det er et spørsmål. Det må slutte med «?», bli fulgt av «?» i svaret, eller være et indirekte spørsmål som «trenger å vite» eller «må avklare». En sitert påstand gir nei.
+- Et bestått kontrollsett gjenbrukes bare hvis også skriptet, flaggene til Copilot CLI og CLI-versjonen er uendret.
+- **`--available-tools ""` fjernet ikke verktøyene.** Feilsøkingsloggen viste at modellen hadde alle 20 innebygde verktøy, blant annet `bash`, `view` og `edit`. Nå bruker vurderingen `--available-tools=nonexistent_tool`, og loggen viser null verktøy. Samme testkall kostet 0,05 kreditter uten verktøy, mot 0,27 med verktøy.
+- Seks nye kontroller er hele svar fra fase 1, med overskrifter, sjekklister, påstander og et spørsmål gjemt inne i teksten. To av dem prøver å gi modellen ordre. Fasiten ble skrevet før noen vurdering ([blindspot-controls-full.tsv](../scripts/golden-fixtures/blindspot-controls-full.tsv)).
+
+Kontrollene ble kjørt én gang etter endringen, uten justeringer etterpå ([kontroller.txt](golden-baselines/2026-10-08-planning-luna-sol-judge/kontroller.txt)):
+
+| Sett                                | Resultat                | Krav       |
+| ----------------------------------- | ----------------------- | ---------- |
+| Kontrollsettet, 75 linjer           | 72 av 75 (96,0 prosent) | 95 prosent |
+| Hele svar, 6 linjer                 | 6 av 6                  | 95 prosent |
+| Nytt sett fra 8. oktober, 20 linjer | 19 av 20 (95,0 prosent) | 90 prosent |
+
+### Resultater
+
+Rådata ligger i [2026-10-08-planning-luna-sol-judge](golden-baselines/2026-10-08-planning-luna-sol-judge/), og svarene uten verktøyutskrift i [transkripter](golden-baselines/2026-10-08-planning-luna-sol-judge/transkripter/). Copilot CLI 1.0.94-3. Alle 337 bruksrader for Luna viser `gpt-6-luna` med `medium`, og alle 191 for Sol viser `gpt-6-sol` med `low`. Ingen kjøring er forkastet.
+
+**Avvik fra planen: GPT-6 Sol Low fikk 7 kjøringer, ikke 10.** Sol brukte om lag 52 kreditter per kjøring, mens tidligere målinger av t2–t5 alene lå på 27 til 29. Ti kjøringer ville gitt om lag 570 kreditter totalt. Kjøringen ble stoppet før kjøring 8 hadde brukt noe, for å holde stoppgrensen på 440. Filene for Sol er bygget fra arbeidsmappa (`--keep`) med samme innhold og overskrift som lagringssteget lager.
+
+| Sjekk | GPT-6 Luna Medium | GPT-6 Sol Low |
+| ----- | ----------------- | ------------- |
+| t2    | 10/10             | 7/7           |
+| t3    | 10/10             | 7/7           |
+| t4    | 10/10             | 7/7           |
+| t5    | 10/10             | 7/7           |
+| t7    | 10/10             | 7/7           |
+| t7b   | 10/10             | 7/7           |
+
+Mønstrene ville gitt Luna t3 9/10 og t7b 7/10. Hos Sol ga mønstrene samme utfall som KI-vurderingen i alle sju kjøringene. Hver vurdering står med sitat i `-judge.psv`.
+
+Eksempler på sitater fra KI-vurderingen:
+
+- **Luna t3 kjøring 4:** «Hva skal tjenesten bruke fødselsnummeret til, og hvilket behandlingsgrunnlag gjelder?» (#1) og «Hvem skal kunne kalle tjenesten, og hvilke andre tjenester skal motta fødselsnummeret?» (#2).
+- **Luna t7b kjøring 8:** «Hva er formålet med å sende `fnr` på `soknad-mottatt`, og er dette godkjent for den behandlingen?». Mønstrene fant ikke blindsone 1 her, fordi svaret skriver «fnr».
+- **Luna t3 kjøring 10:** For #2 siterte vurderingen «Hvem eier hele flyten, og hvilke tester forventer dere?». Det er ikke et tilgangsspørsmål. Svaret spør likevel «hvem skal bruke tjenestens API eller hendelser?», så utfallet står. Se [failures.psv](golden-baselines/2026-10-08-planning-luna-sol-judge/failures.psv).
+- **Sol t3 kjøring 5:** «Hva skal tjenesten bruke fødselsnummeret til?» (#1) og «Hvem skal kunne kalle API-et?» (#2).
+- **Sol t7b kjøring 1:** «Hvilke konsumenter leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?».
+
+I t7 fant vurderingen ingen spørsmål om personvern eller tilgang i noen kjøring, verken for Luna eller Sol.
+
+Kreditter per kjøring, medregnet KI-vurderingen. `summary.json` viser bare modellens egne kreditter, uten KI-vurderingen:
+
+| Arm                              | Min   | Median | Maks  | Sum   |
+| -------------------------------- | ----- | ------ | ----- | ----- |
+| GPT-6 Luna Medium (10 kjøringer) | 3,85  | 4,55   | 5,36  | 45,5  |
+| GPT-6 Sol Low (7 kjøringer)      | 46,85 | 51,98  | 53,28 | 356,1 |
+
+Kontrollene og verktøytesten kostet 9,8 kreditter. Hele målingen kostet 411,5 kreditter.
+
+**Vurdering: Luna er ikke målbart svakere enn Sol på disse seks sjekkene; målingen kan ikke vise at noen av dem er bedre.** Kriteriet som ble satt før målingen, er oppfylt etter ordlyden: Luna besto alle seks sjekkene i 10 av 10 kjøringer, også t2, og Sol kan ikke bestå mer enn 10 av 10. De tre manglende Sol-kjøringene kunne derfor ikke endret utfallet. Begge armene besto alt, så sjekkene skiller ikke modellene.
+
+Fremgangen for Luna siden 7. oktober kom fra vurderingen, ikke fra modellen. Med mønstrene fikk Luna t3 4/5 og t7b 3/5. Med KI-vurderingen fikk de samme svarene 5/5.
+
+### Før et eventuelt bytte
+
+Modellen til `@nav-pilot` er i praksis modellen for hele delegeringstreet. Pinner gjelder bare på toppnivå (se [Pinnen gjelder bare på toppnivå](#pinnen-gjelder-bare-på-toppnivå)), og overstyringen med `subagents` er ikke tatt i bruk ([#500](https://github.com/navikt/copilot/issues/500)). Med Luna som standard ville delegert kodegjennomgang og sikkerhetsvurdering også kjøre på Luna. Luna besto rv5 i 1 til 4 av 10 kjøringer 7. oktober, avhengig av tellemåte, og `@security-champion` er ikke målt på Luna. Arvingen ble målt på Copilot CLI 1.0.83-4 og må måles på nytt med dagens CLI før noen beslutning. Kvaliteten på planen i fase 2 er ikke målt utover t4 og t5. Målingen endrer ingen pinne.
+
+## Delegering fra @nav-pilot: grunnmåling (8. oktober 2026)
+
+Eieren har godkjent å gjøre `@nav-pilot` til en koordinator som sender arbeid videre til andre agenter. Dette er steg 1: et testoppsett som måler hvilke modeller som faktisk kjører, og en grunnmåling av dagens persona. `agents/nav-pilot.agent.md` er ikke endret.
+
+### Kriteriene ble satt før målingen
+
+Testoppsettet er `./scripts/nav-pilot-golden.sh --suite delegation`. Det installerer alle agentene personaen kan nevne (unntatt `local-worker`, som trenger en lokal modell) med pinnene sine, og kjører klienten med en tom `COPILOT_HOME`, slik at agenter i `~/.copilot/agents/` ikke kan skygge for dem. Modellen leses fra klientens debuglogg, linja `turn tool surface resolved {"model":...}`, og sjekkes mot modellkolonnen i bruksradene. Etiketten `(model: ...)` i CLI-en teller ikke, fordi den kan vise en modell som aldri kjørte ([#1477](https://github.com/navikt/copilot/pull/1477)).
+
+| Test | Oppgave                                                                                   | Består når                                                                                                                              |
+| ---- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| d1   | Full oppgave tatt til fase 3: de to turene fra test 4, og en tredje som godkjenner planen | En tur på `claude-opus-5.5` (`@security-champion-agent`) står i både debugloggen og bruksradene. Nås ikke fase 3, telles ikke kjøringen |
+| d2   | Komprimert oppgave i en liten Kotlin-modul: DTO, mapper og test                           | En annen modell enn forelderens har en tur (agent og modell skrives ned), arbeidsområdet er endret, og testene er grønne                |
+| d3   | Samme omdøping som t6                                                                     | Bare én modell i debugloggen, altså ingen delegering                                                                                    |
+| d4   | Et spørsmål om hvordan repoet henger sammen                                               | En tur på `gpt-6-luna` (`@research-agent`) står i både debugloggen og bruksradene                                                       |
+
+Hver sjekk har en kontroll i `scripts/nav-pilot-golden.bats` med ferdige debuglogger og bruksrader: delegert, ikke delegert, feil modell, og modell i loggen uten bruksrad. Kontrollene stryker der de skal.
+
+**Forventet utfall.** Grunnmålingen kjøres med GPT-6 Sol Low, dagens standard, fem kjøringer per test. Vi forventer at dagens persona stryker på d1, d2 og d4 og består d3. Grunnmålingen endrer ingen pinne og ingen persona.
+
+**Mål for steg 3** (endringen av personaen), satt nå:
+
+- d1–d4 består 5 av 5.
+- t2–t5 er minst like gode som GPT-6 Sol i batch 4: t2 5/5, t3 5/5, t4 4/5, t5 5/5.
+- ~~Planleggingen koster høyst 27,2 credits i median, som i batch 4.~~
+- **Endret 8. oktober 2026 etter rev2:** kravet er 28,89 credits, medianen for samme modell og persona før steg 3 samme dag (sju kjøringer). Eieren godtar om lag 2 credits mer per kjøring for de nye linjene i personaen.
+- ~~d2 koster høyst halvparten av det d2 kostet i grunnmålingen.~~
+- **Endret 8. oktober 2026 etter grunnmålingen, før steg 3 er målt:** d2 må koste høyst det d2 kostet i grunnmålingen (9,74 credits i median), med grønne tester. Halvparten (4,87) er et mål vi strekker oss mot, ikke et krav. Grunnen er at koordinatoren fortsatt betaler for egne turer på GPT-6 Sol til å finne fram, sende oppgaven videre og kontrollere resultatet, i tillegg til det arbeideren koster. Eieren tok beslutningen.
+
+Budsjettet for grunnmålingen er om lag 150 credits, og stopp ved 200 credits.
+
+**Skjerpet etter gjennomgang, før steg 3.** Etter grunnmålingen ble sjekkene gjort strengere. Delegering telles nå fra bruksradene: en tur i en subagent har en `agent_id`, og agentnavnet hentes fra sesjonens `events.jsonl`. Dette er bekreftet på en ekte delegert kjøring på Copilot CLI 1.0.94-3 (0,47 credits): bruksraden for subagenten hadde `agent_id`, og debugloggen hadde både `subagent_started` og en egen `turn tool surface resolved`-linje for subagentens modell.
+
+- d1 krever en tur for `security-champion-agent` på `claude-opus-5.5` i turen som når fase 3, ikke under intervjuet eller planen.
+- d2 krever en subagentrad på en annen modell enn forelderens, og samme modell må stå i debugloggen.
+- d3 krever null subagentrader og minst én bruksrad, slik at en kjøring uten data ikke kan bestå. Debugloggen og bruksradene må vise den samme, ene modellen.
+- d4 krever en tur for `research-agent` på `gpt-6-luna`.
+
+Grunnmålingen er skåret på nytt med de nye reglene ([rescore.sh](golden-baselines/2026-10-08-delegering-baseline/rescore.sh), [rescore.psv](golden-baselines/2026-10-08-delegering-baseline/rescore.psv)). Ingen av de 20 kjøringene har en subagentrad, så utfallet er det samme: d3 5/5, d1, d2 og d4 0/5.
+
+### Resultater
+
+Kjørt 8. oktober 2026 med Copilot CLI 1.0.94-3, `--model gpt-6-sol --effort low`, fem kjøringer per test. Rådata, transkripter og skript ligger i [`golden-baselines/2026-10-08-delegering-baseline/`](golden-baselines/2026-10-08-delegering-baseline/), med én rad per kjøring i [raw.psv](golden-baselines/2026-10-08-delegering-baseline/raw.psv). Credits er summen av bruksradene per kjøring.
+
+| Test | Bestått | Modeller i debugloggen og bruksradene | Subagentrader i bruksdataene | Credits, median (spenn) |
+| ---- | ------- | ------------------------------------- | ---------------------------- | ----------------------- |
+| d1   | 0/5     | bare gpt-6-sol                        | 0                            | 9,94 (9,06–10,19)       |
+| d2   | 0/5     | bare gpt-6-sol                        | 0                            | 9,74 (8,31–10,63)       |
+| d3   | 5/5     | bare gpt-6-sol                        | 0                            | 8,67 (7,34–9,65)        |
+| d4   | 0/5     | bare gpt-6-sol                        | 0                            | 5,90 (5,65–6,47)        |
+
+Utfallet er som ventet: dagens persona delegerer ikke. I alle 20 kjøringene kjørte bare GPT-6 Sol, og ingen bruksrad tilhører en subagent. Ingen av svarene nevner `@security-champion-agent`, `@research-agent` eller en annen agent.
+
+- **d1** nådde fase 3 i alle fem kjøringene. Personaen gjorde gjennomgangen selv.
+- **d2** feilet bare på modellkravet. Arbeidsområdet ble endret og testene var grønne i alle fem. Kravet for steg 3 er derfor høyst 9,74 credits i median for d2, og målet er 4,87 (se endringen over).
+- **d3** brukte mer enn d4, 8,67 mot 5,90 credits, selv om oppgaven er en omdøping i tre filer.
+
+Avvik fra planen og forbehold:
+
+- d1 ble kjørt som fem enkeltkjøringer, ikke én kjøring med `--repeat 5`, for å kunne sjekke forbruket etter hver. Kjøringene er like ellers.
+- Grunnmålingen kostet 168,6 credits, over anslaget på 150 og under stoppen på 200. Prøvekallet før hver kjøring er ikke med.
+- Debugloggen har én `turn tool surface resolved`-linje per prompt og modell, ikke én per modellkall. I d1a viser bruksradene fem kall og loggen én linje. Testene bruker linjene bare til å se hvilke modeller som kjørte, ikke hvor mange kall.
+- Debugloggene er ikke lagt i repoet, fordi de inneholder hele forespørslene. Linjene testene bruker står i `raw.psv`.
+
+## Delegering fra @nav-pilot: steg 3 (8. oktober 2026)
+
+`@nav-pilot` er gjort om til koordinator ([agents/nav-pilot.agent.md](../agents/nav-pilot.agent.md)). I komprimerte og fulle oppgaver sender den grønn kode til `worker`, sikkerhetsperspektivet i fase 3 til `@security-champion-agent` og spørsmål om repoet til `@research-agent`. Målt mot kriteriene i [grunnmålingen](#delegering-fra-nav-pilot-grunnmåling-8-oktober-2026), med det samme oppsettet: Copilot CLI, `--model gpt-6-sol --effort low`, fem kjøringer per test, `--keep`. Rådata ligger i [`golden-baselines/2026-10-08-delegering-steg3/`](golden-baselines/2026-10-08-delegering-steg3/), én rad per kjøring i [raw.psv](golden-baselines/2026-10-08-delegering-steg3/raw.psv). Alle bruksradene for forelderen viser `gpt-6-sol`, så ingen kjøring er forkastet.
+
+Personaen ble endret én gang underveis (rev1), etter at d4 strøk 0/5 med første versjon (rev0). Rev0 sa at forklaringer ikke skulle sendes videre, og modellen leste spørsmålet om repoet som en forklaring. Rev1 sier at spørsmål om repoet går til `@research-agent` før koordinatoren leser filer selv, og at koordinatoren ikke skriver applikasjonskode, «however small the change».
+
+| Test | Krav | Grunnmåling | Rev0 | Rev1 | Credits rev1, median (spenn) |
+| ---- | ---- | ----------- | ---- | ---- | ---------------------------- |
+| d1 | 5/5 | 0/5 | ikke kjørt | 5/5 | 19,18 (15,44–29,42) |
+| d2 | 5/5, høyst 9,74 credits | 0/5, 9,74 | 4/5, 9,54 | 5/5 | 9,57 (8,79–11,07) |
+| d3 | 5/5 | 5/5 | 5/5 | **4/5** | 8,18 (7,91–9,21) |
+| d4 | 5/5 | 0/5 | **0/5** | 5/5¹ | 4,99 (4,75–5,51) |
+| t2–t5 | t2 5/5, t3 5/5, t4 4/5, t5 5/5, høyst 27,2 credits | | ikke kjørt | ikke kjørt | |
+
+¹ 4/5 etter #1637: kjøring 2 var for det meste på finsk ([rescore.psv](golden-baselines/2026-10-08-delegering-steg3/rev1/rescore.psv)).
+
+**Konklusjon: kriteriene er ikke oppfylt.** D3 strøk i rev1: i kjøring 4 sendte koordinatoren omdøpingen i tre filer til `worker`. Det er den nye setningen om at også små endringer skal sendes videre, som trekker en oppgave på grensen mellom triviell og komprimert over til `worker`. Endringen ga altså d4, men kostet d3. Etter regelen om høyst én revisjon er personaen ikke justert mer.
+
+Planleggingen (t2–t5) er ikke kjørt. Steg 3 kostet 337,0 credits før den, og fem kjøringer av t2–t5 koster om lag 136. Det ville gått over stoppen på 450.
+
+Hva målingen viser:
+
+- **Delegeringen virker.** Hver delegering i bruksradene hadde riktig agent på riktig pinne: `worker` og `@research-agent` på `gpt-6-luna`, `@security-champion-agent` på `claude-opus-5.5`.
+- **D2 sparer nesten ingenting.** `worker` kostet 0,07–0,26 credits per kjøring, men koordinatoren på GPT-6 Sol brukte fortsatt 8,5–11 credits på å lese, skrive briefen og kontrollere. Medianen 9,57 er under kravet på 9,74 og langt fra målet på 4,87.
+- **D1 koster om lag dobbelt så mye.** Median 19,18 mot 9,94 i grunnmålingen. `@security-champion-agent` på Opus kostet 3,9–18,1 credits per kjøring.
+- **D4 ble billigere.** Median 4,99 mot 5,90.
+
+Budsjett: om lag 350 credits, stopp ved 450. Brukt: 337,0 (rev0 d2, d3, d4: 121,6; rev1 d1–d4: 215,5).
+
+### Rev2 (8. oktober 2026)
+
+Eieren opphevet regelen om én revisjon og ba om rev2: trivielle endringer (én fil, en omdøping, en skrivefeil, en konfigurasjonsverdi) gjør koordinatoren alltid selv og sender dem aldri videre. Resten av personaen er som i rev1. Målt med samme oppsett: d3 fem kjøringer, d2 og d4 tre kjøringer hver som stikkprøve, og t2–t5 med dagens KI-vurdering. D1 er ikke kjørt på nytt, fordi rev2 ikke endrer fase 3. Rådata ligger i [`rev2/`](golden-baselines/2026-10-08-delegering-steg3/rev2/) og som `rev2`-rader i raw.psv.
+
+| Test | Krav | Rev2 | Credits, median (spenn) |
+| ---- | ---- | ---- | ----------------------- |
+| d2 | 5/5, høyst 9,74 credits | 3/3 (`worker` på `gpt-6-luna`) | 9,82 (9,50–10,41) |
+| d3 | 5/5 | 5/5 | 7,79 (7,25–10,30) |
+| d4 | 5/5 | 3/3 (`@research-agent` på `gpt-6-luna`) | 4,87 (4,79–5,41) |
+| t2 | 5/5 | 3/3 | |
+| t3 | 5/5 | 3/3 | |
+| t4 | 4/5 | 3/3 | |
+| t5 | 5/5 | 3/3 | |
+| Planlegging, credits | høyst 28,89 (endret, se over) | | 30,84 (29,24–33,52) per kjøring av t2–t5 |
+
+Planleggingen ble kjørt tre ganger, ikke fem. Hver kjøring kostet rundt 31 credits, og en fjerde ville gått over stoppen på 200 for denne runden. Ingen planleggingskjøring hadde en subagentrad, så personaen delegerte ikke i fase 1 og 2.
+
+**Konklusjon for rev2: delegeringen består, og planleggingen ligger 1,95 over det nye kravet; eieren godtar det.**
+
+- D3 består 5/5 igjen. Unntaket for trivielle oppgaver rettet feilen fra rev1.
+- D2 og d4 delegerer i alle stikkprøvene.
+- Planleggingen koster 30,84 credits i median. Det opprinnelige kravet på 27,2 kom fra batch 4 (6. oktober). Samme modell med personaen før denne endringen kostet 28,89 i median for de samme testene 8. oktober (sju kjøringer, [2026-10-08-planning-luna-sol-judge](golden-baselines/2026-10-08-planning-luna-sol-judge/)). En del av økningen fantes altså før steg 3. Resten, om lag 2 credits per kjøring, er trolig de nye linjene i personaen, som leses i hver tur.
+- D2 kostet 9,82 i median i tre kjøringer, rett over kravet på 9,74. Med fem kjøringer i rev1 var medianen 9,57. Tre kjøringer er for få til å si om d2 er over eller under.
+- Kvaliteten i planleggingen er like god: t2–t5 besto i alle tre kjøringene, med KI-vurderingen av blindsonene i t3.
+
+Brukt i rev2: 187,5 credits (d3 41,6; d2 29,7; d4 15,1; t2–t5 93,6; KI-vurderingen 0,4; kontrollene for KI-vurderingen 7,1, [blindsone-dommer-kontroller.psv](golden-baselines/blindsone-dommer-kontroller.psv)). Budsjett om lag 170, stopp ved 200. Totalt for steg 3: 524,5.
+
 ## Pinner og delegering
 
 Målt mot Copilot CLI 1.0.83-4, 7. september 2026.
 
 ### Pinnen gjelder bare på toppnivå
+
+> **Utdatert per 8. oktober 2026 (Copilot CLI 1.0.94-3).** Pinnen gjelder nå også for subagenter. Se [Ny måling 8. oktober 2026](#ny-måling-8-oktober-2026-copilot-cli-1094-3).
 
 `model:`-feltet i en agents frontmatter blir brukt når agenten startes direkte:
 
@@ -159,9 +962,60 @@ Klientens egen konfigurasjon setter modell per subagent, uavhengig av hva modell
 
 Seks av agentene våre har et `name:` som ikke er filnavnet: `accessibility`, `aksel`, `kafka`, `research`, `rust` og `security-champion` heter alle `<navn>-agent` i frontmatteren. Den som setter opp dette fra agentens eget navn får ingen feilmelding, bare ingen effekt.
 
+> Begge funnene over gjelder 1.0.83-4. I 1.0.94-3 er de snudd: pinnen gjelder for subagenter, og nøkkelen er `name:`, ikke filnavnet. Se neste avsnitt.
+
 Nav-pilot skriver ikke klientkonfigurasjon i dag, men skal gjøre det: [beslutning 4.8](nav-pilot-benchmark-og-beslutninger-2026-08.md#48-nav-pilot-skriver-nøkler-den-selv-eier-og-tar-dem-tilbake) ble omgjort 8. september. Nøkler nav-pilot eier skrives og tas tilbake. Fire spørsmål om eierskap, reversering, formatering og synlighet står ubesvart, og ingen kode skrives før de har svar ([#500](https://github.com/navikt/copilot/issues/500)).
 
+### Ny måling 8. oktober 2026 (Copilot CLI 1.0.94-3)
+
+Spørsmålet var om `@code-review` og `@security-champion`, som er pinnet til Claude Opus 5.5, kjører på pinnen når `@nav-pilot` delegerer til dem fra en billigere modell. Råtall, prober og skript ligger i [`golden-baselines/2026-10-08-subagent-arv/`](golden-baselines/2026-10-08-subagent-arv/).
+
+**Oppsett.** En egen `COPILOT_HOME` i en midlertidig mappe med bare to agenter og en tom `settings.json`. Innlogging via `COPILOT_GITHUB_TOKEN`. Brukerens egen `~/.copilot` ble ikke rørt. Forelderen `probe-parent` startes med `--model gpt-6-luna` og blir bedt om å starte subagenten `probe-child` uten å nevne modell. Fila heter `probe-child.agent.md`, mens `name:` er `probe-child-agent`, så de to mulige nøklene kan skilles.
+
+**Hvordan modellen er lest av.** To uavhengige kilder per kjøring: linja `turn tool surface resolved {"model":...}` i debugloggen (én per modelltur), og etiketten `(model: ...)` som CLI-en viser for subagenten. Der de er uenige, er det debugloggen som teller (se D1–D2).
+
+| Kjøring | Pinne i `probe-child` | `subagents.agents` i `settings.json` | Modell i debugloggen (forelder + subagent) | Etikett | AI Credits |
+| ------- | --------------------- | ------------------------------------ | ------------------------------------------ | ------- | ---------- |
+| direkte | claude-opus-5.5 | – | claude-opus-5.5 (kun subagenten, startet direkte) | – | 12,19 (ikke lagret, se under) |
+| A1 | claude-opus-5.5 | – | gpt-6-luna + **claude-opus-5.5** | claude-opus-5.5 | 10,59 |
+| B1–B3 | gpt-5.6-luna | – | gpt-6-luna + **gpt-5.6-luna** | gpt-5.6-luna | 0,36 / 0,11 / 0,11 |
+| C1–C2 | gpt-5.6-luna | `probe-child` (filnavnet) → gpt-5.4-nano | gpt-6-luna + gpt-5.6-luna | gpt-5.6-luna | 0,11 / 0,11 |
+| C3–C4 | gpt-5.6-luna | `probe-child` (filnavnet) → gpt-5.6-terra | gpt-6-luna + gpt-5.6-luna | gpt-5.6-luna | 0,11 / 0,11 |
+| D1–D2 | gpt-5.6-luna | `probe-child-agent` (`name:`) → gpt-5.4-nano | gpt-6-luna + **gpt-6-luna** | gpt-5.4-nano | 0,21 / 0,10 |
+| D3–D4 | gpt-5.6-luna | `probe-child-agent` (`name:`) → gpt-5.6-terra | gpt-6-luna + **gpt-5.6-terra** | gpt-5.6-terra | 2,89 / 0,33 |
+| E1–E2 | gpt-5.6-luna | `probe-child` (filnavnet) → `inherit` | gpt-6-luna + gpt-5.6-luna | gpt-5.6-luna | 0,11 / 0,11 |
+| E3–E4 | gpt-5.6-luna | `probe-child-agent` (`name:`) → `inherit` | gpt-6-luna + **gpt-6-luna** | gpt-6-luna | 0,10 / 0,10 |
+
+**Funn.**
+
+1. **Pinnen gjelder for subagenter.** En subagent med `model:` i frontmatteren kjører på pinnen, ikke på forelderens modell. Med Opus-pinnen er det målt én gang (A1), fordi én Opus-kjøring kostet over 10 credits. Mekanismen er bekreftet med en billig pinne i ni kjøringer (B, C, E1–E2). Dette er det motsatte av målingen 7. september på 1.0.83-4.
+2. **Overstyringen i `settings.json` virker, men nøkkelen er nå `name:` fra frontmatteren, ikke filnavnet.** Nøkkel på filnavnet ga ingen effekt i seks kjøringer (C1–C4, E1–E2). Nøkkel på `name:` overstyrte pinnen i fire av fire kjøringer med en tilgjengelig verdi (D3–D4, E3–E4). Også dette er snudd siden 1.0.83-4.
+3. **`inherit` fungerer** som dokumentert: subagenten kjører på forelderens modell (E3–E4).
+4. **En overstyring til en modell kontoen ikke har, faller stille tilbake til forelderens modell, ikke til pinnen.** I D1–D2 viste etiketten `gpt-5.4-nano`, mens debugloggen viser at turen gikk på gpt-6-luna, med advarselen `Model "gpt-5.4-nano" is not available` ([utdrag](golden-baselines/2026-10-08-subagent-arv/D1-fallback-warning.txt)). Etiketten kan altså ikke brukes som bevis alene.
+5. **Kredittene skiller modeller i denne versjonen.** Samme subagenttur kostet 10,59 på Opus 5.5 og 0,11 på GPT-5.6 Luna. Det er motsatt av målingen i neste avsnitt. Første kjøring med en ny modell er dyrere enn de neste (B1 0,36, D3 2,89), trolig fordi forespørselen skrives til hurtigbuffer første gang. Det er ikke undersøkt nærmere.
+
+**Hva det betyr for nav-pilot.** Med standard GPT-6 Sol eller Luna for `@nav-pilot` kjører en delegert `@code-review` på Opus 5.5 allerede i dag, uten konfigurasjon. Tre forbehold:
+
+- Det hviler på klientens oppførsel, som har snudd én gang mellom 1.0.83-4 og 1.0.94-3. En vakt bør derfor være en måling i `doctor` eller CI som fanger neste gang klienten snur, ikke en antakelse.
+- `security-champion` heter `security-champion-agent` i frontmatteren. En overstyring for den må bruke det navnet. Med 1.0.83-4-regelen måtte den bruke filnavnet. Den som skriver nøkkelen må vite hvilken CLI-versjon som leser den.
+- Brukeren kan selv ha satt `subagents.agents.<navn>.model` eller `inherit`, og det slår pinnen.
+
+OpenCode er ikke målt på nytt. Der setter frontmatterens `model:` modellen per agent også som subagent (se [#500](https://github.com/navikt/copilot/issues/500)).
+
+**Gjenstående risiko.**
+
+- Den pakkede oppstarten (`pakke:primary`) er ikke målt. Målingen startet agentene fra `COPILOT_HOME/agents`.
+- OpenCode er ikke målt på nytt, og pi har ingen nøkkel for modell per subagent.
+- En pinne i frontmatteren til en modell kontoen ikke har, faller trolig stille tilbake til forelderens modell, slik overstyringen gjorde i D1–D2. Det er ikke testet.
+- `@nav-pilot` gjør sikkerhetsgjennomgangen i fase 3 selv, uten å delegere. Den går på `@nav-pilot` sin modell uansett hva pinnene sier.
+- En overstyring brukeren har satt selv, vinner over pinnen.
+- Klienten har snudd oppførselen én gang og kan gjøre det igjen.
+
+**Forbruk.** 27,75 AI Credits, over budsjettet på 15 og stoppgrensen på 25. Den direkte Opus-kjøringen (12,19) og A1 (10,59) tok 22,78 alene. Utskriften fra den direkte kjøringen ble ikke lagret. Tallet 12,19 er lest av terminalen og kan ikke etterprøves fra filene. Det var ikke ventet ut fra målingen 7. september, der Opus kostet det samme som Luna. Resten ble kjørt med billige modeller, og siste gruppe (D3–E4) presset summen over 25.
+
 ### AI-kreditter skiller ikke modeller
+
+> **Gjelder ikke lenger i Copilot CLI 1.0.94-3.** 8. oktober 2026 kostet samme subagenttur 10,59 credits på Claude Opus 5.5 og 0,11 på GPT-5.6 Luna. Se [Ny måling 8. oktober 2026](#ny-måling-8-oktober-2026-copilot-cli-1094-3).
 
 Samme agent, samme oppgave, 10,0k input-tokens:
 
@@ -213,7 +1067,7 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
   De ble opprinnelig vurdert som lesende mønsteranvendere, men begge er
   verktøytunge agenter. `@code-review` har `execute`, mens `@accessibility` har
   `execute` og `edit`. Opus 5.5 ble målt på kodegjennomgang 30. september og fant alle plantede feil på riktig linje på Low, Medium og
-  High. Low holder. GPT-6.1 Sol er fallback, deretter GPT-5.3-Codex. `@accessibility` bruker Claude Sonnet 5.5 med Sonnet 5 som fallback.
+  High. Low holder. GPT-6 Sol Low er fallback (rv5 3/10, rv7 0/10 og rv1–rv4 36/40 7. oktober), deretter GPT-5.3-Codex. `@accessibility` bruker Claude Sonnet 5.5 med Sonnet 5 som fallback.
 - `@forfatter` beholder Anthropic-modellen sin. Jobben er å skille bokmål fra
   nynorsk og luke ut norske AI-markører. Målingen sier ingenting om det, og
   gevinsten er nær null mot en kjent nedside.
@@ -233,31 +1087,33 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 
 Et kuratert utvalg av modellflåten: modellene vi faktisk vurderer, ikke alle
 GitHub priser. Prisene under er GitHubs listepriser slik de sto
-**30. september 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
+**8. oktober 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
 som dekker hele flåten. De endrer seg uten varsel, så
 tallene her har et tidsstempel og ikke evig gyldighet.
 
-| Modell                | Kategori    | Input    | Output   | Best for                                                                                                                                                                                                        |
-| --------------------- | ----------- | -------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Claude Opus 5.5       | Powerful    | $4.00    | $20.00   | Lange agentoppgaver, kodebaseomfattende migreringer, høyrisiko planlegging og sikkerhetskritisk review. Lansert 22. september 2026                                                                              |
-| Claude Opus 5         | Powerful    | $5.00    | $25.00   | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026                                                                                        |
-| Claude Opus 4.7 / 4.8 | Powerful    | $5.00    | $25.00   | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur. Opus 4.5 og 4.6 falt ut av GitHubs prisliste 5. sep 2026                                                                                      |
-| Claude Sonnet 4.6     | Versatile   | $3.00    | $15.00   | Daglig koding, norsk tekst, planlegging                                                                                                                                                                         |
-| Claude Sonnet 5.5     | Versatile   | $2.00    | $10.00   | Aksel, tilgjengelighet og norsk tekst                                                                                                                                                                           |
-| Claude Sonnet 5       | Versatile   | $2.00    | $10.00   | Fallback for Sonnet 5.5. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen                                                                                     |
-| Claude Haiku 4.5      | Versatile   | $1.00    | $5.00    | Sjekklister, maler, scaffold-prompts                                                                                                                                                                            |
-| GPT-5.3-Codex         | Powerful    | $1.75    | $14.00   | Kodeforståelse, terminal, infrastruktur                                                                                                                                                                         |
-| GPT-5.6 Luna          | Lightweight | $0.20    | $1.20    | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort                                                     |
-| GPT-5.6 Terra         | Versatile   | $2.00    | $12.00   | Allround daglig koding i GPT-familien                                                                                                                                                                           |
-| GPT-5.6 Sol           | Powerful    | $4.00    | $20.00   | Tung reasoning over store kodebaser. Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00                                                                                          |
-| GPT-6 Luna            | Lightweight | $0.10    | $0.50    | Raske rutineoppgaver og faste maler. Lang kontekst over 272K: $0.20 / $0.75                                                                                                                                     |
-| GPT-6 Sol             | Powerful    | $2.00    | $10.00   | Daglig agentisk koding med validering i flere steg. Lang kontekst over 272K: $4.00 / $15.00                                                                                                                     |
-| Gemini 2.5 Pro        | Powerful    | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-6 Sol eller Kimi K3 til research over lang kontekst |
-| Gemini 3.5 Flash      | Lightweight | $1.50    | $9.00    | Rask og billig for enkle oppgaver                                                                                                                                                                               |
-| Gemini 3.8 Flash      | Versatile   | $0.75    | $3.75    | Rask Aksel-scaffolding. Kampanjepris t.o.m. 31. des 2026                                                                                                                                                        |
-| Gemini 3.6 Flash      | Versatile   | $0.75    | $3.75    | Agentiske workflows med parallell verktøybruk, men deaktivert i Nav. Kampanjepris t.o.m. 31. des 2026                                                                                                           |
-| Kimi K2.7 Code        | Versatile   | $0.95    | $4.00    | Rimeligste alternativ for kode-agent-løkker (open-weight)                                                                                                                                                       |
-| Kimi K3               | Powerful    | $3.00    | $15.00   | Rimeligste Powerful-modell på lista (open-weight). Ikke pinnet, ikke målt hos oss                                                                                                                               |
+| Modell                | Kategori    | Input    | Output   | Best for                                                                                                                                                                                                                                                          |
+| --------------------- | ----------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Opus 5.5       | Powerful    | $4.00    | $20.00   | Lange agentoppgaver, kodebaseomfattende migreringer, høyrisiko planlegging og sikkerhetskritisk review. Lansert 22. september 2026                                                                                                                                |
+| Claude Opus 5         | Powerful    | $5.00    | $25.00   | Dyp resonnering, risikovurdering og sikkerhetskritisk kode med justerbar effort (low/medium/high). Lansert 24. juli 2026                                                                                                                                          |
+| Claude Opus 4.7 / 4.8 | Powerful    | $5.00    | $25.00   | Dyp risikovurdering, sikkerhetskritisk kode, kompleks arkitektur. Opus 4.5 og 4.6 falt ut av GitHubs prisliste 5. sep 2026                                                                                                                                        |
+| Claude Sonnet 4.6     | Versatile   | $3.00    | $15.00   | Daglig koding, norsk tekst, planlegging                                                                                                                                                                                                                           |
+| Claude Sonnet 5.5     | Versatile   | $2.00    | $10.00   | Aksel, tilgjengelighet og norsk tekst                                                                                                                                                                                                                             |
+| Claude Sonnet 5       | Versatile   | $2.00    | $10.00   | Fallback for Sonnet 5.5. ⚠️ Kampanjen vi noterte gikk ut 31. aug 2026, og standardprisen er ukjent. Se noten under tabellen                                                                                                                                       |
+| Claude Haiku 5.5      | Lightweight | $0.10    | $0.50    | Aktivert i Nav 7. oktober 2026 og tilgjengelig i Copilot CLI 1.0.94-3 med `--model claude-haiku-5.5`. Målt 8. oktober, se [Claude Haiku 5.5 mot GPT-6 Luna Medium](#claude-haiku-55-mot-gpt-6-luna-medium-8-oktober-2026). Lang kontekst over 100K: $0.50 / $2.50 |
+| Claude Haiku 4.5      | Versatile   | $1.00    | $5.00    | Sjekklister, maler, scaffold-prompts                                                                                                                                                                                                                              |
+| GPT-5.3-Codex         | Powerful    | $1.75    | $14.00   | Kodeforståelse, terminal, infrastruktur                                                                                                                                                                                                                           |
+| GPT-5.6 Luna          | Lightweight | $0.20    | $1.20    | Raske rutineoppgaver, enkel autofullfør. OpenAI plasserer den i nano-sjiktet fra tidligere GPT-5-familier, men med høy reasoning-rating og justerbar effort                                                                                                       |
+| GPT-5.6 Terra         | Versatile   | $2.00    | $12.00   | Allround daglig koding i GPT-familien                                                                                                                                                                                                                             |
+| GPT-5.6 Sol           | Powerful    | $4.00    | $20.00   | Tung reasoning over store kodebaser. Listepris; kampanjen gikk ut 3. sep 2026. Lang kontekst over 272K: $8.00 / $30.00                                                                                                                                            |
+| GPT-6 Luna            | Lightweight | $0.10    | $0.50    | Raske rutineoppgaver og faste maler. Lang kontekst over 272K: $0.20 / $0.75                                                                                                                                                                                       |
+| GPT-6 Sol             | Powerful    | $2.00    | $10.00   | Daglig agentisk koding med validering i flere steg. Lang kontekst over 272K: $4.00 / $15.00                                                                                                                                                                       |
+| GPT-6.1 Sol           | Powerful    | $2.00    | $10.00   | Målt i batch 4 (6. oktober 2026). Samme input- og outputpris som GPT-6 Sol; cachet input koster $0.10 mot $0.20. Lang kontekst over 272K: $4.00 / $15.00                                                                                                          |
+| Gemini 2.5 Pro        | Powerful    | (utgått) | (utgått) | 🚫 Utfaset 31. juli 2026. Gemini 3.1 Pro, som overtok rollen, falt ut av prislista 5. sep 2026. Google har ingen Powerful-modell igjen hos GitHub. Bruk GPT-6 Sol eller Kimi K3 til research over lang kontekst                                                   |
+| Gemini 3.5 Flash      | Lightweight | $1.50    | $9.00    | Rask og billig for enkle oppgaver                                                                                                                                                                                                                                 |
+| Gemini 3.8 Flash      | Versatile   | $0.75    | $3.75    | Rask Aksel-scaffolding. Kampanjepris t.o.m. 31. des 2026                                                                                                                                                                                                          |
+| Gemini 3.6 Flash      | Versatile   | $0.75    | $3.75    | Agentiske workflows med parallell verktøybruk, men deaktivert i Nav. Kampanjepris t.o.m. 31. des 2026                                                                                                                                                             |
+| Kimi K2.7 Code        | Versatile   | $0.95    | $4.00    | Rimeligste alternativ for kode-agent-løkker (open-weight)                                                                                                                                                                                                         |
+| Kimi K3               | Powerful    | $3.00    | $15.00   | Rimeligste Powerful-modell på lista (open-weight). Ikke pinnet, ikke målt hos oss                                                                                                                                                                                 |
 
 **Kampanjepriser.** GitHub merker enkelte rader med kampanjepris i fotnoter, og
 fotnotene følger ikke med når vi synkroniserer pristabellen

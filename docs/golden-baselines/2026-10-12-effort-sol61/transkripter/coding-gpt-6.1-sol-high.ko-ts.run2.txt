@@ -1,0 +1,74 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "slug/**"
+  └ 2 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,package.json}"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/**"
+  └ 17 files found
+
+● Read slug.ts
+  │ slug/slug.ts
+  └ 10 lines read
+
+● Read slug.test.ts
+  │ slug/slug.test.ts
+  └ 9 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+✗ Reproduserer den feilende slug-testen (shell)
+  │ cd slug && node --test slug.test.ts
+  └ ✖ slug (0.552708ms)
+    ℹ tests 1
+    ℹ suites 0
+    ℹ pass 0
+    ℹ fail 1
+    ℹ cancelled 0
+    ℹ skipped 0
+    ℹ todo 0
+    ℹ duration_ms 60.93625
+
+    ✖ failing tests:
+
+    test at slug.test.ts:5:1
+    ✖ slug (0.552708ms)
+    AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+    + actual - expected
+
+    + '-hei-pa-deg-'
+    - 'hei-pa-deg'
+
+    at TestContext.<anonymous> (file://<arbeidsmappe>
+    pilot-golden.lAnRIP/repo/slug/slug.test.ts:7:10)
+    at Test.runInAsyncScope (node:async_hooks:227:14)
+    at Test.run (node:internal/test_runner/test:1402:25)
+    at Test.start (node:internal/test_runner/test:1262:17)
+    at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '-hei-pa-deg-',
+    expected: 'hei-pa-deg',
+    operator: 'strictEqual',
+    diff: 'simple'
+    }
+    Failed with exit code 1
+
+● Edit
+  └ Edit slug/slug.ts
+
+● Verifiserer slug-rettingen med uendret test (shell)
+  │ cd slug && node --test slug.test.ts
+  └ 9 lines…
+
+Rettet `slug/slug.ts`: mellomrom og tegnsetting ga bindestreker i endene. Disse fjernes nå etter tegnkonverteringen, slik at `"  Hei på deg!  "` blir `hei-pa-deg`.
+
+`node --test slug.test.ts` består. Testen er uendret.
+

@@ -1,0 +1,144 @@
+
+🔍 Leser diffen mot `main` og finner berørte filer før jeg kjører prosjektets sjekker.
+
+
+
+
+
+
+
+📊 Diffen viser nye auth-, database- og Kafka-flater. Nå sjekker jeg runtime-oppsett, sikkerhet og om prosjektets validering dekker endringene.
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+
+📋 Jeg har funnet flere sikkerhets- og driftsrisikoer, blant annet manglende SQL-parametrisering og åpen lesetilgang til vedtak. Jeg kjører nå prosjektets Gradle-testoppgave for å skille kodefunn fra byggfeil.
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+    00gn/T/1791355445018-copilot-tool-output-26781-d4c01b4a-5728-490b-8f49-e2c933b7f265.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+    > Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+    > Task :processResources NO-SOURCE
+    > Task :processTestResources NO-SOURCE
+
+    > Task :compileKotlin FAILED
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.upN3SN/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:9 Unresolved reference 'session'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.upN3SN/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:9 Argument type mismatch: actual type is 'R', but 'K'
+    was expected.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.upN3SN/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:17 Cannot infer type for this parameter. Please
+    specify it explicitly.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.upN3SN/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:21 Unresolved reference 'queryOf'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.upN3SN/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:42 Unresolved reference 'it'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.upN3SN/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:11:62 Unresolved reference 'asSingle'.
+    e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.upN3SN/repo/
+    src/main/kotlin/no/nav/demo/UserRepo.kt:13:9 Null cannot be a value of a non-null type 'K'.
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    Execution failed for task ':compileKotlin'.
+    > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWit
+    hWorkers$GradleKotlinCompilerWorkAction
+    > Compilation error. See log for more details
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 4s
+    1 actionable task: 1 executed
+    Failed with exit code 1
+
+
+
+### Oppsummering
+
+Ikke klar for merge. Endringene åpner for uautorisert innsyn og skriving, inneholder SQL-injeksjon og logger fødselsnummer.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 | `GET /api/vedtak/{fnr}` mangler autentisering og tilgangskontroll. Alle som når tjenesten, kan hente vedtak ved å oppgi et fødselsnummer. `nais.yaml:25` tillater dessuten trafikk fra alle apper og namespaces. |
+| `App.kt:40–42` | 🔴 | JWT-oppsettet konfigurerer ingen signaturverifier. `validate` sjekker bare at tokenet har en `aud`-claim, ikke at tokenet er ekte eller har forventet audience. Dermed kan POST-endepunktets TokenX-beskyttelse omgås. |
+| `VedtakRepository.kt:23` | 🔴 | SQL-spørringen setter `fnr` direkte inn i SQL-strengen. Et manipulert fødselsnummer kan endre spørringen. Bruk parameterbinding. |
+| `VedtakService.kt:15` | 🔴 | Logger fødselsnummer. Det kan lekke personopplysninger til loggene. |
+| `VedtakRepository.kt:14` | 🔴 | Koden skriver til tabellen `vedtak`, men branchen oppretter ingen tabell eller migrering. En ny database fra `nais.yaml` mangler derfor skjemaet, og lagring vil feile. |
+| `VedtakConsumer.kt:32–33` | 🔴 | Ved retry fatter tjenesten et nytt vedtak med ny ID og lagrer det før Kafka-publisering. Hvis publiseringen feiler eller bekreftelsen går tapt, kan samme melding gi flere vedtak og hendelser. Behandlingen må være idempotent. |
+| `VedtakConsumer.kt:24–27, 46` | 🟡 | Ugyldig JSON eller en feil etter siste retry avslutter consumer-tråden. HTTP-tjenesten fortsetter likevel å kjøre, så meldinger blir stående ubehandlet uten at readiness viser problemet. |
+
+🔴 Rød sone: JWT-validering, tilgangskontroll og håndtering av fødselsnummer må gjennomgås nøye.
+
+`mise check` finnes ikke som oppgave i miljøet. `gradle test` med Java 21 stoppet under kompilering på uløste referanser i uendrede `src/main/kotlin/no/nav/demo/UserRepo.kt`; testene ble derfor ikke kjørt. `git diff --check` fant ingen whitespace-feil.
+

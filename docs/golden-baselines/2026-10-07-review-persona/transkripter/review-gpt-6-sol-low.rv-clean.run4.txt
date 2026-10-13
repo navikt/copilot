@@ -1,0 +1,11 @@
+
+
+
+### Gjennomgang
+
+**Én blokkering:** `/api/saker` godtar TokenX-token uten å kontrollere hvilken klient tokenet er utstedt til som avsender. I `App.kt:26–31` valideres signatur, utsteder, mottaker (`aud`) og `acr`, men ikke `azp` mot `AZURE_APP_PRE_AUTHORIZED_APPS`. Siden `SakService.kt:38–46` returnerer personens saker på grunnlag av tokenets `pid`, kan en annen klient med et gyldig token for samme mottaker få tilgang. Legg avsenderkontrollen i JWT-valideringen før ruten behandler tokenet.
+
+🔴 **Rød sone: autorisasjon og tilgang til personsaker.** Jeg ville beholdt kontrollen i den felles JWT-valideringen fremfor å legge den bare i sakruten: det beskytter alle ruter som bruker samme autentiseringsoppsett, men krever at listen over tillatte klienter konfigureres riktig.
+
+Jeg fant ingen SQL-injeksjon i `SakRepository`: spørringen bruker parameterbinding. `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave.
+

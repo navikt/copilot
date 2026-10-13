@@ -1,0 +1,17 @@
+Jeg fant ingen kritiske eller høye funn i `SakService.kt`. Tre ting er verdt å rette, og det viktigste ligger i `nais.yaml`, ikke i Kotlin-filen. Jeg har bare lest koden og ikke endret noe.
+
+**Det filen gjør riktig**
+- **Tilgangskontroll:** fødselsnummeret hentes fra `pid`-claimet i tokenet, ikke fra en parameter i forespørselen. Brukeren kan dermed bare se egne saker. 🔴 Rød sone: denne linjen (50) er hele tilgangskontrollen, så ikke bytt den ut med fnr fra path, query eller body.
+- **SQL:** spørringen er parameterisert (`?`), så den er ikke sårbar for SQL-injeksjon.
+- **Logging:** fødselsnummeret maskeres, og feilloggen skriver bare navnet på unntaksklassen, ikke meldingen.
+- **Token-validering:** `App.kt` sjekker issuer, audience og `acr=idporten-loa-high`.
+- **Feilsvar:** unntaket kastes videre, og Ktor svarer med en generell 500 uten detaljer om feilen.
+
+**Funn**
+1. **Medium, i `nais.yaml`:** filen mangler `tokenx.enabled: true` og `accessPolicy.inbound`. Uten `tokenx` får ikke appen miljøvariablene `TOKEN_X_*`. Uten `accessPolicy` står det ikke hvilke apper som har lov til å kalle tjenesten.
+2. **Lav:** `maskert()` erstatter alle tegn med `*`. Det lekker ingenting, men loggen kan da ikke knytte en feil til en forespørsel. Logg heller `Nav-Call-Id`.
+3. **Lav:** ingen rate limiting på `/api/saker`.
+
+Revisjonslogg i CEF-format trengs ikke her, siden innbyggeren ser sine egne data og ingen ansatt får dem vist.
+
+Still gjerne spørsmål om valgene over.

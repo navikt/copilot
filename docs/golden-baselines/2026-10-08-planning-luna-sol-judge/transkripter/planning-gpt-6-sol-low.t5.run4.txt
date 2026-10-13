@@ -1,0 +1,2 @@
+Bruk **TokenX** med token exchange. Da sender tjeneste A et token med brukerkontekst og riktig audience for tjeneste B. Azure AD `client_credentials` passer ikke her, fordi det mister brukerkonteksten.
+

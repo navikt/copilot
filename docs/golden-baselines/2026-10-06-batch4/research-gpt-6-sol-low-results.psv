@@ -1,0 +1,36 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        research
+# suite:        research
+# date:         2026-10-06
+# revision:     50f3ec9a
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-2.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      4263008951
+# prompts:      all
+#
+# id|run|status|assertion|detail
+re1|1|pass|every use of maksAntall cited on its line|
+re2|1|pass|says slettOppgave has no callers and invents no file|
+re3|1|pass|summary keeps to at most three points|
+re4|1|pass|summary names the endpoint|
+re1|2|pass|every use of maksAntall cited on its line|
+re2|2|pass|says slettOppgave has no callers and invents no file|
+re3|2|pass|summary keeps to at most three points|
+re4|2|pass|summary names the endpoint|
+re1|3|pass|every use of maksAntall cited on its line|
+re2|3|pass|says slettOppgave has no callers and invents no file|
+re3|3|pass|summary keeps to at most three points|
+re4|3|pass|summary names the endpoint|
+re1|4|pass|every use of maksAntall cited on its line|
+re2|4|pass|says slettOppgave has no callers and invents no file|
+re3|4|pass|summary keeps to at most three points|
+re4|4|pass|summary names the endpoint|
+re1|5|pass|every use of maksAntall cited on its line|
+re2|5|pass|says slettOppgave has no callers and invents no file|
+re3|5|pass|summary keeps to at most three points|
+re4|5|pass|summary names the endpoint|

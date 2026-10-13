@@ -1,0 +1,107 @@
+
+🔍 Leser diffen mot `main` og finner riktig sjekk for prosjektet.
+
+
+
+
+
+
+📊 Diffen viser endringer i auth, SQL og Kafka. Jeg sjekker disse mot instruksjonene og kjører prosjektets sjekk.
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+
+
+
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+Сjekken `mise check` finnes ikke i dette repoet, og Gradle-steg feilet under konfigurasjon. Jeg henter feilen for å skille byggproblem fra kodefunn.
+
+
+    00gn/T/1791355201322-copilot-tool-output-9387-7b74a022-c2b9-488a-a7b2-1eaaa5b5e248.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+### Sammendrag
+
+Jeg fant seks blokkere og tre forslag i `vedtak-kafka`. De viktigste risikoene er SQL-injeksjon, manglende tilgangskontroll for vedtaksdata og auth som ikke validerer TokenX-tokenet. Jeg har ikke endret filer.
+
+### Funn
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `VedtakRepository.kt:23` | 🔴 Blokker | `fnr` settes direkte inn i SQL-strengen. Bruk parameterisert spørring for å hindre SQL-injeksjon. |
+| `Routes.kt:30-32` | 🔴 Blokker | Endepunktet som returnerer vedtak for et fødselsnummer mangler auth. Det eksponerer personopplysninger til alle som når tjenesten. `nais.yaml:25-26` åpner dessuten inbound-trafikk fra alle apper og namespaces. |
+| `App.kt:40-42` | 🔴 Blokker | JWT-oppsettet mangler en signaturverifier og sjekker bare at tokenet har en `audience`. Det validerer verken forventet audience eller `azp`, så tjenesten kan ikke bekrefte at tokenet er et gyldig TokenX-token for en autorisert klient. |
+| `VedtakService.kt:15` | 🔴 Blokker | Fødselsnummer skrives til loggen. Fjern personopplysningen fra logglinjen. |
+| `App.kt:23` | 🔴 Blokker | Appen leser `DB_JDBC_URL`, men `nais.yaml` setter ikke denne variabelen. Databasen som Nais oppretter gir ikke automatisk denne variabelen med dette navnet, så oppstarten feiler når Hikari konfigureres. |
+| `VedtakRepository.kt:10-16` | 🔴 Blokker | Koden skriver til tabellen `vedtak`, men branchen har ingen migrering som oppretter tabellen. Den nye databasen starter tom, så lagring av vedtak feiler. |
+| `App.kt:26-35` | 🔴 Blokker | Kafka-klientene får bootstrap-servere og serializers, men ingen TLS-/autentiseringsinnstillinger. Klientene bruker dermed standardoppsettet, som ikke kan koble seg til en sikret Kafka-pool. |
+| `VedtakConsumer.kt:31-33` | 🟡 Forslag | Ved retry oppretter `fattVedtak` et nytt vedtak med ny ID før den prøver å publisere igjen. Hvis lagring lykkes, men publisering feiler, kan samme melding derfor lage flere vedtak. Gjør behandlingen idempotent. |
+| `VedtakConsumer.kt:24-27, 46` | 🟡 Forslag | Feil ved JSON-dekoding eller etter siste retry bobler ut av `start()` og avslutter consumer-tråden. Tjenesten kan da fortsette å svare på HTTP uten å behandle Kafka-meldinger. Håndter feil per melding og sørg for at consumeren starter igjen eller feiler tydelig. |
+
+**Validering:** `git diff --check` besto. `mise check` kunne ikke kjøres fordi repoet ikke har en slik task. `gradle test` kom ikke til kompilering: Kotlin DSL feilet med `IllegalArgumentException: 27` fordi Gradle kjører på Java 27. Ingen tester er lagt til for den nye logikken.
+

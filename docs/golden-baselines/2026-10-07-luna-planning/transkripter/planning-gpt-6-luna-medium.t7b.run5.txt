@@ -1,0 +1,10 @@
+🔴 **Fase 1: Intervju.** `SoknadMottattMelding` inneholder nå `soknadId` og `mottatt`. `SokerDto` har allerede `fnr`, men repoet sier ikke om det er godkjent å sende fødselsnummer på `soknad-mottatt`, eller hvem som leser topicen. Jeg endrer ikke koden før dette er avklart.
+
+1. Er det godkjent å dele fødselsnummer på `soknad-mottatt`, og er topicen sikret for dette?
+2. Hvilke tjenester leser topicen, og er de autorisert til å motta fødselsnummer?
+3. Tåler konsumentene at meldingen får feltet `fnr`?
+4. Finnes det tester for meldingsformatet som bør oppdateres?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette repoets Copilot-konfigurasjon.
+
+Blindsoner reist: 4/11 (#1, #6, #7, #9 stilt; #2–#5, #8, #10–#11 ikke relevante).

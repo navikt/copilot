@@ -1,0 +1,13 @@
+# attempt|session|cli_exit|cli_seconds|credits|status
+typescript-tilgang-gpt-6-luna-1|4b96aef5-08bd-4d7b-ac0d-e1cefa8446dc|0|203|2.392489|failed
+typescript-tilgang-gpt-6.1-sol-1|a0b7c323-6822-493f-b3db-2016e0854de9|0|254|32.055040|completed
+typescript-tilgang-gpt-6-luna-2|f9cb9936-9397-4ae6-abe3-05c20a34a6db|0|167|2.286983|completed
+typescript-tilgang-gpt-6.1-sol-2|1a7cbbf3-8028-4252-a6ad-77ac8aac03d0|0|306|37.821080|failed
+typescript-tilgang-gpt-6-luna-3|afd0fefd-5c5f-40c4-8a4d-4f442e6c901a|0|142|1.709588|failed
+typescript-tilgang-gpt-6.1-sol-3|33cf8008-0316-445a-908d-29e6e611a3c2|0|270|32.072840|completed
+kotlin-token-cache-gpt-6-luna-1|e0474301-9e42-44e1-861a-34d436d74e74|0|150|1.646821|completed
+kotlin-token-cache-gpt-6.1-sol-1|40a677ae-52da-4eb4-aca2-4fd80d5983fa|0|265|24.652570|completed
+kotlin-token-cache-gpt-6-luna-2|73812ef4-f2ad-4864-8d24-6bc07470b521|0|144|1.392763|completed
+kotlin-token-cache-gpt-6.1-sol-2|49e6a2db-a545-4deb-bf7f-6a86e90a1e31|0|307|22.027520|completed
+kotlin-token-cache-gpt-6-luna-3|ffab91f2-3501-46f9-828a-6178d2e98169|0|151|1.548357|completed
+kotlin-token-cache-gpt-6.1-sol-3|8a165332-bb57-451a-b111-9ae91c7a5acd|0|263|23.183610|completed

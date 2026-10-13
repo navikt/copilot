@@ -1,0 +1,22 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-06
+# revision:     6c747db3
+# client:       opencode
+# clientVersion: opencode 1.18.34
+# model:        gpt-6-sol
+# effort:       CLI default
+# context:      CLI default
+# repeats:      3
+# instructions: 16 installed, 3 always-on
+# fixture:      4263008951
+# prompts:      3,7,7b
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
+t2|3|1591|1502|1793|16|16|17|223|219|260|31995|27377|36599
+t7|3|2822|2514|2858|32|29|33|379|356|381|68026|27273|100361
+t7b|3|1366|1357|1452|14|14|14|197|192|197|35500|21145|51694

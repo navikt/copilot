@@ -633,7 +633,7 @@ pre.text-sm {
   }
 }
 
-/* Site menu: header, section menu and the mobile panel (§6.3–§6.6 in docs/nav-pilot-dokumentasjon-forslag.md) */
+/* Site menu: header, section menu and the mobile panel (V6–V8 in copilot-intern beslutningslogg.md) */
 .skip-link {
   position: absolute;
   left: -9999px;
@@ -659,14 +659,14 @@ main#hovedinnhold:focus {
   flex-shrink: 0;
 }
 .wordmark-name {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 700;
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   color: #fff;
 }
-.wordmark-tagline {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
+@media (min-width: 1024px) {
+  .wordmark-name {
+    font-size: 1rem;
+  }
 }
 .top-link {
   display: flex;
@@ -838,6 +838,14 @@ button.section-link {
   color: var(--ax-text-neutral);
   text-decoration: none;
 }
+button.search-hit {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 .search-hit[aria-selected="true"] {
   background: var(--ax-bg-neutral-moderate);
   outline: 2px solid var(--ax-border-focus);
@@ -849,4 +857,89 @@ button.section-link {
 .search-hit-context {
   font-size: 0.875rem;
   color: var(--ax-text-neutral-subtle);
+}
+
+/* The HelpText «?» button is 24 px; widen its hit area to 44 px without changing how it looks. */
+.aksel-help-text__button {
+  position: relative;
+}
+.aksel-help-text__button::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+
+/* ReadMore toggles («Hendelser», «Kilde og metode») are 32 px; give them a 44 px tap target. */
+.aksel-read-more__button {
+  min-height: 44px;
+}
+
+/* Team cost report (/innsikt/team/rapport): A4, no site chrome, table kept whole */
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  body:has(.team-report) {
+    font-size: 10pt;
+  }
+
+  .team-report * {
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+  }
+
+  .team-report h1 {
+    font-size: 16pt !important;
+  }
+
+  .team-report h2 {
+    font-size: 12pt !important;
+  }
+
+  .team-report-table {
+    overflow: visible !important;
+  }
+
+  .team-report-table table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .team-report-table th,
+  .team-report-table td {
+    padding: 2pt 4pt !important;
+  }
+
+  .team-report-table td:nth-child(n + 3) {
+    white-space: nowrap;
+  }
+
+  /* Long lists, e.g. the model names in the Copilot report */
+  .team-report-table.wrap td {
+    white-space: normal;
+  }
+
+  /* Måned, grunnlag, then five amounts */
+  .team-report-table th:nth-child(1) {
+    width: 15%;
+  }
+  .team-report-table th:nth-child(2) {
+    width: 22%;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .team-report-table,
+  .team-report-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

@@ -5,6 +5,8 @@ import NextLink from "next/link";
 import { InteractiveSetupWizard } from "@/components/nav-pilot/interactive-setup-wizard";
 import { InstallPicker } from "@/components/install-picker";
 import { getAllCustomizations } from "@/lib/customizations";
+import { SurveyNotice } from "@/components/survey-notice";
+import { openSurveyTitles } from "@/lib/survey";
 import type { CustomizationType } from "@/lib/customization-types";
 import { NAV_PILOT_APT_INSTALL, NAV_PILOT_INSTALL, NAV_PILOT_QUICKSTART } from "@/lib/install-commands";
 import {
@@ -159,6 +161,7 @@ export default async function NavPilotPage() {
   const stars = await getStarCount();
   return (
     <main id="hovedinnhold" tabIndex={-1}>
+      <SurveyNotice titles={openSurveyTitles()} />
       <HeroSection stars={stars} />
       <UseCasesSection />
       <PakkeSection />

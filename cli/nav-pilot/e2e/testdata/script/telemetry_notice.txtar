@@ -14,7 +14,7 @@ exec nav-pilot version
 ! exists home/seen-telemetry-notice
 
 exec pty-run -- nav-pilot version
-stdout -count=1 'nav-pilot sends pseudonymous usage metrics \(no content\), and turns on Copilot.s own telemetry'
+stdout -count=1 'nav-pilot sends pseudonymous usage metrics \(no content; navikt repo names included\), and turns on Copilot.s and opencode.s own telemetry'
 stdout 'Turn off: DO_NOT_TRACK=1 or NAV_PILOT_TELEMETRY_ENABLED=false\.'
 exists home/seen-telemetry-notice
 

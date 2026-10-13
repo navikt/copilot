@@ -1,0 +1,28 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        research
+# suite:        research
+# date:         2026-10-06
+# revision:     50f3ec9a
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-2.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+re-bruk|1|0|pass|503|10837|true|
+re-ingen|1|0|pass|1026|19304|true|
+re-sammendrag|1|0|pass|1046|20815|true|
+re-bruk|2|0|pass|574|9230|true|
+re-ingen|2|0|pass|954|18978|true|
+re-sammendrag|2|0|pass|1171|21132|true|
+re-bruk|3|0|pass|463|9027|true|
+re-ingen|3|0|pass|805|18409|true|
+re-sammendrag|3|0|pass|1117|18822|true|
+re-bruk|4|0|pass|429|8902|true|
+re-ingen|4|0|pass|893|17022|true|
+re-sammendrag|4|0|pass|1006|18025|true|
+re-bruk|5|0|pass|563|9165|true|
+re-ingen|5|0|pass|739|17431|true|
+re-sammendrag|5|0|pass|1024|21417|true|

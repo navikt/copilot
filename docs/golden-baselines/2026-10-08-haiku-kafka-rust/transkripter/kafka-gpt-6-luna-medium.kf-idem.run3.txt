@@ -1,0 +1,5 @@
+`VedtakKonsument` husker utbetalte eventId-er og committer først etter at hele poll-batchen er behandlet. Ved utbetalingsfeil committer den ikke, og ved replay i samme prosess utbetaler den ikke samme eventId på nytt. Settet ligger bare i minnet, så dette dekker ikke prosessrestart; varig beskyttelse krever idempotens i utbetalingsløsningen. Konstruktøren tar fortsatt bare consumer og utbetaling.
+
+`cd vedtak-konsument && gradle test` bestod.
+
+🔴 Rød sone: Gå nøye gjennom utbetalingslogikken. Still gjerne spørsmål om valgene over.

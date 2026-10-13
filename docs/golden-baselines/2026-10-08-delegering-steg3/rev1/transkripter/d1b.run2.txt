@@ -1,0 +1,21 @@
+**Fase 2 – plan.** Jeg legger til grunn at Next.js-frontenden finnes utenfor dette repoet, at tjenesten kun skal hente og returnere innlogget innbyggers navn, og at fnr aldri skal tas imot som parameter fra nettleseren. Fnr hentes fra en validert innloggingskontekst. Dette er en ny dataflyt med personopplysninger, så vi stopper etter planen før kodearbeid.
+
+| Område | Plan |
+|---|---|
+| Flyt og tilgang | Innbygger → eksisterende Next.js-frontend → Wonderwall/ID-porten → ny Ktor-tjeneste → PDL. Avklar nøyaktig plassering av Wonderwall mot den eksisterende frontendens oppsett før implementering. Beskytt alle persondata-endepunkter; Nais `accessPolicy.inbound` skal bare åpne for frontenden. |
+| Identitet og PDL | Tjenesten bruker identiteten fra validert token, ikke klientoppgitt fnr. Undersøk PDLs faktiske krav til token, audience og scopes før TokenX-utveksling velges og konfigureres. En tjenesteidentitet må ikke erstatte brukerkonteksten uten at PDLs kontrakt krever det. |
+| API og data | Foreslå `GET /api/meg/navn`, med kun nødvendige navnefelt i responsen. Ingen database, kø eller lagring. Ikke returner fnr. Fastsett eksakt responsform mot frontendens behov før kontrakten låses. |
+| Feil | PDL-utilgjengelighet gir HTTP 503. Skill dette fra manglende/ugyldig innlogging og feil i egne kall. Logg feiltype og teknisk korrelasjons-ID, aldri fnr, navn eller token. |
+| Drift | Eget Nais-manifest med ID-porten-oppsett, eksplisitt inbound-regel, nødvendig outbound-tilgang til PDL, helseendepunkter og ressursforespørsler uten CPU-grense. Verifiser om Wonderwall håndteres av frontendens eller tjenestens manifest. |
+| Observabilitet | Mål oppslag per minutt og andel feil per minutt. Bruk metrikker uten personidentifikatorer; varsle ved vedvarende PDL-feil. |
+| Filer og levering | Egen tjenestemodul med Ktor-ruter, identitets-/PDL-integrasjon og konfigurasjon; Nais-manifest og GitHub Actions for bygg, tester og deploy. Ingen Flyway-migrering siden tjenesten ikke lagrer data. Dokumenter utrulling og tilbakerulling som å rute frontend tilbake eller deaktivere det nye oppslaget. |
+| Tester | Test avvist anonymt kall, at klienten ikke kan velge fnr, at bare eget navn hentes, PDL-feil → 503 og at respons/logging ikke lekker personopplysninger. Integrasjonstest med kontrollert PDL-respons før frontend kobles til. |
+
+🔴 **Rød sone – skriv og forstå selv:** tokenvalidering, valg av identitet til PDL, tilgangskontroll og bindingen mellom tokenets fnr og PDL-oppslaget. Teamet bør også gå gjennom ID-porten, Wonderwall og TokenX før implementering; feil her kan gi oppslag på feil person.
+
+🟢 **Grønn sone:** prosjektoppsett, helseendepunkter, metrikker, CI/CD og testoppsett. Nais-regler og persondataflyt må likevel gjennomgås før deploy.
+
+**Arkitekturvalg:** Ingen database eller asynkron mekanisme trengs for et oppslag som skal svare i samme forespørsel. Det gir færre komponenter, men gjør tjenesten avhengig av PDLs tilgjengelighet; derfor får PDL-feil en tydelig 503-respons. Jeg velger ikke TokenX-konfigurasjon på antakelser om PDLs kontrakt.
+
+🔴 Rød sone: identitet, autorisasjon og PDL-oppslag. Still gjerne spørsmål om valgene over.
+

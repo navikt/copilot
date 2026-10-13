@@ -1,0 +1,73 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ ".github/*instructions*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Ferie*.kt"
+  └ No matches found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 29 lines…
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List application and configuration files (shell)
+  │ find src .github -maxdepth 5 -type f | sort
+  └ 17 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+/ Search (glob)
+  │ "src/**/*.kt"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:120 (120 lines read)
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+🔴 **Rød sone:** Feriepengeberegning er ny for teamet og er kjerne­logikk. Jeg fant ingen eksisterende feriepengeregler eller tester i repoet. Funksjonen kan legges i `no.nav.demo` uten å endre API, dataflyt eller tilgang.
+
+Før jeg legger inn kode og tester: Skal negativt grunnlag avvises? Og mener dere at «avrundet til nærmeste krone» betyr at nøyaktig 50 øre rundes opp? Jeg legger ellers til grunn at 12,5 % gjelder *hele* grunnlaget fra og med opptjeningsåret personen fyller 60. Jeg kjører ikke Gradle. Repoet mangler `AGENTS.md` og `.github/copilot-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 2/11 (#3 ugyldig grunnlag, #11 nye regler; øvrige er avklart av oppgaven eller ikke relevante).
+

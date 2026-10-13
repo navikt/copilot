@@ -1,0 +1,29 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot*instructions.md,nais*.yaml,package.json,build.gradle.kts,pom.xml,doc
+  │ s/nav-pilot-design.md}"
+  └ 2 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+**Fase 1: Intervju. Fullt omfang**, fordi tjenesten får ny autentisering og behandler fødselsnummer. Repoet har Kotlin/Ktor og et Nais-manifest, men ingen auth-konfigurasjon eller `accessPolicy`. Ingen kode er endret.
+
+🔴 Rød sone: autentisering og håndtering av fødselsnummer må forstås grundig.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Behandler den også helseopplysninger eller opplysninger om ytelser?
+2. Skal innbyggeren kalle tjenesten direkte via nettleseren, eller kommer kallene fra en annen tjeneste med innbyggerens brukerkontekst?
+3. Skal fødselsnummeret bare brukes under forespørselen, lagres eller sendes videre? Hvilke mottakere og team er involvert?
+4. Hva skal skje når ID-porten eller andre avhengigheter er utilgjengelige, og hvilke målinger skal vise at tjenesten fungerer? Fødselsnummer og tokens skal ikke inngå i logger eller metrikker.
+5. Hvilke tester og sikkerhetskrav må være oppfylt før produksjon, og kjenner teamet Ktor og ID-porten-integrasjon fra før?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`.
+
+Omtrentlig tokenbudsjett per fase: intervju 1 000, plan 2 000, review 1 000, levering 3 000. Migrasjon og avvikling (#8 og #10) er ikke relevante for en ny tjeneste. Bakoverkompatibilitet (#9) avklares dersom tjenesten får eksisterende konsumenter.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8 og #10 ikke relevante; #9 betinget av eksisterende konsumenter).
+

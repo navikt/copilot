@@ -25,9 +25,10 @@ import (
 // through; nothing it finds reaches the model.
 //
 // It is a preToolUse hook because that is where the command has not run yet.
-// A preToolUse hook that outlives its timeoutSec denies the call under
-// Copilot, so the check has a budget of its own far inside it, and anything
-// that does not fit in the budget is dropped, not waited for.
+// A preToolUse hook that outlives its timeoutSec holds the call for the whole
+// timeout before Copilot 1.0.94 allows it, so the check has a budget of its own
+// far inside it, and anything that does not fit in the budget is dropped, not
+// waited for.
 
 // actionCheckBudget is the whole check: every question, asked at once.
 // The issue's latency budget; a warm decide answers well inside it, and

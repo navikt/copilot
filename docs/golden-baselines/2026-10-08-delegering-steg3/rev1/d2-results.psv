@@ -1,0 +1,21 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        delegation
+# date:         2026-10-08
+# revision:     3afd3553
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-5.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      619919060
+# prompts:      d2
+#
+# id|run|status|assertion|detail
+d2|1|pass|3-file feature: a subagent on another model takes a turn, tests green|log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: worker:gpt-6-luna; labels: Worker (model: gpt-6-luna);
+d2|2|pass|3-file feature: a subagent on another model takes a turn, tests green|log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: worker:gpt-6-luna; labels: Worker (model: gpt-6-luna);
+d2|3|pass|3-file feature: a subagent on another model takes a turn, tests green|log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: worker:gpt-6-luna; labels: Worker (model: gpt-6-luna);
+d2|4|pass|3-file feature: a subagent on another model takes a turn, tests green|log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: worker:gpt-6-luna; labels: Worker (model: gpt-6-luna);
+d2|5|pass|3-file feature: a subagent on another model takes a turn, tests green|log: gpt-6-sol 1,gpt-6-luna 1; usage: gpt-6-luna,gpt-6-sol; subagents: worker:gpt-6-luna; labels: Worker (model: gpt-6-luna);

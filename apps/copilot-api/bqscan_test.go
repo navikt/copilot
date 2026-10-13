@@ -128,7 +128,10 @@ func TestDecodeBQRow_RepeatedRecord(t *testing.T) {
 		},
 	}
 
-	var got TeamUsageSummary
+	var got struct {
+		TeamSlug  string              `bigquery:"team_slug"`
+		TopModels []ModelInteractions `bigquery:"top_models"`
+	}
 	if err := decodeBQRow(schema, row, &got); err != nil {
 		t.Fatalf("decodeBQRow returned error: %v", err)
 	}

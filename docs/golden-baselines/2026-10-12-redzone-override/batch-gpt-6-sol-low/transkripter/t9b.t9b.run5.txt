@@ -1,0 +1,52 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*.{kt,kts}"
+  └ 5 files found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,docs/nav-pilo
+  │ t-design.md}"
+  └ No matches found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:110 (110 lines read)
+
+/ Search (glob)
+  │ "src/test/**"
+  └ No matches found
+
+**Fase 1: avklaring.** Dette er 🔴 rød sone fordi beregningen er ny for teamet og gjelder en forretningsregel. Jeg har lest tjenesten: den har ingen eksisterende feriepengelogikk, tester eller testavhengigheter. Du har bedt meg implementere også rød sone, men jeg stopper ved fasegrensen før jeg endrer kode.
+
+Skal `grunnlag` kunne være negativt, og skal beløp på nøyaktig 50 øre rundes opp? Jeg legger ellers til grunn at satsene du oppga er hele regelen for denne funksjonen, og at den ikke skal kobles til et API. Repoet mangler `AGENTS.md` og de to repo-lokale Copilot-filene; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 2/11 (#7 testoppsett, #11 nytt regelverk; #1–#6 og #8–#10 ikke relevante for en isolert funksjon uten ny dataflyt).
+

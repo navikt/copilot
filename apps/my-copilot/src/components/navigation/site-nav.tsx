@@ -9,12 +9,12 @@ import { BudgetUsage, budgetHigh, budgetText, useBudgetPct } from "@/components/
 import { SiteSearch } from "@/components/navigation/site-search";
 import { SECTION, TOP_LINKS, activeTop, inSection, sectionGroup } from "@/lib/nav-items";
 
-// The header menu and the nav-pilot section menu, §6.3–§6.6 in
-// docs/nav-pilot-dokumentasjon-forslag.md.
+// The header menu and the nav-pilot section menu, V6–V8 in
+// copilot-intern beslutningslogg.md.
 
 export interface HeaderLabels {
   lang: "nb" | "en";
-  tagline: string;
+  siteName: string;
   mainMenu: string;
   subscription: string;
   subscriptionHref: string;
@@ -33,7 +33,18 @@ export interface HeaderLabels {
 const current = (pathname: string, active: string | undefined, href: string) =>
   pathname === href ? ("page" as const) : active === href ? ("true" as const) : undefined;
 
-export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userName?: string }) {
+// Admin pages; the link shows only for admins (isAdmin), the pages themselves 404 for everyone else.
+const ADMIN_HREF = "/admin";
+
+export function SiteHeader({
+  labels,
+  userName,
+  admin = false,
+}: {
+  labels: HeaderLabels;
+  userName?: string;
+  admin?: boolean;
+}) {
   const pathname = usePathname();
   const active = activeTop(pathname);
   // The English pages link to the Norwegian ones.
@@ -46,8 +57,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
       </a>
       <div className="flex items-center gap-2 lg:gap-8">
         <NextLink href="/" className="wordmark">
-          <span className="wordmark-name">nav-pilot</span>
-          <span className="wordmark-tagline">{labels.tagline}</span>
+          <span className="wordmark-name">{labels.siteName}</span>
         </NextLink>
         <nav aria-label={labels.mainMenu} className="hidden lg:block mx-auto">
           <ul className="flex gap-6 list-none">
@@ -71,7 +81,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
         </div>
         <div className="hidden lg:flex items-center gap-4 text-sm">
           {userName ? (
-            <UserMenu labels={labels} userName={userName} />
+            <UserMenu labels={labels} userName={userName} admin={admin} />
           ) : (
             <a href="/oauth2/login" className="top-link">
               {labels.signIn}
@@ -79,7 +89,7 @@ export function SiteHeader({ labels, userName }: { labels: HeaderLabels; userNam
           )}
         </div>
         <div className="lg:hidden">
-          <MobileMenu labels={labels} userName={userName} />
+          <MobileMenu labels={labels} userName={userName} admin={admin} />
         </div>
       </div>
     </>
@@ -93,8 +103,8 @@ const initials = (name: string) => {
 
 // From 1024 px: the name (initials below 1280 px) opens a disclosure panel with
 // the name, the AI credit usage and the subscription link. A disclosure, not Aksel ActionMenu: role="menu" traps
-// Tab (§6 in docs/nav-pilot-dokumentasjon-forslag.md).
-function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string }) {
+// Tab.
+function UserMenu({ labels, userName, admin }: { labels: HeaderLabels; userName: string; admin: boolean }) {
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
   const pct = useBudgetPct(true);
   const [open, setOpen] = useState(false);
@@ -150,6 +160,13 @@ function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string
                   {labels.subscription}
                 </Link>
               </BodyShort>
+              {admin && (
+                <BodyShort>
+                  <Link as={NextLink} href={ADMIN_HREF} lang="nb" hrefLang={hrefLang} onClick={() => setOpen(false)}>
+                    Admin
+                  </Link>
+                </BodyShort>
+              )}
             </VStack>
           </Popover.Content>
         </Popover>
@@ -160,7 +177,7 @@ function UserMenu({ labels, userName }: { labels: HeaderLabels; userName: string
 
 // Below 1024 px: an Aksel Dialog from the right with two levels, the five
 // groups and the section menu, as on aksel.nav.no.
-function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: string }) {
+function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userName?: string; admin: boolean }) {
   const pathname = usePathname();
   const active = activeTop(pathname);
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
@@ -249,6 +266,11 @@ function MobileMenu({ labels, userName }: { labels: HeaderLabels; userName?: str
                       <NextLink href={labels.subscriptionHref} hrefLang={hrefLang} className="panel-item">
                         {labels.subscription}
                       </NextLink>
+                      {admin && (
+                        <NextLink href={ADMIN_HREF} lang="nb" hrefLang={hrefLang} className="panel-item">
+                          Admin
+                        </NextLink>
+                      )}
                     </li>
                   ) : (
                     <li className="panel-gap">

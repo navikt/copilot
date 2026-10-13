@@ -1,0 +1,5 @@
+# 7. oktober 2026: reservemodell for @code-review på rv1–rv8. testpakke  modell  innsatsnivå  n
+# Kriteriene står i docs/modellvalg.md og ble satt før kjøringene. GPT-6 Sol er ikke med (eierens beslutning).
+review  gpt-6-luna       medium  10
+review  gpt-6.1-sol      low     10
+review  claude-opus-5.5  low     10

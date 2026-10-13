@@ -1,0 +1,43 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+/ Search (glob)
+  │ "**/*"
+  └ 48 files found
+
+● Inspect repository layout (shell)
+  │ ls -la && find . -maxdepth 3 -type f | head -80
+  └ 40 lines…
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+`maksAntall` er en hardkodet konstant på `100` i `src/main/kotlin/no/nav/demo/Config.kt`. `App.kt` skriver verdien ved oppstart og registrerer rutene. `Routes.kt` bruker den i `oppgaver.take(maksAntall)` for `GET /api/oppgaver`. Domenemodellen i `Oppgave.kt` definerer `Oppgave` og `OppgaveRespons`, men kjenner ikke til grensen. Ruten har foreløpig bare to oppgaver, så grensen på 100 påvirker ikke responsen i dag.
+
+For å gjøre grensen **konfigurerbar per miljø**, må konstanten erstattes med en verdi lest ved oppstart, for eksempel fra miljøvariabelen `MAKS_ANTALL`. Valider at den er et positivt heltall, og send den inn til `oppgaveRoutes` i stedet for å lese en global konstant. Sett deretter `MAKS_ANTALL` i Nais-konfigurasjonen for hvert miljø og dokumenter forventet verdi. Da bruker oppstartsloggen og ruten samme validerte verdi, mens domenemodellen kan stå uendret. Dette er et valg av konfigurasjonsflyt: eksplisitt innsendt verdi gjør ruten enklere å teste, mot en liten endring i funksjonssignaturen.
+
+🔴 Rød sone: Valideringen av miljøverdien bør gjennomgås nøye, siden ugyldig konfigurasjon ellers kan gi uventet rutefunksjon. Still gjerne spørsmål om valgene over.
+

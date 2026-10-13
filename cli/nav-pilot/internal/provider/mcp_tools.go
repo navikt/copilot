@@ -248,6 +248,27 @@ func SetMCPServerTools(client, key string, e MCPServerEntry, c MCPToolChoice) (M
 		if c.URL != "" {
 			v, _ := json.Marshal(c.URL)
 			entry.set("url", v)
+			// Switching endpoint switches the registry's headers with it.
+			// Only the registry's own header names change; the user's
+			// other headers (Authorization, say) stay as they are.
+			if len(e.Remotes) > 0 && len(e.Remotes[0].Headers) > 0 {
+				hs := map[string]json.RawMessage{}
+				if raw, ok := entry.vals["headers"]; ok && json.Unmarshal(raw, &hs) != nil {
+					return nil, false, errors.New(key + " has headers that are not an object, so nav-pilot left it alone")
+				}
+				for _, kv := range e.Remotes[0].Headers {
+					delete(hs, kv.Name)
+				}
+				for k, v := range registryHeaders(e, c) {
+					hs[k], _ = json.Marshal(v)
+				}
+				if len(hs) == 0 {
+					entry.del("headers")
+				} else {
+					hv, _ := json.Marshal(hs)
+					entry.set("headers", hv)
+				}
+			}
 		}
 		if client == MCPClientOpenCode {
 			if err := setOpenCodeRules(top, key, e, c); err != nil {

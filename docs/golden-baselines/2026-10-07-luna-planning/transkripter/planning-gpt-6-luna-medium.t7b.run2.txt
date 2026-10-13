@@ -1,0 +1,8 @@
+**Fase 1: Intervju.** Jeg fant `SoknadMottattMelding` og publiseringen til `soknad-mottatt` i `Soknad.kt`. `fnr` finnes allerede i `SokerDto` og publiseres til en annen topic, men jeg fant ingen brukersteder for `SoknadMottattMelding`. `nais.yaml` beskriver ikke Kafka-tilgang, og repoet har ingen tester eller lokale Copilot-instruksjoner. Kjør `nav-pilot init` for å legge til slike instruksjoner.
+
+Før jeg endrer meldingen:
+1. Er `soknad-mottatt`-topicet beskyttet slik at bare godkjente konsumenter kan lese fødselsnummeret?
+2. Kan konsumentene håndtere det nye `fnr`-feltet, også eldre konsumenter med streng deserialisering?
+3. Hvor skal `fnr` komme fra når meldingen opprettes?
+
+Blindsoner reist: 2/11 (#1 og #6 stilt; #2–#5 og #7–#11 ikke relevante eller avklart)

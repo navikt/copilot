@@ -1,0 +1,27 @@
+
+
+
+
+## Fase 2: Plan
+
+**Valg:** Den eksisterende Next.js-frontenden håndterer innlogging med ID-porten og Wonderwall. Frontenden kaller en ny Ktor-tjeneste med et TokenX-token for denne tjenestens audience. Ktor-tjenesten validerer tokenet, henter fødselsnummer fra den validerte brukerkonteksten og gjør et PDL-oppslag for å hente navn. Fødselsnummer og navn lagres ikke. Dette holder ID-porten-tokenet unna det nye API-et, men gir teamet en TokenX-flyt de må forstå og teste.
+
+Jeg legger til grunn at `demo-tjeneste` er et eksempel, og at vi lager en **separat tjeneste**. Da blir ikke det åpne `/api/oppgaver` utilsiktet en del av personopplysningsflyten. Ingen database, Kafka eller nye GCP-ressurser trengs.
+
+| Del | Plan |
+|---|---|
+| API | `GET /api/meg` returnerer navnet frontenden trenger, **ikke fødselsnummeret**. Manglende eller ugyldig token gir 401; gyldig token uten nødvendig tilgang gir 403. PDL-utfall dokumenteres særskilt; utilgjengelig PDL gir 503 med en generell feilrespons uten personopplysninger. |
+| Kode | Egen Ktor-route for `/api/meg`, tokenvalidering, PDL-klient, konfigurering av audience og PDL-endepunkt fra miljøet, samt sentral feilhåndtering. Bruk eksisterende Nav-biblioteker for auth fremfor egen JWT- eller tokenutvekslingskode. |
+| Nais | `tokenx.enabled: true`; eksplisitt `accessPolicy.inbound` **kun for vår Next.js-app** og `accessPolicy.outbound` **kun for PDL**. PDL-tilgang og riktig TokenX-audience må samsvare med PDLs kontrakt i hvert miljø. Health-endepunkter og Prometheus-endepunkt; start med 15m CPU-request, 256Mi minne-request og 512Mi minnegrense, uten CPU-grense. |
+| Tester | Route-tester for 200, 401, 403 og 503; integrasjonstest med test-token og stubbet PDL for at oppslag gjelder innlogget person. Sjekk at respons og logger ikke inneholder fødselsnummer eller navn ved feil. Test kontrakten mellom frontend og API. |
+| CI/CD | Bygg og test på pull request. Bygg image og deploy til dev før prod fra beskyttet hovedbranch, med miljøspesifikk Nais-konfigurasjon. |
+| Drift | Mål antall oppslag per minutt og feilandel, med statuskode og PDL-utfall som etiketter, aldri persondata. Logg PDL-feil med sporings-ID og teknisk årsak, uten token, fødselsnummer eller navn. Varsle ved forhøyet feilandel og ved vedvarende PDL-utilgjengelighet. |
+
+**Leveranse og rollback:** Dokumenter API-kontrakten, tilgangene, PDL-avhengigheten og håndtering av 503 i et endringsdokument og en kort runbook. Verifiser innlogging, oppslag, avviste token, PDL-feil og metrikker i dev før prod. Ved feil i prod stopper vi trafikken fra frontenden til det nye API-et og gjør rollback av tjenestens image; ingen lagrede data må migreres eller ryddes opp. Siden frontenden allerede finnes, må koblingen til det nye endpointet kunne tas i bruk etter at backend er verifisert.
+
+🔴 **Rød sone, skriv og forstå selv:** Validering av TokenX-token og tilgang, bindingen mellom tokenets identitet og PDL-oppslaget, samt håndtering av fødselsnummer. Dette er sikkerhetskritisk. Teamet bør også gå gjennom Wonderwall- og TokenX-flyten før implementering, siden teknologien er ny for dere.
+
+🟢 **Grønn sone:** Prosjektoppsett, Nais-manifest, CI/CD, metrikker og testoppsett kan genereres. Gjennomgå særlig `accessPolicy` før deploy.
+
+Neste fase er en gjennomgang av planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.
+

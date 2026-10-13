@@ -1,0 +1,30 @@
+
+
+## Gjennomgang av `SakService.kt`
+
+Jeg fant ingen blokkere. SQL-spørringen er parameterisert, og fødselsnummeret kommer fra `pid`-claimet i TokenX-tokenet. Brukeren kan derfor bare hente sine egne saker. Fødselsnummeret havner heller ikke i loggene.
+
+Jeg kjørte ikke `mise check`. Repoet har ingen `mise.toml` og ingen `gradlew`, så funnene bygger bare på at jeg har lest koden.
+
+### Funn
+
+| Linje | Prioritet | Problem |
+|---|---|---|
+| 40–42 | 🟡 | Feilloggen tar bare med navnet på unntaksklassen. Meldingen og stack trace forsvinner, så feil i drift blir vanskelige å finne. |
+| 37 | 💭 | `maskert()` gir alltid `***********`, så logglinjen viser ikke hvilken forespørsel den gjelder. Logg heller en korrelasjons-ID, eller bare «Henter saker». |
+| 20 | 💭 | KDoc sier at funksjonen «skjuler», men lengden på verdien vises fortsatt. Det er ufarlig, men funksjonen gjør lite. Vurder å fjerne den. |
+
+### Detaljer om linje 40–42
+
+Logg `e` som siste argument, så får du stack trace med:
+
+```kotlin
+log.error("Kunne ikke hente saker", e)
+```
+
+Dette er trygt fordi spørringen sender fødselsnummeret som parameter. Feilmeldinger fra JDBC tar normalt ikke med verdiene til bundne parametere. Sjekk likevel at Logback ikke sender stack traces til et sted der det er risikabelt.
+
+🔴 Rød sone: tilgangen styres av `pid`-claimet på linje 50–51. Ikke bytt det ut med en `fnr` fra query-parameter eller request body.
+
+Still gjerne spørsmål om valgene over.
+

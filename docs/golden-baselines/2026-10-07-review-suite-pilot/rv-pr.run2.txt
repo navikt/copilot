@@ -1,0 +1,54 @@
+● Show branch diff (shell)
+  │ git --no-pager log --oneline main..vedtak-kafka; git --no-pager diff main...vedtak-kafka --stat;
+  │ git --no-pager diff main...vedtak-kafka
+  └ 351 lines…
+
+● List files and tools (shell)
+  │ git --no-pager ls-tree -r --name-only vedtak-kafka; which mise; git branch --show-current
+  └ 32 lines…
+
+Jeg leste hele diffen (1 commit, 8 filer). `mise check` ble ikke kjørt: repoet har verken mise-konfigurasjon eller Gradle-wrapper. Det finnes heller ingen tester å kjøre.
+
+### Oppsummering
+Strukturen er fornuftig, med Consumer → Service → Repository og parameterisert insert. Branchen har likevel flere sikkerhetsfeil som må rettes før merge. Det gjelder SQL-injeksjon, et oppslag på fødselsnummer uten autentisering, fødselsnummer i loggene og en JWT-oppsett som ikke validerer noe. Kafka-flyten kan i tillegg lage duplikate vedtak og stoppe helt på én ugyldig melding.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og sjekker ikke tilgang |
+| `Routes.kt` | 30 | 🔴 | Fødselsnummer i URL-stien havner i access-logger og proxyer |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer |
+| `App.kt` | 39–42 | 🔴 | JWT-oppsettet mangler verifier, issuer og audience. `validate` godtar alle tokens med en audience |
+| `Routes.kt` | 24–28 | 🔴 | `POST /api/vedtak` sjekker ikke hvem som kaller eller om kalleren eier saken |
+| `nais.yaml` | 23–26 | 🔴 | Inbound-reglene `application: "*"` / `namespace: "*"` slipper inn alle |
+| `VedtakConsumer.kt` | 23–28 | 🔴 | Duplikate vedtak ved feil. Offset commites etter batchen, og `fattVedtak` lager ny ID hver gang |
+| `VedtakConsumer.kt` | 24 | 🔴 | En melding som ikke kan parses kaster exception. Tråden dør stille og forbruket stopper |
+| `nais.yaml` | 25–28 | 🟡 | Outbound mangler Kafka-reglene som trengs. Sjekk også at `logging` i `nais-system` er riktig |
+| `App.kt` | 23 | 🟡 | `HikariConfig` får bare `jdbcUrl`. Bruker og passord mangler, og Nais-variablene heter `DB_URL`/`NAIS_DATABASE_*` |
+| `App.kt` | 27 | 🟡 | Kafka-config mangler SSL/keystore fra Nais (`KAFKA_KEYSTORE_PATH` osv.) og fungerer ikke på Nais |
+| — | — | 🟡 | Ingen Flyway-migrering for tabellen `vedtak` |
+| `VedtakService.kt` | 19 | 🟡 | `LocalDate.now()` uten `Clock` gir ikke-deterministiske tester. Bruker også systemets tidssone |
+| `Routes.kt` | 31 | 🟡 | `!!` på path-parameter. Bruk heller 400 med en tydelig feil |
+| — | — | 🟡 | Ingen tester for service, consumer eller repository |
+| `build.gradle.kts` | 13 | 💭 | Ny `dependencies`-blokk i stedet for å utvide den som finnes |
+| `VedtakService.kt` | 5 | 💭 | `Locale` er importert, men brukes ikke. `hentVedtak` er heller ikke i bruk |
+
+### Detaljer om blokkerne
+
+**SQL-injeksjon.** Input som `' OR '1'='1` returnerer vedtakene til alle personer.
+```kotlin
+queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)
+```
+
+**Oppslaget på fødselsnummer.** Legg det inn under `authenticate`, og hent fødselsnummeret fra tokenets `pid`-claim. Da står det ikke i URL-en, og hver bruker får bare se sine egne vedtak. Hvis en saksbehandler kaller endepunktet, trengs en egen tilgangskontroll, og fødselsnummeret sendes i POST-body.
+
+**JWT.** Ktor trenger en `verifier(JwkProvider, issuer)` mot `TOKEN_X_JWKS_URI`/`TOKEN_X_ISSUER`. Audience må sjekkes mot `TOKEN_X_CLIENT_ID`. Uten dette kan hvem som helst lage et token som blir godtatt.
+
+**Idempotens i consumeren.** Bruk `soknadId` som idempotensnøkkel. Det kan være en unik kolonne med `ON CONFLICT DO NOTHING`, eller en sjekk før vedtaket lagres. Fang parse-feil per melding (logg uten fødselsnummer, så videre til DLQ eller hopp over), og la ikke en feil drepe tråden. Vurder å sende helsestatus til `/isready`.
+
+🔴 Rød sone: autentisering, tilgangskontroll og vedtakslogikk. Disse delene bør forfatteren forstå og skrive selv.
+
+Spør gjerne om valgene over.
+

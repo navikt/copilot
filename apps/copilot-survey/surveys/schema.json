@@ -51,6 +51,7 @@
         "labels": { "type": "array", "items": { "type": "string" }, "description": "scale, matrix: one label per step, min to max." },
         "options": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "type": "string", "minLength": 1 }, "description": "choice, multi. Stored as the option text." },
         "max_choices": { "type": "integer", "minimum": 0, "description": "multi: at most this many; 0 or left out means any." },
+        "exclusive": { "type": "string", "minLength": 1, "description": "multi: one of options that must be picked alone, like «I use none». Clients and server reject it together with other picks." },
         "other": { "type": "string", "minLength": 1, "description": "choice, multi: the label of one more option that takes a short free text. Choosing it stores the label as the answer, like an option; the text is sent and stored under <id>.other. Needs max_length (at most 200). Not one of options." },
         "max_length": { "type": "integer", "minimum": 1, "maximum": 2000, "description": "text, and the free text of other: in characters." },
         "items": {
@@ -70,15 +71,15 @@
       "allOf": [
         {
           "if": { "properties": { "type": { "const": "scale" } } },
-          "then": { "required": ["max"], "not": { "anyOf": [{ "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["max_length"] }, { "required": ["other"] }, { "required": ["items"] }] } }
+          "then": { "required": ["max"], "not": { "anyOf": [{ "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["exclusive"] }, { "required": ["max_length"] }, { "required": ["other"] }, { "required": ["items"] }] } }
         },
         {
           "if": { "properties": { "type": { "const": "matrix" } } },
-          "then": { "required": ["max", "items"], "not": { "anyOf": [{ "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["max_length"] }, { "required": ["other"] }, { "required": ["reverse"] }] } }
+          "then": { "required": ["max", "items"], "not": { "anyOf": [{ "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["exclusive"] }, { "required": ["max_length"] }, { "required": ["other"] }, { "required": ["reverse"] }] } }
         },
         {
           "if": { "properties": { "type": { "const": "choice" } } },
-          "then": { "required": ["options"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["max_choices"] }, { "required": ["items"] }] } }
+          "then": { "required": ["options"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["max_choices"] }, { "required": ["exclusive"] }, { "required": ["items"] }] } }
         },
         {
           "if": { "properties": { "type": { "const": "multi" } } },
@@ -86,7 +87,7 @@
         },
         {
           "if": { "properties": { "type": { "const": "text" } } },
-          "then": { "required": ["max_length"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["other"] }, { "required": ["items"] }] } }
+          "then": { "required": ["max_length"], "not": { "anyOf": [{ "required": ["min"] }, { "required": ["max"] }, { "required": ["labels"] }, { "required": ["reverse"] }, { "required": ["options"] }, { "required": ["max_choices"] }, { "required": ["exclusive"] }, { "required": ["other"] }, { "required": ["items"] }] } }
         },
         {
           "if": { "properties": { "type": { "enum": ["choice", "multi"] } } },

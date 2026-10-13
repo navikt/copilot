@@ -1,0 +1,51 @@
+● skill(klarsprak)
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 26 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+✗ Kjør prosjektets kvalitetskontroller (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:180 (180 lines read)
+
+● Read README.md
+  └ 4 lines read
+
+● Bekreft linjenumre for funn (shell)
+  │ nl -ba src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines…
+
+**To blokkere og ett forbedringspunkt** i `src/main/kotlin/no/nav/demo/UserRepo.kt`.
+
+| Linje | Prioritet | Funn |
+|-------|-----------|------|
+| 9 | 🔴 Blokker | **SQL-injeksjon.** `fnr` interpoleres direkte i SQL og kan endre spørringens betydning. Bruk parameterbinding: `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`. |
+| 8 | 🔴 Blokker | **Fødselsnummer i applikasjonsloggen.** Hvert oppslag skriver persondata til vanlig INFO-logg. Fjern `fnr` fra loggmeldingen. |
+| 12–13 | 🟡 Forslag | **Databasefeil skjules som manglende bruker.** `catch (Exception)` returnerer `null` også ved forbindelsesbrudd eller ugyldig SQL. La feilen propagere, eller håndter den eksplisitt med kontekst uten persondata. Behold `null` for oppslag uten treff. |
+
+`mise check` kunne ikke kjøres fordi prosjektet mangler en `check`-oppgave. Ingen kode er endret.
+

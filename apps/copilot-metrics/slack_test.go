@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -59,8 +60,8 @@ func TestSlackNotifier_SendsOnFailure(t *testing.T) {
 	if !contains(text, "2026-03-11") {
 		t.Errorf("expected failed day in message, got: %s", text)
 	}
-	if !contains(text, "#copilot-support") {
-		t.Errorf("expected contact channel in message, got: %s", text)
+	if contains(text, "Contact") {
+		t.Errorf("expected no contact line, got: %s", text)
 	}
 }
 
@@ -108,5 +109,24 @@ func TestNewSlackNotifier_EmptyURL(t *testing.T) {
 	s := NewSlackNotifier("")
 	if s != nil {
 		t.Error("expected nil notifier for empty URL")
+	}
+}
+
+func TestSlackNotifier_Channel(t *testing.T) {
+	for _, tc := range []struct{ env, want string }{
+		{"", "#github-copilot-alerts"},
+		{"#other", "#other"},
+	} {
+		t.Setenv("SLACK_CHANNEL", tc.env)
+		var received slackMessage
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewDecoder(r.Body).Decode(&received)
+			w.WriteHeader(http.StatusOK)
+		}))
+		NewSlackNotifier(server.URL).NotifyError(context.Background(), "boom")
+		server.Close()
+		if received.Channel != tc.want {
+			t.Errorf("SLACK_CHANNEL=%q: channel = %q, want %q", tc.env, received.Channel, tc.want)
+		}
 	}
 }

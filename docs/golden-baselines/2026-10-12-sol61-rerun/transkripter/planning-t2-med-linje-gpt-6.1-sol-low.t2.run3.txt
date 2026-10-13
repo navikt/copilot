@@ -1,0 +1,50 @@
+● skill(klarsprak)
+
+● List directory .
+  └ 5 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/**,src/**}"
+  └ 21 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 1: Intervju (fullt omfang).** En ny tjeneste som leser fødselsnummer fra ID-porten innfører persondatabehandling og autentisering. Repoet har en enkel Ktor-tjeneste, men ingen auth-konfigurasjon eller token-validering. Ingen kode er endret.
+
+Jeg antar at fødselsnummeret gjelder den innloggede personen. Fødselsnummer og tokens skal aldri logges.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, lagres eller sendes videre, og skal tjenesten behandle andre personopplysninger?
+2. Skal innbyggeren bruke tjenesten direkte via nettleseren, eller skal en annen Nav-tjeneste kalle den med brukerkontekst? Hvilke data skal innloggede brukere få tilgang til?
+3. Er dette en separat tjeneste eller en utvidelse av demoen? Hvilke team og konsumenter er involvert?
+4. Hva skal skje når innlogging eller en avhengighet feiler, og hvilke målinger uten persondata skal vise at tjenesten fungerer?
+5. Hvilke krav har dere til tester og produksjonssetting, og kjenner teamet ID-porten-integrasjon fra før?
+
+🔴 Rød sone: autentisering og tilgangskontroll må forstås grundig.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 8/11 (#1–#7 og #11). #8–#10 er foreløpig ikke relevante under antakelsen om en ny tjeneste uten eksisterende konsumenter eller løsning som skal erstattes.
+

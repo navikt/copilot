@@ -52,7 +52,7 @@
       "displayName": "@code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "filePath": "agents/code-review.agent.md",
-      "contentHash": "5a019cbf3eda9ce2789ee1810253542448be72bbd3c84e9fdda5caae276bfd2f",
+      "contentHash": "811b2a6765ff86de28dda607206e2d3cfdca73343a6a5f64cf0a59cf74a5ee21",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "c2ec92805bae041b27502faaae5e77b273039ee78306f2b28c9a57e243a6b337",
+      "contentHash": "018471685b00d5b714d68df69192961cf528e88a7db454902a259b257689bd42",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -194,7 +194,7 @@
         "quality"
       ],
       "filePath": "agents/rust.agent.md",
-      "contentHash": "f915a28c049a0f64cfe1afec7af4c7567d4cd19ffafb5affe74a6ba071059326",
+      "contentHash": "e1cb55806cd87d8c2b71832e5049d2490b65f6eb7e933b5c74618324f50defc5",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Health endpoints",
@@ -220,7 +220,7 @@
         "vulnerability"
       ],
       "filePath": "agents/security-champion.agent.md",
-      "contentHash": "09850437ed89c7bbf32a1994ba3975bd747ef115f7337286f28d3c74cd6f09f2",
+      "contentHash": "65fed295fcdd5bd1d2b5b837beb7fbc396de9f30a6fdc986018dbd2252934cfd",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -260,7 +260,7 @@
       "displayName": "Bevisst KI-bruk",
       "description": "Regler for bevisst KI-bruk som alltid gjelder: forklar valg, merk rød sone, spør før full delegering. Hele rammeverket ligger i deliberate-ai-use-skillen",
       "filePath": "instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "5e2d7a2f23285de8b92728b7fa076f0360a951c2fb5cbfcc1f1f7c0f8cd1a56e",
+      "contentHash": "c323e573246943749c88364c2c40aae13f389efb92b8ab604b63ab87f3133af5",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md"
     },
@@ -653,7 +653,7 @@
       "displayName": "deliberate-ai-use",
       "description": "Bevisst KI-bruk i Nav: grønn og rød sone, tre-forsøks-regelen, erfaringsnivå og generer-så-forstå, med forskningen bak",
       "filePath": "skills/deliberate-ai-use/SKILL.md",
-      "contentHash": "4927691141f3a7f49a11215fea8905c6b956f0a1a5a79a6b77e60aec965e9759",
+      "contentHash": "4e52ba35ebcc66057484073235c41f33108eb2742d09194ad98de602aa2784d6",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/deliberate-ai-use/SKILL.md"
     },
@@ -717,7 +717,7 @@
       "displayName": "klarsprak",
       "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding",
       "filePath": "skills/klarsprak/SKILL.md",
-      "contentHash": "71d2ad63c5c2b62da281a87abe982c4c6cacc5bdacff0f0c713c57039c6db562",
+      "contentHash": "985cf5c9ab29c2077dbca9e35d7d44f4ce21ead43ea7bbd40b9f8b0a9f0e6758",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md"
     },
@@ -805,9 +805,9 @@
       "type": "skill",
       "name": "nav-dekoratoren",
       "displayName": "nav-dekoratoren",
-      "description": "Integrer, konfigurer og bidra til Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
+      "description": "Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
       "filePath": "skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "0c67d935aabba906576a665bd7e033e25b072d8959736fce7b9ea6c757d19072",
+      "contentHash": "d4b84c63c0c38aaf341a3f25aecbd5493e1bb85957e5a8f13fc57c6fda389160",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
       "references": [
@@ -826,6 +826,10 @@
         {
           "path": "references/consent.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/consent.md"
+        },
+        {
+          "path": "references/audit.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/audit.md"
         }
       ]
     },

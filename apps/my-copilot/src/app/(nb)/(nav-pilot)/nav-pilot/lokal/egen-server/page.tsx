@@ -8,7 +8,7 @@ import type { TocItem } from "@/components/table-of-contents";
 import { NAV_PILOT_APT_INSTALL, NAV_PILOT_BREW_INSTALL, NAV_PILOT_INSTALL_SCRIPT } from "@/lib/install-commands";
 
 export const metadata: Metadata = {
-  title: "Kom i gang med egen server",
+  title: "Kom i gang med egen LLM-server",
   description:
     "Bruk en OpenAI-kompatibel server du kjører selv, som Ollama eller llama-server, som lokal modell for nav-pilot på Linux eller Mac.",
 };
@@ -54,24 +54,33 @@ export default function EgenServer() {
   return (
     <DocPage
       label="Introduksjon"
-      title="Kom i gang med egen server"
+      title="Kom i gang med egen LLM-server"
       description="Har du Linux, eller vil du bruke Ollama eller llama-server på Macen, kan nav-pilot bruke en server du kjører selv. Da laster nav-pilot ikke ned noe, starter ingenting og trenger ikke sudo."
       badge={
         <Tag variant="warning" size="small" className="uppercase tracking-wide">
-          Alfa, ikke målt
+          Alfa, testet på Mac
         </Tag>
       }
       toc={TOC}
     >
       <BodyLong>
-        Utsendingen, løkkevakten og <code className={code}>alpha decide</code> går til serveren din. Koden din sendes
-        dit, så nav-pilot godtar bare localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. nav-pilot regner
-        modellen på serveren din som ikke målt. Vi har prøvd veien på én Mac med Ollama, llama-server og mlx_lm.server,
-        men tallene i{" "}
-        <NextLink href="/nav-pilot/forklaring/lokal-modell#malte-grenser" className={linkClass}>
-          målte grenser
+        Delegerte oppgaver, loop guard (stopper modellen når den gjentar seg) og{" "}
+        <code className={code}>alpha decide</code> bruker serveren din. Koden din sendes dit, så nav-pilot godtar bare
+        localhost og private IP-adresser, som 127.0.0.1 og 192.168.x.x. Modellen på serveren din er ikke målt, så
+        tallene i{" "}
+        <NextLink href="/innsikt/lokale-modeller" className={linkClass}>
+          Målinger
         </NextLink>{" "}
-        gjelder ikke. Selve <code className={code}>ollama pull</code> fikk vi ikke kjørt, fordi registeret var blokkert.
+        gjelder ikke.
+      </BodyLong>
+      <BodyLong>
+        Oppsettet er testet på Mac med Ollama og llama-server. På Linux er det bare testet i en virtuell maskin (arm64,
+        bare CPU), ikke på en bærbar med NVIDIA-kort (8 GB) eller en bærbar uten GPU. Har teamet ditt slik maskinvare,
+        fortell oss hvordan det gikk i{" "}
+        <a href="https://github.com/navikt/mlx-workspace/issues/124" className={linkClass}>
+          issue 124
+        </a>
+        .
       </BodyLong>
 
       <section>
@@ -117,18 +126,20 @@ export default function EgenServer() {
           </BodyLong>
           <BodyLong>
             Vi anbefaler Qwen3.6-35B-A3B i dynamisk 4-bit (unsloth UD-Q4_K_XL). Det er den GGUF-varianten som ligger
-            nærmest modellen vi har målt på Mac. <code className={code}>setup</code> ser også etter LM Studio og vLLM,
-            men dem har vi ikke prøvd.
+            nærmest modellen vi har målt på Mac. Siste tall for modellene står på{" "}
+            <NextLink href="/innsikt/lokale-modeller#modeller-per-minne" className={linkClass}>
+              Lokale modeller
+            </NextLink>
+            . <code className={code}>setup</code> finner også LM Studio og vLLM, men dem har vi ikke prøvd.
           </BodyLong>
           <Box background="warning-soft" padding="space-16" borderRadius="8">
             <VStack gap="space-8">
               <Label size="small">Ollama kan gi modellen for lite kontekst</Label>
               <BodyShort size="small">
-                På maskiner med under 24 GB grafikkminne gir Ollama modellen 4 096 tokens kontekst, og det kan ikke
-                endres over <code className={code}>/v1</code>. Med mer minne velger Ollama større kontekst selv (262 144
-                tokens på en Mac med 128 GB). Første melding i en Copilot-økt er på rundt 22 000 tokens. Eldre Ollama
-                kutter resten uten å si fra; Ollama 0.34 avviser prompten med en feil. Start Ollama med{" "}
-                <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, som over, eller lag en egen modell med en
+                Ollama gir modellen bare 4 096 tokens kontekst på maskiner med under 24 GB grafikkminne, og det kan ikke
+                endres over <code className={code}>/v1</code>. Første melding i en Copilot-økt er på rundt 22 000
+                tokens, så resten blir kuttet eller avvist. Start derfor Ollama med{" "}
+                <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, som over, eller lag en modell med en
                 Modelfile som har <code className={code}>PARAMETER num_ctx 65536</code>.
               </BodyShort>
             </VStack>
@@ -142,21 +153,16 @@ export default function EgenServer() {
           </BodyLong>
           <CodeBlock compact>{SMALL_MEMORY}</CodeBlock>
           <BodyLong>
-            Ollama fordeler selv lagene mellom grafikkortet og vanlig minne.{" "}
-            <code className={code}>--n-cpu-moe 999</code> holder ekspertene i en MoE-modell som Qwen3.6-35B-A3B i vanlig
-            minne. Med en tett modell velger du antall lag på grafikkortet med <code className={code}>-ngl</code> i
-            stedet. Start serveren på nytt med den mindre konteksten før du kjører <code className={code}>setup</code>{" "}
-            igjen. Med under 30 000 tokens feiler kontekstsjekken, fordi prompten kuttes, men da tilbyr{" "}
-            <code className={code}>setup</code> å lagre likevel. Korte prompter virker, men en Copilot- eller
-            opencode-økt får ikke plass. Går serveren tom for minne under sjekken, lagrer{" "}
-            <code className={code}>setup</code> ingenting.
+            Ollama fordeler lagene selv. <code className={code}>--n-cpu-moe 999</code> holder ekspertene i en MoE-modell
+            som Qwen3.6-35B-A3B i vanlig minne. Med en tett modell velger du antall lag på grafikkortet med{" "}
+            <code className={code}>-ngl</code>.
           </BodyLong>
           <BodyLong>
-            Hvorfor så mye kontekst? Systemprompten og verktøyene i en Copilot-økt er rundt 22 000 tokens før du har
-            skrevet noe, og Copilot starter ikke hvis det fyller mer enn 80 prosent av konteksten. Får ikke 30 000
-            tokens plass ved siden av modellen, trenger du et grafikkort med mer minne eller en maskin med felles minne
-            for prosessor og grafikkort (som en Mac med 32 GB eller mer). Ellers kan du bruke modellene i skyen, som
-            ikke krever noe oppsett.
+            En Copilot- eller opencode-økt trenger minst 30 000 tokens kontekst. Med mindre feiler kontekstsjekken i{" "}
+            <code className={code}>setup</code>, men den tilbyr å lagre likevel. Korte prompter og{" "}
+            <code className={code}>alpha decide</code> virker da, men ikke en hel økt. Går serveren tom for minne under
+            sjekken, lagrer <code className={code}>setup</code> ingenting. Trenger du økter, må du ha et grafikkort med
+            mer minne, en Mac med 32 GB eller mer, eller bruke modellene i skyen.
           </BodyLong>
         </VStack>
       </section>
@@ -180,11 +186,12 @@ export default function EgenServer() {
             <code className={code}>--fix-context</code>.
           </BodyLong>
           <BodyLong>
-            På en maskin med lite minne får du ikke plass til 30 000 tokens kontekst, og da feiler kontekstsjekken
-            uansett. Er det den eneste sjekken som feiler, spør <code className={code}>setup</code> om du vil lagre
-            likevel. Korte prompter virker, men i en Copilot- eller opencode-økt kutter eller avviser serveren det som
-            ikke får plass. Uten terminal lagrer den ikke, heller ikke med <code className={code}>--yes</code>, men
-            viser kommandoene som gjør det.
+            Feiler bare kontekstsjekken, spør <code className={code}>setup</code> om du vil lagre likevel (se{" "}
+            <a href="#lite-minne" className={linkClass}>
+              Lite minne
+            </a>
+            ). Uten terminal lagrer den ikke, heller ikke med <code className={code}>--yes</code>, men viser kommandoene
+            som gjør det.
           </BodyLong>
           <BodyLong>
             <code className={code}>mlx_lm.server</code> lister alle MLX-modellene i Hugging Face-cachen, ikke bare den
@@ -214,8 +221,8 @@ export default function EgenServer() {
           <CodeBlock compact>{`nav-pilot alpha local init`}</CodeBlock>
           <BodyLong>
             Med <code className={code}>local_endpoint</code> satt laster <code className={code}>init</code> ikke ned
-            noe. Den sjekker serveren og slår på utsending. Feiler en av sjekkene, slår den ingenting på og sier hva du
-            må rette. Svarte du ja i <code className={code}>setup</code>, er utsending allerede på, og{" "}
+            noe. Den sjekker serveren og slår på delegering. Feiler en av sjekkene, slår den ingenting på og sier hva du
+            må rette. Svarte du ja i <code className={code}>setup</code>, er delegering allerede på, og{" "}
             <code className={code}>init</code> kjører de samme sjekkene en gang til.
           </BodyLong>
         </VStack>
@@ -229,13 +236,13 @@ export default function EgenServer() {
           <CodeBlock compact>{`nav-pilot alpha local doctor`}</CodeBlock>
           <BodyLong>
             <code className={code}>doctor</code> sjekker verktøykall, logprobs, kontekst og tid til første token. Den
-            sender rundt 30 000 tokens og feiler hvis serveren kutter prompten. Kommandoen sjekker bare egen server (
-            <code className={code}>local_endpoint</code>), ikke modellen nav-pilot setter opp på Mac.
+            sender rundt 30 000 tokens og feiler hvis serveren kutter prompten. Kommandoen sjekker bare egen LLM-server
+            (<code className={code}>local_endpoint</code>), ikke modellen nav-pilot setter opp på Mac.
           </BodyLong>
           <BodyShort size="small" textColor="subtle">
             <code className={code}>alpha decide</code> trenger logprobs. Ollama fra v0.12.11, llama-server og vLLM gir
             dem, LM Studio gjør det ikke. Uten logprobs sier <code className={code}>decide</code> fra med en gang, mens
-            utsendingen virker som før.
+            delegeringen virker som før.
           </BodyShort>
         </VStack>
       </section>
@@ -247,8 +254,8 @@ export default function EgenServer() {
           </LinkableHeading>
           <CodeBlock compact>{`nav-pilot config set client opencode`}</CodeBlock>
           <BodyLong>
-            Utsending krever opencode som klient. Der blir modellen på serveren din underagenten{" "}
-            <code className={code}>local-worker</code>. Copilot CLI har ingen slik underagent.
+            Delegering krever opencode som klient. Der blir modellen på serveren din subagenten{" "}
+            <code className={code}>local-worker</code>. Copilot CLI har ingen slik subagent.
           </BodyLong>
         </VStack>
       </section>
@@ -263,11 +270,12 @@ nav-pilot`}</CodeBlock>
           <BodyLong>
             Be om en mekanisk endring over flere filer, som «legg til parameteren <code className={code}>ctx</code> i
             alle kall til <code className={code}>hentBruker</code>». Modellen på serveren din er ikke målt, så
-            hovedagenten får den generelle instruksen om utsending, og nav-pilot stopper ingen redigeringer.
-            Hovedagenten vurderer selv hva den sender.
+            hovedagenten får bare den generelle instruksen om delegering, og nav-pilot stopper ingen redigeringer,
+            heller ikke med <code className={code}>balanced</code> eller <code className={code}>aggressive</code>.
+            Hovedagenten vurderer selv hva den delegerer.
           </BodyLong>
           <BodyLong>
-            <code className={code}>nav-pilot alpha local status</code> viser serveren, modellen og om utsending er på.
+            <code className={code}>nav-pilot alpha local status</code> viser serveren, modellen og om delegering er på.
             Vil du stille modellen spørsmål fra hooks og skript, fortsett med{" "}
             <NextLink href="/nav-pilot/lokal/decide" className={linkClass}>
               Din første decide-hook

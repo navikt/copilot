@@ -18,21 +18,13 @@ const TOC: TocItem[] = [
   { id: "nettverk", label: "Nettverk" },
   { id: "filer", label: "Filer og programmer" },
   { id: "jvm", label: "Java, Kotlin og Gradle" },
-  { id: "nettleser", label: "Playwright og Cypress" },
+  { id: "nettleser", label: "Playwright, Cypress og Puppeteer" },
   { id: "git", label: "Git og GitHub" },
   { id: "agent", label: "Agenten og innlogging" },
+  { id: "rapporter", label: "Rapporter et problem" },
 ];
 
 const KNOWN_IMPACTS = "https://github.com/navikt/cplt/blob/main/docs/known-impacts.md";
-const cpltPr = (n: number) => `https://github.com/navikt/cplt/pull/${n}`;
-
-function Pr({ n }: { n: number }) {
-  return (
-    <a href={cpltPr(n)} className={linkClass}>
-      cplt#{n}
-    </a>
-  );
-}
 
 export default function CpltFeilmeldinger() {
   return (
@@ -48,6 +40,17 @@ export default function CpltFeilmeldinger() {
           <LinkableHeading id="start-her" size="medium" level="2">
             Start her
           </LinkableHeading>
+          <BodyLong id="oppgrader">
+            {/* Gamle anker for feil som er rettet i cplt fra 29. september 2026. */}
+            <span id="sign-in-failed" />
+            <span id="pnpm-config" />
+            <span id="pnpm-claude" />
+            <strong>Eldre cplt? Oppgrader først.</strong> Flere feil er rettet i cplt fra 29. september 2026: pnpm fikk
+            ikke lese sin egen konfig (<code className={code}>EPERM … pnpm/config.yaml</code>), pakker med en{" "}
+            <code className={code}>.claude</code>-mappe kunne ikke installeres (
+            <code className={code}>ERR_PNPM_EPERM</code>), og en egen host-liste stengte Copilot ute fra innloggingen (
+            <code className={code}>Sign-in failed</code>).
+          </BodyLong>
           <BodyLong>Finner du ikke feilen under, spør cplt selv:</BodyLong>
           <CodeBlock compact>
             {`cplt check                               # virker sandkassen?
@@ -58,8 +61,8 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           </CodeBlock>
           <BodyLong>
             Svarene fra <code className={code}>cplt check</code> har en linje som begynner med{" "}
-            <code className={code}>Reason:</code>, og ofte en med <code className={code}>Fix:</code>. Kommandoene på
-            denne siden er testet med cplt fra 30. september 2026 på macOS. Flere detaljer står i{" "}
+            <code className={code}>Reason:</code>, og ofte en med <code className={code}>Fix:</code>. Flere detaljer
+            står i{" "}
             <a href={KNOWN_IMPACTS} className={linkClass}>
               known-impacts.md
             </a>{" "}
@@ -115,24 +118,14 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
             Nettverk
           </LinkableHeading>
 
-          <LinkableHeading id="sign-in-failed" size="small" level="3">
-            Sign-in failed: request failed: error sending request for url (https://github.com/login/oauth/access_token)
-          </LinkableHeading>
-          <BodyLong>
-            Rettet i cplt fra 29. september 2026. En egen host-liste i{" "}
-            <code className={code}>proxy.allowed_domains</code> stengte Copilot ute fra sine egne hoster, og{" "}
-            <code className={code}>cplt check</code> viste <code className={code}>reach githubcopilot.com BLOCKED</code>
-            . Oppgrader cplt. Agentens egne hoster er nå alltid med.
-          </BodyLong>
-
           <LinkableHeading id="blocked-allowlist" size="small" level="3">
             BLOCKED-ALLOWLIST
           </LinkableHeading>
           <BodyLong>
             Hosten står ikke på host-lista. Når <code className={code}>proxy.allowed_domains</code> er satt, slipper
             proxyen bare gjennom agentens egne hoster, hostene i fila og i <code className={code}>allow.domains</code>,
-            og pakkeregistrene hvis <code className={code}>proxy.default_allowlist</code> er på. Finn fila og legg til
-            hosten:
+            og pakkeregistrene hvis <code className={code}>proxy.default_allowlist</code> er på. Fila nav-pilot skriver,
+            har pakkeregistrene. Finn fila og legg til hosten:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config get proxy.allowed_domains   # viser hvilken fil
@@ -175,8 +168,8 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             <a href="https://github.com/navikt/cplt/issues" className={linkClass}>
               navikt/cplt
             </a>
-            . I cplt fra før 29. september 2026 kom meldingen også når sandkassen blokkerte noe den skulle slippe
-            gjennom. Oppgrader og kjør <code className={code}>cplt check</code> på nytt før du melder.
+            . Oppgrader og kjør <code className={code}>cplt check</code> på nytt før du melder, for eldre cplt viste
+            meldingen også når sandkassen blokkerte noe den skulle slippe gjennom.
           </BodyLong>
 
           <LinkableHeading id="policy-too-strict" size="small" level="3">
@@ -235,9 +228,9 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             </li>
             <li>
               <code className={code}>~/Library/Preferences/pnpm</code>: se{" "}
-              <a href="#pnpm-config" className={linkClass}>
-                pnpm-konfig
-              </a>
+              <NextLink href="/nav-pilot/guider/cplt-node#pnpm-konfig" className={linkClass}>
+                pnpm-konfig og tokens
+              </NextLink>
               .
             </li>
             <li>
@@ -273,23 +266,6 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
               .
             </li>
           </Bullets>
-
-          <LinkableHeading id="pnpm-config" size="small" level="3">
-            EPERM: operation not permitted, open …/Library/Preferences/pnpm/config.yaml
-          </LinkableHeading>
-          <BodyLong>
-            Rettet i cplt fra 29. september 2026 (<Pr n={616} />
-            ). Oppgrader cplt.
-          </BodyLong>
-
-          <LinkableHeading id="pnpm-claude" size="small" level="3">
-            ERR_PNPM_EPERM i node_modules
-          </LinkableHeading>
-          <BodyLong>
-            Rettet i cplt fra 29. september 2026 (<Pr n={627} />
-            ): cplt stengte konfigmapper for KI-verktøy også inne i <code className={code}>node_modules</code>.
-            Oppgrader cplt.
-          </BodyLong>
 
           <LinkableHeading id="yarnrc" size="small" level="3">
             EPERM: operation not permitted, open …/.yarnrc
@@ -354,8 +330,7 @@ cplt --allow-env-files                          # bare denne økten`}
             kan ikke startes i sandkassen. Fra Go ser feilen ut som{" "}
             <code className={code}>fork/exec /bin/ps: operation not permitted</code>. Ingen innstilling åpner det. Kjør
             kommandoen utenfor cplt. <code className={code}>cplt check exec /bin/ps</code> svarer{" "}
-            <code className={code}>BLOCKED</code> fra 29. september 2026 (<Pr n={628} />
-            ).
+            <code className={code}>BLOCKED</code>.
           </BodyLong>
 
           <LinkableHeading id="openpty" size="small" level="3">
@@ -420,6 +395,15 @@ cplt --allow-env-files                          # bare denne økten`}
           <CodeBlock compact>{`cplt config set sandbox.allow_jvm_attach true`}</CodeBlock>
           <BodyLong>På Linux stenger ikke cplt denne socketen, så der skyldes feilen noe annet.</BodyLong>
 
+          <LinkableHeading id="jdk-library" size="small" level="3">
+            JDK i ~/Library/Java
+          </LinkableHeading>
+          <BodyLong>
+            cplt støtter ikke JDK-er i <code className={code}>~/Library/Java/JavaVirtualMachines</code> ennå. Pek{" "}
+            <code className={code}>JAVA_HOME</code> på en JDK et annet sted, for eksempel under{" "}
+            <code className={code}>/Library/Java/JavaVirtualMachines</code>, SDKMAN eller jenv.
+          </BodyLong>
+
           <LinkableHeading id="foojay" size="small" level="3">
             Unable to download toolchain
           </LinkableHeading>
@@ -438,9 +422,9 @@ org.gradle.java.installations.paths=/Library/Java/JavaVirtualMachines/temurin-25
             åpne fila, se neste oppføring.
           </BodyLong>
           <BodyLong>
-            Har du en liste over tillatte verter, stopper cplt også oppslaget mot{" "}
+            Har du en liste over tillatte hoster, stopper cplt også oppslaget mot{" "}
             <code className={code}>api.foojay.io</code> med <code className={code}>BLOCKED-ALLOWLIST</code> i
-            proxyloggen, og Gradle kan melde det som tidsavbrudd. Legg til verten, og vertene JDK-en hentes fra. For
+            proxyloggen, og Gradle kan melde det som tidsavbrudd. Legg til hosten, og hostene JDK-en hentes fra. For
             Temurin er det <code className={code}>github.com</code> og{" "}
             <code className={code}>release-assets.githubusercontent.com</code>, de samme som Gradle-wrapperen bruker:
           </BodyLong>
@@ -470,7 +454,7 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="nettleser" size="medium" level="2">
-            Playwright og Cypress
+            Playwright, Cypress og Puppeteer
           </LinkableHeading>
 
           <LinkableHeading id="playwright" size="small" level="3">
@@ -503,6 +487,29 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
 cplt config set --repo sandbox.allow_localhost_any true   # skriver til .cplt.toml
 cplt trust accept --all                                    # godkjenn forslaget`}
           </CodeBlock>
+
+          <LinkableHeading id="puppeteer" size="small" level="3">
+            spawn EPERM og [object Object] fra Puppeteer og mmdc
+          </LinkableHeading>
+          <BodyLong>
+            <code className={code}>Error: spawn EPERM</code> betyr at Puppeteer prøver å starte Chrome fra{" "}
+            <code className={code}>~/.cache/puppeteer</code>. På macOS får ingenting kjøre derfra, og{" "}
+            <code className={code}>--allow-cache-exec</code> når ikke den mappa. Skriver{" "}
+            <code className={code}>mmdc</code> bare <code className={code}>[object Object]</code>, har Puppeteer prøvd å
+            koble til nettleseren over localhost. Løsningen er en <code className={code}>puppeteer.json</code> som peker
+            på nettleseren fra Playwright og har <code className={code}>{'"pipe": true'}</code> og{" "}
+            <code className={code}>--no-sandbox</code>. Oppskriften står under{" "}
+            <NextLink href="/nav-pilot/guider/cplt-node#mermaid" className={linkClass}>
+              Puppeteer og Mermaid-diagrammer
+            </NextLink>{" "}
+            i Node-guiden.
+          </BodyLong>
+          <BodyLong>
+            <code className={code}>npx -y @mermaid-js/mermaid-cli</code> stopper før det, med{" "}
+            <code className={code}>bad interpreter: Operation not permitted</code>, fordi ingenting får kjøre fra{" "}
+            <code className={code}>~/.npm</code>. Installer pakken i prosjektet med{" "}
+            <code className={code}>npm install -D @mermaid-js/mermaid-cli</code>.
+          </BodyLong>
         </VStack>
       </section>
 
@@ -519,12 +526,17 @@ cplt trust accept --all                                    # godkjenn forslaget`
             Gjelder macOS. <code className={code}>.git/config</code> er skrivebeskyttet, fordi den kan få git til å
             kjøre kode utenfor sandkassen. Derfor fjerner cplt <code className={code}>-u</code> fra{" "}
             <code className={code}>git push -u</code> og skriver <code className={code}>cplt: pushing without -u</code>.
-            Grenen blir pushet, men uten upstream. Skriv grennavnet når du pusher, og oppgi det når du lager pull
-            requesten:
+            Branchen blir pushet, og cplt setter upstream når økta er ferdig hvis pushen oppfyller kravene i{" "}
+            <NextLink href="/nav-pilot/guider/cplt-git#push" className={linkClass}>
+              Git og GitHub i sandkassen
+            </NextLink>
+            . Ellers skriver cplt en <code className={code}>git branch -u</code>-kommando du kjører selv utenfor cplt:
+            når økta slutter, eller i meldingen når du pusher i en stille økt. Du klarer deg også uten upstream. Skriv
+            branchnavnet når du pusher, og oppgi det når du lager pull requesten:
           </BodyLong>
           <CodeBlock compact>
-            {`git push origin HEAD:min-gren
-gh pr create --head min-gren`}
+            {`git push origin HEAD:min-branch
+gh pr create --head min-branch`}
           </CodeBlock>
           <BodyLong>
             <code className={code}>git config</code>, <code className={code}>git remote add</code>,{" "}
@@ -535,18 +547,19 @@ gh pr create --head min-gren`}
             BLOCKED by sandbox: &apos;git push&apos; is not allowed in this environment.
           </LinkableHeading>
           <BodyLong>
-            Git-vakta stopper push til standardgrenen og force push. <code className={code}>main</code> og{" "}
-            <code className={code}>master</code> er alltid beskyttet, i tillegg til grenen{" "}
+            Git-vakta stopper push til default branch og force push. <code className={code}>main</code> og{" "}
+            <code className={code}>master</code> er alltid beskyttet, i tillegg til branchen{" "}
             <code className={code}>origin</code> peker på. Med <code className={code}>strict</code> stopper vakta all
-            push. Lag en egen gren og push den:
+            push. Lag en egen branch og push den:
           </BodyLong>
-          <CodeBlock compact>{`git push origin HEAD:min-gren`}</CodeBlock>
+          <CodeBlock compact>{`git push origin HEAD:min-branch`}</CodeBlock>
           <BodyLong>
-            <code className={code}>cplt doctor</code> viser om vakta slipper gjennom push til en ny gren i repoet ditt.
-            Stopper vakta også push til en ny gren, og sier at{" "}
+            <code className={code}>cplt doctor</code> viser om vakta slipper gjennom push til en ny branch i repoet
+            ditt. Stopper vakta også push til en ny branch, og sier at{" "}
             <code className={code}>the default branch of remote &apos;origin&apos; could not be determined</code>, vet
-            den ikke hvilken gren som er standardgrenen. cplt spør remoten når <code className={code}>origin/HEAD</code>{" "}
-            mangler lokalt, og feilen kommer når remoten ikke svarer. Kjør dette utenfor cplt, og start en ny økt:
+            den ikke hvilken branch som er default branch. cplt spør remoten når{" "}
+            <code className={code}>origin/HEAD</code> mangler lokalt, og feilen kommer når remoten ikke svarer. Kjør
+            dette utenfor cplt, og start en ny økt:
           </BodyLong>
           <CodeBlock compact>{`git remote set-head origin -a`}</CodeBlock>
 
@@ -558,12 +571,8 @@ gh pr create --head min-gren`}
             Derfor stopper git-vakta <code className={code}>git remote add origin</code>,{" "}
             <code className={code}>git remote set-url origin</code> og <code className={code}>git config</code> med{" "}
             <code className={code}>remote.origin.url</code> eller <code className={code}>url.*.insteadOf</code>. Det
-            gjelder overalt i sandkassen, også i test-repoer i en temp-mappe, og det er med vilje (
-            <a href="https://github.com/navikt/cplt/issues/622" className={linkClass}>
-              cplt#622
-            </a>
-            ). Andre remotes kan du endre. Lager testene dine egne repoer med <code className={code}>origin</code>, kjør
-            dem uten git-vakta:
+            gjelder overalt i sandkassen, også i test-repoer i en temp-mappe, og det er med vilje. Andre remotes kan du
+            endre. Lager testene dine egne repoer med <code className={code}>origin</code>, kjør dem uten git-vakta:
           </BodyLong>
           <CodeBlock compact>{`cplt --no-git-guard exec -- <kommando>`}</CodeBlock>
           <BodyLong>
@@ -587,11 +596,11 @@ cplt config set git_guard.mode block`}
             aborted: you must first push the current branch to a remote, or use the --head flag
           </LinkableHeading>
           <BodyLong>
-            Uten terminal pusher ikke <code className={code}>gh pr create</code> for deg. Push først, og oppgi grenen:
+            Uten terminal pusher ikke <code className={code}>gh pr create</code> for deg. Push først, og oppgi branchen:
           </BodyLong>
           <CodeBlock compact>
-            {`git push origin HEAD:min-gren
-gh pr create --head min-gren`}
+            {`git push origin HEAD:min-branch
+gh pr create --head min-branch`}
           </CodeBlock>
 
           <LinkableHeading id="publickey" size="small" level="3">
@@ -603,7 +612,7 @@ gh pr create --head min-gren`}
           </BodyLong>
           <CodeBlock compact>
             {`git remote set-url origin https://github.com/navikt/<repo>.git
-gh auth setup-git`}
+(unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; gh auth setup-git --hostname github.com)`}
           </CodeBlock>
 
           <LinkableHeading id="go-vcs" size="small" level="3">
@@ -631,20 +640,73 @@ gh auth setup-git`}
             Agenten og innlogging
           </LinkableHeading>
 
+          <LinkableHeading id="login-nettleser" size="small" level="3">
+            /login åpner ikke nettleseren, eller jeg får ikke kopiert URL-en
+          </LinkableHeading>
           <LinkableHeading id="keyring" size="small" level="3">
             System vault not available
           </LinkableHeading>
+          <VStack as="ol" gap="space-16" className="list-decimal" style={{ paddingInlineStart: "var(--ax-space-24)" }}>
+            <li>
+              Avslutt agenten. Velg <strong>No, cancel sign-in</strong> hvis Copilot tilbyr klartekstlagring.
+              Nøkkelringfeilen kan også komme på macOS. Bruk en vanlig terminal utenfor cplt til stegene under.
+            </li>
+            <li>
+              Logg gh inn på github.com. Underskallet fjerner gamle token- og host-overstyringer uten å endre skallet
+              ditt. Velg HTTPS og nettleserinnlogging:
+              <CodeBlock compact>{`(
+unset COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN GH_HOST GH_REPO
+gh auth login --hostname github.com &&
+  gh auth status --hostname github.com &&
+  gh api --hostname github.com user --jq .login
+)`}</CodeBlock>
+              Åpner ikke nettleseren, skriv{" "}
+              <a href="https://github.com/login/device" className={linkClass}>
+                github.com/login/device
+              </a>{" "}
+              manuelt og bruk enhetskoden gh viser. Dette gjelder bare enhetsflyten med kode, ikke enhver /login-URL.
+              Ikke del koden.
+            </li>
+            <li>
+              Før oppstart: sjekk at gh viser riktig konto og <code className={code}>(keyring)</code> på Mac. Viser den
+              en config-fil, stopp og løs nøkkelringtilgangen. gh kan falle tilbake til klartekst; status viser
+              lagringsmetadata, ikke bevis for at hele innloggingen brukte sikker lagring. Kontroller samme kontos
+              Nav-lisens i{" "}
+              <a href="https://github.com/settings/copilot" className={linkClass}>
+                Copilot-innstillingene
+              </a>
+              .
+            </li>
+            <li>
+              Har du valgt <code className={code}>copilot_auth_mode=env_only</code>, kreves eksportert token. Bare hvis
+              du vil bruke lagret innlogging, velg uttrykkelig{" "}
+              <code className={code}>nav-pilot config set copilot_auth_mode auto</code> før neste steg. Ellers behold
+              env_only og start med et Copilot-token i stedet for neste steg. nav-pilot endrer ikke modusen automatisk.
+            </li>
+            <li>
+              Etter konto- og lagringskontrollen, kjør fra repoet ditt og prøv en vanlig melding uten /login:
+              <CodeBlock compact>{`(
+unset COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN GH_HOST GH_REPO
+cplt doctor --agent copilot
+nav-pilot --client copilot
+)`}</CodeBlock>
+              På Mac kan cplt sende gh-tokenet som GH_TOKEN og bevisst stenge nøkkelringen. Doctor bekrefter ikke
+              Copilot-tilgang. cplt henter foreløpig ikke Copilots eget token fra nøkkelringen; senere uthenting er ikke
+              levert. Årsaken til nettleserfeilen er fortsatt ukjent. For videre feilsøking og selvstendig Copilot, se{" "}
+              <a href={`${KNOWN_IMPACTS}#copilots-vs-code-launcher-and-keychain-substitution`} className={linkClass}>
+                cplts known-impacts.md
+              </a>
+              . Noter versjonene, om du brukte /login og feilen før nøkkelringmeldingen hvis det fortsatt feiler.
+            </li>
+          </VStack>
           <BodyLong>
-            Gjelder Linux og WSL. Nøkkelringen nås over D-Bus, som cplt stenger, så agenten ber deg lagre tokenet i
-            klartekst. Logg inn på maskinen din, og la cplt sende tokenet inn:
+            Linux og WSL: cplt stenger nøkkelringen over D-Bus. Etter innlogging og kontroll av konto og sikker lagring
+            på maskinen, kan du la cplt sende gh-tokenet inn:
           </BodyLong>
-          <CodeBlock compact>
-            {`gh auth login                                        # utenfor cplt, én gang
-cplt config set gh_guard.inject_token true --force`}
-          </CodeBlock>
+          <CodeBlock compact>{`cplt config set gh_guard.inject_token true --force`}</CodeBlock>
           <BodyLong>
             Tokenet ligger da i miljøet til alle prosesser i sandkassen, og alle kan lese det. Derfor krever cplt{" "}
-            <code className={code}>--force</code>.
+            <code className={code}>--force</code> og at gh-vakta er på.
           </BodyLong>
 
           <LinkableHeading id="copilot-sandbox" size="small" level="3">
@@ -680,6 +742,21 @@ cplt config set gh_guard.inject_token true --force`}
             </NextLink>
             .
           </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="rapporter" size="medium" level="2">
+            Rapporter et problem
+          </LinkableHeading>
+          <BodyLong>
+            Kjør <code className={code}>cplt doctor</code>, eller{" "}
+            <code className={code}>cplt doctor --agent claude</code> for en bestemt agent, og lim inn hele utskriften
+            sammen med kommandoen som feilet. Utskriften viser hjemmekatalogen som <code className={code}>~</code> og
+            tokener bare med navn. Ikke send <code className={code}>--verbose</code>: den tar med fulle stier.
+          </BodyLong>
+          <CodeBlock compact>{`cplt doctor`}</CodeBlock>
         </VStack>
       </section>
     </DocPage>

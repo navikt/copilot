@@ -1,0 +1,17 @@
+**Fase 2: Plan.** Jeg legger til grunn at den eksisterende Next.js-frontenden er BFF for innbyggeren. Den bruker Wonderwall og ID-porten til innlogging, mens den nye Ktor-tjenesten tar imot et brukerbundet TokenX-token fra BFF-en. Tjenesten henter fødselsnummer fra et validert token, slår opp navn i PDL med brukerens kontekst og returnerer bare navnet til frontenden. Fødselsnummer skal ikke komme fra et felt klienten kan fylle ut. Dette forutsetter at frontendens TokenX-oppsett og PDLs tilgangskrav bekreftes før implementering.
+
+| Område | Plan |
+|---|---|
+| API og data | Ett autentisert endepunkt, for eksempel `GET /api/meg/navn`, med respons `{ "navn": "…" }`. Ingen database, lagring eller kø. Avklar PDLs hjemmel- og formålskrav før oppslaget kobles på. |
+| Tilgang | Valider utsteder, signatur, utløp og audience på innkommende token. Nais får eksplisitt `accessPolicy.inbound` begrenset til frontend-appen, og nødvendig utgående tilgang til PDL. Bare autentisert innbygger kan slå opp eget navn. |
+| Feil | PDL utilgjengelig gir 503; andre feil får egne, korrekte statuser. Logg feiltype og status, aldri token, fødselsnummer, navn eller PDL-respons. Ingen automatisk kø eller dead-letter. |
+| Struktur | Skill mellom HTTP-rute, token-/identitetskontroll og PDL-klient. Hold kontrakten liten og la PDL-klienten eie håndtering av nedstrøms feil. |
+| Levering | Eget Nais-manifest med helseendepunkter, ressursforespørsler og tilgangsregler. GitHub Actions bygger, tester og deployer først til testmiljø. Ingen Flyway-migrasjoner trengs. |
+| Måling og test | Mål antall oppslag per minutt og andel feilende kall uten personidentifikatorer. Test ugyldige og manglende token, at klienten ikke kan velge fødselsnummer, vellykket PDL-oppslag, 503 ved utilgjengelig PDL og at logger ikke inneholder persondata. |
+| Utrulling | Verifiser tokenflyten og PDL-tilgangen i testmiljø, aktiver deretter frontend-kallet. Ved feil kan frontend-kallet slås av mens tjenesten undersøkes; ingen data må migreres eller rulles tilbake. |
+
+🔴 **Rød sone — skriv selv og gå gjennom grundig:** tokenvalidering, utledning av egen identitet og PDL-autorisasjon. Dette er tilgangskontroll teamet må kunne forklare, særlig når TokenX og Wonderwall er nytt.  
+🟢 **Grønn sone — kan genereres:** prosjektoppsett, Nais- og CI-konfigurasjon, HTTP-skall, målinger og testoppsett. Kontroller tilgangsreglene før merge.
+
+Valget om en BFF og et brukerbundet token bevarer brukerens kontekst helt til PDL; alternativet med et rent tjenestetoken ville miste den koblingen. Neste fase er å gjennomgå planen fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.
+

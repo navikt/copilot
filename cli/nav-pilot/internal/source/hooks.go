@@ -67,6 +67,10 @@ const (
 type HookMeta struct {
 	Matcher    string `json:"matcher"`
 	TimeoutSec int    `json:"timeoutSec"`
+	// FailClosed makes the gate deny the call when it cannot answer: python3
+	// missing, the script failing, or the watchdog killing it. Off by default,
+	// since a slow machine then blocks the agent.
+	FailClosed bool `json:"failClosed,omitempty"`
 }
 
 // HookMetaSuffix is the sidecar's extension.
@@ -90,23 +94,26 @@ func LoadHookMeta(scriptPath string) HookMeta {
 	if got.TimeoutSec <= 0 {
 		got.TimeoutSec = meta.TimeoutSec
 	}
-	// HookCommand kills the script a second before the deadline; below 2 s
-	// that second is all there is, and the watchdog would race Copilot.
-	got.TimeoutSec = max(2, got.TimeoutSec)
+	// HookCommand kills the script two seconds before the deadline, the margin
+	// sh, mktemp, a python3 shim and the cleanup need under load; the floor of
+	// 3 s keeps at least one second for the script itself.
+	got.TimeoutSec = max(3, got.TimeoutSec)
 	return got
 }
 
-// HookCommand is the shell command a hook entry runs. Every way python3 can
-// fail allows the call instead of denying it, because a gate that fails closed
-// is worse than no gate: no python3 at all (the `command -v` guard), a script
+// HookCommand is the shell command a hook entry runs. Unless the gate asks for
+// failClosed, every way python3 can fail allows the call instead of denying it,
+// because for most gates failing closed is worse than no gate: no python3 at all (the `command -v` guard), a script
 // that exits non-zero (its output is dropped), and a python3 too slow to
 // answer.
 //
-// The last one needs a deadline of its own. Copilot denies a preToolUse call
-// whose hook outlives timeoutSec, so a cold or wedged interpreter used to turn
-// into a deny. The script is killed a second before that, and a killed script
-// has allowed the call. macOS has no timeout(1), so the watchdog is plain sh:
-// a background sleep that kills python3, itself killed once python3 is done.
+// The last one needs a deadline of its own. The script is killed two seconds
+// before timeoutSec, and a killed script has allowed the call. Copilot 1.0.94
+// allows a call whose hook outlives timeoutSec too (measured; DESIGN.md "Hook-
+// watchdog og klientens frist"), so what the watchdog buys is a shorter wait
+// and a verdict that is ours rather than the client's: a missed margin costs
+// time, not a deny. macOS has no timeout(1), so the watchdog is plain sh: a
+// background sleep that kills python3, itself killed once python3 is done.
 // Killing the watchdog subshell can leave its `sleep` running until it ends on
 // its own; it holds no pipe of the hook's and kills nothing once python3 has
 // been reaped, so it is left alone rather than chased with job control that a
@@ -121,16 +128,45 @@ func LoadHookMeta(scriptPath string) HookMeta {
 // stderr goes to /dev/null (fd 4 keeps the real one for the script's), so
 // bash-as-sh does not report the jobs it killed.
 //
+// After the kill nothing else is started that the hook waits for: a killed
+// script (143, SIGTERM) has neither file printed, an empty stderr file is not
+// cat'ed either ([ is a builtin), and rm runs in the background, holding none
+// of the hook's pipes. A script that fails on its own still shows its stderr. On a busy Mac a process that does
+// nothing took up to 5 s from start to exit, and two of them after the kill
+// used up the two-second margin (hack/probes/RESULTS.md, 2026-10-08).
+//
 // The path is single-quoted: a HOME with a space in it would otherwise make
 // python3 fail to open the script, and every call would be allowed.
-func HookCommand(scriptPath string, timeoutSec int) string {
-	deadline := max(1, timeoutSec-1)
-	return fmt.Sprintf("command -v python3 >/dev/null 2>&1 || exit 0; "+
-		"o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; exit 0; }; exec 3<&0 4>&2 2>/dev/null; "+
+//
+// failClosed turns each of those allows into a deny: the command prints a
+// permissionDecision of deny, with printf, a builtin, so the kill path still
+// waits for nothing it starts (the background rm stays the only child, as
+// above). The reason names the gate and says whether it was killed
+// (143) or failed; the name is JSON-encoded and then single-quoted, so a name
+// with quotes or a newline cannot break out of either. A script that exits 0
+// has answered, whatever it printed: an empty answer allows, and only the
+// client decides what an unparseable one means. The flag cannot cover a hook
+// that does not start at all before Copilot's own deadline; Copilot then
+// allows the call whatever this says.
+func HookCommand(scriptPath string, timeoutSec int, failClosed bool) string {
+	deadline := max(1, timeoutSec-2)
+	fail, ok := "exit 0", `[ $r = 0 ] && cat "$o"`
+	if failClosed {
+		name := strings.TrimSuffix(filepath.Base(scriptPath), filepath.Ext(scriptPath))
+		deny := func(why string) string {
+			j, _ := json.Marshal(map[string]string{"permissionDecision": "deny",
+				"permissionDecisionReason": name + " " + why + ", så kallet er stoppet"})
+			return "printf '%s\\n' " + shellQuote(string(j))
+		}
+		fail = deny("feilet") + "; exit 0"
+		ok = `if [ $r = 0 ]; then cat "$o"; elif [ $r = 143 ]; then ` + deny("svarte ikke innen fristen") + "; else " + deny("feilet") + "; fi"
+	}
+	return fmt.Sprintf("command -v python3 >/dev/null 2>&1 || { %[3]s; }; "+
+		"o=$(mktemp) && e=$(mktemp) || { rm -f \"$o\"; %[3]s; }; exec 3<&0 4>&2 2>/dev/null; "+
 		"python3 %[1]s <&3 >\"$o\" 2>\"$e\" 3<&- 4>&- & p=$!; "+
 		"(sleep %[2]d; kill $p) >/dev/null 3<&- 4>&- & w=$!; "+
-		"wait $p && cat \"$o\"; cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\"; exit 0",
-		shellQuote(scriptPath), deadline)
+		"wait $p; r=$?; %[4]s; [ $r != 143 ] && [ -s \"$e\" ] && cat \"$e\" >&4; kill $w; rm -f \"$o\" \"$e\" >/dev/null 4>&- & exit 0",
+		shellQuote(scriptPath), deadline, fail, ok)
 }
 
 // shellQuote quotes s for sh: single quotes, with each ' written as '\”.
@@ -249,6 +285,8 @@ type HookEntry struct {
 	// Event is the user-dialect event the entry is filed under. Empty means
 	// PreToolUse, which is what every hook artifact is.
 	Event string
+	// FailClosed: see HookMeta.FailClosed.
+	FailClosed bool
 }
 
 // wireEntry is the on-disk shape of an entry nav-pilot writes. It exists as a
@@ -262,10 +300,13 @@ type wireEntry struct {
 	TimeoutSec int    `json:"timeoutSec,omitempty"`
 	Timeout    int    `json:"timeout,omitempty"`
 	NavPilot   string `json:"navPilot"`
+	// FailClosed is read by the OpenCode bridge only; Copilot ignores it, as
+	// it ignores navPilot. Under Copilot the command itself denies.
+	FailClosed bool `json:"failClosed,omitempty"`
 }
 
 func (h HookEntry) marshal(event string) (json.RawMessage, error) {
-	entry := wireEntry{Type: "command", Matcher: h.Matcher, Command: h.Command, NavPilot: h.Name}
+	entry := wireEntry{Type: "command", Matcher: h.Matcher, Command: h.Command, NavPilot: h.Name, FailClosed: h.FailClosed}
 	if event == hookEventRepo {
 		entry.TimeoutSec = h.Timeout
 	} else {
@@ -476,7 +517,7 @@ func PreToolUseHooks(path string) []HookEntry {
 			if markerOf(raw) == "" || json.Unmarshal(raw, &w) != nil || w.Command == "" {
 				continue
 			}
-			out = append(out, HookEntry{Name: w.NavPilot, Matcher: w.Matcher, Command: w.Command, Timeout: max(w.TimeoutSec, w.Timeout)})
+			out = append(out, HookEntry{Name: w.NavPilot, Matcher: w.Matcher, Command: w.Command, Timeout: max(w.TimeoutSec, w.Timeout), FailClosed: w.FailClosed})
 		}
 	}
 	return out

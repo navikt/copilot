@@ -1,0 +1,61 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 603ms
+    Failed with exit code 1
+
+
+**Vurdering: Blokker merge.** Jeg gjennomgikk de åtte endrede filene mot `main`. Flere av endringene kan gi innsyn i personopplysninger, og Kafka-flyten kan fatte samme vedtak flere ganger.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokker | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Hvem som helst kan hente vedtak og fødselsnummer ved å oppgi et `fnr`. Endepunktet må kreve autentisering og kontrollere at innringeren har tilgang til personen. |
+| `VedtakRepository.kt:21–24` | 🔴 Blokker | `fnr` settes rett inn i SQL-strengen. Det gir SQL-injeksjon via det åpne endepunktet. Bruk en parameterisert spørring, slik `hentForSak` gjør. Spørringen har heller ingen grense for antall rader. |
+| `App.kt:39–43` | 🔴 Blokker | TokenX-oppsettet mangler en JWT-verifikator. `validate` sjekker bare at `audience` finnes, ikke signatur, utsteder, forventet audience eller autorisert klient. Konfigurer faktisk verifikasjon før `POST /api/vedtak` tas i bruk. |
+| `VedtakService.kt:13–15` | 🔴 Blokker | `log.info("behandler $fnr")` skriver fødselsnummer til logg. Fjern personopplysningen fra loggmeldingen. |
+| `VedtakConsumer.kt:23–33` | 🔴 Blokker | Lagring skjer før publisering og offset-commit, uten idempotens. Hvis publisering eller commit feiler, lager retry eller Kafka-levering et nytt vedtak med ny ID for samme melding. Knytt behandlingen til en stabil meldings-ID og håndter lagring og publisering slik at omlevering er trygg. |
+| `App.kt:26–35` | 🔴 Blokker | Kafka-klientene får bare brokeradresse. Nais Kafka krever TLS- og klientlegitimasjon fra miljøet; som konfigurert vil klientene ikke kunne koble seg til den beskyttede Kafka-instansen. |
+| `VedtakRepository.kt:14` | 🔴 Blokker | Endringen skriver til `vedtak`, men branchen har ingen migrering som oppretter tabellen. Innsetting og uthenting vil feile i en ny database. |
+
+**Øvrige forhold:** `VedtakConsumer.kt:19–28` lar en ugyldig melding eller en feil etter siste retry avslutte consumer-tråden, mens HTTP-serveren fortsetter å kjøre. `nais.yaml:23–26` åpner inbound-trafikk fra alle apper og namespaces. Databaseoppslaget bruker `SELECT *` og mangler paginering; ingen indekser eller `EXPLAIN`-grunnlag finnes å vurdere. Det er ingen endrede tester.
+
+**Verifisering:** `mise check` finnes ikke i dette repoet. `gradle test --offline` stoppet under prosjektkonfigurasjon med feilen `27`, før kompilering eller tester. Funnene over bygger derfor på kildekoden, ikke på en vellykket kjøring.
+
+🔴 Rød sone: autentisering, tilgangskontroll, SQL-input og vedtakslogikk må gjennomgås grundig. Still gjerne spørsmål om valgene over.
+

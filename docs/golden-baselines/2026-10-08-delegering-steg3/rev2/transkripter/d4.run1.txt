@@ -1,0 +1,71 @@
+## Oppsummering
+
+Tjenesten er en liten Ktor-app. Den har én HTTP-rute, `GET /api/oppgaver`, som svarer med en JSON-liste over oppgaver, avgrenset av konstanten `maksAntall = 100`. Grensen er hardkodet, ikke lest fra miljøkonfigurasjon. Jeg fant ingen egen validering av grensen eller tester av denne ruten.
+
+## Hvordan delene henger sammen
+
+- **Oppstart og HTTP-konfigurasjon:** `src/main/kotlin/no/nav/demo/App.kt` starter Ktor på port `8080` (linje 10–13), installerer JSON-serialisering via `ContentNegotiation` (linje 12) og registrerer `oppgaveRoutes()` (linje 13). Oppstarten logger også grensen (linje 10).
+- **Rute og dataflyt:** `src/main/kotlin/no/nav/demo/Routes.kt` definerer en fast liste med to oppgaver (linje 8–11). Ruten `GET /api/oppgaver` (linje 14) tar de første `maksAntall` oppgavene og sender dem som `OppgaveRespons` (linje 15–17).
+- **Domenemodell og respons:** `src/main/kotlin/no/nav/demo/Oppgave.kt` definerer serialiserbare dataklasser: `Oppgave(id, tittel)` (linje 6) og `OppgaveRespons(oppgaver)` (linje 9). Ktor serialiserer responsen til JSON gjennom konfigurasjonen i `App.kt`.
+- **Konfigurasjon og deployment:** `src/main/kotlin/no/nav/demo/Config.kt` har `const val maksAntall = 100` (linje 3–4). `nais.yaml` angir image, port og health-check-ruter, men ingen miljøvariabler eller miljøspesifikke verdier. `build.gradle.kts` angir Kotlin- og Ktor-avhengighetene.
+- **Vedtak-modellen:** `vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt` definerer en separat `Vedtak`-modell med ID, beløp og dato (linje 5–9). Den er ikke koblet til oppgaveruten eller `maksAntall`.
+
+## `maksAntall`: bruk, validering og tester
+
+Kodesøket fant disse relevante treffene:
+
+| Fil og linje | Bruk |
+|---|---|
+| `src/main/kotlin/no/nav/demo/Config.kt:4` | Definerer `maksAntall` som `const val` med verdien `100`. |
+| `src/main/kotlin/no/nav/demo/App.kt:10` | Logger verdien ved oppstart. |
+| `src/main/kotlin/no/nav/demo/Routes.kt:16` | Bruker verdien i `oppgaver.take(maksAntall)` før responsen sendes. |
+
+Søk etter variantnavn og tilsvarende uttrykk fant ingen andre kodevarianter, som `maxAntall`, `max_oppgaver` eller `MAX_ANTALL`. `take()` avgrenser antallet elementer, men det finnes ingen separat validering av konfigurasjonsverdien.
+
+Det finnes ingen tester for demo-appens konfigurasjon eller HTTP-rute. Den eneste synlige testen er `vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt:7–11`, som kontrollerer at `Vedtak` har forventet ID. Den dekker ikke grensen eller oppgaveruten.
+
+## Endringer for en miljøspesifikk grense
+
+For å gjøre grensen konfigurerbar per miljø må følgende endres:
+
+1. **`src/main/kotlin/no/nav/demo/Config.kt`**  
+   Erstatt konstanten med innlesing av en miljøvariabel eller en konfigurasjonsverdi ved oppstart. Definer også oppførsel for manglende, ugyldig eller ikke-positiv verdi. En miljøvariabel lest ved runtime kan ikke beholdes som `const val`.
+
+2. **`src/main/kotlin/no/nav/demo/App.kt`**  
+   Les konfigurasjonen én gang ved oppstart og gjør verdien tilgjengelig for appen eller ruteregistreringen. Loggen på linje 10 bør vise den faktisk valgte grensen. Unngå å lese miljøvariabelen direkte ved hvert kall.
+
+3. **`src/main/kotlin/no/nav/demo/Routes.kt`**  
+   Endre `oppgaveRoutes()` slik at den mottar grensen, og bruk denne i `take()`. Da blir ruteoppførselen eksplisitt avhengig av konfigurasjonen, fremfor en global konstant.
+
+4. **`nais.yaml`**  
+   Legg inn miljøvariabelen under `spec.env`. For ulike grenser per miljø må deployment-konfigurasjonen ha en verdi per miljø, for eksempel gjennom miljøspesifikke manifestfiler eller templating i deployment-pipelinen. Den nåværende fila inneholder ikke miljøinndeling, så det er ikke mulig å peke ut eksisterende sted for slike separate verdier.
+
+5. **Tester**  
+   Legg til tester for ruten med ulike grenser, inkludert grense større enn, mindre enn og lik antall oppgaver. Test også håndteringen av manglende eller ugyldig konfigurasjon der den leses. Repoet har ingen eksisterende testfil for demo-appen, så en ny test under `src/test/kotlin/no/nav/demo/` vil være aktuell. Testavhengigheter og Ktor testhost må avklares eller legges til i `build.gradle.kts`.
+
+## Repo-lokal Copilot-konfigurasjon
+
+`.github/instructions/kotlin.instructions.md` og `.github/instructions/testing-kotlin.instructions.md` beskriver Kotlin- og testkonvensjoner generelt. Jeg fant ingen instruksjon som særskilt handler om miljøkonfigurasjon eller `maksAntall`. `.github/instructions/output-style.instructions.md` gjelder svarstil og anbefaler å holde svaret konkret.
+
+**Anbefaling:** Flytt grensen fra `const val` til en oppstartsinnlest, validert konfigurasjonsverdi, send den eksplisitt inn i ruteregistreringen, og sett miljøverdien i deployment-konfigurasjonen. Legg samtidig til rute- og konfigurasjonstester.● Research-agent (model: gpt-6-luna) Kartlegg repoets dataflyt                                   51s
+  │ ## Oppsummering
+  │ Search (grep)
+  │   │ "vedtak|Oppgave"
+  │   └ 42 lines found
+  └ Read Vedtak.kt
+      │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+      └ 9 lines read
+
+`maksAntall` er i dag en hardkodet grense på **100**, ikke en miljøinnstilling. `App.kt` starter Ktor, setter opp JSON-serialisering og registrerer `oppgaveRoutes()`. Ruten i `Routes.kt` tar `oppgaver.take(maksAntall)` og returnerer en `OppgaveRespons` bygget av modellen i `Oppgave.kt`. Den separate `Vedtak`-modellen i `vedtak-api` er ikke del av denne flyten.
+
+| Fil | Rolle |
+|---|---|
+| `src/main/kotlin/no/nav/demo/Config.kt:4` | Definerer `const val maksAntall = 100`. |
+| `src/main/kotlin/no/nav/demo/App.kt:10–13` | Logger grensen ved oppstart og registrerer ruten. |
+| `src/main/kotlin/no/nav/demo/Routes.kt:14–17` | Bruker grensen når responslisten lages. |
+| `nais.yaml` | Beskriver deployment, men setter ingen verdi for grensen. |
+
+For en **grense per miljø** bør `Config.kt` lese og validere en miljøvariabel ved oppstart, `App.kt` sende den valgte verdien inn i `oppgaveRoutes()`, og `Routes.kt` bruke parameteren i `take()`. Sett deretter verdien i deployment-oppsettet for hvert miljø; dagens `nais.yaml` viser ingen miljøinndeling. Oppstartsinnlesing gir én tydelig verdi per kjørende instans, men krever redeploy for å endre den. Legg til tester for både ugyldig konfigurasjon og rutens avgrensning; dagens tester dekker ikke denne flyten.
+
+🔴 Rød sone: Validering av konfigurasjonsverdien må gjennomgås nøye, særlig hva tjenesten skal gjøre ved manglende, ugyldig eller ikke-positiv verdi. Still gjerne spørsmål om valgene over.
+

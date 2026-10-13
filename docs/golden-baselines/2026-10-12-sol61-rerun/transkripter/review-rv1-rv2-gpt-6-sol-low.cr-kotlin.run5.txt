@@ -1,0 +1,61 @@
+● skill(klarsprak)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 35 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:180 (180 lines read)
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+✗ Run repository checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+● Verify finding lines and available build scripts (shell)
+  │ nl -ba src/main/kotlin/no/nav/demo/UserRepo.kt && ls -a | head -30
+  └ 22 lines…
+
+### Funn
+
+`UserRepo.kt` har fire feil som må rettes før koden kan brukes:
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 8 | 🔴 Blokkerende | Fødselsnummer logges i vanlig applikasjonslogg. Fjern verdien fra loggmeldingen. |
+| 9 | 🔴 Blokkerende | `fnr` settes direkte inn i SQL-strengen. Det åpner for SQL-injeksjon; bruk en parameterisert spørring. |
+| 12–13 | 🔴 Blokkerende | Alle databasefeil fanges og returneres som `null`. Da kan en driftsfeil se ut som «bruker finnes ikke». La feilen gå videre, eventuelt med kontekst uten persondata. |
+| 11 | 🔴 Blokkerende | `session` og `queryOf` er ikke definert eller importert i prosjektet. `build.gradle.kts` har heller ingen Kotliquery-avhengighet, så filen kan ikke kompileres slik den står. |
+
+**Sjekk:** `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave. Funnene er verifisert mot filen og prosjektets byggfil, ikke med en vellykket kompilering.
+
+🔴 Rød sone: håndtering av fødselsnummer og SQL-spørringen bør gjennomgås nøye. Parameterbinding fjerner injeksjonsrisikoen uten å endre oppslagets hensikt; alternativet med strenginterpolering er ikke trygt. Still gjerne spørsmål om valgene over.
+

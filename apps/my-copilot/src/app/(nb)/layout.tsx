@@ -4,11 +4,11 @@ import "../globals.css";
 
 const description = "Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.";
 
-// The site is «KI-utvikling i Nav» (the home page H1); nav-pilot is one part of it (#1192).
+// The site is «KI-produktutvikling i Nav» (the home page H1); nav-pilot is one part of it (#1192).
 export const metadata: Metadata = {
   title: {
-    template: "%s — KI-utvikling i Nav",
-    default: "KI-utvikling i Nav",
+    template: "%s — KI-produktutvikling i Nav",
+    default: "KI-produktutvikling i Nav",
   },
   description,
   // Without metadataBase, Next resolves og:image against http://localhost:3000
@@ -18,14 +18,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "nb_NO",
-    siteName: "KI-utvikling i Nav",
+    siteName: "KI-produktutvikling i Nav",
     // No title or description here: Next fills og:title and og:description
     // from each page's own, so a shared link previews as that page.
   },
 };
 
 const labels: ShellLabels = {
-  tagline: "Copilot i Nav",
+  siteName: "KI-produktutvikling i Nav",
   mainMenu: "Hovedmeny",
   skip: "Hopp til innhold",
   menu: "Meny",

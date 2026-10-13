@@ -1,0 +1,3 @@
+`VedtakKonsument` committer nå offset først etter at alle meldingene er behandlet. Den hopper over eventId-er som allerede er utbetalt, og lar utbetalingsfeil stoppe poll slik at meldingene kan prøves på nytt. `gradle test` i `vedtak-konsument/` passerer. Konstruktøren tar fortsatt bare `consumer` og `utbetaling`.
+
+🔴 Rød sone: Gå nøye gjennom utbetalingslogikken. EventId-ene lagres i minnet, så dette hindrer dobbeltutbetaling ved replay i samme prosess, men ikke etter en prosessomstart. En varig garanti krever deduplisering som overlever omstart, for eksempel i utbetalingstjenesten. Still gjerne spørsmål om valgene over.

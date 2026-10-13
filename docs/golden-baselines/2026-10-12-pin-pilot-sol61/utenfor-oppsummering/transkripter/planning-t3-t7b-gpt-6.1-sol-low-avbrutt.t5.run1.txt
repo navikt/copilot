@@ -1,0 +1,12 @@
+● skill(nav-auth)
+
+● skill(klarsprak)
+
+**TokenX for innbyggerkontekst (ID-porten).** A veksler brukerens token til et token med B som audience. Da beholder dere brukerkonteksten, men får et ekstra token exchange-kall. For **ansattkontekst (Azure AD)** bruker dere Azure AD On-Behalf-Of (OBO).
+
+Ikke bruk `client_credentials`: det representerer tjenesten, ikke brukeren. B må validere tokenet og kontrollere brukerens tilgang til ressursen.
+
+🔴 Rød sone: token-validering og tilgangskontroll må forstås grundig.
+
+Still gjerne spørsmål om valgene over
+

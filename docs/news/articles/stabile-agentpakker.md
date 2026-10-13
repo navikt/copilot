@@ -18,7 +18,7 @@ En agentpakke kan inneholde agenter, skills, instruksjoner, prompts, hooks og ex
 
 ## Pakker kan følge GitHub Releases
 
-En pakke kan publisere `agentpakke-release.json` i en stabil GitHub Release merket `immutable`. Når releasen oppfyller [release-kontrakten](/nav-pilot/agentpakker#stabile-releases), kan `nav-pilot install` og `nav-pilot sync` følge den i stedet for standardbranchen. Eksplisitte revisjonsvalg og nedgraderingsvernet gjelder fortsatt.
+En pakke kan publisere `agentpakke-release.json` i en stabil GitHub Release merket `immutable`. Når releasen oppfyller [release-kontrakten](/nav-pilot/agentpakker/referanse#stabile-releases), kan `nav-pilot install` og `nav-pilot sync` følge den i stedet for standardbranchen. Eksplisitte revisjonsvalg og nedgraderingsvernet gjelder fortsatt.
 
 Payload-baserte pakker som lagres med en lokal pinne kan også spørre ved oppstart. Da kan du velge:
 

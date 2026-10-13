@@ -1,0 +1,25 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Intervju.** `SoknadMottattMelding` inneholder i dag `soknadId` og `mottatt`. Koden sender allerede `fnr` på `soker-oppdatert`, men jeg finner ingen dokumentasjon på formålet med eller mottakerne av `soknad-mottatt`.
+
+1. Hva er formålet med å sende `fnr` på `soknad-mottatt`, og er dette godkjent for den behandlingen?
+2. Hvilke konsumenter leser topicet, og har alle tilgang til å motta `fnr`?
+3. Tåler eksisterende konsumenter at meldingen får feltet `fnr`, eller trengs en versjonert kontrakt eller en trinnvis endring?
+
+Jeg fant ingen tester i repoet. Repoet mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette repo-lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 4/11 (#1, #2, #6 og #9 stilt; #3–#5, #8 og #10 gjelder ikke denne endringen; #7 besvart av repoet, ingen tester funnet; #11 gjelder ikke, dette følger eksisterende Kotlin- og Kafka-mønstre).
+

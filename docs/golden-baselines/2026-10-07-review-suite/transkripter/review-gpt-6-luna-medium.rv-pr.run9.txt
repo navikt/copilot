@@ -1,0 +1,170 @@
+
+🔍 Skanner endringene mellom `vedtak-kafka` og `main`, og sjekker arbeidsområdet før gjennomgangen.
+
+
+
+
+
+
+
+
+
+
+
+
+📊 Gjennomgår sikkerhet, Kafka-feilhåndtering og databaseoppsett. Sjekker også om prosjektets tilgjengelige build-sjekk kan kjøres.
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+
+
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+
+
+    org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+    at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseServic
+    e.java:127)
+    at org.gradle.launcher.exec.RunAsWorkerThreadBuildActionExecutor.execute(RunAsWorkerThreadBuildA
+    ctionExecutor.java:36)
+    at org.gradle.tooling.internal.provider.continuous.ContinuousBuildActionExecutor.execute(Continu
+    ousBuildActionExecutor.java:110)
+    at org.gradle.tooling.internal.provider.SubscribableBuildActionExecutor.execute(SubscribableBuil
+    dActionExecutor.java:64)
+    at org.gradle.internal.session.DefaultBuildSessionContext.execute(DefaultBuildSessionContext.jav
+    a:46)
+    at org.gradle.internal.buildprocess.execution.BuildSessionLifecycleBuildActionExecutor$ActionImp
+    l.apply(BuildSessionLifecycleBuildActionExecutor.java:92)
+    at org.gradle.internal.buildprocess.execution.BuildSessionLifecycleBuildActionExecutor$ActionImp
+    l.apply(BuildSessionLifecycleBuildActionExecutor.java:80)
+    at org.gradle.internal.session.BuildSessionState.run(BuildSessionState.java:73)
+    at org.gradle.internal.buildprocess.execution.BuildSessionLifecycleBuildActionExecutor.execute(B
+    uildSessionLifecycleBuildActionExecutor.java:62)
+    at org.gradle.internal.buildprocess.execution.BuildSessionLifecycleBuildActionExecutor.execute(B
+    uildSessionLifecycleBuildActionExecutor.java:41)
+    at org.gradle.internal.buildprocess.execution.StartParamsValidatingActionExecutor.execute(StartP
+    aramsValidatingActionExecutor.java:64)
+    at org.gradle.internal.buildprocess.execution.StartParamsValidatingActionExecutor.execute(StartP
+    aramsValidatingActionExecutor.java:32)
+    at org.gradle.internal.buildprocess.execution.SessionFailureReportingActionExecutor.execute(Sess
+    ionFailureReportingActionExecutor.java:51)
+    at org.gradle.internal.buildprocess.execution.SessionFailureReportingActionExecutor.execute(Sess
+    ionFailureReportingActionExecutor.java:39)
+    at org.gradle.internal.buildprocess.execution.SetupLoggingActionExecutor.execute(SetupLoggingAct
+    ionExecutor.java:47)
+    at org.gradle.internal.buildprocess.execution.SetupLoggingActionExecutor.execute(SetupLoggingAct
+    ionExecutor.java:31)
+    at org.gradle.launcher.daemon.server.exec.ExecuteBuild.doBuild(ExecuteBuild.java:70)
+    at org.gradle.launcher.daemon.server.exec.BuildCommandOnly.execute(BuildCommandOnly.java:37)
+    at org.gradle.launcher.daemon.server.api.DaemonCommandExecution.proceed(DaemonCommandExecution.j
+    ava:104)
+    at org.gradle.launcher.daemon.server.exec.WatchForDisconnection.execute(WatchForDisconnection.ja
+    va:39)
+    at org.gradle.launcher.daemon.server.api.DaemonCommandExecution.proceed(DaemonCommandExecution.j
+    ava:104)
+    at org.gradle.launcher.daemon.server.exec.ResetDeprecationLogger.execute(ResetDeprecationLogger.
+    java:29)
+    at org.gradle.launcher.daemon.server.api.DaemonCommandExecution.proceed(DaemonCommandExecution.j
+    ava:104)
+    at org.gradle.launcher.daemon.server.exec.RequestStopIfSingleUsedDaemon.execute(RequestStopIfSin
+    gleUsedDaemon.java:35)
+    at org.gradle.launcher.daemon.server.api.DaemonCommandExecution.proceed(DaemonCommandExecution.j
+    ava:104)
+    at org.gradle.launcher.daemon.server.exec.ForwardClientInput.lambda$execute$0(ForwardClientInput
+    .java:40)
+    at org.gradle.internal.daemon.clientinput.ClientInputForwarder.forwardInput(ClientInputForwarder
+    .java:80)
+    at org.gradle.launcher.daemon.server.exec.ForwardClientInput.execute(ForwardClientInput.java:37)
+    at org.gradle.launcher.daemon.server.api.DaemonCommandExecution.proceed(DaemonCommandExecution.j
+    ava:104)
+    at org.gradle.launcher.daemon.server.exec.LogAndCheckHealth.execute(LogAndCheckHealth.java:53)
+    at org.gradle.launcher.daemon.server.api.DaemonCommandExecution.proceed(DaemonCommandExecution.j
+    ava:104)
+    at org.gradle.launcher.daemon.server.exec.LogToClient.doBuild(LogToClient.java:63)
+    at org.gradle.launcher.daemon.server.exec.BuildCommandOnly.execute(BuildCommandOnly.java:37)
+    at org.gradle.launcher.daemon.server.api.DaemonCommandExecution.proceed(DaemonCommandExecution.j
+    ava:104)
+    at org.gradle.launcher.daemon.server.exec.EstablishBuildEnvironment.doBuild(EstablishBuildEnviro
+    nment.java:84)
+    at org.gradle.launcher.daemon.server.exec.BuildCommandOnly.execute(BuildCommandOnly.java:37)
+    at org.gradle.launcher.daemon.server.api.DaemonCommandExecution.proceed(DaemonCommandExecution.j
+    ava:104)
+    at org.gradle.launcher.daemon.server.exec.StartBuildOrRespondWithBusy$1.run(StartBuildOrRespondW
+    ithBusy.java:52)
+    at org.gradle.launcher.daemon.server.DaemonStateCoordinator.lambda$runCommand$0(DaemonStateCoord
+    inator.java:321)
+    at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy
+    .java:64)
+    at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+    * Exception is:
+    org.gradle.api.ProjectConfigurationException: A problem occurred configuring root project
+    'repo'.
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.wrapException(LifecycleProjectEval
+    uator.java:84)
+    Caused by: java.lang.IllegalArgumentException: 27
+    Failed with exit code 1
+
+
+
+### Sammendrag
+
+`vedtak-kafka` har flere blokkere: FNR-baserte vedtak kan leses uten autentisering, JWT-oppsettet verifiserer ikke tokenet, og oppslagsspørringen åpner for SQL-injeksjon. Kafka-klienten mangler også Nais-tilkobling, og behandlingen kan opprette duplikater ved retry.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `src/main/kotlin/no/nav/demo/Routes.kt` | 30 | 🔴 | Vedtaksoppslaget krever verken autentisering eller eierskapskontroll. Alle som når tjenesten, kan hente vedtak for et vilkårlig FNR. `nais.yaml` åpner dessuten for trafikk fra alle apper og namespac-er. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 40–42 | 🔴 | JWT-oppsettet mangler verifier og sjekker bare at `audience` finnes, ikke at den har forventet verdi. Tokenets signatur og issuer blir dermed ikke kontrollert som nødvendig. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 23 | 🔴 | FNR settes direkte inn i SQL-strengen. Et kontrollert FNR kan endre spørringen og gi tilgang til flere vedtak. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt` | 15 | 🔴 | Logger FNR. Fødselsnummer skal ikke inn i logger. |
+| `src/main/kotlin/no/nav/demo/App.kt` | 26–35 | 🔴 | Kafka-klienten mangler SSL-/truststore-konfigurasjon for Nais Kafka. Den forsøker derfor tilkobling uten Nais’ klientautentisering. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt` | 32 | 🔴 | Retry kjører lagring på nytt med ny `vedtakId`. Hvis lagringen lykkes, men publisering feiler, kan samme søknad gi flere vedtak. `soknadId` brukes ikke til idempotens. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt` | 14 | 🔴 | Koden skriver til `vedtak`, men branchen oppretter ikke tabellen. `nais.yaml` oppretter databasen, ikke tabellen, så lagringen vil feile uten en migrering. |
+
+**Sjekker:** `git diff --check` passerte. `mise check` kunne ikke kjøres fordi repoet ikke har en slik oppgave. `gradle test` stoppet under Gradle-konfigurering med `IllegalArgumentException: 27` på Java 27, før kompilering eller tester. Det finnes ingen tester i branchen.
+

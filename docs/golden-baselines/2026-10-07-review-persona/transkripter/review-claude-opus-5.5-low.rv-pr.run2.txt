@@ -1,0 +1,39 @@
+
+
+### Oppsummering
+Branchen legger til vedtak via REST og Kafka (Postgres og TokenX). Strukturen med service, repository og consumer er grei. Branchen har likevel flere blokkere: SQL-injeksjon, et åpent endepunkt som returnerer persondata, fødselsnummer (FNR) i URL og logg, JWT uten verifisering og en inbound-policy som slipper inn alle. `mise check` kunne ikke kjøres fordi repoet ikke har noen mise-oppgave. Branchen har heller ingen tester eller Flyway-migrering.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og har ingen eierskapssjekk. Hvem som helst kan hente alle vedtak for et FNR |
+| `Routes.kt` | 30 | 🔴 | FNR i URL-stien havner i access-logger og proxyer. Send FNR i body eller hent det fra token |
+| `App.kt` | 39–42 | 🔴 | JWT-oppsettet mangler `verifier` (JWKS), issuer og konkret audience. `validate` godtar ethvert token som har en audience |
+| `Routes.kt` | 25–28 | 🔴 | `POST /api/vedtak`: innlogget bruker kan fatte vedtak på hvilket som helst FNR. Ingen tilgangskontroll |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` skriver FNR til loggen |
+| `nais.yaml` | 22–26 | 🔴 | `inbound` med `application: "*"`, `namespace: "*"` åpner for alle |
+| `VedtakConsumer.kt` | 23–27 | 🔴 | Poison pill: feil i deserialisering eller 3 mislykkede forsøk dreper tråden. Konsumeringen stopper uten varsel, og appen er fortsatt «alive» |
+| `VedtakConsumer.kt` / `VedtakService.kt` | 32–33 / 23 | 🔴 | Ikke idempotent: retry eller ny levering før `commitSync` gir duplikate vedtak med ny UUID. Bruk `soknadId` som idempotensnøkkel og unik constraint |
+| `nais.yaml` | 14 | 🔴 | `pool: nav-dev` er hardkodet i en manifest uten miljøskille. Prod vil koble til dev-pool |
+| `App.kt` | 27–34 | 🟡 | Kafka mangler SSL/keystore-oppsett (`KAFKA_KEYSTORE_PATH` m.fl.), så tilkoblingen feiler på Nais |
+| `App.kt` | 24 | 🟡 | `DB_JDBC_URL` stemmer neppe med env-navnene Nais injiserer (`NAIS_DATABASE_*`). Sjekk prefikset |
+| (mangler) | – | 🟡 | Ingen Flyway-migrering for tabellen `vedtak` |
+| (mangler) | – | 🟡 | Ingen tester for service, consumer eller repository |
+| `nais.yaml` | 27–30 | 🟡 | Outbound mangler regler for Kafka og eventuelle kall. Bekreft at de faktisk trengs |
+| `Routes.kt` | 31 | 🟡 | `!!` på parameter. Svar heller 400 |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gjør testene tidsavhengige. Injiser `Clock` |
+| `build.gradle.kts` | 13 | 💭 | Ny `dependencies`-blokk. Slå den sammen med den eksisterende |
+| `VedtakService.kt` | 5, 29 | 💭 | Ubrukt `Locale`-import og ubrukt `hentVedtak` |
+| `Routes.kt` | 19 | 💭 | `oppgaveRoutes` har nå også vedtak-ruter. Skill dem ut i egen `vedtakRoutes` |
+
+### Detaljer om blokkerne
+- **SQL:** bytt til `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`.
+- **Tilgang:** legg GET inn under `authenticate`. Hent `pid` fra tokenet og sammenlign det med ressursen. Eierskap må sjekkes, ikke bare innlogging.
+- **Consumer:** fang feil per melding og send dem til DLQ eller retry-tabell. Lagre vedtaket og meldingen atomisk (outbox), eller sjekk `soknadId` før du fatter vedtaket. Koble `isalive` til consumer-tråden.
+
+🔴 Rød sone: auth, tilgangskontroll og vedtakslogikken. Gå gjennom disse nøye.
+
+Still gjerne spørsmål om valgene over.
+

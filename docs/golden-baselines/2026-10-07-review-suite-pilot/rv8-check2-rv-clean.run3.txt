@@ -1,0 +1,27 @@
+● Read file (shell)
+  │ cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak/
+  └ 63 lines…
+
+No blockers in `SakService.kt`. I couldn't run `mise check` because the repo has no mise config, so this review is based on reading the code only.
+
+### Findings
+
+| Line | Priority | Issue |
+|------|----------|-------|
+| 48–50 | 🟡 | The route doesn't check the login security level (`acr` claim). Case data is sensitive, so it should require `idporten-loa-high`. The issuer and audience checks live in the `tokenx` auth setup, which this file doesn't include, so I couldn't confirm them. |
+| 40–43 | 🟡 | The `catch` logs the error and then throws it again, so the same error gets logged twice, once here and once higher up. Remove the `try`/`catch` or wrap the exception with more context. |
+| 37, 41 | 💭 | The masked value is only stars of the same length as the fnr, so it helps no one when debugging. Drop it or log something useful, such as the number of cases found. |
+| 20 | 💭 | `maskert()` is a public extension on every `String`. Make it `private` or remove it. |
+| 47–58 | 💭 | The route, service and repository are all in one file. Splitting them out makes the code easier to test. |
+| 23–30 | 💭 | There's no paging or `LIMIT`. A person with many cases gets every row back. |
+| – | 🟡 | No tests. Add one for a missing `pid` claim returning 401 and one checking that a user only sees their own cases. |
+
+### What works
+- The SQL uses a bind parameter, so it's safe from injection.
+- The fnr comes from the token, not from the request, so users can only fetch their own cases.
+- The full fnr never reaches the logs.
+
+🔴 Rød sone: token-validering (acr/audience), gå gjennom denne nøye.
+
+Still gjerne spørsmål om valgene over.
+

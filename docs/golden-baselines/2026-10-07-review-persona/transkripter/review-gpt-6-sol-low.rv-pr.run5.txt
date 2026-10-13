@@ -1,0 +1,25 @@
+
+
+
+
+
+
+
+
+**Gjennomgangen av `vedtak-kafka` mot `main` finner flere blokkere.** Endringene bør ikke merges før tilgangskontroll, Kafka-oppsett og datalagring er rettet.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 | `GET /api/vedtak/{fnr}` er åpent og returnerer vedtak med fødselsnummer. Endepunktet må autentiseres og kontrollere at innringeren har tilgang til personen. |
+| `VedtakRepository.kt:23` | 🔴 | `fnr` settes rett inn i SQL. Parameteriser spørringen; dagens kode åpner for SQL-injeksjon. |
+| `nais.yaml:23–26` | 🔴 | Inbound-regelen gir alle applikasjoner i alle namespaces tilgang. Begrens den til kjente klienter. |
+| `App.kt:39–43` | 🔴 | JWT-oppsettet mangler verifier for signatur, utsteder og forventet audience. `validate` sjekker ikke at tokenet er ment for tjenesten, og returnerer `credential` i stedet for en JWT-principal. |
+| `App.kt:26–35` | 🔴 | Kafka-klientene får bare broker-adresse, ikke Nais-konfigurasjon for autentisering og TLS. De vil ikke kunne koble til den beskyttede Kafka-poolen. |
+| `VedtakConsumer.kt:31–33` | 🔴 | Vedtak lagres før publisering. Hvis publisering eller offset-commit feiler, oppretter retry et nytt vedtak med ny ID. Gjør behandlingen idempotent mot en stabil meldings-ID, og håndter forholdet mellom lagring og publisering. |
+| `VedtakService.kt:15` | 🔴 | Fødselsnummer logges i klartekst. Fjern personopplysningen fra loggen. |
+| `VedtakRepository.kt:14` | 🔴 | Koden skriver til `vedtak`, men branchen inneholder ingen migrasjon som oppretter tabellen. Skriving vil feile mot en ny database. |
+
+🔴 **Rød sone: tilgangskontroll, personopplysninger og vedtaksbehandling må gjennomgås grundig.** Den viktigste avveiningen er at idempotent behandling krever en varig meldingsidentitet og mer kontroll rundt lagring og publisering; en enkel retry løser ikke dobbeltskriving.
+
+**Kontroll:** `mise check` finnes ikke i repoet. `gradle compileKotlin` stopper under prosjektkonfigurasjon med feilen `27`, så jeg har ikke bekreftet at branchen kompilerer. Still gjerne spørsmål om valgene over.
+

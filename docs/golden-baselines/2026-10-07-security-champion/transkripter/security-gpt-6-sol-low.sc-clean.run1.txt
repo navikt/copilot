@@ -1,0 +1,10 @@
+🔍 Kartlegger kallene til `SakService` og sikkerhetskontrollene rundt tjenesten før jeg vurderer funn.
+
+**Sikkerhetsgjennomgang: BLOCK.** `/api/saker` returnerer saker basert på `pid` i et validert TokenX-token. SQL-spørringen er parameterisert, og tjenesten logger ikke fødselsnummeret i klartekst. To forhold må avklares før dette bør tas i bruk:
+
+1. **Manglende nettverksavgrensning:** `nais.yaml` definerer ingen `accessPolicy` for innkommende trafikk. Sjekk hvilke tjenester som faktisk kan nå endepunktet, og begrens tilgangen til tiltenkte kallere. Tokenvalidering erstatter ikke nettverkstilgangskontroll.
+2. **Manglende formatkontroll av `pid`:** `SakService.kt:44–49` avviser bare `null`. Et token med tom eller feilformet `pid` går videre til databasespørringen. Avvis ugyldig format før oppslaget, slik at tjenesten ikke bruker en ugyldig identitet som søkenøkkel.
+
+🔴 **Rød sone: identitetsvalidering og tilgang til personsaker.** Behold koblingen mellom validert `pid` og databaseoppslaget; å ta imot fødselsnummer som forespørselsparameter ville åpne for oppslag på andre personer. Formatkontroll gir tydeligere avvisning, men erstatter ikke korrekt TokenX-validering.
+
+**Inspected:** `SakService.kt`, `App.kt`, `Routes.kt`, `nais.yaml`, `build.gradle.kts`. **Not inspected:** faktisk Nais-nettverkstilgang, databaseinnhold, øvrig infrastruktur og avhengighetssårbarheter. Trivy og zizmor er ikke installert her, så automatiserte skann er ikke kjørt. **Findings:** 2 blocking, 0 concerns. **Verdict:** BLOCK. Still gjerne spørsmål om valgene over.

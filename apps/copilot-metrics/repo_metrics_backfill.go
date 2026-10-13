@@ -137,11 +137,9 @@ func runRepoMetricsBackfill(ctx context.Context, gh RepoMetricsFetcher, bq RepoM
 				slog.Info("Skipping repo-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
 				skipped++
 			} else {
-				// The insert is a streaming Put and is not atomic: a row-level
-				// failure can leave the day partially written. A later run
-				// would see rows present and skip it, so the day is named
-				// explicitly and needs --force to be repaired.
-				slog.Error("Failed to store repository metrics (day may be partially written, re-run with --force)", "day", dayStr, "error", err)
+				// The load job is atomic, but a failure after the delete leaves
+				// the day empty. The day is named explicitly so it can be re-run.
+				slog.Error("Failed to store repository metrics (day may be empty, re-run with --force)", "day", dayStr, "error", err)
 				failedDays = append(failedDays, dayStr)
 			}
 			time.Sleep(repoMetricsRateLimitDelay)

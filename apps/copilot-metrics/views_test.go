@@ -47,6 +47,7 @@ func TestViewDefinitions(t *testing.T) {
 		"v_billing_model_breakdown",
 		"v_user_budget_trend",
 		"v_repository_usage",
+		"v_seat_counts_monthly",
 	}
 
 	if len(views) != len(expectedViews) {
@@ -94,5 +95,18 @@ func TestRepositoryUsageViewPlaceholders(t *testing.T) {
 	// BigQuery and fails with "Aggregations of aggregations are not allowed".
 	if strings.Contains(sql, "HAVING SUM(") {
 		t.Errorf("v_repository_usage.sql must not re-aggregate an aggregate alias in HAVING")
+	}
+}
+
+// The cost trend views count Copilot only, not Code Quality.
+func TestBillingViewsAreCopilotOnly(t *testing.T) {
+	for _, f := range []string{"views/v_billing_monthly_trend.sql", "views/v_billing_model_breakdown.sql"} {
+		data, err := viewsFS.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(data), "WHERE product = 'Copilot'") {
+			t.Errorf("%s must filter to product = 'Copilot'", f)
+		}
 	}
 }

@@ -835,3 +835,45 @@ func TestOpenCodeVersionProbedOnce(t *testing.T) {
 		t.Fatalf("opencode --version ran %d times, want 1", calls)
 	}
 }
+
+func TestCheckOpenCodeMajorLaunchesOpenCode2(t *testing.T) {
+	// opencode 2's own line (2.0.24).
+	if v, err := parseClientVersion("opencode", "opencode v2.0.24\n"); err != nil || v != (semver3{2, 0, 24}) {
+		t.Errorf("parseClientVersion(opencode, \"opencode v2.0.24\") = %v, %v", v, err)
+	}
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	for out, stop := range map[string]bool{
+		"opencode v2.0.24\n": false, "opencode v2.1.0-beta.1\n": false, "10.0.0\n": true,
+		"opencode v3.0.0\n": true, "opencode v3.0.0-beta.1\n": true, "1.18.35\n": false, "1.19.0-next.3\n": false, "garbage\n": false,
+	} {
+		versionCache.Store("opencode", versionAnswer{out, nil, time.Minute})
+		if err := CheckOpenCodeMajor(); (err != nil) != stop {
+			t.Errorf("CheckOpenCodeMajor() with %q = %v, want stop=%v", out, err, stop)
+		}
+	}
+	// opencode 2 is the way back on macOS and Linux, where cplt runs it; opencode 1 elsewhere.
+	versionCache.Store("opencode", versionAnswer{"opencode v3.0.0\n", nil, time.Minute})
+	prevOS := hostOS
+	t.Cleanup(func() { hostOS = prevOS })
+	for goos, want := range map[string]string{"darwin": "Install opencode 2", "linux": "Install opencode 2", "windows": "Install opencode 1"} {
+		hostOS = goos
+		if err := CheckOpenCodeMajor(); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: %v, want %q", goos, err, want)
+		}
+	}
+}
+
+func TestCopilotTakesSessionID(t *testing.T) {
+	for out, want := range map[string]bool{
+		"GitHub Copilot CLI 1.0.95.\n" + copilotUpdateHint + "\n": true,
+		"GitHub Copilot CLI 1.0.51.\n":                            true,
+		"GitHub Copilot CLI 1.0.50.\n":                            false,
+		"GitHub Copilot CLI 1.0.40\n":                             false,
+		"cplt 2026.09.24-192459-38642b4\n":                        false,
+		"":                                                        false,
+	} {
+		if got := copilotTakesSessionID(out); got != want {
+			t.Errorf("%q: %v, want %v", out, got, want)
+		}
+	}
+}

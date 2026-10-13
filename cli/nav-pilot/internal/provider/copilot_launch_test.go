@@ -236,8 +236,11 @@ func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.
 	if err := testhome.WriteExec(fakeCplt, "#!/bin/sh\necho launched > \"$NAV_PILOT_LAUNCH_MARKER\"\n"); err != nil {
 		t.Fatalf("write fake cplt: %v", err)
 	}
+	if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\nexit 0\n"); err != nil {
+		t.Fatal(err)
+	}
 
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("PATH", dir)
 	t.Setenv("NAV_PILOT_LAUNCH_MARKER", marker)
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
@@ -250,8 +253,8 @@ func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.
 		CopilotAuthMode: "env_only",
 		OtelLogLevel:    "none",
 	})
-	if err == nil {
-		t.Fatal("expected launch to fail for env_only without a token")
+	if err == nil || !strings.Contains(err.Error(), "copilot_auth_mode=env_only") {
+		t.Fatalf("expected env_only refusal, got %v", err)
 	}
 	if _, statErr := os.Stat(marker); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatal("expected cplt not to launch for env_only without a token")
@@ -293,6 +296,92 @@ func TestApplyCopilotAuthMode(t *testing.T) {
 
 	if _, err := applyCopilotAuthMode(withToken, "nonsense"); err == nil {
 		t.Fatal("expected an unknown auth mode to be rejected")
+	}
+}
+
+// Capture the cplt process's environment, not just the filter's return value:
+// the legacy and staged paths build their environments and exec separately.
+func TestCopilotLaunchAuthEnvironment(t *testing.T) {
+	for _, staged := range []bool{false, true} {
+		for _, tc := range []struct {
+			mode   string
+			tokens [3]string
+		}{
+			{"auto", [3]string{}},
+			{"env_only", [3]string{"gh-env", "github-env", "copilot-env"}},
+			{"gh_only", [3]string{"gh-env", "github-env", "copilot-env"}},
+		} {
+			path := "legacy/"
+			if staged {
+				path = "staged/"
+			}
+			t.Run(path+tc.mode, func(t *testing.T) {
+				isolateHome(t)
+				SetActivePakke(stagedFixturePakke())
+				t.Cleanup(func() { SetActivePakke(nil) })
+				stubProbes(t, okCplt, nil, "", nil)
+				dir := t.TempDir()
+				out := filepath.Join(dir, "auth-env")
+				// The unset sentinel distinguishes removal from an empty value.
+				script := "#!/bin/sh\nprintf '%s\\n' \"${GH_TOKEN-UNSET}\" \"${GITHUB_TOKEN-UNSET}\" \"${COPILOT_GITHUB_TOKEN-UNSET}\" \"$AUTH_TEST_KEEP\" > \"$AUTH_TEST_OUT\"\n"
+				if err := testhome.WriteExec(filepath.Join(dir, "cplt"), script); err != nil {
+					t.Fatal(err)
+				}
+				if err := testhome.WriteExec(filepath.Join(dir, "copilot"), "#!/bin/sh\nexit 0\n"); err != nil {
+					t.Fatal(err)
+				}
+				if err := testhome.WriteExec(filepath.Join(dir, "gh"), "#!/bin/sh\nprintf called > \"$AUTH_TEST_OUT.gh\"\nexit 1\n"); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("PATH", dir)
+				t.Setenv("AUTH_TEST_OUT", out)
+				t.Setenv("AUTH_TEST_KEEP", "unrelated")
+				for i, name := range ghTokenVars {
+					t.Setenv(name, tc.tokens[i])
+				}
+				r := domain.ResolvedConfig{Client: "copilot", AskUser: true, CopilotAuthMode: tc.mode, OtelLogLevel: "none"}
+				diagnosticPath := filepath.Join(dir, "diagnostics")
+				diagnostics, err := os.Create(diagnosticPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				stderr := os.Stderr
+				os.Stderr = diagnostics
+				t.Cleanup(func() { os.Stderr = stderr; diagnostics.Close() })
+				if staged {
+					err = LaunchCopilotStaged(r, StagedLaunch{Dir: dir, PakkeName: "grillmester", Context: "full"})
+				} else {
+					err = LaunchCopilotResolved(r)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				messages, err := os.ReadFile(diagnosticPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(string(messages), "filters only cplt's input environment") != (tc.mode != "auto") {
+					t.Fatalf("auth mode warning: %s", messages)
+				}
+				if strings.Contains(string(messages), "gh auth login") {
+					t.Fatalf("launch must not predict authentication: %s", messages)
+				}
+				if _, err := os.Stat(out + ".gh"); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("launch must not run gh auth commands: %v", err)
+				}
+				got, err := os.ReadFile(out)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := strings.Join(tc.tokens[:], "\n") + "\nunrelated\n"
+				if tc.mode == "gh_only" {
+					want = "UNSET\nUNSET\nUNSET\nunrelated\n"
+				}
+				if string(got) != want {
+					t.Fatalf("cplt environment = %q, want %q", got, want)
+				}
+			})
+		}
 	}
 }
 

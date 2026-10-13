@@ -1,0 +1,45 @@
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*"
+  └ 49 files found
+
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+/ Search (glob)
+  │ "docs/nav-pilot-design.md"
+  └ No matches found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+`maksAntall` er en hardkodet konstant på `100` i `src/main/kotlin/no/nav/demo/Config.kt`. `Routes.kt` bruker den i `oppgaver.take(maksAntall)` på `GET /api/oppgaver`, mens `App.kt` bare skriver verdien ved oppstart. Domenemodellen i `Oppgave.kt` definerer `Oppgave` og responsen `OppgaveRespons`; den kjenner ikke til grensen. Siden eksempeldataene i ruta bare har to oppgaver, merkes ikke grensen i dagens respons.
+
+For å gjøre grensen miljøavhengig: les en miljøvariabel ved oppstart, valider at den er et positivt heltall, og send verdien inn til `oppgaveRoutes` i stedet for å bruke en global konstant. Sett variabelen per miljø i Nais-konfigurasjonen og bruk den samme innleste verdien ved oppstart. **🔴 Rød sone: valideringen av miljøvariabelen bør gjennomgås nøye.** Dette gjør feil konfigurasjon synlig ved oppstart, men krever at hvert miljø får en gyldig verdi. Alternativet å lese variabelen for hver forespørsel gir ingen fordel her. Still gjerne spørsmål om valgene over.
+

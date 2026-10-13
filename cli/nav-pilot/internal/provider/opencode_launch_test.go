@@ -72,9 +72,19 @@ func TestOpenCodeArgs(t *testing.T) {
 			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
 		},
 		{
-			name:     "allow_all_tools maps to --dangerously-skip-permissions",
+			name:     "allow_all_tools maps to --auto",
 			resolved: domain.ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--dangerously-skip-permissions"},
+			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--auto"},
+		},
+		{
+			name:     "sandbox autonomy maps to --auto",
+			resolved: domain.ResolvedConfig{Mode: "default", Autonomy: "sandbox", AskUser: true},
+			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--auto"},
+		},
+		{
+			name:     "conservative autonomy keeps prompts",
+			resolved: domain.ResolvedConfig{Mode: "default", Autonomy: "conservative", AskUser: true},
+			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "log level",
@@ -91,7 +101,7 @@ func TestOpenCodeArgs(t *testing.T) {
 				LogLevel:        "info",
 			},
 			want: []string{"--model", "openai/gpt-4o", "--agent", "plan",
-				"--dangerously-skip-permissions", "--log-level", "INFO"},
+				"--auto", "--log-level", "INFO"},
 		},
 		{
 			name:     "ask_user false not emitted (opencode has no ask-user flag)",

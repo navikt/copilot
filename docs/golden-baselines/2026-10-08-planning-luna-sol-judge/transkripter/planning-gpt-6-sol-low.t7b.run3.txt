@@ -1,0 +1,25 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+Dette er en endring i Kafka-meldingens innhold: `SoknadMottattMelding` har i dag bare `soknadId` og `mottatt`. Koden har `fnr` i `SokerDto`, men viser ingen kobling mellom søkeren og meldingen. Jeg har derfor ikke endret produsenten ennå.
+
+Før jeg legger til fødselsnummeret, trenger jeg avklart:
+
+1. Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter leser topicen?
+2. Kan alle konsumentene håndtere et nytt `fnr`-felt, eller krever utrullingen koordinering?
+3. Hvor skal produsenten hente søkerens `fnr` når den oppretter meldingen?
+
+Jeg fant heller ingen av de repo-lokale Copilot-filene (`AGENTS.md` eller de to Copilot-instruksjonsfilene). `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 3/11 (#1, #6, #9; øvrige er besvart av koden eller ikke relevante nå).
+

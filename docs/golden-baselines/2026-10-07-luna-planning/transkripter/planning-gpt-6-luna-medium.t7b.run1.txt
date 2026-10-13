@@ -1,0 +1,10 @@
+📐 **Fase 1: Intervju.** `SoknadMottattMelding` ligger i `Soknad.kt` og inneholder nå `soknadId` og `mottatt`. Koden viser at tjenesten allerede behandler FNR i `SokerDto` og sender det til en annen Kafka-topic, men jeg finner ingen konsumenter eller tilgangsregler for `soknad-mottatt`.
+
+Før jeg legger FNR til meldingen, må jeg avklare:
+
+1. Er det avklart at konsumentene av `soknad-mottatt` skal motta FNR?
+2. Tåler konsumentene at meldingen får et nytt JSON-felt?
+
+Jeg fant heller ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` for å opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 3/11 (#1, #6 og #9; øvrige ikke relevante for denne endringen).

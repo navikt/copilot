@@ -1,0 +1,12 @@
+Pilot, 7. oktober 2026: Claude Opus 5.5 Low på rv5–rv8, før hovedkjøringene.
+Grunnlinjefilene heter .baseline og ikke .txt, så summary.json tar dem ikke med: fiksturen og mønstrene ble endret underveis.
+
+review-claude-opus-5.5-low.*  tre kjøringer av rv5–rv8. rv6-mønstrene er utledet fra rv-pr.run1-3.txt og låst før hovedkjøringene.
+                              rv8 feilet 3/3: maskert() viste de seks første sifrene (fødselsdato). Feil i fiksturen.
+rv8-check1.*                  etter rettingen: 1/3. build.gradle.kts manglet avhengighetene (fila kompilerte ikke),
+                              og «🔴 Rød sone: … linje 50» ble telt som funn. Begge rettet.
+rv8-check2.*                  1/3. App.kt registrerte ingen tokenx-provider (ekte feil i fiksturen), og «No blockers» ble ikke godtatt.
+                              Begge rettet.
+rv8-check3.*                  3/3 med den endelige fiksturen.
+
+Kreditter: 101,0 (pilot) + 40,8 + 43,0 + 41,8 = 226,6.

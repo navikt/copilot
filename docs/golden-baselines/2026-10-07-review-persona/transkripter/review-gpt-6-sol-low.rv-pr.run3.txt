@@ -1,0 +1,24 @@
+
+
+
+
+
+
+**Gjennomgangen av `vedtak-kafka` mot `main` avdekker flere blokkere.** Særlig alvorlig er at vedtak kan leses uten autentisering, at oppslaget er sårbart for SQL-injeksjon, og at Kafka-behandling kan opprette samme vedtak flere ganger.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Alle som når tjenesten, kan hente vedtak for et oppgitt fødselsnummer. Endepunktet trenger både autentisering og tilgangskontroll for personen. |
+| `VedtakRepository.kt:23–24` | 🔴 | `fnr` settes rett inn i SQL. Bruk en parameterisert spørring; dagens kode åpner for SQL-injeksjon. |
+| `nais.yaml:22–26` | 🔴 | Inngående tilgang åpnes for alle applikasjoner i alle navnerom. Det utvider angrepsflaten, særlig for det ubeskyttede leseendepunktet. Begrens regelen til faktiske konsumenter. |
+| `App.kt:40–43` | 🔴 | JWT-oppsettet har ingen tokenverifikator, og `validate` godtar enhver payload med `aud`. Verifiser signatur, utsteder, målgruppe og autorisert klient (`azp`) før `POST /api/vedtak` får fatte vedtak. |
+| `VedtakService.kt:15` | 🔴 | Fødselsnummer skrives til logg. Fjern personidentifikatoren fra loggmeldingen. |
+| `VedtakConsumer.kt:24–33` | 🔴 | Hvert forsøk oppretter en ny ID og lagrer et nytt vedtak før publisering. Feil ved publisering, omstart før offset-commit eller vanlig Kafka-relevering kan dermed gi flere vedtak for samme melding. Bruk meldings-ID til idempotent behandling og håndter lagring/publisering konsistent. |
+| `App.kt:26–35` | 🔴 | Kafka-klientene får bare brokeradresse, ikke Nais-oppsett for TLS og klientsertifikater. De vil ikke kunne autentisere seg mot Kafka-poolen slik konfigurasjonen står. |
+| `VedtakRepository.kt:14` | 🔴 | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen opprettelse eller migrering av tabellen. Innsending og konsumering vil feile mot en ny database. |
+| `VedtakConsumer.kt:21–27` | 🟡 | En ugyldig melding feiler før `retry` og avslutter konsumenttråden. HTTP-serveren kan fortsatt kjøre selv om vedtak ikke behandles. Håndter ugyldige meldinger eksplisitt og la feilen påvirke tjenestens beredskap. |
+
+**Kontroll:** `mise check` finnes ikke som oppgave i dette repoet. `gradle compileKotlin --offline` stoppet under prosjektkonfigurasjon med feilen `27`, så kompilering er ikke bekreftet.
+
+🔴 **Rød sone:** tilgangskontroll, tokenvalidering og idempotent vedtaksbehandling må gjennomgås grundig. Å begrense lesetilgang og gjøre Kafka-behandlingen idempotent hindrer henholdsvis innsyn i andres vedtak og dupliserte vedtak; det krever en eksplisitt autorisasjonsregel og en varig meldingsidentifikator fremfor dagens direkte oppslag og innsetting.
+

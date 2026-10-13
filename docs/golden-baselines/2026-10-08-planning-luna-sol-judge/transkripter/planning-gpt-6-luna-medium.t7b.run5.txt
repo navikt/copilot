@@ -1,0 +1,29 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Jeg stopper før kodeendringen fordi den legger fødselsnummer i en Kafka-melding. `SoknadMottattMelding` har nå bare `soknadId` og `mottatt`. `SokerDto` har `fnr`, men ingen kode kobler den til `sendMottatt`. Jeg fant ingen Kafka-konfigurasjon, topic-tilgangsregler, konsumentskjemaer eller tester i repoet.
+
+1. Hvor skal `fnr` hentes fra, og hvilken del av flyten trenger det i denne meldingen?
+2. Hvilke konsumenter skal motta fødselsnummeret, og hvordan er topic-tilgangen, kryptering og lagringstid begrenset?
+3. Tåler dagens konsumenter at meldingen får et nytt JSON-felt, eller trenger dere en versjonert endring?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` for å legge til lokal Copilot-konfigurasjon. Jeg fant heller ingen testfiler.
+
+Blindsoner reist: 4/11 (#1, #2, #6 og #9 stilt; #3–#5, #7–#8 og #10–#11 ikke relevante for denne endringen).
+

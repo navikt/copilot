@@ -1,0 +1,42 @@
+● skill(klarsprak)
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 26 files found
+
+✗ Kjør prosjektets kontroller (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+Fant **2 blokkere og 1 forslag** i `src/main/kotlin/no/nav/demo/UserRepo.kt`. Ingen kode er endret.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 9 | 🔴 Blokker | **SQL-injeksjon:** `fnr` settes direkte inn i SQL-strengen. Input kan endre spørringen og gi tilgang til andre brukeres navn. Bruk parameterbinding: `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`. |
+| 8 | 🔴 Blokker | **Fødselsnummer i applikasjonsloggen:** `logger.info` skriver personopplysninger til ordinær logg. Fjern `fnr` fra loggmeldingen. |
+| 12–13 | 🟡 Forslag | **Databasefeil skjules som «bruker finnes ikke»:** Alle unntak gir `null`, slik også et tomt søkeresultat gjør. La databasefeil propagere eller håndter dem eksplisitt, uten å eksponere fødselsnummer i feilmeldinger eller logger. |
+
+🔴 Rød sone: SQL-håndtering og logging av personopplysninger må gjennomgås nøye.
+
+`mise check` kunne ikke kjøres fordi prosjektet mangler en `check`-oppgave. Funnene er basert på kodegjennomgang.
+

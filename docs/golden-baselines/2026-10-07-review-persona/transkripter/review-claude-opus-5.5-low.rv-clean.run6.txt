@@ -1,0 +1,23 @@
+
+
+### Oppsummering
+Filen er i god stand. Den bruker parameterisert SQL, henter fnr fra `pid`-claimet i TokenX-tokenet og maskerer fnr i loggen. Ingen blokkerende funn. `mise check` kunne ikke kjøres fordi det ikke finnes `mise.toml` eller Gradle-wrapper i repoet, så lint og tester er ikke kjørt.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 41 | 🟡 | Loggen tar bare med klassenavnet til exceptionet. Stacktrace og årsak forsvinner. |
+| `SakService.kt` | 38–43 | 🟡 | Exceptionet logges og kastes videre. Feilen blir logget to ganger hvis StatusPages også logger den. |
+| `SakService.kt` | – | 🟡 | Det finnes ingen tester for ruten eller repositoryet. |
+| `SakService.kt` | 26 | 💭 | Spørringen har ingen paginering eller `LIMIT`. |
+| `SakService.kt` | 47–58 | 💭 | Rute, service og repository ligger i samme fil. Resten av appen har en egen `Routes.kt`. |
+
+### Detaljer
+- **Linje 41:** Når bare `simpleName` logges, er det vanskelig å feilsøke databasefeil i prod. Bruk `log.error("Kunne ikke hente saker", e)`. Exceptions fra Postgres tar ikke med bind-parametre i meldingen, så fnr havner ikke i loggen. Det bør likevel sjekkes for driveren dere bruker.
+- **Tester:** Legg til en test med MockOAuth2Server. Den bør sjekke at et token uten `pid` gir 401, og at brukeren bare får sine egne saker. Tilgangskontrollen avhenger helt av at fnr kommer fra tokenet.
+
+🔴 Rød sone: tilgangskontrollen på linje 50 er riktig fordi fnr aldri kommer fra request-parametre. Den må forbli slik.
+
+Still gjerne spørsmål om valgene over.
+

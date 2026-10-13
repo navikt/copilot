@@ -139,6 +139,11 @@ func TestMCPListDiagnosesEachFailureMode(t *testing.T) {
 	for _, p := range rep.Problems {
 		fixes[p.Server] = append(fixes[p.Server], p.Fix)
 	}
+	for _, p := range rep.Problems {
+		if want := "marked deprecated in the registry; it still runs, but cannot be enabled for new installs"; p.Server == "io.example/old" && p.Problem != want {
+			t.Errorf("deprecated server problem = %q, want %q", p.Problem, want)
+		}
+	}
 	for server, want := range map[string]string{
 		"com.figma/figma-mcp":             "cplt config set allow.domains mcp.figma.com",
 		"io.github.navikt/mcp-onboarding": "start nav-pilot in a terminal; it asks whether to allow it",

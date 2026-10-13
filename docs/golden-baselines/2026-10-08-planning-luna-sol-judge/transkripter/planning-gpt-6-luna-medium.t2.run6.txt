@@ -1,0 +1,27 @@
+
+
+
+Jeg avklarer først hva slags tjeneste repoet allerede legger opp til. Deretter stiller jeg spørsmålene som må avklares før arkitektur eller kode.
+
+
+
+
+
+
+
+## Fase 1: Avklaringer
+
+Repoet peker på en Kotlin/Ktor-tjeneste på Nais. `nais.yaml` har ikke ID-porten eller `accessPolicy` satt opp. Jeg fant heller ikke `AGENTS.md` eller Copilot-instruksjonsfilene for repoet; `nav-pilot init` kan opprette dem.
+
+1. **Hva bygger du?** Er dette et backend-API, en innbyggerflate eller en fullstack-tjeneste? Mener du at tjenesten skal hente fødselsnummer fra et validert ID-porten-token via Nais-sidecar, eller hente det fra en annen kilde?
+2. **Personopplysninger:** Behandler tjenesten bare fødselsnummer, eller også andre opplysninger? Hva er formålet og behandlingsgrunnlaget? Skal fødselsnummer lagres eller sendes videre, og hvor lenge?
+3. **Tilgang og autentisering:** Hvem bruker tjenesten, og hvem skal kunne kalle den? Skal innbyggeren logge inn direkte med ID-porten? Hvilket sikkerhetsnivå kreves?
+4. **Deling og revisjon:** Hvilke tjenester eller team skal motta data? Trenger dere audit-logging av oppslag eller endringer?
+5. **Avhengigheter og feil:** Hvilke tjenester må den kalle? Hva skal skje hvis en avhengighet er nede? Trenger dere synkrone svar, hendelser eller begge deler?
+6. **Drift:** Hvilke metrikker og varsler trenger dere? Hvem har vakt, og hvordan skal dere kontrollere at en deploy fungerer? Hva forventer dere av trafikk?
+7. **Team og tester:** Hvilke team eier avhengighetene? Har teamet erfaring med Ktor og Nais? Hvilke tester finnes eller skal dere lage, og har dere en frist?
+
+Jeg antar foreløpig at dette er et nybygg, siden repoet er en Ktor-demotjeneste. Jeg velger ikke auth-oppsett eller dataflyt før disse punktene er avklart.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7 og #11; #8, #9 og #10 ikke relevante for et nybygg)
+

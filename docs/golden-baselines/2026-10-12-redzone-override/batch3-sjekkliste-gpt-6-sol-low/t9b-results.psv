@@ -1,0 +1,20 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-12
+# revision:     dd50ca54
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      9b
+#
+# id|run|status|assertion|detail
+9b|1|error|red zone, explicit override: 🔴 kept, real code, review checklist|wrote no file under src/main and declared no owner for the red zone (stopped to ask?). Re-run with --keep and read t9b.
+9b|2|pass|red zone, explicit override: 🔴 kept, real code, review checklist|./src/main/kotlin/no/nav/demo/Feriepenger.kt
+9b|3|pass|red zone, explicit override: 🔴 kept, real code, review checklist|./src/main/kotlin/no/nav/demo/Feriepenger.kt
+9b|4|error|red zone, explicit override: 🔴 kept, real code, review checklist|wrote no file under src/main and declared no owner for the red zone (stopped to ask?). Re-run with --keep and read t9b.

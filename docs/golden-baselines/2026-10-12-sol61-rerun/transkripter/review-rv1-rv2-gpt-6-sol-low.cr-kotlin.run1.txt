@@ -1,0 +1,63 @@
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect project structure and check tooling (shell)
+  │ ls -la && find . -maxdepth 2 -type f | head -60 && command -v mise || true
+  └ 12 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:180 (180 lines read)
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 6 files found
+
+✗ Run project checks (shell)
+  │ mise check
+  └ mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Confirm review line numbers and available build tools (shell)
+  │ nl -ba src/main/kotlin/no/nav/demo/UserRepo.kt && ls -a | grep -E 'gradle|mise|git' || true
+  └ 17 lines…
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---:|---|---|
+| `UserRepo.kt` | 8 | 🔴 | Fødselsnummer skrives til vanlig applikasjonslogg. Fjern verdien fra loggmeldingen; dette er personopplysninger. |
+| `UserRepo.kt` | 9–11 | 🔴 | `fnr` settes rett inn i SQL-strengen. Bruk en parameterisert spørring, for eksempel `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`, slik at inndata ikke kan endre spørringen. |
+| `UserRepo.kt` | 12–13 | 🟡 | Alle databasefeil blir til `null`. Da kan kalleren ikke skille «bruker finnes ikke» fra «oppslaget feilet». La feilen gå videre med kontekst. |
+| `UserRepo.kt` | 11 | 🔴 | `session` og `queryOf` er ikke definert eller importert i prosjektet, og `build.gradle.kts` har ingen Kotliquery-avhengighet. Koden kan ikke kompileres slik den står. |
+
+🔴 **Rød sone:** SQL-spørringen og håndteringen av fødselsnummer må gjennomgås nøye. `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave.
+

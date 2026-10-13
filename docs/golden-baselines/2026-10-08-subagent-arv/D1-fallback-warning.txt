@@ -1,0 +1,1 @@
+[WARNING] [rust:copilot_runtime::session::native_message_turn] model resolution before the turn did not commit a new selection {"error":"Model \"gpt-5.4-nano\" is not available."}

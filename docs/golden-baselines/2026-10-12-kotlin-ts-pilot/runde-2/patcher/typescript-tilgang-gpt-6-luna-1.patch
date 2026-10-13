@@ -1,0 +1,54 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/route.ts workspace/app/api/intern/saker/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/route.ts	2026-10-12 11:47:40
++++ workspace/app/api/intern/saker/route.ts	2026-10-12 23:09:31
+@@ -1,9 +1,8 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../lib/auth.ts";
+ import { listInterneSaker } from "../../../../lib/saker.ts";
+ 
+ export async function GET(request: Request): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   return Response.json(listInterneSaker());
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/proxy.ts workspace/proxy.ts
+--- evaluator/fixture/workspace/proxy.ts	2026-10-12 11:47:40
++++ workspace/proxy.ts	2026-10-12 23:09:31
+@@ -11,5 +11,5 @@
+ }
+ 
+ export const config = {
+-  matcher: ["/api/saker/:path*"],
++  matcher: ["/api/saker/:path*", "/api/intern/saker/:path*"],
+ };
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/tests/probes.test.ts workspace/tests/probes.test.ts
+--- evaluator/fixture/workspace/tests/probes.test.ts	2026-10-12 11:47:40
++++ workspace/tests/probes.test.ts	2026-10-12 23:09:31
+@@ -2,6 +2,7 @@
+ import { test } from "node:test";
+ import { GET as isalive } from "../app/api/isalive/route.ts";
+ import { GET as saker } from "../app/api/saker/route.ts";
++import { GET as interneSaker } from "../app/api/intern/saker/route.ts";
+ 
+ test("isalive svarer uten token", async () => {
+   assert.equal((await isalive()).status, 200);
+@@ -9,4 +10,16 @@
+ 
+ test("saker krever token", async () => {
+   assert.equal((await saker(new Request("http://localhost/api/saker"))).status, 401);
++});
++
++test("interne saker krever token", async () => {
++  assert.equal((await interneSaker(new Request("http://localhost/api/intern/saker"))).status, 401);
++});
++
++test("interne saker avviser ugyldig token", async () => {
++  const request = new Request("http://localhost/api/intern/saker", {
++    headers: { authorization: "Bearer invalid" },
++  });
++
++  assert.equal((await interneSaker(request)).status, 401);
+ });

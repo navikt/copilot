@@ -1,0 +1,7 @@
+**Sikkerhetsgjennomgang:** Jeg fant ingen direkte SQL-injeksjon eller IDOR i `SakService.kt`. Spørringen bruker parameter, og `/api/saker` henter bare saker for `pid` fra det autentiserte tokenet. JWT-oppsettet i `App.kt` kontrollerer issuer, audience og `acr`.
+
+- **Middels, manglende nettverksbegrensning:** `sakRoutes` beskytter endpointet med TokenX, men `nais.yaml` har ingen eksplisitt `accessPolicy.inbound`. Legg til regler for tjenestene som skal kunne nå appen. Dette er et ekstra vern, ikke en erstatning for tokenvalideringen.
+- **Lav, uvalidert personidentifikator:** I `SakService.kt:50–55` avvises manglende `pid`, men ikke tom eller ugyldig verdi. Valider formatet før databaseoppslaget og svar med `401` ved ugyldig claim.
+- **Lav, unødvendig informasjon i logg:** `maskert()` i `SakService.kt:20` skjuler sifrene, men logger fortsatt lengden på verdien. Logg hendelsen uten personidentifikator eller maskert variant.
+
+🔴 Rød sone: Gå særlig gjennom koblingen mellom validert `pid` og databaseoppslaget før endringer i tilgangskontrollen. Still gjerne spørsmål om valgene over.

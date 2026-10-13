@@ -1,0 +1,18 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-10-11
+# revision:     8c9407ed
+# model:        gpt-6.1-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+cr-kotlin|1|0|pass|2462|21452|true|
+cr-kotlin|2|0|pass|2243|18215|true|
+cr-kotlin|3|0|pass|2352|19687|true|
+cr-kotlin|4|0|pass|2956|25484|true|
+cr-kotlin|5|0|pass|2324|17624|true|

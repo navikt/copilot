@@ -516,6 +516,59 @@ func (m *Manifest) validateContent(sourceRoot string) []error {
 		}
 	}
 
+	errs = append(errs, m.checkFailClosedMinVersion(sourceRoot)...)
+
+	return errs
+}
+
+// FailClosedMinVersion is the first nav-pilot release that writes a hook
+// sidecar's failClosed flag (#1498). An older binary running `install --repo`
+// rewrites the hook without it, so the gate fails open.
+const FailClosedMinVersion = "2026.10.08-214814-f2dcbbb"
+
+// checkFailClosedMinVersion requires minNavPilotVersion at or above
+// [FailClosedMinVersion] when any hook sidecar in the layout or a payload sets
+// failClosed. Unreadable sidecars are skipped: install treats them as absent.
+func (m *Manifest) checkFailClosedMinVersion(sourceRoot string) []error {
+	var dirs []string
+	if m.Layout != nil && m.Layout.Hooks != "" {
+		dirs = append(dirs, m.Layout.Hooks)
+	}
+	for _, client := range m.ClientIDs() {
+		for _, p := range m.Clients[client].Payloads {
+			dirs = append(dirs, p.Path)
+		}
+	}
+	var errs []error
+	for _, dir := range dirs {
+		// validateContent already reported an escaping path; never walk it.
+		if requireContained(sourceRoot, "hooks", dir) != nil {
+			continue
+		}
+		_ = filepath.WalkDir(filepath.Join(sourceRoot, filepath.FromSlash(dir)), func(p string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".hook.json") {
+				return nil
+			}
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return nil
+			}
+			var meta struct {
+				FailClosed bool `json:"failClosed"`
+			}
+			if json.Unmarshal(data, &meta) != nil || !meta.FailClosed {
+				return nil
+			}
+			rel, _ := filepath.Rel(sourceRoot, p)
+			if !isReleaseVersionFormat(m.MinNavPilotVersion) || versionOlder(m.MinNavPilotVersion, FailClosedMinVersion) {
+				errs = append(errs, fmt.Errorf(
+					"%s sets \"failClosed\": true, which needs minNavPilotVersion %s or newer (have %q). "+
+						"Set minNavPilotVersion to at least %s; an older nav-pilot rewrites the hook without the flag and the gate fails open",
+					filepath.ToSlash(rel), FailClosedMinVersion, m.MinNavPilotVersion, FailClosedMinVersion))
+			}
+			return nil
+		})
+	}
 	return errs
 }
 

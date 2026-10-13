@@ -1,0 +1,3 @@
+Lånefeilen i `behandle_neste` er rettet i `saksko/src/lib.rs`, og `cargo test` går grønt.
+
+Årsaken var at `sak` var en referanse inn i `self.saker`, og den ble holdt i live mens `remove(0)` tok en mutabel lån. Nå fjernes saken først med `remove(0)`, og den eide verdien returneres direkte. Funksjonen gjør fortsatt det samme: den tar ut eldste sak, noterer id-en i `behandlet` og returnerer saken. Den returnerer `None` når køen er tom, som før.

@@ -1,0 +1,34 @@
+## Fase 2: Plan
+
+**Beslutning:** Behold den eksisterende Next.js-frontenden som eneste inngang fra nettleseren. La Wonderwall håndtere innlogging med ID-porten, og la frontenden kalle en ny Ktor-tjeneste på vegne av innbyggeren med TokenX. Ktor-tjenesten henter fnr fra validert brukerkontekst, slår opp navn i PDL og returnerer bare navn. Nettleseren skal verken sende inn fnr som parameter eller få fnr i svaret.
+
+Dette gir én identitet gjennom hele oppslaget og hindrer at klienten kan velge en annen persons fnr. Prisen er tokenutveksling i to ledd, fra frontend til Ktor og fra Ktor til PDL. Alternativet, direkte kall fra nettleser til Ktor med ID-porten-oppsett også der, gir en ekstra nettleserinngang og mer auth-konfigurasjon. **Forutsetning som må verifiseres før bygging:** Den eksisterende frontendens Wonderwall-oppsett kan gi et brukertoken som kan utveksles til den nye tjenesten.
+
+### Konkret opplegg
+
+| Område | Plan |
+|---|---|
+| API | `GET /api/meg/navn` returnerer `{ "navn": "..." }`. Ingen fnr i URL, request body eller respons. Dokumenter 200, 401, 403, 502 og 503 i OpenAPI. Feilrespons uten personopplysninger. |
+| Tilgang | Bare frontend-appen i `accessPolicy.inbound` til Ktor. Ktor validerer TokenX-tokenets utsteder, signatur, utløp og audience. Fnr hentes kun fra den validerte brukerkonteksten. Ingen saksbehandler- eller maskintilgang. |
+| PDL | Ktor utveksler brukertoken til riktig audience for PDL og ber bare om navn for innlogget person. `accessPolicy.outbound` begrenses til PDL. Verifiser PDLs faktiske audience, tilgangskrav og kontrakt før implementering. |
+| Feil | Timeout eller utilgjengelig PDL gir **503** uten fnr, navn eller token i feiltekst. Logg status, avhengighet og en korrelasjons-ID som ikke bygger på persondata. Ingen kø eller dead-letter. Andre PDL-feil mappes særskilt; ikke skjul alle feil som 503. |
+| Lagring | Ingen database, cache eller Flyway-migrasjoner. Oppslaget er synkront og tjenesten er tilstandsløs. |
+| Nais | Utvid `nais.yaml` med TokenX, eksplisitt inbound fra frontend og outbound til PDL, Prometheus, helsesjekker og små ressursforespørsler. Ingen CPU-grense. Frontendens manifest må ha ID-porten/Wonderwall og outbound til Ktor. Eksakte appnavn og namespace fylles inn fra frontend-repoet. |
+| Struktur | Behold `src/main/kotlin/no/nav/demo/`. Skill rute, tokenvalidering/brukerkontekst, PDL-klient og feilmapper. Legg kontrakt- og integrasjonstester under `src/test/kotlin/`. Eksisterende åpne demo-rute må ikke eksponere persondata; avgjør om den fjernes før produksjon. |
+| CI/CD | GitHub Actions kjører bygg og tester ved PR. På hovedgren bygges image og deployes først til dev, deretter prod etter verifisering. Eksisterende teamoppsett og Nais-identiteter må sjekkes før workflow skrives. |
+| Tester | Start med tester for ugyldig/manglende token, feil audience, at innbyggeren ikke kan velge fnr, korrekt PDL-forespørsel og navn i responsen. Integrasjonstest med falsk tokenutsteder og stubbet PDL dekker 503, timeout og at logger ikke inneholder fnr/navn/token. Kontrakttest mot frontendens forventede svar. |
+| Observerbarhet | Mål oppslag per minutt, feilandel og PDL-latens uten personetiketter. Varsle på vedvarende høy feilandel og 503-rate. Helsesjekk skal vise om prosessen kan ta trafikk, ikke gjøre PDL-avbrudd til endeløse restarter. |
+| Utrulling | Test innlogging og PDL-tilgang i dev med testidentitet. Verifiser 200, 401 og simulert 503 samt målinger og logger før prod. Aktiver frontend-kallet kontrollert; rollback er å slå av frontend-kallet og rulle Ktor-deploy tilbake. Ingen data må migreres eller ryddes. |
+
+Før leveranse lages et kort endringsdokument med rollback og kontrollpunkter etter deploy, samt en driftsbeskrivelse for PDL-feil og alarmer.
+
+### 🔴 Rød sone: skriv selv og forstå grundig
+
+- [ ] Tokenvalidering og binding mellom innlogget identitet og PDL-oppslag. Feil her kan gi oppslag på feil person.
+- [ ] Tilgangsvurdering for PDL og håndtering av tjenestens faktiske token- og feilkoder. Teamet er nytt med TokenX og Wonderwall.
+
+Nav-pilot kan i leveransefasen lage testpåstander og stubber for disse delene, ikke ferdig sikkerhetskode. Grønn sone er byggoppsett, målinger, Nais- og CI-konfigurasjon og tester rundt avtalte kontrakter; tilgangsreglene må likevel gjennomgås før deploy.
+
+**Ikke avklart i repoet:** frontendens appnavn/namespace og eksisterende auth-oppsett, PDLs audience/kontrakt og teamets deployoppsett. Planen bruker disse som verifiseringspunkter, ikke oppdiktede verdier.
+
+Jeg stopper før sikkerhets- og arkitekturgjennomgangen i fase 3. Bekreft planen eller pek på det du vil endre. Still gjerne spørsmål om valgene over.

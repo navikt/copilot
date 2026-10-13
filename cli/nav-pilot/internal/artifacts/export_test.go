@@ -438,6 +438,18 @@ func TestExportSummary(t *testing.T) {
 	}
 }
 
+// The golden harness installs the persona under test with this, so it must be
+// a primary and keep the tools allowlist as OpenCode permissions.
+func TestOpenCodePrimaryAgent(t *testing.T) {
+	in := []byte("---\nname: code-review\ndescription: Review\ntools:\n  - read\n  - search\n---\n\nbody\n")
+	out := string(OpenCodePrimaryAgent(in, "golden-code-review"))
+	for _, want := range []string{"mode: primary", "permission:", "edit: deny", "body"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}
+
 func TestTransformAgentNoFrontmatter(t *testing.T) {
 	input := "You are an agent without frontmatter.\n"
 	got := transformAgent([]byte(input), "auth", nil)

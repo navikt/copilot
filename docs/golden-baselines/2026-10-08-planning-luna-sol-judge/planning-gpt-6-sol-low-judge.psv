@@ -1,0 +1,31 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-10-08
+# revision:     0409e97c
+# model:        gpt-6-sol
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=5974ee48845ca393 date=2026-10-08 n=75 agree=72 accuracy=0.960
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+# rebuilt:      from the --keep workdir; the run was stopped at the start of run 8 to stay under the 440-credit hard stop (docs/modellvalg.md)
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|0.157|Hva skal tjenesten gjøre med fødselsnummeret: bruke det i én forespørsel, lagre det eller sende det videre?|Hvem skal ellers kunne kalle eller lese fra tjenesten, inkludert det eksisterende endepunktet?
+7|1|0|0|0|0|0.125||
+7b|1|1|0|1|1|0.133|Hvilke konsumenter leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?|Hvilke konsumenter leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?
+3|2|1|1|1|1|0.102|Skal fødselsnummeret kun brukes i minnet, eller lagres eller sendes det videre? I så fall til hvilke tjenester og for hvilket formål?|Hvem skal kunne kalle API-et: bare den innloggede innbyggeren, en frontend/BFF eller også andre tjenester?
+7|2|0|0|0|0|0.093||
+7b|2|1|0|1|1|0.164|Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?|Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?
+3|3|1|1|1|1|0.128|Hva skal tjenesten bruke fødselsnummeret til?|Hvem skal kunne kalle tjenesten: innbyggerens nettleser, en annen Nav-tjeneste eller begge?
+7|3|0|0|0|0|0.102||
+7b|3|1|0|1|1|0.147|Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter leser topicen?|Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter leser topicen?
+3|4|1|1|1|1|0.15|Hva skal tjenesten bruke fødselsnummeret til, og skal det lagres eller sendes videre?|Hvem skal kunne kalle tjenesten: innlogget innbygger direkte via nettleser, en frontend/BFF eller andre tjenester?
+7|4|0|0|0|0|0.101||
+7b|4|1|0|1|1|0.129|Hvilken beskyttelse har topicen for fødselsnummer, særlig tilgangsstyring og kryptering?|Hvilken beskyttelse har topicen for fødselsnummer, særlig tilgangsstyring og kryptering?
+3|5|1|1|1|1|0.125|Hva skal tjenesten bruke fødselsnummeret til?|Hvem skal kunne kalle API-et?
+7|5|0|0|0|0|0.111||
+7b|5|1|0|1|1|0.143|Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?|Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?
+3|6|1|1|1|1|0.148|Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i ett kall, sende det videre eller lagre det?|Hvem skal kunne kalle API-et?
+7|6|0|0|0|0|0.095||
+7b|6|1|0|1|1|0.168|Skal `fnr` komme fra `SokerDto`, eller fra en annen kilde? Inneholder meldingen andre personopplysninger enn fødselsnummer etter endringen?|Hvilke tjenester konsumerer `soknad-mottatt`, og tåler de et nytt obligatorisk felt?
+3|7|1|1|1|1|0.161|Hva skal den gjøre med fødselsnummeret etter innlogging: bruke det i et kall til en annen tjeneste, lagre det eller returnere data til innbyggeren?|Skal andre tjenester kunne kalle den, og hvilke?
+7|7|0|0|0|0|0.098||
+7b|7|1|0|1|1|0.155|Hvem konsumerer topicen, og skal alle disse motta fødselsnummer?|Hvor kommer `fnr` fra ved publisering, og er topicens tilgang, kryptering og lagringstid godkjent for denne opplysningen?

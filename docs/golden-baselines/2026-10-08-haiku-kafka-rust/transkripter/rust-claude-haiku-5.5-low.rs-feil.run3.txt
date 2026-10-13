@@ -1,0 +1,9 @@
+`les` returnerer nå `Result<Vedtak, VedtakFeil>` i `vedtak-parser/src/lib.rs`, og den panikker ikke lenger. `cargo test` kjører alle 5 tester og de går grønne.
+
+- `ManglerId`: tom id.
+- `ManglerBelop`: mangler beløpsfelt eller det er tomt.
+- `UgyldigBelop(String)`: ikke-parsebart beløp. Teksten vises i feilmeldingen.
+
+Jeg la til `thiserror` som dependency. Det er nytt i `Cargo.toml`.
+
+🔴 Rød sone: input-validering i parseren, gå gjennom denne nøye.

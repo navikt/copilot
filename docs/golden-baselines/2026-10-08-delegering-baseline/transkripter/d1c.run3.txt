@@ -1,0 +1,11 @@
+**Fase 3: Gjennomgang av planen**
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Bekreft at frontend kan skaffe et TokenX-token for tjenesten, og at PDL tillater oppslag med denne brukerkonteksten. Verifiser påstanden som gir fødselsnummer, og ikke logg persondata eller token. |
+| Plattform | ✅ | Eget Nais-manifest med eksplisitt inn- og utgående tilgang, helseendepunkter og ressursforespørsler passer tjenesten. |
+| Arkitektur | ✅ | BFF, en liten Ktor-tjeneste og direkte PDL-oppslag dekker flyten uten database eller kø. |
+| Endringssikkerhet | ⚠️ | Test 503 ved utilgjengelig PDL og at frontend håndterer feilen. Avklar hvordan frontend-kallet kan slås av ved utrulling; planen forutsetter at en slik mulighet finnes. |
+
+**Konklusjon: Godkjent med avklaringer før implementering.** Kontroller TokenX- og PDL-forutsetningene mot faktisk konfigurasjon, og fastslå en konkret måte å deaktivere frontend-kallet på. Ingen kode er endret i denne fasen.
+

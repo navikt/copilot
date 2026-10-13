@@ -19,10 +19,21 @@ exec nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
 stdout 'Repo scope synced'
 ! stdout 'Launching'
 grep '^--yes\n' $WORK/fake/cplt.log
-grep '^-p\nreview this PR\n---' $WORK/fake/cplt.log
+grep '^-p\nreview this PR\n--session-id=[0-9a-f-]{36}\n---' $WORK/fake/cplt.log
 # The pin check reads .nav-pilot/agentpakke.lock.json under an absolute root.
 ! stderr 'boundary must be'
 ! stderr 'Could not read .nav-pilot/agentpakke.lock.json'
+
+# A Copilot CLI older than 1.0.51 has no --session-id: the launch goes
+# without it, and no session is counted. The chmod moves the binary's ctime,
+# so nav-pilot asks the version again (client-versions.json is keyed by it).
+env COPILOT_VERSION='GitHub Copilot CLI 1.0.40'
+chmod 755 $WORK/fake/copilot
+rm $WORK/fake/cplt.log
+exec nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
+grep '^-p\nreview this PR\n---' $WORK/fake/cplt.log
+! grep 'session-id' $WORK/fake/cplt.log
+env COPILOT_VERSION=
 
 # No prompt, no terminal: nothing to run. Sync still happens, exit 0.
 rm $WORK/fake/cplt.log
@@ -31,12 +42,11 @@ stdout 'Repo scope synced'
 stderr 'Not launching: no terminal\. To run a prompt, pass it after --: nav-pilot --sync -- -p "…"'
 ! exists $WORK/fake/cplt.log
 
-# Without cplt, copilot would run unsandboxed with nobody watching: refused.
+# Without cplt, copilot is never launched: refused.
 # fake-bin writes under the current directory, here $WORK/repo/fake.
 fake-bin copilot
 exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
-stderr 'Not launching: no terminal, and without cplt copilot would run unsandboxed'
-stderr 'Install cplt: brew install navikt/tap/cplt'
+stderr 'Not launching: cplt is not installed\. Install it: brew install navikt/tap/cplt'
 ! grep '^-p' $WORK/repo/fake/copilot.log
 
 # pi only runs inside cplt: with pi and no cplt, the refusal names cplt.
@@ -45,6 +55,9 @@ exits 1 nav-pilot --sync --source $WORK/plattform --client pi -- -p 'review this
 stderr 'Not launching: cplt is not installed\. Install it: brew install navikt/tap/cplt'
 ! exists $WORK/repo/fake/pi.log
 
+-- fake/copilot.sh --
+for a in "$@"; do last=$a; done
+[ "$last" = --version ] && [ -n "$COPILOT_VERSION" ] && { echo "$COPILOT_VERSION"; exit 0; }
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

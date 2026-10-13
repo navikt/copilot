@@ -39,7 +39,7 @@ exec /bin/sh -c 'nav-pilot --client opencode -- run -p "review this PR" </dev/nu
 ! stderr 'Not launching'
 ! stdout 'synced'
 grep '^--yes\n' $WORK/fake/cplt.log
-grep '^--\nrun\n--agent\ngrillmester\n-p\nreview this PR\n---' $WORK/fake/cplt.log
+grep '^--\nrun\n--agent\ngrillmester\n--auto\n-p\nreview this PR\n---' $WORK/fake/cplt.log
 grep 'lokal endring' $HOME/.copilot/agents/grillmester.agent.md
 exec /usr/bin/find $HOME/.copilot -type f
 cmp stdout $WORK/before.txt
@@ -50,7 +50,7 @@ stderr 'nav-pilot --client opencode -- -p "…"$'
 ! stderr '-- --'
 
 # The safety refusals still hold: not from $HOME without --project-dir, and
-# not unsandboxed without --no-sandbox.
+# never without cplt.
 cd $HOME
 exits 1 nav-pilot --client opencode -- run -p x
 stderr 'Not launching from your home directory'
@@ -59,7 +59,7 @@ rm fake/cplt
 fake-bin copilot
 cd repo
 exits 1 nav-pilot -- -p x
-stderr 'without cplt copilot would run unsandboxed'
+stderr 'Not launching: cplt is not installed'
 ! grep '^-p' $WORK/fake/copilot.log
 cd $WORK
 fake-bin cplt
@@ -70,7 +70,7 @@ cd repo
 rm $WORK/fake/cplt.log
 exits 0 pty-run -- nav-pilot --client opencode -- run -p 'review this PR'
 ! stdout 'Sync now\?|Which coding agent|Install .* to ~/.copilot'
-grep '^--\nrun\n--agent\ngrillmester\n-p\nreview this PR\n---' $WORK/fake/cplt.log
+grep '^--\nrun\n--agent\ngrillmester\n--auto\n-p\nreview this PR\n---' $WORK/fake/cplt.log
 grep 'lokal endring' $HOME/.copilot/agents/grillmester.agent.md
 exec /usr/bin/find $HOME/.copilot -type f
 cmp stdout $WORK/before.txt

@@ -1,0 +1,54 @@
+
+## Fase 2: Plan
+
+Jeg legger til grunn at den eksisterende Next.js-appen fungerer som BFF: nettleseren kaller Next.js, som sender forespørselen videre til Ktor med innbyggerens ID-porten-token. Ktor bruker brukerens kontekst når den kaller PDL. Da slipper nettleseren å håndtere fnr direkte. Hvis nettleseren i stedet skal kalle Ktor direkte, må planen endres for blant annet CORS og tokenhåndtering.
+
+### Arkitekturvalg
+
+| Område | Valg |
+|---|---|
+| Innlogging | ID-porten for innbyggeren. Nais ID-porten-sidecar validerer tokenet. |
+| Kall til PDL | TokenX med brukerens kontekst. Avklar audience, scopes og tilgang med PDL-teamet før implementering. |
+| Kommunikasjon | Synkront REST-kall fra Ktor til PDL. Ved feil eller timeout svarer Ktor med 503. |
+| Lagring | Ingen database. Fnr og navn behandles i minnet og lagres ikke. |
+| Data | Fnr fra ID-porten brukes til navneoppslag i PDL. API-et returnerer bare data frontend trenger. |
+| Tilgang | Eksplisitt `accessPolicy.inbound` for Next.js-appen og `outbound` for PDL. |
+| Logging | Logg feil med korrelasjons-ID og teknisk feilkontekst. Ikke logg fnr, navn eller token. |
+| Metrikker | Antall oppslag per minutt og andel feilende kall. Ikke bruk fnr eller navn som metrikktagger. |
+
+Ktor, Kotlin og Gradle passer med prosjektets eksisterende oppsett. Jeg velger ingen database fordi tjenesten ikke skal lagre data; det reduserer både datalagringsrisiko og driftsarbeid.
+
+### Prosjektfiler
+
+- Ktor-rute for oppslag, med autentiseringskrav.
+- Tjenestelag som henter fnr fra det validerte ID-porten-tokenet og kaller PDL.
+- PDL-klient med TokenX, timeout og tydelig håndtering av feil.
+- Tester for autentisering, oppslag, PDL-feil og at logger ikke inneholder personopplysninger.
+- Oppdatert `nais.yaml` med ID-porten, TokenX og eksplisitt tilgangspolicy.
+- CI-workflow for bygg, tester og deploy, tilpasset repoets eksisterende oppsett.
+
+### Drift og sikkerhet
+
+- PDL-timeout og PDL-feil gir 503. Ikke legg inn kø eller dead-letter.
+- Varsle på økt feilandel og manglende eller uventet fall i oppslag. Avklar terskler og hvem som følger opp.
+- Verifiser etter deploy at ID-porten-innlogging, PDL-oppslag og 503 ved PDL-feil fungerer.
+- Avklar audit-krav for oppslag før produksjonssetting. Audit må ikke føre til at fnr eller navn havner i logger.
+- Dokumenter konkret lovhjemmel og datalagrings-/sletteregler. Jeg legger til grunn at tjenesten ikke lagrer fnr eller navn, men lovhjemmelens konkrete bestemmelse er ikke oppgitt.
+
+### Teststrategi
+
+| Lag | Tester |
+|---|---|
+| Tjenestelag | Fnr hentes fra riktig tokenclaim, PDL-svar håndteres riktig, PDL-feil blir 503. |
+| API | Manglende eller ugyldig token avvises; gyldig innlogging kan hente navn. |
+| PDL-klient | TokenX-feil, timeout og PDL-feil håndteres uten å eksponere personopplysninger. |
+| Logging og metrikker | Feil logges uten fnr, navn eller token; metrikker telles uten personopplysninger. |
+
+🔴 **Rød sone: forstå og gjennomgå nøye.** Tokenvalidering, uttrekk av fnr og videresending av brukerens identitet til PDL berører autentisering og personopplysninger. Teamet må forstå disse delene og verifisere dem mot ID-porten- og PDL-kontraktene før produksjonssetting.
+
+🟢 **Grønn sone:** Ktor-ruteskjelett, Nais-konfigurasjon, CI-oppsett og tekniske tester kan bygges etter at teamet har godkjent auth- og PDL-kontraktene.
+
+**Uavklart før implementering:** konkret lovhjemmel, audit-krav, PDL audience/scopes og Nais app-/namespace-navn for Next.js og PDL. Jeg har ikke lagt til database, Kafka eller migreringsplan, siden dette er et nybygg uten lagring eller gammel løsning.
+
+Jeg stopper her i planfasen. Godkjenn planen før jeg går videre til reviewfasen.
+

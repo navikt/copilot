@@ -121,7 +121,6 @@ func (c *BigQueryClient) InsertBudgetSnapshots(ctx context.Context, date time.Ti
 	}
 
 	table := c.client.Dataset(c.dataset).Table(budgetSnapshotsTable)
-	inserter := table.Inserter()
 
 	snapshotDate := civil.DateOf(date)
 	loadedAt := time.Now().UTC()
@@ -149,7 +148,7 @@ func (c *BigQueryClient) InsertBudgetSnapshots(ctx context.Context, date time.Ti
 		})
 	}
 
-	if err := inserter.Put(ctx, rows); err != nil {
+	if err := loadRows(ctx, table, rows); err != nil {
 		return fmt.Errorf("insert budget snapshot rows: %w", err)
 	}
 
@@ -158,6 +157,9 @@ func (c *BigQueryClient) InsertBudgetSnapshots(ctx context.Context, date time.Ti
 }
 
 const userBudgetSnapshotsTable = "user_budget_snapshots"
+
+// userBudgetRetention matches copilot_seats: per-person rows live 400 days.
+const userBudgetRetention = 400 * 24 * time.Hour
 
 // UserBudgetSnapshotRow represents a row in the user_budget_snapshots BigQuery table.
 type UserBudgetSnapshotRow struct {
@@ -175,9 +177,16 @@ func (c *BigQueryClient) EnsureUserBudgetSnapshotsTableExists(ctx context.Contex
 	dataset := c.client.Dataset(c.dataset)
 	table := dataset.Table(userBudgetSnapshotsTable)
 
-	_, err := table.Metadata(ctx)
+	md, err := table.Metadata(ctx)
 	if err == nil {
-		slog.Debug("User budget snapshots table already exists", "table", userBudgetSnapshotsTable)
+		// The table predates its retention rule; add the expiry in place.
+		if md.TimePartitioning != nil && md.TimePartitioning.Expiration != userBudgetRetention {
+			tp := *md.TimePartitioning
+			tp.Expiration = userBudgetRetention
+			if _, err := table.Update(ctx, bigquery.TableMetadataToUpdate{TimePartitioning: &tp}, md.ETag); err != nil {
+				return fmt.Errorf("set user_budget_snapshots retention: %w", err)
+			}
+		}
 		return nil
 	}
 
@@ -196,13 +205,14 @@ func (c *BigQueryClient) EnsureUserBudgetSnapshotsTableExists(ctx context.Contex
 	metadata := &bigquery.TableMetadata{
 		Schema: schema,
 		TimePartitioning: &bigquery.TimePartitioning{
-			Type:  bigquery.MonthPartitioningType,
-			Field: "snapshot_date",
+			Type:       bigquery.MonthPartitioningType,
+			Field:      "snapshot_date",
+			Expiration: userBudgetRetention,
 		},
 		Clustering: &bigquery.Clustering{
 			Fields: []string{"scope_id", "github_login"},
 		},
-		Description: "Daily snapshots of AI credit budget consumption per Copilot user. One row per user per day.",
+		Description: "Daily snapshots of AI credit budget consumption per Copilot user. One row per user per day. Partitions expire after 400 days.",
 	}
 
 	if err := table.Create(ctx, metadata); err != nil {
@@ -266,7 +276,6 @@ func (c *BigQueryClient) InsertUserBudgetSnapshots(ctx context.Context, date tim
 	}
 
 	table := c.client.Dataset(c.dataset).Table(userBudgetSnapshotsTable)
-	inserter := table.Inserter()
 
 	snapshotDate := civil.DateOf(date)
 	loadedAt := time.Now().UTC()
@@ -284,7 +293,7 @@ func (c *BigQueryClient) InsertUserBudgetSnapshots(ctx context.Context, date tim
 		})
 	}
 
-	if err := inserter.Put(ctx, rows); err != nil {
+	if err := loadRows(ctx, table, rows); err != nil {
 		return fmt.Errorf("insert user budget snapshot rows: %w", err)
 	}
 

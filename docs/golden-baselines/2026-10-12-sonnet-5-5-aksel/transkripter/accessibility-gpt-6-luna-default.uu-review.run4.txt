@@ -1,0 +1,92 @@
+● skill(aksel-builder)
+
+✗ Read package.json
+  └ Path does not exist
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read nextjs-aksel.instructions.md
+  │ .github/instructions/nextjs-aksel.instructions.md
+  └ 598 lines read
+
+● Read accessibility.md
+  │ ~/.copilot/skills/aksel-builder/references/accessibility.md
+  └ 84 lines read
+
+● Read SKILL.md
+  │ ~/.copilot/skills/klarsprak/SKILL.md
+  └ 380 lines read
+
+● Read icons.md
+  │ ~/.copilot/skills/aksel-builder/references/icons.md
+  └ 89 lines read
+
+● Read components.md
+  │ ~/.copilot/skills/aksel-builder/references/components.md
+  └ 158 lines read
+
+/ Search (glob)
+  │ "**/node_modules/next/dist/docs/**"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*StatusPanel*"
+  └ 1 file found
+
+/ Search (grep)
+  │ "StatusPanel|onSlett|TrashIcon" in **/*.{tsx,ts} (src)
+  └ 4 lines found
+
+/ Search (glob)
+  │ "src/app/komponenter/*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/*"
+  └ 16 files found
+
+/ Search (glob)
+  │ "**/*.{json,yml,yaml}"
+  └ 2 files found
+
+/ Search (glob)
+  │ "src/app/**/*.tsx"
+  └ 1 file found
+
+✗ Check repository state and available project files (shell)
+  │ git status --short && printf '\nRoot files:\n' && ls -la | head -40 && printf '\nTarget
+  │ source:\n' && sed -n '1,200p' src/app/komponenter/StatusPanel.tsx
+  └ fatal: not a git repository (or any of the parent directories): .git
+    Failed with exit code 128
+
+● Inspect project root and target source (shell)
+  │ printf 'Root files:\n'; ls -la; printf '\nTarget source:\n'; sed -n '1,200p'
+  │ src/app/komponenter/StatusPanel.tsx; printf '\nGit metadata:\n'; git rev-parse --show-toplevel
+  │ 2>&1 || true
+  └ 33 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Get source line numbers for the accessibility findings (shell)
+  │ nl -ba src/app/komponenter/StatusPanel.tsx
+  └ 19 lines…
+
+Fant tre tilgjengelighetsproblemer i `src/app/komponenter/StatusPanel.tsx`:
+
+- **Linje 8–10:** «Vis detaljer» er en klikkbar `<div>` uten tastaturstøtte, og `outline: none` skjuler fokus. Bruk en knapp med synlig fokus. Nåværende tilstand (`apen`) viser eller skjuler ikke noe innhold, så knappen fungerer heller ikke som en reell detaljvisning.
+- **Linje 11:** `tabIndex={5}` gir statusfeltet en ulogisk tab-rekkefølge. Fjern `tabIndex`. Rød og grønn tekst kan også ha for lav kontrast; selve statusordet formidler allerede betydningen, så fargen bør ikke være nødvendig.
+- **Linje 14–16:** Sletteknappen mangler et tilgjengelig navn. Gi knappen teksten «Slett» eller en passende `aria-label`, og sett `type="button"` hvis den kan stå inni et skjema.
+
+Jeg har ikke endret fila.
+

@@ -1,0 +1,58 @@
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,README.md}"
+  └ 3 files found
+
+● Check sandbox context (shell)
+  │ if test -n "$__CPLT_WRAPPED"; then printf 'WRAPPED=yes\n'; if test -n "$CPLT_BRIEF"; then cat
+  │ "$CPLT_BRIEF"; fi; else printf 'WRAPPED=no\n'; fi
+  └ 1 line…
+
+● Inspect repository and Copilot configuration (shell)
+  │ pwd && ls -la && for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then printf 'FOUND %s\n' "$f"; else
+  │ printf 'MISSING %s\n' "$f"; fi; done
+  └ 12 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● skill(klarsprak)
+
+**Fase 1: Avklare tjenesten.** Dette er en ny dataflyt med fødselsnummer og innlogging, så jeg stopper før jeg velger arkitektur eller endrer kode. Repoet er en liten Ktor-demo på Nais. `nais.yaml` har verken ID-porten-konfigurasjon eller `accessPolicy`, og jeg fant ingen tester. Jeg antar at det er innloggede innbyggere som skal bruke tjenesten, men trenger å få bekreftet flyten.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret? Skal det bare brukes under forespørselen, eller lagres, returneres eller sendes videre? Behandler den andre personopplysninger?
+2. Kommer innbyggeren via en nettleser med Wonderwall, eller mottar tjenesten et token fra en annen tjeneste? Hvem skal kunne kalle API-et, og hva skal hver innringer få lese?
+3. Hvilke andre tjenester eller team inngår i flyten? Hva skal skje hvis en avhengighet er nede, og hvilke målinger viser at tjenesten fungerer?
+4. Skal den nye tjenesten erstatte demoen? Hvem bruker eventuelt dagens `/api/oppgaver`, og må det fungere videre under overgang og rollback?
+5. Hvilke tester finnes utenfor dette repoet? Er ID-porten-integrasjon kjent teknologi for teamet?
+
+Jeg fant ikke `AGENTS.md` eller repo-lokale Copilot-instruksjoner. `nav-pilot init` kan legge dem til senere. Foreløpig ramme for fasene: intervju ~300 ord, plan ~600, gjennomgang ~300, levering etter godkjenning.
+
+Blindsoner reist: 10/11 (#1–#9 og #11 stilt; #10 ikke relevant før det er avklart om demoen skal avvikles).
+

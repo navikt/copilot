@@ -1,14 +1,12 @@
 "use client";
 
-import type { CustomizationDetail, AdoptionScope } from "@/lib/types";
-import React, { useMemo, useState } from "react";
+import type { CustomizationDetail } from "@/lib/types";
+import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
-import { chartColors, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { Box, Heading, BodyShort, HGrid, HStack, VStack, Chips, ToggleGroup } from "@navikt/ds-react";
+import { bottomLegend, commonHorizontalBarOptions, seriesColor } from "@/lib/chart-utils";
+import { Box, Heading, BodyShort, HGrid } from "@navikt/ds-react";
 import { getOfficialFileNames } from "@/lib/customizations";
-import { getCustomizationRepoCount, sortCustomizationsByScope } from "@/lib/adoption-utils";
-
-type OriginFilter = "all" | "official" | "custom";
+import { sortCustomizationsByScope } from "@/lib/adoption-utils";
 
 interface TopCustomizationsChartProps {
   data: CustomizationDetail[];
@@ -24,126 +22,97 @@ const categoryLabels: Record<string, string> = {
   agents_skills: "Installerte skills",
 };
 
-const categoryColors: Record<string, string> = {
-  agents: chartColors[0],
-  skills: chartColors[1],
-  instructions: chartColors[2],
-  prompts: chartColors[3],
-  agentic_workflows: chartColors[4],
-  agents_skills: chartColors[5],
-};
+/**
+ * One bar per file, stacked by origin. A file is either from navikt/copilot or the team's own, so each bar has one
+ * coloured part and the stack is «alle». The other series is null, not 0, so no empty segment is drawn.
+ */
+export function originDatasets(items: CustomizationDetail[], officialNames: Set<string>) {
+  const series = (label: string, official: boolean, colour: number) => ({
+    label,
+    data: items.map((item) => (officialNames.has(item.file_name) === official ? item.repo_count : null)),
+    backgroundColor: seriesColor(colour),
+    borderRadius: 4,
+    barThickness: 12,
+    stack: "origin",
+  });
+  return [series("Fra navikt/copilot", true, 0), series("Egne", false, 3)];
+}
 
+// Each file shows how many repos have it, coloured by origin; the tooltip adds how many of them are active.
 function CategoryChart({
   category,
   items,
   maxItems,
-  scope,
+  officialNames,
 }: {
   category: string;
   items: CustomizationDetail[];
   maxItems: number;
-  scope: AdoptionScope;
+  officialNames: Set<string>;
 }) {
-  const sorted = sortCustomizationsByScope(items, scope);
-  const top = sorted.slice(0, maxItems);
-  const color = categoryColors[category] ?? chartColors[5];
+  const top = sortCustomizationsByScope(items, "all").slice(0, maxItems);
 
-  const chartData = {
-    labels: top.map((item) => item.file_name),
-    datasets: [
-      {
-        data: top.map((item) => getCustomizationRepoCount(item, scope)),
-        backgroundColor: color,
-        borderRadius: 4,
-        barThickness: 18,
+  const options = {
+    ...commonHorizontalBarOptions,
+    plugins: {
+      ...commonHorizontalBarOptions.plugins,
+      legend: bottomLegend,
+      tooltip: {
+        ...commonHorizontalBarOptions.plugins.tooltip,
+        filter: (ctx: { raw: unknown }) => ctx.raw !== null,
+        callbacks: {
+          label: (ctx: { dataIndex: number; dataset: { label?: string } }) => {
+            const item = top[ctx.dataIndex];
+            return `${ctx.dataset.label}: ${item.repo_count} repoer, ${item.active_repo_count} av dem aktive`;
+          },
+        },
       },
-    ],
+    },
+    scales: {
+      ...commonHorizontalBarOptions.scales,
+      x: { ...commonHorizontalBarOptions.scales.x, stacked: true },
+      y: { ...commonHorizontalBarOptions.scales.y, stacked: true },
+    },
   };
 
-  const height = Math.max(150, top.length * 32);
-
   return (
-    <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-      <Heading size="small" level="4" spacing>
+    <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
+      <Heading size="small" level="3" spacing>
         {categoryLabels[category] ?? category}
       </Heading>
-      {top.length === 0 ? (
-        <BodyShort className="text-gray-500">Ingen data</BodyShort>
-      ) : (
-        <div style={{ height }}>
-          <Bar data={chartData} options={commonHorizontalBarOptions} />
-        </div>
-      )}
+      <div style={{ height: Math.max(200, top.length * 28 + 60) }}>
+        <Bar
+          data={{ labels: top.map((item) => item.file_name), datasets: originDatasets(top, officialNames) }}
+          options={options}
+        />
+      </div>
     </Box>
   );
 }
 
 const TopCustomizationsChart: React.FC<TopCustomizationsChartProps> = ({ data, maxItems = 10 }) => {
-  const [originFilter, setOriginFilter] = useState<OriginFilter>("official");
-  const [scope, setScope] = useState<AdoptionScope>("active");
   const officialNames = useMemo(() => getOfficialFileNames(), []);
 
-  const filteredData = useMemo(() => {
-    if (originFilter === "all") return data;
-    return data.filter((item) => {
-      const isOfficial = officialNames.has(item.file_name);
-      return originFilter === "official" ? isOfficial : !isOfficial;
-    });
-  }, [data, originFilter, officialNames]);
-
-  if (!data || data.length === 0) {
-    return (
-      <Box padding="space-16" borderRadius="8" className="bg-white border border-gray-200">
-        <div className="text-center text-gray-500">{NO_DATA_MESSAGE}</div>
-      </Box>
-    );
-  }
-
-  const grouped = filteredData.reduce<Record<string, CustomizationDetail[]>>((acc, item) => {
+  const grouped = data.reduce<Record<string, CustomizationDetail[]>>((acc, item) => {
     (acc[item.category] ??= []).push(item);
     return acc;
   }, {});
 
-  const categories = ["agents", "skills", "instructions", "prompts", "agentic_workflows", "agents_skills"].filter(
-    (cat) => (grouped[cat] ?? []).length > 0
-  );
+  const categories = Object.keys(categoryLabels).filter((cat) => (grouped[cat] ?? []).length > 0);
 
+  if (categories.length === 0) return <BodyShort>Ingen tilpasninger ennå.</BodyShort>;
   return (
-    <VStack gap="space-16">
-      <HStack gap="space-16" align="center" justify="space-between" wrap>
-        <HStack gap="space-8" align="center">
-          <BodyShort size="small" className="text-gray-500">
-            Opprinnelse:
-          </BodyShort>
-          <Chips size="small">
-            <Chips.Toggle selected={originFilter === "all"} onClick={() => setOriginFilter("all")}>
-              Alle
-            </Chips.Toggle>
-            <Chips.Toggle selected={originFilter === "official"} onClick={() => setOriginFilter("official")}>
-              Offisielle
-            </Chips.Toggle>
-            <Chips.Toggle selected={originFilter === "custom"} onClick={() => setOriginFilter("custom")}>
-              Egne
-            </Chips.Toggle>
-          </Chips>
-        </HStack>
-        <ToggleGroup size="small" value={scope} onChange={(val) => setScope(val as AdoptionScope)}>
-          <ToggleGroup.Item value="active">Aktive repoer</ToggleGroup.Item>
-          <ToggleGroup.Item value="all">Alle repoer</ToggleGroup.Item>
-        </ToggleGroup>
-      </HStack>
-      <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
-        {categories.map((category) => (
-          <CategoryChart
-            key={category}
-            category={category}
-            items={grouped[category] ?? []}
-            maxItems={maxItems}
-            scope={scope}
-          />
-        ))}
-      </HGrid>
-    </VStack>
+    <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+      {categories.map((category) => (
+        <CategoryChart
+          key={category}
+          category={category}
+          items={grouped[category]}
+          maxItems={maxItems}
+          officialNames={officialNames}
+        />
+      ))}
+    </HGrid>
   );
 };
 

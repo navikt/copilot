@@ -1,0 +1,21 @@
+
+
+
+
+
+
+
+
+
+
+
+Dette er en **ny personopplysning i Kafka-meldingen**, så jeg stopper før kodeendringen. `SoknadMottattMelding` inneholder nå bare `soknadId` og `mottatt`. Repoet har `fnr` i `SokerDto`, men ingen kall til `sendMottatt` som viser hvor fødselsnummeret skal hentes fra.
+
+Jeg trenger avklart:
+- Skal `fnr` komme fra `SokerDto`, eller fra en annen kilde? Inneholder meldingen andre personopplysninger enn fødselsnummer etter endringen?
+- Hvilke tjenester konsumerer `soknad-mottatt`, og tåler de et nytt obligatorisk felt? Finnes det kontrakttester eller en avtalt utrullingsrekkefølge?
+
+Jeg fant verken `AGENTS.md` eller repo-lokale Copilot-instruksjoner. `nav-pilot init` kan opprette dem. Andre blindsoner er ikke reist nå: endringen gir ingen ny tilgangsvei, og repoet viser ingen relevant feilhåndtering, driftsovervåking eller avvikling å avklare før meldingskontrakten er kjent.
+
+Blindsoner reist: 3/11 (#1, #6, #9).
+

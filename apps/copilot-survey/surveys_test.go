@@ -66,7 +66,10 @@ func testRouter(t *testing.T) (http.Handler, *fakeStore) {
 		keys:     map[string][]byte{"q4-2026": []byte("0123456789abcdef0123456789abcdef")},
 		emailFor: fakeEmails,
 		store:    store.submit,
-		now:      func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
+		answered: func(_ context.Context, surveyID, hash string) (bool, error) {
+			return store.participants[surveyID+"/"+hash], nil
+		},
+		now: func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
 	}
 	return makeRouter(testAuthenticator(t), api), store
 }
@@ -141,6 +144,44 @@ func TestSubmit(t *testing.T) {
 	}
 }
 
+func TestStatus(t *testing.T) {
+	h, _ := testRouter(t)
+	status := func(token, id string) (int, string) {
+		rec := do(h, "GET", "/api/v1/surveys/"+id+"/status", token, "")
+		if rec.Code == 200 && rec.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("Cache-Control = %q, want no-store on a per-user answer", rec.Header().Get("Cache-Control"))
+		}
+		return rec.Code, strings.TrimSpace(rec.Body.String())
+	}
+	if code, body := status("cli:hans", "q4-2026"); code != 200 || body != `{"answered":false}` {
+		t.Fatalf("before answering: %d %s", code, body)
+	}
+	good := `{"answers":{"overall":4,"client":"opencode"},` + goodCtx + `}`
+	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "cli:hans", good); rec.Code != 201 {
+		t.Fatalf("submit: %d %s", rec.Code, rec.Body)
+	}
+	for _, tc := range []struct {
+		name, token, id string
+		want            int
+		body            string
+	}{
+		{"same user", "cli:hans", "q4-2026", 200, `{"answered":true}`},
+		{"same person on the web", webToken, "q4-2026", 200, `{"answered":true}`},
+		{"someone else", "cli:guest", "q4-2026", 200, `{"answered":false}`},
+		{"no token", "", "q4-2026", 401, ""},
+		{"no Nav identity", "cli:nosso", "q4-2026", 403, ""},
+		{"closed survey", "cli:hans", "old", 404, ""},
+		{"unknown survey", "cli:hans", "nope", 404, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, body := status(tc.token, tc.id)
+			if code != tc.want || (tc.body != "" && body != tc.body) {
+				t.Fatalf("%d %s, want %d %s", code, body, tc.want, tc.body)
+			}
+		})
+	}
+}
+
 func TestSubmitValidation(t *testing.T) {
 	h, store := testRouter(t)
 	path := "/api/v1/surveys/q4-2026/responses"
@@ -198,9 +239,21 @@ func TestInactiveSurveyIsNotServed(t *testing.T) {
 	}
 }
 
-func TestSubmitWithoutStorage(t *testing.T) {
+func TestSurveyWithoutKeyIsNotServed(t *testing.T) {
 	defs, _ := loadSurveys([]byte(testSurveys))
 	api := &surveyAPI{surveys: defs, now: func() time.Time { return time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC) }}
+	h := makeRouter(testAuthenticator(t), api)
+	if rec := do(h, "GET", "/api/v1/surveys/active", "", ""); strings.Contains(rec.Body.String(), "q4-2026") {
+		t.Fatalf("survey without a key served: %s", rec.Body)
+	}
+	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "cli:hans", `{}`); rec.Code != 404 {
+		t.Fatalf("survey without a key: status = %d, want 404", rec.Code)
+	}
+}
+
+func TestSubmitWithoutStorage(t *testing.T) {
+	defs, _ := loadSurveys([]byte(testSurveys))
+	api := &surveyAPI{surveys: defs, keys: map[string][]byte{"q4-2026": bytes.Repeat([]byte{7}, 32)}, now: func() time.Time { return time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC) }}
 	h := makeRouter(testAuthenticator(t), api)
 	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "cli:hans", `{}`); rec.Code != 503 {
 		t.Fatalf("status = %d, want 503", rec.Code)
@@ -237,6 +290,8 @@ func TestLoadSurveysRejectsBadDefinitions(t *testing.T) {
 		"labels count":      `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"labels":["a","b"]}]}]`,
 		"skip_if later":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}},{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]}]}]`,
 		"skip_if scale":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"scale","text":"?","min":1,"max":5,"options":["x"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}}]}]`,
+		"exclusive choice":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"],"exclusive":"x"}]}]`,
+		"exclusive unknown": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"multi","text":"?","options":["x","y"],"exclusive":"z"}]}]`,
 		"stray ]":           `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]]`,
 		"bad nudge":         `[{"id":"a","title":"t","nudge":"loud","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
 		"two texts":         `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5},{"id":"r","version":1,"type":"text","text":"?","max_length":5}]}]`,
@@ -367,12 +422,33 @@ func TestRequiredMatrixSkippedWhole(t *testing.T) {
 	}
 }
 
+// An exclusive multi option must be picked alone.
+func TestExclusive(t *testing.T) {
+	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"max_choices":2}`, `"max_choices":2,"exclusive":"c"}`, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for answers, ok := range map[string]bool{
+		`{"overall":3,"tools":["c"]}`:     true,
+		`{"overall":3,"tools":["a","b"]}`: true,
+		`{"overall":3,"tools":["a","c"]}`: false,
+	} {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(answers), &raw); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := validateAnswers(defs[0], raw); (err == nil) != ok {
+			t.Errorf("%s: %v", answers, err)
+		}
+	}
+}
+
 func TestMinCLIVersion(t *testing.T) {
 	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"title":"Q4",`, `"title":"Q4","min_cli_version":"2026.09.29-072249",`, 1)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := &surveyAPI{surveys: defs, now: func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) }}
+	a := &surveyAPI{surveys: defs, keys: map[string][]byte{"q4-2026": bytes.Repeat([]byte{7}, 32)}, now: func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) }}
 	for name, tc := range map[string]struct {
 		query, ua string
 		served    bool

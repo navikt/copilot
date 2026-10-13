@@ -6,23 +6,34 @@
  * cache layer. The "cached-bigquery" file name is kept for now to avoid a
  * large import-path churn while this file is the subject of a rename refactor.
  */
-import { backendRequest, BackendApiError } from "./backend-api";
+import { cache } from "react";
+import { backendRequest } from "./backend-api";
 import type {
+  VolumeMonth,
   AdoptionData,
+  CohortRetention,
+  UserSegments,
+  CopilotPRMonth,
+  CreditsPerUserMonth,
   AdoptionSummary,
   CustomizationDetail,
   CustomizationUsage,
   EnterpriseMetrics,
   LanguageAdoption,
-  MonthlyBillingUsage,
   BillingModelDailyCost,
-  BillingModelForecast,
+  CostForecast,
   MonthlyTrend,
   StalenessSummary,
-  TeamAdoption,
-  TeamUsageSummary,
-  UserMetricsSummary,
-  AdoptionCohortDay,
+  TeamAdoptionOverview,
+  TeamGrossOverview,
+  TeamNetOverview,
+  TeamYearOverview,
+  AdminMonthlyOverview,
+  SpendBands,
+  ActiveUsersMonth,
+  BudgetDay,
+  HighConsumerMonth,
+  AdoptionCohortWeek,
   BillingMonthlyTrend,
   BillingModelBreakdown,
   DailySummary,
@@ -79,7 +90,7 @@ export async function getAdoptionData(token: string): Promise<{
   return fetchNullable("getAdoptionData", async () => {
     const [summary, teams, languages, customizationDetails] = await Promise.all([
       backendRequest<AdoptionSummary>("/api/v1/copilot/adoption/summary", token),
-      backendRequest<TeamAdoption[]>("/api/v1/copilot/adoption/teams", token),
+      backendRequest<TeamAdoptionOverview>("/api/v1/copilot/adoption/teams", token),
       backendRequest<LanguageAdoption[]>("/api/v1/copilot/adoption/languages", token),
       backendRequest<CustomizationDetail[]>("/api/v1/copilot/customizations/details", token),
     ]);
@@ -107,14 +118,63 @@ export async function getStalenessData(token: string): Promise<{
   );
 }
 
-export async function getTeamUsage(token: string): Promise<{
-  teams: TeamUsageSummary[];
-  error: string | null;
-}> {
-  const result = await fetchWithFallback("getTeamUsage", [] as TeamUsageSummary[], () =>
-    backendRequest<TeamUsageSummary[]>("/api/v1/copilot/usage/team-summary", token)
+export async function getTeamGrossOverview(month: string, token: string): Promise<TeamGrossOverview> {
+  return backendRequest<TeamGrossOverview>(
+    `/api/v1/copilot/usage/team-gross?month=${encodeURIComponent(month)}`,
+    token,
+    { cache: "no-store" }
   );
-  return { teams: result.data, error: result.error };
+}
+
+export async function getTeamNetOverview(month: string, token: string): Promise<TeamNetOverview | null> {
+  return backendRequest<TeamNetOverview | null>(
+    `/api/v1/copilot/usage/team-net?month=${encodeURIComponent(month)}`,
+    token
+  );
+}
+
+export async function getTeamYearOverview(team: string, year: number, token: string): Promise<TeamYearOverview> {
+  return backendRequest<TeamYearOverview>(
+    `/api/v1/copilot/usage/team-year?team=${encodeURIComponent(team)}&year=${year}`,
+    token
+  );
+}
+
+// react cache(): streamed sections of one render share a single request, not a second BFF cache.
+export const getAdminMonthlyOverview = cache((year: number, token: string): Promise<AdminMonthlyOverview> =>
+  backendRequest<AdminMonthlyOverview>(`/api/v1/admin/billing/monthly?year=${year}`, token)
+);
+
+export async function getSpendBands(token: string): Promise<SpendBands> {
+  return backendRequest<SpendBands>("/api/v1/copilot/usage/spend-bands", token);
+}
+
+export const getCostForecast = cache((token: string): Promise<CostForecast> =>
+  backendRequest<CostForecast>("/api/v1/admin/billing/cost-forecast", token)
+);
+
+/** Admin only: copilot-api answers 404 to everyone else. */
+export async function getAdminActiveUsers(token: string): Promise<ActiveUsersMonth[]> {
+  return backendRequest<ActiveUsersMonth[]>("/api/v1/admin/billing/active-users", token);
+}
+
+/** Admin only: copilot-api answers 404 to everyone else. */
+export async function getAdminVolume(year: number, token: string): Promise<VolumeMonth[]> {
+  return backendRequest<VolumeMonth[]>(`/api/v1/admin/billing/volume?year=${year}`, token);
+}
+
+/** Admin only: copilot-api answers 404 to everyone else. */
+export async function getAdminHighConsumers(token: string): Promise<HighConsumerMonth[]> {
+  return backendRequest<HighConsumerMonth[]>("/api/v1/admin/billing/high-consumers", token);
+}
+
+/** Admin only: copilot-api answers 404 to everyone else. */
+export async function getAdminBudgetDays(token: string): Promise<BudgetDay[]> {
+  return backendRequest<BudgetDay[]>("/api/v1/admin/billing/budget-days", token);
+}
+
+export async function getMyTeams(token: string): Promise<string[]> {
+  return backendRequest<string[]>("/api/v1/copilot/usage/my-teams", token);
 }
 
 export async function getRepositoryUsage(token: string): Promise<{
@@ -125,28 +185,6 @@ export async function getRepositoryUsage(token: string): Promise<{
     backendRequest<RepositoryUsage[]>("/api/v1/copilot/usage/repositories", token)
   );
   return { repositories: result.data, error: result.error };
-}
-
-export async function getUserMetrics(
-  username: string,
-  token: string
-): Promise<{ metrics: UserMetricsSummary | null; error: string | null }> {
-  const result = await fetchNullable("getUserMetrics", async () => {
-    try {
-      return await backendRequest<UserMetricsSummary>(
-        `/api/v1/copilot/usage/user/${encodeURIComponent(username)}`,
-        token
-      );
-    } catch (err) {
-      // A 404 is a valid state: the user is linked to a GitHub account but has
-      // no Copilot usage in the period. Treat as "no metrics", not an error.
-      if (err instanceof BackendApiError && err.status === 404) {
-        return null;
-      }
-      throw err;
-    }
-  });
-  return { metrics: result.data, error: result.error };
 }
 
 export async function getUserDailyCredits(
@@ -174,22 +212,12 @@ export async function getMonthlyTrends(token: string): Promise<{
   return { trends: result.data, error: result.error };
 }
 
-export async function getMonthlyBillingUsage(token: string): Promise<{
-  usage: MonthlyBillingUsage[];
-  error: string | null;
-}> {
-  const result = await fetchWithFallback("getMonthlyBillingUsage", [] as MonthlyBillingUsage[], () =>
-    backendRequest<MonthlyBillingUsage[]>("/api/v1/copilot/billing/monthly", token)
-  );
-  return { usage: result.data, error: result.error };
-}
-
 export async function getAdoptionCohorts(token: string): Promise<{
-  cohorts: AdoptionCohortDay[];
+  cohorts: AdoptionCohortWeek[];
   error: string | null;
 }> {
-  const result = await fetchWithFallback("getAdoptionCohorts", [] as AdoptionCohortDay[], () =>
-    backendRequest<AdoptionCohortDay[]>("/api/v1/copilot/adoption/cohorts", token)
+  const result = await fetchWithFallback("getAdoptionCohorts", [] as AdoptionCohortWeek[], () =>
+    backendRequest<AdoptionCohortWeek[]>("/api/v1/copilot/adoption/cohorts", token)
   );
   return { cohorts: result.data, error: result.error };
 }
@@ -208,38 +236,72 @@ export async function getBillingModelDaily(
   return { usage: Array.isArray(result.data) ? result.data : [], error: result.error };
 }
 
-export async function getBillingModelForecast(
+export async function getBillingMonthlyTrend(
   token: string,
-  month?: string
+  months?: number
 ): Promise<{
-  forecast: BillingModelForecast | null;
-  error: string | null;
-}> {
-  const query = month ? `?month=${encodeURIComponent(month)}` : "";
-  const result = await fetchNullable("getBillingModelForecast", () =>
-    backendRequest<BillingModelForecast>(`/api/v1/copilot/billing/model-forecast${query}`, token)
-  );
-  return { forecast: result.data, error: result.error };
-}
-
-export async function getBillingMonthlyTrend(token: string): Promise<{
   trend: BillingMonthlyTrend[];
   error: string | null;
 }> {
+  const query = months ? `?months=${months}` : "";
   const result = await fetchWithFallback("getBillingMonthlyTrend", [] as BillingMonthlyTrend[], () =>
-    backendRequest<BillingMonthlyTrend[]>("/api/v1/copilot/billing/monthly-trend", token)
+    backendRequest<BillingMonthlyTrend[]>(`/api/v1/copilot/billing/monthly-trend${query}`, token)
   );
   return { trend: result.data, error: result.error };
 }
 
-export async function getBillingModelBreakdown(token: string): Promise<{
+export async function getBillingModelBreakdown(
+  token: string,
+  months?: number
+): Promise<{
   breakdown: BillingModelBreakdown[];
   error: string | null;
 }> {
+  const query = months ? `?months=${months}` : "";
   const result = await fetchWithFallback("getBillingModelBreakdown", [] as BillingModelBreakdown[], () =>
-    backendRequest<BillingModelBreakdown[]>("/api/v1/copilot/billing/model-breakdown", token)
+    backendRequest<BillingModelBreakdown[]>(`/api/v1/copilot/billing/model-breakdown${query}`, token)
   );
   return { breakdown: result.data, error: result.error };
+}
+
+export async function getCreditsPerUserMonthly(token: string): Promise<{
+  months: CreditsPerUserMonth[];
+  error: string | null;
+}> {
+  const result = await fetchWithFallback("getCreditsPerUserMonthly", [] as CreditsPerUserMonth[], () =>
+    backendRequest<CreditsPerUserMonth[]>("/api/v1/copilot/usage/credits-per-user", token)
+  );
+  return { months: result.data, error: result.error };
+}
+
+export async function getCopilotPRsMonthly(token: string): Promise<{
+  months: CopilotPRMonth[];
+  error: string | null;
+}> {
+  const result = await fetchWithFallback("getCopilotPRsMonthly", [] as CopilotPRMonth[], () =>
+    backendRequest<CopilotPRMonth[]>("/api/v1/copilot/usage/copilot-prs", token)
+  );
+  return { months: result.data, error: result.error };
+}
+
+export async function getCohortRetention(token: string): Promise<{
+  cohorts: CohortRetention[];
+  error: string | null;
+}> {
+  const result = await fetchWithFallback("getCohortRetention", [] as CohortRetention[], () =>
+    backendRequest<CohortRetention[]>("/api/v1/copilot/usage/cohort-retention", token)
+  );
+  return { cohorts: result.data, error: result.error };
+}
+
+export async function getUserSegments(token: string): Promise<{
+  segments: UserSegments | null;
+  error: string | null;
+}> {
+  const result = await fetchNullable("getUserSegments", () =>
+    backendRequest<UserSegments>("/api/v1/copilot/usage/segments", token)
+  );
+  return { segments: result.data, error: result.error };
 }
 
 export async function getDailySummary(token: string): Promise<{

@@ -1,0 +1,63 @@
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml,nais.yaml,**/nais.yaml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List directory .
+  └ 5 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ ".github/**/*"
+  └ 17 files found
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● skill(nav-auth)
+
+Dette er en **ny tjeneste med fødselsnummer og autentisering**, så jeg stopper ved avklaringer før jeg lager plan eller endrer kode. Repoet inneholder en liten Ktor-demo på Nais. `/api/oppgaver` er i dag åpent, og `nais.yaml` har verken ID-porten eller `accessPolicy`. `AGENTS.md` og repo-lokale Copilot-instruksjoner mangler; `nav-pilot init` kan legge dem til senere.
+
+1. Skal innbyggerens nettleser kalle tjenesten direkte via ID-porten, eller skal en annen Nav-tjeneste kalle den på innbyggerens vegne? Hvem skal kunne bruke endepunktet?
+2. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det bare i minnet, sende det videre eller lagre det? Skal det returneres i en respons?
+3. Skal den eksisterende demoen erstattes, eller må `/api/oppgaver` fortsatt fungere? Hvem bruker den i dag?
+4. Hva skal skje hvis innlogging eller en eventuell tjeneste nedstrøms feiler?
+5. Hvilke målinger skal vise at tjenesten fungerer, uten å logge fødselsnummer eller token?
+6. Finnes det tester eller en plan for utrulling og tilbakerulling som vi må ta hensyn til?
+
+🔴 Rød sone: håndtering av fødselsnummer og tilgangskontroll. Avklarede svar trengs før valg av løsning. Teamgrenser og avvikling av andre løsninger er ikke reist som egne spørsmål fordi repoet ikke viser slike avhengigheter.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #4, #6, #7, #8).
+

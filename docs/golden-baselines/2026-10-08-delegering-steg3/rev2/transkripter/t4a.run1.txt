@@ -1,0 +1,52 @@
+● skill(nav-plan)
+
+● Inspect project and Copilot configuration (shell)
+  │ pwd; ls -la; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then echo "PRESENT $f"; else echo
+  │ "MISSING $f"; fi; done
+  └ 12 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List directory src
+  └ 1 file found
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 1: Avklaring.** Repoet er en liten Ktor-tjeneste med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten eller `accessPolicy` konfigurert. Jeg antar at den nye tjenesten skal brukes av innbyggere via nettleser, men det må avklares før vi velger autentisering og tilgangsstyring.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret fra ID-porten: bruke det kun i én forespørsel, lagre det eller sende det videre? Skal den behandle andre personopplysninger?
+2. Kaller innbyggeren tjenesten direkte, eller finnes det en frontend/BFF? Skal andre tjenester også kunne kalle den, og hvem skal kunne lese resultatet?
+3. Hvilke avhengigheter skal tjenesten kalle, og hva skal skje hvis de er utilgjengelige?
+4. Hvem bruker dagens `/api/oppgaver`, og skal den nye løsningen erstatte eller leve ved siden av dette endepunktet?
+5. Hvilke hendelser viser at tjenesten fungerer, uten at fødselsnummer havner i logger eller metrikker?
+
+Jeg finner ingen tester i repoet. Migrering, bakoverkompatibilitet og avvikling avhenger av svaret om dagens endepunkt; teamgrenser og utrulling kan avklares når flyten er kjent. Repoet mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette repo-lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #4, #5, #6, #7; #8–#10 avventer om eksisterende løsning berøres, #11 ikke relevant ennå).
+

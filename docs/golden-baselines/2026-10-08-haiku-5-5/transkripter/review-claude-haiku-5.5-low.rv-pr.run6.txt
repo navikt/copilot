@@ -1,0 +1,31 @@
+## Gjennomgang: `vedtak-kafka` mot `main`
+
+**Oppsummering:** Branchen legger til Kafka-konsument, vedtak-API og Postgres-lagring i ett commit (8 filer, +257). Det er tre blokkerende sikkerhetsfeil, og Kafka-flyten kan miste eller duplisere vedtak. Jeg har ikke kjørt build eller tester.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen. Bruk `queryOf(sql, fnr)`. |
+| `Routes.kt` | `get("/api/vedtak/{fnr}")` | 🔴 | Ingen autentisering eller eierskapssjekk. Hvem som helst kan hente vedtak for andres fnr. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner for alle i clusteret. Må snevres inn. |
+| `Routes.kt` | `post("/api/vedtak")` | 🔴 | Autentisert kaller kan fatte vedtak for vilkårlig `fnr` uten sjekk av rettigheter. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | `validate` godtar alle tokens med en `aud`-claim. Ingen verifier (JWKS/issuer) er konfigurert, og audience sjekkes ikke mot appens klient-ID. Ktor kan også feile ved oppstart eller gi 401 på alt. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | Fødselsnummer i logg. Fjern, eller logg bare `sakId`. |
+| `VedtakConsumer.kt` | `start()` / `retry` | 🔴 | Ett ugyldig JSON-meldingsobjekt eller én feil etter retry kaster ut av løkken. Tråden dør stille, og poden er fortsatt «alive». Ingen dead-letter-håndtering. |
+| `VedtakConsumer.kt` | `retry` + `behandle` | 🔴 | `fattVedtak` gjør DB-insert før Kafka-send. Ved retry eller restart etter commit-feil lagres duplikater med nye `vedtakId`. Ingen idempotensnøkkel. |
+| `App.kt` | Kafka-properties | 🔴 | Ingen SSL/SASL-konfigurasjon for `KAFKA_BROKERS` i `nav-dev`-poolen. Verifiser mot Nais-dokumentasjonen. |
+| `build.gradle.kts` | to `dependencies {}`-blokker | 🟡 | Dupliserte blokker. Slå sammen. |
+| (mangler) | `db/migration/` | 🟡 | Tabellen `vedtak` opprettes ikke i repoet. Legg til Flyway-skript. |
+| `Routes.kt` | `call.parameters["fnr"]!!` | 🟡 | `!!` gir 500 i stedet for 400. Bruk `?: return@get call.respond(BadRequest)`. |
+| `Routes.kt` | `/api/vedtak/{fnr}` | 🟡 | Fødselsnummer i URL-sti gir logging i access-logg og proxy. Bruk POST med body eller en intern ID. |
+| `VedtakService.kt` | `hentVedtak` | 💭 | Ubrukt metode. |
+| (mangler) | tester | 🟡 | Ingen tester for konsumer, repository eller routes. |
+
+### Detaljer for blokkerende funn
+
+- **Kafka-retry og duplikater:** Retry bør bare gjelde Kafka-sending, ikke DB-insert. Gjør vedtak-opprettelse idempotent med `sakId` som nøkkel (unik constraint), eller send utfallet til en dead-letter-topic etter siste forsøk.
+- **Auth-oppsett:** Sett `verifier` med TokenX-JWKS og issuer, og valider `audience` mot appens klient-ID. Ikke bruk `credential.payload.audience?.let { credential }`.
+- **Tilgangskontroll:** Både GET og POST mangler sjekk om kalleren har lov til å se eller fatte vedtak for dette fnr-et. Dette bør avklares før merge.
+
+Still gjerne spørsmål om valgene over.

@@ -1,0 +1,70 @@
+# Weekly canary: does Copilot CLI still run a subagent on its own model pin?
+# scripts/subagent-pin-canary.sh does the probe; this opens or updates one
+# issue labelled `subagent-pin-canary` when the pin is not honoured.
+#
+# Copilot CLI authenticates with the workflow's own GITHUB_TOKEN and
+# `copilot-requests: write`, as in nav-pilot-persona-review.yaml. Each run costs
+# about 0.1-0.5 AI credit, billed to the organization. The weekly schedule is
+# off until the repository variable SUBAGENT_PIN_CANARY is `true`;
+# workflow_dispatch always runs.
+
+name: subagent pin canary
+
+on:
+  schedule:
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    if: github.event_name == 'workflow_dispatch' || vars.SUBAGENT_PIN_CANARY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+      copilot-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Probe
+        id: probe
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          npm install -g @github/copilot
+          set +e
+          scripts/subagent-pin-canary.sh > "$RUNNER_TEMP/canary.txt" 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/canary.txt"
+
+      - name: Open or update issue
+        if: steps.probe.outputs.status == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$RUNNER_TEMP/body.md"
+          {
+            echo "The subagent pin canary failed: a subagent did not run on its \`model:\` pin. [Run]($RUN_URL)."
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/canary.txt"
+            echo '```'
+          } > "$body"
+          gh label create subagent-pin-canary --color d93f0b --force >/dev/null
+          n=$(gh issue list --label subagent-pin-canary --state open --json number -q '.[0].number')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body-file "$body"
+          else
+            gh issue create --title "Copilot CLI ignores subagent model pins" --label subagent-pin-canary --body-file "$body"
+          fi
+
+      - name: Fail on a broken pin or a probe that could not run
+        if: steps.probe.outputs.status != '0'
+        run: exit 1

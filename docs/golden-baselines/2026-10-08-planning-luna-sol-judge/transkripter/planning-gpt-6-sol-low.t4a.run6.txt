@@ -1,0 +1,21 @@
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Avklaring.** Repoet inneholder en liten Ktor-demo på Nais. Den har verken ID-porten-oppsett eller tilgangskontroll, så jeg gjør ingen endringer før vi har avklart hvordan fødselsnummeret skal brukes.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging? Skal det bare brukes i én forespørsel, eller sendes videre eller lagres? Hvilke andre personopplysninger inngår?
+2. Hvem skal kunne kalle tjenesten: innlogget innbygger via nettleser, en annen tjeneste, eller begge? Skal denne nye tjenesten erstatte demoen?
+3. Hvilket team eier eventuelle tjenester den skal kalle, og hva skal skje hvis de er utilgjengelige?
+4. Finnes det konsumenter av dagens `/api/oppgaver` som må fungere videre, og hvilke tester finnes utenfor dette repoet?
+
+Jeg finner ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `nav-pilot init` kan legge til lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 5/11 (#1, #2, #3, #5 og #6 stilt; #4 og #7–#11 avventer konkret bruksområde eller er ikke relevante ennå).
+

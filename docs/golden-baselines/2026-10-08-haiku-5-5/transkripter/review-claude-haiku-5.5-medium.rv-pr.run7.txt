@@ -1,0 +1,34 @@
+Jeg henter diffen mellom `main` og `vedtak-kafka`.
+
+## Gjennomgang: `vedtak-kafka` mot `main`
+
+Diffen legger til Kafka-konsument, vedtak-API, Postgres og TokenX. Koden har flere blokkerende feil, særlig sikkerhet og dataintegritet. Jeg har ikke kjørt `mise check` eller tester; repoet har ingen app-katalog å kjøre den i.
+
+🔴 Rød sone: tilgangskontroll, tokenvalidering og SQL. Gå gjennom disse nøye.
+
+| Fil | Linje | Pri | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | `hentForPerson` | 🔴 | SQL-injeksjon: `fnr` settes direkte inn i SQL-strengen. Bruk `queryOf(sql, fnr)`. |
+| `Routes.kt` | `get("/api/vedtak/{fnr}")` | 🔴 | Ingen autentisering. Alle kan hente vedtak med fnr. Kombinert med `accessPolicy` gir dette åpen eksponering av personopplysninger. |
+| `App.kt` | `jwt("tokenx")` | 🔴 | Ingen `verifier`/JWKS og ingen issuer-sjekk. `validate` sjekker bare at `audience` finnes, så signatur valideres ikke. Ikke azp-sjekk heller. |
+| `Routes.kt` | `post("/api/vedtak")` | 🔴 | `fnr` tas fra request-body. Enhver innlogget kan fatte vedtak for andre personer. Ingen eierskapssjekk. |
+| `nais.yaml` | `accessPolicy.inbound` | 🔴 | `application: "*"` og `namespace: "*"` åpner inngående trafikk for alle. |
+| `VedtakService.kt` | `log.info("behandler $fnr")` | 🔴 | fnr i logg. Brudd på sikkerhetsreglene. |
+| `VedtakConsumer.kt` | `retry` + `commitSync` | 🔴 | Ikke idempotent. `fattVedtak` skriver til DB før Kafka-sending, og retry skriver en ny rad med ny `vedtakId`. Hele batchen committes ikke ved feil, så tidligere meldinger i batchen behandles på nytt. |
+| `VedtakConsumer.kt` | `start()` | 🔴 | Én feil (ugyldig JSON eller feil etter retry) kaster unntak ut av `while`-løkken. Tråden dør stille, og appen fortsetter å svare på HTTP uten å konsumere. |
+| `App.kt` | `Properties` | 🔴 | Ingen SSL/keystore-konfig for Nais Kafka-pool. Tilkobling mot `nav-dev` feiler sannsynligvis. |
+| `nais.yaml` / repo | `vedtak`-tabell | 🔴 | Ingen Flyway-migrering for `vedtak`-tabellen. Første INSERT feiler. |
+| `Routes.kt` | `call.parameters["fnr"]!!` | 🟡 | NPE gir 500. Bruk 400 ved manglende parameter. |
+| `VedtakService.kt` | `require(sakId.isNotBlank())` | 🟡 | `IllegalArgumentException` gir 500, ikke 400. Ingen validering av fnr-format. |
+| `build.gradle.kts` | to `dependencies {}`-blokker | 🟡 | Duplisert blokk. Slå sammen. |
+| `VedtakService.kt` | `hentVedtak`, `hentForSak`, `Locale` | 💭 | Ubrukt kode og import. |
+| repo | tester | 🟡 | Ingen tester for ny logikk (service, retry, repository). |
+
+### Detaljer på blokkerende funn
+
+- **SQL-injeksjon:** Dette er den mest alvorlige feilen. Det er én linje å fikse. Bruk parameter i stedet for strengkonkatenering.
+- **Tilgangskontroll:** Både GET-endepunktet og POST-endepunktet trenger eierskapssjekk. Verifiser at kallende tjeneste har rett til å lese eller opprette vedtak for den personen. Azp bør valideres mot `AZURE_APP_PRE_AUTHORIZED_APPS`.
+- **Idempotens:** Bruk `soknadId` som idempotensnøkkel. Lagre en unik constraint i DB og behandle duplikater som no-op.
+- **Konsumentfeil:** Fang feil per melding, send feilede meldinger til en DLQ eller logg, og fortsett løkken. Commit offset først etter vellykket behandling.
+
+Still gjerne spørsmål om valgene over.

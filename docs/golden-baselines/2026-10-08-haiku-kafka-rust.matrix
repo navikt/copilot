@@ -1,0 +1,6 @@
+# 8. oktober 2026: Claude Haiku 5.5 Low mot GPT-6 Luna Medium gjennom @kafka og @rust. testpakke  modell  innsatsnivå  n
+# Kriteriene står i docs/modellvalg.md og ble satt før kjøringene.
+kafka  claude-haiku-5.5  low     5
+kafka  gpt-6-luna        medium  5
+rust   claude-haiku-5.5  low     5
+rust   gpt-6-luna        medium  5

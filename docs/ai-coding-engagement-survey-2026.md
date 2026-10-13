@@ -66,6 +66,8 @@ Spørreundersøkelse for ~500 teknologer i Nav. Målet er å forstå hvordan fol
 
 Svaralternativer: Helt uenig / Uenig / Nøytral / Enig / Helt enig
 
+Metodenotat (13. oktober 2026): På nett vises påstandene som en knapperad per påstand, ikke lenger som et rutenett med radioknapper. Skalaen og verdiene (1–5) er de samme, og ingen knapp er forhåndsvalgt i noen av visningene. nav-pilot viser én påstand per skjerm, som før.
+
 **Q4. Tilfredshet (SPACE-S):** «Alt i alt er jeg fornøyd med AI-kodeverktøyene vi har tilgang til i Nav.»
 
 **Q5. Kognitiv belastning:** «AI-kodeverktøy reduserer mental innsats på repetitive oppgaver og boilerplate, slik at jeg kan fokusere på vanskeligere problemer.»
@@ -88,7 +90,7 @@ Reversert skåring — høy enighet peker på en barriere vi kan gjøre noe med 
 
 ### Del 4: Barrierer og muligheter (alle respondenter)
 
-**Q11.** Hvis du kunne endra én ting med AI-kodeverktøyene i Nav, hva ville det vært? *(velg én)*
+**Q11.** Hvis du kunne endre én ting med AI-kodeverktøyene i Nav, hva ville det vært? *(velg én)*
 
 - Bedre forståelse av kodebasen vår og interne rammeverk
 - Mer opplæring og veiledning i effektiv bruk

@@ -1,0 +1,94 @@
+● skill(aksel-builder)
+
+● skill(klarsprak)
+
+Jeg leser komponenten og prosjektets UU-regler først. Deretter retter jeg konkrete feil og kjører relevante kontroller.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read nextjs-aksel.instructions.md
+  │ .github/instructions/nextjs-aksel.instructions.md
+  └ 598 lines read
+
+● Read accessibility.md
+  │ ~/.copilot/skills/aksel-builder/references/accessibility.md
+  └ 84 lines read
+
+✗ Check project state and Aksel version (shell)
+  │ pwd && git status --short && rg -n '"@navikt/ds-react"|"scripts"' package.json
+  └ <arbeidsmappe>
+    fatal: not a git repository (or any of the parent directories): .git
+    Failed with exit code 128
+
+/ Search (glob)
+  │ "package.json"
+  └ No matches found
+
+/ Search (glob)
+  │ "src/app/komponenter/*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "node_modules/next/dist/docs/**"
+  └ No matches found
+
+● Inspect project files and package manifests (shell)
+  │ ls -la && find . -maxdepth 2 -type f \( -name 'package.json' -o -name 'pnpm-lock.yaml' -o -name
+  │ 'tsconfig.json' \) -print
+  └ 8 lines…
+
+/ Search (grep)
+  │ "StatusPanel" (src)
+  └ 1 line found
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read components.md                                                                              5s
+  │ ~/.copilot/skills/aksel-builder/references/components.md
+  └ 158 lines read
+
+● List source files (shell)                                                                       5s
+  │ find src -type f -maxdepth 5 -print
+  └ 1 line…
+
+Komponenten har flere tydelige UU-feil: en klikkbar `div`, skjult fokus, en ikonknapp uten navn og positiv `tabIndex`. «Vis detaljer» endrer ingen innhold, så jeg fjerner den døde kontrollen i stedet for å late som den åpner et panel.
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Edit
+  └ Edit src/app/komponenter/StatusPanel.tsx
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 18 lines read
+
+/ Search (grep)
+  │ "onClick=|outline:\s*"none"|tabIndex=\{[1-9]|TrashIcon|role="status""
+  │ (src/app/komponenter/StatusPanel.tsx)
+  └ 4 lines found
+
+● Check whether frontend validation tools are available (shell)
+  │ find . -maxdepth 2 -type d -name node_modules -o -type f -name 'package.json' -o -type f -name
+  │ '*lock*'
+  └ No Content
+
+Jeg gikk gjennom og rettet `src/app/komponenter/StatusPanel.tsx`:
+
+- Fjernet den klikkbare `div`-en og den ubrukte «Vis detaljer»-kontrollen. Den åpnet ikke noe innhold.
+- Gjorde sletting til en tastaturbetjent knapp med synlig navn. Ikonet er dekorativt.
+- Fjernet den positive `tabIndex`-verdien og skjult fokusmarkering.
+- Markerte statusen med `role="status"` og fjernet farge som eneste visuelle signal.
+
+Jeg kunne ikke kjøre frontend-tester eller typekontroll: prosjektet har ikke `package.json`, låsefil eller `node_modules`.
+

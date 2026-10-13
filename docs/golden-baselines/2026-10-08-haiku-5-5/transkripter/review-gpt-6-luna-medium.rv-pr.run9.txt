@@ -1,0 +1,31 @@
+🔍 Leser diffen mot `main` og finner relevante instruksjoner og sjekker for denne branchen.
+
+Diffen viser både autentiserings- og persondataflater samt Kafka-/DB-behandling. `mise check` finnes ikke i dette repoet, så jeg sjekker Gradle-oppsettet og leser rundt berørte filer før jeg konkluderer.
+
+📊 Jeg har funnet flere mulige sikkerhets- og driftsfeil. Gradle-testen stopper under prosjektkonfigurasjon med feilen `27`; jeg henter stacktrace og verifiserer at hver funnlinje hører til branchediffen.
+
+### Sammendrag
+
+Branchen bør ikke merges ennå. Jeg fant flere blokkere i tilgangskontroll, personvern og Kafka-/databasebehandling.
+
+### Funn
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `nais.yaml` | 25 | 🔴 | Inbound-regelen åpner for alle apper i alle namespaces. |
+| `Routes.kt` | 30 | 🔴 | Endepunktet som henter vedtak, mangler autentisering og kontroll av hvem som kan lese personens data. |
+| `App.kt` | 40 | 🔴 | JWT-oppsettet mangler en verifikator. Valideringen sjekker bare at en `audience` finnes, ikke at tokenet er gyldig for tjenesten. |
+| `VedtakRepository.kt` | 23 | 🔴 | `fnr` settes direkte inn i SQL-strengen. Det åpner for SQL-injeksjon. |
+| `VedtakService.kt` | 15 | 🔴 | Logger fødselsnummer. |
+| `VedtakConsumer.kt` | 25–33 | 🔴 | Retry kjører lagring på nytt hvis publisering feiler. Hvert forsøk lager et nytt vedtak, så samme melding kan gi duplikater. |
+| `App.kt` | 23 | 🔴 | Appen leser `DB_JDBC_URL`, men manifestet setter ikke variabelen. Oppstart feiler hvis den ikke kommer fra en annen konfigurasjon. |
+| `App.kt` | 26–34 | 🔴 | Kafka-klientene mangler SSL-/truststore-konfigurasjon for Nais Kafka. |
+| `VedtakRepository.kt` | 14 | 🔴 | Ingen migrering oppretter `vedtak`-tabellen, så databaseoperasjonene feiler mot databasen manifestet oppretter. |
+
+De tre første funnene gir uautorisert tilgang til vedtaksdata: nettverkspolicyen åpner tjenesten for alle, GET-ruten har ingen auth, og JWT-oppsettet validerer ikke tokenet mot forventet utsteder og audience. SQL-injeksjonen og loggingen av fødselsnummer forsterker personvernrisikoen.
+
+Retry-logikken kan lagre flere vedtak for én melding før Kafka-offseten blir committet. Hvis alle forsøk feiler, bobler feilen også ut av konsumenttråden, mens tjenesten kan fortsette å rapportere seg som klar.
+
+🔴 Rød sone: tilgangskontroll, tokenvalidering og behandling av vedtak må gjennomgås grundig.
+
+`git diff --check` passerte. `mise check` finnes ikke som oppgave i repoet. `gradle test` kom ikke til kompilering: Kotlin 2.1.0 feilet på Java 27 (`IllegalArgumentException: 27`), så testene er ikke verifisert.

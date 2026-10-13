@@ -1,0 +1,179 @@
+● skill(jackson-3-migration)
+
+● Identify branch and migration scope (shell)
+  │ git status --short && git branch --show-current && git --no-pager diff --stat && git --no-pager
+  │ log -5 --oneline && ls -a
+  └ 11 lines…
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+● Read migration diff and identify validation tools (shell)
+  │ git --no-pager diff 22327a6..HEAD && find .github -maxdepth 2 -type f && find src -type f &&
+  │ java -version && command -v gradle
+  └ 71 lines…
+
+✗ Read complete application and validate migration build (shell)                                  6s
+  │ cat build.gradle.kts src/main/kotlin/no/nav/demo/*.kt README.md nais.yaml && gradle --no-daemon
+  │ --console=plain build dependencyInsight --dependency jackson --configuration compileClasspath
+  └ plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+    }
+    repositories {
+    mavenCentral()
+    }
+    dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    }
+    dependencies {
+    implementation("tools.jackson.core:jackson-databind:3.1.0")
+    implementation("tools.jackson.module:jackson-module-kotlin:3.1.0")
+    implementation("org.apache.kafka:kafka-clients:3.9.0")
+    }
+    package no.nav.demo
+
+    import io.ktor.serialization.kotlinx.json.json
+    import io.ktor.server.application.install
+    import io.ktor.server.engine.embeddedServer
+    import io.ktor.server.netty.Netty
+    import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+
+    fun main() {
+    println("starter demo-tjeneste, maksAntall=$maksAntall")
+    embeddedServer(Netty, port = 8080) {
+    install(ContentNegotiation) { json() }
+    oppgaveRoutes()
+    }.start(wait = true)
+    }
+    package no.nav.demo
+
+    // Maks antall oppgaver som returneres i én respons.
+    const val maksAntall = 100
+    package no.nav.demo
+
+    import kotlinx.serialization.Serializable
+
+    @Serializable
+    data class Oppgave(val id: String, val tittel: String)
+
+    @Serializable
+    data class OppgaveRespons(val oppgaver: List<Oppgave>)
+    package no.nav.demo
+
+    import io.ktor.server.application.Application
+    import io.ktor.server.response.respond
+    import io.ktor.server.routing.get
+    import io.ktor.server.routing.routing
+
+    private val oppgaver = listOf(
+    Oppgave("1", "Registrer søknad"),
+    Oppgave("2", "Send vedtaksbrev"),
+    )
+
+    fun Application.oppgaveRoutes() {
+    routing {
+    get("/api/oppgaver") {
+    call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+    }
+    }
+    }
+    package no.nav.demo
+
+    import tools.jackson.databind.json.JsonMapper
+    import tools.jackson.module.kotlin.kotlinModule
+    import tools.jackson.module.kotlin.readValue
+    import org.apache.kafka.clients.producer.KafkaProducer
+    import org.apache.kafka.clients.producer.ProducerRecord
+    import java.time.LocalDate
+
+    data class SokerDto(val fnr: String, val navn: String)
+
+    data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+
+    val mapper: JsonMapper = JsonMapper.builder()
+    .addModule(kotlinModule())
+    .build()
+
+    fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+    fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId,
+    mapper.writeValueAsString(melding)))
+    }
+
+    fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+    }
+    # demo-tjeneste
+
+    En liten Ktor-tjeneste for demonstrasjon. Tjenesten eksponerer et REST-API
+    og kjører på Nais. Dokumentasjonen er dessverre ikke helt komplet enda.
+    apiVersion: nais.io/v1alpha1
+    kind: Application
+    metadata:
+    name: demo-tjeneste
+    namespace: demo
+    spec:
+    image: {{image}}
+    port: 8080
+    liveness:
+    path: /internal/isalive
+    readiness:
+    path: /internal/isready
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 6s
+    Failed with exit code 1
+
+● skill(klarsprak)
+
+✗ Locate compatible JDK and review line references (shell)
+  │ /usr/libexec/java_home -V 2>&1; ls ~/.local/share/mise/installs/java; git status
+  │ --short; nl -ba src/main/kotlin/no/nav/demo/Soknad.kt; nl -ba build.gradle.kts
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+**Migreringen ser riktig ut på kildekodenivå, men er ikke verifisert for merge.** Jeg vurderte `2161682` mot `22327a6` på branchen `jackson-3`. Ingen filer er endret.
+
+Det som er riktig:
+- Databind og Kotlin-modulen bruker `tools.jackson` og samme versjon, `3.1.0`.
+- Mapperen bygges med `JsonMapper.builder()` og Kotlin-modulen, uten mutasjon etter opprettelse.
+- `jackson-datatype-jsr310` er fjernet korrekt. Java-time-støtte er innebygd, og ISO-formatet for `LocalDate` videreføres av Jackson 3-standardinnstillingen.
+- Ingen gamle Jackson-importer eller `JsonNode.map`-kall finnes i applikasjonen.
+- Ktor bruker **kotlinx.serialization**, ikke Jackson. Ktor `3.0.0` krever derfor ikke oppgradering til `3.4+` for denne endringen.
+
+**To kompatibilitetspunkter mangler dokumentasjon gjennom tester:**
+
+| Sted | Endring eller risiko | Anbefaling |
+|---|---|---|
+| `Soknad.kt:14–16` | Jackson 3 sorterer egenskaper alfabetisk. Kafka-meldingen endrer rekkefølge fra `soknadId, mottatt` til `mottatt, soknadId`. Feltene er uendret, men rå strengsammenligning påvirkes. | Verifiser Kafka-payload som JSON og at `mottatt` fortsatt er en ISO-dato. |
+| `Soknad.kt:18` | `FAIL_ON_TRAILING_TOKENS` er aktivert som standard i Jackson 3. `lesSoker` blir strengere ved ekstra JSON etter objektet. | Test gyldig input og eksplisitt forventet oppførsel ved etterfølgende innhold. |
+
+Repoet har ingen tester eller Gradle-wrapper. Forsøket på `gradle build dependencyInsight --dependency jackson --configuration compileClasspath` feilet under prosjektkonfigurasjon med `> 27` på JDK 27, før kompilering og dependency-resolusjon. Forsøket på å finne en kompatibel lokal JDK ble nektet tilgang. **Build, runtime-oppførsel og fravær av transitive Jackson 2-avhengigheter er derfor ikke bekreftet.**
+
+Før merge: kjør build og dependency-kontroll med en kompatibel JDK 17+, og legg til karakteriseringstester for `lesSoker` og Kafka-payloadene. Ingen konkret feil i selve pakke- eller builder-migreringen er påvist.
+

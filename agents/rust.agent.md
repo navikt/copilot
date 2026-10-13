@@ -1,7 +1,7 @@
 ---
 name: rust-agent
 description: Idiomatisk Rust-utvikling med cargo, clippy, error handling, async/tokio, unsafe og testing
-model: GPT-6 Luna
+model: Claude Haiku 5.5
 tools:
   - execute
   - read

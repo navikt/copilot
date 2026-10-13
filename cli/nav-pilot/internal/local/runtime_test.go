@@ -441,7 +441,7 @@ func TestWeightsPresent(t *testing.T) {
 					t.Fatalf("seeding the cache: %v", err)
 				}
 			}
-			got, err := WeightsPresent(okModel)
+			got, err := WeightsPresent(okModel, "")
 			if err != nil {
 				t.Fatalf("WeightsPresent() errored: %v", err)
 			}
@@ -463,7 +463,7 @@ func TestDownloadWeightsErrorNamesTheHostsItNeeds(t *testing.T) {
 	}
 	t.Cleanup(func() { runStreaming = orig })
 
-	err := DownloadWeights(context.Background(), okModel, nil)
+	err := DownloadWeights(context.Background(), okModel, "", nil)
 	if err == nil {
 		t.Fatal("DownloadWeights() returned no error")
 	}
@@ -485,7 +485,7 @@ func TestDownloadWeightsReportsProgressToTheCallback(t *testing.T) {
 	t.Cleanup(func() { runStreaming = orig })
 
 	var lines []string
-	if err := DownloadWeights(context.Background(), okModel, func(s string) { lines = append(lines, s) }); err != nil {
+	if err := DownloadWeights(context.Background(), okModel, "", func(s string) { lines = append(lines, s) }); err != nil {
 		t.Fatalf("DownloadWeights() errored: %v", err)
 	}
 	if len(lines) != 2 {
@@ -1472,7 +1472,7 @@ func TestServerCommandRunsTheBootstrapWithTheSameFlags(t *testing.T) {
 	if name != venvBin("python") {
 		t.Errorf("serverCommand program = %q, want the venv python %q", name, venvBin("python"))
 	}
-	want := []string{"-c", serverScript(), "--model", "org/m", "--host", "127.0.0.1", "--port", "8123", "--temp", "0.6"}
+	want := []string{"-c", serverScript(Model{Model: "org/m"}), "--model", "org/m", "--host", "127.0.0.1", "--port", "8123", "--temp", "0.6"}
 	if !slices.Equal(args, want) {
 		t.Errorf("serverCommand args =\n  %q\nwant\n  %q", args, want)
 	}

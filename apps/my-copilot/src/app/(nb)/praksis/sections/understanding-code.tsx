@@ -79,12 +79,13 @@ export default function UnderstandingCode() {
             Semantisk Søk i kodebasen
           </Heading>
           <BodyShort size="small" className="text-gray-700 mb-3">
-            Du trenger ikke lenger vite nøyaktig hvilken fil koden ligger i. Bruk <code>@workspace</code> i Copilot Chat
-            for å stille spørsmål om arkitekturen direkte.
+            Du trenger ikke lenger vite nøyaktig hvilken fil koden ligger i. Spør agenten om arkitekturen direkte. I
+            agent mode søker den i prosjektet selv. Vet du hvor du vil begynne, pek på filen med <code>@</code> i
+            Copilot CLI eller <code>#file</code> i VS Code.
           </BodyShort>
           <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
             <p className="text-sm font-mono text-gray-800">
-              "@workspace Hvor ligger logikken for autentisering mot betalingsgatewayen, og hvilke filer er involvert?"
+              "Hvor ligger logikken for autentisering mot betalingsgatewayen, og hvilke filer er involvert?"
             </p>
           </div>
         </section>

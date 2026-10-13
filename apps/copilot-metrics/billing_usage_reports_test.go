@@ -63,6 +63,14 @@ func TestIngestBillingUsageReportDay_AlwaysUpserts(t *testing.T) {
 	}
 }
 
+func TestBillingUsageReportFailedDeleteDoesNotInsert(t *testing.T) {
+	store := &mockUsageReportStore{deleteErr: ErrStreamingBuffer}
+	fetcher := &mockUsageReportFetcher{resp: &OrganizationBillingUsageResponse{UsageItems: []OrganizationBillingUsageItem{{Product: "Copilot"}}}}
+	if err := ingestBillingUsageReportDay(context.Background(), fetcher, store, &Config{EnterpriseSlug: "nav"}, billingSyncStart, false); !errors.Is(err, ErrStreamingBuffer) || store.inserted != 0 {
+		t.Fatal("failed delete followed by duplicate insert")
+	}
+}
+
 func TestIngestBillingUsageReportDay_UpsertsRows(t *testing.T) {
 	store := &mockUsageReportStore{}
 	fetcher := &mockUsageReportFetcher{

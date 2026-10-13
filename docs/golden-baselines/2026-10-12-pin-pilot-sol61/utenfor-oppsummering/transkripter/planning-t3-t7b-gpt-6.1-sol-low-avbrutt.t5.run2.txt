@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+**TokenX** for tjeneste-til-tjeneste-kall med innbyggerens brukerkontekst. A veksler brukertokenet til et token med B som audience. Ikke bruk `client_credentials`: da mister dere brukerkonteksten.
+
+Hvis brukeren er en **Nav-ansatt med Azure AD-token**, bruk **Azure AD On-Behalf-Of (OBO)** i stedet. B må validere tokenet og kontrollere brukerens tilgang til ressursen.
+

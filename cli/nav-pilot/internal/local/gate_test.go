@@ -544,7 +544,7 @@ func TestGateVerifiesTheWorkersResult(t *testing.T) {
 	}
 }
 
-// A check that fails after the worker created a file sends it back to the
+// A check that fails after the worker created or edited a file sends it back to the
 // worker once, with the check's output; a second failure is the
 // orchestrator's to fix (mlx-workspace #126, bench-frontier's retry2).
 func TestGateGivesACreatedFileOneRetry(t *testing.T) {
@@ -590,11 +590,19 @@ func TestGateGivesACreatedFileOneRetry(t *testing.T) {
 		t.Errorf("create_retry_passed = %d, want 1", n)
 	}
 
-	// A worker that only edited gets no retry offer: that is not create-file.
+	// A worker that edited an existing file gets the retry too (#1011).
+	g.verify(GateRequest{Session: "w4", Agent: WorkerAgent, Tool: "edit", Path: filepath.Join(root, "go.mod"), Phase: "worker"})
+	g.verify(GateRequest{Session: "s", Turn: 4, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Worker: "w4", Phase: "after"})
+	g.decide(bash(4, "npm test"))
+	if _, got := g.verify(GateRequest{Session: "s", Turn: 4, Agent: "nav-pilot", Tool: "bash", Command: "npm test", Exit: exit(1), Phase: "after"}); got != GateRetryText {
+		t.Errorf("an edit got %q, want the retry", got)
+	}
+
+	// A worker that wrote nothing gets no retry offer.
 	g.verify(GateRequest{Session: "s", Turn: 3, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Worker: "w3", Phase: "after"})
 	g.decide(bash(3, "npm test"))
 	if key, _ := g.verify(GateRequest{Session: "s", Turn: 3, Agent: "nav-pilot", Tool: "bash", Command: "npm test", Exit: exit(1), Phase: "after"}); key != "" {
-		t.Errorf("an edit-only return got a retry offer: %q", key)
+		t.Errorf("a return without writes got a retry offer: %q", key)
 	}
 }
 

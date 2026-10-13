@@ -1,0 +1,23 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        security-champion
+# suite:        none
+# date:         2026-10-07
+# revision:     9297b1b4
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-0.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      2929655385
+# prompts:      sc1,sc2,sc3
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+sc-pr|1|1845bbde-f05a-4d1a-8501-591b0d7d7f72|19613|0|claude-opus-5.5|low|40060|116|14193|25863|0|13448960000|2213|1641.8100000000002|tool_calls||
+sc-pr|1|1845bbde-f05a-4d1a-8501-591b0d7d7f72|19615|0|claude-opus-5.5|low|40547|142|40056|489|0|1330420000|2114|1358.4472070000002|tool_calls||
+sc-pr|1|1845bbde-f05a-4d1a-8501-591b0d7d7f72|19619|0|claude-opus-5.5|low|46817|2040|40545|6270|451|8026700000|21678|3380.4568759999997|stop||
+sc-clean|1|f924da1f-af60-44f5-8a5e-d176b8988bdd|19621|0|claude-opus-5.5|low|40014|130|14193|25817|0|13453960000|2480|1826.2554579999999|tool_calls||
+sc-clean|1|f924da1f-af60-44f5-8a5e-d176b8988bdd|19622|0|claude-opus-5.5|low|40921|384|40010|909|194|2023500000|5594|4533.829292|tool_calls||
+sc-clean|1|f924da1f-af60-44f5-8a5e-d176b8988bdd|19624|0|claude-opus-5.5|low|42794|695|40919|1873|20|3145680000|8606|2539.285168|stop||

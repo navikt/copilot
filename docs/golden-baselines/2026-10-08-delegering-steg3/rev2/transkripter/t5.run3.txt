@@ -1,0 +1,4 @@
+● skill(nav-auth)
+
+Bruk **TokenX token exchange (on-behalf-of)**. Tjeneste A veksler brukerens token til et token med tjeneste B som audience, og sender det til B. Da beholder kallet brukerkonteksten. Azure AD `client_credentials` er for maskin-til-maskin-kall uten brukerkontekst.
+

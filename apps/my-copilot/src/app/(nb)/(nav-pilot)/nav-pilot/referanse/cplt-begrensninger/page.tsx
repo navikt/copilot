@@ -142,7 +142,7 @@ export default function CpltBegrensninger() {
           </LinkableHeading>
           <Bullets>
             <li>
-              Push til standardgrenen, force push og <code className={code}>gh pr merge</code> er stoppet.
+              Push til default branch, force push og <code className={code}>gh pr merge</code> er stoppet.
             </li>
             <li>
               macOS: <code className={code}>git config</code>, <code className={code}>git remote set-url</code>,{" "}

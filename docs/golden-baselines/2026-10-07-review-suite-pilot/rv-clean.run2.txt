@@ -1,0 +1,46 @@
+● Read file (shell)
+  │ cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak/
+  └ 63 lines…
+
+✗ Check tooling and manifest (shell)
+  │ which mise gradle; cat nais.yaml | head -40; ls src/test 2>&1
+  └ /opt/homebrew/bin/mise
+    /Users/hans/.local/share/mise/shims/gradle
+    apiVersion: nais.io/v1alpha1
+    kind: Application
+    metadata:
+    name: demo-tjeneste
+    namespace: demo
+    spec:
+    image: {{image}}
+    port: 8080
+    liveness:
+    path: /internal/isalive
+    readiness:
+    path: /internal/isready
+    ls: src/test: No such file or directory
+    Failed with exit code 1
+
+### Oppsummering
+Spørringen er parameterisert, og eierskapet stemmer: `fnr` kommer fra `pid`-claimet i tokenet, ikke fra request. Den største svakheten er maskeringen, som fortsatt logger personopplysninger. `mise check` ble ikke kjørt, fordi repoet mangler mise-oppsett og `src/test` ikke finnes.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 20, 37, 41 | 🔴 | `maskert()` logger fødselsdatoen (6 første siffer). Det er fortsatt en personopplysning. |
+| `SakService.kt` | 48–50 | 🔴 | Rød sone: ingen sjekk av `acr` (`idporten-loa-high`). Tokens med lavt sikkerhetsnivå får se saker. |
+| `SakService.kt` | 38–43 | 🟡 | Exceptionen blir logget og så kastet videre. Det gir dobbel logging, og en DB-exception kan ta med SQL-detaljer i loggen. |
+| `SakService.kt` | 47–58 | 🟡 | Ruter, service og repository ligger i én fil. Lagdelingen blir uklar. |
+| — | — | 🟡 | Ingen tester. Mangler blant annet test av 401 når `pid` mangler, og test av at loggen ikke inneholder fnr. |
+| `SakService.kt` | 19 | 💭 | KDoc-en «aldri personnummeret» gir falsk trygghet. |
+
+### Detaljer
+**Maskering:** Fødselsdato sammen med tema (for eksempel sykepenger) kan identifisere personen. Logg ingen del av fnr. Bruk en korrelasjons-ID eller call-id i stedet:
+```kotlin
+log.info("Henter saker")
+```
+**acr:** Legg til en sjekk, for eksempel `payload.getClaim("acr").asString() == "idporten-loa-high"`, i auth-oppsettet (`validate { }`). Da avviser appen tokens med for lavt nivå før de når ruten.
+
+Still gjerne spørsmål om valgene over.
+

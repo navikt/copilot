@@ -15,6 +15,12 @@ export function currentMonthUTC(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+export function teamInsightMonth(requested: string | undefined, current = currentMonthUTC()): string {
+  return requested && /^20\d\d-(0[1-9]|1[0-2])$/.test(requested) && requested >= "2026-05" && requested <= current
+    ? requested
+    : current;
+}
+
 /**
  * Returns the previous calendar month relative to `month` (YYYY-MM).
  * Safe against day-31 overflow: sets day to 1 before subtracting.

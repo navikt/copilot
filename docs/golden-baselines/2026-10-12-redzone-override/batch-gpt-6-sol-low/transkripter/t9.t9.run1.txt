@@ -1,0 +1,70 @@
+● skill(deliberate-ai-use)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:160 (160 lines read)
+
+/ Search (glob)
+  │ "*gradle*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+/ Search (glob)
+  │ ".github/**"
+  └ 17 files found
+
+🔴 **Rød sone — forstå dette grundig:** Feriepengeberegning er ny for teamet og er kjernelogikk. Jeg fant en Ktor-tjeneste uten testoppsett, men ingen eksisterende feriepengeregler å støtte meg på. Før jeg legger til funksjonen og testene, trenger jeg avklart to ting:
+
+1. Skal negativt `grunnlag` avvises, og skal beløp på nøyaktig 50 øre rundes opp?
+2. Vil dere at jeg implementerer beregningen for gjennomgang, eller vil teamet skrive selve regelen først mens jeg lager testene?
+
+Jeg legger til grunn at dette er en selvstendig funksjon, uten nytt API eller endret dataflyt. Repoet mangler `AGENTS.md` og de to Copilot-instruksjonsfilene; `nav-pilot init` kan legge dem til. Andre intervjutemaer er ikke relevante for en isolert beregning. Jeg kjører ikke Gradle.
+
+Blindsoner reist: 2/11 (#7 testoppsett, #11 nytt regelverk; #1–#6 og #8–#10 ikke relevante).
+

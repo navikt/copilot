@@ -1,0 +1,73 @@
+
+
+
+
+
+## Fase 2: Plan
+
+**Bygg dette som et Kotlin/Ktor-API som kalles av den eksisterende Next.js-appen.** Jeg antar at Next.js fungerer som BFF: nettleseren går via Next.js, ikke direkte til API-et. BFF-et bruker ID-porten via Wonderwall og veksler brukerens token til TokenX for Ktor-tjenesten. Tjenesten validerer TokenX, henter fødselsnummeret fra den validerte brukerkonteksten og bruker TokenX på vegne av innbyggeren når den kaller PDL. Dette gir et ekstra kall sammenlignet med direkte tilgang, men holder tjenesten bak en kontrollert tjenestegrense.
+
+### Omfang og forutsetninger
+
+- Tjenesten slår opp navn i PDL og returnerer bare data Next.js trenger.
+- Fødselsnummer og navn behandles som fortrolige personopplysninger.
+- Ingen database eller varig lagring. Behandle dataene i minnet mens kallet pågår.
+- Ikke ta imot fødselsnummer fra nettleseren. Bruk identiteten fra et validert token.
+- Jeg antar at hjemmelen dekker oppslaget. Avklar den konkrete lovbestemmelsen og eventuell plikt til tilgangslogging før produksjonssetting.
+- Navnet på Next.js-appen, PDL-appen og riktige clusterverdier må fylles inn i Nais-konfigurasjonen.
+
+### Beslutninger
+
+| Område | Valg |
+|---|---|
+| Arketype | Kotlin/Ktor backend-API |
+| Innlogging | ID-porten og Wonderwall i Next.js-appen |
+| Tilgang til API-et | TokenX fra Next.js BFF til Ktor |
+| Tilgang til PDL | TokenX med innbyggerens brukerkontekst |
+| Kommunikasjon | Synkront REST-kall |
+| Lagring | Ingen database; ingen kø eller dead-letter |
+| Feil fra PDL | Returner 503 ved utilgjengelig PDL. Logg feilen strukturert uten fødselsnummer, navn eller token |
+| Logging | JSON-format. Kun tekniske detaljer og korrelasjons-ID, aldri PII |
+| Klassifisering | Fortrolig |
+
+### Flyt og API
+
+1. Innbyggeren logger inn i Next.js-appen med ID-porten via Wonderwall.
+2. BFF-et validerer brukerens identitet og bruker TokenX for å kalle Ktor-tjenesten.
+3. Ktor validerer TokenX-tokenet og henter fødselsnummeret fra en tillatt, verifisert claim.
+4. Ktor utveksler tokenet for tilgang til PDL, henter navnet og returnerer bare nødvendige felter.
+
+Ikke la klienten sende inn fødselsnummer som autoritativ identitet. Avklar claim-navn og tokenformat mot faktiske ID-porten-, Wonderwall- og TokenX-token før implementering.
+
+### Nais og tilgang
+
+Aktiver TokenX på Ktor-tjenesten. Sett `accessPolicy.inbound` til bare den eksisterende Next.js-appen, og `accessPolicy.outbound` til PDL med riktig namespace og cluster. Ikke eksponer backend direkte mot internett under den valgte BFF-modellen. Next.js-appen må ha ID-porten og Wonderwall konfigurert.
+
+Behold readiness- og liveness-endepunktene i manifestet. Legg til Prometheus-metrikker, start med `cpu: 15m` og `memory: 256Mi` som requests, `memory: 512Mi` som limit, og to replicas. Ikke sett CPU-limit.
+
+### Tester og CI/CD
+
+- **Ktor API:** tester for vellykket oppslag, ugyldig eller manglende token, manglende identitetsclaim og PDL-feil.
+- **Auth:** integrasjonstester for gyldig token, utløpt token, feil issuer og manglende claims. Avvis uautentiserte kall.
+- **PDL-klient:** tester med simulert PDL-respons, inkludert timeout og feilstatus.
+- **Next.js BFF:** test autentisering, TokenX-utveksling og videresending av feil uten å eksponere token eller PII.
+- **CI/CD:** legg til workflow for bygg, tester og deploy til dev før prod. Bruk repoets GitHub Actions-regler og SHA-pinnede actions.
+
+Repoet har et Ktor-grunnskjelett, men ingen tester eller workflow under `.github/workflows` ennå.
+
+### Observabilitet og drift
+
+Mål oppslag per minutt, feilandel og feil fra PDL. Bruk lav-kardinalitetsfelter som HTTP-status og avhengighetsnavn, aldri fødselsnummer eller navn. Sett varsling på vedvarende høy feilandel og PDL-utilgjengelighet. Avklar vaktansvar og alarmgrenser før produksjonssetting. Verifiser etter deploy med et testoppslag og sjekk at metrikker og varsler virker.
+
+### Risiko og neste steg
+
+Viktigste risiko er at tjenesten bruker feil identitetsclaim eller token audience. Test den faktiske TokenX-flyten fra Next.js gjennom Ktor til PDL før prod. En annen uavklart risiko er om regelverket krever audit-logging av hvem som har gjort oppslag; vanlige logger skal uansett ikke inneholde PII.
+
+**Leveransedokumenter:** endringsbeskrivelse med rollback-plan, kort driftsveiledning for PDL-feil og sjekkliste for verifisering etter deploy. Rollback er å rulle tilbake deployen; siden tjenesten ikke lagrer data eller endrer eksisterende løsning, trengs ingen datamigrering eller feature toggle.
+
+🔴 **Rød sone:** tokenvalidering, identitetsuttak og tilgang til PDL. Teamet har ikke erfaring med TokenX og Wonderwall. Gå grundig gjennom disse delene og test avvisning av ugyldige tokens og brukeridentiteter.
+
+🟢 **Grønn sone:** Nais-oppsett, CI/CD, metrikker og teststillas.
+
+**Planen er klar for gjennomgang i fase 3.**
+

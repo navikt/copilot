@@ -103,7 +103,6 @@ func (c *BigQueryClient) InsertBillingUsageDailyModelDay(ctx context.Context, da
 	}
 
 	table := c.client.Dataset(c.dataset).Table(billingUsageDailyModelTable)
-	inserter := table.Inserter()
 	loadedAt := time.Now().UTC()
 	dayCivil := civil.DateOf(day)
 
@@ -129,7 +128,7 @@ func (c *BigQueryClient) InsertBillingUsageDailyModelDay(ctx context.Context, da
 		})
 	}
 
-	if err := inserter.Put(ctx, rows); err != nil {
+	if err := loadRows(ctx, table, rows); err != nil {
 		return fmt.Errorf("insert billing daily model rows: %w", err)
 	}
 	return nil

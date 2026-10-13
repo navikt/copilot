@@ -1,0 +1,24 @@
+### Oppsummering
+
+Filen er ryddig. SQL-spørringen er parametrisert, fnr hentes fra token og ikke fra input, og loggene inneholder ikke fødselsnummer. Hovedrisikoen er blokkerende JDBC-kall i en suspend-handler. Jeg kjørte ikke `mise check` fordi repoet ikke har `apps/`-struktur, og jeg har ikke sett migrasjonene.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 40–44 | 🟡 | `sakerFor` kjører blokkerende JDBC direkte i en suspend-handler. Det binder en Ktor-tråd under databasekall. Pakk kallet i `withContext(Dispatchers.IO)`, eller gjør repositoryet suspend. |
+| `SakService.kt` | 25 | 🟡 | `ORDER BY opprettet` uten indeks på `fnr` gir full tabellskanning ved økende datamengde. Sjekk at det finnes indeks på `sak(fnr, opprettet)` i Flyway-migrasjonene. |
+| `SakService.kt` | 12 | 💭 | `maskert()` beholder lengden på fnr (11 tegn), som lekker litt informasjon. Vurder fast maske, for eksempel `"***********"`, eller bare logge at et oppslag skjedde. |
+| `SakService.kt` | 36–38 | 💭 | `log.error` logger bare exception-klassen, noe som er bra. Kontroller at `StatusPages` gir 500 uten å eksponere feilmeldingen til klienten. |
+
+### Detaljer
+
+**Blokkerende kall (🟡):** Ktor kjører route-handlere på få tråder. Ett JDBC-kall per request blokkerer en av dem. Under last gir det køer for alle endepunkter.
+
+```kotlin
+suspend fun sakerFor(fnr: String): List<Sak> = withContext(Dispatchers.IO) {
+    // eksisterende kode
+}
+```
+
+**Ingen sikkerhetsfunn:** Endepunktet henter bare saker for fnr i token. Brukeren kan derfor ikke se andres saker via `/api/saker`, så eierskapssjekken er oppfylt av konstruksjonen.

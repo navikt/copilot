@@ -19,3 +19,26 @@ export function matches(route, pattern) {
   const base = pattern.slice(0, -3);
   return route === base || route.startsWith(base + "/");
 }
+
+// Routes that must require a login. Wonderwall lets them through too (see
+// app.yaml), so src/proxy.ts is the only gate; check-public-routes.mjs and
+// src/proxy.test.ts fail if it stops guarding one.
+export const PRIVATE_ROUTES = [
+  "/nav-pilot/undersokelse",
+  "/abonnement",
+  "/kostnad",
+  "/statistikk",
+  "/statistikk/json",
+  "/innsikt/team",
+  "/innsikt/team/rapport",
+  "/innsikt/forbruk",
+  "/innsikt/bruk",
+  "/innsikt/tilpasninger",
+  "/innsikt/trender",
+  "/admin",
+  "/admin/kostnad",
+  "/admin/kostnad/rapport",
+  "/admin/kostnad/innsyn",
+  "/admin/undersokelser",
+  "/adopsjon",
+];

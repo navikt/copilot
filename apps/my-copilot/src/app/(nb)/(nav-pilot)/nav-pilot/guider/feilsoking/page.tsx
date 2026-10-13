@@ -39,7 +39,7 @@ export default function Feilsoking() {
             {`nav-pilot doctor              # konfig, installasjon, hooks, klienter, cplt og git
 nav-pilot config validate     # bare konfigfila: syntaks, nøkler og verdier
 nav-pilot mcp list            # MCP-servere som ikke virker, og kommandoen som retter det
-nav-pilot alpha local doctor  # bare egen server (local_endpoint)`}
+nav-pilot alpha local doctor  # bare egen LLM-server (local_endpoint)`}
           </CodeBlock>
           <BodyLong>
             <code className={code}>doctor</code> endrer ingenting, og hvert problem kommer med kommandoen som løser det.
@@ -264,7 +264,7 @@ cplt check exec docker                         # får agenten kjøre programmet?
             <code className={code}>nav-pilot alpha local restart</code>.
           </BodyLong>
           <BodyLong>
-            nav-pilot avslutter en tur, og sier fra i økten, hvis modellen gjør det samme verktøykallet fire ganger på
+            nav-pilot avslutter en runde, og sier fra i økten, hvis modellen gjør det samme verktøykallet fire ganger på
             rad med samme resultat, eller åtte ganger på rad uansett resultat. Det er en vakt mot at modellen står fast,
             ikke en feil i koden din. Grensene endrer du med <code className={code}>local_loop_guard</code>.
           </BodyLong>

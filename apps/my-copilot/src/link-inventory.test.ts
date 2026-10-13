@@ -48,6 +48,8 @@ const DYNAMIC: Record<string, (value: string) => boolean> = {
   // ponytail: video ids come from a GCS feed at request time, so any id passes.
   // Check against the feed if video links start appearing in the repo.
   "/videos/[id]": () => true,
+  // Survey ids live in copilot-survey; the page answers 404 to an unknown one.
+  "/admin/undersokelser/[id]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
 };
 
 // Redirects that are deliberately temporary: aliases, not moved pages.
@@ -169,7 +171,7 @@ function definedAnchors(routeFile: string, headingsOnly = false): Map<string, st
     const src = fs.readFileSync(file, "utf-8");
     for (const m of src.matchAll(/(?<![\w-])id="([^"]+)"/g)) {
       const tag = src.slice(src.lastIndexOf("<", m.index) + 1).match(/^[\w.]+/)?.[0] ?? "";
-      if (!headingsOnly || tag === "LinkableHeading") ids.set(m[1], rel(file));
+      if (!headingsOnly || tag === "LinkableHeading" || tag === "InsightSection") ids.set(m[1], rel(file));
     }
     for (const h of sourceHeadings(src)) {
       if (h.tag === "LinkableHeading" && h.id) ids.set(h.id, rel(file));
@@ -289,6 +291,7 @@ function currentSite(): Found[] {
     "/praksis/guide/[slug]": allGuides.map((g) => g.id),
     "/install/[type]": Object.keys(INSTALL_TYPES),
     "/videos/[id]": [],
+    "/admin/undersokelser/[id]": [],
   };
   for (const route of routes.filter((r) => r.pattern.includes("["))) {
     for (const value of dynamicPages[route.pattern] ?? []) {
@@ -359,8 +362,8 @@ describe("link inventory", () => {
       expect(ids.has("lokale-modeller")).toBe(true);
       expect(ids.has("finnes-ikke")).toBe(false);
     }
-    const stats = resolvePath("/statistikk");
-    if ("file" in stats) expect(definedAnchors(stats.file).has("modellkostnad-historikk")).toBe(true); // in a component
+    const stats = resolvePath("/innsikt/bruk");
+    if ("file" in stats) expect(definedAnchors(stats.file).has("kilde-og-metode")).toBe(true); // in a component
     const ordliste = resolvePath("/ordliste");
     if ("file" in ordliste) expect(definedAnchors(ordliste.file, true).has("ordbok-kategori-filter")).toBe(false); // a form field
     const abonnement = resolvePath("/abonnement");

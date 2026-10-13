@@ -212,11 +212,19 @@ Tåler ikke porten å være stille ute av funksjon, er `--user` det scopet som f
 
 ### Portene slipper gjennom når Python svikter
 
-Copilot CLI nekter et verktøykall når en `preToolUse`-hook bruker lengre tid enn
-`timeoutSec`. Kommandoen nav-pilot skriver, stopper derfor skriptet ett sekund før fristen,
-og da slipper kallet gjennom. Det samme skjer når `python3` mangler eller skriptet feiler. En
-port som nekter alt når Python er treg, er verre enn ingen port. Kommandoen bruker bare `sh`,
-fordi macOS ikke har `timeout`.
+Bruker en `preToolUse`-hook lengre tid enn `timeoutSec`, dreper Copilot CLI den og slipper
+verktøykallet gjennom, men først når hele fristen er brukt (målt med 1.0.94). Kommandoen
+nav-pilot skriver, stopper derfor skriptet to sekunder før fristen og slipper kallet gjennom
+selv, så ventetiden blir kortere. Det samme skjer når `python3` mangler eller skriptet feiler.
+Med standardfristen på 5 sekunder har skriptet 3 sekunder på seg, og nav-pilot setter aldri
+`timeoutSec` lavere enn 3. Hooker som er installert fra før, får den nye marginen neste gang
+du kjører `nav-pilot install` eller `nav-pilot sync --apply`. Til da har de den gamle marginen
+på ett sekund. En port som nekter alt når Python er treg, er verre enn ingen port. Kommandoen
+bruker bare `sh`, fordi macOS ikke har `timeout`.
+
+En port i en agentpakke kan be om det motsatte med `"failClosed": true` i sidecar-fila. Da
+nekter den kallet når den feiler eller ikke svarer i tide. Se
+[README.agentpakke.md](README.agentpakke.md#porter-som-skal-stoppe-kallet-når-de-ikke-svarer-failclosed).
 
 Det et skript skriver ut, teller bare når det avslutter med exitkode 0. Skriver en hook fra en
 annen pakke et `deny`-svar og avslutter med 2, slipper kallet altså gjennom. Skal en port nekte,
@@ -250,12 +258,12 @@ hva hver av dem gjør og hvordan du slår den av.
 
 | Hook           | Fil                                 | Hva den gjør                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Slå av                                                                          |
 | -------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Løkkevakt      | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                                                                                                                                                          | `nav-pilot config set hook_loop_guard false`                                    |
+| Loop guard     | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                                                                                                                                                          | `nav-pilot config set hook_loop_guard false`                                    |
 | Handlingssjekk | `nav-pilot-action-check.json`       | Før en risikabel skallkommando (endringer med kubectl, nais, gcloud og helm, `terraform apply`/`destroy`, `rm -r`, `git push --force`, `git reset --hard`, `git clean -f`, `dd`, `mkfs`, `DROP` og `TRUNCATE` i SQL) spør hooken den lokale modellen om kommandoen står i forhold til formålet, om den er destruktiv, og om formålet støtter den. Svaret lagres i telemetri og i en logg i øktas mappe. Stopper ingenting, og modellen ser ikke svaret. Bare med lokal modell. | `nav-pilot config set hook_action_check off`                                    |
 | Maskering      | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører).                                                                                                                                        | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
 
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
-det modellen leser. Når løkkevakten slår til, får modellen derfor en beskjed om at den står
+det modellen leser. Når loop guard slår til, får modellen derfor en beskjed om at den står
 fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
 `local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil i øktas egen
 mappe, `~/.copilot/session-state/<økt-id>/nav-pilot-loop-guard.json`. Filen inneholder bare
@@ -298,7 +306,7 @@ I en lokal økt står vakten i nav-pilot allerede foran modellen og avslutter tu
 hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene er laget for å
 slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt, blir
 resultatet stående som det var. Unntaket er en `config.toml` som ikke lar seg lese. Da
-kjører hookene med standardverdiene, altså med maskering og løkkevakt på, og skriver én
+kjører hookene med standardverdiene, altså med maskering og loop guard på, og skriver én
 linje om det på stderr. En ødelagt fil skal ikke være det som slår av maskeringen. En nøkkel
 med feil type, for eksempel `hook_redact_secrets = "false"` med anførselstegn, blir hoppet
 over, så standardverdien gjelder, og hooken sier fra om det på stderr.
@@ -379,12 +387,39 @@ en `config.toml` uten `client` betyr `copilot`. Copilot CLI er fortsatt fullt st
 
 En modell du velger med config eller `--model`, vinner over agentpakkas standard.
 
-> **Bruk sandkassen cplt.** nav-pilot foretrekker `cplt` og kjører klienten via
+### Modellen til en subagent (Copilot CLI)
+
+Copilot CLI lar `~/.copilot/settings.json` velge modellen en agent bruker når en annen agent
+starter den som subagent, under `subagents.agents.<navn>.model`. Nøkkelen er `name:` i agentfila,
+ikke filnavnet. Et filnavn som nøkkel har ingen virkning (målt 8. oktober 2026).
+Innstillingen vinner over `model:` i agentfila. Står den til `inherit`, kjører for eksempel
+`@security-champion` på modellen til agenten som delegerte, og ikke på Claude Opus 5.5.
+Står det en modell Copilot ikke kjenner, bruker Copilot CLI modellen til agenten som
+delegerte, men viser fortsatt navnet du skrev.
+
+`nav-pilot doctor` sier fra i begge tilfellene for agentene i `~/.copilot`, men ikke for agenter installert i repoet. Den leser fila og endrer den aldri, og kommentarer
+i fila går fint. Kan den ikke lese fila, sier den det og fortsetter:
+
+```text
+[i] Subagent model overrides
+    ⚠ @security-champion is pinned to Claude Opus 5.5, but ~/.copilot/settings.json overrides it to inherit for subagents; delegated runs use the parent model.
+      Solution: Remove subagents.agents.security-champion-agent.model from ~/.copilot/settings.json, or set it to the agent's own model.
+```
+
+`mise run canary:subagent-pin` sjekker om Copilot CLI fortsatt bruker modellen i agentfila når agenten
+kjører som subagent. Sjekken bruker en egen, midlertidig `COPILOT_HOME` og koster 0,1–0,5 AI credits.
+Workflowen `subagent pin canary` kjører den samme sjekken. Den åpner eller oppdaterer en sak
+med etiketten `subagent-pin-canary` når sjekken feiler.
+Den ukentlige kjøringen er av til repovariabelen `SUBAGENT_PIN_CANARY` er `true`.
+
+> **nav-pilot krever sandkassen cplt.** nav-pilot kjører klienten via
 > `cplt --agent <klient>`. Agenten kan da lese og skrive prosjektfiler, men når ikke
-> SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. `cplt` må
-> være installert for å starte `pi`. Mangler cplt, spør nav-pilot om `copilot` eller
-> `opencode` skal starte uten sandkasse. Med `--no-sandbox` starter de uten å spørre.
-> En agentpakke med ferdigbygde filer (Tier 2) krever cplt for alle klientene.
+> SSH-nøkler, tilgangsinformasjon for skytjenester eller andre hemmeligheter. Mangler
+> cplt, starter nav-pilot ingen klient. `--no-sandbox` finnes ikke lenger: nav-pilot
+> avslutter med en feilmelding som forklarer hvordan du installerer cplt.
+> Ett unntak: For å sjekke hvilke modeller kontoen din har, kjører nav-pilot
+> `copilot --model nav-pilot-model-probe -p probe` direkte, uten cplt. Copilot CLI avviser kallet før noen prompt
+> kjører, og ingen agent starter.
 >
 > **Sandboxen gjelder katalogen du står i.** nav-pilot sender alltid `--project-dir` med
 > til cplt, satt til arbeidskatalogen. Uten det utvider cplt en undermappe til roten av
@@ -400,15 +435,40 @@ En modell du velger med config eller `--model`, vinner over agentpakkas standard
 > `copilot --agent nav-pilot` uten cplt kjører uten sandbox.
 
 > **Auth-detalj (Copilot/cplt):** nav-pilot henter ikke ut GitHub-tokenet selv.
-> Med `cplt`s gh-guard på, som den er i `standard` og `strict`, skaffer `cplt` tokenet: den bruker `GH_TOKEN`,
-> `GITHUB_TOKEN` eller `COPILOT_GITHUB_TOKEN` hvis en av dem er satt, ellers
-> `gh auth token` utenfor sandkassen, og leverer det via en 0600-fil som leses
-> én gang. Med gh-guarden av gjør `cplt` ingenting her, og Copilot autentiserer
-> selv. `copilot_auth_mode` styrer hvilke kilder som slipper fram: `auto`
-> (standard) begrenser ingenting, `env_only` avbryter oppstart hvis tokenet ikke
-> allerede ligger i miljøet, og `gh_only` fjerner token-variablene fra
-> barnemiljøet. Dette er en konfigurasjonskontroll, ikke en sikkerhetsgrense.
-> Se [SECURITY.md](../SECURITY.md).
+> `copilot_auth_mode` filtrerer miljøet nav-pilot gir til cplt, ikke hvilken
+> konto eller kilde Copilot bruker. `auto` (standard) bevarer token-variablene,
+> `env_only` avbryter hvis ingen av `GH_TOKEN`, `GITHUB_TOKEN` eller
+> `COPILOT_GITHUB_TOKEN` har en verdi som ikke er blank, og `gh_only` fjerner
+> alle tre fra miljøet før cplt starter. cplt kan nekte eller sende inn token,
+> og Copilot kan bruke lagret innlogging. Ingen av valgene garanterer hvilken
+> konto eller kilde Copilot bruker. Se [SECURITY.md](../SECURITY.md).
+
+Hvis innlogging i sandkassen feiler, avslutt økten og logg inn manuelt i en
+terminal utenfor cplt. nav-pilot starter aldri innlogging. gh kan falle tilbake
+til klartekst hvis nøkkelringen svikter:
+
+```sh
+(unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; gh auth login --hostname github.com --web)
+(unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; gh auth status --hostname github.com)
+```
+
+Krev at github.com-kontoene viser `(keyring)` før du starter igjen. Hvis status
+viser en konfigurasjonsfil, stopp og rett tilgangen til nøkkelringen. Status
+viser lagringsmetadata, ikke en garanti om at innloggingen bare brukte sikker
+lagring. Velg en konto med Copilot-tilgang; dette endrer gh-kontoen, ikke
+Copilots egen innlogging. Host-status bekrefter heller ikke autentisering i
+sandkassen. Copilots lagrede innlogging kan fortsatt virke når gh-status feiler.
+
+Med `env_only` må du enten beholde modusen og sende inn et Copilot-token eller
+velge lagret innlogging med `nav-pilot config set copilot_auth_mode auto` før
+den tokenfrie omstarten:
+
+```sh
+(unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; nav-pilot)
+```
+
+Ved push-/PR-feil, kjør `cplt doctor` og `cplt config get gh_guard.enabled`
+utenfor sandkassen. Oppgrader cplt hvis støtte for gh-vaktas token-cache mangler.
 
 ### opencode: Nav-kontekst automatisk
 
@@ -532,19 +592,19 @@ flervalgsspørsmål fra hooks og skript. Ingenting skjer før du kjører `init` 
 
 ```bash
 nav-pilot alpha local init      # Mac med Apple Silicon: laster ned modellen og starter serveren
-nav-pilot alpha local setup     # egen server (Linux, Ollama, llama-server)
+nav-pilot alpha local setup     # egen LLM-server (Linux, Ollama, llama-server)
 nav-pilot alpha help            # alle kommandoene
 ```
 
 Dokumentasjonen står på ki-utvikling.nav.no:
 
 - [Kom i gang med lokal modell på Mac](https://ki-utvikling.nav.no/nav-pilot/lokal)
-- [Kom i gang med egen server](https://ki-utvikling.nav.no/nav-pilot/lokal/egen-server)
+- [Kom i gang med egen LLM-server](https://ki-utvikling.nav.no/nav-pilot/lokal/egen-server)
 - [Din første decide-hook](https://ki-utvikling.nav.no/nav-pilot/lokal/decide)
-- Guiden [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/guider/lokal): utsending, bytte modell og oppskrifter for `alpha decide`
+- Guiden [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/guider/lokal): delegering, bytte modell og oppskrifter for `alpha decide`
 - [Når den lokale modellen henger](https://ki-utvikling.nav.no/nav-pilot/guider/feilsoking#lokal)
 - [Lokale modeller](https://ki-utvikling.nav.no/nav-pilot/referanse#lokale-modeller) i referansen
-- Forklaringen [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/forklaring/lokal-modell): hvorfor utsendingen er begrenset, og hva modellene klarer, målt
+- Forklaringen [Lokal modell](https://ki-utvikling.nav.no/nav-pilot/forklaring/lokal-modell): hvorfor delegeringen er begrenset, og hva modellene klarer, målt
 
 ## Agentpakker fra andre team
 
@@ -552,6 +612,21 @@ Et team kan distribuere sitt eget innhold som en **agentpakke**, et repo med man
 `.nav-pilot/agentpakke.json`. Installer det med `--source`. Scopet du installerer i, husker
 kilden, så `nav-pilot sync` der bruker den. Andre kommandoer trenger `--source` igjen, med
 mindre du la til `--save-source`. Da blir kilden standard for alt på maskinen.
+
+Når du starter `nav-pilot`, sjekker den om pakka har en nyere versjon enn den du har
+installert, og spør om du vil synkronisere. Svaret huskes i ett døgn, akkurat som for
+navikt/copilot. Uten nett sier nav-pilot ingenting og venter høyst tre sekunder.
+
+Mange pakker gjenbruker navikt/copilot og låser den til én bestemt commit. Ligger låsen
+bak, sier `nav-pilot sync` og `nav-pilot doctor` fra. `doctor` nevner også hver agent
+som navikt/copilot har gitt ny modell, mens pakka fortsatt har den gamle. Bare eierne av
+pakka kan flytte låsen, med `nav-pilot pakke bump-base`. Kjør `nav-pilot sync --apply`
+etterpå. Filer du har endret selv, blir lagret som `<fil>.orig`.
+
+Sjekken i `doctor` forutsetter at pakka som gjenbrukes, har agentene sine i `agents/`,
+slik navikt/copilot har. Den bruker ett kall mot GitHub per agent. Uten `GITHUB_TOKEN`
+rekker du omtrent tre `doctor`-kjøringer i timen før GitHub stopper kallene. Da skriver
+`doctor` at den ikke fikk sjekket.
 
 Skal du lage en selv, står oppskrifta på [ki-utvikling.nav.no/nav-pilot/agentpakker](https://ki-utvikling.nav.no/nav-pilot/agentpakker).
 
@@ -632,40 +707,39 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | Nøkkel | CLI-flagg | Verdier | Beskrivelse |
 | --- | --- | --- | --- |
 | `version` | — | 1 | Skjemaversjon. Mangler den, leses fila som versjon 1, og nav-pilot sier fra med én linje. |
-| `client` | --client | copilot · opencode · pi (standard: opencode) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt-sandkassen når cplt finnes. Mangler cplt, spør nav-pilot i terminalen om copilot eller opencode skal starte uten sandkasse (standard nei). Uten terminal, for eksempel i CI, starter de bare med --no-sandbox. Standard er opencode på en ny installasjon i en terminal, og copilot uten terminal (CI) eller når opencode ikke er installert. En config.toml uten client betyr copilot, så du beholder klienten din når du oppgraderer. Første gang nav-pilot kjører i en terminal, skriver den client inn i fila. |
+| `client` | --client | copilot · opencode · pi (standard: opencode) | Klient å starte: copilot, opencode eller pi (eksperimentell). Alle kjører i cplt. Mangler nøkkelen i en eksisterende config.toml, betyr det copilot. |
 | `source` | --source | owner/name eller en absolutt sti (standard: navikt/copilot) | Hvor agentpakka hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden. |
-| `model` | --model | modell-id, f.eks. claude-opus-4.8 | Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode (opencode kjører den som github-copilot/&lt;id&gt;); opencode tar også provider/model. nav-pilot config explain model lister id-ene. |
+| `model` | --model | modell-id, f.eks. claude-opus-4.8 | Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode; opencode tar også provider/model. nav-pilot config explain model lister id-ene. |
 | `mode` | --mode | default · plan · autopilot (standard: default) | Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er bare Copilot. |
 | `reasoning_effort` | --effort | none · low · medium · high · xhigh · max | Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant. |
 | `context_tier` | --context | default · long_context | Kontekstnivå. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
-| `allow_all_tools` | --allow-all-tools / --no-allow-all-tools | true · false (standard: false) | La agenten kjøre alle verktøy uten å spørre først. |
+| `allow_all_tools` | --allow-all-tools / --no-allow-all-tools | true · false (standard: false) | La agenten kjøre uten å spørre også med autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto). |
 | `ask_user` | --ask-user / --no-ask-user | true · false (standard: true) | La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
-| `autonomy` | — | sandbox · conservative (standard: sandbox) | Hvor mye Copilot CLI får gjøre uten å spørre når den kjører i cplt. sandbox gir --allow-all-tools --allow-all-paths --allow-all-urls: vaktene i cplt setter grensene, og agenten kan fremdeles spørre deg. Med conservative spør Copilot før hver handling. nav-pilot config set autonomy skriver også autonomy_chosen = true. En conservative uten det skrev en eldre nav-pilot selv, og den teller som sandbox. Uten cplt sender nav-pilot aldri allow-all-flagg. |
+| `autonomy` | — | sandbox · conservative (standard: sandbox) | Hvor mye agenten gjør uten å spørre i cplt. sandbox: kjører kommandoer selv, og vaktene i cplt setter grensene. conservative: spør før hver handling. |
 | `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start klienten etter sync eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
-| `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute, uten å spørre. Feiler oppgraderingen, kjører kommandoen på versjonen du har, og neste forsøk kommer etter 24 timer. |
-| `surveys` | — | true · false (standard: true) | Spør av og til, etter en økt, om du vil svare på en kort brukerundersøkelse (høyst tre ganger per undersøkelse). Med false spør nav-pilot aldri, og viser heller ikke engangstipset om opencode. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår det også av. |
-| `news` | — | true · false (standard: true) | Etter en økt viser nav-pilot én linje når det er kommet en ny nav-pilot-sak på ki-utvikling.nav.no, én gang per sak. Med false viser nav-pilot den aldri, men nav-pilot news lister sakene fortsatt. DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false slår den også av. |
+| `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute. Feiler det, kjører du videre på versjonen du har. |
+| `surveys` | — | true · false (standard: true) | Spør av og til etter en økt om du vil svare på en kort brukerundersøkelse. false slår av spørsmålet og engangstipset om opencode; DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false gjør det samme. |
+| `news` | — | true · false (standard: true) | Vis én linje etter en økt når det er kommet en ny nav-pilot-sak, én gang per sak. nav-pilot news lister sakene uansett. |
 | `log_level` | --log-level | none · error · warning · info · debug · all · default | Loggnivå for Copilot CLI. |
 | `otel_log_level` | --otel-log-level | none · error · warning · warn · info · debug · verbose · all (standard: none) | Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env. |
 | `local_enabled` | — | true · false (standard: false) | Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false, ser nav-pilot ingen lokale modeller. |
 | `local_autostart` | — | true · false (standard: false) | La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: en prosess på 21 GB skal ikke starte uten at du har bedt om det. |
-| `local_loop_guard` | — | et heltall (standard: 8) | Hvor mange identiske verktøykall på rad som avslutter en lokal tur, uansett hva de returnerer. Gir kallene samme resultat hver gang, holder det med halvparten (minst 2). |
+| `local_loop_guard` | — | et heltall (standard: 8) | Hvor mange like verktøykall på rad som avslutter en runde for den lokale modellen, uansett hva kallene returnerer. Gir kallene samme resultat hver gang, stopper runden etter halvparten så mange kall (minst 2). |
 | `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Sett den med nav-pilot alpha local use &lt;key&gt;. |
-| `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), f.eks. http://127.0.0.1:11434/v1 (alfa, uten støtte, ikke målt). Da laster nav-pilot ikke ned og starter ingenting. Bare localhost og private IP-adresser. Sjekk den med nav-pilot alpha local doctor. |
+| `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), bare localhost eller privat IP (alfa, uten støtte). Sjekk den med nav-pilot alpha local doctor. |
 | `local_endpoint_model` | — | modell-id på serveren | Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint. |
-| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: aggressive) | Hvor mye arbeid hovedagenten i skyen skal sende til den lokale modellen i opencode. Med balanced stopper nav-pilot hovedagentens egen redigering én gang når en mekanisk endring når fem filer, ti kallsteder eller en skriptet løkke. Et søk-og-erstatt teller hvert sted det endrer. Med aggressive slipper redigeringen gjennom først når fila er sendt til den lokale modellen, og det samme gjelder nye filer. Med aggressive sender hovedagenten mest, men det kostet flere AI-kreditter og tok lengre tid i målingene. Stoppet gjelder bare oppgavetyper manifestet har godkjent modellen for. Standard er aggressive. Vil du tilbake til balanced: nav-pilot config set local_dispatch balanced. |
+| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: aggressive) | Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI-kreditter og tok lengre tid i målingene. |
 | `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
 | `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. |
 | `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer. |
 | `hook_injection_note` | — | true · false (standard: true) | Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. |
-| `hook_action_check` | — | off · log (standard: log) | Spør den lokale decide-modellen før en risikabel skallkommando kjører (endringer med kubectl, nais, gcloud og helm, terraform apply, rm -r, git push --force og lignende) om den står i forhold til formålet, om den er destruktiv, og om formålet agenten oppga støtter den. Med log lagres svaret i telemetri og en lokal logg, og kommandoen kjører alltid. off slår den av. Virker bare med lokal modell (local_enabled) og en server som kjører. Den starter aldri en server selv. |
-| `mcp_hosts` | — | ask · off (standard: ask) | Om nav-pilot ved oppstart spør om å slippe gjennom vertene MCP-tjenerne dine trenger i cplt-sandkassen. Vertene hentes fra Navs MCP-register, aldri fra MCP-oppsettet ditt. ask spør én gang per sett med verter, og Enter avslår. off spør aldri og tillater ingen. |
-| `copilot_auth_mode` | — | auto · env_only · gh_only (standard: auto) | Hvilken innlogging som når cplt for Copilot. auto begrenser ingenting; env_only krever et token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner dem. |
+| `hook_action_check` | — | off · log (standard: log) | Spør den lokale decide-modellen om en risikabel skallkommando (kubectl, terraform apply, rm -r, git push --force og lignende) står i forhold til formålet. log lagrer svaret og stopper ingenting. Krever lokal modell. |
+| `mcp_hosts` | — | ask · off (standard: ask) | Om nav-pilot spør før den åpner cplt for hostene MCP-serverne dine trenger. Hostene hentes fra Navs MCP-register. ask spør én gang per sett, off spør aldri. |
+| `copilot_auth_mode` | — | auto · env_only · gh_only (standard: auto) | Filtrerer miljøet før cplt starter. auto endrer ingenting; env_only krever et ikke-blankt token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner variablene. Ingen av dem garanterer hvilken innlogging cplt eller Copilot bruker. |
 <!-- config-keys:end -->
 <!-- prettier-ignore-end -->
 
-Mangler cplt, spør nav-pilot før den starter `copilot` eller `opencode` uten sandbox. Uten terminal nekter den,
-med mindre du sender `--no-sandbox`. Installer cplt med `brew install navikt/tap/cplt` eller
+Mangler cplt, starter nav-pilot ingen klient. Installer cplt med `brew install navikt/tap/cplt` eller
 `sudo apt install cplt`.
 
 `--project-dir <katalog>` bestemmer hvilken katalog agenten får lese og skrive i cplt-sandboxen.

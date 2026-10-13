@@ -1,0 +1,42 @@
+/ Search (glob)
+  │ "frister/**"
+  └ 3 files found
+
+● Read frist.go
+  │ frister/frist.go
+  └ 16 lines read
+
+● Read frist_test.go
+  │ frister/frist_test.go
+  └ 26 lines read
+
+● Read golang.instructions.md
+  │ .github/instructions/golang.instructions.md
+  └ 547 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+✗ Kjør fristtestene (shell)
+  │ cd frister && go test ./...
+  └ --- FAIL: TestFrist (0.00s)
+    frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+    FAIL
+    FAIL    example.com/frister     0.181s
+    FAIL
+    Failed with exit code 1
+
+● Edit
+  └ Edit frister/frist.go
+
+● Verifiser at alle fristtestene går grønt (shell)
+  │ cd frister && go test ./...
+  └ 1 line…
+
+● skill(klarsprak)
+
+Rettet `frister/frist.go`: En frist på lørdag flyttes nå to dager frem til mandag, ikke én dag til søndag. Søndagsregelen og seksukersberegningen er uendret. Testene er ikke endret.
+
+`go test ./...` i `frister/` går grønt.
+

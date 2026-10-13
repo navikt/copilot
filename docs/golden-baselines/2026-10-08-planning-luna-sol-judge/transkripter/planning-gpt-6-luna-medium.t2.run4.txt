@@ -1,0 +1,33 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Repoet er et Kotlin/Ktor-API på Nais, men det er foreløpig en demo uten ID-porten-autentisering eller `accessPolicy`. Jeg avklarer behovet før jeg foreslår løsning eller endrer kode, siden dette gjelder fødselsnummer og autentisering.
+
+**Fase 1: Intervju**
+
+1. Bekrefter du at dette skal være et backend-API i Kotlin/Ktor? Hvem starter forespørselen: en innbygger via en nettleser, en annen tjeneste eller noen andre?
+2. Når du sier «leser fnr fra ID-porten», mener du at tjenesten skal hente fødselsnummeret fra den innloggede brukerens token eller sesjon, eller gjøre et eget oppslag mot en tjeneste?
+3. Hva skal tjenesten bruke fødselsnummeret til, og hvilket behandlingsgrunnlag gjelder? Behandler den andre personopplysninger?
+4. Skal tjenesten lagre fødselsnummeret, eller bare bruke det mens forespørselen behandles? Hvis det lagres, hvor lenge og når skal det slettes?
+5. Hvem skal kunne kalle tjenesten, og hvilke andre tjenester skal motta fødselsnummeret? Trenger dere revisjonslogging av hvem som har lest eller brukt det?
+6. Hva skal skje hvis ID-porten eller en annen avhengighet ikke svarer? Trenger tjenesten synkron kommunikasjon eller hendelser?
+7. Hvilke målinger og varsler trenger dere, hvem følger dem opp, og hvilket trafikkvolum forventer dere?
+8. Er dette et nytt prosjekt, og har teamet erfaring med Kotlin/Ktor og Nais? Hvilke andre team eller tjenester er avhengige av løsningen, og finnes det en frist? Hvilke tester finnes eller planlegges?
+
+🔴 **Rød sone:** Autentisering, tilgangskontroll og håndtering av fødselsnummer må gjennomgås grundig. Jeg lager ikke implementasjonen før disse avklaringene er på plass.
+
+Jeg fant heller ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md` i repoet. `nav-pilot init` kan opprette prosjektinstruksjoner.
+
+Blindsoner reist: 8/11 (#1–#7 og #11; #8 og #10 gjelder ikke nybygg, #9 avklares når vi kjenner konsumentene).
+

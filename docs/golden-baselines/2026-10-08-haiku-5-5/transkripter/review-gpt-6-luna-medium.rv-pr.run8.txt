@@ -1,0 +1,23 @@
+🔍 Leser diffen mot `main` og finner relevante instruksjoner og tester.
+
+📊 Endringen legger til Kafka-consumer, repository, service og API-rute. Jeg leser implementasjonen sammen med Kotlin- og sikkerhetsinstruksjonene før jeg vurderer den.
+
+🔍 Flere mulige blocker-funn gjelder tilgang til persondata, SQL-bygging og Kafka-feilhåndtering. Jeg kontrollerer nå linjenumre, oppstartsforutsetninger og om prosjektet har tester eller en tilgjengelig byggekkommando.
+
+📊 Prosjektet har en Java 21-installasjon, så jeg prøver å kjøre Gradle med den i stedet for Java 27, som Kotlin 2.1 ikke kan tolke.
+
+Fant **åtte blocker-funn** og ett forbedringspunkt på `vedtak-kafka` mot `main`.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `src/main/kotlin/no/nav/demo/Routes.kt:30` | 🔴 | `GET /api/vedtak/{fnr}` krever ikke autentisering og returnerer vedtak for vilkårlig fødselsnummer. Beskytt ruten og kontroller at kalleren har tilgang til personen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt:23` | 🔴 | SQL-spørringen setter `fnr` direkte inn i SQL-strengen. Det åpner for SQL-injeksjon og uthenting eller endring av data. Bruk en parameterisert spørring. |
+| `src/main/kotlin/no/nav/demo/App.kt:40` | 🔴 | TokenX-oppsettet har ingen JWT-verifier. `validate` sjekker bare at `aud` finnes, ikke signatur, forventet issuer eller forventet audience. Konfigurer verifisering og valider relevante claims, inkludert `azp` for maskin-til-maskin-kall. |
+| `nais.yaml:22` | 🔴 | Inngående policy tillater alle applikasjoner i alle namespaces å nå tjenesten. Begrens regelen til nødvendige kallere. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt:15` | 🔴 | Logger fødselsnummer. Fjern personopplysningen fra loggen. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakRepository.kt:14` | 🔴 | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen migrering som oppretter tabellen. Den nye databaseinstansen starter tom, så lagring og uthenting vil feile. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt:31` | 🔴 | Behandling er ikke idempotent. Ved Kafka-redelivery oppretter `fattVedtak` et nytt vedtak med ny UUID; `soknadId` brukes ikke til å hindre duplikater. Samme søknad kan dermed gi flere vedtak. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakConsumer.kt:25` | 🔴 | Når JSON-dekoding eller alle tre forsøk feiler, slipper unntaket ut av `start()` og avslutter consumer-tråden. Tjenesten fortsetter å kjøre uten å behandle meldinger. Håndter feilen uten å miste consumeren, og gjør tilstanden synlig for driften. |
+| `src/main/kotlin/no/nav/demo/vedtak/VedtakService.kt:13` | 🟡 | Det følger ingen tester med den nye forretningslogikken, repository-koden eller Kafka-behandlingen. Legg til tester for blant annet redelivery, feil ved publisering og ugyldige meldinger. |
+
+**Validering:** `mise check` finnes ikke som oppgave i dette repoet. `gradle test` med Java 21 stopper under kompilering på feil i uendret `UserRepo.kt` (`session` og `queryOf` mangler); ingen tester ble kjørt.

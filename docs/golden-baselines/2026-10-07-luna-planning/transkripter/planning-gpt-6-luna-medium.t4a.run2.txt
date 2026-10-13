@@ -1,0 +1,12 @@
+**Fase 1: Intervju.** Jeg tolker dette som en ny Ktor-tjeneste som skal bruke fødselsnummer fra ID-porten. Repoet inneholder en enkel Ktor-demo, men ingen ID-porten-konfigurasjon, `accessPolicy` eller tester. Repoets Copilot-instruksjonsfiler mangler; kjør `nav-pilot init` for å legge dem til.
+
+🔴 **Rød sone:** ID-porten-autentisering og håndtering av fødselsnummer må dere forstå og kontrollere nøye.
+
+1. Hvem skal bruke tjenesten: innbyggere via nettleser, eller andre tjenester som kaller et API?
+2. Skal tjenesten bare bruke fødselsnummeret mens forespørselen behandles, eller også lagre, returnere eller sende det videre? Hvem trenger eventuelt tilgang?
+3. Hva skal skje hvis ID-porten eller auth-sidecaren ikke er tilgjengelig?
+4. Hvilke mål eller målinger viser at tjenesten fungerer?
+5. Eier teamet hele flyten, eller er andre team ansvarlige for konsumenter eller avhengigheter?
+6. Er ID-porten-integrasjon eller håndtering av fødselsnummer nytt for teamet?
+
+Blindsoner reist: 6/11 (#2, #3, #4, #5, #6, #11; #1 besvart i forespørselen, #7 dekkes av at repoet ikke har tester, #8–#10 ikke relevante).

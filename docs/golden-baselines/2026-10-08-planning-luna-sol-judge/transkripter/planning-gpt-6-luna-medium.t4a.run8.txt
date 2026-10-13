@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Repoet er en tom Ktor-REST-tjeneste for Nais. Jeg finner ingen auth-konfigurasjon, database eller `accessPolicy` i manifestet. Repoet mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`.
+
+**Hva bygger du?** Jeg antar at dette er en backend-API-tjeneste. Stemmer det, eller er det en innbyggerløsning med frontend og BFF? Når du sier at tjenesten skal «lese fnr fra ID-porten», mener du at innbyggeren logger inn via ID-porten og at tjenesten får identiteten via et token, eller at tjenesten skal hente fnr på en annen måte?
+
+**Personvern og data**
+1. Hvilke opplysninger skal tjenesten behandle utover fnr, og hva er formålet og hjemmelen?
+2. Skal tjenesten lagre fnr eller andre personopplysninger? Hvis ja, hvor lenge og hvordan skal de slettes?
+3. Hvilke andre tjenester skal motta opplysningene?
+4. Trenger dere audit-logg over hvem som har lest eller endret opplysningene?
+
+**Tilgang og drift**
+5. Hvem starter forespørslene: innbygger, saksbehandler, en annen tjeneste eller en batchjobb? Skal tjenesten være tilgjengelig fra internett?
+6. Skal tjenesten selv håndtere ID-porten-token, eller går innloggingen via Wonderwall eller en annen komponent? Hvilke tjenester skal den kalle?
+7. Hva skal skje hvis ID-porten eller en annen avhengighet er utilgjengelig? Trenger dere asynkron behandling?
+8. Hvilke metrikker og varsler trenger dere, hvem har vakt, og hvilken trafikk forventer dere? Hvordan skal dere kontrollere at en deploy fungerer?
+
+**Omfang og team**
+9. Er dette en ny tjeneste, eller skal den erstatte eller utvide en eksisterende løsning? Hvem eier hele flyten, og hvilke andre team er avhengige av den?
+10. Hvem skal bruke API-et, og finnes det krav til API-format eller bakoverkompatibilitet?
+11. Hvilke tester finnes allerede, når er fristen, og kjenner teamet Ktor og Nais?
+
+Fnr regnes som fortrolige personopplysninger. Ikke logg fnr. Manifestet mangler nå `accessPolicy`; den må avgrense hvilke tjenester som får kalle API-et. Jeg tar ikke stilling til auth-oppsett eller implementering før vi har avklart hvem som kaller tjenesten og hvordan identiteten skal flyte.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 avhenger av om dette erstatter en eksisterende løsning)
+

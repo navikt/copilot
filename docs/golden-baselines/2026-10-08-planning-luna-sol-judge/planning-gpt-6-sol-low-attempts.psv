@@ -1,0 +1,56 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-08
+# revision:     0409e97c
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-3.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+# rebuilt:      from the --keep workdir; the run was stopped at the start of run 8 to stay under the 440-credit hard stop (docs/modellvalg.md)
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+t2|1|0|pass|3113|27269|true|
+t4a|1|0|pass|1919|21493|true|
+t4b|1|0|pass|4052|27950|true|
+t5|1|0|pass|353|10878|true|
+t7|1|0|pass|4340|39198|true|
+t7b|1|0|pass|1794|25923|true|
+t2|2|0|pass|2172|37630|true|
+t4a|2|0|pass|2101|20420|true|
+t4b|2|0|pass|3543|26918|true|
+t5|2|0|pass|437|11637|true|
+t7|2|0|pass|4564|47951|true|
+t7b|2|0|pass|1941|25898|true|
+t2|3|0|pass|2055|27116|true|
+t4a|3|0|pass|2190|26451|true|
+t4b|3|0|pass|2981|21159|true|
+t5|3|0|pass|350|11721|true|
+t7|3|0|pass|4548|41272|true|
+t7b|3|0|pass|1876|27161|true|
+t2|4|0|pass|2018|20709|true|
+t4a|4|0|pass|2423|27607|true|
+t4b|4|0|pass|3623|32333|true|
+t5|4|0|pass|203|8519|true|
+t7|4|0|pass|4078|34351|true|
+t7b|4|0|pass|2332|28513|true|
+t2|5|0|pass|1976|22972|true|
+t4a|5|0|pass|2254|27591|true|
+t4b|5|0|pass|3619|23764|true|
+t5|5|0|pass|228|8590|true|
+t7|5|0|pass|3711|33826|true|
+t7b|5|0|pass|1598|20681|true|
+t2|6|0|pass|1966|25618|true|
+t4a|6|0|pass|1936|24593|true|
+t4b|6|0|pass|3044|27036|true|
+t5|6|0|pass|413|11180|true|
+t7|6|0|pass|4874|39189|true|
+t7b|6|0|pass|1883|22702|true|
+t2|7|0|pass|2430|31599|true|
+t4a|7|0|pass|2015|24239|true|
+t4b|7|0|pass|3848|29992|true|
+t5|7|0|pass|385|10797|true|
+t7|7|0|pass|3885|28917|true|
+t7b|7|0|pass|1637|19676|true|

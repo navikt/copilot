@@ -1,4 +1,5 @@
-import { Heading, BodyShort, Alert } from "@navikt/ds-react";
+import NextLink from "next/link";
+import { Heading, BodyShort, Alert, Box, Link, VStack } from "@navikt/ds-react";
 
 export default function GettingStarted() {
   return (
@@ -9,8 +10,9 @@ export default function GettingStarted() {
         </Heading>
         <BodyShort className="text-gray-700 mb-4">
           For å bruke GitHub Copilot i Nav må du ha en tildelt lisens. Har du ikke dette ennå, kan du be om tilgang via
-          Porten eller ved å spørre i Slack-kanalen <strong>#github-copilot</strong>. Når du har fått tildelt lisensen,
-          er den knyttet til din GitHub-brukerkonto (den som er medlem av navikt-organisasjonen).
+          Porten eller ved å spørre i Slack-kanalen{" "}
+          <Link href="https://nav-it.slack.com/archives/C0ASJSZK8P8">#ki-produktutvikling-diskusjon</Link>. Når du har
+          fått tildelt lisensen, er den knyttet til din GitHub-brukerkonto (den som er medlem av navikt-organisasjonen).
         </BodyShort>
       </section>
 
@@ -18,6 +20,57 @@ export default function GettingStarted() {
         <Heading size="small" level="3" className="mb-3">
           Installasjon og innlogging
         </Heading>
+        <Box
+          background="default"
+          borderColor="neutral-subtle"
+          borderWidth="1"
+          borderRadius="8"
+          padding="space-24"
+          marginBlock="space-0 space-24"
+        >
+          <VStack gap="space-12">
+            <Heading size="xsmall" level="4">
+              I terminalen: Copilot CLI med nav-pilot
+            </Heading>
+            <BodyShort className="text-gray-700 text-sm">
+              Start her. nav-pilot legger Navs agenter og skills inn i repoet og starter agenten i sandkassen cplt.
+              Første gang velger du klient: opencode er valgt på forhånd, Copilot CLI er det andre valget.
+            </BodyShort>
+            <VStack
+              as="ol"
+              gap="space-8"
+              className="list-decimal text-gray-700 text-sm"
+              style={{ paddingLeft: "var(--ax-space-20)" }}
+            >
+              <li>
+                Følg{" "}
+                <NextLink href="/kom-i-gang#installer" className="text-blue-600 hover:underline">
+                  installasjonsveiviseren
+                </NextLink>{" "}
+                for å installere nav-pilot, cplt og klienten.
+              </li>
+              <li>
+                Logg inn på GitHub med <code>gh auth login</code>.
+              </li>
+              <li>
+                Kjør <code>nav-pilot</code> i repoet ditt. Agenten starter i cplt.
+              </li>
+            </VStack>
+            <BodyShort className="text-gray-700 text-sm">
+              Hele oppsettet er beskrevet i{" "}
+              <NextLink href="/nav-pilot/guider/kom-i-gang" className="text-blue-600 hover:underline">
+                kom i gang med nav-pilot
+              </NextLink>
+              .
+            </BodyShort>
+          </VStack>
+        </Box>
+        <Heading size="xsmall" level="4" className="mb-3">
+          I editoren
+        </Heading>
+        <BodyShort className="text-gray-700 text-sm mb-4">
+          Foretrekker du å jobbe i editoren, fungerer Copilot like godt der.
+        </BodyShort>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-surface-default border border-border-subtle p-6 rounded-lg">
             <Heading size="xsmall" level="4" className="mb-2">
@@ -57,8 +110,12 @@ export default function GettingStarted() {
           Feilsøking: "Du har ikke tilgang"
         </Heading>
         <BodyShort>
-          Hvis editoren din sier at du ikke har tilgang selv om du vet at lisensen er tildelt, prøv å{" "}
-          <strong>logge ut og inn igjen</strong> av GitHub i editoren din. Ofte henger gamle sesjons-tokens igjen.
+          Kontroller at du bruker GitHub-kontoen som har Nav-lisensen. I terminalen kan et eksportert token overstyre
+          den lagrede innloggingen. Følg{" "}
+          <NextLink href="/nav-pilot/guider/cplt-feilmeldinger#keyring" className="text-blue-600 hover:underline">
+            feilsøkingen for innlogging i cplt
+          </NextLink>
+          . I editoren kan du logge ut av GitHub og inn igjen med riktig konto.
         </BodyShort>
       </Alert>
     </div>

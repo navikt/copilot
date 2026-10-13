@@ -1,0 +1,20 @@
+
+
+**Gjennomgangen av `vedtak-kafka` mot `main` fant flere blokkere.** Jeg ville ikke merget branchen før tilgangskontroll, SQL-spørringen og Kafka-flyten er rettet.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` er åpen og returnerer vedtak med fødselsnummer. Endepunktet må kreve autentisering og sjekke at den som kaller, har rett til å se personens vedtak. |
+| `VedtakRepository.kt:24` | 🔴 Blokkerer | `fnr` settes rett inn i SQL-strengen. Det gir SQL-injeksjon via URL-en. Bruk en parameterisert spørring, slik `hentForSak` gjør. |
+| `App.kt:42` | 🔴 Blokkerer | JWT-oppsettet angir ingen signaturverifikator. Sjekken i `validate` kontrollerer heller ikke forventet audience eller `azp`; den godtar en credential når `audience` finnes. Konfigurer TokenX-verifikasjon og kontroller at avsenderen er tillatt før POST-endepunktet tas i bruk. |
+| `nais.yaml:23–24` | 🔴 Blokkerer | Inbound-regelen åpner tjenesten for alle applikasjoner i alle namespaces. Begrens den til konkrete kallere. |
+| `VedtakService.kt:16` | 🔴 Blokkerer | Fødselsnummer skrives til applikasjonsloggen ved hvert vedtak. Fjern personopplysningen fra loggmeldingen. |
+| `App.kt:26–35` | 🔴 Blokkerer | Kafka-klientene får bare brokeradresse, uten TLS- og autentiseringsoppsettet fra Nais. De vil ikke kunne koble til den beskyttede Kafka-poolen. |
+| `VedtakConsumer.kt:27–36` | 🔴 Blokkerer | Et vedtak lagres før publisering. Feiler publisering eller offset-commit, behandler retry samme melding på nytt og oppretter et nytt vedtak. Bruk `soknadId` som idempotensnøkkel og sikre samspillet mellom lagring og publisering. |
+| `VedtakRepository.kt:11–15` | 🔴 Blokkerer | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen migrering som oppretter den. Vedtaksflyten vil feile ved første INSERT mot en ny database. |
+| `App.kt:36` | 🟡 Bør rettes | Consumer-tråden startes uten feilovervåking. Hvis deserialisering eller siste retry feiler, stopper tråden mens HTTP-serveren fortsatt kjører; tjenesten fremstår da tilgjengelig uten å behandle Kafka-meldinger. |
+
+Jeg fant ingen tester for den nye vedtaksflyten. `mise check` finnes ikke som oppgave i dette repoet, og `gradle test --offline` stoppet under prosjektkonfigurasjon med feilen `> 27`; jeg kunne derfor ikke bekrefte bygg eller tester.
+
+🔴 Rød sone: autentisering, tilgangskontroll og vedtakslogikk må gjennomgås grundig. Still gjerne spørsmål om valgene over.
+

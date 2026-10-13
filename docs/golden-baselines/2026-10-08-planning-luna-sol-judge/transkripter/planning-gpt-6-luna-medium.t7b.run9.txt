@@ -1,0 +1,21 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+🔴 **Fase 1: Intervju.** Jeg fant `SoknadMottattMelding` og senderen til `soknad-mottatt` i `src/main/kotlin/no/nav/demo/Soknad.kt`. Koden sender allerede FNR på en annen topic, men jeg fant ingen oversikt over konsumenter eller tilgangsregler for `soknad-mottatt`.
+
+Før jeg endrer payloaden, må jeg vite: Er alle konsumentene av `soknad-mottatt` godkjent for å motta FNR, og tåler de et nytt `fnr`-felt? Det lokale repoet mangler også `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 4/11 (#1, #2, #6 og #9 stilt; #3–#5, #7, #8, #10 og #11 ikke relevante for denne endringen).
+

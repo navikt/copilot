@@ -1,0 +1,61 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,docs/nav-pilo
+  │ t-design.md,nais.yaml,package.json,build.gradle.kts}"
+  └ 2 files found
+
+● Inspect repository and Copilot configuration (shell)
+  │ pwd && ls -la && ls -la .github 2>/dev/null || true
+  └ 15 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Locate application and service files (shell)
+  │ find src vedtak-api -maxdepth 4 -type f -print | sort
+  └ 2 lines…
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● Read settings.gradle.kts
+  │ vedtak-api/settings.gradle.kts
+  └ 1 line read
+
+● Inspect source and related service paths (shell)
+  │ find src vedtak-api -type f -print | sort
+  └ 8 lines…
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+Dette er en **ny tjeneste med innlogging og behandling av fødselsnummer**, så jeg stopper i fase 1 før jeg foreslår løsning eller skriver kode. Repoet inneholder en enkel Ktor-tjeneste på Nais, men ingen ID-porten-konfigurasjon. Det mangler også `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan legge dem til.
+
+1. Skal innbyggeren bruke tjenesten i en nettleser, eller skal en annen tjeneste kalle den på vegne av innbyggeren? Hvem skal kunne lese resultatet?
+2. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i samme forespørsel, sende det videre eller lagre det? Hvilke andre personopplysninger inngår?
+3. Hvilke tjenester eller team skal motta data, og hva skal skje hvis de ikke svarer?
+4. Hvordan skal dere avgjøre at tjenesten virker, og finnes det tester eller en utrullingsmåte vi må ta hensyn til?
+
+🔴 Rød sone: uthenting og validering av identitet fra ID-porten må forstås grundig.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #4, #5, #7 og #11; #6, #8–#10 avhenger av om dette kobles til eksisterende løsninger).
+

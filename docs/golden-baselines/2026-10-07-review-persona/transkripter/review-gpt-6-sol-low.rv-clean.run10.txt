@@ -1,0 +1,13 @@
+
+
+
+### Gjennomgang
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `SakService.kt:48–50` | 🔴 Blokkerende | Ruten krever TokenX, men autentiseringsoppsettet i `App.kt` validerer ikke `azp` mot tillatte klienter. Et gyldig token med riktig audience og `acr` er derfor ikke alene tilstrekkelig tilgangskontroll for å hente en persons saker. Legg kontrollen i JWT-valideringen, slik at den gjelder før ruten kjøres. |
+| `SakService.kt:50–55` | 🟡 Bør rettes | Ruten avviser bare manglende `pid`. Den godtar tomme eller ugyldige verdier som sendes videre til databasespørringen. Valider identifikatoren ved grensen før oppslag. |
+| `SakService.kt:37` | 💭 Mindre | Logglinjen skriver bare stjerner, så den identifiserer ikke hvilket oppslag som feilet eller ble utført. Logg heller en hendelse uten en verdi avledet fra fødselsnummeret. |
+
+🔴 **Rød sone:** Tilgangskontroll og validering av personidentifikator må gjennomgås grundig. `mise check` kunne ikke kjøres: prosjektet har ingen slik oppgave. Still gjerne spørsmål om valgene over.
+

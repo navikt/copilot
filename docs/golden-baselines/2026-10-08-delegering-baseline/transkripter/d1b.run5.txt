@@ -1,0 +1,19 @@
+## Fase 2: Plan
+
+Jeg legger til grunn at den eksisterende Next.js-frontenden håndterer innlogging via **ID-porten og Wonderwall**, og at Ktor-tjenesten bare skal returnere navn for den innloggede innbyggeren. API-et skal ikke ta imot fødselsnummer fra klienten eller lagre fødselsnummer og navn. Dette må kontrolleres mot frontendens faktiske oppsett før bygging.
+
+1. **Flyt og API:** Frontenden kaller ett navneoppslag. Backend validerer brukerens token, henter fødselsnummer fra den validerte identiteten og kaller PDL i brukerkontekst med TokenX. Responsen inneholder bare feltene frontenden trenger. Tjenesten skal aldri slå opp et fødselsnummer oppgitt av klienten.
+2. **Prosjekt:** Bygg videre på Ktor-oppsettet, men skill autentisering, PDL-klient og API-rute i egne komponenter. Avklar med frontendteamet hvordan den eksisterende innloggingen gir backend et token den kan validere; Wonderwall i frontenden er ikke i seg selv autentisering av backend-kallet.
+3. **Nais:** Konfigurer ID-porten/Wonderwall der nettleserinnloggingen skjer, TokenX for brukerkontekst mot PDL, og eksplisitt `accessPolicy` for kall mellom frontend og backend. Begrens utgående tilgang til PDL. Bekreft PDLs audience og tilgangskrav før manifestet ferdigstilles.
+4. **Feil og drift:** Når PDL er utilgjengelig, svar `503` og logg feilen **uten token, fødselsnummer, navn eller PDL-respons**. Skill dette fra avvist autentisering og andre feil. Mål oppslag per minutt og andel feilende kall, med helsesjekker og alarmer for vedvarende feil.
+5. **Leveranse:** Legg til tester for tokenvalidering, at identiteten fra tokenet brukes i PDL-oppslaget, og at PDL-feil gir `503` uten persondata i logger. CI skal bygge og teste før Nais-deploy. Ingen database, migrering, kø eller overgang fra gammel løsning trengs.
+6. **Utrulling:** Verifiser først frontendens tokenflyt og PDL-tilgang i testmiljø. Sjekk deretter vellykket oppslag, avviste kall, `503` ved PDL-feil og målingene før produksjonssetting. Ved feil kan trafikken flyttes tilbake fra den nye integrasjonen; ingen lagrede data må rulles tilbake.
+
+🔴 **Rød sone — skriv selv og gå grundig gjennom:** tokenvalidering, koblingen mellom innlogget identitet og fødselsnummer, tilgangskontroll og TokenX-kallet til PDL. Teamet er nytt med TokenX og Wonderwall; feil her kan gi oppslag på feil person.
+
+🟢 **Grønn sone — kan genereres og gjennomgås før sammenslåing:** rutestruktur uten autentiseringslogikk, Nais- og CI-oppsett, målinger og testoppsett.
+
+**Avveining:** Ett smalt API uten lagring begrenser spredningen av personopplysninger, men gjør navneoppslaget avhengig av PDL ved hvert kall. Jeg velger det fremfor lokal lagring siden kravet er et oppslag, ikke en vedlikeholdt kopi. Neste fase er gjennomgang av sikkerhet, plattform, arkitektur og endringssikkerhet.
+
+Still gjerne spørsmål om valgene over.
+

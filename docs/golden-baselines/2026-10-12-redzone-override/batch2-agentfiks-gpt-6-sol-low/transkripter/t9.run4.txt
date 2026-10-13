@@ -1,0 +1,40 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/testing-kotlin.instructions.md,.github/instr
+  │ uctions/testing.instructions.md}"
+  └ 3 files found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+/ Search (glob)
+  │ "*"
+  └ 24 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+Dette er **rød sone**: feriepengeberegningen er ny for teamet og er forretningslogikk. Jeg fant ingen eksisterende beregning eller tester i prosjektet. Før jeg lager `Feriepenger.kt`, må vi avklare én ting: Vil dere skrive beregningen selv med testskjelett og veiledning fra meg, eller vil dere at jeg også skal implementere den, slik at dere går gjennom reglene og koden etterpå?
+
+Prosjektet mangler `AGENTS.md` og repo-lokale Copilot-instruksjoner. `nav-pilot init` kan sette dem opp. Øvrige blindsoner er ikke relevante for en isolert funksjon uten ny dataflyt eller tilgangsendring.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 ikke relevante).
+

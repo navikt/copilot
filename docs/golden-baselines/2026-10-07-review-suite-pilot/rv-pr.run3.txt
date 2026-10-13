@@ -1,0 +1,58 @@
+● Show branch diff (shell)
+  │ git --no-pager log --oneline main..vedtak-kafka; git --no-pager diff main...vedtak-kafka --stat;
+  │ git --no-pager diff main...vedtak-kafka
+  └ 351 lines…
+
+● List files and check mise (shell)
+  │ git --no-pager ls-tree -r --name-only vedtak-kafka; ls mise.toml .mise.toml 2>/dev/null; which
+  │ mise
+  └ 31 lines…
+
+Jeg har gjennomgått commit `10b6c03`. `mise check` kunne ikke kjøres fordi repoet mangler mise-konfigurasjon og Gradle wrapper. Funnene under bygger derfor på lesing av koden.
+
+### Oppsummering
+Pakkestrukturen er ryddig, med Controller → Service → Repository. Kafka-meldingen ut inneholder ikke FNR, og de fleste spørringene er parameterisert. Det er likevel flere sikkerhetsfeil som stopper merge: SQL-injeksjon, et åpent endepunkt som returnerer vedtak per FNR, ufullstendig JWT-validering og FNR i loggene. Kafka-konsumenten kan lage doble vedtak og stoppe uten at noen merker det.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`, så hvem som helst kan hente alle vedtak for et FNR |
+| `Routes.kt` | 25–28, 30 | 🔴 | Ingen sjekk av at kalleren eier ressursen eller har tilgang til den. Gyldig token gir tilgang til alle personer, og kalleren kan fatte vedtak for vilkårlige FNR |
+| `App.kt` | 40–43 | 🔴 | JWT-oppsettet mangler `verifier` (JWKS fra `TOKEN_X_JWKS_URI`), sjekk av issuer og sjekk av `aud` mot `TOKEN_X_CLIENT_ID`. `audience?.let` godtar enhver audience |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` skriver FNR til loggen |
+| `nais.yaml` | 24–26 | 🔴 | `inbound` med `application: "*"` og `namespace: "*"` slipper inn alle apper i klyngen |
+| `VedtakConsumer.kt` | 25, 32–33 | 🔴 | Behandlingen er ikke idempotent. Se detaljer |
+| `VedtakConsumer.kt` | 21–28 | 🔴 | Én ugyldig melding, eller tre feilede forsøk, dreper tråden. Konsumenten stopper uten varsel, og `isready` svarer fortsatt OK |
+| `App.kt` | 26–34 | 🟡 | Kafka-oppsettet mangler SSL, truststore og keystore for Aiven (`KAFKA_*_PATH`, `KAFKA_CREDSTORE_PASSWORD`), så appen kobler ikke til på Nais |
+| — | — | 🟡 | Ingen Flyway-migrering for tabellen `vedtak` |
+| `App.kt` | 23 | 🟡 | Nais setter ikke `DB_JDBC_URL` uten `envVarPrefix: DB` i `nais.yaml`. Brukernavn og passord mangler også |
+| `Routes.kt` | 26 | 🟡 | Ingen validering av FNR i POST-kallet. `require` gir 500 fordi `StatusPages` mangler |
+| — | — | 🟡 | Ingen tester for service, consumer eller routes |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()`: injiser `Clock`, ellers blir testene avhengige av dagens dato |
+| `build.gradle.kts` | 13 | 💭 | To `dependencies`-blokker. Slå dem sammen |
+| `Routes.kt` | 19 | 💭 | `oppgaveRoutes` inneholder nå også vedtak. Lag en egen `vedtakRoutes` |
+| `VedtakService.kt` | 28 | 💭 | `hentVedtak` blir ikke brukt |
+
+### Detaljer om blokkerne
+
+**SQL-injeksjon.** En verdi som `' OR '1'='1` returnerer alle vedtak i tabellen. Bruk parameter, slik `hentForSak` allerede gjør:
+```kotlin
+queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)
+```
+
+**FNR-oppslaget.** Flytt endepunktet inn i `authenticate`. FNR bør ikke stå i URL-en, fordi URL-er havner i tilgangslogger. Send FNR i body eller header, eller hent det fra `pid`-claimet i tokenet. Sjekk så at innbyggeren bare ser sine egne vedtak.
+
+**Idempotens.** Feilsituasjonene:
+- Hvis DB-insert lykkes og `producer.send` feiler, kjører `retry` hele `behandle` på nytt. Det gir ny UUID og et nytt vedtak.
+- Hvis appen krasjer før `commitSync`, blir hele batchen behandlet på nytt.
+
+Fiks: bruk `soknadId` som unik nøkkel med `ON CONFLICT DO NOTHING`, og publiser bare hvis raden ble lagt inn. Alternativet er en outbox-tabell.
+
+**Robust konsument.** Fang dekodingsfeil og send meldingen til en dead letter-topic, eller logg og hopp over den. Koble konsumentens helse til `isalive`, slik at Nais restarter poden hvis tråden dør.
+
+🔴 Rød sone: autentisering, tilgangskontroll og idempotent fatting av vedtak er kjernelogikk. Gå gjennom disse grundig.
+
+Spør gjerne om valgene over.
+

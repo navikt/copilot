@@ -1,0 +1,46 @@
+# sc2 and sc3 rescored on the committed answers (transkripter/) after the #1459 review.
+# sc2: the fnr-logg pattern matched «innlogging» and «tilgangslogger» in route findings;
+# it now names the log line itself (SC_CRIT in scripts/nav-pilot-golden.sh).
+# sc3: `kritiske` no longer counts the persona's «📋 Funn: 0 kritiske …» line, and now
+# counts a critical list item that cites no line number.
+# id|arm|run|old|new|detail
+sc2|claude-opus-5.5-low|1|pass|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|2|pass|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|3|pass|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|4|pass|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|5|pass|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|6|pass|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|7|pass|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|8|pass|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|9|fail|fail|critical: fnr-logg not marked critical
+sc2|claude-opus-5.5-low|10|fail|fail|critical: fnr-logg not marked critical, tokenx not marked critical
+sc3|claude-opus-5.5-low|1|pass|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|2|pass|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|3|fail|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|4|pass|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|5|pass|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|6|fail|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|7|pass|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|8|pass|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|9|pass|pass|0 critical finding rows
+sc3|claude-opus-5.5-low|10|pass|pass|0 critical finding rows
+sc2|gpt-6-sol-low|1|fail|fail|critical: fnr-logg not marked critical, tokenx not marked critical
+sc2|gpt-6-sol-low|2|fail|fail|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not marked critical, tokenx not marked critical
+sc2|gpt-6-sol-low|3|fail|fail|critical: fnr-logg not marked critical
+sc2|gpt-6-sol-low|4|fail|fail|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not marked critical, tokenx not marked critical
+sc2|gpt-6-sol-low|5|fail|fail|critical: inbound not named near its line
+sc2|gpt-6-sol-low|6|fail|fail|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not marked critical, tokenx not marked critical
+sc2|gpt-6-sol-low|7|fail|fail|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not marked critical, tokenx not marked critical
+sc2|gpt-6-sol-low|8|fail|fail|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not named near its line, tokenx not marked critical
+sc2|gpt-6-sol-low|9|fail|fail|critical: fnr-logg not marked critical, tokenx not marked critical
+sc2|gpt-6-sol-low|10|fail|fail|critical: fnr-logg not marked critical
+sc3|gpt-6-sol-low|1|pass|pass|0 critical finding rows
+sc3|gpt-6-sol-low|2|pass|pass|0 critical finding rows
+sc3|gpt-6-sol-low|3|pass|pass|0 critical finding rows
+sc3|gpt-6-sol-low|4|pass|pass|0 critical finding rows
+sc3|gpt-6-sol-low|5|fail|fail|2 critical finding row(s): - **Kritisk: Manglende nettverksbegrensning.** `nais.yaml` har ingen `accessPoli
+sc3|gpt-6-sol-low|6|pass|pass|0 critical finding rows
+sc3|gpt-6-sol-low|7|pass|pass|0 critical finding rows
+sc3|gpt-6-sol-low|8|pass|pass|0 critical finding rows
+sc3|gpt-6-sol-low|9|pass|pass|0 critical finding rows
+sc3|gpt-6-sol-low|10|pass|pass|0 critical finding rows

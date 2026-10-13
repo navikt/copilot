@@ -1,0 +1,88 @@
+
+Jeg går gjennom branch-diffen og migreringskravene, særlig avhengighetsstøtte, Kotlin-fallgruver og endringer i serialisering.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    OpenJDK Runtime Environment Temurin-27+35 (build 27+35)
+    OpenJDK 64-Bit Server VM Temurin-27+35 (build 27+35, mixed mode, sharing)
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+    00gn/T/1791454984122-copilot-tool-output-49171-6bc11d04-cf70-49c0-b521-93fdc3b5463b.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+
+
+
+
+**Vurdering:** Migreringen ser riktig ut i koden, men den er ikke ferdig verifisert.
+
+- `Soknad.kt` bruker Jackson 3-pakkene og bygger `JsonMapper` med Kotlin-modulen. Fjerningen av `jackson-datatype-jsr310` og innstillingen for datostempler ser tilsiktet ut: datoer var tidligere konfigurert som ISO-tekst, og Jackson 3 bruker det som standard.
+- JSON-feltrekkefølgen i Kafka-meldingen `SoknadMottattMelding` endres fra `soknadId, mottatt` til alfabetisk `mottatt, soknadId`. JSON-objekter skal ikke være avhengige av rekkefølgen, men sjekk om noen konsumenter eller tester sammenligner rå JSON-tekst.
+- `gradle test` stoppet under prosjektkonfigurasjon: Kotlin 2.1.0 klarer ikke å tolke Java 27 (`IllegalArgumentException: 27`). Kotlin-plugin-versjonen er uendret fra `main`, så dette ser ut som en begrensning i byggemiljøet, ikke en feil introdusert av migreringen. Jeg fikk derfor ikke verifisert kompilering eller avhengighetstreet. Jeg fant heller ingen tester i branchen.
+
+Før merge bør dere kjøre tester med en Java-versjon Kotlin-pluginen støtter, kontrollere at Jackson 2 ikke fortsatt ligger på classpath, og bekrefte at feltrekkefølgen ikke inngår i konsumentenes kontrakt.
+

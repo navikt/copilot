@@ -1,0 +1,39 @@
+● Read file (shell)
+  │ cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak/
+  └ 63 lines…
+
+● Context (shell)
+  │ ls -a; cat build.gradle.kts nais.yaml; ls -R src; which mise
+  └ 70 lines…
+
+● Check auth config (shell)
+  │ cd src/main/kotlin/no/nav/demo; grep -n -i -A12 "tokenx\|jwt" App.kt Config.kt | head -60; grep
+  │ -rn sakRoutes .
+  └ 1 line…
+
+### Oppsummering
+Fila er stort sett i orden. Spørringen er parameterisert. Fødselsnummeret hentes fra `pid`-claimet i tokenet og ikke fra en request-parameter, så brukeren kan bare se sine egne saker (eierskap er sjekket). Fødselsnummeret maskeres i loggene. De viktigste problemene er at `"tokenx"`-autentiseringen ikke er satt opp noe sted, og at det ikke finnes tester. Jeg kjørte ikke `mise check`, fordi repoet mangler både mise-konfigurasjon og Gradle wrapper.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 48 | 🔴 | Ingen kode registrerer `authenticate("tokenx")`. `App.kt` og `Config.kt` har ingen `jwt("tokenx")`. |
+| `SakService.kt` | 47 | 🟡 | Ingen kode kaller `sakRoutes`, så endepunktet er dødt. |
+| `SakService.kt` | 33–45 | 🟡 | Ingen tester for service eller rute. |
+| `SakService.kt` | 41 | 🟡 | `log.error(..., e)` logger hele exception-meldingen. |
+| `SakService.kt` | 19–20 | 💭 | `maskert()` gir alltid `***********` og har derfor ingen verdi i loggen. |
+| `SakService.kt` | 1–58 | 💭 | Fila heter `SakService.kt`, men inneholder også modell, repository og rute. |
+| `SakService.kt` | 23–30 | 💭 | Spørringen har ingen paginering eller `LIMIT`. |
+
+### Detaljer
+**🔴 Linje 48, manglende provider.** Ktor feiler når en rute bruker en provider som ikke er registrert. Det er verre om noen registrerer `"tokenx"` senere uten å sjekke `audience` og `issuer` mot `TOKEN_X_CLIENT_ID` og `TOKEN_X_ISSUER`. Da godtar endepunktet tokens som var ment for andre apper. `nais.yaml` mangler også `tokenx.enabled: true` og `accessPolicy.inbound`. Se `$tokenx-auth`.
+
+🔴 Rød sone: token-validering, gå gjennom denne nøye.
+
+**Linje 41, logging av exceptions.** Feil fra PostgreSQL kan i noen tilfeller ta med parameterverdier i `detail`, og her er parameteren fødselsnummeret. Logg heller `e.javaClass.simpleName` og en korrelasjons-ID, eller sjekk at loggmaskeringen dekker 11 sifre. try/catch-blokken legger heller ikke til noe utover loggingen. Det er nok å la en felles StatusPages-handler logge feilen.
+
+**Tester.** Lag en rutetest med `testApplication` og MockOAuth2Server. Den bør dekke tre tilfeller: gyldig `pid` gir sakene til den personen, token uten `pid` gir 401 og manglende token gir 401. Lag også en repository-test med Testcontainers.
+
+Still gjerne spørsmål om valgene over.
+

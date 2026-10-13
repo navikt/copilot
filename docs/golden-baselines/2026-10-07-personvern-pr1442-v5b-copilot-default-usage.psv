@@ -1,0 +1,27 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-07
+# revision:     0becd685
+# model:        CLI default
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      8
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+t8|1|3403673a-59b5-4146-bfb5-2d42757aa342|19251|0|claude-sonnet-5.5|medium|40848|317|0|40844|112|10528800000|3790|3784.0397080000002|tool_calls||
+t8|1|3403673a-59b5-4146-bfb5-2d42757aa342|19252|0|claude-sonnet-5.5|medium|42020|432|40844|1174|0|1542780000|3525|1313.783958|tool_calls||
+t8|1|3403673a-59b5-4146-bfb5-2d42757aa342|19253|0|claude-sonnet-5.5|medium|43131|1128|42018|1111|227|2246510000|11722|6429.169876|stop||
+t8|2|1b10c86e-f63b-443f-89b2-2094c7538deb|19254|0|claude-sonnet-5.5|medium|40849|208|16749|24096|91|6567780000|3994|3982.280833|tool_calls||
+t8|2|1b10c86e-f63b-443f-89b2-2094c7538deb|19255|0|claude-sonnet-5.5|medium|41303|293|40845|456|0|1224300000|2791|1469.5465829999998|tool_calls||
+t8|2|1b10c86e-f63b-443f-89b2-2094c7538deb|19256|0|claude-sonnet-5.5|medium|42174|1052|41301|871|210|2096170000|9725|3392.108667|stop||
+t8|3|c5c20281-fff3-4ebc-b684-6a5fe3a8bd8e|19257|0|claude-sonnet-5.5|medium|40854|222|16749|24101|96|6583030000|4317|4308.57325|tool_calls||
+t8|3|c5c20281-fff3-4ebc-b684-6a5fe3a8bd8e|19258|0|claude-sonnet-5.5|medium|41322|293|40850|470|0|1227900000|2632|999.558125|tool_calls||
+t8|3|c5c20281-fff3-4ebc-b684-6a5fe3a8bd8e|19259|0|claude-sonnet-5.5|medium|42193|323|41320|871|152|1367550000|4962|4947.398916|tool_calls||
+t8|3|c5c20281-fff3-4ebc-b684-6a5fe3a8bd8e|19260|0|claude-sonnet-5.5|medium|43186|810|42191|993|0|1902470000|8538|8495.778291|stop||

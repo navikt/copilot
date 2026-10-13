@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -385,9 +385,9 @@ type ghAuth int
 
 const (
 	ghAuthUnknown ghAuth = iota // gh ran but did not answer
-	ghAuthMissing               // no gh on PATH
-	ghAuthNone                  // not signed in, or the token no longer works
-	ghAuthOK                    // signed in, token in a file or the environment
+	ghAuthMissing               // no trusted host gh
+	ghAuthNone                  // no stored login, or at least one account check failed
+	ghAuthOK                    // signed in, storage not confirmed as keyring-only
 	ghAuthKeyring               // signed in, token in the system keyring
 )
 
@@ -396,23 +396,89 @@ const ghAuthTimeout = 5 * time.Second
 
 // ghAuthProbe runs `gh auth status`. Setup and doctor only, never a launch.
 // A var so tests need no gh.
-var ghAuthProbe = func() (ghAuth, string) {
-	gh, err := exec.LookPath("gh")
-	if err != nil {
+var ghAuthProbe = probeHostGHAuth
+
+// Fixed host locations and resolved roots exclude project PATH shims and
+// sandbox wrappers while allowing Homebrew's bin symlink into Cellar.
+var hostGHBinary = func() string {
+	return findSetupGH(
+		[]string{"/usr/bin", "/bin", "/usr/local/bin", "/opt/homebrew/bin", "/run/current-system/sw/bin", "/home/linuxbrew/.linuxbrew/bin"},
+		[]string{"/usr/bin", "/bin", "/usr/local", "/opt/homebrew", "/run/current-system", "/nix/store", "/snap", "/home/linuxbrew/.linuxbrew"})
+}
+
+func findSetupGH(dirs, roots []string) string {
+	for _, dir := range dirs {
+		path, err := filepath.EvalSymlinks(filepath.Join(dir, "gh"))
+		if err != nil {
+			continue
+		}
+		st, err := os.Stat(path)
+		if err != nil || !st.Mode().IsRegular() || st.Mode().Perm()&0o111 == 0 {
+			continue
+		}
+		for _, root := range roots {
+			realRoot, err := filepath.EvalSymlinks(root)
+			if err != nil {
+				continue
+			}
+			rel, err := filepath.Rel(realRoot, path)
+			if err == nil && rel != ".." && !filepath.IsAbs(rel) && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+				return path
+			}
+		}
+	}
+	return ""
+}
+
+// Stored host login must not be masked by ambient tokens or project routing.
+func probeHostGHAuth() (ghAuth, string) {
+	if e2eSeams == "1" {
 		return ghAuthMissing, ""
 	}
-	out, err := runBoundedTimeout(ghAuthTimeout, true, gh, "auth", "status", "--hostname", "github.com")
+	if os.Getenv(cpltSandboxEnvVar) != "" {
+		return ghAuthUnknown, "host sign-in must be checked outside cplt"
+	}
+	path := hostGHBinary()
+	if path == "" {
+		return ghAuthMissing, ""
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ghAuthUnknown, "could not resolve the host home directory"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), ghAuthTimeout)
+	defer cancel()
+	check := exec.CommandContext(ctx, path, "auth", "status", "--hostname", "github.com")
+	check.Dir, check.WaitDelay = home, time.Second
+	check.Env = slices.DeleteFunc(os.Environ(), func(entry string) bool {
+		key, _, _ := strings.Cut(entry, "=")
+		return slices.Contains([]string{"GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN", "GH_HOST", "GH_REPO"}, key)
+	})
+	out, err := check.CombinedOutput()
 	return ghAuthFrom(out, err)
 }
 
-// ghAuthFrom reads `gh auth status`: exit 0 is signed in, exit 1 is not (or
-// a token GitHub rejects), anything else (a kill at the deadline) is unknown.
+// ghAuthFrom reads `gh auth status`: exit 1 can mean one failed account among
+// working accounts. Other failures (a kill at the deadline) are unknown.
 func ghAuthFrom(out []byte, err error) (ghAuth, string) {
 	var ee *exec.ExitError
 	switch {
-	case err == nil && bytes.Contains(out, []byte("(keyring)")):
-		return ghAuthKeyring, ""
 	case err == nil:
+		// An inactive keyring account must not hide an active plaintext account.
+		// Only classify storage when every github.com account line names keyring.
+		keyring := false
+		for line := range strings.SplitSeq(string(out), "\n") {
+			if !strings.Contains(line, "Logged in to github.com account ") {
+				continue
+			}
+			if !strings.HasSuffix(strings.TrimSpace(line), "(keyring)") {
+				return ghAuthOK, ""
+			}
+			keyring = true
+		}
+		if keyring {
+			return ghAuthKeyring, ""
+		}
 		return ghAuthOK, ""
 	case errors.As(err, &ee) && ee.ExitCode() == 1:
 		return ghAuthNone, ""
@@ -421,35 +487,51 @@ func ghAuthFrom(out []byte, err error) (ghAuth, string) {
 	}
 }
 
-// keychainBlocked is true where cplt keeps the client from the macOS
-// Keychain, which is where gh keeps its token by default (#1348).
-func keychainBlocked(client string) bool {
-	return runtime.GOOS == "darwin" && (client == "opencode" || client == "pi")
-}
-
-// reportGHAuth prints the sign-in result and, when push or PRs would fail,
-// the exact command that fixes it.
-func reportGHAuth(w io.Writer, indent, client string, st ghAuth, detail string) {
-	login := "gh auth login"
-	if keychainBlocked(client) {
-		login = "gh auth login --insecure-storage"
+// The cleared probe checks stored host login, not ambient tokens or sandbox delivery.
+func reportGHAuth(w io.Writer, indent, client, authMode string, st ghAuth, detail string) {
+	if client != "copilot" {
+		authMode = "auto"
 	}
 	switch {
 	case st == ghAuthMissing:
-		fmt.Fprintf(w, "%s%s gh is not installed; the agent needs it to open PRs. Install it with %s, then run %s\n", indent, yellow("⚠"),
-			bold(domain.PkgForInstall().Pick("brew install gh", "sudo apt install gh")), bold(login))
+		fmt.Fprintf(w, "%s%s Trusted host gh is not installed; the agent needs it to open PRs. Install it with %s\n", indent, yellow("⚠"),
+			bold(domain.PkgForInstall().Pick("brew install gh", "sudo apt install gh")))
 	case st == ghAuthNone:
-		fmt.Fprintf(w, "%s%s gh is not signed in to github.com (or its token no longer works), so the agent cannot push or open PRs. Run %s\n", indent, yellow("⚠"), bold(login))
-	case st == ghAuthKeyring && keychainBlocked(client):
-		fmt.Fprintf(w, "%s%s gh keeps its token in the macOS Keychain, which cplt does not let %s read: push and PRs fail in the sandbox. Run %s\n", indent, yellow("⚠"), clientLabel[client], bold(login))
+		fmt.Fprintf(w, "%s%s A host gh account check failed or no stored login for github.com was found with token overrides removed. Other stored accounts may still work. Ambient-token authentication and sandbox push/PR authentication remain unverified.\n", indent, yellow("⚠"))
 	case (st == ghAuthOK || st == ghAuthKeyring) && originUsesSSH():
-		fmt.Fprintf(w, "%s%s gh is signed in to github.com: the agent can open PRs. This repo's origin uses SSH, which cplt blocks, so pushes fail. Run %s\n", indent, yellow("⚠"),
+		fmt.Fprintf(w, "%s%s gh is signed in to github.com. This repo's origin uses SSH, which cplt blocks, so pushes fail. Run %s\n", indent, yellow("⚠"),
 			bold(`git config --global url."https://github.com/".insteadOf "git@github.com:"`))
 	case st == ghAuthOK || st == ghAuthKeyring:
-		fmt.Fprintf(w, "%s%s gh is signed in to github.com: the agent can push branches and open PRs\n", indent, green("✓"))
+		fmt.Fprintf(w, "%s%s gh is signed in to github.com.\n", indent, green("✓"))
 	default:
-		fmt.Fprintf(w, "%s%s Could not check the gh sign-in (%s). Run %s to see it.\n", indent, dim("-"), detail, bold("gh auth status"))
+		fmt.Fprintf(w, "%s%s Could not check the gh sign-in (%s). Run %s on the host to see it.\n", indent, dim("-"), detail, bold(hostGHStorageCheckCommand))
 	}
+	if st == ghAuthMissing || st == ghAuthNone {
+		reportHostGHRecovery(w, authMode)
+		if client == "copilot" && authMode != "env_only" {
+			fmt.Fprintln(w, "Native Copilot Keychain login may still work; launch will continue. If Copilot needs login, use an account with Copilot access and sign in on the host: cplt blocks browser opening by default.")
+		}
+	}
+	if st == ghAuthOK || st == ghAuthKeyring {
+		if st == ghAuthOK {
+			fmt.Fprintln(w, "gh has not verified secure storage for every github.com account. Fix any config-file login before restart.")
+		}
+		fmt.Fprintln(w, "Sandbox authentication remains unverified. For push/PR failures, run cplt doctor on the host; see https://copilot.nav.no/nav-pilot/guider/cplt-git.")
+	}
+}
+
+const hostGHUnset = "unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; "
+const hostGHLoginCommand = "(" + hostGHUnset + "gh auth login --hostname github.com --web)"
+const hostGHStorageCheckCommand = "(" + hostGHUnset + "gh auth status --hostname github.com)"
+const hostGHRestartCommand = "(" + hostGHUnset + "nav-pilot)"
+
+// Each subshell clears overrides without changing the user's parent shell.
+func reportHostGHRecovery(w io.Writer, mode string) {
+	fmt.Fprintf(w, "nav-pilot does not start login: gh can fall back to plaintext if its credential store fails. Run trusted gh on the host:\n  %s\n  %s\nRequire github.com accounts to report (keyring) before restart. For a config-file path, stop and fix credential-store access. Status reports storage metadata, not a secure-only login guarantee.\n", hostGHLoginCommand, hostGHStorageCheckCommand)
+	if mode == "env_only" {
+		fmt.Fprintln(w, "env_only requires exported tokens. Keep it and supply a Copilot token, or explicitly choose stored-login recovery first:\n  nav-pilot config set copilot_auth_mode auto")
+	}
+	fmt.Fprintf(w, "Then restart for stored-login recovery:\n  %s\nHost login changes gh's identity, not Copilot's native login.\n", hostGHRestartCommand)
 }
 
 // originUsesSSH is whether the current repo's origin is an SSH remote. cplt

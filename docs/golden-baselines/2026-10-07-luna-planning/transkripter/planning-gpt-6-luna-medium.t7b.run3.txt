@@ -1,0 +1,9 @@
+**Fase 1: Intervju.** `SoknadMottattMelding` inneholder nå `soknadId` og `mottatt`. `sendMottatt` serialiserer meldingen direkte til Kafka-topicet `soknad-mottatt`. Koden har også `SokerDto.fnr`, som sendes på et annet topic, men jeg fant ingen topic-konfigurasjon eller konsumenter som avklarer hvem som får lese det nye feltet. Jeg fant heller ingen tester eller lokal `AGENTS.md`/Copilot-instruksjonsfil; `nav-pilot init` kan opprette lokal konfigurasjon.
+
+🔴 **Rød sone:** FNR i Kafka-payload krever avklart personvern, tilgang og kryptering. Før jeg endrer koden, trenger jeg svar på dette:
+
+1. Er det godkjent å sende FNR til alle som konsumerer `soknad-mottatt`, og hvem er konsumentene? Har de lov til å lese FNR og tåler de det nye feltet?
+2. Hvilken godkjent løsning skal kryptere FNR i payloaden, og hvordan håndteres nøkkeltilgang og nøkkelrotasjon? Hvordan skal konsumentene dekryptere og kontrollere meldingen?
+3. Hva skal produsenten gjøre hvis kryptering feiler eller nøkkelen ikke er tilgjengelig: stoppe publiseringen, prøve igjen eller bruke en annen etablert håndtering?
+
+Blindsoner reist: 4/11 (#1, #2, #3 og #6 stilt; #7 ingen tester funnet; #4–#5 og #8–#10 ikke relevante for feltendringen; #11 dekket av rød-sone-markeringen).

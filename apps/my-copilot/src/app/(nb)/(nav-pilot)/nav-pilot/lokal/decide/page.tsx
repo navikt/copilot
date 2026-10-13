@@ -65,7 +65,7 @@ export default function DecideHook() {
         </NextLink>{" "}
         eller på{" "}
         <NextLink href="/nav-pilot/lokal/egen-server" className={linkClass}>
-          egen server
+          egen LLM-server
         </NextLink>
         . Spørsmålet, meldingen og diffen går bare til den lokale modellen, ikke til skyen.
       </BodyLong>
@@ -78,7 +78,7 @@ export default function DecideHook() {
           <CodeBlock compact>{`nav-pilot alpha local start
 nav-pilot alpha local status`}</CodeBlock>
           <BodyLong>
-            <code className={code}>decide</code> starter ikke serveren selv. Med egen server starter du den som du
+            <code className={code}>decide</code> starter ikke serveren selv. Med egen LLM-server starter du den som du
             pleier.
           </BodyLong>
         </VStack>
@@ -186,7 +186,7 @@ nav-pilot alpha local status`}</CodeBlock>
             Du får treffsikkerhet, en forvekslingsmatrise, snittet av sannsynligheten for riktige og gale svar, og
             svartid. Er modellen like sikker når den tar feil som når den har rett, hjelper ingen terskel. Da bør
             spørsmålet ikke inn i en hook. Våre tall for dette spørsmålet står i{" "}
-            <NextLink href="/nav-pilot/forklaring/lokal-modell#malt-decide" className={linkClass}>
+            <NextLink href="/innsikt/lokale-modeller#malt-decide" className={linkClass}>
               målte grenser
             </NextLink>
             .

@@ -1,0 +1,24 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+**Fase 1: Avklaring.** Jeg legger til grunn at tjenesten skal behandle fødselsnummer fra innloggede innbyggere. Repoet er en liten Ktor-demo på Nais, men har verken ID-porten-oppsett, autentisering i applikasjonen eller tester. Jeg finner heller ikke `AGENTS.md` eller Copilot-instruksjonene; `nav-pilot init` kan legge dem til senere. Jeg endrer ikke koden før vi har avklart hvordan fødselsnummeret skal brukes.
+
+- Hva skal tjenesten gjøre med fødselsnummeret: bruke det i ett kall, sende det til en annen tjeneste eller lagre det? Hvis det sendes videre, hvem mottar det?
+- Skal innbyggeren kalle API-et direkte, eller skal en frontend/BFF stå foran? Dette avgjør hvem som kan nå tjenesten og hvordan tokenet skal kontrolleres.
+- Hva skal skje når innloggingen eller en eventuell tjeneste nedstrøms feiler?
+- Skal den nye tjenesten erstatte `demo-tjeneste`, eller er demoen bare et utgangspunkt? Er ID-porten-oppsett nytt for teamet?
+
+Jeg spør ikke om andre kategorier personopplysninger enn fødselsnummer nå, siden ingen er nevnt. Spørsmål om kompatibilitet og utfasing avhenger av om demoen skal erstattes.
+
+Blindsoner reist: 5/11 (#2, #3, #5, #6 og #11; #1 er avklart for fødselsnummer, øvrige avhenger av svarene).
+

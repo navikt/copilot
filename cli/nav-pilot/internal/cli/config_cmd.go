@@ -94,7 +94,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "allow_all_tools",
 		kind:        keyKindBool,
-		description: "Allow all tools without per-tool confirmation.",
+		description: "Skip the client's permission prompts under cplt even with autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto).",
 		allowed:     nil,
 		defaultVal:  "false",
 		flag:        "--allow-all-tools / --no-allow-all-tools",
@@ -110,7 +110,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "autonomy",
 		kind:        keyKindString,
-		description: "How much the Copilot CLI may do without asking, under cplt. sandbox passes --allow-all-tools --allow-all-paths --allow-all-urls: cplt's guards stay the boundary, and the agent can still ask you. conservative keeps Copilot's prompt before each action. Setting it also writes autonomy_chosen = true; conservative without that was written by an earlier nav-pilot, not chosen, and counts as sandbox. Without cplt nav-pilot never passes allow-all flags.",
+		description: "How much the agent may do without asking, under cplt. sandbox passes --allow-all-tools --allow-all-paths --allow-all-urls: cplt's guards stay the boundary, and the agent can still ask you. conservative keeps Copilot's prompt before each action. For OpenCode, sandbox passes --auto and conservative keeps OpenCode's own prompts. Setting it also writes autonomy_chosen = true; conservative without that was written by an earlier nav-pilot, not chosen, and counts as sandbox.",
 		allowed:     validAutonomy,
 		defaultVal:  "sandbox",
 		flag:        "",
@@ -284,7 +284,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "copilot_auth_mode",
 		kind:        keyKindString,
-		description: "Which auth source reaches cplt for Copilot. nav-pilot never extracts a token itself. auto constrains nothing; env_only requires GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN to hold a value and aborts the launch if none does; gh_only removes those variables so no env token reaches the sandbox.",
+		description: "Filters the environment handed to cplt for Copilot. auto leaves it unchanged; env_only requires a non-blank GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN or aborts; gh_only strips those variables before cplt starts. Exclusive auth-source enforcement is unsupported: cplt can deny or inject tokens, and Copilot's stored login remains available. nav-pilot never extracts a Copilot token itself.",
 		allowed:     validCopilotAuthModes,
 		defaultVal:  "auto",
 		flag:        "",
@@ -379,9 +379,9 @@ client = "copilot"
 # Corresponds to Copilot CLI flag: --context
 # context_tier = "default"
 
-# Allow all tools without per-tool confirmation.
+# Skip the client's permission prompts under cplt even with autonomy = conservative.
 # Default: false
-# Corresponds to Copilot CLI flag: --allow-all-tools
+# Copilot: --allow-all-tools, OpenCode: --auto.
 # allow_all_tools = false
 
 # Ask the user before taking actions. Set to false to disable.
@@ -389,11 +389,12 @@ client = "copilot"
 # Corresponds to nav-pilot flags: --ask-user / --no-ask-user
 # ask_user = true
 
-# How much the Copilot CLI may do without asking, under cplt.
+# How much the agent may do without asking, under cplt.
 #   sandbox      : --allow-all-tools --allow-all-paths --allow-all-urls; cplt's
 #                  guards stay the boundary, and the agent can still ask you
 #   conservative : Copilot asks before each action
-# Without cplt nav-pilot never passes allow-all flags. Set it with
+# For OpenCode, sandbox passes --auto; conservative keeps its prompts.
+# Set it with
 # nav-pilot config set autonomy <value>, which also writes
 # autonomy_chosen = true: conservative without it is ignored.
 # Allowed: sandbox, conservative — Default: sandbox
@@ -512,17 +513,15 @@ client = "copilot"
 # mcp_hosts = "ask"
 
 # ── cplt auth ──────────────────────────────────────────────────────────────────
-# nav-pilot never extracts a Copilot token itself. With cplt's gh guard on — the
-# default since cplt#335, not only under sandbox.preset = strict — cplt uses an
-# inherited
-# GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN if one is set and otherwise runs
-# "gh auth token" outside the sandbox; with it off, Copilot authenticates on its
-# own. copilot_auth_mode decides which sources reach cplt.
+# nav-pilot never extracts a Copilot token itself. This key filters only the
+# environment handed to cplt, not the credential source used inside the sandbox.
+# cplt can deny or inject tokens; Copilot can also use its stored login.
 #
 # copilot_auth_mode:
 #   auto         : no constraint (default)
-#   env_only     : a token must already be in the environment, abort the launch if not
-#   gh_only      : strip the token variables so no env token reaches the sandbox
+#   env_only     : require a non-blank GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN
+#   gh_only      : strip those variables before cplt starts (legacy filter)
+# Neither mode enforces an exclusive credential source.
 # Allowed: auto, env_only, gh_only — Default: auto
 # copilot_auth_mode = "auto"
 `

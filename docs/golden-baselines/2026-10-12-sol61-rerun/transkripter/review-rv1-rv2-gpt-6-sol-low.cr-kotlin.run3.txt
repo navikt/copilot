@@ -1,0 +1,72 @@
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read UserRepo.kt
+  │ src/main/kotlin/no/nav/demo/UserRepo.kt
+  └ 15 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect workspace and available checks (shell)
+  │ pwd && ls -la && find . -maxdepth 3 -type f | head -60
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:110 (110 lines read)
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+✗ Inspect source files and run mandated mise check (shell)
+  │ find src -type f -print && (command -v mise || true) && mise check
+  └ src/app/komponenter/StatusPanel.tsx
+    src/main/kotlin/no/nav/demo/App.kt
+    src/main/kotlin/no/nav/demo/Oppgave.kt
+    src/main/kotlin/no/nav/demo/Routes.kt
+    src/main/kotlin/no/nav/demo/UserRepo.kt
+    src/main/kotlin/no/nav/demo/Config.kt
+    ~/.local/share/mise/shims/mise
+    mise ERROR no task check found
+
+    [mise-oppgaveliste fjernet]
+    mise ERROR Version: 2026.10.4 macos-arm64 (2026-10-07)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Verify exact findings and project dependencies (shell)
+  │ nl -ba src/main/kotlin/no/nav/demo/UserRepo.kt && rg -n 'session|queryOf|finnBruker|kotliquery'
+  │ src build.gradle.kts || true && ls -a | grep -E 'gradlew|mise.toml|gradle' || true
+  └ 18 lines…
+
+### Funn i `UserRepo.kt`
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 9 | 🔴 Blokkerer | `fnr` settes rett inn i SQL-strengen. Det åpner for SQL-injeksjon. Bruk en parameterisert spørring, for eksempel `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`. |
+| 8 | 🔴 Blokkerer | Fødselsnummer skrives til vanlig applikasjonslogg. Fjern verdien fra loggmeldingen. |
+| 11 | 🔴 Blokkerer | `session` og `queryOf` er ikke definert eller importert, og `build.gradle.kts` mangler Kotliquery. Filen kan derfor ikke kompileres slik den står. |
+| 12–13 | 🟡 Bør fikses | Alle databasefeil blir til `null`, som også betyr «bruker finnes ikke». Skill mellom manglende treff og feil ved oppslag, slik at feil kan håndteres og varsles. |
+
+`mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave i mise. Ingen kode er endret.
+
+🔴 Rød sone: SQL-spørringen og håndteringen av fødselsnummer må gjennomgås nøye. Parameterisering fjerner injeksjonsrisikoen uten å endre oppslagets hensikt; å skille databasefeil fra manglende treff gjør feil synlige for kalleren. Still gjerne spørsmål om valgene over.
+

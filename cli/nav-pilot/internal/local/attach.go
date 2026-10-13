@@ -48,9 +48,12 @@ import (
 // a free port and writes it here, and every reader that already opens this file
 // to find the pid learns the port from the same read.
 type State struct {
-	PID     int       `json:"pid"`
-	Model   string    `json:"model"`
-	Started time.Time `json:"started"`
+	PID   int    `json:"pid"`
+	Model string `json:"model"`
+	// Revision is the pinned commit the server loaded; empty when unpinned or
+	// written by a nav-pilot that did not record it.
+	Revision string    `json:"revision,omitempty"`
+	Started  time.Time `json:"started"`
 
 	// Port the server is listening on. Zero in a file written by an older
 	// nav-pilot, which meant 8080 by convention; [State.ServerPort] applies

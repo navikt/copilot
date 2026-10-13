@@ -1,0 +1,228 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/docs/adr/0002-tokenx-via-texas.md workspace/docs/adr/0002-tokenx-via-texas.md
+--- evaluator/fixture/workspace/docs/adr/0002-tokenx-via-texas.md	2026-10-12 11:31:50
++++ workspace/docs/adr/0002-tokenx-via-texas.md	2026-10-12 16:21:28
+@@ -14,10 +14,14 @@
+ - Vekslede tokener caches i minnet per pod.
+ - Et vekslet token hører til brukeren som ga det, og skal aldri brukes for en
+   annen brukers forespørsel.
++- Cachen bruker en hash av bruker-tokenet og audience som nøkkel. Den lagrer ikke
++  bruker-tokenet i klartekst.
+ - Tokener fornyes når det er mindre enn 30 sekunder igjen før de utløper. Det dekker
+   klokkeforskjell mellom podene og `vedtak-api` og tiden et kall er underveis.
++- Ved 401 fra `vedtak-api` fornyer vi tokenet og prøver forespørselen én gang til.
+ - Tiden hentes fra en injisert `Clock`, så testene kan styre den.
+ 
+ ## Konsekvenser
+ 
+-Cachen vokser med antall aktive brukere. Det er akseptabelt med dagens volum.
++Cachen kan ha flere oppføringer enn aktive brukere når bruker-token fornyes.
++Den fjerner utløpte oppføringer minst hvert minutt mens pod-en mottar forespørsler.
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Token.kt workspace/src/main/kotlin/no/nav/benchmark/Token.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/Token.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/Token.kt	2026-10-12 16:19:02
+@@ -3,5 +3,5 @@
+ import java.time.Instant
+ 
+ data class OboToken(val accessToken: String, val expiresAt: Instant) {
+-    fun isValid(now: Instant): Boolean = now.isBefore(expiresAt)
++    fun isValid(now: Instant): Boolean = now.plusSeconds(30).isBefore(expiresAt)
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/TokenCache.kt	2026-10-12 16:21:39
+@@ -1,22 +1,61 @@
+ package no.nav.benchmark
+ 
++import java.security.MessageDigest
+ import java.time.Clock
++import java.time.Instant
++import java.util.Base64
+ import java.util.concurrent.ConcurrentHashMap
++import java.util.concurrent.atomic.AtomicLong
+ 
+ /** Gjenbruker TokenX-tokener så vi ikke kaller Texas på hver forespørsel. */
+ class TokenCache(
+     private val texas: TexasClient,
+     private val clock: Clock,
+ ) {
+-    private val tokens = ConcurrentHashMap<String, OboToken>()
++    private data class CacheKey(val userTokenHash: String, val audience: String)
+ 
++    private val tokens = ConcurrentHashMap<CacheKey, OboToken>()
++    private val lastCleanupMillis = AtomicLong(Long.MIN_VALUE)
++
+     suspend fun token(userToken: String, audience: String): String {
+-        val cached = tokens[audience]
+-        if (cached != null && cached.isValid(clock.instant())) {
++        val key = CacheKey(userToken.hash(), audience)
++        val now = clock.instant()
++        removeExpiredTokens(now)
++        val cached = tokens[key]
++        if (cached != null && cached.isValid(now)) {
+             return cached.accessToken
+         }
+         val fresh = texas.exchange(userToken, audience)
+-        tokens[audience] = fresh
++        tokens[key] = fresh
+         return fresh.accessToken
++    }
++
++    fun invalidate(userToken: String, audience: String, accessToken: String) {
++        val key = CacheKey(userToken.hash(), audience)
++        tokens.computeIfPresent(key) { _, cached ->
++            if (cached.accessToken == accessToken) null else cached
++        }
++    }
++
++    private fun removeExpiredTokens(now: Instant) {
++        val nowMillis = now.toEpochMilli()
++        val previousCleanup = lastCleanupMillis.get()
++        if (previousCleanup != Long.MIN_VALUE &&
++            nowMillis - previousCleanup < CLEANUP_INTERVAL_MILLIS
++        ) {
++            return
++        }
++        if (lastCleanupMillis.compareAndSet(previousCleanup, nowMillis)) {
++            tokens.entries.removeIf { !it.value.isValid(now) }
++        }
++    }
++
++    private fun String.hash(): String {
++        val digest = MessageDigest.getInstance("SHA-256").digest(toByteArray(Charsets.UTF_8))
++        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
++    }
++
++    private companion object {
++        const val CLEANUP_INTERVAL_MILLIS = 60_000L
+     }
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/VedtakClient.kt workspace/src/main/kotlin/no/nav/benchmark/VedtakClient.kt
+--- evaluator/fixture/workspace/src/main/kotlin/no/nav/benchmark/VedtakClient.kt	2026-10-12 11:31:50
++++ workspace/src/main/kotlin/no/nav/benchmark/VedtakClient.kt	2026-10-12 16:20:17
+@@ -4,6 +4,8 @@
+ import io.ktor.client.request.bearerAuth
+ import io.ktor.client.request.get
+ import io.ktor.client.statement.HttpResponse
++import io.ktor.client.statement.bodyAsText
++import io.ktor.http.HttpStatusCode
+ 
+ const val VEDTAK_AUDIENCE = "dev-gcp:vedtak:vedtak-api"
+ 
+@@ -14,6 +16,14 @@
+ ) {
+     suspend fun hent(userToken: String, id: String): HttpResponse {
+         val token = tokens.token(userToken, VEDTAK_AUDIENCE)
+-        return http.get("$baseUrl/api/vedtak/$id") { bearerAuth(token) }
++        val response = hentMedToken(id, token)
++        if (response.status != HttpStatusCode.Unauthorized) return response
++
++        response.bodyAsText()
++        tokens.invalidate(userToken, VEDTAK_AUDIENCE, token)
++        return hentMedToken(id, tokens.token(userToken, VEDTAK_AUDIENCE))
+     }
++
++    private suspend fun hentMedToken(id: String, token: String): HttpResponse =
++        http.get("$baseUrl/api/vedtak/$id") { bearerAuth(token) }
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x package-lock.json evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/VedtakProxyTest.kt workspace/src/test/kotlin/no/nav/benchmark/VedtakProxyTest.kt
+--- evaluator/fixture/workspace/src/test/kotlin/no/nav/benchmark/VedtakProxyTest.kt	2026-10-12 11:32:24
++++ workspace/src/test/kotlin/no/nav/benchmark/VedtakProxyTest.kt	2026-10-12 16:19:26
+@@ -11,6 +11,7 @@
+ import io.ktor.server.testing.testApplication
+ import java.time.Clock
+ import java.time.Instant
++import java.time.ZoneId
+ import java.time.ZoneOffset
+ import kotlin.test.Test
+ import kotlin.test.assertEquals
+@@ -41,4 +42,90 @@
+ 
+         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/vedtak/42").status)
+     }
++
++    @Test
++    fun cacherIkkeTokenMellomBrukere() = testApplication {
++        var exchanges = 0
++        val texas = MockEngine {
++            exchanges++
++            respond("""{"access_token":"obo-$exchanges","expires_in":3600}""", headers = json)
++        }
++        val sentTokens = mutableListOf<String?>()
++        val vedtak = MockEngine { request ->
++            sentTokens += request.headers[HttpHeaders.Authorization]
++            respond("""{"id":"42"}""", headers = json)
++        }
++        application { vedtakModule(texas, vedtak) }
++
++        client.get("/api/vedtak/42") { bearerAuth("bruker-a") }
++        client.get("/api/vedtak/42") { bearerAuth("bruker-b") }
++        client.get("/api/vedtak/42") { bearerAuth("bruker-a") }
++
++        assertEquals(2, exchanges)
++        assertEquals(listOf("Bearer obo-1", "Bearer obo-2", "Bearer obo-1"), sentTokens)
++    }
++
++    @Test
++    fun fornyerTokenFørDetUtløper() = testApplication {
++        val clock = MutableClock(Instant.parse("2026-03-04T10:00:00Z"))
++        var exchanges = 0
++        val texas = MockEngine {
++            exchanges++
++            respond("""{"access_token":"obo-$exchanges","expires_in":3600}""", headers = json)
++        }
++        val sentTokens = mutableListOf<String?>()
++        val vedtak = MockEngine { request ->
++            sentTokens += request.headers[HttpHeaders.Authorization]
++            respond("""{"id":"42"}""", headers = json)
++        }
++        application { vedtakModule(texas, vedtak, clock) }
++
++        client.get("/api/vedtak/42") { bearerAuth("bruker-a") }
++        clock.advanceSeconds(3571)
++        client.get("/api/vedtak/42") { bearerAuth("bruker-a") }
++
++        assertEquals(2, exchanges)
++        assertEquals(listOf("Bearer obo-1", "Bearer obo-2"), sentTokens)
++    }
++
++    @Test
++    fun vekslerPåNyttEtter401() = testApplication {
++        var exchanges = 0
++        val texas = MockEngine {
++            exchanges++
++            respond("""{"access_token":"obo-$exchanges","expires_in":3600}""", headers = json)
++        }
++        var requests = 0
++        val sentTokens = mutableListOf<String?>()
++        val vedtak = MockEngine { request ->
++            requests++
++            sentTokens += request.headers[HttpHeaders.Authorization]
++            if (requests == 1) {
++                respond("{}", HttpStatusCode.Unauthorized, headers = json)
++            } else {
++                respond("""{"id":"42"}""", headers = json)
++            }
++        }
++        application { vedtakModule(texas, vedtak) }
++
++        val response = client.get("/api/vedtak/42") { bearerAuth("bruker-a") }
++
++        assertEquals(HttpStatusCode.OK, response.status)
++        assertEquals(2, exchanges)
++        assertEquals(listOf("Bearer obo-1", "Bearer obo-2"), sentTokens)
++    }
++}
++
++private class MutableClock(start: Instant) : Clock() {
++    private var current = start
++
++    fun advanceSeconds(seconds: Long) {
++        current = current.plusSeconds(seconds)
++    }
++
++    override fun getZone(): ZoneId = ZoneOffset.UTC
++
++    override fun withZone(zone: ZoneId): Clock = Clock.fixed(current, zone)
++
++    override fun instant(): Instant = current
+ }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -136,7 +137,6 @@ func (c *BigQueryClient) insertRecords(ctx context.Context, tableName string, da
 	}
 
 	table := c.client.Dataset(c.dataset).Table(tableName)
-	inserter := table.Inserter()
 
 	dayStr := day.Format("2006-01-02")
 	loadedAt := time.Now().UTC()
@@ -152,7 +152,7 @@ func (c *BigQueryClient) insertRecords(ctx context.Context, tableName string, da
 		})
 	}
 
-	if err := inserter.Put(ctx, rows); err != nil {
+	if err := loadRows(ctx, table, rows); err != nil {
 		return fmt.Errorf("failed to insert rows into %s: %w", tableName, err)
 	}
 
@@ -291,4 +291,67 @@ func (c *BigQueryClient) GetLatestDay(ctx context.Context, scopeID string) (time
 		row.LatestDay.Date.Day,
 		0, 0, 0, 0, time.UTC,
 	), nil
+}
+
+// loadRows appends rows with a load job instead of streaming inserts. Streamed
+// rows sit in the streaming buffer for up to ~90 min, and DELETE cannot touch
+// them, so the delete-then-insert re-runs failed until the buffer flushed.
+func loadRows[T any](ctx context.Context, table *bigquery.Table, rows []*T) error {
+	return loadRowsWith(ctx, table, rows, bigquery.WriteAppend)
+}
+
+// loadRowsWith is loadRows with a chosen write disposition. WriteTruncate on a
+// partition decorator (table$YYYYMMDD) replaces that partition atomically.
+func loadRowsWith[T any](ctx context.Context, table *bigquery.Table, rows []*T, disposition bigquery.TableWriteDisposition) error {
+	data, err := rowsToNDJSON(rows)
+	if err != nil {
+		return err
+	}
+	src := bigquery.NewReaderSource(bytes.NewReader(data))
+	src.SourceFormat = bigquery.JSON
+	l := table.LoaderFrom(src)
+	l.WriteDisposition = disposition
+	job, err := l.Run(ctx)
+	if err != nil {
+		return err
+	}
+	// Wait past cancellation: a started job may still commit, and returning
+	// early would let a retry delete and append again, duplicating rows.
+	status, err := job.Wait(context.WithoutCancel(ctx))
+	if err != nil {
+		return err
+	}
+	return status.Err()
+}
+
+// rowsToNDJSON encodes rows by their bigquery tags. raw_record is a JSON
+// column, so it goes in as a JSON value, not a quoted string; timestamps are
+// cut to microseconds, the precision BigQuery accepts.
+func rowsToNDJSON[T any](rows []*T) ([]byte, error) {
+	schema, err := bigquery.InferSchema(new(T))
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	for _, r := range rows {
+		m, _, err := (&bigquery.StructSaver{Struct: r, Schema: schema}).Save()
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range m {
+			switch v := v.(type) {
+			case time.Time:
+				m[k] = v.UTC().Format("2006-01-02T15:04:05.999999Z")
+			case string:
+				if k == "raw_record" {
+					m[k] = json.RawMessage(v)
+				}
+			}
+		}
+		if err := enc.Encode(m); err != nil {
+			return nil, err
+		}
+	}
+	return buf.Bytes(), nil
 }

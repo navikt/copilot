@@ -1,0 +1,221 @@
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/[id]/notater/route.ts workspace/app/api/intern/saker/[id]/notater/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/[id]/notater/route.ts	2026-10-12 18:11:23
++++ workspace/app/api/intern/saker/[id]/notater/route.ts	2026-10-12 23:39:33
+@@ -1,13 +1,12 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../../../lib/auth.ts";
+ import { leggTilNotat } from "../../../../../../lib/saker.ts";
+ 
+ export async function POST(
+   request: Request,
+   { params }: { params: Promise<{ id: string }> },
+ ): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   const { tekst } = (await request.json()) as { tekst?: unknown };
+   if (typeof tekst !== "string" || tekst.trim() === "") {
+     return Response.json({ error: "Notatet mangler tekst" }, { status: 400 });
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/[id]/route.ts workspace/app/api/intern/saker/[id]/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/[id]/route.ts	2026-10-12 11:47:40
++++ workspace/app/api/intern/saker/[id]/route.ts	2026-10-12 23:39:33
+@@ -1,13 +1,12 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../../lib/auth.ts";
+ import { finnInternSak } from "../../../../../lib/saker.ts";
+ 
+ export async function GET(
+   request: Request,
+   { params }: { params: Promise<{ id: string }> },
+ ): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   const sak = finnInternSak(Number((await params).id));
+   if (!sak) {
+     return Response.json({ error: "Fant ikke saken" }, { status: 404 });
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/app/api/intern/saker/route.ts workspace/app/api/intern/saker/route.ts
+--- evaluator/fixture/workspace/app/api/intern/saker/route.ts	2026-10-12 11:47:40
++++ workspace/app/api/intern/saker/route.ts	2026-10-12 23:39:33
+@@ -1,9 +1,8 @@
+-import { getToken } from "@navikt/oasis";
++import { requireSaksbehandler } from "../../../../lib/auth.ts";
+ import { listInterneSaker } from "../../../../lib/saker.ts";
+ 
+ export async function GET(request: Request): Promise<Response> {
+-  if (!getToken(request)) {
+-    return Response.json({ error: "Mangler token" }, { status: 401 });
+-  }
++  const unauthorized = await requireSaksbehandler(request);
++  if (unauthorized) return unauthorized;
+   return Response.json(listInterneSaker());
+ }
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/docs/drift.md workspace/docs/drift.md
+--- evaluator/fixture/workspace/docs/drift.md	2026-10-12 11:47:40
++++ workspace/docs/drift.md	2026-10-12 23:39:33
+@@ -7,5 +7,9 @@
+   ellers starter podene på nytt i en løkke.
+ - Alle andre ruter under `/api/` krever et gyldig Azure-token. Tokenet valideres
+   med `requireSaksbehandler()` i `lib/auth.ts`.
++- Handlerne for `/api/intern/saker`, enkeltsaker og notater validerer tokenet
++  før de leser eller endrer saksdata. Manglende eller ugyldig token gir 401.
++- Proxyen dekker `/api/saker` og `/api/intern/saker` med underruter, men sjekker
++  bare om tokenet finnes. Hver handler må derfor validere tokenet selv.
+ - `AZURE_OPENID_CONFIG_JWKS_URI`, `AZURE_OPENID_CONFIG_ISSUER` og
+   `AZURE_APP_CLIENT_ID` settes av NAIS.
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/proxy.ts workspace/proxy.ts
+--- evaluator/fixture/workspace/proxy.ts	2026-10-12 11:47:40
++++ workspace/proxy.ts	2026-10-12 23:39:33
+@@ -11,5 +11,5 @@
+ }
+ 
+ export const config = {
+-  matcher: ["/api/saker/:path*"],
++  matcher: ["/api/saker/:path*", "/api/intern/saker/:path*"],
+ };
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/tests/intern-saker.test.ts workspace/tests/intern-saker.test.ts
+--- evaluator/fixture/workspace/tests/intern-saker.test.ts	1970-01-01 01:00:00
++++ workspace/tests/intern-saker.test.ts	2026-10-12 23:40:21
+@@ -0,0 +1,119 @@
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { exportJWK, generateKeyPair, SignJWT } from "jose";
++import { GET as listSaker } from "../app/api/intern/saker/route.ts";
++import { GET as hentSak } from "../app/api/intern/saker/[id]/route.ts";
++import { POST as skrivNotat } from "../app/api/intern/saker/[id]/notater/route.ts";
++import { finnInternSak, listInterneSaker } from "../lib/saker.ts";
++
++const routes = [
++  {
++    path: "/api/intern/saker",
++    method: "GET",
++    handler: listSaker,
++  },
++  {
++    path: "/api/intern/saker/101",
++    method: "GET",
++    handler: (request: Request) => hentSak(request, { params: Promise.resolve({ id: "101" }) }),
++  },
++  {
++    path: "/api/intern/saker/101/notater",
++    method: "POST",
++    handler: (request: Request) => skrivNotat(request, { params: Promise.resolve({ id: "101" }) }),
++  },
++];
++
++test("interne saker krever validerte tokens", async (t) => {
++  const issuer = "https://issuer.example.test";
++  const audience = "saksoversikt-test";
++  const jwksUri = `${issuer}/jwks`;
++  const env = {
++    AZURE_OPENID_CONFIG_ISSUER: issuer,
++    AZURE_APP_CLIENT_ID: audience,
++    AZURE_OPENID_CONFIG_JWKS_URI: jwksUri,
++    IDPORTEN_ISSUER: undefined,
++  };
++  const originalEnv = new Map(Object.keys(env).map((name) => [name, process.env[name]]));
++  t.after(() => {
++    for (const [name, value] of originalEnv) {
++      if (value === undefined) delete process.env[name];
++      else process.env[name] = value;
++    }
++  });
++  for (const [name, value] of Object.entries(env)) {
++    if (value === undefined) delete process.env[name];
++    else process.env[name] = value;
++  }
++
++  const { publicKey, privateKey } = await generateKeyPair("RS256");
++  const jwk = await exportJWK(publicKey);
++  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
++    const url = input instanceof Request ? input.url : String(input);
++    assert.equal(url, jwksUri, "testen skal ikke hente eksterne ressurser");
++    return Response.json({ keys: [{ ...jwk, kid: "test-key", alg: "RS256" }] });
++  });
++
++  const now = Math.floor(Date.now() / 1000);
++  const claims = { iss: issuer, aud: audience, sub: "test-user", exp: now + 300 };
++  const sign = (payload = claims, key = privateKey) =>
++    new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid: "test-key" }).sign(key);
++  const otherKey = await generateKeyPair("RS256");
++  const invalidTokens = [
++    { name: "manglende token", token: undefined, error: "Mangler token" },
++    { name: "vilkårlig token", token: "ikke-et-jwt", error: "Ugyldig token" },
++    { name: "utløpt token", token: await sign({ ...claims, exp: now - 60 }), error: "Ugyldig token" },
++    { name: "feil issuer", token: await sign({ ...claims, iss: `${issuer}/other` }), error: "Ugyldig token" },
++    { name: "feil audience", token: await sign({ ...claims, aud: "other-app" }), error: "Ugyldig token" },
++    { name: "feil signatur", token: await sign(claims, otherKey.privateKey), error: "Ugyldig token" },
++  ];
++
++  for (const route of routes) {
++    for (const { name, token, error } of invalidTokens) {
++      await t.test(`${route.method} ${route.path} avviser ${name}`, async () => {
++        const before = structuredClone(listInterneSaker());
++        const request = new Request(`http://localhost${route.path}`, {
++          method: route.method,
++          headers: token ? { Authorization: `Bearer ${token}` } : {},
++          body: route.method === "POST" ? JSON.stringify({ tekst: "Skal ikke lagres" }) : undefined,
++        });
++        const response = await route.handler(request);
++        assert.equal(response.status, 401);
++        assert.deepEqual(await response.json(), { error });
++        assert.deepEqual(listInterneSaker(), before);
++        assert.equal(request.bodyUsed, false);
++      });
++    }
++  }
++
++  const token = await sign();
++  await t.test("gyldig token gir liste og detaljer", async () => {
++    const headers = { Authorization: `Bearer ${token}` };
++    const list = await listSaker(new Request("http://localhost/api/intern/saker", { headers }));
++    assert.equal(list.status, 200);
++    assert.deepEqual(await list.json(), listInterneSaker());
++    const detail = await hentSak(new Request("http://localhost/api/intern/saker/101", { headers }), {
++      params: Promise.resolve({ id: "101" }),
++    });
++    assert.equal(detail.status, 200);
++    assert.deepEqual(await detail.json(), finnInternSak(101));
++  });
++
++  await t.test("gyldig token kan legge til notat", async () => {
++    const sak = finnInternSak(101);
++    assert.ok(sak);
++    const originalNotat = sak.internNotat;
++    try {
++      const response = await skrivNotat(new Request("http://localhost/api/intern/saker/101/notater", {
++        method: "POST",
++        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
++        body: JSON.stringify({ tekst: "Testnotat" }),
++      }), { params: Promise.resolve({ id: "101" }) });
++      assert.equal(response.status, 201);
++      assert.deepEqual(await response.json(), { ...sak, internNotat: `${originalNotat}\nTestnotat` });
++      assert.equal(sak.internNotat, `${originalNotat}\nTestnotat`);
++    } finally {
++      sak.internNotat = originalNotat;
++    }
++  });
++});
+diff -ruN -x node_modules -x .github -x .next -x build -x .gradle -x .kotlin -x package-lock.json evaluator/fixture/workspace/tests/probes.test.ts workspace/tests/probes.test.ts
+--- evaluator/fixture/workspace/tests/probes.test.ts	2026-10-12 11:47:40
++++ workspace/tests/probes.test.ts	2026-10-12 23:39:11
+@@ -1,10 +1,15 @@
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
+ import { GET as isalive } from "../app/api/isalive/route.ts";
++import { GET as isready } from "../app/api/isready/route.ts";
+ import { GET as saker } from "../app/api/saker/route.ts";
+ 
+ test("isalive svarer uten token", async () => {
+   assert.equal((await isalive()).status, 200);
++});
++
++test("isready svarer uten token", async () => {
++  assert.equal((await isready()).status, 200);
+ });
+ 
+ test("saker krever token", async () => {

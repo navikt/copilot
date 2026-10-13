@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+Bruk **TokenX token exchange**. Tjeneste A veksler brukerens token til et nytt token med B som audience og sender det til B. Da beholder kallet brukerkonteksten. Sett opp TokenX og eksplisitt `accessPolicy` for A → B, og la B validere tokenet og sjekke at brukeren har tilgang til ressursen.
+
+Ikke bruk Azure AD `client_credentials` her: det gir maskinkontekst, ikke brukerkontekst.
+

@@ -1,6 +1,6 @@
 import { EXPLANATION_PAGES, GUIDE_PAGES, type DocLink } from "@/components/nav-pilot/doc-pages";
 
-// The site menu: V6, V7 and V8 in docs/nav-pilot-dokumentasjon-forslag.md.
+// The site menu: V6, V7 and V8 in copilot-intern beslutningslogg.md.
 
 export type NavLink = { href: string; label: string };
 export type NavGroup = {
@@ -31,7 +31,7 @@ export function activeTop(pathname: string): string | undefined {
   if (owns("/verktoy", "/nav-pilot/agentpakker")) return "/verktoy";
   if (owns("/nav-pilot", "/cplt")) return "/nav-pilot";
   if (owns("/praksis", "/retningslinjer")) return "/praksis";
-  if (owns("/innsikt", "/statistikk", "/adopsjon", "/kostnad", "/priser", "/modeller")) return "/innsikt";
+  if (owns("/innsikt", "/priser", "/modeller", "/reisen")) return "/innsikt";
 }
 
 /** Pages under the nav-pilot umbrella, which have the section menu. */
@@ -47,7 +47,7 @@ export const SECTION: NavGroup[] = [
     items: [
       { label: "Copilot og nav-pilot", href: "/kom-i-gang" },
       { label: "Lokal modell på Mac", href: "/nav-pilot/lokal" },
-      { label: "Egen server", href: "/nav-pilot/lokal/egen-server" },
+      { label: "Egen LLM-server", href: "/nav-pilot/lokal/egen-server" },
       { label: "Din første decide-hook", href: "/nav-pilot/lokal/decide" },
     ],
   },
@@ -57,6 +57,7 @@ export const SECTION: NavGroup[] = [
     items: [
       { label: "Verktøykatalog", href: "/verktoy" },
       { label: "Agentpakker", href: "/nav-pilot/agentpakker" },
+      { label: "Agentpakker: felt og regler", href: "/nav-pilot/agentpakker/referanse" },
     ],
   },
   {

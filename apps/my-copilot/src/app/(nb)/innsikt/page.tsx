@@ -1,25 +1,28 @@
-import { CurrencyExchangeIcon, PadlockLockedIcon, CpuIcon } from "@navikt/aksel-icons";
+import { CurrencyExchangeIcon, PadlockLockedIcon, CpuIcon, MonitorIcon, ClockIcon } from "@navikt/aksel-icons";
 import { Box, Heading, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import { NavCard } from "@/components/navigation/nav-card";
 import { PageHero } from "@/components/page-hero";
+import { HeroRibbons } from "@/components/hero-ribbons/hero-ribbons";
 
 export const metadata: Metadata = {
   title: "Innsikt",
-  description: "Tall om Copilot i Nav: bruk, adopsjon, kostnad, modellpriser og modellvalg.",
+  description:
+    "Tall om Copilot i Nav: bruk og kostnad, trender, team, KI-tilpasninger i repoene, modellpriser, modellvalg, lokale modeller og reisen så langt.",
 };
 
 // LinkCard hides the icon from screen readers, so the description says «Krever innlogging» too.
 const lock = <PadlockLockedIcon aria-hidden fontSize="1.75rem" />;
 
-// The overview page for the group Innsikt (§6.2 in docs/nav-pilot-dokumentasjon-forslag.md).
+// The overview page for the group Innsikt (V7 in copilot-intern beslutningslogg.md).
 // The private pages are not prefetched: without a login, the prefetch only fetches a redirect.
 export default function Innsikt() {
   return (
     <main id="hovedinnhold" tabIndex={-1}>
       <PageHero
         title="Innsikt"
-        description="Tall om Copilot i Nav: bruk, adopsjon, kostnad, modellpriser og modellvalg."
+        description="Tall om Copilot i Nav: bruk og kostnad, trender, team, KI-tilpasninger i repoene, modellpriser, modellvalg, lokale modeller og reisen så langt."
+        background={<HeroRibbons />}
       />
       <Box
         paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
@@ -33,25 +36,32 @@ export default function Innsikt() {
             </Heading>
             <div className="grid gap-4 sm:grid-cols-2">
               <NavCard
-                href="/statistikk"
+                href="/innsikt/bruk"
                 prefetch={false}
                 icon={lock}
-                title="Statistikk"
-                description="Bruksdata og trender for GitHub Copilot i Nav. Krever innlogging."
+                title="Bruk og kostnad"
+                description="Hvor mange som bruker Copilot, hva det koster, og hvor det brukes. Krever innlogging."
               />
               <NavCard
-                href="/adopsjon"
+                href="/innsikt/trender"
                 prefetch={false}
                 icon={lock}
-                title="Adopsjon"
+                title="Trender"
+                description="Endringer over tid: brukere etter intensitet og arbeidsmåte, kohorter av nye brukere, modellvalg og AI Credits per bruker. Krever innlogging."
+              />
+              <NavCard
+                href="/innsikt/team"
+                prefetch={false}
+                icon={lock}
+                title="Teaminnsikt"
+                description="Copilot-bruk og kostnad per team. Krever innlogging."
+              />
+              <NavCard
+                href="/innsikt/tilpasninger"
+                prefetch={false}
+                icon={lock}
+                title="Tilpasninger"
                 description="KI-tilpasninger i navikt-repoene. Krever innlogging."
-              />
-              <NavCard
-                href="/kostnad"
-                prefetch={false}
-                icon={lock}
-                title="Kostnad"
-                description="Hva modellene har kostet så langt denne måneden. Krever innlogging."
               />
               <NavCard
                 href="/priser"
@@ -64,6 +74,18 @@ export default function Innsikt() {
                 icon={<CpuIcon aria-hidden fontSize="1.75rem" />}
                 title="Modellvalg"
                 description="Hvilken modell agentene bruker, og hvorfor."
+              />
+              <NavCard
+                href="/innsikt/lokale-modeller"
+                icon={<MonitorIcon aria-hidden fontSize="1.75rem" />}
+                title="Lokale modeller"
+                description="Hvilke modeller nav-pilot kan kjøre på din Mac, og hva målingene viser."
+              />
+              <NavCard
+                href="/reisen"
+                icon={<ClockIcon aria-hidden fontSize="1.75rem" />}
+                title="Reisen"
+                description="Hva Nav har bygget med KI-agenter, steg for steg."
               />
             </div>
           </VStack>

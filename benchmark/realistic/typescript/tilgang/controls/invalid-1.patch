@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: workspace/proxy.ts
+@@
+-  matcher: ["/api/saker/:path*"],
++  matcher: ["/api/saker/:path*", "/api/intern/:path*"],
+*** End Patch

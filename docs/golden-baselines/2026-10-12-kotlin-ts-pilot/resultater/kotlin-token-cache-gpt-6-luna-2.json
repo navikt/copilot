@@ -1,0 +1,24 @@
+{
+  "task": "kotlin/token-cache",
+  "fixture_sha256": "15103253cb91c318570e4993b1e9dc149518c8a15655950bbf06cd835dd19279",
+  "evaluated_at": "2026-10-12T14:31:22.268086+00:00",
+  "model": null,
+  "effort": null,
+  "credits": null,
+  "usage_verified": false,
+  "candidate_sha256": "accd942226a8a000f50dded616b445b44aa7b85ca6d9096e804abd5e03ae3e6c",
+  "checks": {
+    "regression": {
+      "passed": 3,
+      "total": 3,
+      "diagnostic": ""
+    },
+    "acceptance": {
+      "passed": 2,
+      "total": 2,
+      "diagnostic": ""
+    }
+  },
+  "status": "completed",
+  "evaluation_seconds": 106.93
+}

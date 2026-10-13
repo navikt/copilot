@@ -1,0 +1,36 @@
+## Fase 2: Plan
+
+**Forslag:** Bruk den eksisterende Ktor-koden som backend-skjelett. Innbyggeren logger inn i den eksisterende Next.js-frontend-en med ID-porten og Wonderwall. Frontend-ens serverdel kaller API-et med en TokenX-token på vegne av innbyggeren. API-et henter fødselsnummeret fra den validerte tokenen, slår opp navn i PDL og returnerer bare opplysningene frontend-en trenger.
+
+Dette holder backend-API-et internt og lar tjenesten knytte oppslaget til den innloggede innbyggeren. Det krever at frontend-en kan gjøre server-side-kall og at PDL støtter den valgte TokenX-flyten; hvis ikke, må vi følge PDLs dokumenterte autentiseringsmåte uten å miste brukerens identitet i flyten.
+
+| Beslutning | Valg |
+|---|---|
+| Arketype | Kotlin/Ktor-backend-API |
+| Auth | ID-porten og Wonderwall i frontend-en; TokenX fra frontend til API-et |
+| Fnr-kilde | Claim fra validert TokenX-token, ikke et felt i requesten |
+| PDL-kall | Synkront REST-kall. Avklar TokenX-støtte og tilgang med PDL-teamet |
+| Lagring | Ingen database. Ikke lagre fnr eller navn |
+| API-respons | Bare nødvendige personopplysninger, som navn. Ikke returner fnr uten et dokumentert behov |
+| Nais-tilgang | Backend kun tilgjengelig for frontend-en. Outbound kun til PDL |
+| Dataklassifisering | Fortrolig: fnr og navn |
+
+**Prosjektstruktur:** Utvid Ktor-tjenesten med egne pakker for API-ruter, autentisering, PDL-klient og tjenestelogikk. Legg til konfigurasjon for TokenX og PDL, tester, Dockerfile, Nais-manifester for dev og prod og GitHub Actions-workflow. Next.js-koden ligger ikke i repoet jeg har sett, så frontend-endringen må gjøres der.
+
+**Nais og CI/CD:** Aktiver TokenX for backend-tjenesten. Definer eksplisitt `accessPolicy.inbound` for Next.js-appen og `accessPolicy.outbound` for PDL med riktig namespace og cluster. Legg til readiness, liveness og Prometheus på `/metrics`. Start med små CPU- og minne-ressurser, uten CPU-limit. CI skal bygge og teste, deploye til dev først og deretter prod med godkjente, SHA-pinnede actions.
+
+**Feil og logging:** Ved utilgjengelig PDL returnerer API-et `503`. Loggene skal være strukturert JSON med request- eller correlation-ID, men aldri fnr, navn eller token. Ikke logg hele PDL-responsen eller requesten. Ikke innfør kø eller dead-letter-kø.
+
+**Målinger og varsling:** Mål antall oppslag per minutt, feilandel og gjerne responstid mot PDL. Bruk bare lav-kardinalitetsdimensjoner som statuskode, aldri personopplysninger. Avtal terskler for varsling før produksjonssetting. Runbooken bør beskrive PDL-feil, TokenX-feil og hvordan dere sjekker målingene.
+
+**Teststrategi:** Start med tester for tokenvalidering og tilgangsavslag, inkludert manglende, utløpt eller ugyldig token og manglende fnr-claim. Test API-ruten med en mock av PDL for vellykket oppslag og PDL-feil som gir `503`. Legg til en ende-til-ende-test av innlogging og oppslag i testmiljøet. Ingen database- eller migrasjonstester trengs.
+
+**Utrulling og rollback:** Nybygg uten gammel løsning eller bakoverkompatibilitetskrav. Deploy til dev og verifiser innlogging, oppslag, `503` ved PDL-feil og målingene før prod. Ved feil: rull tilbake til forrige image. Ingen feature toggle trengs.
+
+**Avklaringer før produksjon:** Oppgi den konkrete lovhjemmelen i behandlingsdokumentasjonen. Avklar med personvern/juridisk om oppslag krever audit-logging av tilgang, og hvor lenge eventuelle audit-data skal lagres. Bekreft også PDLs autentisering, nødvendige scopes og tilgangsregler.
+
+🔴 **Rød sone: forstå og gjennomgå nøye.** Tokenvalidering, uthenting av fnr fra tokenen og kontrollen som hindrer at en innbygger slår opp andre personers data, er sikkerhetskritisk. Ikke stol på fnr fra request-parametere eller frontend-input.
+
+🟢 **Grønn sone:** Ktor-oppsett, PDL-klientens grunnstruktur, målinger, Nais-manifester, CI/CD og tester kan bygges etter at autentiseringsflyten og PDL-tilgangen er bekreftet.
+
+Planen går ut fra at backend-API-et er privat og at frontend-en kan kalle det fra serverdelen sin. Godkjenn planen før jeg går videre til Fase 3: Review. Still gjerne spørsmål om valgene over.

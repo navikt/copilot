@@ -221,6 +221,10 @@ func TestTrustNudgeTimeoutAndOldCplt(t *testing.T) {
 	if err := testhome.WriteExec(filepath.Join(bin, "cplt"), "#!/bin/sh\necho 'unknown flag' >&2\nexit 2\n"); err != nil {
 		t.Fatal(err)
 	}
+	// Only the first spawn tests the deadline. Under parallel load, starting
+	// the fake alone has taken over 200 ms, and a timed-out "older cplt"
+	// records nothing.
+	cpltCommandTimeout = prev
 	maybeTrustNudge(repo)
 	if len(readTrustSeen()) != 1 || *asked != 0 {
 		t.Errorf("an older cplt: seen %v, asked %d", readTrustSeen(), *asked)

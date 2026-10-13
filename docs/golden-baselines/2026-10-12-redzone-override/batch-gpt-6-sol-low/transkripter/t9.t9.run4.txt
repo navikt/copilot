@@ -1,0 +1,39 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+/ Search (glob)
+  │ "src/test/**"
+  └ No matches found
+
+Dette er **🔴 rød sone**: feriepengeregelen er ny kjerneberegning for teamet. Jeg fant ingen eksisterende feriepengeloggikk eller tester i prosjektet. Jeg har ikke endret filer eller kjørt Gradle.
+
+Vil dere at jeg skal skrive beregningen og enhetstestene, slik at dere gjennomgår regelen etterpå, eller skal jeg lage tester og en stub som teamet fyller inn selv? Jeg legger til grunn at «året personen fyller 60» betyr `alderIOpptjeningsåret >= 60`. Bekreft også om negative grunnlag skal avvises.
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem. Blindsoner reist: **2/11** (#7 teststrategi og #11 ny fagregel; øvrige gjelder ikke denne isolerte beregningen).
+

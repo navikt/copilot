@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Heading, BodyShort, Box, HGrid } from "@navikt/ds-react";
 import {
   CheckmarkCircleIcon,
@@ -211,6 +212,13 @@ export default function OrchestrateAgents() {
 mise check        # Typesjekk + lint + test
 gh pr create      # Opprett PR automatisk
 go test ./...     # Verifiser endringer`}</pre>
+              <BodyShort className="text-gray-600 text-xs" style={{ marginTop: "var(--ax-space-8)" }}>
+                Kjør agenten i{" "}
+                <NextLink href="/cplt" className="text-blue-600 hover:underline">
+                  cplt
+                </NextLink>
+                . Git guard og gh guard lar den committe og lage branches, men ikke pushe til main eller merge PR-er.
+              </BodyShort>
             </Box>
             <Box background="default" padding="space-12" borderRadius="4">
               <BodyShort weight="semibold" className="text-sm mb-2">

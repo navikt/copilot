@@ -1,0 +1,13 @@
+## Fase 3: Gjennomgang
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ⚠️ | Bekreft hvilken token backend faktisk mottar fra Next.js, og hvordan audience valideres. Fødselsnummer må utledes fra validert identitet, aldri fra klientdata. Avklar PDLs krav til TokenX og tilganger før koden skrives. |
+| Plattform | ⚠️ | Verifiser at frontendens Nais-oppsett gir backend riktig innkommende tilgang, og at backend får utgående tilgang til PDL. Helsesjekker og målinger må ikke eksponere persondata. |
+| Arkitektur | ✅ | Én backend og ett synkront PDL-oppslag dekker behovet. Ingen database eller kø er nødvendig. |
+| Endringssikkerhet | ⚠️ | Siden tjenesten ikke finnes ennå, trengs tester av tokenflyt, tilgangsregler, PDL-feil og 503-respons før frontenden kobles på. Utrulling og tilbakekobling kan styres fra frontenden. |
+
+**Konklusjon: Godkjent med avklaringer før implementering.** De to avgjørende kontrollene er frontendens faktiske tokenflyt og PDLs krav til delegerte kall. Planens sikkerhetsvalg gir ingen klientstyrt identitet, men krever at disse grensene testes mot de virkelige kontraktene, ikke bare mot mocker.
+
+🔴 Rød sone: tokenvalidering, identitetsutledning og tilgang til PDL. Gå gjennom disse grundig. Still gjerne spørsmål om valgene over.
+

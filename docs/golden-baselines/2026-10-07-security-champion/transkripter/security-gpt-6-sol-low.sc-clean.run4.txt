@@ -1,0 +1,11 @@
+🔍 Kartlegger tilgang til saker og følger autentisering, datakall og Nais-regler før jeg vurderer funnene.
+
+**Sikkerhetsgjennomgang: CONCERNS.** Jeg fant ingen påvist vei til å hente en annen persons saker: `/api/saker` krever TokenX, bruker `pid` fra det validerte tokenet, og databasespørringen er parameterisert. Følgende bør avklares før tjenesten tas i bruk:
+
+- **Manglende sporbarhet ved innsyn:** `SakService.kt:37` logger at saker hentes, men ikke en egen tilgangshendelse som knytter innsynet til aktør og handling. Avklar krav til sporingslogg for disse saksopplysningene og bruk en separat, tilgangsstyrt logg ved behov. Ikke legg fødselsnummer i ordinær applikasjonslogg.
+- **Manglende nettverksavgrensning:** `nais.yaml:6–12` har ingen eksplisitt `accessPolicy`. Avklar hvilke klienter som skal kunne nå tjenesten, og begrens innkommende trafikk deretter.
+- **Uvalidert `pid`:** `SakService.kt:50–55` avviser manglende claim, men ikke tom eller feilformatert verdi. Valider fødselsnummerets format før oppslag; dette er ikke en påvist SQL-injeksjon, siden spørringen bruker `?`.
+
+**Omfang:** Jeg leste `SakService.kt`, autentiseringsoppsettet i `App.kt`, `nais.yaml` og avhengighetene i `build.gradle.kts`. Jeg fant ingen hardkodede hemmeligheter, fødselsnummer i ordinære logger, åpen CORS-konfigurasjon eller filopplasting i de undersøkte filene. Skanning av sårbarheter, historikk og arbeidsflyter er ikke utført; `trivy` og `zizmor` er ikke installert, og denne mappen er ikke et Git-repositorium. Resultatet sier derfor ikke noe om sårbare avhengigheter eller tidligere innskrevne hemmeligheter.
+
+🔴 **Rød sone:** Gå gjennom tilgangsstyring og innsynslogging grundig før produksjonsbruk.

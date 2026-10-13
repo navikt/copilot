@@ -1,0 +1,32 @@
+
+Fase 1: Jeg avklarer først hva «leser fnr fra ID-porten» betyr for tjenesten. Jeg sjekker samtidig om repoet inneholder konfigurasjon eller eksisterende auth-mønstre som allerede svarer på noen av spørsmålene.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Repoet ser ut til å være et Kotlin/Ktor-backend-skjelett. `nais.yaml` har ikke auth eller `accessPolicy`, så det avklarer ikke hvem som skal kunne kalle tjenesten. Jeg fant heller ikke `AGENTS.md` eller Copilot-instruksjoner i repoet.
+
+Før vi lager en plan, må vi avklare hva tjenesten skal gjøre. Mener du at en innbygger logger inn med ID-porten, og at Ktor-tjenesten leser fnr fra et validert token fra ID-porten-sidecar? Eller skal tjenesten hente fnr på en annen måte?
+
+1. **Hva bygger dere?** Er dette en backend API, en fullstack-tjeneste med innbyggergrensesnitt, eller noe annet? Repoet peker mot backend API.
+2. **Personvern:** Skal tjenesten behandle fnr utover å lese det fra tokenet? Hvilket formål og hvilken hjemmel gjelder? Skal fnr lagres, hvor lenge, og finnes det sletteregler?
+3. **Tilgang og innlogging:** Hvem starter forespørselen: innbygger i nettleser, en annen Nav-tjeneste eller en batchjobb? Hvis ID-porten brukes, hvilket sikkerhetsnivå trenger innloggingen? Hvilke andre tjenester skal få fnr, og trenger dere audit-logg over oppslag?
+4. **Tilkoblinger og feil:** Hvilke tjenester skal denne tjenesten kalle? Hva skal skje hvis ID-porten-sidecar eller en avhengighet ikke svarer? Trengs asynkron kommunikasjon?
+5. **Drift:** Hvilke mål viser at tjenesten virker? Hva skal utløse varsling, hvem har vakt, og hvor mye trafikk venter dere?
+6. **Team og framdrift:** Er dette et nytt prosjekt? Hvilke andre team eller tjenester er avhengige av arbeidet, finnes det en frist, og har teamet erfaring med Kotlin/Ktor?
+7. **Testing:** Hvilke tester eller testoppsett finnes allerede? Hvordan vil dere kontrollere at innlogging, uttrekk av fnr og deploy fungerer?
+
+Jeg antar at dette er nybygg, så spørsmål om migrering, rollback fra gammel løsning og utfasing gjelder ikke ennå. Svar gjerne kort punkt for punkt. Deretter lager jeg kravoppsummeringen før vi går videre til planen.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7 og #11 stilt; #8–#10 ikke relevante for nybygg)
+

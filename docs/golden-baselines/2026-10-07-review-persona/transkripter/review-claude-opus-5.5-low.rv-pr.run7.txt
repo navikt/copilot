@@ -1,0 +1,39 @@
+
+
+### Sammendrag
+Branchen er ikke klar til merge. Jeg fant fem blokkere: SQL-injeksjon, et endepunkt som returnerer vedtak uten autentisering, mangelfull JWT-validering, en `accessPolicy` som slipper inn alle, og fødselsnummer i loggen. Konsumenten er heller ikke idempotent. Det positive er at `lagre` og `hentForSak` bruker parameteriserte spørringer, og at ID-generatoren kan injiseres slik at den kan testes.
+
+`mise check` kjørte ikke, fordi repoet ikke har noen `check`-oppgave. Lint, typesjekk og tester er derfor ikke verifisert.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`, så hvem som helst kan hente vedtak for et fnr. Eierskap sjekkes heller ikke. |
+| `App.kt` | 39–43 | 🔴 | JWT-oppsettet mangler `verifier` (JWKS og issuer). `validate` sjekker bare at audience finnes, ikke at den er vår `TOKEN_X_CLIENT_ID`. |
+| `nais.yaml` | 23–26 | 🔴 | `inbound` tillater `"*"`/`"*"`, altså alle apper i alle namespacer |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` skriver fødselsnummer til loggen |
+| `Routes.kt` | 25–28 | 🔴 | `POST /api/vedtak` tar `fnr` fra request-body, men tilgangen til personen eller saken sjekkes ikke |
+| `VedtakConsumer.kt` | 24–28 | 🔴 | Ikke idempotent. Melding nr. 1 blir lagret og publisert, og hvis melding nr. 2 feiler, rekker ikke `commitSync` å kjøre. Ved restart blir da duplikate vedtak fattet. Én ugyldig melding (`decodeFromString` uten try) stopper hele konsumenten. |
+| `VedtakConsumer.kt` | 33 | 🟡 | DB-lagring og Kafka-sending er ikke atomisk. Bruk outbox, eller dedupliser på `soknadId`. |
+| `App.kt` | 32 | 🟡 | Tråden er ikke-daemon og har ingen shutdown-hook eller feilhåndtering. Hvis den dør, rapporterer `isready` fortsatt OK. |
+| `App.kt` | 24–33 | 🟡 | Kafka-oppsettet mangler SSL og keystore (`KAFKA_KEYSTORE_PATH` m.fl.). Det virker ikke på Nais. |
+| `App.kt` | 23 | 🟡 | `DB_JDBC_URL` følger ikke Nais-konvensjonen (`NAIS_DATABASE_<APP>_<DB>_JDBC_URL`, eller `envVarPrefix`) |
+| — | — | 🟡 | Ingen Flyway-migrasjon for `vedtak`-tabellen, og Flyway mangler som avhengighet |
+| — | — | 🟡 | Ingen tester for service, repository eller konsument |
+| `nais.yaml` | 15 | 🟡 | `pool: nav-dev` er hardkodet, så prod får feil pool |
+| `build.gradle.kts` | 13 | 💭 | Det er lagt til en ekstra `dependencies`-blokk. Slå den sammen med den eksisterende. |
+| `VedtakService.kt` | 4 | 💭 | `Locale` importeres, men brukes ikke |
+
+### Detaljer om blokkerne
+🔴 Rød sone: autentisering, tilgangskontroll og input til SQL. Disse må du forstå grundig.
+
+- **SQL-injeksjon:** bruk `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`.
+- **GET-endepunktet:** flytt det inn i `authenticate("tokenx")`. Hent fnr fra tokenets `pid`-claim i stedet for fra URL-en. Da havner fnr heller ikke i access-logger.
+- **JWT:** bruk `jwt { verifier(JwkProviderBuilder(URL(TOKEN_X_JWKS_URI))..., TOKEN_X_ISSUER) { withAudience(TOKEN_X_CLIENT_ID) } }`.
+- **accessPolicy:** list opp konkrete apper og namespacer som får kalle tjenesten.
+- **Idempotens:** legg en unik constraint på `sak_id` eller `soknad_id`, og bruk `ON CONFLICT DO NOTHING`. Commit offset per melding, og send meldinger som ikke kan leses til en DLQ eller logg dem.
+
+Still gjerne spørsmål om valgene over.
+

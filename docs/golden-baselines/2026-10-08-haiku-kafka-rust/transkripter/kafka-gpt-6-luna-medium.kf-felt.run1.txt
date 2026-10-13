@@ -1,0 +1,3 @@
+La til `sakstype` i `VedtakFattet` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Eldre meldinger får `ORDINAER`, og ukjente felt blir ignorert når konsumenter leser hendelsen. Enum-typen avviser ukjente verdier for `sakstype`; vi godtar dermed nye felt, men ikke nye sakstyper før konsumentene oppdateres.
+
+`cd vedtak-hendelse && gradle test` fullførte med `BUILD SUCCESSFUL`. Still gjerne spørsmål om valgene over.

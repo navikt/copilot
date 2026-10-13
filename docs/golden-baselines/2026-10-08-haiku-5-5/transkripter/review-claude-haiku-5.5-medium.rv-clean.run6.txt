@@ -1,0 +1,21 @@
+### Sammendrag
+
+Filen er kort og gjør det meste riktig: SQL er parameterisert, fnr maskeres i logg, og fnr hentes fra token og ikke fra request. Jeg fant ingen 🔴-funn som er sikre. To punkter bør verifiseres før merge. Jeg har ikke kjørt `mise check` eller kompilert, og jeg har ikke endret kode.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 1–13 | 🟡 | `call` brukes i `sakRoutes`, men `io.ktor.server.application.call` er ikke importert. Bekreft at det kompilerer mot din Ktor-versjon. |
+| `SakService.kt` | 58 | 🟡 | `authenticate("tokenx")` brukes på et endepunkt som tar imot brukerkall. TokenX er normalt for tjeneste-til-tjeneste. Bekreft at dette er riktig auth-provider (typisk ID-porten for sluttbrukere). |
+| `SakService.kt` | 15 | 💭 | `maskert()` lager en streng med samme lengde som fnr. Det lekker lengden. En fast maske, for eksempel `"***********"`, er tryggere. |
+| `SakService.kt` | 42–44 | 💭 | Kun exception-klassen logges, så stack trace går tapt. Det er et bevisst valg for å unngå PII fra SQL-feilmeldinger. Vurder å logge stack trace uten meldingen. |
+| `SakService.kt` | 26 | 💭 | Spørringen har `ORDER BY opprettet DESC` uten paginering. Bekreft at det finnes indeks på `sak(fnr, opprettet)`. |
+
+### Detaljer
+
+**Tilgangskontroll (OK):** Endepunktet bruker `pid` fra token og ikke en parameter, så en bruker kan ikke hente andres saker. Det er riktig mønster.
+
+**Logging (OK):** Fnr logges bare i maskert form, og SQL-feil logges uten melding.
+
+Still gjerne spørsmål om valgene over.

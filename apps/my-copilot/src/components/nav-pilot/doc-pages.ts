@@ -6,7 +6,7 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/kom-i-gang",
     title: "Kom i gang på 5 minutter",
-    desc: "Installer, logg inn med gh, start agenten i et repo og velg hvor mye den skal gjøre selv.",
+    desc: "Installer, logg inn med gh, start agenten i et repo og se hva den kan gjøre.",
   },
   {
     href: "/nav-pilot/guider/installere-og-oppgradere",
@@ -26,12 +26,12 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/lokal",
     title: "Lokal modell",
-    desc: "Styr utsendingen, bytt modell og bruk alpha decide i hooks og skript.",
+    desc: "Styr delegeringen, bytt modell og bruk alpha decide i hooks og skript.",
   },
   {
     href: "/nav-pilot/guider/worktrees",
     title: "Worktrees",
-    desc: "Start nav-pilot i et git-worktree, og la agenten lage worktrees til underagenter i cplt.",
+    desc: "Start nav-pilot i et git-worktree, og la agenten lage worktrees til subagenter i cplt.",
   },
   {
     href: "/nav-pilot/guider/cplt-oppsett",
@@ -41,7 +41,7 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/cplt-gradle",
     title: "Kotlin og Gradle i sandkassen",
-    desc: "Få Gradle-bygg og tester til å virke i cplt: daemon, MockK, GitHub Packages, interne verter og Testcontainers.",
+    desc: "Få Gradle-bygg og tester til å virke i cplt: daemon, MockK, GitHub Packages, interne hoster og Testcontainers.",
   },
   {
     href: "/nav-pilot/guider/cplt-node",
@@ -51,7 +51,7 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/cplt-git",
     title: "Git og GitHub i sandkassen",
-    desc: "Push til egen gren, pull requests, andre repoer og signerte commits når agenten kjører i cplt.",
+    desc: "Push til egen branch, pull requests, andre repoer og signerte commits når agenten kjører i cplt.",
   },
   {
     href: "/nav-pilot/guider/cplt-nettverk",
@@ -84,7 +84,7 @@ export const EXPLANATION_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/forklaring/lokal-modell",
     title: "Lokal modell",
-    desc: "Hvorfor utsendingen er begrenset, og hva modellene klarer i målingene våre.",
+    desc: "Hvorfor delegeringen er begrenset, hva nivåene gjør, og hva modellen er godkjent for.",
   },
   {
     href: "/nav-pilot/forklaring/personvern",

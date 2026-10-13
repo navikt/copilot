@@ -1,0 +1,1 @@
+Bruk **TokenX med token exchange (OBO)**. Tjeneste A bytter brukerens token til et TokenX-token med tjeneste B som mottaker, slik at brukerkonteksten følger med; B må tillate A i `accessPolicy.inbound` og validere tokenet. Ikke bruk Azure AD `client_credentials`, fordi det mister brukerkonteksten.

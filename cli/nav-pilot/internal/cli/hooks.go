@@ -42,10 +42,11 @@ func activateHook(scope *InstallScope, art Resolved, result *installResult) erro
 	}
 
 	entry := source.HookEntry{
-		Name:    art.Name,
-		Matcher: meta.Matcher,
-		Command: source.HookCommand(filepath.ToSlash(scriptPath), meta.TimeoutSec),
-		Timeout: meta.TimeoutSec,
+		Name:       art.Name,
+		Matcher:    meta.Matcher,
+		Command:    source.HookCommand(filepath.ToSlash(scriptPath), meta.TimeoutSec, meta.FailClosed),
+		Timeout:    meta.TimeoutSec,
+		FailClosed: meta.FailClosed,
 	}
 
 	hooksDir := scope.DstPath(KindHook.Dir)

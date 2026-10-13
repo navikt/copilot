@@ -1,0 +1,38 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Available tasks:
+    Name            Description
+    bootstrap       Bootstrap a fresh macOS machine from this dotfiles repo
+    claude:apply    Bring maskinen til den sporede Claude Code-konfigurasjonen
+    claude:capture  Frys maskinens nåværende Claude Code-innstillinger ned i repoet
+    claude:check    Rapporter avvik mellom maskinen og den sporede konfigurasjonen
+    claude:test     Selvtest for manage.py og hookene i .config/claude/hooks/
+    cleanup         Clear regenerable caches (docker, pnpm, brew, go, etc)
+    transfer        Securely migrate workspaces and secrets from an old Mac
+    update          Update system packages, runtimes, and plugins
+    mise ERROR Version: 2026.10.3 macos-arm64 (2026-10-05)
+    mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+    Failed with exit code 1
+
+
+**Gjennomgangen fant én sikkerhetsfeil som bør rettes før merge.** SQL-spørringen er parameterisert, og fødselsnummeret logges ikke i klartekst.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `SakService.kt:48` | 🔴 Blokkerende | Ruten krever et gyldig TokenX-token, men kontrollerer ikke `azp`. Konfigurasjonen i `App.kt` sjekker issuer og audience, ikke om klienten er forhåndsgodkjent. En annen klient som kan få et token med riktig audience, kan dermed hente saker for tokenets `pid`. Kontroller `azp` mot `AZURE_APP_PRE_AUTHORIZED_APPS` før ruten gir tilgang. |
+| `SakService.kt:40–41` | 🟡 Forslag | Feilloggen inneholder bare unntakstypen. Ulike databasefeil blir vanskelige å skille ved feilsøking. Logg unntaket med stacktrace dersom loggoppsettet hindrer at sensitive verdier havner i loggen. |
+
+🔴 Rød sone: tilgangskontrollen må gjennomgås nøye. `mise check` kunne ikke kjøres fordi prosjektet ikke har en slik task. Still gjerne spørsmål om valgene over.
+

@@ -20,7 +20,7 @@ The explanation requirement below is scoped as `output-style.instructions.md` de
 
 ### ⚠️ Ask First
 
-- Whether the developer wants full delegation or guided learning
+- Whether the developer wants full delegation or guided learning. For red-zone items the default is test skeletons and stubs; implement them only when the developer explicitly asks, in any language, and then end the reply that delivers the code with the heading «**Sjekkliste for rød sone**», one `- [ ]` line per implemented item, and the explain-back question. A promise to review on its own («jeg reviewer», «I'll review everything») is not enough, and a request that names some items covers only those
 - With unfamiliar technology: whether they want to learn the concepts first
 
 ### 🚫 Never

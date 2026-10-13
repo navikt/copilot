@@ -1,0 +1,26 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-11
+# revision:     8c9407ed
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       5
+# fixture:      4263008951
+# prompts:      2
+#
+# id|run|status|assertion|detail
+2|1|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|1|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+2|2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|2|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+2|3|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|3|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+2|4|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|4|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+2|5|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|5|soft-pass|full tier: Fase 1 ends with the blind-spot count|

@@ -1,0 +1,7 @@
+`VedtakKonsument` now skips eventIds it has already paid out, and commits offsets only after the batch is processed. `gradle test` in `vedtak-konsument/` passes all 4 tests, including 3 new ones.
+
+- **Dedup:** a new optional constructor parameter `utbetalteEventIder` (a concurrent set, default empty) records paid eventIds. The constructor still works with just `consumer` and `utbetaling`.
+- **Commit order:** `commitSync` runs after processing, with the offset of the last successful record per partition.
+- **Failure:** if a payout throws, the partition seeks back to the failed record, the successful offsets are committed, and the exception is rethrown.
+
+Limitation: the dedup set is in memory. It survives rebalances in the same process, but not a restart. For restarts you need a persistent store, such as a database table keyed on eventId. I didn't add one because the constructor requirement and the request didn't ask for it.

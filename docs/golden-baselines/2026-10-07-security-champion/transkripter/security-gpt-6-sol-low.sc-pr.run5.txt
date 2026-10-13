@@ -1,0 +1,17 @@
+🔍 Kartlegger endringene mot `main`, inkludert arbeidsområdet, før jeg vurderer Kafka-flyten og sikkerhetskontrollene.
+
+🛡️ Analyserer tilgangskontroll, SQL, logging og meldingsbehandling. Jeg sjekker også om skanneverktøyene finnes lokalt.
+
+**Sikkerhetsgjennomgang: BLOCK.** Jeg ville ikke slått sammen `vedtak-kafka` med `main` slik endringen står. Funnene under gjelder den nye vedtak-flyten.
+
+1. **Kritisk: Åpent innsyn i vedtak.** `Routes.kt:30–33` legger `GET /api/vedtak/{fnr}` utenfor `authenticate`. Alle som når tjenesten kan be om vedtak for et fødselsnummer. `nais.yaml:23–26` åpner samtidig for trafikk fra alle apper og navnerom. Begrens nettverkstilgangen, autentiser endepunktet og kontroller at innringeren har rett til den aktuelle personens vedtak.
+2. **Kritisk: SQL-injeksjon i samme endepunkt.** `VedtakRepository.kt:21–24` setter `fnr` fra URL-en rett inn i SQL. Bruk en parameterisert spørring og valider fødselsnummeret ved grensen.
+3. **Kritisk: Mangelfull kontroll av hvem som kan fatte vedtak.** `Routes.kt:24–27` lar en autentisert innringer oppgi vilkårlig `fnr`, `sakId` og `utfall`. `App.kt:40–43` sjekker bare at tokenet har et audience-felt; koden setter ikke opp en JWT-verifikator og kontrollerer ikke forventet audience eller autorisert klient. Konfigurer signatur-, issuer- og audience-verifisering, kontroller `azp` mot tillatte M2M-klienter, og autoriser handlingen mot saken.
+4. **Kritisk: Fødselsnummer i ordinær logg.** `VedtakService.kt:15` logger `fnr` for både API- og Kafka-kall. Fjern verdien fra loggen.
+5. **Blokkerende driftsrisiko i meldingsflyten.** `VedtakConsumer.kt:24–27,31–33` lagrer vedtak før publisering. Feiler publisering, prøver koden hele behandlingen på nytt med ny ID; den kan dermed opprette flere vedtak for samme melding. En ugyldig melding eller et vedvarende feilslag kan også avslutte konsumenttråden i `App.kt:36`. Innfør idempotens per innkommende melding og en håndtert feilflyt før offset bekreftes.
+
+**Øvrige kontrollakser:** `Vedtak.kt` og `Routes.kt` viser ingen validering av `fnr` eller forholdet mellom person og sak. `App.kt:26–35` viser ingen Kafka-konfigurasjon for autentisering eller TLS; bekreft hvordan Nais-miljøet skal levere dette. Jeg fant ingen hardkodede hemmeligheter i de endrede filene, ingen endrede GitHub Actions-filer og ingen filopplasting eller HTML-rendering i endringen; det beviser ikke at avhengighetene er sårbarhetsfrie.
+
+**Omfang:** Leste hele diffen fra `main` og alle åtte endrede filer, samt relevant eksisterende konfigurasjon. Arbeidstreet hadde ingen staged, unstaged eller untracked endringer. Ingen filer i endringsomfanget ble utelatt. `trivy` og `zizmor` er ikke installert, og repoet har ingen `mise check`-oppgave, så automatiske skann er ikke verifisert. Eksisterende `UserRepo.kt` har også utrygg SQL og logging av fødselsnummer, men er ikke endret i denne branchen.
+
+🔴 **Rød sone:** tilgangskontroll, tokenvalidering og behandling av vedtak må gjennomgås grundig. Å knytte autorisasjonen til både innringer og sak hindrer at nettverkstilgang eller et gyldig token alene gir rett til personopplysninger; det krever tydelige regler for hvilke klienter som faktisk kan fatte og lese vedtak. Still gjerne spørsmål om valgene over.

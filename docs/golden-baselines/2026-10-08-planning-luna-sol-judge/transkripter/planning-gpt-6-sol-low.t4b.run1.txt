@@ -1,0 +1,26 @@
+
+
+
+
+
+
+
+## Fase 2: Plan
+
+**Vi bygger en stateless Ktor-tjeneste bak den eksisterende Next.js-frontendens serverruter.** Innbyggeren logger inn via ID-porten og Wonderwall i frontenden. Next.js henter brukerens token på serversiden, bytter det med TokenX til et token for Ktor-tjenesten og kaller tjenesten internt. Ktor validerer TokenX-tokenet, henter fødselsnummeret fra den validerte identiteten og spør PDL om navn. Nettleseren skal aldri sende inn et fødselsnummer som tjenesten bruker til oppslag.
+
+- **API og data:** `GET /api/meg` returnerer bare navnet til innlogget innbygger. Fødselsnummeret brukes til PDL-oppslaget, men returneres ikke, lagres ikke og logges ikke. Ingen database, Flyway-migrasjon eller kø trengs. Dokumenter responsen og feilformatet i OpenAPI; bruk en ProblemDetail-respons uten personopplysninger ved feil.
+- **Auth og Nais:** Frontenden må ha ID-porten/Wonderwall og TokenX aktivert. Ktor-tjenesten må ha TokenX aktivert og validere signatur, issuer, audience og utløp. `accessPolicy.inbound` tillater bare frontend-appen; `accessPolicy.outbound` tillater bare PDL. Før implementering må vi bekrefte frontendens appnavn og namespace samt PDLs endpoint, TokenX-audience og tilgangskrav. Tjenesten får ingen offentlig ingress.
+- **PDL og feil:** Bruk TokenX videre til PDL dersom PDL-kontrakten for dette oppslaget støtter det. Valider dette mot PDL før koden skrives; ikke bytt til et maskintoken uten en egen auth-beslutning. Sett timeout. Ved utilgjengelig PDL returnerer tjenesten `503` og logger feilkategori og korrelasjons-ID, aldri token, fødselsnummer eller navn. Andre PDL-feil skal ikke automatisk kamufleres som nedetid.
+- **Filer og drift:** Bygg videre på `src/main/kotlin/no/nav/demo/` med egne deler for beskyttet rute, token-validering og PDL-klient. Erstatt den åpne demo-ruten før tjenesten eksponeres. Utvid `nais.yaml` med auth, eksplisitte tilgangsregler, helsesjekker, Prometheus og små ressursforespørsler uten CPU-limit. Legg til en GitHub Actions-workflow som bygger og tester, deretter deployer til dev før prod med SHA-pinnede actions og minimale rettigheter.
+- **Tester og observabilitet:** Test manglende/ugyldig token, at brukeridentiteten styrer PDL-oppslaget, at responsen ikke inneholder fødselsnummer, og at PDL-nedetid gir `503` uten personopplysninger i logger eller feilsvar. Integrasjonstest TokenX-flyten og PDL-klienten med testserver. Mål oppslag per minutt og andel feil per statusklasse, uten personopplysninger som metrikketiketter. Varsle ved vedvarende høy feilandel; sjekk både vellykket oppslag og `503` i dev før prod.
+- **Utrulling og rollback:** Deploy til dev, prøv innlogging og PDL-oppslag via frontenden, og kontroller tilgangsregler og metrikker. Rull deretter ut gradvis til prod. Ved feil rulles frontend-ruten og tjenesteimaget tilbake sammen; ingen data må migreres. Leveransedokumentet skal beskrive API-kontrakten, driftsfeil og denne rollbacken.
+
+🔴 **Rød sone, forstå og skriv selv:** TokenX-validering, identitetskoblingen fra innlogget bruker til PDL-oppslaget og håndtering av fødselsnummer. Dette er tilgangskontroll og personvernkritisk kode. I leveransefasen kan jeg lage tester og stubber for disse delene, men ikke full implementasjon.
+
+🟢 **Grønn sone:** Nais-manifest, CI-workflow, metrikkoppsett og testoppsett. Teamet må kontrollere de konkrete tilgangsreglene før deploy.
+
+**Avveining:** En intern Ktor-tjeneste gir en tydelig grense mot PDL og holder fødselsnummeret ute av nettleserens API-kontrakt, men krever TokenX i både frontend og backend. Vi velger dette fremfor et direkte kall fra nettleseren til PDL. Ingen filer er endret i planfasen.
+
+Still gjerne spørsmål om valgene over.
+

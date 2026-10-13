@@ -1,0 +1,1 @@
+Bruk **TokenX**. Tjeneste A bytter brukerens token til et TokenX-token med tjeneste B som audience, og sender det til B. B må ha TokenX aktivert og tillate A i `accessPolicy.inbound`. Azure `client_credentials` passer ikke her, fordi det ikke viderefører brukerkonteksten.

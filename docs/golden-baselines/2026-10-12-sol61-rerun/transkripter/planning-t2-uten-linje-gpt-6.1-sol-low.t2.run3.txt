@@ -1,0 +1,47 @@
+● skill(klarsprak)
+
+● List directory .
+  └ 5 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "{.github/**,AGENTS.md,src/**}"
+  └ 21 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 1: Intervju (fullt omfang).** En ny tjeneste som leser fødselsnummer fra ID-porten endrer både autentisering og behandling av personopplysninger. Ingen kode er endret.
+
+Repoet har en enkel Ktor-tjeneste uten auth-oppsett. Jeg antar at fødselsnummeret skal gjelde den innloggede personen. `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette repo-konfigurasjonen.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, lagres eller sendes videre? Behandles andre personopplysninger?
+2. Logger innbyggeren inn direkte via nettleseren, eller kalles tjenesten fra en annen Nav-app med brukerkontekst? Skal personen bare få tilgang til egne data?
+3. Skal dette bli et nytt repo, eller skal demo-tjenesten her bygges videre? Hvilke tjenester eller team avhenger flyten av?
+4. Hva skal skje når innlogging feiler eller ID-porten er utilgjengelig? Hvilke målinger trenger dere for å oppdage feil, uten fødselsnummer eller tokens i logger?
+
+🔴 Rød sone: autentisering, token-validering og tilgangskontroll må forstås grundig. Teknologistakk, sikkerhetsnivå og teststrategi avklares før planen. Fasebudsjett: intervju ca. 1 000 tokens, plan 2 000, review 1 000, levering etter avklart omfang.
+
+Blindsoner reist: 6/11 (#1–#6). #7 og #11 avklares med stack og teststrategi; #8–#10 gjelder bare dersom dette erstatter en eksisterende løsning.
+

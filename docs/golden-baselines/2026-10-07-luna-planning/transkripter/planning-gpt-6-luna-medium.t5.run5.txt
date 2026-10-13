@@ -1,0 +1,3 @@
+Bruk **TokenX** med on-behalf-of-token exchange: A bytter brukerens token mot et token med B som audience, slik at brukerkonteksten følger kallet. Konfigurer `tokenx.enabled` og utgående tilgang i A, og tillat A som innkommende kall i Bs `accessPolicy`.
+
+🔴 Rød sone: validering av token og tilgang må stemme mellom B sin tokenvalidering og `accessPolicy`. Si «forklar» for detaljer.

@@ -1,0 +1,21 @@
+🔍 Kartlegger endringene mot `main`, inkludert lokale endringer, før jeg vurderer sikkerhetsrisiko.
+
+🛡️ Analyserer nå auth, Kafka-flyt, SQL og nettverkspolicy mot koden som faktisk kjøres.
+
+**Vedikt: BLOCK.** `vedtak-kafka` bør ikke merges mot `main` slik den står. Den nye vedtak-flyten har flere uavhengige veier til innsyn i personopplysninger, og Kafka-behandlingen kan fatte samme vedtak flere ganger.
+
+**Blokkerende funn**
+
+1. `Routes.kt:30–33`: `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og returnerer vedtak med fødselsnummer. Alle som når tjenesten, kan be om en annen persons vedtak. Krev autentisering og kontroller tilgang til personen før oppslag.
+2. `VedtakRepository.kt:23–24`: Fødselsnummer fra URL settes rett inn i SQL. Det gir SQL-injeksjon i det uautentiserte endepunktet. Bruk parameterisert spørring, som i `hentForSak`.
+3. `nais.yaml:19–22`: Inbound-regelen åpner for alle applikasjoner i alle namespaces. Den utvider rekkevidden til det uautentiserte endepunktet. Avgrens regelen til navngitte konsumenter.
+4. `App.kt:36–39` og `Routes.kt:24–28`: JWT-oppsettet angir ingen verifier eller kontroll av signatur, issuer og forventet audience; `validate` sjekker bare at audience finnes. POST-ruten kontrollerer heller ikke hvilken aktør eller person som har rett til å fatte vedtak. Konfigurer TokenX-validering og autorisasjon før ruten tas i bruk.
+5. `VedtakService.kt:17`: `log.info("behandler $fnr")` skriver fødselsnummer i ordinær logg. Fjern personopplysningen fra loggmeldingen.
+6. `VedtakConsumer.kt:25–28,33–34`: Et vedtak lagres før publisering og offset-commit. Feiler publisering eller commit, lager retry et nytt vedtak for samme melding. Bruk idempotens knyttet til `soknadId` og en løsning som tåler avbrudd mellom lagring, publisering og commit.
+7. `App.kt:25–31`: Kafka-klienten får bare broker-adresse, uten sikkerhetsoppsett fra Nais. Kafka-tilkoblingen mangler dermed konfigurert autentisering og kryptering; verifiser og bruk de injiserte Kafka-innstillingene.
+
+**Øvrige akser:** `FattVedtakRequest` og Kafka-meldingen validerer ikke formatet på `fnr`; tjenesten sjekker bare at `sakId` ikke er blank (`VedtakService.kt:16`). `nais.yaml` oppretter en database, men endringen inneholder ingen migrering som oppretter `vedtak`-tabellen. Jeg fant ingen hardkodede secrets, filopplasting, CORS-endring eller bruk av `dangerouslySetInnerHTML` i de undersøkte endringene. Avhengighetene er versjonsfestet, men sårbarheter er ikke kontrollert.
+
+**Undersøkt:** Hele diffen fra felles base `29a17de` til `vedtak-kafka`, alle åtte endrede filer og kodekonteksten de bruker, opprinnelig `nais.yaml` og ruter på `main`, samt status for committed, staged, unstaged og untracked filer. Arbeidstreet er rent. `git diff --check` ga ingen feil; et begrenset søk etter secret-lignende tilordninger i Kotlin-/TypeScript-historikken ga ingen treff. **Ikke undersøkt:** Faktisk deploy, Kafka-/databaseoppsett eller avhengighetssårbarheter. `trivy` og `zizmor` er ikke tilgjengelige, og repoet har ingen GitHub Actions-workflows. **Funn: 7 blokkerende, 2 øvrige bekymringer.**
+
+🔴 Rød sone: auth, tilgangskontroll og behandling av vedtak må gjennomgås grundig. Still gjerne spørsmål om valgene over.

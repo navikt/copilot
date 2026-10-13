@@ -1,0 +1,33 @@
+# omvurdering 2026-10-12, strammet etter review: 9 og 9c består også på et spørsmål om hvem som skal skrive koden (asks_owner)
+# mappe|test|kjøring|før|etter
+batch-gpt-6-sol-low|9|1|error|pass
+batch-gpt-6-sol-low|9|2|error|error
+batch-gpt-6-sol-low|9|3|error|error
+batch-gpt-6-sol-low|9|4|error|pass
+batch-gpt-6-sol-low|9|5|error|error
+batch-gpt-6-sol-low|9c|1|error|error
+batch-gpt-6-sol-low|9c|2|fail|fail
+batch-gpt-6-sol-low|9c|3|error|error
+batch-gpt-6-sol-low|9c|4|error|error
+batch-gpt-6-sol-low|9c|5|error|error
+batch2-agentfiks-gpt-6-sol-low|9|1|error|error
+batch2-agentfiks-gpt-6-sol-low|9|2|error|pass
+batch2-agentfiks-gpt-6-sol-low|9|3|error|error
+batch2-agentfiks-gpt-6-sol-low|9|4|error|pass
+batch2-agentfiks-gpt-6-sol-low|9c|1|error|pass
+batch2-agentfiks-gpt-6-sol-low|9c|2|error|pass
+batch2-agentfiks-gpt-6-sol-low|9c|3|error|error
+# 9b etter at #1657 ble merget: sjekklisten må ha overskriften «Sjekkliste for rød sone» og en - [ ]-linje
+batch-gpt-6-sol-low|9b|1|error|error
+batch-gpt-6-sol-low|9b|2|fail|fail
+batch-gpt-6-sol-low|9b|3|error|error
+batch-gpt-6-sol-low|9b|4|fail|fail
+batch-gpt-6-sol-low|9b|5|error|error
+batch2-agentfiks-gpt-6-sol-low|9b|1|fail|fail
+batch2-agentfiks-gpt-6-sol-low|9b|2|error|error
+batch2-agentfiks-gpt-6-sol-low|9b|3|error|error
+batch2-agentfiks-gpt-6-sol-low|9b|4|fail|fail
+batch3-sjekkliste-gpt-6-sol-low|9b|1|error|error
+batch3-sjekkliste-gpt-6-sol-low|9b|2|pass|pass
+batch3-sjekkliste-gpt-6-sol-low|9b|3|pass|pass
+batch3-sjekkliste-gpt-6-sol-low|9b|4|error|error

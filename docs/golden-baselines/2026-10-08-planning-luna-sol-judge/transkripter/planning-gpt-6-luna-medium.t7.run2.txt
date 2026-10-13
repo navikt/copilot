@@ -1,0 +1,85 @@
+
+Jeg vurderer migreringen mot Jackson 3-preflighten, endringene i branchen og relevante test-/byggeinstruksjoner.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Diffen er avgrenset til mapper-/avhengighetsbyttet. Jeg sjekker nå om det bevarer JSON-formatet i den eksisterende Kafka-bruken, og om prosjektet bygger med den faktiske avhengighetsgrafen.
+
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 296ms
+    Failed with exit code 1
+
+    00gn/T/1791451824487-copilot-tool-output-96719-876c59eb-d706-4831-a55f-91f94963a8da.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full i
+    Failed with exit code 1
+
+
+
+
+
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+**Vurdering: Migreringen ser riktig ut, men jeg ville ikke godkjent den før JSON-formatendringen er avklart og bygget er verifisert.**
+
+- `Soknad.kt:14-16` bruker Jackson 3s builder og Kotlin-modul på riktig måte. `jackson-datatype-jsr310` kan fjernes, og datoformatet ser ut til å være bevart: den gamle mapperen slo av tidsstempler, og Jackson 3 bruker ISO-format som standard. Ktor bruker `kotlinx.serialization`, så Ktor 3.0 krever ikke Jackson 3-integrasjon.
+- Jackson 3 sorterer egenskaper alfabetisk som standard. Kafka-meldingen fra `Soknad.kt:21` får derfor rekkefølgen `mottatt`, `soknadId` i stedet for `soknadId`, `mottatt`. JSON-mottakere skal ikke være avhengige av rekkefølgen, men sjekk om noen sammenligner rå JSON eller forventer den gamle rekkefølgen.
+- `gradle build` kom ikke fram til kompilering. Gradle feilet under konfigurasjon fordi den innebygde Kotlin-parseren ikke godtar JDK 27 (`IllegalArgumentException: 27`). Kjør bygget med en støttet JDK. Repoet har heller ingen tester som verifiserer serialisering og deserialisering av meldingene.
+
+Jackson 3.1.0, `tools.jackson.*`-pakkene og fjerningen av `jackson-datatype-jsr310` er ellers i tråd med migreringen.
+

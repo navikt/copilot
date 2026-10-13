@@ -75,6 +75,8 @@ jobs:
               - '.github/workflows/ci.yaml'
             copilot-api:
               - 'apps/copilot-api/**'
+              - 'apps/my-copilot/src/lib/model-pricing.ts'
+              - 'scripts/generate-api-model-metadata.mjs'
               - '.github/workflows/copilot-api.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
@@ -120,6 +122,7 @@ jobs:
               - '.github/workflows/ci.yaml'
             nav-pilot:
               - 'cli/nav-pilot/**'
+              - 'apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx'
               - 'apps/copilot-survey/surveys/schema.json'
               - 'scripts/install.sh'
               - 'scripts/*.bats'
@@ -179,7 +182,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -205,7 +208,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -231,7 +234,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -264,7 +267,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -290,7 +293,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -316,7 +319,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -342,7 +345,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -366,7 +369,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -394,7 +397,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - run: mise run install
@@ -438,7 +441,11 @@ jobs:
       - name: Launch budget
         run: cd cli/nav-pilot && go test ./e2e -run TestLaunchBudget -count=1 -v
       - name: Vet
-        run: cd cli/nav-pilot && go vet ./...
+        run: |
+          cd cli/nav-pilot
+          go vet ./...
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "gofmt -w these files:"; echo "$unformatted"; exit 1; fi
       - name: Staticcheck
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
@@ -452,7 +459,7 @@ jobs:
         run: python3 scripts/build-local-dashboard.py --check
       - name: ShellCheck
         run: shellcheck scripts/install.sh skills/*/*.sh
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # ratchet:jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
         with:
           experimental: true
       - name: Run BATS

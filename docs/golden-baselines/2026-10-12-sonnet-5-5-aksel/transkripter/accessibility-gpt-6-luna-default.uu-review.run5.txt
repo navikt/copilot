@@ -1,0 +1,80 @@
+● skill(aksel-builder)
+
+● skill(klarsprak)
+
+Jeg går gjennom komponenten og de relevante UU-reglene først. Deretter retter jeg eventuelle konkrete problemer og sjekker at endringen passer med prosjektets testoppsett.
+
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+● Read accessibility.instructions.md
+  │ .github/instructions/accessibility.instructions.md
+  └ 121 lines read
+
+● Read accessibility.md
+  │ ~/.copilot/skills/aksel-builder/references/accessibility.md
+  └ 84 lines read
+
+/ Search (glob)
+  │ "**/package.json"
+  └ No matches found
+
+/ Search (glob)
+  │ "src/app/komponenter/*StatusPanel*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "src/**/*.{test.ts, test.tsx, spec.ts, spec.tsx}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*"
+  └ 39 files found
+
+/ Search (grep)
+  │ "StatusPanel"
+  └ 5 lines found
+
+● Inspect repository files and worktree status (shell)
+  │ pwd && ls -la && git status --short --branch 2>/dev/null || true
+  └ 9 lines…
+
+● Fetching web content https://aksel.nav.no/llm.md · url: "https://aksel.nav.no/llm.md", max_length…
+  └ Contents of https://aksel.nav.no/llm.md:
+
+● Read ask-first-aria.py
+  │ .github/hooks/ask-first-aria.py
+  └ 1 line read
+
+● Read golden-accessibility-agent.agent.md
+  │ .github/agents/golden-accessibility-agent.agent.md
+  └ 258 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (grep)
+  │ "." (src/app/komponenter/StatusPanel.tsx)
+  └ 18 lines found
+
+● Read copilot-hooks.json
+  │ .github/hooks/copilot-hooks.json
+  └ 28 lines read
+
+/ Search (grep)
+  │ "ask|ARIA|StatusPanel|return|def |input|prompt|allow|deny" (.github/hooks/ask-first-aria.py)
+  └ 283 lines found
+
+● Fetching web content https://aksel.nav.no/komponenter/core/button.md · url: "https://aksel.nav.no…
+  └ Contents of https://aksel.nav.no/komponenter/core/button.md:
+
+Gjennomgangen avdekket fire UU-problemer i `src/app/komponenter/StatusPanel.tsx`. Jeg har ikke endret fila.
+
+- **Linje 8–10:** «Vis detaljer» er en `div` med `onClick`. Tastaturbrukere kan ikke aktivere den, og `outline: none` fjerner fokusmarkeringen. Bruk en knapp, og vis detaljene når `apen` er true. Koble knappen til panelet med `aria-expanded` og `aria-controls`.
+- **Linje 14–16:** Sletteknappen har bare et ikon og mangler et tilgjengelig navn. Legg til synlig knappetekst, eller et tilgjengelig navn som «Slett».
+- **Linje 11:** `tabIndex={5}` gir statusen en unødvendig og feilplassert tabulatorstopp. Fjern `tabIndex`.
+- **Linje 11:** `red` har kontrast 4,0:1 mot hvit bakgrunn, under kravet 4,5:1 for vanlig tekst. Bruk en kontrastgodkjent farge. Statusen står også som tekst, så fargen er ikke eneste formidler av informasjon.
+
+Statusen bør også annonseres som en statusmelding hvis den kan endres mens siden er åpen. Det kan ikke avgjøres ut fra komponenten alene.
+

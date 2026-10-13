@@ -1,0 +1,90 @@
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -60
+  └ 42 lines…
+
+/ Search (glob)
+  │ "**/*Vedtak*"
+  └ 2 files found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  │ vedtak-api/build.gradle.kts
+  └ 19 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:110 (110 lines read)
+
+/ Search (grep)
+  │ "tilDto|Dto|DateTimeFormatter" in **/*.kt
+  └ No matches found
+
+● Check module files and Gradle availability (shell)
+  │ find vedtak-api -type f | sort; command -v gradle || true; ls -la vedtak-api
+  └ 11 lines…
+
+Endringene er på plass:
+
+- `VedtakDto.kt`: la til `VedtakDto` med feltene i ønsket rekkefølge.
+- `Vedtak.kt`: la til `tilDto()`, som formaterer `fattet` som ISO-dato.
+- `VedtakTest.kt`: oppdaterte enhetstesten til å verifisere alle feltene og datoformatet.
+
+Kjørte ikke Gradle, som ønsket.● Worker (model: gpt-6-luna) Add Vedtak DTO mapper                                               27s
+  │ Endringene er på plass:
+  │ Read VedtakTest.kt
+  │   │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  │   └ 12 lines read
+  └ Edit
+      │ Edit vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+      │ Create vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+      └ Edit vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+
+● Run vedtak-api Gradle tests (shell)
+  │ cd vedtak-api && gradle test --console=plain
+  └ 16 lines…
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 15 lines read
+
+● Read VedtakDto.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/VedtakDto.kt
+  └ 7 lines read
+
+● Read VedtakTest.kt
+  │ vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+  └ 16 lines read
+
+● Edit
+  │ Edit vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ Edit vedtak-api/src/test/kotlin/no/nav/vedtak/VedtakTest.kt
+
+● Verify mapper and existing tests with Gradle (shell)
+  │ cd vedtak-api && gradle test --console=plain
+  └ 16 lines…
+
+Lagt til `VedtakDto` med feltene `vedtakId`, `belop` og `fattet` i ønsket rekkefølge. Utvidelsesfunksjonen `Vedtak.tilDto()` gjør datoen om til en ISO-streng, og en enhetstest kontrollerer alle tre feltene. `gradle test` bestod.
+

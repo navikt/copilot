@@ -1,0 +1,23 @@
+
+
+
+
+
+
+
+
+**Gjennomgang mot `main`: Ikke klar for merge.** Endringene har flere uavhengige blokkere, særlig rundt tilgang til vedtak og behandling av Kafka-meldinger. 🔴 Rød sone: autentisering, autorisasjon og vedtakslogikk bør gjennomgås nøye.
+
+| Fil og linje | Prioritet | Funn |
+|---|---|---|
+| `Routes.kt:30–32` | 🔴 Blokkerer | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`. Hvem som helst kan hente vedtak og fødselsnummer ved å oppgi et FNR. Krev autentisering og kontroller at innringeren har rett til personens vedtak. |
+| `VedtakRepository.kt:23` | 🔴 Blokkerer | FNR settes rett inn i SQL-strengen. Det åpner for SQL-injeksjon. Bruk en parameterisert spørring, slik `hentForSak` allerede gjør. |
+| `App.kt:40–43` | 🔴 Blokkerer | JWT-oppsettet mangler `verifier`, og `validate` kontrollerer ikke forventet audience eller `azp`. TokenX-token blir dermed ikke validert mot tjenestens krav. |
+| `nais.yaml:23–26` | 🔴 Blokkerer | Inngående `accessPolicy` åpner for alle applikasjoner i alle namespaces. Avgrens den til de faktiske klientene. |
+| `VedtakService.kt:15` | 🔴 Blokkerer | Fødselsnummer logges i klartekst for hvert vedtak. Fjern FNR fra loggen. |
+| `App.kt:26–35` | 🔴 Blokkerer | Kafka-klientene får bare broker-adresse, ikke TLS-/SASL-oppsettet som Nais-Kafka krever. Konsumenten og produsenten vil ikke kunne koble til. |
+| `VedtakConsumer.kt:31–33` | 🔴 Blokkerer | Vedtak lagres før publisering. Hvis publisering feiler, oppretter retry et nytt vedtak med ny ID; en omstart før offset-commit kan gjøre det samme. Bruk meldings-ID til idempotent behandling og en løsning som tåler brudd mellom database og Kafka. |
+| `VedtakRepository.kt:14` | 🔴 Blokkerer | Koden skriver til tabellen `vedtak`, men branchen inneholder ingen migrering som oppretter den. Første lagring vil feile i en ny database. |
+
+**Kontroll:** `mise check` finnes ikke som oppgave i dette repoet. `gradle compileKotlin` stoppet under prosjektkonfigurasjon med Java 27 og Gradle 8.14.5 (`> 27`), så kompilering og tester er ikke bekreftet. Jeg har ikke endret kode. Still gjerne spørsmål om valgene over.
+

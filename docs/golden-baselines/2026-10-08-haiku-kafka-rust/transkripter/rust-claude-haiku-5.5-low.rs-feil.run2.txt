@@ -1,0 +1,8 @@
+`les` returnerer nå `Result<Vedtak, VedtakFeil>` og panikker ikke lenger. `cargo test` i `vedtak-parser/` gir 4 grønne tester.
+
+- **`VedtakFeil`** er en thiserror-enum med `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)`. `UgyldigBelop` viser teksten i feilmeldingen: `ugyldig beløp: abc`.
+- **Tomt eller manglende beløp** gir `ManglerBelop`, ikke `UgyldigBelop("")`.
+- **Tester:** én test per feil, pluss den eksisterende gyldige-linje-testen tilpasset `Ok(...)`.
+- **Ny avhengighet:** `thiserror` er lagt til i `Cargo.toml` og `Cargo.lock`.
+
+Ingen kallere av `les` fantes i crate-en, så ingen andre endringer var nødvendige.

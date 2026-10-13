@@ -65,6 +65,6 @@ describe("RepositoryUsageTable", () => {
 
   it("shows an empty state when there are no repositories", () => {
     render(<RepositoryUsageTable repositories={[]} />);
-    expect(screen.getByText("Ingen repositoriedata tilgjengelig ennå.")).toBeInTheDocument();
+    expect(screen.getByText("Ingen data om repoer ennå.")).toBeInTheDocument();
   });
 });

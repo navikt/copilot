@@ -1,0 +1,5 @@
+
+Bruk **TokenX med OBO-tokenutveksling**: Tjeneste A bytter brukerens innkommende token mot et token med tjeneste B som audience, og kaller B med det tokenet. Konfigurer `tokenx.enabled: true` og eksplisitt `accessPolicy` mellom A og B. Azure AD `client_credentials` passer ikke her, fordi det mister brukerkonteksten.
+
+🔴 Rød sone: tokenutveksling og validering må gjennomgås nøye. Still gjerne spørsmål om valgene over.
+

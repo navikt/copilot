@@ -1,0 +1,212 @@
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { type Survey } from "@/lib/survey";
+import { SurveyForm } from "./survey-form";
+
+const sendSurvey = vi.fn();
+vi.mock("./actions", () => ({ sendSurvey: (...args: unknown[]) => sendSurvey(...args) }));
+
+const survey: Survey = {
+  id: "s",
+  title: "S",
+  ends: "2099-12-31",
+  questions: [
+    {
+      id: "grid",
+      type: "matrix",
+      text: "Hvor enig er du?",
+      required: true,
+      min: 1,
+      max: 3,
+      labels: ["Uenig", "Nøytral", "Enig"],
+      items: [
+        { id: "fast", text: "Den er rask." },
+        { id: "safe", text: "Den er trygg." },
+      ],
+    },
+  ],
+};
+
+const pick = (statement: string, step: string) =>
+  within(screen.getByRole("group", { name: statement })).getByRole("radio", { name: step });
+
+describe("SurveyForm preview", () => {
+  it("checks the answers but never sends them, and only listed emails may preview", async () => {
+    sendSurvey.mockReset();
+    render(<SurveyForm survey={survey} preview />);
+    fireEvent.click(pick("Den er rask.", "Enig"));
+    fireEvent.click(pick("Den er trygg.", "Enig"));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText(/ikke sendt eller lagret/)).toBeInTheDocument();
+    expect(sendSurvey).not.toHaveBeenCalled();
+  });
+});
+
+describe("SurveyForm matrix", () => {
+  it("is one button row per statement, nothing preselected, sent as one answer per item", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "recorded" });
+    render(<SurveyForm survey={survey} />);
+    expect(screen.getByRole("group", { name: "Hvor enig er du?" })).toBeInTheDocument();
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(6); // one row, same on every width
+    radios.forEach((r) => expect(r).not.toBeChecked());
+
+    fireEvent.click(pick("Den er rask.", "Enig"));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    const item = await screen.findByRole("link", { name: "Hvor enig er du?: Svar på alle påstandene." });
+    expect(item).toHaveAttribute("href", "#q-grid");
+    expect(document.getElementById("q-grid")).toContainElement(screen.getByRole("group", { name: "Den er rask." }));
+    expect(sendSurvey).not.toHaveBeenCalled();
+
+    fireEvent.click(pick("Den er trygg.", "Uenig"));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+    expect(sendSurvey).toHaveBeenCalledWith("s", { fast: 3, safe: 1 });
+  });
+
+  it("groups each row's radios under one name, so arrow keys move within the row", () => {
+    render(<SurveyForm survey={survey} />);
+    // jsdom has no native arrow-key radio handling; the browser does it for radios sharing a name.
+    const row = within(screen.getByRole("group", { name: "Den er rask." })).getAllByRole("radio");
+    expect(row[0].closest("div")?.getAttribute("style")).toContain("repeat(3, minmax(0, 1fr))"); // one column per step
+    expect(new Set(row.map((r) => r.getAttribute("name")))).toEqual(new Set(["q-fast"]));
+    expect(row.map((r) => r.getAttribute("value"))).toEqual(["1", "2", "3"]);
+    row.forEach((r) => expect(r).not.toBeChecked());
+  });
+
+  it("skips a required grid whole when an earlier answer says so", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "recorded" });
+    const skipping: Survey = {
+      ...survey,
+      questions: [
+        { id: "verktoy", type: "multi", text: "Hvilke verktøy?", required: true, options: ["Copilot", "Ingen"] },
+        { ...survey.questions[0], skip_if: { question: "verktoy", answer: "Ingen" } },
+      ],
+    };
+    render(<SurveyForm survey={skipping} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ingen" }));
+    expect(screen.queryByRole("group", { name: "Hvor enig er du?" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+    expect(sendSurvey).toHaveBeenCalledWith("s", { verktoy: ["Ingen"] });
+  });
+});
+
+describe("SurveyForm repeated matrix text", () => {
+  const second = { ...survey.questions[0], id: "grid2", items: [{ id: "cheap", text: "Den er billig." }] };
+  const pair: Survey = {
+    ...survey,
+    questions: [
+      { id: "verktoy", type: "multi", text: "Hvilke verktøy?", required: true, options: ["Copilot", "Ingen"] },
+      { ...survey.questions[0], skip_if: { question: "verktoy", answer: "Ingen" } },
+      second,
+    ],
+  };
+
+  it("shows the heading once, keeps it for screen readers, and links errors to the second matrix", async () => {
+    render(<SurveyForm survey={pair} />);
+    const legends = screen.getAllByText("Hvor enig er du?");
+    expect(legends).toHaveLength(2);
+    expect(legends[0]).not.toHaveClass("aksel-visually-hidden");
+    expect(legends[1].className).toMatch(/visually-hidden/);
+    fireEvent.click(pick("Den er rask.", "Enig"));
+    fireEvent.click(pick("Den er trygg.", "Enig"));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    const link = await screen.findByRole("link", { name: "Hvor enig er du?: Svar på alle påstandene." });
+    expect(link).toHaveAttribute("href", "#q-grid2");
+    expect(document.getElementById("q-grid2")).toBeInTheDocument();
+  });
+
+  it("keeps both headings when the matrices differ in required status", () => {
+    render(<SurveyForm survey={{ ...pair, questions: [pair.questions[1], { ...second, required: false }] }} />);
+    for (const legend of screen.getAllByText("Hvor enig er du?"))
+      expect(legend.className).not.toMatch(/visually-hidden/);
+  });
+
+  it("shows the second heading normally when the first matrix is skipped", () => {
+    render(<SurveyForm survey={pair} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ingen" }));
+    const legend = screen.getByText("Hvor enig er du?");
+    expect(legend.className).not.toMatch(/visually-hidden/);
+  });
+});
+
+describe("SurveyForm repeated matrix payload", () => {
+  const second = { ...survey.questions[0], id: "grid2", items: [{ id: "cheap", text: "Den er billig." }] };
+  const pair: Survey = {
+    ...survey,
+    questions: [
+      { id: "verktoy", type: "multi", text: "Hvilke verktøy?", required: true, options: ["Copilot", "Ingen"] },
+      { ...survey.questions[0], skip_if: { question: "verktoy", answer: "Ingen" } },
+      second,
+    ],
+  };
+  const send = () => fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+
+  it("sends the same ids and values for a tool user", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "recorded" });
+    render(<SurveyForm survey={pair} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Copilot" }));
+    send(); // both matrices still required
+    expect(await screen.findAllByRole("link", { name: "Hvor enig er du?: Svar på alle påstandene." })).toHaveLength(2);
+    expect(sendSurvey).not.toHaveBeenCalled();
+    fireEvent.click(pick("Den er rask.", "Enig"));
+    fireEvent.click(pick("Den er trygg.", "Uenig"));
+    fireEvent.click(pick("Den er billig.", "Nøytral"));
+    send();
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+    expect(sendSurvey).toHaveBeenCalledWith("s", { verktoy: ["Copilot"], fast: 3, safe: 1, cheap: 2 });
+  });
+
+  it("sends the same ids and values for a non-user, with the first matrix skipped", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "recorded" });
+    render(<SurveyForm survey={pair} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ingen" }));
+    send(); // the remaining matrix is still required
+    expect(await screen.findByRole("link", { name: "Hvor enig er du?: Svar på alle påstandene." })).toHaveAttribute(
+      "href",
+      "#q-grid2"
+    );
+    expect(sendSurvey).not.toHaveBeenCalled();
+    fireEvent.click(pick("Den er billig.", "Nøytral"));
+    send();
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+    expect(sendSurvey).toHaveBeenCalledWith("s", { verktoy: ["Ingen"], cheap: 2 });
+  });
+});
+
+describe("SurveyForm multi limit", () => {
+  it("disables the unpicked boxes once max_choices are picked, and says why", () => {
+    const multi: Survey = {
+      ...survey,
+      questions: [{ id: "m", type: "multi", text: "Hva?", required: true, options: ["a", "b", "c"], max_choices: 2 }],
+    };
+    render(<SurveyForm survey={multi} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "a" }));
+    expect(screen.getByRole("checkbox", { name: "c" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "b" }));
+    expect(screen.getByRole("checkbox", { name: "c" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "a" })).toBeEnabled();
+    expect(screen.getByText(/Du har valgt 2/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "a" }));
+    expect(screen.getByRole("checkbox", { name: "c" })).toBeEnabled();
+  });
+
+  it("keeps the exclusive option open at the limit, and everything open once it is picked", () => {
+    const multi: Survey = {
+      ...survey,
+      questions: [
+        { id: "m", type: "multi", text: "Hva?", options: ["a", "b", "ingen"], max_choices: 1, exclusive: "ingen" },
+      ],
+    };
+    render(<SurveyForm survey={multi} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "a" }));
+    expect(screen.getByRole("checkbox", { name: "b" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "ingen" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "ingen" }));
+    expect(screen.getByRole("checkbox", { name: "a" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "b" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "b" }));
+    expect(screen.getByRole("checkbox", { name: "ingen" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "a" })).toBeDisabled();
+  });
+});

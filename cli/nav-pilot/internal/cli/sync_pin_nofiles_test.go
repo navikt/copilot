@@ -9,7 +9,7 @@ import (
 // Et scope kan erklære en pinne uten å ha filer å synke: det har ignorert alt,
 // eller committet erklæringa før første install. Pinnen flytter seg likevel.
 //
-// Grenen for «ingen filer» leste aldri pendingPinBump, så sync meldte
+// Branchen for «ingen filer» leste aldri pendingPinBump, så sync meldte
 // «No customization files found to sync» og gikk ut med 0. En planlagt
 // workflow avgjør på exit-koden om den skal kjøre --apply, så pinnen råtnet
 // nettopp i de repoene workflowen fantes for å holde ferske.
@@ -86,7 +86,7 @@ func TestSyncApplyFillsInAMissingPin(t *testing.T) {
 //
 // Navnet sier ikke «når alt er oppdatert», og det er med vilje: fixturet
 // endrer filer mellom de to revisjonene, så denne kjøringa går
-// oppdateringsstien. Grenen som frisker opp source_sha når ingenting har
+// oppdateringsstien. Branchen som frisker opp source_sha når ingenting har
 // endret seg er dermed ikke dekket her. Den lar seg ikke nå med dette
 // fixturet, som må ha to revisjoner med identisk innhold for å prøves, og
 // det er notert framfor å bli påstått dekket.

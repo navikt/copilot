@@ -1,0 +1,12 @@
+Jeg sjekker branch-diffen mot migreringskravene, avhengighetene og Kotlin-kodebanen.
+
+**Konklusjon: Selve porten ser ryddig ut, men migreringen er ikke verifisert og bør ikke merges ennå.**
+
+Jackson 3-importene og builder-oppsettet i `Soknad.kt` ser riktige ut. Det er også greit å fjerne `jackson-datatype-jsr310`: Java Time-støtten ligger i Jackson 3. Ktor bruker `kotlinx.serialization`, så Ktor 3.0 hindrer ikke denne migreringen.
+
+Før merge bør dere:
+
+- Kjøre build og tester med en støttet Java-versjon. `gradle test` feilet under konfigurering med `> 27`; build-fila angir heller ingen Java-baseline. Jackson 3 krever Java 17 eller nyere.
+- Legge til regresjonstester for innlesing og serialisering av `LocalDate`. Ingen tester finnes i branchen. Jackson 3 endrer også standard rekkefølge på JSON-egenskaper, så bekreft at Kafka-konsumenter ikke er avhengige av rå JSON-rekkefølge.
+
+Diffen inneholder ingen andre åpenbare migreringshull.

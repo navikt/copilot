@@ -1,0 +1,88 @@
+● skill(jackson-3-migration)
+
+● Read dependency-preflight.md
+  │ ~/.copilot/skills/jackson-3-migration/references/dependency-preflight.md
+  └ 37 lines read
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+/ Search (grep)
+  │ "jackson|JsonNode|ObjectMapper|JsonMapper|ktor-serialization" in *.{kt,kts,java,toml}
+  └ 2 files found
+
+/ Search (glob)
+  │ "**/*gradle*"
+  └ 1 file found
+
+● Inspect branch and diff (shell)
+  │ git status --short && git branch --show-current && git --no-pager log -4 --oneline && git
+  │ --no-pager diff --stat main...HEAD
+  └ 6 lines…
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+● Read complete migration diff and tracked files (shell)
+  │ git --no-pager diff main...HEAD && git --no-pager ls-files
+  └ 70 lines…
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Check Java, build tooling, and prior serializer (shell)
+  │ java -version 2>&1; ls -la | head -30; command -v gradle || true; git --no-pager show
+  │ main:src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 40 lines…
+
+✗ Check resolved Jackson dependencies and compile/build (shell)
+  │ gradle dependencyInsight --dependency jackson-databind --configuration compileClasspath --quiet
+  │ && gradle build --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 432ms
+    Failed with exit code 1
+
+✗ Locate compatible JDK and line references (shell)
+  │ /usr/libexec/java_home -V 2>&1; ls ~/.local/share/mise/installs/java 2>/dev/null ||
+  │ true; nl -ba build.gradle.kts; nl -ba src/main/kotlin/no/nav/demo/Soknad.kt
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+**Vurdering:** Migreringen i `jackson-3` ser riktig ut for bruken i denne tjenesten, men er ikke verifisert. `Soknad.kt` bruker en builder i stedet for å endre mapperen etter opprettelse, og Jackson 3s standard for datoer er ISO-8601-strenger, slik den tidligere eksplisitte innstillingen krevde. Ktor-endepunktet bruker `kotlinx.serialization`, ikke Jackson, så det trenger ingen overgang til `ktor-serialization-jackson3`.
+
+**Før branchen kan godkjennes:** Legg til en karakteriseringstest som kontrollerer den faktiske Kafka-JSON-en, særlig `mottatt`-datoen og lesing av `SokerDto`. Da fanges også eventuelle endringer i feltrekkefølge eller andre Jackson-standarder. Prosjektet har ingen Gradle-wrapper eller tester. `gradle build` og `dependencyInsight` stoppet under konfigurering med `> 27` på installert JDK 27; bygg og kontroller av transitive Jackson 2-avhengigheter må kjøres med en JDK som denne Gradle/Kotlin-kombinasjonen støtter. JDK-målet er heller ikke angitt i `build.gradle.kts`.
+
+🔴 Rød sone: Kafka-formatet er kontrakten mot konsumentene. Kontroller forventet JSON og hvem som leser meldingene før migreringen tas i bruk. Still gjerne spørsmål om valgene over.
+

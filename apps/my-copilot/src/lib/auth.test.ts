@@ -6,6 +6,9 @@ vi.mock("next/headers", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  notFound: vi.fn(() => {
+    throw new Error("NEXT_NOT_FOUND");
+  }),
   redirect: vi.fn(() => {
     throw new Error("NEXT_REDIRECT");
   }),
@@ -14,7 +17,7 @@ vi.mock("next/navigation", () => ({
 const fetchMock = vi.fn<typeof globalThis.fetch>();
 vi.stubGlobal("fetch", fetchMock);
 
-import { getUser, getUserToken, isAuthenticated } from "./auth";
+import { getUser, getUserToken, isAdmin, isAuthenticated, requireAdmin } from "./auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -292,5 +295,31 @@ describe("getUserToken", () => {
     vi.stubEnv("NODE_ENV", "production");
     mockHeaders("Bearer token123 extra");
     expect(await getUserToken()).toBeNull();
+  });
+});
+
+describe("requireAdmin", () => {
+  const group = "11111111-2222-3333-4444-555555555555";
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "");
+    vi.stubEnv("COPILOT_ADMIN_GROUP_ID", group);
+  });
+
+  it("lets an admin in", async () => {
+    vi.stubEnv("DEV_USER_GROUPS", `other,${group}`);
+    await expect(requireAdmin()).resolves.toMatchObject({ groups: ["other", group] });
+  });
+
+  it("gives a non-admin 404", async () => {
+    vi.stubEnv("DEV_USER_GROUPS", "other");
+    await expect(requireAdmin()).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("fails closed when the group is unset", () => {
+    vi.stubEnv("COPILOT_ADMIN_GROUP_ID", "");
+    expect(isAdmin({ firstName: "", lastName: "", email: "", groups: [""] })).toBe(false);
+    expect(isAdmin(null)).toBe(false);
   });
 });

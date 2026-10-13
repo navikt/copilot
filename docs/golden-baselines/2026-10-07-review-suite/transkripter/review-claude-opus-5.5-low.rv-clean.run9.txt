@@ -1,0 +1,26 @@
+
+
+### Oppsummering
+Ingen blokkere. FNR hentes fra `pid`-claimen i TokenX-tokenet, så brukeren ser bare egne saker, og spørringen er parameterisert. FNR maskeres før logging. Jeg kjørte ikke `mise check`, fordi prosjektet ikke har en mise-konfigurasjon. Gjennomgangen bygger derfor på å ha lest koden.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 20, 37, 41 | 🟡 | `maskert()` gir alltid `***********`. Loggen kan da ikke knyttes til en forespørsel, og det er ingen grunn til å nevne FNR i loggen i det hele tatt. |
+| `SakService.kt` | 40–42 | 🟡 | Feilen logges og kastes videre, så den blir trolig logget to ganger (her og i StatusPages/Ktor). Velg ett av dem. |
+| `SakService.kt` | 50–53 | 🟡 | `authenticate("tokenx")` alene sjekker ikke `acr` (Level4/idporten-loa-high). Sjekk at validatoren krever dette for sensitive saksdata. |
+| `SakService.kt` | 40 | 💭 | `catch (e: Exception)` fanger også `CancellationException`. Det skader ikke her siden feilen kastes videre, men det er et mønster å unngå. |
+| `SakService.kt` | 23 | 💭 | `sessionOf` uten tidsavbrudd på spørringen. Det er greit hvis HikariCP er satt opp med timeout. |
+| `SakService.kt` | – | 🟡 | Jeg fant ingen tester for ruten. Disse to bør dekkes: 401 når `pid` mangler, og at ruten bare returnerer sakene til personen i tokenet (bruk MockOAuth2Server). |
+
+### Detaljer
+🔴 Rød sone: tilgangskontrollen (linje 50) hviler helt på at FNR kommer fra tokenet. Ikke legg til et `fnr`-parameter i spørringen eller stien senere uten å sjekke at brukeren eier ressursen. Ellers åpner du for IDOR, der en innlogget bruker kan hente andres saker.
+
+Forslag til logging:
+```kotlin
+log.info("Henter saker")  // ingen FNR, heller ikke maskert
+```
+
+Still gjerne spørsmål om valgene over.
+

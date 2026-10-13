@@ -1,0 +1,57 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 33 files found
+
+● Read rapport.go
+  │ ytelse/rapport.go
+  └ 8 lines read
+
+● Read utbetaling.go
+  │ ytelse/utbetaling.go
+  └ 6 lines read
+
+● Read ytelse_test.go
+  │ ytelse/ytelse_test.go
+  └ 21 lines read
+
+● Read golang.instructions.md
+  │ .github/instructions/golang.instructions.md
+  └ 547 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (grep)
+  │ "Utbetaling\(|Rapport\(" in **/*.{go,md}
+  └ 8 lines found
+
+✗ Kjør eksisterende ytelsestester (shell)
+  │ cd ytelse && go test ./...
+  └ # example.com/ytelse [example.com/ytelse.test]
+    ./ytelse_test.go:11:36: too many arguments in call to Utbetaling
+    have (int, int)
+    want (int)
+    ./ytelse_test.go:18:36: too many arguments in call to Rapport
+    have (string, number, number)
+    want (string, int)
+    FAIL    example.com/ytelse [build failed]
+    FAIL
+    Failed with exit code 1
+
+● Edit
+  │ Edit ytelse/utbetaling.go
+  └ Edit ytelse/rapport.go
+
+● Formater kode og verifiser ytelsestestene (shell)
+  │ cd ytelse && gofmt -w utbetaling.go rapport.go && go test ./...
+  └ 1 line…
+
+`go test ./...` i `ytelse/` går grønt. Testene er uendret.
+
+`Utbetaling` tar nå `grad` i prosent og beregner `grunnlag * grad / (260 * 100)`. Beregningen avrunder ned etter graderingen for å unngå presisjonstap underveis. `Rapport` tar imot og sender graden videre.
+
+🔴 Rød sone: Beregningslogikken må forstås grundig.
+

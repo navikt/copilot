@@ -1,5 +1,6 @@
-"use client";
-
+// Server component on purpose: the week is read from the clock, and a client
+// component would compute it again in the browser. Around a week boundary, or
+// with a skewed clock, the two picked different tips and React threw #418.
 import { VStack, BodyShort, HStack } from "@navikt/ds-react";
 import { LightBulbIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
@@ -12,79 +13,54 @@ interface Tip {
 
 const TIPS: Tip[] = [
   {
-    text: "Bruk WRAP-metoden: Write → Refine → Atomic → Pair. Tenk på det som å onboarde en ny kollega.",
-    href: "/praksis/guide/skrive-presise-prompts",
-    label: "WRAP-metoden",
-  },
-  {
-    text: "Vær spesifikk i prompts. «Fix the auth bug» gir dårlige resultater. Beskriv heller symptom, fil og forventet oppførsel.",
-    href: "/praksis/guide/skrive-presise-prompts",
-    label: "Prompt engineering",
-  },
-  {
-    text: "Bryt ned oppgaver i små, uavhengige deler. Copilot håndterer «lag login-skjema med validering» bedre enn «bygg komplett auth-system».",
-    href: "/praksis/guide/skrive-presise-prompts",
-    label: "Atomiske oppgaver",
-  },
-  {
-    text: "Gjennomgå alltid session logs i Copilot-PR-er. De avslører om agenten forsto oppgaven, sporet av, eller ga opp.",
-    href: "/praksis/guide/gjennomfore-code-review",
-    label: "Code review",
-  },
-  {
-    text: "Copilot er best på repetitivt arbeid i stor skala, som refaktorering, fjerne feature flags, fikse skrivefeil på tvers av mange filer.",
-    href: "/praksis/guide/styrker-og-farer",
-    label: "Styrker og begrensninger",
-  },
-  {
-    text: "Du eier arkitekturen, Copilot implementerer. Ikke la agenten ta designbeslutninger. Gi den klare rammer i AGENTS.md.",
-    href: "/praksis/guide/orkestrere-agenter",
-    label: "Agent-mønstre",
-  },
-  {
-    text: "Gi eksempler i prompts. Vis Copilot ett konkret eksempel på ønsket output, og den matcher stilen mye bedre.",
-    href: "/praksis/guide/skrive-presise-prompts",
-    label: "Eksempler i prompts",
-  },
-  {
-    text: "PR-er fra Copilot coding agent utløser ikke CI automatisk. Du må starte workflows manuelt. Dette er en sikkerhetsfunksjon.",
-    href: "/praksis/guide/gjennomfore-code-review",
-    label: "CI og sikkerhet",
-  },
-  {
-    text: "Pass på scope creep: Copilot refaktorerer gjerne kode du ikke ba om. Sett klare grenser i oppgavebeskrivelsen.",
-    href: "/praksis/guide/styrker-og-farer",
-    label: "Scope creep",
-  },
-  {
-    text: "Bruk copilot-instructions.md for å definere tech stack, kodestil og testmønstre. Det gir konsistente resultater på tvers av teamet.",
-    href: "/praksis/guide/skreddersy-med-skills-og-rules",
-    label: "Tilpasninger",
-  },
-  {
-    text: "Kontekst er viktigere enn modellvalg. Gode instruksjoner i repoet gir bedre resultater enn å bytte til en dyrere modell.",
+    text: "Bruk norske domenebegreper, slik saksbehandlerne og regelverket bruker dem. Fest valget i AGENTS.md, så bruker agenten de samme ordene i koden.",
     href: "/praksis/guide/forberede-prosjektet",
-    label: "Kontekst vs. modell",
+    label: "Domenebegreper i AGENTS.md",
   },
   {
-    text: "Copilot kan hallusinere API-er og biblioteker som ikke finnes. Verifiser alltid at importerte pakker og funksjoner eksisterer.",
+    text: "Tenk i to akser før du gir agenten fritt spillerom: hvor godt kjenner du koden, og hvor mye skade kan en feil gjøre? Lite kjent kode eller høy risiko betyr små steg og nøye gjennomgang.",
+    href: "/retningslinjer",
+    label: "Læring og risiko",
+  },
+  {
+    text: "Bruk Copilot CLI som hovedverktøy. I terminalen ser du hva agenten kjører, og du kan styre den i samme vindu som git og testene.",
+    href: "/praksis/guide/velge-riktig-verktoy",
+    label: "Copilot CLI",
+  },
+  {
+    text: "Vær spesifikk. «Fiks auth-feilen» gir dårlige resultater. Beskriv heller symptom, fil og forventet oppførsel.",
+    href: "/praksis/guide/skrive-presise-prompts",
+    label: "Presise prompts",
+  },
+  {
+    text: "Bryt ned oppgaver i små, uavhengige deler. «Lag login-skjema med validering» går bedre enn «bygg komplett auth-system».",
+    href: "/praksis/guide/skrive-presise-prompts",
+    label: "Små oppgaver",
+  },
+  {
+    text: "Du eier arkitekturen, agenten implementerer. Ikke la den ta designbeslutninger. Gi den klare rammer i AGENTS.md.",
+    href: "/praksis/guide/orkestrere-agenter",
+    label: "Agentmønstre",
+  },
+  {
+    text: "Pass på at agenten ikke gjør mer enn du ba om. Den refaktorerer gjerne kode utenfor oppgaven. Sett klare grenser i oppgavebeskrivelsen.",
     href: "/praksis/guide/styrker-og-farer",
-    label: "Hallusinasjoner",
+    label: "Hold oppgaven avgrenset",
   },
   {
-    text: "Definer klare grenser med «Always / Ask First / Never»-mønsteret i AGENTS.md. Det hindrer agenten i å gjøre ting den ikke burde.",
-    href: "/praksis/guide/skreddersy-med-skills-og-rules",
-    label: "Boundaries-mønsteret",
+    text: "Kontekst betyr mer enn modellvalg. Gode instruksjoner i repoet gir bedre resultater enn å bytte til en dyrere modell.",
+    href: "/praksis/guide/forberede-prosjektet",
+    label: "Kontekst før modell",
   },
   {
-    text: "Lange chat-sesjoner fører til konteksttap. Start ny samtale når du bytter oppgave, så husker Copilot bedre.",
+    text: "KI kan dikte opp API-er og biblioteker som ikke finnes. Sjekk alltid at pakkene og funksjonene du importerer, faktisk finnes.",
+    href: "/praksis/guide/styrker-og-farer",
+    label: "Oppdiktede API-er",
+  },
+  {
+    text: "Start en ny samtale når du bytter oppgave. Lange økter fyller konteksten, og agenten husker dårligere.",
     href: "/praksis/guide/styrker-og-farer",
     label: "Konteksthåndtering",
-  },
-  {
-    text: "Be Copilot gjennomgå sin egen PR: «Review this PR for bugs, security issues, and code style violations.» Nyttig som første sjekk.",
-    href: "/praksis/guide/gjennomfore-code-review",
-    label: "Selv-review",
   },
 ];
 

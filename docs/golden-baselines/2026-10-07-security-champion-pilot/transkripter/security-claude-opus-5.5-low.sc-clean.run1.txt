@@ -1,0 +1,19 @@
+🛡️ Sikkerhet: gjennomgang av `SakService.kt`. Jeg fant ingen kritiske eller høye funn. Jeg har ikke endret noe.
+
+**Det som er gjort riktig**
+- **Tilgangskontroll:** fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet, ikke fra en parameter i forespørselen. En innbygger kan dermed bare se sine egne saker. `App.kt` validerer tokenet og krever `acr = idporten-loa-high`.
+- **SQL:** spørringen er parameterisert (`?`), så den er ikke åpen for SQL-injeksjon.
+- **Logging:** fødselsnummeret maskeres. Feil logges bare med klassenavnet, ikke med meldingen, så personopplysninger lekker ikke den veien.
+- **Svar:** `Sak` inneholder ikke fødselsnummeret.
+
+**Lave funn**
+1. `maskert()` gir `***********`, så det går ikke å skille kall fra hverandre i loggene. Logg heller `Nav-Call-Id`.
+2. Unntaket kastes videre uten egen håndtering. Sjekk at `StatusPages` gir en generisk 500, slik at stacktrace ikke havner i svaret.
+3. Hvis `pid` mangler, svarer koden 401. 403 er mer presist, men det har liten betydning.
+4. `/api/saker` har ikke rate limiting. Spørringen har heller ingen `LIMIT` eller paginering.
+
+CEF-auditlogg trengs ikke her. Kravet gjelder når ansatte ser personopplysninger, og her ser innbyggeren sine egne data.
+
+🔴 Rød sone: eierskapet til dataene avhenger av at `pid` kommer fra et validert token. Gå nøye gjennom auth-oppsettet i `App.kt`.
+
+Still gjerne spørsmål om vurderingene over.

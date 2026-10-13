@@ -1,0 +1,9 @@
+🔍 Kartlegger kallene til `SakService` og hvor tilgangskontrollen faktisk skjer.
+
+**Sikkerhetsgjennomgang: BLOCK.** Jeg fant én sikkerhetskritisk mangel i oppsettet rundt `SakService.kt` og to forhold som bør rettes før tjenesten tas i bruk.
+
+- **Kritisk: Manglende nettverksbegrensning.** `nais.yaml` har ingen `accessPolicy.inbound`. JWT-autentisering beskytter `/api/saker`, men manifestet begrenser ikke hvilke apper som kan nå tjenesten. Definer eksplisitte innkommende regler for de tiltenkte klientene.
+- **Bør rettes: Uvalidert `pid`.** `SakService.kt:50–55` avviser bare manglende claim. Sjekk at `pid` har forventet fødselsnummerformat før det brukes som oppslagsnøkkel. Spørringen i `SakService.kt:26` er parameterisert, så jeg fant ikke SQL-injeksjon her.
+- **Bør rettes: Fødselsnummerets lengde røpes i loggen.** `SakService.kt:17,37` erstatter hvert tegn med `*`, men beholder lengden. Logg heller en fast melding uten en verdi avledet fra `pid`.
+
+**Omfang:** Jeg leste `SakService.kt`, JWT-oppsettet i `App.kt`, `nais.yaml` og avhengighetene i `build.gradle.kts`. JWT-verifikatoren sjekker issuer, audience og `acr`; ruta bruker `pid` fra det verifiserte tokenet, ikke fra en fritt valgt URL-parameter. Jeg fant ingen hardkodede secrets eller filopplasting i disse filene. Avhengighetssårbarheter, git-historikk og GitHub Actions er ikke kontrollert; `trivy` og `zizmor` er ikke installert. **Funn: 1 kritisk, 2 øvrige.**

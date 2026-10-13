@@ -1,0 +1,29 @@
+{
+  "task": "typescript/tilgang",
+  "fixture_sha256": "a7b7cb3f3067c3fb67a1ec993c2166ff8e81a66030c5c2d4a8ed0d54868ca8d0",
+  "evaluated_at": "2026-10-13T02:42:42.929430+00:00",
+  "model": null,
+  "effort": null,
+  "credits": null,
+  "usage_verified": false,
+  "candidate_sha256": "2dba11f88d985a0e9482addba1c65cb37f714643a060dee8f5458d650a600f4f",
+  "checks": {
+    "regression": {
+      "passed": 2,
+      "total": 2,
+      "diagnostic": ""
+    },
+    "acceptance": {
+      "passed": 1,
+      "total": 3,
+      "diagnostic": "Type: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    200 !== 401\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 401\n  actual: 200\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///task/controls/acceptance/intern.test.ts:31:10)\n    async Test.run (node:internal/test_runner/test:1404:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:969:7)\n  ...\n# Subtest: nye notater krever gyldig token\nnot ok 3 - nye notater krever gyldig token\n  ---\n  duration_ms: 66.589754\n  type: 'test'\n  location: '/task/controls/acceptance/intern.test.ts:37:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    201 !== 401\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 401\n  actual: 201\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///task/controls/acceptance/intern.test.ts:47:10)\n    async Test.run (node:internal/test_runner/test:1404:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:969:7)\n  ...\n1..3\n# tests 3\n# suites 0\n# pass 1\n# fail 2\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4199.771708\n"
+    },
+    "http": {
+      "passed": 1,
+      "total": 2,
+      "diagnostic": "TAP version 13\n# Subtest: the reported route rejects missing and forged tokens and accepts valid ones\nnot ok 1 - the reported route rejects missing and forged tokens and accepts valid ones\n  ---\n  duration_ms: 7404.796394\n  type: 'test'\n  location: '/task/controls/http.test.mjs:33:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    200 !== 401\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 401\n  actual: 200\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///task/controls/http.test.mjs:36:10)\n    process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    async Test.run (node:internal/test_runner/test:1404:7)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n  ...\n# Subtest: NAIS probes stay open and existing routes still work\nok 2 - NAIS probes stay open and existing routes still work\n  ---\n  duration_ms: 383.579053\n  type: 'test'\n  ...\n1..2\n# tests 2\n# suites 0\n# pass 1\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 9438.94883\n"
+    }
+  },
+  "status": "failed",
+  "evaluation_seconds": 179.016
+}

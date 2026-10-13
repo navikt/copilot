@@ -1,0 +1,10 @@
+# 8. oktober 2026: Claude Haiku 5.5 mot GPT-6 Luna Medium. testpakke  modell  innsatsnivå  n
+# Kriteriene står i docs/modellvalg.md og ble satt før kjøringene. Luna rv5–rv8 kjøres med --only, se README i mappa.
+coding    claude-haiku-5.5  low     5
+research  claude-haiku-5.5  low     5
+review    claude-haiku-5.5  low     10
+coding    claude-haiku-5.5  medium  5
+research  claude-haiku-5.5  medium  5
+review    claude-haiku-5.5  medium  10
+coding    gpt-6-luna        medium  5
+research  gpt-6-luna        medium  5

@@ -1,0 +1,56 @@
+● skill(klarsprak)
+
+● List directory .
+  └ 8 files found
+
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/**/*instructions.md"
+  └ 16 files found
+
+/ Search (glob)
+  │ "frister/**/*"
+  └ 3 files found
+
+● Read frist_test.go
+  │ frister/frist_test.go
+  └ 26 lines read
+
+● Read frist.go
+  │ frister/frist.go
+  └ 16 lines read
+
+● Read golang.instructions.md
+  │ .github/instructions/golang.instructions.md
+  └ 547 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+✗ Reproduser testfeilen i frister (shell)
+  │ cd frister && go test ./...
+  └ --- FAIL: TestFrist (0.00s)
+    frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+    FAIL
+    FAIL    example.com/frister     0.244s
+    FAIL
+    Failed with exit code 1
+
+● Edit
+  └ Edit frister/frist.go
+
+● Bekreft at alle frister-tester passer og formateringen er korrekt (shell)
+  │ cd frister && go test ./... && gofmt -d frist.go
+  └ 1 line…
+
+Rettet `frister/frist.go`: Lørdagsfrister flyttes nå **to kalenderdager** til mandag, i stedet for én dag til søndag. Testene er uendret, og `go test ./...` i `frister/` går grønt.
+
+🔴 Rød sone: fristberegning, gå gjennom endringen nøye. Still gjerne spørsmål om valgene over.
+

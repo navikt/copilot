@@ -1,6 +1,6 @@
-# Without cplt, copilot would run unsandboxed. The way to get the sandbox is
-# named (the old remedy, `nav-pilot config setup`, installs nothing). Without a
-# terminal it refuses unless --no-sandbox says to go ahead. A plain copilot is
+# Without cplt, copilot is never launched: nav-pilot runs clients only inside
+# the sandbox, and names how to install it (the old remedy, `nav-pilot config
+# setup`, installs nothing). --no-sandbox is gone and says so. A plain copilot is
 # asked whether it is cplt once per installed binary, not once per lookup or
 # per run: the answer is kept in client-versions.json.
 
@@ -17,25 +17,21 @@ exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 rm $WORK/fake/copilot.log
 
 exits 1 nav-pilot --sync --source $WORK/plattform -- -p 'hello'
-stderr 'Install cplt: brew install navikt/tap/cplt \(or sudo apt install cplt\)'
-stderr 'Or pass --no-sandbox to run it anyway\.'
+stderr 'Not launching: cplt is not installed\. Install it: brew install navikt/tap/cplt \(or sudo apt install cplt\)'
 ! stderr 'config setup'
 # Not run, and not asked again: install already asked for its version.
 ! exists $WORK/fake/copilot.log
 
-rm $WORK/fake/copilot.log
-exec nav-pilot --sync --source $WORK/plattform --no-sandbox -- -p 'hello'
-stderr '⚠ cplt \(the sandbox\) is not installed: copilot runs unsandboxed \(--no-sandbox\)\.'
-grep '^-p\nhello\n---' $WORK/fake/copilot.log
-! grep '^--version\n' $WORK/fake/copilot.log
+exits 1 nav-pilot --sync --source $WORK/plattform --no-sandbox -- -p 'hello'
+stderr 'nav-pilot always runs clients inside cplt'
+stderr 'brew install navikt/tap/cplt'
+! exists $WORK/fake/copilot.log
 
-# In a terminal it asks, and the answer defaults to no.
+# In a terminal it says the same and launches nothing.
 [!pty] stop 'no pseudo-terminal here (/dev/ptmx will not open)'
 exec nav-pilot config set client copilot
-rm $WORK/fake/copilot.log
-exits 0 pty-run -wait 'Launch copilot without the sandbox' -send '\r' -- nav-pilot
-stdout 'cplt \(the sandbox\) is not installed\. Install it: brew install navikt/tap/cplt \(or sudo apt install cplt\)'
-stdout 'Not launched\.'
+exits 0 pty-run -- nav-pilot
+stdout 'cplt \(the sandbox\) is not installed, and copilot only launches inside it\. Install it: brew install navikt/tap/cplt \(or sudo apt install cplt\)'
 ! exists $WORK/fake/copilot.log
 
 -- plattform/.nav-pilot/agentpakke.json --

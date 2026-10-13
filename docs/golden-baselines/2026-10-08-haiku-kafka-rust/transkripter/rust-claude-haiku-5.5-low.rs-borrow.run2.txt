@@ -1,0 +1,5 @@
+Lånefeilen i `behandle_neste` er rettet i `saksko/src/lib.rs`, og `cargo test` i `saksko/` er grønt.
+
+Årsaken var at `sak` var en lånt referanse inn i `self.saker`, og `remove(0)` tok et mutbart lån mens den lånte referansen fortsatt var i bruk. Nå fjerner funksjonen elementet med `remove(0)` først og bruker den eide verdien. Oppførselen er uendret: tom kø gir `None`, den eldste saken fjernes, og id-en legges i `behandlet`.
+
+Jeg kjørte bare `saksko`-crate. Jeg har ikke sjekket `vedtak-parser`.

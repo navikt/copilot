@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -36,22 +39,148 @@ func optionalMonthParam(r *http.Request, name string) (string, bool) {
 	return value, true
 }
 
-func (h *BigQueryHandlers) handleTeamUsageSummary(w http.ResponseWriter, r *http.Request) {
-	days, ok := optionalIntParam(r, "days", 7, 1, 365)
+func (h *BigQueryHandlers) handleTeamGrossOverview(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
 	if !ok {
-		respondError(w, "invalid_parameter", "days must be between 1 and 365", http.StatusBadRequest)
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
 		return
 	}
-
-	usage, err := h.bqClient.GetTeamUsageSummary(r.Context(), days)
+	usage, err := h.bqClient.GetTeamGrossOverview(r.Context(), month)
 	if err != nil {
-		slog.Error("Failed to fetch team usage summary", "error", err)
-		respondError(w, "internal_error", "Failed to fetch team usage summary", http.StatusInternalServerError)
+		slog.Error("Failed to fetch team gross usage")
+		respondError(w, "internal_error", "Failed to fetch team gross usage", http.StatusInternalServerError)
 		return
 	}
-
+	prevGross, _ := h.previousTeamMonth(r.Context(), month, false)
+	out := *usage
+	out.Comparison = teamComparison(month, time.Now(), usage.DaysWithUsage, prevGross, false, false)
+	if out.Comparison == comparisonOK {
+		out.Teams = withChanges(usage.Teams, prevGross.Teams)
+	}
 	cacheControl(w, 3600, false)
-	respondJSON(w, usage, http.StatusOK)
+	respondJSON(w, out, http.StatusOK)
+}
+
+func (h *BigQueryHandlers) handleTeamNetOverview(w http.ResponseWriter, r *http.Request) {
+	month, ok := optionalMonthParam(r, "month")
+	if !ok {
+		respondError(w, "invalid_parameter", "month must be in YYYY-MM format", http.StatusBadRequest)
+		return
+	}
+	usage, err := h.bqClient.GetTeamNetOverview(r.Context(), month)
+	if err != nil {
+		if errors.Is(err, errTeamNetNotReady) {
+			respondJSON(w, nil, http.StatusOK)
+			return
+		}
+		slog.Error("Failed to fetch team net usage")
+		respondError(w, "internal_error", "Failed to fetch team net usage", http.StatusInternalServerError)
+		return
+	}
+	if usage == nil {
+		respondJSON(w, nil, http.StatusOK)
+		return
+	}
+	out := *usage
+	out.Comparison = comparisonIncomplete
+	if gross, err := h.bqClient.GetTeamGrossOverview(r.Context(), month); err == nil && gross != nil {
+		prevGross, prevNet := h.previousTeamMonth(r.Context(), month, true)
+		out.Comparison = teamComparison(month, time.Now(), gross.DaysWithUsage, prevGross, true, prevNet != nil)
+		if out.Comparison == comparisonOK {
+			out.Teams = withChanges(usage.Teams, prevNet.Teams)
+		}
+	}
+	cacheControl(w, 3600, false)
+	respondJSON(w, out, http.StatusOK)
+}
+
+var validTeamID = regexp.MustCompile(`^[1-9][0-9]{0,19}$`)
+
+// handleTeamYearOverview serves one team's months for a year. Same audience
+// as team-gross and team-net, but without their under-five threshold: small
+// teams' amounts are shown on purpose (owner decision 2026-10-12). No logins
+// are returned. team is the GitHub team
+// id from team_id in those endpoints, since slugs change when a team is renamed.
+func (h *BigQueryHandlers) handleTeamYearOverview(w http.ResponseWriter, r *http.Request) {
+	team := r.URL.Query().Get("team")
+	if !validTeamID.MatchString(team) {
+		respondError(w, "invalid_parameter", "team must be a GitHub team id", http.StatusBadRequest)
+		return
+	}
+	firstYear, _ := strconv.Atoi(firstTeamMonth[:4])
+	thisYear := time.Now().UTC().Year()
+	year, ok := optionalIntParam(r, "year", thisYear, firstYear, thisYear)
+	if !ok {
+		respondError(w, "invalid_parameter", fmt.Sprintf("year must be between %d and %d", firstYear, thisYear), http.StatusBadRequest)
+		return
+	}
+	overview, err := h.bqClient.GetTeamYearOverview(r.Context(), team, year)
+	if err != nil {
+		slog.Error("Failed to fetch team year usage", "error", err)
+		respondError(w, "internal_error", "Failed to fetch team year usage", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 3600, false)
+	respondJSON(w, overview, http.StatusOK)
+}
+
+// handleAdminMonthly serves the whole Nav bill per month for the admin cost page.
+func (h *BigQueryHandlers) handleAdminMonthly(w http.ResponseWriter, r *http.Request) {
+	thisYear := time.Now().UTC().Year()
+	year, ok := optionalIntParam(r, "year", thisYear, 2026, thisYear)
+	if !ok {
+		respondError(w, "invalid_parameter", fmt.Sprintf("year must be between 2026 and %d", thisYear), http.StatusBadRequest)
+		return
+	}
+	overview, err := h.bqClient.GetAdminMonthlyOverview(r.Context(), year)
+	if err != nil {
+		slog.Error("Failed to fetch admin monthly usage", "error", err)
+		respondError(w, "internal_error", "Failed to fetch admin monthly usage", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 3600, false)
+	respondJSON(w, overview, http.StatusOK)
+}
+
+// firstTeamMonth is the first month with team data.
+const firstTeamMonth = "2026-05"
+
+// previousTeamMonth loads the month before month. Failures only remove the comparison.
+func (h *BigQueryHandlers) previousTeamMonth(ctx context.Context, month string, net bool) (*TeamGrossOverview, *TeamNetOverview) {
+	first, _ := time.Parse("2006-01", month)
+	prev := first.AddDate(0, -1, 0).Format("2006-01")
+	if prev < firstTeamMonth {
+		return nil, nil
+	}
+	gross, err := h.bqClient.GetTeamGrossOverview(ctx, prev)
+	if err != nil {
+		slog.Warn("Previous team month unavailable")
+		return nil, nil
+	}
+	if !net {
+		return gross, nil
+	}
+	prevNet, err := h.bqClient.GetTeamNetOverview(ctx, prev)
+	if err != nil && !errors.Is(err, errTeamNetNotReady) {
+		slog.Warn("Previous team net month unavailable")
+	}
+	return gross, prevNet
+}
+
+func (h *BigQueryHandlers) handleMyTeams(w http.ResponseWriter, r *http.Request) {
+	identity, ok := GetResolvedIdentity(r.Context())
+	if !ok || identity == nil {
+		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	teams, err := h.bqClient.GetUserTeams(r.Context(), identity.GitHubUsername)
+	if err != nil {
+		slog.Error("Failed to fetch caller teams", "error", err)
+		respondError(w, "internal_error", "Failed to fetch your teams", http.StatusInternalServerError)
+		return
+	}
+	cacheControl(w, 300, false)
+	respondJSON(w, teams, http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleUserMetrics(w http.ResponseWriter, r *http.Request) {
@@ -102,24 +231,6 @@ func (h *BigQueryHandlers) handleMonthlyTrends(w http.ResponseWriter, r *http.Re
 
 	cacheControl(w, 3600, false)
 	respondJSON(w, trends, http.StatusOK)
-}
-
-func (h *BigQueryHandlers) handleMonthlyModelUsage(w http.ResponseWriter, r *http.Request) {
-	months, ok := optionalIntParam(r, "months", 12, 1, 36)
-	if !ok {
-		respondError(w, "invalid_parameter", "months must be between 1 and 36", http.StatusBadRequest)
-		return
-	}
-
-	usage, err := h.bqClient.GetMonthlyModelUsage(r.Context(), months)
-	if err != nil {
-		slog.Error("Failed to fetch monthly model usage", "error", err)
-		respondError(w, "internal_error", "Failed to fetch monthly model usage", http.StatusInternalServerError)
-		return
-	}
-
-	cacheControl(w, 3600, false)
-	respondJSON(w, usage, http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleMonthlyBillingUsage(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +361,9 @@ func (h *BigQueryHandlers) handleAdoptionCohorts(w http.ResponseWriter, r *http.
 	}
 
 	cacheControl(w, 3600, false)
-	respondJSON(w, cohorts, http.StatusOK)
+	// Nav-wide phase counts name no one, so small cells are shown as is (see the
+	// small-group rule in segments.go).
+	respondJSON(w, weeklyCohorts(cohorts), http.StatusOK)
 }
 
 func (h *BigQueryHandlers) handleBillingMonthlyTrend(w http.ResponseWriter, r *http.Request) {

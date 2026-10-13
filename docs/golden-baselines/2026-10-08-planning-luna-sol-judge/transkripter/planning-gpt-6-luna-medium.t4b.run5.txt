@@ -1,0 +1,47 @@
+
+## Fase 2: Plan
+
+Bygg Ktor-tjenesten som et stateless API. Den skal hente fødselsnummer fra en verifisert identitet, slå opp navnet i PDL og returnere navnet til den innloggede innbyggeren. Tjenesten lagrer ikke fødselsnummer eller navn.
+
+**Auth og dataflyt**
+
+- Den eksisterende Next.js-frontendens serverdel bruker Wonderwall for ID-porten-innlogging. Den bytter ID-porten-tokenet til et TokenX-token for Ktor-tjenesten.
+- Ktor validerer TokenX-tokenets signatur, issuer, audience og utløpstid. Den henter fødselsnummer fra den validerte identiteten, ikke fra request-parametere eller body.
+- Ktor bytter brukerkontekst-tokenet til et TokenX-token for PDL og sender fødselsnummeret dit. PDL returnerer navnet.
+- API-et kan for eksempel tilby `GET /api/person/navn`. Det returnerer bare navnet, ikke fødselsnummeret.
+- Forutsetning: PDL støtter TokenX med brukerkontekst for dette oppslaget. Avklar PDL-audience og eventuelle scopes med PDL-teamet før implementering.
+
+Dette holder ID-porten-flyten i frontend og bruker TokenX gjennom tjenestekallene med brukerens kontekst. Det unngår at Ktor eksponeres direkte for ID-porten-token eller lar klienten velge hvilket fødselsnummer som skal slås opp.
+
+**Nais og struktur**
+
+- Frontendens Nais-oppsett bruker ID-porten og Wonderwall. Ktor-tjenesten aktiverer TokenX.
+- Sett eksplisitt `accessPolicy`: Ktor slipper bare inn den eksisterende frontend-appen og får bare kalle PDL.
+- Bruk navnene på faktiske apper og namespaces i reglene; `demo` i manifestet er foreløpig bare et eksempel.
+- Legg til Prometheus-metrikker, `/metrics` og helsesjekker. Start med små requests, for eksempel `15m` CPU og `256Mi` minne. Ikke sett CPU-limit.
+- Organiser Ktor-koden i auth, API-ruter, PDL-klient og feilhåndtering. Legg tester i `src/test`. Ingen database trengs.
+
+**Feil, sikkerhet og personvern**
+
+- Ved timeout eller feil fra PDL svarer tjenesten med `503`. Den logger en sanitert feilhendelse med request-id, status og varighet, aldri fødselsnummer, navn, token eller request/response-body. Ikke send rå PDL-feil tilbake til klienten.
+- Ikke lagre eller cache personopplysninger. Ikke ta dem med i logger, traces, metrikklabels eller feilmeldinger.
+- Dokumenter lovhjemmelen og formålet med oppslaget. Avklar personvernkrav og eventuell DPIA før produksjonssetting.
+- Ikke legg til kø eller dead-letter-håndtering. PDL-feil skal gi et synlig, feilet kall.
+
+**Tester og leveranse**
+
+- Unit- og Ktor-tester for manglende, ugyldig og utløpt token, samt korrekt uttrekk av identitet.
+- Integrasjonstester med mock av PDL for vellykket oppslag, timeout og feilstatus. Verifiser at feil gir `503`, og at logger og API-respons ikke inneholder personopplysninger.
+- CI skal bygge og teste, bygge image og deploye til dev før prod. Bruk repoets eksisterende workflow hvis den finnes.
+- Før produksjonssetting: verifiser innlogging, TokenX mot tjenesten og PDL, 503 ved simulert PDL-feil, samt at fødselsnummer og navn ikke finnes i logger eller traces. Rollback er å rulle tilbake til forrige image.
+
+**Observabilitet**
+
+Mål antall oppslag per minutt og andel kall som feiler. Bruk statuskategori og avhengighet som labels, aldri personopplysninger. Varsle ved økt feilandel eller vedvarende PDL-feil. Oppdater runbook med feilsøking for TokenX, PDL og 503-svar.
+
+🔴 **Rød sone:** Token-validering, uttrekk av fødselsnummer og autorisering av PDL-oppslaget er sikkerhetskritisk. Teamet bør forstå og gjennomgå dette grundig. TokenX og Wonderwall er nye for teamet, så lær flyten før dere godtar implementasjonen.
+
+🟢 **Grønn sone:** Ktor-ruteskjelett, Nais-konfigurasjon, CI-oppsett, metrikker og teststubber.
+
+Godkjenn planen for at jeg skal gå videre til Fase 3 og gjennomgå den fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv.
+

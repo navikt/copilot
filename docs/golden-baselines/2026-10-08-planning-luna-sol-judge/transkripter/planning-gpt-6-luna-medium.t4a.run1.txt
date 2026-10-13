@@ -1,0 +1,29 @@
+
+
+
+
+
+
+
+
+
+
+
+Repoet er et Ktor/Kotlin-demo på Nais. `nais.yaml` har foreløpig ingen ID-porten- eller `accessPolicy`-oppsett. Jeg tolker ønsket som at en innbygger logger inn via ID-porten, og at tjenesten leser fødselsnummer fra et validert token. Stemmer det?
+
+Før jeg lager en plan, trenger jeg svar på dette:
+
+1. **Personvern:** Hva skal tjenesten bruke fødselsnummeret til? Skal den bare behandle det mens forespørselen pågår, eller lagre eller sende det videre?
+2. **Tilgang:** Hvem skal kunne kalle tjenesten, og hvem skal kunne lese fødselsnummeret?
+3. **Feilhåndtering:** Hva skal skje hvis ID-porten eller en nedstrøms tjeneste ikke er tilgjengelig?
+4. **Måling:** Hvilke mål eller alarmer trenger dere for å følge med på at tjenesten virker?
+5. **Ansvar:** Eier teamet hele flyten, eller avhenger tjenesten av andre team?
+6. **Konsumenter:** Hvem skal bruke tjenestens API, og finnes det eksisterende konsumenter som må tåle endringer?
+7. **Teknologi:** Er Kotlin, Ktor og Nais riktig utgangspunkt for teamet?
+
+Jeg fant ikke tester i repoet. Det mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette prosjektinstruksjoner.
+
+🔴 Rød sone: token-validering og håndtering av fødselsnummer må avklares før implementasjon.
+
+Blindsoner reist: 7/11 (#1–#6 og #11; #7 avklart, ingen tester funnet; #8–#10 ikke relevante for en ny tjeneste slik den er beskrevet).
+

@@ -1,0 +1,78 @@
+
+
+
+
+
+
+
+
+
+
+## Fase 2: Plan
+
+Planen tar utgangspunkt i repoets Ktor-tjeneste på Nais og den eksisterende Next.js-frontend-en. Dette er et nybygg med ny behandling av fnr og navn, så arbeidet er i full faseflyt. Jeg stopper etter planen, før gjennomgang og kode.
+
+### Arkitektur
+
+| Område | Valg |
+|---|---|
+| Innlogging | Innbygger logger inn med ID-porten i Next.js-løsningen via Wonderwall. |
+| Kall til API-et | Next.js-serveren bruker TokenX til å kalle Ktor-tjenesten på vegne av innbyggeren. Nettleseren kaller ikke Ktor-tjenesten direkte. |
+| Identitet | Ktor-tjenesten henter fnr fra en verifisert TokenX-identitet. Den godtar ikke fnr fra request-parametere eller payload. Claim-navn og TokenX-konfigurasjon må bekreftes mot faktisk token før implementering. |
+| PDL | Ktor-tjenesten henter bare navnet som frontend-en trenger. Foreløpig antakelse er at tjenesten bruker godkjent maskin-til-maskin-autentisering mot PDL. Avklar PDL-tilgang, scope og eventuell krav om brukerkontekst med PDL-eier før integrasjonen bygges. |
+| API | Synkront REST-kall. Ved feil eller timeout fra PDL svarer tjenesten med 503. Ingen kø eller dead-letter. |
+| Lagring | Ingen database, lagring eller cache. Tjenesten behandler svaret i minnet og returnerer bare nødvendige opplysninger. |
+
+BFF-mønsteret holder ID-porten- og TokenX-token unna nettleserkode og gir backend-en en avgrenset caller. Det gir et ekstra kall gjennom Next.js, men er tryggere enn at klienten håndterer backend-token direkte eller sender inn et fnr tjenesten ikke kan knytte til den innloggede personen.
+
+### Prosjektstruktur
+
+Behold Ktor og del ansvaret i tydelige komponenter:
+
+- `Authentication`: validering av TokenX-token og uthenting av godkjent identitet.
+- `PersonRoutes`: beskyttet endpoint som returnerer innlogget persons navn.
+- `PdlClient`: HTTP-klient mot PDL, med timeout og kontrollert feilhåndtering.
+- `PersonService`: kobler identiteten til PDL-oppslaget.
+- `Metrics`: teller oppslag og feil uten persondata som labels.
+
+Ikke legg til database, Flyway eller Kafka. De gir ikke verdi for den beskrevne flyten.
+
+### Nais og tilgang
+
+- Slå på TokenX for Ktor-tjenesten.
+- Sett `accessPolicy.inbound` til kun den eksisterende Next.js-appen.
+- Sett `accessPolicy.outbound` til PDL i riktig namespace og cluster.
+- Bruk PDLs godkjente autentiseringsoppsett og secrets fra Nais, ikke fra kode eller manifest.
+- Behold health checks og legg til Prometheus-metrikker.
+- Sett CPU requests, ikke CPU limits. Fastsett memory- og CPU-requests ut fra målt trafikk.
+
+### Feil og logging
+
+Når PDL ikke svarer, logger tjenesten en strukturert feilhendelse med request-/correlation-ID og teknisk feilkategori. Den logger aldri fnr, navn, token, PDL-payload eller URL-er som kan inneholde persondata. API-svaret gir klienten 503 uten PDLs interne feilmelding.
+
+Mål oppslag per minutt og andel feilende kall. Metrikkene skal ikke ha fnr, navn eller andre identifikatorer som labels. Sett timeout mot PDL og ikke innfør automatisk retry i første versjon; retry kan øke belastningen mens PDL er utilgjengelig.
+
+### Test og leveranse
+
+- Enhetstester for personflyt og feilhåndtering.
+- API-tester for manglende eller ugyldig token, gyldig innlogget kall og PDL-feil.
+- Integrasjonstester mot mock av PDL, inkludert timeout og 5xx.
+- Test at fnr ikke kan overstyres fra request og ikke dukker opp i logger.
+- CI bygger og tester tjenesten, kjører sikkerhetskontroller og bygger image.
+- Deploy først til dev. Verifiser innlogging, TokenX-kall, PDL-oppslag, 503 ved PDL-feil og metrikker før prod-deploy.
+- Next.js-frontend-en trenger en integrasjonstest av innlogget flyt mot backend-en.
+
+### Risiko og avklaringer før implementering
+
+- **Behandlingsgrunnlag:** «Lovhjemmel» er oppgitt, men konkret hjemmel og formål må dokumenteres av produkteier/personvern før produksjonssetting.
+- **PDL-tilgang:** Bekreft tjenestens tilgang, nødvendig scope og om oppslaget skal bruke tjenesteidentitet eller innbyggerkontekst.
+- **Audit:** Det er ikke avklart om PDL-oppslag krever egen audit-logging utover tekniske logger. Avklar dette med personvern- og sikkerhetsansvarlig. Ikke bruk vanlige logger til å lagre fnr eller navn.
+- **Skjerming:** Avklar hvordan skjermede personer og eventuelle PDL-svar med ekstra personopplysninger skal håndteres. Returner bare navnefeltet tjenesten trenger.
+- **Drift:** Sett varslingsterskler for feilandel og PDL-utilgjengelighet sammen med teamet som har vakt.
+
+🔴 **Rød sone, forstå og gjennomgå grundig:** TokenX-validering, uthenting av fnr fra identitet, tilgangskontroll og PDL-oppslag. TokenX og Wonderwall er nye for teamet, og feil her kan gi tilgang til andres personopplysninger. Alternativet er å sende inn fnr fra klienten, men planen avviser det fordi backend-en da må kunne bevise at innbyggeren har rett til å slå opp akkurat det fnr-et.
+
+🟢 **Grønn sone:** Ktor-oppsett, Nais-ressurser og health checks, metrikkoppsett, CI-pipeline og tester rundt avklarte kontrakter.
+
+Når du godkjenner planen, går jeg videre til Fase 3 og vurderer den fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektiv. Still gjerne spørsmål om valgene over.
+

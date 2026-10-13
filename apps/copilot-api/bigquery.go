@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -372,10 +373,23 @@ type BigQueryQuerier interface {
 	GetCustomizationUsage(ctx context.Context) ([]CustomizationUsage, error)
 	GetLanguageAdoption(ctx context.Context) ([]LanguageAdoption, error)
 	GetStalenessData(ctx context.Context) ([]StalenessFile, error)
-	GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error)
+	GetUserTeams(ctx context.Context, userLogin string) ([]string, error)
+	GetTeamGrossOverview(ctx context.Context, month string) (*TeamGrossOverview, error)
+	GetTeamNetOverview(ctx context.Context, month string) (*TeamNetOverview, error)
+	GetTeamYearOverview(ctx context.Context, team string, year int) (*TeamYearOverview, error)
+	GetAdminMonthlyOverview(ctx context.Context, year int) (*AdminMonthlyOverview, error)
+	GetSpendBands(ctx context.Context) (*SpendBands, error)
+	GetCostDays(ctx context.Context, month string) ([]CostDay, error)
+	GetCostUserDays(ctx context.Context, month string) ([]UserDay, error)
+	GetLimitSnapshots(ctx context.Context) ([]LimitChange, error)
+	GetActiveUsersMonthly(ctx context.Context) ([]ActiveUsersMonth, error)
+	GetModelFamilyUsers(ctx context.Context) ([]ModelFamilyUsers, error)
+	GetVolumeMonthly(ctx context.Context, year int) ([]VolumeMonth, error)
+	GetHighConsumers(ctx context.Context) ([]HighConsumerMonth, error)
+	GetBudgetDays(ctx context.Context) ([]BudgetDay, error)
+	GetCostAnomalies(ctx context.Context) ([]Anomaly, error)
 	GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error)
 	GetMonthlyTrends(ctx context.Context, months int) ([]MonthlyTrend, error)
-	GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error)
 	GetMonthlyBillingUsage(ctx context.Context, months int) ([]MonthlyBillingUsage, error)
 	GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error)
 	GetBillingModelForecast(ctx context.Context, month string) (*BillingModelForecast, error)
@@ -387,6 +401,11 @@ type BigQueryQuerier interface {
 	GetDailySummary(ctx context.Context) (*DailySummary, error)
 	GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error)
 	GetRepositoryUsage(ctx context.Context) ([]RepositoryUsage, error)
+	GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error)
+	GetCopilotPRsMonthly(ctx context.Context) ([]CopilotPRMonth, error)
+	GetCohortRetention(ctx context.Context) ([]CohortRetention, error)
+	GetUserSegments(ctx context.Context) (*UserSegments, error)
+	GetFactAggregates(ctx context.Context) (*FactAggregates, error)
 }
 
 // Cache wrapper for BigQuery operations
@@ -403,16 +422,14 @@ func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedB
 	}
 }
 
-// negativeCacheTTL is used for nil/zero-value results so "no data yet"
-// responses are retried sooner than the full cache TTL.
+// negativeCacheTTL is how long a failed or empty load is cached, so it is
+// retried sooner than the full cache TTL.
 const negativeCacheTTL = 5 * time.Minute
 
 // getCachedValue reads cacheKey from cache, or invokes loader on a miss.
 // Concurrent misses for the same cacheKey are deduplicated via singleflight
 // so a cache expiration under load triggers exactly one BigQuery call
 // instead of one per in-flight request (cache stampede).
-// Nil/zero-value results are cached for a shorter duration (5 min) so
-// transient "no data" states are retried sooner.
 func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func() (T, error)) (T, error) {
 	var zero T
 	if cached, ok := c.cache.Get(cacheKey); ok {
@@ -434,13 +451,7 @@ func getCachedValue[T any](c *CachedBigQueryClient, cacheKey string, loader func
 		if err != nil {
 			return zero, err
 		}
-		// Use a shorter TTL for nil results (e.g. daily summary before
-		// data lands) so they're retried sooner.
-		if any(value) == nil {
-			c.cache.SetWithTTL(cacheKey, value, negativeCacheTTL)
-		} else {
-			c.cache.Set(cacheKey, value)
-		}
+		c.cache.Set(cacheKey, value)
 		return value, nil
 	})
 	if err != nil {
@@ -528,19 +539,10 @@ func (c *CachedBigQueryClient) GetStalenessData(ctx context.Context) ([]Stalenes
 	})
 }
 
-func (c *CachedBigQueryClient) GetTeamUsageSummary(ctx context.Context, days int) ([]TeamUsageSummary, error) {
-	ctx, cancel := withQueryTimeout(ctx)
-	defer cancel()
-	cacheKey := fmt.Sprintf("team_usage_summary_%d", days)
-	return getCachedValue(c, cacheKey, func() ([]TeamUsageSummary, error) {
-		return c.client.GetTeamUsageSummary(ctx, days)
-	})
-}
-
 func (c *CachedBigQueryClient) GetUserMetrics(ctx context.Context, userLogin string, days int) (*UserMetricsSummary, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	cacheKey := fmt.Sprintf("user_metrics_%s_%d", userLogin, days)
+	cacheKey := fmt.Sprintf("user_metrics_%s_%d", strings.ToLower(userLogin), days)
 	return getCachedValue(c, cacheKey, func() (*UserMetricsSummary, error) {
 		return c.client.GetUserMetrics(ctx, userLogin, days)
 	})
@@ -552,15 +554,6 @@ func (c *CachedBigQueryClient) GetMonthlyTrends(ctx context.Context, months int)
 	cacheKey := fmt.Sprintf("monthly_trends_%d", months)
 	return getCachedValue(c, cacheKey, func() ([]MonthlyTrend, error) {
 		return c.client.GetMonthlyTrends(ctx, months)
-	})
-}
-
-func (c *CachedBigQueryClient) GetMonthlyModelUsage(ctx context.Context, months int) ([]MonthlyModelUsage, error) {
-	ctx, cancel := withQueryTimeout(ctx)
-	defer cancel()
-	cacheKey := fmt.Sprintf("monthly_model_usage_%d", months)
-	return getCachedValue(c, cacheKey, func() ([]MonthlyModelUsage, error) {
-		return c.client.GetMonthlyModelUsage(ctx, months)
 	})
 }
 
@@ -594,7 +587,7 @@ func (c *CachedBigQueryClient) GetBillingModelForecast(ctx context.Context, mont
 func (c *CachedBigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogin string, weeks int) ([]WeeklyTrend, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	cacheKey := fmt.Sprintf("user_weekly_trends_%s_%d", userLogin, weeks)
+	cacheKey := fmt.Sprintf("user_weekly_trends_%s_%d", strings.ToLower(userLogin), weeks)
 	return getCachedValue(c, cacheKey, func() ([]WeeklyTrend, error) {
 		return c.client.GetUserWeeklyTrends(ctx, userLogin, weeks)
 	})
@@ -603,7 +596,7 @@ func (c *CachedBigQueryClient) GetUserWeeklyTrends(ctx context.Context, userLogi
 func (c *CachedBigQueryClient) GetUserDailyCredits(ctx context.Context, userLogin string, days int) ([]DailyCredits, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	cacheKey := fmt.Sprintf("user_daily_credits_%s_%d", userLogin, days)
+	cacheKey := fmt.Sprintf("user_daily_credits_%s_%d", strings.ToLower(userLogin), days)
 	return getCachedValue(c, cacheKey, func() ([]DailyCredits, error) {
 		return c.client.GetUserDailyCredits(ctx, userLogin, days)
 	})

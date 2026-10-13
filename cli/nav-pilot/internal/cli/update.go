@@ -19,6 +19,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/zalando/go-keyring"
 )
 
@@ -357,7 +358,13 @@ var latestCpltVersion = func() (string, error) {
 // cpltCommandTimeout bounds every cplt process spawn. Each spawn gets its own
 // deadline: no check may share a wall clock with an unrelated one. A var so
 // the tests can give their fake cplt more time on a loaded machine (#1335).
-var cpltCommandTimeout = 2 * time.Second
+//
+// 8 s, the budget the runtime gate gives `cplt --version`. The deadline is
+// for a cplt that hangs, not a slow one. During a full parallel test run a
+// bare `sh -c 'exit 0'` took up to 5 s from start to exit on a Mac
+// (hack/probes/RESULTS.md, 2026-10-08), and at 2 s a healthy cplt read as
+// absent: setup offered the wrong preset.
+var cpltCommandTimeout = 8 * time.Second
 
 // runBounded runs a command with its own deadline and returns its stdout.
 func runBounded(name string, args ...string) ([]byte, error) {
@@ -622,6 +629,16 @@ func applyE2ESeams(info *BuildInfo) {
 	// An in-memory keychain: a journey never reads or writes the real one.
 	// NAV_PILOT_E2E_KEYCHAIN_TOKEN starts it with a stored token.
 	keyring.MockInit()
+	// The journeys' fakes (cplt, copilot, gh) are shell scripts. With several
+	// checks running at once, exec on this kind of machine (an endpoint
+	// agent authorizes every exec) was measured at over 2 s, at worst 3 s,
+	// for a bare `sh -c :`, so a 2 to 5 s deadline fired before a fake had
+	// run a line: the wizard read no sandbox.preset, install cached no
+	// copilot version, the MCP policy went unchecked. No journey relies on
+	// these deadlines firing.
+	cpltCommandTimeout = 30 * time.Second
+	providerpkg.IsCpltTimeout = 30 * time.Second
+	providerpkg.MCPPolicyTimeout = 30 * time.Second
 	if tok := os.Getenv("NAV_PILOT_E2E_KEYCHAIN_TOKEN"); tok != "" {
 		_ = saveToken(storedToken{AccessToken: tok})
 	}

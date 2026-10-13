@@ -121,11 +121,11 @@ const GateNudgeText = "nav-pilot (local_dispatch): no build or test command has 
 	"and fix or redo what fails."
 
 // GateRetryText is appended to a build or test that failed after
-// `local-worker` created a file this turn. One retry with the check's output
+// `local-worker` created or edited a file this turn. One retry with the check's output
 // is the lever bench-frontier measures as retry2: on create-file it took
 // verified results from 5/20 to 15/20, at 322 s against 618 s per verified
 // result (mlx-workspace #126).
-const GateRetryText = "nav-pilot (local_dispatch): this check failed after `local-worker` created a file. Send it back to `local-worker` once, in the same task (pass its task_id), with the failing output above and the words: The change is not done yet. Fix it. Change nothing else. If the check fails again, fix it yourself."
+const GateRetryText = "nav-pilot (local_dispatch): this check failed after `local-worker` created or edited a file. Send it back to `local-worker` once, in the same task (pass its task_id), with the failing output above and the words: The change is not done yet. Fix it. Change nothing else. If the check fails again, fix it yourself."
 
 // GateRetryDoneText is appended when the check fails again after that one
 // retry: two attempts is the bound.
@@ -153,7 +153,7 @@ type GateRequest struct {
 	Old        string `json:"old"`
 	// Phase is "" before a tool call, "after" once a task to the worker or a
 	// bash command has returned, "text" when the orchestrator has written
-	// text, and "worker" when the worker is about to create a file.
+	// text, and "worker" when the worker is about to create or edit a file.
 	Phase string `json:"phase"`
 	// Worker is the worker's session, on a task's "after".
 	Worker string `json:"worker"`
@@ -171,7 +171,7 @@ type gateTurn struct {
 	sent       []string // prompts sent to the worker this turn
 	unverified bool     // the worker returned, and no build or test has run since
 	nudged     bool
-	created    bool   // the worker created a file this turn
+	wrote      bool   // the worker created or edited a file this turn
 	checking   string // the build or test that runs since the worker returned
 	retried    bool   // the worker has had its one retry this turn
 	settled    bool   // the retry's check has run and been counted
@@ -226,13 +226,13 @@ type dispatchGate struct {
 	mu       sync.Mutex
 	rules    GateRules
 	sessions map[string]*gateTurn
-	// workerCreated: worker sessions that created a file, until the task
+	// workerWrote: worker sessions that created or edited a file, until the task
 	// that ran them returns. Reported before the write runs: a write that
 	// then fails still counts. ponytail: files the worker creates with a
 	// shell command are not seen; add a post-tool report if that matters. ponytail: a task that fails or runs in the
 	// background never returns here, so its entry stays; one bool per worker
 	// session.
-	workerCreated map[string]bool
+	workerWrote map[string]bool
 	// serverUp is the liveness check, asked only before a deny. A var in the
 	// struct so a test can take the server down.
 	serverUp func() bool
@@ -241,11 +241,11 @@ type dispatchGate struct {
 
 func newDispatchGate(target string, rules GateRules) *dispatchGate {
 	return &dispatchGate{
-		rules:         rules,
-		sessions:      map[string]*gateTurn{},
-		workerCreated: map[string]bool{},
-		counts:        map[string]int64{},
-		serverUp:      func() bool { return tcpUp(target) },
+		rules:       rules,
+		sessions:    map[string]*gateTurn{},
+		workerWrote: map[string]bool{},
+		counts:      map[string]int64{},
+		serverUp:    func() bool { return tcpUp(target) },
 	}
 }
 
@@ -322,7 +322,7 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 	case "bash":
 		if st.unverified && Verifies(r.Command) {
 			st.unverified = false
-			if st.created {
+			if st.wrote {
 				st.checking = r.Command
 			}
 		}
@@ -512,9 +512,9 @@ func (g *dispatchGate) turn(r GateRequest) *gateTurn {
 // unverified ("text"). The key is the JSON field the plugin reads.
 func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 	if r.Phase == "worker" {
-		if r.Session != "" && r.Create && exists(g.rules.Root, r.Path) == statMissing {
+		if r.Session != "" && (r.Tool == "write" || r.Tool == "edit") {
 			g.mu.Lock()
-			g.workerCreated[r.Session] = true
+			g.workerWrote[r.Session] = true
 			g.mu.Unlock()
 		}
 		return "", ""
@@ -528,9 +528,9 @@ func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 	switch {
 	case r.Phase == "after" && r.Tool == "task" && r.Subagent == WorkerAgent:
 		st.unverified = true
-		if g.workerCreated[r.Worker] {
-			st.created = true
-			delete(g.workerCreated, r.Worker)
+		if g.workerWrote[r.Worker] {
+			st.wrote = true
+			delete(g.workerWrote, r.Worker)
 		}
 		return "append", GateVerifyText
 	case r.Phase == "after" && r.Tool == "bash" && st.checking != "" && r.Command == st.checking:

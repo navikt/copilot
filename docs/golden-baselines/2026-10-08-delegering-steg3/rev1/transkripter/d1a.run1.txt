@@ -1,0 +1,47 @@
+/ Search (glob)
+  │ "**/*.{yaml,yml,kt,ts,tsx,go}"
+  └ 7 files found
+
+/ Search (glob)
+  │ "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,go.mod,nav-pilot-design.md}"
+  └ 3 files found
+
+● Inspect repository and Copilot configuration (shell)
+  │ pwd && ls -la && for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then echo "PRESENT $f"; else echo
+  │ "MISSING $f"; fi; done
+  └ 13 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Vedtak.kt
+  │ vedtak-api/src/main/kotlin/no/nav/vedtak/Vedtak.kt
+  └ 9 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+**Fase 1: Avklaring.** Dette er en ny tjeneste med fødselsnummer og innlogging, så jeg stopper før arkitektur og kode. Repoet har en Ktor-tjeneste på Nais, men `nais.yaml` viser ingen ID-porten-konfigurasjon eller `accessPolicy`. `/api/oppgaver` har heller ingen tilgangskontroll. Jeg antar derfor ikke at dagens oppsett kan brukes til å lese fødselsnummer trygt.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i én forespørsel, sende det videre eller lagre det? Hvilke andre personopplysninger inngår?
+2. Hvem skal kunne kalle tjenesten: innlogget innbygger i nettleser, en annen Nav-tjeneste eller begge? Skal fødselsnummeret noen gang returneres i API-et?
+3. Hvilke systemer eller team skal motta data, og hva skal skje når de er utilgjengelige?
+4. Hvilke tester og måltall trenger dere for å se at innlogging og tjenesten virker? Er ID-porten eller Ktor nytt for teamet?
+
+Repoet mangler `AGENTS.md` og de to Copilot-instruksjonsfilene; `nav-pilot init` kan opprette lokal konfigurasjon.
+
+Blindsoner reist: 8/11 (#1–#7 og #11; #8–#10 gjelder ikke en ny tjeneste).
+

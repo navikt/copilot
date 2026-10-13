@@ -1,0 +1,5 @@
+`les` returnerer nå `Result<Vedtak, VedtakFeil>`. Parseren panikker ikke lenger på ugyldig input, og feilmeldingen for ugyldig beløp inneholder teksten som ikke kunne parses. Ulempen er at kallere må håndtere feilen eksplisitt.
+
+🔴 Rød sone: inputvalideringen i parseren. Gå gjennom den nøye.
+
+`cargo test` besto med 4 tester. `cargo fmt --check` og Clippy besto også. Still gjerne spørsmål om valgene over.

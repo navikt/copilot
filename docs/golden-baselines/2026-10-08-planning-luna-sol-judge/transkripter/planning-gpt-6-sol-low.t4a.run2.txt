@@ -1,0 +1,19 @@
+
+
+
+
+
+
+
+
+**Fase 1: Avklare tjenesten.** Repoet har en Ktor-tjeneste med et åpent `/api/oppgaver`-endepunkt, men ingen ID-porten-integrasjon eller tilgangsregler i Nais-manifestet. Jeg antar at en innbygger skal kalle tjenesten med egen brukerkontekst, og at fødselsnummeret skal leses fra en validert ID-porten-identitet, ikke fra klientens forespørsel. Stemmer det?
+
+1. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det bare under forespørselen, sende det videre eller lagre det? Skal den håndtere andre personopplysninger?
+2. Skal bare innbyggeren selv kunne kalle tjenesten, eller også andre tjenester eller saksbehandlere? Skal det eksisterende `/api/oppgaver` fortsatt være åpent?
+3. Hvilke systemer skal tjenesten kalle, og hva skal skje når de er utilgjengelige?
+4. Er dette en utvidelse av `demo-tjeneste` eller en separat tjeneste? Hvem eier eventuelle mottakere av fødselsnummeret?
+
+Ingen kode endres før autentisering og tilgang er avklart. Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan opprette lokal Copilot-konfigurasjon. Test-, utrullings- og kompatibilitetsspørsmål tar vi i planfasen når tjenestens bruk er avklart.
+
+Blindsoner reist: 5/11 (#1, #2, #3, #5, #6; #4, #7–#11 avklares i planfasen eller er ikke relevante ennå).
+

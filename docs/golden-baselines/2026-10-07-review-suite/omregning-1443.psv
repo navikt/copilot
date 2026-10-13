@@ -1,0 +1,126 @@
+# Omregning uten modellkall av de 60 transkriptene fra 7. oktober med sjekkene rettet etter #1443.
+# gammel = scripts/benchmark-sjekk.py og mønstrene i nav-pilot-golden.sh på 8ceea96d; ny = denne branchen.
+# rv8: antall rader med høy prioritet (gammel, ny). ny-log.error-ekte = ny, der rader på SakService.kt:40-42 om log.error(…, e) regnes som ekte funn (eierens avgjørelse).
+# rv1-rv4 er ikke regnet om: de transkriptene er ikke lagret.
+# arm|sjekk|kjøring|gammel|ny|grunn (ny)
+review-claude-opus-5.5-low|rv5|1|pass|pass|
+review-claude-opus-5.5-low|rv5|2|pass|pass|
+review-claude-opus-5.5-low|rv5|3|pass|pass|
+review-claude-opus-5.5-low|rv5|4|fail|fail|wrong line: sql (want [23], cited [24])
+review-claude-opus-5.5-low|rv5|5|fail|fail|not named near its line: inbound
+review-claude-opus-5.5-low|rv5|6|pass|pass|
+review-claude-opus-5.5-low|rv5|7|fail|fail|not named near its line: inbound
+review-claude-opus-5.5-low|rv5|8|pass|pass|
+review-claude-opus-5.5-low|rv5|9|pass|pass|
+review-claude-opus-5.5-low|rv5|10|pass|pass|
+review-claude-opus-5.5-low|rv6|1|pass|pass|
+review-claude-opus-5.5-low|rv6|2|fail|fail|not named near its line: dobbeltskriving (anywhere)
+review-claude-opus-5.5-low|rv6|3|pass|pass|
+review-claude-opus-5.5-low|rv6|4|fail|pass|
+review-claude-opus-5.5-low|rv6|5|pass|pass|
+review-claude-opus-5.5-low|rv6|6|pass|pass|
+review-claude-opus-5.5-low|rv6|7|pass|pass|
+review-claude-opus-5.5-low|rv6|8|pass|pass|
+review-claude-opus-5.5-low|rv6|9|pass|pass|
+review-claude-opus-5.5-low|rv6|10|pass|pass|
+review-claude-opus-5.5-low|rv7|1|pass|pass|
+review-claude-opus-5.5-low|rv7|2|pass|pass|
+review-claude-opus-5.5-low|rv7|3|pass|pass|
+review-claude-opus-5.5-low|rv7|4|pass|pass|
+review-claude-opus-5.5-low|rv7|5|pass|fail|priority: inbound not named near its line
+review-claude-opus-5.5-low|rv7|6|pass|fail|priority: inbound not marked high
+review-claude-opus-5.5-low|rv7|7|pass|fail|priority: inbound not named near its line
+review-claude-opus-5.5-low|rv7|8|pass|pass|
+review-claude-opus-5.5-low|rv7|9|pass|pass|
+review-claude-opus-5.5-low|rv7|10|pass|fail|priority: inbound not marked high
+review-gpt-6-luna-medium|rv5|1|fail|fail|not named near its line: inbound
+review-gpt-6-luna-medium|rv5|2|fail|fail|not named near its line: inbound
+review-gpt-6-luna-medium|rv5|3|fail|fail|not named near its line: inbound
+review-gpt-6-luna-medium|rv5|4|fail|pass|
+review-gpt-6-luna-medium|rv5|5|pass|pass|
+review-gpt-6-luna-medium|rv5|6|fail|pass|
+review-gpt-6-luna-medium|rv5|7|fail|pass|
+review-gpt-6-luna-medium|rv5|8|fail|fail|not named near its line: inbound
+review-gpt-6-luna-medium|rv5|9|fail|fail|not named near its line: inbound
+review-gpt-6-luna-medium|rv5|10|fail|fail|not named near its line: inbound
+review-gpt-6-luna-medium|rv6|1|fail|pass|
+review-gpt-6-luna-medium|rv6|2|fail|pass|
+review-gpt-6-luna-medium|rv6|3|fail|pass|
+review-gpt-6-luna-medium|rv6|4|pass|pass|
+review-gpt-6-luna-medium|rv6|5|fail|pass|
+review-gpt-6-luna-medium|rv6|6|fail|pass|
+review-gpt-6-luna-medium|rv6|7|fail|pass|
+review-gpt-6-luna-medium|rv6|8|fail|pass|
+review-gpt-6-luna-medium|rv6|9|fail|pass|
+review-gpt-6-luna-medium|rv6|10|fail|fail|not named near its line: dobbeltskriving (anywhere)
+review-gpt-6-luna-medium|rv7|1|pass|fail|priority: inbound not named near its line
+review-gpt-6-luna-medium|rv7|2|pass|fail|priority: inbound not named near its line
+review-gpt-6-luna-medium|rv7|3|pass|fail|priority: inbound not named near its line
+review-gpt-6-luna-medium|rv7|4|pass|pass|
+review-gpt-6-luna-medium|rv7|5|pass|pass|
+review-gpt-6-luna-medium|rv7|6|fail|pass|
+review-gpt-6-luna-medium|rv7|7|pass|pass|
+review-gpt-6-luna-medium|rv7|8|pass|fail|priority: inbound not named near its line
+review-gpt-6-luna-medium|rv7|9|fail|fail|priority: inbound not named near its line
+review-gpt-6-luna-medium|rv7|10|fail|fail|priority: inbound not named near its line
+review-gpt-6.1-sol-low|rv5|1|fail|fail|not named near its line: inbound
+review-gpt-6.1-sol-low|rv5|2|fail|fail|not named near its line: inbound
+review-gpt-6.1-sol-low|rv5|3|fail|fail|not named near its line: inbound
+review-gpt-6.1-sol-low|rv5|4|fail|fail|not named near its line: inbound
+review-gpt-6.1-sol-low|rv5|5|pass|pass|
+review-gpt-6.1-sol-low|rv5|6|fail|fail|not named near its line: inbound
+review-gpt-6.1-sol-low|rv5|7|pass|pass|
+review-gpt-6.1-sol-low|rv5|8|fail|fail|not named near its line: inbound
+review-gpt-6.1-sol-low|rv5|9|fail|fail|not named near its line: inbound
+review-gpt-6.1-sol-low|rv5|10|pass|pass|
+review-gpt-6.1-sol-low|rv6|1|fail|pass|
+review-gpt-6.1-sol-low|rv6|2|fail|pass|
+review-gpt-6.1-sol-low|rv6|3|fail|pass|
+review-gpt-6.1-sol-low|rv6|4|fail|pass|
+review-gpt-6.1-sol-low|rv6|5|fail|pass|
+review-gpt-6.1-sol-low|rv6|6|pass|pass|
+review-gpt-6.1-sol-low|rv6|7|fail|pass|
+review-gpt-6.1-sol-low|rv6|8|fail|pass|
+review-gpt-6.1-sol-low|rv6|9|pass|pass|
+review-gpt-6.1-sol-low|rv6|10|fail|pass|
+review-gpt-6.1-sol-low|rv7|1|pass|fail|priority: inbound not named near its line
+review-gpt-6.1-sol-low|rv7|2|pass|fail|priority: inbound not named near its line
+review-gpt-6.1-sol-low|rv7|3|pass|fail|priority: inbound not named near its line
+review-gpt-6.1-sol-low|rv7|4|pass|fail|priority: inbound not named near its line
+review-gpt-6.1-sol-low|rv7|5|pass|fail|priority: inbound not marked high
+review-gpt-6.1-sol-low|rv7|6|pass|fail|priority: inbound not named near its line
+review-gpt-6.1-sol-low|rv7|7|pass|fail|priority: inbound not marked high
+review-gpt-6.1-sol-low|rv7|8|fail|fail|priority: inbound not named near its line
+review-gpt-6.1-sol-low|rv7|9|pass|fail|priority: inbound not named near its line
+review-gpt-6.1-sol-low|rv7|10|pass|fail|priority: inbound not marked high
+# arm|rv8|kjøring|gammel|ny|ny-log.error-ekte
+review-claude-opus-5.5-low|rv8|1|0|0|0
+review-claude-opus-5.5-low|rv8|2|1|0|0
+review-claude-opus-5.5-low|rv8|3|0|0|0
+review-claude-opus-5.5-low|rv8|4|0|0|0
+review-claude-opus-5.5-low|rv8|5|0|0|0
+review-claude-opus-5.5-low|rv8|6|0|0|0
+review-claude-opus-5.5-low|rv8|7|2|0|0
+review-claude-opus-5.5-low|rv8|8|0|0|0
+review-claude-opus-5.5-low|rv8|9|0|0|0
+review-claude-opus-5.5-low|rv8|10|0|0|0
+review-gpt-6-luna-medium|rv8|1|0|0|0
+review-gpt-6-luna-medium|rv8|2|0|0|0
+review-gpt-6-luna-medium|rv8|3|1|1|0
+review-gpt-6-luna-medium|rv8|4|0|0|0
+review-gpt-6-luna-medium|rv8|5|1|1|0
+review-gpt-6-luna-medium|rv8|6|1|1|0
+review-gpt-6-luna-medium|rv8|7|0|0|0
+review-gpt-6-luna-medium|rv8|8|0|0|0
+review-gpt-6-luna-medium|rv8|9|1|1|0
+review-gpt-6-luna-medium|rv8|10|1|0|0
+review-gpt-6.1-sol-low|rv8|1|1|0|0
+review-gpt-6.1-sol-low|rv8|2|2|1|0
+review-gpt-6.1-sol-low|rv8|3|2|1|0
+review-gpt-6.1-sol-low|rv8|4|2|1|0
+review-gpt-6.1-sol-low|rv8|5|2|1|0
+review-gpt-6.1-sol-low|rv8|6|2|1|0
+review-gpt-6.1-sol-low|rv8|7|2|1|0
+review-gpt-6.1-sol-low|rv8|8|1|0|0
+review-gpt-6.1-sol-low|rv8|9|2|1|0
+review-gpt-6.1-sol-low|rv8|10|3|1|0

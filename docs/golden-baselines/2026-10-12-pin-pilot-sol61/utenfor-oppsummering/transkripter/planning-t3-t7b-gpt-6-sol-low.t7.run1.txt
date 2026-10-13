@@ -1,0 +1,123 @@
+● skill(jackson-3-migration)
+
+● Read dependency-preflight.md
+  │ ~/.copilot/skills/jackson-3-migration/references/dependency-preflight.md
+  └ 37 lines read
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+/ Search (glob)
+  │ "**/*.{gradle.kts,gradle,kt,java}"
+  └ 6 files found
+
+● Inspect branch and repository (shell)
+  │ git status --short && git branch --show-current && ls -la | head -35
+  └ 10 lines…
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Check history tests and build availability (shell)
+  │ git --no-pager log -4 --oneline && git --no-pager branch -a && find src .github -type f | sort
+  │ && java -version 2>&1 | head -3 && ls gradlew 2>/dev/null || true
+  └ 29 lines…
+
+● Read README.md
+  └ 4 lines read
+
+● Check available build tools (shell)
+  │ command -v gradle || true; command -v kotlinc || true; find . -maxdepth 2 -type f | sort
+  └ 9 lines…
+
+● Compare migration to baseline (shell)
+  │ git --no-pager diff main...HEAD -- build.gradle.kts src && git --no-pager show
+  │ main:src/main/kotlin/no/nav/demo/Soknad.kt && git --no-pager status --short
+  └ 72 lines…
+
+✗ Compile and inspect resolved Jackson dependencies (shell)
+  │ gradle compileKotlin dependencies --configuration compileClasspath --console=plain >
+  │ /tmp/jackson-eval-gradle.log 2>&1; result=$?; grep -E '(^|[
+  │ +\\-])((com\.fasterxml\.jackson|tools\.jackson|io\.ktor:ktor-serialization)|BUILD |FAILURE:|e:
+  │ )' /tmp/jackson-eval-gradle.log | head -90; exit "$result"
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+✗ Compile migrated Kotlin sources (shell)                                                         5s
+  │ gradle compileKotlin --console=plain --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 4s
+    Failed with exit code 1
+
+✗ Check compatible Java and Gradle resolution (shell)
+  │ /usr/libexec/java_home -V 2>&1 | head -25; gradle dependencies --configuration compileClasspath
+  │ --console=plain --quiet 2>&1 | head -30
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+✗ List installed JDK versions (shell)
+  │ /usr/libexec/java_home -V
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+✗ Inspect resolved compile dependencies (shell)
+  │ gradle dependencies --configuration compileClasspath --console=plain --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 512ms
+    Failed with exit code 1
+
+● skill(klarsprak)
+
+**Vurdering: Ikke klar for merge ennå.** Branchen bytter Jackson-avhengigheter og mapper til 3.1.0. Ktor sitt REST-API bruker fortsatt kotlinx serialization, så Jackson-endringen gjelder Kafka-meldingene og `lesSoker`, ikke REST-responsen.
+
+Jackson 3 sorterer JSON-felter alfabetisk som standard. Dermed kan `SoknadMottattMelding` endre feltrekkefølge fra `soknadId, mottatt` til `mottatt, soknadId`. Datoer var allerede konfigurert som strenger i Jackson 2; den nye standarden ser ut til å bevare akkurat det formatvalget, men verken meldingsformatet eller deserialisering er dekket av tester. Legg til karakteriseringstester mot begge versjoner før merge, særlig for Kafka-payloadene og `lesSoker`.
+
+**Verifisering er blokkert:** Repoet har ingen Gradle-wrapper. Med installert Gradle og Java 27 stopper `compileKotlin` under prosjektkonfigurasjon med `> 27`. Derfor har jeg ikke kunnet bekrefte kompilering, tester eller om en transitiv Jackson 2-avhengighet ligger igjen. Kjør bygg og `dependencyInsight` med en JDK som Kotlin 2.1.0 støtter før migreringen godkjennes. Ingen filer er endret.
+

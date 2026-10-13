@@ -1,0 +1,3 @@
+
+Bruk **TokenX (on-behalf-of)**. Tjeneste A bytter brukerens token mot et TokenX-token med tjeneste B som audience, og sender det til B som Bearer-token. Konfigurer TokenX og utgående tilgang i A, og TokenX og innkommende tilgang fra A i B. Ikke bruk Azure `client_credentials`, siden det mister brukerkonteksten.
+

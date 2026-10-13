@@ -43,6 +43,10 @@ spec:
       tenant: {{azure_tenant}}
       # Every Nav user may get an OBO token for this app via my-copilot.
       allowAllUsers: true
+      # The groups claim lets the admin routes check COPILOT_ADMIN_GROUP_ID.
+      claims:
+        groups:
+          - id: f59c8c77-7b73-4753-890a-2b483a07d18a
   gcp:
     sqlInstances:
       - type: POSTGRES_17
@@ -62,6 +66,9 @@ spec:
   env:
     - name: COPILOT_API_URL
       value: http://copilot-api
+    # Same group as my-copilot's admins: only they may read results.
+    - name: COPILOT_ADMIN_GROUP_ID
+      value: f59c8c77-7b73-4753-890a-2b483a07d18a
     - name: LOG_LEVEL
       value: "{{log_level}}"
     # dev-gcp only: opens listed surveys for an end-to-end test (surveys/README.md).
@@ -102,7 +109,51 @@ spec:
           labels:
             namespace: {{namespace}}
             severity: warning
+            alert_type: custom
+            app: copilot-survey
           annotations:
             summary: More than 20 survey submissions to copilot-survey in 5 minutes
             consequence: Many answers or answer attempts in a short window. If they are stored (status 201), copilot-cli may be answering for members who did not, and forged answers cannot be told apart once stored. A burst of 409 or 503 is more likely a copilot-cli retry loop.
             action: Check copilot-cli's logs and deploys for the same window. If the burst is not explained by a survey launch, close the survey and discard its answers (see SECURITY.md).
+---
+# Sends this app's custom alerts to #github-copilot-alerts instead of the team
+# default channel. Rules opt in with alert_type: custom (keeps them off the Nais
+# default route, so no double posts) and app: copilot-survey. slack-webhook is the secret Nais puts in
+# every team namespace for its default alert route; the channel field picks
+# the channel.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: copilot-survey-slack
+  namespace: {{namespace}}
+  labels:
+    alertmanagerConfig: copilot-survey-slack
+spec:
+  receivers:
+    - name: copilot-survey-slack
+      slackConfigs:
+        - apiURL:
+            name: slack-webhook
+            key: apiUrl
+          channel: "#github-copilot-alerts"
+          sendResolved: true
+          # Nais's own slack.* templates, so messages look like the team default.
+          # The backslash keeps the deploy step's Handlebars from rendering them.
+          title: '\{{ template "slack.title" . }}'
+          text: '\{{ template "slack.text" . }}'
+          color: '\{{ template "slack.color" . }}'
+  route:
+    groupBy:
+      - alertname
+    matchers:
+      # Nais runs the operator without namespace enforcement, so match it here.
+      - name: namespace
+        matchType: "="
+        value: {{namespace}}
+      - name: alert_type
+        matchType: "="
+        value: custom
+      - name: app
+        matchType: "="
+        value: copilot-survey
+    receiver: copilot-survey-slack

@@ -1,0 +1,9 @@
+`VedtakKonsument` er rettet. `gradle test` i `vedtak-konsument/` går grønt, med 4 tester.
+
+- **Dobbel utbetaling:** `poll()` hopper over en melding hvis eventId allerede er utbetalt. eventId registreres først etter at utbetalingen er gjennomført.
+- **Offset:** commit skjer etter at meldingene er behandlet, ikke før. Ved feil commites det som ble behandlet, consumeren seekes tilbake til første ubehandlede melding, og feilen kastes videre.
+- **Konstruktør:** `VedtakKonsument(consumer, utbetaling)` fungerer fortsatt. Primærkonstruktøren tar også et `behandlede: MutableSet<String>`.
+
+Begrensning: standardsettet ligger i minnet, så det tømmes ved restart. Etter restart kan en melding som ble utbetalt rett før en krasj, utbetales på nytt. Hvis dere trenger full beskyttelse, må settet lagres i database, for eksempel i samme transaksjon som utbetalingen. Det kan settes inn via den nye konstruktøren.
+
+Endringene er i `VedtakKonsument.kt` og `VedtakKonsumentTest.kt`.

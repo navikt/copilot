@@ -1,0 +1,27 @@
+
+
+## Fase 2: Plan
+
+**Valg:** Vi bygger en stateless Ktor-tjeneste som svarer på ett oppslag om den innloggede innbyggeren. Nettleseren autentiseres med ID-porten via Wonderwall. Backend bruker identiteten fra et validert token til å slå opp navn i PDL, og returnerer navn til den samme innbyggeren. Fødselsnummer tas aldri fra query, request body eller URL, og returneres heller ikke i responsen.
+
+Jeg legger til grunn at frontend og API kan nås under samme origin. Det unngår en ny CORS- og cookie-flyt, men må bekreftes mot den eksisterende Next.js-rutingen før levering. TokenX trengs for kallet til PDL med brukerkontekst, ikke som erstatning for ID-porten ved nettleserkallet. Vi må kontrollere PDLs konkrete endepunkt, audience og tilgangskrav før vi låser den integrasjonen.
+
+| Område | Plan |
+|---|---|
+| API | `GET /api/meg/navn` gir bare feltene frontenden trenger, for eksempel `{"navn":"..."}`. Manglende eller ugyldig innlogging gir 401; manglende tilgang gir 403; utilgjengelig PDL gir 503 med en generell ProblemDetail-respons. Ingen persondata i feilmeldinger. |
+| Auth og tilgang | Wonderwall håndterer innloggingen. Ktor validerer tokenet og knytter oppslaget til tokenets identitet. Nais-manifestet får ID-porten, TokenX og eksplisitt `accessPolicy`: bare frontendens nødvendige inngang og PDL utgående, etter at faktisk ruting og PDL-krav er kontrollert. |
+| Data | Ingen database, cache eller lagring av token, fødselsnummer eller navn. Derfor ingen Flyway-migrasjoner eller databasepool. |
+| Struktur | Behold Ktor-prosjektet; skill ut konfigurering av auth, PDL-klient og API-rute. Erstatt demoens oppgave-endepunkt som del av nybyggingen. Legg til tester for hvert lag. |
+| Feil og måling | Tidsavgrens PDL-kallet. Ved utilgjengelighet logges feiltype og korrelasjons-ID, aldri token eller persondata. Mål oppslag per minutt og feilandel, med HTTP-status og avhengighet som etiketter, ikke personidentifikatorer. Behold health-endepunkter og eksponer metrikker for Nais. |
+| CI/CD | Bygg og kjør tester i GitHub Actions. Deploy først til dev, verifiser innlogging, PDL-kall og feilrespons, deretter prod. Pin actions til commit-SHA og bruk minimale permissions. |
+| Utrulling | Siden dette er nybygg, trengs ingen datamigrering. Koble frontenden til API-et først etter verifisering i dev. Ved feil rulles backend-imaget tilbake og frontendens kall deaktiveres eller rulles tilbake. Dokumenter endringen, rollback, alarmer og kontrollpunkter etter deploy. |
+
+**Tester:** Test gyldig, manglende og ugyldig token; at innbyggeren ikke kan velge et annet fødselsnummer; PDL-suksess, timeout og utilgjengelighet; 503-formatet; og at logger og metrikketiketter ikke inneholder persondata. En integrasjonstest må kontrollere frontend-rutingen og auth-flyten i dev.
+
+🔴 **Rød sone, skriv selv og gå gjennom grundig:** token-validering og bindingen mellom innlogget identitet og PDL-oppslaget; TokenX-utveksling og tilgangsregler. Dette er sikkerhetskritisk, og TokenX og Wonderwall er nytt for teamet.  
+🟢 **Grønn sone:** Ktor-oppsett, PDL-klientens ikke-sikkerhetskritiske HTTP-håndtering, metrikkoppsett, tester og CI/CD. Nais-reglene må gjennomgås manuelt før deploy.
+
+Planen velger direkte innbyggerautentisering i API-et fremfor å la frontenden velge identitet. Det fjerner en vei til oppslag på andre personer, men krever at vi bekrefter hvordan eksisterende frontend ruter nettleserkallet. Neste fase er gjennomgang av sikkerhet, plattform, arkitektur og endringssikkerhet.
+
+Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,33 @@
+Repoet viser en Ktor-tjeneste på Nais, men den er foreløpig en demo uten ID-porten-oppsett eller `accessPolicy`. Jeg antar at dette er et nybygg. Fødselsnummer regnes som fortrolige personopplysninger og skal aldri i logger. Repoet har heller ikke lokale Copilot-instruksjoner; `nav-pilot init` kan legge dem til.
+
+**Hva slags tjeneste bygger du?**
+- Backend-API (Ktor eller Spring Boot)
+- Hendelseskonsument
+- Innbyggerløsning med frontend
+- Saksbehandlerløsning
+- Batchjobb
+- Fullstack
+- Noe annet
+
+Svar også på det du vet av dette:
+
+**Personvern og tilgang**
+1. Skal tjenesten bare lese fødselsnummeret fra ID-porten, eller også behandle andre personopplysninger? Hva er formålet og behandlingsgrunnlaget?
+2. Hvem bruker tjenesten: innbygger i nettleser, en annen Nav-tjeneste, saksbehandler eller noen andre? Hvilke tjenester skal kunne kalle den?
+3. Hvordan skal fødselsnummeret komme fram til tjenesten: som en innlogget brukers identitet via Wonderwall, eller på en annen måte?
+4. Skal tjenesten lagre eller dele fødselsnummeret? Hvis ja, med hvem, hvor lenge, og hvordan skal sletting og tilgang revideres?
+
+**Plattform og avhengigheter**
+5. Skal tjenesten bare være tilgjengelig internt, eller også fra internett? Hvilke tjenester skal den selv kalle?
+6. Hva skal skje hvis ID-porten eller en annen avhengighet er utilgjengelig? Trengs retry eller asynkron behandling?
+7. Finnes det en eksisterende tjeneste som allerede løser deler av dette?
+
+**Drift og team**
+8. Hvilke mål viser at tjenesten fungerer, og hva skal utløse varsling? Hvem følger opp varsler?
+9. Hvor stor trafikk venter dere, og når kommer den?
+10. Hvilke team eller tjenester er avhengige av løsningen? Finnes det en deadline?
+11. Har teamet erfaring med Ktor, Nais og ID-porten? Hvilke tester finnes eller skal dere lage?
+
+Jeg venter med arkitekturvalg og kode til disse avklaringene, særlig om hvem som kaller tjenesten og hvordan ID-porten-identiteten skal brukes.
+
+Blindsoner reist: 7/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante for et nybygg).

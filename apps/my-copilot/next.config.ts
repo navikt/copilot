@@ -78,15 +78,28 @@ const nextConfig: NextConfig = {
       { source: "/best-practices", destination: "/praksis", permanent: true },
       { source: "/practice", destination: "/praksis", permanent: true },
       { source: "/customizations", destination: "/verktoy", permanent: true },
-      { source: "/usage", destination: "/statistikk", permanent: true },
-      { source: "/stats", destination: "/statistikk", permanent: true },
-      { source: "/overview", destination: "/kostnad", permanent: true },
-      { source: "/cost", destination: "/kostnad", permanent: true },
+      // /statistikk and /kostnad became sections of /innsikt/bruk. Every old path goes straight there, no chains.
+      { source: "/admin/kostnad/innsyn", destination: "/admin/kostnad/rapport", permanent: true },
+      { source: "/statistikk", destination: "/innsikt/bruk", permanent: true },
+      { source: "/adopsjon", destination: "/innsikt/tilpasninger", permanent: true },
+      { source: "/usage", destination: "/innsikt/bruk", permanent: true },
+      { source: "/stats", destination: "/innsikt/bruk", permanent: true },
+      { source: "/kostnad", destination: "/innsikt/bruk#kostnad", permanent: true },
+      { source: "/overview", destination: "/innsikt/bruk#kostnad", permanent: true },
+      { source: "/cost", destination: "/innsikt/bruk#kostnad", permanent: true },
+      // Admin pages moved under /admin (#1726).
+      { source: "/innsikt/kostnad", destination: "/admin/kostnad", permanent: true },
       // The WRAP guide was merged into the prompt guide in #321.
       { source: "/praksis/guide/wrap-metoden", destination: "/praksis/guide/skrive-presise-prompts", permanent: true },
       // Split into guides, reference and explanation pages. Old anchors are in
       // src/lib/legacy-anchors.ts, keyed by /nav-pilot/referanse.
       { source: "/nav-pilot/docs", destination: "/nav-pilot/referanse", permanent: true },
+      // The measurements became the open insight page. Old anchors are in src/lib/legacy-anchors.ts.
+      {
+        source: "/nav-pilot/forklaring/lokal-modell/malinger",
+        destination: "/innsikt/lokale-modeller",
+        permanent: true,
+      },
     ];
   },
   // Enable Cache Components (Partial Prerendering) — disabled in dev because the

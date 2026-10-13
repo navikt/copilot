@@ -61,6 +61,8 @@ type Recorder interface {
 	RecordHookLoopGuard(rule, session string)
 	RecordHookRedact(kind string, count int64)
 	RecordHookActionCheck(outcome, category string)
+	RecordClientUsage(u ClientUsage)
+	RecordCopilotSession(s CopilotSession)
 	Shutdown(ctx context.Context) error
 }
 
@@ -86,6 +88,8 @@ func (NoopRecorder) RecordDecide(DecideEvent)             {}
 func (NoopRecorder) RecordHookLoopGuard(string, string)   {}
 func (NoopRecorder) RecordHookRedact(string, int64)       {}
 func (NoopRecorder) RecordHookActionCheck(string, string) {}
+func (NoopRecorder) RecordClientUsage(ClientUsage)        {}
+func (NoopRecorder) RecordCopilotSession(CopilotSession)  {}
 func (NoopRecorder) Shutdown(context.Context) error       { return nil }
 
 type otelTelemetry struct {
@@ -116,6 +120,10 @@ type otelTelemetry struct {
 	hookRedactTotal    metric.Int64Counter
 	hookActionCheck    metric.Int64Counter
 	localGateTotal     metric.Int64Counter
+	genAITokens        metric.Int64Counter
+	genAICalls         metric.Int64Counter
+	genAIToolCalls     metric.Int64Counter
+	session            sessionInstruments
 
 	version          string
 	device           string
@@ -322,12 +330,35 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local gate counter: %w", err)
 	}
+	genAITokens, err := meter.Int64Counter("nav_pilot_genai_session_tokens_total",
+		metric.WithDescription("Tokens a client session used, read from the client's own session store when it ends, by model and token type."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create genai token counter: %w", err)
+	}
+	genAICalls, err := meter.Int64Counter("nav_pilot_genai_session_calls_total",
+		metric.WithDescription("Model calls (assistant messages) in a client session, by model."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create genai calls counter: %w", err)
+	}
+	genAIToolCalls, err := meter.Int64Counter("nav_pilot_genai_session_tool_calls_total",
+		metric.WithDescription("Tool calls in a client session, by tool name."))
+	if err != nil {
+		return NoopRecorder{}, fmt.Errorf("create genai tool calls counter: %w", err)
+	}
+	session, err := newSessionInstruments(meter)
+	if err != nil {
+		return NoopRecorder{}, err
+	}
 
 	tel := &otelTelemetry{
 		provider:           provider,
 		spool:              spool,
 		spoolSent:          spoolSent,
 		localGateTotal:     localGateTotal,
+		session:            session,
+		genAITokens:        genAITokens,
+		genAICalls:         genAICalls,
+		genAIToolCalls:     genAIToolCalls,
 		commandDurationMS:  commandDurationMS,
 		commandErrorTotal:  commandErrorTotal,
 		launchErrorTotal:   launchErrorTotal,
@@ -689,7 +720,7 @@ func (t *otelTelemetry) ForceFlush(ctx context.Context) error {
 
 // RecordLaunchError records a client launch failure with a normalized error type.
 // client: "copilot", "opencode", "pi"
-// errorType: "client_not_found", "launch_failed", "unknown"
+// errorType: "client_not_found", "client_unsupported", "cplt_too_old", "launch_failed", "unknown"
 func (t *otelTelemetry) RecordLaunchError(client, errorType string) {
 	t.launchErrorTotal.Add(context.Background(), 1, metric.WithAttributes(
 		attribute.String("client", normalizeTelemetryDimension(client, "unknown")),
@@ -894,7 +925,7 @@ func normalizeTelemetryDimension(v, fallback string) string {
 		"darwin", "linux", "windows",
 		"amd64", "arm64", "arm", "386",
 		"copilot", "opencode", "pi",
-		"client_not_found", "client_exit", "launch_failed", "network_error", "auth_error", "sync_failed", "panic",
+		"client_not_found", "client_unsupported", "cplt_too_old", "client_exit", "launch_failed", "network_error", "auth_error", "sync_failed", "panic",
 		"yes", "no", "aborted", "brew_failed", "brew_missing", "init_failed", "already_installed":
 		return v
 	default:

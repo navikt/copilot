@@ -1,0 +1,71 @@
+● skill(nav-plan)
+
+● skill(nav-auth)
+
+● skill(api-design)
+
+## Fase 2: plan
+
+**Vi bygger en stateless Kotlin/Ktor-backend bak den eksisterende Next.js-frontenden.** Jeg legger til grunn at fødselsnummer og navn bare behandles under forespørselen, uten lagring. Lovhjemmelen dokumenteres konkret før produksjonssetting, sammen med formål og hvilke PDL-opplysninger tjenesten trenger.
+
+### Flyt og autentisering
+
+```text
+Nettleser → Wonderwall / ID-porten → Next.js-server
+          → TokenX → Ktor-backend → TokenX → PDL
+```
+
+Wonderwall håndterer innlogging foran Next.js. Next.js-serveren utveksler brukerens token til et TokenX-token med backend som audience. Backend validerer signatur, issuer, audience, levetid og tillatt klient før den leser personidentiteten fra tokenet.
+
+Backend utveksler deretter tokenet til PDLs audience og henter bare navn for den autentiserte personen. PDLs miljøspesifikke audience, adresse, nødvendige headere og tilgangsgodkjenning verifiseres før implementering.
+
+Dette holder tokens på serversiden og bevarer brukerkonteksten gjennom hele flyten. Det krever to token-utvekslinger, men unngår direkte backend-kall fra nettleseren og maskintokens som mister brukerkonteksten.
+
+### API og personvern
+
+- `GET /api/meg` returnerer navn. Fødselsnummer brukes internt til PDL-oppslaget og returneres ikke til nettleseren uten et dokumentert behov.
+- Ingen personident i URL, query-parametere eller klientstyrt payload. Tokenets identitet bestemmer hvem det gjøres oppslag på.
+- Responsen får `Cache-Control: no-store`. Next.js må også deaktivere caching av personresponsen.
+- Manglende eller ugyldig token gir `401`; ikke tillatt klient gir `403`.
+- PDL-utilgjengelighet og timeout gir `503`, uten automatisk retry. Uventet eller ugyldig PDL-respons gir `502`; tilgangsfeil og manglende person håndteres særskilt, ikke som vellykkede tomme svar.
+- Feil returneres som `application/problem+json`, uten personopplysninger eller detaljer fra PDL.
+
+PDL-feil logges med feilkategori, status og en tilfeldig korrelasjons-ID som ikke er avledet fra personopplysninger. Ingen tokens, fødselsnummer, navn eller rå request-/response-body i logger eller traces.
+
+### Filer og drift
+
+| Område | Planlagt endring |
+|---|---|
+| Ktor | `Application.kt`, `Config.kt`, `api/MeRoutes.kt`, `auth/TokenXAuth.kt`, `pdl/PdlClient.kt` og avgrenset feilhåndtering |
+| Bygg | Utvide `build.gradle.kts` med auth-, HTTP-klient-, metrikk- og testavhengigheter som støtter valgt Ktor-versjon |
+| Next.js | Serverbasert proxy i eksisterende frontend, token-utveksling og deaktivert caching. Eksakte filer kartlegges i frontend-repoet |
+| Nais | Beholde `nais.yaml`, parameterisere miljøverdier og aktivere TokenX i backend |
+| CI/CD | `.github/workflows/build-deploy.yml` med tester, image-bygg, deploy til dev og kontrollert produksjonsdeploy |
+| Database | Ingen database, Flyway eller personcache |
+
+Nais får eksplisitt inbound-regel for Next.js-applikasjonen og outbound-tilgang til PDL etter faktisk plassering i miljøet. Frontenden trenger ID-porten/Wonderwall, TokenX og outbound-regel til backend. Eksakte appnavn, namespace og adresser må hentes fra manifestene, ikke gjettes.
+
+Backend starter med CPU-request `15m`, minne-request `256Mi` og minnegrense `512Mi`, uten CPU-grense. Vi beholder `/internal/isalive` og `/internal/isready` og legger til et internt metrikk-endpoint. PDL-nedetid påvirker ikke liveness eller readiness. Secrets og nøkkelmateriale kommer fra Nais, aldri kildekoden. GitHub Actions SHA-pinnes og får minimale permissions.
+
+### Tester og observabilitet
+
+Ktor-integrasjonstester med `MockOAuth2Server` dekker gyldig token, feil signatur/issuer/audience, utløpt token, manglende personident og ikke tillatt klient. En PDL-stub verifiserer at oppslaget gjelder tokenets person, og dekker timeout, utilgjengelighet, GraphQL-feil også ved HTTP `200`, og ugyldige svar. Tester kontrollerer dessuten `no-store` og fravær av personopplysninger i feil og logger.
+
+Frontendens tester dekker serverbasert token-utveksling og feilrespons. En innlogget brukerreise verifiseres i dev med syntetiske testpersoner, uten ekte personopplysninger i testdata.
+
+En teller for oppslag med avgrensede utfallsverdier gir oppslag per minutt og feilandel. Vi måler også PDL-latens og timeout. Ingen personident eller korrelasjons-ID i metrikk-labels. Foreløpig alarmgrense er over 5 % `5xx` i fem minutter, med minst 20 kall i vinduet; grensen justeres etter dev-verifisering.
+
+### Levering og rollback
+
+Dev settes opp og testes før produksjon. Før produksjonssetting må PDL-tilgang, konkret lovhjemmel og sikkerhetskrav være dokumentert. Leveransen beskriver drift, alarmer og rollback i eksisterende dokumentasjon, uten ekstra dokumentfiler med mindre de bestilles.
+
+Post-deploy sjekkes innlogging, eget navn, avvisning av uautoriserte kall, `503` ved simulert PDL-nedetid og at logger/metrikker ikke inneholder personopplysninger. Frontend-integrasjonen kan deaktiveres ved rollback; en feilende backend-versjon erstattes med siste verifiserte image. Ingen datamigrering må reverseres.
+
+### Rød og grønn sone
+
+🔴 **Rød sone: skriv selv med veiledning.** TokenX og Wonderwall er nytt for teamet. Dette gjelder token-validering, token-utveksling, binding av PDL-oppslaget til innlogget person og håndtering av personopplysninger. Ved levering lager jeg som standard stubs og testskeletoner for disse delene, ikke ferdig sikkerhetskode.
+
+🟢 **Grønn sone:** byggoppsett, miljøkonfigurasjon, CI/CD, helsesjekker, metrikker og syntetiske testdata. Auth- og tilgangsverdier må likevel gjennomgås.
+
+Planen er klar for **fase 3: review**, men review og implementering er ikke utført. Still gjerne spørsmål om valgene over.
+

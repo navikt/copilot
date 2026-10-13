@@ -1,0 +1,60 @@
+
+
+
+
+
+
+
+## Fase 2: Plan
+
+**Jeg planlegger en Kotlin/Ktor-backend uten database.** Jeg legger til grunn at innbyggeren starter oppslaget i nettleseren, men at eksisterende Next.js-tjeneste kaller API-et server-side som BFF. Da slipper vi å eksponere backend og tilgangstoken direkte for nettleseren. Hvis du mener at nettleseren skal kalle Ktor-API-et direkte, må vi endre planen for ingress og autentisering.
+
+### Arkitektur
+
+| Område | Valg |
+|---|---|
+| Innlogging | ID-porten via Wonderwall i Next.js-frontend |
+| Auth til backend | Frontenden utveksler ID-porten-tokenet til et TokenX-token for backend. Backend validerer tokenet med `token-validation-ktor-v3`. |
+| PDL-kall | Backend utveksler brukerens TokenX-token for PDL. Ingen client credentials, slik at brukerkonteksten følger kallet. |
+| API | `GET /api/innbygger` returnerer navnet til innlogget innbygger. Backend henter fnr fra validert token, aldri fra request-parametere. |
+| Lagring | Ingen database. Fnr og navn behandles bare mens forespørselen håndteres. |
+| Feil | PDL-timeout eller utilgjengelighet gir `503` med Problem Details. Ingen kø eller dead-letter. Bruk kort timeout og ikke prøv kallet på nytt automatisk. |
+| Nettverk | Backend har ikke offentlig ingress. `accessPolicy.inbound` tillater bare eksisterende Next.js-app. `outbound` tillater bare PDL. |
+
+BFF legger til ett internt kall, men holder API-et og TokenX-flyten utenfor nettleseren. Jeg velger denne løsningen framfor direkte nettleserkall til backend for å begrense eksponeringen av token og unngå en egen offentlig API- og CORS-konfigurasjon.
+
+### Personvern og sikkerhet
+
+- Dataklassifisering: **fortrolig**. Opplysningene er fnr og navn.
+- Behandlingsgrunnlaget er lovhjemmel, slik du oppgir. Ansvarlig fag- eller personvernrolle må bekrefte den konkrete bestemmelsen før produksjonssetting.
+- API-et skal bare returnere navn hvis det er nødvendig. Ikke lagre eller logge fnr, navn, token eller PDL-payload.
+- Logg PDL-feil strukturert med status, varighet og korrelasjons-ID. Avklar separat om lovhjemmel eller interne krav krever tilgangsrevisjon; vanlige tekniske logger dekker ikke nødvendigvis det behovet.
+- Forutsett at nødvendig ID-porten-claim for fnr er tilgjengelig i brukerens autentiserte kontekst. Bekreft claim og TokenX-utveksling mot PDL før implementering. Ikke stol på identitetsdata fra klienten.
+
+### Prosjektstruktur og Nais
+
+Behold Ktor-oppsettet. Legg til egne komponenter for autentisering, API-rute, PDL-klient, feilmapping og metrikker, med tilhørende tester.
+
+Nais-manifestet får `tokenx.enabled: true`, eksplisitte inbound- og outbound-regler, health-endepunkter og Prometheus-metrikker. Start med to replikaer, `cpu: 15m` og `memory: 256Mi` i requests, og `memory: 512Mi` i limit. Ikke sett CPU-limit. Ingen database- eller Kafka-ressurser trengs.
+
+CI-workflowen bygger og tester tjenesten, deployer først til dev og deretter prod, med minimale GitHub Actions-rettigheter og SHA-pinnede actions.
+
+### Tester og drift
+
+- Ktor API-tester dekker gyldig kall, manglende, ugyldig og utløpt token, og at klienten ikke kan oppgi fnr.
+- Tester PDL-svar, timeout og utilgjengelighet. Kontroller at PDL-feil gir `503` uten å lekke interne detaljer.
+- Mål antall oppslag og feilandel med tellere, uten fnr, navn eller brukeridentifikatorer som metrikktagger.
+- Sett varslingsgrenser for feilandel og tilgjengelighet sammen med teamet før produksjonssetting.
+- Etter deploy: verifiser innlogging, vellykket PDL-oppslag, `503` ved simulert PDL-feil, metrikker og fravær av personopplysninger i logger.
+- Rollback: rull tilbake til forrige image og slå av oppslagsfunksjonen i frontenden ved behov. Ingen datamigrering kreves.
+
+### Risiko og rød sone
+
+**Hovedrisikoen er feil kobling mellom ID-porten-identitet, TokenX-token og PDL-oppslag.** Test og verifiser claimen for fnr, token audience og PDL-tilgang før produksjonssetting.
+
+🔴 **Rød sone, forstå og gjennomgå grundig:** tokenvalidering og utveksling, uthenting av fnr fra brukerens identitet og autorisasjon av PDL-oppslaget. Dette er sikkerhetskritisk, og teamet oppgir at TokenX og Wonderwall er nytt. Den faktiske implementasjonen av disse delene må gjennomgås nøye.
+
+🟢 **Grønn sone:** Ktor-ruting, Problem Details for feil, Nais-ressurser, CI-workflow og metrikker, med gjennomgang før merge.
+
+Fase 2 er ferdig. Bekreft særlig BFF- og tokenantakelsen, så går jeg videre til planreview. Still gjerne spørsmål om valgene over.
+

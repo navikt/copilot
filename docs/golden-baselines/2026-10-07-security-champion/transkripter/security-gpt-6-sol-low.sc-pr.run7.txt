@@ -1,0 +1,19 @@
+🔍 Jeg sammenligner `vedtak-kafka` med `main` og sjekker også lokale endringer før jeg vurderer sikkerhetsfunn.
+
+🛡️ Endringen åpner et nytt vedtak-API og legger til Kafka-behandling. Jeg sjekker nå tilgangskontroll, databasekall, logging og hvordan konsumenten håndterer feil og omlevering.
+
+**Vurdering: BLOCK.** `vedtak-kafka` bør ikke merges til `main` slik den står. Jeg fant sju blokkerende funn i de åtte endrede filene:
+
+1. **Personopplysninger uten tilgangskontroll:** `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og returnerer vedtak med fødselsnummer. Hvem som helst med nettverkstilgang kan spørre på et fødselsnummer (`Routes.kt:30–33`).
+2. **SQL-injeksjon:** `fnr` fra URL-en settes rett inn i SQL-strengen (`VedtakRepository.kt:23`). Bruk parameterisert spørring.
+3. **Ufullstendig tokenvalidering:** JWT-oppsettet har ingen `verifier`, og `validate` sjekker bare om `audience` finnes, ikke om den er riktig (`App.kt:40–43`). Beskyttede kall får dermed ikke en korrekt konfigurert TokenX-kontroll.
+4. **Åpen inbound-regel:** `application: "*"` og `namespace: "*"` gir alle apper i clusteret nettverkstilgang (`nais.yaml:23–26`). Begrens regelen til faktiske kallere og kontroller at den samsvarer med auth-oppsettet.
+5. **Fødselsnummer i ordinær logg:** `log.info("behandler $fnr")` skriver personopplysninger direkte (`VedtakService.kt:15`). Logg en ikke-personidentifiserende korrelasjons-ID i stedet.
+6. **Kafka-klienten mangler sikkerhetsoppsett:** `App.kt:25–35` setter bare brokeradresse, serialisering og consumer-gruppe. Den bruker ikke Kafka-legitimasjon eller TLS-konfigurasjon fra Nais; forbindelsen vil enten feile eller mangle forventet beskyttelse.
+7. **Omlevering kan fatte flere vedtak:** Hvert retry-forsøk lagrer et nytt vedtak før publisering (`VedtakConsumer.kt:32–33`, `VedtakService.kt:17–23`). Hvis publisering feiler, eller prosessen stopper før `commitSync`, kan samme søknad gi flere vedtak. Bruk en stabil hendelses-ID og idempotent lagring/publisering.
+
+**Øvrige akser:** `FattVedtakRequest.fnr` og Kafka-meldingen valideres ikke ved grensen (`Vedtak.kt:15–20, 32–38`); dette må avklares før data lagres. Jeg fant ingen opplastingsflate, CORS-endring, hardkodede hemmeligheter eller uparameterisert SQL i de andre spørringene. Nye databasekall viser til `vedtak`, men branchen inneholder ingen tabellopprettelse; med en ny database vil lagring feile (`nais.yaml:17–21`, `VedtakRepository.kt:14`). Jeg har ikke verifisert om tabellen opprettes utenfor repoet.
+
+**Inspected:** Hele diffen mot `main`, de åtte endrede filene, eksisterende konfigurasjon og søk etter relevante auth-, logg- og databasekoblinger. Arbeidstreet hadde ingen staged, unstaged eller untracked endringer. **Not inspected:** Kjørende Nais-miljø, eksternt databaseskjema og avhengighetenes faktiske sårbarhetsstatus; `trivy` og `zizmor` var ikke installert. **Findings:** 7 blokkerende, 2 bekymringer. **Verdict: BLOCK.**
+
+🔴 Rød sone: tilgangskontroll, tokenvalidering og idempotens ved vedtak må gjennomgås grundig. Hovedvalget er å avvise uautoriserte kall før databaseoppslag og gjøre behandling av samme melding trygg ved omlevering. Det krever mer eksplisitt konfigurasjon og lagringslogikk, men alternativet kan eksponere personopplysninger eller opprette feil vedtak. Still gjerne spørsmål om valgene over.

@@ -1,0 +1,3 @@
+**`behandle_neste` kompilerer nå, og testen går grønt.** Funksjonen fjerner den eldste saken som en eid verdi, slik at den ikke bruker en referanse samtidig som den endrer køen. Atferden for tom kø, rekkefølge og registrering er uendret.
+
+`cargo fmt --check` bestod. Clippy fullførte med to advarsler om manglende `#[must_use]` på andre metoder.

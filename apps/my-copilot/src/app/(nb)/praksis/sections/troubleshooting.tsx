@@ -1,6 +1,7 @@
 "use client";
 
-import { Heading, BodyShort, Box, Accordion, VStack } from "@navikt/ds-react";
+import NextLink from "next/link";
+import { Heading, BodyShort, Box, Accordion, Link, VStack } from "@navikt/ds-react";
 import { WrenchIcon, InformationSquareIcon } from "@navikt/aksel-icons";
 
 export default function Troubleshooting() {
@@ -15,7 +16,15 @@ export default function Troubleshooting() {
         </div>
         <BodyShort className="text-gray-700 mb-4">
           Av og til vil GitHub Copilot slutte å gi forslag, miste konteksten, eller henge seg opp. Her er løsningene på
-          de aller vanligste problemene vi ser i Nav.
+          de aller vanligste problemene vi ser i Nav. Bruker du Copilot CLI eller opencode i terminalen, se{" "}
+          <NextLink href="/nav-pilot/guider/feilsoking" className="text-blue-600 hover:underline">
+            feilsøking i nav-pilot
+          </NextLink>{" "}
+          og{" "}
+          <NextLink href="/nav-pilot/guider/cplt-feilmeldinger" className="text-blue-600 hover:underline">
+            feilmeldinger fra cplt
+          </NextLink>
+          .
         </BodyShort>
       </section>
 
@@ -49,7 +58,8 @@ export default function Troubleshooting() {
                 <BodyShort className="text-sm text-gray-600">
                   Endpoint-sikkerhet (CrowdStrike Falcon) kan i prinsippet påvirke nettverkstrafikk, men er per i dag
                   ingen kjent kilde til Copilot-feil. Mistenker du likevel det, si fra i{" "}
-                  <strong>#github-copilot</strong>, så får vi kartlagt det.
+                  <Link href="https://nav-it.slack.com/archives/C0ASJSZK8P8">#ki-produktutvikling-diskusjon</Link>, så
+                  får vi kartlagt det.
                 </BodyShort>
               </VStack>
             </Accordion.Content>
@@ -67,6 +77,28 @@ export default function Troubleshooting() {
                   Hvis nettverket er fint, men Copilot likevel ignorerer deg, har gjerne sesjonen hengt seg opp. Slik
                   tvinger du frem en nullstilling:
                 </BodyShort>
+                <VStack
+                  gap="space-8"
+                  className="border-l-2 border-gray-300"
+                  style={{ paddingLeft: "var(--ax-space-16)" }}
+                >
+                  <BodyShort weight="semibold">I terminalen (Copilot CLI):</BodyShort>
+                  <VStack
+                    as="ol"
+                    gap="space-4"
+                    className="list-decimal text-gray-700 text-sm"
+                    style={{ paddingLeft: "var(--ax-space-20)" }}
+                  >
+                    <li>
+                      Trykk <strong>Esc</strong> to ganger for å avbryte agenten, og start en ny samtale med{" "}
+                      <strong>/clear</strong>.
+                    </li>
+                    <li>
+                      Hjelper ikke det, avslutt med <strong>/exit</strong> og start på nytt. <strong>/logout</strong>{" "}
+                      fjerner ikke et token som cplt sender inn i miljøet. Ved innloggingsfeil, se cplt-guiden over.
+                    </li>
+                  </VStack>
+                </VStack>
                 <div className="pl-4 border-l-2 border-gray-300">
                   <BodyShort weight="semibold">I VS Code:</BodyShort>
                   <ol className="list-decimal pl-5 space-y-1 mt-2 text-gray-700 text-sm">
@@ -123,8 +155,8 @@ export default function Troubleshooting() {
                 </BodyShort>
                 <ul className="list-disc pl-5 space-y-1 text-gray-700 text-sm">
                   <li>
-                    <strong>Dyrere regning:</strong> Med GitHubs bruksbaserte fakturering (fra 2026) brenner store
-                    kontekster gjennom organisasjonens "AI Credits" i et forrykende tempo.
+                    <strong>Dyrere regning:</strong> Med GitHubs bruksbaserte fakturering (fra 1. juni 2026) brenner
+                    store kontekster gjennom organisasjonens "AI Credits" i et forrykende tempo.
                   </li>
                   <li>
                     <strong>Tapt resonneringsevne:</strong> Når KI-modellen drukner i tusenvis av irrelevante filer,
@@ -133,7 +165,8 @@ export default function Troubleshooting() {
                   </li>
                 </ul>
                 <BodyShort className="text-sm font-semibold">
-                  Bruk <code>@</code> for å plukke kun de 1-3 filene som faktisk er relevante for oppgaven din!
+                  Bruk <code>@</code> i Copilot CLI eller <code>#file</code> i VS Code for å plukke kun de 1-3 filene
+                  som faktisk er relevante for oppgaven din!
                 </BodyShort>
               </VStack>
             </Accordion.Content>
@@ -178,8 +211,9 @@ export default function Troubleshooting() {
           </Heading>
         </div>
         <BodyShort className="text-gray-800">
-          Hvis trinnene over ikke løser problemet ditt, spør gjerne i <strong>#github-copilot</strong> på Slack. Legg
-          ved et utdrag fra Copilot Logs og nevn hvilken Editor (inkludert versjon) du sitter på.
+          Hvis trinnene over ikke løser problemet ditt, spør gjerne i{" "}
+          <Link href="https://nav-it.slack.com/archives/C0ASJSZK8P8">#ki-produktutvikling-diskusjon</Link> på Slack.
+          Legg ved et utdrag fra Copilot Logs og nevn hvilken Editor (inkludert versjon) du sitter på.
         </BodyShort>
       </Box>
     </VStack>

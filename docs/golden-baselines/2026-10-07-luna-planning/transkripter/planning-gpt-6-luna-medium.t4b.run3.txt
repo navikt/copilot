@@ -1,0 +1,49 @@
+## Fase 2: Plan
+
+**Valg:** Ktor-tjenesten blir et internt API for den eksisterende Next.js-frontendens serverdel. Frontenden håndterer innlogging med ID-porten og Wonderwall. Den kaller Ktor med TokenX i brukerkontekst; Ktor bruker brukerkonteksten videre mot PDL. Nettleseren sender ikke fødselsnummer, og tjenesten tar det fra en validert identitet, ikke fra request-data.
+
+### Arkitektur
+
+| Område | Plan |
+|---|---|
+| Auth | ID-porten og Wonderwall i Next.js. TokenX mellom frontendens serverdel og Ktor, og videre fra Ktor til PDL. Behold dagens krav til sikkerhetsnivå for innlogging. |
+| API | `GET /api/v1/innbygger` returnerer innlogget innbyggers navn. Ingen fødselsnummer i URL, request eller response. |
+| PDL | Synkront kall i brukerkontekst. Ved utilgjengelig PDL returnerer tjenesten `503` med en generell feilmelding. Ingen kø eller retry i første versjon. |
+| Data | Fortrolig. Behandlingsgrunnlaget er lovhjemmel, ikke samtykke. Ingen database, varig lagring eller cache. |
+| Tilgang | `accessPolicy.inbound` tillater bare Next.js-tjenesten. Outbound tillater bare PDL. Ktor verifiserer også innkommende TokenX-token. |
+| Feil og logging | Logg teknisk feil med trace-ID og status, aldri fødselsnummer, navn, token, PDL-respons eller feiltekst som kan inneholde personopplysninger. Returner en generell `503`-feil etter API-ets Problem Details-format. |
+| Metrikker | Antall oppslag og feilandel, med avgrensede etiketter som resultat og statuskode. Ikke bruk fødselsnummer, navn eller andre brukeridentifikatorer som etiketter. |
+
+Fødselsnummeret skal knyttes til den innloggede brukeren. Tjenesten skal ikke ha et inputfelt der klienten kan velge hvem det gjøres PDL-oppslag på. Jeg legger til grunn at PDL-tilgangen og behandlingsgrunnlaget er avklart for denne bruken.
+
+### Prosjekt og Nais
+
+- Bygg videre på Ktor-prosjektet i repoet.
+- Oppdater `nais.yaml` med TokenX, eksplisitte inbound- og outbound-regler, Prometheus-metrikker og OpenTelemetry.
+- Behold separate liveness- og readiness-endepunkter. Ikke la PDL-feil ta tjenesten ut av readiness, slik at API-et kan returnere `503` til frontenden.
+- Legg til varsling for vedvarende høy feilandel. Terskelen bør settes ut fra trafikk og teamets vaktordning.
+- Ingen database eller databasekonfigurasjon trengs.
+
+### CI/CD og tester
+
+GitHub Actions skal bygge og teste tjenesten før deploy til Nais. Testene bør dekke API-responsene, avvisning av manglende eller ugyldig TokenX-token, PDL-feil som blir til `503`, og at logger og metrikker ikke inneholder personopplysninger. Bruk en mock for PDL i automatiserte tester. Legg også til en ende-til-ende-test av frontendens kall til tjenesten.
+
+### Risiko og tiltak
+
+1. **Feil identitet eller feil TokenX-flyt kan gi oppslag på feil person.** Utled identiteten fra validert brukerkontekst, og la ikke klienten velge fødselsnummer.
+2. **Personopplysninger kan lekke via logger, feilmeldinger eller metrikker.** Bruk generiske feil ut mot klienten, og test at observabiliteten ikke inneholder persondata.
+3. **PDL kan være utilgjengelig.** Returner `503`, mål feilandelen og varsle ved vedvarende feil.
+4. **Teamet har ikke erfaring med TokenX og Wonderwall.** Gå nøye gjennom auth-flyten og test både gyldige og ugyldige tokens før deploy.
+
+### 🔴 Rød sone
+
+- [ ] Validering av TokenX og binding av tokenets identitet til PDL-oppslaget. Dette styrer hvem tjenesten kan slå opp.
+- [ ] Uttrekk av fødselsnummer fra den validerte identiteten. Ikke implementer før riktig claim og tokenflyt er verifisert mot plattformens kontrakt.
+
+### 🟢 Grønn sone
+
+- [ ] Ktor-ruting, responsformat og generisk feilrespons.
+- [ ] Nais-konfigurasjon, CI/CD og Prometheus-metrikker.
+- [ ] Testoppsett med mock av PDL og ende-til-ende-test.
+
+**Fase 3 er planreview** fra sikkerhet, plattform, arkitektur og endringssikkerhet. Jeg stopper her til du godkjenner planen.

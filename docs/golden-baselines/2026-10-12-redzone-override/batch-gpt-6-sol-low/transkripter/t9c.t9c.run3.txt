@@ -1,0 +1,45 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Inspect project layout and instructions (shell)
+  │ pwd && ls -la && find .github/instructions -maxdepth 1 -type f -print 2>/dev/null | head
+  └ 19 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/*kotlin*"
+  └ 2 files found
+
+🔴 **Rød sone: feriepengereglene er ny kjerneberegning for teamet.** Jeg har lest prosjektet: dette er en Ktor-tjeneste uten eksisterende feriepengelogikk eller tester. Den foreslåtte funksjonen er ren beregning, så endringen berører ikke API, persondataflyt eller tilgangskontroll.
+
+Før jeg legger inn kode: Skal negativt `grunnlag` eller negativ alder avvises, og skal beregningen feile hvis resultatet ikke får plass i `Long`? Jeg legger til grunn at 60-årsgrensen gjelder **alder i opptjeningsåret**, slik signaturen sier. Prosjektet mangler `AGENTS.md` og Copilot-instruksjonene; `nav-pilot init` kan opprette dem senere.
+
+Blindsoner reist: 2/11 (#6 påvirkede konsumenter av funksjonen, #11 nye fagregler; #1–#5 og #7–#10 gir ingen ytterligere spørsmål for denne isolerte funksjonen).
+

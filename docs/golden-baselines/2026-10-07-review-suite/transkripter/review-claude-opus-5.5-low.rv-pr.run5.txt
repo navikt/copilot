@@ -1,0 +1,59 @@
+
+
+
+## Review av vedtak-kafka mot main (1 commit, 8 filer, +257/−2)
+
+**Sammendrag:** Strukturen er grei. Lagdelingen går fra Routes til Service til Repository, Kotliquery brukes med HikariCP, og `idGenerator` kan injiseres. Branchen bør likevel ikke merges nå: den har SQL-injeksjon, et API uten autentisering som returnerer vedtak for et oppgitt fnr, TokenX uten tokenvalidering og en `accessPolicy` som slipper inn alle.
+
+Jeg fikk ikke kjørt `mise check`, fordi repoet mangler `mise.toml`. Gradle-bygg er heller ikke kjørt, og branchen har ingen tester.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–32 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate`, og fnr står i URL-en |
+| `Routes.kt` | 25–27 | 🔴 | Koden sjekker ikke eierskap: alle med gyldig token kan fatte vedtak for hvilket som helst fnr |
+| `App.kt` | 40–42 | 🔴 | `jwt("tokenx")` mangler verifier, issuer og audience, så tokenet blir ikke validert |
+| `nais.yaml` | inbound | 🔴 | `application: "*"`, `namespace: "*"` slipper inn alle tjenester i klyngen |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` skriver fnr til loggen |
+| `App.kt` | 26–34 | 🔴 | Kafka-oppsettet mangler SSL (truststore, keystore, credstore), så appen kommer ikke på Aiven i Nais |
+| `VedtakConsumer.kt` | 24–25 | 🔴 | En melding som ikke kan leses, eller som feiler etter tre forsøk, stopper consumer-tråden uten varsel, og `/isready` svarer fortsatt OK |
+| `VedtakConsumer.kt` | 32–34 | 🔴 | Behandlingen er ikke idempotent: ny UUID per forsøk gir duplikate vedtak ved retry eller ny levering |
+| — | — | 🔴 | Ingen Flyway-migrasjon for tabellen `vedtak` |
+| — | — | 🟡 | Ingen tester for service, repository eller consumer |
+| `Routes.kt` | 26–27 | 🟡 | Ugyldig body eller `require` gir 500. Bruk `StatusPages` og svar 400 |
+| `nais.yaml` | kafka | 🟡 | `pool: nav-dev` er hardkodet uten egen prod-konfigurasjon |
+| `App.kt` | 36 | 🟡 | Ingen shutdown hook eller `consumer.close()` |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` er tidsavhengig. Injiser `Clock` |
+| `build.gradle.kts` | 13 | 💭 | Det finnes to `dependencies`-blokker. Slå dem sammen |
+| `VedtakService.kt` | 5 | 💭 | `Locale`-importen brukes ikke |
+| branch | — | 💭 | Navnet mangler prefikset `feature/` |
+
+### Detaljer om blokkerne
+
+🔴 **Rød sone: auth, validering av input og vedtakslogikk. Gå gjennom disse nøye.**
+
+1. **SQL-injeksjon.** Endre spørringen til en parameterisert spørring:
+   ```kotlin
+   queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)
+   ```
+   Endepunktet krever ikke autentisering i dag, så hvem som helst kan lese hele tabellen.
+
+2. **Tilgangskontroll.**
+   - Legg GET inne i `authenticate`.
+   - Hent fnr fra tokenets `pid`-claim i stedet for fra URL-en. Fnr i stien havner i access-logger.
+   - På POST: avklar hvem som skal kunne fatte vedtak. Et TokenX-token tilhører en innbygger. Saksbehandlere bør ha Azure AD med gruppesjekk.
+
+3. **TokenX-validering.** Sett opp `verifier(JwkProviderBuilder(URL(TOKEN_X_JWKS_URI))..., TOKEN_X_ISSUER)` og sjekk `audience == TOKEN_X_CLIENT_ID`. I dag sjekker koden bare at audience ikke er null.
+
+4. **`accessPolicy`.** List konkret hvilke apper som får kalle tjenesten.
+
+5. **Consumer.**
+   - Bruk `soknadId` som idempotensnøkkel, for eksempel en unik constraint og `ON CONFLICT DO NOTHING`.
+   - Lagre vedtaket og publiser meldingen på en måte som tåler at publiseringen feiler, for eksempel med en outbox.
+   - Fang feil når meldingen leses, og send den til DLQ eller logg den med offset.
+   - Koble tilstanden til consumer-tråden til `/isready` eller `/isalive`.
+
+Still gjerne spørsmål om valgene over.
+

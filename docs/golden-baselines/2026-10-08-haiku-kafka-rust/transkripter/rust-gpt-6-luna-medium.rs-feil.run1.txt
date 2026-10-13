@@ -1,0 +1,3 @@
+`les` returnerer nå `Result<Vedtak, VedtakFeil>`, og ugyldig beløp vises i feilmeldingen. La til tester for alle tre feilene. `cargo test` og `cargo fmt --check` bestod.
+
+🔴 Rød sone: inputvalideringen gir nå typede feil i stedet for panikk. Still gjerne spørsmål om valgene over.

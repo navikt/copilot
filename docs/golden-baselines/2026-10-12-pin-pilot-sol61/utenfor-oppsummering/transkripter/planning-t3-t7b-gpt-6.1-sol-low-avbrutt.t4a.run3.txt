@@ -1,0 +1,35 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+**Fase 1: Intervju (fullt omfang).** En ny tjeneste som leser fødselsnummer fra ID-porten innebærer personopplysninger og ny autentisering. Jeg har lest Ktor-oppsettet og `nais.yaml`: repoet har ingen ID-porten-konfigurasjon eller autentisering på `/api/oppgaver`. Ingen kode er endret.
+
+🔴 Rød sone: autentisering og håndtering av fødselsnummer må forstås grundig.
+
+Følgende er uavklart før arkitektur og implementering:
+1. Formålet med fødselsnummeret, om det skal lagres eller sendes videre, og om tjenesten behandler andre personopplysninger.
+2. Hvem som skal kalle tjenesten: innlogget innbygger via nettleser eller en annen tjeneste på brukerens vegne.
+3. Hvilke tjenester og team som berøres, og hva som skal skje når innlogging eller avhengigheter feiler.
+4. Hvilke tester og driftsmålinger som skal bekrefte korrekt oppførsel. Fødselsnummer og tokens skal aldri logges.
+
+Jeg legger foreløpig til grunn at tjenesten bare trenger identiteten til den innloggede brukeren, uten lagring eller videreformidling. Dette er en antakelse, ikke en vedtatt løsning. Fasebudsjett: intervju ca. 1 000 tokens, plan 2 000, review 1 500, levering 3 000.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan etablere lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 6/11 (#1–#7 unntatt #5 som egen sak; teamgrenser inngår i #6). #8–#10 gjelder ikke en ny tjeneste uten kjent forgjenger; #11 er foreløpig ukjent.
+

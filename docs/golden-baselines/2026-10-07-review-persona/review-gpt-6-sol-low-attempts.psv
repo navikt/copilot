@@ -1,0 +1,53 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-10-07
+# revision:     6fef7994
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+cr-kotlin|1|0|pass|2928|26546|true|
+cr-tsx|1|0|pass|3080|21730|true|
+rv-pr|1|0|pass|3567|34653|true|
+rv-clean|1|0|pass|2906|25841|true|
+cr-kotlin|2|0|pass|3753|26927|true|
+cr-tsx|2|0|pass|3070|20488|true|
+rv-pr|2|0|pass|5991|43433|true|
+rv-clean|2|0|pass|6205|28167|true|
+cr-kotlin|3|0|pass|2697|23485|true|
+cr-tsx|3|0|pass|2882|22558|true|
+rv-pr|3|0|pass|11419|33270|true|
+rv-clean|3|0|pass|2892|22068|true|
+cr-kotlin|4|0|pass|3500|24277|true|
+cr-tsx|4|0|pass|3464|20615|true|
+rv-pr|4|0|pass|6003|35242|true|
+rv-clean|4|0|pass|2942|22392|true|
+cr-kotlin|5|0|pass|2950|19747|true|
+cr-tsx|5|0|pass|3223|21476|true|
+rv-pr|5|0|pass|5245|33115|true|
+rv-clean|5|0|pass|4298|29530|true|
+cr-kotlin|6|0|pass|2939|22909|true|
+cr-tsx|6|0|pass|3437|22290|true|
+rv-pr|6|0|pass|6058|43728|true|
+rv-clean|6|0|pass|3994|27396|true|
+cr-kotlin|7|0|pass|2803|20613|true|
+cr-tsx|7|0|pass|2804|20298|true|
+rv-pr|7|0|pass|6020|39079|true|
+rv-clean|7|0|pass|2120|23208|true|
+cr-kotlin|8|0|pass|3122|20698|true|
+cr-tsx|8|0|pass|3266|22749|true|
+rv-pr|8|0|pass|5619|34707|true|
+rv-clean|8|0|pass|3461|33078|true|
+cr-kotlin|9|0|pass|3349|22492|true|
+cr-tsx|9|0|pass|3161|22657|true|
+rv-pr|9|0|pass|6571|43477|true|
+rv-clean|9|0|pass|3859|24458|true|
+cr-kotlin|10|0|pass|2537|20384|true|
+cr-tsx|10|0|pass|3571|24509|true|
+rv-pr|10|0|pass|6048|38473|true|
+rv-clean|10|0|pass|3056|27210|true|

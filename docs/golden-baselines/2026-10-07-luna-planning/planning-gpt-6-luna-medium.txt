@@ -1,0 +1,16 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-07
+# revision:     9297b1b4
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       medium
+# context:      CLI default
+# repeats:      5
+# prompts:      2,3,4,5,7,7b
+# rebuilt:      from the --keep workdir; the run crashed after its last assertion, before saving (docs/modellvalg.md)
+#
+# no size rows: the crash came before aggregation
+

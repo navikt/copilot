@@ -1,0 +1,18 @@
+
+
+
+
+
+
+**Først: Hva slags tjeneste bygger du?** Mener du et backend-API i Kotlin/Ktor, en innbyggerrettet frontend med ID-porten, eller en fullstack-løsning? Repoet inneholder et enkelt Kotlin/Ktor-prosjekt og et Nais-manifest. Manifestet har foreløpig ingen `accessPolicy`, og jeg finner ikke repoets Copilot-instruksjonsfiler.
+
+For å avklare krav og risiko:
+
+1. **Data og personvern:** Hva er formålet med å hente fødselsnummeret, og hva er behandlingsgrunnlaget? Skal tjenesten bare lese det, eller også lagre eller sende det videre? Hvem får tilgang, hvor lenge skal det beholdes, og trenger dere audit-logging?
+2. **Innlogging og tilgang:** Logger innbyggeren direkte med ID-porten, eller får tjenesten fødselsnummeret fra en annen komponent? Hvem skal kunne kalle tjenesten, og hvilke systemer skal motta data?
+3. **Avhengigheter og kontrakt:** Hva skal tjenesten gjøre hvis ID-porten eller en annen avhengighet er utilgjengelig? Finnes det konsumenter av API-et allerede, og hvilke krav har de til bakoverkompatibilitet?
+4. **Drift:** Hvilke mål viser at tjenesten virker, hva skal utløse varsling, og hvem følger opp varsler? Hva forventer dere av trafikk?
+5. **Team og testing:** Er dette et nytt prosjekt, og hvilke andre team eller tjenester er avhengige av det? Har teamet erfaring med Kotlin/Ktor, og hvilke tester finnes eller planlegges?
+
+Blindsoner reist: 9/11 (#1–#7, #9 og #11 stilt; #8 og #10 ikke relevante for en ny tjeneste)
+

@@ -387,13 +387,8 @@ func cmdDoctor() error {
 		fmt.Printf("      [i] Binary not found on PATH (optional)\n")
 	} else {
 		fmt.Printf("      %s Binary found: %s\n", green("✓"), ocPath)
-		switch v, tested, err := providerpkg.OpenCodeVersionStatus(); {
-		case err != nil:
-			fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
-		case tested:
-			fmt.Printf("      %s Version %s is inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCodeTestedRange)
-		default:
-			fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRange)
+		if !reportOpenCodeVersion() {
+			hasErrors = true
 		}
 		switch listed, unlisted, err := providerpkg.OpenCodeMCPReport(""); {
 		case err != nil:
@@ -438,8 +433,9 @@ func cmdDoctor() error {
 	// Push and PRs from inside the sandbox need a gh login the client can read.
 	fmt.Printf("    • GitHub sign-in (push and PRs)\n")
 	ghCfg, _ := readConfig()
+	ghResolved := resolve(ghCfg, CLIOverrides{})
 	gh := ghProbe()
-	reportGHAuth(os.Stdout, "      ", resolve(ghCfg, CLIOverrides{}).Client, gh.st, gh.detail)
+	reportGHAuth(os.Stdout, "      ", ghResolved.Client, ghResolved.CopilotAuthMode, gh.st, gh.detail)
 	fmt.Println()
 
 	// 3b. Model pins
@@ -449,8 +445,15 @@ func cmdDoctor() error {
 	// and the picker is generated from a global catalogue (#717). Warn-only,
 	// and an unanswerable question says so.
 	fmt.Printf("[i] Model pins\n")
-	reportModelPins()
+	pinScope, pins, catalogue := reportModelPins()
 	fmt.Println()
+
+	// 3b'. Subagent model overrides in ~/.copilot/settings.json. Read-only.
+	if pinScope != nil {
+		fmt.Printf("[i] Subagent model overrides\n")
+		reportSubagentOverrides(os.Stdout, filepath.Join(pinScope.RootDir, "settings.json"), pins, catalogue)
+		fmt.Println()
+	}
 
 	// 3c. Local model. Config only; alpha local doctor runs the probes.
 	fmt.Printf("[i] Local model\n")
@@ -647,4 +650,33 @@ func async[T any](f func() T) func() T {
 	ch := make(chan T, 1)
 	go func() { ch <- f() }()
 	return sync.OnceValue(func() T { return <-ch })
+}
+
+// Seams for TestDoctorReportsOpenCode2Refusal.
+var (
+	openCodeMajorCheck  = providerpkg.CheckOpenCodeMajor
+	openCodeLaunchCheck = providerpkg.OpenCodeLaunchCheck
+)
+
+// reportOpenCodeVersion prints whether the opencode on PATH would launch, the
+// same refusals `nav-pilot opencode` gives; false when it would not.
+func reportOpenCodeVersion() (ok bool) {
+	ok = true
+	v, tested, err := providerpkg.OpenCodeVersionStatus()
+	refused := openCodeMajorCheck()
+	if refused == nil {
+		refused = openCodeLaunchCheck()
+	}
+	switch {
+	case refused != nil:
+		fmt.Printf("      %s %s\n", red("✗"), strings.ReplaceAll(refused.Error(), "\n", "\n      "))
+		ok = false
+	case err != nil:
+		fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
+	case tested:
+		fmt.Printf("      %s Version %s is inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCodeTestedRangeFor(v))
+	default:
+		fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRangeFor(v))
+	}
+	return ok
 }

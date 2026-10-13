@@ -1,0 +1,27 @@
+## Fase 1: Intervju
+
+Repoet ser ut som en Kotlin/Ktor-tjeneste på Nais. Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` hvis du vil legge til repo-lokal Copilot-konfigurasjon.
+
+**Hva slags ting bygger du?**
+- Backend-API, hendelseskonsument, frontend for innbygger, frontend for saksbehandler, batchjobb eller fullstack?
+- Jeg antar backend-API ut fra repoet. Skal vi bygge videre på `demo-tjeneste`, eller er dette et eget nytt prosjekt?
+
+**Personvern og tilgang**
+1. Hvilke personopplysninger skal tjenesten behandle? Jeg antar foreløpig at fødselsnummer (fnr) er fortrolig informasjon.
+2. Er ID-porten bare innlogging, eller skal tjenesten hente fnr fra et token eller en annen kilde? Hvilken?
+3. Hvem starter forespørselen, og hvem skal kunne lese fnr? Skal fnr lagres, sendes videre eller bare brukes midlertidig?
+4. Hva er formålet og behandlingsgrunnlaget? Hvor lenge skal data lagres, og trengs sletting eller audit-logging?
+
+**Plattform og drift**
+5. Hvilke tjenester skal kalles, og hvem skal kalle denne tjenesten? Skal den være tilgjengelig fra internett eller bare internt?
+6. Hva skal skje hvis ID-porten eller en annen avhengighet er utilgjengelig? Trengs asynkron behandling eller Kafka?
+7. Hvilke metrikker og varsler trenger dere? Hvem har vakt, og hvordan bekrefter dere at en deploy fungerer?
+8. Hvilken trafikk forventer dere, og finnes det en eksisterende tjeneste dere kan gjenbruke?
+
+**Team og endring**
+9. Er dette ny funksjonalitet, eller erstatter det en eksisterende løsning? Hvilke team eller tjenester er avhengige av løsningen, og må gamle API-er eller hendelser fortsatt støttes?
+10. Hva er teststatusen i repoet, hvilken erfaring har teamet med Kotlin/Ktor og ID-porten, og finnes det en deadline?
+
+Fødselsnummer skal ikke inn i logger. Når du svarer, kan jeg oppsummere krav, risiko og avhengigheter før vi går videre.
+
+Blindsoner reist: 10/11 (#1–#9 og #11; #10 om dekommisjonering avhenger av om dette erstatter en eksisterende løsning)

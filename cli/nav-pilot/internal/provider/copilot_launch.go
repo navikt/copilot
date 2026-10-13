@@ -70,14 +70,37 @@ func CopilotMissingBehindCplt() string {
 	return "the Copilot CLI (copilot) is not on PATH; cplt is the sandbox, not the Copilot CLI. Install the Copilot CLI: " + domain.Bold(CopilotInstallCommand)
 }
 
+// IsCpltTimeout bounds IsCplt's first ask: the runtime gate's budget, since
+// at 2 s a busy Mac read a healthy cplt as a plain copilot. A var so the e2e
+// build can give its fakes, shell scripts, more time on a loaded machine.
+var IsCpltTimeout = cpltProbeTimeout
+
 // IsCplt checks if a binary is actually cplt (Copilot Sandbox) by inspecting
 // its version output. Returns true if the binary identifies as cplt/sandbox.
 // The answer comes from cachedVersion, so a launch asks a plain copilot for
 // its version once, however many times FindCopilotCLI runs.
 func IsCplt(binPath string) bool {
-	out, err := cachedVersion(binPath, 2*time.Second)
+	out, err := cachedVersion(binPath, IsCpltTimeout)
 	s := strings.ToLower(out)
 	return err == nil && (strings.Contains(s, "cplt") || strings.Contains(s, "copilot-sandbox"))
+}
+
+// copilotSessionIDSince is the first Copilot CLI that takes --session-id.
+var copilotSessionIDSince = semver3{1, 0, 51}
+
+// CopilotTakesSessionID reports whether the Copilot CLI a launch runs accepts
+// --session-id. cplt brings no Copilot CLI, it runs the one on PATH, so that
+// is the one asked, through cachedVersion: once per installed binary. Anything
+// unreadable, a cplt installed as copilot among it, answers false, and the
+// launch goes without the flag.
+func CopilotTakesSessionID() bool {
+	out, err := cachedVersion("copilot", clientProbeTimeout)
+	return err == nil && copilotTakesSessionID(out)
+}
+
+func copilotTakesSessionID(versionOut string) bool {
+	v, err := parseClientVersion("copilot", versionOut)
+	return err == nil && v.Compare(copilotSessionIDSince) >= 0
 }
 
 type versionAnswer struct {
@@ -193,8 +216,8 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	}
 	args = append(args, copilotResolvedFlags(resolved)...)
 	if cliName != "cplt" {
-		// Allow-all is only safe with cplt as the boundary. Without it the
-		// flags go, whatever the config or the command line asked for.
+		// Allow-all is only safe with cplt as the boundary. LaunchCopilot never
+		// gets here (it refuses without cplt); the branch stays as a backstop.
 		return withoutAllowAll(append(args, resolved.ExtraArgs...))
 	}
 	// Seam two of two for an approved sandbox proposal (#858). This launch
@@ -221,15 +244,6 @@ func isAllowAllFlag(arg string) bool {
 // withoutAllowAll drops every allow-all flag from args.
 func withoutAllowAll(args []string) []string {
 	return slices.DeleteFunc(args, isAllowAllFlag)
-}
-
-// unsandboxedAllowAllNote is the line an unsandboxed launch prints when the
-// config or the command line asked for allow-all, or "" when nothing did.
-func unsandboxedAllowAllNote(resolved domain.ResolvedConfig) string {
-	if !resolved.AllowAllTools && resolved.Autonomy != "sandbox" && !slices.ContainsFunc(resolved.ExtraArgs, isAllowAllFlag) {
-		return ""
-	}
-	return "Without cplt, Copilot asks before each action: nav-pilot passes no allow-all flags outside the sandbox."
 }
 
 // autopilotNote is the line a launch in autopilot prints, or "".
@@ -278,10 +292,8 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 // If user-scope instructions exist, it sets COPILOT_CUSTOM_INSTRUCTIONS_DIRS
 // to ~/.copilot/.github/instructions so cplt picks up the files there.
 //
-// When launched via cplt, CopilotAuthMode constrains where cplt may get the
-// Copilot token from: env_only aborts the launch unless one is already in the
-// environment, gh_only removes the token variables so cplt must use
-// `gh auth token`. See applyCopilotAuthMode.
+// CopilotAuthMode filters the environment handed to cplt. It does not enforce
+// the credential source cplt or Copilot uses. See applyCopilotAuthMode.
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	// Local inference. The one branch on this path, and it used to be a
 	// refusal, on the belief that the Copilot CLI only ever resolves models
@@ -311,22 +323,17 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
 		return fmt.Errorf("the Copilot CLI (copilot) is not on PATH. Install it: %s", domain.Bold(CopilotInstallCommand))
 	}
-	if cliName == "cplt" {
-		if !CopilotBesideCplt(cliPath) {
-			telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
-			return errors.New(CopilotMissingBehindCplt())
-		}
-		PrintCpltSandboxHint()
-		PrintAutonomyNotice(resolved)
-	}
-	env := CopilotEnv(resolved.OtelLogLevel)
 	if cliName != "cplt" {
-		// The environment spelling of --allow-all-tools goes too.
-		env = slices.DeleteFunc(env, func(e string) bool { return strings.HasPrefix(e, "COPILOT_ALLOW_ALL=") })
-		if note := unsandboxedAllowAllNote(resolved); note != "" {
-			fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
-		}
+		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
+		return ErrCpltMissing("Copilot")
 	}
+	if !CopilotBesideCplt(cliPath) {
+		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
+		return errors.New(CopilotMissingBehindCplt())
+	}
+	PrintCpltSandboxHint()
+	PrintAutonomyNotice(resolved)
+	env := CopilotEnv(resolved.OtelLogLevel)
 	if note := autopilotNote(resolved); note != "" {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
@@ -349,18 +356,16 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	skillsDir := materializedSkillsDir(copilotSkillsRoot())
 	env = withSkillsDirEnv(env, skillsDir)
 	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin), skillsDir)
-	if cliName == "cplt" {
-		if args, err = withCpltProjectDir(args, resolved.ProjectDir); err != nil {
-			return err
-		}
+	if args, err = withCpltProjectDir(args, resolved.ProjectDir); err != nil {
+		return err
 	}
 	env, checkFlags := withActionCheckServer(resolved, env)
-	if i := slices.Index(args, "--"); cliName == "cplt" && i >= 0 {
+	if i := slices.Index(args, "--"); i >= 0 {
 		// Before the separator, as insertCpltPassEnv does: after it they
 		// would reach copilot.
 		args = slices.Insert(slices.Clone(args), i, checkFlags...)
 	}
-	if cliName == "cplt" && guard != nil {
+	if guard != nil {
 		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
 		// which cplt blocks by default. Name the port so it survives — and so
 		// it survives the strict preset, which supersedes allow_localhost_any.
@@ -378,14 +383,10 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(banner))
 	}
 
-	// cplt resolves the Copilot token itself; copilot_auth_mode only constrains
-	// which source it may use, and can refuse the launch outright.
-	if cliName == "cplt" {
-		var err error
-		env, err = applyCopilotAuthMode(env, resolved.CopilotAuthMode)
-		if err != nil {
-			return err
-		}
+	// Check the environment before handing it to cplt; cplt can still supply
+	// credentials of its own.
+	if env, err = applyCopilotAuthMode(env, resolved.CopilotAuthMode); err != nil {
+		return err
 	}
 
 	cmd := exec.Command(cliPath, args...)
@@ -517,10 +518,8 @@ const LocalProviderAPIKey = "nav-pilot"
 // separately or it keeps dying on the prompt that the opencode and pi paths no
 // longer die on.
 //
-// The plain copilot CLI never gets it: --yes is cplt's flag and copilot has no
-// confirmation to skip. The same holds for --pass-env, which is why skillsDir
-// only changes the cplt vector — an unsandboxed copilot inherits the exported
-// variable directly.
+// LaunchCopilot only runs under cplt. The non-cplt vector (no --yes, no
+// --pass-env) is kept for the tests that pin it, not for any launch.
 //
 // skillsDir is a parameter rather than a lookup so this stays pure: the golden
 // vectors are pinned by calling it, and a function that read the home directory
@@ -537,34 +536,26 @@ func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, tty bool,
 	return withCpltConfirmation(args, tty)
 }
 
-// ghTokenVars are the environment variables cplt recognises as carrying a
-// GitHub token, in the precedence order it applies.
+// ghTokenVars are the token names recognised by cplt. This filter does not
+// choose between them; Copilot and cplt's credential paths have different orders.
 var ghTokenVars = []string{"GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"}
 
-// applyCopilotAuthMode enforces copilot_auth_mode on the environment handed to
-// cplt.
+// applyCopilotAuthMode filters the environment handed to cplt.
 //
-// nav-pilot does not extract or inject a token. With cplt's gh guard on — which
-// since cplt#335 is every preset except permissive and full-trust, `standard`
-// included, so it is the case by default rather than only under the `strict`
-// nav-pilot recommends — cplt uses an inherited
-// GH_TOKEN/GITHUB_TOKEN/COPILOT_GITHUB_TOKEN when one is present and
-// otherwise runs `gh auth token --hostname github.com` in the unsandboxed
-// parent, handing the result to the agent over a one-time 0600 file rather than
-// the environment. With the gh guard off, cplt does none of that and Copilot
-// authenticates on its own. Either way this function only decides which sources
-// reach cplt, and refuses to launch when the mode asks for one that is absent.
+// cplt can deny or inject tokens, and Copilot can use its stored login.
+// These legacy filters do not enforce an exclusive credential source.
 //
 //   - auto:     no constraint (default).
-//   - env_only: a token must already be in the environment; the launch aborts
-//     if not. Enforced here, so it holds whatever cplt is configured to do.
-//   - gh_only:  the token variables are removed from the child environment, so
-//     no env token reaches the sandbox. What cplt does then is its own call.
+//   - env_only: requires a non-blank token in the environment handed to cplt.
+//   - gh_only: strips those variables before cplt starts.
 //
 // An empty authMode is treated as "auto": every real launch resolves the mode
 // through resolve() (default "auto"), but a directly constructed ResolvedConfig
 // must not hard-fail the launch.
 func applyCopilotAuthMode(env []string, authMode string) ([]string, error) {
+	if authMode == "env_only" || authMode == "gh_only" {
+		fmt.Fprintf(os.Stderr, "Warning: copilot_auth_mode=%s filters only cplt's input environment; cplt can deny or inject tokens, and Copilot can use its stored login.\n", authMode)
+	}
 	switch authMode {
 	case "", "auto":
 		return env, nil
@@ -572,7 +563,7 @@ func applyCopilotAuthMode(env []string, authMode string) ([]string, error) {
 	case "env_only":
 		if !hasEnvToken(env) {
 			return env, fmt.Errorf(
-				"copilot_auth_mode=env_only: none of %s is set; launch aborted",
+				"copilot_auth_mode=env_only: none of %s is set; launch aborted. Supply a Copilot token, or choose stored-login recovery with nav-pilot config set copilot_auth_mode auto and run nav-pilot doctor for host login instructions",
 				strings.Join(ghTokenVars, "/"))
 		}
 		return env, nil

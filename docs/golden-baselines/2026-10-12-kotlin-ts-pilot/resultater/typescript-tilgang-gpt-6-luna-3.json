@@ -1,0 +1,29 @@
+{
+  "task": "typescript/tilgang",
+  "fixture_sha256": "2c6e4987ebccf416c3408d2c8ac3909636ecc20ed50d8b18f74daf1d49cc8a09",
+  "evaluated_at": "2026-10-12T13:43:47.174367+00:00",
+  "model": null,
+  "effort": null,
+  "credits": null,
+  "usage_verified": false,
+  "candidate_sha256": "67febd7d734d25b459389cdde205161234dbb2c001e557c4a881e6a7461a3264",
+  "checks": {
+    "regression": {
+      "passed": 2,
+      "total": 2,
+      "diagnostic": ""
+    },
+    "acceptance": {
+      "passed": 1,
+      "total": 2,
+      "diagnostic": "TAP version 13\n# Subtest: interne saker krever gyldig token\nok 1 - interne saker krever gyldig token\n  ---\n  duration_ms: 859.160874\n  type: 'test'\n  ...\n# Subtest: enkeltsak krever gyldig token\nnot ok 2 - enkeltsak krever gyldig token\n  ---\n  duration_ms: 33.073458\n  type: 'test'\n  location: '/task/controls/acceptance/intern.test.ts:26:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    200 !== 401\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 401\n  actual: 200\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///task/controls/acceptance/intern.test.ts:28:10)\n    async Test.run (node:internal/test_runner/test:1404:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:969:7)\n  ...\n1..2\n# tests 2\n# suites 0\n# pass 1\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 2800.320617\n"
+    },
+    "http": {
+      "passed": 1,
+      "total": 2,
+      "diagnostic": "TAP version 13\n# Subtest: the reported route rejects missing and forged tokens and accepts valid ones\nnot ok 1 - the reported route rejects missing and forged tokens and accepts valid ones\n  ---\n  duration_ms: 4910.218354\n  type: 'test'\n  location: '/task/controls/http.test.mjs:33:1'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    200 !== 401\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 401\n  actual: 200\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (file:///task/controls/http.test.mjs:36:10)\n    process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    async Test.run (node:internal/test_runner/test:1404:7)\n    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)\n  ...\n# Subtest: NAIS probes stay open and existing routes still work\nok 2 - NAIS probes stay open and existing routes still work\n  ---\n  duration_ms: 214.569748\n  type: 'test'\n  ...\n1..2\n# tests 2\n# suites 0\n# pass 1\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 6150.134824\n"
+    }
+  },
+  "status": "failed",
+  "evaluation_seconds": 114.809
+}

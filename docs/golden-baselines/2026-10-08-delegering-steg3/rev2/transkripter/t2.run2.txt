@@ -1,0 +1,53 @@
+/ Search (glob)
+  │ ".github/copilot*instructions.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/nais*.{yml,yaml}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml,nais.yaml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Fase 1: Avklaring.** Repoet er en enkel Ktor-demo med et åpent `/api/oppgaver`-endepunkt. `nais.yaml` har verken ID-porten eller `accessPolicy` konfigurert. Jeg antar at fødselsnummeret skal hentes fra en validert ID-porten-innlogging for innbyggeren, ikke tas imot som et fritt felt. Ingen kode eller tilgangsregler er endret.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bruke det bare under forespørselen, lagre det eller sende det til andre tjenester? Hvilke tjenester eller team er i så fall mottakere?
+2. Skal innbyggeren kalle et nytt endepunkt direkte via nettleser, eller skal en frontend/BFF kalle denne tjenesten på innbyggerens vegne? Skal det eksisterende `/api/oppgaver` fortsatt være tilgjengelig?
+3. Hva skal skje hvis innloggingen eller en avhengig tjeneste feiler? Finnes det tester eller en løsning som må fungere mens den nye tjenesten rulles ut?
+4. Hvilke mål viser at tjenesten virker i drift, uten å logge fødselsnummer?
+
+`AGENTS.md` og de repo-lokale Copilot-instruksjonene mangler. `nav-pilot init` kan legge dem til senere. Jeg stopper før plan og implementering fordi både persondataflyt og tilgangskontroll er uavklart.
+
+Blindsoner reist: 7/11 (#1–#4, #5–#7 og #8–#9 dekket i spørsmålene; #10 ikke relevant for ny tjeneste, #11 avklares når løsning er valgt).
+

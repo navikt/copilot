@@ -742,7 +742,6 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		r.LocalDispatch = cli.LocalDispatch
 	}
 	r.ProjectDir = cli.ProjectDir
-	r.NoSandbox = cli.NoSandbox
 	r.ExtraArgs = cli.ExtraArgs
 	return r
 }

@@ -1,0 +1,60 @@
+/ Search (glob)
+  │ "**/nais*.{yaml,yml}"
+  └ 1 file found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "{package.json,build.gradle.kts,pom.xml,docs/nav-pilot-design.md}"
+  └ 1 file found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List directory .
+  └ 5 files found
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ ".github/**/*"
+  └ 17 files found
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+**Fase 1: avklaring.** Repoet er en liten Ktor-tjeneste på Nais med et åpent `/api/oppgaver`-endepunkt. Det har ingen ID-porten-konfigurasjon eller synlig tokenvalidering. Jeg legger til grunn at fødselsnummer er en personopplysning, og at innloggingen gjelder innbyggere, men trenger svar før vi velger løsning:
+
+- Skal innbyggeren kalle tjenesten direkte, eller via en frontend/BFF? Skal andre tjenester også kunne kalle den?
+- Hva skal tjenesten gjøre med fødselsnummeret: bruke det kun under forespørselen, lagre det eller sende det videre? Behandles andre personopplysninger?
+- Hvem bruker dagens `/api/oppgaver`, og skal det fortsatt være åpent?
+- Hvilken tjeneste eller hvilket team eier eventuelle avhengigheter som skal kalles med fødselsnummeret? Hva skal skje når de er nede?
+- Er dette en erstatning for `demo-tjeneste` eller en ny tjeneste ved siden av den? Finnes det tester eller en utrullings- og tilbakeføringsplan?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Vurder `nav-pilot init` for repo-lokale Copilot-instruksjoner.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #5, #6, #7, #8; #4 tas i planen, #9 avhenger av eksisterende konsumenter, #10 avhenger av om tjenesten erstattes, #11 ikke avklart).
+

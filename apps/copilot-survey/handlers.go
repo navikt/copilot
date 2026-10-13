@@ -47,6 +47,7 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 
 	mux.HandleFunc("GET /api/v1/surveys/active", surveys.active)
 	mux.HandleFunc("GET /api/v1/surveys/schema", surveys.schema)
+	mux.HandleFunc("GET /api/v1/surveys/{id}/status", authMiddleware(auth, surveys.status))
 	submit := authMiddleware(auth, surveys.submit)
 	mux.HandleFunc("POST /api/v1/surveys/{id}/responses", func(w http.ResponseWriter, r *http.Request) {
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
@@ -57,5 +58,11 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 		}
 		submissions.WithLabelValues(label, strconv.Itoa(rec.status)).Inc()
 	})
+
+	// Every admin route lives under /api/v1/admin/ and passes adminOnly once.
+	admin := http.NewServeMux()
+	admin.HandleFunc("GET /api/v1/admin/surveys", surveys.list)
+	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/results", surveys.results)
+	mux.Handle("/api/v1/admin/", adminOnly(auth, admin))
 	return mux
 }

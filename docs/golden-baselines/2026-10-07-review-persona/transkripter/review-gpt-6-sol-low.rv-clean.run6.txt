@@ -1,0 +1,16 @@
+
+
+
+### Gjennomgang
+
+Ingen åpenbar tilgangslekkasje i `SakService.kt`: ruten krever TokenX, henter fødselsnummeret fra tokenet og bruker en parameterisert SQL-spørring. Jeg fant to forbedringspunkter.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 50–55 | 🟡 | Ruten sjekker bare om `pid` er `null`. En tom eller ugyldig verdi gir et vellykket svar med tom saksliste, i stedet for en tydelig feil ved tillitsgrensen. Valider kravet før databaseoppslaget. |
+| `SakService.kt` | 40–42 | 🟡 | Feilloggen inneholder bare unntakets klassenavn. Ved databasefeil mangler dermed årsak og stacktrace i denne loggen. Logg unntaket med en melding som ikke inneholder fødselsnummer. |
+
+🔴 **Rød sone: valideringen av `pid` styrer hvilke personopplysninger ruten henter.** Den bør avvise ugyldige krav, ikke behandle dem som «ingen saker». Avveiningen er at strengere validering kan avvise token som tidligere fikk et tomt svar; det er tryggere enn å skjule en feil som et vellykket oppslag. Still gjerne spørsmål om valgene over.
+
+**Kontroller:** `mise check` finnes ikke som oppgave i dette prosjektet. `gradle test` stoppet under prosjektkonfigurasjon med feilen `27`, så testene ble ikke kjørt.
+

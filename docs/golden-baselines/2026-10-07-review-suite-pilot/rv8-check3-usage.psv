@@ -1,0 +1,26 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        code-review
+# suite:        review
+# date:         2026-10-07
+# revision:     4ce21245
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      2929655385
+# prompts:      rv8
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+rv-clean|1|85b1dd29-573a-4718-beb1-243143b0fb02|18022|0|claude-opus-5.5|low|26246|124|8710|17532|0|9189800000|2211|1670.367917|tool_calls||
+rv-clean|1|85b1dd29-573a-4718-beb1-243143b0fb02|18023|0|claude-opus-5.5|low|27372|1209|26242|1128|338|3507640000|14776|5235.002249|stop||
+rv-clean|2|37b9be5d-30b4-4afd-8764-c74ee66f3c7e|18024|0|claude-opus-5.5|low|26250|124|8710|17536|0|9191800000|2258|1654.327|tool_calls||
+rv-clean|2|37b9be5d-30b4-4afd-8764-c74ee66f3c7e|18025|0|claude-opus-5.5|low|27376|437|26246|1128|334|1963720000|8582|4263.931458|tool_calls||
+rv-clean|2|37b9be5d-30b4-4afd-8764-c74ee66f3c7e|18026|0|claude-opus-5.5|low|28171|966|27374|795|23|2877780000|10735|2912.659624|stop||
+rv-clean|3|d7fdd8a1-8445-4411-81aa-bd42a745a623|18027|0|claude-opus-5.5|low|26248|124|8710|17534|0|9190800000|1778|1199.372583|tool_calls||
+rv-clean|3|d7fdd8a1-8445-4411-81aa-bd42a745a623|18028|0|claude-opus-5.5|low|27374|393|26244|1128|292|1875680000|7022|4016.4812920000004|tool_calls||
+rv-clean|3|d7fdd8a1-8445-4411-81aa-bd42a745a623|18029|0|claude-opus-5.5|low|28103|164|27372|729|40|1240740000|3323|3314.948792|tool_calls||
+rv-clean|3|d7fdd8a1-8445-4411-81aa-bd42a745a623|18030|0|claude-opus-5.5|low|28568|992|28101|465|12|2779320000|11441|2624.96975|stop||

@@ -1,0 +1,44 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-07
+# revision:     9297b1b4
+# model:        gpt-6-luna
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.93-4.
+# effort:       medium
+# context:      CLI default
+# usage_complete: true
+# rebuilt:      from the --keep workdir; the run crashed after its last assertion, before saving (docs/modellvalg.md)
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+t2|1|0|pass|2833|54000|true|
+t4a|1|0|pass|2677|42097|true|
+t4b|1|0|pass|5043|47443|true|
+t5|1|0|pass|297|14653|true|
+t7|1|0|pass|8459|129355|true|
+t7b|1|0|pass|2607|48704|true|
+t2|2|0|pass|5525|81615|true|
+t4a|2|0|pass|2483|53098|true|
+t4b|2|0|pass|4957|47613|true|
+t5|2|0|pass|296|11500|true|
+t7|2|0|pass|5515|64599|true|
+t7b|2|0|pass|2451|42834|true|
+t2|3|0|pass|2411|35810|true|
+t4a|3|0|pass|2672|36852|true|
+t4b|3|0|pass|3982|46976|true|
+t5|3|0|pass|322|12011|true|
+t7|3|0|pass|5313|79885|true|
+t7b|3|0|pass|3001|63086|true|
+t2|4|0|pass|2689|54321|true|
+t4a|4|0|pass|2787|46507|true|
+t4b|4|0|pass|4800|62737|true|
+t5|4|0|pass|323|20265|true|
+t7|4|0|pass|8071|148518|true|
+t7b|4|0|pass|2121|45641|true|
+t2|5|0|pass|1902|41539|true|
+t4a|5|0|pass|2832|31132|true|
+t4b|5|0|pass|2944|47992|true|
+t5|5|0|pass|414|13591|true|
+t7|5|0|pass|8186|106140|true|
+t7b|5|0|pass|1742|29816|true|

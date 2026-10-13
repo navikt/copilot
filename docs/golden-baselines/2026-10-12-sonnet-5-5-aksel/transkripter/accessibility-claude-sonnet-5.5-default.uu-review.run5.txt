@@ -1,0 +1,53 @@
+● Read StatusPanel.tsx
+  │ src/app/komponenter/StatusPanel.tsx
+  └ 19 lines read
+
+Funn i `StatusPanel.tsx`, sortert etter alvorlighet:
+
+**Kritisk**
+1. **Linje 8: `<div onClick>`** (WCAG 2.1.1, 4.1.2). Elementet har ingen rolle og ingen tastaturstøtte. Bruk Aksel `<Button variant="tertiary" aria-expanded={apen} aria-controls="status-detaljer">`.
+2. **Linje 8: `outline: "none"`** (WCAG 2.4.7). Fokusindikatoren er fjernet. Fjern stilen.
+3. **Linje 14: ikonknapp uten navn** (WCAG 4.1.2). Skjermleser leser bare «knapp». Bruk `<Button variant="tertiary" icon={<TrashIcon title="Slett" />} />` eller `aria-label`.
+4. **Linje 11: `tabIndex={5}`** (WCAG 2.4.3). Verdier over 0 ødelegger tab-rekkefølgen. Fjern den. Statusteksten er ikke interaktiv og skal ikke i tab-rekkefølgen.
+
+**Alvorlig**
+5. **Linje 11: farge som eneste informasjon** (WCAG 1.4.1, 1.4.3). Rød og grønn skiller feil fra ok bare med farge, og `red` og `green` har dårlig kontrast. Bruk `<Tag variant="error">` eller `<Tag variant="success">` med tekst, eller et ikon.
+6. **Statusendringer annonseres ikke** (WCAG 4.1.3). Pakk status i `role="status"`, eller bruk `<Alert role="status">`.
+7. **Sletting uten bekreftelse** (WCAG 3.3.4). Legg inn en Aksel `<Modal>` med «Bekreft sletting».
+
+**Moderat**
+8. **Detaljpanelet mangler.** `apen` endres, men ingenting vises eller skjules. Legg til innhold med `id="status-detaljer"`, eller bruk `<ExpandableCard>`/`<ReadMore>`.
+9. **Linje 6: `p-4 mx-8` (Tailwind).** Prosjektregelen krever Aksel spacing-tokens. Bruk `<Box padding="space-16">` eller `<VStack gap="space-16">`, avhengig av Aksel-versjonen.
+10. **Rå `<button>` og `<span>`** i stedet for Aksel-komponenter. Props mangler typer (`status`, `onSlett` er implisitt `any`).
+
+Forslag til rettet versjon:
+
+```tsx
+import { useState } from "react";
+import { TrashIcon } from "@navikt/aksel-icons";
+import { Box, Button, HStack, Tag } from "@navikt/ds-react";
+
+type Status = "ok" | "feil";
+
+export function StatusPanel({ status, onSlett }: { status: Status; onSlett: () => void }) {
+  const [apen, setApen] = useState(false);
+  return (
+    <Box padding="space-16">
+      <HStack gap="space-8" align="center">
+        <Button variant="tertiary" aria-expanded={apen} aria-controls="status-detaljer"
+                onClick={() => setApen(!apen)}>
+          Vis detaljer
+        </Button>
+        <span role="status">
+          <Tag variant={status === "feil" ? "error" : "success"}>{status}</Tag>
+        </span>
+        <Button variant="tertiary" icon={<TrashIcon title="Slett" />} onClick={onSlett} />
+      </HStack>
+      {apen && <div id="status-detaljer">{/* detaljer */}</div>}
+    </Box>
+  );
+}
+```
+
+Sletting bør i tillegg gå via en bekreftelsesmodal. Jeg har ikke endret filen. Si fra hvis jeg skal ta det i bruk og legge til axe-test.
+

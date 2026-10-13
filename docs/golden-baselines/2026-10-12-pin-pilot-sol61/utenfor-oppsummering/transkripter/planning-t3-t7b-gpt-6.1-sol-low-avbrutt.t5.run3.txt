@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+**TokenX** når A kaller B på vegne av en innbygger: A veksler brukertokenet til et token med B som audience (`cluster:namespace:app`). B validerer tokenet og kontrollerer brukerens tilgang. Ikke bruk `client_credentials`, det mister brukerkonteksten.
+
+Er brukeren en **Nav-ansatt med Azure AD-token**, bruk **Azure AD On-Behalf-Of (OBO)** i stedet.
+

@@ -1,0 +1,18 @@
+## 🛡️ Sikkerhetsgjennomgang av `SakService.kt`
+
+Jeg fant ingen kritiske funn i selve filen. Gjennomgangen dekker også `App.kt` og `nais.yaml`, fordi filen er avhengig av dem.
+
+### God praksis i filen
+- **SQL:** spørringen er parameterisert med `queryOf(..., fnr)`, så den er ikke sårbar for SQL-injeksjon.
+- **Tilgangskontroll:** fødselsnummeret hentes fra `pid`-claimet i tokenet, ikke fra en request-parameter. Brukeren kan derfor bare se sine egne saker.
+- **Logging:** `maskert()` skjuler hele fødselsnummeret. Feillogger inneholder bare navnet på exception-klassen, så verken SQL eller personopplysninger lekker.
+- **Autentisering:** `App.kt` sjekker issuer, audience og `acr=idporten-loa-high`.
+
+### Funn utenfor filen
+1. **Høy, `nais.yaml`:** `tokenx.enabled: true` mangler. Da får appen ikke `TOKEN_X_*`-variablene og kan ikke validere tokener. `accessPolicy.inbound` mangler også, så det er ikke definert hvilke apper som kan kalle tjenesten.
+2. **Lav:** `/api/saker` har ingen øvre grense på antall rader. Vurder paginering.
+3. **Info:** jeg fant ingen `StatusPages`. Ktor svarer med en generisk 500 uten stacktrace, og det er greit. Legg til eksplisitt feilhåndtering hvis dere trenger et konsistent feilformat.
+
+Jeg har ikke endret noen filer.
+
+Still gjerne spørsmål om valgene over.

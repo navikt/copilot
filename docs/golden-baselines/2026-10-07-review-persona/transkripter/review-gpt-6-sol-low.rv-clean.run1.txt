@@ -1,0 +1,14 @@
+
+
+
+### Gjennomgang
+
+Endepunktet henter fødselsnummeret fra den validerte TokenX-prinsipalen og bruker en parameterisert spørring. Jeg fant ingen tydelig tilgang til andre personers saker i denne filen.
+
+| Fil | Linje | Prioritet | Funn |
+|---|---:|---|---|
+| `SakService.kt` | 26 | 🟡 | Spørringen henter **alle** saker for personen og sorterer dem før responsen bygges. Uten en grense kan en stor saksmengde gi høy belastning på database og tjeneste. Avklar ønsket responskontrakt og innfør en grense eller paginering. |
+| `SakService.kt` | 38–42 | 🟡 | `catch` logger bare unntakstypen og kaster samme unntak videre. Det gir lite feilsøkingsinformasjon og kan gi dobbeltlogging høyere opp. Fjern blokken hvis den ikke skal tilføre trygg kontekst. |
+
+Ingen kode er endret. `mise check` kunne ikke kjøres fordi prosjektet ikke har en `check`-oppgave.
+

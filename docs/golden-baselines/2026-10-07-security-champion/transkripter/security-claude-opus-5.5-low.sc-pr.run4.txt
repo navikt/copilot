@@ -1,0 +1,31 @@
+🛡️ Sikkerhetsgjennomgang av `vedtak-kafka` mot `main` (commit `74cc294`). Jeg har lest diffen. Ingen skannere er kjørt, ingenting er endret, og jeg har ikke kjørt koden.
+
+**Konklusjon: BLOCK.** Fire kritiske funn må fikses før merge.
+
+### 🔴 Kritisk
+
+1. **SQL-injeksjon** i `VedtakRepository.hentForPerson`. `fnr` blir satt rett inn i SQL-strengen (`"... WHERE fnr = '" + fnr + "'"`). Bruk `queryOf("... WHERE fnr = ?", fnr)`, slik `hentForSak` allerede gjør.
+
+2. **`GET /api/vedtak/{fnr}` krever ingen autentisering.** Ruten ligger utenfor `authenticate("tokenx")`, så hvem som helst kan hente vedtak for et vilkårlig fnr. I tillegg kommer fnr i URL-en, og det havner i tilgangslogger. Legg ruten under `authenticate`, og send fnr i en header eller body i stedet for i stien.
+
+3. **JWT-valideringen er ikke reell.** Konfigurasjonen har ingen `verifier`, ingen JWKS og ingen sjekk av `iss`. `validate` godtar alle tokens som har en `aud`-claim, og verdien på `aud` blir ikke sjekket. Bruk `TOKEN_X_JWKS_URI` og `TOKEN_X_ISSUER`, og krev `aud == TOKEN_X_CLIENT_ID`. Detaljer i `$nav-auth`.
+
+4. **`accessPolicy.inbound` er helt åpen** (`application: "*"`, `namespace: "*"`). Hele clusteret kan nå tjenesten. Sammen med funn 2 og 3 gir det full eksponering. List konkrete konsumenter.
+
+### 🟠 Medium
+
+5. **Fnr i logg.** `VedtakService` logger `"behandler $fnr"`. Fjern linjen eller logg `sakId` i stedet.
+6. **Eierskap sjekkes ikke.** `POST /api/vedtak` fatter vedtak for et fnr fra request-body. Koden sjekker ikke at kalleren har lov til å fatte vedtak for den personen (rolle eller `pid`/`azp`).
+7. **Ingen validering av input.** `fnr` får ikke format-sjekk (11 siffer), og `sakId` blir bare sjekket for blank verdi. Dette gjelder både HTTP og Kafka.
+8. **Kafka-konfigurasjonen mangler SSL** (`KAFKA_TRUSTSTORE_PATH`, `KAFKA_KEYSTORE_PATH`, `KAFKA_CREDSTORE_PASSWORD`). Mot Aiven feiler tilkoblingen. Hvis noen "fikser" det med PLAINTEXT, blir det et sikkerhetshull.
+9. **Robusthet i consumeren (DoS).** En ugyldig melding (poison pill) gjør at `decodeFromString` kaster unntak og stopper consumer-tråden for godt. `retry` er heller ikke idempotent: feiler `producer.send` etter at vedtaket er lagret, blir det fattet duplikate vedtak. Bruk `soknadId` som idempotensnøkkel.
+
+### 🟡 Lav
+
+10. `build.gradle.kts` har en ny `dependencies`-blokk med hardkodede versjoner. Bruk version catalog. Kjør `trivy repo .`.
+11. Branchen har ingen Flyway-migrering for tabellen `vedtak`.
+12. Ingen audit-logg (CEF) når vedtak med personopplysninger blir vist.
+
+🔴 Rød sone: autentisering, autorisasjon og SQL. Gå gjennom disse nøye selv, ikke bare lim inn forslagene.
+
+Still gjerne spørsmål om valgene over.

@@ -1,0 +1,12 @@
+**Fase 1: Intervju.** Dette er en ny tjeneste med personopplysninger og innlogging, så jeg stopper før arkitektur og kode. Repoet har en Ktor-demo og et Nais-manifest, men ingen ID-porten-oppsett eller tilgangsregler som svarer på spørsmålene under. Foreløpig antar jeg at fnr er en personopplysning som bare skal brukes for den innloggede personen.
+
+1. Hva skal tjenesten gjøre med fnr? Skal den lagre eller sende det videre, og behandler den andre personopplysninger?
+2. Hvem skal kunne kalle tjenesten: innbygger via nettleser, en annen Nav-tjeneste eller begge? Er det bare egne data innbyggeren skal få tilgang til?
+3. Hvilke tjenester eller team er avhengige av flyten, og hva skal skje hvis en avhengighet er nede?
+4. Hvem skal bruke API-et? Finnes det allerede tester eller en løsning som skal erstattes? Hvis noe erstattes, hvordan måler dere at overgangen er trygg?
+
+Jeg sjekket etter `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; ingen finnes her. Vurder `nav-pilot init` for repo-lokale instruksjoner.
+
+Budsjett for videre arbeid: intervju ~500 tokener, plan ~1200, review ~600, leveranse etter avtalt omfang. #4 (forretningsmetrikker) tar vi når tjenestens oppgave er kjent. #9 (bakoverkompatibilitet) og #10 (utfasing) er bare relevante dersom den erstatter noe. #11 (ny teknologi) avhenger av teamets erfaring.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #5, #6, #7, #8 stilt; #4, #9, #10, #11 avklart som betingede).

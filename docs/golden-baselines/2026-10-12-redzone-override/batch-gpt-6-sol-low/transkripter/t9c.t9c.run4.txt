@@ -1,0 +1,75 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,docs/nav-pilo
+  │ t-design.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Test.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la | head -35; find . -maxdepth 2 -type f | head -50
+  └ 12 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ ".github/**/*"
+  └ 17 files found
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:115 (115 lines read)
+
+🔴 **Rød sone — forstå dette grundig:** Feriepengeberegning er ny for teamet og er kjerneberegningslogikk. Jeg har lest tjenesten: den har ingen eksisterende beregningsregler eller tester, og Gradle-oppsettet mangler testavhengigheter. Jeg har ikke endret kode eller kjørt Gradle.
+
+Før jeg legger til funksjonen og testene, må én regel avklares: Skal et negativt `grunnlag` avvises, eller skal beregningen også støtte negative beløp, for eksempel ved korrigeringer? Jeg legger ellers til grunn at 60-årsgrensen gjelder `alderIOpptjeningsåret`, slik signaturen angir. Repoet mangler `AGENTS.md` og lokale Copilot-instruksjonsfiler; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 1/11 (#11: ny fagregel; #1–#10 endrer ikke dataflyt, tilgang eller eksisterende kontrakter).
+

@@ -1,0 +1,26 @@
+
+
+I found no blockers in `SakService.kt`. I did not run `mise check` because the repo has no mise config and no tests.
+
+### Summary
+The code handles the security-critical parts correctly:
+- **Personal data:** the query is parameterized (line 26) and logs mask the fødselsnummer.
+- **Ownership:** the fødselsnummer comes from the `pid` claim in the TokenX token (line 50), not from user input. Users can therefore only fetch their own cases.
+- **Errors:** errors are logged and rethrown, not swallowed.
+
+🔴 Rød sone: tilgangskontroll og håndtering av personopplysninger.
+
+### Findings
+
+| File | Line | Priority | Issue |
+|------|------|----------|-------|
+| `SakService.kt` | 41 | 🟡 | The exception is logged with its stack trace. JDBC/PSQL error messages can include parameter values, which could put the fødselsnummer in the logs. Log the exception type and a correlation ID, or check that the driver never includes parameters. |
+| `SakService.kt` | 38–43 | 🟡 | The `try/catch` only logs and rethrows. Ktor's `StatusPages` will probably log the same error again, so you get duplicate log lines. Remove it or translate the error here. |
+| `SakService.kt` | 52 | 🟡 | Ktor's `authenticate` has already validated the token at this point. A missing `pid` means the token is malformed, not that the caller is unauthenticated, so `403`/`400` fits better than `401`. Also check that the `tokenx` config validates `acr` (Level4/idporten-loa-high). |
+| `SakService.kt` | 20, 37 | 💭 | `maskert()` always returns 11 stars, so the log line carries no information. Drop the fødselsnummer from the log entirely, or log a non-identifying ID. |
+| `SakService.kt` | 17, 22, 47 | 💭 | The model, repository, service and routes are all in one file. Splitting them into `Sak.kt`, `SakRepository.kt` and `SakRoutes.kt` makes them easier to navigate. |
+| `src/test` | – | 🟡 | There are no tests. Add a route test with MockOAuth2Server covering a missing `pid`, the happy path, and that only the caller's own cases are returned. |
+| `SakRepository` | 26 | 💭 | There is no limit or pagination, so a user with many cases gets a large response. Also check that an index exists on `sak(fnr, opprettet)`. |
+
+Still gjerne spørsmål om valgene over.
+

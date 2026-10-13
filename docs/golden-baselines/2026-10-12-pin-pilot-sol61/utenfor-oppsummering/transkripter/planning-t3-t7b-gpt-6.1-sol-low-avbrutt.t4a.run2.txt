@@ -1,0 +1,47 @@
+● skill(klarsprak)
+
+● Se etter prosjektfiler og lokale instruksjoner (shell)
+  │ ls -a
+  └ 7 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/*" in .github
+  └ 17 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Fase 1: Intervju (fullt omfang).** En ny tjeneste som leser fødselsnummer fra ID-porten krever avklaringer om personvern og tilgang før implementering. Repoet har en Ktor-demo, men ingen ID-porten-konfigurasjon eller `accessPolicy` i `nais.yaml`. Ingen kode er endret.
+
+🔴 Rød sone: token-validering og tilgangskontroll, forstå dette grundig. Fødselsnummer og tokens skal ikke havne i logger.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller kobles til andre personopplysninger? Hvilket behandlingsgrunnlag gjelder?
+2. Logger innbyggeren inn via en nettleser, eller kalles tjenesten av en annen tjeneste på vegne av innbyggeren? Skal den bare behandle den innloggedes egne opplysninger?
+3. Skal vi bygge videre på Ktor-demoen eller opprette et eget prosjekt? Hvilket team eier tjenesten, og hvem skal motta data?
+4. Hva skal skje ved mislykket innlogging eller utilgjengelige avhengigheter? Hvilke målinger uten personopplysninger viser at flyten fungerer?
+5. Hvilke tester og akseptansekriterier må være på plass? Er ID-porten og token-validering kjent teknologi for teamet?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Vurder `nav-pilot init` for lokal Copilot-konfigurasjon.
+
+Anslått tokenbudsjett per fase: intervju 1 000, plan 2 000, review 1 500, levering 4 000. Plan og kode avventer avklaringene. Kompatibilitet, rollback og avvikling (#8–#10) er foreløpig ikke relevante fordi du beskriver en ny tjeneste.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 foreløpig ikke relevante).
+

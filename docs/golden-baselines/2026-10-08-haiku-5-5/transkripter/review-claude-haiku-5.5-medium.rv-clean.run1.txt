@@ -1,0 +1,12 @@
+**Sammendrag:** Ingen blokkerere. Fnr hentes fra token-claimet `pid` og ikke fra request, så eieren er riktig. SQL er parameterisert, og logging bruker maskering. Jeg kjørte ikke `mise check`, fordi repoet ikke har app-struktur for det.
+
+🔴 Rød sone: eierskapssjekken i `sakRoutes` (`pid` fra token). Gå gjennom denne nøye.
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 55 | 🟡 | `repository.hentForPerson` er blokkerende JDBC-kall inne i en suspend-handler. Det blokkerer Ktor-trådene. Bruk `withContext(Dispatchers.IO)` eller en egen dispatcher. |
+| `SakService.kt` | 26 | 🟡 | Spørringen har ingen grense (`LIMIT`/paginering). En person med mange saker gir ubegrenset respons. |
+| `SakService.kt` | 20 | 💭 | `maskert()` beholder lengden, og det røper fnr-lengden. Bruk en fast maske, for eksempel `"***********"`, eller logg ingen fnr-informasjon. |
+| `SakService.kt` | 41 | 💭 | Feilloggingen inneholder bare exception-navnet. Det er bra. Tilsvarende kontekst (for eksempel en korrelasjons-id) gjør feilsøking lettere. |
+
+**Tester:** Ingen tester for denne filen er synlige her. Sjekk at `sakerFor` og eierskapssjekken har tester.

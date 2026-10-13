@@ -1,0 +1,46 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        security-champion
+# suite:        none
+# date:         2026-10-07
+# revision:     93a525ed
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.94-0.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       10
+# fixture:      2929655385
+# prompts:      sc1,sc2,sc3
+#
+# id|run|status|assertion|detail
+sc1|1|fail|branch: every planted security defect on the right line in the right file|wrong line: tokenx (want [40, 41, 42], cited [39, 43])
+sc2|1|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical, tokenx not marked critical
+sc3|1|pass|clean service: no finding marked critical|0 critical finding rows
+sc1|2|fail|branch: every planted security defect on the right line in the right file|wrong line: fnr-logg (want [15], cited [17]); inbound (want [25, 26], cited [19, 20, 21, 22]); tokenx (want [40, 41, 42], cited [36, 37, 38, 39])
+sc2|2|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not marked critical, tokenx not marked critical
+sc3|2|pass|clean service: no finding marked critical|0 critical finding rows
+sc1|3|fail|branch: every planted security defect on the right line in the right file|wrong line: inbound (want [25, 26], cited [20, 21, 22, 23])
+sc2|3|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical
+sc3|3|pass|clean service: no finding marked critical|0 critical finding rows
+sc1|4|fail|branch: every planted security defect on the right line in the right file|wrong line: tokenx (want [40, 41, 42], cited [39, 43])
+sc2|4|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not marked critical, tokenx not marked critical
+sc3|4|pass|clean service: no finding marked critical|0 critical finding rows
+sc1|5|pass|branch: every planted security defect on the right line in the right file|
+sc2|5|fail|branch: every planted security defect named and marked critical|critical: inbound not named near its line
+sc3|5|fail|clean service: no finding marked critical|1 critical finding row(s): **Omfang:** Jeg leste `SakService.kt`, JWT-oppsettet i `App.kt`, `nais.yaml` og 
+sc1|6|fail|branch: every planted security defect on the right line in the right file|wrong line: tokenx (want [40, 41, 42], cited [39, 43])
+sc2|6|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not marked critical, tokenx not marked critical
+sc3|6|pass|clean service: no finding marked critical|0 critical finding rows
+sc1|7|pass|branch: every planted security defect on the right line in the right file|
+sc2|7|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not marked critical, tokenx not marked critical
+sc3|7|pass|clean service: no finding marked critical|0 critical finding rows
+sc1|8|fail|branch: every planted security defect on the right line in the right file|wrong line: tokenx (want [40, 41, 42], cited [39, 43])
+sc2|8|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical, sql not marked critical, tilgang not marked critical, inbound not named near its line, tokenx not marked critical
+sc3|8|pass|clean service: no finding marked critical|0 critical finding rows
+sc1|9|pass|branch: every planted security defect on the right line in the right file|
+sc2|9|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical, tokenx not marked critical
+sc3|9|pass|clean service: no finding marked critical|0 critical finding rows
+sc1|10|fail|branch: every planted security defect on the right line in the right file|wrong line: tokenx (want [40, 41, 42], cited [39, 43])
+sc2|10|fail|branch: every planted security defect named and marked critical|critical: fnr-logg not marked critical
+sc3|10|pass|clean service: no finding marked critical|0 critical finding rows

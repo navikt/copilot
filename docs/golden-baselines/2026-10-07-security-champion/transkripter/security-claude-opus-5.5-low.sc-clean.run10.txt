@@ -1,0 +1,15 @@
+🛡️ **Sikkerhet:** Fant ingen kritiske funn i `SakService.kt`.
+
+**Det som er i orden**
+- **Eierskap:** fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet, ikke fra en parameter i requesten. En innbygger får bare se sine egne saker, så IDOR er ikke mulig.
+- **SQL:** spørringen er parameterisert (`fnr = ?`).
+- **Logging:** `maskert()` skjuler hele fødselsnummeret. Feillogger tar bare med navnet på unntaksklassen, så verken melding eller persondata havner i loggen.
+- **Auth:** `App.kt` validerer issuer, audience og `acr=idporten-loa-high`. Manglende `pid` gir 401.
+
+**Funn utenfor filen (medium)**
+- I `nais.yaml` mangler `tokenx.enabled: true` og `accessPolicy.inbound`. Uten TokenX blir `TOKEN_X_*` `null`. Uten `accessPolicy.inbound` kan ingen tjenester kalle appen, og det er sannsynligvis ikke meningen.
+
+**Lavt**
+- Ingen rate limiting på `/api/saker`.
+
+Jeg har ikke endret noe. Endringer i `accessPolicy` skal avklares først.

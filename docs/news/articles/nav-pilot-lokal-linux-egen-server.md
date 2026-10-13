@@ -12,6 +12,8 @@ tags:
   - alpha
 ---
 
+**Siste tall:** Hvilke modeller vi anbefaler nå, står på [Lokale modeller](/innsikt/lokale-modeller#modeller-per-minne).
+
 ```bash
 # terminal 1
 ollama serve

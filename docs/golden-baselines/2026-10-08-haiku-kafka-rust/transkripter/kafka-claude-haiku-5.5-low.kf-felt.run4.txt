@@ -1,0 +1,8 @@
+`VedtakFattet` har nå feltet `sakstype` med enum-verdiene ORDINAER, KLAGE og ANKE. `gradle test` i `vedtak-hendelse/` er grønt: 5 tester, 0 feil.
+
+- **Gamle meldinger:** Feltet har default `ORDINAER`, så meldinger uten `sakstype` leses som ORDINAER.
+- **Ukjente felt:** `FAIL_ON_UNKNOWN_PROPERTIES` er slått av i `VedtakSerde`, så nye felt fra nyere produsenter ignoreres.
+
+Ukjente *verdier* i `sakstype` (for eksempel `"FOO"`) gir fortsatt deserialiseringsfeil. Jeg har ikke gjort noe med det, siden kravet bare gjaldt felt. Si fra hvis konsumentene også skal tåle nye sakstype-verdier.
+
+Endringene er i `VedtakFattet.kt` og `VedtakFattetTest.kt`.

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-30T19:45:39.835Z",
+  "generatedAt": "2026-10-12T12:54:37.543Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -124,7 +124,7 @@
       "filePath": ".github/agents/code-review.agent.md",
       "repoPath": "agents/code-review.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/code-review.agent.md",
-      "contentHash": "5a019cbf3eda9ce2789ee1810253542448be72bbd3c84e9fdda5caae276bfd2f",
+      "contentHash": "811b2a6765ff86de28dda607206e2d3cfdca73343a6a5f64cf0a59cf74a5ee21",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fcode-review.agent.md",
       "tools": [
@@ -300,7 +300,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "c2ec92805bae041b27502faaae5e77b273039ee78306f2b28c9a57e243a6b337",
+      "contentHash": "018471685b00d5b714d68df69192961cf528e88a7db454902a259b257689bd42",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -411,7 +411,7 @@
       "filePath": ".github/agents/rust.agent.md",
       "repoPath": "agents/rust.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/rust.agent.md",
-      "contentHash": "f915a28c049a0f64cfe1afec7af4c7567d4cd19ffafb5affe74a6ba071059326",
+      "contentHash": "e1cb55806cd87d8c2b71832e5049d2490b65f6eb7e933b5c74618324f50defc5",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Frust.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Frust.agent.md",
       "tools": [
@@ -426,7 +426,7 @@
         "github/search_code",
         "github/search_repositories"
       ],
-      "model": ["GPT-6 Luna"],
+      "model": ["Claude Haiku 5.5"],
       "agentReferences": ["security-champion-agent"],
       "tags": ["rust", "cargo", "clippy", "async", "tokio"],
       "deprecated": true,
@@ -441,7 +441,7 @@
       "filePath": ".github/agents/security-champion.agent.md",
       "repoPath": "agents/security-champion.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/security-champion.agent.md",
-      "contentHash": "09850437ed89c7bbf32a1994ba3975bd747ef115f7337286f28d3c74cd6f09f2",
+      "contentHash": "65fed295fcdd5bd1d2b5b837beb7fbc396de9f30a6fdc986018dbd2252934cfd",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fsecurity-champion.agent.md",
       "tools": [
@@ -468,7 +468,7 @@
         "github/list_tags",
         "github/list_branches"
       ],
-      "model": ["GPT-6 Sol"],
+      "model": ["Claude Opus 5.5"],
       "tags": ["security", "compliance", "gdpr", "threat-modeling"],
       "examples": [
         {
@@ -522,7 +522,7 @@
       "filePath": ".github/instructions/deliberate-ai-use.instructions.md",
       "repoPath": "instructions/deliberate-ai-use.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/deliberate-ai-use.instructions.md",
-      "contentHash": "5e2d7a2f23285de8b92728b7fa076f0360a951c2fb5cbfcc1f1f7c0f8cd1a56e",
+      "contentHash": "c323e573246943749c88364c2c40aae13f389efb92b8ab604b63ab87f3133af5",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fdeliberate-ai-use.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fdeliberate-ai-use.instructions.md",
       "applyTo": "**",
@@ -1062,7 +1062,7 @@
       "filePath": "skills/deliberate-ai-use/SKILL.md",
       "repoPath": "skills/deliberate-ai-use/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/deliberate-ai-use/SKILL.md",
-      "contentHash": "4927691141f3a7f49a11215fea8905c6b956f0a1a5a79a6b77e60aec965e9759",
+      "contentHash": "4e52ba35ebcc66057484073235c41f33108eb2742d09194ad98de602aa2784d6",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["ai", "skill-preservation", "learning", "practices"],
@@ -1171,13 +1171,13 @@
     {
       "id": "klarsprak",
       "name": "klarsprak",
-      "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, fjerning av KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Bruk denne skillen hver gang du skriver, redigerer eller språkvasker norsk tekst — README-er, ADR-er, UI-tekst, blogginnlegg, dokumentasjon, e-poster, commit-meldinger og PR-beskrivelser — også når brukeren ikke sier «klarspråk» eksplisitt, men bare ber om hjelp med norsk tekst.",
+      "description": "Redigér og kvalitetssikre norsk tekst som havner i en fil eller blir publisert: README-er, dokumentasjon, ADR-er, UI-tekst, nettsider, nyhetssaker, e-poster, commit-meldinger og PR- og issue-beskrivelser. Bruk den også når brukeren limer inn norsk tekst og ber om språkvask eller korrektur. Dekker klarspråk, KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding. Ikke bruk den for vanlige chatsvar, heller ikke når svaret er på norsk eller forklarer hvordan kode virker.",
       "type": "skill",
       "domain": "general",
       "filePath": "skills/klarsprak/SKILL.md",
       "repoPath": "skills/klarsprak/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md",
-      "contentHash": "71d2ad63c5c2b62da281a87abe982c4c6cacc5bdacff0f0c713c57039c6db562",
+      "contentHash": "985cf5c9ab29c2077dbca9e35d7d44f4ce21ead43ea7bbd40b9f8b0a9f0e6758",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "text-quality", "spraakvask"],
@@ -1338,13 +1338,13 @@
     {
       "id": "nav-dekoratoren",
       "name": "nav-dekoratoren",
-      "description": "Integrer og konfigurer Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.",
+      "description": "Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.",
       "type": "skill",
       "domain": "frontend",
       "filePath": "skills/nav-dekoratoren/SKILL.md",
       "repoPath": "skills/nav-dekoratoren/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "0c67d935aabba906576a665bd7e033e25b072d8959736fce7b9ea6c757d19072",
+      "contentHash": "d4b84c63c0c38aaf341a3f25aecbd5493e1bb85957e5a8f13fc57c6fda389160",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["nav", "dekoratoren", "header", "footer", "integration", "ssr", "analytics", "consent"],
@@ -1353,7 +1353,8 @@
         "Sett opp breadcrumbs og språkvelger med handleInApp i en React/Remix-app",
         "Konfigurer samtykkevennlig lagring med awaitDecoratorData og navLocalStorage",
         "Bygg CSP-header med buildCspHeader for prod-miljø på Nais",
-        "Feilsøk hvorfor dekoratøren ikke vises i dev med service discovery og accessPolicy"
+        "Feilsøk hvorfor dekoratøren ikke vises i dev med service discovery og accessPolicy",
+        "Revider en eksisterende Dekoratøren-integrasjon og finn statisk genererte sider"
       ],
       "references": [
         {
@@ -1371,6 +1372,10 @@
         {
           "path": "references/consent.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/consent.md"
+        },
+        {
+          "path": "references/audit.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/references/audit.md"
         }
       ]
     },

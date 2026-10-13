@@ -1,0 +1,2 @@
+Bruk **TokenX token exchange**. Tjeneste A veksler brukerens token til et token med tjeneste B som audience. Da kan B validere tokenet og beholde brukerkonteksten. Azure AD `client_credentials` er for kall uten brukerkontekst.
+

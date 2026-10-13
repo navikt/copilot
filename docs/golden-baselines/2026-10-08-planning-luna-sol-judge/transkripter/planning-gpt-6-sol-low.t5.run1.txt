@@ -1,0 +1,5 @@
+
+Bruk **TokenX token exchange**. Tjeneste A bytter brukerens token til et token med tjeneste B som målgruppe (`audience`) og sender det til B. Da beholder kallet brukerkonteksten. B validerer tokenet og sjekker tilgang til ressursen.
+
+Ikke bruk Azure AD `client_credentials` her: det gir tjenesteidentitet, ikke brukerkontekst.
+

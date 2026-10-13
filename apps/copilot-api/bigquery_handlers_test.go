@@ -6,13 +6,30 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"cloud.google.com/go/civil"
 )
 
+func ptr[T any](v T) *T { return &v }
+
+// A month that has not happened yet must reach the page as null, not 0.
+func TestHandleCohortRetentionNullForFutureMonths(t *testing.T) {
+	h := newBigQueryHandlers(&mockBigQueryClient{cohortRetention: []CohortRetention{
+		{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))},
+	}})
+	rec := httptest.NewRecorder()
+	h.handleCohortRetention(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil))
+	want := `[{"cohort_month":"2026-08","cohort_size":40,"m1":70,"m3":null,"m6":null}]`
+	if got := rec.Body.String(); got != want+"\n" && got != want {
+		t.Errorf("body: got %s, want %s", got, want)
+	}
+}
+
 // mockBigQueryClient implements BigQueryQuerier for testing
 type mockBigQueryClient struct {
+	factAggregates     *FactAggregates
 	dailyMetrics       []EnterpriseMetrics
 	dailyMetricsErr    error
 	adoptionSummary    *AdoptionSummary
@@ -27,14 +44,21 @@ type mockBigQueryClient struct {
 	langAdoptionErr    error
 	stalenessFiles     []StalenessFile
 	stalenessErr       error
-	teamUsage          []TeamUsageSummary
-	teamUsageErr       error
+	teamGross          *TeamGrossOverview
+	teamGrossErr       error
+	teamNet            *TeamNetOverview
+	anomalies          []Anomaly
+	spendBands         *SpendBands
+	teamNetErr         error
+	grossByMonth       map[string]*TeamGrossOverview
+	netByMonth         map[string]*TeamNetOverview
+	teamYear           *TeamYearOverview
+	teamYearArgs       []any
+	userTeams          []string
 	userMetrics        *UserMetricsSummary
 	userMetricsErr     error
 	monthlyTrends      []MonthlyTrend
 	monthlyTrendsErr   error
-	monthlyModels      []MonthlyModelUsage
-	monthlyModelsErr   error
 	monthlyBilling     []MonthlyBillingUsage
 	monthlyBillingErr  error
 	billingModelDaily  []BillingModelDailyCost
@@ -49,6 +73,53 @@ type mockBigQueryClient struct {
 	usageDistErr       error
 	repositoryUsage    []RepositoryUsage
 	repositoryUsageErr error
+	creditsPerUser     []CreditsPerUserMonth
+	creditsPerUserErr  error
+	copilotPRs         []CopilotPRMonth
+	copilotPRsErr      error
+	cohortRetention    []CohortRetention
+	cohortRetentionErr error
+	segments           *UserSegments
+	segmentsErr        error
+}
+
+func (m *mockBigQueryClient) GetUserSegments(_ context.Context) (*UserSegments, error) {
+	return m.segments, m.segmentsErr
+}
+
+// The response carries display-ready shares and no field that could name a
+// person or a team.
+func TestHandleUserSegments(t *testing.T) {
+	h := newBigQueryHandlers(&mockBigQueryClient{segments: &UserSegments{
+		Intensity: buildChart([]segmentRow{{Month: "2026-08", A: 60, B: 57, C: 3}}, intensityBands),
+	}})
+	rec := httptest.NewRecorder()
+	h.handleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{`"label":"Lett","shares":[50]`, `"label":"Middels","shares":[48]`, `"label":"Tung","shares":[2]`} {
+		if !containsString(body, want) {
+			t.Errorf("body lacks %s: %s", want, body)
+		}
+	}
+	for _, banned := range []string{"user_id", "login", "slug", "team_id"} {
+		if containsString(body, banned) {
+			t.Errorf("body contains %q: %s", banned, body)
+		}
+	}
+
+	h = newBigQueryHandlers(&mockBigQueryClient{segmentsErr: errors.New("bq")})
+	rec = httptest.NewRecorder()
+	h.handleUserSegments(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/segments", nil))
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("error status %d", rec.Code)
+	}
+}
+
+func (m *mockBigQueryClient) GetCohortRetention(_ context.Context) ([]CohortRetention, error) {
+	return m.cohortRetention, m.cohortRetentionErr
 }
 
 func (m *mockBigQueryClient) GetDailyMetrics(_ context.Context, _ *int) ([]EnterpriseMetrics, error) {
@@ -79,8 +150,109 @@ func (m *mockBigQueryClient) GetStalenessData(_ context.Context) ([]StalenessFil
 	return m.stalenessFiles, m.stalenessErr
 }
 
-func (m *mockBigQueryClient) GetTeamUsageSummary(_ context.Context, _ int) ([]TeamUsageSummary, error) {
-	return m.teamUsage, m.teamUsageErr
+func (m *mockBigQueryClient) GetTeamGrossOverview(_ context.Context, month string) (*TeamGrossOverview, error) {
+	if m.grossByMonth != nil {
+		return m.grossByMonth[month], nil
+	}
+	return m.teamGross, m.teamGrossErr
+}
+
+func (m *mockBigQueryClient) GetTeamNetOverview(_ context.Context, month string) (*TeamNetOverview, error) {
+	if m.netByMonth != nil {
+		return m.netByMonth[month], nil
+	}
+	return m.teamNet, m.teamNetErr
+}
+
+func (m *mockBigQueryClient) GetTeamYearOverview(_ context.Context, team string, year int) (*TeamYearOverview, error) {
+	m.teamYearArgs = []any{team, year}
+	return m.teamYear, nil
+}
+
+func (m *mockBigQueryClient) GetAdminMonthlyOverview(_ context.Context, year int) (*AdminMonthlyOverview, error) {
+	return &AdminMonthlyOverview{Year: year}, nil
+}
+
+func (m *mockBigQueryClient) GetUserTeams(_ context.Context, _ string) ([]string, error) {
+	return m.userTeams, nil
+}
+
+func TestTeamGrossOverviewHandler(t *testing.T) {
+	mock := &mockBigQueryClient{teamGross: &TeamGrossOverview{
+		Month: "2026-09", Teams: []TeamSpend{{TeamID: "123", TeamSlug: "team-a", Users: 5, AmountUSD: 42, PerUserUSD: 8.4}},
+		Comparison: comparisonIncomplete,
+		Usage: map[string]TeamUsageComposition{
+			"123": {Providers: []string{"Anthropic", "OpenAI"}, Categories: []string{"Versatile", "Powerful", "Unclassified"}, Feature: "chat", Language: "go"},
+		},
+	}}
+	h := newBigQueryHandlers(mock)
+	for _, tc := range []struct {
+		month string
+		code  int
+	}{
+		{"2026-09", http.StatusOK},
+		{"2026-13", http.StatusBadRequest},
+	} {
+		recorder := httptest.NewRecorder()
+		h.handleTeamGrossOverview(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-gross?month="+tc.month, nil))
+		if recorder.Code != tc.code {
+			t.Errorf("month %q: status %d, want %d", tc.month, recorder.Code, tc.code)
+		}
+		if tc.code == http.StatusOK {
+			var got TeamGrossOverview
+			if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(&got, mock.teamGross) {
+				t.Errorf("unexpected team overview: %+v", got)
+			}
+		}
+	}
+}
+
+func TestTeamNetOverviewHandler(t *testing.T) {
+	h := newBigQueryHandlers(&mockBigQueryClient{teamNet: &TeamNetOverview{
+		Month: "2026-09", Teams: []TeamSpend{teamSpend("123", "team-a", 5, 35)},
+	}})
+	for _, tc := range []struct {
+		month string
+		code  int
+	}{
+		{"2026-09", http.StatusOK},
+		{"2026-13", http.StatusBadRequest},
+	} {
+		recorder := httptest.NewRecorder()
+		h.handleTeamNetOverview(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-net?month="+tc.month, nil))
+		if recorder.Code != tc.code {
+			t.Errorf("month %q: status %d, want %d", tc.month, recorder.Code, tc.code)
+		}
+		if tc.code == http.StatusOK {
+			var got TeamNetOverview
+			if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if len(got.Teams) != 1 || got.Teams[0].AmountUSD != 35 || got.Teams[0].PerUserUSD != 7 {
+				t.Errorf("unexpected team net overview: %+v", got)
+			}
+		}
+	}
+}
+
+func TestHandleMyTeamsRequiresResolvedIdentity(t *testing.T) {
+	h := newBigQueryHandlers(&mockBigQueryClient{userTeams: []string{"team-a"}})
+	recorder := httptest.NewRecorder()
+	h.handleMyTeams(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/my-teams", nil))
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401", recorder.Code)
+	}
+
+	recorder = httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/my-teams", nil)
+	request = request.WithContext(context.WithValue(request.Context(), resolvedIdentityContextKey, &ResolvedIdentity{GitHubUsername: "alice"}))
+	h.handleMyTeams(recorder, request)
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "[\"team-a\"]\n" {
+		t.Fatalf("status %d, body %s", recorder.Code, recorder.Body.String())
+	}
 }
 
 func (m *mockBigQueryClient) GetUserMetrics(_ context.Context, _ string, _ int) (*UserMetricsSummary, error) {
@@ -89,10 +261,6 @@ func (m *mockBigQueryClient) GetUserMetrics(_ context.Context, _ string, _ int) 
 
 func (m *mockBigQueryClient) GetMonthlyTrends(_ context.Context, _ int) ([]MonthlyTrend, error) {
 	return m.monthlyTrends, m.monthlyTrendsErr
-}
-
-func (m *mockBigQueryClient) GetMonthlyModelUsage(_ context.Context, _ int) ([]MonthlyModelUsage, error) {
-	return m.monthlyModels, m.monthlyModelsErr
 }
 
 func (m *mockBigQueryClient) GetMonthlyBillingUsage(_ context.Context, _ int) ([]MonthlyBillingUsage, error) {
@@ -127,6 +295,10 @@ func (m *mockBigQueryClient) GetBillingModelBreakdown(_ context.Context, _ int) 
 	return nil, nil
 }
 
+func (m *mockBigQueryClient) GetFactAggregates(_ context.Context) (*FactAggregates, error) {
+	return m.factAggregates, nil
+}
+
 func (m *mockBigQueryClient) GetDailySummary(_ context.Context) (*DailySummary, error) {
 	return nil, nil
 }
@@ -137,6 +309,14 @@ func (m *mockBigQueryClient) GetUsageDistribution(_ context.Context, _ string, _
 
 func (m *mockBigQueryClient) GetRepositoryUsage(_ context.Context) ([]RepositoryUsage, error) {
 	return m.repositoryUsage, m.repositoryUsageErr
+}
+
+func (m *mockBigQueryClient) GetCreditsPerUserMonthly(_ context.Context) ([]CreditsPerUserMonth, error) {
+	return m.creditsPerUser, m.creditsPerUserErr
+}
+
+func (m *mockBigQueryClient) GetCopilotPRsMonthly(_ context.Context) ([]CopilotPRMonth, error) {
+	return m.copilotPRs, m.copilotPRsErr
 }
 
 func TestHandleDailyMetrics(t *testing.T) {
@@ -356,7 +536,7 @@ func TestHandleAdoptionStaleness(t *testing.T) {
 
 func TestHandleTeamAdoption(t *testing.T) {
 	t.Run("returns team adoption data", func(t *testing.T) {
-		mock := &mockBigQueryClient{teamAdoption: []TeamAdoption{{ScanDate: civil.Date{Year: 2026, Month: 6, Day: 2}, TeamSlug: "team-a", TeamName: "Team A", TeamRepos: 5}}}
+		mock := &mockBigQueryClient{teamAdoption: []TeamAdoption{{ScanDate: civil.Date{Year: 2026, Month: 6, Day: 2}, TeamSlug: "team-a", TeamName: "Team A", TeamRepos: 5, ActiveRepos: 5}}}
 		h := newBigQueryHandlers(mock)
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/adoption/teams", nil)
 		rec := httptest.NewRecorder()
@@ -366,11 +546,11 @@ func TestHandleTeamAdoption(t *testing.T) {
 			t.Errorf("status: got %d, want 200", rec.Code)
 		}
 
-		var result []TeamAdoption
+		var result TeamAdoptionOverview
 		if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
 			t.Fatalf("decode: %v", err)
 		}
-		if len(result) != 1 || result[0].TeamSlug != "team-a" {
+		if len(result.Teams) != 1 || result.Teams[0].TeamSlug != "team-a" {
 			t.Errorf("unexpected result: %+v", result)
 		}
 	})
@@ -396,20 +576,6 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 		handle     func(*BigQueryHandlers, http.ResponseWriter, *http.Request)
 		wantStatus int
 	}{
-		{
-			name:       "team summary success",
-			mock:       &mockBigQueryClient{teamUsage: []TeamUsageSummary{{TeamSlug: "team-a", TotalUsers: 2}}},
-			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-summary", nil),
-			handle:     (*BigQueryHandlers).handleTeamUsageSummary,
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "team summary error",
-			mock:       &mockBigQueryClient{teamUsageErr: errors.New("bq")},
-			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/team-summary", nil),
-			handle:     (*BigQueryHandlers).handleTeamUsageSummary,
-			wantStatus: http.StatusInternalServerError,
-		},
 		{
 			name:       "user metrics success",
 			mock:       &mockBigQueryClient{userMetrics: &UserMetricsSummary{UserLogin: "octocat", DaysInPeriod: 7}},
@@ -450,20 +616,6 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			mock:       &mockBigQueryClient{monthlyTrendsErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/trends", nil),
 			handle:     (*BigQueryHandlers).handleMonthlyTrends,
-			wantStatus: http.StatusInternalServerError,
-		},
-		{
-			name:       "monthly models success",
-			mock:       &mockBigQueryClient{monthlyModels: []MonthlyModelUsage{{Month: "2026-06", Model: "gpt", Interactions: 1}}},
-			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/models", nil),
-			handle:     (*BigQueryHandlers).handleMonthlyModelUsage,
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "monthly models error",
-			mock:       &mockBigQueryClient{monthlyModelsErr: errors.New("bq")},
-			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/models", nil),
-			handle:     (*BigQueryHandlers).handleMonthlyModelUsage,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
@@ -564,6 +716,48 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			handle:     (*BigQueryHandlers).handleRepositoryUsage,
 			wantStatus: http.StatusInternalServerError,
 		},
+		{
+			name:       "credits per user success",
+			mock:       &mockBigQueryClient{creditsPerUser: []CreditsPerUserMonth{{Month: "2026-06", Median: 40, Mean: 55, ActiveUsers: 600}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/credits-per-user", nil),
+			handle:     (*BigQueryHandlers).handleCreditsPerUserMonthly,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "credits per user error",
+			mock:       &mockBigQueryClient{creditsPerUserErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/credits-per-user", nil),
+			handle:     (*BigQueryHandlers).handleCreditsPerUserMonthly,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "copilot prs success",
+			mock:       &mockBigQueryClient{copilotPRs: []CopilotPRMonth{{Month: "2026-08", CreatedByCopilot: 12, ReviewedByCopilot: 300, Days: 31}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/copilot-prs", nil),
+			handle:     (*BigQueryHandlers).handleCopilotPRsMonthly,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "copilot prs error",
+			mock:       &mockBigQueryClient{copilotPRsErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/copilot-prs", nil),
+			handle:     (*BigQueryHandlers).handleCopilotPRsMonthly,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "cohort retention success",
+			mock:       &mockBigQueryClient{cohortRetention: []CohortRetention{{CohortMonth: "2026-08", CohortSize: 40, M1: ptr(int64(70))}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil),
+			handle:     (*BigQueryHandlers).handleCohortRetention,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "cohort retention error",
+			mock:       &mockBigQueryClient{cohortRetentionErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/cohort-retention", nil),
+			handle:     (*BigQueryHandlers).handleCohortRetention,
+			wantStatus: http.StatusInternalServerError,
+		},
 	}
 
 	for _, tc := range tests {
@@ -607,4 +801,44 @@ func containsString(s, sub string) bool {
 			}
 			return false
 		}())
+}
+
+func (m *mockBigQueryClient) GetCostDays(_ context.Context, _ string) ([]CostDay, error) {
+	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetCostUserDays(_ context.Context, _ string) ([]UserDay, error) {
+	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetCostAnomalies(_ context.Context) ([]Anomaly, error) {
+	return m.anomalies, nil
+}
+
+func (m *mockBigQueryClient) GetLimitSnapshots(_ context.Context) ([]LimitChange, error) {
+	return nil, nil
+}
+
+func (m *mockBigQueryClient) GetSpendBands(_ context.Context) (*SpendBands, error) {
+	return m.spendBands, nil
+}
+
+func (m *mockBigQueryClient) GetActiveUsersMonthly(_ context.Context) ([]ActiveUsersMonth, error) {
+	return []ActiveUsersMonth{{Month: "2026-09", ActiveUsers: 719}}, nil
+}
+
+func (m *mockBigQueryClient) GetModelFamilyUsers(_ context.Context) ([]ModelFamilyUsers, error) {
+	return []ModelFamilyUsers{}, nil
+}
+
+func (m *mockBigQueryClient) GetVolumeMonthly(_ context.Context, _ int) ([]VolumeMonth, error) {
+	return []VolumeMonth{{Month: "2026-09", AICredits: 100}}, nil
+}
+
+func (m *mockBigQueryClient) GetBudgetDays(_ context.Context) ([]BudgetDay, error) {
+	return []BudgetDay{}, nil
+}
+
+func (m *mockBigQueryClient) GetHighConsumers(_ context.Context) ([]HighConsumerMonth, error) {
+	return []HighConsumerMonth{}, nil
 }

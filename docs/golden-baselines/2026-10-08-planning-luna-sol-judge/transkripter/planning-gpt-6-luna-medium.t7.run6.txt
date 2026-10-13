@@ -1,0 +1,84 @@
+
+Jeg sjekker først endringene i branchen, prosjektets Java-/rammeverksversjoner og Jackson-avhengighetene. Deretter vurderer jeg Kotlin-fallgruver og om testene dekker atferdsendringer.
+
+
+
+
+
+
+
+
+
+
+
+
+Diffen er liten, men endrer Jackson-konfigurasjonen: eksplisitt datoformatering fjernes samtidig med byttet til Jackson 3. Jeg følger opp med sjekk av Ktor-bruken, Java-baseline, runtime-avhengigheter og om branch har tester.
+
+
+
+
+
+
+    OpenJDK Runtime Environment Temurin-27+35 (build 27+35)
+    OpenJDK 64-Bit Server VM Temurin-27+35 (build 27+35, mixed mode, sharing)
+    /bin/bash: ./gradlew: No such file or directory
+    Failed with exit code 127
+
+
+
+
+
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 291ms
+    Failed with exit code 1
+
+    00gn/T/1791453364385-copilot-tool-output-39372-dfd9b159-ef3f-473f-bce9-a845757abb20.txt
+    Consider using tools like rg (for searching), head/tail (for viewing start/end), view with
+    view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+
+    Preview (first 500 chars):
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    * Exception is:
+    org.gradle.api.ProjectConfigurationException: A problem occurred configuring root project
+    'repo'.
+    at org.gradle.configuration.project.LifecycleProjectEvaluator.wrapException(LifecycleProjectEval
+    uator.java:84)
+    a
+    Failed with exit code 1
+
+
+
+    t-tool-output-39372-copilot-tool-output-39372-dfd9b159-ef3f-473f-bce9-a845757abb20.txt
+
+
+    session so the user can approve it, or try an alternative that does not require this permission.
+
+
+
+**Vurdering: Migreringen ser riktig ut i koden, men er ikke verifisert med bygg eller tester.** Avhengighetene bruker samme Jackson 3.1.0-versjon, Kotlin-modulen registreres i `JsonMapper`-byggeren, og fjerningen av `jackson-datatype-jsr310` passer med Jackson 3. Ktor bruker `kotlinx.serialization`, ikke Jackson, så Ktor 3.0.0 er ikke et hinder for denne migreringen.
+
+Én mulig atferdsendring: Jackson 3 sorterer egenskaper alfabetisk som standard. JSON for `SoknadMottattMelding` kan derfor gå fra rekkefølgen `soknadId`, `mottatt` til `mottatt`, `soknadId`. JSON-objekter er uavhengige av feltenes rekkefølge, men råstrengsammenligninger hos Kafka-konsumenter kan påvirkes. Sjekk at konsumentene ikke er avhengige av den gamle rekkefølgen.
+
+Det finnes ingen tester i branchen som verifiserer serialisering eller deserialisering. Jeg kunne heller ikke kjøre dem: `gradle test` stopper under konfigurasjon fordi Kotlin 2.1 ikke gjenkjenner miljøets Java 27 (`IllegalArgumentException: 27`). Branchen mangler også Gradle-wrapper, så avhengighetstreet kunne ikke kontrolleres. **Anbefaling:** Legg til tester for `LocalDate` og meldingsfeltene, og kjør bygg og avhengighetssjekk med JDK 17 eller nyere som Kotlin-versjonen støtter.
+

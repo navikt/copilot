@@ -1,0 +1,20 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-12
+# revision:     94434d78
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.95.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      9b
+#
+# id|run|status|assertion|detail
+9b|1|fail|red zone, explicit override: 🔴 kept, real code, review checklist|implemented, but the end of the answer has no review checklist (needs sjekkliste|kontroller|kontrollpunkt|gjennomgå|review and a list item in the last 40 lines)
+9b|2|error|red zone, explicit override: 🔴 kept, real code, review checklist|wrote no file under src/main and declared no owner for the red zone (stopped to ask?). Re-run with --keep and read t9b.
+9b|3|error|red zone, explicit override: 🔴 kept, real code, review checklist|wrote no file under src/main and declared no owner for the red zone (stopped to ask?). Re-run with --keep and read t9b.
+9b|4|fail|red zone, explicit override: 🔴 kept, real code, review checklist|implemented, but the end of the answer has no review checklist (needs sjekkliste|kontroller|kontrollpunkt|gjennomgå|review and a list item in the last 40 lines)

@@ -1,17 +1,24 @@
 "use client";
 
-import type { AdoptionCohortDay, AdoptionCohortTrendData } from "@/lib/types";
+import type { AdoptionCohortWeek, AdoptionCohortTrendData } from "@/lib/types";
 import React from "react";
+import { BodyShort, Box } from "@navikt/ds-react";
 import { Line } from "react-chartjs-2";
-import { commonLineOptions, getBackgroundColor, chartWrapperClass, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import {
+  axColor,
+  bottomLegend,
+  chartBoxClass,
+  commonLineOptions,
+  chartWrapperClass,
+  NO_DATA_MESSAGE,
+} from "@/lib/chart-utils";
 
-// Phase colors: muted gray → blue → purple → green
-const phaseColors = [
-  "rgba(156, 163, 175, 1)", // Phase 0 — Ingen KI-bruk (gray)
-  "rgba(59, 130, 246, 1)", // Phase 1 — Kodeforslag (blue)
-  "rgba(139, 92, 246, 1)", // Phase 2 — Én agent-flate (purple)
-  "rgba(16, 185, 129, 1)", // Phase 3 — Flere agent-flater (green)
-];
+// Phase colours (Aksel tokens): muted grey → blue → purple → green
+const phaseTokens = ["neutral-500", "accent-600", "meta-purple-600", "success-600"];
+const phaseColor =
+  (phase: number, alpha = 1) =>
+  () =>
+    axColor(phaseTokens[phase], alpha);
 
 const phaseLabels = [
   "Fase 0: Ingen KI-bruk",
@@ -21,134 +28,45 @@ const phaseLabels = [
 ];
 
 interface AdoptionCohortsChartProps {
-  data: AdoptionCohortDay[];
+  data: AdoptionCohortWeek[];
 }
 
 /**
- * Aggregate daily data into ISO weeks (Monday-based).
- * For each week, takes the average user count per phase.
+ * Pivot the API's weekly rows into one series per phase. The API averages per week and
+ * sends every phase, so a missing phase in a week means no data and stays null.
  */
-function aggregateToWeeks(data: AdoptionCohortTrendData): AdoptionCohortTrendData {
-  const weekMap = new Map<string, { phase0: number[]; phase1: number[]; phase2: number[]; phase3: number[] }>();
-
-  for (let i = 0; i < data.days.length; i++) {
-    const date = new Date(data.days[i] + "T00:00:00Z");
-    // ISO week: Monday-based — get the Monday of the week (using UTC to avoid TZ shifts)
-    const day = date.getUTCDay();
-    const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1);
-    date.setUTCDate(diff);
-    const weekLabel = date.toISOString().slice(0, 10);
-
-    if (!weekMap.has(weekLabel)) {
-      weekMap.set(weekLabel, { phase0: [], phase1: [], phase2: [], phase3: [] });
+export function transformCohortData(data: AdoptionCohortWeek[]): AdoptionCohortTrendData {
+  const weeks = [...new Set(data.map((r) => r.week))].sort();
+  const result: AdoptionCohortTrendData = { weeks, phase0: [], phase1: [], phase2: [], phase3: [] };
+  for (const week of weeks) {
+    for (const phase of [0, 1, 2, 3] as const) {
+      result[`phase${phase}`].push(data.find((r) => r.week === week && r.phase === phase)?.user_count ?? null);
     }
-    const entry = weekMap.get(weekLabel)!;
-    entry.phase0.push(data.phase0[i]);
-    entry.phase1.push(data.phase1[i]);
-    entry.phase2.push(data.phase2[i]);
-    entry.phase3.push(data.phase3[i]);
   }
-
-  const sortedWeeks = [...weekMap.keys()].sort();
-  const avg = (arr: number[]) => (arr.length === 0 ? 0 : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length));
-
-  const result: AdoptionCohortTrendData = {
-    days: sortedWeeks,
-    phase0: [],
-    phase1: [],
-    phase2: [],
-    phase3: [],
-    total: [],
-  };
-
-  for (const week of sortedWeeks) {
-    const entry = weekMap.get(week)!;
-    const p0 = avg(entry.phase0);
-    const p1 = avg(entry.phase1);
-    const p2 = avg(entry.phase2);
-    const p3 = avg(entry.phase3);
-    result.phase0.push(p0);
-    result.phase1.push(p1);
-    result.phase2.push(p2);
-    result.phase3.push(p3);
-    result.total.push(p0 + p1 + p2 + p3);
-  }
-
   return result;
 }
-
-/**
- * Transform raw cohort data into chart-friendly trend data.
- */
-export function transformCohortData(data: AdoptionCohortDay[]): AdoptionCohortTrendData {
-  const dayMap = new Map<string, { phase0: number; phase1: number; phase2: number; phase3: number }>();
-
-  for (const row of data) {
-    if (!dayMap.has(row.day)) {
-      dayMap.set(row.day, { phase0: 0, phase1: 0, phase2: 0, phase3: 0 });
-    }
-    const entry = dayMap.get(row.day)!;
-    const key = `phase${row.phase}` as keyof typeof entry;
-    if (key in entry) {
-      entry[key] = row.user_count;
-    }
-  }
-
-  const sortedDays = [...dayMap.keys()].sort();
-  const result: AdoptionCohortTrendData = {
-    days: sortedDays,
-    phase0: [],
-    phase1: [],
-    phase2: [],
-    phase3: [],
-    total: [],
-  };
-
-  for (const day of sortedDays) {
-    const entry = dayMap.get(day)!;
-    result.phase0.push(entry.phase0);
-    result.phase1.push(entry.phase1);
-    result.phase2.push(entry.phase2);
-    result.phase3.push(entry.phase3);
-    result.total.push(entry.phase0 + entry.phase1 + entry.phase2 + entry.phase3);
-  }
-
-  return result;
-}
-
-const WEEKLY_THRESHOLD_DAYS = 28;
 
 const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return (
-      <div className={chartWrapperClass}>
-        <div className="text-center text-gray-500 py-8">{NO_DATA_MESSAGE}</div>
-      </div>
+      <Box padding="space-16" className={chartWrapperClass}>
+        <BodyShort>{NO_DATA_MESSAGE}</BodyShort>
+      </Box>
     );
   }
 
-  let trend = transformCohortData(data);
-  const useWeekly = trend.days.length > WEEKLY_THRESHOLD_DAYS;
-  if (useWeekly) {
-    trend = aggregateToWeeks(trend);
-  }
-
-  const formatLabel = (dateStr: string) => {
-    const d = new Date(dateStr);
-    if (useWeekly) {
-      return `Uke ${d.toLocaleDateString("nb-NO", { day: "numeric", month: "short" })}`;
-    }
-    return d.toLocaleDateString("nb-NO", { day: "numeric", month: "short" });
-  };
+  const trend = transformCohortData(data);
+  const formatLabel = (dateStr: string) =>
+    `Uke ${new Date(dateStr).toLocaleDateString("nb-NO", { day: "numeric", month: "short" })}`;
 
   const chartData = {
-    labels: trend.days.map(formatLabel),
+    labels: trend.weeks.map(formatLabel),
     datasets: [
       {
         label: phaseLabels[3],
         data: trend.phase3,
-        borderColor: phaseColors[3],
-        backgroundColor: getBackgroundColor(phaseColors[3], 0.3),
+        borderColor: phaseColor(3),
+        backgroundColor: phaseColor(3, 0.3),
         fill: true,
         tension: 0.4,
         order: 1,
@@ -156,8 +74,8 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       {
         label: phaseLabels[2],
         data: trend.phase2,
-        borderColor: phaseColors[2],
-        backgroundColor: getBackgroundColor(phaseColors[2], 0.3),
+        borderColor: phaseColor(2),
+        backgroundColor: phaseColor(2, 0.3),
         fill: true,
         tension: 0.4,
         order: 2,
@@ -165,8 +83,8 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       {
         label: phaseLabels[1],
         data: trend.phase1,
-        borderColor: phaseColors[1],
-        backgroundColor: getBackgroundColor(phaseColors[1], 0.3),
+        borderColor: phaseColor(1),
+        backgroundColor: phaseColor(1, 0.3),
         fill: true,
         tension: 0.4,
         order: 3,
@@ -174,8 +92,8 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
       {
         label: phaseLabels[0],
         data: trend.phase0,
-        borderColor: phaseColors[0],
-        backgroundColor: getBackgroundColor(phaseColors[0], 0.15),
+        borderColor: phaseColor(0),
+        backgroundColor: phaseColor(0, 0.15),
         fill: true,
         tension: 0.4,
         order: 4,
@@ -187,9 +105,10 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
     ...commonLineOptions,
     plugins: {
       ...commonLineOptions.plugins,
+      legend: bottomLegend,
       title: {
         display: true,
-        text: useWeekly ? "KI-adopsjon – ukesgjennomsnitt" : "KI-adopsjon – daglig fordeling",
+        text: "KI-adopsjon – ukesgjennomsnitt",
         font: { size: 14, weight: "bold" as const },
         padding: { bottom: 16 },
       },
@@ -209,9 +128,11 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
   };
 
   return (
-    <div className={chartWrapperClass}>
-      <Line data={chartData} options={options} />
-    </div>
+    <Box padding="space-16" className={chartWrapperClass}>
+      <div className={chartBoxClass}>
+        <Line data={chartData} options={options} />
+      </div>
+    </Box>
   );
 };
 

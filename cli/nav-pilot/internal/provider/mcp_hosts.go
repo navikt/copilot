@@ -263,7 +263,7 @@ type mcpRegistryCache struct {
 	Schema int `json:"schema,omitempty"`
 }
 
-const mcpRegistryCacheSchema = 1
+const mcpRegistryCacheSchema = 2 // 2: remotes carry headers
 
 func mcpRegistryCachePath() string {
 	p := artifacts.CacheFilePath()

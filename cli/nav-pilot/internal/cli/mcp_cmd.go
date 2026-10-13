@@ -331,7 +331,7 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			}
 		}
 		if !e.Usable() {
-			add(mcpProblem{Server: e.Name, Problem: "retired in the registry (status " + e.Status + "); the org policy will stop running it", Fix: "nav-pilot mcp disable " + e.Name})
+			add(mcpProblem{Server: e.Name, Problem: "marked " + safe(e.Status, 32) + " in the registry; it still runs, but cannot be enabled for new installs", Fix: "nav-pilot mcp disable " + e.Name})
 		}
 		// Remotes and sandboxHosts both: a package server can name hosts too.
 		for _, u := range mcpEntryURLs(e) {
@@ -630,7 +630,7 @@ func mcpProbeTarget(raw string, st providerpkg.MCPHostState) (string, []string, 
 
 // mcpProbeRun runs cplt; a var so tests answer without cplt.
 var mcpProbeRun = func(cplt string, args []string) (string, string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cpltCommandTimeout+time.Second)
 	defer cancel()
 	out, _ := exec.CommandContext(ctx, cplt, args...).Output() // blocked exits non-zero
 	var res struct {

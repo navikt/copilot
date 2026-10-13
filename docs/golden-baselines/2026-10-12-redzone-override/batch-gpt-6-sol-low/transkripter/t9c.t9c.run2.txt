@@ -1,0 +1,65 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ ".github/instructions/*"
+  └ 16 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Inspect project layout (shell)
+  │ pwd && ls -la && find . -maxdepth 2 -type f | head -60
+  └ 12 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Inspect tests and project notes (shell)
+  │ find src -type f -print && cat README.md
+  └ 8 lines…
+
+/ Search (grep)
+  │ "^## |^### |BigDecimal|Test|Gradle" (.github/instructions/kotlin.instructions.md)
+  └ 53 lines found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L400:495 (96 lines read)
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Lagt til `feriepenger(grunnlag, alderIOpptjeningsåret)` og enhetstester. Funksjonen bruker 10,2 % før fylte 60 år og 12,5 % fra og med opptjeningsåret personen fyller 60. `BigDecimal` gjør beregningen uten flyttallsavvik og avrunder halve kroner opp. Testene dekker aldersgrensen, avrunding, null og store grunnlag. Jeg kjørte ikke Gradle, som ønsket.
+
+🔴 **Rød sone: feriepengeregler.** Gå særlig gjennom om satsene, alderen i opptjeningsåret og avrunding av halve kroner stemmer med reglene tjenesten skal følge. Et alternativ med heltallsregning ville trengt særskilt håndtering av overflyt. Kan du forklare hva beregningen gjør, og hvorfor du ville valgt denne tilnærmingen? Still gjerne spørsmål om valgene over.
+

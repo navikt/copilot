@@ -295,7 +295,7 @@ func cmdLocalInit(args []string) error {
 		return err
 	}
 
-	present, err := local.WeightsPresent(model.Model)
+	present, err := local.WeightsPresent(model.Model, model.Revision)
 	if err != nil {
 		return err
 	}
@@ -408,7 +408,7 @@ func cmdLocalInit(args []string) error {
 		fmt.Printf("%s Weights already on disk. Nothing downloaded.\n", green("✓"))
 	} else {
 		fmt.Printf("%s Downloading weights…\n", dim("→"))
-		if err := local.DownloadWeights(ctx, model.Model, progressLine); err != nil {
+		if err := local.DownloadWeights(ctx, model.Model, model.Revision, progressLine); err != nil {
 			fmt.Println()
 			return err
 		}
@@ -566,6 +566,10 @@ func cmdLocalStart() error {
 					yellow("⚠"), bold(st.Model), model.Key, bold("nav-pilot alpha local restart"))
 				return nil
 			}
+			if msg := local.StaleRevision(st, model); msg != "" {
+				fmt.Printf("%s %s\n", yellow("⚠"), msg)
+				return nil
+			}
 			fmt.Printf("%s A local server is already running: %s (pid %d, %s)\n",
 				green("✓"), bold(st.Model), st.PID, local.ServerURL())
 			return nil
@@ -580,7 +584,7 @@ func cmdLocalStart() error {
 	// screen saying so, and either finishes inside readyTimeout as a start that
 	// looks pathologically slow or dies at ten minutes naming neither cause.
 	// The autostart path has always refused this; `start` only claimed to.
-	if present, err := local.WeightsPresent(model.Model); err != nil {
+	if present, err := local.WeightsPresent(model.Model, model.Revision); err != nil {
 		return err
 	} else if !present {
 		return fmt.Errorf("the weights for %s are not on this machine. Download them: %s",
@@ -651,9 +655,10 @@ func cmdLocalStart() error {
 		return fmt.Errorf("the local %s server did not come up (%s); nothing was recorded.\n\n  What it printed is in %s", model.Model, status.Health, local.LogPath())
 	}
 	if err := local.SaveState(local.State{
-		PID:     status.PID,
-		Model:   model.Model,
-		Started: started,
+		PID:      status.PID,
+		Model:    model.Model,
+		Revision: model.Revision,
+		Started:  started,
 		// The port the kernel handed this server. Every other process that
 		// wants to reach it, the loop guard included, reads it from here.
 		Port: srv.Port,

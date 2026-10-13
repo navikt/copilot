@@ -1,0 +1,43 @@
+/ Search (grep)
+  │ "maksAntall"
+  └ 3 lines found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Inspect project build files (shell)
+  │ ls -a && find . -maxdepth 2 -type f | head -40
+  └ 13 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:100 (100 lines read)
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Edit
+  │ Edit src/main/kotlin/no/nav/demo/Config.kt
+  │ Edit src/main/kotlin/no/nav/demo/Routes.kt
+  └ Edit src/main/kotlin/no/nav/demo/App.kt
+
+● Verify renamed references and build wrapper (shell)
+  │ rg -n 'maksAntall|MAKS_ANTALL' src/main/kotlin/no/nav/demo && ls -a | grep gradlew || true
+  └ 3 lines…
+
+Omdøpte konstanten `maksAntall` til `MAKS_ANTALL` i alle tre Kotlin-filene. Loggteksten er uendret.
+

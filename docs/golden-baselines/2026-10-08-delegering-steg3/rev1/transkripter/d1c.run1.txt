@@ -1,0 +1,68 @@
+🛡️ Sikkerhet: Arkitekturgjennomgang av fase 2-planen (kun plannivå, ingen kode er lest)
+
+🔍 Kartlegger: nettleser → Wonderwall/Next.js → TokenX → Ktor-API → PDL
+🛡️ Analyserer: sjekker mot Golden Path, OWASP og token- og tillitsgrensene for ID-porten/TokenX
+📋 Funn: 4 blokkerende, 5 beslutninger som må tas, 4 god praksis
+
+## Blokkerende (må avklares før implementering)
+
+1. **"TokenX if supported" må bli et krav, ikke et forbehold.** Hvis TokenX ikke brukes, sender frontend enten ID-porten-tokenet videre direkte (feil audience, og tokenet blir et bearer-token som gjelder i flere tjenester) eller kaller uten brukerkontekst. Begge deler bryter planens krav om at fnr skal komme fra validert identitet. Beslutning: Next.js-serveren veksler ID-porten-tokenet (fra Wonderwall-sesjonen) til et TokenX-token med audience `<cluster>:<namespace>:<api>`. Uten TokenX skal det ikke finnes noen reservevei.
+
+2. **PDL-kallet mangler en definert token-strategi.** "Appropriate delegated user context" er ikke konkret nok. Planen må velge og dokumentere ett av to:
+   - **TokenX-veksling videre til PDL**, med en bekreftet PDL-audience for TokenX. Det må sjekkes mot PDL-dokumentasjonen om PDL tar imot TokenX-tokens for innbyggere og eventuelt hvilket endepunkt som gjelder.
+   - **Azure AD client credentials** (maskin-til-maskin), med tilgangen begrunnet i hjemmel. Da er det API-et alene som står for autorisasjonen ("innbyggeren ser bare seg selv"), og det må stå eksplisitt.
+
+   Gjelder også: PDL krever behandlingsnummer (`behandlingsnummer`-header). Det må registreres for denne hjemmelen og ligge i planen.
+
+3. **Hvordan identiteten mappes er ikke spesifisert.** Planen må si:
+   - fnr hentes fra `pid`-claimet i TokenX-tokenet. `sub` er ikke fnr.
+   - Kravet til `acr` er `idporten-loa-high`. Hvilket nivå kreves, og skal lavere nivå avvises?
+   - Spørringen mot PDL bruker kun denne `pid`-en. Det finnes ingen fnr-parameter i API-ets kontrakt, verken path, query eller body.
+
+4. **Validering av autorisert kaller er ikke definert.** TokenX-tokenet har `client_id`-claimet (formatet `cluster:namespace:app`). API-et må sjekke det mot frontendens identitet, ellers kan en hvilken som helst TokenX-klient med inbound-tilgang bruke det. Inbound i `accessPolicy` og kaller-sjekken i koden skal liste nøyaktig samme app. Avvik mellom dem er et funn i seg selv. Et åpent eller utvidet inbound (`*`, alle namespaces) regnes som kritisk.
+
+## Beslutninger og hull i tillitsgrensene
+
+5. **Skillet mellom nettleser og backend er ikke beskrevet.** Planen må si eksplisitt at nettleseren aldri kaller Ktor-API-et direkte, og at kallet går server-side fra Next.js etter TokenX-vekslingen. Følger av det:
+   - API-et har ingen ingress for innbyggere, eller bare intern ingress.
+   - CORS er ikke nødvendig og skal ikke slås på.
+   - Tokens eksponeres ikke til klient-JS.
+   - Frontendens BFF-rute trenger CSRF- og sesjonsbeskyttelse. Det håndteres av Wonderwall og SameSite-cookies, men bør nevnes.
+
+6. **Tillitsgrensene er ikke tegnet.** Fire grenser må dokumenteres, gjerne som et dataflytdiagram:
+   - (a) nettleser ↔ Wonderwall
+   - (b) Next.js-server ↔ TokenX
+   - (c) Next.js ↔ API
+   - (d) API ↔ PDL
+
+   For hver grense: hvilket token, hvilken audience, hvem validerer og hva som valideres. Valideringen skal dekke issuer, audience, signatur, exp/nbf, `acr` og `client_id`.
+
+7. **Adressebeskyttelse.** PDL kan returnere personer med strengt fortrolig eller fortrolig adresse. Hvis navnet bare vises til innbyggeren selv, er risikoen lav. Dette må likevel bekreftes, og planen må si om `adressebeskyttelse` skal hentes eller ignoreres. Gradering i PDL-responsen må ikke logges.
+
+8. **Logging.** "Sanitized" må defineres: ingen fnr, navn, tokens eller PDL-respons-body i applikasjonsloggene. Det inkluderer exception-meldinger og `toString`. Auditlogg i CEF er ikke påkrevd så lenge ingen ansatt ser dataene, og det bør dokumenteres. Nav-Call-Id skal videreføres til PDL.
+
+9. **Feilhåndtering.** 503 når PDL er nede er fornuftig. Planen bør i tillegg skille 401/403 (ugyldig token eller kaller) fra 404 (ingen treff i PDL) uten å lekke detaljer. Den bør også sette timeout og circuit breaker mot PDL, og rate limiting per `pid` som DoS-vern.
+
+## God praksis i planen
+
+- fnr utledes fra validert identitet og aldri fra input fra klienten. Det stenger IDOR.
+- Ingen lagring gir minimal angrepsflate og ingen behov for sletting eller anonymisering.
+- `accessPolicy` er eksplisitt, med inbound kun fra frontend og outbound kun til PDL. Avhengig av valget i punkt 2 må outbound også gi tilgang til TokenX eller Azure.
+- Metrikker uten personopplysninger, og dataminimering (kun fnr og navn) med hjemmel i lov.
+
+## Konklusjon
+
+Planen er ikke klar for implementering. Punkt 1–4 må løses først: TokenX obligatorisk, PDL-audience og behandlingsnummer, `pid`/`acr` og validering av `client_id`. Deretter må tillitsgrensene og skillet mellom nettleser og backend dokumenteres (punkt 5–6).● Security-champion-agent (model: claude-opus-5.5) Vurder sikkerhet i tjenesteplan               29s
+  └ 🛡️ Sikkerhet: Arkitekturgjennomgang av fase 2-planen (kun plannivå, ingen ko...
+
+**Fase 3: Gjennomgang.** Planen er godkjent som retning, men ikke klar for implementering. Sikkerhetsgjennomgangen fant valg som må gjøres konkrete før tilgangsregler og tokenvalidering kan skrives.
+
+| Perspektiv | Vurdering | Funn |
+|---|---|---|
+| Sikkerhet | ❌ | Next.js må kalle API-et fra serveren, med brukerkontekst og uten token i klient-JavaScript. Vi må fastsette tokenveien videre til PDL, hvordan API-et kontrollerer innbyggerens identitet og autorisert kaller, samt nødvendig behandlingsnummer. Eksakte claims, sikkerhetsnivå og PDL-støtte må verifiseres mot gjeldende kontrakter. |
+| Plattform | ⚠️ | `nais.yaml` mangler tokenoppsett og eksplisitte tilgangsregler. Frontendens appidentitet og PDLs endepunkt må være kjent før reglene kan spesifiseres. |
+| Arkitektur | ✅ | Et internt API uten database passer et oppslag som bare skal vise innbyggeren eget navn. Det gir samtidig en direkte avhengighet til PDL. |
+| Endringssikkerhet | ⚠️ | Testplanen må dekke avvisning av feil identitet og kaller, manglende PDL-treff og nedetid. Utrulling i testmiljø må bekrefte hele kjeden fra innlogging til PDL. |
+
+**Konklusjon: Tilbake til fase 2** for å konkretisere tillitsgrensene og PDL-integrasjonen. Jeg velger ikke PDL-tokenstrategi eller claim-verdier ut fra antakelser. Når disse er bekreftet, kan planen gjennomgås på nytt før kodearbeid.
+

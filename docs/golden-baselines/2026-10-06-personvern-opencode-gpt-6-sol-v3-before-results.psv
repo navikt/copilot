@@ -1,0 +1,25 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        none
+# date:         2026-10-06
+# revision:     2d1555b6
+# model:        gpt-6-sol
+# client:       opencode
+# clientVersion: opencode 1.18.34
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      3,7,7b
+#
+# id|run|status|assertion|detail
+3|1|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+7|1|fail|Jackson 2→3 migration: no privacy or access-control interview|asked the user about personvern or tilgang on a library migration:  **Personvern:** Er `fnr` og `navn` reelle personopplysninger i Kafka-meldingen, og finnes det flere datakategorier i faktisk bruk?
+7b|1|pass|fnr added to a Kafka message: privacy raised (control for 7)|
+3|2|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+7|2|fail|Jackson 2→3 migration: no privacy or access-control interview|asked the user about personvern or tilgang on a library migration:  **Personvern og tilgang:** Er `fnr` og `navn` reelle personopplysninger i denne flyten, og hvordan er de klassifisert?
+7b|2|pass|fnr added to a Kafka message: privacy raised (control for 7)|
+3|3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|
+7|3|fail|Jackson 2→3 migration: no privacy or access-control interview|asked the user about personvern or tilgang on a library migration:  **Personvern og tilgang:** Er `fnr` og `navn` reelle personopplysninger i denne flyten?
+7b|3|pass|fnr added to a Kafka message: privacy raised (control for 7)|

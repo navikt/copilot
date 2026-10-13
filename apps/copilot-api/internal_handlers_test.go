@@ -194,8 +194,8 @@ func TestBearerAuthSurveyScope(t *testing.T) {
 	if strings.Contains(buf.String(), "Z999999") {
 		t.Fatalf("an identity on the name-id route reached the log: %s", buf.String())
 	}
-	if !strings.Contains(buf.String(), "Z123456") {
-		t.Fatalf("other routes should still log at debug: %s", buf.String())
+	if strings.Contains(buf.String(), "Z123456") {
+		t.Fatalf("a NAVident reached the log: %s", buf.String())
 	}
 }
 

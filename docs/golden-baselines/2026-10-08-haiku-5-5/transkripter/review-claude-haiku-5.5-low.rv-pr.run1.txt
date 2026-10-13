@@ -1,0 +1,28 @@
+Gjennomgang av `vedtak-kafka` mot `main` (8 filer, +257/−2). Jeg har ikke kjørt `mise check` eller tester.
+
+### Sammendrag
+Ny Kafka-konsument, vedtakslagring og JWT-auth. Hovedproblemene er SQL-injection, uautentisert tilgang til personopplysninger, manglende token-validering og en konsument som kan stoppe uten varsel.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 27 | 🔴 | SQL-injection: `fnr` settes rett inn i SQL-strengen. Bruk `queryOf("... WHERE fnr = ?", fnr)`. |
+| `Routes.kt` | 29–31 | 🔴 | `GET /api/vedtak/{fnr}` har ingen autentisering og returnerer fnr og vedtak. Hvem som helst kan slå opp andres vedtak. |
+| `App.kt` | 26 | 🔴 | `validate { credential -> credential.payload.audience?.let { credential } }` godtar alle tokens med en vilkårlig audience. Sjekk issuer, audience og `azp` mot `AZURE_APP_PRE_AUTHORIZED_APPS`. |
+| `nais.yaml` | 18–20 | 🔴 | `accessPolicy.inbound` tillater `*` i alle namespaces. Skal være en konkret liste over kallere. |
+| `VedtakService.kt` | 18 | 🔴 | `log.info("behandler $fnr")` logger fødselsnummer. Fjern eller logg en intern id. |
+| `VedtakConsumer.kt` | 22–27 | 🔴 | Feil i `behandle` etter tre forsøk kaster exception ut av `start()`. Tråden dør stille, og `/isalive` fortsetter å svare OK. Melding som ikke parser stopper også konsumenten. |
+| `VedtakConsumer.kt` | 35–46 | 🟡 | `retry` kjører lagring og Kafka-sending på nytt sammen. Hvis lagring lykkes og sending feiler, får man duplikate vedtak. Gjør lagring idempotent (unik nøkkel på `soknad_id`/`sak_id`) eller skill steppene. |
+| `Routes.kt` | 22–27 | 🟡 | `POST /api/vedtak` er autentisert, men sjekker ikke at kalleren har rett til saken. Mangler eierskapskontroll. |
+| `nais.yaml` | 3 | 🟡 | Ingen Kafka-topic-konfigurasjon for `soknad-behandlet` og `vedtak-fattet`. Verifiser at ACL-er finnes. |
+| Repo | — | 🟡 | Ingen Flyway-migrasjon for tabellen `vedtak`, og ingen tester for ny logikk. |
+| `build.gradle.kts` | 13–21 | 💭 | Ekstra `dependencies {}`-blokk. Slå den sammen med den eksisterende. |
+| `VedtakRepository.kt` | 33 | 💭 | `hentForSak` og `hentVedtak` er ikke brukt i ruter. Fjern eller bruk dem. |
+
+### Detaljer om de viktigste
+- **SQL-injection og PII:** `fnr` kommer fra URL-en og settes rett inn i SQL. Dette er en ren injeksjon og må rettes før merge. Samtidig returnerer endepunktet fødselsnummer uten autentisering.
+- **Auth:** Dagens validering er ingen validering. Alle som har et gyldig token fra en hvilken som helst issuer, kommer inn.
+- **Konsument:** Konsumenten mangler feilhåndtering på toppnivå. Health-sjekken må reflektere at konsumenten er død.
+
+Still gjerne spørsmål om funnene.
