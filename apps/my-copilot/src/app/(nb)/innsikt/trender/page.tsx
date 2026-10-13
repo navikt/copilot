@@ -226,8 +226,8 @@ export default async function TrenderPage({
       </Section>
       <Section id="modellfamilier" title="Kostnad per modellfamilie">
         <BodyShort size="small" textColor="subtle">
-          Andelene bygger på netto kostnad etter rabatt. «Kostnad over tid» på Bruk og kostnad viser brutto beløp før
-          rabatt, så tallene kan ikke sammenlignes direkte.
+          Andelene bygger på netto kostnad etter rabatt. «Kostnad» på Bruk og kostnad viser de samme beløpene per måned,
+          ikke fordelt på modeller.
         </BodyShort>
         <ModelFamilies {...props} />
       </Section>

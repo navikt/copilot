@@ -1,15 +1,12 @@
 import { Suspense, cache, type ReactNode } from "react";
 import type { Metadata } from "next";
-import { BodyShort, Box, HGrid, Skeleton } from "@navikt/ds-react";
+import { BodyShort, HGrid, Skeleton, VStack } from "@navikt/ds-react";
 import {
   getCopilotUsageMetrics,
   getMonthlyTrends,
-  getMonthlyBillingUsage,
   getBillingModelDaily,
-  getBillingModelForecast,
   getAdoptionCohorts,
   getBillingMonthlyTrend,
-  getBillingModelBreakdown,
   getDailySummary,
   getRepositoryUsage,
 } from "@/lib/cached-bigquery";
@@ -17,14 +14,14 @@ import { InsightPage, InsightSection } from "@/components/insight-page";
 import RepositoryUsageTable from "@/components/repository-usage-table";
 import TrendChart from "@/components/charts/TrendChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
-import BillingMonthNowChart from "@/components/charts/BillingMonthNowChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
-import BillingModelBreakdownChart from "@/components/charts/BillingModelBreakdownChart";
+import { ChartFigure, NumbersFold, PlainTable } from "@/components/charts/chart-figure";
+import { EventChart } from "@/components/charts/EventChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { getPRMetrics, buildTrendData } from "@/lib/data-utils";
-import { currentMonthUTC, previousMonth, selectCompleteMonths } from "@/lib/month-utils";
-import { formatNumber, formatMinutes, formatPercent, formatShare } from "@/lib/format";
+import { currentMonthUTC, selectCompleteMonths } from "@/lib/month-utils";
+import { formatNumber, formatMinutes, formatPercent, formatShare, formatUSD } from "@/lib/format";
 import { formatPp } from "@/lib/trends";
 import { getUser, getUserToken } from "@/lib/auth";
 import type { EnterpriseMetrics } from "@/lib/types";
@@ -94,65 +91,104 @@ async function KeyFigures({ token }: { token: string }) {
   );
 }
 
-async function CostThisMonth({ token }: { token: string }) {
+const monthLong = (m: string) =>
+  new Date(`${m}-01T00:00:00Z`).toLocaleDateString("nb-NO", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/** This month day by day and this year month by month, actual figures only. Net: estimated billed, as on /innsikt/kostnad. */
+async function Cost({ token }: { token: string }) {
   const current = currentMonthUTC();
-  const previous = previousMonth(current);
-  // Both months up front: early in a month the current one often has no data yet.
-  const [billing, dailyNow, forecastNow, dailyPrev, forecastPrev] = await Promise.all([
-    getMonthlyBillingUsage(token),
+  const [daily, { trend, error }] = await Promise.all([
     getBillingModelDaily(token, current),
-    getBillingModelForecast(token, current),
-    getBillingModelDaily(token, previous),
-    getBillingModelForecast(token, previous),
-  ]);
-  const latestBilled = billing.usage
-    .map((r) => r.month)
-    .sort()
-    .at(-1);
-
-  let daily = dailyNow;
-  let forecast = forecastNow;
-  if (daily.usage.length === 0 && latestBilled && latestBilled !== current) {
-    if (latestBilled === previous) {
-      daily = dailyPrev;
-      forecast = forecastPrev;
-    } else {
-      [daily, forecast] = await Promise.all([
-        getBillingModelDaily(token, latestBilled),
-        getBillingModelForecast(token, latestBilled),
-      ]);
-    }
-  }
-  if (daily.error) console.error("[innsikt/bruk] Billing model daily failed:", daily.error);
-  if (forecast.error) console.error("[innsikt/bruk] Billing model forecast failed:", forecast.error);
-
-  if (daily.usage.length === 0 || !forecast.forecast) {
-    return (
-      <Box background="neutral-soft" padding="space-16" borderRadius="8">
-        <BodyShort size="small">
-          Kostnaden for denne måneden er ikke tilgjengelig ennå.
-          {daily.error || forecast.error
-            ? " Dataene kunne ikke hentes nå."
-            : " Dagens kostnadstall er ikke lest inn ennå."}
-        </BodyShort>
-      </Box>
-    );
-  }
-  return <BillingMonthNowChart dailyData={daily.usage} forecast={forecast.forecast} />;
-}
-
-async function CostOverTime({ token }: { token: string }) {
-  const current = currentMonthUTC();
-  const [{ breakdown, error }, { trend, error: trendError }, { forecast }] = await Promise.all([
-    getBillingModelBreakdown(token),
     getBillingMonthlyTrend(token),
-    getBillingModelForecast(token, current),
   ]);
-  if (error) return <BodyShort>{`Kunne ikke hente kostnad per modell: ${error}`}</BodyShort>;
-  // Without the trend the chart would draw net cost as zero.
-  if (trendError) return <BodyShort>{`Kunne ikke hente fakturert kostnad: ${trendError}`}</BodyShort>;
-  if (breakdown.length === 0) return <BodyShort>Ingen kostnadsdata ennå.</BodyShort>;
-  return <BillingModelBreakdownChart breakdown={breakdown} trend={trend} forecast={forecast} />;
+  if (daily.error) console.error("[innsikt/bruk] Billing model daily failed:", daily.error);
+  if (error) return <BodyShort>{`Kunne ikke hente kostnaden: ${error}`}</BodyShort>;
+
+  const netByDay = new Map<string, number>();
+  for (const r of daily.usage) netByDay.set(r.day, (netByDay.get(r.day) ?? 0) + r.net_amount);
+  const days = [...netByDay.keys()].sort();
+  const cumulative: number[] = [];
+  for (const d of days) cumulative.push((cumulative.at(-1) ?? 0) + netByDay.get(d)!);
+  const sum = cumulative.at(-1) ?? 0;
+
+  const year = current.slice(0, 4);
+  const months = trend
+    .filter((t) => t.year_month.startsWith(year))
+    .sort((a, b) => a.year_month.localeCompare(b.year_month));
+  const keys = months.map((t) => t.year_month);
+  const amount = (closed: boolean) =>
+    months.map((t) => (t.year_month < current === closed ? t.total_net_amount : null));
+  const monthShort = (m: string) =>
+    new Date(`${m}-01T00:00:00Z`).toLocaleDateString("nb-NO", { month: "short", timeZone: "UTC" });
+
+  return (
+    <VStack gap="space-16">
+      <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
+        <ChartFigure
+          title="Hva har Copilot kostet hittil i måneden?"
+          summary={
+            days.length
+              ? `Foreløpig forbruk i ${monthLong(current)} er ${formatUSD(sum)} til og med ${Number(days.at(-1)!.slice(8))}. ${monthLong(current).split(" ")[0]}.`
+              : `Ingen kostnadstall for ${monthLong(current)} ennå.`
+          }
+          chart={
+            days.length ? (
+              <EventChart
+                kind="line"
+                unit="usd"
+                keys={days}
+                labels={days.map((d) => d.slice(8))}
+                series={[{ label: "Foreløpig forbruk, samlet", color: 0, data: cumulative }]}
+              />
+            ) : (
+              <BodyShort>Dagens kostnadstall er ikke lest inn ennå.</BodyShort>
+            )
+          }
+        />
+        <ChartFigure
+          title={`Hva har Copilot kostet per måned i ${year}?`}
+          summary={months
+            .map(
+              (t) =>
+                `${monthLong(t.year_month)}: ${formatUSD(t.total_net_amount)}${t.year_month < current ? "" : " (foreløpig)"}`
+            )
+            .join(", ")}
+          chart={
+            <EventChart
+              kind="bar"
+              stacked
+              unit="usd"
+              keys={keys}
+              labels={keys.map((k) => monthShort(k) + (k === current ? " (hittil)" : ""))}
+              series={[
+                { label: "Fakturert", color: 0, data: amount(true) },
+                { label: "Foreløpig forbruk", color: 1, data: amount(false) },
+              ]}
+            />
+          }
+        />
+      </HGrid>
+      <NumbersFold>
+        <PlainTable
+          rows={[
+            ["Måned", "Beløp", "Grunnlag"],
+            ...months.map((t) => [
+              monthLong(t.year_month),
+              formatUSD(t.total_net_amount),
+              t.year_month < current ? "Fakturert" : "Foreløpig forbruk",
+            ]),
+          ]}
+        />
+      </NumbersFold>
+      <NumbersFold summary="Slik leser du tallene">
+        <BodyShort size="small">
+          Fakturert er beløpet på fakturaen for en avsluttet måned, etter rabatt. Foreløpig forbruk er det estimerte
+          fakturerte beløpet hittil i måneden, og kan endre seg til fakturaen kommer. Grafene viser bare faktisk
+          forbruk, ikke prognoser. Prognosen for måneden finner du på kostnadssiden for administratorer.
+        </BodyShort>
+      </NumbersFold>
+    </VStack>
+  );
 }
 
 async function AdoptionPhases({ token }: { token: string }) {
@@ -255,9 +291,8 @@ export default async function BrukPage() {
       source={
         <>
           Tallene kommer fra copilot-api, som leser GitHubs bruks- og fakturadata fra BigQuery. Nøkkeltall bruker siste
-          hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code>,{" "}
-          <code>/billing/model-forecast</code> og <code>/billing/model-breakdown</code>. Kostnaden per modell er brutto
-          USD før rabatt, mens prognosen og linjen for fakturert kostnad er netto. Adopsjonsfasene kommer fra{" "}
+          hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code> og{" "}
+          <code>/billing/monthly-trend</code>, netto USD etter rabatt. Adopsjonsfasene kommer fra{" "}
           <code>/adoption/cohorts</code>. Pull requests og daglig aktivitet bruker de siste 28 dagene fra{" "}
           <code>/usage/metrics</code>, og tid til første review kommer fra <code>/usage/daily-summary</code> (
           <code>v_daily_summary</code>). Repoene gjelder hele perioden med data, uten private repoer og uten repoer med
@@ -271,19 +306,11 @@ export default async function BrukPage() {
         </Suspense>
       </InsightSection>
 
-      <InsightSection id="kostnad" title="Kostnad denne måneden">
+      <InsightSection id="kostnad" title="Kostnad">
+        {/* Keeps old #kostnad-over-tid links landing here after the two cost sections were merged. */}
+        <span id="kostnad-over-tid" aria-hidden />
         <Suspense fallback={fallback}>
-          <CostThisMonth token={token} />
-        </Suspense>
-      </InsightSection>
-
-      <InsightSection id="kostnad-over-tid" title="Kostnad over tid">
-        <BodyShort size="small" textColor="subtle">
-          Søylene viser brutto kostnad per modell før rabatt. «Kostnad per modellfamilie» på Trender viser netto andeler
-          etter rabatt, så tallene kan ikke sammenlignes direkte.
-        </BodyShort>
-        <Suspense fallback={fallback}>
-          <CostOverTime token={token} />
+          <Cost token={token} />
         </Suspense>
       </InsightSection>
 

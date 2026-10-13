@@ -2,16 +2,18 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// The figures behind these labels are fixed by the data (net forecast, one-day
+// The figures behind these labels are fixed by the data (billed vs preliminary, one-day
 // review average). Guard the wording so it keeps matching what is computed.
 const src = (path: string) => readFileSync(join(__dirname, "../../../..", path), "utf8");
 
 describe("innsikt/bruk labels", () => {
-  it("labels the forecast as net, not gross", () => {
-    const chart = src("components/charts/BillingMonthNowChart.tsx");
-    expect(chart).toContain('label: "Netto hittil"');
-    expect(chart).toContain('label: "Prognose, netto"');
-    expect(chart).not.toMatch(/label: "[^"]*brutto|Gross/);
+  it("shows actual cost only, with the approved terms, and keeps the old anchor", () => {
+    const page = src("app/(nb)/innsikt/bruk/page.tsx");
+    expect(page).not.toMatch(/[Pp]rognose,|forecast/);
+    expect(page).toContain('label: "Fakturert"');
+    expect(page).toContain('label: "Foreløpig forbruk"');
+    expect(page).toContain('id="kostnad"');
+    expect(page).toContain('id="kostnad-over-tid"');
   });
 
   it("states the review time as a one-day average, not a median", () => {

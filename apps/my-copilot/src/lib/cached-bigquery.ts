@@ -18,9 +18,7 @@ import type {
   CustomizationUsage,
   EnterpriseMetrics,
   LanguageAdoption,
-  MonthlyBillingUsage,
   BillingModelDailyCost,
-  BillingModelForecast,
   CostForecast,
   MonthlyTrend,
   StalenessSummary,
@@ -206,16 +204,6 @@ export async function getMonthlyTrends(token: string): Promise<{
   return { trends: result.data, error: result.error };
 }
 
-export async function getMonthlyBillingUsage(token: string): Promise<{
-  usage: MonthlyBillingUsage[];
-  error: string | null;
-}> {
-  const result = await fetchWithFallback("getMonthlyBillingUsage", [] as MonthlyBillingUsage[], () =>
-    backendRequest<MonthlyBillingUsage[]>("/api/v1/copilot/billing/monthly", token)
-  );
-  return { usage: result.data, error: result.error };
-}
-
 export async function getAdoptionCohorts(token: string): Promise<{
   cohorts: AdoptionCohortWeek[];
   error: string | null;
@@ -238,20 +226,6 @@ export async function getBillingModelDaily(
     backendRequest<BillingModelDailyCost[] | null>(`/api/v1/copilot/billing/model-daily${query}`, token)
   );
   return { usage: Array.isArray(result.data) ? result.data : [], error: result.error };
-}
-
-export async function getBillingModelForecast(
-  token: string,
-  month?: string
-): Promise<{
-  forecast: BillingModelForecast | null;
-  error: string | null;
-}> {
-  const query = month ? `?month=${encodeURIComponent(month)}` : "";
-  const result = await fetchNullable("getBillingModelForecast", () =>
-    backendRequest<BillingModelForecast>(`/api/v1/copilot/billing/model-forecast${query}`, token)
-  );
-  return { forecast: result.data, error: result.error };
 }
 
 export async function getBillingMonthlyTrend(
