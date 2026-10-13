@@ -290,3 +290,39 @@ export async function getSurveyComparison(userToken: string, ids: string[]): Pro
     return { status: "not-found" };
   return adminGet<SurveyComparison>(userToken, `/api/v1/admin/surveys/compare?ids=${ids.join(",")}`);
 }
+
+/** One free-text field (GET /api/v1/admin/surveys/{id}/freetext): a text question, or a question's «Annet» text. */
+export type FreetextField = {
+  id: string;
+  question: string;
+  /** The other option's label when this is an «Annet» text. */
+  other?: string;
+  /** Masked, in random order, without row id. token hides the text. */
+  texts: { token: string; text: string }[];
+};
+
+export type SurveyFreetext = { id: string; title: string; fields: FreetextField[] };
+
+export async function getSurveyFreetext(userToken: string, id: string): Promise<AdminResult<SurveyFreetext>> {
+  if (!/^[a-z0-9-]{1,64}$/.test(id)) return { status: "not-found" };
+  return adminGet<SurveyFreetext>(userToken, `/api/v1/admin/surveys/${id}/freetext`);
+}
+
+/** Hides one free text in admin and the export. true when copilot-survey hid it. */
+export async function hideSurveyFreetext(userToken: string, id: string, textToken: string): Promise<boolean> {
+  const url = process.env.COPILOT_SURVEY_URL;
+  if (!url || !/^[a-z0-9-]{1,64}$/.test(id) || !/^[0-9a-f]{64}$/.test(textToken)) return false;
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (!isLocalDev) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    const res = await fetchWithTimeout(
+      `${url}/api/v1/admin/surveys/${id}/freetext/hide`,
+      { method: "POST", headers, body: JSON.stringify({ token: textToken }), cache: "no-store" },
+      10000,
+      "timeout"
+    );
+    return res.status === 204;
+  } catch {
+    return false;
+  }
+}
