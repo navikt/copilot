@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -309,31 +310,49 @@ const billedSKUs = "'Copilot AI Credits','Copilot Cloud Agent','Copilot Premium 
 
 const minTeamContributors = 5
 
+// GetUserTeams reads the caller's teams from the team_members roster (latest
+// snapshot) and from user_teams over 30 days. user_teams only holds users
+// active that day, so it alone misses many; it stays as fallback for logins
+// absent from the roster or an empty roster.
 func (bq *BigQueryClient) GetUserTeams(ctx context.Context, userLogin string) ([]string, error) {
-	query := bq.client.Query(fmt.Sprintf(`SELECT DISTINCT JSON_VALUE(raw_record,'$.slug') team_slug
-FROM %s WHERE day=(SELECT MAX(day) FROM %s WHERE scope='enterprise' AND scope_id='nav')
+	members := bq.tableRef(bq.metricsDataset, "team_members")
+	query := bq.client.Query(fmt.Sprintf(`SELECT DISTINCT team_slug FROM %s
+WHERE date=(SELECT MAX(date) FROM %s) AND LOWER(login)=LOWER(@login)
+UNION DISTINCT
+SELECT DISTINCT JSON_VALUE(raw_record,'$.slug') FROM %s
+WHERE day>=DATE_SUB(CURRENT_DATE(),INTERVAL 30 DAY)
 AND scope='enterprise' AND scope_id='nav'
-AND LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)
-AND JSON_VALUE(raw_record,'$.slug')!='nav-it-github-users'
-ORDER BY team_slug`, bq.tableRef(bq.metricsDataset, "user_teams"), bq.tableRef(bq.metricsDataset, "user_teams")))
+AND LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)`, members, members, bq.tableRef(bq.metricsDataset, "user_teams")))
 	query.Parameters = []bigquery.QueryParameter{{Name: "login", Value: userLogin}}
 	it, err := query.Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read caller teams: %w", err)
 	}
-	teams := []string{}
+	var slugs []string
 	for {
 		var row struct {
 			TeamSlug string `bigquery:"team_slug"`
 		}
 		if err := it.Next(&row); err != nil {
 			if err == iterator.Done {
-				return teams, nil
+				return userTeamSlugs(slugs), nil
 			}
 			return nil, err
 		}
-		teams = append(teams, row.TeamSlug)
+		slugs = append(slugs, row.TeamSlug)
 	}
+}
+
+// userTeamSlugs dedupes and sorts slugs and drops the all-users team.
+func userTeamSlugs(slugs []string) []string {
+	teams := []string{}
+	for _, s := range slugs {
+		if s != "" && s != "nav-it-github-users" && !slices.Contains(teams, s) {
+			teams = append(teams, s)
+		}
+	}
+	slices.Sort(teams)
+	return teams
 }
 
 func (c *CachedBigQueryClient) GetUserTeams(ctx context.Context, login string) ([]string, error) {
