@@ -135,7 +135,11 @@ func lockPinned(dir string) (unlock func(), ok bool) {
 	if errors.Is(err, fs.ErrExist) || err != nil {
 		return nil, false
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		// A lock that could not be closed cleanly is not one to rely on.
+		os.Remove(lock)
+		return nil, false
+	}
 	return func() { os.Remove(lock) }, true
 }
 
