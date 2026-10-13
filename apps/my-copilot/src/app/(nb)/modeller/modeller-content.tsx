@@ -368,7 +368,8 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
   const tableRuns = showOlder ? [...latest, ...older] : latest;
   // Smoke runs check the harness, not the model: table only, after the real runs.
   const plotted = latest.filter((run) => !run.smoke && knownCredits(run) !== null);
-  const saturated = plotted.length > 1 && plotted.every((run) => passRate(run) === 1);
+  // Every real row in the table, not just the plotted ones, so an uncharted failure is not hidden.
+  const saturated = plotted.length > 1 && latest.every((run) => run.smoke || passRate(run) === 1);
   const unverified = tableRuns.some((run) => !run.smoke && run.model_verified === false);
   const smoke = tableRuns.some((run) => run.smoke);
   const incomplete = tableRuns.some((run) => !run.smoke && run.model_verified !== false && knownCredits(run) === null);
@@ -547,7 +548,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
             Filter for alle målingene
           </BodyShort>
           <div role="group" aria-label="Modeller">
-            <BodyShort size="small" textColor="subtle" className="mb-1" aria-hidden>
+            <BodyShort size="small" textColor="subtle" style={{ marginBottom: "var(--ax-space-4)" }} aria-hidden>
               Modeller
             </BodyShort>
             <Chips size="small">
@@ -563,7 +564,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
             </Chips>
           </div>
           <div role="group" aria-label="Innsatsnivå">
-            <BodyShort size="small" textColor="subtle" className="mb-1" aria-hidden>
+            <BodyShort size="small" textColor="subtle" style={{ marginBottom: "var(--ax-space-4)" }} aria-hidden>
               Innsatsnivå
             </BodyShort>
             <Chips size="small">
@@ -613,7 +614,8 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
       {/* Anchors for the old per-suite links; the hash selects the tab. */}
       <div>
         {suites.map(([suite]) => (
-          <span key={suite} id={suiteId(suite)} className={H2} />
+          // Only the open tab's anchor takes up layout, so the side menu marks the right suite.
+          <span key={suite} id={suiteId(suite)} className={H2} hidden={suite !== tab} />
         ))}
         <Tabs value={tab} onChange={selectTab} size="small">
           <Tabs.List>
@@ -622,7 +624,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
             ))}
           </Tabs.List>
           {suites.map(([suite, all]) => (
-            <Tabs.Panel key={suite} value={suite} className="pt-4">
+            <Tabs.Panel key={suite} value={suite} style={{ paddingTop: "var(--ax-space-16)" }}>
               {tab === suite && (
                 <SuitePanel suite={suite} runs={all.filter((run) => shown.includes(run))} view={view} colors={colors} />
               )}
