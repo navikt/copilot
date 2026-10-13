@@ -109,7 +109,42 @@ spec:
           labels:
             namespace: {{namespace}}
             severity: warning
+            alert_type: custom
+            app: copilot-survey
           annotations:
             summary: More than 20 survey submissions to copilot-survey in 5 minutes
             consequence: Many answers or answer attempts in a short window. If they are stored (status 201), copilot-cli may be answering for members who did not, and forged answers cannot be told apart once stored. A burst of 409 or 503 is more likely a copilot-cli retry loop.
             action: Check copilot-cli's logs and deploys for the same window. If the burst is not explained by a survey launch, close the survey and discard its answers (see SECURITY.md).
+---
+# Sends this app's custom alerts to #github-copilot-alerts instead of the team
+# default channel. Rules opt in with alert_type: custom (keeps them off the Nais
+# default route, so no double posts) and app: copilot-survey. No custom title or text:
+# this file goes through the deploy action's Handlebars templating, which would
+# eat Alertmanager's own Go templates.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: copilot-survey-slack
+  namespace: {{namespace}}
+  labels:
+    alertmanagerConfig: copilot-survey-slack
+spec:
+  receivers:
+    - name: copilot-survey-slack
+      slackConfigs:
+        - apiURL:
+            name: github-copilot-alerts-slack-webhook
+            key: apiUrl
+          channel: "#github-copilot-alerts"
+          sendResolved: true
+  route:
+    groupBy:
+      - alertname
+    matchers:
+      - name: alert_type
+        matchType: "="
+        value: custom
+      - name: app
+        matchType: "="
+        value: copilot-survey
+    receiver: copilot-survey-slack
