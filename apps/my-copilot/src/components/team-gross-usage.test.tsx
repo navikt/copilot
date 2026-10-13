@@ -35,7 +35,10 @@ const net: TeamNetOverview = {
   comparison: "ok",
 };
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
+});
 
 describe("Team insight", () => {
   it("unifies month, search and optional columns without changing cost defaults", () => {
@@ -59,7 +62,7 @@ describe("Team insight", () => {
         />
       </TeamControls>
     );
-    const table = screen.getByRole("table", { name: "Andre team" });
+    const table = screen.getByRole("table", { name: "Forbruk per team" });
     expect(screen.getByRole("combobox", { name: "Måned" })).toHaveValue("2026-09");
     expect(within(table).getAllByRole("columnheader")).toHaveLength(6);
     expect(within(table).getAllByRole("button", { name: /som CSV$/ })).toHaveLength(2);
@@ -152,7 +155,7 @@ describe("Team insight", () => {
     expect(screen.queryByText("OpenAI")).not.toBeInTheDocument();
     expect(screen.getByText("Copilot CLI")).toBeInTheDocument();
     expect(screen.getByText("kotlin")).toBeInTheDocument();
-    const rows = within(screen.getByRole("table", { name: "Andre team" }))
+    const rows = within(screen.getByRole("table", { name: "Forbruk per team" }))
       .getAllByRole("row")
       .slice(1);
     for (const row of rows)
@@ -177,22 +180,66 @@ describe("Team insight", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Velg kolonner" }));
     for (const label of ["Leverandører", "Modelltyper"]) fireEvent.click(screen.getByRole("checkbox", { name: label }));
-    expect(within(screen.getByRole("table", { name: "Mine team" })).getAllByText("Uklassifisert")).toHaveLength(2);
-    const others = within(screen.getByRole("table", { name: "Andre team" }));
+    const others = within(screen.getByRole("table", { name: "Forbruk per team" }));
+    expect(others.getAllByText("Uklassifisert")).toHaveLength(2);
     expect(others.getByText("Google", { selector: "span" })).toBeInTheDocument();
     expect(others.getByText("Powerful")).toBeInTheDocument();
     expect(screen.queryByText(/oversikt mangler/i)).not.toBeInTheDocument();
     expect(screen.getByText(/antall brukerinteraksjoner uten kostnadsvekting/)).toBeInTheDocument();
     expect(screen.getByText(/funksjon og språk vises bare med minst fem bidragsytere/i)).toBeInTheDocument();
   });
-  it("keeps the distinct bill separate from overlapping team rows and puts mine first", () => {
+  it("keeps the distinct bill separate from overlapping team rows in one table", () => {
     render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} />);
     expect(screen.getByText(/teambeløpene kan derfor ikke summeres/i)).toBeInTheDocument();
     expect(screen.getByText(/per medlem er gjennomsnittet/i)).toBeInTheDocument();
     expect(screen.getByText(/hentet 2\. oktober 2026/)).toBeInTheDocument();
     expect(screen.getByText(/senere fakturakorreksjoner er ikke med/i)).toBeInTheDocument();
-    expect(within(screen.getByRole("table", { name: "Mine team" })).getByText("beta")).toBeInTheDocument();
-    expect(within(screen.getByRole("table", { name: "Andre team" })).getByText("alpha")).toBeInTheDocument();
+    const table = within(screen.getByRole("table", { name: "Forbruk per team" }));
+    expect(table.getByText("beta")).toBeInTheDocument();
+    expect(table.getByText("alpha")).toBeInTheDocument();
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+  });
+
+  it("marks own teams with a tag and a row background", () => {
+    render(<TeamGrossUsage data={gross} net={net} myTeams={["Beta"]} />);
+    const rows = within(screen.getByRole("table", { name: "Forbruk per team" }))
+      .getAllByRole("row")
+      .slice(1);
+    expect(rows[0]).toHaveTextContent(/^alpha/);
+    expect(within(rows[0]).queryByText("Ditt team")).not.toBeInTheDocument();
+    expect(rows[0].className).not.toContain("accent");
+    expect(within(rows[1]).getByText("Ditt team")).toBeInTheDocument();
+    expect(rows[1].className).toContain("accent");
+  });
+
+  it("filters to own teams and keeps the choice in the URL", () => {
+    render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} />);
+    const table = () => within(screen.getByRole("table", { name: "Forbruk per team" }));
+    const toggle = screen.getByRole("checkbox", { name: "Vis bare mine team" });
+    expect(table().getAllByRole("row")).toHaveLength(3);
+    fireEvent.click(toggle);
+    expect(window.location.search).toBe("?mine=1");
+    expect(table().getAllByRole("row")).toHaveLength(2);
+    expect(table().queryByText("alpha")).not.toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(window.location.search).toBe("");
+    expect(table().getAllByRole("row")).toHaveLength(3);
+  });
+
+  it("starts filtered when the page has ?mine=1", () => {
+    render(<TeamGrossUsage data={gross} net={net} myTeams={["beta"]} initialMine />);
+    expect(screen.getByRole("checkbox", { name: "Vis bare mine team" })).toBeChecked();
+    expect(
+      within(screen.getByRole("table", { name: "Forbruk per team" })).queryByText("alpha")
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables the filter when the user has no visible teams", () => {
+    render(<TeamGrossUsage data={gross} net={net} myTeams={[]} initialMine />);
+    expect(screen.getByRole("checkbox", { name: "Vis bare mine team" })).toBeDisabled();
+    expect(screen.getByText(/ingen av dine team vises denne måneden/i)).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "Forbruk per team" })).getAllByRole("row")).toHaveLength(3);
+    expect(screen.queryByText("Ditt team")).not.toBeInTheDocument();
   });
 
   it("shows a dash when the API sends no change", () => {
@@ -204,7 +251,7 @@ describe("Team insight", () => {
     render(<TeamGrossUsage data={gross} net={null} myTeams={null} />);
     expect(screen.getByText(/kunne ikke finne dine team/i)).toBeInTheDocument();
     expect(screen.getByText(/beløpene er foreløpig forbruk/i)).toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "Andre team" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Forbruk per team" })).toBeInTheDocument();
   });
 
   it("uses net suppression totals rather than the gross user set", () => {
@@ -220,7 +267,7 @@ describe("Team insight", () => {
         myTeams={null}
       />
     );
-    const table = screen.getByRole("table", { name: "Andre team" });
+    const table = screen.getByRole("table", { name: "Forbruk per team" });
     const names = () =>
       within(table)
         .getAllByRole("row")

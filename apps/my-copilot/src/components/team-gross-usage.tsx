@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BodyShort, Button, ErrorMessage, Heading, HStack, Table, VStack } from "@navikt/ds-react";
+import { BodyShort, Button, ErrorMessage, Heading, HStack, Switch, Table, Tag, VStack } from "@navikt/ds-react";
 import { Buildings3Icon, CodeIcon, CpuIcon, DownloadIcon, FilePdfIcon, WrenchIcon } from "@navikt/aksel-icons";
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { TeamGrossOverview, TeamNetOverview, TeamSpend } from "@/lib/types";
@@ -70,19 +70,31 @@ export default function TeamGrossUsage({
   net,
   myTeams,
   comparisonReason = null,
+  initialMine = false,
 }: {
   data: TeamGrossOverview;
   net: TeamNetOverview | null;
   myTeams: string[] | null;
   comparisonReason?: string | null;
+  initialMine?: boolean;
 }) {
   const { search, columns } = useTeamControls();
   const [sortKey, setSortKey] = useState("team");
   const [direction, setDirection] = useState<"ascending" | "descending">("ascending");
   const source = net?.teams ?? data.teams;
   const mine = new Set((myTeams ?? []).map((team) => team.toLowerCase()));
-  const own = source.filter((team) => mine.has(team.team_slug.toLowerCase()));
-  const others = source.filter((team) => !mine.has(team.team_slug.toLowerCase()));
+  const isMine = (team: Team) => mine.has(team.team_slug.toLowerCase());
+  // ?mine=1 keeps the filter across reloads and shared links without a navigation.
+  const [onlyMine, setOnlyMine] = useState(initialMine);
+  const toggleMine = (on: boolean) => {
+    setOnlyMine(on);
+    const url = new URL(window.location.href);
+    if (on) url.searchParams.set("mine", "1");
+    else url.searchParams.delete("mine");
+    window.history.replaceState(window.history.state, "", url);
+  };
+  const hasMine = source.some(isMine);
+  const visible = onlyMine && hasMine ? source.filter(isMine) : source;
   const filtered = (teams: Team[]) =>
     teams
       .filter((team) => team.team_slug.toLowerCase().includes(search.trim().toLowerCase()))
@@ -111,8 +123,17 @@ export default function TeamGrossUsage({
     filtered(teams).map((team) => {
       const { change_usd: change, highlight: highlighted } = team;
       return (
-        <TableRow key={team.team_id}>
-          <TableDataCell>{team.team_slug}</TableDataCell>
+        <TableRow key={team.team_id} className={isMine(team) ? "bg-[var(--ax-bg-accent-soft)]" : undefined}>
+          <TableDataCell>
+            <HStack gap="space-8" align="center" wrap={false}>
+              {team.team_slug}
+              {isMine(team) && (
+                <Tag size="xsmall" variant="info">
+                  Ditt team
+                </Tag>
+              )}
+            </HStack>
+          </TableDataCell>
           <TableDataCell align="right">{team.users}</TableDataCell>
           <TableDataCell align="right">{formatUSD(team.amount_usd)}</TableDataCell>
           <TableDataCell align="right">{formatUSD(team.per_user_usd)}</TableDataCell>
@@ -320,27 +341,26 @@ export default function TeamGrossUsage({
             ) && <BodyShort>Leverandør- og modelltypeoversikt mangler for noen team fra datatjenesten.</BodyShort>}
           {myTeams === null && <BodyShort>Kunne ikke finne dine team. Du kan fortsatt søke i teamlisten.</BodyShort>}
           {myTeams !== null && (
-            <section aria-labelledby="mine-team">
-              <Heading id="mine-team" level="4" size="xsmall" spacing>
-                Mine team
-              </Heading>
-              {own.length ? (
-                filtered(own).length ? (
-                  table(own, "Mine team")
-                ) : (
-                  <BodyShort>Ingen av dine team passer søket.</BodyShort>
-                )
-              ) : (
-                <BodyShort>Ingen av dine team vises denne måneden.</BodyShort>
-              )}
-            </section>
+            <VStack gap="space-4">
+              <Switch
+                size="small"
+                checked={onlyMine && hasMine}
+                disabled={!hasMine}
+                onChange={(e) => toggleMine(e.target.checked)}
+              >
+                Vis bare mine team
+              </Switch>
+              {!hasMine && <BodyShort size="small">Ingen av dine team vises denne måneden.</BodyShort>}
+            </VStack>
           )}
-          <section aria-labelledby="andre-team">
-            <Heading id="andre-team" level="4" size="xsmall" spacing>
-              Andre team
-            </Heading>
-            {filtered(others).length ? table(others, "Andre team") : <BodyShort>Ingen team funnet.</BodyShort>}
-          </section>
+          {/* Old links pointed at the two separate tables. */}
+          <span id="mine-team" />
+          <span id="andre-team" />
+          {filtered(visible).length ? (
+            table(visible, "Forbruk per team")
+          ) : (
+            <BodyShort>{onlyMine && hasMine ? "Ingen av dine team passer søket." : "Ingen team funnet."}</BodyShort>
+          )}
           <BodyShort>{hidden.small_teams} team med færre enn fem medlemmer med forbruk er skjult.</BodyShort>
         </VStack>
       </section>

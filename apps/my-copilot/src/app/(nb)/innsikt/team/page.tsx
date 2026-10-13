@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description: "Copilot-bruk og kostnad per team i Nav.",
 };
 
-async function TeamSpend({ month, token }: { month: string; token: string }) {
+async function TeamSpend({ month, token, mine }: { month: string; token: string; mine: boolean }) {
   let gross;
   try {
     gross = await grossOverview(month, token);
@@ -52,13 +52,15 @@ async function TeamSpend({ month, token }: { month: string; token: string }) {
     previous_net_missing: "Endring mangler fordi fakturert forbruk for forrige måned ikke er tilgjengelig.",
     incomplete: "Endring mangler fordi en av månedene har ufullstendige data.",
   }[(net ?? gross).comparison];
-  return <TeamGrossUsage data={gross} net={net} myTeams={myTeams} comparisonReason={comparisonReason} />;
+  return (
+    <TeamGrossUsage data={gross} net={net} myTeams={myTeams} comparisonReason={comparisonReason} initialMine={mine} />
+  );
 }
 
-export default async function TeamPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+export default async function TeamPage({ searchParams }: { searchParams: Promise<{ month?: string; mine?: string }> }) {
   await getUser();
   const token = await getUserToken();
-  const { month: requestedMonth } = await searchParams;
+  const { month: requestedMonth, mine } = await searchParams;
   const month = teamInsightMonth(requestedMonth);
 
   if (!token) return <ErrorState message="Mangler innloggingstoken" />;
@@ -85,7 +87,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         <div id="hittil-i-ar" />
         <TeamControls month={month}>
           <Suspense key={month} fallback={<TeamSpendSkeleton />}>
-            <TeamSpend month={month} token={token} />
+            <TeamSpend month={month} token={token} mine={mine === "1"} />
           </Suspense>
         </TeamControls>
       </InsightSection>
