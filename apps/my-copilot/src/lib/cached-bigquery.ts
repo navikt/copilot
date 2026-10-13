@@ -141,7 +141,7 @@ export async function getTeamYearOverview(team: string, year: number, token: str
 }
 
 export async function getAdminMonthlyOverview(year: number, token: string): Promise<AdminMonthlyOverview> {
-  return backendRequest<AdminMonthlyOverview>(`/api/v1/copilot/billing/admin-monthly?year=${year}`, token);
+  return backendRequest<AdminMonthlyOverview>(`/api/v1/admin/billing/monthly?year=${year}`, token);
 }
 
 export async function getSpendBands(token: string): Promise<SpendBands> {
@@ -149,22 +149,22 @@ export async function getSpendBands(token: string): Promise<SpendBands> {
 }
 
 export async function getCostForecast(token: string): Promise<CostForecast> {
-  return backendRequest<CostForecast>("/api/v1/copilot/admin/cost-forecast", token);
+  return backendRequest<CostForecast>("/api/v1/admin/billing/cost-forecast", token);
 }
 
 /** Admin only: copilot-api answers 404 to everyone else. */
 export async function getAdminActiveUsers(token: string): Promise<ActiveUsersMonth[]> {
-  return backendRequest<ActiveUsersMonth[]>("/api/v1/copilot/billing/admin-active-users", token);
+  return backendRequest<ActiveUsersMonth[]>("/api/v1/admin/billing/active-users", token);
 }
 
 /** Admin only: copilot-api answers 404 to everyone else. */
 export async function getAdminHighConsumers(token: string): Promise<HighConsumerMonth[]> {
-  return backendRequest<HighConsumerMonth[]>("/api/v1/copilot/billing/admin-high-consumers", token);
+  return backendRequest<HighConsumerMonth[]>("/api/v1/admin/billing/high-consumers", token);
 }
 
 /** Admin only: copilot-api answers 404 to everyone else. */
 export async function getAdminBudgetDays(token: string): Promise<BudgetDay[]> {
-  return backendRequest<BudgetDay[]>("/api/v1/copilot/billing/admin-budget-days", token);
+  return backendRequest<BudgetDay[]>("/api/v1/admin/billing/budget-days", token);
 }
 
 export async function getMyTeams(token: string): Promise<string[]> {

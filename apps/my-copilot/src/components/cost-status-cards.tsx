@@ -115,7 +115,7 @@ export async function CostStatusCards({ token, grossToDate }: { token: string; g
   // The forecast section below shows the error; do not log amounts here.
   const [data, anomalies] = await Promise.all([
     getCostForecast(token).catch(() => null),
-    backendRequest<unknown[]>("/api/v1/copilot/billing/anomalies", token).catch(() => undefined),
+    backendRequest<unknown[]>("/api/v1/admin/billing/anomalies", token).catch(() => undefined),
   ]);
   return data && <CostStatusCardsView data={data} grossToDate={grossToDate} anomalies={anomalies?.length} />;
 }

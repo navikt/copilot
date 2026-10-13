@@ -81,7 +81,7 @@ export default async function CostPage() {
       source={
         <VStack gap="space-8">
           <span>
-            Tallene kommer fra copilot-api (<code>billing/admin-monthly</code>): Navs faktura per måned, fordelt på
+            Tallene kommer fra copilot-api (<code>admin/billing/monthly</code>): Navs faktura per måned, fordelt på
             personer og team på samme måte som på teamsidene. {adminMonthlyCoverage(data)}
           </span>
           <NumbersFold summary="Slik regner vi ut prognosen">

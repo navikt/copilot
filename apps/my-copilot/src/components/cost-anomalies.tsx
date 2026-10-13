@@ -5,7 +5,7 @@ import { getUserToken } from "@/lib/auth";
 import { backendRequest } from "@/lib/backend-api";
 import { formatDate, formatUSD } from "@/lib/format";
 
-// One finding from copilot-api's GET /api/v1/copilot/billing/anomalies (admin only).
+// One finding from copilot-api's GET /api/v1/admin/billing/anomalies (admin only).
 export interface Anomaly {
   rule: "A1" | "A3" | "A4" | "A7";
   date: string;
@@ -74,7 +74,7 @@ export async function CostAnomalies() {
   let anomalies: Anomaly[] | null = null;
   if (token) {
     try {
-      anomalies = await backendRequest<Anomaly[]>("/api/v1/copilot/billing/anomalies", token);
+      anomalies = await backendRequest<Anomaly[]>("/api/v1/admin/billing/anomalies", token);
     } catch (error) {
       console.error("[kostnad] Anomalies failed:", error);
     }
