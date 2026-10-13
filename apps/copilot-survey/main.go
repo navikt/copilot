@@ -74,10 +74,8 @@ func main() {
 		slog.Error("Server shutdown error", "error", err)
 	}
 	if store != nil {
-		// Writing a batch smaller than k would let its answers be linked to
-		// the few participants in it; losing them is the lesser harm.
-		if n := store.dropped(); n > 0 {
-			slog.Warn("survey: queued submissions dropped at shutdown; their senders can answer again", "count", n)
+		if n := store.flush(shutdown); n > 0 {
+			slog.Warn("survey: queued submissions lost at shutdown; their senders can answer again", "count", n)
 		}
 	}
 }

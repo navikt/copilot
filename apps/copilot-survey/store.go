@@ -56,10 +56,9 @@ type surveyStore struct {
 // surveyQueue is one survey's submissions not written yet.
 //
 // ponytail: in memory, in one pod (replicas max 1: a second pod would have
-// its own queue and dedup). A restart drops them (at most answerBatch-1 per
-// survey while the database is healthy): their senders are not recorded as
-// participants and may answer again. Persisting them would bring back the
-// timing link batching removes.
+// its own queue and dedup). A graceful shutdown writes them as a smaller
+// batch (flush); only a crash or a failed write loses them, and their
+// senders may then answer again.
 type surveyQueue struct {
 	closesOn time.Time
 	hashes   map[string]bool
@@ -139,15 +138,24 @@ func (s *surveyStore) writeLocked(ctx context.Context, surveyID string, q *surve
 	return nil
 }
 
-// dropped reports, at shutdown, how many queued submissions a restart loses.
-func (s *surveyStore) dropped() int {
+// flush writes every queued submission at shutdown, also batches smaller
+// than answerBatch. Losing answers on every deploy is the larger harm; the
+// data is down-classified (owner, 2026-10-13). It returns how many answers
+// could not be written.
+func (s *surveyStore) flush(ctx context.Context) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	n := 0
-	for _, q := range s.queues {
-		n += len(q.answers)
+	lost := 0
+	for id, q := range s.queues {
+		if len(q.answers) == 0 {
+			continue
+		}
+		if err := s.writeLocked(ctx, id, q); err != nil {
+			slog.Error("survey: writing queued submissions at shutdown failed", "survey", id, "error_type", fmt.Sprintf("%T", err))
+			lost += len(q.answers)
+		}
 	}
-	return n
+	return lost
 }
 
 // purgeExpired runs retain once at start and then daily.
