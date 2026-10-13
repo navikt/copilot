@@ -321,7 +321,7 @@ WHERE date=(SELECT MAX(date) FROM %s) AND LOWER(login)=LOWER(@login)
 UNION DISTINCT
 SELECT DISTINCT JSON_VALUE(raw_record,'$.slug') FROM %s
 WHERE day>=DATE_SUB(CURRENT_DATE(),INTERVAL 30 DAY)
-AND scope='enterprise' AND scope_id='nav'
+AND scope='enterprise' AND scope_id='nav' AND JSON_VALUE(raw_record,'$.slug') IS NOT NULL
 AND LOWER(JSON_VALUE(raw_record,'$.user_login'))=LOWER(@login)`, members, members, bq.tableRef(bq.metricsDataset, "user_teams")))
 	query.Parameters = []bigquery.QueryParameter{{Name: "login", Value: userLogin}}
 	it, err := query.Read(ctx)
