@@ -88,7 +88,9 @@ func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (
 		return nil, nil, fmt.Errorf("agentpakke %s reuses %q without a revision.\nReuse resolves at install and sync, so an unpinned base would compose whatever that repo's main branch holds at the time.\nNothing was installed. Add the 40-character sha of the revision to reuse to %s and commit it",
 			compositionSourceLabel(src), decl.Source, agentpakke.DeclarationPath)
 	}
-	baseSrc, err := ResolveSource(decl.SHA, decl.Source, "")
+	// A pinned base is read from the local cache after its first fetch, so a
+	// launch composing it needs no network (see resolvePinned).
+	baseSrc, err := resolvePinned(decl.SHA, decl.Source)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s reuses agentpakke %q, which could not be resolved at %s: %w\n\nNothing was installed",
 			compositionSourceLabel(src), decl.Source, domain.ShortSHA(decl.SHA), err)
