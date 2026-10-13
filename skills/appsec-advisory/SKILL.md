@@ -9,30 +9,19 @@ metadata:
 
 # AppSec advisory
 
-Use this skill when a team wants a scoped security assessment of its code or a PR, including priorities and a plan for checking suspected flaws. This is a **read-only source review**, not a penetration test or a security certification. For pre-commit scanner checks use `$security-review`; for code-level vulnerability patterns use `$security-owasp`; for architecture and trust boundaries use `$threat-model` or `@security-champion-agent`. Do not turn a request for advice into live testing.
+Use this skill for a scoped security review of a repo or PR, with prioritized findings and safe verification advice. It is a **read-only source review**, not a penetration test or certification. Use `$security-review` for pre-commit scans, `$security-owasp` for vulnerability patterns, and `$threat-model` or `@security-champion-agent` for architecture and trust boundaries.
 
 ## Scope and evidence
 
-1. Identify the repository, revision, requested paths or diff, and any explicit exclusions. Read repository instructions and resolve the diff base before inspecting changes. Include committed, staged, unstaged and untracked changes when the request covers the worktree; read untracked files directly. If access is denied, stop for that path rather than finding another way in.
-2. Map only the relevant entry points, data flows, assets and trust boundaries. Trace each candidate through callers, middleware, authentication, authorization, resource ownership, dependencies and deployment configuration. Inspect defaults and the effective policy where available, not just a configuration fragment. If a claim relies on a third-party package, verify its version and behavior against the checked-out dependency or authoritative versioned source; otherwise state the dependency as unverified.
-3. Use repository-native read-only checks or installed scanners where useful, recording the command, result and scope. Do not silently install tools, start services, contact targets, read credential files, dump secrets or run active probes. Do not create plan, report, PoC or other files, including in the session workspace, unless the user explicitly requests an artifact. Skip tools that cannot run without writing files and record them as unperformed; a missing scanner is not a clean scan. Do not paste sensitive values into the report.
-4. For every candidate, try to disprove it: Is the input attacker-controlled? Is the route reachable? Is there upstream auth, a deny policy, or a compensating control? Can the proposed impact actually follow from the observed code? Check benign code paths too. Drop unsupported candidates; keep unresolved ones as questions with a specific way to settle them.
-5. Rank remaining work by plausible impact and exposure, not scanner labels alone. Separate **observed code defect**, **conditional risk** and **verified exploit**. A source review can establish the first two, but cannot claim the third. Give high confidence only to claims supported by the complete relevant path and effective controls. Separate confidence in the code observation from confidence in deployment exposure.
-
-For example, an unauthenticated management handler plus a ClusterIP Service may establish an *internal unauthenticated route*. An egress-only NetworkPolicy in one chart does **not** establish that every workload can reach it: ingress policies, platform defaults and actual deployment may change that. Report the code observation, mark cluster reachability as unverified, and recommend checking effective policies before asserting cross-namespace impact.
+1. Identify repo, revision, scope and exclusions; read repo instructions and resolve the diff base. For worktree reviews include committed, staged, unstaged and untracked changes, reading untracked files directly. Never work around denied access.
+2. Map relevant entry points, data flows, assets and trust boundaries. Trace candidates through callers, auth, ownership, dependencies and deployment controls. Check defaults and effective policies, not only individual fragments. Verify third-party behavior against the versioned dependency or mark it unverified.
+3. Run useful read-only checks; record commands, results and scope. Do not install tools, start services, contact targets, read credentials, dump secrets or run active probes. Do not create files, even in the session workspace, unless requested. Record tools needing writes or unavailable tools as unperformed, not clean scans.
+4. Try to disprove each candidate: attacker control, reachability, upstream auth, deny policies, compensating controls and plausible impact. Check benign paths. Drop unsupported claims; state unresolved ones as questions with a way to settle them.
+5. Prioritize by plausible impact and exposure, not scanner labels. Separate **observed code defect**, **conditional risk** and **verified exploit**: source review cannot establish the last. Rate code evidence and deployment exposure separately; do not infer reachability from an egress-only policy or a single config fragment.
 
 ## Team handoff
 
-For each actionable item report:
-
-| Field | Required content |
-|---|---|
-| Priority and status | Severity (CRITICAL/HIGH/MEDIUM/LOW), separate confidence (1–10) for code observation and deployment exposure, and observed defect or conditional risk |
-| Evidence | Exact file:line, affected entry point and relevant control; distinguish code, configuration, scanner output and inference |
-| Preconditions and impact | Who must control what, which boundary they cross, and the consequence if those conditions hold |
-| Counterevidence and unknowns | Controls checked, credible alternative explanation and what could change the verdict |
-| Action | Smallest mitigation and the team or owner that must verify the assumption |
-| Safe verification | A non-destructive test or inspection with an expected secure result and a result that would confirm the risk |
+For each actionable item give severity (CRITICAL/HIGH/MEDIUM/LOW), status (observed defect or conditional risk), and separate confidence (1–10 or unknown) for code and deployment. Cite exact file:line, entry point and controls; distinguish code, configuration, scanner results and inference. State the attack preconditions and impact, counterevidence, unknowns, smallest mitigation and owner. Propose a non-destructive check with prerequisites (including accounts or roles), expected secure and risky results, and stop conditions, only in an environment the team owns or is authorized to assess. Never execute it as part of this skill. Require human review before relying on security-critical severity or applying a fix; never include sensitive values in the report.
 
 For an independent check, hand off only one testable claim and the primary evidence, not your conclusion or reasoning:
 
@@ -44,23 +33,11 @@ Preconditions: <what must be true for the impact to follow>
 Unknowns:      <evidence not available in this review>
 ```
 
-The checker should look for counterevidence in the same revision. Its answer must say which parts of the claim are supported, contradicted or still unknown, including controls that narrow rather than fully refute the claim. Report confidence in the code observation and in deployment exposure separately, or say "unknown" when the evidence cannot support a score; never give a single confidence score for both. A second opinion without new primary evidence does not turn a conditional risk into a verified exploit.
-
-Recommend tests only in an environment the team owns or has explicit authorization to assess. Describe the test objective, prerequisites, accounts or roles needed, and stop conditions. Do not execute payloads or scan running services as part of this skill. Security-critical findings require a human security review before relying on the severity or applying a fix.
-
-State which files, revisions, configurations and tools were inspected, which were not, and why. If a tool fails, record the failure rather than presenting the result as a pass. No findings means no supported findings **in the inspected scope**, not that the service is secure. Keep unverified hypotheses outside the vulnerability count.
-For a review or independent check, end with the assessment and the evidence still needed. Do not append a default fix/commit menu or solicit remediation unless the user asks for it.
-
-## Prior art
-
-- [Codex-Sentinel](https://github.com/alicankiraz1/Codex-Sentinel): separate opt-in review from recommendation-only security test planning; show reviewed and unreviewed areas.
-- [Trail of Bits fp-check](https://github.com/trailofbits/skills/tree/main/plugins/fp-check): actively challenge suspected findings before assigning a verdict.
-- [Trail of Bits differential-review](https://github.com/trailofbits/skills/tree/main/plugins/differential-review): prioritize risky changes and follow their callers and blast radius.
-- [ASVS Auditor](https://github.com/TarkinLarson/asvs-auditor): tie claims to precise source evidence without implying certification.
+The checker should seek counterevidence in the same revision and mark each part supported, contradicted or unknown, including controls that only narrow the claim. Rate code and deployment separately, using unknown where evidence is lacking. Show both assessments side by side; agreement without new primary evidence does not verify exploitation. End with evidence still needed, not a default fix/commit menu.
 
 ## Review contract
 
-Each relevant axis (entry points and trust boundaries, auth and ownership, injection and data handling, dependencies, deployment exposure, and sensitive output) produces at least one finding **or** a line stating what was inspected and what it does not prove. Do not manufacture findings to fill a category.
+For each relevant axis (entry points and trust boundaries, auth and ownership, injection and data, dependencies, deployment, sensitive output), report a finding or what was inspected and what it does not prove. Do not manufacture findings.
 
 ```
 Inspected:     <specific revision, files, configurations, commands>
@@ -69,4 +46,4 @@ Findings:      <confirmed code defects, conditional risks, unresolved questions>
 Verdict:       BLOCK | CONCERNS | CLEAN | INCONCLUSIVE
 ```
 
-`BLOCK` means a supported finding risks a security or privacy breach if shipped as observed. `CONCERNS` means a risk needs verification or mitigation before acceptance. `CLEAN` means no supported finding within the inspected scope; never claim a complete audit. Use `INCONCLUSIVE` when the requested scope is inaccessible or too narrow to assess, or when material disagreement cannot be resolved from the available evidence. State what would settle it.
+`BLOCK`: supported risk of security or privacy breach if shipped. `CONCERNS`: verification or mitigation needed. `CLEAN`: no supported findings in the inspected scope, not a complete audit. `INCONCLUSIVE`: inaccessible or insufficient scope, or unresolved material disagreement; state what would settle it. List inspected and missing files, revisions, configs and tools with reasons; report failures, not passes. Keep unverified hypotheses outside the finding count.
