@@ -38,8 +38,6 @@ const FILLS = [
   ["var(--ax-bg-success-strong)", "var(--ax-text-success-contrast)"],
 ];
 const pct = (share: number) => `${Math.round(share * 100)} %`;
-// Below this share of a column, a segment's number goes in the tooltip and the table only.
-const LABEL_MIN = 0.15;
 
 /**
  * One statement's bar: negatives left of the zero line, neutral split across it,
@@ -51,16 +49,17 @@ function LikertBar({ v, min, max, labels }: { v: VersionResult; min: number; max
   const mid = (min + max) / 2;
   const seg = (s: Segment, width: number, label = true) => {
     const i = Math.round(((s.value - min) / (max - min || 1)) * (FILLS.length - 1));
-    const text = `${pct(s.share)} (${s.count})`;
+    const text = `${pct(s.share)} (${formatNumber(s.count ?? 0)})`;
     return (
       <div
         key={s.value}
         data-testid={label ? `segment-${s.value}` : undefined}
         title={`${labels[s.value - min] ?? s.value}: ${text}`}
-        className="h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center"
+        className="@container h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center"
         style={{ width: `${width * 100}%`, background: FILLS[i][0], color: FILLS[i][1] }}
       >
-        {label && width >= LABEL_MIN ? <span className="hidden sm:inline">{text}</span> : null}
+        {/* Narrow segments show their number in the tooltip and the table only. */}
+        {label ? <span className="hidden @min-[4.5rem]:inline">{text}</span> : null}
       </div>
     );
   };
@@ -75,12 +74,12 @@ function LikertBar({ v, min, max, labels }: { v: VersionResult; min: number; max
           .filter((s) => s.value >= mid)
           .map((s) => (s.value === mid ? seg(s, s.share / 2, false) : seg(s, s.share)))}
       </div>
-      <div className="flex items-center gap-2 pl-3 text-xs">
+      <Box paddingInline="space-12 space-0" className="flex items-center gap-2 text-xs">
         {hidden && hidden.count > 0 ? (
           <>
             <div
               data-testid="skjult"
-              title={`skjult: ${pct(hidden.share)} (${hidden.count})`}
+              title={`skjult: ${pct(hidden.share)} (${formatNumber(hidden.count ?? 0)})`}
               className="h-7"
               style={{
                 width: `${hidden.share * 100}%`,
@@ -92,7 +91,7 @@ function LikertBar({ v, min, max, labels }: { v: VersionResult; min: number; max
           </>
         ) : null}
         {mean === null ? null : <span>Snitt {mean.toFixed(1).replace(".", ",")}</span>}
-      </div>
+      </Box>
     </div>
   );
 }
@@ -241,15 +240,15 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
                         <Heading level="2" size="small">
                           {q.text}
                         </Heading>
+                        {(qdef?.type === "matrix" || qdef?.type === "scale") && qdef.labels ? (
+                          <Legend labels={qdef.labels} />
+                        ) : null}
                         {q.versions ? (
                           <Versions
                             versions={q.versions}
                             label={labeller(qdef, qdef?.version)}
                             scale={scaleOf(qdef, qdef?.version)}
                           />
-                        ) : null}
-                        {(qdef?.type === "matrix" || qdef?.type === "scale") && qdef.labels ? (
-                          <Legend labels={qdef.labels} />
                         ) : null}
                         {q.items?.map((item) => (
                           <VStack key={item.id} gap="space-4">
