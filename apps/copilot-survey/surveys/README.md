@@ -188,7 +188,8 @@ any other cluster, so it can never open a survey in prod. It also needs
   The second answer from the same person, on either, gets 409.
 - Nothing reaches the database until the tenth answer: one tester's answer
   stays queued in memory. `survey_submissions_total{survey="dev-e2e-test"}`
-  counts it, and the next graceful restart writes it.
+  counts it. A graceful restart writes the queued answer to the database
+  (#1739); it is not dropped.
 - Close it: remove `survey_active_ids` from `.nais/dev-gcp.yaml`.
 - Reset: restart the pod (`kubectl rollout restart deployment/copilot-survey -n copilot`
   in dev-gcp) to write queued answers. To let the same people answer again
