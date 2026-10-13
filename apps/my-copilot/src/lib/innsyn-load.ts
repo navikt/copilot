@@ -9,7 +9,8 @@ import { buildInnsyn, type InnsynAnswer } from "./innsyn";
 /** The same fetches as /admin/kostnad. Admin only: copilot-api answers 404 to everyone else. */
 export async function loadInnsyn(year: number, token: string): Promise<InnsynAnswer> {
   const now = new Date();
-  const monthsBack = (now.getUTCFullYear() - year) * 12 + now.getUTCMonth() + 1;
+  // ponytail: the model breakdown caps at 36 months, so reports for years before that lose 3b; add a year filter to the endpoint then.
+  const monthsBack = Math.min((now.getUTCFullYear() - year) * 12 + now.getUTCMonth() + 1, 36);
   const [admin, active, { breakdown, error }, volume] = await Promise.all([
     getAdminMonthlyOverview(year, token),
     getAdminActiveUsers(token),

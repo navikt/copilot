@@ -54,7 +54,8 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
   const months = admin.months.filter((m) => inYear(m.month));
   const billed = months.filter((m) => m.basis === "net" || m.basis === "premium");
   const preliminary = months.filter((m) => m.basis === "gross");
-  const lastDay = admin.coverage.last_gross_day || today;
+  const lastDay = [admin.coverage.last_gross_day || today, `${year}-12-31`].sort()[0];
+  const past = lastDay < today.slice(0, 4) + "-01-01";
   const ytd = usd(billed.reduce((a, m) => a + (m.enterprise_net_usd ?? 0), 0));
   const rebuilt = new Set(rebuiltSeatMonths(admin));
   const licenceTotal = usd(billed.reduce((a, m) => a + (m.licence_usd_estimate ?? 0), 0));
@@ -63,8 +64,10 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
   // Net per family over the year, the «Auto» and code review rules from the cost page.
   const familyNet = new Map<ModelFamily, number>();
   const familyModels = new Map<ModelFamily, Set<string>>();
+  const billedMonths = new Set(billed.map((m) => m.month));
   for (const row of breakdown) {
-    if (!inYear(row.year_month.slice(0, 7))) continue;
+    // Billed months only, so the shares rest on the billed amount like question 1.
+    if (!billedMonths.has(row.year_month.slice(0, 7))) continue;
     const family = modelFamily(row.model, true);
     familyNet.set(family, (familyNet.get(family) ?? 0) + row.net_amount);
     // Only models in a known family: names from billing are otherwise unvetted.
@@ -171,7 +174,11 @@ export function buildInnsyn({ year, admin, active, breakdown, volume, today }: I
     "3": {
       question: "Hvor mange bruker KI-verktøyene?",
       answer:
-        (seatsNow != null ? `Nav har i dag ${nb(seatsNow)} Copilot-lisenser. ` : "") +
+        (seatsNow != null
+          ? past
+            ? `Nav hadde ${nb(seatsNow)} Copilot-lisenser ved utgangen av ${year}. `
+            : `Nav har i dag ${nb(seatsNow)} Copilot-lisenser. `
+          : "") +
         "Tabellen viser fakturerte brukere per måned. For måneder uten faktura viser den aktive brukere så langt.",
       data: {
         licences_now: seatsNow,
