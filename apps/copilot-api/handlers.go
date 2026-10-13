@@ -97,16 +97,11 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/weekly", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserWeeklyTrends }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/user/{username}/daily-credits", bq(perUser(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserDailyCredits }))))
 	mux.HandleFunc("GET /api/v1/copilot/usage/trends", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyTrends })))
-	mux.Handle("GET /api/v1/copilot/billing/admin-monthly", requireAdmin(bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminMonthly }))))
 	mux.HandleFunc("GET /api/v1/copilot/billing/monthly", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleMonthlyBillingUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-daily", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelDaily })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-forecast", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelForecast })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/monthly-trend", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingMonthlyTrend })))
 	mux.HandleFunc("GET /api/v1/copilot/billing/model-breakdown", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleBillingModelBreakdown })))
-	mux.Handle("GET /api/v1/copilot/billing/admin-active-users", requireAdmin(bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminActiveUsers }))))
-	mux.Handle("GET /api/v1/copilot/billing/admin-high-consumers", requireAdmin(bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminHighConsumers }))))
-	mux.Handle("GET /api/v1/copilot/billing/admin-budget-days", requireAdmin(bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminBudgetDays }))))
-	mux.Handle("GET /api/v1/copilot/billing/anomalies", requireAdmin(bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostAnomalies }))))
 	mux.HandleFunc("GET /api/v1/copilot/adoption/cohorts", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdoptionCohorts })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/daily-summary", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleDailySummary })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/distribution", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUsageDistribution })))
@@ -116,8 +111,16 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/usage/segments", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserSegments })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/repositories", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleRepositoryUsage })))
 
-	// Admin-only cost insight: spend and budget are internal.
-	mux.Handle("GET /api/v1/copilot/admin/cost-forecast", requireAdmin(bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostForecast }))))
+	// Admin-only cost insight: spend and budget are internal. Every admin
+	// route lives on adminMux, guarded once by requireAdmin.
+	adminMux := http.NewServeMux()
+	for _, r := range adminRoutes() {
+		h := bq(nilSafe(bqHandlers, r.handler))
+		adminMux.HandleFunc("GET "+r.path, h)
+		// Deprecated alias: remove once my-copilot calls the /api/v1/admin/ path.
+		mux.Handle("GET "+r.oldPath, requireAdmin(h))
+	}
+	mux.Handle("/api/v1/admin/", requireAdmin(adminMux))
 
 	// GitHub API endpoints
 	mux.HandleFunc("GET /api/v1/copilot/billing", gh(nilSafe(ghHandlers, func(h *GitHubHandlers) http.HandlerFunc { return h.handleBilling })))
@@ -296,4 +299,23 @@ func loggingMiddleware(config *Config, next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+type adminRoute struct {
+	path    string // under /api/v1/admin/
+	oldPath string // deprecated alias, remove once callers move
+	handler func(*BigQueryHandlers) http.HandlerFunc
+}
+
+// adminRoutes lists every admin-only endpoint. makeAPIRouter mounts them
+// behind a single requireAdmin.
+func adminRoutes() []adminRoute {
+	return []adminRoute{
+		{"/api/v1/admin/billing/monthly", "/api/v1/copilot/billing/admin-monthly", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminMonthly }},
+		{"/api/v1/admin/billing/active-users", "/api/v1/copilot/billing/admin-active-users", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminActiveUsers }},
+		{"/api/v1/admin/billing/high-consumers", "/api/v1/copilot/billing/admin-high-consumers", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminHighConsumers }},
+		{"/api/v1/admin/billing/budget-days", "/api/v1/copilot/billing/admin-budget-days", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminBudgetDays }},
+		{"/api/v1/admin/billing/anomalies", "/api/v1/copilot/billing/anomalies", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostAnomalies }},
+		{"/api/v1/admin/billing/cost-forecast", "/api/v1/copilot/admin/cost-forecast", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostForecast }},
+	}
 }
