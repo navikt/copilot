@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-12T12:54:37.543Z",
+  "generatedAt": "2026-10-13T20:54:58.153Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -300,7 +300,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "018471685b00d5b714d68df69192961cf528e88a7db454902a259b257689bd42",
+      "contentHash": "92bc5b172dd16b1f26bd27828d9fa1935de541547e35f9a67040904b7e86a982",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -1018,6 +1018,30 @@
         {
           "scenario": "OpenAPI-dokumentasjon",
           "prompt": "Lag OpenAPI-annotasjoner for endepunktene"
+        }
+      ]
+    },
+    {
+      "id": "appsec-advisory",
+      "name": "appsec-advisory",
+      "description": "Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn, vurdert eksponering og forslag til trygg testing. Bruk når teamet vil ha en dypere sikkerhetsvurdering eller prioritering av funn, ikke for sjekk før commit (bruk security-review) eller pentest",
+      "type": "skill",
+      "domain": "auth",
+      "filePath": "skills/appsec-advisory/SKILL.md",
+      "repoPath": "skills/appsec-advisory/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/appsec-advisory/SKILL.md",
+      "contentHash": "48d4fcea7436f429716b6b4e16b2db5d37172afeeba97faade66e273dd4c1fff",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["security", "appsec", "code-review", "pentest-planning"],
+      "examples": [
+        {
+          "prompt": "Bruk appsec-advisory til å vurdere sikkerheten i denne PR-en; skill kodefunn fra antatt eksponering og foreslå trygge tester",
+          "scenario": "Avgrenset sikkerhetsgjennomgang av PR"
+        },
+        {
+          "prompt": "Gjennomgå dette repoet med appsec-advisory og vis hva teamet bør undersøke først, uten å kjøre pentest",
+          "scenario": "Rådgivende sikkerhetsgjennomgang av tjeneste"
         }
       ]
     },

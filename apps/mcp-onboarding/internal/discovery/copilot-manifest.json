@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "018471685b00d5b714d68df69192961cf528e88a7db454902a259b257689bd42",
+      "contentHash": "92bc5b172dd16b1f26bd27828d9fa1935de541547e35f9a67040904b7e86a982",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -636,6 +636,16 @@
       "contentHash": "696738e209f8127d8b16d31a1d424fd3be0fbfd2486db782eb013192c4f054c2",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/api-design/SKILL.md"
+    },
+    {
+      "type": "skill",
+      "name": "appsec-advisory",
+      "displayName": "appsec-advisory",
+      "description": "Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn, vurdert eksponering og forslag til trygg testing. Bruk når teamet vil ha en dypere sikkerhetsvurdering eller prioritering av funn, ikke for sjekk før commit (bruk security-review) eller pentest",
+      "filePath": "skills/appsec-advisory/SKILL.md",
+      "contentHash": "48d4fcea7436f429716b6b4e16b2db5d37172afeeba97faade66e273dd4c1fff",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/appsec-advisory/SKILL.md"
     },
     {
       "type": "skill",

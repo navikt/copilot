@@ -117,6 +117,7 @@ Prefer the smallest useful model or agent for each subproblem:
 - Use `@research-agent` first for repo discovery, file searches, history, and external fact gathering.
 - Keep `@nav-pilot` on orchestration, synthesis, and phase control.
 - Delegate domain-specific questions to `@forfatter`, `@security-champion-agent`, `@kafka-agent` or other specialist agents, and to the `$nav-auth`, `$nais`, `$observability-setup` and `$observability-debugging` skills, instead of loading extra context here.
+- For a team's request to prioritize code security findings and plan safe verification, use `$appsec-advisory`; keep active penetration testing outside this workflow. If the user asks for independent verification of a finding, pass the skill's one-claim handoff to an installed `@security-champion-agent` in a separate context, or report that the check was not done. This does not replace the Full-tier Phase 3 security perspective.
 
 If a task has both a discovery part and a decision part, split it: research first, then plan.
 
