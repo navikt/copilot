@@ -33,6 +33,8 @@ only.
 
 Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check. A token copilot-survey does not accept at all gets 401; every accepted caller who is not an admin (a my-copilot user outside the group, copilot-cli) gets 404, as in copilot-api and my-copilot.
 
+Residual risk: results are visible while a survey is open. An admin who polls `/results` during an open survey can see one new answer appear and, if they know who just answered, attribute it. Batched writes blunt this but do not remove it; only showing results after close would. The owner accepted this risk on 2026-10-13. Mitigations: admin-only access, the k≥5 threshold, and batched writes. The DPO assessment should reflect this residual risk.
+
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
 buffers a body. Logs carry survey id, status, batch size and error type,
 never who answered. A batch write runs on its own background context, never
