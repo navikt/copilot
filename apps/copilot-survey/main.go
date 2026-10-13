@@ -22,6 +22,13 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "import" {
+		if err := runImport(os.Args[2:], os.Stdin, os.Stdout, os.Getenv("DB_URL"), time.Now()); err != nil {
+			fmt.Fprintln(os.Stderr, "import:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	config := loadConfig()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: config.LogLevel})))
 
