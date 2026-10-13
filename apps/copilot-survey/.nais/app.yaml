@@ -118,9 +118,7 @@ spec:
 ---
 # Sends this app's custom alerts to #github-copilot-alerts instead of the team
 # default channel. Rules opt in with alert_type: custom (keeps them off the Nais
-# default route, so no double posts) and app: copilot-survey. No custom title or text:
-# this file goes through the deploy action's Handlebars templating, which would
-# eat Alertmanager's own Go templates. slack-webhook is the secret Nais puts in
+# default route, so no double posts) and app: copilot-survey. slack-webhook is the secret Nais puts in
 # every team namespace for its default alert route; the channel field picks
 # the channel.
 apiVersion: monitoring.coreos.com/v1alpha1
@@ -139,6 +137,11 @@ spec:
             key: apiUrl
           channel: "#github-copilot-alerts"
           sendResolved: true
+          # Nais's own slack.* templates, so messages look like the team default.
+          # The backslash keeps the deploy step's Handlebars from rendering them.
+          title: '\{{ template "slack.title" . }}'
+          text: '\{{ template "slack.text" . }}'
+          color: '\{{ template "slack.color" . }}'
   route:
     groupBy:
       - alertname
