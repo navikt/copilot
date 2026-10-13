@@ -50,6 +50,7 @@ const DYNAMIC: Record<string, (value: string) => boolean> = {
   "/videos/[id]": () => true,
   // Survey ids live in copilot-survey; the page answers 404 to an unknown one.
   "/admin/undersokelser/[id]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
+  "/admin/undersokelser/[id]/fritekst": (s) => /^[a-z0-9-]{1,64}$/.test(s),
 };
 
 // Redirects that are deliberately temporary: aliases, not moved pages.
@@ -292,6 +293,7 @@ function currentSite(): Found[] {
     "/install/[type]": Object.keys(INSTALL_TYPES),
     "/videos/[id]": [],
     "/admin/undersokelser/[id]": [],
+    "/admin/undersokelser/[id]/fritekst": [],
   };
   for (const route of routes.filter((r) => r.pattern.includes("["))) {
     for (const value of dynamicPages[route.pattern] ?? []) {

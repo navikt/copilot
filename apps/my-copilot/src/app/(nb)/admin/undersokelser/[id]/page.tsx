@@ -128,6 +128,7 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
             <HStack gap="space-16">
               <Link href="/admin/undersokelser">Alle undersøkelser</Link>
               <Link href="/admin/undersokelser/sammenlign">Sammenlign bølger</Link>
+              <Link href={`/admin/undersokelser/${id}/fritekst`}>Se fritekstsvarene</Link>
             </HStack>
             <BodyShort>
               {formatDate(s.starts)}–{formatDate(s.ends)} ·{" "}
@@ -141,7 +142,7 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
             ) : (
               <>
                 <BodyShort size="small">
-                  Spørsmål som ble endret underveis, vises med én tabell per versjon. Fritekstsvar vises ikke her.
+                  Spørsmål som ble endret underveis, vises med én tabell per versjon. Fritekstsvarene har egen side.
                 </BodyShort>
                 {s.questions.map((q) => {
                   const qdef = def?.questions.find((d) => d.id === q.id);

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/netip"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -74,7 +75,7 @@ type exportRow struct {
 }
 
 // runExport reads one JSON object per line (answers, question_versions,
-// context, as stored in survey_answers) and writes them back with free text
+// context, as stored in survey_answers, and hidden: the texts an admin hid) and writes them back with free text
 // redacted and every context value held by fewer than minSegment rows merged
 // into «annet». A row whose combination of context values is still rarer
 // than that gets «annet» for all of them.
@@ -91,6 +92,8 @@ func runExport(in io.Reader, out io.Writer) error {
 			Answers          map[string]any `json:"answers"`
 			QuestionVersions map[string]int `json:"question_versions"`
 			Context          map[string]any `json:"context"`
+			// Hidden lists "field hash" of texts an admin hid (freetext.go).
+			Hidden []string `json:"hidden"`
 		}
 		if err := json.Unmarshal([]byte(line), &raw); err != nil {
 			return fmt.Errorf("row %d: %w", len(rows)+1, err)
@@ -104,6 +107,11 @@ func runExport(in io.Reader, out io.Writer) error {
 				ctx[k] = strconv.FormatBool(t)
 			default:
 				ctx[k] = fmt.Sprint(t)
+			}
+		}
+		for k, v := range raw.Answers {
+			if s, ok := v.(string); ok && slices.Contains(raw.Hidden, k+" "+textHash(s)) {
+				delete(raw.Answers, k)
 			}
 		}
 		redactValue(raw.Answers)

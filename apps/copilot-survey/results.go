@@ -64,9 +64,11 @@ func (a *surveyAPI) tally(r *http.Request, s survey) (surveyTally, error) {
 	return tallyRows(s, rows), err
 }
 
+var errNoStorage = errors.New("no storage")
+
 func (a *surveyAPI) read(r *http.Request, id string) ([]storedAnswer, error) {
 	if a.answers == nil {
-		return nil, errors.New("no storage")
+		return nil, errNoStorage
 	}
 	return a.answers(r.Context(), id)
 }
