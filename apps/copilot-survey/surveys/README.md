@@ -194,4 +194,4 @@ any other cluster, so it can never open a survey in prod. It also needs
   in dev-gcp) to write anything still queued. To let the same people answer again
   after their answers were written, replace `SURVEY_KEY_DEV_E2E_TEST` with a new key
   and restart; old participation rows then match no one. Written rows go by
-  themselves: participation the day after `ends`, answers 180 days later.
+  themselves: participation the day after `ends`, answers 180 days later, or `retention_days` later when the definition sets it.

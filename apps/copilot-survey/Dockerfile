@@ -10,6 +10,7 @@ RUN go mod download
 
 COPY *.go ./
 COPY surveys/ ./surveys/
+COPY imports/ ./imports/
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o copilot-survey .
 

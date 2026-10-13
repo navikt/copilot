@@ -1,0 +1,37 @@
+{
+  "survey": "q2-2026",
+  "columns": {
+    "Hvor mange års erfaring har du som teknolog?": "erfaring",
+    "Hvilke AI-kodemiljøer bruker du i dag? (velg alle som passer)": "verktoy",
+    "Hvor gir AI-kodeverktøy deg mest verdi i dine daglige oppgaver i Nav? (velg opptil 3)": "verdi",
+    "Alt i alt er jeg fornøyd med AI-kodeverktøyene vi har tilgang til i Nav": "tilfredshet",
+    "AI-kodeverktøy reduserer mental innsats på repetitive oppgaver og boilerplate, slik at jeg kan fokusere på vanskeligere problemer.": "kognitiv-belastning",
+    "AI-kodeverktøy hjelper meg å komme videre når jeg står fast, og fullføre oppgaver raskere enn uten.": "oppgavegjennomforing",
+    "Kode jeg lager med AI-hjelp holder god nok kvalitet til at den ikke skaper ekstra arbeid i code review.": "code-review",
+    "Jeg er bekymra for at AI-verktøy kan svekke min egen dype forståelse av koden og teknologiene jeg jobber med.": "teknisk-kompetanse",
+    "Jeg er trygg på å ta fullt ansvar for kode som er generert eller vesentlig hjulpet av AI.": "eierskap",
+    "Usikkerhet rundt personvern eller interne sikkerhetsregler hindrer meg i å bruke AI-kodeverktøy fullt ut i det daglige arbeidet.": "juss-og-sikkerhet",
+    "Hvis du kunne endra én ting med AI-kodeverktøyene i Nav, hva ville det vært? (velg én)": "en-endring",
+    "Hva er din mest minneverdige opplevelse — positiv eller negativ — med AI-kodeverktøy, og hva ville gjort dem mer nyttige? (valgfri)": "opplevelse"
+  },
+  "values": {
+    "erfaring": {
+      "0-2": "0–2",
+      "3-5": "3–5",
+      "6-10": "6–10",
+      "11+ 28": "11+",
+      "18+": "11+",
+      "Option 5": null
+    },
+    "verktoy": {
+      "Jeg bruker ikke AI-kodeverktøy": "Jeg bruker ikke KI-kodeverktøy"
+    },
+    "verdi": {
+      "Bruker ikke": null
+    },
+    "en-endring": {
+      "Støtte for flere AI-verktøy eller miljøer": "Støtte for flere KI-verktøy eller miljøer",
+      "Jeg foretrekker å kode uten AI": "Jeg foretrekker å kode uten KI"
+    }
+  }
+}

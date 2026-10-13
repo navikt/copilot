@@ -220,6 +220,59 @@ psql "$DATABASE_URL" -At -c "SELECT json_build_object('answers', answers,
 Answers keep their question ids; `construct` and `reverse` come from the
 definition file. Analyse the export, not the table.
 
+### Importing an earlier survey
+
+`copilot-survey import --survey <id> [--dry-run]` reads a Microsoft Forms
+export as CSV on stdin and writes its answers to `survey_answers`, so earlier
+waves show in `/admin/undersokelser` next to later ones. It needs a
+definition in `surveys/<id>.json` (inactive, the dates it ran) and a mapping
+in `imports/<id>.json`: which column is which question id, and which answer
+texts are rewritten (`null` drops an answer). The mapping holds no answers.
+
+- Remove the identity and time columns (ID, Start time, Completion time,
+  Email, Name, Last modified time) before import. A column not in the mapping
+  is refused, so a forgotten Email column stops the import.
+- No participation rows or hashes. `context` is `{"client": "forms"}`,
+  `question_versions` come from the definition and `delete_after` follows the
+  same retention as a submission: 180 days after the survey ended, or
+  `retention_days` from the definition. The
+  command warns if that day has passed (the retention job would delete the
+  rows at once).
+- An answer that is not an option goes in as the question's `other` option
+  with its text under `<id>.other`, as a submission stores it. Free text is
+  cut to the question's `max_length`, the bound a submission is held to.
+  Errors name the question, never the answer.
+- Reruns are safe: one transaction deletes the survey's rows and inserts them
+  again.
+- `--dry-run` prints rows, answers per question and each normalisation with
+  its count. It prints no answers and needs no database.
+- Never commit the export or anything derived from its rows.
+
+`q2-2026` (spring 2026, 165 answers) is imported with the export converted to
+CSV and stripped of identity outside the repo. It sets `retention_days: 730`
+(owner, 2026-10-13: kept two years for comparison), so its rows expire
+2028-04-30.
+
+Prod, run by a person with access to namespace `copilot`. The import needs
+write access to `survey_answers`, so prepare with all privileges and revoke
+afterwards:
+
+```sh
+REASON="Import vårens utviklerundersøkelse (#1763)"
+nais cloudsql prepare copilot-survey -t copilot -e prod-gcp --all-privileges --reason "$REASON"
+nais cloudsql grant   copilot-survey -t copilot -e prod-gcp --reason "$REASON"   # only if your personal DB user does not exist yet
+nais cloudsql proxy   copilot-survey -t copilot -e prod-gcp -p 5433 --reason "$REASON"   # leave running
+
+# Another terminal, in apps/copilot-survey. User: your Google account e-mail, password blank (doc.nais.io, personal access).
+export DB_URL="postgres://$(echo "$(gcloud config get account)" | sed 's/@/%40/')@localhost:5433/copilot-survey?sslmode=disable"
+go run . import --survey q2-2026 --dry-run < q2-2026.csv   # check the counts
+go run . import --survey q2-2026 < q2-2026.csv
+psql "$DB_URL" -c "SELECT count(*) FROM survey_answers WHERE survey_id = 'q2-2026'"   # 165
+# Check /admin/undersokelser on ki-utvikling: q2-2026 is «stengt» with 165 answers.
+
+nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
+```
+
 ## Configuration
 
 NAIS injects the Entra, Texas and database variables. The secret
