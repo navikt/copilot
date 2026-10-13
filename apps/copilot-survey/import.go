@@ -71,7 +71,7 @@ func runImport(args []string, in io.Reader, out io.Writer, dbURL string, now tim
 	if err != nil {
 		return err
 	}
-	deleteAfter := s.closesOn().Add(retention)
+	deleteAfter := s.deleteAfter()
 	fmt.Fprintf(out, "survey %s: %d rows, delete_after %s\n", s.ID, stats.rows, deleteAfter.Format(time.DateOnly))
 	if !now.Before(deleteAfter.AddDate(0, 0, 1)) {
 		fmt.Fprintf(out, "WARNING: delete_after %s has passed: the daily retention job deletes these rows at once\n", deleteAfter.Format(time.DateOnly))

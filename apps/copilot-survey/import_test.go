@@ -113,7 +113,7 @@ func TestImportPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != len(importRows) || ctx != `{"client": "forms"}` || after != "2026-10-28" || parts != 0 {
+	if n != len(importRows) || ctx != `{"client": "forms"}` || after != "2028-04-30" || parts != 0 {
 		t.Fatalf("rows %d, context %s, delete_after %s, participation %d", n, ctx, after, parts)
 	}
 	// No identity: the only keys stored are question ids and their other texts.

@@ -35,8 +35,8 @@ import (
 //go:embed surveys
 var surveyFiles embed.FS
 
-// retention is how long answers are kept after a survey ends. The rows are
-// then deleted, dedup hash and all.
+// retention is how long answers are kept after a survey ends, unless its
+// definition sets retention_days. The rows are then deleted.
 const retention = 180 * 24 * time.Hour
 
 type survey struct {
@@ -58,6 +58,9 @@ type survey struct {
 	// Web clients always get it. YYYY.MM.DD or YYYY.MM.DD-HHMMSS, as in a
 	// nav-pilot release tag.
 	MinCLIVersion string     `json:"min_cli_version,omitempty"`
+	// RetentionDays overrides retention for this survey (e.g. an imported
+	// earlier wave kept for comparison).
+	RetentionDays int        `json:"retention_days,omitempty"`
 	Starts        string     `json:"starts"` // YYYY-MM-DD, first day open (UTC)
 	Ends          string     `json:"ends"`   // YYYY-MM-DD, last day open (UTC)
 	Questions     []question `json:"questions"`
@@ -325,6 +328,14 @@ func (s survey) activeOn(now time.Time) bool {
 func (s survey) closesOn() time.Time {
 	end, _ := time.Parse(time.DateOnly, s.Ends)
 	return end.AddDate(0, 0, 1)
+}
+
+// deleteAfter is the last day the survey's answers are kept.
+func (s survey) deleteAfter() time.Time {
+	if s.RetentionDays > 0 {
+		return s.closesOn().AddDate(0, 0, s.RetentionDays)
+	}
+	return s.closesOn().Add(retention)
 }
 
 // submission is the request body. Unknown fields are refused, so a client
@@ -716,7 +727,7 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	fresh, err := a.store(ctx, s.ID, participantHash(key, email), s.closesOn(), response{
 		SurveyID: s.ID, Answers: answers, QuestionVersions: versions,
-		Context: sub.Context, DeleteAfter: s.closesOn().Add(retention),
+		Context: sub.Context, DeleteAfter: s.deleteAfter(),
 	})
 	if err != nil {
 		slog.Error("survey: checking participation failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))

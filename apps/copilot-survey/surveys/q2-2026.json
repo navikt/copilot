@@ -5,6 +5,7 @@
   "active": false,
   "starts": "2026-03-24",
   "ends": "2026-04-30",
+  "retention_days": 730,
   "questions": [
     {
       "id": "erfaring",

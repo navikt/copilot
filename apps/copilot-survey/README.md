@@ -234,7 +234,8 @@ texts are rewritten (`null` drops an answer). The mapping holds no answers.
   is refused, so a forgotten Email column stops the import.
 - No participation rows or hashes. `context` is `{"client": "forms"}`,
   `question_versions` come from the definition and `delete_after` follows the
-  same retention as a submission: 180 days after the survey ended. The
+  same retention as a submission: 180 days after the survey ended, or
+  `retention_days` from the definition. The
   command warns if that day has passed (the retention job would delete the
   rows at once).
 - An answer that is not an option goes in as the question's `other` option
@@ -246,7 +247,9 @@ texts are rewritten (`null` drops an answer). The mapping holds no answers.
 - Never commit the export or anything derived from its rows.
 
 `q2-2026` (spring 2026, 165 answers) is imported with the export converted to
-CSV and stripped of identity outside the repo. Its rows expire 2026-10-28.
+CSV and stripped of identity outside the repo. It sets `retention_days: 730`
+(owner, 2026-10-13: kept two years for comparison), so its rows expire
+2028-04-30.
 
 Prod, run by a person with access to namespace `copilot`. The import needs
 write access to `survey_answers`, so prepare with all privileges and revoke
@@ -254,18 +257,18 @@ afterwards:
 
 ```sh
 REASON="Import vårens utviklerundersøkelse (#1763)"
-nais postgres prepare copilot-survey -t copilot -e prod-gcp --all-privileges --reason "$REASON"
-nais postgres grant   copilot-survey -t copilot -e prod-gcp --reason "$REASON"
-nais postgres proxy   copilot-survey -t copilot -e prod-gcp -p 5433 --reason "$REASON"   # leave running
+nais cloudsql prepare copilot-survey -t copilot -e prod-gcp --all-privileges --reason "$REASON"
+nais cloudsql grant   copilot-survey -t copilot -e prod-gcp --reason "$REASON"   # only if your personal DB user does not exist yet
+nais cloudsql proxy   copilot-survey -t copilot -e prod-gcp -p 5433 --reason "$REASON"   # leave running
 
-# In another terminal, from apps/copilot-survey. IAM user = your Nav e-mail, no password.
+# Another terminal, in apps/copilot-survey. User: your Google account e-mail, password blank (doc.nais.io, personal access).
 export DB_URL="postgres://$(echo "$(gcloud config get account)" | sed 's/@/%40/')@localhost:5433/copilot-survey?sslmode=disable"
 go run . import --survey q2-2026 --dry-run < q2-2026.csv   # check the counts
 go run . import --survey q2-2026 < q2-2026.csv
 psql "$DB_URL" -c "SELECT count(*) FROM survey_answers WHERE survey_id = 'q2-2026'"   # 165
 # Check /admin/undersokelser on ki-utvikling: q2-2026 is «stengt» with 165 answers.
 
-nais postgres revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
+nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
 ```
 
 ## Configuration
