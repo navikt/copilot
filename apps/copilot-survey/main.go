@@ -44,6 +44,7 @@ func main() {
 		}
 		surveys.store = store.submit
 		surveys.answers = store.answers
+		surveys.answered = store.answered
 		go store.purgeExpired(ctx, time.Now)
 	}
 	slog.Info("Starting copilot-survey", "port", config.Port, "storage", store != nil,

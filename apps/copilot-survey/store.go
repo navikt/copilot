@@ -108,6 +108,20 @@ func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesO
 	return true, nil
 }
 
+// answered: hash has answered surveyID, queued or written.
+func (s *surveyStore) answered(ctx context.Context, surveyID, hash string) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if q := s.queues[surveyID]; q != nil && q.hashes[hash] {
+		return true, nil
+	}
+	var seen bool
+	err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM survey_participation WHERE survey_id = $1 AND participant_hash = $2)`,
+		surveyID, hash).Scan(&seen)
+	return seen, err
+}
+
 func (s *surveyStore) writeLocked(ctx context.Context, surveyID string, q *surveyQueue) error {
 	hashes := make([]string, 0, len(q.hashes))
 	for h := range q.hashes {

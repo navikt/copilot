@@ -66,6 +66,9 @@ func testRouter(t *testing.T) (http.Handler, *fakeStore) {
 		keys:     map[string][]byte{"q4-2026": []byte("0123456789abcdef0123456789abcdef")},
 		emailFor: fakeEmails,
 		store:    store.submit,
+		answered: func(_ context.Context, surveyID, hash string) (bool, error) {
+			return store.participants[surveyID+"/"+hash], nil
+		},
 		now:      func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
 	}
 	return makeRouter(testAuthenticator(t), api), store
@@ -138,6 +141,41 @@ func TestSubmit(t *testing.T) {
 		if strings.Contains(strings.ToLower(k), "hans") || len(k) != len("q4-2026/")+64 {
 			t.Fatalf("participation key %q", k)
 		}
+	}
+}
+
+func TestStatus(t *testing.T) {
+	h, _ := testRouter(t)
+	status := func(token, id string) (int, string) {
+		rec := do(h, "GET", "/api/v1/surveys/"+id+"/status", token, "")
+		return rec.Code, strings.TrimSpace(rec.Body.String())
+	}
+	if code, body := status("cli:hans", "q4-2026"); code != 200 || body != `{"answered":false}` {
+		t.Fatalf("before answering: %d %s", code, body)
+	}
+	good := `{"answers":{"overall":4,"client":"opencode"},` + goodCtx + `}`
+	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "cli:hans", good); rec.Code != 201 {
+		t.Fatalf("submit: %d %s", rec.Code, rec.Body)
+	}
+	for _, tc := range []struct {
+		name, token, id string
+		want            int
+		body            string
+	}{
+		{"same user", "cli:hans", "q4-2026", 200, `{"answered":true}`},
+		{"same person on the web", webToken, "q4-2026", 200, `{"answered":true}`},
+		{"someone else", "cli:guest", "q4-2026", 200, `{"answered":false}`},
+		{"no token", "", "q4-2026", 401, ""},
+		{"no Nav identity", "cli:nosso", "q4-2026", 403, ""},
+		{"closed survey", "cli:hans", "old", 404, ""},
+		{"unknown survey", "cli:hans", "nope", 404, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, body := status(tc.token, tc.id)
+			if code != tc.want || (tc.body != "" && body != tc.body) {
+				t.Fatalf("%d %s, want %d %s", code, body, tc.want, tc.body)
+			}
+		})
 	}
 }
 

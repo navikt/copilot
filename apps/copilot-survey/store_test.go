@@ -36,6 +36,18 @@ func TestSurveyStore(t *testing.T) {
 		return ok
 	}
 
+	answered := func(survey, hash string) bool {
+		t.Helper()
+		ok, err := s.answered(t.Context(), survey, hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	if answered("s", "a") {
+		t.Fatal("answered before submitting")
+	}
+
 	for i := range answerBatch - 1 {
 		if !submit("s", string(rune('a'+i)), day(10)) {
 			t.Fatal("fresh submission refused")
@@ -43,6 +55,9 @@ func TestSurveyStore(t *testing.T) {
 	}
 	if submit("s", "a", day(10)) {
 		t.Fatal("a queued duplicate was accepted")
+	}
+	if !answered("s", "a") || answered("s", "zz") || answered("other", "a") {
+		t.Fatal("answered wrong for queued submissions")
 	}
 	// Another survey's submission is not written with s's batch.
 	submit("other", "a", day(1))
@@ -55,6 +70,9 @@ func TestSurveyStore(t *testing.T) {
 	}
 	if submit("s", "a", day(10)) {
 		t.Fatal("a written duplicate was accepted")
+	}
+	if !answered("s", "a") || answered("s", "zz") {
+		t.Fatal("answered wrong for written submissions")
 	}
 
 	// Close-out: the other survey's short last batch is written, then all
