@@ -172,6 +172,10 @@ spec:
     groupBy:
       - alertname
     matchers:
+      # Nais runs the operator without namespace enforcement, so match it here.
+      - name: namespace
+        matchType: "="
+        value: copilot
       - name: alert_type
         matchType: "="
         value: custom
