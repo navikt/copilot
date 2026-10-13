@@ -17,6 +17,7 @@ import {
   Switch,
   Table,
   Tabs,
+  Tag,
   VStack,
 } from "@navikt/ds-react";
 import { BackToTop } from "@/components/back-to-top";
@@ -88,6 +89,29 @@ const cell = { paddingBlock: "var(--ax-space-8)" };
  * Splits runs into the newest of each measurement and the older ones. A measurement is the same
  * model, effort and set of checks; runs from the same newest day are all kept. Pass one suite's runs.
  */
+/**
+ * Runs that cover only part of what another shown run of the same model and effort covered,
+ * like a rerun of rv1–rv2 next to a full review. They are marked, not merged.
+ */
+export function partialRuns(runs: GoldenRun[]): Set<GoldenRun> {
+  const ids = (run: GoldenRun) => new Set(run.checks.map((c) => c.id));
+  return new Set(
+    runs.filter((run) => {
+      if (run.smoke) return false;
+      const mine = ids(run);
+      return runs.some(
+        (other) =>
+          other !== run &&
+          !other.smoke &&
+          other.model === run.model &&
+          other.effort === run.effort &&
+          other.checks.length > mine.size &&
+          [...mine].every((id) => ids(other).has(id))
+      );
+    })
+  );
+}
+
 export function latestRuns(runs: GoldenRun[]): { latest: GoldenRun[]; older: GoldenRun[] } {
   const key = (run: GoldenRun) =>
     [
@@ -297,7 +321,7 @@ interface View {
   xRange: [number, number];
 }
 
-function RunRows({ runs, moreColumns }: { runs: GoldenRun[]; moreColumns: boolean }) {
+function RunRows({ runs, moreColumns, partial }: { runs: GoldenRun[]; moreColumns: boolean; partial: Set<GoldenRun> }) {
   return (
     <>
       {[...runs]
@@ -314,6 +338,14 @@ function RunRows({ runs, moreColumns }: { runs: GoldenRun[]; moreColumns: boolea
                   {run.smoke && " (benchmark)"}
                   {run.model_verified === false && " (ikke bekreftet)"}
                 </span>
+                {partial.has(run) && (
+                  <BodyShort size="small" textColor="subtle">
+                    <Tag size="xsmall" variant="neutral">
+                      delvis testsett
+                    </Tag>{" "}
+                    Bare {run.checks.map((c) => c.id).join(", ")}
+                  </BodyShort>
+                )}
                 {!!run.subagent_models?.length && (
                   <BodyShort size="small" textColor="subtle">
                     Subagenter brukte også: {run.subagent_models.map(modelName).join(", ")}
@@ -365,6 +397,7 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
   const [showOlder, setShowOlder] = useState(false);
   if (runs.length === 0) return <BodyShort>Ingen målinger passer filteret.</BodyShort>;
   const { latest, older } = latestRuns(runs);
+  const partial = partialRuns(showOlder ? runs : latest);
   const tableRuns = showOlder ? [...latest, ...older] : latest;
   // Smoke runs check the harness, not the model: table only, after the real runs.
   const plotted = latest.filter((run) => !run.smoke && knownCredits(run) !== null);
@@ -397,6 +430,7 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
             low: passInterval(run)[0] * 100,
             high: passInterval(run)[1] * 100,
             n: run.n,
+            partial: partial.has(run),
           }))}
         />
       )}
@@ -438,7 +472,7 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            <RunRows runs={tableRuns} moreColumns={view.moreColumns} />
+            <RunRows runs={tableRuns} moreColumns={view.moreColumns} partial={partial} />
           </Table.Body>
         </Table>
       </div>
@@ -538,6 +572,10 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
           <li>«Besto hver gang» er andelen sjekker som besto i alle n kjøringene.</li>
           <li>
             Tabellene viser den nyeste målingen for hver modell og hvert innsatsnivå. Eldre målinger kan du slå på.
+          </li>
+          <li>
+            «Delvis testsett» betyr at kjøringen bare tok noen av sjekkene som en annen kjøring av samme modell og nivå
+            tok. Den vises med hul markør i diagrammet og står utenfor linjen til modellen.
           </li>
         </VStack>
       </ReadMore>

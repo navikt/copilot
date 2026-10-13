@@ -15,6 +15,8 @@ export interface ChartPoint {
   low: number;
   high: number;
   n: number;
+  /** Only part of the checks another run of this model covered: hollow, off the line. */
+  partial?: boolean;
 }
 
 // Categorical slots from the dataviz reference palette, in fixed order. The
@@ -30,6 +32,8 @@ const EFFORT_SHAPE: Record<string, "circle" | "rect" | "triangle" | "rectRot"> =
   default: "rectRot",
 };
 const FRONTIER = "Beste avveining";
+const PARTIAL = " (delvis testsett)";
+const modelOf = (label: string | null | undefined) => label?.replace(PARTIAL, "") ?? null;
 // Below this width the direct labels have no room, so the legend takes over.
 const LABEL_MIN_WIDTH = 640;
 // With this many repeats the interval is narrow enough that the bar adds nothing.
@@ -64,10 +68,10 @@ const overlay: Plugin<"scatter"> = {
     const labels: { y: number; text: string; color: string; swatch: string }[] = [];
     chart.data.datasets.forEach((ds, i) => {
       if (ds.label === FRONTIER || !chart.isDatasetVisible(i)) return;
-      const on = !opts.highlight || opts.highlight === ds.label;
+      const on = !opts.highlight || opts.highlight === modelOf(ds.label);
       const color = fade(String(ds.borderColor).slice(0, 7), on);
       const data = ds.data as unknown as Raw[];
-      if (opts.ci || (opts.highlight === ds.label && data.length)) {
+      if (opts.ci || (opts.highlight === modelOf(ds.label) && data.length)) {
         ctx.save();
         ctx.strokeStyle = color;
         ctx.globalAlpha = 0.45;
@@ -83,7 +87,7 @@ const overlay: Plugin<"scatter"> = {
         ctx.restore();
       }
       const last = data.at(-1);
-      if (opts.labels && last) {
+      if (opts.labels && last && !String(ds.label).endsWith(PARTIAL)) {
         // One column right of the plot, so labels never sit on points that cluster at 100 %.
         labels.push({
           y: scales.y.getPixelForValue(last.y),
@@ -147,28 +151,49 @@ export function PassRateChart({
     return () => query.removeEventListener("change", update);
   }, []);
 
+  const toData = (own: ChartPoint[]) =>
+    own.map((p) => ({ x: p.credits, y: p.passPercent, effort: p.effort, n: p.n, low: p.low, high: p.high }));
   const datasets: ChartDataset<"scatter">[] = models
     .filter((model) => points.some((p) => p.model === model))
-    .map((model) => {
+    .flatMap((model) => {
       const base = SERIES[models.indexOf(model) % SERIES.length];
       const color = fade(base, !highlight || highlight === model);
       // Line runs cheapest → dearest, so it never doubles back on the log axis.
       const own = points.filter((p) => p.model === model).sort((a, b) => a.credits - b.credits);
-      return {
-        label: model,
-        data: own.map((p) => ({ x: p.credits, y: p.passPercent, effort: p.effort, n: p.n, low: p.low, high: p.high })),
-        pointStyle: own.map((p) => EFFORT_SHAPE[p.effort] ?? "circle"),
-        backgroundColor: color,
+      const full = own.filter((p) => !p.partial);
+      const part = own.filter((p) => p.partial);
+      const common = {
         borderColor: color,
-        borderWidth: highlight === model ? 2.5 : 1.5,
-        pointBorderColor: "#ffffff",
-        pointBorderWidth: 2,
-        showLine: true,
         pointRadius: 7,
         pointHoverRadius: 9,
         pointHitRadius: 12,
         order: highlight === model ? 0 : 1,
       };
+      const sets: ChartDataset<"scatter">[] = [];
+      if (full.length)
+        sets.push({
+          ...common,
+          label: model,
+          data: toData(full),
+          pointStyle: full.map((p) => EFFORT_SHAPE[p.effort] ?? "circle"),
+          backgroundColor: color,
+          borderWidth: highlight === model ? 2.5 : 1.5,
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 2,
+          showLine: true,
+        });
+      if (part.length)
+        sets.push({
+          ...common,
+          label: model + PARTIAL,
+          data: toData(part),
+          pointStyle: part.map((p) => EFFORT_SHAPE[p.effort] ?? "circle"),
+          backgroundColor: "#ffffff",
+          pointBorderColor: color,
+          pointBorderWidth: 2,
+          showLine: false,
+        });
+      return sets;
     });
   if (frontier) {
     datasets.push({
@@ -213,7 +238,7 @@ export function PassRateChart({
             layout: { padding: { top: 12, bottom: 12, left: 12, right: wide ? 140 : 12 } },
             onHover: (_event, elements, chart) => {
               const label = elements.length ? chart.data.datasets[elements[0].datasetIndex].label : null;
-              setHovered(label === FRONTIER ? null : (label ?? null));
+              setHovered(label === FRONTIER ? null : modelOf(label));
             },
             plugins: {
               // @ts-expect-error: options for the local overlay plugin above.
@@ -221,7 +246,12 @@ export function PassRateChart({
               legend: {
                 display: !wide,
                 position: "top",
-                labels: { usePointStyle: true, pointStyle: "circle", color: "#475569" },
+                labels: {
+                  usePointStyle: true,
+                  pointStyle: "circle",
+                  color: "#475569",
+                  filter: (item) => !item.text.endsWith(PARTIAL),
+                },
               },
               tooltip: {
                 filter: (item) => item.dataset.label !== FRONTIER,
@@ -265,7 +295,8 @@ export function PassRateChart({
       <figcaption className="text-sm" style={{ color: "#475569", marginTop: "var(--ax-space-8)" }}>
         Slik leser du diagrammet: jo høyere og lenger til venstre et punkt står, jo flere sjekker besto modellen og jo
         mindre kostet den. Form viser innsatsnivå (effort): sirkel = low, kvadrat = medium, trekant = high, rombe =
-        standard. Linjen binder sammen nivåene for hver modell. Credits-aksen er logaritmisk og lik i alle diagrammene.
+        standard. Linjen binder sammen nivåene for hver modell. En hul markør er et delvis testsett og står utenfor
+        linjen. Credits-aksen er logaritmisk og lik i alle diagrammene.
         {ci && " De svake loddrette strekene viser 95 %-intervallet for andelen bestått."}
         {frontier &&
           " Ringene og den stiplede linjen viser punktene der ingen annen kjøring er både billigere og minst like god."}{" "}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GoldenRun } from "@/lib/golden-baselines";
-import { formatDuration, latestRuns } from "./modeller-content";
+import { formatDuration, latestRuns, partialRuns } from "./modeller-content";
 
 describe("formatDuration", () => {
   it("shows seconds alone under a minute", () => {
@@ -25,5 +25,18 @@ describe("latestRuns", () => {
     const { latest, older } = latestRuns([old, a, b, otherChecks, otherEffort]);
     expect(latest).toEqual([a, b, otherChecks, otherEffort]);
     expect(older).toEqual([old]);
+  });
+});
+
+describe("partialRuns", () => {
+  const run = (checks: string[], model = "gpt-6-sol", smoke = false) =>
+    ({ model, effort: "low", smoke, checks: checks.map((id) => ({ id })) }) as unknown as GoldenRun;
+  it("marks a run whose checks are a strict subset of another run of the same model and effort", () => {
+    const full = run(["rv1", "rv2", "rv5", "rv7"]);
+    const rerun = run(["rv1", "rv2"]);
+    const otherModel = run(["rv1"], "gpt-6.1-sol");
+    const disjoint = run(["rv9"]);
+    const smoke = run(["rv1"], "gpt-6-sol", true);
+    expect([...partialRuns([full, rerun, otherModel, disjoint, smoke])]).toEqual([rerun]);
   });
 });
