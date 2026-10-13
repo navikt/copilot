@@ -186,6 +186,31 @@ export async function submitAnswers(userToken: string, surveyId: string, answers
   }
 }
 
+/**
+ * Whether the user has answered the survey, by the same check that refuses a
+ * second answer. undefined on anything but a 200: the page then shows the form,
+ * and copilot-survey still refuses a duplicate with 409.
+ */
+export async function getSurveyStatus(userToken: string, surveyId: string): Promise<boolean | undefined> {
+  const url = process.env.COPILOT_SURVEY_URL;
+  if (!url) return undefined;
+  try {
+    const headers: Record<string, string> = {};
+    if (!isLocalDev) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    const res = await fetchWithTimeout(
+      `${url}/api/v1/surveys/${encodeURIComponent(surveyId)}/status`,
+      { headers, cache: "no-store" },
+      5000,
+      "timeout"
+    );
+    if (res.status !== 200) return undefined;
+    const body = (await res.json()) as { answered?: unknown };
+    return typeof body.answered === "boolean" ? body.answered : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** A survey as copilot-survey's admin API lists it (GET /api/v1/admin/surveys). */
 export type SurveySummary = {
   id: string;

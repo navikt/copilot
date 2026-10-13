@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Alert, BodyLong, Heading, Link, VStack } from "@navikt/ds-react";
 import { Bullets, DocPage } from "@/components/nav-pilot/doc-page";
-import { getUser, isAdmin } from "@/lib/auth";
-import { getActiveSurveys, getSurveyPreview, SURVEY_SCHEDULE, surveyWindow } from "@/lib/survey";
+import { getUser, getUserToken, isAdmin } from "@/lib/auth";
+import { getActiveSurveys, getSurveyPreview, getSurveyStatus, SURVEY_SCHEDULE, surveyWindow } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
 export const metadata: Metadata = {
@@ -29,6 +29,8 @@ export default async function SurveyPage({
     timeZone: "UTC",
   });
   const survey = surveys.length === 1 ? surveys[0] : surveys.find((s) => s.id === id);
+  const token = survey && !preview ? await getUserToken() : undefined;
+  const answered = token && survey ? await getSurveyStatus(token, survey.id) : undefined;
 
   return (
     <DocPage title="Brukerundersøkelse" description="Svar på en åpen undersøkelse om Copilot og nav-pilot i Nav.">
@@ -70,7 +72,17 @@ export default async function SurveyPage({
               </Bullets>
             </VStack>
           )}
-          {survey && <SurveyForm survey={survey} />}
+          {survey &&
+            (answered ? (
+              <Alert variant="success">
+                <Heading size="small" level="2" spacing>
+                  Du har svart på undersøkelsen. Takk!
+                </Heading>
+                <BodyLong>Svarene kan ikke endres, fordi ingenting kobler dem til deg.</BodyLong>
+              </Alert>
+            ) : (
+              <SurveyForm survey={survey} />
+            ))}
         </>
       )}
     </DocPage>

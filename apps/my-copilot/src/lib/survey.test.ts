@@ -7,6 +7,7 @@ import {
   openSurveyTitles,
   surveyWindow,
   getActiveSurveys,
+  getSurveyStatus,
   isSkipped,
   optionsOf,
   scaleSteps,
@@ -98,6 +99,27 @@ describe("submitAnswers", () => {
   it("maps 400 to invalid", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response('{"error":"no answers"}', { status: 400 })));
     expect(await submitAnswers("token", "q4-2026", {})).toEqual({ status: "invalid" });
+  });
+});
+
+describe("getSurveyStatus", () => {
+  beforeEach(() => vi.stubEnv("COPILOT_SURVEY_URL", "http://copilot-survey"));
+  it.each([
+    [200, '{"answered":true}', true],
+    [200, '{"answered":false}', false],
+    [200, "{}", undefined],
+    [403, "{}", undefined],
+    [404, "{}", undefined],
+    [503, "{}", undefined],
+  ])("maps %i %s", async (code, body, want) => {
+    const fetch = vi.fn().mockResolvedValue(new Response(body, { status: code }));
+    vi.stubGlobal("fetch", fetch);
+    expect(await getSurveyStatus("token", "q4-2026")).toBe(want);
+    expect(fetch.mock.calls[0][0]).toBe("http://copilot-survey/api/v1/surveys/q4-2026/status");
+  });
+  it("fails open when copilot-survey is down", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+    expect(await getSurveyStatus("token", "q4-2026")).toBeUndefined();
   });
 });
 

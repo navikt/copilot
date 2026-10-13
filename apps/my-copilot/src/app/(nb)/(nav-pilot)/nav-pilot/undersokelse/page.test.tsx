@@ -1,34 +1,67 @@
-import { vi } from "vitest";
-
-vi.mock("@/lib/auth", () => ({ getUser: vi.fn(), isAdmin: vi.fn() }));
-vi.mock("@/lib/survey", () => ({
-  getActiveSurveys: vi.fn(async () => ({ status: "ok", surveys: [] })),
-  getSurveyPreview: vi.fn(async () => undefined),
-  SURVEY_SCHEDULE: { starts: "2026-10-01", ends: "2026-10-31" },
-  surveyWindow: () => "during",
-}));
-
-import { getUser, isAdmin } from "@/lib/auth";
-import { getSurveyPreview } from "@/lib/survey";
+import { render, screen } from "@testing-library/react";
+import type { Survey } from "@/lib/survey";
 import SurveyPage from "./page";
 
-const render = () => SurveyPage({ searchParams: Promise.resolve({ forhandsvis: "q4-2026" }) });
+const survey: Survey = { id: "q4-2026", title: "Q4", ends: "2026-12-01", questions: [] };
+const mocks = vi.hoisted(() => ({ status: vi.fn(), preview: vi.fn(), admin: false }));
 
-describe("SurveyPage preview", () => {
+vi.mock("next/navigation", () => ({ usePathname: () => "/nav-pilot/undersokelse" }));
+vi.mock("@/lib/auth", () => ({
+  getUser: async () => ({}),
+  getUserToken: async () => "token",
+  isAdmin: () => mocks.admin,
+}));
+vi.mock("@/lib/survey", async (original) => ({
+  ...(await original<typeof import("@/lib/survey")>()),
+  getActiveSurveys: async () => ({ status: "ok", surveys: [survey] }),
+  getSurveyPreview: mocks.preview,
+  getSurveyStatus: mocks.status,
+}));
+vi.mock("./survey-form", () => ({
+  SurveyForm: ({ preview }: { preview?: boolean }) => <form aria-label={preview ? "forhåndsvisning" : "skjema"} />,
+}));
+
+async function show(params: { forhandsvis?: string } = {}) {
+  render(await SurveyPage({ searchParams: Promise.resolve(params) }));
+}
+
+describe("undersøkelsessiden", () => {
   beforeEach(() => {
-    vi.mocked(getUser).mockResolvedValue({ firstName: "A", lastName: "B", email: "a@nav.no", groups: [] });
-    vi.mocked(getSurveyPreview).mockClear();
+    mocks.status.mockReset();
+    mocks.preview.mockReset().mockResolvedValue(survey);
+    mocks.admin = false;
   });
 
-  it("never loads a preview for a non-admin", async () => {
-    vi.mocked(isAdmin).mockReturnValue(false);
-    await render();
-    expect(getSurveyPreview).not.toHaveBeenCalled();
+  it("takker i stedet for skjemaet når brukeren har svart", async () => {
+    mocks.status.mockResolvedValue(true);
+    await show();
+    expect(screen.getByText("Du har svart på undersøkelsen. Takk!")).toBeInTheDocument();
+    expect(screen.queryByRole("form")).toBeNull();
   });
 
-  it("loads the preview for an admin", async () => {
-    vi.mocked(isAdmin).mockReturnValue(true);
-    await render();
-    expect(getSurveyPreview).toHaveBeenCalledWith("q4-2026");
+  it.each([false, undefined])("viser skjemaet når status er %s", async (answered) => {
+    mocks.status.mockResolvedValue(answered);
+    await show();
+    expect(screen.getByRole("form", { name: "skjema" })).toBeInTheDocument();
+    expect(screen.queryByText(/Du har svart/)).toBeNull();
+  });
+
+  it("forhåndsvisning for admin ser bort fra status", async () => {
+    mocks.admin = true;
+    mocks.status.mockResolvedValue(true);
+    await show({ forhandsvis: "q4-2026" });
+    expect(screen.getByRole("form", { name: "forhåndsvisning" })).toBeInTheDocument();
+    expect(mocks.status).not.toHaveBeenCalled();
+  });
+
+  it("henter aldri forhåndsvisning for andre enn admin", async () => {
+    await show({ forhandsvis: "q4-2026" });
+    expect(mocks.preview).not.toHaveBeenCalled();
+  });
+
+  it("henter forhåndsvisningen for admin", async () => {
+    mocks.admin = true;
+    await show({ forhandsvis: "q4-2026" });
+    expect(mocks.preview).toHaveBeenCalledWith("q4-2026");
   });
 });
