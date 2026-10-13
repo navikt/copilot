@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Alert, BodyLong, BodyShort, Box, Button, Heading, Search, VStack } from "@navikt/ds-react";
+import { formatNumber } from "@/lib/format";
 import type { FreetextField } from "@/lib/survey";
 import { hideFreetext } from "./actions";
 
@@ -29,7 +30,7 @@ function Field({ surveyId, field }: { surveyId: string; field: FreetextField }) 
           {field.question}
         </Heading>
         <BodyShort size="small">
-          {field.other ? `Svar under «${field.other}»` : "Fritekst"}: {texts.length} svar
+          {field.other ? `Svar under «${field.other}»` : "Fritekst"}: {formatNumber(texts.length)} svar
         </BodyShort>
         {texts.length > 0 ? (
           <Search
