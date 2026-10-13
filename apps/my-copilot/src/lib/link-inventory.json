@@ -68,7 +68,16 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/admin/page.tsx",
       "apps/my-copilot/src/app/(nb)/admin/undersokelser/[id]/page.tsx",
-      "apps/my-copilot/src/app/(nb)/admin/undersokelser/page.tsx"
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/sammenlign/page.tsx"
+    ],
+    "anchors": {}
+  },
+  "/admin/undersokelser/sammenlign": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/[id]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/undersokelser/sammenlign/page.tsx"
     ],
     "anchors": {}
   },

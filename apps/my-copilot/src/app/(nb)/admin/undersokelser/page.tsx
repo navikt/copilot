@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Box, Link, Tag } from "@navikt/ds-react";
+import { Box, Link, Tag, VStack } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import ErrorState from "@/components/error-state";
@@ -36,36 +36,39 @@ export default async function SurveysPage() {
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHeaderCell scope="col">Undersøkelse</TableHeaderCell>
-                <TableHeaderCell scope="col">Periode</TableHeaderCell>
-                <TableHeaderCell scope="col">Status</TableHeaderCell>
-                <TableHeaderCell scope="col" align="right">
-                  Svar
-                </TableHeaderCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {res.data.surveys.map((s) => (
-                <TableRow key={s.id}>
-                  <TableDataCell>
-                    <Link href={`/admin/undersokelser/${s.id}`}>{s.title}</Link>
-                  </TableDataCell>
-                  <TableDataCell>
-                    {formatDate(s.starts)}–{formatDate(s.ends)}
-                  </TableDataCell>
-                  <TableDataCell>
-                    <Tag variant={statusTag[s.status]} size="small">
-                      {s.status}
-                    </Tag>
-                  </TableDataCell>
-                  <TableDataCell align="right">{formatNumber(s.responses)}</TableDataCell>
+          <VStack gap="space-16">
+            <Link href="/admin/undersokelser/sammenlign">Sammenlign bølgene</Link>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHeaderCell scope="col">Undersøkelse</TableHeaderCell>
+                  <TableHeaderCell scope="col">Periode</TableHeaderCell>
+                  <TableHeaderCell scope="col">Status</TableHeaderCell>
+                  <TableHeaderCell scope="col" align="right">
+                    Svar
+                  </TableHeaderCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {res.data.surveys.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableDataCell>
+                      <Link href={`/admin/undersokelser/${s.id}`}>{s.title}</Link>
+                    </TableDataCell>
+                    <TableDataCell>
+                      {formatDate(s.starts)}–{formatDate(s.ends)}
+                    </TableDataCell>
+                    <TableDataCell>
+                      <Tag variant={statusTag[s.status]} size="small">
+                        {s.status}
+                      </Tag>
+                    </TableDataCell>
+                    <TableDataCell align="right">{formatNumber(s.responses)}</TableDataCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </VStack>
         </Box>
       </div>
     </main>
