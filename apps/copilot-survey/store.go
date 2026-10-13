@@ -192,3 +192,22 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 		}
 	}
 }
+
+// answers returns a survey's written rows: answers and question versions,
+// nothing else. Submissions still queued are not included.
+func (s *surveyStore) answers(ctx context.Context, surveyID string) ([]storedAnswer, error) {
+	rows, err := s.pool.Query(ctx, `SELECT answers, question_versions FROM survey_answers WHERE survey_id = $1`, surveyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []storedAnswer
+	for rows.Next() {
+		var a storedAnswer
+		if err := rows.Scan(&a.Answers, &a.QuestionVersions); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}

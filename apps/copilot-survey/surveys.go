@@ -528,6 +528,9 @@ type surveyAPI struct {
 	// false means hash has already answered.
 	store func(ctx context.Context, surveyID, hash string, closesOn time.Time, r response) (bool, error)
 	now   func() time.Time
+	// answers reads a survey's written answers for the admin aggregates
+	// (surveyStore.answers). Nil without storage.
+	answers func(ctx context.Context, surveyID string) ([]storedAnswer, error)
 }
 
 // open: active, inside its window and with a key. A survey without a key

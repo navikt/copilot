@@ -43,6 +43,10 @@ spec:
       tenant: {{azure_tenant}}
       # Every Nav user may get an OBO token for this app via my-copilot.
       allowAllUsers: true
+      # The groups claim lets the admin routes check COPILOT_ADMIN_GROUP_ID.
+      claims:
+        groups:
+          - id: f59c8c77-7b73-4753-890a-2b483a07d18a
   gcp:
     sqlInstances:
       - type: POSTGRES_17
@@ -62,6 +66,9 @@ spec:
   env:
     - name: COPILOT_API_URL
       value: http://copilot-api
+    # Same group as my-copilot's admins: only they may read results.
+    - name: COPILOT_ADMIN_GROUP_ID
+      value: f59c8c77-7b73-4753-890a-2b483a07d18a
     - name: LOG_LEVEL
       value: "{{log_level}}"
     # dev-gcp only: opens listed surveys for an end-to-end test (surveys/README.md).

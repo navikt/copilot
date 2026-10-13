@@ -27,6 +27,10 @@ only.
 | `GET` | `/api/v1/surveys/active` | none | Open surveys from [`surveys/`](surveys/README.md) |
 | `GET` | `/api/v1/surveys/schema` | none | The JSON Schema of a definition, [`surveys/schema.json`](surveys/schema.json) |
 | `POST` | `/api/v1/surveys/{id}/responses` | see above | Submit answers: 201, 409 already answered, 400 invalid, 401 caller refused, 403 no Nav identity, 404 not open, 503 not taking answers |
+| `GET` | `/api/v1/admin/surveys` | admin | All surveys with status (kommende, åpen, stengt) and written answers |
+| `GET` | `/api/v1/admin/surveys/{id}/results` | admin | Counts per option and question version, no free text. Fewer than 5 answers: nothing; a count of 1–4: `null` |
+
+Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check; anything else gets 401 or 403.
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`) |
 
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that

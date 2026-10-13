@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -19,8 +20,9 @@ import (
 // GitHub login, asserted in X-On-Behalf-Of. From my-copilot: a ki-utvikling
 // user's Nav e-mail, from their own OBO token. Never logged.
 type caller struct {
-	login string
-	email string
+	login  string
+	email  string
+	groups []string
 }
 
 // authenticator validates the Entra token on a submission through the Texas
@@ -41,10 +43,14 @@ type authenticator struct {
 	endpoint   string
 	cliID      string
 	webID      string
+	// adminGroup is the Entra group whose members may read results
+	// (COPILOT_ADMIN_GROUP_ID). Empty: nobody may.
+	adminGroup string
 }
 
 func newAuthenticator(endpoint, preAuthorizedApps string) *authenticator {
 	return &authenticator{
+		adminGroup: os.Getenv("COPILOT_ADMIN_GROUP_ID"),
 		httpClient: &http.Client{Timeout: 5 * time.Second},
 		endpoint:   endpoint,
 		cliID:      clientIDForApp(preAuthorizedApps, "copilot-cli"),
@@ -88,6 +94,7 @@ func (a *authenticator) resolve(ctx context.Context, token, onBehalfOf string, h
 		Roles    []string `json:"roles"`
 		NAVident string   `json:"NAVident"`
 		Email    string   `json:"preferred_username"`
+		Groups   []string `json:"groups"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&c); err != nil {
 		return nil, fmt.Errorf("decoding introspection response: %w", err)
@@ -111,7 +118,7 @@ func (a *authenticator) resolve(ctx context.Context, token, onBehalfOf string, h
 		if a.webID == "" || c.Azp != a.webID {
 			return nil, errForbidden
 		}
-		return &caller{email: c.Email}, nil
+		return &caller{email: c.Email, groups: c.Groups}, nil
 	}
 	return nil, errForbidden
 }
@@ -143,6 +150,19 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 			writeError(w, http.StatusBadGateway, "could not validate token")
 		}
 	}
+}
+
+// adminOnly wraps the admin sub-mux once: a my-copilot user token (the only
+// branch that sets email) whose groups claim holds adminGroup. Fail closed.
+func adminOnly(a *authenticator, next http.Handler) http.HandlerFunc {
+	return authMiddleware(a, func(w http.ResponseWriter, r *http.Request) {
+		c, ok := callerFromContext(r.Context())
+		if !ok || c.email == "" || a.adminGroup == "" || !slices.Contains(c.groups, a.adminGroup) {
+			writeError(w, http.StatusForbidden, "admins only")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func callerFromContext(ctx context.Context) (*caller, bool) {

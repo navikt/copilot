@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -19,6 +20,8 @@ var (
 	otherApp     = "tok-" + "other-app"
 	webAppToken  = "tok-" + "web-app"
 	roleOnly     = "tok-" + "role-only"
+	adminToken   = "tok-" + "admin"
+	cliAdmin     = "tok-" + "cli-admin"
 )
 
 const preAuthorized = `[{"name":"dev-gcp:copilot:copilot-cli","clientId":"cli-id"},{"name":"dev-gcp:copilot:my-copilot","clientId":"web-id"}]`
@@ -33,6 +36,8 @@ func testAuthenticator(t *testing.T) *authenticator {
 		cliUserToken: {"active": true, "azp": "cli-id", "NAVident": "Z999999", "preferred_username": "Hans.Test@nav.no"},
 		otherApp:     {"active": true, "azp": "other-id", "idtyp": "app"},
 		webAppToken:  {"active": true, "azp": "web-id", "idtyp": "app"},
+		adminToken:   {"active": true, "azp": "web-id", "NAVident": "Z999998", "preferred_username": "admin@nav.no", "groups": []string{"other", "admin-group"}},
+		cliAdmin:     {"active": true, "azp": "cli-id", "NAVident": "Z999998", "preferred_username": "admin@nav.no", "groups": []string{"admin-group"}},
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
@@ -46,7 +51,9 @@ func testAuthenticator(t *testing.T) *authenticator {
 		_ = json.NewEncoder(w).Encode(c)
 	}))
 	t.Cleanup(srv.Close)
-	return newAuthenticator(srv.URL, preAuthorized)
+	a := newAuthenticator(srv.URL, preAuthorized)
+	a.adminGroup = "admin-group"
+	return a
 }
 
 func TestAuthBranches(t *testing.T) {
@@ -70,7 +77,7 @@ func TestAuthBranches(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := a.resolve(t.Context(), tc.token, tc.header, tc.header != "")
-			if !errors.Is(err, tc.err) || (err == nil && *got != tc.want) {
+			if !errors.Is(err, tc.err) || (err == nil && !reflect.DeepEqual(*got, tc.want)) {
 				t.Fatalf("got %+v, %v; want %+v, %v", got, err, tc.want, tc.err)
 			}
 		})

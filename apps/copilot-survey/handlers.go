@@ -57,5 +57,11 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 		}
 		submissions.WithLabelValues(label, strconv.Itoa(rec.status)).Inc()
 	})
+
+	// Every admin route lives under /api/v1/admin/ and passes adminOnly once.
+	admin := http.NewServeMux()
+	admin.HandleFunc("GET /api/v1/admin/surveys", surveys.list)
+	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/results", surveys.results)
+	mux.Handle("/api/v1/admin/", adminOnly(auth, admin))
 	return mux
 }
