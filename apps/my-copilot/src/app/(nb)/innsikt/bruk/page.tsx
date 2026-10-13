@@ -112,8 +112,10 @@ async function Cost({ token }: { token: string }) {
   const sum = cumulative.at(-1) ?? 0;
 
   const year = current.slice(0, 4);
+  // One figure for the current month in both charts: the sum of the daily estimated billed amounts.
   const months = trend
     .filter((t) => t.year_month.startsWith(year))
+    .map((t) => (t.year_month === current && days.length ? { ...t, total_net_amount: sum } : t))
     .sort((a, b) => a.year_month.localeCompare(b.year_month));
   const keys = months.map((t) => t.year_month);
   const amount = (closed: boolean) =>
@@ -187,8 +189,8 @@ async function Cost({ token }: { token: string }) {
       <NumbersFold summary="Slik leser du tallene">
         <BodyShort size="small">
           Fakturert er beløpet på fakturaen for en avsluttet måned, etter rabatt. Foreløpig forbruk er det vi regner med
-          å bli fakturert for så langt i måneden. Beløpet kan endre seg til fakturaen kommer. De to grafene hentes fra
-          ulike kilder og kan avvike litt for inneværende måned. Grafene viser bare faktisk forbruk, ikke prognoser.
+          å bli fakturert for så langt i måneden. Beløpet kan endre seg til fakturaen kommer. Grafene viser bare faktisk
+          forbruk, ikke prognoser.
         </BodyShort>
       </NumbersFold>
     </VStack>
