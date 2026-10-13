@@ -35,9 +35,9 @@ type caller struct {
 //   - User token from my-copilot: NAVident and preferred_username set, idtyp
 //     not app, azp my-copilot. X-On-Behalf-Of is refused.
 //
-// Anything else is refused. The middleware wraps the submit route only, so
-// the header is honoured on POST /api/v1/surveys/{id}/responses and nowhere
-// else.
+// Anything else is refused. The middleware wraps the submit and status
+// routes only, so the header is honoured on POST /api/v1/surveys/{id}/responses
+// and GET /api/v1/surveys/{id}/status and nowhere else.
 type authenticator struct {
 	httpClient *http.Client
 	endpoint   string
@@ -60,7 +60,7 @@ func newAuthenticator(endpoint, preAuthorizedApps string) *authenticator {
 
 var (
 	errUnauthorized = errors.New("invalid or expired token")
-	errForbidden    = errors.New("this caller may not submit answers")
+	errForbidden    = errors.New("this caller may not answer surveys")
 	errBadHeader    = errors.New("X-On-Behalf-Of is missing, malformed, or sent with a user token")
 )
 

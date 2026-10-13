@@ -645,7 +645,11 @@ func (a *surveyAPI) status(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	answered, err := a.answered(r.Context(), s.ID, participantHash(a.keys[s.ID], email))
+	// Bounded like submit's store call: the lookup holds the store's mutex,
+	// so a stalled database must not hold it for as long as the client waits.
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	answered, err := a.answered(ctx, s.ID, participantHash(a.keys[s.ID], email))
 	if err != nil {
 		slog.Error("survey: checking participation failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
 		writeError(w, http.StatusServiceUnavailable, "could not check your answer, try again later")

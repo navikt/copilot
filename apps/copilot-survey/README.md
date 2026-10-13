@@ -17,8 +17,8 @@ applies. Anything else is refused.
 | my-copilot (for ki-utvikling) | User (OBO) token: NAVident and `preferred_username` set, `idtyp` not `app`, `azp` my-copilot. `X-On-Behalf-Of` is refused | `preferred_username` |
 
 The client ids come from `AZURE_APP_PRE_AUTHORIZED_APPS`, which NAIS fills
-from `accessPolicy.inbound`. `X-On-Behalf-Of` is honoured on the submit route
-only.
+from `accessPolicy.inbound`. `X-On-Behalf-Of` is honoured on the submit and
+status routes only.
 
 ## Endpoints
 

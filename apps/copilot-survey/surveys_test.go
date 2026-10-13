@@ -148,6 +148,9 @@ func TestStatus(t *testing.T) {
 	h, _ := testRouter(t)
 	status := func(token, id string) (int, string) {
 		rec := do(h, "GET", "/api/v1/surveys/"+id+"/status", token, "")
+		if rec.Code == 200 && rec.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("Cache-Control = %q, want no-store on a per-user answer", rec.Header().Get("Cache-Control"))
+		}
 		return rec.Code, strings.TrimSpace(rec.Body.String())
 	}
 	if code, body := status("cli:hans", "q4-2026"); code != 200 || body != `{"answered":false}` {
