@@ -274,6 +274,54 @@ psql "$DB_URL" -c "SELECT count(*) FROM survey_answers WHERE survey_id = 'q2-202
 nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
 ```
 
+### Final aggregates and retention
+
+When a survey closes, the daily retention job (`retain`) writes its last
+queued answers and then its counts to `survey_results`: respondents, count per
+question, version and option, `n` per version and the mean for scale and
+matrix items. Free text is not stored there. Context (client, OS, version as
+year.month, local models) is counted with the export's k ≥ 5 rule: values
+held by fewer than 5 rows become «annet». The job writes aggregates once per
+survey and leaves existing ones alone, since the rows may be partly deleted
+by then. A closed survey without rows gets none, so a later import can still
+be aggregated.
+
+`/api/v1/admin/surveys/{id}/results` and the survey list read the aggregates
+for a closed survey that has them, and the rows otherwise (open surveys, or a
+closed one not aggregated yet). The JSON is the same either way.
+
+Individual answers are kept until the next wave of the same `series` has
+closed (owner, 2026-10-13), then deleted. Once a survey has aggregates and
+the next wave (the earliest later `starts` in the series) has closed, its
+rows' `delete_after` is set to that wave's last day. A date that is already
+later is never moved earlier: `retention_days` (q2-2026: 730 days, to
+2028-04-30) or the default 180 days wins when it is longer. Until the next
+wave closes, `delete_after` stays as written.
+
+`copilot-survey aggregate --survey <id>` writes (or rewrites) a closed
+survey's aggregates from its rows in one transaction, replacing any. The
+daily job also picks up a closed survey that has rows and no aggregates, such
+as the imported `q2-2026` on its first run after deploy, so the command is for
+when that has not happened (check the log line `survey: final aggregates
+written`) or to redo a survey after a fix while all its rows are still there. It refuses an open survey and one without rows. In prod, with the
+same proxy steps as the import above (it needs write access):
+
+```sh
+REASON="Sluttaggregater for q2-2026 (#1774)"
+nais cloudsql prepare copilot-survey -t copilot -e prod-gcp --all-privileges --reason "$REASON"
+nais cloudsql proxy   copilot-survey -t copilot -e prod-gcp -p 5433 --reason "$REASON"   # leave running
+
+# Another terminal, in apps/copilot-survey:
+export DB_URL="postgres://$(echo "$(gcloud config get account)" | sed 's/@/%40/')@localhost:5433/copilot-survey?sslmode=disable"
+go run . aggregate --survey q2-2026      # wrote aggregates for q2-2026: 165 responses
+psql "$DB_URL" -c "SELECT count FROM survey_results WHERE survey_id = 'q2-2026' AND kind = 'total'"   # 165
+
+nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
+```
+
+The `survey_results` table is created when the new version starts (or by the
+command itself), so deploy first.
+
 ## Configuration
 
 NAIS injects the Entra, Texas and database variables. The secret

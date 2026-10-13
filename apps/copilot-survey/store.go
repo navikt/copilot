@@ -53,6 +53,17 @@ CREATE TABLE IF NOT EXISTS survey_answers (
 	question_versions jsonb NOT NULL,
 	context           jsonb NOT NULL,
 	delete_after      date  NOT NULL
+);
+CREATE TABLE IF NOT EXISTS survey_results (
+	survey_id text    NOT NULL,
+	kind      text    NOT NULL,
+	key       text    NOT NULL,
+	version   integer NOT NULL,
+	option    text    NOT NULL,
+	count     integer NOT NULL,
+	n         integer NOT NULL,
+	mean      double precision,
+	PRIMARY KEY (survey_id, kind, key, version, option)
 )`
 
 // answerBatch is how many queued submissions trigger a write. 1: written at
@@ -62,6 +73,7 @@ const answerBatch = 1
 
 type surveyStore struct {
 	pool *pgxpool.Pool
+	defs []survey // for closeOut: final aggregates and next-round retention
 
 	mu     sync.Mutex
 	queues map[string]*surveyQueue
@@ -201,7 +213,8 @@ func (s *surveyStore) purgeExpired(ctx context.Context, now func() time.Time) {
 }
 
 // retain closes out surveys that no longer take answers: writes their last,
-// smaller batch and then deletes their participation rows (their keys are
+// smaller batch, writes their final aggregates (closeOut) and then deletes
+// their participation rows (their keys are
 // deleted by hand, see README). It also deletes answers past retention.
 func (s *surveyStore) retain(parent context.Context, now time.Time) {
 	ctx, cancel := context.WithTimeout(parent, time.Minute)
@@ -217,6 +230,7 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 		}
 	}
 	s.mu.Unlock()
+	s.closeOut(ctx, now)
 	today := now.UTC().Truncate(24 * time.Hour)
 	for _, q := range []string{
 		`DELETE FROM survey_participation WHERE closes_on <= $1`,

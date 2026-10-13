@@ -547,6 +547,8 @@ type surveyAPI struct {
 	// answers reads a survey's written answers for the admin aggregates
 	// (surveyStore.answers). Nil without storage.
 	answers func(ctx context.Context, surveyID string) ([]storedAnswer, error)
+	// final reads a closed survey's aggregates; nil, nil when it has none.
+	final func(ctx context.Context, surveyID string) (*surveyTally, error)
 }
 
 // open: active, inside its window and with a key. A survey without a key

@@ -29,6 +29,13 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "aggregate" {
+		if err := runAggregate(os.Args[2:], os.Stdout, os.Getenv("DB_URL"), time.Now()); err != nil {
+			fmt.Fprintln(os.Stderr, "aggregate:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	config := loadConfig()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: config.LogLevel})))
 
@@ -52,6 +59,8 @@ func main() {
 		surveys.store = store.submit
 		surveys.answers = store.answers
 		surveys.answered = store.answered
+		surveys.final = store.final
+		store.defs = defs
 		go store.purgeExpired(ctx, time.Now)
 	}
 	slog.Info("Starting copilot-survey", "port", config.Port, "storage", store != nil,

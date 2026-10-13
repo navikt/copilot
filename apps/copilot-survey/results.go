@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -39,14 +38,30 @@ func (s survey) status(now time.Time) string {
 func (a *surveyAPI) list(w http.ResponseWriter, r *http.Request) {
 	out := []surveySummary{}
 	for _, s := range a.surveys {
-		rows, err := a.read(r, s.ID)
+		t, err := a.tally(r, s)
 		if err != nil {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		out = append(out, surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), len(rows)})
+		out = append(out, surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), t.Responses})
 	}
 	writeJSON(w, map[string]any{"surveys": out})
+}
+
+// tally reads a closed survey's final aggregates (survey_results) and falls
+// back to its rows while it has none, as an open survey always does.
+func (a *surveyAPI) tally(r *http.Request, s survey) (surveyTally, error) {
+	if a.final != nil && s.status(a.now()) == "stengt" {
+		t, err := a.final(r.Context(), s.ID)
+		if err != nil {
+			return surveyTally{}, err
+		}
+		if t != nil {
+			return *t, nil
+		}
+	}
+	rows, err := a.read(r, s.ID)
+	return tallyRows(s, rows), err
 }
 
 func (a *surveyAPI) read(r *http.Request, id string) ([]storedAnswer, error) {
@@ -98,20 +113,25 @@ func (a *surveyAPI) results(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "unknown survey")
 		return
 	}
-	rows, err := a.read(r, a.surveys[i].ID)
+	t, err := a.tally(r, a.surveys[i])
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 		return
 	}
-	writeJSON(w, aggregate(a.surveys[i], rows, a.now()))
+	writeJSON(w, aggregateTally(a.surveys[i], t, a.now()))
 }
 
 // aggregate counts answers per question and question version. Free text is
 // never read. Below minSegment respondents for the whole survey nothing is
 // shown; otherwise every count is real (owner decision 2026-10-13).
 func aggregate(s survey, rows []storedAnswer, now time.Time) surveyResults {
-	res := surveyResults{surveySummary: surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), len(rows)}}
-	if len(rows) < minSegment {
+	return aggregateTally(s, tallyRows(s, rows), now)
+}
+
+// aggregateTally is aggregate from counts, live or stored (survey_results).
+func aggregateTally(s survey, t surveyTally, now time.Time) surveyResults {
+	res := surveyResults{surveySummary: surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), t.Responses}}
+	if t.Responses < minSegment {
 		res.Suppressed = true
 		return res
 	}
@@ -125,46 +145,23 @@ func aggregate(s survey, rows []storedAnswer, now time.Time) surveyResults {
 			for _, it := range q.Items {
 				item := q
 				item.Type, item.ID, item.Version = "scale", it.ID, it.Version
-				qr.Items = append(qr.Items, itemResult{it.ID, it.Text, countVersions(item, rows)})
+				qr.Items = append(qr.Items, itemResult{it.ID, it.Text, versionsFrom(item, t.Keys[it.ID])})
 			}
 		default:
-			qr.Versions = countVersions(q, rows)
+			qr.Versions = versionsFrom(q, t.Keys[q.ID])
 		}
 		res.Questions = append(res.Questions, qr)
 	}
 	return res
 }
 
-func countVersions(q question, rows []storedAnswer) []versionResult {
-	counts := map[int]map[string]int{}
-	ns := map[int]int{}
-	for _, row := range rows {
-		v, ok := row.Answers[q.ID]
-		if !ok || v == nil {
-			continue
-		}
-		ver := row.QuestionVersions[q.ID]
-		if counts[ver] == nil {
-			counts[ver] = map[string]int{}
-		}
-		ns[ver]++
-		switch v := v.(type) {
-		case []any:
-			for _, p := range v {
-				counts[ver][fmt.Sprint(p)]++
-			}
-		case float64:
-			counts[ver][strconv.FormatFloat(v, 'f', -1, 64)]++
-		default:
-			counts[ver][fmt.Sprint(v)]++
-		}
-	}
+// versionsFrom turns one answer key's tally into the API's versions, with
+// options as cells lists them.
+func versionsFrom(q question, t map[int]*verTally) []versionResult {
 	out := []versionResult{}
-	for _, ver := range sortedKeys(ns) {
-		vr := versionResult{Version: ver}
-		n := ns[ver]
-		vr.N, vr.Options = &n, cells(q, ver, counts[ver])
-		out = append(out, vr)
+	for _, ver := range sortedKeys(t) {
+		n := t[ver].N
+		out = append(out, versionResult{Version: ver, N: &n, Options: cells(q, ver, t[ver].Counts)})
 	}
 	return out
 }
