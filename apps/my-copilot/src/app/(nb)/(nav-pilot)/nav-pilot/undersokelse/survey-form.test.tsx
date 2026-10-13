@@ -116,6 +116,12 @@ describe("SurveyForm repeated matrix text", () => {
     expect(document.getElementById("q-grid2")).toBeInTheDocument();
   });
 
+  it("keeps both headings when the matrices differ in required status", () => {
+    render(<SurveyForm survey={{ ...pair, questions: [pair.questions[1], { ...second, required: false }] }} />);
+    for (const legend of screen.getAllByText("Hvor enig er du?"))
+      expect(legend.className).not.toMatch(/visually-hidden/);
+  });
+
   it("shows the second heading normally when the first matrix is skipped", () => {
     render(<SurveyForm survey={pair} />);
     fireEvent.click(screen.getByRole("checkbox", { name: "Ingen" }));

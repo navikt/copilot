@@ -31,10 +31,15 @@ import {
 } from "@/lib/survey";
 import { sendSurvey } from "./actions";
 
-/** A matrix right after a visible matrix with the same text continues that list, so its heading is not repeated. */
+/** A matrix right after a visible matrix with the same text and required status continues that list, so its heading is not repeated. */
 function repeatsPrevious(visible: SurveyQuestion[], i: number): boolean {
   const prev = visible[i - 1];
-  return visible[i].type === "matrix" && prev?.type === "matrix" && prev.text === visible[i].text;
+  return (
+    visible[i].type === "matrix" &&
+    prev?.type === "matrix" &&
+    prev.text === visible[i].text &&
+    !!prev.required === !!visible[i].required
+  );
 }
 
 function missing(q: SurveyQuestion, answers: Answers): string | undefined {
@@ -172,7 +177,11 @@ export function SurveyForm({ survey, preview = false }: { survey: Survey; previe
         )}
 
         {visible.map((q, i) => (
-          <VStack key={q.id} gap="space-8" className={repeatsPrevious(visible, i) ? "-mt-6" : undefined}>
+          <VStack
+            key={q.id}
+            gap="space-8"
+            style={repeatsPrevious(visible, i) ? { marginTop: "calc(-1 * var(--ax-space-24))" } : undefined}
+          >
             {q.type === "matrix" ? (
               <Matrix
                 q={q}
