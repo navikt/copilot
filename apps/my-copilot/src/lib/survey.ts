@@ -9,6 +9,8 @@ import { exchangeTokenFor, fetchWithTimeout, isLocalDev } from "@/lib/backend-ap
 
 export type SurveyQuestion = {
   id: string;
+  /** Bumped on any change to text, options or scale; results are split by it. */
+  version?: number;
   type: "scale" | "choice" | "multi" | "text" | "matrix";
   text: string;
   required?: boolean;
@@ -23,7 +25,7 @@ export type SurveyQuestion = {
   max_length?: number;
   skip_if?: { question: string; answer: string };
   /** matrix: statements on its scale, each answered and sent as a scale answer under its own id. */
-  items?: { id: string; text: string }[];
+  items?: { id: string; version?: number; text: string }[];
 };
 
 export type Survey = {

@@ -105,8 +105,8 @@ describe("types follow copilot-survey's schema.json", () => {
   const schema = JSON.parse(
     readFileSync(path.resolve(__dirname, "../../../copilot-survey/surveys/schema.json"), "utf8")
   ) as { properties: object; $defs: { question: { properties: object }; item: { properties: object } } };
-  // Not needed to render or send: copilot-survey serves only open surveys, min_cli_version is for nav-pilot, and the rest is for analysis.
-  const ignored = ["series", "active", "nudge", "min_cli_version", "starts", "version", "construct", "reverse"];
+  // Not needed to render or send: copilot-survey serves only open surveys, min_cli_version is for nav-pilot, and the rest is for analysis. version picks the scale labels on /admin/undersokelser.
+  const ignored = ["series", "active", "nudge", "min_cli_version", "starts", "construct", "reverse"];
   const fields = (props: object) =>
     Object.keys(props)
       .filter((k) => !ignored.includes(k))
@@ -119,6 +119,7 @@ describe("types follow copilot-survey's schema.json", () => {
     required: false,
     min: 0,
     max: 0,
+    version: 0,
     labels: [],
     options: [],
     max_choices: 0,
@@ -128,7 +129,7 @@ describe("types follow copilot-survey's schema.json", () => {
     skip_if: { question: "", answer: "" },
     items: [],
   } satisfies Required<SurveyQuestion>;
-  const item = { id: "", text: "" } satisfies Required<NonNullable<SurveyQuestion["items"]>[number]>;
+  const item = { id: "", version: 0, text: "" } satisfies Required<NonNullable<SurveyQuestion["items"]>[number]>;
   const survey = { id: "", title: "", intro: "", ends: "", questions: [] } satisfies Required<Survey>;
 
   it("reads every field the web needs, and none the schema lacks", () => {
