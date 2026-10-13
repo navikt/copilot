@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-13
+
+### Påstandene i undersøkelsen er én liste
+
+- **`nav-pilot survey`**: Påstandene under «Hvor enig er du i disse påstandene?» kommer fra to spørsmål i q4-2026. Før startet tellingen på nytt, så det så ut som du fikk samme spørsmål to ganger. Nå teller den videre, for eksempel fra «7 av 9» til «8 av 9». Svarene som sendes inn, er de samme som før.
+
 ## 2026-10-12
 
 ### Forhåndsvis en brukerundersøkelse før den åpner

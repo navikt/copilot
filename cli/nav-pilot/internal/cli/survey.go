@@ -546,7 +546,9 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 		case "matrix":
 			grid[i] = make([]string, len(q.Items))
 			for j, it := range q.Items {
-				g := huh.NewGroup(escHelpField{surveySelect(q, fmt.Sprintf("%s (%d av %d)", q.Text, j+1, len(q.Items)), &grid[i][j]).Title(it.Text)})
+				sel := surveySelect(q, "", &grid[i][j]).Title(it.Text).
+					DescriptionFunc(func() string { return matrixHeading(s, i, j, skipped) }, []any{picks, multis})
+				g := huh.NewGroup(escHelpField{sel})
 				if q.SkipIf != nil {
 					g = g.WithHideFunc(func() bool { return skipped(q) })
 				}
@@ -604,6 +606,33 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 	if huh.NewForm(groups...).WithShowHelp(true).WithTheme(navTheme()).Run() != nil {
 		return nil, false
 	}
+	answers := surveyAnswers(s, picks, multis, others, grid, skipped, answered)
+	return answers, len(answers) > 0
+}
+
+// matrixHeading is the line above a matrix statement: the question and where
+// the statement is in the list. Consecutive matrices with the same text that
+// are both shown read as one list (q4-2026 splits its statements in two so
+// that non-users skip the first part), so the count runs on across them
+// instead of starting over under the same heading.
+func matrixHeading(s surveyDef, i, j int, skipped func(surveyQuestion) bool) string {
+	q := s.Questions[i]
+	same := func(k int) bool {
+		o := s.Questions[k]
+		return o.Type == "matrix" && o.Text == q.Text && !skipped(o)
+	}
+	before, total := 0, len(q.Items)
+	for k := i - 1; k >= 0 && same(k); k-- {
+		before += len(s.Questions[k].Items)
+	}
+	for k := i + 1; k < len(s.Questions) && same(k); k++ {
+		total += len(s.Questions[k].Items)
+	}
+	return fmt.Sprintf("%s (%d av %d)", q.Text, before+j+1, before+total)
+}
+
+// surveyAnswers is the payload's answers from what the form collected.
+func surveyAnswers(s surveyDef, picks []string, multis [][]string, others []string, grid [][]string, skipped func(surveyQuestion) bool, answered func(string) []string) map[string]any {
 	answers := map[string]any{}
 	for i, q := range s.Questions {
 		v := strings.TrimSpace(picks[i])
@@ -629,7 +658,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			answers[q.ID] = v
 		}
 	}
-	return answers, len(answers) > 0
+	return answers
 }
 
 // surveyNoIdentify goes with every free-text field.
