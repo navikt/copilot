@@ -1,0 +1,15 @@
+{
+  "description": "Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn og forslag til trygg testing",
+  "domain": "auth",
+  "tags": ["security", "appsec", "code-review", "pentest-planning"],
+  "examples": [
+    {
+      "prompt": "Bruk appsec-advisory til å vurdere sikkerheten i denne PR-en; skill kodefunn fra antatt eksponering og foreslå trygge tester",
+      "scenario": "Avgrenset sikkerhetsgjennomgang av PR"
+    },
+    {
+      "prompt": "Gjennomgå dette repoet med appsec-advisory og vis hva teamet bør undersøke først, uten å kjøre pentest",
+      "scenario": "Rådgivende sikkerhetsgjennomgang av tjeneste"
+    }
+  ]
+}
