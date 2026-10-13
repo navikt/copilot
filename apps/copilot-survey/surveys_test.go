@@ -69,7 +69,7 @@ func testRouter(t *testing.T) (http.Handler, *fakeStore) {
 		answered: func(_ context.Context, surveyID, hash string) (bool, error) {
 			return store.participants[surveyID+"/"+hash], nil
 		},
-		now:      func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
+		now: func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
 	}
 	return makeRouter(testAuthenticator(t), api), store
 }

@@ -66,7 +66,10 @@ func TestYearGrowthCapsPerUser(t *testing.T) {
 // prediction from the end of a closed month, base holiday-adjusted, against
 // what was billed. Few points; the test pins the errors so a change shows.
 func TestYearBacktest(t *testing.T) {
-	for _, c := range []struct{ cut, target int; wantPct float64 }{{7, 8, 31}, {7, 9, -8}, {8, 9, -38}} {
+	for _, c := range []struct {
+		cut, target int
+		wantPct     float64
+	}{{7, 8, 31}, {7, 9, -8}, {8, 9, -38}} {
 		ms, us := prodMonths(c.cut)
 		au := map[string]int64{}
 		for _, u := range us {
