@@ -56,6 +56,10 @@
       "trender": ["apps/my-copilot/src/components/cost-trends.tsx"]
     }
   },
+  "/admin/kostnad/innsyn": {
+    "sources": ["apps/my-copilot/src/app/(nb)/admin/kostnad/innsyn/page.tsx"],
+    "anchors": {}
+  },
   "/admin/undersokelser": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/admin/page.tsx",

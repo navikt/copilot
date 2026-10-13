@@ -315,5 +315,6 @@ func adminRoutes() []adminRoute {
 		{"/api/v1/admin/billing/anomalies", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostAnomalies }},
 		{"/api/v1/admin/billing/cost-forecast", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCostForecast }},
 		{"/api/v1/admin/billing/model-users", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleModelFamilyUsers }},
+		{"/api/v1/admin/billing/volume", func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdminVolume }},
 	}
 }

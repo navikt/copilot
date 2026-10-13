@@ -9,6 +9,7 @@
 import { cache } from "react";
 import { backendRequest } from "./backend-api";
 import type {
+  VolumeMonth,
   AdoptionData,
   CohortRetention,
   UserSegments,
@@ -155,6 +156,11 @@ export const getCostForecast = cache((token: string): Promise<CostForecast> =>
 /** Admin only: copilot-api answers 404 to everyone else. */
 export async function getAdminActiveUsers(token: string): Promise<ActiveUsersMonth[]> {
   return backendRequest<ActiveUsersMonth[]>("/api/v1/admin/billing/active-users", token);
+}
+
+/** Admin only: copilot-api answers 404 to everyone else. */
+export async function getAdminVolume(year: number, token: string): Promise<VolumeMonth[]> {
+  return backendRequest<VolumeMonth[]>(`/api/v1/admin/billing/volume?year=${year}`, token);
 }
 
 /** Admin only: copilot-api answers 404 to everyone else. */

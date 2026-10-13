@@ -831,6 +831,10 @@ func (m *mockBigQueryClient) GetModelFamilyUsers(_ context.Context) ([]ModelFami
 	return []ModelFamilyUsers{}, nil
 }
 
+func (m *mockBigQueryClient) GetVolumeMonthly(_ context.Context, _ int) ([]VolumeMonth, error) {
+	return []VolumeMonth{{Month: "2026-09", AICredits: 100}}, nil
+}
+
 func (m *mockBigQueryClient) GetBudgetDays(_ context.Context) ([]BudgetDay, error) {
 	return []BudgetDay{}, nil
 }

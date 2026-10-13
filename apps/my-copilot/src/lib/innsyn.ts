@@ -1,0 +1,223 @@
+import { rebuiltSeatMonths } from "./admin-monthly";
+import { monthName as monthLabel } from "./team-year";
+import { FAMILY_LABELS, modelFamily, type ModelFamily } from "./model-family";
+import type { ActiveUsersMonth, AdminMonthlyOverview, BillingModelBreakdown, VolumeMonth } from "./types";
+
+/**
+ * The innsyn (FOI) answer, keyed to kode24's 2026 request. Built only from the
+ * data behind /admin/kostnad, so the numbers match the page. Only aggregates:
+ * no person, login, project ID, query or table name, no budget or spending limit.
+ */
+export const INNSYN_QUESTIONS = ["1", "1b", "1c", "2", "3", "3a", "3b"] as const;
+export type InnsynQuestionId = (typeof INNSYN_QUESTIONS)[number];
+
+export interface InnsynQuestion {
+  id: InnsynQuestionId;
+  question: string;
+  answer: string;
+  data: Record<string, unknown> | null;
+  notes: string[];
+}
+
+export interface InnsynAnswer {
+  schema: "innsyn/v1";
+  year: number;
+  generated: string;
+  period: { from: string; to: string };
+  currency: "USD";
+  /** In kode24's order, one per INNSYN_QUESTIONS id. An array keeps that order in JSON. */
+  questions: InnsynQuestion[];
+  method: string[];
+}
+
+/** Groups smaller than this are not shown. */
+export const MIN_GROUP = 5;
+
+export interface InnsynInput {
+  year: number;
+  admin: AdminMonthlyOverview;
+  active: ActiveUsersMonth[];
+  breakdown: BillingModelBreakdown[];
+  volume: VolumeMonth[];
+  today: string; // YYYY-MM-DD
+}
+
+const usd = (v: number) => Math.round(v * 100) / 100;
+const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : null);
+const nb = (v: number) => v.toLocaleString("nb-NO", { maximumFractionDigits: 0 });
+const nbUsd = (v: number) => `${v.toLocaleString("nb-NO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+const nonZero = (v: number) => (v > 0 ? v : null);
+
+export function buildInnsyn({ year, admin, active, breakdown, volume, today }: InnsynInput): InnsynAnswer {
+  const inYear = (month: string) => month.startsWith(`${year}-`);
+  const months = admin.months.filter((m) => inYear(m.month));
+  const billed = months.filter((m) => m.basis === "net" || m.basis === "premium");
+  const preliminary = months.filter((m) => m.basis === "gross");
+  const lastDay = admin.coverage.last_gross_day || today;
+  const ytd = usd(billed.reduce((a, m) => a + (m.enterprise_net_usd ?? 0), 0));
+  const rebuilt = new Set(rebuiltSeatMonths(admin));
+  const licenceTotal = usd(billed.reduce((a, m) => a + (m.licence_usd_estimate ?? 0), 0));
+  const lastBilled = billed.at(-1)?.month;
+
+  // Net per family over the year, the «Auto» and code review rules from the cost page.
+  const familyNet = new Map<ModelFamily, number>();
+  const familyModels = new Map<ModelFamily, Set<string>>();
+  for (const row of breakdown) {
+    if (!inYear(row.year_month.slice(0, 7)) || row.net_amount <= 0) continue;
+    const family = modelFamily(row.model, true);
+    familyNet.set(family, (familyNet.get(family) ?? 0) + row.net_amount);
+    if (family !== "auto") familyModels.set(family, (familyModels.get(family) ?? new Set()).add(row.model.trim()));
+  }
+  const netTotal = [...familyNet.values()].reduce((a, b) => a + b, 0);
+  const families = [...familyNet.entries()]
+    .map(([family, net]) => ({
+      family: FAMILY_LABELS[family],
+      share_pct: pct(net, netTotal),
+      models: [...(familyModels.get(family) ?? [])].sort(),
+    }))
+    .sort((a, b) => (b.share_pct ?? 0) - (a.share_pct ?? 0));
+  const codeReview = familyNet.get("kodegjennomgang") ?? 0;
+
+  const vol = volume.filter((v) => inYear(v.month));
+  const tokenMonths = vol.filter((v) => v.cli_tokens + v.app_tokens > 0);
+  const users = active.filter((a) => inYear(a.month));
+  const seatsNow = months.at(-1)?.seats ?? null;
+
+  const questions: Record<InnsynQuestionId, Omit<InnsynQuestion, "id">> = {
+    "1": {
+      question: "Hvor mye har Nav brukt på KI-verktøy hittil i år?",
+      answer:
+        `Nav har fått fakturert ${nbUsd(ytd)} for bruk av GitHub Copilot` +
+        (lastBilled ? ` fra januar til og med ${monthLabel(lastBilled)} ${year}.` : ` i ${year}.`) +
+        ` I tillegg kommer lisenskostnaden, anslått til ${nbUsd(licenceTotal)} for de samme månedene.` +
+        (preliminary.length ? " Måneder uten faktura er vist som foreløpige og er ikke med i summen." : ""),
+      data: {
+        months: months
+          .filter((m) => m.basis !== "none")
+          .map((m) => ({
+            month: m.month,
+            billed_usd: m.enterprise_net_usd ?? m.estimated_net_usd,
+            preliminary: m.basis === "gross",
+          })),
+        ytd_billed_usd: ytd,
+        licence: {
+          months: months
+            .filter((m) => m.licence_usd_estimate != null)
+            .map((m) => ({ month: m.month, usd: m.licence_usd_estimate, calculated: rebuilt.has(m.month) })),
+          ytd_usd: licenceTotal,
+        },
+      },
+      notes: [
+        "Nav blir fakturert i amerikanske dollar (USD). Beløpene er ikke regnet om til kroner.",
+        "Fakturert er beløpet etter at kredittene som følger med lisensene, er trukket fra.",
+        "Foreløpig betyr at fakturaen for måneden ikke er kommet. Beløpet er et anslag og kan endre seg.",
+        "Lisenskostnaden er et anslag: antall lisenser ganger listepris, uten rabatt.",
+        ...(rebuilt.size
+          ? [
+              `Lisensene før ${admin.coverage.seats_from || "2026-10-12"} er beregnet ut fra dagens lisenser, fordi daglige tellinger ikke fantes før da.`,
+            ]
+          : []),
+      ],
+    },
+    "1b": {
+      question: "Hvor mye har Nav brukt målt i tokens eller tilsvarende?",
+      answer:
+        "GitHub fakturerer ikke etter tokens. Det nærmeste målet er premiumforespørsler fra januar til mai og KI-kreditter fra juni. " +
+        (tokenMonths.length
+          ? "GitHub oppgir tokens bare for Copilot CLI og Copilot-appen, ikke for resten av Copilot og ikke per modellfamilie."
+          : "Tokens er ikke registrert."),
+      data: {
+        months: vol.map((v) => ({
+          month: v.month,
+          premium_requests: nonZero(v.premium_requests),
+          ai_credits: nonZero(v.ai_credits),
+        })),
+        tokens: tokenMonths.map((v) => ({
+          month: v.month,
+          copilot_cli: nonZero(v.cli_tokens),
+          copilot_app: nonZero(v.app_tokens),
+        })),
+        tokens_by_model_family: null,
+      },
+      notes: [
+        "Én KI-kreditt koster 0,01 USD til listepris.",
+        "Tokens er summen av tokens inn og ut.",
+        ...(tokenMonths.length
+          ? [`Tokens for Copilot CLI finnes fra ${tokenMonths[0].month}. Copilot-appen kom senere.`]
+          : []),
+      ],
+    },
+    "1c": {
+      question: "Hvor stor del av bruken gjelder utvikling?",
+      answer:
+        "GitHub Copilot er et utviklingsverktøy, så tilnærmet 100 prosent gjelder utvikling. " +
+        (netTotal > 0
+          ? `Kodegjennomgang, der Copilot går gjennom endringer i koden, utgjør ${fmtPct(pct(codeReview, netTotal))} av det fakturerte beløpet.`
+          : ""),
+      data: { development_share_pct: 100, code_review_share_pct: pct(codeReview, netTotal) },
+      notes: [],
+    },
+    "2": {
+      question: "Hva er budsjettet og forventet bruk neste år?",
+      answer: "Budsjett og prognose for neste år er ikke fastsatt og er ikke en del av dette innsynssvaret.",
+      data: null,
+      notes: [],
+    },
+    "3": {
+      question: "Hvor mange bruker KI-verktøyene?",
+      answer:
+        (seatsNow != null ? `Nav har ${nb(seatsNow)} Copilot-lisenser nå. ` : "") +
+        "Tabellen viser fakturerte brukere per måned, og aktive brukere hittil for måneder uten faktura.",
+      data: {
+        licences_now: seatsNow,
+        months: users.map((u) => ({
+          month: u.month,
+          users: u.active_users >= MIN_GROUP ? u.active_users : null,
+          kind: u.billed ? "fakturert" : "aktiv",
+        })),
+      },
+      notes: [
+        "Fakturerte brukere er personene på fakturaen for måneden. Aktive brukere har brukt Copilot minst én dag.",
+      ],
+    },
+    "3a": {
+      question: "Hvilke yrker og avdelinger bruker verktøyene?",
+      answer: "Ikke registrert. Yrke og avdeling er ikke en del av bruksdataene.",
+      data: null,
+      notes: [],
+    },
+    "3b": {
+      question: "Hvilke modeller er tilgjengelige, og hvilke brukes mest?",
+      answer:
+        "Nav har ingen egen liste over modeller som tilbys, så vi viser modellene som er brukt. " +
+        (families.length
+          ? `Mest brukt, målt i andel av fakturert beløp: ${families
+              .slice(0, 3)
+              .map((f) => `${f.family} (${fmtPct(f.share_pct)})`)
+              .join(", ")}.`
+          : ""),
+      data: { families },
+      notes: [
+        "Når Copilot velger modell selv, er bruken samlet i «Auto».",
+        "Kodegjennomgang er modellen Copilot bruker til å gå gjennom endringer i koden.",
+      ],
+    },
+  };
+
+  return {
+    schema: "innsyn/v1",
+    year,
+    generated: today,
+    period: { from: `${year}-01-01`, to: lastDay },
+    currency: "USD",
+    questions: INNSYN_QUESTIONS.map((id) => ({ id, ...questions[id] })),
+    method: [
+      "Fakturert er nettobeløpet Nav betaler. Listepris er prisen før kredittene i lisensene er trukket fra. Vi bruker fakturert der ikke noe annet står.",
+      "Januar til mai ble fakturert som premiumforespørsler, fra juni som KI-kreditter. Beløpene er lagt sammen.",
+      "Anslag: lisenskostnaden og foreløpige måneder.",
+      `Tallene gjelder GitHub Copilot i Nav fra ${year}-01-01 til ${lastDay}. Andre KI-verktøy er ikke med.`,
+    ],
+  };
+}
+
+const fmtPct = (v: number | null) => (v == null ? "–" : `${v.toLocaleString("nb-NO")} %`);

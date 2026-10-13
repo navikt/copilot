@@ -699,3 +699,12 @@ export interface HighConsumerMonth {
   /** Users by gross for the month as share of the limit; null without a limit or too few users. */
   budget_bands: SpendBand[] | null;
 }
+
+/** Nav's Copilot volume per month (admin only). Tokens are reported for Copilot CLI and the Copilot app only, without a model split. */
+export interface VolumeMonth {
+  month: string;
+  ai_credits: number;
+  premium_requests: number;
+  cli_tokens: number;
+  app_tokens: number;
+}

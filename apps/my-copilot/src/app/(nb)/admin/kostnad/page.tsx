@@ -23,6 +23,7 @@ import { CostTrendsSection } from "@/components/cost-trends";
 import { HighConsumersSection } from "@/components/high-consumers";
 import { BudgetDaysSection } from "@/components/budget-days-section";
 import { CostStatusCards } from "@/components/cost-status-cards";
+import { InnsynDownload } from "@/components/innsyn-download";
 
 // Spend and limits are internal: only the copilot team sees this page, everyone else gets 404.
 export const metadata: Metadata = {
@@ -258,6 +259,7 @@ export default async function CostPage() {
           <NumbersFold summary="Slik regner vi ut prognosen">
             <ForecastMethod />
           </NumbersFold>
+          <InnsynDownload />
         </VStack>
       }
     >
