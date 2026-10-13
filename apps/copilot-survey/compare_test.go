@@ -96,10 +96,26 @@ func TestCompare(t *testing.T) {
 	checkCompare(t, getCompare(t, api, "spring,autumn"))
 
 	// Control: without autumn's skip_if, spring keeps its non-users.
+	rule := api.surveys[1].Questions[1].SkipIf
 	api.surveys[1].Questions[1].SkipIf = nil
 	if s := getCompare(t, api, "spring,autumn").Questions[1].Items[0].Waves[0]; s.Excluded != 0 || *s.Versions[0].N != 6 {
 		t.Errorf("control: %+v", s)
 	}
+	api.surveys[1].Questions[1].SkipIf = rule
+
+	// Each wave's own scale: spring on 1–6 counts agree at 5 and 6 (5,5 of 4).
+	api.surveys[0].Questions[1].Max = 6
+	if s := getCompare(t, api, "spring,autumn").Questions[1].Items[0].Waves[0].Versions[0]; *s.Agree != 0.5 {
+		t.Errorf("spring agree on its own scale: %v", *s.Agree)
+	}
+	api.surveys[0].Questions[1].Max = 5
+
+	// A declared version change is a break even before anyone answered it.
+	api.surveys[0].Questions[1].Items[0].Version = 3
+	if !getCompare(t, api, "spring,autumn").Questions[1].Items[0].Break {
+		t.Error("declared version change: no break")
+	}
+	api.surveys[0].Questions[1].Items[0].Version = 1
 
 	// A wave under five answers shows nothing but its total.
 	data["autumn"] = data["autumn"][:4]

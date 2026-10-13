@@ -106,23 +106,45 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 			for _, it := range q.Items {
 				item := q
 				item.Type, item.ID, item.Version = "scale", it.ID, it.Version
-				ws, br := compareWaves(item, rows)
+				ws, br := compareWaves(item, waves, rows)
 				cq.Items = append(cq.Items, compareItem{it.ID, it.Text, br, ws})
 			}
 		} else {
-			cq.Waves, cq.Break = compareWaves(q, rows)
+			cq.Waves, cq.Break = compareWaves(q, waves, rows)
 		}
 		res.Questions = append(res.Questions, cq)
 	}
 	writeJSON(w, res)
 }
 
+// asked finds the question or matrix item id in s as asked there: its
+// version and scale maximum.
+func asked(s survey, id string) (version, top int, ok bool) {
+	for _, q := range s.Questions {
+		if q.ID == id {
+			return q.Version, q.Max, true
+		}
+		for _, it := range q.Items {
+			if it.ID == id {
+				return it.Version, q.Max, true
+			}
+		}
+	}
+	return 0, 0, false
+}
+
 // compareWaves counts q in every wave after the skip rule, and reports a
-// break when the waves did not all ask the same single version.
-func compareWaves(q question, rows [][]storedAnswer) ([]waveCounts, bool) {
+// break when the waves did not all ask, or answer, the same single version.
+// A wave's declared version counts even without answers; a wave that did
+// not ask the question at all does not break the series.
+func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCounts, bool) {
 	out := make([]waveCounts, len(rows))
 	seen := map[int]bool{}
 	for i, rs := range rows {
+		top := q.Max
+		if v, m, ok := asked(waves[i], q.ID); ok {
+			seen[v], top = true, m
+		}
 		kept := slices.DeleteFunc(slices.Clone(rs), func(row storedAnswer) bool {
 			v, ok := row.Answers[q.ID]
 			return ok && v != nil && q.SkipIf.skipped(row.Answers)
@@ -132,7 +154,7 @@ func compareWaves(q question, rows [][]storedAnswer) ([]waveCounts, bool) {
 		for _, vr := range countVersions(q, kept) {
 			ws := waveStat{versionResult: vr}
 			if q.Type == "scale" {
-				ws.Mean, ws.Agree = scaleStats(vr, q.Max)
+				ws.Mean, ws.Agree = scaleStats(vr, top)
 			}
 			out[i].Versions = append(out[i].Versions, ws)
 			seen[vr.Version] = true

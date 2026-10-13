@@ -31,7 +31,9 @@ const WAVE_FILLS = [
   "var(--ax-bg-warning-strong)",
   "var(--ax-bg-success-strong)",
 ];
-const waveFill = (i: number, count: number) => WAVE_FILLS[count === 2 ? i : i % WAVE_FILLS.length];
+// Oldest always gray, newest always blue; waves in between get the middle colours.
+const waveFill = (i: number, count: number) =>
+  i === 0 ? WAVE_FILLS[0] : i === count - 1 ? WAVE_FILLS[1] : WAVE_FILLS[1 + i];
 
 /** «Utviklerundersøkelsen våren 2026» → «Våren 2026». */
 function shortName(title: string) {
@@ -124,53 +126,57 @@ function MeanOverview({ waves, questions }: { waves: WaveMeta[]; questions: Comp
           className="grid grid-cols-1 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 gap-y-1 text-xs"
         >
           <span className="hidden sm:block" />
-          <div className="relative h-4 mx-2">
-            {ticks.map((t) => (
-              <span key={t} className="absolute -translate-x-1/2" style={{ left: x(t) }}>
-                {t}
-              </span>
-            ))}
-          </div>
+          <Box paddingInline="space-8">
+            <div className="relative h-4">
+              {ticks.map((t) => (
+                <span key={t} className="absolute -translate-x-1/2" style={{ left: x(t) }}>
+                  {t}
+                </span>
+              ))}
+            </div>
+          </Box>
           {rows.map((r) => {
             const means = r.waves.map((w) => only(w)?.mean);
             const shown = means.filter((m): m is number => m !== undefined);
             return (
               <div key={r.id} className="contents" data-testid={`dumbbell-${r.id}`}>
                 <span className="pt-2 sm:pt-0 sm:py-1">{r.text}</span>
-                <div className="relative h-6 mx-2">
-                  {ticks.map((t) => (
-                    <span
-                      key={t}
-                      className="absolute top-0 bottom-0 w-px"
-                      style={{ left: x(t), background: "var(--ax-border-neutral-subtle)" }}
-                    />
-                  ))}
-                  {!r.break && shown.length > 1 ? (
-                    <span
-                      data-testid="dumbbell-line"
-                      className="absolute top-1/2 h-0.5 -translate-y-1/2"
-                      style={{
-                        left: x(Math.min(...shown)),
-                        width: `calc(${x(Math.max(...shown))} - ${x(Math.min(...shown))})`,
-                        background: "var(--ax-border-neutral)",
-                      }}
-                    />
-                  ) : null}
-                  {means.map((m, i) =>
-                    m === undefined ? null : (
+                <Box paddingInline="space-8">
+                  <div className="relative h-6">
+                    {ticks.map((t) => (
                       <span
-                        key={i}
-                        title={`${shortName(waves[i].title)}: snitt ${num(m)}`}
-                        className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                        key={t}
+                        className="absolute top-0 bottom-0 w-px"
+                        style={{ left: x(t), background: "var(--ax-border-neutral-subtle)" }}
+                      />
+                    ))}
+                    {!r.break && shown.length > 1 ? (
+                      <span
+                        data-testid="dumbbell-line"
+                        className="absolute top-1/2 h-0.5 -translate-y-1/2"
                         style={{
-                          left: x(m),
-                          background: waveFill(i, waves.length),
-                          boxShadow: "0 0 0 2px var(--ax-bg-default)",
+                          left: x(Math.min(...shown)),
+                          width: `calc(${x(Math.max(...shown))} - ${x(Math.min(...shown))})`,
+                          background: "var(--ax-border-neutral)",
                         }}
                       />
-                    )
-                  )}
-                </div>
+                    ) : null}
+                    {means.map((m, i) =>
+                      m === undefined ? null : (
+                        <span
+                          key={i}
+                          title={`${shortName(waves[i].title)}: snitt ${num(m)}`}
+                          className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          style={{
+                            left: x(m),
+                            background: waveFill(i, waves.length),
+                            boxShadow: "0 0 0 2px var(--ax-bg-default)",
+                          }}
+                        />
+                      )
+                    )}
+                  </div>
+                </Box>
               </div>
             );
           })}
@@ -249,8 +255,9 @@ function Excluded({ waves, counts }: { waves: WaveMeta[]; counts: WaveCounts[] }
 function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
   const counts = q.waves ?? [];
   const values = [...new Set(counts.flatMap((w) => w.versions.flatMap((v) => (v.options ?? []).map((o) => o.value))))];
-  const share = (w: WaveCounts | undefined, value: string) => {
-    const v = only(w);
+  // One bar series per wave and version; a wave that asked several versions gets one per version.
+  const series = counts.flatMap((w, i) => w.versions.map((v) => ({ i, v })));
+  const share = (v: WaveStat | undefined, value: string) => {
     const c = v?.options?.find((o) => o.value === value)?.count;
     return v?.n && c != null ? { share: c / v.n, count: c } : undefined;
   };
@@ -258,29 +265,41 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
     <VStack gap="space-8">
       {q.break ? <BreakTag /> : null}
       <HStack gap="space-16">
-        {waves.map((w, i) => (
-          <WaveLabel key={w.id} wave={w} i={i} count={waves.length} n={only(counts[i])?.n ?? null} />
+        {series.map(({ i, v }) => (
+          <WaveLabel
+            key={`${i}-${v.version}`}
+            wave={waves[i]}
+            i={i}
+            count={waves.length}
+            n={v.n}
+            version={q.break || counts[i].versions.length > 1 ? v.version : undefined}
+          />
         ))}
       </HStack>
       <div aria-hidden className="grid grid-cols-1 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-4 gap-y-1 text-xs">
         {values.map((value) => {
-          const first = share(counts[0], value);
-          const last = share(counts[counts.length - 1], value);
+          const first = share(only(counts[0]), value);
+          const last = share(only(counts[counts.length - 1]), value);
           return (
             <div key={value} className="contents">
               <span className="pt-2 sm:pt-0">
                 {value}
                 {!q.break && first && last ? (
-                  <span className="ml-2 whitespace-nowrap" style={{ color: "var(--ax-text-neutral-subtle)" }}>
+                  <Box
+                    as="span"
+                    paddingInline="space-8 space-0"
+                    className="whitespace-nowrap"
+                    style={{ color: "var(--ax-text-neutral-subtle)" }}
+                  >
                     {signed((last.share - first.share) * 100, 0)} pp
-                  </span>
+                  </Box>
                 ) : null}
               </span>
               <div className="flex flex-col gap-[2px]">
-                {counts.map((w, i) => {
-                  const s = share(w, value);
+                {series.map(({ i, v }) => {
+                  const s = share(v, value);
                   return (
-                    <div key={i} className="flex items-center gap-2">
+                    <div key={`${i}-${v.version}`} className="flex items-center gap-2">
                       <div
                         className="h-3 rounded-r-sm"
                         style={{ width: `${(s?.share ?? 0) * 75}%`, background: waveFill(i, waves.length) }}

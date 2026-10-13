@@ -182,6 +182,25 @@ describe("/admin/undersokelser/sammenlign", () => {
     expect(screen.getAllByRole("columnheader", { name: /Høsten 2026, versjon 2/ })).toHaveLength(1);
   });
 
+  it("draws every version of a broken choice question, labelled, without Δ pp", async () => {
+    const [spring, autumn] = comparison.questions[0].waves!;
+    const v2 = { ...autumn.versions[0], version: 2 };
+    respond({
+      ...comparison,
+      questions: [
+        {
+          ...comparison.questions[0],
+          break: true,
+          waves: [spring, { excluded: 0, versions: [autumn.versions[0], v2] }],
+        },
+      ],
+    });
+    await renderPage("q2-2026,q4-2026");
+    expect(screen.getByText("Høsten 2026, versjon 2 · n 20")).toBeInTheDocument();
+    expect(screen.getByText("Høsten 2026, versjon 1 · n 20")).toBeInTheDocument();
+    expect(screen.queryByText(/pp$/)).not.toBeInTheDocument();
+  });
+
   it("maps a bad id and 404 to not found", async () => {
     const fetch = respond({}, 404);
     await expect(renderPage("q2-2026,q4-2026")).rejects.toThrow("NEXT_NOT_FOUND");
