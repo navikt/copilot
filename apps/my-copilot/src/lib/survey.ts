@@ -82,15 +82,9 @@ export async function getActiveSurveys(): Promise<ActiveSurveys> {
   }
 }
 
-/** Whether this signed-in email may preview surveys: listed in SURVEY_PREVIEWERS (comma-separated). */
-export function canPreviewSurveys(email: string, previewers: string = process.env.SURVEY_PREVIEWERS ?? ""): boolean {
-  const list = previewers.split(",").map((e) => e.trim().toLowerCase());
-  return email !== "" && list.includes(email.toLowerCase());
-}
-
 /**
  * A survey definition as committed on main, for a preview before it opens
- * (?forhandsvis=<id>, previewers only). A preview sends no answers.
+ * (?forhandsvis=<id>, admins only). A preview sends no answers.
  */
 export async function getSurveyPreview(id: string): Promise<Survey | undefined> {
   if (!/^[a-z0-9-]{1,64}$/.test(id)) return undefined;

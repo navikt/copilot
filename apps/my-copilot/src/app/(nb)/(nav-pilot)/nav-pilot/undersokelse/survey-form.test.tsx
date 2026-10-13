@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { canPreviewSurveys, type Survey } from "@/lib/survey";
+import { type Survey } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
 const sendSurvey = vi.fn();
@@ -38,10 +38,6 @@ describe("SurveyForm preview", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
     expect(await screen.findByText(/ikke sendt eller lagret/)).toBeInTheDocument();
     expect(sendSurvey).not.toHaveBeenCalled();
-
-    expect(canPreviewSurveys("Eier@nav.no", "a@nav.no, eier@nav.no")).toBe(true);
-    expect(canPreviewSurveys("andre@nav.no", "eier@nav.no")).toBe(false);
-    expect(canPreviewSurveys("", "")).toBe(false);
   });
 });
 

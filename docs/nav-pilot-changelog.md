@@ -7,7 +7,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### Forhåndsvis en brukerundersøkelse før den åpner
 
 - **I terminalen**: `nav-pilot survey preview <id>` viser undersøkelsen slik den ligger på main, også før den åpner. Svarene skrives ut og sendes ikke.
-- **På nettsiden**: Eiere som står i `SURVEY_PREVIEWERS`, kan åpne `/nav-pilot/undersokelse?forhandsvis=<id>`. Skjemaet sjekker svarene, men sender dem ikke.
+- **På nettsiden**: Admins (team copilot) kan åpne `/nav-pilot/undersokelse?forhandsvis=<id>`. Skjemaet sjekker svarene, men sender dem ikke.
 
 ### GPT-6.1 Sol er anbefalingen for daglig koding
 

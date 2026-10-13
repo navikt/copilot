@@ -45,7 +45,7 @@ export function anomalyText(a: Anomaly): { text: string; href: string } {
         href: "/innsikt/bruk#kostnad",
       };
     case "A4":
-      return { text: `Forventet faktura for ${a.date} er over budsjettet.`, href: "/innsikt/kostnad" };
+      return { text: `Forventet faktura for ${a.date} er over budsjettet.`, href: "/admin/kostnad" };
   }
 }
 

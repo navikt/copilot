@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Alert, BodyLong, Heading, Link, VStack } from "@navikt/ds-react";
 import { Bullets, DocPage } from "@/components/nav-pilot/doc-page";
-import { getUser } from "@/lib/auth";
-import { canPreviewSurveys, getActiveSurveys, getSurveyPreview, SURVEY_SCHEDULE, surveyWindow } from "@/lib/survey";
+import { getUser, isAdmin } from "@/lib/auth";
+import { getActiveSurveys, getSurveyPreview, SURVEY_SCHEDULE, surveyWindow } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
 export const metadata: Metadata = {
@@ -19,8 +19,7 @@ export default async function SurveyPage({
 }) {
   const user = await getUser();
   const { id, forhandsvis } = await searchParams;
-  const preview =
-    forhandsvis && user && canPreviewSurveys(user.email) ? await getSurveyPreview(forhandsvis) : undefined;
+  const preview = forhandsvis && isAdmin(user) ? await getSurveyPreview(forhandsvis) : undefined;
   const active = await getActiveSurveys();
   const surveys = active.status === "ok" ? active.surveys : [];
   const phase = surveyWindow();

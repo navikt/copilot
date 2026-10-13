@@ -33,8 +33,8 @@ export interface HeaderLabels {
 const current = (pathname: string, active: string | undefined, href: string) =>
   pathname === href ? ("page" as const) : active === href ? ("true" as const) : undefined;
 
-// Admin-only cost page; the link shows only for admins (isAdmin), the page itself 404s for everyone else.
-const ADMIN_COST_HREF = "/innsikt/kostnad";
+// Admin pages; the link shows only for admins (isAdmin), the pages themselves 404 for everyone else.
+const ADMIN_HREF = "/admin";
 
 export function SiteHeader({
   labels,
@@ -163,14 +163,8 @@ function UserMenu({ labels, userName, admin }: { labels: HeaderLabels; userName:
               </BodyShort>
               {admin && (
                 <BodyShort>
-                  <Link
-                    as={NextLink}
-                    href={ADMIN_COST_HREF}
-                    lang="nb"
-                    hrefLang={hrefLang}
-                    onClick={() => setOpen(false)}
-                  >
-                    Kostnadskontroll
+                  <Link as={NextLink} href={ADMIN_HREF} lang="nb" hrefLang={hrefLang} onClick={() => setOpen(false)}>
+                    Admin
                   </Link>
                 </BodyShort>
               )}
@@ -274,8 +268,8 @@ function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userNam
                         {labels.subscription}
                       </NextLink>
                       {admin && (
-                        <NextLink href={ADMIN_COST_HREF} lang="nb" hrefLang={hrefLang} className="panel-item">
-                          Kostnadskontroll
+                        <NextLink href={ADMIN_HREF} lang="nb" hrefLang={hrefLang} className="panel-item">
+                          Admin
                         </NextLink>
                       )}
                     </li>
