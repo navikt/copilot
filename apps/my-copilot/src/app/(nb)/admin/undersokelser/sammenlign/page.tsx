@@ -314,83 +314,87 @@ function Numbers({ waves, counts, label }: { waves: WaveMeta[]; counts: WaveCoun
   return (
     <details>
       <summary className="cursor-pointer text-sm">Vis tall</summary>
-      <Table size="small">
-        <TableHeader>
-          <TableRow>
-            <TableHeaderCell scope="col">Svar</TableHeaderCell>
-            {cols.map((c) => (
-              <TableHeaderCell key={c.name} scope="col" align="right">
-                {c.name} (n {c.v.n === null ? "–" : formatNumber(c.v.n)})
-              </TableHeaderCell>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {values.map((value) => (
-            <TableRow key={value}>
-              <TableDataCell>{label(value)}</TableDataCell>
-              {cols.map((c) => {
-                const count = c.v.options?.find((o) => o.value === value)?.count;
-                return (
-                  <TableDataCell key={c.name} align="right">
-                    {count == null ? "–" : `${formatNumber(count)} (${c.v.n ? pct(count / c.v.n) : "–"})`}
-                  </TableDataCell>
-                );
-              })}
-            </TableRow>
-          ))}
-          {cols.some((c) => c.v.mean !== undefined) ? (
+      <div className="overflow-x-auto">
+        <Table size="small">
+          <TableHeader>
             <TableRow>
-              <TableDataCell>Snitt</TableDataCell>
+              <TableHeaderCell scope="col">Svar</TableHeaderCell>
               {cols.map((c) => (
-                <TableDataCell key={c.name} align="right">
-                  {c.v.mean === undefined ? "–" : num(c.v.mean)}
-                </TableDataCell>
+                <TableHeaderCell key={c.name} scope="col" align="right">
+                  {c.name} (n {c.v.n === null ? "–" : formatNumber(c.v.n)})
+                </TableHeaderCell>
               ))}
             </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {values.map((value) => (
+              <TableRow key={value}>
+                <TableDataCell>{label(value)}</TableDataCell>
+                {cols.map((c) => {
+                  const count = c.v.options?.find((o) => o.value === value)?.count;
+                  return (
+                    <TableDataCell key={c.name} align="right">
+                      {count == null ? "–" : `${formatNumber(count)} (${c.v.n ? pct(count / c.v.n) : "–"})`}
+                    </TableDataCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+            {cols.some((c) => c.v.mean !== undefined) ? (
+              <TableRow>
+                <TableDataCell>Snitt</TableDataCell>
+                {cols.map((c) => (
+                  <TableDataCell key={c.name} align="right">
+                    {c.v.mean === undefined ? "–" : num(c.v.mean)}
+                  </TableDataCell>
+                ))}
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
     </details>
   );
 }
 
 function Waves({ waves }: { waves: WaveMeta[] }) {
   return (
-    <Table size="small">
-      <caption className="text-left">
-        <BodyShort size="small">Rundene som sammenlignes</BodyShort>
-      </caption>
-      <TableHeader>
-        <TableRow>
-          <TableHeaderCell scope="col">Runde</TableHeaderCell>
-          <TableHeaderCell scope="col">Periode</TableHeaderCell>
-          <TableHeaderCell scope="col" align="right">
-            Svar
-          </TableHeaderCell>
-          <TableHeaderCell scope="col">Besvart via</TableHeaderCell>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {waves.map((w) => (
-          <TableRow key={w.id}>
-            <TableDataCell>
-              <Link href={`/admin/undersokelser/${w.id}`}>{w.title}</Link>
-            </TableDataCell>
-            <TableDataCell>
-              {formatDate(w.starts)}–{formatDate(w.ends)}
-            </TableDataCell>
-            <TableDataCell align="right">{w.suppressed ? "under 5" : formatNumber(w.responses)}</TableDataCell>
-            <TableDataCell>
-              {Object.entries(w.channels ?? {})
-                .sort((a, b) => b[1] - a[1])
-                .map(([c, n]) => `${channelName(c)}: ${formatNumber(n)}`)
-                .join(", ") || "–"}
-            </TableDataCell>
+    <div className="overflow-x-auto">
+      <Table size="small">
+        <caption className="text-left">
+          <BodyShort size="small">Rundene som sammenlignes</BodyShort>
+        </caption>
+        <TableHeader>
+          <TableRow>
+            <TableHeaderCell scope="col">Runde</TableHeaderCell>
+            <TableHeaderCell scope="col">Periode</TableHeaderCell>
+            <TableHeaderCell scope="col" align="right">
+              Svar
+            </TableHeaderCell>
+            <TableHeaderCell scope="col">Besvart via</TableHeaderCell>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {waves.map((w) => (
+            <TableRow key={w.id}>
+              <TableDataCell>
+                <Link href={`/admin/undersokelser/${w.id}`}>{w.title}</Link>
+              </TableDataCell>
+              <TableDataCell>
+                {formatDate(w.starts)}–{formatDate(w.ends)}
+              </TableDataCell>
+              <TableDataCell align="right">{w.suppressed ? "under 5" : formatNumber(w.responses)}</TableDataCell>
+              <TableDataCell>
+                {Object.entries(w.channels ?? {})
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([c, n]) => `${channelName(c)}: ${formatNumber(n)}`)
+                  .join(", ") || "–"}
+              </TableDataCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
