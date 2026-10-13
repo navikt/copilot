@@ -123,7 +123,7 @@ func TestExportSkills(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportSkills(sourceDir, "", outputDir, nil, false)
+	n, err := exportSkills(source.NewSourceResolver(sourceDir), "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestExportPrompts(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportPrompts(sourceDir, "", outputDir, nil, false)
+	n, err := exportPrompts(source.NewSourceResolver(sourceDir), "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestExportAgents(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportAgents(sourceDir, "", outputDir, nil, false)
+	n, err := exportAgents(source.NewSourceResolver(sourceDir), "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestExportInstructions(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	n, err := exportInstructions(sourceDir, "", outputDir, nil, false)
+	n, err := exportInstructions(source.NewSourceResolver(sourceDir), "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ These apply everywhere.
 `)
 
 	outputDir := t.TempDir()
-	n, err := exportInstructions(dir, "", outputDir, nil, false)
+	n, err := exportInstructions(source.NewSourceResolver(dir), "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,10 +306,10 @@ func TestExportDryRun(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	for _, fn := range []func(string, string, string, *agentpakke.Layout, bool) (int, error){
+	for _, fn := range []func(*source.SourceResolver, string, string, bool) (int, error){
 		exportSkills, exportPrompts, exportAgents, exportInstructions,
 	} {
-		if _, err := fn(sourceDir, "", outputDir, nil, true); err != nil {
+		if _, err := fn(source.NewSourceResolver(sourceDir), "", outputDir, true); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -326,14 +326,14 @@ func TestExportEmptySource(t *testing.T) {
 
 	for _, fn := range []struct {
 		name string
-		fn   func(string, string, string, *agentpakke.Layout, bool) (int, error)
+		fn   func(*source.SourceResolver, string, string, bool) (int, error)
 	}{
 		{"skills", exportSkills},
 		{"prompts", exportPrompts},
 		{"agents", exportAgents},
 		{"instructions", exportInstructions},
 	} {
-		n, err := fn.fn(sourceDir, "", outputDir, nil, false)
+		n, err := fn.fn(source.NewSourceResolver(sourceDir), "", outputDir, false)
 		if err != nil {
 			t.Errorf("%s: unexpected error: %v", fn.name, err)
 		}
@@ -566,7 +566,7 @@ func TestExportSkills_RootLevel(t *testing.T) {
 	mustWrite(t, filepath.Join(skillDir, "SKILL.md"), "# My Skill\n")
 	mustWrite(t, filepath.Join(skillDir, "reference.md"), "## Reference\n")
 
-	n, err := exportSkills(sourceDir, "", outputDir, nil, false)
+	n, err := exportSkills(source.NewSourceResolver(sourceDir), "", outputDir, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -587,7 +587,7 @@ func TestMaterializeOpenCode(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir)
+	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
 	if err != nil {
 		t.Fatalf("MaterializeOpenCode() error: %v", err)
 	}
@@ -638,7 +638,7 @@ func TestMaterializeOpenCodeIdempotent(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	s1, c1, a1, i1, err := MaterializeOpenCode(sourceDir, outputDir)
+	s1, c1, a1, i1, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
 	if err != nil {
 		t.Fatalf("first run error: %v", err)
 	}
@@ -648,7 +648,7 @@ func TestMaterializeOpenCodeIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s2, c2, a2, i2, err := MaterializeOpenCode(sourceDir, outputDir)
+	s2, c2, a2, i2, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
 	if err != nil {
 		t.Fatalf("second run error: %v", err)
 	}
@@ -668,7 +668,7 @@ func TestMaterializeOpenCodeEmpty(t *testing.T) {
 	sourceDir := t.TempDir()
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir)
+	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
 	if err != nil {
 		t.Fatalf("unexpected error on empty source: %v", err)
 	}
@@ -746,6 +746,26 @@ func TestExportRefusesPayloadOnlyAgentpakke(t *testing.T) {
 	}
 }
 
+// TestLaunchSyncDoesNotRefusePayloadOnlyAgentpakke keeps the export refusal
+// out of launch: a Tier 2 pakke is launched from its payload, and the opencode
+// context sync must keep working rather than fail on an export-only guard.
+func TestLaunchSyncDoesNotRefusePayloadOnlyAgentpakke(t *testing.T) {
+	srcDir := t.TempDir()
+	mustWrite(t, filepath.Join(srcDir, ".nav-pilot", "agentpakke.json"), `{
+	  "contractVersion": "1",
+	  "name": "grillmester",
+	  "description": "Grillmester agentpakke",
+	  "clients": {"copilot": {"payloads": {"full": {"path": "dist/copilot/full", "primaryAgents": ["grillmester"]}}}}
+	}`)
+
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", srcDir, "", t.TempDir(), "dev", "", srcDir); err != nil {
+		t.Fatalf("SyncOpenCodeArtifacts refused a payload-only pakke: %v", err)
+	}
+	if _, _, _, _, err := MaterializeOpenCode(srcDir, t.TempDir(), srcDir); err != nil {
+		t.Fatalf("MaterializeOpenCode refused a payload-only pakke: %v", err)
+	}
+}
+
 // TestExportAllowsCanonicalAgentpakke keeps the refusal narrow: a manifest that
 // declares the canonical layout is exactly what export already reads.
 func TestExportAllowsCanonicalAgentpakke(t *testing.T) {
@@ -788,7 +808,7 @@ func TestWorkerAgentIsOnlyMaterializedForTheOptedIn(t *testing.T) {
 
 	names := func() []string {
 		var got []string
-		for _, e := range agentEntries(sourceDir, nil) {
+		for _, e := range agentEntries(source.NewSourceResolver(sourceDir)) {
 			got = append(got, e.Name)
 		}
 		return got
@@ -813,16 +833,16 @@ func TestExportScopeExtras(t *testing.T) {
 	mustWrite(t, filepath.Join(scopeDir, "copilot-instructions.md"), "Team rules for this repo.\n")
 	outputDir := t.TempDir()
 
-	if _, err := exportSkills(sourceDir, scopeDir, outputDir, nil, false); err != nil {
+	if _, err := exportSkills(source.NewSourceResolver(sourceDir), scopeDir, outputDir, false); err != nil {
 		t.Fatalf("exportSkills: %v", err)
 	}
-	if _, err := exportPrompts(sourceDir, scopeDir, outputDir, nil, false); err != nil {
+	if _, err := exportPrompts(source.NewSourceResolver(sourceDir), scopeDir, outputDir, false); err != nil {
 		t.Fatalf("exportPrompts: %v", err)
 	}
-	if _, err := exportAgents(sourceDir, scopeDir, outputDir, nil, false); err != nil {
+	if _, err := exportAgents(source.NewSourceResolver(sourceDir), scopeDir, outputDir, false); err != nil {
 		t.Fatalf("exportAgents: %v", err)
 	}
-	if _, err := exportInstructions(sourceDir, scopeDir, outputDir, nil, false); err != nil {
+	if _, err := exportInstructions(source.NewSourceResolver(sourceDir), scopeDir, outputDir, false); err != nil {
 		t.Fatalf("exportInstructions: %v", err)
 	}
 
@@ -873,7 +893,7 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := exportAgents(src, "", out, layout, false); err != nil {
+	if _, err := exportAgents(source.NewSourceResolverForLayout(src, layout), "", out, false); err != nil {
 		t.Fatal(err)
 	}
 	read := func(n string) string {
@@ -892,7 +912,7 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 
 	// The materialize path reads the same roster.
 	out2 := t.TempDir()
-	if _, _, _, _, err := MaterializeOpenCode(src, out2); err != nil {
+	if _, _, _, _, err := MaterializeOpenCode(src, out2, src); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(out2, "agents", "boss.md"))

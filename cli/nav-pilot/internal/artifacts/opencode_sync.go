@@ -215,15 +215,11 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	}
 
 	var files []domain.InstalledFile
-	// The layout the pakke declares, not the canonical names (#790). Export
-	// already honoured it; sync did not, so a pakke with non-canonical
-	// layout.skills or layout.prompts exported correctly and then silently
-	// mirrored nothing into ~/.config/opencode at launch.
-	layout, err := contentLayout(sourceDir)
+	resolver, bases, err := composedContent(sourceDir, sourceRepo)
 	if err != nil {
 		return skills, commands, agents, instructions, conflicts, err
 	}
-	resolver := source.NewSourceResolverForLayout(sourceDir, layout)
+	defer bases.Cleanup()
 	primaries, err := openCodePrimaries(sourceDir)
 	if err != nil {
 		return skills, commands, agents, instructions, conflicts, err
@@ -322,7 +318,7 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 
 	// The same layout the export path reads (#728): a pakke that declares where
 	// its agents live is mirrored from there, not from the canonical names.
-	for _, entry := range withLocalWorker(withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent)) {
+	for _, entry := range withLocalWorker(withScopeExtras(agentEntries(resolver), scopeDir, source.KindAgent)) {
 		relPath := "agents/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
 		conflict := isConflict(relPath, dstPath, false)
@@ -354,7 +350,7 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		agents++
 	}
 
-	globalSections, scopedRefs, collErr := collectInstructionData(layout, sourceDir)
+	globalSections, scopedRefs, collErr := collectInstructionData(resolver)
 	if collErr != nil {
 		return skills, commands, agents, instructions, conflicts, collErr
 	}

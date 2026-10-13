@@ -63,23 +63,18 @@ func composedResolverFor(src *Source, collection string) (*SourceResolver, compo
 // the recursive call dropped its result, so a pakke that reuses a pakke that
 // reuses a pakke leaked a checkout per link, on every run of every command that
 // composes — `list` included (#867).
-type composedBases []*Source
+type composedBases source.ComposedBases
 
 // cleanup removes the temp checkouts the chain created. A nil chain and a
 // source that was a local path are both no-ops.
 func (b composedBases) cleanup() {
-	for _, src := range b {
-		src.Cleanup()
-	}
+	source.ComposedBases(b).Cleanup()
 }
 
 // nearest is the base this source reuses directly: the one "Reuses:" names and
 // the one whose retired record sync merges in.
 func (b composedBases) nearest() *Source {
-	if len(b) == 0 {
-		return nil
-	}
-	return b[0]
+	return source.ComposedBases(b).Nearest()
 }
 
 // composedContentsFor is what an install path asks for: the composed resolver,
@@ -141,92 +136,14 @@ func composedContentsFor(scope *InstallScope, src *Source, collection string) (*
 // A source that reuses nothing, which is nearly all of them, gets its own
 // resolver back unchanged and an empty chain.
 func composeResolver(resolver *SourceResolver, src *Source) (*SourceResolver, composedBases, error) {
-	// Only a manifest-bearing source composes. A collection-era source has no
-	// agentpakke identity to reuse from, and one that happens to carry a
-	// declaration is a consumer repo that also serves content: composing it
-	// would fetch a second repo mid-install for a source that never asked for
-	// it.
-	if src.Pakke == nil {
-		return resolver, nil, nil
+	composed, bases, err := source.ComposeResolver(resolver, src)
+	// Keep attachPakke's CLI formatting and fail-closed sentinel without making
+	// the shared composition mechanism depend on the CLI.
+	var manifestErr *source.ReuseManifestError
+	if errors.As(err, &manifestErr) {
+		err = &unusableManifestError{msg: fmt.Sprintf("%s ships an agentpakke manifest (%s) that this nav-pilot cannot use:\n  %v\n\nNothing was installed. Fix the manifest in the source repo, or run %s to list every finding",
+			manifestErr.Source, agentpakke.ManifestPath, manifestErr.Err,
+			bold("nav-pilot validate --source "+manifestErr.Source))}
 	}
-	return composeResolverSeen(resolver, src, []string{sourceLabelFor(src)})
-}
-
-// composeResolverSeen carries the labels already on the chain. A pakke that
-// reuses one that reuses it back would otherwise fetch the two forever; the
-// cycle is reported rather than silently cut, because either half of it is a
-// mistake someone has to fix in a committed file.
-//
-// Membership is sameSourceRepo, not string equality: "Navikt/A" and "navikt/a"
-// are one repo, and two spellings of the same path are one directory. With
-// plain equality a pakke could name itself in a different case and be chained
-// to itself, and a cycle went one fetch further before it was noticed.
-func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (*SourceResolver, composedBases, error) {
-	decl, err := agentpakke.LoadDeclaration(src.Dir)
-	if err != nil {
-		if errors.Is(err, agentpakke.ErrNoDeclaration) {
-			return resolver, nil, nil
-		}
-		return nil, nil, fmt.Errorf("reading the reuse declaration of %s: %w", sourceLabelFor(src), err)
-	}
-	if decl.Source == "" {
-		return resolver, nil, nil
-	}
-	// A pakke whose declaration names itself is a consumer repo that happens to
-	// ship a manifest, not a composition. Chaining it to itself would resolve
-	// every artifact twice and, at a different revision, shadow the checkout
-	// being installed with an older copy of itself.
-	if sameSourceRepo(decl.Source, sourceLabelFor(src)) {
-		return resolver, nil, nil
-	}
-
-	for _, s := range seen {
-		if sameSourceRepo(s, decl.Source) {
-			return nil, nil, fmt.Errorf("agentpakke %s reuses %q, which already reuses it back.\nA reuse cycle has no order to resolve in, so nothing was installed.\nBreak the cycle in %s in one of the two repos",
-				sourceLabelFor(src), decl.Source, agentpakke.DeclarationPath)
-		}
-	}
-	seen = append(seen, decl.Source)
-
-	// A repo-shaped reuse without a pin would clone whatever main happens to
-	// hold, so two installs a week apart would compose different content while
-	// both reported the same declaration. A local path has no revision to pin
-	// and is a working tree by definition, so only the repo form is refused.
-	if pinnable(decl.Source) && decl.SHA == "" {
-		return nil, nil, fmt.Errorf("agentpakke %s reuses %q without a revision.\nReuse resolves at install and sync, so an unpinned base would compose whatever that repo's main branch holds at the time.\nNothing was installed. Add the 40-character sha of the revision to reuse to %s and commit it",
-			sourceLabelFor(src), decl.Source, agentpakke.DeclarationPath)
-	}
-
-	baseSrc, err := source.ResolveSource(decl.SHA, decl.Source, "")
-	if err != nil {
-		return nil, nil, fmt.Errorf("%s reuses agentpakke %q, which could not be resolved at %s: %w\n\nNothing was installed",
-			sourceLabelFor(src), decl.Source, shortSHA(decl.SHA), err)
-	}
-	if err := attachPakkeOrCleanup(baseSrc); err != nil {
-		return nil, nil, err
-	}
-	// A payload-only base has nothing to inherit from. Its unit of delivery is
-	// a digest-bound revision, not files at paths, so composing it announced
-	// "Reuses:" and then contributed nothing. Refused rather than ignored, for
-	// the same reason guardDeclaredItems refuses `items` against a Tier 2
-	// pakke: a declaration that cannot do what it says should say so.
-	if payloadOnly(baseSrc) {
-		baseSrc.Cleanup()
-		return nil, nil, fmt.Errorf(
-			"agentpakke %s reuses %q, which ships pre-built payloads (Tier 2).\n"+
-				"A payload tree is staged and digest-verified as a whole, so there are no files to inherit from it.\n\n"+
-				"Nothing was installed. Remove the reuse from %s, or ask %s for a layout-shaped pakke",
-			sourceLabelFor(src), decl.Source, agentpakke.DeclarationPath, decl.Source)
-	}
-	// A reused pakke may itself reuse one. The chain is built depth-first, so
-	// by the time this source's resolver is wrapped, everything behind it is
-	// already in place.
-	baseResolver, deeper, err := composeResolverSeen(resolverFor(baseSrc.Dir, baseSrc.Pakke), baseSrc, seen)
-	if err != nil {
-		// The frame below cleaned up whatever it resolved; this checkout is
-		// the one no one else can reach.
-		baseSrc.Cleanup()
-		return nil, nil, err
-	}
-	return resolver.WithBase(baseResolver), append(composedBases{baseSrc}, deeper...), nil
+	return composed, composedBases(bases), err
 }
