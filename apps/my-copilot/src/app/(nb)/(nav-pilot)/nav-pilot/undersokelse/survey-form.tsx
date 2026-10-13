@@ -31,6 +31,12 @@ import {
 } from "@/lib/survey";
 import { sendSurvey } from "./actions";
 
+/** A matrix right after a visible matrix with the same text continues that list, so its heading is not repeated. */
+function repeatsPrevious(visible: SurveyQuestion[], i: number): boolean {
+  const prev = visible[i - 1];
+  return visible[i].type === "matrix" && prev?.type === "matrix" && prev.text === visible[i].text;
+}
+
 function missing(q: SurveyQuestion, answers: Answers): string | undefined {
   if (q.type === "matrix") {
     const all = (q.items ?? []).every((it) => typeof answers[it.id] === "number");
@@ -165,10 +171,16 @@ export function SurveyForm({ survey, preview = false }: { survey: Survey; previe
           </ErrorSummary>
         )}
 
-        {visible.map((q) => (
-          <VStack key={q.id} gap="space-8">
+        {visible.map((q, i) => (
+          <VStack key={q.id} gap="space-8" className={repeatsPrevious(visible, i) ? "-mt-6" : undefined}>
             {q.type === "matrix" ? (
-              <Matrix q={q} answers={answers} error={errors[q.id]} onChange={(id, n) => set(id, n)} />
+              <Matrix
+                q={q}
+                answers={answers}
+                error={errors[q.id]}
+                onChange={(id, n) => set(id, n)}
+                hideLegend={repeatsPrevious(visible, i)}
+              />
             ) : (
               <Question
                 q={q}
@@ -338,15 +350,23 @@ function Matrix({
   answers,
   error,
   onChange,
+  hideLegend,
 }: {
   q: SurveyQuestion;
   answers: Answers;
   error?: string;
   onChange: (itemId: string, n: number) => void;
+  hideLegend?: boolean;
 }) {
   const steps = scaleSteps(q);
   return (
-    <Fieldset id={`q-${q.id}`} tabIndex={-1} legend={q.required ? q.text : `${q.text} (valgfritt)`} error={error}>
+    <Fieldset
+      id={`q-${q.id}`}
+      tabIndex={-1}
+      legend={q.required ? q.text : `${q.text} (valgfritt)`}
+      hideLegend={hideLegend}
+      error={error}
+    >
       <VStack gap="space-24">
         {(q.items ?? []).map((it) => (
           <fieldset key={it.id} className="m-0 border-0 p-0">
