@@ -709,9 +709,9 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 			versions[q.ID] = q.Version
 		}
 	}
-	// Not the request's context: a batch write it triggers must not be
+	// Not the request's context: the write it triggers must not be
 	// cancelled because this caller hung up, and must carry nothing of this
-	// request, since it writes nine other people's answers too.
+	// request, since it may also write answers queued by earlier failed writes.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	fresh, err := a.store(ctx, s.ID, participantHash(key, email), s.closesOn(), response{
@@ -733,5 +733,5 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, _ = w.Write([]byte(`{"status":"recorded","note":"nothing links the answers to you, so they cannot be changed or withdrawn"}`))
+	_, _ = w.Write([]byte(`{"status":"recorded","note":"the answers have no id you can present, so they cannot be changed or withdrawn"}`))
 }

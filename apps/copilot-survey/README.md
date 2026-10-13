@@ -76,9 +76,10 @@ Two tables, nothing shared but the survey id:
 | `survey_answers` | `survey_id`, `answers` (`{question id: value}`, a matrix item under its own id like a scale question, and `{question id}.other` for the text of an «other» option), `question_versions` (`{question id: version}`), `context` (nav-pilot version as year.month, OS, client, local models on/off), `delete_after` |
 
 No row id, no timestamp, no request id, no IP, no login, oid, NAVident,
-e-mail or token in either. Because nothing links an answer to its
-participation row, **an answer cannot be changed or withdrawn** after it is
-sent; nav-pilot and the web say so before sending.
+e-mail or token in either. An answer has no id of its own
+that a participant could present, so **an answer cannot be changed or
+withdrawn** after it is sent (see «Linkable while open» for what the database
+can still tie together); nav-pilot and the web say so before sending.
 
 **Per-survey key lifecycle.** (Close-out owner: whoever owns the survey,
 named in its pull request.) Each survey has its own random key,

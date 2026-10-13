@@ -117,7 +117,7 @@ func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesO
 	queuedAnswers.WithLabelValues(surveyID).Set(float64(len(q.answers)))
 	if len(q.answers) >= answerBatch {
 		if err := s.writeLocked(ctx, surveyID, q); err != nil {
-			slog.Error("survey: writing a batch failed, kept queued", "survey", surveyID, "error_type", fmt.Sprintf("%T", err))
+			slog.Error("survey: writing the submission failed, kept queued", "survey", surveyID, "error_type", fmt.Sprintf("%T", err))
 		}
 	}
 	return true, nil
@@ -210,7 +210,7 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 	for id, q := range s.queues {
 		if !now.Before(q.closesOn) {
 			if err := s.writeLocked(ctx, id, q); err != nil {
-				slog.Error("survey: writing the last batch failed", "survey", id, "error_type", fmt.Sprintf("%T", err))
+				slog.Error("survey: writing the last queued answers failed", "survey", id, "error_type", fmt.Sprintf("%T", err))
 				continue
 			}
 			delete(s.queues, id)
