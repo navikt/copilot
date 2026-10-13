@@ -108,8 +108,8 @@ function RejectedSection({ rejected }: { rejected: RejectedModel[] }) {
   return (
     <InsightSection id="forkastede-modeller" title="Forkastede modeller">
       <BodyLong>
-        Disse modellene er målt, men nav-pilot tilbyr dem ikke. Enten nådde ingen oppgavetype kravet, eller en annen
-        versjon gjorde jobben bedre.
+        Disse modellene er målt, men nav-pilot tilbyr dem ikke. Enten nådde ingen oppgavetype kravet, eller så gjorde en
+        annen versjon jobben bedre.
       </BodyLong>
       <ClassCountsTable rows={rejectedCountRows(rejected)} />
     </InsightSection>

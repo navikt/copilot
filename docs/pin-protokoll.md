@@ -54,8 +54,8 @@ regresjonstestene, en kjent retting bestå alt og en kjent ugyldig patch
 avvises. Bruk samme oppgaver, instruksjoner, verktøytilgang, klientversjon,
 isolerte miljø og ressursgrenser i begge armer. Lagre revisjonene av fixture,
 agent og instruksjoner, faktisk modell og innsatsnivå, testutfall, tid og
-fullstendig bruk per forsøk. Les feilende patcher før årsaker tilskrives
-modellen. Den manuelle piloten brukte `cplt --preset strict`, med `--project-dir`
+fullstendig bruk per forsøk. Les feilende patcher før vi tilskriver
+modellen årsaken. Den manuelle piloten brukte `cplt --preset strict`, med `--project-dir`
 satt til en fersk, syntetisk oppgavestarter og evaluatorfilene utenfor
 arbeidsområdet. Vertens Copilot-oppsett, brukerinstallerte skills og
 autentisering var tilgjengelige, men ble ikke fryst. `strict` begrenser

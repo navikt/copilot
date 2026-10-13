@@ -11,7 +11,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### GPT-6.1 Sol er anbefalingen for daglig koding
 
-- **Personlig anbefaling**: [/modeller](https://ki-utvikling.nav.no/modeller) og `docs/modellvalg.md` anbefaler nå GPT-6.1 Sol til daglig koding. Eier bestemte det 12. oktober 2026 etter nye målinger: GPT-6.1 Sol på Low besto 5 av 5 på t2, rv1 og rv2, som GPT-6 Sol, og rv1 og rv2 kostet 31,86 mot 36,92 credits.
+- **Personlig anbefaling**: [/modeller](https://ki-utvikling.nav.no/modeller) og `docs/modellvalg.md` anbefaler nå GPT-6.1 Sol til daglig koding. Eieren bestemte det 12. oktober 2026 etter nye målinger: GPT-6.1 Sol på Low besto 5 av 5 på t2, rv1 og rv2, som GPT-6 Sol, og rv1 og rv2 kostet 31,86 mot 36,92 credits.
 - **`@nav-pilot` blir på GPT-6 Sol**: Agentpakken er uendret. t2 er rundt 4 prosent dyrere på GPT-6.1 Sol, og t3, t4, t5, t7 og t7b er ikke kjørt på nytt.
 - **Ingen innstilling endres**: Anbefalingen står bare i dokumentasjonen og på nettsiden.
 - **Vær forsiktig med personopplysninger**: I en pilot med tre kjøringer la GPT-6.1 Sol to ganger fødselsnummer på en Kafka-melding uten å spørre om personvern først. GPT-6 Sol stoppet før kodeendring i alle fem kjøringene. Pilot, ikke en avgjørelse om pinnen. Se [målingen](golden-baselines/2026-10-12-pin-pilot-sol61/).
@@ -46,7 +46,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Krever Copilot CLI 1.0.51**: `--session-id` kom i Copilot CLI 1.0.51. Med eldre Copilot starter økten som før, men den telles ikke.
 - **Bare det som skjer under nav-pilot**: Ved hver oppstart flytter nav-pilot startpunktet til slutten av øktloggen. Det du gjør i en økt med `copilot --resume` uten nav-pilot, telles ikke. Krasjet en tidligere nav-pilot-kjøring før den fikk lest økten, telles ikke det den kjøringen gjorde.
 - **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot øktloggen. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
-- **Nye økter telles nå**: En feil gjorde at nav-pilot ga opp nye Copilot-økter før Copilot hadde opprettet øktmappen, så ingen øktall kom fram. Det er rettet.
+- **Nye økter telles nå**: En feil gjorde at nav-pilot ga opp nye Copilot-økter før Copilot hadde opprettet øktmappen, så ingen økttall kom fram. Det er rettet.
 - **Dashboard**: Grafana-dashboardet for nav-pilot har nye paneler for øktene, blant annet hook-kjøringer, feilrate per verktøy, subagenter og øktlengde.
 
 ### Tall fra opencode-øktene nav-pilot starter
@@ -55,7 +55,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Lest fra den rå eksporten**: Tallene kommer fra `opencode export`, som inneholder hele økten. nav-pilot dekoder bare faste felt: verktøynavn, status, og navnefeltet til `skill` og `task`. Det du skrev, svarene, argumentene og verktøyresultatene leses aldri inn. Den midlertidige fila med eksporten kan bare du lese, og den fjernes før opencode skriver til den.
 - **Hva som mangler**: Hooks finnes ikke i opencode. API-tid, premium requests og kostnad står ikke i eksporten.
 - **Økten velges etter mappe og tid**: opencode lar ikke nav-pilot sette økt-ID, så nav-pilot teller øktene i mappen den startet i, fra oppstarten og utover. En annen opencode-økt i samme mappe mens nav-pilot kjører, telles også.
-- **Lengre økter telles nå**: opencode 1.18 kutter utdata ved 128 KiB når den skriver til en pipe. Økter over det ble stille hoppet over, også tokentallene. nav-pilot leser nå eksporten via en fil.
+- **Lengre økter telles nå**: opencode 1.18 kutter utdata ved 128 KiB når den skriver til en pipe. Økter over det ble hoppet over uten varsel, også tokentallene. nav-pilot leser nå eksporten via en fil.
 - **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot eksporten. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
 
 ### Innstillinger per klient

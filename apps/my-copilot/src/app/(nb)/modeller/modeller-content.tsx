@@ -411,7 +411,7 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
     <VStack gap="space-12">
       {saturated && (
         <BodyShort weight="semibold">
-          Alle modellene besto alle sjekkene; diagrammet skiller dem bare på pris.
+          Alle modellene besto alle sjekkene, så diagrammet skiller dem bare på pris.
         </BodyShort>
       )}
       {plotted.length > 0 && (
@@ -448,7 +448,7 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
                 95 %-intervall
               </Table.HeaderCell>
               <Table.HeaderCell scope="col" align="right">
-                Credits per løste oppgave
+                Credits per løst oppgave
               </Table.HeaderCell>
               <Table.HeaderCell scope="col">Dato</Table.HeaderCell>
               {view.moreColumns && (
@@ -568,7 +568,7 @@ function Measurements({ summary }: { summary: GoldenSummary | null }) {
             95 %-intervallet viser hvor den sanne andelen bestått trolig ligger: 5 av 5 bestått gir et intervall fra 57
             til 100 %.
           </li>
-          <li>Credits per løste oppgave er median credits delt på andelen bestått.</li>
+          <li>Credits per løst oppgave er median credits delt på andelen bestått.</li>
           <li>«Besto hver gang» er andelen sjekker som besto i alle n kjøringene.</li>
           <li>
             Tabellene viser den nyeste målingen for hver modell og hvert innsatsnivå. Eldre målinger kan du slå på.
@@ -698,8 +698,8 @@ function EffortSection() {
         Effort styrer hvor mye arbeid modellen legger i svaret: hvor mye den resonnerer, hvor mange verktøykall den gjør
         og hvor langt den svarer. Mer er ikke alltid bedre. På enkle oppgaver bruker modellene ofte mange flere tokens
         uten å bli mer treffsikre, og for lang resonnering kan gi dårligere svar. På lange kodeoppgaver løfter høyere
-        effort andelen bestått noe, men gevinsten er liten øverst: fra high til max ga ett prosentpoeng til 76 prosent
-        høyere kostnad.
+        effort andelen bestått noe, men gevinsten er liten øverst: fra high til max ga ett prosentpoeng mer bestått for
+        76 prosent høyere kostnad.
       </BodyLong>
       <BodyLong>
         Våre egne målinger sier det samme. På kodeoppgavene besto GPT-6 Sol (30. september) og GPT-6.1 Sol (30.
@@ -799,8 +799,8 @@ export function ModellerContent({
                   </Heading>
                   <BodyLong>
                     Bruk {RECOMMENDED_DAILY_MODEL.model} med lav innsats til daglig koding. Den besto alle sjekkene i
-                    koding, norsk og informasjonsinnhenting 6. oktober. 12. oktober vurderte vi planleggingstesten og to
-                    av kodegjennomgangstestene på nytt med rettede sjekker (kjørt 11. oktober), og den besto fem av fem.
+                    koding, norsk og research 6. oktober. Den 12. oktober vurderte vi planleggingstesten og to av
+                    kodegjennomgangstestene på nytt med rettede sjekker (kjørt 11. oktober), og den besto fem av fem.
                     Til planlegging anbefaler vi fortsatt {NAV_PILOT_DEFAULT_MODEL}, som er målt på flere
                     planleggingsoppgaver, og @nav-pilot bruker den. Til kodegjennomgang og alt som gjelder sikkerhet og
                     personopplysninger anbefaler vi likevel Claude Opus 5.5 med lav innsats: GPT-6.1 Sol fant
