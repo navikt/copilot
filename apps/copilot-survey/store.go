@@ -232,11 +232,23 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 	s.mu.Unlock()
 	s.closeOut(ctx, now)
 	today := now.UTC().Truncate(24 * time.Hour)
-	for _, q := range []string{
-		`DELETE FROM survey_participation WHERE closes_on <= $1`,
-		`DELETE FROM survey_answers WHERE delete_after < $1`,
+	ids := make([]string, len(s.defs))
+	for i, d := range s.defs {
+		ids[i] = d.ID
+	}
+	// Answers go only once their survey has aggregates, so a failed
+	// close-out is retried the next day instead of losing the counts. A
+	// survey no longer defined has nothing to aggregate with and expires as
+	// before.
+	for _, q := range []struct {
+		sql  string
+		args []any
+	}{
+		{`DELETE FROM survey_participation WHERE closes_on <= $1`, []any{today}},
+		{`DELETE FROM survey_answers a WHERE delete_after < $1
+			AND (EXISTS (SELECT 1 FROM survey_results r WHERE r.survey_id = a.survey_id) OR NOT a.survey_id = ANY($2))`, []any{today, ids}},
 	} {
-		tag, err := s.pool.Exec(ctx, q, today)
+		tag, err := s.pool.Exec(ctx, q.sql, q.args...)
 		if err != nil {
 			slog.Error("survey retention step failed", "error_type", fmt.Sprintf("%T", err))
 		} else if tag.RowsAffected() > 0 {

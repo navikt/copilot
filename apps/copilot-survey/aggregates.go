@@ -198,7 +198,7 @@ func nextRoundEnd(defs []survey, s survey, now time.Time) (time.Time, bool) {
 			next = &defs[i]
 		}
 	}
-	if next == nil || next.status(now) != "stengt" {
+	if next == nil || next.closesOn().After(now) {
 		return time.Time{}, false
 	}
 	end, err := time.Parse(time.DateOnly, next.Ends)
@@ -225,7 +225,7 @@ func extendRetention(ctx context.Context, db interface {
 // the retention of those with them. Runs in retain, before rows expire.
 func (s *surveyStore) closeOut(ctx context.Context, now time.Time) {
 	for _, d := range s.defs {
-		if d.status(now) != "stengt" {
+		if d.closesOn().After(now) {
 			continue
 		}
 		if n, err := finalize(ctx, s.pool, s.defs, d, now, false); err != nil {
@@ -288,7 +288,7 @@ func runAggregate(args []string, out io.Writer, dbURL string, now time.Time) err
 	if i < 0 {
 		return fmt.Errorf("no survey %q", *id)
 	}
-	if defs[i].status(now) != "stengt" {
+	if defs[i].closesOn().After(now) {
 		return fmt.Errorf("%s has not closed", *id)
 	}
 	if dbURL == "" {

@@ -297,6 +297,8 @@ rows' `delete_after` is set to that wave's last day. A date that is already
 later is never moved earlier: `retention_days` (q2-2026: 730 days, to
 2028-04-30) or the default 180 days wins when it is longer. Until the next
 wave closes, `delete_after` stays as written.
+Expired rows of a defined survey are deleted only once it has aggregates, so
+a failed close-out is retried the next day rather than losing the counts.
 
 `copilot-survey aggregate --survey <id>` writes (or rewrites) a closed
 survey's aggregates from its rows in one transaction, replacing any. The

@@ -161,6 +161,17 @@ func TestFinalAggregates(t *testing.T) {
 	if f, _ := st.final(ctx, "w3"); f != nil {
 		t.Fatal("aggregates for a survey without rows")
 	}
+
+	// Expired rows go only once their survey has aggregates (w3 has none:
+	// not closed), or when the survey is no longer defined.
+	insert("w3", 2, "2026-01-01")
+	insert("gone", 2, "2026-01-01")
+	st.retain(ctx, now)
+	var w3, gone int
+	_ = st.pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE survey_id='w3'), count(*) FILTER (WHERE survey_id='gone') FROM survey_answers`).Scan(&w3, &gone)
+	if w3 != 2 || gone != 0 {
+		t.Fatal("expired rows: w3", w3, "gone", gone)
+	}
 }
 
 // A closed survey's results and count come from final aggregates when it has
