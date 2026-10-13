@@ -239,7 +239,9 @@ texts are rewritten (`null` drops an answer). The mapping holds no answers.
   command warns if that day has passed (the retention job would delete the
   rows at once).
 - An answer that is not an option goes in as the question's `other` option
-  with its text under `<id>.other`, as a submission stores it.
+  with its text under `<id>.other`, as a submission stores it. Free text is
+  cut to the question's `max_length`, the bound a submission is held to.
+  Errors name the question, never the answer.
 - Reruns are safe: one transaction deletes the survey's rows and inserts them
   again.
 - `--dry-run` prints rows, answers per question and each normalisation with

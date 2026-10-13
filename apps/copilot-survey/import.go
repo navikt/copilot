@@ -159,7 +159,7 @@ func convertImport(s survey, m importMapping, in io.Reader) ([]map[string]any, i
 				a[q.ID] = q.Min + n
 			case "text":
 				if v != "" {
-					a[q.ID] = v
+					a[q.ID] = clip(v, q, stats)
 				}
 			case "choice", "multi": // Forms let a choice take several; ";" ends each
 				var parts []string
@@ -202,15 +202,12 @@ func pick(a map[string]any, q question, vals []string, stats importStats) error 
 			other = append(other, v)
 			stats.norms[q.ID+" write-in → «"+q.Other+"»"]++
 		default:
-			return fmt.Errorf("%s: %q is not an option and the question has no other", q.ID, v)
+			return fmt.Errorf("%s: an answer is not an option and the question has no other", q.ID)
 		}
 	}
 	if len(other) > 0 {
 		picked = append(picked, q.Other)
-		a[otherKey(q.ID)] = strings.Join(other, "; ")
-		if n := len([]rune(a[otherKey(q.ID)].(string))); n > q.MaxLen {
-			stats.norms[fmt.Sprintf("%s write-in longer than max_length %d (kept whole)", q.ID, q.MaxLen)]++
-		}
+		a[otherKey(q.ID)] = clip(strings.Join(other, "; "), q, stats)
 	}
 	if q.Type == "choice" {
 		if len(picked) != 1 {
@@ -259,4 +256,14 @@ func writeImport(ctx context.Context, dbURL string, s survey, rows []map[string]
 	}
 	err = pgx.BeginFunc(ctx, store.pool, func(tx pgx.Tx) error { return tx.SendBatch(ctx, batch).Close() })
 	return len(rows), err
+}
+
+// clip cuts free text to the question's max_length, the bound a submission
+// is held to: long free text is likelier to identify someone.
+func clip(v string, q question, stats importStats) string {
+	if r := []rune(v); q.MaxLen > 0 && len(r) > q.MaxLen {
+		stats.norms[fmt.Sprintf("%s text cut to max_length %d", q.ID, q.MaxLen)]++
+		return strings.TrimSpace(string(r[:q.MaxLen]))
+	}
+	return v
 }
