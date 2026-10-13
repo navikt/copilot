@@ -318,6 +318,9 @@ export default function TeamGrossUsage({
 
       <section aria-labelledby="medlemsbruk">
         <VStack gap="space-16">
+          {/* Old links to the two separate tables land on the merged one. */}
+          <span id="mine-team" />
+          <span id="andre-team" />
           <Heading id="medlemsbruk" level="3" size="small">
             Forbruk per team
           </Heading>
@@ -353,9 +356,6 @@ export default function TeamGrossUsage({
               {!hasMine && <BodyShort size="small">Ingen av dine team vises denne måneden.</BodyShort>}
             </VStack>
           )}
-          {/* Old links pointed at the two separate tables. */}
-          <span id="mine-team" />
-          <span id="andre-team" />
           {filtered(visible).length ? (
             table(visible, "Forbruk per team")
           ) : (
