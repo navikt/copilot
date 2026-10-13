@@ -134,12 +134,12 @@ describe("/admin/undersokelser", () => {
     // Lite nyttig (12) is hidden with Ikke nyttig (4), or 4 would be 120 minus the rest.
     expect(screen.getByRole("row", { name: /Lite nyttig/ })).toHaveTextContent("skjult");
     expect(screen.getByRole("row", { name: /Ikke nyttig/ })).toHaveTextContent("skjult");
-    expect(screen.getByText("Versjon 2: under 5 svar, tallene vises ikke.")).toBeInTheDocument();
+    expect(screen.getByText(/^Versjon 2: tallene vises ikke\./)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Jeg jobber raskere" })).toBeInTheDocument();
     expect(screen.getByRole("row", { name: /Helt uenig/ })).toHaveTextContent("skjult");
     expect(screen.getByRole("row", { name: /Helt enig/ })).toHaveTextContent("42");
     expect(screen.queryByRole("cell", { name: "5" })).not.toBeInTheDocument();
-    expect(screen.getByText("Alle: under 5 svar, tallene vises ikke.")).toBeInTheDocument();
+    expect(screen.getByText(/^Alle: tallene vises ikke\./)).toBeInTheDocument();
   });
 
   it("shows raw values when the definition is missing", async () => {

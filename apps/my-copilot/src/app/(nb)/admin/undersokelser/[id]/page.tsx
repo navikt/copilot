@@ -34,7 +34,7 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
   if (!v.options || n === null) {
     return (
       <BodyShort size="small">
-        {caption}: {UNDER_FIVE} svar, tallene vises ikke.
+        {caption}: tallene vises ikke. Færre enn fem svarte, eller et skjult tall kunne regnes ut.
       </BodyShort>
     );
   }
@@ -124,8 +124,9 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
             ) : (
               <>
                 <BodyShort size="small">
-                  Grupper med færre enn 5 svar er skjult. Kan et skjult tall regnes ut fra de andre, skjules flere
-                  grupper. Er et spørsmål endret underveis, vises hver versjon for seg. Fritekstsvar vises ikke her.
+                  Svar fra færre enn fem personer vises ikke. Når et skjult tall kunne regnes ut fra de andre, skjuler
+                  vi flere tall. Spørsmål som ble endret underveis, vises med én tabell per versjon. Fritekstsvar vises
+                  ikke her.
                 </BodyShort>
                 {s.questions.map((q) => {
                   const qdef = def?.questions.find((d) => d.id === q.id);
