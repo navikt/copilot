@@ -76,7 +76,6 @@ func (s *SlackNotifier) NotifyIngestionResult(ctx context.Context, successCount,
 	}
 
 	sb.WriteString("\n📊 *Impact*: Usage dashboard in my-copilot may show incomplete data.\n")
-	sb.WriteString("👤 *Contact*: #copilot-support\n")
 
 	s.send(ctx, sb.String())
 }
@@ -86,7 +85,7 @@ func (s *SlackNotifier) NotifyError(ctx context.Context, message string) {
 	if s == nil {
 		return
 	}
-	text := fmt.Sprintf("🔴 *Copilot Usage Metrics – Failed*\n\n%s\n\n📊 *Impact*: Usage dashboard will not update until resolved.\n👤 *Contact*: #copilot-support", message)
+	text := fmt.Sprintf("🔴 *Copilot Usage Metrics – Failed*\n\n%s\n\n📊 *Impact*: Usage dashboard will not update until resolved.", message)
 	s.send(ctx, text)
 }
 

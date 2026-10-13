@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 const labels: ShellLabels = {
-  tagline: "Copilot i Nav",
+  siteName: "KI-produktutvikling i Nav",
   mainMenu: "Hovedmeny",
   skip: "Hopp til innhold",
   menu: "Meny",

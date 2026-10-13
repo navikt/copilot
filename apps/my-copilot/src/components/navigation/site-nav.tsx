@@ -14,7 +14,7 @@ import { SECTION, TOP_LINKS, activeTop, inSection, sectionGroup } from "@/lib/na
 
 export interface HeaderLabels {
   lang: "nb" | "en";
-  tagline: string;
+  siteName: string;
   mainMenu: string;
   subscription: string;
   subscriptionHref: string;
@@ -57,8 +57,7 @@ export function SiteHeader({
       </a>
       <div className="flex items-center gap-2 lg:gap-8">
         <NextLink href="/" className="wordmark">
-          <span className="wordmark-name">nav-pilot</span>
-          <span className="wordmark-tagline">{labels.tagline}</span>
+          <span className="wordmark-name">{labels.siteName}</span>
         </NextLink>
         <nav aria-label={labels.mainMenu} className="hidden lg:block mx-auto">
           <ul className="flex gap-6 list-none">

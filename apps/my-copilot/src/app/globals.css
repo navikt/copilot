@@ -659,14 +659,14 @@ main#hovedinnhold:focus {
   flex-shrink: 0;
 }
 .wordmark-name {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 700;
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   color: #fff;
 }
-.wordmark-tagline {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.7);
+@media (min-width: 1024px) {
+  .wordmark-name {
+    font-size: 1rem;
+  }
 }
 .top-link {
   display: flex;

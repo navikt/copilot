@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 // declare lang="en", and the two legal pages stay Norwegian, marked with
 // hreflang so a screen reader and a search engine both know what they get.
 const labels: ShellLabels = {
-  tagline: "Copilot at Nav",
+  siteName: "AI product development at Nav",
   mainMenu: "Main menu",
   skip: "Skip to content",
   menu: "Menu",

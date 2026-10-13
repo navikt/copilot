@@ -51,8 +51,8 @@ func TestSlackNotifier_SendsOnPartialFailure(t *testing.T) {
 	if !strings.Contains(received.Text, "Partial Failure") {
 		t.Errorf("expected 'Partial Failure' in message, got: %s", received.Text)
 	}
-	if !strings.Contains(received.Text, "#copilot-support") {
-		t.Errorf("expected contact channel in message, got: %s", received.Text)
+	if strings.Contains(received.Text, "Contact") {
+		t.Errorf("expected no contact line, got: %s", received.Text)
 	}
 }
 

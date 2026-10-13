@@ -59,8 +59,8 @@ func TestSlackNotifier_SendsOnFailure(t *testing.T) {
 	if !contains(text, "2026-03-11") {
 		t.Errorf("expected failed day in message, got: %s", text)
 	}
-	if !contains(text, "#copilot-support") {
-		t.Errorf("expected contact channel in message, got: %s", text)
+	if contains(text, "Contact") {
+		t.Errorf("expected no contact line, got: %s", text)
 	}
 }
 
