@@ -57,7 +57,7 @@ type survey struct {
 	// its version is older, or unknown (builds before this field send none).
 	// Web clients always get it. YYYY.MM.DD or YYYY.MM.DD-HHMMSS, as in a
 	// nav-pilot release tag.
-	MinCLIVersion string     `json:"min_cli_version,omitempty"`
+	MinCLIVersion string `json:"min_cli_version,omitempty"`
 	// RetentionDays overrides retention for this survey (e.g. an imported
 	// earlier wave kept for comparison).
 	RetentionDays int        `json:"retention_days,omitempty"`
@@ -123,6 +123,8 @@ func (r *skipRule) skipped(answers map[string]any) bool {
 		return v == r.Answer
 	case []string:
 		return slices.Contains(v, r.Answer)
+	case []any: // stored answers, decoded from jsonb
+		return slices.Contains(v, any(r.Answer))
 	}
 	return false
 }

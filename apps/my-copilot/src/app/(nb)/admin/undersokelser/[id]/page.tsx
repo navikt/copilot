@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Alert, BodyShort, Box, Heading, Link, Tag, VStack } from "@navikt/ds-react";
+import { Alert, BodyShort, Box, Heading, HStack, Link, Tag, VStack } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getSurveyPreview, getSurveyResults, type SurveyQuestion, type VersionResult } from "@/lib/survey";
-import { likert, type Segment } from "./likert";
+import { Legend, LikertBar } from "../likert-bar";
 
 export const metadata: Metadata = {
   title: "Resultater",
@@ -28,73 +28,6 @@ function labeller(def: SurveyQuestion | undefined, current: number | undefined) 
 }
 
 type Label = (version: number, value: string) => string;
-
-// Diverging scale: red for disagree, gray neutral, green for agree; [fill, ink].
-const FILLS = [
-  ["var(--ax-bg-danger-strong)", "var(--ax-text-danger-contrast)"],
-  ["var(--ax-bg-danger-moderate-pressed)", "var(--ax-text-neutral)"],
-  ["var(--ax-bg-neutral-moderate-pressed)", "var(--ax-text-neutral)"],
-  ["var(--ax-bg-success-moderate-pressed)", "var(--ax-text-neutral)"],
-  ["var(--ax-bg-success-strong)", "var(--ax-text-success-contrast)"],
-];
-const pct = (share: number) => `${Math.round(share * 100)} %`;
-
-/**
- * One statement's bar: negatives left of the zero line, neutral split across it,
- * positives right. Decorative: the numbers are in the table under «Vis tall».
- */
-function LikertBar({ v, min, max, labels }: { v: VersionResult; min: number; max: number; labels: string[] }) {
-  const { segments, mean } = likert(v, min, max);
-  const mid = (min + max) / 2;
-  const seg = (s: Segment, width: number, label = true) => {
-    const i = Math.round(((s.value - min) / (max - min || 1)) * (FILLS.length - 1));
-    const text = `${pct(s.share)} (${formatNumber(s.count)})`;
-    return (
-      <div
-        key={s.value}
-        data-testid={label ? `segment-${s.value}` : undefined}
-        title={`${labels[s.value - min] ?? s.value}: ${text}`}
-        className="@container h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center"
-        style={{ width: `${width * 100}%`, background: FILLS[i][0], color: FILLS[i][1] }}
-      >
-        {/* Narrow segments show their number in the tooltip and the table only. */}
-        {label ? <span className="hidden @min-[4.5rem]:inline">{text}</span> : null}
-      </div>
-    );
-  };
-  const shown = segments.filter((s) => s.count);
-  return (
-    <div aria-hidden className="grid grid-cols-3 items-center gap-x-0">
-      <div className="flex justify-end gap-[2px] border-r-2" style={{ borderColor: "var(--ax-border-neutral-strong)" }}>
-        {shown.filter((s) => s.value <= mid).map((s) => seg(s, s.value === mid ? s.share / 2 : s.share))}
-      </div>
-      <div className="flex gap-[2px]">
-        {shown
-          .filter((s) => s.value >= mid)
-          .map((s) => (s.value === mid ? seg(s, s.share / 2, false) : seg(s, s.share)))}
-      </div>
-      <Box paddingInline="space-12 space-0" className="flex items-center gap-2 text-xs">
-        {mean === null ? null : <span>Snitt {mean.toFixed(1).replace(".", ",")}</span>}
-      </Box>
-    </div>
-  );
-}
-
-function Legend({ labels }: { labels: string[] }) {
-  return (
-    <div aria-hidden className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-      {labels.map((l, i) => (
-        <span key={l} className="flex items-center gap-1">
-          <span
-            className="inline-block h-3 w-3 rounded-sm"
-            style={{ background: FILLS[Math.round((i / (labels.length - 1 || 1)) * (FILLS.length - 1))][0] }}
-          />
-          {l}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 /** One version of a question as a table: count, share of respondents and an inline bar. */
 function VersionTable({ v, caption, label }: { v: VersionResult; caption: string; label: Label }) {
@@ -192,7 +125,10 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap="space-24">
-            <Link href="/admin/undersokelser">Alle undersøkelser</Link>
+            <HStack gap="space-16">
+              <Link href="/admin/undersokelser">Alle undersøkelser</Link>
+              <Link href="/admin/undersokelser/sammenlign">Sammenlign bølger</Link>
+            </HStack>
             <BodyShort>
               {formatDate(s.starts)}–{formatDate(s.ends)} ·{" "}
               <Tag size="small" variant="neutral">

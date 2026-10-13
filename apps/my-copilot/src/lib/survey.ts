@@ -264,3 +264,29 @@ export async function getSurveyResults(userToken: string, id: string): Promise<A
   if (!/^[a-z0-9-]{1,64}$/.test(id)) return { status: "not-found" };
   return adminGet<SurveyResults>(userToken, `/api/v1/admin/surveys/${id}/results`);
 }
+
+/** One version of a question in one wave; mean and agree (share at the top two steps) for scale items. */
+export type WaveStat = VersionResult & { mean?: number; agree?: number };
+/** A question or item in one wave. excluded: answers the comparison rule dropped (the last wave's skip_if). */
+export type WaveCounts = { excluded: number; versions: WaveStat[] };
+export type WaveMeta = SurveySummary & { suppressed: boolean; channels: Record<string, number> | null };
+export type CompareItem = { id: string; text: string; break: boolean; waves: WaveCounts[] };
+export type CompareQuestion = {
+  id: string;
+  type: SurveyQuestion["type"];
+  text: string;
+  min?: number;
+  max?: number;
+  labels?: string[];
+  break?: boolean;
+  waves?: WaveCounts[];
+  items?: CompareItem[];
+};
+/** GET /api/v1/admin/surveys/compare: waves oldest first, every waves[] index-aligned with surveys. */
+export type SurveyComparison = { surveys: WaveMeta[]; questions: CompareQuestion[] };
+
+export async function getSurveyComparison(userToken: string, ids: string[]): Promise<AdminResult<SurveyComparison>> {
+  if (ids.length < 2 || ids.length > 4 || !ids.every((id) => /^[a-z0-9-]{1,64}$/.test(id)))
+    return { status: "not-found" };
+  return adminGet<SurveyComparison>(userToken, `/api/v1/admin/surveys/compare?ids=${ids.join(",")}`);
+}

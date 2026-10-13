@@ -14,6 +14,7 @@ import (
 type storedAnswer struct {
 	Answers          map[string]any `json:"answers"`
 	QuestionVersions map[string]int `json:"question_versions"`
+	Client           string         `json:"-"` // context.client: web, copilot, forms (import), …
 }
 
 type surveySummary struct {
