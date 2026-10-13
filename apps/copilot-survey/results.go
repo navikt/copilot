@@ -155,6 +155,10 @@ func aggregateTally(s survey, t surveyTally, now time.Time) surveyResults {
 	return res
 }
 
+func countVersions(q question, rows []storedAnswer) []versionResult {
+	return versionsFrom(q, tallyKey(q.ID, rows))
+}
+
 // versionsFrom turns one answer key's tally into the API's versions, with
 // options as cells lists them.
 func versionsFrom(q question, t map[int]*verTally) []versionResult {
