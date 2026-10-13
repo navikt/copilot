@@ -32,7 +32,7 @@ func row(answers, versions string) storedAnswer {
 
 func TestAdminRoutesNeedAdmin(t *testing.T) {
 	h := makeRouter(testAuthenticator(t), adminAPI(t, nil))
-	for _, path := range []string{"/api/v1/admin/surveys", "/api/v1/admin/surveys/q4-2026/results", "/api/v1/admin/anything"} {
+	for _, path := range []string{"/api/v1/admin/surveys", "/api/v1/admin/surveys/q4-2026/results", "/api/v1/admin/surveys/compare?ids=old,q4-2026", "/api/v1/admin/anything"} {
 		for _, tc := range []struct {
 			token string
 			want  int

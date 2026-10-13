@@ -123,6 +123,8 @@ func (r *skipRule) skipped(answers map[string]any) bool {
 		return v == r.Answer
 	case []string:
 		return slices.Contains(v, r.Answer)
+	case []any: // stored answers, decoded from jsonb
+		return slices.Contains(v, any(r.Answer))
 	}
 	return false
 }
