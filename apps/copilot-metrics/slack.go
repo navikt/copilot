@@ -1,8 +1,8 @@
 package main
 
 import (
-	"cmp"
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,8 +10,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )

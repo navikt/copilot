@@ -1,8 +1,8 @@
 package main
 
 import (
-	"cmp"
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
