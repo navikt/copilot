@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInnsyn, INNSYN_QUESTIONS, type InnsynQuestionId } from "./innsyn";
+import { buildRapport, RAPPORT_SECTIONS, type RapportSectionId } from "./rapport";
 import type { AdminMonth, AdminMonthlyOverview } from "./types";
 
 const month = (m: string, basis: AdminMonth["basis"], net: number | null, est: number | null = null): AdminMonth => ({
@@ -31,7 +31,7 @@ const admin: AdminMonthlyOverview = {
   },
 };
 
-const answer = buildInnsyn({
+const report = buildRapport({
   year: 2026,
   admin,
   active: [
@@ -67,49 +67,55 @@ const answer = buildInnsyn({
   today: "2026-10-13",
 });
 
-const q = (id: InnsynQuestionId) => answer.questions.find((x) => x.id === id)!;
+const sec = (id: RapportSectionId) => report.sections[id];
+const rows = (id: RapportSectionId, table: string) => sec(id).tables.find((t) => t.id === table)!.rows;
 
-describe("buildInnsyn", () => {
-  it("has a stable schema keyed by question id", () => {
-    expect(answer.questions.map((q) => q.id)).toEqual([...INNSYN_QUESTIONS]);
-    for (const q of answer.questions) {
-      expect(Object.keys(q).sort()).toEqual(["answer", "data", "id", "notes", "question"]);
-      expect(q.answer.length).toBeGreaterThan(0);
+describe("buildRapport", () => {
+  it("has a stable, versioned schema with topical sections", () => {
+    expect(Object.keys(report.sections)).toEqual([...RAPPORT_SECTIONS]);
+    for (const s of Object.values(report.sections)) {
+      expect(Object.keys(s).sort()).toEqual(["facts", "notes", "summary", "tables", "title"]);
+      expect(s.summary.length).toBeGreaterThan(0);
+      for (const t of s.tables) expect(t.caption.length).toBeGreaterThan(0);
     }
-    expect(answer).toMatchObject({
-      schema: "innsyn/v1",
+    expect(report).toMatchObject({
+      schema: "copilot-rapport",
+      version: 1,
+      title: "Copilot i Nav: bruk og kostnad 2026",
       currency: "USD",
       period: { from: "2026-01-01", to: "2026-10-12" },
     });
   });
 
   it("sums billed months only, like the cost page total row, and marks the open month foreløpig", () => {
-    const d = q("1").data as {
-      ytd_billed_usd: number;
-      months: { preliminary: boolean; billed_usd: number }[];
-    };
-    expect(d.ytd_billed_usd).toBe(3000.5);
-    expect(d.months.at(-1)).toEqual({ month: "2026-10", billed_usd: 300, preliminary: true });
+    expect(sec("kostnad").facts.ytd_billed_usd).toBe(3000.5);
+    expect(rows("kostnad", "fakturert").at(-1)).toEqual({ month: "2026-10", billed_usd: 300, preliminary: true });
+    expect(rows("kostnad", "lisenser").length).toBe(3);
+  });
+
+  it("keeps request and token tables apart", () => {
+    expect(rows("forbruk", "foresporsler").map((r) => r.month)).toEqual(["2026-05", "2026-09"]);
+    expect(rows("forbruk", "tokens")).toEqual([
+      { month: "2026-05", copilot_cli_in: 10, copilot_cli_out: 2, copilot_app_in: null, copilot_app_out: null },
+    ]);
   });
 
   it("groups Auto and code review like the cost page and drops other years", () => {
-    const fam = (q("3b").data as { families: { family: string; share_pct: number }[] }).families;
-    expect(fam.map((f) => [f.family, f.share_pct])).toEqual([
+    expect(rows("modeller", "familier").map((f) => [f.family, f.share_pct])).toEqual([
       ["Claude Opus", 60],
       ["Auto", 30],
       ["Kodegjennomgang", 10],
     ]);
-    expect(q("1c").data).toEqual({ development_share_pct: 100, code_review_share_pct: 10 });
+    expect(sec("bruksomrade").facts).toEqual({ development_share_pct: 100, code_review_share_pct: 10 });
   });
 
   it("hides groups under five and has no budget or forecast", () => {
-    const users = (q("3").data as { months: { users: number | null }[] }).months;
-    expect(users.map((u) => u.users)).toEqual([123, null]);
-    expect(q("2").data).toBeNull();
+    expect(rows("brukere", "brukere").map((u) => u.users)).toEqual([123, null]);
+    expect(sec("ikke_dekket").facts).toEqual({ budget: null, forecast: null, profession: null, department: null });
   });
 
   it("leaks no logins, ids, project, SQL, table names or limits", () => {
-    const json = JSON.stringify(answer);
+    const json = JSON.stringify(report);
     for (const bad of [
       /copilot-prod/i,
       /\bselect\b/i,

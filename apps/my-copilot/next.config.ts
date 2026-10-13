@@ -79,6 +79,7 @@ const nextConfig: NextConfig = {
       { source: "/practice", destination: "/praksis", permanent: true },
       { source: "/customizations", destination: "/verktoy", permanent: true },
       // /statistikk and /kostnad became sections of /innsikt/bruk. Every old path goes straight there, no chains.
+      { source: "/admin/kostnad/innsyn", destination: "/admin/kostnad/rapport", permanent: true },
       { source: "/statistikk", destination: "/innsikt/bruk", permanent: true },
       { source: "/adopsjon", destination: "/innsikt/tilpasninger", permanent: true },
       { source: "/usage", destination: "/innsikt/bruk", permanent: true },
