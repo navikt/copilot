@@ -111,7 +111,7 @@ export default async function RapportPage({ searchParams }: { searchParams: Prom
           const sec = report.sections[id];
           return (
             <section key={id} aria-labelledby={`s-${id}`}>
-              <VStack gap="space-16">
+              <VStack gap="space-24">
                 <Heading id={`s-${id}`} level="2" size="small">
                   {sec.title}
                 </Heading>
@@ -119,7 +119,7 @@ export default async function RapportPage({ searchParams }: { searchParams: Prom
                 {sec.tables
                   .filter((t) => t.rows.length > 0)
                   .map((t) => (
-                    <VStack key={t.id} gap="space-8" className="mt-2 print:break-inside-avoid">
+                    <VStack key={t.id} gap="space-8" className="print:break-inside-avoid">
                       <Heading level="3" size="xsmall">
                         {t.caption}
                       </Heading>
