@@ -8,6 +8,8 @@
 // target exists and that no key is a real id on its page. A value must be a
 // real id on its page, never another key. The link guard rejects chains.
 export const LEGACY_ANCHORS: Record<string, string> = {
+  // «Varsler» on the admin cost page became «Månedsinnsikt».
+  "/admin/kostnad#avvik": "/admin/kostnad#maanedsinnsikt",
   // /nav-pilot/agentpakker was split into a how-to and a reference page.
   "/nav-pilot/agentpakker#artefakttyper": "/nav-pilot/agentpakker/referanse#artefakttyper",
   "/nav-pilot/agentpakker#kjorbar-kode": "/nav-pilot/agentpakker/referanse#kjorbar-kode",

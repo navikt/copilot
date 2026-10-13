@@ -6,7 +6,7 @@ import { Alert, BodyShort, Link, List, VStack } from "@navikt/ds-react";
 import { ListItem } from "@navikt/ds-react/List";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
-import { CostAnomalies } from "@/components/cost-anomalies";
+import { MonthInsightsSection } from "@/components/cost-anomalies";
 import ErrorState from "@/components/error-state";
 import { ChartFigure, NumbersFold } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
@@ -51,7 +51,7 @@ const nok = (amount: string) =>
 const billed = (m: AdminMonth) => m.basis === "net" || m.basis === "premium";
 
 // getAdminMonthlyOverview and getCostForecast are react-cached, so the streamed sections share one call each.
-// Anomalies are still fetched twice (status cards and CostAnomalies).
+// The status card and Månedsinnsikt share loadMonthInsights (React cache).
 const loadMonthly = cache((token: string) => getAdminMonthlyOverview(new Date().getUTCFullYear(), token));
 // For the event markers only; the forecast section shows the error.
 const loadEvents = cache(async (token: string) => costEvents(await getCostForecast(token).catch(() => null)));
@@ -274,7 +274,7 @@ export default async function CostPage() {
         <Forecast token={token} />
       </Suspense>
       <Suspense fallback={<SectionSkeleton chart={false} rows={4} />}>
-        <CostAnomalies />
+        <MonthInsightsSection token={token} />
       </Suspense>
       <Suspense fallback={<SectionSkeleton />}>
         <WithEvents token={token} Section={CostTrendsSection} />

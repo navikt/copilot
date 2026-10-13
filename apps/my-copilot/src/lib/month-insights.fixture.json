@@ -1,0 +1,1290 @@
+{
+  "months": [
+    {
+      "month": "2026-08",
+      "basis": "net",
+      "enterprise_net_usd": 12918.07,
+      "assigned_net_usd": 12865.3,
+      "residual_net_usd": 52.77,
+      "residual_pct": 0.41,
+      "no_team_net_usd": 965.5,
+      "gross_usd": null,
+      "estimated_net_usd": null,
+      "seats": null,
+      "licence_usd_estimate": 5532.8,
+      "total_usd": 18450.87,
+      "loaded_at": "2026-10-11 11:32:37.307632+00"
+    },
+    {
+      "month": "2026-09",
+      "basis": "net",
+      "enterprise_net_usd": 25823.54,
+      "assigned_net_usd": 25755.33,
+      "residual_net_usd": 68.2,
+      "residual_pct": 0.26,
+      "no_team_net_usd": 2886.17,
+      "gross_usd": null,
+      "estimated_net_usd": null,
+      "seats": null,
+      "licence_usd_estimate": 6004.0,
+      "total_usd": 31827.54,
+      "loaded_at": "2026-10-11 11:32:45.867871+00"
+    },
+    {
+      "month": "2026-10",
+      "basis": "gross",
+      "enterprise_net_usd": null,
+      "assigned_net_usd": null,
+      "residual_net_usd": null,
+      "residual_pct": null,
+      "no_team_net_usd": null,
+      "gross_usd": 11070.98,
+      "estimated_net_usd": 4970.34,
+      "seats": null,
+      "licence_usd_estimate": 6110.4,
+      "total_usd": 11080.74,
+      "loaded_at": ""
+    }
+  ],
+  "active": [
+    {
+      "month": "2026-08",
+      "active_users": 637,
+      "billed": true
+    },
+    {
+      "month": "2026-09",
+      "active_users": 685,
+      "billed": true
+    },
+    {
+      "month": "2026-10",
+      "active_users": 652,
+      "billed": false
+    }
+  ],
+  "trend": [
+    {
+      "year_month": "2026-08",
+      "total_gross_amount": 21863.32,
+      "total_net_amount": 12918.07,
+      "discount_rate_pct": 40.91,
+      "distinct_models": 38
+    },
+    {
+      "year_month": "2026-09",
+      "total_gross_amount": 31894.28,
+      "total_net_amount": 25823.54,
+      "discount_rate_pct": 19.03,
+      "distinct_models": 38
+    },
+    {
+      "year_month": "2026-10",
+      "total_gross_amount": 11070.98,
+      "total_net_amount": 4970.34,
+      "discount_rate_pct": 55.1,
+      "distinct_models": 31
+    }
+  ],
+  "breakdown": [
+    {
+      "year_month": "2026-08",
+      "model": "Claude Opus 5",
+      "gross_amount": 5871.56,
+      "net_amount": 3893.74,
+      "pct_of_monthly_net": 30.14
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Claude Sonnet 5",
+      "gross_amount": 3726.01,
+      "net_amount": 2234.35,
+      "pct_of_monthly_net": 17.3
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Claude Opus 4.8",
+      "gross_amount": 2910.34,
+      "net_amount": 1806.21,
+      "pct_of_monthly_net": 13.98
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-5.6 Sol",
+      "gross_amount": 2207.62,
+      "net_amount": 1241.97,
+      "pct_of_monthly_net": 9.61
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Claude Sonnet 4.6",
+      "gross_amount": 2503.19,
+      "net_amount": 1106.0,
+      "pct_of_monthly_net": 8.56
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Claude Opus 4.6",
+      "gross_amount": 1014.51,
+      "net_amount": 550.75,
+      "pct_of_monthly_net": 4.26
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Code Review model",
+      "gross_amount": 817.6,
+      "net_amount": 420.13,
+      "pct_of_monthly_net": 3.25
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Kimi K3",
+      "gross_amount": 460.87,
+      "net_amount": 286.35,
+      "pct_of_monthly_net": 2.22
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: GPT-5.3-Codex",
+      "gross_amount": 455.04,
+      "net_amount": 241.1,
+      "pct_of_monthly_net": 1.87
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: Claude Sonnet 5",
+      "gross_amount": 236.59,
+      "net_amount": 230.19,
+      "pct_of_monthly_net": 1.78
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-5.6 Terra",
+      "gross_amount": 459.3,
+      "net_amount": 212.68,
+      "pct_of_monthly_net": 1.65
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: Claude Opus 5",
+      "gross_amount": 160.44,
+      "net_amount": 149.44,
+      "pct_of_monthly_net": 1.16
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: Claude Sonnet 4.6",
+      "gross_amount": 263.7,
+      "net_amount": 144.88,
+      "pct_of_monthly_net": 1.12
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-5.3-Codex",
+      "gross_amount": 96.48,
+      "net_amount": 67.12,
+      "pct_of_monthly_net": 0.52
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: GPT-5.4 mini",
+      "gross_amount": 101.01,
+      "net_amount": 56.56,
+      "pct_of_monthly_net": 0.44
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-5.4",
+      "gross_amount": 103.55,
+      "net_amount": 50.71,
+      "pct_of_monthly_net": 0.39
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: GPT-5.6 Terra",
+      "gross_amount": 42.18,
+      "net_amount": 38.3,
+      "pct_of_monthly_net": 0.3
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: GPT-5.4",
+      "gross_amount": 103.33,
+      "net_amount": 37.82,
+      "pct_of_monthly_net": 0.29
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-5.5",
+      "gross_amount": 101.89,
+      "net_amount": 32.92,
+      "pct_of_monthly_net": 0.25
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-5.6 Luna",
+      "gross_amount": 51.36,
+      "net_amount": 31.92,
+      "pct_of_monthly_net": 0.25
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-5.4 mini",
+      "gross_amount": 25.56,
+      "net_amount": 20.45,
+      "pct_of_monthly_net": 0.16
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: GPT-5.5",
+      "gross_amount": 15.67,
+      "net_amount": 15.15,
+      "pct_of_monthly_net": 0.12
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: GPT-5.6 Luna",
+      "gross_amount": 18.17,
+      "net_amount": 13.54,
+      "pct_of_monthly_net": 0.1
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Kimi K2.7 Code",
+      "gross_amount": 18.6,
+      "net_amount": 11.26,
+      "pct_of_monthly_net": 0.09
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Gemini 3.7 Flash",
+      "gross_amount": 8.9,
+      "net_amount": 8.65,
+      "pct_of_monthly_net": 0.07
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: GPT-5.6 Sol",
+      "gross_amount": 4.42,
+      "net_amount": 4.41,
+      "pct_of_monthly_net": 0.03
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Gemini 3.1 Pro",
+      "gross_amount": 22.51,
+      "net_amount": 3.33,
+      "pct_of_monthly_net": 0.03
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: MAI-Code-1.1-Flash",
+      "gross_amount": 2.92,
+      "net_amount": 2.8,
+      "pct_of_monthly_net": 0.02
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Gemini 3.6 Flash",
+      "gross_amount": 7.54,
+      "net_amount": 2.62,
+      "pct_of_monthly_net": 0.02
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-5 mini",
+      "gross_amount": 4.73,
+      "net_amount": 2.49,
+      "pct_of_monthly_net": 0.02
+    },
+    {
+      "year_month": "2026-08",
+      "model": "MAI-Code-1-Flash",
+      "gross_amount": 0.65,
+      "net_amount": 0.1,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-08",
+      "model": "MAI-Code-1.1-Flash",
+      "gross_amount": 0.08,
+      "net_amount": 0.08,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-08",
+      "model": "GPT-4.1",
+      "gross_amount": 0.06,
+      "net_amount": 0.06,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Claude Haiku 4.5",
+      "gross_amount": 14.54,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: MAI-Code-1-Flash",
+      "gross_amount": 0.41,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Auto: Claude Haiku 4.5",
+      "gross_amount": 1.97,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Claude Fable 5",
+      "gross_amount": 16.2,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-08",
+      "model": "Coding Agent model",
+      "gross_amount": 13.83,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Claude Opus 5",
+      "gross_amount": 6734.38,
+      "net_amount": 5029.05,
+      "pct_of_monthly_net": 19.47
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Claude Sonnet 5",
+      "gross_amount": 5445.76,
+      "net_amount": 4104.57,
+      "pct_of_monthly_net": 15.89
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-6 Astra",
+      "gross_amount": 3901.56,
+      "net_amount": 3711.06,
+      "pct_of_monthly_net": 14.37
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Claude Opus 5.5",
+      "gross_amount": 2725.99,
+      "net_amount": 2708.44,
+      "pct_of_monthly_net": 10.49
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-5.6 Sol",
+      "gross_amount": 3225.98,
+      "net_amount": 2419.78,
+      "pct_of_monthly_net": 9.37
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Claude Opus 4.8",
+      "gross_amount": 2677.95,
+      "net_amount": 2023.62,
+      "pct_of_monthly_net": 7.84
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Code Review model",
+      "gross_amount": 1184.32,
+      "net_amount": 895.06,
+      "pct_of_monthly_net": 3.47
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: Claude Sonnet 5",
+      "gross_amount": 955.26,
+      "net_amount": 812.94,
+      "pct_of_monthly_net": 3.15
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: GPT-5.6 Sol",
+      "gross_amount": 730.85,
+      "net_amount": 712.33,
+      "pct_of_monthly_net": 2.76
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-6 Sol",
+      "gross_amount": 646.71,
+      "net_amount": 641.94,
+      "pct_of_monthly_net": 2.49
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-5.6 Terra",
+      "gross_amount": 791.8,
+      "net_amount": 616.11,
+      "pct_of_monthly_net": 2.39
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Kimi K3",
+      "gross_amount": 523.23,
+      "net_amount": 393.73,
+      "pct_of_monthly_net": 1.52
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: Claude Opus 5",
+      "gross_amount": 558.32,
+      "net_amount": 352.93,
+      "pct_of_monthly_net": 1.37
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-5.3-Codex",
+      "gross_amount": 370.16,
+      "net_amount": 295.55,
+      "pct_of_monthly_net": 1.14
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: Claude Opus 5.5",
+      "gross_amount": 222.66,
+      "net_amount": 220.35,
+      "pct_of_monthly_net": 0.85
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: GPT-5.6 Terra",
+      "gross_amount": 233.8,
+      "net_amount": 172.93,
+      "pct_of_monthly_net": 0.67
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: GPT-6 Sol",
+      "gross_amount": 137.62,
+      "net_amount": 136.86,
+      "pct_of_monthly_net": 0.53
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: GPT-5.3-Codex",
+      "gross_amount": 158.59,
+      "net_amount": 106.34,
+      "pct_of_monthly_net": 0.41
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Claude Sonnet 5.5",
+      "gross_amount": 88.12,
+      "net_amount": 87.12,
+      "pct_of_monthly_net": 0.34
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: GPT-5.6 Luna",
+      "gross_amount": 87.82,
+      "net_amount": 83.8,
+      "pct_of_monthly_net": 0.32
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: GPT-5.4 mini",
+      "gross_amount": 82.93,
+      "net_amount": 71.06,
+      "pct_of_monthly_net": 0.28
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-5.6 Luna",
+      "gross_amount": 85.02,
+      "net_amount": 61.3,
+      "pct_of_monthly_net": 0.24
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Gemini 3.8 Flash",
+      "gross_amount": 41.93,
+      "net_amount": 39.26,
+      "pct_of_monthly_net": 0.15
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-5.4 mini",
+      "gross_amount": 42.86,
+      "net_amount": 30.28,
+      "pct_of_monthly_net": 0.12
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: MAI-Code-1.1-Flash",
+      "gross_amount": 27.75,
+      "net_amount": 23.73,
+      "pct_of_monthly_net": 0.09
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: GPT-6 Luna",
+      "gross_amount": 17.88,
+      "net_amount": 17.77,
+      "pct_of_monthly_net": 0.07
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-6.1 Sol",
+      "gross_amount": 16.55,
+      "net_amount": 16.35,
+      "pct_of_monthly_net": 0.06
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-6 Luna",
+      "gross_amount": 14.1,
+      "net_amount": 13.89,
+      "pct_of_monthly_net": 0.05
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: GPT-6 Astra",
+      "gross_amount": 10.68,
+      "net_amount": 10.52,
+      "pct_of_monthly_net": 0.04
+    },
+    {
+      "year_month": "2026-09",
+      "model": "GPT-5 mini",
+      "gross_amount": 10.91,
+      "net_amount": 9.6,
+      "pct_of_monthly_net": 0.04
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Kimi K2.7 Code",
+      "gross_amount": 8.64,
+      "net_amount": 4.44,
+      "pct_of_monthly_net": 0.02
+    },
+    {
+      "year_month": "2026-09",
+      "model": "MAI-Code-1.1-Flash",
+      "gross_amount": 1.39,
+      "net_amount": 0.84,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Gemini 3.7 Flash",
+      "gross_amount": 9.23,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Claude Sonnet 4.6",
+      "gross_amount": 71.59,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: Claude Sonnet 4.6",
+      "gross_amount": 5.0,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Auto: Gemini 3.7 Flash",
+      "gross_amount": 4.87,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Claude Opus 4.6",
+      "gross_amount": 37.43,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    },
+    {
+      "year_month": "2026-09",
+      "model": "Gemini 3.1 Pro",
+      "gross_amount": 4.64,
+      "net_amount": 0.0,
+      "pct_of_monthly_net": 0
+    }
+  ],
+  "familyUsers": [
+    {
+      "month": "2026-08",
+      "family": "andre",
+      "users": 65
+    },
+    {
+      "month": "2026-08",
+      "family": "auto",
+      "users": 24
+    },
+    {
+      "month": "2026-08",
+      "family": "claude_fable",
+      "users": 3
+    },
+    {
+      "month": "2026-08",
+      "family": "claude_haiku",
+      "users": 33
+    },
+    {
+      "month": "2026-08",
+      "family": "claude_opus",
+      "users": 272
+    },
+    {
+      "month": "2026-08",
+      "family": "claude_sonnet",
+      "users": 417
+    },
+    {
+      "month": "2026-08",
+      "family": "gemini",
+      "users": 15
+    },
+    {
+      "month": "2026-08",
+      "family": "gpt",
+      "users": 338
+    },
+    {
+      "month": "2026-08",
+      "family": "gpt_mini",
+      "users": 266
+    },
+    {
+      "month": "2026-09",
+      "family": "andre",
+      "users": 220
+    },
+    {
+      "month": "2026-09",
+      "family": "auto",
+      "users": 36
+    },
+    {
+      "month": "2026-09",
+      "family": "claude_haiku",
+      "users": 3
+    },
+    {
+      "month": "2026-09",
+      "family": "claude_opus",
+      "users": 354
+    },
+    {
+      "month": "2026-09",
+      "family": "claude_sonnet",
+      "users": 437
+    },
+    {
+      "month": "2026-09",
+      "family": "gemini",
+      "users": 24
+    },
+    {
+      "month": "2026-09",
+      "family": "gpt",
+      "users": 462
+    },
+    {
+      "month": "2026-09",
+      "family": "gpt_mini",
+      "users": 467
+    },
+    {
+      "month": "2026-10",
+      "family": "andre",
+      "users": 55
+    },
+    {
+      "month": "2026-10",
+      "family": "auto",
+      "users": 16
+    },
+    {
+      "month": "2026-10",
+      "family": "claude_haiku",
+      "users": 13
+    },
+    {
+      "month": "2026-10",
+      "family": "claude_opus",
+      "users": 265
+    },
+    {
+      "month": "2026-10",
+      "family": "claude_sonnet",
+      "users": 151
+    },
+    {
+      "month": "2026-10",
+      "family": "gemini",
+      "users": 8
+    },
+    {
+      "month": "2026-10",
+      "family": "gpt",
+      "users": 345
+    },
+    {
+      "month": "2026-10",
+      "family": "gpt_mini",
+      "users": 352
+    }
+  ],
+  "high": [
+    {
+      "month": "2026-08",
+      "basis": "netto",
+      "users": 728,
+      "tiers": [
+        {
+          "top_pct": 1,
+          "users": 8,
+          "net_share_pct": 8.5
+        },
+        {
+          "top_pct": 5,
+          "users": 37,
+          "net_share_pct": 30.6
+        },
+        {
+          "top_pct": 10,
+          "users": 73,
+          "net_share_pct": 50.2
+        }
+      ],
+      "limit_usd": 160.0,
+      "limit_changed": false,
+      "budget_bands": [
+        {
+          "first": 0,
+          "last": 0,
+          "label": "0–10 %",
+          "users": 381
+        },
+        {
+          "first": 1,
+          "last": 1,
+          "label": "10–25 %",
+          "users": 116
+        },
+        {
+          "first": 2,
+          "last": 2,
+          "label": "25–50 %",
+          "users": 86
+        },
+        {
+          "first": 3,
+          "last": 3,
+          "label": "50–75 %",
+          "users": 39
+        },
+        {
+          "first": 4,
+          "last": 4,
+          "label": "75–90 %",
+          "users": 18
+        },
+        {
+          "first": 5,
+          "last": 6,
+          "label": "Over 90 %",
+          "users": 37
+        }
+      ]
+    },
+    {
+      "month": "2026-09",
+      "basis": "netto",
+      "users": 759,
+      "tiers": [
+        {
+          "top_pct": 1,
+          "users": 8,
+          "net_share_pct": 8.8
+        },
+        {
+          "top_pct": 5,
+          "users": 38,
+          "net_share_pct": 31
+        },
+        {
+          "top_pct": 10,
+          "users": 76,
+          "net_share_pct": 48.5
+        }
+      ],
+      "limit_usd": 320.0,
+      "limit_changed": true,
+      "budget_bands": [
+        {
+          "first": 0,
+          "last": 0,
+          "label": "0–10 %",
+          "users": 398
+        },
+        {
+          "first": 1,
+          "last": 1,
+          "label": "10–25 %",
+          "users": 127
+        },
+        {
+          "first": 2,
+          "last": 2,
+          "label": "25–50 %",
+          "users": 94
+        },
+        {
+          "first": 3,
+          "last": 3,
+          "label": "50–75 %",
+          "users": 53
+        },
+        {
+          "first": 4,
+          "last": 4,
+          "label": "75–90 %",
+          "users": 19
+        },
+        {
+          "first": 5,
+          "last": 5,
+          "label": "90–100 %",
+          "users": 16
+        },
+        {
+          "first": 6,
+          "last": 6,
+          "label": "Over 100 %",
+          "users": 12
+        }
+      ]
+    },
+    {
+      "month": "2026-10",
+      "basis": "hittil",
+      "users": 652,
+      "tiers": [],
+      "limit_usd": 0.0,
+      "limit_changed": false,
+      "last_day": "2026-10-11",
+      "budget_bands": [
+        {
+          "first": 0,
+          "last": 0,
+          "label": "0–10 %",
+          "users": 562
+        },
+        {
+          "first": 1,
+          "last": 1,
+          "label": "10–25 %",
+          "users": 67
+        },
+        {
+          "first": 2,
+          "last": 3,
+          "label": "25–75 %",
+          "users": 23
+        },
+        {
+          "first": 4,
+          "last": 4,
+          "label": "75–90 %",
+          "users": 0
+        },
+        {
+          "first": 5,
+          "last": 5,
+          "label": "90–100 %",
+          "users": 0
+        },
+        {
+          "first": 6,
+          "last": 6,
+          "label": "Over 100 %",
+          "users": 0
+        }
+      ]
+    }
+  ],
+  "budgetDays": [
+    {
+      "day": "2026-09-11",
+      "users": 647,
+      "snapshots": 0,
+      "bands": [
+        {
+          "first": 0,
+          "last": 0,
+          "label": "0–10 %",
+          "users": 444
+        },
+        {
+          "first": 1,
+          "last": 1,
+          "label": "10–25 %",
+          "users": 114
+        },
+        {
+          "first": 2,
+          "last": 2,
+          "label": "25–50 %",
+          "users": 60
+        },
+        {
+          "first": 3,
+          "last": 3,
+          "label": "50–75 %",
+          "users": 21
+        },
+        {
+          "first": 4,
+          "last": 6,
+          "label": "Over 75 %",
+          "users": 8
+        }
+      ]
+    },
+    {
+      "day": "2026-10-11",
+      "users": 652,
+      "snapshots": 0,
+      "bands": [
+        {
+          "first": 0,
+          "last": 0,
+          "label": "0–10 %",
+          "users": 562
+        },
+        {
+          "first": 1,
+          "last": 1,
+          "label": "10–25 %",
+          "users": 67
+        },
+        {
+          "first": 2,
+          "last": 3,
+          "label": "25–75 %",
+          "users": 23
+        },
+        {
+          "first": 4,
+          "last": 4,
+          "label": "75–90 %",
+          "users": 0
+        },
+        {
+          "first": 5,
+          "last": 5,
+          "label": "90–100 %",
+          "users": 0
+        },
+        {
+          "first": 6,
+          "last": 6,
+          "label": "Over 100 %",
+          "users": 0
+        }
+      ]
+    }
+  ],
+  "prevDaily": [
+    {
+      "day": "2026-09-01",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1141.16,
+      "net_amount": 0.0
+    },
+    {
+      "day": "2026-09-02",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 879.25,
+      "net_amount": 0.0
+    },
+    {
+      "day": "2026-09-03",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 985.46,
+      "net_amount": 0.0
+    },
+    {
+      "day": "2026-09-04",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1002.28,
+      "net_amount": 0.0
+    },
+    {
+      "day": "2026-09-05",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 141.63,
+      "net_amount": 0.0
+    },
+    {
+      "day": "2026-09-06",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 127.32,
+      "net_amount": 0.0
+    },
+    {
+      "day": "2026-09-07",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1239.64,
+      "net_amount": 0.0
+    },
+    {
+      "day": "2026-09-08",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1585.02,
+      "net_amount": 1325.74
+    },
+    {
+      "day": "2026-09-09",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1425.18,
+      "net_amount": 1425.18
+    },
+    {
+      "day": "2026-09-10",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1228.45,
+      "net_amount": 1198.07
+    },
+    {
+      "day": "2026-09-11",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1234.96,
+      "net_amount": 1227.36
+    },
+    {
+      "day": "2026-09-12",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 130.52,
+      "net_amount": 130.52
+    },
+    {
+      "day": "2026-09-13",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 196.62,
+      "net_amount": 196.62
+    },
+    {
+      "day": "2026-09-14",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1245.14,
+      "net_amount": 1199.54
+    },
+    {
+      "day": "2026-09-15",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1330.13,
+      "net_amount": 1292.13
+    },
+    {
+      "day": "2026-09-16",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1624.1,
+      "net_amount": 1601.3
+    },
+    {
+      "day": "2026-09-17",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1460.65,
+      "net_amount": 1422.65
+    },
+    {
+      "day": "2026-09-18",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1264.56,
+      "net_amount": 1249.36
+    },
+    {
+      "day": "2026-09-19",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 97.28,
+      "net_amount": 97.28
+    },
+    {
+      "day": "2026-09-20",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 122.33,
+      "net_amount": 122.33
+    },
+    {
+      "day": "2026-09-21",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1400.14,
+      "net_amount": 1384.92
+    },
+    {
+      "day": "2026-09-22",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1837.99,
+      "net_amount": 1807.61
+    },
+    {
+      "day": "2026-09-23",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1840.12,
+      "net_amount": 1824.92
+    },
+    {
+      "day": "2026-09-24",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1636.66,
+      "net_amount": 1636.66
+    },
+    {
+      "day": "2026-09-25",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1620.7,
+      "net_amount": 1613.09
+    },
+    {
+      "day": "2026-09-26",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 101.46,
+      "net_amount": 101.46
+    },
+    {
+      "day": "2026-09-27",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 166.9,
+      "net_amount": 166.9
+    },
+    {
+      "day": "2026-09-28",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1439.68,
+      "net_amount": 1424.49
+    },
+    {
+      "day": "2026-09-29",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1712.34,
+      "net_amount": 1704.72
+    },
+    {
+      "day": "2026-09-30",
+      "model": "alle",
+      "gross_requests": 0,
+      "net_requests": 0,
+      "gross_amount": 1746.44,
+      "net_amount": 1723.6
+    }
+  ],
+  "forecast": {
+    "month": "2026-10",
+    "days_elapsed": 12,
+    "days_in_month": 31,
+    "allowance_used_up": true,
+    "allowance_run_out_date": "2026-10-07",
+    "net_to_date_usd": 4970.34,
+    "budget_status": "missing",
+    "models": [
+      {
+        "model": "trend",
+        "gross_mid_usd": 29276.14,
+        "net_low_usd": 19195.34,
+        "net_mid_usd": 23023.02,
+        "net_high_usd": 26850.7,
+        "range_pct": 16.63,
+        "allowance_runs_out": "2026-10-07",
+        "backtest_error_pct": 16.63,
+        "backtest_months": ["2026-07", "2026-08", "2026-09"],
+        "budget_pct": 0,
+        "over_budget": false
+      },
+      {
+        "model": "per_user",
+        "gross_mid_usd": 40192.03,
+        "net_low_usd": 21967.52,
+        "net_mid_usd": 33847.48,
+        "net_high_usd": 45727.44,
+        "range_pct": 35.1,
+        "allowance_runs_out": "2026-10-07",
+        "backtest_error_pct": 35.1,
+        "backtest_months": ["2026-07", "2026-08", "2026-09"],
+        "budget_pct": 0,
+        "over_budget": false
+      }
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 import { BodyShort, Box, Detail, HGrid, Label, Link } from "@navikt/ds-react";
 import { useId, type ReactNode } from "react";
 import { forecastLabel, shownModels } from "@/components/cost-forecast";
-import { backendRequest } from "@/lib/backend-api";
+import { loadMonthInsights } from "@/components/cost-anomalies";
 import { getCostForecast } from "@/lib/cached-bigquery";
 import { formatDate, formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
@@ -32,11 +32,11 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 /** F9: status cards at the top of the admin cost page. Amounts are internal: admin only, never logged. */
 export function CostStatusCardsView({
   data: raw,
-  anomalies,
+  insights,
   grossToDate,
 }: {
   data: CostForecast;
-  anomalies?: number;
+  insights?: number;
   /** Preliminary list-price usage this month, from the monthly overview. */
   grossToDate?: number | null;
 }) {
@@ -45,7 +45,7 @@ export function CostStatusCardsView({
   return (
     <>
       <h2 className="sr-only">Status for måneden</h2>
-      <HGrid columns={{ xs: 1, md: 2, lg: anomalies === undefined ? 4 : 5 }} gap="space-16">
+      <HGrid columns={{ xs: 1, md: 2, lg: insights === undefined ? 4 : 5 }} gap="space-16">
         <Card title={`Forbruk hittil i ${monthName(data.month)}`}>
           <BodyShort size="large" weight="semibold">
             {formatUSD(used)}
@@ -98,12 +98,12 @@ export function CostStatusCardsView({
           </BodyShort>
           <Detail textColor="subtle">Kredittene deles av alle i Nav.</Detail>
         </Card>
-        {anomalies !== undefined && (
-          <Card title="Varsler">
+        {insights !== undefined && (
+          <Card title="Månedsinnsikt">
             <BodyShort size="large" weight="semibold">
-              {formatNumber(anomalies)}
+              {formatNumber(insights)}
             </BodyShort>
-            <Link href="#avvik">Se varslene</Link>
+            <Link href="#maanedsinnsikt">Se månedsinnsikten</Link>
           </Card>
         )}
       </HGrid>
@@ -113,9 +113,9 @@ export function CostStatusCardsView({
 
 export async function CostStatusCards({ token, grossToDate }: { token: string; grossToDate?: number | null }) {
   // The forecast section below shows the error; do not log amounts here.
-  const [data, anomalies] = await Promise.all([
+  const [data, insights] = await Promise.all([
     getCostForecast(token).catch(() => null),
-    backendRequest<unknown[]>("/api/v1/admin/billing/anomalies", token).catch(() => undefined),
+    loadMonthInsights(token).catch(() => undefined),
   ]);
-  return data && <CostStatusCardsView data={data} grossToDate={grossToDate} anomalies={anomalies?.length} />;
+  return data && <CostStatusCardsView data={data} grossToDate={grossToDate} insights={insights?.length} />;
 }

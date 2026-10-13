@@ -36,7 +36,7 @@ describe("CostStatusCardsView", () => {
     expect(screen.getByText(/Hver person: 550 USD/)).toBeInTheDocument();
     expect(screen.getByText(/Brukt: 250 USD \(25 %\)/)).toBeInTheDocument();
     expect(screen.getByText(/Blir brukt opp rundt/)).toBeInTheDocument();
-    expect(screen.queryByText("Varsler")).not.toBeInTheDocument();
+    expect(screen.queryByText("Månedsinnsikt")).not.toBeInTheDocument();
   });
 
   it("hides the per-person model until its backtest error is within the limit", () => {
@@ -57,9 +57,9 @@ describe("CostStatusCardsView", () => {
     expect(screen.getByText(/^Brukt opp/)).toBeInTheDocument();
   });
 
-  it("links the anomaly count to the list", () => {
-    render(<CostStatusCardsView data={{ ...base, models: [model("trend", 1200, true)] }} anomalies={3} />);
+  it("links the insight count to the section", () => {
+    render(<CostStatusCardsView data={{ ...base, models: [model("trend", 1200, true)] }} insights={3} />);
     expect(screen.getByText(/Forventet faktura er over budsjettet/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /varsl/ })).toHaveAttribute("href", "#avvik");
+    expect(screen.getByRole("link", { name: /månedsinnsikt/ })).toHaveAttribute("href", "#maanedsinnsikt");
   });
 });

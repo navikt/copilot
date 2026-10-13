@@ -49,6 +49,7 @@
       "avvik": ["apps/my-copilot/src/components/cost-anomalies.tsx"],
       "budsjett-per-dag": ["apps/my-copilot/src/components/budget-days-section.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "maanedsinnsikt": ["apps/my-copilot/src/components/cost-anomalies.tsx"],
       "per-maned": ["apps/my-copilot/src/app/(nb)/admin/kostnad/page.tsx"],
       "prognose": ["apps/my-copilot/src/components/cost-forecast.tsx"],
       "storforbrukere": ["apps/my-copilot/src/components/high-consumers.tsx"],

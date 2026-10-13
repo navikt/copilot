@@ -383,6 +383,7 @@ type BigQueryQuerier interface {
 	GetCostUserDays(ctx context.Context, month string) ([]UserDay, error)
 	GetLimitSnapshots(ctx context.Context) ([]LimitChange, error)
 	GetActiveUsersMonthly(ctx context.Context) ([]ActiveUsersMonth, error)
+	GetModelFamilyUsers(ctx context.Context) ([]ModelFamilyUsers, error)
 	GetHighConsumers(ctx context.Context) ([]HighConsumerMonth, error)
 	GetBudgetDays(ctx context.Context) ([]BudgetDay, error)
 	GetCostAnomalies(ctx context.Context) ([]Anomaly, error)
