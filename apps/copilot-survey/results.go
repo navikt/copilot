@@ -66,8 +66,8 @@ type optionCount struct {
 type versionResult struct {
 	Version int `json:"version"`
 	// N is respondents who answered this version (people, also for multi).
-	// Options is null when N < minSegment.
-	N       int           `json:"n"`
+	// Both N and Options are null when fewer than minSegment did.
+	N       *int          `json:"n"`
 	Options []optionCount `json:"options"`
 }
 
@@ -160,8 +160,9 @@ func countVersions(q question, rows []storedAnswer) []versionResult {
 	}
 	out := []versionResult{}
 	for _, ver := range sortedKeys(ns) {
-		vr := versionResult{Version: ver, N: ns[ver]}
-		if vr.N >= minSegment {
+		vr := versionResult{Version: ver}
+		if n := ns[ver]; n >= minSegment {
+			vr.N = &n
 			vr.Options = cells(q, ver, counts[ver])
 		}
 		out = append(out, vr)
@@ -188,20 +189,24 @@ func cells(q question, ver int, counts map[string]int) []optionCount {
 		}
 	}
 	out := make([]optionCount, len(values))
-	hidden := 0
+	hidden, hiddenSum := 0, 0
 	for i, v := range values {
 		c := counts[v]
 		out[i].Value = v
 		if c > 0 && c < minSegment {
 			out[i].Suppressed = true
 			hidden++
+			hiddenSum += c
 		} else {
 			out[i].Count = &c
 		}
 	}
-	// One answer per person (all but multi): a single hidden cell is n minus
-	// the rest, so hide the smallest shown non-zero cell as well.
-	if hidden == 1 && q.Type != "multi" {
+	// One answer per person (all but a multi with free choice): the hidden
+	// cells sum to n minus the shown ones. That sum gives them away when there
+	// is one hidden cell, or when they must all be 1 or all be minSegment-1,
+	// so hide the smallest shown non-zero cell as well.
+	single := q.Type != "multi" || q.MaxChoices == 1
+	if single && hidden > 0 && (hidden == 1 || hiddenSum == hidden || hiddenSum == hidden*(minSegment-1)) {
 		j := -1
 		for i, o := range out {
 			if o.Count != nil && *o.Count > 0 && (j < 0 || *o.Count < *out[j].Count) {

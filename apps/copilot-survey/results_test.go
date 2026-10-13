@@ -38,8 +38,8 @@ func TestAdminRoutesNeedAdmin(t *testing.T) {
 			want  int
 		}{
 			{"", 401},
-			{webToken, 403},   // my-copilot user, not in the group
-			{"cli:hans", 403}, // copilot-cli app token
+			{webToken, 404},   // my-copilot user, not in the group
+			{"cli:hans", 404}, // copilot-cli app token
 			{cliAdmin, 401},   // admin user, but the token is not from my-copilot
 		} {
 			if rec := do(h, "GET", path, tc.token, ""); rec.Code != tc.want {
@@ -55,8 +55,45 @@ func TestAdminRoutesNeedAdmin(t *testing.T) {
 func TestAdminGroupUnsetFailsClosed(t *testing.T) {
 	a := testAuthenticator(t)
 	a.adminGroup = ""
-	if rec := do(makeRouter(a, adminAPI(t, nil)), "GET", "/api/v1/admin/surveys", adminToken, ""); rec.Code != 403 {
+	if rec := do(makeRouter(a, adminAPI(t, nil)), "GET", "/api/v1/admin/surveys", adminToken, ""); rec.Code != 404 {
 		t.Fatalf("%d", rec.Code)
+	}
+}
+
+// TestCellsHideDeterminableGroups: a hidden cell must not follow from n and
+// the shown cells. The result names the options that end up hidden.
+func TestCellsHideDeterminableGroups(t *testing.T) {
+	q := question{Type: "choice", Version: 1, Options: []string{"a", "b", "c", "d"}}
+	hidden := func(q question, counts map[string]int) string {
+		var s string
+		for _, o := range cells(q, 1, counts) {
+			if o.Suppressed {
+				s += o.Value
+			}
+		}
+		return s
+	}
+	for name, tc := range map[string]struct {
+		counts map[string]int
+		want   string
+	}{
+		"one small":   {map[string]int{"a": 1, "b": 7, "c": 9}, "ab"},
+		"all ones":    {map[string]int{"a": 1, "b": 1, "c": 9}, "abc"},
+		"all fours":   {map[string]int{"a": 4, "b": 4, "c": 9}, "abc"},
+		"mixed small": {map[string]int{"a": 1, "b": 3, "c": 9}, "ab"},
+		"none small":  {map[string]int{"a": 5, "b": 9}, ""},
+	} {
+		if got := hidden(q, tc.counts); got != tc.want {
+			t.Errorf("%s: hid %q, want %q", name, got, tc.want)
+		}
+	}
+	q.Type, q.MaxChoices = "multi", 1
+	if got := hidden(q, map[string]int{"a": 1, "b": 7}); got != "ab" {
+		t.Errorf("multi with one choice: hid %q, want ab", got)
+	}
+	q.MaxChoices = 0
+	if got := hidden(q, map[string]int{"a": 1, "b": 7}); got != "a" {
+		t.Errorf("multi: hid %q, want a", got)
 	}
 }
 
@@ -108,7 +145,7 @@ func TestResultsBelowFiveShowNothing(t *testing.T) {
 func TestResultsSuppressAndSplit(t *testing.T) {
 	// overall: 6×5, 1×4: 4 is hidden, and 5 too (it is n minus the rest).
 	// tools (multi): 7 people, a×7, b×2: only b hidden.
-	// fast: 4 on version 1 (n<5, no distribution), 6 on version 2.
+	// fast: 4 on version 1 (n<5: neither n nor a distribution), 6 on version 2.
 	var rows []storedAnswer
 	for i := range 7 {
 		overall, tools, ver := 5, `["a"]`, 2
@@ -142,12 +179,12 @@ func TestResultsSuppressAndSplit(t *testing.T) {
 		}
 	}
 	tools := q["tools"].Versions[0]
-	if tools.N != 7 || *tools.Options[0].Count != 7 || !tools.Options[1].Suppressed || *tools.Options[2].Count != 0 {
+	if *tools.N != 7 || *tools.Options[0].Count != 7 || !tools.Options[1].Suppressed || *tools.Options[2].Count != 0 {
 		t.Errorf("tools %+v", tools)
 	}
 	fast := q["grid"].Items[0]
-	if fast.ID != "fast" || len(fast.Versions) != 2 || fast.Versions[0].Version != 1 || fast.Versions[0].N != 4 || fast.Versions[0].Options != nil ||
-		fast.Versions[1].N != 6 || len(fast.Versions[1].Options) != 5 || *fast.Versions[1].Options[2].Count != 6 {
+	if fast.ID != "fast" || len(fast.Versions) != 2 || fast.Versions[0].Version != 1 || fast.Versions[0].N != nil || fast.Versions[0].Options != nil ||
+		*fast.Versions[1].N != 6 || len(fast.Versions[1].Options) != 5 || *fast.Versions[1].Options[2].Count != 6 {
 		t.Errorf("fast %+v", fast)
 	}
 }

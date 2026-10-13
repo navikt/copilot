@@ -29,9 +29,9 @@ only.
 | `POST` | `/api/v1/surveys/{id}/responses` | see above | Submit answers: 201, 409 already answered, 400 invalid, 401 caller refused, 403 no Nav identity, 404 not open, 503 not taking answers |
 | `GET` | `/api/v1/admin/surveys` | admin | All surveys with status (kommende, åpen, stengt) and written answers |
 | `GET` | `/api/v1/admin/surveys/{id}/results` | admin | Counts per option and question version, no free text. Fewer than 5 answers: nothing; a count of 1–4: `null` |
-
-Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check; anything else gets 401 or 403.
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`) |
+
+Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check. A token copilot-survey does not accept at all gets 401; every accepted caller who is not an admin (a my-copilot user outside the group, copilot-cli) gets 404, as in copilot-api and my-copilot.
 
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
 buffers a body. Logs carry survey id, status, batch size and error type,

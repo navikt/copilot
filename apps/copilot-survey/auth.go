@@ -154,11 +154,13 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 
 // adminOnly wraps the admin sub-mux once: a my-copilot user token (the only
 // branch that sets email) whose groups claim holds adminGroup. Fail closed.
+// Every other accepted caller (a non-admin, copilot-cli) gets 404, as in
+// copilot-api and my-copilot, so the routes do not reveal that they exist.
 func adminOnly(a *authenticator, next http.Handler) http.HandlerFunc {
 	return authMiddleware(a, func(w http.ResponseWriter, r *http.Request) {
 		c, ok := callerFromContext(r.Context())
 		if !ok || c.email == "" || a.adminGroup == "" || !slices.Contains(c.groups, a.adminGroup) {
-			writeError(w, http.StatusForbidden, "admins only")
+			writeError(w, http.StatusNotFound, "not found")
 			return
 		}
 		next.ServeHTTP(w, r)
