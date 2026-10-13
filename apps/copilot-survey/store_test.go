@@ -113,8 +113,8 @@ func TestSurveyStore(t *testing.T) {
 	if count("survey_answers") != before+1 {
 		t.Fatal("flush did not write the queued answer")
 	}
-	if queued("s") != 0 || testutil.ToFloat64(answersLost.WithLabelValues("s")) != 0 {
-		t.Fatal("after flush: gauge not 0 or answers counted as lost")
+	if queued("s") != 0 {
+		t.Fatalf("queued gauge after flush = %v, want 0", queued("s"))
 	}
 	if submit("s", "late", day(10)) {
 		t.Fatal("a flushed sender could answer again")

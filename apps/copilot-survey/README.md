@@ -30,7 +30,7 @@ status routes only.
 | `GET` | `/api/v1/surveys/{id}/status` | see above | `{"answered": bool}` for the caller, same hash as a submission: 200, 401 caller refused, 403 no Nav identity, 404 not open, 503 storage unavailable |
 | `GET` | `/api/v1/admin/surveys` | admin | All surveys with status (kommende, åpen, stengt) and written answers |
 | `GET` | `/api/v1/admin/surveys/{id}/results` | admin | Counts per option and question version, no free text. Fewer than 5 answers: nothing; a count of 1–4: `null`, and so is any count it could be worked out from (a complementary cell, or a question skipped on it) |
-| `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`, `survey_queued_answers{survey}`, `survey_answers_lost_total{survey}`) |
+| `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`, `survey_queued_answers{survey}`) |
 
 Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check. A token copilot-survey does not accept at all gets 401; every accepted caller who is not an admin (a my-copilot user outside the group, copilot-cli) gets 404, as in copilot-api and my-copilot.
 
@@ -122,12 +122,15 @@ chose this on 2026-10-13: the data is down-classified, and losing answers
 whose senders were told "recorded" is the larger harm. Only a crash or a
 failing database write still loses queued submissions.
 
-Two metrics watch the queue. `survey_queued_answers{survey}` is the queue
-size per survey. Team members with Prometheus access can see it, which is
-fine since the data is down-classified (2026-10-13).
-`survey_answers_lost_total{survey}` counts answers lost to a failed write
-at shutdown and raises an alert. The process cannot count what a crash
-loses: the last scraped `survey_queued_answers` before the restart shows it.
+The gauge `survey_queued_answers{survey}` is the queue size per survey.
+Team members with Prometheus access can see it, which is fine since the
+data is down-classified (2026-10-13). The process cannot count what a
+crash loses; the last scraped value before the restart is the nearest
+estimate, since submissions and writes between that scrape and the crash
+are not in it. A failed write at shutdown is logged (`survey: writing
+queued submissions at shutdown failed`, and the count in `survey: queued
+submissions lost at shutdown`), not counted: `/metrics` is closed by then,
+so a counter would never be scraped and an alert on it could never fire.
 
 After close-out the retained answers have no identifier and no key exists:
 they are meant to be anonymous.

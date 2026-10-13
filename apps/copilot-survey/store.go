@@ -17,19 +17,13 @@ import (
 
 // queuedAnswers is the size of each survey's in-memory queue, set under
 // s.mu whenever a queue changes. The process cannot count what a crash
-// loses: the last value scraped before a restart shows it.
+// loses; the last value scraped before a restart is the nearest estimate,
+// since submissions and writes between that scrape and the crash are not
+// in it. A loss at shutdown (flush) is logged, not counted: /metrics is
+// already closed by then, so a counter would never be scraped.
 var queuedAnswers = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "survey_queued_answers",
 	Help: "Survey answers queued in memory, not written yet.",
-}, []string{"survey"})
-
-// answersLost counts queued answers discarded without being written. The
-// only such path is a failed write at shutdown (flush): a failed batch or
-// close-out write keeps them queued. A crash is not counted, see
-// queuedAnswers.
-var answersLost = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: "survey_answers_lost_total",
-	Help: "Queued survey answers lost without being written.",
 }, []string{"survey"})
 
 // The data model: two tables with nothing in common but the survey id.
@@ -188,7 +182,6 @@ func (s *surveyStore) flush(ctx context.Context) int {
 		if err := s.writeLocked(ctx, id, q); err != nil {
 			slog.Error("survey: writing queued submissions at shutdown failed", "survey", id, "error_type", fmt.Sprintf("%T", err))
 			lost += len(q.answers)
-			answersLost.WithLabelValues(id).Add(float64(len(q.answers)))
 		}
 	}
 	return lost
