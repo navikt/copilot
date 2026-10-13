@@ -11,8 +11,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### GPT-6.1 Sol er anbefalingen for daglig koding
 
-- **Personlig anbefaling**: [/modeller](https://ki-utvikling.nav.no/modeller) og `docs/modellvalg.md` anbefaler nå GPT-6.1 Sol til daglig koding. Eieren bestemte det 12. oktober 2026 etter nye målinger: GPT-6.1 Sol på Low besto 5 av 5 på t2, rv1 og rv2, som GPT-6 Sol, og rv1 og rv2 kostet 31,86 mot 36,92 credits.
-- **`@nav-pilot` blir på GPT-6 Sol**: Agentpakken er uendret. t2 er rundt 4 prosent dyrere på GPT-6.1 Sol, og t3, t4, t5, t7 og t7b er ikke kjørt på nytt.
+- **Personlig anbefaling**: [/modeller](https://ki-utvikling.nav.no/modeller) og `docs/modellvalg.md` anbefaler nå GPT-6.1 Sol til daglig koding. Eieren bestemte det 12. oktober 2026 etter nye målinger: GPT-6.1 Sol på Low besto 5 av 5 på t2, rv1 og rv2, som GPT-6 Sol, og rv1 og rv2 kostet 5,95 mot 7,50 credits i median per kjøring.
+- **`@nav-pilot` blir på GPT-6 Sol**: Agentpakken er uendret. t2 er omtrent 2 prosent (median per kjøring) dyrere på GPT-6.1 Sol, 6,89 mot 6,77 credits, og t3, t4, t5, t7 og t7b er ikke kjørt på nytt.
 - **Ingen innstilling endres**: Anbefalingen står bare i dokumentasjonen og på nettsiden.
 - **Vær forsiktig med personopplysninger**: I en pilot med tre kjøringer la GPT-6.1 Sol to ganger fødselsnummer på en Kafka-melding uten å spørre om personvern først. GPT-6 Sol stoppet før kodeendring i alle fem kjøringene. Pilot, ikke en avgjørelse om pinnen. Se [målingen](golden-baselines/2026-10-12-pin-pilot-sol61/).
 
