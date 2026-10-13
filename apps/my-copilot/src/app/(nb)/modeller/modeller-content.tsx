@@ -698,8 +698,8 @@ function EffortSection() {
         Effort styrer hvor mye arbeid modellen legger i svaret: hvor mye den resonnerer, hvor mange verktøykall den gjør
         og hvor langt den svarer. Mer er ikke alltid bedre. På enkle oppgaver bruker modellene ofte mange flere tokens
         uten å bli mer treffsikre, og for lang resonnering kan gi dårligere svar. På lange kodeoppgaver løfter høyere
-        effort andelen bestått noe, men gevinsten er liten øverst: fra high til max ga ett prosentpoeng mer bestått for
-        76 prosent høyere kostnad.
+        effort andelen bestått noe, men gevinsten er liten øverst: fra high til max økte andelen bestått med ett
+        prosentpoeng, for 76 prosent høyere kostnad.
       </BodyLong>
       <BodyLong>
         Våre egne målinger sier det samme. På kodeoppgavene besto GPT-6 Sol (30. september) og GPT-6.1 Sol (30.
