@@ -643,7 +643,7 @@
       "displayName": "appsec-advisory",
       "description": "Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn, vurdert eksponering og forslag til trygg testing. Bruk når teamet vil ha en dypere sikkerhetsvurdering eller prioritering av funn, ikke for sjekk før commit (bruk security-review) eller pentest",
       "filePath": "skills/appsec-advisory/SKILL.md",
-      "contentHash": "40f5c92066a3faef2d3ddc3ee40d5005e09697d3a6ae3f6e8d4a01516d7c6788",
+      "contentHash": "48d4fcea7436f429716b6b4e16b2db5d37172afeeba97faade66e273dd4c1fff",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/appsec-advisory/SKILL.md"
     },

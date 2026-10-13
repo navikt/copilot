@@ -64,15 +64,15 @@ Require human review before relying on security-critical severity or applying a 
 Example finding:
 
 ```
-HIGH · observed defect · code 8/10 · deployment 6/10
-src/main/kotlin/.../StaticAssets.kt:42 — GET /static/* checks containment with a
-string prefix, so ../static-private/secret.txt resolves outside the asset directory.
-Entry point: public ingress myapp.nav.no, no login on /static (autoLoginIgnorePaths).
-Preconditions: a sibling directory whose name starts with the asset directory name.
-Counterevidence: none found; no reverse proxy rule restricts the path.
-Unknowns: whether such a sibling directory exists in production.
-Mitigation: compare canonical paths with Path.startsWith. Owner: app team.
-Check (dev only): request /static/..%2Fstatic-private%2Fany.txt; secure = 404,
+HIGH · observed defect · code 8/10 · deployment 7/10
+src/main/kotlin/.../VedtakRoutes.kt:57 — GET /api/vedtak/{id} loads the vedtak by id
+and returns it without checking that it belongs to the fødselsnummer in the token.
+Entry point: ingress myapp.nav.no, ID-porten sidecar with autoLogin (Level4).
+Preconditions: a logged-in citizen who knows or guesses another vedtak id.
+Counterevidence: ids are sequential longs; no ownership filter in VedtakRepository.
+Unknowns: whether an API gateway in front adds an ownership check (not in repo).
+Mitigation: query by id and the token's fødselsnummer; return 404 otherwise. Owner: app team.
+Check (dev only, two test users): user A requests user B's vedtak id; secure = 404,
 risky = 200. Stop after the first response.
 ```
 
