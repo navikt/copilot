@@ -21,8 +21,8 @@ import (
 
 // TestShutdownFlushesQueue runs the built binary against Postgres
 // (COPILOT_SURVEY_TEST_DB_URL, as TestSurveyStore) and checks that SIGTERM
-// writes a queued answer, also while a slow request holds server.Shutdown
-// to its deadline. Token introspection is a fake Texas: no seam in the binary.
+// keeps a written answer and exits in time, also while a slow request
+// holds server.Shutdown to its deadline. Token introspection is a fake Texas: no seam in the binary.
 func TestShutdownFlushesQueue(t *testing.T) {
 	dbURL := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
 	if dbURL == "" {
@@ -96,8 +96,8 @@ func TestShutdownFlushesQueue(t *testing.T) {
 			if resp.StatusCode != http.StatusCreated {
 				t.Fatalf("submit = %d\n%s", resp.StatusCode, stdout.String())
 			}
-			if a, p := count("survey_answers"), count("survey_participation"); a+p != 0 {
-				t.Fatalf("before SIGTERM: %d answers, %d participation; want queued", a, p)
+			if a, p := count("survey_answers"), count("survey_participation"); a != 1 || p != 1 {
+				t.Fatalf("before SIGTERM: %d answers, %d participation; want 1, 1 (written at once)", a, p)
 			}
 
 			if slow {
