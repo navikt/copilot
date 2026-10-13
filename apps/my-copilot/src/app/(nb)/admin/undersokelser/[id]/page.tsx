@@ -7,6 +7,7 @@ import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getSurveyPreview, getSurveyResults, type SurveyQuestion, type VersionResult } from "@/lib/survey";
+import { likert, type Segment } from "./likert";
 
 export const metadata: Metadata = {
   title: "Resultater",
@@ -27,6 +28,90 @@ function labeller(def: SurveyQuestion | undefined, current: number | undefined) 
 }
 
 type Label = (version: number, value: string) => string;
+
+// Diverging scale: red for disagree, gray neutral, green for agree; [fill, ink].
+const FILLS = [
+  ["var(--ax-bg-danger-strong)", "var(--ax-text-danger-contrast)"],
+  ["var(--ax-bg-danger-moderate-pressed)", "var(--ax-text-neutral)"],
+  ["var(--ax-bg-neutral-moderate-pressed)", "var(--ax-text-neutral)"],
+  ["var(--ax-bg-success-moderate-pressed)", "var(--ax-text-neutral)"],
+  ["var(--ax-bg-success-strong)", "var(--ax-text-success-contrast)"],
+];
+const pct = (share: number) => `${Math.round(share * 100)} %`;
+// Below this share of a column, a segment's number goes in the tooltip and the table only.
+const LABEL_MIN = 0.15;
+
+/**
+ * One statement's bar: negatives left of the zero line, neutral split across it,
+ * positives right. Hidden cells get one hatched segment in their own column after
+ * the scale. Decorative: the numbers are in the table under «Vis tall».
+ */
+function LikertBar({ v, min, max, labels }: { v: VersionResult; min: number; max: number; labels: string[] }) {
+  const { segments, hidden, mean } = likert(v, min, max);
+  const mid = (min + max) / 2;
+  const seg = (s: Segment, width: number, label = true) => {
+    const i = Math.round(((s.value - min) / (max - min || 1)) * (FILLS.length - 1));
+    const text = `${pct(s.share)} (${s.count})`;
+    return (
+      <div
+        key={s.value}
+        data-testid={label ? `segment-${s.value}` : undefined}
+        title={`${labels[s.value - min] ?? s.value}: ${text}`}
+        className="h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center"
+        style={{ width: `${width * 100}%`, background: FILLS[i][0], color: FILLS[i][1] }}
+      >
+        {label && width >= LABEL_MIN ? <span className="hidden sm:inline">{text}</span> : null}
+      </div>
+    );
+  };
+  const shown = segments.filter((s) => s.count);
+  return (
+    <div aria-hidden className="grid grid-cols-3 items-center gap-x-0">
+      <div className="flex justify-end gap-[2px] border-r-2" style={{ borderColor: "var(--ax-border-neutral-strong)" }}>
+        {shown.filter((s) => s.value <= mid).map((s) => seg(s, s.value === mid ? s.share / 2 : s.share))}
+      </div>
+      <div className="flex gap-[2px]">
+        {shown
+          .filter((s) => s.value >= mid)
+          .map((s) => (s.value === mid ? seg(s, s.share / 2, false) : seg(s, s.share)))}
+      </div>
+      <div className="flex items-center gap-2 pl-3 text-xs">
+        {hidden && hidden.count > 0 ? (
+          <>
+            <div
+              data-testid="skjult"
+              title={`skjult: ${pct(hidden.share)} (${hidden.count})`}
+              className="h-7"
+              style={{
+                width: `${hidden.share * 100}%`,
+                background:
+                  "repeating-linear-gradient(45deg, var(--ax-bg-neutral-moderate) 0 4px, var(--ax-bg-neutral-strong) 4px 6px)",
+              }}
+            />
+            <span>skjult</span>
+          </>
+        ) : null}
+        {mean === null ? null : <span>Snitt {mean.toFixed(1).replace(".", ",")}</span>}
+      </div>
+    </div>
+  );
+}
+
+function Legend({ labels }: { labels: string[] }) {
+  return (
+    <div aria-hidden className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      {labels.map((l, i) => (
+        <span key={l} className="flex items-center gap-1">
+          <span
+            className="inline-block h-3 w-3 rounded-sm"
+            style={{ background: FILLS[Math.round((i / (labels.length - 1 || 1)) * (FILLS.length - 1))][0] }}
+          />
+          {l}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 /** One version of a question as a table: count, share of respondents and an inline bar. */
 function VersionTable({ v, caption, label }: { v: VersionResult; caption: string; label: Label }) {
@@ -85,10 +170,30 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
   );
 }
 
-function Versions({ versions, label }: { versions: VersionResult[]; label: Label }) {
-  return versions.map((v) => (
-    <VersionTable key={v.version} v={v} label={label} caption={versions.length > 1 ? `Versjon ${v.version}` : "Alle"} />
-  ));
+type Scale = { version: number; min: number; max: number; labels: string[] };
+
+/** Scale and matrix questions with labels on main get a Likert bar for the version main describes. */
+function scaleOf(def: SurveyQuestion | undefined, version: number | undefined): Scale | undefined {
+  if (!def?.labels || version === undefined || (def.type !== "scale" && def.type !== "matrix")) return undefined;
+  const min = def.min ?? 0;
+  return { version, min, max: def.max ?? min + def.labels.length - 1, labels: def.labels };
+}
+
+function Versions({ versions, label, scale }: { versions: VersionResult[]; label: Label; scale?: Scale }) {
+  return versions.map((v) => {
+    const caption = versions.length > 1 ? `Versjon ${v.version}` : "Alle";
+    const table = <VersionTable key={v.version} v={v} label={label} caption={caption} />;
+    if (!scale || v.version !== scale.version || !v.options || v.n === null) return table;
+    return (
+      <VStack key={v.version} gap="space-4">
+        <LikertBar v={v} min={scale.min} max={scale.max} labels={scale.labels} />
+        <details>
+          <summary className="cursor-pointer text-sm">Vis tall</summary>
+          {table}
+        </details>
+      </VStack>
+    );
+  });
 }
 
 export default async function SurveyResultsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -136,7 +241,16 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
                         <Heading level="2" size="small">
                           {q.text}
                         </Heading>
-                        {q.versions ? <Versions versions={q.versions} label={labeller(qdef, qdef?.version)} /> : null}
+                        {q.versions ? (
+                          <Versions
+                            versions={q.versions}
+                            label={labeller(qdef, qdef?.version)}
+                            scale={scaleOf(qdef, qdef?.version)}
+                          />
+                        ) : null}
+                        {(qdef?.type === "matrix" || qdef?.type === "scale") && qdef.labels ? (
+                          <Legend labels={qdef.labels} />
+                        ) : null}
                         {q.items?.map((item) => (
                           <VStack key={item.id} gap="space-4">
                             <Heading level="3" size="xsmall">
@@ -145,6 +259,7 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
                             <Versions
                               versions={item.versions}
                               label={labeller(qdef, qdef?.items?.find((d) => d.id === item.id)?.version)}
+                              scale={scaleOf(qdef, qdef?.items?.find((d) => d.id === item.id)?.version)}
                             />
                           </VStack>
                         ))}
