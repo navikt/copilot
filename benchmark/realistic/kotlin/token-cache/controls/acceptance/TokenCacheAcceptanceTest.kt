@@ -96,6 +96,20 @@ class TokenCacheAcceptanceTest {
     }
 
     @Test
+    fun kortMarginGjenbrukerTokenLenger() = testApplication {
+        val clock = AcceptanceClock(Instant.parse("2026-03-04T10:00:00Z"))
+        val exchanges = AtomicInteger()
+        val texas = MockEngine {
+            respond("""{"access_token":"obo-${exchanges.incrementAndGet()}","expires_in":3600}""", headers = json)
+        }
+        application { vedtakModule(texas, echo, clock, config = TokenConfig(expiryLeeway = Duration.ofSeconds(10))) }
+
+        client.get("/api/vedtak/1") { bearerAuth("bruker-a") }
+        clock.now = clock.now.plusSeconds(3600 - 20)
+        assertEquals("Bearer obo-1", client.get("/api/vedtak/1") { bearerAuth("bruker-a") }.bodyAsText())
+    }
+
+    @Test
     fun samtidigeForespørslerDelerÉnVeksling() = testApplication {
         val clock = AcceptanceClock(Instant.parse("2026-03-04T10:00:00Z"))
         val exchanges = AtomicInteger()

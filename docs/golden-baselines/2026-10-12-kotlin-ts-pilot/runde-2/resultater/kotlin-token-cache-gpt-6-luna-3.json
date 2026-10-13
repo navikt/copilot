@@ -1,7 +1,7 @@
 {
   "task": "kotlin/token-cache",
-  "fixture_sha256": "7902824263f79b5ff7470174222b40bda577d90971805c2014f4e39adfdaedb3",
-  "evaluated_at": "2026-10-12T23:20:20.157298+00:00",
+  "fixture_sha256": "a3fbb997d6c7870fbb52eb7a5972747124a4719c4a62c69b9f839b378d76e408",
+  "evaluated_at": "2026-10-13T04:24:12.799390+00:00",
   "model": null,
   "effort": null,
   "credits": null,
@@ -14,11 +14,11 @@
       "diagnostic": ""
     },
     "acceptance": {
-      "passed": 5,
-      "total": 5,
+      "passed": 6,
+      "total": 6,
       "diagnostic": ""
     }
   },
   "status": "completed",
-  "evaluation_seconds": 169.429
+  "evaluation_seconds": 150.554
 }

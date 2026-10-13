@@ -138,8 +138,11 @@ over. Filene ligger i [`runde-2/`](runde-2/), med samme oppsett som over.
      i `~/nav-benchmark-attempts/`.
   2. Gradle-klienten snakker med daemonen over localhost, og `--proxy-forced`
      stenger localhost. Vi bruker `--with-proxy --default-allowlist
-     --allow-localhost-any` i stedet. Utgående trafikk går fortsatt bare til
-     tillatte domener, men agenten når nå alle porter på localhost.
+     --allow-localhost-any` i stedet. Det svekker isolasjonen: Uten
+     `--proxy-forced` gjelder domenelista bare trafikk som går gjennom proxyen.
+     Agenten kan likevel koble seg direkte til port 443 og nå alle porter på
+     localhost. Kravet i #1409 om en agentcontainer uten nettverk er derfor
+     fortsatt ikke oppfylt.
   3. `JAVA_HOME` pekte på JDK 27, som Gradle 8.14.5 ikke støtter. Vi sender med
      JDK 21.
 
@@ -166,7 +169,10 @@ T2 med seks. Alle kjøringene ga samme resultat, uten ustabile utfall
 | T2 | GPT-6.1 Sol | 3 av 3 | 2 av 3 | 32,06 / 37,82 / 32,07 | 33,98 | 254–306 s |
 | T2 | GPT-6 Luna | 2 av 3 | 1 av 3 | 2,39 / 2,29 / 1,71 | 2,13 | 142–203 s |
 
-Runde 2 brukte **182,79 credits** av taket på 250. Sammen med runde 1 er
+Runde 2 brukte **182,79 credits** av budsjettet på 250. Budsjettet er ikke et
+hardt tak, fordi `--max-ai-credits` er en myk grense. `batch.sh` setter av 40
+credits per Sol-forsøk og 5 per Luna-forsøk, og starter ikke et forsøk som ikke
+får plass. Sammen med runde 1 er
 det 378,93. Evalueringen tok 122–181 sekunder per forsøk.
 
 Alle bruksradene har innsatsnivået `medium`. 219 av 223 rader har modellen vi

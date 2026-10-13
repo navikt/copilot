@@ -1,7 +1,7 @@
 {
   "task": "typescript/tilgang",
-  "fixture_sha256": "578962204a3fcdcd89a9c7efa42d4749437311d59722e04db6676c556dd8d321",
-  "evaluated_at": "2026-10-12T21:21:58.092050+00:00",
+  "fixture_sha256": "a7b7cb3f3067c3fb67a1ec993c2166ff8e81a66030c5c2d4a8ed0d54868ca8d0",
+  "evaluated_at": "2026-10-13T02:39:36.747506+00:00",
   "model": null,
   "effort": null,
   "credits": null,
@@ -25,5 +25,5 @@
     }
   },
   "status": "completed",
-  "evaluation_seconds": 129.721
+  "evaluation_seconds": 185.948
 }

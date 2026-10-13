@@ -3,6 +3,7 @@ import { after, before, test } from "node:test";
 import { bearer, startIssuer } from "../issuer.mjs";
 import { GET as liste } from "../../workspace/app/api/intern/saker/route.ts";
 import { GET as enkelt } from "../../workspace/app/api/intern/saker/[id]/route.ts";
+import { finnInternSak } from "../../workspace/lib/saker.ts";
 import { POST as notat } from "../../workspace/app/api/intern/saker/[id]/notater/route.ts";
 
 let issuer: Awaited<ReturnType<typeof startIssuer>>;
@@ -41,9 +42,11 @@ test("nye notater krever gyldig token", async () => {
       headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ tekst: "Ringt bruker" }),
     });
+  const notatFør = finnInternSak(102)?.internNotat;
   assert.equal((await notat(post(), sak)).status, 401);
   assert.equal((await notat(post(await issuer.forged()), sak)).status, 401);
   assert.equal((await notat(post(await issuer.expired()), sak)).status, 401);
+  assert.equal(finnInternSak(102)?.internNotat, notatFør, "rejected requests must not change the case");
   const ok = await notat(post(await issuer.valid()), sak);
   assert.equal(ok.status, 201);
   assert.match((await ok.json()).internNotat, /Ringt bruker/);
