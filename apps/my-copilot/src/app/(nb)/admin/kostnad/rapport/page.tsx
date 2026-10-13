@@ -4,13 +4,14 @@ import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow
 import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
-import { loadInnsyn, parseInnsynYear } from "@/lib/innsyn-load";
+import { loadRapport, parseRapportYear } from "@/lib/rapport-load";
 import { monthName } from "@/lib/team-year";
+import { RAPPORT_SECTIONS } from "@/lib/rapport";
 import { DocumentTitle, PrintButton, ReportNote } from "@/app/(nb)/innsikt/team/rapport/report-controls";
 
 export const metadata: Metadata = {
-  title: "Innsynssvar om KI-bruk",
-  description: "Utskriftsvennlig innsynssvar om Navs bruk av GitHub Copilot.",
+  title: "Copilot i Nav: bruk og kostnad",
+  description: "Utskriftsvennlig rapport om Navs bruk og kostnad for GitHub Copilot.",
 };
 
 const headers: Record<string, string> = {
@@ -71,90 +72,75 @@ function DataTable({ rows }: { rows: Record<string, unknown>[] }) {
   );
 }
 
-/** Arrays of rows become tables; nested objects (licence) are walked once. */
-function tables(data: Record<string, unknown> | null): Record<string, unknown>[][] {
-  if (!data) return [];
-  return Object.values(data).flatMap((v) =>
-    Array.isArray(v) && typeof v[0] === "object"
-      ? [v as Record<string, unknown>[]]
-      : v && typeof v === "object" && !Array.isArray(v)
-        ? tables(v as Record<string, unknown>)
-        : []
-  );
-}
-
-export default async function InnsynPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+export default async function RapportPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
   await requireAdmin();
   const token = await getUserToken();
   if (!token) return <ErrorState message="Mangler innloggingstoken" />;
-  const year = parseInnsynYear((await searchParams).year);
+  const year = parseRapportYear((await searchParams).year);
   if (year == null) return <ErrorState message="Ugyldig år." />;
 
-  let answer;
+  let report;
   try {
-    answer = await loadInnsyn(year, token);
+    report = await loadRapport(year, token);
   } catch (error) {
-    console.error("[innsyn] Failed to build innsyn answer:", error);
-    return <ErrorState message="Kunne ikke hente tallene til innsynssvaret." />;
+    console.error("[rapport] Failed to build report:", error);
+    return <ErrorState message="Kunne ikke hente tallene til rapporten." />;
   }
 
   return (
     <main id="hovedinnhold" tabIndex={-1} className="team-report mx-auto max-w-4xl px-4 py-8 print:p-0">
-      <DocumentTitle title={`Innsynssvar KI-bruk Nav ${year} (til og med ${answer.period.to})`} />
+      <DocumentTitle title={`${report.title} (til og med ${report.period.to})`} />
       <VStack gap="space-24">
         <VStack gap="space-8">
           <Heading level="1" size="large">
-            Innsynssvar: Navs bruk av GitHub Copilot i {year}
+            {report.title}
           </Heading>
           <BodyShort>
-            Tallene gjelder {formatDate(answer.period.from)}–{formatDate(answer.period.to)}. Alle beløp er i USD.
+            Tallene gjelder {formatDate(report.period.from)}–{formatDate(report.period.to)}. Alle beløp er i USD.
           </BodyShort>
         </VStack>
         <VStack gap="space-8" className="print-hidden">
           <PrintButton />
-          <Link href={`/api/admin-innsyn?year=${year}`}>Last ned som JSON</Link>
+          <Link href={`/api/admin-rapport?year=${year}`}>Last ned som JSON</Link>
         </VStack>
         <ReportNote
           label="Merknad"
           description="Vises øverst i utskriften. Står det ingenting her, blir feltet utelatt."
         />
-        {answer.questions.map((q) => {
-          const id = q.id;
+        {RAPPORT_SECTIONS.map((id) => {
+          const sec = report.sections[id];
           return (
-            <section key={id} aria-labelledby={`q-${id}`}>
-              <Heading id={`q-${id}`} level="2" size="small" spacing>
-                {id}) {q.question}
-              </Heading>
-              <BodyLong spacing>{q.answer}</BodyLong>
-              {tables(q.data).map((rows, i) => (
-                <div key={i} className="team-report-table overflow-x-auto">
-                  <DataTable rows={rows} />
-                </div>
-              ))}
-              {q.notes.length > 0 && (
-                <ul className="list-disc space-y-1 pl-6">
-                  {q.notes.map((n) => (
-                    <li key={n}>
-                      <BodyShort size="small">{n}</BodyShort>
-                    </li>
+            <section key={id} aria-labelledby={`s-${id}`}>
+              <VStack gap="space-16">
+                <Heading id={`s-${id}`} level="2" size="small">
+                  {sec.title}
+                </Heading>
+                <BodyLong>{sec.summary}</BodyLong>
+                {sec.tables
+                  .filter((t) => t.rows.length > 0)
+                  .map((t) => (
+                    <VStack key={t.id} gap="space-8" className="mt-2 print:break-inside-avoid">
+                      <Heading level="3" size="xsmall">
+                        {t.caption}
+                      </Heading>
+                      <div className={`team-report-table overflow-x-auto ${t.id === "familier" ? "wrap" : ""}`}>
+                        <DataTable rows={t.rows} />
+                      </div>
+                    </VStack>
                   ))}
-                </ul>
-              )}
+                {sec.notes.length > 0 && (
+                  <ul className="list-disc space-y-1 pl-6">
+                    {sec.notes.map((n) => (
+                      <li key={n}>
+                        <BodyShort size="small">{n}</BodyShort>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </VStack>
             </section>
           );
         })}
-        <section aria-labelledby="slik-har-vi-regnet">
-          <Heading id="slik-har-vi-regnet" level="2" size="small" spacing>
-            Slik har vi regnet
-          </Heading>
-          <ul className="list-disc space-y-1 pl-6">
-            {answer.method.map((m) => (
-              <li key={m}>
-                <BodyShort size="small">{m}</BodyShort>
-              </li>
-            ))}
-          </ul>
-        </section>
       </VStack>
     </main>
   );

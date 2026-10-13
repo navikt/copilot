@@ -97,7 +97,7 @@ spec:
       - /innsikt/lokale-modeller
       - /admin
       - /admin/kostnad
-      - /admin/kostnad/innsyn
+      - /admin/kostnad/rapport
       - /admin/undersokelser/**
       # Old paths with a permanent redirect in next.config.ts. Listed so the
       # redirect answers before Wonderwall does; the private targets
@@ -110,6 +110,7 @@ spec:
       - /overview
       - /cost
       - /innsikt/kostnad
+      - /admin/kostnad/innsyn
       # Health (metrics NOT listed — Wonderwall blocks public access, Prometheus scrapes pod directly)
       - /health
       # NOTE: /api/copilot and /api/adoption are NOT listed — Wonderwall enforces auth for APIs
