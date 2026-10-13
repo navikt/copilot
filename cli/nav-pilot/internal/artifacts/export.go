@@ -98,6 +98,11 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 	if err := refuseUnreadablePakke(src); err != nil {
 		return err
 	}
+	resolver, bases, err := composedContent(src.Dir, src.Repo)
+	if err != nil {
+		return err
+	}
+	defer bases.Cleanup()
 
 	outputDir := OpenCodeOutputDir(scope)
 
@@ -117,19 +122,6 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 		}
 	}
 
-	sourceDir := src.Dir
-	// Export reads where the manifest says its content lives, not only the
-	// canonical directories (#728). A pakke with `layout.agents: content/agents`
-	// used to be refused outright, which meant a third party could install a
-	// Tier 1 pakke and then not export it.
-	//
-	// A manifest-less source, and a manifest that declares the canonical names,
-	// resolve exactly as before: NewSourceResolverForLayout falls back to the
-	// canonical names for every field the layout leaves empty.
-	layout, err := contentLayout(sourceDir)
-	if err != nil {
-		return err
-	}
 	// A repo-scope export writes <repo>/.opencode/, which only that repo reads,
 	// so what the team added by hand under .github/ belongs in it — instructions
 	// included, unlike the global materialization in [SyncOpenCodeArtifacts].
@@ -140,25 +132,25 @@ func ExportOpenCode(scope *domain.InstallScope, ref, sourceRepo, cliVersion stri
 	}
 	var totalSkills, totalCommands, totalAgents, totalInstructions int
 
-	n, err := exportSkills(sourceDir, scopeDir, outputDir, layout, dryRun)
+	n, err := exportSkills(resolver, scopeDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting skills: %w", err)
 	}
 	totalSkills = n
 
-	n, err = exportPrompts(sourceDir, scopeDir, outputDir, layout, dryRun)
+	n, err = exportPrompts(resolver, scopeDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting prompts: %w", err)
 	}
 	totalCommands = n
 
-	n, err = exportAgents(sourceDir, scopeDir, outputDir, layout, dryRun)
+	n, err = exportAgents(resolver, scopeDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting agents: %w", err)
 	}
 	totalAgents = n
 
-	n, err = exportInstructions(sourceDir, scopeDir, outputDir, layout, dryRun)
+	n, err = exportInstructions(resolver, scopeDir, outputDir, dryRun)
 	if err != nil {
 		return fmt.Errorf("exporting instructions: %w", err)
 	}
@@ -239,8 +231,8 @@ func ExportSummary(skills, commands, agents, instructions int) string {
 	return strings.Join(parts, ", ")
 }
 
-func exportSkills(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
-	skills := withScopeExtras(source.NewSourceResolverForLayout(sourceDir, layout).List(source.KindSkill), scopeDir, source.KindSkill)
+func exportSkills(resolver *source.SourceResolver, scopeDir, outputDir string, dryRun bool) (int, error) {
+	skills := withScopeExtras(resolver.List(source.KindSkill), scopeDir, source.KindSkill)
 	if len(skills) == 0 {
 		return 0, nil
 	}
@@ -271,8 +263,8 @@ func exportSkills(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layo
 	return count, nil
 }
 
-func exportPrompts(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
-	entries := withScopeExtras(source.NewSourceResolverForLayout(sourceDir, layout).List(source.KindPrompt), scopeDir, source.KindPrompt)
+func exportPrompts(resolver *source.SourceResolver, scopeDir, outputDir string, dryRun bool) (int, error) {
+	entries := withScopeExtras(resolver.List(source.KindPrompt), scopeDir, source.KindPrompt)
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -329,8 +321,8 @@ func transformPrompt(data []byte) []byte {
 // in one of them is a gate in neither. Turning local off takes an already
 // materialized copy back out: the sync deletes what its state file names and
 // the new listing does not.
-func agentEntries(sourceDir string, layout *agentpakke.Layout) []source.Resolved {
-	entries := source.NewSourceResolverForLayout(sourceDir, layout).List(source.KindAgent)
+func agentEntries(resolver *source.SourceResolver) []source.Resolved {
+	entries := resolver.List(source.KindAgent)
 	if local.WorkerOffered() {
 		return entries
 	}
@@ -364,13 +356,13 @@ func readEntry(e source.Resolved) ([]byte, error) {
 	return os.ReadFile(e.AbsPath)
 }
 
-func exportAgents(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
-	agents := withScopeExtras(agentEntries(sourceDir, layout), scopeDir, source.KindAgent)
+func exportAgents(resolver *source.SourceResolver, scopeDir, outputDir string, dryRun bool) (int, error) {
+	agents := withScopeExtras(agentEntries(resolver), scopeDir, source.KindAgent)
 	// The roster comes from the manifest being exported, not from the active
 	// pakke: export runs without a launch, so the global still holds the
 	// built-in default and every foreign persona was demoted to a subagent
 	// (#793). The manifest is the only thing that knows this pakke's primaries.
-	primaries, err := openCodePrimaries(sourceDir)
+	primaries, err := openCodePrimaries(resolver.SourceDir())
 	if err != nil {
 		return 0, err
 	}
@@ -474,26 +466,19 @@ type InstructionRef struct {
 	Body        []byte
 }
 
-// collectInstructionData gathers the instruction content for AGENTS.md. dirs is
-// the source checkout first, then any further directory whose instructions
-// belong in the same file — the installed scope, for an export that writes
-// project-local files. An empty entry is skipped, and a name the source already
-// has is not read twice, so passing only the source is what it always was.
-// The layout applies to dirs[0], the agentpakke source. Later dirs are installed
-// scopes, whose own layout is always canonical, so they keep the canonical
-// resolver. Without this a pakke declaring layout.instructions exported its
-// agents and skills from the declared paths and its instructions from nowhere
-// (#790).
-func collectInstructionData(layout *agentpakke.Layout, dirs ...string) ([]InstructionSection, []InstructionRef, error) {
-	var instrEntries []source.Resolved
+// collectInstructionData reads composed package instructions. The nearest
+// copilot-instructions.md wins, just like a named instruction. Additional
+// canonical scopes belong only in project-local exports, not global context.
+func collectInstructionData(resolver *source.SourceResolver, scopeDirs ...string) ([]InstructionSection, []InstructionRef, error) {
+	instrEntries := resolver.List(source.KindInstruction)
 	var globalSections []InstructionSection
+	root, _ := resolver.SourceRootFor("copilot-instructions.md")
+	dirs := append([]string{root}, scopeDirs...)
 	for i, dir := range dirs {
 		if dir == "" {
 			continue
 		}
-		if i == 0 {
-			instrEntries = source.NewSourceResolverForLayout(dir, layout).List(source.KindInstruction)
-		} else {
+		if i > 0 {
 			instrEntries = withScopeExtras(instrEntries, dir, source.KindInstruction)
 		}
 		data, err := os.ReadFile(filepath.Join(dir, "copilot-instructions.md"))
@@ -548,8 +533,8 @@ func collectInstructionData(layout *agentpakke.Layout, dirs ...string) ([]Instru
 	return globalSections, scopedRefs, nil
 }
 
-func exportInstructions(sourceDir, scopeDir, outputDir string, layout *agentpakke.Layout, dryRun bool) (int, error) {
-	globalSections, scopedRefs, err := collectInstructionData(layout, sourceDir, scopeDir)
+func exportInstructions(resolver *source.SourceResolver, scopeDir, outputDir string, dryRun bool) (int, error) {
+	globalSections, scopedRefs, err := collectInstructionData(resolver, scopeDir)
 	if err != nil {
 		return 0, err
 	}
@@ -649,14 +634,14 @@ func buildLeanAGENTSmd(globalSections []InstructionSection, refs []InstructionRe
 // it just ensures the files exist and are current. Idempotent: os.WriteFile overwrites
 // files with the same content on repeated calls, so running on every launch is safe.
 // Returns the count of each artifact type written.
-func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents, instructions int, err error) {
-	// Same layout the export path reads (#790): a pakke that declares where its
-	// content lives is materialized from there, not from the canonical names.
-	layout, err := contentLayout(sourceDir)
+// sourceRepo preserves the resolved checkout's identity for self-declarations;
+// local callers pass their source path, remote callers pass owner/repo.
+func MaterializeOpenCode(sourceDir, outputDir, sourceRepo string) (skills, commands, agents, instructions int, err error) {
+	resolver, bases, err := composedContent(sourceDir, sourceRepo)
 	if err != nil {
 		return skills, commands, agents, instructions, err
 	}
-	resolver := source.NewSourceResolverForLayout(sourceDir, layout)
+	defer bases.Cleanup()
 	primaries, err := openCodePrimaries(sourceDir)
 	if err != nil {
 		return skills, commands, agents, instructions, err
@@ -709,7 +694,7 @@ func MaterializeOpenCode(sourceDir, outputDir string) (skills, commands, agents,
 		agents++
 	}
 
-	globalSections, scopedRefs, collErr := collectInstructionData(layout, sourceDir)
+	globalSections, scopedRefs, collErr := collectInstructionData(resolver)
 	if collErr != nil {
 		return skills, commands, agents, instructions, collErr
 	}
