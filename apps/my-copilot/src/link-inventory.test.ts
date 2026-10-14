@@ -75,7 +75,7 @@ const routes: Route[] = fs
   .globSync("**/{page.tsx,route.ts}", { cwd: APP_DIR })
   .map((f) => path.join(APP_DIR, f))
   .map((file) => ({ pattern: routePattern(file), file }))
-  .filter((r) => !r.pattern.startsWith("/api") && r.pattern !== "/health");
+  .filter((r) => !r.pattern.startsWith("/api") && !["/health", "/metrics"].includes(r.pattern));
 
 function matchRoute(pathname: string): Route | undefined {
   const parts = pathname.split("/").filter(Boolean);
