@@ -44,6 +44,8 @@ describe("isPrivatePath", () => {
     ["/api/adoption", true],
     ["/api/adoption/debug", true],
     ["/api/survey/s/responses", true],
+    ["/api/contributors", true],
+    ["/api/usage", true],
   ])("%s → private (%s)", (path, expected) => {
     expect(isPrivatePath(path)).toBe(expected);
   });
@@ -61,8 +63,6 @@ describe("isPrivatePath", () => {
     ["/nav-pilot/docs", false],
     ["/install", false],
     ["/install/agent", false],
-    ["/api/contributors", true],
-    ["/api/usage", true],
   ])("%s → public (%s)", (path, expected) => {
     expect(isPrivatePath(path)).toBe(expected);
   });

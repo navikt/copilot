@@ -29,7 +29,6 @@ export const PRIVATE_ROUTES = [
   "/kostnad",
   "/statistikk",
   "/statistikk/json",
-  "/api/usage",
   "/innsikt/team",
   "/innsikt/team/rapport",
   "/innsikt/forbruk",

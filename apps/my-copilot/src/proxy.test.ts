@@ -7,7 +7,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { PRIVATE_ROUTES } from "../scripts/auto-login-ignore-paths.mjs";
 import { config, isPrivatePath, PUBLIC_API_PATHS, proxy } from "./proxy";
 
-const API_ROUTES = new Set(["/statistikk/json", "/api/usage"]);
+const API_ROUTES = new Set(["/statistikk/json"]);
 
 const request = (path: string) => new NextRequest(`https://ki-utvikling.nav.no${path}`);
 
@@ -60,5 +60,18 @@ describe("every route under src/app/api", () => {
     expect(isPrivatePath(path)).toBe(true);
     expect(matched).toBe(true);
     expect((await proxy(request(path))).status).toBe(401);
+  });
+});
+
+describe("PUBLIC_API_PATHS", () => {
+  it("lets an allowlisted API path through without a token", async () => {
+    PUBLIC_API_PATHS.push("/api/usage");
+    try {
+      expect(isPrivatePath("/api/usage")).toBe(false);
+      expect((await proxy(request("/api/usage"))).headers.get("x-middleware-next")).toBe("1");
+      expect((await proxy(request("/api/credits"))).status).toBe(401);
+    } finally {
+      PUBLIC_API_PATHS.pop();
+    }
   });
 });
