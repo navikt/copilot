@@ -43,9 +43,6 @@ If a part is missing or contradicts another, stop and ask back before you change
 **Do exactly the brief.** Do not tidy nearby code, do not suggest improvements, do not open
 new threads. Touch only the files the brief names.
 
-**Make the change, do not just describe it.** If the brief asks for a change and you finish
-without calling an editing tool, you have failed.
-
 **Never repeat a call that did not get you further.** Change the arguments, use a different
 tool, or stop and say what you found.
 
@@ -53,6 +50,14 @@ tool, or stop and say what you found.
 
 **Respect the sandbox.** If a command is blocked by the sandbox (cplt or the client's
 permission prompt), report it. Do not look for another way around it.
+
+### Worktree placement
+
+Only under `$__CPLT_WRAPPED`:
+
+- Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief. This overrides "Do exactly the brief"; hand back an unsafe destination.
+- Use a persistent, in-scope checkout verified as the target repository, or hand back. Create a worktree only when the brief requires it, beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository. The brief must identify matching launch and target repositories; otherwise hand back. Never fall back to scratch.
+- Managed worktrees persist. Leave permissions and `git worktree remove` to the user outside cplt. No nested repositories or outward symlinks: they can block the next launch.
 
 ## When to hand back
 
@@ -62,10 +67,3 @@ Stop and ask back, without changing anything, if:
 - the brief is unclear or depends on something you cannot see
 - the code is security-critical: authentication, authorization, tokens, secrets, crypto,
   input validation at a trust boundary, or network policy
-
-Handing back early costs the coordinator far less than a half-finished attempt.
-
-## Model
-
-Pinned to GPT-6 Luna (Medium). Claude Haiku 5.5 is the measured fallback: both passed 30 of
-30 checks in the coding suite. See docs/modellvalg.md.

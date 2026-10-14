@@ -18,17 +18,24 @@ RE_BS1/RE_BS2 verdict, which held-out questions showed to be unreliable
 Answer controls (a TSV with an `answer` column instead of `question`) are
 whole planning answers, with \n for line breaks, judged as they stand.
 
-Each answer gets up to three votes from Claude Haiku 5.5 through the Copilot
-CLI, with no tools and the lowest effort the model takes. The third vote is
+Each answer gets up to three votes from Claude Haiku 5.5 through the selected
+CLI, with no tools. The third vote is
 skipped when the first two agree, which is the same majority. A vote that says
 true must quote the question verbatim, and the quote must be a question: it
 ends with «?», is followed by «?» in the answer, or is an indirect question
 («trenger å vite», «må avklare»). Any other quote makes that vote false.
 The answer is data: the rubric says to ignore instructions in it, and a
 literal <answer> or </answer> in it is escaped so it cannot close the block. Exit 2 is a judge error (fewer than two usable votes).
+Transient CLI failures and malformed votes share a five-attempt budget.
+Invalid client/effort configuration and process-start failures stop immediately.
 
 BS_JUDGE_CMD replaces the model: a command that reads the prompt on stdin and
 prints the judge's JSON. The bats tests use it so CI makes no model calls.
+BS_JUDGE_CLIENT selects copilot (default) or opencode. OpenCode uses its existing
+auth store but isolated configuration; BS_JUDGE_EFFORT may be empty or low.
+Real XDG data, cache and state remain writable, including session history.
+This is configuration isolation, not full filesystem isolation.
+OpenCode credits are unavailable: numeric credits stay 0 with usage_unavailable.
 """
 
 import csv
@@ -41,9 +48,11 @@ import subprocess
 import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 
+CLIENT = os.environ.get("BS_JUDGE_CLIENT", "copilot")
 MODEL = os.environ.get("BS_JUDGE_MODEL", "claude-haiku-5.5")
-EFFORT = os.environ.get("BS_JUDGE_EFFORT", "low")  # «minimal» is refused for Haiku 5.5
+EFFORT = os.environ.get("BS_JUDGE_EFFORT", "" if CLIENT == "opencode" else "low")
 # The judge cannot be made deterministic: the Copilot CLI has no temperature or
 # seed flag (1.0.95), so Haiku samples each vote. Each control row is already a
 # majority of 3 votes. Five control runs agreed on 71, 72, 72, 73 and 74 of 75
@@ -113,6 +122,86 @@ def norm(s):
 CLI_FLAGS = ["--model", MODEL, "--reasoning-effort", EFFORT, "--no-custom-instructions",
              "--available-tools=nonexistent_tool", "--disable-builtin-mcps", "--no-auto-update",
              "--output-format", "json"]
+OPENCODE_CONFIG = json.dumps({"$schema": "https://opencode.ai/config.json",
+                               "permission": {"*": "deny"}, "tools": {"*": False}, "instructions": [],
+                              "plugin": [], "mcp": {}, "autoupdate": False,
+                              "share": "disabled"})
+
+
+class ModelError(Exception):
+    def __init__(self, message, credits=0.0, permanent=False):
+        super().__init__(message)
+        self.credits = credits
+        self.permanent = permanent
+
+
+def client_flags():
+    if CLIENT == "copilot":
+        return CLI_FLAGS
+    if CLIENT != "opencode":
+        raise ModelError("BS_JUDGE_CLIENT must be copilot or opencode", permanent=True)
+    if EFFORT not in ("", "low"):
+        raise ModelError("OpenCode BS_JUDGE_EFFORT must be empty or low", permanent=True)
+    model = MODEL if "/" in MODEL else "github-copilot/" + MODEL
+    return ["run", "--pure", "--format", "json", "--model", model] + (
+        ["--variant", EFFORT] if EFFORT else [])
+
+
+@contextmanager
+def isolated_cli():
+    with tempfile.TemporaryDirectory() as home:
+        env = dict(os.environ, COPILOT_HOME=home)
+        if CLIENT == "opencode":
+            original_home = os.path.expanduser("~")
+            for name, suffix in (("DATA", ".local/share"), ("CACHE", ".cache"),
+                                 ("STATE", ".local/state")):
+                key = "XDG_" + name + "_HOME"
+                env[key] = env.get(key) or os.path.join(original_home, suffix)
+            for key in ("OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG_CONTENT"):
+                env.pop(key, None)
+            env.update(HOME=home, XDG_CONFIG_HOME=home, OPENCODE_DISABLE_CLAUDE_CODE="1",
+                       OPENCODE_CONFIG_CONTENT=OPENCODE_CONFIG, NO_COLOR="1")
+        yield home, env
+
+
+def events(output):
+    text, nano, error = "", 0, False
+    if isinstance(output, bytes):
+        output = output.decode("utf-8", errors="replace")
+    for line in (output or "").splitlines():
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(ev, dict):
+            continue
+        data = ev.get("data") or {}
+        part = ev.get("part") or {}
+        if ev.get("type") in ("error", "session.error"):
+            error = True
+        elif CLIENT == "opencode" and ev.get("type") == "text" and isinstance(part, dict):
+            text += part.get("text") or ""
+        elif CLIENT == "copilot" and ev.get("type") == "assistant.message" and isinstance(data, dict):
+            text = data.get("content") or text
+        elif CLIENT == "copilot" and ev.get("type") == "session.usage_checkpoint" and isinstance(data, dict):
+            value = data.get("totalNanoAiu")
+            if isinstance(value, (int, float)):
+                nano = value
+    return text, nano / 1e9, error
+
+
+def run_checked(command, **kwargs):
+    # CLI output can contain credentials or answer data; report categories only.
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, **kwargs)
+    except subprocess.TimeoutExpired as exc:
+        raise ModelError("judge CLI timed out", events(exc.stdout)[1]) from None
+    except OSError:
+        raise ModelError("judge CLI could not start", permanent=True) from None
+    if result.returncode:
+        raise ModelError(f"judge CLI exited with status {result.returncode} (output withheld)",
+                         events(result.stdout)[1])
+    return result
 
 # Indirect questions count as questions; any other quote must end with «?».
 INDIRECT = re.compile(r"trenger å vite|må (få )?avklare|ønsker å vite|vil (gjerne )?vite|lurer på|"
@@ -136,30 +225,25 @@ def call_model(prompt):
     """Return (text, credits) for one vote."""
     cmd = os.environ.get("BS_JUDGE_CMD")
     if cmd:
-        r = subprocess.run(cmd, shell=True, input=prompt, capture_output=True, text=True, timeout=120)
+        r = run_checked(cmd, shell=True, input=prompt, timeout=120)
         return r.stdout, 0.0
-    # An empty COPILOT_HOME and cwd: no personal skills, instructions or MCP
-    # servers in the prompt, and nothing the judge could read.
-    with tempfile.TemporaryDirectory() as home:
-        env = dict(os.environ, COPILOT_HOME=home)
-        if "GH_TOKEN" not in env and "COPILOT_GITHUB_TOKEN" not in env:
-            tok = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True).stdout.strip()
+    # Empty config and cwd keep personal instructions out of the judge prompt.
+    flags = client_flags()
+    with isolated_cli() as (home, env):
+        if CLIENT == "copilot" and "GH_TOKEN" not in env and "COPILOT_GITHUB_TOKEN" not in env:
+            try:
+                tok = subprocess.run(["gh", "auth", "token"], capture_output=True,
+                                     text=True, timeout=20).stdout.strip()
+            except (OSError, subprocess.TimeoutExpired):
+                raise ModelError("Copilot token lookup could not complete") from None
             if tok:
                 env["GH_TOKEN"] = tok
-        r = subprocess.run(
-            ["copilot", *CLI_FLAGS, "-p", prompt],
-            cwd=home, env=env, capture_output=True, text=True, timeout=180)
-    text, nano = "", 0
-    for line in r.stdout.splitlines():
-        try:
-            ev = json.loads(line)
-        except ValueError:
-            continue
-        if ev.get("type") == "assistant.message":
-            text = ev["data"].get("content") or text
-        elif ev.get("type") == "session.usage_checkpoint":
-            nano = ev["data"].get("totalNanoAiu", nano)
-    return text, nano / 1e9
+        r = run_checked([CLIENT, *flags, *(["-p", prompt] if CLIENT == "copilot" else [prompt])],
+                        cwd=home, env=env, timeout=180)
+    text, credits, error = events(r.stdout)
+    if error:
+        raise ModelError("judge CLI emitted an error event (output withheld)", credits)
+    return text, credits
 
 
 def parse_vote(text, answer):
@@ -187,9 +271,17 @@ def parse_vote(text, answer):
 def judge(answer):
     prompt = RUBRIC % escape_answer(answer)
     votes, credits, tries = [], 0.0, 0
+    metadata = {"usage_unavailable": True} if CLIENT == "opencode" and not os.environ.get("BS_JUDGE_CMD") else {}
     while len(votes) < 3 and tries < 5:
         tries += 1
-        text, c = call_model(prompt)
+        try:
+            text, c = call_model(prompt)
+        except ModelError as exc:
+            credits += exc.credits
+            if exc.permanent or tries == 5:
+                return {"error": str(exc), "transport_error": True,
+                        "credits": round(credits, 3), **metadata}
+            continue
         credits += c
         v = parse_vote(text, answer)
         if v is None:
@@ -198,10 +290,10 @@ def judge(answer):
         if len(votes) == 2 and all(votes[0][k] == votes[1][k] for k in ("bs1", "bs2")):
             break
     if len(votes) < 2:
-        return {"error": "fewer than two usable votes", "credits": round(credits, 3)}
+        return {"error": "fewer than two usable votes", "credits": round(credits, 3), **metadata}
     if len(votes) == 2 and any(votes[0][k] != votes[1][k] for k in ("bs1", "bs2")):
-        return {"error": "two usable votes that disagree, no majority", "credits": round(credits, 3)}
-    res = {"votes": len(votes), "credits": round(credits, 3)}
+        return {"error": "two usable votes that disagree, no majority", "credits": round(credits, 3), **metadata}
+    res = {"votes": len(votes), "credits": round(credits, 3), **metadata}
     for k in ("bs1", "bs2"):
         yes = [v for v in votes if v[k]]
         res[k] = len(yes) * 2 > len(votes)
@@ -239,7 +331,9 @@ CACHE_DAYS = 7
 def cli_version():
     if os.environ.get("BS_JUDGE_CMD"):
         return "stub"
-    r = subprocess.run(["copilot", "--version"], capture_output=True, text=True)
+    client_flags()
+    with isolated_cli() as (home, env):
+        r = run_checked([CLIENT, "--version"], cwd=home, env=env, timeout=20)
     return r.stdout.splitlines()[0] if r.stdout else "unknown"
 
 
@@ -247,7 +341,10 @@ def controls_hash(data):
     judge_id = "stub:" + os.environ["BS_JUDGE_CMD"] if os.environ.get("BS_JUDGE_CMD") else MODEL
     with open(os.path.abspath(__file__), "rb") as f:
         script = f.read()
-    h = hashlib.sha256("\0".join([judge_id, EFFORT, RUBRIC, wrap(""), " ".join(CLI_FLAGS), cli_version()]).encode())
+    flags = CLI_FLAGS if os.environ.get("BS_JUDGE_CMD") else client_flags()
+    h = hashlib.sha256("\0".join([CLIENT, judge_id, EFFORT, RUBRIC, wrap(""),
+                                " ".join(flags), OPENCODE_CONFIG if CLIENT == "opencode" else "",
+                                cli_version()]).encode())
     h.update(script)
     h.update(data)
     return h.hexdigest()[:16]
@@ -273,16 +370,26 @@ def cached(key):
 def controls(path):
     with open(path, "rb") as f:
         data = f.read()
-    key = controls_hash(data)
+    try:
+        key = controls_hash(data)
+    except ModelError as exc:
+        print(f"controls: {exc}", file=sys.stderr)
+        return 2
+    usage = " usage_unavailable=true" if CLIENT == "opencode" and not os.environ.get("BS_JUDGE_CMD") else ""
+    if usage:
+        print("OpenCode judge: usage_unavailable; credits are not measured", file=sys.stderr)
     hit = RECORD and cached(key)
     if hit:
         f = hit.split("|")
-        print(f"controls cached hash={key} date={f[1]} n={f[4]} agree={f[5]} accuracy={f[6]}")
+        print(f"controls cached hash={key} date={f[1]} n={f[4]} agree={f[5]} accuracy={f[6]}{usage}")
         return 0
     rows = list(csv.DictReader(data.decode("utf-8").splitlines(), delimiter="\t"))
     jobs = int(os.environ.get("BS_JUDGE_JOBS", "4"))
-    with ThreadPoolExecutor(jobs) as ex:
-        results = list(ex.map(lambda r: judge(control_answer(r)), rows))
+    results = [judge(control_answer(rows[0]))] if rows else []
+    transport_error = bool(results and results[0].get("transport_error"))
+    if rows and not transport_error:
+        with ThreadPoolExecutor(jobs) as ex:
+            results.extend(ex.map(lambda r: judge(control_answer(r)), rows[1:]))
     agree, credits, errors, bad = 0, 0.0, 0, []
     for i, (r, res) in enumerate(zip(rows, results), start=2):  # line 1 is the header
         credits += res["credits"]
@@ -299,16 +406,17 @@ def controls(path):
             print(f"row {i}: want bs1={int(want[0])} bs2={int(want[1])}, judge bs1={int(got[0])} "
                   f"bs2={int(got[1])} ({r['source']}): {label(r)}", file=sys.stderr)
     acc = agree / len(rows) if rows else 0.0
-    status = "fail" if errors * 10 > len(rows) or acc < MIN_ACCURACY else (
+    status = "fail" if transport_error or errors * 10 > len(rows) or acc < MIN_ACCURACY else (
         "band" if acc < TARGET_ACCURACY else "pass")
     print(f"controls n={len(rows)} agree={agree} errors={errors} accuracy={acc:.3f} credits={credits:.2f} "
-          f"status={status}")
+          f"status={status}{usage}")
     if RECORD:
         with open(RECORD, "a", encoding="utf-8") as f:
             f.write(f"{key}|{datetime.date.today()}|{MODEL if not os.environ.get('BS_JUDGE_CMD') else 'stub'}|"
                     f"{EFFORT}|{len(rows)}|{agree}|{acc:.3f}|{credits:.2f}|{status}"
-                    f"{'|rows=' + ','.join(bad) if bad else ''}\n")
-    if errors * 10 > len(rows):
+                    f"{'|rows=' + ','.join(bad) if bad else ''}"
+                    f"{'|client=opencode|usage_unavailable=true' if usage else ''}\n")
+    if transport_error or errors * 10 > len(rows):
         return 2
     return 1 if status == "fail" else 0
 

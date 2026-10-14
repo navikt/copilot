@@ -1,0 +1,5 @@
+Bruk **TokenX** for kall fra tjeneste A til tjeneste B med brukerkontekst. A veksler brukerens token til et token med B som audience. Aktiver `tokenx.enabled: true` og tillat A i Bs `accessPolicy.inbound`.
+
+Azure AD `client_credentials` passer ikke her: det representerer tjenesten, ikke brukeren, og mister brukerens revisjonsspor.
+
+Still gjerne spørsmål om valgene over

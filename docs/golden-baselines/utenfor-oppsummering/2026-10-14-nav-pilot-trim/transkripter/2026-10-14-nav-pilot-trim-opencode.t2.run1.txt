@@ -1,0 +1,27 @@
+Dette er en full oppgave, siden tjenesten er ny og skal lese fødselsnummer fra ID-porten. Jeg starter med fase 1 og sjekker repoet før jeg stiller spørsmål. `@research-agent` er ikke installert, så jeg gjør sjekken selv.
+## Fase 1: Avklar formål og tilgang
+
+**Omfang: full**, fordi dette er en ny tjeneste med autentisering og behandling av fødselsnummer. Ingen kode endres før intervju, plan og gjennomgang er avklart.
+
+Jeg har lest `build.gradle.kts`, `nais.yaml` og Kotlin-koden. Repoet inneholder en Ktor-demo med `/api/oppgaver`, uten autentisering eller ID-porten-konfigurasjon. Jeg fant ingen tester. Jeg antar at den nye tjenesten skal behandle fødselsnummeret til den innloggede personen, men bruken er ikke avklart.
+
+Disse repo-lokale filene mangler: `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Du kan bruke `nav-pilot init` for å opprette dem.
+
+Grovt tokenbudsjett per fase: intervju 1 500, plan 2 500, gjennomgang 1 500, levering 4 000. Vi stopper mellom fasene.
+
+### Spørsmål før planen
+
+1. **Formål og personvern (#1):** Hva skal tjenesten gjøre med fødselsnummeret? Skal det bare brukes i forespørselen, lagres eller sendes videre? Skal tjenesten behandle andre personopplysninger?
+2. **Tilgang (#2):** Kommer brukeren direkte fra nettleseren, via en eksisterende frontend med Wonderwall, eller gjennom en annen Nav-tjeneste? Skal tjenesten bare gi tilgang til innlogget persons egne data?
+3. **Feilhåndtering (#3):** Hva skal brukeren oppleve når innlogging eller en tjeneste dere kaller, er utilgjengelig?
+4. **Observerbarhet (#4):** Hvilken fullført brukerhandling viser at tjenesten fungerer? Fødselsnummer og tokens skal ikke inngå i logger, metrikker eller traces.
+5. **Ansvar (#5):** Hvilket team eier tjenesten, og hvilke andre team eller systemer er dere avhengige av?
+6. **Konsumenter (#6):** Hvem skal bruke API-et eller motta data fra tjenesten?
+7. **Testing (#7):** Finnes det tester eller et testoppsett utenfor dette repoet som vi skal bruke?
+8. **Læring (#11):** Er Ktor og ID-porten kjent teknologi for deg? Ønsker du veiledet implementering eller delegering av de grønne delene? Autentisering er rød sone, med testskjeletter og stubs som standard.
+
+Jeg legger foreløpig til grunn at dette er en separat, ny tjeneste. Derfor utelater jeg modernisering (#8), bakoverkompatibilitet (#9) og avvikling (#10). Hvis den skal erstatte demoen eller en eksisterende tjeneste, må vi avklare disse også.
+
+Svar på spørsmålene og bekreft når jeg skal gå videre til fase 2.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 utelatt fordi tjenesten foreløpig antas å være ny og separat).

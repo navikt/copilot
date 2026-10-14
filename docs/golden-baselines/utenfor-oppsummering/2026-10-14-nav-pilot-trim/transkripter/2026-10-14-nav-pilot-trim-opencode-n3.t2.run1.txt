@@ -1,0 +1,22 @@
+Dette er en full oppgave. Jeg starter i fase 1 med å sjekke repoet og avklare dataflyt og tilgang før vi lager en plan. `research-agent` er ikke installert, så jeg gjør reposjekken selv.
+## Fase 1: Avklaringer før plan
+
+**Full oppgave:** ny tjeneste med autentisering og behandling av fødselsnummer. Ingen kode er endret.
+
+Repoet har en Ktor-demo, men ingen synlig autentisering eller `accessPolicy` i `nais.yaml`. Jeg antar at fødselsnummeret skal identifisere den innloggede personen, ikke være et felt brukeren sender inn selv.
+
+1. **Formål og personvern (#1):** Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og skal tjenesten behandle andre personopplysninger?
+2. **Tilgang (#2):** Kommer kallene fra innbyggerens nettleser, en frontend/BFF eller en annen Nav-tjeneste? Skal brukeren kun få tilgang til egne data? Har dere en eksisterende ID-porten-/Wonderwall-integrasjon?
+3. **Feilhåndtering (#3):** Hva skal brukeren oppleve når innlogging eller en nedstrømstjeneste er utilgjengelig?
+4. **Observerbarhet (#4):** Hvilken vellykket brukerhandling skal vi måle? Fødselsnummer og tokens skal ikke inngå i logger, traces eller metrikketiketter.
+5. **Ansvar og konsumenter (#5, #6):** Hvilket team eier tjenesten, hvilke systemer skal den kalle, og hvem skal bruke API-et?
+6. **Tester (#7):** Er dette repoet utgangspunktet, og finnes det tester eller et ID-porten-testoppsett utenfor repoet?
+7. **Nye konsepter (#11):** Kjenner dere Ktor og ID-porten-integrasjon fra før, eller ønsker dere en gjennomgang før implementering?
+
+Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`.
+
+Foreløpig fasebudsjett: intervju 1 500, plan 3 000, review 2 000 og levering 4 000 tokens. #8–#10 er foreløpig ikke relevante fordi du beskriver en ny tjeneste, ikke en erstatning eller formatendring.
+
+Svar på spørsmålene, så går vi videre til fase 2.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante under antakelsen om ny tjeneste).

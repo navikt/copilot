@@ -1,0 +1,24 @@
+Dette er full løype, fase 1: intervju, fordi tjenesten er ny og bruker fødselsnummer og ID-porten. `@research-agent` er ikke installert, så jeg sjekker repoet selv før jeg stiller spørsmål. Omtrentlig tokenbudsjett: intervju 1 000, plan 2 000, review 1 000, leveranse 3 000.
+## Fase 1: Intervju
+
+Jeg har lest `nais.yaml`, `build.gradle.kts` og API-koden. Repoet er en Ktor-demo uten konfigurert ID-porten eller `accessPolicy`. Jeg antar at dette er et utgangspunkt for den nye tjenesten, ikke en eksisterende produksjonstjeneste.
+
+Fødselsnummer er personopplysninger. Det skal ikke havne i logger, traces eller metrikketiketter.
+
+Før vi lager planen:
+
+1. **Formål og personvern (#1):** Hva skal tjenesten gjøre med fødselsnummeret? Skal det kun brukes under forespørselen, lagres eller sendes videre? Skal tjenesten også håndtere navn, helse- eller ytelsesopplysninger?
+2. **Tilgang (#2):** Kaller innbyggeren tjenesten fra nettleseren, eller kommer forespørselen via en annen Nav-tjeneste? Skal innbyggeren kun få tilgang til egne data?
+3. **Feilhåndtering (#3):** Hvilke avhengigheter trenger tjenesten, og hva skal brukeren oppleve når innlogging eller en avhengighet feiler?
+4. **Observerbarhet (#4):** Hvilken vellykket brukerhandling skal vi kunne måle uten personopplysninger?
+5. **Ansvar og konsumenter (#5, #6):** Hvilket team eier tjenesten? Hvem eier eventuell frontend og tjenester som mottar data?
+6. **Testing (#7):** Jeg fant ingen tester under `src`. Finnes det tester eller akseptansekrav andre steder?
+7. **Læring (#11):** Er Ktor og ID-porten kjent for teamet, eller ønsker dere en gjennomgang av konseptene først?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Vurder `nav-pilot init` for repo-lokale instrukser.
+
+Jeg utelater #8–#10 foreløpig fordi du beskriver en ny tjeneste uten eksisterende konsumenter eller løsning som skal erstattes. Si fra hvis den erstatter noe; da må vi avklare rollback, kompatibilitet og avvikling.
+
+Svar på spørsmålene og bekreft at vi skal gå videre til fase 2. Jeg gjør ingen kode- eller auth-endringer nå.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 utelatt under antakelsen om en ny tjeneste).

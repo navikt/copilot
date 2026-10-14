@@ -1,0 +1,124 @@
+## Fase 2: Plan
+
+Vi beholder Ktor som backend og bruker den eksisterende Next.js-frontenden som BFF. Wonderwall håndterer innlogging med ID-porten, mens TokenX viderefører brukerkonteksten til backend og PDL. Dette holder tokens ute av nettleserkoden og gir backend én autentiseringsmekanisme; direkte nettleserkall til Ktor velges bort.
+
+Planen bygger på disse antakelsene:
+- Fødselsnummer og navn behandles kun under forespørselen. Ingen database eller applikasjonscache for personopplysninger.
+- Frontenden trenger navn, men ikke fødselsnummer i responsen.
+- Vi henter gjeldende navn, ikke historikk.
+- PDLs konkrete tilgangskrav, behandlingsnummer og regler for valg av navn må verifiseres før implementering. Lovhjemmelen dokumenteres med konkret henvisning.
+
+### 1. Dataflyt og autentisering
+
+```text
+Nettleser
+  → Wonderwall / Next.js: innlogging med ID-porten
+  → Next.js BFF: valider innkommende token
+  → TokenX: veksle til token med backend som audience
+  → Ktor: valider TokenX-token og identifiser innbyggeren
+  → TokenX: veksle til token med PDL som audience
+  → PDL: hent innbyggerens gjeldende navn
+  ← Navn tilbake til nettleseren via BFF
+```
+
+- Wonderwall bruker sikker sesjonscookie, ikke tokens i `localStorage`.
+- Backend validerer signatur, issuer, audience, gyldighet og tillatt kallerapplikasjon. Fødselsnummer leses fra validert identitetsclaim, ikke fra et uverifisert token eller klientstyrt header.
+- API-et tar ikke imot fødselsnummer som parameter. Identiteten fra tokenet bestemmer hvem oppslaget gjelder.
+- Bruk etablerte auth-biblioteker. Ingen egen signeringskode eller nøkkelhåndtering.
+- Ingen Azure `client_credentials`: brukerkonteksten skal beholdes hele veien.
+- PDLs støtte for denne TokenX-kjeden og nødvendige tilganger er et verifikasjonspunkt i fase 3, ikke en etablert repo-fakta.
+
+### 2. API og feilkontrakt
+
+**`GET /api/meg`** returnerer gjeldende navn som `fornavn`, valgfritt `mellomnavn` og `etternavn`. Fødselsnummer utelates.
+
+| Situasjon | Respons |
+|---|---|
+| Vellykket oppslag | `200` |
+| Manglende eller ugyldig token | `401` |
+| Gyldig identitet uten nødvendig tilgang | `403` |
+| PDL utilgjengelig eller timeout | `503` |
+| Manglende eller ubrukelig navnedata | `502` |
+| Uventet intern feil | `500` |
+
+Feil returneres som `application/problem+json` uten personopplysninger eller nedstrømsrespons. PDLs GraphQL-feil må håndteres også når HTTP-status er `200`.
+
+Foreløpig timeout er tre sekunder mot PDL. Ingen automatiske retries i første versjon. Det begrenser ventetid og belastning ved feil, men lar også kortvarige feil nå brukeren.
+
+Alle personresponser får `Cache-Control: no-store`. Next.js skal ikke bruke delt cache eller statisk generering for disse dataene.
+
+### 3. Prosjektstruktur
+
+Behold eksisterende struktur og `nais.yaml`; legg kun til komponentene som trengs:
+
+```text
+src/main/kotlin/no/nav/demo/
+  App.kt
+  Config.kt
+  api/MegRoutes.kt
+  api/ProblemResponse.kt
+  auth/TokenXAuth.kt
+  pdl/PdlClient.kt
+  person/PersonService.kt
+src/test/kotlin/no/nav/demo/
+  auth/
+  api/
+  pdl/
+.github/workflows/build-deploy.yml
+```
+
+Demo-ruten skal ikke bli en alternativ, ubeskyttet vei til persondata. Ingen Flyway-migrasjoner, databasepool eller nye GCP-ressurser.
+
+### 4. Nais og CI/CD
+
+**Next.js**
+- ID-porten med Wonderwall og TokenX aktivert.
+- Eksplisitt outbound-regel til backend.
+- Eksplisitt inbound-policy uten andre applikasjoner dersom ingen trenger intern tilgang.
+
+**Ktor**
+- TokenX aktivert, ingen offentlig ingress.
+- `accessPolicy.inbound` tillater kun egen Next.js-applikasjon.
+- `accessPolicy.outbound` tillater PDL etter verifisert miljøspesifikk adresse.
+- Audience og applikasjonsnavn konfigureres per miljø, uten wildcards.
+- Behold `/internal/isalive` og `/internal/isready`. PDL-feil skal ikke utløse restart eller gjøre alle pods unready.
+- Legg til intern `/metrics`.
+- Start med CPU-request `15m`, minne-request `256Mi`, minne-limit `512Mi` og to replikaer. Juster etter målt JVM-bruk og last. Ingen CPU-limit.
+
+CI kjører tester og bygg på PR. Etter merge bygges ett image som deployes til dev, verifiseres og deretter deployes til prod med godkjenningsport. Bruk Nais workload identity og minst nødvendige workflow-rettigheter. CI- og auth-endringer utføres først etter godkjent plan og review.
+
+### 5. Tester og observerbarhet
+
+Minimum før prod:
+- Auth-tester for feil signatur, issuer, audience, utløpt token, manglende identitet og ikke-tillatt kaller.
+- Test som viser at klienten ikke kan velge en annen persons fødselsnummer.
+- PDL-stub for korrekt navn, tomt resultat, GraphQL-feil, tilgangsfeil og timeout.
+- API- og BFF-tester for feilkontrakt, `no-store` og feil audience ved tokenveksling.
+- Test som kontrollerer at fødselsnummer, navn og tokens ikke havner i logger.
+- Dev-test av innlogging og hele kjeden med syntetiske testpersoner.
+
+Mål antall oppslagsforsøk per minutt, feilandel og PDL-latens. Bruk faste etiketter for utfall og statusklasse, aldri personidentitet. Innloggingsavvisninger måles separat fra tjenestefeil.
+
+Ved PDL-feil logger vi feilklasse, status og en tilfeldig generert korrelasjons-ID. Ikke logg request-/response-body, tokens eller rå exception-meldinger som kan inneholde persondata. Foreløpig alarm: over 5 % tjenestefeil i ti minutter ved minst 20 kall.
+
+### 6. Utrulling og dokumentasjon
+
+Rull ut backend i dev før BFF-integrasjonen aktiveres. Verifiser auth, personisolasjon, 503-håndtering og fravær av persondata i logger før prod.
+
+Rollback betyr å deaktivere den nye frontend-funksjonen og gjenopprette forrige frontend-image. Backend kan bli stående uten trafikk. Det finnes ingen datamigrasjon å reversere.
+
+Dokumenter kontrakt, konkret lovhjemmel, PDL-tilganger, observabilitet og rollback i eksisterende dokumentasjon. Post-deploy-sjekken dekker innlogging, korrekt eget navn, avvist ugyldig token og fungerende metrikker.
+
+### 7. Sonefordeling
+
+🔴 **Rød sone: skriv selv, med testskjeletter og TODO-stubber fra nav-pilot**
+- [ ] Wonderwall- og TokenX-integrasjon: nye konsepter for teamet.
+- [ ] Tokenvalidering og binding mellom identitet og PDL-oppslag: sikkerhetskritisk.
+- [ ] PDL-tilgangskrav og valg av gjeldende navn: må forstås og verifiseres mot kontrakten.
+
+🟢 **Grønn sone: kan genereres, leses gjennom før merge**
+- [ ] DTO-er, feilresponsformat og kjent Ktor-oppsett uten tilgangslogikk.
+- [ ] Nais- og CI-konfigurasjon etter godkjente tilgangsbeslutninger.
+- [ ] Metrikker, syntetiske testdata og testskjeletter.
+
+**Godkjenner du planen som grunnlag for fase 3: review?** Ingen kode er endret. Still gjerne spørsmål om valgene over.

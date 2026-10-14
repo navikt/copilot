@@ -1,0 +1,21 @@
+Dette er full løype, fase 1: intervju, fordi det gjelder en ny tjeneste med autentisering og fødselsnummer. `@research-agent` er ikke installert; jeg sjekker repoet selv før jeg stiller spørsmål.
+## Fase 1: Intervju
+
+**Full løype:** Ny tjeneste med autentisering og personopplysninger. Vi avklarer behovet før plan og kode.
+
+Repoet har et Ktor-API. `nais.yaml` mangler auth-konfigurasjon og `accessPolicy`. Jeg antar at fødselsnummeret gjelder innlogget innbygger, men kallkjeden er ikke avklart. Fødselsnummer og tokens skal ikke logges.
+
+1. **Formål og personvern (#1):** Hva skal tjenesten gjøre med fødselsnummeret? Skal det kun brukes under forespørselen, lagres eller sendes videre? Behandles andre personopplysninger?
+2. **Tilgang (#2):** Kaller innbyggerens nettleser tjenesten direkte, eller går kallet gjennom en annen Nav-tjeneste? Skal brukeren kun få tilgang til egne data?
+3. **Avhengigheter og eierskap (#3, #5, #6):** Hvilke systemer skal tjenesten kalle, og hvilke team eier dem? Hva skal brukeren oppleve når en avhengighet er nede? Hvem skal konsumere API-et?
+4. **Observerbarhet (#4):** Hva er et vellykket resultat for brukeren, som vi kan måle uten fødselsnummer i logger eller metrikker?
+5. **Tester (#7):** Er dette repoet utgangspunktet for tjenesten? Finnes det tester eller testmiljøer utenfor repoet? Jeg fant ingen tester her.
+6. **Læring og arbeidsdeling (#11):** Er ID-porten-integrasjon kjent for teamet, eller vil dere gjennomgå konseptene først? Ønsker du veiledet implementering eller delegering av de ikke-sikkerhetskritiske delene?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Vurder `nav-pilot init`.
+
+Foreløpig utelater jeg #8–#10: Du beskriver en ny tjeneste, ikke migrering, formatendring eller avvikling. Si fra dersom den erstatter noe eksisterende.
+
+Omtrentlig tokenbudsjett: intervju 1 500, plan 2 500, review 1 500, levering 3 000. Svar på spørsmålene, så går vi videre til fase 2.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 utelatt fordi tjenesten er ny).

@@ -1,0 +1,20 @@
+## Fase 1: Intervju
+
+**Full oppgave:** Ny tjeneste med personopplysninger og autentisering. Vi avklarer behovet før plan og kode. Omtrentlig tokenbudsjett: intervju 1 500, plan 2 500, review 1 500, leveranse 4 000.
+
+Jeg har lest Ktor-koden, `build.gradle.kts` og `nais.yaml`. Repoet har et demo-API uten autentisering. Jeg antar at tjenesten skal behandle fødselsnummeret til en innlogget innbygger, men bruksmåten og tilgangen er ikke avklart.
+
+1. **Formål og personvern (#1):** Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, eller lagres, returneres eller sendes videre? Skal andre personopplysninger behandles?
+2. **Tilgang (#2):** Kaller innbyggerens nettleser tjenesten direkte, eller går kallet gjennom en frontend/BFF eller annen Nav-tjeneste? Skal brukeren bare kunne hente egne data?
+3. **Feilhåndtering (#3):** Skal tjenesten kalle andre systemer? Hva skal brukeren oppleve når disse eller innloggingen er utilgjengelige?
+4. **Observerbarhet (#4):** Hva viser at tjenesten virker, utover at den kjører, for eksempel antall vellykkede forespørsler og feilrate? Fødselsnummer og tokens skal ikke inn i logger, traces eller metrikketiketter.
+5. **Eierskap og konsumenter (#5, #6):** Hvilket team eier tjenesten, og hvilke apper eller team skal bruke den?
+6. **Tester og læring (#7, #11):** Finnes det tester utenfor dette repoet? Kjenner dere Ktor og ID-porten-integrasjon, eller ønsker dere en gjennomgang før implementering?
+
+Jeg behandler dette som en ny tjeneste uten eksisterende konsumenter. Derfor er migrering, bakoverkompatibilitet og avvikling (#8–#10) foreløpig ikke relevante. Si fra dersom tjenesten erstatter noe.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`.
+
+Svar på spørsmålene før vi går til Fase 2.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 utelatt fordi tjenesten antas å være ny).

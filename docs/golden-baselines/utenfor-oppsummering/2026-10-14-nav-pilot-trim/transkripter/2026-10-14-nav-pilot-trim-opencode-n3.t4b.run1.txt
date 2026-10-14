@@ -1,0 +1,163 @@
+## Fase 2: Plan
+
+**Vi bruker den eksisterende Next.js-frontenden som BFF, med ID-porten og Wonderwall foran. Ktor-tjenesten mottar TokenX-token og henter innbyggerens navn fra PDL.** Nettleseren kaller ikke Ktor direkte.
+
+Dette holder tokens på serversiden og bevarer brukerkonteksten gjennom hele flyten. Det gir to token-utvekslinger, men unngår en offentlig backend og maskintilgang uten brukerens identitet.
+
+Fasebudsjett: omtrent 2 000 tokens. Ingen kode eller konfigurasjon endres i denne fasen.
+
+### 1. Flyt og antakelser
+
+```text
+Nettleser
+  → Wonderwall / ID-porten
+  → eksisterende Next.js-BFF
+  → TokenX-utveksling til Ktor
+  → Ktor validerer token og finner innlogget persons ident
+  → TokenX-utveksling til PDL
+  → PDL returnerer navn
+  → Ktor → BFF → nettleser
+```
+
+Planen bygger på disse antakelsene:
+
+- Tjenesten viser kun innbyggerens **egne** opplysninger.
+- Fødselsnummer brukes under forespørselen, men lagres ikke og returneres ikke til frontenden.
+- Vi henter kun navn fra PDL. Ingen database, persondatacache eller kø.
+- Next.js kjører på Nais og har serverkode som kan fungere som BFF. Frontend-repoet er ikke undersøkt.
+- PDL tilbyr nødvendig brukerkontekstbasert tilgang gjennom TokenX for denne tjenesten. Audience, tilgang, behandlingsnummer og nødvendige headers må bekreftes mot PDL før integrasjonen aktiveres.
+- Teamet dokumenterer konkret lovhjemmel og formål før produksjonssetting. «Lovhjemmel» alene er ikke tilstrekkelig dokumentasjon.
+
+### 2. Autentisering og autorisasjon
+
+**Frontend**
+
+- Aktiver ID-porten og Wonderwall. Bruk høyt sikkerhetsnivå som foreløpig valg, med endelig krav bekreftet før produksjon.
+- Wonderwall håndterer innlogging og sesjon med sikre cookies.
+- BFF validerer innkommende token med et vedlikeholdt Nav-bibliotek og utveksler det til backendens audience.
+- Tokens skal aldri sendes til klientkode eller lagres i `localStorage`.
+
+**Backend**
+
+- Aktiver TokenX. Valider signatur, issuer, audience, gyldighet og tillatt kallerapplikasjon.
+- Hent personident fra dokumentert claim i det **validerte** tokenet, ikke fra en vilkårlig header eller bare dekodet JWT.
+- Backend tar ikke imot fødselsnummer som parameter. Identen fra tokenet bestemmer hvem PDL-oppslaget gjelder.
+- Utveksle innkommende TokenX-token til PDLs audience. Ikke bruk Azure AD `client_credentials` i denne brukerflyten.
+- Bruk etablerte biblioteker for validering og token-utveksling, ikke egen signeringskode.
+
+Nais-nettverkspolicy supplerer token-valideringen. Den erstatter ikke autorisasjon.
+
+### 3. API og feil
+
+Foreslått kontrakt mellom BFF og backend:
+
+| Kall | Svar |
+|---|---|
+| `GET /api/meg` | `200` med navn: `fornavn`, valgfritt `mellomnavn`, `etternavn` |
+| Manglende eller ugyldig token | `401` |
+| Gyldig token fra ikke-tillatt kaller eller uten nødvendig tilgang | `403` |
+| PDL utilgjengelig eller timeout | `503` |
+| Uventet intern feil | `500` |
+
+- Feilsvar bruker `application/problem+json` uten persondata eller rå feilmeldinger fra PDL.
+- PDL-klienten undersøker både HTTP-status og GraphQL-feil. `200` fra PDL betyr ikke nødvendigvis vellykket oppslag.
+- Manglende navn, tilgangsavslag og ugyldige svar håndteres eksplisitt. Vi returnerer ikke tomt navn som om oppslaget lyktes.
+- Foreløpig timeout-budsjett er fem sekunder for backend-kallet, med kortere timeout for PDL. Ingen automatiske retries i første versjon.
+- Både BFF og backend setter `Cache-Control: no-store`. Next.js-kallet skal ikke bruke delt cache eller statisk generering.
+- Frontenden viser en norsk feilmelding og lar brukeren prøve igjen ved `503`.
+
+### 4. Prosjektstruktur
+
+Behold Ktor og repoets eksisterende struktur. Demo-ruten skal ikke inngå i den nye tjenestens offentlige kontrakt.
+
+```text
+src/main/kotlin/no/nav/demo/
+  App.kt
+  Config.kt
+  auth/TokenxAuth.kt
+  api/MegRoutes.kt
+  api/ProblemRespons.kt
+  pdl/PdlKlient.kt
+  person/PersonService.kt
+src/test/kotlin/no/nav/demo/
+  auth/
+  api/
+  pdl/
+nais.yaml
+Dockerfile
+.github/workflows/build-deploy.yml
+```
+
+Frontend-endringen skjer i det eksisterende frontend-repoet: én serverrute og en serverbasert backend-klient. Faktiske filbaner bestemmes når repoet er tilgjengelig.
+
+### 5. Nais og ressurser
+
+Planlagt konfigurasjon, ikke et ferdig manifest:
+
+| Applikasjon | Auth | Eksplisitt inbound | Eksplisitt outbound |
+|---|---|---|---|
+| Next.js | ID-porten + Wonderwall, TokenX | Ingen andre applikasjoner med mindre eksisterende behov krever det | Ktor-backend |
+| Ktor | TokenX | Kun Next.js-applikasjonen | PDL, samt nødvendige auth-endpoints etter plattformens mønster |
+
+Manifestene bruker faktiske applikasjonsnavn, namespace og cluster. Ingen wildcard-regler. PDL-tilgangen må også tillate backend som kaller.
+
+For Ktor starter vi med:
+
+- CPU request `15m`, memory request `256Mi`, memory limit `512Mi`. Ingen CPU limit.
+- To replicas i produksjon, justert etter målinger.
+- `/internal/isalive`, `/internal/isready` og `/internal/metrics`.
+- Ingen offentlig ingress for backend.
+- Liveness kontrollerer prosessen. Readiness kontrollerer lokal klargjøring, ikke om PDL er oppe.
+- Secrets og nøkkelmateriale kommer fra Nais, aldri fra repoet.
+
+Ingen nye GCP-ressurser, database, Flyway eller connection pool er nødvendig.
+
+### 6. Tester og CI/CD
+
+**Tester før aktivering**
+
+- Auth-tester med lokal OAuth2-testserver: gyldig token, feil signatur, feil issuer/audience, utløpt token, manglende ident og ikke-tillatt kaller.
+- Autorisasjonstest som viser at klienten ikke kan velge en annen persons fødselsnummer.
+- PDL-klienttester med stub: navn, manglende data, GraphQL-feil, timeout og HTTP-feil.
+- Ktor-integrasjonstester for statuskoder, kontrakt og `no-store`.
+- BFF-tester for token-utveksling og at tokens ikke kommer med i svar.
+- Test av logger og telemetry med syntetiske persondata: navn, fødselsnummer, tokens og PDL-payload skal ikke forekomme.
+- E2E i dev med godkjente testidentiteter: innlogging, eget navn og feilvisning.
+
+GitHub Actions kjører bygg og tester på pull requests. Etter merge bygges ett image, som først deployes til dev. Produksjonsdeployment krever vellykket dev-verifisering og godkjenning. Workflow bruker minst nødvendige rettigheter og etablerte Nais-actions.
+
+### 7. Observerbarhet og logging
+
+- Tell oppslag og utfall. Vis antall per minutt og andel feilende kall.
+- Skill mellom auth-feil, PDL-feil og interne feil. Mål også svartid.
+- Labels begrenses til faste verdier som rute, utfall og feilkategori. Ingen personidenter eller navn.
+- Ved PDL-feil logges feilkategori, tjenestenavn, varighet og en tilfeldig korrelasjons-ID. **Ikke logg request/response, Authorization-header eller rå exception-tekst som kan inneholde persondata.**
+- Traces skal heller ikke inneholde GraphQL-variabler eller personopplysninger.
+- Foreløpig alarm: over 5 % feil i fem minutter, med minimumsvolum for å unngå støy. Terskelen justeres etter dev-målinger.
+
+### 8. Aktivering og rollback
+
+1. Bekreft PDL-tilgang, lovhjemmel, auth-krav og faktiske applikasjonsidentiteter.
+2. Deploy backend og frontend-endringer til dev. Funksjonen er deaktivert frem til testene består.
+3. Verifiser brukerflyten, avviste tokens, PDL-feil og fravær av persondata i telemetry.
+4. Deploy backend til produksjon før frontend-funksjonen aktiveres.
+5. Ved feil deaktiverer teamet frontend-funksjonen først. Deretter rulles berørte images tilbake.
+
+Det finnes ingen gammel backend å falle tilbake til. Rollback betyr at den nye funksjonen blir utilgjengelig, ikke at en gammel løsning overtar. Ingen data må migreres.
+
+Leveransedokumentasjonen skal dekke beslutningene, rollback, dashboard/alarmer og en post-deploy-sjekkliste. PDLs eventuelle revisjonskrav avklares separat fra vanlige driftslogger.
+
+### 9. Rød-sone-deklarasjon
+
+**🔴 Rød sone: utvikleren implementerer disse delene selv.**
+
+- Token-validering, tillatt kaller og bindingen mellom innlogget ident og PDL-oppslag.
+- TokenX-utveksling og Wonderwall-integrasjon, siden dette er nytt for teamet.
+- Valg av gyldig navn fra PDL og håndtering av tilgangsavslag eller manglende data.
+- Sikker feilklassifisering og beskyttelse mot persondata i logger og traces.
+
+Ved levering lager jeg som standard stubs med `TODO` og testskjeletter for disse delene. Konfigurasjon, byggoppsett og kjent boilerplate er grønn sone. Arkitekturvalgene over må teamet forstå og godkjenne.
+
+**Godkjenner du planen som grunnlag for fase 3, review?** Jeg stopper her før sikkerhets- og arkitekturgjennomgangen.
+
+Still gjerne spørsmål om valgene over.

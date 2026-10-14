@@ -1,0 +1,19 @@
+## Fase 1: Intervju
+
+**Fullt omfang:** Ny tjeneste med autentisering og behandling av fødselsnummer. Vi avklarer bruken før plan og kode. Grovt tokenbudsjett: intervju 1 500, plan 3 000, review 2 000, levering 4 000.
+
+Repoet har Kotlin/Ktor og et Nais-manifest, men ingen ID-porten-konfigurasjon eller `accessPolicy`. Jeg antar at tjenesten skal identifisere den innloggede innbyggeren, ikke la brukeren slå opp andre personer.
+
+1. **Formål og personvern (#1):** Hva skal tjenesten gjøre med fødselsnummeret? Skal det kun brukes under forespørselen, eller lagres eller sendes videre? Skal dere behandle andre personopplysninger, som helse- eller ytelsesdata?
+2. **Tilgang (#2):** Kommer kallene direkte fra innbyggerens nettleser, via en frontend med Wonderwall, eller fra en annen Nav-tjeneste på vegne av innbyggeren? Hvilket sikkerhetsnivå kreves?
+3. **Feilhåndtering (#3):** Hva skal brukeren oppleve når innlogging eller en videre avhengighet er utilgjengelig?
+4. **Observerbarhet (#4):** Hva viser at tjenesten fungerer, utover at den svarer? Fødselsnummer og tokens skal ikke havne i logger, traces eller metrikketiketter.
+5. **Ansvar og konsumenter (#5, #6):** Hvilket team eier tjenesten? Hvilke andre tjenester eller team skal den samhandle med?
+6. **Tester (#7):** Er dette repoet utgangspunktet, og finnes det tester eller testoppsett vi skal videreføre?
+7. **Læring (#11):** Kjenner du ID-porten/OIDC fra før, eller vil du gå gjennom konseptene først?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler i repoet. Vurder `nav-pilot init`.
+
+Jeg behandler dette som nyutvikling. Derfor er modernisering/rollback (#8), bakoverkompatibilitet (#9) og avvikling (#10) foreløpig ikke relevante. Svar på spørsmålene og bekreft at vi kan gå videre til plan.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante ved nyutvikling).

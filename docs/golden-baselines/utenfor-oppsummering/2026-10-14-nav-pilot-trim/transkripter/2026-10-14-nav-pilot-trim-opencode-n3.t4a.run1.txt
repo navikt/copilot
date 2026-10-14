@@ -1,0 +1,19 @@
+Dette er Full-nivå, fase 1: ny tjeneste med persondata og autentisering. `research-agent` er ikke installert her, så jeg sjekker repo-grunnlaget selv før intervjuet.
+## Fase 1: Avklar tjenesten
+
+**Full-nivå:** Ny tjeneste med fødselsnummer og autentisering. Jeg har lest `nais.yaml`, `build.gradle.kts`, `README.md` og `Routes.kt`. Repoet har en Ktor-demo, men ingen synlig ID-porten-konfigurasjon eller autentisering på `/api/oppgaver`.
+
+Jeg antar at fødselsnummeret gjelder den innloggede innbyggeren. Det skal ikke logges. Før vi planlegger:
+
+1. **Formål og persondata (#1):** Hva skal tjenesten gjøre med fødselsnummeret? Skal det kun brukes under forespørselen, lagres eller sendes videre? Skal tjenesten behandle andre personopplysninger?
+2. **Tilgang (#2):** Kommer brukeren direkte fra nettleseren, eller kaller en annen Nav-tjeneste med brukerens innloggingskontekst? Hvilke opplysninger eller ressurser skal brukeren få tilgang til?
+3. **Avhengigheter og feil (#3, #5, #6):** Hvilke systemer skal tjenesten kalle, hvem eier dem, og hvem skal konsumere API-et? Hva skal brukeren oppleve når en avhengighet er nede?
+4. **Observerbarhet (#4):** Hva viser at tjenesten fungerer for brukeren, utover at den er oppe?
+5. **Tester (#7):** Finnes tester eller testoppsett utenfor dette repoet? Jeg fant ingen testfiler under `src`.
+6. **Læring (#11):** Kjenner dere Ktor og ID-porten-integrasjon fra før, eller ønsker dere en gjennomgang før implementering?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Vurder `nav-pilot init`.
+
+Foreløpig fasebudsjett: intervju 1 000, plan 2 000, review 1 000 og levering 3 000 tokens. Jeg stopper her til du har svart. #8–#10 er foreløpig utelatt fordi du beskriver en ny tjeneste, ikke en erstatning for en eksisterende løsning.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante under antakelsen om ny tjeneste).

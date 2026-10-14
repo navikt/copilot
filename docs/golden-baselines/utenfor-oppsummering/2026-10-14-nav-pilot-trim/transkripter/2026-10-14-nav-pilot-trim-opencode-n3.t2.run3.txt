@@ -1,0 +1,19 @@
+## Fase 1: Intervju
+
+**Full løype:** Ny tjeneste med autentisering og behandling av fødselsnummer. Vi avklarer behovet før plan og kode.
+
+Jeg har lest `build.gradle.kts`, `nais.yaml` og `README.md`. Repoet har en Ktor-tjeneste, men manifestet viser ingen ID-porten-konfigurasjon eller `accessPolicy`. Jeg antar at innbyggeren skal logge inn selv, og at dette er en ny løsning, ikke en migrering.
+
+1. **Formål og personvern (#1)** Hva skal tjenesten gjøre med fødselsnummeret? Skal det kun brukes i forespørselen, lagres eller sendes videre? Behandles andre personopplysninger, og hva er behandlingsgrunnlaget?
+2. **Tilgang (#2)** Skal innbyggeren bruke tjenesten via nettleser, eller skal en annen tjeneste kalle API-et med brukerens identitet? Skal brukeren kun få tilgang til egne data?
+3. **Feil (#3)** Hva skal brukeren oppleve hvis innlogging eller en tjeneste dere kaller, er utilgjengelig?
+4. **Observerbarhet (#4)** Hva viser at tjenesten fungerer, utover at den kjører? Fødselsnummer og tokens skal ikke inngå i logger, traces eller metrikketiketter.
+5. **Eierskap og konsumenter (#5, #6)** Hvilket team eier løsningen, hvilke andre tjenester trenger den, og hvem skal bruke API-et?
+6. **Tester (#7)** Finnes det testoppsett eller en referansetjeneste vi skal følge?
+7. **Læring (#11)** Er Ktor og ID-porten kjent teknologi for dere, eller ønsker dere en gjennomgang før implementering?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`.
+
+Foreløpig fasebudsjett i tokens: intervju 1 000, plan 2 000, review 1 500, levering 3 000. Jeg stopper her og venter på svar. #8–#10 er utelatt fordi jeg antar ny løsning uten migrering, gamle konsumenter eller utfasing.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante under antakelsen over).

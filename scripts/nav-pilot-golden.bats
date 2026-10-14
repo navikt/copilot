@@ -525,17 +525,44 @@ run_suite() {
 }
 
 @test "planning t4: the red-zone declaration passes with dash, colon or comma, a missing one fails" {
-  re=$(sed -n "s/^RE_T4_RED_ZONE='\\(.*\\)'$/\\1/p" "$SCRIPT")
-  [ -n "$re" ]
+  eval "$(grep '^RE_T4_RED_ZONE=' "$SCRIPT")"
+  eval "$(sed -n '/^t4_red_zone() {/,/^}/p' "$SCRIPT")"
   for ok in '🔴 Rød sone — skriv selv' '🔴 Rød sone: ingen for denne oppgaven' \
             '🔴 Rød sone, skriv selv (TokenX er nytt for teamet):' \
-            '🔴 **Rød sone, skriv selv:** tokenvalidering' '**🔴 Rød sone, utvikleren skriver selv**'; do
-    printf '%s\n' "$ok" | grep -qiE -- "$re" || { echo "should pass: $ok"; false; }
+            '🔴 **Rød sone, skriv selv:** tokenvalidering' '**🔴 Rød sone, utvikleren skriver selv**' \
+            '### 🔴 Rød-sone-deklarasjon\n\n- Tokenvalidering skriver du selv.'; do
+    printf '%b\n' "$ok" >"$SHIM/zone.txt"
+    t4_red_zone "$SHIM/zone.txt" || { echo "should pass: $ok"; false; }
   done
   for bad in 'Planen dekker TokenX og PDL.' 'se rød sone under' \
-             'koden er i rød sone, så den skrives for hånd' '# 🔴 rød sone'; do
-    if printf '%s\n' "$bad" | grep -qiE -- "$re"; then echo "should fail: $bad"; false; fi
+             'koden er i rød sone, så den skrives for hånd' '# 🔴 rød sone' \
+             '### 🔴 Rød-sone-deklarasjon' '🔴 Rød sone:' \
+             '### 🔴 Rød-sone-deklarasjon\n\n## Tester\n- Kjør testene.'; do
+    printf '%b\n' "$bad" >"$SHIM/zone.txt"
+    if t4_red_zone "$SHIM/zone.txt"; then echo "should fail: $bad"; false; fi
   done
+  local f
+  for f in "$BATS_TEST_DIRNAME"/../docs/golden-baselines/utenfor-oppsummering/2026-10-14-nav-pilot-trim/transkripter/*-n3.t4b.run*.txt; do
+    t4_red_zone "$f" || { echo "archived plan should pass: $f"; false; }
+  done
+}
+
+@test "cplt: static coordinator and worker worktree contract" {
+  local agent text
+  for agent in nav-pilot worker; do
+    text=$(<"${BATS_TEST_DIRNAME}/../agents/$agent.agent.md")
+    [[ "$text" == *'Only under `$__CPLT_WRAPPED`:'* ]]
+    [[ "$text" == *'Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief.'* ]]
+    [[ "$text" == *'beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository'* ]]
+    [[ "$text" == *'matching launch and target repositories'* ]]
+    [[ "$text" == *'persistent, in-scope checkout verified as the target repository'* ]]
+    [[ "$text" == *'Never fall back to scratch.'* ]]
+    [[ "$text" == *'Leave permissions and `git worktree remove` to the user outside cplt.'* ]]
+    [[ "$text" == *'No nested repositories or outward symlinks'* ]]
+  done
+  text=$(<"${BATS_TEST_DIRNAME}/../agents/worker.agent.md")
+  [[ "$text" == *'otherwise hand back.'* ]]
+  [[ "$text" == *'This overrides "Do exactly the brief"; hand back an unsafe destination.'* ]]
 }
 
 @test "zones: every red and green item in the instruction appears in the skill, the agent and both pages" {
@@ -566,24 +593,49 @@ run_suite() {
 
 @test "planning t2: open points that stop pass; proceeding, negated or deferred points fail" {
   eval "$(grep -E '^RE_(FASE2_PLAN|T2_PROCEED)=' "$SCRIPT")"
+  eval "$(sed -n '/^present() /p; /^t2_proceeds() {/,/^}/p' "$SCRIPT")"
   [ -n "$RE_T2_PROCEED" ]
   t2() { # pass = ≥3 open points and no sign the turn carries on
     printf '%b' "$1" >"$SHIM/a2.txt"
     [ "$(python3 "${BATS_TEST_DIRNAME}/benchmark-sjekk.py" apne "$SHIM/a2.txt")" -ge 3 ] &&
-      ! grep -qiE -- "$RE_T2_PROCEED" "$SHIM/a2.txt"
+      ! t2_proceeds "$SHIM/a2.txt"
   }
   for ok in 'Følgende er uavklart:\n1. Formål.\n2. Kallere.\n3. Lagring.\n' \
             '## Uavklarte punkter\n\n1. Formål.\n2. Kallere.\n3. Lagring.\n' \
             'Hvem? Hva? Hvorfor?\nSvar kort, så lager jeg kravoppsummeringen før vi går videre.\n' \
             'Hvem? Hva? Hvorfor?\nSvar på punktene før jeg starter med planen.\n' \
-            'Hvem? Hva? Hvorfor?\nSvar, så tar jeg det før jeg fortsetter med planen.\n'; do
+              'Hvem? Hva? Hvorfor?\nSvar, så tar jeg det før jeg fortsetter med planen.\n' \
+              'Jeg starter med\nfase 1.\n1. Formål?\n2. Kallere?\n3. Lagring?\n' \
+              'Jeg starter med fase 1 og sjekker repoet før jeg stiller spørsmål.\n1. Formål?\n2. Kallere?\n3. Lagring?\n'; do
     t2 "$ok" || { echo "should pass: $ok"; false; }
   done
   for bad in 'Følgende er uavklart:\n1. Formål.\n2. Kallere.\n3. Lagring.\n\nJeg legger til grunn de vanligste svarene og går videre.\n\n**Fase 2: Plan.**\n\nSteg 1: modell.\n' \
+             'Hvem? Hva? Hvorfor?\nJeg starter med steg 1.\n' \
+              'Hvem? Hva? Hvorfor?\nJeg starter med å skrive testen.\n' \
+              'Hvem? Hva? Hvorfor?\nJeg starter med\nplanen.\n' \
              'Følgende er uavklart:\n1. a\n2. b\n3. c\nJeg starter med datamodellen.\n' \
              'Ingenting er uavklart etter lesingen, så planen er:\n1. a\n2. b\n3. c\n' \
              'Følgende punkter avklares i Fase 2 sammen med teamet:\n- a\n- b\n- c\n'; do
     if t2 "$bad"; then echo "should fail: $bad"; false; fi
+  done
+}
+
+@test "documented spend sum propagates unknown agent or judge usage" {
+  local command agent judge
+  command=$(sed -n '/^#   awk -F/ {s/^#   //; s/ \\$//; p;}' "$SCRIPT")
+  [ -n "$command" ]
+  for agent in 1000000000 unknown; do
+    for judge in 0.5 unknown; do
+      printf 't|1|x|x|x|x|x|x|x|x|x|x|%s\n' "$agent" >"$SHIM/usage.psv"
+      printf 't|1|%s\n' "$judge" >"$SHIM/judge-credits.psv"
+      run bash -c "$command \"\$1\" \"\$2\"" _ "$SHIM/usage.psv" "$SHIM/judge-credits.psv"
+      [ "$status" -eq 0 ]
+      if [[ "$agent" == unknown || "$judge" == unknown ]]; then
+        [ "$output" = unknown ]
+      else
+        [ "$output" = 1.5 ]
+      fi
+    done
   done
 }
 

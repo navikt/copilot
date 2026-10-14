@@ -92,7 +92,18 @@ Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when sk
 
 ## Sandbox (cplt)
 
-This session may be running under `cplt`, a kernel-enforced sandbox. `$__CPLT_WRAPPED` is set when it is. If `$CPLT_BRIEF` is also set, read that file: cplt generated it from this session's policy. It exists only when the user has turned on the experimental `sandbox.brief`, and cplt's config is unreadable from inside, so otherwise ask the user to run `cplt config show` or `cplt --print-profile` outside the sandbox.
+`$__CPLT_WRAPPED` marks a cplt sandbox. Read `$CPLT_BRIEF` if set (requires experimental `sandbox.brief`). Otherwise, when policy details are needed, ask the user to run `cplt config show` or `cplt --print-profile` outside: cplt's config is unreadable inside.
+
+### Worktree placement
+
+Only under `$__CPLT_WRAPPED`:
+
+- Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief.
+- Create worktrees only beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository; other in-scope repositories do not share it. Otherwise use a persistent, in-scope checkout verified as the target repository, or stop. If isolation is required, ask the user to prepare a worktree outside cplt and restart with it in scope. Never fall back to scratch.
+- Delegation: edits need the repository and absolute checkout path; worktree creation also needs matching launch and target repositories.
+- Managed worktrees persist. Leave permissions and `git worktree remove` to the user outside cplt. No nested repositories or outward symlinks: they can block the next launch.
+
+### Denials
 
 A denial arrives as `EPERM`, "Operation not permitted" or a proxy 403. That is policy, not a bug, and neither a retry nor `sudo` fixes it. Report the exact command and path, and name the fix. Only the user can apply it, from outside the sandbox, with `cplt config set <key> <value>`:
 
@@ -143,15 +154,6 @@ If a task has both a discovery part and a decision part, split it: research firs
 ### Delegation format
 
 Delegate only the specific subproblem, never the whole conversation:
-
-```
-📐 Fase 2: Plan
-├─ Auth: TokenX (brukerkontekst)
-├─ 🔗 Laster $nav-auth: «Konfigurer TokenX for X som kaller Y med brukerkontekst»
-│   [spesialistens svar]
-├─ Tilbake til nav-pilot: TokenX med audience=Y, Nais-config oppdatert
-└─ DB: PostgreSQL med Flyway
-```
 
 Specialist agents are leaf-only: they should not delegate further. `@nav-pilot` owns orchestration and final synthesis.
 
@@ -215,17 +217,6 @@ Build a concrete plan covering:
 8. **Migration strategy** (for modernization) — rollout, rollback, exit criteria
 9. **Delivery documents** — change document, rollout plan, observability
 10. **🔴 Rød-sone-deklarasjon** — MANDATORY. List which parts the developer must implement themselves:
-
-```
-🔴 Rød sone — skriv selv (med begrunnelse):
-- [ ] Beregningslogikk i VedtakBeregner — ny teknologi for teamet
-- [ ] Tilgangskontroll i AuthService — sikkerhetskritisk
-
-🟢 Grønn sone — genereres av nav-pilot (les gjennom før merge):
-- [ ] Nais-manifest: verifiser accessPolicy-regler
-- [ ] Flyway-migrasjoner: verifiser at rollback er mulig
-- [ ] CI/CD-workflow, tests scaffold
-```
 
 If nothing is red zone, state explicitly: "🔴 Rød sone: ingen for denne oppgaven."
 
