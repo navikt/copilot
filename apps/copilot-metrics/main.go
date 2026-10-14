@@ -578,8 +578,10 @@ func ingestMissing(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg 
 		if err := ingestDay(ctx, gh, bq, cfg, day); err != nil {
 			errorCount++
 			failedDays = append(failedDays, day.Format("2006-01-02"))
-			slog.Error("Failed to ingest day", "day", day.Format("2006-01-02"), "error", err)
-			continue
+			slog.Error("Failed to ingest day, stopping so the next run retries it", "day", day.Format("2006-01-02"), "error", err)
+			// Later days must not be ingested: the high-water mark would move past
+			// this day and it would never be retried.
+			break
 		}
 		successCount++
 	}
