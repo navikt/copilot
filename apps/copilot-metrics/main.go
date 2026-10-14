@@ -663,14 +663,11 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Con
 		scopeID = result.ScopeID
 	}
 	supErr := ingestSupplementary(ctx, gh, bq, day, scopeID)
-	if entityErr != nil {
-		return entityErr
-	}
-	return supErr
+	return errors.Join(entityErr, supErr)
 }
 
 // ingestSupplementary fetches and stores user-teams and per-user reports.
-// Fetch failures are logged only — these reports may not be available yet.
+// Fetch failures are logged only, because these reports may not be available yet.
 // A failed per-user store is returned so the day counts as failed and alerts.
 func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, day time.Time, scopeID string) (usersErr error) {
 	defer func() {
