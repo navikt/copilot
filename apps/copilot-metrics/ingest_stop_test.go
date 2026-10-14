@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -40,8 +43,16 @@ func TestIngestMissing_StopsAtFirstFailedDayAndRetriesIt(t *testing.T) {
 		fail:                 true,
 	}
 
-	if err := ingestMissing(ctx, fetcher, store, cfg, nil); err != nil {
+	var alert slackMessage
+	slack := &SlackNotifier{webhookURL: "http://test/webhook", client: mockClient(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&alert)
+	}))}
+	if err := ingestMissing(ctx, fetcher, store, cfg, slack); err != nil {
 		t.Fatalf("partial success should not fail the run, got %v", err)
+	}
+	// Failed day plus the day it skipped: the alert covers the whole backlog.
+	if !strings.Contains(alert.Text, "2 of 3") || !strings.Contains(alert.Text, daysAgo(1).Format("2006-01-02")) {
+		t.Errorf("alert should report the skipped day too, got %q", alert.Text)
 	}
 	if got := store.count(tableUsageMetrics, daysAgo(3), "nav"); got != 1 {
 		t.Errorf("day -3 should be ingested, got %d rows", got)

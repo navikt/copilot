@@ -580,7 +580,12 @@ func ingestMissing(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg 
 			failedDays = append(failedDays, day.Format("2006-01-02"))
 			slog.Error("Failed to ingest day, stopping so the next run retries it", "day", day.Format("2006-01-02"), "error", err)
 			// Later days must not be ingested: the high-water mark would move past
-			// this day and it would never be retried.
+			// this day and it would never be retried. Count them as missing so the
+			// Slack alert reports the whole backlog.
+			for skipped := day.AddDate(0, 0, 1); !skipped.After(yesterday); skipped = skipped.AddDate(0, 0, 1) {
+				errorCount++
+				failedDays = append(failedDays, skipped.Format("2006-01-02"))
+			}
 			break
 		}
 		successCount++
