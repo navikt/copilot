@@ -80,9 +80,9 @@ export function SurveyForm({ survey, preview = false }: { survey: Survey; previe
   useEffect(() => {
     if (preview || restored.current) return;
     try {
-      const saved = sessionStorage.getItem(draftKey);
+      const saved = JSON.parse(sessionStorage.getItem(draftKey) ?? "null");
       // eslint-disable-next-line react-hooks/set-state-in-effect -- after mount on purpose: sessionStorage is not on the server
-      if (saved) setAnswers(JSON.parse(saved));
+      if (saved && typeof saved === "object" && !Array.isArray(saved)) setAnswers(saved);
     } catch {}
     restored.current = true;
   }, [draftKey, preview]);

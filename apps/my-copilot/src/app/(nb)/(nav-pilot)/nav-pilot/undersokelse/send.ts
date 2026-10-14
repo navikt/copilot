@@ -19,8 +19,11 @@ export async function sendSurvey(surveyId: string, answers: Answers): Promise<Se
   if (res.type === "opaqueredirect" || res.status === 401) return { status: "expired" };
   if (!res.headers.get("content-type")?.includes("application/json")) return { status: "error" };
   try {
-    return (await res.json()) as SubmitResult;
+    const body = await res.json();
+    return KNOWN.includes(body?.status) ? (body as SubmitResult) : { status: "error" };
   } catch {
     return { status: "error" };
   }
 }
+
+const KNOWN: unknown[] = ["recorded", "duplicate", "invalid", "no-identity", "closed", "error"];

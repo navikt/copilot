@@ -36,6 +36,8 @@ describe("sendSurvey", () => {
   it("calls an HTML page or a network failure an error, so the form offers a retry", async () => {
     respond({ status: 502, type: "basic", headers: new Headers({ "content-type": "text/html" }) });
     expect(await sendSurvey("s", {})).toEqual({ status: "error" });
+    respond(json({ error: "boom" }, 500));
+    expect(await sendSurvey("s", {})).toEqual({ status: "error" });
     respond(new TypeError("Failed to fetch"));
     expect(await sendSurvey("s", {})).toEqual({ status: "error" });
   });

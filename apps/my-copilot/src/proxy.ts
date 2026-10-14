@@ -16,7 +16,7 @@ export const PRIVATE_PAGE_PATHS = [
   "/nav-pilot/undersokelse",
 ];
 
-export const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption", "/statistikk/json"];
+export const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption", "/api/survey", "/statistikk/json"];
 
 export function isPrivatePath(pathname: string): boolean {
   return (
@@ -76,5 +76,6 @@ export const config = {
     "/nav-pilot/undersokelse/:path*",
     "/api/copilot/:path*",
     "/api/adoption/:path*",
+    "/api/survey/:path*",
   ],
 };

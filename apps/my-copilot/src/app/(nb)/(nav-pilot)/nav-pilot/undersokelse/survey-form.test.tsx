@@ -244,6 +244,13 @@ describe("SurveyForm draft", () => {
     expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
   });
 
+  it("ignores a draft that is not an answers object", () => {
+    for (const bad of ["null", "[]", "{"]) {
+      sessionStorage.setItem("survey-draft:s", bad);
+      render(<SurveyForm survey={survey} />).unmount();
+    }
+  });
+
   it("never stores a preview", () => {
     render(<SurveyForm survey={survey} preview />);
     fireEvent.click(pick("Den er rask.", "Enig"));
