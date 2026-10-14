@@ -22,6 +22,10 @@ on:
       - 'scripts/build-local-dashboard.py'
       - 'scripts/nav-pilot-golden.sh'
       - 'scripts/benchmark-*.py'
+      - 'scripts/blindspot-judge.py'
+      - 'scripts/test_blindspot_judge.py'
+      - 'scripts/golden-fixtures/**'
+      - '.mise.toml'
       - 'docs/golden-baselines/**'
   pull_request:
     branches: [main]
@@ -44,6 +48,10 @@ on:
       - 'scripts/build-local-dashboard.py'
       - 'scripts/nav-pilot-golden.sh'
       - 'scripts/benchmark-*.py'
+      - 'scripts/blindspot-judge.py'
+      - 'scripts/test_blindspot_judge.py'
+      - 'scripts/golden-fixtures/**'
+      - '.mise.toml'
       - 'docs/golden-baselines/**'
   workflow_dispatch:
 
@@ -125,6 +133,7 @@ jobs:
       - name: Benchmark summary is current
         run: |
           python3 scripts/benchmark-sjekk.py --selftest
+          python3 -m unittest discover -s scripts -p 'test_blindspot_judge.py'
           python3 scripts/benchmark-summary.py --selftest
           python3 scripts/benchmark-summary.py --check
 

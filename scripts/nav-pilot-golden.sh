@@ -426,10 +426,12 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
   "--compare: no baseline file at $COMPARE_TO" \
   "Record one first: ./scripts/nav-pilot-golden.sh --repeat 5 --save-baseline $COMPARE_TO"
 
-# --client opencode: hermetic OpenCode runs. Config comes from a scratch
+# --client opencode: configuration-isolated OpenCode runs. Config comes from a scratch
 # XDG_CONFIG_HOME (persona, skills and always-on instructions written there the
 # way `nav-pilot` syncs them globally), and OPENCODE_DISABLE_CLAUDE_CODE keeps
 # ~/.claude out. Auth stays in OpenCode's data dir, which is not redirected.
+# Real XDG data, cache and state remain writable, including session history.
+# This is not full filesystem isolation.
 # OpenCode picks its own session ids; run_prompt finds them by title (test 4).
 # Not like-for-like with the Copilot path: every skill in skills/ is installed
 # (as a global sync would), while the Copilot workspace carries none.
@@ -1727,10 +1729,10 @@ BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$REPO_ROOT/scripts/golden-fixtures/blind
 JUDGE_FILE="$WORKDIR/judge.psv"
 # Every judge spend as it happens, id|run|credits, controls as `controls|0|…`.
 # usage.psv holds only the agent's calls, so a live credit cap has to add this:
-#   awk -F'|' 'FILENAME ~ /usage/ {s += $13 / 1e9} FILENAME ~ /judge-credits/ {s += $3} END {print s}' \
+#   awk -F'|' 'FILENAME ~ /usage/ {if ($13 == "unknown") u=1; else s += $13 / 1e9} FILENAME ~ /judge-credits/ {if ($3 == "unknown") u=1; else s += $3} END {print u ? "unknown" : s}' \
 #     "$WORKDIR/usage.psv" "$WORKDIR/judge-credits.psv"
 # (#1641 overran its 400-credit cap by about 12.5 credits without it.)
-# OpenCode rows contain `unknown`; the sum above is not a cost total for those runs.
+# Unknown usage propagates; it must never become a zero-cost total.
 JUDGE_CREDITS_FILE="$WORKDIR/judge-credits.psv"
 BS_CONTROLS=""
 # judge_credit <id> <run> <summary>: the credits=… of a judge summary line.
@@ -2126,7 +2128,11 @@ RE_FASE2_PLAN='^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[
 # The verb must open a sentence or follow «og»/«så»: a bare «går videre» hit
 # two of them, both «… før vi går videre», and «før jeg starter med planen» is
 # the same promise to wait, not a step taken.
-RE_T2_PROCEED="$RE_FASE2_PLAN|(^|[.!:][[:space:]]+|(^|[^[:alnum:]])(og|så) )((jeg|vi) )?(går (nå )?videre|starter (nå )?(på|med) ([^f[:space:]]|f[^a]|fa[^s]|fas[^e]|fase([^[:space:]]|[[:space:]]+[02-9]))|fortsetter (nå )?med)"
+RE_T2_PROCEED="$RE_FASE2_PLAN|(^|[.!:?][[:space:]]+|(^|[^[:alnum:]])(og|så) )((jeg|vi) )?(går (nå )?videre|starter (nå )?(på|med) ([^f[:space:]]|f[^a]|fa[^s]|fas[^e]|fase([^[:space:]]|[[:space:]]+[02-9]))|fortsetter (nå )?med)"
+
+t2_proceeds() {
+  present "$1" "$RE_T2_PROCEED" || tr '\n' ' ' <"$1" | grep -qiE -- "$RE_T2_PROCEED"
+}
 
 # The red-zone declaration itself, inside a plan. The second of the two things
 # #534 says to derive separately, and it is derived separately: the gate above
@@ -2167,7 +2173,21 @@ RE_T2_PROCEED="$RE_FASE2_PLAN|(^|[.!:][[:space:]]+|(^|[^[:alnum:]])(og|så) )((j
 # `🔴 Rød sone, skriv selv (…):` or `🔴 **Rød sone, skriv selv:**`. A comma alone
 # would also take a passing mention («koden er i rød sone, så …»), so the comma
 # form needs the 🔴 marker in front of it, with only bold markup or space between.
-RE_T4_RED_ZONE='Rød sone[[:space:]]*(—|–|:)|🔴[*[:space:]]*Rød sone[[:space:]]*,|^[#*[:space:]]*🔴[*[:space:]]*Rød-sone-deklarasjon[*[:space:]]*$'
+RE_T4_RED_ZONE='Rød sone[[:space:]]*(—|–|:)|🔴[*[:space:]]*Rød sone[[:space:]]*,'
+
+t4_red_zone() {
+  awk -v re="$RE_T4_RED_ZONE" '
+    /^[[:space:]]*#/ { section=0 }
+    section && /[[:alnum:]]/ { found=1 }
+    { line=tolower($0) }
+    match(line, tolower(re)) {
+      if (substr(line, RSTART + RLENGTH) ~ /[[:alnum:]]/) found=1
+      section=1
+    }
+    line ~ /^[#*[:space:]]*🔴[*[:space:]]*rød-sone-deklarasjon[*[:space:]]*$/ { section=1 }
+    END { exit !found }
+  ' "$1"
+}
 RE_OPUS='nav-pilot-opus'
 
 # One pass over the selected prompts. Called once per --repeat, so every
@@ -2292,7 +2312,7 @@ run_pass_nav_pilot() {
         elif ! absent "$T2" "$RE_FASE2_WORK"; then
           record 2 "$DESC2" 1 \
             "response did Fase 2 work (matched: $RE_FASE2_WORK): PHASE INTEGRITY rule regressed"
-        elif present "$A2" "$RE_T2_PROCEED"; then
+        elif t2_proceeds "$A2"; then
           record 2 "$DESC2" 1 \
             "the turn lists open points but proceeds (matched: $RE_T2_PROCEED): PHASE INTEGRITY rule regressed"
         elif [[ "$q" -lt "$MIN_OPEN_QUESTIONS" ]]; then
@@ -2381,7 +2401,7 @@ run_pass_nav_pilot() {
     elif ! present "$(svar "$T4B")" "$RE_FASE2_PLAN"; then
       record_error 4 "$DESC4" \
         "turn 2 produced no Fase 2 plan (no match for: $RE_FASE2_PLAN) — a red-zone declaration is a property of a plan, so with no plan there is nothing to assert and this is not a pass. Either the interview did not close or the session did not carry turn 1. Re-run with --keep and read t4a and t4b in order."
-    elif ! present "$(svar "$T4B")" "$RE_T4_RED_ZONE"; then
+    elif ! t4_red_zone "$(svar "$T4B")"; then
       record 4 "$DESC4" 1 \
         "a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: $RE_T4_RED_ZONE) — mandatory per \`### Fase 2: Plan\` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not."
     else

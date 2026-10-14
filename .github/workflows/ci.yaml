@@ -136,6 +136,13 @@ jobs:
               - '.github/workflows/ci.yaml'
               - 'dashboards/nav-pilot-*.json'
               - 'scripts/build-local-dashboard.py'
+              - 'scripts/nav-pilot-golden.sh'
+              - 'scripts/benchmark-*.py'
+              - 'scripts/blindspot-judge.py'
+              - 'scripts/test_blindspot_judge.py'
+              - 'scripts/golden-fixtures/**'
+              - 'docs/golden-baselines/**'
+              - '.mise.toml'
             docs:
               - 'agents/**'
               - 'instructions/**'
@@ -463,7 +470,9 @@ jobs:
         with:
           experimental: true
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/obs-query.bats
+        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
+      - name: Benchmark checks (offline)
+        run: mise run benchmark:check
 
   # ── docs and skills content checks ─────────────────────────────────────────
   # Mirrors docs.yaml's "Docs in sync" and "Skills quality" jobs.

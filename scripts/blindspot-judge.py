@@ -26,11 +26,15 @@ ends with «?», is followed by «?» in the answer, or is an indirect question
 («trenger å vite», «må avklare»). Any other quote makes that vote false.
 The answer is data: the rubric says to ignore instructions in it, and a
 literal <answer> or </answer> in it is escaped so it cannot close the block. Exit 2 is a judge error (fewer than two usable votes).
+Transient CLI failures and malformed votes share a five-attempt budget.
+Invalid client/effort configuration and process-start failures stop immediately.
 
 BS_JUDGE_CMD replaces the model: a command that reads the prompt on stdin and
 prints the judge's JSON. The bats tests use it so CI makes no model calls.
 BS_JUDGE_CLIENT selects copilot (default) or opencode. OpenCode uses its existing
 auth store but isolated configuration; BS_JUDGE_EFFORT may be empty or low.
+Real XDG data, cache and state remain writable, including session history.
+This is configuration isolation, not full filesystem isolation.
 OpenCode credits are unavailable: numeric credits stay 0 with usage_unavailable.
 """
 
@@ -119,24 +123,25 @@ CLI_FLAGS = ["--model", MODEL, "--reasoning-effort", EFFORT, "--no-custom-instru
              "--available-tools=nonexistent_tool", "--disable-builtin-mcps", "--no-auto-update",
              "--output-format", "json"]
 OPENCODE_CONFIG = json.dumps({"$schema": "https://opencode.ai/config.json",
-                              "permission": {"*": "deny"}, "instructions": [],
+                               "permission": {"*": "deny"}, "tools": {"*": False}, "instructions": [],
                               "plugin": [], "mcp": {}, "autoupdate": False,
                               "share": "disabled"})
 
 
 class ModelError(Exception):
-    def __init__(self, message, credits=0.0):
+    def __init__(self, message, credits=0.0, permanent=False):
         super().__init__(message)
         self.credits = credits
+        self.permanent = permanent
 
 
 def client_flags():
     if CLIENT == "copilot":
         return CLI_FLAGS
     if CLIENT != "opencode":
-        raise ModelError("BS_JUDGE_CLIENT must be copilot or opencode")
+        raise ModelError("BS_JUDGE_CLIENT must be copilot or opencode", permanent=True)
     if EFFORT not in ("", "low"):
-        raise ModelError("OpenCode BS_JUDGE_EFFORT must be empty or low")
+        raise ModelError("OpenCode BS_JUDGE_EFFORT must be empty or low", permanent=True)
     model = MODEL if "/" in MODEL else "github-copilot/" + MODEL
     return ["run", "--pure", "--format", "json", "--model", model] + (
         ["--variant", EFFORT] if EFFORT else [])
@@ -192,7 +197,7 @@ def run_checked(command, **kwargs):
     except subprocess.TimeoutExpired as exc:
         raise ModelError("judge CLI timed out", events(exc.stdout)[1]) from None
     except OSError:
-        raise ModelError("judge CLI could not start") from None
+        raise ModelError("judge CLI could not start", permanent=True) from None
     if result.returncode:
         raise ModelError(f"judge CLI exited with status {result.returncode} (output withheld)",
                          events(result.stdout)[1])
@@ -222,8 +227,7 @@ def call_model(prompt):
     if cmd:
         r = run_checked(cmd, shell=True, input=prompt, timeout=120)
         return r.stdout, 0.0
-    # An empty COPILOT_HOME and cwd: no personal skills, instructions or MCP
-    # servers in the prompt, and nothing the judge could read.
+    # Empty config and cwd keep personal instructions out of the judge prompt.
     flags = client_flags()
     with isolated_cli() as (home, env):
         if CLIENT == "copilot" and "GH_TOKEN" not in env and "COPILOT_GITHUB_TOKEN" not in env:
@@ -273,8 +277,11 @@ def judge(answer):
         try:
             text, c = call_model(prompt)
         except ModelError as exc:
-            return {"error": str(exc), "transport_error": True,
-                    "credits": round(credits + exc.credits, 3), **metadata}
+            credits += exc.credits
+            if exc.permanent or tries == 5:
+                return {"error": str(exc), "transport_error": True,
+                        "credits": round(credits, 3), **metadata}
+            continue
         credits += c
         v = parse_vote(text, answer)
         if v is None:

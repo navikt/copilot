@@ -79,6 +79,7 @@ class BlindspotJudgeTests(unittest.TestCase):
             self.assertNotIn("OPENCODE_CONFIG_DIR", child)
             config = json.loads(child["OPENCODE_CONFIG_CONTENT"])
             self.assertEqual(config["permission"], {"*": "deny"})
+            self.assertEqual(config["tools"], {"*": False})
             self.assertEqual(config["plugin"], [])
             self.assertEqual(config["instructions"], [])
             self.assertEqual(config["mcp"], {})
@@ -142,7 +143,7 @@ class BlindspotJudgeTests(unittest.TestCase):
                 self.assertTrue(result["usage_unavailable"])
                 self.assertLess(len(result["error"]), 120)
                 self.assertNotIn("private-token", json.dumps(result))
-                self.assertEqual(run.call_count, 1)
+                self.assertEqual(run.call_count, 1 if isinstance(failure, OSError) else 5)
 
     def test_failure_preserves_credits_already_spent_and_partial_usage(self):
         judge = load_judge()
@@ -150,11 +151,23 @@ class BlindspotJudgeTests(unittest.TestCase):
                         subprocess.TimeoutExpired("copilot", 180,
                                                   output=copilot_output(nano=500000000).encode())):
             with self.subTest(failure=type(failure).__name__), patch.dict(os.environ, {"GH_TOKEN": "token"}), patch.object(
-                    judge.subprocess, "run", side_effect=[completed(copilot_output()), failure]) as run:
+                    judge.subprocess, "run", side_effect=[completed(copilot_output())] + [failure] * 4) as run:
                 result = judge.judge("An answer")
             self.assertTrue(result["transport_error"])
-            self.assertEqual(result["credits"], 0.75)
-            self.assertEqual(run.call_count, 2)
+            self.assertEqual(result["credits"], 2.25)
+            self.assertEqual(run.call_count, 5)
+
+    def test_transient_failures_recover_within_shared_attempt_budget(self):
+        judge = load_judge(BS_JUDGE_CLIENT="opencode")
+        for failure in (completed(status=7),
+                        completed(json.dumps({"type": "error"})),
+                        subprocess.TimeoutExpired("opencode", 180)):
+            with self.subTest(failure=type(failure).__name__), patch.object(
+                    judge.subprocess, "run", side_effect=[failure, completed(opencode_output()),
+                                                          completed(opencode_output())]) as run:
+                result = judge.judge("An answer")
+            self.assertEqual(result["votes"], 2)
+            self.assertEqual(run.call_count, 3)
 
     def test_stub_still_reads_stdin_and_returns_raw_json(self):
         judge = load_judge(BS_JUDGE_CLIENT="opencode", BS_JUDGE_EFFORT="high")
@@ -184,7 +197,7 @@ class BlindspotJudgeTests(unittest.TestCase):
                 judge.subprocess, "run", return_value=completed(VOTE, status=1)) as run:
             result = judge.judge("An answer")
         self.assertIn("exited with status 1", result["error"])
-        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_count, 5)
 
     def test_cache_separates_clients_flags_version_model_and_config(self):
         judge = load_judge()
@@ -225,10 +238,10 @@ class BlindspotJudgeTests(unittest.TestCase):
                     judge.subprocess, "run", return_value=completed(status=1)) as run, contextlib.redirect_stdout(
                     io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()) as err:
                 self.assertEqual(judge.controls(str(controls)), 2)
-                self.assertEqual(run.call_count, 1)
+                self.assertEqual(run.call_count, 5)
                 self.assertIsNone(judge.cached(judge.controls_hash(controls.read_bytes())))
                 self.assertEqual(judge.controls(str(controls)), 2)
-                self.assertEqual(run.call_count, 2)
+                self.assertEqual(run.call_count, 10)
             self.assertIn("n=200", out.getvalue())
             self.assertIn("status=fail", out.getvalue())
             self.assertIn("usage_unavailable", err.getvalue())
