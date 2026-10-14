@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-14
+
+### Svaret i undersøkelsen forsvinner ikke ved «for mange forespørsler»
+
+- **`nav-pilot survey`**: Hvis copilot-cli svarte «429 for mange forespørsler» da du sendte inn svaret, ble svaret slettet og du fikk beskjed om at det ikke ble lagret. Nå beholder nav-pilot svaret og sender det på nytt etter neste økt, på samme måte som ved serverfeil.
+
 ## 2026-10-13
 
 ### Påstandene i undersøkelsen er én liste

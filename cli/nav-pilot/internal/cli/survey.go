@@ -822,7 +822,7 @@ func sendAnswered(base string, st surveyState, id string) {
 		fmt.Println(yellow("  ⚠ ") + "Svaret er lagret. Logg inn med " + bold("nav-pilot auth login") + ", så sender nav-pilot det etter neste økt.")
 	case status == http.StatusUnauthorized:
 		fmt.Println(yellow("  ⚠ ") + "copilot-cli godtok ikke GitHub-innloggingen din. Svaret er lagret. Kjør " + bold("nav-pilot auth login") + ", så sender nav-pilot det etter neste økt.")
-	case status >= 400 && status < 500:
+	case status >= 400 && status < 500 && status != http.StatusTooManyRequests:
 		rec.Pending = nil
 		fmt.Println(yellow("  ⚠ ") + "copilot-cli avviste svaret" + surveyErrDetail(err) + ". Det ble dessverre ikke lagret.")
 	case status >= 500 || status == http.StatusTooManyRequests:
