@@ -79,8 +79,8 @@ func TestSurveyStore(t *testing.T) {
 		t.Fatal("submissions not written at once")
 	}
 
-	// A failed write keeps the submission queued (and refuses a duplicate),
-	// and flush writes it at shutdown.
+	// A failed write is reported and undone, so the sender can send the same
+	// answer again once the database is back.
 	exec := func(q string) {
 		t.Helper()
 		if _, err := s.pool.Exec(t.Context(), q); err != nil {
@@ -88,40 +88,44 @@ func TestSurveyStore(t *testing.T) {
 		}
 	}
 	exec(`ALTER TABLE survey_answers RENAME TO survey_answers_gone`)
-	ok := submit("s", "late", day(10))
+	ok, lateErr := s.submit(t.Context(), "s", "late", day(10), r)
 	exec(`ALTER TABLE survey_answers_gone RENAME TO survey_answers`)
-	if !ok || count("survey_participation") != 3 {
-		t.Fatal("a failed write was refused or partly written")
+	if ok || lateErr == nil {
+		t.Fatalf("a failed write was acknowledged: ok=%v err=%v", ok, lateErr)
 	}
-	if !answered("s", "late") || submit("s", "late", day(10)) {
-		t.Fatal("a queued submission was not seen as answered")
+	if count("survey_participation") != 3 || answered("s", "late") {
+		t.Fatal("a failed write was partly written or left the sender marked as answered")
 	}
-	if queued("s") != 1 {
-		t.Fatalf("queued gauge after a failed write = %v, want 1", queued("s"))
+	if queued("s") != 0 {
+		t.Fatalf("queued gauge after a failed write = %v, want 0", queued("s"))
 	}
+	if !submit("s", "late", day(10)) || !answered("s", "late") {
+		t.Fatal("the sender could not send again after a failed write")
+	}
+
+	// flush writes what waits in the queue (answerBatch > 1) at shutdown.
+	s.queues["s"].hashes["queued"] = true
+	s.queues["s"].answers = []response{r}
 	before := count("survey_answers")
-	if queued("s") != 1 {
-		t.Fatalf("queued gauge = %v, want 1", queued("s"))
-	}
 	if lost := s.flush(t.Context()); lost != 0 {
 		t.Fatalf("flush lost %d", lost)
 	}
-	if count("survey_answers") != before+1 || !answered("s", "late") {
+	if count("survey_answers") != before+1 || !answered("s", "queued") {
 		t.Fatal("flush did not write the queued answer")
 	}
 	if queued("s") != 0 {
 		t.Fatalf("queued gauge after flush = %v, want 0", queued("s"))
 	}
-	if submit("s", "late", day(10)) {
+	if submit("s", "queued", day(10)) {
 		t.Fatal("a flushed sender could answer again")
 	}
 
 	// Close-out: participation of closed surveys goes, answers stay.
 	s.retain(t.Context(), day(2))
-	if count("survey_answers") != 4 {
-		t.Fatalf("answers after close-out = %d, want 4", count("survey_answers"))
+	if count("survey_answers") != 5 {
+		t.Fatalf("answers after close-out = %d, want 5", count("survey_answers"))
 	}
-	if n := count("survey_participation"); n != 3 {
+	if n := count("survey_participation"); n != 4 {
 		t.Fatalf("participation = %d; the rows of s (closes in 10 days) stay until it closes", n)
 	}
 }

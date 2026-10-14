@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"slices"
 	"sync"
 	"time"
 
@@ -39,7 +40,8 @@ var queuedAnswers = promauto.NewGaugeVec(prometheus.GaugeOpts{
 // transaction. With answerBatch = 1 every submission is written at once, so
 // commit time and transaction id link an answer to its participation row
 // while the survey is open; the participation rows are deleted when it
-// closes. A failed write stays queued for the next submission or shutdown.
+// closes. A failed write is undone and reported, so the sender can send the
+// answer again; only answers below answerBatch wait in the queue.
 const schema = `
 CREATE TABLE IF NOT EXISTS survey_participation (
 	survey_id        text NOT NULL,
@@ -110,8 +112,9 @@ func openSurveyStore(ctx context.Context, dbURL string) (*surveyStore, error) {
 }
 
 // submit queues one submission. false means hash already answered, written
-// or queued. A failed batch write stays queued for the next try and is not
-// the caller's problem.
+// or queued. When the write it triggers fails, the submission is taken out
+// of the queue again and the error returned: the sender still has the answer
+// and can send it again, while a queued answer dies with the pod.
 func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesOn time.Time, r response) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -130,14 +133,18 @@ func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesO
 	if err != nil || seen {
 		return false, err
 	}
+	prev := slices.Clone(q.answers) // writeLocked shuffles q.answers in place
 	q.hashes[hash] = true
 	q.answers = append(q.answers, r)
-	queuedAnswers.WithLabelValues(surveyID).Set(float64(len(q.answers)))
 	if len(q.answers) >= answerBatch {
 		if err := s.writeLocked(ctx, surveyID, q); err != nil {
-			slog.Error("survey: writing the submission failed, kept queued", "survey", surveyID, "error_type", fmt.Sprintf("%T", err))
+			delete(q.hashes, hash)
+			q.answers = prev
+			queuedAnswers.WithLabelValues(surveyID).Set(float64(len(q.answers)))
+			return false, err
 		}
 	}
+	queuedAnswers.WithLabelValues(surveyID).Set(float64(len(q.answers)))
 	return true, nil
 }
 
