@@ -198,11 +198,12 @@ func cmdMCPList(jsonOut bool) error {
 
 func printMCPReport(rep mcpReport) {
 	if len(rep.Problems) == 0 {
-		fmt.Printf("%s No problems found with your MCP servers.\n", green("✓"))
+		fmt.Printf("%s No configuration problems found with your MCP servers.\n", green("✓"))
 	} else {
 		fmt.Printf("%s\n", bold(fmt.Sprintf("Problems (%d)", len(rep.Problems))))
 		printMCPProblems(rep.Problems)
 	}
+	fmt.Println("Checks configured servers and sandbox policy, not live connections, authentication, built-in servers, or the active agent's tools.")
 	if rep.Stale != "" {
 		fmt.Printf("%s Nav's MCP registry could not be read again (%s)\n", yellow("⚠"), rep.Stale)
 	}
