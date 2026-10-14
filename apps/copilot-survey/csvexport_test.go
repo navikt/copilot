@@ -39,7 +39,7 @@ func TestExportCSV(t *testing.T) {
 	insert(`{"overall":3,"client":"copilot","tools":["a","b"],"editor":["vim","Annet"],"editor.other":"ring 98765432","fast":4,"safe":2,"comment":"hans@nav.no"}`,
 		`{"overall":1,"client":1,"tools":1,"editor":1,"fast":2,"safe":1,"comment":1}`, common)
 	insert(`{"fast":1,"comment":"=SUM(A1)"}`, `{"fast":1,"comment":1}`, common)
-	insert(`{"comment":"skjul meg"}`, `{"comment":1}`, common)
+	insert(`{"comment":"skjul meg"}`, `{"comment":2}`, common)
 	for range 2 {
 		insert(`{"overall":5}`, `{"overall":1}`, common)
 	}
@@ -71,7 +71,7 @@ func TestExportCSV(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantHeader := []string{"overall", "client", "tools=a", "tools=b", "tools=c", "why", "editor=vim", "editor=vscode", "editor=Annet", "editor.other",
-		"grid.fast", "grid.fast.version", "grid.safe", "comment", "context.client", "context.os", "context.version", "context.local_models"}
+		"grid.fast", "grid.fast.version", "grid.safe", "comment", "comment.version", "context.client", "context.os", "context.version", "context.local_models"}
 	if !slices.Equal(recs[0], wantHeader) {
 		t.Fatalf("header\n%q\nwant\n%q", recs[0], wantHeader)
 	}
@@ -88,14 +88,18 @@ func TestExportCSV(t *testing.T) {
 		return nil
 	}
 	full := find(0, "3")
-	if want := []string{"3", "copilot", "1", "1", "0", "", "1", "0", "1", "ring [telefon]", "4", "2", "2", "[e-post]",
+	if want := []string{"3", "copilot", "1", "1", "0", "", "1", "0", "1", "ring [telefon]", "4", "2", "2", "[e-post]", "1",
 		"copilot", "linux", "2026.09", "false"}; !slices.Equal(full, want) {
 		t.Errorf("row\n%q\nwant\n%q", full, want)
 	}
 	find(13, "'=SUM(A1)")
+	// The hidden text's row: empty cell, but its version is kept.
+	if r := find(14, "2"); r[13] != "" {
+		t.Errorf("hidden text: %q", r[13])
+	}
 	// The «pi» row: below k=5 on its own, and its combination with it.
-	if r := find(0, "4"); !slices.Equal(r[14:], []string{"annet", "annet", "annet", "annet"}) {
-		t.Errorf("small segment kept: %q", r[14:])
+	if r := find(0, "4"); !slices.Equal(r[15:], []string{"annet", "annet", "annet", "annet"}) {
+		t.Errorf("small segment kept: %q", r[15:])
 	}
 	if strings.Contains(body, "skjul meg") || strings.Contains(body, "hans@") || strings.Contains(body, "98765432") {
 		t.Errorf("hidden or unmasked text in export:\n%s", body)

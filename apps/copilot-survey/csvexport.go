@@ -30,7 +30,12 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(stored) == 0 && s.status(a.now()) == "stengt" && a.final != nil {
-		if t, err := a.final(r.Context(), s.ID); err == nil && t != nil {
+		t, err := a.final(r.Context(), s.ID)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
+			return
+		}
+		if t != nil {
 			writeError(w, http.StatusGone, "the answers to this survey are deleted; only the aggregates remain")
 			return
 		}
@@ -53,20 +58,21 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 	answer := func(name, key string) {
 		cols = append(cols, column{name, func(r exportRow) string { return csvValue(r.Answers[key]) }})
 	}
-	answered := func(r exportRow, key string) bool { _, ok := r.Answers[key]; return ok }
+	// Versions come from question_versions, not the answers: a hidden text
+	// is gone from those but was still answered.
 	version := func(name, key string) {
 		seen := map[int]bool{}
 		for _, r := range rows {
-			if answered(r, key) {
-				seen[r.QuestionVersions[key]] = true
+			if v, ok := r.QuestionVersions[key]; ok {
+				seen[v] = true
 			}
 		}
 		if len(seen) > 1 {
 			cols = append(cols, column{name + ".version", func(r exportRow) string {
-				if !answered(r, key) {
-					return ""
+				if v, ok := r.QuestionVersions[key]; ok {
+					return strconv.Itoa(v)
 				}
-				return strconv.Itoa(r.QuestionVersions[key])
+				return ""
 			}})
 		}
 	}
