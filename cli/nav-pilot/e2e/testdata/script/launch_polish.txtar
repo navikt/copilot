@@ -31,6 +31,13 @@ exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
 stderr 'Install it: npm i -g opencode-ai@1\.18\.32'
 
 fake-bin cplt npm pnpm
+env PNPM_HOME=
+exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
+stderr 'Install it: npm i -g opencode-ai@1\.18\.32'
+
+mkdir pnpm-home
+env PNPM_HOME=$WORK/repo/pnpm-home
+env PATH=$PNPM_HOME:$PATH
 exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
 stderr 'Install it: pnpm add -g opencode-ai@1\.18\.32'
 

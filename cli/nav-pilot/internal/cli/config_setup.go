@@ -500,7 +500,15 @@ func opencodeInstallCommand() string {
 	}
 	// Pin npm packages so the hint cannot install an untested OpenCode major.
 	if _, err := exec.LookPath("pnpm"); err == nil {
-		return "pnpm add -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
+		// Corepack can provide pnpm before its global bin directory is set up.
+		home := os.Getenv("PNPM_HOME")
+		if info, err := os.Stat(home); err == nil && info.IsDir() && filepath.IsAbs(home) {
+			for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+				if filepath.Clean(dir) == filepath.Clean(home) {
+					return "pnpm add -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
+				}
+			}
+		}
 	}
 	if _, err := exec.LookPath("npm"); err == nil {
 		return "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion

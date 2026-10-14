@@ -16,14 +16,17 @@ func TestOpenCodeInstallHint(t *testing.T) {
 	t.Cleanup(func() { isInteractive = origInteractive })
 
 	for _, tt := range []struct {
-		name string
-		bins []string
-		want string
+		name     string
+		bins     []string
+		pnpmHome bool
+		want     string
 	}{
-		{"brew first", []string{"npm", "pnpm", "brew"}, opencodeBrewInstall},
-		{"pnpm before npm", []string{"npm", "pnpm"}, "pnpm add -g opencode-ai@" + providerpkg.OpenCodeInstallVersion},
-		{"npm", []string{"npm"}, "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion},
-		{"no package manager", nil, opencodeScriptInstall},
+		{"brew first", []string{"npm", "pnpm", "brew"}, true, opencodeBrewInstall},
+		{"pnpm before npm", []string{"npm", "pnpm"}, true, "pnpm add -g opencode-ai@" + providerpkg.OpenCodeInstallVersion},
+		{"unconfigured pnpm with npm", []string{"npm", "pnpm"}, false, "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion},
+		{"unconfigured pnpm alone", []string{"pnpm"}, false, opencodeScriptInstall},
+		{"npm", []string{"npm"}, false, "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion},
+		{"no package manager", nil, false, opencodeScriptInstall},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			isolatedConfig(t)
@@ -34,6 +37,10 @@ func TestOpenCodeInstallHint(t *testing.T) {
 				}
 			}
 			t.Setenv("PATH", bin)
+			t.Setenv("PNPM_HOME", "")
+			if tt.pnpmHome {
+				t.Setenv("PNPM_HOME", bin)
+			}
 			if got := opencodeInstallCommand(); got != tt.want {
 				t.Fatalf("opencodeInstallCommand() = %q, want %q", got, tt.want)
 			}
@@ -48,6 +55,23 @@ func TestOpenCodeInstallHint(t *testing.T) {
 				t.Errorf("interactive hint = %q, want %q", stderr, tt.want)
 			}
 		})
+	}
+}
+
+func TestOpenCodeInstallHintRejectsInvalidPnpmHome(t *testing.T) {
+	bin := t.TempDir()
+	for _, name := range []string{"pnpm", "npm"} {
+		if err := testhome.WriteExec(filepath.Join(bin, name), "#!/bin/sh\nexit 1\n"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin)
+	for _, home := range []string{t.TempDir(), filepath.Join(bin, "missing"), filepath.Join(bin, "npm"), "."} {
+		t.Setenv("PNPM_HOME", home)
+		want := "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
+		if got := opencodeInstallCommand(); got != want {
+			t.Errorf("PNPM_HOME=%q: got %q, want %q", home, got, want)
+		}
 	}
 }
 
