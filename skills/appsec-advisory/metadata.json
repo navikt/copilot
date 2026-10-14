@@ -1,11 +1,11 @@
 {
   "description": "Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn, vurdert eksponering og forslag til trygg testing. Bruk når teamet vil ha en dypere sikkerhetsvurdering eller prioritering av funn, ikke for sjekk før commit (bruk security-review) eller pentest",
-  "domain": "auth",
+  "domain": "general",
   "tags": [
     "security",
     "appsec",
     "code-review",
-    "pentest-planning"
+    "verification-planning"
   ],
   "examples": [
     {

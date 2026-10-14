@@ -3,8 +3,8 @@ name: appsec-advisory
 description: Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn, vurdert eksponering og forslag til trygg testing. Bruk når teamet vil ha en dypere sikkerhetsvurdering eller prioritering av funn, ikke for sjekk før commit (bruk security-review) eller pentest
 license: MIT
 metadata:
-  domain: auth
-  tags: security appsec code-review pentest-planning
+  domain: general
+  tags: security appsec code-review verification-planning
 ---
 
 # AppSec advisory
@@ -14,29 +14,36 @@ Use this skill for a scoped security review of a repo or PR, with prioritized fi
 ## Scope and evidence
 
 1. Identify repo, revision, scope and exclusions; read repo instructions and resolve the diff base. For worktree reviews include committed, staged, unstaged and untracked changes, reading untracked files directly. Never work around denied access.
-2. Map relevant entry points, data flows, assets and trust boundaries. Trace candidates through callers, auth, ownership, dependencies and deployment controls. Check defaults and effective policies, not only individual fragments. Verify third-party behavior against the versioned dependency or mark it unverified.
-3. Run useful read-only checks and record commands, results and scope. Existing GitHub alerts (Dependabot, code scanning, secret scanning) read through `gh api` are cheap evidence. Do not install tools, start services, contact targets, read credentials, dump secrets or run active probes. Do not create files, even in the session workspace, unless requested. Record tools needing writes or unavailable tools as unperformed, not clean scans.
+2. Map relevant entry points, data flows, assets and trust boundaries. Trace candidates through callers, auth, ownership, dependencies and deployment controls. Check defaults and effective policies, not only individual fragments, including config edge cases such as blank, relative or symlinked paths and optional values set to empty strings. Treat log statements as sinks: follow credentials, tokens, authorization codes and request bodies that carry them into logs at every level, including DEBUG. Verify third-party behavior against the versioned dependency or mark it unverified.
+3. Run useful read-only checks and record commands, results and scope. Treat existing alerts (Dependabot, code scanning, secret scanning) as leads, not findings; record tool, ruleset, revision, scanned paths and exclusions before validating each claim. Existing GitHub alerts read through `gh api` are cheap evidence. Do not install tools, start services, contact targets, read credentials, dump secrets or run active probes. Do not create files, even in the session workspace, unless requested. Record tools needing writes or unavailable tools as unperformed, not clean scans.
 4. Try to disprove each candidate: attacker control, reachability, upstream auth, deny policies, compensating controls and plausible impact. Check benign paths. Drop unsupported claims; state unresolved ones as questions with a way to settle them.
 5. For a PR, report only issues the change introduces or makes reachable; list existing issues separately as context. Check git history for reverted or previously fixed code, and treat changed security code without tests as higher risk.
 6. Prioritize by plausible impact and exposure, not scanner labels. Separate **observed code defect**, **conditional risk** and **verified exploit**: source review cannot establish the last. Rate code evidence and deployment exposure separately; do not infer reachability from an egress-only policy or a single config fragment.
 
-## Nais exposure
+## Deployment context
 
-Assess deployment exposure from the app's `.nais/` manifests for each environment; use `$nais` and `$nav-auth` for details.
+Identify how the reviewed service actually runs from its configuration and documentation; do not assume Nais, Kubernetes or any cloud provider. If deployment evidence is absent, leave exposure unknown.
 
-- **Ingress:** no ingress means cluster-internal only. `*.intern.nav.no` and `*.intern.dev.nav.no` are internal; `*.nav.no`, `*.dev.nav.no` and `*.ansatt.nav.no` are reachable from the internet, so authentication decides who gets in.
-- **Inbound callers:** `accessPolicy.inbound.rules` lists which apps may call the service and, with Azure AD or TokenX, obtain tokens for it. Check that the code's token validation matches those rules.
+- For a PR, prioritize changes to auth, routing, network policy and data access. Trace affected callers, consumers, tests and environment-specific configuration; do not assume environments share controls.
+- For each route, follow the actual path from caller through any ingress, gateway or proxy to the handler. Check relevant network rules on both sides, token validation (issuer, audience and caller claims where applicable) and resource ownership. A network grant or login proxy alone does not establish application authorization. For in-scope Kafka topics or other resources, inspect declared ACLs (including wildcards) and grants; mark unseen effective policies or live access unknown.
+
+Only for Nais workloads, assess each environment's `.nais/` manifests or Helm charts when present; use `$nais` and `$nav-auth` for details:
+
+- **Ingress:** distinguish ingress from service discovery. `accessPolicy.inbound` governs service-discovery traffic, not ingress traffic ([Nais zero trust](https://github.com/nais/doc/blob/main/docs/workloads/explanations/zero-trust.md)). Check the ingress domain and any Wonderwall settings. `*.intern.nav.no` and `*.intern.dev.nav.no` are internal; `*.nav.no`, `*.dev.nav.no` and `*.ansatt.nav.no` are reachable from the internet, so authentication decides who gets in.
+- **Inbound callers:** check the caller's outbound and target's inbound policies for service discovery. Where Azure AD or TokenX is used, check that application-side token validation matches the intended callers.
 - **Login:** with an ID-porten or Azure AD sidecar, `autoLogin` enforces login only outside `autoLoginIgnorePaths`; the application must validate tokens on every path it relies on. `azure.application.allowAllUsers: true` admits every Nav employee unless the code checks groups or roles.
-- **Logs:** personal data belongs in team logs, not ordinary application logs.
+- **Logs:** personal data belongs in team logs, not ordinary application logs. Credentials and tokens belong in neither.
 
 ## Severity and exclusions
 
 Severity combines impact and exposure:
 
 - **CRITICAL:** unauthenticated, internet-reachable path to personal data, special categories of personal data, credentials or code execution.
-- **HIGH:** authentication or authorization bypass, or personal data (such as fødselsnummer) exposed in responses or ordinary logs.
+- **HIGH:** authentication or authorization bypass, or personal data (such as fødselsnummer) or credentials and tokens exposed in responses or ordinary logs.
 - **MEDIUM:** impact that requires specific conditions, an authenticated or internal caller, or a second defect.
 - **LOW:** defense in depth with no demonstrated path to impact.
+
+Score confidence separately for code and deployment: 1–3 for a weak lead, 4–6 for partial evidence with material unknowns, 7–8 for a traced path with some controls unresolved, and 9–10 only when the relevant path and controls are evidenced. For deployment, require evidence of the effective policy for a high score; otherwise use `unknown` if exposure cannot be assessed. Confidence is not exploit verification.
 
 Do not report a finding with code confidence below 7; state it as a question instead. Do not report as findings: denial of service, resource exhaustion or missing rate limiting; missing input validation without a demonstrated security consequence; attacks that need capabilities the attacker would not plausibly have, such as write access to the deployed filesystem or the repository; generic hardening already handled by the platform. Mention them under not inspected or as questions when they matter to the team.
 
