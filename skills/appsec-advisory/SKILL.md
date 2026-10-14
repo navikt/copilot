@@ -14,7 +14,7 @@ Use this skill for a scoped security review of a repo or PR, with prioritized fi
 ## Scope and evidence
 
 1. Identify repo, revision, scope and exclusions; read repo instructions and resolve the diff base. For worktree reviews include committed, staged, unstaged and untracked changes, reading untracked files directly. Never work around denied access.
-2. Map relevant entry points, data flows, assets and trust boundaries. Trace candidates through callers, auth, ownership, dependencies and deployment controls. Check defaults and effective policies, not only individual fragments. Verify third-party behavior against the versioned dependency or mark it unverified.
+2. Map relevant entry points, data flows, assets and trust boundaries. Trace candidates through callers, auth, ownership, dependencies and deployment controls. Check defaults and effective policies, not only individual fragments, including config edge cases such as blank, relative or symlinked paths and optional values set to empty strings. Treat log statements as sinks: follow credentials, tokens, authorization codes and request bodies that carry them into logs at every level, including DEBUG. Verify third-party behavior against the versioned dependency or mark it unverified.
 3. Run useful read-only checks and record commands, results and scope. Existing GitHub alerts (Dependabot, code scanning, secret scanning) read through `gh api` are cheap evidence. Do not install tools, start services, contact targets, read credentials, dump secrets or run active probes. Do not create files, even in the session workspace, unless requested. Record tools needing writes or unavailable tools as unperformed, not clean scans.
 4. Try to disprove each candidate: attacker control, reachability, upstream auth, deny policies, compensating controls and plausible impact. Check benign paths. Drop unsupported claims; state unresolved ones as questions with a way to settle them.
 5. For a PR, report only issues the change introduces or makes reachable; list existing issues separately as context. Check git history for reverted or previously fixed code, and treat changed security code without tests as higher risk.
@@ -27,14 +27,14 @@ Assess deployment exposure from the app's `.nais/` manifests for each environmen
 - **Ingress:** no ingress means cluster-internal only. `*.intern.nav.no` and `*.intern.dev.nav.no` are internal; `*.nav.no`, `*.dev.nav.no` and `*.ansatt.nav.no` are reachable from the internet, so authentication decides who gets in.
 - **Inbound callers:** `accessPolicy.inbound.rules` lists which apps may call the service and, with Azure AD or TokenX, obtain tokens for it. Check that the code's token validation matches those rules.
 - **Login:** with an ID-porten or Azure AD sidecar, `autoLogin` enforces login only outside `autoLoginIgnorePaths`; the application must validate tokens on every path it relies on. `azure.application.allowAllUsers: true` admits every Nav employee unless the code checks groups or roles.
-- **Logs:** personal data belongs in team logs, not ordinary application logs.
+- **Logs:** personal data belongs in team logs, not ordinary application logs. Credentials and tokens belong in neither.
 
 ## Severity and exclusions
 
 Severity combines impact and exposure:
 
 - **CRITICAL:** unauthenticated, internet-reachable path to personal data, special categories of personal data, credentials or code execution.
-- **HIGH:** authentication or authorization bypass, or personal data (such as fødselsnummer) exposed in responses or ordinary logs.
+- **HIGH:** authentication or authorization bypass, or personal data (such as fødselsnummer) or credentials and tokens exposed in responses or ordinary logs.
 - **MEDIUM:** impact that requires specific conditions, an authenticated or internal caller, or a second defect.
 - **LOW:** defense in depth with no demonstrated path to impact.
 
