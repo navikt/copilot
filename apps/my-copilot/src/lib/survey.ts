@@ -92,7 +92,8 @@ export async function getSurveyPreview(id: string): Promise<Survey | undefined> 
   if (!/^[a-z0-9-]{1,64}$/.test(id)) return undefined;
   try {
     const res = await fetchWithTimeout(
-      `https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/${id}.json`,
+      // SURVEY_DEFINITIONS_URL: e2e serves the definitions from a mock.
+      `${process.env.SURVEY_DEFINITIONS_URL ?? "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys"}/${id}.json`,
       { cache: "no-store" },
       5000,
       "timeout"
@@ -325,5 +326,23 @@ export async function hideSurveyFreetext(userToken: string, id: string, textToke
     return res.status === 204;
   } catch {
     return false;
+  }
+}
+
+/** GET /api/v1/admin/surveys/{id}/export.csv as is, for the route handler to stream on; null without a URL, a valid id or a connection. */
+export async function fetchSurveyExport(userToken: string, id: string): Promise<Response | null> {
+  const url = process.env.COPILOT_SURVEY_URL;
+  if (!url || !/^[a-z0-9-]{1,64}$/.test(id)) return null;
+  try {
+    const headers: Record<string, string> = {};
+    if (!isLocalDev) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    return await fetchWithTimeout(
+      `${url}/api/v1/admin/surveys/${id}/export.csv`,
+      { headers, cache: "no-store" },
+      30000,
+      "timeout"
+    );
+  } catch {
+    return null;
   }
 }

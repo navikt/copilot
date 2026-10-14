@@ -14,6 +14,7 @@ type storedAnswer struct {
 	Answers          map[string]any `json:"answers"`
 	QuestionVersions map[string]int `json:"question_versions"`
 	Client           string         `json:"-"` // context.client: web, copilot, forms (import), …
+	Context          map[string]any `json:"-"` // version, os, client, local_models; for the CSV export
 }
 
 type surveySummary struct {

@@ -33,6 +33,7 @@ status routes only.
 | `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, answers per `context.client`. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts |
 | `GET` | `/api/v1/admin/surveys/{id}/freetext` | admin | Free text per field (text questions and `<id>.other`), masked as in the export, random order, each text on its own: no row id, no other answers. Hidden texts left out. Visible while open (owner, 2026-10-13) |
 | `POST` | `/api/v1/admin/surveys/{id}/freetext/hide` | admin | `{"token": "..."}` from the list above: hides that text in admin and the export. 204, or 404 for an unknown token |
+| `GET` | `/api/v1/admin/surveys/{id}/export.csv` | admin | Every response as one CSV row, see [CSV export in admin](#csv-export-in-admin). 410 when a closed survey's rows are deleted and only aggregates remain |
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`, `survey_queued_answers{survey}`) |
 
 Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check. A token copilot-survey does not accept at all gets 401; every accepted caller who is not an admin (a my-copilot user outside the group, copilot-cli) gets 404, as in copilot-api and my-copilot.
@@ -226,6 +227,30 @@ psql "$DATABASE_URL" -At -c "SELECT json_build_object('answers', answers,
 
 Answers keep their question ids; `construct` and `reverse` come from the
 definition file. Analyse the export, not the table.
+
+### CSV export in admin
+
+«Last ned svar (CSV)» on `/admin/undersokelser/{id}` in my-copilot fetches
+`/api/v1/admin/surveys/{id}/export.csv` through its route handler
+`/api/admin/surveys/{id}/export`. It works while the survey is open, and after
+it closes for as long as the rows exist. The file, `{id}-svar.csv`, is UTF-8
+with a BOM so Excel reads æøå:
+
+- One row per response, in random order. No row id, hash or timestamp.
+- Columns follow the definition: a scale, choice or text question under its
+  id; a multi question as one 0/1 column per option, `<id>=<option>` (empty
+  when the question was not answered), so `SUM` counts an option; a matrix
+  item as `<question>.<item>`; `<id>.other` for the text of an «other» option.
+  `<id>.version` follows a question or item only when respondents answered
+  different versions of it.
+- Then `context.client`, `context.os`, `context.version` (year.month) and
+  `context.local_models`, with the k ≥ 5 rule above.
+- Free text is masked and hidden texts are empty cells, as in the CLI export.
+  Text starting with `=`, `+`, `-` or `@` gets a leading `'` so a spreadsheet
+  does not run it as a formula.
+
+copilot-survey logs the survey id and row count of each export, never the
+content.
 
 ### Importing an earlier survey
 

@@ -80,7 +80,7 @@ export default async function TeamReportPage({
   };
 
   return (
-    <main id="hovedinnhold" tabIndex={-1} className="team-report mx-auto max-w-4xl px-4 py-8 print:p-0">
+    <main id="hovedinnhold" tabIndex={-1} className="print-report mx-auto max-w-4xl px-4 py-8 print:p-0">
       <DocumentTitle
         title={`Copilot-kostnad ${data.team_slug} ${data.year}${last_usage_day ? ` (til og med ${last_usage_day})` : ""}`}
       />

@@ -182,6 +182,13 @@ describe("/admin/undersokelser/sammenlign", () => {
     expect(screen.getAllByText(/Holdt utenfor fordi de ikke bruker KI-verktøy.*Våren 2026: 14/)).toHaveLength(2);
   });
 
+  it("saves as PDF: a print button and the print layout", async () => {
+    respond(comparison);
+    await renderPage("q2-2026,q4-2026");
+    expect(screen.getByRole("button", { name: "Lagre som PDF" })).toHaveClass("print-hidden");
+    expect(screen.getByRole("main")).toHaveClass("print-report", "survey-print");
+  });
+
   it("marks a version break: no deltas and no line in the overview", async () => {
     respond(comparison);
     await renderPage("q2-2026,q4-2026");
