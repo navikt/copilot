@@ -271,6 +271,45 @@ func TestMCPDisableNarrowsTheApproval(t *testing.T) {
 	}
 }
 
+func TestMCPDisableRetiredNativeByRegistryName(t *testing.T) {
+	for _, status := range []string{"deprecated", "deleted"} {
+		t.Run(status, func(t *testing.T) {
+			isolatedConfig(t)
+			prevRegistry, prevCplt := mcpRegistryServers, cpltInstalled
+			prevClient, prevOff := providerpkg.MCPClient, providerpkg.MCPHostsOff
+			t.Cleanup(func() {
+				mcpRegistryServers, cpltInstalled = prevRegistry, prevCplt
+				providerpkg.MCPClient, providerpkg.MCPHostsOff = prevClient, prevOff
+			})
+			e := providerpkg.MCPServerEntry{
+				Name: "io.github.navikt/nais", Status: status,
+				Local: &providerpkg.MCPLocal{Command: "nais", Args: []string{"mcp", "--readonly"}},
+			}
+			mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+				return "https://registry.test", []providerpkg.MCPServerEntry{e}, nil, nil
+			}
+			cpltInstalled = func() bool { return false }
+			path, err := providerpkg.MCPConfigPath(providerpkg.MCPClientOpenCode)
+			if err != nil {
+				t.Fatal(err)
+			}
+			orig := `{"mcp":{"my-nais":{"type":"local","command":["nais","mcp","--readonly"]},"keep":{"type":"local","command":["other"]}}}`
+			writeTestFile(t, path, orig)
+			captureStdoutFor(t, func() {
+				if err := cmdMCPDisable([]string{e.Name}, []string{providerpkg.MCPClientOpenCode}); err != nil {
+					t.Fatal(err)
+				}
+			})
+			if keys := providerpkg.MCPConfigKeys(providerpkg.MCPClientOpenCode); !slices.Equal(keys, []string{"keep"}) {
+				t.Errorf("keys after disable = %v, want [keep]", keys)
+			}
+			if data, err := os.ReadFile(path + ".bak"); err != nil || string(data) != orig {
+				t.Errorf("backup = %q, %v; want original config", data, err)
+			}
+		})
+	}
+}
+
 func TestMCPEnableFollowUpShowsSetupDescription(t *testing.T) {
 	isolatedConfig(t)
 	prev := mcpCpltPath

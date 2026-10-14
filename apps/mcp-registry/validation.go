@@ -67,8 +67,8 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 		if len(server.Remotes)+len(server.Packages) != 0 {
 			return fmt.Errorf("server[%d]: 'local' cannot be combined with remotes or packages", index)
 		}
-		if strings.TrimSpace(server.Local.Command) == "" || strings.ContainsAny(server.Local.Command, " \t\r\n\x00") {
-			return fmt.Errorf("server[%d]: 'local.command' must be a non-empty executable without whitespace or NUL", index)
+		if strings.TrimSpace(server.Local.Command) == "" || strings.ContainsRune(server.Local.Command, '\x00') {
+			return fmt.Errorf("server[%d]: 'local.command' must be a non-empty executable without NUL", index)
 		}
 		for _, arg := range server.Local.Args {
 			if strings.ContainsRune(arg, '\x00') {

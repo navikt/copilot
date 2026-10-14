@@ -19,7 +19,8 @@ func TestLocalCommandValidation(t *testing.T) {
 		{name: "no args", local: LocalCommand{Command: "nais"}},
 		{name: "empty arg", local: LocalCommand{Command: "nais", Args: []string{""}}},
 		{name: "empty command", wantErr: true},
-		{name: "shell string", local: LocalCommand{Command: "nais alpha mcp serve"}, wantErr: true},
+		{name: "path with spaces", local: LocalCommand{Command: "/Applications/Nais CLI/nais", Args: []string{"alpha", "mcp", "serve"}}},
+		{name: "whitespace command", local: LocalCommand{Command: " \t\n"}, wantErr: true},
 		{name: "NUL command", local: LocalCommand{Command: "nais\x00"}, wantErr: true},
 		{name: "NUL arg", local: LocalCommand{Command: "nais", Args: []string{"\x00"}}, wantErr: true},
 		{name: "ambiguous remote", local: LocalCommand{Command: "nais"}, remotes: []Transport{{Type: TransportTypeSSE, URL: "https://example.com/sse"}}, wantErr: true},
@@ -34,6 +35,40 @@ func TestLocalCommandValidation(t *testing.T) {
 	e := StaticServerData{Name: "io.github.nais/nais-mcp", Description: "Nais MCP", Version: "6.5.0", Local: &LocalCommand{Command: "nais"}, Packages: []Package{{}}}
 	if err := validateServerEntry(&e, 0, map[string]bool{}); err == nil {
 		t.Fatal("local and packages must not be combined")
+	}
+}
+
+func TestLocalCommandWireArguments(t *testing.T) {
+	for _, input := range []string{
+		`{"command":"/Applications/Nais CLI/nais"}`,
+		`{"command":"/Applications/Nais CLI/nais","args":null}`,
+		`{"command":"/Applications/Nais CLI/nais","args":[]}`,
+	} {
+		var local LocalCommand
+		if err := json.Unmarshal([]byte(input), &local); err != nil {
+			t.Fatal(err)
+		}
+		wasNil := local.Args == nil
+		meta := navRegistryMeta(StaticServerData{Local: &local})
+		data, err := json.Marshal(meta)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var wire struct {
+			Local struct {
+				Command string          `json:"command"`
+				Args    json.RawMessage `json:"args"`
+			} `json:"local"`
+		}
+		if err := json.Unmarshal(data, &wire); err != nil {
+			t.Fatal(err)
+		}
+		if string(wire.Local.Args) != "[]" || wire.Local.Command != local.Command {
+			t.Fatalf("local metadata = %s", data)
+		}
+		if (local.Args == nil) != wasNil {
+			t.Fatal("publishing metadata changed the source recipe")
+		}
 	}
 }
 

@@ -245,7 +245,7 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 		if client == MCPClientOpenCode {
 			v = map[string]any{"type": "local", "command": append([]string{e.Local.Command}, e.Local.Args...), "enabled": true}
 		} else {
-			v = map[string]any{"type": "local", "command": e.Local.Command, "args": e.Local.Args, "tools": tools}
+			v = map[string]any{"type": "local", "command": e.Local.Command, "args": append([]string{}, e.Local.Args...), "tools": tools}
 		}
 	default:
 		return nil, fmt.Errorf("the registry lists no remote, package or local command for %s", e.Name)
@@ -659,7 +659,7 @@ func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) str
 	}
 	for _, e := range entries {
 		if e.Local != nil {
-			if e.Usable() && e.Local.matches(s) {
+			if e.Local.matches(s) {
 				return e.Name
 			}
 			// A native recipe cannot match by name or package basename.

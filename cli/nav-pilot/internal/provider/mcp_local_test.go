@@ -2,6 +2,7 @@ package provider
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -73,13 +74,20 @@ func TestMCPNativeLocalRegistry(t *testing.T) {
 	}
 	retired := reg
 	retired.Entries = []MCPServerEntry{e}
-	retired.Entries[0].Status = "deprecated"
 	exact := mcpServer{Type: "local", Command: []string{"nais", "mcp", "--readonly"}}
-	if retired.listed(exact) || openCodeRegistryName(retired.Entries, e.Name, exact) != "" {
-		t.Fatal("a retired native entry must not authorize or recognize the command")
-	}
-	if len(matchMCPHosts(retired, []string{e.Name}, nil).Hosts) != 0 || len(matchMCPHosts(retired, nil, map[string]mcpServer{e.Name: exact}).Hosts) != 0 {
-		t.Fatal("a retired native entry must not grant hosts")
+	for _, status := range []string{"deprecated", "deleted"} {
+		retired.Entries[0].Status = status
+		if retired.listed(exact) {
+			t.Errorf("a %s native entry authorized the command", status)
+		}
+		for _, key := range []string{e.Name, "my-nais"} {
+			if got := openCodeRegistryName(retired.Entries, key, exact); got != e.Name {
+				t.Errorf("%s identity(%s) = %q, want %q", status, key, got, e.Name)
+			}
+			if len(matchMCPHosts(retired, []string{e.Name}, nil).Hosts) != 0 || len(matchMCPHosts(retired, nil, map[string]mcpServer{key: exact}).Hosts) != 0 {
+				t.Errorf("a %s native entry granted hosts", status)
+			}
+		}
 	}
 	if got := openCodeRegistryName(reg.Entries, e.Name, mcpServer{}); got != "" {
 		t.Errorf("name alone recognized %q", got)
@@ -133,6 +141,47 @@ func TestMCPNativeLocalClientEntry(t *testing.T) {
 		got, err := MCPClientEntry(MCPClientOpenCode, e, MCPToolChoice{})
 		if (err == nil) != (wantErr == nil) || err == nil && !jsonEqual(got, want) {
 			t.Errorf("local changed remote/package precedence: %s, %v; want %s, %v", got, err, want, wantErr)
+		}
+	}
+}
+
+func TestMCPNativeLocalClientEntryNoArgs(t *testing.T) {
+	for _, command := range []string{"nais", "/Applications/Native MCP/nais"} {
+		for _, args := range [][]string{nil, {}} {
+			for _, client := range []string{MCPClientCopilot, MCPClientOpenCode} {
+				t.Run(fmt.Sprintf("%s/%s/nil=%t", client, command, args == nil), func(t *testing.T) {
+					local := &MCPLocal{Command: command, Args: args}
+					data, err := MCPClientEntry(client, MCPServerEntry{Local: local}, MCPToolChoice{All: true})
+					if err != nil {
+						t.Fatal(err)
+					}
+					var wire struct {
+						Type    string          `json:"type"`
+						Command json.RawMessage `json:"command"`
+						Args    json.RawMessage `json:"args"`
+					}
+					if err := json.Unmarshal(data, &wire); err != nil {
+						t.Fatal(err)
+					}
+					if wire.Type != "local" {
+						t.Errorf("type = %q, want local", wire.Type)
+					}
+					if client == MCPClientCopilot {
+						var got string
+						if err := json.Unmarshal(wire.Command, &got); err != nil || got != command || string(wire.Args) != "[]" {
+							t.Errorf("Copilot entry = %s, %v; want command %q and args []", data, err, command)
+						}
+					} else {
+						var got []string
+						if err := json.Unmarshal(wire.Command, &got); err != nil || !slices.Equal(got, []string{command}) || wire.Args != nil {
+							t.Errorf("OpenCode entry = %s, %v; want command [%q] without args", data, err, command)
+						}
+					}
+					if local.Command != command || (local.Args == nil) != (args == nil) || len(local.Args) != 0 {
+						t.Errorf("entry generation mutated the recipe: %+v", local)
+					}
+				})
+			}
 		}
 	}
 }
