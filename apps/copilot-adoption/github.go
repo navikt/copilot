@@ -147,8 +147,8 @@ func (c *GitHubClient) BuildTeamMap(ctx context.Context, org string) (map[string
 	for _, team := range teams {
 		repos, err := c.listTeamRepos(ctx, org, team.Slug)
 		if err != nil {
-			slog.Warn("Failed to list repos for team, skipping", "team", team.Slug, "error", err)
-			continue
+			// A missing team would write a partition without its repos; fail instead.
+			return nil, fmt.Errorf("failed to list repos for team %s: %w", team.Slug, err)
 		}
 
 		for _, repo := range repos {
