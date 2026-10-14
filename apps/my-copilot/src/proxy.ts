@@ -42,7 +42,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const pathname = request.nextUrl.pathname;
+  // Next routes /%61pi/usage to the /api/usage handler, but nextUrl.pathname
+  // keeps the escape. Match on the decoded path, as the router does.
+  let pathname = request.nextUrl.pathname;
+  try {
+    pathname = decodeURIComponent(pathname);
+  } catch {
+    // Malformed escape: Next has no route for it either; the raw path decides.
+  }
 
   if (!isPrivatePath(pathname)) {
     return NextResponse.next();

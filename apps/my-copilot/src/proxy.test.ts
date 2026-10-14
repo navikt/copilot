@@ -35,6 +35,23 @@ describe("proxy without a token", () => {
     const res = await proxy(request("/reisen"));
     expect(res.headers.get("x-middleware-next")).toBe("1");
   });
+
+  // Next resolves the decoded path to the route handler (filesystem.js, "check
+  // decoded variant as well"), so an escaped prefix must not slip past the gate.
+  it.each(["/%61pi/usage", "/api%2Fusage", "/%73tatistikk/json"])("guards the escaped %s", async (path) => {
+    expect((await proxy(request(path))).status).toBe(401);
+  });
+
+  it("redirects an escaped page path with the decoded path", async () => {
+    const res = await proxy(request("/%61dmin/kostnad"));
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get("location")!).searchParams.get("redirect")).toBe("/admin/kostnad");
+  });
+
+  it("falls back to the raw path on a malformed escape", async () => {
+    const res = await proxy(request("/reisen/%E0%A4%A"));
+    expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
 });
 
 // A new route.ts under src/app/api must be behind the token check or be listed in
