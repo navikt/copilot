@@ -158,6 +158,44 @@ const emptyMcp: McpServerCustomization = {
   remotes: [],
 };
 
+const nativeMcp: McpServerCustomization = {
+  ...emptyMcp,
+  name: "nais",
+  serverId: "io.nais/cli",
+  local: { command: "nais", args: ["mcp", "serve"] },
+};
+
+describe("native MCP launch", () => {
+  it.each([
+    nativeMcp,
+    { ...nativeMcp, packages: npmMcp.packages, remotes: remoteMcp.remotes },
+    { ...nativeMcp, local: { command: "nais", args: [] } },
+  ])("uses the native command without a package runner", (item) => {
+    expect(JSON.parse(getMcpServerConfig(item))).toEqual({ [item.serverId]: item.local });
+    const command = getVsCodeAddMcpCommand(item);
+    expect(JSON.parse(command.slice("code --add-mcp '".length, -1))).toEqual({
+      name: item.serverId,
+      ...item.local,
+    });
+    expect(getMcpAddFields(item)).toEqual({
+      name: item.serverId,
+      type: "STDIO",
+      command: [item.local!.command, ...item.local!.args].join(" "),
+    });
+  });
+
+  it("preserves spaces, empty arguments, apostrophes and shell metacharacters", () => {
+    const item = {
+      ...nativeMcp,
+      local: { command: "/Applications/Nais CLI/nais", args: ["mcp", "", "user's team", "$(whoami)"] },
+    };
+    expect(JSON.parse(getMcpServerConfig(item))).toEqual({ [item.serverId]: item.local });
+    const config = { name: item.serverId, ...item.local };
+    expect(getVsCodeAddMcpCommand(item)).toBe(`code --add-mcp '${JSON.stringify(config).replaceAll("'", "'\\''")}'`);
+    expect(getMcpAddFields(item)?.command).toBe("'/Applications/Nais CLI/nais' mcp '' 'user'\\''s team' '$(whoami)'");
+  });
+});
+
 const playwrightMcp: McpServerCustomization = {
   ...base,
   type: "mcp",

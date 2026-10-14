@@ -101,7 +101,13 @@ type SetupInstruction struct {
 	Commands    []string `json:"commands"`
 }
 
+type LocalCommand struct {
+	Command string   `json:"command"`
+	Args    []string `json:"args"`
+}
+
 type NavRegistryMeta struct {
+	Local             *LocalCommand      `json:"local,omitempty"`
 	Tools             []string           `json:"tools,omitempty"`
 	Tags              []string           `json:"tags,omitempty"`
 	Examples          []UsageExample     `json:"examples,omitempty"`
@@ -137,6 +143,7 @@ type ServerListResponse struct {
 }
 
 type StaticServerData struct {
+	Local             *LocalCommand      `json:"local,omitempty"`
 	Schema            string             `json:"$schema,omitempty"`
 	Name              string             `json:"name"`
 	Description       string             `json:"description"`

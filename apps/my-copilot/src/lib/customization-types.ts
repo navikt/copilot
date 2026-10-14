@@ -79,6 +79,7 @@ export interface McpServerCustomization extends BaseCustomization {
   serverId: string;
   version: string;
   remotes: { type: string; url: string }[];
+  local?: { command: string; args: string[] };
   websiteUrl?: string;
   repository?: { url: string; source: string; subfolder?: string };
   tools?: string[];

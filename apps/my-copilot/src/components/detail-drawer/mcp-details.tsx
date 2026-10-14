@@ -95,7 +95,11 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </Heading>
         <Box background="info-soft" borderRadius="8" padding="space-12">
           <VStack gap="space-8">
-            <BodyShort size="small">Med nav-pilot ({NAV_PILOT_MCP_TOOLS_MIN_VERSION} eller nyere) kjører du:</BodyShort>
+            <BodyShort size="small">
+              {item.local
+                ? "Med en nav-pilot-versjon som støtter lokale CLI-oppskrifter, kjører du:"
+                : `Med nav-pilot (${NAV_PILOT_MCP_TOOLS_MIN_VERSION} eller nyere) kjører du:`}
+            </BodyShort>
             <div className="relative">
               <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
                 {enableCommand}
@@ -268,6 +272,21 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </VStack>
       )}
 
+      {item.local && (
+        <VStack gap="space-8">
+          <Heading size="xsmall" level="4">
+            Lokal kommando
+          </Heading>
+          <Tag size="xsmall" variant="neutral">
+            stdio
+          </Tag>
+          <BodyShort size="small">
+            Krever at <code>{item.local.command}</code> er installert på maskinen din.
+          </BodyShort>
+          <code className="text-xs break-all">{getMcpAddFields(item)?.command}</code>
+        </VStack>
+      )}
+
       {item.packages && item.packages.length > 0 && (
         <VStack gap="space-8">
           <Heading size="xsmall" level="4">
@@ -337,7 +356,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
             <Accordion.Header>VS Code</Accordion.Header>
             <Accordion.Content>
               <VStack gap="space-8">
-                {item.installUrl && (
+                {!item.local && item.installUrl && (
                   <a
                     href={item.installUrl}
                     className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
@@ -347,7 +366,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                   </a>
                 )}
                 <BodyShort size="small" className="text-gray-500">
-                  Alternativt kan du bruke kommandoen:
+                  {item.local ? "Bruk kommandoen:" : "Alternativt kan du bruke kommandoen:"}
                 </BodyShort>
                 {getVsCodeAddMcpCommand(item) && (
                   <div className="relative">
@@ -377,13 +396,17 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
             <Accordion.Header>IntelliJ</Accordion.Header>
             <Accordion.Content>
               <VStack gap="space-8">
-                <BodyShort size="small">
-                  Åpne Copilot Chat i IntelliJ og klikk på <strong>MCP-register-ikonet</strong> for å søke etter og
-                  installere serveren direkte fra registeret.
-                </BodyShort>
+                {!item.local && (
+                  <BodyShort size="small">
+                    Åpne Copilot Chat i IntelliJ og klikk på <strong>MCP-register-ikonet</strong> for å søke etter og
+                    installere serveren direkte fra registeret.
+                  </BodyShort>
+                )}
                 <BodyShort size="small" className="text-gray-500">
-                  Alternativt kan du legge til manuelt i{" "}
-                  <code className="text-xs bg-gray-100 rounded px-1">~/.config/github-copilot/intellij/mcp.json</code>{" "}
+                  {item.local ? "Legg til manuelt i " : "Alternativt kan du legge til manuelt i "}
+                  <code className="text-xs bg-gray-100 rounded px-1">
+                    ~/.config/github-copilot/intellij/mcp.json
+                  </code>{" "}
                   under <code className="text-xs bg-gray-100 rounded px-1">&quot;servers&quot;</code>:
                 </BodyShort>
                 <div className="relative">

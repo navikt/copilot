@@ -30,6 +30,7 @@ interface ServerResponse {
       isLatest: boolean;
     };
     "io.github.navikt/registry"?: {
+      local?: { command: string; args?: string[] | null };
       tools?: string[];
       toolRisk?: Record<string, McpToolRisk>;
       tags?: string[];
@@ -112,10 +113,12 @@ async function fetchMcpServers(): Promise<McpServerCustomization[]> {
           // that match git paths skip empty (#718).
           repoPath: "",
           rawGitHubUrl: "",
-          installUrl: buildMcpInstallUrl(s.server.name, "vscode"),
-          insidersInstallUrl: buildMcpInstallUrl(s.server.name, "vscode-insiders"),
+          // Registry install URLs cannot carry Nav's native launch extension.
+          installUrl: navMeta?.local ? null : buildMcpInstallUrl(s.server.name, "vscode"),
+          insidersInstallUrl: navMeta?.local ? null : buildMcpInstallUrl(s.server.name, "vscode-insiders"),
           version: s.server.version,
           remotes: s.server.remotes ?? [],
+          local: navMeta?.local ? { ...navMeta.local, args: navMeta.local.args ?? [] } : undefined,
           websiteUrl: s.server.websiteUrl,
           repository: s.server.repository,
           tools: navMeta?.tools,

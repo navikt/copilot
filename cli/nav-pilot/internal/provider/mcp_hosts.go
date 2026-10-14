@@ -172,7 +172,7 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 	// about and granted with its remotes.
 	extra := func(name string) {
 		for _, e := range reg.Entries {
-			if e.Name == name {
+			if e.Name == name && (e.Local == nil || e.Usable()) {
 				for _, h := range e.SandboxHosts {
 					add(name, "https://"+h)
 				}
@@ -193,6 +193,18 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 	for _, name := range names {
 		s := openCode[name]
 		if s.Enabled != nil && !*s.Enabled {
+			continue
+		}
+		if i := slices.IndexFunc(reg.Entries, func(e MCPServerEntry) bool {
+			return e.Local != nil && (e.Local.matches(s) || e.Name == name && s.Type != "remote")
+		}); i >= 0 {
+			e := reg.Entries[i]
+			if e.Usable() && e.Local.matches(s) {
+				for _, r := range e.Remotes {
+					add(e.Name, r.URL)
+				}
+				extra(e.Name)
+			}
 			continue
 		}
 		if urls, ok := reg.Servers[name]; ok {
@@ -232,7 +244,7 @@ func resolveMCPHosts() (MCPHosts, error) {
 		return MCPHosts{}, nil
 	}
 	c, ok := readMCPRegistryCache()
-	if !ok || time.Since(c.At) > mcpRegistryTTL {
+	if !ok || c.Schema < mcpRegistryCacheSchema || time.Since(c.At) > mcpRegistryTTL {
 		startMCPRegistryRefresh()
 	}
 	if !ok {
@@ -258,12 +270,11 @@ var errMCPRegistryNotRead = errors.New("the MCP registry has not been read yet")
 type mcpRegistryCache struct {
 	At       time.Time   `json:"at"`
 	Registry mcpRegistry `json:"registry"`
-	// Schema is 1 from when the cache carries each server's tools and their
-	// risk; nav-pilot mcp reads an older cache again before it trusts it.
+	// Older schemas are refreshed to pick up new registry metadata.
 	Schema int `json:"schema,omitempty"`
 }
 
-const mcpRegistryCacheSchema = 2 // 2: remotes carry headers
+const mcpRegistryCacheSchema = 3 // 3: native local recipes
 
 func mcpRegistryCachePath() string {
 	p := artifacts.CacheFilePath()
@@ -326,7 +337,7 @@ func RefreshMCPRegistryIfDue() error {
 	if copilot, openCode := configuredMCPServers(); len(copilot)+len(openCode) == 0 {
 		return nil
 	}
-	if c, ok := readMCPRegistryCache(); ok && time.Since(c.At) <= mcpRegistryTTL {
+	if c, ok := readMCPRegistryCache(); ok && c.Schema >= mcpRegistryCacheSchema && time.Since(c.At) <= mcpRegistryTTL {
 		return nil
 	}
 	return refreshMCPRegistry()

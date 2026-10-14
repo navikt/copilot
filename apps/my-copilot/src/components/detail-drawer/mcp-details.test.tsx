@@ -1,8 +1,50 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { McpDetails } from "./mcp-details";
 
 describe("McpDetails", () => {
+  it("renders native launch and manual setup without claiming registry installation", () => {
+    const item: EnrichedCustomization = {
+      id: "mcp-io.nais/cli",
+      name: "cli",
+      description: "Nais CLI.",
+      type: "mcp",
+      serverId: "io.nais/cli",
+      domain: "platform",
+      filePath: "",
+      repoPath: "",
+      rawGitHubUrl: "",
+      installUrl: "vscode:mcp/mcp-registry.nav.no/v0.1/servers/io.nais%2Fcli/versions/latest",
+      insidersInstallUrl: null,
+      version: "1.0.0",
+      remotes: [],
+      local: { command: "nais", args: ["mcp", "serve"] },
+      usageCount: 0,
+      usedBy: [],
+    };
+
+    render(<McpDetails item={item} />);
+
+    expect(screen.getByRole("heading", { name: "Lokal kommando" })).toBeInTheDocument();
+    expect(screen.getAllByText("nais mcp serve")[0]).toBeVisible();
+    expect(screen.getByText(/Krever at/)).toHaveTextContent("Krever at nais er installert på maskinen din.");
+    expect(screen.queryByRole("heading", { name: "Pakker" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "VS Code" }));
+    expect(screen.queryByRole("link", { name: "Installer fra MCP-registeret" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(`code --add-mcp '{"name":"io.nais/cli","command":"nais","args":["mcp","serve"]}'`)
+    ).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "IntelliJ" }));
+    expect(screen.queryByText(/installere serveren direkte fra registeret/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Legg til manuelt i/)).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Copilot CLI" }));
+    expect(screen.getByText("STDIO")).toBeVisible();
+    expect(screen.getAllByText("nais mcp serve")).toHaveLength(2);
+  });
+
   it("renders setup instructions with duplicate titles and commands using safe keys", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const command = "cplt config set sandbox.allow_cache_exec ms-playwright";

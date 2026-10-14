@@ -26,6 +26,7 @@ type MCPServerEntry struct {
 	Status      string       `json:"status"` // from _meta when the registry serves it there
 	Remotes     []MCPRemote  `json:"remotes"`
 	Packages    []MCPPackage `json:"packages"`
+	Local       *MCPLocal    `json:"local,omitempty"`
 	// Setup is the registry's setupInstructions (_meta), steps the user
 	// takes once, such as a cplt config key or a browser download.
 	Setup []MCPSetupStep `json:"setup,omitempty"`
@@ -36,6 +37,17 @@ type MCPServerEntry struct {
 	// ToolRisk the class of each that is more than a read (mcp_tools.go).
 	Tools    []string          `json:"tools,omitempty"`
 	ToolRisk map[string]string `json:"toolRisk,omitempty"`
+}
+
+// MCPLocal is an installed CLI recipe from Nav's registry metadata.
+type MCPLocal struct {
+	Command string   `json:"command"`
+	Args    []string `json:"args"`
+}
+
+func (l MCPLocal) matches(s mcpServer) bool {
+	return l.Command != "" && s.Type == "local" && len(s.Command) > 0 &&
+		s.Command[0] == l.Command && slices.Equal(s.Command[1:], l.Args)
 }
 
 // MCPRemote is a server reached over HTTP.
@@ -191,8 +203,8 @@ func mcpServersKey(client string) string {
 
 // MCPClientEntry is the config entry for the server in the client's format,
 // with Copilot's tools list from the choice (OpenCode keeps it as permission
-// rules, which SetMCPServer writes). A remote is preferred over a package: it
-// needs no runtime, no package cache and nothing run from it inside cplt.
+// rules, which SetMCPServer writes). Remotes precede packages, then native
+// recipes; a remote needs no runtime or executable package cache inside cplt.
 func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawMessage, error) {
 	var v any
 	tools := copilotTools(c)
@@ -229,8 +241,14 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 		} else {
 			v = map[string]any{"type": "local", "command": runtime, "args": args, "tools": tools}
 		}
+	case e.Local != nil && e.Local.Command != "":
+		if client == MCPClientOpenCode {
+			v = map[string]any{"type": "local", "command": append([]string{e.Local.Command}, e.Local.Args...), "enabled": true}
+		} else {
+			v = map[string]any{"type": "local", "command": e.Local.Command, "args": e.Local.Args, "tools": tools}
+		}
 	default:
-		return nil, fmt.Errorf("the registry lists no remote or package for %s", e.Name)
+		return nil, fmt.Errorf("the registry lists no remote, package or local command for %s", e.Name)
 	}
 	return json.Marshal(v)
 }
@@ -373,7 +391,7 @@ func MCPConfigKeys(client string) []string {
 // by hand under a name of their own is found too.
 func MCPConfigKeyFor(client string, e MCPServerEntry) string {
 	keys := MCPConfigKeys(client)
-	if slices.Contains(keys, e.Name) {
+	if slices.Contains(keys, e.Name) && (client != MCPClientOpenCode || e.Local == nil) {
 		return e.Name
 	}
 	if client != MCPClientOpenCode {
@@ -640,7 +658,16 @@ func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) str
 		pkg = pkg[:i]
 	}
 	for _, e := range entries {
-		if e.Name == key {
+		if e.Local != nil {
+			if e.Usable() && e.Local.matches(s) {
+				return e.Name
+			}
+			// A native recipe cannot match by name or package basename.
+			if s.Type != "remote" {
+				continue
+			}
+		}
+		if e.Local == nil && e.Name == key {
 			return e.Name
 		}
 		for _, r := range e.Remotes {

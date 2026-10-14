@@ -105,5 +105,88 @@ describe("getMcpServers", () => {
       serverId: "io.github.navikt/github-mcp",
       remotes: [{ type: "streamable-http", url: "https://mcp.nav.no/mcp" }],
     });
+    expect(servers.every((server) => server.installUrl?.startsWith("vscode:mcp/"))).toBe(true);
+    expect(servers.every((server) => server.insidersInstallUrl?.startsWith("vscode-insiders:mcp/"))).toBe(true);
+  });
+
+  it("maps Nav native launches without inventing packages or registry install URLs", async () => {
+    const local = { command: "nais", args: ["mcp", "serve"] };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          servers: [
+            {
+              server: { name: "io.nais/cli", description: "Nais CLI.", version: "1.0.0" },
+              _meta: {
+                "io.modelcontextprotocol.registry/official": { status: "active" },
+                "io.github.navikt/registry": { local },
+              },
+            },
+          ],
+        }),
+      })
+    );
+
+    expect(await getMcpServers()).toEqual([
+      expect.objectContaining({
+        serverId: "io.nais/cli",
+        local,
+        remotes: [],
+        packages: undefined,
+        installUrl: null,
+        insidersInstallUrl: null,
+      }),
+    ]);
+  });
+
+  it.each([{ command: "native-mcp", args: null }, { command: "native-mcp" }])(
+    "normalizes null or missing native args: %j",
+    async (local) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            servers: [
+              {
+                server: { name: "io.example/native", description: "Native MCP.", version: "1.0.0" },
+                _meta: {
+                  "io.modelcontextprotocol.registry/official": { status: "active" },
+                  "io.github.navikt/registry": { local },
+                },
+              },
+            ],
+          }),
+        })
+      );
+
+      expect(await getMcpServers()).toEqual([expect.objectContaining({ local: { command: "native-mcp", args: [] } })]);
+    }
+  );
+
+  it("excludes inactive registry entries, including deprecated Nais", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          servers: ["active", "deprecated", "deleted", undefined].map((status) => ({
+            server: {
+              name: status === "deprecated" ? "io.nais/cli" : `io.example/${status}`,
+              description: "MCP server.",
+              version: "1.0.0",
+            },
+            _meta: {
+              "io.modelcontextprotocol.registry/official": status ? { status } : undefined,
+              "io.github.navikt/registry": { local: { command: "native-mcp", args: [] } },
+            },
+          })),
+        }),
+      })
+    );
+
+    expect((await getMcpServers()).map((server) => server.serverId)).toEqual(["io.example/active"]);
   });
 });

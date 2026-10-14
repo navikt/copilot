@@ -219,10 +219,13 @@ export function resolveAgentReferenceUrls(agent: Agent, allItems: AnyCustomizati
   return agent.agentReferences.filter((ref) => agentMap.has(ref)).map((ref) => agentMap.get(ref)!.rawGitHubUrl);
 }
 
-function buildPackageArgs(pkg: NonNullable<Extract<AnyCustomization, { type: "mcp" }>["packages"]>[0]): {
+function buildLocalLaunch(item: Extract<AnyCustomization, { type: "mcp" }>): {
   runtime: string;
   args: string[];
 } | null {
+  if (item.local) return { runtime: item.local.command, args: item.local.args };
+  const pkg = item.packages?.[0];
+  if (!pkg) return null;
   const runtime = pkg.registryType === "npm" ? "pnpm" : pkg.registryType === "pypi" ? "uvx" : null;
   if (!runtime) return null;
   const packageIdentifier =
@@ -241,15 +244,19 @@ function getRemoteConfigType(remoteType: string): "http" | "sse" {
   return remoteType === "sse" ? "sse" : "http";
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
 export function getMcpServerConfig(item: AnyCustomization): string {
   if (item.type !== "mcp") return "";
   const serverName = item.serverId;
 
-  if (item.packages && item.packages.length > 0) {
-    const result = buildPackageArgs(item.packages[0]);
+  if (item.local || item.packages?.length) {
+    const result = buildLocalLaunch(item);
     if (!result) return "";
     const entry: Record<string, unknown> = { command: result.runtime, args: result.args };
-    if (item.packages[0].environmentVariables) {
+    if (!item.local && item.packages?.[0].environmentVariables) {
       const env: Record<string, string> = {};
       for (const v of item.packages[0].environmentVariables) {
         env[v.name] = v.isSecret ? "" : (v.description ?? "");
@@ -274,26 +281,28 @@ export function getVsCodeAddMcpCommand(item: AnyCustomization): string {
   if (item.type !== "mcp") return "";
   const serverName = item.serverId;
 
-  if (item.packages && item.packages.length > 0) {
-    const result = buildPackageArgs(item.packages[0]);
+  if (item.local || item.packages?.length) {
+    const result = buildLocalLaunch(item);
     if (!result) return "";
     const config: Record<string, unknown> = { name: serverName, command: result.runtime, args: result.args };
-    if (item.packages[0].environmentVariables) {
+    if (!item.local && item.packages?.[0].environmentVariables) {
       const env: Record<string, string> = {};
       for (const v of item.packages[0].environmentVariables) {
         env[v.name] = v.isSecret ? `\${input:${v.name}}` : (v.description ?? "");
       }
       if (Object.keys(env).length > 0) config.env = env;
     }
-    return `code --add-mcp '${JSON.stringify(config)}'`;
+    return `code --add-mcp ${shellQuote(JSON.stringify(config))}`;
   }
 
   if (item.remotes.length > 0) {
-    return `code --add-mcp '${JSON.stringify({
-      name: serverName,
-      type: getRemoteConfigType(item.remotes[0].type),
-      url: item.remotes[0].url,
-    })}'`;
+    return `code --add-mcp ${shellQuote(
+      JSON.stringify({
+        name: serverName,
+        type: getRemoteConfigType(item.remotes[0].type),
+        url: item.remotes[0].url,
+      })
+    )}`;
   }
 
   return "";
@@ -305,17 +314,22 @@ export function getMcpAddFields(
   if (item.type !== "mcp") return null;
   const name = item.serverId;
 
-  if (item.remotes.length > 0) {
+  if (!item.local && item.remotes.length > 0) {
     return { name, type: "HTTP", url: item.remotes[0].url };
   }
 
-  if (item.packages && item.packages.length > 0) {
-    const result = buildPackageArgs(item.packages[0]);
+  if (item.local || item.packages?.length) {
+    const result = buildLocalLaunch(item);
     if (!result) return null;
-    const envVars = item.packages[0].environmentVariables
-      ?.map((v) => `${v.name}=${v.isSecret ? "..." : (v.description ?? "")}`)
-      .join(", ");
-    return { name, type: "STDIO", command: `${result.runtime} ${result.args.join(" ")}`, env: envVars };
+    const envVars = !item.local
+      ? item.packages?.[0].environmentVariables
+          ?.map((v) => `${v.name}=${v.isSecret ? "..." : (v.description ?? "")}`)
+          .join(", ")
+      : undefined;
+    const command = [result.runtime, ...result.args]
+      .map((arg) => (/^[\w@%+=:,./-]+$/.test(arg) ? arg : shellQuote(arg)))
+      .join(" ");
+    return { name, type: "STDIO", command, env: envVars };
   }
 
   return null;

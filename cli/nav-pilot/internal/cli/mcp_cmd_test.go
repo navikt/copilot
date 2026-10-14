@@ -271,6 +271,29 @@ func TestMCPDisableNarrowsTheApproval(t *testing.T) {
 	}
 }
 
+func TestMCPEnableFollowUpShowsSetupDescription(t *testing.T) {
+	isolatedConfig(t)
+	prev := mcpCpltPath
+	mcpCpltPath = func() string { return "" }
+	t.Cleanup(func() { mcpCpltPath = prev })
+	e := providerpkg.MCPServerEntry{
+		Name: "io.example/native",
+		Setup: []providerpkg.MCPSetupStep{{
+			Title:       "Authenticate before use",
+			Description: "Run this command outside the sandbox before connecting.",
+			Commands:    []string{"native-mcp login"},
+		}},
+	}
+	out := captureStdoutFor(t, func() {
+		mcpEnableFollowUp("https://registry.test", []providerpkg.MCPServerEntry{e}, providerpkg.MCPConfigured{}, e, []string{"copilot"})
+	})
+	for _, want := range []string{e.Setup[0].Title, e.Setup[0].Description, e.Setup[0].Commands[0]} {
+		if !strings.Contains(out, want) {
+			t.Errorf("follow-up missing %q:\n%s", want, out)
+		}
+	}
+}
+
 // An allowed host whose lookup timed out is not waived as private yet; list
 // says so and how it gets fixed, and the JSON carries the classification.
 func TestMCPListUnknownHost(t *testing.T) {
