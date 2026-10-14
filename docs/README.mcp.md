@@ -40,7 +40,7 @@ nav-pilot mcp list
 nav-pilot mcp enable figma-mcp --client copilot
 ```
 
-Bruk `nav-pilot mcp enable` for å få med registerets headers og verktøyvalg.
+Nye oppføringer får registerets headers og verktøyvalg. Eksisterende oppføringer beholdes.
 Et manuelt `copilot mcp add` kopierer ikke disse begrensningene fra registeret.
 
 Tilkoblet, men verktøyet mangler? Se [MCP-feilsøking](https://ki-utvikling.nav.no/nav-pilot/guider/feilsoking#mcp-verktoy).

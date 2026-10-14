@@ -100,8 +100,7 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
           </CodeBlock>
           <BodyLong>
             Har du serveren fra før, bevarer et vanlig <code className={code}>enable</code> oppføringen og verktøyvalget
-            som det er. Gir du <code className={code}>--tools</code>, erstattes verktøyvalget med det du oppgir. Med{" "}
-            <code className={code}>--all-tools</code> endres også bare verktøyene.
+            som det er. Gir du <code className={code}>--tools</code>, erstattes verktøyvalget med det du oppgir.
           </BodyLong>
           <BodyLong>
             Tilkoblet, men verktøyet mangler? <code className={code}>mcp list</code> sjekker oppsett og sandkassepolicy,
