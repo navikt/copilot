@@ -1,4 +1,4 @@
-import { Counter, register } from "prom-client";
+import { Counter, register } from "@prometheus-io/client";
 
 // Errors Next.js reports through onRequestError (src/instrumentation.ts): a
 // route handler, server action or server render that throws. route is the
