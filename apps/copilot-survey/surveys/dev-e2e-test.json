@@ -1,6 +1,7 @@
 {
   "id": "dev-e2e-test",
   "series": "dev-e2e-test",
+  "environments": ["dev-gcp"],
   "title": "Testundersøkelse (dev, e2e) – ikke ekte",
   "active": false,
   "nudge": "off",

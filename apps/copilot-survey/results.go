@@ -23,6 +23,7 @@ type surveySummary struct {
 	Ends      string `json:"ends"`
 	Status    string `json:"status"` // kommende, åpen or stengt
 	Responses int    `json:"responses"`
+	Series    string `json:"series,omitempty"`
 }
 
 func (s survey) status(now time.Time) string {
@@ -43,7 +44,7 @@ func (a *surveyAPI) list(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		out = append(out, surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), t.Responses})
+		out = append(out, surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), t.Responses, s.Series})
 	}
 	writeJSON(w, map[string]any{"surveys": out})
 }
@@ -132,7 +133,7 @@ func aggregate(s survey, rows []storedAnswer, now time.Time) surveyResults {
 
 // aggregateTally is aggregate from counts, live or stored (survey_results).
 func aggregateTally(s survey, t surveyTally, now time.Time) surveyResults {
-	res := surveyResults{surveySummary: surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), t.Responses}}
+	res := surveyResults{surveySummary: surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), t.Responses, s.Series}}
 	if t.Responses < minSegment {
 		res.Suppressed = true
 		return res

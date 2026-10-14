@@ -492,3 +492,14 @@ func TestUnexpectedNameIDCounted(t *testing.T) {
 		t.Fatalf("counted %v, want 1", got)
 	}
 }
+
+func TestForCluster(t *testing.T) {
+	defs := func() []survey {
+		return []survey{{ID: "real"}, {ID: "dev-only", Environments: []string{"dev-gcp"}}}
+	}
+	for cluster, want := range map[string]int{"prod-gcp": 1, "dev-gcp": 2, "": 2} {
+		if got := forCluster(defs(), cluster); len(got) != want || got[0].ID != "real" {
+			t.Errorf("%q: %v", cluster, got)
+		}
+	}
+}

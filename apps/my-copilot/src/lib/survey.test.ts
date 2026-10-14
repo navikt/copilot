@@ -128,7 +128,17 @@ describe("types follow copilot-survey's schema.json", () => {
     readFileSync(path.resolve(__dirname, "../../../copilot-survey/surveys/schema.json"), "utf8")
   ) as { properties: object; $defs: { question: { properties: object }; item: { properties: object } } };
   // Not needed to render or send: copilot-survey serves only open surveys, min_cli_version is for nav-pilot, retention_days is server-side, and the rest is for analysis. version picks the scale labels on /admin/undersokelser.
-  const ignored = ["series", "active", "nudge", "min_cli_version", "retention_days", "starts", "construct", "reverse"];
+  const ignored = [
+    "series",
+    "environments",
+    "active",
+    "nudge",
+    "min_cli_version",
+    "retention_days",
+    "starts",
+    "construct",
+    "reverse",
+  ];
   const fields = (props: object) =>
     Object.keys(props)
       .filter((k) => !ignored.includes(k))

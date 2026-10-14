@@ -219,6 +219,7 @@ export type SurveySummary = {
   ends: string;
   status: "kommende" | "åpen" | "stengt";
   responses: number;
+  series?: string;
 };
 
 /** One version of a question. n and options are null when under five answered it; an option's count is null when hidden. */

@@ -157,6 +157,9 @@ warns at start while the key is still in the secret.
   `multi` answer includes, `answer`. On a `matrix` it skips every item.
 - `required`: must be answered unless skipped. With `skip_if`, a required
   question is required for those who are asked it and left out for the rest.
+- `environments`: NAIS clusters that load the survey (`dev-gcp`, `prod-gcp`).
+  Left out means all. A dummy survey for end-to-end tests names `dev-gcp`, so
+  it is absent from the admin list, results and comparison in prod.
 - `min_cli_version`: the oldest nav-pilot release that gets the survey, as
   its tag's date and time (`2026.09.29` or `2026.09.29-072249`). Set it to the
   first release that renders every question type and field the survey uses.

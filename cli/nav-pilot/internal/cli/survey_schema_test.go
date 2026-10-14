@@ -31,7 +31,7 @@ func TestSurveyTypesFollowSchema(t *testing.T) {
 	// Not needed to render or send: the server serves only active surveys
 	// new enough for this build (min_cli_version), and the rest is for
 	// analysis and retention.
-	ignored := []string{"series", "active", "min_cli_version", "retention_days", "version", "construct", "reverse"}
+	ignored := []string{"series", "environments", "active", "min_cli_version", "retention_days", "version", "construct", "reverse"}
 	items, _ := reflect.TypeFor[surveyQuestion]().FieldByName("Items")
 	for _, c := range []struct {
 		typ   reflect.Type

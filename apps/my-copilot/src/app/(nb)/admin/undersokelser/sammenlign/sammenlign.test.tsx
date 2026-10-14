@@ -106,8 +106,10 @@ function respond(body: unknown, status = 200) {
       ? new Response(
           JSON.stringify({
             surveys: [
-              ...comparison.surveys,
+              ...comparison.surveys.map((s) => ({ ...s, series: "utviklerundersokelsen" })),
               { ...comparison.surveys[0], id: "q2-2027", starts: "2027-03-01", status: "kommende" },
+              // Started between the two waves, but in another series: never a default.
+              { ...comparison.surveys[0], id: "test", series: "annet", starts: "2026-09-28", status: "åpen" },
             ],
           })
         )
@@ -157,6 +159,14 @@ describe("/admin/undersokelser/sammenlign", () => {
       "http://copilot-survey/api/v1/admin/surveys/compare?ids=q2-2026,q4-2026",
       expect.anything()
     );
+  });
+
+  it("picks no default when the newest survey has no series", async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ surveys: comparison.surveys })));
+    vi.stubGlobal("fetch", fetch);
+    await renderPage();
+    expect(screen.getByText("Det trengs minst to runder for å sammenligne.")).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("shows n and channel per wave, deltas, and the exclusion", async () => {

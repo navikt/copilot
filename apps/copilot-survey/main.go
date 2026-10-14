@@ -45,6 +45,7 @@ func main() {
 		slog.Error("Invalid survey definitions", "error", err)
 		os.Exit(1)
 	}
+	defs = forCluster(defs, os.Getenv("NAIS_CLUSTER_NAME"))
 	activateInDev(defs, os.Getenv("NAIS_CLUSTER_NAME"), os.Getenv("SURVEY_ACTIVE_IDS"))
 	auth := newAuthenticator(config.NaisTokenIntrospectionEndpoint, config.AzurePreAuthorizedApps)
 	lookup := newNameIDClient(config.CopilotAPIURL, newTexasClient(config.NaisTokenEndpoint, config.CopilotAPIAudience))
