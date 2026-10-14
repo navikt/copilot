@@ -1281,7 +1281,10 @@
       "mcp-github": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
       "mcp-hoster": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
       "mcp-intellij": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
-      "mcp-verktoy": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"]
+      "mcp-verktoy": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
+        "docs/README.mcp.md"
+      ]
     }
   },
   "/nav-pilot/guider/installere-og-oppgradere": {
@@ -1621,6 +1624,7 @@
       ],
       "forste-decide": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx"],
       "forste-okt": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx"],
+      "gode-til": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx"],
       "hva-du-far": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx"
