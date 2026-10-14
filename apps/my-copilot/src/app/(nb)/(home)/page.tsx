@@ -1,9 +1,10 @@
+import NextLink from "next/link";
 import { getNewsItems } from "@/lib/news";
-import { Box, VStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
+import { Box, VStack, HStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
 import { ExternalLinkIcon, PlayIcon, BookIcon } from "@navikt/aksel-icons";
 import { NewsFeed } from "@/components/news-feed";
-import { InsightStrip } from "@/components/insight-strip";
 import { WeeklyTip } from "@/components/weekly-tip";
+import { InsightStrip } from "@/components/insight-strip";
 import { HomeShortsFeed } from "@/components/video/home-shorts-feed";
 import { Sidebar, SidebarCompact } from "@/components/sidebar";
 import { Greeting } from "@/components/greeting";
@@ -21,10 +22,10 @@ export default async function Home() {
   const items = getAllCustomizations();
   const count = (type: string) => items.filter((i) => i.type === type).length;
   const clusters = [
-    { name: "Agenter", count: count("agent") },
-    { name: "Skills", count: count("skill") },
-    { name: "Instruksjoner", count: count("instruction") },
-    { name: "MCP-servere", count: mcpServers.length },
+    { name: "Agenter", count: count("agent"), type: "agent", dot: "bg-bg-accent-strong" },
+    { name: "Skills", count: count("skill"), type: "skill", dot: "bg-bg-success-strong" },
+    { name: "Instruksjoner", count: count("instruction"), type: "instruction", dot: "bg-bg-warning-strong" },
+    { name: "MCP-servere", count: mcpServers.length, type: "mcp", dot: "bg-bg-meta-purple-strong" },
   ];
   // English articles sit in the same feed as the Norwegian ones, sorted by date
   // like everything else. A separate link beside the category chips read as a
@@ -40,18 +41,37 @@ export default async function Home() {
       <section className="hero-gradient text-white overflow-hidden max-md:min-h-[19rem]">
         <HeroNetwork clusters={clusters} />
         <Box
-          paddingBlock={{ xs: "space-32", md: "space-40" }}
+          paddingBlock={{ xs: "space-32", md: "space-48" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
           className="max-w-7xl mx-auto relative"
         >
-          <VStack gap="space-8">
-            <Heading size="xlarge" level="1" className="hero-title">
-              KI-produktutvikling i Nav
-            </Heading>
-            <BodyShort className="max-w-md opacity-70">
-              {user && <Greeting />}
-              Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.
-            </BodyShort>
+          <VStack gap="space-16">
+            <VStack gap="space-8">
+              <Heading size="xlarge" level="1" className="hero-title">
+                KI-produktutvikling i Nav
+              </Heading>
+              <BodyShort className="max-w-md opacity-70">
+                {user && <Greeting />}
+                Nyheter, beste praksis og verktøy for KI-drevet utvikling i Nav.
+              </BodyShort>
+            </VStack>
+            <HStack gap="space-8" wrap>
+              {clusters.map((c) => (
+                <NextLink key={c.type} href={`/verktoy?type=${c.type}#catalog`} className="no-underline">
+                  <Box
+                    as="span"
+                    paddingBlock="space-4"
+                    paddingInline="space-12"
+                    borderRadius="full"
+                    className="inline-flex items-center gap-2 text-xs text-white/80 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 transition-colors"
+                  >
+                    <span className={`w-2 h-2 rounded-full ${c.dot}`} aria-hidden="true" />
+                    <span className="font-semibold text-white">{c.count}</span>
+                    <span>{c.name.toLowerCase()}</span>
+                  </Box>
+                </NextLink>
+              ))}
+            </HStack>
           </VStack>
         </Box>
       </section>
@@ -66,7 +86,7 @@ export default async function Home() {
               <InsightStrip />
             </Box>
 
-            <Box className="reveal-section">
+            <Box className="reveal-section lg:hidden">
               <WeeklyTip />
             </Box>
 
@@ -85,7 +105,7 @@ export default async function Home() {
                     }
                   />
                 </div>
-                <div className="hidden lg:block w-64 shrink-0">
+                <div className="hidden lg:block w-72 xl:w-80 shrink-0">
                   <Sidebar />
                 </div>
               </div>

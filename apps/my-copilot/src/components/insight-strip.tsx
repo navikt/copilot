@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import NextLink from "next/link";
-import { Box, BodyShort, Heading, Skeleton } from "@navikt/ds-react";
-import { ArrowRightIcon, LightBulbIcon } from "@navikt/aksel-icons";
+import { Box, BodyShort, Heading, HStack, Skeleton, VStack } from "@navikt/ds-react";
+import { LightBulbIcon } from "@navikt/aksel-icons";
 import { getDailyFact } from "@/lib/daily-fact";
 import { getAllCustomizations } from "@/lib/customizations";
 import { formatNumber } from "@/lib/format";
@@ -14,7 +14,7 @@ import { formatNumber } from "@/lib/format";
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="min-w-0">
-      <Heading as="p" size="medium">
+      <Heading as="p" size="medium" className="tabular-nums">
         {value}
       </Heading>
       <BodyShort size="small" textColor="subtle">
@@ -33,27 +33,22 @@ async function Strip() {
         <NextLink
           href={fact.href}
           prefetch={false}
-          className="group flex flex-1 items-start gap-2 text-inherit no-underline hover:underline"
+          className="flex-1 min-w-0 text-inherit no-underline hover:underline"
         >
-          <LightBulbIcon
-            aria-hidden
-            fontSize="1.25rem"
-            className="shrink-0"
-            style={{ marginTop: "var(--ax-space-2)" }}
-          />
-          <BodyShort>
-            <span className="font-semibold">Dagens innsikt: </span>
-            {fact.text}
-            <ArrowRightIcon
-              aria-hidden
-              fontSize="1rem"
-              style={{ marginLeft: "var(--ax-space-4)" }}
-              className="inline align-[-0.15em] transition-transform group-hover:translate-x-0.5"
-            />
-          </BodyShort>
+          <VStack gap="space-4">
+            <HStack gap="space-8" align="center">
+              <LightBulbIcon aria-hidden fontSize="1rem" className="text-text-subtle shrink-0" />
+              <BodyShort size="small" weight="semibold" className="uppercase tracking-wide text-text-subtle">
+                Dagens innsikt
+              </BodyShort>
+            </HStack>
+            <BodyShort size="small" textColor="subtle">
+              {fact.text} →
+            </BodyShort>
+          </VStack>
         </NextLink>
       )}
-      <div className="flex gap-8">
+      <div className="flex gap-8 shrink-0">
         {fact?.weekUsers && <Stat value={`ca. ${formatNumber(fact.weekUsers)}`} label="brukere siste uke" />}
         <NextLink href="/innsikt/tilpasninger" prefetch={false} className="text-inherit underline hover:no-underline">
           <Stat value={formatNumber(customizations)} label="tilpasninger →" />
@@ -65,8 +60,14 @@ async function Strip() {
 
 export function InsightStrip() {
   return (
-    <Box background="neutral-soft" borderRadius="8" padding={{ xs: "space-12", md: "space-16" }}>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-8">
+    <Box
+      background="default"
+      borderColor="neutral-subtleA"
+      borderWidth="1"
+      borderRadius="8"
+      padding={{ xs: "space-12", md: "space-16" }}
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-8">
         <Suspense fallback={<Skeleton variant="text" width="100%" />}>
           <Strip />
         </Suspense>

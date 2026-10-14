@@ -1,3 +1,5 @@
+import { relatedVideos } from "@/components/video/stories/storybook-video-fixtures";
+
 const COPILOT_API_URL = process.env.COPILOT_API_URL || "http://copilot-api";
 const VIDEO_FETCH_TIMEOUT_MS = 8000;
 
@@ -168,6 +170,9 @@ export async function getPublicVideoFeed(limit: number = 5): Promise<HomepageVid
     const feed = await fetchJSON<VideoFeedResponse>(`/public/v1/videos?limit=${limit}`);
     return feed.items.map(mapVideoItem);
   } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      return relatedVideos.slice(0, limit);
+    }
     console.error("Failed to fetch public video feed:", error);
     return [];
   }
@@ -183,6 +188,9 @@ export async function fetchVideoById(id: string): Promise<HomepageVideo | null> 
     const item = await fetchJSON<PublicVideoFeedItem>(`/public/v1/videos/${encodeURIComponent(id)}`);
     return mapVideoItem(item);
   } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      return relatedVideos.find((v) => v.id === id) ?? null;
+    }
     if (error instanceof VideoError && error.status === 404) {
       console.info("Video not found:", id);
       return null;

@@ -72,7 +72,13 @@ export function surveyWindow(
 
 export async function getActiveSurveys(): Promise<ActiveSurveys> {
   const url = process.env.COPILOT_SURVEY_URL;
-  if (!url) return { status: "ok", surveys: [] };
+  if (!url) {
+    if (process.env.NODE_ENV === "development" && !surveyWindow()) {
+      const preview = await getSurveyPreview("q4-2026");
+      return { status: "ok", surveys: preview ? [preview] : [] };
+    }
+    return { status: "ok", surveys: [] };
+  }
   try {
     const res = await fetchWithTimeout(`${url}/api/v1/surveys/active`, { cache: "no-store" }, 5000, "timeout");
     if (!res.ok) return { status: "error" };

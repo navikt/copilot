@@ -1,8 +1,8 @@
 // Server component on purpose: the week is read from the clock, and a client
 // component would compute it again in the browser. Around a week boundary, or
 // with a skewed clock, the two picked different tips and React threw #418.
-import { VStack, BodyShort, HStack } from "@navikt/ds-react";
-import { LightBulbIcon } from "@navikt/aksel-icons";
+import { Box, VStack, BodyShort, HStack } from "@navikt/ds-react";
+import { SparklesIcon } from "@navikt/aksel-icons";
 import NextLink from "next/link";
 
 interface Tip {
@@ -76,17 +76,19 @@ export function WeeklyTip() {
   const tip = TIPS[week % TIPS.length];
 
   return (
-    <VStack gap="space-8">
-      <HStack gap="space-4" align="center">
-        <LightBulbIcon aria-hidden fontSize="1rem" className="text-text-subtle" />
-        <BodyShort size="small" weight="semibold" className="uppercase tracking-wide text-text-subtle">
-          Tips denne uken
-        </BodyShort>
-      </HStack>
-      <BodyShort size="small">{tip.text}</BodyShort>
-      <NextLink href={tip.href} className="text-sm no-underline hover:underline">
-        {tip.label} →
-      </NextLink>
-    </VStack>
+    <Box background="default" borderColor="neutral-subtleA" borderWidth="1" borderRadius="8" padding="space-16">
+      <VStack gap="space-12">
+        <HStack gap="space-8" align="center">
+          <SparklesIcon aria-hidden fontSize="1rem" className="text-text-subtle" />
+          <BodyShort size="small" weight="semibold" className="uppercase tracking-wide text-text-subtle">
+            Tips denne uken
+          </BodyShort>
+        </HStack>
+        <BodyShort size="small">{tip.text}</BodyShort>
+        <NextLink href={tip.href} className="text-sm no-underline hover:underline">
+          {tip.label} →
+        </NextLink>
+      </VStack>
+    </Box>
   );
 }
