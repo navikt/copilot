@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const maxErrorRate = 30 // percent — abort if more than 30% of repos fail
-
 // RunScan executes the full adoption scan pipeline:
 // 1. List all org repos
 // 2. Build team→repo map
@@ -20,7 +18,7 @@ func RunScan(ctx context.Context, gh interface {
 	TeamMapper
 	CustomizationScanner
 	SourceOIDResolver
-}, bq AdoptionStore, cfg *Config, scanDate time.Time, slack *SlackNotifier) error {
+}, bq AdoptionStore, cfg *Config, scanDate time.Time, _ *SlackNotifier) error {
 	dateStr := scanDate.Format("2006-01-02")
 	slog.Info("Starting adoption scan", "date", dateStr, "org", cfg.OrganizationSlug)
 
@@ -42,8 +40,8 @@ func RunScan(ctx context.Context, gh interface {
 	slog.Info("Building team map...")
 	teamMap, err := gh.BuildTeamMap(ctx, cfg.OrganizationSlug)
 	if err != nil {
-		slog.Warn("Failed to build team map, continuing without team data", "error", err)
-		teamMap = make(map[string][]TeamAccess)
+		// Writing a partition without teams would replace yesterday's good data.
+		return fmt.Errorf("failed to build team map: %w", err)
 	}
 
 	// Step 3: Split archived vs active
@@ -73,9 +71,11 @@ func RunScan(ctx context.Context, gh interface {
 			failedCount++
 		}
 	}
-	if len(activeRepos) > 10 && failedCount*100/len(activeRepos) > maxErrorRate {
-		return fmt.Errorf("too many scan failures: %d/%d repos failed to scan (>%d%%)",
-			failedCount, len(activeRepos), maxErrorRate)
+	// Any failed batch fails the run: a partial partition would replace
+	// yesterday's complete data with missing customizations.
+	if failedCount > 0 {
+		return fmt.Errorf("scan incomplete: %d/%d repos failed to scan, nothing written",
+			failedCount, len(activeRepos))
 	}
 
 	// Step 5: Assemble results
@@ -123,13 +123,7 @@ func RunScan(ctx context.Context, gh interface {
 		"active_repos", len(activeRepos),
 		"archived_repos", len(archivedRepos),
 		"repos_with_customizations", withAny,
-		"failed_repos", failedCount,
 	)
-
-	// Notify Slack of scan results (sends only if there were errors)
-	if slack != nil {
-		slack.NotifyScanResult(ctx, len(activeRepos), len(activeRepos)-failedCount, failedCount)
-	}
 
 	return nil
 }
