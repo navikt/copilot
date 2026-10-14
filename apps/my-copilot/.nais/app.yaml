@@ -229,7 +229,7 @@ spec:
               sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot"}[10m]))
             ) > 0.05
             and
-            sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot"}[10m])) > 50
+            sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot"}[10m])) >= 50
           labels:
             namespace: copilot
             severity: warning
