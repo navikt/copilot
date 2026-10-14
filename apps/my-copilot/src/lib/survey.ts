@@ -92,7 +92,8 @@ export async function getSurveyPreview(id: string): Promise<Survey | undefined> 
   if (!/^[a-z0-9-]{1,64}$/.test(id)) return undefined;
   try {
     const res = await fetchWithTimeout(
-      `https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/${id}.json`,
+      // SURVEY_DEFINITIONS_URL: e2e serves the definitions from a mock.
+      `${process.env.SURVEY_DEFINITIONS_URL ?? "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys"}/${id}.json`,
       { cache: "no-store" },
       5000,
       "timeout"
