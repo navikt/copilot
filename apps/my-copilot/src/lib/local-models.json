@@ -121,11 +121,11 @@
         },
         "debug": {
           "delegate": "cloud",
-          "local": "not-yet",
+          "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 10,
-          "local_n": 10
+          "local_k": 17,
+          "local_n": 25
         }
       }
     },
@@ -185,11 +185,11 @@
         },
         "debug": {
           "delegate": "cloud",
-          "local": "not-yet",
+          "local": "cloud",
           "delegate_k": 0,
           "delegate_n": 0,
-          "local_k": 10,
-          "local_n": 10
+          "local_k": 19,
+          "local_n": 30
         }
       }
     },
@@ -422,6 +422,14 @@
   "reports": {
     "source": "https://raw.githubusercontent.com/navikt/mlx-workspace/main/manifest/reports.json",
     "reports": [
+      {
+        "id": "2026-10-14-session-findings/report",
+        "title": "Session findings, 12–14 Oct",
+        "date": "2026-10-14",
+        "url": "https://github.com/navikt/mlx-workspace/blob/main/reports/2026-10-14-session-findings/report.md",
+        "verdict": null,
+        "headline": null
+      },
       {
         "id": "2026-10-11-newmodels/report",
         "title": "Four new models on the quality frontier",
