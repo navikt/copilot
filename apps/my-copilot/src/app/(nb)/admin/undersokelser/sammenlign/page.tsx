@@ -16,7 +16,9 @@ import {
   type WaveMeta,
   type WaveStat,
 } from "@/lib/survey";
-import { Legend, LikertBar, pct } from "../likert-bar";
+import { DocumentTitle, PrintButton } from "../../../innsikt/team/rapport/report-controls";
+import { fill, Legend, LikertBar, pct } from "../likert-bar";
+import { PrintHeader } from "../print-header";
 
 export const metadata: Metadata = {
   title: "Sammenlign undersøkelser",
@@ -34,6 +36,8 @@ const WAVE_FILLS = [
 // Oldest always gray, newest always blue; waves in between get the middle colours.
 const waveFill = (i: number, count: number) =>
   i === 0 ? WAVE_FILLS[0] : i === count - 1 ? WAVE_FILLS[1] : WAVE_FILLS[1 + i];
+// In print the newest wave is striped too, so it stands apart from the oldest in black and white.
+const waveClass = (i: number, count: number) => (i > 0 && i === count - 1 ? " print-stripe" : "");
 
 /** «Utviklerundersøkelsen våren 2026» → «Våren 2026». */
 function shortName(title: string) {
@@ -87,7 +91,11 @@ function WaveLabel({
 }) {
   return (
     <span className="flex items-center gap-2 text-xs">
-      <span aria-hidden className="inline-block h-3 w-3 rounded-sm" style={{ background: waveFill(i, count) }} />
+      <span
+        aria-hidden
+        className={`inline-block h-3 w-3 rounded-sm${waveClass(i, count)}`}
+        style={fill(waveFill(i, count))}
+      />
       <span>
         {shortName(wave.title)}
         {version === undefined ? "" : `, versjon ${version}`} · n {n === null ? "–" : formatNumber(n)}
@@ -147,7 +155,7 @@ function MeanOverview({ waves, questions }: { waves: WaveMeta[]; questions: Comp
                       <span
                         key={t}
                         className="absolute top-0 bottom-0 w-px"
-                        style={{ left: x(t), background: "var(--ax-border-neutral-subtle)" }}
+                        style={{ left: x(t), ...fill("var(--ax-border-neutral-subtle)") }}
                       />
                     ))}
                     {!r.break && shown.length > 1 ? (
@@ -157,7 +165,7 @@ function MeanOverview({ waves, questions }: { waves: WaveMeta[]; questions: Comp
                         style={{
                           left: x(Math.min(...shown)),
                           width: `calc(${x(Math.max(...shown))} - ${x(Math.min(...shown))})`,
-                          background: "var(--ax-border-neutral)",
+                          ...fill("var(--ax-border-neutral)"),
                         }}
                       />
                     ) : null}
@@ -166,10 +174,10 @@ function MeanOverview({ waves, questions }: { waves: WaveMeta[]; questions: Comp
                         <span
                           key={i}
                           title={`${shortName(waves[i].title)}: snitt ${num(m)}`}
-                          className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                          className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full${waveClass(i, waves.length)}`}
                           style={{
                             left: x(m),
-                            background: waveFill(i, waves.length),
+                            ...fill(waveFill(i, waves.length)),
                             boxShadow: "0 0 0 2px var(--ax-bg-default)",
                           }}
                         />
@@ -301,8 +309,8 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
                   return (
                     <div key={`${i}-${v.version}`} className="flex items-center gap-2">
                       <div
-                        className="h-3 rounded-r-sm"
-                        style={{ width: `${(s?.share ?? 0) * 75}%`, background: waveFill(i, waves.length) }}
+                        className={`h-3 rounded-r-sm${waveClass(i, waves.length)}`}
+                        style={{ width: `${(s?.share ?? 0) * 75}%`, ...fill(waveFill(i, waves.length)) }}
                       />
                       <span className="whitespace-nowrap">
                         {s ? `${pct(s.share)} (${formatNumber(s.count)})` : "–"}
@@ -422,8 +430,17 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
   if (res.status === "not-found") notFound();
   if (res.status === "error") return <Alert variant="error">Kunne ikke hente sammenligningen.</Alert>;
   const { surveys: waves, questions } = res.data;
+  const title = waves.map((w) => shortName(w.title)).join(" og ");
   return (
     <VStack gap="space-32">
+      <DocumentTitle title={`Sammenligning ${title}`} />
+      <PrintHeader
+        title={`Sammenligning: ${title}`}
+        lines={waves.map(
+          (w) =>
+            `${w.title}: ${formatDate(w.starts)}–${formatDate(w.ends)} · ${w.suppressed ? "under 5" : formatNumber(w.responses)} svar`
+        )}
+      />
       <Waves waves={waves} />
       <Alert variant="info" size="small">
         Rundene ble samlet inn på ulike måter (se «Besvart via»). En forskjell mellom rundene kan komme av metoden og
@@ -433,8 +450,8 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
         <Alert variant="info">En av rundene har under 5 svar. Den vises uten tall.</Alert>
       ) : null}
       <MeanOverview waves={waves} questions={questions} />
-      {questions.map((q) => (
-        <section key={q.id}>
+      {questions.map((q, qi) => (
+        <section key={q.id} className={qi === 0 ? "print-break" : undefined}>
           <VStack gap="space-16">
             <Heading level="2" size="small">
               {q.text}
@@ -480,18 +497,23 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   }
 
   return (
-    <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero
-        title="Sammenlign undersøkelser"
-        description="Svar fra flere runder av brukerundersøkelsen, side om side."
-      />
+    <main id="hovedinnhold" tabIndex={-1} className="print-report survey-print">
+      <div className="print-hidden">
+        <PageHero
+          title="Sammenlign undersøkelser"
+          description="Svar fra flere runder av brukerundersøkelsen, side om side."
+          actions={ids.length < 2 ? undefined : <PrintButton>Lagre som PDF</PrintButton>}
+        />
+      </div>
       <div className="max-w-7xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap="space-24">
-            <Link href="/admin/undersokelser">Alle undersøkelser</Link>
+            <Link href="/admin/undersokelser" className="print-hidden">
+              Alle undersøkelser
+            </Link>
             {ids.length < 2 ? (
               <Alert variant="info">Det trengs minst to runder for å sammenligne.</Alert>
             ) : (

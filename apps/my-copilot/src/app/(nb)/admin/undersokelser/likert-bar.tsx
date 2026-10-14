@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Box } from "@navikt/ds-react";
 import { formatNumber } from "@/lib/format";
 import type { VersionResult } from "@/lib/survey";
@@ -11,6 +12,12 @@ const FILLS = [
   ["var(--ax-bg-success-moderate-pressed)", "var(--ax-text-neutral)"],
   ["var(--ax-bg-success-strong)", "var(--ax-text-success-contrast)"],
 ];
+/**
+ * A chart colour that survives print: Aksel's print layer sets every background to white with !important,
+ * so globals.css paints [style*="--fill"] from these variables instead.
+ */
+export const fill = (background: string, color?: string) =>
+  ({ background, color, "--fill": background, "--ink": color }) as CSSProperties;
 export const pct = (share: number) => `${Math.round(share * 100)} %`;
 
 /**
@@ -28,8 +35,8 @@ export function LikertBar({ v, min, max, labels }: { v: VersionResult; min: numb
         key={s.value}
         data-testid={label ? `segment-${s.value}` : undefined}
         title={`${labels[s.value - min] ?? s.value}: ${text}`}
-        className="@container h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center"
-        style={{ width: `${width * 100}%`, background: FILLS[i][0], color: FILLS[i][1] }}
+        className={`@container h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center${s.value > mid ? " print-stripe" : ""}`}
+        style={{ width: `${width * 100}%`, ...fill(FILLS[i][0], FILLS[i][1]) }}
       >
         {/* Narrow segments show their number in the tooltip and the table only. */}
         {label ? <span className="hidden @min-[4.5rem]:inline">{text}</span> : null}
@@ -60,8 +67,8 @@ export function Legend({ labels }: { labels: string[] }) {
       {labels.map((l, i) => (
         <span key={l} className="flex items-center gap-1">
           <span
-            className="inline-block h-3 w-3 rounded-sm"
-            style={{ background: FILLS[Math.round((i / (labels.length - 1 || 1)) * (FILLS.length - 1))][0] }}
+            className={`inline-block h-3 w-3 rounded-sm${i > (labels.length - 1) / 2 ? " print-stripe" : ""}`}
+            style={fill(FILLS[Math.round((i / (labels.length - 1 || 1)) * (FILLS.length - 1))][0])}
           />
           {l}
         </span>

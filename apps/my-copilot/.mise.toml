@@ -57,7 +57,7 @@ description = "Build the app twice (.e2e/a and .e2e/b), for the deploy-skew e2e 
 [tasks.e2e]
 run = "pnpm exec playwright test"
 depends = ["e2e:build"]
-description = "Playwright: the survey form across a deploy and an expired login (needs `pnpm exec playwright install chromium`)"
+description = "Playwright: the survey form across a deploy and an expired login, and the survey PDF export (needs `pnpm exec playwright install chromium`)"
 
 [tasks.storybook]
 run = "pnpm storybook"

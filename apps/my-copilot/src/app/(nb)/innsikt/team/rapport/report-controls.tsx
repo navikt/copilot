@@ -27,7 +27,7 @@ export function ReportNote({ label, description }: { label: string; description:
   );
 }
 
-export function PrintButton() {
+export function PrintButton({ children = "Skriv ut / lagre som PDF" }: { children?: string }) {
   return (
     <Button
       className="print-hidden"
@@ -36,7 +36,7 @@ export function PrintButton() {
       icon={<PrinterSmallIcon aria-hidden />}
       onClick={() => window.print()}
     >
-      Skriv ut / lagre som PDF
+      {children}
     </Button>
   );
 }

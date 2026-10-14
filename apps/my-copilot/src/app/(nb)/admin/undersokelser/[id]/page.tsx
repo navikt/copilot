@@ -7,7 +7,9 @@ import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getSurveyPreview, getSurveyResults, type SurveyQuestion, type VersionResult } from "@/lib/survey";
-import { Legend, LikertBar } from "../likert-bar";
+import { DocumentTitle, PrintButton } from "../../../innsikt/team/rapport/report-controls";
+import { fill, Legend, LikertBar } from "../likert-bar";
+import { PrintHeader } from "../print-header";
 
 export const metadata: Metadata = {
   title: "Resultater",
@@ -65,7 +67,7 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
                     <div
                       aria-hidden
                       className="h-3 rounded-sm"
-                      style={{ width: `${Math.round(share * 100)}%`, background: "var(--ax-bg-accent-strong)" }}
+                      style={{ width: `${Math.round(share * 100)}%`, ...fill("var(--ax-bg-accent-strong)") }}
                     />
                     <span>{Math.round(share * 100)} %</span>
                   </div>
@@ -117,20 +119,33 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
   const s = res.data;
 
   return (
-    <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero title={s.title} description="Resultater fra brukerundersøkelsen." />
+    <main id="hovedinnhold" tabIndex={-1} className="print-report survey-print">
+      <DocumentTitle title={`${s.title} – resultater`} />
+      <div className="print-hidden">
+        <PageHero
+          title={s.title}
+          description="Resultater fra brukerundersøkelsen."
+          actions={<PrintButton>Lagre som PDF</PrintButton>}
+        />
+      </div>
+      <PrintHeader
+        title={s.title}
+        lines={[
+          `${formatDate(s.starts)}–${formatDate(s.ends)} · ${s.suppressed ? UNDER_FIVE : formatNumber(s.responses)} svar`,
+        ]}
+      />
       <div className="max-w-7xl mx-auto">
         <Box
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap="space-24">
-            <HStack gap="space-16">
+            <HStack gap="space-16" className="print-hidden">
               <Link href="/admin/undersokelser">Alle undersøkelser</Link>
               <Link href="/admin/undersokelser/sammenlign">Sammenlign bølger</Link>
               <Link href={`/admin/undersokelser/${id}/fritekst`}>Se fritekstsvarene</Link>
             </HStack>
-            <BodyShort>
+            <BodyShort className="print-hidden">
               {formatDate(s.starts)}–{formatDate(s.ends)} ·{" "}
               <Tag size="small" variant="neutral">
                 {s.status}
@@ -142,7 +157,8 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
             ) : (
               <>
                 <BodyShort size="small">
-                  Spørsmål som ble endret underveis, vises med én tabell per versjon. Fritekstsvarene har egen side.
+                  Spørsmål som ble endret underveis, vises med én tabell per versjon. Fritekstsvarene har egen side og
+                  er ikke med i PDF-en.
                 </BodyShort>
                 {s.questions.map((q) => {
                   const qdef = def?.questions.find((d) => d.id === q.id);

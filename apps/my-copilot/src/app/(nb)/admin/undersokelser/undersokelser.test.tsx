@@ -112,6 +112,16 @@ describe("/admin/undersokelser", () => {
     expect(screen.queryByText(/skjult|tallene vises ikke|færre enn fem/i)).not.toBeInTheDocument();
   });
 
+  it("saves as PDF: a print button, the print layout, and the agree end striped", async () => {
+    respond(200, results);
+    render(await SurveyResultsPage(params("host-2026")));
+    expect(screen.getByRole("button", { name: "Lagre som PDF" })).toHaveClass("print-hidden");
+    expect(screen.getByRole("main")).toHaveClass("print-report", "survey-print");
+    expect(screen.getByRole("link", { name: "Se fritekstsvarene" }).closest(".print-hidden")).not.toBeNull();
+    expect(screen.getAllByTestId("segment-5")[0]).toHaveClass("print-stripe");
+    expect(screen.getAllByTestId("segment-1")[0]).not.toHaveClass("print-stripe");
+  });
+
   it("draws matrix statements as diverging bars with a mean for each", async () => {
     respond(200, results);
     render(await SurveyResultsPage(params("host-2026")));
