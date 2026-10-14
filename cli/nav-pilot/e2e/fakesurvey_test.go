@@ -95,6 +95,9 @@ func cmdFakeSurvey(ts *testscript.TestScript, neg bool, args []string) {
 			default:
 				fmt.Fprint(w, defs)
 			}
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/surveys/e2e-2026/status":
+			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			fmt.Fprintf(w, `{"answered":%t}`, answered[token])
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/surveys/e2e-2026/responses":
 			body, _ := io.ReadAll(r.Body)
 			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")

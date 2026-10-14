@@ -39,9 +39,9 @@ stdout 'Dette sendes: svarene dine'
 stdout 'Takk! Svaret ditt er sendt'
 grep -count=1 '^POST 201 ' $WORK/survey-posts.log
 
-# Again: copilot-cli refuses the second answer.
-exec pty-run -wait 'How useful is nav-pilot' -send '\x1b[B\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
-stdout 'Du har allerede svart på denne undersøkelsen'
+# Again: the status call says answered, so no form.
+exec pty-run -- nav-pilot survey
+stdout 'Du har allerede svart på E2E survey'
 
 # Not signed in: the login is announced before the questions, and when it
 # fails the answer is kept (#1274). The e2e proxy blocks github.com.
