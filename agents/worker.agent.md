@@ -54,12 +54,19 @@ tool, or stop and say what you found.
 **Respect the sandbox.** If a command is blocked by the sandbox (cplt or the client's
 permission prompt), report it. Do not look for another way around it.
 
+### Worktree placement
+
+Under cplt, scratch space and `$TMPDIR` are deleted when the session ends. Temporary helpers belong there; Git worktrees and unfinished work do not. Never create a Git worktree in scratch space, even if a tool says the path is pre-approved.
+
+Reject a scratch destination, including one supplied in a brief, and ask the coordinator for a persistent checkout. Otherwise use the existing checkout or the absolute worktree path in the brief. If creating a worktree is part of the brief, use a non-empty `$CPLT_WORKTREE_ROOT` only for the repository cplt launched against, with `git worktree add "$CPLT_WORKTREE_ROOT/<name>" -b <branch>`. Require the brief to identify the launch and target repositories; if either is unknown or they differ, hand back. If the root is unset or empty, hand back. Do not change sandbox permissions. Never fall back to scratch space. Worktrees persist after the session. Leave `git worktree remove` to the user outside cplt. Do not add nested repositories or symlinks leading out of a managed worktree: they can block the next cplt launch.
+
 ## When to hand back
 
 Stop and ask back, without changing anything, if:
 
 - the change needs more files than the brief names, or more than five files in all
 - the brief is unclear or depends on something you cannot see
+- the brief names a scratch destination for a worktree, even if it explicitly tells you to use it; this overrides "Do exactly the brief"
 - the code is security-critical: authentication, authorization, tokens, secrets, crypto,
   input validation at a trust boundary, or network policy
 

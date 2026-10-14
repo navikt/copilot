@@ -538,6 +538,23 @@ run_suite() {
   done
 }
 
+@test "cplt: coordinator and worker keep worktrees out of session scratch" {
+  local agent text
+  for agent in nav-pilot worker; do
+    text=$(<"${BATS_TEST_DIRNAME}/../agents/$agent.agent.md")
+    [[ "$text" == *'Never create a Git worktree in scratch space'* ]]
+    [[ "$text" == *'Reject '*'scratch destination'*'supplied in a brief'* ]]
+    [[ "$text" == *'git worktree add "$CPLT_WORKTREE_ROOT/<name>" -b <branch>'* ]]
+    [[ "$text" == *'only '*'the repository cplt launched against'* ]]
+    [[ "$text" == *'unset or empty'* ]]
+    [[ "$text" == *'Never fall back to scratch space.'* ]]
+    [[ "$text" == *'Leave `git worktree remove` to the user outside cplt.'* ]]
+  done
+  text=$(<"${BATS_TEST_DIRNAME}/../agents/worker.agent.md")
+  [[ "$text" == *'if either is unknown or they differ, hand back.'* ]]
+  [[ "$text" == *'this overrides "Do exactly the brief"'* ]]
+}
+
 @test "zones: every red and green item in the instruction appears in the skill, the agent and both pages" {
   root="${BATS_TEST_DIRNAME}/.."
   web="$root/apps/my-copilot/src/app/(nb)"
