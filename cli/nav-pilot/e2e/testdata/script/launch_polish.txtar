@@ -24,7 +24,19 @@ exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 
 fake-bin cplt
 exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
-stderr 'Not launching: opencode is not installed\. Install it: npm i -g opencode-ai'
+stderr 'Not launching: opencode is not installed\. Install it: curl -fsSL https://opencode\.ai/install \| bash -s -- --version 1\.18\.32'
+
+fake-bin cplt npm
+exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
+stderr 'Install it: npm i -g opencode-ai@1\.18\.32'
+
+fake-bin cplt npm pnpm
+exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
+stderr 'Install it: pnpm add -g opencode-ai@1\.18\.32'
+
+fake-bin cplt npm pnpm brew
+exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
+stderr 'Install it: brew install anomalyco/tap/opencode'
 
 fake-bin cplt copilot
 exits 1 nav-pilot --sync --source $WORK/plattform --no-auto-launch -- -p x
