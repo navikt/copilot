@@ -289,10 +289,10 @@ func prepareSurvey(client string) {
 
 // markAnsweredElsewhere asks copilot-cli, for each open survey not yet done
 // here, whether the user has answered it, also on the web, and records those
-// as answered. It returns their ids. Any error counts as not answered: the
+// as answered. Any error counts as not answered: the
 // survey is asked as before, and the server still refuses a second answer.
-func markAnsweredElsewhere(base string, st surveyState, now time.Time) []string {
-	var ids []string
+func markAnsweredElsewhere(base string, st surveyState, now time.Time) {
+	changed := false
 	token := ""
 	for _, d := range st.Active {
 		if rec := st.Surveys[d.ID]; !d.openOn(now) || (rec != nil && rec.Done != "") {
@@ -300,7 +300,7 @@ func markAnsweredElsewhere(base string, st surveyState, now time.Time) []string 
 		}
 		if token == "" {
 			if token = surveyToken(); token == "" {
-				return nil
+				return
 			}
 		}
 		if surveyAnsweredOnServer(base, d.ID, token) {
@@ -310,13 +310,19 @@ func markAnsweredElsewhere(base string, st surveyState, now time.Time) []string 
 				st.Surveys[d.ID] = rec
 			}
 			rec.Done = "answered"
-			ids = append(ids, d.ID)
+			changed = true
 		}
 	}
-	if len(ids) > 0 {
+	if changed {
 		writeSurveyState(st)
 	}
-	return ids
+}
+
+// answeredAndSent is a survey answered here or on the web with nothing left
+// to send. An answer still waiting stays open, so it can be given again.
+func answeredAndSent(st surveyState, id string) bool {
+	rec := st.Surveys[id]
+	return rec != nil && rec.Done == "answered" && len(rec.Pending) == 0
 }
 
 // surveyAnsweredOnServer is GET /api/v1/surveys/{id}/status. Anything but a
@@ -479,15 +485,14 @@ func cmdSurvey(jsonOutput bool) error {
 		st.Active, st.Fetched = active, now
 		writeSurveyState(st)
 	}
-	var answered []string
 	if isInteractive() && !jsonOutput {
-		answered = markAnsweredElsewhere(base, st, now)
+		markAnsweredElsewhere(base, st, now)
 	}
 	var open []surveyDef
 	for _, d := range st.Active {
 		switch {
 		case !d.openOn(now):
-		case slices.Contains(answered, d.ID):
+		case answeredAndSent(st, d.ID):
 			fmt.Printf("Du har allerede svart på %s. Takk!\n", d.Title)
 		case !d.renderable():
 			fmt.Fprintf(os.Stderr, "%s %s krever en nyere nav-pilot: %s\n", yellow("⚠"), d.Title, bold("nav-pilot upgrade"))

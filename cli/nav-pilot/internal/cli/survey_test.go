@@ -179,6 +179,10 @@ func TestSurveyAnsweredElsewhereIsNotAsked(t *testing.T) {
 					t.Errorf("%s: asked = %v, want %v", nudge, got, tc.asked)
 				}
 			}
+			// Kept on disk, so a later nav-pilot survey hides it too.
+			if hidden := answeredAndSent(readSurveyState(), "s1"); hidden == tc.asked {
+				t.Errorf("hidden from nav-pilot survey on the next run = %v, want %v", hidden, !tc.asked)
+			}
 		})
 	}
 	// Unreachable is the same as an error.
