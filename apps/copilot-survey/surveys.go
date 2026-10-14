@@ -672,7 +672,7 @@ func (a *surveyAPI) status(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	answered, err := a.answered(ctx, s.ID, participantHash(a.keys[s.ID], email))
 	if err != nil {
-		slog.Error("survey: storing the submission failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
+		slog.Error("survey: checking participation failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
 		writeError(w, http.StatusServiceUnavailable, "could not check your answer, try again later")
 		return
 	}
