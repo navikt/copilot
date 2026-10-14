@@ -416,7 +416,13 @@ func main() {
 			// Retry supplementary data for recent days where entity metrics exists
 			// but user-teams/user-metrics are missing. It reads the stored days
 			// itself, so it does not depend on the metrics step succeeding.
-			{"supplementary", func() error { ingestMissingSupplementary(ctx, ghClient, bqClient, config); return nil }},
+			{"supplementary", func() error {
+				err := ingestMissingSupplementary(ctx, ghClient, bqClient, config)
+				if err != nil && slack != nil {
+					slack.NotifyError(ctx, fmt.Sprintf("Supplementary ingestion failed: %v", err))
+				}
+				return err
+			}},
 		}
 		if billingClient != nil {
 			steps = append(steps,
@@ -656,15 +662,14 @@ func ingestDay(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Con
 	if result != nil && result.ScopeID != "" {
 		scopeID = result.ScopeID
 	}
-	ingestSupplementary(ctx, gh, bq, day, scopeID)
-
-	return entityErr
+	supErr := ingestSupplementary(ctx, gh, bq, day, scopeID)
+	return errors.Join(entityErr, supErr)
 }
 
 // ingestSupplementary fetches and stores user-teams and per-user reports.
-// Failures are logged but don't fail the overall ingestion — these reports
-// may not be available for all days (only from May 2026 onwards).
-func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, day time.Time, scopeID string) {
+// Fetch failures are logged only, because these reports may not be available yet.
+// A failed per-user store is returned so the day counts as failed and alerts.
+func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, day time.Time, scopeID string) (usersErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("Panic in supplementary ingestion (recovered)", "day", day.Format("2006-01-02"), "panic", r)
@@ -708,7 +713,8 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 			if errors.Is(err, ErrStreamingBuffer) {
 				slog.Info("Skipping user-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
 			} else {
-				slog.Warn("Failed to store per-user metrics report", "day", dayStr, "error", err)
+				slog.Error("Failed to store per-user metrics report", "day", dayStr, "error", err)
+				usersErr = fmt.Errorf("failed to store per-user metrics: %w", err)
 			}
 		} else {
 			slog.Info("Ingested per-user metrics report", "day", dayStr, "records", len(usersResult.Records))
@@ -735,6 +741,7 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 			slog.Info("Ingested per-repository metrics report", "day", dayStr, "records", len(reposResult.Records))
 		}
 	}
+	return usersErr
 }
 
 // ingestMissingSupplementary checks the last 7 days for days that have entity
@@ -767,13 +774,14 @@ func ingestSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore
 // The entity gate spans scopes too, but on a third ground: it only decides
 // whether the day is worth topping up at all, and a cross-scope answer is what
 // stops the day being ingested a second time under the other scope_id.
-func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config) {
+func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq MetricsStore, cfg *Config) error {
 	scopeIDs := reportScopeIDs(cfg)
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 
 	// Check last 7 days — reports are typically available within 48h
 	const lookbackDays = 7
 	var filled int
+	var usersErr error
 
 	for i := 1; i <= lookbackDays; i++ {
 		day := today.AddDate(0, 0, -i)
@@ -836,7 +844,8 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 					if errors.Is(storeErr, ErrStreamingBuffer) {
 						slog.Info("Skipping user-metrics re-import (streaming buffer not yet flushed, re-run in ~90 min)", "day", dayStr)
 					} else {
-						slog.Warn("Failed to insert missing user-metrics", "day", dayStr, "error", storeErr)
+						slog.Error("Failed to insert missing user-metrics", "day", dayStr, "error", storeErr)
+						usersErr = errors.Join(usersErr, fmt.Errorf("%s: failed to store per-user metrics: %w", dayStr, storeErr))
 					}
 				} else {
 					slog.Info("Backfilled missing user-metrics", "day", dayStr, "records", len(usersResult.Records))
@@ -873,6 +882,7 @@ func ingestMissingSupplementary(ctx context.Context, gh MetricsFetcher, bq Metri
 	if filled > 0 {
 		slog.Info("Supplementary gap-fill completed", "filled", filled)
 	}
+	return usersErr
 }
 
 // reportScopeIDs lists every scope_id value a daily report may already be stored

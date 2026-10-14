@@ -296,7 +296,7 @@ func TestIngestMissingSupplementary_RepeatedRunsDoNotDuplicate(t *testing.T) {
 
 			// Three consecutive nightly runs.
 			for range 3 {
-				ingestMissingSupplementary(ctx, fetcher, store, cfg)
+				_ = ingestMissingSupplementary(ctx, fetcher, store, cfg)
 			}
 
 			for _, table := range []string{tableUserTeams, tableUserMetrics, tableRepoMetrics} {
@@ -383,7 +383,7 @@ func TestIngestMissingSupplementary_ScopeMismatch(t *testing.T) {
 			fetcher := &supplementaryFetcher{scope: tt.fetchedScope, scopeID: tt.fetchedID, records: 4}
 
 			for range 3 {
-				ingestMissingSupplementary(ctx, fetcher, store, cfg)
+				_ = ingestMissingSupplementary(ctx, fetcher, store, cfg)
 			}
 
 			wantByTable := map[string]map[string]int{
@@ -417,7 +417,7 @@ func TestIngestMissingSupplementary_ExistsErrorDoesNotInsert(t *testing.T) {
 
 	fetcher := &supplementaryFetcher{scope: "organization", scopeID: "navikt", records: 2}
 
-	ingestMissingSupplementary(ctx, fetcher, store, supplementaryConfig())
+	_ = ingestMissingSupplementary(ctx, fetcher, store, supplementaryConfig())
 
 	if fetcher.teamsFetches != 0 || fetcher.usersFetches != 0 || fetcher.reposFetches != 0 {
 		t.Errorf("expected no fetches when the entity probe fails, got teams=%d users=%d repos=%d",
@@ -849,7 +849,7 @@ func TestIngestMissingSupplementary_StreamingBufferLogsAtInfo(t *testing.T) {
 
 	fetcher := &supplementaryFetcher{scope: "organization", scopeID: "navikt", records: 2}
 
-	ingestMissingSupplementary(ctx, fetcher, store, cfg)
+	_ = ingestMissingSupplementary(ctx, fetcher, store, cfg)
 
 	records := logs()
 	for _, report := range []string{"user-teams", "user-metrics", "repo-metrics"} {

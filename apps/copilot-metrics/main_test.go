@@ -69,6 +69,7 @@ type mockStore struct {
 	userMetricsInserted int
 	repoMetricsInserted int
 	repoMetricsExists   bool
+	userMetricsErr      error
 }
 
 func (m *mockStore) EnsureTableExists(_ context.Context) error {
@@ -80,6 +81,9 @@ func (m *mockStore) ReplaceUserTeams(ctx context.Context, day time.Time, result 
 }
 
 func (m *mockStore) ReplaceUserMetrics(ctx context.Context, day time.Time, result *FetchResult) error {
+	if m.userMetricsErr != nil {
+		return m.userMetricsErr
+	}
 	return upsertReport(ctx, m.UserMetricsDayExists, m.DeleteUserMetricsDay, m.InsertUserMetrics, day, result)
 }
 

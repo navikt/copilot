@@ -102,11 +102,13 @@ func (c *BigQueryClient) replaceAllocationReport(ctx context.Context, table stri
 	return err
 }
 
+// wide_number_mode=>'round': GitHub sends floats like 54.50040499999999 that
+// do not round-trip through FLOAT64, and the default 'exact' rejects the whole day.
 func allocationReplacementSQL(table, receipts string) string {
 	return `BEGIN TRANSACTION;
 DELETE FROM ` + table + ` WHERE day=@day AND scope_id=@scopeID;
 INSERT INTO ` + table + ` (day,scope,scope_id,raw_record,loaded_at)
-SELECT @day,@scope,@scopeID,PARSE_JSON(raw),@loaded FROM UNNEST(@records) raw;
+SELECT @day,@scope,@scopeID,PARSE_JSON(raw, wide_number_mode=>'round'),@loaded FROM UNNEST(@records) raw;
 DELETE FROM ` + receipts + ` WHERE day=@day AND scope_id=@scopeID AND report=@report;
 IF @complete THEN
 INSERT INTO ` + receipts + ` (day,report,scope_id,records,loaded_at) VALUES (@day,@report,@scopeID,COALESCE(ARRAY_LENGTH(@records),0),@loaded);
