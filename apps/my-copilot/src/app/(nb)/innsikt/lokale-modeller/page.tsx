@@ -89,8 +89,8 @@ function ManifestSections({ table }: { table: Table }) {
             rapporten
           </a>
           ). Nå måles feilsøking med testkjøringer i en sandkasse med egen Postgres-database. Skymodellen besto 30 av
-          30. Qwen3.8-27B-8bit besto 19 av 30 og Qwen3.8-27B-OptiQ-4bit 17 av 25, langt under kravet. Med disse
-          modellene går feilsøking derfor til skyen (
+          30. Qwen3.8-27B-8bit besto 19 av 30, og Qwen3.8-27B-OptiQ-4bit besto 17 av 25. Begge ligger langt under
+          kravet, så feilsøking med disse modellene går til skyen (
           <a href="https://github.com/navikt/mlx-workspace/pull/289" className={linkClass}>
             mlx-workspace#289
           </a>
