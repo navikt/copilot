@@ -44,7 +44,7 @@ does either.
 
 Downstream calls carry copilot-cli's own M2M token for that service and the
 verified GitHub login in `X-On-Behalf-Of`. copilot-api honours the header on
-its per-user usage GETs only, copilot-survey on the answer route only. The
+its per-user usage GETs only, copilot-survey on the answer and status routes only. The
 public survey definitions go without a token or header.
 
 ## Endpoints
