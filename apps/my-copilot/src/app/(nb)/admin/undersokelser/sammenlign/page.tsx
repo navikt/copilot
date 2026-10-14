@@ -472,8 +472,9 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       .filter((s) => s.status !== "kommende")
       .sort((a, b) => a.starts.localeCompare(b.starts));
     const series = started.at(-1)?.series;
+    // No series: nothing says which surveys belong together, so pick none.
     ids = started
-      .filter((s) => s.series === series)
+      .filter((s) => series && s.series === series)
       .slice(-2)
       .map((s) => s.id);
   }

@@ -161,6 +161,14 @@ describe("/admin/undersokelser/sammenlign", () => {
     );
   });
 
+  it("picks no default when the newest survey has no series", async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ surveys: comparison.surveys })));
+    vi.stubGlobal("fetch", fetch);
+    await renderPage();
+    expect(screen.getByText("Det trengs minst to runder for å sammenligne.")).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("shows n and channel per wave, deltas, and the exclusion", async () => {
     respond(comparison);
     await renderPage("q2-2026,q4-2026");
