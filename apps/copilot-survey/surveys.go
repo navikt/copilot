@@ -672,7 +672,7 @@ func (a *surveyAPI) status(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	answered, err := a.answered(ctx, s.ID, participantHash(a.keys[s.ID], email))
 	if err != nil {
-		slog.Error("survey: checking participation failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
+		slog.Error("survey: storing the submission failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
 		writeError(w, http.StatusServiceUnavailable, "could not check your answer, try again later")
 		return
 	}
@@ -732,7 +732,7 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	// Not the request's context: the write it triggers must not be
 	// cancelled because this caller hung up, and must carry nothing of this
-	// request, since it may also write answers queued by earlier failed writes.
+	// request, since it may also write answers queued before it.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	fresh, err := a.store(ctx, s.ID, participantHash(key, email), s.closesOn(), response{
@@ -740,7 +740,7 @@ func (a *surveyAPI) submit(w http.ResponseWriter, r *http.Request) {
 		Context: sub.Context, DeleteAfter: s.deleteAfter(),
 	})
 	if err != nil {
-		slog.Error("survey: checking participation failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
+		slog.Error("survey: storing the submission failed", "survey", s.ID, "error_type", fmt.Sprintf("%T", err))
 		writeError(w, http.StatusServiceUnavailable, "could not store your answers, try again later")
 		return
 	}
