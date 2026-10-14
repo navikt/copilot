@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-14
 
+### Har du svart på nettet, spør ikke nav-pilot igjen
+
+- **`nav-pilot survey` og påminnelsene**: Svarte du på en undersøkelse på ki-utvikling.nav.no, spurte nav-pilot likevel, fordi den bare husket svar gitt i terminalen. Nå spør nav-pilot copilot-cli om du allerede har svart, før den minner deg på undersøkelsen eller viser den. Har du svart, får du ikke spørsmålet igjen. Får ikke nav-pilot kontakt, spør den som før. Prøver du å svare en gang til, får du beskjed om at du allerede har svart.
+
 ### Svaret i undersøkelsen forsvinner ikke ved «for mange forespørsler»
 
 - **`nav-pilot survey`**: Hvis copilot-cli svarte «429 for mange forespørsler» da du sendte inn svaret, ble svaret slettet og du fikk beskjed om at det ikke ble lagret. Nå beholder nav-pilot svaret og sender det på nytt etter neste økt, på samme måte som ved serverfeil.
