@@ -95,27 +95,13 @@ func runExport(in io.Reader, out io.Writer) error {
 			// Hidden lists "field hash" of texts an admin hid (freetext.go).
 			Hidden []string `json:"hidden"`
 		}
+		hidden := &raw.Hidden
 		if err := json.Unmarshal([]byte(line), &raw); err != nil {
 			return fmt.Errorf("row %d: %w", len(rows)+1, err)
 		}
-		ctx := map[string]string{}
-		for k, v := range raw.Context {
-			switch t := v.(type) {
-			case string:
-				ctx[k] = t
-			case bool:
-				ctx[k] = strconv.FormatBool(t)
-			default:
-				ctx[k] = fmt.Sprint(t)
-			}
-		}
-		for k, v := range raw.Answers {
-			if s, ok := v.(string); ok && slices.Contains(raw.Hidden, k+" "+textHash(s)) {
-				delete(raw.Answers, k)
-			}
-		}
-		redactValue(raw.Answers)
-		rows = append(rows, exportRow{raw.Answers, raw.QuestionVersions, ctx})
+		rows = append(rows, newExportRow(raw.Answers, raw.QuestionVersions, raw.Context, func(field, raw string) bool {
+			return slices.Contains(*hidden, field+" "+textHash(raw))
+		}))
 	}
 	if err := sc.Err(); err != nil {
 		return err
@@ -129,6 +115,29 @@ func runExport(in io.Reader, out io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// newExportRow drops the texts hidden says an admin hid, redacts the rest
+// and flattens context to strings. Shared by the CLI export and the admin CSV.
+func newExportRow(answers map[string]any, versions map[string]int, context map[string]any, hidden func(field, raw string) bool) exportRow {
+	ctx := map[string]string{}
+	for k, v := range context {
+		switch t := v.(type) {
+		case string:
+			ctx[k] = t
+		case bool:
+			ctx[k] = strconv.FormatBool(t)
+		default:
+			ctx[k] = fmt.Sprint(t)
+		}
+	}
+	for k, v := range answers {
+		if s, ok := v.(string); ok && hidden(k, s) {
+			delete(answers, k)
+		}
+	}
+	redactValue(answers)
+	return exportRow{answers, versions, ctx}
 }
 
 func suppressSmallSegments(rows []exportRow) {
