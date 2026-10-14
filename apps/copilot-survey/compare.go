@@ -87,7 +87,7 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		m := waveMeta{surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), len(rs)}, len(rs) < minSegment, map[string]int{}}
+		m := waveMeta{surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), len(rs), s.Series}, len(rs) < minSegment, map[string]int{}}
 		for _, row := range rs {
 			m.Channels[row.Client]++
 		}

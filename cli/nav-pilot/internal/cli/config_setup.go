@@ -494,11 +494,24 @@ func bashPath() string {
 // opencodeBrewInstall is opencode's recommended Homebrew install.
 const opencodeBrewInstall = "brew install anomalyco/tap/opencode"
 
-// opencodeInstallCommand is how to install opencode on this machine:
-// Homebrew when it is there, otherwise opencode's install script.
 func opencodeInstallCommand() string {
 	if _, err := exec.LookPath("brew"); err == nil {
 		return opencodeBrewInstall
+	}
+	// Pin npm packages so the hint cannot install an untested OpenCode major.
+	if _, err := exec.LookPath("pnpm"); err == nil {
+		// Corepack can provide pnpm before its global bin directory is set up.
+		home := os.Getenv("PNPM_HOME")
+		if info, err := os.Stat(home); err == nil && info.IsDir() && filepath.IsAbs(home) {
+			for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+				if filepath.Clean(dir) == filepath.Clean(home) {
+					return "pnpm add -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
+				}
+			}
+		}
+	}
+	if _, err := exec.LookPath("npm"); err == nil {
+		return "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
 	}
 	return opencodeScriptInstall
 }

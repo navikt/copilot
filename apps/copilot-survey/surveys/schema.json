@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/schema.json",
-  "schema_version": 5,
+  "schema_version": 6,
   "title": "copilot-survey survey definition",
   "description": "One survey, as a file in apps/copilot-survey/surveys/ and as an item of GET /api/v1/surveys/active. schema_version goes up on every change to the format. New fields are optional, so a client built against an older version keeps working: it ignores fields it does not know, and skips a survey with a question type it does not know. copilot-survey also checks what a schema cannot express (unique question ids, skip_if pointing at an earlier question, starts <= ends, at most one text question); see surveys/README.md.",
   "type": "object",
@@ -10,6 +10,7 @@
   "properties": {
     "id": { "$ref": "#/$defs/id" },
     "series": { "$ref": "#/$defs/id", "description": "Groups the waves of one survey over time; each wave has its own id." },
+    "environments": { "type": "array", "minItems": 1, "items": { "enum": ["dev-gcp", "prod-gcp"] }, "uniqueItems": true, "description": "NAIS clusters that load the survey. Left out means all; a dummy survey for tests names dev-gcp only." },
     "title": { "type": "string", "minLength": 1 },
     "intro": { "type": "string", "description": "Shown before the first question." },
     "active": { "type": "boolean", "description": "Served and takes answers only when true and today is within starts-ends." },

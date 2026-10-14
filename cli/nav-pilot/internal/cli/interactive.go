@@ -1261,7 +1261,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 			return skipped
 		}
 		fmt.Fprintf(os.Stderr, "%s %s is not installed, so nothing was launched. Install it: %s\n",
-			yellow("⚠"), resolved.Client, bold(clientInstallCommand[resolved.Client]))
+			yellow("⚠"), resolved.Client, bold(clientInstallCommand(resolved.Client)))
 		return skipped
 	case launchSkipOptedOut:
 		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", startCommand(resolved))))
@@ -1284,11 +1284,15 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	return nil
 }
 
-// clientInstallCommand is how to install the clients nav-pilot launches
-// inside cplt. copilot is not here: see copilotInstallHint.
-var clientInstallCommand = map[string]string{
-	"opencode": "npm i -g opencode-ai",
-	"pi":       "npm i -g @earendil-works/pi-coding-agent",
+func clientInstallCommand(client string) string {
+	switch client {
+	case "opencode":
+		return opencodeInstallCommand()
+	case "pi":
+		return "npm i -g @earendil-works/pi-coding-agent"
+	default:
+		return cpltInstallHint
+	}
 }
 
 // copilotInstallHint names both installs a copilot launch needs when neither
@@ -1363,10 +1367,7 @@ func headlessRefusal(decision launchDecision, p Provider, missing, start string)
 				break
 			}
 		}
-		install := cpltInstallHint
-		if cmd, ok := clientInstallCommand[missing]; ok {
-			install = cmd
-		}
+		install := clientInstallCommand(missing)
 		fmt.Fprintf(os.Stderr, "Not launching: %s is not installed. Install it: %s\n", missing, bold(install))
 	case launchSkipOptedOut:
 		fmt.Fprintf(os.Stderr, "Not launching: auto_launch = false. Start it yourself with: %s\n", start)
