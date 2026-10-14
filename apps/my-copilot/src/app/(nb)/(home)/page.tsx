@@ -16,6 +16,7 @@ import { getAllCustomizations } from "@/lib/customizations";
 import { getMcpServers } from "@/lib/mcp-registry";
 import { SurveyNotice } from "@/components/survey-notice";
 import { openSurveyTitles } from "@/lib/survey";
+import { formatNumber } from "@/lib/format";
 
 export default async function Home() {
   const [user, videos, mcpServers] = await Promise.all([getUser(false), getPublicVideoFeed(5), getMcpServers()]);
@@ -66,7 +67,7 @@ export default async function Home() {
                     className="inline-flex items-center gap-2 text-xs text-white/80 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 transition-colors"
                   >
                     <span className={`w-2 h-2 rounded-full ${c.dot}`} aria-hidden="true" />
-                    <span className="font-semibold text-white">{c.count}</span>
+                    <span className="font-semibold text-white">{formatNumber(c.count)}</span>
                     <span>{c.name.toLowerCase()}</span>
                   </Box>
                 </NextLink>

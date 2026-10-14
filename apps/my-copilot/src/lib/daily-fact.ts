@@ -28,7 +28,9 @@ export async function getDailyFact(): Promise<DailyFact | null> {
     });
     if (res.ok) return parseDailyFact(await res.json());
   } catch (error) {
-    console.error("Failed to fetch daily fact:", error);
+    if (process.env.NODE_ENV !== "development") {
+      console.error("Failed to fetch daily fact:", error);
+    }
   }
   return process.env.NODE_ENV === "development" ? DEV_FALLBACK_FACT : null;
 }

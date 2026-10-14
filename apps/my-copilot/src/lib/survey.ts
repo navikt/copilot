@@ -156,7 +156,7 @@ export function exclusivePick(q: SurveyQuestion, prev: string[], next: string[])
 
 export async function submitAnswers(userToken: string, surveyId: string, answers: Answers): Promise<SubmitResult> {
   const url = process.env.COPILOT_SURVEY_URL;
-  if (!url) return { status: "error" };
+  if (!url) return process.env.NODE_ENV === "development" ? { status: "recorded" } : { status: "error" };
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (!isLocalDev) {
     headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
