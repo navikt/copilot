@@ -39,12 +39,13 @@ stdout 'Dette sendes: svarene dine'
 stdout 'Takk! Svaret ditt er sendt'
 grep -count=1 '^POST 201 ' $WORK/survey-posts.log
 
-# Again: the status call says answered, so no form.
+# Again: answered here, so no form.
 exec pty-run -- nav-pilot survey
 stdout 'Du har allerede svart på E2E survey'
 
-# Not signed in: the login is announced before the questions, and when it
+# Not signed in (a fresh state, the answer above is forgotten): the login is announced before the questions, and when it
 # fails the answer is kept (#1274). The e2e proxy blocks github.com.
+rm $HOME/surveys.json
 env NAV_PILOT_E2E_GITHUB_TOKEN=
 exec pty-run -wait 'How useful is nav-pilot' -send '\x1b[B\r' -wait 'Velg opptil 2' -send ' \r' -wait 'Anything else' -send '\r' -- nav-pilot survey
 stdout 'Etter siste spørsmål må du logge inn med GitHub for å sende svaret'
