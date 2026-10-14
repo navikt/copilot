@@ -271,9 +271,9 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 }
 
 // answers returns a survey's written rows: answers, question versions and
-// the client (context.client), nothing else. Submissions still queued are not included.
+// context, nothing else. Submissions still queued are not included.
 func (s *surveyStore) answers(ctx context.Context, surveyID string) ([]storedAnswer, error) {
-	rows, err := s.pool.Query(ctx, `SELECT answers, question_versions, coalesce(context->>'client', '') FROM survey_answers WHERE survey_id = $1`, surveyID)
+	rows, err := s.pool.Query(ctx, `SELECT answers, question_versions, context FROM survey_answers WHERE survey_id = $1`, surveyID)
 	if err != nil {
 		return nil, err
 	}
@@ -281,9 +281,10 @@ func (s *surveyStore) answers(ctx context.Context, surveyID string) ([]storedAns
 	var out []storedAnswer
 	for rows.Next() {
 		var a storedAnswer
-		if err := rows.Scan(&a.Answers, &a.QuestionVersions, &a.Client); err != nil {
+		if err := rows.Scan(&a.Answers, &a.QuestionVersions, &a.Context); err != nil {
 			return nil, err
 		}
+		a.Client, _ = a.Context["client"].(string)
 		out = append(out, a)
 	}
 	return out, rows.Err()

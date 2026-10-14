@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Alert, BodyShort, Box, Heading, HStack, Link, Tag, VStack } from "@navikt/ds-react";
+import { Alert, BodyShort, Box, Button, Heading, HStack, Link, Tag, VStack } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import ErrorState from "@/components/error-state";
@@ -144,6 +144,15 @@ export default async function SurveyResultsPage({ params }: { params: Promise<{ 
               <Link href="/admin/undersokelser">Alle undersøkelser</Link>
               <Link href="/admin/undersokelser/sammenlign">Sammenlign bølger</Link>
               <Link href={`/admin/undersokelser/${id}/fritekst`}>Se fritekstsvarene</Link>
+              <Button
+                as="a"
+                href={`/api/admin/surveys/${id}/export`}
+                size="small"
+                variant="secondary"
+                className="print:hidden"
+              >
+                Last ned svar (CSV)
+              </Button>
             </HStack>
             <BodyShort className="print-hidden">
               {formatDate(s.starts)}–{formatDate(s.ends)} ·{" "}
