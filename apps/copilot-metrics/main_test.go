@@ -666,7 +666,7 @@ func TestIngestMissing_NoExistingData(t *testing.T) {
 	}
 }
 
-func TestIngestMissing_ContinuesOnPartialFailure(t *testing.T) {
+func TestIngestMissing_StopsOnPartialFailure(t *testing.T) {
 	ctx := context.Background()
 
 	// 3 days to fill, middle one will fail
@@ -695,9 +695,9 @@ func TestIngestMissing_ContinuesOnPartialFailure(t *testing.T) {
 		t.Fatalf("expected no error (partial success), got %v", err)
 	}
 
-	// All 3 days attempted
-	if callCount != 3 {
-		t.Errorf("expected 3 fetch calls, got %d", callCount)
+	// Day 1 ok, day 2 fails, day 3 not attempted so the next run retries day 2.
+	if callCount != 2 {
+		t.Errorf("expected 2 fetch calls, got %d", callCount)
 	}
 }
 
