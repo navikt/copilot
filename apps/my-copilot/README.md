@@ -151,6 +151,23 @@ To run the tests:
 pnpm test
 ```
 
+The survey form also has a Playwright test against two production builds
+(`e2e/survey.spec.ts`): it loads the page on one build, swaps in the other on
+the same port, and sends. It also checks an expired login. CI runs it when
+`apps/my-copilot` changes.
+
+```bash
+pnpm exec playwright install chromium   # once
+mise run e2e
+```
+
+### No server actions
+
+Forms post to route handlers (`src/app/api/**/route.ts`), not server actions.
+An action id changes with every build, so a page loaded before a deploy cannot
+call the new one, and the request fails before it reaches the backend. This
+lost survey answers in October 2026 (#1804). ESLint refuses `"use server"`.
+
 ### Links must keep working
 
 `src/lib/link-inventory.json` lists every path and anchor on the site that has been published or linked. `src/link-inventory.test.ts` checks that each one still resolves, and fails when the repo links to something that is not listed. After adding a page, a heading or a link, run:
