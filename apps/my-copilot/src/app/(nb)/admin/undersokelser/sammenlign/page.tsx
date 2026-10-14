@@ -434,6 +434,10 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
   return (
     <VStack gap="space-32">
       <DocumentTitle title={`Sammenligning ${title}`} />
+      {/* Here, not in the hero: only a comparison that loaded is worth saving. */}
+      <div>
+        <PrintButton>Lagre som PDF</PrintButton>
+      </div>
       <PrintHeader
         title={`Sammenligning: ${title}`}
         lines={waves.map(
@@ -502,7 +506,6 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
         <PageHero
           title="Sammenlign undersøkelser"
           description="Svar fra flere runder av brukerundersøkelsen, side om side."
-          actions={ids.length < 2 ? undefined : <PrintButton>Lagre som PDF</PrintButton>}
         />
       </div>
       <div className="max-w-7xl mx-auto">
