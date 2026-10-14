@@ -42,7 +42,7 @@ Re-check these when you update the matrix.
 | **Custom Agents (.agent.md)**     | ✅ Chat + Agent       | ✅ Chat + Agent       | ✅ Agent                 | ✅ `/agent`         | ❌                | ⚠️ Agent only   | ⚠️ Agent only   |
 | **Reusable Prompts (.prompt.md)** | ✅ `/prompt-name`     | ✅ `/prompt-name`     | ❌                       | ❌                  | ✅ `/prompt-name` | ❌              | ❌              |
 | **Agent Skills (SKILL.md)**       | ✅ Auto-discovery     | ⚠️ Agent Mode preview | ✅ Coding agent          | ✅ `/skills`        | ❌                | ❌              | ❌              |
-| **MCP Servers**                   | ✅ `.vscode/mcp.json` | ✅ `.idea/mcp.json`   | ✅ Org config            | ✅ `gh copilot mcp` | ✅                | ❌              | ❌              |
+| **MCP Servers**                   | ✅ `.vscode/mcp.json` | ✅ `.idea/mcp.json`   | ✅ Org config            | ✅ `copilot mcp`    | ✅                | ❌              | ❌              |
 | **Organization instructions**     | ❌                    | ❌                    | ✅ Chat + Agent + Review | ❌                  | ✅                | ❌              | ❌              |
 | **Personal instructions**         | ✅ Settings           | ✅ Settings           | ✅ Chat                  | ❌                  | ✅ Settings       | ❌              | ❌              |
 | **Copilot / Agent Memory**        | ✅ (User/Repo/Session) | ❌                    | ✅ (Repo scope)           | ✅ (Repo scope)      | ❌                | ❌              | ❌              |
@@ -100,10 +100,14 @@ Re-check these when you update the matrix.
 | VS Code MCP Registry panel  | VS Code     | Extensions panel → filter → MCP Registry    |
 | `.vscode/mcp.json` in repo  | VS Code     | Shared with team                            |
 | `.idea/mcp.json` in project | JetBrains   | Shared with team                            |
-| `gh copilot mcp add`        | Copilot CLI | Or edit `~/.config/github-copilot/mcp.json` |
+| `copilot mcp add`           | Copilot CLI | Or edit `~/.copilot/mcp-config.json`          |
 | Organization MCP config     | GitHub.com  | Org-level server configuration              |
 
 **Status**: works in every major client.
+
+Copilot CLI's enterprise MCP allowlist applies to non-default servers.
+[Built-in default servers are exempt](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#enterprise-mcp-allowlist).
+Connecting a server does not override a custom agent's `tools` allowlist.
 
 ## Nav customization inventory
 

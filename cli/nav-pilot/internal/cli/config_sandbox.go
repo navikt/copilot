@@ -623,7 +623,7 @@ var navOwnDomains = []string{
 	"collector-internet.nav.cloud.nais.io",
 
 	// Nav's MCP registry, in production. Copilot CLI resolves an MCP registry
-	// at startup and verifies every MCP server against it, so an unreachable
+	// at startup and verifies non-default MCP servers against it, so an unreachable
 	// registry is not a missing extra: it is a startup that times out and then
 	// hangs. nav-pilot itself reads the same host in `validate` and `install`
 	// (internal/agentpakke, MCPRegistryURL), which checks a pakke's mcpServers

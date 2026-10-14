@@ -112,6 +112,18 @@ func copilotMCPPath() string {
 	return filepath.Join(home, ".copilot", "mcp-config.json")
 }
 
+func TestMCPReportStatesDiagnosticScope(t *testing.T) {
+	for _, problems := range [][]mcpProblem{nil, {{Server: "example", Problem: "blocked", Fix: "fix"}}} {
+		out := captureStdout(func() { printMCPReport(mcpReport{Problems: problems}) })
+		if !strings.Contains(out, "Checks configured servers and sandbox policy, not live connections, authentication, built-in servers, or the active agent's tools.") {
+			t.Errorf("report omits diagnostic limits: %s", out)
+		}
+		if len(problems) == 0 && !strings.Contains(out, "No configuration problems found") {
+			t.Errorf("report overstates successful checks: %s", out)
+		}
+	}
+}
+
 // Every failure mode list can see gets its own line and the exact fix.
 func TestMCPListDiagnosesEachFailureMode(t *testing.T) {
 	f := mcpCmdEnv(t, providerpkg.MCPHostState{

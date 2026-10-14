@@ -36,8 +36,14 @@ Legg til i `.vscode/mcp.json` (delt med teamet) eller VS Code `settings.json` (p
 ### Copilot CLI
 
 ```bash
-gh copilot mcp add --type http server-name https://server-url/mcp
+nav-pilot mcp list
+nav-pilot mcp enable figma-mcp --client copilot
 ```
+
+Bruk `nav-pilot mcp enable` for å få med registerets headers og verktøyvalg.
+Et manuelt `copilot mcp add` kopierer ikke disse begrensningene fra registeret.
+
+Tilkoblet, men verktøyet mangler? Se [MCP-feilsøking](https://ki-utvikling.nav.no/nav-pilot/guider/feilsoking#mcp-verktoy).
 
 > Se [GitHub MCP-dokumentasjonen](https://docs.github.com/en/copilot/customizing-copilot/extending-copilot-chat-with-mcp) for oppsett i andre editorer.
 

@@ -99,9 +99,16 @@ nav-pilot mcp disable <navn>                  # slå av, og steng hostene bare d
 nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger til senere`}
           </CodeBlock>
           <BodyLong>
-            Har du serveren fra før, lar <code className={code}>enable</code> oppføringen være som den er, med mindre du
-            gir <code className={code}>--tools</code> eller <code className={code}>--all-tools</code>. Da endres bare
-            verktøyene.
+            Har du serveren fra før, bevarer et vanlig <code className={code}>enable</code> oppføringen og verktøyvalget
+            som det er. Gir du <code className={code}>--tools</code>, erstattes verktøyvalget med det du oppgir. Med{" "}
+            <code className={code}>--all-tools</code> endres også bare verktøyene.
+          </BodyLong>
+          <BodyLong>
+            Tilkoblet, men verktøyet mangler? <code className={code}>mcp list</code> sjekker oppsett og sandkassepolicy,
+            ikke innlogging, live tilkobling eller agentens verktøy. Både klientens verktøyvalg og agentens{" "}
+            <code className={code}>tools</code>-liste kan begrense tilgangen. Nav-pilot-agenten utelater Figma og Aksel.
+            Velg Aksel-agenten i Copilots agentvelger, og test et ekte <code className={code}>get_metadata</code>-kall i
+            en ny økt med den før du endrer proxy eller installerer på nytt.
           </BodyLong>
           <LinkableHeading id="mcp-intellij" size="small" level="3">
             IntelliJ og verktøy utenfor sandkassen
@@ -114,14 +121,26 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             verktøyene som kjører utenfor sandkassen først, og åpner porten etterpå.
           </BodyLong>
           <LinkableHeading id="mcp-github" size="small" level="3">
-            GitHub-serveren leser bare
+            GitHub-serveren fra registeret leser bare
           </LinkableHeading>
           <BodyLong>
-            GitHubs MCP-server får det skrivebeskyttede endepunktet. Velger du et verktøy som skriver til GitHub, som{" "}
-            <code className={code}>issue_write</code>, bytter nav-pilot til det fulle endepunktet. Da kan agenten skrive
-            til GitHub gjennom MCP, forbi vakta cplt har på <code className={code}>gh</code>.{" "}
-            <code className={code}>mcp list</code> merker det med <code className={code}>full endpoint</code> og gir
-            kommandoen som tar deg tilbake.
+            GitHub-serveren du slår på med nav-pilot får det skrivebeskyttede endepunktet. Velger du et verktøy som
+            skriver til GitHub, som <code className={code}>issue_write</code>, bytter nav-pilot til det fulle
+            endepunktet. Da kan agenten skrive til GitHub gjennom MCP, forbi vakta cplt har på{" "}
+            <code className={code}>gh</code>. <code className={code}>mcp list</code> merker det med{" "}
+            <code className={code}>full endpoint</code> og gir kommandoen som tar deg tilbake.
+          </BodyLong>
+          <BodyLong>
+            Copilots innebygde <code className={code}>github-mcp-server</code> er ikke registeroppføringen{" "}
+            <code className={code}>io.github.navikt/github-mcp</code>. Agentbindingen{" "}
+            <code className={code}>github/*</code> viser ikke at registeroppføringen brukes. GitHub{" "}
+            <a
+              href="https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#enterprise-mcp-allowlist"
+              className={linkClass}
+            >
+              unntar innebygde standardservere fra MCP-allowlisten
+            </a>
+            . Registerets headers dokumenterer derfor ikke begrensninger på den innebygde serveren.
           </BodyLong>
           <LinkableHeading id="mcp-hoster" size="small" level="3">
             Hoster i sandkassen
