@@ -100,11 +100,13 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
           </CodeBlock>
           <BodyLong>
             Har du serveren fra før, bevarer et vanlig <code className={code}>enable</code> oppføringen og verktøyvalget
-            som det er. Gir du <code className={code}>--tools</code>, erstattes verktøyvalget med det du oppgir.
+            som det er. Gir du <code className={code}>--tools</code>, erstattes verktøyvalget med det du oppgir. Med{" "}
+            <code className={code}>--all-tools</code> slås alle verktøy på. For GitHub endres også endepunktet og
+            registerets headers, se nedenfor.
           </BodyLong>
           <BodyLong>
             Tilkoblet, men verktøyet mangler? <code className={code}>mcp list</code> sjekker oppsett og sandkassepolicy,
-            ikke innlogging, live tilkobling eller agentens verktøy. Både klientens verktøyvalg og agentens{" "}
+            ikke innlogging, live-tilkobling eller agentens verktøy. Både klientens verktøyvalg og agentens{" "}
             <code className={code}>tools</code>-liste kan begrense tilgangen. Nav-pilot-agenten utelater Figma og Aksel.
             Velg Aksel-agenten i Copilots agentvelger, og test et ekte <code className={code}>get_metadata</code>-kall i
             en ny økt med den før du endrer proxy eller installerer på nytt.
