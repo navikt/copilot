@@ -44,8 +44,12 @@ type survey struct {
 	// Series groups the waves of one survey over time (e.g.
 	// utviklerundersokelsen); each wave is its own id.
 	Series string `json:"series,omitempty"`
-	Title  string `json:"title"`
-	Intro  string `json:"intro,omitempty"`
+	// Environments limits the survey to these NAIS clusters (e.g. dev-gcp
+	// for a dummy survey); elsewhere it is not loaded at all. Left out means
+	// every cluster. See forCluster.
+	Environments []string `json:"environments,omitempty"`
+	Title        string   `json:"title"`
+	Intro        string   `json:"intro,omitempty"`
 	// Active must be set, in its own reviewed pull request, before a survey
 	// is served or takes answers: a definition merges inactive.
 	Active bool `json:"active,omitempty"`
@@ -295,6 +299,18 @@ func hasDuplicates(xs []string) bool {
 		seen[x] = true
 	}
 	return false
+}
+
+// forCluster drops the surveys that name environments not including cluster,
+// so a dev-only test survey is absent from list, results, compare and
+// submit in prod. An empty cluster (local runs) keeps everything.
+func forCluster(defs []survey, cluster string) []survey {
+	if cluster == "" {
+		return defs
+	}
+	return slices.DeleteFunc(defs, func(s survey) bool {
+		return len(s.Environments) > 0 && !slices.Contains(s.Environments, cluster)
+	})
 }
 
 // activateInDev opens the surveys named in ids (SURVEY_ACTIVE_IDS,

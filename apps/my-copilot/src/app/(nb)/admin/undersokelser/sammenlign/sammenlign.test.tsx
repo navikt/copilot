@@ -106,8 +106,10 @@ function respond(body: unknown, status = 200) {
       ? new Response(
           JSON.stringify({
             surveys: [
-              ...comparison.surveys,
+              ...comparison.surveys.map((s) => ({ ...s, series: "utviklerundersokelsen" })),
               { ...comparison.surveys[0], id: "q2-2027", starts: "2027-03-01", status: "kommende" },
+              // Started between the two waves, but in another series: never a default.
+              { ...comparison.surveys[0], id: "test", series: "annet", starts: "2026-09-28", status: "åpen" },
             ],
           })
         )

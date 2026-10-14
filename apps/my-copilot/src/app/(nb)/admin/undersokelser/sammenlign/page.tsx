@@ -464,13 +464,16 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   if (!token) return <ErrorState title="Sammenlign" message="Mangler innloggingstoken" />;
   let ids = (await searchParams).ids?.split(",").filter(Boolean) ?? [];
   if (ids.length === 0) {
-    // Default: the two latest waves that have started, oldest first.
+    // Default: the two latest waves that have started in the newest wave's series, oldest first.
     const list = await getAdminSurveys(token);
     if (list.status === "not-found") notFound();
     if (list.status === "error") return <ErrorState title="Sammenlign" message="Kunne ikke hente undersøkelsene." />;
-    ids = list.data.surveys
+    const started = list.data.surveys
       .filter((s) => s.status !== "kommende")
-      .sort((a, b) => a.starts.localeCompare(b.starts))
+      .sort((a, b) => a.starts.localeCompare(b.starts));
+    const series = started.at(-1)?.series;
+    ids = started
+      .filter((s) => s.series === series)
       .slice(-2)
       .map((s) => s.id);
   }
