@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -511,5 +515,24 @@ func TestComputeInSyncMissingOIDs(t *testing.T) {
 	ci := results[0].Customizations["copilot_instructions"]
 	if ci.InSync != nil {
 		t.Errorf("expected nil InSync for missing file OID, got %v", ci.InSync)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestBuildTeamMapFailsWhenTeamLookupFails(t *testing.T) {
+	respond := func(body string) *http.Response {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{}}
+	}
+	c := &GitHubClient{httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if strings.HasSuffix(r.URL.Path, "/teams") {
+			return respond(`[{"slug":"a","name":"A"}]`), nil
+		}
+		return respond(`not json`), nil
+	})}}
+	if _, err := c.BuildTeamMap(context.Background(), "org"); err == nil {
+		t.Fatal("expected error when a team's repos cannot be listed")
 	}
 }
