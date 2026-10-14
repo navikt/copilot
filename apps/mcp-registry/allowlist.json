@@ -3,16 +3,14 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.nais/nais-mcp",
-      "description": "Read Nais platform context and explore the GraphQL API using your own Nais CLI identity.",
+      "description": "Read Nais platform context through your installed Nais CLI. Requires manual stdio setup.",
       "version": "6.5.0",
       "status": "deprecated",
       "publishedAt": "2026-10-14T00:00:00Z",
       "websiteUrl": "https://github.com/nais/cli/blob/main/MCP.md",
       "repository": {"url": "https://github.com/nais/cli", "source": "github"},
-      "local": {"command": "nais", "args": ["alpha", "mcp", "serve"]},
       "tools": ["get_nais_context", "execute_graphql", "validate_graphql", "schema_list_types", "schema_get_type", "schema_list_queries", "schema_list_mutations", "schema_get_field", "schema_get_enum", "schema_search", "schema_get_implementors", "schema_get_union_types"],
       "tags": ["nav-internal", "nais", "developer-tools"],
-      "sandboxHosts": ["console.nav.cloud.nais.io"],
       "setupInstructions": [
         {
           "title": "Installer Nais CLI og logg inn",
@@ -20,9 +18,9 @@
           "commands": ["nais login -n"]
         },
         {
-          "title": "Bruk bare godkjent klient og modell",
-          "description": "Kun lesing og ingen hemmelighetsverdier, i tråd med ROS-en i navikt/copilot-intern#115. API-data går inn i modellkonteksten. Nais CLI trenger tilgang til systemnøkkelringen og krypterte innloggingsdata; dette er ikke verifisert under cplt. Ikke omgå sandkassen for å få det til å virke.",
-          "commands": ["nais alpha mcp serve"]
+          "title": "Konfigurer lokal stdio manuelt",
+          "description": "Klienten starter nais med argumentene alpha, mcp, serve. Eksempelet under registrerer serveren i VS Code; andre klienter konfigureres som beskrevet i https://github.com/nais/cli/blob/main/MCP.md. nav-pilot mcp enable og registerets installasjonslenker støtter ikke denne oppføringen. Bruk bare godkjent klient og modell, kun lesing og ingen hemmelighetsverdier, jf. navikt/copilot-intern#115. Hemmelighetsfilter og personopplysninger må avklares før aktivering. Tilgang til nøkkelring og innloggingsdata under cplt er ikke verifisert; ikke omgå sandkassen.",
+          "commands": ["code --add-mcp '{\"name\":\"io.github.nais/nais-mcp\",\"command\":\"nais\",\"args\":[\"alpha\",\"mcp\",\"serve\"]}'"]
         }
       ],
       "examples": [

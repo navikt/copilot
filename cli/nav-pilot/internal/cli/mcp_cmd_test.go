@@ -271,68 +271,6 @@ func TestMCPDisableNarrowsTheApproval(t *testing.T) {
 	}
 }
 
-func TestMCPDisableRetiredNativeByRegistryName(t *testing.T) {
-	for _, status := range []string{"deprecated", "deleted"} {
-		t.Run(status, func(t *testing.T) {
-			isolatedConfig(t)
-			prevRegistry, prevCplt := mcpRegistryServers, cpltInstalled
-			prevClient, prevOff := providerpkg.MCPClient, providerpkg.MCPHostsOff
-			t.Cleanup(func() {
-				mcpRegistryServers, cpltInstalled = prevRegistry, prevCplt
-				providerpkg.MCPClient, providerpkg.MCPHostsOff = prevClient, prevOff
-			})
-			e := providerpkg.MCPServerEntry{
-				Name: "io.github.navikt/nais", Status: status,
-				Local: &providerpkg.MCPLocal{Command: "nais", Args: []string{"mcp", "--readonly"}},
-			}
-			mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
-				return "https://registry.test", []providerpkg.MCPServerEntry{e}, nil, nil
-			}
-			cpltInstalled = func() bool { return false }
-			path, err := providerpkg.MCPConfigPath(providerpkg.MCPClientOpenCode)
-			if err != nil {
-				t.Fatal(err)
-			}
-			orig := `{"mcp":{"my-nais":{"type":"local","command":["nais","mcp","--readonly"]},"keep":{"type":"local","command":["other"]}}}`
-			writeTestFile(t, path, orig)
-			captureStdoutFor(t, func() {
-				if err := cmdMCPDisable([]string{e.Name}, []string{providerpkg.MCPClientOpenCode}); err != nil {
-					t.Fatal(err)
-				}
-			})
-			if keys := providerpkg.MCPConfigKeys(providerpkg.MCPClientOpenCode); !slices.Equal(keys, []string{"keep"}) {
-				t.Errorf("keys after disable = %v, want [keep]", keys)
-			}
-			if data, err := os.ReadFile(path + ".bak"); err != nil || string(data) != orig {
-				t.Errorf("backup = %q, %v; want original config", data, err)
-			}
-		})
-	}
-}
-
-func TestMCPEnableFollowUpShowsSetupDescription(t *testing.T) {
-	isolatedConfig(t)
-	prev := mcpCpltPath
-	mcpCpltPath = func() string { return "" }
-	t.Cleanup(func() { mcpCpltPath = prev })
-	e := providerpkg.MCPServerEntry{
-		Name: "io.example/native",
-		Setup: []providerpkg.MCPSetupStep{{
-			Title:       "Authenticate before use",
-			Description: "Run this command outside the sandbox before connecting.",
-			Commands:    []string{"native-mcp login"},
-		}},
-	}
-	out := captureStdoutFor(t, func() {
-		mcpEnableFollowUp("https://registry.test", []providerpkg.MCPServerEntry{e}, providerpkg.MCPConfigured{}, e, []string{"copilot"})
-	})
-	for _, want := range []string{e.Setup[0].Title, e.Setup[0].Description, e.Setup[0].Commands[0]} {
-		if !strings.Contains(out, want) {
-			t.Errorf("follow-up missing %q:\n%s", want, out)
-		}
-	}
-}
-
 // An allowed host whose lookup timed out is not waived as private yet; list
 // says so and how it gets fixed, and the JSON carries the classification.
 func TestMCPListUnknownHost(t *testing.T) {

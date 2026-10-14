@@ -143,8 +143,6 @@ Names follow reverse-DNS with exactly one `/`:
 
 `toolRisk` classes the tools in `tools` that do more than read, as `{"tool": "write|external|host-exec"}`. A tool without an entry is a read. `write` changes the repo or project, `external` has a visible effect in another system (an issue, a PR, a file in Figma, outbound traffic), and `host-exec` runs on the user's machine outside cplt's sandbox (a terminal command in IntelliJ, say). It is served under `_meta."io.github.navikt/registry".toolRisk`. `nav-pilot mcp enable` turns on read and write tools and leaves external and host-exec tools off until the user picks them. Every key must be in `tools`, and a server on localhost must list its tools.
 
-`local` is a Nav extension for an already installed executable, for example `{"command":"nais","args":["alpha","mcp","serve"]}`. It is served only under `_meta."io.github.navikt/registry".local`, not as an upstream package or remote. It cannot be combined with `packages` or `remotes`. Min Copilot and nav-pilot understand it; upstream registry installers do not. OpenCode policy matching requires the exact executable and ordered arguments. Installation, login and sandbox credentials remain the user's responsibility; the recipe neither installs software nor grants access.
-
 ### Remote Servers (HTTP)
 
 For MCP servers accessible over the network via Streamable HTTP or SSE:

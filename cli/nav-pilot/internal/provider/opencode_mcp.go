@@ -34,8 +34,7 @@ import (
 // is never edited, and a plain `opencode` is not affected.
 //
 // A remote server matches a registry remote by URL. A local server matches a
-// registry package when its command names the package (npx @playwright/mcp),
-// or a native recipe by its exact command and ordered arguments.
+// registry package when its command names the package (npx @playwright/mcp).
 //
 // A question nobody answered changes nothing: no gh, no policy, or a registry
 // that did not answer leaves every server as it is, with a warning. Only an
@@ -69,7 +68,7 @@ type mcpServer struct {
 	hadEnvName  bool
 }
 
-// mcpRegistry is what the registry lists: remotes, packages and native recipes.
+// mcpRegistry is what the registry lists: remote URLs and package ids.
 type mcpRegistry struct {
 	URL      string
 	Remotes  map[string]bool
@@ -189,7 +188,6 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 						Status string `json:"status"`
 					} `json:"io.modelcontextprotocol.registry/official"`
 					Nav struct {
-						Local        *MCPLocal         `json:"local"`
 						Setup        []MCPSetupStep    `json:"setupInstructions"`
 						SandboxHosts []string          `json:"sandboxHosts"`
 						Tools        []string          `json:"tools"`
@@ -210,7 +208,6 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 				e.Status = st
 			}
 			e.Setup = s.Meta.Nav.Setup
-			e.Local = s.Meta.Nav.Local
 			e.SandboxHosts = s.Meta.Nav.SandboxHosts
 			e.Tools = s.Meta.Nav.Tools
 			e.ToolRisk = s.Meta.Nav.ToolRisk
@@ -226,9 +223,7 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 			}
 		}
 		if cursor = page.Metadata.NextCursor; cursor == "" {
-			if len(reg.Remotes)+len(reg.Packages) == 0 && !slices.ContainsFunc(reg.Entries, func(e MCPServerEntry) bool {
-				return e.Local != nil && e.Local.Command != ""
-			}) {
+			if len(reg.Remotes)+len(reg.Packages) == 0 {
 				// An empty list is not an answer: a registry that lists nothing
 				// would turn every server off.
 				return reg, fmt.Errorf("%s lists no servers", u)
@@ -265,11 +260,6 @@ func (r mcpRegistry) listed(s mcpServer) bool {
 		// OpenCode knows these two. Anything else is not a server the
 		// registry can be said to list.
 		return false
-	}
-	for _, e := range r.Entries {
-		if e.Usable() && e.Local != nil && e.Local.matches(s) {
-			return true
-		}
 	}
 	pkg := localPackage(s.Command)
 	if pkg == "" || !validMCPPackageSpec(pkg) {

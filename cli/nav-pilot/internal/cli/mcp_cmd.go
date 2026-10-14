@@ -893,7 +893,6 @@ func mcpEnableFollowUp(registry string, entries []providerpkg.MCPServerEntry, co
 		fmt.Printf("\n%s\n", bold("Setup steps from the registry for "+e.Name))
 		for _, s := range other {
 			fmt.Printf("  %s\n", safe(s.Title, 120))
-			fmt.Printf("      %s\n", safe(s.Description, 2000))
 			for _, c := range s.Commands {
 				fmt.Printf("      %s\n", bold(safe(c, 200)))
 			}

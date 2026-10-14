@@ -63,19 +63,6 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 	if strings.TrimSpace(server.Version) == "" {
 		return fmt.Errorf("server[%d]: 'version' is required and cannot be empty", index)
 	}
-	if server.Local != nil {
-		if len(server.Remotes)+len(server.Packages) != 0 {
-			return fmt.Errorf("server[%d]: 'local' cannot be combined with remotes or packages", index)
-		}
-		if strings.TrimSpace(server.Local.Command) == "" || strings.ContainsRune(server.Local.Command, '\x00') {
-			return fmt.Errorf("server[%d]: 'local.command' must be a non-empty executable without NUL", index)
-		}
-		for _, arg := range server.Local.Args {
-			if strings.ContainsRune(arg, '\x00') {
-				return fmt.Errorf("server[%d]: 'local.args' cannot contain NUL", index)
-			}
-		}
-	}
 
 	if server.Status != "" {
 		if err := validateStatus(server.Status, index); err != nil {
