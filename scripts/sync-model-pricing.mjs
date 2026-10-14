@@ -223,7 +223,7 @@ const MONTHS = [
  * then shifts a day backwards east of UTC.
  */
 function parsePromotionEndDate(note) {
-  const match = note.match(new RegExp(`through (${MONTHS.join("|")}) (\\d{1,2}), (\\d{4})`, "i"));
+  const match = note.match(new RegExp(`(?:through|until) (${MONTHS.join("|")}) (\\d{1,2}), (\\d{4})`, "i"));
   if (!match) return undefined;
   const month = MONTHS.findIndex((m) => m.toLowerCase() === match[1].toLowerCase()) + 1;
   return `${match[3]}-${String(month).padStart(2, "0")}-${match[2].padStart(2, "0")}`;
