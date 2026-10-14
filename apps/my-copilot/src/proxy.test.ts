@@ -54,26 +54,35 @@ describe("proxy without a token", () => {
   });
 });
 
-// A new route.ts under src/app/api must be behind the token check or be listed in
-// PUBLIC_API_PATHS on purpose. Adding a file here fails this test until it is one or the other.
-describe("every route under src/app/api", () => {
-  const routes = globSync("src/app/api/**/route.ts").map(
+const PUBLIC_ROUTE_PATHS = ["/health", "/metrics", "/install"];
+
+// A new route.ts under src/app must be behind the token check or be listed in
+// PUBLIC_API_PATHS / PUBLIC_ROUTE_PATHS on purpose. Adding a file fails this test until it is one or the other.
+describe("every route.ts under src/app", () => {
+  const routes = globSync("src/app/**/route.ts").map(
     (f) =>
       "/" +
       f
         .replace(/^src\/app\//, "")
         .replace(/\/route\.ts$/, "")
+        .split("/")
+        .filter((s) => !(s.startsWith("(") && s.endsWith(")")))
+        .join("/")
         .replace(/\[[^\]]+\]/g, "x")
   );
 
-  it("finds the routes", () => expect(routes.length).toBeGreaterThan(5));
+  it("finds the routes", () => expect(routes.length).toBeGreaterThan(15));
 
   it.each(routes)("%s is guarded or allowlisted", async (path) => {
-    const allowlisted = PUBLIC_API_PATHS.some((p) => path === p || path.startsWith(p + "/"));
+    const publicPaths = [...PUBLIC_API_PATHS, ...PUBLIC_ROUTE_PATHS];
+    const allowlisted = publicPaths.some((p) => path === p || path.startsWith(p + "/"));
     const matched = config.matcher.some(
       (m) => path === m.replace("/:path*", "") || path.startsWith(m.replace("/:path*", "") + "/")
     );
-    if (allowlisted) return;
+    if (allowlisted) {
+      expect(isPrivatePath(path)).toBe(false);
+      return;
+    }
     expect(isPrivatePath(path)).toBe(true);
     expect(matched).toBe(true);
     expect((await proxy(request(path))).status).toBe(401);

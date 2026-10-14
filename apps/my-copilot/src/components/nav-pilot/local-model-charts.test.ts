@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { wilson } from "./local-model-charts";
+import { FALLBACK_TABLE } from "@/lib/local-models";
+import { modelSizeRows, wilson } from "./local-model-charts";
 
 describe("wilson", () => {
   // The lower bounds capabilities.json reports for the default model (lb).
@@ -13,5 +14,21 @@ describe("wilson", () => {
     expect(lo).toBeCloseTo(lb, 3);
     expect(hi).toBeLessThanOrEqual(1);
     expect(hi).toBeGreaterThan(k / n - 1e-9);
+  });
+});
+
+describe("modelSizeRows", () => {
+  it("sorts models by weights_gb ascending and aggregates verified runs with Wilson intervals", () => {
+    const rows = modelSizeRows(FALLBACK_TABLE.models);
+    expect(rows.length).toBe(FALLBACK_TABLE.models.length);
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i].weightsGb).toBeGreaterThanOrEqual(rows[i - 1].weightsGb);
+    }
+    const def = rows.find((r) => r.isDefault)!;
+    expect(def.weightsGb).toBe(25);
+    expect(def.n).toBeGreaterThan(0);
+    expect(def.lo).toBeGreaterThan(0);
+    expect(def.hi).toBeLessThanOrEqual(1);
+    expect(def.trusted).toContain("mekanisk endring over flere filer (delegert)");
   });
 });

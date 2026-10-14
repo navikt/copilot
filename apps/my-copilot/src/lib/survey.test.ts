@@ -132,6 +132,7 @@ describe("types follow copilot-survey's schema.json", () => {
     "series",
     "environments",
     "active",
+    "published",
     "nudge",
     "min_cli_version",
     "retention_days",

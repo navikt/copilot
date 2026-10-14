@@ -227,6 +227,7 @@ export type SurveySummary = {
   status: "kommende" | "åpen" | "stengt";
   responses: number;
   series?: string;
+  published?: boolean;
 };
 
 /** One version of a question. n and options are null when under five answered it; an option's count is null when hidden. */
@@ -245,11 +246,23 @@ export type QuestionResult = {
 };
 
 /** questions is null when the whole survey has fewer than five answers (suppressed). */
-export type SurveyResults = SurveySummary & { suppressed: boolean; questions: QuestionResult[] | null };
+export type SurveyResults = SurveySummary & {
+  suppressed: boolean;
+  channels?: Record<string, number>;
+  questions: QuestionResult[] | null;
+};
+
+/** How a context.client value was asked: the method differs, and that can move answers. */
+export function channelName(client: string): string {
+  if (client === "forms") return "Microsoft Forms (radioknapper)";
+  if (client === "web") return "Nettside (knapperad)";
+  if (client === "") return "Ukjent";
+  return `Terminal, nav-pilot (${client})`;
+}
 
 export type AdminResult<T> = { status: "ok"; data: T } | { status: "not-found" } | { status: "error" };
 
-/** GET an admin endpoint of copilot-survey for the user. 403 and 404 both mean not-found, so a non-admin learns nothing. */
+/** GET an endpoint of copilot-survey for the user. 403 and 404 both mean not-found. */
 async function adminGet<T>(userToken: string, path: string): Promise<AdminResult<T>> {
   const url = process.env.COPILOT_SURVEY_URL;
   if (!url) return { status: "error" };
@@ -271,6 +284,14 @@ export const getAdminSurveys = (userToken: string) =>
 export async function getSurveyResults(userToken: string, id: string): Promise<AdminResult<SurveyResults>> {
   if (!/^[a-z0-9-]{1,64}$/.test(id)) return { status: "not-found" };
   return adminGet<SurveyResults>(userToken, `/api/v1/admin/surveys/${id}/results`);
+}
+
+export const getPublishedSurveys = (userToken: string) =>
+  adminGet<{ surveys: SurveySummary[] }>(userToken, "/api/v1/surveys/published");
+
+export async function getPublishedSurveyResults(userToken: string, id: string): Promise<AdminResult<SurveyResults>> {
+  if (!/^[a-z0-9-]{1,64}$/.test(id)) return { status: "not-found" };
+  return adminGet<SurveyResults>(userToken, `/api/v1/surveys/${id}/results`);
 }
 
 /** One version of a question in one wave; mean and agree (share at the top two steps) for scale items. */

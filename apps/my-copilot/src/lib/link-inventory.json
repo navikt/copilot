@@ -53,6 +53,7 @@
       "per-maned": ["apps/my-copilot/src/app/(nb)/admin/kostnad/page.tsx"],
       "prognose": ["apps/my-copilot/src/components/cost-forecast.tsx"],
       "storforbrukere": ["apps/my-copilot/src/components/high-consumers.tsx"],
+      "styringsgrep": ["apps/my-copilot/src/components/cost-events-section.tsx"],
       "trender": ["apps/my-copilot/src/components/cost-trends.tsx"]
     }
   },
@@ -80,6 +81,17 @@
       "apps/my-copilot/src/app/(nb)/admin/undersokelser/sammenlign/page.tsx"
     ],
     "anchors": {}
+  },
+  "/admin/verdi": {
+    "sources": ["apps/my-copilot/src/app/(nb)/admin/page.tsx", "apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "kodeagent": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
+      "kodegjennomgang": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
+      "kontekst": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
+      "kostnad-per-resultat": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
+      "team-og-repo": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"]
+    }
   },
   "/adopsjon": {
     "sources": [
@@ -317,7 +329,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx",
-      "apps/my-copilot/src/components/insight-strip.tsx"
+      "apps/my-copilot/src/components/insight-strip.tsx",
+      "apps/my-copilot/src/lib/daily-fact.ts"
     ],
     "anchors": {
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
@@ -338,6 +351,17 @@
     "anchors": {
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "team-adopsjon": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"]
+    }
+  },
+  "/innsikt/undersokelser": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/undersokelser/[id]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/undersokelser/page.tsx"
+    ],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "publiserte-undersokelser": ["apps/my-copilot/src/app/(nb)/innsikt/undersokelser/page.tsx"]
     }
   },
   "/install/agent": {

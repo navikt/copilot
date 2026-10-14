@@ -883,6 +883,14 @@ button.search-hit {
   @page {
     size: A4;
     margin: 15mm;
+    @bottom-left {
+      content: "Intern";
+      font-size: 8pt;
+    }
+    @bottom-right {
+      content: "Side " counter(page) " av " counter(pages);
+      font-size: 8pt;
+    }
   }
 
   body:has(.print-report) {
@@ -892,6 +900,8 @@ button.search-hit {
   .print-report * {
     font-size: 10pt !important;
     line-height: 1.35 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   .print-report h1 {
@@ -900,6 +910,11 @@ button.search-hit {
 
   .print-report h2 {
     font-size: 12pt !important;
+  }
+
+  /* Aksel's print layer appends the URL to every link; the PDF goes to people without access. */
+  .print-report a[href]::after {
+    content: none;
   }
 
   .team-report-table {
@@ -944,29 +959,8 @@ button.search-hit {
   }
 }
 
-/* Survey results (/admin/undersokelser/[id] and /sammenlign): .print-report plus page numbers, «Intern»,
-   colours that print, and the «Vis tall» tables open. Margin boxes need Chrome 131+; older browsers skip them. */
-.survey-print {
-  page: survey;
-}
-
+/* Survey results (/admin/undersokelser/[id] and /sammenlign): section break rules and open «Vis tall» tables. */
 @media print {
-  @page survey {
-    @bottom-left {
-      content: "Intern";
-      font-size: 8pt;
-    }
-    @bottom-right {
-      content: "Side " counter(page) " av " counter(pages);
-      font-size: 8pt;
-    }
-  }
-
-  .survey-print * {
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
-
   .survey-print section {
     break-inside: avoid;
   }
@@ -983,27 +977,22 @@ button.search-hit {
     content-visibility: visible;
     display: block;
   }
-
-  /* Aksel's print layer appends the URL to every link; the PDF goes to people without access. */
-  .survey-print a[href]::after {
-    content: none;
-  }
 }
 
 /* Aksel's print layer sets every background to #fff with !important. An !important in an earlier layer
    (base comes before aksel) wins over it, so the chart colours come back from fill() in likert-bar.tsx. */
 @layer base {
   @media print {
-    .survey-print [style*="--fill"] {
+    .print-report [style*="--fill"] {
       background: var(--fill) !important;
     }
 
-    .survey-print [style*="--ink"] {
+    .print-report [style*="--ink"] {
       color: var(--ink) !important;
     }
 
-    /* Striped: the agree end of a Likert bar and the newest wave, so they read in black and white too. */
-    .survey-print .print-stripe[style*="--fill"] {
+    /* Striped: the agree end of a Likert bar, preliminary months, and the newest wave, so they read in black and white too. */
+    .print-report .print-stripe[style*="--fill"] {
       background:
         repeating-linear-gradient(45deg, rgb(255 255 255 / 0.5) 0 1.5px, transparent 1.5px 5px), var(--fill) !important;
     }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/schema.json",
-  "schema_version": 6,
+  "schema_version": 7,
   "title": "copilot-survey survey definition",
   "description": "One survey, as a file in apps/copilot-survey/surveys/ and as an item of GET /api/v1/surveys/active. schema_version goes up on every change to the format. New fields are optional, so a client built against an older version keeps working: it ignores fields it does not know, and skips a survey with a question type it does not know. copilot-survey also checks what a schema cannot express (unique question ids, skip_if pointing at an earlier question, starts <= ends, at most one text question); see surveys/README.md.",
   "type": "object",
@@ -14,6 +14,7 @@
     "title": { "type": "string", "minLength": 1 },
     "intro": { "type": "string", "description": "Shown before the first question." },
     "active": { "type": "boolean", "description": "Served and takes answers only when true and today is within starts-ends." },
+    "published": { "type": "boolean", "description": "Shares the closed survey's aggregated results with signed-in Nav users on /innsikt/undersokelser." },
     "nudge": { "enum": ["calm", "start", "off"], "description": "When nav-pilot brings the survey up unasked. Left out means calm." },
     "min_cli_version": { "type": "string", "pattern": "^\\d{4}\\.\\d{2}\\.\\d{2}(-\\d{6})?$", "description": "Oldest nav-pilot release (YYYY.MM.DD or YYYY.MM.DD-HHMMSS, from its tag) that gets this survey. copilot-survey leaves it out for older nav-pilot builds and for builds that send no version; the web always gets it." },
     "retention_days": { "type": "integer", "minimum": 1, "description": "Days answers are kept after the survey ends. Left out means 180." },

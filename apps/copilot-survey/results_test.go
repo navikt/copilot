@@ -151,3 +151,82 @@ func TestResultsRealCountsAndSplit(t *testing.T) {
 		t.Errorf("fast %+v", fast)
 	}
 }
+
+func TestPublishedRoutes(t *testing.T) {
+	var rows []storedAnswer
+	for i := range 6 {
+		client := "web"
+		if i < 2 {
+			client = "copilot"
+		}
+		a := row(`{"overall":5,"comment":"secret text"}`, `{"overall":1,"comment":1}`)
+		a.Client = client
+		rows = append(rows, a)
+	}
+	api := adminAPI(t, rows)
+	// old is closed (2025), q4-2026 is open. Mark both published; only old should appear.
+	for i := range api.surveys {
+		api.surveys[i].Published = true
+	}
+	api.surveys = append(api.surveys, survey{
+		ID: "unpublished-closed", Title: "Unpub", Starts: "2025-01-01", Ends: "2025-01-31", Published: false,
+	})
+	h := makeRouter(testAuthenticator(t), api)
+
+	for _, tc := range []struct {
+		token string
+		want  int
+	}{
+		{"", 401},
+		{"cli:hans", 401},
+		{cliAdmin, 401},
+		{webToken, 200},
+		{adminToken, 200},
+	} {
+		if rec := do(h, "GET", "/api/v1/surveys/published", tc.token, ""); rec.Code != tc.want {
+			t.Fatalf("published list %q: %d, want %d", tc.token, rec.Code, tc.want)
+		}
+	}
+
+	rec := do(h, "GET", "/api/v1/surveys/published", webToken, "")
+	var list struct{ Surveys []surveySummary }
+	if json.Unmarshal(rec.Body.Bytes(), &list) != nil {
+		t.Fatal(rec.Body)
+	}
+	if len(list.Surveys) != 1 || list.Surveys[0].ID != "old" || !list.Surveys[0].Published {
+		t.Fatalf("got %+v", list.Surveys)
+	}
+
+	// Open survey ("q4-2026") and unpublished closed survey must return 404.
+	for _, id := range []string{"q4-2026", "unpublished-closed", "missing"} {
+		if rec := do(h, "GET", "/api/v1/surveys/"+id+"/results", webToken, ""); rec.Code != 404 {
+			t.Errorf("%s: got %d, want 404", id, rec.Code)
+		}
+	}
+
+	// Closed published survey ("old") returns 200 with channels and without free text.
+	resRec := do(h, "GET", "/api/v1/surveys/old/results", webToken, "")
+	if resRec.Code != 200 {
+		t.Fatalf("old results: %d %s", resRec.Code, resRec.Body)
+	}
+	if strings.Contains(resRec.Body.String(), "secret") {
+		t.Fatalf("free text leaked: %s", resRec.Body)
+	}
+	var got surveyResults
+	if json.Unmarshal(resRec.Body.Bytes(), &got) != nil {
+		t.Fatal(resRec.Body)
+	}
+	if got.Responses != 6 || got.Channels["web"] != 4 || got.Channels["copilot"] != 2 {
+		t.Fatalf("unexpected results: %+v", got)
+	}
+
+	// Below 5 responses: excluded from published list and 404 on direct fetch.
+	smallAPI := adminAPI(t, rows[:4])
+	for i := range smallAPI.surveys {
+		smallAPI.surveys[i].Published = true
+	}
+	smallH := makeRouter(testAuthenticator(t), smallAPI)
+	if rec := do(smallH, "GET", "/api/v1/surveys/old/results", webToken, ""); rec.Code != 404 {
+		t.Fatalf("below 5 responses: got %d, want 404", rec.Code)
+	}
+}

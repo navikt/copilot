@@ -40,6 +40,7 @@ type verTally struct {
 type surveyTally struct {
 	Responses int
 	Keys      map[string]map[int]*verTally // answer key → version
+	Channels  map[string]int
 }
 
 func tallyKey(id string, rows []storedAnswer) map[int]*verTally {
@@ -86,9 +87,14 @@ func answerKeys(s survey) map[string]bool {
 }
 
 func tallyRows(s survey, rows []storedAnswer) surveyTally {
-	t := surveyTally{Responses: len(rows), Keys: map[string]map[int]*verTally{}}
+	t := surveyTally{Responses: len(rows), Keys: map[string]map[int]*verTally{}, Channels: map[string]int{}}
 	for k := range answerKeys(s) {
 		t.Keys[k] = tallyKey(k, rows)
+	}
+	for _, row := range rows {
+		if row.Client != "" {
+			t.Channels[row.Client]++
+		}
 	}
 	return t
 }
@@ -241,7 +247,7 @@ func (s *surveyStore) closeOut(ctx context.Context, now time.Time) {
 
 // final reads a survey's aggregates; nil when it has none.
 func (s *surveyStore) final(ctx context.Context, id string) (*surveyTally, error) {
-	rows, err := s.pool.Query(ctx, `SELECT kind, key, version, option, count, n FROM survey_results WHERE survey_id = $1 AND kind IN ('total', 'answer')`, id)
+	rows, err := s.pool.Query(ctx, `SELECT kind, key, version, option, count, n FROM survey_results WHERE survey_id = $1 AND kind IN ('total', 'answer', 'context')`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -254,19 +260,24 @@ func (s *surveyStore) final(ctx context.Context, id string) (*surveyTally, error
 			return nil, err
 		}
 		if t == nil {
-			t = &surveyTally{Keys: map[string]map[int]*verTally{}}
+			t = &surveyTally{Keys: map[string]map[int]*verTally{}, Channels: map[string]int{}}
 		}
-		if kind == "total" {
+		switch kind {
+		case "total":
 			t.Responses = count
-			continue
+		case "context":
+			if key == "client" && opt != "" {
+				t.Channels[opt] = count
+			}
+		case "answer":
+			if t.Keys[key] == nil {
+				t.Keys[key] = map[int]*verTally{}
+			}
+			if t.Keys[key][ver] == nil {
+				t.Keys[key][ver] = &verTally{N: n, Counts: map[string]int{}}
+			}
+			t.Keys[key][ver].Counts[opt] = count
 		}
-		if t.Keys[key] == nil {
-			t.Keys[key] = map[int]*verTally{}
-		}
-		if t.Keys[key][ver] == nil {
-			t.Keys[key][ver] = &verTally{N: n, Counts: map[string]int{}}
-		}
-		t.Keys[key][ver].Counts[opt] = count
 	}
 	return t, rows.Err()
 }

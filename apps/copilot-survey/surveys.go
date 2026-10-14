@@ -53,6 +53,9 @@ type survey struct {
 	// Active must be set, in its own reviewed pull request, before a survey
 	// is served or takes answers: a definition merges inactive.
 	Active bool `json:"active,omitempty"`
+	// Published shares a closed survey's aggregated results with signed-in
+	// Nav users on /innsikt/undersokelser (#1775).
+	Published bool `json:"published,omitempty"`
 	// Nudge is where nav-pilot brings the survey up by itself: calm (after
 	// a session ends; the default), start (a one-line hint as a session
 	// starts) or off (only through nav-pilot survey).

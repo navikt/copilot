@@ -9,6 +9,7 @@ export const PRIVATE_PAGE_PATHS = [
   "/innsikt/bruk",
   "/innsikt/tilpasninger",
   "/innsikt/trender",
+  "/innsikt/undersokelser",
   "/admin",
   "/adopsjon",
   "/kostnad",
@@ -17,7 +18,7 @@ export const PRIVATE_PAGE_PATHS = [
 ];
 
 // Every /api route requires a valid token, so a new route is guarded by default.
-// src/proxy.test.ts fails if a route.ts under src/app/api is neither covered nor allowlisted.
+// src/proxy.test.ts fails if any route.ts under src/app is neither covered nor allowlisted.
 export const PRIVATE_API_PATHS = ["/api", "/statistikk/json"];
 
 // Public API routes: exempt from the token check. They must also be listed in
@@ -83,6 +84,7 @@ export const config = {
     "/innsikt/bruk/:path*",
     "/innsikt/tilpasninger/:path*",
     "/innsikt/trender/:path*",
+    "/innsikt/undersokelser/:path*",
     "/admin/:path*",
     "/adopsjon/:path*",
     "/kostnad/:path*",

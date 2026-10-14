@@ -94,10 +94,12 @@ spec:
       - /innsikt/bruk
       - /innsikt/tilpasninger
       - /innsikt/trender
+      - /innsikt/undersokelser/**
       - /innsikt/lokale-modeller
       - /admin
       - /admin/kostnad
       - /admin/kostnad/rapport
+      - /admin/verdi
       - /admin/undersokelser/**
       # Old paths with a permanent redirect in next.config.ts. Listed so the
       # redirect answers before Wonderwall does; the private targets

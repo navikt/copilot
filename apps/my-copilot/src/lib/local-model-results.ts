@@ -160,6 +160,41 @@ export const WORKER_RESULTS: ResultSet = {
   ],
 };
 
+export type CloudComparisonRun = { label: string; k: number; n: number; isCloud?: boolean };
+export type CloudComparison = { task: string; bar: number; runs: CloudComparisonRun[] };
+
+/** Tasks where local models and the cloud reference were measured on the same task set. */
+export const CLOUD_COMPARISONS: CloudComparison[] = [
+  {
+    task: "Mekanisk endring i flere filer (1–2 kall)",
+    bar: 0.9,
+    runs: [
+      { label: "Qwen3.6-35B-A3B-OptiQ-4bit (delegert)", k: 10, n: 10 },
+      { label: "Skymodellen alene", k: 7, n: 10, isCloud: true },
+    ],
+  },
+  {
+    task: "Svare på spørsmål om kodebasen",
+    bar: 0.95,
+    runs: [
+      { label: "Qwen3.6-35B-A3B-8bit (lokalt)", k: 96, n: 96 },
+      { label: "Qwen3.8-27B-OptiQ-4bit (lokalt)", k: 33, n: 33 },
+      { label: "Qwen3.6-35B-A3B-OptiQ-4bit (delegert)", k: 18, n: 40 },
+      { label: "Skymodellen alene", k: 40, n: 40, isCloud: true },
+    ],
+  },
+  {
+    task: "Feilsøke og rette en feil, letteste trinn",
+    bar: 0.95,
+    runs: [
+      { label: "Qwen3.8-27B-OptiQ-4bit (lokalt)", k: 10, n: 10 },
+      { label: "Qwen3.6-35B-A3B-8bit (lokalt)", k: 9, n: 10 },
+      { label: "Qwen3.6-35B-A3B-OptiQ-4bit (lokalt)", k: 4, n: 10 },
+      { label: "Skymodellen (Sonnet 5.5)", k: 10, n: 10, isCloud: true },
+    ],
+  },
+];
+
 export const DECIDE_RESULTS: ResultSet = {
   measured: "2026-09-25",
   source: SOURCES.systemOne,

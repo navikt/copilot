@@ -25,6 +25,11 @@ type surveySummary struct {
 	Status    string `json:"status"` // kommende, åpen or stengt
 	Responses int    `json:"responses"`
 	Series    string `json:"series,omitempty"`
+	Published bool   `json:"published,omitempty"`
+}
+
+func (s survey) summary(now time.Time, responses int) surveySummary {
+	return surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), responses, s.Series, s.Published}
 }
 
 func (s survey) status(now time.Time) string {
@@ -45,7 +50,28 @@ func (a *surveyAPI) list(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		out = append(out, surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), t.Responses, s.Series})
+		out = append(out, s.summary(a.now(), t.Responses))
+	}
+	writeJSON(w, map[string]any{"surveys": out})
+}
+
+// publishedList lists closed, published surveys with at least minSegment
+// responses for signed-in Nav users (#1775).
+func (a *surveyAPI) publishedList(w http.ResponseWriter, r *http.Request) {
+	now := a.now()
+	out := []surveySummary{}
+	for _, s := range a.surveys {
+		if !s.Published || s.status(now) != "stengt" {
+			continue
+		}
+		t, err := a.tally(r, s)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
+			return
+		}
+		if t.Responses >= minSegment {
+			out = append(out, s.summary(now, t.Responses))
+		}
 	}
 	writeJSON(w, map[string]any{"surveys": out})
 }
@@ -108,6 +134,7 @@ type surveyResults struct {
 	surveySummary
 	// Suppressed: fewer than minSegment responses, and Questions is null.
 	Suppressed bool             `json:"suppressed"`
+	Channels   map[string]int   `json:"channels,omitempty"`
 	Questions  []questionResult `json:"questions"`
 }
 
@@ -125,6 +152,28 @@ func (a *surveyAPI) results(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, aggregateTally(a.surveys[i], t, a.now()))
 }
 
+// publishedResults serves aggregated results for a closed, published survey
+// with at least minSegment responses (#1775). Open, unpublished, or small
+// surveys return 404.
+func (a *surveyAPI) publishedResults(w http.ResponseWriter, r *http.Request) {
+	now := a.now()
+	i := slices.IndexFunc(a.surveys, func(s survey) bool { return s.ID == r.PathValue("id") })
+	if i < 0 || !a.surveys[i].Published || a.surveys[i].status(now) != "stengt" {
+		writeError(w, http.StatusNotFound, "unknown survey")
+		return
+	}
+	t, err := a.tally(r, a.surveys[i])
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
+		return
+	}
+	if t.Responses < minSegment {
+		writeError(w, http.StatusNotFound, "unknown survey")
+		return
+	}
+	writeJSON(w, aggregateTally(a.surveys[i], t, now))
+}
+
 // aggregate counts answers per question and question version. Free text is
 // never read. Below minSegment respondents for the whole survey nothing is
 // shown; otherwise every count is real (owner decision 2026-10-13).
@@ -134,10 +183,13 @@ func aggregate(s survey, rows []storedAnswer, now time.Time) surveyResults {
 
 // aggregateTally is aggregate from counts, live or stored (survey_results).
 func aggregateTally(s survey, t surveyTally, now time.Time) surveyResults {
-	res := surveyResults{surveySummary: surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), t.Responses, s.Series}}
+	res := surveyResults{surveySummary: s.summary(now, t.Responses)}
 	if t.Responses < minSegment {
 		res.Suppressed = true
 		return res
+	}
+	if len(t.Channels) > 0 {
+		res.Channels = t.Channels
 	}
 	res.Questions = []questionResult{}
 	for _, q := range s.Questions {
