@@ -23,6 +23,7 @@ const TOC: TocItem[] = [
   { id: "forste-okt", label: "4. Første økt" },
   { id: "forste-decide", label: "5. Første decide" },
   { id: "videre", label: "6. Veien videre" },
+  { id: "gode-til", label: "Hva lokale modeller er gode til" },
 ];
 
 const CHECK_MACHINE = `uname -m                                            # arm64
@@ -227,6 +228,25 @@ nav-pilot alpha local purge   # viser hva som slettes, --yes sletter`}
               </CodeBlock>
             </VStack>
           </Box>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="gode-til" size="medium" level="2">
+            Hva lokale modeller er gode til
+          </LinkableHeading>
+          <BodyLong>
+            Vi testet Qwen3.8 27B på avhengighetsoppgraderinger i eksempeltjenester for Go, npm, Gradle og .NET. Der
+            oppgaven var avgrenset og tjenesten hadde tester og låsefil, gikk det bra: noen minutter per tjeneste, og
+            alle testene ble grønne.
+          </BodyLong>
+          <BodyLong>
+            Åpne konfigurasjonsendringer, som pinnede verktøyversjoner, image-tagger og versjoner i CI, gikk dårlig.
+            Modellen fant på versjoner som ikke finnes, og blandet sammen verktøyversjoner. Slike endringer bør du gjøre
+            i skyen eller sjekke selv.
+          </BodyLong>
+          <BodyLong>Uansett hvem som gjør jobben: kjør testene og sjekk at de nye versjonene faktisk finnes.</BodyLong>
         </VStack>
       </section>
 
