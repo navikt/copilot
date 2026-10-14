@@ -1,0 +1,21 @@
+## Fase 1: Intervju
+
+**Fullt løp**: Ny tjeneste med autentisering og behandling av fødselsnummer krever avklaringer før plan og kode.
+
+Jeg har lest Ktor-koden, `build.gradle.kts` og `nais.yaml`. Repoet har ingen autentisering eller ID-porten-konfigurasjon. Jeg antar at tjenesten skal bruke identiteten til en innlogget innbygger, ikke et fødselsnummer sendt inn av klienten.
+
+1. **Formål og personvern (#1)**: Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, lagres eller sendes videre? Behandles også søknads-, ytelses- eller helseopplysninger?
+2. **Tilgang (#2)**: Kaller innbyggerens nettleser tjenesten direkte, eller går kallet via en frontend/BFF eller annen Nav-tjeneste? Skal innbyggeren kun ha tilgang til egne data?
+3. **Feilhåndtering (#3)**: Hva skal brukeren oppleve når innlogging eller en avhengighet er utilgjengelig?
+4. **Observerbarhet (#4)**: Hva viser at tjenesten virker, utover at innlogging lykkes? Fødselsnummer og tokens skal ikke havne i logger, traces eller metrikketiketter.
+5. **Ansvar og konsumenter (#5, #6)**: Hvilket team eier tjenesten, og hvilke andre tjenester skal den kalle eller levere data til?
+6. **Tester (#7)**: Jeg fant ingen tester under `src`. Finnes det tester eller krav til verifisering av innlogging og tilgang andre steder?
+7. **Læring (#11)**: Er Ktor og ID-porten kjent for teamet, eller ønsker dere en gjennomgang før implementering?
+
+Jeg behandler dette som en ny tjeneste. Derfor er migrering, bakoverkompatibilitet og avvikling (#8–#10) foreløpig ikke relevante. Si fra hvis den erstatter en eksisterende løsning.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`.
+
+Omtrentlig tokenbudsjett: intervju 1 500, plan 3 000, review 2 000, levering 4 000. Svar på spørsmålene før vi går til fase 2.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante for en ny tjeneste).

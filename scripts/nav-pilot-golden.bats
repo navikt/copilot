@@ -529,7 +529,7 @@ run_suite() {
   [ -n "$re" ]
   for ok in '🔴 Rød sone — skriv selv' '🔴 Rød sone: ingen for denne oppgaven' \
             '🔴 Rød sone, skriv selv (TokenX er nytt for teamet):' \
-            '🔴 **Rød sone, skriv selv:** tokenvalidering' '**🔴 Rød sone, utvikleren skriver selv**'; do
+            '🔴 **Rød sone, skriv selv:** tokenvalidering' '**🔴 Rød sone, utvikleren skriver selv**' '### 🔴 Rød-sone-deklarasjon'; do
     printf '%s\n' "$ok" | grep -qiE -- "$re" || { echo "should pass: $ok"; false; }
   done
   for bad in 'Planen dekker TokenX og PDL.' 'se rød sone under' \
@@ -594,10 +594,13 @@ run_suite() {
             '## Uavklarte punkter\n\n1. Formål.\n2. Kallere.\n3. Lagring.\n' \
             'Hvem? Hva? Hvorfor?\nSvar kort, så lager jeg kravoppsummeringen før vi går videre.\n' \
             'Hvem? Hva? Hvorfor?\nSvar på punktene før jeg starter med planen.\n' \
-            'Hvem? Hva? Hvorfor?\nSvar, så tar jeg det før jeg fortsetter med planen.\n'; do
+             'Hvem? Hva? Hvorfor?\nSvar, så tar jeg det før jeg fortsetter med planen.\n' \
+             'Jeg starter med fase 1 og sjekker repoet før jeg stiller spørsmål.\n1. Formål?\n2. Kallere?\n3. Lagring?\n'; do
     t2 "$ok" || { echo "should pass: $ok"; false; }
   done
   for bad in 'Følgende er uavklart:\n1. Formål.\n2. Kallere.\n3. Lagring.\n\nJeg legger til grunn de vanligste svarene og går videre.\n\n**Fase 2: Plan.**\n\nSteg 1: modell.\n' \
+             'Hvem? Hva? Hvorfor?\nJeg starter med steg 1.\n' \
+             'Hvem? Hva? Hvorfor?\nJeg starter med å skrive testen.\n' \
              'Følgende er uavklart:\n1. a\n2. b\n3. c\nJeg starter med datamodellen.\n' \
              'Ingenting er uavklart etter lesingen, så planen er:\n1. a\n2. b\n3. c\n' \
              'Følgende punkter avklares i Fase 2 sammen med teamet:\n- a\n- b\n- c\n'; do

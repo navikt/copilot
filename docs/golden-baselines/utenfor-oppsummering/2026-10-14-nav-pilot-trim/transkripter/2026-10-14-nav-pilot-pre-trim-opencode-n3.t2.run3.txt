@@ -1,0 +1,24 @@
+Dette er en ny tjeneste med personopplysninger og autentisering: full løype, først fase 1 (intervju). `@research-agent` er ikke installert, så jeg sjekker repoet selv.
+## Fase 1: Intervju
+
+**Full løype:** Ny tjeneste med fødselsnummer og autentisering. Vi avklarer bruken før vi planlegger eller skriver kode.
+
+Repoet har en liten Kotlin/Ktor-tjeneste på Nais. Jeg finner ingen autentisering i kildekoden, ingen ID-porten-konfigurasjon eller `accessPolicy` i `nais.yaml`, og ingen tester under `src/`.
+
+Jeg antar at fødselsnummeret gjelder den innloggede personen. Fødselsnummer og tokens skal ikke havne i logger.
+
+1. **Formål og personvern (#1):** Hva skal tjenesten gjøre med fødselsnummeret? Skal det kun brukes under forespørselen, lagres eller sendes videre? Behandles andre personopplysninger, som helse- eller ytelsesdata?
+2. **Tilgang (#2):** Kaller innbyggeren tjenesten fra nettleseren, eller kaller en annen Nav-tjeneste med brukerens innloggingskontekst? Skal personen kun få tilgang til egne data?
+3. **Avhengigheter og mottakere (#5, #6):** Hvilke tjenester skal den nye tjenesten kalle, hvem mottar svarene, og hvilke team eier disse delene?
+4. **Feil (#3):** Hva skal brukeren oppleve når innlogging eller en avhengighet er utilgjengelig?
+5. **Observerbarhet (#4):** Hvilken vellykket handling skal vi måle for å vite at tjenesten virker, uten personopplysninger i logger eller metrikketiketter?
+6. **Tester (#7):** Finnes det tester utenfor repoet, og har dere et testmiljø for ID-porten?
+7. **Erfaring (#11):** Kjenner teamet Ktor og ID-porten-integrasjon fra før, eller ønsker dere å lære disse delene underveis?
+
+Jeg behandler dette som en ny tjeneste, ikke en erstatning. Derfor er migrering/rollback av gammel løsning (#8), bakoverkompatibilitet (#9) og avvikling (#10) foreløpig ikke relevante. Si fra hvis den erstatter noe.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`.
+
+Omtrentlig tokenbudsjett: intervju 1 500, plan 3 000, review 2 000, levering 4 000. Svar på spørsmålene før vi går til fase 2.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante under antakelsen om ny tjeneste).

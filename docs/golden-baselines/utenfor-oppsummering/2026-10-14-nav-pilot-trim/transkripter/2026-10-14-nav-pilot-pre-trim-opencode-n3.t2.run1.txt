@@ -1,0 +1,19 @@
+Dette er full løype, fase 1: intervju. `@research-agent` er ikke installert, så jeg sjekker repoet selv før jeg stiller spørsmål.
+## Fase 1: Intervju
+
+**Full løype**, fordi dette er en ny tjeneste med autentisering og behandling av fødselsnummer. Grovt tokenbudsjett: intervju 1 500, plan 2 500, review 1 500, levering 4 000.
+
+Repoet har Kotlin/Ktor og et Nais-manifest uten auth eller `accessPolicy`. `/api/oppgaver` har ingen autentisering. Jeg antar at fødselsnummeret gjelder innlogget innbygger, men bruken og tilgangsveien må avklares.
+
+1. **Formål og personvern (#1):** Hva skal tjenesten gjøre med fødselsnummeret? Skal det bare brukes under forespørselen, lagres eller sendes videre? Behandler dere andre personopplysninger?
+2. **Tilgang (#2):** Kommer brukeren direkte fra nettleseren, eller kaller en annen Nav-tjeneste med brukerens innlogging? Skal brukeren kun kunne lese egne data?
+3. **Avhengigheter og ansvar (#3, #5, #6):** Hvilke systemer skal tjenesten kalle, hvem eier dem, og hva skal brukeren oppleve når de er utilgjengelige? Hvem skal konsumere API-et?
+4. **Observerbarhet (#4):** Hva viser at tjenesten virker for brukeren, utover at innlogging lykkes? Fødselsnummer og tokens skal ikke inngå i logger, traces eller metrikketiketter.
+5. **Tester (#7):** Jeg fant ingen tester under `src`. Finnes det tester eller en referansetjeneste dere ønsker å følge?
+6. **Læring (#11):** Er ID-porten-integrasjon kjent for teamet, eller ønsker dere en gjennomgang før implementering?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Vurder `nav-pilot init`.
+
+Svar på spørsmålene før vi går til fase 2. #8–#10 er foreløpig ikke relevante fordi du beskriver en ny tjeneste, ikke en erstatning eller migrering.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante under antakelsen om ny tjeneste).

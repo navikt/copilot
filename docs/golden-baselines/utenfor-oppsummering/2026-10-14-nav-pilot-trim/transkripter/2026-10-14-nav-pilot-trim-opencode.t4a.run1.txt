@@ -1,0 +1,24 @@
+Dette er en Full-oppgave: ny tjeneste med personopplysninger og autentisering. Jeg starter i fase 1 og avklarer behovet før vi lager en plan. Grovt tokenbudsjett: intervju 1 500, plan 3 000, review 2 000, levering 4 000.
+
+`@research-agent` er ikke installert. Jeg sjekker repoet selv.
+## Fase 1: Avklar behovet
+
+Repoet har en liten Kotlin/Ktor-tjeneste. Jeg fant ingen autentisering i `App.kt` eller `Routes.kt`, og `nais.yaml` mangler ID-porten og `accessPolicy`.
+
+Jeg antar at fødselsnummeret tilhører innlogget innbygger. Vi må avklare hvordan tjenesten mottar identiteten, ikke anta at det holder å dekode et token. Fødselsnummer og tokens skal ikke havne i logger, traces eller metrikker.
+
+1. **Formål og personvern (#1)** Hva skal tjenesten gjøre med fødselsnummeret? Skal det kun brukes under forespørselen, lagres eller sendes videre? Behandles andre personopplysninger?
+2. **Tilgang (#2)** Kommer innbyggeren direkte via nettleser og ID-porten/Wonderwall, eller kalles tjenesten av en annen Nav-app på vegne av innbyggeren? Skal den kun gi tilgang til innbyggerens egne data?
+3. **Feilhåndtering (#3)** Hva skal brukeren oppleve når innlogging eller en nødvendig avhengighet er utilgjengelig?
+4. **Observerbarhet (#4)** Hva viser at tjenesten fungerer: vellykket innlogging, fullført handling eller noe annet?
+5. **Eierskap og mottakere (#5, #6)** Hvilket team eier tjenesten, og hvilke apper eller team skal bruke API-et eller motta data?
+6. **Tester (#7)** Finnes tester eller en referanseimplementasjon vi skal følge? Jeg fant ingen tester under `src`.
+7. **Erfaring (#11)** Kjenner dere Ktor og ID-porten-integrasjon, eller ønsker dere en gjennomgang av konseptene først?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Vurder `nav-pilot init`.
+
+Jeg regner dette som nybygg. Derfor er #8 (rollback av eksisterende løsning), #9 (bakoverkompatibilitet) og #10 (avvikling) ikke relevante nå. Si fra hvis tjenesten erstatter noe.
+
+Svar på spørsmålene, så går vi videre til fase 2. Ingen filer er endret.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante under antakelsen om nybygg).

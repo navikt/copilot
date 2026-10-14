@@ -1,0 +1,5 @@
+Bruk **TokenX** med token exchange: Tjeneste A veksler brukerens token til et token med tjeneste B som audience. B validerer tokenet og sjekker brukerens tilgang til ressursen.
+
+Dette bevarer brukerkonteksten. Azure AD `client_credentials` autentiserer tjenesten, ikke brukeren, og er derfor feil valg her.
+
+Still gjerne spørsmål om valgene over.

@@ -1,0 +1,1 @@
+Bruk **TokenX** med token exchange til tjeneste Bs audience. Da følger brukerkonteksten med fra A til B. Azure AD `client_credentials` passer ikke her, fordi det representerer tjenesten, ikke brukeren.

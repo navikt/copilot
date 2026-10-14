@@ -1,0 +1,3 @@
+Bruk **TokenX** for tjeneste-til-tjeneste-kall med brukerkontekst. A veksler brukerens token til et token med B som målgruppe (`audience`), slik at brukerkonteksten bevares. Azure AD `client_credentials` passer ikke her: det representerer tjenesten, ikke brukeren.
+
+Still gjerne spørsmål om valgene over.

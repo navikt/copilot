@@ -1,0 +1,33 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-14
+# revision:     424ff204
+# personaHash:  2339a650aeb79e667514c482d82cd22d2ae1531ea7f330081f38b5fdd1311148
+# harnessHash:  4969373a74e5056e2572e8fbec0646d9aafc87212aac9510508ff0750a65c5c1
+# model:        gpt-6.1-sol
+# client:       opencode
+# clientVersion: opencode 1.19.0
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      2,3,4,5
+#
+# id|run|status|assertion|detail
+2|1|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|1|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|1|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og skal tjenesten behandle andre personopplysninger? #2: Kommer kallene fra innbyggerens nettleser, en frontend/BFF eller en annen Nav-tjeneste?
+4|1|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|2|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|2|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten bruke fødselsnummeret til? #2: Skal brukeren bare kunne hente egne data?
+4|2|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|2|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|3|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|3|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten gjøre med fødselsnummeret? #2: Skal innbyggeren bruke tjenesten via nettleser, eller skal en annen tjeneste kalle API-et med brukerens identitet?
+4|3|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|3|pass|user context → TokenX, not Azure client_credentials  (canary)|

@@ -1,0 +1,21 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-14
+# revision:     424ff204
+# model:        gpt-6.1-sol
+# client:       opencode
+# clientVersion: opencode 1.19.0
+# effort:       CLI default
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      2,3,4,5
+#
+# id|run|status|assertion|detail
+2|1|fail|full tier: response stops after Fase 1 with questions outstanding|the turn lists open points but proceeds (matched: ^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*:|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]+ferdig|^[^[:alnum:]]*Fase[[:space:]]*2[[:space:]]*(-|–|—)[[:space:]]*plan([^[:alnum:]æøåÆØÅ]|$)|(^|[.!:][[:space:]]+|(^|[^[:alnum:]])(og|så) )((jeg|vi) )?(går (nå )?videre|starter (nå )?(på|med)|fortsetter (nå )?med)): PHASE INTEGRITY rule regressed
+2b|1|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|1|error|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|harness error: blind-spot judge controls for mange dommerfeil: controls n=75 agree=0 errors=75 accuracy=0.000 credits=0.00 status=fail
+4|1|fail|Fase 2 output contains a 🔴 Rød sone declaration|a Fase 2 plan with no 🔴 Rød-sone-deklarasjon in it (no match for: Rød sone[[:space:]]*(—|–|:)|🔴[*[:space:]]*Rød sone[[:space:]]*,) — mandatory per `### Fase 2: Plan` item 10 and Boundaries → ✅ Always. «🔴 Rød sone: ingen for denne oppgaven» would satisfy this; saying nothing does not.
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|

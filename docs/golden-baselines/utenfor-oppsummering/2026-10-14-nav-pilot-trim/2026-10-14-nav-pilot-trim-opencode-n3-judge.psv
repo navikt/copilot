@@ -1,0 +1,14 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-10-14
+# revision:     424ff204
+# personaHash:  2339a650aeb79e667514c482d82cd22d2ae1531ea7f330081f38b5fdd1311148
+# harnessHash:  4969373a74e5056e2572e8fbec0646d9aafc87212aac9510508ff0750a65c5c1
+# model:        gpt-6.1-sol
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=7e196bf2ae4290cf date=2026-10-14 n=75 agree=73 accuracy=0.973 usage_unavailable=true
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|unknown|Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og skal tjenesten behandle andre personopplysninger?|Kommer kallene fra innbyggerens nettleser, en frontend/BFF eller en annen Nav-tjeneste?
+3|2|1|1|1|1|unknown|Hva skal tjenesten bruke fødselsnummeret til?|Skal brukeren bare kunne hente egne data?
+3|3|1|1|1|1|unknown|Hva skal tjenesten gjøre med fødselsnummeret?|Skal innbyggeren bruke tjenesten via nettleser, eller skal en annen tjeneste kalle API-et med brukerens identitet?

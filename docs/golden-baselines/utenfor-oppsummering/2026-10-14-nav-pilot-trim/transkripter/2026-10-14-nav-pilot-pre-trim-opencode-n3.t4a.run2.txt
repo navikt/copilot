@@ -1,0 +1,21 @@
+Dette er en ny tjeneste med innlogging og behandling av fødselsnummer: full prosess, med stopp etter hver fase. Jeg sjekker først repoet for eksisterende føringer. `@research-agent` er ikke installert, så jeg gjør sjekken selv.
+## Fase 1: Intervju
+
+**Full prosess:** ny tjeneste, ny autentisering og behandling av fødselsnummer. Grovt tokenbudsjett: intervju 2 000, plan 3 000, review 2 000, levering 5 000.
+
+Repoet har Kotlin/Ktor og et Nais-manifest uten auth eller `accessPolicy`. Jeg antar at fødselsnummeret gjelder innlogget innbygger. Ingen kode er endret.
+
+1. **Formål og personvern (#1):** Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes i forespørselen, eller også lagres eller sendes videre? Behandler dere andre personopplysninger?
+2. **Tilgang (#2):** Kaller innbyggerens nettleser tjenesten direkte, eller kommer kallene via en frontend/BFF eller en annen Nav-tjeneste? Skal innbyggeren bare ha tilgang til egne data?
+3. **Feilhåndtering (#3):** Hva skal brukeren oppleve når innlogging eller en avhengighet er utilgjengelig?
+4. **Observerbarhet (#4):** Hvilken vellykket brukerhandling skal vi måle, uten å bruke fødselsnummer i logger, traces eller metrikketiketter?
+5. **Eierskap og konsumenter (#5, #6):** Hvilket team eier tjenesten? Hvilke API-er skal den kalle, og hvem skal bruke API-et deres?
+6. **Tester og læring (#7, #11):** Finnes tester eller en referanseimplementasjon utenfor repoet? Kjenner teamet Ktor og ID-porten-integrasjon, eller ønsker dere en gjennomgang først?
+
+Fødselsnummer og tokens skal ikke logges. Innlogging alene gir heller ikke tilgang til andre personers data.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`.
+
+Jeg avventer svar før Fase 2. #8–#10 er foreløpig ikke relevante: du beskriver en ny tjeneste uten oppgitt gammel løsning eller eksisterende kontrakt.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante under antakelsen om ny tjeneste).
