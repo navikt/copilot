@@ -59,6 +59,9 @@ type Config struct {
 	// dispatch is on and nothing is running. Off by default, because starting a
 	// 21 GB process is not something to do without being asked.
 	LocalAutostart *bool `toml:"local_autostart"`
+	// LocalDepUpgrade lets a cloud orchestrator send bounded dependency
+	// upgrades to the local worker (alpha, #1821). Off by default.
+	LocalDepUpgrade *bool `toml:"local_dep_upgrade"`
 	// LocalLoopGuard is how many identical consecutive tool calls end a local
 	// turn whatever they return; half as many end it when the results repeat
 	// too. Unset means the built-in default. It is a knob because the right
@@ -135,6 +138,7 @@ type ResolvedConfig struct {
 	News               bool     // false: never show a news line after a session
 	LocalEnabled       bool     // local inference opt-in (alpha)
 	LocalAutostart     bool     // start the local server on demand at launch
+	LocalDepUpgrade    bool     // send bounded dependency upgrades to the local worker (alpha)
 	LocalLoopGuard     int      // identical consecutive tool calls that end a local turn; 0 = built-in default
 	LocalModel         string   // local model id to serve; empty = the manifest default
 	LocalEndpoint      string   // own OpenAI-compatible server; empty = the managed mlx-lm server

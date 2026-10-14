@@ -117,6 +117,12 @@ export const CONFIG_KEYS = [
     desc: "La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: en prosess på 21 GB skal ikke starte uten at du har bedt om det.",
   },
   {
+    key: "local_dep_upgrade",
+    flag: "—",
+    values: "true · false (standard: false)",
+    desc: "La hovedagenten i opencode sende avhengighetsoppgraderinger til den lokale modellen når repoet har låsefil og tester (alfa). Verktøyversjoner, image-tagger og versjoner av CI-actions blir i skyen.",
+  },
+  {
     key: "local_loop_guard",
     flag: "—",
     values: "et heltall (standard: 8)",

@@ -362,6 +362,42 @@ measures worst at. Revisit it when a tier's model is trusted in `local` mode
 (`capabilities.classes.*.local`) for the classes that make up most sessions.
 That verdict is already in the manifest, so the switch can be data-driven.
 
+## Bounded dependency upgrades (alpha, #1821)
+
+Status: draft, behind `local_dep_upgrade = false` (default off). With the key
+off the policy file is byte-identical to before.
+
+Evidence: navikt/mlx-workspace `reports/2026-10-14-nais-examples-upgrade/results.md`
+and `reports/2026-10-14-session-findings/report.md` §4. A local Qwen3.8 27B
+(MTPLX) upgraded the direct dependencies of every Go, npm, Gradle and .NET app
+in a nais/examples-like repo with tests green. The open-ended part failed:
+tool pins, image tags and CI action versions got invented versions, a package
+manager that no longer matched the lockfile, and a breaking postgres major.
+
+The line between the two is whether the repo checks the result. A lockfile
+plus a test command catches a wrong dependency version; nothing in the repo
+catches a wrong image tag or action version until CI or prod.
+
+Rule:
+
+- **Eligible for the worker:** the request is a dependency bump, and the
+  project has a lockfile (or Gradle version catalog) and a test command
+  (`local.DepUpgradeRepo`: go.sum+go.mod, a JS lockfile+package.json,
+  gradlew+lockfile/catalog, packages.lock.json+.sln/.csproj).
+- **Stays with the cloud, or needs an upstream registry check per version:**
+  `local.PinnedFile`: `.tool-versions`, `mise.toml`, `.nvmrc`, `global.json`,
+  the Gradle wrapper, Dockerfiles and compose files, `.github/workflows` and
+  `.github/actions`, nais manifests.
+- **Never** a database or infrastructure major unless asked.
+
+How it is enforced in this draft: prose only. When the key is on and the
+working directory is eligible, `EnsureOpenCodeLocalPolicy` appends
+`local.DepUpgradePolicyText` to the policy. The request classification
+("is this a dependency bump") is the orchestrator's. Open for the next
+iteration: have the gate deny worker results that touch a `PinnedFile`
+without a registry check, and a `dep-upgrade` class in the capabilities
+manifest so the verdict comes from measurement instead of a config key.
+
 ## Telemetry
 
 Recorded at exit by the launch process, like `nav_pilot_local_dispatches`. Enums only.

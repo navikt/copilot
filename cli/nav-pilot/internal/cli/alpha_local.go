@@ -1107,6 +1107,7 @@ func applyLocalConfig() {
 	activateCachedManifest()
 	local.SetEnabled(true)
 	local.SetAutostart(r.LocalAutostart)
+	local.SetDepUpgrade(r.LocalDepUpgrade)
 	if cfg.LocalModel != nil {
 		local.SetSelectedModel(strings.TrimSpace(*cfg.LocalModel))
 	}
