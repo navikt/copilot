@@ -243,8 +243,8 @@ nav-pilot alpha local purge   # viser hva som slettes, --yes sletter`}
           </BodyLong>
           <BodyLong>
             Åpne konfigurasjonsendringer, som pinnede verktøyversjoner, image-tagger og versjoner i CI, gikk dårlig.
-            Modellen fant på versjoner som ikke finnes, og blandet sammen verktøyversjoner. Slike endringer bør du gjøre
-            i skyen eller sjekke selv.
+            Modellen fant på versjoner som ikke finnes, og blandet sammen verktøyversjoner. Slike endringer bør gjøres i
+            skyen eller sjekkes av et menneske.
           </BodyLong>
           <BodyLong>Uansett hvem som gjør jobben: kjør testene og sjekk at de nye versjonene faktisk finnes.</BodyLong>
         </VStack>
