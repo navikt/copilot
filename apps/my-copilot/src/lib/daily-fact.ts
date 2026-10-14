@@ -14,15 +14,23 @@ export function parseDailyFact(body: unknown): DailyFact | null {
   return { text, href };
 }
 
+const DEV_FALLBACK_FACT: DailyFact = {
+  text: "28 % av brukerne brukte en egendefinert agent den siste uka.",
+  href: "/innsikt/tilpasninger",
+  weekUsers: 550,
+};
+
 export async function getDailyFact(): Promise<DailyFact | null> {
   try {
     const res = await fetch(`${COPILOT_API_URL}/public/v1/fact`, {
       next: { revalidate: 3600 },
       signal: AbortSignal.timeout(5000),
     });
-    return res.ok ? parseDailyFact(await res.json()) : null;
+    if (res.ok) return parseDailyFact(await res.json());
   } catch (error) {
-    console.error("Failed to fetch daily fact:", error);
-    return null;
+    if (process.env.NODE_ENV !== "development") {
+      console.error("Failed to fetch daily fact:", error);
+    }
   }
+  return process.env.NODE_ENV === "development" ? DEV_FALLBACK_FACT : null;
 }
