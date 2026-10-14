@@ -538,21 +538,22 @@ run_suite() {
   done
 }
 
-@test "cplt: coordinator and worker keep worktrees out of session scratch" {
+@test "cplt: static coordinator and worker worktree contract" {
   local agent text
   for agent in nav-pilot worker; do
     text=$(<"${BATS_TEST_DIRNAME}/../agents/$agent.agent.md")
-    [[ "$text" == *'Never create a Git worktree in scratch space'* ]]
-    [[ "$text" == *'Reject '*'scratch destination'*'supplied in a brief'* ]]
-    [[ "$text" == *'git worktree add "$CPLT_WORKTREE_ROOT/<name>" -b <branch>'* ]]
-    [[ "$text" == *'only '*'the repository cplt launched against'* ]]
-    [[ "$text" == *'unset or empty'* ]]
-    [[ "$text" == *'Never fall back to scratch space.'* ]]
-    [[ "$text" == *'Leave `git worktree remove` to the user outside cplt.'* ]]
+    [[ "$text" == *'Only under `$__CPLT_WRAPPED`:'* ]]
+    [[ "$text" == *'Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief.'* ]]
+    [[ "$text" == *'beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository'* ]]
+    [[ "$text" == *'matching launch and target repositories'* ]]
+    [[ "$text" == *'persistent, in-scope checkout verified as the target repository'* ]]
+    [[ "$text" == *'Never fall back to scratch.'* ]]
+    [[ "$text" == *'Leave permissions and `git worktree remove` to the user outside cplt.'* ]]
+    [[ "$text" == *'No nested repositories or outward symlinks'* ]]
   done
   text=$(<"${BATS_TEST_DIRNAME}/../agents/worker.agent.md")
-  [[ "$text" == *'if either is unknown or they differ, hand back.'* ]]
-  [[ "$text" == *'this overrides "Do exactly the brief"'* ]]
+  [[ "$text" == *'otherwise hand back.'* ]]
+  [[ "$text" == *'This overrides "Do exactly the brief"; hand back an unsafe destination.'* ]]
 }
 
 @test "zones: every red and green item in the instruction appears in the skill, the agent and both pages" {

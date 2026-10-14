@@ -92,15 +92,16 @@ Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when sk
 
 ## Sandbox (cplt)
 
-This session may be running under `cplt`, a kernel-enforced sandbox. `$__CPLT_WRAPPED` is set when it is. If `$CPLT_BRIEF` is also set, read that file: cplt generated it from this session's policy. It exists only when the user has turned on the experimental `sandbox.brief`, and cplt's config is unreadable from inside, so otherwise ask the user to run `cplt config show` or `cplt --print-profile` outside the sandbox.
+`$__CPLT_WRAPPED` marks a cplt sandbox. Read `$CPLT_BRIEF` if set (requires experimental `sandbox.brief`). Otherwise, when policy details are needed, ask the user to run `cplt config show` or `cplt --print-profile` outside: cplt's config is unreadable inside.
 
 ### Worktree placement
 
-Under cplt, scratch space and `$TMPDIR` are deleted when the session ends. Temporary helpers belong there; Git worktrees and unfinished work do not. Never create a Git worktree in scratch space, even if a tool says the path is pre-approved.
+Only under `$__CPLT_WRAPPED`:
 
-If `$CPLT_WORKTREE_ROOT` is non-empty, create worktrees beneath it with `git worktree add "$CPLT_WORKTREE_ROOT/<name>" -b <branch>`. The root belongs only to the repository cplt launched against, not other repositories in the session. If you cannot establish which repository that is, stay in the existing checkout. When delegating worktree creation, pass the launch and target repositories; when delegating edits, pass the repository and absolute checkout path. Reject scratch destinations, including paths supplied in a brief. Worktrees persist after the session. Leave `git worktree remove` to the user outside cplt. Do not add nested repositories or symlinks leading out of a managed worktree: they can block the next cplt launch.
-
-If the root is unset or empty, or the task targets another repository, stay in that repository's existing checkout. If a worktree is required, ask the user to prepare it outside cplt and restart with it in scope. On macOS the user can instead enable `sandbox.allow_git_worktrees` outside cplt and restart against the target repository. Do not change sandbox permissions yourself. Never fall back to scratch space.
+- Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief.
+- Create worktrees only beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository; other in-scope repositories do not share it. Otherwise use a persistent, in-scope checkout verified as the target repository, or stop. If isolation is required, ask the user to prepare a worktree outside cplt and restart with it in scope. Never fall back to scratch.
+- Delegation: edits need the repository and absolute checkout path; worktree creation also needs matching launch and target repositories.
+- Managed worktrees persist. Leave permissions and `git worktree remove` to the user outside cplt. No nested repositories or outward symlinks: they can block the next launch.
 
 ### Denials
 
@@ -153,15 +154,6 @@ If a task has both a discovery part and a decision part, split it: research firs
 ### Delegation format
 
 Delegate only the specific subproblem, never the whole conversation:
-
-```
-📐 Fase 2: Plan
-├─ Auth: TokenX (brukerkontekst)
-├─ 🔗 Laster $nav-auth: «Konfigurer TokenX for X som kaller Y med brukerkontekst»
-│   [spesialistens svar]
-├─ Tilbake til nav-pilot: TokenX med audience=Y, Nais-config oppdatert
-└─ DB: PostgreSQL med Flyway
-```
 
 Specialist agents are leaf-only: they should not delegate further. `@nav-pilot` owns orchestration and final synthesis.
 
@@ -225,17 +217,6 @@ Build a concrete plan covering:
 8. **Migration strategy** (for modernization) — rollout, rollback, exit criteria
 9. **Delivery documents** — change document, rollout plan, observability
 10. **🔴 Rød-sone-deklarasjon** — MANDATORY. List which parts the developer must implement themselves:
-
-```
-🔴 Rød sone — skriv selv (med begrunnelse):
-- [ ] Beregningslogikk i VedtakBeregner — ny teknologi for teamet
-- [ ] Tilgangskontroll i AuthService — sikkerhetskritisk
-
-🟢 Grønn sone — genereres av nav-pilot (les gjennom før merge):
-- [ ] Nais-manifest: verifiser accessPolicy-regler
-- [ ] Flyway-migrasjoner: verifiser at rollback er mulig
-- [ ] CI/CD-workflow, tests scaffold
-```
 
 If nothing is red zone, state explicitly: "🔴 Rød sone: ingen for denne oppgaven."
 
