@@ -50,3 +50,48 @@ jobs:
       deploy-pr-to-dev: true
       nais-team: copilot
       nais-clusters: '["dev-gcp", "prod-gcp"]'
+
+  # The survey form across a deploy and an expired login (#1804): two
+  # production builds, Playwright, chromium only. The steps skip when the run
+  # came from a change outside apps/my-copilot (news, skills and so on).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/my-copilot
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - id: changed
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! git cat-file -e "${BASE:-none}^{commit}" 2>/dev/null \
+            || ! git diff --quiet "$BASE" HEAD -- . ../../.github/workflows/my-copilot.yaml; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        if: steps.changed.outputs.run
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/my-copilot/pnpm-lock.yaml') }}
+      - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # ratchet:jdx/mise-action@v5.0.1
+        if: steps.changed.outputs.run
+        with:
+          experimental: true
+      - if: steps.changed.outputs.run
+        run: |
+          mise run install
+          pnpm exec playwright install --with-deps chromium
+      - if: steps.changed.outputs.run
+        run: mise run e2e
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/my-copilot/test-results
+          retention-days: 7

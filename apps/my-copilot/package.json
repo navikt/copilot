@@ -43,6 +43,7 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@storybook/addon-a11y": "10.6.1",
     "@storybook/addon-docs": "10.6.1",
     "@storybook/nextjs": "10.6.1",

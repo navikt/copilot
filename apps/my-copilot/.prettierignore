@@ -7,3 +7,6 @@ coverage
 video-packages
 pnpm-lock.yaml
 *.log
+.e2e
+test-results
+playwright-report
