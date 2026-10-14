@@ -3,7 +3,8 @@ import { type Survey } from "@/lib/survey";
 import { SurveyForm } from "./survey-form";
 
 const sendSurvey = vi.fn();
-vi.mock("./actions", () => ({ sendSurvey: (...args: unknown[]) => sendSurvey(...args) }));
+vi.mock("./send", () => ({ sendSurvey: (...args: unknown[]) => sendSurvey(...args) }));
+beforeEach(() => sessionStorage.clear()); // a draft from one test would fill the next one's form
 
 const survey: Survey = {
   id: "s",
@@ -208,5 +209,51 @@ describe("SurveyForm multi limit", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "b" }));
     expect(screen.getByRole("checkbox", { name: "ingen" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "a" })).toBeDisabled();
+  });
+});
+
+describe("SurveyForm draft", () => {
+  it("keeps the answers in sessionStorage, restores them after a reload, and clears them once sent", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "expired" });
+    const first = render(<SurveyForm survey={survey} />);
+    fireEvent.click(pick("Den er rask.", "Enig"));
+    fireEvent.click(pick("Den er trygg.", "Uenig"));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText(/Innloggingen har gått ut. Last inn siden på nytt/)).toBeInTheDocument();
+    expect(JSON.parse(sessionStorage.getItem("survey-draft:s") ?? "")).toEqual({ fast: 3, safe: 1 });
+    first.unmount();
+
+    render(<SurveyForm survey={survey} />); // the reload
+    expect(pick("Den er rask.", "Enig")).toBeChecked();
+    expect(pick("Den er trygg.", "Uenig")).toBeChecked();
+    sendSurvey.mockResolvedValue({ status: "recorded" });
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+    expect(sendSurvey).toHaveBeenLastCalledWith("s", { fast: 3, safe: 1 });
+    expect(sessionStorage.getItem("survey-draft:s")).toBeNull();
+  });
+
+  it("offers a retry after a failed send", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "error" });
+    render(<SurveyForm survey={survey} />);
+    fireEvent.click(pick("Den er rask.", "Enig"));
+    fireEvent.click(pick("Den er trygg.", "Uenig"));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    sendSurvey.mockResolvedValue({ status: "recorded" });
+    fireEvent.click(await screen.findByRole("button", { name: "Prøv igjen" }));
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+  });
+
+  it("ignores a draft that is not an answers object", () => {
+    for (const bad of ["null", "[]", "{"]) {
+      sessionStorage.setItem("survey-draft:s", bad);
+      render(<SurveyForm survey={survey} />).unmount();
+    }
+  });
+
+  it("never stores a preview", () => {
+    render(<SurveyForm survey={survey} preview />);
+    fireEvent.click(pick("Den er rask.", "Enig"));
+    expect(sessionStorage.length).toBe(0);
   });
 });

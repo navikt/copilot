@@ -43,6 +43,7 @@ describe("isPrivatePath", () => {
     ["/api/copilot/seats", true],
     ["/api/adoption", true],
     ["/api/adoption/debug", true],
+    ["/api/survey/s/responses", true],
   ])("%s → private (%s)", (path, expected) => {
     expect(isPrivatePath(path)).toBe(expected);
   });
@@ -174,6 +175,12 @@ describe("proxy", () => {
     it("returns 401 for /api/adoption without auth", async () => {
       await proxy(createMockRequest("/api/adoption"));
       expect(NextResponse.json).toHaveBeenCalledWith({ error: "Unauthorized" }, { status: 401 });
+    });
+
+    it("returns 401 for a survey answer without auth, not a login redirect", async () => {
+      await proxy(createMockRequest("/api/survey/s/responses"));
+      expect(NextResponse.json).toHaveBeenCalledWith({ error: "Unauthorized" }, { status: 401 });
+      expect(NextResponse.redirect).not.toHaveBeenCalled();
     });
 
     it("returns 401 for /statistikk/json without auth", async () => {
