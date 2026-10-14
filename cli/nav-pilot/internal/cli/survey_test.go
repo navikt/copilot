@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // Answers that could not be sent are kept and delivered at the next calm
@@ -133,5 +134,82 @@ func TestNoSurveyServiceCoversAny5xx(t *testing.T) {
 		if !noSurveyService(err) {
 			t.Errorf("noSurveyService(%v) on status %d = false, want true", err, status)
 		}
+	}
+}
+
+// An answer given on the web (copilot-survey's status route) stops the
+// prompt and the start hint; any error leaves the survey to be asked.
+func TestSurveyAnsweredElsewhereIsNotAsked(t *testing.T) {
+	t.Setenv("NAV_PILOT_E2E_GITHUB_TOKEN", "gho_test")
+	orig := e2eSeams
+	e2eSeams = "1"
+	t.Cleanup(func() { e2eSeams = orig })
+	now := time.Now()
+	day := now.UTC().Format(time.DateOnly)
+
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		asked  bool
+	}{
+		{"answered", 200, `{"answered":true}`, false},
+		{"not answered", 200, `{"answered":false}`, true},
+		{"server error", 503, `{"answered":true}`, true},
+		{"refused", 403, ``, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("NAV_PILOT_CONFIG", t.TempDir()+"/config.toml")
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/api/v1/surveys/s1/status" || r.Header.Get("Authorization") != "Bearer gho_test" {
+					w.WriteHeader(http.StatusTeapot)
+					return
+				}
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+			st := surveyState{Surveys: map[string]*surveyRecord{}}
+			for _, nudge := range []string{"calm", "start"} {
+				st.Active = append(st.Active, surveyDef{ID: "s1", Nudge: nudge, Starts: day, Ends: day})
+			}
+			markAnsweredElsewhere(srv.URL, st, now)
+			for _, nudge := range []string{"calm", "start"} {
+				if got := nextSurvey(st, now, nudge) != nil; got != tc.asked {
+					t.Errorf("%s: asked = %v, want %v", nudge, got, tc.asked)
+				}
+			}
+			// Kept on disk, so a later nav-pilot survey hides it too.
+			if hidden := answeredAndSent(readSurveyState(), "s1"); hidden == tc.asked {
+				t.Errorf("hidden from nav-pilot survey on the next run = %v, want %v", hidden, !tc.asked)
+			}
+		})
+	}
+	// Unreachable is the same as an error.
+	t.Setenv("NAV_PILOT_CONFIG", t.TempDir()+"/config.toml")
+	st := surveyState{Surveys: map[string]*surveyRecord{}, Active: []surveyDef{{ID: "s1", Starts: day, Ends: day}}}
+	markAnsweredElsewhere("http://127.0.0.1:1", st, now)
+	if nextSurvey(st, now, "calm") == nil {
+		t.Error("unreachable copilot-cli stopped the prompt")
+	}
+}
+
+// A 409 on submit (answered elsewhere) drops the pending answer and keeps
+// the survey answered, so it is neither resent nor asked again.
+func TestSurveyConflictMarksAnswered(t *testing.T) {
+	t.Setenv("NAV_PILOT_CONFIG", t.TempDir()+"/config.toml")
+	t.Setenv("NAV_PILOT_E2E_GITHUB_TOKEN", "gho_test")
+	orig := e2eSeams
+	e2eSeams = "1"
+	t.Cleanup(func() { e2eSeams = orig })
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+	}))
+	defer srv.Close()
+	st := surveyState{Surveys: map[string]*surveyRecord{"s1": {Done: "answered", Pending: []byte(`{"answers":{"a":1}}`)}}}
+	sendAnswered(srv.URL, st, "s1")
+	rec := readSurveyState().Surveys["s1"]
+	if rec.Done != "answered" || len(rec.Pending) != 0 {
+		t.Fatalf("after 409: %+v, want answered with nothing pending", rec)
 	}
 }

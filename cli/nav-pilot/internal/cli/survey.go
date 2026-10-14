@@ -258,7 +258,7 @@ func prepareSurvey(client string) {
 	hasPending := slices.ContainsFunc(slices.Collect(maps.Values(st.Surveys)), func(r *surveyRecord) bool { return len(r.Pending) > 0 })
 	fetchDue := now.Sub(st.Fetched) >= surveyFetchEvery
 	// Nothing to do: no keychain read.
-	if !hasPending && !fetchDue && nextSurvey(st, now, "calm") == nil {
+	if !hasPending && !fetchDue && nextSurvey(st, now, "calm") == nil && nextSurvey(st, now, "start") == nil {
 		return
 	}
 	// Nothing can be sent without a sign-in, so no network without one.
@@ -268,14 +268,12 @@ func prepareSurvey(client string) {
 		return
 	}
 	surveySignedIn.Store(true)
-	if !hasPending && !fetchDue {
-		return
-	}
 	base := copilotCLIURL()
 
-	dropStalePending(st, now)
-	deliverPending(base, st)
-
+	if hasPending || fetchDue {
+		dropStalePending(st, now)
+		deliverPending(base, st)
+	}
 	if fetchDue {
 		// Out of reach (no naisdevice, offline) is the same as no survey,
 		// and is not retried until the next day.
@@ -285,6 +283,67 @@ func prepareSurvey(client string) {
 		st.Fetched = now
 		writeSurveyState(st)
 	}
+	// Before the prompt after this session and the start hint of the next.
+	markAnsweredElsewhere(base, st, now)
+}
+
+// markAnsweredElsewhere asks copilot-cli, for each open survey not yet done
+// here, whether the user has answered it, also on the web, and records those
+// as answered. Any error counts as not answered: the
+// survey is asked as before, and the server still refuses a second answer.
+func markAnsweredElsewhere(base string, st surveyState, now time.Time) {
+	changed := false
+	token := ""
+	for _, d := range st.Active {
+		if rec := st.Surveys[d.ID]; !d.openOn(now) || (rec != nil && rec.Done != "") {
+			continue
+		}
+		if token == "" {
+			if token = surveyToken(); token == "" {
+				return
+			}
+		}
+		if surveyAnsweredOnServer(base, d.ID, token) {
+			rec := st.Surveys[d.ID]
+			if rec == nil {
+				rec = &surveyRecord{}
+				st.Surveys[d.ID] = rec
+			}
+			rec.Done = "answered"
+			changed = true
+		}
+	}
+	if changed {
+		writeSurveyState(st)
+	}
+}
+
+// answeredAndSent is a survey answered here or on the web with nothing left
+// to send. An answer still waiting stays open, so it can be given again.
+func answeredAndSent(st surveyState, id string) bool {
+	rec := st.Surveys[id]
+	return rec != nil && rec.Done == "answered" && len(rec.Pending) == 0
+}
+
+// surveyAnsweredOnServer is GET /api/v1/surveys/{id}/status. Anything but a
+// 200 with "answered": true is false.
+func surveyAnsweredOnServer(base, id, token string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/surveys/"+url.PathEscape(id)+"/status", nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	var body struct {
+		Answered bool `json:"answered"`
+	}
+	return resp.StatusCode == http.StatusOK && json.NewDecoder(io.LimitReader(resp.Body, 4<<10)).Decode(&body) == nil && body.Answered
 }
 
 // surveySignedIn is prepareSurvey's answer to canSignIn, for promptSurvey.
@@ -426,10 +485,15 @@ func cmdSurvey(jsonOutput bool) error {
 		st.Active, st.Fetched = active, now
 		writeSurveyState(st)
 	}
+	if isInteractive() && !jsonOutput {
+		markAnsweredElsewhere(base, st, now)
+	}
 	var open []surveyDef
 	for _, d := range st.Active {
 		switch {
 		case !d.openOn(now):
+		case answeredAndSent(st, d.ID):
+			fmt.Printf("Du har allerede svart på %s. Takk!\n", d.Title)
 		case !d.renderable():
 			fmt.Fprintf(os.Stderr, "%s %s krever en nyere nav-pilot: %s\n", yellow("⚠"), d.Title, bold("nav-pilot upgrade"))
 		default:
