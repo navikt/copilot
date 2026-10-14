@@ -62,6 +62,10 @@ func makeRouter(auth *authenticator, api, surveys *upstream) http.Handler {
 	mux.HandleFunc("POST /api/v1/surveys/{id}/responses", authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
 		surveys.forward(w, r, "/api/v1/surveys/"+url.PathEscape(r.PathValue("id"))+"/responses")
 	}))
+	// Whether the signed-in user has answered, also on the web (same hash).
+	mux.HandleFunc("GET /api/v1/surveys/{id}/status", authMiddleware(auth, func(w http.ResponseWriter, r *http.Request) {
+		surveys.forward(w, r, "/api/v1/surveys/"+url.PathEscape(r.PathValue("id"))+"/status")
+	}))
 
 	return mux
 }

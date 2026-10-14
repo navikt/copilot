@@ -44,7 +44,7 @@ does either.
 
 Downstream calls carry copilot-cli's own M2M token for that service and the
 verified GitHub login in `X-On-Behalf-Of`. copilot-api honours the header on
-its per-user usage GETs only, copilot-survey on the answer route only. The
+its per-user usage GETs only, copilot-survey on the answer and status routes only. The
 public survey definitions go without a token or header.
 
 ## Endpoints
@@ -59,6 +59,7 @@ gets a new path (`/api/v2/…`).
 | `GET` | `/api/v1/surveys/active` | none | copilot-survey, same path |
 | `GET` | `/api/v1/surveys/schema` | none | copilot-survey, same path: the JSON Schema of the definitions |
 | `POST` | `/api/v1/surveys/{id}/responses` | GitHub | copilot-survey, same path: 201, 409 already answered, 400 invalid, 403 no Nav identity, 404 not open, 400 or 413 body over 32 KiB, 503 not taking answers, 502 copilot-survey unreachable or refused the gateway |
+| `GET` | `/api/v1/surveys/{id}/status` | GitHub | copilot-survey, same path: `{"answered": bool}` for the signed-in user, also an answer given on the web; 403 no Nav identity, 404 not open, 503 storage unavailable |
 | `GET` | `/health`, `/ready`, `/metrics` | none | — (probes and Prometheus) |
 
 Status, body, `Content-Type` and `Cache-Control` come back unchanged. A redirect is

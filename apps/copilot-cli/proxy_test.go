@@ -53,6 +53,8 @@ func TestRoutesForward(t *testing.T) {
 			seen{"GET", "/api/v1/surveys/schema", "", "", "", ""}},
 		{"survey answer", "POST", "/api/v1/surveys/q4-2026/responses", "good-token", `{"answers":{}}`, 201,
 			seen{"POST", "/api/v1/surveys/q4-2026/responses", "Bearer m2m", "hans", "application/json", `{"answers":{}}`}},
+		{"survey status", "GET", "/api/v1/surveys/q4-2026/status", "good-token", "", 200,
+			seen{"GET", "/api/v1/surveys/q4-2026/status", "Bearer m2m", "hans", "", ""}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got = seen{}
@@ -88,6 +90,8 @@ func TestRoutesRefuseBeforeForwarding(t *testing.T) {
 	}{
 		{"POST", "/api/v1/surveys/q4-2026/responses", "", 401},
 		{"POST", "/api/v1/surveys/q4-2026/responses", "outsider-token", 403},
+		{"GET", "/api/v1/surveys/q4-2026/status", "", 401},
+		{"POST", "/api/v1/surveys/q4-2026/status", "good-token", 405},
 		{"GET", "/api/v1/usage", "", 401},
 		{"POST", "/api/v1/usage", "", 405},
 		{"GET", "/api/v1/surveys/q4-2026/responses", "good-token", 405},
