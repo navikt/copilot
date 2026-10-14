@@ -26,10 +26,9 @@ import {
   scaleSteps,
   type Answers,
   type Survey,
-  type SubmitResult,
   type SurveyQuestion,
 } from "@/lib/survey";
-import { sendSurvey } from "./actions";
+import { sendSurvey, type SendResult } from "./send";
 
 /** A matrix right after a visible matrix with the same text and required status continues that list, so its heading is not repeated. */
 function repeatsPrevious(visible: SurveyQuestion[], i: number): boolean {
@@ -64,7 +63,7 @@ export function SurveyForm({ survey, preview = false }: { survey: Survey; previe
   const [previewed, setPreviewed] = useState(false);
   const [answers, setAnswers] = useState<Answers>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<SubmitResult | null>(null);
+  const [result, setResult] = useState<SendResult | null>(null);
   const [pending, startTransition] = useTransition();
   const summaryRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -72,6 +71,28 @@ export function SurveyForm({ survey, preview = false }: { survey: Survey; previe
   useEffect(() => {
     if (result) resultRef.current?.focus();
   }, [result]);
+
+  // The answers so far live in this tab's sessionStorage, so a reload after a
+  // failed send (an expired login, a deploy) keeps them. They go nowhere else.
+  // Restored after mount, so the server and client render the same empty form.
+  const draftKey = `survey-draft:${survey.id}`;
+  const restored = useRef(false);
+  useEffect(() => {
+    if (preview || restored.current) return;
+    try {
+      const saved = sessionStorage.getItem(draftKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- after mount on purpose: sessionStorage is not on the server
+      if (saved) setAnswers(JSON.parse(saved));
+    } catch {}
+    restored.current = true;
+  }, [draftKey, preview]);
+  useEffect(() => {
+    if (preview || !restored.current) return;
+    try {
+      if (result?.status === "recorded" || result?.status === "duplicate") sessionStorage.removeItem(draftKey);
+      else sessionStorage.setItem(draftKey, JSON.stringify(answers));
+    } catch {}
+  }, [answers, result, draftKey, preview]);
 
   const visible = survey.questions.filter((q) => !isSkipped(q, answers));
   const set = (id: string, value: Answers[string] | undefined) =>
@@ -236,13 +257,18 @@ export function SurveyForm({ survey, preview = false }: { survey: Survey; previe
         )}
         {result?.status === "error" && (
           <Alert variant="error" ref={resultRef} tabIndex={-1}>
-            Svaret ble ikke sendt. Prøv igjen om litt.
+            Svaret ble ikke sendt. Svarene dine er lagret i nettleseren, så du kan prøve igjen.
+          </Alert>
+        )}
+        {result?.status === "expired" && (
+          <Alert variant="warning" ref={resultRef} tabIndex={-1}>
+            Innloggingen har gått ut. Last inn siden på nytt – svarene dine er lagret i nettleseren.
           </Alert>
         )}
 
         <div>
           <Button type="submit" loading={pending}>
-            Send svar
+            {result?.status === "error" ? "Prøv igjen" : "Send svar"}
           </Button>
         </div>
       </VStack>
