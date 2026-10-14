@@ -85,7 +85,7 @@ jobs:
       # It does not enable a launch: that needs cplt and a credential.
       - name: Install pi (for flag verification)
         continue-on-error: true
-        run: npm i -g @earendil-works/pi-coding-agent && pi --version || true
+        run: npm i -g --ignore-scripts @earendil-works/pi-coding-agent@1.2.0 && pi --version || true
 
       - name: Test and Coverage
         run: |
@@ -108,7 +108,11 @@ jobs:
         run: cd cli/nav-pilot && go test ./e2e -run TestLaunchBudget -count=1 -v
 
       - name: Vet
-        run: cd cli/nav-pilot && go vet ./...
+        run: |
+          cd cli/nav-pilot
+          go vet ./...
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then echo "gofmt -w these files:"; echo "$unformatted"; exit 1; fi
 
       # The preToolUse gates nav-pilot installs. Each one tests itself through
       # real stdin and stdout; .github/hooks/ is this repo's own install of
@@ -124,6 +128,9 @@ jobs:
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
           cd cli/nav-pilot && staticcheck ./...
+
+      - name: Persona transcripts selftest
+        run: python3 cli/nav-pilot/e2e/persona_transcripts.py --selftest
 
       - name: Local dashboard is generated
         run: python3 scripts/build-local-dashboard.py --check

@@ -162,6 +162,5 @@ func TestCompareStore(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	s.flush(t.Context())
 	checkCompare(t, getCompare(t, api, "spring,autumn"))
 }

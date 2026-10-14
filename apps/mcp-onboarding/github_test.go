@@ -428,21 +428,3 @@ func TestNewGitHubClient(t *testing.T) {
 		t.Error("expected non-nil HTTPClient")
 	}
 }
-
-// --- GetRepoFileContent error path ---
-
-func TestGetRepoFileContent_ServerError(t *testing.T) {
-	server := newGitHubMock(t, map[string]http.HandlerFunc{
-		"GET /repos/navikt/app/contents/broken": func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write([]byte(`{"message":"Repository access blocked"}`))
-		},
-	})
-	defer server.Close()
-
-	client := newTestGitHubClient(server)
-	_, err := client.GetRepoFileContent("test-token", "navikt", "app", "broken")
-	if err == nil {
-		t.Fatal("expected error for 403 response")
-	}
-}

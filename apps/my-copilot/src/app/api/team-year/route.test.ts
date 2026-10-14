@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/auth", () => ({ getUserToken: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ getUser: vi.fn(), getUserToken: vi.fn() }));
 vi.mock("@/lib/cached-bigquery", () => ({ getTeamYearOverview: vi.fn() }));
 
-import { getUserToken } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 import { getTeamYearOverview } from "@/lib/cached-bigquery";
 import type { TeamYearOverview } from "@/lib/types";
 import { GET } from "./route";
@@ -78,12 +78,13 @@ const get = (query: string) => GET(new Request(`http://localhost/api/team-year?$
 
 describe("GET /api/team-year", () => {
   beforeEach(() => {
+    vi.mocked(getUser).mockResolvedValue({ firstName: "A", lastName: "B", email: "a@nav.no", groups: [] });
     vi.mocked(getUserToken).mockResolvedValue("token");
     vi.mocked(getTeamYearOverview).mockResolvedValue(data);
   });
 
   it("requires a login", async () => {
-    vi.mocked(getUserToken).mockResolvedValue(null as unknown as string);
+    vi.mocked(getUser).mockResolvedValue(null);
     expect((await get("team=123&year=2026")).status).toBe(401);
   });
 

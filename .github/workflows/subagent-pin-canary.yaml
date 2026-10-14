@@ -15,6 +15,10 @@ on:
     - cron: '41 6 * * 1'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -37,7 +41,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
         run: |
-          npm install -g @github/copilot
+          npm install -g --ignore-scripts @github/copilot@1.0.97
           set +e
           scripts/subagent-pin-canary.sh > "$RUNNER_TEMP/canary.txt" 2>&1
           echo "status=$?" >> "$GITHUB_OUTPUT"

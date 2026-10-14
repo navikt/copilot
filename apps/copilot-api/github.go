@@ -132,7 +132,7 @@ func (g *GitHubClient) getInstallationToken(ctx context.Context) (string, error)
 		Token     string    `json:"token"`
 		ExpiresAt time.Time `json:"expires_at"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&result); err != nil {
 		return "", fmt.Errorf("decode response: %w", err)
 	}
 
@@ -201,7 +201,7 @@ func (g *GitHubClient) getCopilotBilling(ctx context.Context) (*CopilotBilling, 
 	}
 
 	var billing CopilotBilling
-	if err := json.NewDecoder(resp.Body).Decode(&billing); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&billing); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
@@ -286,7 +286,7 @@ func (g *GitHubClient) getCopilotSeat(ctx context.Context, username string) (*Co
 	}
 
 	var seat CopilotSeat
-	if err := json.NewDecoder(resp.Body).Decode(&seat); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&seat); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
@@ -327,7 +327,7 @@ func (g *GitHubClient) assignUserToCopilot(ctx context.Context, username string)
 	var result struct {
 		SeatsCreated int `json:"seats_created"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
@@ -368,7 +368,7 @@ func (g *GitHubClient) unassignUserFromCopilot(ctx context.Context, username str
 	var result struct {
 		SeatsCancelled int `json:"seats_cancelled"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
@@ -438,7 +438,7 @@ func (g *GitHubClient) getUsernameBySamlIdentity(ctx context.Context, identity s
 	var result struct {
 		Data struct {
 			Organization struct {
-				SAMLIdentityProvider struct {
+				SAMLIdentityProvider *struct {
 					ExternalIdentities struct {
 						Edges []struct {
 							Node struct {
@@ -451,10 +451,15 @@ func (g *GitHubClient) getUsernameBySamlIdentity(ctx context.Context, identity s
 				} `json:"samlIdentityProvider"`
 			} `json:"organization"`
 		} `json:"data"`
+		Errors []json.RawMessage `json:"errors"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&result); err != nil {
 		return "", fmt.Errorf("decode response: %w", err)
+	}
+
+	if len(result.Errors) > 0 || result.Data.Organization.SAMLIdentityProvider == nil {
+		return "", errors.New("no access to the org's SAML identities")
 	}
 
 	edges := result.Data.Organization.SAMLIdentityProvider.ExternalIdentities.Edges
@@ -584,7 +589,7 @@ func (g *GitHubClient) getPremiumRequestUsage(ctx context.Context, org string, y
 		} `json:"usage_items"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
@@ -675,7 +680,7 @@ func (g *GitHubClient) getRepositoryContributors(ctx context.Context, owner, rep
 			} `json:"author"`
 		}
 
-		if err := json.NewDecoder(resp.Body).Decode(&commits); err != nil {
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&commits); err != nil {
 			resp.Body.Close()
 			return nil, fmt.Errorf("decode response: %w", err)
 		}

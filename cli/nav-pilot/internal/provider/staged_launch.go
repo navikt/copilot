@@ -618,7 +618,11 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 			if filepath.IsAbs(p) || strings.HasPrefix(p, "~/") {
 				return m
 			}
-			return []byte("{file:" + filepath.ToSlash(filepath.Join(payload, p)) + "}")
+			resolved := filepath.Clean(filepath.Join(payload, p))
+			if !domain.PathWithinRoot(payload, resolved) || source.CheckSymlink(resolved, payload) != nil {
+				return m
+			}
+			return []byte("{file:" + filepath.ToSlash(resolved) + "}")
 		})
 		if cfg, err := jsonNode(stripJSONC(b)); err == nil {
 			for _, k := range []string{"permission", "permissions", "agent", "agents"} {

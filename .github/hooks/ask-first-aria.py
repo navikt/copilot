@@ -78,8 +78,10 @@ samme signatur er en dårlig kanarifugl. Hver kjøring gjør minst én lesing.
 
 import json
 import os
+import posixpath
 import re
 import sys
+from collections import Counter
 from pathlib import PurePosixPath
 
 # Ordgrense foran: `role=` skal treffe, `ariaRole=` og `data-role=` ikke.
@@ -171,31 +173,36 @@ def paths_of(args):
     return out
 
 
+def role_token(raw):
+    """→ rolletoken for ett attributt, eller None hvis det ikke kan avgjøres."""
+    inner = raw[1:-1].strip()
+    if raw[0] in "\"'":
+        return inner.lower()
+    if len(inner) >= 2 and inner[0] in "\"'" and inner[-1] == inner[0]:
+        return inner[1:-1].strip().lower()
+    # role={uttrykk} kan ikke leses statisk. Ask First er da det trygge
+    # svaret, så den regnes som en rolle utenfor allowlista.
+    return None
+
+
 def role_names(text):
     """→ mengden rolletokens i teksten. None står for "kunne ikke avgjøres"."""
-    out = set()
-    for raw in ROLE_ATTR.findall(text):
-        inner = raw[1:-1].strip()
-        # role={uttrykk} kan ikke leses statisk. Ask First er da det trygge
-        # svaret, så den regnes som en rolle utenfor allowlista.
-        out.add(inner.lower() if raw[0] in "\"'" else None)
-    return out
+    return {role_token(raw) for raw in ROLE_ATTR.findall(text)}
 
 
 def is_src_tsx(path, cwd=None):
-    p = PurePosixPath(path.replace("\\", "/"))
+    p = PurePosixPath(posixpath.normpath(path.replace("\\", "/")))
     if p.suffix.lower() != ".tsx":
         return False
     if cwd:
+        c = PurePosixPath(posixpath.normpath(cwd.replace("\\", "/")))
         try:
-            # Relativt til arbeidsmappa er `src/` rota og ikke en hvilken som
-            # helst katalog med det navnet. CLI-en sender `cwd` og `path` med
-            # samme symlink-oppløsning, bekreftet mot ekte payloader.
-            return PurePosixPath(p).relative_to(cwd.replace("\\", "/")).parts[:1] == ("src",)
+            # Strip arbeidsmappa så et foreldrenavn som `/Users/src/repo` ikke
+            # utløser porten, mens både `src/Foo.tsx` og `apps/my-copilot/src/Foo.tsx`
+            # treffer.
+            p = p.relative_to(c)
         except ValueError:
             pass
-    # Ingen cwd, eller en sti utenfor den: fall tilbake på den brede formen.
-    # Bredere er den trygge retningen for en Ask-First-port.
     return "src" in p.parts
 
 
@@ -254,19 +261,19 @@ def writes_of(args):
 ARIA_OK_NEAR = 200
 
 
-def aria_ok(new, old):
-    """→ True når hver ny, utrygg rolle har et ARIA_OK like ved seg, og det
-    finnes flere merker enn før. Ett merke et helt annet sted i fila godkjenner
-    altså ikke en rolle, og et merke som bare følger med fra `old`, heller ikke."""
-    if new.count(ARIA_OK) <= old.count(ARIA_OK):
-        return False
-    fresh = role_names(new) - role_names(old) - SAFE_ROLES
-    for m in ROLE_ATTR.finditer(new):
-        if role_names(m.group(0)) & fresh:
-            near = new[max(0, m.start() - ARIA_OK_NEAR):m.end() + ARIA_OK_NEAR]
-            if ARIA_OK not in near:
-                return False
-    return True
+def unsafe_role_counts(text, annotated_ok=True):
+    """→ Counter over utrygge rolletokens som ikke har ARIA_OK like ved seg."""
+    counts = Counter()
+    for m in ROLE_ATTR.finditer(text):
+        r = role_token(m.group(1))
+        if r in SAFE_ROLES:
+            continue
+        if annotated_ok:
+            near = text[max(0, m.start() - ARIA_OK_NEAR):m.end() + ARIA_OK_NEAR]
+            if ARIA_OK in near:
+                continue
+        counts[r] += 1
+    return counts
 
 
 def decide(payload):
@@ -279,12 +286,11 @@ def decide(payload):
     for path, new, old in writes_of(args):
         if not is_src_tsx(path, cwd):
             continue
-        # Differansen, ikke bare et treff: en rolle som alt står der og bare
-        # flyttes innfører ingenting, mens en ny rolle ved siden av en gammel
-        # skal fortsatt nektes.
-        if (role_names(new) - role_names(old)) - SAFE_ROLES:
-            if aria_ok(new, old):
-                continue
+        # Teller uannoterte forekomster per rolle: en rolle som bare flyttes
+        # innfører ingenting, mens en ekstra forekomst av samme rolle uten nytt
+        # ARIA_OK ved siden av seg nektes.
+        allow_ok = new.count(ARIA_OK) > old.count(ARIA_OK)
+        if unsafe_role_counts(new, annotated_ok=allow_ok) - unsafe_role_counts(old, annotated_ok=allow_ok):
             return REASON
     return None
 
@@ -369,10 +375,16 @@ SELFTEST = [
      _sr(TSX, '<div><ul role="listbox" /></div>', '<section><ul role="listbox" /></section>'), False),
     ("nekter en ny rolle ved siden av en som alt står der",
      _sr(TSX, '<ul role="listbox" />', '<ul role="listbox" /><li role="option" />'), True),
+    ("nekter en ekstra forekomst av samme rolle uten ARIA_OK",
+     _sr(TSX, '<ul role="listbox" />', '<ul role="listbox" /><ul role="listbox" />'), True),
 
     # ── allowlista: personaen anbefaler selv noen av disse rollene ───────────
     ("slipper gjennom role=\"button\", som :230 selv gir som rettingen",
      _sr(TSX, "<div onClick={f}>", '<div role="button" tabIndex={0} onKeyDown={k} onClick={f}>'), False),
+    ("slipper gjennom role={\"button\"} som JSX-strengliteral",
+     _sr(TSX, "<div onClick={f}>", '<div role={"button"} tabIndex={0} onKeyDown={k} onClick={f}>'), False),
+    ("nekter role={\"listbox\"} som JSX-strengliteral",
+     _sr(TSX, "<div>", '<div role={"listbox"}>'), True),
     ("slipper gjennom role=\"alert\"",
      _sr(TSX, "<p>{feil}</p>", '<p role="alert">{feil}</p>'), False),
     ("slipper gjennom et landemerke",
@@ -387,8 +399,10 @@ SELFTEST = [
     # ── rekkevidde relativt til cwd ──────────────────────────────────────────
     ("nekter absolutt sti under cwd/src",
      _sr("/repo/src/app/StatusPanel.tsx", "<ul>", '<ul role="listbox">', cwd="/repo"), True),
-    ("slipper gjennom src-katalog som ikke ligger i rota",
-     _sr("/repo/apps/nettside/src/A.tsx", "<ul>", '<ul role="listbox">', cwd="/repo"), False),
+    ("nekter monorepo-sti under cwd/apps/.../src",
+     _sr("/repo/apps/my-copilot/src/Foo.tsx", "<ul>", '<ul role="listbox">', cwd="/repo"), True),
+    ("slipper gjennom når bare foreldrestien over cwd heter src",
+     _sr("/Users/src/project/app/A.tsx", "<ul>", '<ul role="listbox">', cwd="/Users/src/project"), False),
 
     # ── kjente nærtreff, dokumentert i docstringen og bevisst utenfor ─────────
     ("slipper gjennom role: som objektnøkkel, ikke et attributt",

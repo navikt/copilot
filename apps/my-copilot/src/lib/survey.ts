@@ -158,7 +158,7 @@ export async function submitAnswers(userToken: string, surveyId: string, answers
   const url = process.env.COPILOT_SURVEY_URL;
   if (!url) return process.env.NODE_ENV === "development" ? { status: "recorded" } : { status: "error" };
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (!isLocalDev) {
+  if (!isLocalDev()) {
     headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
   }
   const res = await fetchWithTimeout(
@@ -203,7 +203,7 @@ export async function getSurveyStatus(userToken: string, surveyId: string): Prom
   if (!url) return undefined;
   try {
     const headers: Record<string, string> = {};
-    if (!isLocalDev) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    if (!isLocalDev()) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
     const res = await fetchWithTimeout(
       `${url}/api/v1/surveys/${encodeURIComponent(surveyId)}/status`,
       { headers, cache: "no-store" },
@@ -255,7 +255,7 @@ async function adminGet<T>(userToken: string, path: string): Promise<AdminResult
   if (!url) return { status: "error" };
   try {
     const headers: Record<string, string> = {};
-    if (!isLocalDev) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    if (!isLocalDev()) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
     const res = await fetchWithTimeout(`${url}${path}`, { headers, cache: "no-store" }, 10000, "timeout");
     if (res.status === 403 || res.status === 404) return { status: "not-found" };
     if (!res.ok) return { status: "error" };
@@ -322,7 +322,7 @@ export async function hideSurveyFreetext(userToken: string, id: string, textToke
   if (!url || !/^[a-z0-9-]{1,64}$/.test(id) || !/^[0-9a-f]{64}$/.test(textToken)) return false;
   try {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (!isLocalDev) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    if (!isLocalDev()) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
     const res = await fetchWithTimeout(
       `${url}/api/v1/admin/surveys/${id}/freetext/hide`,
       { method: "POST", headers, body: JSON.stringify({ token: textToken }), cache: "no-store" },
@@ -341,7 +341,7 @@ export async function fetchSurveyExport(userToken: string, id: string): Promise<
   if (!url || !/^[a-z0-9-]{1,64}$/.test(id)) return null;
   try {
     const headers: Record<string, string> = {};
-    if (!isLocalDev) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    if (!isLocalDev()) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
     return await fetchWithTimeout(
       `${url}/api/v1/admin/surveys/${id}/export.csv`,
       { headers, cache: "no-store" },

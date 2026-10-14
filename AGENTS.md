@@ -8,9 +8,13 @@ Monorepo for Nav's Copilot ecosystem:
 
 - `apps/my-copilot` (Next.js/TypeScript web app)
 - `apps/copilot-api` (Go backend API)
+- `apps/copilot-cli` (Go CLI gateway for `nav-pilot`)
+- `apps/copilot-survey` (Go survey backend)
 - `apps/copilot-metrics` (Go metrics job)
+- `apps/copilot-adoption` (Go adoption scan job)
 - `apps/mcp-onboarding` (Go MCP reference server)
 - `apps/mcp-registry` (Go MCP registry API)
+- `cli/nav-pilot` (Go developer CLI)
 
 `SECURITY.md` has the security model and trust boundaries.
 

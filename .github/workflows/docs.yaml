@@ -8,10 +8,12 @@ on:
       - 'instructions/**'
       - 'prompts/**'
       - 'skills/**'
-      - 'skills/**'
       - 'docs/**'
       - 'README.md'
       - 'scripts/generate-docs/**'
+      - 'scripts/lint-skills.sh'
+      - 'scripts/test-lint-skills.sh'
+      - '.github/skills-allowlist.txt'
       - '.github/workflows/docs.yaml'
   pull_request:
     branches: [main]
@@ -20,10 +22,12 @@ on:
       - 'instructions/**'
       - 'prompts/**'
       - 'skills/**'
-      - 'skills/**'
       - 'docs/**'
       - 'README.md'
       - 'scripts/generate-docs/**'
+      - 'scripts/lint-skills.sh'
+      - 'scripts/test-lint-skills.sh'
+      - '.github/skills-allowlist.txt'
       - '.github/workflows/docs.yaml'
   workflow_dispatch:
 
@@ -38,6 +42,7 @@ jobs:
   check:
     name: Docs in sync
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # ratchet:actions/setup-go@v7.0.0
@@ -48,6 +53,7 @@ jobs:
   skills-lint:
     name: Skills quality
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
       - run: bash scripts/lint-skills.sh
@@ -55,7 +61,9 @@ jobs:
       - name: Upgrade gh CLI (gh skill requires 2.90.0+)
         run: |
           GH_VERSION=2.90.0
-          curl -sSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          GH_SHA256=b2aef7b23ec6899bf27f37a32c57a7935d0a178568ac33dc9bb03842f724195a
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          echo "${GH_SHA256}  /tmp/gh.tar.gz" | sha256sum -c -
           tar -xzf /tmp/gh.tar.gz -C /tmp
           sudo cp "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh
           gh --version
@@ -63,10 +71,3 @@ jobs:
         run: gh skill publish --dry-run
         env:
           GH_TOKEN: ${{ github.token }}
-
-  skills-sync:
-    name: Skills directories in sync
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-

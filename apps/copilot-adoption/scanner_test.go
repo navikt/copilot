@@ -44,9 +44,7 @@ func (s *fakeStore) InsertScanResults(context.Context, time.Time, []RepoScanResu
 	s.inserts++
 	return nil
 }
-func (s *fakeStore) DeleteScanDate(context.Context, time.Time) error         { return nil }
-func (s *fakeStore) ScanDateExists(context.Context, time.Time) (bool, error) { return false, nil }
-func (s *fakeStore) Close() error                                            { return nil }
+func (s *fakeStore) Close() error { return nil }
 
 func TestRunScan_FailsWithoutWritingOnTeamMapError(t *testing.T) {
 	store := &fakeStore{}

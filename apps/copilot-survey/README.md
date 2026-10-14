@@ -34,7 +34,7 @@ status routes only.
 | `GET` | `/api/v1/admin/surveys/{id}/freetext` | admin | Free text per field (text questions and `<id>.other`), masked as in the export, random order, each text on its own: no row id, no other answers. Hidden texts left out. Visible while open (owner, 2026-10-13) |
 | `POST` | `/api/v1/admin/surveys/{id}/freetext/hide` | admin | `{"token": "..."}` from the list above: hides that text in admin and the export. 204, or 404 for an unknown token |
 | `GET` | `/api/v1/admin/surveys/{id}/export.csv` | admin | Every response as one CSV row, see [CSV export in admin](#csv-export-in-admin). 410 when a closed survey's rows are deleted and only aggregates remain |
-| `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`, `survey_queued_answers{survey}`) |
+| `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`) |
 
 Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check. A token copilot-survey does not accept at all gets 401; every accepted caller who is not an admin (a my-copilot user outside the group, copilot-cli) gets 404, as in copilot-api and my-copilot.
 
@@ -43,7 +43,7 @@ Residual risk: results are visible while a survey is open. An admin who polls `/
 Free-text tokens (`freetext.go`): HMAC-SHA256 of survey, field and raw text under a random key that lives only in memory. A token names a text, not a row; it cannot be traced to the row or the person's other answers, and a restart invalidates it. Hiding stores `sha256(raw text)` per survey and field in `survey_freetext_hidden`, so identical texts in one field are hidden together. The answer stays in `survey_answers` until retention deletes it. A read is logged with survey and number of texts, a hide with survey and field; never the text.
 
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
-buffers a body. Logs carry survey id, status, batch size and error type,
+buffers a body. Logs carry survey id, status and error type,
 never who answered. A write runs on its own background context, never the
 request's, so a caller who hangs up does not cancel it.
 
@@ -68,11 +68,9 @@ unknown fields refused, body at most 32 KiB. Then:
    one person, or that person can answer twice (see the residual risks).
 2. The dedup hash is `HMAC-SHA256(survey key, e-mail)`, the e-mail trimmed
    and lowercased first. A hash
-   already written or queued gets 409, from nav-pilot and the web alike.
+   already written gets 409, from nav-pilot and the web alike.
 3. The submission is written at once, in one transaction: its hash to
-   `survey_participation` and its answer to `survey_answers`. If the write
-   fails, it stays queued in memory and is written with the next submission
-   to that survey or at shutdown.
+   `survey_participation` and its answer to `survey_answers`.
 
 Two tables, nothing shared but the survey id:
 
@@ -96,8 +94,7 @@ before the survey opens. Who can read it: members of the `copilot` Nais team
 after the survey closes, copilot-survey deletes that survey's participation rows,
 and the team deletes its key from the secret. The running pod read its keys
 at start and still holds the deleted one, so the team then restarts it
-(`kubectl rollout restart deployment/copilot-survey -n copilot`), after the
-close-out has written anything still queued. A pod that starts after the survey
+(`kubectl rollout restart deployment/copilot-survey -n copilot`). A pod that starts after the survey
 closed loads no key for it. From then on no key exists to recompute a hash,
 and no table holds one.
 
@@ -122,21 +119,6 @@ link is gone.
 When the survey closes its participation rows are deleted as before, but WAL
 and backups keep them, with their commit times, for the backup retention
 period.
-
-A failed write keeps the submission queued; the next submission to that
-survey or a graceful shutdown (every deploy or restart) writes it, together
-with anything else queued. Only a crash while a submission is queued, or a
-failing write at shutdown, loses it.
-
-The gauge `survey_queued_answers{survey}` is the queue size per survey.
-Team members with Prometheus access can see it, which is fine since the
-data is down-classified (2026-10-13). The process cannot count what a
-crash loses; the last scraped value before the restart is the nearest
-estimate, since submissions and writes between that scrape and the crash
-are not in it. A failed write at shutdown is logged (`survey: writing
-queued submissions at shutdown failed`, and the count in `survey: queued
-submissions lost at shutdown`), not counted: `/metrics` is closed by then,
-so a counter would never be scraped and an alert on it could never fire.
 
 After close-out the retained answers have no identifier and no key exists:
 they are meant to be anonymous.
@@ -307,8 +289,7 @@ nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
 
 ### Final aggregates and retention
 
-When a survey closes, the daily retention job (`retain`) writes its last
-queued answers and then its counts to `survey_results`: respondents, count per
+When a survey closes, the daily retention job (`retain`) writes its counts to `survey_results`: respondents, count per
 question, version and option, `n` per version and the mean for scale and
 matrix items. Free text is not stored there. Context (client, OS, version as
 year.month, local models) is counted with the export's k ≥ 5 rule: values

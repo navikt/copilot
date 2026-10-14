@@ -233,8 +233,15 @@ func resolveForLaunch(ref, sourceRepo string, launch bool) (*source.Source, func
 // is tried again by the next launch.
 func refreshInBackground(refresh func(context.Context)) (stop func()) {
 	ctx, cancel := context.WithCancel(context.Background())
-	go refresh(ctx)
-	return cancel
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		refresh(ctx)
+	}()
+	return func() {
+		cancel()
+		<-done
+	}
 }
 
 // OpenCodeArgs builds the CLI arguments for launching the opencode TUI.

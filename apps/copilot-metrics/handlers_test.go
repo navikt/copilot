@@ -4,72 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 )
-
-func TestHealthHandler(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
-	rec := httptest.NewRecorder()
-
-	healthHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, `"healthy"`) {
-		t.Errorf("body = %q, want healthy status", body)
-	}
-}
-
-func TestReadyHandler(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
-	rec := httptest.NewRecorder()
-
-	readyHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("Content-Type = %q, want %q", ct, "application/json")
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, `"ready"`) {
-		t.Errorf("body = %q, want ready status", body)
-	}
-}
-
-func TestMetricsHandler(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-	rec := httptest.NewRecorder()
-
-	metricsHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "text/plain" {
-		t.Errorf("Content-Type = %q, want %q", ct, "text/plain")
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, "copilot_metrics_up 1") {
-		t.Errorf("body should contain gauge metric, got: %s", body)
-	}
-	if !strings.Contains(body, "# HELP") {
-		t.Errorf("body should contain HELP comment, got: %s", body)
-	}
-	if !strings.Contains(body, "# TYPE") {
-		t.Errorf("body should contain TYPE comment, got: %s", body)
-	}
-}
 
 func TestIngestDay_DeleteError(t *testing.T) {
 	ctx := t.Context()

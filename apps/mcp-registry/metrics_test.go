@@ -20,6 +20,7 @@ func TestNormalizePath(t *testing.T) {
 		{"/ready", "/ready"},
 		{"/metrics", "/metrics"},
 		{"/", "/"},
+		{"/wp-admin", "other"},
 	}
 
 	for _, tt := range tests {

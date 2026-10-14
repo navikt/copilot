@@ -102,7 +102,7 @@ jobs:
         env:
           COPILOT_GITHUB_TOKEN: ${{ github.token }}
         run: |
-          npm install -g @github/copilot
+          npm install -g --ignore-scripts @github/copilot@1.0.97
           # ponytail: one argument holds 128 KiB on Linux, so the transcripts
           # stop at 100000 characters. Pass them as a file if they outgrow that.
           prompt="$(cat cli/nav-pilot/e2e/UX_RUBRIC.md)
@@ -168,7 +168,7 @@ jobs:
           TITLE: Weekly nav-pilot persona run
         run: |
           n=$(gh issue list -R "$GITHUB_REPOSITORY" --label dx-uat --state open --limit 500 --json number,title \
-            --jq "map(select(.title == \"$TITLE\"))[0].number // empty")
+            --jq 'map(select(.title == env.TITLE))[0].number // empty')
           if [ -z "$n" ]; then
             gh issue create -R "$GITHUB_REPOSITORY" --title "$TITLE" --label dx-uat --body-file "$RUNNER_TEMP/report.md"
           else

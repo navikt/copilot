@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zalando/go-keyring"
+
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
@@ -53,6 +55,7 @@ var errOfflineForTests = errors.New("offline: the test binary starts without bas
 var vakt = nettvakt{ekte: http.DefaultTransport}
 
 func TestMain(m *testing.M) {
+	keyring.MockInit()
 	// Both doors: http.DefaultTransport covers every client built without a
 	// transport of its own, httpClient is the one client that brings one. A
 	// third client that constructs its own transport would slip past both, so

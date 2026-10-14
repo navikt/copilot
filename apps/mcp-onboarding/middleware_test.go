@@ -11,7 +11,7 @@ import (
 
 func TestAuthMiddleware_NoAuthHeader(t *testing.T) {
 	store := newTestStore()
-	mw := NewAuthMiddleware(store)
+	mw := NewAuthMiddleware(store, "https://mcp.example.com")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called")
@@ -32,7 +32,7 @@ func TestAuthMiddleware_NoAuthHeader(t *testing.T) {
 
 func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 	store := newTestStore()
-	mw := NewAuthMiddleware(store)
+	mw := NewAuthMiddleware(store, "https://mcp.example.com")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called")
@@ -50,7 +50,7 @@ func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 
 func TestAuthMiddleware_InvalidToken(t *testing.T) {
 	store := newTestStore()
-	mw := NewAuthMiddleware(store)
+	mw := NewAuthMiddleware(store, "https://mcp.example.com")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called")
@@ -74,7 +74,7 @@ func TestAuthMiddleware_ExpiredToken(t *testing.T) {
 		UserID:            12345,
 		ExpiresAt:         time.Now().Add(-1 * time.Hour),
 	})
-	mw := NewAuthMiddleware(store)
+	mw := NewAuthMiddleware(store, "https://mcp.example.com")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called for expired token")
@@ -98,7 +98,7 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 		UserID:            42,
 		ExpiresAt:         time.Now().Add(1 * time.Hour),
 	})
-	mw := NewAuthMiddleware(store)
+	mw := NewAuthMiddleware(store, "https://mcp.example.com")
 
 	var gotUser *UserContext
 	handler := mw.Authenticate(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -130,14 +130,20 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 
 func TestAuthMiddleware_UnauthorizedResponse(t *testing.T) {
 	store := newTestStore()
-	mw := NewAuthMiddleware(store)
+	mw := NewAuthMiddleware(store, "https://mcp.example.com/")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 
 	req := httptest.NewRequest("GET", "/mcp", nil)
-	req.Host = "example.com"
+	req.Host = "attacker.example.com"
+	req.Header.Set("X-Forwarded-Proto", "http")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
+
+	wantHeader := `Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"`
+	if got := w.Header().Get("WWW-Authenticate"); got != wantHeader {
+		t.Errorf("expected WWW-Authenticate %q, got %q", wantHeader, got)
+	}
 
 	var body map[string]string
 	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
@@ -145,27 +151,6 @@ func TestAuthMiddleware_UnauthorizedResponse(t *testing.T) {
 	}
 	if body["error"] != "unauthorized" {
 		t.Errorf("expected error 'unauthorized', got %q", body["error"])
-	}
-}
-
-func TestGetBaseURL_HTTP(t *testing.T) {
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Host = "example.com"
-
-	url := getBaseURL(req)
-	if url != "http://example.com" {
-		t.Errorf("expected 'http://example.com', got %q", url)
-	}
-}
-
-func TestGetBaseURL_XForwardedProto(t *testing.T) {
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Host = "example.com"
-	req.Header.Set("X-Forwarded-Proto", "https")
-
-	url := getBaseURL(req)
-	if url != "https://example.com" {
-		t.Errorf("expected 'https://example.com', got %q", url)
 	}
 }
 

@@ -30,14 +30,16 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+  contents: read
 
 jobs:
   sync:
     name: Check model pricing
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
 
@@ -166,6 +168,10 @@ jobs:
   models:
     name: Check model picker
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
 
@@ -257,6 +263,10 @@ jobs:
   local-models:
     name: Refresh the local-model fallback copy
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
 
@@ -357,6 +367,10 @@ jobs:
     needs: [sync, models, local-models]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pull-requests: write
+      issues: write
     steps:
       - name: Enable auto-merge on open sync PRs
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -381,7 +395,7 @@ jobs:
           body="$RUNNER_TEMP/alert.md"
           : > "$body"
           case " $RESULTS " in
-            *" failure "*) echo "A model sync job failed: $RUN_URL" >> "$body" ;;
+            *" failure "*|*" cancelled "*) echo "A model sync job failed: $RUN_URL" >> "$body" ;;
           esac
           for b in chore/model-pricing-sync chore/model-picker-sync chore/local-models-sync; do
             export b

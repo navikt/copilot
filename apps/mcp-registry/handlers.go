@@ -284,7 +284,7 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 		}
 	}
 
-	recordServerLookup(serverName, "not_found")
+	recordServerLookup("unknown", "not_found")
 	slog.Warn("Server not found", "name", serverName, "version", version)
 	http.Error(w, "Server not found", http.StatusNotFound)
 }

@@ -34,6 +34,7 @@ spec:
       external:
         - host: mimir.nav.cloud.nais.io
         - host: bigquery.googleapis.com
+        - host: hooks.slack.com
   resources:
     limits:
       memory: "256Mi"

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -109,7 +110,7 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 // usagePath builds the copilot-api path for a given username, mirroring the
 // route documented in the PRD (issue #337).
 func usagePath(username string) string {
-	return fmt.Sprintf("/api/v1/copilot/usage/user/%s", username)
+	return fmt.Sprintf("/api/v1/copilot/usage/user/%s", url.PathEscape(username))
 }
 
 // isOrgMember asks copilot-api whether login is an active member of the org,

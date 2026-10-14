@@ -57,6 +57,64 @@ describe("isAllowedInstallUrl", () => {
       const url = `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/evil/navikt/main/file.md`;
       expect(isAllowedInstallUrl(url, type)).toBe(false);
     });
+
+    it("should reject percent-encoded path traversal (%2e%2e)", () => {
+      const url = `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/navikt/%2e%2e/evil-org/copilot/main/malicious.md`;
+      expect(isAllowedInstallUrl(url, type)).toBe(false);
+      const upper = `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/navikt/%2E%2E/evil-org/copilot/main/malicious.md`;
+      expect(isAllowedInstallUrl(upper, type)).toBe(false);
+    });
+
+    it("should reject backslashes and encoded slashes/backslashes", () => {
+      expect(
+        isAllowedInstallUrl(
+          `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/navikt\\@evil.com/main/file.md`,
+          type
+        )
+      ).toBe(false);
+      expect(
+        isAllowedInstallUrl(
+          `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/navikt/%5cevil/main/file.md`,
+          type
+        )
+      ).toBe(false);
+      expect(
+        isAllowedInstallUrl(
+          `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/navikt%2fevil/main/file.md`,
+          type
+        )
+      ).toBe(false);
+    });
+
+    it("should reject multiple url params and extra query params", () => {
+      expect(
+        isAllowedInstallUrl(
+          `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/navikt/copilot/main/a.md&url=https://evil.com/b.md`,
+          type
+        )
+      ).toBe(false);
+      expect(
+        isAllowedInstallUrl(
+          `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/navikt/copilot/main/a.md&extra=1`,
+          type
+        )
+      ).toBe(false);
+    });
+
+    it("should reject #hash and @evil.com userinfo", () => {
+      expect(
+        isAllowedInstallUrl(
+          `vscode:${chatPath}/install?url=https://raw.githubusercontent.com/navikt/copilot/main/a.md#hash`,
+          type
+        )
+      ).toBe(false);
+      expect(
+        isAllowedInstallUrl(
+          `vscode:${chatPath}/install?url=https://raw.githubusercontent.com@evil.com/navikt/copilot/main/a.md`,
+          type
+        )
+      ).toBe(false);
+    });
   });
 
   describe("cross-type validation", () => {

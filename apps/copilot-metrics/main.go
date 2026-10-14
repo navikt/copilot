@@ -40,6 +40,11 @@ func main() {
 	flag.Parse()
 
 	config := loadConfig()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: config.LogLevel,
+	}))
+	slog.SetDefault(logger)
+
 	if *mimirDaily {
 		if getEnv("MIMIR_DAILY_ENABLED", "false") != "true" {
 			slog.Info("Mimir daily copy is disabled")
@@ -193,13 +198,7 @@ func main() {
 		return
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: config.LogLevel,
-	}))
-	slog.SetDefault(logger)
-
 	slog.Info("Starting copilot-metrics",
-		"port", config.Port,
 		"enterprise", config.EnterpriseSlug,
 		"org", config.OrganizationSlug,
 		"log_level", config.LogLevel.String(),
@@ -486,38 +485,8 @@ func main() {
 		return
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/ready", readyHandler)
-	mux.HandleFunc("/metrics", metricsHandler)
-
-	server := &http.Server{
-		Addr:         ":" + config.Port,
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	go func() {
-		slog.Info("Server listening", "port", config.Port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Server failed", "error", err)
-			os.Exit(1)
-		}
-	}()
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
-
-	slog.Info("Shutting down...")
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer shutdownCancel()
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("Shutdown error", "error", err)
-	}
+	slog.Error("No job flag specified (expected --run-once, --backfill, --mimir-daily, or a billing flag)")
+	os.Exit(1)
 }
 
 type ingestStep struct {
@@ -976,26 +945,6 @@ func upsertReport(
 		}
 	}
 	return insertFn(ctx, day, result.Scope, result.ScopeID, result.Records)
-}
-
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, `{"status":"healthy"}`)
-}
-
-func readyHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, `{"status":"ready"}`)
-}
-
-func metricsHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, "# HELP copilot_metrics_up Application is up\n")
-	_, _ = fmt.Fprint(w, "# TYPE copilot_metrics_up gauge\n")
-	_, _ = fmt.Fprint(w, "copilot_metrics_up 1\n")
 }
 
 // ingestCurrentMonthBilling fetches and stores billing data for the current and previous month.

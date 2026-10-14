@@ -9,11 +9,13 @@ const TOKEN_EXCHANGE_TIMEOUT_MS = 5000;
 // while the backend cache is warming).
 const BACKEND_REQUEST_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 60000 : 15000;
 
-// Local dev: no Texas sidecar means no token exchange endpoint.
-// Use this check (not NAIS_CLUSTER_NAME) to stay consistent with auth.ts
-// and to handle cases where NAIS_CLUSTER_NAME is set in .env.local but
-// there is no Texas sidecar running.
-const isLocalDev = !process.env.NAIS_TOKEN_EXCHANGE_ENDPOINT;
+function isLocalDev(): boolean {
+  return (
+    process.env.NODE_ENV === "development" &&
+    !process.env.NAIS_CLUSTER_NAME &&
+    !process.env.NAIS_TOKEN_EXCHANGE_ENDPOINT
+  );
+}
 
 /**
  * Error thrown when the backend API responds with a non-2xx status.
@@ -136,7 +138,7 @@ async function backendRequest<T>(path: string, userToken: string, options: Reque
     "Content-Type": "application/json",
   };
 
-  if (!isLocalDev) {
+  if (!isLocalDev()) {
     const oboToken = await exchangeToken(userToken);
     headers.Authorization = `Bearer ${oboToken}`;
   }

@@ -536,3 +536,37 @@ func TestBuildTeamMapFailsWhenTeamLookupFails(t *testing.T) {
 		t.Fatal("expected error when a team's repos cannot be listed")
 	}
 }
+
+func TestScanBatchFailsOnGraphQLErrors(t *testing.T) {
+	repos := []RepoInfo{{Name: "repo-a", DefaultBranch: "main"}}
+	criteria := []SearchCriteria{
+		{Category: "copilot_instructions", TreePath: ".github/copilot-instructions.md", CheckType: CheckFile},
+	}
+
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{
+			name: "partial error with data",
+			body: `{"data":{"repo0":null},"errors":[{"message":"Resource not accessible by integration"}]}`,
+		},
+		{
+			name: "empty data without errors",
+			body: `{"data":{}}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &GitHubClient{httpClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(tc.body)),
+					Header:     http.Header{},
+				}, nil
+			})}}
+			if _, _, err := c.scanBatch(context.Background(), "navikt", repos, criteria); err == nil {
+				t.Fatal("expected scanBatch to return an error")
+			}
+		})
+	}
+}

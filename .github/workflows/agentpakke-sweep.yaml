@@ -223,13 +223,14 @@ jobs:
           required=
           [ -z "$throttled" ] || required=$(printf '%s\n' "$known" | grep -vxF navikt/copilot || true)
 
+          EOF_DELIM="EOF_$(openssl rand -hex 8)"
           {
-            echo 'targets<<SWEEP_EOF'
+            echo "targets<<${EOF_DELIM}"
             printf '%s\n' "$targets"
-            echo SWEEP_EOF
-            echo 'required<<SWEEP_EOF'
+            echo "${EOF_DELIM}"
+            echo "required<<${EOF_DELIM}"
             printf '%s\n' "$required"
-            echo SWEEP_EOF
+            echo "${EOF_DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Sweep

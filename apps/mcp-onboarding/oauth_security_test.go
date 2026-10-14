@@ -86,7 +86,8 @@ func runChain(t *testing.T, mux *http.ServeMux, clientID, redirectURI string) (a
 	t.Helper()
 
 	authorize = do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+
-		"&redirect_uri="+url.QueryEscape(redirectURI)+"&state=client-state", nil))
+		"&redirect_uri="+url.QueryEscape(redirectURI)+"&state=client-state"+
+		"&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil))
 	if authorize.Code != http.StatusFound {
 		return authorize, nil, nil
 	}
@@ -109,10 +110,11 @@ func runChain(t *testing.T, mux *http.ServeMux, clientID, redirectURI string) (a
 		t.Fatalf("callback: bad Location: %v", err)
 	}
 	form := url.Values{
-		"grant_type":   {"authorization_code"},
-		"code":         {cbURL.Query().Get("code")},
-		"client_id":    {clientID},
-		"redirect_uri": {redirectURI},
+		"grant_type":    {"authorization_code"},
+		"code":          {cbURL.Query().Get("code")},
+		"client_id":     {clientID},
+		"redirect_uri":  {redirectURI},
+		"code_verifier": {testCodeVerifier},
 	}
 	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -193,6 +195,18 @@ func TestHandleAuthorize_EmptyRedirectURI_Rejected(t *testing.T) {
 	w := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+clientID+"&state=abc", nil))
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for empty redirect_uri, got %d (Location=%q)", w.Code, w.Header().Get("Location"))
+	}
+}
+
+func TestHandleAuthorize_MissingCodeChallenge_Rejected(t *testing.T) {
+	mux, _ := newChainTestServer(t)
+	redirectURI := "http://127.0.0.1:33418/callback"
+	clientID := registerClient(t, mux, redirectURI)
+
+	w := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+
+		"&redirect_uri="+url.QueryEscape(redirectURI)+"&state=abc", nil))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 when code_challenge is missing, got %d (Location=%q)", w.Code, w.Header().Get("Location"))
 	}
 }
 
@@ -424,7 +438,8 @@ func TestTokenEndpoint_CrossClientRedemption_Rejected(t *testing.T) {
 
 	// Mint a code for A, stopping just before the token request.
 	authorize := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientA)+
-		"&redirect_uri="+url.QueryEscape(redirectURI)+"&state=client-state", nil))
+		"&redirect_uri="+url.QueryEscape(redirectURI)+"&state=client-state"+
+		"&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil))
 	if authorize.Code != http.StatusFound {
 		t.Fatalf("precondition: authorize returned %d: %s", authorize.Code, authorize.Body.String())
 	}
@@ -448,10 +463,11 @@ func TestTokenEndpoint_CrossClientRedemption_Rejected(t *testing.T) {
 
 	// Redeem it as B.
 	form := url.Values{
-		"grant_type":   {"authorization_code"},
-		"code":         {code},
-		"client_id":    {clientB},
-		"redirect_uri": {redirectURI},
+		"grant_type":    {"authorization_code"},
+		"code":          {code},
+		"client_id":     {clientB},
+		"redirect_uri":  {redirectURI},
+		"code_verifier": {testCodeVerifier},
 	}
 	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -690,14 +706,14 @@ func TestRegister_MixedRedirectURIs_FiltersRatherThanRejects(t *testing.T) {
 
 	// The dropped URI does not authorise...
 	authz := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(resp.ClientID)+
-		"&redirect_uri="+url.QueryEscape(httpsURI)+"&state=abc", nil))
+		"&redirect_uri="+url.QueryEscape(httpsURI)+"&state=abc&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil))
 	if authz.Code == http.StatusFound {
 		t.Fatalf("filtered-out https redirect_uri authorised: %s", authz.Header().Get("Location"))
 	}
 
 	// ...while the one the client actually redeems at still does.
 	ok := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(resp.ClientID)+
-		"&redirect_uri="+url.QueryEscape(testRedirectURI)+"&state=abc", nil))
+		"&redirect_uri="+url.QueryEscape(testRedirectURI)+"&state=abc&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil))
 	if ok.Code != http.StatusFound {
 		t.Fatalf("kept loopback redirect_uri should authorise, got %d: %s", ok.Code, ok.Body.String())
 	}
@@ -718,7 +734,7 @@ func TestAuthorize_PreExistingHTTPSClientID_Rejected(t *testing.T) {
 		Nonce:        generateSecureToken(8),
 	})
 	w := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(legacy)+
-		"&redirect_uri="+url.QueryEscape("https://attacker.example/cb")+"&state=abc", nil))
+		"&redirect_uri="+url.QueryEscape("https://attacker.example/cb")+"&state=abc&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil))
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for a signed client_id with an https redirect_uri, got %d: %s", w.Code, w.Body.String())
 	}
@@ -732,7 +748,7 @@ func TestAuthorize_PreExistingHTTPSClientID_Rejected(t *testing.T) {
 		Nonce:        generateSecureToken(8),
 	})
 	if w := do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(fresh)+
-		"&redirect_uri="+url.QueryEscape(testRedirectURI)+"&state=abc", nil)); w.Code != http.StatusFound {
+		"&redirect_uri="+url.QueryEscape(testRedirectURI)+"&state=abc&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil)); w.Code != http.StatusFound {
 		t.Fatalf("control: a loopback client_id should authorise, got %d: %s", w.Code, w.Body.String())
 	}
 }

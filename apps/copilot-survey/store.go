@@ -5,27 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"math/rand/v2"
-	"slices"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 )
-
-// queuedAnswers is the size of each survey's in-memory queue, set under
-// s.mu whenever a queue changes. The process cannot count what a crash
-// loses; the last value scraped before a restart is the nearest estimate,
-// since submissions and writes between that scrape and the crash are not
-// in it. A loss at shutdown (flush) is logged, not counted: /metrics is
-// already closed by then, so a counter would never be scraped.
-var queuedAnswers = promauto.NewGaugeVec(prometheus.GaugeOpts{
-	Name: "survey_queued_answers",
-	Help: "Survey answers queued in memory, not written yet.",
-}, []string{"survey"})
 
 // The data model: two tables with nothing in common but the survey id.
 //
@@ -35,13 +19,11 @@ var queuedAnswers = promauto.NewGaugeVec(prometheus.GaugeOpts{
 //   - survey_answers holds the answers: no identifier, no hash, no row id, no
 //     time.
 //
-// Each survey queues submissions in memory and writes answerBatch of them at
-// once: their participation rows and their answers, each shuffled, in one
-// transaction. With answerBatch = 1 every submission is written at once, so
-// commit time and transaction id link an answer to its participation row
-// while the survey is open; the participation rows are deleted when it
-// closes. A failed write is undone and reported, so the sender can send the
-// answer again; only answers below answerBatch wait in the queue.
+// Each submission is written at once in one transaction: its participation row
+// and its answer. While the survey is open, commit time and transaction id link
+// an answer to its participation row; the participation rows are deleted when
+// it closes. A failed write is undone and reported, so the sender can send the
+// answer again.
 const schema = `
 CREATE TABLE IF NOT EXISTS survey_participation (
 	survey_id        text NOT NULL,
@@ -74,29 +56,9 @@ CREATE TABLE IF NOT EXISTS survey_freetext_hidden (
 	PRIMARY KEY (survey_id, field, text_hash)
 )`
 
-// answerBatch is how many queued submissions trigger a write. 1: written at
-// once (owner, 2026-10-13: the data is down-classified; it used to be 10,
-// to place an answer among 10 participants while a survey is open).
-const answerBatch = 1
-
 type surveyStore struct {
 	pool *pgxpool.Pool
 	defs []survey // for closeOut: final aggregates and next-round retention
-
-	mu     sync.Mutex
-	queues map[string]*surveyQueue
-}
-
-// surveyQueue is one survey's submissions not written yet.
-//
-// ponytail: in memory, in one pod (replicas max 1: a second pod would have
-// its own queue and dedup). A graceful shutdown writes them as a smaller
-// batch (flush); only a crash or a failed write loses them, and their
-// senders may then answer again.
-type surveyQueue struct {
-	closesOn time.Time
-	hashes   map[string]bool
-	answers  []response
 }
 
 func openSurveyStore(ctx context.Context, dbURL string) (*surveyStore, error) {
@@ -108,109 +70,46 @@ func openSurveyStore(ctx context.Context, dbURL string) (*surveyStore, error) {
 		pool.Close()
 		return nil, fmt.Errorf("creating schema: %w", err)
 	}
-	return &surveyStore{pool: pool, queues: map[string]*surveyQueue{}}, nil
+	return &surveyStore{pool: pool}, nil
 }
 
-// submit queues one submission. false means hash already answered, written
-// or queued. When the write it triggers fails, the submission is taken out
-// of the queue again and the error returned: the sender still has the answer
-// and can send it again, while a queued answer dies with the pod.
+// submit writes one submission in a single transaction. false means hash
+// already answered. When the write fails, the transaction rolls back and the
+// error is returned so the sender can send the answer again.
 func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesOn time.Time, r response) (bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	q := s.queues[surveyID]
-	if q == nil {
-		q = &surveyQueue{closesOn: closesOn, hashes: map[string]bool{}}
-		s.queues[surveyID] = q
+	answers, err1 := json.Marshal(r.Answers)
+	versions, err2 := json.Marshal(r.QuestionVersions)
+	techCtx, err3 := json.Marshal(r.Context)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return false, fmt.Errorf("encoding answers")
 	}
-	if q.hashes[hash] {
-		return false, nil
-	}
-	var seen bool
-	err := s.pool.QueryRow(ctx,
-		`SELECT EXISTS (SELECT 1 FROM survey_participation WHERE survey_id = $1 AND participant_hash = $2)`,
-		surveyID, hash).Scan(&seen)
-	if err != nil || seen {
-		return false, err
-	}
-	prev := slices.Clone(q.answers) // writeLocked shuffles q.answers in place
-	q.hashes[hash] = true
-	q.answers = append(q.answers, r)
-	if len(q.answers) >= answerBatch {
-		if err := s.writeLocked(ctx, surveyID, q); err != nil {
-			delete(q.hashes, hash)
-			q.answers = prev
-			queuedAnswers.WithLabelValues(surveyID).Set(float64(len(q.answers)))
-			return false, err
+	fresh := false
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx,
+			`INSERT INTO survey_participation (survey_id, participant_hash, closes_on) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+			surveyID, hash, closesOn)
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
 		}
-	}
-	queuedAnswers.WithLabelValues(surveyID).Set(float64(len(q.answers)))
-	return true, nil
+		_, err = tx.Exec(ctx,
+			`INSERT INTO survey_answers (survey_id, answers, question_versions, context, delete_after) VALUES ($1, $2, $3, $4, $5)`,
+			surveyID, answers, versions, techCtx, r.DeleteAfter)
+		if err != nil {
+			return err
+		}
+		fresh = true
+		return nil
+	})
+	return fresh, err
 }
 
-// answered: hash has answered surveyID, queued or written.
+// answered: hash has answered surveyID.
 func (s *surveyStore) answered(ctx context.Context, surveyID, hash string) (bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if q := s.queues[surveyID]; q != nil && q.hashes[hash] {
-		return true, nil
-	}
 	var seen bool
 	err := s.pool.QueryRow(ctx,
 		`SELECT EXISTS (SELECT 1 FROM survey_participation WHERE survey_id = $1 AND participant_hash = $2)`,
 		surveyID, hash).Scan(&seen)
 	return seen, err
-}
-
-func (s *surveyStore) writeLocked(ctx context.Context, surveyID string, q *surveyQueue) error {
-	hashes := make([]string, 0, len(q.hashes))
-	for h := range q.hashes {
-		hashes = append(hashes, h)
-	}
-	rand.Shuffle(len(hashes), func(i, j int) { hashes[i], hashes[j] = hashes[j], hashes[i] })
-	rand.Shuffle(len(q.answers), func(i, j int) { q.answers[i], q.answers[j] = q.answers[j], q.answers[i] })
-
-	batch := &pgx.Batch{}
-	for _, h := range hashes {
-		batch.Queue(`INSERT INTO survey_participation (survey_id, participant_hash, closes_on) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-			surveyID, h, q.closesOn)
-	}
-	for _, r := range q.answers {
-		answers, err1 := json.Marshal(r.Answers)
-		versions, err2 := json.Marshal(r.QuestionVersions)
-		techCtx, err3 := json.Marshal(r.Context)
-		if err1 != nil || err2 != nil || err3 != nil {
-			return fmt.Errorf("encoding answers")
-		}
-		batch.Queue(`INSERT INTO survey_answers (survey_id, answers, question_versions, context, delete_after) VALUES ($1, $2, $3, $4, $5)`,
-			surveyID, answers, versions, techCtx, r.DeleteAfter)
-	}
-	if err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error { return tx.SendBatch(ctx, batch).Close() }); err != nil {
-		return err
-	}
-	q.hashes, q.answers = map[string]bool{}, nil
-	queuedAnswers.WithLabelValues(surveyID).Set(0)
-	return nil
-}
-
-// flush writes every queued submission at shutdown, also batches smaller
-// than answerBatch. Losing answers on every deploy is the larger harm; the
-// data is down-classified (owner, 2026-10-13). It returns how many answers
-// could not be written.
-func (s *surveyStore) flush(ctx context.Context) int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	lost := 0
-	for id, q := range s.queues {
-		if len(q.answers) == 0 {
-			continue
-		}
-		if err := s.writeLocked(ctx, id, q); err != nil {
-			slog.Error("survey: writing queued submissions at shutdown failed", "survey", id, "error_type", fmt.Sprintf("%T", err))
-			lost += len(q.answers)
-		}
-	}
-	return lost
 }
 
 // purgeExpired runs retain once at start and then daily.
@@ -225,24 +124,12 @@ func (s *surveyStore) purgeExpired(ctx context.Context, now func() time.Time) {
 	}
 }
 
-// retain closes out surveys that no longer take answers: writes their last,
-// smaller batch, writes their final aggregates (closeOut) and then deletes
-// their participation rows (their keys are
-// deleted by hand, see README). It also deletes answers past retention.
+// retain closes out surveys that no longer take answers: writes their final
+// aggregates (closeOut) and then deletes their participation rows (their keys
+// are deleted by hand, see README). It also deletes answers past retention.
 func (s *surveyStore) retain(parent context.Context, now time.Time) {
 	ctx, cancel := context.WithTimeout(parent, time.Minute)
 	defer cancel()
-	s.mu.Lock()
-	for id, q := range s.queues {
-		if !now.Before(q.closesOn) {
-			if err := s.writeLocked(ctx, id, q); err != nil {
-				slog.Error("survey: writing the last queued answers failed", "survey", id, "error_type", fmt.Sprintf("%T", err))
-				continue
-			}
-			delete(s.queues, id)
-		}
-	}
-	s.mu.Unlock()
 	s.closeOut(ctx, now)
 	today := now.UTC().Truncate(24 * time.Hour)
 	ids := make([]string, len(s.defs))

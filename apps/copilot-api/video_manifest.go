@@ -194,6 +194,7 @@ func objectURL(baseURL, objectPath string) (string, error) {
 
 type videoManifestCache struct {
 	mu            sync.Mutex
+	reloadMu      sync.Mutex
 	source        string
 	ttl           time.Duration
 	now           func() time.Time
@@ -216,6 +217,17 @@ func newVideoManifestCache(source string, ttl time.Duration) *videoManifestCache
 }
 
 func (c *videoManifestCache) get(ctx context.Context) ([]VideoManifestEntry, error) {
+	c.mu.Lock()
+	if c.loaded && c.now().Before(c.expiresAt) {
+		entries := cloneVideoManifestEntries(c.cachedEntries)
+		c.mu.Unlock()
+		return entries, nil
+	}
+	c.mu.Unlock()
+
+	c.reloadMu.Lock()
+	defer c.reloadMu.Unlock()
+
 	c.mu.Lock()
 	if c.loaded && c.now().Before(c.expiresAt) {
 		entries := cloneVideoManifestEntries(c.cachedEntries)

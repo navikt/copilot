@@ -139,7 +139,7 @@ spec:
             app: copilot-api
           annotations:
             summary: More than 20 SAML name-id lookups in copilot-api in 5 minutes
-            consequence: Something is resolving many GitHub logins to e-mails. In dev-gcp that is copilot-survey, and copilot-cli may be answering surveys on behalf of members. In prod-gcp nothing should call this route yet.
+            consequence: Something is resolving many GitHub logins to e-mails. copilot-survey calls this route on survey status and submission requests from copilot-cli on behalf of members.
             action: Compare with survey_submissions_total on copilot-survey and check copilot-cli's logs for the same window (see SECURITY.md).
 ---
 # Sends this app's custom alerts to #github-copilot-alerts instead of the team

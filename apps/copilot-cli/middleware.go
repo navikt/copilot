@@ -54,6 +54,13 @@ type authenticator struct {
 	// than the global rate.
 	mu       sync.Mutex
 	perToken map[string]*tokenBucket
+	inflight map[string]*inflightCheck
+}
+
+type inflightCheck struct {
+	done chan struct{}
+	user *AuthenticatedUser
+	err  error
 }
 
 type tokenBucket struct {
@@ -103,11 +110,38 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 	if user, ok, err := a.cache.get(token); ok {
 		return user, err
 	}
+	key := hashToken(token)
+
+	a.mu.Lock()
+	if call, ok := a.inflight[key]; ok {
+		a.mu.Unlock()
+		select {
+		case <-call.done:
+			return call.user, call.err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	if a.inflight == nil {
+		a.inflight = make(map[string]*inflightCheck)
+	}
+	call := &inflightCheck{done: make(chan struct{})}
+	a.inflight[key] = call
+	a.mu.Unlock()
+
+	defer func() {
+		a.mu.Lock()
+		delete(a.inflight, key)
+		a.mu.Unlock()
+		close(call.done)
+	}()
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	if !a.allow(hashToken(token)) {
-		return nil, errRateLimited
+	if !a.allow(key) {
+		call.err = errRateLimited
+		return nil, call.err
 	}
 	user, err := a.github.resolveUser(ctx, token)
 	if err == nil {
@@ -126,8 +160,10 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 		a.cache.set(token, nil, err)
 	}
 	if err != nil {
+		call.err = err
 		return nil, err
 	}
+	call.user = user
 	return user, nil
 }
 
@@ -135,6 +171,8 @@ var (
 	errNotOrgMember = errors.New("not a member of the GitHub organisation")
 	errRateLimited  = errors.New("too many sign-in attempts, try again shortly")
 )
+
+const maxTokenCacheEntries = 256
 
 // tokenCache remembers a token's outcome for a short while, keyed by a hash
 // of the token so the raw token is never kept. A success is never kept past
@@ -174,9 +212,10 @@ func (c *tokenCache) get(token string) (*AuthenticatedUser, bool, error) {
 }
 
 func (c *tokenCache) set(token string, user *AuthenticatedUser, err error) {
-	expires := time.Now().Add(c.negTTL)
+	now := time.Now()
+	expires := now.Add(c.negTTL)
 	if err == nil {
-		expires = time.Now().Add(c.ttl)
+		expires = now.Add(c.ttl)
 		if !user.expiresAt.IsZero() && user.expiresAt.Before(expires) {
 			expires = user.expiresAt
 		}
@@ -187,8 +226,15 @@ func (c *tokenCache) set(token string, user *AuthenticatedUser, err error) {
 	// A token GitHub called invalid never turns valid again, so no outcome
 	// from a check that started earlier may replace the refusal (say, one
 	// that raced a revoke).
-	if old, ok := c.entries[key]; ok && errors.Is(old.err, errInvalidToken) && time.Now().Before(old.expiresAt) {
+	if old, ok := c.entries[key]; ok && errors.Is(old.err, errInvalidToken) && now.Before(old.expiresAt) {
 		return
+	}
+	if _, exists := c.entries[key]; !exists && len(c.entries) >= maxTokenCacheEntries {
+		for k, v := range c.entries {
+			if !now.Before(v.expiresAt) {
+				delete(c.entries, k)
+			}
+		}
 	}
 	c.entries[key] = cacheEntry{user: user, err: err, expiresAt: expires}
 }

@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,7 +25,6 @@ func main() {
 	slog.SetDefault(logger)
 
 	slog.Info("Starting copilot-adoption",
-		"port", config.Port,
 		"org", config.OrganizationSlug,
 		"log_level", config.LogLevel.String(),
 		"batch_size", config.GraphQLBatchSize,
@@ -93,78 +91,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *runOnce {
-		slack := NewSlackNotifier(config.SlackWebhookURL)
-		today := time.Now().UTC().Truncate(24 * time.Hour)
-		if err := RunScan(ctx, ghClient, bqClient, config, today, slack); err != nil {
-			slog.Error("Scan failed", "error", err)
-			if slack != nil {
-				slack.NotifyError(ctx, fmt.Sprintf("Scan failed: %v", err))
-			}
-			os.Exit(1)
+	slack := NewSlackNotifier(config.SlackWebhookURL)
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	if err := RunScan(ctx, ghClient, bqClient, config, today, slack); err != nil {
+		slog.Error("Scan failed", "error", err)
+		if slack != nil {
+			slack.NotifyError(ctx, fmt.Sprintf("Scan failed: %v", err))
 		}
-		slog.Info("Scan completed successfully")
-		return
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/ready", readyHandler)
-	mux.HandleFunc("/metrics", metricsHandler)
-
-	server := &http.Server{
-		Addr:         ":" + config.Port,
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	// Channel to receive server errors
-	serverErrCh := make(chan error, 1)
-	go func() {
-		slog.Info("Server listening", "port", config.Port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			serverErrCh <- err
-		}
-	}()
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-sigCh:
-		slog.Info("Received shutdown signal")
-	case err := <-serverErrCh:
-		slog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
-
-	slog.Info("Shutting down...")
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer shutdownCancel()
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("Shutdown error", "error", err)
-	}
-}
-
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, `{"status":"healthy"}`)
-}
-
-func readyHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, `{"status":"ready"}`)
-}
-
-func metricsHandler(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprint(w, "# HELP copilot_adoption_up Application is up\n")
-	_, _ = fmt.Fprint(w, "# TYPE copilot_adoption_up gauge\n")
-	_, _ = fmt.Fprint(w, "copilot_adoption_up 1\n")
+	slog.Info("Scan completed successfully")
 }

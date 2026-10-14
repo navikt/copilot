@@ -88,7 +88,7 @@ func main() {
 		"skills", len(manifest.Skills),
 	)
 	mcpHandler := NewMCPHandler(githubClient, discoveryService)
-	authMiddleware := NewAuthMiddleware(store)
+	authMiddleware := NewAuthMiddleware(store, cfg.BaseURL)
 
 	mux := http.NewServeMux()
 

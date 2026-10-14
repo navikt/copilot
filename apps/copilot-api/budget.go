@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
 
-const budgetCacheTTL = 30 * time.Minute
+const (
+	budgetCacheTTL = 30 * time.Minute
+	maxPages       = 50
+)
 
 // BudgetEntry represents a single entry from the enterprise billing budgets API.
 type BudgetEntry struct {
@@ -94,15 +99,14 @@ func (c *BudgetClient) getEnterpriseBudgets(ctx context.Context) ([]BudgetEntry,
 // fetchAllBudgetPages paginates through the enterprise billing budgets endpoint.
 func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, error) {
 	var all []BudgetEntry
-	page := 1
 
-	for {
-		url := fmt.Sprintf(
+	for page := 1; page <= maxPages; page++ {
+		reqURL := fmt.Sprintf(
 			"https://api.github.com/enterprises/%s/settings/billing/budgets?per_page=100&page=%d",
-			c.enterprise, page,
+			url.PathEscape(c.enterprise), page,
 		)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 		if err != nil {
 			return nil, fmt.Errorf("create budget request: %w", err)
 		}
@@ -121,7 +125,7 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 		}
 
 		var result budgetListResponse
-		decodeErr := json.NewDecoder(resp.Body).Decode(&result)
+		decodeErr := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&result)
 		resp.Body.Close()
 		if decodeErr != nil {
 			return nil, fmt.Errorf("decode budgets page %d: %w", page, decodeErr)
@@ -132,7 +136,6 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 		if !result.HasNextPage {
 			break
 		}
-		page++
 	}
 
 	return all, nil
@@ -210,12 +213,12 @@ func (c *BudgetClient) getGlobalBudget(ctx context.Context) (*GlobalBudget, erro
 // Uses the ?user={username} query parameter which returns per-user consumed_amount for all
 // users — both override users and those on the default multi_user_customer budget.
 func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*UserBudget, error) {
-	url := fmt.Sprintf(
+	reqURL := fmt.Sprintf(
 		"https://api.github.com/enterprises/%s/settings/billing/budgets?user=%s",
-		c.enterprise, username,
+		url.PathEscape(c.enterprise), url.QueryEscape(username),
 	)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create user budget request: %w", err)
 	}
@@ -225,7 +228,7 @@ func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*Use
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("fetch user budget: %w", err)
+		return nil, fmt.Errorf("fetch user budget: %T", err)
 	}
 	defer resp.Body.Close()
 
@@ -237,7 +240,7 @@ func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*Use
 	}
 
 	var result userBudgetResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode user budget: %w", err)
 	}
 

@@ -65,8 +65,8 @@ COMMAND_KEYS = ("command", "commandLine", "cmd", "script")
 # her er kommandoen ikke porten sitt bord, uansett hva den ellers inneholder.
 PUBLISHES = re.compile(
     r"""(?x)
-    \bgit\s+(-\S+\s+)*commit\b
-  | \bgh\s+(issue|pr)\s+(create|comment|edit|review)\b
+    \bgit\s+(?:-[Cc]\s+\S+\s+|-\S+\s+)*commit\b
+  | \bgh\s+(?:(?:-R\s+\S+|--repo(?:=|\s+)\S+|-\S+)\s+)*(?:issue|pr|release)\s+(?:(?:-R\s+\S+|--repo(?:=|\s+)\S+|-\S+)\s+)*(?:create|comment|edit|review)\b
     """,
     re.IGNORECASE,
 )
@@ -211,6 +211,12 @@ SELFTEST = [
      _sh("gh issue create --title T --body 'Dette understreker behovet for en port'"), True),
     ("nekter gh pr comment med markør",
      _sh("gh pr comment 569 --body 'Avslutningsvis: dette ser bra ut'"), True),
+    ("nekter git -C <dir> commit med markør",
+     _sh('git -C /tmp commit -m "sømløs integrasjon"'), True),
+    ("nekter gh -R <repo> pr create med markør",
+     _sh("gh -R navikt/copilot pr create --title T --body 'banebrytende endring'"), True),
+    ("nekter gh release create med markør",
+     _sh("gh release create v1.0.0 --notes 'En revolusjonerende utgivelse'"), True),
 
     # ── bare publiserende kommandoer er portens bord ─────────────────────────
     ("slipper gjennom markør i en kommando som ikke publiserer",

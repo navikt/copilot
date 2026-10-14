@@ -38,7 +38,7 @@ func loadConfig() *Config {
 		config.LogLevel = slog.LevelInfo
 	}
 
-	loggedEndpointsStr := getEnv("LOGGED_ENDPOINTS", "/,/allowlist,/mcp-config")
+	loggedEndpointsStr := getEnv("LOGGED_ENDPOINTS", "/v0.1/servers")
 	if loggedEndpointsStr != "" {
 		endpoints := strings.Split(loggedEndpointsStr, ",")
 		for _, endpoint := range endpoints {

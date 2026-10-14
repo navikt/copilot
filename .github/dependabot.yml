@@ -72,6 +72,70 @@ updates:
         versions: [">=16.3"]
     open-pull-requests-limit: 5
 
+  # copilot-api (Go)
+  - package-ecosystem: "gomod"
+    directory: "/apps/copilot-api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    reviewers:
+      - "navikt/copilot"
+    groups:
+      copilot-api-go:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  # copilot-adoption (Go)
+  - package-ecosystem: "gomod"
+    directory: "/apps/copilot-adoption"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    reviewers:
+      - "navikt/copilot"
+    groups:
+      copilot-adoption-go:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  # copilot-cli (Go)
+  - package-ecosystem: "gomod"
+    directory: "/apps/copilot-cli"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    reviewers:
+      - "navikt/copilot"
+    groups:
+      copilot-cli-go:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  # copilot-survey (Go)
+  - package-ecosystem: "gomod"
+    directory: "/apps/copilot-survey"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    reviewers:
+      - "navikt/copilot"
+    groups:
+      copilot-survey-go:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
   # copilot-metrics (Go)
   - package-ecosystem: "gomod"
     directory: "/apps/copilot-metrics"
@@ -132,6 +196,38 @@ updates:
       - "navikt/copilot"
     groups:
       nav-pilot-go:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  # generate-docs (Go)
+  - package-ecosystem: "gomod"
+    directory: "/scripts/generate-docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    reviewers:
+      - "navikt/copilot"
+    groups:
+      generate-docs-go:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  # generate-retired (Go)
+  - package-ecosystem: "gomod"
+    directory: "/scripts/generate-retired"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    reviewers:
+      - "navikt/copilot"
+    groups:
+      generate-retired-go:
         patterns:
           - "*"
     open-pull-requests-limit: 5

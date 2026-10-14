@@ -26,8 +26,8 @@ func TestVerifyPKCE_InvalidChallenge(t *testing.T) {
 }
 
 func TestVerifyPKCE_BothEmpty(t *testing.T) {
-	if !VerifyPKCE("", "") {
-		t.Error("expected PKCE to pass when both verifier and challenge are empty")
+	if VerifyPKCE("", "") {
+		t.Error("expected PKCE to fail when both verifier and challenge are empty")
 	}
 }
 

@@ -980,3 +980,22 @@ func TestOpenCodeV2ArgsWarnsOnDroppedVariant(t *testing.T) {
 		t.Errorf("stderr = %q", b)
 	}
 }
+
+func TestWithOpenCode2UserConfigRejectsFileTraversalAndSymlink(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.txt")
+	mustWrite(t, secret, "secret")
+
+	payload := t.TempDir()
+	if err := os.Symlink(secret, filepath.Join(payload, "link.txt")); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agent":{"trav":{"prompt":"{file:../secret.txt}"},"sym":{"prompt":"{file:./link.txt}"}}}`)
+
+	env := withOpenCode2UserConfig(nil, payload)
+	want := `OPENCODE_CONFIG_CONTENT={"agent":{"trav":{"prompt":"{file:../secret.txt}"},"sym":{"prompt":"{file:./link.txt}"}}}`
+	if len(env) != 1 || env[0] != want {
+		t.Errorf("env = %q\nwant  %q", env, want)
+	}
+}

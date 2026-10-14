@@ -60,7 +60,8 @@ copilot-cli (Go gateway, naisdevice-gated ingress)
 
 An M2M token carries no user claims, so the resolved GitHub username travels in an
 explicit `X-On-Behalf-Of` header, which `copilot-api` trusts only for GET requests
-from a pre-authorized `azp`, and `copilot-survey` only on the answer route. That trust
+from a pre-authorized `azp`, and `copilot-survey` only on
+`GET /api/v1/surveys/{id}/status` and `POST /api/v1/surveys/{id}/responses`. That trust
 path and its limits are set out in [SECURITY.md](./SECURITY.md).
 
 ## Token validation
@@ -182,6 +183,8 @@ accessPolicy:
         namespace: copilot
       - application: copilot-cli
         namespace: copilot
+      - application: copilot-survey
+        namespace: copilot
   outbound:
     external:
       - host: api.github.com
@@ -249,8 +252,7 @@ backend to GitHub or BigQuery.
 The backend is deployed with all endpoints, and every main flow in the frontend goes
 through it via OBO token exchange: `/metrics` on the background-collection pattern,
 BigQuery reads for usage and adoption, GitHub billing, and seat assignment and
-unassignment with audit logging. The one thing still to move is the admin-only debug
-endpoint for raw `repo_scan` BigQuery queries, which is low priority.
+unassignment with audit logging.
 
 ## References
 

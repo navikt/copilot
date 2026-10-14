@@ -79,7 +79,12 @@ describe("getActiveSurveys", () => {
 });
 
 describe("submitAnswers", () => {
-  beforeEach(() => vi.stubEnv("COPILOT_SURVEY_URL", "http://copilot-survey"));
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NAIS_CLUSTER_NAME", "");
+    vi.stubEnv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "");
+    vi.stubEnv("COPILOT_SURVEY_URL", "http://copilot-survey");
+  });
   it.each([
     [201, { status: "recorded" }],
     [409, { status: "duplicate" }],
@@ -103,7 +108,12 @@ describe("submitAnswers", () => {
 });
 
 describe("getSurveyStatus", () => {
-  beforeEach(() => vi.stubEnv("COPILOT_SURVEY_URL", "http://copilot-survey"));
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NAIS_CLUSTER_NAME", "");
+    vi.stubEnv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "");
+    vi.stubEnv("COPILOT_SURVEY_URL", "http://copilot-survey");
+  });
   it.each([
     [200, '{"answered":true}', true],
     [200, '{"answered":false}', false],
