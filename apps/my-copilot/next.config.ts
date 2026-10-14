@@ -44,7 +44,7 @@ const HOST_REDIRECT_SOURCE = "/:path((?!(?:oauth2|api|internal|health)(?:/|$)).*
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["pino", "thread-stream", "@google-cloud/bigquery"],
+  serverExternalPackages: ["pino", "prom-client", "thread-stream", "@google-cloud/bigquery"],
   // sharp 0.35 flyttet lasteren fra lib/*.js til dist/*.cjs og rullet ut
   // plattformvalget til en switch med literale `@img/sharp-<plattform>/sharp.node`.
   // Next sin filsporing finner da .node-bindingen, men aldri søsterpakken

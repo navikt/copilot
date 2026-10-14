@@ -114,6 +114,9 @@ spec:
       # Health (metrics NOT listed — Wonderwall blocks public access, Prometheus scrapes pod directly)
       - /health
       # NOTE: /api/copilot and /api/adoption are NOT listed — Wonderwall enforces auth for APIs
+  prometheus:
+    enabled: true
+    path: /metrics
   observability:
     autoInstrumentation:
       enabled: true
@@ -193,3 +196,99 @@ spec:
   {{#each ingresses as |url|}}
     - {{url}}
   {{/each}}
+---
+# Post-mortem #1804: my-copilot had no alerts. All rules go to
+# #github-copilot-alerts through my-copilot-slack below.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: my-copilot-alerts
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  groups:
+    - name: my-copilot
+      rules:
+        - alert: MyCopilotRequestErrors
+          expr: sum(increase(my_copilot_request_errors_total{namespace="copilot", app="my-copilot"}[10m])) > 0
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: my-copilot
+          annotations:
+            summary: A route handler, server action or page in my-copilot threw an unhandled error
+            consequence: A user got an error page or a failed action, for example a survey answer or an admin action that did not go through.
+            action: Search Loki for "Unhandled request error" in service_name my-copilot. The route field names the failing route.
+        - alert: MyCopilotHigh5xxRate
+          expr: |
+            (
+              sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot", status=~"5.."}[10m]))
+              /
+              sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot"}[10m]))
+            ) > 0.05
+            and
+            sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot"}[10m])) > 50
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: my-copilot
+          annotations:
+            summary: More than 5 % of requests to my-copilot returned 5xx over 10 minutes
+            consequence: Pages or APIs on ki-utvikling.nav.no are failing for a share of users.
+            action: Check the my-copilot pod (restarts, OOM) and its error logs, and whether copilot-api, mcp-registry or copilot-survey is down.
+        # Next.js logs "Failed to find Server Action" itself, outside
+        # onRequestError, so only the logs see it. Nais has no LogQL rules for
+        # teams; loki:service:loglevel:count1m is the log metric it offers.
+        - alert: MyCopilotErrorLogs
+          expr: sum(sum_over_time(loki:service:loglevel:count1m{service_namespace="copilot", service_name="my-copilot", detected_level="error"}[15m:1m])) > 20
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: my-copilot
+          annotations:
+            summary: More than 20 error logs from my-copilot in 15 minutes
+            consequence: Something is failing repeatedly, for example a server action the browser can no longer find after a deploy.
+            action: Search Loki for service_name my-copilot at level error and look for the repeated message.
+---
+# Same pattern as copilot-survey: rules opt in with alert_type: custom and
+# app: my-copilot, and go to #github-copilot-alerts via Nais's slack-webhook.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: my-copilot-slack
+  namespace: copilot
+  labels:
+    alertmanagerConfig: my-copilot-slack
+spec:
+  receivers:
+    - name: my-copilot-slack
+      slackConfigs:
+        - apiURL:
+            name: slack-webhook
+            key: apiUrl
+          channel: "#github-copilot-alerts"
+          sendResolved: true
+          # Nais's own slack.* templates, so messages look like the team default.
+          # The backslash keeps the deploy step's Handlebars from rendering them.
+          title: '\{{ template "slack.title" . }}'
+          text: '\{{ template "slack.text" . }}'
+          color: '\{{ template "slack.color" . }}'
+  route:
+    groupBy:
+      - alertname
+    matchers:
+      # Nais runs the operator without namespace enforcement, so match it here.
+      - name: namespace
+        matchType: "="
+        value: copilot
+      - name: alert_type
+        matchType: "="
+        value: custom
+      - name: app
+        matchType: "="
+        value: my-copilot
+    receiver: my-copilot-slack
