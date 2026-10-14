@@ -16,17 +16,24 @@ export const PRIVATE_PAGE_PATHS = [
   "/nav-pilot/undersokelse",
 ];
 
-export const PRIVATE_API_PATHS = ["/api/copilot", "/api/adoption", "/api/survey", "/statistikk/json"];
+// Every /api route requires a valid token, so a new route is guarded by default.
+// src/proxy.test.ts fails if a route.ts under src/app/api is neither covered nor allowlisted.
+export const PRIVATE_API_PATHS = ["/api", "/statistikk/json"];
+
+// Public API routes: exempt from the token check. They must also be listed in
+// autoLoginIgnorePaths in .nais/app.yaml, or Wonderwall blocks them. None today.
+export const PUBLIC_API_PATHS: string[] = [];
+
+const under = (paths: string[], pathname: string) => paths.some((p) => pathname === p || pathname.startsWith(p + "/"));
 
 export function isPrivatePath(pathname: string): boolean {
-  return (
-    PRIVATE_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
-    PRIVATE_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
-  );
+  return under(PRIVATE_PAGE_PATHS, pathname) || isPrivateApiPath(pathname);
 }
 
 function isPrivateApiPath(pathname: string): boolean {
-  return PRIVATE_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  return (
+    !under(PUBLIC_API_PATHS, pathname) && PRIVATE_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  );
 }
 
 export async function proxy(request: NextRequest) {
@@ -74,8 +81,6 @@ export const config = {
     "/kostnad/:path*",
     "/abonnement/:path*",
     "/nav-pilot/undersokelse/:path*",
-    "/api/copilot/:path*",
-    "/api/adoption/:path*",
-    "/api/survey/:path*",
+    "/api/:path*",
   ],
 };
