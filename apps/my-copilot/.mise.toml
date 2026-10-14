@@ -50,6 +50,15 @@ description = "Start the built server and load every route, failing on render er
 run = "fnox exec -- pnpm dev"
 description = "Start Next.js development server (secrets from Keychain)"
 
+[tasks."e2e:build"]
+run = "bash hack/e2e-build.sh"
+description = "Build the app twice (.e2e/a and .e2e/b), for the deploy-skew e2e test"
+
+[tasks.e2e]
+run = "pnpm exec playwright test"
+depends = ["e2e:build"]
+description = "Playwright: the survey form across a deploy and an expired login (needs `pnpm exec playwright install chromium`)"
+
 [tasks.storybook]
 run = "pnpm storybook"
 description = "Start Storybook on http://localhost:6006"

@@ -17,6 +17,15 @@ const eslintConfig = defineConfig([
     rules: {
       // Disable false positive for already-escaped quotes in JSX
       "react/no-unescaped-entities": "off",
+      // No server actions: an action id dies with each deploy, so a page loaded
+      // before one cannot send (#1804). Use a route handler. See README.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ExpressionStatement[directive='use server']",
+          message: "Ingen server actions: bruk en route handler (#1804, se README).",
+        },
+      ],
     },
   }, // Override default ignores of eslint-config-next.
   globalIgnores([
@@ -29,6 +38,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated local video artifacts:
     "video-packages/**",
+    // Playwright: the two builds from hack/e2e-build.sh, and the test output.
+    ".e2e/**",
+    "test-results/**",
+    "playwright-report/**",
   ]),
   ...storybook.configs["flat/recommended"],
 ]);

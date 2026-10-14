@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Alert, BodyLong, BodyShort, Box, Button, Heading, Search, VStack } from "@navikt/ds-react";
 import { formatNumber } from "@/lib/format";
 import type { FreetextField } from "@/lib/survey";
-import { hideFreetext } from "./actions";
+import { hideFreetext } from "./hide";
 
 function Field({ surveyId, field }: { surveyId: string; field: FreetextField }) {
   const [query, setQuery] = useState("");

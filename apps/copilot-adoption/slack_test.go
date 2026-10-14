@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -117,5 +119,24 @@ func TestSlackNotifier_Channel(t *testing.T) {
 		if received.Channel != tc.want {
 			t.Errorf("SLACK_CHANNEL=%q: channel = %q, want %q", tc.env, received.Channel, tc.want)
 		}
+	}
+}
+
+func TestSlackNotifier_TransportErrorHidesWebhookURL(t *testing.T) {
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	defer slog.SetDefault(prev)
+
+	server := httptest.NewServer(http.NotFoundHandler())
+	server.Close() // connection refused: a transport error
+	s := NewSlackNotifier(server.URL + "/services/T000/B000/secret-token")
+	s.NotifyError(context.Background(), "scan failed")
+
+	if !strings.Contains(logs.String(), "Failed to send Slack notification") {
+		t.Fatalf("no transport error logged (control): %s", logs.String())
+	}
+	if strings.Contains(logs.String(), "secret-token") {
+		t.Errorf("log leaks the webhook URL: %s", logs.String())
 	}
 }

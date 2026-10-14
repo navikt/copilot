@@ -5,10 +5,12 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -104,14 +106,14 @@ func (s *SlackNotifier) send(ctx context.Context, text string) {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.webhookURL, bytes.NewReader(body))
 	if err != nil {
-		slog.Error("Failed to create Slack request", "error", err)
+		slog.Error("Failed to create Slack request") // err holds the webhook URL, a secret
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		slog.Error("Failed to send Slack notification", "error", err)
+		slog.Error("Failed to send Slack notification", "error", safeTransportError(err))
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -124,4 +126,14 @@ func (s *SlackNotifier) send(ctx context.Context, text string) {
 
 	slog.Info("Slack notification sent")
 	s.notified = true
+}
+
+// safeTransportError drops the request URL (the webhook secret) that
+// *url.Error carries in its message.
+func safeTransportError(err error) error {
+	var transport *url.Error
+	if errors.As(err, &transport) {
+		return transport.Err
+	}
+	return err
 }

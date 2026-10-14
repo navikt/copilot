@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 
-vi.mock("./actions", () => ({ hideFreetext: vi.fn(async () => true) }));
+vi.mock("./hide", () => ({ hideFreetext: vi.fn(async () => true) }));
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({
@@ -13,13 +13,18 @@ vi.mock("next/navigation", () => ({
 
 import SurveyFreetextPage from "./page";
 import { FreetextList } from "./freetext-list";
-import { hideFreetext } from "./actions";
+import { hideFreetext } from "./hide";
+import { POST as hideRoute } from "@/app/api/survey/[id]/freetext/hide/route";
 import type { FreetextField } from "@/lib/survey";
 
 const group = "11111111-2222-3333-4444-555555555555";
 const tok = (c: string) => c.repeat(64);
 const realHide = async (id: string, t: string) =>
-  (await vi.importActual<typeof import("./actions")>("./actions")).hideFreetext(id, t);
+  (
+    await hideRoute(new Request("http://x/", { method: "POST", body: JSON.stringify({ token: t }) }), {
+      params: Promise.resolve({ id }),
+    })
+  ).status;
 
 const fields: FreetextField[] = [
   {
@@ -49,24 +54,24 @@ describe("/admin/undersokelser/[id]/fritekst", () => {
     vi.stubEnv("COPILOT_SURVEY_URL", "http://copilot-survey");
   });
 
-  it("gives a non-admin 404, and the action refuses, without calling copilot-survey", async () => {
+  it("gives a non-admin 404, and the hide route refuses, without calling copilot-survey", async () => {
     vi.stubEnv("DEV_USER_GROUPS", "other");
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
     await expect(SurveyFreetextPage({ params: Promise.resolve({ id: "q4-2026" }) })).rejects.toThrow("NEXT_NOT_FOUND");
-    await expect(realHide("q4-2026", tok("a"))).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(await realHide("q4-2026", tok("a"))).toBe(404);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("hides through copilot-survey for an admin", async () => {
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetch);
-    expect(await realHide("q4-2026", tok("a"))).toBe(true);
+    expect(await realHide("q4-2026", tok("a"))).toBe(204);
     expect(fetch).toHaveBeenCalledWith(
       "http://copilot-survey/api/v1/admin/surveys/q4-2026/freetext/hide",
       expect.objectContaining({ method: "POST", body: JSON.stringify({ token: tok("a") }) })
     );
-    expect(await realHide("q4-2026", "not-a-token")).toBe(false);
+    expect(await realHide("q4-2026", "not-a-token")).toBe(502);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
