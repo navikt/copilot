@@ -309,6 +309,7 @@ test("date parsing handles the shapes the page uses", () => {
     parsePromotionEndDate("... through December 31, 2026."),
     "2026-12-31",
   );
+  assert.equal(parsePromotionEndDate("... pricing until December 1, 2026."), "2026-12-01");
   assert.equal(parsePromotionEndDate("... through Smarch 3, 2026."), undefined);
   assert.equal(parsePromotionEndDate("no end date at all"), undefined);
 });
