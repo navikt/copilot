@@ -2,9 +2,10 @@
 // only gate in front of them. A request with no session or token must not
 // reach the page or the data.
 import { NextRequest } from "next/server";
+import { globSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { PRIVATE_ROUTES } from "../scripts/auto-login-ignore-paths.mjs";
-import { config, proxy } from "./proxy";
+import { config, isPrivatePath, PUBLIC_API_PATHS, proxy } from "./proxy";
 
 const API_ROUTES = new Set(["/statistikk/json"]);
 
@@ -33,5 +34,44 @@ describe("proxy without a token", () => {
   it("lets a public route through", async () => {
     const res = await proxy(request("/reisen"));
     expect(res.headers.get("x-middleware-next")).toBe("1");
+  });
+});
+
+// A new route.ts under src/app/api must be behind the token check or be listed in
+// PUBLIC_API_PATHS on purpose. Adding a file here fails this test until it is one or the other.
+describe("every route under src/app/api", () => {
+  const routes = globSync("src/app/api/**/route.ts").map(
+    (f) =>
+      "/" +
+      f
+        .replace(/^src\/app\//, "")
+        .replace(/\/route\.ts$/, "")
+        .replace(/\[[^\]]+\]/g, "x")
+  );
+
+  it("finds the routes", () => expect(routes.length).toBeGreaterThan(5));
+
+  it.each(routes)("%s is guarded or allowlisted", async (path) => {
+    const allowlisted = PUBLIC_API_PATHS.some((p) => path === p || path.startsWith(p + "/"));
+    const matched = config.matcher.some(
+      (m) => path === m.replace("/:path*", "") || path.startsWith(m.replace("/:path*", "") + "/")
+    );
+    if (allowlisted) return;
+    expect(isPrivatePath(path)).toBe(true);
+    expect(matched).toBe(true);
+    expect((await proxy(request(path))).status).toBe(401);
+  });
+});
+
+describe("PUBLIC_API_PATHS", () => {
+  it("lets an allowlisted API path through without a token", async () => {
+    PUBLIC_API_PATHS.push("/api/usage");
+    try {
+      expect(isPrivatePath("/api/usage")).toBe(false);
+      expect((await proxy(request("/api/usage"))).headers.get("x-middleware-next")).toBe("1");
+      expect((await proxy(request("/api/credits"))).status).toBe(401);
+    } finally {
+      PUBLIC_API_PATHS.pop();
+    }
   });
 });

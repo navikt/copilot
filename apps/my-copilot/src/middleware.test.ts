@@ -44,6 +44,8 @@ describe("isPrivatePath", () => {
     ["/api/adoption", true],
     ["/api/adoption/debug", true],
     ["/api/survey/s/responses", true],
+    ["/api/contributors", true],
+    ["/api/usage", true],
   ])("%s → private (%s)", (path, expected) => {
     expect(isPrivatePath(path)).toBe(expected);
   });
@@ -61,7 +63,6 @@ describe("isPrivatePath", () => {
     ["/nav-pilot/docs", false],
     ["/install", false],
     ["/install/agent", false],
-    ["/api/contributors", false],
   ])("%s → public (%s)", (path, expected) => {
     expect(isPrivatePath(path)).toBe(expected);
   });
@@ -118,9 +119,9 @@ describe("proxy", () => {
       expect(NextResponse.redirect).not.toHaveBeenCalled();
     });
 
-    it("passes through /api/contributors without auth", async () => {
+    it("returns 401 for /api/contributors without auth", async () => {
       await proxy(createMockRequest("/api/contributors"));
-      expect(NextResponse.next).toHaveBeenCalled();
+      expect(NextResponse.json).toHaveBeenCalledWith({ error: "Unauthorized" }, { status: 401 });
     });
 
     it("passes through root path", async () => {
