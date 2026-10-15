@@ -85,16 +85,16 @@ const fmtRatio = (v: number | null) => (v !== null ? `${formatNumber(v)}:1` : da
 const mLabel = (m: string, preliminary: boolean) => `${monthName(m)}${preliminary ? " (foreløpig)" : ""}`;
 
 function velocityCohortRow(label: string, c?: RepoVelocityCohort | null): string[] | null {
-  if (!c || c.repos_with_prs === 0) return null;
-  const prsPerRepo = Math.round((c.prs_merged_30d / c.repos_with_prs) * 10) / 10;
+  if (!c || c.active_pr_repos_30d === 0) return null;
+  const prsPerRepo = Math.round((c.prs_merged_30d / c.active_pr_repos_30d) * 10) / 10;
   return [
     label,
-    formatNumber(c.repos_with_prs),
+    formatNumber(c.active_pr_repos_30d),
     formatNumber(c.prs_merged_30d),
     formatNumber(prsPerRepo),
     formatNumber(c.prs_created_by_copilot_30d),
     formatNumber(c.prs_reviewed_by_copilot_30d),
-    formatMinutes(c.avg_median_minutes_to_merge !== null ? Math.round(c.avg_median_minutes_to_merge) : null),
+    formatMinutes(c.avg_median_minutes_to_merge_30d != null ? Math.round(c.avg_median_minutes_to_merge_30d) : null),
   ];
 }
 

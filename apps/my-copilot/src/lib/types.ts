@@ -141,12 +141,13 @@ export interface CLIMetrics {
 }
 
 export interface RepoVelocityCohort {
-  repos_with_prs: number;
+  has_any_customization?: boolean;
+  active_pr_repos_30d: number;
   prs_created_30d: number;
   prs_merged_30d: number;
   prs_created_by_copilot_30d: number;
   prs_reviewed_by_copilot_30d: number;
-  avg_median_minutes_to_merge: number | null;
+  avg_median_minutes_to_merge_30d: number | null;
 }
 
 // AI Customization Adoption types (from copilot_adoption BigQuery views)
@@ -197,9 +198,10 @@ export interface AdoptionSummary {
   repos_with_any_non_copilot_ai: number;
   avg_customization_count: number;
   max_customization_count: number;
-  total_commits_7d?: number;
-  total_commits_30d?: number;
-  total_open_issues?: number;
+  commits_7d_active_repos?: number;
+  commits_30d_active_repos?: number;
+  commits_30d_customized_repos?: number;
+  open_issues_active_repos?: number;
   velocity_customized?: RepoVelocityCohort | null;
   velocity_uncustomized?: RepoVelocityCohort | null;
 }
