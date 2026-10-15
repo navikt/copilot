@@ -167,27 +167,26 @@ function dispatchGate(ctx, directory) {
           // The worker's writes, edits and shell commands: see dispatch-gate.js.
           if (event.agent === "local-worker" && (tool === "write" || tool === "edit" || tool === "shell")) {
             deny = (await ask({ session: event.sessionID, agent: "local-worker", tool: tool === "shell" ? "bash" : tool, create, path: abs(str(args.path)), command: tool === "shell" ? str(args.command) : "", phase: "worker" })).deny ?? ""
-            if (typeof deny === "string" && deny) throw new Error(deny)
           }
-          return
+        } else {
+          const replaceAll = tool === "edit" && args.replaceAll === true
+          const toWorker = tool === "subagent" && args.agent === "local-worker"
+          deny = (
+            await ask({
+              session: event.sessionID,
+              turn: turns.get(event.sessionID) ?? 0,
+              agent,
+              tool: tool === "shell" ? "bash" : tool === "subagent" ? "task" : tool,
+              path: abs(str(args.path)),
+              create,
+              command: tool === "shell" ? str(args.command) : "",
+              subagent: tool === "subagent" ? str(args.agent) : "",
+              prompt: toWorker ? str(args.prompt) : "",
+              replaceAll,
+              old: replaceAll ? str(args.oldString) : "",
+            })
+          ).deny
         }
-        const replaceAll = tool === "edit" && args.replaceAll === true
-        const toWorker = tool === "subagent" && args.agent === "local-worker"
-        deny = (
-          await ask({
-            session: event.sessionID,
-            turn: turns.get(event.sessionID) ?? 0,
-            agent,
-            tool: tool === "shell" ? "bash" : tool === "subagent" ? "task" : tool,
-            path: abs(str(args.path)),
-            create,
-            command: tool === "shell" ? str(args.command) : "",
-            subagent: tool === "subagent" ? str(args.agent) : "",
-            prompt: toWorker ? str(args.prompt) : "",
-            replaceAll,
-            old: replaceAll ? str(args.oldString) : "",
-          })
-        ).deny
       } catch {
         return
       }

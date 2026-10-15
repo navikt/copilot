@@ -305,7 +305,7 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 		}
 		return "", ""
 	case "edit", "write":
-		if r.Path == "" {
+		if r.Path == "" || g.rules.Pinned && PinnedFile(r.Path) {
 			return "", ""
 		}
 		switch exists(g.rules.Root, r.Path) {
@@ -359,6 +359,9 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 	var counted []string
 	sites := 0
 	for _, e := range edits {
+		if g.rules.Pinned && PinnedFile(e.path(g.rules.Root)) {
+			continue
+		}
 		if !st.exempt(e.file) {
 			counted = append(counted, filepath.Base(e.file))
 			sites += e.sites(g.rules.Root)
@@ -534,15 +537,9 @@ func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 			}
 			g.workerWrote[r.Session] = true
 		case "bash":
-			if !g.rules.Pinned {
-				return "", ""
-			}
-			_, edits := shellEdits(r.Command)
-			for _, e := range edits {
-				if PinnedFile(e.file) {
-					g.counts["pinned_deny"]++
-					return "deny", GatePinnedText
-				}
+			if g.rules.Pinned && pinnedShellEdit(g.rules.Root, r.Command) {
+				g.counts["pinned_deny"]++
+				return "deny", GatePinnedText
 			}
 		}
 		return "", ""
@@ -716,6 +713,17 @@ type shellEdit struct {
 	global bool
 }
 
+func (e shellEdit) path(root string) string {
+	path := e.file
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, e.dir, path)
+		if filepath.IsAbs(e.dir) {
+			path = filepath.Join(e.dir, e.file)
+		}
+	}
+	return path
+}
+
 // sites is the number of places the edit changes: the matches of its
 // pattern in the file, per line as sed and perl -p work, and 1 when the gate
 // cannot tell. Only a file under root is read.
@@ -726,13 +734,7 @@ func (e shellEdit) sites(root string) int {
 	if e.re == nil {
 		return 1
 	}
-	path := e.file
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(root, e.dir, path)
-		if filepath.IsAbs(e.dir) {
-			path = filepath.Join(e.dir, e.file)
-		}
-	}
+	path := e.path(root)
 	// Resolved first, so a link cannot lead the read out of the project.
 	if real, err := filepath.EvalSymlinks(path); err == nil {
 		path = real
@@ -837,6 +839,78 @@ func shellEdits(cmd string) (scripted bool, edits []shellEdit) {
 		}
 	}
 	return false, edits
+}
+
+// pinnedShellEdit reports whether cmd runs an in-place sed or perl that names
+// a pinned file, after any preceding cd, or whose target files cannot be
+// resolved statically (a loop variable, glob, xargs or find -exec).
+func pinnedShellEdit(root, cmd string) bool {
+	loop := 0
+	dir := ""
+	unknownDir := false
+	for _, seg := range splitSegments(cmd) {
+		toks := shellWords(seg.text)
+		for len(toks) > 0 && (toks[0] == "do" || toks[0] == "then" || toks[0] == "{" || toks[0] == "(") {
+			toks = toks[1:]
+		}
+		if len(toks) == 0 {
+			continue
+		}
+		switch toks[0] {
+		case "for", "while", "until":
+			loop++
+		case "done":
+			loop = max(0, loop-1)
+		case "cd":
+			switch {
+			case len(toks) != 2 || seg.dynamic:
+				dir = ""
+				unknownDir = true
+			case filepath.IsAbs(toks[1]):
+				dir = toks[1]
+				unknownDir = false
+			default:
+				dir = filepath.Join(dir, toks[1])
+			}
+		}
+		at := -1
+		for j, t := range toks {
+			if b := filepath.Base(t); b == "sed" || b == "gsed" || b == "perl" {
+				at = j
+				break
+			}
+		}
+		if at < 0 {
+			continue
+		}
+		var fs []string
+		var inPlace bool
+		if filepath.Base(toks[at]) == "perl" {
+			fs, _, inPlace = perlFiles(toks[at+1:])
+		} else {
+			fs, _, inPlace, _ = sedFiles(toks[at+1:])
+		}
+		if !inPlace {
+			continue
+		}
+		for _, t := range toks[:at] {
+			if t == "xargs" || t == "-exec" || t == "-execdir" {
+				return true
+			}
+		}
+		if len(fs) == 0 {
+			return true
+		}
+		for _, f := range fs {
+			if strings.ContainsAny(f, "$`*?[]") || (!filepath.IsAbs(f) && (unknownDir || loop > 0 && seg.dynamic)) {
+				return true
+			}
+			if PinnedFile((shellEdit{file: f, dir: dir}).path(root)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // substitution reads an s command with no address (s/pat/repl/flags, any

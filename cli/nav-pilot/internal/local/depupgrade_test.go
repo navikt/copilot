@@ -91,20 +91,49 @@ func TestGatePinnedFiles(t *testing.T) {
 	workerBash := func(cmd string) GateRequest {
 		return GateRequest{Session: "w", Agent: WorkerAgent, Tool: "bash", Command: cmd, Phase: "worker"}
 	}
-	on := newDispatchGate("", GateRules{Pinned: true})
+	on := newDispatchGate("", GateRules{Root: "/repo", Multi: true, Create: true, Pinned: true})
+	on.serverUp = func() bool { return true }
 	for _, p := range []string{"Dockerfile", ".github/workflows/ci.yaml", ".nais/app.yaml", ".tool-versions", "gradle/wrapper/gradle-wrapper.properties"} {
 		if key, text := on.verify(worker(p)); key != "deny" || text != GatePinnedText {
 			t.Errorf("%s: got %q %q, want the pinned refusal", p, key, text)
 		}
 	}
-	if key, text := on.verify(workerBash("sed -i 's/16/18/' Dockerfile")); key != "deny" || text != GatePinnedText {
-		t.Errorf("sed -i Dockerfile: got %q %q, want the pinned refusal", key, text)
+	for _, cmd := range []string{
+		"sed -i 's/16/18/' Dockerfile",
+		"sed -i 's/16/18/' Dockerfile compose.yaml",
+		"cd .github/workflows && sed -i 's/v1/v2/' ci.yaml",
+		`for f in Dockerfile compose.yaml; do sed -i 's/16/18/' "$f"; done`,
+	} {
+		if key, text := on.verify(workerBash(cmd)); key != "deny" || text != GatePinnedText {
+			t.Errorf("%s: got %q %q, want the pinned refusal", cmd, key, text)
+		}
+	}
+	if key, _ := on.verify(workerBash("sed -i 's/foo/bar/' pkg/a.go pkg/b.go")); key != "" {
+		t.Errorf("non-pinned multi-file sed refused: %q", key)
 	}
 	if key, _ := on.verify(workerBash("go test ./...")); key != "" {
 		t.Errorf("go test refused: %q", key)
 	}
 	if key, _ := on.verify(worker("go.mod")); key != "" {
 		t.Errorf("go.mod refused: %q", key)
+	}
+	// The orchestrator keeps pinned files itself without create or multi-file refusals.
+	root := t.TempDir()
+	for _, f := range []string{"Dockerfile", "compose.yaml", ".tool-versions", ".mise.toml"} {
+		os.WriteFile(filepath.Join(root, f), []byte("x\n"), 0o644)
+	}
+	orch := newDispatchGate("", GateRules{Root: root, Multi: true, Create: true, Pinned: true})
+	orch.serverUp = func() bool { return true }
+	if deny, _ := orch.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "write", Create: true, Path: filepath.Join(root, ".github/workflows/ci.yaml")}); deny != "" {
+		t.Errorf("orchestrator creating pinned workflow refused: %q", deny)
+	}
+	for _, f := range []string{"Dockerfile", "compose.yaml", ".tool-versions", ".mise.toml"} {
+		if deny, _ := orch.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "edit", Path: filepath.Join(root, f)}); deny != "" {
+			t.Errorf("orchestrator editing pinned %s refused: %q", f, deny)
+		}
+	}
+	if deny, _ := orch.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "bash", Command: "cd .github/workflows && sed -i 's/v1/v2/' ci.yaml"}); deny != "" {
+		t.Errorf("orchestrator shell-editing pinned workflow refused: %q", deny)
 	}
 	// local_dep_upgrade off: the worker's writes pass exactly as on main.
 	off := newDispatchGate("", GateRules{Multi: true})
