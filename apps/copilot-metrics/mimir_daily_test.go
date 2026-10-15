@@ -189,6 +189,7 @@ func TestMimirSessionRows(t *testing.T) {
 		"2026.08.31-120000-abc": false,
 		"2026.09.28-235959-abc": false,
 		"2026.09.29-063951-abc": false,
+		"2026X09X29-063952-abc": false,
 		"2026.09.29-063952":     true,
 		"2026.09.29-063952-abc": true,
 		"2026.09.29-064000-abc": true,
@@ -199,6 +200,9 @@ func TestMimirSessionRows(t *testing.T) {
 		if got := re.MatchString(ver); got != want {
 			t.Fatalf("minSessionVersionRe.Match(%q) = %v, want %v", ver, got, want)
 		}
+	}
+	if strings.Contains(minSessionVersionRe, `\`) {
+		t.Fatalf("minSessionVersionRe must not contain raw backslashes (PromQL string literal escape error): %s", minSessionVersionRe)
 	}
 
 	devSel := `{version=~"` + minSessionVersionRe + `"}`

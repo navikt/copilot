@@ -83,7 +83,8 @@ func clientCols(extra ...mimirCol) []mimirCol {
 }
 
 // minSessionVersionRe matches release versions >= 2026.09.29-063952 (excludes "dev" and older releases).
-const minSessionVersionRe = `2026\.09\.(29-(06395[2-9]|0639[6-9]|06[4-9]|0[7-9]|[12])|30).*|2026\.1[0-2]\..*|20(2[7-9]|[3-9][0-9])\..*`
+// Uses [.] rather than \. because it is interpolated into a double-quoted PromQL string literal.
+const minSessionVersionRe = `2026[.]09[.](29-(06395[2-9]|0639[6-9]|06[4-9]|0[7-9]|[12])|30).*|2026[.]1[0-2][.].*|20(2[7-9]|[3-9][0-9])[.].*`
 
 // Session series come from newOnlyExporter (one delta per finished session),
 // so sum_over_time adds sessions up without counter-reset artifacts. Instruments
