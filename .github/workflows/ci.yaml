@@ -29,6 +29,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
+  actions: read
   contents: read
   pull-requests: read
 
@@ -38,25 +39,52 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      copilot-adoption: ${{ steps.filter.outputs.copilot-adoption }}
-      copilot-api: ${{ steps.filter.outputs.copilot-api }}
-      copilot-cli: ${{ steps.filter.outputs.copilot-cli }}
-      copilot-survey: ${{ steps.filter.outputs.copilot-survey }}
-      copilot-metrics: ${{ steps.filter.outputs.copilot-metrics }}
-      mcp-onboarding: ${{ steps.filter.outputs.mcp-onboarding }}
-      mcp-registry: ${{ steps.filter.outputs.mcp-registry }}
-      my-copilot: ${{ steps.filter.outputs.my-copilot }}
-      nav-pilot: ${{ steps.filter.outputs.nav-pilot }}
-      docs: ${{ steps.filter.outputs.docs }}
-      link-guard: ${{ steps.filter.outputs.link-guard }}
+      reuse-code-checks: ${{ steps.reuse.outputs.reuse }}
+      copilot-adoption: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-adoption || 'false' }}
+      copilot-api: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-api || 'false' }}
+      copilot-cli: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-cli || 'false' }}
+      copilot-survey: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-survey || 'false' }}
+      copilot-metrics: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-metrics || 'false' }}
+      mcp-onboarding: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-onboarding || 'false' }}
+      mcp-registry: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-registry || 'false' }}
+      my-copilot: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.my-copilot || 'false' }}
+      nav-pilot: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.nav-pilot || 'false' }}
+      docs: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.docs || 'false' }}
+      link-guard: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.link-guard || 'false' }}
     steps:
+      # When a PR description or title is edited (no base branch change, same
+      # head SHA), skip re-running code checks if a completed ci.yaml run on
+      # this exact SHA already passed gitleaks and every component check.
+      - name: Check if code checks already passed for HEAD SHA
+        id: reuse
+        if: github.event_name == 'pull_request' && github.event.action == 'edited' && github.event.changes.base == null
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          runs=$(gh api "repos/${REPO}/actions/workflows/ci.yaml/runs?head_sha=${HEAD_SHA}&event=pull_request&status=completed&per_page=10" \
+            --jq ".workflow_runs[] | select(.id != ${CURRENT_RUN_ID}) | .id" 2>/dev/null || true)
+          for run_id in $runs; do
+            ok=$(gh api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
+              --jq '([.jobs[] | select(.name == "gitleaks" and .conclusion == "success")] | length == 1) and ([.jobs[] | select(.name != "pr-body-check" and .name != "ci-ok")] | (length > 0) and all(.conclusion == "success" or .conclusion == "skipped"))' 2>/dev/null || echo "false")
+            if [ "$ok" = "true" ]; then
+              echo "Reusing green code checks from run ${run_id} for SHA ${HEAD_SHA}"
+              echo "reuse=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "reuse=false" >> "$GITHUB_OUTPUT"
       # Full history so paths-filter can diff merge_group base..head with git.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        if: steps.reuse.outputs.reuse != 'true'
         with:
           fetch-depth: 0
       # A conflict resolved by hand can leave a marker line behind, as a
       # diff3 "|||||||" line once did in the changelog. Every tracked text file.
       - name: No merge conflict markers
+        if: steps.reuse.outputs.reuse != 'true'
         run: |
           if git grep -nIE '^(<<<<<<< |\|\|\|\|\|\|\| |=======$|>>>>>>> )'; then
             echo "::error::merge conflict markers left in the lines above"
@@ -67,6 +95,7 @@ jobs:
       # plus this workflow file so editing the gate re-tests everything.
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # ratchet:dorny/paths-filter@v4.0.3
         id: filter
+        if: steps.reuse.outputs.reuse != 'true'
         with:
           filters: |
             copilot-adoption:
@@ -553,6 +582,8 @@ jobs:
 
   gitleaks:
     name: gitleaks
+    needs: changes
+    if: needs.changes.outputs.reuse-code-checks != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -600,12 +631,15 @@ jobs:
     steps:
       - name: Validate PR description against template
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BODY: ${{ github.event.pull_request.body }}
           ACTOR: ${{ github.event.pull_request.user.login }}
           HEAD_REF: ${{ github.head_ref }}
         run: |
           python3 - <<'PY'
-          import os, re, sys
+          import os, re, subprocess, sys
 
           actor = os.environ.get("ACTOR", "")
           head_ref = os.environ.get("HEAD_REF", "")
@@ -621,6 +655,16 @@ jobs:
               sys.exit(0)
 
           body = os.environ.get("PR_BODY") or ""
+          repo = os.environ.get("REPO", "")
+          pr_number = os.environ.get("PR_NUMBER", "")
+          if repo and pr_number:
+              res = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/pulls/{pr_number}", "--jq", '.body // ""'],
+                  capture_output=True,
+                  text=True,
+              )
+              if res.returncode == 0:
+                  body = res.stdout
           stripped = re.sub(r"<!--.*?-->", "", body, flags=re.S)
 
           required = [
