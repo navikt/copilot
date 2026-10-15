@@ -113,6 +113,9 @@ type AdoptionSummary struct {
 	ReposWithAgentpakkeManifest  int64               `bigquery:"repos_with_agentpakke_manifest" json:"repos_with_agentpakke_manifest"`
 	ReposWithAgentpakkeLock      int64               `bigquery:"repos_with_agentpakke_lock" json:"repos_with_agentpakke_lock"`
 	ReposWithCPLTToml            int64               `bigquery:"repos_with_cplt_toml" json:"repos_with_cplt_toml"`
+	ReposWithAnyCursor           int64               `bigquery:"repos_with_any_cursor" json:"repos_with_any_cursor"`
+	ReposWithAnyClaude           int64               `bigquery:"repos_with_any_claude" json:"repos_with_any_claude"`
+	ReposWithAnyOpenCode         int64               `bigquery:"repos_with_any_opencode" json:"repos_with_any_opencode"`
 	ReposWithAnyNonCopilotAI     int64               `bigquery:"repos_with_any_non_copilot_ai" json:"repos_with_any_non_copilot_ai"`
 	AvgCustomizationCount        float64             `bigquery:"avg_customization_count" json:"avg_customization_count"`
 	MaxCustomizationCount        int64               `bigquery:"max_customization_count" json:"max_customization_count"`

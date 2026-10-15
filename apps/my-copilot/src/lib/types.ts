@@ -195,6 +195,9 @@ export interface AdoptionSummary {
   repos_with_claude_commands?: number;
   repos_with_claude_skills?: number;
   repos_with_gemini_md?: number;
+  repos_with_any_cursor?: number;
+  repos_with_any_claude?: number;
+  repos_with_any_opencode?: number;
   repos_with_any_non_copilot_ai: number;
   avg_customization_count: number;
   max_customization_count: number;

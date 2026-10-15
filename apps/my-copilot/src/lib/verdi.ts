@@ -356,7 +356,7 @@ export function buildVerdiTeams(
         reposWithCustomizations: ad ? ad.repos_with_customizations : null,
         adoptionPct: ad ? ad.adoption_pct : null,
         prsMerged30d: hasPRs ? (ad?.prs_merged_30d ?? null) : null,
-        prsReviewedByCopilot30d: hasPRs ? (ad?.prs_reviewed_by_copilot_30d ?? null) : null,
+        prsReviewedByCopilot30d: hasPRs ? (ad?.prs_reviewed_by_copilot_30d ?? 0) : null,
         avgMedianMinutesToMerge30d:
           hasPRs && ad?.avg_median_minutes_to_merge_30d != null ? Math.round(ad.avg_median_minutes_to_merge_30d) : null,
         commits30d: ad?.commits_30d != null && ad.commits_30d > 0 ? ad.commits_30d : null,

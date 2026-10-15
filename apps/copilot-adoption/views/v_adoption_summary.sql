@@ -51,6 +51,23 @@ SELECT
   COUNTIF(JSON_VALUE(customizations, '$.agentpakke_manifest.exists') = 'true' AND NOT is_archived) AS repos_with_agentpakke_manifest,
   COUNTIF(JSON_VALUE(customizations, '$.agentpakke_lock.exists') = 'true' AND NOT is_archived) AS repos_with_agentpakke_lock,
   COUNTIF(JSON_VALUE(customizations, '$.cplt_toml.exists') = 'true' AND NOT is_archived) AS repos_with_cplt_toml,
+  -- Deduplicated per-tool repository counts
+  COUNTIF((
+    JSON_VALUE(customizations, '$.cursorrules.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.cursor_rules_dir.exists') = 'true'
+  ) AND NOT is_archived) AS repos_with_any_cursor,
+  COUNTIF((
+    JSON_VALUE(customizations, '$.claude_md.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.claude_settings.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.claude_agents.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.claude_commands.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.claude_skills.exists') = 'true'
+  ) AND NOT is_archived) AS repos_with_any_claude,
+  COUNTIF((
+    JSON_VALUE(customizations, '$.opencode_json.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.opencode_jsonc.exists') = 'true' OR
+    JSON_VALUE(customizations, '$.opencode_dir.exists') = 'true'
+  ) AND NOT is_archived) AS repos_with_any_opencode,
   -- Aggregate: any non-Copilot AI tool
   COUNTIF((
     JSON_VALUE(customizations, '$.cursorrules.exists') = 'true' OR

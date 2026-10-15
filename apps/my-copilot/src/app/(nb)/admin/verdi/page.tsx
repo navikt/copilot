@@ -135,7 +135,11 @@ export default async function AdminVerdiPage() {
   ].filter((r): r is string[] => r !== null);
   const hasGuardrails =
     (telemetry?.hook_runs_7d ?? 0) > 0 ||
+    (telemetry?.hook_action_flagged_7d ?? 0) > 0 ||
+    (telemetry?.hook_redactions_7d ?? 0) > 0 ||
+    (telemetry?.hook_loop_guards_7d ?? 0) > 0 ||
     (telemetry?.sync_updates_7d ?? 0) > 0 ||
+    (telemetry?.sync_conflicts_7d ?? 0) > 0 ||
     (telemetry?.launch_errors_7d ?? 0) > 0;
 
   return (
@@ -611,10 +615,10 @@ export default async function AdminVerdiPage() {
             />
             <MetricCard
               value={formatNumber(telemetry.sync_updates_7d ?? 0)}
-              label="Synkroniserte tilpasninger"
-              subtitle={`${formatNumber(telemetry.sync_conflicts_7d ?? 0)} lokale konflikter, ${formatNumber(telemetry.launch_errors_7d ?? 0)} oppstartsfeil`}
-              helpTitle="Synkroniserte tilpasninger"
-              helpText="Antall filer oppdatert via nav-pilot sync siste syv dager, samt antall filer hoppet over grunnet lokale endringer."
+              label="Oppdagede synk-oppdateringer"
+              subtitle={`${formatNumber(telemetry.sync_conflicts_7d ?? 0)} planlagte erstatninger ved lokale endringer, ${formatNumber(telemetry.launch_errors_7d ?? 0)} oppstartsfeil`}
+              helpTitle="Oppdagede synk-oppdateringer"
+              helpText="Antall oppdagede oppdateringer i nav-pilot sync siste syv dager (inkludert dry-run), samt antall planlagte erstatninger der lokale endringer lå i veien."
             />
           </HGrid>
         </InsightSection>

@@ -115,21 +115,31 @@ export function extractToolComparison(summary: AdoptionSummary): ToolUsage[] {
 
   const tools: ToolUsage[] = [
     { label: "Kun Copilot", value: copilotOnly },
-    { label: "Cursor", value: summary.repos_with_cursorrules + summary.repos_with_cursor_rules_dir },
+    {
+      label: "Cursor",
+      value: summary.repos_with_any_cursor ?? summary.repos_with_cursorrules + summary.repos_with_cursor_rules_dir,
+    },
     {
       label: "Claude",
       value:
-        summary.repos_with_claude_md +
-        (summary.repos_with_claude_agents ?? 0) +
-        (summary.repos_with_claude_commands ?? 0) +
-        (summary.repos_with_claude_skills ?? 0),
+        summary.repos_with_any_claude ??
+        Math.max(
+          summary.repos_with_claude_md,
+          summary.repos_with_claude_settings ?? 0,
+          summary.repos_with_claude_agents ?? 0,
+          summary.repos_with_claude_commands ?? 0,
+          summary.repos_with_claude_skills ?? 0
+        ),
     },
     {
       label: "OpenCode",
       value:
-        (summary.repos_with_opencode_json ?? 0) +
-        (summary.repos_with_opencode_jsonc ?? 0) +
-        (summary.repos_with_opencode_dir ?? 0),
+        summary.repos_with_any_opencode ??
+        Math.max(
+          summary.repos_with_opencode_json ?? 0,
+          summary.repos_with_opencode_jsonc ?? 0,
+          summary.repos_with_opencode_dir ?? 0
+        ),
     },
     { label: "Gemini", value: summary.repos_with_gemini_md ?? 0 },
     { label: "Windsurf", value: summary.repos_with_windsurfrules },
