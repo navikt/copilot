@@ -193,6 +193,14 @@ gh pr create --head min-branch`}
               <code className={code}>git clone</code>, <code className={code}>git init</code> og{" "}
               <code className={code}>git submodule add</code>
             </li>
+            <li>
+              <code className={code}>git worktree remove</code>, og <code className={code}>git worktree add</code> når
+              du ikke bruker <code className={code}>cplt worktree add &lt;navn&gt; &lt;ref&gt;</code> med{" "}
+              <code className={code}>sandbox.allow_git_worktrees</code>, se{" "}
+              <NextLink href="/nav-pilot/guider/worktrees#subagenter" className={linkClass}>
+                Worktrees til subagenter
+              </NextLink>
+            </li>
             <li>å lage eller endre git-hooks</li>
           </Bullets>
           <BodyLong>
