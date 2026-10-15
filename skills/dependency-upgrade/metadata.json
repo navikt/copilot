@@ -1,0 +1,15 @@
+{
+  "description": "Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, og hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem",
+  "domain": "platform",
+  "tags": ["dependencies", "upgrade", "go", "npm", "gradle", "dotnet", "local-model"],
+  "examples": [
+    {
+      "prompt": "Oppgrader avhengighetene i dette repoet",
+      "scenario": "Rutineoppgradering i et repo med låsefil og tester"
+    },
+    {
+      "prompt": "Oppdater alle npm-pakker i frontend-appene og sjekk at testene går grønt",
+      "scenario": "Monorepo med flere apper og økosystemer"
+    }
+  ]
+}

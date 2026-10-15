@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-15T08:59:52.662Z",
+  "generatedAt": "2026-10-15T11:59:42.636Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1098,6 +1098,30 @@
         {
           "scenario": "Lær mens du genererer",
           "prompt": "Bruk $deliberate-ai-use og hjelp meg å forstå koden du nettopp skrev"
+        }
+      ]
+    },
+    {
+      "id": "dependency-upgrade",
+      "name": "dependency-upgrade",
+      "description": "Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, og hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem",
+      "type": "skill",
+      "domain": "platform",
+      "filePath": "skills/dependency-upgrade/SKILL.md",
+      "repoPath": "skills/dependency-upgrade/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/dependency-upgrade/SKILL.md",
+      "contentHash": "081b353b632b8278ec927af51a51f1e4422fde03fa1a1e667bbb09380d859cbb",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["dependencies", "upgrade", "go", "npm", "gradle", "dotnet", "local-model"],
+      "examples": [
+        {
+          "prompt": "Oppgrader avhengighetene i dette repoet",
+          "scenario": "Rutineoppgradering i et repo med låsefil og tester"
+        },
+        {
+          "prompt": "Oppdater alle npm-pakker i frontend-appene og sjekk at testene går grønt",
+          "scenario": "Monorepo med flere apper og økosystemer"
         }
       ]
     },
