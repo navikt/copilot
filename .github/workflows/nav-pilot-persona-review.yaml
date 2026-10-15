@@ -89,7 +89,7 @@ jobs:
           # shellcheck disable=SC2016 # the backticks are Markdown
           sed -nE 's/^[[:space:]]*--- FAIL: TestScripts\/([^ ]+).*/- `\1`/p' "$RUNNER_TEMP/e2e.log" > "$RUNNER_TEMP/failed.md"
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: artifact
         with:
           name: persona-transcripts
