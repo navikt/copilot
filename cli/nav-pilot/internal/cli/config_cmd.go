@@ -184,6 +184,15 @@ var configKeyDefs = []configKeyDef{
 		group:       "Local models (alpha)",
 	},
 	{
+		name:        "local_dep_upgrade",
+		kind:        keyKindBool,
+		description: "Send dependency upgrades in projects with a lockfile and tests to the local worker in opencode (alpha). Tool pins, image tags, GitHub Actions and nais manifests stay with the cloud.",
+		allowed:     nil,
+		defaultVal:  "false",
+		flag:        "",
+		group:       "Local models (alpha)",
+	},
+	{
 		name:        "local_loop_guard",
 		kind:        keyKindInt,
 		description: "Identical consecutive tool calls that end a local turn whatever they return. Half this many (at least 2) end it when the results repeat too. Local models get stuck repeating one call; this is where nav-pilot stops them.",
@@ -444,6 +453,12 @@ client = "copilot"
 # than a convenience.
 # Default: false
 # local_autostart = false
+
+# Let the opencode orchestrator send dependency upgrades to the local worker
+# when the repo has a lockfile and tests (alpha). Tool pins, image tags and CI
+# action versions stay with the cloud.
+# Default: false
+# local_dep_upgrade = false
 
 # Identical consecutive tool calls that end a local turn, whatever they
 # return. Half this many (at least 2) end it when each call also got the same
@@ -816,6 +831,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return strconv.FormatBool(r.LocalEnabled)
 	case "local_autostart":
 		return strconv.FormatBool(r.LocalAutostart)
+	case "local_dep_upgrade":
+		return strconv.FormatBool(r.LocalDepUpgrade)
 	case "local_loop_guard":
 		return strconv.Itoa(localLoopGuard(r))
 	case "local_model":

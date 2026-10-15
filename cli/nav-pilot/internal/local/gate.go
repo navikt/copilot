@@ -100,6 +100,11 @@ const GateCreateText = "nav-pilot (local_dispatch = aggressive): new files go to
 // orchestrator reads it at the moment it decides whether to accept the work.
 // Probe 6 (mlx-workspace §8.8): a grep passed a broken definition, and a new
 // test file that was green but caught nothing was accepted.
+// GatePinnedText is the worker's refusal for a pinned file. The task fails
+// with it, and the orchestrator reads it as the task's result.
+const GatePinnedText = "nav-pilot (local_dep_upgrade): local-worker may not change tool pins, container images, CI workflows or nais manifests. " +
+	"Nothing in the repo checks a version there. Stop and report which file needed the change; the orchestrator handles it."
+
 const GateVerifyText = "nav-pilot (local_dispatch): before you accept this, build the project and run the tests that cover the change, once every file you sent is done. " +
 	"A grep is not a check. If `local-worker` wrote a test, show that it can fail: break the code it tests on purpose, " +
 	"for example make the function return a constant, run the test, see it fail, and undo the break. " +
@@ -196,6 +201,10 @@ type GateRules struct {
 	// change, and must not hold one hostage. Without it (aggressive), a
 	// refused file passes only once it has been sent to the worker.
 	Checkpoint bool
+	// Pinned: the worker may not create or edit a file PinnedFile names
+	// (local_dep_upgrade, depupgrade.go). Its write is refused, which fails
+	// the task, and the orchestrator keeps the change.
+	Pinned bool
 }
 
 func (r GateRules) budget() int {
@@ -206,7 +215,7 @@ func (r GateRules) budget() int {
 }
 
 // Any reports whether there is a rule to run at all.
-func (r GateRules) Any() bool { return r.Multi || r.Create }
+func (r GateRules) Any() bool { return r.Multi || r.Create || r.Pinned }
 
 // under returns path cleaned when it lies under root, and false otherwise.
 func under(root, path string) (string, bool) {
@@ -296,7 +305,7 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 		}
 		return "", ""
 	case "edit", "write":
-		if r.Path == "" {
+		if r.Path == "" || g.rules.Pinned && PinnedFile(r.Path) {
 			return "", ""
 		}
 		switch exists(g.rules.Root, r.Path) {
@@ -350,6 +359,9 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 	var counted []string
 	sites := 0
 	for _, e := range edits {
+		if g.rules.Pinned && PinnedFile(e.path(g.rules.Root)) {
+			continue
+		}
 		if !st.exempt(e.file) {
 			counted = append(counted, filepath.Base(e.file))
 			sites += e.sites(g.rules.Root)
@@ -512,10 +524,23 @@ func (g *dispatchGate) turn(r GateRequest) *gateTurn {
 // unverified ("text"). The key is the JSON field the plugin reads.
 func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 	if r.Phase == "worker" {
-		if r.Session != "" && (r.Tool == "write" || r.Tool == "edit") {
-			g.mu.Lock()
+		if r.Session == "" {
+			return "", ""
+		}
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		switch r.Tool {
+		case "write", "edit":
+			if g.rules.Pinned && PinnedFile(r.Path) {
+				g.counts["pinned_deny"]++
+				return "deny", GatePinnedText
+			}
 			g.workerWrote[r.Session] = true
-			g.mu.Unlock()
+		case "bash":
+			if g.rules.Pinned && pinnedShellEdit(g.rules.Root, r.Command) {
+				g.counts["pinned_deny"]++
+				return "deny", GatePinnedText
+			}
 		}
 		return "", ""
 	}
@@ -655,10 +680,7 @@ func (g *dispatchGate) snapshot() map[string]int64 {
 	return out
 }
 
-var (
-	sedInline  = regexp.MustCompile(`^-[a-zA-Z]*i`)
-	perlInline = regexp.MustCompile(`^-[a-zA-Z0-9]*i`)
-)
+var perlInline = regexp.MustCompile(`^-[a-zA-Z0-9]*i`)
 
 // ShellEdits reads a bash command for in-place edits. scripted is an in-place
 // sed or perl whose script or files are computed per file: inside a for,
@@ -688,6 +710,17 @@ type shellEdit struct {
 	global bool
 }
 
+func (e shellEdit) path(root string) string {
+	path := filepath.Clean(e.file)
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, e.dir, path)
+		if filepath.IsAbs(e.dir) {
+			path = filepath.Join(e.dir, e.file)
+		}
+	}
+	return path
+}
+
 // sites is the number of places the edit changes: the matches of its
 // pattern in the file, per line as sed and perl -p work, and 1 when the gate
 // cannot tell. Only a file under root is read.
@@ -698,13 +731,7 @@ func (e shellEdit) sites(root string) int {
 	if e.re == nil {
 		return 1
 	}
-	path := e.file
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(root, e.dir, path)
-		if filepath.IsAbs(e.dir) {
-			path = filepath.Join(e.dir, e.file)
-		}
-	}
+	path := e.path(root)
 	// Resolved first, so a link cannot lead the read out of the project.
 	if real, err := filepath.EvalSymlinks(path); err == nil {
 		path = real
@@ -811,6 +838,116 @@ func shellEdits(cmd string) (scripted bool, edits []shellEdit) {
 	return false, edits
 }
 
+// pinnedShellEdit reports whether cmd modifies a pinned file via in-place
+// sed/perl, output redirection, file-writer utilities (cp, mv, tee, ln, rm,
+// touch, install), or tool-pin CLIs (gradlew wrapper, mise use/pin, corepack
+// use), after any preceding cd, or when in-place targets cannot be resolved
+// statically.
+func pinnedShellEdit(root, cmd string) bool {
+	loop := 0
+	dir := ""
+	unknownDir := false
+	for _, seg := range splitSegments(cmd) {
+		toks := shellWords(seg.text)
+		for len(toks) > 0 && (toks[0] == "do" || toks[0] == "then" || toks[0] == "{" || toks[0] == "(") {
+			toks = toks[1:]
+		}
+		if len(toks) == 0 {
+			continue
+		}
+		badTarget := func(f string) bool {
+			if strings.ContainsAny(f, "$`*?[]") || (!filepath.IsAbs(f) && (unknownDir || loop > 0 && seg.dynamic)) {
+				return true
+			}
+			return PinnedFile((shellEdit{file: f, dir: dir}).path(root))
+		}
+		redirect := false
+		for _, t := range toks {
+			op := strings.TrimLeft(t, "0123456789&")
+			into := redirect || strings.HasPrefix(op, ">")
+			target := strings.TrimLeft(t, "0123456789<>&")
+			redirect = target == "" && strings.HasPrefix(op, ">")
+			if into && target != "" && target != "/dev/null" && !strings.HasPrefix(target, "&") && badTarget(target) {
+				return true
+			}
+		}
+		switch toks[0] {
+		case "for", "while", "until":
+			loop++
+		case "done":
+			loop = max(0, loop-1)
+		case "cd":
+			switch {
+			case len(toks) != 2 || seg.dynamic:
+				dir = ""
+				unknownDir = true
+			case filepath.IsAbs(toks[1]):
+				dir = toks[1]
+				unknownDir = false
+			default:
+				dir = filepath.Join(dir, toks[1])
+			}
+		}
+		cw := commandWords(toks)
+		if len(cw) > 0 {
+			switch filepath.Base(cw[0]) {
+			case "cp", "mv", "ln", "install", "tee", "touch", "rm":
+				for _, a := range cw[1:] {
+					if !strings.HasPrefix(a, "-") && PinnedFile((shellEdit{file: a, dir: dir}).path(root)) {
+						return true
+					}
+				}
+			case "gradle", "gradlew":
+				if slices.Contains(cw[1:], "wrapper") {
+					return true
+				}
+			case "mise":
+				if slices.Contains(cw[1:], "use") || slices.Contains(cw[1:], "pin") {
+					return true
+				}
+			case "corepack":
+				if slices.Contains(cw[1:], "use") || slices.Contains(cw[1:], "up") {
+					return true
+				}
+			}
+		}
+		at := -1
+		for j, t := range toks {
+			if b := filepath.Base(t); b == "sed" || b == "gsed" || b == "perl" {
+				at = j
+				break
+			}
+		}
+		if at < 0 {
+			continue
+		}
+		var fs []string
+		var inPlace bool
+		if filepath.Base(toks[at]) == "perl" {
+			fs, _, inPlace = perlFiles(toks[at+1:])
+		} else {
+			fs, _, inPlace, _ = sedFiles(toks[at+1:])
+		}
+		if !inPlace {
+			continue
+		}
+		for _, t := range toks[:at] {
+			if t == "xargs" || t == "-exec" || t == "-execdir" {
+				return true
+			}
+		}
+		if len(fs) == 0 {
+			return true
+		}
+		for _, f := range fs {
+			if badTarget(f) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // substitution reads an s command with no address (s/pat/repl/flags, any
 // delimiter) and returns its pattern as RE2, and whether it has the g flag.
 // nil when it is anything else or does not compile.
@@ -904,21 +1041,44 @@ func sedFiles(args []string) (files, scripts []string, inPlace, ere bool) {
 				scripts = append(scripts, args[i+1])
 			}
 			i++
+		case strings.HasPrefix(a, "--expression="):
+			script = true
+			scripts = append(scripts, strings.TrimPrefix(a, "--expression="))
 		case a == "-f" || a == "--file":
 			script = true
 			scripts = append(scripts, "") // unreadable here
 			i++
+		case strings.HasPrefix(a, "--file="):
+			script = true
+			scripts = append(scripts, "")
 		case strings.HasPrefix(a, "-") && len(a) > 1:
-			if sedInline.MatchString(a) {
-				inPlace = true
-			}
-			// What follows an i is the backup suffix (-i.orig), not flags.
-			flags := a[1:]
-			if k := strings.IndexByte(flags, 'i'); k >= 0 {
-				flags = flags[:k]
-			}
-			if !strings.HasPrefix(a, "--") && strings.ContainsAny(flags, "Er") {
-				ere = true
+			if !strings.HasPrefix(a, "--") {
+				// What follows an i, e or f is its argument (-i.orig, -es/a/b/), not flags.
+				flags := a[1:]
+				if k := strings.IndexAny(flags, "ief"); k >= 0 {
+					switch flags[k] {
+					case 'i':
+						inPlace = true
+					case 'e':
+						script = true
+						if rest := flags[k+1:]; rest != "" {
+							scripts = append(scripts, rest)
+						} else if i+1 < len(args) {
+							scripts = append(scripts, args[i+1])
+							i++
+						}
+					case 'f':
+						script = true
+						scripts = append(scripts, "")
+						if flags[k+1:] == "" {
+							i++
+						}
+					}
+					flags = flags[:k]
+				}
+				if strings.ContainsAny(flags, "Er") {
+					ere = true
+				}
 			}
 		case !script:
 			script = true

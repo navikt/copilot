@@ -905,7 +905,7 @@ const conservativeJudgement = "These are suggestions: your own judgement and the
 // names the persona's tiers because that is what Sonnet 5 quoted each time
 // it kept work the policy said to send (mlx-workspace §8.8, probes 1-5).
 func enforcedText(r local.GateRules) string {
-	if !r.Any() {
+	if !r.Multi && !r.Create {
 		return ""
 	}
 	t := "nav-pilot enforces this in every tier: the persona's Trivial and Compressed tiers decide how you move through the phases, not who writes the files."
@@ -1020,7 +1020,11 @@ func EnsureOpenCodeLocalPolicy(m local.Model) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.DispatchLevel(), local.SameResultRepeat(), local.LoopGuardRepeat())), 0o600); err != nil {
+	dep := local.ProjectDepUpgrade()
+	if local.DepUpgrade() && gateRoot != "" {
+		dep = local.DepUpgradeRepo(dispatchGateRoot())
+	}
+	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.DispatchLevel(), local.SameResultRepeat(), local.LoopGuardRepeat())+local.DepUpgradePolicyText(dep)), 0o600); err != nil {
 		return fmt.Errorf("writing the local dispatch policy: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(dispatchGatePluginPath()), 0o700); err != nil {
@@ -1293,6 +1297,7 @@ func localWorker() (local.Model, error) {
 
 func startOpenCodeLocalDispatch(resolved domain.ResolvedConfig) (*local.Guard, error) {
 	gateRoot = resolved.ProjectDir
+	defer func() { gateRoot = "" }()
 	return startLocalDispatch(openCodeSessionModelForLocalDispatch(resolved.Model))
 }
 
@@ -1461,6 +1466,7 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	if !local.IsLocal(sessionModel) {
 		rules := local.DispatchGateRules(local.DispatchLevel(), worker.Capabilities)
 		rules.Root = dispatchGateRoot()
+		rules.Pinned = local.DepUpgrade()
 		guard.EnableDispatchGate(rules)
 	}
 	return guard, nil

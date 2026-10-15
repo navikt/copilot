@@ -657,6 +657,9 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.LocalAutostart != nil {
 			r.LocalAutostart = *file.LocalAutostart
 		}
+		if file.LocalDepUpgrade != nil {
+			r.LocalDepUpgrade = *file.LocalDepUpgrade
+		}
 		if file.LocalEnabled != nil {
 			r.LocalEnabled = *file.LocalEnabled
 		}

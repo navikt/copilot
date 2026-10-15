@@ -47,6 +47,7 @@ var configKeyDocNB = map[string]string{
 	"otel_log_level":       "Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env.",
 	"local_enabled":        "Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false, ser nav-pilot ingen lokale modeller.",
 	"local_autostart":      "La en vanlig nav-pilot starte den lokale serveren når den trengs og ingen kjører. Av som standard: en prosess på 21 GB skal ikke starte uten at du har bedt om det.",
+	"local_dep_upgrade":    "Send avhengighetsoppgraderinger i prosjekter med låsefil og tester til den lokale modellen i opencode (alfa). Verktøyversjoner, image-tagger, GitHub Actions og nais-manifester blir i skyen.",
 	"local_loop_guard":     "Hvor mange like verktøykall på rad som avslutter en runde for den lokale modellen, uansett hva kallene returnerer. Gir kallene samme resultat hver gang, stopper runden etter halvparten så mange kall (minst 2).",
 	"local_model":          "Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Sett den med nav-pilot alpha local use <key>.",
 	"local_endpoint":       "Din egen OpenAI-kompatible server (Ollama, llama-server), bare localhost eller privat IP (alfa, uten støtte). Sjekk den med nav-pilot alpha local doctor.",

@@ -115,7 +115,7 @@ function dispatchGate(ctx, directory) {
     }
     return topLevel.get(id) ?? false
   }
-  const orchestrator = async (sessionID, agent) =>
+  const orchestrator = async (sessionID, agent = agents.get(sessionID)) =>
     agent && agent !== "local-worker" && (await isTopLevel(sessionID)) ? agent : undefined
   const ask = async (body) => {
     const res = await fetch(url, {
@@ -159,33 +159,35 @@ function dispatchGate(ctx, directory) {
       if (!["edit", "write", "shell", "subagent"].includes(tool)) return
       const args = event.input ?? {}
       if (event.agent) agents.set(event.sessionID, event.agent)
+      const curAgent = event.agent || agents.get(event.sessionID)
       const create = tool === "write" || (tool === "edit" && args.oldString === "")
       let deny = ""
       try {
-        const agent = await orchestrator(event.sessionID, event.agent)
+        const agent = await orchestrator(event.sessionID, curAgent)
         if (!agent) {
-          // The worker's writes and edits: see dispatch-gate.js. Never a refusal.
-          if (event.agent === "local-worker" && (tool === "write" || tool === "edit"))
-            await ask({ session: event.sessionID, agent: "local-worker", tool, create, path: abs(str(args.path)), phase: "worker" })
-          return
+          // The worker's writes, edits and shell commands: see dispatch-gate.js.
+          if (curAgent === "local-worker" && (tool === "write" || tool === "edit" || tool === "shell")) {
+            deny = (await ask({ session: event.sessionID, agent: "local-worker", tool: tool === "shell" ? "bash" : tool, create, path: abs(str(args.path)), command: tool === "shell" ? str(args.command) : "", phase: "worker" })).deny ?? ""
+          }
+        } else {
+          const replaceAll = tool === "edit" && args.replaceAll === true
+          const toWorker = tool === "subagent" && args.agent === "local-worker"
+          deny = (
+            await ask({
+              session: event.sessionID,
+              turn: turns.get(event.sessionID) ?? 0,
+              agent,
+              tool: tool === "shell" ? "bash" : tool === "subagent" ? "task" : tool,
+              path: abs(str(args.path)),
+              create,
+              command: tool === "shell" ? str(args.command) : "",
+              subagent: tool === "subagent" ? str(args.agent) : "",
+              prompt: toWorker ? str(args.prompt) : "",
+              replaceAll,
+              old: replaceAll ? str(args.oldString) : "",
+            })
+          ).deny
         }
-        const replaceAll = tool === "edit" && args.replaceAll === true
-        const toWorker = tool === "subagent" && args.agent === "local-worker"
-        deny = (
-          await ask({
-            session: event.sessionID,
-            turn: turns.get(event.sessionID) ?? 0,
-            agent,
-            tool: tool === "shell" ? "bash" : tool === "subagent" ? "task" : tool,
-            path: abs(str(args.path)),
-            create,
-            command: tool === "shell" ? str(args.command) : "",
-            subagent: tool === "subagent" ? str(args.agent) : "",
-            prompt: toWorker ? str(args.prompt) : "",
-            replaceAll,
-            old: replaceAll ? str(args.oldString) : "",
-          })
-        ).deny
       } catch {
         return
       }

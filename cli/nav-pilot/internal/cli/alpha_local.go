@@ -1075,6 +1075,7 @@ func localLoopGuard(r ResolvedConfig) int {
 // false and nothing anywhere behaves differently — which is the promise made to
 // everyone who never runs the alpha.
 func applyLocalConfig() {
+	local.SetDepUpgrade(false)
 	cfg, err := readConfig()
 	if err != nil {
 		return
@@ -1107,6 +1108,7 @@ func applyLocalConfig() {
 	activateCachedManifest()
 	local.SetEnabled(true)
 	local.SetAutostart(r.LocalAutostart)
+	local.SetDepUpgrade(r.LocalDepUpgrade)
 	if cfg.LocalModel != nil {
 		local.SetSelectedModel(strings.TrimSpace(*cfg.LocalModel))
 	}
@@ -1132,6 +1134,7 @@ func applyEndpointConfig(r ResolvedConfig) {
 	local.SetActive(local.EndpointManifest(r.LocalEndpointModel))
 	local.SetSelectedModel(r.LocalEndpointModel)
 	local.SetEnabled(true)
+	local.SetDepUpgrade(r.LocalDepUpgrade)
 }
 
 // endpointFix is the way out of an unusable local_endpoint.
