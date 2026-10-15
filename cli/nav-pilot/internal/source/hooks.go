@@ -242,10 +242,14 @@ func (f *hooksFile) write(path string) error {
 	if err != nil {
 		return err
 	}
+	data = append(data, '\n')
+	if have, err := os.ReadFile(path); err == nil && bytes.Equal(have, data) {
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	return os.WriteFile(path, data, 0o644)
 }
 
 // isEmpty reports whether the config carries nothing but its version — the one

@@ -176,3 +176,79 @@ func TestSymlinkRejectedInFileHelpers(t *testing.T) {
 		t.Error("CopyDir accepted a directory containing a symlink")
 	}
 }
+
+func TestReadGitHEAD(t *testing.T) {
+	const (
+		looseSHA  = "1111111111111111111111111111111111111111"
+		packedSHA = "2222222222222222222222222222222222222222"
+	)
+
+	makeRepo := func(t *testing.T) (string, string) {
+		t.Helper()
+		root := t.TempDir()
+		gitDir := filepath.Join(root, ".git")
+		if err := os.MkdirAll(filepath.Join(gitDir, "refs", "heads"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return root, gitDir
+	}
+
+	t.Run("loose ref and packed-refs fallback", func(t *testing.T) {
+		root, gitDir := makeRepo(t)
+		if err := os.WriteFile(filepath.Join(gitDir, "packed-refs"), []byte("# pack-refs with: peeled fully-peeled sorted\n"+packedSHA+" refs/heads/main\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := readGitHEAD(root); got != packedSHA {
+			t.Fatalf("packed-refs fallback = %q, want %q", got, packedSHA)
+		}
+		if err := os.WriteFile(filepath.Join(gitDir, "refs", "heads", "main"), []byte(looseSHA+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := readGitHEAD(root); got != looseSHA {
+			t.Fatalf("loose ref = %q, want %q", got, looseSHA)
+		}
+	})
+
+	t.Run("chained symref in loose ref does not fall back to stale packed-refs", func(t *testing.T) {
+		root, gitDir := makeRepo(t)
+		if err := os.WriteFile(filepath.Join(gitDir, "packed-refs"), []byte(packedSHA+" refs/heads/main\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(gitDir, "refs", "heads", "main"), []byte("ref: refs/heads/other\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := readGitHEAD(root); got != "" {
+			t.Fatalf("chained symref returned stale packed SHA %q, want empty fallback", got)
+		}
+	})
+
+	t.Run("rejects non-refs target and symlinks", func(t *testing.T) {
+		root, gitDir := makeRepo(t)
+		if err := os.WriteFile(filepath.Join(gitDir, "config"), []byte(looseSHA+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: config\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := readGitHEAD(root); got != "" {
+			t.Fatalf("non-refs HEAD target = %q, want empty", got)
+		}
+
+		outside := filepath.Join(t.TempDir(), "sha")
+		if err := os.WriteFile(outside, []byte(looseSHA+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(outside, filepath.Join(gitDir, "refs", "heads", "main")); err != nil {
+			t.Fatal(err)
+		}
+		if got := readGitHEAD(root); got != "" {
+			t.Fatalf("symlinked loose ref = %q, want empty", got)
+		}
+	})
+}

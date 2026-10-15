@@ -28,6 +28,12 @@ func FileHash(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil))[:16], nil
 }
 
+// BytesHash hashes raw bytes (truncated to 16 hex chars, matching [FileHash]).
+func BytesHash(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])[:16]
+}
+
 // NormalizeMarkdown normalizes markdown content for comparison:
 //   - CRLF → LF
 //   - Trim trailing whitespace per line

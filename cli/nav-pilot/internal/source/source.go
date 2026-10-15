@@ -444,6 +444,13 @@ func fetchRevision(ctx context.Context, dir, repoURL, ref string, stderr *bytes.
 // this value is written to a repo's declaration as a pin, and git can only
 // fetch a commit named at full length.
 func getGitSHA(dir string) string {
+	root := FindGitRoot(dir)
+	if root == "" {
+		return "unknown"
+	}
+	if sha := readGitHEAD(root); sha != "" {
+		return sha
+	}
 	cmd := exec.Command("git", "rev-parse", "HEAD")
 	cmd.Dir = dir
 	out, err := cmd.Output()
@@ -451,4 +458,61 @@ func getGitSHA(dir string) string {
 		return "unknown"
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// readGitHEAD resolves HEAD from .git/HEAD and loose or packed refs without
+// spawning git. It returns "" when HEAD is in a format only git understands
+// (such as a linked worktree or reftable), so getGitSHA can fall back to git.
+func readGitHEAD(root string) string {
+	gitDir := filepath.Join(root, ".git")
+	if CheckSymlink(gitDir, root) != nil {
+		return ""
+	}
+	headBytes, err := readGitFile(filepath.Join(gitDir, "HEAD"), gitDir)
+	if err != nil {
+		return ""
+	}
+	head := strings.TrimSpace(string(headBytes))
+	if isFullHexSHA(head) {
+		return strings.ToLower(head)
+	}
+	ref, ok := strings.CutPrefix(head, "ref: ")
+	if !ok {
+		return ""
+	}
+	ref = strings.TrimSpace(ref)
+	if !strings.HasPrefix(ref, "refs/") || !filepath.IsLocal(ref) {
+		return ""
+	}
+	refPath := filepath.Join(gitDir, filepath.FromSlash(ref))
+	if b, err := readGitFile(refPath, gitDir); err == nil {
+		if sha := strings.TrimSpace(string(b)); isFullHexSHA(sha) {
+			return strings.ToLower(sha)
+		}
+		return ""
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return ""
+	}
+	if b, err := readGitFile(filepath.Join(gitDir, "packed-refs"), gitDir); err == nil {
+		for line := range strings.SplitSeq(string(b), "\n") {
+			if sha, name, ok := strings.Cut(strings.TrimSpace(line), " "); ok && name == ref && isFullHexSHA(sha) {
+				return strings.ToLower(sha)
+			}
+		}
+	}
+	return ""
+}
+
+func readGitFile(path, boundary string) ([]byte, error) {
+	if err := CheckSymlink(path, boundary); err != nil {
+		return nil, err
+	}
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !fi.Mode().IsRegular() || fi.Size() > 1<<20 {
+		return nil, fmt.Errorf("not a bounded regular file: %s", path)
+	}
+	return os.ReadFile(path)
 }

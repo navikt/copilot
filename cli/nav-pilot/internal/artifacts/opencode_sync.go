@@ -198,23 +198,46 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		stillConflicted = conflicted
 	}
 
-	isConflict := func(relPath, dstPath string, isDir bool) bool {
+	isConflict := func(relPath, dstPath string, isDir bool) (bool, string) {
+		if source.CheckSymlink(dstPath, outputDir) != nil {
+			return false, ""
+		}
 		// Already conflicted and not yet resolved: still the user's.
 		if stillConflicted[relPath] {
-			return true
+			return true, ""
 		}
 		storedHash, inState := stateHashes[relPath]
 		if !inState {
-			return false
+			return false, ""
 		}
 		if _, statErr := os.Stat(dstPath); os.IsNotExist(statErr) {
-			return false
+			return false, ""
 		}
 		currentHash, hashErr := source.RawArtifactHash(dstPath, isDir)
 		if hashErr != nil {
-			return false
+			return false, ""
 		}
-		return currentHash != storedHash
+		return currentHash != storedHash, currentHash
+	}
+	conflictHash := func(dstPath string, isDir bool, currentHash string) string {
+		if currentHash != "" {
+			return currentHash
+		}
+		h, _ := source.RawArtifactHash(dstPath, isDir)
+		return h
+	}
+	writeOpenCodeFile := func(dstPath string, data []byte, currentHash string) (string, error) {
+		if dryRun {
+			h, _ := source.RawArtifactHash(dstPath, false)
+			return h, nil
+		}
+		h := source.BytesHash(data)
+		if currentHash != h {
+			if err := writeFile(dstPath, data); err != nil {
+				return "", err
+			}
+		}
+		return h, nil
 	}
 
 	var files []domain.InstalledFile
@@ -270,26 +293,31 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	for _, skill := range withScopeExtras(resolver.List(source.KindSkill), scopeDir, source.KindSkill) {
 		relPath := "skills/" + skill.Name + "/"
 		dstDir := filepath.Join(outputDir, "skills", skill.Name)
-		if isConflict(relPath, dstDir, true) {
-			h, _ := source.RawArtifactHash(dstDir, true)
-			files = append(files, domain.InstalledFile{Path: relPath, Hash: h, Status: domain.FileStatusConflict})
+		if conflict, currentHash := isConflict(relPath, dstDir, true); conflict {
+			files = append(files, domain.InstalledFile{Path: relPath, Hash: conflictHash(dstDir, true, currentHash), Status: domain.FileStatusConflict})
 			conflicts = append(conflicts, relPath)
 			continue
-		}
-		if err := source.CheckSymlink(dstDir, outputDir); err != nil {
-			return skills, commands, agents, instructions, conflicts, fmt.Errorf("skill %s: %w", skill.Name, err)
-		}
-		if !dryRun {
-			if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
-				return skills, commands, agents, instructions, conflicts, mkErr
+		} else {
+			if err := source.CheckSymlink(dstDir, outputDir); err != nil {
+				return skills, commands, agents, instructions, conflicts, fmt.Errorf("skill %s: %w", skill.Name, err)
 			}
-			if cpErr := copyDirSimple(skill.AbsPath, dstDir); cpErr != nil {
-				return skills, commands, agents, instructions, conflicts, fmt.Errorf("skill %s: %w", skill.Name, cpErr)
+			var changed bool
+			if !dryRun {
+				if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
+					return skills, commands, agents, instructions, conflicts, mkErr
+				}
+				var cpErr error
+				if changed, cpErr = syncDirSimple(skill.AbsPath, dstDir); cpErr != nil {
+					return skills, commands, agents, instructions, conflicts, fmt.Errorf("skill %s: %w", skill.Name, cpErr)
+				}
 			}
+			h := currentHash
+			if dryRun || changed || h == "" {
+				h, _ = source.RawArtifactHash(dstDir, true)
+			}
+			files = append(files, domain.InstalledFile{Path: relPath, Hash: h})
+			skills++
 		}
-		h, _ := source.RawArtifactHash(dstDir, true)
-		files = append(files, domain.InstalledFile{Path: relPath, Hash: h})
-		skills++
 	}
 
 	for _, entry := range withScopeExtras(resolver.List(source.KindPrompt), scopeDir, source.KindPrompt) {
@@ -298,9 +326,9 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		}
 		relPath := "commands/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "commands", entry.Name+".md")
-		if isConflict(relPath, dstPath, false) {
-			h, _ := source.RawArtifactHash(dstPath, false)
-			files = append(files, domain.InstalledFile{Path: relPath, Hash: h, Status: domain.FileStatusConflict})
+		conflict, currentHash := isConflict(relPath, dstPath, false)
+		if conflict {
+			files = append(files, domain.InstalledFile{Path: relPath, Hash: conflictHash(dstPath, false, currentHash), Status: domain.FileStatusConflict})
 			conflicts = append(conflicts, relPath)
 			continue
 		}
@@ -311,10 +339,10 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("command %s: %w", entry.Name, err)
 		}
-		if wErr := writeUnlessDry(dryRun, dstPath, transformPrompt(data)); wErr != nil {
+		h, wErr := writeOpenCodeFile(dstPath, transformPrompt(data), currentHash)
+		if wErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("command %s: %w", entry.Name, wErr)
 		}
-		h, _ := source.RawArtifactHash(dstPath, false)
 		files = append(files, domain.InstalledFile{Path: relPath, Hash: h})
 		commands++
 	}
@@ -324,7 +352,7 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	for _, entry := range withLocalWorker(withScopeExtras(agentEntries(resolver), scopeDir, source.KindAgent)) {
 		relPath := "agents/" + entry.Name + ".md"
 		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
-		conflict := isConflict(relPath, dstPath, false)
+		conflict, currentHash := isConflict(relPath, dstPath, false)
 		if _, tracked := stateHashes[relPath]; entry.Data != nil && !tracked {
 			// The built-in worker lands where no pakke put one, so a file already
 			// there is the developer's own, likely written by hand for this gap.
@@ -333,8 +361,7 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 			}
 		}
 		if conflict {
-			h, _ := source.RawArtifactHash(dstPath, false)
-			files = append(files, domain.InstalledFile{Path: relPath, Hash: h, Status: domain.FileStatusConflict})
+			files = append(files, domain.InstalledFile{Path: relPath, Hash: conflictHash(dstPath, false, currentHash), Status: domain.FileStatusConflict})
 			conflicts = append(conflicts, relPath)
 			continue
 		}
@@ -345,10 +372,10 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, err)
 		}
-		if wErr := writeUnlessDry(dryRun, dstPath, transformAgent(data, entry.Name, primaries)); wErr != nil {
+		h, wErr := writeOpenCodeFile(dstPath, transformAgent(data, entry.Name, primaries), currentHash)
+		if wErr != nil {
 			return skills, commands, agents, instructions, conflicts, fmt.Errorf("agent %s: %w", entry.Name, wErr)
 		}
-		h, _ := source.RawArtifactHash(dstPath, false)
 		files = append(files, domain.InstalledFile{Path: relPath, Hash: h})
 		agents++
 	}
@@ -361,36 +388,35 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		for _, ref := range scopedRefs {
 			relPath := "instructions/" + ref.Name + ".md"
 			dstPath := filepath.Join(outputDir, "instructions", ref.Name+".md")
-			if isConflict(relPath, dstPath, false) {
-				h, _ := source.RawArtifactHash(dstPath, false)
-				files = append(files, domain.InstalledFile{Path: relPath, Hash: h, Status: domain.FileStatusConflict})
+			conflict, currentHash := isConflict(relPath, dstPath, false)
+			if conflict {
+				files = append(files, domain.InstalledFile{Path: relPath, Hash: conflictHash(dstPath, false, currentHash), Status: domain.FileStatusConflict})
 				conflicts = append(conflicts, relPath)
 				continue
 			}
 			if err := source.CheckSymlink(dstPath, outputDir); err != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("instruction %s: %w", ref.Name, err)
 			}
-			if wErr := writeUnlessDry(dryRun, dstPath, ref.Body); wErr != nil {
+			h, wErr := writeOpenCodeFile(dstPath, ref.Body, currentHash)
+			if wErr != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("instruction %s: %w", ref.Name, wErr)
 			}
-			h, _ := source.RawArtifactHash(dstPath, false)
 			files = append(files, domain.InstalledFile{Path: relPath, Hash: h})
 		}
 
 		agentsMDPath := filepath.Join(outputDir, "AGENTS.md")
-		if isConflict("AGENTS.md", agentsMDPath, false) {
-			h, _ := source.RawArtifactHash(agentsMDPath, false)
-			files = append(files, domain.InstalledFile{Path: "AGENTS.md", Hash: h, Status: domain.FileStatusConflict})
+		if conflict, currentHash := isConflict("AGENTS.md", agentsMDPath, false); conflict {
+			files = append(files, domain.InstalledFile{Path: "AGENTS.md", Hash: conflictHash(agentsMDPath, false, currentHash), Status: domain.FileStatusConflict})
 			conflicts = append(conflicts, "AGENTS.md")
 		} else {
 			agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs, instructionsRefDir(outputDir, true))
 			if err := source.CheckSymlink(agentsMDPath, outputDir); err != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("AGENTS.md: %w", err)
 			}
-			if wErr := writeUnlessDry(dryRun, agentsMDPath, agentsMD); wErr != nil {
+			h, wErr := writeOpenCodeFile(agentsMDPath, agentsMD, currentHash)
+			if wErr != nil {
 				return skills, commands, agents, instructions, conflicts, fmt.Errorf("AGENTS.md: %w", wErr)
 			}
-			h, _ := source.RawArtifactHash(agentsMDPath, false)
 			files = append(files, domain.InstalledFile{Path: "AGENTS.md", Hash: h})
 		}
 		instructions = len(globalSections) + len(scopedRefs)
@@ -472,7 +498,7 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	// Entries carried over untouched above keep their own unknown keys; the
 	// ones this sync rebuilt do not, and neither does the top level (#588).
 	newState.PreserveUnknownFrom(existingState)
-	if dryRun {
+	if dryRun || openCodeStateUnchanged(existingState, newState) {
 		return skills, commands, agents, instructions, conflicts, nil
 	}
 	if wErr := WriteOpenCodeState(outputDir, newState); wErr != nil {
@@ -482,11 +508,25 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	return skills, commands, agents, instructions, conflicts, nil
 }
 
-func writeUnlessDry(dryRun bool, path string, data []byte) error {
-	if dryRun {
-		return nil
+func openCodeStateUnchanged(old, cur *domain.StateFile) bool {
+	if old == nil || len(old.Unknown) > 0 {
+		return false
 	}
-	return writeFile(path, data)
+	if old.Collection != cur.Collection ||
+		old.Version != cur.Version ||
+		old.Scope != cur.Scope ||
+		old.SourceRepo != cur.SourceRepo ||
+		old.SourceSHA != cur.SourceSHA ||
+		len(old.Files) != len(cur.Files) {
+		return false
+	}
+	for i := range old.Files {
+		a, b := old.Files[i], cur.Files[i]
+		if a.Path != b.Path || a.Hash != b.Hash || a.Status != b.Status || len(a.Unknown) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // PrintOpenCodeStatusBlock prints the integrity status of nav-pilot-managed opencode files.
