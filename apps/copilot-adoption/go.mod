@@ -3,7 +3,7 @@ module github.com/navikt/copilot/apps/copilot-adoption
 go 1.26.0
 
 require (
-	cloud.google.com/go/bigquery v1.83.0
+	cloud.google.com/go/bigquery v1.85.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 )
 
