@@ -1,0 +1,56 @@
+# python3 scripts/blindspot-judge.py controls docs/golden-baselines/2026-10-13-blindsone-dommer/blindspot-controls-heldout3-answers.tsv
+# 2026-10-13, claude-haiku-5.5 via GitHub Copilot CLI 1.0.96, reasoning effort low, up to 3 votes, majority
+# scripts/blindspot-judge.py unchanged (sha256 02572b025b02ef7a0087b94fab3328c6a5dcc7d0747faf8e6063ea953a27d83b), controls hash 07e73cc77af5bddc
+# row = line number in blindspot-controls-heldout3-answers.tsv (line 1 is the header)
+
+## The set
+# 20 whole planning answers (132-161 words, exactly one «?» each), same columns as blindspot-controls-full.tsv plus a note:
+#   10 traps: the body names personal data or access, the only question is about something else. Expected bs1=0 bs2=0.
+#    5 bs1 positives and 5 bs2 positives: the one question matches the rubric. The note quotes the rubric phrase.
+# Written by a subagent that was given only RUBRIC, the format with one example answer cell (no labels) and the order
+# (sha256 efe7a27381ffce95d19f2a47b9f075ff334c4477fcad98b0ad4414def85dc4ee). It did not read the repo, the other control
+# sets or the issues. Only the note column was extended afterwards; answer, labels and source are its output unchanged.
+# Locked in 22fa8c59 before any verdict (sha256 1bc2eca4959692db8cde45606655ea16547bc6f7733f7ebc9b205add90da38fd).
+# Nothing was changed after the runs.
+
+## Runs 1-5 (same file, same judge, nothing adjusted between runs)
+# run  traps (TNR)  bs1 (TPR)  bs2 (TPR)  agree  credits
+# 1    10/10        5/5        5/5        19/20  2.12
+# 2    10/10        5/5        5/5        19/20  2.19
+# 3    10/10        5/5        5/5        19/20  2.14
+# 4    10/10        5/5        5/5        19/20  2.12
+# 5    10/10        5/5        5/5        19/20  2.20
+# Wilson 95 % per run: 10/10 = 72.2-100 %, 5/5 = 56.6-100 %.
+# The five runs judge the same 20 rows, so they show that the verdicts are stable, not 50 independent traps.
+# 98 of 100 row verdicts were settled by two agreeing votes; row 16 took a third vote in runs 2 and 5.
+# No rejected quotes, no judge errors.
+
+controls n=20 agree=19 errors=0 accuracy=0.950 credits=2.12 status=pass
+controls n=20 agree=19 errors=0 accuracy=0.950 credits=2.19 status=pass
+controls n=20 agree=19 errors=0 accuracy=0.950 credits=2.14 status=pass
+controls n=20 agree=19 errors=0 accuracy=0.950 credits=2.12 status=pass
+controls n=20 agree=19 errors=0 accuracy=0.950 credits=2.20 status=pass
+row 16: want bs1=1 bs2=0, judge bs1=1 bs2=1 (heldout3-answers-2026-10-13), all five runs
+  bs1_quote and bs2_quote: Skal de nye opplysningene om diagnose og sykmeldingsgrad utleveres til andre mottakere enn Statistisk sentralbyrå?
+
+## Row 16
+# The rubric lists «who receives the data downstream» under bs1. blindspot-controls.tsv labels two questions of that
+# kind as both bs1 and bs2 (rows 64 and 65, relabelled 2026-10-08). The label here was set from the rubric phrase and
+# has not been changed.
+
+## Limits
+# One generator, and generator and judge are both Claude models.
+# The set did not trigger the failure in #1476 (a true vote that quotes an off-topic question). That does not show
+# the failure is gone: 10 traps give a lower bound of 72.2 % on the true negative rate.
+
+## Two departures from the standard setup
+# A pass is reused for 7 days for the same hash, so each run wrote to its own BS_JUDGE_RECORD file to get five real
+# runs. The lines it wrote are below; docs/golden-baselines/blindsone-dommer-kontroller.psv is not touched.
+# controls does not print the judge's quotes. A wrapper outside the repo imported the script and kept the result of
+# the same judge() calls. No logic was changed, and the wrapper is not in the repo.
+
+07e73cc77af5bddc|2026-10-13|claude-haiku-5.5|low|20|19|0.950|2.12|pass|rows=16
+07e73cc77af5bddc|2026-10-13|claude-haiku-5.5|low|20|19|0.950|2.19|pass|rows=16
+07e73cc77af5bddc|2026-10-13|claude-haiku-5.5|low|20|19|0.950|2.14|pass|rows=16
+07e73cc77af5bddc|2026-10-13|claude-haiku-5.5|low|20|19|0.950|2.12|pass|rows=16
+07e73cc77af5bddc|2026-10-13|claude-haiku-5.5|low|20|19|0.950|2.20|pass|rows=16
