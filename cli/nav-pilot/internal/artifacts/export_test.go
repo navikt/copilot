@@ -1020,4 +1020,3 @@ func TestRealRepoAGENTSmdBudget(t *testing.T) {
 			len(data), len(data)/4, maxBytes, maxBytes/4)
 	}
 }
-
