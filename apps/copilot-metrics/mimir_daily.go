@@ -104,18 +104,18 @@ var mimirSession = []mimirSpec{
 	{metric: "nav_pilot_session_duration_seconds", cols: sessionCols(mimirCol{"shutdown_type", "shutdown_type"}), hist: true},
 	{metric: "nav_pilot_session_api_duration_ms", cols: sessionCols(mimirCol{"model", "model"}), hist: true},
 	{metric: "nav_pilot_session_events_skipped_total", cols: sessionCols()},
-	{metric: "nav_pilot_genai_session_tokens_total", cols: clientCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}, mimirCol{"token_type", "gen_ai_token_type"}), device: true},
-	{metric: "nav_pilot_genai_session_calls_total", cols: clientCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}), device: true},
-	{metric: "nav_pilot_local_dispatches", cols: clientCols(mimirCol{"model", "model"}, mimirCol{"operation", "dispatch_level"}, mimirCol{"outcome", "saw_traffic"}), hist: true, device: true},
+	{metric: "nav_pilot_genai_session_tokens_total", cols: clientCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}, mimirCol{"token_type", "gen_ai_token_type"}), merge: "model", device: true},
+	{metric: "nav_pilot_genai_session_calls_total", cols: clientCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}), merge: "model", device: true},
+	{metric: "nav_pilot_local_dispatches", cols: clientCols(mimirCol{"model", "model"}, mimirCol{"operation", "dispatch_level"}, mimirCol{"outcome", "saw_traffic"}), merge: "model,operation", hist: true, device: true},
 	{metric: "nav_pilot_local_gate_total", cols: []mimirCol{{"outcome", "outcome"}}, device: true},
 	{metric: "nav_pilot_local_ready_seconds", cols: []mimirCol{{"outcome", "outcome"}}, hist: true, device: true},
-	{metric: "nav_pilot_decide_result_total", cols: []mimirCol{{"model", "model"}, {"outcome", "result"}, {"source", "caller"}, {"operation", "backend"}}, device: true},
-	{metric: "nav_pilot_launch_error_total", cols: clientCols(mimirCol{"error_type", "error_type"}), device: true},
-	{metric: "nav_pilot_sync_updates_total", cols: []mimirCol{{"source", "scope"}, {"operation", "mode"}}, device: true},
-	{metric: "nav_pilot_sync_conflicts_total", cols: []mimirCol{{"source", "scope"}, {"operation", "mode"}}, device: true},
+	{metric: "nav_pilot_decide_result_total", cols: []mimirCol{{"model", "model"}, {"outcome", "result"}, {"source", "caller"}, {"operation", "backend"}}, merge: "model,source,operation", device: true},
+	{metric: "nav_pilot_launch_error_total", cols: clientCols(mimirCol{"error_type", "error_type"}), merge: "error_type", device: true},
+	{metric: "nav_pilot_sync_updates_total", cols: []mimirCol{{"source", "scope"}, {"operation", "mode"}}, merge: "source,operation", device: true},
+	{metric: "nav_pilot_sync_conflicts_total", cols: []mimirCol{{"source", "scope"}, {"operation", "mode"}}, merge: "source,operation", device: true},
 	{metric: "nav_pilot_hook_redact_total", cols: []mimirCol{{"outcome", "kind"}}, device: true},
-	{metric: "nav_pilot_hook_loop_guard_total", cols: []mimirCol{{"operation", "rule"}, {"source", "session"}}, device: true},
-	{metric: "nav_pilot_hook_action_check_total", cols: []mimirCol{{"outcome", "outcome"}, {"operation", "category"}}, device: true},
+	{metric: "nav_pilot_hook_loop_guard_total", cols: []mimirCol{{"operation", "rule"}, {"source", "session"}}, merge: "source", device: true},
+	{metric: "nav_pilot_hook_action_check_total", cols: []mimirCol{{"outcome", "outcome"}, {"operation", "category"}}, merge: "operation", device: true},
 }
 
 type MimirClient struct {
@@ -438,22 +438,80 @@ func mimirSessionRows(ctx context.Context, m *MimirClient, day string, t time.Ti
 			if s.hist {
 				base += "_count"
 			}
-			expr := fmt.Sprintf(`count by (%s) (count by (%s,device_id) (sum_over_time(%s{device_id!="",version=~"%s"}[1d]) > 0))`, by, by, base, minSessionVersionRe)
+			expr := fmt.Sprintf(`count by (%s,device_id) (sum_over_time(%s{device_id!="",version=~"%s"}[7d]) > 0)`, by, base, minSessionVersionRe)
 			res, err := m.query(ctx, expr, t)
 			if err != nil {
 				return nil, err
 			}
-			devs := map[string]int{}
+			devs := map[string]map[string]bool{}
 			for _, r := range res {
-				if n := r.float(); n >= mimirK && !math.IsNaN(n) {
-					devs[strings.Join(keyOf(r, labels), "\x00")] = int(n)
+				id := strings.Join(keyOf(r, labels), "\x00")
+				if devs[id] == nil {
+					devs[id] = map[string]bool{}
+				}
+				devs[id][r.Metric["device_id"]] = true
+			}
+			mergeCols := map[string]bool{}
+			for _, mc := range strings.Split(s.merge, ",") {
+				if mc != "" {
+					mergeCols[mc] = true
 				}
 			}
+			type mAcc struct {
+				key    []string
+				merged bool
+				vals   map[string]float64
+				devs   map[string]bool
+			}
+			var mergedOrder []string
+			merged := map[string]*mAcc{}
 			for _, id := range order {
-				if n, ok := devs[id]; ok {
-					rows[id]["devices"] = n
-					out = append(out, rows[id])
+				d := devs[id]
+				key := strings.Split(id, "\x00")
+				isMerged := false
+				if len(d) < mimirK {
+					if len(mergeCols) == 0 {
+						continue
+					}
+					isMerged = true
+					for i, c := range s.cols {
+						if mergeCols[c.name] {
+							key[i] = "andre"
+						}
+					}
 				}
+				mid := strings.Join(key, "\x00")
+				a := merged[mid]
+				if a == nil {
+					a = &mAcc{key: key, merged: isMerged, vals: map[string]float64{}, devs: map[string]bool{}}
+					merged[mid] = a
+					mergedOrder = append(mergedOrder, mid)
+				} else if isMerged {
+					a.merged = true
+				}
+				for dev := range d {
+					a.devs[dev] = true
+				}
+				for _, f := range []string{"increase", "hist_count", "hist_sum", "p50", "p95"} {
+					if x, ok := rows[id][f].(float64); ok {
+						a.vals[f] += x
+					}
+				}
+			}
+			for _, mid := range mergedOrder {
+				a := merged[mid]
+				if len(a.devs) < mimirK {
+					continue
+				}
+				rec := mimirRow{"day": day, "family": "nav_pilot_session", "metric": s.metric, "devices": len(a.devs), "counter_reliable": true}
+				setCols(rec, s.cols, a.key)
+				for f, x := range a.vals {
+					if a.merged && (f == "p50" || f == "p95") {
+						continue
+					}
+					setVal(rec, f, x)
+				}
+				out = append(out, rec)
 			}
 			continue
 		}

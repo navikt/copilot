@@ -29,15 +29,19 @@ func TestDefaultCriteria(t *testing.T) {
 
 	// Verify expected categories exist
 	expected := []string{
-		// GitHub Copilot
+		// GitHub Copilot & nav-pilot
 		"copilot_instructions", "agents_md", "agents",
 		"instructions", "prompts", "skills", "mcp_config", "copilot_dir",
 		"copilot_setup_steps", "agentic_workflows", "agents_skills",
-		"nav_pilot_state",
+		"nav_pilot_state", "copilot_hooks", "agentpakke_manifest", "agentpakke_lock",
+		"cplt_toml",
+		// OpenCode & Cross-client MCP
+		"opencode_json", "opencode_jsonc", "opencode_dir",
+		"jetbrains_mcp", "root_mcp_json",
 		// Cursor
 		"cursorrules", "cursor_rules_dir", "cursorignore",
-		// Claude Code
-		"claude_md", "claude_settings",
+		// Claude Code & Gemini
+		"claude_md", "claude_settings", "claude_agents", "claude_commands", "claude_skills", "gemini_md",
 		// Windsurf
 		"windsurfrules",
 	}

@@ -88,7 +88,10 @@ func RunScan(ctx context.Context, gh interface {
 		if customizations == nil {
 			customizations = emptyResults(criteria)
 		}
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name]))
+		res := assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name])
+		res.DefaultBranchCommits7d = scanOutput.Commits7d[repo.Name]
+		res.DefaultBranchCommits30d = scanOutput.Commits30d[repo.Name]
+		allResults = append(allResults, res)
 	}
 
 	// Archived repos: metadata only, no customization scan
@@ -183,7 +186,10 @@ func DryRunScan(ctx context.Context, gh interface {
 		if customizations == nil {
 			customizations = emptyResults(criteria)
 		}
-		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name]))
+		res := assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], customizations, scanOutput.LastCommits[repo.Name])
+		res.DefaultBranchCommits7d = scanOutput.Commits7d[repo.Name]
+		res.DefaultBranchCommits30d = scanOutput.Commits30d[repo.Name]
+		allResults = append(allResults, res)
 	}
 	for _, repo := range archivedRepos {
 		allResults = append(allResults, assembleResult(cfg.OrganizationSlug, repo, teamMap[repo.Name], emptyResults(criteria), nil))
@@ -302,6 +308,7 @@ func assembleResult(org string, repo RepoInfo, teams []TeamAccess, customization
 		CreatedAt:               repo.CreatedAt,
 		PushedAt:                repo.PushedAt,
 		DefaultBranchLastCommit: lastCommit,
+		OpenIssuesCount:         repo.OpenIssuesCount,
 		Topics:                  topics,
 		Teams:                   teams,
 		Customizations:          customizations,

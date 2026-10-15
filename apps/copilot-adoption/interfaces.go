@@ -16,6 +16,7 @@ type RepoInfo struct {
 	CreatedAt       time.Time
 	PushedAt        time.Time
 	Topics          []string
+	OpenIssuesCount int
 }
 
 // TeamAccess represents a team's access to a repository.
@@ -45,6 +46,9 @@ type RepoScanResult struct {
 	CreatedAt               time.Time
 	PushedAt                time.Time
 	DefaultBranchLastCommit *time.Time // nil when not scanned (archived repos, failed batches)
+	DefaultBranchCommits7d  int
+	DefaultBranchCommits30d int
+	OpenIssuesCount         int
 	Topics                  []string
 	Teams                   []TeamAccess
 	Customizations          map[string]SearchResult // keyed by SearchCriteria.Category
@@ -66,6 +70,8 @@ type TeamMapper interface {
 type ScanOutput struct {
 	Customizations map[string]map[string]SearchResult // repo name → category → result
 	LastCommits    map[string]*time.Time              // repo name → last commit to default branch (nil = unknown)
+	Commits7d      map[string]int                     // repo name → commits on default branch in last 7d
+	Commits30d     map[string]int                     // repo name → commits on default branch in last 30d
 }
 
 // CustomizationScanner checks repositories for customization files using GraphQL.

@@ -51,6 +51,12 @@ export function extractCustomizationTypes(summary: AdoptionSummary): Customizati
       group: "copilot",
     },
     {
+      key: "copilot_hooks",
+      label: "copilot-hooks.json",
+      value: summary.repos_with_copilot_hooks ?? 0,
+      group: "copilot",
+    },
+    {
       key: "copilot_setup_steps",
       label: "copilot-setup-steps.yml",
       value: summary.repos_with_copilot_setup_steps,
@@ -59,9 +65,33 @@ export function extractCustomizationTypes(summary: AdoptionSummary): Customizati
     { key: "agentic_workflows", label: ".github/aw/", value: summary.repos_with_agentic_workflows, group: "agentic" },
     { key: "agents_skills", label: ".agents/skills/", value: summary.repos_with_agents_skills, group: "agentic" },
     {
+      key: "jetbrains_mcp",
+      label: ".idea/mcp.json",
+      value: summary.repos_with_jetbrains_mcp ?? 0,
+      group: "agentic",
+    },
+    {
+      key: "root_mcp_json",
+      label: ".mcp.json",
+      value: summary.repos_with_root_mcp_json ?? 0,
+      group: "agentic",
+    },
+    {
       key: "nav_pilot_state",
       label: "nav-pilot-state.json",
       value: summary.repos_with_nav_pilot_state,
+      group: "nav-pilot",
+    },
+    {
+      key: "agentpakke_manifest",
+      label: "agentpakke.json",
+      value: summary.repos_with_agentpakke_manifest ?? 0,
+      group: "nav-pilot",
+    },
+    {
+      key: "agentpakke_lock",
+      label: "agentpakke.lock.json",
+      value: summary.repos_with_agentpakke_lock ?? 0,
       group: "nav-pilot",
     },
     {
@@ -85,8 +115,33 @@ export function extractToolComparison(summary: AdoptionSummary): ToolUsage[] {
 
   const tools: ToolUsage[] = [
     { label: "Kun Copilot", value: copilotOnly },
-    { label: "Cursor", value: summary.repos_with_cursorrules + summary.repos_with_cursor_rules_dir },
-    { label: "Claude", value: summary.repos_with_claude_md },
+    {
+      label: "Cursor",
+      value: summary.repos_with_any_cursor ?? summary.repos_with_cursorrules + summary.repos_with_cursor_rules_dir,
+    },
+    {
+      label: "Claude",
+      value:
+        summary.repos_with_any_claude ??
+        Math.max(
+          summary.repos_with_claude_md,
+          summary.repos_with_claude_settings ?? 0,
+          summary.repos_with_claude_agents ?? 0,
+          summary.repos_with_claude_commands ?? 0,
+          summary.repos_with_claude_skills ?? 0
+        ),
+    },
+    {
+      label: "OpenCode",
+      value:
+        summary.repos_with_any_opencode ??
+        Math.max(
+          summary.repos_with_opencode_json ?? 0,
+          summary.repos_with_opencode_jsonc ?? 0,
+          summary.repos_with_opencode_dir ?? 0
+        ),
+    },
+    { label: "Gemini", value: summary.repos_with_gemini_md ?? 0 },
     { label: "Windsurf", value: summary.repos_with_windsurfrules },
   ];
 

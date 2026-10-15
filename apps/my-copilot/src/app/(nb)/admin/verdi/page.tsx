@@ -13,6 +13,7 @@ import {
   getBillingModelBreakdown,
   getCopilotPRsMonthly,
   getCopilotUsageMetrics,
+  getNavPilotTelemetry,
   getRepositoryUsage,
   getTeamGrossOverview,
   getTeamNetOverview,
@@ -20,6 +21,7 @@ import {
 import { formatMinutes, formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import { teamInsightMonth } from "@/lib/month-utils";
 import { monthName } from "@/lib/team-year";
+import type { NavPilotClientTokens, RepoVelocityCohort } from "@/lib/types";
 import { buildVerdiMonths, buildVerdiRepos, buildVerdiTeams } from "@/lib/verdi";
 
 export const metadata: Metadata = {
@@ -31,18 +33,29 @@ export const metadata: Metadata = {
 const loadVerdiData = cache(async (token: string) => {
   const year = new Date().getUTCFullYear();
   const teamMonth = teamInsightMonth(undefined);
-  const [admin, breakdownRes, usageRes, copilotPRsRes, volume, reposRes, teamGross, teamNet, adoptionRes] =
-    await Promise.all([
-      getAdminMonthlyOverview(year, token).catch(() => null),
-      getBillingModelBreakdown(token, 12).catch(() => ({ breakdown: [], error: "feil" })),
-      getCopilotUsageMetrics(token).catch(() => ({ usage: null, error: "feil" })),
-      getCopilotPRsMonthly(token).catch(() => ({ months: [], error: "feil" })),
-      getAdminVolume(year, token).catch(() => []),
-      getRepositoryUsage(token).catch(() => ({ repositories: [], error: "feil" })),
-      getTeamGrossOverview(teamMonth, token).catch(() => null),
-      getTeamNetOverview(teamMonth, token).catch(() => null),
-      getAdoptionData(token).catch(() => ({ data: null, error: "feil" })),
-    ]);
+  const [
+    admin,
+    breakdownRes,
+    usageRes,
+    copilotPRsRes,
+    volume,
+    reposRes,
+    teamGross,
+    teamNet,
+    adoptionRes,
+    telemetryRes,
+  ] = await Promise.all([
+    getAdminMonthlyOverview(year, token).catch(() => null),
+    getBillingModelBreakdown(token, 12).catch(() => ({ breakdown: [], error: "feil" })),
+    getCopilotUsageMetrics(token).catch(() => ({ usage: null, error: "feil" })),
+    getCopilotPRsMonthly(token).catch(() => ({ months: [], error: "feil" })),
+    getAdminVolume(year, token).catch(() => []),
+    getRepositoryUsage(token).catch(() => ({ repositories: [], error: "feil" })),
+    getTeamGrossOverview(teamMonth, token).catch(() => null),
+    getTeamNetOverview(teamMonth, token).catch(() => null),
+    getAdoptionData(token).catch(() => ({ data: null, error: "feil" })),
+    getNavPilotTelemetry(token).catch(() => ({ telemetry: null, error: "feil" })),
+  ]);
 
   const months = buildVerdiMonths({
     admin,
@@ -53,9 +66,16 @@ const loadVerdiData = cache(async (token: string) => {
   });
   const repos = buildVerdiRepos(reposRes.repositories);
   const teams = buildVerdiTeams(teamNet, teamGross, adoptionRes.data?.teams);
-  const updated = usageRes.usage?.at(-1)?.day ?? admin?.coverage.last_gross_day ?? teamGross?.last_usage_day ?? null;
+  const adoptionSummary = adoptionRes.data?.summary ?? null;
+  const telemetry = telemetryRes.telemetry;
+  const updated =
+    usageRes.usage?.at(-1)?.day ??
+    telemetry?.latest_day ??
+    admin?.coverage.last_gross_day ??
+    teamGross?.last_usage_day ??
+    null;
 
-  return { months, repos, teams, updated };
+  return { months, repos, teams, adoptionSummary, telemetry, updated };
 });
 
 const dash = "–";
@@ -64,16 +84,63 @@ const fmtPct = (v: number | null) => (v !== null ? formatPercent(v, 1) : dash);
 const fmtRatio = (v: number | null) => (v !== null ? `${formatNumber(v)}:1` : dash);
 const mLabel = (m: string, preliminary: boolean) => `${monthName(m)}${preliminary ? " (foreløpig)" : ""}`;
 
+function velocityCohortRow(label: string, c?: RepoVelocityCohort | null): string[] | null {
+  if (!c || c.active_pr_repos_30d === 0) return null;
+  const prsPerRepo = Math.round((c.prs_merged_30d / c.active_pr_repos_30d) * 10) / 10;
+  return [
+    label,
+    formatNumber(c.active_pr_repos_30d),
+    formatNumber(c.prs_merged_30d),
+    formatNumber(prsPerRepo),
+    formatNumber(c.prs_created_by_copilot_30d),
+    formatNumber(c.prs_reviewed_by_copilot_30d),
+    formatMinutes(c.avg_median_minutes_to_merge_30d != null ? Math.round(c.avg_median_minutes_to_merge_30d) : null),
+  ];
+}
+
+function clientTokenRow(label: string, t?: NavPilotClientTokens): string[] | null {
+  if (!t) return null;
+  const totalIn = t.cache_read_tokens + t.cache_write_tokens + t.input_tokens;
+  if (totalIn === 0 && t.output_tokens === 0) return null;
+  const cachePct = totalIn > 0 ? (t.cache_read_tokens / totalIn) * 100 : null;
+  const uncachedRatio = t.output_tokens > 0 ? Math.round((t.input_tokens / t.output_tokens) * 10) / 10 : null;
+  return [
+    label,
+    formatNumber(t.cache_read_tokens),
+    formatNumber(t.cache_write_tokens),
+    formatNumber(t.input_tokens),
+    formatNumber(t.output_tokens),
+    fmtPct(cachePct),
+    fmtRatio(uncachedRatio),
+  ];
+}
+
 export default async function AdminVerdiPage() {
   await requireAdmin();
   const token = await getUserToken();
   if (!token) return <ErrorState title="Verdi og effekt" message="Mangler innloggingstoken" />;
 
-  const { months, repos, teams, updated } = await loadVerdiData(token);
+  const { months, repos, teams, adoptionSummary, telemetry, updated } = await loadVerdiData(token);
   const prMonths = months.filter((m) => m.prTotalCreated > 0 || m.prReviewedByCopilot > 0);
   const latestPR = prMonths.at(-1) ?? null;
   const tokenMonths = months.filter((m) => m.cliInputTokens > 0 || m.appInputTokens > 0);
   const latestToken = tokenMonths.at(-1) ?? null;
+  const sessionTokenRows = [
+    clientTokenRow("Copilot CLI (nav-pilot)", telemetry?.copilot_tokens_7d),
+    clientTokenRow("OpenCode (nav-pilot)", telemetry?.opencode_tokens_7d),
+  ].filter((r): r is string[] => r !== null);
+  const velocityCohortRows = [
+    velocityCohortRow("Med KI-tilpasninger", adoptionSummary?.velocity_customized),
+    velocityCohortRow("Uten KI-tilpasninger", adoptionSummary?.velocity_uncustomized),
+  ].filter((r): r is string[] => r !== null);
+  const hasGuardrails =
+    (telemetry?.hook_runs_7d ?? 0) > 0 ||
+    (telemetry?.hook_action_flagged_7d ?? 0) > 0 ||
+    (telemetry?.hook_redactions_7d ?? 0) > 0 ||
+    (telemetry?.hook_loop_guards_7d ?? 0) > 0 ||
+    (telemetry?.sync_updates_7d ?? 0) > 0 ||
+    (telemetry?.sync_conflicts_7d ?? 0) > 0 ||
+    (telemetry?.launch_errors_7d ?? 0) > 0;
 
   return (
     <InsightPage
@@ -87,9 +154,9 @@ export default async function AdminVerdiPage() {
           <code>/billing/model-breakdown</code> (netto USD etter rabatt, uten lisenser). Pull request-tallene kommer fra{" "}
           <code>/usage/metrics</code> (GitHubs <code>pull_requests</code>-felt fra 17. juli 2026),{" "}
           <code>/usage/copilot-prs</code> og <code>/usage/repositories</code> (<code>v_repository_usage</code>,
-          offentlige og interne repoer med minst fem PR-er). Tokentallene kommer fra <code>/admin/billing/volume</code>.
-          Teamkostnad og tilpasninger kommer fra <code>/usage/team-net</code>, <code>/usage/team-gross</code> og{" "}
-          <code>/adoption/teams</code> med femgrense.
+          offentlige og interne repoer med minst fem PR-er). Tokentallene kommer fra <code>/admin/billing/volume</code>{" "}
+          og <code>/mimir/telemetry</code> (<code>mimir_daily</code>). Teamkostnad og tilpasninger kommer fra{" "}
+          <code>/usage/team-net</code>, <code>/usage/team-gross</code> og <code>/adoption/teams</code> med femgrense.
         </>
       }
     >
@@ -321,8 +388,9 @@ export default async function AdminVerdiPage() {
       <InsightSection id="kontekst" title="Kontekstforhold (inndata mot utdata)">
         <Alert variant="info" size="small">
           GitHub skiller ikke ut hurtigbufrede tokener i <code>usage_metrics</code>, og rapporterer bare tokener for
-          Copilot CLI og Copilot-appen. Et høyt forhold mellom inndata og utdata kan skyldes lange økter uten
-          komprimering, eller at modellen leser mye kode for å gjøre en liten, målrettet endring.
+          Copilot CLI og Copilot-appen. Økttelemetri fra <code>nav-pilot</code> (siste syv dager) viser derimot hvor
+          stor andel av inndata som leses fra hurtigbuffer (<code>cache_read</code>) mot fersk inndata (
+          <code>input</code>).
         </Alert>
         {latestToken ? (
           <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
@@ -358,6 +426,27 @@ export default async function AdminVerdiPage() {
         ) : (
           <BodyShort>Ingen tokentall ennå.</BodyShort>
         )}
+        {sessionTokenRows.length > 0 && (
+          <>
+            <BodyShort size="small" textColor="subtle">
+              Hurtigbuffer og fersk inndata siste syv dager fra <code>nav-pilot</code>-økter (minst fem enheter):
+            </BodyShort>
+            <PlainTable
+              rows={[
+                [
+                  "Klient (siste 7 dager)",
+                  "Hurtigbuffer lest",
+                  "Hurtigbuffer skrevet",
+                  "Fersk inndata",
+                  "Utdata",
+                  "Hurtigbufferandel",
+                  "Fersk inn:ut",
+                ],
+                ...sessionTokenRows,
+              ]}
+            />
+          </>
+        )}
         {tokenMonths.length > 0 && (
           <PlainTable
             rows={[
@@ -382,11 +471,33 @@ export default async function AdminVerdiPage() {
             Fakturadata har ikke repo, så oversikten kobler kostnad og tilpasningsgrad per team (minst fem aktive
             brukere) med PR-resultater per repo (offentlige og interne repoer med minst fem PR-er).
           </BodyShort>
+          {velocityCohortRows.length > 0 && (
+            <>
+              <BodyShort size="small">
+                PR-gjennomstrømning siste 30 dager for offentlige og interne repoer med og uten KI-tilpasninger:
+              </BodyShort>
+              <PlainTable
+                rows={[
+                  [
+                    "Repogruppe (siste 30 dager)",
+                    "Repoer med PR-er",
+                    "Mergede PR-er",
+                    "Mergede / repo",
+                    "Opprettet av agent",
+                    "Gjennomgått av Copilot",
+                    "Tid til merge",
+                  ],
+                  ...velocityCohortRows,
+                ]}
+              />
+            </>
+          )}
           {teams && teams.teams.length > 0 ? (
             <>
               <BodyShort size="small">
                 Teamkostnad og repotilpasning i {monthName(teams.month)} (
-                {teams.basis === "net" ? "fakturert netto" : "brutto anslag"}).
+                {teams.basis === "net" ? "fakturert netto" : "brutto anslag"}), samt PR-aktivitet siste 30 dager (minst
+                fem mergede PR-er).
               </BodyShort>
               <PlainTable
                 rows={[
@@ -397,6 +508,9 @@ export default async function AdminVerdiPage() {
                     "Kostnad per bruker",
                     "Aktive repoer",
                     "Repoer med tilpasninger",
+                    "Mergede PR-er (30 d)",
+                    "Gjennomgått av Copilot (30 d)",
+                    "Tid til merge (30 d)",
                   ],
                   ...teams.teams
                     .slice(0, 20)
@@ -409,6 +523,9 @@ export default async function AdminVerdiPage() {
                       t.reposWithCustomizations !== null && t.adoptionPct !== null
                         ? `${formatNumber(t.reposWithCustomizations)} (${formatPercent(t.adoptionPct, 0)})`
                         : dash,
+                      t.prsMerged30d !== null ? formatNumber(t.prsMerged30d) : dash,
+                      t.prsReviewedByCopilot30d !== null ? formatNumber(t.prsReviewedByCopilot30d) : dash,
+                      formatMinutes(t.avgMedianMinutesToMerge30d),
                     ]),
                   ...(teams.smallTeams > 0
                     ? [
@@ -416,6 +533,9 @@ export default async function AdminVerdiPage() {
                           "Andre team (< 5 aktive brukere)",
                           `${formatNumber(teams.smallTeams)} team`,
                           "Skjult (< 5)",
+                          dash,
+                          dash,
+                          dash,
                           dash,
                           dash,
                           dash,
@@ -464,6 +584,45 @@ export default async function AdminVerdiPage() {
           )}
         </VStack>
       </InsightSection>
+
+      {hasGuardrails && telemetry && (
+        <InsightSection id="nav-pilot-drift" title="Sikkerhetskontroller og synkronisering i nav-pilot (siste 7 dager)">
+          <BodyShort size="small" textColor="subtle">
+            Telleverk fra avsluttede <code>nav-pilot</code>-økter og synkronisering siste syv dager (rapporteres bare
+            når minst fem enheter bidrar).
+          </BodyShort>
+          <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
+            <MetricCard
+              value={formatNumber(telemetry.hook_runs_7d ?? 0)}
+              label="Sikkerhetssjekker i økt"
+              subtitle={`${formatNumber(telemetry.hook_action_flagged_7d ?? 0)} handlinger flagget`}
+              helpTitle="Sikkerhetssjekker i økt"
+              helpText="Antall ganger nav-pilots innebygde sikkerhetskontroller (hooks) kjørte under økter siste syv dager."
+            />
+            <MetricCard
+              value={formatNumber(telemetry.hook_redactions_7d ?? 0)}
+              label="Sladdede verdier"
+              subtitle={`Hemmeligheter: ${formatNumber(telemetry.hook_redact_secrets_7d ?? 0)}, fødselsnr.: ${formatNumber(telemetry.hook_redact_fnr_7d ?? 0)}`}
+              helpTitle="Sladdede verdier"
+              helpText="Antall ganger nav-pilot sladdet hemmeligheter eller fødselsnumre fra verktøyutdata før de ble sendt til modellen."
+            />
+            <MetricCard
+              value={formatNumber(telemetry.hook_loop_guards_7d ?? 0)}
+              label="Gjentakelsesvern utløst"
+              subtitle="Avbrutte verktøyløkker"
+              helpTitle="Gjentakelsesvern utløst"
+              helpText="Antall ganger gjentakelsesvernet (loop guard) stoppet gjentatte identiske verktøykall i en økt."
+            />
+            <MetricCard
+              value={formatNumber(telemetry.sync_updates_7d ?? 0)}
+              label="Oppdagede synk-oppdateringer"
+              subtitle={`${formatNumber(telemetry.sync_conflicts_7d ?? 0)} planlagte erstatninger ved lokale endringer, ${formatNumber(telemetry.launch_errors_7d ?? 0)} oppstartsfeil`}
+              helpTitle="Oppdagede synk-oppdateringer"
+              helpText="Antall oppdagede oppdateringer i nav-pilot sync siste syv dager (inkludert dry-run), samt antall planlagte erstatninger der lokale endringer lå i veien."
+            />
+          </HGrid>
+        </InsightSection>
+      )}
 
       <InsightSection id="metode" title="Metode og kjente begrensninger">
         <VStack gap="space-12">

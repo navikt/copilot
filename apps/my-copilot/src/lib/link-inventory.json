@@ -17,7 +17,9 @@
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/navigation/site-nav.tsx",
       "apps/my-copilot/src/components/site-shell.tsx",
-      "apps/my-copilot/src/lib/news.ts"
+      "apps/my-copilot/src/lib/news.ts",
+      "copilot-intern/README.md",
+      "copilot-intern/styringsmodell.md"
     ],
     "anchors": {}
   },
@@ -91,6 +93,7 @@
       "kontekst": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
       "kostnad-per-resultat": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
       "metode": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
+      "nav-pilot-drift": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"],
       "team-og-repo": ["apps/my-copilot/src/app/(nb)/admin/verdi/page.tsx"]
     }
   },
@@ -130,6 +133,11 @@
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/weekly-tip.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
+      "copilot-intern/godkjente-agenter.md",
+      "copilot-intern/overvaaking.md",
+      "copilot-intern/risikovurdering.md",
+      "copilot-intern/underlag/forsvar-i-dybden.md",
+      "copilot-intern/underlag/sikkerhetsforskning-ai-agenter.md",
       "docs/news/articles/cplt-juli-2026-sikkerhetsoppdatering.md",
       "docs/news/articles/cplt-lokal-config-og-flere-repoer.md",
       "docs/news/articles/cplt-mai-2026-oppdatering.md",
@@ -332,7 +340,8 @@
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx",
       "apps/my-copilot/src/components/insight-strip.tsx",
-      "apps/my-copilot/src/lib/daily-fact.ts"
+      "apps/my-copilot/src/lib/daily-fact.ts",
+      "copilot-intern/godkjente-agenter.md"
     ],
     "anchors": {
       "faktisk-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
@@ -2723,6 +2732,9 @@
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/weekly-tip.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
+      "copilot-intern/godkjente-agenter.md",
+      "copilot-intern/retningslinjer.md",
+      "copilot-intern/underlag/kostnadsanalyse-ai-agenter.md",
       "docs/news/articles/model-pinning-kostnadsoptimalisering.md",
       "docs/news/articles/nye-modeller-juli-2026.md",
       "docs/news/articles/usage-based-billing.md"
@@ -2745,6 +2757,9 @@
       "apps/my-copilot/src/components/page-hero.tsx",
       "apps/my-copilot/src/components/weekly-tip.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
+      "copilot-intern/godkjente-agenter.md",
+      "copilot-intern/retningslinjer.md",
+      "copilot-intern/risikovurdering.md",
       "docs/news/articles/claude-tekstvannmerking.md",
       "docs/news/articles/dette-er-retningen.md"
     ],
@@ -2849,6 +2864,7 @@
       "apps/my-copilot/src/components/sidebar.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
       "cli/nav-pilot/internal/provider/opencode_mcp.go",
+      "copilot-intern/godkjente-agenter.md",
       "docs/README.agents.md",
       "docs/README.instructions.md",
       "docs/README.mcp.md",

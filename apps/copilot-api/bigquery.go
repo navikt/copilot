@@ -57,42 +57,74 @@ func newBigQueryClient(config *Config) (*BigQueryClient, error) {
 // EnterpriseMetrics represents a single day of Copilot usage metrics
 type EnterpriseMetrics map[string]interface{}
 
+// RepoVelocityCohort summarizes 30-day pull request velocity for a repository cohort (customized vs. uncustomized).
+type RepoVelocityCohort struct {
+	HasCustomizations          bool     `bigquery:"has_any_customization" json:"has_any_customization"`
+	ActivePRRepos30d           int64    `bigquery:"active_pr_repos_30d" json:"active_pr_repos_30d"`
+	PRsCreated30d              int64    `bigquery:"prs_created_30d" json:"prs_created_30d"`
+	PRsMerged30d               int64    `bigquery:"prs_merged_30d" json:"prs_merged_30d"`
+	PRsCreatedByCopilot30d     int64    `bigquery:"prs_created_by_copilot_30d" json:"prs_created_by_copilot_30d"`
+	PRsReviewedByCopilot30d    int64    `bigquery:"prs_reviewed_by_copilot_30d" json:"prs_reviewed_by_copilot_30d"`
+	AvgMedianMinutesToMerge30d *float64 `bigquery:"avg_median_minutes_to_merge_30d" json:"avg_median_minutes_to_merge_30d"`
+}
+
 // AdoptionSummary represents the latest adoption scan summary
 type AdoptionSummary struct {
-	ScanDate                     civil.Date `bigquery:"scan_date" json:"scan_date"`
-	TotalRepos                   int64      `bigquery:"total_repos" json:"total_repos"`
-	ActiveRepos                  int64      `bigquery:"active_repos" json:"active_repos"`
-	ArchivedRepos                int64      `bigquery:"archived_repos" json:"archived_repos"`
-	ActiveReposWithRecentCommits int64      `bigquery:"active_repos_with_recent_commits" json:"active_repos_with_recent_commits"`
-	DormantRepos                 int64      `bigquery:"dormant_repos" json:"dormant_repos"`
-	UnknownLastCommitRepos       int64      `bigquery:"unknown_last_commit_repos" json:"unknown_last_commit_repos"`
-	ReposWithAnyCustomization    int64      `bigquery:"repos_with_any_customization" json:"repos_with_any_customization"`
-	ReposWithoutCustomization    int64      `bigquery:"repos_without_customization" json:"repos_without_customization"`
-	AdoptionRate                 float64    `bigquery:"adoption_rate" json:"adoption_rate"`
-	AdoptionRateActiveOnly       float64    `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
-	ReposWithCopilotInstructions int64      `bigquery:"repos_with_copilot_instructions" json:"repos_with_copilot_instructions"`
-	ReposWithAgentsMD            int64      `bigquery:"repos_with_agents_md" json:"repos_with_agents_md"`
-	ReposWithAgents              int64      `bigquery:"repos_with_agents" json:"repos_with_agents"`
-	ReposWithInstructions        int64      `bigquery:"repos_with_instructions" json:"repos_with_instructions"`
-	ReposWithPrompts             int64      `bigquery:"repos_with_prompts" json:"repos_with_prompts"`
-	ReposWithSkills              int64      `bigquery:"repos_with_skills" json:"repos_with_skills"`
-	ReposWithMCPConfig           int64      `bigquery:"repos_with_mcp_config" json:"repos_with_mcp_config"`
-	ReposWithCopilotDir          int64      `bigquery:"repos_with_copilot_dir" json:"repos_with_copilot_dir"`
-	ReposWithCopilotReviewInst   int64      `bigquery:"repos_with_copilot_review_instructions" json:"repos_with_copilot_review_instructions"`
-	ReposWithCursorRules         int64      `bigquery:"repos_with_cursorrules" json:"repos_with_cursorrules"`
-	ReposWithCursorRulesDir      int64      `bigquery:"repos_with_cursor_rules_dir" json:"repos_with_cursor_rules_dir"`
-	ReposWithClaudeMD            int64      `bigquery:"repos_with_claude_md" json:"repos_with_claude_md"`
-	ReposWithWindsurfRules       int64      `bigquery:"repos_with_windsurfrules" json:"repos_with_windsurfrules"`
-	ReposWithCursorIgnore        int64      `bigquery:"repos_with_cursorignore" json:"repos_with_cursorignore"`
-	ReposWithClaudeSettings      int64      `bigquery:"repos_with_claude_settings" json:"repos_with_claude_settings"`
-	ReposWithCopilotSetupSteps   int64      `bigquery:"repos_with_copilot_setup_steps" json:"repos_with_copilot_setup_steps"`
-	ReposWithAgenticWorkflows    int64      `bigquery:"repos_with_agentic_workflows" json:"repos_with_agentic_workflows"`
-	ReposWithAgentsSkills        int64      `bigquery:"repos_with_agents_skills" json:"repos_with_agents_skills"`
-	ReposWithNavPilotState       int64      `bigquery:"repos_with_nav_pilot_state" json:"repos_with_nav_pilot_state"`
-	ReposWithCPLTToml            int64      `bigquery:"repos_with_cplt_toml" json:"repos_with_cplt_toml"`
-	ReposWithAnyNonCopilotAI     int64      `bigquery:"repos_with_any_non_copilot_ai" json:"repos_with_any_non_copilot_ai"`
-	AvgCustomizationCount        float64    `bigquery:"avg_customization_count" json:"avg_customization_count"`
-	MaxCustomizationCount        int64      `bigquery:"max_customization_count" json:"max_customization_count"`
+	ScanDate                     civil.Date          `bigquery:"scan_date" json:"scan_date"`
+	TotalRepos                   int64               `bigquery:"total_repos" json:"total_repos"`
+	ActiveRepos                  int64               `bigquery:"active_repos" json:"active_repos"`
+	ArchivedRepos                int64               `bigquery:"archived_repos" json:"archived_repos"`
+	ActiveReposWithRecentCommits int64               `bigquery:"active_repos_with_recent_commits" json:"active_repos_with_recent_commits"`
+	DormantRepos                 int64               `bigquery:"dormant_repos" json:"dormant_repos"`
+	UnknownLastCommitRepos       int64               `bigquery:"unknown_last_commit_repos" json:"unknown_last_commit_repos"`
+	ReposWithAnyCustomization    int64               `bigquery:"repos_with_any_customization" json:"repos_with_any_customization"`
+	ReposWithoutCustomization    int64               `bigquery:"repos_without_customization" json:"repos_without_customization"`
+	AdoptionRate                 float64             `bigquery:"adoption_rate" json:"adoption_rate"`
+	AdoptionRateActiveOnly       float64             `bigquery:"adoption_rate_active_only" json:"adoption_rate_active_only"`
+	ReposWithCopilotInstructions int64               `bigquery:"repos_with_copilot_instructions" json:"repos_with_copilot_instructions"`
+	ReposWithAgentsMD            int64               `bigquery:"repos_with_agents_md" json:"repos_with_agents_md"`
+	ReposWithAgents              int64               `bigquery:"repos_with_agents" json:"repos_with_agents"`
+	ReposWithInstructions        int64               `bigquery:"repos_with_instructions" json:"repos_with_instructions"`
+	ReposWithPrompts             int64               `bigquery:"repos_with_prompts" json:"repos_with_prompts"`
+	ReposWithSkills              int64               `bigquery:"repos_with_skills" json:"repos_with_skills"`
+	ReposWithMCPConfig           int64               `bigquery:"repos_with_mcp_config" json:"repos_with_mcp_config"`
+	ReposWithCopilotDir          int64               `bigquery:"repos_with_copilot_dir" json:"repos_with_copilot_dir"`
+	ReposWithCopilotReviewInst   int64               `bigquery:"repos_with_copilot_review_instructions" json:"repos_with_copilot_review_instructions"`
+	ReposWithCursorRules         int64               `bigquery:"repos_with_cursorrules" json:"repos_with_cursorrules"`
+	ReposWithCursorRulesDir      int64               `bigquery:"repos_with_cursor_rules_dir" json:"repos_with_cursor_rules_dir"`
+	ReposWithClaudeMD            int64               `bigquery:"repos_with_claude_md" json:"repos_with_claude_md"`
+	ReposWithWindsurfRules       int64               `bigquery:"repos_with_windsurfrules" json:"repos_with_windsurfrules"`
+	ReposWithCursorIgnore        int64               `bigquery:"repos_with_cursorignore" json:"repos_with_cursorignore"`
+	ReposWithClaudeSettings      int64               `bigquery:"repos_with_claude_settings" json:"repos_with_claude_settings"`
+	ReposWithClaudeAgents        int64               `bigquery:"repos_with_claude_agents" json:"repos_with_claude_agents"`
+	ReposWithClaudeCommands      int64               `bigquery:"repos_with_claude_commands" json:"repos_with_claude_commands"`
+	ReposWithClaudeSkills        int64               `bigquery:"repos_with_claude_skills" json:"repos_with_claude_skills"`
+	ReposWithGeminiMD            int64               `bigquery:"repos_with_gemini_md" json:"repos_with_gemini_md"`
+	ReposWithOpenCodeJSON        int64               `bigquery:"repos_with_opencode_json" json:"repos_with_opencode_json"`
+	ReposWithOpenCodeJSONC       int64               `bigquery:"repos_with_opencode_jsonc" json:"repos_with_opencode_jsonc"`
+	ReposWithOpenCodeDir         int64               `bigquery:"repos_with_opencode_dir" json:"repos_with_opencode_dir"`
+	ReposWithJetBrainsMCP        int64               `bigquery:"repos_with_jetbrains_mcp" json:"repos_with_jetbrains_mcp"`
+	ReposWithRootMCPJSON         int64               `bigquery:"repos_with_root_mcp_json" json:"repos_with_root_mcp_json"`
+	ReposWithCopilotSetupSteps   int64               `bigquery:"repos_with_copilot_setup_steps" json:"repos_with_copilot_setup_steps"`
+	ReposWithCopilotHooks        int64               `bigquery:"repos_with_copilot_hooks" json:"repos_with_copilot_hooks"`
+	ReposWithAgenticWorkflows    int64               `bigquery:"repos_with_agentic_workflows" json:"repos_with_agentic_workflows"`
+	ReposWithAgentsSkills        int64               `bigquery:"repos_with_agents_skills" json:"repos_with_agents_skills"`
+	ReposWithNavPilotState       int64               `bigquery:"repos_with_nav_pilot_state" json:"repos_with_nav_pilot_state"`
+	ReposWithAgentpakkeManifest  int64               `bigquery:"repos_with_agentpakke_manifest" json:"repos_with_agentpakke_manifest"`
+	ReposWithAgentpakkeLock      int64               `bigquery:"repos_with_agentpakke_lock" json:"repos_with_agentpakke_lock"`
+	ReposWithCPLTToml            int64               `bigquery:"repos_with_cplt_toml" json:"repos_with_cplt_toml"`
+	ReposWithAnyCursor           int64               `bigquery:"repos_with_any_cursor" json:"repos_with_any_cursor"`
+	ReposWithAnyClaude           int64               `bigquery:"repos_with_any_claude" json:"repos_with_any_claude"`
+	ReposWithAnyOpenCode         int64               `bigquery:"repos_with_any_opencode" json:"repos_with_any_opencode"`
+	ReposWithAnyNonCopilotAI     int64               `bigquery:"repos_with_any_non_copilot_ai" json:"repos_with_any_non_copilot_ai"`
+	AvgCustomizationCount        float64             `bigquery:"avg_customization_count" json:"avg_customization_count"`
+	MaxCustomizationCount        int64               `bigquery:"max_customization_count" json:"max_customization_count"`
+	Commits7dActiveRepos         int64               `bigquery:"commits_7d_active_repos" json:"commits_7d_active_repos"`
+	Commits30dActiveRepos        int64               `bigquery:"commits_30d_active_repos" json:"commits_30d_active_repos"`
+	Commits30dCustomizedRepos    int64               `bigquery:"commits_30d_customized_repos" json:"commits_30d_customized_repos"`
+	OpenIssuesActiveRepos        int64               `bigquery:"open_issues_active_repos" json:"open_issues_active_repos"`
+	VelocityCustomized           *RepoVelocityCohort `bigquery:"-" json:"velocity_customized,omitempty"`
+	VelocityUncustomized         *RepoVelocityCohort `bigquery:"-" json:"velocity_uncustomized,omitempty"`
 }
 
 // TeamAdoption represents adoption metrics for a single team
@@ -117,7 +149,15 @@ type TeamAdoption struct {
 	WithAgenticWorkflows    int64      `bigquery:"with_agentic_workflows" json:"with_agentic_workflows"`
 	WithAgentsSkills        int64      `bigquery:"with_agents_skills" json:"with_agents_skills"`
 	WithNavPilotState       int64      `bigquery:"with_nav_pilot_state" json:"with_nav_pilot_state"`
+	WithAgentpakkeManifest  int64      `bigquery:"with_agentpakke_manifest" json:"with_agentpakke_manifest"`
+	WithCopilotHooks        int64      `bigquery:"with_copilot_hooks" json:"with_copilot_hooks"`
 	WithCPLTToml            int64      `bigquery:"with_cplt_toml" json:"with_cplt_toml"`
+	Commits7d               int64      `bigquery:"commits_7d" json:"commits_7d"`
+	Commits30d              int64      `bigquery:"commits_30d" json:"commits_30d"`
+	OpenIssuesCount         int64      `bigquery:"open_issues_count" json:"open_issues_count"`
+	PRsMerged30d            int64      `bigquery:"-" json:"prs_merged_30d"`
+	PRsReviewedByCopilot30d int64      `bigquery:"-" json:"prs_reviewed_by_copilot_30d"`
+	AvgMedianMergeMins30d   *float64   `bigquery:"-" json:"avg_median_minutes_to_merge_30d"`
 }
 
 // CustomizationDetail represents usage of a specific customization file
@@ -255,7 +295,60 @@ func (bq *BigQueryClient) GetAdoptionSummary(ctx context.Context) (*AdoptionSumm
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	return readSingleRow[AdoptionSummary](it)
+	summary, err := readSingleRow[AdoptionSummary](it)
+	if err != nil || summary == nil {
+		return summary, err
+	}
+	bq.populateVelocityCohorts(ctx, summary)
+	return summary, nil
+}
+
+func (bq *BigQueryClient) populateVelocityCohorts(ctx context.Context, summary *AdoptionSummary) {
+	scanRef := bq.tableRef(bq.adoptionDataset, "repo_scan")
+	metricsRef := bq.tableRef(bq.metricsDataset, "repository_metrics")
+	queryStr := fmt.Sprintf(`
+		WITH latest_scan AS (
+			SELECT LOWER(org) AS org, LOWER(repo) AS repo, has_any_customization
+			FROM %s
+			WHERE scan_date = (SELECT MAX(scan_date) FROM %s)
+				AND NOT is_archived
+		)
+		SELECT
+			s.has_any_customization,
+			COUNT(DISTINCT LOWER(JSON_VALUE(m.raw_record, '$.repo_name'))) AS active_pr_repos_30d,
+			COALESCE(SUM(SAFE_CAST(JSON_VALUE(m.raw_record, '$.pull_requests.total_created') AS INT64)), 0) AS prs_created_30d,
+			COALESCE(SUM(SAFE_CAST(JSON_VALUE(m.raw_record, '$.pull_requests.total_merged') AS INT64)), 0) AS prs_merged_30d,
+			COALESCE(SUM(SAFE_CAST(JSON_VALUE(m.raw_record, '$.pull_requests.total_created_by_copilot') AS INT64)), 0) AS prs_created_by_copilot_30d,
+			COALESCE(SUM(SAFE_CAST(JSON_VALUE(m.raw_record, '$.pull_requests.total_reviewed_by_copilot') AS INT64)), 0) AS prs_reviewed_by_copilot_30d,
+			AVG(NULLIF(SAFE_CAST(JSON_VALUE(m.raw_record, '$.pull_requests.median_minutes_to_merge') AS FLOAT64), 0)) AS avg_median_minutes_to_merge_30d
+		FROM %s m
+		JOIN latest_scan s
+			ON LOWER(JSON_VALUE(m.raw_record, '$.repo_owner_name')) = s.org
+			AND LOWER(JSON_VALUE(m.raw_record, '$.repo_name')) = s.repo
+		WHERE m.day >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+			AND JSON_VALUE(m.raw_record, '$.repo_visibility') IN ('PUBLIC', 'INTERNAL')
+		GROUP BY s.has_any_customization
+		HAVING active_pr_repos_30d >= 5
+	`, scanRef, scanRef, metricsRef)
+
+	it, err := bq.client.Query(queryStr).Read(ctx)
+	if err != nil {
+		slog.Warn("Failed to fetch repository velocity cohorts", "error", err)
+		return
+	}
+	cohorts, err := readAllRows[RepoVelocityCohort](it)
+	if err != nil {
+		slog.Warn("Failed to decode repository velocity cohorts", "error", err)
+		return
+	}
+	for i := range cohorts {
+		c := cohorts[i]
+		if c.HasCustomizations {
+			summary.VelocityCustomized = &c
+		} else {
+			summary.VelocityUncustomized = &c
+		}
+	}
 }
 
 // GetTeamAdoption fetches team adoption metrics for the latest scan
@@ -273,7 +366,72 @@ func (bq *BigQueryClient) GetTeamAdoption(ctx context.Context) ([]TeamAdoption, 
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
-	return readAllRows[TeamAdoption](it)
+	teams, err := readAllRows[TeamAdoption](it)
+	if err != nil || len(teams) == 0 {
+		return teams, err
+	}
+	bq.populateTeamPRVelocity(ctx, teams)
+	return teams, nil
+}
+
+type teamPRVelocityRow struct {
+	TeamSlug                string   `bigquery:"team_slug"`
+	PRsMerged30d            int64    `bigquery:"prs_merged_30d"`
+	PRsReviewedByCopilot30d int64    `bigquery:"prs_reviewed_by_copilot_30d"`
+	AvgMedianMergeMins30d   *float64 `bigquery:"avg_median_minutes_to_merge_30d"`
+}
+
+func (bq *BigQueryClient) populateTeamPRVelocity(ctx context.Context, teams []TeamAdoption) {
+	scanRef := bq.tableRef(bq.adoptionDataset, "repo_scan")
+	metricsRef := bq.tableRef(bq.metricsDataset, "repository_metrics")
+	queryStr := fmt.Sprintf(`
+		WITH team_repos AS (
+			SELECT DISTINCT
+				JSON_VALUE(team, '$.slug') AS team_slug,
+				LOWER(org) AS org,
+				LOWER(repo) AS repo
+			FROM %s,
+				UNNEST(JSON_QUERY_ARRAY(teams)) AS team
+			WHERE scan_date = (SELECT MAX(scan_date) FROM %s)
+				AND NOT is_archived
+				AND teams IS NOT NULL
+		)
+		SELECT
+			tr.team_slug,
+			COALESCE(SUM(SAFE_CAST(JSON_VALUE(m.raw_record, '$.pull_requests.total_merged') AS INT64)), 0) AS prs_merged_30d,
+			COALESCE(SUM(SAFE_CAST(JSON_VALUE(m.raw_record, '$.pull_requests.total_reviewed_by_copilot') AS INT64)), 0) AS prs_reviewed_by_copilot_30d,
+			AVG(NULLIF(SAFE_CAST(JSON_VALUE(m.raw_record, '$.pull_requests.median_minutes_to_merge') AS FLOAT64), 0)) AS avg_median_minutes_to_merge_30d
+		FROM %s m
+		JOIN team_repos tr
+			ON LOWER(JSON_VALUE(m.raw_record, '$.repo_owner_name')) = tr.org
+			AND LOWER(JSON_VALUE(m.raw_record, '$.repo_name')) = tr.repo
+		WHERE m.day >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+			AND JSON_VALUE(m.raw_record, '$.repo_visibility') IN ('PUBLIC', 'INTERNAL')
+		GROUP BY tr.team_slug
+		HAVING prs_merged_30d >= 5
+	`, scanRef, scanRef, metricsRef)
+
+	it, err := bq.client.Query(queryStr).Read(ctx)
+	if err != nil {
+		slog.Warn("Failed to fetch team PR velocity", "error", err)
+		return
+	}
+	rows, err := readAllRows[teamPRVelocityRow](it)
+	if err != nil {
+		slog.Warn("Failed to decode team PR velocity", "error", err)
+		return
+	}
+	bySlug := make(map[string]teamPRVelocityRow, len(rows))
+	for _, r := range rows {
+		bySlug[r.TeamSlug] = r
+	}
+	for i := range teams {
+		if v, ok := bySlug[teams[i].TeamSlug]; ok {
+			teams[i].PRsMerged30d = v.PRsMerged30d
+			teams[i].PRsReviewedByCopilot30d = v.PRsReviewedByCopilot30d
+			teams[i].AvgMedianMergeMins30d = v.AvgMedianMergeMins30d
+		}
+	}
 }
 
 // GetCustomizationDetails fetches aggregated customization file usage
@@ -398,30 +556,48 @@ type NavPilotLocalTelemetry struct {
 	DecideLocalCount       int64 `json:"decide_local_count"`
 }
 
+type NavPilotClientTokens struct {
+	InputTokens      int64 `json:"input_tokens"`
+	OutputTokens     int64 `json:"output_tokens"`
+	CacheReadTokens  int64 `json:"cache_read_tokens"`
+	CacheWriteTokens int64 `json:"cache_write_tokens"`
+}
+
 type NavPilotTelemetry struct {
-	LatestDay          string                   `json:"latest_day,omitempty"`
-	Devices1d          int64                    `json:"devices_1d"`
-	Devices7d          int64                    `json:"devices_7d"`
-	Devices28d         int64                    `json:"devices_28d"`
-	CopilotDevices7d   int64                    `json:"copilot_devices_7d"`
-	OpenCodeDevices7d  int64                    `json:"opencode_devices_7d"`
-	BothClients7d      int64                    `json:"both_clients_7d"`
-	UserScopeDevices7d int64                    `json:"user_scope_devices_7d"`
-	RepoScopeDevices7d int64                    `json:"repo_scope_devices_7d"`
-	RtkDevices7d       int64                    `json:"rtk_devices_7d"`
-	CliUpToDate7d      int64                    `json:"cli_up_to_date_7d"`
-	CliStale7d         int64                    `json:"cli_stale_7d"`
-	CopilotSessions7d  int64                    `json:"copilot_sessions_7d"`
-	CopilotTurns7d     int64                    `json:"copilot_turns_7d"`
-	OpenCodeSessions7d int64                    `json:"opencode_sessions_7d"`
-	OpenCodeTurns7d    int64                    `json:"opencode_turns_7d"`
-	AgentSkillLoads7d  int64                    `json:"agent_skill_loads_7d"`
-	UserSkillLoads7d   int64                    `json:"user_skill_loads_7d"`
-	TopSkills7d        []NavPilotSkillLoad      `json:"top_skills_7d"`
-	TopAgents7d        []NavPilotAgentSelection `json:"top_agents_7d"`
-	TopTools7d         []NavPilotToolCall       `json:"top_tools_7d"`
-	CommandReach7d     []NavPilotCommandReach   `json:"command_reach_7d"`
-	Local7d            NavPilotLocalTelemetry   `json:"local_7d"`
+	LatestDay           string                   `json:"latest_day,omitempty"`
+	Devices1d           int64                    `json:"devices_1d"`
+	Devices7d           int64                    `json:"devices_7d"`
+	Devices28d          int64                    `json:"devices_28d"`
+	CopilotDevices7d    int64                    `json:"copilot_devices_7d"`
+	OpenCodeDevices7d   int64                    `json:"opencode_devices_7d"`
+	BothClients7d       int64                    `json:"both_clients_7d"`
+	UserScopeDevices7d  int64                    `json:"user_scope_devices_7d"`
+	RepoScopeDevices7d  int64                    `json:"repo_scope_devices_7d"`
+	RtkDevices7d        int64                    `json:"rtk_devices_7d"`
+	CliUpToDate7d       int64                    `json:"cli_up_to_date_7d"`
+	CliStale7d          int64                    `json:"cli_stale_7d"`
+	CopilotSessions7d   int64                    `json:"copilot_sessions_7d"`
+	CopilotTurns7d      int64                    `json:"copilot_turns_7d"`
+	OpenCodeSessions7d  int64                    `json:"opencode_sessions_7d"`
+	OpenCodeTurns7d     int64                    `json:"opencode_turns_7d"`
+	AgentSkillLoads7d   int64                    `json:"agent_skill_loads_7d"`
+	UserSkillLoads7d    int64                    `json:"user_skill_loads_7d"`
+	TopSkills7d         []NavPilotSkillLoad      `json:"top_skills_7d"`
+	TopAgents7d         []NavPilotAgentSelection `json:"top_agents_7d"`
+	TopTools7d          []NavPilotToolCall       `json:"top_tools_7d"`
+	CommandReach7d      []NavPilotCommandReach   `json:"command_reach_7d"`
+	Local7d             NavPilotLocalTelemetry   `json:"local_7d"`
+	CopilotTokens7d     NavPilotClientTokens     `json:"copilot_tokens_7d"`
+	OpenCodeTokens7d    NavPilotClientTokens     `json:"opencode_tokens_7d"`
+	HookRuns7d          int64                    `json:"hook_runs_7d"`
+	HookRedactions7d    int64                    `json:"hook_redactions_7d"`
+	HookRedactSecrets7d int64                    `json:"hook_redact_secrets_7d"`
+	HookRedactFnr7d     int64                    `json:"hook_redact_fnr_7d"`
+	HookLoopGuards7d    int64                    `json:"hook_loop_guards_7d"`
+	HookActionFlagged7d int64                    `json:"hook_action_flagged_7d"`
+	SyncUpdates7d       int64                    `json:"sync_updates_7d"`
+	SyncConflicts7d     int64                    `json:"sync_conflicts_7d"`
+	LaunchErrors7d      int64                    `json:"launch_errors_7d"`
 }
 
 type mimirTelemetryRow struct {
@@ -437,6 +613,7 @@ type mimirTelemetryRow struct {
 	Trigger   string  `bigquery:"trigger"`
 	Operation string  `bigquery:"operation"`
 	Outcome   string  `bigquery:"outcome"`
+	TokenType string  `bigquery:"token_type"`
 	Devices   int64   `bigquery:"devices"`
 	Increase  float64 `bigquery:"increase"`
 	HistCount float64 `bigquery:"hist_count"`
@@ -563,6 +740,59 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 				if cnt := int64(math.Round(r.Increase)); cnt > 0 {
 					out.Local7d.DecideLocalCount += cnt
 				}
+			case "nav_pilot_session_tokens_total", "nav_pilot_genai_session_tokens_total":
+				tok := int64(math.Round(r.Increase))
+				if tok <= 0 {
+					continue
+				}
+				dst := &out.CopilotTokens7d
+				if r.Client == "opencode" || r.Metric == "nav_pilot_genai_session_tokens_total" {
+					dst = &out.OpenCodeTokens7d
+				}
+				switch r.TokenType {
+				case "input":
+					dst.InputTokens += tok
+				case "output":
+					dst.OutputTokens += tok
+				case "cache_read":
+					dst.CacheReadTokens += tok
+				case "cache_write":
+					dst.CacheWriteTokens += tok
+				}
+			case "nav_pilot_session_hook_runs_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 {
+					out.HookRuns7d += cnt
+				}
+			case "nav_pilot_hook_redact_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 {
+					out.HookRedactions7d += cnt
+					switch r.Outcome {
+					case "secret":
+						out.HookRedactSecrets7d += cnt
+					case "fnr":
+						out.HookRedactFnr7d += cnt
+					}
+				}
+			case "nav_pilot_hook_loop_guard_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 {
+					out.HookLoopGuards7d += cnt
+				}
+			case "nav_pilot_hook_action_check_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 && r.Outcome == "flagged" {
+					out.HookActionFlagged7d += cnt
+				}
+			case "nav_pilot_sync_updates_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 {
+					out.SyncUpdates7d += cnt
+				}
+			case "nav_pilot_sync_conflicts_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 {
+					out.SyncConflicts7d += cnt
+				}
+			case "nav_pilot_launch_error_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 {
+					out.LaunchErrors7d += cnt
+				}
 			}
 		}
 	}
@@ -636,6 +866,7 @@ func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTe
 			IFNULL(t.trigger, '') AS trigger,
 			IFNULL(t.operation, '') AS operation,
 			IFNULL(t.outcome, '') AS outcome,
+			IFNULL(t.token_type, '') AS token_type,
 			MAX(IFNULL(t.devices, 0)) AS devices,
 			SUM(IFNULL(t.increase, 0)) AS increase,
 			SUM(IFNULL(t.hist_count, 0)) AS hist_count,
@@ -655,11 +886,20 @@ func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTe
 						'nav_pilot_session_tool_calls_total',
 						'nav_pilot_session_turns',
 						'nav_pilot_local_dispatches',
-						'nav_pilot_decide_result_total'
+						'nav_pilot_decide_result_total',
+						'nav_pilot_session_tokens_total',
+						'nav_pilot_genai_session_tokens_total',
+						'nav_pilot_session_hook_runs_total',
+						'nav_pilot_hook_redact_total',
+						'nav_pilot_hook_loop_guard_total',
+						'nav_pilot_hook_action_check_total',
+						'nav_pilot_sync_updates_total',
+						'nav_pilot_sync_conflicts_total',
+						'nav_pilot_launch_error_total'
 					)
 				)
 			)
-		GROUP BY latest_day, is_latest_day, family, metric, client, skill, agent, tool, source, trigger, operation, outcome
+		GROUP BY latest_day, is_latest_day, family, metric, client, skill, agent, tool, source, trigger, operation, outcome, token_type
 	`, tableRef, tableRef)
 
 	it, err := bq.client.Query(queryStr).Read(ctx)

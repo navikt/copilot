@@ -396,6 +396,11 @@ describe("verdi", () => {
           repos_with_customizations: 7,
           adoption_pct: 70,
           adoption_active_pct: 88,
+          prs_merged_30d: 24,
+          prs_reviewed_by_copilot_30d: 15,
+          avg_median_minutes_to_merge_30d: 112.4,
+          commits_30d: 90,
+          open_issues_count: 14,
         },
       ],
     });
@@ -405,6 +410,11 @@ describe("verdi", () => {
     expect(summary!.teams[0].activeRepos).toBe(10);
     expect(summary!.teams[0].reposWithCustomizations).toBe(7);
     expect(summary!.teams[0].adoptionPct).toBe(70);
+    expect(summary!.teams[0].prsMerged30d).toBe(24);
+    expect(summary!.teams[0].prsReviewedByCopilot30d).toBe(15);
+    expect(summary!.teams[0].avgMedianMinutesToMerge30d).toBe(112);
+    expect(summary!.teams[0].commits30d).toBe(90);
+    expect(summary!.teams[0].openIssuesCount).toBe(14);
     expect(summary!.smallTeams).toBe(3);
   });
 });

@@ -122,13 +122,18 @@ func (h *BigQueryHandlers) handleTeamAdoption(w http.ResponseWriter, r *http.Req
 
 // TeamAdoptionRow is a display-ready team row with rates as whole percent.
 type TeamAdoptionRow struct {
-	TeamSlug                string `json:"team_slug"`
-	TeamName                string `json:"team_name"`
-	ActiveRepos             int64  `json:"active_repos"`
-	RecentlyActiveRepos     int64  `json:"recently_active_repos"`
-	ReposWithCustomizations int64  `json:"repos_with_customizations"`
-	AdoptionPct             int64  `json:"adoption_pct"`
-	AdoptionActivePct       *int64 `json:"adoption_active_pct"`
+	TeamSlug                string   `json:"team_slug"`
+	TeamName                string   `json:"team_name"`
+	ActiveRepos             int64    `json:"active_repos"`
+	RecentlyActiveRepos     int64    `json:"recently_active_repos"`
+	ReposWithCustomizations int64    `json:"repos_with_customizations"`
+	AdoptionPct             int64    `json:"adoption_pct"`
+	AdoptionActivePct       *int64   `json:"adoption_active_pct"`
+	Commits30d              int64    `json:"commits_30d,omitempty"`
+	OpenIssuesCount         int64    `json:"open_issues_count,omitempty"`
+	PRsMerged30d            int64    `json:"prs_merged_30d,omitempty"`
+	PRsReviewedByCopilot30d int64    `json:"prs_reviewed_by_copilot_30d,omitempty"`
+	AvgMedianMergeMins30d   *float64 `json:"avg_median_minutes_to_merge_30d,omitempty"`
 }
 
 // TeamAdoptionOverview lists teams with at least minTeamContributors active
@@ -154,7 +159,21 @@ func teamAdoptionOverview(teams []TeamAdoption) TeamAdoptionOverview {
 			out.SmallTeams++
 			continue
 		}
-		row := TeamAdoptionRow{t.TeamSlug, t.TeamName, t.ActiveRepos, t.RecentlyActiveRepos, t.ReposWithCustomizations, pct(t.AdoptionRate), nil}
+		row := TeamAdoptionRow{
+			TeamSlug:                t.TeamSlug,
+			TeamName:                t.TeamName,
+			ActiveRepos:             t.ActiveRepos,
+			RecentlyActiveRepos:     t.RecentlyActiveRepos,
+			ReposWithCustomizations: t.ReposWithCustomizations,
+			AdoptionPct:             pct(t.AdoptionRate),
+			Commits30d:              t.Commits30d,
+			OpenIssuesCount:         t.OpenIssuesCount,
+		}
+		if t.PRsMerged30d >= minTeamContributors {
+			row.PRsMerged30d = t.PRsMerged30d
+			row.PRsReviewedByCopilot30d = t.PRsReviewedByCopilot30d
+			row.AvgMedianMergeMins30d = t.AvgMedianMergeMins30d
+		}
 		if t.RecentlyActiveRepos > 0 {
 			active := pct(t.AdoptionRateActiveOnly)
 			row.AdoptionActivePct = &active

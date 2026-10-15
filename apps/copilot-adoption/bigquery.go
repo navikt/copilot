@@ -30,6 +30,9 @@ type RepoScanRow struct {
 	CreatedAt               time.Time  `bigquery:"created_at"`
 	PushedAt                time.Time  `bigquery:"pushed_at"`
 	DefaultBranchLastCommit *time.Time `bigquery:"default_branch_last_commit"`
+	DefaultBranchCommits7d  int        `bigquery:"default_branch_commits_7d"`
+	DefaultBranchCommits30d int        `bigquery:"default_branch_commits_30d"`
+	OpenIssuesCount         int        `bigquery:"open_issues_count"`
 	Topics                  []string   `bigquery:"topics"`
 	Teams                   string     `bigquery:"teams"`
 	Customizations          string     `bigquery:"customizations"`
@@ -103,6 +106,9 @@ func desiredSchema() bigquery.Schema {
 		{Name: "created_at", Type: bigquery.TimestampFieldType, Description: "Repo creation time"},
 		{Name: "pushed_at", Type: bigquery.TimestampFieldType, Description: "Last push time"},
 		{Name: "default_branch_last_commit", Type: bigquery.TimestampFieldType, Description: "Last commit to default branch"},
+		{Name: "default_branch_commits_7d", Type: bigquery.IntegerFieldType, Description: "Commits to default branch in the last 7 days"},
+		{Name: "default_branch_commits_30d", Type: bigquery.IntegerFieldType, Description: "Commits to default branch in the last 30 days"},
+		{Name: "open_issues_count", Type: bigquery.IntegerFieldType, Description: "Open issues and PRs count from GitHub repository metadata"},
 		{Name: "topics", Type: bigquery.StringFieldType, Repeated: true, Description: "Repository topics"},
 		{Name: "teams", Type: bigquery.JSONFieldType, Description: "Teams with access [{slug, name, permission}]"},
 		{Name: "customizations", Type: bigquery.JSONFieldType, Required: true, Description: "Search results per category"},
@@ -180,6 +186,9 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 			CreatedAt:               r.CreatedAt,
 			PushedAt:                r.PushedAt,
 			DefaultBranchLastCommit: r.DefaultBranchLastCommit,
+			DefaultBranchCommits7d:  r.DefaultBranchCommits7d,
+			DefaultBranchCommits30d: r.DefaultBranchCommits30d,
+			OpenIssuesCount:         r.OpenIssuesCount,
 			Topics:                  r.Topics,
 			Teams:                   string(teamsJSON),
 			Customizations:          string(customizationsJSON),
@@ -198,22 +207,25 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 	var buf bytes.Buffer
 	for _, row := range rows {
 		jsonMap := map[string]any{
-			"scan_date":             row.ScanDate,
-			"org":                   row.Org,
-			"repo":                  row.Repo,
-			"default_branch":        row.DefaultBranch,
-			"primary_language":      row.PrimaryLanguage,
-			"is_archived":           row.IsArchived,
-			"is_fork":               row.IsFork,
-			"visibility":            row.Visibility,
-			"created_at":            row.CreatedAt.Format(time.RFC3339),
-			"pushed_at":             row.PushedAt.Format(time.RFC3339),
-			"topics":                row.Topics,
-			"teams":                 json.RawMessage(row.Teams),
-			"customizations":        json.RawMessage(row.Customizations),
-			"has_any_customization": row.HasAny,
-			"customization_count":   row.CustomizationCount,
-			"loaded_at":             row.LoadedAt.Format(time.RFC3339),
+			"scan_date":                  row.ScanDate,
+			"org":                        row.Org,
+			"repo":                       row.Repo,
+			"default_branch":             row.DefaultBranch,
+			"primary_language":           row.PrimaryLanguage,
+			"is_archived":                row.IsArchived,
+			"is_fork":                    row.IsFork,
+			"visibility":                 row.Visibility,
+			"created_at":                 row.CreatedAt.Format(time.RFC3339),
+			"pushed_at":                  row.PushedAt.Format(time.RFC3339),
+			"default_branch_commits_7d":  row.DefaultBranchCommits7d,
+			"default_branch_commits_30d": row.DefaultBranchCommits30d,
+			"open_issues_count":          row.OpenIssuesCount,
+			"topics":                     row.Topics,
+			"teams":                      json.RawMessage(row.Teams),
+			"customizations":             json.RawMessage(row.Customizations),
+			"has_any_customization":      row.HasAny,
+			"customization_count":        row.CustomizationCount,
+			"loaded_at":                  row.LoadedAt.Format(time.RFC3339),
 		}
 		if row.DefaultBranchLastCommit != nil {
 			jsonMap["default_branch_last_commit"] = row.DefaultBranchLastCommit.Format(time.RFC3339)

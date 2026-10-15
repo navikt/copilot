@@ -230,27 +230,51 @@ func TestMimirSessionRows(t *testing.T) {
 			{map[string]string{"version": "0.18.0", "client": "copilot"}, "NaN"},
 		},
 		"nav_pilot_local_dispatches_count" + devSel + "[1d]": {
-			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "1"},
+			{map[string]string{"client": "opencode", "model": "gemma-4", "dispatch_level": "L1", "saw_traffic": "true"}, "2"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false"}, "14"},
 		},
 		"nav_pilot_local_dispatches_sum" + devSel + "[1d]": {
-			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "57"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "30"},
+			{map[string]string{"client": "opencode", "model": "gemma-4", "dispatch_level": "L1", "saw_traffic": "true"}, "27"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false"}, "0"},
 		},
-		"nav_pilot_local_dispatches_count" + devCountSel + "[1d]": {
-			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
+		"nav_pilot_local_dispatches_count" + devCountSel + "[7d]": {
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true", "device_id": "d1"}, "1"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true", "device_id": "d2"}, "1"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true", "device_id": "d3"}, "1"},
+			{map[string]string{"client": "opencode", "model": "gemma-4", "dispatch_level": "L1", "saw_traffic": "true", "device_id": "d4"}, "1"},
+			{map[string]string{"client": "opencode", "model": "gemma-4", "dispatch_level": "L1", "saw_traffic": "true", "device_id": "d5"}, "1"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false", "device_id": "d1"}, "1"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false", "device_id": "d2"}, "1"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false", "device_id": "d3"}, "1"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false", "device_id": "d4"}, "1"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false", "device_id": "d5"}, "1"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false", "device_id": "d6"}, "1"},
 		},
 		"nav_pilot_decide_result_total" + devSel + "[1d]": {
 			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "18"},
 			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "2"},
 		},
-		"nav_pilot_decide_result_total" + devCountSel + "[1d]": {
-			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "7"},
-			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "3"},
+		"nav_pilot_decide_result_total" + devCountSel + "[7d]": {
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama", "device_id": "d1"}, "1"},
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama", "device_id": "d2"}, "1"},
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama", "device_id": "d3"}, "1"},
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama", "device_id": "d4"}, "1"},
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama", "device_id": "d5"}, "1"},
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama", "device_id": "d6"}, "1"},
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama", "device_id": "d7"}, "1"},
+			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama", "device_id": "d1"}, "1"},
 		},
 		"nav_pilot_launch_error_total" + devSel + "[1d]": {
 			{map[string]string{"client": "opencode", "error_type": "exit_code"}, "14"},
 		},
-		"nav_pilot_launch_error_total" + devCountSel + "[1d]": {
-			{map[string]string{"client": "opencode", "error_type": "exit_code"}, "10"},
+		"nav_pilot_launch_error_total" + devCountSel + "[7d]": {
+			{map[string]string{"client": "opencode", "error_type": "exit_code", "device_id": "d1"}, "1"},
+			{map[string]string{"client": "opencode", "error_type": "exit_code", "device_id": "d2"}, "1"},
+			{map[string]string{"client": "opencode", "error_type": "exit_code", "device_id": "d3"}, "1"},
+			{map[string]string{"client": "opencode", "error_type": "exit_code", "device_id": "d4"}, "1"},
+			{map[string]string{"client": "opencode", "error_type": "exit_code", "device_id": "d5"}, "1"},
 		},
 	})
 	rows, err := mimirSessionRows(context.Background(), m, "2026-10-09", time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC))
@@ -265,12 +289,16 @@ func TestMimirSessionRows(t *testing.T) {
 			t.Fatalf("session query must reference version, got %s", q)
 		}
 	}
-	if len(rows) != 7 {
-		t.Fatalf("expected 7 rows (rare-model <5 devices dropped), got %v", rows)
+	if len(rows) != 8 {
+		t.Fatalf("expected 8 rows (saw_traffic=true merged into andre across 5 devices, rare-model <5 devices dropped), got %d: %v", len(rows), rows)
 	}
 	byMetric := map[string]mimirRow{}
+	dispByOutcome := map[string]mimirRow{}
 	for _, r := range rows {
 		byMetric[r["metric"].(string)] = r
+		if r["metric"] == "nav_pilot_local_dispatches" {
+			dispByOutcome[r["outcome"].(string)] = r
+		}
 		if r["family"] != "nav_pilot_session" || r["counter_reliable"] != true {
 			t.Errorf("unexpected row metadata: %v", r)
 		}
@@ -291,19 +319,23 @@ func TestMimirSessionRows(t *testing.T) {
 	if _, ok := turns["p95"]; ok {
 		t.Errorf("NaN p95 must be omitted: %v", turns)
 	}
-	disp := byMetric["nav_pilot_local_dispatches"]
-	if disp["hist_count"] != 6.0 || disp["hist_sum"] != 57.0 || disp["outcome"] != "true" || disp["operation"] != "subagent" || disp["devices"] != 6 {
-		t.Errorf("local_dispatches row = %v", disp)
+	dispTrue := dispByOutcome["true"]
+	dispFalse := dispByOutcome["false"]
+	if dispTrue["hist_count"] != 3.0 || dispTrue["hist_sum"] != 57.0 || dispTrue["model"] != "andre" || dispTrue["operation"] != "andre" || dispTrue["devices"] != 5 {
+		t.Errorf("local_dispatches true row = %v", dispTrue)
 	}
-	if _, hasVer := disp["version"]; hasVer {
-		t.Errorf("device-gated session row must not split by version: %v", disp)
+	if dispFalse["hist_count"] != 14.0 || dispFalse["hist_sum"] != 0.0 || dispFalse["model"] != "qwen3-coder" || dispFalse["operation"] != "subagent" || dispFalse["devices"] != 6 {
+		t.Errorf("local_dispatches false row = %v", dispFalse)
+	}
+	if _, hasVer := dispTrue["version"]; hasVer {
+		t.Errorf("device-gated session row must not split by version: %v", dispTrue)
 	}
 	decide := byMetric["nav_pilot_decide_result_total"]
 	if decide["increase"] != 18.0 || decide["outcome"] != "local" || decide["source"] != "opencode" || decide["operation"] != "ollama" || decide["devices"] != 7 {
 		t.Errorf("decide row = %v", decide)
 	}
 	launchErr := byMetric["nav_pilot_launch_error_total"]
-	if launchErr["increase"] != 14.0 || launchErr["client"] != "opencode" || launchErr["error_type"] != "exit_code" || launchErr["devices"] != 10 {
+	if launchErr["increase"] != 14.0 || launchErr["client"] != "opencode" || launchErr["error_type"] != "exit_code" || launchErr["devices"] != 5 {
 		t.Errorf("launch_error row = %v", launchErr)
 	}
 }

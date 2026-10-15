@@ -112,6 +112,15 @@ func TestHandleNavPilotTelemetry(t *testing.T) {
 		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Client: "opencode", Outcome: "false", HistCount: 111, HistSum: 0},
 		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Client: "copilot", Outcome: "true", HistCount: 2, HistSum: 40},
 		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_decide_result_total", Outcome: "decided", Increase: 18},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_session_tokens_total", Client: "copilot", TokenType: "cache_read", Increase: 202000000},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_session_tokens_total", Client: "copilot", TokenType: "input", Increase: 1350000},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_genai_session_tokens_total", Client: "opencode", TokenType: "cache_read", Increase: 180000000},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_session_hook_runs_total", Increase: 6224},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_hook_redact_total", Outcome: "secret", Increase: 14},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_hook_redact_total", Outcome: "fnr", Increase: 4},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_sync_updates_total", Increase: 1911},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_sync_conflicts_total", Increase: 41},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_launch_error_total", Increase: 102},
 	})
 	if agg.Devices7d != 217 || agg.CopilotDevices7d != 160 || agg.OpenCodeDevices7d != 56 || agg.BothClients7d != 13 || agg.RtkDevices7d != 136 || agg.CliUpToDate7d != 158 || agg.CliStale7d != 41 {
 		t.Fatalf("unexpected reach: %+v", agg)
@@ -133,6 +142,12 @@ func TestHandleNavPilotTelemetry(t *testing.T) {
 	}
 	if agg.Local7d.Devices7d != 6 || agg.Local7d.ObservedSessions != 119 || agg.Local7d.SessionsWithTraffic != 8 || agg.Local7d.SessionsWithoutTraffic != 111 || agg.Local7d.DispatchAttempts != 57 || agg.Local7d.DecideLocalCount != 18 {
 		t.Fatalf("unexpected local telemetry: %+v", agg.Local7d)
+	}
+	if agg.CopilotTokens7d.CacheReadTokens != 202000000 || agg.CopilotTokens7d.InputTokens != 1350000 || agg.OpenCodeTokens7d.CacheReadTokens != 180000000 {
+		t.Fatalf("unexpected session tokens: copilot=%+v opencode=%+v", agg.CopilotTokens7d, agg.OpenCodeTokens7d)
+	}
+	if agg.HookRuns7d != 6224 || agg.HookRedactions7d != 18 || agg.HookRedactSecrets7d != 14 || agg.HookRedactFnr7d != 4 || agg.SyncUpdates7d != 1911 || agg.SyncConflicts7d != 41 || agg.LaunchErrors7d != 102 {
+		t.Fatalf("unexpected guardrail telemetry: %+v", agg)
 	}
 
 	legacyOnly := aggregateNavPilotTelemetry([]mimirTelemetryRow{

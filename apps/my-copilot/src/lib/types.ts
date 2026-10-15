@@ -140,6 +140,16 @@ export interface CLIMetrics {
   promptTokensSum: number;
 }
 
+export interface RepoVelocityCohort {
+  has_any_customization?: boolean;
+  active_pr_repos_30d: number;
+  prs_created_30d: number;
+  prs_merged_30d: number;
+  prs_created_by_copilot_30d: number;
+  prs_reviewed_by_copilot_30d: number;
+  avg_median_minutes_to_merge_30d: number | null;
+}
+
 // AI Customization Adoption types (from copilot_adoption BigQuery views)
 export interface AdoptionSummary {
   scan_date: string;
@@ -162,6 +172,7 @@ export interface AdoptionSummary {
   repos_with_mcp_config: number;
   repos_with_copilot_dir: number;
   repos_with_copilot_review_instructions: number;
+  repos_with_copilot_hooks?: number;
   repos_with_cursorrules: number;
   repos_with_cursor_rules_dir: number;
   repos_with_claude_md: number;
@@ -173,9 +184,29 @@ export interface AdoptionSummary {
   repos_with_agents_skills: number;
   repos_with_nav_pilot_state: number;
   repos_with_cplt_toml: number;
+  repos_with_agentpakke_manifest?: number;
+  repos_with_agentpakke_lock?: number;
+  repos_with_opencode_json?: number;
+  repos_with_opencode_jsonc?: number;
+  repos_with_opencode_dir?: number;
+  repos_with_jetbrains_mcp?: number;
+  repos_with_root_mcp_json?: number;
+  repos_with_claude_agents?: number;
+  repos_with_claude_commands?: number;
+  repos_with_claude_skills?: number;
+  repos_with_gemini_md?: number;
+  repos_with_any_cursor?: number;
+  repos_with_any_claude?: number;
+  repos_with_any_opencode?: number;
   repos_with_any_non_copilot_ai: number;
   avg_customization_count: number;
   max_customization_count: number;
+  commits_7d_active_repos?: number;
+  commits_30d_active_repos?: number;
+  commits_30d_customized_repos?: number;
+  open_issues_active_repos?: number;
+  velocity_customized?: RepoVelocityCohort | null;
+  velocity_uncustomized?: RepoVelocityCohort | null;
 }
 
 /** Display-ready from the API: only teams with at least five active repos, rates in whole percent. */
@@ -187,6 +218,11 @@ export interface TeamAdoption {
   repos_with_customizations: number;
   adoption_pct: number;
   adoption_active_pct: number | null;
+  prs_merged_30d?: number | null;
+  prs_reviewed_by_copilot_30d?: number | null;
+  avg_median_minutes_to_merge_30d?: number | null;
+  commits_30d?: number | null;
+  open_issues_count?: number | null;
 }
 
 export interface TeamAdoptionOverview {
@@ -751,6 +787,13 @@ export interface NavPilotLocalTelemetry {
   decide_local_count: number;
 }
 
+export interface NavPilotClientTokens {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+}
+
 export interface NavPilotTelemetry {
   latest_day?: string;
   devices_1d: number;
@@ -775,4 +818,15 @@ export interface NavPilotTelemetry {
   top_tools_7d: NavPilotToolCall[];
   command_reach_7d: NavPilotCommandReach[];
   local_7d: NavPilotLocalTelemetry;
+  copilot_tokens_7d?: NavPilotClientTokens;
+  opencode_tokens_7d?: NavPilotClientTokens;
+  hook_runs_7d?: number;
+  hook_redactions_7d?: number;
+  hook_redact_secrets_7d?: number;
+  hook_redact_fnr_7d?: number;
+  hook_loop_guards_7d?: number;
+  hook_action_flagged_7d?: number;
+  sync_updates_7d?: number;
+  sync_conflicts_7d?: number;
+  launch_errors_7d?: number;
 }
