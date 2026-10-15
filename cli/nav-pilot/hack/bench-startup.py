@@ -72,11 +72,13 @@ class BlackholeServer:
         try:
             self._sock.close()
         except OSError:
+            # Listener socket may already be closed during teardown.
             pass
         for conn in self._conns:
             try:
                 conn.close()
             except OSError:
+                # Accepted connection may already be closed during teardown.
                 pass
 
 
@@ -163,13 +165,14 @@ def setup_environment(
 ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, dict[str, str]]:
     home_dir = tmp_dir / "home"
     xdg_config = tmp_dir / "xdg_config"
+    xdg_data = tmp_dir / "xdg_data"
     xdg_state = tmp_dir / "xdg_state"
     xdg_cache = tmp_dir / "xdg_cache"
     fake_bin = tmp_dir / "fake_bin"
     repo_dir = tmp_dir / "repo"
     pakke_dir = tmp_dir / "pakke"
 
-    for d in (home_dir, xdg_config, xdg_state, xdg_cache, fake_bin, repo_dir, pakke_dir):
+    for d in (home_dir, xdg_config, xdg_data, xdg_state, xdg_cache, fake_bin, repo_dir, pakke_dir):
         d.mkdir(parents=True, exist_ok=True)
 
     real_git = shutil.which("git")
@@ -240,6 +243,7 @@ def setup_environment(
         "HOME": str(home_dir),
         "NAV_PILOT_CONFIG": str(config_path),
         "XDG_CONFIG_HOME": str(xdg_config),
+        "XDG_DATA_HOME": str(xdg_data),
         "XDG_STATE_HOME": str(xdg_state),
         "XDG_CACHE_HOME": str(xdg_cache),
         "PATH": f"{fake_bin}{os.pathsep}{nav_pilot_bin.parent}",
@@ -307,7 +311,7 @@ def run_scenario(
             sys.exit(f"error: {' '.join(cmd)} failed ({proc.returncode}):\n{proc.stderr}")
 
     samples_ms: list[float] = []
-    last_spawns: dict[str, int] = {"git": 0, "cplt": 0, "opencode": 0, "copilot": 0}
+    max_spawns: dict[str, int] = {"git": 0, "cplt": 0, "opencode": 0, "copilot": 0}
 
     for _ in range(runs):
         if spawn_log.exists():
@@ -327,12 +331,8 @@ def run_scenario(
                 name = line.strip()
                 if name:
                     counts[name] += 1
-        last_spawns = {
-            "git": counts["git"],
-            "cplt": counts["cplt"],
-            "opencode": counts["opencode"],
-            "copilot": counts["copilot"],
-        }
+        for exe in max_spawns:
+            max_spawns[exe] = max(max_spawns[exe], counts[exe])
 
     s = sorted(samples_ms)
     return {
@@ -344,7 +344,7 @@ def run_scenario(
         "p95_ms": round(percentile(s, 0.95), 2),
         "max_ms": round(s[-1], 2),
         "stdev_ms": round(statistics.stdev(s), 2) if len(s) > 1 else 0.0,
-        "spawns": last_spawns,
+        "spawns": max_spawns,
     }
 
 
