@@ -55,10 +55,14 @@ function hasTelemetry(t: NavPilotTelemetry): boolean {
     t.repo_scope_devices_7d > 0 ||
     t.copilot_devices_7d > 0 ||
     t.opencode_devices_7d > 0 ||
+    t.copilot_sessions_7d > 0 ||
+    t.opencode_sessions_7d > 0 ||
     t.agent_skill_loads_7d > 0 ||
     t.user_skill_loads_7d > 0 ||
     t.command_reach_7d.length > 0 ||
-    t.top_skills_7d.length > 0
+    t.top_skills_7d.length > 0 ||
+    t.top_agents_7d.length > 0 ||
+    t.top_tools_7d.length > 0
   );
 }
 
@@ -68,7 +72,20 @@ async function RuntimeTelemetry({ token }: { token: string }) {
   if (!t || !hasTelemetry(t)) return <BodyShort>Ingen bruksdata fra nav-pilot ennå.</BodyShort>;
 
   const totalSkillLoads = t.agent_skill_loads_7d + t.user_skill_loads_7d;
+  const totalSessions = t.copilot_sessions_7d + t.opencode_sessions_7d;
+  const totalTurns = t.copilot_turns_7d + t.opencode_turns_7d;
   const devices = t.devices_7d || t.devices_1d;
+  const deviceSubtitles = [
+    t.devices_28d > 0 ? `${formatNumber(t.devices_28d)} siste 28 dager` : null,
+    t.cli_up_to_date_7d > 0 ? `${formatNumber(t.cli_up_to_date_7d)} oppdatert CLI` : null,
+    t.cli_stale_7d > 0 ? `${formatNumber(t.cli_stale_7d)} eldre CLI` : null,
+  ].filter(Boolean);
+  const scopeSubtitles = [
+    t.repo_scope_devices_7d > 0 ? `mot ${formatNumber(t.repo_scope_devices_7d)} med repo-oppsett` : null,
+    t.rtk_devices_7d > 0 ? `${formatNumber(t.rtk_devices_7d)} med rtk` : null,
+  ].filter(Boolean);
+  const tableCount =
+    (t.top_skills_7d.length > 0 ? 1 : 0) + (t.top_agents_7d.length > 0 ? 1 : 0) + (t.top_tools_7d.length > 0 ? 1 : 0);
 
   return (
     <>
@@ -82,16 +99,14 @@ async function RuntimeTelemetry({ token }: { token: string }) {
           label={t.devices_1d > 0 && t.devices_7d === 0 ? "Enheter (siste døgn)" : "Enheter (7 dager)"}
           helpTitle="Rapporterende enheter"
           helpText="Unike enheter som har rapportert fra nav-pilot, uten utviklerbygg (version=dev) og kjente CI-miljøer. En enhet er en maskin-ID, ikke en person."
-          subtitle={t.devices_28d > 0 ? `${formatNumber(t.devices_28d)} siste 28 dager` : undefined}
+          subtitle={deviceSubtitles.length > 0 ? deviceSubtitles.join(", ") : undefined}
         />
         <MetricCard
           value={t.user_scope_devices_7d > 0 ? formatNumber(t.user_scope_devices_7d) : "–"}
           label="Personlig oppsett"
           helpTitle="Personlig oppsett mot repo-oppsett"
           helpText="Enheter med aktive tilpasninger installert i brukeroppsettet (~/.copilot) siste syv dager, sammenlignet med installasjoner i enkeltrepoer."
-          subtitle={
-            t.repo_scope_devices_7d > 0 ? `mot ${formatNumber(t.repo_scope_devices_7d)} med repo-oppsett` : undefined
-          }
+          subtitle={scopeSubtitles.length > 0 ? scopeSubtitles.join(", ") : undefined}
         />
         <MetricCard
           value={t.opencode_devices_7d > 0 ? formatNumber(t.opencode_devices_7d) : "–"}
@@ -116,6 +131,14 @@ async function RuntimeTelemetry({ token }: { token: string }) {
           }
         />
       </HGrid>
+      {totalSessions > 0 && (
+        <BodyShort size="small" textColor="subtle">
+          Observerte økter siste syv dager: {formatNumber(totalSessions)} økter med {formatNumber(totalTurns)} turer
+          totalt
+          {t.opencode_sessions_7d > 0 && ` · OpenCode: ${formatNumber(t.opencode_sessions_7d)} økter`}
+          {t.copilot_sessions_7d > 0 && ` · Copilot CLI: ${formatNumber(t.copilot_sessions_7d)} økter`}.
+        </BodyShort>
+      )}
       {t.command_reach_7d.length > 0 && (
         <BodyShort size="small" textColor="subtle">
           Enheter per kommando siste syv dager:{" "}
@@ -128,27 +151,71 @@ async function RuntimeTelemetry({ token }: { token: string }) {
           .
         </BodyShort>
       )}
-      {t.top_skills_7d.length > 0 && (
-        <div className="overflow-x-auto">
-          <Table size="small">
-            <TableHeader>
-              <TableRow>
-                <TableHeaderCell>Skill</TableHeaderCell>
-                <TableHeaderCell>Kilde</TableHeaderCell>
-                <TableHeaderCell align="right">Innlastinger (7 dager)</TableHeaderCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {t.top_skills_7d.slice(0, 10).map((item) => (
-                <TableRow key={`${item.source}-${item.skill}`}>
-                  <TableDataCell className="font-mono">{item.skill}</TableDataCell>
-                  <TableDataCell>{item.source}</TableDataCell>
-                  <TableDataCell align="right">{formatNumber(item.loads)}</TableDataCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+      {tableCount > 0 && (
+        <HGrid columns={{ xs: 1, lg: tableCount }} gap="space-16">
+          {t.top_skills_7d.length > 0 && (
+            <div className="overflow-x-auto">
+              <Table size="small">
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell>Skill</TableHeaderCell>
+                    <TableHeaderCell>Kilde</TableHeaderCell>
+                    <TableHeaderCell align="right">Innlastinger (7 dager)</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {t.top_skills_7d.slice(0, 10).map((item) => (
+                    <TableRow key={`${item.source}-${item.skill}`}>
+                      <TableDataCell className="font-mono">{item.skill}</TableDataCell>
+                      <TableDataCell>{item.source}</TableDataCell>
+                      <TableDataCell align="right">{formatNumber(item.loads)}</TableDataCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {t.top_agents_7d.length > 0 && (
+            <div className="overflow-x-auto">
+              <Table size="small">
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell>Subagent</TableHeaderCell>
+                    <TableHeaderCell align="right">Valg (7 dager)</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {t.top_agents_7d.slice(0, 10).map((item) => (
+                    <TableRow key={item.agent}>
+                      <TableDataCell className="font-mono">{item.agent}</TableDataCell>
+                      <TableDataCell align="right">{formatNumber(item.selections)}</TableDataCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {t.top_tools_7d.length > 0 && (
+            <div className="overflow-x-auto">
+              <Table size="small">
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell>Verktøy i økt</TableHeaderCell>
+                    <TableHeaderCell align="right">Kall (7 dager)</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {t.top_tools_7d.slice(0, 10).map((item) => (
+                    <TableRow key={item.tool}>
+                      <TableDataCell className="font-mono">{item.tool}</TableDataCell>
+                      <TableDataCell align="right">{formatNumber(item.calls)}</TableDataCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </HGrid>
       )}
     </>
   );

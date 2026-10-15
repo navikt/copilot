@@ -727,12 +727,23 @@ export interface NavPilotSkillLoad {
   loads: number;
 }
 
+export interface NavPilotAgentSelection {
+  agent: string;
+  selections: number;
+}
+
+export interface NavPilotToolCall {
+  tool: string;
+  calls: number;
+}
+
 export interface NavPilotCommandReach {
   command: string;
   devices: number;
 }
 
 export interface NavPilotLocalTelemetry {
+  devices_7d: number;
   observed_sessions: number;
   sessions_with_traffic: number;
   sessions_without_traffic: number;
@@ -750,9 +761,18 @@ export interface NavPilotTelemetry {
   both_clients_7d: number;
   user_scope_devices_7d: number;
   repo_scope_devices_7d: number;
+  rtk_devices_7d: number;
+  cli_up_to_date_7d: number;
+  cli_stale_7d: number;
+  copilot_sessions_7d: number;
+  copilot_turns_7d: number;
+  opencode_sessions_7d: number;
+  opencode_turns_7d: number;
   agent_skill_loads_7d: number;
   user_skill_loads_7d: number;
   top_skills_7d: NavPilotSkillLoad[];
+  top_agents_7d: NavPilotAgentSelection[];
+  top_tools_7d: NavPilotToolCall[];
   command_reach_7d: NavPilotCommandReach[];
   local_7d: NavPilotLocalTelemetry;
 }

@@ -78,10 +78,19 @@ func sessionCols(extra ...mimirCol) []mimirCol {
 	return append([]mimirCol{{"version", "version"}, {"client", "client"}}, extra...)
 }
 
+func clientCols(extra ...mimirCol) []mimirCol {
+	return append([]mimirCol{{"client", "client"}}, extra...)
+}
+
+// minSessionVersionRe matches release versions >= 2026.09.29-063952 (excludes "dev" and older releases).
+const minSessionVersionRe = `2026\.09\.(29-(06395[2-9]|0639[6-9]|06[4-9]|0[7-9]|[12])|30).*|2026\.1[0-2]\..*|20(2[7-9]|[3-9][0-9])\..*`
+
 // Session series come from newOnlyExporter (one delta per finished session),
 // so sum_over_time adds sessions up without counter-reset artifacts. Instruments
-// from copilot_session.go carry no device_id; client_usage.go and local/decide
-// instruments carry device_id (device: true) and enforce k>=5.
+// from copilot_session.go carry no device_id and group by version; instruments
+// carrying device_id (device: true) filter version >= 2026.09.29-063952 in PromQL
+// and omit version from the group-by so multiple daily releases do not split a
+// day's cohort below k>=5.
 var mimirSession = []mimirSpec{
 	{metric: "nav_pilot_session_skill_loads_total", cols: sessionCols(mimirCol{"skill", "skill"}, mimirCol{"source", "source"}, mimirCol{"trigger", "trigger"})},
 	{metric: "nav_pilot_session_tool_calls_total", cols: sessionCols(mimirCol{"tool", "tool"}, mimirCol{"outcome", "outcome"})},
@@ -94,12 +103,18 @@ var mimirSession = []mimirSpec{
 	{metric: "nav_pilot_session_duration_seconds", cols: sessionCols(mimirCol{"shutdown_type", "shutdown_type"}), hist: true},
 	{metric: "nav_pilot_session_api_duration_ms", cols: sessionCols(mimirCol{"model", "model"}), hist: true},
 	{metric: "nav_pilot_session_events_skipped_total", cols: sessionCols()},
-	{metric: "nav_pilot_genai_session_tokens_total", cols: sessionCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}, mimirCol{"token_type", "gen_ai_token_type"}), device: true},
-	{metric: "nav_pilot_genai_session_calls_total", cols: sessionCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}), device: true},
-	{metric: "nav_pilot_local_dispatches", cols: sessionCols(mimirCol{"model", "model"}, mimirCol{"operation", "dispatch_level"}, mimirCol{"outcome", "saw_traffic"}), hist: true, device: true},
-	{metric: "nav_pilot_local_gate_total", cols: []mimirCol{{"version", "version"}, {"outcome", "outcome"}}, device: true},
-	{metric: "nav_pilot_local_ready_seconds", cols: []mimirCol{{"version", "version"}, {"outcome", "outcome"}}, hist: true, device: true},
-	{metric: "nav_pilot_decide_result_total", cols: []mimirCol{{"version", "version"}, {"model", "model"}, {"outcome", "result"}, {"source", "caller"}, {"operation", "backend"}}, device: true},
+	{metric: "nav_pilot_genai_session_tokens_total", cols: clientCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}, mimirCol{"token_type", "gen_ai_token_type"}), device: true},
+	{metric: "nav_pilot_genai_session_calls_total", cols: clientCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}), device: true},
+	{metric: "nav_pilot_local_dispatches", cols: clientCols(mimirCol{"model", "model"}, mimirCol{"operation", "dispatch_level"}, mimirCol{"outcome", "saw_traffic"}), hist: true, device: true},
+	{metric: "nav_pilot_local_gate_total", cols: []mimirCol{{"outcome", "outcome"}}, device: true},
+	{metric: "nav_pilot_local_ready_seconds", cols: []mimirCol{{"outcome", "outcome"}}, hist: true, device: true},
+	{metric: "nav_pilot_decide_result_total", cols: []mimirCol{{"model", "model"}, {"outcome", "result"}, {"source", "caller"}, {"operation", "backend"}}, device: true},
+	{metric: "nav_pilot_launch_error_total", cols: clientCols(mimirCol{"error_type", "error_type"}), device: true},
+	{metric: "nav_pilot_sync_updates_total", cols: []mimirCol{{"source", "scope"}, {"operation", "mode"}}, device: true},
+	{metric: "nav_pilot_sync_conflicts_total", cols: []mimirCol{{"source", "scope"}, {"operation", "mode"}}, device: true},
+	{metric: "nav_pilot_hook_redact_total", cols: []mimirCol{{"outcome", "kind"}}, device: true},
+	{metric: "nav_pilot_hook_loop_guard_total", cols: []mimirCol{{"operation", "rule"}, {"source", "session"}}, device: true},
+	{metric: "nav_pilot_hook_action_check_total", cols: []mimirCol{{"outcome", "outcome"}, {"operation", "category"}}, device: true},
 }
 
 type MimirClient struct {
@@ -363,7 +378,7 @@ func mimirChatRows(ctx context.Context, m *MimirClient, day string, t time.Time)
 				k := keyOf(r, labels)
 				id := strings.Join(k, "\x00")
 				if rows[id] == nil {
-					rows[id] = mimirRow{"day": day, "family": "copilot_chat", "metric": s.metric, "counter_reliable": true}
+					rows[id] = mimirRow{"day": day, "family": "copilot_chat", "metric": s.metric, "counter_reliable": false}
 					setCols(rows[id], s.cols, k)
 					order = append(order, id)
 				}
@@ -382,13 +397,17 @@ func mimirSessionRows(ctx context.Context, m *MimirClient, day string, t time.Ti
 	for _, s := range mimirSession {
 		labels := labelsOf(s.cols)
 		by := strings.Join(labels, ",")
-		queries := [][2]string{{"increase", fmt.Sprintf("sum by (%s) (sum_over_time(%s[1d]))", by, s.metric)}}
+		sel := ""
+		if s.device {
+			sel = `{version=~"` + minSessionVersionRe + `"}`
+		}
+		queries := [][2]string{{"increase", fmt.Sprintf("sum by (%s) (sum_over_time(%s%s[1d]))", by, s.metric, sel)}}
 		if s.hist {
 			queries = [][2]string{
-				{"hist_count", fmt.Sprintf("sum by (%s) (sum_over_time(%s_count[1d]))", by, s.metric)},
-				{"hist_sum", fmt.Sprintf("sum by (%s) (sum_over_time(%s_sum[1d]))", by, s.metric)},
-				{"p50", fmt.Sprintf("histogram_quantile(0.5, sum by (%s,le) (sum_over_time(%s_bucket[1d])))", by, s.metric)},
-				{"p95", fmt.Sprintf("histogram_quantile(0.95, sum by (%s,le) (sum_over_time(%s_bucket[1d])))", by, s.metric)},
+				{"hist_count", fmt.Sprintf("sum by (%s) (sum_over_time(%s_count%s[1d]))", by, s.metric, sel)},
+				{"hist_sum", fmt.Sprintf("sum by (%s) (sum_over_time(%s_sum%s[1d]))", by, s.metric, sel)},
+				{"p50", fmt.Sprintf("histogram_quantile(0.5, sum by (%s,le) (sum_over_time(%s_bucket%s[1d])))", by, s.metric, sel)},
+				{"p95", fmt.Sprintf("histogram_quantile(0.95, sum by (%s,le) (sum_over_time(%s_bucket%s[1d])))", by, s.metric, sel)},
 			}
 		}
 		var order []string
@@ -418,7 +437,7 @@ func mimirSessionRows(ctx context.Context, m *MimirClient, day string, t time.Ti
 			if s.hist {
 				base += "_count"
 			}
-			expr := fmt.Sprintf(`count by (%s) (count by (%s,device_id) (sum_over_time(%s{device_id!=""}[1d]) > 0))`, by, by, base)
+			expr := fmt.Sprintf(`count by (%s) (count by (%s,device_id) (sum_over_time(%s{device_id!="",version=~"%s"}[1d]) > 0))`, by, by, base, minSessionVersionRe)
 			res, err := m.query(ctx, expr, t)
 			if err != nil {
 				return nil, err
@@ -462,15 +481,20 @@ func mimirConfigRows(ctx context.Context, m *MimirClient, day string, t time.Tim
 func mimirReachRows(ctx context.Context, m *MimirClient, day string, t time.Time) ([]mimirRow, error) {
 	const sel = `execution_context="organic",version!="dev"`
 	specs := []struct {
-		metric, expr, labelCol, labelKey, op, fixedClient string
+		metric, expr, op, fixedClient, outcome string
+		cols                                   []mimirCol
 	}{
 		{metric: "nav_pilot_info", op: "1d", expr: `count(count by (device_id) (last_over_time(nav_pilot_info{` + sel + `}[1d])))`},
 		{metric: "nav_pilot_info", op: "7d", expr: `count(count by (device_id) (last_over_time(nav_pilot_info{` + sel + `}[7d])))`},
 		{metric: "nav_pilot_info", op: "28d", expr: `count(count by (device_id) (last_over_time(nav_pilot_info{` + sel + `}[28d])))`},
-		{metric: "nav_pilot_config_info", op: "7d", labelCol: "client", labelKey: "client", expr: `count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info{` + sel + `}[7d])))`},
+		{metric: "nav_pilot_info", op: "rtk_7d", cols: []mimirCol{{"outcome", "rtk_installed"}}, expr: `count by (rtk_installed) (count by (rtk_installed, device_id) (last_over_time(nav_pilot_info{` + sel + `,rtk_installed!=""}[7d])))`},
+		{metric: "nav_pilot_config_info", op: "7d", cols: []mimirCol{{"client", "client"}}, expr: `count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info{` + sel + `}[7d])))`},
 		{metric: "nav_pilot_config_info", op: "7d", fixedClient: "both", expr: `count(count by (device_id) (count by (client, device_id) (last_over_time(nav_pilot_config_info{` + sel + `,client=~"copilot|opencode"}[7d]))) > 1)`},
-		{metric: "nav_pilot_command_duration_ms_count", labelCol: "operation", labelKey: "command", expr: `count by (command) (count by (command, device_id) (last_over_time(nav_pilot_command_duration_ms_count{` + sel + `}[7d])))`},
-		{metric: "nav_pilot_installed_items", op: "7d", labelCol: "source", labelKey: "scope", expr: `count by (scope) (count by (scope, device_id) (last_over_time(nav_pilot_installed_items{` + sel + `,status="active"}[7d])))`},
+		{metric: "nav_pilot_client_available", op: "7d", cols: []mimirCol{{"client", "client"}}, expr: `count by (client) (max by (client, device_id) (last_over_time(nav_pilot_client_available{` + sel + `}[7d])) == 1)`},
+		{metric: "nav_pilot_command_duration_ms_count", cols: []mimirCol{{"operation", "command"}}, expr: `count by (command) (count by (command, device_id) (last_over_time(nav_pilot_command_duration_ms_count{` + sel + `}[7d])))`},
+		{metric: "nav_pilot_installed_items", op: "7d", cols: []mimirCol{{"source", "scope"}}, expr: `count by (scope) (count by (scope, device_id) (last_over_time(nav_pilot_installed_items{` + sel + `,status="active"}[7d])))`},
+		{metric: "nav_pilot_install_present", cols: []mimirCol{{"source", "scope"}, {"operation", "collection"}}, expr: `count by (scope, collection) (max by (scope, collection, device_id) (last_over_time(nav_pilot_install_present{` + sel + `}[7d])) == 1)`},
+		{metric: "nav_pilot_local_dispatches_count", op: "7d", expr: `count(count by (device_id) (last_over_time(nav_pilot_local_dispatches_count{device_id!="",version!="dev"}[7d])))`},
 	}
 	var out []mimirRow
 	for _, s := range specs {
@@ -478,6 +502,7 @@ func mimirReachRows(ctx context.Context, m *MimirClient, day string, t time.Time
 		if err != nil {
 			return nil, err
 		}
+		labels := labelsOf(s.cols)
 		for _, r := range res {
 			n := r.float()
 			if n < mimirK || math.IsNaN(n) {
@@ -490,10 +515,58 @@ func mimirReachRows(ctx context.Context, m *MimirClient, day string, t time.Time
 			if s.fixedClient != "" {
 				row["client"] = s.fixedClient
 			}
-			if s.labelCol != "" {
-				row[s.labelCol] = r.Metric[s.labelKey]
+			if s.outcome != "" {
+				row["outcome"] = s.outcome
 			}
+			setCols(row, s.cols, keyOf(r, labels))
 			out = append(out, row)
+		}
+	}
+	res, err := m.query(ctx, `max by (component, scope, version, device_id) (last_over_time(nav_pilot_up_to_date{`+sel+`,device_id!=""}[7d]))`, t)
+	if err != nil {
+		return nil, err
+	}
+	type devVer struct {
+		ver string
+		val float64
+	}
+	type csKey struct{ comp, scope string }
+	latest := map[csKey]map[string]devVer{}
+	var csOrder []csKey
+	for _, r := range res {
+		v := r.float()
+		if math.IsNaN(v) {
+			continue
+		}
+		k := csKey{r.Metric["component"], r.Metric["scope"]}
+		if latest[k] == nil {
+			latest[k] = map[string]devVer{}
+			csOrder = append(csOrder, k)
+		}
+		dev := r.Metric["device_id"]
+		ver := r.Metric["version"]
+		if cur, ok := latest[k][dev]; !ok || ver > cur.ver || (ver == cur.ver && v > cur.val) {
+			latest[k][dev] = devVer{ver: ver, val: v}
+		}
+	}
+	for _, k := range csOrder {
+		var up, stale int
+		for _, dv := range latest[k] {
+			switch dv.val {
+			case 1:
+				up++
+			case 0:
+				stale++
+			}
+		}
+		for _, o := range []struct {
+			outcome string
+			n       int
+		}{{"up_to_date", up}, {"stale", stale}} {
+			if o.n >= mimirK {
+				out = append(out, mimirRow{"day": day, "family": "nav_pilot_reach", "metric": "nav_pilot_up_to_date",
+					"operation": k.comp, "source": k.scope, "outcome": o.outcome, "devices": o.n, "counter_reliable": true})
+			}
 		}
 	}
 	return out, nil
