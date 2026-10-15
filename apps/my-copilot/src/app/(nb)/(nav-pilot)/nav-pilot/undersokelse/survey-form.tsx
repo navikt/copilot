@@ -428,6 +428,7 @@ function Matrix({
         .seg { position: relative; } /* the sr-only radio sits on its button, so focus scrolls there */
         .seg span { display:flex; align-items:center; justify-content:center; gap:4px; text-align:center; min-height:48px;
           padding:4px; border:1px solid var(--ax-border-neutral); border-radius:8px; cursor:pointer; font-size:0.875rem; }
+        @media (max-width: 480px) { .seg span { font-size: 0.75rem; flex-wrap: wrap; } }
         .seg span:hover { background: var(--ax-bg-neutral-moderate-hover); }
         .seg input:checked + span { background: var(--ax-bg-accent-strong); color: var(--ax-text-accent-contrast);
           border-color: transparent; font-weight: 600; }

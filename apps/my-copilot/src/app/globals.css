@@ -615,9 +615,11 @@ pre.text-sm {
   }
   .table-stack tbody,
   .table-stack tr,
+  .table-stack th,
   .table-stack td {
     display: block;
   }
+  .table-stack th,
   .table-stack td {
     border: 0;
     padding-block: var(--ax-space-2);
@@ -627,6 +629,7 @@ pre.text-sm {
     padding-block: var(--ax-space-12);
   }
   /* Wider tables name the column before each value, as .cplt-table does. */
+  .table-stack th[data-label]::before,
   .table-stack td[data-label]::before {
     content: attr(data-label) ": ";
     color: var(--ax-text-neutral-subtle);

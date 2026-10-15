@@ -82,20 +82,30 @@ export function PraksisHub({ categories }: { categories: ClientCategory[] }) {
               />
               {query && (
                 <button
+                  type="button"
                   onClick={() => setQuery("")}
-                  className="p-1 h-fit rounded-full hover:bg-surface-hover text-text-subtle transition-colors"
+                  aria-label="Tøm søk"
+                  className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full hover:bg-surface-hover text-text-subtle transition-colors"
                 >
-                  <XMarkIcon title="Tøm søk" />
+                  <XMarkIcon aria-hidden />
                 </button>
               )}
             </div>
 
-            <div className="flex justify-between items-center px-2 pb-1 pt-2 border-t border-border-subtle/50 mt-1">
+            <div
+              className="flex justify-between items-center border-t border-border-subtle/50"
+              style={{
+                paddingInline: "var(--ax-space-8)",
+                paddingTop: "var(--ax-space-8)",
+                paddingBottom: "var(--ax-space-4)",
+                marginTop: "var(--ax-space-4)",
+              }}
+            >
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant="tertiary-neutral"
-                  size="xsmall"
+                  size="small"
                   icon={<SparklesIcon aria-hidden />}
                   className="rounded-full font-normal"
                 >
@@ -106,6 +116,7 @@ export function PraksisHub({ categories }: { categories: ClientCategory[] }) {
                 type="button"
                 variant="tertiary"
                 size="small"
+                aria-label="Send søk"
                 icon={<PaperplaneIcon aria-hidden />}
                 className="rounded-lg hover:bg-blue-50"
                 onClick={() => {

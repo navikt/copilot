@@ -115,8 +115,8 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
 
   return (
     <VStack gap="space-16">
-      <div className="flex gap-4 items-end">
-        <div className="w-1/2">
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+        <div className="w-full sm:w-1/2">
           <Search
             label="Søk i tilpasninger"
             hideLabel
@@ -127,7 +127,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             onClear={() => setSearch("")}
           />
         </div>
-        <div className="w-1/4 [&_.navds-combobox__selected-options]:hidden [&_.aksel-combobox__selected-options]:hidden">
+        <div className="w-full sm:w-1/4 [&_.navds-combobox__selected-options]:hidden [&_.aksel-combobox__selected-options]:hidden">
           <UNSAFE_Combobox
             id={typeId}
             label="Type"

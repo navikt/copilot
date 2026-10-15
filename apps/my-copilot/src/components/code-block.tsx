@@ -31,7 +31,7 @@ function CopyButton({ text, dark = true }: { text: string; dark?: boolean }) {
     <button
       type="button"
       onClick={handleCopy}
-      className={`transition-colors ${dark ? "text-gray-400 hover:text-white" : "text-gray-400 hover:text-gray-700"}`}
+      className={`min-w-8 min-h-8 inline-flex items-center justify-center transition-colors ${dark ? "text-gray-400 hover:text-white" : "text-gray-400 hover:text-gray-700"}`}
       aria-label={copied ? "Kopiert" : "Kopier kode"}
       title={copied ? "Kopiert!" : "Kopier"}
     >
@@ -77,7 +77,9 @@ export function CodeBlock({ filename, children, maxHeight, compact }: CodeBlockP
       <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm">
         <div className="bg-[#f1f5f9] relative flex items-start justify-between">
           <Box padding="space-8" className="flex-1 min-w-0">
-            <pre className="text-[#334155] text-xs font-mono whitespace-pre-wrap">{children}</pre>
+            <pre className="text-[#334155] text-xs font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">
+              {children}
+            </pre>
           </Box>
           <Box padding="space-8" className="shrink-0">
             <CopyButton text={children} dark={false} />
@@ -98,13 +100,13 @@ export function CodeBlock({ filename, children, maxHeight, compact }: CodeBlockP
           className="bg-[#323233] flex items-center justify-between"
           style={{ gap: "8px" }}
         >
-          <div className="flex items-center" style={{ gap: "8px" }}>
-            <div className="flex" style={{ gap: "6px" }}>
+          <div className="flex items-center min-w-0" style={{ gap: "8px" }}>
+            <div className="flex shrink-0" style={{ gap: "6px" }}>
               <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
               <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
               <div className="w-3 h-3 rounded-full bg-[#28c840]" />
             </div>
-            <span className="text-gray-400 text-xs font-mono" style={{ marginLeft: "8px" }}>
+            <span className="text-gray-400 text-xs font-mono truncate min-w-0" style={{ marginLeft: "8px" }}>
               {filename}
             </span>
           </div>
@@ -123,7 +125,9 @@ export function CodeBlock({ filename, children, maxHeight, compact }: CodeBlockP
                 : undefined
             }
           >
-            <pre className="text-[#d4d4d4] text-xs font-mono whitespace-pre-wrap">{children}</pre>
+            <pre className="text-[#d4d4d4] text-xs font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">
+              {children}
+            </pre>
           </Box>
           {hasMaxHeight && (
             <>
@@ -159,17 +163,22 @@ export function CodeBlock({ filename, children, maxHeight, compact }: CodeBlockP
                 paddingInline="space-8"
                 className="bg-[#323233] flex items-center justify-between border-b border-gray-700"
               >
-                <div className="flex items-center" style={{ gap: "8px" }}>
-                  <div className="flex gap-1.5">
+                <div className="flex items-center min-w-0" style={{ gap: "8px" }}>
+                  <div className="flex shrink-0 gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
                     <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
                     <div className="w-3 h-3 rounded-full bg-[#28c840]" />
                   </div>
-                  <DialogTitle className="text-gray-300 text-sm ml-2 font-mono">{filename}</DialogTitle>
+                  <DialogTitle
+                    className="text-gray-300 text-sm font-mono truncate min-w-0"
+                    style={{ marginLeft: "var(--ax-space-8)" }}
+                  >
+                    {filename}
+                  </DialogTitle>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="min-w-8 min-h-8 inline-flex items-center justify-center text-gray-400 hover:text-white transition-colors"
                   aria-label="Lukk modal"
                 >
                   <XMarkIcon className="w-5 h-5" />
@@ -178,7 +187,9 @@ export function CodeBlock({ filename, children, maxHeight, compact }: CodeBlockP
 
               {/* Modal Code Content */}
               <Box padding="space-12" className="max-h-[80vh] overflow-y-auto">
-                <pre className="text-[#d4d4d4] text-sm font-mono whitespace-pre-wrap leading-relaxed">{children}</pre>
+                <pre className="text-[#d4d4d4] text-sm font-mono whitespace-pre-wrap [overflow-wrap:anywhere] leading-relaxed">
+                  {children}
+                </pre>
               </Box>
             </DialogPanel>
           </Box>

@@ -690,7 +690,7 @@ function ProxySection() {
               </div>
               <div className="px-5 py-3 flex items-center gap-3" style={{ background: "var(--ax-bg-neutral-soft)" }}>
                 <code
-                  className="font-mono flex-1"
+                  className="font-mono flex-1 min-w-0 break-all"
                   style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)" }}
                 >
                   cplt config set proxy.forced true
@@ -718,7 +718,7 @@ function ProxySection() {
               </div>
               <div className="px-5 py-3 flex items-center gap-3" style={{ background: "var(--ax-bg-neutral-soft)" }}>
                 <code
-                  className="font-mono flex-1"
+                  className="font-mono flex-1 min-w-0 break-all"
                   style={{ fontSize: CODE_SIZE, color: "var(--ax-text-neutral-subtle)" }}
                 >
                   cplt config set proxy.upstream &quot;http://proxy.example.com:8080&quot;

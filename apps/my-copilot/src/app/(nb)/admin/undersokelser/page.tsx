@@ -38,36 +38,38 @@ export default async function SurveysPage() {
         >
           <VStack gap="space-16">
             <Link href="/admin/undersokelser/sammenlign">Sammenlign bølgene</Link>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHeaderCell scope="col">Undersøkelse</TableHeaderCell>
-                  <TableHeaderCell scope="col">Periode</TableHeaderCell>
-                  <TableHeaderCell scope="col">Status</TableHeaderCell>
-                  <TableHeaderCell scope="col" align="right">
-                    Svar
-                  </TableHeaderCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {res.data.surveys.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableDataCell>
-                      <Link href={`/admin/undersokelser/${s.id}`}>{s.title}</Link>
-                    </TableDataCell>
-                    <TableDataCell>
-                      {formatDate(s.starts)}–{formatDate(s.ends)}
-                    </TableDataCell>
-                    <TableDataCell>
-                      <Tag variant={statusTag[s.status]} size="small">
-                        {s.status}
-                      </Tag>
-                    </TableDataCell>
-                    <TableDataCell align="right">{formatNumber(s.responses)}</TableDataCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell scope="col">Undersøkelse</TableHeaderCell>
+                    <TableHeaderCell scope="col">Periode</TableHeaderCell>
+                    <TableHeaderCell scope="col">Status</TableHeaderCell>
+                    <TableHeaderCell scope="col" align="right">
+                      Svar
+                    </TableHeaderCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {res.data.surveys.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableDataCell>
+                        <Link href={`/admin/undersokelser/${s.id}`}>{s.title}</Link>
+                      </TableDataCell>
+                      <TableDataCell>
+                        {formatDate(s.starts)}–{formatDate(s.ends)}
+                      </TableDataCell>
+                      <TableDataCell>
+                        <Tag variant={statusTag[s.status]} size="small">
+                          {s.status}
+                        </Tag>
+                      </TableDataCell>
+                      <TableDataCell align="right">{formatNumber(s.responses)}</TableDataCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </VStack>
         </Box>
       </div>

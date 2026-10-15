@@ -209,7 +209,7 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
       <Heading size="small" level="4" spacing>
         Fordeling av AI-kredittbruk, {monthName(distribution.month)}
       </Heading>
-      <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--a-spacing-8)" }}>
+      <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--ax-space-32)" }}>
         {populationText(distribution)}{" "}
         {`Hver bruker har ${formatNumber(distribution.budget_credits)} AI-kreditter (${formatNumber(budgetUsd)} dollar) i måneden.`}{" "}
         Søylene viser hvor mange brukere som ligger i hvert intervall. Intervaller med færre enn fem brukere er merket

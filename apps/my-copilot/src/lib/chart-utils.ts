@@ -150,6 +150,26 @@ export const bottomLegend = {
 // Default no data message
 export const NO_DATA_MESSAGE = "Ingen data tilgjengelig for visning";
 
+const Y_AXIS_MAX_WIDTH = 140;
+const Y_TICK_MAX_CHARS = 22;
+
+export function truncateTickLabel(
+  this: { getLabelForValue?: (value: number) => string } | void,
+  value: string | number
+): string {
+  const raw =
+    this && typeof this.getLabelForValue === "function" && typeof value === "number"
+      ? this.getLabelForValue(value)
+      : String(value);
+  return raw.length > Y_TICK_MAX_CHARS ? `${raw.slice(0, Y_TICK_MAX_CHARS - 1)}…` : raw;
+}
+
+export function capYAxisWidth(axis: { width: number }): void {
+  if (axis.width > Y_AXIS_MAX_WIDTH) {
+    axis.width = Y_AXIS_MAX_WIDTH;
+  }
+}
+
 // Horizontal bar chart options
 export const commonHorizontalBarOptions = {
   responsive: true,
@@ -169,9 +189,13 @@ export const commonHorizontalBarOptions = {
   },
   scales: {
     y: {
+      afterFit: capYAxisWidth,
       border: { display: false },
       grid: { display: false },
-      ticks: githubTickStyle,
+      ticks: {
+        ...githubTickStyle,
+        callback: truncateTickLabel,
+      },
     },
     x: {
       beginAtZero: true,

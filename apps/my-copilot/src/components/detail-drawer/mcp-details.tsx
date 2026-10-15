@@ -276,11 +276,11 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
           {item.packages.map((pkg) => (
             <Box key={pkg.identifier} background="neutral-soft" borderRadius="8" padding="space-12">
               <VStack gap="space-4">
-                <HStack gap="space-4" align="center">
+                <HStack gap="space-4" align="center" wrap>
                   <Tag size="xsmall" variant="neutral">
                     {pkg.registryType}
                   </Tag>
-                  <BodyShort size="small" weight="semibold">
+                  <BodyShort size="small" weight="semibold" className="break-all min-w-0">
                     {pkg.identifier}
                   </BodyShort>
                 </HStack>

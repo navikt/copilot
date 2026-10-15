@@ -299,7 +299,12 @@ export function ResultRow({ overlay, accent }: { overlay: OverlayComponent; acce
   return (
     <HStack gap="space-4" align="center" wrap={false}>
       <CheckmarkIcon aria-hidden fontSize="0.85rem" style={{ color: accent, flexShrink: 0 }} />
-      <Detail textColor="subtle" style={{ color: CHIP_TEXT, whiteSpace: "nowrap" }} title={label}>
+      <Detail
+        textColor="subtle"
+        className="truncate min-w-0"
+        style={{ color: CHIP_TEXT, whiteSpace: "nowrap" }}
+        title={label}
+      >
         {label}
       </Detail>
     </HStack>
@@ -324,6 +329,7 @@ export function RuleHeader({ overlay, accent }: { overlay: OverlayComponent; acc
     <HStack gap="space-8" align="center" wrap={false}>
       <span style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.22)" }} aria-hidden />
       <span
+        className="truncate min-w-0"
         style={{
           color: accent,
           fontSize: "0.66rem",
