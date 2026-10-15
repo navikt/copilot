@@ -92,6 +92,12 @@ var mimirSession = []mimirSpec{
 	{metric: "nav_pilot_session_duration_seconds", cols: sessionCols(mimirCol{"shutdown_type", "shutdown_type"}), hist: true},
 	{metric: "nav_pilot_session_api_duration_ms", cols: sessionCols(mimirCol{"model", "model"}), hist: true},
 	{metric: "nav_pilot_session_events_skipped_total", cols: sessionCols()},
+	{metric: "nav_pilot_genai_session_tokens_total", cols: sessionCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"}, mimirCol{"token_type", "gen_ai_token_type"})},
+	{metric: "nav_pilot_genai_session_calls_total", cols: sessionCols(mimirCol{"source", "gen_ai_provider_name"}, mimirCol{"model", "gen_ai_request_model"})},
+	{metric: "nav_pilot_local_dispatches", cols: sessionCols(mimirCol{"model", "model"}, mimirCol{"operation", "dispatch_level"}, mimirCol{"outcome", "saw_traffic"}), hist: true},
+	{metric: "nav_pilot_local_gate_total", cols: []mimirCol{{"version", "version"}, {"outcome", "outcome"}}},
+	{metric: "nav_pilot_local_ready_seconds", cols: []mimirCol{{"version", "version"}, {"outcome", "outcome"}}, hist: true},
+	{metric: "nav_pilot_decide_result_total", cols: []mimirCol{{"version", "version"}, {"model", "model"}, {"outcome", "result"}, {"source", "caller"}, {"operation", "backend"}}},
 }
 
 type MimirClient struct {
@@ -413,7 +419,7 @@ func mimirSessionRows(ctx context.Context, m *MimirClient, day string, t time.Ti
 }
 
 func mimirConfigRows(ctx context.Context, m *MimirClient, day string, t time.Time) ([]mimirRow, error) {
-	res, err := m.query(ctx, "count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info[1d])))", t)
+	res, err := m.query(ctx, `count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info{execution_context="organic",version!="dev"}[1d])))`, t)
 	if err != nil {
 		return nil, err
 	}
@@ -422,6 +428,46 @@ func mimirConfigRows(ctx context.Context, m *MimirClient, day string, t time.Tim
 		if n := r.float(); n >= mimirK {
 			out = append(out, mimirRow{"day": day, "family": "nav_pilot_config", "metric": "nav_pilot_config_info",
 				"client": r.Metric["client"], "devices": int(n), "counter_reliable": true})
+		}
+	}
+	return out, nil
+}
+
+func mimirReachRows(ctx context.Context, m *MimirClient, day string, t time.Time) ([]mimirRow, error) {
+	const sel = `execution_context="organic",version!="dev"`
+	specs := []struct {
+		metric, expr, labelCol, labelKey, op, fixedClient string
+	}{
+		{metric: "nav_pilot_info", op: "1d", expr: `count(count by (device_id) (last_over_time(nav_pilot_info{` + sel + `}[1d])))`},
+		{metric: "nav_pilot_info", op: "7d", expr: `count(count by (device_id) (last_over_time(nav_pilot_info{` + sel + `}[7d])))`},
+		{metric: "nav_pilot_info", op: "28d", expr: `count(count by (device_id) (last_over_time(nav_pilot_info{` + sel + `}[28d])))`},
+		{metric: "nav_pilot_config_info", op: "7d", labelCol: "client", labelKey: "client", expr: `count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info{` + sel + `}[7d])))`},
+		{metric: "nav_pilot_config_info", op: "7d", fixedClient: "both", expr: `count(count by (device_id) (count by (client, device_id) (last_over_time(nav_pilot_config_info{` + sel + `}[7d]))) > 1)`},
+		{metric: "nav_pilot_command_duration_ms_count", labelCol: "operation", labelKey: "command", expr: `count by (command) (count by (command, device_id) (last_over_time(nav_pilot_command_duration_ms_count{` + sel + `}[7d])))`},
+		{metric: "nav_pilot_installed_items", op: "7d", labelCol: "source", labelKey: "scope", expr: `count by (scope) (count by (scope, device_id) (last_over_time(nav_pilot_installed_items{` + sel + `,status="active"}[7d])))`},
+	}
+	var out []mimirRow
+	for _, s := range specs {
+		res, err := m.query(ctx, s.expr, t)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range res {
+			n := r.float()
+			if n < mimirK || math.IsNaN(n) {
+				continue
+			}
+			row := mimirRow{"day": day, "family": "nav_pilot_reach", "metric": s.metric, "devices": int(n), "counter_reliable": true}
+			if s.op != "" {
+				row["operation"] = s.op
+			}
+			if s.fixedClient != "" {
+				row["client"] = s.fixedClient
+			}
+			if s.labelCol != "" {
+				row[s.labelCol] = r.Metric[s.labelKey]
+			}
+			out = append(out, row)
 		}
 	}
 	return out, nil
@@ -448,11 +494,15 @@ func collectMimirDay(ctx context.Context, m *MimirClient, day time.Time) ([]mimi
 	if err != nil {
 		return nil, fmt.Errorf("nav_pilot_config: %w", err)
 	}
+	reach, err := mimirReachRows(ctx, m, d, t)
+	if err != nil {
+		return nil, fmt.Errorf("nav_pilot_reach: %w", err)
+	}
 	sess, err := mimirSessionRows(ctx, m, d, t)
 	if err != nil {
 		return nil, fmt.Errorf("nav_pilot_session: %w", err)
 	}
-	return append(append(append(rows, chat...), cfg...), sess...), nil
+	return append(append(append(append(rows, chat...), cfg...), reach...), sess...), nil
 }
 
 // runMimirDaily copies each day in [from, to] and replaces any earlier copy.

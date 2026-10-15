@@ -202,6 +202,15 @@ func TestMimirSessionRows(t *testing.T) {
 		"histogram_quantile(0.95, sum by (version,client,le) (sum_over_time(nav_pilot_session_turns_bucket[1d])))": {
 			{map[string]string{"version": "0.18.0", "client": "copilot"}, "NaN"},
 		},
+		"nav_pilot_local_dispatches_count[1d]": {
+			{map[string]string{"version": "0.18.0", "client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
+		},
+		"nav_pilot_local_dispatches_sum[1d]": {
+			{map[string]string{"version": "0.18.0", "client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "57"},
+		},
+		"nav_pilot_decide_result_total[1d]": {
+			{map[string]string{"version": "0.18.0", "model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "18"},
+		},
 	})
 	rows, err := mimirSessionRows(context.Background(), m, "2026-10-09", time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC))
 	if err != nil {
@@ -215,8 +224,8 @@ func TestMimirSessionRows(t *testing.T) {
 			t.Fatalf("session query must group by version, got %s", q)
 		}
 	}
-	if len(rows) != 4 {
-		t.Fatalf("expected 4 rows, got %v", rows)
+	if len(rows) != 6 {
+		t.Fatalf("expected 6 rows, got %v", rows)
 	}
 	byMetric := map[string]mimirRow{}
 	for _, r := range rows {
@@ -240,5 +249,48 @@ func TestMimirSessionRows(t *testing.T) {
 	}
 	if _, ok := turns["p95"]; ok {
 		t.Errorf("NaN p95 must be omitted: %v", turns)
+	}
+	disp := byMetric["nav_pilot_local_dispatches"]
+	if disp["hist_count"] != 6.0 || disp["hist_sum"] != 57.0 || disp["outcome"] != "true" || disp["operation"] != "subagent" {
+		t.Errorf("local_dispatches row = %v", disp)
+	}
+	decide := byMetric["nav_pilot_decide_result_total"]
+	if decide["increase"] != 18.0 || decide["outcome"] != "local" || decide["source"] != "opencode" || decide["operation"] != "ollama" {
+		t.Errorf("decide row = %v", decide)
+	}
+}
+
+func TestMimirReachRows(t *testing.T) {
+	m, seen := fakeMimir(t, map[string][]fakeSeries{
+		`nav_pilot_info{execution_context="organic",version!="dev"}[7d]`: {
+			{map[string]string{}, "217"},
+		},
+		`count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info{execution_context="organic",version!="dev"}[7d])))`: {
+			{map[string]string{"client": "copilot"}, "160"},
+			{map[string]string{"client": "opencode"}, "56"},
+		},
+		`> 1)`: {
+			{map[string]string{}, "13"},
+		},
+		`nav_pilot_command_duration_ms_count`: {
+			{map[string]string{"command": "sync"}, "180"},
+			{map[string]string{"command": "rare"}, "3"},
+		},
+		`nav_pilot_installed_items`: {
+			{map[string]string{"scope": "user"}, "162"},
+			{map[string]string{"scope": "repo"}, "46"},
+		},
+	})
+	rows, err := mimirReachRows(context.Background(), m, "2026-10-14", time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range *seen {
+		if !strings.Contains(q, `execution_context="organic",version!="dev"`) {
+			t.Fatalf("reach query missing organic non-dev filter: %s", q)
+		}
+	}
+	if len(rows) != 7 {
+		t.Fatalf("expected 7 reach rows (rare command <5 dropped), got %d: %v", len(rows), rows)
 	}
 }

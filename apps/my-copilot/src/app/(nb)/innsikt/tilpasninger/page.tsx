@@ -1,6 +1,6 @@
 import { Suspense, cache, type ReactNode } from "react";
 import type { Metadata } from "next";
-import { getAdoptionData, getStalenessData } from "@/lib/cached-bigquery";
+import { getAdoptionData, getNavPilotTelemetry, getStalenessData } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
 import {
   CustomizationTypeChart,
@@ -16,7 +16,7 @@ import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import TeamTable from "@/components/team-table";
 import { formatNumber, formatPercent, formatShare } from "@/lib/format";
-import type { AdoptionData } from "@/lib/types";
+import type { AdoptionData, NavPilotTelemetry } from "@/lib/types";
 import { calculateLanguageStats } from "@/lib/adoption-utils";
 import { getAllCustomizations } from "@/lib/customizations";
 
@@ -25,9 +25,10 @@ export const metadata: Metadata = {
   description: "Hvor mange navikt-repoer som har KI-tilpasninger, og om de er i synk med kilden.",
 };
 
-// Every section reads the same two requests; cache() makes them run once per render.
+// Every section reads the same requests; cache() makes them run once per render.
 const adoptionFor = cache(getAdoptionData);
 const stalenessFor = cache(getStalenessData);
+const telemetryFor = cache(getNavPilotTelemetry);
 
 const fallback = <Skeleton variant="rectangle" height={300} />;
 
@@ -43,6 +44,110 @@ async function Adoption({ token, children }: { token: string; children: (data: A
   if (error) return <BodyShort>{`Kunne ikke hente tilpasningene: ${error}`}</BodyShort>;
   if (!data) return <BodyShort>Ingen data om tilpasninger ennå.</BodyShort>;
   return children(data);
+}
+
+function hasTelemetry(t: NavPilotTelemetry): boolean {
+  return (
+    t.devices_7d > 0 ||
+    t.devices_1d > 0 ||
+    t.user_scope_devices_7d > 0 ||
+    t.copilot_devices_7d > 0 ||
+    t.opencode_devices_7d > 0 ||
+    t.agent_skill_loads_7d > 0 ||
+    t.user_skill_loads_7d > 0
+  );
+}
+
+async function RuntimeTelemetry({ token }: { token: string }) {
+  const { telemetry: t, error } = await telemetryFor(token);
+  if (error) return <BodyShort>{`Kunne ikke hente bruksdata fra nav-pilot: ${error}`}</BodyShort>;
+  if (!t || !hasTelemetry(t)) return <BodyShort>Ingen bruksdata fra nav-pilot ennå.</BodyShort>;
+
+  const totalSkillLoads = t.agent_skill_loads_7d + t.user_skill_loads_7d;
+  const devices = t.devices_7d || t.devices_1d;
+
+  return (
+    <>
+      <BodyShort size="small" textColor="subtle">
+        Siste syv dager fra enheter med nav-pilot, uten utviklerbygg og kjente CI-miljøer. Rader med færre enn fem
+        enheter i et døgn skjules før tallene lagres.
+      </BodyShort>
+      <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
+        <MetricCard
+          value={devices > 0 ? formatNumber(devices) : "–"}
+          label={t.devices_7d > 0 ? "Enheter (7 dager)" : "Enheter (siste døgn)"}
+          helpTitle="Rapporterende enheter"
+          helpText="Unike enheter som har rapportert fra nav-pilot, uten utviklerbygg (version=dev) og kjente CI-miljøer. En enhet er en maskin-ID, ikke en person."
+          subtitle={t.devices_28d > 0 ? `${formatNumber(t.devices_28d)} siste 28 dager` : undefined}
+        />
+        <MetricCard
+          value={t.user_scope_devices_7d > 0 ? formatNumber(t.user_scope_devices_7d) : "–"}
+          label="Personlig oppsett"
+          helpTitle="Personlig oppsett mot repo-oppsett"
+          helpText="Enheter med aktive tilpasninger installert i brukeroppsettet (~/.copilot) siste syv dager, sammenlignet med installasjoner i enkeltrepoer."
+          subtitle={
+            t.repo_scope_devices_7d > 0 ? `mot ${formatNumber(t.repo_scope_devices_7d)} med repo-oppsett` : undefined
+          }
+        />
+        <MetricCard
+          value={t.opencode_devices_7d > 0 ? formatNumber(t.opencode_devices_7d) : "–"}
+          label="Enheter med OpenCode"
+          helpTitle="Klientoppsett i nav-pilot"
+          helpText="Enheter som har rapportert konfigurasjon for OpenCode og GitHub Copilot."
+          subtitle={
+            t.copilot_devices_7d > 0
+              ? `${formatNumber(t.copilot_devices_7d)} med Copilot${t.both_clients_7d > 0 ? `, ${formatNumber(t.both_clients_7d)} med begge` : ""}`
+              : undefined
+          }
+        />
+        <MetricCard
+          value={totalSkillLoads > 0 ? formatShare(t.agent_skill_loads_7d / totalSkillLoads) : "–"}
+          label="Skills valgt av agenten"
+          helpTitle="Automatisk mot manuell bruk av skills"
+          helpText="Andelen skill-innlastinger der agenten selv valgte en skill ut fra instruksjonene, uten at brukeren oppga en skråstrekskommando."
+          subtitle={
+            totalSkillLoads > 0
+              ? `${formatNumber(t.agent_skill_loads_7d)} av ${formatNumber(totalSkillLoads)} innlastinger`
+              : undefined
+          }
+        />
+      </HGrid>
+      {t.command_reach_7d.length > 0 && (
+        <BodyShort size="small" textColor="subtle">
+          Enheter per kommando siste syv dager:{" "}
+          {t.command_reach_7d.map((item, idx) => (
+            <span key={item.command}>
+              {idx > 0 ? ", " : ""}
+              <code>{item.command}</code> ({formatNumber(item.devices)})
+            </span>
+          ))}
+          .
+        </BodyShort>
+      )}
+      {t.top_skills_7d.length > 0 && (
+        <div className="overflow-x-auto">
+          <Table size="small">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Skill</TableHeaderCell>
+                <TableHeaderCell>Kilde</TableHeaderCell>
+                <TableHeaderCell align="right">Innlastinger (7 dager)</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {t.top_skills_7d.slice(0, 10).map((item) => (
+                <TableRow key={`${item.source}-${item.skill}`}>
+                  <TableDataCell className="font-mono">{item.skill}</TableDataCell>
+                  <TableDataCell>{item.source}</TableDataCell>
+                  <TableDataCell align="right">{formatNumber(item.loads)}</TableDataCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </>
+  );
 }
 
 function Overview({ data }: { data: AdoptionData }) {
@@ -282,12 +387,13 @@ export default async function TilpasningerPage() {
       updated={async () => (await adoptionFor(token)).data?.summary?.scan_date}
       source={
         <>
-          Tallene kommer fra copilot-api, som leser en ukentlig skanning av navikt-repoene fra BigQuery:{" "}
-          <code>/adoption/summary</code>, <code>/adoption/teams</code>, <code>/adoption/languages</code>,{" "}
-          <code>/customizations/details</code> og <code>/adoption/staleness</code>. «Sist oppdatert» er datoen for
-          skanningen. Arkiverte repoer er ikke med. «Alle repoer» er resten, og et repo er aktivt når det har fått en
-          commit de siste 90 dagene. En KI-tilpasning er en fil for Copilot eller et annet KI-verktøy, for eksempel
-          CLAUDE.md eller .cursorrules. Tallene gjelder siste skanning, ikke en periode.
+          Tallene kommer fra copilot-api, som leser en ukentlig skanning av navikt-repoene og daglig aggregerte
+          bruksdata fra Mimir i BigQuery: <code>/adoption/summary</code>, <code>/adoption/teams</code>,{" "}
+          <code>/adoption/languages</code>, <code>/customizations/details</code>, <code>/adoption/staleness</code> og{" "}
+          <code>/mimir/telemetry</code>. «Sist oppdatert» er datoen for skanningen. Arkiverte repoer er ikke med. «Alle
+          repoer» er resten, og et repo er aktivt når det har fått en commit de siste 90 dagene. En KI-tilpasning er en
+          fil for Copilot eller et annet KI-verktøy, for eksempel CLAUDE.md eller .cursorrules. Tallene for repoene
+          gjelder siste skanning, ikke en periode.
         </>
       }
     >
@@ -298,6 +404,11 @@ export default async function TilpasningerPage() {
       </InsightSection>
       <InsightSection id="samlingen" title={`${getAllCustomizations().length} delte tilpasninger`}>
         <Catalog />
+      </InsightSection>
+      <InsightSection id="faktisk-bruk" title="Faktisk bruk i nav-pilot">
+        <Suspense fallback={fallback}>
+          <RuntimeTelemetry token={token} />
+        </Suspense>
       </InsightSection>
       <InsightSection id="verktoy" title="Tilpasninger per verktøy">
         <Suspense fallback={fallback}>

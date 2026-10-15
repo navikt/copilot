@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,6 +30,7 @@ type BigQueryClient struct {
 	metricsDataset  string
 	metricsTable    string
 	adoptionDataset string
+	mimirDataset    string
 }
 
 func newBigQueryClient(config *Config) (*BigQueryClient, error) {
@@ -47,6 +50,7 @@ func newBigQueryClient(config *Config) (*BigQueryClient, error) {
 		metricsDataset:  config.CopilotMetricsDataset,
 		metricsTable:    config.CopilotMetricsTable,
 		adoptionDataset: config.CopilotAdoptionDataset,
+		mimirDataset:    config.CopilotMimirDataset,
 	}, nil
 }
 
@@ -364,6 +368,244 @@ func (bq *BigQueryClient) GetStalenessData(ctx context.Context) ([]StalenessFile
 	return readAllRows[StalenessFile](it)
 }
 
+type NavPilotSkillLoad struct {
+	Skill  string `json:"skill"`
+	Source string `json:"source"`
+	Loads  int64  `json:"loads"`
+}
+
+type NavPilotCommandReach struct {
+	Command string `json:"command"`
+	Devices int64  `json:"devices"`
+}
+
+type NavPilotLocalTelemetry struct {
+	ObservedSessions       int64 `json:"observed_sessions"`
+	SessionsWithTraffic    int64 `json:"sessions_with_traffic"`
+	SessionsWithoutTraffic int64 `json:"sessions_without_traffic"`
+	DispatchAttempts       int64 `json:"dispatch_attempts"`
+	DecideLocalCount       int64 `json:"decide_local_count"`
+}
+
+type NavPilotTelemetry struct {
+	LatestDay          string                 `json:"latest_day,omitempty"`
+	Devices1d          int64                  `json:"devices_1d"`
+	Devices7d          int64                  `json:"devices_7d"`
+	Devices28d         int64                  `json:"devices_28d"`
+	CopilotDevices7d   int64                  `json:"copilot_devices_7d"`
+	OpenCodeDevices7d  int64                  `json:"opencode_devices_7d"`
+	BothClients7d      int64                  `json:"both_clients_7d"`
+	UserScopeDevices7d int64                  `json:"user_scope_devices_7d"`
+	RepoScopeDevices7d int64                  `json:"repo_scope_devices_7d"`
+	AgentSkillLoads7d  int64                  `json:"agent_skill_loads_7d"`
+	UserSkillLoads7d   int64                  `json:"user_skill_loads_7d"`
+	TopSkills7d        []NavPilotSkillLoad    `json:"top_skills_7d"`
+	CommandReach7d     []NavPilotCommandReach `json:"command_reach_7d"`
+	Local7d            NavPilotLocalTelemetry `json:"local_7d"`
+}
+
+type mimirTelemetryRow struct {
+	LatestDay string  `bigquery:"latest_day"`
+	IsLatest  bool    `bigquery:"is_latest_day"`
+	Family    string  `bigquery:"family"`
+	Metric    string  `bigquery:"metric"`
+	Client    string  `bigquery:"client"`
+	Skill     string  `bigquery:"skill"`
+	Source    string  `bigquery:"source"`
+	Trigger   string  `bigquery:"trigger"`
+	Operation string  `bigquery:"operation"`
+	Outcome   string  `bigquery:"outcome"`
+	Devices   int64   `bigquery:"devices"`
+	Increase  float64 `bigquery:"increase"`
+	HistCount float64 `bigquery:"hist_count"`
+	HistSum   float64 `bigquery:"hist_sum"`
+}
+
+func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
+	out := &NavPilotTelemetry{
+		TopSkills7d:    []NavPilotSkillLoad{},
+		CommandReach7d: []NavPilotCommandReach{},
+	}
+	var cfgCopilot1d, cfgOpenCode1d int64
+	skills := map[string]*NavPilotSkillLoad{}
+
+	for _, r := range rows {
+		if out.LatestDay == "" && r.LatestDay != "" {
+			out.LatestDay = r.LatestDay
+		}
+		switch r.Family {
+		case "nav_pilot_config":
+			if !r.IsLatest {
+				continue
+			}
+			switch r.Client {
+			case "copilot":
+				cfgCopilot1d = r.Devices
+			case "opencode":
+				cfgOpenCode1d = r.Devices
+			}
+		case "nav_pilot_reach":
+			if !r.IsLatest {
+				continue
+			}
+			switch r.Metric {
+			case "nav_pilot_info":
+				switch r.Operation {
+				case "1d":
+					out.Devices1d = r.Devices
+				case "7d":
+					out.Devices7d = r.Devices
+				case "28d":
+					out.Devices28d = r.Devices
+				}
+			case "nav_pilot_config_info":
+				switch r.Client {
+				case "copilot":
+					out.CopilotDevices7d = r.Devices
+				case "opencode":
+					out.OpenCodeDevices7d = r.Devices
+				case "both":
+					out.BothClients7d = r.Devices
+				}
+			case "nav_pilot_installed_items":
+				switch r.Source {
+				case "user":
+					out.UserScopeDevices7d = r.Devices
+				case "repo":
+					out.RepoScopeDevices7d = r.Devices
+				}
+			case "nav_pilot_command_duration_ms_count":
+				if r.Operation != "" && r.Devices > 0 {
+					out.CommandReach7d = append(out.CommandReach7d, NavPilotCommandReach{Command: r.Operation, Devices: r.Devices})
+				}
+			}
+		case "nav_pilot_session":
+			switch r.Metric {
+			case "nav_pilot_session_skill_loads_total":
+				loads := int64(math.Round(r.Increase))
+				if loads <= 0 {
+					continue
+				}
+				switch r.Trigger {
+				case "agent-invoked", "auto":
+					out.AgentSkillLoads7d += loads
+				case "user-invoked", "manual", "user":
+					out.UserSkillLoads7d += loads
+				}
+				if r.Skill != "" {
+					key := r.Skill + "\x00" + r.Source
+					if skills[key] == nil {
+						skills[key] = &NavPilotSkillLoad{Skill: r.Skill, Source: r.Source}
+					}
+					skills[key].Loads += loads
+				}
+			case "nav_pilot_local_dispatches":
+				sessions := int64(math.Round(r.HistCount))
+				dispatches := int64(math.Round(r.HistSum))
+				out.Local7d.ObservedSessions += sessions
+				out.Local7d.DispatchAttempts += dispatches
+				if r.Outcome == "true" {
+					out.Local7d.SessionsWithTraffic += sessions
+				} else {
+					out.Local7d.SessionsWithoutTraffic += sessions
+				}
+			case "nav_pilot_decide_result_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 {
+					out.Local7d.DecideLocalCount += cnt
+				}
+			}
+		}
+	}
+
+	if out.CopilotDevices7d == 0 && out.OpenCodeDevices7d == 0 {
+		out.CopilotDevices7d = cfgCopilot1d
+		out.OpenCodeDevices7d = cfgOpenCode1d
+	}
+	for _, s := range skills {
+		out.TopSkills7d = append(out.TopSkills7d, *s)
+	}
+	sort.Slice(out.TopSkills7d, func(i, j int) bool {
+		if out.TopSkills7d[i].Loads != out.TopSkills7d[j].Loads {
+			return out.TopSkills7d[i].Loads > out.TopSkills7d[j].Loads
+		}
+		return out.TopSkills7d[i].Skill < out.TopSkills7d[j].Skill
+	})
+	if len(out.TopSkills7d) > 15 {
+		out.TopSkills7d = out.TopSkills7d[:15]
+	}
+	sort.Slice(out.CommandReach7d, func(i, j int) bool {
+		if out.CommandReach7d[i].Devices != out.CommandReach7d[j].Devices {
+			return out.CommandReach7d[i].Devices > out.CommandReach7d[j].Devices
+		}
+		return out.CommandReach7d[i].Command < out.CommandReach7d[j].Command
+	})
+	return out
+}
+
+// GetNavPilotTelemetry fetches aggregated nav-pilot telemetry from mimir_daily.
+func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTelemetry, error) {
+	dataset := bq.mimirDataset
+	if dataset == "" {
+		dataset = "copilot_metrics_staging"
+	}
+	tableRef := bq.viewRef(dataset, "mimir_daily")
+	queryStr := fmt.Sprintf(`
+		WITH bounds AS (
+			SELECT MAX(day) AS max_day FROM %s
+		)
+		SELECT
+			CAST(b.max_day AS STRING) AS latest_day,
+			t.day = b.max_day AS is_latest_day,
+			IFNULL(t.family, '') AS family,
+			IFNULL(t.metric, '') AS metric,
+			IFNULL(t.client, '') AS client,
+			IFNULL(t.skill, '') AS skill,
+			IFNULL(t.source, '') AS source,
+			IFNULL(t.trigger, '') AS trigger,
+			IFNULL(t.operation, '') AS operation,
+			IFNULL(t.outcome, '') AS outcome,
+			MAX(IFNULL(t.devices, 0)) AS devices,
+			SUM(IFNULL(t.increase, 0)) AS increase,
+			SUM(IFNULL(t.hist_count, 0)) AS hist_count,
+			SUM(IFNULL(t.hist_sum, 0)) AS hist_sum
+		FROM %s t
+		CROSS JOIN bounds b
+		WHERE t.day > DATE_SUB(b.max_day, INTERVAL 7 DAY)
+			AND (
+				(t.day = b.max_day AND t.family IN ('nav_pilot_reach', 'nav_pilot_config'))
+				OR (
+					t.family = 'nav_pilot_session'
+					AND IFNULL(t.version, '') != 'dev'
+					AND (t.version IS NULL OR t.version >= '2026.09.29-063952')
+					AND t.metric IN (
+						'nav_pilot_session_skill_loads_total',
+						'nav_pilot_local_dispatches',
+						'nav_pilot_decide_result_total'
+					)
+				)
+			)
+		GROUP BY latest_day, is_latest_day, family, metric, client, skill, source, trigger, operation, outcome
+	`, tableRef, tableRef)
+
+	it, err := bq.client.Query(queryStr).Read(ctx)
+	if err != nil {
+		if strings.Contains(err.Error(), "Not found") || strings.Contains(err.Error(), "404") {
+			slog.Warn("mimir_daily table not found, returning empty telemetry", "table", tableRef)
+			return aggregateNavPilotTelemetry(nil), nil
+		}
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	rows, err := readAllRows[mimirTelemetryRow](it)
+	if err != nil {
+		if strings.Contains(err.Error(), "Not found") || strings.Contains(err.Error(), "404") {
+			slog.Warn("mimir_daily table not found, returning empty telemetry", "table", tableRef)
+			return aggregateNavPilotTelemetry(nil), nil
+		}
+		return nil, err
+	}
+	return aggregateNavPilotTelemetry(rows), nil
+}
+
 // BigQueryQuerier abstracts BigQuery operations for testability
 type BigQueryQuerier interface {
 	GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error)
@@ -373,6 +615,7 @@ type BigQueryQuerier interface {
 	GetCustomizationUsage(ctx context.Context) ([]CustomizationUsage, error)
 	GetLanguageAdoption(ctx context.Context) ([]LanguageAdoption, error)
 	GetStalenessData(ctx context.Context) ([]StalenessFile, error)
+	GetNavPilotTelemetry(ctx context.Context) (*NavPilotTelemetry, error)
 	GetUserTeams(ctx context.Context, userLogin string) ([]string, error)
 	GetTeamGrossOverview(ctx context.Context, month string) (*TeamGrossOverview, error)
 	GetTeamNetOverview(ctx context.Context, month string) (*TeamNetOverview, error)
@@ -653,6 +896,14 @@ func (c *CachedBigQueryClient) GetRepositoryUsage(ctx context.Context) ([]Reposi
 	defer cancel()
 	return getCachedValue(c, "repository_usage", func() ([]RepositoryUsage, error) {
 		return c.client.GetRepositoryUsage(ctx)
+	})
+}
+
+func (c *CachedBigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTelemetry, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "nav_pilot_telemetry", func() (*NavPilotTelemetry, error) {
+		return c.client.GetNavPilotTelemetry(ctx)
 	})
 }
 

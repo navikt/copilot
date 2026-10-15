@@ -720,3 +720,39 @@ export interface VolumeMonth {
   app_input_tokens: number;
   app_output_tokens: number;
 }
+
+export interface NavPilotSkillLoad {
+  skill: string;
+  source: string;
+  loads: number;
+}
+
+export interface NavPilotCommandReach {
+  command: string;
+  devices: number;
+}
+
+export interface NavPilotLocalTelemetry {
+  observed_sessions: number;
+  sessions_with_traffic: number;
+  sessions_without_traffic: number;
+  dispatch_attempts: number;
+  decide_local_count: number;
+}
+
+export interface NavPilotTelemetry {
+  latest_day?: string;
+  devices_1d: number;
+  devices_7d: number;
+  devices_28d: number;
+  copilot_devices_7d: number;
+  opencode_devices_7d: number;
+  both_clients_7d: number;
+  user_scope_devices_7d: number;
+  repo_scope_devices_7d: number;
+  agent_skill_loads_7d: number;
+  user_skill_loads_7d: number;
+  top_skills_7d: NavPilotSkillLoad[];
+  command_reach_7d: NavPilotCommandReach[];
+  local_7d: NavPilotLocalTelemetry;
+}

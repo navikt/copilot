@@ -51,6 +51,8 @@ spec:
       value: "usage_metrics"
     - name: "COPILOT_ADOPTION_DATASET"
       value: "copilot_adoption"
+    - name: "COPILOT_MIMIR_DATASET"
+      value: "copilot_metrics_staging"
     - name: "VIDEO_FEED_CACHE_SECONDS"
       value: "{{video_feed_cache_seconds}}"
     - name: "VIDEO_MANIFEST_URL"
@@ -97,6 +99,8 @@ spec:
       - name: copilot_metrics
         permission: READ
       - name: copilot_adoption
+        permission: READ
+      - name: copilot_metrics_staging
         permission: READ
 
   accessPolicy:

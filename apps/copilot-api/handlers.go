@@ -88,6 +88,7 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/adoption/staleness", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdoptionStaleness })))
 	mux.HandleFunc("GET /api/v1/copilot/customizations/details", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCustomizationDetails })))
 	mux.HandleFunc("GET /api/v1/copilot/customizations/usage", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleCustomizationUsage })))
+	mux.HandleFunc("GET /api/v1/copilot/mimir/telemetry", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleNavPilotTelemetry })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/team-gross", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamGrossOverview })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/team-net", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamNetOverview })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/team-year", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamYearOverview })))

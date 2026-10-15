@@ -21,7 +21,9 @@ import {
   ReportTimeline,
 } from "@/components/nav-pilot/local-model-charts";
 import { InsightPage, InsightSection } from "@/components/insight-page";
-import { formatDate } from "@/lib/format";
+import { getUser, getUserToken } from "@/lib/auth";
+import { getNavPilotTelemetry } from "@/lib/cached-bigquery";
+import { formatDate, formatNumber } from "@/lib/format";
 import {
   CLOUD_COMPARISONS,
   DECIDE_RESULTS,
@@ -210,6 +212,51 @@ async function LiveManifestSections() {
   return <ManifestSections table={await getLocalModels()} />;
 }
 
+async function LiveObservedLocalSection() {
+  const user = await getUser(false);
+  const token = user ? await getUserToken() : null;
+  if (!token) return null;
+  const { telemetry } = await getNavPilotTelemetry(token);
+  const local = telemetry?.local_7d;
+  if (!local || (local.observed_sessions === 0 && local.decide_local_count === 0)) return null;
+
+  return (
+    <InsightSection id="observert-bruk" title="Observert bruk siste syv dager">
+      <BodyShort size="small" textColor="subtle">
+        Fra aggregerte øktmålinger i nav-pilot for innloggede brukere. En økt med aktivert lokal modell teller også når
+        den avsluttes før det sendes trafikk til den lokale modellen.
+      </BodyShort>
+      <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
+        <MetricCard
+          value={formatNumber(local.observed_sessions)}
+          label="Økter med lokal modell"
+          helpTitle="Observerte økter"
+          helpText="Økter der lokal subagent var slått på i nav-pilot siste syv dager."
+        />
+        <MetricCard
+          value={formatNumber(local.sessions_with_traffic)}
+          label="Økter med lokal trafikk"
+          helpTitle="Økter med og uten målt trafikk"
+          helpText="Økter der den lokale modellen faktisk mottok forespørsler, sammenlignet med økter som ble avsluttet uten lokal trafikk."
+          subtitle={`${formatNumber(local.sessions_without_traffic)} uten målt trafikk`}
+        />
+        <MetricCard
+          value={formatNumber(local.dispatch_attempts)}
+          label="Delegeringsforsøk"
+          helpTitle="Registrerte delegeringsforsøk"
+          helpText="Antall forsøk på å sende oppgaver til den lokale subagenten i perioden. Teller kall, ikke bekreftede løsninger."
+        />
+        <MetricCard
+          value={formatNumber(local.decide_local_count)}
+          label="Kall til decide"
+          helpTitle="Lokale decide-kall"
+          helpText="Antall ja/nei-vurderinger kjørt mot lokal modell med nav-pilot decide siste syv dager."
+        />
+      </HGrid>
+    </InsightSection>
+  );
+}
+
 async function ManifestSource() {
   const { fetchedAt } = await getLocalModels();
   return fetchedAt ? (
@@ -329,6 +376,10 @@ export default function LokaleModeller() {
 
       <Suspense fallback={<ManifestSections table={FALLBACK} />}>
         <LiveManifestSections />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <LiveObservedLocalSection />
       </Suspense>
 
       <InsightSection id="delegeringsnivaer" title="Delegeringsnivåene">
