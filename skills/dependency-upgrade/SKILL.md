@@ -36,9 +36,9 @@ List every project directory (a monorepo has several). Skip any project director
 
 | Ecosystem | Lockfile | Upgrade command | Verify |
 |---|---|---|---|
-| Go | `go.sum` | `go get -u ./... && go mod tidy` (direct deps only: `go list -m -u -f '{{if and (not .Indirect) .Update}}{{.Path}}{{end}}' all`) | `go build ./... && go test ./...` |
-| npm/pnpm/yarn | `package-lock.json` / `pnpm-lock.yaml` / `yarn.lock` | the repo's pinned manager: `npm update`, `pnpm update`, `yarn up` (minor/patch); majors one package at a time | `<pm> run build` (if defined) and `<pm> test` |
-| Gradle | `gradle/libs.versions.toml` or `gradle.lockfile` | edit the catalog / build file versions after step 4 lookup | `./gradlew build` |
+| Go | `go.sum` | list direct updates with `go list -m -u -f '{{if and (not .Indirect) .Update}}{{.Path}}@{{.Update.Version}}{{end}}' all`, then `go get <module>@<version> && go mod tidy` (without `-u`, so only required transitive dependencies move) | `go build ./... && go test ./...` |
+| npm/pnpm/yarn | `package-lock.json` / `pnpm-lock.yaml` / `yarn.lock` | the repo's pinned manager: `npm update`, `pnpm update`, or for Yarn an explicit verified same-major target (`yarn upgrade <pkg>@<version>` on Yarn 1, `yarn up <pkg>@<version>` on Yarn Berry); majors one package at a time | `<pm> run build` (if defined) and `<pm> test` |
+| Gradle | `gradle/libs.versions.toml` or `gradle.lockfile` | edit the catalog / build file versions after step 4 lookup; if `gradle.lockfile` or `dependency-locks/` is present, run `./gradlew dependencies --write-locks` before verifying | `./gradlew build` |
 | .NET | `packages.lock.json` | `dotnet list package --outdated`, then `dotnet add package <id> --version <v>` | `dotnet build && dotnet test` |
 
 ## 2. Check the package manager version before installing (stop on mismatch)
@@ -46,17 +46,20 @@ List every project directory (a monorepo has several). Skip any project director
 Never run the machine's global package manager blindly; a global `pnpm = "latest"` in `mise` will rewrite a pnpm 9/10 lockfile to pnpm 11 and break CI. Run this check in each project directory before any install or update command:
 
 ```bash
-# JS projects: compare repo pin and lockfileVersion against PATH
+# JS projects: compare repo pin and lockfile format against PATH
 pin=$(jq -r '.packageManager // empty' package.json 2>/dev/null)
-lock_ver=$(awk '/^lockfileVersion:/ { gsub(/['\''"]/, "", $2); print $2; exit }' pnpm-lock.yaml 2>/dev/null)
+pnpm_lock=$(awk '/^lockfileVersion:/ { gsub(/['\''"]/, "", $2); print $2; exit }' pnpm-lock.yaml 2>/dev/null)
+npm_lock=$(jq -r '.lockfileVersion // empty' package-lock.json 2>/dev/null)
 active_pnpm=$(pnpm --version 2>/dev/null)
 active_npm=$(npm --version 2>/dev/null)
-echo "packageManager=${pin:-none} pnpm-lock=${lock_ver:-none} pnpm=${active_pnpm:-none} npm=${active_npm:-none}"
+active_yarn=$(yarn --version 2>/dev/null)
+echo "packageManager=${pin:-none} pnpm-lock=${pnpm_lock:-none} npm-lock=${npm_lock:-none} pnpm=${active_pnpm:-none} npm=${active_npm:-none} yarn=${active_yarn:-none}"
 mise ls --current 2>/dev/null || true
 ```
 
-- **If `packageManager` is set in `package.json`** (for example `pnpm@9.15.0` or `pnpm@10.6.0`): run that exact version via `corepack pnpm ...` or `npx -y pnpm@<pinned-version> ...`, never bare `pnpm`.
+- **If `packageManager` is set in `package.json`** (`pnpm@<v>`, `npm@<v>`, or `yarn@<v>`): dispatch to that declared manager and exact version — `corepack pnpm ...` / `npx -y pnpm@<v> ...` for `pnpm@...`, `npx -y npm@<v> ...` for `npm@...`, or `corepack yarn ...` for `yarn@...` — and verify `<launcher> --version` matches `<v>` before installing or updating.
 - **If `pnpm-lock.yaml` is present without `packageManager`**: match the lockfile major (`lockfileVersion: '6.0'` → `npx -y pnpm@8`, `lockfileVersion: '9.0'` → `npx -y pnpm@9` or `pnpm@10`). If `pnpm --version` on `PATH` is a newer major (such as `11.x` from a `mise` `latest` override) and you cannot run the matching major via `corepack` or `npx`, **stop immediately** on that project and report: `Stopped: repo lockfile requires pnpm <expected>, but active pnpm is <actual>`.
+- **If `package-lock.json` is present without `packageManager`**: match `lockfileVersion` (`1` → `npx -y npm@6`, `2` → `npx -y npm@8`, `3` → `npm >=9`) so a newer `npm` on `PATH` does not rewrite format `1`/`2` to `3`. If a compatible `npm` cannot be selected and verified with `--version`, **stop immediately** on that project and report: `Stopped: package-lock.json lockfileVersion <v> is incompatible with active npm <actual>`.
 - **Never change `lockfileVersion`** in `pnpm-lock.yaml` or `package-lock.json`, and never edit `packageManager` in `package.json`.
 - **Gradle**: always run `./gradlew`, never a global `gradle`.
 - **Go and .NET**: compare `go version` against the `go` line in `go.mod`, and `dotnet --version` against `global.json` (if present) or `<TargetFramework>` in `.csproj`. Stop if the active toolchain cannot build the target version.
