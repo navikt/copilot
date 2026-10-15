@@ -11,7 +11,7 @@
 
 ## Security considerations
 
-<!-- Note trust boundaries touched (Zone 1 my-copilot, Zone 2 copilot-api, Zone 3 copilot-survey, copilot-cli, nav-pilot, CI/hooks), or write "None" if not applicable. -->
+<!-- Note trust boundaries touched (Zone 1 public routes, Zone 2 my-copilot BFF, Zone 3 copilot-api/copilot-survey, copilot-cli, nav-pilot, CI/hooks), or write "None" if not applicable. -->
 
 ## Test plan
 

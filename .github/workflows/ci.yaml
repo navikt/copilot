@@ -624,29 +624,32 @@ jobs:
           stripped = re.sub(r"<!--.*?-->", "", body, flags=re.S)
 
           required = [
-              "## Summary",
-              "## Risk profile & rollout",
-              "## Security considerations",
-              "## Test plan",
+              ("## Summary", ("## Summary", "## Oppsummering", "## Hva", "## Bakgrunn"), False),
+              (
+                  "## Risk profile & rollout",
+                  ("## Risk profile & rollout", "## Risikoprofil og utrulling", "## Risiko og utrulling", "## Risiko"),
+                  True,
+              ),
+              ("## Security considerations", ("## Security considerations", "## Sikkerhetsvurderinger", "## Sikkerhet"), False),
+              ("## Test plan", ("## Test plan", "## Testplan", "## Verifisering"), False),
           ]
           errors = []
 
-          for i, heading in enumerate(required):
-              m = re.search(rf"^{re.escape(heading)}\s*$", stripped, flags=re.M | re.I)
+          for label, aliases, needs_checkbox in required:
+              pattern = r"^(?:" + "|".join(re.escape(a) for a in aliases) + r")\s*$"
+              m = re.search(pattern, stripped, flags=re.M | re.I)
               if not m:
-                  errors.append(f"Missing required heading: '{heading}'")
+                  errors.append(f"Missing required heading: '{label}' (accepted: {', '.join(aliases)})")
                   continue
               start = m.end()
               next_h = re.search(r"^##\s+\S", stripped[start:], flags=re.M)
               section = stripped[start : start + next_h.start()] if next_h else stripped[start:]
               content = re.sub(r"-\s*\[\s*\]\s*.*", "", section).strip()
               if not content:
-                  errors.append(f"Section '{heading}' is empty (please fill it in)")
-              if heading == "## Risk profile & rollout" and not re.search(
-                  r"-\s*\[[xX]\]", section
-              ):
+                  errors.append(f"Section '{label}' is empty (please fill it in)")
+              if needs_checkbox and not re.search(r"-\s*\[[xX]\]", section):
                   errors.append(
-                      "Section '## Risk profile & rollout' must have at least one checked item (- [x])"
+                      f"Section '{label}' must have at least one checked item (- [x])"
                   )
 
           prose = re.sub(r"```.*?```|`[^`\n]+`", "", stripped, flags=re.S)

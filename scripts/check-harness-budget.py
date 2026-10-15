@@ -482,12 +482,48 @@ def check_repo(root: Path) -> Report:
     return rep
 
 
+def is_measured_harness_path(rel: str) -> bool:
+    """Return True if rel is a harness/customization file tracked by check_repo (or legacy review instructions)."""
+    if rel in (
+        ".github/copilot-instructions.md",
+        ".github/copilot-review-instructions.md",
+    ):
+        return True
+    if rel.startswith("skills/") and rel.endswith("/SKILL.md") and rel.count("/") == 2:
+        return True
+    if rel.startswith("agents/") and rel.endswith(".agent.md") and rel.count("/") == 1:
+        return True
+    if (
+        rel.startswith("instructions/")
+        and rel.endswith(".instructions.md")
+        and rel.count("/") == 1
+    ):
+        return True
+    if (
+        rel.startswith(".github/instructions/")
+        and rel.endswith(".instructions.md")
+        and rel.count("/") == 2
+    ):
+        return True
+    if rel.startswith("hooks/") and rel.endswith(".py") and rel.count("/") == 1:
+        return True
+    if (
+        rel.startswith("cli/nav-pilot/internal/provider/")
+        and rel.endswith(".js")
+        and rel.count("/") == 4
+    ):
+        return True
+    return False
+
+
 def git_file_at(root: Path, rev: str, rel_path: str) -> str | None:
     proc = subprocess.run(
         ["git", "show", f"{rev}:{rel_path}"],
         cwd=root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     if proc.returncode != 0:
@@ -502,6 +538,8 @@ def check_diff(root: Path, base_ref: str, rep: Report) -> list[str]:
         cwd=root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     if proc.returncode != 0:
@@ -511,6 +549,8 @@ def check_diff(root: Path, base_ref: str, rep: Report) -> list[str]:
         cwd=root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
 
@@ -522,6 +562,8 @@ def check_diff(root: Path, base_ref: str, rep: Report) -> list[str]:
     rows: list[str] = []
     for rel in sorted(set(changed)):
         metric = rep.metrics.get(rel)
+        if metric is None and not is_measured_harness_path(rel):
+            continue
         base_text = git_file_at(root, base_ref, rel)
         if metric is None and base_text is None:
             continue
@@ -547,10 +589,7 @@ def check_diff(root: Path, base_ref: str, rep: Report) -> list[str]:
             rows.append(
                 f"| `{rel}` (new) | {metric.lines} (+{metric.lines}) | ~{metric.tokens} (+{metric.tokens}) | {metric.max_lines} lines ({pct}) |"
             )
-        elif base_text is not None and (
-            rel.startswith(("skills/", "agents/", "instructions/", "hooks/", ".github/instructions/"))
-            or (rel.startswith(".github/") and "instructions" in rel and rel.endswith(".md"))
-        ):
+        elif base_text is not None and not (root / rel).exists():
             if rel.endswith(".md"):
                 _, base_body = parse_markdown(base_text)
                 base_lines, base_tokens = body_stats(base_body)
@@ -672,6 +711,12 @@ def run_selftest() -> int:
             rep.errors
         )
 
+        # 5. Measured path filter excludes binary/unmeasured files
+        assert is_measured_harness_path("skills/ok-skill/SKILL.md")
+        assert is_measured_harness_path(".github/copilot-review-instructions.md")
+        assert not is_measured_harness_path("docs/screenshot.png")
+        assert not is_measured_harness_path("skills/ok-skill/references/guide.md")
+
     print("check-harness-budget.py: selftest passed")
     return 0
 
@@ -713,8 +758,9 @@ def main() -> int:
         try:
             with open(summary_path, "a", encoding="utf-8") as fh:
                 fh.write(format_markdown_summary(rep, diff_rows) + "\n")
-        except OSError:
-            pass
+        except OSError as exc:
+            # Step summary writing is best-effort and must not fail the budget check.
+            print(f"  ⚠ could not write GITHUB_STEP_SUMMARY: {exc}", file=sys.stderr)
 
     if rep.errors:
         print(

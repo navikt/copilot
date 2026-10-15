@@ -14,7 +14,7 @@ applyTo: "apps/**/*.go,apps/**/.nais/*.yaml"
 
 ## Input, upstream, and response safety
 
-- **Bounded reads**: Wrap incoming request bodies with `http.MaxBytesReader` (or decode with `atEOF` where strict JSON schema validation applies) and wrap upstream HTTP response bodies with `io.LimitReader` before `io.ReadAll` or `json.NewDecoder`.
+- **Bounded reads**: Wrap incoming request bodies with `http.MaxBytesReader` (and additionally validate with `atEOF` where strict single-value JSON decoding applies, as in `copilot-survey`) and wrap upstream HTTP response bodies with `io.LimitReader` before `io.ReadAll` or `json.NewDecoder`.
 - **URL construction**: Escape path segments with `url.PathEscape` and query values with `url.QueryEscape` before building GitHub API or internal service URLs. Do not return raw `*url.Error` values when the URL contains a username or token.
 - **GraphQL error checking**: Always inspect `gqlResp.Errors` on GitHub GraphQL responses before caching results or writing batch scan output to BigQuery (`copilot-adoption`, `copilot-api`). A HTTP 200 GraphQL response with `errors` must not be treated as a valid empty result.
 - **Sanitized client errors and metrics**: Log detailed errors server-side with `slog` (sanitizing user-controlled strings in `mcp-onboarding` with `logSafe`) and return generic error messages or RFC 7807 problem details to clients. Bound Prometheus metric labels (`path`, `tool`, `server`) to fixed allowlists so untrusted inputs cannot explode series cardinality.
