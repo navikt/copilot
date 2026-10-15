@@ -271,11 +271,17 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	if resolved := ToOpenCodeModel(model); resolved != "" {
 		bind = append(bind, "--model", resolved)
 	}
+	if err := validatePayloadOpenCodeConfig(s.Dir); err != nil {
+		return cpltLaunch{}, err
+	}
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
 	cpltArgs := []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"}
 	if openCodeMajor() >= 2 {
 		agentArgs, env = openCodeV2Args(agentArgs, env)
-		env = withOpenCode2UserConfig(env, s.Dir)
+		env, err = withOpenCode2UserConfig(env, s.Dir)
+		if err != nil {
+			return cpltLaunch{}, err
+		}
 		// Not in cplt's allowlist: without it the user's config is gone.
 		if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG=") }) {
 			cpltArgs = append(cpltArgs, "--pass-env", "OPENCODE_CONFIG")
@@ -588,7 +594,48 @@ func openCodeV2Args(args, env []string) ([]string, []string) {
 // Not put back: the user's agents, commands, modes, tools and plugins
 // directories under the config dir. opencode 2 reads those only from a config
 // directory, and it takes one global directory, the payload.
-func withOpenCode2UserConfig(env []string, payload string) []string {
+func resolvePayloadFileRefs(payload string, b []byte) ([]byte, error) {
+	var refErr error
+	out := openCodeFileRefs.ReplaceAllFunc(b, func(m []byte) []byte {
+		if refErr != nil {
+			return m
+		}
+		p := string(m[len("{file:") : len(m)-1])
+		if filepath.IsAbs(p) || strings.HasPrefix(p, "~/") {
+			refErr = fmt.Errorf("payload opencode config file reference %s must be payload-relative", m)
+			return m
+		}
+		resolved := filepath.Clean(filepath.Join(payload, p))
+		if !domain.PathWithinRoot(payload, resolved) {
+			refErr = fmt.Errorf("payload opencode config file reference %s escapes payload directory", m)
+			return m
+		}
+		if err := source.CheckSymlink(resolved, payload); err != nil {
+			refErr = fmt.Errorf("payload opencode config file reference %s: %w", m, err)
+			return m
+		}
+		return []byte("{file:" + filepath.ToSlash(resolved) + "}")
+	})
+	if refErr != nil {
+		return nil, refErr
+	}
+	return out, nil
+}
+
+func validatePayloadOpenCodeConfig(payload string) error {
+	for _, n := range []string{"opencode.json", "opencode.jsonc"} {
+		b, err := os.ReadFile(filepath.Join(payload, n))
+		if err != nil {
+			continue
+		}
+		if _, err := resolvePayloadFileRefs(payload, b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func withOpenCode2UserConfig(env []string, payload string) ([]string, error) {
 	dir := openCodeConfigDir()
 	if !slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG=") }) {
 		for _, n := range []string{"opencode.jsonc", "opencode.json"} {
@@ -613,17 +660,10 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 		if err != nil {
 			continue
 		}
-		b = openCodeFileRefs.ReplaceAllFunc(b, func(m []byte) []byte {
-			p := string(m[len("{file:") : len(m)-1])
-			if filepath.IsAbs(p) || strings.HasPrefix(p, "~/") {
-				return m
-			}
-			resolved := filepath.Clean(filepath.Join(payload, p))
-			if !domain.PathWithinRoot(payload, resolved) || source.CheckSymlink(resolved, payload) != nil {
-				return m
-			}
-			return []byte("{file:" + filepath.ToSlash(resolved) + "}")
-		})
+		b, err = resolvePayloadFileRefs(payload, b)
+		if err != nil {
+			return nil, err
+		}
 		if cfg, err := jsonNode(stripJSONC(b)); err == nil {
 			for _, k := range []string{"permission", "permissions", "agent", "agents"} {
 				if v := nodeGet(cfg, k); v != nil {
@@ -654,9 +694,9 @@ func withOpenCode2UserConfig(env []string, payload string) []string {
 		}
 	}
 	if len(add) == 0 {
-		return env
+		return env, nil
 	}
-	return withOpenCodeConfigContent(env, add)
+	return withOpenCodeConfigContent(env, add), nil
 }
 
 var openCodeFileRefs = regexp.MustCompile(`\{file:[^}]+\}`)

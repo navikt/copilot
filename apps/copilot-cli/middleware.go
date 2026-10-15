@@ -188,6 +188,7 @@ type cacheEntry struct {
 	user      *AuthenticatedUser
 	err       error
 	expiresAt time.Time
+	revoked   bool
 }
 
 // ponytail: map with lazy eviction. The limiter bounds entries to a few
@@ -222,29 +223,62 @@ func (c *tokenCache) set(token string, user *AuthenticatedUser, err error) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	key := hashToken(token)
+	c.store(hashToken(token), cacheEntry{user: user, err: err, expiresAt: expires}, now)
+}
+
+// revoked refuses token from the cache for as long as a success could have
+// been cached, so a revoked token stops working here at once.
+func (c *tokenCache) revoked(token string) {
+	now := time.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.store(hashToken(token), cacheEntry{err: errInvalidToken, expiresAt: now.Add(c.ttl), revoked: true}, now)
+}
+
+func (c *tokenCache) store(key string, entry cacheEntry, now time.Time) {
 	// A token GitHub called invalid never turns valid again, so no outcome
 	// from a check that started earlier may replace the refusal (say, one
 	// that raced a revoke).
-	if old, ok := c.entries[key]; ok && errors.Is(old.err, errInvalidToken) && now.Before(old.expiresAt) {
+	if old, ok := c.entries[key]; ok {
+		if !entry.revoked && errors.Is(old.err, errInvalidToken) && now.Before(old.expiresAt) {
+			return
+		}
+		c.entries[key] = entry
 		return
 	}
-	if _, exists := c.entries[key]; !exists && len(c.entries) >= maxTokenCacheEntries {
+	if len(c.entries) >= maxTokenCacheEntries {
 		for k, v := range c.entries {
 			if !now.Before(v.expiresAt) {
 				delete(c.entries, k)
 			}
 		}
 	}
-	c.entries[key] = cacheEntry{user: user, err: err, expiresAt: expires}
-}
-
-// revoked refuses token from the cache for as long as a success could have
-// been cached, so a revoked token stops working here at once.
-func (c *tokenCache) revoked(token string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.entries[hashToken(token)] = cacheEntry{err: errInvalidToken, expiresAt: time.Now().Add(c.ttl)}
+	if len(c.entries) >= maxTokenCacheEntries {
+		var victim string
+		var earliest time.Time
+		for k, v := range c.entries {
+			if v.revoked {
+				continue
+			}
+			if victim == "" || v.expiresAt.Before(earliest) {
+				victim = k
+				earliest = v.expiresAt
+			}
+		}
+		if victim == "" {
+			if !entry.revoked {
+				return
+			}
+			for k, v := range c.entries {
+				if victim == "" || v.expiresAt.Before(earliest) {
+					victim = k
+					earliest = v.expiresAt
+				}
+			}
+		}
+		delete(c.entries, victim)
+	}
+	c.entries[key] = entry
 }
 
 // hashToken derives a cache key from a token without retaining the token.

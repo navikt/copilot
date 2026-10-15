@@ -82,6 +82,7 @@ import posixpath
 import re
 import sys
 from collections import Counter
+from difflib import SequenceMatcher
 from pathlib import PurePosixPath
 
 # Ordgrense foran: `role=` skal treffe, `ariaRole=` og `data-role=` ikke.
@@ -259,21 +260,79 @@ def writes_of(args):
 
 # Hvor nær rollen merket må stå, i tegn, før eller etter attributtet.
 ARIA_OK_NEAR = 200
+ARIA_OK_COMMENT = re.compile(
+    r"[ \t]*(?:\{?\s*/\*[^*]*\bARIA_OK\b.*?\*/\}?|//[^\n]*\bARIA_OK\b[^\n]*)[ \t]*\n?"
+)
 
 
-def unsafe_role_counts(text, annotated_ok=True):
-    """→ Counter over utrygge rolletokens som ikke har ARIA_OK like ved seg."""
-    counts = Counter()
-    for m in ROLE_ATTR.finditer(text):
+def has_aria_ok(text, match):
+    near = text[max(0, match.start() - ARIA_OK_NEAR):match.end() + ARIA_OK_NEAR]
+    return ARIA_OK in near
+
+
+def has_unapproved_roles(new, old):
+    """→ True hvis `new` innfører en utrygg rolle uten nytt ARIA_OK like ved."""
+    old_roles = {}
+    old_total = Counter()
+    old_unann = Counter()
+    for m in ROLE_ATTR.finditer(old):
         r = role_token(m.group(1))
         if r in SAFE_ROLES:
             continue
-        if annotated_ok:
-            near = text[max(0, m.start() - ARIA_OK_NEAR):m.end() + ARIA_OK_NEAR]
-            if ARIA_OK in near:
-                continue
-        counts[r] += 1
-    return counts
+        ann = has_aria_ok(old, m)
+        old_roles[(m.start(), m.end())] = (r, ann)
+        old_total[r] += 1
+        if not ann:
+            old_unann[r] += 1
+
+    new_matches = []
+    new_total = Counter()
+    new_unann = Counter()
+    for m in ROLE_ATTR.finditer(new):
+        r = role_token(m.group(1))
+        if r in SAFE_ROLES:
+            continue
+        ann = has_aria_ok(new, m)
+        new_matches.append((m, r, ann))
+        new_total[r] += 1
+        if not ann:
+            new_unann[r] += 1
+
+    if not new_matches:
+        return False
+
+    removed = [
+        s.span()
+        for s in ARIA_OK_COMMENT.finditer(new)
+        if not ROLE_ATTR.search(s.group(0))
+    ]
+    clean_new = "".join(
+        new[(removed[i - 1][1] if i else 0):s]
+        for i, (s, _) in enumerate(removed + [(len(new), len(new))])
+    )
+    blocks = SequenceMatcher(None, old, clean_new, autojunk=False).get_matching_blocks()
+
+    added = []
+    for m, r, ann in new_matches:
+        cs = m.start() - sum(e - s for s, e in removed if e <= m.start())
+        ce = cs + (m.end() - m.start())
+        matched_old = None
+        for i, j, n in blocks:
+            if j <= cs and ce <= j + n:
+                span = (i + cs - j, i + ce - j)
+                if span in old_roles and old_roles[span][0] == r:
+                    matched_old = old_roles.pop(span)
+                    break
+        if matched_old is not None:
+            if matched_old[1] and not ann:
+                return True
+        elif new_total[r] > old_total[r] or new_unann[r] > old_unann[r]:
+            added.append(ann)
+
+    if not added:
+        return False
+    allow_ok = new.count(ARIA_OK) > old.count(ARIA_OK)
+    return not (allow_ok and all(added))
 
 
 def decide(payload):
@@ -286,11 +345,9 @@ def decide(payload):
     for path, new, old in writes_of(args):
         if not is_src_tsx(path, cwd):
             continue
-        # Teller uannoterte forekomster per rolle: en rolle som bare flyttes
-        # innfører ingenting, mens en ekstra forekomst av samme rolle uten nytt
-        # ARIA_OK ved siden av seg nektes.
-        allow_ok = new.count(ARIA_OK) > old.count(ARIA_OK)
-        if unsafe_role_counts(new, annotated_ok=allow_ok) - unsafe_role_counts(old, annotated_ok=allow_ok):
+        # Finn tilføyde forekomster før ARIA_OK trekkes fra, så et merke satt
+        # på en eksisterende forekomst ikke godkjenner en annen lenger unna.
+        if has_unapproved_roles(new, old):
             return REASON
     return None
 
@@ -423,6 +480,8 @@ SELFTEST = [
      _sr(TSX, "<ul>", '{/* ARIA_OK: listbox */}<ul role="listbox">' + " " * 400 + '<div role="grid">'), True),
     ("nekter en ny rolle når ARIA_OK bare følger med fra før",
      _sr(TSX, '{/* ARIA_OK: a */}<ul>', '{/* ARIA_OK: a */}<ul role="listbox">'), True),
+    ("nekter en ekstra forekomst når ARIA_OK settes på den eksisterende",
+     _sr(TSX, '<ul role="listbox">', '{/* ARIA_OK */}<ul role="listbox">' + " " * 400 + '<ul role="listbox">'), True),
 ]
 
 def selftest():

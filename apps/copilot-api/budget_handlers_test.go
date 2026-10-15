@@ -44,3 +44,34 @@ func TestBudgetHandlersHandleGetBudget(t *testing.T) {
 		}
 	})
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestFetchAllBudgetPagesExceedsMaxPages(t *testing.T) {
+	var pages int
+	client := newBudgetClient("fake-token", "nav")
+	client.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			pages++
+			rec := httptest.NewRecorder()
+			rec.Header().Set("Content-Type", "application/json")
+			_, _ = rec.WriteString(`{"budgets":[{"id":"b1","budget_product_sku":"ai_credits","budget_amount":100}],"has_next_page":true}`)
+			return rec.Result(), nil
+		}),
+	}
+
+	entries, err := client.getEnterpriseBudgets(context.Background())
+	if err == nil {
+		t.Fatalf("expected error when HasNextPage remains true at maxPages, got %d entries", len(entries))
+	}
+	if pages != maxPages {
+		t.Errorf("pages fetched = %d, want %d", pages, maxPages)
+	}
+	if !client.cachedAt.IsZero() {
+		t.Error("truncated budget list must not be cached")
+	}
+}

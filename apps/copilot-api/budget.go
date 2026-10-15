@@ -134,11 +134,11 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 		all = append(all, result.Budgets...)
 
 		if !result.HasNextPage {
-			break
+			return all, nil
 		}
 	}
 
-	return all, nil
+	return nil, fmt.Errorf("budget pagination exceeded %d pages", maxPages)
 }
 
 var errBudgetNotFound = errors.New("budget not found for user")

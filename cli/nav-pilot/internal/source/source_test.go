@@ -152,7 +152,7 @@ func TestSymlinkRejectedInFileHelpers(t *testing.T) {
 	}
 
 	dstDir := t.TempDir()
-	if err := CopyFile(link, filepath.Join(dstDir, "out.txt"), "out.txt"); err == nil {
+	if err := CopyFile(link, filepath.Join(dstDir, "out.txt"), dstDir); err == nil {
 		t.Error("CopyFile accepted a symlink source")
 	}
 
@@ -164,14 +164,15 @@ func TestSymlinkRejectedInFileHelpers(t *testing.T) {
 	if err := os.Symlink(secret, dstLink); err != nil {
 		t.Fatal(err)
 	}
-	if err := CopyFile(realSrc, dstLink, "dst-link.txt"); err == nil {
+	if err := CopyFile(realSrc, dstLink, dstDir); err == nil {
 		t.Error("CopyFile overwrote a symlink destination")
 	}
 	if got, _ := os.ReadFile(secret); string(got) != "secret" {
 		t.Errorf("secret file modified via symlink: %q", got)
 	}
 
-	if err := CopyDir(dir, filepath.Join(t.TempDir(), "copied"), "copied"); err == nil {
+	copyRoot := t.TempDir()
+	if err := CopyDir(dir, filepath.Join(copyRoot, "copied"), copyRoot); err == nil {
 		t.Error("CopyDir accepted a directory containing a symlink")
 	}
 }

@@ -592,3 +592,63 @@ func TestVideoManifestCacheReleasesLockDuringRefresh(t *testing.T) {
 		t.Fatalf("expected successful refresh, got %v", err)
 	}
 }
+
+func TestVideoManifestCacheSharesInFlightFailureAndRespectsContextCancel(t *testing.T) {
+	cache := newVideoManifestCache("manifest-source", time.Second)
+	cache.loaded = true
+	cache.cachedEntries = []VideoManifestEntry{{
+		ID:              "stale",
+		Title:           "Stale",
+		DurationSec:     42,
+		AspectRatio:     "9:16",
+		PublishedAt:     time.Now(),
+		PosterObject:    "videos/stale/poster.jpg",
+		HLSMasterObject: "videos/stale/master.m3u8",
+	}}
+	cache.expiresAt = time.Unix(0, 0)
+
+	var loads atomic.Int32
+	loaderStarted := make(chan struct{})
+	releaseLoader := make(chan struct{})
+	cache.loader = func(context.Context, string) ([]VideoManifestEntry, error) {
+		if loads.Add(1) == 1 {
+			close(loaderStarted)
+		}
+		<-releaseLoader
+		return nil, fmt.Errorf("upstream timeout")
+	}
+
+	type result struct {
+		entries []VideoManifestEntry
+		err     error
+	}
+	resCh := make(chan result, 2)
+	for range 2 {
+		go func() {
+			entries, err := cache.get(context.Background())
+			resCh <- result{entries, err}
+		}()
+	}
+
+	<-loaderStarted
+
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := cache.get(cancelCtx); err != context.Canceled {
+		t.Fatalf("canceled waiter err = %v, want context.Canceled", err)
+	}
+
+	close(releaseLoader)
+	for range 2 {
+		r := <-resCh
+		if r.err == nil || !strings.Contains(r.err.Error(), "upstream timeout") {
+			t.Fatalf("expected shared refresh error, got %v", r.err)
+		}
+		if len(r.entries) != 1 || r.entries[0].ID != "stale" {
+			t.Fatalf("expected stale entries on failed refresh, got %+v", r.entries)
+		}
+	}
+	if got := loads.Load(); got != 1 {
+		t.Fatalf("loads = %d, want 1 shared reload", got)
+	}
+}
