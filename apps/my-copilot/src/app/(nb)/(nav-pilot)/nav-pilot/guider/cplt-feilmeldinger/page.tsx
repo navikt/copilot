@@ -615,6 +615,29 @@ gh pr create --head min-branch`}
 (unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; gh auth setup-git --hostname github.com)`}
           </CodeBlock>
 
+          <LinkableHeading id="worktree-links" size="small" level="3">
+            the worktree links of this repository do not match what git writes
+          </LinkableHeading>
+          <BodyLong>
+            Det ligger igjen et halvferdig eller halvveis slettet worktree i{" "}
+            <code className={code}>~/.cplt-worktrees/&lt;id&gt;</code>. Det skjer når noen kjører{" "}
+            <code className={code}>git worktree remove</code> inne i sandkassen, eller når agenten kjører vanlig{" "}
+            <code className={code}>git worktree add</code> i stedet for <code className={code}>cplt worktree add</code>{" "}
+            i et repo med beskyttede filer som <code className={code}>.cplt.toml</code>. Slett mappa feilmeldingen
+            lister opp, og rydd opp i git utenfor cplt:
+          </BodyLong>
+          <CodeBlock compact>
+            {`rm -rf ~/.cplt-worktrees/<id>/<navn>
+git worktree prune`}
+          </CodeBlock>
+          <BodyLong>
+            Hvordan subagenter oppretter worktrees med <code className={code}>cplt worktree add</code>, står under{" "}
+            <NextLink href="/nav-pilot/guider/worktrees#subagenter" className={linkClass}>
+              Worktrees til subagenter
+            </NextLink>{" "}
+            i worktree-guiden.
+          </BodyLong>
+
           <LinkableHeading id="go-vcs" size="small" level="3">
             error obtaining VCS status: exit status 128
           </LinkableHeading>

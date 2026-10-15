@@ -252,13 +252,16 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
           </BodyLong>
           <CodeBlock compact>{`cplt config set --local allow.write /Users/Shared/min-app/.git`}</CodeBlock>
           <LinkableHeading id="worktree-remove" size="small" level="3">
-            cplt vil ikke starte etter git worktree remove
+            cplt nekter å starte fordi et worktree er halvferdig
           </LinkableHeading>
           <BodyLong>
             Worktrees må fjernes utenfor cplt med{" "}
-            <code className={code}>git worktree remove ~/.cplt-worktrees/&lt;id&gt;/&lt;navn&gt;</code>. Har noen kjørt{" "}
-            <code className={code}>git worktree remove</code> inne i sandkassen, feiler den på beskyttede filer og
-            etterlater et halvveis slettet worktree. Slett mappa og rydd opp utenfor cplt:
+            <code className={code}>git worktree remove ~/.cplt-worktrees/&lt;id&gt;/&lt;navn&gt;</code>. Feiler
+            oppstarten med{" "}
+            <code className={code}>the worktree links of this repository do not match what git writes</code>, har noen
+            kjørt <code className={code}>git worktree remove</code> eller vanlig{" "}
+            <code className={code}>git worktree add</code> inne i sandkassen, som feiler på beskyttede filer og
+            etterlater et halvferdig worktree. Slett mappa feilmeldingen lister opp, og rydd opp utenfor cplt:
           </BodyLong>
           <CodeBlock compact>
             {`rm -rf ~/.cplt-worktrees/<id>/<navn>
