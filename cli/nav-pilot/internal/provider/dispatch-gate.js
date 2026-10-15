@@ -18,9 +18,10 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
   const turns = new Map()
   const topLevel = new Map()
   // Only the session the developer talks to. A refusal inside a subagent's
-  // session fails that whole task, and the worker's own edits must never be
-  // gated. Unknown counts as not top-level for this call, and only a
-  // definite answer is kept, so one failed lookup does not end the gate.
+  // session fails that whole task, so the worker's own edits are not gated
+  // here (only pinned files, below). Unknown counts as not top-level for this
+  // call, and only a definite answer is kept, so one failed lookup does not
+  // end the gate.
   const isTopLevel = async (id) => {
     if (!topLevel.has(id)) {
       try {
@@ -67,12 +68,15 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
       const agent = await orchestrator(input.sessionID)
       if (!agent) {
         // The worker's writes and edits: a check that fails after it returns
-        // goes back to it once. Never a refusal here.
+        // goes back to it once. The one refusal here is a pinned file under
+        // local_dep_upgrade, which fails the task back to the orchestrator.
         if (agents.get(input.sessionID) === "local-worker" && (input.tool === "write" || input.tool === "edit")) {
           const path = str(args.filePath)
+          let deny = ""
           try {
-            await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: input.tool === "write" || args.oldString === "", path: isAbsolute(path) ? path : join(directory ?? "", path), phase: "worker" })
+            deny = (await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: input.tool === "write" || args.oldString === "", path: isAbsolute(path) ? path : join(directory ?? "", path), phase: "worker" })).deny ?? ""
           } catch {}
+          if (typeof deny === "string" && deny) throw new Error(deny)
         }
         return
       }

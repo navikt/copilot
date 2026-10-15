@@ -326,7 +326,7 @@ func InitTelemetry(ctx context.Context, cliVersion string, rtkInstalled string) 
 	}
 
 	localGateTotal, err := meter.Int64Counter("nav_pilot_local_gate_total",
-		metric.WithDescription("Dispatch gate decisions at local_dispatch = balanced or aggressive, by outcome: deny_files, deny_sites, deny_scripted, deny_create, deny_tmp, dispatched_after_deny, verify_nudge, create_retry, create_retry_passed, create_retry_failed."))
+		metric.WithDescription("Dispatch gate decisions at local_dispatch = balanced or aggressive, by outcome: deny_files, deny_sites, deny_scripted, deny_create, deny_tmp, dispatched_after_deny, verify_nudge, create_retry, create_retry_passed, create_retry_failed, pinned_deny."))
 	if err != nil {
 		return NoopRecorder{}, fmt.Errorf("create local gate counter: %w", err)
 	}
@@ -852,7 +852,7 @@ func (t *otelTelemetry) RecordLocalGate(outcome string, count int64) {
 		return
 	}
 	t.localGateTotal.Add(context.Background(), count, metric.WithAttributes(
-		attribute.String("outcome", oneOf(outcome, "deny_files", "deny_sites", "deny_scripted", "deny_create", "deny_tmp", "dispatched_after_deny", "verify_nudge", "create_retry", "create_retry_passed", "create_retry_failed")),
+		attribute.String("outcome", oneOf(outcome, "deny_files", "deny_sites", "deny_scripted", "deny_create", "deny_tmp", "dispatched_after_deny", "verify_nudge", "create_retry", "create_retry_passed", "create_retry_failed", "pinned_deny")),
 		attribute.String("version", t.version),
 		attribute.String("device_id", t.device),
 		attribute.String("execution_context", t.executionContext),

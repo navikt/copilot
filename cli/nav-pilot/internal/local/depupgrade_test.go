@@ -61,3 +61,39 @@ func TestDepUpgradePolicyText(t *testing.T) {
 		t.Fatal("local_dep_upgrade off must add nothing")
 	}
 }
+
+func TestGatePinnedFiles(t *testing.T) {
+	worker := func(path string) GateRequest {
+		return GateRequest{Session: "w", Agent: WorkerAgent, Tool: "edit", Path: "/repo/" + path, Phase: "worker"}
+	}
+	on := newDispatchGate("", GateRules{Pinned: true})
+	for _, p := range []string{"Dockerfile", ".github/workflows/ci.yaml", ".nais/app.yaml", ".tool-versions", "gradle/wrapper/gradle-wrapper.properties"} {
+		if key, text := on.verify(worker(p)); key != "deny" || text != GatePinnedText {
+			t.Errorf("%s: got %q %q, want the pinned refusal", p, key, text)
+		}
+	}
+	if key, _ := on.verify(worker("go.mod")); key != "" {
+		t.Errorf("go.mod refused: %q", key)
+	}
+	// local_dep_upgrade off: the worker's writes pass exactly as on main.
+	off := newDispatchGate("", GateRules{Multi: true})
+	if key, text := off.verify(worker("Dockerfile")); key != "" || text != "" {
+		t.Errorf("flag off: got %q %q, want nothing", key, text)
+	}
+	if !off.workerWrote["w"] {
+		t.Error("flag off: the worker's write was not recorded")
+	}
+}
+
+func TestDepUpgradeOffChangesNothing(t *testing.T) {
+	SetDepUpgrade(false)
+	t.Chdir(t.TempDir())
+	os.WriteFile("go.mod", nil, 0o644)
+	os.WriteFile("go.sum", nil, 0o644)
+	if got := DepUpgradePolicyText(ProjectDepUpgrade()); got != "" {
+		t.Errorf("flag off adds policy text: %q", got)
+	}
+	if (GateRules{}).Any() {
+		t.Error("flag off turns the gate on")
+	}
+}

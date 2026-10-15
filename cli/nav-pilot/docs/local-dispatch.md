@@ -390,12 +390,26 @@ Rule:
   `.github/actions`, nais manifests.
 - **Never** a database or infrastructure major unless asked.
 
-How it is enforced in this draft: prose only. When the key is on and the
-working directory is eligible, `EnsureOpenCodeLocalPolicy` appends
-`local.DepUpgradePolicyText` to the policy. The request classification
-("is this a dependency bump") is the orchestrator's. Open for the next
-iteration: have the gate deny worker results that touch a `PinnedFile`
-without a registry check, and a `dep-upgrade` class in the capabilities
+How it is enforced:
+
+- **Eligibility** is policy text. When the key is on and the working directory
+  passes `local.DepUpgradeRepo`, `EnsureOpenCodeLocalPolicy` appends
+  `local.DepUpgradePolicyText`; otherwise nothing is added, so upgrades in a
+  repo without a lockfile and tests are never offered to the worker. Whether a
+  request is a dependency bump is the orchestrator's call.
+- **Pinned files** are enforced by the gate. With the key on, the launch sets
+  `GateRules.Pinned` (a cloud orchestrator, any `local_dispatch` level that
+  offers the worker; at `conservative` this turns the gate on, so the
+  verify reminders run there too). The plugin already reports each worker `write`/`edit`
+  (phase `worker`); for a `local.PinnedFile` path the gate now answers with
+  `local.GatePinnedText` and the plugin throws it. The task fails and the
+  orchestrator keeps the change. Counted as `pinned_deny`.
+- **Key off:** `Pinned` is false, the policy text is empty and the worker's
+  writes are answered exactly as before (`TestDepUpgradeOffChangesNothing`,
+  `TestGatePinnedFiles`).
+
+Known gaps: the worker's shell edits (`sed -i Dockerfile`) are not seen, as
+for the other gate rules. Next: a `dep-upgrade` class in the capabilities
 manifest so the verdict comes from measurement instead of a config key.
 
 ## Telemetry
@@ -406,7 +420,7 @@ Recorded at exit by the launch process, like `nav_pilot_local_dispatches`. Enums
   (`off|conservative|balanced|aggressive`). This gives the dispatch rate per level.
 - `nav_pilot_local_gate_total{outcome}` counts gate decisions, with `outcome` one of
   `deny_files`, `deny_sites`, `deny_scripted`, `deny_create`, `deny_tmp`, `dispatched_after_deny`,
-  `verify_nudge`, `create_retry`, `create_retry_passed` and `create_retry_failed`. `deny_sites` is a deny from the call-site count alone. `dispatched_after_deny`
+  `verify_nudge`, `create_retry`, `create_retry_passed`, `create_retry_failed` and `pinned_deny`. `deny_sites` is a deny from the call-site count alone. `dispatched_after_deny`
   is a `task` to `local-worker` after a deny in the same turn. `verify_nudge` is a reminder
   sent because no build or test ran after the worker returned. Recording `allow` would be one data point
   per tool call and tell us nothing.

@@ -100,6 +100,11 @@ const GateCreateText = "nav-pilot (local_dispatch = aggressive): new files go to
 // orchestrator reads it at the moment it decides whether to accept the work.
 // Probe 6 (mlx-workspace §8.8): a grep passed a broken definition, and a new
 // test file that was green but caught nothing was accepted.
+// GatePinnedText is the worker's refusal for a pinned file. The task fails
+// with it, and the orchestrator reads it as the task's result.
+const GatePinnedText = "nav-pilot (local_dep_upgrade): local-worker may not change tool pins, container images, CI workflows or nais manifests. " +
+	"Nothing in the repo checks a version there. Stop and report which file needed the change; the orchestrator handles it."
+
 const GateVerifyText = "nav-pilot (local_dispatch): before you accept this, build the project and run the tests that cover the change, once every file you sent is done. " +
 	"A grep is not a check. If `local-worker` wrote a test, show that it can fail: break the code it tests on purpose, " +
 	"for example make the function return a constant, run the test, see it fail, and undo the break. " +
@@ -196,6 +201,10 @@ type GateRules struct {
 	// change, and must not hold one hostage. Without it (aggressive), a
 	// refused file passes only once it has been sent to the worker.
 	Checkpoint bool
+	// Pinned: the worker may not create or edit a file PinnedFile names
+	// (local_dep_upgrade, depupgrade.go). Its write is refused, which fails
+	// the task, and the orchestrator keeps the change.
+	Pinned bool
 }
 
 func (r GateRules) budget() int {
@@ -206,7 +215,7 @@ func (r GateRules) budget() int {
 }
 
 // Any reports whether there is a rule to run at all.
-func (r GateRules) Any() bool { return r.Multi || r.Create }
+func (r GateRules) Any() bool { return r.Multi || r.Create || r.Pinned }
 
 // under returns path cleaned when it lies under root, and false otherwise.
 func under(root, path string) (string, bool) {
@@ -512,11 +521,16 @@ func (g *dispatchGate) turn(r GateRequest) *gateTurn {
 // unverified ("text"). The key is the JSON field the plugin reads.
 func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 	if r.Phase == "worker" {
-		if r.Session != "" && (r.Tool == "write" || r.Tool == "edit") {
-			g.mu.Lock()
-			g.workerWrote[r.Session] = true
-			g.mu.Unlock()
+		if r.Session == "" || (r.Tool != "write" && r.Tool != "edit") {
+			return "", ""
 		}
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		if g.rules.Pinned && PinnedFile(r.Path) {
+			g.counts["pinned_deny"]++
+			return "deny", GatePinnedText
+		}
+		g.workerWrote[r.Session] = true
 		return "", ""
 	}
 	if r.Session == "" || r.Agent == "" || r.Agent == WorkerAgent {

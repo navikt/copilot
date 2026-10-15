@@ -905,7 +905,7 @@ const conservativeJudgement = "These are suggestions: your own judgement and the
 // names the persona's tiers because that is what Sonnet 5 quoted each time
 // it kept work the policy said to send (mlx-workspace §8.8, probes 1-5).
 func enforcedText(r local.GateRules) string {
-	if !r.Any() {
+	if !r.Multi && !r.Create {
 		return ""
 	}
 	t := "nav-pilot enforces this in every tier: the persona's Trivial and Compressed tiers decide how you move through the phases, not who writes the files."
@@ -1461,6 +1461,7 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	if !local.IsLocal(sessionModel) {
 		rules := local.DispatchGateRules(local.DispatchLevel(), worker.Capabilities)
 		rules.Root = dispatchGateRoot()
+		rules.Pinned = local.DepUpgrade()
 		guard.EnableDispatchGate(rules)
 	}
 	return guard, nil
