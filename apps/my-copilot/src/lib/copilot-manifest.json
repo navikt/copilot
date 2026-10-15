@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-15T11:21:36.446Z",
+  "generatedAt": "2026-10-15T11:59:42.636Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1110,7 +1110,7 @@
       "filePath": "skills/dependency-upgrade/SKILL.md",
       "repoPath": "skills/dependency-upgrade/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/dependency-upgrade/SKILL.md",
-      "contentHash": "aa33cb559e8ebcec8814d5fa74783e8e851852105107b932d23d24d8208d1806",
+      "contentHash": "081b353b632b8278ec927af51a51f1e4422fde03fa1a1e667bbb09380d859cbb",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["dependencies", "upgrade", "go", "npm", "gradle", "dotnet", "local-model"],
