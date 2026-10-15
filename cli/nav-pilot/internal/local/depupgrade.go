@@ -115,15 +115,19 @@ func DepUpgradeRepo(dir string) string {
 // pin, a container image tag or a CI action version. Nothing in the repo
 // checks those, so a wrong version there only shows up later, in CI or prod.
 func PinnedFile(path string) bool {
-	p := filepath.ToSlash(path)
+	if strings.TrimSpace(path) == "" {
+		return false
+	}
+	p := strings.ToLower(filepath.ToSlash(filepath.Clean(path)))
 	base := filepath.Base(p)
+	yml := strings.HasSuffix(base, ".yml") || strings.HasSuffix(base, ".yaml")
 	switch {
 	case base == ".tool-versions", base == "mise.toml", base == ".mise.toml",
 		base == ".nvmrc", base == ".node-version", base == ".python-version",
 		base == "global.json", base == "gradle-wrapper.properties":
 		return true
-	case strings.HasPrefix(strings.ToLower(base), "dockerfile"), strings.HasSuffix(base, ".dockerfile"),
-		base == "docker-compose.yml", base == "docker-compose.yaml", base == "compose.yml", base == "compose.yaml":
+	case strings.HasPrefix(base, "dockerfile"), strings.HasSuffix(base, ".dockerfile"),
+		yml && (base == "compose.yml" || base == "compose.yaml" || strings.HasPrefix(base, "compose.") || strings.HasPrefix(base, "docker-compose")):
 		return true
 	case strings.Contains(p, ".github/workflows/"), strings.Contains(p, ".github/actions/"):
 		return true

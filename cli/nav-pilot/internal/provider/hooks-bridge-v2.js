@@ -115,7 +115,7 @@ function dispatchGate(ctx, directory) {
     }
     return topLevel.get(id) ?? false
   }
-  const orchestrator = async (sessionID, agent) =>
+  const orchestrator = async (sessionID, agent = agents.get(sessionID)) =>
     agent && agent !== "local-worker" && (await isTopLevel(sessionID)) ? agent : undefined
   const ask = async (body) => {
     const res = await fetch(url, {
@@ -159,13 +159,14 @@ function dispatchGate(ctx, directory) {
       if (!["edit", "write", "shell", "subagent"].includes(tool)) return
       const args = event.input ?? {}
       if (event.agent) agents.set(event.sessionID, event.agent)
+      const curAgent = event.agent || agents.get(event.sessionID)
       const create = tool === "write" || (tool === "edit" && args.oldString === "")
       let deny = ""
       try {
-        const agent = await orchestrator(event.sessionID, event.agent)
+        const agent = await orchestrator(event.sessionID, curAgent)
         if (!agent) {
           // The worker's writes, edits and shell commands: see dispatch-gate.js.
-          if (event.agent === "local-worker" && (tool === "write" || tool === "edit" || tool === "shell")) {
+          if (curAgent === "local-worker" && (tool === "write" || tool === "edit" || tool === "shell")) {
             deny = (await ask({ session: event.sessionID, agent: "local-worker", tool: tool === "shell" ? "bash" : tool, create, path: abs(str(args.path)), command: tool === "shell" ? str(args.command) : "", phase: "worker" })).deny ?? ""
           }
         } else {

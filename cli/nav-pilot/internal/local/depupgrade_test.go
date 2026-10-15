@@ -57,9 +57,12 @@ func TestDepUpgradeRepo(t *testing.T) {
 func TestPinnedFile(t *testing.T) {
 	for p, want := range map[string]bool{
 		".tool-versions": true, "mise.toml": true, "Dockerfile": true, "app/Dockerfile.prod": true,
-		".github/workflows/build.yaml": true, "docker-compose.yml": true, ".nais/app.yaml": true,
+		"app.Dockerfile": true, "docker-compose.dev.yml": true, "compose.override.yaml": true,
+		"/repo/.github/./workflows/build.yaml": true, ".github/workflows/build.yaml": true,
+		"docker-compose.yml": true, ".nais/app.yaml": true,
 		"gradle/wrapper/gradle-wrapper.properties": true, "global.json": true,
 		"go.mod": false, "package.json": false, "build.gradle.kts": false, "pnpm-lock.yaml": false,
+		"composer.yaml": false,
 	} {
 		if PinnedFile(p) != want {
 			t.Errorf("PinnedFile(%q) = %v, want %v", p, !want, want)
@@ -93,16 +96,26 @@ func TestGatePinnedFiles(t *testing.T) {
 	}
 	on := newDispatchGate("", GateRules{Root: "/repo", Multi: true, Create: true, Pinned: true})
 	on.serverUp = func() bool { return true }
-	for _, p := range []string{"Dockerfile", ".github/workflows/ci.yaml", ".nais/app.yaml", ".tool-versions", "gradle/wrapper/gradle-wrapper.properties"} {
+	for _, p := range []string{"Dockerfile", ".github/workflows/ci.yaml", ".github/./workflows/ci.yaml", ".nais/app.yaml", ".tool-versions", "gradle/wrapper/gradle-wrapper.properties"} {
 		if key, text := on.verify(worker(p)); key != "deny" || text != GatePinnedText {
 			t.Errorf("%s: got %q %q, want the pinned refusal", p, key, text)
 		}
 	}
 	for _, cmd := range []string{
 		"sed -i 's/16/18/' Dockerfile",
+		"sed -i -es/16/18/ Dockerfile README.md",
+		"sed -i --expression=s/16/18/ Dockerfile README.md",
 		"sed -i 's/16/18/' Dockerfile compose.yaml",
 		"cd .github/workflows && sed -i 's/v1/v2/' ci.yaml",
+		"cd .github && sed -i 's/v1/v2/' ./workflows/ci.yaml",
 		`for f in Dockerfile compose.yaml; do sed -i 's/16/18/' "$f"; done`,
+		"echo 22 > .nvmrc",
+		"cat /tmp/df > Dockerfile",
+		"cp /tmp/df Dockerfile",
+		"tee .tool-versions < /tmp/tv",
+		"./gradlew wrapper --gradle-version 8.12",
+		"mise use node@22",
+		"corepack use pnpm@10.0.0",
 	} {
 		if key, text := on.verify(workerBash(cmd)); key != "deny" || text != GatePinnedText {
 			t.Errorf("%s: got %q %q, want the pinned refusal", cmd, key, text)

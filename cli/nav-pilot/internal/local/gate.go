@@ -680,10 +680,7 @@ func (g *dispatchGate) snapshot() map[string]int64 {
 	return out
 }
 
-var (
-	sedInline  = regexp.MustCompile(`^-[a-zA-Z]*i`)
-	perlInline = regexp.MustCompile(`^-[a-zA-Z0-9]*i`)
-)
+var perlInline = regexp.MustCompile(`^-[a-zA-Z0-9]*i`)
 
 // ShellEdits reads a bash command for in-place edits. scripted is an in-place
 // sed or perl whose script or files are computed per file: inside a for,
@@ -714,7 +711,7 @@ type shellEdit struct {
 }
 
 func (e shellEdit) path(root string) string {
-	path := e.file
+	path := filepath.Clean(e.file)
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(root, e.dir, path)
 		if filepath.IsAbs(e.dir) {
@@ -841,9 +838,11 @@ func shellEdits(cmd string) (scripted bool, edits []shellEdit) {
 	return false, edits
 }
 
-// pinnedShellEdit reports whether cmd runs an in-place sed or perl that names
-// a pinned file, after any preceding cd, or whose target files cannot be
-// resolved statically (a loop variable, glob, xargs or find -exec).
+// pinnedShellEdit reports whether cmd modifies a pinned file via in-place
+// sed/perl, output redirection, file-writer utilities (cp, mv, tee, ln, rm,
+// touch, install), or tool-pin CLIs (gradlew wrapper, mise use/pin, corepack
+// use), after any preceding cd, or when in-place targets cannot be resolved
+// statically.
 func pinnedShellEdit(root, cmd string) bool {
 	loop := 0
 	dir := ""
@@ -855,6 +854,22 @@ func pinnedShellEdit(root, cmd string) bool {
 		}
 		if len(toks) == 0 {
 			continue
+		}
+		badTarget := func(f string) bool {
+			if strings.ContainsAny(f, "$`*?[]") || (!filepath.IsAbs(f) && (unknownDir || loop > 0 && seg.dynamic)) {
+				return true
+			}
+			return PinnedFile((shellEdit{file: f, dir: dir}).path(root))
+		}
+		redirect := false
+		for _, t := range toks {
+			op := strings.TrimLeft(t, "0123456789&")
+			into := redirect || strings.HasPrefix(op, ">")
+			target := strings.TrimLeft(t, "0123456789<>&")
+			redirect = target == "" && strings.HasPrefix(op, ">")
+			if into && target != "" && target != "/dev/null" && !strings.HasPrefix(target, "&") && badTarget(target) {
+				return true
+			}
 		}
 		switch toks[0] {
 		case "for", "while", "until":
@@ -871,6 +886,29 @@ func pinnedShellEdit(root, cmd string) bool {
 				unknownDir = false
 			default:
 				dir = filepath.Join(dir, toks[1])
+			}
+		}
+		cw := commandWords(toks)
+		if len(cw) > 0 {
+			switch filepath.Base(cw[0]) {
+			case "cp", "mv", "ln", "install", "tee", "touch", "rm":
+				for _, a := range cw[1:] {
+					if !strings.HasPrefix(a, "-") && PinnedFile((shellEdit{file: a, dir: dir}).path(root)) {
+						return true
+					}
+				}
+			case "gradle", "gradlew":
+				if slices.Contains(cw[1:], "wrapper") {
+					return true
+				}
+			case "mise":
+				if slices.Contains(cw[1:], "use") || slices.Contains(cw[1:], "pin") {
+					return true
+				}
+			case "corepack":
+				if slices.Contains(cw[1:], "use") || slices.Contains(cw[1:], "up") {
+					return true
+				}
 			}
 		}
 		at := -1
@@ -902,10 +940,7 @@ func pinnedShellEdit(root, cmd string) bool {
 			return true
 		}
 		for _, f := range fs {
-			if strings.ContainsAny(f, "$`*?[]") || (!filepath.IsAbs(f) && (unknownDir || loop > 0 && seg.dynamic)) {
-				return true
-			}
-			if PinnedFile((shellEdit{file: f, dir: dir}).path(root)) {
+			if badTarget(f) {
 				return true
 			}
 		}
@@ -1006,21 +1041,44 @@ func sedFiles(args []string) (files, scripts []string, inPlace, ere bool) {
 				scripts = append(scripts, args[i+1])
 			}
 			i++
+		case strings.HasPrefix(a, "--expression="):
+			script = true
+			scripts = append(scripts, strings.TrimPrefix(a, "--expression="))
 		case a == "-f" || a == "--file":
 			script = true
 			scripts = append(scripts, "") // unreadable here
 			i++
+		case strings.HasPrefix(a, "--file="):
+			script = true
+			scripts = append(scripts, "")
 		case strings.HasPrefix(a, "-") && len(a) > 1:
-			if sedInline.MatchString(a) {
-				inPlace = true
-			}
-			// What follows an i is the backup suffix (-i.orig), not flags.
-			flags := a[1:]
-			if k := strings.IndexByte(flags, 'i'); k >= 0 {
-				flags = flags[:k]
-			}
-			if !strings.HasPrefix(a, "--") && strings.ContainsAny(flags, "Er") {
-				ere = true
+			if !strings.HasPrefix(a, "--") {
+				// What follows an i, e or f is its argument (-i.orig, -es/a/b/), not flags.
+				flags := a[1:]
+				if k := strings.IndexAny(flags, "ief"); k >= 0 {
+					switch flags[k] {
+					case 'i':
+						inPlace = true
+					case 'e':
+						script = true
+						if rest := flags[k+1:]; rest != "" {
+							scripts = append(scripts, rest)
+						} else if i+1 < len(args) {
+							scripts = append(scripts, args[i+1])
+							i++
+						}
+					case 'f':
+						script = true
+						scripts = append(scripts, "")
+						if flags[k+1:] == "" {
+							i++
+						}
+					}
+					flags = flags[:k]
+				}
+				if strings.ContainsAny(flags, "Er") {
+					ere = true
+				}
 			}
 		case !script:
 			script = true
