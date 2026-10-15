@@ -71,9 +71,67 @@ describe("costEvents", () => {
     expect(sep22.runOut).toEqual({
       beforeMonth: "2026-09",
       beforeDate: "2026-09-08",
+      beforeStatus: "exhausted",
       afterMonth: "2026-10",
       afterDate: "2026-10-07",
+      afterStatus: "exhausted",
     });
+  });
+
+  it("requires per-month active users and marks unbilled months as provisional", () => {
+    const withoutSep = real.active.filter((a) => a.month !== "2026-09");
+    expect(
+      eventEffects({
+        events,
+        daily: real.prevDaily,
+        active: withoutSep,
+        forecast: real.forecast,
+      })[0]?.costPerUser
+    ).toBeNull();
+
+    const unbilledSep = real.active.map((a) => (a.month === "2026-09" ? { ...a, billed: false } : a));
+    expect(
+      eventEffects({
+        events,
+        daily: real.prevDaily,
+        active: unbilledSep,
+        forecast: real.forecast,
+      })[0]?.costPerUser?.provisional
+    ).toBe(true);
+  });
+
+  it("does not treat a projected forecast run-out date as observed and marks incomplete months", () => {
+    const octRows = Array.from({ length: 10 }, (_, i) => ({
+      day: `2026-10-${String(i + 1).padStart(2, "0")}`,
+      model: "alle",
+      gross_amount: 100,
+      discount_amount: 100,
+      net_amount: 0,
+      gross_requests: 0,
+      net_requests: 0,
+    }));
+    const [sep22] = eventEffects({
+      events,
+      daily: [...real.prevDaily, ...octRows],
+      active: real.active,
+      forecast: { month: "2026-10", allowance_run_out_date: "2026-10-20", allowance_used_up: false },
+    });
+    expect(sep22.runOut).toEqual({
+      beforeMonth: "2026-09",
+      beforeDate: "2026-09-08",
+      beforeStatus: "exhausted",
+      afterMonth: "2026-10",
+      afterDate: null,
+      afterStatus: "incomplete",
+    });
+
+    const [noOct] = eventEffects({
+      events,
+      daily: real.prevDaily,
+      active: real.active,
+      forecast: { month: "2026-10", allowance_run_out_date: "2026-10-20", allowance_used_up: false },
+    });
+    expect(noOct.runOut).toBeNull();
   });
 
   it("computes weekday-adjusted model mix shift when daily rows include model names", () => {

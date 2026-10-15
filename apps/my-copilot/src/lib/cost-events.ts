@@ -31,15 +31,19 @@ export interface ModelMixShift {
   diffPp: number;
 }
 
+export type RunOutStatus = "exhausted" | "not_exhausted" | "incomplete" | "unavailable";
+
 export interface EventEffect {
   event: CostEvent;
   /** One-sentence summary of the before/after effect (#1777). */
   summary: string;
-  /** 14-day weekday-adjusted gross cost per billed user before and after, in USD, and percentage change. */
+  /** 14-day weekday-adjusted gross cost per user before and after, in USD, and percentage change. */
   costPerUser: {
     beforeUsd: number;
     afterUsd: number;
     changePct: number;
+    /** True when any contributing month uses provisional month-to-date active users (billed === false). */
+    provisional?: boolean;
   } | null;
   /** Share of users at >= 90 % of their personal limit before and after. */
   atLimit90: {
@@ -55,8 +59,10 @@ export interface EventEffect {
   runOut: {
     beforeMonth: string;
     beforeDate: string | null;
+    beforeStatus?: RunOutStatus;
     afterMonth: string;
     afterDate: string | null;
+    afterStatus?: RunOutStatus;
   } | null;
 }
 
@@ -197,14 +203,17 @@ function shareAt90(d: BudgetDay): { pct: number; straddle: boolean } {
 const pctText = (v: number) => formatPercent(v, v > 0 && Math.abs(v) < 10 ? 1 : 0);
 const signedPct = (v: number) => `${v >= 0 ? "+" : "−"}${formatPercent(Math.abs(v))}`;
 
+const lastDayOfMonth = (m: string) => {
+  const [y, mo] = m.split("-").map(Number);
+  return new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
+};
+
 /**
  * Before/after comparison (14 days before vs. 14 days after, weekday-adjusted) for each governance event (#1777).
  * Aggregates only.
  */
 export function eventEffects(input: EventEffectInput): EventEffect[] {
-  const usersByMonth = new Map(input.active.map((a) => [a.month, a.active_users]));
-  const fallbackUsers = input.active.at(-1)?.active_users ?? 0;
-  const usersForDay = (day: string) => usersByMonth.get(day.slice(0, 7)) ?? fallbackUsers;
+  const activeByMonth = new Map(input.active.map((a) => [a.month, a]));
 
   const grossByDay = new Map<string, number>();
   const familyByDay = new Map<string, Map<ModelFamily, number>>();
@@ -225,14 +234,17 @@ export function eventEffects(input: EventEffectInput): EventEffect[] {
     .filter((d) => d.bands && d.users > 0)
     .sort((a, b) => a.day.localeCompare(b.day));
 
-  const monthRunOut = (m: string): string | null => {
+  const monthRunOut = (m: string): { date: string | null; status: RunOutStatus } => {
     const rows = input.daily.filter((r) => r.day.startsWith(m));
     const fromRows = runOutDate(rows);
-    if (fromRows) return fromRows;
-    if (input.forecast?.month === m && input.forecast.allowance_run_out_date) {
-      return input.forecast.allowance_run_out_date;
+    if (fromRows) return { date: fromRows, status: "exhausted" };
+    if (input.forecast?.month === m && input.forecast.allowance_used_up && input.forecast.allowance_run_out_date) {
+      return { date: input.forecast.allowance_run_out_date, status: "exhausted" };
     }
-    return null;
+    if (rows.length === 0) return { date: null, status: "unavailable" };
+    const maxDay = rows.reduce((max, r) => (r.day > max ? r.day : max), "");
+    const complete = maxDay >= lastDayOfMonth(m) && input.forecast?.month !== m;
+    return { date: null, status: complete ? "not_exhausted" : "incomplete" };
   };
 
   const out: EventEffect[] = [];
@@ -245,15 +257,17 @@ export function eventEffects(input: EventEffectInput): EventEffect[] {
 
     const beforeDays = allDays.filter((d) => d >= beforeStart && d <= beforeEnd);
     const afterDays = allDays.filter((d) => d >= afterStart && d <= afterEnd);
+    const windowDays = [...beforeDays, ...afterDays];
+    const hasUserDenominators =
+      windowDays.length > 0 && windowDays.every((d) => (activeByMonth.get(d.slice(0, 7))?.active_users ?? 0) > 0);
+    const provisionalUsers = windowDays.some((d) => activeByMonth.get(d.slice(0, 7))?.billed === false);
 
-    const beforePerUser = adjusted14DayTotal(beforeDays, (d) => {
-      const u = usersForDay(d);
-      return u > 0 ? (grossByDay.get(d) ?? 0) / u : 0;
-    });
-    const afterPerUser = adjusted14DayTotal(afterDays, (d) => {
-      const u = usersForDay(d);
-      return u > 0 ? (grossByDay.get(d) ?? 0) / u : 0;
-    });
+    const beforePerUser = hasUserDenominators
+      ? adjusted14DayTotal(beforeDays, (d) => (grossByDay.get(d) ?? 0) / activeByMonth.get(d.slice(0, 7))!.active_users)
+      : null;
+    const afterPerUser = hasUserDenominators
+      ? adjusted14DayTotal(afterDays, (d) => (grossByDay.get(d) ?? 0) / activeByMonth.get(d.slice(0, 7))!.active_users)
+      : null;
 
     const costPerUser =
       beforePerUser != null && afterPerUser != null && beforePerUser > 0
@@ -261,6 +275,7 @@ export function eventEffects(input: EventEffectInput): EventEffect[] {
             beforeUsd: beforePerUser,
             afterUsd: afterPerUser,
             changePct: ((afterPerUser - beforePerUser) / beforePerUser) * 100,
+            ...(provisionalUsers ? { provisional: true } : {}),
           }
         : null;
 
@@ -338,11 +353,18 @@ export function eventEffects(input: EventEffectInput): EventEffect[] {
     const beforeRunOut = monthRunOut(beforeMonth);
     const afterRunOut = monthRunOut(afterMonth);
     const runOut =
-      beforeRunOut || afterRunOut
-        ? { beforeMonth, beforeDate: beforeRunOut, afterMonth, afterDate: afterRunOut }
+      (beforeRunOut.date !== null || afterRunOut.date !== null) &&
+      beforeRunOut.status !== "unavailable" &&
+      afterRunOut.status !== "unavailable"
+        ? {
+            beforeMonth,
+            beforeDate: beforeRunOut.date,
+            beforeStatus: beforeRunOut.status,
+            afterMonth,
+            afterDate: afterRunOut.date,
+            afterStatus: afterRunOut.status,
+          }
         : null;
-
-    if (!costPerUser && !atLimit90 && !modelMix.length && !runOut) continue;
 
     const prefix =
       event.fromUsd != null && event.toUsd != null
@@ -355,9 +377,23 @@ export function eventEffects(input: EventEffectInput): EventEffect[] {
     if (costPerUser) clauses.push(`kostnad per person ${signedPct(costPerUser.changePct)}`);
     if (atLimit90)
       clauses.push(`andel nær grensen fra ${pctText(atLimit90.beforePct)} til ${pctText(atLimit90.afterPct)}`);
-    if (!clauses.length && runOut?.beforeDate && runOut?.afterDate) {
-      clauses.push(`kredittene i lisensene gikk tom ${dayMonth(runOut.afterDate)} mot ${dayMonth(runOut.beforeDate)}`);
+    if (!clauses.length && runOut) {
+      if (runOut.beforeDate && runOut.afterDate) {
+        clauses.push(
+          `kredittene i lisensene gikk tom ${dayMonth(runOut.afterDate)} mot ${dayMonth(runOut.beforeDate)}`
+        );
+      } else if (runOut.beforeDate && runOut.afterStatus === "not_exhausted") {
+        clauses.push(
+          `kredittene i lisensene ble ikke brukt opp i ${monthName(runOut.afterMonth)} mot ${dayMonth(runOut.beforeDate)}`
+        );
+      } else if (runOut.afterDate && runOut.beforeStatus === "not_exhausted") {
+        clauses.push(
+          `kredittene i lisensene gikk tom ${dayMonth(runOut.afterDate)} mot ikke brukt opp i ${monthName(runOut.beforeMonth)}`
+        );
+      }
     }
+
+    if (!costPerUser && !atLimit90 && !modelMix.length && !clauses.length) continue;
 
     out.push({
       event,

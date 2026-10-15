@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  channelName,
   choseOther,
   exclusivePick,
   openSurveyTitles,
@@ -19,6 +20,16 @@ import {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+});
+
+describe("channelName", () => {
+  it("labels forms, web, merged annet, empty, and nav-pilot CLI channels distinctly", () => {
+    expect(channelName("forms")).toBe("Microsoft Forms (radioknapper)");
+    expect(channelName("web")).toBe("Nettside (knapperad)");
+    expect(channelName("annet")).toBe("Annet (sammenslått)");
+    expect(channelName("")).toBe("Ukjent");
+    expect(channelName("copilot")).toBe("Terminal, nav-pilot (copilot)");
+  });
 });
 
 describe("isSkipped", () => {

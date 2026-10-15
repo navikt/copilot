@@ -107,6 +107,79 @@ describe("verdi", () => {
     expect(feb.appRatio).toBe(30);
   });
 
+  it("preserves 0 USD unit costs when credits cover usage and returns null when breakdown is unavailable", () => {
+    const admin: AdminMonthlyOverview = {
+      year: 2026,
+      coverage: {
+        membership_from: "2025-11-01",
+        last_gross_day: "2026-02-28",
+        gross_stale: false,
+        last_net_month: "2026-02",
+        seats_snapshot: "2026-02-28",
+        seats_from: "2026-01-01",
+      },
+      months: [
+        {
+          month: "2026-02",
+          basis: "net",
+          enterprise_net_usd: 0,
+          assigned_net_usd: 0,
+          residual_net_usd: 0,
+          residual_pct: 0,
+          no_team_net_usd: 0,
+          gross_usd: 1500,
+          estimated_net_usd: 0,
+          seats: 400,
+          licence_usd_estimate: 7600,
+          total_usd: 7600,
+          loaded_at: "2026-03-01T00:00:00Z",
+        },
+      ],
+    };
+    const usage = [
+      {
+        day: "2026-02-10",
+        pull_requests: {
+          total_created: 100,
+          total_merged: 80,
+          total_created_by_copilot: 20,
+          total_merged_created_by_copilot: 10,
+          total_reviewed_by_copilot: 50,
+          total_merged_reviewed_by_copilot: 45,
+          total_copilot_suggestions: 100,
+          total_copilot_applied_suggestions: 30,
+          median_minutes_to_merge: 120,
+          median_minutes_to_merge_copilot_authored: 90,
+          median_minutes_to_merge_copilot_reviewed: 100,
+        },
+      },
+    ] as unknown as EnterpriseMetrics[];
+
+    const [withZeroCost] = buildVerdiMonths({
+      admin,
+      breakdown: [
+        { year_month: "2026-02", model: "Code Review model", gross_amount: 100, net_amount: 0, pct_of_monthly_net: 0 },
+      ],
+      usage,
+      volume: [],
+    });
+    expect(withZeroCost.netUsd).toBe(0);
+    expect(withZeroCost.usdPerMergedPR).toBe(0);
+    expect(withZeroCost.usdPerAgentMergedPR).toBe(0);
+    expect(withZeroCost.codeReviewNetUsd).toBe(0);
+    expect(withZeroCost.usdPerReviewDirect).toBe(0);
+
+    const [withoutBreakdown] = buildVerdiMonths({
+      admin,
+      breakdown: null,
+      usage,
+      volume: [],
+    });
+    expect(withoutBreakdown.codeReviewNetUsd).toBeNull();
+    expect(withoutBreakdown.codeReviewSharePct).toBeNull();
+    expect(withoutBreakdown.usdPerReviewDirect).toBeNull();
+  });
+
   it("enforces k >= 5 pr_total_created on repo breakdown", () => {
     const repositories: RepositoryUsage[] = [
       {

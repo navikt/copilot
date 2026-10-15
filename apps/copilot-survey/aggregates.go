@@ -20,6 +20,8 @@ import (
 // survey_results, one row per (kind, key, version, option):
 //
 //   - total:   key "", option "", count = respondents.
+//   - channel: key "", option = context.client, count = respondents for
+//     that client (unmerged, so finalized results match live tallyRows).
 //   - answer:  key = question id or matrix item id; count per option, n =
 //     respondents for that version, mean for scale and matrix items. Free
 //     text is never read.
@@ -127,6 +129,9 @@ func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, 
 		insert := `INSERT INTO survey_results (survey_id, kind, key, version, option, count, n, mean) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 		batch.Queue(insert, s.ID, "total", "", 0, "", n, n, nil)
 		t := tallyRows(s, rows)
+		for cl, c := range t.Channels {
+			batch.Queue(insert, s.ID, "channel", "", 0, cl, c, n, nil)
+		}
 		scale := answerKeys(s)
 		for k, vers := range t.Keys {
 			for ver, vt := range vers {
@@ -177,6 +182,7 @@ func readRows(ctx context.Context, tx pgx.Tx, id string) ([]storedAnswer, []expo
 		if err := res.Scan(&a.Answers, &a.QuestionVersions, &c); err != nil {
 			return nil, nil, err
 		}
+		a.Client, _ = c["client"].(string)
 		rows = append(rows, a)
 		ctxRows = append(ctxRows, exportRow{Context: contextStrings(c)})
 	}
@@ -247,16 +253,18 @@ func (s *surveyStore) closeOut(ctx context.Context, now time.Time) {
 
 // final reads a survey's aggregates; nil when it has none.
 func (s *surveyStore) final(ctx context.Context, id string) (*surveyTally, error) {
-	rows, err := s.pool.Query(ctx, `SELECT kind, key, version, option, count, n FROM survey_results WHERE survey_id = $1 AND kind IN ('total', 'answer', 'context')`, id)
+	rows, err := s.pool.Query(ctx, `SELECT kind, key, version, option, count, n FROM survey_results WHERE survey_id = $1 AND kind IN ('total', 'answer', 'channel', 'context')`, id)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var t *surveyTally
+	channels := map[string]int{}
+	ctxClients := map[string]int{}
 	for rows.Next() {
 		var kind, key, opt string
 		var ver, count, n int
-		if err := rows.Scan(&kind, &key, &ver, &opt, &count, &n); err != nil {
+		if err = rows.Scan(&kind, &key, &ver, &opt, &count, &n); err != nil {
 			return nil, err
 		}
 		if t == nil {
@@ -265,9 +273,13 @@ func (s *surveyStore) final(ctx context.Context, id string) (*surveyTally, error
 		switch kind {
 		case "total":
 			t.Responses = count
+		case "channel":
+			if opt != "" {
+				channels[opt] = count
+			}
 		case "context":
 			if key == "client" && opt != "" {
-				t.Channels[opt] = count
+				ctxClients[opt] = count
 			}
 		case "answer":
 			if t.Keys[key] == nil {
@@ -279,7 +291,43 @@ func (s *surveyStore) final(ctx context.Context, id string) (*surveyTally, error
 			t.Keys[key][ver].Counts[opt] = count
 		}
 	}
-	return t, rows.Err()
+	if err = rows.Err(); err != nil || t == nil {
+		return t, err
+	}
+	if len(channels) > 0 {
+		t.Channels = channels
+		return t, nil
+	}
+	// Surveys finalized before kind='channel' existed: reconstruct from
+	// survey_answers if all rows are still present; otherwise fall back to
+	// the suppressed context counts (which include «annet» for merged rows).
+	cRows, err := s.pool.Query(ctx, `SELECT coalesce(context->>'client', ''), count(*) FROM survey_answers WHERE survey_id = $1 GROUP BY 1`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer cRows.Close()
+	liveClients := map[string]int{}
+	liveTotal := 0
+	for cRows.Next() {
+		var cl string
+		var c int
+		if err = cRows.Scan(&cl, &c); err != nil {
+			return nil, err
+		}
+		liveTotal += c
+		if cl != "" {
+			liveClients[cl] = c
+		}
+	}
+	if err = cRows.Err(); err != nil {
+		return nil, err
+	}
+	if liveTotal == t.Responses && len(liveClients) > 0 {
+		t.Channels = liveClients
+	} else {
+		t.Channels = ctxClients
+	}
+	return t, nil
 }
 
 // runAggregate is `copilot-survey aggregate --survey <id>`: (re)writes a

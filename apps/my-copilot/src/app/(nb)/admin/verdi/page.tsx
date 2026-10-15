@@ -41,7 +41,7 @@ const loadVerdiData = cache(async (token: string) => {
 
   const months = buildVerdiMonths({
     admin,
-    breakdown: breakdownRes.breakdown,
+    breakdown: breakdownRes.error ? null : breakdownRes.breakdown,
     usage: usageRes.usage,
     volume,
   });
@@ -154,8 +154,10 @@ export default async function AdminVerdiPage() {
 
       <InsightSection id="kodeagent" title="Kodeagentens effekt">
         <BodyShort size="small" textColor="subtle">
-          Hvor mange pull requests Copilot coding agent oppretter, hvor stor andel som blir slått sammen, og median tid
-          til sammenslåing. Kjøringer som avbrytes uten at det opprettes en PR, telles ikke i GitHubs bruksdata.
+          Hvor mange pull requests Copilot coding agent oppretter, forholdet mellom sammenslåtte og opprettede PR-er i
+          måneden, og median tid til sammenslåing. Siden PR-er kan opprettes i én måned og slås sammen i en senere
+          måned, kan forholdstallet overstige 100 %. Kjøringer som avbrytes uten at det opprettes en PR, telles ikke i
+          GitHubs bruksdata.
         </BodyShort>
         {latestPR ? (
           <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
@@ -168,10 +170,10 @@ export default async function AdminVerdiPage() {
             />
             <MetricCard
               value={fmtPct(latestPR.agentMergeSharePct)}
-              label="Andel slått sammen"
-              subtitle={`${formatNumber(latestPR.prMergedCopilotAuthored)} slått sammen`}
-              helpTitle="Andel slått sammen"
-              helpText="Sammenslåtte agent-PR-er i prosent av agent-PR-er opprettet samme måned."
+              label="Sammenslåtte mot opprettede"
+              subtitle={`${formatNumber(latestPR.prMergedCopilotAuthored)} slått sammen i måneden`}
+              helpTitle="Sammenslåtte mot opprettede (flytrate)"
+              helpText="Agent-PR-er slått sammen i måneden delt på agent-PR-er opprettet i samme måned. Kan overstige 100 % når PR-er fra tidligere måneder slås sammen."
             />
             <MetricCard
               value={formatMinutes(latestPR.avgMedianMinutesToMergeCopilot)}
@@ -198,7 +200,7 @@ export default async function AdminVerdiPage() {
                 "Måned",
                 "Opprettet av agent",
                 "Slått sammen",
-                "Andel slått sammen",
+                "Sammenslåtte / opprettede",
                 "Tid til merge (agent)",
                 "Tid til merge (alle)",
               ],
@@ -237,7 +239,7 @@ export default async function AdminVerdiPage() {
               helpText="Andel av Copilots endringsforslag i kodegjennomgang som utvikleren har tatt direkte i bruk."
             />
             <MetricCard
-              value={formatUSD(latestPR.codeReviewNetUsd)}
+              value={fmtUsd(latestPR.codeReviewNetUsd)}
               label="Modellkostnad kodegjennomgang"
               subtitle={
                 latestPR.codeReviewSharePct !== null
@@ -278,7 +280,7 @@ export default async function AdminVerdiPage() {
                 formatNumber(m.copilotSuggestions),
                 formatNumber(m.copilotAppliedSuggestions),
                 fmtPct(m.reviewAppliedSharePct),
-                formatUSD(m.codeReviewNetUsd),
+                fmtUsd(m.codeReviewNetUsd),
                 fmtUsd(m.usdPerReviewDirect),
               ]),
             ]}

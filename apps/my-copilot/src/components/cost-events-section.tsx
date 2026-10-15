@@ -4,7 +4,15 @@ import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow
 import { NumbersFold } from "@/components/charts/chart-figure";
 import { InsightSection } from "@/components/insight-page";
 import { getAdminActiveUsers, getAdminBudgetDays, getBillingModelDaily, getCostForecast } from "@/lib/cached-bigquery";
-import { type CostEvent, costEvents, dayMonth, type EventEffect, eventEffects, eventMonths } from "@/lib/cost-events";
+import {
+  type CostEvent,
+  costEvents,
+  dayMonth,
+  type EventEffect,
+  eventEffects,
+  eventMonths,
+  type RunOutStatus,
+} from "@/lib/cost-events";
 import { formatPercent, formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
 
@@ -12,6 +20,13 @@ const pct = (v: number) => formatPercent(v, v > 0 && Math.abs(v) < 10 ? 1 : 0);
 const signedPct = (v: number) => `${v >= 0 ? "+" : "−"}${formatPercent(Math.abs(v))}`;
 const signedPp = (v: number) =>
   `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("nb-NO", { maximumFractionDigits: 1 })} pp`;
+
+function formatRunOutCell(month: string, date: string | null, status?: RunOutStatus): string {
+  if (date) return dayMonth(date);
+  if (status === "incomplete") return `Foreløpig ikke brukt opp (${monthName(month)})`;
+  if (status === "unavailable") return "–";
+  return `Ikke brukt opp (${monthName(month)})`;
+}
 
 export function CostEventsView({ effects }: { effects: EventEffect[] }) {
   if (effects.length === 0) {
@@ -42,7 +57,11 @@ export function CostEventsView({ effects }: { effects: EventEffect[] }) {
             <TableBody>
               {e.costPerUser && (
                 <TableRow>
-                  <TableHeaderCell scope="row">Kostnad per fakturert person (listepris)</TableHeaderCell>
+                  <TableHeaderCell scope="row">
+                    {e.costPerUser.provisional
+                      ? "Kostnad per person (foreløpig, listepris)"
+                      : "Kostnad per fakturert person (listepris)"}
+                  </TableHeaderCell>
                   <TableDataCell align="right">{formatUSD(e.costPerUser.beforeUsd)}</TableDataCell>
                   <TableDataCell align="right">{formatUSD(e.costPerUser.afterUsd)}</TableDataCell>
                   <TableDataCell align="right">{signedPct(e.costPerUser.changePct)}</TableDataCell>
@@ -66,14 +85,10 @@ export function CostEventsView({ effects }: { effects: EventEffect[] }) {
                 <TableRow>
                   <TableHeaderCell scope="row">Dato kredittene i lisensene går tom</TableHeaderCell>
                   <TableDataCell align="right">
-                    {e.runOut.beforeDate
-                      ? dayMonth(e.runOut.beforeDate)
-                      : `Ikke brukt opp (${monthName(e.runOut.beforeMonth)})`}
+                    {formatRunOutCell(e.runOut.beforeMonth, e.runOut.beforeDate, e.runOut.beforeStatus)}
                   </TableDataCell>
                   <TableDataCell align="right">
-                    {e.runOut.afterDate
-                      ? dayMonth(e.runOut.afterDate)
-                      : `Ikke brukt opp (${monthName(e.runOut.afterMonth)})`}
+                    {formatRunOutCell(e.runOut.afterMonth, e.runOut.afterDate, e.runOut.afterStatus)}
                   </TableDataCell>
                   <TableDataCell align="right">
                     {e.runOut.beforeDate && e.runOut.afterDate

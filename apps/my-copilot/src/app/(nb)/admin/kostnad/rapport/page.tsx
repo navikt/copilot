@@ -75,12 +75,13 @@ function DataTable({ rows }: { rows: Record<string, unknown>[] }) {
                 <TableDataCell key={k} align={i ? "right" : "left"}>
                   {barPct != null && barPct > 0 ? (
                     <div className="flex items-center justify-end gap-2">
-                      <div
-                        aria-hidden
-                        data-testid={`bar-${k}-${n}`}
-                        className={`h-3 max-w-28 rounded-sm${r.preliminary ? " print-stripe" : ""}`}
-                        style={{ width: `${barPct}%`, ...fill("var(--ax-bg-accent-strong)") }}
-                      />
+                      <div aria-hidden className="flex w-28 justify-end">
+                        <div
+                          data-testid={`bar-${k}-${n}`}
+                          className={`h-3 rounded-sm${r.preliminary ? " print-stripe" : ""}`}
+                          style={{ width: `${Math.min(100, barPct)}%`, ...fill("var(--ax-bg-accent-strong)") }}
+                        />
+                      </div>
                       <span>{cell(k, val)}</span>
                     </div>
                   ) : (

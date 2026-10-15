@@ -256,6 +256,7 @@ export type SurveyResults = SurveySummary & {
 export function channelName(client: string): string {
   if (client === "forms") return "Microsoft Forms (radioknapper)";
   if (client === "web") return "Nettside (knapperad)";
+  if (client === "annet") return "Annet (sammenslått)";
   if (client === "") return "Ukjent";
   return `Terminal, nav-pilot (${client})`;
 }

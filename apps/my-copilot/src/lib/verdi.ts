@@ -17,7 +17,7 @@ export interface VerdiMonth {
   month: string;
   netUsd: number | null;
   preliminary: boolean;
-  codeReviewNetUsd: number;
+  codeReviewNetUsd: number | null;
   codeReviewSharePct: number | null;
   prTotalCreated: number;
   prTotalMerged: number;
@@ -38,11 +38,11 @@ export interface VerdiMonth {
   usdPerReviewGrossScope: number | null;
   /** V2 (#1783) & V8 (#1789): direct code-review-model net USD divided by PRs reviewed by Copilot. */
   usdPerReviewDirect: number | null;
-  /** V4 (#1785): merged Copilot-authored PRs as % of Copilot-created PRs. */
+  /** V4 (#1785): monthly flow ratio of merged Copilot-authored PRs to Copilot-created PRs (may exceed 100% across month boundaries). */
   agentMergeSharePct: number | null;
   /** V8 (#1789): applied Copilot review suggestions as % of total Copilot suggestions. */
   reviewAppliedSharePct: number | null;
-  /** V8 (#1789): merged Copilot-reviewed PRs as % of PRs reviewed by Copilot. */
+  /** V8 (#1789): monthly flow ratio of merged Copilot-reviewed PRs to PRs reviewed by Copilot. */
   reviewMergedSharePct: number | null;
   /** V3 (#1784): CLI prompt and output tokens and input:output ratio. */
   cliInputTokens: number;
@@ -76,7 +76,7 @@ export interface VerdiTeamSummary {
 
 const usd = (v: number) => Math.round(v * 100) / 100;
 const divUsd = (amount: number | null, count: number) =>
-  amount !== null && amount > 0 && count > 0 ? usd(amount / count) : null;
+  amount !== null && amount >= 0 && count > 0 ? usd(amount / count) : null;
 const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : null);
 const avg = (vals: number[]) => (vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null);
 
@@ -87,16 +87,18 @@ export function buildVerdiMonths({
   volume,
 }: {
   admin: AdminMonthlyOverview | null;
-  breakdown: BillingModelBreakdown[];
+  breakdown: BillingModelBreakdown[] | null;
   usage: EnterpriseMetrics[] | null;
   volume: VolumeMonth[];
 }): VerdiMonth[] {
   const adminByMonth = new Map((admin?.months ?? []).filter((m) => m.basis !== "none").map((m) => [m.month, m]));
   const volumeByMonth = new Map(volume.map((v) => [v.month, v]));
 
+  const breakdownMonths = new Set<string>();
   const codeReviewByMonth = new Map<string, number>();
-  for (const row of breakdown) {
+  for (const row of breakdown ?? []) {
     const m = row.year_month.slice(0, 7);
+    breakdownMonths.add(m);
     if (modelFamily(row.model, true) === "kodegjennomgang") {
       codeReviewByMonth.set(m, (codeReviewByMonth.get(m) ?? 0) + row.net_amount);
     }
@@ -150,7 +152,7 @@ export function buildVerdiMonths({
   }
 
   const allMonths = [
-    ...new Set([...adminByMonth.keys(), ...volumeByMonth.keys(), ...prByMonth.keys(), ...codeReviewByMonth.keys()]),
+    ...new Set([...adminByMonth.keys(), ...volumeByMonth.keys(), ...prByMonth.keys(), ...breakdownMonths]),
   ].sort();
 
   return allMonths
@@ -158,7 +160,8 @@ export function buildVerdiMonths({
       const adm = adminByMonth.get(month);
       const netUsd = adm ? (adm.enterprise_net_usd ?? adm.estimated_net_usd ?? null) : null;
       const preliminary = adm?.basis === "gross";
-      const codeReviewNetUsd = usd(codeReviewByMonth.get(month) ?? 0);
+      const hasBreakdownForMonth = breakdown !== null && breakdownMonths.has(month);
+      const codeReviewNetUsd = hasBreakdownForMonth ? usd(codeReviewByMonth.get(month) ?? 0) : null;
       const pr = prByMonth.get(month);
       const vol = volumeByMonth.get(month);
 
@@ -181,7 +184,8 @@ export function buildVerdiMonths({
         netUsd,
         preliminary,
         codeReviewNetUsd,
-        codeReviewSharePct: netUsd && netUsd > 0 ? pct(codeReviewNetUsd, netUsd) : null,
+        codeReviewSharePct:
+          codeReviewNetUsd !== null && netUsd !== null && netUsd > 0 ? pct(codeReviewNetUsd, netUsd) : null,
         prTotalCreated,
         prTotalMerged,
         prCreatedByCopilot,
