@@ -82,12 +82,15 @@ func clientCols(extra ...mimirCol) []mimirCol {
 	return append([]mimirCol{{"client", "client"}}, extra...)
 }
 
+// minSessionVersionRe matches release versions >= 2026.09.29-063952 (excludes "dev" and older releases).
+const minSessionVersionRe = `2026\.09\.(29-(06395[2-9]|0639[6-9]|06[4-9]|0[7-9]|[12])|30).*|2026\.1[0-2]\..*|20(2[7-9]|[3-9][0-9])\..*`
+
 // Session series come from newOnlyExporter (one delta per finished session),
 // so sum_over_time adds sessions up without counter-reset artifacts. Instruments
 // from copilot_session.go carry no device_id and group by version; instruments
-// carrying device_id (device: true) filter version!="dev" in PromQL and omit
-// version from the group-by so multiple daily releases do not split a day's
-// cohort below k>=5.
+// carrying device_id (device: true) filter version >= 2026.09.29-063952 in PromQL
+// and omit version from the group-by so multiple daily releases do not split a
+// day's cohort below k>=5.
 var mimirSession = []mimirSpec{
 	{metric: "nav_pilot_session_skill_loads_total", cols: sessionCols(mimirCol{"skill", "skill"}, mimirCol{"source", "source"}, mimirCol{"trigger", "trigger"})},
 	{metric: "nav_pilot_session_tool_calls_total", cols: sessionCols(mimirCol{"tool", "tool"}, mimirCol{"outcome", "outcome"})},
@@ -396,7 +399,7 @@ func mimirSessionRows(ctx context.Context, m *MimirClient, day string, t time.Ti
 		by := strings.Join(labels, ",")
 		sel := ""
 		if s.device {
-			sel = `{version!="dev"}`
+			sel = `{version=~"` + minSessionVersionRe + `"}`
 		}
 		queries := [][2]string{{"increase", fmt.Sprintf("sum by (%s) (sum_over_time(%s%s[1d]))", by, s.metric, sel)}}
 		if s.hist {
@@ -434,7 +437,7 @@ func mimirSessionRows(ctx context.Context, m *MimirClient, day string, t time.Ti
 			if s.hist {
 				base += "_count"
 			}
-			expr := fmt.Sprintf(`count by (%s) (count by (%s,device_id) (sum_over_time(%s{device_id!="",version!="dev"}[1d]) > 0))`, by, by, base)
+			expr := fmt.Sprintf(`count by (%s) (count by (%s,device_id) (sum_over_time(%s{device_id!="",version=~"%s"}[1d]) > 0))`, by, by, base, minSessionVersionRe)
 			res, err := m.query(ctx, expr, t)
 			if err != nil {
 				return nil, err
@@ -491,8 +494,6 @@ func mimirReachRows(ctx context.Context, m *MimirClient, day string, t time.Time
 		{metric: "nav_pilot_command_duration_ms_count", cols: []mimirCol{{"operation", "command"}}, expr: `count by (command) (count by (command, device_id) (last_over_time(nav_pilot_command_duration_ms_count{` + sel + `}[7d])))`},
 		{metric: "nav_pilot_installed_items", op: "7d", cols: []mimirCol{{"source", "scope"}}, expr: `count by (scope) (count by (scope, device_id) (last_over_time(nav_pilot_installed_items{` + sel + `,status="active"}[7d])))`},
 		{metric: "nav_pilot_install_present", cols: []mimirCol{{"source", "scope"}, {"operation", "collection"}}, expr: `count by (scope, collection) (max by (scope, collection, device_id) (last_over_time(nav_pilot_install_present{` + sel + `}[7d])) == 1)`},
-		{metric: "nav_pilot_up_to_date", outcome: "up_to_date", cols: []mimirCol{{"operation", "component"}, {"source", "scope"}}, expr: `count by (component, scope) (max by (component, scope, device_id) (last_over_time(nav_pilot_up_to_date{` + sel + `}[7d])) == 1)`},
-		{metric: "nav_pilot_up_to_date", outcome: "stale", cols: []mimirCol{{"operation", "component"}, {"source", "scope"}}, expr: `count by (component, scope) (max by (component, scope, device_id) (last_over_time(nav_pilot_up_to_date{` + sel + `}[7d])) == 0)`},
 		{metric: "nav_pilot_local_dispatches_count", op: "7d", expr: `count(count by (device_id) (last_over_time(nav_pilot_local_dispatches_count{device_id!="",version!="dev"}[7d])))`},
 	}
 	var out []mimirRow
@@ -519,6 +520,53 @@ func mimirReachRows(ctx context.Context, m *MimirClient, day string, t time.Time
 			}
 			setCols(row, s.cols, keyOf(r, labels))
 			out = append(out, row)
+		}
+	}
+	res, err := m.query(ctx, `max by (component, scope, version, device_id) (last_over_time(nav_pilot_up_to_date{`+sel+`,device_id!=""}[7d]))`, t)
+	if err != nil {
+		return nil, err
+	}
+	type devVer struct {
+		ver string
+		val float64
+	}
+	type csKey struct{ comp, scope string }
+	latest := map[csKey]map[string]devVer{}
+	var csOrder []csKey
+	for _, r := range res {
+		v := r.float()
+		if math.IsNaN(v) {
+			continue
+		}
+		k := csKey{r.Metric["component"], r.Metric["scope"]}
+		if latest[k] == nil {
+			latest[k] = map[string]devVer{}
+			csOrder = append(csOrder, k)
+		}
+		dev := r.Metric["device_id"]
+		ver := r.Metric["version"]
+		if cur, ok := latest[k][dev]; !ok || ver > cur.ver || (ver == cur.ver && v > cur.val) {
+			latest[k][dev] = devVer{ver: ver, val: v}
+		}
+	}
+	for _, k := range csOrder {
+		var up, stale int
+		for _, dv := range latest[k] {
+			switch dv.val {
+			case 1:
+				up++
+			case 0:
+				stale++
+			}
+		}
+		for _, o := range []struct {
+			outcome string
+			n       int
+		}{{"up_to_date", up}, {"stale", stale}} {
+			if o.n >= mimirK {
+				out = append(out, mimirRow{"day": day, "family": "nav_pilot_reach", "metric": "nav_pilot_up_to_date",
+					"operation": k.comp, "source": k.scope, "outcome": o.outcome, "devices": o.n, "counter_reliable": true})
+			}
 		}
 	}
 	return out, nil

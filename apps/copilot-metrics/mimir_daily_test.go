@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -180,6 +181,28 @@ func TestMimirSessionRows(t *testing.T) {
 		}
 	}
 
+	re := regexp.MustCompile("^(?:" + minSessionVersionRe + ")$")
+	for ver, want := range map[string]bool{
+		"":                      false,
+		"dev":                   false,
+		"0.18.0":                false,
+		"2026.08.31-120000-abc": false,
+		"2026.09.28-235959-abc": false,
+		"2026.09.29-063951-abc": false,
+		"2026.09.29-063952":     true,
+		"2026.09.29-063952-abc": true,
+		"2026.09.29-064000-abc": true,
+		"2026.09.30-000000-abc": true,
+		"2026.10.14-120000-abc": true,
+		"2027.01.01-000000-abc": true,
+	} {
+		if got := re.MatchString(ver); got != want {
+			t.Fatalf("minSessionVersionRe.Match(%q) = %v, want %v", ver, got, want)
+		}
+	}
+
+	devSel := `{version=~"` + minSessionVersionRe + `"}`
+	devCountSel := `{device_id!="",version=~"` + minSessionVersionRe + `"}`
 	m, seen := fakeMimir(t, map[string][]fakeSeries{
 		"nav_pilot_session_skill_loads_total[1d]": {
 			{map[string]string{"version": "0.18.0", "client": "copilot", "skill": "aksel", "source": "nav", "trigger": "auto"}, "12"},
@@ -202,27 +225,27 @@ func TestMimirSessionRows(t *testing.T) {
 		"histogram_quantile(0.95, sum by (version,client,le) (sum_over_time(nav_pilot_session_turns_bucket[1d])))": {
 			{map[string]string{"version": "0.18.0", "client": "copilot"}, "NaN"},
 		},
-		`nav_pilot_local_dispatches_count{version!="dev"}[1d]`: {
+		"nav_pilot_local_dispatches_count" + devSel + "[1d]": {
 			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
 		},
-		`nav_pilot_local_dispatches_sum{version!="dev"}[1d]`: {
+		"nav_pilot_local_dispatches_sum" + devSel + "[1d]": {
 			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "57"},
 		},
-		`nav_pilot_local_dispatches_count{device_id!="",version!="dev"}[1d]`: {
+		"nav_pilot_local_dispatches_count" + devCountSel + "[1d]": {
 			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
 		},
-		`nav_pilot_decide_result_total{version!="dev"}[1d]`: {
+		"nav_pilot_decide_result_total" + devSel + "[1d]": {
 			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "18"},
 			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "2"},
 		},
-		`nav_pilot_decide_result_total{device_id!="",version!="dev"}[1d]`: {
+		"nav_pilot_decide_result_total" + devCountSel + "[1d]": {
 			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "7"},
 			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "3"},
 		},
-		`nav_pilot_launch_error_total{version!="dev"}[1d]`: {
+		"nav_pilot_launch_error_total" + devSel + "[1d]": {
 			{map[string]string{"client": "opencode", "error_type": "exit_code"}, "14"},
 		},
-		`nav_pilot_launch_error_total{device_id!="",version!="dev"}[1d]`: {
+		"nav_pilot_launch_error_total" + devCountSel + "[1d]": {
 			{map[string]string{"client": "opencode", "error_type": "exit_code"}, "10"},
 		},
 	})
@@ -282,6 +305,21 @@ func TestMimirSessionRows(t *testing.T) {
 }
 
 func TestMimirReachRows(t *testing.T) {
+	// 5 devices up-to-date on v2, plus 5 devices stale on v2 (one of which had 1 on older v1).
+	var upToDateSeries []fakeSeries
+	for i := 0; i < 5; i++ {
+		upToDateSeries = append(upToDateSeries, fakeSeries{
+			map[string]string{"component": "cli", "scope": "none", "version": "2026.10.14-120000", "device_id": fmt.Sprintf("up-%d", i)}, "1",
+		})
+	}
+	upToDateSeries = append(upToDateSeries, fakeSeries{
+		map[string]string{"component": "cli", "scope": "none", "version": "2026.10.10-100000", "device_id": "stale-0"}, "1",
+	})
+	for i := 0; i < 5; i++ {
+		upToDateSeries = append(upToDateSeries, fakeSeries{
+			map[string]string{"component": "cli", "scope": "none", "version": "2026.10.12-100000", "device_id": fmt.Sprintf("stale-%d", i)}, "0",
+		})
+	}
 	m, seen := fakeMimir(t, map[string][]fakeSeries{
 		`nav_pilot_info{execution_context="organic",version!="dev"}[7d]`: {
 			{map[string]string{}, "217"},
@@ -310,12 +348,7 @@ func TestMimirReachRows(t *testing.T) {
 			{map[string]string{"scope": "user"}, "162"},
 			{map[string]string{"scope": "repo"}, "46"},
 		},
-		`nav_pilot_up_to_date{execution_context="organic",version!="dev"}[7d])) == 1)`: {
-			{map[string]string{"component": "cli", "scope": "none"}, "158"},
-		},
-		`nav_pilot_up_to_date{execution_context="organic",version!="dev"}[7d])) == 0)`: {
-			{map[string]string{"component": "cli", "scope": "none"}, "41"},
-		},
+		`nav_pilot_up_to_date{execution_context="organic",version!="dev",device_id!=""}[7d]`: upToDateSeries,
 		`nav_pilot_local_dispatches_count{device_id!="",version!="dev"}[7d]`: {
 			{map[string]string{}, "6"},
 		},
@@ -331,5 +364,13 @@ func TestMimirReachRows(t *testing.T) {
 	}
 	if len(rows) != 14 {
 		t.Fatalf("expected 14 reach rows (<5 dropped), got %d: %v", len(rows), rows)
+	}
+	for _, r := range rows {
+		if _, ok := r["device_id"]; ok {
+			t.Fatalf("device_id leaked into reach row: %v", r)
+		}
+		if r["metric"] == "nav_pilot_up_to_date" && r["devices"] != 5 {
+			t.Errorf("expected 5 devices for %v, got %v", r["outcome"], r)
+		}
 	}
 }

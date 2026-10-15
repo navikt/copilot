@@ -77,9 +77,8 @@ async function RuntimeTelemetry({ token }: { token: string }) {
   const devices = t.devices_7d || t.devices_1d;
   const deviceSubtitles = [
     t.devices_28d > 0 ? `${formatNumber(t.devices_28d)} siste 28 dager` : null,
-    t.cli_up_to_date_7d > 0
-      ? `${formatNumber(t.cli_up_to_date_7d)} oppdatert CLI${t.cli_stale_7d > 0 ? `, ${formatNumber(t.cli_stale_7d)} eldre` : ""}`
-      : null,
+    t.cli_up_to_date_7d > 0 ? `${formatNumber(t.cli_up_to_date_7d)} oppdatert CLI` : null,
+    t.cli_stale_7d > 0 ? `${formatNumber(t.cli_stale_7d)} eldre CLI` : null,
   ].filter(Boolean);
   const scopeSubtitles = [
     t.repo_scope_devices_7d > 0 ? `mot ${formatNumber(t.repo_scope_devices_7d)} med repo-oppsett` : null,
