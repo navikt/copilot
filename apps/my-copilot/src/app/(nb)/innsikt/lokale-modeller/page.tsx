@@ -13,10 +13,17 @@ import {
   modelCountRows,
   rejectedCountRows,
 } from "@/components/nav-pilot/local-model-tables";
-import { DelegationRangeChart, IntervalChart, ReportTimeline } from "@/components/nav-pilot/local-model-charts";
+import {
+  CloudComparisonChart,
+  DelegationRangeChart,
+  IntervalChart,
+  ModelSizeChart,
+  ReportTimeline,
+} from "@/components/nav-pilot/local-model-charts";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import { formatDate } from "@/lib/format";
 import {
+  CLOUD_COMPARISONS,
   DECIDE_RESULTS,
   DELEGATION_RANGES,
   DELEGATION_RESULTS,
@@ -65,6 +72,7 @@ function ManifestSections({ table }: { table: Table }) {
           nav-pilot-kolonnen viser hvilken versjon som trengs.
         </BodyLong>
         <LocalModelsTable stack models={models} />
+        <ModelSizeChart models={models} />
       </InsightSection>
 
       <InsightSection id="godkjent-for" title="Hva hver modell er godkjent for">
@@ -416,6 +424,7 @@ export default function LokaleModeller() {
           alle ti forsøkene.
         </BodyLong>
         <ResultTable rows={WORKER_RESULTS.rows} />
+        <CloudComparisonChart comparisons={CLOUD_COMPARISONS} />
         <BodyLong>
           Nye filer er bare 5 % av ekte pull requests, viser en{" "}
           <a href={SOURCES.prAudit} className={linkClass}>

@@ -1,7 +1,7 @@
 import { Box, BodyShort, ReadMore } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableRow } from "@/components/aksel-table";
 import { HeaderRow, linkClass } from "@/components/nav-pilot/doc-page";
-import type { DelegationRange } from "@/lib/local-model-results";
+import type { CloudComparison, DelegationRange } from "@/lib/local-model-results";
 import { formatDate } from "@/lib/format";
 import type { Bar, LocalModel, Report, ReportIndex } from "@/lib/local-models";
 
@@ -99,6 +99,52 @@ function intervalRows(model: LocalModel, bar: Bar): IntervalRow[] {
   );
 }
 
+function IntervalTrack({
+  k,
+  n,
+  lo,
+  hi,
+  bar,
+  color = "var(--ax-bg-accent-strong)",
+}: {
+  k: number;
+  n: number;
+  lo: number;
+  hi: number;
+  bar?: number;
+  color?: string;
+}) {
+  return (
+    <div className={track} style={trackStyle}>
+      {bar !== undefined && (
+        <div
+          className="absolute inset-y-1 border-l-2 border-dashed"
+          style={{ left: pos(bar), borderColor: "var(--ax-border-neutral-strong)" }}
+        />
+      )}
+      <div
+        className="absolute top-1/2 h-0.5 -translate-y-1/2"
+        style={{ left: pos(lo), width: pos(hi - lo), background: color }}
+      />
+      {[lo, hi].map((x, i) => (
+        <div
+          key={i}
+          className="absolute inset-y-2 w-0.5 -translate-x-1/2"
+          style={{ left: inTrack(x, "1px"), background: color }}
+        />
+      ))}
+      <div
+        className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
+        style={{
+          left: inTrack(k / n, "0.375rem"),
+          background: color,
+          borderColor: "var(--ax-bg-default)",
+        }}
+      />
+    </div>
+  );
+}
+
 /** Success rate per task type with its Wilson interval, against the approval bar. */
 export function IntervalChart({ model }: { model: LocalModel }) {
   if (!model.bar) return null;
@@ -132,31 +178,7 @@ export function IntervalChart({ model }: { model: LocalModel }) {
               </span>
               {r.trusted && <strong> · godkjent</strong>}
             </BodyShort>
-            <div className={track} style={trackStyle}>
-              <div
-                className="absolute inset-y-1 border-l-2 border-dashed"
-                style={{ left: pos(r.bar), borderColor: "var(--ax-border-neutral-strong)" }}
-              />
-              <div
-                className="absolute top-1/2 h-0.5 -translate-y-1/2"
-                style={{ left: pos(r.lo), width: pos(r.hi - r.lo), background: "var(--ax-bg-accent-strong)" }}
-              />
-              {[r.lo, r.hi].map((x, i) => (
-                <div
-                  key={i}
-                  className="absolute inset-y-2 w-0.5 -translate-x-1/2"
-                  style={{ left: inTrack(x, "1px"), background: "var(--ax-bg-accent-strong)" }}
-                />
-              ))}
-              <div
-                className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
-                style={{
-                  left: inTrack(r.k / r.n, "0.375rem"),
-                  background: "var(--ax-bg-accent-strong)",
-                  borderColor: "var(--ax-bg-default)",
-                }}
-              />
-            </div>
+            <IntervalTrack k={r.k} n={r.n} lo={r.lo} hi={r.hi} bar={r.bar} />
           </div>
         ))}
         <div className="grid sm:grid-cols-[14rem_1fr] sm:gap-x-3">
@@ -191,6 +213,246 @@ export function IntervalChart({ model }: { model: LocalModel }) {
                   <TableDataCell>{r.trusted ? "Godkjent" : "Ikke godkjent"}</TableDataCell>
                 </TableRow>
               ))}
+            </TableBody>
+          </Table>
+        </div>
+      </ReadMore>
+    </figure>
+  );
+}
+
+const MAX_WEIGHTS_GB = 48;
+
+export type ModelSizeRow = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  weightsGb: number;
+  minRamGb: number;
+  k: number;
+  n: number;
+  lo: number;
+  hi: number;
+  trusted: string[];
+};
+
+export function modelSizeRows(models: LocalModel[]): ModelSizeRow[] {
+  return [...models]
+    .sort((a, b) => a.weights_gb - b.weights_gb)
+    .flatMap((m) => {
+      const entries = Object.entries(m.classes);
+      const k = entries.reduce((sum, [, c]) => sum + c.local_k + c.delegate_k, 0);
+      const n = entries.reduce((sum, [, c]) => sum + c.local_n + c.delegate_n, 0);
+      if (n === 0) return [];
+      const [lo, hi] = wilson(k, n, m.bar?.confidence ?? 0.9);
+      const trusted = entries.flatMap(([cls, c]) => [
+        ...(c.delegate === "trusted" ? [`${(TASK_CLASS_LABEL[cls] ?? cls).toLowerCase()} (delegert)`] : []),
+        ...(c.local === "trusted" ? [`${(TASK_CLASS_LABEL[cls] ?? cls).toLowerCase()} (lokalt)`] : []),
+      ]);
+      return [
+        {
+          id: m.id,
+          name: m.model.split("/").pop() ?? m.name,
+          isDefault: m.default,
+          weightsGb: m.weights_gb,
+          minRamGb: m.min_ram_gb,
+          k,
+          n,
+          lo,
+          hi,
+          trusted,
+        },
+      ];
+    });
+}
+
+/** Verified pass rate (with 90 % lower bound) against memory footprint across all chosen models. */
+export function ModelSizeChart({ models }: { models: LocalModel[] }) {
+  const rows = modelSizeRows(models);
+  if (!rows.length) return null;
+  const summary = rows
+    .map(
+      (r) =>
+        `${r.name}: ${r.weightsGb} GB vekter (minst ${r.minRamGb} GB minne), ${r.k} av ${r.n} bestått (${pct(r.lo)}–${pct(r.hi)})`
+    )
+    .join(". ");
+  return (
+    <figure className="flex flex-col gap-3">
+      <figcaption>
+        <BodyShort weight="semibold">Andel beståtte kjøringer mot modellstørrelse i minne</BodyShort>
+        <BodyShort size="small" textColor="subtle">
+          Modellene er sortert etter hvor mye plass modellvektene tar i minne (av grensen på {MAX_WEIGHTS_GB} GB).
+          Øverste linje per modell viser andel beståtte kjøringer samlet i manifestet med 80 %-intervall (venstre ende
+          er nedre grense ved 90 % sikkerhet).
+        </BodyShort>
+      </figcaption>
+      <div role="img" aria-label={`Diagram. ${summary}.`} className="flex flex-col gap-4">
+        {rows.map((r) => (
+          <div key={r.id} className="flex flex-col gap-1">
+            <BodyShort size="small" weight="semibold" style={ink}>
+              <code>{r.name}</code>{" "}
+              <span className="font-normal" style={{ color: "var(--ax-text-neutral-subtle)" }}>
+                · {r.isDefault ? "standard" : "valgfri"} · minst {r.minRamGb} GB minne
+                {r.trusted.length > 0 && ` · godkjent: ${r.trusted.join(", ")}`}
+              </span>
+            </BodyShort>
+            <div className="grid grid-cols-[9.5rem_1fr] items-center gap-2">
+              <BodyShort size="small" style={ink}>
+                Bestått{" "}
+                <span style={{ color: "var(--ax-text-neutral-subtle)" }}>
+                  {r.k} av {r.n}
+                </span>
+              </BodyShort>
+              <IntervalTrack k={r.k} n={r.n} lo={r.lo} hi={r.hi} />
+            </div>
+            <div className="grid grid-cols-[9.5rem_1fr] items-center gap-2">
+              <BodyShort size="small" style={ink}>
+                Vekter <span style={{ color: "var(--ax-text-neutral-subtle)" }}>{r.weightsGb} GB</span>
+              </BodyShort>
+              <div className={track} style={trackStyle}>
+                <div
+                  className="absolute inset-y-2 rounded-sm"
+                  style={{
+                    left: 0,
+                    width: pos(Math.min(1, r.weightsGb / MAX_WEIGHTS_GB)),
+                    background: "var(--ax-bg-neutral-strong)",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="grid grid-cols-[9.5rem_1fr] gap-2">
+          <BodyShort size="small" textColor="subtle">
+            Bestått / vekter
+          </BodyShort>
+          <Axis
+            ticks={[0, 0.25, 0.5, 0.75, 1]}
+            format={(t) => `${pct(t)} (${Math.round(t * MAX_WEIGHTS_GB)} GB)`}
+            max={1}
+          />
+        </div>
+      </div>
+      <ReadMore header="Tallene som tabell" size="small">
+        <div className="overflow-x-auto">
+          <Table size="small">
+            <HeaderRow
+              cells={[
+                "Modell",
+                "Vekter",
+                "Minst minne",
+                "Bestått samlet",
+                "80 %-intervall",
+                "Nedre grense",
+                "Godkjent",
+              ]}
+            />
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableDataCell>{r.name}</TableDataCell>
+                  <TableDataCell>{r.weightsGb} GB</TableDataCell>
+                  <TableDataCell>{r.minRamGb} GB</TableDataCell>
+                  <TableDataCell>
+                    {r.k} av {r.n}
+                  </TableDataCell>
+                  <TableDataCell>
+                    {pct(r.lo)}–{pct(r.hi)}
+                  </TableDataCell>
+                  <TableDataCell>{pct(r.lo)}</TableDataCell>
+                  <TableDataCell>{r.trusted.length ? r.trusted.join(", ") : "Ingen ennå"}</TableDataCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </ReadMore>
+    </figure>
+  );
+}
+
+/** Local models against the cloud reference on the same task set, with Wilson 90 % lower bounds. */
+export function CloudComparisonChart({ comparisons }: { comparisons: CloudComparison[] }) {
+  if (!comparisons.length) return null;
+  const summary = comparisons
+    .map(
+      (c) =>
+        `${c.task}: ` +
+        c.runs
+          .map((r) => {
+            const [lo, hi] = wilson(r.k, r.n, 0.9);
+            return `${r.label} ${r.k} av ${r.n} (${pct(lo)}–${pct(hi)})`;
+          })
+          .join(", ")
+    )
+    .join(". ");
+  return (
+    <figure className="flex flex-col gap-3">
+      <figcaption>
+        <BodyShort weight="semibold">Lokal modell mot skymodellen på samme oppgave</BodyShort>
+        <BodyShort size="small" textColor="subtle">
+          Oppgavene der både lokale modeller og skymodellen er målt på samme oppgavesett. Stiplet linje er kravet for
+          oppgavetypen.
+        </BodyShort>
+      </figcaption>
+      <div role="img" aria-label={`Diagram. ${summary}.`} className="flex flex-col gap-4">
+        {comparisons.map((c) => (
+          <div key={c.task} className="flex flex-col gap-1">
+            <BodyShort size="small" weight="semibold" style={ink}>
+              {c.task}
+            </BodyShort>
+            {c.runs.map((r) => {
+              const [lo, hi] = wilson(r.k, r.n, 0.9);
+              return (
+                <div key={r.label} className="grid gap-x-3 gap-y-1 sm:grid-cols-[18rem_1fr]">
+                  <BodyShort size="small" style={ink}>
+                    {r.label}{" "}
+                    <span style={{ color: "var(--ax-text-neutral-subtle)" }}>
+                      · {r.k} av {r.n}
+                    </span>
+                  </BodyShort>
+                  <IntervalTrack
+                    k={r.k}
+                    n={r.n}
+                    lo={lo}
+                    hi={hi}
+                    bar={c.bar}
+                    color={r.isCloud ? "var(--ax-bg-neutral-strong)" : "var(--ax-bg-accent-strong)"}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        <div className="grid sm:grid-cols-[18rem_1fr] sm:gap-x-3">
+          <span />
+          <Axis ticks={[0, 0.25, 0.5, 0.75, 1]} format={pct} max={1} />
+        </div>
+      </div>
+      <ReadMore header="Tallene som tabell" size="small">
+        <div className="overflow-x-auto">
+          <Table size="small">
+            <HeaderRow cells={["Oppgave", "Modell", "Bestått", "80 %-intervall", "Nedre grense", "Krav"]} />
+            <TableBody>
+              {comparisons.flatMap((c) =>
+                c.runs.map((r) => {
+                  const [lo, hi] = wilson(r.k, r.n, 0.9);
+                  return (
+                    <TableRow key={`${c.task}-${r.label}`}>
+                      <TableDataCell>{c.task}</TableDataCell>
+                      <TableDataCell>{r.label}</TableDataCell>
+                      <TableDataCell>
+                        {r.k} av {r.n}
+                      </TableDataCell>
+                      <TableDataCell>
+                        {pct(lo)}–{pct(hi)}
+                      </TableDataCell>
+                      <TableDataCell>{pct(lo)}</TableDataCell>
+                      <TableDataCell>{pct(c.bar)}</TableDataCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>

@@ -23,6 +23,7 @@ import { CostTrendsSection } from "@/components/cost-trends";
 import { HighConsumersSection } from "@/components/high-consumers";
 import { BudgetDaysSection } from "@/components/budget-days-section";
 import { CostStatusCards } from "@/components/cost-status-cards";
+import { CostEventsSection } from "@/components/cost-events-section";
 import { RapportDownload } from "@/components/rapport-download";
 
 // Spend and limits are internal: only the copilot team sees this page, everyone else gets 404.
@@ -277,6 +278,9 @@ export default async function CostPage() {
       </Suspense>
       <Suspense fallback={<SectionSkeleton chart={false} rows={4} />}>
         <MonthInsightsSection token={token} />
+      </Suspense>
+      <Suspense fallback={<SectionSkeleton chart={false} rows={3} />}>
+        <WithEvents token={token} Section={CostEventsSection} />
       </Suspense>
       <Suspense fallback={<SectionSkeleton />}>
         <WithEvents token={token} Section={CostTrendsSection} />

@@ -14,9 +14,10 @@ import (
 // as the admin monthly overview. GitHub reports tokens only for Copilot CLI
 // and the Copilot app, for the whole enterprise and without a model split.
 type VolumeMonth struct {
-	Month           string `bigquery:"month" json:"month"`
-	AICredits       int64  `bigquery:"ai_credits" json:"ai_credits"`
-	PremiumRequests int64  `bigquery:"premium_requests" json:"premium_requests"`
+	Month            string   `bigquery:"month" json:"month"`
+	AICredits        int64    `bigquery:"ai_credits" json:"ai_credits"`
+	PremiumRequests  int64    `bigquery:"premium_requests" json:"premium_requests"`
+	CloudAgentNetUSD *float64 `bigquery:"cloud_agent_net_usd" json:"cloud_agent_net_usd"`
 	// Input (prompt) and output tokens. GitHub reports no cache split.
 	CLIInputTokens  int64 `bigquery:"cli_input_tokens" json:"cli_input_tokens"`
 	CLIOutputTokens int64 `bigquery:"cli_output_tokens" json:"cli_output_tokens"`
@@ -32,7 +33,8 @@ func (bq *BigQueryClient) GetVolumeMonthly(ctx context.Context, year int) ([]Vol
 WITH v AS (
  SELECT DATE_TRUNC(day,MONTH) month,
   CAST(ROUND(SUM(IF(unit_type='ai-credits',gross_quantity,0))) AS INT64) ai_credits,
-  CAST(ROUND(SUM(IF(unit_type='requests',gross_quantity,0))) AS INT64) premium_requests
+  CAST(ROUND(SUM(IF(unit_type='requests',gross_quantity,0))) AS INT64) premium_requests,
+  ROUND(SUM(IF(sku IN ('Copilot Cloud Agent','Coding Agent Premium Request') OR LOWER(model)='coding agent model',net_amount,0)),2) cloud_agent_net_usd
  FROM %[1]s WHERE day>=DATE(@from) AND day<DATE(@to) AND scope_id='nav' AND product='Copilot' AND sku IN (`+billedSKUs+`)
  GROUP BY month
 ), t AS (
@@ -41,6 +43,7 @@ WITH v AS (
  GROUP BY month
 )
 SELECT FORMAT_DATE('%%Y-%%m',month) month,IFNULL(v.ai_credits,0) ai_credits,IFNULL(v.premium_requests,0) premium_requests,
+ v.cloud_agent_net_usd cloud_agent_net_usd,
  IFNULL(t.cli_input_tokens,0) cli_input_tokens,IFNULL(t.cli_output_tokens,0) cli_output_tokens,
  IFNULL(t.app_input_tokens,0) app_input_tokens,IFNULL(t.app_output_tokens,0) app_output_tokens
 FROM v FULL JOIN t USING (month) ORDER BY month`,

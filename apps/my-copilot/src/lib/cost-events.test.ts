@@ -1,4 +1,9 @@
-import { costEvents, eventAnnotations, eventSummary } from "./cost-events";
+import { costEvents, eventAnnotations, eventEffects, eventMonths, eventSummary } from "./cost-events";
+import fixture from "./month-insights.fixture.json";
+import type { MonthInsightData } from "./month-insights";
+
+const real = fixture as unknown as MonthInsightData;
+const plain = (s: string) => s.replace(/[\u00a0\u202f]/g, " ");
 
 describe("costEvents", () => {
   const events = costEvents({
@@ -18,6 +23,8 @@ describe("costEvents", () => {
       ["2026-09-22", "Grense 800"],
       ["2026-10-09", "Kreditter brukt opp"],
     ]);
+    expect(events[1]).toMatchObject({ fromUsd: 200, toUsd: 400 });
+    expect(events[2]).toMatchObject({ fromUsd: 400, toUsd: 800 });
     expect(events[3].label).toContain("ble brukt opp");
   });
 
@@ -37,5 +44,113 @@ describe("costEvents", () => {
 
   it("matches days too", () => {
     expect(eventAnnotations(events, ["2026-10-08", "2026-10-09"]).map((m) => m.text)).toEqual(["Kreditter brukt opp"]);
+  });
+
+  it("computes before/after effect for 22 September 2026 limit change (#1777)", () => {
+    expect(eventMonths(events)).toEqual(["2026-06", "2026-07", "2026-09", "2026-10"]);
+    const band = (first: number, last: number, users: number) => ({ first, last, label: "", users });
+    const budgetDays = [
+      { day: "2026-09-21", users: 685, snapshots: 0, bands: [band(0, 4, 657), band(5, 6, 28)] },
+      { day: "2026-09-30", users: 685, snapshots: 0, bands: [band(0, 4, 678), band(5, 6, 7)] },
+    ];
+    const effects = eventEffects({
+      events,
+      daily: real.prevDaily,
+      active: real.active,
+      budgetDays,
+      forecast: real.forecast,
+    });
+    expect(effects).toHaveLength(1);
+    const sep22 = effects[0];
+    expect(sep22.event.date).toBe("2026-09-22");
+    expect(plain(sep22.summary)).toBe(
+      "Etter at grensen gikk fra 400 til 800 USD 22. sep.: kostnad per person +22 %, andel nær grensen fra 4,1 % til 1,0 %."
+    );
+    expect(sep22.costPerUser?.beforeUsd).toBeCloseTo(20.94, 2);
+    expect(sep22.costPerUser?.afterUsd).toBeCloseTo(25.46, 2);
+    expect(sep22.runOut).toEqual({
+      beforeMonth: "2026-09",
+      beforeDate: "2026-09-08",
+      beforeStatus: "exhausted",
+      afterMonth: "2026-10",
+      afterDate: "2026-10-07",
+      afterStatus: "exhausted",
+    });
+  });
+
+  it("requires per-month active users and marks unbilled months as provisional", () => {
+    const withoutSep = real.active.filter((a) => a.month !== "2026-09");
+    expect(
+      eventEffects({
+        events,
+        daily: real.prevDaily,
+        active: withoutSep,
+        forecast: real.forecast,
+      })[0]?.costPerUser
+    ).toBeNull();
+
+    const unbilledSep = real.active.map((a) => (a.month === "2026-09" ? { ...a, billed: false } : a));
+    expect(
+      eventEffects({
+        events,
+        daily: real.prevDaily,
+        active: unbilledSep,
+        forecast: real.forecast,
+      })[0]?.costPerUser?.provisional
+    ).toBe(true);
+  });
+
+  it("does not treat a projected forecast run-out date as observed and marks incomplete months", () => {
+    const octRows = Array.from({ length: 10 }, (_, i) => ({
+      day: `2026-10-${String(i + 1).padStart(2, "0")}`,
+      model: "alle",
+      gross_amount: 100,
+      discount_amount: 100,
+      net_amount: 0,
+      gross_requests: 0,
+      net_requests: 0,
+    }));
+    const [sep22] = eventEffects({
+      events,
+      daily: [...real.prevDaily, ...octRows],
+      active: real.active,
+      forecast: { month: "2026-10", allowance_run_out_date: "2026-10-20", allowance_used_up: false },
+    });
+    expect(sep22.runOut).toEqual({
+      beforeMonth: "2026-09",
+      beforeDate: "2026-09-08",
+      beforeStatus: "exhausted",
+      afterMonth: "2026-10",
+      afterDate: null,
+      afterStatus: "incomplete",
+    });
+
+    const [noOct] = eventEffects({
+      events,
+      daily: real.prevDaily,
+      active: real.active,
+      forecast: { month: "2026-10", allowance_run_out_date: "2026-10-20", allowance_used_up: false },
+    });
+    expect(noOct.runOut).toBeNull();
+  });
+
+  it("computes weekday-adjusted model mix shift when daily rows include model names", () => {
+    const daily = real.prevDaily.flatMap((r) => {
+      const after = r.day >= "2026-09-22";
+      return [
+        { ...r, model: "Claude Sonnet 5", gross_amount: r.gross_amount * (after ? 0.4 : 0.7) },
+        { ...r, model: "GPT-6 Sol", gross_amount: r.gross_amount * (after ? 0.6 : 0.3) },
+      ];
+    });
+    const [sep22] = eventEffects({
+      events,
+      daily,
+      active: real.active,
+      forecast: real.forecast,
+    });
+    expect(sep22.modelMix.map((m) => [m.family, Math.round(m.beforePct), Math.round(m.afterPct)])).toEqual([
+      ["claude_sonnet", 70, 40],
+      ["gpt", 30, 60],
+    ]);
   });
 });

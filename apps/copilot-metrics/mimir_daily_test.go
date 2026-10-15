@@ -166,3 +166,79 @@ func TestMimirRatios(t *testing.T) {
 		t.Fatalf("ratios = %v", r)
 	}
 }
+
+func TestMimirSessionRows(t *testing.T) {
+	schemaCols := map[string]bool{}
+	for _, f := range mimirDailySchema {
+		schemaCols[f.Name] = true
+	}
+	for _, s := range mimirSession {
+		for _, c := range s.cols {
+			if !schemaCols[c.name] {
+				t.Fatalf("%s column %q missing from mimirDailySchema", s.metric, c.name)
+			}
+		}
+	}
+
+	m, seen := fakeMimir(t, map[string][]fakeSeries{
+		"nav_pilot_session_skill_loads_total[1d]": {
+			{map[string]string{"version": "0.18.0", "client": "copilot", "skill": "aksel", "source": "nav", "trigger": "auto"}, "12"},
+		},
+		"nav_pilot_session_tokens_total[1d]": {
+			{map[string]string{"version": "0.18.0", "client": "copilot", "model": "claude-sonnet-4.5", "kind": "input"}, "5000"},
+		},
+		"nav_pilot_subagent_selected_total[1d]": {
+			{map[string]string{"version": "0.18.0", "client": "copilot", "agent": "security"}, "4"},
+		},
+		"nav_pilot_session_turns_count[1d]": {
+			{map[string]string{"version": "0.18.0", "client": "copilot"}, "20"},
+		},
+		"nav_pilot_session_turns_sum[1d]": {
+			{map[string]string{"version": "0.18.0", "client": "copilot"}, "140"},
+		},
+		"histogram_quantile(0.5, sum by (version,client,le) (sum_over_time(nav_pilot_session_turns_bucket[1d])))": {
+			{map[string]string{"version": "0.18.0", "client": "copilot"}, "6"},
+		},
+		"histogram_quantile(0.95, sum by (version,client,le) (sum_over_time(nav_pilot_session_turns_bucket[1d])))": {
+			{map[string]string{"version": "0.18.0", "client": "copilot"}, "NaN"},
+		},
+	})
+	rows, err := mimirSessionRows(context.Background(), m, "2026-10-09", time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range *seen {
+		if !strings.Contains(q, "sum_over_time(") || strings.Contains(q, "increase(") {
+			t.Fatalf("session query must use sum_over_time, got %s", q)
+		}
+		if !strings.Contains(q, "version") {
+			t.Fatalf("session query must group by version, got %s", q)
+		}
+	}
+	if len(rows) != 4 {
+		t.Fatalf("expected 4 rows, got %v", rows)
+	}
+	byMetric := map[string]mimirRow{}
+	for _, r := range rows {
+		byMetric[r["metric"].(string)] = r
+		if r["family"] != "nav_pilot_session" || r["version"] != "0.18.0" || r["counter_reliable"] != true {
+			t.Errorf("unexpected row metadata: %v", r)
+		}
+	}
+	if byMetric["nav_pilot_session_skill_loads_total"]["skill"] != "aksel" || byMetric["nav_pilot_session_skill_loads_total"]["increase"] != 12.0 {
+		t.Errorf("skill row = %v", byMetric["nav_pilot_session_skill_loads_total"])
+	}
+	if byMetric["nav_pilot_session_tokens_total"]["token_type"] != "input" || byMetric["nav_pilot_session_tokens_total"]["increase"] != 5000.0 {
+		t.Errorf("tokens row = %v", byMetric["nav_pilot_session_tokens_total"])
+	}
+	if byMetric["nav_pilot_subagent_selected_total"]["agent"] != "security" || byMetric["nav_pilot_subagent_selected_total"]["increase"] != 4.0 {
+		t.Errorf("subagent row = %v", byMetric["nav_pilot_subagent_selected_total"])
+	}
+	turns := byMetric["nav_pilot_session_turns"]
+	if turns["hist_count"] != 20.0 || turns["hist_sum"] != 140.0 || turns["p50"] != 6.0 {
+		t.Errorf("turns row = %v", turns)
+	}
+	if _, ok := turns["p95"]; ok {
+		t.Errorf("NaN p95 must be omitted: %v", turns)
+	}
+}

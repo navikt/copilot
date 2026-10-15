@@ -20,6 +20,12 @@ const pages = [
     description: "Forbruk og grenser for Copilot i Nav.",
   },
   {
+    href: "/admin/verdi",
+    icon: <BarChartIcon aria-hidden fontSize="1.75rem" />,
+    title: "Verdi og effekt",
+    description: "Kostnad per resultat, kodeagent, kodegjennomgang og kontekstforbruk.",
+  },
+  {
     href: "/admin/undersokelser",
     icon: <TasklistIcon aria-hidden fontSize="1.75rem" />,
     title: "Undersøkelser",

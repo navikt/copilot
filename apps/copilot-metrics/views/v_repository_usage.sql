@@ -44,9 +44,9 @@ WITH daily AS (
     CAST(JSON_VALUE(raw_record, '$.pull_requests.total_reviewed_by_copilot') AS INT64) AS pr_reviewed_by_copilot,
     CAST(JSON_VALUE(raw_record, '$.pull_requests.total_merged_created_by_copilot') AS INT64) AS pr_merged_copilot_authored,
     CAST(JSON_VALUE(raw_record, '$.pull_requests.total_merged_reviewed_by_copilot') AS INT64) AS pr_merged_copilot_reviewed,
-    CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge') AS FLOAT64) AS pr_median_minutes_to_merge,
-    CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge_copilot_authored') AS FLOAT64) AS pr_median_minutes_to_merge_copilot,
-    CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge_copilot_reviewed') AS FLOAT64) AS pr_median_minutes_to_merge_copilot_reviewed,
+    NULLIF(CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge') AS FLOAT64), 0) AS pr_median_minutes_to_merge,
+    NULLIF(CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge_copilot_authored') AS FLOAT64), 0) AS pr_median_minutes_to_merge_copilot,
+    NULLIF(CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge_copilot_reviewed') AS FLOAT64), 0) AS pr_median_minutes_to_merge_copilot_reviewed,
     CAST(JSON_VALUE(raw_record, '$.pull_requests.total_copilot_suggestions') AS INT64) AS pr_copilot_suggestions,
     CAST(JSON_VALUE(raw_record, '$.pull_requests.total_copilot_applied_suggestions') AS INT64) AS pr_copilot_applied_suggestions
   FROM {{repository_metrics}}

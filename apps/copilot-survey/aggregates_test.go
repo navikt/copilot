@@ -65,6 +65,7 @@ func TestFinalAggregates(t *testing.T) {
 				var row storedAnswer
 				_ = json.Unmarshal(aj, &row.Answers)
 				row.QuestionVersions = v
+				row.Client, _ = c["client"].(string)
 				live = append(live, row)
 			}
 		}
@@ -84,7 +85,7 @@ func TestFinalAggregates(t *testing.T) {
 	}
 
 	var mean float64
-	if err := st.pool.QueryRow(ctx, `SELECT mean FROM survey_results WHERE survey_id='w1' AND key='overall' LIMIT 1`).Scan(&mean); err != nil || mean < 1 || mean > 5 {
+	if err = st.pool.QueryRow(ctx, `SELECT mean FROM survey_results WHERE survey_id='w1' AND key='overall' LIMIT 1`).Scan(&mean); err != nil || mean < 1 || mean > 5 {
 		t.Fatal("scale mean", mean, err)
 	}
 	var texts int
@@ -144,7 +145,8 @@ func TestFinalAggregates(t *testing.T) {
 		t.Fatal("close-out rewrote existing aggregates")
 	}
 	for range 2 {
-		if n, err := finalize(ctx, st.pool, st.defs, first, now, true); err != nil || n != 30 {
+		var n int
+		if n, err = finalize(ctx, st.pool, st.defs, first, now, true); err != nil || n != 30 {
 			t.Fatal(n, err)
 		}
 	}
@@ -154,8 +156,38 @@ func TestFinalAggregates(t *testing.T) {
 		t.Fatal("replace not idempotent")
 	}
 
+	// Pre-existing finalized surveys without kind='channel' fall back to
+	// survey_answers while retained, and to kind='context' once expired.
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_results WHERE survey_id='w2' AND kind='channel'`)
+	if f, fErr := st.final(ctx, "w2"); fErr != nil || !reflect.DeepEqual(f.Channels, map[string]int{"copilot": 5, "pi": 3}) {
+		t.Fatalf("fallback from survey_answers: got %v, err %v", f, fErr)
+	}
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers WHERE survey_id='w2'`)
+	if f, fErr := st.final(ctx, "w2"); fErr != nil || !reflect.DeepEqual(f.Channels, map[string]int{"copilot": 5, "annet": 3}) {
+		t.Fatalf("fallback from context after answers expired: got %v, err %v", f, fErr)
+	}
+
+	// Rare client/OS/version combinations merge into "annet" in kind='context'
+	// without hiding a channel that has >= 5 total respondents in kind='channel'.
+	for i := range 5 {
+		cj, _ := json.Marshal(map[string]any{"client": "web", "os": "linux", "version": string(rune('a' + i)), "local_models": false})
+		if _, err = st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ('w2', '{"overall":4}', '{"overall":1}', $1, '2026-12-27')`, cj); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = finalize(ctx, st.pool, st.defs, second, now, true); err != nil {
+		t.Fatal(err)
+	}
+	if ctxCount("w2", "client", "web") != 0 || ctxCount("w2", "client", "annet") != 5 {
+		t.Fatal("expected rare context segments to merge into annet")
+	}
+	if f, fErr := st.final(ctx, "w2"); fErr != nil || !reflect.DeepEqual(f.Channels, map[string]int{"web": 5}) {
+		t.Fatalf("expected channel count to preserve web=5: got %v, err %v", f, fErr)
+	}
+
 	// No rows: nothing written, so a later import still gets aggregated.
-	if n, err := finalize(ctx, st.pool, st.defs, third, now, true); err != nil || n != 0 {
+	var n int
+	if n, err = finalize(ctx, st.pool, st.defs, third, now, true); err != nil || n != 0 {
 		t.Fatal(n, err)
 	}
 	if f, _ := st.final(ctx, "w3"); f != nil {

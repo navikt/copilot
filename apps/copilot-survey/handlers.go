@@ -47,6 +47,8 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 
 	mux.HandleFunc("GET /api/v1/surveys/active", surveys.active)
 	mux.HandleFunc("GET /api/v1/surveys/schema", surveys.schema)
+	mux.HandleFunc("GET /api/v1/surveys/published", webUserOnly(auth, surveys.publishedList))
+	mux.HandleFunc("GET /api/v1/surveys/{id}/results", webUserOnly(auth, surveys.publishedResults))
 	mux.HandleFunc("GET /api/v1/surveys/{id}/status", authMiddleware(auth, surveys.status))
 	submit := authMiddleware(auth, surveys.submit)
 	mux.HandleFunc("POST /api/v1/surveys/{id}/responses", func(w http.ResponseWriter, r *http.Request) {

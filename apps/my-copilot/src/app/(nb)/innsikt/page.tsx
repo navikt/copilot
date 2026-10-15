@@ -64,6 +64,13 @@ export default function Innsikt() {
                 description="KI-tilpasninger i navikt-repoene. Krever innlogging."
               />
               <NavCard
+                href="/innsikt/undersokelser"
+                prefetch={false}
+                icon={lock}
+                title="Undersøkelser"
+                description="Resultater fra avsluttede brukerundersøkelser om KI-verktøy i Nav. Krever innlogging."
+              />
+              <NavCard
                 href="/priser"
                 icon={<CurrencyExchangeIcon aria-hidden fontSize="1.75rem" />}
                 title="Modellpriser"

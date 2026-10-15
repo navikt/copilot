@@ -73,6 +73,27 @@ var mimirChat = []mimirSpec{
 	{metric: "copilot_chat_edit_survival_no_revert", cols: []mimirCol{{"edit_source", "copilot_chat_edit_source"}, {"time_delay_ms", "copilot_chat_time_delay_ms"}}, hist: true},
 }
 
+func sessionCols(extra ...mimirCol) []mimirCol {
+	return append([]mimirCol{{"version", "version"}, {"client", "client"}}, extra...)
+}
+
+// Session series come from newOnlyExporter (one delta per finished session, no
+// device or process label), so sum_over_time adds sessions up without
+// counter-reset artifacts.
+var mimirSession = []mimirSpec{
+	{metric: "nav_pilot_session_skill_loads_total", cols: sessionCols(mimirCol{"skill", "skill"}, mimirCol{"source", "source"}, mimirCol{"trigger", "trigger"})},
+	{metric: "nav_pilot_session_tool_calls_total", cols: sessionCols(mimirCol{"tool", "tool"}, mimirCol{"outcome", "outcome"})},
+	{metric: "nav_pilot_session_hook_runs_total", cols: sessionCols(mimirCol{"hook_type", "hook_type"}, mimirCol{"outcome", "outcome"})},
+	{metric: "nav_pilot_subagent_selected_total", cols: sessionCols(mimirCol{"agent", "agent"})},
+	{metric: "nav_pilot_session_tokens_total", cols: sessionCols(mimirCol{"model", "model"}, mimirCol{"token_type", "kind"})},
+	{metric: "nav_pilot_session_premium_requests_total", cols: sessionCols(mimirCol{"model", "model"})},
+	{metric: "nav_pilot_session_cost_nano_aiu_total", cols: sessionCols(mimirCol{"model", "model"})},
+	{metric: "nav_pilot_session_turns", cols: sessionCols(), hist: true},
+	{metric: "nav_pilot_session_duration_seconds", cols: sessionCols(mimirCol{"shutdown_type", "shutdown_type"}), hist: true},
+	{metric: "nav_pilot_session_api_duration_ms", cols: sessionCols(mimirCol{"model", "model"}), hist: true},
+	{metric: "nav_pilot_session_events_skipped_total", cols: sessionCols()},
+}
+
 type MimirClient struct {
 	BaseURL string // .../prometheus/api/v1
 	HTTP    *http.Client
@@ -348,6 +369,49 @@ func mimirChatRows(ctx context.Context, m *MimirClient, day string, t time.Time)
 	return out, nil
 }
 
+func mimirSessionRows(ctx context.Context, m *MimirClient, day string, t time.Time) ([]mimirRow, error) {
+	var out []mimirRow
+	for _, s := range mimirSession {
+		labels := labelsOf(s.cols)
+		by := strings.Join(labels, ",")
+		queries := [][2]string{{"increase", fmt.Sprintf("sum by (%s) (sum_over_time(%s[1d]))", by, s.metric)}}
+		if s.hist {
+			queries = [][2]string{
+				{"hist_count", fmt.Sprintf("sum by (%s) (sum_over_time(%s_count[1d]))", by, s.metric)},
+				{"hist_sum", fmt.Sprintf("sum by (%s) (sum_over_time(%s_sum[1d]))", by, s.metric)},
+				{"p50", fmt.Sprintf("histogram_quantile(0.5, sum by (%s,le) (sum_over_time(%s_bucket[1d])))", by, s.metric)},
+				{"p95", fmt.Sprintf("histogram_quantile(0.95, sum by (%s,le) (sum_over_time(%s_bucket[1d])))", by, s.metric)},
+			}
+		}
+		var order []string
+		rows := map[string]mimirRow{}
+		for _, q := range queries {
+			res, err := m.query(ctx, q[1], t)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range res {
+				v := r.float()
+				if math.IsNaN(v) || math.IsInf(v, 0) {
+					continue
+				}
+				k := keyOf(r, labels)
+				id := strings.Join(k, "\x00")
+				if rows[id] == nil {
+					rows[id] = mimirRow{"day": day, "family": "nav_pilot_session", "metric": s.metric, "counter_reliable": true}
+					setCols(rows[id], s.cols, k)
+					order = append(order, id)
+				}
+				rows[id][q[0]] = v
+			}
+		}
+		for _, id := range order {
+			out = append(out, rows[id])
+		}
+	}
+	return out, nil
+}
+
 func mimirConfigRows(ctx context.Context, m *MimirClient, day string, t time.Time) ([]mimirRow, error) {
 	res, err := m.query(ctx, "count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info[1d])))", t)
 	if err != nil {
@@ -384,7 +448,11 @@ func collectMimirDay(ctx context.Context, m *MimirClient, day time.Time) ([]mimi
 	if err != nil {
 		return nil, fmt.Errorf("nav_pilot_config: %w", err)
 	}
-	return append(append(rows, chat...), cfg...), nil
+	sess, err := mimirSessionRows(ctx, m, d, t)
+	if err != nil {
+		return nil, fmt.Errorf("nav_pilot_session: %w", err)
+	}
+	return append(append(append(rows, chat...), cfg...), sess...), nil
 }
 
 // runMimirDaily copies each day in [from, to] and replaces any earlier copy.
@@ -422,6 +490,14 @@ var mimirDailySchema = bigquery.Schema{
 	{Name: "edit_source", Type: bigquery.StringFieldType},
 	{Name: "time_delay_ms", Type: bigquery.IntegerFieldType},
 	{Name: "client", Type: bigquery.StringFieldType},
+	{Name: "version", Type: bigquery.StringFieldType},
+	{Name: "skill", Type: bigquery.StringFieldType},
+	{Name: "source", Type: bigquery.StringFieldType},
+	{Name: "trigger", Type: bigquery.StringFieldType},
+	{Name: "outcome", Type: bigquery.StringFieldType},
+	{Name: "hook_type", Type: bigquery.StringFieldType},
+	{Name: "agent", Type: bigquery.StringFieldType},
+	{Name: "shutdown_type", Type: bigquery.StringFieldType},
 	{Name: "devices", Type: bigquery.IntegerFieldType},
 	{Name: "counter_reliable", Type: bigquery.BooleanFieldType},
 	{Name: "increase", Type: bigquery.FloatFieldType},
@@ -435,10 +511,13 @@ var mimirDailySchema = bigquery.Schema{
 
 func (c *BigQueryClient) EnsureMimirDailyTableExists(ctx context.Context) error {
 	t := c.client.Dataset(c.dataset).Table(mimirDailyName)
-	if _, err := t.Metadata(ctx); err == nil {
-		return nil
+	if meta, err := t.Metadata(ctx); err == nil {
+		if len(meta.Schema) < len(mimirDailySchema) {
+			_, err = t.Update(ctx, bigquery.TableMetadataToUpdate{Schema: mimirDailySchema}, meta.ETag)
+		}
+		return err
 	}
-	return t.Create(ctx, &bigquery.TableMetadata{Schema: mimirDailySchema, Description: "Daily Mimir aggregates (nav-pilot / Copilot telemetry). Device-labelled families have k>=5 devices; copilot_chat rows carry no device count."})
+	return t.Create(ctx, &bigquery.TableMetadata{Schema: mimirDailySchema, Description: "Daily Mimir aggregates (nav-pilot / Copilot telemetry). Device-labelled families have k>=5 devices; copilot_chat and nav_pilot_session rows carry no device count."})
 }
 
 // ReplaceMimirDay loads rows into a scratch table, then swaps the day in one

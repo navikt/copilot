@@ -9,6 +9,7 @@ import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
+  channelName,
   getAdminSurveys,
   getSurveyComparison,
   type CompareQuestion,
@@ -43,14 +44,6 @@ const waveClass = (i: number, count: number) => (i > 0 && i === count - 1 ? " pr
 function shortName(title: string) {
   const s = title.replace(/^utviklerundersøkelsen\s+/i, "");
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-/** How a context.client value was asked: the method differs, and that can move answers. */
-function channelName(client: string) {
-  if (client === "forms") return "Microsoft Forms (radioknapper)";
-  if (client === "web") return "Nettside (knapperad)";
-  if (client === "") return "Ukjent";
-  return `Terminal, nav-pilot (${client})`;
 }
 
 const num = (x: number, digits = 1) => x.toFixed(digits).replace(".", ",").replace("-", "−");

@@ -152,6 +152,18 @@ func authMiddleware(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// webUserOnly requires a signed-in my-copilot user token (email set).
+func webUserOnly(a *authenticator, next http.HandlerFunc) http.HandlerFunc {
+	return authMiddleware(a, func(w http.ResponseWriter, r *http.Request) {
+		c, _ := callerFromContext(r.Context())
+		if c == nil || c.email == "" {
+			writeError(w, http.StatusUnauthorized, "missing user token")
+			return
+		}
+		next(w, r)
+	})
+}
+
 // adminOnly wraps the admin sub-mux once: a my-copilot user token (the only
 // branch that sets email) whose groups claim holds adminGroup. Fail closed.
 // Every other accepted caller (a non-admin, copilot-cli) gets 404, as in

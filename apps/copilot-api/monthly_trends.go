@@ -30,13 +30,23 @@ type CreditsPerUserMonth struct {
 	ActiveUsers int64   `bigquery:"active_users" json:"active_users"`
 }
 
-// CopilotPRMonth is the number of pull requests Copilot coding agent created
-// and Copilot code review reviewed in one month, across all repositories.
+// CopilotPRMonth is the pull-request activity for one month across all public
+// and internal repositories: created, reviewed, merged, review suggestions,
+// and average daily median minutes to merge.
 type CopilotPRMonth struct {
-	Month             string `bigquery:"month" json:"month"`
-	CreatedByCopilot  int64  `bigquery:"created_by_copilot" json:"created_by_copilot"`
-	ReviewedByCopilot int64  `bigquery:"reviewed_by_copilot" json:"reviewed_by_copilot"`
-	Days              int64  `bigquery:"days" json:"days"`
+	Month                           string   `bigquery:"month" json:"month"`
+	TotalCreated                    int64    `bigquery:"total_created" json:"total_created"`
+	CreatedByCopilot                int64    `bigquery:"created_by_copilot" json:"created_by_copilot"`
+	ReviewedByCopilot               int64    `bigquery:"reviewed_by_copilot" json:"reviewed_by_copilot"`
+	TotalMerged                     int64    `bigquery:"total_merged" json:"total_merged"`
+	MergedCopilotAuthored           int64    `bigquery:"merged_copilot_authored" json:"merged_copilot_authored"`
+	MergedCopilotReviewed           int64    `bigquery:"merged_copilot_reviewed" json:"merged_copilot_reviewed"`
+	CopilotSuggestions              int64    `bigquery:"copilot_suggestions" json:"copilot_suggestions"`
+	CopilotAppliedSuggestions       int64    `bigquery:"copilot_applied_suggestions" json:"copilot_applied_suggestions"`
+	AvgMedianMinutesToMerge         *float64 `bigquery:"avg_median_minutes_to_merge" json:"avg_median_minutes_to_merge"`
+	AvgMedianMinutesToMergeCopilot  *float64 `bigquery:"avg_median_minutes_to_merge_copilot" json:"avg_median_minutes_to_merge_copilot"`
+	AvgMedianMinutesToMergeReviewed *float64 `bigquery:"avg_median_minutes_to_merge_copilot_reviewed" json:"avg_median_minutes_to_merge_copilot_reviewed"`
+	Days                            int64    `bigquery:"days" json:"days"`
 }
 
 // GetCreditsPerUserMonthly returns median and mean AI Credits per active user
@@ -79,17 +89,26 @@ func (bq *BigQueryClient) GetCreditsPerUserMonthly(ctx context.Context) ([]Credi
 	return readAllRows[CreditsPerUserMonth](it)
 }
 
-// GetCopilotPRsMonthly sums Copilot-created and Copilot-reviewed PRs per month
-// from repository_metrics. Private repositories are excluded, as in
-// v_repository_usage. A day is stored under one scope only, so summing across
-// scopes does not double count.
+// GetCopilotPRsMonthly sums Copilot PR activity and averages daily median
+// merge times per month from repository_metrics. Private repositories are
+// excluded, as in v_repository_usage. A day is stored under one scope only,
+// so summing across scopes does not double count.
 func (bq *BigQueryClient) GetCopilotPRsMonthly(ctx context.Context) ([]CopilotPRMonth, error) {
 	repoRef := bq.tableRef(bq.metricsDataset, "repository_metrics")
 	query := bq.client.Query(fmt.Sprintf(`
       SELECT
         FORMAT_DATE('%%Y-%%m', day) AS month,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.total_created') AS INT64)), 0) AS total_created,
         COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.total_created_by_copilot') AS INT64)), 0) AS created_by_copilot,
         COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.total_reviewed_by_copilot') AS INT64)), 0) AS reviewed_by_copilot,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.total_merged') AS INT64)), 0) AS total_merged,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.total_merged_created_by_copilot') AS INT64)), 0) AS merged_copilot_authored,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.total_merged_reviewed_by_copilot') AS INT64)), 0) AS merged_copilot_reviewed,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.total_copilot_suggestions') AS INT64)), 0) AS copilot_suggestions,
+        COALESCE(SUM(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.total_copilot_applied_suggestions') AS INT64)), 0) AS copilot_applied_suggestions,
+        AVG(NULLIF(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge') AS FLOAT64), 0)) AS avg_median_minutes_to_merge,
+        AVG(NULLIF(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge_copilot_authored') AS FLOAT64), 0)) AS avg_median_minutes_to_merge_copilot,
+        AVG(NULLIF(SAFE_CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge_copilot_reviewed') AS FLOAT64), 0)) AS avg_median_minutes_to_merge_copilot_reviewed,
         COUNT(DISTINCT day) AS days
       FROM %s
       WHERE day >= DATE(@start)

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { BodyLong, BodyShort, Heading, Link, VStack } from "@navikt/ds-react";
+import { fill } from "@/app/(nb)/admin/undersokelser/likert-bar";
+import { PrintHeader } from "@/app/(nb)/admin/undersokelser/print-header";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
@@ -46,6 +48,7 @@ function cell(key: string, value: unknown): string {
 function DataTable({ rows }: { rows: Record<string, unknown>[] }) {
   if (!rows.length) return null;
   const keys = Object.keys(rows[0]);
+  const maxBilled = Math.max(0, ...rows.map((r) => (typeof r.billed_usd === "number" ? r.billed_usd : 0)));
   return (
     <Table size="small">
       <TableHeader>
@@ -60,11 +63,33 @@ function DataTable({ rows }: { rows: Record<string, unknown>[] }) {
       <TableBody>
         {rows.map((r, n) => (
           <TableRow key={n}>
-            {keys.map((k, i) => (
-              <TableDataCell key={k} align={i ? "right" : "left"}>
-                {cell(k, r[k])}
-              </TableDataCell>
-            ))}
+            {keys.map((k, i) => {
+              const val = r[k];
+              const barPct =
+                k === "share_pct" && typeof val === "number"
+                  ? Math.round(val)
+                  : k === "billed_usd" && typeof val === "number" && maxBilled > 0
+                    ? Math.round((val / maxBilled) * 100)
+                    : null;
+              return (
+                <TableDataCell key={k} align={i ? "right" : "left"}>
+                  {barPct != null && barPct > 0 ? (
+                    <div className="flex items-center justify-end gap-2">
+                      <div aria-hidden className="flex w-28 justify-end">
+                        <div
+                          data-testid={`bar-${k}-${n}`}
+                          className={`h-3 rounded-sm${r.preliminary ? " print-stripe" : ""}`}
+                          style={{ width: `${Math.min(100, barPct)}%`, ...fill("var(--ax-bg-accent-strong)") }}
+                        />
+                      </div>
+                      <span>{cell(k, val)}</span>
+                    </div>
+                  ) : (
+                    cell(k, val)
+                  )}
+                </TableDataCell>
+              );
+            })}
           </TableRow>
         ))}
       </TableBody>
@@ -87,17 +112,18 @@ export default async function RapportPage({ searchParams }: { searchParams: Prom
     return <ErrorState message="Kunne ikke hente tallene til rapporten." />;
   }
 
+  const periodLine = `Tallene gjelder ${formatDate(report.period.from)}–${formatDate(report.period.to)}. Alle beløp er i USD.`;
+
   return (
     <main id="hovedinnhold" tabIndex={-1} className="print-report mx-auto max-w-4xl px-4 py-8 print:p-0">
       <DocumentTitle title={`${report.title} (til og med ${report.period.to})`} />
       <VStack gap="space-24">
-        <VStack gap="space-8">
+        <PrintHeader title={report.title} lines={[periodLine]} />
+        <VStack gap="space-8" className="print-hidden">
           <Heading level="1" size="large">
             {report.title}
           </Heading>
-          <BodyShort>
-            Tallene gjelder {formatDate(report.period.from)}–{formatDate(report.period.to)}. Alle beløp er i USD.
-          </BodyShort>
+          <BodyShort>{periodLine}</BodyShort>
         </VStack>
         <VStack gap="space-8" className="print-hidden">
           <PrintButton />

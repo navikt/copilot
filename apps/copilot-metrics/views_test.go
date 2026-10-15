@@ -96,6 +96,9 @@ func TestRepositoryUsageViewPlaceholders(t *testing.T) {
 	if strings.Contains(sql, "HAVING SUM(") {
 		t.Errorf("v_repository_usage.sql must not re-aggregate an aggregate alias in HAVING")
 	}
+	if !strings.Contains(sql, "NULLIF(CAST(JSON_VALUE(raw_record, '$.pull_requests.median_minutes_to_merge')") {
+		t.Errorf("v_repository_usage.sql must wrap median_minutes_to_merge in NULLIF(..., 0) so zero-merge days are excluded from AVG")
+	}
 }
 
 // The cost trend views count Copilot only, not Code Quality.

@@ -506,8 +506,17 @@ export interface UserSegments {
 /** Copilot coding agent and code review PRs in one month, from repository_metrics. */
 export interface CopilotPRMonth {
   month: string;
+  total_created?: number;
   created_by_copilot: number;
   reviewed_by_copilot: number;
+  total_merged?: number;
+  merged_copilot_authored?: number;
+  merged_copilot_reviewed?: number;
+  copilot_suggestions?: number;
+  copilot_applied_suggestions?: number;
+  avg_median_minutes_to_merge?: number | null;
+  avg_median_minutes_to_merge_copilot?: number | null;
+  avg_median_minutes_to_merge_copilot_reviewed?: number | null;
   days: number;
 }
 
@@ -705,6 +714,7 @@ export interface VolumeMonth {
   month: string;
   ai_credits: number;
   premium_requests: number;
+  cloud_agent_net_usd?: number | null;
   cli_input_tokens: number;
   cli_output_tokens: number;
   app_input_tokens: number;
