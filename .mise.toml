@@ -96,10 +96,10 @@ run = "(cd scripts/generate-docs && go run . --check)"
 description = "Lint skills/, agents/, instructions/, and harness files for quality and token budgets"
 run = """
 set -e
-bash scripts/lint-skills.sh
+bash scripts/lint-skills.sh "$@"
 bash scripts/test-lint-skills.sh
 python3 scripts/check-harness-budget.py --selftest
-python3 scripts/check-harness-budget.py
+python3 scripts/check-harness-budget.py "$@"
 """
 
 

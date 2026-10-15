@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 )
 
 func newSimpleMCPHandler() *MCPHandler {
@@ -34,6 +37,9 @@ func TestMCPHandler_Initialize(t *testing.T) {
 	}
 	if result.ServerInfo.Name != "mcp-onboarding" {
 		t.Errorf("expected server name 'mcp-onboarding', got %q", result.ServerInfo.Name)
+	}
+	if result.ServerInfo.Version != version {
+		t.Errorf("expected server version %q, got %q", version, result.ServerInfo.Version)
 	}
 	if result.ProtocolVersion != "2024-11-05" {
 		t.Errorf("expected protocol version '2024-11-05', got %q", result.ProtocolVersion)
@@ -252,5 +258,85 @@ func TestMCPHandler_CallTool_Whoami(t *testing.T) {
 	}
 	if len(result.Content) == 0 {
 		t.Fatal("expected content")
+	}
+}
+
+func TestLoggingMiddleware_PreservesFlusher(t *testing.T) {
+	var sawFlusher bool
+	handler := loggingMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, sawFlusher = w.(http.Flusher)
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/mcp", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if !sawFlusher {
+		t.Fatal("loggingMiddleware stripped http.Flusher from ResponseWriter")
+	}
+}
+
+type sseTestRecorder struct {
+	*httptest.ResponseRecorder
+	flushed chan struct{}
+	once    sync.Once
+}
+
+func (r *sseTestRecorder) Flush() {
+	r.ResponseRecorder.Flush()
+	r.once.Do(func() { close(r.flushed) })
+}
+
+func TestMCPHandler_HandleSSE_EmptyBodyStaysOpen(t *testing.T) {
+	h := newSimpleMCPHandler()
+	handler := loggingMiddleware(h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req := httptest.NewRequest(http.MethodGet, "/mcp", nil).WithContext(ctx)
+	rec := &sseTestRecorder{
+		ResponseRecorder: httptest.NewRecorder(),
+		flushed:          make(chan struct{}),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		handler.ServeHTTP(rec, req)
+	}()
+
+	select {
+	case <-rec.flushed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handleSSE did not flush initial headers")
+	}
+
+	select {
+	case <-done:
+		t.Fatal("handleSSE exited immediately on empty GET body before context cancellation")
+	case <-time.After(30 * time.Millisecond):
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handleSSE did not exit after context cancellation")
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /mcp status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("Content-Type = %q, want text/event-stream", ct)
+	}
+}
+
+func TestHandleRoot_MethodNotAllowed(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	rec := httptest.NewRecorder()
+	handleRoot(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST / status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
 	}
 }

@@ -1794,8 +1794,7 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 	if present, err := WeightsPresent(m.Model, m.Revision); err != nil {
 		return err
 	} else if !present {
-		return fmt.Errorf("the weights for %s are not on this machine. Download them: %s",
-			m.Model, domain.Bold("nav-pilot alpha local init"))
+		return MissingWeightsError(m)
 	}
 
 	started := time.Now()
@@ -1827,6 +1826,18 @@ func EnsureServerRunning(ctx context.Context, announce func(string), record Reco
 	}
 	report("ready")
 	return SaveState(State{PID: status.PID, Model: m.Model, Revision: m.Revision, Started: time.Now(), Port: srv.Port})
+}
+
+// MissingWeightsError tells the user how to fetch missing weights for m,
+// naming the pinned revision when the manifest sets one so someone who already
+// has an older snapshot knows why it did not count.
+func MissingWeightsError(m Model) error {
+	if m.Revision != "" {
+		return fmt.Errorf("the weights for %s at revision %s are not on this machine. Download them: %s",
+			m.Model, m.Revision, domain.Bold("nav-pilot alpha local init"))
+	}
+	return fmt.Errorf("the weights for %s are not on this machine. Download them: %s",
+		m.Model, domain.Bold("nav-pilot alpha local init"))
 }
 
 // RaiseWiredLimit runs the sysctl that lets the GPU wire enough memory for the
@@ -1885,7 +1896,7 @@ func warnStaleRevision() {
 	}
 	if m, ok := Chosen(Active()); ok {
 		if msg := StaleRevision(st, m); msg != "" {
-			fmt.Fprintln(os.Stderr, msg)
+			fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
 		}
 	}
 }

@@ -1,5 +1,7 @@
 # Video page rewrite plan
 
+> **Status:** Implemented (`apps/my-copilot/src/app/(nb)/videos/[id]`). Kept as design notes.
+
 ## Goal
 
 Rewrite the video experience in `my-copilot` as a dedicated, mobile- and desktop-friendly page with canonical direct links.

@@ -40,7 +40,7 @@ Cached input koster **90 % mindre** enn vanlig input. Eksempel:
 | Claude Sonnet 4.6 | $3.00 | $0.30 | $15.00 |
 | Claude Opus 4.6 | $5.00 | $0.50 | $25.00 |
 
-Anthropic-modeller har i tillegg en **cache write**-kostnad (25 % over vanlig input) første gang konteksten skrives.
+Anthropic-modeller og nyere OpenAI-modeller (GPT-5.6-familien) har i tillegg en **cache write**-kostnad (25 % over vanlig input) første gang konteksten skrives.
 
 Tabellen over er et utsnitt fra april 2026. [Modellpriser](/priser) har hele tabellen og synkroniseres mot GitHub-dokumentasjonen.
 

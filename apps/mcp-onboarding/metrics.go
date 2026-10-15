@@ -39,6 +39,11 @@ var (
 		Name: "token_store_size",
 		Help: "Current number of entries in the token store.",
 	}, []string{"type"})
+
+	buildInfo = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "build_info",
+		Help: "Build version information.",
+	}, []string{"version"})
 )
 
 // knownPaths is the route table as registered on the mux (see RegisterRoutes

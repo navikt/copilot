@@ -1,5 +1,7 @@
 # BigQuery-tidsserier — eksportplan
 
+> **Status:** Referansespørringer for ad-hoc-analyse. Tidsserieendepunktene i `apps/copilot-api` kjører direkte mot BigQuery (`views/v_daily_summary.sql`, `views/v_premium_usage_daily.sql`).
+>
 > Spørringer vi kjører mot BigQuery for å dokumentere 12–16 ukers brukstrender. Krever GCP-tilgang til `copilot_metrics`-datasettet.
 
 ## Spørring 1: DAU/WAU/MAU-kurver (siste 16 uker)

@@ -45,6 +45,15 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   trace back to exactly that. Verify with the PR's `closingIssuesReferences`
   when it matters.
 
+- Issue titles use `<scope>: <short description>` (`nav-pilot:`, `my-copilot:`,
+  `copilot-api:`, `copilot-survey:`, `copilot-metrics:`, `copilot-adoption:`,
+  `mcp-onboarding:`, `mcp-registry:`, `kostnadsinnsikt:`, `verdi:`,
+  `dispatch:`, `benchmark:`, `harness:`, `observability:`, `security:`, or
+  `PRD:`). Leave Conventional Commit prefixes (`feat:`, `fix:`, `chore:`) for
+  commits and PRs; issue type belongs in labels. Write issues in Norwegian
+  (following `apps/my-copilot/ORDBOK.md`) or English, and do not mix languages
+  within the same issue.
+
 - Artifact language: body text in instructions and skills is English; metadata
   in the YAML frontmatter stays Norwegian (#179). The rule governs every
   artifact in this repo and was only recorded in a changelog entry, which is not
@@ -57,6 +66,12 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   and nais/pilot#3, where a denial message an engineer meets mid-task had to
   be cut down to what is wrong and what to run.
 
+- Editing `agents/`, `prompts/`, `skills/`, or `instructions/` requires running
+  `mise run generate` so `copilot-manifest.json` and `docs/README.*.md` stay in
+  sync, and verifying with `mise check` rather than only `nav-pilot:check` (#769).
+- Verify framework APIs and Nav platform config against repo skills (`skills/`),
+  Nav MCP servers (`io.github.navikt/aksel-mcp`), or official docs
+  (`doc.nais.io`, `aksel.nav.no`, `sikkerhet.nav.no`) before writing code (#152).
 - Start with the smallest safe change and keep diffs task-focused.
 - Reuse existing patterns before adding new abstractions.
 - In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.

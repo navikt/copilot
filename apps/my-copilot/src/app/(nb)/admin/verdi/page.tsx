@@ -97,28 +97,28 @@ export default async function AdminVerdiPage() {
         <BodyShort size="small" textColor="subtle">
           Fakturadata skiller ut varelinjene for kodeagenten (<code>Copilot Cloud Agent</code>) og automatisk
           kodegjennomgang (<code>code-review-model</code>), mens IDE-chat og CLI deler de øvrige modell-SKU-ene. Derfor
-          vises direkte kostnad for kodeagent og kodegjennomgang ved siden av total netto kostnad delt på alle
-          sammenslåtte pull requests.
+          vises direkte kostnad for kodeagent og kodegjennomgang ved siden av total netto kostnad delt på alle mergede
+          pull requests.
         </BodyShort>
         {latestPR ? (
           <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
             <MetricCard
               value={fmtUsd(latestPR.usdPerMergedPR)}
-              label="USD per slått sammen PR (total)"
+              label="USD per merget PR (total)"
               subtitle={mLabel(latestPR.month, latestPR.preliminary)}
-              helpTitle="Total kostnad per slått sammen PR"
-              helpText="Månedens totale netto kostnad delt på alle sammenslåtte pull requests i måneden."
+              helpTitle="Total kostnad per merget PR"
+              helpText="Månedens totale netto kostnad delt på alle mergede pull requests i måneden."
             />
             <MetricCard
               value={fmtUsd(latestPR.usdPerAgentMergedPRDirect ?? latestPR.usdPerAgentMergedPR)}
               label={
                 latestPR.usdPerAgentMergedPRDirect !== null
-                  ? "USD per slått sammen agent-PR (SKU)"
-                  : "USD per slått sammen agent-PR (grovt)"
+                  ? "USD per merget agent-PR (SKU)"
+                  : "USD per merget agent-PR (grovt)"
               }
               subtitle={mLabel(latestPR.month, latestPR.preliminary)}
-              helpTitle="Kostnad per slått sammen kodeagent-PR"
-              helpText="Månedens netto kostnad for Copilot Cloud Agent delt på pull requests opprettet av kodeagenten som ble slått sammen."
+              helpTitle="Kostnad per merget kodeagent-PR"
+              helpText="Månedens netto kostnad for Copilot Cloud Agent delt på pull requests opprettet av kodeagenten som ble merget."
             />
             <MetricCard
               value={fmtUsd(latestPR.usdPerReviewDirect)}
@@ -144,7 +144,7 @@ export default async function AdminVerdiPage() {
               [
                 "Måned",
                 "Netto kostnad",
-                "Slått sammen PR",
+                "Mergede PR-er",
                 "USD / PR (total)",
                 "USD / agent-PR (SKU)",
                 "USD / gjennomgang (modell)",
@@ -168,11 +168,10 @@ export default async function AdminVerdiPage() {
 
       <InsightSection id="kodeagent" title="Kodeagentens effekt">
         <BodyShort size="small" textColor="subtle">
-          Hvor mange pull requests Copilot coding agent oppretter, forholdet mellom sammenslåtte og opprettede PR-er i
-          måneden, median tid til sammenslåing og direkte SKU-kostnad per sammenslått agent-PR. Siden PR-er kan
-          opprettes i én måned og slås sammen i en senere måned, kan forholdstallet overstige 100 %. Kjøringer som
-          avbrytes uten at det opprettes en PR, koster fortsatt kreditter, så kostnad per sammenslått PR fanger opp både
-          vellykkede og avbrutte kjøringer.
+          Hvor mange pull requests Copilot coding agent oppretter, forholdet mellom mergede og opprettede PR-er i
+          måneden, median tid til merge og direkte SKU-kostnad per merget agent-PR. Siden PR-er kan opprettes i én måned
+          og merges i en senere måned, kan forholdstallet overstige 100 %. Kjøringer som avbrytes uten at det opprettes
+          en PR, koster fortsatt kreditter, så kostnad per merget PR fanger opp både vellykkede og avbrutte kjøringer.
         </BodyShort>
         {latestPR ? (
           <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
@@ -185,32 +184,32 @@ export default async function AdminVerdiPage() {
             />
             <MetricCard
               value={fmtPct(latestPR.agentMergeSharePct)}
-              label="Sammenslåtte mot opprettede"
-              subtitle={`${formatNumber(latestPR.prMergedCopilotAuthored)} slått sammen i måneden`}
-              helpTitle="Sammenslåtte mot opprettede (flytrate)"
-              helpText="Agent-PR-er slått sammen i måneden delt på agent-PR-er opprettet i samme måned. Kan overstige 100 % når PR-er fra tidligere måneder slås sammen."
+              label="Mergede mot opprettede"
+              subtitle={`${formatNumber(latestPR.prMergedCopilotAuthored)} merget i måneden`}
+              helpTitle="Mergede mot opprettede (flytrate)"
+              helpText="Agent-PR-er merget i måneden delt på agent-PR-er opprettet i samme måned. Kan overstige 100 % når PR-er fra tidligere måneder merges."
             />
             <MetricCard
               value={formatMinutes(latestPR.avgMedianMinutesToMergeCopilot)}
               label="Tid til merge (agent)"
               subtitle={`Alle PR-er: ${formatMinutes(latestPR.avgMedianMinutesToMerge)}`}
               helpTitle="Tid til merge (agent)"
-              helpText="PR-vektet gjennomsnitt av daglig mediantid fra opprettelse til sammenslåing for agent-PR-er."
+              helpText="PR-vektet gjennomsnitt av daglig mediantid fra opprettelse til merge for agent-PR-er."
             />
             <MetricCard
               value={fmtUsd(latestPR.usdPerAgentMergedPRDirect ?? latestPR.usdPerAgentMergedPR)}
               label={
                 latestPR.usdPerAgentMergedPRDirect !== null
-                  ? "USD per slått sammen agent-PR (SKU)"
-                  : "USD per slått sammen agent-PR (grovt)"
+                  ? "USD per merget agent-PR (SKU)"
+                  : "USD per merget agent-PR (grovt)"
               }
               subtitle={
                 latestPR.cloudAgentNetUsd !== null
                   ? `SKU-kostnad: ${fmtUsd(latestPR.cloudAgentNetUsd)}`
                   : "Hele månedskostnaden delt på agent-PR"
               }
-              helpTitle="USD per slått sammen agent-PR"
-              helpText="Månedens nettobeløp for Copilot Cloud Agent delt på antall sammenslåtte agent-PR-er."
+              helpTitle="USD per merget agent-PR"
+              helpText="Månedens nettobeløp for Copilot Cloud Agent delt på antall mergede agent-PR-er."
             />
           </HGrid>
         ) : (
@@ -222,12 +221,12 @@ export default async function AdminVerdiPage() {
               [
                 "Måned",
                 "Opprettet av agent",
-                "Slått sammen",
-                "Sammenslåtte / opprettede",
+                "Merget",
+                "Mergede / opprettede",
                 "Tid til merge (agent)",
                 "Tid til merge (alle)",
                 "Agentkostnad (SKU)",
-                "USD / slått sammen agent-PR",
+                "USD / merget agent-PR",
               ],
               ...prMonths.map((m) => [
                 mLabel(m.month, m.preliminary),
@@ -246,7 +245,7 @@ export default async function AdminVerdiPage() {
 
       <InsightSection id="kodegjennomgang" title="Verdi av kodegjennomgang">
         <BodyShort size="small" textColor="subtle">
-          Andel av Copilots gjennomgangskommentarer som blir tatt i bruk, tid til sammenslåing og hva modellbruken til
+          Andel av Copilots gjennomgangskommentarer som blir tatt i bruk, tid til merge og hva modellbruken til
           kodegjennomgang koster per gjennomgått PR og per forslag tatt i bruk.
         </BodyShort>
         {latestPR ? (
@@ -293,7 +292,7 @@ export default async function AdminVerdiPage() {
               [
                 "Måned",
                 "Gjennomgått",
-                "Slått sammen",
+                "Merget",
                 "Forslag",
                 "Tatt i bruk",
                 "Andel tatt i bruk",
@@ -432,16 +431,16 @@ export default async function AdminVerdiPage() {
           {repos.length > 0 ? (
             <>
               <BodyShort size="small">
-                Repoer med flest sammenslåtte pull requests der Copilot har bidratt som forfatter eller kontrollør
-                (minst fem PR-er totalt i repoet).
+                Repoer med flest mergede pull requests der Copilot har bidratt som forfatter eller kontrollør (minst fem
+                PR-er totalt i repoet).
               </BodyShort>
               <PlainTable
                 rows={[
                   [
                     "Repo",
-                    "PR-er slått sammen",
-                    "Skrevet av agent (slått sammen)",
-                    "Gjennomgått av Copilot (slått sammen)",
+                    "PR-er merget",
+                    "Skrevet av agent (merget)",
+                    "Gjennomgått av Copilot (merget)",
                     "Forslag tatt i bruk",
                     "Tid til merge (agent)",
                     "Tid til merge (alle)",
@@ -481,8 +480,8 @@ export default async function AdminVerdiPage() {
           </BodyShort>
           <BodyShort size="small">
             <strong>Seleksjonsskjevhet i tid til merge:</strong> Kodeagenten settes oftest på små, avgrensede oppgaver,
-            og PR-er som lukkes uten sammenslåing inngår ikke i mediantiden. Kortere tid til merge for agent-PR-er enn
-            for alle PR-er kan derfor skyldes oppgavestørrelse like mye som verktøyet.
+            og PR-er som lukkes uten merge inngår ikke i mediantiden. Kortere tid til merge for agent-PR-er enn for alle
+            PR-er kan derfor skyldes oppgavestørrelse like mye som verktøyet.
           </BodyShort>
           <BodyShort size="small">
             <strong>Goodharts lov:</strong> Tall som kostnad per PR, forslag tatt i bruk og tid til merge er signaler

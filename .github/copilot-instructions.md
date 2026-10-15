@@ -31,5 +31,6 @@ Read `AGENTS.md` for workflow rules and `SECURITY.md` for the security model and
 - **Issue-closing keywords**: PR bodies may be in Norwegian, but issue references must use GitHub's English keywords (`Closes #NNN` or `Fixes #NNN`). Never use `Lukker #NNN` or `Fikser #NNN`, which GitHub ignores.
 - **Artifact language**: Body text in `agents/`, `skills/`, `instructions/`, and `prompts/` is English. Metadata in YAML frontmatter and `metadata.json` (`description`, `title`, `displayName`) stays Norwegian.
 - **Generated files**: Do not hand-edit `apps/my-copilot/src/lib/copilot-manifest.json` or `docs/README.*.md`. Run `mise run generate` after changing customizations.
+- **Verify against docs**: Check repo skills (`skills/`), Nav MCP servers (`io.github.navikt/aksel-mcp`), or official docs (`doc.nais.io`, `aksel.nav.no`, `sikkerhet.nav.no`) before writing code against framework APIs or Nav platform config.
 - **Focused diffs**: Keep changes minimal and scoped to the task. Run `mise check` and `mise test` in the affected directory before opening a PR.
 - **Code review**: Focus on security boundaries, correctness, data races, and regressions. Skip nitpicks that linters (`golangci-lint`, `Biome`, `staticcheck`) already catch.

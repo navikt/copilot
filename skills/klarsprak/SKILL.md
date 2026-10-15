@@ -182,7 +182,7 @@ Ikke oversett engelske tekniske termer som er etablert i norsk fagspråk:
 - edge case (ikke «grensetilfelle»), bug (ikke «feil» alene), bugfix, hotfix, patch
 - roadmap (ikke «veikart»), governance, community (i open source-kontekst)
 - pipeline, workflow, runtime, framework, middleware
-- pull request, merge, commit, branch, rebase
+- pull request, merge (ikke «slått sammen», «sammenslått» eller «flettet»; bøyes merget, mergede), commit, branch (ikke «gren»), rebase
 - endpoint, payload, token, scope, host (ikke «vert» eller «vertsnavn»)
 - skill (ikke «ferdighet»), hook (ikke «krok»), prompt (ikke «ledetekst»)
 

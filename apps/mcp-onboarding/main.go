@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var version = "dev"
 
 type Config struct {
 	Port                string
@@ -70,6 +73,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	buildInfo.WithLabelValues(version).Set(1)
+
 	store := NewTokenStore()
 	githubClient := NewGitHubClient(cfg.GitHubClientID, cfg.GitHubClientSecret)
 	oauthServer := NewOAuthServer(cfg.BaseURL, githubClient, store, cfg.AllowedOrganization)
@@ -115,6 +120,7 @@ func main() {
 	}
 
 	slog.Info("starting mcp-onboarding server",
+		"version", version,
 		"port", cfg.Port,
 		"base_url", cfg.BaseURL,
 		"allowed_org", cfg.AllowedOrganization,
@@ -127,8 +133,9 @@ func main() {
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"healthy"}`))
+	_, _ = fmt.Fprintf(w, `{"status":"healthy","version":%q}`, version)
 }
 
 func handleReady(w http.ResponseWriter, _ *http.Request) {
@@ -139,6 +146,10 @@ func handleReady(w http.ResponseWriter, _ *http.Request) {
 func handleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html")
@@ -204,4 +215,14 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (rw *responseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
 }
