@@ -1,0 +1,37 @@
+{
+  "eksempel": true,
+  "generert": "2000-01-01",
+  "maaneder": {
+    "1999-12": {
+      "lisenser": { "verdi": 950, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "1999-12-31" },
+      "aktive_brukere": { "verdi": 450, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "1999-12-31" }
+    },
+    "2000-01": {
+      "lisenser": { "verdi": 1000, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "aktive_brukere": { "verdi": 500, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "credits_per_bruker_median": { "verdi": 120, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "credits_per_bruker_snitt": { "verdi": 250, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "katalog_elementer": { "verdi": 42, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "modeller_malt": { "verdi": 7, "kilde": "EKSEMPEL, ikke ekte tall", "dato": "2000-01-31" },
+      "bruksband": {
+        "andeler": { "lett": 50, "middels": 30, "tung": 20 },
+        "kilde": "EKSEMPEL, ikke ekte tall",
+        "dato": "2000-01-31"
+      },
+      "modellandeler": {
+        "andeler": {
+          "claude_opus": 20,
+          "claude_sonnet": 20,
+          "claude_haiku": 10,
+          "claude_fable": 0,
+          "gpt": 20,
+          "gpt_mini": 10,
+          "gemini": 10,
+          "andre": 10
+        },
+        "kilde": "EKSEMPEL, ikke ekte tall",
+        "dato": "2000-01-31"
+      }
+    }
+  }
+}
