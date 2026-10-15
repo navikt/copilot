@@ -114,16 +114,30 @@ cplt config set --local sandbox.allow_git_worktrees true   # bare denne utsjekki
           </BodyLong>
           <BodyLong>
             Du trenger ikke be agenten om å bruke mappa. cplt forteller den om mappa i starten av økten, sammen med
-            kommandoen:
+            kommandoene:
           </BodyLong>
-          <CodeBlock compact>{`git worktree add "$CPLT_WORKTREE_ROOT/<navn>" -b <branch>`}</CodeBlock>
+          <CodeBlock compact>
+            {`cplt worktree add <navn> [ref]
+cplt worktree remove <navn>`}
+          </CodeBlock>
           <BodyLong>
-            Worktrees og brancher agenten lager, blir liggende etter økten. Rydd opp selv, utenfor cplt:
+            På macOS er <code className={code}>.github</code>, <code className={code}>.vscode</code>,{" "}
+            <code className={code}>.cplt.toml</code>, <code className={code}>.husky</code> og andre beskyttede stier
+            skrivebeskyttet også inne i worktree-mappa. En vanlig <code className={code}>git worktree add</code> eller{" "}
+            <code className={code}>git worktree remove</code> inne i sandkassen feiler derfor så snart repoet har en
+            slik fil. <code className={code}>cplt worktree add</code> og{" "}
+            <code className={code}>cplt worktree remove</code> ber cplt-prosessen utenfor sandkassen om å opprette og
+            fjerne worktreet i <code className={code}>~/.cplt-worktrees/&lt;id&gt;/&lt;navn&gt;</code> på branchen{" "}
+            <code className={code}>cplt-wt/&lt;navn&gt;</code>.
+          </BodyLong>
+          <BodyLong>
+            Worktrees og brancher som ikke fjernes i økten, blir liggende etterpå. Du kan også rydde opp selv utenfor
+            cplt:
           </BodyLong>
           <CodeBlock compact>
             {`git worktree list
 git worktree remove ~/.cplt-worktrees/<id>/<navn>
-git branch -d <branch>`}
+git branch -d cplt-wt/<navn>`}
           </CodeBlock>
           <BodyLong>
             Innstillingen kan bare settes i din egen cplt-konfig. Et repo kan ikke slå den på for deg med{" "}
@@ -175,8 +189,20 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             </li>
             <li>
               <strong>Bare macOS.</strong> På Linux nekter <code className={code}>cplt config set</code> å slå på
-              worktrees til subagenter, fordi Landlock ikke kan stenge filer inne i mappa. De to andre måtene virker på
-              Linux også.
+              worktrees til subagenter, fordi Landlock ikke kan stenge enkeltfiler inne i et worktree som lages etter
+              oppstart. De to andre måtene virker på Linux også.
+            </li>
+            <li>
+              <strong>Slik lager cplt et worktree for agenten.</strong> Når agenten kjører{" "}
+              <code className={code}>cplt worktree add &lt;navn&gt; [ref]</code>, oppretter cplt utenfor sandkassen
+              først worktreet med <code className={code}>--no-checkout</code> mot den commiten{" "}
+              <code className={code}>HEAD</code> hadde da økten startet. Før filene sjekkes ut, kontrollerer cplt at
+              commiten agenten ba om har nøyaktig samme innhold i <code className={code}>.cplt.toml</code>,{" "}
+              <code className={code}>.github</code>, <code className={code}>.vscode</code>,{" "}
+              <code className={code}>.husky</code>, <code className={code}>.idea</code>,{" "}
+              <code className={code}>.gitattributes</code> og <code className={code}>.gitmodules</code> som oppstarts-
+              <code className={code}>HEAD</code>. Agenten kan derfor ikke sjekke ut en eldre eller nyere commit som
+              endrer hooks eller konfigurasjon.
             </li>
             <li>
               <strong>Samme beskyttelse som i prosjektet.</strong> Hooks og <code className={code}>config</code> i den
@@ -186,8 +212,9 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             </li>
             <li>
               <strong>cplt sjekker mappa ved hver oppstart og ved slutten av økten.</strong> Finner den en{" "}
-              <code className={code}>.git</code> eller et bare repo der git ikke selv ville lagt det, eller en symlenke
-              som peker ut av worktreet, nekter den å starte og sier hvilke mapper du ikke skal kjøre git i.
+              <code className={code}>.git</code> eller et bare repo der git ikke selv ville lagt det, en mappe dypere
+              enn 64 nivåer, eller en symlenke som peker ut av worktreet, nekter den å starte og sier hvilke mapper du
+              ikke skal kjøre git i.
             </li>
             <li>
               <strong>Endringsrapporten dekker ikke worktrees.</strong> Rapporten cplt skriver etter økten, viser bare
@@ -230,8 +257,9 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             cplt vil ikke starte etter git worktree remove
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>git worktree remove</code> feiler inne i sandkassen og etterlater et halvveis slettet
-            worktree. Slett mappa og rydd opp utenfor cplt:
+            Inne i sandkassen skal agenten bruke <code className={code}>cplt worktree remove &lt;navn&gt;</code>. En
+            vanlig <code className={code}>git worktree remove</code> inne i sandkassen feiler på beskyttede filer og
+            etterlater et halvveis slettet worktree. Slett mappa og rydd opp utenfor cplt:
           </BodyLong>
           <CodeBlock compact>
             {`rm -rf ~/.cplt-worktrees/<id>/<navn>

@@ -500,9 +500,10 @@ export default function Klienter() {
         <Box background="info-soft" borderRadius="8" padding="space-16">
           <BodyShort size="small">
             nav-pilot henter ikke GitHub-tokenet selv. Copilot prioriterer {c("COPILOT_GITHUB_TOKEN")}, {c("GH_TOKEN")},
-            så {c("GITHUB_TOKEN")}; cplt kan hente {c("gh auth token --hostname github.com")}. {c("copilot_auth_mode")}{" "}
-            filtrerer bare miljøet før cplt starter: {c("env_only")} krever token der, {c("gh_only")} fjerner
-            variablene. Ingen av dem garanterer hvilken innlogging cplt eller Copilot bruker etterpå.
+            så {c("GITHUB_TOKEN")}. På macOS sender cplt {c("gh auth token --hostname github.com")} som {c("GH_TOKEN")}{" "}
+            når Copilot og gh bruker samme konto, eller Copilots eget nøkkelringtoken som {c("COPILOT_GITHUB_TOKEN")}{" "}
+            når {c("sandbox.copilot_selected_auth")} er på. {c("copilot_auth_mode")} filtrerer bare miljøet før cplt
+            starter: {c("env_only")} krever token der, {c("gh_only")} fjerner variablene.
           </BodyShort>
         </Box>
       </Section>
