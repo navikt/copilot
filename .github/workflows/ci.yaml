@@ -19,6 +19,7 @@ name: ci
 on:
   pull_request:
     branches: [main]
+    types: [opened, edited, synchronize, reopened]
   merge_group:
   workflow_dispatch:
 
@@ -28,6 +29,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
+  actions: read
   contents: read
   pull-requests: read
 
@@ -37,25 +39,52 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      copilot-adoption: ${{ steps.filter.outputs.copilot-adoption }}
-      copilot-api: ${{ steps.filter.outputs.copilot-api }}
-      copilot-cli: ${{ steps.filter.outputs.copilot-cli }}
-      copilot-survey: ${{ steps.filter.outputs.copilot-survey }}
-      copilot-metrics: ${{ steps.filter.outputs.copilot-metrics }}
-      mcp-onboarding: ${{ steps.filter.outputs.mcp-onboarding }}
-      mcp-registry: ${{ steps.filter.outputs.mcp-registry }}
-      my-copilot: ${{ steps.filter.outputs.my-copilot }}
-      nav-pilot: ${{ steps.filter.outputs.nav-pilot }}
-      docs: ${{ steps.filter.outputs.docs }}
-      link-guard: ${{ steps.filter.outputs.link-guard }}
+      reuse-code-checks: ${{ steps.reuse.outputs.reuse }}
+      copilot-adoption: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-adoption || 'false' }}
+      copilot-api: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-api || 'false' }}
+      copilot-cli: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-cli || 'false' }}
+      copilot-survey: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-survey || 'false' }}
+      copilot-metrics: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-metrics || 'false' }}
+      mcp-onboarding: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-onboarding || 'false' }}
+      mcp-registry: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-registry || 'false' }}
+      my-copilot: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.my-copilot || 'false' }}
+      nav-pilot: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.nav-pilot || 'false' }}
+      docs: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.docs || 'false' }}
+      link-guard: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.link-guard || 'false' }}
     steps:
+      # When a PR description or title is edited (no base branch change, same
+      # head SHA), skip re-running code checks if a completed ci.yaml run on
+      # this exact SHA already passed gitleaks and every component check.
+      - name: Check if code checks already passed for HEAD SHA
+        id: reuse
+        if: github.event_name == 'pull_request' && github.event.action == 'edited' && github.event.changes.base == null
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          runs=$(gh api "repos/${REPO}/actions/workflows/ci.yaml/runs?head_sha=${HEAD_SHA}&event=pull_request&status=completed&per_page=10" \
+            --jq ".workflow_runs[] | select(.id != ${CURRENT_RUN_ID}) | .id" 2>/dev/null || true)
+          for run_id in $runs; do
+            ok=$(gh api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
+              --jq '([.jobs[] | select(.name == "gitleaks" and .conclusion == "success")] | length == 1) and ([.jobs[] | select(.name != "pr-body-check" and .name != "ci-ok")] | (length > 0) and all(.conclusion == "success" or .conclusion == "skipped"))' 2>/dev/null || echo "false")
+            if [ "$ok" = "true" ]; then
+              echo "Reusing green code checks from run ${run_id} for SHA ${HEAD_SHA}"
+              echo "reuse=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "reuse=false" >> "$GITHUB_OUTPUT"
       # Full history so paths-filter can diff merge_group base..head with git.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        if: steps.reuse.outputs.reuse != 'true'
         with:
           fetch-depth: 0
       # A conflict resolved by hand can leave a marker line behind, as a
       # diff3 "|||||||" line once did in the changelog. Every tracked text file.
       - name: No merge conflict markers
+        if: steps.reuse.outputs.reuse != 'true'
         run: |
           if git grep -nIE '^(<<<<<<< |\|\|\|\|\|\|\| |=======$|>>>>>>> )'; then
             echo "::error::merge conflict markers left in the lines above"
@@ -66,6 +95,7 @@ jobs:
       # plus this workflow file so editing the gate re-tests everything.
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # ratchet:dorny/paths-filter@v4.0.3
         id: filter
+        if: steps.reuse.outputs.reuse != 'true'
         with:
           filters: |
             copilot-adoption:
@@ -135,6 +165,9 @@ jobs:
               - 'prompts/**'
               - 'hooks/**'
               - '.github/hooks/**'
+              - '.github/copilot-instructions.md'
+              - '.github/instructions/**'
+              - 'scripts/check-harness-budget.py'
               - '.github/workflows/nav-pilot-ci.yaml'
               - '.github/workflows/ci.yaml'
               - 'dashboards/nav-pilot-*.json'
@@ -156,6 +189,11 @@ jobs:
               - 'scripts/generate-docs/**'
               - 'scripts/lint-skills.sh'
               - 'scripts/test-lint-skills.sh'
+              - 'scripts/check-harness-budget.py'
+              - 'hooks/**'
+              - '.github/hooks/**'
+              - '.github/copilot-instructions.md'
+              - '.github/instructions/**'
               - '.github/skills-allowlist.txt'
               - '.github/workflows/docs.yaml'
               - '.github/workflows/ci.yaml'
@@ -469,6 +507,10 @@ jobs:
             python3 "$f" --selftest
             diff -q "$f" ".github/hooks/$(basename "$f")"
           done
+      - name: Harness and customization budget
+        run: |
+          python3 scripts/check-harness-budget.py --selftest
+          python3 scripts/check-harness-budget.py
       - name: Persona transcripts selftest
         run: python3 cli/nav-pilot/e2e/persona_transcripts.py --selftest
       # nav-pilot-local.json is generated: a hand edit, or a change to the
@@ -497,6 +539,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # ratchet:actions/setup-go@v7.0.0
         with:
           go-version-file: scripts/generate-docs/go.mod
@@ -506,6 +550,16 @@ jobs:
         run: bash scripts/lint-skills.sh
       - name: Test the skill linter
         run: bash scripts/test-lint-skills.sh
+      - name: Check harness and customization budgets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          python3 scripts/check-harness-budget.py --selftest
+          if [ -n "$BASE_SHA" ]; then
+            python3 scripts/check-harness-budget.py --diff "$BASE_SHA"
+          else
+            python3 scripts/check-harness-budget.py
+          fi
       - name: Upgrade gh CLI (gh skill requires 2.90.0+)
         run: |
           GH_VERSION=2.90.0
@@ -528,6 +582,8 @@ jobs:
 
   gitleaks:
     name: gitleaks
+    needs: changes
+    if: needs.changes.outputs.reuse-code-checks != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -562,6 +618,103 @@ jobs:
           # -m: also scan merge commits' diffs, e.g. a conflict resolution.
           "${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 --log-opts="-m $range" .
 
+  # ── PR body template check ─────────────────────────────────────────────────
+  # Ensures pull requests include the required sections from
+  # .github/pull_request_template.md and do not use Norwegian issue-closing
+  # keywords that GitHub ignores. Automated bots and sync branches are exempt.
+
+  pr-body-check:
+    name: pr-body-check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate PR description against template
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          ACTOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess, sys
+
+          actor = os.environ.get("ACTOR", "")
+          head_ref = os.environ.get("HEAD_REF", "")
+          exempt_prefixes = (
+              "copilot-sync/",
+              "pricing-sync/",
+              "agentpakke-sweep/",
+              "dependabot/",
+              "release/",
+          )
+          if actor.endswith("[bot]") or head_ref.startswith(exempt_prefixes):
+              print(f"Skipping PR body check for automated PR (actor={actor}, ref={head_ref})")
+              sys.exit(0)
+
+          body = os.environ.get("PR_BODY") or ""
+          repo = os.environ.get("REPO", "")
+          pr_number = os.environ.get("PR_NUMBER", "")
+          if repo and pr_number:
+              res = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/pulls/{pr_number}", "--jq", '.body // ""'],
+                  capture_output=True,
+                  text=True,
+              )
+              if res.returncode == 0:
+                  body = res.stdout
+          stripped = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+
+          required = [
+              ("## Summary", ("## Summary", "## Oppsummering", "## Hva", "## Bakgrunn"), False),
+              (
+                  "## Risk profile & rollout",
+                  ("## Risk profile & rollout", "## Risikoprofil og utrulling", "## Risiko og utrulling", "## Risiko"),
+                  True,
+              ),
+              ("## Security considerations", ("## Security considerations", "## Sikkerhetsvurderinger", "## Sikkerhet"), False),
+              ("## Test plan", ("## Test plan", "## Testplan", "## Verifisering"), False),
+          ]
+          errors = []
+
+          for label, aliases, needs_checkbox in required:
+              pattern = r"^(?:" + "|".join(re.escape(a) for a in aliases) + r")\s*$"
+              m = re.search(pattern, stripped, flags=re.M | re.I)
+              if not m:
+                  errors.append(f"Missing required heading: '{label}' (accepted: {', '.join(aliases)})")
+                  continue
+              start = m.end()
+              next_h = re.search(r"^##\s+\S", stripped[start:], flags=re.M)
+              section = stripped[start : start + next_h.start()] if next_h else stripped[start:]
+              content = re.sub(r"-\s*\[\s*\]\s*.*", "", section).strip()
+              if not content:
+                  errors.append(f"Section '{label}' is empty (please fill it in)")
+              if needs_checkbox and not re.search(r"-\s*\[[xX]\]", section):
+                  errors.append(
+                      f"Section '{label}' must have at least one checked item (- [x])"
+                  )
+
+          prose = re.sub(r"```.*?```|`[^`\n]+`", "", stripped, flags=re.S)
+          bad_close = re.findall(r"\b(?:lukker|fikser|løser)\s+#\d+\b", prose, flags=re.I)
+          if bad_close:
+              errors.append(
+                  f"Use English issue-closing keywords ('Closes #NNN' or 'Fixes #NNN') instead of {', '.join(bad_close)}"
+              )
+
+          if errors:
+              for err in errors:
+                  print(f"::error::{err}")
+              print(
+                  "\nPlease fill in all sections of .github/pull_request_template.md.",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print("PR body matches .github/pull_request_template.md")
+          PY
+
   # ── the gate ───────────────────────────────────────────────────────────────
   # Single check to require in the branch ruleset. Succeeds when every needed
   # job succeeded or was skipped (nothing relevant changed); fails when any
@@ -583,6 +736,7 @@ jobs:
       - docs
       - link-guard
       - gitleaks
+      - pr-body-check
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
