@@ -169,6 +169,7 @@ export const commonHorizontalBarOptions = {
   },
   scales: {
     y: {
+      maxWidth: 140,
       border: { display: false },
       grid: { display: false },
       ticks: githubTickStyle,

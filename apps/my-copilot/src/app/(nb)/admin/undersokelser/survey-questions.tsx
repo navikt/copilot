@@ -21,47 +21,49 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
   const n = v.n;
   if (!v.options || n === null) return null;
   return (
-    <Table size="small">
-      <caption className="text-left">
-        <BodyShort size="small">
-          {caption}: {formatNumber(n)} svar
-        </BodyShort>
-      </caption>
-      <TableHeader>
-        <TableRow>
-          <TableHeaderCell scope="col">Svar</TableHeaderCell>
-          <TableHeaderCell scope="col" align="right">
-            Antall
-          </TableHeaderCell>
-          <TableHeaderCell scope="col" className="w-1/2">
-            Andel av dem som svarte
-          </TableHeaderCell>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {v.options.map((o) => {
-          const share = o.count === null || n === 0 ? 0 : o.count / n;
-          return (
-            <TableRow key={o.value}>
-              <TableDataCell>{label(v.version, o.value)}</TableDataCell>
-              <TableDataCell align="right">{o.count === null ? "–" : formatNumber(o.count)}</TableDataCell>
-              <TableDataCell>
-                {o.count === null ? null : (
-                  <div className="flex items-center gap-2">
-                    <div
-                      aria-hidden
-                      className="h-3 rounded-sm"
-                      style={{ width: `${Math.round(share * 100)}%`, ...fill("var(--ax-bg-accent-strong)") }}
-                    />
-                    <span>{Math.round(share * 100)} %</span>
-                  </div>
-                )}
-              </TableDataCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <div className="overflow-x-auto">
+      <Table size="small">
+        <caption className="text-left">
+          <BodyShort size="small">
+            {caption}: {formatNumber(n)} svar
+          </BodyShort>
+        </caption>
+        <TableHeader>
+          <TableRow>
+            <TableHeaderCell scope="col">Svar</TableHeaderCell>
+            <TableHeaderCell scope="col" align="right">
+              Antall
+            </TableHeaderCell>
+            <TableHeaderCell scope="col" className="w-1/2">
+              Andel av dem som svarte
+            </TableHeaderCell>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {v.options.map((o) => {
+            const share = o.count === null || n === 0 ? 0 : o.count / n;
+            return (
+              <TableRow key={o.value}>
+                <TableDataCell>{label(v.version, o.value)}</TableDataCell>
+                <TableDataCell align="right">{o.count === null ? "–" : formatNumber(o.count)}</TableDataCell>
+                <TableDataCell>
+                  {o.count === null ? null : (
+                    <div className="flex items-center gap-2">
+                      <div
+                        aria-hidden
+                        className="h-3 rounded-sm"
+                        style={{ width: `${Math.round(share * 100)}%`, ...fill("var(--ax-bg-accent-strong)") }}
+                      />
+                      <span>{Math.round(share * 100)} %</span>
+                    </div>
+                  )}
+                </TableDataCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 

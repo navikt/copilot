@@ -17,6 +17,7 @@ import {
 } from "@navikt/ds-react";
 import { User } from "@/lib/auth";
 import { formatNumber } from "@/lib/format";
+import { chartBoxClass } from "@/lib/chart-utils";
 import type { UserMetricsSummary, DailyCredits } from "@/lib/types";
 import dynamic from "next/dynamic";
 
@@ -24,9 +25,9 @@ import dynamic from "next/dynamic";
 
 const DailyCreditsChart = dynamic(() => import("@/components/charts/DailyCreditsChart"), {
   ssr: false,
-  // Chart.js keeps its default 2:1 canvas, so the placeholder does too.
+  // Match DailyCreditsChart container height so loading does not shift layout.
   loading: () => (
-    <div className="aspect-[2/1]">
+    <div className={chartBoxClass}>
       <Skeleton variant="rectangle" height="100%" />
     </div>
   ),
@@ -310,7 +311,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
 
       <VStack gap="space-16">
         <HGrid columns={{ xs: 1, md: 2, lg: 3 }} gap="space-8">
-          <Box padding="space-8" borderRadius="8" className="border">
+          <Box padding="space-8" borderRadius="8" className="border min-w-0">
             {" "}
             {loading ? (
               // Five lines and a button, like the loaded card, so the cards below stay put.
@@ -389,7 +390,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
               </VStack>
             )}
           </Box>
-          <Box padding="space-8" borderRadius="8" className="border">
+          <Box padding="space-8" borderRadius="8" className="border min-w-0">
             <VStack gap="space-4">
               <Heading size="medium" level="3">
                 Brukerinformasjon
@@ -397,7 +398,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
               <BodyShort>
                 <strong>Navn:</strong> {user.firstName} {user.lastName}
               </BodyShort>
-              <BodyShort>
+              <BodyShort className="break-all">
                 <strong>E-post:</strong> {user.email}
               </BodyShort>
               <div>
@@ -418,16 +419,18 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
               {showGroups && (
                 <div>
                   <strong>Grupper:</strong>
-                  <ul className="list-disc list-inside" style={{ marginLeft: "16px" }}>
+                  <ul className="list-disc list-inside" style={{ marginLeft: "var(--ax-space-16)" }}>
                     {user.groups.map((group, index) => (
-                      <li key={index}>{group}</li>
+                      <li key={index} className="break-all">
+                        {group}
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
             </VStack>
           </Box>
-          <Box padding="space-8" borderRadius="8" className="border">
+          <Box padding="space-8" borderRadius="8" className="border min-w-0">
             <VStack gap="space-4">
               <Heading size="medium" level="3">
                 AI-kredittgrense
@@ -452,7 +455,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                           style={{
                             display: "flex",
                             justifyContent: "space-between",
-                            marginBottom: "var(--a-spacing-1)",
+                            marginBottom: "var(--ax-space-4)",
                           }}
                         >
                           <BodyShort size="small" className="text-gray-600">
@@ -517,7 +520,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         {(usageLoading || usageMetrics || githubUsername) && (
           <HGrid columns={{ xs: 1, md: 3 }} gap="space-8">
             {/* Card: Kodeforslag */}
-            <Box padding="space-8" borderRadius="8" className="border">
+            <Box padding="space-8" borderRadius="8" className="border min-w-0">
               <VStack gap="space-4">
                 <VStack gap="space-1">
                   <Heading size="medium" level="3">
@@ -542,7 +545,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
-                          marginBottom: "var(--a-spacing-1)",
+                          marginBottom: "var(--ax-space-4)",
                         }}
                       >
                         <BodyShort size="small" className="text-gray-600">
@@ -579,7 +582,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
             </Box>
 
             {/* Card: Nav Pilot CLI */}
-            <Box padding="space-8" borderRadius="8" className="border">
+            <Box padding="space-8" borderRadius="8" className="border min-w-0">
               <VStack gap="space-4">
                 <VStack gap="space-1">
                   <Heading size="medium" level="3">
@@ -594,7 +597,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                     <Skeleton variant="text" width="10rem" />
                     <Skeleton variant="text" width="8rem" />
                     <Skeleton variant="text" width="8rem" />
-                    <Skeleton variant="text" width="14rem" />
+                    <Skeleton variant="text" width="80%" />
                     <Skeleton variant="text" width="12rem" />
                     <span className="sr-only">Laster CLI-data...</span>
                   </VStack>
@@ -629,7 +632,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
             </Box>
 
             {/* Card: Top models */}
-            <Box padding="space-8" borderRadius="8" className="border">
+            <Box padding="space-8" borderRadius="8" className="border min-w-0">
               <VStack gap="space-4">
                 <VStack gap="space-1">
                   <Heading size="medium" level="3">
@@ -661,11 +664,14 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                               style={{
                                 display: "flex",
                                 justifyContent: "space-between",
-                                marginBottom: "var(--a-spacing-1)",
+                                gap: "var(--ax-space-8)",
+                                marginBottom: "var(--ax-space-4)",
                               }}
                             >
-                              <BodyShort size="small">{m.model}</BodyShort>
-                              <BodyShort size="small" className="text-gray-600">
+                              <BodyShort size="small" className="break-words min-w-0">
+                                {m.model}
+                              </BodyShort>
+                              <BodyShort size="small" className="text-gray-600 shrink-0">
                                 {formatNumber(m.interactions)}
                               </BodyShort>
                             </div>
@@ -691,15 +697,15 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
         {/* Row 3: Daily credit usage chart */}
         {/* Shown while loading too, so the row does not push in once the username is known. */}
         {(usageLoading || (dailyCredits && githubUsername)) && (
-          <Box padding="space-8" borderRadius="8" className="border">
+          <Box padding="space-8" borderRadius="8" className="border min-w-0">
             <VStack gap="space-4">
               <Heading size="medium" level="3">
                 AI-kredittforbruk per dag (30 dager)
               </Heading>
               {usageLoading ? (
                 <VStack gap="space-4" role="status">
-                  <Skeleton variant="text" width="16rem" />
-                  <div className="aspect-[2/1]">
+                  <Skeleton variant="text" width="70%" />
+                  <div className={chartBoxClass}>
                     <Skeleton variant="rectangle" height="100%" />
                   </div>
                   <span className="sr-only">Laster kredittdata...</span>

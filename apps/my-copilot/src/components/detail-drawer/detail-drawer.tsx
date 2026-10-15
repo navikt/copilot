@@ -62,7 +62,7 @@ export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: Deta
                     <button
                       type="button"
                       onClick={onClose}
-                      className="text-gray-400 hover:text-gray-600 transition-colors bg-transparent border-none cursor-pointer"
+                      className="w-9 h-9 inline-flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors bg-transparent border-none cursor-pointer"
                       aria-label="Lukk panel"
                     >
                       <XMarkIcon className="w-6 h-6" />

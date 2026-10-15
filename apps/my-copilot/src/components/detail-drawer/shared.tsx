@@ -23,7 +23,7 @@ export function ToolList({ tools }: { tools: string[] }) {
         ))}
       </HStack>
       {showToggle && (
-        <Button variant="tertiary" size="xsmall" onClick={() => setExpanded(!expanded)}>
+        <Button variant="tertiary" size="small" onClick={() => setExpanded(!expanded)}>
           {expanded ? "Vis færre" : `Vis alle ${tools.length} verktøy`}
         </Button>
       )}

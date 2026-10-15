@@ -70,11 +70,21 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
         </HStack>
 
         {item.type === "instruction" && (
-          <code className="text-xs bg-gray-100 rounded px-2 py-1 inline-block w-fit">{item.applyTo}</code>
+          <code
+            className="text-xs bg-gray-100 rounded inline-block w-fit max-w-full break-all"
+            style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
+          >
+            {item.applyTo}
+          </code>
         )}
 
         {item.type === "prompt" && (
-          <code className="text-xs bg-gray-100 rounded px-2 py-1 inline-block w-fit">{item.invocation}</code>
+          <code
+            className="text-xs bg-gray-100 rounded inline-block w-fit max-w-full break-all"
+            style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
+          >
+            {item.invocation}
+          </code>
         )}
 
         {item.type === "mcp" && item.remotes.length > 0 && (
@@ -91,7 +101,7 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
           {item.description}
         </BodyShort>
 
-        <div className="flex items-center justify-between gap-(--a-spacing-8) mt-auto">
+        <div className="flex flex-wrap items-center justify-between gap-(--ax-space-8) mt-auto">
           <HStack gap="space-8" align="center">
             {item.installUrl && (
               <a

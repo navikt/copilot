@@ -120,6 +120,7 @@ export const LikertChart: React.FC<LikertChartProps> = ({ title, items, total = 
       },
       y: {
         stacked: true,
+        maxWidth: 140,
         border: { display: false },
         grid: { display: false },
         ticks: { color: "#374151", font: { size: 11 } },

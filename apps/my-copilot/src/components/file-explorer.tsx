@@ -110,9 +110,12 @@ export function FileExplorer() {
         </BodyShort>
       </div>
 
-      <div className="flex" style={{ minHeight: "280px" }}>
+      <div className="flex flex-col sm:flex-row" style={{ minHeight: "280px" }}>
         {/* File list (left) */}
-        <div className="w-1/2 overflow-y-auto" style={{ borderRight: "1px solid #e2e8f0", background: "#fafbfc" }}>
+        <div
+          className="w-full sm:w-1/2 overflow-y-auto border-b sm:border-b-0 sm:border-r border-[#e2e8f0]"
+          style={{ background: "#fafbfc" }}
+        >
           {FILE_TREE.map((f, i) => {
             const m = TYPE_META[f.type];
             const isSelected = i === selected;
@@ -150,7 +153,7 @@ export function FileExplorer() {
         </div>
 
         {/* Detail panel (right) */}
-        <div className="w-1/2 p-4 flex flex-col gap-3">
+        <div className="w-full sm:w-1/2 flex flex-col gap-3" style={{ padding: "var(--ax-space-16)" }}>
           <div className="flex items-center gap-2">
             <span
               className="text-xs font-semibold rounded-full px-2 py-0.5"

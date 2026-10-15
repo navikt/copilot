@@ -54,13 +54,18 @@ export function Carousel({ children, showIndicators = true, showSwipeHint = true
                 {children.map((_, index) => (
                   <button
                     key={index}
+                    type="button"
                     onClick={() => scrollToIndex(index)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      index === activeIndex ? "bg-blue-600 w-5" : "bg-gray-300 w-2"
-                    }`}
+                    className="min-h-8 flex items-center bg-transparent border-none cursor-pointer"
                     aria-label={`Go to slide ${index + 1} of ${children.length}`}
-                    style={{ marginLeft: index > 0 ? "8px" : "0" }}
-                  />
+                    style={{ paddingInline: "var(--ax-space-4)" }}
+                  >
+                    <span
+                      className={`block h-2 rounded-full transition-all duration-300 ${
+                        index === activeIndex ? "bg-blue-600 w-5" : "bg-gray-300 w-2"
+                      }`}
+                    />
+                  </button>
                 ))}
               </div>
             )}

@@ -18,7 +18,8 @@ export function AltInstall() {
         style={{
           background: "none",
           border: "none",
-          padding: 0,
+          paddingBlock: "var(--ax-space-8)",
+          paddingInline: 0,
           cursor: "pointer",
           fontSize: "0.8125rem",
           color: "#64748b",
@@ -66,17 +67,24 @@ export function AltInstall() {
             <strong>⚠ Sikkerhetsmerk:</strong> <code>curl | bash</code> kjører skriptet uten forhåndsverifikasjon. For
             CI eller sensitive miljøer: last ned og inspiser skriptet manuelt før kjøring.
             <div
-              className="rounded-lg overflow-hidden border border-yellow-300 flex items-start justify-between mt-2"
-              style={{ background: "#fefce8" }}
+              className="rounded-lg overflow-hidden border border-yellow-300 flex items-start justify-between"
+              style={{ background: "#fefce8", marginTop: "var(--ax-space-8)" }}
             >
               <pre
-                className="font-mono flex-1 px-3 py-2 m-0"
-                style={{ fontSize: "0.7rem", color: "#334155", whiteSpace: "pre" }}
+                className="font-mono flex-1 min-w-0 overflow-x-auto"
+                style={{
+                  fontSize: "0.7rem",
+                  color: "#334155",
+                  whiteSpace: "pre",
+                  margin: 0,
+                  paddingBlock: "var(--ax-space-8)",
+                  paddingInline: "var(--ax-space-12)",
+                }}
               >
                 {INSTALL_SAFE_COMMAND}
               </pre>
-              <div className="shrink-0 pr-2 pt-2">
-                <CopyButton copyText={INSTALL_SAFE_COMMAND} size="xsmall" />
+              <div className="shrink-0" style={{ paddingRight: "var(--ax-space-8)", paddingTop: "var(--ax-space-8)" }}>
+                <CopyButton copyText={INSTALL_SAFE_COMMAND} size="small" />
               </div>
             </div>
           </div>

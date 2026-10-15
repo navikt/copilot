@@ -70,14 +70,7 @@ export function PipelineFlow() {
   return (
     <div>
       {/* Phase cards */}
-      <div
-        className="w-full items-stretch gap-0"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          alignItems: "stretch",
-        }}
-      >
+      <div className="w-full grid grid-cols-2 md:grid-cols-4 items-stretch gap-2 md:gap-0">
         {STEPS.map((step, i) => {
           const isActive = i === activeIndex;
           return (

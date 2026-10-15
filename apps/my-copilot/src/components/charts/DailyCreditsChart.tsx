@@ -3,7 +3,7 @@
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { BodyShort } from "@navikt/ds-react";
-import { chartColors, getBackgroundColor } from "@/lib/chart-utils";
+import { chartBoxClass, chartColors, getBackgroundColor } from "@/lib/chart-utils";
 import { formatNumber } from "@/lib/format";
 import type { DailyCredits } from "@/lib/types";
 
@@ -78,7 +78,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
 
   const options = {
     responsive: true,
-    maintainAspectRatio: true,
+    maintainAspectRatio: false,
     interaction: { mode: "index" as const, intersect: false },
     plugins: {
       legend: {
@@ -131,18 +131,18 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
   return (
     <div>
       {hasCredits && (
-        <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--a-spacing-4)" }}>
+        <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--ax-space-16)" }}>
           Totalt {formatNumber(Math.round(totalCredits))} AI-kreditter siste 30 dager
         </BodyShort>
       )}
-      <div className="aspect-[8/1]">
+      <div className={chartBoxClass}>
         <Bar
           data={chartData as Parameters<typeof Bar>[0]["data"]}
           options={options as Parameters<typeof Bar>[0]["options"]}
         />
       </div>
       {!hasCredits && (
-        <BodyShort size="small" className="text-gray-500" style={{ marginTop: "var(--a-spacing-4)" }}>
+        <BodyShort size="small" className="text-gray-500" style={{ marginTop: "var(--ax-space-16)" }}>
           Kredittellingen startet 19. juni 2026, så data vil vokse over tid.
         </BodyShort>
       )}

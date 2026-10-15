@@ -88,7 +88,12 @@ export function StaticCustomizationDetails({
           <Heading size="xsmall" level="4">
             Gjelder for
           </Heading>
-          <code className="text-xs bg-gray-100 rounded px-2 py-1 inline-block">{item.applyTo}</code>
+          <code
+            className="text-xs bg-gray-100 rounded inline-block max-w-full break-all"
+            style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
+          >
+            {item.applyTo}
+          </code>
         </VStack>
       )}
 
@@ -97,7 +102,12 @@ export function StaticCustomizationDetails({
           <Heading size="xsmall" level="4">
             Aktivering
           </Heading>
-          <code className="text-xs bg-gray-100 rounded px-2 py-1 inline-block">{item.invocation}</code>
+          <code
+            className="text-xs bg-gray-100 rounded inline-block max-w-full break-all"
+            style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
+          >
+            {item.invocation}
+          </code>
         </VStack>
       )}
 

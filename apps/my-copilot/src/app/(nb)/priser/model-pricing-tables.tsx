@@ -213,13 +213,13 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
               className="max-w-md"
             />
           </HStack>
-          <HStack gap="space-8" wrap aria-label="Filtrer på kolonneverdier">
+          <HStack gap="space-8" wrap aria-label="Filtrer på kolonneverdier" className="relative">
             {DISCRETE_FILTER_COLUMNS.map(({ key, label }) => {
               const values = filterOptions[key];
               const selectedValues = columnFilters[key] ?? values;
               const allSelected = selectedValues.length === values.length;
               return (
-                <details key={key} className="relative">
+                <details key={key} className="static sm:relative">
                   <summary
                     className="cursor-pointer rounded-md border border-gray-300 text-sm"
                     style={{ paddingBlock: "var(--ax-space-8)", paddingInline: "var(--ax-space-12)" }}
@@ -227,7 +227,7 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
                     {label}: {allSelected ? "Alle" : `${selectedValues.length}/${values.length}`}
                   </summary>
                   <div
-                    className="absolute left-0 z-10 max-h-80 min-w-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                    className="absolute left-0 right-0 sm:right-auto z-10 max-h-80 sm:min-w-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
                     style={{ marginTop: "var(--ax-space-4)", padding: "var(--ax-space-12)" }}
                   >
                     <CheckboxGroup
@@ -263,7 +263,7 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
               const summary = range.min || range.max ? `${range.min || "Min"}–${range.max || "Maks"}` : "Alle";
 
               return (
-                <details key={key} className="relative">
+                <details key={key} className="static sm:relative">
                   <summary
                     className="cursor-pointer rounded-md border border-gray-300 text-sm"
                     style={{ paddingBlock: "var(--ax-space-8)", paddingInline: "var(--ax-space-12)" }}
@@ -271,10 +271,13 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
                     {label}: {summary}
                   </summary>
                   <div
-                    className="absolute left-0 z-10 flex min-w-64 rounded-md border border-gray-200 bg-white shadow-lg"
+                    className="absolute left-0 right-0 sm:right-auto z-10 flex sm:min-w-64 rounded-md border border-gray-200 bg-white shadow-lg"
                     style={{ marginTop: "var(--ax-space-4)", gap: "var(--ax-space-12)", padding: "var(--ax-space-12)" }}
                   >
-                    <label className="flex flex-col text-sm" style={{ gap: "var(--ax-space-4)" }}>
+                    <label
+                      className="flex flex-1 sm:flex-initial min-w-0 flex-col text-sm"
+                      style={{ gap: "var(--ax-space-4)" }}
+                    >
                       Min
                       <input
                         aria-label={`${label} min`}
@@ -289,11 +292,14 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
                             [key]: { ...current[key], min: event.target.value || undefined },
                           }))
                         }
-                        className="w-28 rounded-md border border-gray-300"
+                        className="w-full sm:w-28 rounded-md border border-gray-300"
                         style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
                       />
                     </label>
-                    <label className="flex flex-col text-sm" style={{ gap: "var(--ax-space-4)" }}>
+                    <label
+                      className="flex flex-1 sm:flex-initial min-w-0 flex-col text-sm"
+                      style={{ gap: "var(--ax-space-4)" }}
+                    >
                       Maks
                       <input
                         aria-label={`${label} maks`}
@@ -308,7 +314,7 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
                             [key]: { ...current[key], max: event.target.value || undefined },
                           }))
                         }
-                        className="w-28 rounded-md border border-gray-300"
+                        className="w-full sm:w-28 rounded-md border border-gray-300"
                         style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
                       />
                     </label>

@@ -280,18 +280,25 @@ export default function RetningslinjerPage() {
 
             {/* Endringslogg */}
             <Section icon={<ClockIcon aria-hidden />} title="Endringslogg">
-              <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                <table className="text-sm w-full min-w-max">
+              <div className="overflow-x-auto">
+                <table className="text-sm w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 pr-4 font-medium">Dato</th>
-                      <th className="text-left py-2 font-medium">Endring</th>
+                      <th
+                        className="text-left font-medium"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        Dato
+                      </th>
+                      <th className="text-left font-medium" style={{ paddingBlock: "var(--ax-space-8)" }}>
+                        Endring
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="border-b">
                       <td
-                        className="whitespace-nowrap"
+                        className="whitespace-nowrap align-top"
                         style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
                       >
                         2026-10-11
@@ -302,7 +309,7 @@ export default function RetningslinjerPage() {
                     </tr>
                     <tr className="border-b">
                       <td
-                        className="whitespace-nowrap"
+                        className="whitespace-nowrap align-top"
                         style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
                       >
                         2026-10-10
@@ -314,30 +321,55 @@ export default function RetningslinjerPage() {
                       </td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-2 pr-4 whitespace-nowrap">2026-08-13</td>
-                      <td className="py-2">
+                      <td
+                        className="whitespace-nowrap align-top"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2026-08-13
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>
                         Lagt til krav om at KI-agenter skal kjøre isolert (sandbox) på Nav-utstyr, med cplt som anbefalt
                         løsning. Gjelder også personlig agentarbeid.
                       </td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-2 pr-4 whitespace-nowrap">2026-05-05</td>
-                      <td className="py-2">
+                      <td
+                        className="whitespace-nowrap align-top"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2026-05-05
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>
                         Lagt til retningslinjer for agent mode, coding agent, MCP-servere og BYOK. Fjernet krav om
                         &laquo;block public code matching&raquo;. Ny seksjon om bevisst KI-bruk.
                       </td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-2 pr-4 whitespace-nowrap">2025-09-02</td>
-                      <td className="py-2">Copilot tilgjengelig for konsulenter</td>
+                      <td
+                        className="whitespace-nowrap align-top"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2025-09-02
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>Copilot tilgjengelig for konsulenter</td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-2 pr-4 whitespace-nowrap">2024-05-29</td>
-                      <td className="py-2">Copilot for konsulenter lagt til</td>
+                      <td
+                        className="whitespace-nowrap align-top"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2024-05-29
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>Copilot for konsulenter lagt til</td>
                     </tr>
                     <tr>
-                      <td className="py-2 pr-4 whitespace-nowrap">2023-09-05</td>
-                      <td className="py-2">Første versjon</td>
+                      <td
+                        className="whitespace-nowrap align-top"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
+                        2023-09-05
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>Første versjon</td>
                     </tr>
                   </tbody>
                 </table>

@@ -7,7 +7,7 @@ export function TrustBoundaryDiagram() {
     <div className="w-full overflow-x-auto">
       <svg
         viewBox="0 0 960 580"
-        className="w-full"
+        className="w-full min-w-[640px]"
         style={{ width: "100%", margin: "0 auto", display: "block" }}
         role="img"
         aria-label="Arkitekturdiagram som viser tillitsgrenser mellom utviklermaskin, GitHub Copilot API og model providers"
