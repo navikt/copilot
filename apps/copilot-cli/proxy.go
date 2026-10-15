@@ -143,7 +143,11 @@ func (p *upstream) isOrgMember(ctx context.Context, login string) (bool, error) 
 	var out struct {
 		Active *bool `json:"active"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<10)).Decode(&out); err != nil || out.Active == nil {
+	dec := json.NewDecoder(io.LimitReader(resp.Body, 1<<10))
+	if err := dec.Decode(&out); err != nil || out.Active == nil {
+		return false, fmt.Errorf("%s membership: malformed answer", p.name)
+	}
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
 		return false, fmt.Errorf("%s membership: malformed answer", p.name)
 	}
 	return *out.Active, nil

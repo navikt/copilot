@@ -278,6 +278,7 @@ func TestMembershipFailsClosed(t *testing.T) {
 		{"redirect", 302, `{"active":true}`},
 		{"no active field", 200, `{"member":true}`},
 		{"active not a bool", 200, `{"active":"true"}`},
+		{"trailing bytes", 200, `{"active":true}garbage`},
 		{"not json", 200, `yes`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

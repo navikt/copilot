@@ -206,6 +206,7 @@ type videoManifestCache struct {
 	now           func() time.Time
 	loader        func(context.Context, string) ([]VideoManifestEntry, error)
 	cachedEntries []VideoManifestEntry
+	cachedErr     error
 	loaded        bool
 	expiresAt     time.Time
 }
@@ -224,10 +225,17 @@ func newVideoManifestCache(source string, ttl time.Duration) *videoManifestCache
 
 func (c *videoManifestCache) get(ctx context.Context) ([]VideoManifestEntry, error) {
 	c.mu.Lock()
-	if c.loaded && c.now().Before(c.expiresAt) {
-		entries := cloneVideoManifestEntries(c.cachedEntries)
-		c.mu.Unlock()
-		return entries, nil
+	if c.now().Before(c.expiresAt) {
+		if c.loaded {
+			entries := cloneVideoManifestEntries(c.cachedEntries)
+			c.mu.Unlock()
+			return entries, nil
+		}
+		if c.cachedErr != nil {
+			err := c.cachedErr
+			c.mu.Unlock()
+			return nil, err
+		}
 	}
 	if err := ctx.Err(); err != nil {
 		c.mu.Unlock()
@@ -262,10 +270,13 @@ func (c *videoManifestCache) runReload(ctx context.Context, call *videoManifestC
 			call.entries = cloneVideoManifestEntries(c.cachedEntries)
 			call.err = fmt.Errorf("refreshing manifest: %w", err)
 		} else {
+			c.cachedErr = err
+			c.expiresAt = c.now().Add(min(c.ttl, 5*time.Second))
 			call.err = err
 		}
 	} else {
 		c.cachedEntries = cloneVideoManifestEntries(entries)
+		c.cachedErr = nil
 		c.loaded = true
 		c.expiresAt = c.now().Add(c.ttl)
 		call.entries = cloneVideoManifestEntries(c.cachedEntries)

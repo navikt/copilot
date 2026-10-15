@@ -204,6 +204,40 @@ func TestVideoManifestCacheUsesTTL(t *testing.T) {
 	}
 }
 
+func TestVideoManifestCacheNegativeCachesFailedFirstLoad(t *testing.T) {
+	cache := newVideoManifestCache("manifest-source", time.Minute)
+
+	current := time.Unix(0, 0)
+	var loads int
+	cache.now = func() time.Time { return current }
+	cache.loader = func(context.Context, string) ([]VideoManifestEntry, error) {
+		loads++
+		if loads == 1 {
+			return nil, fmt.Errorf("gcs unavailable")
+		}
+		return []VideoManifestEntry{{ID: "intro-cli", Title: "Intro", DurationSec: 42, AspectRatio: "9:16", PublishedAt: current.Add(time.Minute), PosterObject: "poster.jpg", HLSMasterObject: "master.m3u8"}}, nil
+	}
+
+	if _, err := cache.get(context.Background()); err == nil {
+		t.Fatal("expected initial load failure")
+	}
+	if _, err := cache.get(context.Background()); err == nil {
+		t.Fatal("expected cached initial load failure within negative TTL")
+	}
+	if loads != 1 {
+		t.Fatalf("expected 1 loader call within negative TTL, got %d", loads)
+	}
+
+	current = current.Add(6 * time.Second)
+	entries, err := cache.get(context.Background())
+	if err != nil {
+		t.Fatalf("expected retry after negative TTL to succeed, got %v", err)
+	}
+	if loads != 2 || len(entries) != 1 || entries[0].ID != "intro-cli" {
+		t.Fatalf("unexpected retry state: loads=%d entries=%v", loads, entries)
+	}
+}
+
 func TestVideoFeedEndpoint(t *testing.T) {
 	router := newTestVideoRouter(t)
 	req := httptest.NewRequest(http.MethodGet, "/public/v1/videos?limit=10", nil)

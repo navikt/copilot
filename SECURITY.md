@@ -151,8 +151,10 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
    (`POST /internal/v1/github/org-membership`, M2M, copilot-cli's token only)
    whether that login is an active `navikt` member; copilot-api answers with
    its own GitHub App, so the user token needs no GitHub permissions. The
-   outcome is cached 5 min, never past the token's expiry. Fails closed: any
-   GitHub or copilot-api error rejects the request.
+   outcome is cached 5 min (`OrgMembershipCacheTTL`), never past the token's
+   expiry, and copilot-api caches the org membership lookup for 1 min, so a user
+   removed from `navikt` retains access through copilot-cli for at most 6 min.
+   Fails closed: any GitHub or copilot-api error rejects the request.
 3. copilot-cli exchanges its own workload identity for an M2M access token via
    the Texas sidecar (`NAIS_TOKEN_ENDPOINT`), scoped to the audience of the
    service it calls: copilot-api, or copilot-survey for the survey routes.
