@@ -830,6 +830,15 @@ tregere blir det bare når noe venter på nettet. Hver kjøring gjøres tre gang
 versjonssjekken ugjort, og med den gjort både med og uten telemetri. Verken en ugjort
 versjonssjekk eller telemetrien får gjøre kjøringen mer enn 40 ms tregere.
 
+For å måle oppstartstid før og etter en endring og sjekke at nav-pilot ikke starter ekstra
+prosesser som `git` underveis (`mise run nav-pilot:bench`):
+
+```bash
+python3 cli/nav-pilot/hack/bench-startup.py --save /tmp/before.json
+# gjør endringen
+python3 cli/nav-pilot/hack/bench-startup.py --compare /tmp/before.json --check-spawns
+```
+
 ## For bidragsytere
 
 - Agent: `.github/agents/nav-pilot.agent.md`

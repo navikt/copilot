@@ -741,17 +741,28 @@ func MaterializeOpenCode(sourceDir, outputDir, sourceRepo string) (skills, comma
 // launch syncs the whole source, and rewriting what did not change is most of
 // that sync's time.
 func writeFile(path string, data []byte) error {
+	_, err := writeFileChanged(path, data)
+	return err
+}
+
+func writeFileChanged(path string, data []byte) (bool, error) {
 	if have, err := os.ReadFile(path); err == nil && bytes.Equal(have, data) {
-		return nil
+		return false, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+		return false, err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return true, os.WriteFile(path, data, 0o644)
 }
 
 func copyDirSimple(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+	_, err := syncDirSimple(src, dst)
+	return err
+}
+
+func syncDirSimple(src, dst string) (bool, error) {
+	changed := false
+	err := filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -777,8 +788,13 @@ func copyDirSimple(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		return writeFile(target, data)
+		wrote, err := writeFileChanged(target, data)
+		if wrote {
+			changed = true
+		}
+		return err
 	})
+	return changed, err
 }
 
 func titleCase(s string) string {

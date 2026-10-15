@@ -1207,9 +1207,6 @@ func Main(info BuildInfo) {
 	agentpakke.SetVersion(info.Version)
 	// Client versions are asked once per installed binary, not per launch.
 	providerpkg.VersionCacheFile = stateMarker("client-versions.json")
-	// Before any provider is consulted: the model picker and every launch path
-	// ask local.IsLocal, and it must already know whether local dispatch is on.
-	applyLocalConfig()
 	// A launch reads a remote source from the checkout the last launch
 	// fetched, and fetches the next one while the session runs.
 	if d := stateMarker("sources"); d != "" {
@@ -1223,9 +1220,12 @@ func Main(info BuildInfo) {
 		return fetchLatestVersion(ctx)
 	}
 
-	// --version and --help answer at once: no telemetry to set up and send.
+	// --version and --help answer at once: no config, rtk probe, or telemetry.
 	quick := isQuickCommand(os.Args[1:])
 	if !quick {
+		// Before any provider is consulted: the model picker and every launch path
+		// ask local.IsLocal, and it must already know whether local dispatch is on.
+		applyLocalConfig()
 		rtkStatus := "false"
 		if isRtkInstalled() {
 			rtkStatus = "true"

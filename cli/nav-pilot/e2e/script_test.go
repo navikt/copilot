@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 		serveFakeMLX()
 		return
 	}
-	if os.Getenv(budgetClientLog) != "" && slices.Contains([]string{"cplt", "copilot", "opencode"}, filepath.Base(os.Args[0])) {
+	if os.Getenv(budgetClientLog) != "" && slices.Contains([]string{"cplt", "copilot", "opencode", "git"}, filepath.Base(os.Args[0])) {
 		runBudgetClient()
 		return
 	}

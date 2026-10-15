@@ -148,7 +148,7 @@ func lockPinned(dir string) (unlock func(), ok bool) {
 // half-removed or replaced. Like the launch cache, it trusts the files in a
 // checkout that does have the right HEAD: the cache is the user's own.
 func pinnedCheckoutOK(co, sha string) bool {
-	info, err := os.Stat(co)
+	info, err := os.Stat(filepath.Join(co, ".git"))
 	if err != nil || !info.IsDir() {
 		return false
 	}

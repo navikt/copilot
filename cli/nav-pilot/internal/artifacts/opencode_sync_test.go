@@ -661,6 +661,23 @@ func TestOpenCodeSyncRejectsSymlinks(t *testing.T) {
 		t.Errorf("victim modified through symlink: %q", got)
 	}
 
+	// Replacing a previously synced file with a symlink must also be refused,
+	// not hashed through the symlink as a user edit conflict.
+	trackedOut := t.TempDir()
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", trackedOut, "v1", "sha", ""); err != nil {
+		t.Fatal(err)
+	}
+	trackedAgent := filepath.Join(trackedOut, "agents", "nav-pilot.md")
+	if err := os.Remove(trackedAgent); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, trackedAgent); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", trackedOut, "v2", "sha2", ""); err == nil {
+		t.Fatal("expected error refusing symlink that replaced a tracked file")
+	}
+
 	// Symlink inside sourceDir is skipped during export rather than followed.
 	srcWithLink := t.TempDir()
 	mustMkdir(t, filepath.Join(srcWithLink, "agents"))

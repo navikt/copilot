@@ -191,6 +191,10 @@ run = "(cd cli/nav-pilot && go test -race -skip TestLaunchBudget ./...)"
 description = "Run nav-pilot's launch-time budget test alone, without -race (as CI does)"
 run = "(cd cli/nav-pilot && go test ./e2e -run TestLaunchBudget -count=1)"
 
+[tasks."nav-pilot:bench"]
+description = "Measure nav-pilot startup latency and verify subprocess spawn budgets"
+run = "python3 cli/nav-pilot/hack/bench-startup.py --check-spawns"
+
 # The Go half and the script half share nothing, so mise runs them side by side.
 # --continue-on-error: without it mise sends SIGTERM to the half still running
 # when the other fails. Killed mid-run, bats removes its temp dir while its

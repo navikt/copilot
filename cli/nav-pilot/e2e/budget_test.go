@@ -88,6 +88,13 @@ func median(d []time.Duration) time.Duration {
 // runBudgetClient is the fake client's whole program.
 func runBudgetClient() {
 	name := filepath.Base(os.Args[0])
+	if name == "git" {
+		if f, err := os.OpenFile(os.Getenv(budgetClientLog), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+			fmt.Fprintf(f, "git %v\n", os.Args[1:])
+			f.Close()
+		}
+		os.Exit(1)
+	}
 	if slices.Contains(os.Args[1:], "--version") {
 		switch name {
 		case "cplt":
@@ -97,6 +104,10 @@ func runBudgetClient() {
 		default:
 			fmt.Println("GitHub Copilot CLI 1.0.40")
 		}
+		return
+	}
+	if name == "opencode" && slices.Contains(os.Args[1:], "session") {
+		fmt.Println("[]")
 		return
 	}
 	f, err := os.OpenFile(os.Getenv(budgetClientLog), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
@@ -175,8 +186,9 @@ func TestLaunchBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	// copilot is a copy, not a link: nav-pilot refuses a copilot that is
-	// the same file as cplt (a disguised cplt).
-	for _, name := range []string{"cplt", "opencode"} {
+	// the same file as cplt (a disguised cplt). git is a link too so any git
+	// spawn on a cached path is caught and fails the test.
+	for _, name := range []string{"cplt", "opencode", "git"} {
 		if err := os.Symlink(self, filepath.Join(fake, name)); err != nil {
 			t.Fatal(err)
 		}
@@ -186,15 +198,6 @@ func TestLaunchBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(fake, "copilot"), selfBytes, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// git only, not its directory: nothing else from the machine (gh, a real
-	// copilot or opencode) may take part.
-	git, err := exec.LookPath("git")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(git, filepath.Join(fake, "git")); err != nil {
 		t.Fatal(err)
 	}
 	hole := blackhole(t)
@@ -250,6 +253,9 @@ func TestLaunchBudget(t *testing.T) {
 			t.Fatalf("nav-pilot %v: %v\n%s", args, err, out)
 		}
 		if b, err := os.ReadFile(clientLog); err == nil {
+			if strings.Contains(string(b), "git ") {
+				t.Fatalf("nav-pilot %v spawned git (%s); cached runs must read .git/HEAD directly", args, strings.TrimSpace(string(b)))
+			}
 			lines := strings.Fields(string(b))
 			if len(lines) == 0 {
 				t.Fatalf("nav-pilot %v: the client wrote no start time", args)
