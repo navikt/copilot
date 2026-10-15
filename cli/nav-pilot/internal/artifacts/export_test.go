@@ -989,3 +989,35 @@ func TestExportWithoutAManifestKeepsTheBuiltInRoster(t *testing.T) {
 		t.Errorf("the built-in roster must still make nav-pilot a primary, got:\n%s", b)
 	}
 }
+
+// TestRealRepoAGENTSmdBudget materializes the repository's own instructions into
+// OpenCode's AGENTS.md and guards its size so a missing applyTo or a bloated
+// global instruction cannot silently balloon every session's static prompt.
+func TestRealRepoAGENTSmdBudget(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(repoRoot, "instructions")); err != nil {
+		t.Fatalf("repo instructions directory not found at %s: %v", repoRoot, err)
+	}
+
+	out := t.TempDir()
+	if _, _, _, _, err := MaterializeOpenCode(repoRoot, out, repoRoot); err != nil {
+		t.Fatalf("MaterializeOpenCode on repo root: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(out, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("reading materialized AGENTS.md: %v", err)
+	}
+	const maxBytes = 14000 // ~3500 tokens
+	t.Logf("materialized AGENTS.md: %d bytes (~%d tokens), ceiling %d bytes", len(data), len(data)/4, maxBytes)
+	if len(data) == 0 {
+		t.Fatal("materialized AGENTS.md is empty")
+	}
+	if len(data) > maxBytes {
+		t.Errorf("materialized AGENTS.md is %d bytes (~%d tokens), ceiling is %d bytes (~%d tokens); check instructions/*.instructions.md with applyTo: \"**\"",
+			len(data), len(data)/4, maxBytes, maxBytes/4)
+	}
+}
+

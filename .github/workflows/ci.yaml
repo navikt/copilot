@@ -19,6 +19,7 @@ name: ci
 on:
   pull_request:
     branches: [main]
+    types: [opened, edited, synchronize, reopened]
   merge_group:
   workflow_dispatch:
 
@@ -135,6 +136,9 @@ jobs:
               - 'prompts/**'
               - 'hooks/**'
               - '.github/hooks/**'
+              - '.github/copilot-instructions.md'
+              - '.github/instructions/**'
+              - 'scripts/check-harness-budget.py'
               - '.github/workflows/nav-pilot-ci.yaml'
               - '.github/workflows/ci.yaml'
               - 'dashboards/nav-pilot-*.json'
@@ -156,6 +160,11 @@ jobs:
               - 'scripts/generate-docs/**'
               - 'scripts/lint-skills.sh'
               - 'scripts/test-lint-skills.sh'
+              - 'scripts/check-harness-budget.py'
+              - 'hooks/**'
+              - '.github/hooks/**'
+              - '.github/copilot-instructions.md'
+              - '.github/instructions/**'
               - '.github/skills-allowlist.txt'
               - '.github/workflows/docs.yaml'
               - '.github/workflows/ci.yaml'
@@ -469,6 +478,10 @@ jobs:
             python3 "$f" --selftest
             diff -q "$f" ".github/hooks/$(basename "$f")"
           done
+      - name: Harness and customization budget
+        run: |
+          python3 scripts/check-harness-budget.py --selftest
+          python3 scripts/check-harness-budget.py
       - name: Persona transcripts selftest
         run: python3 cli/nav-pilot/e2e/persona_transcripts.py --selftest
       # nav-pilot-local.json is generated: a hand edit, or a change to the
@@ -497,6 +510,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # ratchet:actions/setup-go@v7.0.0
         with:
           go-version-file: scripts/generate-docs/go.mod
@@ -506,6 +521,16 @@ jobs:
         run: bash scripts/lint-skills.sh
       - name: Test the skill linter
         run: bash scripts/test-lint-skills.sh
+      - name: Check harness and customization budgets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          python3 scripts/check-harness-budget.py --selftest
+          if [ -n "$BASE_SHA" ]; then
+            python3 scripts/check-harness-budget.py --diff "$BASE_SHA"
+          else
+            python3 scripts/check-harness-budget.py
+          fi
       - name: Upgrade gh CLI (gh skill requires 2.90.0+)
         run: |
           GH_VERSION=2.90.0
@@ -562,6 +587,87 @@ jobs:
           # -m: also scan merge commits' diffs, e.g. a conflict resolution.
           "${RUNNER_TEMP}/gitleaks" git --redact --verbose --exit-code 1 --log-opts="-m $range" .
 
+  # ── PR body template check ─────────────────────────────────────────────────
+  # Ensures pull requests include the required sections from
+  # .github/pull_request_template.md and do not use Norwegian issue-closing
+  # keywords that GitHub ignores. Automated bots and sync branches are exempt.
+
+  pr-body-check:
+    name: pr-body-check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate PR description against template
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          ACTOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          python3 - <<'PY'
+          import os, re, sys
+
+          actor = os.environ.get("ACTOR", "")
+          head_ref = os.environ.get("HEAD_REF", "")
+          exempt_prefixes = (
+              "copilot-sync/",
+              "pricing-sync/",
+              "agentpakke-sweep/",
+              "dependabot/",
+              "release/",
+          )
+          if actor.endswith("[bot]") or head_ref.startswith(exempt_prefixes):
+              print(f"Skipping PR body check for automated PR (actor={actor}, ref={head_ref})")
+              sys.exit(0)
+
+          body = os.environ.get("PR_BODY") or ""
+          stripped = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+
+          required = [
+              "## Summary",
+              "## Risk profile & rollout",
+              "## Security considerations",
+              "## Test plan",
+          ]
+          errors = []
+
+          for i, heading in enumerate(required):
+              m = re.search(rf"^{re.escape(heading)}\s*$", stripped, flags=re.M | re.I)
+              if not m:
+                  errors.append(f"Missing required heading: '{heading}'")
+                  continue
+              start = m.end()
+              next_h = re.search(r"^##\s+\S", stripped[start:], flags=re.M)
+              section = stripped[start : start + next_h.start()] if next_h else stripped[start:]
+              content = re.sub(r"-\s*\[\s*\]\s*.*", "", section).strip()
+              if not content:
+                  errors.append(f"Section '{heading}' is empty (please fill it in)")
+              if heading == "## Risk profile & rollout" and not re.search(
+                  r"-\s*\[[xX]\]", section
+              ):
+                  errors.append(
+                      "Section '## Risk profile & rollout' must have at least one checked item (- [x])"
+                  )
+
+          prose = re.sub(r"```.*?```|`[^`\n]+`", "", stripped, flags=re.S)
+          bad_close = re.findall(r"\b(?:lukker|fikser|løser)\s+#\d+\b", prose, flags=re.I)
+          if bad_close:
+              errors.append(
+                  f"Use English issue-closing keywords ('Closes #NNN' or 'Fixes #NNN') instead of {', '.join(bad_close)}"
+              )
+
+          if errors:
+              for err in errors:
+                  print(f"::error::{err}")
+              print(
+                  "\nPlease fill in all sections of .github/pull_request_template.md.",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          print("PR body matches .github/pull_request_template.md")
+          PY
+
   # ── the gate ───────────────────────────────────────────────────────────────
   # Single check to require in the branch ruleset. Succeeds when every needed
   # job succeeded or was skipped (nothing relevant changed); fails when any
@@ -583,6 +689,7 @@ jobs:
       - docs
       - link-guard
       - gitleaks
+      - pr-body-check
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

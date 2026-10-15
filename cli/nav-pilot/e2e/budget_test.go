@@ -260,22 +260,32 @@ func TestLaunchBudget(t *testing.T) {
 		}
 		return end.Sub(start), 0, 0
 	}
-	check := func(name string, d [modes][]time.Duration) {
+	var summaryRows []string
+	check := func(name, label string, d [modes][]time.Duration) {
 		t.Helper()
 		budget := budgets[name]
+		ceil := budget * budgetMargin
 		got, on, off := median(d[budgetMode]), median(d[telemetryOn]), median(d[telemetryOff])
-		t.Logf("%-8s median %4d ms (budget %d ms); version check done: telemetry on %4d ms, off %4d ms", name, got.Milliseconds(), budget.Milliseconds(), on.Milliseconds(), off.Milliseconds())
-		if got > budget*budgetMargin {
+		vDiff := pairedDiff(d[budgetMode], d[telemetryOn])
+		tDiff := pairedDiff(d[telemetryOn], d[telemetryOff])
+		t.Logf("%-20s median %4d ms (budget %3d ms, ceiling %3d ms); version check done: telemetry on %4d ms, off %4d ms",
+			label, got.Milliseconds(), budget.Milliseconds(), ceil.Milliseconds(), on.Milliseconds(), off.Milliseconds())
+		summaryRows = append(summaryRows, fmt.Sprintf(
+			"| `%s` | %d ms | %d ms (%d ms) | %+d ms (<= %d ms) | %+d ms (<= %d ms) |",
+			label, got.Milliseconds(), budget.Milliseconds(), ceil.Milliseconds(),
+			vDiff.Milliseconds(), noise.Milliseconds(), tDiff.Milliseconds(), noise.Milliseconds(),
+		))
+		if got > ceil {
 			t.Errorf("%s took %s (median of %d), budget %s: over %dx the budget. Something on this path waits on the network or does too much before the client starts; see docs/README.nav-pilot.md, «Ytelse»",
-				name, got, budgetRuns, budget, budgetMargin)
+				label, got, budgetRuns, budget, budgetMargin)
 		}
-		if diff := pairedDiff(d[budgetMode], d[telemetryOn]); diff > noise {
+		if vDiff > noise {
 			t.Errorf("%s took %s more with the version check due than with it done (median of %d paired runs; medians %s and %s): something waits for the version check. It may not; see artifacts.AssessStalenessCached",
-				name, diff, budgetRuns, got, on)
+				label, vDiff, budgetRuns, got, on)
 		}
-		if diff := pairedDiff(d[telemetryOn], d[telemetryOff]); diff > noise {
+		if tDiff > noise {
 			t.Errorf("%s took %s more with telemetry on than off (median of %d paired runs; medians %s and %s): something waits for telemetry. It may not; see internal/telemetry/spool.go",
-				name, diff, budgetRuns, on, off)
+				label, tDiff, budgetRuns, on, off)
 		}
 	}
 
@@ -302,13 +312,14 @@ func TestLaunchBudget(t *testing.T) {
 	}
 
 	for _, c := range []struct {
-		name string
-		args []string
+		name  string
+		label string
+		args  []string
 	}{
-		{"version", []string{"--version"}},
-		{"help", []string{"--help"}},
-		{"command", []string{"config", "get", "client"}},
-		{"command", []string{"list"}},
+		{"version", "--version", []string{"--version"}},
+		{"help", "--help", []string{"--help"}},
+		{"command", "config get client", []string{"config", "get", "client"}},
+		{"command", "list", []string{"list"}},
 	} {
 		var d [modes][]time.Duration
 		for i := range budgetRuns {
@@ -317,22 +328,25 @@ func TestLaunchBudget(t *testing.T) {
 				d[m] = append(d[m], total)
 			}
 		}
-		check(c.name, d)
+		check(c.name, c.label, d)
 	}
 
 	// Both clients run in each mode of each round, next to each other, and
 	// which goes first alternates by round. The opencode launch is held to
 	// the Copilot one in the same pairs, so neither is always the run that
 	// follows the other.
-	clients := [][]string{
-		{"--", "-p", "hei"},
-		{"--client", "opencode", "--", "run", "hei"},
+	clients := []struct {
+		name string
+		args []string
+	}{
+		{"copilot", []string{"--", "-p", "hei"}},
+		{"opencode", []string{"--client", "opencode", "--", "run", "hei"}},
 	}
 	var launches, exits [2][modes][]time.Duration
 	for i := range budgetRuns {
 		for _, m := range order(i) {
 			for _, c := range []int{i % 2, 1 - i%2} {
-				args := clients[c]
+				args := clients[c].args
 				_, launch, exit := run(m, args...)
 				if launch == 0 {
 					t.Fatalf("nav-pilot %v started no client", args)
@@ -341,10 +355,10 @@ func TestLaunchBudget(t *testing.T) {
 			}
 		}
 	}
-	for c, args := range clients {
-		t.Logf("nav-pilot %v:", args)
-		check("launch", launches[c])
-		check("exit", exits[c])
+	for c, cl := range clients {
+		t.Logf("nav-pilot %v:", cl.args)
+		check("launch", cl.name+" launch", launches[c])
+		check("exit", cl.name+" exit", exits[c])
 	}
 	// What opencode does on top of the Copilot launch must fit in the launch
 	// budget, with the same margin as the rest. Pairing cancels load that
@@ -352,8 +366,25 @@ func TestLaunchBudget(t *testing.T) {
 	// the whole source at launch, so its extra time grows with CPU and disk
 	// contention, and with several checks running it reached 190 ms. What this
 	// catches is a wait: once seconds on macOS's automounter for /home (#1276).
-	if diff := pairedDiff(launches[1][telemetryOff], launches[0][telemetryOff]); diff > budgets["launch"]*budgetMargin {
+	ocDiff := pairedDiff(launches[1][telemetryOff], launches[0][telemetryOff])
+	ocCeil := budgets["launch"] * budgetMargin
+	if ocDiff > ocCeil {
 		t.Errorf("an opencode launch took %s more than a Copilot launch (median of %d paired runs; medians %s and %s): over %dx the %s launch budget. Something on its path waits (a lookup, a lock, the network) or does too much",
-			diff, budgetRuns, median(launches[1][telemetryOff]), median(launches[0][telemetryOff]), budgetMargin, budgets["launch"])
+			ocDiff, budgetRuns, median(launches[1][telemetryOff]), median(launches[0][telemetryOff]), budgetMargin, budgets["launch"])
+	}
+	if summaryPath := os.Getenv("GITHUB_STEP_SUMMARY"); summaryPath != "" {
+		var b strings.Builder
+		b.WriteString("### `nav-pilot` Startup & Exit Latency (`TestLaunchBudget`)\n\n")
+		b.WriteString("| Path | Median | Target (3x Ceiling) | Version-Check Δ | Telemetry Δ |\n")
+		b.WriteString("| :--- | :--- | :--- | :--- | :--- |\n")
+		for _, row := range summaryRows {
+			b.WriteString(row + "\n")
+		}
+		fmt.Fprintf(&b, "\nOpenCode vs Copilot launch overhead (paired median): **%+d ms** (ceiling <= %d ms)\n\n",
+			ocDiff.Milliseconds(), ocCeil.Milliseconds())
+		if f, err := os.OpenFile(summaryPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+			_, _ = f.WriteString(b.String())
+			_ = f.Close()
+		}
 	}
 }

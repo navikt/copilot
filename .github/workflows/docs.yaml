@@ -13,6 +13,11 @@ on:
       - 'scripts/generate-docs/**'
       - 'scripts/lint-skills.sh'
       - 'scripts/test-lint-skills.sh'
+      - 'scripts/check-harness-budget.py'
+      - 'hooks/**'
+      - '.github/hooks/**'
+      - '.github/copilot-instructions.md'
+      - '.github/instructions/**'
       - '.github/skills-allowlist.txt'
       - '.github/workflows/docs.yaml'
   pull_request:
@@ -27,6 +32,11 @@ on:
       - 'scripts/generate-docs/**'
       - 'scripts/lint-skills.sh'
       - 'scripts/test-lint-skills.sh'
+      - 'scripts/check-harness-budget.py'
+      - 'hooks/**'
+      - '.github/hooks/**'
+      - '.github/copilot-instructions.md'
+      - '.github/instructions/**'
       - '.github/skills-allowlist.txt'
       - '.github/workflows/docs.yaml'
   workflow_dispatch:
@@ -56,8 +66,20 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
       - run: bash scripts/lint-skills.sh
       - run: bash scripts/test-lint-skills.sh
+      - name: Check harness and customization budgets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 scripts/check-harness-budget.py --selftest
+          if [ -n "$BASE_SHA" ]; then
+            python3 scripts/check-harness-budget.py --diff "$BASE_SHA"
+          else
+            python3 scripts/check-harness-budget.py
+          fi
       - name: Upgrade gh CLI (gh skill requires 2.90.0+)
         run: |
           GH_VERSION=2.90.0
