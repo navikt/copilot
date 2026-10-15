@@ -554,6 +554,8 @@ run_suite() {
     [[ "$text" == *'Only under `$__CPLT_WRAPPED`:'* ]]
     [[ "$text" == *'Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief.'* ]]
     [[ "$text" == *'beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository'* ]]
+    [[ "$text" == *'When `$CPLT_WORKTREE_SOCKET` is set, run `cplt worktree add <name> <ref>`'* ]]
+    [[ "$text" == *'never run plain `git worktree add`'* ]]
     [[ "$text" == *'matching launch and target repositories'* ]]
     [[ "$text" == *'persistent, in-scope checkout verified as the target repository'* ]]
     [[ "$text" == *'Never fall back to scratch.'* ]]
