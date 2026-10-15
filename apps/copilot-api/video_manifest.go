@@ -239,7 +239,7 @@ func (c *videoManifestCache) get(ctx context.Context) ([]VideoManifestEntry, err
 		c.inFlight = call
 		source := c.source
 		c.mu.Unlock()
-		go c.runReload(call, context.WithoutCancel(ctx), source)
+		go c.runReload(context.WithoutCancel(ctx), call, source)
 	} else {
 		c.mu.Unlock()
 	}
@@ -252,7 +252,7 @@ func (c *videoManifestCache) get(ctx context.Context) ([]VideoManifestEntry, err
 	}
 }
 
-func (c *videoManifestCache) runReload(call *videoManifestCall, ctx context.Context, source string) {
+func (c *videoManifestCache) runReload(ctx context.Context, call *videoManifestCall, source string) {
 	entries, err := c.loader(ctx, source)
 
 	c.mu.Lock()

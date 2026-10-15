@@ -607,9 +607,16 @@ func TestVideoManifestCacheSharesInFlightFailureAndRespectsContextCancel(t *test
 	}}
 	cache.expiresAt = time.Unix(0, 0)
 
-	var loads atomic.Int32
+	var loads, entered atomic.Int32
 	loaderStarted := make(chan struct{})
+	bothEntered := make(chan struct{})
 	releaseLoader := make(chan struct{})
+	cache.now = func() time.Time {
+		if entered.Add(1) == 2 {
+			close(bothEntered)
+		}
+		return time.Now()
+	}
 	cache.loader = func(context.Context, string) ([]VideoManifestEntry, error) {
 		if loads.Add(1) == 1 {
 			close(loaderStarted)
@@ -631,6 +638,7 @@ func TestVideoManifestCacheSharesInFlightFailureAndRespectsContextCancel(t *test
 	}
 
 	<-loaderStarted
+	<-bothEntered
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	cancel()

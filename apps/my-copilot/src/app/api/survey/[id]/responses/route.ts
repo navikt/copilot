@@ -11,7 +11,7 @@ const reply = (result: SubmitResult, status = 200) => NextResponse.json(result, 
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getUser(false);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) return reply({ status: "error" }, 401);
   const token = await getUserToken();
   if (!token) return reply({ status: "error" }, 401);
   const { id } = await params;

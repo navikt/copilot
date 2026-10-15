@@ -10,11 +10,7 @@ const TOKEN_EXCHANGE_TIMEOUT_MS = 5000;
 const BACKEND_REQUEST_TIMEOUT_MS = process.env.NODE_ENV === "development" ? 60000 : 15000;
 
 function isLocalDev(): boolean {
-  return (
-    process.env.NODE_ENV === "development" &&
-    !process.env.NAIS_CLUSTER_NAME &&
-    !process.env.NAIS_TOKEN_EXCHANGE_ENDPOINT
-  );
+  return !process.env.NAIS_CLUSTER_NAME && !process.env.NAIS_TOKEN_EXCHANGE_ENDPOINT;
 }
 
 /**
