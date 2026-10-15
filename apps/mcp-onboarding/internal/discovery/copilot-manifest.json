@@ -669,6 +669,16 @@
     },
     {
       "type": "skill",
+      "name": "dependency-upgrade",
+      "displayName": "dependency-upgrade",
+      "description": "Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, og hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem",
+      "filePath": "skills/dependency-upgrade/SKILL.md",
+      "contentHash": "f123a6af35470cd26101f3e8455ff50087f5ecd85c36dda013743c6913848e49",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/dependency-upgrade/SKILL.md"
+    },
+    {
+      "type": "skill",
       "name": "flyway-migration",
       "displayName": "flyway-migration",
       "description": "Databasemigrasjonsmønstre med Flyway og versjonerte SQL-skript",
