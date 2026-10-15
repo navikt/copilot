@@ -570,3 +570,41 @@ func TestScanBatchFailsOnGraphQLErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestParseGraphQLResponseWithActivity(t *testing.T) {
+	criteria := []SearchCriteria{
+		{Category: "copilot_hooks", TreePath: ".github/hooks/copilot-hooks.json", CheckType: CheckFile},
+	}
+	repos := []RepoInfo{{Name: "test-repo", OpenIssuesCount: 14}}
+
+	data := map[string]json.RawMessage{
+		"repo0": json.RawMessage(`{
+			"defaultBranchRef": {
+				"target": {
+					"committedDate": "2026-10-14T10:30:00Z",
+					"commits7d": {"totalCount": 8},
+					"commits30d": {"totalCount": 31}
+				}
+			},
+			"copilot_hooks": {"__typename": "Blob", "oid": "abc123"}
+		}`),
+	}
+
+	results, lastCommits, commits7d, commits30d := parseGraphQLResponseWithActivity(data, repos, criteria)
+	if !results["test-repo"]["copilot_hooks"].Exists {
+		t.Fatal("expected copilot_hooks to exist")
+	}
+	if commits7d["test-repo"] != 8 || commits30d["test-repo"] != 31 {
+		t.Fatalf("expected commits 7d=8, 30d=31, got 7d=%d, 30d=%d", commits7d["test-repo"], commits30d["test-repo"])
+	}
+	if lastCommits["test-repo"] == nil {
+		t.Fatal("expected lastCommit to be parsed")
+	}
+
+	res := assembleResult("navikt", repos[0], nil, results["test-repo"], lastCommits["test-repo"])
+	res.DefaultBranchCommits7d = commits7d["test-repo"]
+	res.DefaultBranchCommits30d = commits30d["test-repo"]
+	if res.DefaultBranchCommits7d != 8 || res.DefaultBranchCommits30d != 31 || res.OpenIssuesCount != 14 {
+		t.Fatalf("unexpected assembled activity fields: %+v", res)
+	}
+}

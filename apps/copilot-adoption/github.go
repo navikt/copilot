@@ -48,15 +48,16 @@ func NewGitHubClient(cfg *Config) (*GitHubClient, error) {
 // --- REST: List Repositories ---
 
 type restRepo struct {
-	Name          string   `json:"name"`
-	DefaultBranch string   `json:"default_branch"`
-	Language      string   `json:"language"`
-	Archived      bool     `json:"archived"`
-	Fork          bool     `json:"fork"`
-	Visibility    string   `json:"visibility"`
-	CreatedAt     string   `json:"created_at"`
-	PushedAt      string   `json:"pushed_at"`
-	Topics        []string `json:"topics"`
+	Name            string   `json:"name"`
+	DefaultBranch   string   `json:"default_branch"`
+	Language        string   `json:"language"`
+	Archived        bool     `json:"archived"`
+	Fork            bool     `json:"fork"`
+	Visibility      string   `json:"visibility"`
+	CreatedAt       string   `json:"created_at"`
+	PushedAt        string   `json:"pushed_at"`
+	Topics          []string `json:"topics"`
+	OpenIssuesCount int      `json:"open_issues_count"`
 }
 
 func (c *GitHubClient) ListRepos(ctx context.Context, org string) ([]RepoInfo, error) {
@@ -82,6 +83,7 @@ func (c *GitHubClient) ListRepos(ctx context.Context, org string) ([]RepoInfo, e
 				IsFork:          r.Fork,
 				Visibility:      r.Visibility,
 				Topics:          r.Topics,
+				OpenIssuesCount: r.OpenIssuesCount,
 			}
 			if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
 				info.CreatedAt = t
@@ -269,6 +271,8 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 	output := &ScanOutput{
 		Customizations: make(map[string]map[string]SearchResult),
 		LastCommits:    make(map[string]*time.Time),
+		Commits7d:      make(map[string]int),
+		Commits30d:     make(map[string]int),
 	}
 	var mu sync.Mutex
 
@@ -297,7 +301,7 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 				default:
 				}
 
-				batchCustomizations, batchCommits, err := c.scanBatch(ctx, org, job.repos, criteria)
+				batchCustomizations, batchCommits, batch7d, batch30d, err := c.scanBatchWithActivity(ctx, org, job.repos, criteria)
 
 				mu.Lock()
 				if err != nil {
@@ -316,6 +320,12 @@ func (c *GitHubClient) ScanRepos(ctx context.Context, org string, repos []RepoIn
 					}
 					for name, t := range batchCommits {
 						output.LastCommits[name] = t
+					}
+					for name, n := range batch7d {
+						output.Commits7d[name] = n
+					}
+					for name, n := range batch30d {
+						output.Commits30d[name] = n
 					}
 				}
 				scanned += len(job.repos)
@@ -346,44 +356,53 @@ func emptyResults(criteria []SearchCriteria) map[string]SearchResult {
 
 // scanBatch executes a single batched GraphQL query for multiple repos.
 func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time, error) {
+	customizations, lastCommits, _, _, err := c.scanBatchWithActivity(ctx, org, repos, criteria)
+	return customizations, lastCommits, err
+}
+
+func (c *GitHubClient) scanBatchWithActivity(ctx context.Context, org string, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time, map[string]int, map[string]int, error) {
 	query := buildGraphQLQuery(org, repos, criteria)
 
 	body, err := json.Marshal(graphqlRequest{Query: query})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to marshal GraphQL request: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to marshal GraphQL request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.github.com/graphql", bytes.NewReader(body))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create GraphQL request: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to create GraphQL request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.doWithRetry(ctx, req)
 	if err != nil {
-		return nil, nil, fmt.Errorf("GraphQL request failed: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("GraphQL request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	var gqlResp graphqlResponse
 	if err := json.NewDecoder(resp.Body).Decode(&gqlResp); err != nil {
-		return nil, nil, fmt.Errorf("failed to decode GraphQL response: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to decode GraphQL response: %w", err)
 	}
 
 	if len(gqlResp.Errors) > 0 || len(gqlResp.Data) == 0 {
 		slog.Debug("GraphQL response had errors", "errors", gqlResp.Errors)
-		return nil, nil, fmt.Errorf("GraphQL response had %d errors (data fields: %d)", len(gqlResp.Errors), len(gqlResp.Data))
+		return nil, nil, nil, nil, fmt.Errorf("GraphQL response had %d errors (data fields: %d)", len(gqlResp.Errors), len(gqlResp.Data))
 	}
 
-	customizations, lastCommits := parseGraphQLResponse(gqlResp.Data, repos, criteria)
-	return customizations, lastCommits, nil
+	customizations, lastCommits, commits7d, commits30d := parseGraphQLResponseWithActivity(gqlResp.Data, repos, criteria)
+	return customizations, lastCommits, commits7d, commits30d, nil
 }
 
 // buildGraphQLQuery constructs a batched query checking all criteria across multiple repos.
 func buildGraphQLQuery(org string, repos []RepoInfo, criteria []SearchCriteria) string {
 	var b strings.Builder
 	b.WriteString("query {\n")
+
+	now := time.Now().UTC()
+	since7d := now.AddDate(0, 0, -7).Format(time.RFC3339)
+	since30d := now.AddDate(0, 0, -30).Format(time.RFC3339)
 
 	for i, repo := range repos {
 		ref := repo.DefaultBranch
@@ -392,7 +411,7 @@ func buildGraphQLQuery(org string, repos []RepoInfo, criteria []SearchCriteria) 
 		}
 
 		fmt.Fprintf(&b, "  repo%d: repository(owner: %q, name: %q) {\n", i, org, repo.Name)
-		b.WriteString("    defaultBranchRef { target { ... on Commit { committedDate } } }\n")
+		fmt.Fprintf(&b, "    defaultBranchRef { target { ... on Commit { committedDate commits7d: history(since: %q) { totalCount } commits30d: history(since: %q) { totalCount } } } }\n", since7d, since30d)
 
 		for _, c := range criteria {
 			alias := c.GraphQLAlias()
@@ -444,15 +463,28 @@ type entryObject struct {
 	OID string `json:"oid"`
 }
 
+type commitHistoryCount struct {
+	TotalCount int `json:"totalCount"`
+}
+
 type defaultBranchRefResponse struct {
 	Target struct {
-		CommittedDate string `json:"committedDate"`
+		CommittedDate string             `json:"committedDate"`
+		Commits7d     commitHistoryCount `json:"commits7d"`
+		Commits30d    commitHistoryCount `json:"commits30d"`
 	} `json:"target"`
 }
 
 func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time) {
+	results, lastCommits, _, _ := parseGraphQLResponseWithActivity(data, repos, criteria)
+	return results, lastCommits
+}
+
+func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time, map[string]int, map[string]int) {
 	results := make(map[string]map[string]SearchResult, len(repos))
 	lastCommits := make(map[string]*time.Time, len(repos))
+	commits7d := make(map[string]int, len(repos))
+	commits30d := make(map[string]int, len(repos))
 
 	for i, repo := range repos {
 		key := fmt.Sprintf("repo%d", i)
@@ -471,13 +503,17 @@ func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, cri
 
 		repoResults := make(map[string]SearchResult, len(criteria))
 
-		// Extract last commit date from defaultBranchRef
+		// Extract last commit date and 7d/30d commit counts from defaultBranchRef
 		if branchData, ok := fields["defaultBranchRef"]; ok && string(branchData) != "null" {
 			var branchRef defaultBranchRefResponse
-			if err := json.Unmarshal(branchData, &branchRef); err == nil && branchRef.Target.CommittedDate != "" {
-				if t, err := time.Parse(time.RFC3339, branchRef.Target.CommittedDate); err == nil {
-					lastCommits[repo.Name] = &t
+			if err := json.Unmarshal(branchData, &branchRef); err == nil {
+				if branchRef.Target.CommittedDate != "" {
+					if t, err := time.Parse(time.RFC3339, branchRef.Target.CommittedDate); err == nil {
+						lastCommits[repo.Name] = &t
+					}
 				}
+				commits7d[repo.Name] = branchRef.Target.Commits7d.TotalCount
+				commits30d[repo.Name] = branchRef.Target.Commits30d.TotalCount
 			}
 		}
 
@@ -518,7 +554,7 @@ func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, cri
 		results[repo.Name] = repoResults
 	}
 
-	return results, lastCommits
+	return results, lastCommits, commits7d, commits30d
 }
 
 // blobOids returns the OID for a file-level check (single blob).

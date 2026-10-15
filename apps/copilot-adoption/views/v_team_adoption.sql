@@ -26,9 +26,15 @@ SELECT
   COUNTIF(JSON_VALUE(customizations, '$.agentic_workflows.exists') = 'true' AND NOT is_archived) AS with_agentic_workflows,
   COUNTIF(JSON_VALUE(customizations, '$.agents_skills.exists') = 'true' AND NOT is_archived) AS with_agents_skills,
   COUNTIF(JSON_VALUE(customizations, '$.nav_pilot_state.exists') = 'true' AND NOT is_archived) AS with_nav_pilot_state,
-  COUNTIF(JSON_VALUE(customizations, '$.cplt_toml.exists') = 'true' AND NOT is_archived) AS with_cplt_toml
+  COUNTIF(JSON_VALUE(customizations, '$.agentpakke_manifest.exists') = 'true' AND NOT is_archived) AS with_agentpakke_manifest,
+  COUNTIF(JSON_VALUE(customizations, '$.copilot_hooks.exists') = 'true' AND NOT is_archived) AS with_copilot_hooks,
+  COUNTIF(JSON_VALUE(customizations, '$.cplt_toml.exists') = 'true' AND NOT is_archived) AS with_cplt_toml,
+  IFNULL(SUM(CASE WHEN NOT is_archived THEN default_branch_commits_7d END), 0) AS commits_7d,
+  IFNULL(SUM(CASE WHEN NOT is_archived THEN default_branch_commits_30d END), 0) AS commits_30d,
+  IFNULL(SUM(CASE WHEN NOT is_archived THEN open_issues_count END), 0) AS open_issues_count
 FROM `%s.%s.%s`,
   UNNEST(JSON_QUERY_ARRAY(teams)) AS team
 WHERE teams IS NOT NULL
 GROUP BY scan_date, team_slug, team_name
 ORDER BY scan_date DESC, repos_with_customizations DESC
+

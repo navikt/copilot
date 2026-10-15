@@ -217,11 +217,93 @@ func DefaultCriteria() []SearchCriteria {
 			FilePattern: "*",
 		},
 
-		// --- nav-pilot ---
+		// --- nav-pilot & agentpakke ---
 		{
 			Category:    "nav_pilot_state",
 			Description: "nav-pilot installation state marker",
 			TreePath:    ".github/.nav-pilot-state.json",
+			CheckType:   CheckFile,
+		},
+		{
+			Category:    "copilot_hooks",
+			Description: "Copilot CLI and OpenCode repository hooks configuration",
+			TreePath:    ".github/hooks/copilot-hooks.json",
+			CheckType:   CheckFile,
+		},
+		{
+			Category:    "agentpakke_manifest",
+			Description: "nav-pilot agentpakke manifest",
+			TreePath:    ".nav-pilot/agentpakke.json",
+			CheckType:   CheckFile,
+		},
+		{
+			Category:    "agentpakke_lock",
+			Description: "nav-pilot agentpakke lockfile",
+			TreePath:    ".nav-pilot/agentpakke.lock.json",
+			CheckType:   CheckFile,
+		},
+
+		// --- OpenCode ---
+		{
+			Category:    "opencode_json",
+			Description: "OpenCode project configuration (JSON)",
+			TreePath:    "opencode.json",
+			CheckType:   CheckFile,
+		},
+		{
+			Category:    "opencode_jsonc",
+			Description: "OpenCode project configuration (JSONC)",
+			TreePath:    "opencode.jsonc",
+			CheckType:   CheckFile,
+		},
+		{
+			Category:    "opencode_dir",
+			Description: "OpenCode project customizations directory",
+			TreePath:    ".opencode",
+			CheckType:   CheckDirectory,
+			FilePattern: "*",
+		},
+
+		// --- Cross-client & IDE MCP configs ---
+		{
+			Category:    "jetbrains_mcp",
+			Description: "MCP server configuration for JetBrains IDEs",
+			TreePath:    ".idea/mcp.json",
+			CheckType:   CheckFile,
+		},
+		{
+			Category:    "root_mcp_json",
+			Description: "Root-level MCP server configuration",
+			TreePath:    ".mcp.json",
+			CheckType:   CheckFile,
+		},
+
+		// --- Additional Claude Code & Gemini markers ---
+		{
+			Category:    "claude_agents",
+			Description: "Claude Code custom agents",
+			TreePath:    ".claude/agents",
+			CheckType:   CheckDirectory,
+			FilePattern: "*",
+		},
+		{
+			Category:    "claude_commands",
+			Description: "Claude Code custom slash commands",
+			TreePath:    ".claude/commands",
+			CheckType:   CheckDirectory,
+			FilePattern: "*",
+		},
+		{
+			Category:    "claude_skills",
+			Description: "Claude Code project skills",
+			TreePath:    ".claude/skills",
+			CheckType:   CheckDirectory,
+			FilePattern: "*",
+		},
+		{
+			Category:    "gemini_md",
+			Description: "Gemini project instructions",
+			TreePath:    "GEMINI.md",
 			CheckType:   CheckFile,
 		},
 

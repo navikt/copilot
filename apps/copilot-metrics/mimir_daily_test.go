@@ -230,27 +230,29 @@ func TestMimirSessionRows(t *testing.T) {
 			{map[string]string{"version": "0.18.0", "client": "copilot"}, "NaN"},
 		},
 		"nav_pilot_local_dispatches_count" + devSel + "[1d]": {
-			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "2"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false"}, "14"},
 		},
 		"nav_pilot_local_dispatches_sum" + devSel + "[1d]": {
 			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "57"},
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "false"}, "0"},
 		},
-		"nav_pilot_local_dispatches_count" + devCountSel + "[1d]": {
-			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
+		"nav_pilot_local_dispatches_count" + devCountSel + "[7d]": {
+			{map[string]string{}, "6"},
 		},
 		"nav_pilot_decide_result_total" + devSel + "[1d]": {
 			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "18"},
 			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "2"},
 		},
-		"nav_pilot_decide_result_total" + devCountSel + "[1d]": {
+		"nav_pilot_decide_result_total" + devCountSel + "[7d]": {
 			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "7"},
 			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "3"},
 		},
 		"nav_pilot_launch_error_total" + devSel + "[1d]": {
 			{map[string]string{"client": "opencode", "error_type": "exit_code"}, "14"},
 		},
-		"nav_pilot_launch_error_total" + devCountSel + "[1d]": {
-			{map[string]string{"client": "opencode", "error_type": "exit_code"}, "10"},
+		"nav_pilot_launch_error_total" + devCountSel + "[7d]": {
+			{map[string]string{}, "10"},
 		},
 	})
 	rows, err := mimirSessionRows(context.Background(), m, "2026-10-09", time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC))
@@ -265,12 +267,16 @@ func TestMimirSessionRows(t *testing.T) {
 			t.Fatalf("session query must reference version, got %s", q)
 		}
 	}
-	if len(rows) != 7 {
-		t.Fatalf("expected 7 rows (rare-model <5 devices dropped), got %v", rows)
+	if len(rows) != 8 {
+		t.Fatalf("expected 8 rows (both saw_traffic outcomes kept, rare-model <5 devices dropped), got %d: %v", len(rows), rows)
 	}
 	byMetric := map[string]mimirRow{}
+	dispByOutcome := map[string]mimirRow{}
 	for _, r := range rows {
 		byMetric[r["metric"].(string)] = r
+		if r["metric"] == "nav_pilot_local_dispatches" {
+			dispByOutcome[r["outcome"].(string)] = r
+		}
 		if r["family"] != "nav_pilot_session" || r["counter_reliable"] != true {
 			t.Errorf("unexpected row metadata: %v", r)
 		}
@@ -291,12 +297,16 @@ func TestMimirSessionRows(t *testing.T) {
 	if _, ok := turns["p95"]; ok {
 		t.Errorf("NaN p95 must be omitted: %v", turns)
 	}
-	disp := byMetric["nav_pilot_local_dispatches"]
-	if disp["hist_count"] != 6.0 || disp["hist_sum"] != 57.0 || disp["outcome"] != "true" || disp["operation"] != "subagent" || disp["devices"] != 6 {
-		t.Errorf("local_dispatches row = %v", disp)
+	dispTrue := dispByOutcome["true"]
+	dispFalse := dispByOutcome["false"]
+	if dispTrue["hist_count"] != 2.0 || dispTrue["hist_sum"] != 57.0 || dispTrue["operation"] != "subagent" || dispTrue["devices"] != 6 {
+		t.Errorf("local_dispatches true row = %v", dispTrue)
 	}
-	if _, hasVer := disp["version"]; hasVer {
-		t.Errorf("device-gated session row must not split by version: %v", disp)
+	if dispFalse["hist_count"] != 14.0 || dispFalse["hist_sum"] != 0.0 || dispFalse["devices"] != 6 {
+		t.Errorf("local_dispatches false row = %v", dispFalse)
+	}
+	if _, hasVer := dispTrue["version"]; hasVer {
+		t.Errorf("device-gated session row must not split by version: %v", dispTrue)
 	}
 	decide := byMetric["nav_pilot_decide_result_total"]
 	if decide["increase"] != 18.0 || decide["outcome"] != "local" || decide["source"] != "opencode" || decide["operation"] != "ollama" || decide["devices"] != 7 {

@@ -92,3 +92,68 @@ FROM `%s.%s.%s`,
   UNNEST(JSON_QUERY_ARRAY(customizations, '$.agents_skills.files')) AS f
 WHERE JSON_VALUE(customizations, '$.agents_skills.exists') = 'true'
   AND NOT is_archived
+
+UNION ALL
+
+SELECT
+  scan_date,
+  org,
+  repo,
+  primary_language,
+  visibility,
+  IFNULL(default_branch_last_commit >= TIMESTAMP_SUB(TIMESTAMP(scan_date), INTERVAL 90 DAY), false) AS is_recently_active,
+  'opencode_dir' AS category,
+  JSON_VALUE(f) AS file_name
+FROM `%s.%s.%s`,
+  UNNEST(JSON_QUERY_ARRAY(customizations, '$.opencode_dir.files')) AS f
+WHERE JSON_VALUE(customizations, '$.opencode_dir.exists') = 'true'
+  AND NOT is_archived
+
+UNION ALL
+
+SELECT
+  scan_date,
+  org,
+  repo,
+  primary_language,
+  visibility,
+  IFNULL(default_branch_last_commit >= TIMESTAMP_SUB(TIMESTAMP(scan_date), INTERVAL 90 DAY), false) AS is_recently_active,
+  'claude_agents' AS category,
+  JSON_VALUE(f) AS file_name
+FROM `%s.%s.%s`,
+  UNNEST(JSON_QUERY_ARRAY(customizations, '$.claude_agents.files')) AS f
+WHERE JSON_VALUE(customizations, '$.claude_agents.exists') = 'true'
+  AND NOT is_archived
+
+UNION ALL
+
+SELECT
+  scan_date,
+  org,
+  repo,
+  primary_language,
+  visibility,
+  IFNULL(default_branch_last_commit >= TIMESTAMP_SUB(TIMESTAMP(scan_date), INTERVAL 90 DAY), false) AS is_recently_active,
+  'claude_commands' AS category,
+  JSON_VALUE(f) AS file_name
+FROM `%s.%s.%s`,
+  UNNEST(JSON_QUERY_ARRAY(customizations, '$.claude_commands.files')) AS f
+WHERE JSON_VALUE(customizations, '$.claude_commands.exists') = 'true'
+  AND NOT is_archived
+
+UNION ALL
+
+SELECT
+  scan_date,
+  org,
+  repo,
+  primary_language,
+  visibility,
+  IFNULL(default_branch_last_commit >= TIMESTAMP_SUB(TIMESTAMP(scan_date), INTERVAL 90 DAY), false) AS is_recently_active,
+  'claude_skills' AS category,
+  JSON_VALUE(f) AS file_name
+FROM `%s.%s.%s`,
+  UNNEST(JSON_QUERY_ARRAY(customizations, '$.claude_skills.files')) AS f
+WHERE JSON_VALUE(customizations, '$.claude_skills.exists') = 'true'
+  AND NOT is_archived
+

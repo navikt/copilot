@@ -109,7 +109,7 @@ describe("extractCustomizationTypes", () => {
   it("should extract and sort customization types by value descending", () => {
     const result = extractCustomizationTypes(mockSummary);
 
-    expect(result.length).toBe(14);
+    expect(result.length).toBe(19);
     expect(result[0].label).toBe("copilot-instructions.md");
     expect(result[0].value).toBe(80);
     // Verify sorting
@@ -131,10 +131,15 @@ describe("extractCustomizationTypes", () => {
     expect(keys).toContain("mcp_config");
     expect(keys).toContain("copilot_dir");
     expect(keys).toContain("copilot_review_instructions");
+    expect(keys).toContain("copilot_hooks");
     expect(keys).toContain("copilot_setup_steps");
     expect(keys).toContain("agentic_workflows");
     expect(keys).toContain("agents_skills");
+    expect(keys).toContain("jetbrains_mcp");
+    expect(keys).toContain("root_mcp_json");
     expect(keys).toContain("nav_pilot_state");
+    expect(keys).toContain("agentpakke_manifest");
+    expect(keys).toContain("agentpakke_lock");
     expect(keys).toContain("cplt_toml");
   });
 
@@ -145,9 +150,9 @@ describe("extractCustomizationTypes", () => {
     const agentic = result.filter((t) => t.group === "agentic");
     const navPilot = result.filter((t) => t.group === "nav-pilot");
 
-    expect(copilot.length).toBe(10);
-    expect(agentic.length).toBe(3);
-    expect(navPilot.length).toBe(1);
+    expect(copilot.length).toBe(11);
+    expect(agentic.length).toBe(5);
+    expect(navPilot.length).toBe(3);
   });
 });
 

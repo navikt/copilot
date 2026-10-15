@@ -80,6 +80,11 @@ export interface VerdiTeamRow extends TeamSpend {
   activeRepos: number | null;
   reposWithCustomizations: number | null;
   adoptionPct: number | null;
+  prsMerged30d: number | null;
+  prsReviewedByCopilot30d: number | null;
+  avgMedianMinutesToMerge30d: number | null;
+  commits30d: number | null;
+  openIssuesCount: number | null;
 }
 
 export interface VerdiTeamSummary {
@@ -344,11 +349,18 @@ export function buildVerdiTeams(
     .filter((t) => t.users >= MIN_VERDI_GROUP)
     .map((t): VerdiTeamRow => {
       const ad = adoptionBySlug.get(t.team_slug);
+      const hasPRs = ad?.prs_merged_30d != null && ad.prs_merged_30d >= MIN_VERDI_GROUP;
       return {
         ...t,
         activeRepos: ad ? ad.active_repos : null,
         reposWithCustomizations: ad ? ad.repos_with_customizations : null,
         adoptionPct: ad ? ad.adoption_pct : null,
+        prsMerged30d: hasPRs ? (ad?.prs_merged_30d ?? null) : null,
+        prsReviewedByCopilot30d: hasPRs ? (ad?.prs_reviewed_by_copilot_30d ?? null) : null,
+        avgMedianMinutesToMerge30d:
+          hasPRs && ad?.avg_median_minutes_to_merge_30d != null ? Math.round(ad.avg_median_minutes_to_merge_30d) : null,
+        commits30d: ad?.commits_30d != null && ad.commits_30d > 0 ? ad.commits_30d : null,
+        openIssuesCount: ad?.open_issues_count != null && ad.open_issues_count > 0 ? ad.open_issues_count : null,
       };
     })
     .sort((a, b) => b.amount_usd - a.amount_usd);

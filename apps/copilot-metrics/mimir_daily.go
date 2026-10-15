@@ -109,7 +109,7 @@ var mimirSession = []mimirSpec{
 	{metric: "nav_pilot_local_dispatches", cols: clientCols(mimirCol{"model", "model"}, mimirCol{"operation", "dispatch_level"}, mimirCol{"outcome", "saw_traffic"}), hist: true, device: true},
 	{metric: "nav_pilot_local_gate_total", cols: []mimirCol{{"outcome", "outcome"}}, device: true},
 	{metric: "nav_pilot_local_ready_seconds", cols: []mimirCol{{"outcome", "outcome"}}, hist: true, device: true},
-	{metric: "nav_pilot_decide_result_total", cols: []mimirCol{{"model", "model"}, {"outcome", "result"}, {"source", "caller"}, {"operation", "backend"}}, device: true},
+	{metric: "nav_pilot_decide_result_total", cols: []mimirCol{{"model", "model"}, {"outcome", "result"}, {"source", "caller"}, {"operation", "backend"}}, merge: "model", device: true},
 	{metric: "nav_pilot_launch_error_total", cols: clientCols(mimirCol{"error_type", "error_type"}), device: true},
 	{metric: "nav_pilot_sync_updates_total", cols: []mimirCol{{"source", "scope"}, {"operation", "mode"}}, device: true},
 	{metric: "nav_pilot_sync_conflicts_total", cols: []mimirCol{{"source", "scope"}, {"operation", "mode"}}, device: true},
@@ -438,21 +438,37 @@ func mimirSessionRows(ctx context.Context, m *MimirClient, day string, t time.Ti
 			if s.hist {
 				base += "_count"
 			}
-			expr := fmt.Sprintf(`count by (%s) (count by (%s,device_id) (sum_over_time(%s{device_id!="",version=~"%s"}[1d]) > 0))`, by, by, base, minSessionVersionRe)
+			if s.merge != "" {
+				expr := fmt.Sprintf(`count by (%s) (count by (%s,device_id) (sum_over_time(%s{device_id!="",version=~"%s"}[7d]) > 0))`, by, by, base, minSessionVersionRe)
+				res, err := m.query(ctx, expr, t)
+				if err != nil {
+					return nil, err
+				}
+				devs := map[string]int{}
+				for _, r := range res {
+					if n := r.float(); n >= mimirK && !math.IsNaN(n) {
+						devs[strings.Join(keyOf(r, labels), "\x00")] = int(n)
+					}
+				}
+				for _, id := range order {
+					if n, ok := devs[id]; ok {
+						rows[id]["devices"] = n
+						out = append(out, rows[id])
+					}
+				}
+				continue
+			}
+			expr := fmt.Sprintf(`count(count by (device_id) (sum_over_time(%s{device_id!="",version=~"%s"}[7d]) > 0))`, base, minSessionVersionRe)
 			res, err := m.query(ctx, expr, t)
 			if err != nil {
 				return nil, err
 			}
-			devs := map[string]int{}
-			for _, r := range res {
-				if n := r.float(); n >= mimirK && !math.IsNaN(n) {
-					devs[strings.Join(keyOf(r, labels), "\x00")] = int(n)
-				}
-			}
-			for _, id := range order {
-				if n, ok := devs[id]; ok {
-					rows[id]["devices"] = n
-					out = append(out, rows[id])
+			if len(res) > 0 {
+				if n := res[0].float(); n >= mimirK && !math.IsNaN(n) {
+					for _, id := range order {
+						rows[id]["devices"] = int(n)
+						out = append(out, rows[id])
+					}
 				}
 			}
 			continue
