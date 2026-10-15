@@ -202,22 +202,28 @@ func TestMimirSessionRows(t *testing.T) {
 		"histogram_quantile(0.95, sum by (version,client,le) (sum_over_time(nav_pilot_session_turns_bucket[1d])))": {
 			{map[string]string{"version": "0.18.0", "client": "copilot"}, "NaN"},
 		},
-		"nav_pilot_local_dispatches_count[1d]": {
-			{map[string]string{"version": "0.18.0", "client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
+		`nav_pilot_local_dispatches_count{version!="dev"}[1d]`: {
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
 		},
-		"nav_pilot_local_dispatches_sum[1d]": {
-			{map[string]string{"version": "0.18.0", "client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "57"},
+		`nav_pilot_local_dispatches_sum{version!="dev"}[1d]`: {
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "57"},
 		},
-		`nav_pilot_local_dispatches_count{device_id!=""}[1d]`: {
-			{map[string]string{"version": "0.18.0", "client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
+		`nav_pilot_local_dispatches_count{device_id!="",version!="dev"}[1d]`: {
+			{map[string]string{"client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
 		},
-		"nav_pilot_decide_result_total[1d]": {
-			{map[string]string{"version": "0.18.0", "model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "18"},
-			{map[string]string{"version": "0.18.0", "model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "2"},
+		`nav_pilot_decide_result_total{version!="dev"}[1d]`: {
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "18"},
+			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "2"},
 		},
-		`nav_pilot_decide_result_total{device_id!=""}[1d]`: {
-			{map[string]string{"version": "0.18.0", "model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "7"},
-			{map[string]string{"version": "0.18.0", "model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "3"},
+		`nav_pilot_decide_result_total{device_id!="",version!="dev"}[1d]`: {
+			{map[string]string{"model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "7"},
+			{map[string]string{"model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "3"},
+		},
+		`nav_pilot_launch_error_total{version!="dev"}[1d]`: {
+			{map[string]string{"client": "opencode", "error_type": "exit_code"}, "14"},
+		},
+		`nav_pilot_launch_error_total{device_id!="",version!="dev"}[1d]`: {
+			{map[string]string{"client": "opencode", "error_type": "exit_code"}, "10"},
 		},
 	})
 	rows, err := mimirSessionRows(context.Background(), m, "2026-10-09", time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC))
@@ -229,20 +235,20 @@ func TestMimirSessionRows(t *testing.T) {
 			t.Fatalf("session query must use sum_over_time, got %s", q)
 		}
 		if !strings.Contains(q, "version") {
-			t.Fatalf("session query must group by version, got %s", q)
+			t.Fatalf("session query must reference version, got %s", q)
 		}
 	}
-	if len(rows) != 6 {
-		t.Fatalf("expected 6 rows (rare-model <5 devices dropped), got %v", rows)
+	if len(rows) != 7 {
+		t.Fatalf("expected 7 rows (rare-model <5 devices dropped), got %v", rows)
 	}
 	byMetric := map[string]mimirRow{}
 	for _, r := range rows {
 		byMetric[r["metric"].(string)] = r
-		if r["family"] != "nav_pilot_session" || r["version"] != "0.18.0" || r["counter_reliable"] != true {
+		if r["family"] != "nav_pilot_session" || r["counter_reliable"] != true {
 			t.Errorf("unexpected row metadata: %v", r)
 		}
 	}
-	if byMetric["nav_pilot_session_skill_loads_total"]["skill"] != "aksel" || byMetric["nav_pilot_session_skill_loads_total"]["increase"] != 12.0 {
+	if byMetric["nav_pilot_session_skill_loads_total"]["skill"] != "aksel" || byMetric["nav_pilot_session_skill_loads_total"]["increase"] != 12.0 || byMetric["nav_pilot_session_skill_loads_total"]["version"] != "0.18.0" {
 		t.Errorf("skill row = %v", byMetric["nav_pilot_session_skill_loads_total"])
 	}
 	if byMetric["nav_pilot_session_tokens_total"]["token_type"] != "input" || byMetric["nav_pilot_session_tokens_total"]["increase"] != 5000.0 {
@@ -262,9 +268,16 @@ func TestMimirSessionRows(t *testing.T) {
 	if disp["hist_count"] != 6.0 || disp["hist_sum"] != 57.0 || disp["outcome"] != "true" || disp["operation"] != "subagent" || disp["devices"] != 6 {
 		t.Errorf("local_dispatches row = %v", disp)
 	}
+	if _, hasVer := disp["version"]; hasVer {
+		t.Errorf("device-gated session row must not split by version: %v", disp)
+	}
 	decide := byMetric["nav_pilot_decide_result_total"]
 	if decide["increase"] != 18.0 || decide["outcome"] != "local" || decide["source"] != "opencode" || decide["operation"] != "ollama" || decide["devices"] != 7 {
 		t.Errorf("decide row = %v", decide)
+	}
+	launchErr := byMetric["nav_pilot_launch_error_total"]
+	if launchErr["increase"] != 14.0 || launchErr["client"] != "opencode" || launchErr["error_type"] != "exit_code" || launchErr["devices"] != 10 {
+		t.Errorf("launch_error row = %v", launchErr)
 	}
 }
 
@@ -273,12 +286,21 @@ func TestMimirReachRows(t *testing.T) {
 		`nav_pilot_info{execution_context="organic",version!="dev"}[7d]`: {
 			{map[string]string{}, "217"},
 		},
+		`rtk_installed!=""}[7d]`: {
+			{map[string]string{"rtk_installed": "true"}, "136"},
+			{map[string]string{"rtk_installed": "false"}, "96"},
+		},
 		`count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info{execution_context="organic",version!="dev"}[7d])))`: {
 			{map[string]string{"client": "copilot"}, "160"},
 			{map[string]string{"client": "opencode"}, "56"},
 		},
 		`client=~"copilot|opencode"}[7d]))) > 1)`: {
 			{map[string]string{}, "13"},
+		},
+		`nav_pilot_client_available`: {
+			{map[string]string{"client": "copilot"}, "195"},
+			{map[string]string{"client": "opencode"}, "102"},
+			{map[string]string{"client": "pi"}, "3"},
 		},
 		`nav_pilot_command_duration_ms_count`: {
 			{map[string]string{"command": "sync"}, "180"},
@@ -288,17 +310,26 @@ func TestMimirReachRows(t *testing.T) {
 			{map[string]string{"scope": "user"}, "162"},
 			{map[string]string{"scope": "repo"}, "46"},
 		},
+		`nav_pilot_up_to_date{execution_context="organic",version!="dev"}[7d])) == 1)`: {
+			{map[string]string{"component": "cli", "scope": "none"}, "158"},
+		},
+		`nav_pilot_up_to_date{execution_context="organic",version!="dev"}[7d])) == 0)`: {
+			{map[string]string{"component": "cli", "scope": "none"}, "41"},
+		},
+		`nav_pilot_local_dispatches_count{device_id!="",version!="dev"}[7d]`: {
+			{map[string]string{}, "6"},
+		},
 	})
 	rows, err := mimirReachRows(context.Background(), m, "2026-10-14", time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, q := range *seen {
-		if !strings.Contains(q, `execution_context="organic",version!="dev"`) {
-			t.Fatalf("reach query missing organic non-dev filter: %s", q)
+		if !strings.Contains(q, `version!="dev"`) {
+			t.Fatalf("reach query missing non-dev filter: %s", q)
 		}
 	}
-	if len(rows) != 7 {
-		t.Fatalf("expected 7 reach rows (rare command <5 dropped), got %d: %v", len(rows), rows)
+	if len(rows) != 14 {
+		t.Fatalf("expected 14 reach rows (<5 dropped), got %d: %v", len(rows), rows)
 	}
 }

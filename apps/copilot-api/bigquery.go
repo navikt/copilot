@@ -374,12 +374,23 @@ type NavPilotSkillLoad struct {
 	Loads  int64  `json:"loads"`
 }
 
+type NavPilotAgentSelection struct {
+	Agent      string `json:"agent"`
+	Selections int64  `json:"selections"`
+}
+
+type NavPilotToolCall struct {
+	Tool  string `json:"tool"`
+	Calls int64  `json:"calls"`
+}
+
 type NavPilotCommandReach struct {
 	Command string `json:"command"`
 	Devices int64  `json:"devices"`
 }
 
 type NavPilotLocalTelemetry struct {
+	Devices7d              int64 `json:"devices_7d"`
 	ObservedSessions       int64 `json:"observed_sessions"`
 	SessionsWithTraffic    int64 `json:"sessions_with_traffic"`
 	SessionsWithoutTraffic int64 `json:"sessions_without_traffic"`
@@ -388,20 +399,29 @@ type NavPilotLocalTelemetry struct {
 }
 
 type NavPilotTelemetry struct {
-	LatestDay          string                 `json:"latest_day,omitempty"`
-	Devices1d          int64                  `json:"devices_1d"`
-	Devices7d          int64                  `json:"devices_7d"`
-	Devices28d         int64                  `json:"devices_28d"`
-	CopilotDevices7d   int64                  `json:"copilot_devices_7d"`
-	OpenCodeDevices7d  int64                  `json:"opencode_devices_7d"`
-	BothClients7d      int64                  `json:"both_clients_7d"`
-	UserScopeDevices7d int64                  `json:"user_scope_devices_7d"`
-	RepoScopeDevices7d int64                  `json:"repo_scope_devices_7d"`
-	AgentSkillLoads7d  int64                  `json:"agent_skill_loads_7d"`
-	UserSkillLoads7d   int64                  `json:"user_skill_loads_7d"`
-	TopSkills7d        []NavPilotSkillLoad    `json:"top_skills_7d"`
-	CommandReach7d     []NavPilotCommandReach `json:"command_reach_7d"`
-	Local7d            NavPilotLocalTelemetry `json:"local_7d"`
+	LatestDay          string                   `json:"latest_day,omitempty"`
+	Devices1d          int64                    `json:"devices_1d"`
+	Devices7d          int64                    `json:"devices_7d"`
+	Devices28d         int64                    `json:"devices_28d"`
+	CopilotDevices7d   int64                    `json:"copilot_devices_7d"`
+	OpenCodeDevices7d  int64                    `json:"opencode_devices_7d"`
+	BothClients7d      int64                    `json:"both_clients_7d"`
+	UserScopeDevices7d int64                    `json:"user_scope_devices_7d"`
+	RepoScopeDevices7d int64                    `json:"repo_scope_devices_7d"`
+	RtkDevices7d       int64                    `json:"rtk_devices_7d"`
+	CliUpToDate7d      int64                    `json:"cli_up_to_date_7d"`
+	CliStale7d         int64                    `json:"cli_stale_7d"`
+	CopilotSessions7d  int64                    `json:"copilot_sessions_7d"`
+	CopilotTurns7d     int64                    `json:"copilot_turns_7d"`
+	OpenCodeSessions7d int64                    `json:"opencode_sessions_7d"`
+	OpenCodeTurns7d    int64                    `json:"opencode_turns_7d"`
+	AgentSkillLoads7d  int64                    `json:"agent_skill_loads_7d"`
+	UserSkillLoads7d   int64                    `json:"user_skill_loads_7d"`
+	TopSkills7d        []NavPilotSkillLoad      `json:"top_skills_7d"`
+	TopAgents7d        []NavPilotAgentSelection `json:"top_agents_7d"`
+	TopTools7d         []NavPilotToolCall       `json:"top_tools_7d"`
+	CommandReach7d     []NavPilotCommandReach   `json:"command_reach_7d"`
+	Local7d            NavPilotLocalTelemetry   `json:"local_7d"`
 }
 
 type mimirTelemetryRow struct {
@@ -411,6 +431,8 @@ type mimirTelemetryRow struct {
 	Metric    string  `bigquery:"metric"`
 	Client    string  `bigquery:"client"`
 	Skill     string  `bigquery:"skill"`
+	Agent     string  `bigquery:"agent"`
+	Tool      string  `bigquery:"tool"`
 	Source    string  `bigquery:"source"`
 	Trigger   string  `bigquery:"trigger"`
 	Operation string  `bigquery:"operation"`
@@ -424,9 +446,13 @@ type mimirTelemetryRow struct {
 func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 	out := &NavPilotTelemetry{
 		TopSkills7d:    []NavPilotSkillLoad{},
+		TopAgents7d:    []NavPilotAgentSelection{},
+		TopTools7d:     []NavPilotToolCall{},
 		CommandReach7d: []NavPilotCommandReach{},
 	}
 	skills := map[string]*NavPilotSkillLoad{}
+	agents := map[string]int64{}
+	tools := map[string]int64{}
 
 	for _, r := range rows {
 		if out.LatestDay == "" && r.LatestDay != "" {
@@ -446,6 +472,10 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 					out.Devices7d = r.Devices
 				case "28d":
 					out.Devices28d = r.Devices
+				case "rtk_7d":
+					if r.Outcome == "true" {
+						out.RtkDevices7d = r.Devices
+					}
 				}
 			case "nav_pilot_config_info":
 				switch r.Client {
@@ -463,6 +493,17 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 				case "repo":
 					out.RepoScopeDevices7d = r.Devices
 				}
+			case "nav_pilot_up_to_date":
+				if r.Operation == "cli" {
+					switch r.Outcome {
+					case "up_to_date":
+						out.CliUpToDate7d = r.Devices
+					case "stale":
+						out.CliStale7d = r.Devices
+					}
+				}
+			case "nav_pilot_local_dispatches_count":
+				out.Local7d.Devices7d = r.Devices
 			case "nav_pilot_command_duration_ms_count":
 				if r.Operation != "" && r.Devices > 0 {
 					out.CommandReach7d = append(out.CommandReach7d, NavPilotCommandReach{Command: r.Operation, Devices: r.Devices})
@@ -487,6 +528,25 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 						skills[key] = &NavPilotSkillLoad{Skill: r.Skill, Source: r.Source}
 					}
 					skills[key].Loads += loads
+				}
+			case "nav_pilot_subagent_selected_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 && r.Agent != "" {
+					agents[r.Agent] += cnt
+				}
+			case "nav_pilot_session_tool_calls_total":
+				if cnt := int64(math.Round(r.Increase)); cnt > 0 && r.Tool != "" {
+					tools[r.Tool] += cnt
+				}
+			case "nav_pilot_session_turns":
+				sessions := int64(math.Round(r.HistCount))
+				turns := int64(math.Round(r.HistSum))
+				switch r.Client {
+				case "copilot":
+					out.CopilotSessions7d += sessions
+					out.CopilotTurns7d += turns
+				case "opencode":
+					out.OpenCodeSessions7d += sessions
+					out.OpenCodeTurns7d += turns
 				}
 			case "nav_pilot_local_dispatches":
 				sessions := int64(math.Round(r.HistCount))
@@ -519,6 +579,30 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 	if len(out.TopSkills7d) > 15 {
 		out.TopSkills7d = out.TopSkills7d[:15]
 	}
+	for a, n := range agents {
+		out.TopAgents7d = append(out.TopAgents7d, NavPilotAgentSelection{Agent: a, Selections: n})
+	}
+	sort.Slice(out.TopAgents7d, func(i, j int) bool {
+		if out.TopAgents7d[i].Selections != out.TopAgents7d[j].Selections {
+			return out.TopAgents7d[i].Selections > out.TopAgents7d[j].Selections
+		}
+		return out.TopAgents7d[i].Agent < out.TopAgents7d[j].Agent
+	})
+	if len(out.TopAgents7d) > 15 {
+		out.TopAgents7d = out.TopAgents7d[:15]
+	}
+	for t, n := range tools {
+		out.TopTools7d = append(out.TopTools7d, NavPilotToolCall{Tool: t, Calls: n})
+	}
+	sort.Slice(out.TopTools7d, func(i, j int) bool {
+		if out.TopTools7d[i].Calls != out.TopTools7d[j].Calls {
+			return out.TopTools7d[i].Calls > out.TopTools7d[j].Calls
+		}
+		return out.TopTools7d[i].Tool < out.TopTools7d[j].Tool
+	})
+	if len(out.TopTools7d) > 15 {
+		out.TopTools7d = out.TopTools7d[:15]
+	}
 	sort.Slice(out.CommandReach7d, func(i, j int) bool {
 		if out.CommandReach7d[i].Devices != out.CommandReach7d[j].Devices {
 			return out.CommandReach7d[i].Devices > out.CommandReach7d[j].Devices
@@ -546,6 +630,8 @@ func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTe
 			IFNULL(t.metric, '') AS metric,
 			IFNULL(t.client, '') AS client,
 			IFNULL(t.skill, '') AS skill,
+			IFNULL(t.agent, '') AS agent,
+			IFNULL(t.tool, '') AS tool,
 			IFNULL(t.source, '') AS source,
 			IFNULL(t.trigger, '') AS trigger,
 			IFNULL(t.operation, '') AS operation,
@@ -565,12 +651,15 @@ func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTe
 					AND (t.version IS NULL OR t.version >= '2026.09.29-063952')
 					AND t.metric IN (
 						'nav_pilot_session_skill_loads_total',
+						'nav_pilot_subagent_selected_total',
+						'nav_pilot_session_tool_calls_total',
+						'nav_pilot_session_turns',
 						'nav_pilot_local_dispatches',
 						'nav_pilot_decide_result_total'
 					)
 				)
 			)
-		GROUP BY latest_day, is_latest_day, family, metric, client, skill, source, trigger, operation, outcome
+		GROUP BY latest_day, is_latest_day, family, metric, client, skill, agent, tool, source, trigger, operation, outcome
 	`, tableRef, tableRef)
 
 	it, err := bq.client.Query(queryStr).Read(ctx)

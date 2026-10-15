@@ -218,7 +218,8 @@ async function LiveObservedLocalSection() {
   if (!token) return null;
   const { telemetry } = await getNavPilotTelemetry(token);
   const local = telemetry?.local_7d;
-  if (!local || (local.observed_sessions === 0 && local.decide_local_count === 0)) return null;
+  if (!local || (local.observed_sessions === 0 && local.decide_local_count === 0 && local.devices_7d === 0))
+    return null;
 
   return (
     <InsightSection id="observert-bruk" title="Observert bruk siste syv dager">
@@ -232,6 +233,7 @@ async function LiveObservedLocalSection() {
           label="Økter med lokal modell"
           helpTitle="Observerte økter"
           helpText="Økter der lokal subagent var slått på i nav-pilot siste syv dager."
+          subtitle={local.devices_7d > 0 ? `${formatNumber(local.devices_7d)} enheter siste syv dager` : undefined}
         />
         <MetricCard
           value={formatNumber(local.sessions_with_traffic)}
