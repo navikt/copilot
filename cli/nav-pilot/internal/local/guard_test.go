@@ -621,14 +621,14 @@ func TestGuardCloseWaitsForItsHandlers(t *testing.T) {
 
 	// The handshake is not decoration. Without it the goroutine below might not
 	// have been scheduled at all inside the window, and "Close has not returned
-	// yet" would pass for a Close that had never been called. Waiting for
-	// entering means the window times a Close that has actually begun.
-	entering, closed := make(chan struct{}), make(chan error, 1)
+	// yet" would pass for a Close that had never been called. Close's first step
+	// is g.cancelHandlers(), which cancels BaseContext, so waiting on Done()
+	// proves execution is inside Close.
+	closed := make(chan error, 1)
 	go func() {
-		close(entering)
 		closed <- g.Close()
 	}()
-	<-entering
+	<-g.srv.BaseContext(nil).Done()
 	select {
 	case err := <-closed:
 		t.Fatalf("Close returned while a handler was still running: %v", err)

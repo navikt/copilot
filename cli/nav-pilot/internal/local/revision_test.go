@@ -77,6 +77,12 @@ func TestRevision(t *testing.T) {
 	if s := serverScript(Model{Model: okModel, Revision: testRev}); !strings.Contains(s, `_MODEL, _REVISION = "`+okModel+`", "`+testRev+`"`) {
 		t.Errorf("pinned serverScript does not carry the revision:\n%s", s[:160])
 	}
+	if got := MissingWeightsError(Model{Model: okModel}).Error(); strings.Contains(got, "revision") {
+		t.Errorf("unpinned MissingWeightsError mentions revision: %q", got)
+	}
+	if got := MissingWeightsError(Model{Model: okModel, Revision: testRev}).Error(); !strings.Contains(got, "at revision "+testRev) {
+		t.Errorf("pinned MissingWeightsError missing revision %s: %q", testRev, got)
+	}
 }
 
 // A replaced id runs with the replacement's params, never its pin: the SHA

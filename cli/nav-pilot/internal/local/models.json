@@ -7,6 +7,7 @@
       "key": "qwen3.6-35b-a3b-optiq",
       "name": "Qwen 3.6 35B A3B OptiQ 4bit",
       "model": "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit",
+      "revision": "70a3aa32c7feef511182bf16aa332f37e8d82014",
       "backend": "mlx-lm",
       "default": true,
       "role": "Sub-agent worker for focused tasks",
@@ -26,7 +27,9 @@
         "MLX_CHAT_TEMPLATE_ARGS": "{\"enable_thinking\": false}",
         "MLX_TOP_K": "20",
         "MLX_TOP_P": "0.95",
-        "MLX_MIN_P": "0.0"
+        "MLX_MIN_P": "0.0",
+        "MLX_NAV_PILOT_TEMPERATURE": "0.6",
+        "MLX_NAV_PILOT_TOP_P": "0.95"
       },
       "recommended_for": [
         "decide-untrusted-evidence"

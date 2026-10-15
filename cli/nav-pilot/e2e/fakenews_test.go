@@ -19,7 +19,7 @@ func cmdFakeNews(ts *testscript.TestScript, neg bool, args []string) {
 	if neg || len(args) != 0 {
 		ts.Fatalf("usage: fake-news")
 	}
-	today := time.Now().Format(time.DateOnly)
+	today := time.Now().UTC().Format(time.DateOnly)
 	feed := fmt.Sprintf(`{"items":[
 {"title":"E2E-nyhet for nav-pilot","date":%q,"url":"https://ki-utvikling.nav.no/nyheter/e2e-cli","summary":"Om nav-pilot.","cli":true},
 {"title":"E2E-nyhet om noe annet","date":%q,"url":"https://ki-utvikling.nav.no/nyheter/e2e-annet","summary":"Ikke for CLI."}]}`, today, today)

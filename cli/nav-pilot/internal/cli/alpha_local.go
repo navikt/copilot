@@ -587,8 +587,7 @@ func cmdLocalStart() error {
 	if present, err := local.WeightsPresent(model.Model, model.Revision); err != nil {
 		return err
 	} else if !present {
-		return fmt.Errorf("the weights for %s are not on this machine. Download them: %s",
-			model.Model, bold("nav-pilot alpha local init"))
+		return local.MissingWeightsError(model)
 	}
 
 	wired, err := checkWiredLimit(model)

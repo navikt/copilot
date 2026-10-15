@@ -66,8 +66,10 @@ func TestScripts(t *testing.T) {
 	bin := binary(t)
 	// testscript removes its go-test-script* parent only after the last
 	// script has run, so -run or -failfast leaves it behind. Put it under a
-	// directory the test removes.
-	t.Setenv("GOTMPDIR", t.TempDir())
+	// directory the test removes, unless -testwork asked to keep $WORK.
+	if f := flag.Lookup("testwork"); f == nil || f.Value.String() != "true" {
+		t.Setenv("GOTMPDIR", t.TempDir())
+	}
 	testscript.Run(t, testscript.Params{
 		Dir:                 "testdata/script",
 		UpdateScripts:       *update,

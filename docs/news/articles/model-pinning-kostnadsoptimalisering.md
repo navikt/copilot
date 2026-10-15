@@ -74,14 +74,14 @@ Copilot skiller mellom tre token-typer: **input**, **output** og **cached input*
 
 **Cached input-priser (per 1M tokens):**
 
-| Modell | Input | Cached input | Cache write (kun Anthropic) |
+| Modell | Input | Cached input | Cache write |
 | --- | --- | --- | --- |
 | GPT-5.3-Codex | $1.75 | $0.175 | ingen |
 | Claude Sonnet 4.6 | $3.00 | $0.30 | $3.75 |
 | Claude Opus 4.6 | $5.00 | $0.50 | $6.25 |
 | GPT-5 mini | $0.25 | $0.025 | ingen |
 
-Anthropic-modeller har en ekstra **cache write**-kostnad (25 % over vanlig input) første gang konteksten skrives til cache, men 90 % billigere ved påfølgende lesinger.
+Anthropic-modeller og nyere OpenAI-modeller (GPT-5.6-familien) har en ekstra **cache write**-kostnad (25 % over vanlig input) første gang konteksten skrives til cache, men er 90 % billigere ved påfølgende lesinger.
 
 **Eksempel med GPT-5.3-Codex:**
 

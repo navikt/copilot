@@ -731,6 +731,12 @@ def main() -> int:
         metavar="BASE_REF",
         help="Compare modified customization/harness files against BASE_REF",
     )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Only print warnings, errors, and PR diffs",
+    )
     args = parser.parse_args()
 
     if args.selftest:
@@ -740,8 +746,9 @@ def main() -> int:
     rep = check_repo(root)
     diff_rows = check_diff(root, args.diff, rep) if args.diff else []
 
-    for label, cur, ceil in rep.summary_rows:
-        print(f"  ✓ {label}: {cur} (ceiling {ceil})")
+    if not args.quiet:
+        for label, cur, ceil in rep.summary_rows:
+            print(f"  ✓ {label}: {cur} (ceiling {ceil})")
 
     if diff_rows:
         print("\nChanged in this PR:")

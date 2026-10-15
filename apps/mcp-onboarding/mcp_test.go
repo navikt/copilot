@@ -35,6 +35,9 @@ func TestMCPHandler_Initialize(t *testing.T) {
 	if result.ServerInfo.Name != "mcp-onboarding" {
 		t.Errorf("expected server name 'mcp-onboarding', got %q", result.ServerInfo.Name)
 	}
+	if result.ServerInfo.Version != version {
+		t.Errorf("expected server version %q, got %q", version, result.ServerInfo.Version)
+	}
 	if result.ProtocolVersion != "2024-11-05" {
 		t.Errorf("expected protocol version '2024-11-05', got %q", result.ProtocolVersion)
 	}
@@ -252,5 +255,28 @@ func TestMCPHandler_CallTool_Whoami(t *testing.T) {
 	}
 	if len(result.Content) == 0 {
 		t.Fatal("expected content")
+	}
+}
+
+func TestLoggingMiddleware_PreservesFlusher(t *testing.T) {
+	var sawFlusher bool
+	handler := loggingMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, sawFlusher = w.(http.Flusher)
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/mcp", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if !sawFlusher {
+		t.Fatal("loggingMiddleware stripped http.Flusher from ResponseWriter")
+	}
+}
+
+func TestHandleRoot_MethodNotAllowed(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	rec := httptest.NewRecorder()
+	handleRoot(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST / status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
 	}
 }

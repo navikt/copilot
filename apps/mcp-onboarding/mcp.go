@@ -143,6 +143,7 @@ func (h *MCPHandler) handleStreamableHTTP(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 
 	data, _ := json.Marshal(response)
 	_, _ = fmt.Fprintf(w, "data: %s\n\n", data)
@@ -162,6 +163,7 @@ func (h *MCPHandler) handleSSE(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "SSE not supported", http.StatusInternalServerError)
 		return
 	}
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
 
 	ctx := r.Context()
 	user := GetUserFromContext(ctx)
@@ -257,7 +259,7 @@ func (h *MCPHandler) handleInitialize(req *JSONRPCRequest) *JSONRPCResponse {
 		},
 		ServerInfo: ServerInfo{
 			Name:    "mcp-onboarding",
-			Version: "2.0.0",
+			Version: version,
 		},
 	}
 

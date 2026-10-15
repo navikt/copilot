@@ -73,22 +73,6 @@ func TestReadyHandlerMethodNotAllowed(t *testing.T) {
 	}
 }
 
-func TestNotImplementedHandler(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
-	rec := httptest.NewRecorder()
-
-	notImplementedHandler(rec, req)
-
-	if rec.Code != http.StatusNotImplemented {
-		t.Errorf("Expected status 501, got %d", rec.Code)
-	}
-
-	contentType := rec.Header().Get("Content-Type")
-	if contentType != "application/problem+json" {
-		t.Errorf("Expected Content-Type 'application/problem+json', got %q", contentType)
-	}
-}
-
 func TestRespondError(t *testing.T) {
 	tests := []struct {
 		name       string

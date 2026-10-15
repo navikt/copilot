@@ -134,9 +134,6 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/budget", budget(perUser(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetBudget }))))
 	mux.HandleFunc("GET /api/v1/copilot/budget/global", budget(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetGlobalBudget })))
 
-	// Placeholder endpoints - to be implemented in future phases
-	mux.HandleFunc("/api/v1/mcp/servers", notImplementedHandler)
-
 	return mux
 }
 
@@ -178,10 +175,6 @@ func serviceUnavailableHandler(msg string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		respondError(w, "service_unavailable", msg, http.StatusServiceUnavailable)
 	}
-}
-
-func notImplementedHandler(w http.ResponseWriter, r *http.Request) {
-	respondError(w, "not_implemented", "This endpoint is not yet implemented", http.StatusNotImplemented)
 }
 
 // cacheControl sets HTTP cache headers for responses
