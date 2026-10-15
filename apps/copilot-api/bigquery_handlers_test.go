@@ -100,8 +100,9 @@ func TestHandleNavPilotTelemetry(t *testing.T) {
 		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_command_duration_ms_count", Operation: "sync", Devices: 180},
 		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_session_skill_loads_total", Skill: "klarsprak", Source: "nav", Trigger: "agent-invoked", Increase: 102},
 		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_session_skill_loads_total", Skill: "klarsprak", Source: "nav", Trigger: "user-invoked", Increase: 9},
-		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Outcome: "true", HistCount: 6, HistSum: 57},
-		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Outcome: "false", HistCount: 111, HistSum: 0},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Client: "opencode", Outcome: "true", HistCount: 6, HistSum: 57},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Client: "opencode", Outcome: "false", HistCount: 111, HistSum: 0},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Client: "copilot", Outcome: "true", HistCount: 2, HistSum: 40},
 		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_decide_result_total", Outcome: "decided", Increase: 18},
 	})
 	if agg.Devices7d != 217 || agg.CopilotDevices7d != 160 || agg.OpenCodeDevices7d != 56 || agg.BothClients7d != 13 {
@@ -113,8 +114,16 @@ func TestHandleNavPilotTelemetry(t *testing.T) {
 	if agg.AgentSkillLoads7d != 102 || agg.UserSkillLoads7d != 9 || len(agg.TopSkills7d) != 1 || agg.TopSkills7d[0].Loads != 111 {
 		t.Fatalf("unexpected skill loads: %+v", agg)
 	}
-	if agg.Local7d.ObservedSessions != 117 || agg.Local7d.SessionsWithTraffic != 6 || agg.Local7d.SessionsWithoutTraffic != 111 || agg.Local7d.DispatchAttempts != 57 || agg.Local7d.DecideLocalCount != 18 {
+	if agg.Local7d.ObservedSessions != 119 || agg.Local7d.SessionsWithTraffic != 8 || agg.Local7d.SessionsWithoutTraffic != 111 || agg.Local7d.DispatchAttempts != 57 || agg.Local7d.DecideLocalCount != 18 {
 		t.Fatalf("unexpected local telemetry: %+v", agg.Local7d)
+	}
+
+	legacyOnly := aggregateNavPilotTelemetry([]mimirTelemetryRow{
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_config", Metric: "nav_pilot_config_info", Client: "copilot", Devices: 90},
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_config", Metric: "nav_pilot_config_info", Client: "opencode", Devices: 30},
+	})
+	if legacyOnly.CopilotDevices7d != 0 || legacyOnly.OpenCodeDevices7d != 0 {
+		t.Fatalf("1d nav_pilot_config rows must not populate 7d reach fields: %+v", legacyOnly)
 	}
 
 	h := newBigQueryHandlers(&mockBigQueryClient{navPilotTelemetry: agg})

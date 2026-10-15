@@ -50,11 +50,15 @@ function hasTelemetry(t: NavPilotTelemetry): boolean {
   return (
     t.devices_7d > 0 ||
     t.devices_1d > 0 ||
+    t.devices_28d > 0 ||
     t.user_scope_devices_7d > 0 ||
+    t.repo_scope_devices_7d > 0 ||
     t.copilot_devices_7d > 0 ||
     t.opencode_devices_7d > 0 ||
     t.agent_skill_loads_7d > 0 ||
-    t.user_skill_loads_7d > 0
+    t.user_skill_loads_7d > 0 ||
+    t.command_reach_7d.length > 0 ||
+    t.top_skills_7d.length > 0
   );
 }
 
@@ -75,7 +79,7 @@ async function RuntimeTelemetry({ token }: { token: string }) {
       <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
         <MetricCard
           value={devices > 0 ? formatNumber(devices) : "–"}
-          label={t.devices_7d > 0 ? "Enheter (7 dager)" : "Enheter (siste døgn)"}
+          label={t.devices_1d > 0 && t.devices_7d === 0 ? "Enheter (siste døgn)" : "Enheter (7 dager)"}
           helpTitle="Rapporterende enheter"
           helpText="Unike enheter som har rapportert fra nav-pilot, uten utviklerbygg (version=dev) og kjente CI-miljøer. En enhet er en maskin-ID, ikke en person."
           subtitle={t.devices_28d > 0 ? `${formatNumber(t.devices_28d)} siste 28 dager` : undefined}

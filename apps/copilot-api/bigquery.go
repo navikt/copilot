@@ -426,7 +426,6 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 		TopSkills7d:    []NavPilotSkillLoad{},
 		CommandReach7d: []NavPilotCommandReach{},
 	}
-	var cfgCopilot1d, cfgOpenCode1d int64
 	skills := map[string]*NavPilotSkillLoad{}
 
 	for _, r := range rows {
@@ -434,16 +433,6 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 			out.LatestDay = r.LatestDay
 		}
 		switch r.Family {
-		case "nav_pilot_config":
-			if !r.IsLatest {
-				continue
-			}
-			switch r.Client {
-			case "copilot":
-				cfgCopilot1d = r.Devices
-			case "opencode":
-				cfgOpenCode1d = r.Devices
-			}
 		case "nav_pilot_reach":
 			if !r.IsLatest {
 				continue
@@ -501,9 +490,10 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 				}
 			case "nav_pilot_local_dispatches":
 				sessions := int64(math.Round(r.HistCount))
-				dispatches := int64(math.Round(r.HistSum))
 				out.Local7d.ObservedSessions += sessions
-				out.Local7d.DispatchAttempts += dispatches
+				if r.Client == "opencode" {
+					out.Local7d.DispatchAttempts += int64(math.Round(r.HistSum))
+				}
 				if r.Outcome == "true" {
 					out.Local7d.SessionsWithTraffic += sessions
 				} else {
@@ -517,10 +507,6 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 		}
 	}
 
-	if out.CopilotDevices7d == 0 && out.OpenCodeDevices7d == 0 {
-		out.CopilotDevices7d = cfgCopilot1d
-		out.OpenCodeDevices7d = cfgOpenCode1d
-	}
 	for _, s := range skills {
 		out.TopSkills7d = append(out.TopSkills7d, *s)
 	}
@@ -572,7 +558,7 @@ func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTe
 		CROSS JOIN bounds b
 		WHERE t.day > DATE_SUB(b.max_day, INTERVAL 7 DAY)
 			AND (
-				(t.day = b.max_day AND t.family IN ('nav_pilot_reach', 'nav_pilot_config'))
+				(t.day = b.max_day AND t.family = 'nav_pilot_reach')
 				OR (
 					t.family = 'nav_pilot_session'
 					AND IFNULL(t.version, '') != 'dev'

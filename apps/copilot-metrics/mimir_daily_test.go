@@ -50,7 +50,7 @@ func devices(job, model string, n int) []fakeSeries {
 	return out
 }
 
-var codeLinesAdded = mimirSpec{"code_lines", "github_copilot_code_lines_added_total", jobModel(), "model", false, false}
+var codeLinesAdded = mimirSpec{family: "code_lines", metric: "github_copilot_code_lines_added_total", cols: jobModel(), merge: "model"}
 
 func TestMimirFamilyQueriesAndMerge(t *testing.T) {
 	val := func(model, v string) fakeSeries {
@@ -208,8 +208,16 @@ func TestMimirSessionRows(t *testing.T) {
 		"nav_pilot_local_dispatches_sum[1d]": {
 			{map[string]string{"version": "0.18.0", "client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "57"},
 		},
+		`nav_pilot_local_dispatches_count{device_id!=""}[1d]`: {
+			{map[string]string{"version": "0.18.0", "client": "opencode", "model": "qwen3-coder", "dispatch_level": "subagent", "saw_traffic": "true"}, "6"},
+		},
 		"nav_pilot_decide_result_total[1d]": {
 			{map[string]string{"version": "0.18.0", "model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "18"},
+			{map[string]string{"version": "0.18.0", "model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "2"},
+		},
+		`nav_pilot_decide_result_total{device_id!=""}[1d]`: {
+			{map[string]string{"version": "0.18.0", "model": "qwen3-coder", "result": "local", "caller": "opencode", "backend": "ollama"}, "7"},
+			{map[string]string{"version": "0.18.0", "model": "rare-model", "result": "local", "caller": "opencode", "backend": "ollama"}, "3"},
 		},
 	})
 	rows, err := mimirSessionRows(context.Background(), m, "2026-10-09", time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC))
@@ -225,7 +233,7 @@ func TestMimirSessionRows(t *testing.T) {
 		}
 	}
 	if len(rows) != 6 {
-		t.Fatalf("expected 6 rows, got %v", rows)
+		t.Fatalf("expected 6 rows (rare-model <5 devices dropped), got %v", rows)
 	}
 	byMetric := map[string]mimirRow{}
 	for _, r := range rows {
@@ -251,11 +259,11 @@ func TestMimirSessionRows(t *testing.T) {
 		t.Errorf("NaN p95 must be omitted: %v", turns)
 	}
 	disp := byMetric["nav_pilot_local_dispatches"]
-	if disp["hist_count"] != 6.0 || disp["hist_sum"] != 57.0 || disp["outcome"] != "true" || disp["operation"] != "subagent" {
+	if disp["hist_count"] != 6.0 || disp["hist_sum"] != 57.0 || disp["outcome"] != "true" || disp["operation"] != "subagent" || disp["devices"] != 6 {
 		t.Errorf("local_dispatches row = %v", disp)
 	}
 	decide := byMetric["nav_pilot_decide_result_total"]
-	if decide["increase"] != 18.0 || decide["outcome"] != "local" || decide["source"] != "opencode" || decide["operation"] != "ollama" {
+	if decide["increase"] != 18.0 || decide["outcome"] != "local" || decide["source"] != "opencode" || decide["operation"] != "ollama" || decide["devices"] != 7 {
 		t.Errorf("decide row = %v", decide)
 	}
 }
@@ -269,7 +277,7 @@ func TestMimirReachRows(t *testing.T) {
 			{map[string]string{"client": "copilot"}, "160"},
 			{map[string]string{"client": "opencode"}, "56"},
 		},
-		`> 1)`: {
+		`client=~"copilot|opencode"}[7d]))) > 1)`: {
 			{map[string]string{}, "13"},
 		},
 		`nav_pilot_command_duration_ms_count`: {
