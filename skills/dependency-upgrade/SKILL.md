@@ -46,8 +46,8 @@ List every project directory (a monorepo has several). Skip any project director
 Never run the machine's global package manager blindly; a global `pnpm = "latest"` in `mise` will rewrite a pnpm 9/10 lockfile to pnpm 11 and break CI. Run this check in each project directory before any install or update command:
 
 ```bash
-# JS projects: compare repo pin and lockfile format against PATH
-pin=$(jq -r '.packageManager // empty' package.json 2>/dev/null)
+# JS projects: compare repo pin (stripping any Corepack +sha... suffix) and lockfile format against PATH
+pin=$(jq -r '.packageManager // empty' package.json ../package.json ../../package.json 2>/dev/null | head -n1 | cut -d+ -f1)
 pnpm_lock=$(awk '/^lockfileVersion:/ { gsub(/['\''"]/, "", $2); print $2; exit }' pnpm-lock.yaml 2>/dev/null)
 npm_lock=$(jq -r '.lockfileVersion // empty' package-lock.json 2>/dev/null)
 active_pnpm=$(pnpm --version 2>/dev/null)
@@ -57,7 +57,7 @@ echo "packageManager=${pin:-none} pnpm-lock=${pnpm_lock:-none} npm-lock=${npm_lo
 mise ls --current 2>/dev/null || true
 ```
 
-- **If `packageManager` is set in `package.json`** (`pnpm@<v>`, `npm@<v>`, or `yarn@<v>`): dispatch to that declared manager and exact version — `corepack pnpm ...` / `npx -y pnpm@<v> ...` for `pnpm@...`, `npx -y npm@<v> ...` for `npm@...`, or `corepack yarn ...` for `yarn@...` — and verify `<launcher> --version` matches `<v>` before installing or updating.
+- **If `packageManager` is set in `package.json` (or a parent workspace `package.json`)** (`pnpm@<v>`, `npm@<v>`, or `yarn@<v>` after stripping any `+sha...` suffix): dispatch to that declared manager and exact version — `corepack pnpm ...` / `npx -y pnpm@<v> ...` for `pnpm@...`, `npx -y npm@<v> ...` for `npm@...`, or `corepack yarn ...` for `yarn@...` — and verify `<launcher> --version` matches `<v>` before installing or updating.
 - **If `pnpm-lock.yaml` is present without `packageManager`**: match the lockfile major (`lockfileVersion: '6.0'` → `npx -y pnpm@8`, `lockfileVersion: '9.0'` → `npx -y pnpm@9` or `pnpm@10`). If `pnpm --version` on `PATH` is a newer major (such as `11.x` from a `mise` `latest` override) and you cannot run the matching major via `corepack` or `npx`, **stop immediately** on that project and report: `Stopped: repo lockfile requires pnpm <expected>, but active pnpm is <actual>`.
 - **If `package-lock.json` is present without `packageManager`**: match `lockfileVersion` (`1` → `npx -y npm@6`, `2` → `npx -y npm@8`, `3` → `npm >=9`) so a newer `npm` on `PATH` does not rewrite format `1`/`2` to `3`. If a compatible `npm` cannot be selected and verified with `--version`, **stop immediately** on that project and report: `Stopped: package-lock.json lockfileVersion <v> is incompatible with active npm <actual>`.
 - **Never change `lockfileVersion`** in `pnpm-lock.yaml` or `package-lock.json`, and never edit `packageManager` in `package.json`.
@@ -80,9 +80,8 @@ npm view "<pkg>@<version>" version
 # Go module proxy: must print "<module> <version>"
 go list -m "<module>@<version>"
 
-# Maven Central / Gradle: must exit 0 (numFound == 1)
-curl -sf "https://search.maven.org/solrsearch/select?q=g:<group>+AND+a:<artifact>+AND+v:<version>&rows=1&wt=json" \
-  | jq -e '.response.numFound == 1'
+# Maven Central / Gradle: check the POM directly (<group-path> replaces '.' with '/'); for Gradle plugins try https://plugins.gradle.org/m2/ too, or verify via ./gradlew dependencies --configuration compileClasspath
+curl -sfI "https://repo1.maven.org/maven2/<group-path>/<artifact>/<version>/<artifact>-<version>.pom" >/dev/null
 
 # NuGet / .NET: package id and version in lowercase; must exit 0
 curl -sf "https://api.nuget.org/v3-flatcontainer/<id-lowercase>/index.json" \
@@ -91,8 +90,8 @@ curl -sf "https://api.nuget.org/v3-flatcontainer/<id-lowercase>/index.json" \
 # Container image tag (only when the user explicitly asked to bump an image)
 docker buildx imagetools inspect "<image>:<tag>" >/dev/null
 
-# GitHub Action tag (only when the user explicitly asked to bump a workflow action)
-gh api "repos/<owner>/<repo>/git/ref/tags/<tag>" --jq '.ref'
+# GitHub Action tag (only when the user explicitly asked to bump a workflow action): resolve commit SHA and keep `@<sha> # <tag>` pinning when the workflow already pins by SHA
+gh api "repos/<owner>/<repo>/commits/<tag>" --jq '.sha'
 
 # Tool pin in mise / .tool-versions (only when the user explicitly asked to bump a tool)
 mise ls-remote "<tool>" | grep -Fx "<version>"
@@ -118,7 +117,7 @@ If the user explicitly asks to bump any held-back item, you **must** run the cor
 
 1. Run the project's verify command from step 1.
 2. If tests fail: fix only if the upgrade caused it and the fix is small; otherwise revert that package and record it as held back. Never delete, skip or weaken a test to get green.
-3. Run `git diff --name-only` before finishing each project and verify that no held-back file (`Dockerfile*`, `.tool-versions`, `mise.toml`, `.nvmrc`, `global.json`, `gradle-wrapper.properties`, `.github/workflows/*`, `.nais/*`) and no `lockfileVersion` or `packageManager` field changed unrequested. Revert any unintended edit immediately.
+3. Run `git diff --name-only` before finishing each project and verify that no held-back file (`Dockerfile*`, `docker-compose*.yml`, `compose*.yml`, `.tool-versions`, `mise.toml`, `.mise.toml`, `.nvmrc`, `.node-version`, `.python-version`, `global.json`, `gradle-wrapper.properties`, `.github/workflows/*`, `.github/actions/*`, `.nais/*`, `nais.yaml`, `nais.yml`) and no `lockfileVersion` or `packageManager` field changed unrequested. Revert any unintended edit immediately.
 
 ## 7. Report
 
