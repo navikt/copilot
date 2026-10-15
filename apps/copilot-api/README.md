@@ -60,10 +60,6 @@ nav-pilot → copilot-cli → Texas (M2M) → copilot-api → GitHub/BigQuery
 - `GET /api/v1/copilot/saml/{identity}`: Resolve GitHub username from SAML identity
 - `GET /api/v1/copilot/repo-contributors`: Repository file contributors
 
-#### MCP
-
-- `GET /api/v1/mcp/servers`: Not implemented yet
-
 ### Internal (one caller each)
 
 - `POST /internal/v1/saml/name-id`: Takes `{"login": "<GitHub login>"}` and returns `{"name_id": "<Nav e-mail>"}`, the nameId of the login's SAML SSO identity in navikt (current members only). 404 when the account has none. Only an app token (`idtyp=app` or role `access_as_application`) whose `azp` is copilot-survey's client id gets an answer. Any other valid token gets 403, and a missing or invalid one 401. Outside `/api/v1/`, so no identity resolver, audit line, request log or trace. Not cached. `copilot_api_saml_name_id_requests_total{status}` on `/metrics` counts the handler's outcomes (after the token check and method match, so 401 and 405 are not counted). copilot-survey's tokens get 403 on every other authenticated route, since Nais inbound access is pod-wide. The `CopilotApiSamlNameIdBurst` alert in `.nais/app.yaml` fires when it grows by more than 20 in 5 minutes.
