@@ -304,6 +304,7 @@
         "apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx",
         "docs/news/articles/nav-pilot-lokal-linux-egen-server.md"
       ],
+      "observert-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
       "rapporter": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"],
       "sist-oppdatert": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"]
     }
@@ -334,6 +335,7 @@
       "apps/my-copilot/src/lib/daily-fact.ts"
     ],
     "anchors": {
+      "faktisk-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "oversikt": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],
       "samlingen": ["apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"],

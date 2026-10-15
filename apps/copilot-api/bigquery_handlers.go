@@ -266,3 +266,24 @@ func (h *BigQueryHandlers) handleAdoptionStaleness(w http.ResponseWriter, r *htt
 	cacheControl(w, 3600, false)
 	respondJSON(w, summary, http.StatusOK)
 }
+
+// handleNavPilotTelemetry handles GET /api/v1/copilot/mimir/telemetry
+// Cache: 1 hour (aggregated daily Mimir telemetry)
+func (h *BigQueryHandlers) handleNavPilotTelemetry(w http.ResponseWriter, r *http.Request) {
+	if !requireMethod(w, r, http.MethodGet) {
+		return
+	}
+
+	telemetry, err := h.bqClient.GetNavPilotTelemetry(r.Context())
+	if err != nil {
+		slog.Error("Failed to fetch nav-pilot telemetry", "error", err)
+		respondError(w, "internal_error", "Failed to fetch nav-pilot telemetry", http.StatusInternalServerError)
+		return
+	}
+	if telemetry == nil {
+		telemetry = aggregateNavPilotTelemetry(nil)
+	}
+
+	cacheControl(w, 3600, false)
+	respondJSON(w, telemetry, http.StatusOK)
+}

@@ -40,6 +40,7 @@ import type {
   DailyCredits,
   UsageDistribution,
   RepositoryUsage,
+  NavPilotTelemetry,
 } from "./types";
 
 function getErrorMessage(label: string, err: unknown): string {
@@ -326,4 +327,14 @@ export async function getUsageDistribution(
     backendRequest<UsageDistribution>(`/api/v1/copilot/usage/distribution${query}`, token)
   );
   return { distribution: result.data, error: result.error };
+}
+
+export async function getNavPilotTelemetry(token: string): Promise<{
+  telemetry: NavPilotTelemetry | null;
+  error: string | null;
+}> {
+  const result = await fetchNullable("getNavPilotTelemetry", () =>
+    backendRequest<NavPilotTelemetry>("/api/v1/copilot/mimir/telemetry", token)
+  );
+  return { telemetry: result.data, error: result.error };
 }

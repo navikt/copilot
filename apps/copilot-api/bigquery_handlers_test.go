@@ -29,58 +29,109 @@ func TestHandleCohortRetentionNullForFutureMonths(t *testing.T) {
 
 // mockBigQueryClient implements BigQueryQuerier for testing
 type mockBigQueryClient struct {
-	factAggregates     *FactAggregates
-	dailyMetrics       []EnterpriseMetrics
-	dailyMetricsErr    error
-	adoptionSummary    *AdoptionSummary
-	adoptionSummaryErr error
-	teamAdoption       []TeamAdoption
-	teamAdoptionErr    error
-	custDetails        []CustomizationDetail
-	custDetailsErr     error
-	custUsage          []CustomizationUsage
-	custUsageErr       error
-	langAdoption       []LanguageAdoption
-	langAdoptionErr    error
-	stalenessFiles     []StalenessFile
-	stalenessErr       error
-	teamGross          *TeamGrossOverview
-	teamGrossErr       error
-	teamNet            *TeamNetOverview
-	anomalies          []Anomaly
-	spendBands         *SpendBands
-	teamNetErr         error
-	grossByMonth       map[string]*TeamGrossOverview
-	netByMonth         map[string]*TeamNetOverview
-	teamYear           *TeamYearOverview
-	teamYearArgs       []any
-	userTeams          []string
-	userMetrics        *UserMetricsSummary
-	userMetricsErr     error
-	monthlyTrends      []MonthlyTrend
-	monthlyTrendsErr   error
-	monthlyBilling     []MonthlyBillingUsage
-	monthlyBillingErr  error
-	billingModelDaily  []BillingModelDailyCost
-	billingModelErr    error
-	billingForecast    *BillingModelForecast
-	billingForecastErr error
-	weeklyTrends       []WeeklyTrend
-	weeklyTrendsErr    error
-	cohorts            []AdoptionCohortDay
-	cohortsErr         error
-	usageDistribution  *UsageDistribution
-	usageDistErr       error
-	repositoryUsage    []RepositoryUsage
-	repositoryUsageErr error
-	creditsPerUser     []CreditsPerUserMonth
-	creditsPerUserErr  error
-	copilotPRs         []CopilotPRMonth
-	copilotPRsErr      error
-	cohortRetention    []CohortRetention
-	cohortRetentionErr error
-	segments           *UserSegments
-	segmentsErr        error
+	factAggregates       *FactAggregates
+	dailyMetrics         []EnterpriseMetrics
+	dailyMetricsErr      error
+	adoptionSummary      *AdoptionSummary
+	adoptionSummaryErr   error
+	teamAdoption         []TeamAdoption
+	teamAdoptionErr      error
+	custDetails          []CustomizationDetail
+	custDetailsErr       error
+	custUsage            []CustomizationUsage
+	custUsageErr         error
+	langAdoption         []LanguageAdoption
+	langAdoptionErr      error
+	stalenessFiles       []StalenessFile
+	stalenessErr         error
+	teamGross            *TeamGrossOverview
+	teamGrossErr         error
+	teamNet              *TeamNetOverview
+	anomalies            []Anomaly
+	spendBands           *SpendBands
+	teamNetErr           error
+	grossByMonth         map[string]*TeamGrossOverview
+	netByMonth           map[string]*TeamNetOverview
+	teamYear             *TeamYearOverview
+	teamYearArgs         []any
+	userTeams            []string
+	userMetrics          *UserMetricsSummary
+	userMetricsErr       error
+	monthlyTrends        []MonthlyTrend
+	monthlyTrendsErr     error
+	monthlyBilling       []MonthlyBillingUsage
+	monthlyBillingErr    error
+	billingModelDaily    []BillingModelDailyCost
+	billingModelErr      error
+	billingForecast      *BillingModelForecast
+	billingForecastErr   error
+	weeklyTrends         []WeeklyTrend
+	weeklyTrendsErr      error
+	cohorts              []AdoptionCohortDay
+	cohortsErr           error
+	usageDistribution    *UsageDistribution
+	usageDistErr         error
+	repositoryUsage      []RepositoryUsage
+	repositoryUsageErr   error
+	creditsPerUser       []CreditsPerUserMonth
+	creditsPerUserErr    error
+	copilotPRs           []CopilotPRMonth
+	copilotPRsErr        error
+	cohortRetention      []CohortRetention
+	cohortRetentionErr   error
+	segments             *UserSegments
+	segmentsErr          error
+	navPilotTelemetry    *NavPilotTelemetry
+	navPilotTelemetryErr error
+}
+
+func (m *mockBigQueryClient) GetNavPilotTelemetry(_ context.Context) (*NavPilotTelemetry, error) {
+	return m.navPilotTelemetry, m.navPilotTelemetryErr
+}
+
+func TestHandleNavPilotTelemetry(t *testing.T) {
+	agg := aggregateNavPilotTelemetry([]mimirTelemetryRow{
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_info", Operation: "7d", Devices: 217},
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_config_info", Client: "copilot", Devices: 160},
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_config_info", Client: "opencode", Devices: 56},
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_config_info", Client: "both", Devices: 13},
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_installed_items", Source: "user", Devices: 162},
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_installed_items", Source: "repo", Devices: 46},
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_reach", Metric: "nav_pilot_command_duration_ms_count", Operation: "sync", Devices: 180},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_session_skill_loads_total", Skill: "klarsprak", Source: "nav", Trigger: "agent-invoked", Increase: 102},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_session_skill_loads_total", Skill: "klarsprak", Source: "nav", Trigger: "user-invoked", Increase: 9},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Client: "opencode", Outcome: "true", HistCount: 6, HistSum: 57},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Client: "opencode", Outcome: "false", HistCount: 111, HistSum: 0},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_local_dispatches", Client: "copilot", Outcome: "true", HistCount: 2, HistSum: 40},
+		{LatestDay: "2026-10-14", Family: "nav_pilot_session", Metric: "nav_pilot_decide_result_total", Outcome: "decided", Increase: 18},
+	})
+	if agg.Devices7d != 217 || agg.CopilotDevices7d != 160 || agg.OpenCodeDevices7d != 56 || agg.BothClients7d != 13 {
+		t.Fatalf("unexpected reach: %+v", agg)
+	}
+	if agg.UserScopeDevices7d != 162 || agg.RepoScopeDevices7d != 46 {
+		t.Fatalf("unexpected scope reach: %+v", agg)
+	}
+	if agg.AgentSkillLoads7d != 102 || agg.UserSkillLoads7d != 9 || len(agg.TopSkills7d) != 1 || agg.TopSkills7d[0].Loads != 111 {
+		t.Fatalf("unexpected skill loads: %+v", agg)
+	}
+	if agg.Local7d.ObservedSessions != 119 || agg.Local7d.SessionsWithTraffic != 8 || agg.Local7d.SessionsWithoutTraffic != 111 || agg.Local7d.DispatchAttempts != 57 || agg.Local7d.DecideLocalCount != 18 {
+		t.Fatalf("unexpected local telemetry: %+v", agg.Local7d)
+	}
+
+	legacyOnly := aggregateNavPilotTelemetry([]mimirTelemetryRow{
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_config", Metric: "nav_pilot_config_info", Client: "copilot", Devices: 90},
+		{LatestDay: "2026-10-14", IsLatest: true, Family: "nav_pilot_config", Metric: "nav_pilot_config_info", Client: "opencode", Devices: 30},
+	})
+	if legacyOnly.CopilotDevices7d != 0 || legacyOnly.OpenCodeDevices7d != 0 {
+		t.Fatalf("1d nav_pilot_config rows must not populate 7d reach fields: %+v", legacyOnly)
+	}
+
+	h := newBigQueryHandlers(&mockBigQueryClient{navPilotTelemetry: agg})
+	rec := httptest.NewRecorder()
+	h.handleNavPilotTelemetry(rec, httptest.NewRequest(http.MethodGet, "/api/v1/copilot/mimir/telemetry", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
 }
 
 func (m *mockBigQueryClient) GetUserSegments(_ context.Context) (*UserSegments, error) {

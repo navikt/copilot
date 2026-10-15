@@ -34,6 +34,7 @@ type Config struct {
 	CopilotMetricsDataset  string
 	CopilotMetricsTable    string
 	CopilotAdoptionDataset string
+	CopilotMimirDataset    string
 	CacheTTLHours          int
 	VideoManifestURL       string
 	VideoManifestPath      string
@@ -64,6 +65,7 @@ func loadConfig() *Config {
 		CopilotMetricsDataset:  getEnv("COPILOT_METRICS_DATASET", "copilot_metrics"),
 		CopilotMetricsTable:    getEnv("COPILOT_METRICS_TABLE", "usage_metrics"),
 		CopilotAdoptionDataset: getEnv("COPILOT_ADOPTION_DATASET", "copilot_adoption"),
+		CopilotMimirDataset:    getEnv("COPILOT_MIMIR_DATASET", "copilot_metrics_staging"),
 		CacheTTLHours:          1,
 		VideoManifestURL:       getEnv("VIDEO_MANIFEST_URL", ""),
 		VideoManifestPath:      getEnv("VIDEO_MANIFEST_PATH", ""),
