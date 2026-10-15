@@ -1020,7 +1020,11 @@ func EnsureOpenCodeLocalPolicy(m local.Model) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.DispatchLevel(), local.SameResultRepeat(), local.LoopGuardRepeat())+local.DepUpgradePolicyText(local.ProjectDepUpgrade())), 0o600); err != nil {
+	dep := local.ProjectDepUpgrade()
+	if local.DepUpgrade() && gateRoot != "" {
+		dep = local.DepUpgradeRepo(dispatchGateRoot())
+	}
+	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.DispatchLevel(), local.SameResultRepeat(), local.LoopGuardRepeat())+local.DepUpgradePolicyText(dep)), 0o600); err != nil {
 		return fmt.Errorf("writing the local dispatch policy: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(dispatchGatePluginPath()), 0o700); err != nil {
@@ -1293,6 +1297,7 @@ func localWorker() (local.Model, error) {
 
 func startOpenCodeLocalDispatch(resolved domain.ResolvedConfig) (*local.Guard, error) {
 	gateRoot = resolved.ProjectDir
+	defer func() { gateRoot = "" }()
 	return startLocalDispatch(openCodeSessionModelForLocalDispatch(resolved.Model))
 }
 

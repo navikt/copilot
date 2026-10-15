@@ -164,9 +164,11 @@ function dispatchGate(ctx, directory) {
       try {
         const agent = await orchestrator(event.sessionID, event.agent)
         if (!agent) {
-          // The worker's writes and edits: see dispatch-gate.js. Never a refusal.
-          if (event.agent === "local-worker" && (tool === "write" || tool === "edit"))
-            await ask({ session: event.sessionID, agent: "local-worker", tool, create, path: abs(str(args.path)), phase: "worker" })
+          // The worker's writes, edits and shell commands: see dispatch-gate.js.
+          if (event.agent === "local-worker" && (tool === "write" || tool === "edit" || tool === "shell")) {
+            deny = (await ask({ session: event.sessionID, agent: "local-worker", tool: tool === "shell" ? "bash" : tool, create, path: abs(str(args.path)), command: tool === "shell" ? str(args.command) : "", phase: "worker" })).deny ?? ""
+            if (typeof deny === "string" && deny) throw new Error(deny)
+          }
           return
         }
         const replaceAll = tool === "edit" && args.replaceAll === true

@@ -41,10 +41,9 @@ var depEcosystems = []struct {
 	{"dotnet", []string{"packages.lock.json"}, []string{"*.sln", "*.csproj"}},
 }
 
-// DepUpgradeRepo reports the first ecosystem in dir with both a lockfile (or
-// version catalog) and something to run tests with. "" means the repo gives
-// the worker no check, and an upgrade there stays with the cloud.
-func DepUpgradeRepo(dir string) string {
+// depUpgradeDir reports the first ecosystem in dir with both a lockfile (or
+// version catalog) and something to run tests with, or "".
+func depUpgradeDir(dir string) string {
 	has := func(pattern string) bool {
 		m, _ := filepath.Glob(filepath.Join(dir, pattern))
 		return len(m) > 0
@@ -62,6 +61,54 @@ func DepUpgradeRepo(dir string) string {
 		}
 	}
 	return ""
+}
+
+func skipDepScanDir(name string) bool {
+	if strings.HasPrefix(name, ".") {
+		return true
+	}
+	switch name {
+	case "node_modules", "vendor", "dist", "build", "target", "bin", "obj", "out", "testdata":
+		return true
+	}
+	return false
+}
+
+// DepUpgradeRepo reports the eligible project(s) in dir: the ecosystem name when
+// only dir itself has both a lockfile (or version catalog) and a test file, or a
+// comma-separated "<subdir> (<ecosystem>)" list when subdirectories up to two
+// levels down qualify. "" means nothing in the repo gives the worker a check,
+// and an upgrade there stays with the cloud.
+func DepUpgradeRepo(dir string) string {
+	rootEco := depUpgradeDir(dir)
+	var subs []string
+	var scan func(rel string, depth int)
+	scan = func(rel string, depth int) {
+		entries, err := os.ReadDir(filepath.Join(dir, rel))
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			if !e.IsDir() || skipDepScanDir(e.Name()) {
+				continue
+			}
+			sub := filepath.ToSlash(filepath.Join(rel, e.Name()))
+			if eco := depUpgradeDir(filepath.Join(dir, sub)); eco != "" {
+				subs = append(subs, sub+" ("+eco+")")
+			}
+			if depth < 2 {
+				scan(sub, depth+1)
+			}
+		}
+	}
+	scan("", 1)
+	if len(subs) == 0 {
+		return rootEco
+	}
+	if rootEco != "" {
+		subs = append([]string{". (" + rootEco + ")"}, subs...)
+	}
+	return strings.Join(subs, ", ")
 }
 
 // PinnedFile reports whether path is one the worker must not bump: a tool
@@ -87,17 +134,18 @@ func PinnedFile(path string) bool {
 }
 
 // DepUpgradePolicyText is the paragraph added to the dispatch policy when
-// local_dep_upgrade is on and the project is eligible. eco is DepUpgradeRepo's
-// answer; "" adds nothing.
+// local_dep_upgrade is on and the repo has at least one eligible project. eco
+// is DepUpgradeRepo's answer; "" adds nothing.
 func DepUpgradePolicyText(eco string) string {
 	if eco == "" {
 		return ""
 	}
-	return "\nDependency upgrades (" + eco + "): this project has a lockfile and tests, so a request to upgrade its direct dependencies may go to `local-worker`. " +
-		"Send it the upgrade with the repo's own package manager and the command that builds and tests it; accept the result only after that command passes on your side. " +
-		"Keep these yourself, or check each new version against the upstream registry before accepting it: tool pins (.tool-versions, mise.toml, .nvmrc, global.json, the Gradle wrapper), " +
+	return "\nDependency upgrades (" + eco + "): send direct dependency upgrades in the listed lockfile-and-test project(s) to `local-worker` instead of doing them yourself. " +
+		"Send one task per project with its directory, the repo's own pinned package manager and the command that builds and tests it; accept the result only after that command passes on your side. " +
+		"Projects without both a lockfile and a test command stay with you. " +
+		"Do not send pinned files to `local-worker` (nav-pilot refuses its edits to them); keep these yourself and check each new version against the upstream registry before writing it: tool pins (.tool-versions, mise.toml, .nvmrc, global.json, the Gradle wrapper), " +
 		"container image tags in Dockerfiles and compose files, GitHub Actions versions in .github/, and nais manifests. " +
-		"Never accept a new major of a database or other infrastructure image (postgres, redis, kafka) unless the user asked for that major.\n"
+		"Never upgrade a database or other infrastructure image or driver (postgres, redis, kafka) to a new major unless the user asked for that major.\n"
 }
 
 // ProjectDepUpgrade is DepUpgradeRepo for the working directory, or "" when

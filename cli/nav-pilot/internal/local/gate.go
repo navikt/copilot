@@ -521,16 +521,30 @@ func (g *dispatchGate) turn(r GateRequest) *gateTurn {
 // unverified ("text"). The key is the JSON field the plugin reads.
 func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 	if r.Phase == "worker" {
-		if r.Session == "" || (r.Tool != "write" && r.Tool != "edit") {
+		if r.Session == "" {
 			return "", ""
 		}
 		g.mu.Lock()
 		defer g.mu.Unlock()
-		if g.rules.Pinned && PinnedFile(r.Path) {
-			g.counts["pinned_deny"]++
-			return "deny", GatePinnedText
+		switch r.Tool {
+		case "write", "edit":
+			if g.rules.Pinned && PinnedFile(r.Path) {
+				g.counts["pinned_deny"]++
+				return "deny", GatePinnedText
+			}
+			g.workerWrote[r.Session] = true
+		case "bash":
+			if !g.rules.Pinned {
+				return "", ""
+			}
+			_, edits := shellEdits(r.Command)
+			for _, e := range edits {
+				if PinnedFile(e.file) {
+					g.counts["pinned_deny"]++
+					return "deny", GatePinnedText
+				}
+			}
 		}
-		g.workerWrote[r.Session] = true
 		return "", ""
 	}
 	if r.Session == "" || r.Agent == "" || r.Agent == WorkerAgent {

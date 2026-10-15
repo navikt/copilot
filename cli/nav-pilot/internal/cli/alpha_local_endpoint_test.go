@@ -86,6 +86,16 @@ func TestEndpointInitSkipsTheMacOSChecks(t *testing.T) {
 	if !local.Enabled() || !local.IsLocal("qwen3.6:35b") || model != "qwen3.6:35b" || !strings.HasPrefix(base, "http://127.0.0.1:") {
 		t.Errorf("after init: enabled=%v IsLocal=%v endpoint=%s %s", local.Enabled(), local.IsLocal("qwen3.6:35b"), base, model)
 	}
+	if local.DepUpgrade() {
+		t.Error("local_dep_upgrade was on by default for an endpoint")
+	}
+	if _, err := writeConfigKey("local_dep_upgrade", "true"); err != nil {
+		t.Fatal(err)
+	}
+	applyLocalConfig()
+	if !local.DepUpgrade() {
+		t.Error("applyEndpointConfig did not wire local_dep_upgrade")
+	}
 	if e, _ := local.Lookup("qwen3.6:35b"); e.Capabilities != nil {
 		t.Error("an endpoint model has capability verdicts")
 	}

@@ -392,25 +392,29 @@ Rule:
 
 How it is enforced:
 
-- **Eligibility** is policy text. When the key is on and the working directory
+- **Eligibility** is policy text. When the key is on (managed server or
+  `local_endpoint`) and the repo root or a project up to two levels under it
   passes `local.DepUpgradeRepo`, `EnsureOpenCodeLocalPolicy` appends
-  `local.DepUpgradePolicyText`; otherwise nothing is added, so upgrades in a
-  repo without a lockfile and tests are never offered to the worker. Whether a
-  request is a dependency bump is the orchestrator's call.
+  `local.DepUpgradePolicyText` naming the eligible project(s) and instructing
+  the orchestrator to send direct dependency upgrades in those projects to
+  `local-worker`; otherwise nothing is added, so upgrades in a repo without a
+  lockfile and tests are never offered to the worker.
 - **Pinned files** are enforced by the gate. With the key on, the launch sets
   `GateRules.Pinned` (a cloud orchestrator, any `local_dispatch` level that
   offers the worker; at `conservative` this turns the gate on, so the
-  verify reminders run there too). The plugin already reports each worker `write`/`edit`
-  (phase `worker`); for a `local.PinnedFile` path the gate now answers with
+  verify reminders run there too). The plugin reports each worker `write`, `edit`
+  and `bash` call (phase `worker`); for a `local.PinnedFile` path (including
+  in-place `sed -i` / `perl -i` shell edits) the gate answers with
   `local.GatePinnedText` and the plugin throws it. The task fails and the
   orchestrator keeps the change. Counted as `pinned_deny`.
 - **Key off:** `Pinned` is false, the policy text is empty and the worker's
   writes are answered exactly as before (`TestDepUpgradeOffChangesNothing`,
   `TestGatePinnedFiles`).
 
-Known gaps: the worker's shell edits (`sed -i Dockerfile`) are not seen, as
-for the other gate rules. Next: a `dep-upgrade` class in the capabilities
-manifest so the verdict comes from measurement instead of a config key.
+Known gaps: shell writes other than `sed -i` / `perl -i` (such as redirects or
+heredocs) by the worker are not parsed. Next: a `dep-upgrade` class in the
+capabilities manifest so the verdict comes from measurement instead of a config
+key.
 
 ## Telemetry
 

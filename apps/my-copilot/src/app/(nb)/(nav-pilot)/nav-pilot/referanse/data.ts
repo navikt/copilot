@@ -120,7 +120,7 @@ export const CONFIG_KEYS = [
     key: "local_dep_upgrade",
     flag: "—",
     values: "true · false (standard: false)",
-    desc: "La hovedagenten i opencode sende avhengighetsoppgraderinger til den lokale modellen når repoet har låsefil og tester (alfa). Verktøyversjoner, image-tagger og versjoner av CI-actions blir i skyen.",
+    desc: "Send avhengighetsoppgraderinger i prosjekter med låsefil og tester til den lokale modellen i opencode (alfa). Verktøyversjoner, image-tagger, GitHub Actions og nais-manifester blir i skyen.",
   },
   {
     key: "local_loop_guard",

@@ -186,7 +186,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "local_dep_upgrade",
 		kind:        keyKindBool,
-		description: "Let the opencode orchestrator send dependency upgrades to the local worker in a repo with a lockfile and tests (alpha). Tool pins, image tags and CI action versions stay with the cloud.",
+		description: "Send dependency upgrades in projects with a lockfile and tests to the local worker in opencode (alpha). Tool pins, image tags, GitHub Actions and nais manifests stay with the cloud.",
 		allowed:     nil,
 		defaultVal:  "false",
 		flag:        "",

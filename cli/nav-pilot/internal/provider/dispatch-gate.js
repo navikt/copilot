@@ -67,14 +67,15 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
       const args = output?.args ?? {}
       const agent = await orchestrator(input.sessionID)
       if (!agent) {
-        // The worker's writes and edits: a check that fails after it returns
-        // goes back to it once. The one refusal here is a pinned file under
-        // local_dep_upgrade, which fails the task back to the orchestrator.
-        if (agents.get(input.sessionID) === "local-worker" && (input.tool === "write" || input.tool === "edit")) {
+        // The worker's writes, edits and shell commands: a check that fails
+        // after it returns goes back to it once. The one refusal here is a
+        // pinned file under local_dep_upgrade, which fails the task back to
+        // the orchestrator.
+        if (agents.get(input.sessionID) === "local-worker" && (input.tool === "write" || input.tool === "edit" || input.tool === "bash")) {
           const path = str(args.filePath)
           let deny = ""
           try {
-            deny = (await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: input.tool === "write" || args.oldString === "", path: isAbsolute(path) ? path : join(directory ?? "", path), phase: "worker" })).deny ?? ""
+            deny = (await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: input.tool === "write" || args.oldString === "", path: path ? (isAbsolute(path) ? path : join(directory ?? "", path)) : "", command: input.tool === "bash" ? str(args.command) : "", phase: "worker" })).deny ?? ""
           } catch {}
           if (typeof deny === "string" && deny) throw new Error(deny)
         }
