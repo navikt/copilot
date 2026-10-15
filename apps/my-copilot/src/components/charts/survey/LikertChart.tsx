@@ -119,11 +119,9 @@ export const LikertChart: React.FC<LikertChartProps> = ({ title, items, total = 
         ticks: { color: "#6B7280", font: { size: 11 }, callback: (v: string | number) => `${v} %` },
       },
       y: {
+        ...commonHorizontalBarOptions.scales.y,
         stacked: true,
-        maxWidth: 140,
-        border: { display: false },
-        grid: { display: false },
-        ticks: { color: "#374151", font: { size: 11 } },
+        ticks: { ...commonHorizontalBarOptions.scales.y.ticks, color: "#374151" },
       },
     },
   };
