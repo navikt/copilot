@@ -164,6 +164,8 @@ func (h *MCPHandler) handleSSE(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
 
 	ctx := r.Context()
 	user := GetUserFromContext(ctx)
@@ -212,7 +214,8 @@ func (h *MCPHandler) handleSSE(w http.ResponseWriter, r *http.Request) {
 			sendEvent("", `{"type":"keepalive"}`)
 		case msg, ok := <-messages:
 			if !ok {
-				return
+				messages = nil
+				continue
 			}
 			var req JSONRPCRequest
 			if err := json.Unmarshal(msg, &req); err != nil {

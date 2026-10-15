@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 )
 
 func newSimpleMCPHandler() *MCPHandler {
@@ -269,6 +272,63 @@ func TestLoggingMiddleware_PreservesFlusher(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if !sawFlusher {
 		t.Fatal("loggingMiddleware stripped http.Flusher from ResponseWriter")
+	}
+}
+
+type sseTestRecorder struct {
+	*httptest.ResponseRecorder
+	flushed chan struct{}
+	once    sync.Once
+}
+
+func (r *sseTestRecorder) Flush() {
+	r.ResponseRecorder.Flush()
+	r.once.Do(func() { close(r.flushed) })
+}
+
+func TestMCPHandler_HandleSSE_EmptyBodyStaysOpen(t *testing.T) {
+	h := newSimpleMCPHandler()
+	handler := loggingMiddleware(h)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req := httptest.NewRequest(http.MethodGet, "/mcp", nil).WithContext(ctx)
+	rec := &sseTestRecorder{
+		ResponseRecorder: httptest.NewRecorder(),
+		flushed:          make(chan struct{}),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		handler.ServeHTTP(rec, req)
+	}()
+
+	select {
+	case <-rec.flushed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handleSSE did not flush initial headers")
+	}
+
+	select {
+	case <-done:
+		t.Fatal("handleSSE exited immediately on empty GET body before context cancellation")
+	case <-time.After(30 * time.Millisecond):
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handleSSE did not exit after context cancellation")
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /mcp status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "text/event-stream" {
+		t.Fatalf("Content-Type = %q, want text/event-stream", ct)
 	}
 }
 
