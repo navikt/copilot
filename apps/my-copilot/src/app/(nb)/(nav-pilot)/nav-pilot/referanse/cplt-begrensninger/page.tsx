@@ -61,9 +61,9 @@ export default function CpltBegrensninger() {
               <code className={code}>sandbox.pass_env</code>.
             </li>
             <li>
-              Nøkkelringen er stengt inne i sandkassen (<code className={code}>~/Library/Keychains</code> på macOS når
-              gh-tokenet brukes, og D-Bus-nøkkelringen på Linux og i WSL). Logg inn utenfor cplt, ikke med{" "}
-              <code className={code}>/login</code> inne i økten, se{" "}
+              På macOS er <code className={code}>~/Library/Keychains</code> stengt når cplt sender inn gh-tokenet, og på
+              Linux og i WSL fjerner cplt <code className={code}>DBUS_SESSION_BUS_ADDRESS</code> og stenger
+              nøkkelringfiler. Logg inn utenfor cplt, ikke med <code className={code}>/login</code> inne i økten, se{" "}
               <NextLink href={`${FAQ}#keyring`} className={linkClass}>
                 System vault not available
               </NextLink>
@@ -148,9 +148,9 @@ export default function CpltBegrensninger() {
             </li>
             <li>
               macOS: <code className={code}>git config</code>, <code className={code}>git remote set-url</code>,{" "}
-              <code className={code}>git clone</code>, <code className={code}>git init</code> og git-hooks må kjøres
-              utenfor cplt. Nye worktrees inne i økten bruker <code className={code}>cplt worktree add</code> og{" "}
-              <code className={code}>cplt worktree remove</code> når{" "}
+              <code className={code}>git clone</code>, <code className={code}>git init</code>,{" "}
+              <code className={code}>git worktree remove</code> og git-hooks må kjøres utenfor cplt. Nye worktrees inne
+              i økten lages med <code className={code}>cplt worktree add &lt;navn&gt; &lt;ref&gt;</code> når{" "}
               <code className={code}>sandbox.allow_git_worktrees</code> er slått på, se{" "}
               <NextLink href="/nav-pilot/guider/worktrees#subagenter" className={linkClass}>
                 Worktrees til subagenter

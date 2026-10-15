@@ -117,27 +117,24 @@ cplt config set --local sandbox.allow_git_worktrees true   # bare denne utsjekki
             kommandoene:
           </BodyLong>
           <CodeBlock compact>
-            {`cplt worktree add <navn> [ref]
-cplt worktree remove <navn>`}
+            {`cplt worktree add <navn> <ref>                         # sjekker ut <ref> med detached HEAD og skriver ut stien
+git -C "$CPLT_WORKTREE_ROOT/<navn>" switch -c <branch> # lag en branch hvis subagenten skal committe på en branch`}
           </CodeBlock>
           <BodyLong>
-            På macOS er <code className={code}>.github</code>, <code className={code}>.vscode</code>,{" "}
-            <code className={code}>.cplt.toml</code>, <code className={code}>.husky</code> og andre beskyttede stier
-            skrivebeskyttet også inne i worktree-mappa. En vanlig <code className={code}>git worktree add</code> eller{" "}
-            <code className={code}>git worktree remove</code> inne i sandkassen feiler derfor så snart repoet har en
-            slik fil. <code className={code}>cplt worktree add</code> og{" "}
-            <code className={code}>cplt worktree remove</code> ber cplt-prosessen utenfor sandkassen om å opprette og
-            fjerne worktreet i <code className={code}>~/.cplt-worktrees/&lt;id&gt;/&lt;navn&gt;</code> på branchen{" "}
-            <code className={code}>cplt-wt/&lt;navn&gt;</code>.
+            På macOS er <code className={code}>.cplt.toml</code>, <code className={code}>.github/hooks</code>,{" "}
+            <code className={code}>.agents/plugins</code>, <code className={code}>.gitmodules</code> og de andre
+            beskyttede stiene skrivebeskyttet også inne i worktree-mappa. En vanlig{" "}
+            <code className={code}>git worktree add</code> eller <code className={code}>git worktree remove</code> inne
+            i sandkassen feiler derfor så snart repoet har en slik fil.{" "}
+            <code className={code}>cplt worktree add &lt;navn&gt; &lt;ref&gt;</code> ber cplt-prosessen utenfor
+            sandkassen om å opprette worktreet i <code className={code}>~/.cplt-worktrees/&lt;id&gt;/&lt;navn&gt;</code>{" "}
+            med detached <code className={code}>HEAD</code>.
           </BodyLong>
-          <BodyLong>
-            Worktrees og brancher som ikke fjernes i økten, blir liggende etterpå. Du kan også rydde opp selv utenfor
-            cplt:
-          </BodyLong>
+          <BodyLong>Worktrees og brancher blir liggende etter økten. Fjern dem utenfor cplt når du er ferdig:</BodyLong>
           <CodeBlock compact>
             {`git worktree list
 git worktree remove ~/.cplt-worktrees/<id>/<navn>
-git branch -d cplt-wt/<navn>`}
+git branch -d <branch>`}
           </CodeBlock>
           <BodyLong>
             Innstillingen kan bare settes i din egen cplt-konfig. Et repo kan ikke slå den på for deg med{" "}
@@ -153,7 +150,7 @@ git branch -d cplt-wt/<navn>`}
           </LinkableHeading>
           <BodyLong>
             Noen holder repoet som et bare repo, uten arbeidskatalog, med hver branch som et worktree ved siden av.
-            Andre har git-mappa et annet sted enn koden. Begge virker som når du starter i et worktree: cplt følger{" "}
+            Andre har git-mappa et annet sted enn koden. Begge virker som når du starter i et worktree. cplt følger{" "}
             <code className={code}>.git</code>-fila til den felles git-mappa og gir agenten tilgang dit.
           </BodyLong>
           <CodeBlock compact>
@@ -194,15 +191,16 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             </li>
             <li>
               <strong>Slik lager cplt et worktree for agenten.</strong> Når agenten kjører{" "}
-              <code className={code}>cplt worktree add &lt;navn&gt; [ref]</code>, oppretter cplt utenfor sandkassen
-              først worktreet med <code className={code}>--no-checkout</code> mot den commiten{" "}
-              <code className={code}>HEAD</code> hadde da økten startet. Før filene sjekkes ut, kontrollerer cplt at
-              commiten agenten ba om har nøyaktig samme innhold i <code className={code}>.cplt.toml</code>,{" "}
-              <code className={code}>.github</code>, <code className={code}>.vscode</code>,{" "}
-              <code className={code}>.husky</code>, <code className={code}>.idea</code>,{" "}
-              <code className={code}>.gitattributes</code> og <code className={code}>.gitmodules</code> som oppstarts-
-              <code className={code}>HEAD</code>. Agenten kan derfor ikke sjekke ut en eldre eller nyere commit som
-              endrer hooks eller konfigurasjon.
+              <code className={code}>cplt worktree add &lt;navn&gt; &lt;ref&gt;</code>, slår cplt utenfor sandkassen opp{" "}
+              <code className={code}>&lt;ref&gt;</code> lokalt uten nettverk, hooks eller filterdrivere, sjekker ut
+              filene i en privat midlertidig mappe og kontrollerer at alle sporede beskyttede stier, som{" "}
+              <code className={code}>.cplt.toml</code>, <code className={code}>.github/hooks</code>,{" "}
+              <code className={code}>.agents/plugins</code> og <code className={code}>.gitmodules</code>, har nøyaktig
+              samme innhold og kjøretillatelser som oppstarts-<code className={code}>HEAD</code>, uten symlenker som
+              peker ut eller nøstede <code className={code}>.git</code>-mapper. Først når sjekken passerer, flyttes
+              worktreet atomisk på plass i <code className={code}>~/.cplt-worktrees/&lt;id&gt;/&lt;navn&gt;</code> med
+              detached <code className={code}>HEAD</code>. Agenten kan derfor ikke sjekke ut en eldre eller nyere commit
+              som endrer beskyttede hooks eller konfigurasjonsfiler.
             </li>
             <li>
               <strong>Samme beskyttelse som i prosjektet.</strong> Hooks og <code className={code}>config</code> i den
@@ -223,15 +221,15 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             </li>
           </Bullets>
           <BodyLong>
-            Detaljene står i{" "}
+            Detaljene står på engelsk i{" "}
             <a href={CPLT_CONFIG_DOCS} className={linkClass}>
               konfigurasjonsdokumentasjonen til cplt
             </a>{" "}
             og i{" "}
             <a href={CPLT_SECURITY_DOCS} className={linkClass}>
               SECURITY.md
-            </a>{" "}
-            (engelsk).
+            </a>
+            .
           </BodyLong>
         </VStack>
       </section>
@@ -245,9 +243,9 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             git feiler i sandkassen, men virker utenfor
           </LinkableHeading>
           <BodyLong>
-            Den felles git-mappa (<code className={code}>git rev-parse --git-common-dir</code>) ligger utenfor
-            hjemmekatalogen, eller stien har et tegn cplt ikke kan bruke: anførselstegn, parentes, semikolon eller
-            omvendt skråstrek. cplt sier fra om begge deler ved oppstart, med{" "}
+            Den felles git-mappa fra <code className={code}>git rev-parse --git-common-dir</code> ligger utenfor
+            hjemmekatalogen, eller stien inneholder anførselstegn, parentes, semikolon eller omvendt skråstrek. cplt
+            sier fra om begge deler ved oppstart, med{" "}
             <code className={code}>Not granting the shared git directory</code>. Flytt repoet inn under hjemmekatalogen,
             eller gi mappa et navn uten de tegnene. Ligger mappa utenfor hjemmekatalogen, kan du også gi tilgang til
             den:
@@ -257,8 +255,9 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
             cplt vil ikke starte etter git worktree remove
           </LinkableHeading>
           <BodyLong>
-            Inne i sandkassen skal agenten bruke <code className={code}>cplt worktree remove &lt;navn&gt;</code>. En
-            vanlig <code className={code}>git worktree remove</code> inne i sandkassen feiler på beskyttede filer og
+            Worktrees må fjernes utenfor cplt med{" "}
+            <code className={code}>git worktree remove ~/.cplt-worktrees/&lt;id&gt;/&lt;navn&gt;</code>. Har noen kjørt{" "}
+            <code className={code}>git worktree remove</code> inne i sandkassen, feiler den på beskyttede filer og
             etterlater et halvveis slettet worktree. Slett mappa og rydd opp utenfor cplt:
           </BodyLong>
           <CodeBlock compact>

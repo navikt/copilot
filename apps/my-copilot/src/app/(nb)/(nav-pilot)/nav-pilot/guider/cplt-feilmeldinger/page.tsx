@@ -647,9 +647,11 @@ gh pr create --head min-branch`}
             System vault not available
           </LinkableHeading>
           <BodyLong>
-            cplt stenger nøkkelringen inne i sandkassen så agenten ikke kan lese alle passordene dine. Kjører du{" "}
-            <code className={code}>/login</code> inne i cplt, får ikke Copilot lagret tokenet når du kommer tilbake fra
-            nettleseren, og spør om å lagre det i klartekst. Logg inn utenfor cplt i stedet:
+            På macOS stenger cplt <code className={code}>~/Library/Keychains</code> når den sender inn et
+            erstatningstoken, og på Linux og i WSL fjerner cplt <code className={code}>DBUS_SESSION_BUS_ADDRESS</code>{" "}
+            og stenger nøkkelringfiler. Kjører du <code className={code}>/login</code> inne i cplt, får Copilot derfor
+            ofte ikke lagret tokenet når du kommer tilbake fra nettleseren, og spør om å lagre det i klartekst.
+            Meldingen alene viser ikke om D-Bus-socketen var blokkert. Logg inn utenfor cplt i stedet:
           </BodyLong>
           <VStack as="ol" gap="space-16" className="list-decimal" style={{ paddingInlineStart: "var(--ax-space-24)" }}>
             <li>
@@ -699,21 +701,24 @@ nav-pilot --client copilot
             </li>
           </VStack>
           <BodyLong>
-            <strong>Linux og WSL.</strong> På Linux og i WSL stenger cplt nøkkelringen over D-Bus. Har du kjørt{" "}
-            <code className={code}>/login</code> i Copilot tidligere, står brukernavnet ditt i{" "}
-            <code className={code}>loggedInUsers</code> i <code className={code}>~/.copilot/config.json</code>. Da
-            prøver Copilot nøkkelringen ved hver oppstart, selv når <code className={code}>gh</code> er logget inn og
-            selv om du har valgt <code className={code}>&lt;bruker&gt; (via gh)</code> med{" "}
-            <code className={code}>/user</code>. Du kan løse det på to måter:
+            <strong>Linux og WSL.</strong> På Linux og i WSL fjerner cplt{" "}
+            <code className={code}>DBUS_SESSION_BUS_ADDRESS</code> og stenger nøkkelringfiler, men under Landlock og
+            seccomp er en Secret Service-tjeneste i <code className={code}>XDG_RUNTIME_DIR</code> eller på en kjent
+            socket ikke garantert blokkert. Har du kjørt <code className={code}>/login</code> i Copilot tidligere, står
+            brukernavnet ditt i <code className={code}>loggedInUsers</code> i{" "}
+            <code className={code}>~/.copilot/config.json</code>. Da prøver Copilot nøkkelringen ved hver oppstart, selv
+            når <code className={code}>gh</code> er logget inn og selv om du har valgt{" "}
+            <code className={code}>&lt;bruker&gt; (via gh)</code> med <code className={code}>/user</code>. Finner ikke
+            Copilot nøkkelringen inne i sandkassen, kan du løse det på to måter:
           </BodyLong>
           <Bullets>
             <li>
               <strong>La cplt sende inn gh-tokenet i miljøet.</strong> Kjør kommandoen under. Da setter cplt{" "}
               <code className={code}>GH_TOKEN</code> inne i sandkassen, og Copilot bruker{" "}
               <code className={code}>GH_TOKEN</code> foran <code className={code}>loggedInUsers</code> og nøkkelringen.
-              cplt ber om <code className={code}>--force</code> og advarer fordi alle prosesser i sandkassen kan lese{" "}
-              <code className={code}>GH_TOKEN</code> fra miljøet, men tokenet ligger fortsatt i nøkkelringen på maskinen
-              og ikke i klartekst på disk. Krever at gh-vakta er på.
+              cplt krever <code className={code}>--force</code> fordi alle prosesser i sandkassen kan lese{" "}
+              <code className={code}>GH_TOKEN</code> fra miljøet. Tokenet ligger fortsatt i nøkkelringen på maskinen,
+              ikke i klartekst på disk. Krever at gh-vakta er på.
             </li>
             <li>
               <strong>Fjern den gamle /login-oppføringen uten å sette GH_TOKEN i miljøet.</strong> Start{" "}
@@ -724,7 +729,7 @@ nav-pilot --client copilot
               aktiv. Kjør deretter <code className={code}>/logout</code>. Når{" "}
               <code className={code}>loggedInUsers</code> er tom, henter Copilot tokenet gjennom{" "}
               <code className={code}>gh</code> ved oppstart uten at <code className={code}>GH_TOKEN</code> ligger i
-              miljøet til andre prosesser.
+              miljøet.
             </li>
           </Bullets>
           <CodeBlock compact>{`cplt config set gh_guard.inject_token true --force`}</CodeBlock>
@@ -732,14 +737,12 @@ nav-pilot --client copilot
             <strong>Slik velger cplt innlogging på macOS.</strong> Når{" "}
             <code className={code}>sandbox.keychain_substitute</code> står på, henter cplt tokenet fra{" "}
             <code className={code}>gh auth token</code> før sandkassen starter, sender det som{" "}
-            <code className={code}>GH_TOKEN</code> og stenger <code className={code}>~/Library/Keychains</code>. Har du
-            logget inn i Copilot med en annen GitHub-konto enn den som er aktiv i <code className={code}>gh</code>,
-            eller har flere kontoer lagret og cplt ikke sikkert kan avgjøre hvilken Copilot vil bruke, lar cplt Keychain
-            være åpen i stedet for å sende inn feil <code className={code}>gh</code>-token.{" "}
-            <code className={code}>cplt doctor</code> viser hva cplt velger. Vil du at cplt skal hente Copilots eget
-            token direkte fra Keychain før oppstart og sende det som <code className={code}>COPILOT_GITHUB_TOKEN</code>,
-            slik at Keychain stenges og git- og gh-vaktene beholder sin egen <code className={code}>gh</code>-konto, kan
-            du slå på <code className={code}>cplt config set sandbox.copilot_selected_auth true</code>. Detaljene står i{" "}
+            <code className={code}>GH_TOKEN</code> og stenger <code className={code}>~/Library/Keychains</code>. Viser{" "}
+            <code className={code}>~/.copilot/config.json</code> eller Keychain at Copilot er logget inn med en annen
+            konto eller host enn <code className={code}>gh</code>, eller er det lagret flere kontoer uten at cplt
+            sikkert kan avgjøre hvilken som er aktiv, lar cplt Keychain være åpen i stedet for å sende inn feil{" "}
+            <code className={code}>gh</code>-token. <code className={code}>cplt doctor</code> viser hva cplt velger.
+            Detaljene står i{" "}
             <a href={`${KNOWN_IMPACTS}#copilots-vs-code-launcher-and-keychain-substitution`} className={linkClass}>
               known-impacts.md
             </a>
