@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserToken } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 import { submitAnswers, type Answers, type SubmitResult } from "@/lib/survey";
 
 const reply = (result: SubmitResult, status = 200) => NextResponse.json(result, { status });
@@ -10,6 +10,8 @@ const reply = (result: SubmitResult, status = 200) => NextResponse.json(result, 
  * form can tell this answer from a login redirect or a proxy error page.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getUser(false);
+  if (!user) return reply({ status: "error" }, 401);
   const token = await getUserToken();
   if (!token) return reply({ status: "error" }, 401);
   const { id } = await params;

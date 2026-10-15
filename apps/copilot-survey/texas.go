@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -50,12 +51,10 @@ type texasTokenResponse struct {
 // cached one is missing or close to expiry.
 func (c *texasClient) token(ctx context.Context) (string, error) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.cachedToken != "" && time.Now().Before(c.expiresAt) {
-		token := c.cachedToken
-		c.mu.Unlock()
-		return token, nil
+		return c.cachedToken, nil
 	}
-	c.mu.Unlock()
 
 	if c.endpoint == "" {
 		return "", fmt.Errorf("NAIS_TOKEN_ENDPOINT is not configured — cannot mint M2M token")
@@ -86,14 +85,13 @@ func (c *texasClient) token(ctx context.Context) (string, error) {
 	}
 
 	var result texasTokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&result); err != nil {
 		return "", fmt.Errorf("decoding texas token response: %w", err)
 	}
 	if result.AccessToken == "" {
 		return "", fmt.Errorf("texas token response missing access_token")
 	}
 
-	c.mu.Lock()
 	c.cachedToken = result.AccessToken
 	// Refresh 30s before actual expiry to avoid using a token that expires
 	// mid-flight to copilot-api. If the token's lifetime is shorter than the
@@ -104,7 +102,6 @@ func (c *texasClient) token(ctx context.Context) (string, error) {
 	margin := 30 * time.Second
 	ttl := time.Duration(result.ExpiresIn) * time.Second
 	c.expiresAt = time.Now().Add(ttl - margin)
-	c.mu.Unlock()
 
 	return result.AccessToken, nil
 }

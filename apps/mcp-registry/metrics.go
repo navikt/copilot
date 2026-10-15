@@ -27,16 +27,32 @@ var (
 	}, []string{"server", "result"})
 )
 
+var knownPaths = map[string]bool{
+	"/":                         true,
+	"/v0.1/servers":             true,
+	"/v0.1/servers/":            true,
+	"/health":                   true,
+	"/ready":                    true,
+	"/metrics":                  true,
+	"/robots.txt":               true,
+	"/favicon.ico":              true,
+	"/.well-known/security.txt": true,
+}
+
 func normalizePath(path string) string {
 	if strings.HasPrefix(path, "/v0.1/servers/") && path != "/v0.1/servers/" {
 		return "/v0.1/servers/{name}"
 	}
-	return path
+	if knownPaths[path] {
+		return path
+	}
+	return "other"
 }
 
 func recordHTTPMetrics(method, path string, statusCode int, duration time.Duration) {
-	httpRequestsTotal.WithLabelValues(method, normalizePath(path), strconv.Itoa(statusCode)).Inc()
-	httpRequestDuration.WithLabelValues(method, normalizePath(path)).Observe(duration.Seconds())
+	normalized := normalizePath(path)
+	httpRequestsTotal.WithLabelValues(method, normalized, strconv.Itoa(statusCode)).Inc()
+	httpRequestDuration.WithLabelValues(method, normalized).Observe(duration.Seconds())
 }
 
 func recordServerLookup(server, result string) {

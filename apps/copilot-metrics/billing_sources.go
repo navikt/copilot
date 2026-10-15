@@ -106,7 +106,7 @@ func (c *BigQueryClient) replaceAllocationReport(ctx context.Context, table stri
 // do not round-trip through FLOAT64, and the default 'exact' rejects the whole day.
 func allocationReplacementSQL(table, receipts string) string {
 	return `BEGIN TRANSACTION;
-DELETE FROM ` + table + ` WHERE day=@day AND scope_id=@scopeID;
+DELETE FROM ` + table + ` WHERE day=@day AND (scope_id=@scopeID OR @complete);
 INSERT INTO ` + table + ` (day,scope,scope_id,raw_record,loaded_at)
 SELECT @day,@scope,@scopeID,PARSE_JSON(raw, wide_number_mode=>'round'),@loaded FROM UNNEST(@records) raw;
 DELETE FROM ` + receipts + ` WHERE day=@day AND scope_id=@scopeID AND report=@report;

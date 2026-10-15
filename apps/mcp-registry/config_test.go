@@ -21,9 +21,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	}
 
 	expectedEndpoints := map[string]bool{
-		"/":           true,
-		"/allowlist":  true,
-		"/mcp-config": true,
+		"/v0.1/servers": true,
 	}
 
 	if len(config.LoggedEndpoints) != len(expectedEndpoints) {
@@ -119,9 +117,7 @@ func TestLoadConfig_CustomEndpoints(t *testing.T) {
 			envValue: "",
 			setEnv:   false,
 			expectedEndpoints: map[string]bool{
-				"/":           true,
-				"/allowlist":  true,
-				"/mcp-config": true,
+				"/v0.1/servers": true,
 			},
 		},
 		{

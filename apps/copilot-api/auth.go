@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -22,6 +23,8 @@ import (
 type contextKey string
 
 const userContextKey contextKey = "user"
+
+const minRefreshInterval = 30 * time.Second
 
 var authMiddlewareReady atomic.Bool
 
@@ -67,18 +70,22 @@ type JWK struct {
 
 // JWKSCache caches JWKS keys with automatic refresh
 type JWKSCache struct {
-	jwksURI    string
-	keys       map[string]*rsa.PublicKey
-	lastUpdate time.Time
-	mu         sync.RWMutex
-	ttl        time.Duration
+	jwksURI     string
+	httpClient  *http.Client
+	keys        map[string]*rsa.PublicKey
+	lastUpdate  time.Time
+	lastAttempt time.Time
+	mu          sync.RWMutex
+	refreshMu   sync.Mutex
+	ttl         time.Duration
 }
 
 func newJWKSCache(jwksURI string) *JWKSCache {
 	return &JWKSCache{
-		jwksURI: jwksURI,
-		keys:    make(map[string]*rsa.PublicKey),
-		ttl:     1 * time.Hour,
+		jwksURI:    jwksURI,
+		httpClient: &http.Client{Timeout: 10 * time.Second},
+		keys:       make(map[string]*rsa.PublicKey),
+		ttl:        1 * time.Hour,
 	}
 }
 
@@ -92,8 +99,26 @@ func (c *JWKSCache) getKey(kid string) (*rsa.PublicKey, error) {
 		return key, nil
 	}
 
-	// Refresh keys
-	if err := c.refresh(); err != nil {
+	c.refreshMu.Lock()
+	c.mu.RLock()
+	key, exists = c.keys[kid]
+	needsRefresh = time.Since(c.lastUpdate) > c.ttl
+	throttled := !exists && time.Since(c.lastAttempt) < minRefreshInterval
+	c.mu.RUnlock()
+
+	if exists && !needsRefresh {
+		c.refreshMu.Unlock()
+		return key, nil
+	}
+	if throttled {
+		c.refreshMu.Unlock()
+		return nil, fmt.Errorf("key with kid %s not found", kid)
+	}
+
+	err := c.refresh()
+	c.refreshMu.Unlock()
+
+	if err != nil {
 		// If refresh fails but we have a cached key, use it
 		if exists {
 			return key, nil
@@ -112,7 +137,8 @@ func (c *JWKSCache) getKey(kid string) (*rsa.PublicKey, error) {
 
 func (c *JWKSCache) refresh() error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.lastAttempt = time.Now()
+	c.mu.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -122,7 +148,10 @@ func (c *JWKSCache) refresh() error {
 		return fmt.Errorf("failed to create JWKS request: %w", err)
 	}
 
-	httpClient := &http.Client{Timeout: 10 * time.Second}
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 10 * time.Second}
+	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to fetch JWKS: %w", err)
@@ -134,13 +163,16 @@ func (c *JWKSCache) refresh() error {
 	}
 
 	var jwks JWKS
-	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&jwks); err != nil {
 		return fmt.Errorf("failed to decode JWKS: %w", err)
 	}
 
 	newKeys := make(map[string]*rsa.PublicKey)
 	for _, key := range jwks.Keys {
 		if key.Kty != "RSA" {
+			continue
+		}
+		if key.Use != "" && key.Use != "sig" {
 			continue
 		}
 
@@ -153,8 +185,10 @@ func (c *JWKSCache) refresh() error {
 		newKeys[key.Kid] = pubKey
 	}
 
+	c.mu.Lock()
 	c.keys = newKeys
 	c.lastUpdate = time.Now()
+	c.mu.Unlock()
 	slog.Debug("JWKS cache refreshed", "key_count", len(newKeys))
 	return nil
 }

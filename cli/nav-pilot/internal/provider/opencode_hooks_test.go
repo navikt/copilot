@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -133,5 +134,55 @@ func TestApplyOpenCodeHooksPassesDisableProjectConfig(t *testing.T) {
 		if _, cplt = applyOpenCodeHooks(domain.ResolvedConfig{}, nil, nil); strings.Contains(strings.Join(cplt, " "), "OPENCODE_DISABLE_PROJECT_CONFIG") {
 			t.Errorf("%q unset: cplt = %v", ver, cplt)
 		}
+	}
+}
+
+func TestHooksBridgeMCPBlockedCollisionAndResourceFailClosed(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not installed")
+	}
+	dir := t.TempDir()
+	v1Path := filepath.Join(dir, "bridge-v1.mjs")
+	v2Path := filepath.Join(dir, "bridge-v2.mjs")
+	if err := os.WriteFile(v1Path, hooksBridgePlugin, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(v2Path, hooksBridgePluginV2, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	script := `
+import { NavPilotHooks } from "` + filepath.ToSlash(v1Path) + `";
+import v2Mod from "` + filepath.ToSlash(v2Path) + `";
+const p1 = await NavPilotHooks({ directory: process.cwd() });
+let v2Before;
+await v2Mod.setup({
+  session: { hook: async () => {} },
+  tool: { hook: async (name, fn) => { if (name === "execute.before") v2Before = fn; } },
+});
+const wrapV2 = (ev, out) => v2Before({ tool: ev.tool, input: out.args });
+for (const before of [p1["tool.execute.before"], wrapV2]) {
+  let collideBlocked = false;
+  try {
+    await before({ tool: "foo_bar_ping", args: {} }, { args: {} });
+  } catch {
+    collideBlocked = true;
+  }
+  let resourceBlocked = false;
+  try {
+    await before({ tool: "read_mcp_resource", args: {} }, { args: {} });
+  } catch {
+    resourceBlocked = true;
+  }
+  if (!collideBlocked || !resourceBlocked) {
+    console.error({ collideBlocked, resourceBlocked });
+    process.exit(1);
+  }
+}
+`
+	cmd := exec.Command(node, "--input-type=module", "-e", script)
+	cmd.Env = append(os.Environ(), `NAV_PILOT_MCP_BLOCKED={"blocked":["foo.bar"],"listed":["foo_bar"]}`)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("bridge failed: %v\n%s", err, out)
 	}
 }

@@ -193,6 +193,7 @@ func cmdDoctor() error {
 		st, detail := ghAuthProbe()
 		return ghProbeResult{st, detail}
 	})
+	defer func() { _ = ghProbe() }()
 	if cpltPath != "" {
 		enforcement = async(cpltEnforcement)
 		latest = async(func() latestCplt {
@@ -204,12 +205,25 @@ func cmdDoctor() error {
 			t, ok := readCpltTrust(cpltPath, "")
 			return trustRead{t, ok}
 		})
-		go cpltBuiltinDomains()
+		domains := async(func() struct{} {
+			cpltBuiltinDomains()
+			return struct{}{}
+		})
 		if mcpHostsMode() != "off" {
 			cfg, _ := readConfig()
 			providerpkg.MCPClient = resolve(cfg, CLIOverrides{}).Client
 			mcpRefresh = async(refreshMCPRegistry)
 		}
+		defer func() {
+			_ = enforcement()
+			_ = latest()
+			_ = preset()
+			_ = trust()
+			_ = domains()
+			if mcpRefresh != nil {
+				_ = mcpRefresh()
+			}
+		}()
 	}
 
 	// 1. Configuration

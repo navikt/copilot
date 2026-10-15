@@ -371,8 +371,9 @@ func (c *GitHubClient) scanBatch(ctx context.Context, org string, repos []RepoIn
 		return nil, nil, fmt.Errorf("failed to decode GraphQL response: %w", err)
 	}
 
-	if len(gqlResp.Errors) > 0 {
+	if len(gqlResp.Errors) > 0 || len(gqlResp.Data) == 0 {
 		slog.Debug("GraphQL response had errors", "errors", gqlResp.Errors)
+		return nil, nil, fmt.Errorf("GraphQL response had %d errors (data fields: %d)", len(gqlResp.Errors), len(gqlResp.Data))
 	}
 
 	customizations, lastCommits := parseGraphQLResponse(gqlResp.Data, repos, criteria)

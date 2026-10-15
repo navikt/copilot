@@ -230,13 +230,17 @@ export default {
       servers = [
         ...(m.blocked ?? []).map((n) => ({ p: prefix(n), name: n, blocked: true })),
         ...(m.listed ?? []).map((n) => ({ p: prefix(n), name: n, blocked: false })),
-      ].sort((a, b) => b.p.length - a.p.length)
+      ].sort((a, b) => b.p.length - a.p.length || Number(b.blocked) - Number(a.blocked))
     } catch {}
     // ponytail: opencode 2.0.24's own tools, by hand, as in hooks-bridge.js.
     const builtin = new Set(["shell", "read", "edit", "write", "patch", "glob", "grep", "subagent", "webfetch", "websearch", "skill", "question", "execute", "invalid", "opencode_session_rename", "opencode_session_move", "opencode_models"])
     const resourceTools = new Set(["list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource"])
     const blockedServer = (tool, args) => {
-      if (resourceTools.has(tool)) return servers.find((s) => s.blocked && s.name === args?.server)?.name
+      if (resourceTools.has(tool)) {
+        const srv = typeof args?.server === "string" ? args.server : ""
+        if (tool === "read_mcp_resource" && !srv) return servers.find((s) => s.blocked)?.name
+        return servers.find((s) => s.blocked && s.name === srv)?.name
+      }
       if (builtin.has(tool)) return undefined
       const hit = servers.find((s) => String(tool).startsWith(s.p))
       return hit?.blocked ? hit.name : undefined

@@ -339,42 +339,6 @@ func (c *GitHubClient) GetRepoLanguages(accessToken, owner, repo string) ([]stri
 	return langs, nil
 }
 
-// GetRepoFileContent returns the decoded content of a file from a GitHub repository.
-// Returns empty string and nil error if the file does not exist.
-func (c *GitHubClient) GetRepoFileContent(accessToken, owner, repo, path string) (string, error) {
-	apiURL := fmt.Sprintf("%s/repos/%s/%s/contents/%s",
-		c.APIBaseURL, url.PathEscape(owner), url.PathEscape(repo), path)
-
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Accept", "application/vnd.github.raw+json")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return "", nil
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
-	}
-
-	return string(body), nil
-}
-
 // ListTeamRepos returns non-archived, non-fork repositories for a GitHub team.
 // Uses the team slug (URL-friendly name). Results are paginated.
 func (c *GitHubClient) ListTeamRepos(accessToken, org, teamSlug string) ([]GitHubRepo, error) {

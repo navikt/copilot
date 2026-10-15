@@ -59,27 +59,27 @@ import sys
 # Et kall som spør om tilstand og returnerer med en gang.
 # `pr checks` er spørrende bare uten --watch. Med --watch blokkerer den, og en
 # løkke over flere PR-er som watcher hver av dem er riktig bruk, ikke polling.
-ASKS = re.compile(
-    r"\bgh\s+(?:"
+_GH_FLAGS = r"(?:(?:-R\s+\S+|--repo(?:=|\s+)\S+|-\S+)\s+)*"
+_ASK_CMDS = (
     r"run\s+(?:list|view)|"
     r"pr\s+(?:view|status)|"
     r"pr\s+checks(?![^\n;&|]*--watch)|"
-    r"api\b[^\n|;&]*\bactions/runs|"
+    r"api\b[^\n|;&]*\b(?:actions/runs|merge-async|check-runs)|"
     r"workflow\s+view"
-    r")\b"
 )
+ASKS = re.compile(rf"\bgh\s+{_GH_FLAGS}(?:{_ASK_CMDS})\b")
 
 # Et kall som blokkerer til svaret finnes. Har kommandoen en av disse og ingen
 # spørrende gjentakelse, er den allerede riktig.
-BLOCKS = re.compile(r"\bgh\s+(?:run\s+watch|pr\s+checks[^\n;&|]*--watch)\b")
+BLOCKS = re.compile(rf"\bgh\s+{_GH_FLAGS}(?:run\s+watch|pr\s+checks[^\n;&|]*--watch)\b")
 
-LOOP = re.compile(r"(^|[;&|]\s*|\n\s*)(for|while|until)\s")
-SLEEP = re.compile(r"\bsleep\s+[\d.]+")
+LOOP = re.compile(r"(^|[;&|({'\"\n]\s*)(for|while|until)\s")
+SLEEP = re.compile(r'\bsleep\s+(?:[\d.]+[smhd]?|"?\$[\w{}]+"?)')
 
 # sleep og et spørrende kall i samme kjede, i den rekkefølgen: én runde av
 # løkka, skrevet ut for hånd.
 SLEEP_THEN_ASK = re.compile(
-    r"\bsleep\s+[\d.]+\s*(?:;|&&|\n)\s*[^\n]{0,120}?\bgh\s+(?:run|pr|api|workflow)\b"
+    rf'\bsleep\s+(?:[\d.]+[smhd]?|"?\$[\w{{}}]+"?)\s*(?:;|&&|\n)\s*[^\n]{{0,120}}?\bgh\s+{_GH_FLAGS}(?:{_ASK_CMDS})\b'
 )
 
 POLL_OK = re.compile(r"^\s*POLL_OK=1\s")
@@ -123,13 +123,21 @@ def decide(payload):
         if not ASKS.search(command):
             continue
         # En blokkerende form er allerede svaret, med mindre den står sammen med
-        # en spørrende løkke. Da er watch-en pynt, og løkka gjør jobben.
+        # en spørrende løkke eller et etterfølgende sleep+ask. Står det spørrende
+        # kallet bare i `for x in $(gh ...)`-hodet mens kroppen watcher, er det
+        # engangsoppslaget som mater løkka, ikke polling.
         looped = bool(LOOP.search(command) and SLEEP.search(command))
         handrolled = bool(SLEEP_THEN_ASK.search(command))
         if not (looped or handrolled):
             continue
-        if BLOCKS.search(command) and not looped:
-            continue
+        if looped and not handrolled and BLOCKS.search(command):
+            without_for_subst = re.sub(
+                r"\bfor\s+\w+\s+in\s+[^;\n]*",
+                lambda m: re.sub(r"\$\([^)]*\)", "", m.group(0)),
+                command,
+            )
+            if not ASKS.search(without_for_subst):
+                continue
         return REASON
     return None
 
@@ -177,16 +185,26 @@ SELFTEST = [
      _sh('for i in $(seq 1 60); do gh run list --json status; sleep 30; done'), True),
     ("while-løkke over pr view",
      _sh('while true; do gh pr view 1 --json state; sleep 20; done'), True),
+    ("while-løkke i subshell",
+     _sh('(while true; do gh run list; sleep 10; done)'), True),
     ("until-løkke over pr checks uten --watch",
      _sh('until gh pr checks 1 | grep -q pass; do sleep 15; done'), True),
     ("løkke over actions-API-et",
      _sh('for i in 1 2 3; do gh api repos/o/r/actions/runs; sleep 10; done'), True),
+    ("løkke med gh -R og sleep-suffiks",
+     _sh('for i in 1 2 3; do gh -R o/r run list; sleep 10s; done'), True),
+    ("løkke over merge-async i API-et",
+     _sh('for i in 1 2; do gh api repos/o/r/pulls/1/merge-async/uuid; sleep 5; done'), True),
 
     # ── nektes: én runde skrevet ut for hånd ────────────────────────────────
     ("sleep foran et statusoppslag",
      _sh('sleep 25; gh run list --commit abc --json databaseId'), True),
     ("sleep med && foran pr view",
      _sh('sleep 30 && gh pr view 688 --json mergeStateStatus'), True),
+    ("sleep med variabel foran pr view",
+     _sh('sleep $DELAY && gh pr view 1'), True),
+    ("watch etterfulgt av sleep og nytt oppslag",
+     _sh('gh run watch 1; sleep 10; gh run view 1'), True),
 
     # ── nektes: watch som pynt foran ei løkke ───────────────────────────────
     ("watch avkortet, løkka gjør jobben",
@@ -205,6 +223,8 @@ SELFTEST = [
      _sh('for n in 705 706; do gh pr checks $n --watch --fail-fast; sleep 5; done'), False),
     ("løkke som watcher flere kjør",
      _sh('for id in 1 2; do gh run watch $id --exit-status; sleep 2; done'), False),
+    ("løkke som henter id-er én gang i for-hodet og watcher hver",
+     _sh('for id in $(gh run list -q ".[].databaseId"); do gh run watch "$id"; sleep 2; done'), False),
     # Kontrollen for den forrige: uten --watch er den samme løkka polling.
     ("løkke over pr checks uten --watch er fortsatt polling",
      _sh('for n in 705 706; do gh pr checks $n; sleep 5; done'), True),

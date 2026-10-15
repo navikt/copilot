@@ -95,12 +95,4 @@ func main() {
 	if err := server.Shutdown(shutdown); err != nil {
 		slog.Error("Server shutdown error", "error", err)
 	}
-	if store != nil {
-		// Own deadline: server.Shutdown may have used all of shutdown's.
-		flushCtx, cancelFlush := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelFlush()
-		if n := store.flush(flushCtx); n > 0 {
-			slog.Warn("survey: queued submissions lost at shutdown; their senders can answer again", "count", n)
-		}
-	}
 }

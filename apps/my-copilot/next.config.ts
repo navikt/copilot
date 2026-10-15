@@ -44,7 +44,7 @@ const HOST_REDIRECT_SOURCE = "/:path((?!(?:oauth2|api|internal|health)(?:/|$)).*
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["pino", "@prometheus-io/client", "thread-stream", "@google-cloud/bigquery"],
+  serverExternalPackages: ["pino", "@prometheus-io/client", "thread-stream"],
   // sharp 0.35 flyttet lasteren fra lib/*.js til dist/*.cjs og rullet ut
   // plattformvalget til en switch med literale `@img/sharp-<plattform>/sharp.node`.
   // Next sin filsporing finner da .node-bindingen, men aldri søsterpakken
@@ -128,31 +128,6 @@ const nextConfig: NextConfig = {
     // by letting the router cache serve the initial render while the backend warms.
     ...(!isProduction ? { staleTimes: { dynamic: 30, static: 180 } } : {}),
   },
-  ...(isProduction
-    ? {
-        // Cache configuration for different data types
-        cacheLife: {
-          // GitHub API data refreshes infrequently
-          github: {
-            stale: 300, // 5 minutes until considered stale
-            revalidate: 3600, // 1 hour until revalidated
-            expire: 86400, // 1 day until expired
-          },
-          // User session data
-          session: {
-            stale: 60, // 1 minute until considered stale
-            revalidate: 300, // 5 minutes until revalidated
-            expire: 3600, // 1 hour until expired
-          },
-          // Static content like navigation
-          static: {
-            stale: 3600, // 1 hour until considered stale
-            revalidate: 86400, // 1 day until revalidated
-            expire: 604800, // 1 week until expired
-          },
-        },
-      }
-    : {}),
   // Keep webpack config for compatibility
   webpack: (config, { isServer }) => {
     if (isServer) {

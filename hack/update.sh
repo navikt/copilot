@@ -27,6 +27,14 @@ else
   echo ""
 fi
 
+echo "📦 scripts/generate-retired:"
+if (cd scripts/generate-retired && go get -u ./... && go mod tidy); then
+  echo ""
+else
+  failed+=("generate-retired")
+  echo ""
+fi
+
 if [[ ${#failed[@]} -gt 0 ]]; then
   echo "❌ Update failed for: ${failed[*]}"
   exit 1

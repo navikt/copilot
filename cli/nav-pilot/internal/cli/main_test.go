@@ -2334,8 +2334,12 @@ func TestDetectNewItems_IgnoredItemNotReported(t *testing.T) {
 // ─── --model CLI validation ─────────────────────────────────────────────────
 
 func TestRun_ModelFlag_InvalidRejected(t *testing.T) {
+	isolatedRun(t)
 	forceNonInteractive = true
 	t.Cleanup(func() { forceNonInteractive = false })
+	origProviderFor := providerFor
+	providerFor = func(string) (Provider, error) { return failingProvider{unavailable: true}, nil }
+	t.Cleanup(func() { providerFor = origProviderFor })
 
 	tests := []struct {
 		model   string

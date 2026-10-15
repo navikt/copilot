@@ -7,7 +7,7 @@ import (
 
 func VerifyPKCE(verifier, challenge string) bool {
 	if verifier == "" || challenge == "" {
-		return verifier == "" && challenge == ""
+		return false
 	}
 
 	h := sha256.Sum256([]byte(verifier))

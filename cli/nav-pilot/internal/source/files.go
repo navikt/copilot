@@ -81,6 +81,9 @@ func DirHash(dir string) (string, error) {
 		if skip, err := origEntry(dir, path, d, err); skip || err != nil {
 			return err
 		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink not allowed in artifact directory: %s", path)
+		}
 		if d.IsDir() {
 			return nil
 		}
@@ -115,6 +118,11 @@ func DirHash(dir string) (string, error) {
 // Refuses to overwrite symlinks to prevent writing outside the repo.
 // boundary is the trusted root directory; symlink checks stop there.
 func CopyFile(src, dst, boundary string) error {
+	if fi, err := os.Lstat(src); err != nil {
+		return err
+	} else if fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to copy symlink: %s", src)
+	}
 	// B2: Check BEFORE MkdirAll to prevent creating directories through symlinks.
 	if err := CheckSymlink(dst, boundary); err != nil {
 		return err
@@ -174,6 +182,9 @@ func CopyDir(src, dst, boundary string) error {
 		if err != nil {
 			return err
 		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink not allowed in artifact directory: %s", path)
+		}
 		rel, err := filepath.Rel(src, path)
 		if err != nil {
 			return err
@@ -181,6 +192,9 @@ func CopyDir(src, dst, boundary string) error {
 		target := filepath.Join(dst, rel)
 
 		if d.IsDir() {
+			if err := CheckSymlink(target, boundary); err != nil {
+				return err
+			}
 			return os.MkdirAll(target, 0o755)
 		}
 		return CopyFile(path, target, boundary)

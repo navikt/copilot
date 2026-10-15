@@ -842,7 +842,10 @@ func TestWithOpenCode2UserConfig(t *testing.T) {
 	payload := t.TempDir()
 	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"permission":{"bash":"ask"},"plugin":["./p.js"]}`)
 
-	env := withOpenCode2UserConfig(nil, payload)
+	env, err := withOpenCode2UserConfig(nil, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
 	all := strings.Join(env, "\n")
 	for _, want := range []string{
 		"OPENCODE_CONFIG=" + filepath.Join(dir, "opencode.json"),
@@ -857,7 +860,10 @@ func TestWithOpenCode2UserConfig(t *testing.T) {
 		t.Errorf("a payload path went into the content: %s", all)
 	}
 	// The user's own OPENCODE_CONFIG stays.
-	env = withOpenCode2UserConfig([]string{"OPENCODE_CONFIG=/mine.json"}, payload)
+	env, err = withOpenCode2UserConfig([]string{"OPENCODE_CONFIG=/mine.json"}, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !slices.Contains(env, "OPENCODE_CONFIG=/mine.json") {
 		t.Errorf("env = %v", env)
 	}
@@ -878,7 +884,10 @@ func TestWithOpenCode2UserConfigRestatesAgents(t *testing.T) {
 	mustWrite(t, filepath.Join(payload, "agents", "secret.md"), "---\ndescription: x\n---\n{env:TOKEN}\n")
 	mustWrite(t, filepath.Join(payload, "modes", "plan.md"), "---\nmode: subagent\n---\nPLAN\n")
 
-	env := withOpenCode2UserConfig(nil, payload)
+	env, err := withOpenCode2UserConfig(nil, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
 	env = withOpenCodeConfigContent(env, map[string]any{"share": "disabled"}) // a later policy merge keeps the order
 	abs := filepath.ToSlash(filepath.Join(payload, "rev.txt"))
 	want := `OPENCODE_CONFIG_CONTENT={"agent":{"rev":{"prompt":"{file:` + abs + `}"},` +
@@ -922,7 +931,10 @@ func TestWithOpenCode2UserConfigMarkdownOutranksJSON(t *testing.T) {
 	mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agents":{"a":{"description":"json"},"b":{"description":"json","steps":2}}}`)
 	mustWrite(t, filepath.Join(payload, "agents", "a.md"), "---\ntools:\n  read: true\n---\nA\n")
 	mustWrite(t, filepath.Join(payload, "agents", "b.md"), "---\ndescription: md\n---\nB\n")
-	env := withOpenCode2UserConfig(nil, payload)
+	env, err := withOpenCode2UserConfig(nil, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := `OPENCODE_CONFIG_CONTENT={"agent":{"a":{"tools":{"read":true},"prompt":"A"}},"agents":{"b":{"description":"md","steps":2,"system":"B"}}}`
 	if len(env) != 1 || env[0] != want {
 		t.Errorf("env = %q\nwant  %q", env, want)
@@ -940,7 +952,10 @@ func TestWithOpenCode2UserConfigAgentFileEdges(t *testing.T) {
 	mustWrite(t, filepath.Join(payload, "agents", "bare.md"), "just a prompt\n")
 	mustWrite(t, filepath.Join(payload, "agents", "bad.md"), "---\ntools:\n  - read\n---\nX\n")
 	mustWrite(t, filepath.Join(payload, "agents", "dup.md"), "---\ndescription: first\ndescription: last\n---\nD\n")
-	env := withOpenCode2UserConfig(nil, payload)
+	env, err := withOpenCode2UserConfig(nil, payload)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := `OPENCODE_CONFIG_CONTENT={"agents":{"bad":{"description":"json"},"bare":{"system":"just a prompt"},"colon":{"description":"Use when: things happen","system":"C"},"dup":{"description":"last","system":"D"}}}`
 	if len(env) != 1 || env[0] != want {
 		t.Errorf("env = %q\nwant  %q", env, want)
@@ -978,5 +993,34 @@ func TestOpenCodeV2ArgsWarnsOnDroppedVariant(t *testing.T) {
 	b, _ := io.ReadAll(r)
 	if !strings.Contains(string(b), "--variant high is not applied") {
 		t.Errorf("stderr = %q", b)
+	}
+}
+
+func TestWithOpenCode2UserConfigRejectsFileTraversalAndSymlink(t *testing.T) {
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil); versionCache.Delete("opencode") })
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.txt")
+	mustWrite(t, secret, "secret")
+
+	for _, ref := range []string{"{file:../secret.txt}", "{file:./link.txt}", "{file:/etc/passwd}"} {
+		payload := t.TempDir()
+		if err := os.Symlink(secret, filepath.Join(payload, "link.txt")); err != nil {
+			t.Fatal(err)
+		}
+		mustWrite(t, filepath.Join(payload, "opencode.json"), `{"agent":{"bad":{"prompt":"`+ref+`"}}}`)
+
+		if env, err := withOpenCode2UserConfig(nil, payload); err == nil {
+			t.Errorf("%s: withOpenCode2UserConfig succeeded with env %q, want rejection", ref, env)
+		}
+		for _, ver := range []string{"1.18.35\n", "opencode v2.0.24\n"} {
+			versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
+			if spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{Client: "opencode"}, StagedLaunch{
+				Dir: payload, PakkeName: "grillmester", Context: "full",
+			}); err == nil {
+				t.Errorf("%s (%q): buildStagedOpenCodeSpec succeeded (%v), want rejection", ref, strings.TrimSpace(ver), spec.env)
+			}
+		}
 	}
 }

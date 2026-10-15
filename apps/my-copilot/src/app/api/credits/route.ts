@@ -1,11 +1,12 @@
-import { getUserToken } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 import { backendRequest, BackendApiError } from "@/lib/backend-api";
 import { NextResponse } from "next/server";
 import type { DailyCredits } from "@/lib/types";
 
 export async function GET(request: Request) {
+  const user = await getUser(false);
   const token = await getUserToken();
-  if (!token) {
+  if (!user || !token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

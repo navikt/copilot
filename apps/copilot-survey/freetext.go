@@ -117,7 +117,9 @@ func (a *surveyAPI) hideFreetext(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Token string `json:"token"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10)).Decode(&body); err != nil || body.Token == "" {
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<10))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil || !atEOF(dec) || body.Token == "" {
 		writeError(w, http.StatusBadRequest, "token required")
 		return
 	}

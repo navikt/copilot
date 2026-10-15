@@ -75,11 +75,6 @@ on:
         required: false
         type: boolean
         default: false
-      creates-git-tag:
-        description: 'Create and push git tag'
-        required: false
-        type: boolean
-        default: false
       artifact-registry:
         description: 'Docker registry for artifacts'
         required: false
@@ -414,18 +409,3 @@ jobs:
           VARS: ${{ steps.paths.outputs.vars }}
           IMAGE: ${{ needs.docker.outputs.image }}
           TELEMETRY: ${{ needs.docker.outputs.telemetry }}
-
-  tag:
-    name: Create Git Tag
-    if: ${{ inputs.creates-git-tag && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    needs: meta
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-      - env:
-          VERSION: ${{ needs.meta.outputs.version }}
-        run: |
-          git tag "$VERSION"
-          git push origin "$VERSION"

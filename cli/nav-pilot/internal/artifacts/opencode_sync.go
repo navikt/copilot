@@ -85,6 +85,9 @@ func NavPilotOwns(outputDir string, f domain.InstalledFile) bool {
 		return false
 	}
 	rel := filepath.Join(outputDir, f.Path)
+	if err := source.CheckSymlink(rel, outputDir); err != nil {
+		return false
+	}
 	current, err := source.RawArtifactHash(rel, strings.HasSuffix(f.Path, "/"))
 	if os.IsNotExist(err) {
 		return true // already gone; removing it is a no-op
@@ -419,6 +422,9 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 				continue
 			}
 			dst := filepath.Join(outputDir, f.Path)
+			if err := source.CheckSymlink(dst, outputDir); err != nil {
+				return skills, commands, agents, instructions, conflicts, fmt.Errorf("removing %s: %w", f.Path, err)
+			}
 			_, statErr := os.Lstat(dst)
 			present := statErr == nil
 			if !NavPilotOwns(outputDir, f) {

@@ -264,7 +264,7 @@ func TestHandleAuthorize_LoopbackDifferentPort(t *testing.T) {
 
 	clientID := mintClientID(server.clientIDKey, clientIDInfo{RedirectURIs: []string{"http://127.0.0.1:33418/"}, IssuedAt: time.Now().Unix(), Nonce: generateSecureToken(8)})
 
-	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+"&redirect_uri=http://127.0.0.1:50049/&state=abc", nil)
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+"&redirect_uri=http://127.0.0.1:50049/&state=abc&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil)
 	w := httptest.NewRecorder()
 
 	server.handleAuthorize(w, req)
@@ -290,6 +290,9 @@ func TestIsValidRedirectURI(t *testing.T) {
 		{"http://evil.example.com/callback", false},
 		{"http://0.0.0.0:8080", false},
 		{"ftp://127.0.0.1:8080", false},
+		{"http://127.0.0.1:33418/callback?foo=bar", false},
+		{"http://127.0.0.1:33418/callback#frag", false},
+		{"http://user@127.0.0.1:33418/callback", false},
 		{"not-a-url", false},
 	}
 

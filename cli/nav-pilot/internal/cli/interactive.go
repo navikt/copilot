@@ -613,7 +613,7 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 			everything += n
 		}
 		var installChoice string
-		err = huh.NewSelect[string]().
+		err = runField(huh.NewSelect[string]().
 			Title(title).
 			Description(description).
 			Options(
@@ -621,9 +621,7 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 				huh.NewOption("Customize selection", "custom"),
 				huh.NewOption("Cancel", "cancel"),
 			).
-			Value(&installChoice).
-			WithTheme(navTheme()).
-			Run()
+			Value(&installChoice))
 		if pickerDeclined(installChoice, err) {
 			fmt.Println(dim("Cancelled."))
 			return errInstallCancelled
@@ -928,15 +926,13 @@ func promptInstallScope(targetDir string) (*InstallScope, error) {
 		return ScopeRepo(targetDir), nil
 	}
 	var choice string
-	err := huh.NewSelect[string]().
+	err := runField(huh.NewSelect[string]().
 		Title("Where to install?").
 		Options(
 			huh.NewOption("This repo (.github/) — agents and prompts, commit and push to enable", "repo"),
 			huh.NewOption("User home (~/.copilot/) — agents, skills & instructions across all repos", "user"),
 		).
-		Value(&choice).
-		WithTheme(navTheme()).
-		Run()
+		Value(&choice))
 	if err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return nil, nil // user cancelled

@@ -233,6 +233,9 @@ func TestValidateStatePath_User(t *testing.T) {
 	}{
 		{"agents/foo.agent.md", false},
 		{"skills/foo.skill.md", false},
+		{"hooks/foo.json", false},
+		{"extensions/foo/", false},
+		{"extensions/foo/extension.mjs", false},
 		{".github/instructions/foo.instructions.md", false},
 		{"prompts/foo.prompt.md", true}, // not allowed in user scope
 		{"/absolute/path", true},        // absolute
@@ -287,6 +290,10 @@ func TestCleanupDirs_User_RemovesEmptyDirs(t *testing.T) {
 	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	extDir := filepath.Join(tmp, "extensions")
+	if err := os.MkdirAll(extDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	instrDir := filepath.Join(tmp, ".github", "instructions")
 	if err := os.MkdirAll(instrDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -296,6 +303,9 @@ func TestCleanupDirs_User_RemovesEmptyDirs(t *testing.T) {
 
 	if _, err := os.Stat(agentsDir); !os.IsNotExist(err) {
 		t.Error("empty agents dir should have been removed")
+	}
+	if _, err := os.Stat(extDir); !os.IsNotExist(err) {
+		t.Error("empty extensions dir should have been removed")
 	}
 	if _, err := os.Stat(instrDir); !os.IsNotExist(err) {
 		t.Error("empty instructions dir should have been removed")

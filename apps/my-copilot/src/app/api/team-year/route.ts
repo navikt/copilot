@@ -1,12 +1,13 @@
-import { getUserToken } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 import { BackendApiError } from "@/lib/backend-api";
 import { getTeamYearOverview } from "@/lib/cached-bigquery";
 import { teamYearCsv } from "@/lib/team-year";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
+  const user = await getUser(false);
   const token = await getUserToken();
-  if (!token) {
+  if (!user || !token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

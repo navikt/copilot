@@ -635,3 +635,44 @@ func TestLocalWorkerShipsUnderAPakkeWithoutOne(t *testing.T) {
 		t.Errorf("the built-in worker overwrote a hand-written one:\n%s", got)
 	}
 }
+
+func TestOpenCodeSyncRejectsSymlinks(t *testing.T) {
+	outside := t.TempDir()
+	victim := filepath.Join(outside, "victim.md")
+	mustWrite(t, victim, "do not touch")
+
+	outputDir := t.TempDir()
+	mustMkdir(t, filepath.Join(outputDir, "agents"))
+	link := filepath.Join(outputDir, "agents", "nav-pilot.md")
+	if err := os.Symlink(victim, link); err != nil {
+		t.Fatal(err)
+	}
+
+	if NavPilotOwns(outputDir, domain.InstalledFile{Path: "agents/nav-pilot.md"}) {
+		t.Error("NavPilotOwns returned true for a symlink")
+	}
+
+	// SyncOpenCodeArtifacts must refuse to overwrite a symlink in outputDir.
+	sourceDir := setupTestSource(t)
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "v1", "sha", ""); err == nil {
+		t.Fatal("expected error refusing to overwrite symlink in outputDir")
+	}
+	if got, _ := os.ReadFile(victim); string(got) != "do not touch" {
+		t.Errorf("victim modified through symlink: %q", got)
+	}
+
+	// Symlink inside sourceDir is skipped during export rather than followed.
+	srcWithLink := t.TempDir()
+	mustMkdir(t, filepath.Join(srcWithLink, "agents"))
+	if err := os.Symlink(victim, filepath.Join(srcWithLink, "agents", "leak.agent.md")); err != nil {
+		t.Fatal(err)
+	}
+	exportOut := t.TempDir()
+	_, _, agents, _, _, err := SyncOpenCodeArtifacts("opencode", srcWithLink, "", exportOut, "v1", "sha", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if agents != 0 {
+		t.Errorf("SyncOpenCodeArtifacts exported %d symlinked agents, want 0", agents)
+	}
+}

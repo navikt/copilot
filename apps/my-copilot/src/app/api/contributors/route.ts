@@ -68,7 +68,8 @@ export async function GET(request: Request) {
   const { contributors, error } = await getFileContributors(token, OWNER, REPO, paths);
 
   if (error) {
-    return NextResponse.json({ error }, { status: 502 });
+    console.error("[contributors] Failed to fetch contributors:", error);
+    return NextResponse.json({ error: "Failed to fetch contributors" }, { status: 502 });
   }
 
   return NextResponse.json(contributors);

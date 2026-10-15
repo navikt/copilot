@@ -246,6 +246,9 @@ func exportSkills(resolver *source.SourceResolver, scopeDir, outputDir string, d
 			fmt.Printf("  %s %s → skills/%s/ (%d file(s))\n",
 				domain.Dim("→"), skill.Name, skill.Name, files)
 		} else {
+			if err := source.CheckSymlink(dstDir, outputDir); err != nil {
+				return count, fmt.Errorf("copying skill %s: %w", skill.Name, err)
+			}
 			if err := os.MkdirAll(filepath.Dir(dstDir), 0o755); err != nil {
 				return count, err
 			}
@@ -287,6 +290,9 @@ func exportPrompts(resolver *source.SourceResolver, scopeDir, outputDir string, 
 		if dryRun {
 			fmt.Printf("  %s %s.prompt.md → commands/%s.md\n", domain.Dim("→"), entry.Name, entry.Name)
 		} else {
+			if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+				return count, fmt.Errorf("writing command %s: %w", entry.Name, err)
+			}
 			if err := writeFile(dstPath, transformed); err != nil {
 				return count, fmt.Errorf("writing command %s: %w", entry.Name, err)
 			}
@@ -384,6 +390,9 @@ func exportAgents(resolver *source.SourceResolver, scopeDir, outputDir string, d
 		if dryRun {
 			fmt.Printf("  %s %s.agent.md → agents/%s.md\n", domain.Dim("→"), entry.Name, entry.Name)
 		} else {
+			if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+				return count, fmt.Errorf("writing agent %s: %w", entry.Name, err)
+			}
 			if err := writeFile(dstPath, transformed); err != nil {
 				return count, fmt.Errorf("writing agent %s: %w", entry.Name, err)
 			}
@@ -548,6 +557,9 @@ func exportInstructions(resolver *source.SourceResolver, scopeDir, outputDir str
 		if dryRun {
 			fmt.Printf("  %s %s.instructions.md → instructions/%s.md\n", domain.Dim("→"), ref.Name, ref.Name)
 		} else {
+			if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+				return 0, fmt.Errorf("writing instruction %s: %w", ref.Name, err)
+			}
 			if err := writeFile(dstPath, ref.Body); err != nil {
 				return 0, fmt.Errorf("writing instruction %s: %w", ref.Name, err)
 			}
@@ -566,6 +578,9 @@ func exportInstructions(resolver *source.SourceResolver, scopeDir, outputDir str
 			fmt.Printf("  %s %d section(s) → AGENTS.md\n", domain.Dim("→"), len(globalSections))
 		}
 	} else {
+		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
+			return 0, fmt.Errorf("writing AGENTS.md: %w", err)
+		}
 		if err := writeFile(dstPath, agentsMD); err != nil {
 			return 0, fmt.Errorf("writing AGENTS.md: %w", err)
 		}
@@ -750,6 +765,9 @@ func copyDirSimple(src, dst string) error {
 			return err
 		}
 		target := filepath.Join(dst, rel)
+		if err := source.CheckSymlink(target, dst); err != nil {
+			return err
+		}
 
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)

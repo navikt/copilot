@@ -115,6 +115,7 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MCPHandler) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var req JSONRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeError(w, nil, -32700, "Parse error", nil)
@@ -129,6 +130,7 @@ func (h *MCPHandler) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MCPHandler) handleStreamableHTTP(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var req JSONRPCRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.writeError(w, nil, -32700, "Parse error", nil)
@@ -154,7 +156,6 @@ func (h *MCPHandler) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -178,7 +179,7 @@ func (h *MCPHandler) handleSSE(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
-	reader := bufio.NewReader(r.Body)
+	reader := bufio.NewReader(io.LimitReader(r.Body, 1<<20))
 	messages := make(chan []byte)
 
 	go func() {
@@ -577,12 +578,13 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 	}
 
 	slog.Info("tool called", "tool", logSafe(params.Name), "user", user.Login)
+	toolLabel := params.Name
 	defer func() {
 		status := "success"
 		if resp != nil && resp.Error != nil {
 			status = "error"
 		}
-		recordToolCall(params.Name, status)
+		recordToolCall(toolLabel, status)
 	}()
 
 	var result CallToolResult
@@ -987,6 +989,7 @@ This information is from your GitHub OAuth session.`, user.Login, user.ID)
 		}
 
 	default:
+		toolLabel = "unknown"
 		return &JSONRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,

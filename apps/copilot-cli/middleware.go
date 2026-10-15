@@ -54,6 +54,13 @@ type authenticator struct {
 	// than the global rate.
 	mu       sync.Mutex
 	perToken map[string]*tokenBucket
+	inflight map[string]*inflightCheck
+}
+
+type inflightCheck struct {
+	done chan struct{}
+	user *AuthenticatedUser
+	err  error
 }
 
 type tokenBucket struct {
@@ -103,11 +110,38 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 	if user, ok, err := a.cache.get(token); ok {
 		return user, err
 	}
+	key := hashToken(token)
+
+	a.mu.Lock()
+	if call, ok := a.inflight[key]; ok {
+		a.mu.Unlock()
+		select {
+		case <-call.done:
+			return call.user, call.err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	if a.inflight == nil {
+		a.inflight = make(map[string]*inflightCheck)
+	}
+	call := &inflightCheck{done: make(chan struct{})}
+	a.inflight[key] = call
+	a.mu.Unlock()
+
+	defer func() {
+		a.mu.Lock()
+		delete(a.inflight, key)
+		a.mu.Unlock()
+		close(call.done)
+	}()
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	if !a.allow(hashToken(token)) {
-		return nil, errRateLimited
+	if !a.allow(key) {
+		call.err = errRateLimited
+		return nil, call.err
 	}
 	user, err := a.github.resolveUser(ctx, token)
 	if err == nil {
@@ -126,8 +160,10 @@ func (a *authenticator) resolve(ctx context.Context, token string) (*Authenticat
 		a.cache.set(token, nil, err)
 	}
 	if err != nil {
+		call.err = err
 		return nil, err
 	}
+	call.user = user
 	return user, nil
 }
 
@@ -135,6 +171,8 @@ var (
 	errNotOrgMember = errors.New("not a member of the GitHub organisation")
 	errRateLimited  = errors.New("too many sign-in attempts, try again shortly")
 )
+
+const maxTokenCacheEntries = 256
 
 // tokenCache remembers a token's outcome for a short while, keyed by a hash
 // of the token so the raw token is never kept. A success is never kept past
@@ -150,6 +188,7 @@ type cacheEntry struct {
 	user      *AuthenticatedUser
 	err       error
 	expiresAt time.Time
+	revoked   bool
 }
 
 // ponytail: map with lazy eviction. The limiter bounds entries to a few
@@ -174,31 +213,72 @@ func (c *tokenCache) get(token string) (*AuthenticatedUser, bool, error) {
 }
 
 func (c *tokenCache) set(token string, user *AuthenticatedUser, err error) {
-	expires := time.Now().Add(c.negTTL)
+	now := time.Now()
+	expires := now.Add(c.negTTL)
 	if err == nil {
-		expires = time.Now().Add(c.ttl)
+		expires = now.Add(c.ttl)
 		if !user.expiresAt.IsZero() && user.expiresAt.Before(expires) {
 			expires = user.expiresAt
 		}
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	key := hashToken(token)
-	// A token GitHub called invalid never turns valid again, so no outcome
-	// from a check that started earlier may replace the refusal (say, one
-	// that raced a revoke).
-	if old, ok := c.entries[key]; ok && errors.Is(old.err, errInvalidToken) && time.Now().Before(old.expiresAt) {
-		return
-	}
-	c.entries[key] = cacheEntry{user: user, err: err, expiresAt: expires}
+	c.store(hashToken(token), cacheEntry{user: user, err: err, expiresAt: expires}, now)
 }
 
 // revoked refuses token from the cache for as long as a success could have
 // been cached, so a revoked token stops working here at once.
 func (c *tokenCache) revoked(token string) {
+	now := time.Now()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.entries[hashToken(token)] = cacheEntry{err: errInvalidToken, expiresAt: time.Now().Add(c.ttl)}
+	c.store(hashToken(token), cacheEntry{err: errInvalidToken, expiresAt: now.Add(c.ttl), revoked: true}, now)
+}
+
+func (c *tokenCache) store(key string, entry cacheEntry, now time.Time) {
+	// A token GitHub called invalid never turns valid again, so no outcome
+	// from a check that started earlier may replace the refusal (say, one
+	// that raced a revoke).
+	if old, ok := c.entries[key]; ok {
+		if !entry.revoked && errors.Is(old.err, errInvalidToken) && now.Before(old.expiresAt) {
+			return
+		}
+		c.entries[key] = entry
+		return
+	}
+	if len(c.entries) >= maxTokenCacheEntries {
+		for k, v := range c.entries {
+			if !now.Before(v.expiresAt) {
+				delete(c.entries, k)
+			}
+		}
+	}
+	if len(c.entries) >= maxTokenCacheEntries {
+		var victim string
+		var earliest time.Time
+		for k, v := range c.entries {
+			if v.revoked {
+				continue
+			}
+			if victim == "" || v.expiresAt.Before(earliest) {
+				victim = k
+				earliest = v.expiresAt
+			}
+		}
+		if victim == "" {
+			if !entry.revoked {
+				return
+			}
+			for k, v := range c.entries {
+				if victim == "" || v.expiresAt.Before(earliest) {
+					victim = k
+					earliest = v.expiresAt
+				}
+			}
+		}
+		delete(c.entries, victim)
+	}
+	c.entries[key] = entry
 }
 
 // hashToken derives a cache key from a token without retaining the token.

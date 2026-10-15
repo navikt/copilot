@@ -5,7 +5,8 @@ on:
     branches: [main]
     paths:
       - 'skills/**'
-      - 'skills/**'
+      - 'scripts/lint-skills.sh'
+      - '.github/skills-allowlist.txt'
       - 'scripts/next-skills-version.sh'
       - 'scripts/skills-cliff.toml'
       - '.github/workflows/publish-skills.yaml'
@@ -20,20 +21,24 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
 
       - name: Upgrade gh CLI (gh skill requires 2.90.0+)
         run: |
           GH_VERSION=2.90.0
-          curl -sSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          GH_SHA256=b2aef7b23ec6899bf27f37a32c57a7935d0a178568ac33dc9bb03842f724195a
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          echo "${GH_SHA256}  /tmp/gh.tar.gz" | sha256sum -c -
           tar -xzf /tmp/gh.tar.gz -C /tmp
           sudo cp "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh
           gh --version
@@ -54,6 +59,8 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'publish')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
@@ -62,7 +69,9 @@ jobs:
       - name: Upgrade gh CLI (gh skill requires 2.90.0+)
         run: |
           GH_VERSION=2.90.0
-          curl -sSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          GH_SHA256=b2aef7b23ec6899bf27f37a32c57a7935d0a178568ac33dc9bb03842f724195a
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          echo "${GH_SHA256}  /tmp/gh.tar.gz" | sha256sum -c -
           tar -xzf /tmp/gh.tar.gz -C /tmp
           sudo cp "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh
           gh --version
@@ -91,9 +100,11 @@ jobs:
       - name: Check for existing tag
         if: steps.version.outputs.skip != 'true'
         id: check
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
-            echo "⚠️  Tag ${{ steps.version.outputs.tag }} already exists, skipping publish"
+          if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "⚠️  Tag ${TAG} already exists, skipping publish"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -109,23 +120,24 @@ jobs:
             --unreleased
             --tag ${{ steps.version.outputs.tag }}
             --include-path "skills/**"
-            --include-path "skills/**"
 
       - name: Publish skills
         if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
-        run: |
-          gh skill publish --tag "${{ steps.version.outputs.tag }}"
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh skill publish --tag "$TAG"
 
       - name: Update release notes
         if: steps.version.outputs.skip != 'true' && steps.check.outputs.skip != 'true'
         run: |
-          gh release edit "${{ steps.version.outputs.tag }}" \
+          gh release edit "$TAG" \
             --latest=false \
             --notes "$CHANGELOG"
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
           CHANGELOG: |
             ## Skills ${{ steps.version.outputs.tag }}
 

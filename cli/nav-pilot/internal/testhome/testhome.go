@@ -44,9 +44,12 @@ var (
 		".config/opencode",
 		".local/share/nav-pilot",
 		".copilot/.nav-pilot-state.json",
+		".copilot/mcp-config.json",
+		".copilot/config.json",
 		".copilot/hooks",
 		".copilot/skills",
 		".copilot/agents",
+		".copilot/extensions",
 		".copilot/.github",
 	}
 	skipped = map[string]bool{".nav-pilot/local": true, ".config/opencode/node_modules": true}

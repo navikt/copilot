@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/auth", () => ({ getUserToken: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ getUser: vi.fn(), getUserToken: vi.fn() }));
 vi.mock("@/lib/survey", () => ({ submitAnswers: vi.fn() }));
 
-import { getUserToken } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 import { submitAnswers } from "@/lib/survey";
 import { POST } from "./route";
 
@@ -15,6 +15,7 @@ const post = (body: string) =>
 describe("POST /api/survey/[id]/responses", () => {
   beforeEach(() => {
     vi.mocked(submitAnswers).mockReset().mockResolvedValue({ status: "recorded" });
+    vi.mocked(getUser).mockResolvedValue({ firstName: "A", lastName: "B", email: "a@nav.no", groups: [] });
     vi.mocked(getUserToken).mockResolvedValue("token");
   });
 
@@ -34,6 +35,12 @@ describe("POST /api/survey/[id]/responses", () => {
 
   it("answers 401 without a token, and sends nothing", async () => {
     vi.mocked(getUserToken).mockResolvedValue(null);
+    expect((await post("{}")).status).toBe(401);
+    expect(submitAnswers).not.toHaveBeenCalled();
+  });
+
+  it("answers 401 without an authenticated user, and sends nothing", async () => {
+    vi.mocked(getUser).mockResolvedValue(null);
     expect((await post("{}")).status).toBe(401);
     expect(submitAnswers).not.toHaveBeenCalled();
   });

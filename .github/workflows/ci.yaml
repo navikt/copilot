@@ -113,6 +113,7 @@ jobs:
               - 'apps/my-copilot/**'
               - 'apps/copilot-survey/surveys/schema.json'
               - 'docs/news/**/*.md'
+              - 'docs/golden-baselines/summary.json'
               - 'agents/**'
               - 'instructions/**'
               - 'prompts/**'
@@ -132,6 +133,8 @@ jobs:
               - '.nav-pilot/**'
               - 'instructions/**'
               - 'prompts/**'
+              - 'hooks/**'
+              - '.github/hooks/**'
               - '.github/workflows/nav-pilot-ci.yaml'
               - '.github/workflows/ci.yaml'
               - 'dashboards/nav-pilot-*.json'
@@ -151,6 +154,9 @@ jobs:
               - 'docs/**'
               - 'README.md'
               - 'scripts/generate-docs/**'
+              - 'scripts/lint-skills.sh'
+              - 'scripts/test-lint-skills.sh'
+              - '.github/skills-allowlist.txt'
               - '.github/workflows/docs.yaml'
               - '.github/workflows/ci.yaml'
             # Files apps/my-copilot/src/link-inventory.test.ts scans for links
@@ -457,6 +463,12 @@ jobs:
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
           cd cli/nav-pilot && staticcheck ./...
+      - name: Hook selftests
+        run: |
+          for f in hooks/*.py; do
+            python3 "$f" --selftest
+            diff -q "$f" ".github/hooks/$(basename "$f")"
+          done
       - name: Persona transcripts selftest
         run: python3 cli/nav-pilot/e2e/persona_transcripts.py --selftest
       # nav-pilot-local.json is generated: a hand edit, or a change to the
@@ -497,7 +509,9 @@ jobs:
       - name: Upgrade gh CLI (gh skill requires 2.90.0+)
         run: |
           GH_VERSION=2.90.0
-          curl -sSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          GH_SHA256=b2aef7b23ec6899bf27f37a32c57a7935d0a178568ac33dc9bb03842f724195a
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" -o /tmp/gh.tar.gz
+          echo "${GH_SHA256}  /tmp/gh.tar.gz" | sha256sum -c -
           tar -xzf /tmp/gh.tar.gz -C /tmp
           sudo cp "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh
           gh --version

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -109,7 +110,7 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 // usagePath builds the copilot-api path for a given username, mirroring the
 // route documented in the PRD (issue #337).
 func usagePath(username string) string {
-	return fmt.Sprintf("/api/v1/copilot/usage/user/%s", username)
+	return fmt.Sprintf("/api/v1/copilot/usage/user/%s", url.PathEscape(username))
 }
 
 // isOrgMember asks copilot-api whether login is an active member of the org,
@@ -142,7 +143,11 @@ func (p *upstream) isOrgMember(ctx context.Context, login string) (bool, error) 
 	var out struct {
 		Active *bool `json:"active"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<10)).Decode(&out); err != nil || out.Active == nil {
+	dec := json.NewDecoder(io.LimitReader(resp.Body, 1<<10))
+	if err := dec.Decode(&out); err != nil || out.Active == nil {
+		return false, fmt.Errorf("%s membership: malformed answer", p.name)
+	}
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
 		return false, fmt.Errorf("%s membership: malformed answer", p.name)
 	}
 	return *out.Active, nil

@@ -130,3 +130,49 @@ func TestShorthandForOnlyAcceptsARepoRoot(t *testing.T) {
 		}
 	}
 }
+
+func TestSymlinkRejectedInFileHelpers(t *testing.T) {
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.txt")
+	if err := os.WriteFile(secret, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	link := filepath.Join(dir, "link.txt")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := DirHash(dir); err == nil {
+		t.Error("DirHash accepted a symlink inside dir")
+	}
+	if _, err := DirHash(link); err == nil {
+		t.Error("DirHash accepted a symlink root")
+	}
+
+	dstDir := t.TempDir()
+	if err := CopyFile(link, filepath.Join(dstDir, "out.txt"), dstDir); err == nil {
+		t.Error("CopyFile accepted a symlink source")
+	}
+
+	realSrc := filepath.Join(outside, "real.txt")
+	if err := os.WriteFile(realSrc, []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dstLink := filepath.Join(dstDir, "dst-link.txt")
+	if err := os.Symlink(secret, dstLink); err != nil {
+		t.Fatal(err)
+	}
+	if err := CopyFile(realSrc, dstLink, dstDir); err == nil {
+		t.Error("CopyFile overwrote a symlink destination")
+	}
+	if got, _ := os.ReadFile(secret); string(got) != "secret" {
+		t.Errorf("secret file modified via symlink: %q", got)
+	}
+
+	copyRoot := t.TempDir()
+	if err := CopyDir(dir, filepath.Join(copyRoot, "copied"), copyRoot); err == nil {
+		t.Error("CopyDir accepted a directory containing a symlink")
+	}
+}

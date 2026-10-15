@@ -48,13 +48,15 @@ The group serves published entries from the video manifest only, and no Copilot,
 
 ### Zone 2: protected (Azure AD auth required)
 
-Pages and API routes that show organization-level Copilot data:
+Pages and API routes that show organization-level Copilot data (`PRIVATE_PAGE_PATHS` and `PRIVATE_API_PATHS` in `apps/my-copilot/src/proxy.ts`):
 
-- `/statistikk`, usage statistics (BigQuery)
+- `/statistikk`, `/innsikt/team`, `/innsikt/forbruk`, `/innsikt/bruk`, `/innsikt/tilpasninger`, `/innsikt/trender`, usage and insight pages (BigQuery)
+- `/admin`, admin page
 - `/adopsjon`, adoption metrics (BigQuery)
 - `/kostnad`, billing overview (GitHub API)
 - `/abonnement`, seat management (GitHub API, **mutating**)
-- `/api/copilot`, seat management API route
+- `/nav-pilot/undersokelse`, survey results
+- `/api/*` and `/statistikk/json`, all private API routes (including `/api/copilot` for seat management)
 
 Wonderwall lists these paths under `autoLoginIgnorePaths` too, so the sidecar does not redirect them; the comment in that config says auth is handled in the application layer. `apps/my-copilot/src/proxy.ts` sends the bearer token to Texas for introspection. When the token is missing or inactive, or Texas does not answer, it redirects page requests to `/oauth2/login` and answers the private API routes with 401. The protected pages also call `getUser()`, which introspects the token again and redirects to the login endpoint when it is not valid.
 
@@ -114,9 +116,11 @@ The GitHub App private key and installation credentials, and the BigQuery creden
 accessPolicy:
   inbound:
     rules:
-      - application: my-copilot    # ONLY my-copilot can reach copilot-api
+      - application: my-copilot     # my-copilot web BFF
         namespace: copilot
-      - application: copilot-cli   # CLI gateway for nav-pilot (see below)
+      - application: copilot-cli    # CLI gateway for nav-pilot (see below)
+        namespace: copilot
+      - application: copilot-survey # Only for POST /internal/v1/saml/name-id
         namespace: copilot
   outbound:
     external:
@@ -147,8 +151,10 @@ nav-pilot ──(GitHub token)──▶ copilot-cli ──(M2M token via Texas)�
    (`POST /internal/v1/github/org-membership`, M2M, copilot-cli's token only)
    whether that login is an active `navikt` member; copilot-api answers with
    its own GitHub App, so the user token needs no GitHub permissions. The
-   outcome is cached 5 min, never past the token's expiry. Fails closed: any
-   GitHub or copilot-api error rejects the request.
+   outcome is cached 5 min (`OrgMembershipCacheTTL`), never past the token's
+   expiry, and copilot-api caches the org membership lookup for 1 min, so a user
+   removed from `navikt` retains access through copilot-cli for at most 6 min.
+   Fails closed: any GitHub or copilot-api error rejects the request.
 3. copilot-cli exchanges its own workload identity for an M2M access token via
    the Texas sidecar (`NAIS_TOKEN_ENDPOINT`), scoped to the audience of the
    service it calls: copilot-api, or copilot-survey for the survey routes.
@@ -213,9 +219,9 @@ accepts it for one write.
   and a signed per-request token would not help against a compromised pod.
 - Limits in code: copilot-survey honours the header only on an app token
   (`idtyp=app` or the `access_as_application` role, no NAVident or e-mail)
-  whose `azp` is copilot-cli, only on `POST /api/v1/surveys/{id}/responses`,
-  and only with a well-formed GitHub login. A user token with the header is
-  refused.
+  whose `azp` is copilot-cli, only on `GET /api/v1/surveys/{id}/status` and
+  `POST /api/v1/surveys/{id}/responses`, and only with a well-formed GitHub
+  login. A user token with the header is refused.
 - Detection: `survey_submissions_total{survey,status}` on copilot-survey and
   `copilot_api_saml_name_id_requests_total{status}` on copilot-api count
   answers and e-mail lookups, with no identity. Each service alerts when its

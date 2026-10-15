@@ -9,9 +9,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"time"
 )
+
+var validGitHubUsername = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
 
 const githubAPIBaseURL = "https://api.github.com"
 
@@ -89,8 +92,8 @@ func (c *GitHubClient) resolveUser(ctx context.Context, token string) (*Authenti
 	if check.ExpiresAt != nil && time.Now().After(*check.ExpiresAt) {
 		return nil, errInvalidToken
 	}
-	if check.User.Login == "" || check.User.ID == 0 {
-		return nil, errors.New("GitHub token check response missing user")
+	if check.User.Login == "" || check.User.ID == 0 || !validGitHubUsername.MatchString(check.User.Login) {
+		return nil, errors.New("GitHub token check response missing or invalid user")
 	}
 	user := &AuthenticatedUser{
 		Issuer:  issuerGitHub,

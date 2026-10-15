@@ -238,6 +238,32 @@ func TestCacheNeverOutlivesToken(t *testing.T) {
 	}
 }
 
+func TestTokenCacheCapacityWithUnexpiredEntries(t *testing.T) {
+	c := newTokenCache(time.Hour)
+	c.revoked("revoked-token")
+	for i := range maxTokenCacheEntries + 32 {
+		tok := "live-" + strconv.Itoa(i)
+		c.set(tok, &AuthenticatedUser{Login: "hans", expiresAt: time.Now().Add(time.Duration(i+1) * time.Minute)}, nil)
+		if len(c.entries) > maxTokenCacheEntries {
+			t.Fatalf("after set %d: len(entries) = %d, exceeds %d", i, len(c.entries), maxTokenCacheEntries)
+		}
+	}
+	// A late positive check for the revoked token must still be refused even
+	// after capacity eviction churn from other unexpired tokens.
+	c.set("revoked-token", &AuthenticatedUser{Login: "hans"}, nil)
+	if _, ok, err := c.get("revoked-token"); !ok || err != errInvalidToken {
+		t.Fatalf("revoked-token after churn: ok=%v err=%v, want cached errInvalidToken", ok, err)
+	}
+	// And revoked() itself enforces the cap on a full cache of live entries.
+	c.revoked("revoked-token-2")
+	if len(c.entries) > maxTokenCacheEntries {
+		t.Fatalf("after revoked: len(entries) = %d, exceeds %d", len(c.entries), maxTokenCacheEntries)
+	}
+	if _, ok, err := c.get("revoked-token-2"); !ok || err != errInvalidToken {
+		t.Fatalf("revoked-token-2: ok=%v err=%v, want cached errInvalidToken", ok, err)
+	}
+}
+
 // Any answer from copilot-api but a 200 with a boolean "active" refuses the
 // sign-in, is not cached, and the user token never goes to copilot-api.
 func TestMembershipFailsClosed(t *testing.T) {
@@ -252,6 +278,7 @@ func TestMembershipFailsClosed(t *testing.T) {
 		{"redirect", 302, `{"active":true}`},
 		{"no active field", 200, `{"member":true}`},
 		{"active not a bool", 200, `{"active":"true"}`},
+		{"trailing bytes", 200, `{"active":true}garbage`},
 		{"not json", 200, `yes`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

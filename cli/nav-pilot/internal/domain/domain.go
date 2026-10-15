@@ -417,15 +417,15 @@ func (s *InstallScope) ValidateStatePath(p string) error {
 		return nil
 	}
 
-	// User scope: agents/, skills/, hooks/, and .github/instructions/ allowed.
+	// User scope: agents/, skills/, hooks/, extensions/, and .github/instructions/ allowed.
 	// hooks/ is ~/.copilot/hooks/, a directory of one config file per hook —
 	// not .github/hooks/, which is the repo-scope shape.
-	for _, prefix := range []string{"agents/", "skills/", "hooks/", ".github/instructions/"} {
+	for _, prefix := range []string{"agents/", "skills/", "hooks/", "extensions/", ".github/instructions/"} {
 		if strings.HasPrefix(p, prefix) {
 			return nil
 		}
 	}
-	return fmt.Errorf("path outside agents/, skills/, hooks/, or .github/instructions/ not allowed in user scope: %s", p)
+	return fmt.Errorf("path outside agents/, skills/, hooks/, extensions/, or .github/instructions/ not allowed in user scope: %s", p)
 }
 
 // PathWithinRoot reports whether abs is still inside root once every symlink on
@@ -467,7 +467,7 @@ func resolveSymlinks(p string) string {
 // CleanupDirs removes empty artifact directories after uninstall.
 func (s *InstallScope) CleanupDirs() {
 	if s.Name == "repo" {
-		for _, sub := range []string{"agents", "skills", "instructions", "prompts", "hooks"} {
+		for _, sub := range []string{"agents", "skills", "instructions", "prompts", "hooks", "extensions"} {
 			dir := filepath.Join(s.RootDir, ".github", sub)
 			entries, err := os.ReadDir(dir)
 			if err == nil && len(entries) == 0 {
@@ -477,7 +477,7 @@ func (s *InstallScope) CleanupDirs() {
 		return
 	}
 	// User scope
-	for _, sub := range []string{"agents", "skills", "hooks"} {
+	for _, sub := range []string{"agents", "skills", "hooks", "extensions"} {
 		dir := filepath.Join(s.RootDir, sub)
 		entries, err := os.ReadDir(dir)
 		if err == nil && len(entries) == 0 {

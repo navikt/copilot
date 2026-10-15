@@ -179,46 +179,6 @@ func TestGetRepoLanguages_Error(t *testing.T) {
 	}
 }
 
-func TestGetRepoFileContent_Found(t *testing.T) {
-	server := newGitHubMock(t, map[string]http.HandlerFunc{
-		"GET /repos/navikt/my-app/contents/package.json": func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Accept") != "application/vnd.github.raw+json" {
-				t.Error("expected raw content accept header")
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"name": "my-app", "version": "1.0.0"}`))
-		},
-	})
-	defer server.Close()
-
-	client := newTestGitHubClient(server)
-	content, err := client.GetRepoFileContent("test-token", "navikt", "my-app", "package.json")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(content, "my-app") {
-		t.Errorf("expected content to contain 'my-app', got %q", content)
-	}
-}
-
-func TestGetRepoFileContent_NotFound(t *testing.T) {
-	server := newGitHubMock(t, map[string]http.HandlerFunc{
-		"/": func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-		},
-	})
-	defer server.Close()
-
-	client := newTestGitHubClient(server)
-	content, err := client.GetRepoFileContent("test-token", "navikt", "my-app", "missing.txt")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if content != "" {
-		t.Errorf("expected empty string for 404, got %q", content)
-	}
-}
-
 func TestDetectRepoInfo_FullStack(t *testing.T) {
 	server := newRepoInfoMock(t, `{"Go":50000,"Dockerfile":1000}`, map[string]bool{
 		"go.mod":     true,

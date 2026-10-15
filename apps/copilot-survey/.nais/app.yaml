@@ -8,8 +8,8 @@ metadata:
 spec:
   image: {{image}}
   port: 8080
-  # Exactly one: the survey queue and its dedup live in the pod's memory
-  # (store.go). More replicas would let one person answer twice.
+  # Single replica: low-traffic internal service, and free-text hide tokens
+  # are keyed in process memory (freetext.go).
   replicas:
     min: 1
     max: 1
@@ -36,7 +36,7 @@ spec:
     path: /metrics
   # No ingress: copilot-cli and my-copilot call it in-cluster. No
   # observability.autoInstrumentation either: a trace of a submission would
-  # time-stamp who answered, which the batching exists to hide.
+  # time-stamp who answered.
   azure:
     application:
       enabled: true

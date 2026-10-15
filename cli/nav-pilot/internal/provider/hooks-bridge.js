@@ -118,7 +118,7 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
     servers = [
       ...(m.blocked ?? []).map((n) => ({ p: prefix(n), name: n, blocked: true })),
       ...(m.listed ?? []).map((n) => ({ p: prefix(n), name: n, blocked: false })),
-    ].sort((a, b) => b.p.length - a.p.length)
+    ].sort((a, b) => b.p.length - a.p.length || Number(b.blocked) - Number(a.blocked))
   } catch {}
   // ponytail: a hand-kept list of OpenCode's own tools (1.18.32). A custom tool
   // whose name starts with a blocked server's name is refused too, and so are
@@ -129,7 +129,9 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
   const resourceTools = new Set(["list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource"])
   const blockedServer = (tool, args) => {
     if (resourceTools.has(tool)) {
-      const hit = servers.find((s) => s.blocked && s.name === args?.server)
+      const srv = typeof args?.server === "string" ? args.server : ""
+      if (tool === "read_mcp_resource" && !srv) return servers.find((s) => s.blocked)?.name
+      const hit = servers.find((s) => s.blocked && s.name === srv)
       return hit?.name
     }
     if (builtin.has(tool)) return undefined

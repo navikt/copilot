@@ -275,11 +275,13 @@ func resolveAndPin(resolved ResolvedConfig) (*Source, bool, error) {
 	// the copy has an age limit: older than sourceMaxAge, the launch waits for
 	// a new one as it did for every launch before.
 	cached, hasCache := readSourceCache(resolved.Source)
-	if hasCache {
-		defer func(d time.Duration) { source.FetchTimeout = d }(source.FetchTimeout)
-		source.FetchTimeout = cachedFetchTimeout
-	}
-	src, refresh, err := resolveForLaunch(resolved.Source)
+	src, refresh, err := func() (*Source, func(context.Context), error) {
+		if hasCache {
+			defer func(d time.Duration) { source.FetchTimeout = d }(source.FetchTimeout)
+			source.FetchTimeout = cachedFetchTimeout
+		}
+		return resolveForLaunch(resolved.Source)
+	}()
 	refreshSourceDuringSession(refresh)
 	if err != nil {
 		if errors.Is(err, errUnusableManifest) {
@@ -908,9 +910,17 @@ var resolveForLaunch = func(sourceRepo string) (src *Source, refresh func(contex
 var stopSourceRefresh = func() {}
 
 func refreshSourceDuringSession(refresh func(context.Context)) {
+	stopSourceRefresh()
 	ctx, cancel := context.WithCancel(context.Background())
-	go refresh(ctx)
-	stopSourceRefresh = cancel
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		refresh(ctx)
+	}()
+	stopSourceRefresh = func() {
+		cancel()
+		<-done
+	}
 }
 
 // cachedFetchTimeout is how long a launch waits on the fetch when it has a

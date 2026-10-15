@@ -74,9 +74,25 @@ func NewTokenStore() *TokenStore {
 	return store
 }
 
+const maxStoreEntries = 10000
+
 func (s *TokenStore) SaveAuthSession(state string, session *AuthSession) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if len(s.authSessions) >= maxStoreEntries {
+		now := time.Now()
+		for k, v := range s.authSessions {
+			if now.Sub(v.CreatedAt) > 10*time.Minute {
+				delete(s.authSessions, k)
+			}
+		}
+		if len(s.authSessions) >= maxStoreEntries {
+			for k := range s.authSessions {
+				delete(s.authSessions, k)
+				break
+			}
+		}
+	}
 	s.authSessions[state] = session
 }
 
@@ -85,6 +101,9 @@ func (s *TokenStore) GetAuthSession(state string) (*AuthSession, error) {
 	defer s.mu.RUnlock()
 	session, ok := s.authSessions[state]
 	if !ok {
+		return nil, ErrNotFound
+	}
+	if time.Since(session.CreatedAt) > 10*time.Minute {
 		return nil, ErrNotFound
 	}
 	return session, nil
@@ -99,6 +118,20 @@ func (s *TokenStore) DeleteAuthSession(state string) {
 func (s *TokenStore) SaveAuthCode(code string, authCode *AuthCode) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if len(s.authCodes) >= maxStoreEntries {
+		now := time.Now()
+		for k, v := range s.authCodes {
+			if now.Sub(v.CreatedAt) > 10*time.Minute {
+				delete(s.authCodes, k)
+			}
+		}
+		if len(s.authCodes) >= maxStoreEntries {
+			for k := range s.authCodes {
+				delete(s.authCodes, k)
+				break
+			}
+		}
+	}
 	s.authCodes[code] = authCode
 }
 
@@ -121,6 +154,20 @@ func (s *TokenStore) DeleteAuthCode(code string) {
 func (s *TokenStore) SaveToken(token string, data *TokenData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if len(s.tokens) >= maxStoreEntries {
+		now := time.Now()
+		for k, v := range s.tokens {
+			if now.After(v.ExpiresAt) {
+				delete(s.tokens, k)
+			}
+		}
+		if len(s.tokens) >= maxStoreEntries {
+			for k := range s.tokens {
+				delete(s.tokens, k)
+				break
+			}
+		}
+	}
 	s.tokens[token] = data
 }
 
@@ -146,6 +193,20 @@ func (s *TokenStore) DeleteToken(token string) {
 func (s *TokenStore) SaveRefreshToken(token string, data *RefreshTokenData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if len(s.refreshTokens) >= maxStoreEntries {
+		now := time.Now()
+		for k, v := range s.refreshTokens {
+			if now.Sub(v.CreatedAt) > 30*24*time.Hour {
+				delete(s.refreshTokens, k)
+			}
+		}
+		if len(s.refreshTokens) >= maxStoreEntries {
+			for k := range s.refreshTokens {
+				delete(s.refreshTokens, k)
+				break
+			}
+		}
+	}
 	s.refreshTokens[token] = data
 }
 
@@ -154,6 +215,9 @@ func (s *TokenStore) GetRefreshToken(token string) (*RefreshTokenData, error) {
 	defer s.mu.RUnlock()
 	data, ok := s.refreshTokens[token]
 	if !ok {
+		return nil, ErrNotFound
+	}
+	if time.Since(data.CreatedAt) > 30*24*time.Hour {
 		return nil, ErrNotFound
 	}
 	return data, nil

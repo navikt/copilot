@@ -25,21 +25,47 @@ export type InstallType = keyof typeof INSTALL_TYPES;
  * @returns true if the URL is allowed, false otherwise
  */
 export function isAllowedInstallUrl(url: string, type: InstallType): boolean {
-  // Reject path traversal attempts
-  if (url.includes("..")) {
+  const chatPath = INSTALL_TYPES[type];
+  const prefixes = [`vscode:${chatPath}/install?`, `vscode-insiders:${chatPath}/install?`];
+  const prefix = prefixes.find((p) => url.startsWith(p));
+  if (!prefix) {
     return false;
   }
 
-  const chatPath = INSTALL_TYPES[type];
+  const query = url.slice(prefix.length);
+  const params = new URLSearchParams(query);
+  const urls = params.getAll("url");
+  if (urls.length !== 1 || Array.from(params.keys()).length !== 1) {
+    return false;
+  }
 
-  // Build patterns for this specific type
-  // Note: Next.js automatically URL-decodes query params, so we match decoded URLs
-  const patterns = [
-    new RegExp(`^vscode:${chatPath}/install\\?url=https://raw\\.githubusercontent\\.com/navikt/`),
-    new RegExp(`^vscode-insiders:${chatPath}/install\\?url=https://raw\\.githubusercontent\\.com/navikt/`),
-  ];
+  const innerUrl = urls[0];
+  const forbidden = /\.\.|%2e|%2f|%5c|\\/i;
+  if (forbidden.test(query) || forbidden.test(innerUrl)) {
+    return false;
+  }
 
-  return patterns.some((pattern) => pattern.test(url));
+  let parsed: URL;
+  try {
+    parsed = new URL(innerUrl);
+  } catch {
+    return false;
+  }
+
+  const segments = parsed.pathname.split("/").filter(Boolean);
+  return (
+    parsed.protocol === "https:" &&
+    parsed.hostname === "raw.githubusercontent.com" &&
+    parsed.port === "" &&
+    parsed.username === "" &&
+    parsed.password === "" &&
+    parsed.search === "" &&
+    parsed.hash === "" &&
+    parsed.pathname.startsWith("/navikt/") &&
+    !parsed.pathname.includes("//") &&
+    segments[0] === "navikt" &&
+    segments.length >= 3
+  );
 }
 
 /**

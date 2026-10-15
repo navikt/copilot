@@ -80,20 +80,29 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          if [[ ! "$SOURCE_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::Invalid source_repo: $SOURCE_REPO"
+            exit 1
+          fi
+          if [[ -n "$SOURCE_REF" ]] && { [[ "$SOURCE_REF" == -* ]] || [[ ! "$SOURCE_REF" =~ ^[A-Za-z0-9_./-]+$ ]]; }; then
+            echo "::error::Invalid source_ref: $SOURCE_REF"
+            exit 1
+          fi
+
           # Build nav-pilot flags from workflow inputs
-          SYNC_FLAGS="--json"
+          SYNC_FLAGS=(--json)
           if [[ "$SOURCE_REPO" != "navikt/copilot" ]]; then
-            SYNC_FLAGS="$SYNC_FLAGS --source $SOURCE_REPO"
+            SYNC_FLAGS+=(--source "$SOURCE_REPO")
           fi
           if [[ -n "$SOURCE_REF" ]]; then
-            SYNC_FLAGS="$SYNC_FLAGS --ref $SOURCE_REF"
+            SYNC_FLAGS+=(--ref "$SOURCE_REF")
           fi
 
           # Run sync and capture exit code (stdout = JSON, stderr = log)
           # Write to RUNNER_TEMP to avoid including the file in the PR commit
           SYNC_RESULT="$RUNNER_TEMP/sync-result.json"
           set +e
-          nav-pilot sync $SYNC_FLAGS > "$SYNC_RESULT"
+          nav-pilot sync "${SYNC_FLAGS[@]}" > "$SYNC_RESULT"
           EXIT_CODE=$?
           set -e
 
@@ -139,12 +148,13 @@ jobs:
             CHANGES="$RUNNER_TEMP/sync-changes.txt"
             jq -r "$CHANGE_FILTER" "$SYNC_RESULT" > "$CHANGES"
 
+            EOF_DELIM="EOF_$(openssl rand -hex 8)"
             {
-              echo "body_lines<<BODY_EOF"
+              echo "body_lines<<${EOF_DELIM}"
               while read -r f; do
                 echo "- \`$f\`"
               done < "$CHANGES"
-              echo "BODY_EOF"
+              echo "${EOF_DELIM}"
             } >> "$GITHUB_OUTPUT"
 
             UPDATE_COUNT=$(wc -l < "$CHANGES" | tr -d ' ')
@@ -162,14 +172,14 @@ jobs:
           SOURCE_REF: ${{ inputs.source_ref }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          SYNC_FLAGS="--apply"
+          SYNC_FLAGS=(--apply)
           if [[ "$SOURCE_REPO" != "navikt/copilot" ]]; then
-            SYNC_FLAGS="$SYNC_FLAGS --source $SOURCE_REPO"
+            SYNC_FLAGS+=(--source "$SOURCE_REPO")
           fi
           if [[ -n "$SOURCE_REF" ]]; then
-            SYNC_FLAGS="$SYNC_FLAGS --ref $SOURCE_REF"
+            SYNC_FLAGS+=(--ref "$SOURCE_REF")
           fi
-          nav-pilot sync $SYNC_FLAGS
+          nav-pilot sync "${SYNC_FLAGS[@]}"
 
       - name: Create Pull Request
         if: steps.check.outputs.has_updates == 'true'

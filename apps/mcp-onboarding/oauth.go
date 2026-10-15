@@ -157,7 +157,13 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if codeChallengeMethod != "" && codeChallengeMethod != "S256" {
+	if codeChallenge == "" {
+		http.Error(w, "Missing required parameter: code_challenge", http.StatusBadRequest)
+		return
+	}
+	if codeChallengeMethod == "" {
+		codeChallengeMethod = "S256"
+	} else if codeChallengeMethod != "S256" {
 		http.Error(w, "Only S256 code challenge method supported", http.StatusBadRequest)
 		return
 	}
@@ -246,9 +252,9 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 
 	if errorParam != "" {
 		errorDesc := r.URL.Query().Get("error_description")
-		slog.Error("github oauth error", "error", errorParam, "description", errorDesc)
+		slog.Error("github oauth error", "error", logSafe(errorParam), "description", logSafe(errorDesc))
 		recordOAuthFlow("callback", "github_error")
-		http.Error(w, fmt.Sprintf("GitHub OAuth error: %s - %s", errorParam, errorDesc), http.StatusBadRequest)
+		http.Error(w, "GitHub OAuth authorization failed", http.StatusBadRequest)
 		return
 	}
 
@@ -404,12 +410,10 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if authCode.CodeChallenge != "" {
-		if !VerifyPKCE(codeVerifier, authCode.CodeChallenge) {
-			slog.Warn("PKCE verification failed", "user", authCode.UserLogin)
-			s.writeTokenError(w, "invalid_grant", "PKCE verification failed")
-			return
-		}
+	if !VerifyPKCE(codeVerifier, authCode.CodeChallenge) {
+		slog.Warn("PKCE verification failed", "user", authCode.UserLogin)
+		s.writeTokenError(w, "invalid_grant", "PKCE verification failed")
+		return
 	}
 
 	accessToken := generateSecureToken(64)
@@ -728,6 +732,9 @@ func (s *OAuthServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 func isValidRedirectURI(uri string) bool {
 	parsed, err := url.Parse(uri)
 	if err != nil {
+		return false
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
 		return false
 	}
 	return parsed.Scheme == "http" && isLoopback(parsed.Hostname())

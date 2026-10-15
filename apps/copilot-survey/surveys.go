@@ -682,8 +682,8 @@ func (a *surveyAPI) status(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Bounded like submit's store call: the lookup holds the store's mutex,
-	// so a stalled database must not hold it for as long as the client waits.
+	// Bounded like submit's store call so a stalled database does not hold
+	// the request open for as long as the client waits.
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	answered, err := a.answered(ctx, s.ID, participantHash(a.keys[s.ID], email))

@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/huh"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // ─── Key listing (shared with config show) ───────────────────────────────────
@@ -355,6 +356,9 @@ var clientLabel = map[string]string{"copilot": "GitHub Copilot", "opencode": "Op
 // runField runs one prompt of the settings page or the wizard. Esc cancels
 // it, like ctrl+c, and the footer names the keys, esc included.
 func runField(f huh.Field) error {
+	if !providerpkg.IsTerminal(os.Stdin) {
+		return errors.New("huh: stdin is not a terminal")
+	}
 	return huh.NewForm(huh.NewGroup(escHelpField{f})).WithShowHelp(true).WithTheme(navTheme()).Run()
 }
 

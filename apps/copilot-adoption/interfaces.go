@@ -78,8 +78,6 @@ type AdoptionStore interface {
 	EnsureTableExists(ctx context.Context) error
 	EnsureViewsExist(ctx context.Context) error
 	InsertScanResults(ctx context.Context, scanDate time.Time, results []RepoScanResult) error
-	DeleteScanDate(ctx context.Context, scanDate time.Time) error
-	ScanDateExists(ctx context.Context, scanDate time.Time) (bool, error)
 	Close() error
 }
 

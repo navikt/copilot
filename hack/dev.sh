@@ -108,13 +108,16 @@ required_secret_keys() {
 }
 
 export_secrets() {
-    local dir="$1" out
-    if ! out="$(cd "$dir" && fnox export -f shell 2>&1)"; then
+    local dir="$1" out err_file
+    err_file="$(mktemp)"
+    if ! out="$(cd "$dir" && fnox export -f shell 2>"$err_file")"; then
         echo -e "${YELLOW}✗ fnox export failed for ${dir}:${RESET}"
-        echo "$out" | while IFS= read -r line; do echo "  $line"; done
+        while IFS= read -r line; do echo "  $line"; done < "$err_file"
+        rm -f "$err_file"
         echo -e "${YELLOW}Fix the Keychain/fnox setup above, then re-run 'mise dev'.${RESET}"
         exit 1
     fi
+    rm -f "$err_file"
     eval "$out"
 
     local missing=()
@@ -143,7 +146,7 @@ export_secrets apps/my-copilot
 # - copilot-api: mock token context; drives SAML username lookup (e.g. budget endpoint
 #   resolves this email -> GitHub username). Kept here (not in mise [env]) so it never
 #   pollutes `mise check`/CI test runs, which expect the default dev@nav.no.
-export DEV_USER_EMAIL="${DEV_USER_EMAIL:-hans.kristian.flaatten@nav.no}"
+export DEV_USER_EMAIL="${DEV_USER_EMAIL:-dev@nav.no}"
 
 # Video defaults for local development:
 # - Prefer the injected dev bucket variables if they exist.

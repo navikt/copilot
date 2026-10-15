@@ -192,13 +192,21 @@ func objectURL(baseURL, objectPath string) (string, error) {
 	return strings.TrimRight(baseURL, "/") + "/" + objectPath, nil
 }
 
+type videoManifestCall struct {
+	done    chan struct{}
+	entries []VideoManifestEntry
+	err     error
+}
+
 type videoManifestCache struct {
 	mu            sync.Mutex
+	inFlight      *videoManifestCall
 	source        string
 	ttl           time.Duration
 	now           func() time.Time
 	loader        func(context.Context, string) ([]VideoManifestEntry, error)
 	cachedEntries []VideoManifestEntry
+	cachedErr     error
 	loaded        bool
 	expiresAt     time.Time
 }
@@ -217,29 +225,64 @@ func newVideoManifestCache(source string, ttl time.Duration) *videoManifestCache
 
 func (c *videoManifestCache) get(ctx context.Context) ([]VideoManifestEntry, error) {
 	c.mu.Lock()
-	if c.loaded && c.now().Before(c.expiresAt) {
-		entries := cloneVideoManifestEntries(c.cachedEntries)
-		c.mu.Unlock()
-		return entries, nil
+	if c.now().Before(c.expiresAt) {
+		if c.loaded {
+			entries := cloneVideoManifestEntries(c.cachedEntries)
+			c.mu.Unlock()
+			return entries, nil
+		}
+		if c.cachedErr != nil {
+			err := c.cachedErr
+			c.mu.Unlock()
+			return nil, err
+		}
 	}
-	source := c.source
-	c.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		c.mu.Unlock()
+		return nil, err
+	}
+	call := c.inFlight
+	if call == nil {
+		call = &videoManifestCall{done: make(chan struct{})}
+		c.inFlight = call
+		source := c.source
+		c.mu.Unlock()
+		go c.runReload(context.WithoutCancel(ctx), call, source)
+	} else {
+		c.mu.Unlock()
+	}
 
+	select {
+	case <-call.done:
+		return cloneVideoManifestEntries(call.entries), call.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func (c *videoManifestCache) runReload(ctx context.Context, call *videoManifestCall, source string) {
 	entries, err := c.loader(ctx, source)
 
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.inFlight = nil
 	if err != nil {
 		if c.loaded {
-			return cloneVideoManifestEntries(c.cachedEntries), fmt.Errorf("refreshing manifest: %w", err)
+			call.entries = cloneVideoManifestEntries(c.cachedEntries)
+			call.err = fmt.Errorf("refreshing manifest: %w", err)
+		} else {
+			c.cachedErr = err
+			c.expiresAt = c.now().Add(min(c.ttl, 5*time.Second))
+			call.err = err
 		}
-		return nil, err
+	} else {
+		c.cachedEntries = cloneVideoManifestEntries(entries)
+		c.cachedErr = nil
+		c.loaded = true
+		c.expiresAt = c.now().Add(c.ttl)
+		call.entries = cloneVideoManifestEntries(c.cachedEntries)
 	}
-
-	c.cachedEntries = cloneVideoManifestEntries(entries)
-	c.loaded = true
-	c.expiresAt = c.now().Add(c.ttl)
-	return cloneVideoManifestEntries(c.cachedEntries), nil
+	c.mu.Unlock()
+	close(call.done)
 }
 
 func cloneVideoManifestEntries(entries []VideoManifestEntry) []VideoManifestEntry {

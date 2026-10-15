@@ -13,12 +13,17 @@ import (
 	"time"
 )
 
-const testRedirectURI = "http://127.0.0.1:33418/callback"
+const (
+	testRedirectURI   = "http://127.0.0.1:33418/callback"
+	testCodeVerifier  = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	testCodeChallenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+)
 
 // authorize runs one /oauth/authorize request through the mux.
 func authorize(mux *http.ServeMux, clientID, redirectURI string) *httptest.ResponseRecorder {
 	return do(mux, httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(clientID)+
-		"&redirect_uri="+url.QueryEscape(redirectURI)+"&state=client-state", nil))
+		"&redirect_uri="+url.QueryEscape(redirectURI)+"&state=client-state"+
+		"&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil))
 }
 
 // TestSignedClientID_SurvivesRestart is the point of the whole change: a
@@ -420,7 +425,7 @@ func TestSignedClientID_EmptyNonce(t *testing.T) {
 	withNonce := mintClientID(server.clientIDKey, clientIDInfo{
 		RedirectURIs: []string{uri}, IssuedAt: time.Now().Unix(), Nonce: generateSecureToken(8),
 	})
-	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(withNonce)+"&redirect_uri="+url.QueryEscape(uri)+"&state=abc", nil)
+	req := httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(withNonce)+"&redirect_uri="+url.QueryEscape(uri)+"&state=abc&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 	if w.Code != http.StatusFound {
@@ -430,7 +435,7 @@ func TestSignedClientID_EmptyNonce(t *testing.T) {
 	without := mintClientID(server.clientIDKey, clientIDInfo{
 		RedirectURIs: []string{uri}, IssuedAt: time.Now().Unix(),
 	})
-	req = httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(without)+"&redirect_uri="+url.QueryEscape(uri)+"&state=abc", nil)
+	req = httptest.NewRequest("GET", "/oauth/authorize?client_id="+url.QueryEscape(without)+"&redirect_uri="+url.QueryEscape(uri)+"&state=abc&code_challenge="+testCodeChallenge+"&code_challenge_method=S256", nil)
 	w = httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 	if w.Code != http.StatusBadRequest {

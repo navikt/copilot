@@ -49,29 +49,6 @@ func NewSlackNotifier(webhookURL string) *SlackNotifier {
 	}
 }
 
-// NotifyScanResult sends a Slack alert when a scan completes with errors.
-// Does nothing if the scan succeeded.
-func (s *SlackNotifier) NotifyScanResult(ctx context.Context, totalRepos, scannedRepos, errorCount int) {
-	if s == nil || errorCount == 0 {
-		return
-	}
-
-	emoji := "⚠️"
-	status := "Partial Failure"
-	if scannedRepos == 0 {
-		emoji = "🔴"
-		status = "Failed"
-	}
-
-	text := fmt.Sprintf("%s *Copilot Adoption Scan – %s*\n\n"+
-		"Scanned *%d of %d* repositories for AI tool configurations.\n"+
-		"• Errors: %d repositories could not be scanned\n\n"+
-		"📊 *Impact*: Adoption metrics may be incomplete for some teams.",
-		emoji, status, scannedRepos, totalRepos, errorCount)
-
-	s.send(ctx, text)
-}
-
 // NotifyError sends a Slack alert for a fatal error.
 func (s *SlackNotifier) NotifyError(ctx context.Context, message string) {
 	if s == nil {

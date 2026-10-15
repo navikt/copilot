@@ -58,10 +58,14 @@ const MCPBlockedEnv = "NAV_PILOT_MCP_BLOCKED"
 
 // mcpServer is one server in the user's OpenCode config.
 type mcpServer struct {
-	Type    string   `json:"type"`
-	URL     string   `json:"url"`
-	Command []string `json:"command"`
-	Enabled *bool    `json:"enabled"`
+	Type        string            `json:"type"`
+	URL         string            `json:"url"`
+	Command     []string          `json:"command"`
+	Enabled     *bool             `json:"enabled"`
+	Environment map[string]string `json:"environment"`
+	Env         map[string]string `json:"env"`
+	hadEnv      bool
+	hadEnvName  bool
 }
 
 // mcpRegistry is what the registry lists: remote URLs and package ids.
@@ -242,27 +246,55 @@ func normalizeMCPURL(s string) string {
 
 // listed reports whether the registry lists the server.
 func (r mcpRegistry) listed(s mcpServer) bool {
+	if s.hadEnvName {
+		return false
+	}
 	switch s.Type {
 	case "remote":
 		return r.Remotes[normalizeMCPURL(s.URL)]
 	case "local":
+		if len(s.Environment) > 0 || len(s.Env) > 0 {
+			return false
+		}
 	default:
 		// OpenCode knows these two. Anything else is not a server the
 		// registry can be said to list.
 		return false
 	}
 	pkg := localPackage(s.Command)
-	if pkg == "" {
+	if pkg == "" || !validMCPPackageSpec(pkg) {
 		return false
 	}
 	if r.Packages[pkg] {
 		return true
 	}
 	// A pinned version: @playwright/mcp@latest, mcp-server@1.2.
-	if i := strings.LastIndex(pkg, "@"); i > 0 && r.Packages[pkg[:i]] {
-		return true
+	// Reject npm alias/protocol specifiers (@npm:..., @file:..., @git+..., URLs/paths).
+	if i := strings.LastIndex(pkg, "@"); i > 0 {
+		ver := pkg[i+1:]
+		if ver != "" && !strings.ContainsAny(ver, `:/\+@`) && r.Packages[pkg[:i]] {
+			return true
+		}
 	}
 	return false
+}
+
+func validMCPPackageSpec(pkg string) bool {
+	if pkg == "" || strings.ContainsAny(pkg, `:\`) || strings.Contains(pkg, "..") {
+		return false
+	}
+	name := pkg
+	if i := strings.LastIndex(pkg, "@"); i > 0 {
+		ver := pkg[i+1:]
+		if ver == "" || strings.ContainsAny(ver, `:/\+@`) {
+			return false
+		}
+		name = pkg[:i]
+	}
+	if strings.HasPrefix(name, "@") {
+		return strings.Count(name, "/") == 1 && !strings.HasSuffix(name, "/")
+	}
+	return !strings.Contains(name, "/")
 }
 
 // localPackage is the package a local server's command runs: the first
@@ -270,13 +302,15 @@ func (r mcpRegistry) listed(s mcpServer) bool {
 // pipx run), or the command itself. Only that position counts, so a package
 // name passed to some other program as data does not make it that package.
 func localPackage(command []string) string {
-	if len(command) == 0 {
+	if len(command) == 0 || strings.HasPrefix(command[0], ".") {
 		return ""
 	}
 	exe := strings.ToLower(filepath.Base(command[0]))
 	rest := command[1:]
 	switch exe {
-	case "npx", "bunx", "uvx":
+	case "npx", "bunx":
+	case "uvx":
+		return localPythonRunnerPackage(rest)
 	case "pnpm", "yarn", "pipx":
 		want := "dlx"
 		if exe == "pipx" {
@@ -286,23 +320,69 @@ func localPackage(command []string) string {
 			return ""
 		}
 		rest = rest[1:]
+		if exe == "pipx" {
+			return localPythonRunnerPackage(rest)
+		}
 	default:
+		if strings.ContainsAny(command[0], `/\`) {
+			return ""
+		}
 		return exe
 	}
+	var pkg string
 	for k := 0; k < len(rest); k++ {
 		a := rest[k]
 		if !strings.HasPrefix(a, "-") {
-			return strings.ToLower(a)
+			if pkg == "" {
+				pkg = strings.ToLower(a)
+			}
+			for _, rem := range rest[k+1:] {
+				if rem == "-p" || rem == "--package" || rem == "-c" || rem == "--call" ||
+					strings.HasPrefix(rem, "--package=") || strings.HasPrefix(rem, "--call=") {
+					return ""
+				}
+			}
+			return pkg
 		}
-		// npx --package <name> / -p <name> names the package outright.
-		if (a == "-p" || a == "--package") && k+1 < len(rest) {
-			return strings.ToLower(rest[k+1])
+		if a == "-y" || a == "--yes" {
+			continue
 		}
-		if v, ok := strings.CutPrefix(a, "--package="); ok {
-			return strings.ToLower(v)
+		// npx --package <name> / -p <name> names the package outright (at most once).
+		if (a == "-p" || a == "--package") && pkg == "" && k+1 < len(rest) && !strings.HasPrefix(rest[k+1], "-") {
+			pkg = strings.ToLower(rest[k+1])
+			k++
+			continue
+		}
+		if v, ok := strings.CutPrefix(a, "--package="); ok && pkg == "" && v != "" && !strings.HasPrefix(v, "-") {
+			pkg = strings.ToLower(v)
+			continue
+		}
+		return ""
+	}
+	return pkg
+}
+
+func localPythonRunnerPackage(rest []string) string {
+	if len(rest) == 0 || strings.HasPrefix(rest[0], "-") {
+		return ""
+	}
+	for _, a := range rest[1:] {
+		if a == "--with" || a == "--from" || strings.HasPrefix(a, "--with=") || strings.HasPrefix(a, "--from=") {
+			return ""
 		}
 	}
-	return ""
+	return strings.ToLower(rest[0])
+}
+
+func openCodeEnvGetter(env []string) func(string) string {
+	return func(k string) string {
+		for _, e := range env {
+			if v, ok := strings.CutPrefix(e, k+"="); ok {
+				return v
+			}
+		}
+		return ""
+	}
 }
 
 // openCodeMCPServers reads the MCP servers the user's OpenCode config
@@ -312,19 +392,58 @@ func localPackage(command []string) string {
 // later definition of a name is merged over an earlier one. A file that does
 // not parse is skipped; OpenCode would refuse it anyway.
 func openCodeMCPServers(projectDir string, env []string) map[string]mcpServer {
-	return openCodeMCPServersIn(openCodeConfigDocs(projectDir, env, false))
+	return openCodeMCPServersIn(openCodeConfigDocs(projectDir, env, false), openCodeEnvGetter(env))
 }
 
 // openCodeUserMCPServers is the servers in the user's own OpenCode config:
 // the global files and ~/.opencode, never a project's or an environment
 // variable's, which a repository can set.
 func openCodeUserMCPServers() map[string]mcpServer {
-	return openCodeMCPServersIn(openCodeConfigDocs("", os.Environ(), true))
+	env := os.Environ()
+	return openCodeMCPServersIn(openCodeConfigDocs("", env, true), openCodeEnvGetter(env))
 }
 
-func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
+func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]mcpServer {
+	if getenv == nil {
+		getenv = func(string) string { return "" }
+	}
 	v2 := openCodeMajor() >= 2
 	servers := map[string]mcpServer{}
+	unmarshalServer := func(name string, raw json.RawMessage, v2Native bool) {
+		hadEnvName := envPlaceholder.MatchString(name)
+		hadEnv := hadEnvName || envPlaceholder.Match(raw)
+		expanded := expandOpenCodeServerJSON(raw, getenv)
+		s := servers[name]
+		s.hadEnv = s.hadEnv || hadEnv
+		s.hadEnvName = s.hadEnvName || hadEnvName
+		if v2Native {
+			var d struct {
+				Disabled *bool `json:"disabled"`
+			}
+			if json.Unmarshal(expanded, &s) == nil && json.Unmarshal(expanded, &d) == nil {
+				if d.Disabled != nil {
+					on := !*d.Disabled
+					s.Enabled = &on
+				}
+				servers[name] = s
+			}
+		} else if json.Unmarshal(expanded, &s) == nil {
+			servers[name] = s
+		}
+		// If a server key uses {env:VAR}, OpenCode inside the cplt sandbox
+		// expands stripped variables to "", so disable and block that key too
+		// without ever expanding the host variable into the server name.
+		if hadEnvName {
+			if emptyName := envPlaceholder.ReplaceAllString(name, ""); emptyName != "" && emptyName != name {
+				es := servers[emptyName]
+				es.Type = s.Type
+				es.Enabled = s.Enabled
+				es.hadEnv = true
+				es.hadEnvName = true
+				servers[emptyName] = es
+			}
+		}
+	}
 	for _, doc := range docs {
 		var cfg struct {
 			MCP map[string]json.RawMessage `json:"mcp"`
@@ -344,49 +463,55 @@ func openCodeMCPServersIn(docs [][]byte) map[string]mcpServer {
 				var probe struct {
 					Type string `json:"type"`
 				}
-				if json.Unmarshal(raw, &probe) == nil && probe.Type != "local" && probe.Type != "remote" {
+				if json.Unmarshal(expandOpenCodeServerJSON(raw, getenv), &probe) == nil && probe.Type != "local" && probe.Type != "remote" {
 					if name == "servers" {
 						var native map[string]json.RawMessage
 						_ = json.Unmarshal(raw, &native)
 						for n, r := range native {
-							s := servers[n]
-							var d struct {
-								Disabled *bool `json:"disabled"`
-							}
-							if json.Unmarshal(r, &s) == nil && json.Unmarshal(r, &d) == nil {
-								if d.Disabled != nil {
-									on := !*d.Disabled
-									s.Enabled = &on
-								}
-								servers[n] = s
-							}
+							unmarshalServer(n, r, true)
 						}
 					}
 					continue
 				}
 			}
-			s := servers[name]
-			if json.Unmarshal(raw, &s) == nil {
-				servers[name] = s
-			}
+			unmarshalServer(name, raw, false)
 		}
 	}
 	return servers
 }
 
-// openCodeConfigDocs is the user's OpenCode config documents for this launch,
-// in OpenCode's merge order (see openCodeMCPServers), with {env:VAR} already
-// replaced. Comments are left in; parse with stripJSONC. userOnly is the
-// user's own files alone.
-func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte {
-	getenv := func(k string) string {
-		for _, e := range env {
-			if v, ok := strings.CutPrefix(e, k+"="); ok {
-				return v
-			}
-		}
-		return ""
+// isOpenCodeWalkStopDir reports whether the ancestor config walk must stop
+// before reading d: shared top-level directories (/tmp, /var/tmp, os.TempDir(),
+// /Users, /home, /) are never part of a user's project tree.
+func isOpenCodeWalkStopDir(d, home string) bool {
+	d = filepath.Clean(d)
+	switch d {
+	case "/", "/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp", "/Users", "/home":
+		return true
 	}
+	if tmp := filepath.Clean(os.TempDir()); tmp != "" && d == tmp {
+		return true
+	}
+	if evalTmp, err := filepath.EvalSymlinks(os.TempDir()); err == nil && evalTmp != "" && d == filepath.Clean(evalTmp) {
+		return true
+	}
+	if home != "" {
+		cleanHome := filepath.Clean(home)
+		if d == filepath.Dir(cleanHome) {
+			return true
+		}
+	}
+	return false
+}
+
+// openCodeConfigDocs is the user's OpenCode config documents for this launch,
+// in OpenCode's merge order (see openCodeMCPServers). Unquoted {env:VAR}
+// placeholders are replaced with JSON primitives so the document parses; quoted
+// {env:VAR} placeholders are expanded only per MCP server value in memory so
+// host secrets in server keys or permissions never leak into OPENCODE_CONFIG_CONTENT.
+func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte {
+	getenv := openCodeEnvGetter(env)
+	home, _ := os.UserHomeDir()
 	var docs [][]byte
 	read := func(dir string, names ...string) {
 		for _, n := range names {
@@ -397,7 +522,7 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 	}
 	read(openCodeConfigDir(), "config.json", "opencode.json", "opencode.jsonc")
 	if userOnly {
-		if home, err := os.UserHomeDir(); err == nil {
+		if home != "" {
 			read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
 		}
 		return expandOpenCodeEnv(docs, getenv)
@@ -416,15 +541,19 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 			projectDir, _ = os.Getwd()
 		}
 		projectDir, _ = filepath.Abs(projectDir)
-		// Outside a git repo OpenCode's worktree is "/", and it walks all
-		// the way up. opencode 2 always walks to "/"
-		// (core/src/config/discovery.ts at v2.0.24).
 		root := source.FindGitRoot(projectDir)
-		if root == "" || openCodeMajor() >= 2 {
-			root = "/"
+		if root == "" || v2 {
+			if !v2 && home != "" && domain.PathWithinRoot(home, projectDir) {
+				root = filepath.Clean(home)
+			} else {
+				root = "/"
+			}
 		}
 		var dirs []string
 		for d := projectDir; ; d = filepath.Dir(d) {
+			if isOpenCodeWalkStopDir(d, home) {
+				break
+			}
 			dirs = append(dirs, d)
 			if d == root || d == filepath.Dir(d) {
 				break
@@ -437,7 +566,7 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 		}
 	}
 	// OpenCode reads ~/.opencode as a config directory as well.
-	if home, err := os.UserHomeDir(); err == nil {
+	if home != "" {
 		read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
 	}
 	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" && !v2 {
@@ -449,16 +578,67 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 	return expandOpenCodeEnv(docs, getenv)
 }
 
-// expandOpenCodeEnv replaces {env:VAR} as raw text, as OpenCode does before
-// it parses: a URL behind a variable must be matched by its value, and an
-// unquoted placeholder must not make the document unreadable.
+// expandOpenCodeServerJSON expands {env:VAR} inside a single server's JSON
+// value so URL/command matching against the registry sees the resolved string,
+// escaping characters that would break JSON string syntax.
+func expandOpenCodeServerJSON(raw json.RawMessage, getenv func(string) string) json.RawMessage {
+	return envPlaceholder.ReplaceAllFunc(raw, func(m []byte) []byte {
+		val := getenv(string(envPlaceholder.FindSubmatch(m)[1]))
+		encoded, err := json.Marshal(val)
+		if err != nil || len(encoded) < 2 {
+			return nil
+		}
+		return encoded[1 : len(encoded)-1]
+	})
+}
+
+// expandOpenCodeEnv replaces unquoted {env:VAR} placeholders (outside JSON
+// strings) so documents with unquoted boolean/number placeholders remain
+// parseable without expanding secrets inside JSON string keys or values.
 func expandOpenCodeEnv(docs [][]byte, getenv func(string) string) [][]byte {
 	for i, doc := range docs {
-		docs[i] = envPlaceholder.ReplaceAllFunc(doc, func(m []byte) []byte {
-			return []byte(getenv(string(envPlaceholder.FindSubmatch(m)[1])))
-		})
+		docs[i] = expandUnquotedEnv(doc, getenv)
 	}
 	return docs
+}
+
+func expandUnquotedEnv(b []byte, getenv func(string) string) []byte {
+	var out bytes.Buffer
+	inStr, esc := false, false
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		if inStr {
+			out.WriteByte(c)
+			if esc {
+				esc = false
+			} else if c == '\\' {
+				esc = true
+			} else if c == '"' {
+				inStr = false
+			}
+			continue
+		}
+		if c == '"' {
+			inStr = true
+			out.WriteByte(c)
+			continue
+		}
+		if c == '{' && bytes.HasPrefix(b[i:], []byte("{env:")) {
+			if end := bytes.IndexByte(b[i:], '}'); end > 5 {
+				name := string(b[i+5 : i+end])
+				v := strings.TrimSpace(getenv(name))
+				if v == "true" || v == "false" || v == "null" || (len(v) > 0 && (v[0] == '-' || (v[0] >= '0' && v[0] <= '9')) && json.Valid([]byte(v))) {
+					out.WriteString(v)
+				} else {
+					out.WriteString("null")
+				}
+				i += end
+				continue
+			}
+		}
+		out.WriteByte(c)
+	}
+	return out.Bytes()
 }
 
 // applyOpenCodeMCPPolicy turns off, for this launch, every enabled MCP server
@@ -493,10 +673,17 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		}
 		// opencode 2 drops an entry that only says enabled, so the server
 		// would run: it needs the type and the command or URL as well.
+		// Never write host-expanded {env:VAR} values into OPENCODE_CONFIG_CONTENT.
 		s := servers[name]
-		e := map[string]any{"type": "local", "command": s.Command, "enabled": false}
+		cmd := s.Command
+		urlStr := s.URL
+		if s.hadEnv {
+			cmd = []string{"false"}
+			urlStr = "https://disabled.invalid"
+		}
+		e := map[string]any{"type": "local", "command": cmd, "enabled": false}
 		if s.Type == "remote" || s.Type == "" && len(s.Command) == 0 {
-			e = map[string]any{"type": "remote", "url": s.URL, "enabled": false}
+			e = map[string]any{"type": "remote", "url": urlStr, "enabled": false}
 		}
 		mcp[name] = e
 	}
