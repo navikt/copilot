@@ -2040,6 +2040,10 @@
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
     "anchors": {}
   },
+  "/nyheter/configuring-copilot-code-review": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
   "/nyheter/copilot-4-7m-subscribers": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
     "anchors": {}
