@@ -99,6 +99,7 @@ async function fetchMcpServers(): Promise<McpServerCustomization[]> {
         const navMeta = s._meta["io.github.navikt/registry"];
         const tags = navMeta?.tags ?? [];
         const examples = navMeta?.examples;
+        const hasLaunchRecipe = Boolean(s.server.remotes?.length || s.server.packages?.length);
         return {
           id: `mcp-${s.server.name}`,
           name: formatServerName(s.server.name),
@@ -112,8 +113,8 @@ async function fetchMcpServers(): Promise<McpServerCustomization[]> {
           // that match git paths skip empty (#718).
           repoPath: "",
           rawGitHubUrl: "",
-          installUrl: buildMcpInstallUrl(s.server.name, "vscode"),
-          insidersInstallUrl: buildMcpInstallUrl(s.server.name, "vscode-insiders"),
+          installUrl: hasLaunchRecipe ? buildMcpInstallUrl(s.server.name, "vscode") : null,
+          insidersInstallUrl: hasLaunchRecipe ? buildMcpInstallUrl(s.server.name, "vscode-insiders") : null,
           version: s.server.version,
           remotes: s.server.remotes ?? [],
           websiteUrl: s.server.websiteUrl,

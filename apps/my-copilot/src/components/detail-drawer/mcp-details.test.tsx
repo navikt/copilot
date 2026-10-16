@@ -116,4 +116,40 @@ describe("McpDetails", () => {
     expect(screen.getByText("--allow-host-exec")).toBeInTheDocument();
     expect(screen.getByText(/Manuelt oppsett slår på alle verktøyene/)).toHaveTextContent("execute_terminal_command");
   });
+
+  it("hides automatic installation controls for manual-only entries and renders setup instructions", () => {
+    const item: EnrichedCustomization = {
+      id: "mcp-io.github.nais/nais-mcp",
+      name: "nais-mcp",
+      description: "Read Nais platform context through your installed Nais CLI.",
+      type: "mcp",
+      serverId: "io.github.nais/nais-mcp",
+      domain: "platform",
+      filePath: "",
+      repoPath: "",
+      rawGitHubUrl: "",
+      installUrl: null,
+      insidersInstallUrl: null,
+      version: "6.6.1",
+      remotes: [],
+      setupInstructions: [
+        {
+          title: "Konfigurer lokal stdio manuelt",
+          description: "Klienten starter nais med argumentene alpha, mcp, serve.",
+          commands: ["nais login -n"],
+        },
+      ],
+      usageCount: 0,
+      usedBy: [],
+    };
+
+    render(<McpDetails item={item} />);
+
+    expect(screen.queryByRole("heading", { name: "Installering" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/nav-pilot mcp enable/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Manuelt oppsett" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Oppsett" })).toBeInTheDocument();
+    expect(screen.getByText("Konfigurer lokal stdio manuelt")).toBeInTheDocument();
+    expect(screen.getByText("nais login -n")).toBeInTheDocument();
+  });
 });
