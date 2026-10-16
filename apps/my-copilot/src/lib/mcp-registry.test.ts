@@ -106,4 +106,54 @@ describe("getMcpServers", () => {
       remotes: [{ type: "streamable-http", url: "https://mcp.nav.no/mcp" }],
     });
   });
+
+  it("omits registry install URLs for manual-only entries without remotes or packages", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          servers: [
+            {
+              server: {
+                name: "io.github.nais/nais-mcp",
+                description: "Read Nais platform context through your installed Nais CLI.",
+                version: "6.6.1",
+              },
+              _meta: {
+                "io.modelcontextprotocol.registry/official": {
+                  status: "active",
+                  publishedAt: "2026-10-14T00:00:00Z",
+                  isLatest: true,
+                },
+                "io.github.navikt/registry": {
+                  tags: ["nais"],
+                  setupInstructions: [
+                    {
+                      title: "Konfigurer lokal stdio manuelt",
+                      description: "Klienten starter nais med argumentene alpha, mcp, serve.",
+                      commands: ["nais alpha mcp serve"],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          metadata: { count: 1 },
+        }),
+      })
+    );
+
+    const servers = await getMcpServers();
+
+    expect(servers).toEqual([
+      expect.objectContaining({
+        serverId: "io.github.nais/nais-mcp",
+        installUrl: null,
+        insidersInstallUrl: null,
+        remotes: [],
+        packages: undefined,
+      }),
+    ]);
+  });
 });

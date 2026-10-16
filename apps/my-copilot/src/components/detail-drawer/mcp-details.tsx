@@ -80,6 +80,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
   if (item.type !== "mcp") return null;
 
   const enableCommand = `nav-pilot mcp enable ${item.serverId}`;
+  const hasLaunchRecipe = item.remotes.length > 0 || (item.packages?.length ?? 0) > 0;
   const tools = item.tools ?? [];
   const offByDefault = tools.filter((tool) => ["external", "host-exec"].includes(riskOf(item.toolRisk, tool)));
   const hostExec = tools.filter((tool) => riskOf(item.toolRisk, tool) === "host-exec");
@@ -89,55 +90,59 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
 
   return (
     <VStack gap="space-16">
-      <VStack gap="space-8">
-        <Heading size="xsmall" level="4">
-          Installering
-        </Heading>
-        <Box background="info-soft" borderRadius="8" padding="space-12">
-          <VStack gap="space-8">
-            <BodyShort size="small">Med nav-pilot ({NAV_PILOT_MCP_TOOLS_MIN_VERSION} eller nyere) kjører du:</BodyShort>
-            <div className="relative">
-              <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                {enableCommand}
-              </pre>
-              <div className="absolute top-1 right-1">
-                <CopyButton size="xsmall" copyText={enableCommand} />
+      {hasLaunchRecipe && (
+        <VStack gap="space-8">
+          <Heading size="xsmall" level="4">
+            Installering
+          </Heading>
+          <Box background="info-soft" borderRadius="8" padding="space-12">
+            <VStack gap="space-8">
+              <BodyShort size="small">
+                Med nav-pilot ({NAV_PILOT_MCP_TOOLS_MIN_VERSION} eller nyere) kjører du:
+              </BodyShort>
+              <div className="relative">
+                <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                  {enableCommand}
+                </pre>
+                <div className="absolute top-1 right-1">
+                  <CopyButton size="xsmall" copyText={enableCommand} />
+                </div>
               </div>
-            </div>
-            <BodyShort size="small">
-              Kommandoen legger serveren inn i oppsettet for Copilot CLI og OpenCode (de du har installert), spør om
-              adressene serveren trenger i sandkassen, og sier fra om noe mangler.
-            </BodyShort>
-            {offByDefault.length > 0 && (
               <BodyShort size="small">
-                Den slår bare på verktøy som leser eller endrer prosjektet. Vil du også ha{" "}
-                {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en terminal
-                og velger dem, eller legger til <code className="text-xs bg-gray-100 rounded px-1">--tools</code> med
-                alle verktøyene du vil ha på, skilt med komma:{" "}
-                <code className="text-xs bg-gray-100 rounded px-1">{enableCommand} --tools navn1,navn2</code>.
-                {hostExec.length > 0 && (
-                  <>
-                    {" "}
-                    Verktøy som kjører utenfor sandkassen, krever i tillegg at du svarer ja, eller{" "}
-                    <code className="text-xs bg-gray-100 rounded px-1">--allow-host-exec</code>.
-                  </>
-                )}
+                Kommandoen legger serveren inn i oppsettet for Copilot CLI og OpenCode (de du har installert), spør om
+                adressene serveren trenger i sandkassen, og sier fra om noe mangler.
               </BodyShort>
-            )}
-            {isGitHub && (
+              {offByDefault.length > 0 && (
+                <BodyShort size="small">
+                  Den slår bare på verktøy som leser eller endrer prosjektet. Vil du også ha{" "}
+                  {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en terminal
+                  og velger dem, eller legger til <code className="text-xs bg-gray-100 rounded px-1">--tools</code> med
+                  alle verktøyene du vil ha på, skilt med komma:{" "}
+                  <code className="text-xs bg-gray-100 rounded px-1">{enableCommand} --tools navn1,navn2</code>.
+                  {hostExec.length > 0 && (
+                    <>
+                      {" "}
+                      Verktøy som kjører utenfor sandkassen, krever i tillegg at du svarer ja, eller{" "}
+                      <code className="text-xs bg-gray-100 rounded px-1">--allow-host-exec</code>.
+                    </>
+                  )}
+                </BodyShort>
+              )}
+              {isGitHub && (
+                <BodyShort size="small">
+                  GitHub-serveren får et endepunkt som bare leser. Velger du et verktøy som skriver til GitHub, kan
+                  agenten skrive via MCP, forbi cplts kontroll av{" "}
+                  <code className="text-xs bg-gray-100 rounded px-1">gh</code>.
+                </BodyShort>
+              )}
               <BodyShort size="small">
-                GitHub-serveren får et endepunkt som bare leser. Velger du et verktøy som skriver til GitHub, kan
-                agenten skrive via MCP, forbi cplts kontroll av{" "}
-                <code className="text-xs bg-gray-100 rounded px-1">gh</code>.
+                Virker ikke serveren? Kjør <code className="text-xs bg-gray-100 rounded px-1">nav-pilot mcp list</code>{" "}
+                for å se hva som er galt og hvordan du retter det.
               </BodyShort>
-            )}
-            <BodyShort size="small">
-              Virker ikke serveren? Kjør <code className="text-xs bg-gray-100 rounded px-1">nav-pilot mcp list</code>{" "}
-              for å se hva som er galt og hvordan du retter det.
-            </BodyShort>
-          </VStack>
-        </Box>
-      </VStack>
+            </VStack>
+          </Box>
+        </VStack>
+      )}
 
       {(item.websiteUrl || item.repository) && (
         <VStack gap="space-8">
@@ -311,140 +316,57 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         </VStack>
       )}
 
-      <VStack gap="space-8">
-        <Heading size="xsmall" level="4">
-          Manuelt oppsett
-        </Heading>
-        <BodyShort size="small" className="text-gray-500">
-          For VS Code og IntelliJ, eller hvis du ikke bruker nav-pilot.
-        </BodyShort>
-        {(offByDefault.length > 0 || isGitHub) && (
-          <Alert variant="warning" size="small">
-            Manuelt oppsett slår på alle verktøyene til serveren
-            {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}.
-            {hostExec.length > 0 && (
-              <>
-                {" "}
-                {hostExec.length === offByDefault.length ? "De" : hostExec.join(", ")} kjører på maskinen din, utenfor
-                sandkassen.
-              </>
-            )}{" "}
-            Kommandoen for VS Code kan ikke velge verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten.
-          </Alert>
-        )}
-        <ExclusiveAccordion>
-          <Accordion.Item>
-            <Accordion.Header>VS Code</Accordion.Header>
-            <Accordion.Content>
-              <VStack gap="space-8">
-                {item.installUrl && (
-                  <a
-                    href={item.installUrl}
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
-                  >
-                    <DownloadIcon fontSize="1rem" aria-hidden />
-                    Installer fra MCP-registeret
-                  </a>
-                )}
-                <BodyShort size="small" className="text-gray-500">
-                  Alternativt kan du bruke kommandoen:
-                </BodyShort>
-                {getVsCodeAddMcpCommand(item) && (
-                  <div className="relative">
-                    <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                      {getVsCodeAddMcpCommand(item)}
-                    </pre>
-                    <div className="absolute top-1 right-1">
-                      <CopyButton size="xsmall" copyText={getVsCodeAddMcpCommand(item)} />
-                    </div>
-                  </div>
-                )}
-                <BodyShort size="small" className="text-gray-500">
-                  Eller legg til i .vscode/mcp.json under &quot;servers&quot;:
-                </BodyShort>
-                <div className="relative">
-                  <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                    {getMcpServerConfig(item)}
-                  </pre>
-                  <div className="absolute top-1 right-1">
-                    <CopyButton size="xsmall" copyText={getMcpServerConfig(item)} />
-                  </div>
-                </div>
-              </VStack>
-            </Accordion.Content>
-          </Accordion.Item>
-          <Accordion.Item>
-            <Accordion.Header>IntelliJ</Accordion.Header>
-            <Accordion.Content>
-              <VStack gap="space-8">
-                <BodyShort size="small">
-                  Åpne Copilot Chat i IntelliJ og klikk på <strong>MCP-register-ikonet</strong> for å søke etter og
-                  installere serveren direkte fra registeret.
-                </BodyShort>
-                <BodyShort size="small" className="text-gray-500">
-                  Alternativt kan du legge til manuelt i{" "}
-                  <code className="text-xs bg-gray-100 rounded px-1">~/.config/github-copilot/intellij/mcp.json</code>{" "}
-                  under <code className="text-xs bg-gray-100 rounded px-1">&quot;servers&quot;</code>:
-                </BodyShort>
-                <div className="relative">
-                  <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                    {getMcpServerConfig(item)}
-                  </pre>
-                  <div className="absolute top-1 right-1">
-                    <CopyButton size="xsmall" copyText={getMcpServerConfig(item)} />
-                  </div>
-                </div>
-              </VStack>
-            </Accordion.Content>
-          </Accordion.Item>
-          {getMcpServerConfig(item) && (
+      {hasLaunchRecipe && (
+        <VStack gap="space-8">
+          <Heading size="xsmall" level="4">
+            Manuelt oppsett
+          </Heading>
+          <BodyShort size="small" className="text-gray-500">
+            For VS Code og IntelliJ, eller hvis du ikke bruker nav-pilot.
+          </BodyShort>
+          {(offByDefault.length > 0 || isGitHub) && (
+            <Alert variant="warning" size="small">
+              Manuelt oppsett slår på alle verktøyene til serveren
+              {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}.
+              {hostExec.length > 0 && (
+                <>
+                  {" "}
+                  {hostExec.length === offByDefault.length ? "De" : hostExec.join(", ")} kjører på maskinen din, utenfor
+                  sandkassen.
+                </>
+              )}{" "}
+              Kommandoen for VS Code kan ikke velge verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten.
+            </Alert>
+          )}
+          <ExclusiveAccordion>
             <Accordion.Item>
-              <Accordion.Header>Copilot CLI</Accordion.Header>
+              <Accordion.Header>VS Code</Accordion.Header>
               <Accordion.Content>
                 <VStack gap="space-8">
-                  {(() => {
-                    const fields = getMcpAddFields(item);
-                    if (!fields) return null;
-                    return (
-                      <VStack gap="space-4">
-                        <BodyShort size="small">
-                          Kjør <code className="text-xs bg-gray-100 rounded px-1">/mcp add</code> og fyll inn:
-                        </BodyShort>
-                        <Box background="neutral-soft" borderRadius="8" padding="space-8">
-                          <VStack gap="space-4">
-                            <BodyShort size="small">
-                              <strong>Server Name:</strong>{" "}
-                              <code className="text-xs bg-gray-100 rounded px-1">{fields.name}</code>
-                            </BodyShort>
-                            <BodyShort size="small">
-                              <strong>Server Type:</strong>{" "}
-                              <code className="text-xs bg-gray-100 rounded px-1">{fields.type}</code>
-                            </BodyShort>
-                            {fields.url && (
-                              <BodyShort size="small">
-                                <strong>URL:</strong>{" "}
-                                <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.url}</code>
-                              </BodyShort>
-                            )}
-                            {fields.command && (
-                              <BodyShort size="small">
-                                <strong>Command:</strong>{" "}
-                                <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.command}</code>
-                              </BodyShort>
-                            )}
-                            {fields.env && (
-                              <BodyShort size="small">
-                                <strong>Environment Variables:</strong>{" "}
-                                <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.env}</code>
-                              </BodyShort>
-                            )}
-                          </VStack>
-                        </Box>
-                      </VStack>
-                    );
-                  })()}
+                  {item.installUrl && (
+                    <a
+                      href={item.installUrl}
+                      className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
+                    >
+                      <DownloadIcon fontSize="1rem" aria-hidden />
+                      Installer fra MCP-registeret
+                    </a>
+                  )}
                   <BodyShort size="small" className="text-gray-500">
-                    Eller legg til i ~/.copilot/mcp-config.json under &quot;mcpServers&quot;:
+                    Alternativt kan du bruke kommandoen:
+                  </BodyShort>
+                  {getVsCodeAddMcpCommand(item) && (
+                    <div className="relative">
+                      <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                        {getVsCodeAddMcpCommand(item)}
+                      </pre>
+                      <div className="absolute top-1 right-1">
+                        <CopyButton size="xsmall" copyText={getVsCodeAddMcpCommand(item)} />
+                      </div>
+                    </div>
+                  )}
+                  <BodyShort size="small" className="text-gray-500">
+                    Eller legg til i .vscode/mcp.json under &quot;servers&quot;:
                   </BodyShort>
                   <div className="relative">
                     <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
@@ -457,9 +379,94 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                 </VStack>
               </Accordion.Content>
             </Accordion.Item>
-          )}
-        </ExclusiveAccordion>
-      </VStack>
+            <Accordion.Item>
+              <Accordion.Header>IntelliJ</Accordion.Header>
+              <Accordion.Content>
+                <VStack gap="space-8">
+                  <BodyShort size="small">
+                    Åpne Copilot Chat i IntelliJ og klikk på <strong>MCP-register-ikonet</strong> for å søke etter og
+                    installere serveren direkte fra registeret.
+                  </BodyShort>
+                  <BodyShort size="small" className="text-gray-500">
+                    Alternativt kan du legge til manuelt i{" "}
+                    <code className="text-xs bg-gray-100 rounded px-1">~/.config/github-copilot/intellij/mcp.json</code>{" "}
+                    under <code className="text-xs bg-gray-100 rounded px-1">&quot;servers&quot;</code>:
+                  </BodyShort>
+                  <div className="relative">
+                    <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                      {getMcpServerConfig(item)}
+                    </pre>
+                    <div className="absolute top-1 right-1">
+                      <CopyButton size="xsmall" copyText={getMcpServerConfig(item)} />
+                    </div>
+                  </div>
+                </VStack>
+              </Accordion.Content>
+            </Accordion.Item>
+            {getMcpServerConfig(item) && (
+              <Accordion.Item>
+                <Accordion.Header>Copilot CLI</Accordion.Header>
+                <Accordion.Content>
+                  <VStack gap="space-8">
+                    {(() => {
+                      const fields = getMcpAddFields(item);
+                      if (!fields) return null;
+                      return (
+                        <VStack gap="space-4">
+                          <BodyShort size="small">
+                            Kjør <code className="text-xs bg-gray-100 rounded px-1">/mcp add</code> og fyll inn:
+                          </BodyShort>
+                          <Box background="neutral-soft" borderRadius="8" padding="space-8">
+                            <VStack gap="space-4">
+                              <BodyShort size="small">
+                                <strong>Server Name:</strong>{" "}
+                                <code className="text-xs bg-gray-100 rounded px-1">{fields.name}</code>
+                              </BodyShort>
+                              <BodyShort size="small">
+                                <strong>Server Type:</strong>{" "}
+                                <code className="text-xs bg-gray-100 rounded px-1">{fields.type}</code>
+                              </BodyShort>
+                              {fields.url && (
+                                <BodyShort size="small">
+                                  <strong>URL:</strong>{" "}
+                                  <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.url}</code>
+                                </BodyShort>
+                              )}
+                              {fields.command && (
+                                <BodyShort size="small">
+                                  <strong>Command:</strong>{" "}
+                                  <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.command}</code>
+                                </BodyShort>
+                              )}
+                              {fields.env && (
+                                <BodyShort size="small">
+                                  <strong>Environment Variables:</strong>{" "}
+                                  <code className="text-xs bg-gray-100 rounded px-1 break-all">{fields.env}</code>
+                                </BodyShort>
+                              )}
+                            </VStack>
+                          </Box>
+                        </VStack>
+                      );
+                    })()}
+                    <BodyShort size="small" className="text-gray-500">
+                      Eller legg til i ~/.copilot/mcp-config.json under &quot;mcpServers&quot;:
+                    </BodyShort>
+                    <div className="relative">
+                      <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
+                        {getMcpServerConfig(item)}
+                      </pre>
+                      <div className="absolute top-1 right-1">
+                        <CopyButton size="xsmall" copyText={getMcpServerConfig(item)} />
+                      </div>
+                    </div>
+                  </VStack>
+                </Accordion.Content>
+              </Accordion.Item>
+            )}
+          </ExclusiveAccordion>
+        </VStack>
+      )}
     </VStack>
   );
 }
