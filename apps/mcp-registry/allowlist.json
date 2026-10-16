@@ -4,8 +4,8 @@
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.nais/nais-mcp",
       "description": "Read Nais platform context through your installed Nais CLI. Requires manual stdio setup.",
-      "version": "6.5.0",
-      "status": "deprecated",
+      "version": "6.6.1",
+      "status": "active",
       "publishedAt": "2026-10-14T00:00:00Z",
       "websiteUrl": "https://github.com/nais/cli/blob/main/MCP.md",
       "repository": {"url": "https://github.com/nais/cli", "source": "github"},
@@ -19,7 +19,7 @@
         },
         {
           "title": "Konfigurer lokal stdio manuelt",
-          "description": "Klienten starter nais med argumentene alpha, mcp, serve. Eksempelet under registrerer serveren i VS Code; andre klienter konfigureres som beskrevet i https://github.com/nais/cli/blob/main/MCP.md. nav-pilot mcp enable og registerets installasjonslenker støtter ikke denne oppføringen. Bruk bare godkjent klient og modell, kun lesing og ingen hemmelighetsverdier, jf. navikt/copilot-intern#115. Hemmelighetsfilter og personopplysninger må avklares før aktivering. Tilgang til nøkkelring og innloggingsdata under cplt er ikke verifisert; ikke omgå sandkassen.",
+          "description": "Klienten starter nais med argumentene alpha, mcp, serve. Eksempelet under registrerer serveren i VS Code; andre klienter konfigureres som beskrevet i https://github.com/nais/cli/blob/main/MCP.md. nav-pilot mcp enable og registerets installasjonslenker støtter ikke denne oppføringen. Bruk bare godkjent klient og modell, kun lesing og ingen hemmelighetsverdier, jf. navikt/copilot-intern#115. Tilgang til nøkkelring og innloggingsdata under cplt er ikke verifisert; ikke omgå sandkassen.",
           "commands": ["code --add-mcp '{\"name\":\"io.github.nais/nais-mcp\",\"command\":\"nais\",\"args\":[\"alpha\",\"mcp\",\"serve\"]}'"]
         }
       ],
@@ -146,8 +146,19 @@
         "url": "https://github.com/figma/mcp-server-guide",
         "source": "github"
       },
-      "tools": ["get_design_context", "get_screenshot", "get_metadata", "get_figjam", "generate_diagram"],
-      "toolRisk": {"generate_diagram": "external"},
+      "tools": ["get_design_context", "get_screenshot", "get_metadata", "get_figjam", "generate_diagram", "generate_figma_design", "use_figma", "create_new_file", "add_code_connect_map", "send_code_connect_mappings", "html_to_figma", "send_code_to_figma", "upload_assets", "generate_image"],
+      "toolRisk": {
+        "generate_diagram": "external",
+        "generate_figma_design": "external",
+        "use_figma": "external",
+        "create_new_file": "external",
+        "add_code_connect_map": "external",
+        "send_code_connect_mappings": "external",
+        "html_to_figma": "external",
+        "send_code_to_figma": "external",
+        "upload_assets": "external",
+        "generate_image": "external"
+      },
       "tags": ["design", "frontend", "figma"],
       "examples": [
         {
