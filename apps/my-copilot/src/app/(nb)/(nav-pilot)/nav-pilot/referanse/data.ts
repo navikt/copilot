@@ -42,7 +42,7 @@ export const CONFIG_KEYS = [
     key: "reasoning_effort",
     flag: "--effort",
     values: "none · low · medium · high · xhigh · max",
-    desc: "Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant.",
+    desc: "Resonneringsinnsats. Copilot: --effort. OpenCode-TUI: ignoreres; velg variant der. opencode run: v1 --variant, v2 --model provider/model#variant. V2 krever en avklart modell; ellers utelates innsatsnivået med en advarsel.",
   },
   {
     key: "context_tier",
