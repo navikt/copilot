@@ -89,9 +89,9 @@ export function CustomizationCard({ item, onClick }: CustomizationCardProps) {
 
         {item.type === "mcp" && item.remotes.length > 0 && (
           <HStack gap="space-4" wrap>
-            {item.remotes.map((remote) => (
-              <Tag key={remote.type} size="xsmall" variant="neutral">
-                {transportLabel(remote.type)}
+            {[...new Set(item.remotes.map((remote) => remote.type))].map((type) => (
+              <Tag key={type} size="xsmall" variant="neutral">
+                {transportLabel(type)}
               </Tag>
             ))}
           </HStack>
