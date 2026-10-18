@@ -59,6 +59,14 @@
             {"name": "X-MCP-Readonly", "value": "true", "description": "Read-only tools only, per the approval"},
             {"name": "X-MCP-Lockdown", "value": "true", "description": "Lockdown mode, per the approval"}
           ]
+        },
+        {
+          "type": "streamable-http",
+          "url": "https://api.githubcopilot.com/mcp/readonly",
+          "headers": [
+            {"name": "X-MCP-Readonly", "value": "true", "description": "Read-only tools only, per the approval"},
+            {"name": "X-MCP-Lockdown", "value": "true", "description": "Lockdown mode, per the approval"}
+          ]
         }
       ]
     },

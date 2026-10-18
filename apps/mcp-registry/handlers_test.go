@@ -136,6 +136,29 @@ func TestServersListHandler_MethodNotAllowed(t *testing.T) {
 	}
 }
 
+func TestServersListHandler_GitHubRemoteOrder(t *testing.T) {
+	w := httptest.NewRecorder()
+	serversListHandler(w, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	var response ServerListResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	for _, sr := range response.Servers {
+		if sr.Server.Name != "io.github.navikt/github-mcp" {
+			continue
+		}
+		remotes := sr.Server.Remotes
+		if len(remotes) != 2 || remotes[0].URL != "https://api.githubcopilot.com/mcp/" || remotes[1].URL != "https://api.githubcopilot.com/mcp/readonly" {
+			t.Fatalf("remotes = %+v, want full then readonly", remotes)
+		}
+		return
+	}
+	t.Fatal("GitHub MCP is missing from the API response")
+}
+
 func TestServersListHandler_Options(t *testing.T) {
 	req := httptest.NewRequest(http.MethodOptions, "/v0.1/servers", nil)
 	w := httptest.NewRecorder()

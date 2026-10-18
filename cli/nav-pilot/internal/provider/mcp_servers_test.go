@@ -3,6 +3,7 @@ package provider
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -246,6 +247,97 @@ func TestAskMCPRegistryEntries(t *testing.T) {
 	e := reg.Entries[0]
 	if e.Status != "deprecated" || e.Usable() || len(e.Setup) != 1 || e.Packages[0].Version != "0.0.80" || !slices.Equal(e.SandboxHosts, []string{"api.example"}) {
 		t.Errorf("entry = %+v", e)
+	}
+}
+
+func TestGitHubReadonlyRegistryAllowlist(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "apps", "mcp-registry", "allowlist.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var allowlist struct {
+		Servers []MCPServerEntry `json:"servers"`
+	}
+	if err := json.Unmarshal(data, &allowlist); err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(allowlist.Servers, func(e MCPServerEntry) bool { return e.Name == "io.github.navikt/github-mcp" })
+	if i < 0 {
+		t.Fatal("GitHub MCP is missing from the allowlist")
+	}
+	github := allowlist.Servers[i]
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v0.1/servers" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]any{
+			"servers": []any{map[string]any{"server": github}},
+		}); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer srv.Close()
+	reg, err := askMCPRegistry(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reg.Entries) != 1 {
+		t.Fatalf("registry entries = %d, want 1", len(reg.Entries))
+	}
+	e := reg.Entries[0]
+	wantHeaders := map[string]string{"X-MCP-Readonly": "true", "X-MCP-Lockdown": "true"}
+	for _, remote := range e.Remotes {
+		headers := map[string]string{}
+		for _, h := range remote.Headers {
+			headers[h.Name] = h.Value
+		}
+		if remote.Type != "streamable-http" || !maps.Equal(headers, wantHeaders) {
+			t.Errorf("remote = %+v, want streamable-http with headers %v", remote, wantHeaders)
+		}
+	}
+	entry, err := MCPClientEntry(MCPClientOpenCode, e, MCPToolChoice{All: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var generated struct {
+		mcpServer
+		Headers map[string]string `json:"headers"`
+	}
+	if err := json.Unmarshal(entry, &generated); err != nil {
+		t.Fatal(err)
+	}
+	if generated.URL != githubMCPReadonlyURL || !maps.Equal(generated.Headers, wantHeaders) {
+		t.Errorf("generated entry = %s, want readonly URL and registry headers", entry)
+	}
+	if !reg.listed(generated.mcpServer) {
+		t.Errorf("generated readonly entry is not listed: %s", entry)
+	}
+	if !reg.listed(mcpServer{Type: "remote", URL: githubMCPURL}) {
+		t.Error("existing full endpoint is not listed")
+	}
+	for _, u := range []string{
+		"https://api.githubcopilot.com/mcp/other",
+		"https://api.githubcopilot.com/mcp/readonly/other",
+		"https://api.githubcopilot.com.evil.example/mcp/readonly",
+		githubMCPReadonlyURL + "?toolsets=all",
+		githubMCPURL + "?toolsets=all",
+	} {
+		if reg.listed(mcpServer{Type: "remote", URL: u}) {
+			t.Errorf("unlisted URL accepted: %s", u)
+		}
+	}
+	if len(e.Remotes) != 2 || e.Remotes[0].URL != githubMCPURL || e.Remotes[1].URL != githubMCPReadonlyURL {
+		t.Fatalf("remotes = %+v, want full then readonly", e.Remotes)
+	}
+	github.Remotes = github.Remotes[:1]
+	reg, err = askMCPRegistry(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reg.listed(generated.mcpServer) {
+		t.Error("readonly entry accepted after the registry removed it")
 	}
 }
 
