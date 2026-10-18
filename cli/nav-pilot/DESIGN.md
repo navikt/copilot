@@ -190,11 +190,17 @@ flagg-grensesnitt er annerledes enn Copilots, så flere felt oversettes eller dr
 |---|---|---|
 | `model` | `--model` | `provider/model` (f.eks. `github-copilot/claude-opus-4.8`), og en Copilot-id uten prefiks får `github-copilot/` foran; uteblir helt når unset, og opencode velger da selv. Flagget slår opencodes egen config og recents, og i `opencode run` slår det også agentens eget `model:`-felt (der er flagget forespørselens modell). I TUI-en, som er det nav-pilot starter, vinner agentens eget `model:` over flagget. Rekkefølgen blir altså: agentens spesialisering, så nav-pilots sesjonsmodell, så det klienten selv ville valgt |
 | `mode = plan` | `--agent plan` | opencode har ingen `--mode`; `autopilot` har ingen opencode-ekvivalent — advarsel ved oppstart |
-| `reasoning_effort` | `--variant` | Leverandørspesifikk resonering (f.eks. `high`, `max`) |
+| `reasoning_effort` | Bare i `opencode run` (se under) | Brukes ikke i TUI-en — advarsel ved oppstart; velg variant der |
 | `allow_all_tools`, `autonomy = sandbox` | `--auto` | Gjelder i cplt, der alle klienter kjører |
 | `log_level` | `--log-level` | Oversettes til opencodes sett: `DEBUG`/`INFO`/`WARN`/`ERROR` (se under) |
 | `context_tier` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt |
 | `ask_user` | — | Ingen opencode-ekvivalent — advarsel hvis eksplisitt satt til `false` |
+
+`reasoning_effort` gjelder bare `opencode run`, både med og uten en ferdigbygd
+agentpakke-payload. OpenCode v1 får `--variant <nivå>`. I v2 blir nivået en del av
+`--model provider/model#variant`. Det krever at nav-pilot har en avklart modell;
+ellers utelates innsatsnivået med en advarsel. TUI-en bruker ikke innstillingen;
+velg variant i TUI-en i stedet.
 
 **Advarsler for umappede felt** (`openCodeUnsupportedConfigWarnings`):
 Nav-pilot skriver en gul ⚠-advarsel til stderr for felt som er eksplisitt satt

@@ -711,7 +711,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `source` | --source | owner/name eller en absolutt sti (standard: navikt/copilot) | Hvor agentpakka hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden. |
 | `model` | --model | modell-id, f.eks. claude-opus-4.8 | Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode; opencode tar også provider/model. nav-pilot config explain model lister id-ene. |
 | `mode` | --mode | default · plan · autopilot (standard: default) | Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er bare Copilot. |
-| `reasoning_effort` | --effort | none · low · medium · high · xhigh · max | Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant. |
+| `reasoning_effort` | --effort | none · low · medium · high · xhigh · max | Resonneringsinnsats. Copilot: --effort. OpenCode-TUI: ignoreres; velg variant der. opencode run: v1 --variant, v2 --model provider/model#variant. V2 krever en avklart modell; ellers utelates innsatsnivået med en advarsel. |
 | `context_tier` | --context | default · long_context | Kontekstnivå. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
 | `allow_all_tools` | --allow-all-tools / --no-allow-all-tools | true · false (standard: false) | La agenten kjøre uten å spørre også med autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto). |
 | `ask_user` | --ask-user / --no-ask-user | true · false (standard: true) | La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode. |
@@ -785,10 +785,16 @@ Veiviseren (`nav-pilot config setup`) viser en modellvelger tilpasset valgt klie
 
 **opencode-mapping:** `client = "opencode"` mappes til opencode-flagg. `mode = plan` gir
 `--agent plan` (ellers `--agent nav-pilot`), `model` gir `--model` (prefikses med
-`github-copilot/` for bare id-er), `reasoning_effort` gir `--variant`, `allow_all_tools` gir
-`--dangerously-skip-permissions`, og `log_level` oversettes til opencodes sett
+`github-copilot/` for bare id-er), `allow_all_tools = true` eller
+`autonomy = "sandbox"` (standard) gir `--auto`, og `log_level` oversettes til opencodes sett
 (`DEBUG`/`INFO`/`WARN`/`ERROR`). Felt uten opencode-ekvivalent (`mode = autopilot`,
 `context_tier`, `ask_user = false`) gir en ⚠-advarsel ved oppstart.
+
+`reasoning_effort` brukes ikke i OpenCode-TUI-en. nav-pilot advarer ved oppstart;
+velg variant i TUI-en i stedet. Ved `opencode run` får v1 `--variant <nivå>`, mens
+v2 får `--model provider/model#variant`. V2 krever at nav-pilot har en avklart
+modell; ellers utelates innsatsnivået med en advarsel. Dette gjelder både med og
+uten en ferdigbygd agentpakke-payload.
 
 ## Ytelse
 

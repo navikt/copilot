@@ -34,7 +34,7 @@ var configKeyDocNB = map[string]string{
 	"source":               "Hvor agentpakka hentes fra: et GitHub-repo eller en lokal checkout. Settes av install --source --save-source; nav-pilot config unset source går tilbake til standarden.",
 	"model":                "Modell å bruke. En Copilot-id som claude-opus-4.8 virker for copilot og opencode; opencode tar også provider/model. nav-pilot config explain model lister id-ene.",
 	"mode":                 "Modus for Copilot-agenten. plan tilsvarer opencode --agent plan; autopilot er bare Copilot.",
-	"reasoning_effort":     "Resonneringsinnsats. Copilot bruker --effort, opencode bruker --variant.",
+	"reasoning_effort":     "Resonneringsinnsats. Copilot: --effort. OpenCode-TUI: ignoreres; velg variant der. opencode run: v1 --variant, v2 --model provider/model#variant. V2 krever en avklart modell; ellers utelates innsatsnivået med en advarsel.",
 	"context_tier":         "Kontekstnivå. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode.",
 	"allow_all_tools":      "La agenten kjøre uten å spørre også med autonomy = conservative (Copilot: --allow-all-tools, OpenCode: --auto).",
 	"ask_user":             "La agenten stoppe og spørre deg. Bare Copilot, og nav-pilot advarer om feltet er satt for opencode.",
