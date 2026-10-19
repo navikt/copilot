@@ -135,21 +135,31 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/lokal#egen-server": "/nav-pilot/lokal/egen-server#start-serveren",
   "/nav-pilot/lokal#hva-kommer": "/nav-pilot/forklaring/lokal-modell#hva-kommer",
   "/nav-pilot/lokal#malt": "/nav-pilot/forklaring/lokal-modell#malte-grenser",
-  "/nav-pilot/lokal#malt-decide": "/innsikt/lokale-modeller#malt-decide",
-  "/nav-pilot/lokal#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
+  "/nav-pilot/lokal#malt-decide": "/innsikt/lokale-modeller/resultater#malt-decide",
+  "/nav-pilot/lokal#malt-utsending": "/innsikt/lokale-modeller/resultater#malt-delegering",
   "/nav-pilot/lokal#utsending": "/nav-pilot/forklaring/lokal-modell#delegering",
 
   // The measured numbers moved to their own page.
-  "/nav-pilot/forklaring/lokal-modell#malt-decide": "/innsikt/lokale-modeller#malt-decide",
-  "/nav-pilot/forklaring/lokal-modell#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
+  "/nav-pilot/forklaring/lokal-modell#malt-decide": "/innsikt/lokale-modeller/resultater#malt-decide",
+  "/nav-pilot/forklaring/lokal-modell#malt-utsending": "/innsikt/lokale-modeller/resultater#malt-delegering",
 
   // nav-pilot telemetry moved from Tilpasninger to its own page.
   "/innsikt/tilpasninger#faktisk-bruk": "/innsikt/nav-pilot#faktisk-bruk",
 
   // The measurements page moved to /innsikt/lokale-modeller (next.config.ts),
   // and "utsending" became "delegering".
-  "/innsikt/lokale-modeller#utsendingsnivaer": "/innsikt/lokale-modeller#delegeringsnivaer",
-  "/innsikt/lokale-modeller#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
+  "/innsikt/lokale-modeller#utsendingsnivaer": "/innsikt/lokale-modeller/resultater#delegeringsnivaer",
+  "/innsikt/lokale-modeller#malt-utsending": "/innsikt/lokale-modeller/resultater#malt-delegering",
+
+  // Results, reports and observed usage moved from /innsikt/lokale-modeller to their own page.
+  "/innsikt/lokale-modeller#delegeringsnivaer": "/innsikt/lokale-modeller/resultater#delegeringsnivaer",
+  "/innsikt/lokale-modeller#malt-delegering": "/innsikt/lokale-modeller/resultater#malt-delegering",
+  "/innsikt/lokale-modeller#malt-decide": "/innsikt/lokale-modeller/resultater#malt-decide",
+  "/innsikt/lokale-modeller#observert-bruk": "/innsikt/lokale-modeller/resultater#observert-bruk",
+  "/innsikt/lokale-modeller#rapporter": "/innsikt/lokale-modeller/resultater#rapporter",
+  "/innsikt/lokale-modeller#ikke-malt": "/innsikt/lokale-modeller/resultater#ikke-malt",
+  "/innsikt/lokale-modeller#sist-oppdatert": "/innsikt/lokale-modeller/resultater#sist-oppdatert",
+  "/innsikt/lokale-modeller#metode": "/innsikt/lokale-modeller/resultater#metode",
 
   // Terms renamed to plainer Norwegian (utsending, verter, underagenter).
   "/nav-pilot/forklaring/lokal-modell#utsending": "/nav-pilot/forklaring/lokal-modell#delegering",

@@ -12,7 +12,7 @@ tags:
   - alpha
 ---
 
-**Siste tall:** Tallene under er fra da saken ble skrevet. Oppdaterte målinger står på [Lokale modeller](/innsikt/lokale-modeller#malt-decide).
+**Siste tall:** Tallene under er fra da saken ble skrevet. Oppdaterte målinger står på [Lokale modeller: resultater](/innsikt/lokale-modeller/resultater#malt-decide).
 
 En agentøkt resonnerer i mange steg før den svarer. I en hook eller et skript trenger du ofte bare et raskt ja eller nei. `nav-pilot alpha decide` stiller den lokale modellen et flervalgsspørsmål. Svaret er en sannsynlighet for hvert alternativ, ikke tekst. Her spør vi om en commit-melding fra navikt/copilot forklarer hvorfor endringen ble gjort:
 
