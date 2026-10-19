@@ -1,36 +1,25 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Alert, BodyShort, Skeleton } from "@navikt/ds-react";
+import { Alert, BodyShort, Link, Skeleton } from "@navikt/ds-react";
+import NextLink from "next/link";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
-import { CopilotPRChart, CreditsPerUserChart, FamilyShareChart } from "@/components/charts/MonthlyTrendCharts";
-import {
-  getBillingModelBreakdown,
-  getCohortRetention,
-  getCopilotPRsMonthly,
-  getCreditsPerUserMonthly,
-  getDailySummary,
-} from "@/lib/cached-bigquery";
+import { CopilotPRChart } from "@/components/charts/MonthlyTrendCharts";
+import { getCohortRetention, getCopilotPRsMonthly, getDailySummary } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
 import { currentMonthUTC } from "@/lib/month-utils";
 import { formatNumber } from "@/lib/format";
-import {
-  annotationsFor,
-  familyShares,
-  monthLabel,
-  parsePeriod,
-  periodStart,
-  showAllEvents,
-  visibleMonths,
-} from "@/lib/trends";
+import { annotationsFor, monthLabel, parsePeriod, periodStart, showAllEvents, visibleMonths } from "@/lib/trends";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
-import { Events, PeriodSelect } from "./controls";
+import { PeriodSelect } from "./controls";
+import { Events } from "@/components/chart-events";
 import { Intensity, Movement, SegmentChanges, WayOfWorking } from "./segments";
 
 export const metadata: Metadata = {
   title: "Trender",
-  description: "Hvordan modellvalg, forbruk per bruker og Copilot i pull requests har endret seg måned for måned.",
+  description:
+    "Hvordan bruken av Copilot i Nav endrer seg måned for måned: intensitet, arbeidsmåte, nye brukere og Copilot i pull requests.",
 };
 
 const fallback = <Skeleton variant="rectangle" height={300} />;
@@ -46,41 +35,6 @@ function DataStart({ clamped, first }: { clamped: boolean; first?: string }) {
 }
 
 type ChartProps = { token: string; start: string | null; all: boolean };
-
-async function ModelFamilies({ token, start, all }: ChartProps) {
-  // 36 months is the most the endpoint returns, so «Alt» means at most 36 months here (see «Kilde og metode»).
-  const { breakdown, error } = await getBillingModelBreakdown(token, 36);
-  if (error) return <BodyShort>{`Kunne ikke hente kostnad per modell: ${error}`}</BodyShort>;
-  const { months, clamped, first } = visibleMonths(
-    breakdown.map((r) => r.year_month.slice(0, 7)),
-    start
-  );
-  const data = familyShares(breakdown, months);
-  if (!data.series.length) return <BodyShort>Ingen kostnadsdata i perioden.</BodyShort>;
-  return (
-    <>
-      <DataStart clamped={clamped} first={first} />
-      <FamilyShareChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, data.months, all, true)} />
-    </>
-  );
-}
-
-async function CreditsPerUser({ token, start, all }: ChartProps) {
-  const { months: rows, error } = await getCreditsPerUserMonthly(token);
-  if (error) return <BodyShort>{`Kunne ikke hente AI Credits per bruker: ${error}`}</BodyShort>;
-  const { months, clamped, first } = visibleMonths(
-    rows.map((r) => r.month),
-    start
-  );
-  const data = rows.filter((r) => months.includes(r.month));
-  if (!data.length) return <BodyShort>Ingen data om AI Credits i perioden.</BodyShort>;
-  return (
-    <>
-      <DataStart clamped={clamped} first={first} />
-      <CreditsPerUserChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months, all)} />
-    </>
-  );
-}
 
 async function CopilotPRs({ token, start, all }: ChartProps) {
   const { months: rows, error } = await getCopilotPRsMonthly(token);
@@ -176,30 +130,32 @@ export default async function TrenderPage({
     <InsightPage
       title="Trender"
       description="Copilot i Nav måned for måned."
-      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, og hvor mange nye brukere som fortsetter. Nederst ser du kostnad per modellfamilie, AI Credits per bruker og Copilot i pull requests. Ingen personer eller team navngis. Hver graf starter der dataene starter."
+      intro="Her ser du hvordan bruken av Copilot i Nav endrer seg over tid: hvor mye folk bruker den, på hvilken måte, hvor mange som går opp eller ned, og hvor mange nye brukere som fortsetter. Nederst ser du Copilot i pull requests. Ingen personer eller team navngis. Hver graf starter der dataene starter."
       updated={async () => (await getDailySummary(token)).summary?.date}
       hourly
       source={
         <>
-          Modellfamiliene bygger på netto kostnad per modell fra <code>v_billing_model_breakdown</code> (
-          <code>/billing/model-breakdown</code>), som gir høyst de siste 36 månedene, også med «Alt». AI Credits per
-          bruker er median og snitt per måned av hver aktiv brukers <code>ai_credits_used</code> i{" "}
-          <code>user_metrics</code> (<code>/usage/credits-per-user</code>). En bruker er aktiv når hen har brukt AI
-          Credits, chat eller kodeforslag i måneden. Pull requests er summen over alle repoer unntatt private i{" "}
-          <code>repository_metrics</code> (<code>/usage/copilot-prs</code>). Den inneværende måneden er ikke ferdig.
-          Hendelsene og bruddene i dataene står i «Hendelser» øverst på siden. Kohortene (
-          <code>/usage/cohort-retention</code>) grupperer brukerne etter måneden de første gang var aktive i{" "}
-          <code>user_metrics</code>, og viser hvor stor andel som var aktive igjen én, tre og seks måneder senere,
-          avrundet til hele prosent. Oktober 2025 er ikke en ekte kohort: dataene starter 10. oktober, så vi kan ikke
-          skille dem som brukte Copilot fra før, fra dem som var nye. Tallene regnes ut per person, men bare summene
-          vises. Små grupper vises også, fordi ingen person eller team navngis. Perioden du velger, styrer hvilke
-          kohorter som vises. Segmentene (<code>/usage/segments</code>) har hver sin «Kilde og metode» under grafen.
-          «Hva har endret seg» regnes ut fra de samme tallene som grafene. «Sist oppdatert» er siste dag med bruksdata i
-          <code>v_daily_summary</code>.
+          Pull requests er summen over alle repoer unntatt private i <code>repository_metrics</code> (
+          <code>/usage/copilot-prs</code>). Den inneværende måneden er ikke ferdig. Hendelsene og bruddene i dataene
+          står i «Hendelser» øverst på siden. Kohortene (<code>/usage/cohort-retention</code>) grupperer brukerne etter
+          måneden de første gang var aktive i <code>user_metrics</code>, og viser hvor stor andel som var aktive igjen
+          én, tre og seks måneder senere, avrundet til hele prosent. Oktober 2025 er ikke en ekte kohort: dataene
+          starter 10. oktober, så vi kan ikke skille dem som brukte Copilot fra før, fra dem som var nye. Tallene regnes
+          ut per person, men bare summene vises. Små grupper vises også, fordi ingen person eller team navngis. Perioden
+          du velger, styrer hvilke kohorter som vises. Segmentene (<code>/usage/segments</code>) har hver sin «Kilde og
+          metode» under grafen. «Hva har endret seg» regnes ut fra de samme tallene som grafene. «Sist oppdatert» er
+          siste dag med bruksdata i <code>v_daily_summary</code>.
         </>
       }
     >
       <PeriodSelect value={period.value} all={all} />
+      <BodyShort>
+        Kostnad per modellfamilie og AI Credits per bruker ligger nå på{" "}
+        <Link as={NextLink} href="/innsikt/bruk#kostnad">
+          Bruk og kostnad
+        </Link>
+        .
+      </BodyShort>
       <InsightSection id="hva-har-endret-seg" title="Hva har endret seg">
         <Suspense fallback={fallback}>
           <SegmentChanges {...props} />
@@ -224,20 +180,6 @@ export default async function TrenderPage({
       <InsightSection id="kohorter" title="Blir brukerne værende?">
         <Suspense fallback={fallback}>
           <Cohorts token={token} start={start} />
-        </Suspense>
-      </InsightSection>
-      <InsightSection id="modellfamilier" title="Kostnad per modellfamilie">
-        <Suspense fallback={fallback}>
-          <BodyShort size="small" textColor="subtle">
-            Andelene bygger på netto kostnad etter rabatt. «Kostnad» på Bruk og kostnad viser de samme beløpene per
-            måned, ikke fordelt på modeller.
-          </BodyShort>
-          <ModelFamilies {...props} />
-        </Suspense>
-      </InsightSection>
-      <InsightSection id="ai-credits-per-bruker" title="AI Credits per bruker">
-        <Suspense fallback={fallback}>
-          <CreditsPerUser {...props} />
         </Suspense>
       </InsightSection>
       <InsightSection id="copilot-i-pull-requests" title="Copilot i pull requests">

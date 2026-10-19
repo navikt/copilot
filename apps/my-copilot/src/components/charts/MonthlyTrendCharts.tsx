@@ -154,12 +154,12 @@ export function CopilotPRChart({
             labels: months.map(monthLabel),
             datasets: [
               {
-                label: "Laget av coding agent",
+                label: "Laget av Copilot",
                 data: months.map((m) => row(m)?.created_by_copilot ?? null),
                 backgroundColor: seriesColor(2),
               },
               {
-                label: "Gjennomgått av code review",
+                label: "Gjennomgått av Copilot",
                 data: months.map((m) => row(m)?.reviewed_by_copilot ?? null),
                 backgroundColor: seriesColor(1),
               },

@@ -1,12 +1,14 @@
 import { Suspense, cache, type ReactNode } from "react";
 import type { Metadata } from "next";
-import { BodyShort, HGrid, Skeleton, VStack } from "@navikt/ds-react";
+import { BodyShort, HGrid, Link, Skeleton, VStack } from "@navikt/ds-react";
 import {
   getCopilotUsageMetrics,
   getMonthlyTrends,
   getBillingModelDaily,
   getAdoptionCohorts,
   getBillingMonthlyTrend,
+  getBillingModelBreakdown,
+  getCreditsPerUserMonthly,
   getDailySummary,
   getRepositoryUsage,
 } from "@/lib/cached-bigquery";
@@ -22,7 +24,12 @@ import ErrorState from "@/components/error-state";
 import { getPRMetrics, buildTrendData } from "@/lib/data-utils";
 import { currentMonthUTC, selectCompleteMonths } from "@/lib/month-utils";
 import { formatNumber, formatMinutes, formatPercent, formatShare, formatUSD } from "@/lib/format";
-import { formatPp } from "@/lib/trends";
+import { annotationsFor, familyShares, formatPp, monthLabel, visibleMonths } from "@/lib/trends";
+import { CreditsPerUserChart, FamilyShareChart } from "@/components/charts/MonthlyTrendCharts";
+import { LinkableHeading } from "@/components/linkable-heading";
+import { Events } from "@/components/chart-events";
+import { CHART_ANNOTATIONS } from "../../reisen/milestones";
+import NextLink from "next/link";
 import { getUser, getUserToken } from "@/lib/auth";
 import type { EnterpriseMetrics } from "@/lib/types";
 
@@ -286,6 +293,49 @@ async function Repositories({ token }: { token: string }) {
   );
 }
 
+async function ModelFamilies({ token }: { token: string }) {
+  // 36 months is the most the endpoint returns.
+  const { breakdown, error } = await getBillingModelBreakdown(token, 36);
+  if (error) return <BodyShort>{`Kunne ikke hente kostnad per modell: ${error}`}</BodyShort>;
+  const { months, first } = visibleMonths(
+    breakdown.map((r) => r.year_month.slice(0, 7)),
+    null
+  );
+  const data = familyShares(breakdown, months);
+  if (!data.series.length) return <BodyShort>Ingen kostnadsdata i perioden.</BodyShort>;
+  return (
+    <>
+      {first && (
+        <BodyShort size="small" textColor="subtle">
+          Dataene starter i {monthLabel(first)}.
+        </BodyShort>
+      )}
+      <FamilyShareChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, data.months, false, true)} />
+    </>
+  );
+}
+
+async function CreditsPerUser({ token }: { token: string }) {
+  const { months: rows, error } = await getCreditsPerUserMonthly(token);
+  if (error) return <BodyShort>{`Kunne ikke hente AI Credits per bruker: ${error}`}</BodyShort>;
+  const { months, first } = visibleMonths(
+    rows.map((r) => r.month),
+    null
+  );
+  const data = rows.filter((r) => months.includes(r.month));
+  if (!data.length) return <BodyShort>Ingen data om AI Credits i perioden.</BodyShort>;
+  return (
+    <>
+      {first && (
+        <BodyShort size="small" textColor="subtle">
+          Dataene starter i {monthLabel(first)}.
+        </BodyShort>
+      )}
+      <CreditsPerUserChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months, false)} />
+    </>
+  );
+}
+
 export default async function BrukPage() {
   await getUser();
   const token = await getUserToken();
@@ -302,7 +352,11 @@ export default async function BrukPage() {
         <>
           Tallene kommer fra copilot-api, som leser GitHubs bruks- og fakturadata fra BigQuery. Nøkkeltall bruker siste
           hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code> og{" "}
-          <code>/billing/monthly-trend</code>, netto USD etter rabatt. Adopsjonsfasene kommer fra{" "}
+          <code>/billing/monthly-trend</code>, netto USD etter rabatt. Modellfamiliene bygger på netto kostnad per
+          modell fra <code>v_billing_model_breakdown</code> (<code>/billing/model-breakdown</code>), høyst de siste 36
+          månedene. AI Credits per bruker er median og snitt per måned av hver aktiv brukers{" "}
+          <code>ai_credits_used</code> i <code>user_metrics</code> (<code>/usage/credits-per-user</code>). En bruker er
+          aktiv når hen har brukt AI Credits, chat eller kodeforslag i måneden. Adopsjonsfasene kommer fra{" "}
           <code>/adoption/cohorts</code>. Pull requests og daglig aktivitet bruker de siste 28 dagene fra{" "}
           <code>/usage/metrics</code>, og tid til første review kommer fra <code>/usage/daily-summary</code> (
           <code>v_daily_summary</code>). Repoene gjelder hele perioden med data, uten private repoer og uten repoer med
@@ -321,6 +375,28 @@ export default async function BrukPage() {
         <span id="kostnad-over-tid" aria-hidden />
         <Suspense fallback={fallback}>
           <Cost token={token} />
+        </Suspense>
+        <BodyShort>
+          <Link as={NextLink} href="/innsikt/forbruk">
+            Forbruk mot grensen
+          </Link>{" "}
+          viser hvor stor del av månedsgrensen brukerne har nådd.
+        </BodyShort>
+        <LinkableHeading id="modellfamilier" size="small" level="3">
+          Kostnad per modellfamilie
+        </LinkableHeading>
+        <Events />
+        <BodyShort size="small" textColor="subtle">
+          Andelene fordeler de samme nettobeløpene som over på modellfamilier.
+        </BodyShort>
+        <Suspense fallback={fallback}>
+          <ModelFamilies token={token} />
+        </Suspense>
+        <LinkableHeading id="ai-credits-per-bruker" size="small" level="3">
+          AI Credits per bruker
+        </LinkableHeading>
+        <Suspense fallback={fallback}>
+          <CreditsPerUser token={token} />
         </Suspense>
       </InsightSection>
 
