@@ -4,7 +4,8 @@ import { getNavPilotTelemetry } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { HGrid, Skeleton, BodyShort, Table } from "@navikt/ds-react";
+import { ChartSkeleton } from "@/components/section-skeleton";
+import { HGrid, BodyShort, Table } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import { formatNumber, formatShare } from "@/lib/format";
@@ -212,7 +213,7 @@ export default async function NavPilotPage() {
       }
     >
       <InsightSection id="faktisk-bruk" title="Siste syv dager">
-        <Suspense fallback={<Skeleton variant="rectangle" height={300} />}>
+        <Suspense fallback={<ChartSkeleton />}>
           <RuntimeTelemetry token={token} />
         </Suspense>
       </InsightSection>

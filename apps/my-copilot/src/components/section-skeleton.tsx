@@ -1,5 +1,10 @@
 import { Box, HGrid, Skeleton, VStack } from "@navikt/ds-react";
 
+/** Fallback for one streamed chart on /innsikt and /admin pages. */
+export function ChartSkeleton() {
+  return <Skeleton variant="rounded" height={300} />;
+}
+
 /** Placeholder for a streamed /innsikt or /admin section: heading, optional stat tiles, a chart and table rows. */
 export function SectionSkeleton({
   cards = 0,
@@ -22,7 +27,7 @@ export function SectionSkeleton({
             ))}
           </HGrid>
         )}
-        {chart && <Skeleton variant="rounded" height={300} />}
+        {chart && <ChartSkeleton />}
         {Array.from({ length: rows }, (_, i) => (
           <Skeleton key={i} variant="text" />
         ))}

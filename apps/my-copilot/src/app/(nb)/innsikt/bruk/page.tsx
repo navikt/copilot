@@ -1,6 +1,6 @@
 import { Suspense, cache, type ReactNode } from "react";
 import type { Metadata } from "next";
-import { BodyShort, HGrid, Link, Skeleton, VStack } from "@navikt/ds-react";
+import { BodyShort, HGrid, Link, VStack } from "@navikt/ds-react";
 import {
   getCopilotUsageMetrics,
   getMonthlyTrends,
@@ -21,6 +21,7 @@ import { ChartFigure, NumbersFold, PlainTable } from "@/components/charts/chart-
 import { EventChart } from "@/components/charts/EventChart";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
+import { ChartSkeleton } from "@/components/section-skeleton";
 import { getPRMetrics, buildTrendData } from "@/lib/data-utils";
 import { currentMonthUTC, selectCompleteMonths } from "@/lib/month-utils";
 import { formatNumber, formatMinutes, formatPercent, formatShare, formatUSD } from "@/lib/format";
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
 const dailySummaryFor = cache(getDailySummary);
 const usageFor = cache(getCopilotUsageMetrics);
 
-const fallback = <Skeleton variant="rectangle" height={300} />;
+const fallback = <ChartSkeleton />;
 
 function momChange(current: number, previous: number | undefined): string | undefined {
   if (!previous) return undefined;
@@ -54,6 +55,9 @@ function momChange(current: number, previous: number | undefined): string | unde
       : "Uendret";
 }
 
+const monthLong = (m: string) =>
+  new Date(`${m}-01T00:00:00Z`).toLocaleDateString("nb-NO", { month: "long", year: "numeric", timeZone: "UTC" });
+
 async function KeyFigures({ token }: { token: string }) {
   const { trends, error } = await getMonthlyTrends(token);
   if (error) return <BodyShort>{`Kunne ikke hente månedstall: ${error}`}</BodyShort>;
@@ -63,7 +67,7 @@ async function KeyFigures({ token }: { token: string }) {
   const activity = (m: typeof latest) => m.code_generations + m.ide_interactions + m.cli_requests;
   const agentShare = (m: typeof latest) =>
     m.unique_users > 0 ? Math.round((m.agent_users / m.unique_users) * 100) : 0;
-  const month = new Date(latest.month + "-01").toLocaleDateString("nb-NO", { month: "long", year: "numeric" });
+  const month = monthLong(latest.month);
 
   return (
     <>
@@ -97,9 +101,6 @@ async function KeyFigures({ token }: { token: string }) {
     </>
   );
 }
-
-const monthLong = (m: string) =>
-  new Date(`${m}-01T00:00:00Z`).toLocaleDateString("nb-NO", { month: "long", year: "numeric", timeZone: "UTC" });
 
 /** This month day by day and this year month by month, actual figures only. Net: estimated billed, as on /innsikt/kostnad. */
 async function Cost({ token }: { token: string }) {
