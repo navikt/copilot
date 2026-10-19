@@ -9,7 +9,7 @@ import { BackendApiError } from "@/lib/backend-api";
 import { getTeamYearOverview } from "@/lib/cached-bigquery";
 import { formatDate } from "@/lib/format";
 import { hasNoUsageAmounts, monthName, teamYearCaveats, teamYearRows } from "@/lib/team-year";
-import { DocumentTitle, PrintButton, ReportNote } from "./report-controls";
+import { DocumentTitle, PrintButton, ReportNote } from "@/components/report-controls";
 
 export const metadata: Metadata = {
   title: "Kostnadsrapport for team",

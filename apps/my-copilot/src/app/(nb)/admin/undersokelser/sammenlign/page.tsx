@@ -17,7 +17,7 @@ import {
   type WaveMeta,
   type WaveStat,
 } from "@/lib/survey";
-import { DocumentTitle, PrintButton } from "../../../innsikt/team/rapport/report-controls";
+import { DocumentTitle, PrintButton } from "@/components/report-controls";
 import { fill, Legend, LikertBar, pct } from "../likert-bar";
 import { PrintHeader } from "../print-header";
 

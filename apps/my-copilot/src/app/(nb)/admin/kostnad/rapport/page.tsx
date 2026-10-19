@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/format";
 import { loadRapport, parseRapportYear } from "@/lib/rapport-load";
 import { monthName } from "@/lib/team-year";
 import { RAPPORT_SECTIONS } from "@/lib/rapport";
-import { DocumentTitle, PrintButton, ReportNote } from "@/app/(nb)/innsikt/team/rapport/report-controls";
+import { DocumentTitle, PrintButton, ReportNote } from "@/components/report-controls";
 
 export const metadata: Metadata = {
   title: "Copilot i Nav: bruk og kostnad",

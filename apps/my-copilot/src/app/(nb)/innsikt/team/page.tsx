@@ -16,7 +16,7 @@ const grossOverview = cache(getTeamGrossOverview);
 const myTeamsOf = cache(getMyTeams);
 
 export const metadata: Metadata = {
-  title: "Teaminnsikt",
+  title: "Team",
   description: "Copilot-bruk og kostnad per team i Nav.",
 };
 
@@ -67,7 +67,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
   return (
     <InsightPage
-      title="Teaminnsikt"
+      title="Team"
       description="Copilot-bruk og kostnad per team i Nav."
       intro="Se hva hvert team bruker på Copilot i en måned, og hvordan det endrer seg fra forrige måned. Velg måned for å se tidligere tall."
       updated={async () => (await grossOverview(month, token)).last_usage_day}

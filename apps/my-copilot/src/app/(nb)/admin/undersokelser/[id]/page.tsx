@@ -6,7 +6,7 @@ import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getSurveyPreview, getSurveyResults } from "@/lib/survey";
-import { DocumentTitle, PrintButton } from "../../../innsikt/team/rapport/report-controls";
+import { DocumentTitle, PrintButton } from "@/components/report-controls";
 import { PrintHeader } from "../print-header";
 import { SurveyQuestions } from "../survey-questions";
 
