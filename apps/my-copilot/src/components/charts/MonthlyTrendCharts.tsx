@@ -7,6 +7,7 @@ import { eventMarkers, withEvents } from "@/components/charts/chart-events";
 import { daysInCalendarMonth } from "@/lib/month-utils";
 import { monthLabel, type FamilyShares, type MonthAnnotation, type ShareSeries } from "@/lib/trends";
 import type { CopilotPRMonth, CreditsPerUserMonth } from "@/lib/types";
+import { ChartFigure } from "@/components/charts/chart-figure";
 
 /**
  * Shares over time. `stacked` draws 100 % stacked bars (groups that add up to the whole, as the server
@@ -37,27 +38,23 @@ export function ShareChart({
   }));
   if (!stacked) {
     return (
-      <div className="h-72">
-        <Line
-          role="img"
-          aria-label={label}
-          data={{ labels: months.map(monthLabel), datasets }}
-          options={options}
-          plugins={plugins}
-        />
-      </div>
+      <ChartFigure
+        summary={label}
+        chart={<Line data={{ labels: months.map(monthLabel), datasets }} options={options} plugins={plugins} />}
+      />
     );
   }
   return (
-    <div className="h-72">
-      <Bar
-        role="img"
-        aria-label={label}
-        data={{ labels: months.map(monthLabel), datasets }}
-        options={{ ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } }}
-        plugins={plugins}
-      />
-    </div>
+    <ChartFigure
+      summary={label}
+      chart={
+        <Bar
+          data={{ labels: months.map(monthLabel), datasets }}
+          options={{ ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } }}
+          plugins={plugins}
+        />
+      }
+    />
   );
 }
 
@@ -73,22 +70,23 @@ const baseOptions = (stacked: boolean, yTitle: string) => ({
 export function FamilyShareChart({ data, annotations }: { data: FamilyShares; annotations: MonthAnnotation[] }) {
   const options = withEvents(baseOptions(true, "Andel av netto kostnad (%)"), data.months, annotations);
   return (
-    <div className="h-80">
-      <Bar
-        role="img"
-        aria-label="Andel av netto kostnad per modellfamilie per måned"
-        data={{
-          labels: data.months.map(monthLabel),
-          datasets: data.series.map((s, i) => ({
-            label: s.label,
-            data: s.shares,
-            backgroundColor: seriesColor(i),
-          })),
-        }}
-        options={{ ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } }}
-        plugins={[eventMarkers(data.months, annotations)]}
-      />
-    </div>
+    <ChartFigure
+      summary="Andel av netto kostnad per modellfamilie per måned"
+      chart={
+        <Bar
+          data={{
+            labels: data.months.map(monthLabel),
+            datasets: data.series.map((s, i) => ({
+              label: s.label,
+              data: s.shares,
+              backgroundColor: seriesColor(i),
+            })),
+          }}
+          options={{ ...options, scales: { ...options.scales, y: { ...options.scales.y, max: 100 } } }}
+          plugins={[eventMarkers(data.months, annotations)]}
+        />
+      }
+    />
   );
 }
 
@@ -104,32 +102,33 @@ export function CreditsPerUserChart({
 }) {
   const row = (m: string) => data.find((d) => d.month === m);
   return (
-    <div className="h-80">
-      <Line
-        role="img"
-        aria-label="AI Credits per aktiv bruker per måned, median og snitt"
-        data={{
-          labels: months.map(monthLabel),
-          datasets: [
-            {
-              label: "Median",
-              data: months.map((m) => (row(m) ? Math.round(row(m)!.median) : null)),
-              borderColor: seriesColor(0),
-              backgroundColor: seriesColor(0),
-            },
-            {
-              label: "Snitt",
-              data: months.map((m) => (row(m) ? Math.round(row(m)!.mean) : null)),
-              borderColor: seriesColor(3),
-              backgroundColor: seriesColor(3),
-              borderDash: [6, 4],
-            },
-          ],
-        }}
-        options={withEvents(baseOptions(false, "AI Credits per bruker"), months, annotations)}
-        plugins={[eventMarkers(months, annotations)]}
-      />
-    </div>
+    <ChartFigure
+      summary="AI Credits per aktiv bruker per måned, median og snitt"
+      chart={
+        <Line
+          data={{
+            labels: months.map(monthLabel),
+            datasets: [
+              {
+                label: "Median",
+                data: months.map((m) => (row(m) ? Math.round(row(m)!.median) : null)),
+                borderColor: seriesColor(0),
+                backgroundColor: seriesColor(0),
+              },
+              {
+                label: "Snitt",
+                data: months.map((m) => (row(m) ? Math.round(row(m)!.mean) : null)),
+                borderColor: seriesColor(3),
+                backgroundColor: seriesColor(3),
+                borderDash: [6, 4],
+              },
+            ],
+          }}
+          options={withEvents(baseOptions(false, "AI Credits per bruker"), months, annotations)}
+          plugins={[eventMarkers(months, annotations)]}
+        />
+      }
+    />
   );
 }
 
@@ -146,29 +145,30 @@ export function CopilotPRChart({
   const row = (m: string) => data.find((d) => d.month === m);
   return (
     <>
-      <div className="h-80">
-        <Bar
-          role="img"
-          aria-label="Pull requests laget av Copilot og gjennomgått av Copilot per måned"
-          data={{
-            labels: months.map(monthLabel),
-            datasets: [
-              {
-                label: "Laget av Copilot",
-                data: months.map((m) => row(m)?.created_by_copilot ?? null),
-                backgroundColor: seriesColor(2),
-              },
-              {
-                label: "Gjennomgått av Copilot",
-                data: months.map((m) => row(m)?.reviewed_by_copilot ?? null),
-                backgroundColor: seriesColor(1),
-              },
-            ],
-          }}
-          options={withEvents(baseOptions(false, "Pull requests"), months, annotations)}
-          plugins={[eventMarkers(months, annotations)]}
-        />
-      </div>
+      <ChartFigure
+        summary="Pull requests laget av Copilot og gjennomgått av Copilot per måned"
+        chart={
+          <Bar
+            data={{
+              labels: months.map(monthLabel),
+              datasets: [
+                {
+                  label: "Laget av Copilot",
+                  data: months.map((m) => row(m)?.created_by_copilot ?? null),
+                  backgroundColor: seriesColor(2),
+                },
+                {
+                  label: "Gjennomgått av Copilot",
+                  data: months.map((m) => row(m)?.reviewed_by_copilot ?? null),
+                  backgroundColor: seriesColor(1),
+                },
+              ],
+            }}
+            options={withEvents(baseOptions(false, "Pull requests"), months, annotations)}
+            plugins={[eventMarkers(months, annotations)]}
+          />
+        }
+      />
       <BodyShort size="small" textColor="subtle">
         {data.some((d) => d.days < daysInCalendarMonth(d.month)) &&
           "Måneder uten data for alle dagene er ikke hele måneder."}

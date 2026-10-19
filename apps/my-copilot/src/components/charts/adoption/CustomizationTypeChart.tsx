@@ -5,8 +5,9 @@ import type { CustomizationType } from "@/lib/adoption-utils";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { seriesColor, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
+import { BodyShort, Box, VStack } from "@navikt/ds-react";
 import { extractCustomizationTypes } from "@/lib/adoption-utils";
+import { ChartFigure } from "@/components/charts/chart-figure";
 
 interface CustomizationTypeChartProps {
   data: AdoptionSummary | null;
@@ -37,12 +38,12 @@ function GroupChart({ title, color, items }: { title: string; color: () => strin
 
   return (
     <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
-      <Heading size="small" level="3" spacing>
-        {title}
-      </Heading>
-      <div style={{ height }}>
-        <Bar data={chartData} options={commonHorizontalBarOptions} />
-      </div>
+      <ChartFigure
+        title={title}
+        summary={`Antall repoer per tilpasningstype i gruppen ${title}, flest først.`}
+        height={height}
+        chart={<Bar data={chartData} options={commonHorizontalBarOptions} />}
+      />
     </Box>
   );
 }

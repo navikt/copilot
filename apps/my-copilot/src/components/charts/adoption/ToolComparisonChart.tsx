@@ -4,8 +4,9 @@ import type { AdoptionSummary } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { axColor, axSeries, commonHorizontalBarOptions, NO_DATA_MESSAGE } from "@/lib/chart-utils";
-import { BodyShort, Box, Heading } from "@navikt/ds-react";
+import { BodyShort, Box } from "@navikt/ds-react";
 import { extractToolComparison } from "@/lib/adoption-utils";
+import { ChartFigure } from "@/components/charts/chart-figure";
 
 interface ToolComparisonChartProps {
   data: AdoptionSummary | null;
@@ -48,12 +49,12 @@ const ToolComparisonChart: React.FC<ToolComparisonChartProps> = ({ data }) => {
 
   return (
     <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
-      <Heading size="small" level="3" spacing>
-        Repoer per KI-verktøy
-      </Heading>
-      <div style={{ height }}>
-        <Bar data={chartData} options={commonHorizontalBarOptions} />
-      </div>
+      <ChartFigure
+        title="Repoer per KI-verktøy"
+        summary="Antall repoer per KI-verktøy, med Kun Copilot først."
+        height={height}
+        chart={<Bar data={chartData} options={commonHorizontalBarOptions} />}
+      />
       <BodyShort size="small" textColor="subtle">
         Et repo kan ha flere verktøy. Under Cursor telles et repo to ganger hvis det har både .cursorrules og
         .cursor/rules/.

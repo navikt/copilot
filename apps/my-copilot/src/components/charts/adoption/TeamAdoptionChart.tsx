@@ -4,9 +4,10 @@ import type { TeamAdoption } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { seriesColor, commonHorizontalBarOptions } from "@/lib/chart-utils";
-import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
+import { BodyShort, Box, VStack } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
 import { formatPercent } from "@/lib/format";
+import { ChartFigure } from "@/components/charts/chart-figure";
 
 // The API sends whole percent per team. Both shares are drawn side by side; the counts are in the table below.
 const activeRate = (t: TeamAdoption) => t.adoption_active_pct ?? 0;
@@ -74,12 +75,12 @@ const TeamAdoptionChart: React.FC<TeamAdoptionChartProps> = ({ data, maxTeams = 
   return (
     <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
       <VStack gap="space-16">
-        <Heading size="small" level="3">
-          Team med høyest andel aktive repoer med tilpasninger
-        </Heading>
-        <div style={{ height: Math.max(300, topTeams.length * 40) }}>
-          <Bar data={chartData} options={options} />
-        </div>
+        <ChartFigure
+          title="Team med høyest andel aktive repoer med tilpasninger"
+          summary="Andel aktive repoer og andel av alle repoer med tilpasninger for teamene med høyest andel aktive repoer, høyest først."
+          height={Math.max(300, topTeams.length * 40)}
+          chart={<Bar data={chartData} options={options} />}
+        />
       </VStack>
     </Box>
   );

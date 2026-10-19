@@ -5,7 +5,7 @@ import { PageHero } from "@/components/page-hero";
 import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
-import { getSurveyPreview, getSurveyResults } from "@/lib/survey";
+import { getSurveyPreview, getSurveyResults, UNDER_FIVE } from "@/lib/survey";
 import { DocumentTitle, PrintButton } from "@/components/report-controls";
 import { PrintHeader } from "../print-header";
 import { SurveyQuestions } from "../survey-questions";
@@ -15,8 +15,6 @@ export const metadata: Metadata = {
   description: "Resultater fra en brukerundersøkelse.",
   robots: { index: false, follow: false },
 };
-
-const UNDER_FIVE = "under 5";
 
 export default async function SurveyResultsPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();

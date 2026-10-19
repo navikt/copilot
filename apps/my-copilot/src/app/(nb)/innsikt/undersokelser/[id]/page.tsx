@@ -5,7 +5,7 @@ import { InsightPage } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
 import { getUserToken } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
-import { channelName, getPublishedSurveyResults, getSurveyPreview } from "@/lib/survey";
+import { channelName, getPublishedSurveyResults, getSurveyPreview, UNDER_FIVE } from "@/lib/survey";
 import { PrintHeader } from "../../../admin/undersokelser/print-header";
 import { SurveyQuestions } from "../../../admin/undersokelser/survey-questions";
 import { DocumentTitle, PrintButton } from "@/components/report-controls";
@@ -15,8 +15,6 @@ export const metadata: Metadata = {
   description: "Aggregerte resultater fra en avsluttet brukerundersøkelse.",
   robots: { index: false, follow: false },
 };
-
-const UNDER_FIVE = "under 5";
 
 export default async function PublishedSurveyResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -16,6 +16,7 @@ import {
   type WaveCounts,
   type WaveMeta,
   type WaveStat,
+  UNDER_FIVE,
 } from "@/lib/survey";
 import { DocumentTitle, PrintButton } from "@/components/report-controls";
 import { fill, Legend, LikertBar, pct } from "../likert-bar";
@@ -403,7 +404,7 @@ function Waves({ waves }: { waves: WaveMeta[] }) {
               <TableDataCell>
                 {formatDate(w.starts)}–{formatDate(w.ends)}
               </TableDataCell>
-              <TableDataCell align="right">{w.suppressed ? "under 5" : formatNumber(w.responses)}</TableDataCell>
+              <TableDataCell align="right">{w.suppressed ? UNDER_FIVE : formatNumber(w.responses)}</TableDataCell>
               <TableDataCell>
                 {Object.entries(w.channels ?? {})
                   .sort((a, b) => b[1] - a[1])
@@ -435,7 +436,7 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
         title={`Sammenligning: ${title}`}
         lines={waves.map(
           (w) =>
-            `${w.title}: ${formatDate(w.starts)}–${formatDate(w.ends)} · ${w.suppressed ? "under 5" : formatNumber(w.responses)} svar`
+            `${w.title}: ${formatDate(w.starts)}–${formatDate(w.ends)} · ${w.suppressed ? UNDER_FIVE : formatNumber(w.responses)} svar`
         )}
       />
       <Waves waves={waves} />

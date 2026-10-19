@@ -159,7 +159,7 @@ async function LiveObservedLocalSection() {
           label="Kall til decide"
           helpTitle="Lokale decide-kall"
           helpText="Antall ja/nei-vurderinger kjørt mot lokal modell med nav-pilot decide siste syv dager. Vises først når minst fem enheter har brukt funksjonen i perioden."
-          subtitle={local.decide_local_count === 0 ? "Under 5 enheter siste syv dager" : undefined}
+          subtitle={local.decide_local_count === 0 ? "Færre enn fem enheter siste syv dager" : undefined}
         />
       </HGrid>
     </InsightSection>
