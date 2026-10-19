@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Box, VStack, Heading, BodyShort, Link } from "@navikt/ds-react";
 import { PRICING_SOURCE_URL, PRICING_LAST_UPDATED } from "@/lib/model-pricing";
-import { PageHero } from "@/components/page-hero";
+import { InsightPage } from "@/components/insight-page";
 import { ModelPricingTables } from "./model-pricing-tables";
 
 export const metadata: Metadata = {
@@ -23,75 +23,66 @@ export const metadata: Metadata = {
 
 export default function PriserPage() {
   return (
-    <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero
-        title="Modellpriser"
-        description="Pris per million tokens for modellene Nav har aktivert i GitHub Copilot. 1 AI Credit = $0.01."
-      />
-      <div className="max-w-7xl mx-auto">
+    <InsightPage
+      title="Modellpriser"
+      description="Pris per million tokens for modellene Nav har aktivert i GitHub Copilot. 1 AI Credit = $0.01."
+      source={
+        <>
+          Kilde:{" "}
+          <Link href={PRICING_SOURCE_URL} target="_blank" rel="noopener noreferrer">
+            GitHub Copilot Models and Pricing
+          </Link>
+          {" · "}Sist oppdatert: {PRICING_LAST_UPDATED}
+        </>
+      }
+    >
+      <VStack gap={{ xs: "space-24", md: "space-32" }}>
+        <ModelPricingTables />
+
+        {/* Context section */}
         <Box
-          paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
-          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
+          padding={{ xs: "space-16", md: "space-20" }}
+          borderRadius="12"
+          borderWidth="1"
+          borderColor="neutral-subtle"
+          background="neutral-soft"
         >
-          <VStack gap={{ xs: "space-24", md: "space-32" }}>
-            <ModelPricingTables />
-
-            {/* Context section */}
-            <Box
-              padding={{ xs: "space-16", md: "space-20" }}
-              borderRadius="12"
-              borderWidth="1"
-              borderColor="neutral-subtle"
-              background="neutral-soft"
+          <VStack gap="space-12">
+            <Heading size="xsmall" level="2">
+              Hva betyr dette i praksis?
+            </Heading>
+            <BodyShort
+              as="ul"
+              size="small"
+              textColor="subtle"
+              style={{ display: "grid", gap: "var(--ax-space-8)", paddingInlineStart: "var(--ax-space-20)" }}
             >
-              <VStack gap="space-12">
-                <Heading size="xsmall" level="2">
-                  Hva betyr dette i praksis?
-                </Heading>
-                <BodyShort
-                  as="ul"
-                  size="small"
-                  textColor="subtle"
-                  style={{ display: "grid", gap: "var(--ax-space-8)", paddingInlineStart: "var(--ax-space-20)" }}
-                >
-                  <li>
-                    <strong>Nav Business-kvote:</strong> 1 900 credits/bruker/mnd ($19), poolet på org-nivå
-                  </li>
-                  <li>
-                    <strong>Cached tokens koster 90 % mindre</strong>, så fokuserte sesjoner utnytter caching bedre
-                  </li>
-                  <li>
-                    <strong>Auto-modus</strong> velger modell etter oppgave og gir innebygd rabatt
-                  </li>
-                  <li>
-                    <strong>Code completions</strong> (ghost text) er gratis og teller ikke mot kvoten
-                  </li>
-                  <li>
-                    Rader merket <strong>Long context</strong> er ikke egne modeller, men en høyere sats som slår inn
-                    når konteksten passerer terskelen i navnet
-                  </li>
-                  <li>
-                    <strong>Kampanjepris</strong> betyr at prisen i tabellen gjelder til datoen som står i merket, og så
-                    går modellen tilbake til standardpris. GitHub oppgir ikke standardprisen. For GPT-5.6 Sol er
-                    kampanjen 50 % av standardpris, så fra 4. september 2026 blir prisen etter alt å dømme $4.00 input
-                    og $20.00 output.
-                  </li>
-                  <li>Opus er 67 % dyrere enn Sonnet. Bruk Opus kun for komplekse arkitekturbeslutninger</li>
-                </BodyShort>
-              </VStack>
-            </Box>
-
-            {/* Source link */}
-            <BodyShort size="small" textColor="subtle">
-              Kilde:{" "}
-              <Link href={PRICING_SOURCE_URL} target="_blank" rel="noopener noreferrer">
-                GitHub Copilot Models and Pricing
-              </Link>
-              {" · "}Sist oppdatert: {PRICING_LAST_UPDATED}
+              <li>
+                <strong>Nav Business-kvote:</strong> 1 900 credits/bruker/mnd ($19), poolet på org-nivå
+              </li>
+              <li>
+                <strong>Cached tokens koster 90 % mindre</strong>, så fokuserte sesjoner utnytter caching bedre
+              </li>
+              <li>
+                <strong>Auto-modus</strong> velger modell etter oppgave og gir innebygd rabatt
+              </li>
+              <li>
+                <strong>Code completions</strong> (ghost text) er gratis og teller ikke mot kvoten
+              </li>
+              <li>
+                Rader merket <strong>Long context</strong> er ikke egne modeller, men en høyere sats som slår inn når
+                konteksten passerer terskelen i navnet
+              </li>
+              <li>
+                <strong>Kampanjepris</strong> betyr at prisen i tabellen gjelder til datoen som står i merket, og så går
+                modellen tilbake til standardpris. GitHub oppgir ikke standardprisen. For GPT-5.6 Sol er kampanjen 50 %
+                av standardpris, så fra 4. september 2026 blir prisen etter alt å dømme $4.00 input og $20.00 output.
+              </li>
+              <li>Opus er 67 % dyrere enn Sonnet. Bruk Opus kun for komplekse arkitekturbeslutninger</li>
             </BodyShort>
           </VStack>
         </Box>
-      </div>
-    </main>
+      </VStack>
+    </InsightPage>
   );
 }

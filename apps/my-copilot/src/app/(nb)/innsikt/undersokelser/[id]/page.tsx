@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Alert, BodyShort, Box, Heading, HStack, Link, VStack } from "@navikt/ds-react";
-import { PageHero } from "@/components/page-hero";
+import { InsightPage } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
 import { getUserToken } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -33,60 +33,53 @@ export default async function PublishedSurveyResultsPage({ params }: { params: P
     .join(", ");
 
   return (
-    <main id="hovedinnhold" tabIndex={-1} className="print-report survey-print">
-      <DocumentTitle title={`${s.title} – resultater`} />
-      <div className="print-hidden">
-        <PageHero
-          title={s.title}
-          description="Aggregerte resultater fra brukerundersøkelsen."
-          actions={<PrintButton>Lagre som PDF</PrintButton>}
-        />
-      </div>
-      <PrintHeader
-        title={s.title}
-        lines={[
-          `${formatDate(s.starts)}–${formatDate(s.ends)} · ${s.suppressed ? UNDER_FIVE : formatNumber(s.responses)} svar`,
-        ]}
-      />
-      <div className="max-w-7xl mx-auto">
-        <Box
-          paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
-          paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
-        >
-          <VStack gap="space-24">
-            <HStack gap="space-16" className="print-hidden">
-              <Link href="/innsikt/undersokelser">Alle undersøkelser</Link>
-            </HStack>
-            <section aria-labelledby="heading-metode">
-              <Box background="neutral-soft" padding="space-16" borderRadius="8">
-                <VStack gap="space-8">
-                  <Heading id="heading-metode" level="2" size="xsmall">
-                    Metode og datagrunnlag
-                  </Heading>
-                  <BodyShort size="small">
-                    Periode: {formatDate(s.starts)}–{formatDate(s.ends)} ·{" "}
-                    {s.suppressed ? UNDER_FIVE : formatNumber(s.responses)} svar
-                    {channels ? ` · Besvart via: ${channels}` : ""}
-                  </BodyShort>
-                  <BodyShort size="small" textColor="subtle">
-                    Deltakelsen var frivillig blant ansatte som bruker utviklerverktøy i Nav, så svarprosent mot en fast
-                    populasjon kan ikke beregnes. Spørsmål som ble endret underveis, vises med én tabell per versjon.
-                    Fritekstsvar publiseres ikke av hensyn til personvern.
-                  </BodyShort>
-                </VStack>
-              </Box>
-            </section>
-            {s.suppressed || !s.questions ? (
-              <Alert variant="info">For få svar til å vise resultater ({UNDER_FIVE}).</Alert>
-            ) : (
-              <SurveyQuestions questions={s.questions} def={def} />
-            )}
-            <BodyShort size="small" textColor="subtle">
-              Spørsmål om resultatene kan tas i #ki-produktutvikling på Slack.
-            </BodyShort>
-          </VStack>
-        </Box>
-      </div>
-    </main>
+    <InsightPage
+      title={s.title}
+      description="Aggregerte resultater fra brukerundersøkelsen."
+      actions={<PrintButton>Lagre som PDF</PrintButton>}
+      source="Aggregerte svar fra undersøkelsen. Spørsmål om resultatene kan tas i #ki-produktutvikling på Slack."
+      className="print-report survey-print"
+      printHeader={
+        <>
+          <DocumentTitle title={`${s.title} – resultater`} />
+          <PrintHeader
+            title={s.title}
+            lines={[
+              `${formatDate(s.starts)}–${formatDate(s.ends)} · ${s.suppressed ? UNDER_FIVE : formatNumber(s.responses)} svar`,
+            ]}
+          />
+        </>
+      }
+    >
+      <VStack gap="space-24">
+        <HStack gap="space-16" className="print-hidden">
+          <Link href="/innsikt/undersokelser">Alle undersøkelser</Link>
+        </HStack>
+        <section aria-labelledby="heading-metode">
+          <Box background="neutral-soft" padding="space-16" borderRadius="8">
+            <VStack gap="space-8">
+              <Heading id="heading-metode" level="2" size="xsmall">
+                Metode og datagrunnlag
+              </Heading>
+              <BodyShort size="small">
+                Periode: {formatDate(s.starts)}–{formatDate(s.ends)} ·{" "}
+                {s.suppressed ? UNDER_FIVE : formatNumber(s.responses)} svar
+                {channels ? ` · Besvart via: ${channels}` : ""}
+              </BodyShort>
+              <BodyShort size="small" textColor="subtle">
+                Deltakelsen var frivillig blant ansatte som bruker utviklerverktøy i Nav, så svarprosent mot en fast
+                populasjon kan ikke beregnes. Spørsmål som ble endret underveis, vises med én tabell per versjon.
+                Fritekstsvar publiseres ikke av hensyn til personvern.
+              </BodyShort>
+            </VStack>
+          </Box>
+        </section>
+        {s.suppressed || !s.questions ? (
+          <Alert variant="info">For få svar til å vise resultater ({UNDER_FIVE}).</Alert>
+        ) : (
+          <SurveyQuestions questions={s.questions} def={def} />
+        )}
+      </VStack>
+    </InsightPage>
   );
 }

@@ -2796,7 +2796,9 @@
       "docs/news/articles/nye-modeller-juli-2026.md",
       "docs/news/articles/usage-based-billing.md"
     ],
-    "anchors": {}
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"]
+    }
   },
   "/reisen": {
     "sources": [
@@ -2804,7 +2806,13 @@
       "apps/my-copilot/src/app/(nb)/reisen/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts"
     ],
-    "anchors": {}
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "sporsmal": ["apps/my-copilot/src/app/(nb)/reisen/page.tsx"],
+      "tall": ["apps/my-copilot/src/app/(nb)/reisen/page.tsx"],
+      "teamet": ["apps/my-copilot/src/app/(nb)/reisen/page.tsx"],
+      "tidslinje": ["apps/my-copilot/src/app/(nb)/reisen/page.tsx"]
+    }
   },
   "/retningslinjer": {
     "sources": [
