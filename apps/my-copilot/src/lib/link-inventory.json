@@ -361,7 +361,15 @@
       "apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"
     ],
     "anchors": {
+      "ai-credits-per-bruker": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"],
+      "arbeidsmate": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"],
+      "bevegelse": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"],
+      "copilot-i-pull-requests": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"],
+      "hva-har-endret-seg": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"],
+      "intensitet": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "kohorter": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"],
+      "modellfamilier": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"],
       "team-adopsjon": ["apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx"]
     }
   },

@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Alert, BodyShort, Skeleton } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
@@ -158,14 +158,6 @@ async function Cohorts({ token, start }: { token: string; start: string | null }
   );
 }
 
-function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
-  return (
-    <InsightSection id={id} title={title}>
-      <Suspense fallback={fallback}>{children}</Suspense>
-    </InsightSection>
-  );
-}
-
 export default async function TrenderPage({
   searchParams,
 }: {
@@ -208,35 +200,51 @@ export default async function TrenderPage({
       }
     >
       <PeriodSelect value={period.value} all={all} />
-      <Section id="hva-har-endret-seg" title="Hva har endret seg">
-        <SegmentChanges {...props} />
-      </Section>
+      <InsightSection id="hva-har-endret-seg" title="Hva har endret seg">
+        <Suspense fallback={fallback}>
+          <SegmentChanges {...props} />
+        </Suspense>
+      </InsightSection>
       <Events />
-      <Section id="bevegelse" title="Bevegelse mellom intensitetsgrupper">
-        <Movement {...props} />
-      </Section>
-      <Section id="intensitet" title="Brukere etter intensitet">
-        <Intensity {...props} />
-      </Section>
-      <Section id="arbeidsmate" title="Brukere etter arbeidsmåte">
-        <WayOfWorking {...props} />
-      </Section>
-      <Section id="kohorter" title="Blir brukerne værende?">
-        <Cohorts token={token} start={start} />
-      </Section>
-      <Section id="modellfamilier" title="Kostnad per modellfamilie">
-        <BodyShort size="small" textColor="subtle">
-          Andelene bygger på netto kostnad etter rabatt. «Kostnad» på Bruk og kostnad viser de samme beløpene per måned,
-          ikke fordelt på modeller.
-        </BodyShort>
-        <ModelFamilies {...props} />
-      </Section>
-      <Section id="ai-credits-per-bruker" title="AI Credits per bruker">
-        <CreditsPerUser {...props} />
-      </Section>
-      <Section id="copilot-i-pull-requests" title="Copilot i pull requests">
-        <CopilotPRs {...props} />
-      </Section>
+      <InsightSection id="bevegelse" title="Bevegelse mellom intensitetsgrupper">
+        <Suspense fallback={fallback}>
+          <Movement {...props} />
+        </Suspense>
+      </InsightSection>
+      <InsightSection id="intensitet" title="Brukere etter intensitet">
+        <Suspense fallback={fallback}>
+          <Intensity {...props} />
+        </Suspense>
+      </InsightSection>
+      <InsightSection id="arbeidsmate" title="Brukere etter arbeidsmåte">
+        <Suspense fallback={fallback}>
+          <WayOfWorking {...props} />
+        </Suspense>
+      </InsightSection>
+      <InsightSection id="kohorter" title="Blir brukerne værende?">
+        <Suspense fallback={fallback}>
+          <Cohorts token={token} start={start} />
+        </Suspense>
+      </InsightSection>
+      <InsightSection id="modellfamilier" title="Kostnad per modellfamilie">
+        <Suspense fallback={fallback}>
+          <BodyShort size="small" textColor="subtle">
+            Andelene bygger på netto kostnad etter rabatt. «Kostnad» på Bruk og kostnad viser de samme beløpene per
+            måned, ikke fordelt på modeller.
+          </BodyShort>
+          <ModelFamilies {...props} />
+        </Suspense>
+      </InsightSection>
+      <InsightSection id="ai-credits-per-bruker" title="AI Credits per bruker">
+        <Suspense fallback={fallback}>
+          <CreditsPerUser {...props} />
+        </Suspense>
+      </InsightSection>
+      <InsightSection id="copilot-i-pull-requests" title="Copilot i pull requests">
+        <Suspense fallback={fallback}>
+          <CopilotPRs {...props} />
+        </Suspense>
+      </InsightSection>
     </InsightPage>
   );
 }
