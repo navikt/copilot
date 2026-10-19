@@ -201,16 +201,17 @@ export default async function NavPilotPage() {
     <InsightPage
       title="nav-pilot i bruk"
       description="Bruksdata fra nav-pilot de siste syv dagene."
-      intro="Her ser du hvor mange enheter som bruker nav-pilot, hvilke klienter de bruker, hvor mange økter de har, og hvilke skills, subagenter og verktøy som brukes mest."
+      intro="Her ser du hvor mange enheter som kjører nav-pilot, hvilke klienter de har satt opp, hvor mange økter de har, og hvilke skills, subagenter og verktøy som brukes mest."
       updated={async () => (await telemetryFor(token)).telemetry?.latest_day}
       source={
         <>
-          Tallene kommer fra copilot-api, som leser daglig aggregerte bruksdata fra Mimir i BigQuery:{" "}
-          <code>/mimir/telemetry</code>. En enhet er en maskin-ID, ikke en person.
+          Tallene kommer fra copilot-api (<code>/mimir/telemetry</code>). nav-pilot sender telemetri til Mimir,
+          metrikklageret på Nais, og hver natt samles dagen i BigQuery-tabellen <code>mimir_daily</code>. En enhet er en
+          maskin-ID, ikke en person.
         </>
       }
     >
-      <InsightSection id="faktisk-bruk" title="Faktisk bruk i nav-pilot">
+      <InsightSection id="faktisk-bruk" title="Siste syv dager">
         <Suspense fallback={<Skeleton variant="rectangle" height={300} />}>
           <RuntimeTelemetry token={token} />
         </Suspense>

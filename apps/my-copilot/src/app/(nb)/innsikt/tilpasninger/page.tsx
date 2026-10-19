@@ -300,7 +300,7 @@ export default async function TilpasningerPage() {
       <InsightSection id="samlingen" title={`${getAllCustomizations().length} delte tilpasninger`}>
         <Catalog />
         <BodyShort>
-          Hvordan tilpasningene faktisk brukes i nav-pilot, ser du på{" "}
+          Hvordan tilpasningene brukes i nav-pilot, ser du på{" "}
           <Link as={NextLink} href="/innsikt/nav-pilot" prefetch={false}>
             nav-pilot i bruk
           </Link>
