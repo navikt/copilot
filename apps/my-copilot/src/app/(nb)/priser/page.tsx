@@ -48,7 +48,12 @@ export default function PriserPage() {
                 <Heading size="xsmall" level="2">
                   Hva betyr dette i praksis?
                 </Heading>
-                <BodyShort as="ul" size="small" textColor="subtle" className="space-y-2 pl-5">
+                <BodyShort
+                  as="ul"
+                  size="small"
+                  textColor="subtle"
+                  style={{ display: "grid", gap: "var(--ax-space-8)", paddingInlineStart: "var(--ax-space-20)" }}
+                >
                   <li>
                     <strong>Nav Business-kvote:</strong> 1 900 credits/bruker/mnd ($19), poolet på org-nivå
                   </li>
