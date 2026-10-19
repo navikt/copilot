@@ -92,12 +92,18 @@ error, so it is easy to spend a long time concluding the wrong thing:
 - GraphQL `enqueuePullRequest` refuses and points at the async REST API.
 - `PUT /pulls/{n}/merge` refuses stacked PRs outright.
 - `PATCH /pulls/{n}` cannot change the base while the PR is in a stack.
+- `gh stack merge` (gh-stack v0.2.1) sends `merge_action: direct_merge` and fails
+  with `Changes must be made through the merge queue`. Its merge-queue detection
+  queries `mergeQueue` and `ref.rules{type}` together, the `rules` part errors on
+  this repository, and the extension then falls back to a direct merge.
 
 The route that works is the asynchronous one:
 
 ```sh
-gh api -X PUT repos/OWNER/REPO/pulls/N/merge-async
+gh api -X PUT repos/OWNER/REPO/pulls/N/merge-async -f merge_action=merge_queue
 ```
+
+Pass the top PR of the stack; every PR below it is enqueued with it.
 
 **Do not pass `merge_method`.** The merge queue sets it, and supplying one makes
 the request fail with `Custom merge params are not supported when merging via a
