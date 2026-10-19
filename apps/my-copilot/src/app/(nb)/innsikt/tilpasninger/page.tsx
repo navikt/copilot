@@ -13,7 +13,6 @@ import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
 import { ChartSkeleton } from "@/components/section-skeleton";
 import { HGrid, BodyShort, Link, Table } from "@navikt/ds-react";
-import NextLink from "next/link";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import TeamTable from "@/components/team-table";
@@ -301,11 +300,7 @@ export default async function TilpasningerPage() {
       <InsightSection id="samlingen" title={`${getAllCustomizations().length} delte tilpasninger`}>
         <Catalog />
         <BodyShort>
-          Hvordan tilpasningene brukes i nav-pilot, ser du på{" "}
-          <Link as={NextLink} href="/innsikt/nav-pilot" prefetch={false}>
-            nav-pilot i bruk
-          </Link>
-          .
+          Hvordan tilpasningene brukes i nav-pilot, ser du på <Link href="/innsikt/nav-pilot">nav-pilot i bruk</Link>.
         </BodyShort>
       </InsightSection>
       <InsightSection id="verktoy" title="Tilpasninger per verktøy">
