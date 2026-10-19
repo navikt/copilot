@@ -8,7 +8,7 @@ import { formatDate, formatNumber } from "@/lib/format";
 import { channelName, getPublishedSurveyResults, getSurveyPreview } from "@/lib/survey";
 import { PrintHeader } from "../../../admin/undersokelser/print-header";
 import { SurveyQuestions } from "../../../admin/undersokelser/survey-questions";
-import { DocumentTitle, PrintButton } from "../../team/rapport/report-controls";
+import { DocumentTitle, PrintButton } from "@/components/report-controls";
 
 export const metadata: Metadata = {
   title: "Resultater – Undersøkelser",

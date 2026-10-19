@@ -7,8 +7,7 @@ import { HeroRibbons } from "@/components/hero-ribbons/hero-ribbons";
 
 export const metadata: Metadata = {
   title: "Innsikt",
-  description:
-    "Tall om Copilot i Nav: bruk og kostnad, trender, team, KI-tilpasninger i repoene, modellpriser, modellvalg, lokale modeller og reisen så langt.",
+  description: "Tall om hvordan Nav bruker Copilot og andre KI-verktøy, hva det koster, og hvilke modeller vi velger.",
 };
 
 // LinkCard hides the icon from screen readers, so the description says «Krever innlogging» too.
@@ -21,7 +20,7 @@ export default function Innsikt() {
     <main id="hovedinnhold" tabIndex={-1}>
       <PageHero
         title="Innsikt"
-        description="Tall om Copilot i Nav: bruk og kostnad, trender, team, KI-tilpasninger i repoene, modellpriser, modellvalg, lokale modeller og reisen så langt."
+        description="Tall om hvordan Nav bruker Copilot og andre KI-verktøy, hva det koster, og hvilke modeller vi velger."
         background={<HeroRibbons />}
       />
       <Box
@@ -47,21 +46,21 @@ export default function Innsikt() {
                 prefetch={false}
                 icon={lock}
                 title="Trender"
-                description="Endringer over tid: brukere etter intensitet og arbeidsmåte, kohorter av nye brukere, modellvalg og AI Credits per bruker. Krever innlogging."
+                description="Hvordan bruken endrer seg måned for måned, og om nye brukere fortsetter. Krever innlogging."
               />
               <NavCard
                 href="/innsikt/team"
                 prefetch={false}
                 icon={lock}
-                title="Teaminnsikt"
-                description="Copilot-bruk og kostnad per team. Krever innlogging."
+                title="Team"
+                description="Copilot-bruk og kostnad per team, med en kostnadsrapport du kan skrive ut. Krever innlogging."
               />
               <NavCard
                 href="/innsikt/tilpasninger"
                 prefetch={false}
                 icon={lock}
                 title="Tilpasninger"
-                description="KI-tilpasninger i navikt-repoene. Krever innlogging."
+                description="Hvor mange navikt-repoer som har instruksjoner, agenter, skills og prompts, fordelt på team og språk. Krever innlogging."
               />
               <NavCard
                 href="/innsikt/undersokelser"

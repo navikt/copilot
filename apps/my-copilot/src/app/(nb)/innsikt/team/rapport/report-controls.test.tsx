@@ -101,7 +101,7 @@ vi.mock("@/lib/rapport-load", () => ({
   })),
 }));
 
-import { DocumentTitle } from "./report-controls";
+import { DocumentTitle } from "@/components/report-controls";
 import TeamReportPage from "./page";
 import RapportPage from "@/app/(nb)/admin/kostnad/rapport/page";
 
