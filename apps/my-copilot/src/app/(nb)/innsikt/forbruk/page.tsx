@@ -12,7 +12,7 @@ import { formatNumber, formatShare, formatUSD } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
 import type { SpendBands } from "@/lib/types";
 
-// Internal page: not linked from the overview, and never public, since costs are internal.
+// Internal page: linked from the cost section on /innsikt/bruk, but logged-in only and never public, since costs are internal.
 export const metadata: Metadata = {
   title: "Forbruk mot grensen",
   description: "Hvor stor del av forbruksgrensen brukerne bruker per måned, med prognose.",

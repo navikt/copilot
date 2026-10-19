@@ -27,8 +27,11 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/agentpakker#pensjonering": "/nav-pilot/agentpakker/referanse#pensjonering",
   // /statistikk and its tabs became /innsikt/bruk. next.config.ts redirects the page, so keys use the new path.
   "/innsikt/bruk#team": "/innsikt/team#teamkostnad",
-  // «KI-modeller i bruk» became model families over time on /innsikt/trender.
-  "/innsikt/bruk#ai-modeller-i-bruk": "/innsikt/trender#modellfamilier",
+  // «KI-modeller i bruk» became model families over time, now in the cost section of /innsikt/bruk.
+  // The cost charts moved from /innsikt/trender to /innsikt/bruk.
+  "/innsikt/trender#modellfamilier": "/innsikt/bruk#modellfamilier",
+  "/innsikt/trender#ai-credits-per-bruker": "/innsikt/bruk#ai-credits-per-bruker",
+  "/innsikt/bruk#ai-modeller-i-bruk": "/innsikt/bruk#modellfamilier",
   "/innsikt/bruk#dashboard": "/innsikt/bruk#nokkeltall",
   "/innsikt/bruk#manedlige-trender": "/innsikt/bruk#nokkeltall",
   "/innsikt/bruk#bruker-vs-agent": "/innsikt/bruk#nokkeltall",

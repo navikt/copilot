@@ -229,16 +229,19 @@
     ],
     "anchors": {
       "ai-adopsjonsfaser": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "ai-credits-per-bruker": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "ai-modeller-i-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "daglig-aktivitet": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "kostnad": [
         "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
+        "apps/my-copilot/src/app/(nb)/innsikt/trender/page.tsx",
         "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
         "apps/my-copilot/src/app/(nb)/praksis/sections/cost-optimization.tsx",
         "apps/my-copilot/src/components/cost-anomalies.tsx"
       ],
       "kostnad-over-tid": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "modellfamilier": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "modellkostnad-historikk": ["apps/my-copilot/src/components/charts/BillingModelBreakdownChart.tsx"],
       "måned-hittil-modeller-og-kostnad": ["apps/my-copilot/src/components/charts/BillingMonthNowChart.tsx"],
       "månedlige-trender": ["apps/my-copilot/src/components/charts/MonthlyTrendsChart.tsx"],
@@ -248,7 +251,10 @@
     }
   },
   "/innsikt/forbruk": {
-    "sources": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"
+    ],
     "anchors": {
       "brukere-per-band": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
       "denne-maneden": ["apps/my-copilot/src/app/(nb)/innsikt/forbruk/page.tsx"],
