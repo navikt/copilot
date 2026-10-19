@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { Box, VStack, Heading, BodyShort } from "@navikt/ds-react";
+import { Box, VStack, Heading, BodyShort, Link } from "@navikt/ds-react";
 import { PRICING_SOURCE_URL, PRICING_LAST_UPDATED } from "@/lib/model-pricing";
 import { PageHero } from "@/components/page-hero";
-import NextLink from "next/link";
 import { ModelPricingTables } from "./model-pricing-tables";
 
 export const metadata: Metadata = {
@@ -40,14 +39,16 @@ export default function PriserPage() {
             {/* Context section */}
             <Box
               padding={{ xs: "space-16", md: "space-20" }}
-              className="rounded-xl"
-              style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
+              borderRadius="12"
+              borderWidth="1"
+              borderColor="neutral-subtle"
+              background="neutral-soft"
             >
               <VStack gap="space-12">
-                <Heading size="xsmall" level="3">
+                <Heading size="xsmall" level="2">
                   Hva betyr dette i praksis?
                 </Heading>
-                <ul className="space-y-2" style={{ color: "#475569", fontSize: "0.875rem", paddingLeft: "1.25rem" }}>
+                <BodyShort as="ul" size="small" textColor="subtle" className="space-y-2 pl-5">
                   <li>
                     <strong>Nav Business-kvote:</strong> 1 900 credits/bruker/mnd ($19), poolet på org-nivå
                   </li>
@@ -71,22 +72,16 @@ export default function PriserPage() {
                     og $20.00 output.
                   </li>
                   <li>Opus er 67 % dyrere enn Sonnet. Bruk Opus kun for komplekse arkitekturbeslutninger</li>
-                </ul>
+                </BodyShort>
               </VStack>
             </Box>
 
             {/* Source link */}
-            <BodyShort size="small" style={{ color: "#94a3b8" }}>
+            <BodyShort size="small" textColor="subtle">
               Kilde:{" "}
-              <NextLink
-                href={PRICING_SOURCE_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-                style={{ color: "#64748b" }}
-              >
+              <Link href={PRICING_SOURCE_URL} target="_blank" rel="noopener noreferrer">
                 GitHub Copilot Models and Pricing
-              </NextLink>
+              </Link>
               {" · "}Sist oppdatert: {PRICING_LAST_UPDATED}
             </BodyShort>
           </VStack>
