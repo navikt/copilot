@@ -2,7 +2,7 @@ import { BodyLong, BodyShort, Link, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Suspense } from "react";
-import { Bullets, code } from "@/components/nav-pilot/doc-page";
+import { Bullets, code, linkClass } from "@/components/nav-pilot/doc-page";
 import {
   ClassCountsTable,
   LocalModelsTable,
@@ -131,13 +131,13 @@ export default function LokaleModeller() {
           Hovedagenten er modellen i skyen som leder arbeidet. Den kan delegere avgrensede oppgaver til en lokal modell
           som subagent. Hva den får delegere, avgjør målingene, ikke modellen selv. Vil du ta i bruk en lokal modell,
           les{" "}
-          <Link as={NextLink} href="/nav-pilot/forklaring/lokal-modell">
+          <NextLink href="/nav-pilot/forklaring/lokal-modell" className={linkClass}>
             Lokal modell
-          </Link>
+          </NextLink>
           . Målingene står på{" "}
-          <Link as={NextLink} href="/innsikt/lokale-modeller/resultater">
+          <NextLink href="/innsikt/lokale-modeller/resultater" className={linkClass}>
             Resultater for lokale modeller
-          </Link>
+          </NextLink>
           .
         </>
       }

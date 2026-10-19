@@ -207,9 +207,9 @@ export default function LokaleModellerResultater() {
         <>
           Hver oppgavetype er målt på én maskin, og tallene her avgjør hva hovedagenten i skyen får delegere til en
           lokal modell. Hvilke modeller du kan kjøre, og hva de er godkjent for, står på{" "}
-          <Link as={NextLink} href="/innsikt/lokale-modeller">
+          <NextLink href="/innsikt/lokale-modeller" className={linkClass}>
             Lokale modeller
-          </Link>
+          </NextLink>
           .
         </>
       }
