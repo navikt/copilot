@@ -1,4 +1,4 @@
-import { BodyLong, BodyShort, Box, HGrid, Label, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, Box, HGrid, Label, Link, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Suspense } from "react";
@@ -95,15 +95,11 @@ function ManifestSections({ table }: { table: Table }) {
         <BodyShort size="small" textColor="subtle">
           Feilsøking ble målt første gang 12. oktober 2026, og ingen modell er godkjent for den ennå. Skymodellen besto
           10 av 10, så kravet er 95 prosent, og 10 kjøringer er for få til å vise det selv når alle består (
-          <a href={SOURCES.dbg} className={linkClass}>
-            rapporten
-          </a>
+          <Link href={SOURCES.dbg}>rapporten</Link>
           ). Nå måles feilsøking med testkjøringer i en sandkasse med egen Postgres-database. Skymodellen besto 30 av
           30. Qwen3.8-27B-8bit besto 19 av 30, og Qwen3.8-27B-OptiQ-4bit besto 17 av 25. Begge ligger langt under
           kravet, så feilsøking med disse modellene går til skyen (
-          <a href="https://github.com/navikt/mlx-workspace/pull/289" className={linkClass}>
-            mlx-workspace#289
-          </a>
+          <Link href="https://github.com/navikt/mlx-workspace/pull/289">mlx-workspace#289</Link>
           ).
         </BodyShort>
         <IntervalChart model={standard} />
