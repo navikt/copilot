@@ -323,6 +323,17 @@
       "sist-oppdatert": ["apps/my-copilot/src/app/(nb)/innsikt/lokale-modeller/page.tsx"]
     }
   },
+  "/innsikt/nav-pilot": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/tilpasninger/page.tsx"
+    ],
+    "anchors": {
+      "faktisk-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"]
+    }
+  },
   "/innsikt/team": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",

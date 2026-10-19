@@ -63,6 +63,13 @@ export default function Innsikt() {
                 description="Hvor mange navikt-repoer som har instruksjoner, agenter, skills og prompts, fordelt på team og språk. Krever innlogging."
               />
               <NavCard
+                href="/innsikt/nav-pilot"
+                prefetch={false}
+                icon={lock}
+                title="nav-pilot i bruk"
+                description="Hvordan nav-pilot brukes: enheter, klienter, økter og hvilke skills agenten velger. Krever innlogging."
+              />
+              <NavCard
                 href="/innsikt/undersokelser"
                 prefetch={false}
                 icon={lock}

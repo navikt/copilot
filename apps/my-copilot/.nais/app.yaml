@@ -93,6 +93,7 @@ spec:
       - /innsikt/forbruk
       - /innsikt/bruk
       - /innsikt/tilpasninger
+      - /innsikt/nav-pilot
       - /innsikt/trender
       - /innsikt/undersokelser/**
       - /innsikt/lokale-modeller

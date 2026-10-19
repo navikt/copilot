@@ -34,6 +34,7 @@ export const PRIVATE_ROUTES = [
   "/innsikt/forbruk",
   "/innsikt/bruk",
   "/innsikt/tilpasninger",
+  "/innsikt/nav-pilot",
   "/innsikt/trender",
   "/innsikt/undersokelser",
   "/admin",
