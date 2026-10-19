@@ -24,3 +24,15 @@ it("updates the selected month after navigation, discarding an unsubmitted edit"
   rerender(<TeamMonthPicker month="2026-08" />);
   expect(screen.getByLabelText("Måned")).toHaveValue("2026-08");
 });
+
+it.each([
+  ["?mine=1", "1"],
+  ["", null],
+])("keeps mine=1 on submit only when it is in the URL (%s)", (search, expected) => {
+  window.history.pushState({}, "", `/innsikt/team${search}`);
+  render(<TeamMonthPicker month="2026-09" />);
+  const form = screen.getByRole("form", { name: "Velg måned" }) as HTMLFormElement;
+  fireEvent.submit(form);
+  expect(new FormData(form).get("mine")).toBe(expected);
+  window.history.pushState({}, "", "/");
+});
