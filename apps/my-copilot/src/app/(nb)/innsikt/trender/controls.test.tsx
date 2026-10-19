@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
-import { Events, PeriodSelect } from "./controls";
+import { Events } from "@/components/chart-events";
+import { PeriodSelect } from "./controls";
 
 describe("hendelser på /innsikt/trender", () => {
   it("viser én nummerert liste med lenke til kilden for hver hendelse", () => {

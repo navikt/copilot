@@ -12,12 +12,14 @@ import { currentMonthUTC } from "@/lib/month-utils";
 import { formatNumber } from "@/lib/format";
 import { annotationsFor, monthLabel, parsePeriod, periodStart, showAllEvents, visibleMonths } from "@/lib/trends";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
-import { Events, PeriodSelect } from "./controls";
+import { PeriodSelect } from "./controls";
+import { Events } from "@/components/chart-events";
 import { Intensity, Movement, SegmentChanges, WayOfWorking } from "./segments";
 
 export const metadata: Metadata = {
   title: "Trender",
-  description: "Hvordan modellvalg, forbruk per bruker og Copilot i pull requests har endret seg måned for måned.",
+  description:
+    "Hvordan bruken av Copilot i Nav endrer seg måned for måned: intensitet, arbeidsmåte, nye brukere og Copilot i pull requests.",
 };
 
 const fallback = <Skeleton variant="rectangle" height={300} />;
@@ -142,15 +144,15 @@ export default async function TrenderPage({
           ut per person, men bare summene vises. Små grupper vises også, fordi ingen person eller team navngis. Perioden
           du velger, styrer hvilke kohorter som vises. Segmentene (<code>/usage/segments</code>) har hver sin «Kilde og
           metode» under grafen. «Hva har endret seg» regnes ut fra de samme tallene som grafene. «Sist oppdatert» er
-          siste dag med bruksdata i<code>v_daily_summary</code>.
+          siste dag med bruksdata i <code>v_daily_summary</code>.
         </>
       }
     >
       <PeriodSelect value={period.value} all={all} />
       <BodyShort>
-        Kostnad per modellfamilie og AI Credits per bruker finner du under{" "}
+        Kostnad per modellfamilie og AI Credits per bruker ligger nå på{" "}
         <Link as={NextLink} href="/innsikt/bruk#kostnad">
-          Kostnad på Bruk og kostnad
+          Bruk og kostnad
         </Link>
         .
       </BodyShort>

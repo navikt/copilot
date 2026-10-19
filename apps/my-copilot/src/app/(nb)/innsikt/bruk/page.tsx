@@ -27,6 +27,7 @@ import { formatNumber, formatMinutes, formatPercent, formatShare, formatUSD } fr
 import { annotationsFor, familyShares, formatPp, monthLabel, visibleMonths } from "@/lib/trends";
 import { CreditsPerUserChart, FamilyShareChart } from "@/components/charts/MonthlyTrendCharts";
 import { LinkableHeading } from "@/components/linkable-heading";
+import { Events } from "@/components/chart-events";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
 import NextLink from "next/link";
 import { getUser, getUserToken } from "@/lib/auth";
@@ -292,21 +293,11 @@ async function Repositories({ token }: { token: string }) {
   );
 }
 
-/** Says where the chart's data starts, and when the chosen period reaches further back than that. */
-function DataStart({ clamped, first }: { clamped: boolean; first?: string }) {
-  if (!first) return null;
-  return (
-    <BodyShort size="small" textColor="subtle">
-      Dataene starter i {monthLabel(first)}.{clamped && " Perioden du har valgt, går lenger tilbake enn det."}
-    </BodyShort>
-  );
-}
-
 async function ModelFamilies({ token }: { token: string }) {
   // 36 months is the most the endpoint returns.
   const { breakdown, error } = await getBillingModelBreakdown(token, 36);
   if (error) return <BodyShort>{`Kunne ikke hente kostnad per modell: ${error}`}</BodyShort>;
-  const { months, clamped, first } = visibleMonths(
+  const { months, first } = visibleMonths(
     breakdown.map((r) => r.year_month.slice(0, 7)),
     null
   );
@@ -314,7 +305,11 @@ async function ModelFamilies({ token }: { token: string }) {
   if (!data.series.length) return <BodyShort>Ingen kostnadsdata i perioden.</BodyShort>;
   return (
     <>
-      <DataStart clamped={clamped} first={first} />
+      {first && (
+        <BodyShort size="small" textColor="subtle">
+          Dataene starter i {monthLabel(first)}.
+        </BodyShort>
+      )}
       <FamilyShareChart data={data} annotations={annotationsFor(CHART_ANNOTATIONS, data.months, false, true)} />
     </>
   );
@@ -323,7 +318,7 @@ async function ModelFamilies({ token }: { token: string }) {
 async function CreditsPerUser({ token }: { token: string }) {
   const { months: rows, error } = await getCreditsPerUserMonthly(token);
   if (error) return <BodyShort>{`Kunne ikke hente AI Credits per bruker: ${error}`}</BodyShort>;
-  const { months, clamped, first } = visibleMonths(
+  const { months, first } = visibleMonths(
     rows.map((r) => r.month),
     null
   );
@@ -331,7 +326,11 @@ async function CreditsPerUser({ token }: { token: string }) {
   if (!data.length) return <BodyShort>Ingen data om AI Credits i perioden.</BodyShort>;
   return (
     <>
-      <DataStart clamped={clamped} first={first} />
+      {first && (
+        <BodyShort size="small" textColor="subtle">
+          Dataene starter i {monthLabel(first)}.
+        </BodyShort>
+      )}
       <CreditsPerUserChart months={months} data={data} annotations={annotationsFor(CHART_ANNOTATIONS, months, false)} />
     </>
   );
@@ -378,17 +377,17 @@ export default async function BrukPage() {
           <Cost token={token} />
         </Suspense>
         <BodyShort>
-          Se{" "}
           <Link as={NextLink} href="/innsikt/forbruk">
-            forbruk mot grensen
+            Forbruk mot grensen
           </Link>{" "}
-          for hvor mye av den månedlige grensen brukerne har brukt.
+          viser hvor stor del av månedsgrensen brukerne har nådd.
         </BodyShort>
         <LinkableHeading id="modellfamilier" size="small" level="3">
           Kostnad per modellfamilie
         </LinkableHeading>
+        <Events />
         <BodyShort size="small" textColor="subtle">
-          Andelene bygger på netto kostnad etter rabatt, de samme beløpene som over, fordelt på modeller.
+          Andelene fordeler de samme nettobeløpene som over på modellfamilier.
         </BodyShort>
         <Suspense fallback={fallback}>
           <ModelFamilies token={token} />
