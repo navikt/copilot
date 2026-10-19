@@ -59,7 +59,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data }) => {
 
   return (
     <ChartFigure
-      summary="Antall brukere av kodeforslag, chat og agent per dag."
+      summary="Daglig aktivitet: genererte kodeforslag, chatinteraksjoner og agentgenereringer."
       chart={<Line data={trendData} options={trendOptions} />}
     />
   );
