@@ -1,7 +1,7 @@
 # An agent's tools: allowlist reaches opencode as a permission block (#1026):
 # what the list leaves out is denied, so an agent that cannot edit or run shell
-# commands under Copilot cannot under opencode either. An agent without tools:
-# gets no block.
+# commands under Copilot cannot under opencode either. Only primary agents
+# get the interactive question permission, including those without tools:.
 
 fake-bin cplt opencode
 
@@ -21,7 +21,9 @@ grep '^  bash: deny$' $HOME/.config/opencode/agents/leser.md
 grep '^  edit: deny$' $HOME/.config/opencode/agents/leser.md
 ! grep '^  grep: deny$' $HOME/.config/opencode/agents/leser.md
 ! grep 'tools' $HOME/.config/opencode/agents/leser.md
-! grep 'permission' $HOME/.config/opencode/agents/grillmester.md
+! grep 'question' $HOME/.config/opencode/agents/leser.md
+grep '^permission:$' $HOME/.config/opencode/agents/grillmester.md
+grep '^  question: allow$' $HOME/.config/opencode/agents/grillmester.md
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}

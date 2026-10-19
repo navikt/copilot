@@ -39,6 +39,8 @@ You are %NAME%.
 			want: `---
 description: Plan and build Nav applications
 mode: primary
+permission:
+  question: allow
 ---
 
 
@@ -51,6 +53,8 @@ You are nav-pilot.
 			want: `---
 description: Plan and build Nav applications
 mode: primary
+permission:
+  question: allow
 ---
 
 
@@ -143,6 +147,8 @@ You are code-review.
 description: Plan and build Nav applications
 mode: primary
 model: github-copilot/claude-opus-4.6
+permission:
+  question: allow
 ---
 
 
@@ -242,5 +248,31 @@ func TestGoldenTransformAgentTools(t *testing.T) {
 	src = []byte("---\nname: open\ndescription: Open\n---\nbody\n")
 	if got := string(transformAgent(src, "open", nil)); strings.Contains(got, "permission") {
 		t.Errorf("an agent without tools: got a permission block: %q", got)
+	}
+}
+
+func TestTransformAgentQuestionPermission(t *testing.T) {
+	for _, agent := range []string{"nav-pilot", "nav-pilot-opus", "nais-platform", "nais-review"} {
+		for _, tools := range []string{"", "tools: ['*']\n", "tools: [read]\n"} {
+			t.Run(agent+"/"+tools, func(t *testing.T) {
+				input := []byte("---\ndescription: Test\n" + tools + "---\nbody\n")
+				for _, primary := range []bool{false, true} {
+					var primaries []string
+					if primary {
+						primaries = []string{agent}
+					}
+					got := string(transformAgent(input, agent, primaries))
+					if strings.Contains(got, "  question: allow\n") != primary {
+						t.Errorf("primary=%v: question permission in %q", primary, got)
+					}
+					if strings.Count(got, "permission:\n") > 1 {
+						t.Errorf("duplicate permission block: %q", got)
+					}
+					if tools == "tools: [read]\n" && (!strings.Contains(got, "  bash: deny\n") || !strings.Contains(got, "  edit: deny\n")) {
+						t.Errorf("lost tool restrictions: %q", got)
+					}
+				}
+			})
+		}
 	}
 }

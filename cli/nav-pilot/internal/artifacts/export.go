@@ -427,9 +427,18 @@ func transformAgent(data []byte, name string, primaries []string) []byte {
 	// The agent's tools: allowlist, as OpenCode permissions (#1026). Without
 	// it an agent that is read-only under Copilot could edit and run shell
 	// commands under OpenCode.
+	var permission []byte
 	if tools, ok := source.ExtractFrontmatterList(fm, "tools"); ok {
-		newFM = append(newFM, source.OpenCodeToolPermission(tools)...)
+		permission = source.OpenCodeToolPermission(tools)
 	}
+	// Custom primaries need the same interactive question access as build/plan.
+	if mode == "primary" {
+		if len(permission) == 0 {
+			permission = []byte("permission:\n")
+		}
+		permission = append(permission, []byte("  question: allow\n")...)
+	}
+	newFM = append(newFM, permission...)
 	return source.Reassemble(newFM, body)
 }
 
