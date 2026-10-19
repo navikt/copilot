@@ -141,6 +141,9 @@ export const LEGACY_ANCHORS: Record<string, string> = {
   "/nav-pilot/forklaring/lokal-modell#malt-decide": "/innsikt/lokale-modeller#malt-decide",
   "/nav-pilot/forklaring/lokal-modell#malt-utsending": "/innsikt/lokale-modeller#malt-delegering",
 
+  // nav-pilot telemetry moved from Tilpasninger to its own page.
+  "/innsikt/tilpasninger#faktisk-bruk": "/innsikt/nav-pilot#faktisk-bruk",
+
   // The measurements page moved to /innsikt/lokale-modeller (next.config.ts),
   // and "utsending" became "delegering".
   "/innsikt/lokale-modeller#utsendingsnivaer": "/innsikt/lokale-modeller#delegeringsnivaer",
