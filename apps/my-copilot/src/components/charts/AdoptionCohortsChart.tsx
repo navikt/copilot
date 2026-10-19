@@ -4,14 +4,8 @@ import type { AdoptionCohortWeek, AdoptionCohortTrendData } from "@/lib/types";
 import React from "react";
 import { BodyShort, Box } from "@navikt/ds-react";
 import { Line } from "react-chartjs-2";
-import {
-  axColor,
-  bottomLegend,
-  chartBoxClass,
-  commonLineOptions,
-  chartWrapperClass,
-  NO_DATA_MESSAGE,
-} from "@/lib/chart-utils";
+import { ChartFigure } from "@/components/charts/chart-figure";
+import { axColor, bottomLegend, commonLineOptions, chartWrapperClass, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 
 // Phase colours (Aksel tokens): muted grey → blue → purple → green
 const phaseTokens = ["neutral-500", "accent-600", "meta-purple-600", "success-600"];
@@ -128,11 +122,10 @@ const AdoptionCohortsChart: React.FC<AdoptionCohortsChartProps> = ({ data }) => 
   };
 
   return (
-    <Box padding="space-16" className={chartWrapperClass}>
-      <div className={chartBoxClass}>
-        <Line data={chartData} options={options} />
-      </div>
-    </Box>
+    <ChartFigure
+      summary="Antall brukere i hver adopsjonsfase, fra ingen KI-bruk til flere agentflater, over tid."
+      chart={<Line data={chartData} options={options} />}
+    />
   );
 };
 

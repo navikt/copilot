@@ -58,6 +58,9 @@ export type ActiveSurveys = { status: "ok"; surveys: Survey[] } | { status: "err
 // ponytail: copilot-survey serves only open surveys, so the page reads the
 // window around them from here. Update it when the next survey is scheduled;
 // a schedule endpoint in copilot-survey would replace it.
+/** Shown instead of a count below the k-anonymity threshold of five. */
+export const UNDER_FIVE = "under 5";
+
 export const SURVEY_SCHEDULE = { starts: "2026-10-13", ends: "2026-10-27" };
 
 /** Where today (UTC, as copilot-survey counts) falls against a window: before it, after it, or neither. */

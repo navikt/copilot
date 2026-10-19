@@ -4,10 +4,11 @@ import type { LanguageAdoption } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
 import { seriesColor, commonHorizontalBarOptions } from "@/lib/chart-utils";
-import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
+import { BodyShort, Box, VStack } from "@navikt/ds-react";
 import { TooltipItem } from "chart.js";
 import { getTopLanguagesForChart, getLanguageAdoptionRate, getLanguageRepoCount } from "@/lib/adoption-utils";
 import { formatPercent } from "@/lib/format";
+import { ChartFigure } from "@/components/charts/chart-figure";
 
 interface LanguageAdoptionChartProps {
   data: LanguageAdoption[];
@@ -62,12 +63,12 @@ const LanguageAdoptionChart: React.FC<LanguageAdoptionChartProps> = ({ data, max
   return (
     <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
       <VStack gap="space-16">
-        <Heading size="small" level="3">
-          Andel repoer med tilpasninger per programmeringsspråk
-        </Heading>
-        <div style={{ height: Math.max(300, topLanguages.length * 40) }}>
-          <Bar data={chartData} options={options} />
-        </div>
+        <ChartFigure
+          title="Andel repoer med tilpasninger per programmeringsspråk"
+          summary="Andel aktive repoer og andel av alle repoer med tilpasninger per programmeringsspråk, sortert etter andel aktive repoer."
+          height={Math.max(300, topLanguages.length * 40)}
+          chart={<Bar data={chartData} options={options} />}
+        />
       </VStack>
     </Box>
   );

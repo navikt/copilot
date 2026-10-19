@@ -14,10 +14,14 @@ export function ChartFigure({
   summary,
   chart,
   table,
+  height,
 }: {
-  title: string;
+  /** Leave out when the section heading above already names the chart. */
+  title?: string;
   summary: ReactNode;
   chart: ReactNode;
+  /** Canvas height in px for charts that grow with their rows; the default is chartBoxClass. */
+  height?: number;
   /** A ready table, or the cells for a plain one: the first row is the header. */
   table?: ReactNode | string[][];
 }) {
@@ -25,10 +29,17 @@ export function ChartFigure({
   return (
     <figure className="min-w-0 break-inside-avoid" style={{ margin: 0 }}>
       <VStack gap="space-8">
-        <Heading level="3" size="xsmall">
-          {title}
-        </Heading>
-        <div className={chartBoxClass} role="img" aria-labelledby={id}>
+        {title && (
+          <Heading level="3" size="xsmall">
+            {title}
+          </Heading>
+        )}
+        <div
+          className={height ? "relative" : chartBoxClass}
+          style={height ? { height } : undefined}
+          role="img"
+          aria-labelledby={id}
+        >
           {chart}
         </div>
         <figcaption id={id} className="sr-only text-sm print:not-sr-only">

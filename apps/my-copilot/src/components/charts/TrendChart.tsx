@@ -4,14 +4,8 @@ import type { DailyTrend } from "@/lib/types";
 import React from "react";
 import { BodyShort, Box } from "@navikt/ds-react";
 import { Line } from "react-chartjs-2";
-import {
-  seriesColor,
-  commonLineOptions,
-  chartWrapperClass,
-  chartBoxClass,
-  bottomLegend,
-  NO_DATA_MESSAGE,
-} from "@/lib/chart-utils";
+import { ChartFigure } from "@/components/charts/chart-figure";
+import { seriesColor, commonLineOptions, chartWrapperClass, bottomLegend, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 
 interface TrendChartProps {
   data: DailyTrend[];
@@ -60,19 +54,14 @@ const TrendChart: React.FC<TrendChartProps> = ({ data }) => {
     plugins: {
       ...commonLineOptions.plugins,
       legend: bottomLegend,
-      title: {
-        display: true,
-        text: "Daglig aktivitet over tid",
-      },
     },
   };
 
   return (
-    <Box padding="space-16" className={chartWrapperClass}>
-      <div className={chartBoxClass}>
-        <Line data={trendData} options={trendOptions} />
-      </div>
-    </Box>
+    <ChartFigure
+      summary="Daglig aktivitet: genererte kodeforslag, chatinteraksjoner og agentgenereringer."
+      chart={<Line data={trendData} options={trendOptions} />}
+    />
   );
 };
 

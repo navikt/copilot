@@ -3,10 +3,11 @@
 import type { MonthlyTrend } from "@/lib/types";
 import React from "react";
 import { Bar } from "react-chartjs-2";
-import { axColor, bottomLegend, chartBoxClass, seriesColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
+import { axColor, bottomLegend, seriesColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { VStack, HGrid, BodyShort, Box } from "@navikt/ds-react";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { currentMonthUTC, selectCompleteMonths } from "@/lib/month-utils";
+import { ChartFigure } from "@/components/charts/chart-figure";
 
 interface MonthlyTrendsChartProps {
   data: MonthlyTrend[];
@@ -135,22 +136,16 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
 
       {/* Charts */}
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
-        <Box background="neutral-soft" padding="space-16" borderRadius="8">
-          <VStack gap="space-8">
-            <BodyShort weight="semibold">Brukere per funksjon</BodyShort>
-            <div className={chartBoxClass}>
-              <Bar data={usersChartData} options={barOptions} />
-            </div>
-          </VStack>
-        </Box>
-        <Box background="neutral-soft" padding="space-16" borderRadius="8">
-          <VStack gap="space-8">
-            <BodyShort weight="semibold">Aktivitet per type</BodyShort>
-            <div className={chartBoxClass}>
-              <Bar data={activityChartData} options={barOptions} />
-            </div>
-          </VStack>
-        </Box>
+        <ChartFigure
+          title="Brukere per funksjon"
+          summary="Brukere per funksjon per måned."
+          chart={<Bar data={usersChartData} options={barOptions} />}
+        />
+        <ChartFigure
+          title="Aktivitet per type"
+          summary="Aktivitet per type per måned."
+          chart={<Bar data={activityChartData} options={barOptions} />}
+        />
       </HGrid>
     </VStack>
   );

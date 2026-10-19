@@ -4,9 +4,10 @@ import type { CustomizationDetail } from "@/lib/types";
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { bottomLegend, commonHorizontalBarOptions, seriesColor } from "@/lib/chart-utils";
-import { Box, Heading, BodyShort, HGrid } from "@navikt/ds-react";
+import { Box, BodyShort, HGrid } from "@navikt/ds-react";
 import { getOfficialFileNames } from "@/lib/customizations";
 import { sortCustomizationsByScope } from "@/lib/adoption-utils";
+import { ChartFigure } from "@/components/charts/chart-figure";
 
 interface TopCustomizationsChartProps {
   data: CustomizationDetail[];
@@ -77,15 +78,17 @@ function CategoryChart({
 
   return (
     <Box padding="space-16" borderRadius="8" borderWidth="1" borderColor="neutral-subtle" background="default">
-      <Heading size="small" level="3" spacing>
-        {categoryLabels[category] ?? category}
-      </Heading>
-      <div style={{ height: Math.max(200, top.length * 28 + 60) }}>
-        <Bar
-          data={{ labels: top.map((item) => item.file_name), datasets: originDatasets(top, officialNames) }}
-          options={options}
-        />
-      </div>
+      <ChartFigure
+        title={categoryLabels[category] ?? category}
+        summary={`De mest brukte filene i kategorien ${categoryLabels[category] ?? category}, etter antall repoer, delt på filer fra navikt/copilot og egne.`}
+        height={Math.max(200, top.length * 28 + 60)}
+        chart={
+          <Bar
+            data={{ labels: top.map((item) => item.file_name), datasets: originDatasets(top, officialNames) }}
+            options={options}
+          />
+        }
+      />
     </Box>
   );
 }

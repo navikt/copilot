@@ -169,7 +169,8 @@ function m2(data: MonthInsightData): MonthInsight | null {
   if (share(n, now) - share(p, then) <= LIMIT_PRESSURE_RISE_PP) return null;
   const details: string[] = [];
   const straddle = [now, then].some((d) => d.bands!.some((b) => b.first < idx && b.last >= idx && b.users > 0));
-  if (straddle) details.push("Tallene er et minimum: grupper under fem personer er slått sammen med gruppen under.");
+  if (straddle)
+    details.push("Tallene er et minimum: grupper med færre enn fem personer er slått sammen med gruppen under.");
   // Rough: everyone in a band whose lower edge, at this month's pace, passes 100 % by month end.
   const month = now.day.slice(0, 7);
   const dim = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).getUTCDate();
