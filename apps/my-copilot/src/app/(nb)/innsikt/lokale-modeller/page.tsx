@@ -134,6 +134,10 @@ export default function LokaleModeller() {
           <Link as={NextLink} href="/nav-pilot/forklaring/lokal-modell">
             Lokal modell
           </Link>
+          . Målingene står på{" "}
+          <Link as={NextLink} href="/innsikt/lokale-modeller/resultater">
+            Resultater for lokale modeller
+          </Link>
           .
         </>
       }
@@ -141,14 +145,6 @@ export default function LokaleModeller() {
       hourly
       source={source}
     >
-      <BodyLong>
-        Vil du se målingene bak vurderingene, går du til{" "}
-        <Link as={NextLink} href="/innsikt/lokale-modeller/resultater">
-          Lokale modeller: resultater
-        </Link>
-        .
-      </BodyLong>
-
       <Suspense fallback={<ManifestSections table={FALLBACK} />}>
         <LiveManifestSections />
       </Suspense>

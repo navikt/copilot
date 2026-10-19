@@ -34,11 +34,9 @@ import {
 // "AI Credits" is GitHub's name for the billing unit, so it keeps "AI". Other Norwegian text says KI.
 
 export const metadata: Metadata = {
-  title: "Lokale modeller: resultater",
-  description: "Målingene bak hva de lokale KI-modellene i nav-pilot er godkjent for, med rapportene de bygger på.",
+  title: "Resultater for lokale modeller",
+  description: "Målingene bak de lokale modellene i nav-pilot, med rapportene de bygger på.",
 };
-
-const FALLBACK = FALLBACK_TABLE;
 
 const modelName = (m: LocalModel) => m.model.split("/").pop();
 
@@ -203,13 +201,12 @@ const source = (
 export default function LokaleModellerResultater() {
   return (
     <InsightPage
-      title="Lokale modeller: resultater"
-      description="Målingene som avgjør hva de lokale modellene i nav-pilot er godkjent for, og rapportene de bygger på."
+      title="Resultater for lokale modeller"
+      description="Hva vi har målt, og hvordan det avgjør hva hovedagenten får delegere til en lokal modell."
       intro={
         <>
-          Hovedagenten er modellen i skyen som leder arbeidet. Den kan delegere avgrensede oppgaver til en lokal modell
-          som subagent. Hva den får delegere, avgjør målingene på denne siden. Hvilke modeller du kan kjøre, og hva de
-          er godkjent for, står på{" "}
+          Hver oppgavetype er målt på én maskin, og tallene her avgjør hva hovedagenten i skyen får delegere til en
+          lokal modell. Hvilke modeller du kan kjøre, og hva de er godkjent for, står på{" "}
           <Link as={NextLink} href="/innsikt/lokale-modeller">
             Lokale modeller
           </Link>
@@ -251,7 +248,7 @@ export default function LokaleModellerResultater() {
         />
       </HGrid>
 
-      <Suspense fallback={<MeasuredModelNote models={FALLBACK.models} />}>
+      <Suspense fallback={<MeasuredModelNote models={FALLBACK_TABLE.models} />}>
         <LiveMeasuredModelNote />
       </Suspense>
 
