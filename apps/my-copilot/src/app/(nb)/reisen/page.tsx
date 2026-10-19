@@ -1,5 +1,6 @@
 import { BodyLong, BodyShort, Box, Heading, Link, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
+import { formatDate } from "@/lib/format";
 import { PageHero } from "@/components/page-hero";
 import { getAllCustomizations } from "@/lib/customizations";
 import { getNewsItems } from "@/lib/news";
@@ -12,19 +13,13 @@ export const metadata: Metadata = {
 
 const REPO = "https://github.com/navikt/copilot";
 
-const dateFormat = new Intl.DateTimeFormat("nb-NO", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
 const monthFormat = new Intl.DateTimeFormat("nb-NO", { month: "long", year: "numeric", timeZone: "UTC" });
 
 /** «8. oktober 2026», or «juli–oktober 2026» for an item that spans several months. */
 function formatWhen(date: string, end?: string): string {
   if (date.length === 4) return date;
   if (date.length === 7 && !end) return monthFormat.format(new Date(date));
-  if (!end) return dateFormat.format(new Date(date));
+  if (!end) return formatDate(date);
   const [from, to] = [monthFormat.format(new Date(date)), monthFormat.format(new Date(end))];
   if (from === to) return from;
   const sameYear = date.slice(0, 4) === end.slice(0, 4);

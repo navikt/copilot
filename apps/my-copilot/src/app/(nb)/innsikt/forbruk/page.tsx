@@ -1,10 +1,11 @@
 import { Suspense, cache } from "react";
 import type { Metadata } from "next";
-import { Alert, BodyShort, List, Skeleton } from "@navikt/ds-react";
+import { Alert, BodyShort, List } from "@navikt/ds-react";
 import { ListItem } from "@navikt/ds-react/List";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
+import { ChartSkeleton } from "@/components/section-skeleton";
 import { SpendBandChart, SpendForecastChart } from "@/components/charts/SpendBandCharts";
 import { getSpendBands } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 const spendBands = cache(getSpendBands);
-const fallback = <Skeleton variant="rectangle" height={320} />;
+const fallback = <ChartSkeleton />;
 
 async function load(token: string): Promise<SpendBands | null> {
   try {

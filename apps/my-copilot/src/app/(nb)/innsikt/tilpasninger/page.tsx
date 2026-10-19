@@ -11,7 +11,8 @@ import {
 } from "@/components/charts/adoption";
 import MetricCard from "@/components/metric-card";
 import ErrorState from "@/components/error-state";
-import { HGrid, Skeleton, BodyShort, Link, Table } from "@navikt/ds-react";
+import { ChartSkeleton } from "@/components/section-skeleton";
+import { HGrid, BodyShort, Link, Table } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
 const adoptionFor = cache(getAdoptionData);
 const stalenessFor = cache(getStalenessData);
 
-const fallback = <Skeleton variant="rectangle" height={300} />;
+const fallback = <ChartSkeleton />;
 
 // Two cards side by side from sm, so a section never leaves an empty grid cell.
 const cards = (children: ReactNode) => (

@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Alert, BodyShort, Link, Skeleton } from "@navikt/ds-react";
+import { Alert, BodyShort, Link } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
+import { ChartSkeleton } from "@/components/section-skeleton";
 import { CopilotPRChart } from "@/components/charts/MonthlyTrendCharts";
 import { getCohortRetention, getCopilotPRsMonthly, getDailySummary } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
     "Hvordan bruken av Copilot i Nav endrer seg måned for måned: intensitet, arbeidsmåte, nye brukere og Copilot i pull requests.",
 };
 
-const fallback = <Skeleton variant="rectangle" height={300} />;
+const fallback = <ChartSkeleton />;
 
 /** Says where the chart's data starts, and when the chosen period reaches further back than that. */
 function DataStart({ clamped, first }: { clamped: boolean; first?: string }) {
