@@ -112,7 +112,7 @@ export default function LokalModellForklaring() {
             målingene mer og tok lengre tid enn å la skymodellen gjøre alt selv. <code className={code}>balanced</code>{" "}
             delegerte nesten ingenting og kostet likevel mer, så <code className={code}>aggressive</code> er standard
             fra 30. september 2026. Tallene står i{" "}
-            <NextLink href="/innsikt/lokale-modeller#delegeringsnivaer" className={linkClass}>
+            <NextLink href="/innsikt/lokale-modeller/resultater#delegeringsnivaer" className={linkClass}>
               Målinger
             </NextLink>
             .

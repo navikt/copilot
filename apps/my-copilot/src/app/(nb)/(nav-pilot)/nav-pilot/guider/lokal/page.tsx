@@ -246,7 +246,7 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
           </Bullets>
           <BodyLong>
             Modellen er mer treffsikker på «ja» enn på «nei», og ordlyden betyr mye. Tallene står i{" "}
-            <NextLink href="/innsikt/lokale-modeller#malt-decide" className={linkClass}>
+            <NextLink href="/innsikt/lokale-modeller/resultater#malt-decide" className={linkClass}>
               Målinger
             </NextLink>
             .

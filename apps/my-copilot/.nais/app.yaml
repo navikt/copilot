@@ -97,6 +97,7 @@ spec:
       - /innsikt/trender
       - /innsikt/undersokelser/**
       - /innsikt/lokale-modeller
+      - /innsikt/lokale-modeller/resultater
       - /admin
       - /admin/kostnad
       - /admin/kostnad/rapport

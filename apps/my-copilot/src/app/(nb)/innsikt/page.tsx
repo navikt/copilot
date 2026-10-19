@@ -92,7 +92,7 @@ export default function Innsikt() {
                 href="/innsikt/lokale-modeller"
                 icon={<MonitorIcon aria-hidden fontSize="1.75rem" />}
                 title="Lokale modeller"
-                description="Hvilke modeller nav-pilot kan kjøre på din Mac, og hva målingene viser."
+                description="Hvilke modeller nav-pilot kan kjøre på din Mac, og hva de er godkjent for."
               />
               <NavCard
                 href="/reisen"
