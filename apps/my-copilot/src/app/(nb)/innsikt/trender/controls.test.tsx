@@ -23,4 +23,12 @@ describe("hendelser på /innsikt/trender", () => {
     rerender(<PeriodSelect value="12" all />);
     expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
   });
+
+  it("beholder ?periode= med de samme verdiene", () => {
+    render(<PeriodSelect value="6" all={false} />);
+    const select = screen.getByLabelText("Periode") as HTMLSelectElement;
+    expect(select.name).toBe("periode");
+    expect(select).toHaveValue("6");
+    expect([...select.options].map((o) => o.value)).toEqual(["3", "6", "12", "alt"]);
+  });
 });
