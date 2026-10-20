@@ -4,7 +4,7 @@ import { Alert, BodyShort, List } from "@navikt/ds-react";
 import { ListItem } from "@navikt/ds-react/List";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
-import ErrorState from "@/components/error-state";
+import ErrorState, { SectionError } from "@/components/error-state";
 import { ChartSkeleton } from "@/components/section-skeleton";
 import { SpendBandChart, SpendForecastChart } from "@/components/charts/SpendBandCharts";
 import { getSpendBands } from "@/lib/cached-bigquery";
@@ -39,7 +39,7 @@ const uncertain = (
 
 async function Bands({ token }: { token: string }) {
   const data = await load(token);
-  if (!data) return <ErrorState message="Kunne ikke hente forbruk per bånd." />;
+  if (!data) return <SectionError message="Kunne ikke hente forbruk per bånd." />;
   const months = [...data.months, ...(data.current ? [{ ...data.current, projected: true }] : [])];
   if (!months.length) return <BodyShort>Ingen fakturerte måneder ennå.</BodyShort>;
   return (
@@ -62,7 +62,7 @@ async function Bands({ token }: { token: string }) {
 
 async function Current({ token }: { token: string }) {
   const data = await load(token);
-  if (!data) return <ErrorState message="Kunne ikke hente prognosen." />;
+  if (!data) return <SectionError message="Kunne ikke hente prognosen." />;
   const c = data.current;
   if (!c) return <BodyShort>Ingen prognose ennå. Den kommer når fakturaen for forrige måned er lest inn.</BodyShort>;
   if (!c.bands) return <BodyShort>For få brukere til å vise fordelingen.</BodyShort>;
@@ -104,7 +104,7 @@ async function Current({ token }: { token: string }) {
 
 async function Forecast({ token }: { token: string }) {
   const data = await load(token);
-  if (!data) return <ErrorState message="Kunne ikke hente prognosen." />;
+  if (!data) return <SectionError message="Kunne ikke hente prognosen." />;
   if (!data.forecast.length) return <BodyShort>For lite data til en prognose ennå.</BodyShort>;
   return (
     <>

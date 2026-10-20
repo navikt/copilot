@@ -1,6 +1,6 @@
 import { Alert, BodyShort, VStack } from "@navikt/ds-react";
 import { InsightSection } from "@/components/insight-page";
-import ErrorState from "@/components/error-state";
+import { SectionError } from "@/components/error-state";
 import { getCostForecast } from "@/lib/cached-bigquery";
 import { formatPercent } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
@@ -74,7 +74,7 @@ export async function CostForecastSection({ token, months = [] }: { token: strin
   }
   return (
     <InsightSection id="prognose" title="Prognose">
-      {data ? <CostForecastView data={data} /> : <ErrorState message="Kunne ikke hente prognosen." />}
+      {data ? <CostForecastView data={data} /> : <SectionError message="Kunne ikke hente prognosen." />}
       {data && <CostForecastCharts data={data} months={months} />}
     </InsightSection>
   );

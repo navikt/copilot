@@ -1,7 +1,7 @@
 import { BodyShort, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { InsightSection } from "@/components/insight-page";
-import ErrorState from "@/components/error-state";
+import { SectionError } from "@/components/error-state";
 import {
   getAdminActiveUsers,
   getAdminMonthlyOverview,
@@ -260,11 +260,11 @@ export async function CostTrendsSection({ token, events }: { token: string; even
   return (
     <InsightSection id="trender" title="Trender">
       {error ? (
-        <ErrorState message="Kunne ikke hente forbruk per måned." />
+        <SectionError message="Kunne ikke hente forbruk per måned." />
       ) : (
         <>
           {(breakdownError || !active || !admin) && (
-            <ErrorState
+            <SectionError
               message={`Kunne ikke hente ${[breakdownError && "fordelingen på KI-modeller", !active && "aktive brukere", !admin && "lisenskostnaden"].filter(Boolean).join(", ")}.`}
             />
           )}

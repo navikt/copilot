@@ -1,5 +1,15 @@
 import { render, screen } from "@testing-library/react";
-import ErrorState from "./error-state";
+import ErrorState, { SectionError } from "./error-state";
+
+describe("SectionError", () => {
+  it("renders the message as an alert without a heading or main", () => {
+    render(<SectionError message="Kunne ikke hente prognosen." />);
+
+    expect(screen.getByText("Kunne ikke hente prognosen.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    expect(screen.queryByRole("main")).not.toBeInTheDocument();
+  });
+});
 
 describe("ErrorState", () => {
   it("renders default title and message", () => {

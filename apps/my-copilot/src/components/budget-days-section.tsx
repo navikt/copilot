@@ -1,5 +1,5 @@
 import { InsightSection } from "@/components/insight-page";
-import ErrorState from "@/components/error-state";
+import { SectionError } from "@/components/error-state";
 import { BudgetDaysView } from "@/components/budget-days";
 import { getAdminBudgetDays } from "@/lib/cached-bigquery";
 import type { CostEvent } from "@/lib/cost-events";
@@ -14,7 +14,7 @@ export async function BudgetDaysSection({ token, events }: { token: string; even
       {days ? (
         <BudgetDaysView days={days} events={events} />
       ) : (
-        <ErrorState message="Kunne ikke hente fordelingen mot personlig budsjett." />
+        <SectionError message="Kunne ikke hente fordelingen mot personlig budsjett." />
       )}
     </InsightSection>
   );
