@@ -337,7 +337,7 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
           )}
           <div className="w-full overflow-x-auto">
             <table
-              className="w-full min-w-max sm:min-w-0 text-sm border-collapse"
+              className="w-full text-sm border-collapse"
               style={{ borderRadius: "0.75rem", overflow: "hidden", border: "1px solid #e2e8f0" }}
             >
               <thead>

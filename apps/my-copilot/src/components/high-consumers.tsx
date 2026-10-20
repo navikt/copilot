@@ -1,7 +1,7 @@
 import { BodyShort, Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { InsightSection } from "@/components/insight-page";
-import ErrorState from "@/components/error-state";
+import { SectionError } from "@/components/error-state";
 import { getAdminHighConsumers } from "@/lib/cached-bigquery";
 import { formatNumber, formatPercent, formatUSD } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
@@ -203,7 +203,7 @@ export async function HighConsumersSection({ token, events }: { token: string; e
     console.error("[kostnad] Failed to fetch high consumers:", error);
     return (
       <InsightSection id="storforbrukere" title="Storforbrukere">
-        <ErrorState message="Kunne ikke hente storforbrukere." />
+        <SectionError message="Kunne ikke hente storforbrukere." />
       </InsightSection>
     );
   }

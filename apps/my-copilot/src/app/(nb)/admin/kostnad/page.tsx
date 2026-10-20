@@ -7,7 +7,7 @@ import { ListItem } from "@navikt/ds-react/List";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import { MonthInsightsSection } from "@/components/cost-anomalies";
-import ErrorState from "@/components/error-state";
+import ErrorState, { SectionError } from "@/components/error-state";
 import { ChartFigure, NumbersFold } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
 import { getUserToken, requireAdmin } from "@/lib/auth";
@@ -100,7 +100,7 @@ async function PerMonth({ token, year }: { token: string; year: number }) {
     data = await loadMonthly(token);
   } catch (error) {
     console.error("[kostnad] Failed to fetch admin monthly usage:", error);
-    return <ErrorState message="Kunne ikke hente Navs forbruk." />;
+    return <SectionError message="Kunne ikke hente Navs forbruk." />;
   }
   const events = await loadEvents(token);
 

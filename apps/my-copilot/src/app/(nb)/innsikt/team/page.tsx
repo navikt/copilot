@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { BodyShort } from "@navikt/ds-react";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import TeamGrossUsage from "@/components/team-gross-usage";
-import ErrorState from "@/components/error-state";
+import ErrorState, { SectionError } from "@/components/error-state";
 import { getMyTeams, getTeamGrossOverview, getTeamNetOverview } from "@/lib/cached-bigquery";
 import { getUser, getUserToken } from "@/lib/auth";
 import { BackendApiError } from "@/lib/backend-api";
@@ -26,7 +26,7 @@ async function TeamSpend({ month, token, mine }: { month: string; token: string;
     gross = await grossOverview(month, token);
   } catch (error) {
     console.error("[team] Gross usage failed:", error);
-    return <ErrorState message="Kunne ikke hente teamenes brutto KI-bruk." />;
+    return <SectionError message="Kunne ikke hente teamenes brutto KI-bruk." />;
   }
   if (!gross.last_usage_day) return <BodyShort>Ingen teamdata for denne måneden.</BodyShort>;
 
