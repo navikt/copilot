@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import NextLink from "next/link";
 import { Alert, BodyLong, Heading, Link, VStack } from "@navikt/ds-react";
 import { Bullets, DocPage } from "@/components/nav-pilot/doc-page";
 import { getUser, getUserToken, isAdmin } from "@/lib/auth";
@@ -64,9 +63,7 @@ export default async function SurveyPage({
               <Bullets>
                 {surveys.map((s) => (
                   <li key={s.id}>
-                    <Link as={NextLink} href={`/nav-pilot/undersokelse?id=${encodeURIComponent(s.id)}`}>
-                      {s.title}
-                    </Link>
+                    <Link href={`/nav-pilot/undersokelse?id=${encodeURIComponent(s.id)}`}>{s.title}</Link>
                   </li>
                 ))}
               </Bullets>

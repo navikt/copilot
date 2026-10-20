@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Alert, BodyShort, Link } from "@navikt/ds-react";
-import NextLink from "next/link";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
@@ -152,10 +151,7 @@ export default async function TrenderPage({
       <PeriodSelect value={period.value} all={all} />
       <BodyShort>
         Kostnad per modellfamilie og AI Credits per bruker ligger nå på{" "}
-        <Link as={NextLink} href="/innsikt/bruk#kostnad">
-          Bruk og kostnad
-        </Link>
-        .
+        <Link href="/innsikt/bruk#kostnad">Bruk og kostnad</Link>.
       </BodyShort>
       <InsightSection id="hva-har-endret-seg" title="Hva har endret seg">
         <Suspense fallback={fallback}>

@@ -30,7 +30,6 @@ import { CreditsPerUserChart, FamilyShareChart } from "@/components/charts/Month
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Events } from "@/components/chart-events";
 import { CHART_ANNOTATIONS } from "../../reisen/milestones";
-import NextLink from "next/link";
 import { getUser, getUserToken } from "@/lib/auth";
 import type { EnterpriseMetrics } from "@/lib/types";
 
@@ -378,10 +377,8 @@ export default async function BrukPage() {
           <Cost token={token} />
         </Suspense>
         <BodyShort>
-          <Link as={NextLink} href="/innsikt/forbruk">
-            Forbruk mot grensen
-          </Link>{" "}
-          viser hvor stor del av månedsgrensen brukerne har nådd.
+          <Link href="/innsikt/forbruk">Forbruk mot grensen</Link> viser hvor stor del av månedsgrensen brukerne har
+          nådd.
         </BodyShort>
         <LinkableHeading id="modellfamilier" size="small" level="3">
           Kostnad per modellfamilie
