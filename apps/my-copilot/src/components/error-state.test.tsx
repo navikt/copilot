@@ -15,7 +15,7 @@ describe("ErrorState", () => {
   it("renders default title and message", () => {
     render(<ErrorState message="Noe gikk galt" />);
 
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Copilot Statistikk");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Kunne ikke hente dataene");
     expect(screen.getByText("Noe gikk galt")).toBeInTheDocument();
   });
 

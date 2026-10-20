@@ -6,7 +6,7 @@ interface ErrorStateProps {
 }
 
 /** Whole-page fallback, rendered instead of the page shell. Inside a page, use SectionError. */
-export default function ErrorState({ title = "Copilot Statistikk", message }: ErrorStateProps) {
+export default function ErrorState({ title = "Kunne ikke hente dataene", message }: ErrorStateProps) {
   return (
     <main id="hovedinnhold" tabIndex={-1} className="max-w-7xl">
       <Box paddingBlock="space-12" paddingInline="space-8">
