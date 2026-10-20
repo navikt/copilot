@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-10-14
+ * Last updated: 2026-10-20
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -26,15 +26,6 @@ export interface ModelPrice {
 export const MODEL_PRICING: ModelPrice[] = [
   // OpenAI
   {
-    model: "GPT-5 mini (Default)",
-    provider: "OpenAI",
-    category: "Lightweight",
-    status: "GA",
-    input: 0.25,
-    cachedInput: 0.025,
-    output: 2,
-  },
-  {
     model: "GPT-5.3-Codex (Default)",
     provider: "OpenAI",
     category: "Powerful",
@@ -44,33 +35,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 14,
   },
   {
-    model: "GPT-5.4 (Default, ≤ 272K)",
-    provider: "OpenAI",
-    category: "Versatile",
-    status: "GA",
-    input: 2.5,
-    cachedInput: 0.25,
-    output: 15,
-  },
-  {
-    model: "GPT-5.4 (Long context, 272K)",
-    provider: "OpenAI",
-    category: "Versatile",
-    status: "GA",
-    input: 5,
-    cachedInput: 0.5,
-    output: 22.5,
-  },
-  {
-    model: "GPT-5.4 mini (Default)",
-    provider: "OpenAI",
-    category: "Lightweight",
-    status: "GA",
-    input: 0.75,
-    cachedInput: 0.075,
-    output: 4.5,
-  },
-  {
     model: "GPT-5.4 nano (Default)",
     provider: "OpenAI",
     category: "Lightweight",
@@ -78,24 +42,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     input: 0.2,
     cachedInput: 0.02,
     output: 1.25,
-  },
-  {
-    model: "GPT-5.5 (Default, ≤ 272K)",
-    provider: "OpenAI",
-    category: "Powerful",
-    status: "GA",
-    input: 5,
-    cachedInput: 0.5,
-    output: 30,
-  },
-  {
-    model: "GPT-5.5 (Long context, 272K)",
-    provider: "OpenAI",
-    category: "Powerful",
-    status: "GA",
-    input: 10,
-    cachedInput: 1,
-    output: 45,
   },
   {
     model: "GPT-5.6 Luna (Default, ≤ 200K)",
@@ -370,17 +316,6 @@ export const MODEL_PRICING: ModelPrice[] = [
   },
   // Google
   {
-    model: "Gemini 3.7 Flash (Default)",
-    provider: "Google",
-    category: "Versatile",
-    status: "GA",
-    input: 0.75,
-    cachedInput: 0.075,
-    output: 3.75,
-    promotionEndsOn: "2026-12-31",
-    note: "Gemini 3.7 Flash and Gemini 3.8 Flash are available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
-  },
-  {
     model: "Gemini 3.8 Flash (Default)",
     provider: "Google",
     category: "Versatile",
@@ -389,7 +324,7 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.075,
     output: 3.75,
     promotionEndsOn: "2026-12-31",
-    note: "Gemini 3.7 Flash and Gemini 3.8 Flash are available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
+    note: "Gemini 3.8 Flash is available at the promotional pricing of $0.75 per 1M input tokens, $0.075 per 1M cached input tokens, and $3.75 per 1M output tokens through December 31, 2026.",
   },
   {
     model: "Gemini 4 Argon (Default)",
@@ -425,4 +360,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-10-14";
+export const PRICING_LAST_UPDATED = "2026-10-20";
