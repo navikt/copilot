@@ -1,8 +1,0 @@
-{
-  "description": "Kompatibilitetsalias som laster aksel-builder. Velg aksel-builder direkte for nye layout- og spacing-oppgaver.",
-  "domain": "frontend",
-  "tags": ["aksel", "compatibility", "spacing"],
-  "examples": [
-    "Bruk aksel-spacing fra en eldre oppskrift; last aksel-builder for oppdaterte layout-regler"
-  ]
-}
