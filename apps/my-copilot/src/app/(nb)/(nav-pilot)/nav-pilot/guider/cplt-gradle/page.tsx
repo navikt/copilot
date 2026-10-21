@@ -25,6 +25,7 @@ const TOC: TocItem[] = [
 const FAQ = "/nav-pilot/guider/cplt-feilmeldinger";
 const KNOWN_IMPACTS = "https://github.com/navikt/cplt/blob/main/docs/known-impacts.md";
 const PENSJONSBREV = "https://github.com/navikt/pensjonsbrev/blob/main/.cplt.toml";
+const TESTCONTAINERS_PODMAN = "https://java.testcontainers.org/supported_docker_environment/#podman";
 
 export default function CpltGradle() {
   return (
@@ -273,8 +274,7 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             <li>
               <strong>Gi agenten Docker.</strong> Da virker Testcontainers, også med colima. Agenten kan da gjøre alt
               Docker kan, og lese <code className={code}>~/.docker</code> med registerinnloggingene dine. Bruk det bare
-              i et repo du stoler på, og helst bare for én økt. Med en vanlig Docker-installasjon på Linux får agenten
-              da root-daemonen.
+              i et repo du stoler på, og helst bare for én økt. På Linux med vanlig Docker får agenten root-daemonen.
             </li>
             <li>
               <strong>Gi agenten rootless Podman eller Docker (bare Linux).</strong> Agenten når bare socketene under{" "}
@@ -283,7 +283,7 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
               <a href="#rootless" className={linkClass}>
                 rootless Podman på Linux
               </a>{" "}
-              under.
+              nedenfor.
             </li>
           </Bullets>
           <BodyLong>En database på port 5432, startet utenfor cplt:</BodyLong>
@@ -309,13 +309,21 @@ cplt config set sandbox.allow_docker true --force`}
             <code className={code}>$XDG_RUNTIME_DIR</code> (<code className={code}>docker.sock</code> og{" "}
             <code className={code}>podman/</code>). Socketene til root-daemonen, Docker Desktop og colima forblir
             stengt, og <code className={code}>~/.docker</code> er fortsatt sperret. Start Podman-socketen, pek klienten
-            mot den og start cplt:
+            mot den, slå av Ryuk og start cplt:
           </BodyLong>
           <CodeBlock compact>
             {`systemctl --user start podman.socket
 export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
+export TESTCONTAINERS_RYUK_DISABLED=true
 cplt --allow-rootless-docker`}
           </CodeBlock>
+          <BodyLong>
+            Med rootless Podman må Ryuk være av, ifølge{" "}
+            <a href={TESTCONTAINERS_PODMAN} className={linkClass}>
+              Testcontainers-dokumentasjonen
+            </a>{" "}
+            (engelsk). Uten Ryuk må du selv rydde opp containere som står igjen etter en avbrutt testkjøring.
+          </BodyLong>
           <BodyLong>Slik slår du det på fast:</BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_rootless_docker true --force`}</CodeBlock>
           <Bullets>
