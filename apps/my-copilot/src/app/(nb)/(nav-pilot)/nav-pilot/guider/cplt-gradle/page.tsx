@@ -25,6 +25,7 @@ const TOC: TocItem[] = [
 const FAQ = "/nav-pilot/guider/cplt-feilmeldinger";
 const KNOWN_IMPACTS = "https://github.com/navikt/cplt/blob/main/docs/known-impacts.md";
 const PENSJONSBREV = "https://github.com/navikt/pensjonsbrev/blob/main/.cplt.toml";
+const TESTCONTAINERS_PODMAN = "https://java.testcontainers.org/supported_docker_environment/#podman";
 
 export default function CpltGradle() {
   return (
@@ -258,7 +259,7 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             <NextLink href="/nav-pilot/guider/cplt-oppsett#docker" className={linkClass}>
               Docker
             </NextLink>{" "}
-            i oppsettguiden). Testcontainers feiler derfor i cplt uten videre. Du har tre muligheter, fra tryggest til
+            i oppsettguiden). Testcontainers feiler derfor i cplt uten videre. Du har fire muligheter, fra tryggest til
             minst trygg:
           </BodyLong>
           <Bullets>
@@ -271,9 +272,18 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
               containerne selv.
             </li>
             <li>
+              <strong>Gi agenten rootless Podman eller Docker (bare Linux).</strong> Agenten når bare socketene under{" "}
+              <code className={code}>$XDG_RUNTIME_DIR</code>, ikke root-daemonen, og får ikke{" "}
+              <code className={code}>~/.docker</code>. Se{" "}
+              <a href="#rootless" className={linkClass}>
+                rootless Podman på Linux
+              </a>{" "}
+              nedenfor.
+            </li>
+            <li>
               <strong>Gi agenten Docker.</strong> Da virker Testcontainers, også med colima. Agenten kan da gjøre alt
               Docker kan, og lese <code className={code}>~/.docker</code> med registerinnloggingene dine. Bruk det bare
-              i et repo du stoler på, og helst bare for én økt.
+              i et repo du stoler på, og helst bare for én økt. På Linux med vanlig Docker får agenten root-daemonen.
             </li>
           </Bullets>
           <BodyLong>En database på port 5432, startet utenfor cplt:</BodyLong>
@@ -291,6 +301,46 @@ cplt config set sandbox.allow_docker true --force`}
             satt, som utenfor cplt. cplt sender <code className={code}>DOCKER_HOST</code> og{" "}
             <code className={code}>TESTCONTAINERS_*</code> videre til agenten.
           </BodyLong>
+          <LinkableHeading id="rootless" size="small" level="3">
+            Rootless Podman på Linux
+          </LinkableHeading>
+          <BodyLong>
+            Med <code className={code}>--allow-rootless-docker</code> åpner cplt bare rootless-socketene under{" "}
+            <code className={code}>$XDG_RUNTIME_DIR</code> (<code className={code}>docker.sock</code> og{" "}
+            <code className={code}>podman/</code>). Socketene til root-daemonen, Docker Desktop og colima forblir
+            stengt, og <code className={code}>~/.docker</code> er fortsatt sperret. Start Podman-socketen, pek klienten
+            mot den, slå av Ryuk og start cplt:
+          </BodyLong>
+          <CodeBlock compact>
+            {`systemctl --user start podman.socket
+export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
+export TESTCONTAINERS_RYUK_DISABLED=true
+cplt --allow-rootless-docker`}
+          </CodeBlock>
+          <BodyLong>
+            Med rootless Podman må Ryuk være av, ifølge{" "}
+            <a href={TESTCONTAINERS_PODMAN} className={linkClass}>
+              Testcontainers-dokumentasjonen
+            </a>{" "}
+            (engelsk). Uten Ryuk må du selv rydde opp containere som står igjen etter en avbrutt testkjøring.
+          </BodyLong>
+          <BodyLong>Slik slår du det på fast:</BodyLong>
+          <CodeBlock compact>{`cplt config set sandbox.allow_rootless_docker true --force`}</CodeBlock>
+          <Bullets>
+            <li>
+              <strong>Containerne kjører fortsatt utenfor sandkassen, som deg.</strong> En container kan montere
+              hjemmekatalogen din og lese alt du kan lese. Bruk det bare i et repo du stoler på.
+            </li>
+            <li>
+              Socketene til root-daemonen er bare stengt når cplt kjører med bubblewrap eller Landlock ABI v9 (kernel
+              7.1 eller nyere). Oppstartsbanneret viser hva som gjelder.
+            </li>
+            <li>
+              Er både <code className={code}>allow_docker</code> og <code className={code}>allow_rootless_docker</code>{" "}
+              satt, gjelder <code className={code}>allow_docker</code>. På macOS har innstillingen ingen virkning, og
+              cplt gir en advarsel.
+            </li>
+          </Bullets>
         </VStack>
       </section>
 
