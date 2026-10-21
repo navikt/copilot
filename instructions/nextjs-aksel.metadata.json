@@ -1,6 +1,6 @@
 {
-  "displayName": "Next.js/Aksel Development",
-  "description": "Aksel spacing tokens (never Tailwind p-/m-), correct background/borderRadius token names, mobile-first responsive design with layout primitives.",
+  "displayName": "Next.js og Aksel",
+  "description": "Samlede regler for Next.js App Router og Aksel: server-/klientgrenser, data, autentisering og versjonstilpasset Aksel-oppsett via aksel-builder.",
   "domain": "frontend",
   "tags": [
     "aksel",
@@ -14,6 +14,7 @@
   ],
   "examples": [
     "Lag en responsiv søknadsoversikt med Aksel Box og VStack",
-    "Hva er riktig bakgrunnsfarge-token for en lys grå boks i Aksel v8?"
+    "Sett opp Aksel med CSS, Theme og norsk locale i App Router",
+    "Gjennomgå autentisering, validering og feilhåndtering i en Server Action"
   ]
 }

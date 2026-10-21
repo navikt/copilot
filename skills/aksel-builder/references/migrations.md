@@ -10,26 +10,32 @@ and don't rely on memory for which exist — **list them from MCP**, since the s
 { "query": "v8", "kind": "migrations" } // or "7->8", a keyword, or omit query for all
 ```
 
-The response includes the CLI version, the run command, and matching codemods (each with a
-`name`, `description`, and sometimes a `warning`). You can also read the whole set from the
-`aksel-migrations://catalog` resource.
+The response includes a run command and matching codemods (each with a `name`,
+`description`, and sometimes a `warning`). Its current `cliVersion` field is populated
+from the MCP package version, not the installed `@navikt/aksel` CLI; don't use it to select
+a CLI release. Check the intended CLI version and read the matching migration guide.
+You can also read the catalog from `aksel-migrations://catalog`.
 
-For any upgrade/breaking-change/codemod question, use `kind:"migrations"` —
-`find_docs` with `kind:"docs"` is the wrong tool and will hint you to switch.
+Use `kind:"migrations"` to find codemods. Use `kind:"docs"` or the docs index to find
+the migration guide and manual steps; a codemod catalog is not a complete upgrade guide.
 
 ## Run a codemod
 
 ```bash
-pnx @navikt/aksel codemod <name>
+pnpx @navikt/aksel codemod <name>
 ```
+
+Use the project's approved package runner and chosen CLI version. Review the working
+tree before running a codemod; preserve unrelated changes and don't commit without a
+request.
 
 After running:
 
 - **Read the printed warnings.** Some codemods can't safely transform every case and insert
   a `TODO: Aksel …` comment where manual follow-up is needed — search for those.
-- **Re-validate** the result against this skill's rules (tokens real, no raw values, a11y
+- **Re-validate** the result against this skill's rules (tokens real, installed APIs, a11y
   props intact). Codemods change syntax; they don't guarantee idiomatic final code.
-- Commit before running so the diff is easy to review.
+- Review the diff and run the project's relevant checks.
 
 ## v8 highlights (what changed, and the codemod for it)
 
@@ -50,7 +56,7 @@ MCP, but as of v8:
 The recurring v8 theme: **color moved out of `variant` into `data-color`**, and the **token
 system was renamed** (`--a-` → `--ax-`, new `space-*` scale, `radius-*` instead of
 `border-radius-*`). If you see `--a-*` variables, a `Box.New`, or a `variant` prop that
-encodes a color, the code predates v8 — migrate it.
+encodes a color, check the installed major version and upgrade scope before migrating it.
 
 ## Spotting outdated code
 
@@ -62,5 +68,5 @@ encodes a color, the code predates v8 — migrate it.
 | Numeric/px spacing on primitives | `space-*` tokens                                     |
 | `Alert`, `LinkPanel`, `Panel`    | deprecated — check docs for the current component    |
 
-When you encounter outdated patterns while editing, prefer running the matching codemod over
-piecemeal hand-edits, then review the diff.
+For an agreed migration, prefer the matching codemod over piecemeal hand-edits, then review
+the diff. Don't turn a small feature request into an unrelated app-wide upgrade.

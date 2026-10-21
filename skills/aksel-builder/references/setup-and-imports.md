@@ -12,9 +12,10 @@ rule set; confirm any specific component or token via the MCP ([mcp-workflow.md]
 | `@navikt/ds-tokens`   | Raw token values for SCSS/JS/LESS (CSS already in ds-css) | `@use "@navikt/ds-tokens/scss";`                  |
 | `@navikt/aksel-icons` | Icon components                                           | `import { TrashIcon } from "@navikt/aksel-icons"` |
 | `@navikt/ds-tailwind` | Tailwind preset mapping Aksel tokens to `ax-*` utilities  | `presets: [require("@navikt/ds-tailwind")]`       |
-| `@navikt/aksel`       | CLI: codemods                                             | `pnx @navikt/aksel <command>`                     |
+| `@navikt/aksel`       | CLI: codemods                                             | `pnpx @navikt/aksel <command>`                    |
 
-All public `@navikt/*` runtime packages are kept **React 17-compatible**.
+Aksel's published React components support React 17–19. This library constraint does
+not prohibit an application from using APIs supported by its own React version.
 
 ## React components — import from the package root
 
@@ -54,8 +55,9 @@ import { InfoCard, InfoCardTitle } from "@navikt/ds-react/InfoCard";
 // import { DialogHeader } from "@navikt/ds-react";  ❌ root exports the TYPE only, not the value
 ```
 
-Subpath names vary per component — confirm the exact import with `aksel_get_component_info`
-or the component's `aksel_get_doc` page rather than guessing.
+Subpath names vary per component — confirm imports in the component's `aksel_get_doc`
+page and the installed package's exports/types. `aksel_get_component_info` describes
+props, not the package's export map.
 
 ## CSS is required
 
@@ -93,11 +95,58 @@ import { en } from "@navikt/ds-react/locales";
 `Provider` is about locale/portals. It is **not** the theming wrapper — light/dark and base
 color are handled by `Theme` (see [theming.md](theming.md)).
 
+## Next.js App Router boundaries
+
+Keep the root layout a Server Component. Import the CSS there once, and place locale
+objects and interactive provider setup in a separate Client Component. Locale objects
+can contain functions and should not be passed across the server/client boundary.
+
+```tsx
+// app/providers.tsx
+"use client";
+
+import type { ReactNode } from "react";
+import { Provider, Theme } from "@navikt/ds-react";
+import { nb } from "@navikt/ds-react/locales";
+
+export function Providers({ children }: { children: ReactNode }) {
+  return (
+    <Provider locale={nb}>
+      <Theme theme="light" hasBackground>
+        {children}
+      </Theme>
+    </Provider>
+  );
+}
+```
+
+```tsx
+// app/layout.tsx
+import type { ReactNode } from "react";
+import "@navikt/ds-css";
+import { Providers } from "./providers";
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="nb">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+Use component subpath exports for compound parts in Server Components (see above).
+Keep event handlers and hooks inside client boundaries; don't make the whole layout
+client-side just to render an Aksel component.
+
 ## CSS-only consumers (no React)
 
-Teams not on React can use `@navikt/ds-css` plus the token stylesheet and apply Aksel's
-class names directly. Get the authoritative class names and markup from the component docs
-via MCP rather than guessing them — `aksel_get_doc` pages include the rendered markup.
+Teams not on React can use `@navikt/ds-css`, which already includes the tokens, and apply
+documented Aksel class names. Check the component's docs for supported HTML/CSS usage;
+not every page includes rendered HTML. If a page only shows JSX, inspect the matching
+installed component's markup and behavior rather than inventing an HTML equivalent.
 Tokens are available as `--ax-*` CSS variables (see [tokens-styling.md](tokens-styling.md)).
 
 ## Quick-start checklist

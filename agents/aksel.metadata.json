@@ -9,14 +9,20 @@
     "tokens",
     "layout",
     "responsive",
+    "accessibility",
     "tilgjengelighet",
     "tailwind",
     "theming",
     "icons",
     "migration",
-    "mcp"
+    "mcp",
+    "figma"
   ],
   "examples": [
+    {
+      "prompt": "@aksel-agent Implementer dette Figma-designet med verifiserte Aksel-komponenter",
+      "scenario": "Figma til Aksel-kode"
+    },
     {
       "prompt": "@aksel-agent Lag et responsivt søknadsskjema med TextField, RadioGroup og ErrorSummary",
       "scenario": "Søknadsskjema med validering"

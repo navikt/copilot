@@ -1,22 +1,8 @@
 {
-  "description": "Lag responsive layouts med Aksel Design System v8: spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed, Show/Hide) og ResponsiveProp-mønsteret",
+  "description": "Kompatibilitetsalias som laster aksel-builder. Velg aksel-builder direkte for nye layout- og spacing-oppgaver.",
   "domain": "frontend",
-  "tags": [
-    "aksel",
-    "design-system",
-    "nav",
-    "react",
-    "spacing",
-    "tokens",
-    "layout",
-    "responsive",
-    "primitives"
-  ],
+  "tags": ["aksel", "compatibility", "spacing"],
   "examples": [
-    "Lag en responsiv to-kolonne layout med HGrid og Aksel spacing tokens",
-    "Bygg en mobil-first sidelayout med Page.Block og VStack",
-    "Lag et kortgrid som går fra 1 til 3 kolonner på tvers av breakpoints",
-    "Bruk Bleed til å la et banner strekke seg forbi container-padding",
-    "Sett riktig padding med space-tokens - hva er space-16 i v8?"
+    "Bruk aksel-spacing fra en eldre oppskrift; last aksel-builder for oppdaterte layout-regler"
   ]
 }
