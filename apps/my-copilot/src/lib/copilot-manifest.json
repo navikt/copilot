@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-21T11:19:30.725Z",
+  "generatedAt": "2026-10-21T11:37:33.610Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -44,7 +44,7 @@
       "filePath": ".github/agents/aksel.agent.md",
       "repoPath": "agents/aksel.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/aksel.agent.md",
-      "contentHash": "0b2c6efe93bdb413b54c69b1f3a928fa1ce885def4bdb227b9d7367bbacc4984",
+      "contentHash": "c14ba829b924f33c0ae8331f50024749b25451ab7286032584cad43a50c23300",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faksel.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Faksel.agent.md",
       "tools": [
@@ -63,17 +63,17 @@
         "com.figma/figma-mcp/get_design_context",
         "com.figma/figma-mcp/get_screenshot",
         "com.figma/figma-mcp/get_metadata",
-        "io.github.navikt/github-mcp/get_file_contents",
-        "io.github.navikt/github-mcp/search_code",
-        "io.github.navikt/github-mcp/search_repositories",
-        "io.github.navikt/github-mcp/list_commits",
-        "io.github.navikt/github-mcp/issue_read",
-        "io.github.navikt/github-mcp/list_issues",
-        "io.github.navikt/github-mcp/search_issues",
-        "io.github.navikt/github-mcp/pull_request_read",
-        "io.github.navikt/github-mcp/search_pull_requests",
-        "io.github.navikt/github-mcp/get_latest_release",
-        "io.github.navikt/github-mcp/list_releases"
+        "github/get_file_contents",
+        "github/search_code",
+        "github/search_repositories",
+        "github/list_commits",
+        "github/issue_read",
+        "github/list_issues",
+        "github/search_issues",
+        "github/pull_request_read",
+        "github/search_pull_requests",
+        "github/get_latest_release",
+        "github/list_releases"
       ],
       "model": ["Claude Sonnet 5.5"],
       "tags": [

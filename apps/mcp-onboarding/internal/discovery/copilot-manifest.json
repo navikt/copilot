@@ -38,7 +38,7 @@
         "ui"
       ],
       "filePath": "agents/aksel.agent.md",
-      "contentHash": "0b2c6efe93bdb413b54c69b1f3a928fa1ce885def4bdb227b9d7367bbacc4984",
+      "contentHash": "c14ba829b924f33c0ae8331f50024749b25451ab7286032584cad43a50c23300",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
