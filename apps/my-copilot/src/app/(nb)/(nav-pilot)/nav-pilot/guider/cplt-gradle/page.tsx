@@ -272,11 +272,6 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
               containerne selv.
             </li>
             <li>
-              <strong>Gi agenten Docker.</strong> Da virker Testcontainers, også med colima. Agenten kan da gjøre alt
-              Docker kan, og lese <code className={code}>~/.docker</code> med registerinnloggingene dine. Bruk det bare
-              i et repo du stoler på, og helst bare for én økt. På Linux med vanlig Docker får agenten root-daemonen.
-            </li>
-            <li>
               <strong>Gi agenten rootless Podman eller Docker (bare Linux).</strong> Agenten når bare socketene under{" "}
               <code className={code}>$XDG_RUNTIME_DIR</code>, ikke root-daemonen, og får ikke{" "}
               <code className={code}>~/.docker</code>. Se{" "}
@@ -284,6 +279,11 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
                 rootless Podman på Linux
               </a>{" "}
               nedenfor.
+            </li>
+            <li>
+              <strong>Gi agenten Docker.</strong> Da virker Testcontainers, også med colima. Agenten kan da gjøre alt
+              Docker kan, og lese <code className={code}>~/.docker</code> med registerinnloggingene dine. Bruk det bare
+              i et repo du stoler på, og helst bare for én økt. På Linux med vanlig Docker får agenten root-daemonen.
             </li>
           </Bullets>
           <BodyLong>En database på port 5432, startet utenfor cplt:</BodyLong>
