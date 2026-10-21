@@ -184,25 +184,20 @@ Only 34% of Nav developers agree that AI code passes review without extra work �
 | 🟡       | Rapids & Rivers: validate required keys in `River` |
 | 💭       | Error wrapping with `Result` or sealed classes     |
 
-### TypeScript/Next.js (`src/**/*.{ts,tsx}`)
+### TypeScript/Next.js (`**/*.{ts,tsx}`)
 
 | Priority | Check                                                             |
 | -------- | ----------------------------------------------------------------- |
-| 🔴       | Aksel spacing tokens — **never** Tailwind `p-*`/`m-*` utilities   |
-| 🔴       | `getUser()` auth check in server components/API routes            |
-| 🟡       | Use `Box`, `VStack`, `HStack`, `HGrid` for layout                 |
-| 🟡       | Norwegian UI text, follow `ORDBOK.md` terminology                 |
-| 🟡       | Norwegian number formatting: `formatNumber(151354)` → `"151 354"` |
+| 🔴       | Validate inputs and authorize protected data/actions with the project's verified auth helpers |
+| 🟡       | Verify Aksel APIs against installed versions using `aksel-builder`; use its fallback if MCP is unavailable |
+| 🟡       | Follow project styling rules; native Tailwind layout/spacing is not inherently an Aksel violation |
+| 🟡       | Match the project's UI language, locale, and terminology guide |
+| 🟡       | Verify number formatting with the chosen locale or an existing helper, without assuming a particular space character |
 | 💭       | Prefer server components over client components                   |
 
-```tsx
-// ❌ Tailwind spacing
-<div className="p-4 mx-8">
-
-// ✅ Aksel spacing tokens
-<Box paddingBlock={{ xs: "space-16", md: "space-24" }}
-     paddingInline={{ xs: "space-16", md: "space-40" }}>
-```
+Use the combined `nextjs-aksel` instruction for App Router boundaries, auth, caching,
+and Aksel setup. Load the builder's relevant reference rather than maintaining a separate
+prop/token checklist here. A stricter repository-specific spacing rule still applies.
 
 ### Go (`**/*.go`)
 

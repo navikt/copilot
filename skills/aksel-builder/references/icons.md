@@ -18,7 +18,8 @@ find_icons name   →   import
 ```
 
 Rule: **export = `${name}Icon`**, imported from `@navikt/aksel-icons`. Never write an icon
-import you didn't get from a `find_icons` result.
+import without verifying it through `find_icons` or the documented fallback and installed
+package exports. Preserve the exact returned name; don't normalize its suffix.
 
 > **The name rarely matches your first guess.** `find_icons({ keyword: "home" })` returns
 > `House` and `HouseFill` — there is **no** `Home` icon, so `HomeIcon` does not exist; the
@@ -33,8 +34,7 @@ import you didn't get from a `find_icons` result.
 - `keyword` — fuzzy-matched across name, keywords, and sub-category. Handles typos and
   synonyms, in English **and** Norwegian (`"søppel"` finds the trash icon).
 - `variant` — **capitalized**: `"Stroke"` (outline, the default look), `"Fill"` (solid),
-  or `"both"` (default). Fill icons carry `Fill` in their `name` → `…FillIcon`. (The tool
-  schema also lists `"Filled"`, but it returns **zero** results — always use `"Fill"`.)
+  or `"both"` (default). Preserve the returned name instead of deriving it from the variant.
 - `category` — optional filter from a fixed enum (e.g. `Home`, `Arrows`, `Interface`,
   `Money`, `Status`…).
 
@@ -72,18 +72,16 @@ this is required for accessibility (uu):
   <Button icon={<TrashIcon aria-hidden />}>Slett</Button>
   ```
 
-- **Meaningful** (the icon is the only label, e.g. an icon-only button): give it an
-  accessible name with the `title` prop, and make sure the interactive control is labelled
-  too.
+- **Button without visible text:** prefer the icon's `title` prop to give the button an
+  accessible name. Describe the action, not the icon's shape. Do not set `aria-hidden` on
+  this icon, since it supplies the button's name.
 
   ```tsx
-  <Button
-    icon={<TrashIcon title="Slett rad" />}
-    // icon-only buttons still need their own accessible name — see accessibility.md
-  />
+  <Button icon={<TrashIcon title="Slett rad" />} />
   ```
 
-The `title` prop renders an SVG `<title>` and wires `aria-labelledby`, turning the icon
-into a labelled image. When in doubt about the exact accessibility pattern for a specific
-component, confirm with `aksel_get_doc` (icon docs at `aksel.nav.no/ikoner`) and see
-[accessibility.md](accessibility.md).
+The icon's `title` prop renders an SVG `<title>` and wires `aria-labelledby`; it is not
+the button's HTML `title` attribute. Use it for standalone meaningful icons too. See the
+[Button icon example](https://aksel.nav.no/komponenter/core/button.md) and
+[accessibility.md](accessibility.md). Confirm other component-specific usage with
+`aksel_get_doc` (discover the docs through `aksel_find_docs`).
