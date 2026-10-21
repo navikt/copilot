@@ -1,0 +1,19 @@
+{
+  "displayName": "Aksel i Next.js",
+  "description": "Tynt integrasjonslag for Aksel i Next.js: MCP, CSS, server-/klientgrenser, Theme, Provider og sammensatte komponenter.",
+  "domain": "frontend",
+  "tags": [
+    "aksel",
+    "design-system",
+    "nextjs",
+    "react",
+    "ui",
+    "spacing",
+    "tokens",
+    "responsive"
+  ],
+  "examples": [
+    "Lag en responsiv søknadsoversikt med Aksel Box og VStack",
+    "Sett opp Aksel med CSS, Theme og norsk locale i App Router"
+  ]
+}
