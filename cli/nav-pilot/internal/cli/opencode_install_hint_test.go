@@ -24,9 +24,9 @@ func TestOpenCodeInstallHint(t *testing.T) {
 		{"brew first", []string{"npm", "pnpm", "brew"}, true, opencodeBrewInstall},
 		{"pnpm before npm", []string{"npm", "pnpm"}, true, "pnpm add -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion},
 		{"unconfigured pnpm with npm", []string{"npm", "pnpm"}, false, "npm i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion},
-		{"unconfigured pnpm alone", []string{"pnpm"}, false, opencodeScriptInstall},
+		{"unconfigured pnpm alone", []string{"pnpm"}, false, opencodeNoInstaller},
 		{"npm", []string{"npm"}, false, "npm i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion},
-		{"no package manager", nil, false, opencodeScriptInstall},
+		{"no package manager", nil, false, opencodeNoInstaller},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			isolatedConfig(t)
@@ -90,5 +90,56 @@ func TestOpenCodeInstallHintSkipsNonExecutableBrew(t *testing.T) {
 	}
 	if got := clientInstallCommand("cplt"); got != cpltInstallHint {
 		t.Fatalf("clientInstallCommand(cplt) = %q, want %q", got, cpltInstallHint)
+	}
+}
+
+// TestInstallOpenCodeRunsPackageManager: without Homebrew, the wizard's
+// install really runs npm with the pinned opencode 2 package, and succeeds
+// once opencode is on PATH.
+func TestInstallOpenCodeRunsPackageManager(t *testing.T) {
+	isolatedConfig(t)
+	bin := t.TempDir()
+	log := filepath.Join(t.TempDir(), "npm.log")
+	opencode := filepath.Join(bin, "opencode")
+	npm := "#!/bin/sh\necho \"$@\" > " + log + "\nprintf '#!/bin/sh\\necho opencode v2.1.2\\n' > " + opencode + "\n/bin/chmod +x " + opencode + "\n"
+	if err := testhome.WriteExec(filepath.Join(bin, "npm"), npm); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	t.Setenv("PNPM_HOME", "")
+	cmd := opencodeInstallCommand()
+	if cmd != opencodeNpmInstall {
+		t.Fatalf("command = %q, want %q", cmd, opencodeNpmInstall)
+	}
+	if err := installOpenCode(cmd); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(log)
+	if want := "i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion + "\n"; string(got) != want {
+		t.Errorf("npm args = %q, want %q", got, want)
+	}
+}
+
+// TestOpenCodeForSetupWithoutInstaller: with neither Homebrew nor npm the
+// wizard installs nothing, never offers opencode 1's install script, and says
+// how to get opencode 2.
+func TestOpenCodeForSetupWithoutInstaller(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("PNPM_HOME", "")
+	var client string
+	var err error
+	stdout, stderr := captureRun(t, func() { client, err = opencodeForSetup() })
+	if err != nil || client != "copilot" {
+		t.Fatalf("opencodeForSetup() = %q, %v; want copilot", client, err)
+	}
+	out := stdout + stderr
+	for _, want := range []string{"https://brew.sh", "https://nodejs.org", opencodeBrewInstall, opencodeNpmInstall} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output %q lacks %q", out, want)
+		}
+	}
+	if strings.Contains(out, "opencode.ai/install") || strings.Contains(out, "opencode-ai") {
+		t.Errorf("output offers opencode 1: %q", out)
 	}
 }

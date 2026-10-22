@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Nye installasjoner får OpenCode 2, og støtten for OpenCode 1 slutter 19. november
 
-- **Ny installasjon**: Når nav-pilot foreslår eller installerer OpenCode, er det nå OpenCode 2.1.2: `npm i -g @opencode/cli@2.1.2` eller `brew install anomalyco/tap/opencode-v2`. Uten Homebrew og npm brukes fortsatt OpenCodes eget installasjonsskript, og det kan bare installere OpenCode 1. Har du OpenCode 1 fra før, endrer nav-pilot ikke på den.
+- **Ny installasjon**: Når nav-pilot foreslår eller installerer OpenCode, er det nå OpenCode 2.1.2: `brew install anomalyco/tap/opencode-v2`, eller `npm i -g @opencode/cli@2.1.2` uten Homebrew. Har du verken Homebrew eller npm, installerer nav-pilot ingenting, men sier at du må installere Homebrew eller Node.js først, og hvilken kommando du kjører etterpå. OpenCodes eget installasjonsskript brukes ikke lenger, fordi det bare installerer OpenCode 1. Har du OpenCode 1 fra før, endrer nav-pilot ikke på den.
 - **Varsel til deg som bruker OpenCode 1**: nav-pilot viser et kort varsel når du starter OpenCode 1, én gang per versjon, og i `nav-pilot doctor`. nav-pilot slutter å støtte OpenCode 1 etter 19. november 2026. Oppgraderingen kan ikke gjøres om, fordi OpenCode 2 flytter over databasen fra OpenCode 1. Du må logge inn på nytt, og på Linux trenger du bubblewrap. Varselet viser kommandoen du skal kjøre.
 - **OpenCode 2 krever nyere cplt**: OpenCode 2 starter bare med cplt 2026.10.22-172931 eller nyere. Den versjonen husker favoritter og historikk, lar OpenCode ta øyeblikksbilder med git og gir tilgang til tillegg og MCP-servere. Har du eldre cplt, stopper nav-pilot og sier hvordan du oppdaterer, for eksempel `brew upgrade cplt` (#1907).
 
