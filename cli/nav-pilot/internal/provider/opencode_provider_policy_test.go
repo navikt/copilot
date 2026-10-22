@@ -71,7 +71,7 @@ func TestOpenCode2ProviderPolicyConflicts(t *testing.T) {
 		{"case-folded policies", `{"experimental":{"policies":[{"action":"provider.use","effect":"allow","resource":"*"}]},"Experimental":{"policies":[]}}`, "experimental.policies"},
 		{"copilot options.baseURL", `{"provider":{"github-copilot":{"options":{"baseURL":"http://127.0.0.1:1/v1"}}}}`, "options.baseURL"},
 		{"copilot settings.baseURL", `{"provider":{"github-copilot":{"settings":{"baseURL":"http://127.0.0.1:1/v1"}}}}`, "settings.baseURL"},
-		{"copilot npm", `{"provider":{"github-copilot":{"npm":"@ai-sdk/openai-compatible"}}}`, "(npm)"},
+		{"copilot npm", `{"provider":{"github-copilot":{"npm":"@ai-sdk/openai-compatible"}}}`, ": npm)"},
 		{"copilot models only", `{"provider":{"github-copilot":{"models":{"x":{}}}}}`, ""},
 		{"deny only", `{"experimental":{"policies":[{"action":"provider.use","effect":"deny","resource":"*"}]}}`, ""},
 		{"allowed only", `{"enabled_providers":["github-copilot"]}`, ""},
@@ -278,5 +278,55 @@ func TestOpenCodeProviderPolicySkipsMissingOpenCode(t *testing.T) {
 	t.Cleanup(func() { versionCache.Delete("opencode") })
 	if _, err := applyOpenCodeProviderPolicy(nil, t.TempDir(), false, nil, ""); err != nil {
 		t.Fatalf("missing opencode must fall through to cplt's message: %v", err)
+	}
+}
+
+func TestOpenCodeProviderPolicyRoutingOverrides(t *testing.T) {
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24", nil, time.Hour})
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	mlx := `{"provider":{"mlx":{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"http://127.0.0.1:9/v1"}}}}`
+	for _, tc := range []struct {
+		name, where, config, wantErr string
+	}{
+		{"model-level routing", "project", `{"provider":{"github-copilot":{"models":{"x":{"provider":{"npm":"@ai-sdk/openai-compatible","api":"https://other.example/v1"}}}}}}`, "models.x.provider"},
+		{"variant routing", "project", `{"provider":{"github-copilot":{"models":{"x":{"variants":{"low":{"options":{"baseURL":"https://other.example"}}}}}}}}`, "baseURL"},
+		{"native package", "project", `{"providers":{"github-copilot":{"package":"@ai-sdk/openai-compatible"}}}`, "providers.github-copilot: package"},
+		{"native settings", "project", `{"providers":{"github-copilot":{"settings":{"baseURL":"https://other.example"}}}}`, "settings.baseURL"},
+		{"both maps", "project", `{"provider":{"github-copilot":{"models":{"x":{}}}},"providers":{"github-copilot":{"settings":{"baseURL":"https://other.example"}}}}`, "providers.github-copilot"},
+		{"mlx in project", "project", mlx, "redefines provider mlx"},
+		{"mlx in payload", "stage", mlx, "redefines provider mlx"},
+		{"mlx inline", "inline", mlx, "redefines provider mlx"},
+		{"mlx in nav-pilot's global config", "global", mlx, ""},
+		{"copilot in global config", "global", `{"provider":{"github-copilot":{"options":{"baseURL":"https://other.example"}}}}`, "redefines provider github-copilot"},
+		{"file placeholder in policy", "global", `{"experimental":{"policies":[{"action":"provider.use","effect":"{file:effect.txt}","resource":"openai"}]}}`, "placeholder"},
+		{"env placeholder in action", "project", `{"experimental":{"policies":[{"action":"{env:A}","effect":"allow","resource":"openai"}]}}`, "placeholder"},
+		{"placeholder in provider", "project", `{"provider":{"github-copilot":{"options":{"apiKey":"{env:KEY}"}}}}`, "placeholder"},
+		{"harmless model options", "project", `{"provider":{"github-copilot":{"models":{"x":{"options":{"reasoningEffort":"low"}}}}}}`, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			project := t.TempDir()
+			var env []string
+			switch tc.where {
+			case "project":
+				mustWrite(t, filepath.Join(project, "opencode.json"), tc.config)
+			case "stage":
+				stage := t.TempDir()
+				mustWrite(t, filepath.Join(stage, "opencode.json"), tc.config)
+				env = append(env, "OPENCODE_CONFIG_DIR="+stage)
+			case "inline":
+				env = append(env, "OPENCODE_CONFIG_CONTENT="+tc.config)
+			case "global":
+				mustWrite(t, openCodeConfigPath(), tc.config)
+			}
+			_, err := applyOpenCodeProviderPolicy(env, project, true, nil, "")
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("error = %v, want %q", err, tc.wantErr)
+			}
+		})
 	}
 }

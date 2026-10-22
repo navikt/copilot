@@ -1,9 +1,11 @@
 package provider
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
@@ -99,32 +101,37 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 		if doc.path == openCodeConfigContentEnv && model == "" {
 			_ = json.Unmarshal(top["model"], &model)
 		}
-		// A redefined github-copilot provider sends Copilot traffic elsewhere
-		// (measured on opencode 2.1.2: options.baseURL, settings.baseURL, npm).
-		var providers map[string]map[string]json.RawMessage
-		_ = json.Unmarshal(top["provider"], &providers)
-		for _, id := range allowed {
-			if id == LocalProviderID {
-				continue // nav-pilot writes this block itself
-			}
-			p := providers[id]
-			for _, k := range []string{"npm", "package", "canonical", "api", "baseURL", "endpoint"} {
-				if _, ok := p[k]; ok {
-					return nil, conflict("redefines provider " + id + " (" + k + ")")
+		// A redefined allowed provider sends its traffic elsewhere (measured on
+		// opencode 2.1.2: options.baseURL, settings.baseURL, npm). Any routing
+		// key anywhere under the entry counts, models and variants included,
+		// in the legacy provider map and opencode 2's native providers map.
+		// The mlx block is nav-pilot's own, written to the global config with
+		// the loop guard's address; no other config may reroute it.
+		for _, mapKey := range []string{"provider", "providers"} {
+			var providers map[string]json.RawMessage
+			_ = json.Unmarshal(top[mapKey], &providers)
+			for _, id := range allowed {
+				raw, ok := providers[id]
+				if !ok || (id == LocalProviderID && doc.path == openCodeConfigPath()) {
+					continue
 				}
-			}
-			for _, k := range []string{"options", "settings"} {
-				var o map[string]json.RawMessage
-				_ = json.Unmarshal(p[k], &o)
-				for _, f := range []string{"baseURL", "endpoint"} {
-					if _, ok := o[f]; ok {
-						return nil, conflict("redefines provider " + id + " (" + k + "." + f + ")")
-					}
+				if hasOpenCodePlaceholder(raw) {
+					return nil, conflict("uses a {file:} or {env:} placeholder in " + mapKey + "." + id)
+				}
+				var v any
+				_ = json.Unmarshal(raw, &v)
+				if k := openCodeRoutingKey(v); k != "" {
+					return nil, conflict("redefines provider " + id + " (" + mapKey + "." + id + ": " + k + ")")
 				}
 			}
 		}
 		if major < 2 {
 			continue
+		}
+		// OpenCode substitutes these before parsing, so an unresolved value
+		// here could become an allow rule; fail closed.
+		if hasOpenCodePlaceholder(top["enabled_providers"]) || hasOpenCodePlaceholder(top["experimental"]) {
+			return nil, conflict("uses a {file:} or {env:} placeholder in enabled_providers or experimental")
 		}
 		var enabled []string
 		if raw, ok := top["enabled_providers"]; ok && json.Unmarshal(raw, &enabled) != nil {
@@ -159,6 +166,34 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 		return nil, fmt.Errorf("model %s is from provider %s, but nav-pilot sessions allow only %s; pick a model from those providers with --model", model, provider, want)
 	}
 	return withOpenCodeConfigContent(env, map[string]any{"enabled_providers": allowed}), nil
+}
+
+// openCodeRoutingKey returns the path of the first key under v that can
+// point a provider or model at another backend, "" when there is none.
+func openCodeRoutingKey(v any) string {
+	switch t := v.(type) {
+	case map[string]any:
+		for _, k := range slices.Sorted(maps.Keys(t)) {
+			switch k {
+			case "npm", "package", "canonical", "api", "baseURL", "baseUrl", "endpoint", "url":
+				return k
+			}
+			if sub := openCodeRoutingKey(t[k]); sub != "" {
+				return k + "." + sub
+			}
+		}
+	case []any:
+		for _, e := range t {
+			if sub := openCodeRoutingKey(e); sub != "" {
+				return sub
+			}
+		}
+	}
+	return ""
+}
+
+func hasOpenCodePlaceholder(raw []byte) bool {
+	return bytes.Contains(raw, []byte("{file:")) || bytes.Contains(raw, []byte("{env:"))
 }
 
 // openCodeModelArg is the session model named on the opencode command line.
