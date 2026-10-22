@@ -1311,6 +1311,11 @@ func startCommand(resolved ResolvedConfig) string {
 	}
 	dir, _ = filepath.Abs(dir)
 	cmd := fmt.Sprintf("cplt --project-dir %s --agent %s", shellQuote(dir), resolved.Client)
+	self := "nav-pilot --auto-launch"
+	for _, f := range providerpkg.CpltSessionFlags() {
+		cmd += " " + shellQuote(f)
+		self += " --cplt " + shellQuote(f)
+	}
 	persona := resolved.Persona
 	if persona == "" {
 		persona = providerpkg.PrimaryAgent(resolved.Client)
@@ -1318,7 +1323,7 @@ func startCommand(resolved ResolvedConfig) string {
 	if persona != "" && resolved.Client != "pi" {
 		cmd += " -- --agent " + shellQuote(persona)
 	}
-	return "nav-pilot --auto-launch, or " + cmd
+	return self + ", or " + cmd
 }
 
 // shellQuote makes s one word for a POSIX shell, quoting it only when it

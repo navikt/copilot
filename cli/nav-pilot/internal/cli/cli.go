@@ -471,6 +471,11 @@ func run(args []string) error {
 				if err := validateCpltArg(args[i]); err != nil {
 					return err
 				}
+				// --cplt --pass-env FOO would leave FOO behind as an
+				// "unknown command"; say where the value goes instead.
+				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !isKnownCommand(args[i+1]) {
+					return fmt.Errorf("--cplt %s %s: put the value in the same argument, --cplt %s=%s", args[i], args[i+1], args[i], args[i+1])
+				}
 				// cplt refuses most switches given twice, so a repeat is dropped.
 				if args[i] == "--allow-clipboard" {
 					providerpkg.AllowClipboard = true

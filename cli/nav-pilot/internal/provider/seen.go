@@ -22,6 +22,10 @@ var AllowClipboard bool
 // session only, added to the ones nav-pilot sets.
 var CpltArgs []string
 
+// CpltSessionFlags is [cpltSessionFlags], for the command nav-pilot prints
+// when it does not launch.
+func CpltSessionFlags() []string { return cpltSessionFlags() }
+
 // cpltSessionFlags are the cplt flags set by launch flags for this session.
 func cpltSessionFlags() []string {
 	var flags []string
