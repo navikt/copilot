@@ -249,6 +249,84 @@ func TestGateCreateRule(t *testing.T) {
 	}
 }
 
+func TestPatchFiles(t *testing.T) {
+	for _, tc := range []struct {
+		name, text     string
+		added, changed []string
+	}{
+		{"opencode", "*** Begin Patch\n*** Add File: src/New.kt\n+class New\n*** Update File: src/F1.kt\n@@\n-a\n+b\n*** Delete File: src/F2.kt\n*** Update File: src/F3.kt\n*** Move to: src/F3b.kt\n@@\n-x\n+y\n*** End Patch",
+			[]string{"src/New.kt", "src/F3b.kt"}, []string{"src/F1.kt", "src/F2.kt", "src/F3.kt"}},
+		{"crlf", "*** Begin Patch\r\n*** Update File: a.kt \r\n*** End Patch\r\n", nil, []string{"a.kt"}},
+		{"unified", "--- a/src/F1.kt\t2026-01-01\n+++ b/src/F1.kt\t2026-01-01\n@@ -1 +1 @@\n-a\n+b\n--- /dev/null\n+++ b/src/New.kt\n@@ -0,0 +1 @@\n+x\n--- a/src/Gone.kt\n+++ /dev/null\n",
+			[]string{"src/New.kt"}, []string{"src/F1.kt"}},
+		// A body line that adds "++ x" is not a header.
+		{"body", "*** Begin Patch\n*** Update File: a.kt\n@@\n-x\n+++ b/y.kt\n*** End Patch", nil, []string{"a.kt"}},
+		{"empty", "", nil, nil},
+	} {
+		added, changed := PatchFiles(tc.text)
+		if !slices.Equal(added, tc.added) || !slices.Equal(changed, tc.changed) {
+			t.Errorf("%s: PatchFiles = %q, %q; want %q, %q", tc.name, added, changed, tc.added, tc.changed)
+		}
+	}
+}
+
+// The patch tool is the only edit tool opencode gives gpt-* models (#1008):
+// its files count like edits and writes, under both tool names.
+func TestGateCountsPatchFiles(t *testing.T) {
+	update := func(files ...string) string {
+		s := "*** Begin Patch\n"
+		for _, f := range files {
+			s += "*** Update File: " + f + "\n@@\n-a\n+b\n"
+		}
+		return s + "*** End Patch"
+	}
+	for _, tool := range []string{"patch", "apply_patch"} {
+		g := testGate(t, true, multi)
+		if deny, _ := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: tool, Patch: update("src/F1.kt", "src/F2.kt", "src/F3.kt", "src/F4.kt")}); deny != "" {
+			t.Fatalf("%s: four files were denied", tool)
+		}
+		deny, outcome := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: tool, Patch: update("src/F5.kt")})
+		if deny != GateDenyText || outcome != "deny_files" {
+			t.Fatalf("%s: the 5th file in a patch was not denied: %q", tool, outcome)
+		}
+		// One patch over five files at once.
+		g = testGate(t, true, multi)
+		if _, outcome := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: tool, Patch: update("src/F1.kt", "src/F2.kt", "src/F3.kt", "src/F4.kt", "src/F5.kt")}); outcome != "deny_files" {
+			t.Fatalf("%s: one patch over five files was not denied: %q", tool, outcome)
+		}
+	}
+	// Control: a tool the gate does not know is not counted, so the test
+	// above fails if the patch case goes.
+	g := testGate(t, true, multi)
+	if deny, _ := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "other", Patch: update("src/F1.kt", "src/F2.kt", "src/F3.kt", "src/F4.kt", "src/F5.kt")}); deny != "" {
+		t.Fatal("control: an unknown tool was gated")
+	}
+}
+
+func TestGatePatchAddIsCreate(t *testing.T) {
+	g := testGate(t, true, GateRules{Create: true})
+	add := GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "patch", Patch: "*** Begin Patch\n*** Update File: src/F1.kt\n@@\n-a\n+b\n*** Add File: src/test/FooTest.kt\n+class FooTest\n*** End Patch"}
+	if deny, outcome := g.decide(add); deny != GateCreateText || outcome != "deny_create" {
+		t.Fatalf("a patch that adds a file was not denied: %q", outcome)
+	}
+	// Control: the same patch without the add passes.
+	if deny, _ := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "patch", Patch: "*** Begin Patch\n*** Update File: src/F1.kt\n@@\n-a\n+b\n*** End Patch"}); deny != "" {
+		t.Fatal("control: a patch of an existing file was denied as a create")
+	}
+}
+
+func TestGateWorkerPatchOfPinnedFile(t *testing.T) {
+	g := testGate(t, true, GateRules{Pinned: true})
+	const pinned = ".tool-versions"
+	key, _ := g.verify(GateRequest{Session: "w", Agent: WorkerAgent, Tool: "patch", Phase: "worker", Patch: "*** Begin Patch\n*** Update File: " + pinned + "\n*** End Patch"})
+	if key != "deny" {
+		t.Fatalf("the worker's patch of %s was not denied", pinned)
+	}
+	if key, _ := g.verify(GateRequest{Session: "w", Agent: WorkerAgent, Tool: "patch", Phase: "worker", Patch: "*** Begin Patch\n*** Update File: src/F1.kt\n*** End Patch"}); key != "" {
+		t.Fatal("control: the worker's patch of an ordinary file was denied")
+	}
+}
+
 func TestDispatchGateRules(t *testing.T) {
 	c := &Capabilities{Classes: map[string]ClassVerdict{
 		"edit-multi-mechanical": {Delegate: VerdictTrusted},

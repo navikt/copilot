@@ -8,6 +8,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **OpenCode 2**: nav-pilot er nå testet med OpenCode 2.1.2 og varsler ikke lenger om at 2.1.x er utenfor det som er testet. Hooks, delegeringssperren og oppsettet av økter under cplt er kjørt mot 2.1.2. Installasjonshjelpen foreslår nå 2.1.2 (#1907).
 
+### Delegeringssperren ser også endringer gjort med patch-verktøyet
+
+- **Lokal delegering i OpenCode**: Noen modeller, blant annet gpt-5-modellene, endrer filer med patch-verktøyet (`patch` i OpenCode 2, `apply_patch` i OpenCode 1) i stedet for `edit` og `write`. Sperren som sender store, mekaniske endringer og nye filer til den lokale KI-modellen, så ikke disse endringene. Nå teller filene i en patch på samme måte som andre endringer, og en patch som lager en ny fil, behandles som en ny fil (#1008).
+
 ### Utklippstavle og egne cplt-flagg for én økt
 
 - **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavlen på macOS for denne økten. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle økter med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
