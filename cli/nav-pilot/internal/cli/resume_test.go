@@ -29,6 +29,10 @@ func TestSessionClientArgs(t *testing.T) {
 		{"copilot conflict", "copilot", SessionFlag{Continue: true}, []string{"--resume=" + id}, nil, "conflicts"},
 		{"copilot conflict -r", "copilot", SessionFlag{Resume: true}, []string{"-r"}, nil, "conflicts"},
 		{"opencode conflict", "opencode", SessionFlag{Resume: true, ID: "a"}, []string{"-c"}, nil, "conflicts"},
+		{"copilot prompt value is no conflict", "copilot", SessionFlag{Continue: true}, []string{"-p", "--resume"}, []string{"-p", "--resume", "--continue"}, ""},
+		{"opencode model value is no conflict", "opencode", SessionFlag{Continue: true}, []string{"run", "-m", "-c"}, []string{"run", "-m", "-c", "--continue"}, ""},
+		{"copilot attached -r", "copilot", SessionFlag{Continue: true}, []string{"-r" + id}, nil, "conflicts"},
+		{"opencode attached -s", "opencode", SessionFlag{Continue: true}, []string{"-sses_1"}, nil, "conflicts"},
 		{"message after -- is no conflict", "opencode", SessionFlag{Continue: true}, []string{"run", "--", "--continue"}, []string{"run", "--continue", "--", "--continue"}, ""},
 	}
 	for _, tt := range tests {

@@ -19,9 +19,11 @@ func sessionClientArgs(client string, s SessionFlag, extra []string) ([]string, 
 		return nil, errResumeAndContinue
 	}
 	var add, clientFlags []string
+	var valueFlags map[string]bool
 	switch client {
 	case "copilot":
 		clientFlags = []string{"--resume", "-r", "--continue"}
+		valueFlags = copilotValueFlags
 		switch {
 		case s.Continue:
 			add = []string{"--continue"}
@@ -32,6 +34,7 @@ func sessionClientArgs(client string, s SessionFlag, extra []string) ([]string, 
 		}
 	case "opencode":
 		clientFlags = []string{"--session", "-s", "--continue", "-c"}
+		valueFlags = openCodeValueFlags
 		switch {
 		case s.Continue:
 			add = []string{"--continue"}
@@ -46,11 +49,20 @@ func sessionClientArgs(client string, s SessionFlag, extra []string) ([]string, 
 	default:
 		return nil, fmt.Errorf("--resume and --continue are not supported for client %s. Pass the client's own flag after --", client)
 	}
-	for _, a := range extra {
+	for i := 0; i < len(extra); i++ {
+		a := extra[i]
 		if a == "--" {
 			break
 		}
+		if valueFlags[a] {
+			i++ // its value, which may look like a flag: -p '--resume'
+			continue
+		}
 		name, _, _ := strings.Cut(a, "=")
+		// -r<id> and -s<id>: a short flag with its value attached.
+		if len(name) > 2 && name[1] != '-' {
+			name = name[:2]
+		}
 		if slices.Contains(clientFlags, name) {
 			return nil, fmt.Errorf("%s after -- conflicts with nav-pilot's %s: use one of them", a, map[bool]string{true: "--continue", false: "--resume"}[s.Continue])
 		}
@@ -79,3 +91,9 @@ func sessionIDArg(args []string, i int) (id string, ok bool) {
 	}
 	return next, true
 }
+
+// openCodeValueFlags are OpenCode's options that take a value, from
+// `opencode --help` and `opencode run --help` of v2.1.3 (2026-10-23).
+// -s/--session is left out: it is a conflict, read above.
+var openCodeValueFlags = setOf("--server", "--prompt", "-m", "--model", "--agent",
+	"--format", "-f", "--file", "--title", "--completions", "--log-level")
