@@ -150,6 +150,10 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --no-auto-launch        Install or sync, but don't start the agent (--auto-launch to turn on)
   --project-dir <dir>     Directory the agent may read and write (default: current directory, not
                           the enclosing git root; the root's instructions stay readable)
+  --cplt <flag>           Pass a flag to cplt for this session; repeat for more. A value goes
+                          in the same argument: --cplt --allow-port=8080
+  --allow-clipboard       Let the agent use the macOS clipboard this session (cplt denies it
+                          by default)
   --verbose               Say what the launch does: sandbox directory, client, agent and model
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
   -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
@@ -313,6 +317,7 @@ func run(args []string) error {
 	notedProposals = map[string]bool{}
 	armNudges, nudgesReady = false, nil
 	providerpkg.Verbose, artifacts.LaunchNotices = false, false
+	providerpkg.AllowClipboard, providerpkg.CpltArgs = false, nil
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
 	// parsing: decide and ask take free text.
@@ -458,6 +463,27 @@ func run(args []string) error {
 			case "--no-sandbox":
 				// Removed: still parsed so old scripts get a reason, not "unknown flag".
 				return fmt.Errorf("--no-sandbox is gone: nav-pilot always runs clients inside cplt (the sandbox). Drop the flag; if cplt is missing, install it: %s", cpltInstallHint)
+			case "--cplt":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--cplt requires a value (a cplt flag, e.g. --cplt --allow-port=8080)")
+				}
+				i++
+				if err := validateCpltArg(args[i]); err != nil {
+					return err
+				}
+				// --cplt --pass-env FOO would leave FOO behind as an
+				// "unknown command"; say where the value goes instead.
+				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !isKnownCommand(args[i+1]) {
+					return fmt.Errorf("--cplt %s %s: put the value in the same argument, --cplt %s=%s", args[i], args[i+1], args[i], args[i+1])
+				}
+				// cplt refuses most switches given twice, so a repeat is dropped.
+				if args[i] == "--allow-clipboard" {
+					providerpkg.AllowClipboard = true
+				} else if !slices.Contains(providerpkg.CpltArgs, args[i]) {
+					providerpkg.CpltArgs = append(providerpkg.CpltArgs, args[i])
+				}
+			case "--allow-clipboard":
+				providerpkg.AllowClipboard = true
 			case "--verbose":
 				providerpkg.Verbose = true
 			case "--auto-launch":
@@ -1350,4 +1376,24 @@ func nothingInstalled() bool {
 		}
 	}
 	return true
+}
+
+// validateCpltArg refuses the --cplt values that break the launch: --agent
+// picks the client nav-pilot already chose, "--" would hand the rest of
+// cplt's argument vector to the client, and nav-pilot sets --project-dir,
+// --yes and --no-audit itself, which cplt refuses twice.
+func validateCpltArg(v string) error {
+	switch {
+	case v == "--":
+		return fmt.Errorf("--cplt cannot be \"--\"; put client flags after nav-pilot's own --")
+	case v == "--agent" || strings.HasPrefix(v, "--agent="):
+		return fmt.Errorf("--cplt cannot set --agent; use --client to choose the client")
+	case v == "-d" || v == "--project-dir" || strings.HasPrefix(v, "-d=") || strings.HasPrefix(v, "--project-dir="):
+		return fmt.Errorf("--cplt cannot set --project-dir; use nav-pilot's own --project-dir")
+	case v == "-y" || v == "--yes" || v == "--no-audit":
+		return fmt.Errorf("--cplt cannot set %s; nav-pilot sets it when the launch needs it", v)
+	case !strings.HasPrefix(v, "-"):
+		return fmt.Errorf("--cplt %q is not a flag; values go in the same argument, e.g. --cplt --allow-port=8080", v)
+	}
+	return nil
 }

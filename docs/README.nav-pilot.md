@@ -747,6 +747,11 @@ Mangler cplt, starter nav-pilot ingen klient. Installer cplt med `brew install n
 Standard er katalogen du står i, ikke roten av git-repoet rundt den. Repoets instruksjoner i
 roten kan agenten fortsatt lese.
 
+`--allow-clipboard` gir agenten tilgang til utklippstavlen på macOS for denne økten. cplt stenger
+den som standard. `--cplt <flagg>` sender ett cplt-flagg videre for denne økten, for eksempel
+`--cplt --allow-port=8080`. Gjenta flagget for flere. Flagg med verdi skrives med `=`.
+`--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
+
 `--persona <navn>` velger hvilken av agentpakkens `primaryAgents` som startes. Uten
 flagget startes den første. Et navn som ikke er deklarert for klienten avvises med
 en liste over dem som finnes, i stedet for å sendes videre til klienten.

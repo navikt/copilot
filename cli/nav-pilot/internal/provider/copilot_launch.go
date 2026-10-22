@@ -225,6 +225,7 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	// too — in the cplt-flag slot, before the "--" that hands the rest to
 	// the agent.
 	cpltArgs := append([]string{"--agent", "copilot"}, cpltProposalFlags()...)
+	cpltArgs = append(cpltArgs, cpltSessionFlags()...)
 	cpltArgs = append(cpltArgs, "--")
 	cpltArgs = append(cpltArgs, args...)
 	return append(cpltArgs, resolved.ExtraArgs...)
@@ -381,6 +382,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	}
 	if Verbose {
 		fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(banner))
+		printCpltSessionFlags()
 	}
 
 	// Check the environment before handing it to cplt; cplt can still supply
