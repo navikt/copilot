@@ -315,7 +315,9 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 			}
 			switch exists(g.rules.Root, t.path) {
 			case statError:
-				return "", ""
+				// Outside the project or unreadable: not counted, and it
+				// does not shield the patch's other files.
+				continue
 			case statMissing:
 				// A new file: create-file, not a mechanical edit. An edit of
 				// a path that is not there is a mistake opencode reports.
@@ -1325,48 +1327,22 @@ func (g *dispatchGate) targets(r GateRequest) []gateTarget {
 	return out
 }
 
-// PatchFiles reads the files a patch adds and changes (updates or deletes).
-// opencode's patch tools take "*** Begin Patch" text (*** Add File:, ***
-// Update File:, *** Delete File:, *** Move to:); a unified diff's "+++ b/x"
-// is read too, as an add when its "---" is /dev/null.
+// PatchFiles reads the files a patch adds and changes, from opencode's
+// "*** Begin Patch" text: *** Add File: is added; *** Update File:, ***
+// Delete File: and *** Move to: are changed (a move is an edit, not a new
+// file). opencode sends no other format.
 func PatchFiles(text string) (added, changed []string) {
-	prev := ""
 	for _, line := range strings.Split(text, "\n") {
 		line = strings.TrimRight(line, " \t\r")
 		if f, ok := strings.CutPrefix(line, "*** Add File: "); ok {
 			added = append(added, strings.TrimSpace(f))
-		} else if f, ok := strings.CutPrefix(line, "*** Move to: "); ok {
-			added = append(added, strings.TrimSpace(f))
-		} else if f, ok := strings.CutPrefix(line, "*** Update File: "); ok {
-			changed = append(changed, strings.TrimSpace(f))
-		} else if f, ok := strings.CutPrefix(line, "*** Delete File: "); ok {
-			changed = append(changed, strings.TrimSpace(f))
-		} else if f, ok := strings.CutPrefix(line, "+++ "); ok && strings.HasPrefix(prev, "--- ") {
-			switch f = diffPath(f); {
-			case f == "":
-			case diffPath(prev[4:]) == "":
-				added = append(added, f)
-			default:
-				changed = append(changed, f)
+			continue
+		}
+		for _, h := range []string{"*** Update File: ", "*** Delete File: ", "*** Move to: "} {
+			if f, ok := strings.CutPrefix(line, h); ok {
+				changed = append(changed, strings.TrimSpace(f))
 			}
 		}
-		prev = line
 	}
 	return added, changed
-}
-
-// diffPath: a unified diff header's path without its a/ or b/ prefix and
-// timestamp; "" for /dev/null.
-func diffPath(s string) string {
-	if i := strings.IndexByte(s, '\t'); i >= 0 {
-		s = s[:i]
-	}
-	s = strings.TrimSpace(s)
-	if s == "/dev/null" {
-		return ""
-	}
-	if strings.HasPrefix(s, "a/") || strings.HasPrefix(s, "b/") {
-		s = s[2:]
-	}
-	return s
 }

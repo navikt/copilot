@@ -255,12 +255,10 @@ func TestPatchFiles(t *testing.T) {
 		added, changed []string
 	}{
 		{"opencode", "*** Begin Patch\n*** Add File: src/New.kt\n+class New\n*** Update File: src/F1.kt\n@@\n-a\n+b\n*** Delete File: src/F2.kt\n*** Update File: src/F3.kt\n*** Move to: src/F3b.kt\n@@\n-x\n+y\n*** End Patch",
-			[]string{"src/New.kt", "src/F3b.kt"}, []string{"src/F1.kt", "src/F2.kt", "src/F3.kt"}},
+			[]string{"src/New.kt"}, []string{"src/F1.kt", "src/F2.kt", "src/F3.kt", "src/F3b.kt"}},
 		{"crlf", "*** Begin Patch\r\n*** Update File: a.kt \r\n*** End Patch\r\n", nil, []string{"a.kt"}},
-		{"unified", "--- a/src/F1.kt\t2026-01-01\n+++ b/src/F1.kt\t2026-01-01\n@@ -1 +1 @@\n-a\n+b\n--- /dev/null\n+++ b/src/New.kt\n@@ -0,0 +1 @@\n+x\n--- a/src/Gone.kt\n+++ /dev/null\n",
-			[]string{"src/New.kt"}, []string{"src/F1.kt"}},
-		// A body line that adds "++ x" is not a header.
-		{"body", "*** Begin Patch\n*** Update File: a.kt\n@@\n-x\n+++ b/y.kt\n*** End Patch", nil, []string{"a.kt"}},
+		// Body lines that look like a unified diff's headers are not read.
+		{"body", "*** Begin Patch\n*** Update File: a.kt\n@@\n--- note\n+++ b/y.kt\n*** End Patch", nil, []string{"a.kt"}},
 		{"empty", "", nil, nil},
 	} {
 		added, changed := PatchFiles(tc.text)
@@ -295,9 +293,15 @@ func TestGateCountsPatchFiles(t *testing.T) {
 			t.Fatalf("%s: one patch over five files was not denied: %q", tool, outcome)
 		}
 	}
+	// A path outside the project does not let the other files through. Not
+	// ../x: the test project is in the temp dir, where ../x is deny_tmp.
+	g := testGate(t, true, multi)
+	if _, outcome := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "patch", Patch: update("src/F1.kt", "src/F2.kt", "src/F3.kt", "src/F4.kt", "/etc/x", "src/F5.kt")}); outcome != "deny_files" {
+		t.Fatalf("a path outside the project shielded the patch: %q", outcome)
+	}
 	// Control: a tool the gate does not know is not counted, so the test
 	// above fails if the patch case goes.
-	g := testGate(t, true, multi)
+	g = testGate(t, true, multi)
 	if deny, _ := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "other", Patch: update("src/F1.kt", "src/F2.kt", "src/F3.kt", "src/F4.kt", "src/F5.kt")}); deny != "" {
 		t.Fatal("control: an unknown tool was gated")
 	}
@@ -312,6 +316,10 @@ func TestGatePatchAddIsCreate(t *testing.T) {
 	// Control: the same patch without the add passes.
 	if deny, _ := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "patch", Patch: "*** Begin Patch\n*** Update File: src/F1.kt\n@@\n-a\n+b\n*** End Patch"}); deny != "" {
 		t.Fatal("control: a patch of an existing file was denied as a create")
+	}
+	// A move is an edit, not a new file.
+	if deny, _ := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "patch", Patch: "*** Begin Patch\n*** Update File: src/F2.kt\n*** Move to: src/Moved.kt\n@@\n-a\n+b\n*** End Patch"}); deny != "" {
+		t.Fatal("a move was denied as a create")
 	}
 }
 
