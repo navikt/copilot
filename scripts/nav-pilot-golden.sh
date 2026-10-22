@@ -157,6 +157,9 @@
 #   reasoning, credit and latency data from assistant_usage_events. Override
 #   the path with NAV_PILOT_GOLDEN_USAGE_DB when cplt or an isolated HOME keeps
 #   the database elsewhere. The CLI's rounded banner is not used as raw data.
+#   With --client opencode (v2) the same file is filled from `opencode session
+#   export`, and total_nano_aiu is an estimate from list price, marked
+#   "estimert" (#1721). A credit cap over column 13 counts it the same way.
 #
 # PASS/FAIL ACROSS REPEATS
 #   A test passes only if *every* run of it passed. One failure in five runs is
@@ -561,8 +564,20 @@ USAGE_HELPER="$REPO_ROOT/scripts/copilot-usage.py"
 USAGE_DB="${NAV_PILOT_GOLDEN_USAGE_DB:-$HOME/.copilot/session-store.db}"
 USAGE_TRACKING=false
 USAGE_UNAVAILABLE=""
+# OpenCode v2 (#1721): rows come from `opencode session export` and credits
+# are an estimate from list price (scripts/copilot-usage.py opencode), labelled
+# "estimert". They land in usage.psv like Copilot rows, so a credit cap over
+# column 13 counts them. v1 (dropped after 2026-11-19) stays unavailable.
+USAGE_ESTIMATED=false
 if [[ "$CLIENT" == opencode ]]; then
-  USAGE_UNAVAILABLE="--client opencode has no assistant_usage_events"
+  if [[ "$(grep -oE '[0-9]+' <<<"$CLI_VERSION" | head -1)" -lt 2 ]]; then
+    USAGE_UNAVAILABLE="--client opencode before v2 has no usage export"
+  elif ! command -v python3 >/dev/null 2>&1; then
+    USAGE_UNAVAILABLE="python3 is unavailable"
+  else
+    USAGE_TRACKING=true
+    USAGE_ESTIMATED=true
+  fi
 elif [[ ! -f "$USAGE_DB" ]]; then
   USAGE_UNAVAILABLE="no session database at $USAGE_DB"
 elif ! command -v python3 >/dev/null 2>&1; then
@@ -1434,6 +1449,12 @@ new_session_id() {
   printf '%s' "$id"
 }
 
+# oc_session_id <title>: the id of the OpenCode session with that title, or "".
+oc_session_id() {
+  (cd "$WS" && env ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" session list --format json 2>&1 \
+    | python3 -c 'import json,sys; print(next((s["id"] for s in json.load(sys.stdin) if s.get("title")==sys.argv[1]),""))' "$1" 2>&1)
+}
+
 now_ms() {
   if command -v python3 >/dev/null 2>&1; then
     python3 -c 'import time; print(time.time_ns() // 1_000_000)'
@@ -1493,12 +1514,13 @@ run_prompt() {
     args=(run --auto --agent "$LAUNCH_NAME" -m "$OC_MODEL")  # --auto: same as --allow-all-tools
     # opencode mints its own session ids, so turn one is titled with ours and
     # later turns look the id up by that title and pass it to --session.
+    # Single-turn prompts get a title too, so their usage can be exported.
+    $USAGE_ESTIMATED && [[ -z "$session" ]] && session="$(new_session_id)"
     if [[ -n "$session" ]]; then
       case "$SESSIONS_SEEN" in
         *" $session "*)
           local oc_sid
-          if ! oc_sid="$(cd "$WS" && env ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" session list --format json 2>&1 \
-            | python3 -c 'import json,sys; print(next((s["id"] for s in json.load(sys.stdin) if s.get("title")==sys.argv[1]),""))' "$session" 2>&1)"; then
+          if ! oc_sid="$(oc_session_id "$session")"; then
             LAST_PROMPT_DETAIL="opencode session list failed: $(head -c 300 <<<"$oc_sid")"
             LAST_PROMPT_FAILURE="cli_failure"
             return 1
@@ -1567,7 +1589,7 @@ run_prompt() {
   local -a runner=()
   [[ -n "$TIMEOUT_BIN" ]] && runner=("$TIMEOUT_BIN" "$TIMEOUT_SECS")
   local usage_cursor=0 started_ms ended_ms elapsed_ms
-  if $USAGE_TRACKING && [[ -n "$session" ]]; then
+  if $USAGE_TRACKING && ! $USAGE_ESTIMATED && [[ -n "$session" ]]; then
     if ! usage_cursor="$(python3 "$USAGE_HELPER" cursor "$USAGE_DB")"; then
       USAGE_TRACKING=false
       USAGE_COMPLETE=false
@@ -1589,7 +1611,21 @@ run_prompt() {
   local rc=$?
   ended_ms="$(now_ms)"
   elapsed_ms=$((ended_ms - started_ms))
-  if $USAGE_TRACKING && [[ -n "$session" ]]; then
+  if $USAGE_ESTIMATED && $USAGE_TRACKING; then
+    # Only messages created after started_ms: turn two exports turn one again.
+    # ponytail: subagent (child) sessions are not exported, so a run that
+    # delegates is underestimated; walk child sessions if that starts to matter.
+    local oc_usage_sid
+    if ! { oc_usage_sid="$(oc_session_id "$session")" && [[ -n "$oc_usage_sid" ]] \
+      && (cd "$WS" && env ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" session export "$oc_usage_sid") \
+        | python3 "$USAGE_HELPER" opencode --since-ms "$started_ms" --slug "$slug" --run "$RUN" --title "$session" \
+        >>"$USAGE_FILE"; }; then
+      USAGE_TRACKING=false
+      USAGE_COMPLETE=false
+      USAGE_UNAVAILABLE="could not export opencode session usage after $slug"
+      echo "${YELLOW}⚠ usage tracking disabled: $USAGE_UNAVAILABLE${RESET}" >&2
+    fi
+  elif $USAGE_TRACKING && [[ -n "$session" ]]; then
     if ! python3 "$USAGE_HELPER" export "$USAGE_DB" \
       --session "$session" --after "$usage_cursor" --slug "$slug" --run "$RUN" \
       >>"$USAGE_FILE"; then
@@ -1873,7 +1909,11 @@ echo "${BOLD}golden-prompt harness, agent under test: $AGENT${RESET}"
 echo "${DIM}client: $CLI_NAME${CLI_VERSION:+ $CLI_VERSION}${CLI_PATH:+ ($CLI_PATH)}${RESET}"
 echo "${DIM}agent file: $PERSONA (launched as --agent $LAUNCH_NAME)${RESET}"
 if $USAGE_TRACKING; then
-  echo "${DIM}usage: exact rows from $USAGE_DB${RESET}"
+  if $USAGE_ESTIMATED; then
+    echo "${DIM}usage: opencode session export, credits estimert${RESET}"
+  else
+    echo "${DIM}usage: exact rows from $USAGE_DB${RESET}"
+  fi
 else
   echo "${YELLOW}usage: unavailable ($USAGE_UNAVAILABLE)${RESET}"
 fi
@@ -4405,20 +4445,24 @@ if [[ -s "$AGG_SIZES" ]]; then
 fi
 
 if [[ -s "$USAGE_FILE" ]]; then
-  echo "${BOLD}Model usage${RESET} ${DIM}(exact assistant_usage_events rows; totals include failed attempts and subagents)${RESET}"
+  if $USAGE_ESTIMATED; then
+    echo "${BOLD}Model usage${RESET} ${DIM}(opencode session export; credits estimert from list price, subagents not included)${RESET}"
+  else
+    echo "${BOLD}Model usage${RESET} ${DIM}(exact assistant_usage_events rows; totals include failed attempts and subagents)${RESET}"
+  fi
   printf '  %-6s %6s %10s %10s %10s %10s\n' "prompt" "calls" "credits" "written" "cached" "output"
   for slug in $(uniq_field "$USAGE_FILE" 1); do
-    grep "^$slug|" "$USAGE_FILE" | awk -F'|' -v slug="$slug" '
+    grep "^$slug|" "$USAGE_FILE" | awk -F'|' -v slug="$slug" -v label="$($USAGE_ESTIMATED && echo estimert)" '
       {
         calls++
         output += $9
         cached += $10
         written += $11
-        nano += $13
+        if ($13 == "unknown") unknown = 1; else nano += $13
       }
       END {
-        printf "  %-6s %6d %10.3f %10d %10d %10d\n",
-          slug, calls, nano / 1000000000, written, cached, output
+        printf "  %-6s %6d %10s %10d %10d %10d %s\n",
+          slug, calls, unknown ? "unknown" : sprintf("%.3f", nano / 1000000000), written, cached, output, label
       }'
   done
   echo "${DIM}Credits are total_nano_aiu / 1e9. Token columns are cache writes, cache reads and output.${RESET}"
@@ -4548,7 +4592,11 @@ if [[ -n "$SAVE_BASELINE" ]]; then
       echo "# repeat:       $REPEAT"
       echo "# fixture:      $FIXTURE_SUM"
       echo "# prompts:      ${ONLY:-all}"
-      echo "# source:       assistant_usage_events"
+      if $USAGE_ESTIMATED; then
+        echo "# source:       opencode session export; total_nano_aiu is estimert from list price (model-pricing.ts)"
+      else
+        echo "# source:       assistant_usage_events"
+      fi
       echo "#"
       echo "# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id"
       cat "$USAGE_FILE"

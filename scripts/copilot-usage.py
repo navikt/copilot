@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""Read exact Copilot model usage from session-store.db."""
+"""Read exact Copilot model usage from session-store.db, or estimate OpenCode usage."""
+
+from __future__ import annotations  # macOS /usr/bin/python3 is 3.9
 
 import argparse
+import json
+import re
 import sqlite3
+import sys
 import tempfile
 from pathlib import Path
 
@@ -62,6 +67,68 @@ def export_rows(
     return ["|".join(clean(value) for value in (*prefix, *row)) for row in rows]
 
 
+PRICING_TS = Path(__file__).resolve().parent.parent / "apps/my-copilot/src/lib/model-pricing.ts"
+
+
+def load_prices(path: Path) -> dict[str, list[tuple[int, tuple[float, ...]]]]:
+    """model-pricing.ts as {model id: [(tier limit, (input, cache read, cache write, output))]}.
+
+    USD per 1M tokens. "GPT-6 Luna (Default, ≤ 272K)" becomes gpt-6-luna with
+    limit 272000; its "Long context" entry is the price above that. A model
+    without cacheWrite pays the input price for cache writes.
+    """
+    prices: dict[str, list[tuple[int, tuple[float, ...]]]] = {}
+    for block in re.findall(r'\{[^{}]*model: "[^{}]*\}', path.read_text()):
+        name = re.search(r'model: "([^"]+)"', block).group(1)
+
+        def num(key: str) -> float | None:
+            m = re.search(rf"\b{key}: ([0-9.]+)", block)
+            return float(m.group(1)) if m else None
+
+        rate = (num("input"), num("cachedInput"), num("cacheWrite") or num("input"), num("output"))
+        tiers = prices.setdefault(name.split(" (")[0].lower().replace(" ", "-"), [])
+        limit = re.search(r"≤ (\d+)K", name)
+        if "Long context" in name:
+            tiers.append((10**12, rate))
+        elif not tiers:  # first entry wins: "(fast mode)" variants share a base name
+            tiers.append((int(limit.group(1)) * 1000 if limit else 10**12, rate))
+    return prices
+
+
+def opencode_rows(
+    export: dict, prices: dict, since_ms: int, slug: str, run: int, title: str
+) -> list[str]:
+    """Rows in the export_rows layout from `opencode session export` (v2).
+
+    total_nano_aiu is an ESTIMATE from list price, not a billed number.
+    OpenCode's input excludes cache reads and writes and its output excludes
+    reasoning, so input_tokens is their sum (as in assistant_usage_events) and
+    reasoning is priced as output. 1 credit = $0.01: nano-credits = USD * 1e11.
+    Unknown models get "unknown", which a credit cap must treat as over.
+    """
+    rows = []
+    for msg in export.get("messages", []):
+        times = msg.get("time", {})
+        if msg.get("type") != "assistant" or times.get("created", 0) < since_ms:
+            continue
+        t = msg.get("tokens", {})
+        fresh, out, reason = t.get("input", 0), t.get("output", 0), t.get("reasoning", 0)
+        read, write = t.get("cache", {}).get("read", 0), t.get("cache", {}).get("write", 0)
+        model = msg.get("model", {}).get("id", "")
+        total_in = fresh + read + write
+        nano: object = "unknown"
+        if tiers := prices.get(model.split("/")[-1]):
+            pi, pc, pw, po = next((r for limit, r in tiers if total_in <= limit), tiers[-1][1])
+            nano = round((fresh * pi + read * pc + write * pw + (out + reason) * po) * 1e5)
+        duration = times["completed"] - times["created"] if "completed" in times else ""
+        rows.append("|".join(clean(v) for v in (
+            slug, run, title, msg.get("id"), "", model, msg.get("model", {}).get("variant"),
+            total_in, out, read, write, reason, nano, duration, "",
+            msg.get("finish"), msg.get("agent"), "",
+        )))
+    return rows
+
+
 def selftest() -> None:
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "session-store.db"
@@ -110,6 +177,41 @@ def selftest() -> None:
             "t1|3|wanted|2|1|gpt-6-sol|high|100|20|60|30|4|2500|900|80|stop|review|call\\u007c1"
         ]
 
+    # OpenCode estimate. Fake prices and fake token counts, never real ones.
+    with tempfile.TemporaryDirectory() as directory:
+        ts = Path(directory) / "model-pricing.ts"
+        ts.write_text(
+            '{ model: "Fake One (Default, ≤ 100K)", input: 1, cachedInput: 0.1, cacheWrite: 1.25, output: 10 },\n'
+            '{ model: "Fake One (Long context, 100K)", input: 2, cachedInput: 0.2, output: 20 },\n'
+            '{ model: "Fake Two (Default)", input: 3, cachedInput: 0.3, output: 30 },\n'
+            '{ model: "Fake Two (fast mode) (Default)", input: 9, cachedInput: 9, output: 9 },\n'
+        )
+        prices = load_prices(ts)
+        assert prices["fake-one"] == [(100_000, (1, 0.1, 1.25, 10)), (10**12, (2, 0.2, 2, 20))]
+        assert prices["fake-two"] == [(10**12, (3, 0.3, 3, 30))]
+        assert "gpt-6-luna" in load_prices(PRICING_TS)
+
+        def msg(created: int, model: str, fresh: int, read: int, out: int, reason: int) -> dict:
+            return {"type": "assistant", "id": f"m{created}", "agent": "a", "finish": "stop",
+                    "time": {"created": created, "completed": created + 7},
+                    "model": {"id": model, "variant": "default"},
+                    "tokens": {"input": fresh, "output": out, "reasoning": reason,
+                               "cache": {"read": read, "write": 0}}}
+
+        export = {"messages": [
+            msg(5, "fake-one", 1, 1, 1, 1),  # before since_ms: an earlier turn
+            {"type": "user", "time": {"created": 20}},
+            msg(20, "fake-one", 600, 400, 150, 50),
+            msg(30, "provider/fake-one", 100_000, 1, 0, 0),  # 100001 > 100K
+            msg(40, "nope", 1, 0, 0, 0),
+        ]}
+        rows = opencode_rows(export, prices, 10, "t1", 2, "ttl")
+        # 600*1 + 400*0.1 + (150+50)*10 = 2640 USD per 1M = 0.264 credits
+        assert rows[0] == "t1|2|ttl|m20||fake-one|default|1000|150|400|0|50|264000000|7||stop|a|", rows[0]
+        assert rows[1].split("|")[12] == str(round((100_000 * 2 + 0.2) * 1e5))
+        assert rows[2].split("|")[12] == "unknown"
+        assert len(rows) == 3
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -126,6 +228,13 @@ def main() -> None:
     export_parser.add_argument("--slug", required=True)
     export_parser.add_argument("--run", required=True, type=int)
 
+    opencode_parser = subparsers.add_parser("opencode")  # export JSON on stdin
+    opencode_parser.add_argument("--since-ms", required=True, type=int)
+    opencode_parser.add_argument("--slug", required=True)
+    opencode_parser.add_argument("--run", required=True, type=int)
+    opencode_parser.add_argument("--title", required=True)
+    opencode_parser.add_argument("--pricing", type=Path, default=PRICING_TS)
+
     args = parser.parse_args()
     if args.selftest:
         selftest()
@@ -140,7 +249,15 @@ def main() -> None:
         if rows:
             print("\n".join(rows))
         return
-    parser.error("choose cursor, export or --selftest")
+    if args.command == "opencode":
+        rows = opencode_rows(
+            json.load(sys.stdin), load_prices(args.pricing),
+            args.since_ms, args.slug, args.run, args.title,
+        )
+        if rows:
+            print("\n".join(rows))
+        return
+    parser.error("choose cursor, export, opencode or --selftest")
 
 
 if __name__ == "__main__":
