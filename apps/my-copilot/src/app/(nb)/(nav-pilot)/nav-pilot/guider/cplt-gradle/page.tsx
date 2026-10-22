@@ -324,6 +324,32 @@ cplt --allow-rootless-docker`}
             </a>{" "}
             (engelsk). Uten Ryuk må du selv rydde opp containere som står igjen etter en avbrutt testkjøring.
           </BodyLong>
+          <BodyLong>
+            Vanlig <code className={code}>podman</code> virker ikke i sandkassen, fordi den trenger user namespaces.
+            Kjør <code className={code}>podman --remote</code> mot socketen, eller bruk Docker-klienten med{" "}
+            <code className={code}>DOCKER_HOST</code> som over. cplt sender <code className={code}>CONTAINER_HOST</code>{" "}
+            videre til agenten:
+          </BodyLong>
+          <CodeBlock compact>
+            {`export CONTAINER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
+podman --remote images`}
+          </CodeBlock>
+          <BodyLong>
+            Podman virker fra cplt 2026.10.22-140206. Med eldre versjoner feiler Podman med{" "}
+            <code className={code}>cannot retrieve cmd line</code>. Oppgrader, eller åpne{" "}
+            <code className={code}>/proc</code> og Podmans tilstandsmappe selv. Mappen må finnes før du starter, ellers
+            dropper cplt rettigheten med en advarsel:
+          </BodyLong>
+          <CodeBlock compact>
+            {`mkdir -p -m 700 "$XDG_RUNTIME_DIR/libpod"
+cplt --allow-rootless-docker --allow-read /proc --allow-write "$XDG_RUNTIME_DIR/libpod"`}
+          </CodeBlock>
+          <BodyLong>
+            Rettingen virker bare når cplt kjører med bubblewrap. Uten bubblewrap sier cplt fra ved oppstart. Installer
+            eller slå på bubblewrap i stedet for å bruke <code className={code}>--allow-read /proc</code>: uten
+            bubblewrap kan agenten da lese kommandolinjene til alle prosessene dine på maskinen, og de kan inneholde
+            tokens og passord.
+          </BodyLong>
           <BodyLong>Slik slår du det på fast:</BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_rootless_docker true --force`}</CodeBlock>
           <Bullets>
