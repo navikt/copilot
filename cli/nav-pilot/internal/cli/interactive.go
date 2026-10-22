@@ -1075,6 +1075,11 @@ func launchClient(resolved ResolvedConfig) (err error) {
 	if err != nil {
 		return err
 	}
+	persona := resolved.Persona
+	if persona == "" {
+		persona = providerpkg.PrimaryAgent(resolved.Client)
+	}
+	resolved = maybeModelNudge(resolved, persona, "")
 	printModelNotice(resolved)
 	beginSession(resolved.Client)
 	return p.Launch(resolved)

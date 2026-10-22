@@ -202,7 +202,12 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 		persona = PrimaryAgent("copilot")
 	}
 	var args []string
-	args = append(args, "--agent", persona)
+	agent := persona
+	if a, dir := copilotUserModelAgent(resolved, persona, PrimaryAgentFile("copilot", persona, "", resolved.ProjectDir)); a != "" {
+		agent = a
+		args = append(args, "--plugin-dir", dir)
+	}
+	args = append(args, "--agent", agent)
 	args = append(args, copilotAgentArgs(persona)...)
 	if model := copilotSessionModel(resolved.Model); model != "" {
 		// Same fallback the staged Tier 2 copilot path has
