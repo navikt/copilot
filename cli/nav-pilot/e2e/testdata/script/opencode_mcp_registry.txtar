@@ -63,7 +63,7 @@ env POLICY=allow_all
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
 ! stderr 'MCP servers turned off'
 exec cat $WORK/env.out
-! stdout 'enabled'
+! stdout '"enabled":'
 
 # The registry does not answer: nothing is turned off, and it says so.
 env POLICY=registry_only
@@ -71,7 +71,7 @@ env MCP_REGISTRY_URL=http://127.0.0.1:1/
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
 stderr 'MCP servers were not checked against Nav''s MCP registry'
 exec cat $WORK/env.out
-! stdout 'enabled'
+! stdout '"enabled":'
 
 -- fake/gh.sh --
 if [ "$1 $2" = "api /copilot/mcp_registry" ]; then

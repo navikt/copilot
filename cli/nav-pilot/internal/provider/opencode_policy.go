@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -56,6 +57,48 @@ const OpenCodeInstallVersion = "1.18.32"
 
 func applyOpenCodePolicy(env []string) []string {
 	return withOpenCodeConfigContent(env, openCodePolicy)
+}
+
+// OpenCode 2 gives global provider policies precedence over inline config.
+// Refuse conflicting rules rather than silently widening this session.
+func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal bool) ([]string, error) {
+	allowed := []string{"github-copilot"}
+	if allowLocal {
+		allowed = append(allowed, LocalProviderID)
+	}
+	major := openCodeMajor()
+	if major == 0 {
+		return nil, fmt.Errorf("cannot verify OpenCode provider policy: version unavailable; check opencode --version before launching nav-pilot")
+	}
+	if major >= 2 {
+		for _, doc := range openCodeConfigDocuments(projectDir, env, false) {
+			var cfg struct {
+				Enabled      []string `json:"enabled_providers"`
+				Experimental struct {
+					Policies []struct {
+						Action   string `json:"action"`
+						Effect   string `json:"effect"`
+						Resource string `json:"resource"`
+					} `json:"policies"`
+				} `json:"experimental"`
+			}
+			if err := json.Unmarshal(stripJSONC(doc.content), &cfg); err != nil {
+				return nil, fmt.Errorf("cannot verify OpenCode 2 provider policy in %s: invalid configuration; correct the config before launching nav-pilot", doc.path)
+			}
+			for _, id := range cfg.Enabled {
+				if doc.path != openCodeConfigContentEnv && !slices.Contains(allowed, id) {
+					return nil, fmt.Errorf("OpenCode 2 enabled_providers conflicts with nav-pilot's provider restriction in %s; remove providers other than %s", doc.path, strings.Join(allowed, ", "))
+				}
+			}
+			for _, policy := range cfg.Experimental.Policies {
+				// Any non-exact allow may re-enable providers after our deny.
+				if policy.Action == "provider.use" && policy.Effect == "allow" && !slices.Contains(allowed, policy.Resource) {
+					return nil, fmt.Errorf("OpenCode 2 experimental.policies conflicts with nav-pilot's provider restriction in %s; remove provider.use allow rules other than %s", doc.path, strings.Join(allowed, ", "))
+				}
+			}
+		}
+	}
+	return withOpenCodeConfigContent(env, map[string]any{"enabled_providers": allowed}), nil
 }
 
 // applyOpenCodeOwnDirs lets the session read the instructions, agents and
@@ -249,8 +292,8 @@ func CheckOpenCodeMajor() error {
 }
 
 // openCodeMajor is the installed opencode's major version, read from the raw
-// version line so a prerelease counts. Unreadable is 0, which every caller
-// treats as opencode 1: that path is the one nav-pilot has always taken.
+// version line so a prerelease counts. Unreadable is 0; provider-policy
+// enforcement refuses that case rather than guessing config precedence.
 func openCodeMajor() int {
 	out, _ := cachedVersion("opencode", clientProbeTimeout)
 	m := openCodeMajorPattern.FindStringSubmatch(strings.TrimSpace(out))

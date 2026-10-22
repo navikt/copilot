@@ -314,6 +314,20 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 
 ---
 
+## OpenCode providers (nav-pilot)
+
+nav-pilot sets the session's `enabled_providers` to `github-copilot` and, when
+local inference is enabled, `mlx`. All available Copilot models remain selectable.
+The restriction is session-scoped; standalone OpenCode settings are unchanged.
+OpenCode 2 can give existing provider policies precedence over session config,
+so conflicting allow rules in inspected local config cause nav-pilot to refuse
+the launch.
+
+This is configuration control, not a network security boundary. It does not
+constrain plugins or config changes after launch. Remote configuration and
+managed organization policies are not inspected. cplt remains the sandbox and
+egress boundary.
+
 ## Copilot auth mode (nav-pilot)
 
 When nav-pilot launches Copilot inside `cplt`, `cplt` is the component that can

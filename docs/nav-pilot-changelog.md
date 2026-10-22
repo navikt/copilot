@@ -13,6 +13,15 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavlen på macOS for denne økten. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle økter med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
 - **`nav-pilot --cplt <flagg>`**: Sender ett cplt-flagg videre for denne økten, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Flagg med verdi skrives med `=`. `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
 
+### OpenCode-økter bruker bare GitHub Copilot og lokal modell
+
+- **`nav-pilot --client opencode`**: En økt som nav-pilot starter, kan bare bruke modeller fra GitHub Copilot. Har du slått på lokal inferens (`local_enabled`), kan økten også bruke den lokale modellen (`mlx`). Andre modelleverandører, også de en agentpakke peker på, svarer ikke lenger i økten. OpenCode brukt uten nav-pilot er uendret, og nav-pilot endrer ikke OpenCode-konfigurasjonen din.
+- **Ingen stille bytte**: Får ikke OpenCode brukt en Copilot-modell, avslutter økten med «Model unavailable» i stedet for å bytte til en annen leverandør. nav-pilot ber deg da logge inn med `opencode auth login` (velg GitHub Copilot) og sjekke at Copilot-abonnementet ditt har modellen.
+- **Kan stoppe oppstarten**: nav-pilot starter ikke OpenCode hvis
+  - `opencode --version` ikke svarer. Sjekk at kommandoen virker, og start på nytt.
+  - OpenCode 2 har `enabled_providers` med andre leverandører enn `github-copilot` og `mlx`, eller en `provider.use`-regel med `"effect": "allow"` for andre leverandører under `experimental.policies`. Feilmeldingen sier hvilken fil det gjelder. Fjern de andre leverandørene fra filen, eller fjern hele innstillingen.
+  - en OpenCode-konfigurasjon ikke er gyldig JSON. Rett filen feilmeldingen peker på.
+
 ## 2026-10-14
 
 ### Har du svart på nettet, spør ikke nav-pilot igjen

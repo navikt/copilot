@@ -24,6 +24,7 @@ grep '^--pass-env\nOPENCODE_CONFIG_CONTENT\n' $WORK/fake/cplt.log
 exec cat $WORK/env.out
 stdout '"share":"disabled"'
 stdout '"autoupdate":"notify"'
+stdout '"enabled_providers":\["github-copilot"\]'
 grep '"share": "manual"' $HOME/.config/opencode/opencode.json
 ! stderr 'outside the tested range'
 
@@ -42,13 +43,31 @@ exec touch $WORK/fake/opencode
 exec nav-pilot doctor
 stdout 'Version 1\.18\.32 is inside the tested range'
 
+# The same policy reaches opencode 2, where model flags become inline config.
+env OC_VERSION='opencode v2.0.24'
+exec touch $WORK/fake/opencode
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exec cat $WORK/env.out
+stdout '"enabled_providers":\["github-copilot"\]'
+
+# A global v2 policy outranks inline config: refuse before cplt starts.
+cp $WORK/broader.json $HOME/.config/opencode/opencode.json
+rm $WORK/env.out
+! exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+stderr 'enabled_providers conflicts'
+! exists $WORK/env.out
+
 -- fake/opencode.sh --
 for a in "$@"; do last=$a; done
 [ "$last" = --version ] && { echo "$OC_VERSION"; exit 0; }
 -- fake/cplt.sh --
+for a in "$@"; do last=$a; done
+[ "$last" = --version ] && { echo 'cplt 2026.10.19-120000-abcdef0'; exit 0; }
 env | grep '^OPENCODE_CONFIG_CONTENT=' > "$WORK/env.out"
 -- manual.json --
 {"share": "manual"}
+-- broader.json --
+{"enabled_providers":["opencode","github-copilot"]}
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

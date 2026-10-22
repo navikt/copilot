@@ -195,8 +195,9 @@ func writeHooksBridgePlugin(v2 bool) (string, error) {
 }
 
 // withOpenCodeConfigContent merges add into OPENCODE_CONFIG_CONTENT. A value
-// the user set is kept and added to; a list (plugin) is appended to. A value
-// that is not a JSON object is replaced, with a warning, because what
+// the user set is kept and added to; lists are appended except enabled_providers,
+// which replaces the allowlist. A value that is not a JSON object is replaced,
+// with a warning, because what
 // nav-pilot puts there is policy it does not skip.
 //
 // Key order is kept: opencode resolves permission rules in order, the last
@@ -219,7 +220,8 @@ func withOpenCodeConfigContent(env []string, add map[string]any) []string {
 	for _, k := range slices.Sorted(maps.Keys(add)) {
 		a := toNode(add[k])
 		have := nodeGet(cfg, k)
-		if a.Kind == yaml.SequenceNode {
+		// Appending an allowlist would retain providers the session forbids.
+		if a.Kind == yaml.SequenceNode && k != "enabled_providers" {
 			list := &yaml.Node{Kind: yaml.SequenceNode}
 			switch {
 			case have != nil && have.Kind == yaml.SequenceNode:
