@@ -758,7 +758,8 @@ nav-pilot --client copilot
             Kjør <code className={code}>cplt doctor --agent copilot</code> om Copilot likevel ikke finner innloggingen.
             Den sier hvilket av kravene som mangler. Vil du heller la cplt sende inn gh-tokenet i miljøet, krever cplt{" "}
             <code className={code}>--force</code>: gh-tokenet er en egen legitimasjon som Copilot ellers ikke har, og
-            alle prosesser i sandkassen kan lese den fra miljøet.
+            alle prosesser i sandkassen kan lese den fra miljøet. gh-vakta må være på (
+            <code className={code}>gh_guard.enabled</code>), ellers sender cplt ikke inn noe token:
           </BodyLong>
           <CodeBlock compact>{`cplt config set gh_guard.inject_token true --force`}</CodeBlock>
           <BodyLong>
