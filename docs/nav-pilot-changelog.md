@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-22
 
+### Lokal modell på Linux trenger ikke lsof
+
+- **`nav-pilot alpha local` på Linux**: Før en økt bruker den lokale serveren, sjekker nav-pilot at serveren er din. Sjekken brukte `/usr/sbin/lsof`, som Linux vanligvis ikke har der. Da avviste nav-pilot serveren hver gang, selv om den var din. Nå leser nav-pilot dette fra `/proc` på Linux. På macOS er alt som før (#1913).
+
 ### nav-pilot er testet med OpenCode 2.1
 
 - **OpenCode 2**: nav-pilot er nå testet med OpenCode 2.1.2 og varsler ikke lenger om at 2.1.x er utenfor det som er testet. Hooks, delegeringssperren og oppsettet av økter under cplt er kjørt mot 2.1.2. Installasjonshjelpen foreslår nå 2.1.2 (#1907).

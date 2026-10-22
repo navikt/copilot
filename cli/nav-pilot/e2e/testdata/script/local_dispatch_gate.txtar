@@ -7,8 +7,9 @@
 # With the server gone mid-session the gate lets everything through, and a
 # launch with no server has no gate.
 
-# nav-pilot proves the server is its own with /usr/sbin/lsof (macOS).
-[!exec:/usr/sbin/lsof] skip 'needs /usr/sbin/lsof for the server ownership check (macOS)'
+# nav-pilot proves the server is its own from /proc on Linux and with
+# /usr/sbin/lsof elsewhere (macOS ships it there).
+[!linux] [!exec:/usr/sbin/lsof] skip 'needs /usr/sbin/lsof for the server ownership check off Linux'
 [!exec:/usr/bin/curl] skip 'needs curl to play the plugin'
 
 fake-bin cplt opencode

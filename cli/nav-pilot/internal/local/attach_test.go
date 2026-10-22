@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -409,4 +411,37 @@ func TestIsRecordedAcceptsARecordFromAnOlderLocale(t *testing.T) {
 			t.Errorf("isRecorded(%q) = %v, want %v", tc.lstart, got, tc.want)
 		}
 	}
+}
+
+// procPortListeners must find this test process on a port it listens on, and
+// nothing once it stops. Linux only: it reads /proc.
+func TestProcPortListeners(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("reads /proc, Linux only")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+	if got := procPortListeners("/proc", port); !slices.Contains(got, os.Getpid()) {
+		t.Fatalf("procPortListeners(%d) = %v, want our pid %d", port, got, os.Getpid())
+	}
+	ln.Close()
+	if got := procPortListeners("/proc", port); len(got) != 0 {
+		t.Fatalf("closed port: got %v, want none", got)
+	}
+	// tcp6: net/tcp6 has its own table.
+	ln6, err := net.Listen("tcp", "[::1]:0")
+	if err != nil {
+		t.Logf("no IPv6 loopback, tcp6 half skipped: %v", err)
+		return
+	}
+	defer ln6.Close()
+	port6 := ln6.Addr().(*net.TCPAddr).Port
+	if got := procPortListeners("/proc", port6); !slices.Contains(got, os.Getpid()) {
+		t.Fatalf("tcp6: procPortListeners(%d) = %v, want our pid %d", port6, got, os.Getpid())
+	}
+	t.Logf("tcp6 half ran: found pid %d on [::1]:%d", os.Getpid(), port6)
 }

@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -335,6 +336,9 @@ const logTailBytes = 64 << 10
 const lsofPath = "/usr/sbin/lsof"
 
 var portListeners = func(port int) []int {
+	if runtime.GOOS == "linux" {
+		return procPortListeners("/proc", port)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 	out, err := runCommand(ctx, lsofPath, []string{"-ti", "tcp:" + strconv.Itoa(port), "-sTCP:LISTEN"}, nil)
@@ -345,6 +349,50 @@ var portListeners = func(port int) []int {
 	for _, f := range strings.Fields(out) {
 		if pid, err := strconv.Atoi(f); err == nil {
 			pids = append(pids, pid)
+		}
+	}
+	return pids
+}
+
+// procPortListeners is portListeners on Linux, read from /proc instead of lsof:
+// lsof is not part of a minimal Linux install (and sits in /usr/bin on Ubuntu,
+// not /usr/sbin). It finds the inodes of sockets listening on port in
+// net/tcp and net/tcp6, then the pids holding one of them as an fd. Fds of
+// another user's process are unreadable without privilege, so like lsof it
+// sees only the developer's own processes, which is all the ownership proof
+// asks about.
+func procPortListeners(proc string, port int) []int {
+	inodes := map[string]bool{}
+	for _, f := range []string{"net/tcp", "net/tcp6"} {
+		b, _ := os.ReadFile(filepath.Join(proc, f))
+		for _, line := range strings.Split(string(b), "\n") {
+			// sl local_address rem_address st tx:rx tr:when retrnsmt uid timeout inode
+			fs := strings.Fields(line)
+			if len(fs) < 10 || fs[3] != "0A" { // 0A is TCP_LISTEN
+				continue
+			}
+			_, hexPort, ok := strings.Cut(fs[1], ":")
+			if p, err := strconv.ParseUint(hexPort, 16, 16); ok && err == nil && int(p) == port {
+				inodes["socket:["+fs[9]+"]"] = true
+			}
+		}
+	}
+	if len(inodes) == 0 {
+		return nil
+	}
+	var pids []int
+	dirs, _ := os.ReadDir(proc)
+	for _, d := range dirs {
+		pid, err := strconv.Atoi(d.Name())
+		if err != nil {
+			continue
+		}
+		fds, _ := os.ReadDir(filepath.Join(proc, d.Name(), "fd"))
+		for _, fd := range fds {
+			if l, err := os.Readlink(filepath.Join(proc, d.Name(), "fd", fd.Name())); err == nil && inodes[l] {
+				pids = append(pids, pid)
+				break
+			}
 		}
 	}
 	return pids
