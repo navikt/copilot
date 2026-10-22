@@ -1,0 +1,133 @@
+{
+  "info": {
+    "id": "fake_id_0",
+    "projectID": "fake_projectID_1",
+    "model": {
+      "id": "gpt-6-luna",
+      "providerID": "fake",
+      "variant": "default"
+    },
+    "cost": 0,
+    "tokens": {
+      "input": 11,
+      "output": 18,
+      "reasoning": 25,
+      "cache": {
+        "read": 32,
+        "write": 0
+      }
+    },
+    "outcome": "succeeded",
+    "time": {
+      "created": 1000,
+      "updated": 1090,
+      "idle": 1100
+    },
+    "title": "fx1",
+    "location": {
+      "directory": "/fake/dir"
+    }
+  },
+  "messages": [
+    {
+      "id": "fake_id_2",
+      "time": {
+        "created": 1010
+      },
+      "text": "fake text",
+      "files": [],
+      "type": "user"
+    },
+    {
+      "id": "fake_id_3",
+      "time": {
+        "created": 1020,
+        "streamed": 1030,
+        "completed": 1040
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "fake",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "fake text"
+        }
+      ],
+      "finish": "stop",
+      "rawFinish": "stop",
+      "cost": 0,
+      "tokens": {
+        "input": 39,
+        "output": 46,
+        "reasoning": 53,
+        "cache": {
+          "read": 60,
+          "write": 0
+        }
+      }
+    },
+    {
+      "id": "fake_id_4",
+      "time": {
+        "created": 1050
+      },
+      "type": "idle",
+      "outcome": "succeeded"
+    },
+    {
+      "id": "fake_id_5",
+      "time": {
+        "created": 1060
+      },
+      "text": "fake text",
+      "files": [],
+      "type": "user"
+    },
+    {
+      "id": "fake_id_6",
+      "time": {
+        "created": 1070,
+        "streamed": 1080,
+        "completed": 1090
+      },
+      "type": "assistant",
+      "agent": "build",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "fake",
+        "variant": "default"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "fake text"
+        }
+      ],
+      "finish": "stop",
+      "rawFinish": "stop",
+      "cost": 0,
+      "tokens": {
+        "input": 67,
+        "output": 74,
+        "reasoning": 81,
+        "cache": {
+          "read": 88,
+          "write": 0
+        }
+      }
+    },
+    {
+      "id": "fake_id_7",
+      "time": {
+        "created": 1100
+      },
+      "type": "idle",
+      "outcome": "succeeded"
+    }
+  ]
+}

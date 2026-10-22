@@ -122,9 +122,11 @@ def summarise_run(txt):
 
     per_run = defaultdict(int)
     for r in usage:
-        per_run[r[1]] += int(r[12] or 0)
+        # "unknown": an OpenCode estimate for a model with no list price.
+        per_run[r[1]] += 0 if r[12] == "unknown" else int(r[12] or 0)
     complete = (
         bool(attempts)
+        and all(r[12] != "unknown" for r in usage)
         and all(r[6] == "true" for r in attempts)
         and all(str(i) in per_run for i in range(1, n + 1))
     )
@@ -214,6 +216,9 @@ def selftest():
     assert run_with(ok_usage.replace("|low|", "||"))[0]["ran_at"] == "default"
     # Partial usage is not exact usage.
     assert run_with(ok_usage, complete="false")[0]["credits"] is None
+    # A credit the estimate could not price is not a zero.
+    assert run_with(ok_usage.replace("|4000000000|", "|unknown|"))[0]["credits"] is None
+    assert not run_with(ok_usage.replace("|4000000000|", "|unknown|"))[0]["usage_complete"]
     only_run1 = ok_usage.splitlines(keepends=True)[0]
     assert run_with(only_run1)[0]["credits"] is None
     # A subagent on another model is listed, and its credits still count.

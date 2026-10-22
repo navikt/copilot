@@ -1416,7 +1416,15 @@ run_deleg() {
 make_opencode_shim() {
   cat >"$SHIM/opencode" <<EOF
 #!/bin/bash
-[[ "\$1" == --version ]] && { echo 1.19.0; exit 0; }
+[[ "\$1" == --version ]] && { echo "\${OC_VERSION:-1.19.0}"; exit 0; }
+if [[ "\$1 \$2" == "session export" ]]; then
+  # Fake token counts. One message from before any run, one "now".
+  now=\$(((\$(date +%s) + 1) * 1000))  # date has whole seconds; round up past started_ms
+  printf '{"messages":[%s,%s]}\n' \
+    '{"type":"assistant","id":"m_old","time":{"created":1},"model":{"id":"gpt-6-luna"},"tokens":{"input":9,"output":9,"reasoning":0,"cache":{"read":0,"write":0}}}' \
+    '{"type":"assistant","id":"m_new","time":{"created":'"\$now"'},"model":{"id":"gpt-6-luna"},"tokens":{"input":600,"output":150,"reasoning":50,"cache":{"read":400,"write":0}}}'
+  exit 0
+fi
 if [[ "\$1" == session ]]; then
   t="\$(cat "$SHIM/title" 2>/dev/null)"; [[ "\$LISTED" == other ]] && t=noen-andre
   printf '[{"id":"ses_annen","title":"x"},{"id":"ses_stub","title":"%s"}]\n' "\$t"; exit 0
@@ -1445,6 +1453,36 @@ run_opencode_t4() {
   [ "$status" -eq 0 ]
   grep -q -- "--session ses_stub Her er svarene" "$SHIM/calls"
   [ -z "$(grep -- "--session" "$SHIM/calls" | grep -- "--title")" ]
+}
+
+@test "opencode v2: usage rows come from session export, credits estimert (#1721)" {
+  make_opencode_shim
+  OC_VERSION=v2.1.2 run_opencode_t4
+  [ "$status" -eq 0 ]
+  grep -q "credits estimert" <<<"$output"
+  grep -q "estimert from list price" "$SHIM/b-usage.psv"
+  rows="$(grep -v '^#' "$SHIM/b-usage.psv")"
+  # One row per turn: m_old predates both turns and is never exported.
+  [ "$(grep -c '|m_new|' <<<"$rows")" -eq 2 ]
+  ! grep -q '|m_old|' <<<"$rows"
+  # 1000 tokens in (600 fresh + 400 cache read), reasoning kept apart, credits a positive estimate.
+  awk -F'|' '$8 != 1000 || $10 != 400 || $12 != 50 || $13 !~ /^[1-9][0-9]*$/ { exit 1 }' <<<"$rows"
+}
+
+@test "opencode v2: --suite delegation is refused before any model call" {
+  make_opencode_shim
+  OC_VERSION=v2.1.2 PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
+    --client opencode --model stub --suite delegation --repeat 1
+  [ "$status" -ne 0 ]
+  grep -q "suite delegation is not supported with --client opencode" <<<"$output"
+  [ ! -f "$SHIM/calls" ]
+}
+
+@test "opencode v1: usage stays unavailable" {
+  make_opencode_shim
+  run_opencode_t4
+  grep -q "before v2 has no usage export" <<<"$output"
+  [ ! -f "$SHIM/b-usage.psv" ]
 }
 
 @test "opencode t4: with no session under turn 1's title, turn 2 is not sent" {
