@@ -4,10 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-22
 
-### Kopier tekst og løsne sandkassa for én økt
+### Utklippstavle og egne cplt-flagg for én økt
 
-- **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavla på macOS for denne økta. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du skru det på for alle økter med `deny_clipboard = false` i cplt-konfigurasjonen. Flagget virker for Copilot CLI, OpenCode og pi.
-- **`nav-pilot --cplt <flagg>`**: Sender et hvilket som helst cplt-flagg videre for denne økta, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Verdier skrives med `=`. `--agent` og `--` er ikke lov, fordi nav-pilot styrer dem selv.
+- **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavlen på macOS for denne økten. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle økter med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
+- **`nav-pilot --cplt <flagg>`**: Sender ett cplt-flagg videre for denne økten, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Flagg med verdi skrives med `=`. `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
 
 ## 2026-10-14
 

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
@@ -34,7 +35,7 @@ func cpltSessionFlags() []string {
 // so a bug report shows the sandbox the agent really ran in.
 func printCpltSessionFlags() {
 	if flags := cpltSessionFlags(); len(flags) > 0 {
-		fmt.Printf("Extra cplt flags for this session: %s\n\n", strings.Join(flags, " "))
+		fmt.Fprintf(os.Stderr, "Extra cplt flags for this session: %s\n\n", strings.Join(flags, " "))
 	}
 }
 

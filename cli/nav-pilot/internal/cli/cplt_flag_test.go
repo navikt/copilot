@@ -8,7 +8,7 @@ func TestValidateCpltArg(t *testing.T) {
 			t.Errorf("%q refused: %v", v, err)
 		}
 	}
-	for _, v := range []string{"--", "--agent", "--agent=copilot", "8080"} {
+	for _, v := range []string{"--", "--agent", "--agent=copilot", "8080", "-d", "--project-dir=/x", "--yes", "--no-audit"} {
 		if err := validateCpltArg(v); err == nil {
 			t.Errorf("%q accepted", v)
 		}
