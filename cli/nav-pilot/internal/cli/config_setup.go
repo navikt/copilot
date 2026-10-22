@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -427,7 +428,8 @@ func opencodeForSetup() (string, error) {
 	if opencodeInstalled() {
 		return "opencode", nil
 	}
-	if cmd := opencodeInstallCommand(); cmd != opencodeNoInstaller {
+	cmd := opencodeInstallCommand()
+	if cmd != "" {
 		install := true
 		if err := huh.NewConfirm().
 			Title("opencode is not installed. Install it now?").
@@ -450,13 +452,17 @@ func opencodeForSetup() (string, error) {
 			}
 		}
 	}
+	// steps is how to get opencode 2 and switch to it.
+	steps := cmd + ", then " + bold("nav-pilot config set client opencode")
+	if cmd == "" {
+		steps = "install " + opencodeNeeds + ", run " + opencodeCommands() + ", then " + bold("nav-pilot config set client opencode")
+	}
 	if p, err := providerFor("copilot"); err == nil && !p.Available() {
-		fmt.Printf("  Neither opencode nor GitHub Copilot is installed. nav-pilot saves GitHub Copilot for now. Install one of them:\n    opencode: %s, then %s\n    GitHub Copilot CLI: %s\n",
-			opencodeInstallCommand(), bold("nav-pilot config set client opencode"), providerpkg.CopilotInstallCommand)
+		fmt.Printf("  Neither opencode nor GitHub Copilot is installed. nav-pilot saves GitHub Copilot for now. Install one of them:\n    opencode: %s\n    GitHub Copilot CLI: %s\n",
+			steps, providerpkg.CopilotInstallCommand)
 		return "copilot", nil
 	}
-	fmt.Printf("  opencode is not installed, so nav-pilot will use GitHub Copilot. To switch later, install opencode (%s), then run %s\n",
-		opencodeInstallCommand(), bold("nav-pilot config set client opencode"))
+	fmt.Printf("  opencode is not installed, so nav-pilot will use GitHub Copilot. To switch later: %s\n", steps)
 	return "copilot", nil
 }
 
@@ -486,15 +492,27 @@ const opencodeBrewInstall = "brew install " + opencodeBrewFormula
 // published as opencode-ai, which is opencode 1.
 const opencodeNpmInstall = "npm i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion
 
-// opencodeNoInstaller is the advice on a machine with neither Homebrew nor
-// npm. opencode's own install script is not offered: it installs opencode 1
-// only, and no new user should start on opencode 1.
-const opencodeNoInstaller = "install Homebrew (https://brew.sh) or Node.js (https://nodejs.org), then run " + opencodeBrewInstall + " or " + opencodeNpmInstall
+// opencodeNeeds is what a machine with no installer gets first. opencode's own
+// install script is not offered: it installs opencode 1 only, and no new user
+// should start on opencode 1.
+const opencodeNeeds = "Homebrew (https://brew.sh) or Node.js (https://nodejs.org)"
+
+// opencodeCommands names both opencode 2 installs, for after opencodeNeeds.
+func opencodeCommands() string {
+	return bold(opencodeBrewInstall) + " or " + bold(opencodeNpmInstall)
+}
+
+// installGOOS is runtime.GOOS; tests set it.
+var installGOOS = runtime.GOOS
 
 // opencodeInstallCommand is how this machine gets opencode 2: Homebrew, else
-// pnpm or npm, pinned so it cannot install an untested major, else
-// opencodeNoInstaller.
+// pnpm or npm, pinned so it cannot install an untested major. It is "" with
+// none of them, and on a platform other than macOS and Linux, where opencode 2
+// does not run under cplt.
 func opencodeInstallCommand() string {
+	if installGOOS != "darwin" && installGOOS != "linux" {
+		return ""
+	}
 	if _, err := exec.LookPath("brew"); err == nil {
 		return opencodeBrewInstall
 	}
@@ -512,7 +530,7 @@ func opencodeInstallCommand() string {
 	if _, err := exec.LookPath("npm"); err == nil {
 		return opencodeNpmInstall
 	}
-	return opencodeNoInstaller
+	return ""
 }
 
 // setupSkipped is how the wizard ends when a prompt returns err. Ctrl-C ends

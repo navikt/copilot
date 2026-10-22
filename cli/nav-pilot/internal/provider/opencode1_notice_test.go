@@ -31,11 +31,18 @@ func TestOpenCode1Notice(t *testing.T) {
 		return string(out)
 	}
 
+	prevOS := hostOS
+	t.Cleanup(func() { hostOS = prevOS })
+	hostOS = "linux"
 	first := launch("1.18.32\n")
-	for _, want := range []string{OpenCode1EndOfSupport, "one-way", "migrates the opencode 1 database", "Log in again", "auth.json", "bubblewrap", OpenCode2InstallHint()} {
+	for _, want := range []string{OpenCode1EndOfSupport, "one-way", "converts the opencode 1 database", "log in again", "auth.json", "bubblewrap", OpenCode2InstallHint()} {
 		if !strings.Contains(first, want) {
 			t.Errorf("notice %q lacks %q", first, want)
 		}
+	}
+	hostOS = "darwin"
+	if n := OpenCode1Notice(); n == "" || strings.Contains(n, "bubblewrap") {
+		t.Errorf("macOS notice %q: want one without bubblewrap", n)
 	}
 	if again := launch("1.18.32\n"); again != "" {
 		t.Errorf("same version again: %q, want nothing", again)

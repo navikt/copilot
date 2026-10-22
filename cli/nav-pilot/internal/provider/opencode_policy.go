@@ -375,7 +375,6 @@ func warnUntestedOpenCode() {
 }
 
 // OpenCode1EndOfSupport is the last day nav-pilot supports opencode 1 (#1907).
-// Move it here; the launch notice and doctor read it.
 const OpenCode1EndOfSupport = "2026-11-19"
 
 // OpenCode1Notice is the upgrade nudge for an opencode 1 user, "" on any
@@ -384,9 +383,13 @@ func OpenCode1Notice() string {
 	if openCodeMajor() != 1 {
 		return ""
 	}
-	return fmt.Sprintf("nav-pilot drops opencode 1 support after %s. Upgrade to opencode 2: %s\n"+
-		"  The upgrade is one-way: opencode 2 migrates the opencode 1 database. Log in again afterwards (auth.json is not imported). Linux needs bubblewrap.",
+	n := fmt.Sprintf("opencode 1 support ends after %s. Upgrade to opencode 2: %s\n"+
+		"  The upgrade is one-way: opencode 2 converts the opencode 1 database. You will need to log in again (auth.json is not carried over).",
 		OpenCode1EndOfSupport, domain.Bold(OpenCode2InstallHint()))
+	if hostOS == "linux" {
+		n += " Linux needs bubblewrap."
+	}
+	return n
 }
 
 // warnOpenCode1 prints OpenCode1Notice at launch, once per opencode version.
@@ -515,7 +518,7 @@ func checkOpenCode2Launch(args []string) error {
 }
 
 // checkOpenCode2Cplt refuses a cplt older than minOpenCode2CpltStamp. On a
-// platform without a floor (an unreadable opencode version there), the macOS
+// platform without a floor (an unreadable opencode version there), the
 // floor stands in so cplt's fail-closed refusal (#735) is still present.
 func checkOpenCode2Cplt() error {
 	floor := minOpenCode2CpltStamp()
@@ -531,8 +534,8 @@ func checkOpenCode2Cplt() error {
 		found = err.Error()
 	}
 	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < floor {
-		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer, found %q: %s.\n\n  Update cplt: %s",
-			errCpltTooOld, floor, found, oldCpltConsequence(), domain.Bold(cpltUpgradeHint()))
+		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (favourites and history, git snapshots, plugin and MCP grants), found %q.\n\n  Update cplt: %s",
+			errCpltTooOld, floor, found, domain.Bold(cpltUpgradeHint()))
 	}
 	return nil
 }
@@ -584,14 +587,14 @@ func OpenCode2InstallHint() string {
 		}
 		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode-v2"
 	}
-	return "npm i -g @opencode/cli@" + OpenCode2InstallVersion
-}
-
-// oldCpltConsequence is what a cplt below the floor does with opencode 2:
-// before #740 it refused it on Linux; on macOS it ran the host's service.
-func oldCpltConsequence() string {
-	if hostOS == "linux" {
-		return "an older cplt refuses to run opencode 2 on Linux"
+	npm := "npm i -g @opencode/cli@" + OpenCode2InstallVersion
+	switch {
+	case strings.Contains(resolved, "node_modules"):
+		// opencode-ai owns the bin link; installing over it fails with EEXIST.
+		return "npm uninstall -g opencode-ai && " + npm
+	case strings.Contains(resolved, "/.opencode/bin/"):
+		// The install script's binary would shadow npm's on PATH.
+		return "rm ~/.opencode/bin/opencode && " + npm
 	}
-	return "an older cplt runs the session in the host's background service, without nav-pilot's hooks"
+	return npm
 }
