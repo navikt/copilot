@@ -692,5 +692,8 @@ func reportOpenCodeVersion() (ok bool) {
 	default:
 		fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRangeFor(v))
 	}
+	if n := providerpkg.OpenCode1Notice(); n != "" {
+		fmt.Printf("      %s %s\n", yellow("⚠"), strings.ReplaceAll(n, "\n", "\n      "))
+	}
 	return ok
 }

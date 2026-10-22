@@ -1245,8 +1245,12 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 				return skipped
 			case "":
 				fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched.\n%s\n", yellow("⚠"), copilotInstallHint())
-				if !opencodeInstalled() {
-					fmt.Fprintf(os.Stderr, "  Or use opencode: %s, then %s\n", bold(opencodeInstallCommand()), bold("nav-pilot config set client opencode"))
+				if !opencodeInstalled() && opencodePlatform() {
+					if cmd := opencodeInstallCommand(); cmd != "" {
+						fmt.Fprintf(os.Stderr, "  Or use opencode: %s, then %s\n", bold(cmd), bold("nav-pilot config set client opencode"))
+					} else {
+						fmt.Fprintf(os.Stderr, "  Or use opencode: install %s, run %s, then %s\n", opencodeNeeds, opencodeCommands(), bold("nav-pilot config set client opencode"))
+					}
 				}
 				return skipped
 			}
@@ -1256,8 +1260,12 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 				yellow("⚠"), resolved.Client, bold(cpltInstallHint))
 			return skipped
 		}
-		fmt.Fprintf(os.Stderr, "%s %s is not installed, so nothing was launched. Install it: %s\n",
-			yellow("⚠"), resolved.Client, bold(clientInstallCommand(resolved.Client)))
+		if resolved.Client == "opencode" && !opencodePlatform() {
+			fmt.Fprintf(os.Stderr, "%s %s, so nothing was launched.\n", yellow("⚠"), opencodeOffPlatform)
+			return skipped
+		}
+		fmt.Fprintf(os.Stderr, "%s %s is not installed, so nothing was launched. %s\n",
+			yellow("⚠"), resolved.Client, installAdvice(resolved.Client))
 		return skipped
 	case launchSkipOptedOut:
 		fmt.Println(dim(fmt.Sprintf("Not launching (auto_launch = false). Start it yourself with: %s", startCommand(resolved))))
@@ -1278,6 +1286,15 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		return fmt.Errorf("launch failed: %w", err)
 	}
 	return nil
+}
+
+// installAdvice is the sentence that tells how to install client. For opencode
+// on a machine with no installer it names what to install first.
+func installAdvice(client string) string {
+	if client == "opencode" && opencodeInstallCommand() == "" {
+		return "Install " + opencodeNeeds + ", then run " + opencodeCommands() + "."
+	}
+	return "Install it: " + bold(clientInstallCommand(client))
 }
 
 func clientInstallCommand(client string) string {
@@ -1368,8 +1385,11 @@ func headlessRefusal(decision launchDecision, p Provider, missing, start string)
 				break
 			}
 		}
-		install := clientInstallCommand(missing)
-		fmt.Fprintf(os.Stderr, "Not launching: %s is not installed. Install it: %s\n", missing, bold(install))
+		if missing == "opencode" && !opencodePlatform() {
+			fmt.Fprintf(os.Stderr, "%s, so nothing was launched.\n", opencodeOffPlatform)
+			break
+		}
+		fmt.Fprintf(os.Stderr, "Not launching: %s is not installed. %s\n", missing, installAdvice(missing))
 	case launchSkipOptedOut:
 		fmt.Fprintf(os.Stderr, "Not launching: auto_launch = false. Start it yourself with: %s\n", start)
 	}

@@ -60,11 +60,14 @@ nav-pilot install nav-pilot
 ```
 
 Første gang du kjører `nav-pilot`, spør den hvilken klient du vil bruke. opencode er valgt.
-Mangler opencode, tilbyr nav-pilot å installere den: med Homebrew
-(`brew install anomalyco/tap/opencode`) hvis du har det, ellers med opencodes eget
-installasjonsskript (`curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.32`). Sier du nei, bruker
-nav-pilot Copilot CLI og sier hvordan du bytter senere. Mangler Copilot CLI også, viser den
-installasjonskommandoen for begge. Se [Klienter](#klienter).
+Mangler opencode, tilbyr nav-pilot å installere opencode 2: med Homebrew
+(`brew install anomalyco/tap/opencode-v2`) hvis du har det, ellers med npm eller pnpm
+(`npm i -g @opencode/cli@2.1.3`). Sier du nei, bruker nav-pilot Copilot CLI og sier hvordan du
+bytter senere. Har du verken Homebrew eller Node.js, installerer nav-pilot ingenting, men sier
+hva du må installere først og hvilken kommando du kjører etterpå. Mangler Copilot CLI også, viser
+den installasjonskommandoen for begge. opencode 2 krever cplt 2026.10.22-172931 eller nyere.
+Bruker du opencode 1, varsler nav-pilot om at støtten slutter etter 19. november 2026.
+Se [Klienter](#klienter).
 
 `install` spør hvor den skal installere. Svaret er ikke gitt: repoet deler oppsettet med
 teamet, `--user` følger deg over alle repoer uten å sjekke inn noe. Se
