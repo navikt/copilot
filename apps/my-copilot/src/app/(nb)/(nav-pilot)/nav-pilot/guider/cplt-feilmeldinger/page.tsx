@@ -731,30 +731,36 @@ nav-pilot --client copilot
             brukernavnet ditt i <code className={code}>loggedInUsers</code> i{" "}
             <code className={code}>~/.copilot/config.json</code>. Da prøver Copilot nøkkelringen ved hver oppstart, selv
             når <code className={code}>gh</code> er logget inn og selv om du har valgt{" "}
-            <code className={code}>&lt;bruker&gt; (via gh)</code> med <code className={code}>/user</code>. Finner ikke
-            Copilot nøkkelringen inne i sandkassen, kan du løse det på to måter:
+            <code className={code}>&lt;bruker&gt; (via gh)</code> med <code className={code}>/user</code>.
+          </BodyLong>
+          <BodyLong>
+            Fra Copilot 1.0.101 stopper det med{" "}
+            <code className={code}>Saved sign-in could not be read from credential storage</code>. cplt leser derfor
+            Copilots egen innlogging fra Secret Service på maskinen før sandkassen starter, og sender tokenet inn som{" "}
+            <code className={code}>COPILOT_GITHUB_TOKEN</code>. Du trenger ikke kjøre{" "}
+            <code className={code}>/login</code> inne i cplt. Det krever at
           </BodyLong>
           <Bullets>
             <li>
-              <strong>La cplt sende inn gh-tokenet i miljøet.</strong> Kjør kommandoen under. Da setter cplt{" "}
-              <code className={code}>GH_TOKEN</code> inne i sandkassen, og Copilot bruker{" "}
-              <code className={code}>GH_TOKEN</code> foran <code className={code}>loggedInUsers</code> og nøkkelringen.
-              cplt krever <code className={code}>--force</code> fordi alle prosesser i sandkassen kan lese{" "}
-              <code className={code}>GH_TOKEN</code> fra miljøet. Tokenet ligger fortsatt i nøkkelringen på maskinen,
-              ikke i klartekst på disk. Krever at gh-vakta er på.
+              <code className={code}>secret-tool</code> er installert fra pakken{" "}
+              <code className={code}>libsecret-tools</code>,
+            </li>
+            <li>nøkkelringen er låst opp når cplt starter,</li>
+            <li>
+              <code className={code}>gh</code> er logget inn på github.com med samme konto som Copilot, og
             </li>
             <li>
-              <strong>Fjern den gamle /login-oppføringen uten å sette GH_TOKEN i miljøet.</strong> Start{" "}
-              <code className={code}>copilot</code> utenfor cplt. Har du flere oppføringer i{" "}
-              <code className={code}>/user list</code>, bytt først til den vanlige GitHub.com-oppføringen med{" "}
-              <code className={code}>/user</code>, ikke <code className={code}>(via gh)</code>, for{" "}
-              <code className={code}>/logout</code> nekter å logge ut når <code className={code}>(via gh)</code> er
-              aktiv. Kjør deretter <code className={code}>/logout</code>. Når{" "}
-              <code className={code}>loggedInUsers</code> er tom, henter Copilot tokenet gjennom{" "}
-              <code className={code}>gh</code> ved oppstart uten at <code className={code}>GH_TOKEN</code> ligger i
-              miljøet.
+              ingen <code className={code}>COPILOT_GITHUB_TOKEN</code>, <code className={code}>GH_TOKEN</code> eller{" "}
+              <code className={code}>GITHUB_TOKEN</code> er eksportert. Et eksportert token vinner over nøkkelringen.
             </li>
           </Bullets>
+          <BodyLong>
+            Kjør <code className={code}>cplt doctor --agent copilot</code> om Copilot likevel ikke finner innloggingen.
+            Den sier hvilket av kravene som mangler. Vil du heller la cplt sende inn gh-tokenet i miljøet, krever cplt{" "}
+            <code className={code}>--force</code>: gh-tokenet er en egen legitimasjon som Copilot ellers ikke har, og
+            alle prosesser i sandkassen kan lese den fra miljøet. gh-vakta må være på (
+            <code className={code}>gh_guard.enabled</code>), ellers sender cplt ikke inn noe token:
+          </BodyLong>
           <CodeBlock compact>{`cplt config set gh_guard.inject_token true --force`}</CodeBlock>
           <BodyLong>
             <strong>Slik velger cplt innlogging på macOS.</strong> Når{" "}

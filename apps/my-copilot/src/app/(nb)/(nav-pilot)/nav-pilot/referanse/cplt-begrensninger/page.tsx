@@ -63,7 +63,9 @@ export default function CpltBegrensninger() {
             <li>
               På macOS er <code className={code}>~/Library/Keychains</code> stengt når cplt sender inn gh-tokenet, og på
               Linux og i WSL fjerner cplt <code className={code}>DBUS_SESSION_BUS_ADDRESS</code> og stenger
-              nøkkelringfiler. Logg inn utenfor cplt, ikke med <code className={code}>/login</code> inne i økten, se{" "}
+              nøkkelringfiler. For Copilot på Linux leser cplt i stedet den lagrede innloggingen fra nøkkelringen på
+              maskinen før sandkassen starter, og sender den inn som <code className={code}>COPILOT_GITHUB_TOKEN</code>.
+              Logg inn utenfor cplt, ikke med <code className={code}>/login</code> inne i økten, se{" "}
               <NextLink href={`${FAQ}#keyring`} className={linkClass}>
                 System vault not available
               </NextLink>
