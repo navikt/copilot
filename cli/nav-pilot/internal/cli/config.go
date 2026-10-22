@@ -746,5 +746,6 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	}
 	r.ProjectDir = cli.ProjectDir
 	r.ExtraArgs = cli.ExtraArgs
+	r.Session = cli.Session
 	return r
 }

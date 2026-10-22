@@ -130,29 +130,30 @@ type ResolvedConfig struct {
 	// command until this release and now runs on its own under cplt: the
 	// launch tells them once (#1348).
 	AutonomyNotice     bool
-	AutoLaunch         bool     // launch the coding agent automatically after install/sync
-	LogLevel           string   // empty = unset
-	OtelLogLevel       string   // always set; defaults to "none"
-	AutoUpdate         bool     // true to bypass upgrade prompt
-	Surveys            bool     // false: never ask to answer a survey
-	News               bool     // false: never show a news line after a session
-	LocalEnabled       bool     // local inference opt-in (alpha)
-	LocalAutostart     bool     // start the local server on demand at launch
-	LocalDepUpgrade    bool     // send bounded dependency upgrades to the local worker (alpha)
-	LocalLoopGuard     int      // identical consecutive tool calls that end a local turn; 0 = built-in default
-	LocalModel         string   // local model id to serve; empty = the manifest default
-	LocalEndpoint      string   // own OpenAI-compatible server; empty = the managed mlx-lm server
-	LocalEndpointModel string   // model id to ask LocalEndpoint for
-	LocalDispatch      string   // off | conservative | balanced | aggressive; always set
-	CopilotAuthMode    string   // auto | env_only | gh_only
-	HookLoopGuard      bool     // the loop-guard postToolUse hook for every Copilot CLI session
-	HookRedactSecrets  bool     // mask secrets in tool results
-	HookRedactFNR      bool     // mask fødselsnummer, D- and H-nummer in tool results
-	HookInjectionNote  bool     // flag instruction-like text in tool results
-	HookActionCheck    string   // off | log; always set
-	MCPHosts           string   // ask | off; always set
-	ProjectDir         string   // --project-dir: the directory cplt may read and write; empty = the working directory
-	ExtraArgs          []string // pass-through arguments for the client
+	AutoLaunch         bool        // launch the coding agent automatically after install/sync
+	LogLevel           string      // empty = unset
+	OtelLogLevel       string      // always set; defaults to "none"
+	AutoUpdate         bool        // true to bypass upgrade prompt
+	Surveys            bool        // false: never ask to answer a survey
+	News               bool        // false: never show a news line after a session
+	LocalEnabled       bool        // local inference opt-in (alpha)
+	LocalAutostart     bool        // start the local server on demand at launch
+	LocalDepUpgrade    bool        // send bounded dependency upgrades to the local worker (alpha)
+	LocalLoopGuard     int         // identical consecutive tool calls that end a local turn; 0 = built-in default
+	LocalModel         string      // local model id to serve; empty = the manifest default
+	LocalEndpoint      string      // own OpenAI-compatible server; empty = the managed mlx-lm server
+	LocalEndpointModel string      // model id to ask LocalEndpoint for
+	LocalDispatch      string      // off | conservative | balanced | aggressive; always set
+	CopilotAuthMode    string      // auto | env_only | gh_only
+	HookLoopGuard      bool        // the loop-guard postToolUse hook for every Copilot CLI session
+	HookRedactSecrets  bool        // mask secrets in tool results
+	HookRedactFNR      bool        // mask fødselsnummer, D- and H-nummer in tool results
+	HookInjectionNote  bool        // flag instruction-like text in tool results
+	HookActionCheck    string      // off | log; always set
+	MCPHosts           string      // ask | off; always set
+	ProjectDir         string      // --project-dir: the directory cplt may read and write; empty = the working directory
+	ExtraArgs          []string    // pass-through arguments for the client
+	Session            SessionFlag // --resume / --continue, translated at launch
 }
 
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
@@ -180,6 +181,15 @@ type CLIOverrides struct {
 	LocalDispatch   string
 	ProjectDir      string
 	ExtraArgs       []string
+	Session         SessionFlag
+}
+
+// SessionFlag is nav-pilot's --resume [id] or --continue, which the launch
+// translates to the chosen client's own flag. nav-pilot keeps no sessions.
+type SessionFlag struct {
+	Resume   bool   // --resume
+	ID       string // --resume <id>; empty opens the client's picker
+	Continue bool   // --continue
 }
 
 var (
