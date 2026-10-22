@@ -1469,6 +1469,15 @@ run_opencode_t4() {
   awk -F'|' '$8 != 1000 || $10 != 400 || $12 != 50 || $13 !~ /^[1-9][0-9]*$/ { exit 1 }' <<<"$rows"
 }
 
+@test "opencode v2: --suite delegation is refused before any model call" {
+  make_opencode_shim
+  OC_VERSION=v2.1.2 PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
+    --client opencode --model stub --suite delegation --repeat 1
+  [ "$status" -ne 0 ]
+  grep -q "suite delegation is not supported with --client opencode" <<<"$output"
+  [ ! -f "$SHIM/calls" ]
+}
+
 @test "opencode v1: usage stays unavailable" {
   make_opencode_shim
   run_opencode_t4

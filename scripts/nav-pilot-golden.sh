@@ -444,6 +444,9 @@ case "$CLIENT" in
     [[ -n "$MODEL" ]] || fail_preflight "--client opencode needs --model" \
       "e.g. --model gpt-6-sol; github-copilot/ is added when no provider is given"
     [[ -z "$CONTEXT_TIER" ]] || fail_preflight "--context is not supported with --client opencode" ""
+    # d1-d4 read the Copilot debug log and events.jsonl, which OpenCode does not write.
+    [[ "$GROUP" != delegation ]] || fail_preflight "--suite delegation is not supported with --client opencode" \
+      "The delegation checks read Copilot's debug log and events.jsonl. Run it with --client copilot."
     [[ "$MODEL" == */* ]] && OC_MODEL="$MODEL" || OC_MODEL="github-copilot/$MODEL"
     command -v go >/dev/null 2>&1 || fail_preflight "--client opencode needs go" \
       "The persona is converted with nav-pilot's own OpenCode transform (go run)."
