@@ -432,4 +432,16 @@ func TestProcPortListeners(t *testing.T) {
 	if got := procPortListeners("/proc", port); len(got) != 0 {
 		t.Fatalf("closed port: got %v, want none", got)
 	}
+	// tcp6: net/tcp6 has its own table.
+	ln6, err := net.Listen("tcp", "[::1]:0")
+	if err != nil {
+		t.Logf("no IPv6 loopback, tcp6 half skipped: %v", err)
+		return
+	}
+	defer ln6.Close()
+	port6 := ln6.Addr().(*net.TCPAddr).Port
+	if got := procPortListeners("/proc", port6); !slices.Contains(got, os.Getpid()) {
+		t.Fatalf("tcp6: procPortListeners(%d) = %v, want our pid %d", port6, got, os.Getpid())
+	}
+	t.Logf("tcp6 half ran: found pid %d on [::1]:%d", os.Getpid(), port6)
 }
