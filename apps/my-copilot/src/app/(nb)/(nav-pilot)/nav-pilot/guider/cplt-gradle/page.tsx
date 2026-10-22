@@ -345,8 +345,10 @@ podman --remote images`}
 cplt --allow-rootless-docker --allow-read /proc --allow-write "$XDG_RUNTIME_DIR/libpod"`}
           </CodeBlock>
           <BodyLong>
-            Rettingen virker bare når cplt kjører med bubblewrap. Uten bubblewrap sier cplt fra ved oppstart, og du må
-            fortsatt bruke <code className={code}>--allow-read /proc</code>.
+            Rettingen virker bare når cplt kjører med bubblewrap. Uten bubblewrap sier cplt fra ved oppstart. Installer
+            eller slå på bubblewrap i stedet for å bruke <code className={code}>--allow-read /proc</code>: uten
+            bubblewrap kan agenten da lese kommandolinjene til alle prosessene dine på maskinen, og de kan inneholde
+            tokens og passord.
           </BodyLong>
           <BodyLong>Slik slår du det på fast:</BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_rootless_docker true --force`}</CodeBlock>
