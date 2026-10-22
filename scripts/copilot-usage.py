@@ -138,7 +138,7 @@ def opencode_rows(
         rows.append("|".join(clean(v) for v in (
             slug, run, title, msg.get("id"), "", model, msg.get("model", {}).get("variant"),
             total_in, out, read, write, reason, nano, duration, "",
-            msg.get("finish"), msg.get("agent"), "",
+            msg.get("finish"), "", "",  # col 17 is for subagents; the export holds only the primary agent
         )))
     return rows
 
@@ -228,7 +228,7 @@ def selftest() -> None:
         exits('{ model: "Fake One (Default)", input: 1, output: 10 },\n', "Fake One (Default) has no cachedInput")
 
         def msg(created: int, model: str, fresh: int, read: int, out: int, reason: int) -> dict:
-            return {"type": "assistant", "id": f"m{created}", "agent": "a", "finish": "stop",
+            return {"type": "assistant", "id": f"m{created}", "agent": "golden-nav-pilot", "finish": "stop",
                     "time": {"created": created, "completed": created + 7},
                     "model": {"id": model, "variant": "default"},
                     "tokens": {"input": fresh, "output": out, "reasoning": reason,
@@ -243,7 +243,7 @@ def selftest() -> None:
         ]}
         rows = opencode_rows(export, prices, 10, "t1", 2, "ttl")
         # 600*1 + 400*0.1 + (150+50)*10 = 2640 USD per 1M = 0.264 credits
-        assert rows[0] == "t1|2|ttl|m20||fake-one|default|1000|150|400|0|50|264000000|7||stop|a|", rows[0]
+        assert rows[0] == "t1|2|ttl|m20||fake-one|default|1000|150|400|0|50|264000000|7||stop||", rows[0]
         assert rows[1].split("|")[12] == str(round((100_000 * 2 + 0.2) * 1e5))
         assert rows[2].split("|")[12] == "unknown"
         assert len(rows) == 3
@@ -256,7 +256,7 @@ def selftest() -> None:
         # input 67 + cache read 88; output 74, reasoning 81 priced as output
         assert rows[0][3:13] == ["fake_id_6", "", "gpt-6-luna", "default", "155", "74", "88", "0", "81",
                                  str(round((67 * 1 + 88 * 0.1 + (74 + 81) * 10) * 1e5))], rows[0]
-        assert rows[0][13] == "20" and rows[0][15:17] == ["stop", "build"]
+        assert rows[0][13] == "20" and rows[0][15:17] == ["stop", ""]  # agent "build" is the primary agent, not a subagent
 
 
 def main() -> None:
