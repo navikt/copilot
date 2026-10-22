@@ -78,6 +78,7 @@ func cpltArgv(spec cpltLaunch) []string {
 	// assembled by this function, so a new one cannot forget it. The legacy
 	// Copilot launch builds its own vector and carries it in BuildCopilotArgs.
 	args = append(args, cpltProposalFlags()...)
+	args = append(args, cpltSessionFlags()...)
 	args = append(args, "--")
 	return append(args, spec.agentArgs...)
 }

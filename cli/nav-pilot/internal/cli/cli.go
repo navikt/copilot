@@ -150,6 +150,7 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
   --no-auto-launch        Install or sync, but don't start the agent (--auto-launch to turn on)
   --project-dir <dir>     Directory the agent may read and write (default: current directory, not
                           the enclosing git root; the root's instructions stay readable)
+  --allow-clipboard       Let the agent use the macOS clipboard this session (cplt denies it by default)
   --verbose               Say what the launch does: sandbox directory, client, agent and model
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
   -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
@@ -458,6 +459,8 @@ func run(args []string) error {
 			case "--no-sandbox":
 				// Removed: still parsed so old scripts get a reason, not "unknown flag".
 				return fmt.Errorf("--no-sandbox is gone: nav-pilot always runs clients inside cplt (the sandbox). Drop the flag; if cplt is missing, install it: %s", cpltInstallHint)
+			case "--allow-clipboard":
+				providerpkg.AllowClipboard = true
 			case "--verbose":
 				providerpkg.Verbose = true
 			case "--auto-launch":

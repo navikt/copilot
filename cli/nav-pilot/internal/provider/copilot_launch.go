@@ -225,6 +225,7 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	// too — in the cplt-flag slot, before the "--" that hands the rest to
 	// the agent.
 	cpltArgs := append([]string{"--agent", "copilot"}, cpltProposalFlags()...)
+	cpltArgs = append(cpltArgs, cpltSessionFlags()...)
 	cpltArgs = append(cpltArgs, "--")
 	cpltArgs = append(cpltArgs, args...)
 	return append(cpltArgs, resolved.ExtraArgs...)

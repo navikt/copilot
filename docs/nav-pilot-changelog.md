@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-22
+
+### Kopier tekst fra agenten i én økt
+
+- **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavla på macOS for denne økta. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du skru det på for alle økter med `deny_clipboard = false` i cplt-konfigurasjonen. Flagget virker for Copilot CLI, OpenCode og pi.
+
 ## 2026-10-14
 
 ### Har du svart på nettet, spør ikke nav-pilot igjen
