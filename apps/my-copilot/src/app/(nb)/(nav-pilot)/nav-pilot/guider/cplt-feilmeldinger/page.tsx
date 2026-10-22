@@ -731,30 +731,29 @@ nav-pilot --client copilot
             brukernavnet ditt i <code className={code}>loggedInUsers</code> i{" "}
             <code className={code}>~/.copilot/config.json</code>. Da prøver Copilot nøkkelringen ved hver oppstart, selv
             når <code className={code}>gh</code> er logget inn og selv om du har valgt{" "}
-            <code className={code}>&lt;bruker&gt; (via gh)</code> med <code className={code}>/user</code>. Finner ikke
-            Copilot nøkkelringen inne i sandkassen, kan du løse det på to måter:
+            <code className={code}>&lt;bruker&gt; (via gh)</code> med <code className={code}>/user</code>.
+          </BodyLong>
+          <BodyLong>
+            Derfor leser cplt Copilot sin egen innlogging fra Secret Service på maskinen før sandkassen starter, og
+            sender tokenet inn til Copilot som <code className={code}>COPILOT_GITHUB_TOKEN</code>. Du trenger ikke{" "}
+            <code className={code}>/login</code> inne i cplt. Dette krever at:
           </BodyLong>
           <Bullets>
             <li>
-              <strong>La cplt sende inn gh-tokenet i miljøet.</strong> Kjør kommandoen under. Da setter cplt{" "}
-              <code className={code}>GH_TOKEN</code> inne i sandkassen, og Copilot bruker{" "}
-              <code className={code}>GH_TOKEN</code> foran <code className={code}>loggedInUsers</code> og nøkkelringen.
-              cplt krever <code className={code}>--force</code> fordi alle prosesser i sandkassen kan lese{" "}
-              <code className={code}>GH_TOKEN</code> fra miljøet. Tokenet ligger fortsatt i nøkkelringen på maskinen,
-              ikke i klartekst på disk. Krever at gh-vakta er på.
+              <code className={code}>secret-tool</code> er installert (pakken{" "}
+              <code className={code}>libsecret-tools</code>),
             </li>
+            <li>nøkkelringen er låst opp,</li>
             <li>
-              <strong>Fjern den gamle /login-oppføringen uten å sette GH_TOKEN i miljøet.</strong> Start{" "}
-              <code className={code}>copilot</code> utenfor cplt. Har du flere oppføringer i{" "}
-              <code className={code}>/user list</code>, bytt først til den vanlige GitHub.com-oppføringen med{" "}
-              <code className={code}>/user</code>, ikke <code className={code}>(via gh)</code>, for{" "}
-              <code className={code}>/logout</code> nekter å logge ut når <code className={code}>(via gh)</code> er
-              aktiv. Kjør deretter <code className={code}>/logout</code>. Når{" "}
-              <code className={code}>loggedInUsers</code> er tom, henter Copilot tokenet gjennom{" "}
-              <code className={code}>gh</code> ved oppstart uten at <code className={code}>GH_TOKEN</code> ligger i
-              miljøet.
+              <code className={code}>gh</code> er logget inn med samme konto som Copilot.
             </li>
           </Bullets>
+          <BodyLong>
+            Får Copilot fortsatt ikke tak i innloggingen, start <code className={code}>copilot</code> utenfor cplt, kjør{" "}
+            <code className={code}>/login</code> og start cplt på nytt. Hjelper ikke det, kan du la cplt sende inn
+            gh-tokenet i miljøet. cplt krever <code className={code}>--force</code> fordi alle prosesser i sandkassen da
+            kan lese tokenet fra miljøet:
+          </BodyLong>
           <CodeBlock compact>{`cplt config set gh_guard.inject_token true --force`}</CodeBlock>
           <BodyLong>
             <strong>Slik velger cplt innlogging på macOS.</strong> Når{" "}
