@@ -115,9 +115,6 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 				if !ok || (id == LocalProviderID && doc.path == openCodeConfigPath()) {
 					continue
 				}
-				if hasOpenCodePlaceholder(raw) {
-					return nil, conflict("uses a {file:} or {env:} placeholder in " + mapKey + "." + id)
-				}
 				var v any
 				_ = json.Unmarshal(raw, &v)
 				if k := openCodeRoutingKey(v); k != "" {
@@ -169,13 +166,19 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 }
 
 // openCodeRoutingKey returns the path of the first key under v that can
-// point a provider or model at another backend, "" when there is none.
+// point a provider or model at another backend, "" when there is none. A
+// routing key refuses whatever its value, placeholder or not.
 func openCodeRoutingKey(v any) string {
 	switch t := v.(type) {
 	case map[string]any:
 		for _, k := range slices.Sorted(maps.Keys(t)) {
 			switch k {
 			case "npm", "package", "canonical", "api", "baseURL", "baseUrl", "endpoint", "url":
+				return k
+			}
+			// A substituted key could become one of the above. Placeholders
+			// in other values (apiKey) are fine.
+			if hasOpenCodePlaceholder([]byte(k)) {
 				return k
 			}
 			if sub := openCodeRoutingKey(t[k]); sub != "" {

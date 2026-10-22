@@ -22,7 +22,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
   - Du bruker OpenCode 2, og en konfigurasjonsfil har `enabled_providers` med andre leverandører enn `github-copilot` og `mlx`, eller en `provider.use`-regel med `"effect": "allow"` for andre leverandører under `experimental.policies`. Feilmeldingen sier hvilken fil. Fjern de andre leverandørene, eller fjern hele innstillingen.
   - En konfigurasjonsfil kan ikke leses som JSON. Rett filen feilmeldingen peker på.
   - Modellen du velger med `--model`, eller som agentpakken bruker, er fra en annen leverandør enn `github-copilot` og `mlx`. Feilmeldingen sier hvilken modell eller agentpakke det gjelder. Velg en Copilot-modell, eller start en annen agentpakke.
-  - En konfigurasjonsfil endrer adressen til `github-copilot`-leverandøren (`baseURL`, `endpoint` eller `npm`). Fjern overstyringen fra filen feilmeldingen peker på.
+  - En konfigurasjonsfil endrer adressen til `github-copilot`-leverandøren, for eksempel med `baseURL`, `endpoint`, `npm` eller `package`. Det gjelder både `provider` og `providers` (OpenCode 2), og også overstyringer for én modell under `models`. Fjern overstyringen fra filen feilmeldingen peker på.
+  - En annen fil enn den globale OpenCode-konfigurasjonen, som nav-pilot skriver selv, endrer adressen til den lokale modellen (`mlx`). Fjern `mlx`-blokken fra prosjektets eller agentpakkens konfigurasjon.
+  - En `{file:…}`- eller `{env:…}`-plassholder står i en adresseinnstilling, i `enabled_providers` eller under `experimental`. nav-pilot kan ikke se hva plassholderen blir til. Skriv verdien rett inn, eller fjern innstillingen. Plassholdere i andre verdier, som `apiKey`, går fint.
 
 ## 2026-10-14
 

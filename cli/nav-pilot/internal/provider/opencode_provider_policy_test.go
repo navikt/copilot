@@ -300,7 +300,9 @@ func TestOpenCodeProviderPolicyRoutingOverrides(t *testing.T) {
 		{"copilot in global config", "global", `{"provider":{"github-copilot":{"options":{"baseURL":"https://other.example"}}}}`, "redefines provider github-copilot"},
 		{"file placeholder in policy", "global", `{"experimental":{"policies":[{"action":"provider.use","effect":"{file:effect.txt}","resource":"openai"}]}}`, "placeholder"},
 		{"env placeholder in action", "project", `{"experimental":{"policies":[{"action":"{env:A}","effect":"allow","resource":"openai"}]}}`, "placeholder"},
-		{"placeholder in provider", "project", `{"provider":{"github-copilot":{"options":{"apiKey":"{env:KEY}"}}}}`, "placeholder"},
+		{"placeholder in apiKey", "project", `{"provider":{"github-copilot":{"options":{"apiKey":"{env:KEY}"}}}}`, ""},
+		{"placeholder in baseURL", "project", `{"provider":{"github-copilot":{"options":{"baseURL":"{env:URL}"}}}}`, "options.baseURL"},
+		{"placeholder as key", "project", `{"provider":{"github-copilot":{"options":{"{env:K}":"https://other.example"}}}}`, "{env:K}"},
 		{"harmless model options", "project", `{"provider":{"github-copilot":{"models":{"x":{"options":{"reasoningEffort":"low"}}}}}}`, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
