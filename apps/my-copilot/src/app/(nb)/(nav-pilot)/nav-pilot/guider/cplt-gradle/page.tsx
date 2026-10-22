@@ -335,17 +335,18 @@ cplt --allow-rootless-docker`}
 podman --remote images`}
           </CodeBlock>
           <BodyLong>
-            I cplt 2026.10.21 og eldre feiler Podman med <code className={code}>cannot retrieve cmd line</code>. Fram
-            til neste versjon må du åpne <code className={code}>/proc</code> og Podmans tilstandsmappe selv. Mappen må
-            finnes før du starter, ellers dropper cplt rettigheten med en advarsel:
+            Podman virker fra cplt 2026.10.22-140206. Med eldre versjoner feiler Podman med{" "}
+            <code className={code}>cannot retrieve cmd line</code>. Oppgrader, eller åpne{" "}
+            <code className={code}>/proc</code> og Podmans tilstandsmappe selv. Mappen må finnes før du starter, ellers
+            dropper cplt rettigheten med en advarsel:
           </BodyLong>
           <CodeBlock compact>
             {`mkdir -p -m 700 "$XDG_RUNTIME_DIR/libpod"
 cplt --allow-rootless-docker --allow-read /proc --allow-write "$XDG_RUNTIME_DIR/libpod"`}
           </CodeBlock>
           <BodyLong>
-            Rettingen i neste versjon virker bare når cplt kjører med bubblewrap. Uten bubblewrap sier cplt fra ved
-            oppstart, og du må fortsatt bruke <code className={code}>--allow-read /proc</code>.
+            Rettingen virker bare når cplt kjører med bubblewrap. Uten bubblewrap sier cplt fra ved oppstart, og du må
+            fortsatt bruke <code className={code}>--allow-read /proc</code>.
           </BodyLong>
           <BodyLong>Slik slår du det på fast:</BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_rootless_docker true --force`}</CodeBlock>
