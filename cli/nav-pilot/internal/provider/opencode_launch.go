@@ -1141,6 +1141,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	launchEnv = applyOpenCodeMCPPolicy(launchEnv, resolved.ProjectDir)
 	launchEnv = applyOpenCodeOwnDirs(launchEnv, resolved.ProjectDir)
 	warnUntestedOpenCode()
+	warnOpenCode1()
 
 	// Local dispatch, whether or not this session's own model is local: a cloud
 	// main agent handing focused tasks to a local worker is the case the

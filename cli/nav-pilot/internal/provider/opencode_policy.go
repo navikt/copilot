@@ -374,6 +374,29 @@ func warnUntestedOpenCode() {
 		domain.Yellow("⚠"), v, OpenCodeTestedRangeFor(v), domain.Bold("nav-pilot doctor"))
 }
 
+// OpenCode1EndOfSupport is the last day nav-pilot supports opencode 1 (#1907).
+// Move it here; the launch notice and doctor read it.
+const OpenCode1EndOfSupport = "2026-11-19"
+
+// OpenCode1Notice is the upgrade nudge for an opencode 1 user, "" on any
+// other major or an unreadable version.
+func OpenCode1Notice() string {
+	if openCodeMajor() != 1 {
+		return ""
+	}
+	return fmt.Sprintf("nav-pilot drops opencode 1 support after %s. Upgrade to opencode 2: %s\n"+
+		"  The upgrade is one-way: opencode 2 migrates the opencode 1 database. Log in again afterwards (auth.json is not imported). Linux needs bubblewrap.",
+		OpenCode1EndOfSupport, domain.Bold(OpenCode2InstallHint()))
+}
+
+// warnOpenCode1 prints OpenCode1Notice at launch, once per opencode version.
+func warnOpenCode1() {
+	out, _ := cachedVersion("opencode", clientProbeTimeout)
+	if n := OpenCode1Notice(); n != "" && SeenChanged("opencode1-notice", strings.TrimSpace(out)) {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
+	}
+}
+
 // CheckOpenCodeMajor stops a launch on opencode 3 or newer, which the warning
 // above is not enough for: opencode 2 changed the flags, the plugin API and
 // how config loads, and nav-pilot's bridge only exists for 1 and 2. A session
@@ -421,15 +444,17 @@ func openCodeMajor() int {
 
 var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
 
-// minOpenCode2CpltStamp is the first cplt release with navikt/cplt#716, where
-// the opencode 2 client spawns its session's service inside the sandbox. An
-// older cplt lets the client attach to the host's background service, which
-// runs with none of the launch's environment: no hooks, no gate, no policy.
-// The floor is 2026.10.08-081501: it carries #716, #720 and #722, plus
-// navikt/cplt#736 (AGENTS.md grants from ancestor directories, stow symlinks),
-// the fix for a credential leak through planted <project>/.agents, .claude or
-// .opencode symlinks in opencode 2 sessions, and #735, which fails closed on
-// an opencode whose version it cannot read.
+// openCode2CpltFloor is the oldest cplt nav-pilot runs opencode 2 under, on
+// macOS and Linux alike: release 2026.10.22-172931-b37a8ab. Earlier floors
+// brought navikt/cplt#716 (the session's service spawns inside the sandbox,
+// not the host's background service with no hooks, gate or policy), #720,
+// #722, #735 (fail closed on an unreadable opencode version), #736 (no
+// credential leak through planted .agents, .claude or .opencode symlinks) and
+// #740 (opencode 2 under bubblewrap on Linux). This floor adds #795 (v2
+// favourites and history), #799 (git plumbing for opencode's snapshots) and
+// #798 (v2 plugin and MCP grants). Raised 2026-10-22 in #1907.
+const openCode2CpltFloor = "2026.10.22-172931"
+
 // errCpltTooOld marks checkOpenCode2Launch's refusal of a cplt older than
 // minOpenCode2CpltStamp, so telemetry can tell it from argument refusals.
 var errCpltTooOld = errors.New("cplt too old")
@@ -438,15 +463,11 @@ var errCpltTooOld = errors.New("cplt too old")
 var hostOS = runtime.GOOS
 
 // minOpenCode2CpltStamp is the cplt floor for opencode 2 on hostOS, "" where
-// cplt does not run it. Linux needs navikt/cplt#740 (2026.10.08-092800),
-// which runs opencode 2 under bubblewrap; cplt itself refuses a host without
-// it, with install instructions.
+// cplt does not run it. On Linux cplt runs opencode 2 under bubblewrap and
+// refuses a host without it, with install instructions.
 func minOpenCode2CpltStamp() string {
-	switch hostOS {
-	case "darwin":
-		return "2026.10.08-081501"
-	case "linux":
-		return "2026.10.08-092800"
+	if hostOS == "darwin" || hostOS == "linux" {
+		return openCode2CpltFloor
 	}
 	return ""
 }
@@ -499,7 +520,7 @@ func checkOpenCode2Launch(args []string) error {
 func checkOpenCode2Cplt() error {
 	floor := minOpenCode2CpltStamp()
 	if floor == "" {
-		floor = "2026.10.08-081501"
+		floor = openCode2CpltFloor
 	}
 	out, err := probeCpltVersion()
 	if errors.Is(err, errCpltNotFound) {
@@ -510,7 +531,7 @@ func checkOpenCode2Cplt() error {
 		found = err.Error()
 	}
 	if stamp := cpltStamp(out); err != nil || stamp == "" || stamp < floor {
-		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer (navikt/cplt#716, #722, #735, #736, #740 on Linux), found %q: %s.\n\n  Upgrade it: %s",
+		return fmt.Errorf("%w: opencode 2 needs cplt %s or newer, found %q: %s.\n\n  Update cplt: %s",
 			errCpltTooOld, floor, found, oldCpltConsequence(), domain.Bold(cpltUpgradeHint()))
 	}
 	return nil
@@ -548,8 +569,8 @@ func OpenCode1InstallHint() string {
 	return OpenCodeScriptInstall
 }
 
-// openCode2InstallVersion is the opencode 2 release nav-pilot is tested with.
-const openCode2InstallVersion = "2.1.2"
+// OpenCode2InstallVersion is the opencode 2 release nav-pilot is tested with.
+const OpenCode2InstallVersion = "2.1.2"
 
 // OpenCode2InstallHint replaces the opencode on PATH with opencode 2, through
 // Homebrew when that is how it came, otherwise npm.
@@ -563,7 +584,7 @@ func OpenCode2InstallHint() string {
 		}
 		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode-v2"
 	}
-	return "npm i -g @opencode/cli@" + openCode2InstallVersion
+	return "npm i -g @opencode/cli@" + OpenCode2InstallVersion
 }
 
 // oldCpltConsequence is what a cplt below the floor does with opencode 2:

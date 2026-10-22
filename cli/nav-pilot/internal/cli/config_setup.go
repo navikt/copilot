@@ -445,7 +445,7 @@ func opencodeForSetup() (string, error) {
 		install = false // a prompt that could not run is no answer
 	}
 	if install {
-		used, cmd := opencodeBrewInstall, exec.Command("brew", "install", "anomalyco/tap/opencode")
+		used, cmd := opencodeBrewInstall, exec.Command("brew", "install", opencodeBrewFormula)
 		if !withBrew {
 			used, cmd = opencodeScriptInstall, exec.Command(bashPath(), "-c", opencodeScriptInstall)
 		}
@@ -478,8 +478,10 @@ func opencodeForSetup() (string, error) {
 }
 
 // opencodeScriptInstall is opencode's own installer, for a machine without
-// Homebrew, pinned to a tested release so it downloads from GitHub releases
-// without asking the GitHub API for the latest version.
+// Homebrew or npm, pinned to a tested release so it downloads from GitHub
+// releases without asking the GitHub API for the latest version. The script
+// installs opencode 1 only (it refuses a 2.x --version), so this path still
+// gives opencode 1.
 const opencodeScriptInstall = providerpkg.OpenCodeScriptInstall
 
 // bashPath is bash from PATH, else /bin/bash: the opencode installer needs
@@ -491,8 +493,12 @@ func bashPath() string {
 	return "/bin/bash"
 }
 
-// opencodeBrewInstall is opencode's recommended Homebrew install.
-const opencodeBrewInstall = "brew install anomalyco/tap/opencode"
+// opencodeBrewFormula is opencode 2 from opencode's tap, the formula
+// OpenCode2InstallHint names; anomalyco/tap/opencode is still opencode 1.
+const opencodeBrewFormula = "anomalyco/tap/opencode-v2"
+
+// opencodeBrewInstall installs opencode 2 through Homebrew.
+const opencodeBrewInstall = "brew install " + opencodeBrewFormula
 
 func opencodeInstallCommand() string {
 	if _, err := exec.LookPath("brew"); err == nil {
@@ -505,13 +511,13 @@ func opencodeInstallCommand() string {
 		if info, err := os.Stat(home); err == nil && info.IsDir() && filepath.IsAbs(home) {
 			for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
 				if filepath.Clean(dir) == filepath.Clean(home) {
-					return "pnpm add -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
+					return "pnpm add -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion
 				}
 			}
 		}
 	}
 	if _, err := exec.LookPath("npm"); err == nil {
-		return "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
+		return "npm i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion
 	}
 	return opencodeScriptInstall
 }

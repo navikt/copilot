@@ -22,10 +22,10 @@ func TestOpenCodeInstallHint(t *testing.T) {
 		want     string
 	}{
 		{"brew first", []string{"npm", "pnpm", "brew"}, true, opencodeBrewInstall},
-		{"pnpm before npm", []string{"npm", "pnpm"}, true, "pnpm add -g opencode-ai@" + providerpkg.OpenCodeInstallVersion},
-		{"unconfigured pnpm with npm", []string{"npm", "pnpm"}, false, "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion},
+		{"pnpm before npm", []string{"npm", "pnpm"}, true, "pnpm add -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion},
+		{"unconfigured pnpm with npm", []string{"npm", "pnpm"}, false, "npm i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion},
 		{"unconfigured pnpm alone", []string{"pnpm"}, false, opencodeScriptInstall},
-		{"npm", []string{"npm"}, false, "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion},
+		{"npm", []string{"npm"}, false, "npm i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion},
 		{"no package manager", nil, false, opencodeScriptInstall},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestOpenCodeInstallHintRejectsInvalidPnpmHome(t *testing.T) {
 	t.Setenv("PATH", bin)
 	for _, home := range []string{t.TempDir(), filepath.Join(bin, "missing"), filepath.Join(bin, "npm"), "."} {
 		t.Setenv("PNPM_HOME", home)
-		want := "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
+		want := "npm i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion
 		if got := opencodeInstallCommand(); got != want {
 			t.Errorf("PNPM_HOME=%q: got %q, want %q", home, got, want)
 		}
@@ -84,7 +84,7 @@ func TestOpenCodeInstallHintSkipsNonExecutableBrew(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin)
-	want := "npm i -g opencode-ai@" + providerpkg.OpenCodeInstallVersion
+	want := "npm i -g @opencode/cli@" + providerpkg.OpenCode2InstallVersion
 	if got := opencodeInstallCommand(); got != want {
 		t.Fatalf("opencodeInstallCommand() = %q, want %q", got, want)
 	}
