@@ -324,6 +324,23 @@ cplt --allow-rootless-docker`}
             </a>{" "}
             (engelsk). Uten Ryuk må du selv rydde opp containere som står igjen etter en avbrutt testkjøring.
           </BodyLong>
+          <BodyLong>
+            Vanlig <code className={code}>podman</code> virker ikke i sandkassen, fordi den trenger user namespaces.
+            Kjør <code className={code}>podman --remote</code> mot socketen, eller bruk Docker-klienten med{" "}
+            <code className={code}>DOCKER_HOST</code> som over:
+          </BodyLong>
+          <CodeBlock compact>
+            {`export CONTAINER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
+podman --remote images`}
+          </CodeBlock>
+          <BodyLong>
+            Til neste versjon av cplt feiler Podman med <code className={code}>cannot retrieve cmd line</code>. Start
+            cplt slik så lenge:
+          </BodyLong>
+          <CodeBlock compact>
+            {`cplt --allow-rootless-docker --allow-read /proc --allow-write "$XDG_RUNTIME_DIR/libpod"`}
+          </CodeBlock>
+          <BodyLong>Rettingen i neste versjon virker bare når cplt kjører med bubblewrap.</BodyLong>
           <BodyLong>Slik slår du det på fast:</BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_rootless_docker true --force`}</CodeBlock>
           <Bullets>
