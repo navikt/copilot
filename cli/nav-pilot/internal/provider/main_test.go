@@ -2,6 +2,7 @@ package provider
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,5 +18,19 @@ func TestMain(m *testing.M) {
 	// deadlines firing.
 	IsCpltTimeout = 30 * time.Second
 	MCPPolicyTimeout = 30 * time.Second
-	os.Exit(testhome.Run(m))
+	// The developer's own opencode must not pick the major the tests run
+	// against: a v2 install turned v1 expectations red. Tests that need
+	// another version put their own fake first on PATH or seed versionCache.
+	// The fake answers 1.18.32 to any arguments, not only --version.
+	bin, err := os.MkdirTemp("", "nav-pilot-test-bin-")
+	if err != nil {
+		panic(err)
+	}
+	if err := testhome.WriteExec(filepath.Join(bin, "opencode"), "#!/bin/sh\necho 1.18.32\n"); err != nil {
+		panic(err)
+	}
+	os.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	code := testhome.Run(m)
+	os.RemoveAll(bin)
+	os.Exit(code)
 }

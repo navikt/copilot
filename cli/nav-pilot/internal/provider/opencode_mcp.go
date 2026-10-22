@@ -510,13 +510,27 @@ func isOpenCodeWalkStopDir(d, home string) bool {
 // {env:VAR} placeholders are expanded only per MCP server value in memory so
 // host secrets in server keys or permissions never leak into OPENCODE_CONFIG_CONTENT.
 func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte {
+	var docs [][]byte
+	for _, doc := range openCodeConfigDocuments(projectDir, env, userOnly) {
+		docs = append(docs, doc.content)
+	}
+	return docs
+}
+
+type openCodeConfigDocument struct {
+	path    string
+	content []byte
+}
+
+func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []openCodeConfigDocument {
 	getenv := openCodeEnvGetter(env)
 	home, _ := os.UserHomeDir()
-	var docs [][]byte
+	var docs []openCodeConfigDocument
 	read := func(dir string, names ...string) {
 		for _, n := range names {
-			if b, err := os.ReadFile(filepath.Join(dir, n)); err == nil {
-				docs = append(docs, b)
+			path := filepath.Join(dir, n)
+			if b, err := os.ReadFile(path); err == nil {
+				docs = append(docs, openCodeConfigDocument{path, expandUnquotedEnv(b, getenv)})
 			}
 		}
 	}
@@ -525,7 +539,7 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 		if home != "" {
 			read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
 		}
-		return expandOpenCodeEnv(docs, getenv)
+		return docs
 	}
 	// opencode 2 reads OPENCODE_CONFIG_DIR as its global config, below
 	// everything else; opencode 1 ranks it above the project.
@@ -573,9 +587,9 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 		read(d, "opencode.json", "opencode.jsonc")
 	}
 	if c := getenv(openCodeConfigContentEnv); c != "" {
-		docs = append(docs, []byte(c))
+		docs = append(docs, openCodeConfigDocument{openCodeConfigContentEnv, expandUnquotedEnv([]byte(c), getenv)})
 	}
-	return expandOpenCodeEnv(docs, getenv)
+	return docs
 }
 
 // expandOpenCodeServerJSON expands {env:VAR} inside a single server's JSON
@@ -592,16 +606,7 @@ func expandOpenCodeServerJSON(raw json.RawMessage, getenv func(string) string) j
 	})
 }
 
-// expandOpenCodeEnv replaces unquoted {env:VAR} placeholders (outside JSON
-// strings) so documents with unquoted boolean/number placeholders remain
-// parseable without expanding secrets inside JSON string keys or values.
-func expandOpenCodeEnv(docs [][]byte, getenv func(string) string) [][]byte {
-	for i, doc := range docs {
-		docs[i] = expandUnquotedEnv(doc, getenv)
-	}
-	return docs
-}
-
+// Unquoted placeholders must parse without expanding secrets in JSON strings.
 func expandUnquotedEnv(b []byte, getenv func(string) string) []byte {
 	var out bytes.Buffer
 	inStr, esc := false, false

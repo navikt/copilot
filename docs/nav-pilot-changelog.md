@@ -13,6 +13,19 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavlen på macOS for denne økten. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle økter med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
 - **`nav-pilot --cplt <flagg>`**: Sender ett cplt-flagg videre for denne økten, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Flagg med verdi skrives med `=`. `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
 
+### OpenCode-økter bruker bare GitHub Copilot og lokal modell
+
+- **`nav-pilot --client opencode`**: En økt som nav-pilot starter, kan bare bruke modeller fra GitHub Copilot. Har du slått på lokal inferens (`local_enabled`), kan økten også bruke den lokale modellen (`mlx`). Andre leverandører er slått av i økten, også når en agentpakke peker på dem. Starter du OpenCode uten nav-pilot, er alt som før, og nav-pilot endrer ikke OpenCode-konfigurasjonen din (#1882).
+- **Ingen stille bytte**: Får ikke OpenCode tilgang til en Copilot-modell, svarer den «Model unavailable» i stedet for å bytte til en annen leverandør. Avslutter OpenCode med feil, minner nav-pilot deg på å logge inn med `opencode auth login` (velg GitHub Copilot) og sjekke at Copilot-planen din har modellen. Avbryter du selv med Ctrl+C, kommer ikke påminnelsen.
+- **Når nav-pilot ikke starter OpenCode**:
+  - `opencode --version` svarer ikke. Sjekk at kommandoen virker, og prøv igjen.
+  - Du bruker OpenCode 2, og en konfigurasjonsfil har `enabled_providers` med andre leverandører enn `github-copilot` og `mlx`, eller en `provider.use`-regel med `"effect": "allow"` for andre leverandører under `experimental.policies`. Feilmeldingen sier hvilken fil. Fjern de andre leverandørene, eller fjern hele innstillingen.
+  - En konfigurasjonsfil kan ikke leses som JSON. Rett filen feilmeldingen peker på.
+  - Modellen du velger med `--model`, eller som agentpakken bruker, er fra en annen leverandør enn `github-copilot` og `mlx`. Feilmeldingen sier hvilken modell eller agentpakke det gjelder. Velg en Copilot-modell, eller start en annen agentpakke.
+  - En konfigurasjonsfil endrer adressen til `github-copilot`-leverandøren, for eksempel med `baseURL`, `endpoint`, `npm` eller `package`. Det gjelder både `provider` og `providers` (OpenCode 2), og også overstyringer for én modell under `models`. Fjern overstyringen fra filen feilmeldingen peker på.
+  - En annen fil enn den globale OpenCode-konfigurasjonen, som nav-pilot skriver selv, endrer adressen til den lokale modellen (`mlx`). Fjern `mlx`-blokken fra prosjektets eller agentpakkens konfigurasjon.
+  - En `{file:…}`- eller `{env:…}`-plassholder står i en adresseinnstilling, i `enabled_providers` eller under `experimental`. nav-pilot kan ikke se hva plassholderen blir til. Skriv verdien rett inn, eller fjern innstillingen. Plassholdere i andre verdier, som `apiKey`, går fint.
+
 ## 2026-10-14
 
 ### Har du svart på nettet, spør ikke nav-pilot igjen

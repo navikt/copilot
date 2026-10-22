@@ -1492,6 +1492,15 @@ func openCodeUsageDir(projectDir string) string {
 // launchOpenCodeViaCplt is launchViaCplt plus the usage recording, shared by
 // the plain and the staged (Tier 2) opencode launch.
 func launchOpenCodeViaCplt(spec cpltLaunch) error {
+	// Missing cplt is the first thing to fix; its error says how.
+	if p, name := FindCopilotCLI(); p == "" || name != "cplt" {
+		return launchViaCplt(spec)
+	}
+	var err error
+	spec.env, err = applyOpenCodeProviderPolicy(spec.env, spec.projectDir, local.Enabled(), spec.agentArgs, spec.pakke)
+	if err != nil {
+		return err
+	}
 	if telemetry.TelemetryEnabled() {
 		since := time.Now()
 		defer func() {
@@ -1502,5 +1511,12 @@ func launchOpenCodeViaCplt(spec cpltLaunch) error {
 			}
 		}()
 	}
-	return launchViaCplt(spec)
+	err = launchViaCplt(spec)
+	// Without Copilot access opencode exits with only "Model unavailable", and
+	// the session allows no other provider to fall back to.
+	if classifyLaunchError(err) == "client_exit" {
+		fmt.Fprintf(os.Stderr, "%s If OpenCode reported a github-copilot model as unavailable, sign in with %s (choose GitHub Copilot) and check that your Copilot plan includes the model. nav-pilot sessions allow no other model provider.\n",
+			domain.Yellow("⚠"), domain.Bold("opencode auth login"))
+	}
+	return err
 }
