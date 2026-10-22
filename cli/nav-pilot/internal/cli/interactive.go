@@ -1245,7 +1245,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 				return skipped
 			case "":
 				fmt.Fprintf(os.Stderr, "%s Neither copilot nor cplt is installed, so nothing was launched.\n%s\n", yellow("⚠"), copilotInstallHint())
-				if !opencodeInstalled() {
+				if !opencodeInstalled() && opencodePlatform() {
 					if cmd := opencodeInstallCommand(); cmd != "" {
 						fmt.Fprintf(os.Stderr, "  Or use opencode: %s, then %s\n", bold(cmd), bold("nav-pilot config set client opencode"))
 					} else {
@@ -1258,6 +1258,10 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		if missingCommand(resolved.Client, resolved.Client) == "cplt" {
 			fmt.Fprintf(os.Stderr, "%s cplt (the sandbox) is not installed, and %s only launches inside it. Install it: %s\n",
 				yellow("⚠"), resolved.Client, bold(cpltInstallHint))
+			return skipped
+		}
+		if resolved.Client == "opencode" && !opencodePlatform() {
+			fmt.Fprintf(os.Stderr, "%s %s, so nothing was launched.\n", yellow("⚠"), opencodeOffPlatform)
 			return skipped
 		}
 		fmt.Fprintf(os.Stderr, "%s %s is not installed, so nothing was launched. %s\n",
@@ -1380,6 +1384,10 @@ func headlessRefusal(decision launchDecision, p Provider, missing, start string)
 				fmt.Fprintf(os.Stderr, "Not launching: neither copilot nor cplt is installed.\n%s\n", copilotInstallHint())
 				break
 			}
+		}
+		if missing == "opencode" && !opencodePlatform() {
+			fmt.Fprintf(os.Stderr, "%s, so nothing was launched.\n", opencodeOffPlatform)
+			break
 		}
 		fmt.Fprintf(os.Stderr, "Not launching: %s is not installed. %s\n", missing, installAdvice(missing))
 	case launchSkipOptedOut:

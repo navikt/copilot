@@ -159,6 +159,19 @@ func TestOpenCodeInstallCommandOtherOS(t *testing.T) {
 	if got := opencodeInstallCommand(); got != "" {
 		t.Errorf("windows: %q, want \"\"", got)
 	}
+	isolatedConfig(t)
+	var client string
+	stdout, _ := captureRun(t, func() { client, _ = opencodeForSetup() })
+	if want := "opencode 2 runs only on macOS and Linux, so nav-pilot will use GitHub Copilot."; client != "copilot" || !strings.Contains(stdout, want) || strings.Contains(stdout, "Homebrew") {
+		t.Errorf("wizard on windows: %q, %q; want copilot and %q without Homebrew advice", client, stdout, want)
+	}
+	origInteractive := isInteractive
+	isInteractive = func() bool { return true }
+	t.Cleanup(func() { isInteractive = origInteractive })
+	_, stderr := captureRun(t, func() { _ = offerLaunch(ResolvedConfig{Client: "opencode", AutoLaunch: true}, false) })
+	if want := "opencode 2 runs only on macOS and Linux, so nothing was launched."; !strings.Contains(stderr, want) || strings.Contains(stderr, "Homebrew") {
+		t.Errorf("launch on windows: %q, want %q without Homebrew advice", stderr, want)
+	}
 	installGOOS = "linux"
 	if got := opencodeInstallCommand(); got != opencodeNpmInstall {
 		t.Errorf("linux: %q, want %q", got, opencodeNpmInstall)

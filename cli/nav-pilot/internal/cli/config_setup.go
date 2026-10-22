@@ -452,6 +452,10 @@ func opencodeForSetup() (string, error) {
 			}
 		}
 	}
+	if !opencodePlatform() {
+		fmt.Printf("  %s, so nav-pilot will use GitHub Copilot.\n", opencodeOffPlatform)
+		return "copilot", nil
+	}
 	// steps is how to get opencode 2 and switch to it.
 	steps := cmd + ", then " + bold("nav-pilot config set client opencode")
 	if cmd == "" {
@@ -505,12 +509,18 @@ func opencodeCommands() string {
 // installGOOS is runtime.GOOS; tests set it.
 var installGOOS = runtime.GOOS
 
+// opencodePlatform reports whether opencode 2 runs here (under cplt).
+func opencodePlatform() bool { return installGOOS == "darwin" || installGOOS == "linux" }
+
+// opencodeOffPlatform starts the message for a platform opencode 2 skips.
+const opencodeOffPlatform = "opencode 2 runs only on macOS and Linux"
+
 // opencodeInstallCommand is how this machine gets opencode 2: Homebrew, else
 // pnpm or npm, pinned so it cannot install an untested major. It is "" with
 // none of them, and on a platform other than macOS and Linux, where opencode 2
 // does not run under cplt.
 func opencodeInstallCommand() string {
-	if installGOOS != "darwin" && installGOOS != "linux" {
+	if !opencodePlatform() {
 		return ""
 	}
 	if _, err := exec.LookPath("brew"); err == nil {
