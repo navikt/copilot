@@ -24,23 +24,23 @@ exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 
 fake-bin cplt
 exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
-stderr 'Not launching: opencode is not installed\. Install Homebrew \(https://brew\.sh\) or Node\.js \(https://nodejs\.org\), then run brew install anomalyco/tap/opencode-v2 or npm i -g @opencode/cli@2\.1\.2\.'
+stderr 'Not launching: opencode is not installed\. Install Homebrew \(https://brew\.sh\) or Node\.js \(https://nodejs\.org\), then run brew install anomalyco/tap/opencode-v2 or npm i -g @opencode/cli@2\.1\.3\.'
 ! stderr 'opencode\.ai/install'
 
 fake-bin cplt npm
 exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
-stderr 'Install it: npm i -g @opencode/cli@2\.1\.2'
+stderr 'Install it: npm i -g @opencode/cli@2\.1\.3'
 
 fake-bin cplt npm pnpm
 env PNPM_HOME=
 exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
-stderr 'Install it: npm i -g @opencode/cli@2\.1\.2'
+stderr 'Install it: npm i -g @opencode/cli@2\.1\.3'
 
 mkdir pnpm-home
 env PNPM_HOME=$WORK/repo/pnpm-home
 env PATH=$PNPM_HOME:$PATH
 exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x
-stderr 'Install it: pnpm add -g @opencode/cli@2\.1\.2'
+stderr 'Install it: pnpm add -g @opencode/cli@2\.1\.3'
 
 fake-bin cplt npm pnpm brew
 exits 1 nav-pilot --sync --source $WORK/plattform --client opencode -- run x

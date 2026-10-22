@@ -573,7 +573,7 @@ func OpenCode1InstallHint() string {
 }
 
 // OpenCode2InstallVersion is the opencode 2 release nav-pilot is tested with.
-const OpenCode2InstallVersion = "2.1.2"
+const OpenCode2InstallVersion = "2.1.3"
 
 // OpenCode2InstallHint replaces the opencode on PATH with opencode 2, through
 // Homebrew when that is how it came, otherwise npm.

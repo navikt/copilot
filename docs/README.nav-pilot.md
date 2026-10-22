@@ -62,7 +62,7 @@ nav-pilot install nav-pilot
 Første gang du kjører `nav-pilot`, spør den hvilken klient du vil bruke. opencode er valgt.
 Mangler opencode, tilbyr nav-pilot å installere opencode 2: med Homebrew
 (`brew install anomalyco/tap/opencode-v2`) hvis du har det, ellers med npm eller pnpm
-(`npm i -g @opencode/cli@2.1.2`). Sier du nei, bruker nav-pilot Copilot CLI og sier hvordan du
+(`npm i -g @opencode/cli@2.1.3`). Sier du nei, bruker nav-pilot Copilot CLI og sier hvordan du
 bytter senere. Har du verken Homebrew eller Node.js, installerer nav-pilot ingenting, men sier
 hva du må installere først og hvilken kommando du kjører etterpå. Mangler Copilot CLI også, viser
 den installasjonskommandoen for begge. opencode 2 krever cplt 2026.10.22-172931 eller nyere.
