@@ -156,6 +156,10 @@ type GateRequest struct {
 	// ReplaceAll and Old: an edit that replaces every match of Old.
 	ReplaceAll bool   `json:"replaceAll"`
 	Old        string `json:"old"`
+	// Patch: the patchText of a patch (opencode 2) or apply_patch (opencode
+	// 1) call, the edit tool of models opencode gives no edit or write. Its
+	// files count like edits and writes (#1008).
+	Patch string `json:"patch"`
 	// Phase is "" before a tool call, "after" once a task to the worker or a
 	// bash command has returned, "text" when the orchestrator has written
 	// text, and "worker" when the worker is about to create or edit a file.
@@ -304,30 +308,38 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 			return "", "dispatched_after_deny"
 		}
 		return "", ""
-	case "edit", "write":
-		if r.Path == "" || g.rules.Pinned && PinnedFile(r.Path) {
+	case "edit", "write", "patch", "apply_patch":
+		for _, t := range g.targets(r) {
+			if t.path == "" || g.rules.Pinned && PinnedFile(t.path) {
+				continue
+			}
+			switch exists(g.rules.Root, t.path) {
+			case statError:
+				// Outside the project or unreadable: not counted, and it
+				// does not shield the patch's other files.
+				continue
+			case statMissing:
+				// A new file: create-file, not a mechanical edit. An edit of
+				// a path that is not there is a mistake opencode reports.
+				if !t.create || !g.rules.Create || st.exempt(t.path) || st.passes(t.path, g.rules) || st.denies >= g.rules.budget() || !g.serverUp() {
+					continue
+				}
+				st.refused[t.path] = true
+				st.denies++
+				g.counts["deny_create"]++
+				return GateCreateText, "deny_create"
+			}
+			e := shellEdit{file: t.path}
+			if r.Tool == "edit" && r.ReplaceAll && r.Old != "" {
+				if re, err := regexp.Compile(regexp.QuoteMeta(r.Old)); err == nil {
+					e.re, e.global = re, true
+				}
+			}
+			edits = append(edits, e)
+		}
+		if len(edits) == 0 {
 			return "", ""
 		}
-		switch exists(g.rules.Root, r.Path) {
-		case statError:
-			return "", ""
-		case statMissing:
-			// A new file: create-file, not a mechanical edit.
-			if !r.Create || !g.rules.Create || st.exempt(r.Path) || st.passes(r.Path, g.rules) || st.denies >= g.rules.budget() || !g.serverUp() {
-				return "", ""
-			}
-			st.refused[r.Path] = true
-			st.denies++
-			g.counts["deny_create"]++
-			return GateCreateText, "deny_create"
-		}
-		e := shellEdit{file: r.Path}
-		if r.Tool == "edit" && r.ReplaceAll && r.Old != "" {
-			if re, err := regexp.Compile(regexp.QuoteMeta(r.Old)); err == nil {
-				e.re, e.global = re, true
-			}
-		}
-		edits = []shellEdit{e}
 	case "bash":
 		if st.unverified && Verifies(r.Command) {
 			st.unverified = false
@@ -417,8 +429,10 @@ func (g *dispatchGate) outsideTemp(r GateRequest) bool {
 	}
 	var paths []named
 	switch r.Tool {
-	case "edit", "write":
-		paths = []named{{r.Path, true}}
+	case "edit", "write", "patch", "apply_patch":
+		for _, t := range g.targets(r) {
+			paths = append(paths, named{t.path, true})
+		}
 	case "bash":
 		for _, seg := range splitSegments(r.Command) {
 			words := shellWords(seg.text)
@@ -530,10 +544,12 @@ func (g *dispatchGate) verify(r GateRequest) (key, text string) {
 		g.mu.Lock()
 		defer g.mu.Unlock()
 		switch r.Tool {
-		case "write", "edit":
-			if g.rules.Pinned && PinnedFile(r.Path) {
-				g.counts["pinned_deny"]++
-				return "deny", GatePinnedText
+		case "write", "edit", "patch", "apply_patch":
+			for _, t := range g.targets(r) {
+				if g.rules.Pinned && PinnedFile(t.path) {
+					g.counts["pinned_deny"]++
+					return "deny", GatePinnedText
+				}
 			}
 			g.workerWrote[r.Session] = true
 		case "bash":
@@ -1281,4 +1297,62 @@ func DispatchGateRules(level string, c *Capabilities) GateRules {
 		return GateRules{Multi: multi, Create: slices.Contains(send, "create-file")}
 	}
 	return GateRules{}
+}
+
+type gateTarget struct {
+	path   string
+	create bool
+}
+
+// targets: the files an edit, a write or a patch call names. A patch's paths
+// are relative to the project root.
+func (g *dispatchGate) targets(r GateRequest) []gateTarget {
+	if r.Tool != "patch" && r.Tool != "apply_patch" {
+		return []gateTarget{{r.Path, r.Create}}
+	}
+	abs := func(p string) string {
+		if filepath.IsAbs(p) || g.rules.Root == "" {
+			return p
+		}
+		return filepath.Join(g.rules.Root, p)
+	}
+	added, changed := PatchFiles(r.Patch)
+	var out []gateTarget
+	for _, f := range added {
+		out = append(out, gateTarget{abs(f), true})
+	}
+	for _, f := range changed {
+		out = append(out, gateTarget{abs(f), false})
+	}
+	return out
+}
+
+// PatchFiles reads the files a patch adds and changes, from opencode's
+// "*** Begin Patch" text: *** Add File: is added; *** Update File:, ***
+// Delete File: and *** Move to: are changed (a move is an edit, not a new
+// file). opencode sends no other format.
+func PatchFiles(text string) (added, changed []string) {
+	// Each file once: five update blocks of one file are one file.
+	seen := map[string]bool{}
+	add := func(list *[]string, f string) {
+		if f = strings.TrimSpace(f); f != "" && !seen[f] {
+			seen[f] = true
+			*list = append(*list, f)
+		}
+	}
+	for _, line := range strings.Split(text, "\n") {
+		// As opencode 2.1.3 (packages/util/src/patch.ts): a file header is
+		// trimmed on both sides, a move line only at the end.
+		header := strings.TrimSpace(line)
+		if f, ok := strings.CutPrefix(header, "*** Add File: "); ok {
+			add(&added, f)
+		} else if f, ok := strings.CutPrefix(header, "*** Update File: "); ok {
+			add(&changed, f)
+		} else if f, ok := strings.CutPrefix(header, "*** Delete File: "); ok {
+			add(&changed, f)
+		} else if f, ok := strings.CutPrefix(strings.TrimRight(line, " \t\r"), "*** Move to: "); ok {
+			add(&changed, f)
+		}
+	}
+	return added, changed
 }

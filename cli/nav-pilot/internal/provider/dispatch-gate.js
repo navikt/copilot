@@ -48,6 +48,9 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
     return agent
   }
   const str = (v) => (typeof v === "string" ? v : "")
+  // The patch tool (opencode 2: patch, opencode 1: apply_patch) is the only
+  // edit tool of some models (gpt-*): nav-pilot reads its files from the text.
+  const isPatch = (tool) => tool === "patch" || tool === "apply_patch"
   return {
     // One user message is one turn: the gate counts per turn.
     "chat.message": async (input, output) => {
@@ -71,11 +74,11 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
         // after it returns goes back to it once. The one refusal here is a
         // pinned file under local_dep_upgrade, which fails the task back to
         // the orchestrator.
-        if (agents.get(input.sessionID) === "local-worker" && (input.tool === "write" || input.tool === "edit" || input.tool === "bash")) {
+        if (agents.get(input.sessionID) === "local-worker" && (input.tool === "write" || input.tool === "edit" || input.tool === "bash" || isPatch(input.tool))) {
           const path = str(args.filePath)
           let deny = ""
           try {
-            deny = (await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: input.tool === "write" || args.oldString === "", path: path ? (isAbsolute(path) ? path : join(directory ?? "", path)) : "", command: input.tool === "bash" ? str(args.command) : "", phase: "worker" })).deny ?? ""
+            deny = (await ask({ session: input.sessionID, agent: "local-worker", tool: input.tool, create: input.tool === "write" || args.oldString === "", path: path ? (isAbsolute(path) ? path : join(directory ?? "", path)) : "", command: input.tool === "bash" ? str(args.command) : "", patch: isPatch(input.tool) ? str(args.patchText) : "", phase: "worker" })).deny ?? ""
           } catch {}
           if (typeof deny === "string" && deny) throw new Error(deny)
         }
@@ -95,6 +98,7 @@ export const NavPilotDispatchGate = async ({ client, directory }) => {
         prompt: toWorker ? str(args.prompt) : "",
         replaceAll,
         old: replaceAll ? str(args.oldString) : "",
+        patch: isPatch(input.tool) ? str(args.patchText) : "",
       }
       let deny = ""
       try {

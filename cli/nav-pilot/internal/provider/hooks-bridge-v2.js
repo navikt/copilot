@@ -156,7 +156,7 @@ function dispatchGate(ctx, directory) {
     },
     before: async (event) => {
       const tool = event.tool
-      if (!["edit", "write", "shell", "subagent"].includes(tool)) return
+      if (!["edit", "write", "patch", "shell", "subagent"].includes(tool)) return
       const args = event.input ?? {}
       if (event.agent) agents.set(event.sessionID, event.agent)
       const curAgent = event.agent || agents.get(event.sessionID)
@@ -166,8 +166,8 @@ function dispatchGate(ctx, directory) {
         const agent = await orchestrator(event.sessionID, curAgent)
         if (!agent) {
           // The worker's writes, edits and shell commands: see dispatch-gate.js.
-          if (curAgent === "local-worker" && (tool === "write" || tool === "edit" || tool === "shell")) {
-            deny = (await ask({ session: event.sessionID, agent: "local-worker", tool: tool === "shell" ? "bash" : tool, create, path: abs(str(args.path)), command: tool === "shell" ? str(args.command) : "", phase: "worker" })).deny ?? ""
+          if (curAgent === "local-worker" && (tool === "write" || tool === "edit" || tool === "patch" || tool === "shell")) {
+            deny = (await ask({ session: event.sessionID, agent: "local-worker", tool: tool === "shell" ? "bash" : tool, create, path: abs(str(args.path)), command: tool === "shell" ? str(args.command) : "", patch: tool === "patch" ? str(args.patchText) : "", phase: "worker" })).deny ?? ""
           }
         } else {
           const replaceAll = tool === "edit" && args.replaceAll === true
@@ -185,6 +185,8 @@ function dispatchGate(ctx, directory) {
               prompt: toWorker ? str(args.prompt) : "",
               replaceAll,
               old: replaceAll ? str(args.oldString) : "",
+              // patch is the only edit tool of some models (gpt-*).
+              patch: tool === "patch" ? str(args.patchText) : "",
             })
           ).deny
         }
