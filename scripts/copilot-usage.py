@@ -77,21 +77,35 @@ def load_prices(path: Path) -> dict[str, list[tuple[int, tuple[float, ...]]]]:
     limit 272000; its "Long context" entry is the price above that. A model
     without cacheWrite pays the input price for cache writes.
     """
-    prices: dict[str, list[tuple[int, tuple[float, ...]]]] = {}
+    base: dict[str, tuple[int, tuple[float, ...]]] = {}
+    long: dict[str, tuple[float, ...]] = {}
     for block in re.findall(r'\{[^{}]*model: "[^{}]*\}', path.read_text()):
         name = re.search(r'model: "([^"]+)"', block).group(1)
 
-        def num(key: str) -> float | None:
+        def num(key: str, required: bool = True) -> float | None:
             m = re.search(rf"\b{key}: ([0-9.]+)", block)
+            if not m and required:
+                sys.exit(f"{path}: {name} has no {key}")
             return float(m.group(1)) if m else None
 
-        rate = (num("input"), num("cachedInput"), num("cacheWrite") or num("input"), num("output"))
-        tiers = prices.setdefault(name.split(" (")[0].lower().replace(" ", "-"), [])
+        rate = (num("input"), num("cachedInput"), num("cacheWrite", False) or num("input"), num("output"))
+        model = name.split(" (")[0].lower().replace(" ", "-")
         limit = re.search(r"≤ (\d+)K", name)
         if "Long context" in name:
-            tiers.append((10**12, rate))
-        elif not tiers:  # first entry wins: "(fast mode)" variants share a base name
-            tiers.append((int(limit.group(1)) * 1000 if limit else 10**12, rate))
+            long[model] = rate
+        elif model not in base:  # first entry wins: "(fast mode)" variants share a base name
+            base[model] = (int(limit.group(1)) * 1000 if limit else 10**12, rate)
+    if not base:
+        sys.exit(f"{path}: no model prices found")
+    prices: dict[str, list[tuple[int, tuple[float, ...]]]] = {}
+    for model, (limit, rate) in base.items():
+        prices[model] = [(limit, rate)]
+        if model in long:
+            if limit >= 10**12:
+                sys.exit(f"{path}: {model} has a Long context price but no ≤ limit")
+            prices[model].append((10**12, long.pop(model)))
+    if long:
+        sys.exit(f"{path}: {', '.join(long)} has a Long context price but no Default entry")
     return prices
 
 
@@ -191,6 +205,28 @@ def selftest() -> None:
         assert prices["fake-two"] == [(10**12, (3, 0.3, 3, 30))]
         assert "gpt-6-luna" in load_prices(PRICING_TS)
 
+        # Long context listed before Default: same tiers, not long-context for everything.
+        ts.write_text(
+            '{ model: "Fake One (Long context, 100K)", input: 2, cachedInput: 0.2, output: 20 },\n'
+            '{ model: "Fake One (Default, ≤ 100K)", input: 1, cachedInput: 0.1, cacheWrite: 1.25, output: 10 },\n'
+        )
+        assert load_prices(ts)["fake-one"] == prices["fake-one"]
+
+        def exits(text: str, needle: str) -> None:
+            ts.write_text(text)
+            try:
+                load_prices(ts)
+            except SystemExit as e:
+                assert needle in str(e), e
+            else:
+                raise AssertionError(f"no exit for {text!r}")
+
+        exits('{ model: "Fake One (Default)", input: 1, cachedInput: 0.1, output: 10 },\n'
+              '{ model: "Fake One (Long context, 100K)", input: 2, cachedInput: 0.2, output: 20 },\n',
+              "fake-one has a Long context price but no ≤ limit")
+        exits("export const MODEL_PRICING = [];\n", "no model prices found")
+        exits('{ model: "Fake One (Default)", input: 1, output: 10 },\n', "Fake One (Default) has no cachedInput")
+
         def msg(created: int, model: str, fresh: int, read: int, out: int, reason: int) -> dict:
             return {"type": "assistant", "id": f"m{created}", "agent": "a", "finish": "stop",
                     "time": {"created": created, "completed": created + 7},
@@ -211,6 +247,16 @@ def selftest() -> None:
         assert rows[1].split("|")[12] == str(round((100_000 * 2 + 0.2) * 1e5))
         assert rows[2].split("|")[12] == "unknown"
         assert len(rows) == 3
+
+        # A real OpenCode v2.1.3 export (fake LLM, then every token count, id,
+        # path, text and timestamp replaced by fakes): pins the export shape.
+        real = json.loads((Path(__file__).parent / "testdata/opencode-session-export-v2.json").read_text())
+        rows = [r.split("|") for r in opencode_rows(real, prices | {"gpt-6-luna": prices["fake-one"]}, 1050, "t4", 1, "ttl")]
+        assert len(rows) == 1  # turn two only; turn one was created before 1050
+        # input 67 + cache read 88; output 74, reasoning 81 priced as output
+        assert rows[0][3:13] == ["fake_id_6", "", "gpt-6-luna", "default", "155", "74", "88", "0", "81",
+                                 str(round((67 * 1 + 88 * 0.1 + (74 + 81) * 10) * 1e5))], rows[0]
+        assert rows[0][13] == "20" and rows[0][15:17] == ["stop", "build"]
 
 
 def main() -> None:
