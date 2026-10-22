@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-22
 
+### nav-pilot er testet med OpenCode 2.1
+
+- **OpenCode 2**: nav-pilot er nå testet med OpenCode 2.1.2 og varsler ikke lenger om at 2.1.x er utenfor det som er testet. Hooks, delegeringssperren og oppsettet av økter under cplt er kjørt mot 2.1.2. Installasjonshjelpen foreslår nå 2.1.2 (#1907).
+
 ### Utklippstavle og egne cplt-flagg for én økt
 
 - **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavlen på macOS for denne økten. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle økter med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.

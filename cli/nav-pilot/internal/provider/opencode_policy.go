@@ -36,7 +36,7 @@ var openCodePolicy = map[string]any{"share": "disabled", "autoupdate": "notify"}
 // its own range; OpenCodeTestedRangeFor picks one.
 const (
 	OpenCode1TestedRange = ">=1.18.20,<1.19"
-	OpenCode2TestedRange = ">=2.0.24,<2.1"
+	OpenCode2TestedRange = ">=2.0.24,<2.2"
 )
 
 // OpenCodeTestedRangeFor is the tested range for version's major.
@@ -391,7 +391,7 @@ func OpenCode1InstallHint() string {
 }
 
 // openCode2InstallVersion is the opencode 2 release nav-pilot is tested with.
-const openCode2InstallVersion = "2.0.24"
+const openCode2InstallVersion = "2.1.2"
 
 // OpenCode2InstallHint replaces the opencode on PATH with opencode 2, through
 // Homebrew when that is how it came, otherwise npm.
