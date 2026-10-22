@@ -558,8 +558,8 @@ export default function Klienter() {
           <li>
             <strong>Tale (GPT-Live) er ikke tillatt med nav-pilot.</strong> Talefunksjonen i opencode 2.1 kobler seg
             rett til OpenAI, xAI eller Google når den finner en API-nøkkel for dem, lagret i opencode eller i en
-            miljøvariabel som {c("OPENAI_API_KEY")}. Den spør ikke om lista over tillatte leverandører, så nav-pilots
-            sperre stopper den ikke. Lagre ikke nøkler for openai, xai eller google i opencode, og ikke bruk tale. cplt
+            miljøvariabel som {c("OPENAI_API_KEY")}. Den sjekker ikke lista over tillatte leverandører, så nav-pilots
+            sperre stopper den ikke. Ikke lagre nøkler for openai, xai eller google i opencode, og ikke bruk tale. cplt
             skal fjerne miljøvariablene (
             <a href="https://github.com/navikt/cplt/issues/814" className={linkClass}>
               navikt/cplt#814

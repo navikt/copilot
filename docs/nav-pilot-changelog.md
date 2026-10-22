@@ -12,7 +12,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Tale i OpenCode er ikke tillatt
 
-- **OpenCode 2.1**: Tale (GPT-Live) er ikke tillatt med nav-pilot. Talefunksjonen kobler seg rett til OpenAI, xAI eller Google når den finner en API-nøkkel, og nav-pilots liste over tillatte leverandører stopper den ikke. Lagre ikke nøkler for openai, xai eller google i OpenCode, og ikke bruk tale. cplt skal fjerne miljøvariablene med slike nøkler ([navikt/cplt#814](https://github.com/navikt/cplt/issues/814)). Se [Kjente mangler i opencode](https://ki-utvikling.nav.no/nav-pilot/klienter#kjente-hull).
+- **OpenCode 2.1**: Tale (GPT-Live) er ikke tillatt med nav-pilot. Talefunksjonen kobler seg rett til OpenAI, xAI eller Google når den finner en API-nøkkel, og nav-pilots liste over tillatte leverandører stopper den ikke. Ikke lagre nøkler for openai, xai eller google i OpenCode, og ikke bruk tale. cplt skal fjerne miljøvariablene med slike nøkler ([navikt/cplt#814](https://github.com/navikt/cplt/issues/814)). Se [Kjente mangler i opencode](https://ki-utvikling.nav.no/nav-pilot/klienter#kjente-hull).
 
 ### Nye installasjoner får OpenCode 2, og støtten for OpenCode 1 slutter etter 19. november 2026
 
