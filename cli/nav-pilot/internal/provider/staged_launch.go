@@ -449,6 +449,7 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 		return err
 	}
 	spec.env = applyOpenCodePolicy(spec.env)
+	spec.pakke = s.PakkeName
 	warnUntestedOpenCode()
 	spec.env = applyOpenCodeMCPPolicy(spec.env, r.ProjectDir)
 	spec.env = applyOpenCodeOwnDirs(spec.env, r.ProjectDir)

@@ -61,44 +61,120 @@ func applyOpenCodePolicy(env []string) []string {
 
 // OpenCode 2 gives global provider policies precedence over inline config.
 // Refuse conflicting rules rather than silently widening this session.
-func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal bool) ([]string, error) {
+// pakke names the agentpakke of a staged launch, "" otherwise.
+func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal bool, args []string, pakke string) ([]string, error) {
 	allowed := []string{"github-copilot"}
 	if allowLocal {
 		allowed = append(allowed, LocalProviderID)
+	}
+	want := strings.Join(allowed, ", ")
+	getenv := openCodeEnvGetter(env)
+	// Not installed: cplt's own not-found message says what to do.
+	if _, err := lookPath("opencode"); err != nil {
+		return withOpenCodeConfigContent(env, map[string]any{"enabled_providers": allowed}), nil
 	}
 	major := openCodeMajor()
 	if major == 0 {
 		return nil, fmt.Errorf("cannot verify OpenCode provider policy: version unavailable; check opencode --version before launching nav-pilot")
 	}
-	if major >= 2 {
-		for _, doc := range openCodeConfigDocuments(projectDir, env, false) {
-			var cfg struct {
-				Enabled      []string `json:"enabled_providers"`
-				Experimental struct {
-					Policies []struct {
-						Action   string `json:"action"`
-						Effect   string `json:"effect"`
-						Resource string `json:"resource"`
-					} `json:"policies"`
-				} `json:"experimental"`
+	model := openCodeModelArg(args)
+	stage := getenv("OPENCODE_CONFIG_DIR")
+	for _, doc := range openCodeConfigDocuments(projectDir, env, false) {
+		where := doc.path
+		if pakke != "" && stage != "" && strings.HasPrefix(doc.path, stage+string(filepath.Separator)) {
+			where = "agentpakke " + pakke
+		}
+		conflict := func(what string) error {
+			if where != doc.path {
+				return fmt.Errorf("%s ships a config that %s; launch another pakke or ask its owner. nav-pilot sessions allow only %s", where, what, want)
 			}
-			if err := json.Unmarshal(stripJSONC(doc.content), &cfg); err != nil {
-				return nil, fmt.Errorf("cannot verify OpenCode 2 provider policy in %s: invalid configuration; correct the config before launching nav-pilot", doc.path)
+			return fmt.Errorf("%s in %s conflicts with nav-pilot's provider restriction; nav-pilot sessions allow only %s", what, doc.path, want)
+		}
+		// Exact keys: OpenCode reads them case-sensitively, encoding/json
+		// would not.
+		var top map[string]json.RawMessage
+		if err := json.Unmarshal(stripJSONC(doc.content), &top); err != nil {
+			return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: invalid configuration; correct the config before launching nav-pilot", doc.path)
+		}
+		if doc.path == openCodeConfigContentEnv && model == "" {
+			_ = json.Unmarshal(top["model"], &model)
+		}
+		// A redefined github-copilot provider sends Copilot traffic elsewhere
+		// (measured on opencode 2.1.2: options.baseURL, settings.baseURL, npm).
+		var providers map[string]map[string]json.RawMessage
+		_ = json.Unmarshal(top["provider"], &providers)
+		for _, id := range allowed {
+			if id == LocalProviderID {
+				continue // nav-pilot writes this block itself
 			}
-			for _, id := range cfg.Enabled {
-				if doc.path != openCodeConfigContentEnv && !slices.Contains(allowed, id) {
-					return nil, fmt.Errorf("OpenCode 2 enabled_providers conflicts with nav-pilot's provider restriction in %s; remove providers other than %s", doc.path, strings.Join(allowed, ", "))
+			p := providers[id]
+			for _, k := range []string{"npm", "package", "canonical", "api", "baseURL", "endpoint"} {
+				if _, ok := p[k]; ok {
+					return nil, conflict("redefines provider " + id + " (" + k + ")")
 				}
 			}
-			for _, policy := range cfg.Experimental.Policies {
-				// Any non-exact allow may re-enable providers after our deny.
-				if policy.Action == "provider.use" && policy.Effect == "allow" && !slices.Contains(allowed, policy.Resource) {
-					return nil, fmt.Errorf("OpenCode 2 experimental.policies conflicts with nav-pilot's provider restriction in %s; remove provider.use allow rules other than %s", doc.path, strings.Join(allowed, ", "))
+			for _, k := range []string{"options", "settings"} {
+				var o map[string]json.RawMessage
+				_ = json.Unmarshal(p[k], &o)
+				for _, f := range []string{"baseURL", "endpoint"} {
+					if _, ok := o[f]; ok {
+						return nil, conflict("redefines provider " + id + " (" + k + "." + f + ")")
+					}
 				}
 			}
 		}
+		if major < 2 {
+			continue
+		}
+		var enabled []string
+		if raw, ok := top["enabled_providers"]; ok && json.Unmarshal(raw, &enabled) != nil {
+			return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: enabled_providers is not a list of strings", doc.path)
+		}
+		for _, id := range enabled {
+			if doc.path != openCodeConfigContentEnv && !slices.Contains(allowed, id) {
+				return nil, conflict("enables provider " + id + " (enabled_providers)")
+			}
+		}
+		var exp map[string]json.RawMessage
+		_ = json.Unmarshal(top["experimental"], &exp)
+		var policies []map[string]json.RawMessage
+		if raw, ok := exp["policies"]; ok && json.Unmarshal(raw, &policies) != nil {
+			return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: experimental.policies is not a list", doc.path)
+		}
+		for _, p := range policies {
+			var action, effect, resource string
+			_ = json.Unmarshal(p["action"], &action)
+			_ = json.Unmarshal(p["effect"], &effect)
+			_ = json.Unmarshal(p["resource"], &resource)
+			// Any non-exact allow may re-enable providers after our deny.
+			if action == "provider.use" && effect == "allow" && !slices.Contains(allowed, resource) {
+				return nil, conflict("allows provider " + resource + " (experimental.policies)")
+			}
+		}
+	}
+	if provider, _, ok := strings.Cut(model, "/"); ok && !slices.Contains(allowed, provider) {
+		if pakke != "" {
+			return nil, fmt.Errorf("agentpakke %s launches model %s, but nav-pilot sessions allow only %s; launch another pakke or ask its owner", pakke, model, want)
+		}
+		return nil, fmt.Errorf("model %s is from provider %s, but nav-pilot sessions allow only %s; pick a model from those providers with --model", model, provider, want)
 	}
 	return withOpenCodeConfigContent(env, map[string]any{"enabled_providers": allowed}), nil
+}
+
+// openCodeModelArg is the session model named on the opencode command line.
+func openCodeModelArg(args []string) string {
+	for i, a := range args {
+		if a == "--" {
+			break
+		}
+		if (a == "--model" || a == "-m") && i+1 < len(args) {
+			return args[i+1]
+		}
+		if v, ok := strings.CutPrefix(a, "--model="); ok {
+			return v
+		}
+	}
+	return ""
 }
 
 // applyOpenCodeOwnDirs lets the session read the instructions, agents and
@@ -265,8 +341,9 @@ func warnUntestedOpenCode() {
 // how config loads, and nav-pilot's bridge only exists for 1 and 2. A session
 // on an unknown major could start without nav-pilot's hooks and MCP policy.
 // A prerelease such as "opencode v3.0.0-beta.1" does not parse as a version,
-// so the major is read from the raw line; any other unreadable version
-// launches, as warnUntestedOpenCode does.
+// so the major is read from the raw line. Any other unreadable version passes
+// here; applyOpenCodeProviderPolicy then refuses the launch, because it cannot
+// tell which config precedence applies.
 func CheckOpenCodeMajor() error {
 	v, _, err := OpenCodeVersionStatus()
 	if err != nil {

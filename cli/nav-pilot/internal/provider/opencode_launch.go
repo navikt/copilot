@@ -1497,7 +1497,7 @@ func launchOpenCodeViaCplt(spec cpltLaunch) error {
 		return launchViaCplt(spec)
 	}
 	var err error
-	spec.env, err = applyOpenCodeProviderPolicy(spec.env, spec.projectDir, local.Enabled())
+	spec.env, err = applyOpenCodeProviderPolicy(spec.env, spec.projectDir, local.Enabled(), spec.agentArgs, spec.pakke)
 	if err != nil {
 		return err
 	}
@@ -1514,7 +1514,7 @@ func launchOpenCodeViaCplt(spec cpltLaunch) error {
 	err = launchViaCplt(spec)
 	// Without Copilot access opencode exits with only "Model unavailable", and
 	// the session allows no other provider to fall back to.
-	if exitErr := (*exec.ExitError)(nil); errors.As(err, &exitErr) {
+	if classifyLaunchError(err) == "client_exit" {
 		fmt.Fprintf(os.Stderr, "%s If OpenCode reported a github-copilot model as unavailable, sign in with %s (choose GitHub Copilot) and check that your Copilot plan includes the model. nav-pilot sessions allow no other model provider.\n",
 			domain.Yellow("⚠"), domain.Bold("opencode auth login"))
 	}

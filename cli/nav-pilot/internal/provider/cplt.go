@@ -34,6 +34,8 @@ type cpltLaunch struct {
 	// launch, which keeps their argument vectors byte-identical
 	// (golden_launch_test.go, cplt_test.go).
 	cpltArgs []string
+	// pakke is the agentpakke a staged launch runs, "" for a legacy launch.
+	pakke string
 	// agentArgs are forwarded to the agent process after the "--" separator.
 	agentArgs []string
 	// projectDir is the user's --project-dir, or "" for the working

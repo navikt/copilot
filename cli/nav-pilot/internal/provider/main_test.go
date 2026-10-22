@@ -21,6 +21,7 @@ func TestMain(m *testing.M) {
 	// The developer's own opencode must not pick the major the tests run
 	// against: a v2 install turned v1 expectations red. Tests that need
 	// another version put their own fake first on PATH or seed versionCache.
+	// The fake answers 1.18.32 to any arguments, not only --version.
 	bin, err := os.MkdirTemp("", "nav-pilot-test-bin-")
 	if err != nil {
 		panic(err)

@@ -54,7 +54,7 @@ stdout '"enabled_providers":\["github-copilot"\]'
 cp $WORK/broader.json $HOME/.config/opencode/opencode.json
 rm $WORK/env.out
 ! exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
-stderr 'enabled_providers conflicts'
+stderr 'enables provider opencode \(enabled_providers\) in .*conflicts'
 ! exists $WORK/env.out
 
 -- fake/opencode.sh --
