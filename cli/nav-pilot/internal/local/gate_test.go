@@ -260,6 +260,9 @@ func TestPatchFiles(t *testing.T) {
 		// Body lines that look like a unified diff's headers are not read.
 		{"body", "*** Begin Patch\n*** Update File: a.kt\n@@\n--- note\n+++ b/y.kt\n*** End Patch", nil, []string{"a.kt"}},
 		{"empty", "", nil, nil},
+		// opencode trims file headers, so indented ones are valid.
+		{"indented", "*** Begin Patch\n  *** Add File: x.kt\n+x\n\t*** Update File: .tool-versions\n*** End Patch", []string{"x.kt"}, []string{".tool-versions"}},
+		{"repeated", "*** Begin Patch\n*** Update File: a.kt\n@@\n-a\n+b\n*** Update File: a.kt\n@@\n-c\n+d\n*** End Patch", nil, []string{"a.kt"}},
 	} {
 		added, changed := PatchFiles(tc.text)
 		if !slices.Equal(added, tc.added) || !slices.Equal(changed, tc.changed) {
@@ -299,6 +302,11 @@ func TestGateCountsPatchFiles(t *testing.T) {
 	if _, outcome := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "patch", Patch: update("src/F1.kt", "src/F2.kt", "src/F3.kt", "src/F4.kt", "/etc/x", "src/F5.kt")}); outcome != "deny_files" {
 		t.Fatalf("a path outside the project shielded the patch: %q", outcome)
 	}
+	// Five update blocks of one file are one file.
+	g = testGate(t, true, multi)
+	if deny, _ := g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "patch", Patch: update("src/F1.kt", "src/F1.kt", "src/F1.kt", "src/F1.kt", "src/F1.kt")}); deny != "" {
+		t.Fatal("five update blocks of one file were denied")
+	}
 	// Control: a tool the gate does not know is not counted, so the test
 	// above fails if the patch case goes.
 	g = testGate(t, true, multi)
@@ -329,6 +337,9 @@ func TestGateWorkerPatchOfPinnedFile(t *testing.T) {
 	key, _ := g.verify(GateRequest{Session: "w", Agent: WorkerAgent, Tool: "patch", Phase: "worker", Patch: "*** Begin Patch\n*** Update File: " + pinned + "\n*** End Patch"})
 	if key != "deny" {
 		t.Fatalf("the worker's patch of %s was not denied", pinned)
+	}
+	if key, _ := g.verify(GateRequest{Session: "w", Agent: WorkerAgent, Tool: "patch", Phase: "worker", Patch: "*** Begin Patch\n  *** Update File: " + pinned + "\n*** End Patch"}); key != "deny" {
+		t.Fatal("an indented header shielded a pinned file")
 	}
 	if key, _ := g.verify(GateRequest{Session: "w", Agent: WorkerAgent, Tool: "patch", Phase: "worker", Patch: "*** Begin Patch\n*** Update File: src/F1.kt\n*** End Patch"}); key != "" {
 		t.Fatal("control: the worker's patch of an ordinary file was denied")

@@ -1332,16 +1332,26 @@ func (g *dispatchGate) targets(r GateRequest) []gateTarget {
 // Delete File: and *** Move to: are changed (a move is an edit, not a new
 // file). opencode sends no other format.
 func PatchFiles(text string) (added, changed []string) {
-	for _, line := range strings.Split(text, "\n") {
-		line = strings.TrimRight(line, " \t\r")
-		if f, ok := strings.CutPrefix(line, "*** Add File: "); ok {
-			added = append(added, strings.TrimSpace(f))
-			continue
+	// Each file once: five update blocks of one file are one file.
+	seen := map[string]bool{}
+	add := func(list *[]string, f string) {
+		if f = strings.TrimSpace(f); f != "" && !seen[f] {
+			seen[f] = true
+			*list = append(*list, f)
 		}
-		for _, h := range []string{"*** Update File: ", "*** Delete File: ", "*** Move to: "} {
-			if f, ok := strings.CutPrefix(line, h); ok {
-				changed = append(changed, strings.TrimSpace(f))
-			}
+	}
+	for _, line := range strings.Split(text, "\n") {
+		// As opencode 2.1.3 (packages/util/src/patch.ts): a file header is
+		// trimmed on both sides, a move line only at the end.
+		header := strings.TrimSpace(line)
+		if f, ok := strings.CutPrefix(header, "*** Add File: "); ok {
+			add(&added, f)
+		} else if f, ok := strings.CutPrefix(header, "*** Update File: "); ok {
+			add(&changed, f)
+		} else if f, ok := strings.CutPrefix(header, "*** Delete File: "); ok {
+			add(&changed, f)
+		} else if f, ok := strings.CutPrefix(strings.TrimRight(line, " \t\r"), "*** Move to: "); ok {
+			add(&changed, f)
 		}
 	}
 	return added, changed
