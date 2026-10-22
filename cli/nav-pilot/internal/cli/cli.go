@@ -154,6 +154,10 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
                           in the same argument: --cplt --allow-port=8080
   --allow-clipboard       Let the agent use the macOS clipboard this session (cplt denies it
                           by default)
+  --resume [id]           Resume a session in the client: Copilot CLI --resume, OpenCode --session
+                          (it starts a new session if the id is unknown). With no id, Copilot
+                          opens its own picker; OpenCode has none and refuses
+  --continue              Continue the last session (Copilot CLI and OpenCode --continue)
   --verbose               Say what the launch does: sandbox directory, client, agent and model
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
   -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
@@ -492,6 +496,19 @@ func run(args []string) error {
 			case "--no-auto-launch":
 				f := false
 				cliOverrides.AutoLaunch = &f
+			case "--resume":
+				if cliOverrides.Session.Resume {
+					return fmt.Errorf("--resume given twice")
+				}
+				cliOverrides.Session.Resume = true
+				// The id is optional: a next word that is no flag and no
+				// command is it; without one the client's picker opens.
+				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !isKnownCommand(args[i+1]) {
+					i++
+					cliOverrides.Session.ID = args[i]
+				}
+			case "--continue":
+				cliOverrides.Session.Continue = true
 			case "--":
 				cliOverrides.ExtraArgs = append(cliOverrides.ExtraArgs, args[i+1:]...)
 				i = len(args) // consume the rest

@@ -97,13 +97,14 @@ var launchFlags = []string{
 	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch",
 	"--allow-all-tools", "--no-allow-all-tools", "--ask-user", "--no-ask-user",
 	"--auto-launch", "--no-auto-launch", "--sync", "--verbose", "--allow-clipboard", "--cplt",
+	"--resume", "--continue",
 	"--version", "-v", "--help", "-h",
 }
 
 // valueFlags take a value, so --flag=value can be split into --flag value.
 var valueFlags = []string{
 	"--client", "--source", "--project-dir", "--persona", "--model", "--mode",
-	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch", "--cplt",
+	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch", "--cplt", "--resume",
 	"--target", "--ref", "--type", "--updates",
 }
 

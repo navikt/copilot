@@ -18,6 +18,7 @@ type (
 	Config         = domain.Config
 	ResolvedConfig = domain.ResolvedConfig
 	CLIOverrides   = domain.CLIOverrides
+	SessionFlag    = domain.SessionFlag
 	InstallScope   = domain.InstallScope
 	StateFile      = domain.StateFile
 	InstalledFile  = domain.InstalledFile

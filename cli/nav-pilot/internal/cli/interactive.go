@@ -1008,6 +1008,10 @@ func installedAgents(state *StateFile) []string {
 }
 
 func launchClient(resolved ResolvedConfig) (err error) {
+	// Before anything is touched: a refusal here launches nothing.
+	if resolved.ExtraArgs, err = sessionClientArgs(resolved.Client, resolved.Session, resolved.ExtraArgs); err != nil {
+		return err
+	}
 	if err := removeUnusableRtkHook(resolved.Client); err != nil {
 		return fmt.Errorf("removing unusable rtk hook: %w", err)
 	}
