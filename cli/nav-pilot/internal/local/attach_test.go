@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -408,5 +410,26 @@ func TestIsRecordedAcceptsARecordFromAnOlderLocale(t *testing.T) {
 		if got := isRecorded(4242, tc.lstart); got != tc.want {
 			t.Errorf("isRecorded(%q) = %v, want %v", tc.lstart, got, tc.want)
 		}
+	}
+}
+
+// procPortListeners must find this test process on a port it listens on, and
+// nothing once it stops. Linux only: it reads /proc.
+func TestProcPortListeners(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("reads /proc, Linux only")
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	port := ln.Addr().(*net.TCPAddr).Port
+	if got := procPortListeners("/proc", port); !slices.Contains(got, os.Getpid()) {
+		t.Fatalf("procPortListeners(%d) = %v, want our pid %d", port, got, os.Getpid())
+	}
+	ln.Close()
+	if got := procPortListeners("/proc", port); len(got) != 0 {
+		t.Fatalf("closed port: got %v, want none", got)
 	}
 }
