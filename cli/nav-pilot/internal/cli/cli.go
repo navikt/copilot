@@ -156,7 +156,7 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
                           by default)
   --resume [id]           Resume a session in the client: Copilot CLI --resume, OpenCode --session
                           (it starts a new session if the id is unknown). With no id, Copilot
-                          opens its own picker; OpenCode has none and refuses
+                          opens its own picker; OpenCode has no picker, so nav-pilot refuses
   --continue              Continue the last session (Copilot CLI and OpenCode --continue)
   --verbose               Say what the launch does: sandbox directory, client, agent and model
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
@@ -500,14 +500,25 @@ func run(args []string) error {
 				if cliOverrides.Session.Resume {
 					return fmt.Errorf("--resume given twice")
 				}
-				cliOverrides.Session.Resume = true
-				// The id is optional: a next word that is no flag and no
-				// command is it; without one the client's picker opens.
-				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !isKnownCommand(args[i+1]) {
-					i++
-					cliOverrides.Session.ID = args[i]
+				if cliOverrides.Session.Continue {
+					return errResumeAndContinue
 				}
+				cliOverrides.Session.Resume = true
+				id, ok := sessionIDArg(args, i)
+				if ok {
+					i++
+					if id == "" {
+						return fmt.Errorf("--resume= needs an id after =; leave out = to open the client's picker")
+					}
+				}
+				cliOverrides.Session.ID = id
 			case "--continue":
+				if cliOverrides.Session.Continue {
+					return fmt.Errorf("--continue given twice")
+				}
+				if cliOverrides.Session.Resume {
+					return errResumeAndContinue
+				}
 				cliOverrides.Session.Continue = true
 			case "--":
 				cliOverrides.ExtraArgs = append(cliOverrides.ExtraArgs, args[i+1:]...)
@@ -526,6 +537,14 @@ func run(args []string) error {
 					return fmt.Errorf("%s is a launch flag, and config does not launch: it shows and edits %s. Run nav-pilot config without %s", a, configPath(), a)
 				}
 			}
+		}
+		// Any other command does not launch either: refuse, never drop the flag.
+		if s := cliOverrides.Session; (s.Resume || s.Continue) && len(cleanArgs) > 0 && cleanArgs[0] != "--sync" && isKnownCommand(cleanArgs[0]) {
+			flag := "--resume"
+			if s.Continue {
+				flag = "--continue"
+			}
+			return fmt.Errorf("%s is a launch flag, and %s does not launch. Run nav-pilot %s without %s", flag, cleanArgs[0], cleanArgs[0], flag)
 		}
 		args = cleanArgs
 	}
@@ -553,6 +572,18 @@ func run(args []string) error {
 		prev := forceNonInteractive
 		forceNonInteractive = true
 		defer func() { forceNonInteractive = prev }()
+	}
+
+	// A session flag the client cannot take fails now, not after the update
+	// check, a sync or a prompt. launchClient checks again for the client
+	// that really starts (the menu may pick another).
+	if s := cliOverrides.Session; s.Resume || s.Continue {
+		if file, _, err := readConfigFile(); err == nil {
+			r := resolve(file, cliOverrides)
+			if _, err := sessionClientArgs(r.Client, r.Session, r.ExtraArgs); err != nil {
+				return err
+			}
+		}
 	}
 
 	// upgrade is the update: checking first would offer (and, answered No,

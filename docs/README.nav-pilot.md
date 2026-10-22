@@ -753,11 +753,12 @@ den som standard. `--cplt <flagg>` sender ett cplt-flagg videre for denne økten
 `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
 
 `--resume [id]` fortsetter en tidligere økt, og `--continue` fortsetter den siste. nav-pilot
-lagrer ingen økter selv, men oversetter flagget til klientens eget. Uten id åpner Copilot CLI sin
-egen liste over økter. OpenCode har ingen slik liste, så der må du oppgi id-en
+lagrer ingen økter selv, men oversetter flagget til klientens eget. Uten id åpner lista over økter i
+Copilot CLI. Copilot CLI fortsetter økten i katalogen den ble startet i, så kjør nav-pilot fra
+samme katalog. OpenCode har ingen slik liste, så der må du oppgi id-en
 (`opencode session list`) eller bruke `--continue`. OpenCode starter en ny økt hvis id-en ikke
 finnes, så en skrivefeil gir en tom økt. pi støtter ikke flaggene ennå, og nav-pilot sier fra i
-stedet for å starte. Du kan ikke bruke begge flaggene samtidig, eller det samme flagget både før
+stedet for å starte. Du kan ikke bruke begge flaggene samtidig, og heller ikke det samme flagget både før
 og etter `--`.
 
 `--persona <navn>` velger hvilken av agentpakkens `primaryAgents` som startes. Uten
