@@ -274,6 +274,7 @@ func launchViaCplt(spec cpltLaunch) error {
 	if Verbose {
 		fmt.Printf("Launching %s via %s%s...\n\n",
 			domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)
+		printCpltSessionFlags()
 	}
 
 	cmd := exec.Command(cliPath, args...)

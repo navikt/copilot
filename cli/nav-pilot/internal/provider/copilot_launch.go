@@ -382,6 +382,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	}
 	if Verbose {
 		fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(banner))
+		printCpltSessionFlags()
 	}
 
 	// Check the environment before handing it to cplt; cplt can still supply
