@@ -734,25 +734,31 @@ nav-pilot --client copilot
             <code className={code}>&lt;bruker&gt; (via gh)</code> med <code className={code}>/user</code>.
           </BodyLong>
           <BodyLong>
-            Derfor leser cplt Copilot sin egen innlogging fra Secret Service på maskinen før sandkassen starter, og
-            sender tokenet inn til Copilot som <code className={code}>COPILOT_GITHUB_TOKEN</code>. Du trenger ikke{" "}
-            <code className={code}>/login</code> inne i cplt. Dette krever at:
+            Fra Copilot 1.0.101 stopper det med{" "}
+            <code className={code}>Saved sign-in could not be read from credential storage</code>. cplt leser derfor
+            Copilots egen innlogging fra Secret Service på maskinen før sandkassen starter, og sender tokenet inn som{" "}
+            <code className={code}>COPILOT_GITHUB_TOKEN</code>. Du trenger ikke kjøre{" "}
+            <code className={code}>/login</code> inne i cplt. Det krever at
           </BodyLong>
           <Bullets>
             <li>
-              <code className={code}>secret-tool</code> er installert (pakken{" "}
-              <code className={code}>libsecret-tools</code>),
+              <code className={code}>secret-tool</code> er installert fra pakken{" "}
+              <code className={code}>libsecret-tools</code>,
             </li>
-            <li>nøkkelringen er låst opp,</li>
+            <li>nøkkelringen er låst opp når cplt starter,</li>
             <li>
-              <code className={code}>gh</code> er logget inn med samme konto som Copilot.
+              <code className={code}>gh</code> er logget inn på github.com med samme konto som Copilot, og
+            </li>
+            <li>
+              ingen <code className={code}>COPILOT_GITHUB_TOKEN</code>, <code className={code}>GH_TOKEN</code> eller{" "}
+              <code className={code}>GITHUB_TOKEN</code> er eksportert. Et eksportert token vinner over nøkkelringen.
             </li>
           </Bullets>
           <BodyLong>
-            Får Copilot fortsatt ikke tak i innloggingen, start <code className={code}>copilot</code> utenfor cplt, kjør{" "}
-            <code className={code}>/login</code> og start cplt på nytt. Hjelper ikke det, kan du la cplt sende inn
-            gh-tokenet i miljøet. cplt krever <code className={code}>--force</code> fordi alle prosesser i sandkassen da
-            kan lese tokenet fra miljøet:
+            Kjør <code className={code}>cplt doctor --agent copilot</code> om Copilot likevel ikke finner innloggingen.
+            Den sier hvilket av kravene som mangler. Vil du heller la cplt sende inn gh-tokenet i miljøet, krever cplt{" "}
+            <code className={code}>--force</code>: gh-tokenet er en egen legitimasjon som Copilot ellers ikke har, og
+            alle prosesser i sandkassen kan lese den fra miljøet.
           </BodyLong>
           <CodeBlock compact>{`cplt config set gh_guard.inject_token true --force`}</CodeBlock>
           <BodyLong>
