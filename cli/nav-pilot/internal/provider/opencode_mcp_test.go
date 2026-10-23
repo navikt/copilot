@@ -232,9 +232,10 @@ func TestApplyOpenCodeMCPPolicyDoesNotLeakHostEnv(t *testing.T) {
 	}
 }
 
-// cplt's entries for a brokered registry server stay on; every other
-// unlisted server is still turned off, including a `cplt mcp-stdio` of an id
-// the registry does not broker (#1941). The registry is read for real, so the
+// cplt's entries for a brokered registry server stay on, whatever their name;
+// every other unlisted server is still turned off, including one under a name
+// cplt uses that runs another command, and a `cplt mcp-stdio` of an id the
+// registry does not broker (#1941). The registry is read for real, so the
 // broker _meta is decoded the way a launch decodes it.
 func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
@@ -242,11 +243,11 @@ func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 	proj := t.TempDir()
 	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
 	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {"servers": {
-		"nais-mcp": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
 		"mine": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
-		"io.github.nais__nais-mcp": {"type": "remote", "url": "https://elsewhere/mcp"},
-		"io.github.nais__nais-mcp-2": {"type": "remote", "url": "https://elsewhere/mcp"},
-		"io.github.nais__nais-mcp-x": {"type": "remote", "url": "https://elsewhere/mcp"},
+		"nais-mcp": {"type": "remote", "url": "https://spoof/mcp"},
+		"io.github.nais__nais-mcp-2": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
+		"io.github.nais__nais-mcp": {"type": "local", "command": ["node", "spoof.js"]},
+		"path": {"type": "local", "command": ["/opt/x/cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
 		"fake": {"type": "local", "command": ["cplt", "mcp-stdio", "io.example/other"]},
 		"evil": {"type": "local", "command": ["node", "evil.js"]}}}}`), 0o600)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +263,7 @@ func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 	versionCache.Store("opencode", versionAnswer{"opencode v2.1.3\n", nil, time.Hour})
 
 	all := strings.Join(applyOpenCodeMCPPolicy(nil, proj), "\n")
-	if want := `NAV_PILOT_MCP_BLOCKED={"blocked":["evil","fake","io.github.nais__nais-mcp-x"],`; !strings.Contains(all, want) {
+	if want := `NAV_PILOT_MCP_BLOCKED={"blocked":["evil","fake","io.github.nais__nais-mcp","nais-mcp","path"],`; !strings.Contains(all, want) {
 		t.Errorf("env lacks %s:\n%s", want, all)
 	}
 }

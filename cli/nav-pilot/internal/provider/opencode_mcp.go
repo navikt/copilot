@@ -253,26 +253,14 @@ func normalizeMCPURL(s string) string {
 	return u.String()
 }
 
-// brokered reports whether the server is, or could be, an entry cplt adds
-// for a brokered registry server: one that runs `cplt mcp-stdio <id>`, or one
-// under a name cplt gives such entries (the short name, the id with "/" as
-// "__", or that with -2, -3...). The policy leaves both alone, so it never
-// switches off what cplt brokers (#1941).
-func (r mcpRegistry) brokered(name string, s mcpServer) bool {
-	if c := s.Command; len(c) == 3 && filepath.Base(c[0]) == "cplt" && c[1] == "mcp-stdio" && r.Brokered[c[2]] {
-		return true
-	}
-	for id := range r.Brokered {
-		full := strings.ReplaceAll(id, "/", "__")
-		short := id[strings.LastIndex(id, "/")+1:]
-		if name == short || name == full {
-			return true
-		}
-		if n, ok := strings.CutPrefix(name, full+"-"); ok && n != "" && strings.Trim(n, "0123456789") == "" {
-			return true
-		}
-	}
-	return false
+// brokered reports whether the server is an entry cplt adds for a brokered
+// registry server: exactly `cplt mcp-stdio <id>`, with <id> carrying the
+// broker _meta. Only the command counts, never the name: a config can name
+// any server nais-mcp, and cplt never replaces an entry that does not run its
+// command, so disabling such an entry never touches cplt's (#1941).
+func (r mcpRegistry) brokered(s mcpServer) bool {
+	c := s.Command
+	return len(c) == 3 && c[0] == "cplt" && c[1] == "mcp-stdio" && r.Brokered[c[2]]
 }
 
 // listed reports whether the registry lists the server.
@@ -758,7 +746,7 @@ func unlistedIn(registry string, servers map[string]mcpServer, names []string) (
 	}
 	var off []string
 	for _, name := range names {
-		if !reg.listed(servers[name]) && !reg.brokered(name, servers[name]) {
+		if !reg.listed(servers[name]) && !reg.brokered(servers[name]) {
 			off = append(off, name)
 		}
 	}
