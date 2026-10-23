@@ -2,6 +2,7 @@ package source
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -249,6 +250,54 @@ func TestReadGitHEAD(t *testing.T) {
 		}
 		if got := readGitHEAD(root); got != "" {
 			t.Fatalf("symlinked loose ref = %q, want empty", got)
+		}
+	})
+
+	t.Run("real repo: linked worktree, detached, packed, missing ref", func(t *testing.T) {
+		if _, err := exec.LookPath("git"); err != nil {
+			t.Skip("git not installed")
+		}
+		git := func(dir string, args ...string) string {
+			t.Helper()
+			cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"}, args...)...)
+			cmd.Dir = dir
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("git %v: %v\n%s", args, err, out)
+			}
+			return strings.TrimSpace(string(out))
+		}
+		main := filepath.Join(t.TempDir(), "main")
+		git(t.TempDir(), "init", "-q", "-b", "main", main)
+		git(main, "commit", "-q", "--allow-empty", "-m", "one")
+		wt := filepath.Join(t.TempDir(), "wt")
+		git(main, "worktree", "add", "-q", "-b", "side", wt)
+		git(wt, "commit", "-q", "--allow-empty", "-m", "two")
+
+		check := func(name, dir string) {
+			t.Helper()
+			if got, want := readGitHEAD(dir), git(dir, "rev-parse", "HEAD"); got != want {
+				t.Errorf("%s: readGitHEAD = %q, want %q", name, got, want)
+			}
+		}
+		check("main checkout", main)
+		check("linked worktree", wt)
+
+		git(main, "pack-refs", "--all", "--prune")
+		if _, err := os.Stat(filepath.Join(main, ".git", "refs", "heads", "side")); !os.IsNotExist(err) {
+			t.Fatalf("side still loose after pack-refs: %v", err)
+		}
+		check("linked worktree, packed ref", wt)
+
+		git(wt, "checkout", "-q", "--detach", "HEAD~0")
+		check("linked worktree, detached", wt)
+
+		git(main, "checkout", "-q", "-b", "gone")
+		if err := os.WriteFile(filepath.Join(main, ".git", "HEAD"), []byte("ref: refs/heads/nowhere\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := readGitHEAD(main); got != "" {
+			t.Errorf("missing ref = %q, want empty (git fallback)", got)
 		}
 	})
 }
