@@ -143,6 +143,32 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             </a>
             . Registerets headers dokumenterer derfor ikke begrensninger på den innebygde serveren.
           </BodyLong>
+          <LinkableHeading id="mcp-opencode" size="small" level="3">
+            GitHub og Figma i OpenCode
+          </LinkableHeading>
+          <BodyLong>
+            <code className={code}>opencode mcp auth io.github.navikt/github-mcp</code> feiler med «Incompatible auth
+            server: does not support dynamic client registration». GitHubs innlogging mangler dynamisk
+            klientregistrering, som OpenCode krever. Fra cplt-utgaven 23. oktober 2026 kobler cplt OpenCode til
+            GitHub-serveren gjennom sin egen proxy på maskinen din. Dette gjelder bare OpenCode 2. Bruker du OpenCode 1,
+            må du oppgradere OpenCode også. Proxyen bruker <code className={code}>gh</code>
+            -innloggingen din og sender ikke tokenet inn i sandkassen. Oppgrader cplt, sjekk at du er logget inn med{" "}
+            <code className={code}>gh auth status</code>, og start en ny økt. Du trenger ikke{" "}
+            <code className={code}>mcp auth</code>. Slå proxyen av for én økt med{" "}
+            <code className={code}>--no-github-mcp-proxy</code>, eller fast med{" "}
+            <code className={code}>sandbox.github_mcp_proxy = false</code>.
+          </BodyLong>
+          <BodyLong>
+            Proxyen sender alt til det skrivebeskyttede endepunktet og tvinger skrivebeskyttelse, uansett hvilket
+            endepunkt oppføringen peker på. Verktøy som skriver til GitHub, som{" "}
+            <code className={code}>issue_write</code>, virker derfor ikke i OpenCode under cplt, selv om nav-pilot har
+            byttet til det fulle endepunktet.
+          </BodyLong>
+          <BodyLong>
+            Figma virker i OpenCode 2.1 etter at Figma rettet lista over godkjente klienter 14. oktober 2026. Logg inn
+            én gang med <code className={code}>opencode mcp auth com.figma/figma-mcp</code>. I Copilot CLI virker Figma
+            fra versjon 1.0.87.
+          </BodyLong>
           <LinkableHeading id="mcp-hoster" size="small" level="3">
             Hoster i sandkassen
           </LinkableHeading>
