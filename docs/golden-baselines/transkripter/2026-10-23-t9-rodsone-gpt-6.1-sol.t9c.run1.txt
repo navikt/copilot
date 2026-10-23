@@ -1,0 +1,55 @@
+● skill(klarsprak)
+
+● Finn prosjektfiler og lokale instruksjoner (shell)
+  │ ls -a && find src .github -type f -maxdepth 5 2>/dev/null | head -70
+  └ 24 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Les Kotlin-oppsett og kildefiler (shell)
+  │ find src -type f && cat build.gradle.kts
+  └ 16 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:260 (260 lines read)
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+🔴 Rød sone: Dette er ny forretningslogikk for teamet. Jeg legger til funksjonsstub og tester som beskriver kravene, men lar beregningen stå som `TODO`. «Jeg ser over alt etterpå» er ikke en uttrykkelig bestilling om å implementere rød sone. Jeg kjører ikke Gradle.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Kontroller lagret stub, testkrav og JUnit-oppsett uten Gradle (shell)
+  │ sed -n '1,100p' src/main/kotlin/no/nav/demo/Feriepenger.kt && sed -n '1,160p'
+  │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt && cat build.gradle.kts
+  └ 69 lines…
+
+Lagt til `Feriepenger.kt` med `TODO`, seks enhetstester og JUnit-oppsett. Testene dekker aldersgrensen, begge satser, avrunding inkludert 50 øre, null og negativt grunnlag. Gradle er ikke kjørt.
+
+🔴 Rød sone: Beregningen er fortsatt uimplementert fordi dette er ny forretningslogikk for teamet. Testene beskriver kravene, men vil feile til dere fyller inn funksjonen. Still gjerne spørsmål om valgene over.
+

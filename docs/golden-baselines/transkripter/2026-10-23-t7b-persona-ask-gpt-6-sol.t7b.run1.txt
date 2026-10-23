@@ -1,0 +1,53 @@
+● skill(kafka)
+
+/ Search (grep)
+  │ "SoknadMottattMelding|soknad-mottatt"
+  └ 3 lines found
+
+● Inspect workspace and instructions (shell)
+  │ pwd; ls -la; find . -maxdepth 3 \( -name AGENTS.md -o -name copilot-instructions.md -o -name
+  │ copilot-review-instructions.md \) -print
+  └ 9 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect source and build configuration (shell)
+  │ find src .github -type f -maxdepth 8 -print; cat build.gradle.kts
+  └ 40 lines…
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+`SoknadMottattMelding` inneholder i dag bare `soknadId` og `mottatt`. Å legge til `fnr` endrer Kafka-payloaden og sender personopplysninger til mottakere vi ikke kjenner fra repoet. Jeg stopper derfor før kodeendring.
+
+Hvem konsumerer `soknad-mottatt`, og er topicen godkjent for fødselsnummer? Skal `fnr` være obligatorisk for alle nye meldinger, og tåler konsumentene et nytt felt? Det finnes heller ingen kall til `sendMottatt` i repoet, så hvor skal fødselsnummeret hentes fra?
+
+`AGENTS.md` og Copilot-instruksjonsfilene mangler; `nav-pilot init` kan legge dem til. De øvrige blindsonene er ikke nødvendige å avklare før denne kontraktsendringen.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 bakoverkompatibilitet; #2 endrer ikke tilgang, øvrige er ikke relevante nå).
+

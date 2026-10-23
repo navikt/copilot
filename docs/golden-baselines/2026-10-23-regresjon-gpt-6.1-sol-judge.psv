@@ -1,0 +1,31 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-10-23
+# revision:     9cd5f80c
+# personaHash:  95277f4b25704455f6c53b1525676efa64e780aad8bf7aef99f93bc551ab0ea1
+# harnessHash:  f72586d6c491ff9ac6d952b9212725ded16e8bd1448a98e192e7ed3f3e29ec05
+# model:        gpt-6.1-sol
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=d9ed0d01b4621db1 date=2026-10-23 n=75 agree=72 accuracy=0.960
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|0.14|Skal dere behandle andre personopplysninger enn fødselsnummer?|Kaller innbyggeren tjenesten direkte via nettleser, eller kommer kallene fra en annen tjeneste med brukerkontekst?
+7|1|0|0|0|0|0.131||
+7b|1|1|0|1|1|0.188|**Er behandling og deling av fnr på `soknad-mottatt` godkjent for det konkrete formålet og for alle eksisterende konsumenter av topicet?**|1. Hva skal konsumentene bruke fnr til, og er delingen avklart for alle som kan lese topicet?
+8b|1|1|1|1|1|0.104|Må sporingen bruke fødselsnummer, eller holder `Periode.id`? Hvilket behandlingsformål krever eventuelt fødselsnummer i headeren?|Hvilke konsumenter og sporingsverktøy vil lese eller lagre headeren, og hvordan hindrer dere at fødselsnummer havner i logger?
+3|2|1|1|1|1|0.174|Hva skal fødselsnummeret brukes til? Skal det lagres eller sendes videre, og skal tjenesten behandle andre personopplysninger?|Logger innbyggeren inn direkte via nettleseren, eller kaller en annen tjeneste dette API-et på brukerens vegne?
+7|2|0|0|0|0|0.149||
+7b|2|1|0|1|1|0.102|Skal `fnr` være søkerens fødselsnummer, og hvilket formål krever at det sendes på dette topicet fremfor at mottakeren bruker `soknadId`?|Hvilke konsumenter leser topicet, og er de godkjent for å motta fødselsnummer?
+8b|2|1|0|1|1|0.12|Hvilket sporingsbehov krever fødselsnummer fremfor `Periode.id`, og er det avklart at headeren ikke havner i logger eller sporingssystemer, og hvem som får lese den?|Hvilket sporingsbehov krever fødselsnummer fremfor `Periode.id`, og er det avklart at headeren ikke havner i logger eller sporingssystemer, og hvem som får lese den?
+3|3|1|1|1|1|0.169|Hva skal tjenesten bruke fødselsnummeret til?|Skal innbyggeren bruke tjenesten direkte via nettleseren, eller skal en annen tjeneste kalle den på brukerens vegne?
+7|3|0|0|0|0|0.154||
+7b|3|1|0|0|0|0.086||
+8b|3|1|0|1|1|0.162|Er det nødvendig å eksponere fødselsnummer i headeren for sporing, eller dekker `Periode.id` behovet? Hvilke konsumenter og sporingsverktøy skal lese headeren, og hvordan hindrer dere at fødselsnummer havner i logger?|Hvilke konsumenter og sporingsverktøy skal lese headeren, og hvordan hindrer dere at fødselsnummer havner i logger?
+3|4|1|1|1|1|0.153|Hva skal fødselsnummeret brukes til?|Hvem skal ha tilgang?
+7|4|0|0|0|0|0.139||
+7b|4|1|0|1|1|0.126|Skal feltet inneholde søkerens fødselsnummer, og hvorfor trenger konsumentene dette?|Hvilke konsumenter leser topicet, og er de godkjent for å motta fødselsnummer?
+8b|4|1|0|1|0|0.093|Hvilket sporingsbehov krever FNR fremfor `Periode.id`, og kan verktøy som leser eller logger headere behandle fødselsnummer?|
+3|5|1|1|1|1|0.105|Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, sendes videre eller kobles til andre personopplysninger?|Kaller innbyggeren tjenesten direkte via nettleseren, eller kommer kallet fra en annen tjeneste med brukerens identitet?
+7|5|0|0|0|0|0.152||
+7b|5|1|0|1|1|0.132|Er `fnr` søkerens fødselsnummer, og hvorfor trenger konsumentene det?|Hvilke konsumenter leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?
+8b|5|1|0|1|1|0.097|Hvilket sporingsbehov krever fødselsnummer fremfor `Periode.id`, og kan headeren havne i logger, tracing eller verktøy som viser Kafka-headere?|Hvilke konsumenter skal bruke den?

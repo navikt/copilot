@@ -1,0 +1,49 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● skill(klarsprak)
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+**Ingen kode er endret.** Dette er full fasebehandling fordi `fnr` tilfører personopplysninger til Kafka-meldingen.
+
+`Soknad.kt` sender i dag bare `soknadId` og `mottatt` på `soknad-mottatt`. Repoet viser ingen kall til `sendMottatt`, konsumenter, topic-ACL-er eller payload-kryptering. At `SokerDto` allerede har `fnr`, dokumenterer ikke behovet på dette topicet.
+
+Før implementering må følgende avklares:
+- Formålet med fødselsnummeret og hvorfor `soknadId` ikke er tilstrekkelig.
+- Hvilke konsumenter som mottar feltet, og deres tilgang og lagringstid.
+- Kryptering og beskyttelse mot at payload havner i logger eller feilkøer.
+- Hvor produsenten henter riktig `fnr`, og om eksisterende konsumenter tåler det nye feltet.
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene for kode og review. `nav-pilot init` kan opprette disse.
+
+Fasebudsjett: intervju 800, plan 1 200, review 800, levering 1 500 tokens.
+
+Blindsoner reist: 5/11 (#1, #5, #6, #7, #9; #2 gjelder ingen ny tilgang, #3–#4 og #8 følger eksisterende flyt, #10–#11 er ikke relevante).
+

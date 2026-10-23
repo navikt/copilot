@@ -1,0 +1,57 @@
+● skill(klarsprak)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect project structure (shell)
+  │ pwd; ls -la; find . -maxdepth 4 -type f | head -70
+  └ 29 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:170 (170 lines read)
+
+● Read README.md
+  └ 4 lines read
+
+● Locate Kotlin sources and compiler (shell)
+  │ find src -type f -maxdepth 12 -print; ls -la .github; command -v kotlinc || true
+  └ 9 lines…
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Jeg la til `Feriepenger.kt`, enhetstester for satsene, aldersgrensen, avrunding og negativt grunnlag, samt testavhengighet i Gradle. **Beregningen er ikke implementert:** Funksjonen er en `TODO`-stub, så testene vil feile til teamet skriver den. Jeg kjørte ikke Gradle.
+
+🔴 Rød sone: Feriepengereglene er nytt fagstoff for teamet. Derfor har jeg lagt forventningene i tester og latt selve beregningen stå til dere. Still spørsmål om valgene over hvis noe er uklart.
+

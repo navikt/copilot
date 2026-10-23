@@ -1,0 +1,53 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er en avgrenset endring uten nye dataflyter eller tilgangsendringer. Jeg tolker grunnlag og resultat som hele kroner og bruker heltallsregning for eksakt avrunding, uten flyttallsfeil. 🔴 Rød sone: beregningsreglene og valideringen implementeres som avtalt, men må gjennomgås av teamet.
+
+Planen er én ren funksjon og tester for satser, aldersgrensen, avrunding og negativt grunnlag. Ingen nye logger eller metrikker trengs for funksjonen. `worker` er ikke installert, så jeg gjør endringen selv. Gradle kjøres ikke.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+/ Search (grep)
+  │ "." (src/main/kotlin/no/nav/demo/Feriepenger.kt, src/test/kotlin/no/nav/demo/FeriepengerTest.kt,
+  │ build.gradle.kts)
+  └ 75 lines found
+
+Lagt til `Feriepenger.kt`, enhetstester og JUnit 5-oppsett. Heltallsregning gir eksakt avrunding uten flyttallsfeil. Gradle er ikke kjørt, som avtalt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene og skillet mellom 59 og 60 år i `FeriepengerTest`.
+- [ ] Kontroller avrunding under, på og over 50 øre for begge satser.
+- [ ] Kontroller at negativt grunnlag gir `IllegalArgumentException`, og null gir null.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

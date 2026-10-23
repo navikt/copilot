@@ -1,0 +1,62 @@
+● skill(klarsprak)
+
+● Finn prosjektfiler og lokale instruksjoner (shell)
+  │ pwd && ls -a && find . -maxdepth 4 -type f | head -70
+  └ 28 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+/ Search (glob)
+  │ "src/**/*.kt"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:240 (240 lines read)
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+Jeg lager avrundingen og tester, men lar satsvalg og validering stå som `TODO` i `Feriepenger.kt`. Dette er rød sone fordi reglene er nye for teamet. `worker` er ikke tilgjengelig, så jeg gjør endringene selv. Jeg kjører ikke Gradle.
+
+
+● Edit
+  │ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Edit build.gradle.kts
+  │ Create src/test/kotlin/no/nav/demo/AvrundingTest.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Implementert `Avrunding.kt` med `BigDecimal` og `HALF_UP`: eksakt desimalavrunding uten flyttallsfeil. `Feriepenger.kt` har signaturen og en `TODO`; satsvalg og validering er overlatt til deg.
+
+Lagt til enhetstester og JUnit-oppsett. Feriepengetestene vil feile til du har implementert funksjonen. Gradle er ikke kjørt.
+
+🔴 Rød sone: feriepengereglene og avrundingen må forstås grundig.
+
+**Sjekkliste for rød sone**
+- [ ] Gjennomgå `AvrundingTest`: under 50 øre rundes ned, nøyaktig 50 øre rundes opp.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

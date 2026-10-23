@@ -140,12 +140,12 @@ func TestDefaultMirrorsCurrentBehavior(t *testing.T) {
 	if got := m.PrimaryAgents("opencode")[0]; got != "nav-pilot" {
 		t.Errorf("opencode launch persona = %q, want nav-pilot (OpenCodeAgentPersona)", got)
 	}
-	if got := m.DefaultModel("copilot"); got != "gpt-6-sol" {
-		t.Errorf("copilot defaultModel = %q, want gpt-6-sol", got)
+	if got := m.DefaultModel("copilot"); got != "gpt-6.1-sol" {
+		t.Errorf("copilot defaultModel = %q, want gpt-6.1-sol", got)
 	}
 	for _, client := range []string{"opencode", "pi"} {
-		if got := m.DefaultModel(client); got != "github-copilot/gpt-6-sol" {
-			t.Errorf("%s defaultModel = %q, want github-copilot/gpt-6-sol", client, got)
+		if got := m.DefaultModel(client); got != "github-copilot/gpt-6.1-sol" {
+			t.Errorf("%s defaultModel = %q, want github-copilot/gpt-6.1-sol", client, got)
 		}
 	}
 	if m.IsPrimaryAgent("opencode", "kafka") {

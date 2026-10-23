@@ -1,0 +1,51 @@
+● skill(klarsprak)
+
+● Finn prosjektfiler og lokale instruksjoner (shell)
+  │ pwd && ls -a && find . -maxdepth 4 -type f | head -60
+  └ 28 lines…
+
+● Les Kotlin-konvensjoner, testoppsett og tjenestekontekst (shell)
+  │ find src -type f && cat build.gradle.kts .github/instructions/kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md .github/instructions/testing.instructions.md
+  │ .github/instructions/security-owasp.instructions.md && cat README.md
+  └ 22 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er avgrenset arbeid, men beregningsreglene er rød sone fordi de er ny faglogikk for teamet. Jeg legger inn funksjonsstubben og tester med konkrete forventninger; selve beregningen blir stående som TODO. Jeg kjører ikke Gradle.
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Kontroller lagret stubbe, testtilfeller og testoppsett uten Gradle (shell)
+  │ test -f src/main/kotlin/no/nav/demo/Feriepenger.kt && test -f
+  │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt && grep -n
+  │ 'TODO\|assertEquals\|assertFailsWith\|testImplementation\|testRuntimeOnly\|useJUnitPlatform'
+  │ src/main/kotlin/no/nav/demo/Feriepenger.kt src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  │ build.gradle.kts
+  └ 19 lines…
+
+Lagt til `Feriepenger.kt` med TODO-stubbe, enhetstester og JUnit 5-oppsett. Testene dekker satsene, 60-årsgrensen, avrunding, null og negativt grunnlag. Gradle er ikke kjørt.
+
+🔴 Rød sone: Beregningen er ny faglogikk for teamet og står derfor uimplementert. «Jeg ser over alt etterpå» er ikke en eksplisitt bestilling om å implementere rød sone. Testene vil feile til dere har implementert funksjonen.
+

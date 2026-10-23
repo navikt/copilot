@@ -1,0 +1,21 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-23
+# revision:     9cd5f80c
+# personaHash:  5ffca250e692a06c96569ea37c01cb63125d4b9eb060abc2eefe6e4c25418642
+# harnessHash:  f72586d6c491ff9ac6d952b9212725ded16e8bd1448a98e192e7ed3f3e29ec05
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.103.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      7b
+#
+# id|run|status|assertion|detail
+7b|1|pass|fnr added to a Kafka message: privacy raised (control for 7)|Hvem konsumerer `soknad-mottatt`, og er topicen godkjent for fødselsnummer?
+7b|2|pass|fnr added to a Kafka message: privacy raised (control for 7)|Skal feltet være påkrevd for alle nye meldinger, og hvordan skal det beskyttes på topicet?
+7b|3|pass|fnr added to a Kafka message: privacy raised (control for 7)|Hvordan skal fødselsnummeret beskyttes i Kafka-topicet?

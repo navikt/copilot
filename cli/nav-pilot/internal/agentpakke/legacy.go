@@ -59,24 +59,24 @@ func SynthesizeLegacy(collection string) *Manifest {
 			// Copilot CLI loads a single Nav persona; every other agent is
 			// reachable through it rather than selectable directly.
 			//
-			// Nav has enabled GPT-6 Sol and uses it as the tested default for
+			// Nav has enabled GPT-6.1 Sol and uses it as the tested default for
 			// agentic coding. A user pin still wins over this declaration.
 			"copilot": {
 				PrimaryAgents: []string{"nav-pilot"},
-				DefaultModel:  "gpt-6-sol",
+				DefaultModel:  "gpt-6.1-sol",
 			},
 			// opencode's picker offers both Nav personas; everything else
 			// materializes as a subagent. The first entry is the persona
 			// launched by default.
 			"opencode": {
 				PrimaryAgents: []string{"nav-pilot", "nav-pilot-opus"},
-				DefaultModel:  "github-copilot/gpt-6-sol",
+				DefaultModel:  "github-copilot/gpt-6.1-sol",
 			},
 			// pi uses the same package default and provider-qualified id as
 			// opencode.
 			"pi": {
 				PrimaryAgents: []string{"nav-pilot"},
-				DefaultModel:  "github-copilot/gpt-6-sol",
+				DefaultModel:  "github-copilot/gpt-6.1-sol",
 			},
 		},
 		Layout: &Layout{

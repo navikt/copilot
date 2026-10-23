@@ -228,14 +228,12 @@ it("åpner fanen som #maling-<suite> peker på, og skriver valgt fane til adress
   window.history.replaceState(null, "", "#");
 });
 
-it("anbefaler GPT-6.1 Sol til daglig koding og holder @nav-pilot på GPT-6 Sol", () => {
+it("anbefaler GPT-6.1 Sol til daglig koding og til @nav-pilot", () => {
   summaryFile.path = FIXTURE;
   render(<ModellerPage />);
   const daily = screen.getByRole("rowheader", { name: "Daglig koding" }).closest("tr")!;
   expect(within(daily).getByText("GPT-6.1 Sol (Low)")).toBeInTheDocument();
   const pilot = screen.getByRole("rowheader", { name: "@nav-pilot" }).closest("tr")!;
   expect(within(pilot).getByText(NAV_PILOT_DEFAULT_MODEL)).toBeInTheDocument();
-  expect(
-    screen.getByRole("heading", { name: "Vær forsiktig med personopplysninger i GPT-6.1 Sol" })
-  ).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "GPT-6.1 Sol og personopplysninger" })).toBeInTheDocument();
 });

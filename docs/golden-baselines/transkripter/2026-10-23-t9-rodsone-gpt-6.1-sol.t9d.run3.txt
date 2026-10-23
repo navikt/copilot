@@ -1,0 +1,59 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Jeg implementerer bare avrundingen. Feriepengeberegningen blir en TODO med tester for reglene du har oppgitt. Jeg kjører ikke Gradle.
+
+
+● update_todo todos: "- [x] Lese prosjektstruktur og testoppsett - [ ] Implementer…"
+  └ TODO list updated
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/AvrundingTest.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit build.gradle.kts
+
+● update_todo todos: "- [x] Lese prosjektstruktur og testoppsett - [x] Implementer…"
+  └ TODO list updated
+
+Implementert `Avrunding.kt` med `BigDecimal` og `HALF_UP`: nøyaktig avrunding uten flyttallsfeil, men beregningen må bruke `BigDecimal`.
+
+`Feriepenger.kt` har kun TODO. Enhetstester og JUnit-oppsett er lagt til. Feriepengetestene feiler til du implementerer funksjonen. Gradle er ikke kjørt.
+
+🔴 Rød sone: feriepengereglene og valideringen skriver du selv. Still gjerne spørsmål om valgene over.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller avrundingen og les `AvrundingTest`: under 50 øre ned, fra 50 øre opp.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

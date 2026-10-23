@@ -4,6 +4,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### @nav-pilot bruker GPT-6.1 Sol og spør før personopplysninger
+
+- **Modell**: Agentpakken bruker nå GPT-6.1 Sol (`gpt-6.1-sol`) i stedet for GPT-6 Sol som standardmodell for hovedagenten i Copilot CLI, OpenCode og pi. Har du valgt modell selv, beholder du den. Målingen står i [`2026-10-23-pin-gpt-6.1-sol`](golden-baselines/2026-10-23-pin-gpt-6.1-sol/).
+- **Personopplysninger**: Når et nytt felt med personopplysninger ikke er avklart i repoet, stopper `@nav-pilot` før den endrer noe, spør deg direkte om formålet og venter på svar. En liste med åpne punkter er ikke lenger nok.
+- **Rød sone**: En detaljert beskrivelse i oppgaven betyr ikke at `@nav-pilot` skal skrive koden i rød sone. Uten at du ber om det, får du bare en `TODO`-stubb og testskjeletter. Sjekklisten for rød sone kommer bare for kode `@nav-pilot` faktisk har skrevet.
+
 ### Hva hovedagenten sender til den lokale modellen
 
 - **Egen server (`local_endpoint`)**: En modell på din egen server er ikke målt. Hovedagenten får nå beskjed om ikke å sende den noe. Før fikk den en bred tekst som ba den sende oppslag, kommentarer og endringer i flere filer (#1021).

@@ -1,0 +1,35 @@
+● skill(kafka)
+
+/ Search (grep)
+  │ "SoknadMottattMelding|soknad-mottatt|fnr"
+  └ 10 lines found
+
+● Inspect repository and instructions (shell)
+  │ pwd; ls -la; find . -maxdepth 3 \( -name AGENTS.md -o -name copilot-instructions.md -o -name
+  │ copilot-review-instructions.md \) -print
+  └ 9 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+`SoknadMottattMelding` inneholder ikke `fnr` i dag. Koden sender meldingen til `soknad-mottatt`, men repoet viser ikke hvem som leser topicen eller hvordan fødselsnummeret beskyttes. Jeg har derfor ikke endret meldingen ennå.
+
+Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter har tilgang til topicen? Repoet bruker allerede `fnr` i `SokerDto`, men det avklarer ikke om denne mottakerkretsen skal få opplysningen. Repoet mangler også `AGENTS.md` og Copilot-instruksjonene; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 2/11 (#1 personvern, #6 konsumenter; #2 gjelder ikke siden endringen ikke gir nye kallere eller lesere, øvrige avklares ved planlegging).
+

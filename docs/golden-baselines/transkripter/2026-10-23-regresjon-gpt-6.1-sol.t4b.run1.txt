@@ -1,0 +1,50 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+## Fase 2: plan
+
+Vi beholder Ktor som backend og bruker eksisterende Next.js-frontend som BFF. Wonderwall håndterer ID-porten-innlogging foran frontend; serverdelen veksler brukerens token til et TokenX-token for backend. Det gir ett ekstra tokenbytte, men holder tokens utenfor nettleserkoden og bevarer brukeridentiteten til PDL, i stedet for å bruke maskinautentisering.
+
+**Antakelser:** Fødselsnummer og navn behandles kun under forespørselen, uten database eller cache. Frontend trenger navnet, ikke fødselsnummeret. Team-, app- og cluster-navn samt PDL-tilganger må bekreftes før deployment.
+
+### Flyt og API
+
+1. Innbygger logger inn via ID-porten og Wonderwall i frontend.
+2. Next.js-serveren veksler token til backendens audience og kaller `GET /api/meg`.
+3. Backend validerer signatur, issuer, audience, levetid og tillatt kallende frontend. Fødselsnummer hentes bare fra validert brukeridentitet, aldri fra query, body eller en ubekreftet header.
+4. Backend veksler token videre til PDL og henter kun nødvendige navnefelt. PDLs konkrete audience, scopes og krav til behandlingsnummer verifiseres før implementering.
+5. API-et returnerer navn med `Cache-Control: no-store`. Fødselsnummer returneres ikke.
+
+Manglende eller ugyldig token gir `401`; manglende tilgang gir `403`. PDL-utilgjengelighet og timeout gir `503`, uten automatisk retry. PDLs GraphQL-feil må håndteres selv ved HTTP `200`, ikke tolkes som et vellykket oppslag. Feil returneres som Problem Details uten persondata.
+
+### Implementering og drift
+
+| Område | Plan |
+|---|---|
+| Struktur | Behold `App.kt` og `Config.kt`; legg til avgrensede moduler for auth, TokenX, PDL-klient, `/api/meg` og feilrespons. Konfigurasjon kommer fra miljøet. |
+| Frontend | Serverbasert API-proxy og token exchange. Ingen tokens i klientkode, ingen delte cacher for persondata. Eksisterende frontend-repo må leses før endringer der. |
+| Nais | Frontend får ID-porten/Wonderwall og TokenX; backend får TokenX. Eksplisitt inbound fra frontend til backend og outbound til PDL, med nødvendige TokenX-regler. Ingen offentlig backend-ingress. |
+| Ressurser | Start med CPU-request `15m`, minne-request `256Mi`, minnegrense `512Mi`, uten CPU-grense. Juster etter lasttest. |
+| Lagring | Ingen database, Flyway eller vedvarende lagring. |
+| Helsesjekker | Implementer eksisterende `/internal/isalive` og `/internal/isready`. PDL-nedetid skal ikke utløse restart av backend. |
+| CI/CD | Kompilering og tester før image-bygg. SHA-pinnede actions, minimale permissions og Nais-deploy til dev før beskyttet prod-deployment. |
+
+### Tester og observability
+
+Ktor-integrasjonstester med lokal OIDC-/TokenX-stub og PDL-stub dekker gyldig innlogging, feil audience/issuer, utløpt token, avvist kaller og manglende brukeridentitet. Testene verifiserer at oppslaget alltid gjelder innlogget bruker, og at feil avvises før PDL kalles.
+
+PDL-testene dekker navn, timeout, utilgjengelighet, GraphQL-feil og uventet respons. En frontend-E2E-test dekker innlogging og visning med syntetiske testpersoner. Test også at svar ikke caches, og at logger og feilresponser ikke inneholder fødselsnummer, navn eller tokens.
+
+Prometheus måler oppslagsforsøk per minutt, feilandel og PDL-latenstid med faste, lavkardinale labels. Logger inneholder feilklasse og teknisk korrelasjons-ID, aldri payload eller rå PDL-feilmeldinger. Foreslått første alarm er over 5 % serverfeil i fem minutter med minst 20 kall; terskelen justeres etter målt trafikk.
+
+### Levering og rollback
+
+Leveransen omfatter API-kontrakt, endringsbeskrivelse og kort runbook med dashboard, alarm og håndtering av PDL-nedetid. I dev verifiseres egne data, avvist tilgang, PDL-feil og fravær av persondata i logger før prod åpnes. Rollback er å deaktivere frontend-funksjonen og rulle tilbake berørte images; ingen datamigrering kreves.
+
+**🔴 Rød sone: token-validering, TokenX, tilgangskontroll og koblingen mellom innlogget identitet og PDL-oppslaget.** TokenX og Wonderwall er også nye konsepter for teamet. Som standard leverer jeg bare stubs og testskjeletter for disse delene; utvikleren implementerer dem. Standardoppsett og øvrig konfigurasjon kan delegeres.
+
+Planen er klar for fase 3, review fra sikkerhet, plattform, arkitektur og endringssikkerhet. Ingen kode er endret. Bekreft planen før review.
+
+Still gjerne spørsmål om valgene over
+

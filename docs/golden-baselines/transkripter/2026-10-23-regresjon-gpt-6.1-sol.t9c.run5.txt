@@ -1,0 +1,41 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er rød sone: ny forretningslogikk som teamet ikke kjenner. Jeg legger inn funksjonsstub og tester som beskriver kravene, men lar selve beregningen stå som TODO. Gradle kjøres ikke.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Lagt til `Feriepenger.kt` med TODO-stub, ti enhetstester og `kotlin("test")` som testavhengighet. Testene dekker satsene, aldersgrensen, avrunding, null og negativt grunnlag. Gradle er ikke kjørt.
+
+🔴 Rød sone: Beregningen må dere implementere selv, siden dette er ny forretningslogikk for teamet. Testene beskriver forventet oppførsel, men vil feile til stubben er erstattet. «Jeg ser over alt etterpå» er ikke en eksplisitt bestilling om å implementere rød sone.
+

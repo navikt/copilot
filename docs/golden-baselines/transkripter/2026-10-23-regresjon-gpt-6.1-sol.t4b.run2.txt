@@ -1,0 +1,58 @@
+● skill(nav-plan)
+
+● skill(nav-auth)
+
+● skill(api-design)
+
+## Fase 2: plan
+
+**Vi beholder Ktor og lar eksisterende Next.js-frontend være BFF.** Wonderwall håndterer ID-porten-innlogging foran frontend. Next.js bytter brukerens token til et TokenX-token for backend, som igjen bytter token for PDL. Dette bevarer brukerkonteksten og holder tokens unna nettleserkoden, men krever token exchange i begge tjenesteleddene. Direkte nettleserkall til backend velges bort.
+
+**Antakelser:** Ingen varig lagring eller persondatacache. Frontend trenger navn, ikke fødselsnummer i responsen. Konkret lovhjemmel og PDL-behandlingsgrunnlag dokumenteres før produksjonssetting.
+
+### Dataflyt og API
+
+`Nettleser → Wonderwall / Next.js BFF → Ktor → PDL`
+
+- Backend tilbyr `GET /api/meg`, uten fødselsnummer som parameter. Identiteten hentes utelukkende fra validert TokenX-token.
+- Backend validerer signatur, issuer, audience, levetid og tillatt kallerapplikasjon. Bare egen frontend får kalle API-et.
+- PDL-kallet henter bare nødvendige navnefelter for innlogget person. PDL-tilgang og påkrevde behandlingsheaders må være på plass.
+- Responsen inneholder navn og bruker `Cache-Control: no-store`. BFF og frontend skal ikke cache persondata eller dele dem mellom brukere.
+- Manglende eller ugyldig token gir `401`, manglende tilgang gir `403`. PDL-utilgjengelighet og timeout gir `503` uten automatiske retries. Feil returneres som `application/problem+json`, uten interne detaljer.
+- PDLs GraphQL-feil kontrolleres også ved HTTP `200`. Manglende navn eller avvist tilgang behandles eksplisitt, ikke som vellykket tom respons.
+
+### Implementering og drift
+
+| Område | Plan |
+|---|---|
+| Backend | `Application.kt`, miljøkonfigurasjon, auth-modul, `/api/meg`-route, PDL-klient og felles feilhåndtering. Bruk etablerte Nav-biblioteker for JWT og token exchange, ikke egen signeringskode. |
+| Frontend | Server-side BFF-route med `@navikt/oasis`. Wonderwall-session og tokens blir på serversiden. Eksisterende oppsett undersøkes før endringer. |
+| Nais | Backend får TokenX, eksplisitt inbound kun fra frontend og outbound til PDL. Frontend får nødvendige ID-porten/Wonderwall- og TokenX-innstillinger samt outbound til backend. Konkrete appnavn, namespace og PDL-adresser hentes før levering. |
+| Ressurser | Start med CPU-request `15m`, minne-request `256Mi`, minnegrense `512Mi` og to replikaer. Ingen CPU-grense. Justeres etter JVM-minnebruk og lasttest. |
+| Helsesjekker | Behold `/internal/isalive` og `/internal/isready`. PDL-nedetid skal ikke utløse restart eller gjøre alle podene unready. |
+| Database | Ingen database, Flyway eller nye lagringsressurser. |
+| CI/CD | Bygg og tester før image-publisering. SHA-pinnede actions og minimale permissions. Deploy til dev og verifiser før prod. |
+| Secrets | Nais-injiserte verdier og secret store. Ingen tokens eller nøkler i kode eller logger. |
+
+### Tester og observabilitet
+
+Ktor-integrasjonstester med MockOAuth2Server og stubbet PDL dekker gyldig innlogging, feil signatur/issuer/audience, utløpte tokens og avvist kallerapplikasjon. Tester med to brukere verifiserer at identitet aldri kan overstyres, og at responsene ikke blandes.
+
+PDL-testene dekker timeout, utilgjengelighet, GraphQL-feil og manglende navn. BFF-testene dekker token exchange og `no-store`. En E2E-test i dev verifiserer innlogging og eget navn med syntetiske testpersoner.
+
+Mål antall oppslag og feilandel med tellere, samt PDL-responstid. Bruk bare faste etiketter som route, status og feilkategori. Logg PDL-feil med generert korrelasjons-ID og sikker feilkategori, aldri fødselsnummer, navn, tokens eller rå request/response. Foreløpig alarmgrense er over 5 % serverfeil i fem minutter, med minimum 20 kall.
+
+### Levering og rollback
+
+Leveransen omfatter kode, tester, Nais- og CI-endringer samt nødvendig API- og driftsbeskrivelse. Verifiser i dev at uautentiserte kall avvises, to brukere får egne data, PDL-nedetid gir `503`, og logger er uten persondata.
+
+Frontend-integrasjonen holdes deaktivert frem til verifisering. Rollback deaktiverer integrasjonen og gjenoppretter tidligere frontend-image. Ingen data må migreres.
+
+### Rød sone
+
+🔴 **Rød sone: autentisering, TokenX, identitetsbinding og PDL-tilgang. Forstå dette grundig.** TokenX og Wonderwall er også nye konsepter for teamet.
+
+Uten eksplisitt bestilling om å implementere disse delene leverer jeg testskjeletter og stubs for dem. Konfigurasjon og øvrig boilerplate kan genereres. Planen går videre til fase 3, review, etter godkjenning.
+
+Still gjerne spørsmål om valgene over
+

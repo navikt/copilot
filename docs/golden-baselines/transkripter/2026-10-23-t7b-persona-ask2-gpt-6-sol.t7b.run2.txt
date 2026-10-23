@@ -1,0 +1,56 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md,nais.yaml,build.gradle.kts
+  │ }"
+  └ 2 files found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding"
+  └ 1 file found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 5 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+/ Search (glob)
+  │ "**/*Test*"
+  └ No matches found
+
+/ Search (grep)
+  │ "sendMottatt|SoknadMottattMelding|fnr|soknad-mottatt" (src)
+  └ 5 lines found
+
+Dette er en endring i Kafka-meldingen som legger til fødselsnummer. Jeg ser at `fnr` allerede finnes i `SokerDto`, men repoet sier ikke hvem som leser `soknad-mottatt` eller hvordan topicen er sikret. Jeg stopper før kodeendring.
+
+1. Hvilke personopplysninger skal `soknad-mottatt` inneholde, og er fødselsnummer godkjent for denne topicen?
+2. Hvem leser topicen, og tåler alle konsumentene et nytt påkrevd `fnr`-felt?
+3. Hvordan er tilgang og eventuell kryptering av meldingsinnholdet ivaretatt? Finnes det en plan for utrulling eller rollback?
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfiler. `nav-pilot init` kan legge dem til. Øvrige blindsoner er ikke relevante for denne avgrensede endringen, eller må vurderes etter svarene over.
+
+Blindsoner reist: 3/11 (#1, #6, #9).
+

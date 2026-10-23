@@ -1,0 +1,50 @@
+/ Search (glob)
+  │ "*"
+  └ 27 files found
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Find reference repository and local instructions (shell)
+  │ gh search repos 'paw monorepo org:navikt' --json name,fullName --limit 10 && for f in AGENTS.md
+  │ .github/copilot-instructions.md .github/copilot-review-instructions.md; do if test -f "$f"; then
+  │ printf '\n%s\n' "$f"; cat "$f"; fi; done
+  └ 1 line…
+
+● Locate signing implementation in reference repository (shell)
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1 --jq
+  │ '.tree[] | select(.path | test("[Ss]ign.*\\.(kt|kts)$")) | .path'
+  └ 12 lines…
+
+● Read reference signing flow and header handling (shell)
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src
+  │ /main/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq .content | base64
+  │ --decode && gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka
+  │ -signing/src/main/kotlin/no/nav/paw/kafka/signing/SigningHeaders.kt --jq .content | base64
+  │ --decode && gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka…
+  └ 220 lines…
+
+● skill(klarsprak)
+
+**Ingen kode er endret ennå.** Dette berører signering og krever avklaring før jeg redigerer.
+
+Jeg har lest referansen i `paw-arbeidssoekerregisteret-monorepo-intern`: `SigningProducerInterceptor` fjerner alle eksisterende signatur- og nøkkel-ID-headere etter vellykket signering, før nye legges til. Her finnes allerede `stripSigningHeaders`, men interceptoren bruker den ikke. Jeg antar at payload, mottakere og nøkler skal være uendret.
+
+🔴 Rød sone: signeringsflyten, forstå denne grundig.
+
+**Skal oppryddingen, som i referansen, først skje når signeringen har lykkes, slik at eksisterende headere forblir urørt hvis `signer.sign` feiler?** Referansens fallback til usignert sending finnes ikke her; jeg antar at den ikke skal kopieres.
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene for kode og review. Disse kan opprettes med `nav-pilot init`.
+
+Fasebudsjett: intervju 1k, plan 1k, review 1k, levering 2k tokens. Personvern, tilgang og nøkkelhåndtering endres ikke; øvrige spørsmål om avhengigheter, teamgrenser og avvikling er ikke relevante for denne avgrensede endringen.
+
+Blindsoner reist: 1/11 (#3 stilt; øvrige avklart fra kode eller ikke relevante).
+

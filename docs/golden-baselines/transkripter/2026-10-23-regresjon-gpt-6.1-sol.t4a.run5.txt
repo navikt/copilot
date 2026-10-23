@@ -1,0 +1,32 @@
+● skill(klarsprak)
+
+● Les lokal prosjektstruktur og Copilot-regler (shell)
+  │ ls -a && for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if [ -f "$f" ]; then printf '\n--- %s ---\n' "$f";
+  │ cat "$f"; fi; done
+  └ 7 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+**Fullt omfang, fase 1: avklaringer før kode.** Repoet har en Ktor-tjeneste og et Nais-manifest uten auth-konfigurasjon. Jeg antar at fødselsnummeret gjelder den innloggede personen.
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer må forstås grundig.
+
+1. Hva skal fødselsnummeret brukes til? Skal det lagres eller sendes videre, og behandles andre personopplysninger?
+2. Logger innbyggeren inn direkte via ID-porten, eller kalles tjenesten av en annen tjeneste på vegne av innbyggeren? Skal den kun gi tilgang til egne opplysninger?
+3. Er dette repoet utgangspunktet, og hvilke tjenester eller team må løsningen samhandle med?
+4. Hvilken erfaring har dere med Ktor og ID-porten, og ønsker dere veiledning eller implementering etter avklaringene?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. De kan opprettes med `nav-pilot init`.
+
+Fasebudsjett: intervju ca. 1 000 tokens, plan 2 000, review 1 500, levering etter avtalt omfang. Feilhåndtering, observability og tester (#3, #4, #7) avklares når flyten er kjent. Migrasjon, bakoverkompatibilitet og avvikling (#8–#10) er foreløpig ikke relevante for en ny tjeneste.
+
+Blindsoner reist: 5/11 (#1, #2, #5, #6, #11).
+

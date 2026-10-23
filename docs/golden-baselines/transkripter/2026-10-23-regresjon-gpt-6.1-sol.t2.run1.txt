@@ -1,0 +1,54 @@
+● skill(klarsprak)
+
+● Les lokal prosjektkontekst og Copilot-regler (shell)
+  │ ls -a && for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if [ -f "$f" ]; then printf '\n--- %s ---\n' "$f";
+  │ cat "$f"; fi; done
+  └ 7 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+**Full oppgave, fase 1: avklaringer før kode.** Repoet har en liten Ktor-tjeneste uten autentisering. Nais-manifestet har verken ID-porten eller `accessPolicy`.
+
+Jeg antar at tjenesten skal lese den innloggede innbyggerens eget fødselsnummer.
+
+1. Skal dere behandle andre personopplysninger enn fødselsnummer? Hva skal fødselsnummeret brukes til, skal det lagres eller sendes videre, og hva er behandlingsgrunnlaget?
+2. Kaller innbyggeren tjenesten direkte via nettleser, eller kommer kallene fra en annen tjeneste med brukerkontekst?
+3. Skal dette bygges i eksisterende Ktor-app eller som en separat tjeneste? Hvilket team eier tjenesten og eventuelle mottakere?
+4. Hva skal tjenesten gjøre etter innlogging, og hva skal skje dersom ID-porten eller en avhengighet er utilgjengelig?
+
+🔴 Rød sone: autentisering og håndtering av fødselsnummer må forstås grundig. Fødselsnummer og tokens skal ikke i logger.
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Vurder `nav-pilot init`.
+
+Fasebudsjett, omtrentlige tokens: intervju 800, plan 1 500, review 1 000, levering 2 000. Teststrategi og målinger avklares når funksjonen er kjent (#4, #7). Migrering, formatkompatibilitet og avvikling er foreløpig ikke relevant for en ny tjeneste (#8–#10). Kompetansebehov er fortsatt uavklart (#11).
+
+Blindsoner reist: 5/11 (#1, #2, #3, #5, #6).
+

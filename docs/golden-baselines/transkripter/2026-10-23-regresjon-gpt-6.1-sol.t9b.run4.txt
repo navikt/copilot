@@ -1,0 +1,47 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Lagt til `Feriepenger.kt`, enhetstester og JUnit 5-oppsett. Gradle er ikke kjørt, som avtalt.
+
+🔴 Rød sone: feriepengeregler og validering, forstå dette grundig. Beregningen bruker heltallspromille for å unngå flyttallsfeil; tillegg av 500 før divisjon med 1000 runder 50 øre opp. Overflyt håndteres ikke, som spesifisert. Still gjerne spørsmål om valgene over.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsgrensen ved 59/60 år og avrundingen under, på og over 50 øre i `FeriepengerTest`.
+- [ ] Kontroller at null gir null, og at negativt grunnlag gir `IllegalArgumentException` ved begge satser.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+
