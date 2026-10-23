@@ -119,8 +119,10 @@ def opencode_rows(
     reasoning, so input_tokens is their sum (as in assistant_usage_events) and
     reasoning is priced as output. 1 credit = $0.01: nano-credits = USD * 1e11.
     Unknown models get "unknown", which a credit cap must treat as over.
+    A child session (info.parentID set) is a subagent: col 17 names its agent.
     """
     rows = []
+    subagent = export.get("info", {}).get("agent", "") if export.get("info", {}).get("parentID") else ""
     for msg in export.get("messages", []):
         times = msg.get("time", {})
         if msg.get("type") != "assistant" or times.get("created", 0) < since_ms:
@@ -138,9 +140,30 @@ def opencode_rows(
         rows.append("|".join(clean(v) for v in (
             slug, run, title, msg.get("id"), "", model, msg.get("model", {}).get("variant"),
             total_in, out, read, write, reason, nano, duration, "",
-            msg.get("finish"), "", "",  # col 17 is for subagents; the export holds only the primary agent
+            msg.get("finish"), subagent, "",
         )))
     return rows
+
+
+def opencode_children(export: dict) -> list[str]:
+    """Child session ids, from the subagent tool calls in an export (v2.1.3:
+    state.metadata.sessionID). `session list` shows top-level sessions only.
+    A subagent call with no child id is fatal unless it failed before one was
+    made: rows silently missing a subagent would read as a complete estimate."""
+    ids = []
+    for msg in export.get("messages", []):
+        for part in msg.get("content") or []:
+            if part.get("type") != "tool" or part.get("name") != "subagent":
+                continue
+            state = part.get("state") or {}
+            sid = (state.get("metadata") or {}).get("sessionID")
+            if not sid:
+                if state.get("status") in ("error", "aborted", "cancelled"):
+                    continue
+                sys.exit(f"subagent call {part.get('id', '?')} ({state.get('status')}) names no child session")
+            if sid not in ids:
+                ids.append(sid)
+    return ids
 
 
 def selftest() -> None:
@@ -257,6 +280,39 @@ def selftest() -> None:
         assert rows[0][3:13] == ["fake_id_6", "", "gpt-6-luna", "default", "155", "74", "88", "0", "81",
                                  str(round((67 * 1 + 88 * 0.1 + (74 + 81) * 10) * 1e5))], rows[0]
         assert rows[0][13] == "20" and rows[0][15:17] == ["stop", ""]  # agent "build" is the primary agent, not a subagent
+        assert opencode_children(real) == []
+
+        # A delegating parent and its child (fake ids and numbers). The child
+        # is continued once, so its id appears twice but is listed once.
+        tool = {"type": "tool", "name": "subagent", "state": {"status": "completed", "metadata": {"sessionID": "ses_child"}}}
+        parent = {"messages": [{"type": "assistant", "content": [tool, {"type": "text"}]},
+                               {"type": "assistant", "content": [tool]}, {"type": "user"}]}
+        assert opencode_children(parent) == ["ses_child"]
+        # No child id: fine after a failed call, fatal otherwise.
+        no_id = {"type": "tool", "name": "subagent", "state": {"status": "error", "metadata": None}}
+        cancelled = {"type": "tool", "name": "subagent", "state": {"status": "cancelled"}}
+        assert opencode_children({"messages": [{"content": [no_id, cancelled]}]}) == []
+        for state in ({"status": "completed"}, {"status": "running", "metadata": {}}, None):
+            try:
+                opencode_children({"messages": [{"content": [{"type": "tool", "name": "subagent", "state": state}]}]})
+                raise AssertionError(f"a subagent call with no child id was accepted: {state}")
+            except SystemExit as e:
+                assert "names no child session" in str(e), e
+
+        # A real OpenCode v2.1.3 delegation (one subagent call to "explore"),
+        # scrubbed to fakes: pins where the child id and the child's agent live.
+        fx = json.loads((Path(__file__).parent / "testdata/opencode-session-export-v2-subagent.json").read_text())
+        assert opencode_children(fx["parent"]) == [fx["child"]["info"]["id"]]
+        assert fx["child"]["info"]["parentID"] == fx["parent"]["info"]["id"] and fx["child"]["info"]["agent"] == "explore"
+        assert opencode_children(fx["child"]) == []
+        fx_prices = prices | {"gpt-6-luna": prices["fake-one"]}
+        assert {r.split("|")[16] for r in opencode_rows(fx["parent"], fx_prices, 0, "t", 1, "x")} == {""}
+        kid_rows = opencode_rows(fx["child"], fx_prices, 0, "t", 1, "x")
+        assert kid_rows and {r.split("|")[16] for r in kid_rows} == {"explore"}, kid_rows
+        child = {"info": {"id": "ses_child", "parentID": "ses_parent", "agent": "fake-explorer"},
+                 "messages": [msg(20, "fake-one", 10, 0, 1, 0)]}
+        row = opencode_rows(child, prices, 10, "t1", 2, "ttl")[0].split("|")
+        assert row[16] == "fake-explorer" and row[12] == str(round((10 * 1 + 1 * 10) * 1e5)), row
 
 
 def main() -> None:
@@ -281,6 +337,8 @@ def main() -> None:
     opencode_parser.add_argument("--title", required=True)
     opencode_parser.add_argument("--pricing", type=Path, default=PRICING_TS)
 
+    subparsers.add_parser("opencode-children")  # export JSON on stdin
+
     args = parser.parse_args()
     if args.selftest:
         selftest()
@@ -303,7 +361,11 @@ def main() -> None:
         if rows:
             print("\n".join(rows))
         return
-    parser.error("choose cursor, export, opencode or --selftest")
+    if args.command == "opencode-children":
+        for sid in opencode_children(json.load(sys.stdin)):
+            print(sid)
+        return
+    parser.error("choose cursor, export, opencode, opencode-children or --selftest")
 
 
 if __name__ == "__main__":

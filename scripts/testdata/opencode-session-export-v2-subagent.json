@@ -1,0 +1,307 @@
+{
+  "parent": {
+    "info": {
+      "id": "fake_ses_0",
+      "projectID": "fake text",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "fake",
+        "variant": "default"
+      },
+      "cost": 11,
+      "tokens": {
+        "input": 18,
+        "output": 25,
+        "reasoning": 0,
+        "cache": {
+          "read": 32,
+          "write": 0
+        }
+      },
+      "outcome": "succeeded",
+      "time": {
+        "created": 1010,
+        "updated": 1020,
+        "idle": 1030
+      },
+      "title": "fake text",
+      "location": {
+        "directory": "/fake/dir"
+      }
+    },
+    "messages": [
+      {
+        "id": "fake_id_0",
+        "time": {
+          "created": 1040
+        },
+        "text": "fake text",
+        "files": [],
+        "type": "user"
+      },
+      {
+        "id": "fake_id_1",
+        "time": {
+          "created": 1050,
+          "streamed": 1060,
+          "completed": 1070
+        },
+        "type": "assistant",
+        "agent": "build",
+        "model": {
+          "id": "gpt-6-luna",
+          "providerID": "fake",
+          "variant": "default"
+        },
+        "content": [
+          {
+            "type": "tool",
+            "id": "fake_id_2",
+            "name": "subagent",
+            "executed": false,
+            "native": {
+              "itemId": "fake text"
+            },
+            "state": {
+              "status": "completed",
+              "input": {
+                "agent": "explore",
+                "description": "fake text",
+                "prompt": "fake text"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "<subagent sessionID=\"fake_ses_1\" state=\"completed\">\nfake text\n</subagent>"
+                }
+              ],
+              "metadata": {
+                "sessionID": "fake_ses_1",
+                "status": "completed",
+                "truncated": false
+              }
+            },
+            "time": {
+              "created": 1080,
+              "ran": 1090,
+              "completed": 1100
+            }
+          }
+        ],
+        "finish": "tool-calls",
+        "native": {
+          "responseId": "fake text",
+          "serviceTier": "fake text"
+        },
+        "cost": 39,
+        "tokens": {
+          "input": 46,
+          "output": 53,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      },
+      {
+        "id": "fake_id_3",
+        "time": {
+          "created": 1110,
+          "streamed": 1120,
+          "completed": 1130
+        },
+        "type": "assistant",
+        "agent": "build",
+        "model": {
+          "id": "gpt-6-luna",
+          "providerID": "fake",
+          "variant": "default"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "fake text",
+            "native": {
+              "itemId": "fake text"
+            }
+          }
+        ],
+        "finish": "stop",
+        "native": {
+          "responseId": "fake text",
+          "serviceTier": "fake text"
+        },
+        "cost": 60,
+        "tokens": {
+          "input": 67,
+          "output": 74,
+          "reasoning": 0,
+          "cache": {
+            "read": 81,
+            "write": 0
+          }
+        }
+      },
+      {
+        "id": "fake_id_4",
+        "time": {
+          "created": 1140
+        },
+        "type": "idle",
+        "outcome": "succeeded"
+      }
+    ]
+  },
+  "child": {
+    "info": {
+      "id": "fake_ses_1",
+      "parentID": "fake_ses_0",
+      "projectID": "fake text",
+      "agent": "explore",
+      "model": {
+        "id": "gpt-6-luna",
+        "providerID": "fake",
+        "variant": "default"
+      },
+      "cost": 88,
+      "tokens": {
+        "input": 95,
+        "output": 102,
+        "reasoning": 0,
+        "cache": {
+          "read": 109,
+          "write": 0
+        }
+      },
+      "outcome": "succeeded",
+      "time": {
+        "created": 1150,
+        "updated": 1160,
+        "idle": 1170
+      },
+      "title": "fake text",
+      "location": {
+        "directory": "/fake/dir"
+      }
+    },
+    "messages": [
+      {
+        "id": "fake_id_5",
+        "time": {
+          "created": 1180
+        },
+        "text": "fake text",
+        "type": "user"
+      },
+      {
+        "id": "fake_id_6",
+        "time": {
+          "created": 1190,
+          "streamed": 1200,
+          "completed": 1210
+        },
+        "type": "assistant",
+        "agent": "explore",
+        "model": {
+          "id": "gpt-6-luna",
+          "providerID": "fake",
+          "variant": "default"
+        },
+        "content": [
+          {
+            "type": "tool",
+            "id": "fake_id_7",
+            "name": "read",
+            "executed": false,
+            "native": {
+              "itemId": "fake text"
+            },
+            "state": {
+              "status": "completed",
+              "input": {
+                "path": "fake text"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "fake text"
+                }
+              ],
+              "metadata": {
+                "truncated": false
+              }
+            },
+            "time": {
+              "created": 1220,
+              "ran": 1230,
+              "completed": 1240
+            }
+          }
+        ],
+        "finish": "tool-calls",
+        "native": {
+          "responseId": "fake text",
+          "serviceTier": "fake text"
+        },
+        "cost": 116,
+        "tokens": {
+          "input": 123,
+          "output": 130,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        }
+      },
+      {
+        "id": "fake_id_8",
+        "time": {
+          "created": 1250,
+          "streamed": 1260,
+          "completed": 1270
+        },
+        "type": "assistant",
+        "agent": "explore",
+        "model": {
+          "id": "gpt-6-luna",
+          "providerID": "fake",
+          "variant": "default"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "fake text",
+            "native": {
+              "itemId": "fake text"
+            }
+          }
+        ],
+        "finish": "stop",
+        "native": {
+          "responseId": "fake text",
+          "serviceTier": "fake text"
+        },
+        "cost": 137,
+        "tokens": {
+          "input": 144,
+          "output": 151,
+          "reasoning": 0,
+          "cache": {
+            "read": 158,
+            "write": 0
+          }
+        }
+      },
+      {
+        "id": "fake_id_9",
+        "time": {
+          "created": 1280
+        },
+        "type": "idle",
+        "outcome": "succeeded"
+      }
+    ]
+  }
+}
