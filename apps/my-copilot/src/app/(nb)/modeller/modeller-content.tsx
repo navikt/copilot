@@ -266,10 +266,9 @@ function KeyPoints() {
         </Heading>
         <BodyLong size="small">
           I en pilot 12. oktober 2026 la GPT-6.1 Sol to ganger fødselsnummer i en Kafka-melding uten å spørre om
-          personvern først. Ved en ny kjøring av samme test 23. oktober stoppet den i alle tre kjøringene og tok opp
-          personvern før den endret koden. Derfor bruker @nav-pilot nå GPT-6.1 Sol. Tre kjøringer er få, så vi følger
-          med.{" "}
-          <Link href={`${BASELINES_DIR}/2026-10-23-t7b-rerun-gpt-6.1-sol`} target="_blank" rel="noopener noreferrer">
+          personvern først. Etter det fikk @nav-pilot en regel om å stoppe og spørre direkte før et nytt felt med
+          personopplysninger. Med regelen besto GPT-6.1 Sol testen 23. oktober, og @nav-pilot bruker den nå.{" "}
+          <Link href={`${BASELINES_DIR}/2026-10-23-pin-gpt-6.1-sol`} target="_blank" rel="noopener noreferrer">
             Se målingen
           </Link>
           .

@@ -1,0 +1,46 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+🔴 Rød sone: Dette er ny forretningslogikk for teamet. Jeg legger inn funksjonsstubben og tester som beskriver reglene, men lar selve beregningen stå som `TODO`. Agenten `worker` er ikke installert, så jeg gjør endringene selv. Jeg kjører ikke Gradle.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+/ Search (grep)
+  │ "." (src/main/kotlin/no/nav/demo/Feriepenger.kt, src/test/kotlin/no/nav/demo/FeriepengerTest.kt,
+  │ build.gradle.kts)
+  └ 69 lines found
+
+Lagt til `Feriepenger.kt` med funksjonsstubbe, enhetstester og JUnit 5-oppsett. Testene dekker satsene, 60-årsgrensen, avrunding, null og negativt grunnlag. Gradle er ikke kjørt.
+
+🔴 Rød sone: Beregningen står som `TODO` fordi dette er ny forretningslogikk for teamet. Testene beskriver forventet oppførsel, men vil feile til dere implementerer funksjonen. Dette prioriterer egen forståelse fremfor ferdig beregningskode. Still gjerne spørsmål om valgene over.
+

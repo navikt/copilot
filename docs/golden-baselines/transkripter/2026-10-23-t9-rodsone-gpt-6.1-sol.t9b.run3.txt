@@ -1,0 +1,77 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er en avgrenset endring uten nye dataflyter eller auth-endringer. 🔴 Rød sone: beregningsregelen og valideringen implementeres som du ber om. Jeg bruker heltallsregning for å unngå flyttallsavvik, og legger til tester for aldersgrensen, avrunding og negativt grunnlag. Gradle kjøres ikke.
+
+`worker` er ikke installert, så jeg gjør endringen selv.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Read Feriepenger.kt
+  │ src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ 8 lines read
+
+● Read FeriepengerTest.kt
+  │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ 51 lines read
+
+Språket er korrekt. Jeg fant ingen språkfeil i feilmeldingen eller testnavnene, og jeg endret ingenting.
+
+- **Feilmelding** i `Feriepenger.kt`: «Grunnlaget kan ikke være negativt» er korrekt bokmål, kort og tydelig. Den sier hva som er galt.
+- **Testnavn** i `FeriepengerTest.kt`: Alle seks er korrekte bokmål, uten nynorsk eller svensk. «Til og med», «fra og med» og «10 komma 2 prosent» er riktig skrevet. Formuleringene er konsekvente.
+
+Merknad om stil, ikke feil: Testnavnene skriver «10 komma 2 prosent». Det er greit i en setning. Skriver du heller «10,2 %», følger det norsk tallformat. Det er valgfritt.● Forfatter (model: claude-sonnet-5.5) Kontrollere norsk i tester                                 8s
+  │ Språket er korrekt. Jeg fant ingen språkfeil i feilmeldingen eller testnavnen...
+  │ Read Feriepenger.kt
+  │   │ src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │   └ 8 lines read
+  └ Read FeriepengerTest.kt
+      │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+      └ 51 lines read
+
+Lagt til `Feriepenger.kt`, seks enhetstester og JUnit 5-oppsett i `build.gradle.kts`. Gradle er ikke kjørt, som avtalt.
+
+🔴 Rød sone: beregningsregelen og valideringen. Heltallsregning med promille unngår flyttallsavvik; tillegg av 500 før divisjon med 1000 runder 50 øre opp. Overflyt håndteres ikke, som spesifisert.
+
+Still gjerne spørsmål om valgene over.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene og overgangen fra 59 til 60 år i `FeriepengerTest`.
+- [ ] Kontroller avrunding under, på og over 50 øre for begge satser.
+- [ ] Kontroller at null gir null, og negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

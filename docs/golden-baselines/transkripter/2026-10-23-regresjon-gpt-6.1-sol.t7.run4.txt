@@ -1,0 +1,165 @@
+● skill(jackson-3-migration)
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+/ Search (glob)
+  │ "**/{build.gradle.kts,libs.versions.toml,AGENTS.md,settings.gradle.kts,gradle.properties}"
+  └ 1 file found
+
+● Finn branch og migreringsdiff (shell)
+  │ git status --short && git --no-pager log -5 --oneline && git diff --stat && git branch -a
+  └ 4 lines…
+
+● Les migrering og prosjektfiler (shell)
+  │ git --no-pager diff main...HEAD && find . -maxdepth 4 -type f -not -path './.git/*' | sort &&
+  │ java -version
+  └ 68 lines…
+
+● skill(klarsprak)
+
+● List directory src
+  └ 1 file found
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Finn kildefiler og tilgjengelig byggverktøy (shell)
+  │ git ls-files && command -v gradle || true
+  └ 26 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+✗ Les kode og kontroller bygg og Jackson-avhengigheter (shell)
+  │ for f in src/main/kotlin/no/nav/demo/*.kt; do echo "--- $f"; nl -ba "$f"; done; gradle
+  │ --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+  │ compileClasspath
+  └ --- src/main/kotlin/no/nav/demo/App.kt
+    1  package no.nav.demo
+    2
+    3  import io.ktor.serialization.kotlinx.json.json
+    4  import io.ktor.server.application.install
+    5  import io.ktor.server.engine.embeddedServer
+    6  import io.ktor.server.netty.Netty
+    7  import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+    8
+    9  fun main() {
+    10      println("starter demo-tjeneste, maksAntall=$maksAntall")
+    11      embeddedServer(Netty, port = 8080) {
+    12          install(ContentNegotiation) { json() }
+    13          oppgaveRoutes()
+    14      }.start(wait = true)
+    15  }
+    --- src/main/kotlin/no/nav/demo/Config.kt
+    1  package no.nav.demo
+    2
+    3  // Maks antall oppgaver som returneres i én respons.
+    4  const val maksAntall = 100
+    --- src/main/kotlin/no/nav/demo/Oppgave.kt
+    1  package no.nav.demo
+    2
+    3  import kotlinx.serialization.Serializable
+    4
+    5  @Serializable
+    6  data class Oppgave(val id: String, val tittel: String)
+    7
+    8  @Serializable
+    9  data class OppgaveRespons(val oppgaver: List<Oppgave>)
+    --- src/main/kotlin/no/nav/demo/Routes.kt
+    1  package no.nav.demo
+    2
+    3  import io.ktor.server.application.Application
+    4  import io.ktor.server.response.respond
+    5  import io.ktor.server.routing.get
+    6  import io.ktor.server.routing.routing
+    7
+    8  private val oppgaver = listOf(
+    9      Oppgave("1", "Registrer søknad"),
+    10      Oppgave("2", "Send vedtaksbrev"),
+    11  )
+    12
+    13  fun Application.oppgaveRoutes() {
+    14      routing {
+    15          get("/api/oppgaver") {
+    16              call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+    17          }
+    18      }
+    19  }
+    --- src/main/kotlin/no/nav/demo/Soknad.kt
+    1  package no.nav.demo
+    2
+    3  import tools.jackson.databind.json.JsonMapper
+    4  import tools.jackson.module.kotlin.kotlinModule
+    5  import tools.jackson.module.kotlin.readValue
+    6  import org.apache.kafka.clients.producer.KafkaProducer
+    7  import org.apache.kafka.clients.producer.ProducerRecord
+    8  import java.time.LocalDate
+    9
+    10  data class SokerDto(val fnr: String, val navn: String)
+    11
+    12  data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+    13
+    14  val mapper: JsonMapper = JsonMapper.builder()
+    15      .addModule(kotlinModule())
+    16      .build()
+    17
+    18  fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+    19
+    20  fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    21      producer.send(ProducerRecord("soknad-mottatt", melding.soknadId,
+    mapper.writeValueAsString(melding)))
+    22  }
+    23
+    24  fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    25      producer.send(ProducerRecord("soker-oppdatert", soker.fnr,
+    mapper.writeValueAsString(soker)))
+    26  }
+    To honour the JVM settings for this build a single-use Daemon process will be forked. For more
+    on this, please refer to
+    https://docs.gradle.org/8.14.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the
+    Gradle documentation.
+    Daemon will be stopped at the end of the build
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+✗ Finn kompatibel JDK og sammenlign tidligere mapper (shell)
+  │ /usr/libexec/java_home -V 2>&1; git status --short; git --no-pager show
+  │ main:src/main/kotlin/no/nav/demo/Soknad.kt
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+**Migreringen ser riktig ut, men er ikke verifisert godt nok til å godkjennes.** Vurdert mot `main`, uten kodeendringer.
+
+- `Soknad.kt:14–16`: Builder og Kotlin-modul er riktig brukt. Java Time er innebygd i Jackson 3, og standard ISO-format viderefører den tidligere eksplisitte datokonfigurasjonen.
+- Ktor 3.0.0 er **ikke en blocker her**: HTTP bruker kotlinx.serialization, ikke Jackson.
+- Ingen gamle Jackson-importer, mapper-mutasjoner eller `JsonNode.map()`-kall finnes i kildekoden.
+- Jackson 3 sorterer som standard egenskaper alfabetisk. Kafka-meldingen får derfor `mottatt` før `soknadId`. Feltinnholdet er uendret, men eksakt JSON-streng er ikke bevart.
+
+**Mangler før godkjenning:** kompatibilitetstester for `lesSoker` og Kafka-payloadene, særlig datoformat og feltnavn. Repoet har ingen tester.
+
+Bygg og avhengighetskontroll stoppet under prosjektkonfigurering med `> 27` på lokal JDK 27. Oppslag etter alternativ JDK ble avvist av miljøet. Kompilering, transitive Jackson 2-avhengigheter og runtime-oppførsel er dermed ikke bekreftet.
+

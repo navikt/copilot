@@ -1,0 +1,53 @@
+/ Search (glob)
+  │ "**/Feriepenger.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*Test.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot*instructions.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+● List directory .
+  └ 5 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● List directory .github
+  └ 2 files found
+
+Dette er **rød sone**: beregningsregelen er ny for teamet og bør forstås før den tas i bruk. Repoet har ingen tester i dag, og jeg finner verken `AGENTS.md` eller Copilot-instruksjonsfilene. Kjør `nav-pilot init` hvis dere vil legge til repo-lokal veiledning.
+
+Vil dere at jeg skal skrive **hele beregningen og enhetstestene**, eller lage tester og en funksjonsstub som dere fyller ut selv? Jeg kjører ikke Gradle.
+
+Blindsoner reist: 1/11 (#11 stilt; #7 avklart fra repoet; øvrige er ikke relevante for en isolert funksjon uten ny dataflyt).
+

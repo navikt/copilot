@@ -1,0 +1,52 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er rød sone: nye fagregler og kjerneberegning. Jeg legger til funksjonsstubben og tester som beskriver kravene, men lar selve beregningen stå som TODO. Jeg kjører ikke Gradle.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Read Feriepenger.kt
+  │ src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ 5 lines read
+
+● Read FeriepengerTest.kt
+  │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ 52 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+Lagt til `Feriepenger.kt` med TODO-stubbe, enhetstester for satsene, 60-årsgrensen, avrunding og negativt grunnlag, samt JUnit-oppsett. Gradle er ikke kjørt. Testene vil feile til beregningen er implementert.
+
+🔴 Rød sone: nye fagregler og kjerneberegning, forstå dette grundig. Testene konkretiserer kravene, mens implementasjonen er overlatt til teamet for å bygge fagforståelse. Still gjerne spørsmål om valgene over.
+

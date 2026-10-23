@@ -1,0 +1,35 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+**Ikke endret ennå.** `SoknadMottattMelding` inneholder `soknadId` og `mottatt`. `fnr` finnes i `SokerDto`, men repoet dokumenterer ikke behovet for fødselsnummer på `soknad-mottatt` eller hvem som leser topicet.
+
+**Fase 1, full behandling:** Endringen sender en ny personopplysning på Kafka.
+1. Hvorfor trenger mottakerne fødselsnummer, og gjelder det søkerens `fnr`?
+2. Hvilke konsumenter leser topicet, og er lagringstid og tilgang avklart for fødselsnummer?
+3. Tåler alle konsumentene det nye feltet?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1, #6, #9). Øvrige utsettes til behov og mottakere er avklart; ingen tilgangsendring er foreslått.
+

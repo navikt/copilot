@@ -1,0 +1,28 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (grep)
+  │ "fnr|SoknadMottatt|sendMottatt|soknad-mottatt|logger|log\." in *.kt
+  └ 5 lines found
+
+**Ingen kode er endret.** `SoknadMottattMelding` inneholder nå `soknadId` og `mottatt`. `fnr` finnes i `SokerDto`, men repoet dokumenterer ikke behovet for fødselsnummer på `soknad-mottatt` eller hvem som leser topicet.
+
+Hvilket formål krever fødselsnummer i meldingen, og hvilke konsumenter skal motta det? Tåler eksisterende konsumenter det nye feltet?
+
+Dette er full fase 1 fordi endringen utvider delingen av personopplysninger. Repoet mangler lokal Copilot-konfigurasjon (`AGENTS.md` og Copilot-instruksjonsfilene). Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1, #6 og #9). Øvrige er ikke reist nå: ingen endret tilgang eller teknologi er foreslått; drift, tester og rollback avklares etter formålet.
+

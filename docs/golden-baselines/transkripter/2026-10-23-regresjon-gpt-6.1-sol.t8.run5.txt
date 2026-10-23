@@ -1,0 +1,90 @@
+/ Search (glob)
+  │ "*"
+  └ 27 files found
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+✗ Find reference monorepo (shell)
+  │ gh search repos 'paw intern org:navikt' --limit 5 --json nameWithOwner
+  └ Unknown JSON field: "nameWithOwner"
+    Available fields:
+    createdAt
+    defaultBranch
+    description
+    forksCount
+    fullName
+    hasDownloads
+    hasIssues
+    hasPages
+    hasProjects
+    hasWiki
+    homepage
+    id
+    isArchived
+    isDisabled
+    isFork
+    isPrivate
+    language
+    license
+    name
+    openIssuesCount
+    owner
+    pushedAt
+    size
+    stargazersCount
+    updatedAt
+    url
+    visibility
+    watchersCount
+    Failed with exit code 1
+
+● skill(klarsprak)
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Locate PAW reference repository (shell)
+  │ gh search repos 'paw intern org:navikt' --limit 5 --json fullName
+  └ 1 line…
+
+● Read reference root tree (shell)
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main --jq '.tree[] |
+  │ .path'
+  └ 22 lines…
+
+● Locate reference signing implementation (shell)
+  │ gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1'
+  │ --jq '.tree[] | select(.path | test("[Ss]ign.*\\.kt$")) | .path'
+  └ 11 lines…
+
+● Read reference signer and interceptor (shell)
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/m
+  │ ain/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq '.content' | base64
+  │ --decode; gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-sig
+  │ ning/src/main/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt --jq '.content' | base64
+  │ --decode
+  └ 214 lines…
+
+**Fase 1: Dette berører sikkerhetskritisk signeringskode. Ingen filer er endret.**
+
+Jeg har lest referansen i `paw-arbeidssoekerregisteret-monorepo-intern`. Interceptoren fjerner begge signeringsheaderne før den legger på nye. Her finnes allerede `stripSigningHeaders`, men `onSend` bruker den ikke. Jeg legger til grunn at payload, mottakere og nøkkelhåndtering skal være uendret.
+
+Hvilke konsumenter verifiserer signaturen, og tåler de at eventuelle gamle signaturer erstattes av nøyaktig én signatur og én nøkkel-ID?
+
+Repoet mangler `AGENTS.md` og repo-lokale Copilot-instruksjonsfiler. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 2/11 (#6 og #9 stilt samlet; øvrige avklart fra koden eller ikke relevante for denne avgrensede endringen).
+

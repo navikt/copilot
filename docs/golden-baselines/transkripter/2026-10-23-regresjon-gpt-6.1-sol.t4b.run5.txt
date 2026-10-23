@@ -1,0 +1,63 @@
+● skill(nav-plan)
+
+● skill(nav-auth)
+
+● skill(api-design)
+
+## Fase 2: plan
+
+**Vi bygger en stateless Ktor-backend bak den eksisterende Next.js-frontenden.** Wonderwall håndterer ID-porten-innlogging ved frontenden. Next.js kaller backend med TokenX i brukerens kontekst, og backend veksler token videre til PDL.
+
+Dette holder tokens utenfor nettleserens JavaScript og hindrer at backend trenger egen innloggingssesjon. Kostnaden er token exchange på tjenestegrensene. Direkte nettleserkall til backend velges bort.
+
+### Data og API
+
+- `GET /api/meg` returnerer navn fra PDL. Fødselsnummer hentes fra det validerte tokenet, aldri fra klientens parametere.
+- Responsen inneholder ikke fødselsnummer med mindre frontenden har et dokumentert behov.
+- Ingen database, persondatacache eller kø. Personopplysninger behandles i minnet under kallet.
+- Personlige svar får `Cache-Control: no-store`, også gjennom Next.js.
+- PDL-timeout og utilgjengelighet gir `503` med `application/problem+json`. Ingen automatiske retries i første versjon. Andre PDL-feil klassifiseres eksplisitt, ikke som tomme, vellykkede svar.
+- Logger inneholder feilkategori, nedstrømsstatus og teknisk korrelasjons-ID. Ikke fødselsnummer, navn, tokens, PDL-payload eller rå feilmeldinger fra PDL.
+
+Jeg legger til grunn at lovhjemmelen dekker navneoppslaget, og at nødvendig PDL-tilgang må være godkjent før produksjonssetting. PDLs behandlingsnummer, tilgangsoppsett og faktiske audience bekreftes før implementering.
+
+### Auth og Nais
+
+| Del | Planlagt konfigurasjon |
+|---|---|
+| Next.js | ID-porten med Wonderwall, TokenX for backend-kall. Antatt sikkerhetsnivå `Level4`, bekreftes mot tjenestens krav. |
+| Backend | TokenX. Valider signatur, issuer, audience, levetid og tillatt frontend-identitet. Støtt nøkkelrotasjon. |
+| Tilgang | Backend har eksplisitt inbound-regel kun for frontenden og outbound-regel til PDL. Frontenden får outbound-regel til backend. |
+| Eksponering | Kun frontenden har offentlig ingress. Backend nås internt. |
+| Ressurser | Start med CPU-request `15m`, minne-request `256Mi`, minnegrense `512Mi`. Ingen CPU-grense. Juster etter måling. |
+| Helse | Behold `/internal/isalive` og `/internal/isready`. PDL-feil skal ikke utløse omstart eller ta alle backend-poder ut av tjeneste. |
+| Secrets | Nais-injisert konfigurasjon og godkjent tokenbibliotek. Ingen egen implementering av signering eller nøkkelhåndtering. |
+
+### Filer og levering
+
+I backend deles ansvaret mellom `Application.kt`, `Config.kt`, auth-oppsett, `/api/meg`-rute og `PdlClient.kt`, med tilsvarende tester. Eksisterende `nais.yaml` utvides. Next.js får en server-side proxy-rute og nødvendig auth-konfigurasjon i sitt eget repo.
+
+CI kjører kompilering og tester før image-bygg. GitHub Actions får SHA-pinnede actions og minimale permissions. Deployment går først til dev, deretter produksjon etter verifisering.
+
+### Tester og observability
+
+Integrasjonstester bruker Ktors testserver, MockOAuth2Server og en lokal PDL-stub. De dekker ugyldig signatur, feil issuer/audience, utløpt token, feil kallende applikasjon og manglende personidentitet. Tester skal bevise at PDL-oppslaget alltid gjelder tokenets person, og at timeout gir `503` uten persondata i logger.
+
+Frontend-testen dekker innlogging og visning av eget navn. Testdata er syntetiske.
+
+Prometheus måler antall oppslag og feil fordelt på faste utfallskategorier, uten personidentifikatorer som labels. Dashboard viser oppslag per minutt, feilandelen og PDL-latens. Foreløpig alarmgrense er over 5 % feil i fem minutter med minst 20 kall, supplert med tilgjengelighetsalarm.
+
+### Utrulling og rollback
+
+Verifiser i dev: innlogging, eget navn, avvisning av ugyldige tokens, simulert PDL-brudd og fravær av persondata i logger. Backend deployes før frontend-integrasjonen aktiveres. Ved feil deaktiveres frontend-funksjonen og tidligere frontend-image gjenopprettes; ingen datamigrasjon må reverseres.
+
+API-kontrakt, driftsrutine og rollback beskrives i eksisterende dokumentasjon ved levering.
+
+### Rød sone
+
+🔴 **Rød sone: auth, identitetsbinding og PDL-tilgang. Forstå dette grundig.** TokenX og Wonderwall er også nye konsepter for teamet.
+
+Som standard leveres stubs og testskjeletter for disse delene; utvikleren skriver implementasjonen. Full implementering krever en uttrykkelig bestilling av rød-sone-koden.
+
+Planen er klar for godkjenning før fase 3, der den vurderes fra sikkerhets-, plattform-, arkitektur- og endringssikkerhetsperspektivet. Still gjerne spørsmål om valgene over
+

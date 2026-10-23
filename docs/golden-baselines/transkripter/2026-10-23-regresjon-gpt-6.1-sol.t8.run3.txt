@@ -1,0 +1,266 @@
+● skill(klarsprak)
+
+● Se repoets filer (shell)
+  │ pwd && ls -a
+  └ 9 lines…
+
+/ Search (grep)
+  │ "sign|Sign|header" (src, lib, .github, build.gradle.kts, README.md)
+  └ 70 lines found
+
+● Les signeringskode og finn referanserepo (shell)
+  │ find lib src -type f && cat README.md build.gradle.kts nais.yaml && cat
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/*.kt && gh repo list navikt --limit 200
+  │ --json name --jq '.[] | select(.name | contains("paw")) | .name'
+  └ 72 lines…
+
+● Finn PAWs interne monorepo (shell)
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern --jq
+  │ '{full_name,default_branch}'
+  └ 1 line…
+
+● Finn referansens signeringsfiler (shell)
+  │ gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1'
+  │ --jq '.tree[] | select(.path | test("[Ss]ign.*\\.kt$")) | .path'
+  └ 11 lines…
+
+✗ Les referansens signeringsprosess (shell)
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src
+  │ /main/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq .content | base64
+  │ --decode; gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-s
+  │ igning/src/main/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt --jq .content | base64
+  │ --decode; gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-s…
+  └ package no.nav.paw.kafka.signing
+
+    import io.opentelemetry.api.trace.Span
+    import io.opentelemetry.instrumentation.annotations.WithSpan
+    import no.nav.paw.config.env.currentRuntimeEnvironment
+    import org.apache.kafka.clients.producer.ProducerConfig
+    import org.apache.kafka.clients.producer.ProducerInterceptor
+    import org.apache.kafka.clients.producer.ProducerRecord
+    import org.apache.kafka.clients.producer.RecordMetadata
+    import org.apache.kafka.common.serialization.Serializer
+    import org.slf4j.LoggerFactory
+    import no.nav.paw.logging.logger.TeamLogsLogger
+    import java.security.KeyFactory
+    import java.security.interfaces.ECPrivateKey
+    import java.security.spec.PKCS8EncodedKeySpec
+    import java.util.Base64
+
+    private val BASE64URL = Base64.getUrlEncoder().withoutPadding()
+    private val BASE64_VALID_CHARS = Regex("[^A-Za-z0-9+/\\-_]")
+    private val logger = LoggerFactory.getLogger("signature.signing")
+
+    /**
+    * Decodes a PKCS#8 private key from Base64. Handles:
+    * - Plain Base64 (standard or URL-safe alphabet)
+    * - PEM format (strips -----BEGIN/END PRIVATE KEY----- headers)
+    * - Missing or incorrect padding
+    * - Embedded whitespace, newlines, BOM, and other non-Base64 characters
+    */
+    internal fun decodePkcs8Key(input: String): ByteArray {
+    // Keep only valid Base64 characters; discards newlines, spaces, BOM, CRLF, invisible unicode,
+    etc.
+    val cleaned = input
+    .lines()
+    .filterNot { it.trimStart().startsWith("-----") }
+    .joinToString("")
+    .replace(BASE64_VALID_CHARS, "")
+    .trimEnd('=')
+    val padded = when (cleaned.length % 4) {
+    0 -> cleaned
+    2 -> "$cleaned=="
+    3 -> "$cleaned="
+    else -> error(
+    "Invalid Base64 key: cleaned length ${cleaned.length} gives mod4=${cleaned.length % 4}. " +
+    "Expected length divisible by 4 (e.g. 184 for P-256). " +
+    "Re-encode with: openssl pkcs8 -topk8 -nocrypt -in ec-private.pem -outform DER | base64 -w0"
+    )
+    }
+    logger.debug(
+    "decodePkcs8Key: input.length={} cleaned.length={} padded.length={} mod4={}",
+    input.length, cleaned.length, padded.length, cleaned.length % 4
+    )
+    // Normalise URL-safe alphabet (- _) to standard (+ /) before decoding
+    return Base64.getDecoder().decode(padded.replace('-', '+').replace('_', '/'))
+    }
+
+    /**
+    * Kafka [ProducerInterceptor] that adds ECDSA signature headers to every outgoing record.
+    *
+    * Added headers:
+    *  - `x-paw-signature`    : Base64url (no padding) encoded DER signature
+    *  - `x-paw-signing-key-id`: UTF-8 string identifying the public key for offline verification
+    *
+    * Required producer properties:
+    *  - [PAW_SIGNING_MOUNT_PATH]     : path to mounted Nais secret directory (Nais environments)
+    *  - [PAW_SIGNING_LOCAL_RESOURCE] : classpath resource or absolute file path (local development)
+    *
+    * The interceptor re-instantiates the configured key and value serializers so that the
+    * signature covers the actual serialized bytes, regardless of whether JSON, Avro, or any
+    * other serializer is used.
+    */
+    class SigningProducerInterceptor<K, V> : ProducerInterceptor<K, V> {
+
+    private lateinit var keySerializer: Serializer<K>
+    private lateinit var valueSerializer: Serializer<V>
+    private lateinit var privateKey: ECPrivateKey
+    private lateinit var keyId: ByteArray
+    private lateinit var keyIdString: String
+
+    companion object {
+    const val PAW_SIGNING_MOUNT_PATH = "paw.signing.mount.path"
+    const val PAW_SIGNING_LOCAL_RESOURCE = "paw.signing.local.resource"
+    }
+
+    override fun configure(configs: Map<String, *>) {
+    TeamLogsLogger.info("[kafka-signing] SigningProducerInterceptor konfigurert")
+    val mountPath = configs[PAW_SIGNING_MOUNT_PATH] as String
+    val localResource = configs[PAW_SIGNING_LOCAL_RESOURCE] as String
+    val keyMaterial = loadKafkaSigningKeyMaterial(currentRuntimeEnvironment, mountPath,
+    localResource)
+    keyIdString = keyMaterial.keyId.trim()
+    keyId = keyIdString.toByteArray(Charsets.UTF_8)
+
+    val pkcs8Bytes = decodePkcs8Key(keyMaterial.privateKeyPkcs8Base64)
+    privateKey = KeyFactory.getInstance("EC")
+    .generatePrivate(PKCS8EncodedKeySpec(pkcs8Bytes)) as ECPrivateKey
+
+    keySerializer = instantiateSerializer(configs, ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, isKey
+    = true)
+    valueSerializer = instantiateSerializer(configs, ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+    isKey = false)
+    }
+
+    @WithSpan("signing_interceptor_on_send")
+    override fun onSend(record: ProducerRecord<K, V>): ProducerRecord<K, V> {
+    val topic = record.topic()
+    val headers = record.headers()
+
+    return try {
+    Span.current().setAttribute("key_id", keyIdString)
+    val kBytes = record.key()?.let { keySerializer.serialize(topic, headers, it) } ?: ByteArray(0)
+    val vBytes = record.value()?.let { valueSerializer.serialize(topic, headers, it) } ?:
+    ByteArray(0)
+    val traceparentBytes = headers.lastHeader("traceparent")?.value() ?: ByteArray(0)
+
+    // Fix the timestamp so that what we sign matches what the broker stores.
+    val timestamp = record.timestamp() ?: System.currentTimeMillis()
+
+    val signature = signKafkaRecord(kBytes, traceparentBytes, timestamp, vBytes, privateKey)
+
+    // Return a new record with the explicit timestamp and signature headers.
+    // Kafka Streams propagates input headers to output records, so remove any
+    // signature headers inherited from upstream before adding our own.
+    ProducerRecord(topic, record.partition(), timestamp, record.key(), record.value(), headers).also
+    {
+    it.headers().remove(SIGNATURE_HEADER)
+    it.headers().remove(SIGNING_KEY_ID_HEADER)
+    it.headers().add(SIGNATURE_HEADER, BASE64URL.encode(signature))
+    it.headers().add(SIGNING_KEY_ID_HEADER, keyId)
+    }
+    } catch (e: Exception) {
+    TeamLogsLogger.error(
+    "[kafka-signing] Failed to sign Kafka record on topic={}, key={}, record will be sent unsigned",
+    topic,
+    "${record.key()}",
+    e
+    )
+    record
+    }
+    }
+
+    override fun onAcknowledgement(metadata: RecordMetadata?, exception: Exception?) = Unit
+    override fun close() {
+    keySerializer.close()
+    valueSerializer.close()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> instantiateSerializer(
+    configs: Map<String, *>,
+    configKey: String,
+    isKey: Boolean,
+    ): Serializer<T> {
+    val serializerClass = when (val value = configs[configKey]) {
+    is Class<*> -> value
+    is String -> Class.forName(value)
+    else -> error("$configKey is missing or has unexpected type: $value")
+    }
+    return (serializerClass.getDeclaredConstructor().newInstance() as Serializer<T>)
+    .also { it.configure(configs, isKey) }
+    }
+    }
+    package no.nav.paw.kafka.signing
+
+    import io.opentelemetry.instrumentation.annotations.WithSpan
+    import java.nio.ByteBuffer
+    import java.security.Signature
+    import java.security.interfaces.ECPrivateKey
+    import java.security.interfaces.ECPublicKey
+
+    /**
+    * Canonical signed payload format (length-prefixed to avoid ambiguity):
+    *
+    *   [4B len][key bytes]
+    *   [4B len][traceparent bytes (UTF-8, empty if absent)]
+    *   [8B    ][timestamp millis, big-endian]
+    *   [4B len][value bytes]
+    *
+    * Algorithm: SHA256withECDSA (DER-encoded output)
+    */
+    @WithSpan("sign_kafka_record")
+    fun signKafkaRecord(
+    keyBytes: ByteArray,
+    traceparentBytes: ByteArray,
+    timestampMs: Long,
+    valueBytes: ByteArray,
+    privateKey: ECPrivateKey,
+    ): ByteArray =
+    Signature.getInstance("SHA256withECDSA").run {
+    initSign(privateKey)
+    update(buildSignaturePayload(keyBytes, traceparentBytes, timestampMs, valueBytes))
+    sign()
+    }
+
+    @WithSpan("verify_kafka_record")
+    fun verifyKafkaRecord(
+    keyBytes: ByteArray,
+    traceparentBytes: ByteArray,
+    timestampMs: Long,
+    valueBytes: ByteArray,
+    signatureBytes: ByteArray,
+    publicKey: ECPublicKey,
+    ): Boolean =
+    Signature.getInstance("SHA256withECDSA").run {
+    initVerify(publicKey)
+    update(buildSignaturePayload(keyBytes, traceparentBytes, timestampMs, valueBytes))
+    verify(signatureBytes)
+    }
+
+    fun buildSignaturePayload(
+    keyBytes: ByteArray,
+    traceparentBytes: ByteArray,
+    timestampMs: Long,
+    valueBytes: ByteArray,
+    ): ByteArray =
+    ByteBuffer.allocate(4 + keyBytes.size + 4 + traceparentBytes.size + 8 + 4 + valueBytes.size)
+    .putInt(keyBytes.size).put(keyBytes)
+    .putInt(traceparentBytes.size).put(traceparentBytes)
+    .putLong(timestampMs)
+    .putInt(valueBytes.size).put(valueBytes)
+    .array()
+    package no.nav.paw.kafka.signing
+
+    const val SIGNATURE_HEADER = "x-paw-signature"
+    const val SIGNING_KEY_ID_HEADER = "x-paw-signing-key-id"
+    Failed with exit code 1
+
+Jeg har lest signeringskoden her og referansen i `paw-arbeidssoekerregisteret-monorepo-intern`. Referansen fjerner begge signeringsheaderne før nye legges til. Her finnes allerede `stripSigningHeaders`, men `onSend` bruker den ikke. Ingen filer er endret.
+
+🔴 Rød sone: signering. Jeg antar at payload, mottakere og nøkkelhåndtering skal være uendret. Skal eksisterende signeringsheadere også fjernes hvis `signer.sign` feiler, slik at en gammel signatur ikke følger meldingen videre?
+
+Repoet mangler lokal Copilot-konfigurasjon (`AGENTS.md` og Copilot-instruksjonsfilene). Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#3 feilhåndtering; øvrige ikke relevante for denne avgrensede endringen eller uendret).
+

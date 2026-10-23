@@ -1,0 +1,45 @@
+● skill(klarsprak)
+
+## Oppsummering
+
+Repoet definerer `SoknadMottattMelding` og en funksjon som publiserer den til Kafka-topicet `soknad-mottatt`. Koden viser ikke at denne publiseringsfunksjonen blir kalt, hvor søknads-ID eller fødselsnummer kommer fra i en faktisk søknadsflyt, eller hvem som mottar meldingen.
+
+## Funn
+
+- **Melding og publisering:** `src/main/kotlin/no/nav/demo/Soknad.kt`, linje 13 definerer `SoknadMottattMelding` med feltene `soknadId` og `mottatt` (`LocalDate`). Linje 21–23 publiserer JSON til `soknad-mottatt`, med `melding.soknadId` som Kafka-key.
+- **JSON-format:** Samme fil, linje 15–18, bruker Jackson med registrerte moduler og skriver datoer uten tidsstempel. Repoet har ingen skjema- eller kontraktdefinisjon som beskriver meldingsformatet ut over Kotlin-klassen.
+- **Kilde til fnr:** Linje 11 definerer `SokerDto(fnr, navn)`. Linje 25–27 publiserer denne DTO-en separat til `soker-oppdatert`, med fnr som Kafka-key. `lesSoker` (linje 20) leser DTO-en fra JSON. Det finnes ingen kode som kobler `SokerDto.fnr` til `SoknadMottattMelding`, og ingen synlig kilde til fnr for en mottatt søknad.
+- **Kafka-konfigurasjon:** `build.gradle.kts` inkluderer `kafka-clients` 3.9.0. `nais.yaml` inneholder bare generell applikasjonsmetadata, port og helseendepunkter; den oppgir ikke Kafka-tilkobling, topic-tilgang eller tilgangspolicy. I `Soknad.kt` mottar publiseringsfunksjonen en `KafkaProducer` som parameter, men repoet viser ikke hvordan produsenten konfigureres eller opprettes.
+- **Mottakere og personvern:** `README.md` beskriver en liten Ktor-demo og sier at dokumentasjonen ikke er fullstendig. Jeg fant ingen dokumentasjon om konsumenter, formål, datakategorier eller behandlingsgrunnlag.
+- **Logging og retention:** Ingen logging av meldingen eller fnr er synlig i `Soknad.kt`. `App.kt` skriver en oppstartsutskrift med `println`, uten personopplysninger. Repoet oppgir ingen Kafka-retention, lagringstid eller loggretention.
+- **Tester:** Jeg fant ingen testfiler eller tester for meldingsserialisering eller Kafka-publisering.
+
+## Filer og instruksjoner kontrollert
+
+De etterspurte filene `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` finnes ikke i repoet. `.github` inneholder andre agent- og instruksjonsfiler, men disse endrer ikke hva kildekoden faktisk dokumenterer om meldingen eller Kafka-flyten.
+
+## Hva repoet ikke avklarer
+
+Repoet besvarer ikke om fnr skal legges til meldingen, hvordan det i så fall kobles til søknaden, hvem konsumentene er, eller hvilket formål og behandlingsgrunnlag som gjelder. Det avklarer heller ikke om meldingsfelt eller Kafka-key er en stabil kontrakt, hvilke eksisterende konsumenter som finnes, eller om de tåler en endret payload. Retention, tilgangskontroll for topicet og eventuell logging utenfor den viste koden er også ukjent.
+
+Kartleggingen er read-only; ingen filer er endret.● Research-agent (model: gpt-6-luna) Undersøk Kafka-melding og personvern                        26s
+  │ ## Oppsummering
+  │ Read App.kt
+  │   │ src/main/kotlin/no/nav/demo/App.kt
+  │   └ 15 lines read
+  └ Read Oppgave.kt
+      │ src/main/kotlin/no/nav/demo/Oppgave.kt
+      └ 9 lines read
+
+**Før jeg legger til `fnr`, må personvern og meldingskontrakten avklares.** `SoknadMottattMelding` inneholder i dag `soknadId` og `mottatt`. Repoet har `SokerDto.fnr`, men viser ingen kobling til søknaden.
+
+1. Hvilken søker skal `fnr` hentes fra, og hva trenger konsumentene fødselsnummeret til?
+2. Hvem leser `soknad-mottatt`, og er topicets tilgang og lagringstid avklart for fødselsnummer?
+3. Tåler eksisterende konsumenter det nye feltet, og skal det være obligatorisk?
+
+Ingen filer er endret. Repoet mangler de tre lokale Copilot-instruksjonsfilene; de kan opprettes med `nav-pilot init`.
+
+Fase 1, full løype. Anslått tokenbudsjett: intervju 1 500, plan 1 500, review 1 000, levering 2 000.
+
+Blindsoner reist: 4/11 (#1, #5, #6, #9). #2 gjelder ikke endrede tilganger; #3, #4 og #8 gjelder uendret publisering; #7 er kartlagt uten tester; #10 og #11 er ikke relevante.
+

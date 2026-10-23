@@ -1,0 +1,65 @@
+● skill(klarsprak)
+
+● Finn prosjektfiler og lokale instruksjoner (shell)
+  │ pwd && ls -a && find src .github -type f 2>/dev/null | head -65
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+Jeg lager en stub for feriepengereglene og tester med konkrete forventninger. Bare avrundingen implementeres. Gradle kjøres ikke. `worker` er ikke tilgjengelig, så jeg gjør endringene selv.
+
+
+● update_todo todos: "- [x] Avklare omfang og lese prosjektets instruksjoner - [ ]…"
+  └ TODO list updated
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/AvrundingTest.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Read FeriepengerTest.kt
+  │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ 41 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+● Read Avrunding.kt
+  │ src/main/kotlin/no/nav/demo/Avrunding.kt
+  └ 7 lines read
+
+● update_todo todos: "- [x] Avklare omfang og lese prosjektets instruksjoner - [x]…"
+  └ TODO list updated
+
+Implementert `Avrunding.kt` med `BigDecimal` og `HALF_UP`: nøyaktig desimalavrunding uten flyttallsfeil. Lagt til enhetstester og JUnit-oppsett. `Feriepenger.kt` har kun en `TODO`-stub; testene vil feile til du implementerer reglene. Gradle er ikke kjørt.
+
+🔴 Rød sone: Feriepengeregler og validering skriver du selv. Still gjerne spørsmål om valgene over.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller avrundingen mot `AvrundingTest`, særlig under, på og over 50 øre.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

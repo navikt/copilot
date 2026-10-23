@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+**TokenX** for innbyggerkontekst (ID-porten). A veksler brukertokenet til et token med B som audience.
+
+For **ansattkontekst (Entra ID)** bruker du **OAuth On-Behalf-Of (OBO)**. Ikke bruk client credentials: da mister du brukerkonteksten.
+

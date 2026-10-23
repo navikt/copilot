@@ -1,0 +1,37 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 27 files found
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+**Ingen kode er endret.** Dette er full fase 1 fordi fødselsnummer i en Kafka-header utvider behandlingen av personopplysninger. `Periode` inneholder allerede `fnr`, mens interceptoren signerer payloaden, ikke headerne.
+
+🔴 Rød sone: personopplysninger i sporingsmetadata, forstå dette grundig.
+
+1. Må sporingen bruke fødselsnummer, eller holder `Periode.id`? Hvilket behandlingsformål krever eventuelt fødselsnummer i headeren?
+2. Hvilke konsumenter og sporingsverktøy vil lese eller lagre headeren, og hvordan hindrer dere at fødselsnummer havner i logger?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Fasebudsjett: intervju 1 000, plan 1 500, review 1 000, levering 2 000 tokens. Øvrige blindsoner avventer avklaringen av formål og mottakere; ingen endring i tilgangskontroll er foreslått.
+
+Blindsoner reist: 2/11 (#1 og #6 stilt; #2 ikke utløst; #3–#5 og #7–#11 avventer).
+

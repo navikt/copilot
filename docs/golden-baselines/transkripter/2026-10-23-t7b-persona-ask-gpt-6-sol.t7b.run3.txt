@@ -1,0 +1,58 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,**/nais*.yaml
+  │ }"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+● Inspect project layout (shell)
+  │ ls -la; find . -maxdepth 2 -type f | head -60
+  └ 11 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 5 files found
+
+/ Search (grep)
+  │ "SoknadMottattMelding|soknad-mottatt|fnr|Kafka" in **/*.kt
+  └ 7 lines found
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+Dette er en endring i Kafka-meldingen som legger fødselsnummer i et nytt dataflytløp. Koden viser at `fnr` finnes i `SokerDto`, men ikke hvordan det knyttes til `SoknadMottattMelding`. Før jeg endrer meldingen, må jeg avklare:
+
+1. Hvilke tjenester leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer? Tåler de at meldingen får et nytt felt?
+2. Hvor skal fødselsnummeret hentes fra når meldingen opprettes? Jeg finner ingen kode som oppretter `SoknadMottattMelding`.
+3. Hvordan skal fødselsnummeret beskyttes i Kafka-topicet? Jeg finner ingen konfigurert beskyttelse for denne meldingen.
+
+Jeg finner heller ingen av de repo-lokale Copilot-filene `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. De kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #5 teamgrenser og #6 mottakere/kompatibilitet; øvrige er ikke relevante eller kan avklares fra koden i neste fase).
+

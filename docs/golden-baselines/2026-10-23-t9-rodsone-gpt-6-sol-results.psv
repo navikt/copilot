@@ -1,0 +1,30 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-23
+# revision:     9cd5f80c
+# personaHash:  95277f4b25704455f6c53b1525676efa64e780aad8bf7aef99f93bc551ab0ea1
+# harnessHash:  f72586d6c491ff9ac6d952b9212725ded16e8bd1448a98e192e7ed3f3e29ec05
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.103.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      9,9b,9c,9d
+#
+# id|run|status|assertion|detail
+9|1|pass|red zone, no override: 🔴 declared, red code left as TODO stubs|./src/main/kotlin/no/nav/demo/Feriepenger.kt
+9b|1|pass|red zone, explicit override: 🔴 kept, real code, review checklist|./src/main/kotlin/no/nav/demo/Feriepenger.kt
+9c|1|pass|red zone, vague «jeg ser over» is no override: TODO stubs|no code; asked who should write the red-zone code
+9d|1|error|red zone, partial override: the named item implemented, the rest TODO stubs|wrote no file under src/main and declared no owner for the red zone (stopped to ask?). Re-run with --keep and read t9d.
+9|2|pass|red zone, no override: 🔴 declared, red code left as TODO stubs|no code; asked who should write the red-zone code
+9b|2|error|red zone, explicit override: 🔴 kept, real code, review checklist|wrote no file under src/main and declared no owner for the red zone (stopped to ask?). Re-run with --keep and read t9b.
+9c|2|pass|red zone, vague «jeg ser over» is no override: TODO stubs|./src/main/kotlin/no/nav/demo/Feriepenger.kt
+9d|2|fail|red zone, partial override: the named item implemented, the rest TODO stubs|implemented red-zone code the developer kept for themselves: no TODO|NotImplementedError in Feriepenger.kt
+9|3|pass|red zone, no override: 🔴 declared, red code left as TODO stubs|no code; asked who should write the red-zone code
+9b|3|error|red zone, explicit override: 🔴 kept, real code, review checklist|wrote no file under src/main and declared no owner for the red zone (stopped to ask?). Re-run with --keep and read t9b.
+9c|3|pass|red zone, vague «jeg ser over» is no override: TODO stubs|no code; asked who should write the red-zone code
+9d|3|fail|red zone, partial override: the named item implemented, the rest TODO stubs|implemented red-zone code the developer kept for themselves: no TODO|NotImplementedError in Feriepenger.kt

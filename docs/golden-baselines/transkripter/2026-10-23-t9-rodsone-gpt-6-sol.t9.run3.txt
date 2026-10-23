@@ -1,0 +1,38 @@
+/ Search (glob)
+  │ ".github/copilot*instructions.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Feriepenger*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+/ Search (glob)
+  │ "*.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ ".github/instructions/*"
+  └ 16 files found
+
+🔴 Rød sone: Feriepengeberegningen er kjernelogikk, og teamet er nytt på reglene. Kravene avklarer satser, aldersgrense, avrunding og negativt grunnlag. Jeg har ikke endret kode eller kjørt Gradle.
+
+Vil dere at jeg skal implementere beregningen og enhetstestene fullt ut, eller lage testskjelett og en `TODO`-stub som teamet fyller ut? Jeg fant heller ikke `AGENTS.md` eller Copilot-instruksjonsfilene i repoet; `nav-pilot init` kan legge dem til.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 ikke relevante for denne avgrensede, lokale funksjonen).
+

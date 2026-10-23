@@ -1,0 +1,42 @@
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -60
+  └ 29 lines…
+
+● Read repository instructions (shell)
+  │ for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  │ .github/instructions/testing.instructions.md
+  │ .github/instructions/security-owasp.instructions.md; do if test -f "$f"; then echo "=== $f"; …
+  └ 15 lines…
+
+/ Search (grep)
+  │ "^#{1,3} |Kotest|shouldThrow|assert|test|round|require"
+  │ (.github/instructions/kotlin.instructions.md,
+  │ .github/instructions/testing-kotlin.instructions.md,
+  │ .github/instructions/testing.instructions.md,
+  │ .github/instructions/security-owasp.instructions.md)
+  └ 137 lines found
+
+● Inspect application and build (shell)
+  │ find src -type f -maxdepth 12 -print; cat build.gradle.kts nais.yaml README.md
+  └ 32 lines…
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+Dette er ny kjernelogikk for teamet, så jeg stopper i **fase 1** før jeg endrer kode. Jeg fant ingen eksisterende feriepengeregler eller tester i tjenesten. Jeg legger til grunn at satsen bestemmes av `alderIOpptjeningsåret`, at funksjonen ikke skal eksponeres som et nytt API, og at overflyt er utenfor omfanget.
+
+Er det en bestemt regelkilde teamet vil bruke når dere gjennomgår satsene og 60-årsgrensen, eller skal jeg bruke reglene i bestillingen som fasit? Jeg kjører ikke Gradle.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 ikke relevante for en isolert beregningsfunksjon uten ny dataflyt).
+

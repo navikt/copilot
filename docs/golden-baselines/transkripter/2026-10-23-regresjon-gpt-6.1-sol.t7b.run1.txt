@@ -1,0 +1,44 @@
+● skill(klarsprak)
+
+## Kort oppsummering
+
+Repoet inneholder en Kafka-produsent for `soknad-mottatt`, men ingen dokumentasjon om hvem som konsumerer topicet, hvorfor de trenger dataene, eller om deling av fødselsnummer (fnr) med dem er godkjent. Fnr finnes allerede i `SokerDto` og brukes som nøkkel på et annet topic, men det dokumenterer ikke grunnlaget for å legge fnr inn i `soknad-mottatt`.
+
+Jeg har ikke endret filer.
+
+## Funn
+
+- **Meldingsmodell:** `src/main/kotlin/no/nav/demo/Soknad.kt:13` definerer `SoknadMottattMelding` med `soknadId` og `mottatt` (`LocalDate`), uten fnr.
+- **Produsent:** `src/main/kotlin/no/nav/demo/Soknad.kt:21–23` sender JSON-serialisert melding til `soknad-mottatt`, med `soknadId` som Kafka-nøkkel.
+- **Eksisterende fnr-flyt:** `src/main/kotlin/no/nav/demo/Soknad.kt:11, 19, 25–27` definerer `SokerDto(fnr, navn)`, leser DTO-en fra JSON og sender den til `soker-oppdatert`, med fnr som nøkkel. Dette viser en mulig kilde til fnr, men ingen kode kobler søkeren til søknadsmeldingen.
+- **Kilde og kallesteder:** Ingen synlige kallesteder for `sendMottatt` eller `sendSoker`, og ingen annen fnr-kilde, finnes i repoet. `lesSoker` tar JSON som input; repoet viser ikke hvor JSON-en kommer fra.
+- **Tester:** Repoet har ingen testfiler. Dermed finnes det heller ingen tester som dokumenterer meldingsformat, fnr-kilde eller produsentatferd.
+- **Konsumenter og personvern:** Ingen filer dokumenterer konsumenter av `soknad-mottatt`, behandlingsformål, dataklassifisering, behandlingsgrunnlag/godkjenning, tilgangsstyring eller retention. `nais.yaml` inneholder bare applikasjonsnavn, namespace, port og health checks; ingen Kafka- eller tilgangskonfigurasjon.
+- **Dokumentasjon og instruksjoner:** `README.md` beskriver tjenesten som en liten demo-Ktor-tjeneste og sier at dokumentasjonen ikke er komplett. Jeg fant ingen `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `.github/agents/golden-nav-pilot.agent.md` sier at nye personopplysningsfelt krever avklaring når repoet ikke svarer på personvernspørsmålene (linje 166–174).
+
+## Uavklarte spørsmål før eventuell implementasjon
+
+Repoet svarer ikke på om formålet med å dele fnr på `soknad-mottatt` er dokumentert eller godkjent. Det avklarer heller ikke hvilke eksisterende konsumenter som får tilgang til topicet, om de har tjenstlig behov for fnr, eller hvor lenge meldinger lagres.
+
+**Er behandling og deling av fnr på `soknad-mottatt` godkjent for det konkrete formålet og for alle eksisterende konsumenter av topicet?** Hvis ja, må formål, konsumenter/tilgang og retention avklares eller vises til før endringen vurderes. Hvis nei eller ukjent, bør fnr ikke legges til meldingen ennå.
+
+**Sikkerhet i funnene:** Høy for innholdet i dette repoet; repoet er svært lite, og de relevante filene viser ingen slik dokumentasjon. Dette sier ikke om godkjenning eller dokumentasjon finnes utenfor repoet.● Research-agent (model: gpt-6-luna) Kartlegg melding og personvern                              45s
+  │ ## Kort oppsummering
+  │ Search (grep)
+  │   │ "fnr|SoknadMottatt|soknad-mottatt|sendMottatt|sendSoker|Kafka|konsument|retention|formål|for
+  │   maal
+  │   │ |personvern"
+  │   └ 34 lines found
+  └ Read golden-nav-pilot.agent.md
+      │ .github/agents/golden-nav-pilot.agent.md
+      └ L150:182 (33 lines read)
+
+**Jeg har ikke endret koden.** Fnr finnes i `SokerDto`, men repoet dokumenterer ikke formålet med å dele det på `soknad-mottatt` eller hvem som konsumerer meldingene.
+
+1. Hva skal konsumentene bruke fnr til, og er delingen avklart for alle som kan lese topicet?
+2. Hvor skal fnr for den aktuelle søknaden hentes fra? Repoet viser ingen kobling mellom `SokerDto` og `SoknadMottattMelding`.
+
+Dette er full fase 1 fordi endringen deler en ny personopplysning. Repoet mangler lokal Copilot-konfigurasjon; den kan opprettes med `nav-pilot init`. Fasebudsjett: intervju 1 000, plan 1 500, review 1 000 og levering 2 000 tokens. Øvrige blindsoner tas etter at formål og datakilde er avklart.
+
+Blindsoner reist: 2/11 (#1 personvern og #6 berørte konsumenter; #2 endres ikke, øvrige avventer avklaringen).
+
