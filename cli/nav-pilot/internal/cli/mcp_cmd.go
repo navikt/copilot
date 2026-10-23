@@ -743,45 +743,45 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 	}
 	mcpNoteStale(stale)
 	failed := 0
+	// Partition first: cplt runs a brokered server, the client config holds
+	// every other. A name that resolves to neither fails here.
+	var brokered, managed []providerpkg.MCPServerEntry
+	for _, name := range names {
+		e, err := mcpResolve(entries, name)
+		switch {
+		case err != nil:
+		case !e.Usable():
+			err = fmt.Errorf("%s is %s in the registry (%s), so nav-pilot will not enable it", e.Name, safe(e.Status, 32), registry)
+		case e.Meta.Broker != nil:
+			brokered = append(brokered, e)
+			continue
+		case len(e.Remotes) == 0 && len(e.Packages) == 0:
+			// Only cplt can run such a server (a host CLI), and this registry
+			// answer has no broker extension for it yet.
+			err = fmt.Errorf("the registry does not offer %s through cplt yet, so nothing was written. Fix: nav-pilot update, or wait until the registry is deployed and run nav-pilot mcp enable %s again", e.Name, e.Name)
+		case jsonOut:
+			err = fmt.Errorf("--json is only for servers cplt runs on the host. Fix: nav-pilot mcp enable %s", e.Name)
+		default:
+			managed = append(managed, e)
+			continue
+		}
+		mcpFail(name, err)
+		failed++
+	}
 	var clients []string
-	// Every pick comes before any write, so Esc in a later picker leaves
-	// the whole command undone, not half of it.
+	if len(managed) > 0 {
+		if clients, err = clientsOf(); err != nil {
+			return err
+		}
+	}
+	// Every pick comes before any write, brokered servers included, so Esc
+	// in a later picker leaves the whole command undone, not half of it.
 	type pick struct {
 		e      providerpkg.MCPServerEntry
 		choice providerpkg.MCPToolChoice
 	}
 	var picks []pick
-	var brokered []providerpkg.MCPServerEntry
-	for _, name := range names {
-		e, err := mcpResolve(entries, name)
-		if err == nil && !e.Usable() {
-			err = fmt.Errorf("%s is %s in the registry (%s), so nav-pilot will not enable it", e.Name, safe(e.Status, 32), registry)
-		}
-		if err == nil && e.Meta.Broker != nil {
-			// cplt runs it on the host and adds the client entries at launch.
-			// Written after every picker, so a cancel leaves it unwritten too.
-			brokered = append(brokered, e)
-			continue
-		}
-		if err == nil && len(e.Remotes) == 0 && len(e.Packages) == 0 {
-			// Only cplt can run such a server (a host CLI), and this registry
-			// answer has no broker extension for it yet.
-			err = fmt.Errorf("the registry does not offer %s through cplt yet, so nothing was written. Fix: nav-pilot update, or wait until the registry is deployed and run nav-pilot mcp enable %s again", e.Name, e.Name)
-		}
-		if err == nil && jsonOut {
-			err = fmt.Errorf("--json is only for servers cplt runs on the host. Fix: nav-pilot mcp enable %s", e.Name)
-		}
-		if err == nil && clients == nil {
-			clients, err = clientsOf()
-			if err != nil {
-				return err
-			}
-		}
-		if err != nil {
-			mcpFail(name, err)
-			failed++
-			continue
-		}
+	for _, e := range managed {
 		// No picker when every client already has the server: without a
 		// flag its entry is kept, so a pick would be thrown away.
 		o := topts
@@ -797,12 +797,7 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 		}
 		picks = append(picks, pick{e, choice})
 	}
-	for _, e := range brokered {
-		if err := mcpEnableBroker(e, topts, jsonOut); err != nil {
-			mcpFail(e.Name, err)
-			failed++
-		}
-	}
+	failed += enableBrokeredServers(brokered, topts, jsonOut)
 	var enabled []providerpkg.MCPServerEntry
 	for _, p := range picks {
 		e, choice := p.e, p.choice

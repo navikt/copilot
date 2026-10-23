@@ -547,3 +547,15 @@ func mcpBrokerRow(row *mcpServerRow, e providerpkg.MCPServerEntry, cpltPath stri
 	}
 	return out
 }
+
+// enableBrokeredServers writes each server's spec and checks its login, after
+// every picker of the command; it returns how many failed.
+func enableBrokeredServers(servers []providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) (failed int) {
+	for _, e := range servers {
+		if err := mcpEnableBroker(e, o, jsonOut); err != nil {
+			mcpFail(e.Name, err)
+			failed++
+		}
+	}
+	return failed
+}
