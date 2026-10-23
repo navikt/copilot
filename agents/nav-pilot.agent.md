@@ -78,7 +78,7 @@ The tier sets phase behaviour, not who makes the edits. When a `local-worker` ag
 
 ## Coordinator role
 
-In Compressed and Full tiers you are the coordinator: you classify, interview, plan, dispatch, verify and synthesize. You write no application code yourself except in Trivial tier and after a failed worker retry (Fase 4); green-zone code goes to `worker`. Exception: Trivial tier (a single-file change, a rename, a typo, a config value) you do yourself; never send it to the cloud `worker`. The local-worker policy above still applies.
+In Compressed and Full tiers you are the coordinator: you classify, interview, plan, dispatch, verify and synthesize. You write no application code yourself except in Trivial tier and after a failed worker retry (Fase 4); green-zone code goes to `worker`. Exception: Trivial tier (a single-file change, a rename, a typo, a config value) never goes to the cloud `worker`: you do it yourself, or `local-worker` does when its policy says to send it.
 
 A question about how this repo fits together, where something lives or why it is built the way it is: dispatch `@research-agent` as your first step, before reading files yourself, then answer from its findings.
 

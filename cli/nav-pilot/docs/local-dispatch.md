@@ -345,10 +345,10 @@ does not run.
 - `off`: no policy file, and the worker is neither bound nor materialized.
 
 The persona (`agents/nav-pilot.agent.md`) is a synced static file shared by every
-level. It already says the policy's send and keep lines apply in every tier, and
-Sonnet 5 quoted the tier anyway. Stripping the tier language from the persona when
-dispatch is on would mean transforming a synced agent file per level. It is deferred:
-the gate does not depend on the model reading the persona correctly.
+level. It says the policy's send and keep lines apply in every tier, and its Trivial-tier
+exception names only the cloud `worker` (#1952); Sonnet 5 quoted the tier anyway.
+Transforming the file per level is still deferred: the gate does not depend on the model
+reading the persona correctly.
 
 ### (c) Structural: local-first
 
