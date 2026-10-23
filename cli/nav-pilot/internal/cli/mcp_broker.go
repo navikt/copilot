@@ -113,6 +113,21 @@ func mcpBrokerSpecPath(id string) (string, error) {
 	return filepath.Join(dir, strings.ReplaceAll(id, "/", "__")+".json"), nil
 }
 
+// mcpBrokerSafePath is the spec path for a write or a remove: refused when
+// it, or any directory between it and the config base, is a symlink, so
+// neither lands in a directory the link points at.
+func mcpBrokerSafePath(id string) (string, error) {
+	path, err := mcpBrokerSpecPath(id)
+	if err != nil {
+		return "", err
+	}
+	base := filepath.Dir(filepath.Dir(filepath.Dir(path))) // the config base
+	if err := checkSymlink(path, base); err != nil {
+		return "", fmt.Errorf("%w, so nav-pilot did not touch it. Fix: replace the link under %s with a directory", err, base)
+	}
+	return path, nil
+}
+
 // mcpBrokerEnabled is whether a spec file for e is there.
 func mcpBrokerEnabled(id string) bool {
 	p, err := mcpBrokerSpecPath(id)
@@ -187,8 +202,9 @@ func mcpBrokerSpec(e providerpkg.MCPServerEntry, m mcpMechanism, allow []string,
 // empty, when a cplt that has the command did not answer: it refuses to run
 // in ~ as a launch does, timed out, or printed something else.
 type mcpCpltStatusDoc struct {
-	Schema  []int `json:"schema"`
-	Servers []struct {
+	Schema            []int `json:"schema"`
+	PlatformSupported *bool `json:"platform_supported"`
+	Servers           []struct {
 		ID           string `json:"id"`
 		State        string `json:"state"`
 		CredentialOK *bool  `json:"credential_ok"`
@@ -333,33 +349,46 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 	if st.Failed == "" && !slices.Contains(st.Schema, mcpBrokerVersion) {
 		return fmt.Errorf("cplt reads broker spec v%v, not v%d, so nothing was written. Fix: %s && nav-pilot mcp enable %s", st.Schema, mcpBrokerVersion, mcpCpltUpgrade, e.Name)
 	}
-	path, err := mcpBrokerSpecPath(e.Name)
+	data, err := mcpBrokerSpec(e, m, allow, write)
 	if err != nil {
 		return err
 	}
-	data, err := mcpBrokerSpec(e, m, allow, write)
+	path, err := mcpBrokerSafePath(e.Name)
 	if err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("could not create %s: %w", filepath.Dir(path), err)
 	}
+	if path, err = mcpBrokerSafePath(e.Name); err != nil { // MkdirAll follows links
+		return err
+	}
 	// Through a temp file and a rename, so cplt never reads half a spec.
 	if err := writeFileAtomic(path, append(data, '\n'), 0o600); err != nil {
 		return fmt.Errorf("could not write %s: %w", path, err)
 	}
-	res := mcpBrokerResult{Server: e.Name, Spec: path, Tools: allow, Path: mcpBrokerPath(cpltPath, st)}
+	// What cplt makes of the spec now it is there: brokered, off, rejected,
+	// or a platform it does not broker on.
+	if after := mcpCpltStatus(cpltPath); after != nil {
+		st = after
+	}
+	where, _, probs := mcpBrokerState(cpltPath, st, e.Name)
+	res := mcpBrokerResult{Server: e.Name, Spec: path, Tools: allow, Path: where}
 	if !jsonOut {
 		kind := "read-only"
 		if write {
 			kind = "including writes you picked"
 		}
-		fmt.Printf("%s Enabled %s: %d tools, %s. cplt runs it on the host. %s\n", green("✓"), bold(e.Name), len(allow), kind, dim("("+path+")"))
+		runs := "cplt runs it on the host."
+		if where != "cplt broker" {
+			runs = "cplt does not run it yet:"
+		}
+		fmt.Printf("%s Enabled %s: %d tools, %s. %s %s\n", green("✓"), bold(e.Name), len(allow), kind, runs, dim("("+path+")"))
 	}
-	if st.Failed != "" {
-		res.Fix = append(res.Fix, mcpStatusFailedFix)
+	for _, p := range probs {
+		res.Fix = append(res.Fix, p.Fix)
 		if !jsonOut {
-			fmt.Fprintf(os.Stderr, "%s cplt mcp status did not answer here (%s), so the spec was written unchecked. Fix: %s\n", yellow("⚠"), st.Failed, bold(mcpStatusFailedFix))
+			fmt.Fprintf(os.Stderr, "%s %s. Fix: %s\n", yellow("⚠"), p.Problem, bold(p.Fix))
 		}
 	}
 	if old := mcpOldServer(m); old != "" {
@@ -404,20 +433,56 @@ func mcpBrokerDone(res mcpBrokerResult, jsonOut bool) error {
 	return nil
 }
 
-// mcpBrokerPath is the PATH column for a brokered server.
-func mcpBrokerPath(cpltPath string, st *mcpCpltStatusDoc) string {
-	if cpltPath == "" {
-		return "not configured (no cplt)"
+// mcpBrokerState is what cplt says about server id: the PATH column, its
+// credential probe, and the problems with their fixes.
+func mcpBrokerState(cpltPath string, st *mcpCpltStatusDoc, id string) (path string, credOK *bool, out []mcpProblem) {
+	switch {
+	case cpltPath == "":
+		return "not configured (no cplt)", nil, []mcpProblem{{Server: id, Problem: "it runs only under cplt, which is not installed", Fix: mcpCpltInstall}}
+	case st == nil:
+		return "-", nil, []mcpProblem{{Server: id, Problem: "this cplt cannot run MCP servers on the host, so it leaves them as configured", Fix: mcpCpltUpgrade}}
+	case st.Failed != "":
+		return "-", nil, []mcpProblem{{Server: id, Problem: "cplt mcp status did not answer here (" + st.Failed + ")", Fix: mcpStatusFailedFix}}
+	case st.PlatformSupported != nil && !*st.PlatformSupported:
+		return "cplt (macOS only)", nil, []mcpProblem{{Server: id, Problem: "cplt's MCP broker runs on macOS only for now, so here the server is left as configured", Fix: "use it on macOS; Linux support is tracked in navikt/cplt#825"}}
 	}
-	if st == nil || st.Failed != "" {
-		return "-"
+	path = "cplt broker"
+	file := strings.ReplaceAll(id, "/", "__") + ".json"
+	for _, r := range st.Rejected {
+		if filepath.Base(r.File) == file {
+			path = "rejected"
+			fix := r.Fix
+			if fix == "" {
+				fix = "nav-pilot mcp enable " + id
+			}
+			out = append(out, mcpProblem{Server: id, Problem: "cplt rejected its spec: " + safe(r.Reason, 200), Fix: safe(fix, 200)})
+		}
 	}
-	return "cplt broker"
+	found := path == "rejected"
+	for _, s := range st.Servers {
+		if s.ID != id {
+			continue
+		}
+		found, credOK = true, s.CredentialOK
+		if s.State == "off" {
+			path = "cplt off"
+			out = append(out, mcpProblem{Server: id, Problem: "cplt's MCP broker is off", Fix: "cplt config set sandbox.mcp_broker true"})
+		} else if s.State != "brokered" {
+			path = "cplt " + safe(s.State, 16)
+		}
+	}
+	if !found {
+		path = "-"
+	}
+	return path, credOK, out
 }
 
 // mcpDisableBroker removes e's spec; false when there was none.
 func mcpDisableBroker(id string) (bool, error) {
-	path, err := mcpBrokerSpecPath(id)
+	if !mcpBrokerEnabled(id) {
+		return false, nil
+	}
+	path, err := mcpBrokerSafePath(id)
 	if err != nil {
 		return false, err
 	}
@@ -439,40 +504,13 @@ func mcpBrokerRow(row *mcpServerRow, e providerpkg.MCPServerEntry, cpltPath stri
 		row.Path = "-"
 		return []mcpProblem{{Server: e.Name, Problem: strings.SplitN(err.Error(), ". Fix: ", 2)[0], Fix: "nav-pilot update"}}
 	}
-	row.Path = mcpBrokerPath(cpltPath, st)
-	var out []mcpProblem
-	var credOK *bool
-	switch {
-	case cpltPath == "":
-		out = append(out, mcpProblem{Server: e.Name, Problem: "it runs only under cplt, which is not installed", Fix: mcpCpltInstall})
-	case st == nil:
-		out = append(out, mcpProblem{Server: e.Name, Problem: "this cplt cannot run MCP servers on the host, so it leaves them as configured", Fix: mcpCpltUpgrade})
-	case st.Failed != "":
-		out = append(out, mcpProblem{Server: e.Name, Problem: "cplt mcp status did not answer here (" + st.Failed + ")", Fix: mcpStatusFailedFix})
-	default:
-		file := strings.ReplaceAll(e.Name, "/", "__") + ".json"
-		for _, r := range st.Rejected {
-			if filepath.Base(r.File) == file {
-				row.Path = "rejected"
-				fix := r.Fix
-				if fix == "" {
-					fix = "nav-pilot mcp enable " + e.Name
-				}
-				out = append(out, mcpProblem{Server: e.Name, Problem: "cplt rejected its spec: " + safe(r.Reason, 200), Fix: safe(fix, 200)})
-			}
-		}
-		for _, s := range st.Servers {
-			if s.ID != e.Name {
-				continue
-			}
-			credOK = s.CredentialOK
-			if s.State == "off" {
-				row.Path = "cplt off"
-				out = append(out, mcpProblem{Server: e.Name, Problem: "cplt's MCP broker is off (it runs on macOS only for now)", Fix: "cplt config set sandbox.mcp_broker true"})
-			} else if s.State != "brokered" {
-				row.Path = "cplt " + safe(s.State, 16)
-			}
-		}
+	path, credOK, out := mcpBrokerState(cpltPath, st, e.Name)
+	row.Path = path
+	if !mcpBrokerEnabled(e.Name) {
+		// A client entry the user wrote by hand, with no spec: it runs as
+		// written, without cplt's tool and GraphQL checks.
+		row.Path, credOK = "direct (outside the broker)", nil
+		out = []mcpProblem{{Server: e.Name, Problem: "configured in your client but not through cplt's broker, so nothing keeps it read-only", Fix: "nav-pilot mcp enable " + e.Name}}
 	}
 	if old := mcpOldServer(m); old != "" {
 		out = append(out, mcpProblem{Server: e.Name, Problem: old, Fix: m.upgrade})

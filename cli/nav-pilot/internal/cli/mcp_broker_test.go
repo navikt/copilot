@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/huh"
 
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -68,7 +71,8 @@ func brokerEnv(t *testing.T, cpltStatus string) brokerFakes {
 	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
 		return "https://registry.test", append(mcpTestEntries(), naisTestEntry()), nil, nil
 	}
-	mcpClientInstalled = func(string) bool { t.Error("a brokered server needs no client"); return false }
+	// No client installed: a brokered server needs none to enable or disable.
+	mcpClientInstalled = func(string) bool { return false }
 	return f
 }
 
@@ -428,5 +432,115 @@ func TestMCPEnableNoBrokerMeta(t *testing.T) {
 		if _, err := os.Stat(f.spec); !os.IsNotExist(err) {
 			t.Errorf("%v: spec written", args)
 		}
+	}
+}
+
+// A symlinked cplt config dir is refused for the write and the remove, and
+// nothing lands where it points.
+func TestMCPBrokerRefusesSymlinkedDir(t *testing.T) {
+	f := brokerEnv(t, brokerStatusOK)
+	elsewhere := t.TempDir()
+	xdg := filepath.Join(os.Getenv("HOME"), "xdg")
+	if err := os.MkdirAll(xdg, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(elsewhere, filepath.Join(xdg, "cplt")); err != nil {
+		t.Fatal(err)
+	}
+	var err error
+	errOut := captureStderr(func() {
+		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
+	})
+	if err == nil || !strings.Contains(errOut, "symlink") || !strings.Contains(errOut, "Fix:") {
+		t.Errorf("enable through a link: %v\n%s", err, errOut)
+	}
+	if ents, _ := os.ReadDir(elsewhere); len(ents) != 0 {
+		t.Errorf("wrote through the link: %v", ents)
+	}
+	target := filepath.Join(elsewhere, "mcp", filepath.Base(f.spec))
+	writeTestFile(t, target, `{}`)
+	captureStderr(func() {
+		captureStdout(func() { err = cmdMCP([]string{"disable", "nais-mcp"}) })
+	})
+	if _, statErr := os.Stat(target); err == nil || statErr != nil {
+		t.Errorf("disable through a link: err %v, file %v", err, statErr)
+	}
+}
+
+// enable reports what cplt makes of the spec after it is written, not
+// before: a platform without the broker, or the broker off.
+func TestMCPEnableBrokerReportsCpltState(t *testing.T) {
+	for _, c := range []struct{ status, path, want string }{
+		{`{"schema":[1],"platform_supported":false,"servers":[{"id":"io.github.nais/nais-mcp","state":"off"}]}`, "cplt (macOS only)", "macOS only"},
+		{`{"schema":[1],"platform_supported":true,"servers":[{"id":"io.github.nais/nais-mcp","state":"off"}]}`, "cplt off", "Fix: cplt config set sandbox.mcp_broker true"},
+		{`{"schema":[1],"platform_supported":true,"servers":[],"rejected":[{"file":"/x/io.github.nais__nais-mcp.json","reason":"bad","fix":"nav-pilot mcp enable io.github.nais/nais-mcp"}]}`, "rejected", "cplt rejected its spec: bad"},
+	} {
+		brokerEnv(t, c.status)
+		var out string
+		errOut := captureStderr(func() {
+			out = captureStdout(func() {
+				if err := cmdMCP([]string{"enable", "nais-mcp"}); err != nil {
+					t.Fatal(err)
+				}
+			})
+		})
+		if strings.Contains(out, "cplt runs it on the host") || !strings.Contains(errOut, c.want) {
+			t.Errorf("%s: stdout:\n%s\nstderr:\n%s", c.path, out, errOut)
+		}
+		jsonOut := captureStdout(func() { _ = cmdMCP([]string{"enable", "nais-mcp", "--json"}) })
+		var res mcpBrokerResult
+		if json.Unmarshal([]byte(jsonOut), &res) != nil || res.Path != c.path {
+			t.Errorf("%s: json %s", c.path, jsonOut)
+		}
+	}
+}
+
+// A Nais entry written by hand in a client, with no spec: list shows LOGIN
+// and PATH and says how to put it under the broker; disable removes both
+// the spec and that entry.
+func TestMCPBrokerManualClientEntry(t *testing.T) {
+	f := brokerEnv(t, brokerStatusOK)
+	manual := `{"mcpServers":{"io.github.nais/nais-mcp":{"type":"local","command":"nais","args":["alpha","mcp","serve"],"tools":["*"]}}}`
+	writeTestFile(t, copilotMCPPath(), manual)
+	out := captureStdout(func() {
+		if err := cmdMCP([]string{"list"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "direct (outside the broker)") || !strings.Contains(out, "nais: logged out") || !strings.Contains(out, "Fix: nav-pilot mcp enable io.github.nais/nais-mcp") {
+		t.Errorf("list:\n%s", out)
+	}
+	captureStdout(func() { _ = cmdMCP([]string{"enable", "nais-mcp"}) })
+	readBrokerSpec(t, f.spec)
+	captureStdout(func() {
+		if err := cmdMCP([]string{"disable", "nais-mcp", "--client", "copilot"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if _, err := os.Stat(f.spec); !os.IsNotExist(err) {
+		t.Error("spec left")
+	}
+	if data, _ := os.ReadFile(copilotMCPPath()); strings.Contains(string(data), "nais-mcp") {
+		t.Errorf("manual entry left: %s", data)
+	}
+}
+
+// A cancel in a later picker leaves the brokered server unwritten too.
+func TestMCPEnableBrokerPickerCancelWritesNothing(t *testing.T) {
+	f := brokerEnv(t, brokerStatusOK)
+	isInteractive = func() bool { return true }
+	prevPick := mcpPickTools
+	t.Cleanup(func() { mcpPickTools = prevPick })
+	mcpPickTools = func(providerpkg.MCPServerEntry) ([]string, error) { return nil, huh.ErrUserAborted }
+	var err error
+	captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp", "intellij", "--client", "copilot"}) })
+	if !errors.As(err, new(cancelledError)) {
+		t.Fatalf("err = %v, want a cancel", err)
+	}
+	if _, statErr := os.Stat(f.spec); !os.IsNotExist(statErr) {
+		t.Error("a cancelled picker left the Nais spec written")
+	}
+	if _, statErr := os.Stat(filepath.Join(f.dir, "token")); statErr == nil {
+		t.Error("a cancelled picker ran the login")
 	}
 }

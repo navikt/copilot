@@ -306,7 +306,7 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			continue
 		}
 		row := mcpServerRow{Name: e.Name, Description: e.Description, Status: e.Status, Copilot: conf.Copilot[e.Name], OpenCode: conf.OpenCode[e.Name]}
-		if e.Meta.Broker != nil && mcpBrokerEnabled(e.Name) {
+		if e.Meta.Broker != nil && (mcpBrokerEnabled(e.Name) || row.Copilot || row.OpenCode) {
 			if !brokerAsked {
 				brokerSt, brokerAsked = mcpCpltStatus(cpltPath), true
 			}
@@ -751,6 +751,7 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 		choice providerpkg.MCPToolChoice
 	}
 	var picks []pick
+	var brokered []providerpkg.MCPServerEntry
 	for _, name := range names {
 		e, err := mcpResolve(entries, name)
 		if err == nil && !e.Usable() {
@@ -758,10 +759,8 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 		}
 		if err == nil && e.Meta.Broker != nil {
 			// cplt runs it on the host and adds the client entries at launch.
-			if err := mcpEnableBroker(e, topts, jsonOut); err != nil {
-				mcpFail(e.Name, err)
-				failed++
-			}
+			// Written after every picker, so a cancel leaves it unwritten too.
+			brokered = append(brokered, e)
 			continue
 		}
 		if err == nil && len(e.Remotes) == 0 && len(e.Packages) == 0 {
@@ -797,6 +796,12 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 			continue
 		}
 		picks = append(picks, pick{e, choice})
+	}
+	for _, e := range brokered {
+		if err := mcpEnableBroker(e, topts, jsonOut); err != nil {
+			mcpFail(e.Name, err)
+			failed++
+		}
 	}
 	var enabled []providerpkg.MCPServerEntry
 	for _, p := range picks {
@@ -963,7 +968,8 @@ func cmdMCPDisable(names []string, clientsOf func() ([]string, error)) error {
 	fetched := false
 	failed, removed := 0, 0
 	for _, name := range names {
-		// A brokered server is only its cplt spec.
+		// A brokered server is its cplt spec, plus any client entry the user
+		// wrote by hand: cplt overrides that only while a spec is there.
 		id := name
 		if !strings.Contains(id, "/") && !mcpBrokerEnabled(id) {
 			if !fetched {
@@ -975,20 +981,22 @@ func cmdMCPDisable(names []string, clientsOf func() ([]string, error)) error {
 				id = e.Name
 			}
 		}
-		if gone, err := mcpDisableBroker(id); err != nil {
-			mcpFail(name, err)
-			failed++
-			continue
-		} else if gone {
-			continue
-		}
-		clients, err := clientsOf()
+		gone, err := mcpDisableBroker(id)
 		if err != nil {
 			mcpFail(name, err)
 			failed++
 			continue
 		}
-		found := false
+		clients, err := clientsOf()
+		if err != nil && gone {
+			continue
+		}
+		if err != nil {
+			mcpFail(name, err)
+			failed++
+			continue
+		}
+		found := gone
 		for _, client := range clients {
 			keys := providerpkg.MCPConfigKeys(client)
 			key := name
