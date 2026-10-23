@@ -429,11 +429,13 @@ AGENT_NAME="$(awk '/^---$/ {n++; next} n==1 && /^name:[[:space:]]*/ {sub(/^name:
   "--compare: no baseline file at $COMPARE_TO" \
   "Record one first: ./scripts/nav-pilot-golden.sh --repeat 5 --save-baseline $COMPARE_TO"
 
-# --client opencode: configuration-isolated OpenCode runs. Config comes from a scratch
+# --client opencode: isolated OpenCode runs. Config comes from a scratch
 # XDG_CONFIG_HOME (persona, skills and always-on instructions written there the
 # way `nav-pilot` syncs them globally), and OPENCODE_DISABLE_CLAUDE_CODE keeps
-# ~/.claude out. Auth stays in OpenCode's data dir, which is not redirected.
-# Real XDG data, cache and state remain writable, including session history.
+# ~/.claude out. Data, cache and state are scratch dirs too (oc_isolate): v2
+# runs every call through a background service it finds by the registration in
+# XDG_STATE_HOME, and the user's own state dir hands it the host's service,
+# which runs with the host's config and data (#1917).
 # This is not full filesystem isolation.
 # OpenCode picks its own session ids; run_prompt finds them by title (test 4).
 # Not like-for-like with the Copilot path: every skill in skills/ is installed
@@ -451,19 +453,75 @@ case "$CLIENT" in
     command -v go >/dev/null 2>&1 || fail_preflight "--client opencode needs go" \
       "The persona is converted with nav-pilot's own OpenCode transform (go run)."
     # Everything OpenCode reads config from is redirected: OPENCODE_CONFIG,
-    # OPENCODE_CONFIG_CONTENT and OPENCODE_CONFIG_DIR are cleared, and HOME
-    # points at a scratch dir so ~/.opencode and ~/.claude are not read. The
-    # data, cache and state dirs stay the user's own, explicitly, because the
-    # login lives in the data dir.
-    OC_BASE_ENV=(-u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT -u OPENCODE_CONFIG_DIR
-      "XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}"
-      "XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}"
-      "XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}"
-      OPENCODE_DISABLE_CLAUDE_CODE=1 NO_COLOR=1)
+    # OPENCODE_CONFIG_CONTENT, OPENCODE_CONFIG_DIR and OPENCODE_DB are cleared,
+    # and oc_isolate points HOME and the XDG dirs at scratch dirs.
+    OC_BASE_ENV=(-u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT -u OPENCODE_CONFIG_DIR -u OPENCODE_DB
+      OPENCODE_DISABLE_CLAUDE_CODE=1 OPENCODE_DISABLE_AUTOUPDATE=1 NO_COLOR=1)
+    # The login is read from here (read-only) and copied into each run's store.
+    OC_HOST_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/opencode"
     ;;
   *) fail_preflight "--client takes copilot or opencode, got '$CLIENT'" "" ;;
 esac
 OC_ENV=()
+OC_ROOT=""
+OC_CFG_HOME=""
+OC_V2=false
+
+# oc_isolate <root> <config-home>: point OC_ENV at a private OpenCode under
+# <root>, the way cplt does for nav-pilot sessions (navikt/cplt#716): own XDG
+# data, state and cache, and a service.json in the config dir with a free
+# loopback port. A v2 client then finds no host service and starts its own
+# `serve --service` on that port, registered under <root>/state. A first
+# `session list` makes the schema (and starts that service); then the host's
+# logins are copied in: v2 keeps them in opencode.db, v1 in auth.json.
+oc_isolate() {
+  local root="$1" port
+  OC_ROOT="$1" OC_CFG_HOME="$2"
+  mkdir -p "$root/data/opencode" "$root/state" "$root/cache" "$root/home" "$OC_CFG_HOME/opencode"
+  port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
+  # ponytail: bind-and-release; another process can take the port first (rare, as in cplt).
+  ( umask 077; printf '{"port":%s,"password":"%s"}\n' "$port" "$(openssl rand -hex 16)" >"$OC_CFG_HOME/opencode/service.json" )
+  OC_ENV=("${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$OC_CFG_HOME" "XDG_DATA_HOME=$root/data"
+    "XDG_STATE_HOME=$root/state" "XDG_CACHE_HOME=$root/cache" "HOME=$root/home")
+  [[ -f "$OC_HOST_DATA/auth.json" ]] && cp -p "$OC_HOST_DATA/auth.json" "$root/data/opencode/"
+  $OC_V2 || return 0
+  (cd "$root/home" && env "${OC_ENV[@]}" "$CLI_PATH" session list >/dev/null 2>&1)
+  [[ -f "$OC_HOST_DATA/opencode.db" && -f "$root/data/opencode/opencode.db" ]] || return 0
+  sqlite3 "$root/data/opencode/opencode.db" \
+    "ATTACH 'file:$OC_HOST_DATA/opencode.db?mode=ro' AS host; INSERT INTO credential SELECT * FROM host.credential;" \
+    || fail_preflight "could not copy the OpenCode login into the run's store" \
+      "Check: sqlite3 -readonly 'file:$OC_HOST_DATA/opencode.db?mode=ro' .tables"
+}
+
+# oc_stop <root>: removing the registration makes the run's service exit (it
+# checks every few seconds); one still running after 6 s is killed.
+oc_stop() {
+  local reg="$1/state/opencode/service.json" pid
+  [[ -f "$reg" ]] || return 0
+  pid="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("pid", ""))' "$reg" 2>/dev/null)"
+  rm -f "$reg"
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 0
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do kill -0 "$pid" 2>/dev/null || return 0; sleep 0.5; done
+  kill "$pid" 2>/dev/null
+}
+
+# oc_check_isolated [title]: did the last call run on this run's own service,
+# and did its session land in this run's store? On a host service the
+# registration under $OC_ROOT is missing or names another port, and the
+# session is in the host's opencode.db, not ours (#1917). Prints why on failure.
+oc_check_isolated() {
+  $OC_V2 || return 0
+  local want got
+  want="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["port"])' "$OC_CFG_HOME/opencode/service.json" 2>/dev/null)"
+  got="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"].rstrip("/").rsplit(":", 1)[1])' \
+    "$OC_ROOT/state/opencode/service.json" 2>/dev/null)"
+  [[ -n "$want" && "$want" == "$got" ]] \
+    || { echo "opencode did not use this run's service: none registered on port ${want:-?} under $OC_ROOT/state"; return 1; }
+  [[ -z "${1:-}" ]] && return 0
+  [[ "$(sqlite3 -readonly "file:$OC_ROOT/data/opencode/opencode.db?mode=ro" \
+    "SELECT count(*) FROM session_v2 WHERE title = '$1'" 2>/dev/null)" -ge 1 ]] \
+    || { echo "opencode session $1 is not in this run's store ($OC_ROOT/data)"; return 1; }
+}
 
 CLI_PATH=""
 CLI_NAME="(dry run, no client)"
@@ -479,14 +537,17 @@ preflight_client() {
     CLI_NAME="opencode"
     [[ -n "$CLI_PATH" ]] || fail_preflight "opencode not found on PATH" "brew install opencode"
     CLI_VERSION="opencode $("$CLI_PATH" --version 2>&1 | head -1)"
-    local oc_probe_cfg oc_probe_out
-    oc_probe_cfg="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
-    local oc_probe_rc
-    mkdir -p "$oc_probe_cfg/home"
-    oc_probe_out="$(env "${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$oc_probe_cfg" "HOME=$oc_probe_cfg/home" \
+    [[ "$(grep -oE '[0-9]+' <<<"$CLI_VERSION" | head -1)" -ge 2 ]] && OC_V2=true
+    local oc_probe_dir oc_probe_out oc_probe_rc
+    oc_probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
+    oc_isolate "$oc_probe_dir" "$oc_probe_dir/config"
+    oc_probe_out="$(cd "$oc_probe_dir/home" && env "${OC_ENV[@]}" \
       "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)"
     oc_probe_rc=$?
-    rm -rf "$oc_probe_cfg"
+    [[ $oc_probe_rc -eq 0 ]] && ! oc_probe_out="$(oc_check_isolated)" && oc_probe_rc=1
+    oc_stop "$oc_probe_dir"
+    rm -rf "$oc_probe_dir"
+    OC_ROOT=""
     [[ $oc_probe_rc -eq 0 ]] \
       || fail_preflight "opencode probe prompt failed for $OC_MODEL" "$(head -c 300 <<<"$oc_probe_out")"
     return 0
@@ -665,7 +726,7 @@ reap_daemons() {
     fi
   done
 }
-trap 'reap_daemons; cleanup' EXIT
+trap 'reap_daemons; [[ -z "$OC_ROOT" ]] || oc_stop "$OC_ROOT"; cleanup' EXIT
 
 mkdir -p "$TEMPLATE/.github/agents" "$TEMPLATE/src/main/kotlin/no/nav/demo"
 # The installed copy differs from the working-tree file in two frontmatter
@@ -760,7 +821,7 @@ fi
 
 if [[ "$CLIENT" == opencode ]]; then
   OC_CFG="$WORKDIR/opencode-config/opencode"
-  mkdir -p "$OC_CFG/agents" "$OC_CFG/skills" "$WORKDIR/opencode-home"
+  mkdir -p "$OC_CFG/agents" "$OC_CFG/skills"
   # nav-pilot's own transform (export.go), so the tools allowlist becomes the
   # same OpenCode permission denies a real install gets. The model line is
   # dropped: --model is required here and must not lose to a frontmatter pin.
@@ -776,7 +837,7 @@ if [[ "$CLIENT" == opencode ]]; then
       [[ -f "$instr" ]] && always_on "$instr" && awk '/^---$/ && n < 2 {n++; next} n != 1' "$instr"
     done >"$OC_CFG/AGENTS.md"
   fi
-  OC_ENV=("${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$WORKDIR/opencode-config" "HOME=$WORKDIR/opencode-home")
+  $DRY_RUN || oc_isolate "$WORKDIR/opencode" "$WORKDIR/opencode-config"
 fi
 
 # One string, used both in the --save-baseline header and in the --compare
@@ -1613,6 +1674,10 @@ run_prompt() {
   ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${OC_ENV[@]+"${OC_ENV[@]}"} ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
   ended_ms="$(now_ms)"
+  if [[ "$CLIENT" == opencode ]] && ! LAST_PROMPT_DETAIL="$(oc_check_isolated "$session")"; then
+    LAST_PROMPT_FAILURE="cli_failure"
+    return 1
+  fi
   elapsed_ms=$((ended_ms - started_ms))
   if $USAGE_ESTIMATED && $USAGE_TRACKING; then
     # Only messages created after started_ms: turn two exports turn one again.

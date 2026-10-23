@@ -1430,6 +1430,16 @@ if [[ "\$1" == session ]]; then
   printf '[{"id":"ses_annen","title":"x"},{"id":"ses_stub","title":"%s"}]\n' "\$t"; exit 0
 fi
 printf '%s\n' "\$*" >>"$SHIM/calls"
+# A v2 client registers its service in XDG_STATE_HOME and stores sessions in
+# XDG_DATA_HOME. HOST_SERVICE=1 plays a client that attached to the host's
+# service instead: nothing lands in the run's dirs (#1917).
+if [[ "\${OC_VERSION:-1}" == v2* && -z "\${HOST_SERVICE:-}" ]]; then
+  mkdir -p "\$XDG_STATE_HOME/opencode" "\$XDG_DATA_HOME/opencode"
+  port="\$(sed 's/.*"port":\([0-9]*\).*/\1/' "\$XDG_CONFIG_HOME/opencode/service.json")"
+  printf '{"pid":999999,"url":"http://127.0.0.1:%s"}' "\$port" >"\$XDG_STATE_HOME/opencode/service.json"
+  for a in "\$@"; do [[ "\$prev" == --title ]] && /usr/bin/sqlite3 "\$XDG_DATA_HOME/opencode/opencode.db" \
+    "CREATE TABLE IF NOT EXISTS session_v2 (id TEXT, title TEXT); INSERT INTO session_v2 VALUES ('ses_stub', '\$a');"; prev="\$a"; done
+fi
 while [[ \$# -gt 1 ]]; do [[ "\$1" == --title ]] && printf '%s' "\$2" >"$SHIM/title"; shift; done
 case "\$1" in
   *"svar kun med ordet OK"*) echo OK ;;
@@ -1441,7 +1451,7 @@ EOF
 }
 
 run_opencode_t4() {
-  PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
+  XDG_DATA_HOME="$SHIM/data" XDG_STATE_HOME="$SHIM/state" PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
     --client opencode --model stub --only 4 --repeat 1 --save-baseline "$SHIM/b.txt"
 }
 
@@ -1467,6 +1477,13 @@ run_opencode_t4() {
   ! grep -q '|m_old|' <<<"$rows"
   # 1000 tokens in (600 fresh + 400 cache read), reasoning kept apart, credits a positive estimate.
   awk -F'|' '$8 != 1000 || $10 != 400 || $12 != 50 || $13 !~ /^[1-9][0-9]*$/ { exit 1 }' <<<"$rows"
+}
+
+@test "opencode v2: a call served by the host's service fails the run (#1917)" {
+  make_opencode_shim
+  OC_VERSION=v2.1.2 HOST_SERVICE=1 run_opencode_t4
+  [ "$status" -ne 0 ]
+  grep -q "did not use this run's service" <<<"$output"
 }
 
 @test "opencode v2: --suite delegation is refused before any model call" {
