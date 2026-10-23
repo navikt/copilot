@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -113,7 +114,12 @@ func pakkeProposalFlags() []string {
 	// once per approved set: a new or changed approval shows, a repeat does
 	// not unless --verbose.
 	reads := resolveReadGrants(record.Reads)
-	say := SeenChanged("approved-scope-"+pakke.Name, strings.Join(record.Hosts, ",")+"\n"+strings.Join(reads, ",")) || Verbose
+	// The value names the approval itself (scope, root, hash, time), not only
+	// its grants: another repo's approval, a new revision or a re-approval
+	// with the same grants is still said once.
+	seen := strings.Join([]string{record.Scope, record.Root, record.Hash, record.At.UTC().Format(time.RFC3339Nano),
+		strings.Join(record.Hosts, ","), strings.Join(reads, ",")}, "\n")
+	say := SeenChanged("approved-scope-"+pakke.Name, seen) || Verbose
 	var args []string
 	if hosts := record.Hosts; len(hosts) > 0 {
 		if say {
