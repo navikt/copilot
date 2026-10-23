@@ -69,15 +69,15 @@ trust the table alone for props.
 
 ### Feedback & status
 
-| Need                 | Use                                                                        |
-| -------------------- | -------------------------------------------------------------------------- |
-| Inline page alert    | `LocalAlert` / `GlobalAlert` / `InfoCard` — verify which fits              |
-| Short inline message | `InlineMessage`                                                            |
-| Loading spinner      | `Loader`                                                                   |
-| Determinate progress | `ProgressBar`                                                              |
-| Loading placeholder  | `Skeleton`                                                                 |
-| Status label / pill  | `Tag`                                                                      |
-| Step indicator       | `Stepper`                                                                  |
+| Need                 | Use                                                           |
+| -------------------- | ------------------------------------------------------------- |
+| Inline page alert    | `LocalAlert` / `GlobalAlert` / `InfoCard` — verify which fits |
+| Short inline message | `InlineMessage`                                               |
+| Loading spinner      | `Loader`                                                      |
+| Determinate progress | `ProgressBar`                                                 |
+| Loading placeholder  | `Skeleton`                                                    |
+| Status label / pill  | `Tag`                                                         |
+| Step indicator       | `Stepper`                                                     |
 
 ### Overlays & disclosure
 
@@ -141,8 +141,9 @@ Patterns to follow:
 
 - **Let the component own the label.** Pass `label`/`legend`; don't wrap fields in your own
   `<label>` (that double-labels for screen readers).
-- **Errors are strings on the field.** A non-empty `error` triggers the error state and
-  announces the message. For form-level summaries, use `ErrorSummary` linked to each field.
+- **Use the field's error API.** An `error` connects the message to the input and applies
+  error styling; it does not guarantee immediate announcement. Use `ErrorSummary` linked
+  to each field and manage focus after failed submission.
 - **Controlled inputs** use `value` + `onChange` together.
 - **Group with `Fieldset`** when fields form one logical unit — it provides the legend and
   error wiring.
@@ -154,5 +155,5 @@ Patterns to follow:
   component's doc to get the exact subcomponent names — don't guess them.
 - **Put real action elements in footers.** Modal/Dialog footers expect `Button` elements,
   not bare click handlers.
-- **Compose layout with primitives**, not ad-hoc `div`s with inline styles — a modal body
-  laid out with `<VStack gap="space-16">` stays token-consistent.
+- **Compose layout with primitives or established project utilities.** A modal body can
+  use `<VStack gap="space-16">`; existing Tailwind layout and spacing are also valid.

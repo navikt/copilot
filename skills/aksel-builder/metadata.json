@@ -12,7 +12,10 @@
     "responsive",
     "primitives",
     "icons",
-    "tailwind"
+    "tailwind",
+    "figma",
+    "figma-to-code",
+    "design-to-code"
   ],
   "references": [
     "references/accessibility.md",
@@ -30,6 +33,8 @@
     "Sett opp et frontend-prosjekt med Aksel",
     "Lag en responsiv to-kolonne layout med HGrid",
     "Bygg en mobil-first sidelayout med Page.Block og VStack",
+    "Lag et grid av kort som går fra 1 til 3 kolonner på tvers av breakpoints",
+    "Bruk Bleed til å la et banner strekke seg forbi container-padding",
     "Sett riktig padding med space-tokens - hva er space-16 i v8?",
     "Migrer app fra aksel v7 til v8",
     "Hvilket ikon skal jeg bruke for en 'tilbake-knapp'?",

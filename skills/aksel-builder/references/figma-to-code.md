@@ -19,30 +19,31 @@ the form `https://figma.com/design/:fileKey/:fileName?node-id=1-2`.
 
 ### 1. Fetch design context
 
-Call `get_design_context` with `disableCodeConnect: false` (always — Code Connect gives the
-highest-confidence component choices) and screenshots enabled.
+Inspect the connected server's tool schemas, then call `get_design_context` with the
+supported file/node arguments. Keep Code Connect and screenshots enabled where those
+options exist; don't send parameters from a different Figma MCP variant.
 
 - **Unmapped components are normal**, not an error. If Figma prompts to _create_ Code Connect
-  mappings, silently skip it (authoring `.figma.ts` is an Aksel-team job, not the user's) and
-  re-call `get_design_context` for the best available context.
+  mappings, continue with the available design context. Don't create or publish mappings
+  without an explicit request; a missing mapping is not a reason to repeat the same call.
 - **Too large / truncated?** Use `get_metadata(fileKey, nodeId)` to map child nodes, pick the
   relevant child frame, and re-run `get_design_context` on that narrower node — then tell the
   user you narrowed scope. `get_metadata` is for navigation only, not a replacement.
 
 ### 2. Keep the screenshot
 
-`get_design_context` **returns a screenshot inline** (there is no separate screenshot tool;
-the only control is `excludeScreenshot` — don't set it). Treat that screenshot as the visual
-source of truth for the verification step; save/keep it as `figma-visual-reference` if your
-client lets you.
+Use the screenshot embedded in the design context when present. Otherwise call the
+available `get_screenshot` tool for the same node, using its advertised schema. Keep the
+image as `figma-visual-reference` for verification. Use `get_variable_defs`, when
+available, to clarify design variables before mapping them to verified Aksel tokens.
 
 ### 3. Assets
 
-Use the asset URLs the `get_design_context` payload returns **directly** — don't invent
-placeholders or add new icon packages. (The official Figma MCP returns remote
-`figma.com/api/mcp/asset/...` URLs that expire in ~7 days; some variants serve `localhost`
-URLs instead — either way, use what the payload gives.) For Aksel icons specifically, resolve
-them through `aksel_find_icons` → `${name}Icon` ([icons.md](icons.md)).
+Use the assets returned by `get_design_context`; don't invent placeholders or add icon
+packages. Remote asset URLs may expire and desktop URLs may be localhost-only: retrieve
+needed assets into the project's established asset pipeline rather than shipping those
+temporary URLs. Resolve Aksel icons through `aksel_find_icons` → `${name}Icon`
+([icons.md](icons.md)).
 
 ### 4. Write Aksel code
 
@@ -54,18 +55,17 @@ them through `aksel_find_icons` → `${name}Icon` ([icons.md](icons.md)).
 | Screenshot           | High       | Layout hierarchy, spacing rhythm, visual intent.                                                              |
 | Raw HTML / Tailwind  | Lower      | Structural hints only — adapt into Aksel; **never ship raw Figma HTML**.                                      |
 
-> **A `CodeConnectSnippet` is not copy-pasteable as-is.** Its props are Figma's variant
-> _property_ names, which differ from the real React API — e.g. the snippet
-> `<Tag color="Info" variant="Outline">` must become `<Tag data-color="info" variant="outline">`
-> (lowercase, and color moves to `data-color`). Keep the **component** the snippet chose, but
-> **confirm and remap every prop** with `aksel_get_component_info`.
+> **Validate Code Connect against installed APIs.** A snippet can already contain valid
+> React props, or reflect an older API. Preserve the mapped component when appropriate;
+> don't mechanically rename every prop. Confirm non-trivial props with
+> `aksel_get_component_info` and the installed types before adapting the snippet.
 
 **Translate fallback HTML/Tailwind into Aksel** (don't guess the tree from CSS when the MCP
 can confirm the intended abstraction):
 
 - `flex-row` → `HStack`, `flex-col` → `VStack` ([primitives-layout.md](primitives-layout.md)).
-- gap/padding values → token-**props** (`gap="space-8"`, `paddingInline="space-8"`), not raw
-  Tailwind classes or `style` ([tokens-styling.md](tokens-styling.md)).
+- gap/padding values → token props (`gap="space-8"`, `paddingInline="space-8"`) or the
+  project's established Tailwind utilities ([tokens-styling.md](tokens-styling.md)).
 - `data-name` hints (`Button`, `Card`, `Row`, …) → look up the real component with
   `aksel_find_docs` + `aksel_get_component_info` before inventing markup
   ([components.md](components.md)).
@@ -81,8 +81,8 @@ override.
 **Phase 1 — code quality (don't skip).** Type errors usually render a blank page, making
 visual checks useless. Before rendering: detect the project's scripts (`typecheck`, `lint`,
 `build`; eslint/biome/prettier), type-check against the **app** tsconfig (not a composite root
-`tsconfig.json` that only has `references`), lint/format the changed files, and fix **all**
-errors before continuing.
+`tsconfig.json` that only has `references`), lint/format the changed files, and fix errors
+introduced by the change. Report unrelated existing failures without expanding scope.
 
 **Phase 2 — visual parity (opt-in).** Confirm with the user before starting a dev server or
 installing tooling. Prefer tooling the project already has (Playwright/Cypress/Puppeteer) or
@@ -97,8 +97,8 @@ wrapping, overflow/scroll, active/inactive states, token-exact colors, responsiv
 #### Checklist
 
 - [ ] Type check passes (correct app tsconfig); lint/format pass on changed files.
-- [ ] Majority of JSX is Aksel components; no raw Figma HTML or Tailwind left.
-- [ ] No magic numbers — tokens for spacing/color/radius; props over `style` where a prop exists.
+- [ ] Use Aksel components where they fit; don't ship generated markup without review.
+- [ ] Semantic tokens and established spacing utilities replace copied design literals; Tailwind is allowed.
 - [ ] Assets render (no broken placeholders).
 - [ ] (if visual validation ran) layout, typography, and assets match the screenshot.
 - [ ] Accessibility per [accessibility.md](accessibility.md).

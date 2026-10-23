@@ -1,6 +1,6 @@
 ---
 name: aksel-builder
-description: Expert builder for Aksel, the Nav / @navikt design system — React components, design tokens, layout primitives, theming (light/dark), icons, CSS, the Tailwind preset, version migrations, Figma-to-code. Triggers — Aksel, "using/with aksel", Nav/Navikt, "designsystemet", "design system", @navikt/ds-* (e.g. @navikt/ds-react) or @navikt/aksel-* packages; add/create/build/refactor a component (button, input, modal, table, alert, card, form) or layout; implement a design from Figma (pasted figma.com/design/...?node-id link, "implement this design", "build this from Figma", design-to-code). Invoke for frontend UI work with any Aksel signal unless the user opts out.
+description: Build and refactor UI with Aksel, Nav's design system. Use for frontend tasks involving Aksel, Nav/Navikt, or @navikt/ds- and @navikt/aksel-packages, and for Figma-to-code with Aksel. Covers components, layout, tokens, theming, icons, Tailwind, accessibility, and migrations. Do not use when the user opts out of Aksel.
 license: MIT
 metadata:
   domain: frontend
@@ -13,8 +13,10 @@ metadata:
 
 Build correct, accessible, production-quality UI with the **Aksel design system** (Nav).
 Lead the user to the right component, token, and primitive — and back every choice with the
-**Aksel MCP server**, not memory. The MCP (5 tools + 4 resources) returns live data from
-`aksel.nav.no`. Aim for the _fewest correct calls_.
+**Aksel MCP server**, not memory. Its 5 tools and 4 resources combine cached live docs
+from `aksel.nav.no` with token, icon, and migration catalogs bundled with the server.
+Check the project's installed versions before applying newer APIs. Aim for the
+_fewest correct calls_.
 
 ---
 
@@ -27,8 +29,10 @@ weights are stale. Before writing any import, prop, token, or icon name:
 
 1. **Confirm it exists** and how it's used via the MCP.
 2. **Never invent** doc paths, prop names, token names, or icon exports.
-3. **MCP wins** over memory. If MCP returns nothing after a real attempt, say what you
-   tried — don't fall back to a guess.
+3. **Verified sources win** over memory. The MCP describes current docs and its bundled
+   catalogs, not necessarily the project's installed version. Resolve mismatches against
+   installed package types/exports and version-specific documentation. If no source
+   confirms an API, say what you tried — don't fall back to a guess.
 
 This one rule prevents the most common failure: confidently shipping an Aksel API that no
 longer exists.
@@ -40,44 +44,53 @@ longer exists.
 This skill is built around the Aksel MCP. **Before your first lookup, check whether the
 `aksel_*` tools exist**, and branch:
 
-**✅ MCP available (strongly preferred).** Use the tools below — they return live,
-version-correct data (structured props, real token values, verified icon names) you can't
-reconstruct from memory.
+**✅ MCP available (strongly preferred).** Use the tools below for structured props,
+token values, and icon names. They do not inspect the consuming project's dependencies:
+confirm version-sensitive APIs against the installed packages.
 
-**Note**: The url "https://aksel-mcp.nav.no" will need to be whitelisted in your environment to work. If you can't access it, use the fallback below but recommend installing the MCP for a better experience.
+The environment must allow `https://aksel-mcp.nav.no`. If access is blocked, report it
+and use the fallback below; don't work around access restrictions.
 
 **❌ MCP not available → recommend installing it, then fall back to fetching docs.**
 
-1. **Recommend the MCP** — it removes guesswork and stays current. Install by adding the
-   server:
+1. **Recommend the MCP.** Find `io.github.navikt/aksel-mcp` in Nav's registry
+   (`https://mcp-registry.nav.no`) and use the client's installation flow. The endpoint is
+   `https://aksel-mcp.nav.no/mcp`. For VS Code, `.vscode/mcp.json` uses:
 
-```
-"io.github.navikt/aksel-mcp": {
-	"type": "streamable-http",
-	"url": "https://aksel-mcp.nav.no/mcp",
-	"gallery": "https://mcp-registry.nav.no",
-	"version": "1.0.0"
+```json
+{
+  "servers": {
+    "io.github.navikt/aksel-mcp": {
+      "type": "http",
+      "url": "https://aksel-mcp.nav.no/mcp"
+    }
+  }
 }
 ```
 
+Merge the entry into existing configuration; don't replace other servers.
+Other clients use different configuration keys; see the
+[VS Code format reference](https://code.visualstudio.com/docs/agents/reference/mcp-configuration).
+
 2. **Until it's installed, fall back to the public LLM docs over HTTP.** Start from the
    index at `https://aksel.nav.no/llm.md` — it lists every page as an individual `.md` file
-   — then fetch the specific `.md` page you need. This is the **same content** the MCP
-   serves, so the anti-hallucination rules still apply: read the real page; never invent
+   — then fetch the specific `.md` page you need. These are the docs used by the MCP's
+   documentation tools, not a replacement for its structured token/icon catalogs.
+   Inspect installed exports and token files when prose is insufficient; never invent
    paths, props, tokens, or icon names.
 
 ### Tool → manual-fetch fallback
 
 When the MCP is absent, map each tool to a direct fetch:
 
-| MCP tool (preferred)             | Without MCP, fetch instead                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `aksel_find_docs` (`docs`)       | `https://aksel.nav.no/llm.md` index → follow the matching `.md` link                             |
-| `aksel_get_doc`                  | the page's `.md` URL directly (e.g. `https://aksel.nav.no/komponenter/core/button.md`)           |
-| `aksel_get_component_info`       | the component's `.md` page — it documents props & usage (prose, not a structured table)          |
-| `aksel_get_token_details`        | `https://aksel.nav.no/grunnleggende/styling/design-tokens.md`                                    |
-| `aksel_find_icons`               | `https://aksel.nav.no/komponenter/ikoner.md`                                                     |
-| `aksel_find_docs` (`migrations`) | `https://aksel.nav.no/grunnleggende/kode/codemods-config.md` + `…/migreringsguider/versjon-8.md` |
+| MCP tool (preferred)             | Without MCP, fetch instead                                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `aksel_find_docs` (`docs`)       | `https://aksel.nav.no/llm.md` index → follow the matching `.md` link                                          |
+| `aksel_get_doc`                  | the page's `.md` URL directly (e.g. `https://aksel.nav.no/komponenter/core/button.md`)                        |
+| `aksel_get_component_info`       | the component's `.md` page — it documents props & usage (prose, not a structured table)                       |
+| `aksel_get_token_details`        | `https://aksel.nav.no/grunnleggende/styling/design-tokens.md`                                                 |
+| `aksel_find_icons`               | `https://aksel.nav.no/komponenter/ikoner.md`                                                                  |
+| `aksel_find_docs` (`migrations`) | `https://aksel.nav.no/grunnleggende/kode/codemods-config.md`; discover the version-specific guide in `llm.md` |
 
 Prefer fetching individual `.md` pages over the full collection — only pull `llm.md` (or
 `komponenter.md`) when you need to discover the right page.
@@ -113,7 +126,8 @@ Most tasks need 2–4 MCP calls.
    Switch `kind`: tokens/colors/spacing → `"tokens"`, upgrades/codemods → `"migrations"`.
 2. **Fetch** — `get_doc` (usage, examples, props as prose), `get_component_info` (props as
    JSON), `get_token_details` (one token), `find_icons` (then map `name` → `${name}Icon`).
-3. **Build** — style with tokens + primitive props, never raw hex/px
+3. **Build** — use semantic tokens for design-system styling; primitive props, CSS, and
+   the project's existing Tailwind utilities are valid choices, subject to local rules
    ([tokens-styling.md](references/tokens-styling.md)); reach for layout primitives before
    custom CSS ([primitives-layout.md](references/primitives-layout.md)); add the a11y props
    Aksel requires ([accessibility.md](references/accessibility.md)).
@@ -144,7 +158,7 @@ time a task touches its domain — don't preload all of them.** All reference fi
 | Implement a **Figma design** → Aksel code        | `figma-to-code.md`     | Figma MCP (`get_design_context`/`get_screenshot`) → map to Aksel via the `aksel_*` tools → build |
 | Lay out / space / make responsive                | `primitives-layout.md` | build with primitives (`get_component_info` for a primitive's API)                               |
 | Color / token / spacing value / Tailwind styling | `tokens-styling.md`    | `get_token_details` (browse via `find_docs` `kind:"tokens"`)                                     |
-| Light/dark mode or base color                    | `theming.md`           | usually no call — `Theme` component                                                              |
+| Light/dark mode or base color                    | `theming.md`           | `get_component_info` / `get_doc` for `Theme` when not already verified                           |
 | An icon                                          | `icons.md`             | `find_icons` → map `name` → `${name}Icon`                                                        |
 | Accessibility / labels / a11y review             | `accessibility.md`     | `get_component_info` to find the label/description props                                         |
 | Upgrade / codemod / “why is this deprecated?”    | `migrations.md`        | `find_docs` `kind:"migrations"`                                                                  |
@@ -189,10 +203,10 @@ contains_. Load on demand to keep context small.
 
 ## Final validation checklist
 
-- [ ] Every Aksel component and icon used was confirmed via MCP (not memory).
-- [ ] Doc paths came from `aksel_find_docs` / `aksel-docs://index` — none were hand-written.
-- [ ] Props were checked with `aksel_get_component_info` where non-trivial.
-- [ ] Tokens are real (`aksel_get_token_details`); no raw hex or pixel values.
+- [ ] Aksel components and icons were confirmed via MCP or the documented fallback, and match installed versions.
+- [ ] Doc paths came from `aksel_find_docs`, `aksel-docs://index`, or `llm.md` — none were guessed.
+- [ ] Non-trivial props were checked with `aksel_get_component_info` or, in fallback mode, official docs and installed types.
+- [ ] Aksel tokens are verified; custom values have a real requirement rather than replacing an existing token.
 - [ ] Icon imports use the `${name}Icon` export from `@navikt/aksel-icons`.
 - [ ] Required accessibility props are present (labels, descriptions, alt text).
-- [ ] Imports resolve to the correct `@navikt/*` package and are React 17-compatible.
+- [ ] Imports resolve against installed packages. React compatibility follows the app; React 17 compatibility is required when contributing to Aksel's published React library.

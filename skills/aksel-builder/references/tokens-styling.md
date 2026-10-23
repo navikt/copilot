@@ -1,8 +1,8 @@
 # Tokens & styling
 
-Aksel styling is **token-based** — almost never write a raw hex or pixel value; a token
-exists, and using it is what makes theming and light/dark work. A token can be applied two
-ways: **token-props** on Aksel components/primitives, and **CSS variables** in your own CSS.
+Aksel styling is **token-based**. Use semantic tokens for design-system colors and
+dimensions instead of copying their literal values. Primitive props, CSS variables, and
+the project's Tailwind utilities are all valid; Tailwind does not require Aksel.
 
 ## The same token, two ways to apply it
 
@@ -26,8 +26,9 @@ styling_. Both forms resolve to the exact same value — they are **not** differ
    component exposes (and whether it takes a token) varies per component.
 2. Styling **your own element**, a selector, a pseudo-state, or a CSS property Aksel doesn't
    expose as a prop? → use the **CSS variable** `var(--ax-…)`. This is the escape hatch.
-3. **Either way, never hardcode the underlying value** (`16px`, `#0067c5`). One token flips
-   correctly across light/dark and theming; a raw value can't.
+3. Don't copy a token's underlying value (`16px`, `#0067c5`) into custom CSS.
+   Use the token so theme changes propagate. Native Tailwind spacing is also valid;
+   use custom values only when a requirement is not represented by existing tokens.
 
 > **#1 gotcha — the name differs by form.** A **prop drops** the category prefix
 > (`background="accent-strong"`); the **CSS variable keeps** it (`--ax-bg-accent-strong`).
@@ -37,9 +38,9 @@ styling_. Both forms resolve to the exact same value — they are **not** differ
 
 1. **Prefer the prop form** on Aksel components/primitives; drop to the CSS-variable form
    only for your own elements (decision rule above). Avoid `style`/CSS when a prop exists.
-2. **No raw values.** Never hardcode `#0067c5` or `16px`. Use a token. If you don't know the
-   token, look it up with `aksel_get_token_details` or browse with
-   `aksel_find_docs({ kind: "tokens" })`.
+2. **Look up Aksel values.** Use `aksel_get_token_details` or browse with
+   `aksel_find_docs({ kind: "tokens" })`. Don't replace semantic colors with literals.
+   Existing Tailwind layout/spacing utilities need no Aksel wrapper or dependency.
 3. **Don't target Aksel's internal class names.** They are implementation details and
    change between versions. Style your own wrappers instead.
 
@@ -128,14 +129,30 @@ expose as a prop. Reference the full `var(--ax-…)` name — never the literal 
 }
 ```
 
-## Tailwind preset (`@navikt/ds-tailwind`)
+## Tailwind integration (`@navikt/ds-tailwind`)
 
-Add the preset to your Tailwind config:
+Tailwind works independently of Aksel. If the app uses Aksel tokens, inspect the
+installed Tailwind and `@navikt/ds-tailwind` versions before choosing an integration.
+
+For **Tailwind v3**, add the preset to your Tailwind config:
 
 ```jsx
 // tailwind.config.js
 module.exports = { presets: [require("@navikt/ds-tailwind")] };
 ```
+
+For **Tailwind v4**, versions of `@navikt/ds-tailwind` that export `./v4` provide a
+CSS-first integration:
+
+```css
+@import "tailwindcss";
+@import "@navikt/ds-css" layer(components);
+@import "@navikt/ds-tailwind/v4";
+```
+
+Don't also import `@navikt/ds-css` from JavaScript in this setup. Older package versions
+may instead need the JavaScript preset through Tailwind's `@config` compatibility path.
+Check installed exports and version-specific docs; don't mix both integrations.
 
 **Utility names embed the token category** — the generated class is
 `{tw-prefix}-ax-{token-name}`, and the token name already starts with its category
@@ -152,18 +169,17 @@ module.exports = { presets: [require("@navikt/ds-tailwind")] };
 - Font size / weight: `text-ax-*` / `font-ax-*` (e.g. `text-ax-heading-large`, `font-ax-bold`)
 
 **Not every token category has a utility.** Spacing (`space-*`) is **not** exposed as a
-Tailwind utility — use native Tailwind spacing (`p-4`, `gap-2`) or, better, the layout
-primitives' props (`padding="space-16"`). For radius and anything not listed above, check
-the live config rather than guessing.
+Tailwind utility by this integration — native Tailwind spacing (`p-4`, `gap-2`) and
+primitive props (`padding="space-16"`) are both valid. For radius and other categories,
+check the installed generated config or stylesheet rather than guessing.
 
-**v8 behavior:** colors map to CSS variables, so theming works automatically — no `dark:`
-prefix needed. As a consequence you **cannot** manipulate the values (e.g. `bg-…/50` for
-opacity won't work). `colors` and `screens` **replace** Tailwind's defaults, they don't
-extend them.
+**Version differences:** semantic colors reference CSS variables, so they follow the
+Aksel theme without a `dark:` variant. The v3 preset replaces Tailwind's `colors` and
+`screens`; the native v4 stylesheet adds its theme entries without resetting those
+namespaces. Opacity modifiers depend on the integration and Tailwind version — don't
+assume the v3 preset's limitations apply to native v4.
 
-**Setup differs by Tailwind major** (v4 uses `@import "@navikt/ds-css" layer(components)` +
-`@config`; v3 needs the `postcss-import` plugin). The exact utility list and the current
-setup are generated per version — fetch the live docs to confirm:
+The exact utility list and setup vary by version. Discover the docs with:
 `aksel_find_docs({ query: "tailwind" })` → `aksel_get_doc` on `/grunnleggende/kode/tailwind.md`
 and `/grunnleggende/styling/tailwind-config.md` (the full generated class list).
 

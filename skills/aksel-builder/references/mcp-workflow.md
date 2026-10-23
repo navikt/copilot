@@ -1,7 +1,9 @@
 # MCP workflow & anti-hallucination
 
-The Aksel MCP server is the authoritative source for everything in this skill. This file
-explains how to drive it efficiently and how to recover when a call comes back empty.
+Use the Aksel MCP for API discovery, then check version-sensitive results against the
+project's installed packages. Docs and props are fetched from the website and cached;
+token, icon, and migration catalogs are bundled from packages when the server is built.
+The server does not inspect the consuming project's dependencies.
 
 > **No MCP installed?** Recommend adding it (install config is in `SKILL.md` → Preflight),
 > then fall back to the public docs: start at `https://aksel.nav.no/llm.md` (an index of
@@ -29,7 +31,7 @@ Searches documentation, tokens, or migrations depending on `kind`.
 The tool is smart about mismatches: a token-looking or migration-looking query under
 `kind:"docs"` returns a hint telling you to switch `kind`. Read the hint and follow it.
 
-**Output:** a JSON string with `results[]`. Each result carries `name`, `path`, `category`,
+**Docs output:** a JSON string with `results[]`. Each result carries `name`, `path`, `category`,
 and `subcategory`. Feed `path` to the next tool — **never construct it yourself**. The
 `subcategory` is a useful signal: a result under `legacy` is **deprecated** (e.g. `Alert`
 resolves to `/komponenter/legacy/alert.md`, with `GlobalAlert` / `LocalAlert` as the current
@@ -62,8 +64,8 @@ replacements). Prefer non-legacy results unless the user is explicitly working o
   array so compound components (e.g. `Modal.Header`) come back as separate parts.
 - Use it when you want to **parse** the API (types, defaults, required) rather than read the
   prose table from `aksel_get_doc`. Both expose the same props; pick by what's easier to use.
-- Accepts either the slug or the `.md` path. Returns **props only** (no examples — use
-  `get_doc` for those).
+- Accepts either the slug or the `.md` path. Returns **props only**, not import paths,
+  export maps, or examples. Use `get_doc` for examples and installed exports for imports.
 
 ### `aksel_get_token_details` — the token tool
 
@@ -87,8 +89,7 @@ replacements). Prefer non-legacy results unless the user is explicitly working o
 
 - Fuzzy-matches across icon `name`, `keywords`, and `sub_category` (handles typos and
   synonyms, English/Norwegian).
-- `variant` is **capitalized**: `"Stroke"`, `"Fill"`, or `"both"` (default `"both"`). The
-  schema also offers `"Filled"`, but it returns **zero** results — use `"Fill"`.
+- `variant` is **capitalized**: use `"Stroke"`, `"Fill"`, or `"both"` (default `"both"`).
 - `category` is a fixed enum (`Home`, `Arrows`, `Interface`, `Money`, `Status`, …).
 - **Critical mapping:** the result `name` (e.g. `"Trash"`) is _not_ the import. The export
   is `name + "Icon"` → `import { TrashIcon } from "@navikt/aksel-icons"`. Results have **no
@@ -118,8 +119,8 @@ The failure modes that matter:
    returned `name`. Many intuitive names don't exist.
 4. **Never assume a component still exists or has the same props** — verify with
    `aksel_get_component_info` before non-trivial props.
-5. **MCP wins over memory.** If MCP truly returns nothing, say what you tried — don't paper
-   over the gap with a plausible guess.
+5. **Verified sources win over memory.** Match results to installed versions. If MCP and
+   the documented fallback cannot confirm an API, say what you tried instead of guessing.
 
 ## Empty-result recovery
 
