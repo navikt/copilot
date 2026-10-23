@@ -1512,20 +1512,35 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
-      "docs/nav-pilot-changelog.md"
+      "docs/README.mcp.md",
+      "docs/nav-pilot-changelog.md",
+      "docs/news/articles/mcp-i-nav-pilot.md"
     ],
     "anchors": {
-      "begrensninger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],
-      "feilsoking": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],
+      "begrensninger": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"
+      ],
+      "feilsoking": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx",
+        "docs/news/articles/mcp-i-nav-pilot.md"
+      ],
       "figma": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],
       "github": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],
       "hva-er-det": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],
       "nais": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],
       "plattformer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],
-      "ubuntu-apparmor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],
-      "wsl2-nokkelring": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"]
+      "ubuntu-apparmor": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx",
+        "docs/news/articles/mcp-i-nav-pilot.md"
+      ],
+      "wsl2-nokkelring": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx",
+        "docs/news/articles/mcp-i-nav-pilot.md"
+      ]
     }
   },
   "/nav-pilot/guider/synkronisere": {
@@ -2459,6 +2474,10 @@
     "anchors": {}
   },
   "/nyheter/mars-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/mcp-i-nav-pilot": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
