@@ -81,11 +81,8 @@ func launchOpenCodeForOrder(t *testing.T, path, version string) (content string,
 		"mcp":        map[string]any{"rogue": map[string]any{"type": "local", "command": []string{"rogue-mcp"}, "enabled": true}},
 		"permission": map[string]any{"external_directory": "allow"},
 		"agent":      map[string]any{primary: map[string]any{"model": "github-copilot/pinned"}},
-	}
-	if !strings.HasPrefix(version, "opencode v2") {
-		// opencode 2 refuses a launch whose config widens the allowlist;
-		// on opencode 1 the allowlist has to replace it.
-		user["enabled_providers"] = []string{"opencode", "github-copilot"}
+		// The allowlist replaces it, last.
+		"enabled_providers": []string{"opencode", "github-copilot"},
 	}
 	b, _ := json.Marshal(user)
 	t.Setenv(openCodeConfigContentEnv, string(b))
@@ -141,8 +138,8 @@ func assertOpenCodeSessionPolicy(t *testing.T, path string, v2 bool, content str
 		t.Errorf("mcp.rogue = %v, want enabled false", rogue)
 	}
 	perm, _ := cfg["permission"].(map[string]any)
-	ext, ok := perm["external_directory"].(map[string]any)
-	if !ok || ext[filepath.Join(openCodeConfigDir(), "*")] == nil && len(ext) < 2 {
+	ext, _ := perm["external_directory"].(map[string]any)
+	if ext[filepath.ToSlash(filepath.Join(openCodeConfigDir(), "agents"))+"/*"] != "allow" {
 		t.Errorf("permission.external_directory = %v, want nav-pilot's own-dirs rules", perm["external_directory"])
 	}
 	plugin := "plugin"
