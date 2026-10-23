@@ -1,6 +1,6 @@
 {
   "nais-keychain": {
     "command": ["nais", "alpha", "mcp", "serve"],
-    "login": {"run": "nais login -n", "status": "nais auth print-access-token"}
+    "login": {"run": "nais login -n"}
   }
 }
