@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Strengere leverandørsjekk i OpenCode 2
 
-- **Tillatte leverandører**: nav-pilot sjekker nå også `policies` og `model`/`small_model` i OpenCode 2-konfigurasjonen. Peker en av dem til en annen leverandør enn de nav-pilot tillater, starter ikke økten, og meldinga sier hvilken fil og nøkkel du må rette.
+- **Tillatte leverandører**: nav-pilot sjekker nå også `policies` i OpenCode 2-konfigurasjonen, og ser verdiene slik OpenCode ser dem etter at `{env:}` er byttet ut. Slipper en regel inn en annen leverandør enn de nav-pilot tillater, starter ikke økten, og meldinga sier hvilken fil og nøkkel du må rette.
 
 ### Riktig innloggingsstatus for Nais MCP
 
