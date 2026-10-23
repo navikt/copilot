@@ -829,7 +829,15 @@ run_suite() {
 echo "\$GRADLE_OPTS" >>"$SHIM/gradle-opts"
 base="\$(grep -o 'daemon.registry.base=[^ ]*' <<<"\$GRADLE_OPTS" | cut -d= -f2)"
 mkdir -p "\$base" && cd "\$base"
-(echo \$BASHPID >>"$SHIM/daemon-pids"; exec -a "GradleDaemon 8.14.5" sleep 300) >/dev/null 2>&1 &
+(exec -a "GradleDaemon 8.14.5" sleep 300) >/dev/null 2>&1 &
+pid=\$!
+echo \$pid >>"$SHIM/daemon-pids"
+# Exit only once the exec has happened (a spawn can stall for seconds), so the
+# EXIT trap's pgrep can see the daemon.
+for _ in \$(seq 100); do
+  ps -o command= -p \$pid | grep -q GradleDaemon && break
+  sleep 0.1
+done
 exit 0
 EOF
   chmod +x "$SHIM/gradle"
