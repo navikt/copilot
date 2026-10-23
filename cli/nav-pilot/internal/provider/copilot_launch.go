@@ -344,9 +344,14 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	PrintCpltSandboxHint()
 	PrintAutonomyNotice(resolved)
 	env := CopilotEnv(resolved.OtelLogLevel)
-	if note := autopilotNote(resolved); note != "" && (SeenChanged("autopilot-note", note) || Verbose) {
+	if note := autopilotNote(resolved); SeenChanged("autopilot-note", note) && note != "" || note != "" && Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
+	localModel := ""
+	if guard != nil {
+		localModel = worker.Model
+	}
+	localChanged := SeenChanged("local-inference-copilot", localModel)
 	if guard == nil {
 		PrintModelAvailabilityHint(resolved.Model)
 	} else {
@@ -354,7 +359,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		// nav-pilot's provider-qualified spelling and tells the developer to
 		// drop it, which for a Hugging Face model id is the wrong advice.
 		env = copilotLocalEnv(env, worker, guard.URL())
-		if SeenChanged("local-inference-copilot", worker.Model) || Verbose {
+		if localChanged || Verbose {
 			fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
 				domain.Dim("ℹ"), domain.Bold(worker.Model))
 		}

@@ -348,7 +348,7 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, h
 		return ProviderSyncResult{}
 	}
 
-	if !jsonOutput && !quietLaunchSync() {
+	if !jsonOutput && !QuietLaunchSync() {
 		if hasPrevOutput {
 			fmt.Println()
 		}
@@ -412,7 +412,7 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, h
 		case len(ocConflicts) > 0:
 			fmt.Printf("%s Opencode scope synced (%d conflict(s)).\n", domain.Yellow("⚠"), len(ocConflicts))
 		default:
-			if !quietLaunchSync() {
+			if !QuietLaunchSync() {
 				fmt.Printf("%s Opencode scope synced.\n", domain.Green("✓"))
 			}
 		}
@@ -484,7 +484,7 @@ func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrev
 	// jsonOutput is honoured the way the opencode provider honours it: nothing
 	// this path prints may land on stdout while a JSON document is being
 	// written there.
-	if !jsonOutput && !quietLaunchSync() {
+	if !jsonOutput && !QuietLaunchSync() {
 		if hasPrevOutput {
 			fmt.Println()
 		}
@@ -534,7 +534,7 @@ func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrev
 		case len(report.Conflicts) > 0:
 			fmt.Printf("%s Pi scope synced (%d conflict(s)).\n", domain.Yellow("⚠"), len(report.Conflicts))
 		default:
-			if !quietLaunchSync() {
+			if !QuietLaunchSync() {
 				fmt.Printf("%s Pi scope synced.\n", domain.Green("✓"))
 			}
 		}
@@ -642,7 +642,7 @@ func SetTelemetry(r telemetry.Recorder) {
 	telemetryRecorder = r
 }
 
-// quietLaunchSync is true for the sync in front of a launch (--sync): its
+// QuietLaunchSync is true for the sync in front of a launch (--sync): its
 // progress lines are --verbose detail there. Conflicts and failures still show;
 // an explicit nav-pilot sync shows everything.
-func quietLaunchSync() bool { return artifacts.LaunchNotices && !Verbose }
+func QuietLaunchSync() bool { return artifacts.LaunchNotices && !Verbose }

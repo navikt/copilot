@@ -206,11 +206,7 @@ func ensureOpenCodeNavContext(ref, sourceRepo string, launch bool) (string, func
 		return "", refresh, err
 	}
 
-	if SeenChanged("context-modified-opencode", strings.Join(conflicts, ",")) && len(conflicts) > 0 || Verbose {
-		for _, c := range conflicts {
-			fmt.Fprintf(os.Stderr, "%s Nav context file modified locally, not overwriting: %s\n", domain.Yellow("⚠"), c)
-		}
-	}
+	sayConflicts("context-modified-opencode", "Nav context file modified locally, not overwriting: %s", conflicts)
 
 	summary := artifacts.ExportSummary(skills, commands, agents, instrCount)
 	if summary == "nothing to export" {
@@ -635,7 +631,7 @@ func writeOpenCodeConfig(path string, data []byte, cfg map[string]any, commented
 	// Additions first: a write that also removes still hands the session
 	// what it adds, such as a new guard port.
 	if add, ok := add.(map[string]any); ok && len(add) > 0 {
-		if len(openCodeLaunchConfig) == 0 && (SeenChanged("config-has-comments", path) || Verbose) {
+		if len(openCodeLaunchConfig) == 0 && (SeenChanged("config-has-comments", path) || Verbose || !artifacts.LaunchNotices) {
 			fmt.Fprintf(os.Stderr, "%s %s has comments or trailing commas, so nav-pilot leaves it alone; the settings it would have written apply only to sessions nav-pilot starts.\n", domain.Dim("ℹ"), path)
 		}
 		for k, v := range add {

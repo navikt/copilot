@@ -12,7 +12,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### Færre linjer når du starter nav-pilot
 
 - **Innstillinger klienten ikke støtter**: Varsler som `mode "autopilot" has no opencode equivalent` og `reasoning_effort ... is not applied in the OpenCode TUI` vises nå én gang per klient, innstilling og verdi. Endrer du verdien eller bytter klient, vises varselet igjen. Dette gjelder OpenCode og pi. `nav-pilot doctor` og `nav-pilot --verbose` viser dem hver gang.
-- **Godkjente unntak i sandkassen**: Linjene `... approved for this scope` vises bare når en godkjenning er ny eller endret siden forrige oppstart, eller med `--verbose`. Unntakene gjelder fortsatt hver gang. Det samme gjelder linja om godkjente private adresser for MCP-servere.
+- **Godkjente unntak i sandkassen**: Linjene `... approved for this scope` vises bare når en godkjenning er ny eller endret siden forrige oppstart, eller med `--verbose`. Unntakene gjelder fortsatt ved hver oppstart. Det samme gjelder linja om godkjente private adresser for MCP-servere.
 - **Ny versjon av nav-pilot**: Linja om at en ny versjon er tilgjengelig, vises én gang per versjon. `nav-pilot doctor` viser den hver gang. Spørsmålet om å oppgradere og automatisk oppdatering virker som før.
 - **Andre linjer som vises én gang per endring**:
   - merknaden om autopilot
@@ -22,7 +22,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
   - MCP-servere som er slått av
   - kontekstfiler du har endret selv
   - `opencode.json` med kommentarer
-- **Bare med `--verbose`**: Grensene for like verktøykall ved lokal kjøring, og fremdriftslinjene når du starter med `--sync`. Konflikter og feil i synkroniseringen vises fortsatt. `nav-pilot sync` viser alt som før.
+- **Bare med `--verbose`**: Grensene for like verktøykall ved lokal kjøring, og fremdriftslinjene for Copilot, OpenCode og pi når du starter med `--sync`. Konflikter og feil i synkroniseringen vises fortsatt. `nav-pilot sync` viser alt som før.
 
 ### Oppdater cplt for GitHub MCP og for å stenge tale i OpenCode 2
 

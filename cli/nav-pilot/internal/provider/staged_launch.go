@@ -501,7 +501,7 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	PrintCpltSandboxHint()
 	PrintAutonomyNotice(r)
 	PrintModelAvailabilityHint(r.Model)
-	if note := autopilotNote(r); note != "" && (SeenChanged("autopilot-note", note) || Verbose) {
+	if note := autopilotNote(r); SeenChanged("autopilot-note", note) && note != "" || note != "" && Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
 	return launchViaCplt(spec)

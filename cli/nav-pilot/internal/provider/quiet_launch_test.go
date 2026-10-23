@@ -87,21 +87,51 @@ func TestSandboxSubfolderLineOncePerScope(t *testing.T) {
 	}, "sub-a", "sub-b")
 }
 
+// sayConflicts on a launch: once per set, silent on repeat, again on a
+// change, and again after the set was empty in between.
+func TestSayConflictsOncePerSetAndResets(t *testing.T) {
+	proposeEnv(t)
+	setVerbose(t, false)
+	prev := artifacts.LaunchNotices
+	artifacts.LaunchNotices = true
+	t.Cleanup(func() { artifacts.LaunchNotices = prev })
+	say := func(c ...string) string {
+		return stderrOf(t, func() { sayConflicts("k", "modified: %s", c) })
+	}
+	if out := say("a.md"); !strings.Contains(out, "a.md") {
+		t.Fatalf("first launch was silent: %q", out)
+	}
+	if out := say("a.md"); out != "" {
+		t.Errorf("repeat spoke: %q", out)
+	}
+	if out := say("a.md", "b.md"); !strings.Contains(out, "b.md") {
+		t.Errorf("changed set was silent: %q", out)
+	}
+	say()
+	if out := say("a.md", "b.md"); !strings.Contains(out, "b.md") {
+		t.Errorf("set back after empty was silent: %q", out)
+	}
+	artifacts.LaunchNotices = false
+	if out := say("a.md", "b.md"); !strings.Contains(out, "b.md") {
+		t.Errorf("an explicit command was silent: %q", out)
+	}
+}
+
 func TestLaunchSyncProgressIsVerboseOnly(t *testing.T) {
 	prev := artifacts.LaunchNotices
 	t.Cleanup(func() { artifacts.LaunchNotices = prev })
 	setVerbose(t, false)
 	artifacts.LaunchNotices = true
-	if !quietLaunchSync() {
+	if !QuietLaunchSync() {
 		t.Error("a launch's --sync progress is not quiet")
 	}
 	setVerbose(t, true)
-	if quietLaunchSync() {
+	if QuietLaunchSync() {
 		t.Error("--verbose did not show the --sync progress")
 	}
 	setVerbose(t, false)
 	artifacts.LaunchNotices = false
-	if quietLaunchSync() {
+	if QuietLaunchSync() {
 		t.Error("an explicit nav-pilot sync lost its progress lines")
 	}
 }

@@ -600,8 +600,8 @@ func run(args []string) error {
 
 	// upgrade is the update: checking first would offer (and, answered No,
 	// still run) the same upgrade, and --dry-run would install before it
-	// could check.
-	if len(launchArgs) == 0 || (launchArgs[0] != "upgrade" && launchArgs[0] != "update" && launchArgs[0] != "up") {
+	// could check. doctor has its own update line.
+	if len(launchArgs) == 0 || (launchArgs[0] != "upgrade" && launchArgs[0] != "update" && launchArgs[0] != "up" && launchArgs[0] != "doctor") {
 		if stop, err := startupUpdateCheck(); stop || err != nil {
 			return err
 		}
