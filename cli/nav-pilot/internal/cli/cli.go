@@ -940,7 +940,7 @@ func run(args []string) error {
 			flag = "--repo"
 		}
 		switch command {
-		case "install", "add", "ignore", "sync", "rollback", "doctor", "uninstall", "export", "list":
+		case "install", "add", "ignore", "sync", "rollback", "doctor", "uninstall", "export", "list", "pakke":
 			// These commands support --user and --repo
 		default:
 			return fmt.Errorf("%s is not supported for %q", flag, command)
@@ -1139,6 +1139,8 @@ func run(args []string) error {
 		})
 	case "pakke":
 		switch {
+		case jsonOutput && (len(positional) == 0 || positional[0] == "access"):
+			return fmt.Errorf("nav-pilot pakke has no --json output")
 		case len(positional) == 0:
 			return runWithCommandTelemetry("pakke", telemetryMode(), scope.Name, func() error {
 				return cmdPakkeStatus(scope, scopeProvided)

@@ -89,8 +89,8 @@ func composeResolverSeen(resolver *SourceResolver, src *Source, seen []string) (
 			compositionSourceLabel(src), decl.Source, agentpakke.DeclarationPath)
 	}
 	// A pinned base is read from the local cache after its first fetch, so a
-	// launch composing it needs no network (see resolvePinned).
-	baseSrc, err := resolvePinned(decl.SHA, decl.Source)
+	// launch composing it needs no network (see ResolvePinned).
+	baseSrc, err := ResolvePinned(decl.SHA, decl.Source)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s reuses agentpakke %q, which could not be resolved at %s: %w\n\nNothing was installed",
 			compositionSourceLabel(src), decl.Source, domain.ShortSHA(decl.SHA), err)

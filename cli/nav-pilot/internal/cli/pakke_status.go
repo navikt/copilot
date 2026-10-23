@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +19,12 @@ const (
 	accessGranted  = "granted"
 	accessDeclined = "declined"
 	accessNotAsked = "not asked"
+	// accessByCplt is hosts the user's own cplt config already allows, which
+	// is the access whatever the record says (#1319).
+	accessByCplt = "granted (cplt config)"
 )
+
+func accessHeld(state string) bool { return state == accessGranted || state == accessByCplt }
 
 // pakkeScope is the scope the commands speak for: the one the flags named, or
 // else the repository, and the user scope when the repository has no install.
@@ -49,8 +53,14 @@ func installedSource(scope *InstallScope, state *StateFile) (*Source, error) {
 		return nil, err
 	}
 	if repo == "" {
-		repo, ref = state.SourceRepo, state.SourceSHA
+		repo, ref = scopeSourceRepo(state), state.SourceSHA
 	}
+	// A full sha names one revision, read from the pinned cache: offline and
+	// fast after the first fetch. Anything else resolves as list does.
+	if len(ref) == 40 && !filepath.IsAbs(repo) {
+		return resolvePinned(ref, repo)
+	}
+	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	return resolveSource(ref, repo)
 }
 
@@ -69,16 +79,21 @@ func proposalState(scope *InstallScope, src *Source) (access, state string, err 
 		return "", "", nil
 	}
 	access = proposalAccess(hosts, reads)
+	covered := len(reads) == 0 && privateDomainsCover(cpltPrivateDomains(), hosts)
 	prior, err := artifacts.ReadProposalConsent(scope, src.Pakke.Name)
 	switch {
 	case err != nil:
 		return access, "", err
+	case (prior == nil || prior.Hash != proposal.Hash()) && covered:
+		return access, accessByCplt, nil
 	case prior == nil || prior.Hash != proposal.Hash():
 		// A changed block voids the answer: it is asked again at the next
 		// install or sync, so for now it has none.
 		return access, accessNotAsked, nil
 	case prior.Approved:
 		return access, accessGranted, nil
+	case covered:
+		return access, accessByCplt, nil
 	default:
 		return access, accessDeclined, nil
 	}
@@ -130,7 +145,6 @@ func cmdPakkeStatus(scope *InstallScope, scopeProvided bool) error {
 		fmt.Printf("Next: %s\n", bold(installCommandFor(nil, nil)))
 		return nil
 	}
-	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	src, err := installedSource(scope, state)
 	if err != nil {
 		return err
@@ -149,7 +163,7 @@ func cmdPakkeStatus(scope *InstallScope, scopeProvided bool) error {
 	}
 	fmt.Printf("  %-16s %s\n", "Source:", pin)
 
-	next := ""
+	hooksMissing := false
 	if src.Pakke != nil {
 		shipped, err := pakkeContents(resolver, src)
 		if err != nil {
@@ -165,7 +179,7 @@ func cmdPakkeStatus(scope *InstallScope, scopeProvided bool) error {
 			fmt.Printf("  %-16s installed (%d)\n", "Hooks:", len(hooks))
 		default:
 			fmt.Printf("  %-16s %d of %d not installed\n", "Hooks:", len(shipped.Hooks)-len(hooks), len(shipped.Hooks))
-			next = "nav-pilot install"
+			hooksMissing = true
 		}
 	}
 
@@ -173,21 +187,26 @@ func cmdPakkeStatus(scope *InstallScope, scopeProvided bool) error {
 	if err != nil {
 		fmt.Printf("  %-16s %s %s: could not read the answer: %v\n", "Access:", yellow("⚠"), access, err)
 	} else if access != "" {
-		fmt.Printf("  %-16s %s: %s\n", "Access:", access, answer)
-		if answer != accessGranted {
-			// Access first: it is the one a hook-less install cannot fix.
-			next = "nav-pilot pakke access"
-		}
+		fmt.Printf("  %-16s %s — %s\n", "Access:", access, answer)
+	}
+	open := err == nil && access != "" && !accessHeld(answer)
+	next := ""
+	switch {
+	case open && !cpltInstalled():
+		// The question is about cplt's sandbox; without cplt it is not asked.
+		next = cpltInstallHint
+	case open && hooksMissing:
+		next = "nav-pilot pakke access, then nav-pilot install"
+	case open:
+		next = "nav-pilot pakke access"
+	case hooksMissing:
+		next = "nav-pilot install"
 	}
 	if next != "" {
 		fmt.Printf("\nNext: %s\n", bold(next))
 	}
 	return nil
 }
-
-// errNoTerminal is pakke access without a terminal: it printed what it would
-// ask, and answering is for a person.
-var errNoTerminal = errors.New("nav-pilot pakke access asks in a terminal, and there is none here")
 
 func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
 	scope, state, err := pakkeScope(scope, scopeProvided)
@@ -197,7 +216,6 @@ func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
 	if state == nil {
 		return fmt.Errorf("no agentpakke is installed here. Run %s first", installCommandFor(nil, nil))
 	}
-	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 	src, err := installedSource(scope, state)
 	if err != nil {
 		return err
@@ -208,16 +226,19 @@ func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
 	if err != nil {
 		return err
 	}
-	if access == "" || answer == accessGranted {
-		fmt.Println("All access the agentpakke proposes is granted.")
+	if access == "" {
+		fmt.Println("The agentpakke asks for no extra access.")
+		return nil
+	}
+	if accessHeld(answer) {
+		fmt.Println("The agentpakke already has the access it asks for.")
 		return nil
 	}
 	if !cpltInstalled() {
-		return fmt.Errorf("the access applies inside the cplt sandbox, and cplt is not installed. Install it: brew install navikt/tap/cplt")
+		return fmt.Errorf("cplt is not installed, and the access only applies inside its sandbox. Install it: %s", cpltInstallHint)
 	}
 	if !isInteractive() {
-		fmt.Printf("Would ask: Let the agent %s? (%s)\n", access, answer)
-		return errNoTerminal
+		return fmt.Errorf("nav-pilot pakke access needs a terminal to ask in. It would ask: Let the agent %s?", access)
 	}
 	putProposal(scope, src, false, false, true)
 	return nil

@@ -553,8 +553,8 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 		fmt.Fprintf(w, "      %s Could not read whether the %s sandbox waiver is approved: %v\n",
 			yellow("⚠"), bold(safe(pakke.Name, 64)), err)
 	case record == nil && declined:
-		// A decision, not a fault: reportDeclinedAccess says it once, for
-		// every pakke, with the way back.
+		// A decision, not a fault: one quiet line with the way back (#1962).
+		fmt.Fprintf(w, "      %s Access declined. To allow it: %s\n", dim("ℹ"), bold("nav-pilot pakke access"))
 	case record == nil:
 		fmt.Fprintf(w, "      %s Sandbox waiver for %d host(s) is not approved\n", yellow("⚠"), len(hosts))
 		fmt.Fprintf(w, "          %s %s\n", dim("Hosts:"), strings.Join(hosts, ", "))
@@ -581,14 +581,6 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 			return
 		}
 		fmt.Fprintf(w, "      %s Sandbox waiver approved for %s\n", green("✓"), strings.Join(hosts, ", "))
-	}
-}
-
-// reportDeclinedAccess is doctor's one line for access the user declined, and
-// nothing when there is none: a decision is not a fault.
-func reportDeclinedAccess(w io.Writer) {
-	if n, err := artifacts.DeclinedProposals(); err == nil && n > 0 {
-		fmt.Fprintf(w, "      %s %d access declined: run %s\n", dim("ℹ"), n, bold("nav-pilot pakke access"))
 	}
 }
 

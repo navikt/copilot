@@ -889,10 +889,9 @@ func TestDoctorReportsADeclineAsInfo(t *testing.T) {
 	doctor := func() string {
 		var b strings.Builder
 		reportSandboxWaiver(&b, src.Pakke)
-		reportDeclinedAccess(&b)
 		return b.String()
 	}
-	const line = "1 access declined: run nav-pilot pakke access"
+	const line = "Access declined. To allow it: nav-pilot pakke access"
 
 	if out := doctor(); strings.Contains(out, "declined") {
 		t.Errorf("doctor before any answer names a decline:\n%s", out)
@@ -908,6 +907,29 @@ func TestDoctorReportsADeclineAsInfo(t *testing.T) {
 	putProposal(scope, src, false, false, true)
 	if out := doctor(); strings.Contains(out, "declined") {
 		t.Errorf("doctor after a yes still names a decline:\n%s", out)
+	}
+}
+
+// Hosts the user allowed by hand in cplt are access held, whatever the record
+// says (#1319): doctor and pakke say so and point nowhere; the control, with
+// the same decline and no cplt cover, is a decline.
+func TestDeclineCoveredByCpltConfigIsGranted(t *testing.T) {
+	scope := consentEnv(t)
+	src := proposeSource(t, `"loki.nav.cloud.nais.io"`, "")
+	answering(t, false)
+	noteProposalConsent(scope, src, false, false)
+	if _, state, _ := proposalState(scope, src); state != accessDeclined {
+		t.Fatalf("control: uncovered decline reads %q", state)
+	}
+
+	cpltPrivateDomains = func() []string { return []string{"nav.cloud.nais.io"} }
+	if _, state, _ := proposalState(scope, src); state != accessByCplt {
+		t.Errorf("covered decline reads %q, want %q", state, accessByCplt)
+	}
+	var b strings.Builder
+	reportSandboxWaiver(&b, src.Pakke)
+	if out := b.String(); strings.Contains(out, "declined") || !strings.Contains(out, "already allows") {
+		t.Errorf("doctor with cplt cover:\n%s", out)
 	}
 }
 

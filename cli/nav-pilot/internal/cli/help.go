@@ -296,9 +296,9 @@ Flags:
        nav-pilot pakke bump-base [--target <dir>]
 
 nav-pilot pakke shows the agentpakke this project uses: its source and pinned
-revision, what is installed, whether its hooks are, and the extra sandbox access
-it asks for with your answer (granted, declined or not asked). It ends with one
-Next: line when something needs doing.
+revision, what is installed, whether its hooks are installed, and the extra sandbox
+access it asks for with your answer (granted, declined or not asked). It ends
+with one Next: line when something needs doing.
 
 nav-pilot pakke access asks again about access you declined or were never
 asked about, the same question as on first run. Enter declines. A yes is
@@ -306,10 +306,11 @@ recorded and the next launch applies it. Without a terminal it prints what it
 would ask and exits non-zero.
 
 nav-pilot pakke bump-base is for the owner of an agentpakke that reuses
-another. Moves the revision pinned in .nav-pilot/agentpakke.lock.json onto the reused pakke's newest stable release,
-or its default branch when it publishes none, the same revision sync would take.
-Prints a Markdown summary of the agents and model pins that changed, for the
-pull request. Writes nothing when the pin is current.
+another. Moves the revision pinned in .nav-pilot/agentpakke.lock.json onto the
+reused pakke's newest stable release, or its default branch when it publishes
+none, the same revision sync would take. Prints a Markdown summary of the
+agents and model pins that changed, for the pull request. Writes nothing when
+the pin is current.
 
 Only the base this repo reuses directly is moved, and only that one is checked
 by sync and doctor. A base further down the chain is pinned by the pakke that

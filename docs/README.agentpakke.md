@@ -289,9 +289,9 @@ cplt config set proxy.allow_private_domains cloud.nais.io
 cplt config set allow.read "~/Library/Application Support/naisdevice/agent-status.json"
 ```
 
-Ombestemmer du deg, kjører du `nav-pilot pakke access`. Den stiller det samme spørsmålet igjen, og et ja registreres akkurat som ved første oppstart. `nav-pilot pakke` viser om tilgangen er gitt, avslått eller ikke spurt om, og `nav-pilot doctor` sier fra i én linje når noe er avslått.
-
 Én linje per innstilling blokka foreslår. Blokka er ett spørsmål: har den både et domeneunntak og en lesetilgang, ser brukeren begge i samme spørsmål og svarer én gang. Hashen dekker hele blokka, og posten har bare plass til ett svar.
+
+Ombestemmer du deg, kjører du `nav-pilot pakke access`. Den stiller det samme spørsmålet igjen, og et ja registreres som ved første oppstart. `nav-pilot pakke` viser om tilgangen er gitt, avslått eller ikke spurt om, og `nav-pilot doctor` sier fra i én linje når noe er avslått.
 
 `nav-pilot uninstall` sletter posten — hver post scopet holder, før den fjerner noe annet, og den nekter å melde suksess hvis den ikke fikk det til. Den rydder også en post som ikke har noen installasjon bak seg: samtykket registreres før state-fila skrives, så en install som feiler midtveis kan etterlate en post alene. Ingen waiver fra pakka overlever installasjonen.
 

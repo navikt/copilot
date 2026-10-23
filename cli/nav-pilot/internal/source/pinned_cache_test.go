@@ -51,7 +51,7 @@ func pinnedDir(repo, sha string) string {
 func TestResolvePinnedCachesTheRevision(t *testing.T) {
 	sha, clones := pinnedFixture(t)
 
-	src, err := resolvePinned(sha, "navikt/base")
+	src, err := ResolvePinned(sha, "navikt/base")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestResolvePinnedCachesTheRevision(t *testing.T) {
 	}
 
 	CloneRemoteFn = func(string, string) (*Source, error) { return nil, errors.New("offline") }
-	again, err := resolvePinned(sha, "navikt/base")
+	again, err := ResolvePinned(sha, "navikt/base")
 	if err != nil {
 		t.Fatalf("a cached pinned base needed the network: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestResolvePinnedRebuildsABrokenEntry(t *testing.T) {
 	co := pinnedDir("navikt/base", sha)
 	writeFile(t, filepath.Join(co, "half-written"), "x")
 
-	src, err := resolvePinned(sha, "navikt/base")
+	src, err := ResolvePinned(sha, "navikt/base")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,10 +97,10 @@ func TestResolvePinnedBypassesTheCache(t *testing.T) {
 	sha, clones := pinnedFixture(t)
 
 	local := t.TempDir()
-	if src, err := resolvePinned("", local); err != nil || src.Dir != local {
+	if src, err := ResolvePinned("", local); err != nil || src.Dir != local {
 		t.Fatalf("local path: %+v, %v", src, err)
 	}
-	if src, err := resolvePinned(sha[:7], "navikt/base"); err != nil || src.TempDir == "" {
+	if src, err := ResolvePinned(sha[:7], "navikt/base"); err != nil || src.TempDir == "" {
 		t.Fatalf("short sha should be an uncached clone: %+v, %v", src, err)
 	} else {
 		src.Cleanup()
@@ -110,7 +110,7 @@ func TestResolvePinnedBypassesTheCache(t *testing.T) {
 	}
 
 	CacheDir = ""
-	src, err := resolvePinned(sha, "navikt/base")
+	src, err := ResolvePinned(sha, "navikt/base")
 	if err != nil || src.TempDir == "" {
 		t.Fatalf("no cache dir should be an uncached clone: %+v, %v", src, err)
 	}
@@ -124,11 +124,11 @@ func TestResolvePinnedBypassesTheCache(t *testing.T) {
 // pin fetched, offline: declarations accept either case.
 func TestResolvePinnedIgnoresCase(t *testing.T) {
 	sha, clones := pinnedFixture(t)
-	if _, err := resolvePinned(sha, "navikt/base"); err != nil {
+	if _, err := ResolvePinned(sha, "navikt/base"); err != nil {
 		t.Fatal(err)
 	}
 	CloneRemoteFn = func(string, string) (*Source, error) { return nil, errors.New("offline") }
-	src, err := resolvePinned(strings.ToUpper(sha), "Navikt/Base")
+	src, err := ResolvePinned(strings.ToUpper(sha), "Navikt/Base")
 	if err != nil {
 		t.Fatalf("a differently cased pin missed the cache: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestResolvePinnedLeavesALockedRepoAlone(t *testing.T) {
 	broken := filepath.Join(dir, sha, "being-published")
 	writeFile(t, broken, "x")
 
-	src, err := resolvePinned(sha, "navikt/base")
+	src, err := ResolvePinned(sha, "navikt/base")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestResolvePinnedLeavesALockedRepoAlone(t *testing.T) {
 // A repo that is not owner/name never becomes a cache path.
 func TestResolvePinnedRefusesOddRepoNames(t *testing.T) {
 	sha, _ := pinnedFixture(t)
-	if src, err := resolvePinned(sha, ".."); err == nil {
+	if src, err := ResolvePinned(sha, ".."); err == nil {
 		src.Cleanup()
 	}
 	if _, err := os.Stat(filepath.Join(CacheDir, "pinned")); !os.IsNotExist(err) {
@@ -189,7 +189,7 @@ func TestResolvePinnedPrunesUnusedRevisions(t *testing.T) {
 	}
 	touchPinned(recent) // read since: kept
 
-	if _, err := resolvePinned(sha, "navikt/base"); err != nil {
+	if _, err := ResolvePinned(sha, "navikt/base"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(old); !os.IsNotExist(err) {

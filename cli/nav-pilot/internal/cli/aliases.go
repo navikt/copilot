@@ -148,6 +148,15 @@ var (
 		}
 		return src, attachPakkeOrCleanup(src)
 	}
+	// resolvePinned reads a full-sha pin from the pinned cache, offline after
+	// the first fetch, and attaches the manifest like the two above.
+	resolvePinned = func(sha, repo string) (*source.Source, error) {
+		src, err := source.ResolvePinned(sha, repo)
+		if err != nil {
+			return nil, err
+		}
+		return src, attachPakkeOrCleanup(src)
+	}
 	// resolveSourceRaw skips the manifest attach, so `nav-pilot validate` can
 	// report a non-conforming manifest as findings instead of failing to
 	// resolve the source at all.
