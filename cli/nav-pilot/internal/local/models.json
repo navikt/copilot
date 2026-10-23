@@ -11,7 +11,7 @@
       "backend": "mlx-lm",
       "default": true,
       "role": "Sub-agent worker for focused tasks",
-      "expect": "Takes a scoped task from the main agent and returns in seconds. Trusted when a cloud agent hands it a single-file edit (48 of 48 runs verified) or a new file to create (15 of 20 verified, with one retry). Not trusted for answers and explanations about code, changes across several files, or debugging. Keep those on the cloud model. Unreliable in long multi-turn work.",
+      "expect": "Takes a scoped task from the main agent and returns in seconds. Trusted, with one retry, for a single-file edit (48 of 48 verified) and a new file (15 of 20 verified); both were measured with the model as the main agent, not on the hand-over path. Changes across several files stay on the cloud model by decision. Not trusted for answers and explanations about code, or debugging. Unreliable in long multi-turn work.",
       "weights_gb": 25,
       "min_ram_gb": 48,
       "wired_limit_gb": 36,

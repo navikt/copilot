@@ -78,13 +78,16 @@ Rules that hold at every level:
 The manifest embedded in nav-pilot (`internal/local/models.json`) marks two
 classes `trusted` in delegate mode for the default model
 (`qwen3.6-35b-a3b-optiq`), both with the one retry the gate gives
-(`retry2`, #1156 and #1675). Every other class is `cloud`:
+(`retry2`, #1156 and #1675). The counts come from bench-frontier `retry2` runs
+with the model as the main agent, not from the hand-over path. Every other
+class is `cloud`:
 
 | Class | Delegate | Measurement |
 |---|---|---|
 | `create-file` | trusted | 15 of 20 verified with `retry2` against 5 of 20 without (p = 0.002), navikt/mlx-workspace#126 |
 | `edit-single` | trusted | 48 of 48 with `retry2`, Wilson lower bound 0.967, navikt/mlx-workspace#237 |
-| `read-qa`, `edit-multi-mechanical`, `debug` | cloud | not part of the 2026-10-23 decision (#1010) |
+| `edit-multi-mechanical` | cloud | 35 of 35 verified; kept on the cloud model by owner decision (navikt/mlx-workspace#302) |
+| `read-qa`, `debug` | cloud | not part of the 2026-10-23 decision (#1010) |
 
 At `aggressive`, the built-in default, a trusted `create-file` turns on the
 create-file rule of the gate. `edit-single` has no gate rule (see
@@ -476,8 +479,8 @@ bench-hybrid (mlx-workspace), for each level:
 - A false-positive cell: a 3–4 file change that needs a judgement per file. The feared
   failure must be measured, not assumed away.
 - Probe 5's create-file cells exercise the create-file rule at `aggressive` only with a
-  manifest that trusts `create-file` (`NAV_PILOT_BENCH_MANIFEST`). No shipped manifest
-  does yet.
+  manifest that trusts `create-file` (`NAV_PILOT_BENCH_MANIFEST`). The shipped manifest
+  trusts it since 2026-10-23.
 - Record per sample: dispatches (task calls to `local-worker`), gate denies, dispatches after a deny,
   pass/fail, cloud cost, wall time.
 - Decision rule: keep enforcement at `balanced` if its pass rate is no lower than

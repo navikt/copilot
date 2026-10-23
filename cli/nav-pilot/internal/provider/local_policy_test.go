@@ -809,6 +809,9 @@ func TestShippedDefaultPolicyNamesTheTrustedClasses(t *testing.T) {
 	if r := local.DispatchGateRules(local.DispatchAggressive, e.Capabilities); r.Multi || !r.Create {
 		t.Errorf("aggressive gate rules = %+v, want the create-file rule only", r)
 	}
+	if r := local.DispatchGateRules(local.DispatchBalanced, e.Capabilities); r.Multi || r.Create {
+		t.Errorf("balanced gate rules = %+v, want none: multi-file is not trusted, create-file is aggressive only", r)
+	}
 	e.Capabilities = nil
 	if p := LocalDispatchPolicy(e, local.DispatchAggressive, 3, 5); strings.Contains(p, want) || !strings.Contains(p, "Send it: lookups in the code") {
 		t.Errorf("control: without the block the policy should be the broad text:\n%s", p)

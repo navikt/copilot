@@ -6,8 +6,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Hva hovedagenten sender til den lokale modellen
 
-- **Egen server (`local_endpoint`)**: En modell på din egen server er ikke målt. Hovedagenten får nå beskjed om å ikke sende den noe. Før fikk den en bred tekst som inviterte til oppslag, kommentarer og endringer i flere filer (#1021).
-- **Standardmodellen uten nett**: Modellisten som følger med nav-pilot, sier nå at standardmodellen kan få nye filer og endringer i én fil. Det er de to oppgavetypene som har bestått målingene. Med `local_dispatch = aggressive`, som er standard, blir en ny fil hovedagenten skriver selv, stoppet til den er sendt til `local-worker`. Lista brukes bare når nav-pilot ikke får hentet den publiserte lista (#1010).
+- **Egen server (`local_endpoint`)**: En modell på din egen server er ikke målt. Hovedagenten får nå beskjed om ikke å sende den noe. Før fikk den en bred tekst som ba den sende oppslag, kommentarer og endringer i flere filer (#1021).
+- **Standardmodellen**: Modellista som følger med nav-pilot, sier nå at standardmodellen kan få nye filer og endringer i én fil, og ikke lenger mekaniske endringer i flere filer. Det bestemte eieren 23. oktober ut fra målingene. Med `local_dispatch = aggressive`, som er standard, stopper nav-pilot en ny fil hovedagenten vil skrive selv, til fila er sendt til `local-worker`. Den innebygde lista brukes bare når nav-pilot ikke får hentet den publiserte, og den publiserte lista sier det samme fra samme dag (#1010).
 
 ### Telemetri viser hovedversjonen av opencode
 
