@@ -881,20 +881,91 @@ func TestNoCpltNoQuestion(t *testing.T) {
 	}
 }
 
-// A decline is a decision: doctor says so with the way back, not a warning on
-// every run (#1189).
+// A decline is a decision: doctor says so in one line with the way back, not a
+// warning on every run (#1189, #1962), and says nothing when there is none.
 func TestDoctorReportsADeclineAsInfo(t *testing.T) {
 	scope := consentEnv(t)
-	answering(t, false)
 	src := proposeSource(t, `"cloud.nais.io"`, "")
+	doctor := func() string {
+		var b strings.Builder
+		reportSandboxWaiver(&b, src.Pakke)
+		return b.String()
+	}
+	const line = "Access declined. To allow it: nav-pilot pakke access"
+
+	if out := doctor(); strings.Contains(out, "declined") {
+		t.Errorf("doctor before any answer names a decline:\n%s", out)
+	}
+	answering(t, false)
 	noteProposalConsent(scope, src, false, false)
+	out := doctor()
+	if !strings.Contains(out, line) || strings.Contains(out, "not approved") || strings.Count(out, "declined") != 1 {
+		t.Errorf("doctor after a decline, want one line %q:\n%s", line, out)
+	}
+
+	answering(t, true)
+	putProposal(scope, src, false, false, true)
+	if out := doctor(); strings.Contains(out, "declined") {
+		t.Errorf("doctor after a yes still names a decline:\n%s", out)
+	}
+}
+
+// Hosts the user allowed by hand in cplt are access held, whatever the record
+// says (#1319): doctor and pakke say so and point nowhere; the control, with
+// the same decline and no cplt cover, is a decline.
+func TestDeclineCoveredByCpltConfigIsGranted(t *testing.T) {
+	scope := consentEnv(t)
+	src := proposeSource(t, `"loki.nav.cloud.nais.io"`, "")
+	answering(t, false)
+	noteProposalConsent(scope, src, false, false)
+	if _, state, _ := proposalState(scope, src); state != accessDeclined {
+		t.Fatalf("control: uncovered decline reads %q", state)
+	}
+
+	cpltPrivateDomains = func() []string { return []string{"nav.cloud.nais.io"} }
+	if _, state, _ := proposalState(scope, src); state != accessByCplt {
+		t.Errorf("covered decline reads %q, want %q", state, accessByCplt)
+	}
 	var b strings.Builder
 	reportSandboxWaiver(&b, src.Pakke)
-	out := b.String()
-	if !strings.Contains(out, "declined. To allow it:") || strings.Contains(out, "not approved") {
-		t.Errorf("doctor after a decline:\n%s", out)
+	if out := b.String(); strings.Contains(out, "declined") || !strings.Contains(out, "already allows") {
+		t.Errorf("doctor with cplt cover:\n%s", out)
 	}
-	if !strings.Contains(out, "cplt config set proxy.allow_private_domains cloud.nais.io") {
-		t.Errorf("doctor after a decline does not give the way back:\n%s", out)
+}
+
+// pakke access asks again over a recorded decline, and records the yes; first
+// run, the control, never asks twice.
+func TestAccessAsksAgainAfterADecline(t *testing.T) {
+	scope := consentEnv(t)
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+	answering(t, false)
+	noteProposalConsent(scope, src, false, false)
+	if _, state, _ := proposalState(scope, src); state != accessDeclined {
+		t.Fatalf("after a decline the status reads %q, want %q", state, accessDeclined)
+	}
+
+	asked := answering(t, true)
+	noteProposalConsent(scope, src, false, false)
+	if *asked != 0 {
+		t.Fatalf("first run asked again over a decline (%d)", *asked)
+	}
+	var title string
+	askProposalConsent = func(tl, _ string, v *bool) error { *asked++; title = tl; *v = true; return nil }
+	putProposal(scope, src, false, false, true)
+	if *asked != 1 || strings.Contains(title, "changed") {
+		t.Fatalf("pakke access asked %d time(s) with %q; want once, as on first run", *asked, title)
+	}
+	if rec := recordFor(t, scope); rec == nil || !rec.Approved {
+		t.Fatalf("the yes was not recorded: %+v", rec)
+	}
+	access, state, _ := proposalState(scope, src)
+	if state != accessGranted || access != "reach cloud.nais.io" {
+		t.Errorf("after a yes the status reads %q %q, want granted", access, state)
+	}
+
+	// Granted: nothing left to ask.
+	putProposal(scope, src, false, false, true)
+	if *asked != 1 {
+		t.Errorf("asked over an approval")
 	}
 }

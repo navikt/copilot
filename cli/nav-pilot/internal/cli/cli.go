@@ -101,6 +101,8 @@ Commands:
   export <format>         Export Nav customizations to another tool's format
   config [subcommand]     Manage user-specific nav-pilot configuration; no subcommand opens the interactive settings page
   validate                Check that a source repo conforms to the agentpakke contract
+  pakke                   Show the agentpakke here: source, items, hooks and the access it asks for
+  pakke access            Answer again about access you declined
   pakke bump-base         Move the agentpakke this pakke reuses onto its latest revision
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
@@ -938,7 +940,7 @@ func run(args []string) error {
 			flag = "--repo"
 		}
 		switch command {
-		case "install", "add", "ignore", "sync", "rollback", "doctor", "uninstall", "export", "list":
+		case "install", "add", "ignore", "sync", "rollback", "doctor", "uninstall", "export", "list", "pakke":
 			// These commands support --user and --repo
 		default:
 			return fmt.Errorf("%s is not supported for %q", flag, command)
@@ -1136,11 +1138,29 @@ func run(args []string) error {
 			return cmdValidate(ref, sourceRepo, jsonOutput)
 		})
 	case "pakke":
-		if len(positional) != 1 || positional[0] != "bump-base" {
-			return fmt.Errorf("usage: nav-pilot pakke bump-base [--target <dir>]")
+		switch {
+		case jsonOutput && (len(positional) == 0 || positional[0] == "access"):
+			return fmt.Errorf("nav-pilot pakke has no --json output")
+		case len(positional) == 0:
+			return runWithCommandTelemetry("pakke", telemetryMode(), scope.Name, func() error {
+				return cmdPakkeStatus(scope, scopeProvided)
+			})
+		case len(positional) == 1 && positional[0] == "access" && dryRun:
+			// It records an answer, and a flag it accepted and ignored would
+			// record it anyway.
+			return fmt.Errorf("pakke access has no --dry-run: it records your answer, and nav-pilot pakke shows the state without asking")
+		case len(positional) == 1 && positional[0] == "access":
+			return runWithCommandTelemetry("pakke-access", telemetryMode(), scope.Name, func() error {
+				return cmdPakkeAccess(scope, scopeProvided)
+			})
+		case len(positional) != 1 || positional[0] != "bump-base":
+			return fmt.Errorf("usage: nav-pilot pakke [access]\n       nav-pilot pakke bump-base [--target <dir>]")
 		}
 		// It writes the lock, and a flag it accepted and ignored would write it
 		// anyway. git diff undoes a bump.
+		if userScope || repoScope {
+			return fmt.Errorf("pakke bump-base takes no --user or --repo: it works on the pakke repository --target names")
+		}
 		if dryRun {
 			return fmt.Errorf("pakke bump-base has no --dry-run: it writes %s, and git diff shows and undoes the change", agentpakke.DeclarationPath)
 		}

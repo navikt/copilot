@@ -116,12 +116,23 @@ var cpltInstalled = func() bool {
 var notedProposals = map[string]bool{}
 
 func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bool) {
+	// Best effort: putProposal has already said what went wrong, and an
+	// install that is otherwise fine does not fail over a launch flag.
+	_ = putProposal(scope, src, dryRun, jsonOutput, false)
+}
+
+// putProposal is noteProposalConsent with one switch: reask puts the question
+// again over a recorded decline of this very block, which is what
+// `nav-pilot pakke access` is for. Everything else, the recording included,
+// is the same path first run takes. It returns the errors that left the
+// question unanswered or the answer unrecorded.
+func putProposal(scope *InstallScope, src *Source, dryRun, jsonOutput, reask bool) error {
 	if scope == nil || src == nil || src.Pakke == nil || dryRun {
-		return
+		return nil
 	}
 	proposal := src.Pakke.CpltProposal()
 	if proposal == nil {
-		return
+		return nil
 	}
 	name := safe(src.Pakke.Name, 64)
 
@@ -137,7 +148,7 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	hosts := proposal.AllowPrivateDomains()
 	reads := proposal.AllowRead()
 	if len(hosts) == 0 && len(reads) == 0 {
-		return
+		return nil
 	}
 	commands := cpltSetupCommands(hosts, reads)
 
@@ -148,20 +159,24 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 		// cannot read would write an answer on top of one it never saw.
 		fmt.Fprintf(os.Stderr, "%s agentpakke %s: could not read the sandbox consent record, so nothing was asked or recorded: %v\n",
 			yellow("⚠"), bold(name), err)
-		return
+		return err
 	}
 	if prior != nil && prior.Hash == hash {
 		// Answered already, for exactly this block. An approval needs no
 		// second look, and a decline must not be asked again — that is what
-		// recording it is for.
-		return
+		// recording it is for — unless the user asked to be asked.
+		if prior.Approved || !reask {
+			return nil
+		}
+		// The same block, so nothing "changed since you last answered".
+		prior = nil
 	}
 
 	// No cplt yet, as on a first run: a question about a sandbox that is not
 	// installed is one nobody can weigh. Nothing is recorded, so the next
 	// install or sync with --apply asks once cplt is there (#1189).
 	if !cpltInstalled() {
-		return
+		return nil
 	}
 
 	// Invariant 8. A scripted install cannot consent on a person's behalf, and
@@ -175,14 +190,14 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 			fmt.Fprintf(os.Stderr, "%s agentpakke %s proposes cplt sandbox settings, which only an interactive install can approve.\n%s\n",
 				dim("ℹ"), bold(name), indented(commands))
 		}
-		return
+		return nil
 	}
 
 	approve := false
 	if err := askProposalConsent(proposalTitle(name, hosts, reads, prior), proposalDescription(name, proposal, hosts, reads, prior), &approve); err != nil {
 		// Ctrl-C is not an answer: nothing is recorded and the question comes
 		// back at the next install or sync.
-		return
+		return err
 	}
 
 	record := artifacts.ProposalConsent{
@@ -203,13 +218,13 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	}
 	if err := artifacts.WriteProposalConsent(record); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Could not record the answer for %s: %v — you will be asked again.\n", yellow("⚠"), name, err)
-		return
+		return err
 	}
 	if !approve {
 		// One line: what the agent cannot do, and the way back (#1962 F2).
 		fmt.Fprintf(os.Stderr, "%s Declined, so the agent can't %s. To allow it later: %s\n",
 			yellow("⚠"), proposalAccess(hosts, reads), strings.Join(commands, " && "))
-		return
+		return nil
 	}
 	fmt.Printf("%s %s may %s from inside the sandbox.\n", green("✓"), bold(name), proposal.Summary())
 	if !providerpkg.CpltProtectsNavPilotState() {
@@ -218,6 +233,7 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 		// looks like it was never given.
 		fmt.Printf("  %s\n", dim("It takes effect once cplt is new enough to deny writes to ~/.nav-pilot/."))
 	}
+	return nil
 }
 
 // indented renders the commands a user can run by hand, two spaces in, one per
@@ -541,11 +557,8 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 		fmt.Fprintf(w, "      %s Could not read whether the %s sandbox waiver is approved: %v\n",
 			yellow("⚠"), bold(safe(pakke.Name, 64)), err)
 	case record == nil && declined:
-		// A decision, not a fault: said once, quietly, with the way back.
-		fmt.Fprintf(w, "      %s Sandbox waiver for %d host(s) declined. To allow it:\n", dim("ℹ"), len(hosts))
-		for _, command := range cpltSetupCommands(hosts, proposal.AllowRead()) {
-			fmt.Fprintf(w, "          %s\n", bold(command))
-		}
+		// A decision, not a fault: one quiet line with the way back (#1962).
+		fmt.Fprintf(w, "      %s Access declined. To allow it: %s\n", dim("ℹ"), bold("nav-pilot pakke access"))
 	case record == nil:
 		fmt.Fprintf(w, "      %s Sandbox waiver for %d host(s) is not approved\n", yellow("⚠"), len(hosts))
 		fmt.Fprintf(w, "          %s %s\n", dim("Hosts:"), strings.Join(hosts, ", "))

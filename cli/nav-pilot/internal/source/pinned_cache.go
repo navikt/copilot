@@ -18,7 +18,8 @@ const pinnedUnusedFor = 30 * 24 * time.Hour
 // over from a killed process. It matches the launch cache's refresh lock.
 const pinnedLockStale = 10 * time.Minute
 
-// resolvePinned resolves a reused base at the revision its declaration pins.
+// ResolvePinned resolves a source at the revision a declaration pins: a reused
+// base, or the agentpakke `nav-pilot pakke` reports on.
 //
 // A pinned revision never changes, so once fetched it is kept under
 // CacheDir/pinned/<repo>/<sha> and read from there by every later install,
@@ -35,7 +36,7 @@ const pinnedLockStale = 10 * time.Minute
 // Readers take no lock, as with the launch cache. Pruning runs under the
 // publish lock and only removes revisions no one has read for
 // pinnedUnusedFor, so a checkout in use is not removed in practice.
-func resolvePinned(sha, repo string) (*Source, error) {
+func ResolvePinned(sha, repo string) (*Source, error) {
 	if CacheDir == "" || filepath.IsAbs(repo) || ValidateSourceValue(repo) != nil || !isFullHexSHA(sha) {
 		return ResolveSource(sha, repo, "")
 	}

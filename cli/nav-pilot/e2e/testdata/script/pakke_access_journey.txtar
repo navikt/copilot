@@ -1,0 +1,77 @@
+# One home for the agentpakke (#1962): decline the access it asks for at
+# install, see the decline in `nav-pilot pakke`, then grant it with
+# `nav-pilot pakke access`, after which it is quiet about it. The same again
+# in user scope with --user. doctor's decline line is hash-exact for the
+# built-in pakke only, so here it must stay silent throughout; the unit tests
+# cover the line itself.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+# The question is about cplt's settings, so it needs cplt on PATH (#1189).
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+
+# Enter declines.
+exits 0 pty-run -wait 'Decline' -send '\r' -- nav-pilot install plattform --source $WORK/plattform --repo --yes
+stdout 'Declined, so the agent can.t read Nais logs and metrics'
+
+exec nav-pilot pakke
+stdout 'agentpakke plattform \(repo\)'
+stdout 'Source: .*plattform@'
+stdout '1 agents:'
+stdout 'Access: +read Nais logs and metrics — declined'
+stdout -count=1 'Next: nav-pilot pakke access'
+
+! exec nav-pilot pakke --json
+stderr 'no --json'
+
+exits 0 nav-pilot doctor
+! stdout 'Access declined'
+
+# Without a terminal it says what it would ask, in one line, and fails.
+! exec nav-pilot pakke access
+stderr 'needs a terminal to ask in\. It would ask: Let the agent read Nais logs and metrics\?'
+! stdout .
+
+# The same question as first run; y allows.
+exits 0 pty-run -wait 'Let the agent read Nais logs and metrics' -send 'y' -- nav-pilot pakke access
+stdout 'plattform may'
+
+exec nav-pilot pakke
+stdout 'Access: +read Nais logs and metrics — granted'
+! stdout 'Next:'
+
+exec nav-pilot pakke access
+stdout 'The agentpakke already has the access it asks for\.'
+
+# User scope: --user is accepted and speaks for ~/.copilot.
+exits 0 pty-run -wait 'Decline' -send '\r' -- nav-pilot install --user --all --source $WORK/plattform
+exec nav-pilot pakke --user
+stdout 'agentpakke plattform \(user\)'
+stdout 'Access: +read Nais logs and metrics — declined'
+exits 0 pty-run -wait 'Let the agent read Nais logs and metrics' -send 'y' -- nav-pilot pakke access --user
+stdout 'plattform may'
+exec nav-pilot pakke --user
+stdout 'Access: +read Nais logs and metrics — granted'
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}},"policies":{"propose":{"cplt":{"reason":"The observability skill queries Mimir and Loki.","proxy":{"allow_private_domains":["loki.nav.cloud.nais.io","mimir.nav.cloud.nais.io"]}}}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/skills/brann/SKILL.md --
+---
+name: brann
+description: fra plattform
+---
+brann
