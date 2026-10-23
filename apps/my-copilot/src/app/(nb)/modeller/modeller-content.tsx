@@ -193,7 +193,7 @@ const QUICK: { task: string; model: string; why: string }[] = [
   {
     task: "@nav-pilot",
     model: NAV_PILOT_DEFAULT_MODEL,
-    why: "Målt på flere planleggingsoppgaver. Agentpakken bruker den som standard.",
+    why: "Agentpakken bruker den som standard fra 23. oktober.",
   },
   {
     task: "Kodegjennomgang, sikkerhet og personopplysninger",
@@ -260,16 +260,17 @@ function KeyPoints() {
           </Table.Body>
         </Table>
       </div>
-      <Alert variant="warning" size="small">
+      <Alert variant="info" size="small">
         <Heading size="xsmall" level="3" spacing>
-          Vær forsiktig med personopplysninger i GPT-6.1 Sol
+          GPT-6.1 Sol og personopplysninger
         </Heading>
         <BodyLong size="small">
-          I en pilot med tre kjøringer 12. oktober 2026 la den to ganger fødselsnummer i en Kafka-melding uten å spørre
-          om personvern først. GPT-6 Sol stoppet før den endret koden i alle fem kjøringene, og spurte i fire av dem.
-          Tre kjøringer er for få til å si hvor ofte dette skjer, og anbefalingen for daglig koding står.{" "}
-          <Link href={`${BASELINES_DIR}/2026-10-12-pin-pilot-sol61`} target="_blank" rel="noopener noreferrer">
-            Se piloten
+          I en pilot 12. oktober 2026 la GPT-6.1 Sol to ganger fødselsnummer i en Kafka-melding uten å spørre om
+          personvern først. Ved en ny kjøring av samme test 23. oktober stoppet den i alle tre kjøringene og tok opp
+          personvern før den endret koden. Derfor bruker @nav-pilot nå GPT-6.1 Sol. Tre kjøringer er få, så vi følger
+          med.{" "}
+          <Link href={`${BASELINES_DIR}/2026-10-23-t7b-rerun-gpt-6.1-sol`} target="_blank" rel="noopener noreferrer">
+            Se målingen
           </Link>
           .
         </BodyLong>
@@ -801,13 +802,12 @@ export function ModellerContent({
                     Bruk {RECOMMENDED_DAILY_MODEL.model} med lav innsats til daglig koding. Den besto alle sjekkene i
                     koding, norsk og research 6. oktober. Den 12. oktober vurderte vi planleggingstesten og to av
                     kodegjennomgangstestene på nytt med rettede sjekker (kjørt 11. oktober), og den besto fem av fem.
-                    Til planlegging anbefaler vi fortsatt {NAV_PILOT_DEFAULT_MODEL}, som er målt på flere
-                    planleggingsoppgaver, og @nav-pilot bruker den. Til kodegjennomgang og alt som gjelder sikkerhet og
-                    personopplysninger anbefaler vi likevel Claude Opus 5.5 med lav innsats: GPT-6.1 Sol fant
-                    sikkerhetsfeilene sjeldnere (7. oktober). Av modellene vi har målt, fant Opus oftest feilene i
-                    nais.yaml, SQL og tilgangskontroll, men den koster 1,6 til 2,8 ganger så mye. GPT-6 Luna er billig
-                    og god til små, avgrensede rettinger og en rask førstegjennomgang av kode der sikkerhet ikke er
-                    tema, men ikke til sikkerhetsgjennomgang.
+                    @nav-pilot bruker også {NAV_PILOT_DEFAULT_MODEL} fra 23. oktober. Til kodegjennomgang og alt som
+                    gjelder sikkerhet og personopplysninger anbefaler vi likevel Claude Opus 5.5 med lav innsats:
+                    GPT-6.1 Sol fant sikkerhetsfeilene sjeldnere (7. oktober). Av modellene vi har målt, fant Opus
+                    oftest feilene i nais.yaml, SQL og tilgangskontroll, men den koster 1,6 til 2,8 ganger så mye. GPT-6
+                    Luna er billig og god til små, avgrensede rettinger og en rask førstegjennomgang av kode der
+                    sikkerhet ikke er tema, men ikke til sikkerhetsgjennomgang.
                   </BodyLong>
                   <BodyLong>
                     Tabellen viser hva agentene og promptene er pinnet til. Modellen står i fila til agenten eller

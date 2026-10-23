@@ -155,8 +155,8 @@ func TestOpenCodeProvider_Metadata(t *testing.T) {
 	if p.ID() != "opencode" {
 		t.Errorf("ID() = %q, want opencode", p.ID())
 	}
-	if got := p.DefaultModel(); got != "github-copilot/gpt-6-sol" {
-		t.Errorf("DefaultModel() = %q, want github-copilot/gpt-6-sol", got)
+	if got := p.DefaultModel(); got != "github-copilot/gpt-6.1-sol" {
+		t.Errorf("DefaultModel() = %q, want github-copilot/gpt-6.1-sol", got)
 	}
 }
 

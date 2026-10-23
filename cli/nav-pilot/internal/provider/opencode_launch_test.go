@@ -22,13 +22,13 @@ func TestToOpenCodeModel(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"", "github-copilot/gpt-6-sol"},
-		{"auto", "github-copilot/gpt-6-sol"},
-		{"  ", "github-copilot/gpt-6-sol"},
+		{"", "github-copilot/gpt-6.1-sol"},
+		{"auto", "github-copilot/gpt-6.1-sol"},
+		{"  ", "github-copilot/gpt-6.1-sol"},
 		{"claude-sonnet-4.6", "github-copilot/claude-sonnet-4.6"},
 		{"gpt-5.5", "github-copilot/gpt-5.5"},
 		// Legacy configs written against the old (broken) documented default.
-		{"github-copilot/auto", "github-copilot/gpt-6-sol"},
+		{"github-copilot/auto", "github-copilot/gpt-6.1-sol"},
 		{"github-copilot/claude-opus-4.8", "github-copilot/claude-opus-4.8"},
 		{"anthropic/claude-3-5-sonnet", "anthropic/claude-3-5-sonnet"},
 		{"  claude-haiku-4.5 ", "github-copilot/claude-haiku-4.5"},
@@ -49,7 +49,7 @@ func TestOpenCodeArgs(t *testing.T) {
 		{
 			name:     "empty resolved uses the package default",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "explicit model overrides default",
@@ -59,37 +59,37 @@ func TestOpenCodeArgs(t *testing.T) {
 		{
 			name:     "plan mode maps to --agent plan",
 			resolved: domain.ResolvedConfig{Mode: "plan", AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "plan"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "plan"},
 		},
 		{
 			name:     "default mode not emitted",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "reasoning effort is not passed to the TUI",
 			resolved: domain.ResolvedConfig{Mode: "default", ReasoningEffort: "high", AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "allow_all_tools maps to --auto",
 			resolved: domain.ResolvedConfig{Mode: "default", AllowAllTools: true, AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--auto"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot", "--auto"},
 		},
 		{
 			name:     "sandbox autonomy maps to --auto",
 			resolved: domain.ResolvedConfig{Mode: "default", Autonomy: "sandbox", AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--auto"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot", "--auto"},
 		},
 		{
 			name:     "conservative autonomy keeps prompts",
 			resolved: domain.ResolvedConfig{Mode: "default", Autonomy: "conservative", AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot"},
 		},
 		{
 			name:     "log level",
 			resolved: domain.ResolvedConfig{Mode: "default", LogLevel: "debug", AskUser: true},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--log-level", "DEBUG"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot", "--log-level", "DEBUG"},
 		},
 		{
 			name: "all fields",
@@ -106,7 +106,7 @@ func TestOpenCodeArgs(t *testing.T) {
 		{
 			name:     "ask_user false not emitted (opencode has no ask-user flag)",
 			resolved: domain.ResolvedConfig{Mode: "default", AskUser: false},
-			want:     []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"},
+			want:     []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot"},
 		},
 	}
 	for _, tt := range tests {
@@ -130,10 +130,10 @@ func TestOpenCodeAgentArgsVariant(t *testing.T) {
 		extra []string
 		want  []string
 	}{
-		{"TUI", nil, []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot"}},
-		{"TUI prompt", []string{"--prompt", "hello"}, []string{"--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--prompt", "hello"}},
-		{"run", []string{"run", "hello"}, []string{"run", "--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--variant", "low", "hello"}},
-		{"pure run", []string{"--pure", "run", "hello"}, []string{"--pure", "run", "--model", "github-copilot/gpt-6-sol", "--agent", "nav-pilot", "--variant", "low", "hello"}},
+		{"TUI", nil, []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot"}},
+		{"TUI prompt", []string{"--prompt", "hello"}, []string{"--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot", "--prompt", "hello"}},
+		{"run", []string{"run", "hello"}, []string{"run", "--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot", "--variant", "low", "hello"}},
+		{"pure run", []string{"--pure", "run", "hello"}, []string{"--pure", "run", "--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot", "--variant", "low", "hello"}},
 		{"other command", []string{"models"}, []string{"models"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -730,7 +730,7 @@ func TestLaunchPi_ForwardsExtraArgs(t *testing.T) {
 		" --skill " + d + "/skills" +
 		" --append-system-prompt " + d + "/agents/nav-pilot.md" +
 		" --append-system-prompt " + d + "/AGENTS.md" +
-		" --model github-copilot/gpt-6-sol" +
+		" --model github-copilot/gpt-6.1-sol" +
 		" run fix the flaky test"
 	if string(got) != want {
 		t.Errorf("cplt argv = %q, want %q", string(got), want)
@@ -803,13 +803,13 @@ func TestUserModelReachesEveryClient(t *testing.T) {
 	// With nothing pinned, the package default reaches every client. Pi still
 	// has nothing to warn about because the user did not set the model.
 	unset := domain.ResolvedConfig{}
-	if got := BuildCopilotArgs("copilot", unset); !slices.Contains(got, "gpt-6-sol") {
+	if got := BuildCopilotArgs("copilot", unset); !slices.Contains(got, "gpt-6.1-sol") {
 		t.Errorf("copilot: %q does not carry the package default", got)
 	}
-	if got := OpenCodeArgs(unset); !slices.Contains(got, "github-copilot/gpt-6-sol") {
+	if got := OpenCodeArgs(unset); !slices.Contains(got, "github-copilot/gpt-6.1-sol") {
 		t.Errorf("opencode: %q does not carry the package default", got)
 	}
-	if got := piLaunchArgs("/context", "nav-pilot", unset); !slices.Contains(got, "github-copilot/gpt-6-sol") {
+	if got := piLaunchArgs("/context", "nav-pilot", unset); !slices.Contains(got, "github-copilot/gpt-6.1-sol") {
 		t.Errorf("pi: %q does not carry the package default", got)
 	}
 	for _, w := range PiUnsupportedConfigWarnings(unset) {
