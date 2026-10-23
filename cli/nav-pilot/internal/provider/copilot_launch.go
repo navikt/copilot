@@ -407,6 +407,9 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	if env, err = applyCopilotAuthMode(env, resolved.CopilotAuthMode); err != nil {
 		return err
 	}
+	// Tier 1 Copilot builds its own cplt command and never reaches
+	// launchViaCplt. Only once cplt will run, so a refusal probes nothing.
+	warnCpltRecommended("copilot")
 
 	cmd := exec.Command(cliPath, args...)
 	cmd.Stdin = os.Stdin

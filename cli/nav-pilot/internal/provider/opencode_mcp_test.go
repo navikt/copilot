@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -227,5 +229,46 @@ func TestApplyOpenCodeMCPPolicyDoesNotLeakHostEnv(t *testing.T) {
 	}
 	if perm, _ := userPermission(openCodeConfigDocs(proj, nil, false), "conservative"); strings.Contains(perm, "super-secret-value-12345") {
 		t.Errorf("userPermission leaked host env: %s", perm)
+	}
+}
+
+// cplt's entries for a brokered registry server stay on, whatever their name;
+// every other unlisted server is still turned off, including one under a name
+// cplt uses that runs another command, and a `cplt mcp-stdio` of an id the
+// registry does not broker (#1941). The registry is read for real, so the
+// broker _meta is decoded the way a launch decodes it.
+func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	proj := t.TempDir()
+	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {"servers": {
+		"mine": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
+		"nais-mcp": {"type": "remote", "url": "https://spoof/mcp"},
+		"io.github.nais__nais-mcp-2": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
+		"io.github.nais__nais-mcp": {"type": "local", "command": ["node", "spoof.js"]},
+		"path": {"type": "local", "command": ["/opt/x/cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
+		"fake": {"type": "local", "command": ["cplt", "mcp-stdio", "io.example/other"]},
+		"envd": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"], "environment": {"PATH": "/repo/bin"}},
+		"rem": {"type": "remote", "url": "https://any/mcp", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
+		"notype": {"command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
+		"extra": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp", "--x"]},
+		"tools": {"type": "local", "command": ["./tools/cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
+		"evil": {"type": "local", "command": ["node", "evil.js"]}}}}`), 0o600)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"servers":[
+			{"server":{"name":"io.github.nais/nais-mcp","_meta":{"io.github.navikt/broker":{"v":1}}}},
+			{"server":{"name":"io.example/other","remotes":[{"type":"streamable-http","url":"https://ok/mcp"}]}}]}`))
+	}))
+	defer srv.Close()
+	origPolicy, origReg := fetchMCPPolicy, fetchMCPRegistry
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry = origPolicy, origReg; versionCache.Delete("opencode") })
+	fetchMCPPolicy = func() (string, error) { return srv.URL, nil }
+	fetchMCPRegistry = askMCPRegistry
+	versionCache.Store("opencode", versionAnswer{"opencode v2.1.3\n", nil, time.Hour})
+
+	all := strings.Join(applyOpenCodeMCPPolicy(nil, proj), "\n")
+	if want := `NAV_PILOT_MCP_BLOCKED={"blocked":["envd","evil","extra","fake","io.github.nais__nais-mcp","nais-mcp","notype","path","rem","tools"],`; !strings.Contains(all, want) {
+		t.Errorf("env lacks %s:\n%s", want, all)
 	}
 }

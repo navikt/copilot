@@ -413,33 +413,45 @@ func OpenCode1Notice() string {
 	return n
 }
 
-// warnOpenCode1 prints OpenCode1Notice at launch, once per opencode version,
-// and the CpltMCPNotice once per cplt version.
+// warnOpenCode1 prints OpenCode1Notice at launch, once per opencode version.
 func warnOpenCode1() {
 	out, _ := cachedVersion("opencode", clientProbeTimeout)
 	if n := OpenCode1Notice(); n != "" && SeenChanged("opencode1-notice", strings.TrimSpace(out)) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
 	}
-	if n, stamp := cpltMCPNotice(); n != "" && SeenChanged("cplt-mcp-notice", stamp) {
+}
+
+// warnCpltRecommended prints the cplt recommendation at a cplt launch of any
+// client, once per recommended version: a later recommendation says it again.
+// The opencode reasons are named only on an opencode 2 launch.
+func warnCpltRecommended(agent string) {
+	n := cpltRecommendedNotice(agent == "opencode" && openCodeMajor() == 2)
+	seen := cpltRecommended
+	if n == "" {
+		seen = ""
+	}
+	if SeenChanged("cplt-recommended", seen) && n != "" || n != "" && Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
 	}
 }
 
-// CpltMCPNotice nudges an opencode 2 user whose cplt is at or above
-// openCode2CpltFloor but below openCode2CpltRecommended; "" otherwise.
-func CpltMCPNotice() string { n, _ := cpltMCPNotice(); return n }
+// CpltRecommendedNotice is doctor's line: the opencode reasons are named when
+// opencode 2 is installed.
+func CpltRecommendedNotice() string { return cpltRecommendedNotice(openCodeMajor() == 2) }
 
-func cpltMCPNotice() (notice, stamp string) {
-	if openCodeMajor() != 2 {
-		return "", ""
-	}
+// cpltRecommendedNotice is one line with every reason to update a cplt older
+// than cpltRecommended, or "" at or above it (or when unreadable).
+func cpltRecommendedNotice(opencode bool) string {
 	out, err := probeCpltVersion()
-	stamp = cpltStamp(out)
-	if err != nil || stamp == "" || stamp < openCode2CpltFloor || stamp >= openCode2CpltRecommended {
-		return "", ""
+	stamp := cpltStamp(out)
+	if err != nil || stamp == "" || stamp >= cpltRecommended {
+		return ""
 	}
-	return fmt.Sprintf("cplt %s or newer is recommended for opencode 2: it brings GitHub MCP in opencode (io.github.navikt/github-mcp, navikt/cplt#807) and lets nav-pilot block the API keys opencode's voice feature reads even when they are passed through (navikt/cplt#817). Update cplt: %s",
-		openCode2CpltRecommended, domain.Bold(cpltUpgradeHint())), stamp
+	reasons := "it runs Nais MCP through cplt's broker"
+	if opencode {
+		reasons = "it runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, and blocks the API keys opencode's voice feature reads"
+	}
+	return fmt.Sprintf("cplt %s or newer is recommended: %s. Update cplt: %s", cpltRecommended, reasons, domain.Bold(cpltUpgradeHint()))
 }
 
 // openCodeVoiceEnv are the env vars opencode 2.1.3's voice feature reads
@@ -447,14 +459,14 @@ func cpltMCPNotice() (notice, stamp string) {
 var openCodeVoiceEnv = []string{"OPENAI_API_KEY", "XAI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GEMINI_API_KEY"}
 
 // withDenyVoiceEnv adds --deny-env for openCodeVoiceEnv on opencode 2 when
-// cplt is at least openCode2CpltRecommended (navikt/cplt#817). An older cplt
-// rejects the unknown flag, so it gets none; cpltMCPNotice nudges instead.
+// cplt is at least cpltDenyEnv (navikt/cplt#817). An older cplt rejects the
+// unknown flag, so it gets none; CpltRecommendedNotice nudges instead.
 func withDenyVoiceEnv(args []string) []string {
 	if openCodeMajor() != 2 {
 		return args
 	}
 	out, err := probeCpltVersion()
-	if err != nil || cpltStamp(out) < openCode2CpltRecommended {
+	if err != nil || cpltStamp(out) < cpltDenyEnv {
 		return args
 	}
 	for _, v := range openCodeVoiceEnv {
@@ -524,11 +536,17 @@ var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
 // #798 (v2 plugin and MCP grants). Raised 2026-10-22 in #1907.
 const openCode2CpltFloor = "2026.10.22-172931"
 
-// openCode2CpltRecommended is the cplt nav-pilot nudges opencode 2 users
-// towards without requiring it: navikt/cplt#807, the host-side auth proxy
-// GitHub MCP needs in opencode, and navikt/cplt#817, --deny-env for the voice
-// keys (withDenyVoiceEnv). Owner decision 2026-10-23: nudge, don't require.
-const openCode2CpltRecommended = "2026.10.23-070444"
+// cpltRecommended is the cplt nav-pilot nudges every cplt launch towards
+// without requiring it (owner decision 2026-10-23: nudge, don't require):
+// navikt/cplt#807, the host-side auth proxy GitHub MCP needs in opencode;
+// navikt/cplt#817, --deny-env for the voice keys; and the MCP broker, which
+// runs Nais MCP on the host for the sandbox. Raise it when a release brings
+// something users gain, and list the gain in CpltRecommendedNotice.
+const cpltRecommended = "2026.10.23-130113"
+
+// cpltDenyEnv is the first cplt with --deny-env (navikt/cplt#817). Kept apart
+// from cpltRecommended so a cplt between the two keeps the flag.
+const cpltDenyEnv = "2026.10.23-070444"
 
 // errCpltTooOld marks checkOpenCode2Launch's refusal of a cplt older than
 // minOpenCode2CpltStamp, so telemetry can tell it from argument refusals.

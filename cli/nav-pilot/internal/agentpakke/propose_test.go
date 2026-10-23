@@ -7,6 +7,28 @@ import (
 	"testing"
 )
 
+// cplt's broker specs live in $XDG_CONFIG_HOME/cplt/mcp, so with
+// XDG_CONFIG_HOME under home that directory is denied too; ~/.config/cplt
+// stays denied, and a sibling under the same XDG directory is not (#1941).
+func TestXDGConfigCpltIsDenied(t *testing.T) {
+	t.Setenv("HOME", "/home/u")
+	t.Setenv("XDG_CONFIG_HOME", "/home/u/xdg")
+	for grant, denied := range map[string]bool{
+		"~/xdg/cplt/mcp/io.github.nais__nais-mcp.json": true,
+		"~/.config/cplt/config.toml":                   true,
+		"~/xdg/other/config.toml":                      false,
+	} {
+		if err := checkReadGrant(grant); (err != nil) != denied {
+			t.Errorf("%s: %v, want denied %v", grant, err, denied)
+		}
+	}
+	// Control: without XDG_CONFIG_HOME the same path is not cplt's.
+	t.Setenv("XDG_CONFIG_HOME", "")
+	if err := checkReadGrant("~/xdg/cplt/mcp/x.json"); err != nil {
+		t.Errorf("no XDG_CONFIG_HOME: %v, want allowed", err)
+	}
+}
+
 // proposeManifest is a minimal Tier 1 manifest carrying a policies.propose.cplt
 // block, so a test can vary just the block.
 func proposeManifest(block string) string {

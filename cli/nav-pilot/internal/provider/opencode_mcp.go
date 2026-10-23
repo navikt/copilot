@@ -80,6 +80,9 @@ type mcpRegistry struct {
 	// Entries is every listed server in full, in the registry's order, for
 	// nav-pilot mcp (mcp_servers.go).
 	Entries []MCPServerEntry
+	// Brokered is the ids of the servers with the broker _meta, which cplt
+	// runs on the host and adds to the client itself (#1941).
+	Brokered map[string]bool
 }
 
 // fetchMCPPolicy and fetchMCPRegistry are asked once per process: an OpenCode
@@ -212,6 +215,12 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 			e.Tools = s.Meta.Nav.Tools
 			e.ToolRisk = s.Meta.Nav.ToolRisk
 			reg.Entries = append(reg.Entries, e)
+			if e.Meta.Broker != nil && e.Name != "" {
+				if reg.Brokered == nil {
+					reg.Brokered = map[string]bool{}
+				}
+				reg.Brokered[e.Name] = true
+			}
 			for _, r := range s.Server.Remotes {
 				reg.Remotes[normalizeMCPURL(r.URL)] = true
 				if s.Server.Name != "" {
@@ -253,8 +262,17 @@ func (r mcpRegistry) listed(s mcpServer) bool {
 	case "remote":
 		return r.Remotes[normalizeMCPURL(s.URL)]
 	case "local":
-		if len(s.Environment) > 0 || len(s.Env) > 0 {
+		if len(s.Environment) > 0 || len(s.Env) > 0 || s.hadEnv {
 			return false
+		}
+		// An entry cplt adds for a brokered registry server: exactly
+		// `cplt mcp-stdio <id>`, <id> carrying the broker _meta. Only the
+		// command counts, never the name, and only for a local server with
+		// no environment of its own, so a config cannot point PATH at its own
+		// cplt. cplt never replaces an entry that does not run its command,
+		// so turning such an entry off never touches cplt's (#1941).
+		if c := s.Command; len(c) == 3 && c[0] == "cplt" && c[1] == "mcp-stdio" && r.Brokered[c[2]] {
+			return true
 		}
 	default:
 		// OpenCode knows these two. Anything else is not a server the

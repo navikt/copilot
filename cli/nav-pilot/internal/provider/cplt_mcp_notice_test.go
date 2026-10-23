@@ -13,14 +13,17 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
-func TestCpltMCPNotice(t *testing.T) {
+// One cplt line per recommended version, for every client cplt launches: shown
+// below cpltRecommended once, again when the recommendation rises, never at or
+// above it.
+func TestCpltRecommendedNotice(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
 	t.Cleanup(func() { versionCache.Delete("opencode") })
 	prev := probeCpltVersion
 	t.Cleanup(func() { probeCpltVersion = prev })
-	launch := func(opencode, cplt string) string {
+	versionCache.Store("opencode", versionAnswer{"opencode v2.1.2\n", nil, time.Hour})
+	launch := func(agent, cplt string) string {
 		t.Helper()
-		versionCache.Store("opencode", versionAnswer{opencode, nil, time.Hour})
 		probeCpltVersion = func() (string, error) { return cplt, nil }
 		r, w, err := os.Pipe()
 		if err != nil {
@@ -28,40 +31,44 @@ func TestCpltMCPNotice(t *testing.T) {
 		}
 		orig := os.Stderr
 		os.Stderr = w
-		warnOpenCode1()
+		warnCpltRecommended(agent)
 		os.Stderr = orig
 		w.Close()
 		out, _ := io.ReadAll(r)
 		return string(out)
 	}
-	const v2 = "opencode v2.1.2\n"
-	old := "cplt " + openCode2CpltFloor + "-b37a8ab\n"
+	old := "cplt " + cpltDenyEnv + "-7f0fd16\n"
+	at := "cplt " + cpltRecommended + "-7f0fd16\n"
 
-	// Control: the same old cplt under opencode 1 says nothing about cplt.
-	if out := launch("1.18.32\n", old); strings.Contains(out, "github-mcp") {
-		t.Errorf("opencode 1: %q, want no cplt notice", out)
+	first := launch("opencode", old)
+	want := "cplt " + cpltRecommended + " or newer is recommended: it runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, and blocks the API keys opencode's voice feature reads. Update cplt: "
+	if !strings.Contains(first, want) || !strings.Contains(first, cpltUpgradeHint()) || strings.Count(first, "\n") != 1 {
+		t.Errorf("notice %q, want one line with %q", first, want)
 	}
-	first := launch(v2, old)
-	for _, want := range []string{"io.github.navikt/github-mcp", openCode2CpltRecommended, "navikt/cplt#807", "navikt/cplt#817", cpltUpgradeHint()} {
-		if !strings.Contains(first, want) {
-			t.Errorf("notice %q lacks %q", first, want)
-		}
+	// Once per recommended version: another client or old cplt says nothing.
+	if again := launch("copilot", "cplt 2026.10.22-172931-b37a8ab\n"); again != "" {
+		t.Errorf("same recommendation again: %q, want nothing", again)
 	}
-	if again := launch(v2, old); again != "" {
-		t.Errorf("same cplt again: %q, want nothing", again)
+	// A higher recommendation than the one last seen says it again; a
+	// non-opencode launch names only what it gains, even with opencode 2 installed.
+	SeenChanged("cplt-recommended", cpltDenyEnv)
+	if next := launch("copilot", old); !strings.Contains(next, "recommended: it runs Nais MCP through cplt's broker. Update cplt: ") {
+		t.Errorf("raised recommendation: %q, want the client-neutral notice", next)
 	}
-	if next := launch(v2, "cplt 2026.10.23-053641-abcdef0\n"); !strings.Contains(next, "github-mcp") {
-		t.Errorf("new cplt below recommended: %q, want notice", next)
-	}
-	for _, c := range []string{"cplt " + openCode2CpltRecommended + "-7f0fd16\n", "cplt 2026.11.01-000000-abcdef0\n"} {
-		if out := launch(v2, c); out != "" {
+	// At or above: silent, and the seen state is cleared, so a later old cplt
+	// says it again.
+	for _, c := range []string{at, "cplt 2026.11.01-000000-abcdef0\n"} {
+		if out := launch("opencode", c); out != "" {
 			t.Errorf("cplt %q: %q, want nothing", c, out)
 		}
+	}
+	if out := launch("pi", old); out == "" {
+		t.Error("after an up-to-date cplt, an old one again: want the notice")
 	}
 }
 
 // --deny-env for the voice keys only on opencode 2 with cplt at or above
-// openCode2CpltRecommended: an older cplt rejects the flag. "tier1" is the
+// cpltDenyEnv, even below cpltRecommended: an older cplt rejects the flag. "tier1" is the
 // helper opencode_launch.go appends to cpltFlags; "staged" is the real spec.
 func TestDenyVoiceEnv(t *testing.T) {
 	SetActivePakke(stagedFixturePakke())
@@ -70,13 +77,15 @@ func TestDenyVoiceEnv(t *testing.T) {
 	prev := probeCpltVersion
 	t.Cleanup(func() { probeCpltVersion = prev })
 	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
-	at := "cplt " + openCode2CpltRecommended + "-7f0fd16\n"
+	at := "cplt " + cpltDenyEnv + "-7f0fd16\n"
 	for _, c := range []struct {
 		opencode, cplt string
 		err            error
 		want           bool
 	}{
 		{"opencode v2.1.3\n", at, nil, true},
+		{"opencode v2.1.3\n", "cplt 2026.10.23-130112-abcdef0\n", nil, true}, // below cpltRecommended
+		{"opencode v2.1.3\n", "cplt " + cpltRecommended + "-abcdef0\n", nil, true},
 		{"opencode v2.1.3\n", "cplt 2026.11.01-000000-abcdef0\n", nil, true},
 		{"opencode v2.1.3\n", "cplt 2026.10.23-053641-abcdef0\n", nil, false},
 		{"opencode v2.1.3\n", "cplt dev\n", nil, false},                 // unparseable

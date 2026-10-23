@@ -17,7 +17,7 @@ func TestOpenCode1Notice(t *testing.T) {
 	t.Cleanup(func() { versionCache.Delete("opencode") })
 	prevProbe := probeCpltVersion
 	t.Cleanup(func() { probeCpltVersion = prevProbe })
-	probeCpltVersion = func() (string, error) { return "cplt " + openCode2CpltRecommended + "-abcdef0\n", nil }
+	probeCpltVersion = func() (string, error) { return "cplt " + cpltRecommended + "-abcdef0\n", nil }
 	launch := func(version string) string {
 		t.Helper()
 		versionCache.Store("opencode", versionAnswer{version, nil, time.Hour})

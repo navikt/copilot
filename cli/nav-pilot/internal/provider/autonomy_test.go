@@ -110,6 +110,14 @@ func TestCopilotLaunchSpawnsOnlyTheClient(t *testing.T) {
 		}
 	}
 	t.Setenv("PATH", dir)
+	// The cplt recommendation reads cplt's version through the on-disk
+	// cache: the first launch after an install asks, a warm one spawns nothing.
+	prevCache := VersionCacheFile
+	t.Cleanup(func() { VersionCacheFile = prevCache })
+	VersionCacheFile = filepath.Join(t.TempDir(), "client-versions.json")
+	if err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true, OtelLogLevel: "none"}); err != nil {
+		t.Fatalf("warm-up launch: %v", err)
+	}
 
 	for _, r := range []domain.ResolvedConfig{
 		{Client: "copilot", AskUser: true, Autonomy: "sandbox", OtelLogLevel: "none"},

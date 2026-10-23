@@ -2,6 +2,7 @@ package provider
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -235,6 +236,40 @@ func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.
 	}
 	if _, statErr := os.Stat(marker); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatal("expected cplt not to launch for env_only without a token")
+	}
+}
+
+// Tier 1 Copilot builds its own cplt command, so the cplt recommendation must
+// be said on that path too, with the client-neutral reasons.
+func TestLaunchCopilotResolved_ShowsCpltRecommendation(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{"cplt", "copilot"} {
+		if err := testhome.WriteExec(filepath.Join(dir, n), "#!/bin/sh\nexit 0\n"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("COPILOT_GITHUB_TOKEN", "")
+	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
+	prev := probeCpltVersion
+	t.Cleanup(func() { probeCpltVersion = prev })
+	probeCpltVersion = func() (string, error) { return "cplt " + cpltDenyEnv + "-7f0fd16\n", nil }
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stderr
+	os.Stderr = w
+	_ = LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true, OtelLogLevel: "none"})
+	os.Stderr = orig
+	w.Close()
+	out, _ := io.ReadAll(r)
+	if want := "recommended: it runs Nais MCP through cplt's broker. Update cplt: "; !strings.Contains(string(out), want) {
+		t.Errorf("stderr %q lacks %q", out, want)
 	}
 }
 

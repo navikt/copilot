@@ -93,9 +93,19 @@ var probeCpltVersion = func() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// The on-disk version cache: only the first launch after a cplt install
+	// or upgrade spawns cplt --version.
+	key := binaryKey(path)
+	if out, ok := readVersionCache(key); ok && key != "" {
+		cpltVersionOut = out
+		return out, nil
+	}
 	out, err := runStagedProbe(cpltProbeTimeout, path, "--version")
 	if err == nil {
 		cpltVersionOut = out
+		if key != "" {
+			writeVersionCache(key, out)
+		}
 	}
 	return out, err
 }
