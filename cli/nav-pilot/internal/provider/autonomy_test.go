@@ -110,6 +110,9 @@ func TestCopilotLaunchSpawnsOnlyTheClient(t *testing.T) {
 		}
 	}
 	t.Setenv("PATH", dir)
+	// The bounded `cplt --version` behind the recommendation notice is its
+	// own spawn, tested in TestLaunchCopilotResolved_ShowsCpltRecommendation.
+	stubCpltVersion(t, func() (string, error) { return "cplt " + cpltRecommended + "-7f0fd16\n", nil })
 
 	for _, r := range []domain.ResolvedConfig{
 		{Client: "copilot", AskUser: true, Autonomy: "sandbox", OtelLogLevel: "none"},

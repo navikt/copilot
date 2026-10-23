@@ -334,6 +334,8 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	}
 	PrintCpltSandboxHint()
 	PrintAutonomyNotice(resolved)
+	// Tier 1 Copilot builds its own cplt command and never reaches launchViaCplt.
+	warnCpltRecommended("copilot")
 	env := CopilotEnv(resolved.OtelLogLevel)
 	if note := autopilotNote(resolved); SeenChanged("autopilot-note", note) && note != "" || note != "" && Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
