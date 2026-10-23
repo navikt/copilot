@@ -7,8 +7,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### Oppdater cplt for GitHub MCP og for å stenge tale i OpenCode 2
 
 - **cplt 2026.10.23-070444 anbefales**: GitHub MCP (`io.github.navikt/github-mcp`) virker i OpenCode bare med cplt 2026.10.23-053641 eller nyere ([navikt/cplt#807](https://github.com/navikt/cplt/pull/807)).
-- **Nøkler for tale fjernes**: Med cplt 2026.10.23-070444 eller nyere fjerner nav-pilot miljøvariablene som talefunksjonen i OpenCode leser (`OPENAI_API_KEY`, `XAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` og `GEMINI_API_KEY`) fra sandkassen ([navikt/cplt#817](https://github.com/navikt/cplt/pull/817)). Nøkler du har lagret i OpenCode, og tale via OpenCode Console kan fortsatt ikke stenges. Tale er fortsatt ikke tillatt.
-- **Varsel**: Har du en eldre cplt, viser nav-pilot et kort varsel når du starter OpenCode 2, én gang per cplt-versjon, og i `nav-pilot doctor`. Varselet viser kommandoen som oppdaterer cplt. Du kan fortsatt starte OpenCode 2 uten å oppdatere.
+- **Nøkler for tale stenges**: Talefunksjonen i OpenCode leser `OPENAI_API_KEY`, `XAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` og `GEMINI_API_KEY`. cplt slipper ikke disse nøklene inn i sandkassen som standard. Med cplt 2026.10.23-070444 eller nyere stenger nav-pilot dem også når noen slipper dem inn med `--pass-env`, `--inherit-env` eller `.cplt.toml` ([navikt/cplt#817](https://github.com/navikt/cplt/pull/817)). Nøkler du har lagret i OpenCode og tale via OpenCode Console kan fortsatt ikke stenges. Tale er fortsatt ikke tillatt.
+- **Varsel**: Har du en eldre cplt, viser nav-pilot et kort varsel én gang per cplt-versjon når du starter OpenCode 2, og hver gang i `nav-pilot doctor`. Varselet viser kommandoen som oppdaterer cplt. Du kan fortsatt starte OpenCode 2 uten å oppdatere.
 
 ### Fortsett en tidligere økt
 

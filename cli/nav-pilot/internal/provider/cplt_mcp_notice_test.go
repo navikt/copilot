@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -72,18 +73,21 @@ func TestDenyVoiceEnv(t *testing.T) {
 	at := "cplt " + openCode2CpltRecommended + "-7f0fd16\n"
 	for _, c := range []struct {
 		opencode, cplt string
+		err            error
 		want           bool
 	}{
-		{"opencode v2.1.3\n", at, true},
-		{"opencode v2.1.3\n", "cplt 2026.11.01-000000-abcdef0\n", true},
-		{"opencode v2.1.3\n", "cplt 2026.10.23-053641-abcdef0\n", false},
-		{"1.18.35\n", at, false}, // control: opencode 1 never gets it
+		{"opencode v2.1.3\n", at, nil, true},
+		{"opencode v2.1.3\n", "cplt 2026.11.01-000000-abcdef0\n", nil, true},
+		{"opencode v2.1.3\n", "cplt 2026.10.23-053641-abcdef0\n", nil, false},
+		{"opencode v2.1.3\n", "cplt dev\n", nil, false},                       // unparseable
+		{"opencode v2.1.3\n", "", errors.New("probe timed out"), false}, // the launch still proceeds
+		{"1.18.35\n", at, nil, false}, // control: opencode 1 never gets it
 	} {
 		versionCache.Store("opencode", versionAnswer{c.opencode, nil, time.Hour})
-		probeCpltVersion = func() (string, error) { return c.cplt, nil }
+		probeCpltVersion = func() (string, error) { return c.cplt, c.err }
 		spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{Client: "opencode"}, staged)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%q %q: %v, want the launch to proceed", c.opencode, c.cplt, err)
 		}
 		for name, args := range map[string][]string{"tier1": withDenyVoiceEnv(nil), "staged": spec.cpltArgs} {
 			for _, v := range openCodeVoiceEnv {

@@ -417,7 +417,7 @@ func cpltMCPNotice() (notice, stamp string) {
 	if err != nil || stamp == "" || stamp < openCode2CpltFloor || stamp >= openCode2CpltRecommended {
 		return "", ""
 	}
-	return fmt.Sprintf("cplt %s or newer is recommended for opencode 2: GitHub MCP (io.github.navikt/github-mcp) needs it (navikt/cplt#807), and it lets nav-pilot strip the API keys opencode's voice feature reads (navikt/cplt#817). Update cplt: %s",
+	return fmt.Sprintf("cplt %s or newer is recommended for opencode 2: it brings GitHub MCP in opencode (io.github.navikt/github-mcp, navikt/cplt#807) and lets nav-pilot block the API keys opencode's voice feature reads even when they are passed through (navikt/cplt#817). Update cplt: %s",
 		openCode2CpltRecommended, domain.Bold(cpltUpgradeHint())), stamp
 }
 

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -79,14 +80,30 @@ const (
 const stagedProbeWaitDelay = 2 * time.Second
 
 // probeCpltVersion runs a bounded `cplt --version`. A package-level variable so
-// tests can exercise the gate without spawning a binary.
+// tests can exercise the gate without spawning a binary. A successful answer
+// is kept for the process, so a launch's floor check, --deny-env gate and
+// notice share one probe; failures are not kept, so a retry probes again.
 var probeCpltVersion = func() (string, error) {
+	cpltVersionMu.Lock()
+	defer cpltVersionMu.Unlock()
+	if cpltVersionOut != "" {
+		return cpltVersionOut, nil
+	}
 	path, err := stagedCpltPath()
 	if err != nil {
 		return "", err
 	}
-	return runStagedProbe(cpltProbeTimeout, path, "--version")
+	out, err := runStagedProbe(cpltProbeTimeout, path, "--version")
+	if err == nil {
+		cpltVersionOut = out
+	}
+	return out, err
 }
+
+var (
+	cpltVersionMu  sync.Mutex
+	cpltVersionOut string
+)
 
 // probeClientVersion runs a bounded version probe for the client a staged
 // launch is about to start.
