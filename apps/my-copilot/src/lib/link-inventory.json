@@ -1513,7 +1513,8 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "docs/nav-pilot-changelog.md"
     ],
     "anchors": {
       "begrensninger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx"],

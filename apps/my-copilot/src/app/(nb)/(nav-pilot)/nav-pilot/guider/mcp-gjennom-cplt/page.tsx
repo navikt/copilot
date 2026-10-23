@@ -88,7 +88,8 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     message: "blocked by policy (i Copilot CLI)",
     fix: (
       <>
-        Skal ikke skje. Meld fra i{" "}
+        Meldingen kommer fra Copilot CLI når serveren ikke står i Navs MCP-register. For{" "}
+        <code className={code}>io.github.nais/nais-mcp</code> skal den ikke komme. Meld fra i{" "}
         <a href="https://github.com/navikt/cplt/issues" className={linkClass}>
           navikt/cplt
         </a>{" "}
@@ -180,7 +181,14 @@ export default function McpGjennomCplt() {
             Begrensninger
           </LinkableHeading>
           <Bullets>
-            <li>Bare lesende verktøy. Verktøy som skriver, kommer ikke gjennom cplt.</li>
+            <li>
+              Bare lesende verktøy er slått på som standard. Vil du ha verktøy som skriver, slår du dem på med{" "}
+              <code className={code}>--tools</code> eller <code className={code}>--all-tools</code>, og nav-pilot ber
+              deg godkjenne det:
+              <CodeBlock
+                compact
+              >{`nav-pilot mcp enable io.github.nais/nais-mcp --tools <verktøy som skriver>`}</CodeBlock>
+            </li>
             <li>
               GraphQL-verktøyet i Nais MCP sender bare spørringer. cplt avviser mutasjoner og dokumenter med mer enn én
               operasjon.
@@ -247,11 +255,15 @@ export default function McpGjennomCplt() {
             Ubuntu 24.04 og nyere
           </LinkableHeading>
           <BodyLong>
-            Fiksen legger inn en AppArmor-profil for <code className={code}>bwrap</code>. cplt skriver ut kommandoen
-            første gang:
+            Fiksen legger inn en AppArmor-profil for <code className={code}>bwrap</code>. cplt kan gjøre det selv, og
+            spør før den kjører noe:
           </BodyLong>
-          {/* TODO ved merge: lim inn den nøyaktige kommandoen fra navikt/cplt#838. */}
-          <CodeBlock compact>{`# Kommandoen kommer med cplt-utgaven som har Linux-støtte (navikt/cplt#838)`}</CodeBlock>
+          <CodeBlock compact>{`cplt doctor --fix`}</CodeBlock>
+          <BodyLong>Vil du gjøre det for hånd, kjører du disse kommandoene:</BodyLong>
+          {/* TODO ved merge: lim inn de nøyaktige kommandoene fra navikt/cplt#838. */}
+          <CodeBlock
+            compact
+          >{`# Kommandoene kommer med cplt-utgaven som har Linux-støtte (navikt/cplt#838)`}</CodeBlock>
           <LinkableHeading id="wsl2-nokkelring" size="small" level="3">
             Nais-innlogging i WSL2
           </LinkableHeading>
