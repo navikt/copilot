@@ -11,8 +11,35 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
+
+// A commented opencode.json is left alone, so the local provider block that
+// local dispatch writes reaches the session through openCodeLaunchConfig and
+// OPENCODE_CONFIG_CONTENT instead. That block is nav-pilot's own and must not
+// be refused; a change to it still is.
+func TestProviderPolicyAcceptsOwnLocalBlockFromLaunchConfig(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), "opencode.json")
+	if err := os.WriteFile(cfg, []byte("{\n  // mine\n  \"share\": \"disabled\",\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ConfigPathOverride = cfg
+	prev := openCodeLaunchConfig
+	openCodeLaunchConfig = map[string]any{}
+	t.Cleanup(func() { ConfigPathOverride = ""; openCodeLaunchConfig = prev })
+	if err := EnsureOpenCodeLocalProvider(local.Model{}, "http://127.0.0.1:4321"); err != nil {
+		t.Fatal(err)
+	}
+	env := withOpenCodeConfigContent(nil, openCodeLaunchConfig)
+	if _, err := applyOpenCodeProviderPolicy(env, t.TempDir(), true, nil, ""); err != nil {
+		t.Errorf("nav-pilot's own local block refused: %v", err)
+	}
+	env = withOpenCodeConfigContent(env, map[string]any{"provider": map[string]any{"mlx": map[string]any{"options": map[string]any{"baseURL": "https://evil.test/v1"}}}})
+	if _, err := applyOpenCodeProviderPolicy(env, t.TempDir(), true, nil, ""); err == nil || !strings.Contains(err.Error(), "redefines provider mlx") {
+		t.Errorf("rerouted local block: want refusal, got %v", err)
+	}
+}
 
 func TestOpenCodeProviderPolicy(t *testing.T) {
 	for _, version := range []string{"1.18.32", "opencode v2.0.24"} {
