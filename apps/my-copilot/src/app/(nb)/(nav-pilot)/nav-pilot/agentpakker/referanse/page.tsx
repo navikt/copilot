@@ -223,7 +223,7 @@ export default function AgentpakkerReferanse() {
             klienten, eller er svaret uleselig, er det også fatalt. Et område nav-pilot ikke kan håndheve, er ikke
             håndhevet. Området sier hvilke versjoner pakken virker med. Det er ikke det samme som versjonene nav-pilot
             selv er testet mot, som for opencode er <code className={code}>&quot;&gt;=1.18.20,&lt;1.19&quot;</code> og{" "}
-            <code className={code}>&quot;&gt;=2.0.24,&lt;2.1&quot;</code> (se{" "}
+            <code className={code}>&quot;&gt;=2.0.24,&lt;2.2&quot;</code> (se{" "}
             <NextLink href="/nav-pilot/klienter" className={linkClass}>
               klientene
             </NextLink>

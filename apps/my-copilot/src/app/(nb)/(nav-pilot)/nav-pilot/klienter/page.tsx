@@ -31,7 +31,7 @@ const GH = "https://github.com/navikt/copilot";
 const HOOKS_DOC = `${GH}/blob/main/cli/nav-pilot/docs/opencode-hooks.md`;
 // OpenCode1TestedRange and OpenCode2TestedRange in cli/nav-pilot/internal/provider/opencode_policy.go
 const OPENCODE_RANGE = ">=1.18.20,<1.19";
-const OPENCODE2_RANGE = ">=2.0.24,<2.1";
+const OPENCODE2_RANGE = ">=2.0.24,<2.2";
 const c = (s: string) => <code className={code}>{s}</code>;
 
 const CLIENTS = [
@@ -554,6 +554,17 @@ export default function Klienter() {
             kjører med agentens rettigheter, i sandkassen. I opencode 2 kan en slik plugin også slå av nav-pilots hooks.
             Stoler du ikke på repoet, start med {c("OPENCODE_DISABLE_PROJECT_CONFIG=1")}. Da laster opencode verken
             plugins, MCP-servere eller konfig fra repoet.
+          </li>
+          <li>
+            <strong>Tale (GPT-Live) er ikke tillatt med nav-pilot.</strong> Talefunksjonen i opencode 2.1 kobler seg
+            rett til OpenAI, xAI eller Google når den finner en API-nøkkel for dem, lagret i opencode eller i en
+            miljøvariabel som {c("OPENAI_API_KEY")}. Den sjekker ikke lista over tillatte leverandører, så nav-pilots
+            sperre stopper den ikke. Ikke lagre nøkler for openai, xai eller google i opencode, og ikke bruk tale. cplt
+            skal fjerne miljøvariablene (
+            <a href="https://github.com/navikt/cplt/issues/814" className={linkClass}>
+              navikt/cplt#814
+            </a>
+            ), men lagrede nøkler og tale via OpenCode Console kan ikke stenges med konfig.
           </li>
         </Bullets>
         <BodyShort size="small" textColor="subtle">
