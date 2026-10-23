@@ -760,6 +760,23 @@ State leses alltid gjennom `readScopedState()` som validerer scope-match og sti-
 
 ## Output
 
+### Output policy
+
+En oppstart som ikke trenger noe fra brukeren, skriver ingenting. Hver linje
+nav-pilot skriver ved oppstart og avslutning hører til én av fire klasser:
+
+| Klasse | Når den vises | Eksempel |
+|---|---|---|
+| **Handle nå** | Alltid, kort. Brukeren må gjøre noe, eller linja varsler om en risiko. | cplt mangler, tilgang nektet, feil |
+| **Endret** | Én gang når verdien eller tilstanden er endret siden forrige oppstart (`SeenChanged`), så stille. | innstilling klienten ikke støtter, ny godkjenning for agentpakken, ny modell |
+| **Stabil tilstand** | Aldri. | samme agentpakke, samme godkjenning som sist |
+| **Detalj** | Bare med `--verbose` eller i `nav-pilot doctor`. | sandkassemappe, ekstra cplt-flagg |
+
+En linje i klassen «Endret» vises alltid med `--verbose`, og `doctor` viser
+tilstanden hver gang. Nøkkelen til `SeenChanged` er det linja handler om
+(klient, innstilling, agentpakke), og verdien er det som endrer seg. Da vises
+linja igjen når verdien eller klienten endrer seg.
+
 ### Farger
 
 Bruk hjelpefunksjonene i `output.go`:

@@ -109,16 +109,24 @@ func pakkeProposalFlags() []string {
 			domain.Yellow("⚠"), name, reason)
 		return nil
 	}
-	// Invariant 5: what a launch carries is said out loud at launch.
+	// Invariant 5: what a launch carries is said out loud at launch. Said
+	// once per approved set: a new or changed approval shows, a repeat does
+	// not unless --verbose.
+	reads := resolveReadGrants(record.Reads)
+	say := SeenChanged("approved-scope-"+pakke.Name, strings.Join(record.Hosts, ",")+"\n"+strings.Join(reads, ",")) || Verbose
 	var args []string
 	if hosts := record.Hosts; len(hosts) > 0 {
-		fmt.Fprintf(os.Stderr, "%s %s: cplt may resolve %s to private addresses, approved for this scope.\n",
-			domain.Dim("ℹ"), name, strings.Join(hosts, ", "))
+		if say {
+			fmt.Fprintf(os.Stderr, "%s %s: cplt may resolve %s to private addresses, approved for this scope.\n",
+				domain.Dim("ℹ"), name, strings.Join(hosts, ", "))
+		}
 		args = append(args, privateDomainFlags(hosts)...)
 	}
-	if reads := resolveReadGrants(record.Reads); len(reads) > 0 {
-		fmt.Fprintf(os.Stderr, "%s %s: cplt may read %s, approved for this scope.\n",
-			domain.Dim("ℹ"), name, strings.Join(reads, ", "))
+	if len(reads) > 0 {
+		if say {
+			fmt.Fprintf(os.Stderr, "%s %s: cplt may read %s, approved for this scope.\n",
+				domain.Dim("ℹ"), name, strings.Join(reads, ", "))
+		}
 		args = append(args, readGrantFlags(reads)...)
 	}
 	return args

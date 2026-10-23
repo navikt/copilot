@@ -1133,9 +1133,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 	resolved = BeforeClientStart(resolved)
 
-	for _, msg := range OpenCodeUnsupportedConfigWarnings(resolved) {
-		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
-	}
+	warnUnsupported("opencode", OpenCodeUnsupportedConfigWarnings(resolved))
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
 	launchEnv = applyOpenCodePolicy(launchEnv)
@@ -1180,8 +1178,10 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 					domain.Yellow("⚠"), err)
 			}
 		}()
-		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n",
-			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		if Verbose {
+			fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n",
+				domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		}
 		if url := guard.GateURL(); url != "" {
 			launchEnv, _ = telemetry.SetEnvValue(launchEnv, DispatchGateEnv, url)
 			if openCodeMajor() < 2 && slices.Contains(resolved.ExtraArgs, "--pure") {

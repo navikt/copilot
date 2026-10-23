@@ -314,6 +314,21 @@ func cmdDoctor() error {
 	reportHooks(repoDir, userScope)
 	fmt.Println()
 
+	// 2c. Settings the client drops. A launch says each once per value;
+	// doctor says them every time.
+	if cfg, _ := readConfig(); cfg != nil {
+		r := resolve(cfg, CLIOverrides{})
+		if p, err := providerpkg.ProviderFor(r.Client); err == nil {
+			if w := p.UnsupportedConfigWarnings(r); len(w) > 0 {
+				fmt.Printf("[i] Settings %s does not apply\n", r.Client)
+				for _, msg := range w {
+					fmt.Printf("    %s %s\n", yellow("⚠"), msg)
+				}
+				fmt.Println()
+			}
+		}
+	}
+
 	// 3. Client Agents
 	fmt.Printf("[i] Client Agents\n")
 

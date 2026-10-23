@@ -561,8 +561,10 @@ func mcpPrivateDomainFlags(already []string) []string {
 	if len(hosts) == 0 {
 		return nil
 	}
-	fmt.Fprintf(os.Stderr, "%s MCP servers (%s): cplt may resolve %s to private addresses, approved for this user.\n",
-		domain.Dim("ℹ"), strings.Join(mcpGrantServers(grant, hosts), ", "), strings.Join(hosts, ", "))
+	if servers := strings.Join(mcpGrantServers(grant, hosts), ", "); SeenChanged("mcp-private-hosts", servers+"\n"+strings.Join(hosts, ",")) || Verbose {
+		fmt.Fprintf(os.Stderr, "%s MCP servers (%s): cplt may resolve %s to private addresses, approved for this user.\n",
+			domain.Dim("ℹ"), servers, strings.Join(hosts, ", "))
+	}
 	return privateDomainFlags(hosts)
 }
 

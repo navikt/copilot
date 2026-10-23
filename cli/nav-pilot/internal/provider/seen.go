@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // Verbose is --verbose on a launch: say what nav-pilot does before the client
@@ -45,3 +46,16 @@ func printCpltSessionFlags() {
 
 // SeenChanged is [artifacts.SeenChanged].
 func SeenChanged(name, value string) bool { return artifacts.SeenChanged(name, value) }
+
+// warnUnsupported prints a client's unsupported-setting warnings, each once
+// per (client, setting, value): a message starts with its setting's name and
+// carries the value, so the message is what SeenChanged keeps for that
+// setting. A changed value or client says it again; --verbose every time.
+func warnUnsupported(client string, msgs []string) {
+	for _, msg := range msgs {
+		setting, _, _ := strings.Cut(msg, " ")
+		if SeenChanged("unsupported-"+client+"-"+setting, msg) || Verbose {
+			fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
+		}
+	}
+}

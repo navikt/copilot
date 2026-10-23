@@ -344,7 +344,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	PrintCpltSandboxHint()
 	PrintAutonomyNotice(resolved)
 	env := CopilotEnv(resolved.OtelLogLevel)
-	if note := autopilotNote(resolved); note != "" {
+	if note := autopilotNote(resolved); note != "" && (SeenChanged("autopilot-note", note) || Verbose) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
 	if guard == nil {
@@ -354,10 +354,14 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		// nav-pilot's provider-qualified spelling and tells the developer to
 		// drop it, which for a Hugging Face model id is the wrong advice.
 		env = copilotLocalEnv(env, worker, guard.URL())
-		fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
-			domain.Dim("ℹ"), domain.Bold(worker.Model))
-		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n\n",
-			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		if SeenChanged("local-inference-copilot", worker.Model) || Verbose {
+			fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
+				domain.Dim("ℹ"), domain.Bold(worker.Model))
+		}
+		if Verbose {
+			fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n\n",
+				domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		}
 	}
 	// The second seam. This path builds its own argument vector and runs its
 	// own exec.Command instead of going through cpltArgv/launchViaCplt, so
