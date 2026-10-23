@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Hva hovedagenten sender til den lokale modellen
+
+- **Egen server (`local_endpoint`)**: En modell på din egen server er ikke målt. Hovedagenten får nå beskjed om ikke å sende den noe. Før fikk den en bred tekst som ba den sende oppslag, kommentarer og endringer i flere filer (#1021).
+- **Standardmodellen**: Modellista som følger med nav-pilot, sier nå at standardmodellen kan få nye filer og endringer i én fil, og ikke lenger mekaniske endringer i flere filer. Det bestemte eieren 23. oktober ut fra målingene. Med `local_dispatch = aggressive`, som er standard, stopper nav-pilot en ny fil hovedagenten vil skrive selv, til fila er sendt til `local-worker`. Den innebygde lista brukes bare når nav-pilot ikke får hentet den publiserte, og den publiserte lista sier det samme fra samme dag (#1010).
+
 ### Telemetri viser hovedversjonen av opencode
 
 - **OpenCode**: Oppstartsmetrikken `nav_pilot_config_info` har fått feltet `client_major` med hovedversjonen av opencode (`1` eller `2`). Slik ser vi hvor mange som må oppgradere før støtten for opencode 1 slutter 19. november (#1907). Er telemetri slått av, sendes ingenting. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md).

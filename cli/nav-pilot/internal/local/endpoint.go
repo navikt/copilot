@@ -115,16 +115,19 @@ var ServerClient = &http.Client{
 
 // EndpointManifest is the one-entry manifest endpoint mode answers from, so
 // [IsLocal], [Lookup] and [Chosen] name the endpoint's model and nothing else.
-// No capabilities: nothing about the model has been measured, so the dispatch
-// policy gets the text written for a manifest without verdicts.
+// An empty capabilities block: nothing about the model has been measured, so
+// the dispatch policy says to send it nothing and the gate has no rule to
+// enforce. nil would get the broader text written for manifests from before
+// the block existed (#1021).
 func EndpointManifest(model string) *Manifest {
 	return &Manifest{Models: []Model{{
-		Key:     "endpoint",
-		Name:    model + " (own server, unmeasured)",
-		Model:   model,
-		Backend: BackendEndpoint,
-		Default: true,
-		Expect:  "Unsupported and unmeasured: a model on the developer's own server (local_endpoint) that nav-pilot has not benchmarked.",
+		Capabilities: &Capabilities{},
+		Key:          "endpoint",
+		Name:         model + " (own server, unmeasured)",
+		Model:        model,
+		Backend:      BackendEndpoint,
+		Default:      true,
+		Expect:       "Unsupported and unmeasured: a model on the developer's own server (local_endpoint) that nav-pilot has not benchmarked.",
 	}}}
 }
 

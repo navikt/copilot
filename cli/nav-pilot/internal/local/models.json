@@ -11,7 +11,7 @@
       "backend": "mlx-lm",
       "default": true,
       "role": "Sub-agent worker for focused tasks",
-      "expect": "Takes a scoped task from the main agent and returns in seconds. Reads, renames, small edits and single-file changes. Not for work that needs many turns: it is unreliable past the point where a task stops being focused. The OptiQ build is chosen over the plain 4-bit because the plain one produced a roughly 200-call runaway tool loop in both passes at the 36 GB memory cap.",
+      "expect": "Takes a scoped task from the main agent and returns in seconds. Trusted, with one retry, for a single-file edit (48 of 48 verified) and a new file (15 of 20 verified); both were measured with the model as the main agent, not on the hand-over path. Changes across several files stay on the cloud model by decision. Not trusted for answers and explanations about code, or debugging. Unreliable in long multi-turn work.",
       "weights_gb": 25,
       "min_ram_gb": 48,
       "wired_limit_gb": 36,
@@ -33,7 +33,303 @@
       },
       "recommended_for": [
         "decide-untrusted-evidence"
-      ]
+      ],
+      "capabilities": {
+        "bar": {
+          "confidence": 0.9,
+          "x_caught": 0.9,
+          "x_silent": 0.95,
+          "min_runs": 5,
+          "min_tasks": 2
+        },
+        "classes": {
+          "read-qa": {
+            "delegate": "cloud",
+            "local": "not-yet",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 46,
+            "local_n": 48
+          },
+          "edit-single": {
+            "delegate": "trusted",
+            "local": "not-yet",
+            "delegate_k": 48,
+            "delegate_n": 48,
+            "local_k": 9,
+            "local_n": 9
+          },
+          "edit-multi-mechanical": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 35,
+            "delegate_n": 35,
+            "local_k": 27,
+            "local_n": 32
+          },
+          "create-file": {
+            "delegate": "trusted",
+            "local": "cloud",
+            "delegate_k": 15,
+            "delegate_n": 20,
+            "local_k": 33,
+            "local_n": 48
+          },
+          "debug": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 4,
+            "local_n": 10
+          }
+        }
+      }
+    },
+    {
+      "key": "qwen3.8-27b-optiq-4bit",
+      "name": "Qwen 3.8 27B OptiQ 4bit (mixed 4/8-bit)",
+      "model": "mlx-community/Qwen3.8-27B-OptiQ-4bit",
+      "revision": "a97e1450285cb818b0572a3515f0fc59b8cd7228",
+      "backend": "mlx-lm",
+      "default": false,
+      "role": "Opt-in alternative, slower, the more robust 4-bit build",
+      "expect": "Opt-in, never the default, and much slower: median task about 50 seconds against about 12. The OptiQ build, mixed precision: sensitive layers at 8-bit, the rest at 4-bit. More robust than the plain 4-bit it replaces: 18 of 30 cheap tasks against 11 of 20, no seven-minute timeouts against 4, and 12 of 12 Copilot sessions verified. Decodes about 15% slower, 21 tokens a second at 30k. Context is 64k with an 8k reply, and a full session measured 37.2 GB at peak.",
+      "weights_gb": 19,
+      "min_ram_gb": 48,
+      "wired_limit_gb": 36,
+      "params": {
+        "MLX_MODEL": "mlx-community/Qwen3.8-27B-OptiQ-4bit",
+        "MLX_SERVER_TYPE": "mlx-lm",
+        "MLX_CACHE_BYTES": "8589934592",
+        "MLX_CACHE_SIZE": "3",
+        "MLX_MAX_TOKENS": "32768",
+        "MLX_OPENCODE_CONTEXT": "65536",
+        "MLX_OPENCODE_OUTPUT": "8192",
+        "MLX_OPENCODE_CHUNK_TIMEOUT": "600000",
+        "MLX_CHAT_TEMPLATE_ARGS": "{\"enable_thinking\": false}",
+        "MLX_TOP_K": "20",
+        "MLX_TOP_P": "0.95",
+        "MLX_MIN_P": "0.0",
+        "MLX_NAV_PILOT_TEMPERATURE": "0.6",
+        "MLX_NAV_PILOT_TOP_P": "0.95"
+      },
+      "recommended_for": [
+        "decide-nuanced"
+      ],
+      "capabilities": {
+        "bar": {
+          "confidence": 0.9,
+          "x_caught": 0.9,
+          "x_silent": 0.95,
+          "min_runs": 5,
+          "min_tasks": 2
+        },
+        "classes": {
+          "read-qa": {
+            "delegate": "cloud",
+            "local": "trusted",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 33,
+            "local_n": 33
+          },
+          "edit-single": {
+            "delegate": "cloud",
+            "local": "not-yet",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 18,
+            "local_n": 19
+          },
+          "edit-multi-mechanical": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 15,
+            "local_n": 22
+          },
+          "create-file": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 6,
+            "local_n": 22
+          },
+          "debug": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 17,
+            "local_n": 25
+          }
+        }
+      }
+    },
+    {
+      "key": "qwen3.8-27b-8bit-mlx",
+      "name": "Qwen 3.8 27B 8bit (mlx-lm)",
+      "model": "mlx-community/Qwen3.8-27B-8bit",
+      "revision": "815b83c0df8ffd1d1b5244cf75fd6ef14fca9ef9",
+      "backend": "mlx-lm",
+      "default": false,
+      "role": "Opt-in alternative, the 8-bit build, slowest here",
+      "expect": "Opt-in, never the default. About ten times slower than the default per task (median 115 seconds against 12) and about 14 tokens a second; a cold 30k-token prompt takes about a minute to read, 45k about 85 seconds. Quality was level with the default, 31 of 40 against 28. Context is 48k with a 4k reply, read in 512-token steps so a long prompt fits the 36 GB wired limit. nav-pilot releases older than 2026.09.24-110317 ignore the step and can run out of memory near 48k: update first. If you want one Qwen3.8, take the 4-bit.",
+      "weights_gb": 30,
+      "min_ram_gb": 48,
+      "wired_limit_gb": 36,
+      "params": {
+        "MLX_MODEL": "mlx-community/Qwen3.8-27B-8bit",
+        "MLX_SERVER_TYPE": "mlx-lm",
+        "MLX_CACHE_BYTES": "3489660928",
+        "MLX_PREFILL_STEP_SIZE": "512",
+        "MLX_CACHE_SIZE": "2",
+        "MLX_MAX_TOKENS": "32768",
+        "MLX_OPENCODE_CONTEXT": "49152",
+        "MLX_OPENCODE_OUTPUT": "4096",
+        "MLX_OPENCODE_CHUNK_TIMEOUT": "900000",
+        "MLX_CHAT_TEMPLATE_ARGS": "{\"enable_thinking\": false}",
+        "MLX_TOP_K": "20",
+        "MLX_TOP_P": "0.95",
+        "MLX_MIN_P": "0.0",
+        "MLX_NAV_PILOT_TEMPERATURE": "0.6",
+        "MLX_NAV_PILOT_TOP_P": "0.95"
+      },
+      "capabilities": {
+        "bar": {
+          "confidence": 0.9,
+          "x_caught": 0.9,
+          "x_silent": 0.95,
+          "min_runs": 5,
+          "min_tasks": 2
+        },
+        "classes": {
+          "read-qa": {
+            "delegate": "cloud",
+            "local": "not-yet",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 12,
+            "local_n": 12
+          },
+          "edit-single": {
+            "delegate": "cloud",
+            "local": "not-yet",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 4,
+            "local_n": 4
+          },
+          "edit-multi-mechanical": {
+            "delegate": "cloud",
+            "local": "not-yet",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 4,
+            "local_n": 4
+          },
+          "create-file": {
+            "delegate": "cloud",
+            "local": "not-yet",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 4,
+            "local_n": 4
+          },
+          "debug": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 19,
+            "local_n": 30
+          }
+        }
+      },
+      "min_nav_pilot": "2026.09.24-110317-3596754"
+    },
+    {
+      "key": "qwen3.6-35b-a3b-8bit",
+      "name": "Qwen 3.6 35B A3B 8bit, 64 GB machines, 48 GB wired",
+      "model": "mlx-community/Qwen3.6-35B-A3B-8bit",
+      "revision": "e06a74e6236a60c8367e1a3214e83d8b61b637b0",
+      "backend": "mlx-lm",
+      "default": false,
+      "role": "Opt-in for 64 GB machines, the default's model at 8-bit",
+      "expect": "Opt-in for 64 GB machines, never the default: the default's model at 8-bit, 38 GB of weights. Not yet trusted for delegation. It verified 92 of 96 single-file edits in the current bench harness. In an older harness that split work one file per subtask it verified 40 of 48 multi-file edits, and 30 of 36 new test files with one retry. 12 of 12 Copilot sessions verified. About 73 tokens a second at 30k. A 49k prompt peaked at 46 GB of the 48 GB limit; longer prompts are unmeasured.",
+      "weights_gb": 38,
+      "min_ram_gb": 64,
+      "wired_limit_gb": 48,
+      "params": {
+        "MLX_MODEL": "mlx-community/Qwen3.6-35B-A3B-8bit",
+        "MLX_SERVER_TYPE": "mlx-lm",
+        "MLX_CACHE_SIZE": "3",
+        "MLX_CACHE_BYTES": "6442450944",
+        "MLX_MAX_TOKENS": "32768",
+        "MLX_OPENCODE_CONTEXT": "65536",
+        "MLX_OPENCODE_OUTPUT": "16384",
+        "MLX_OPENCODE_CHUNK_TIMEOUT": "600000",
+        "MLX_CHAT_TEMPLATE_ARGS": "{\"enable_thinking\": false}",
+        "MLX_TOP_K": "20",
+        "MLX_TOP_P": "0.95",
+        "MLX_MIN_P": "0.0",
+        "MLX_NAV_PILOT_TEMPERATURE": "0.6",
+        "MLX_NAV_PILOT_TOP_P": "0.95"
+      },
+      "capabilities": {
+        "bar": {
+          "confidence": 0.9,
+          "x_caught": 0.9,
+          "x_silent": 0.95,
+          "min_runs": 5,
+          "min_tasks": 2
+        },
+        "classes": {
+          "read-qa": {
+            "delegate": "cloud",
+            "local": "trusted",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 96,
+            "local_n": 96
+          },
+          "edit-single": {
+            "delegate": "cloud",
+            "local": "trusted",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 124,
+            "local_n": 128
+          },
+          "edit-multi-mechanical": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 43,
+            "local_n": 64
+          },
+          "create-file": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 67,
+            "local_n": 96
+          },
+          "debug": {
+            "delegate": "cloud",
+            "local": "cloud",
+            "delegate_k": 0,
+            "delegate_n": 0,
+            "local_k": 9,
+            "local_n": 10
+          }
+        }
+      }
     }
   ],
   "replaced": {
