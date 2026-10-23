@@ -144,6 +144,25 @@ func TestModelNudgePiDefaultModel(t *testing.T) {
 	}
 }
 
+// pi and another client with the same persona but different recommendations
+// keep separate records: after Keep, alternating asks neither again.
+func TestModelNudgePiKeyApart(t *testing.T) {
+	dir, asked, _ := nudgeFixture(t, "gpt-5.5")
+	providerpkg.SetActivePakke(&agentpakke.Manifest{ContractVersion: "1", Name: "grill", Clients: map[string]agentpakke.ClientEntry{
+		"copilot": {PrimaryAgents: []string{"grillmester"}},
+		"pi":      {PrimaryAgents: []string{"grillmester"}, DefaultModel: "gpt-6.1-sol"},
+	}})
+	for range 3 {
+		sessionPrompted = false
+		maybeModelNudge(ResolvedConfig{Client: "copilot", Model: "gpt-5.5"}, "grillmester", dir)
+		sessionPrompted = false
+		maybeModelNudge(ResolvedConfig{Client: "pi", Model: "gpt-5.5"}, "grillmester", "")
+	}
+	if *asked != 2 {
+		t.Errorf("asked %d times alternating pi and copilot, want 2 (once each)", *asked)
+	}
+}
+
 // A persona that is not a plain file name is never used in a path or key.
 func TestModelNudgeUnsafePersona(t *testing.T) {
 	dir, asked, _ := nudgeFixture(t, "gpt-5.5")
