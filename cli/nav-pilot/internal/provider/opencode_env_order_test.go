@@ -31,6 +31,11 @@ func TestOpenCodeSessionEnvPolicyWinsOnBothPaths(t *testing.T) {
 				t.Logf("OPENCODE_CONFIG_CONTENT=%s", content)
 				t.Logf("cplt argv=%q", argv)
 				assertOpenCodeSessionPolicy(t, path, c.name == "v2", content)
+				// Only the launch config sets this: the file has a comment, so
+				// EnsureOpenCodeConfig could not write it there.
+				if path == "tier1" && !strings.Contains(content, `"openTelemetry":true`) {
+					t.Errorf("launch config dropped: no experimental.openTelemetry in %s", content)
+				}
 			})
 		}
 	}
@@ -39,6 +44,7 @@ func TestOpenCodeSessionEnvPolicyWinsOnBothPaths(t *testing.T) {
 func launchOpenCodeForOrder(t *testing.T, path, version string) (content string, argv []string) {
 	t.Helper()
 	mcpEnv(t, "", testRegistry(), nil)
+	telemetryOn(t)
 	home, _ := os.UserHomeDir()
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	NavContextDirOverride = t.TempDir()
@@ -158,5 +164,40 @@ func assertOpenCodeSessionPolicy(t *testing.T, path string, v2 bool, content str
 	agents, _ := cfg[key].(map[string]any)
 	if e, _ := agents[primary].(map[string]any); e["model"] != "github-copilot/gpt-6.1-sol" {
 		t.Errorf("%s.%s.model = %v, want the user's github-copilot/gpt-6.1-sol", key, primary, e["model"])
+	}
+}
+
+// A launch config that contradicts the policy loses to it: what
+// EnsureOpenCodeConfig could not write is merged before openCodeSessionEnv.
+func TestOpenCodeSessionEnvOverridesLaunchConfig(t *testing.T) {
+	mcpEnv(t, "", testRegistry(), nil)
+	primary := "nav-pilot"
+	env := withOpenCodeConfigContent(nil, map[string]any{
+		"share":      "auto",
+		"autoupdate": "always",
+		"mcp":        map[string]any{"rogue": map[string]any{"enabled": true}},
+		"permission": map[string]any{"external_directory": "allow"},
+		"agent":      map[string]any{primary: map[string]any{"model": "github-copilot/pinned"}},
+	})
+	r := domain.ResolvedConfig{Client: "opencode", Model: "gpt-6.1-sol", ProjectDir: t.TempDir()}
+	env, _ = openCodeSessionEnv(r, primary, env, nil)
+	var cfg map[string]any
+	if err := json.Unmarshal([]byte(openCodeEnvGetter(env)(openCodeConfigContentEnv)), &cfg); err != nil {
+		t.Fatalf("content: %v", err)
+	}
+	if cfg["share"] != "disabled" || cfg["autoupdate"] != "notify" {
+		t.Errorf("share = %v, autoupdate = %v; want disabled, notify", cfg["share"], cfg["autoupdate"])
+	}
+	mcp, _ := cfg["mcp"].(map[string]any)
+	if rogue, _ := mcp["rogue"].(map[string]any); rogue["enabled"] != false {
+		t.Errorf("mcp.rogue = %v, want enabled false", rogue)
+	}
+	perm, _ := cfg["permission"].(map[string]any)
+	if _, ok := perm["external_directory"].(map[string]any); !ok {
+		t.Errorf("permission.external_directory = %v, want nav-pilot's own-dirs rules", perm["external_directory"])
+	}
+	agents, _ := cfg["agent"].(map[string]any)
+	if e, _ := agents[primary].(map[string]any); e["model"] != "github-copilot/gpt-6.1-sol" {
+		t.Errorf("agent.%s.model = %v, want the user's model", primary, e["model"])
 	}
 }

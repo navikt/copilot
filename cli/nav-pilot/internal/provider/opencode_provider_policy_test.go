@@ -27,7 +27,7 @@ func TestProviderPolicyAcceptsOwnLocalBlockFromLaunchConfig(t *testing.T) {
 	ConfigPathOverride = cfg
 	t.Cleanup(func() { ConfigPathOverride = "" })
 	launchConfig := map[string]any{}
-	if err := EnsureOpenCodeLocalProvider(launchConfig, local.Model{}, "http://127.0.0.1:4321"); err != nil {
+	if err := ensureOpenCodeLocalProvider(launchConfig, local.Model{}, "http://127.0.0.1:4321"); err != nil {
 		t.Fatal(err)
 	}
 	env := withOpenCodeConfigContent(nil, launchConfig)

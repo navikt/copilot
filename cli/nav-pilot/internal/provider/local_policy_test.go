@@ -96,8 +96,8 @@ func TestEnsureOpenCodeLocalPolicyRegistersItselfOnce(t *testing.T) {
 	}
 
 	for range 3 {
-		if err := EnsureOpenCodeLocalPolicy(nil, "", m); err != nil {
-			t.Fatalf("EnsureOpenCodeLocalPolicy: %v", err)
+		if err := ensureOpenCodeLocalPolicy(nil, "", m); err != nil {
+			t.Fatalf("ensureOpenCodeLocalPolicy: %v", err)
 		}
 	}
 
@@ -182,7 +182,7 @@ func TestRemoveOpenCodeLocalPolicyLeavesTheDeveloperTheirOwn(t *testing.T) {
 	if err := os.WriteFile(ConfigPathOverride, []byte(`{"instructions":["`+mine+`"]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := EnsureOpenCodeLocalPolicy(nil, "", aLocalModel(t)); err != nil {
+	if err := ensureOpenCodeLocalPolicy(nil, "", aLocalModel(t)); err != nil {
 		t.Fatal(err)
 	}
 	if err := RemoveOpenCodeLocalPolicy(); err != nil {
@@ -216,7 +216,7 @@ func TestRemoveOpenCodeLocalPolicyDropsAnEmptyInstructionsKey(t *testing.T) {
 	withOpenCodeConfig(t)
 	withLocalEnabled(t)
 
-	if err := EnsureOpenCodeLocalPolicy(nil, "", aLocalModel(t)); err != nil {
+	if err := ensureOpenCodeLocalPolicy(nil, "", aLocalModel(t)); err != nil {
 		t.Fatal(err)
 	}
 	if err := RemoveOpenCodeLocalPolicy(); err != nil {
@@ -265,8 +265,8 @@ func TestLocalWorkerIsBoundToTheLocalModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := EnsureOpenCodeLocalProvider(nil, m, testGuardURL); err != nil {
-		t.Fatalf("EnsureOpenCodeLocalProvider: %v", err)
+	if err := ensureOpenCodeLocalProvider(nil, m, testGuardURL); err != nil {
+		t.Fatalf("ensureOpenCodeLocalProvider: %v", err)
 	}
 
 	want := LocalProviderID + "/" + m.Model
@@ -304,8 +304,8 @@ func TestDispatchPolicyAndBindingArriveTogether(t *testing.T) {
 	withLocalEnabled(t)
 	m := aLocalModel(t)
 
-	if err := EnsureOpenCodeLocalPolicy(nil, "", m); err != nil {
-		t.Fatalf("EnsureOpenCodeLocalPolicy: %v", err)
+	if err := ensureOpenCodeLocalPolicy(nil, "", m); err != nil {
+		t.Fatalf("ensureOpenCodeLocalPolicy: %v", err)
 	}
 	entries, _ := readOpenCodeConfig(t)["instructions"].([]any)
 	if len(entries) != 1 {
@@ -447,7 +447,7 @@ func TestNoLocalServerLeavesACloudSessionLaunchable(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // nothing recorded, and no server to record
 
 	// What an earlier session, with a server up, left behind.
-	if err := EnsureOpenCodeLocalPolicy(nil, "", m); err != nil {
+	if err := ensureOpenCodeLocalPolicy(nil, "", m); err != nil {
 		t.Fatal(err)
 	}
 

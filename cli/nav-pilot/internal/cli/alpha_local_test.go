@@ -240,21 +240,17 @@ func TestLocalOffTakesTheModelOutOfOpenCode(t *testing.T) {
 	if len(models) == 0 {
 		t.Fatal("the embedded local-model manifest names no models")
 	}
-	if err := providerpkg.EnsureOpenCodeLocalProvider(nil, models[0], "http://127.0.0.1:54321"); err != nil {
-		t.Fatalf("registering the local provider: %v", err)
+	// The block `start` writes, next to something of the developer's own,
+	// which off must not take with it.
+	cfg := map[string]any{
+		"provider": map[string]any{
+			providerpkg.LocalProviderID: map[string]any{"options": map[string]any{"baseURL": "http://127.0.0.1:54321/v1"}},
+			"anthropic":                 map[string]any{"name": "theirs"},
+		},
+		"theme": "tokyonight",
 	}
-	// Something of the developer's own, which off must not take with it.
-	raw, err := os.ReadFile(cfgPath)
+	raw, err := json.Marshal(cfg)
 	if err != nil {
-		t.Fatal(err)
-	}
-	var cfg map[string]any
-	if err := json.Unmarshal(raw, &cfg); err != nil {
-		t.Fatal(err)
-	}
-	cfg["provider"].(map[string]any)["anthropic"] = map[string]any{"name": "theirs"}
-	cfg["theme"] = "tokyonight"
-	if raw, err = json.Marshal(cfg); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(cfgPath, raw, 0o600); err != nil {
@@ -305,12 +301,13 @@ func TestLocalOffTakesTheDispatchPolicyOutOfOpenCode(t *testing.T) {
 		t.Fatal("the embedded local-model manifest names no models")
 	}
 	local.SetEnabled(true)
-	if err := providerpkg.EnsureOpenCodeLocalPolicy(nil, "", models[0]); err != nil {
-		t.Fatalf("provisioning the dispatch policy: %v", err)
-	}
+	// What a launch provisions: the policy file and its instructions entry.
 	policy := filepath.Join(dir, "nav-pilot-local-dispatch.md")
-	if _, err := os.Stat(policy); err != nil {
-		t.Fatalf("the dispatch policy was not provisioned: %v", err)
+	if err := os.WriteFile(policy, []byte("policy\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(providerpkg.ConfigPathOverride, []byte(`{"instructions":["`+policy+`"]}`), 0o600); err != nil {
+		t.Fatal(err)
 	}
 
 	captureStdout(func() {

@@ -414,7 +414,7 @@ func EnsureOpenCodeConfig() (map[string]any, error) {
 // task writes the same block for its benchmark workspaces.
 const LocalProviderID = "mlx"
 
-// EnsureOpenCodeLocalProvider registers the local server as an opencode
+// ensureOpenCodeLocalProvider registers the local server as an opencode
 // provider, so `--model mlx/<id>` reaches this machine instead of GitHub.
 //
 // It is a config write rather than an environment variable because opencode
@@ -428,7 +428,7 @@ const LocalProviderID = "mlx"
 // tokens — at 96k tokens we measured a single token taking three and a half
 // minutes, and the default timeout drops the connection mid-generation and
 // returns an empty response the client does not report as a failure.
-func EnsureOpenCodeLocalProvider(adds map[string]any, m local.Model, guardURL string) error {
+func ensureOpenCodeLocalProvider(adds map[string]any, m local.Model, guardURL string) error {
 	return mutateOpenCodeConfig(adds, func(cfg map[string]any) bool {
 		providers, _ := cfg["provider"].(map[string]any)
 		if providers == nil {
@@ -534,7 +534,7 @@ func unbindLocalWorker(cfg map[string]any) bool {
 // opencode's config, which is what `alpha local off` owes the developer.
 //
 // Turning dispatch off in nav-pilot's own config only stops nav-pilot from
-// choosing the model. The block [EnsureOpenCodeLocalProvider] wrote stays in a
+// choosing the model. The block [ensureOpenCodeLocalProvider] wrote stays in a
 // file opencode reads on its own, so a developer running opencode directly
 // could still pick the model and reach the guard's port — which after `off` is
 // whatever happens to be listening there. `start` writes the block back.
@@ -568,7 +568,7 @@ func RemoveOpenCodeLocalProvider() error {
 // mutate, and writes it back only when mutate reports it changed something.
 //
 // Every writer here needs the same merge, and for the same reason
-// [EnsureOpenCodeLocalProvider] states: the file is the developer's and
+// [ensureOpenCodeLocalProvider] states: the file is the developer's and
 // nav-pilot owns a few keys in it, not the file. A config that is not there is
 // one to create rather than an error, because `start` has to work on a machine
 // where opencode was never configured; a config that is there and unparseable
@@ -614,8 +614,9 @@ func parseOpenCodeConfig(path string, data []byte) (cfg map[string]any, commente
 
 // writeOpenCodeConfig writes cfg over the file that held data, unless the file
 // has comments: re-marshalling would drop them. Then what cfg adds goes to
-// adds, the launch's OPENCODE_CONFIG_CONTENT (#1071; nil outside a launch), and what it removes is an error that
-// names it, since a launch can add to the config but not take away.
+// adds, the launch's OPENCODE_CONFIG_CONTENT (#1071; nil outside a launch),
+// and what it removes is an error that names it, since a launch can add to the
+// config but not take away.
 func writeOpenCodeConfig(adds map[string]any, path string, data []byte, cfg map[string]any, commented bool) error {
 	if !commented {
 		out, err := json.MarshalIndent(cfg, "", "  ")
@@ -985,7 +986,7 @@ func writeDispatchClasses(b *strings.Builder, c *local.Capabilities, level strin
 	b.WriteString("changes needing a judgement per file; a task it would need several exchanges with you to finish; changes where a wrong edit is expensive.\n\n")
 }
 
-// EnsureOpenCodeLocalPolicy provisions the dispatch policy beside the worker
+// ensureOpenCodeLocalPolicy provisions the dispatch policy beside the worker
 // agent and points opencode at it, once per launch — not per turn, which is
 // what a stable prompt prefix requires.
 //
@@ -1015,7 +1016,7 @@ func writeDispatchClasses(b *strings.Builder, c *local.Capabilities, level strin
 // The binding goes in the same mutate as the entry, so the claim and the thing
 // that makes it true are one write: there is no config in which the fragment is
 // registered and the worker is not pinned to the local model.
-func EnsureOpenCodeLocalPolicy(adds map[string]any, root string, m local.Model) error {
+func ensureOpenCodeLocalPolicy(adds map[string]any, root string, m local.Model) error {
 	path := localPolicyPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
@@ -1455,7 +1456,7 @@ func startLocalDispatch(root string, adds map[string]any, sessionModel string) (
 	if err != nil {
 		return nil, err
 	}
-	if err := EnsureOpenCodeLocalProvider(adds, worker, guard.URL()); err != nil {
+	if err := ensureOpenCodeLocalProvider(adds, worker, guard.URL()); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not register the local model with opencode: %v\n", domain.Yellow("⚠"), err)
 	}
 	if !local.WorkerOffered() {
@@ -1464,7 +1465,7 @@ func startLocalDispatch(root string, adds map[string]any, sessionModel string) (
 		if err := RemoveOpenCodeLocalPolicy(); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local dispatch policy from opencode: %v\n", domain.Yellow("⚠"), err)
 		}
-	} else if err := EnsureOpenCodeLocalPolicy(adds, root, worker); err != nil {
+	} else if err := ensureOpenCodeLocalPolicy(adds, root, worker); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not provision the local dispatch policy for opencode: %v\n", domain.Yellow("⚠"), err)
 	}
 	// The gate only for a cloud orchestrator, and only for a class it has a

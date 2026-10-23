@@ -27,8 +27,8 @@ func TestOpenCodeConfigWithComments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EnsureOpenCodeConfig on a commented file: %v", err)
 	}
-	if err := EnsureOpenCodeLocalPolicy(launchConfig, "", aLocalModel(t)); err != nil {
-		t.Fatalf("EnsureOpenCodeLocalPolicy on a commented file: %v", err)
+	if err := ensureOpenCodeLocalPolicy(launchConfig, "", aLocalModel(t)); err != nil {
+		t.Fatalf("ensureOpenCodeLocalPolicy on a commented file: %v", err)
 	}
 	if got, _ := os.ReadFile(ConfigPathOverride); string(got) != commented {
 		t.Fatalf("the commented file was rewritten:\n%s", got)
