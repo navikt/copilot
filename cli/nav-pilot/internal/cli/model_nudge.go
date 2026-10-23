@@ -29,7 +29,7 @@ var askModelNudge = func(title string, opts []huh.Option[string], choice *string
 // the session's one prompt is taken, it is one line on stderr instead.
 func maybeModelNudge(resolved ResolvedConfig, persona, stagedDir string) ResolvedConfig {
 	if persona == "" && resolved.Client == "pi" {
-		persona = "pi" // pi has no agents; the name only keys what was asked
+		persona = "@pi" // pi has no agents; this only keys what was asked, and no agent is named so
 	}
 	if !providerpkg.SafePersona(persona) {
 		return resolved

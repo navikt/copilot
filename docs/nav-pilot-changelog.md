@@ -4,10 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
-### Spørsmålet om ny modell kommer ved riktig oppstart
+### Spørsmålet om ny modell kommer ved samme oppstart
 
-- **OpenCode**: Når agentpakken anbefaler en ny modell, spør nav-pilot nå ved den samme oppstarten som henter den nye agentfila. Før kom spørsmålet først ved neste oppstart (#1931).
-- **pi**: pi har ingen agentfiler, så nav-pilot bruker modellen agentpakken anbefaler for pi (`defaultModel`). Har du valgt en annen modell, får du det samme spørsmålet som i Copilot CLI og OpenCode.
+- **OpenCode**: Når agentpakken anbefaler en ny modell, spør nav-pilot ved den oppstarten som henter den nye agentfila, ikke ved den neste (#1931).
+- **pi**: pi har ingen agentfiler, så anbefalingen for pi er agentpakkens `defaultModel`. Har du valgt en annen modell, får du det samme spørsmålet som i Copilot CLI og OpenCode.
 
 ### Oppdater cplt for GitHub MCP og for å stenge tale i OpenCode 2
 

@@ -138,6 +138,10 @@ func TestModelNudgePiDefaultModel(t *testing.T) {
 			t.Errorf("pi, model %s: asked %d, want %d", tc.user, *asked, tc.want)
 		}
 	}
+	// The key "@pi" is a safe name that no agent file answers to.
+	if !providerpkg.SafePersona("@pi") || providerpkg.PrimaryAgentFile("pi", "@pi", "", "") != "" {
+		t.Error(`"@pi" must pass SafePersona and name no agent file`)
+	}
 }
 
 // A persona that is not a plain file name is never used in a path or key.
