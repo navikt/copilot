@@ -502,9 +502,9 @@ func readGitHEAD(root string) string {
 		}
 		commonDir = filepath.Clean(dir)
 		// A linked worktree's git dir must point back at this checkout, as
-		// git writes it, or sit in the common dir's worktrees/. A submodule
-		// has no commondir and needs neither.
-		if linked && !worktreeBacklinked(gitDir, commonDir, root) {
+		// as git writes it; a moved, unrepaired worktree falls back to git.
+		// A submodule has no commondir and needs no back-link.
+		if linked && !worktreeBacklinked(gitDir, root) {
 			return ""
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -550,20 +550,15 @@ func readGitHEAD(root string) string {
 
 // worktreeBacklinked reports whether a linked worktree's git dir belongs to
 // the checkout at root.
-func worktreeBacklinked(gitDir, commonDir, root string) bool {
+func worktreeBacklinked(gitDir, root string) bool {
 	real := func(p string) string {
 		if r, err := filepath.EvalSymlinks(p); err == nil {
 			return r
 		}
 		return filepath.Clean(p)
 	}
-	if b, err := readGitFile(filepath.Join(gitDir, "gitdir"), gitDir); err == nil {
-		if real(strings.TrimSpace(string(b))) == real(filepath.Join(root, ".git")) {
-			return true
-		}
-	}
-	rel, err := filepath.Rel(real(filepath.Join(commonDir, "worktrees")), real(gitDir))
-	return err == nil && filepath.IsLocal(rel)
+	b, err := readGitFile(filepath.Join(gitDir, "gitdir"), gitDir)
+	return err == nil && real(strings.TrimSpace(string(b))) == real(filepath.Join(root, ".git"))
 }
 
 func readGitFile(path, boundary string) ([]byte, error) {
