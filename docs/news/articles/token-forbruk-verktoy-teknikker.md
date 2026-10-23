@@ -16,24 +16,25 @@ Med [bruksbasert fakturering](/nyheter/model-pinning-kostnadsoptimalisering) bet
 
 En [2026-studie](https://arxiv.org/abs/2604.00025) fant at modeller ble mer treffsikre når de ble tvunget til å svare kort. Kortere svar kan derfor koste mindre og gi bedre resultat.
 
-> **Oppdatert 2026-10-23:** Artikkelen dekker nå alle klientene nav-pilot støtter: Copilot CLI, OpenCode og pi. Der klientene skiller seg, står det hvilken det gjelder.
+> **Oppdatert 2026-10-23:** Artikkelen dekker nå alle klientene nav-pilot støtter: Copilot CLI, OpenCode og pi. Der klientene er ulike, står det hvilken som gjelder.
 
-## Fem ting du kan gjøre i dag
+## Seks ting du kan gjøre i dag
 
-1. **Velg modell med vilje.** `nav-pilot models` viser modellene nav-pilot kjenner for klienten din. `nav-pilot config set model <id>` setter din. Uten egen innstilling følger du modellen agentpakka anbefaler.
-2. **Start ny sesjon når du bytter oppgave.** `/new` i OpenCode og pi, `/clear` i Copilot CLI.
-3. **Komprimer lange sesjoner selv.** `/compact` virker i alle tre. I pi kan du legge til hva sammendraget skal ta vare på: `/compact behold beslutningen om Kafka-skjemaet`.
-4. **Senk resonneringsnivået for enkle oppgaver.** `nav-pilot config set reasoning_effort low` virker i Copilot CLI. I OpenCode velger du variant i klienten. Pi tar ikke imot innstillingen.
+1. **Velg modell med vilje.** `nav-pilot models` viser modellene nav-pilot kjenner for klienten din. `nav-pilot config set model <id>` velger din egen. Uten egen innstilling følger du modellen agentpakkas anbefaling.
+2. **Start ny sesjon når du bytter oppgave.** `/new` virker i alle tre klientene.
+3. **Komprimer lange sesjoner selv.** `/compact` virker i alle tre. I Copilot CLI og pi kan du si hva sammendraget skal ta vare på: `/compact behold beslutningen om Kafka-skjemaet`.
+4. **Senk resonneringsnivået for enkle oppgaver.** `nav-pilot config set reasoning_effort low` virker i Copilot CLI. I OpenCode velger du variant i klienten. pi bruker ikke innstillingen.
 5. **Vær presis i første melding**, og la agenten lese filer og logger selv i stedet for å lime dem inn.
+6. **Se hva du bruker.** `/usage` i Copilot CLI, `/session` i pi. `nav-pilot usage` viser Copilot-forbruket ditt, uansett klient.
 
 Forklaringen på hvert punkt kommer lenger ned.
 
-## Det viktigste først: bruk `nav-pilot` CLI
+## Start via `nav-pilot`
 
-`nav-pilot` er kommandolinjeverktøyet som holder Copilot-oppsettet ditt oppdatert og starter Copilot med riktig konfigurasjon. Den enkleste måten å starte en AI-sesjon:
+`nav-pilot` er kommandolinjeverktøyet som holder KI-oppsettet ditt oppdatert og starter klienten din (Copilot CLI, OpenCode eller pi) med riktig konfigurasjon. Den enkleste måten å starte en AI-sesjon:
 
 ```bash
-nav-pilot --sync    # synkroniserer, deretter starter Copilot med @nav-pilot
+nav-pilot --sync    # synkroniserer, deretter starter klienten din med agentpakka
 ```
 
 Eventuelt steg for steg:
@@ -125,32 +126,26 @@ I terminalen er den største token-lekkasjen ofte verktøyoutput som testlogger,
 - Be agenten kjøre målrettede tester (`./gradlew test --tests *MinTest`) før full pipeline
 - Pek på branch eller fil for diff i stedet for å lime inn manuelt
 
-## OpenCode og pi: dette er annerledes
+## Modell, komprimering og lokal modell per klient
 
 Start klienten med `nav-pilot --client opencode` eller `nav-pilot --client pi`. Da får du agentpakka og modellen din. Vil du alltid bruke samme klient: `nav-pilot config set client opencode`.
 
 ### Modellvalg
 
-- Modellen du setter med `nav-pilot config set model <id>` eller `--model`, gjelder hovedagenten i alle tre klientene. Underagenter beholder modellen agentpakka har valgt for dem.
-- Endrer agentpakka sin anbefalte modell mens du har satt en annen, spør nav-pilot deg én gang ved oppstart om du vil beholde din, bytte eller følge anbefalingen.
+- Modellen du setter med `nav-pilot config set model <id>` eller `--model`, gjelder hovedagenten i alle tre klientene. Underagenter beholder modellen agentpakka har gitt dem.
+- Endrer agentpakkas anbefalte modell seg, sier nav-pilot fra én gang ved oppstart, og spør i terminalen om du vil beholde din, bytte eller følge anbefalingen.
 - `nav-pilot models --client opencode` eller `--client pi` viser listen for den klienten. Hva du faktisk får bruke, avhenger av Copilot-abonnementet og organisasjonens regler.
 
 ### Komprimering av kontekst
 
-Når samtalen nærmer seg grensen for kontekstvinduet, lager klienten et sammendrag av den eldste delen og sender sammendraget i stedet. Det sparer tokens, men detaljer kan forsvinne. Komprimer derfor gjerne selv ved et naturlig stoppunkt, før klienten gjør det midt i en oppgave.
+Når samtalen nærmer seg grensen for kontekstvinduet, lager klienten et sammendrag av den eldste delen og sender sammendraget i stedet. Det sparer tokens, men detaljer kan forsvinne. Komprimer derfor gjerne selv ved et naturlig stoppunkt, før klienten gjør det midt i en oppgave. Sesjonen fortsetter, og filene dine er uendret; det er bare samtalehistorikken som byttes ut.
 
 - **OpenCode:** `/compact` (eller `ctrl+x c`). Automatisk komprimering er på som standard. Med `"compaction": { "prune": true }` i `opencode.json` fjerner OpenCode også gamle verktøyresultater. Se [OpenCode-dokumentasjonen](https://opencode.ai/docs/config/#compaction).
 - **pi:** `/compact [instruksjoner]`. Pi komprimerer automatisk når konteksten er nesten full, og beholder de siste rundt 20 000 tokens uendret. Se [pi sin dokumentasjon om komprimering](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md).
 
 ### Lokal modell (alfa)
 
-Med `nav-pilot alpha local init` kjører du en modell på din egen maskin. `nav-pilot alpha local setup` bruker i stedet en server du kjører selv, for eksempel Ollama. Arbeid som går til den lokale modellen, bruker ikke AI Credits.
-
-- **OpenCode:** Skymodellen styrer økten og sender avgrensede, mekaniske oppgaver til en lokal arbeider, for eksempel samme endring i mange filer. Arbeideren får én oppgave om gangen fra skymodellen, leser og endrer filene lokalt, og svarer med én setning tilbake. Skymodellen ser fortsatt resten av økten. Hvor hardt nav-pilot dytter arbeid lokalt, styrer du med `local_dispatch` (`off`, `conservative`, `balanced` eller `aggressive`).
-- **Copilot CLI:** Hele økten går enten lokalt eller til skyen. Det finnes ingen arbeider å sende deler av jobben til.
-- **pi:** Ingen lokal arbeider.
-
-`nav-pilot alpha local off` sender øktene til skymodellen igjen.
+Med `nav-pilot alpha local` kan OpenCode sende avgrensede, mekaniske oppgaver til en modell på din egen maskin. Oppgavene som går lokalt, bruker ingen AI Credits. Men i målingene våre kostet delegering av små oppgaver totalt 1,3–1,5 ganger så mye som skyen alene, og tok lengre tid. Bruk det for å avlaste skyen på store mekaniske endringer, ikke for å spare penger. Copilot CLI kjører hele økten enten lokalt eller i skyen; pi har ingen lokal arbeider. Se [guiden for lokal modell](/nav-pilot/guider/lokal).
 
 ## Gode første meldinger
 
@@ -175,7 +170,7 @@ offentlige API. Bruk sealed class for feilhåndtering.
 
 | Tips | For hvem | Hva du gjør |
 | ---- | -------- | ----------- |
-| Start via `nav-pilot` | Alle | `nav-pilot --sync` synkroniserer og starter Copilot med riktig oppsett |
+| Start via `nav-pilot` | Alle | `nav-pilot --sync` synkroniserer og starter klienten din med riktig oppsett |
 | Vær presis | Alle | Nevn språk, rammeverk og integrasjoner i første melding |
 | Fokuserte sesjoner | Alle | Én oppgave per sesjon. Start ny når du bytter problem |
 | La agenten lese | Alle i terminalen | Ikke lim inn store filer/logger. La agenten lese selv |
@@ -253,7 +248,7 @@ For deg som bygger MCP-servere:
 
 ## Ikke testet hos oss
 
-Disse utvidelsene lover lavere token-forbruk eller bedre hukommelse. Nav har ikke testet dem, og vi anbefaler dem ikke. Tallene under er prosjektenes egne. Installerer du en tredjepartsutvidelse, er det på egen risiko: den kjører med samme tilgang som klienten. Bruk cplt-sandkassen, og ikke åpne den opp for å få en utvidelse til å virke.
+Disse utvidelsene lover lavere token-forbruk eller bedre hukommelse. Nav har ikke testet dem, og vi anbefaler dem ikke. Påstandene er prosjektenes egne. Installerer du en tredjepartsutvidelse, gjør du det på eget ansvar: den kjører med samme tilgang som klienten. Bruk cplt-sandkassen, og ikke åpne den opp for å få en utvidelse til å virke.
 
 - [pi-observational-memory](https://github.com/elpapi42/pi-observational-memory) (pi): tar vare på observasjoner og varige fakta underveis, slik at viktige detaljer ikke forsvinner når pi komprimerer gang på gang.
 - [TOON](https://toonformat.dev/): et dataformat for KI-prompter som skal gi samme treffsikkerhet som JSON med færre tokens. Prosjektet sier selv at gevinsten er størst for ensartede tabelldata, og at CSV er mindre for rene tabeller. Mest aktuelt for MCP-servere som returnerer store JSON-objekter.
