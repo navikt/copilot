@@ -1362,6 +1362,10 @@ func isQuickCommand(args []string) bool {
 // firstRunWizardAhead reports a launch that will open the first-run wizard:
 // a launch command line, a terminal, and no config file yet.
 func firstRunWizardAhead(args []string) bool {
+	// An explicit launch (client args after "--") never opens the wizard.
+	if slices.Contains(args, "--") {
+		return false
+	}
 	if len(args) > 0 && args[0] != "--sync" && isKnownCommand(args[0]) {
 		return false
 	}

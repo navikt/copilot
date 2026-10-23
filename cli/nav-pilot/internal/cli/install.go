@@ -31,7 +31,8 @@ type installResult struct {
 	Existing    []string
 	Unsupported []string
 	Files       []InstalledFile
-	// quiet drops the per-item ✓ lines: the install's summary names them.
+	// quiet drops the per-item ✓ lines: the install's summary counts them
+	// and names the first few of each kind.
 	quiet bool
 }
 
@@ -61,8 +62,9 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 			result.Unsupported = append(result.Unsupported, fmt.Sprintf("%d %s", len(group.names), group.label))
 			continue
 		}
-		// The summary above already names every item, so the per-item list
-		// is detail: --verbose or a dry run (#1962 F4). Errors, conflicts
+		// The summary above counts every item and names the first few of
+		// each kind, so the full per-item list is detail: --verbose or a
+		// dry run (#1962 F4). Errors, conflicts
 		// and skips print either way.
 		result.quiet = !providerpkg.Verbose && !dryRun
 		if !result.quiet {

@@ -439,14 +439,14 @@ func releaseStart(src *Source, follows bool) (*Source, *pakkeRelease, error) {
 // takes the default branch through [fallBackToHead], and sync refuses when a
 // committed pin would otherwise move onto it on a guess.
 func headFallback(src *Source, name string, err error) (*Source, *pakkeRelease, error) {
-	return src, nil, &releaseLookupError{name: name, repo: src.Repo, err: err}
+	return src, nil, &releaseLookupError{name: name, repo: src.Repo, sha: src.SHA, err: err}
 }
 
 // releaseLookupError is a stable-release lookup a Tier 1 source could not
 // finish, most often because the releases API could not be reached.
 type releaseLookupError struct {
-	name, repo string
-	err        error
+	name, repo, sha string
+	err             error
 }
 
 func (e *releaseLookupError) Error() string {
@@ -465,7 +465,11 @@ func fallBackToHead(err error) bool {
 	}
 	// One quiet line: the user can do nothing about it, and the next install
 	// or sync looks again. The raw error is detail (#1962 F7).
-	fmt.Fprintf(os.Stderr, "%s\n", dim(fmt.Sprintf("ℹ Could not reach %s's releases, so %s is read from its default branch.", lookup.repo, lookup.name)))
+	at := "its default branch"
+	if lookup.sha != "" {
+		at = fmt.Sprintf("default-branch commit %s, not a release", shortSHA(lookup.sha))
+	}
+	fmt.Fprintf(os.Stderr, "%s\n", dim(fmt.Sprintf("ℹ Could not reach %s's releases, so %s is pinned at %s. The next sync looks for a release again.", lookup.repo, lookup.name, at)))
 	if providerpkg.Verbose {
 		fmt.Fprintf(os.Stderr, "  %s\n", dim(err.Error()))
 	}

@@ -487,13 +487,17 @@ func ghAuthFrom(out []byte, err error) (ghAuth, string) {
 // reportGHAuthBrief is setup's gh line: one line when the user has something
 // to do, nothing when gh is signed in. The storage, ambient-token and sandbox
 // caveats are doctor's (reportGHAuth), not a first run's (#1962 F3).
-func reportGHAuthBrief(w io.Writer, st ghAuth) {
+func reportGHAuthBrief(w io.Writer, st ghAuth, inLaunch bool) {
+	goesOn := ""
+	if inLaunch {
+		goesOn = " (the launch continues without it)"
+	}
 	switch {
 	case st == ghAuthMissing:
-		fmt.Fprintf(w, "%s gh is not installed, so the agent can't push or open PRs. Run: %s (the launch continues without it)\n", yellow("⚠"),
-			bold(domain.PkgForInstall().Pick("brew install gh", "sudo apt install gh")))
+		fmt.Fprintf(w, "%s gh is not installed, so the agent can't push or open PRs. Run: %s%s\n", yellow("⚠"),
+			bold(domain.PkgForInstall().Pick("brew install gh", "sudo apt install gh")), goesOn)
 	case st == ghAuthNone:
-		fmt.Fprintf(w, "%s gh is not logged in, so the agent can't push or open PRs. Run: %s (the launch continues without it)\n", yellow("⚠"), bold("gh auth login"))
+		fmt.Fprintf(w, "%s gh is not logged in, so the agent can't push or open PRs. Run: %s%s\n", yellow("⚠"), bold("gh auth login"), goesOn)
 	case (st == ghAuthOK || st == ghAuthKeyring) && originUsesSSH():
 		fmt.Fprintf(w, "%s This repo's origin uses SSH, which cplt blocks, so pushes fail. Run %s\n", yellow("⚠"),
 			bold(`git config --global url."https://github.com/".insteadOf "git@github.com:"`))

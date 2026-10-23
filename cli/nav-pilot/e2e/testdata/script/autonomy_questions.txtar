@@ -22,6 +22,7 @@ stdout 'nav-pilot autonomy = sandbox'
 grep 'autonomy = "sandbox"' home/config.toml
 ! grep 'config\nset' $WORK/fake/cplt.log
 stdout 'gh is not installed, so the agent can.t push or open PRs'
+! stdout 'launch continues'
 
 # Enter all the way again changes nothing.
 cp home/config.toml before.toml

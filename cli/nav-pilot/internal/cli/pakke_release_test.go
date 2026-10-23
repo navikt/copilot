@@ -262,13 +262,13 @@ func TestDiscoverPakkeRelease(t *testing.T) {
 // A release lookup that could not finish is one quiet line, without the raw
 // Go error; --verbose is the control that still shows it (#1962 F7).
 func TestFallBackToHeadIsOneQuietLine(t *testing.T) {
-	err := &releaseLookupError{name: "nav-pilot", repo: "navikt/copilot", err: errors.New(`Get "https://api.example/releases": context deadline exceeded`)}
+	err := &releaseLookupError{name: "nav-pilot", repo: "navikt/copilot", sha: strings.Repeat("a", 40), err: errors.New(`Get "https://api.example/releases": context deadline exceeded`)}
 	out := captureStderr(func() {
 		if !fallBackToHead(err) {
 			t.Error("a lookup error did not fall back")
 		}
 	})
-	if strings.Count(out, "\n") != 1 || strings.Contains(out, "deadline") || !strings.Contains(out, "read from its default branch") {
+	if strings.Count(out, "\n") != 1 || strings.Contains(out, "deadline") || !strings.Contains(out, "pinned at default-branch commit aaaaaaa, not a release. The next sync looks for a release again.") {
 		t.Errorf("fallback is not one quiet line:\n%s", out)
 	}
 	providerpkg.Verbose = true

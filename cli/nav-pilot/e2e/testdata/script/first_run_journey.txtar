@@ -29,6 +29,7 @@ exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' 
 
 # F19: the telemetry notice comes after the wizard's header.
 stdout 'First-run setup(.|\n)*nav-pilot sends pseudonymous usage metrics'
+stdout 'gh is not installed, so the agent can.t push or open PRs.*the launch continues without it'
 # F15
 ! stdout 'cplt: no changes'
 # F9: the install that follows adds the hooks.

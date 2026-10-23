@@ -406,13 +406,22 @@ func TestChoosingStrictDoesNotTriggerLeaveOffer(t *testing.T) {
 func TestReportGHAuthBriefIsOneLine(t *testing.T) {
 	stubSSH(t, false)
 	var b bytes.Buffer
-	reportGHAuthBrief(&b, ghAuthNone)
+	reportGHAuthBrief(&b, ghAuthNone, true)
 	if s := b.String(); strings.Count(s, "\n") != 1 || !strings.Contains(s, "gh is not logged in, so the agent can't push or open PRs. Run: ") ||
 		!strings.Contains(s, "gh auth login") || !strings.Contains(s, "launch continues") || strings.Contains(s, "keyring") {
 		t.Errorf("brief, not logged in: %q", s)
 	}
 	b.Reset()
-	reportGHAuthBrief(&b, ghAuthKeyring)
+	reportGHAuthBrief(&b, ghAuthKeyring, true)
+	if b.Len() != 0 {
+		t.Errorf("brief, signed in, printed %q", b.String())
+	}
+	b.Reset()
+	reportGHAuthBrief(&b, ghAuthNone, false)
+	if strings.Contains(b.String(), "launch continues") {
+		t.Errorf("config setup, which does not launch, says the launch continues: %q", b.String())
+	}
+	b.Reset()
 	if b.Len() != 0 {
 		t.Errorf("brief, signed in, printed %q", b.String())
 	}

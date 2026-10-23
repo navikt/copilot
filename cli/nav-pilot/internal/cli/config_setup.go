@@ -408,7 +408,7 @@ func runConfigSetupWith(flagSource string, advanced bool) error {
 
 	// Setup checks stored host login only; a launch never probes.
 	st, _ := ghAuthProbe()
-	reportGHAuthBrief(os.Stdout, st)
+	reportGHAuthBrief(os.Stdout, st, artifacts.FirstRun)
 	if cpltPath != "" {
 		offerCpltInit(cpltPath)
 	}
