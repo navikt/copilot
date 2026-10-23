@@ -148,20 +148,23 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
           </LinkableHeading>
           <BodyLong>
             <code className={code}>opencode mcp auth io.github.navikt/github-mcp</code> feiler med «Incompatible auth
-            server: does not support dynamic client registration». GitHubs innlogging støtter ikke det OpenCode krever.
-            Fra cplt 2026.10.23-053641-5dfd003 (23. oktober 2026) kobler cplt OpenCode til GitHub-serveren gjennom en
-            mellomtjener på maskinen din. Den bruker <code className={code}>gh</code>-innloggingen din, og tokenet
-            kommer aldri inn i sandkassen. Oppgrader cplt og start en ny økt. Du trenger ikke{" "}
-            <code className={code}>mcp auth</code>. Slå det av med <code className={code}>--no-github-mcp-proxy</code>{" "}
-            eller <code className={code}>sandbox.github_mcp_proxy</code>.
+            server: does not support dynamic client registration». GitHubs innlogging mangler dynamisk
+            klientregistrering, som OpenCode krever. Fra cplt-utgaven 23. oktober 2026 kobler cplt OpenCode til
+            GitHub-serveren gjennom sin egen proxy på maskinen din. Proxyen bruker <code className={code}>gh</code>
+            -innloggingen din og sender ikke tokenet inn i sandkassen. Oppgrader cplt, sjekk at du er logget inn med{" "}
+            <code className={code}>gh auth status</code>, og start en ny økt. Du trenger ikke{" "}
+            <code className={code}>mcp auth</code>. Slå proxyen av for én økt med{" "}
+            <code className={code}>--no-github-mcp-proxy</code>, eller fast med{" "}
+            <code className={code}>sandbox.github_mcp_proxy = false</code>.
           </BodyLong>
           <BodyLong>
-            Mellomtjeneren bruker bare det skrivebeskyttede endepunktet. Verktøy som skriver til GitHub, som{" "}
+            Proxyen sender alt til det skrivebeskyttede endepunktet og tvinger skrivebeskyttelse, uansett hvilket
+            endepunkt oppføringen peker på. Verktøy som skriver til GitHub, som{" "}
             <code className={code}>issue_write</code>, virker derfor ikke i OpenCode under cplt, selv om nav-pilot har
             byttet til det fulle endepunktet.
           </BodyLong>
           <BodyLong>
-            Figma virker i OpenCode 2.1 etter at Figma rettet listen over godkjente klienter 14. oktober 2026. Logg inn
+            Figma virker i OpenCode 2.1 etter at Figma rettet lista over godkjente klienter 14. oktober 2026. Logg inn
             én gang med <code className={code}>opencode mcp auth com.figma/figma-mcp</code>. I Copilot CLI virker Figma
             fra versjon 1.0.87.
           </BodyLong>
