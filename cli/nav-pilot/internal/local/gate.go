@@ -914,7 +914,8 @@ func splitHeredocs(cmd string) (rest string, bodies []string) {
 func RedirectFiles(cmd string) []string {
 	var out []string
 	add := func(f string) {
-		if f != "" && !strings.HasPrefix(f, "&") && !strings.HasPrefix(f, "(") && !strings.HasPrefix(f, "/dev/") && !slices.Contains(out, f) {
+		// A NUL cannot be in a bash word; drop it rather than hand a bad path on.
+		if f != "" && !strings.ContainsRune(f, 0) && !strings.HasPrefix(f, "&") && !strings.HasPrefix(f, "(") && !strings.HasPrefix(f, "/dev/") && !slices.Contains(out, f) {
 			out = append(out, f)
 		}
 	}
@@ -1535,7 +1536,8 @@ func PatchFiles(text string) (added, changed []string) {
 	// Each file once: five update blocks of one file are one file.
 	seen := map[string]bool{}
 	add := func(list *[]string, f string) {
-		if f = strings.TrimSpace(f); f != "" && !seen[f] {
+		// A NUL is not a path; drop it.
+		if f = strings.TrimSpace(f); f != "" && !strings.ContainsRune(f, 0) && !seen[f] {
 			seen[f] = true
 			*list = append(*list, f)
 		}
