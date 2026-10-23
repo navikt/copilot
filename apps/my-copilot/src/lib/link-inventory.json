@@ -1372,6 +1372,7 @@
       "mcp-github": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
       "mcp-hoster": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
       "mcp-intellij": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
+      "mcp-opencode": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"],
       "mcp-verktoy": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
         "docs/README.mcp.md"
@@ -1649,7 +1650,8 @@
       ],
       "kjente-hull": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
+        "docs/nav-pilot-changelog.md"
       ],
       "legg-til-server": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
