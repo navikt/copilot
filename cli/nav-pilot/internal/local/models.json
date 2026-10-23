@@ -33,7 +33,16 @@
       },
       "recommended_for": [
         "decide-untrusted-evidence"
-      ]
+      ],
+      "capabilities": {
+        "classes": {
+          "read-qa": {"delegate": "cloud", "local": "not-yet"},
+          "edit-single": {"delegate": "trusted", "local": "not-yet"},
+          "edit-multi-mechanical": {"delegate": "cloud", "local": "cloud"},
+          "create-file": {"delegate": "trusted", "local": "cloud"},
+          "debug": {"delegate": "cloud", "local": "cloud"}
+        }
+      }
     }
   ],
   "replaced": {

@@ -125,7 +125,7 @@ func TestEndpointModeSkipsOwnership(t *testing.T) {
 func TestEndpointManifestIsUnmeasured(t *testing.T) {
 	m := EndpointManifest("qwen3.6:35b")
 	e, ok := Chosen(m)
-	if !ok || e.Model != "qwen3.6:35b" || e.Capabilities != nil || e.Backend != BackendEndpoint {
+	if !ok || e.Model != "qwen3.6:35b" || e.Capabilities == nil || len(e.Capabilities.Classes) != 0 || e.Backend != BackendEndpoint {
 		t.Fatalf("Chosen = %+v, %v", e, ok)
 	}
 	withEndpoint(t, "http://127.0.0.1:1", "qwen3.6:35b")

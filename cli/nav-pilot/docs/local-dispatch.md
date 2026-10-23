@@ -73,6 +73,30 @@ Rules that hold at every level:
 - **A single search-and-replace stays with the orchestrator** at every level. #997 measured
   that dispatching one costs the same credits and takes 2–3× longer.
 
+### What the shipped manifest trusts
+
+The manifest embedded in nav-pilot (`internal/local/models.json`) marks two
+classes `trusted` in delegate mode for the default model
+(`qwen3.6-35b-a3b-optiq`), both with the one retry the gate gives
+(`retry2`, #1156 and #1675). Every other class is `cloud`:
+
+| Class | Delegate | Measurement |
+|---|---|---|
+| `create-file` | trusted | 15 of 20 verified with `retry2` against 5 of 20 without (p = 0.002), navikt/mlx-workspace#126 |
+| `edit-single` | trusted | 48 of 48 with `retry2`, Wilson lower bound 0.967, navikt/mlx-workspace#237 |
+| `read-qa`, `edit-multi-mechanical`, `debug` | cloud | not part of the 2026-10-23 decision (#1010) |
+
+At `aggressive`, the built-in default, a trusted `create-file` turns on the
+create-file rule of the gate. `edit-single` has no gate rule (see
+[Tiering](#tiering)). The served manifest in navikt/mlx-workspace is fetched
+first and wins when it answers; the embedded copy is what nav-pilot uses
+offline and what the tests pin.
+
+A model on the developer's own server (`local_endpoint`) gets an empty block
+(#1021): the policy says to send it nothing and the gate has no rule, until
+the model is measured. Before, it got the broader text written for manifests
+from before the block existed.
+
 ### Why the default enforces
 
 The first draft kept `balanced` prose-only and put the gate at `aggressive`

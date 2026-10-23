@@ -602,9 +602,22 @@ func TestParseCapabilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The shipped block trusts exactly the two classes that pass the measured
+	// rule (#1010): create-file and edit-single, both with retry2.
 	for _, e := range m.Models {
-		if e.Capabilities != nil {
-			t.Fatalf("the embedded manifest has no capabilities block, yet %s parsed one", e.Key)
+		if !e.Default {
+			continue
+		}
+		if e.Capabilities == nil {
+			t.Fatalf("the default entry %s has no capabilities block", e.Key)
+		}
+		if send, _ := e.Capabilities.DelegateTrusted(); !slices.Equal(send, []string{"edit-single", "create-file"}) {
+			t.Errorf("%s: delegate-trusted = %v, want [edit-single create-file]", e.Key, send)
+		}
+		for class, v := range e.Capabilities.Classes {
+			if !slices.Contains(TaskClasses, class) || v.Local == VerdictTrusted {
+				t.Errorf("%s: unexpected class or local verdict %s = %+v", e.Key, class, v)
+			}
 		}
 	}
 	models := doc["models"].([]any)

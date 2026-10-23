@@ -778,3 +778,39 @@ func TestDispatchOffOffersNoWorker(t *testing.T) {
 		t.Errorf("a local session at local_dispatch = off bound the worker to %q", workerModel(t))
 	}
 }
+
+// TestShippedDefaultPolicyNamesTheTrustedClasses: the dispatch text for the
+// embedded manifest's default model sends exactly create-file and edit-single
+// (#1010), and keeps every other class. The control is the same entry with its
+// block removed, which must get the broad text instead.
+func TestShippedDefaultPolicyNamesTheTrustedClasses(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // no cache: Cached falls back to the embedded copy
+	m, src, _ := local.Cached()
+	if src != local.SourceEmbedded {
+		t.Fatalf("source = %s, want embedded", src)
+	}
+	e, ok := local.Chosen(m)
+	if !ok || e.Capabilities == nil {
+		t.Fatalf("default entry %+v has no capabilities block", e)
+	}
+	got := LocalDispatchPolicy(e, local.DispatchAggressive, 3, 5)
+	want := "Send it: " + sendPhrase["edit-single"] + "; " + sendPhrase["create-file"] + ".\n"
+	if !strings.Contains(got, want) {
+		t.Errorf("policy does not send exactly edit-single and create-file:\n%s", got)
+	}
+	for _, class := range []string{"read-qa", "edit-multi-mechanical", "debug"} {
+		if strings.Contains(got, sendPhrase[class]) {
+			t.Errorf("policy sends %s:\n%s", class, got)
+		}
+		if !strings.Contains(got, keepPhrase[class]) {
+			t.Errorf("policy does not keep %s:\n%s", class, got)
+		}
+	}
+	if r := local.DispatchGateRules(local.DispatchAggressive, e.Capabilities); r.Multi || !r.Create {
+		t.Errorf("aggressive gate rules = %+v, want the create-file rule only", r)
+	}
+	e.Capabilities = nil
+	if p := LocalDispatchPolicy(e, local.DispatchAggressive, 3, 5); strings.Contains(p, want) || !strings.Contains(p, "Send it: lookups in the code") {
+		t.Errorf("control: without the block the policy should be the broad text:\n%s", p)
+	}
+}

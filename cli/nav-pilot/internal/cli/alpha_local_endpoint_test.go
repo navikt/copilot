@@ -96,8 +96,8 @@ func TestEndpointInitSkipsTheMacOSChecks(t *testing.T) {
 	if !local.DepUpgrade() {
 		t.Error("applyEndpointConfig did not wire local_dep_upgrade")
 	}
-	if e, _ := local.Lookup("qwen3.6:35b"); e.Capabilities != nil {
-		t.Error("an endpoint model has capability verdicts")
+	if e, _ := local.Lookup("qwen3.6:35b"); e.Capabilities == nil || len(e.Capabilities.Classes) != 0 {
+		t.Error("an endpoint model has no empty capabilities block")
 	}
 }
 
