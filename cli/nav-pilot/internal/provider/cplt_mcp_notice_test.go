@@ -28,7 +28,7 @@ func TestCpltMCPNotice(t *testing.T) {
 		}
 		orig := os.Stderr
 		os.Stderr = w
-		warnOpenCode1()
+		warnCpltMCP()
 		os.Stderr = orig
 		w.Close()
 		out, _ := io.ReadAll(r)

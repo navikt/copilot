@@ -2,6 +2,13 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-19
+
+### OpenCode 1 er ikke lenger støttet
+
+- **OpenCode 1 starter ikke**: Starter du nav-pilot med OpenCode 1, stopper nav-pilot og viser kommandoen som oppgraderer til OpenCode 2. Har du installert OpenCode 1 med npm-pakken `opencode-ai`, avinstallerer kommandoen den først. Oppgraderingen kan ikke angres: OpenCode 2 skriver om databasen fra OpenCode 1, og du må logge inn på nytt. `nav-pilot doctor` sier det samme. Varselet om at støtten slutter, er fjernet (#1907).
+- **Ryddet bort**: nav-pilot skriver ikke lenger hooks-pluginen og delegeringssperren for OpenCode 1. En gammel `nav-pilot-dispatch-gate.js` i `~/.config/opencode/plugins/` blir slettet neste gang du starter med lokal delegering.
+
 ## 2026-10-23
 
 ### Oppdater cplt for GitHub MCP og for å stenge tale i OpenCode 2

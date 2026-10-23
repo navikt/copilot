@@ -72,11 +72,12 @@ export const NAV_PILOT_INSTALL: Record<InstallOs, string> = {
 };
 
 // The same sources nav-pilot's first-run wizard offers (opencodeInstallCommand
-// in cli/nav-pilot/internal/cli/config_setup.go), pinned to OpenCodeInstallVersion.
+// in cli/nav-pilot/internal/cli/config_setup.go): opencode 2, npm pinned to
+// OpenCode2InstallVersion. opencode's install script gives opencode 1 only.
 export const OPENCODE_INSTALL: Record<InstallOs, string> = {
-  mac: "brew install anomalyco/tap/opencode",
-  linux: "curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.32",
-  windows: "curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.32",
+  mac: "brew install anomalyco/tap/opencode-v2",
+  linux: "npm i -g @opencode/cli@2.1.3",
+  windows: "npm i -g @opencode/cli@2.1.3",
 };
 
 // Maps navigator.userAgentData.platform or navigator.userAgent to the install view.

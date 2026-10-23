@@ -615,7 +615,7 @@ Hva skjer når marginen ikke holder? Målt 2026-10-08 med GitHub Copilot CLI
 allowing the tool call to proceed` og kjører verktøykallet. Kallet blir altså
 tillatt, akkurat som når watchdogen rekker fram først. Brukeren venter hele
 `timeoutSec` og får ingen melding i terminalen. I OpenCode gir en installert
-hook som går over fristen `null` fra `run` i `hooks-bridge.js` og
+hook som går over fristen `null` fra `run` i
 `hooks-bridge-v2.js`, som tolkes som `{}`, altså tillatt. Redaksjonshooken
 (`nav-pilot hook redact`) går ikke gjennom watchdogen og holder tilbake
 utdataene ved timeout, som før.
@@ -623,7 +623,7 @@ utdataene ved timeout, som før.
 Alle portene foran et verktøykall feiler altså åpent som standard, på begge
 klientene: python-hookene (`ask-first-aria`, `klarsprak-gate`, `gh-poll-gate`
 og dem en agentpakke installerer), `nav-pilot hook action-check` og
-delegeringssperren i `dispatch-gate.js`, som gir opp etter 2 s uten svar fra
+delegeringssperren i `hooks-bridge-v2.js`, som gir opp etter 2 s uten svar fra
 nav-pilot. Ryker fristen under last, går kallet gjennom uten at noen har sett
 på det. Bare redaksjonen feiler lukket.
 

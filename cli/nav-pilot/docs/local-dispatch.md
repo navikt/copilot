@@ -165,13 +165,16 @@ session goes on. See "Checking the worker's result" below.
   no longer installed by nav-pilot since #1332) used the same hook. opencode loads every `*.js`/`*.ts` in `~/.config/opencode/plugins/`
   (`config/plugin.ts`, glob `{plugin,plugins}/*.{ts,js}`). **`--pure` disables all external
   plugins** (`plugin/index.ts`: `flags.pure ? [] : …`), so a `--pure` run has no gate.
-  nav-pilot warns at launch when it sees `--pure` on a launch it would gate.
+  This was opencode 1. opencode 2 has no `--pure`, and nav-pilot drops it from a launch.
 - *Copilot CLI*: preToolUse exists and fails closed, and its deny reason is shown to the
   model. It is not needed: a Copilot session has no worker.
 
 **Shape.** Two pieces, following the rtk precedent:
 
-1. **The plugin**, `~/.config/opencode/plugins/nav-pilot-dispatch-gate.js`. It is a thin
+1. **The plugin**. Since #1907 this is the hooks bridge, `hooks-bridge-v2.js`, on opencode 2;
+   what follows describes the opencode 1 plugin it replaced,
+   `~/.config/opencode/plugins/nav-pilot-dispatch-gate.js`, which a launch with local
+   dispatch now deletes. The bridge asks the same questions. It is a thin
    shim with no logic. It records each session's agent and turn from `chat.message`,
    and takes the agent from `chat.params` only when `chat.message` has not named one.
    Compaction runs its own agent through `chat.params` on the same session. On
@@ -324,7 +327,7 @@ nothing. So:
 | Worker wedged, or another process on the port | `tcpUp` sees an open port, so the gate still denies; the budget caps the cost |
 | Cloud session with no local server | no guard, so no `NAV_PILOT_DISPATCH_GATE`, and the plugin is inert |
 | opencode run without nav-pilot | the variable is unset, so the plugin is inert |
-| `--pure` | plugins are off, so there is no gate; nav-pilot warns at launch |
+| `--pure` | opencode 2 has none; nav-pilot drops it, so the gate loads |
 | Loop guard interaction | none: the cloud orchestrator's calls do not pass the local guard, and the gate cannot deny the same call twice |
 
 ### (a) Policy and persona text per level

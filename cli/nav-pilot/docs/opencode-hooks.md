@@ -2,18 +2,18 @@
 
 Issue: #1025, part of the parity plan in #1022.
 
-Copilot CLI runs nav-pilot's hooks from `~/.copilot/hooks/` and `.github/hooks/copilot-hooks.json`. An OpenCode session launched by nav-pilot runs the same hooks through one plugin, `internal/provider/hooks-bridge.js` (`hooks-bridge-v2.js` on opencode 2). The plugin runs the same commands with the same JSON payloads and applies the same answers. There is no second implementation of any hook.
+Copilot CLI runs nav-pilot's hooks from `~/.copilot/hooks/` and `.github/hooks/copilot-hooks.json`. An OpenCode session launched by nav-pilot runs the same hooks through one plugin, `internal/provider/hooks-bridge-v2.js`. nav-pilot runs opencode 2 only; opencode 1 is refused at launch since 2026-11-19 (#1907). The plugin runs the same commands with the same JSON payloads and applies the same answers. There is no second implementation of any hook.
 
 | Hook | Copilot CLI | OpenCode (plugin hook) | On failure |
 |---|---|---|---|
-| Redaction (secrets, fødselsnummer, injection note): `nav-pilot hook redact` | postToolUse | `tool.execute.after` | OpenCode: **fails closed**, output withheld. Copilot: fails open |
-| Loop guard: `nav-pilot hook loop-guard` | postToolUse | `tool.execute.after`, before redaction | fails open |
-| Gates nav-pilot installed (`ask-first-aria`, `gh-poll-gate`, `klarsprak-gate`, agentpakke hooks) | preToolUse | `tool.execute.before`; a deny is thrown | fails open; a gate with `failClosed` in its sidecar denies (both clients) |
+| Redaction (secrets, fødselsnummer, injection note): `nav-pilot hook redact` | postToolUse | tool `execute.after` | OpenCode: **fails closed**, output withheld. Copilot: fails open |
+| Loop guard: `nav-pilot hook loop-guard` | postToolUse | tool `execute.after`, before redaction | fails open |
+| Gates nav-pilot installed (`ask-first-aria`, `gh-poll-gate`, `klarsprak-gate`, agentpakke hooks) | preToolUse | tool `execute.before`; a deny is thrown | fails open; a gate with `failClosed` in its sidecar denies (both clients) |
 
 ## How a launch wires it
 
-- nav-pilot writes the plugin to `~/.local/share/nav-pilot/opencode-plugin/nav-pilot-hooks.js` (or `$XDG_DATA_HOME/nav-pilot/…`). This directory belongs to nav-pilot. Nothing is written to `~/.config/opencode` for the hooks.
-- The launch names the plugin in `OPENCODE_CONFIG_CONTENT` (`"plugin": ["file://…"]`). OpenCode merges that config after the user's and the project's, and appends to any value the user already set. `OPENCODE_CONFIG_DIR` was not used because a Tier 2 launch already points it at the verified payload.
+- nav-pilot writes the plugin to `~/.local/share/nav-pilot/opencode-plugin/v2/index.js` (or `$XDG_DATA_HOME/nav-pilot/…`); opencode 2 loads a plugin from a directory. This directory belongs to nav-pilot. Nothing is written to `~/.config/opencode` for the hooks.
+- The launch names the plugin's directory in `OPENCODE_CONFIG_CONTENT` (`"plugins": ["…/v2"]`). OpenCode merges that config after the user's and the project's, and appends to any value the user already set. `OPENCODE_CONFIG_DIR` was not used because a Tier 2 launch already points it at the verified payload.
 - The hooks to run go to the plugin as JSON in `NAV_PILOT_OPENCODE_HOOKS`:
   - the built-in hooks, with the same `key=value` settings their Copilot entries carry, because the sandbox denies `~/.nav-pilot`;
   - nav-pilot's own `preToolUse` entries, read from the user's Copilot hook files and from the repo's `copilot-hooks.json` (entries without the `navPilot` marker are the user's and are not read).
@@ -22,11 +22,11 @@ Copilot CLI runs nav-pilot's hooks from `~/.copilot/hooks/` and `.github/hooks/c
 
 The plugin maps OpenCode's tools to the names and argument keys Copilot uses, because that is what the gates and their matchers expect:
 
-- `bash` → `bash {command}`
+- `shell` → `bash {command}`
 - `edit` → `edit {path, old_str, new_str}`
 - `write` → `create {path, file_text}`
 - `read` → `view {path}`
-- `apply_patch` → `apply_patch {input}`
+- `patch` → `apply_patch {input}`
 
 Any other tool keeps its own name and arguments.
 
@@ -38,23 +38,22 @@ The hooks run the nav-pilot binary by absolute path: the one on PATH at launch, 
 
 ## Two more hops: thrown errors and interrupted calls
 
-Two kinds of tool text reach the model without `tool.execute.after`:
+Two kinds of tool text reach the model without tool `execute.after`:
 - the error message of a tool that threw;
-- the partial output of a call the user interrupted, which OpenCode keeps in `metadata.output` and sends on the next turn.
+- the partial output of a call the user interrupted, which OpenCode sends on the next turn.
 
-The plugin also implements `experimental.chat.messages.transform`, which OpenCode runs over the whole history before every model call and before compaction. It redacts both kinds of text there, fail-closed like the rest, and keeps each answer so a text is checked once per session. A session resumed from a plain `opencode` run keeps the completed outputs it had then; only what nav-pilot's launch saw was redacted. This was verified against opencode 1.18.32: a `read` of a missing file whose path held a GitHub token reached the model with the token masked. The hook is marked experimental in OpenCode, so a release that drops it reopens these two gaps; the version range check (#1027) is where that gets caught.
+The plugin also hooks every model request (session `context`, `compaction`, `generate` and `title`, `core/src/session/model-request.ts` at v2.0.24), the last hop before the model. It redacts both kinds of text there, fail-closed like the rest, and keeps each answer so a text is checked once per session. A session resumed from a plain `opencode` run keeps the completed outputs it had then; only what nav-pilot's launch saw was redacted. A release that changes these hooks reopens the two gaps; the version range check (#1027) is where that gets caught.
 
 ## Subagents
 
-`tool.execute.before` and `after` fire in every session, a subagent's child session included (verified against opencode 1.18.32: a `general` subagent's `cat` of a secret reached its model redacted). Redaction and the loop guard run there on purpose, because a secret a subagent reads reaches a model the same way. The gates also run there, as they do for Copilot subagents. The loop guard keeps one run per session and skips sessions on the local provider (`mlx`), where the guard proxy already ends the turn.
+Tool `execute.before` and `execute.after` fire in every session, a subagent's child session included, and for a tool a Code Mode program (`execute`) calls. Redaction and the loop guard run there on purpose, because a secret a subagent reads reaches a model the same way. The gates also run there, as they do for Copilot subagents. The loop guard keeps one run per session and skips sessions on the local provider (`mlx`), where the guard proxy already ends the turn.
 
 A gate that answers `ask` is treated as `deny` with its reason. Under Copilot, `ask` asks the human, and a plugin has no one to ask. None of the shipped gates answers `ask`.
 
 ## Known gaps
 
-Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `session/message-v2.ts`, `session/processor.ts`, `tool/code-mode.ts`):
+opencode 2 has no `--pure`; nav-pilot drops it from a launch, so the hooks always load.
 
-- **`--pure`** loads no plugins, so no hooks run. nav-pilot says so on stderr at launch.
 - **Code mode** (`experimentalCodeMode`): a program sees an MCP result's `structuredContent` and `resource_link` names before redaction. What the program returns is redacted.
 - **Attachments** (images, PDFs from `read` or an MCP resource) go to the model as they are. Redaction works on text.
 - **The terminal** shows the human the unredacted output (`metadata`), as with Copilot, because redaction changes what the model reads, not the TUI.
@@ -63,29 +62,29 @@ Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `
 - An MCP result with many text items runs the hooks once per item.
 - Repo gates run without Copilot's folder-trust check. OpenCode has no such check and already loads a repo's `.opencode/plugins` as code, so a repo's gate entries give it nothing new. With `OPENCODE_DISABLE_PROJECT_CONFIG` set, repo gates are not run either.
 
-## Repo plugins are code, in opencode 1 and 2
+## Repo plugins are code
 
 OpenCode loads a repo's `.opencode/plugin(s)` and the `plugin` entries in its `opencode.json` as code, before the model sees anything. Under cplt such a plugin can do what the agent can: write in the project, run commands as the user, and reach the network through cplt's proxy. It cannot write outside the project. The hooks protect what the model reads (redaction, gates, the MCP block). They were never the boundary against a repo running its own code. cplt is.
 
-opencode 2 adds one risk. It keeps the first plugin with a given id and drops later ones, and the bridge rides in `OPENCODE_CONFIG_CONTENT`, which loads last. A repo plugin with the bridge's id would win and turn nav-pilot's hooks off. The bridge therefore takes a per-launch random id (`NAV_PILOT_OPENCODE_PLUGIN_ID`, passed with `--pass-env`). A repo plugin that already runs can read that id from its environment and claim it before the bridge loads ([anomalyco/opencode#53721](https://github.com/anomalyco/opencode/issues/53721)). That is a small extra risk on top of the code execution the repo already has, and it is accepted.
+One more risk: opencode 2 keeps the first plugin with a given id and drops later ones, and the bridge rides in `OPENCODE_CONFIG_CONTENT`, which loads last. A repo plugin with the bridge's id would win and turn nav-pilot's hooks off. The bridge therefore takes a per-launch random id (`NAV_PILOT_OPENCODE_PLUGIN_ID`, passed with `--pass-env`). A repo plugin that already runs can read that id from its environment and claim it before the bridge loads ([anomalyco/opencode#53721](https://github.com/anomalyco/opencode/issues/53721)). That is a small extra risk on top of the code execution the repo already has, and it is accepted.
 
 For a repo you do not trust, set `OPENCODE_DISABLE_PROJECT_CONFIG=1`. OpenCode then loads no project plugins, MCP servers or config, and nav-pilot runs no repo gates. It also turns off the repo's legitimate `.opencode` config.
 
 opencode 2 launches only:
 
-- on macOS or Linux; elsewhere nav-pilot says so and points to opencode 1;
+- on macOS or Linux; elsewhere nav-pilot refuses the launch, because cplt does not run opencode 2 there;
 - under cplt 2026.10.22-172931 or newer, on macOS and Linux alike. An older cplt is refused with the command that updates it. This release adds navikt/cplt#795 (v2 favourites and history), #799 (git plumbing for opencode's snapshots) and #798 (v2 plugin and MCP grants) to what earlier floors required: the session's service starts inside the sandbox (#716), cplt reads the config directories opencode 2 discovers (#720), Ctrl-C leaves no `serve --service` process behind (#722), fail-closed on an unreadable opencode version (#735), ancestor AGENTS.md grants and the fix for a credential leak through planted `.agents`, `.claude` or `.opencode` symlinks (#736), and bubblewrap on Linux (#740). An opencode whose version nav-pilot cannot read also needs this cplt;
 - on Linux, cplt runs opencode 2 under bubblewrap. It refuses a host without `bwrap` and says how to install it. Port isolation needs kernel 6.7 or newer (Landlock ABI 4); on an older kernel cplt warns and the session relies on the service password. Linux has not been tested live with nav-pilot yet.
 
-New installs get opencode 2.1.3: `npm i -g @opencode/cli@2.1.3` (or `pnpm add -g`), or `brew install anomalyco/tap/opencode-v2`. The setup wizard runs the first that exists: Homebrew, then pnpm or npm. The `opencode-ai` npm package and `anomalyco/tap/opencode` are opencode 1. opencode's install script installs opencode 1 only, so nav-pilot no longer uses it: with neither Homebrew nor npm, it installs nothing and says to install Homebrew or Node.js, then names the command. nav-pilot never upgrades an existing opencode 1. Instead, each launch on a new opencode 1 version prints a notice, also shown by `nav-pilot doctor`: support for opencode 1 ends after 2026-11-19 (`OpenCode1EndOfSupport`), the upgrade is one-way because opencode 2 migrates the opencode 1 database, `auth.json` is not imported so you log in again, and (on Linux only) that it needs bubblewrap. An existing opencode is replaced by the hint: an `opencode-ai` npm install is uninstalled first (npm fails with EEXIST otherwise), and a script install at `~/.opencode/bin/opencode` is removed so it does not shadow the new one.
+New installs get opencode 2.1.3: `npm i -g @opencode/cli@2.1.3` (or `pnpm add -g`), or `brew install anomalyco/tap/opencode-v2`. The setup wizard runs the first that exists: Homebrew, then pnpm or npm. The `opencode-ai` npm package and `anomalyco/tap/opencode` are opencode 1. opencode's install script installs opencode 1 only, so nav-pilot no longer uses it: with neither Homebrew nor npm, it installs nothing and says to install Homebrew or Node.js, then names the command. nav-pilot never upgrades an existing opencode 1 itself. Support for opencode 1 ended after 2026-11-19 (#1907): a launch on opencode 1 is refused, and so is `nav-pilot doctor`'s check, with the command that upgrades it (`OpenCode2InstallHint`). The message says the upgrade is one-way, because opencode 2 migrates the opencode 1 database, and that `auth.json` is not imported, so you log in again. The command replaces the existing opencode: an `opencode-ai` npm install is uninstalled first (npm fails with EEXIST otherwise), and a script install at `~/.opencode/bin/opencode` is removed so it does not shadow the new one.
 
 The opencode 2 TUI rejects `-m`/`--model`, so nav-pilot sets the model in the launch's config instead.
 
-nav-pilot refuses opencode 3 and newer until the bridge has been tested against it.
+nav-pilot refuses opencode 1, and opencode 3 and newer until the bridge has been tested against it.
 
 ## MCP servers outside Nav's registry (#1027)
 
-A launch turns off every configured MCP server the registry does not list, with `enabled: false`. That only decides how the session starts. OpenCode's `/mcp` dialog can still connect one. The hooks bridge therefore also refuses, in `tool.execute.before`, every tool whose name starts with a turned-off server's name. OpenCode names MCP tools `<server>_<tool>`. The longest matching server name decides, and built-in tool names are never refused.
+A launch turns off every configured MCP server the registry does not list, with `enabled: false`. That only decides how the session starts. OpenCode's `/mcp` dialog can still connect one. The hooks bridge therefore also refuses, in tool `execute.before`, every tool whose name starts with a turned-off server's name. OpenCode names MCP tools `<server>_<tool>`. The longest matching server name decides, and built-in tool names are never refused.
 
 What the launch does not cover:
 - a server added in the middle of a session (`POST /mcp`, the `/mcp` dialog);

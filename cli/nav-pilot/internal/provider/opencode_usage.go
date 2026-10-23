@@ -61,14 +61,9 @@ func readOpenCodeUsage(dir string, since time.Time) (telemetry.ClientUsage, []te
 	u := telemetry.ClientUsage{Client: "opencode", Dir: dir, Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	// v1 runs in-process with --pure; v2 needs --standalone so it does not
-	// start or reuse the background service.
-	list := []string{"session", "list", "--format", "json", "-n", "20", "--pure"}
-	export := []string{"export", "--pure"}
-	if openCodeMajor() >= 2 {
-		list = []string{"session", "list", "--format", "json", "-n", "20", "--standalone"}
-		export = []string{"session", "export", "--standalone"}
-	}
+	// --standalone so it does not start or reuse the background service.
+	list := []string{"session", "list", "--format", "json", "-n", "20", "--standalone"}
+	export := []string{"session", "export", "--standalone"}
 	out, err := openCodeCommand(ctx, dir, list...)
 	if err != nil {
 		return u, nil
