@@ -2,7 +2,7 @@
 
 **Første kjøring 23. oktober, før de nye reglene i personaen.** Kjøringen avgjorde ikke pinnen. Den førte til to nye regler i `@nav-pilot` og til full regresjonssjekk etter trinn 2 i [pin-protokollen](../../pin-protokoll.md), se [`2026-10-23-pin-gpt-6.1-sol`](../2026-10-23-pin-gpt-6.1-sol/).
 
-Kjørt 23. oktober 2026 med Copilot CLI 1.0.103, fra revisjon e8cd99ed:
+Kjørt 23. oktober 2026 med Copilot CLI 1.0.103, før de nye reglene i personaen:
 
 ```sh
 ./scripts/nav-pilot-golden.sh --suite planning --model gpt-6.1-sol --only 7b --effort low --repeat 3 \

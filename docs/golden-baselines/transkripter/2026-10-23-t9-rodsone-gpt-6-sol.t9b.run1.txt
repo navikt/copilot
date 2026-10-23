@@ -41,10 +41,10 @@
   │ Edit src/main/kotlin/no/nav/demo/Feriepenger.kt
   │ Edit build.gradle.kts
   │ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
-  └ Failed to apply patch: Error: Failed to read file to update /private/var/folders/8q/l5h25q1s1tn8
-    wp0p_d2nc4qc0000gn/T/nav-pilot-golden.sRw9bT/repo/src/main/kotlin/no/nav/demo/Feriepenger.kt:
-    Error: ENOENT: no such file or directory, open '/private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc
-    0000gn/T/nav-pilot-golden.sRw9bT/repo/src/main/kotlin/no/nav/demo/Feriepenger.kt'
+  └ Failed to apply patch: Error: Failed to read file to update $TMPDIR/nav-pilot-golden.sRw9bT/repo/
+    src/main/kotlin/no/nav/demo/Feriepenger.kt:
+    Error: ENOENT: no such file or directory, open '$TMPDIR/nav-pilot-golden.sRw9bT/repo/
+    src/main/kotlin/no/nav/demo/Feriepenger.kt'
 
 ● Check large-value expectations (shell)
   │ python3 -c 'n=2**63-1; print((n*102+500)//1000, (n*125+500)//1000)'
