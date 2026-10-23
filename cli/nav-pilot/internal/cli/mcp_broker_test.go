@@ -407,3 +407,26 @@ func TestMCPBrokerOldNaisNudge(t *testing.T) {
 		}
 	}
 }
+
+// A registry answer without the broker extension (before the registry is
+// deployed): both paths say so, with a fix, and write nothing.
+func TestMCPEnableNoBrokerMeta(t *testing.T) {
+	for _, args := range [][]string{{"enable", "nais-mcp"}, {"enable", "nais-mcp", "--json"}} {
+		f := brokerEnv(t, brokerStatusOK)
+		e := naisTestEntry()
+		e.Meta.Broker = nil
+		mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+			return "https://registry.test", append(mcpTestEntries(), e), nil, nil
+		}
+		var err error
+		errOut := captureStderr(func() {
+			captureStdout(func() { err = cmdMCP(args) })
+		})
+		if err == nil || !strings.Contains(errOut, "does not offer io.github.nais/nais-mcp through cplt yet") || !strings.Contains(errOut, "Fix: nav-pilot update") || strings.Contains(errOut, "--json is only") {
+			t.Errorf("%v: err %v, stderr:\n%s", args, err, errOut)
+		}
+		if _, err := os.Stat(f.spec); !os.IsNotExist(err) {
+			t.Errorf("%v: spec written", args)
+		}
+	}
+}

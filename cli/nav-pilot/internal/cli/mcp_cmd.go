@@ -764,6 +764,11 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 			}
 			continue
 		}
+		if err == nil && len(e.Remotes) == 0 && len(e.Packages) == 0 {
+			// Only cplt can run such a server (a host CLI), and this registry
+			// answer has no broker extension for it yet.
+			err = fmt.Errorf("the registry does not offer %s through cplt yet, so nothing was written. Fix: nav-pilot update, or wait until the registry is deployed and run nav-pilot mcp enable %s again", e.Name, e.Name)
+		}
 		if err == nil && jsonOut {
 			err = fmt.Errorf("--json is only for servers cplt runs on the host. Fix: nav-pilot mcp enable %s", e.Name)
 		}
