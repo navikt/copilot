@@ -303,6 +303,8 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 // CopilotAuthMode filters the environment handed to cplt. It does not enforce
 // the credential source cplt or Copilot uses. See applyCopilotAuthMode.
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
+	// A Tier 1 copilot launch writes no agent files: sync does.
+	resolved = BeforeClientStart(resolved)
 	// Local inference. The one branch on this path, and it used to be a
 	// refusal, on the belief that the Copilot CLI only ever resolves models
 	// through GitHub. It does not: `copilot help providers` documents BYOK,

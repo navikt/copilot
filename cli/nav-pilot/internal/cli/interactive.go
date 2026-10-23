@@ -1079,8 +1079,15 @@ func launchClient(resolved ResolvedConfig) (err error) {
 	if persona == "" {
 		persona = providerpkg.PrimaryAgent(resolved.Client)
 	}
-	resolved = maybeModelNudge(resolved, persona, "")
-	printModelNotice(resolved)
+	// Inside the provider launch, once this launch has written the client's
+	// context: before that the agent file on disk is the previous launch's,
+	// and a changed pin would be asked about one launch late (#1931).
+	providerpkg.BeforeClientStart = func(r ResolvedConfig) ResolvedConfig {
+		r = maybeModelNudge(r, persona, "")
+		printModelNotice(r)
+		return r
+	}
+	defer func() { providerpkg.BeforeClientStart = func(r ResolvedConfig) ResolvedConfig { return r } }()
 	beginSession(resolved.Client)
 	return p.Launch(resolved)
 }

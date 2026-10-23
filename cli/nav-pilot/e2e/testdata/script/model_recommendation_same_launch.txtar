@@ -1,0 +1,43 @@
+# #1931: a Tier 1 opencode launch writes the agent files first, so a pin that
+# changed upstream is asked about on that same launch, not the next one.
+
+fake-bin cplt opencode
+env PATH=$PATH${:}/bin${:}/usr/bin
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+exec nav-pilot config set model gpt-5.5
+exec /bin/sh -c 'nav-pilot --client opencode -- run x </dev/null'
+stderr 'now recommends gpt-6-sol;'
+
+# The pin changes upstream: this launch writes it and asks about it.
+cp $WORK/pin-6.1.md $WORK/plattform/agents/grillmester.agent.md
+cd ../plattform
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qam pin
+cd ../repo
+exec /bin/sh -c 'nav-pilot --client opencode -- run x </dev/null'
+stderr 'now recommends gpt-6\.1-sol;'
+
+-- pin-6.1.md --
+---
+name: grillmester
+description: fra plattform
+model: gpt-6.1-sol
+---
+plattform
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+model: gpt-6-sol
+---
+plattform

@@ -83,13 +83,23 @@ func AgentModelPin(file string) string {
 	return strings.TrimSpace(v)
 }
 
+// BeforeClientStart runs on a Tier 1 launch after the client's context is
+// written and before the client starts; what it returns is launched. The CLI
+// sets it for the model notice and the recommendation prompt.
+var BeforeClientStart = func(r domain.ResolvedConfig) domain.ResolvedConfig { return r }
+
 // RecommendedModel is the model the agentpakke recommends for a launch: the
 // primary agent's pin as a Copilot id, else the pakke's defaultModel, without
 // a github-copilot/ prefix. "" when neither names one.
 func RecommendedModel(client, agentFile string) string {
 	// No agent file to read: whether the agent pins a model is unknown, and
 	// the pakke's defaultModel may not be what it runs on.
+	// pi has no agent files, so no pin can disagree with the pakke (#1931).
 	if agentFile == "" {
+		if client == "pi" {
+			m, _ := CopilotModelID(pakkeDeclaredModel(client))
+			return m
+		}
 		return ""
 	}
 	m := AgentModelPin(agentFile)

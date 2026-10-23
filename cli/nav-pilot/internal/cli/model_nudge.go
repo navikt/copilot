@@ -28,6 +28,9 @@ var askModelNudge = func(title string, opts []huh.Option[string], choice *string
 // the user's choice for it and is not questioned. Without a terminal, or once
 // the session's one prompt is taken, it is one line on stderr instead.
 func maybeModelNudge(resolved ResolvedConfig, persona, stagedDir string) ResolvedConfig {
+	if persona == "" && resolved.Client == "pi" {
+		persona = "pi" // pi has no agents; the name only keys what was asked
+	}
 	if !providerpkg.SafePersona(persona) {
 		return resolved
 	}
