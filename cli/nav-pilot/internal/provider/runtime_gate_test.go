@@ -373,6 +373,9 @@ func TestCopilotProbeVector(t *testing.T) {
 // vector tests resolve a binary without any real cplt being installed.
 func fakeCpltOnPath(t *testing.T) {
 	t.Helper()
+	// probeCpltVersion keeps a real answer for the process; forget it both ways.
+	cpltVersionOut = ""
+	t.Cleanup(func() { cpltVersionOut = "" })
 	dir := t.TempDir()
 	if err := testhome.WriteExec(filepath.Join(dir, "cplt"), "#!/bin/sh\nexit 0\n"); err != nil {
 		t.Fatal(err)

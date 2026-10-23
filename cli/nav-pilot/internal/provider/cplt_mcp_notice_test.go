@@ -79,9 +79,9 @@ func TestDenyVoiceEnv(t *testing.T) {
 		{"opencode v2.1.3\n", at, nil, true},
 		{"opencode v2.1.3\n", "cplt 2026.11.01-000000-abcdef0\n", nil, true},
 		{"opencode v2.1.3\n", "cplt 2026.10.23-053641-abcdef0\n", nil, false},
-		{"opencode v2.1.3\n", "cplt dev\n", nil, false},                       // unparseable
+		{"opencode v2.1.3\n", "cplt dev\n", nil, false},                 // unparseable
 		{"opencode v2.1.3\n", "", errors.New("probe timed out"), false}, // the launch still proceeds
-		{"1.18.35\n", at, nil, false}, // control: opencode 1 never gets it
+		{"1.18.35\n", at, nil, false},                                   // control: opencode 1 never gets it
 	} {
 		versionCache.Store("opencode", versionAnswer{c.opencode, nil, time.Hour})
 		probeCpltVersion = func() (string, error) { return c.cplt, c.err }
