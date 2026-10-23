@@ -188,12 +188,12 @@ func cmdFakeBin(ts *testscript.TestScript, neg bool, args []string) {
 	for _, name := range args {
 		version := "GitHub Copilot CLI 1.0.95."
 		if name == "cplt" {
-			version = "cplt 2026.09.24-192459-38642b4"
+			version = "cplt 2026.10.22-172931-b37a8ab"
 		}
 		if name == "opencode" {
-			// An opencode 1 version: an unreadable one counts as opencode 2,
-			// which needs a newer cplt than the fake reports.
-			version = "1.14.0"
+			// opencode 2 at its tested release; cplt is the fake above,
+			// at the opencode 2 floor.
+			version = "opencode v2.1.3"
 		}
 		script := "#!/bin/sh\n" +
 			"printf '%s\\n' \"$@\" --- >> '" + filepath.Join(dir, name+".log") + "'\n" +

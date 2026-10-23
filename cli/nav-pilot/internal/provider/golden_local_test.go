@@ -223,8 +223,8 @@ func TestGoldenStagedPayloadIsUnchangedWithoutLocal(t *testing.T) {
 
 	openCodeSpec := buildStagedSpec(t, "opencode", domain.ResolvedConfig{Model: id, AskUser: true}, staged)
 	wantOpenCodeArgs := []string{"--agent", "grillmester", "--model", id}
-	if !slices.Equal(openCodeSpec.agentArgs, wantOpenCodeArgs) {
-		t.Errorf("staged opencode agentArgs\n got: %q\nwant: %q", openCodeSpec.agentArgs, wantOpenCodeArgs)
+	if got := openCodeBinding(openCodeSpec); !slices.Equal(got, wantOpenCodeArgs) {
+		t.Errorf("staged opencode agentArgs\n got: %q\nwant: %q", got, wantOpenCodeArgs)
 	}
 
 	for _, spec := range []cpltLaunch{copilotSpec, openCodeSpec} {

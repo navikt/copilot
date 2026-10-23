@@ -707,6 +707,8 @@ func TestDispatchGatePerLevel(t *testing.T) {
 			withLocalEnabled(t)
 			withDispatch(t, tc.level)
 			m := withOwnServer(t)
+			// The opencode 1 gate plugin an earlier nav-pilot wrote.
+			mustWrite(t, dispatchGatePluginPath(), "export default {}")
 
 			guard, err := startLocalDispatch("", nil, "github-copilot/claude-sonnet-5")
 			if err != nil || guard == nil {
@@ -716,8 +718,8 @@ func TestDispatchGatePerLevel(t *testing.T) {
 			if got := guard.GateURL() != ""; got != tc.gate {
 				t.Errorf("gate on = %v at %s, want %v", got, tc.level, tc.gate)
 			}
-			if _, err := os.Stat(dispatchGatePluginPath()); err != nil {
-				t.Errorf("the gate plugin was not written at %s: %v", tc.level, err)
+			if _, err := os.Stat(dispatchGatePluginPath()); !os.IsNotExist(err) {
+				t.Errorf("the opencode 1 gate plugin was left at %s: %v", tc.level, err)
 			}
 
 			// A local session has no one to dispatch to: never a gate.

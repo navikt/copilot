@@ -156,16 +156,6 @@ func TestRunOpenCodePluginsAsksAgain(t *testing.T) {
 	}
 }
 
-func TestOpenCodeProjectPluginsV1Untouched(t *testing.T) {
-	yes := false
-	proj, asked := pluginTrustSetup(t, true, &yes)
-	versionCache.Store("opencode", versionAnswer{"1.18.32\n", nil, time.Hour})
-	writePlugin(t, proj, "p.ts", "x")
-	if env := applyOpenCodeProjectPlugins(nil, proj); disabled(env) || *asked != 0 {
-		t.Fatalf("asked=%d env=%v", *asked, env)
-	}
-}
-
 // OpenCode reads OPENCODE_CONFIG_PROJECT_DISABLE first, so a user's =0 would
 // hide our switch: a decline sets both, and the repo's gates go with it.
 func TestOpenCodeProjectPluginsDeclineOverridesFalsyFirstKey(t *testing.T) {

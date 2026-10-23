@@ -80,7 +80,6 @@ esac
 			t.Errorf("%s: cwd %q is not a temp dir outside the repo", site, cwd)
 		}
 	}
-	inTemp("version")
 	for _, site := range []string{"list", "export"} {
 		inTemp(site)
 		want := map[string]string{

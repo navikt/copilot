@@ -74,7 +74,7 @@ const shellMatcher = "bash|shell|execute|powershell"
 // With NAV_PILOT_HOOK_FAIL_CLOSED=1 in the environment, which only the
 // OpenCode bridge sets and only for redact, a failure answers {"error": …}
 // instead, so the caller can withhold the output rather than pass on text
-// nothing has looked at (hooks-bridge.js). Copilot cannot act on that, so its
+// nothing has looked at (hooks-bridge-v2.js). Copilot cannot act on that, so its
 // entries never set it.
 func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 	out := hook.NoChange
