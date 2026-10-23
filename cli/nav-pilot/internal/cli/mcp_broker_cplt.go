@@ -47,9 +47,9 @@ type mcpCpltStatusDoc struct {
 var mcpCpltStatusTimeout = 15 * time.Second
 
 // mcpCpltStatus is cplt's status, nil for no cplt or an old cplt (only
-// when cplt says it has no such subcommand). An older cplt refuses to run
-// outside a repo, so a failure is retried once from the git root above the
-// working directory.
+// when cplt says it has no such subcommand). A cplt before navikt/cplt#846
+// refuses to run outside a repo, so a failure is retried once from the git
+// root above the working directory; a newer cplt answers anywhere.
 func mcpCpltStatus(cpltPath string) *mcpCpltStatusDoc {
 	if cpltPath == "" {
 		return nil
