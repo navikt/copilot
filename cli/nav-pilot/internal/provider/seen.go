@@ -14,32 +14,10 @@ import (
 // nothing from the user prints nothing.
 var Verbose bool
 
-// AllowClipboard is --allow-clipboard on a launch: pass cplt's
-// --allow-clipboard for this session only, so the agent may read and write
-// the macOS clipboard. cplt denies it by default.
-var AllowClipboard bool
-
-// CpltArgs are the values of repeated --cplt on a launch: cplt flags for this
-// session only, added to the ones nav-pilot sets.
-var CpltArgs []string
-
-// CpltSessionFlags is [cpltSessionFlags], for the command nav-pilot prints
-// when it does not launch.
-func CpltSessionFlags() []string { return cpltSessionFlags() }
-
-// cpltSessionFlags are the cplt flags set by launch flags for this session.
-func cpltSessionFlags() []string {
-	var flags []string
-	if AllowClipboard {
-		flags = append(flags, "--allow-clipboard")
-	}
-	return append(flags, CpltArgs...)
-}
-
 // printCpltSessionFlags names the session's extra cplt flags under --verbose,
 // so a bug report shows the sandbox the agent really ran in.
-func printCpltSessionFlags() {
-	if flags := cpltSessionFlags(); len(flags) > 0 {
+func printCpltSessionFlags(flags []string) {
+	if len(flags) > 0 {
 		fmt.Fprintf(os.Stderr, "Extra cplt flags for this session: %s\n\n", strings.Join(flags, " "))
 	}
 }

@@ -155,6 +155,17 @@ type ResolvedConfig struct {
 	ProjectDir         string      // --project-dir: the directory cplt may read and write; empty = the working directory
 	ExtraArgs          []string    // pass-through arguments for the client
 	Session            SessionFlag // --resume / --continue, translated at launch
+	// CpltFlags are the cplt flags this launch adds for the session only:
+	// --allow-clipboard first, then each --cplt value in order.
+	CpltFlags []string
+	// BeforeClientStart runs on a Tier 1 launch after the client's context is
+	// written and before the client starts; what it returns is launched. nil
+	// launches r as is. The CLI sets it for the model notice and the
+	// recommendation prompt. Staged (Tier 2) launches never call it: the CLI
+	// starts them in tryPakkeLaunch, before it sets the hook, and the model
+	// notice and prompt read the Tier 1 agent files a staged launch does not
+	// write.
+	BeforeClientStart func(ResolvedConfig) ResolvedConfig
 }
 
 // CLIOverrides holds optional CLI flag values. Empty string means "not provided via CLI".
@@ -183,6 +194,8 @@ type CLIOverrides struct {
 	ProjectDir      string
 	ExtraArgs       []string
 	Session         SessionFlag
+	AllowClipboard  bool     // --allow-clipboard
+	CpltArgs        []string // repeated --cplt values, deduplicated
 }
 
 // SessionFlag is nav-pilot's --resume [id] or --continue, which the launch

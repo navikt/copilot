@@ -275,7 +275,7 @@ func TestHostedLaunchStartsNoLoopGuard(t *testing.T) {
 	ConfigPathOverride = cfg
 	t.Cleanup(func() { ConfigPathOverride = "" })
 
-	guard, err := startLocalDispatch("claude-opus-5")
+	guard, err := startLocalDispatch("", nil, "claude-opus-5")
 	if err != nil || guard != nil {
 		t.Fatalf("startLocalDispatch for a hosted model = (%v, %v), want (nil, nil)", guard, err)
 	}
@@ -293,7 +293,7 @@ func TestHostedLaunchStartsNoLoopGuard(t *testing.T) {
 	// id to the cloud provider and got back "model not available" — true of
 	// GitHub's catalogue and useless as advice. A reboot that emptied the config
 	// was enough to reach this, and it cost an evening.
-	guard, err = startLocalDispatch(aLocalModelID(t))
+	guard, err = startLocalDispatch("", nil, aLocalModelID(t))
 	if err == nil {
 		if guard != nil {
 			guard.Close()
@@ -327,7 +327,7 @@ func TestPakkeLocalDefaultIsResolvedBeforeDispatch(t *testing.T) {
 	if got := openCodeSessionModel(""); got != id {
 		t.Fatalf("openCodeSessionModel(\"\") = %q, want package default %q", got, id)
 	}
-	if _, err := startOpenCodeLocalDispatch(domain.ResolvedConfig{}); err == nil {
+	if _, err := startOpenCodeLocalDispatch(domain.ResolvedConfig{}, nil); err == nil {
 		t.Fatal("package-declared local model was treated as hosted when no local server was running")
 	}
 }
@@ -349,7 +349,7 @@ func TestLocalLaunchRefusesAServerNavPilotDidNotStart(t *testing.T) {
 	// Nothing recorded. Reachable on its own: the opencode provider block that
 	// `start` wrote is still in the developer's config the next morning, so the
 	// model is still selectable after the server is gone.
-	if _, err := startLocalDispatch(id); err == nil {
+	if _, err := startLocalDispatch("", nil, id); err == nil {
 		t.Fatal("startLocalDispatch with no recorded server succeeded; the guard would forward to whatever holds the port")
 	}
 
@@ -358,7 +358,7 @@ func TestLocalLaunchRefusesAServerNavPilotDidNotStart(t *testing.T) {
 	if err := local.SaveState(local.State{PID: os.Getpid(), Model: id, Started: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
-	_, err := startLocalDispatch(id)
+	_, err := startLocalDispatch("", nil, id)
 	if err == nil || !strings.Contains(err.Error(), "not what is listening") {
 		t.Errorf("startLocalDispatch for a recorded server that does not hold the port = %v, want a refusal naming the port", err)
 	}

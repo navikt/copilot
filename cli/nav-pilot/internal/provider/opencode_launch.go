@@ -345,11 +345,15 @@ func openCodeLogLevel(level string) string {
 //     leaves an existing value alone: it may be the developer's own, and
 //     without the endpoint nav-pilot would have injected, opencode has
 //     nowhere to export to.
-func EnsureOpenCodeConfig() error {
+//
+// It returns what a commented file kept it from writing (#1071), for the
+// launch to hand the session in OPENCODE_CONFIG_CONTENT.
+func EnsureOpenCodeConfig() (map[string]any, error) {
+	adds := map[string]any{}
 	path := openCodeConfigPath()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("creating opencode config dir: %w", err)
+		return adds, fmt.Errorf("creating opencode config dir: %w", err)
 	}
 
 	var cfg map[string]any
@@ -358,7 +362,7 @@ func EnsureOpenCodeConfig() error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return fmt.Errorf("reading opencode config: %w", err)
+			return adds, fmt.Errorf("reading opencode config: %w", err)
 		}
 		cfg = map[string]any{
 			"$schema":    "https://opencode.ai/config.json",
@@ -368,14 +372,14 @@ func EnsureOpenCodeConfig() error {
 		changed = true
 	} else {
 		if cfg, commented, err = parseOpenCodeConfig(path, data); err != nil {
-			return err
+			return adds, err
 		}
 		// A file holding the literal `null` parses without error and leaves cfg
 		// nil, and assigning into a nil map panics. Erroring for the same reason
 		// unparseable content does: the file is the developer's, and replacing it
 		// with a fresh object loses whatever they meant by it.
 		if cfg == nil {
-			return fmt.Errorf("opencode config is not a JSON object (%s): remove or fix the file", path)
+			return adds, fmt.Errorf("opencode config is not a JSON object (%s): remove or fix the file", path)
 		}
 	}
 
@@ -400,9 +404,9 @@ func EnsureOpenCodeConfig() error {
 	}
 
 	if !changed {
-		return nil
+		return adds, nil
 	}
-	return writeOpenCodeConfig(path, data, cfg, commented)
+	return adds, writeOpenCodeConfig(adds, path, data, cfg, commented)
 }
 
 // LocalProviderID is the opencode provider id the local server is registered
@@ -410,7 +414,7 @@ func EnsureOpenCodeConfig() error {
 // task writes the same block for its benchmark workspaces.
 const LocalProviderID = "mlx"
 
-// EnsureOpenCodeLocalProvider registers the local server as an opencode
+// ensureOpenCodeLocalProvider registers the local server as an opencode
 // provider, so `--model mlx/<id>` reaches this machine instead of GitHub.
 //
 // It is a config write rather than an environment variable because opencode
@@ -424,8 +428,8 @@ const LocalProviderID = "mlx"
 // tokens — at 96k tokens we measured a single token taking three and a half
 // minutes, and the default timeout drops the connection mid-generation and
 // returns an empty response the client does not report as a failure.
-func EnsureOpenCodeLocalProvider(m local.Model, guardURL string) error {
-	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+func ensureOpenCodeLocalProvider(adds map[string]any, m local.Model, guardURL string) error {
+	return mutateOpenCodeConfig(adds, func(cfg map[string]any) bool {
 		providers, _ := cfg["provider"].(map[string]any)
 		if providers == nil {
 			providers = make(map[string]any)
@@ -530,7 +534,7 @@ func unbindLocalWorker(cfg map[string]any) bool {
 // opencode's config, which is what `alpha local off` owes the developer.
 //
 // Turning dispatch off in nav-pilot's own config only stops nav-pilot from
-// choosing the model. The block [EnsureOpenCodeLocalProvider] wrote stays in a
+// choosing the model. The block [ensureOpenCodeLocalProvider] wrote stays in a
 // file opencode reads on its own, so a developer running opencode directly
 // could still pick the model and reach the guard's port — which after `off` is
 // whatever happens to be listening there. `start` writes the block back.
@@ -539,7 +543,7 @@ func unbindLocalWorker(cfg map[string]any) bool {
 // nothing to do rather than errors: off must work on a machine where opencode
 // was never configured.
 func RemoveOpenCodeLocalProvider() error {
-	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+	return mutateOpenCodeConfig(nil, func(cfg map[string]any) bool {
 		// The worker's binding goes with it: a subagent pinned to a provider
 		// that is no longer registered is a session that fails on dispatch
 		// rather than one that falls back.
@@ -564,13 +568,13 @@ func RemoveOpenCodeLocalProvider() error {
 // mutate, and writes it back only when mutate reports it changed something.
 //
 // Every writer here needs the same merge, and for the same reason
-// [EnsureOpenCodeLocalProvider] states: the file is the developer's and
+// [ensureOpenCodeLocalProvider] states: the file is the developer's and
 // nav-pilot owns a few keys in it, not the file. A config that is not there is
 // one to create rather than an error, because `start` has to work on a machine
 // where opencode was never configured; a config that is there and unparseable
 // is an error, because guessing at it would overwrite whatever the developer
 // actually wrote.
-func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
+func mutateOpenCodeConfig(adds map[string]any, mutate func(cfg map[string]any) bool) error {
 	path := openCodeConfigPath()
 	cfg := map[string]any{"$schema": "https://opencode.ai/config.json"}
 	commented := false
@@ -592,13 +596,8 @@ func mutateOpenCodeConfig(mutate func(cfg map[string]any) bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
-	return writeOpenCodeConfig(path, data, cfg, commented)
+	return writeOpenCodeConfig(adds, path, data, cfg, commented)
 }
-
-// openCodeLaunchConfig is what a writer left out of an opencode.json with
-// comments (#1071). LaunchOpenCode hands it to this session in
-// OPENCODE_CONFIG_CONTENT, which OpenCode merges over the file.
-var openCodeLaunchConfig = map[string]any{}
 
 // parseOpenCodeConfig parses opencode's config the way OpenCode does, with
 // comments and trailing commas allowed. commented is whether it had them.
@@ -615,9 +614,10 @@ func parseOpenCodeConfig(path string, data []byte) (cfg map[string]any, commente
 
 // writeOpenCodeConfig writes cfg over the file that held data, unless the file
 // has comments: re-marshalling would drop them. Then what cfg adds goes to
-// openCodeLaunchConfig for this session, and what it removes is an error that
-// names it, since a launch can add to the config but not take away.
-func writeOpenCodeConfig(path string, data []byte, cfg map[string]any, commented bool) error {
+// adds, the launch's OPENCODE_CONFIG_CONTENT (#1071; nil outside a launch),
+// and what it removes is an error that names it, since a launch can add to the
+// config but not take away.
+func writeOpenCodeConfig(adds map[string]any, path string, data []byte, cfg map[string]any, commented bool) error {
 	if !commented {
 		out, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
@@ -628,14 +628,17 @@ func writeOpenCodeConfig(path string, data []byte, cfg map[string]any, commented
 	var before map[string]any
 	_ = json.Unmarshal(stripJSONC(data), &before)
 	add, removed := configDelta(before, cfg, "")
+	if adds == nil {
+		adds = map[string]any{}
+	}
 	// Additions first: a write that also removes still hands the session
 	// what it adds, such as a new guard port.
 	if add, ok := add.(map[string]any); ok && len(add) > 0 {
-		if len(openCodeLaunchConfig) == 0 && (SeenChanged("config-has-comments", path) || Verbose || !artifacts.LaunchNotices) {
+		if len(adds) == 0 && (SeenChanged("config-has-comments", path) || Verbose || !artifacts.LaunchNotices) {
 			fmt.Fprintf(os.Stderr, "%s %s has comments or trailing commas, so nav-pilot leaves it alone; the settings it would have written apply only to sessions nav-pilot starts.\n", domain.Dim("ℹ"), path)
 		}
 		for k, v := range add {
-			openCodeLaunchConfig[k] = mergeJSON(openCodeLaunchConfig[k], v)
+			adds[k] = mergeJSON(adds[k], v)
 		}
 	}
 	if len(removed) > 0 {
@@ -983,7 +986,7 @@ func writeDispatchClasses(b *strings.Builder, c *local.Capabilities, level strin
 	b.WriteString("changes needing a judgement per file; a task it would need several exchanges with you to finish; changes where a wrong edit is expensive.\n\n")
 }
 
-// EnsureOpenCodeLocalPolicy provisions the dispatch policy beside the worker
+// ensureOpenCodeLocalPolicy provisions the dispatch policy beside the worker
 // agent and points opencode at it, once per launch — not per turn, which is
 // what a stable prompt prefix requires.
 //
@@ -1013,14 +1016,14 @@ func writeDispatchClasses(b *strings.Builder, c *local.Capabilities, level strin
 // The binding goes in the same mutate as the entry, so the claim and the thing
 // that makes it true are one write: there is no config in which the fragment is
 // registered and the worker is not pinned to the local model.
-func EnsureOpenCodeLocalPolicy(m local.Model) error {
+func ensureOpenCodeLocalPolicy(adds map[string]any, root string, m local.Model) error {
 	path := localPolicyPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("creating opencode config dir: %w", err)
 	}
 	dep := local.ProjectDepUpgrade()
-	if local.DepUpgrade() && gateRoot != "" {
-		dep = local.DepUpgradeRepo(dispatchGateRoot())
+	if local.DepUpgrade() && root != "" {
+		dep = local.DepUpgradeRepo(dispatchGateRoot(root))
 	}
 	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.DispatchLevel(), local.SameResultRepeat(), local.LoopGuardRepeat())+local.DepUpgradePolicyText(dep)), 0o600); err != nil {
 		return fmt.Errorf("writing the local dispatch policy: %w", err)
@@ -1031,7 +1034,7 @@ func EnsureOpenCodeLocalPolicy(m local.Model) error {
 	if err := os.WriteFile(dispatchGatePluginPath(), dispatchGatePlugin, 0o600); err != nil {
 		return fmt.Errorf("writing the dispatch gate plugin: %w", err)
 	}
-	return mutateOpenCodeConfig(func(cfg map[string]any) bool {
+	return mutateOpenCodeConfig(adds, func(cfg map[string]any) bool {
 		bound := bindLocalWorker(cfg, m)
 		entries, _ := cfg["instructions"].([]any)
 		if slices.Contains(entries, any(path)) {
@@ -1055,7 +1058,7 @@ func RemoveOpenCodeLocalPolicy() error {
 	// failure to write the config, left the developer's own opencode pointing at
 	// a path that does not exist. This order fails the other way: a file left
 	// behind that nothing reads, which the next launch overwrites.
-	if err := mutateOpenCodeConfig(func(cfg map[string]any) bool {
+	if err := mutateOpenCodeConfig(nil, func(cfg map[string]any) bool {
 		entries, _ := cfg["instructions"].([]any)
 		kept := slices.DeleteFunc(slices.Clone(entries), func(e any) bool { return e == any(path) })
 		if len(kept) == len(entries) {
@@ -1118,7 +1121,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 
 	env := os.Environ()
-	if err := EnsureOpenCodeConfig(); err != nil {
+	launchConfig, err := EnsureOpenCodeConfig()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not update opencode.json: %v\n", domain.Yellow("⚠"), err)
 	}
 
@@ -1129,7 +1133,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	if ctxErr != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not materialize Nav context for opencode: %v\n", domain.Yellow("⚠"), ctxErr)
 	}
-	resolved = BeforeClientStart(resolved)
+	resolved = beforeClientStart(resolved)
 
 	warnUnsupported("opencode", OpenCodeUnsupportedConfigWarnings(resolved))
 
@@ -1140,7 +1144,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	// Local dispatch, whether or not this session's own model is local: a cloud
 	// main agent handing focused tasks to a local worker is the case the
 	// feature exists for.
-	guard, err := startOpenCodeLocalDispatch(resolved)
+	guard, err := startOpenCodeLocalDispatch(resolved, launchConfig)
 	if err != nil {
 		return err
 	}
@@ -1185,8 +1189,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		}
 	}
 
-	if len(openCodeLaunchConfig) > 0 {
-		launchEnv = withOpenCodeConfigContent(launchEnv, openCodeLaunchConfig)
+	if len(launchConfig) > 0 {
+		launchEnv = withOpenCodeConfigContent(launchEnv, launchConfig)
 	}
 
 	suffix := ""
@@ -1231,6 +1235,8 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		displayName:   "opencode",
 		messageSuffix: suffix,
 		projectDir:    resolved.ProjectDir,
+		sessionFlags:  resolved.CpltFlags,
+		launchConfig:  launchConfig,
 	})
 }
 
@@ -1300,19 +1306,14 @@ func localWorker() (local.Model, error) {
 	return m, nil
 }
 
-func startOpenCodeLocalDispatch(resolved domain.ResolvedConfig) (*local.Guard, error) {
-	gateRoot = resolved.ProjectDir
-	defer func() { gateRoot = "" }()
-	return startLocalDispatch(openCodeSessionModelForLocalDispatch(resolved.Model))
+func startOpenCodeLocalDispatch(resolved domain.ResolvedConfig, adds map[string]any) (*local.Guard, error) {
+	return startLocalDispatch(resolved.ProjectDir, adds, openCodeSessionModelForLocalDispatch(resolved.Model))
 }
 
-// gateRoot is the project directory the dispatch gate may stat under: the
-// launch's --project-dir, or the working directory when that is empty, which
-// is what cplt hands opencode either way.
-var gateRoot string
-
-func dispatchGateRoot() string {
-	root := gateRoot
+// dispatchGateRoot is the project directory the dispatch gate may stat under:
+// root, the launch's --project-dir, or the working directory when that is
+// empty, which is what cplt hands opencode either way.
+func dispatchGateRoot(root string) string {
 	if root == "" {
 		root, _ = os.Getwd()
 	}
@@ -1378,7 +1379,9 @@ func EchoCloudOnlyNotice() {
 	fmt.Fprintf(os.Stderr, "  Or start it on demand:  %s\n", domain.Bold("nav-pilot config set local_autostart true"))
 }
 
-func startLocalDispatch(sessionModel string) (*local.Guard, error) {
+// root is the launch's --project-dir; adds collects what a commented
+// opencode.json kept the provider and policy writes from saving.
+func startLocalDispatch(root string, adds map[string]any, sessionModel string) (*local.Guard, error) {
 	// Same refusal the Copilot path makes, for the same reason: a session
 	// configured for a local model with dispatch off would otherwise be sent to
 	// the cloud provider under a Hugging Face model id.
@@ -1453,7 +1456,7 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := EnsureOpenCodeLocalProvider(worker, guard.URL()); err != nil {
+	if err := ensureOpenCodeLocalProvider(adds, worker, guard.URL()); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not register the local model with opencode: %v\n", domain.Yellow("⚠"), err)
 	}
 	if !local.WorkerOffered() {
@@ -1462,7 +1465,7 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 		if err := RemoveOpenCodeLocalPolicy(); err != nil {
 			fmt.Fprintf(os.Stderr, "%s Warning: could not remove the local dispatch policy from opencode: %v\n", domain.Yellow("⚠"), err)
 		}
-	} else if err := EnsureOpenCodeLocalPolicy(worker); err != nil {
+	} else if err := ensureOpenCodeLocalPolicy(adds, root, worker); err != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not provision the local dispatch policy for opencode: %v\n", domain.Yellow("⚠"), err)
 	}
 	// The gate only for a cloud orchestrator, and only for a class it has a
@@ -1470,7 +1473,7 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	// decides what is safe to push.
 	if !local.IsLocal(sessionModel) {
 		rules := local.DispatchGateRules(local.DispatchLevel(), worker.Capabilities)
-		rules.Root = dispatchGateRoot()
+		rules.Root = dispatchGateRoot(root)
 		rules.Pinned = local.DepUpgrade()
 		guard.EnableDispatchGate(rules)
 	}
@@ -1491,7 +1494,8 @@ func openCodeUsageDir(projectDir string) string {
 //
 //  1. Inputs, before this: the user's own OPENCODE_CONFIG_CONTENT, OTel, the
 //     staged config dir and the user config it restates, the opencode 2
-//     arguments, and on Tier 1 openCodeLaunchConfig.
+//     arguments, and on Tier 1 what EnsureOpenCodeConfig and local dispatch
+//     could not write to a commented opencode.json.
 //  2. Here: share and autoupdate, the MCP servers the registry does not list
 //     turned off, nav-pilot's own dirs in permission, the hooks plugin with
 //     the cplt flags it needs, and the user's model on the launched agent.
@@ -1513,7 +1517,7 @@ func launchOpenCodeViaCplt(spec cpltLaunch) error {
 		return launchViaCplt(spec)
 	}
 	var err error
-	spec.env, err = applyOpenCodeProviderPolicy(spec.env, spec.projectDir, local.Enabled(), spec.agentArgs, spec.pakke)
+	spec.env, err = applyOpenCodeProviderPolicy(spec.env, spec.projectDir, local.Enabled(), spec.agentArgs, spec.pakke, spec.launchConfig)
 	if err != nil {
 		return err
 	}

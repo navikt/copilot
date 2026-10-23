@@ -223,7 +223,7 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 	// too — in the cplt-flag slot, before the "--" that hands the rest to
 	// the agent.
 	cpltArgs := append([]string{"--agent", "copilot"}, cpltProposalFlags()...)
-	cpltArgs = append(cpltArgs, cpltSessionFlags()...)
+	cpltArgs = append(cpltArgs, resolved.CpltFlags...)
 	cpltArgs = append(cpltArgs, "--")
 	cpltArgs = append(cpltArgs, args...)
 	return append(cpltArgs, resolved.ExtraArgs...)
@@ -295,7 +295,7 @@ func copilotResolvedFlags(resolved domain.ResolvedConfig) []string {
 // the credential source cplt or Copilot uses. See applyCopilotAuthMode.
 func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	// A Tier 1 copilot launch writes no agent files: sync does.
-	resolved = BeforeClientStart(resolved)
+	resolved = beforeClientStart(resolved)
 	// Local inference. The one branch on this path, and it used to be a
 	// refusal, on the belief that the Copilot CLI only ever resolves models
 	// through GitHub. It does not: `copilot help providers` documents BYOK,
@@ -399,7 +399,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	}
 	if Verbose {
 		fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(banner))
-		printCpltSessionFlags()
+		printCpltSessionFlags(resolved.CpltFlags)
 	}
 
 	// Check the environment before handing it to cplt; cplt can still supply

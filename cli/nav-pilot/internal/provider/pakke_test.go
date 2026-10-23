@@ -100,7 +100,7 @@ func TestActivePakkeLocalDefaultIsCheckedBeforeLaunch(t *testing.T) {
 	if got := openCodeSessionModelForLocalDispatch(""); got != model {
 		t.Fatalf("local dispatch session model = %q, want %q", got, model)
 	}
-	if guard, err := startLocalDispatch(openCodeSessionModelForLocalDispatch("")); err == nil {
+	if guard, err := startLocalDispatch("", nil, openCodeSessionModelForLocalDispatch("")); err == nil {
 		if guard != nil {
 			guard.Close()
 		}

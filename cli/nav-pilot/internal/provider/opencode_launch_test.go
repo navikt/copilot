@@ -252,7 +252,7 @@ func TestEnsureOpenCodeConfig(t *testing.T) {
 		ConfigPathOverride = configFile
 		defer func() { ConfigPathOverride = "" }()
 
-		if err := EnsureOpenCodeConfig(); err != nil {
+		if _, err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -292,7 +292,7 @@ func TestEnsureOpenCodeConfig(t *testing.T) {
 		data, _ := json.MarshalIndent(existing, "", "  ")
 		_ = os.WriteFile(configFile, data, 0o600)
 
-		if err := EnsureOpenCodeConfig(); err != nil {
+		if _, err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -327,7 +327,7 @@ func TestEnsureOpenCodeConfig(t *testing.T) {
 		defer func() { ConfigPathOverride = "" }()
 		_ = os.WriteFile(configFile, []byte(`{"share": "manual"}`), 0o600)
 
-		if err := EnsureOpenCodeConfig(); err != nil {
+		if _, err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		data, _ := os.ReadFile(configFile)
@@ -346,7 +346,7 @@ func TestEnsureOpenCodeConfig(t *testing.T) {
 		seed := `{"share": "disabled", "experimental": {"openTelemetry": true}}`
 		_ = os.WriteFile(configFile, []byte(seed), 0o600)
 
-		if err := EnsureOpenCodeConfig(); err != nil {
+		if _, err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if after, _ := os.ReadFile(configFile); string(after) != seed {
@@ -365,7 +365,7 @@ func TestEnsureOpenCodeConfig(t *testing.T) {
 		ConfigPathOverride = link
 		defer func() { ConfigPathOverride = "" }()
 
-		if err := EnsureOpenCodeConfig(); err != nil {
+		if _, err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
@@ -387,7 +387,7 @@ func TestEnsureOpenCodeConfig(t *testing.T) {
 			ConfigPathOverride = configFile
 			defer func() { ConfigPathOverride = "" }()
 
-			if err := EnsureOpenCodeConfig(); err != nil {
+			if _, err := EnsureOpenCodeConfig(); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			data, _ := os.ReadFile(configFile)
@@ -406,12 +406,12 @@ func TestEnsureOpenCodeConfig(t *testing.T) {
 		ConfigPathOverride = configFile
 		defer func() { ConfigPathOverride = "" }()
 
-		if err := EnsureOpenCodeConfig(); err != nil {
+		if _, err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("first call failed: %v", err)
 		}
 		first, _ := os.ReadFile(configFile)
 
-		if err := EnsureOpenCodeConfig(); err != nil {
+		if _, err := EnsureOpenCodeConfig(); err != nil {
 			t.Fatalf("second call failed: %v", err)
 		}
 		second, _ := os.ReadFile(configFile)
@@ -429,7 +429,7 @@ func TestEnsureOpenCodeConfig(t *testing.T) {
 
 		_ = os.WriteFile(configFile, []byte("{not valid json"), 0o600)
 
-		if err := EnsureOpenCodeConfig(); err == nil {
+		if _, err := EnsureOpenCodeConfig(); err == nil {
 			t.Error("expected error on invalid JSON, got nil")
 		}
 	})
@@ -753,7 +753,7 @@ func TestEnsureOpenCodeConfigNonObject(t *testing.T) {
 				t.Fatalf("seeding config: %v", err)
 			}
 
-			err := EnsureOpenCodeConfig()
+			_, err := EnsureOpenCodeConfig()
 			if err == nil {
 				t.Fatal("expected an error for a non-object config, got nil")
 			}
@@ -833,7 +833,7 @@ func TestNoServerWarningTellsThemWhatItCost(t *testing.T) {
 	}
 	old := os.Stderr
 	os.Stderr = w
-	guard, _ := startLocalDispatch("github-copilot/claude-sonnet-4.6")
+	guard, _ := startLocalDispatch("", nil, "github-copilot/claude-sonnet-4.6")
 	if guard != nil {
 		t.Error("a guard was returned with no server running; nothing should be wired on this path")
 	}

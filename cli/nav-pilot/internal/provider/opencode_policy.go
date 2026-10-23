@@ -58,9 +58,9 @@ func OpenCodeTestedRangeFor(version string) string {
 const OpenCodeInstallVersion = "1.18.32"
 
 // ownLocalProviderBlock reports whether v is the local provider block this
-// process put in openCodeLaunchConfig, compared as JSON.
-func ownLocalProviderBlock(v any) bool {
-	providers, _ := openCodeLaunchConfig["provider"].(map[string]any)
+// launch put in launchConfig, compared as JSON.
+func ownLocalProviderBlock(launchConfig map[string]any, v any) bool {
+	providers, _ := launchConfig["provider"].(map[string]any)
 	own, ok := providers[LocalProviderID]
 	if !ok {
 		return false
@@ -76,8 +76,9 @@ func applyOpenCodePolicy(env []string) []string {
 
 // OpenCode 2 gives global provider policies precedence over inline config.
 // Refuse conflicting rules rather than silently widening this session.
-// pakke names the agentpakke of a staged launch, "" otherwise.
-func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal bool, args []string, pakke string) ([]string, error) {
+// pakke names the agentpakke of a staged launch, "" otherwise. launchConfig is
+// the Tier 1 launch's own OPENCODE_CONFIG_CONTENT additions, nil when staged.
+func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal bool, args []string, pakke string, launchConfig map[string]any) ([]string, error) {
 	allowed := []string{"github-copilot"}
 	if allowLocal {
 		allowed = append(allowed, LocalProviderID)
@@ -132,9 +133,9 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 				var v any
 				_ = json.Unmarshal(raw, &v)
 				// A commented config is not rewritten, so the block rides in
-				// OPENCODE_CONFIG_CONTENT via openCodeLaunchConfig: exactly
+				// OPENCODE_CONFIG_CONTENT via launchConfig: exactly
 				// nav-pilot's own block passes, anything changed in it does not.
-				if id == LocalProviderID && mapKey == "provider" && doc.path == openCodeConfigContentEnv && ownLocalProviderBlock(v) {
+				if id == LocalProviderID && mapKey == "provider" && doc.path == openCodeConfigContentEnv && ownLocalProviderBlock(launchConfig, v) {
 					continue
 				}
 				if k := openCodeRoutingKey(v); k != "" {

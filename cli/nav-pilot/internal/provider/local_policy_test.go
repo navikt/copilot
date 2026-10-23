@@ -96,8 +96,8 @@ func TestEnsureOpenCodeLocalPolicyRegistersItselfOnce(t *testing.T) {
 	}
 
 	for range 3 {
-		if err := EnsureOpenCodeLocalPolicy(m); err != nil {
-			t.Fatalf("EnsureOpenCodeLocalPolicy: %v", err)
+		if err := ensureOpenCodeLocalPolicy(nil, "", m); err != nil {
+			t.Fatalf("ensureOpenCodeLocalPolicy: %v", err)
 		}
 	}
 
@@ -141,7 +141,7 @@ func TestLocalDisabledWritesNothingForACloudSession(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	guard, err := startLocalDispatch("github-copilot/claude-opus-5")
+	guard, err := startLocalDispatch("", nil, "github-copilot/claude-opus-5")
 	if err != nil {
 		t.Fatalf("startLocalDispatch with local dispatch off: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestLocalDisabledWritesNothingForACloudSession(t *testing.T) {
 	// And on a machine that has no opencode config at all, it does not create
 	// one.
 	ConfigPathOverride = filepath.Join(t.TempDir(), "opencode.json")
-	if _, err := startLocalDispatch("github-copilot/claude-opus-5"); err != nil {
+	if _, err := startLocalDispatch("", nil, "github-copilot/claude-opus-5"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(ConfigPathOverride); !os.IsNotExist(err) {
@@ -182,7 +182,7 @@ func TestRemoveOpenCodeLocalPolicyLeavesTheDeveloperTheirOwn(t *testing.T) {
 	if err := os.WriteFile(ConfigPathOverride, []byte(`{"instructions":["`+mine+`"]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := EnsureOpenCodeLocalPolicy(aLocalModel(t)); err != nil {
+	if err := ensureOpenCodeLocalPolicy(nil, "", aLocalModel(t)); err != nil {
 		t.Fatal(err)
 	}
 	if err := RemoveOpenCodeLocalPolicy(); err != nil {
@@ -216,7 +216,7 @@ func TestRemoveOpenCodeLocalPolicyDropsAnEmptyInstructionsKey(t *testing.T) {
 	withOpenCodeConfig(t)
 	withLocalEnabled(t)
 
-	if err := EnsureOpenCodeLocalPolicy(aLocalModel(t)); err != nil {
+	if err := ensureOpenCodeLocalPolicy(nil, "", aLocalModel(t)); err != nil {
 		t.Fatal(err)
 	}
 	if err := RemoveOpenCodeLocalPolicy(); err != nil {
@@ -265,8 +265,8 @@ func TestLocalWorkerIsBoundToTheLocalModel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := EnsureOpenCodeLocalProvider(m, testGuardURL); err != nil {
-		t.Fatalf("EnsureOpenCodeLocalProvider: %v", err)
+	if err := ensureOpenCodeLocalProvider(nil, m, testGuardURL); err != nil {
+		t.Fatalf("ensureOpenCodeLocalProvider: %v", err)
 	}
 
 	want := LocalProviderID + "/" + m.Model
@@ -304,8 +304,8 @@ func TestDispatchPolicyAndBindingArriveTogether(t *testing.T) {
 	withLocalEnabled(t)
 	m := aLocalModel(t)
 
-	if err := EnsureOpenCodeLocalPolicy(m); err != nil {
-		t.Fatalf("EnsureOpenCodeLocalPolicy: %v", err)
+	if err := ensureOpenCodeLocalPolicy(nil, "", m); err != nil {
+		t.Fatalf("ensureOpenCodeLocalPolicy: %v", err)
 	}
 	entries, _ := readOpenCodeConfig(t)["instructions"].([]any)
 	if len(entries) != 1 {
@@ -330,7 +330,7 @@ func TestTurningLocalOffUnregistersTheDispatchPolicy(t *testing.T) {
 	withLocalEnabled(t)
 	m := withOwnServer(t)
 
-	guard, err := startLocalDispatch("github-copilot/claude-opus-5")
+	guard, err := startLocalDispatch("", nil, "github-copilot/claude-opus-5")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +341,7 @@ func TestTurningLocalOffUnregistersTheDispatchPolicy(t *testing.T) {
 
 	// The same launch path with the alpha turned off.
 	local.SetEnabled(false)
-	if _, err := startLocalDispatch("github-copilot/claude-opus-5"); err != nil {
+	if _, err := startLocalDispatch("", nil, "github-copilot/claude-opus-5"); err != nil {
 		t.Fatalf("startLocalDispatch with local dispatch off: %v", err)
 	}
 
@@ -397,7 +397,7 @@ func TestCloudSessionGetsTheLocalWorker(t *testing.T) {
 	withLocalEnabled(t)
 	m := withOwnServer(t)
 
-	guard, err := startLocalDispatch("github-copilot/claude-opus-5")
+	guard, err := startLocalDispatch("", nil, "github-copilot/claude-opus-5")
 	if err != nil {
 		t.Fatalf("startLocalDispatch for a cloud session with local dispatch on: %v", err)
 	}
@@ -447,11 +447,11 @@ func TestNoLocalServerLeavesACloudSessionLaunchable(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // nothing recorded, and no server to record
 
 	// What an earlier session, with a server up, left behind.
-	if err := EnsureOpenCodeLocalPolicy(m); err != nil {
+	if err := ensureOpenCodeLocalPolicy(nil, "", m); err != nil {
 		t.Fatal(err)
 	}
 
-	guard, err := startLocalDispatch("github-copilot/claude-opus-5")
+	guard, err := startLocalDispatch("", nil, "github-copilot/claude-opus-5")
 	if err != nil {
 		t.Fatalf("a cloud session with dispatch on and no server was refused: %v", err)
 	}
@@ -466,7 +466,7 @@ func TestNoLocalServerLeavesACloudSessionLaunchable(t *testing.T) {
 		t.Error("the dispatch policy file survived a session with no local server")
 	}
 
-	if _, err := startLocalDispatch(m.Model); err == nil {
+	if _, err := startLocalDispatch("", nil, m.Model); err == nil {
 		t.Error("a launch on the local model itself was allowed with no server running; every prompt of that session would fail")
 	}
 }
@@ -708,7 +708,7 @@ func TestDispatchGatePerLevel(t *testing.T) {
 			withDispatch(t, tc.level)
 			m := withOwnServer(t)
 
-			guard, err := startLocalDispatch("github-copilot/claude-sonnet-5")
+			guard, err := startLocalDispatch("", nil, "github-copilot/claude-sonnet-5")
 			if err != nil || guard == nil {
 				t.Fatalf("startLocalDispatch: %v, %v", guard, err)
 			}
@@ -721,7 +721,7 @@ func TestDispatchGatePerLevel(t *testing.T) {
 			}
 
 			// A local session has no one to dispatch to: never a gate.
-			local2, err := startLocalDispatch(m.Model)
+			local2, err := startLocalDispatch("", nil, m.Model)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -740,14 +740,14 @@ func TestDispatchOffOffersNoWorker(t *testing.T) {
 	withLocalEnabled(t)
 	withDispatch(t, local.DispatchBalanced)
 	m := withOwnServer(t)
-	if g, err := startLocalDispatch("github-copilot/claude-sonnet-5"); err != nil || g == nil {
+	if g, err := startLocalDispatch("", nil, "github-copilot/claude-sonnet-5"); err != nil || g == nil {
 		t.Fatalf("setup: %v %v", g, err)
 	} else {
 		g.Close()
 	}
 
 	local.SetDispatchLevel(local.DispatchOff)
-	guard, err := startLocalDispatch("github-copilot/claude-sonnet-5")
+	guard, err := startLocalDispatch("", nil, "github-copilot/claude-sonnet-5")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -766,7 +766,7 @@ func TestDispatchOffOffersNoWorker(t *testing.T) {
 	}
 	// A session on the local model itself still runs, and is offered no
 	// worker: no policy, no binding.
-	g, err := startLocalDispatch(m.Model)
+	g, err := startLocalDispatch("", nil, m.Model)
 	if err != nil || g == nil {
 		t.Fatalf("a local session was refused at local_dispatch = off: %v", err)
 	}

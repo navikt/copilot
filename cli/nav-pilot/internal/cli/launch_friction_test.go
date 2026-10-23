@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/huh"
-
-	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // One Ctrl-C in the first-run wizard ends the run: "Cancelled. Nothing was
@@ -95,10 +93,8 @@ func TestStartCommandIsSandboxedAndQuoted(t *testing.T) {
 
 // The printed command keeps the session's cplt flags, on both halves.
 func TestStartCommandKeepsCpltFlags(t *testing.T) {
-	providerpkg.AllowClipboard, providerpkg.CpltArgs = true, []string{"--allow-port=8080"}
-	t.Cleanup(func() { providerpkg.AllowClipboard, providerpkg.CpltArgs = false, nil })
-
-	got := startCommand(ResolvedConfig{Client: "pi", ProjectDir: "/p"})
+	t.Parallel()
+	got := startCommand(ResolvedConfig{Client: "pi", ProjectDir: "/p", CpltFlags: []string{"--allow-clipboard", "--allow-port=8080"}})
 	want := "nav-pilot --auto-launch --cplt --allow-clipboard --cplt '--allow-port=8080', or cplt --project-dir /p --agent pi --allow-clipboard '--allow-port=8080'"
 	if got != want {
 		t.Errorf("\n got: %q\nwant: %q", got, want)

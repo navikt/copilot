@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -23,5 +24,15 @@ func TestCpltValueAsSeparateWord(t *testing.T) {
 	err := run([]string{"--cplt", "--pass-env", "FOO"})
 	if err == nil || !strings.Contains(err.Error(), "--cplt --pass-env=FOO") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+// --allow-clipboard goes first, then each --cplt value in the order given.
+func TestResolveCpltFlagsOrder(t *testing.T) {
+	t.Parallel()
+	r := resolve(&Config{}, CLIOverrides{AllowClipboard: true, CpltArgs: []string{"--allow-port=8080", "--allow-env-files"}})
+	want := []string{"--allow-clipboard", "--allow-port=8080", "--allow-env-files"}
+	if !slices.Equal(r.CpltFlags, want) {
+		t.Errorf("CpltFlags = %q, want %q", r.CpltFlags, want)
 	}
 }

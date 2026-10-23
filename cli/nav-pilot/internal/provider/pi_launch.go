@@ -187,7 +187,7 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 			fmt.Fprintf(os.Stderr, "%s Could not materialize the agentpakke for pi: %v\n", domain.Yellow("⚠"), err)
 		}
 	}
-	resolved = BeforeClientStart(resolved)
+	resolved = beforeClientStart(resolved)
 
 	persona := resolved.Persona
 	if persona == "" {
@@ -204,9 +204,10 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 		// EnsurePiNavContext above, and piSkillArgs hands the same skills/ to
 		// pi as --skill. It is empty only when the pakke declares no pi entry
 		// or ships no skills, and then so is the variable.
-		skillsDir:  materializedSkillsDir(contextDir),
-		agentArgs:  piLaunchArgs(contextDir, persona, resolved),
-		projectDir: resolved.ProjectDir,
+		skillsDir:    materializedSkillsDir(contextDir),
+		agentArgs:    piLaunchArgs(contextDir, persona, resolved),
+		projectDir:   resolved.ProjectDir,
+		sessionFlags: resolved.CpltFlags,
 	})
 }
 

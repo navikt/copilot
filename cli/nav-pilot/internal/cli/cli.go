@@ -333,7 +333,6 @@ func run(args []string) error {
 	notedProposals = map[string]bool{}
 	armNudges, nudgesReady = false, nil
 	providerpkg.Verbose, artifacts.LaunchNotices = false, false
-	providerpkg.AllowClipboard, providerpkg.CpltArgs = false, nil
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
 	// parsing: decide and ask take free text.
@@ -494,12 +493,12 @@ func run(args []string) error {
 				}
 				// cplt refuses most switches given twice, so a repeat is dropped.
 				if args[i] == "--allow-clipboard" {
-					providerpkg.AllowClipboard = true
-				} else if !slices.Contains(providerpkg.CpltArgs, args[i]) {
-					providerpkg.CpltArgs = append(providerpkg.CpltArgs, args[i])
+					cliOverrides.AllowClipboard = true
+				} else if !slices.Contains(cliOverrides.CpltArgs, args[i]) {
+					cliOverrides.CpltArgs = append(cliOverrides.CpltArgs, args[i])
 				}
 			case "--allow-clipboard":
-				providerpkg.AllowClipboard = true
+				cliOverrides.AllowClipboard = true
 			case "--verbose":
 				providerpkg.Verbose = true
 			case "--auto-launch":
