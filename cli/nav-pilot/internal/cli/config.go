@@ -501,6 +501,7 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 	resolved := resolve(file, cli)
 	telemetry.RecordConfig(
 		resolved.Client,
+		launchClientMajor(resolved.Client),
 		resolved.Mode,
 		configModelLabel(resolved.Model),
 		resolved.ReasoningEffort,
@@ -510,6 +511,20 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 		resolved.AskUser,
 	)
 	return resolved, nil
+}
+
+// openCodeMajor is a variable so tests can fake the installed opencode.
+var openCodeMajor = providerpkg.OpenCodeMajor
+
+// launchClientMajor is the launched client's major version for the config
+// gauge, "" when not measured. Only opencode, for its 1-to-2 migration (#1907).
+// The probe is the cached one the launch runs anyway, and it is skipped when
+// telemetry is off.
+func launchClientMajor(client string) string {
+	if client != "opencode" || !telemetrypkg.TelemetryEnabled() {
+		return ""
+	}
+	return strconv.Itoa(openCodeMajor())
 }
 
 // ignoredConfigKeys are retired keys an old config file may still hold. They

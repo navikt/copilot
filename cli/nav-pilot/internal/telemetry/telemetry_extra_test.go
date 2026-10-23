@@ -130,7 +130,7 @@ func TestNoopRecorder_AllMethods(t *testing.T) {
 	r.RecordStalenessCheck("copilot", "repo", "up_to_date")
 	r.RecordUpToDate("copilot", "repo", true)
 	r.RecordVersionSkewDays("copilot", "repo", 0)
-	r.RecordConfig("opencode", "default", "auto", "", "", "none", false, false)
+	r.RecordConfig("opencode", "", "default", "auto", "", "", "none", false, false)
 	r.RecordClientAvailable("copilot", false)
 	if err := r.Shutdown(context.Background()); err != nil {
 		t.Errorf("NoopRecorder.Shutdown() = %v, want nil", err)
@@ -269,7 +269,7 @@ func TestEveryInstrumentCarriesDeviceID(t *testing.T) {
 	tel.RecordLaunchError("opencode", "client_not_found")
 	tel.RecordLocalSession("opencode", "some/model", "mlx", "balanced", 0, true)
 	tel.RecordLocalReadySeconds("some/model", "ready", 4)
-	tel.RecordConfig("opencode", "repo", "custom", "high", "large", "info", false, true)
+	tel.RecordConfig("opencode", "", "repo", "custom", "high", "large", "info", false, true)
 
 	var rm metricdata.ResourceMetrics
 	if err := reader.Collect(context.Background(), &rm); err != nil {

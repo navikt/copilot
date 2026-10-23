@@ -507,6 +507,9 @@ func openCodeMajor() int {
 	return n
 }
 
+// OpenCodeMajor exports openCodeMajor for launch telemetry.
+func OpenCodeMajor() int { return openCodeMajor() }
+
 var openCodeMajorPattern = regexp.MustCompile(`(?i)^(?:opencode )?v?(\d+)\.`)
 
 // openCode2CpltFloor is the oldest cplt nav-pilot runs opencode 2 under, on

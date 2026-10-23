@@ -9,6 +9,27 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+func TestLaunchClientMajor(t *testing.T) {
+	orig := openCodeMajor
+	t.Cleanup(func() { openCodeMajor = orig })
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
+	for _, major := range []int{1, 2} {
+		openCodeMajor = func() int { return major }
+		if got, want := launchClientMajor("opencode"), string(rune('0'+major)); got != want {
+			t.Errorf("opencode %d: got %q, want %q", major, got, want)
+		}
+	}
+	if got := launchClientMajor("copilot"); got != "" {
+		t.Errorf("copilot: got %q, want empty", got)
+	}
+	openCodeMajor = func() int { t.Fatal("probed with telemetry off"); return 0 }
+	t.Setenv("DO_NOT_TRACK", "1")
+	if got := launchClientMajor("opencode"); got != "" {
+		t.Errorf("telemetry off: got %q, want empty", got)
+	}
+}
+
 // ─── configPath ───────────────────────────────────────────────────────────────
 
 func TestConfigPath_Default(t *testing.T) {

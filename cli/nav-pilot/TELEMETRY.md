@@ -17,7 +17,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_info` | Gauge | Prosess-start informasjon (alltid verdi 1) | `version=0.12.3`, `device_id=nav-pilot-abc123`, `execution_context=ci_github_actions`, `os=linux`, `arch=amd64`, `rtk_installed=false`, `project_type=go\|node\|jvm\|python\|na` |
 | `nav_pilot_install_present` | Gauge | Om scope har installert state (1/0) | `scope=user`, `collection=all` |
 | `nav_pilot_installed_items` | Gauge | Antall installerte items per type/status | `scope=repo`, `type=skill`, `status=active` |
-| `nav_pilot_config_info` | Gauge | Konfigurasjonssnapshot per oppstart (alltid verdi 1) | `client=opencode`, `config_mode=autopilot`, `model=auto`, `reasoning_effort=high`, `context_tier=unset`, `otel_log_level=none`, `allow_all_tools=false`, `ask_user=true`, `device_id=nav-pilot-abc123` |
+| `nav_pilot_config_info` | Gauge | Konfigurasjonssnapshot per oppstart (alltid verdi 1) | `client=opencode`, `client_major=1\|2\|unknown\|unset`, `config_mode=autopilot`, `model=auto`, `reasoning_effort=high`, `context_tier=unset`, `otel_log_level=none`, `allow_all_tools=false`, `ask_user=true`, `device_id=nav-pilot-abc123` |
 | `nav_pilot_client_available` | Gauge | Om en coding-agent-klient finnes på PATH (1/0) | `client=copilot` / `client=opencode` / `client=pi` |
 | `nav_pilot_staleness_check_total` | Counter | Antall ferskhetssjekker per resultat | `component=collection`, `scope=user`, `result=stale` |
 | `nav_pilot_up_to_date` | Gauge | Om komponent er tilstrekkelig oppdatert (1/0) | `component=cli`, `scope=none` |
@@ -223,6 +223,11 @@ sjekken i bakgrunnen rapporterer ikke utfallet. `nav_pilot_up_to_date` og
   opencode betyr dette at `--model auto` kan rapporteres som `auto`, mens tom
   modellverdi rapporteres som `unset`.
 - Tomme valg (`reasoning_effort`, `context_tier`, `model`) rapporteres som `unset`.
+- `client_major` er hovedversjonen av opencode som startes (`1` eller `2`), slik at vi ser
+  hvor mange som fortsatt bruker opencode 1 før støtten slutter (#1907). Ukjente
+  versjoner rapporteres som `unknown`, andre klienter som `unset`. Versjonen leses fra
+  den samme bufrede `opencode --version`-sjekken som oppstarten bruker, og sjekkes ikke
+  når telemetri er slått av. Full versjon sendes ikke.
 - `nav_pilot_client_available` PATH-sjekker `copilot` (cplt/copilot), `opencode` og `pi`
   ved oppstart, så vi ser hvilke klienter brukere faktisk har installert.
 
