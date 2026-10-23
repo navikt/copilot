@@ -253,16 +253,6 @@ func normalizeMCPURL(s string) string {
 	return u.String()
 }
 
-// brokered reports whether the server is an entry cplt adds for a brokered
-// registry server: exactly `cplt mcp-stdio <id>`, with <id> carrying the
-// broker _meta. Only the command counts, never the name: a config can name
-// any server nais-mcp, and cplt never replaces an entry that does not run its
-// command, so disabling such an entry never touches cplt's (#1941).
-func (r mcpRegistry) brokered(s mcpServer) bool {
-	c := s.Command
-	return len(c) == 3 && c[0] == "cplt" && c[1] == "mcp-stdio" && r.Brokered[c[2]]
-}
-
 // listed reports whether the registry lists the server.
 func (r mcpRegistry) listed(s mcpServer) bool {
 	if s.hadEnvName {
@@ -272,8 +262,17 @@ func (r mcpRegistry) listed(s mcpServer) bool {
 	case "remote":
 		return r.Remotes[normalizeMCPURL(s.URL)]
 	case "local":
-		if len(s.Environment) > 0 || len(s.Env) > 0 {
+		if len(s.Environment) > 0 || len(s.Env) > 0 || s.hadEnv {
 			return false
+		}
+		// An entry cplt adds for a brokered registry server: exactly
+		// `cplt mcp-stdio <id>`, <id> carrying the broker _meta. Only the
+		// command counts, never the name, and only for a local server with
+		// no environment of its own, so a config cannot point PATH at its own
+		// cplt. cplt never replaces an entry that does not run its command,
+		// so turning such an entry off never touches cplt's (#1941).
+		if c := s.Command; len(c) == 3 && c[0] == "cplt" && c[1] == "mcp-stdio" && r.Brokered[c[2]] {
+			return true
 		}
 	default:
 		// OpenCode knows these two. Anything else is not a server the
@@ -746,7 +745,7 @@ func unlistedIn(registry string, servers map[string]mcpServer, names []string) (
 	}
 	var off []string
 	for _, name := range names {
-		if !reg.listed(servers[name]) && !reg.brokered(servers[name]) {
+		if !reg.listed(servers[name]) {
 			off = append(off, name)
 		}
 	}

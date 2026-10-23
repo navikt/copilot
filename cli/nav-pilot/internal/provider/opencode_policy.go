@@ -420,28 +420,37 @@ func warnOpenCode1() {
 	}
 }
 
-// warnCpltRecommended prints CpltRecommendedNotice at a cplt launch of any
+// warnCpltRecommended prints the cplt recommendation at a cplt launch of any
 // client, once per recommended version: a later recommendation says it again.
-func warnCpltRecommended() {
-	if n := CpltRecommendedNotice(); n != "" && (SeenChanged("cplt-recommended", cpltRecommended) || Verbose) {
+// The opencode reasons are named only on an opencode 2 launch.
+func warnCpltRecommended(agent string) {
+	n := cpltRecommendedNotice(agent == "opencode" && openCodeMajor() == 2)
+	seen := cpltRecommended
+	if n == "" {
+		seen = ""
+	}
+	if SeenChanged("cplt-recommended", seen) && n != "" || n != "" && Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
 	}
 }
 
-// CpltRecommendedNotice is one line with every reason to update a cplt older
-// than cpltRecommended, or "" at or above it. The opencode 2 reasons are
-// listed only when opencode 2 is installed.
-func CpltRecommendedNotice() string {
+// CpltRecommendedNotice is doctor's line: the opencode reasons are named when
+// opencode 2 is installed.
+func CpltRecommendedNotice() string { return cpltRecommendedNotice(openCodeMajor() == 2) }
+
+// cpltRecommendedNotice is one line with every reason to update a cplt older
+// than cpltRecommended, or "" at or above it (or when unreadable).
+func cpltRecommendedNotice(opencode bool) string {
 	out, err := probeCpltVersion()
 	stamp := cpltStamp(out)
 	if err != nil || stamp == "" || stamp >= cpltRecommended {
 		return ""
 	}
-	reasons := "Nais MCP through cplt's broker"
-	if openCodeMajor() == 2 {
-		reasons = "GitHub MCP and Nais MCP through cplt's broker, and blocking API keys opencode's voice feature reads"
+	reasons := "it runs Nais MCP through cplt's broker"
+	if opencode {
+		reasons = "it runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, and blocks the API keys opencode's voice feature reads"
 	}
-	return fmt.Sprintf("cplt %s or newer is recommended: %s. Update: %s", cpltRecommended, reasons, domain.Bold(cpltUpgradeHint()))
+	return fmt.Sprintf("cplt %s or newer is recommended: %s. Update cplt: %s", cpltRecommended, reasons, domain.Bold(cpltUpgradeHint()))
 }
 
 // openCodeVoiceEnv are the env vars opencode 2.1.3's voice feature reads

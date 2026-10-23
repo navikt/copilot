@@ -21,9 +21,9 @@ func TestCpltRecommendedNotice(t *testing.T) {
 	t.Cleanup(func() { versionCache.Delete("opencode") })
 	prev := probeCpltVersion
 	t.Cleanup(func() { probeCpltVersion = prev })
-	launch := func(opencode, cplt string) string {
+	versionCache.Store("opencode", versionAnswer{"opencode v2.1.2\n", nil, time.Hour})
+	launch := func(agent, cplt string) string {
 		t.Helper()
-		versionCache.Store("opencode", versionAnswer{opencode, nil, time.Hour})
 		probeCpltVersion = func() (string, error) { return cplt, nil }
 		r, w, err := os.Pipe()
 		if err != nil {
@@ -31,36 +31,39 @@ func TestCpltRecommendedNotice(t *testing.T) {
 		}
 		orig := os.Stderr
 		os.Stderr = w
-		warnCpltRecommended()
+		warnCpltRecommended(agent)
 		os.Stderr = orig
 		w.Close()
 		out, _ := io.ReadAll(r)
 		return string(out)
 	}
-	const v2 = "opencode v2.1.2\n"
 	old := "cplt " + cpltDenyEnv + "-7f0fd16\n"
+	at := "cplt " + cpltRecommended + "-7f0fd16\n"
 
-	first := launch(v2, old)
-	want := "cplt " + cpltRecommended + " or newer is recommended: GitHub MCP and Nais MCP through cplt's broker, and blocking API keys opencode's voice feature reads. Update: "
+	first := launch("opencode", old)
+	want := "cplt " + cpltRecommended + " or newer is recommended: it runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, and blocks the API keys opencode's voice feature reads. Update cplt: "
 	if !strings.Contains(first, want) || !strings.Contains(first, cpltUpgradeHint()) || strings.Count(first, "\n") != 1 {
 		t.Errorf("notice %q, want one line with %q", first, want)
 	}
-	// Once per recommended version: another old cplt or client says nothing.
-	if again := launch("", "cplt 2026.10.22-172931-b37a8ab\n"); again != "" {
+	// Once per recommended version: another client or old cplt says nothing.
+	if again := launch("copilot", "cplt 2026.10.22-172931-b37a8ab\n"); again != "" {
 		t.Errorf("same recommendation again: %q, want nothing", again)
 	}
-	// A higher recommendation than the one last seen says it again; without
-	// opencode 2 only the reason every client gains.
+	// A higher recommendation than the one last seen says it again; a
+	// non-opencode launch names only what it gains, even with opencode 2 installed.
 	SeenChanged("cplt-recommended", cpltDenyEnv)
-	if next := launch("", old); !strings.Contains(next, "recommended: Nais MCP through cplt's broker. Update: ") {
-		t.Errorf("raised recommendation: %q, want notice", next)
+	if next := launch("copilot", old); !strings.Contains(next, "recommended: it runs Nais MCP through cplt's broker. Update cplt: ") {
+		t.Errorf("raised recommendation: %q, want the client-neutral notice", next)
 	}
-	// Control: at and above the recommendation, silent even when unseen.
-	for _, c := range []string{"cplt " + cpltRecommended + "-7f0fd16\n", "cplt 2026.11.01-000000-abcdef0\n"} {
-		SeenChanged("cplt-recommended", "")
-		if out := launch(v2, c); out != "" {
+	// At or above: silent, and the seen state is cleared, so a later old cplt
+	// says it again.
+	for _, c := range []string{at, "cplt 2026.11.01-000000-abcdef0\n"} {
+		if out := launch("opencode", c); out != "" {
 			t.Errorf("cplt %q: %q, want nothing", c, out)
 		}
+	}
+	if out := launch("pi", old); out == "" {
+		t.Error("after an up-to-date cplt, an old one again: want the notice")
 	}
 }
 

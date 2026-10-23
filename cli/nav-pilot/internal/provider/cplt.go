@@ -271,7 +271,7 @@ func launchViaCplt(spec cpltLaunch) error {
 	if IsTerminal(os.Stdin) {
 		FirstTime("autonomy-notice")
 	}
-	warnCpltRecommended()
+	warnCpltRecommended(spec.agent)
 
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)
