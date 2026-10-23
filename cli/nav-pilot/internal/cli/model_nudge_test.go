@@ -123,6 +123,46 @@ func TestModelNudgeNoAgentFile(t *testing.T) {
 	}
 }
 
+// pi has no agent files: the pakke's defaultModel is the recommendation
+// (#1931). The control, the same model, is not asked about.
+func TestModelNudgePiDefaultModel(t *testing.T) {
+	for _, tc := range []struct {
+		user string
+		want int
+	}{{"gpt-5.5", 1}, {"gpt-6-sol", 0}} {
+		_, asked, _ := nudgeFixture(t, tc.user)
+		providerpkg.SetActivePakke(&agentpakke.Manifest{ContractVersion: "1", Name: "grill", Clients: map[string]agentpakke.ClientEntry{"pi": {DefaultModel: "gpt-6-sol"}}})
+		sessionPrompted = false
+		maybeModelNudge(ResolvedConfig{Client: "pi", Model: tc.user}, "", "")
+		if *asked != tc.want {
+			t.Errorf("pi, model %s: asked %d, want %d", tc.user, *asked, tc.want)
+		}
+	}
+	// The key "@pi" is a safe name that no agent file answers to.
+	if !providerpkg.SafePersona("@pi") || providerpkg.PrimaryAgentFile("pi", "@pi", "", "") != "" {
+		t.Error(`"@pi" must pass SafePersona and name no agent file`)
+	}
+}
+
+// pi and another client with the same persona but different recommendations
+// keep separate records: after Keep, alternating asks neither again.
+func TestModelNudgePiKeyApart(t *testing.T) {
+	dir, asked, _ := nudgeFixture(t, "gpt-5.5")
+	providerpkg.SetActivePakke(&agentpakke.Manifest{ContractVersion: "1", Name: "grill", Clients: map[string]agentpakke.ClientEntry{
+		"copilot": {PrimaryAgents: []string{"grillmester"}},
+		"pi":      {PrimaryAgents: []string{"grillmester"}, DefaultModel: "gpt-6.1-sol"},
+	}})
+	for range 3 {
+		sessionPrompted = false
+		maybeModelNudge(ResolvedConfig{Client: "copilot", Model: "gpt-5.5"}, "grillmester", dir)
+		sessionPrompted = false
+		maybeModelNudge(ResolvedConfig{Client: "pi", Model: "gpt-5.5"}, "grillmester", "")
+	}
+	if *asked != 2 {
+		t.Errorf("asked %d times alternating pi and copilot, want 2 (once each)", *asked)
+	}
+}
+
 // A persona that is not a plain file name is never used in a path or key.
 func TestModelNudgeUnsafePersona(t *testing.T) {
 	dir, asked, _ := nudgeFixture(t, "gpt-5.5")

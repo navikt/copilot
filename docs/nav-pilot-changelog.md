@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Spørsmålet om ny modell kommer ved samme oppstart
+
+- **OpenCode**: Når agentpakken anbefaler en ny modell, spør nav-pilot ved den oppstarten som henter den nye agentfila, ikke ved den neste (#1931).
+- **pi**: pi har ingen agentfiler, så anbefalingen for pi er agentpakkens `defaultModel`. Har du valgt en annen modell, får du det samme spørsmålet som i Copilot CLI og OpenCode.
+
 ### Oppdater cplt for GitHub MCP og for å stenge tale i OpenCode 2
 
 - **cplt 2026.10.23-070444 anbefales**: GitHub MCP (`io.github.navikt/github-mcp`) virker i OpenCode bare med cplt 2026.10.23-053641 eller nyere ([navikt/cplt#807](https://github.com/navikt/cplt/pull/807)).

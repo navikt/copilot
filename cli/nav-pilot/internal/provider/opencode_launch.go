@@ -1131,6 +1131,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	if ctxErr != nil {
 		fmt.Fprintf(os.Stderr, "%s Warning: could not materialize Nav context for opencode: %v\n", domain.Yellow("⚠"), ctxErr)
 	}
+	resolved = BeforeClientStart(resolved)
 
 	for _, msg := range OpenCodeUnsupportedConfigWarnings(resolved) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)

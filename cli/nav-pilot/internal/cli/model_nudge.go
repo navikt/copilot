@@ -28,12 +28,22 @@ var askModelNudge = func(title string, opts []huh.Option[string], choice *string
 // the user's choice for it and is not questioned. Without a terminal, or once
 // the session's one prompt is taken, it is one line on stderr instead.
 func maybeModelNudge(resolved ResolvedConfig, persona, stagedDir string) ResolvedConfig {
+	// pi keys apart: its recommendation (defaultModel) can differ from the
+	// pin the same persona has in another client, and a shared key would be
+	// overwritten on every switch of client. "@" is in no agent name.
+	key := persona
+	if resolved.Client == "pi" {
+		key = strings.TrimSuffix("@pi-"+persona, "-")
+		if persona == "" {
+			persona = key
+		}
+	}
 	if !providerpkg.SafePersona(persona) {
 		return resolved
 	}
 	pakke := source.ActivePakke().Name
 	rec := providerpkg.RecommendedModel(resolved.Client, providerpkg.PrimaryAgentFile(resolved.Client, persona, stagedDir, resolved.ProjectDir))
-	if rec == "" || !artifacts.SeenChanged("model-recommendation-"+pakke+"-"+persona, rec) {
+	if rec == "" || !artifacts.SeenChanged("model-recommendation-"+pakke+"-"+key, rec) {
 		return resolved
 	}
 	cfg, _ := readConfig()

@@ -191,6 +191,7 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 			fmt.Fprintf(os.Stderr, "%s Could not materialize the agentpakke for pi: %v\n", domain.Yellow("⚠"), err)
 		}
 	}
+	resolved = BeforeClientStart(resolved)
 
 	persona := resolved.Persona
 	if persona == "" {
