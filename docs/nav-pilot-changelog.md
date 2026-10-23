@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Varsel om eldre cplt og GitHub MCP i OpenCode 2
+
+- **cplt 2026.10.23-053641**: GitHub MCP (`io.github.navikt/github-mcp`) virker i OpenCode bare med cplt 2026.10.23-053641 eller nyere ([navikt/cplt#807](https://github.com/navikt/cplt/pull/807)). Har du en eldre cplt, viser nav-pilot et kort varsel når du starter OpenCode 2, én gang per cplt-versjon, og i `nav-pilot doctor`. Varselet viser kommandoen som oppdaterer cplt. Du kan fortsatt starte OpenCode 2 uten å oppdatere.
+
 ### Fortsett en tidligere økt
 
 - **`nav-pilot --resume [id]` og `nav-pilot --continue`**: Fortsetter en tidligere økt med agentpakken, sandkassen og sjekkene som en vanlig oppstart. `--continue` fortsetter den siste økten. `--resume` uten id åpner listen over økter i Copilot CLI. OpenCode har ingen slik liste, så der må du oppgi id-en. Finnes ikke id-en, starter OpenCode en ny økt. pi støtter ikke flaggene ennå, og nav-pilot sier fra i stedet for å starte (#1919).
