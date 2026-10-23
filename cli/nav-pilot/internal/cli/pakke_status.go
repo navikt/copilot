@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -98,6 +99,11 @@ func proposalState(scope *InstallScope, src *Source) (access, state string, err 
 		// install or sync, so for now it has none.
 		return access, accessNotAsked, nil
 	case prior.Approved:
+		// Approved is not applied: the launch drops a record it cannot trust,
+		// and so does doctor. Not held, so Next points somewhere.
+		if reason := providerpkg.WaiverBlockedReason(prior); reason != "" {
+			return access, accessGranted + ", not applied: " + reason, nil
+		}
 		return access, accessGranted, nil
 	case covered:
 		return access, accessByCplt, nil
@@ -248,6 +254,9 @@ func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
 	if accessHeld(answer) {
 		fmt.Println("The agentpakke already has the access it asks for.")
 		return nil
+	}
+	if reason, ok := strings.CutPrefix(answer, accessGranted+", not applied: "); ok {
+		return fmt.Errorf("the access is granted, but a launch does not apply it: %s", reason)
 	}
 	if !cpltInstalled() {
 		return fmt.Errorf("cplt is not installed, and the access only applies inside its sandbox. Install it: %s", cpltInstallHint)

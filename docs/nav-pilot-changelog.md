@@ -12,7 +12,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **`nav-pilot pakke`**: Viser agentpakken i prosjektet: kilden og hvilken versjon den er låst til, hvilke agenter, skills og instruksjoner som er installert, om hookene er på plass, og tilgangen pakken ber om, med svaret ditt (gitt, avslått eller ikke spurt om). Må du gjøre noe, står det på én linje til slutt (#1962).
 - **`nav-pilot pakke access`**: Sa du nei til tilgangen ved første oppstart, kan du svare på nytt her. Du får det samme spørsmålet, og Enter sier fortsatt nei. Er tilgangen allerede gitt, sier kommandoen det på én linje. Uten terminal spør den ikke, men sier hva den ville spurt om.
-- **Tilgangen blir faktisk gitt**: Tilgangen du gir agentpakka (Nais-logger, -metrikker og -sporing) blir nå faktisk gitt til sandkassen når du starter nav-pilot. Før ble den bare brukt hvis `source` var satt i konfigurasjonen, selv om `nav-pilot doctor` og `nav-pilot pakke` sa at den var gitt.
+- **Tilgangen du har gitt, gjelder nå**: Har du gitt agentpakken tilgang til Nais-logger, -metrikker og -sporing, får sandkassen den nå når du starter nav-pilot. Før gjaldt den bare når `source` var satt i konfigurasjonen, selv om `nav-pilot doctor` og `nav-pilot pakke` sa at den var gitt.
 - **`nav-pilot doctor`**: Har du sagt nei til tilgangen standardpakken ber om, sier doctor det i én linje og viser til `nav-pilot pakke access`. Har du allerede gitt tilgangen selv i cplt, regnes den som gitt.
 
 ### Riktigere meldinger når du starter nav-pilot

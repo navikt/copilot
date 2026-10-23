@@ -115,6 +115,14 @@ var (
 	cpltVersionOut string
 )
 
+// StubCpltVersion makes the cplt version probe answer out, for tests in other
+// packages, and returns the restore.
+func StubCpltVersion(out string) func() {
+	previous := probeCpltVersion
+	probeCpltVersion = func() (string, error) { return out, nil }
+	return func() { probeCpltVersion = previous }
+}
+
 // probeClientVersion runs a bounded version probe for the client a staged
 // launch is about to start.
 //

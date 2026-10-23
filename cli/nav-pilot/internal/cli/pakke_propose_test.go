@@ -71,6 +71,8 @@ func consentEnv(t *testing.T) *InstallScope {
 	previousDomains := cpltPrivateDomains
 	cpltPrivateDomains = func() []string { return nil }
 	t.Cleanup(func() { cpltPrivateDomains = previousDomains })
+	// A cplt new enough that an approval is applied, not the one on PATH.
+	t.Cleanup(providerpkg.StubCpltVersion("cplt 2026.10.22-172931-b37a8ab"))
 	scope, err := ScopeUser()
 	if err != nil {
 		t.Fatalf("user scope: %v", err)
@@ -963,5 +965,26 @@ func TestAccessAsksAgainAfterADecline(t *testing.T) {
 	putProposal(scope, src, false, false, true)
 	if *asked != 1 {
 		t.Errorf("asked over an approval")
+	}
+}
+
+// An approval a launch will not apply is not "granted" (#1976): with the
+// consent file outside ~/.nav-pilot, pakke says why and the state is not held,
+// so Next and pakke access do not claim the access is there. The control, the record in
+// ~/.nav-pilot, is plain granted.
+func TestGrantedButNotAppliedIsNotHeld(t *testing.T) {
+	scope := consentEnv(t)
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+	answering(t, true)
+	putProposal(scope, src, false, false, true)
+	if _, state, _ := proposalState(scope, src); state != accessGranted {
+		t.Fatalf("control: record in ~/.nav-pilot reads %q, want %q", state, accessGranted)
+	}
+
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "nav-pilot", "config.toml"))
+	putProposal(scope, src, false, false, true)
+	_, state, _ := proposalState(scope, src)
+	if !strings.HasPrefix(state, accessGranted+", not applied: ") || !strings.Contains(state, "outside the ~/.nav-pilot/ tree") || accessHeld(state) {
+		t.Fatalf("record outside ~/.nav-pilot reads %q, want granted, not applied, not held", state)
 	}
 }

@@ -87,6 +87,10 @@ func TestTryPakkeLaunchNoRegression(t *testing.T) {
 			t.Errorf("tryPakkeLaunch(no source) = (%v, %v), want (false, nil)", handled, err)
 		}
 		assertDefaultPakkeActive(t)
+		// No source is navikt/copilot: its approved waiver must reach cplt.
+		if !source.ActivePakkeIsDeclared() {
+			t.Error("no source left the built-in default undeclared, so its approved waiver is dropped")
+		}
 	})
 
 	t.Run("custom source, manifest-less repo", func(t *testing.T) {
@@ -160,6 +164,7 @@ func tier2Source(t *testing.T) *Source {
 func TestPayloadContextOnLegacyPath(t *testing.T) {
 	t.Run("no source", func(t *testing.T) {
 		isolatedConfig(t)
+		t.Cleanup(func() { providerpkg.SetActivePakke(nil) })
 		failingResolveSource(t)
 
 		_, err := tryPakkeLaunch(ResolvedConfig{Client: "copilot", PayloadContext: "focused"})
