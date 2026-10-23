@@ -987,4 +987,40 @@ func TestGrantedButNotAppliedIsNotHeld(t *testing.T) {
 	if !strings.HasPrefix(state, accessGranted+", not applied: ") || !strings.Contains(state, "outside the ~/.nav-pilot/ tree") || accessHeld(state) {
 		t.Fatalf("record outside ~/.nav-pilot reads %q, want granted, not applied, not held", state)
 	}
+	// Next names the fix, not pakke access, which would only repeat the reason.
+	if next := pakkeNext(state, true, false); next != "unset NAV_PILOT_CONFIG" {
+		t.Errorf("Next for a record outside ~/.nav-pilot = %q", next)
+	}
+	// Control: a declined answer still points to pakke access.
+	if next := pakkeNext(accessDeclined, true, false); next != "nav-pilot pakke access" {
+		t.Errorf("Next for a decline = %q", next)
+	}
+}
+
+// A record stamped under a cplt too old to protect it is asked again by
+// pakke access (re-stamping it), so Next points there; a current one is not.
+func TestStaleStampedApprovalIsAskedAgain(t *testing.T) {
+	scope := consentEnv(t)
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+	restore := providerpkg.StubCpltVersion("cplt 2026.09.01-000000-abcdef0")
+	answering(t, true)
+	putProposal(scope, src, false, false, true)
+	restore()
+	t.Cleanup(providerpkg.StubCpltVersion("cplt 2026.10.22-172931-b37a8ab"))
+
+	_, state, _ := proposalState(scope, src)
+	if !strings.HasPrefix(state, accessGranted+", not applied: ") {
+		t.Fatalf("old-stamped approval reads %q", state)
+	}
+	if next := pakkeNext(state, true, false); next != "nav-pilot pakke access" {
+		t.Errorf("Next for an old-stamped approval = %q", next)
+	}
+	asked := answering(t, true)
+	putProposal(scope, src, false, false, true)
+	if *asked != 1 {
+		t.Fatalf("pakke access asked %d time(s) over an old-stamped approval, want 1", *asked)
+	}
+	if _, state, _ := proposalState(scope, src); state != accessGranted {
+		t.Errorf("after answering again the status reads %q", state)
+	}
 }

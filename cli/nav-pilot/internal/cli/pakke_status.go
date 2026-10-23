@@ -209,8 +209,25 @@ func cmdPakkeStatus(scope *InstallScope, scopeProvided bool) error {
 		fmt.Printf("  %-16s %s — %s\n", "Access:", access, answer)
 	}
 	open := err == nil && access != "" && !accessHeld(answer)
+	if next := pakkeNext(answer, open, hooksMissing); next != "" {
+		next = strings.ReplaceAll(next, "nav-pilot pakke access", "nav-pilot pakke access"+scopeArgs(scope))
+		next = strings.ReplaceAll(next, "nav-pilot install", "nav-pilot install"+scopeArgs(scope))
+		fmt.Printf("\nNext: %s\n", bold(next))
+	}
+	return nil
+}
+
+// pakkeNext is the one thing `nav-pilot pakke` tells the user to do next.
+func pakkeNext(answer string, open, hooksMissing bool) string {
 	next := ""
+	fix := ""
+	if strings.HasPrefix(answer, accessGranted+", not applied: ") {
+		fix = providerpkg.WaiverFix()
+	}
 	switch {
+	case fix != "":
+		// Answering again would not help: name what does.
+		next = fix
 	case open && !cpltInstalled():
 		// The question is about cplt's sandbox; without cplt it is not asked.
 		next = cpltInstallHint
@@ -221,12 +238,7 @@ func cmdPakkeStatus(scope *InstallScope, scopeProvided bool) error {
 	case hooksMissing:
 		next = "nav-pilot install"
 	}
-	if next != "" {
-		next = strings.ReplaceAll(next, "nav-pilot pakke access", "nav-pilot pakke access"+scopeArgs(scope))
-		next = strings.ReplaceAll(next, "nav-pilot install", "nav-pilot install"+scopeArgs(scope))
-		fmt.Printf("\nNext: %s\n", bold(next))
-	}
-	return nil
+	return next
 }
 
 func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
@@ -256,7 +268,10 @@ func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
 		return nil
 	}
 	if reason, ok := strings.CutPrefix(answer, accessGranted+", not applied: "); ok {
-		return fmt.Errorf("the access is granted, but a launch does not apply it: %s", reason)
+		if fix := providerpkg.WaiverFix(); fix != "" {
+			return fmt.Errorf("the access is granted, but a launch does not apply it: %s\n\n  Fix it:  %s", reason, bold(fix))
+		}
+		// Stamped under an older cplt: answering again is the fix.
 	}
 	if !cpltInstalled() {
 		return fmt.Errorf("cplt is not installed, and the access only applies inside its sandbox. Install it: %s", cpltInstallHint)
