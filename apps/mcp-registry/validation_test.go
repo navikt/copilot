@@ -1000,6 +1000,7 @@ func TestValidateBroker(t *testing.T) {
 		"unlisted tool":     {func(b *BrokerExtension) { b.Tools.Classes["zz"] = "read" }, false},
 		"unknown arg check": {func(b *BrokerExtension) { b.ArgChecks["q"] = "anything" }, false},
 		"no status":         {func(b *BrokerExtension) { b.Login.Status = "" }, false},
+		"other login":       {func(b *BrokerExtension) { b.Login.Run = "sh -c evil" }, false},
 	} {
 		b := good()
 		tc.mut(b)

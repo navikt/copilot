@@ -14,7 +14,7 @@
       "setupInstructions": [
         {
           "title": "Installer Nais CLI og slå på serveren",
-          "description": "Installer Nais CLI fra https://github.com/nais/cli. nav-pilot mcp enable skriver en spesifikasjon for cplt og spør om du vil logge inn med nais login -n. Under cplt kjører serveren utenfor sandkassen med innloggingen din, og bare lesende verktøy er på. Uten cplt er det ingen garanti for at serveren bare leser. Ingen token skal legges i MCP-konfigurasjonen.",
+          "description": "Installer Nais CLI fra https://github.com/nais/cli. nav-pilot mcp enable skriver en spesifikasjon for cplt og spør om du vil logge inn med nais login -n. Under cplt kjører serveren utenfor sandkassen med innloggingen din, og bare lesende verktøy er på. Uten cplt slår nav-pilot ikke på serveren. Ingen token skal legges i MCP-konfigurasjonen.",
           "commands": ["nav-pilot mcp enable io.github.nais/nais-mcp"]
         }
       ],

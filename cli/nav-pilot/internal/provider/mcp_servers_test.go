@@ -437,3 +437,44 @@ func TestNarrowMCPApproval(t *testing.T) {
 		t.Errorf("no cache: gone = %v, %v; want the approval kept", gone, err)
 	}
 }
+
+// The broker extension rides in server.json's own _meta, as the registry
+// serves the nais entry from its allowlist, and lands in Meta.Broker.
+func TestAskMCPRegistryBrokerMeta(t *testing.T) {
+	data, err := os.ReadFile("../../../../apps/mcp-registry/allowlist.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var allow struct {
+		Servers []map[string]json.RawMessage `json:"servers"`
+	}
+	if err := json.Unmarshal(data, &allow); err != nil {
+		t.Fatal(err)
+	}
+	var meta json.RawMessage
+	for _, s := range allow.Servers {
+		if string(s["name"]) == `"io.github.nais/nais-mcp"` {
+			meta = s["_meta"]
+		}
+	}
+	if meta == nil {
+		t.Fatal("no _meta on nais-mcp in the allowlist")
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"servers":[{"server":{"name":"io.github.nais/nais-mcp","description":"d","version":"6.6.1","_meta":` + string(meta) + `},"_meta":{}},
+			{"server":{"name":"com.figma/figma-mcp","description":"d","remotes":[{"type":"streamable-http","url":"https://mcp.figma.com/mcp"}]},"_meta":{}}]}`))
+	}))
+	defer srv.Close()
+	reg, err := askMCPRegistry(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := reg.Entries[0].Meta.Broker
+	if b == nil || b.Credential != "nais-keychain" || !slices.Equal(b.Command, []string{"nais", "alpha", "mcp", "serve"}) ||
+		b.Login.Status != "nais auth print-access-token" || b.Tools.Classes["execute_graphql"] != "read" || b.ArgChecks["execute_graphql"] != "graphql-read-only" {
+		t.Errorf("broker = %+v", b)
+	}
+	if reg.Entries[1].Meta.Broker != nil {
+		t.Error("a server without the extension got one")
+	}
+}

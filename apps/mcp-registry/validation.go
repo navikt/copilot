@@ -191,8 +191,11 @@ func validateBroker(b *BrokerExtension, tools []string, index int) error {
 			return fmt.Errorf("%s.argChecks.%s: '%s' must be graphql-read-only", prefix, tool, check)
 		}
 	}
-	if strings.TrimSpace(b.Login.Run) == "" || strings.TrimSpace(b.Login.Status) == "" {
-		return fmt.Errorf("%s.login: run and status are both required", prefix)
+	// nav-pilot runs only its own commands per mechanism; these must match
+	// them, and are otherwise text.
+	want := map[string]BrokerLogin{"nais-keychain": {Run: "nais login -n", Status: "nais auth print-access-token"}}[b.Credential]
+	if b.Login != want {
+		return fmt.Errorf("%s.login: must be %+v for %s (nav-pilot's pinned commands)", prefix, want, b.Credential)
 	}
 	return nil
 }

@@ -133,7 +133,10 @@ func cmdMCP(args []string) error {
 
 const mcpUsage = `Usage: nav-pilot mcp [list] [--json]
        nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec] [--json]
-       nav-pilot mcp disable <name>... [--client copilot|opencode]`
+       nav-pilot mcp disable <name>... [--client copilot|opencode]
+
+A server cplt runs on the host (Nais) gets its read tools by default.
+--all-tools, or a write tool named in --tools, also allows its writes.`
 
 // mcpProblem is one thing that keeps a configured server from working, and
 // the exact command that fixes it.
@@ -221,17 +224,24 @@ func printMCPReport(rep mcpReport) {
 	fmt.Printf("\n%s %s\n", bold("Servers in Nav's MCP registry"), dim(rep.Registry))
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "  NAME\tCOPILOT\tOPENCODE\tTOOLS\tLOGIN\tPATH\tSTATUS\tDESCRIPTION")
+	on := func(b bool) string {
+		if b {
+			return "on"
+		}
+		return "-"
+	}
 	dash := func(s string) string {
 		if s == "" {
 			return "-"
 		}
 		return s
 	}
-	on := func(b bool) string {
-		if b {
-			return "on"
+	// cplt adds a brokered server's client entries at launch.
+	client := func(s mcpServerRow, b bool) string {
+		if s.Path == "cplt broker" {
+			return "cplt"
 		}
-		return "-"
+		return on(b)
 	}
 	for _, s := range rep.Servers {
 		status := s.Status
@@ -242,7 +252,7 @@ func printMCPReport(rep mcpReport) {
 		if tools == "" {
 			tools = "-"
 		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", safe(s.Name, 64), on(s.Copilot), on(s.OpenCode), tools, dash(s.Login), dash(s.Path), safe(status, 16), safe(s.Description, 70))
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", safe(s.Name, 64), client(s, s.Copilot), client(s, s.OpenCode), tools, dash(s.Login), dash(s.Path), safe(status, 16), safe(s.Description, 70))
 	}
 	_ = tw.Flush()
 	fmt.Printf("\nEnable: %s\n", bold("nav-pilot mcp enable <name>... [--client copilot|opencode]"))

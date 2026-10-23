@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,11 +26,71 @@ import (
 // adds the client entries at launch. nav-pilot writes no client config here.
 
 const (
-	mcpBrokerKey     = "io.github.navikt/broker"
-	mcpBrokerVersion = 1
-	mcpCpltUpgrade   = "brew upgrade cplt"
-	mcpNaisInstall   = "https://doc.nais.io/operate/cli/how-to/install/"
+	mcpBrokerKey       = "io.github.navikt/broker"
+	mcpBrokerVersion   = 1
+	mcpCpltUpgrade     = "brew upgrade cplt"
+	mcpCpltInstall     = "brew install navikt/tap/cplt"
+	mcpNaisInstall     = "https://doc.nais.io/operate/cli/how-to/install/"
+	mcpStatusFailedFix = "cd <your repo> && nav-pilot mcp list"
 )
+
+// mcpMechanism is what nav-pilot runs on the host for a credential
+// mechanism. Hand-kept, like cplt's own table: nav-pilot never runs a
+// command the registry supplies. The registry's login commands must match
+// these, and are otherwise only text.
+type mcpMechanism struct {
+	command       []string // the server, as cplt pins it
+	status, login []string
+	// minVersion is the first release whose server checks what cplt's broker
+	// relies on; older gets a nudge, never a refusal.
+	version    []string
+	minVersion string
+	upgrade    string
+}
+
+var mcpMechanisms = map[string]mcpMechanism{
+	"nais-keychain": {
+		command: []string{"nais", "alpha", "mcp", "serve"},
+		status:  []string{"nais", "auth", "print-access-token"},
+		login:   []string{"nais", "login", "-n"},
+		// 7.0.2 checks every GraphQL operation and fragment (nais/cli 6ddc986).
+		version:    []string{"nais", "--version"},
+		minVersion: "7.0.2",
+		upgrade:    "brew upgrade nais",
+	},
+	"none": {},
+}
+
+var mcpBrokerClasses = []string{providerpkg.MCPRiskRead, providerpkg.MCPRiskWrite, providerpkg.MCPRiskExternal}
+
+// mcpBrokerCheck is the registry extension against nav-pilot's table: the
+// version, the mechanism and its pinned commands, and every tool's class.
+func mcpBrokerCheck(e providerpkg.MCPServerEntry) (mcpMechanism, error) {
+	b := e.Meta.Broker
+	fix := "Fix: nav-pilot update, or report it: " + providerpkg.MCPRegistryHelpURL
+	if b.V != mcpBrokerVersion {
+		return mcpMechanism{}, fmt.Errorf("the registry's broker spec for %s is v%d; this nav-pilot writes v%d. %s", e.Name, b.V, mcpBrokerVersion, fix)
+	}
+	m, ok := mcpMechanisms[b.Credential]
+	if !ok {
+		return m, fmt.Errorf("the registry names credential %q for %s, which nav-pilot does not know. %s", safe(b.Credential, 32), e.Name, fix)
+	}
+	if len(m.command) > 0 && !slices.Equal(b.Command, m.command) {
+		return m, fmt.Errorf("the registry's command for %s is not %q. %s", e.Name, strings.Join(m.command, " "), fix)
+	}
+	if b.Login.Run != strings.Join(m.login, " ") || b.Login.Status != strings.Join(m.status, " ") {
+		return m, fmt.Errorf("the registry's login commands for %s are not the ones nav-pilot runs for %s. %s", e.Name, b.Credential, fix)
+	}
+	if len(b.Tools.Classes) == 0 {
+		return m, fmt.Errorf("the registry classes no tools for %s. %s", e.Name, fix)
+	}
+	for t, c := range b.Tools.Classes {
+		if !slices.Contains(mcpBrokerClasses, c) {
+			return m, fmt.Errorf("the registry gives %s of %s class %q (read, write or external). %s", safe(t, 64), e.Name, safe(c, 32), fix)
+		}
+	}
+	return m, nil
+}
 
 // mcpBrokerDir is $XDG_CONFIG_HOME/cplt/mcp, where cplt reads specs.
 func mcpBrokerDir() (string, error) {
@@ -62,32 +124,27 @@ func mcpBrokerEnabled(id string) bool {
 }
 
 // mcpBrokerTools is what the spec allows, and whether that needs write
-// consent. Reads by default; a tool the registry does not class is never on.
+// consent. Reads by default; --all-tools and --tools may add writes. A tool
+// the registry does not class is never on. Classes are checked already.
 func mcpBrokerTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (allow []string, write bool, err error) {
 	classes := e.Meta.Broker.Tools.Classes
 	switch {
 	case o.tools != nil:
 		for _, t := range o.tools {
-			c, ok := classes[t]
-			if !ok {
-				return nil, false, fmt.Errorf("%s has no brokered tool %q. Fix: pick from %s", e.Name, safe(t, 64), strings.Join(slices.Sorted(maps.Keys(classes)), ","))
-			}
-			if c == providerpkg.MCPRiskHostExec {
-				return nil, false, fmt.Errorf("%s is host-exec, which cplt never brokers. Fix: nav-pilot mcp enable %s", t, e.Name)
+			if _, ok := classes[t]; !ok {
+				return nil, false, fmt.Errorf("%s has no brokered tool %q. Fix: nav-pilot mcp enable %s --tools <one or more of: %s>", e.Name, safe(t, 64), e.Name, strings.Join(slices.Sorted(maps.Keys(classes)), ","))
 			}
 		}
 		allow = slices.Clone(o.tools)
 	default:
 		for t, c := range classes {
-			if c == "" || c == providerpkg.MCPRiskRead || (o.all && c != providerpkg.MCPRiskHostExec) {
+			if c == providerpkg.MCPRiskRead || o.all {
 				allow = append(allow, t)
 			}
 		}
 	}
 	for _, t := range allow {
-		if c := classes[t]; c != "" && c != providerpkg.MCPRiskRead {
-			write = true
-		}
+		write = write || classes[t] != providerpkg.MCPRiskRead
 	}
 	sort.Strings(allow)
 	if len(allow) == 0 {
@@ -97,15 +154,17 @@ func mcpBrokerTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (allow []string
 }
 
 // mcpBrokerSpec is the server.json cplt reads: the registry's extension with
-// the user's consent filled in.
-func mcpBrokerSpec(e providerpkg.MCPServerEntry, allow []string, write bool) ([]byte, error) {
+// the user's consent filled in, and nav-pilot's own login commands.
+func mcpBrokerSpec(e providerpkg.MCPServerEntry, m mcpMechanism, allow []string, write bool) ([]byte, error) {
 	b := e.Meta.Broker
 	ext := map[string]any{
 		"v":          mcpBrokerVersion,
 		"credential": b.Credential,
 		"command":    b.Command,
 		"tools":      map[string]any{"allow": allow, "classes": b.Tools.Classes},
-		"login":      map[string]string{"run": b.Login.Run, "status": b.Login.Status},
+	}
+	if len(m.login) > 0 {
+		ext["login"] = map[string]string{"run": strings.Join(m.login, " "), "status": strings.Join(m.status, " ")}
 	}
 	if len(b.EgressHosts) > 0 {
 		ext["egressHosts"] = b.EgressHosts
@@ -124,8 +183,9 @@ func mcpBrokerSpec(e providerpkg.MCPServerEntry, allow []string, write bool) ([]
 	}, "", "  ")
 }
 
-// mcpCpltStatus is `cplt mcp status --json`, or nil from a cplt without the
-// broker (or no cplt).
+// mcpCpltStatusDoc is `cplt mcp status --json`. Failed is set, and the rest
+// empty, when a cplt that has the command did not answer: it refuses to run
+// in ~ as a launch does, timed out, or printed something else.
 type mcpCpltStatusDoc struct {
 	Schema  []int `json:"schema"`
 	Servers []struct {
@@ -141,28 +201,35 @@ type mcpCpltStatusDoc struct {
 	Failed string `json:"-"`
 }
 
-const mcpStatusFailedFix = "cd <your repo> && nav-pilot mcp list"
+// mcpCpltStatusTimeout is a var so tests time out fast.
+var mcpCpltStatusTimeout = 15 * time.Second
 
-// A cplt that has the command but could not answer (it refuses to run in
-// ~, as a launch does) gives a doc with only Failed set.
+// mcpCpltStatus is cplt's status, nil for no cplt or an old cplt (only
+// when cplt says it has no such subcommand).
 func mcpCpltStatus(cpltPath string) *mcpCpltStatusDoc {
 	if cpltPath == "" {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), mcpCpltStatusTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, cpltPath, "mcp", "status", "--json")
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
-	var doc mcpCpltStatusDoc
-	if err == nil && json.Unmarshal(out, &doc) == nil && doc.Schema != nil {
-		return &doc
-	}
 	msg := strings.TrimSpace(stderr.String())
-	// clap's answer for a subcommand it does not have: an old cplt.
-	if err == nil || msg == "" || strings.Contains(msg, "unrecognized subcommand") {
-		return nil
+	if strings.Contains(msg, "unrecognized subcommand") {
+		return nil // clap's answer from a cplt without `mcp status`
+	}
+	var doc mcpCpltStatusDoc
+	switch {
+	case ctx.Err() != nil:
+		msg = "timed out after " + mcpCpltStatusTimeout.String()
+	case err == nil && json.Unmarshal(out, &doc) == nil && doc.Schema != nil:
+		return &doc
+	case err == nil:
+		msg = "its output was not the status JSON"
+	case msg == "":
+		msg = err.Error()
 	}
 	if i := strings.IndexByte(msg, '\n'); i > 0 {
 		msg = msg[:i]
@@ -170,14 +237,13 @@ func mcpCpltStatus(cpltPath string) *mcpCpltStatusDoc {
 	return &mcpCpltStatusDoc{Failed: safe(msg, 160)}
 }
 
-// mcpRunHost runs a registry command (login or status) on the host. With
-// quiet, its output is discarded and stdin is closed.
-func mcpRunHost(command string, quiet bool) error {
-	f := strings.Fields(command)
-	if len(f) == 0 {
+// mcpRunHost runs one of nav-pilot's own commands on the host. With quiet,
+// its output is discarded, stdin is closed, and it gets 10 seconds.
+func mcpRunHost(argv []string, quiet bool) error {
+	if len(argv) == 0 {
 		return errors.New("no command")
 	}
-	if _, err := exec.LookPath(f[0]); err != nil {
+	if _, err := exec.LookPath(argv[0]); err != nil {
 		return err
 	}
 	ctx, cancel := context.Background(), func() {}
@@ -185,7 +251,7 @@ func mcpRunHost(command string, quiet bool) error {
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
 	}
 	defer cancel()
-	cmd := exec.CommandContext(ctx, f[0], f[1:]...)
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	if !quiet {
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	}
@@ -193,9 +259,9 @@ func mcpRunHost(command string, quiet bool) error {
 }
 
 // mcpLoginState is "ok", "logged out" or "not installed", from the
-// registry's status command.
-func mcpLoginState(b *providerpkg.MCPBroker) string {
-	err := mcpRunHost(b.Login.Status, true)
+// mechanism's status command.
+func mcpLoginState(m mcpMechanism) string {
+	err := mcpRunHost(m.status, true)
 	switch {
 	case err == nil:
 		return "ok"
@@ -205,47 +271,73 @@ func mcpLoginState(b *providerpkg.MCPBroker) string {
 	return "logged out"
 }
 
-func mcpLoginTool(b *providerpkg.MCPBroker) string {
-	if f := strings.Fields(b.Login.Status); len(f) > 0 {
-		return f[0]
+var mcpSemver = regexp.MustCompile(`(\d+)\.(\d+)\.(\d+)`)
+
+// mcpOldServer is the nudge when the host CLI is older than the
+// mechanism's minVersion, or "". An unreadable version says nothing.
+func mcpOldServer(m mcpMechanism) string {
+	if m.minVersion == "" || len(m.version) == 0 {
+		return ""
 	}
-	return "login"
+	if _, err := exec.LookPath(m.version[0]); err != nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	out, _ := exec.CommandContext(ctx, m.version[0], m.version[1:]...).Output()
+	got, want := mcpSemver.FindStringSubmatch(string(out)), mcpSemver.FindStringSubmatch(m.minVersion)
+	if got == nil {
+		return ""
+	}
+	for i := 1; i <= 3; i++ {
+		g, _ := strconv.Atoi(got[i])
+		w, _ := strconv.Atoi(want[i])
+		if g != w {
+			if g > w {
+				return ""
+			}
+			return fmt.Sprintf("%s %s is older than %s, which checks every GraphQL operation the agent sends", m.version[0], got[0], m.minVersion)
+		}
+	}
+	return ""
 }
 
 type mcpBrokerResult struct {
 	Server string   `json:"server"`
 	Spec   string   `json:"spec"`
 	Tools  []string `json:"tools"`
-	Login  string   `json:"login"`
+	Login  string   `json:"login,omitempty"`
 	Path   string   `json:"path"`
 	Fix    []string `json:"fix,omitempty"`
 }
 
-// mcpEnableBroker writes e's spec and checks the host login.
+// mcpEnableBroker writes e's spec and checks the host login. Without a cplt
+// that brokers, it writes nothing: no spec would be enforced.
 func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) error {
-	b := e.Meta.Broker
-	if b.V != mcpBrokerVersion {
-		return fmt.Errorf("the registry's broker spec for %s is v%d; this nav-pilot writes v%d. Fix: nav-pilot update", e.Name, b.V, mcpBrokerVersion)
+	m, err := mcpBrokerCheck(e)
+	if err != nil {
+		return err
 	}
 	allow, write, err := mcpBrokerTools(e, o)
 	if err != nil {
 		return err
 	}
 	cpltPath := mcpCpltPath()
+	if cpltPath == "" {
+		return fmt.Errorf("%s runs only under cplt, which is not installed, so nothing was written. Fix: %s && nav-pilot mcp enable %s", e.Name, mcpCpltInstall, e.Name)
+	}
 	st := mcpCpltStatus(cpltPath)
-	if cpltPath != "" && st == nil {
-		// An old cplt would leave the server as configured: refuse rather
-		// than write a spec nothing enforces.
+	if st == nil {
 		return fmt.Errorf("this cplt cannot run MCP servers on the host, so nothing was written. Fix: %s && nav-pilot mcp enable %s", mcpCpltUpgrade, e.Name)
 	}
-	if st != nil && st.Failed == "" && !slices.Contains(st.Schema, mcpBrokerVersion) {
-		return fmt.Errorf("cplt reads broker spec v%v, not v%d, so nothing was written. Fix: %s", st.Schema, mcpBrokerVersion, mcpCpltUpgrade)
+	if st.Failed == "" && !slices.Contains(st.Schema, mcpBrokerVersion) {
+		return fmt.Errorf("cplt reads broker spec v%v, not v%d, so nothing was written. Fix: %s && nav-pilot mcp enable %s", st.Schema, mcpBrokerVersion, mcpCpltUpgrade, e.Name)
 	}
 	path, err := mcpBrokerSpecPath(e.Name)
 	if err != nil {
 		return err
 	}
-	data, err := mcpBrokerSpec(e, allow, write)
+	data, err := mcpBrokerSpec(e, m, allow, write)
 	if err != nil {
 		return err
 	}
@@ -260,50 +352,52 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 	if !jsonOut {
 		kind := "read-only"
 		if write {
-			kind = "with writes you picked"
+			kind = "including writes you picked"
 		}
-		fmt.Printf("%s Enabled %s: %d tools, %s. Under cplt it runs on the host. %s\n", green("✓"), bold(e.Name), len(allow), kind, dim("("+path+")"))
+		fmt.Printf("%s Enabled %s: %d tools, %s. cplt runs it on the host. %s\n", green("✓"), bold(e.Name), len(allow), kind, dim("("+path+")"))
 	}
-	switch {
-	case cpltPath == "":
-		msg := "without cplt nothing enforces this spec: no read-only guarantee"
-		if len(b.ArgChecks) > 0 {
-			msg += "; nothing checks that " + strings.Join(slices.Sorted(maps.Keys(b.ArgChecks)), ", ") + " only reads"
-		}
-		res.Fix = append(res.Fix, "brew install navikt/tap/cplt")
-		if !jsonOut {
-			fmt.Fprintf(os.Stderr, "%s %s. Fix: %s\n", yellow("⚠"), msg, bold("brew install navikt/tap/cplt"))
-		}
-	case st.Failed != "":
+	if st.Failed != "" {
 		res.Fix = append(res.Fix, mcpStatusFailedFix)
 		if !jsonOut {
 			fmt.Fprintf(os.Stderr, "%s cplt mcp status did not answer here (%s), so the spec was written unchecked. Fix: %s\n", yellow("⚠"), st.Failed, bold(mcpStatusFailedFix))
 		}
 	}
-
-	res.Login = mcpLoginState(b)
-	tool := mcpLoginTool(b)
+	if old := mcpOldServer(m); old != "" {
+		res.Fix = append(res.Fix, m.upgrade)
+		if !jsonOut {
+			fmt.Fprintf(os.Stderr, "%s %s. Fix: %s\n", yellow("⚠"), old, bold(m.upgrade))
+		}
+	}
+	if len(m.status) == 0 {
+		return mcpBrokerDone(res, jsonOut)
+	}
+	tool, login := m.status[0], strings.Join(m.login, " ")
+	res.Login = mcpLoginState(m)
 	switch res.Login {
 	case "not installed":
 		res.Fix = append(res.Fix, mcpNaisInstall)
 		if !jsonOut {
-			fmt.Fprintf(os.Stderr, "%s %s is not installed. Fix: install it (%s), then run %s\n", yellow("⚠"), tool, mcpNaisInstall, bold(b.Login.Run))
+			fmt.Fprintf(os.Stderr, "%s %s is not installed. Fix: install it (%s), then run %s\n", yellow("⚠"), tool, mcpNaisInstall, bold(login))
 		}
 	case "logged out":
 		if jsonOut || !isInteractive() {
-			res.Fix = append(res.Fix, b.Login.Run)
+			res.Fix = append(res.Fix, login)
 			if !jsonOut {
-				fmt.Printf("%s %s: not logged in on this machine. Fix: %s\n", yellow("⚠"), tool, bold(b.Login.Run))
+				fmt.Printf("%s %s: not logged in on this machine. Fix: %s\n", yellow("⚠"), tool, bold(login))
 			}
-		} else if mcpAskYes(fmt.Sprintf("%s: not logged in. Log in now? Runs `%s` on this machine.", tool, b.Login.Run)) {
-			if err := mcpRunHost(b.Login.Run, false); err != nil {
-				return fmt.Errorf("%s failed (%v). Fix: run it yourself: %s", b.Login.Run, err, b.Login.Run)
+		} else if mcpAskYes(fmt.Sprintf("%s: not logged in. Log in now? Runs `%s` on this machine.", tool, login)) {
+			if err := mcpRunHost(m.login, false); err != nil {
+				return fmt.Errorf("%s failed (%v). Fix: run it yourself: %s", login, err, login)
 			}
-			res.Login = mcpLoginState(b)
+			res.Login = mcpLoginState(m)
 		} else {
-			fmt.Printf("%s Log in later: %s\n", dim("•"), bold(b.Login.Run))
+			fmt.Printf("%s Log in later: %s\n", dim("•"), bold(login))
 		}
 	}
+	return mcpBrokerDone(res, jsonOut)
+}
+
+func mcpBrokerDone(res mcpBrokerResult, jsonOut bool) error {
 	if jsonOut {
 		return outputJSON(res)
 	}
@@ -313,7 +407,7 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 // mcpBrokerPath is the PATH column for a brokered server.
 func mcpBrokerPath(cpltPath string, st *mcpCpltStatusDoc) string {
 	if cpltPath == "" {
-		return "direct (no read-only guarantee)"
+		return "not configured (no cplt)"
 	}
 	if st == nil || st.Failed != "" {
 		return "-"
@@ -337,23 +431,20 @@ func mcpDisableBroker(id string) (bool, error) {
 }
 
 // mcpBrokerRow fills LOGIN and PATH for an enabled brokered server, and its
-// problems.
+// problems. The login comes from cplt's status when it has one, else from
+// the mechanism's status command.
 func mcpBrokerRow(row *mcpServerRow, e providerpkg.MCPServerEntry, cpltPath string, st *mcpCpltStatusDoc) []mcpProblem {
-	b := e.Meta.Broker
-	tool := mcpLoginTool(b)
-	login := mcpLoginState(b)
-	row.Login = tool + ": " + login
+	m, err := mcpBrokerCheck(e)
+	if err != nil {
+		row.Path = "-"
+		return []mcpProblem{{Server: e.Name, Problem: strings.SplitN(err.Error(), ". Fix: ", 2)[0], Fix: "nav-pilot update"}}
+	}
 	row.Path = mcpBrokerPath(cpltPath, st)
 	var out []mcpProblem
-	switch login {
-	case "logged out":
-		out = append(out, mcpProblem{Server: e.Name, Problem: "not logged in on this machine", Fix: b.Login.Run})
-	case "not installed":
-		out = append(out, mcpProblem{Server: e.Name, Problem: tool + " is not installed", Fix: "install it (" + mcpNaisInstall + "), then " + b.Login.Run})
-	}
+	var credOK *bool
 	switch {
 	case cpltPath == "":
-		out = append(out, mcpProblem{Server: e.Name, Problem: "without cplt nothing enforces its read-only spec", Fix: "brew install navikt/tap/cplt"})
+		out = append(out, mcpProblem{Server: e.Name, Problem: "it runs only under cplt, which is not installed", Fix: mcpCpltInstall})
 	case st == nil:
 		out = append(out, mcpProblem{Server: e.Name, Problem: "this cplt cannot run MCP servers on the host, so it leaves them as configured", Fix: mcpCpltUpgrade})
 	case st.Failed != "":
@@ -371,9 +462,37 @@ func mcpBrokerRow(row *mcpServerRow, e providerpkg.MCPServerEntry, cpltPath stri
 			}
 		}
 		for _, s := range st.Servers {
-			if s.ID == e.Name && s.State != "brokered" {
+			if s.ID != e.Name {
+				continue
+			}
+			credOK = s.CredentialOK
+			if s.State == "off" {
+				row.Path = "cplt off"
+				out = append(out, mcpProblem{Server: e.Name, Problem: "cplt's MCP broker is off (it runs on macOS only for now)", Fix: "cplt config set sandbox.mcp_broker true"})
+			} else if s.State != "brokered" {
 				row.Path = "cplt " + safe(s.State, 16)
 			}
+		}
+	}
+	if old := mcpOldServer(m); old != "" {
+		out = append(out, mcpProblem{Server: e.Name, Problem: old, Fix: m.upgrade})
+	}
+	if len(m.status) > 0 {
+		tool, login := m.status[0], strings.Join(m.login, " ")
+		state := "logged out"
+		if credOK != nil {
+			if *credOK {
+				state = "ok"
+			}
+		} else {
+			state = mcpLoginState(m)
+		}
+		row.Login = tool + ": " + state
+		switch state {
+		case "logged out":
+			out = append(out, mcpProblem{Server: e.Name, Problem: "not logged in on this machine", Fix: login})
+		case "not installed":
+			out = append(out, mcpProblem{Server: e.Name, Problem: tool + " is not installed", Fix: "install it (" + mcpNaisInstall + "), then " + login})
 		}
 	}
 	var spec struct {
@@ -385,7 +504,7 @@ func mcpBrokerRow(row *mcpServerRow, e providerpkg.MCPServerEntry, cpltPath stri
 	}
 	if p, err := mcpBrokerSpecPath(e.Name); err == nil {
 		if data, err := os.ReadFile(p); err == nil && json.Unmarshal(data, &spec) == nil {
-			row.Tools = fmt.Sprintf("%d of %d", len(spec.Meta[mcpBrokerKey].Tools.Allow), len(b.Tools.Classes))
+			row.Tools = fmt.Sprintf("%d of %d", len(spec.Meta[mcpBrokerKey].Tools.Allow), len(e.Meta.Broker.Tools.Classes))
 		}
 	}
 	return out

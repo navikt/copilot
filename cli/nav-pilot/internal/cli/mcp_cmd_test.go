@@ -316,26 +316,31 @@ func TestMCPListStaleAndProjectConfig(t *testing.T) {
 func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 	fset := token.NewFileSet()
 	own := map[string]bool{}
-	file, err := parser.ParseFile(fset, "mcp_cmd.go", nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, d := range file.Decls {
-		switch d := d.(type) {
-		case *ast.FuncDecl:
-			if d.Recv == nil {
-				own[d.Name.Name] = true
-			}
-		case *ast.GenDecl:
-			for _, s := range d.Specs {
-				if v, ok := s.(*ast.ValueSpec); ok {
-					for _, n := range v.Names {
-						own[n.Name] = true
+	for _, name := range []string{"mcp_cmd.go", "mcp_broker.go", "mcp_tools.go"} {
+		file, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range file.Decls {
+			switch d := d.(type) {
+			case *ast.FuncDecl:
+				if d.Recv == nil {
+					own[d.Name.Name] = true
+				}
+			case *ast.GenDecl:
+				for _, s := range d.Specs {
+					if v, ok := s.(*ast.ValueSpec); ok {
+						for _, n := range v.Names {
+							own[n.Name] = true
+						}
 					}
 				}
 			}
 		}
 	}
+	// The entry point, and the read-only reports doctor and the host consent
+	// share with mcp list.
+	allowed := map[string]bool{"cli.go:cmdMCP": true, "doctor.go:reportMCPTools": true, "mcp_consent.go:mcpLoopbackNote": true}
 	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true, "SetMCPServerTools": true}
 	var files []string
 	for _, dir := range []string{".", "../provider"} {
@@ -358,7 +363,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 					t.Errorf("%s uses %s outside nav-pilot mcp", fset.Position(n.Pos()), n.Sel.Name)
 				}
 			case *ast.Ident:
-				if writers[n.Name] || filepath.Dir(path) == "." && own[n.Name] && !(base == "cli.go" && n.Name == "cmdMCP") {
+				if writers[n.Name] || filepath.Dir(path) == "." && own[n.Name] && !allowed[base+":"+n.Name] {
 					t.Errorf("%s uses %s outside nav-pilot mcp", fset.Position(n.Pos()), n.Name)
 				}
 			}

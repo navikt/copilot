@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -45,11 +47,13 @@ func brokerEnv(t *testing.T, cpltStatus string) brokerFakes {
 	case "":
 	case "home":
 		status = "echo 'cplt: refusing to sandbox your home directory' >&2; exit 1"
+	case "sleep":
+		status = "exec /bin/sleep 5"
 	default:
 		status = "echo '" + cpltStatus + "'"
 	}
 	writeTestFile(t, f.cplt, "#!/bin/sh\ncase \"$1 $2\" in\n\"mcp status\") "+status+";;\n\"--version \") echo 'cplt 2026.10.01-000000-abcdef0';;\nesac\n")
-	writeTestFile(t, filepath.Join(bin, "nais"), "#!/bin/sh\ntok="+bin+"/token\ncase \"$1 $2\" in\n\"auth print-access-token\") [ -f $tok ];;\n\"login -n\") : > $tok;;\n*) exit 2;;\nesac\n")
+	writeTestFile(t, filepath.Join(bin, "nais"), "#!/bin/sh\ntok="+bin+"/token\ncase \"$1 $2\" in\n\"auth print-access-token\") [ -f $tok ];;\n\"login -n\") : > $tok;;\n\"--version \") [ -f "+bin+"/version ] && read v < "+bin+"/version && echo \"nais version $v\";;\n*) exit 2;;\nesac\n")
 	for _, p := range []string{f.cplt, filepath.Join(bin, "nais")} {
 		if err := os.Chmod(p, 0o755); err != nil {
 			t.Fatal(err)
@@ -85,7 +89,7 @@ func readBrokerSpec(t *testing.T, path string) map[string]any {
 	return v["_meta"].(map[string]any)[mcpBrokerKey].(map[string]any)
 }
 
-const brokerStatusOK = `{"schema":[1],"servers":[{"id":"io.github.nais/nais-mcp","state":"brokered","credential_ok":true}],"rejected":[]}`
+const brokerStatusOK = `{"schema":[1],"servers":[{"id":"io.github.nais/nais-mcp","state":"brokered"}],"rejected":[]}`
 
 func TestMCPEnableBrokerWritesReadOnlySpec(t *testing.T) {
 	f := brokerEnv(t, brokerStatusOK)
@@ -249,24 +253,157 @@ func TestMCPListBrokerStatusFails(t *testing.T) {
 	}
 }
 
-// Without cplt nothing enforces the spec: say so, and that execute_graphql
-// is unchecked.
+// Without cplt nothing would enforce the spec: enable refuses like an old
+// cplt, and list says the server is not configured.
 func TestMCPEnableBrokerWithoutCplt(t *testing.T) {
 	f := brokerEnv(t, brokerStatusOK)
 	mcpCpltPath = func() string { return "" }
+	var err error
 	errOut := captureStderr(func() {
-		captureStdout(func() {
-			if err := cmdMCP([]string{"enable", "nais-mcp"}); err != nil {
+		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
+	})
+	if err == nil || !strings.Contains(errOut, "nothing was written. Fix: brew install navikt/tap/cplt && nav-pilot mcp enable io.github.nais/nais-mcp") {
+		t.Errorf("err %v, stderr:\n%s", err, errOut)
+	}
+	if _, err := os.Stat(f.spec); !os.IsNotExist(err) {
+		t.Fatalf("spec written without cplt: %v", err)
+	}
+	writeTestFile(t, f.spec, `{}`)
+	out := captureStdout(func() {
+		if err := cmdMCP([]string{"list"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "not configured (no cplt)") || strings.Contains(out, "direct") {
+		t.Errorf("list:\n%s", out)
+	}
+}
+
+// A cplt that hangs is a failed status, not an old cplt: the spec is
+// written, with a warning.
+func TestMCPEnableBrokerStatusTimeout(t *testing.T) {
+	f := brokerEnv(t, "sleep")
+	prev := mcpCpltStatusTimeout
+	t.Cleanup(func() { mcpCpltStatusTimeout = prev })
+	mcpCpltStatusTimeout = 200 * time.Millisecond
+	var err error
+	errOut := captureStderr(func() {
+		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
+	})
+	if err != nil || !strings.Contains(errOut, "timed out") || strings.Contains(errOut, "brew upgrade") {
+		t.Errorf("err %v, stderr:\n%s", err, errOut)
+	}
+	readBrokerSpec(t, f.spec)
+}
+
+func TestMCPEnableBrokerAllToolsAllowsWrites(t *testing.T) {
+	f := brokerEnv(t, brokerStatusOK)
+	captureStdout(func() {
+		if err := cmdMCP([]string{"enable", "nais-mcp", "--all-tools"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	ext := readBrokerSpec(t, f.spec)
+	if allow := ext["tools"].(map[string]any)["allow"].([]any); len(allow) != 4 || ext["writeConsent"] != true {
+		t.Errorf("--all-tools: %v", ext)
+	}
+}
+
+// cplt's credential_ok answers LOGIN, and the clients show cplt.
+func TestMCPListBrokerUsesCredentialOK(t *testing.T) {
+	brokerEnv(t, `{"schema":[1],"servers":[{"id":"io.github.nais/nais-mcp","state":"brokered","credential_ok":true}]}`)
+	captureStdout(func() { _ = cmdMCP([]string{"enable", "nais-mcp"}) })
+	// The fake nais says logged out; cplt's probe says ok and wins.
+	out := captureStdout(func() { _ = cmdMCP([]string{"list"}) })
+	if !strings.Contains(out, "nais: ok") || !regexp.MustCompile(`nais-mcp\s+cplt\s+cplt\s`).MatchString(out) {
+		t.Errorf("list:\n%s", out)
+	}
+}
+
+func TestMCPListBrokerOffHasFix(t *testing.T) {
+	f := brokerEnv(t, `{"schema":[1],"servers":[{"id":"io.github.nais/nais-mcp","state":"off"}]}`)
+	writeTestFile(t, f.spec, `{}`)
+	out := captureStdout(func() { _ = cmdMCP([]string{"list"}) })
+	if !strings.Contains(out, "cplt off") || !strings.Contains(out, "Fix: cplt config set sandbox.mcp_broker true") {
+		t.Errorf("list:\n%s", out)
+	}
+}
+
+// nav-pilot runs only its own commands: a registry entry with other login
+// commands, another command, or an unknown or empty class is refused, and
+// nothing runs.
+func TestMCPBrokerCheckPinsCommands(t *testing.T) {
+	for name, mut := range map[string]func(b *providerpkg.MCPBroker){
+		"login":         func(b *providerpkg.MCPBroker) { b.Login.Run = "sh -c touch-pwned" },
+		"status":        func(b *providerpkg.MCPBroker) { b.Login.Status = "nais whoami" },
+		"command":       func(b *providerpkg.MCPBroker) { b.Command = []string{"nais", "x"} },
+		"credential":    func(b *providerpkg.MCPBroker) { b.Credential = "gh-token" },
+		"empty class":   func(b *providerpkg.MCPBroker) { b.Tools.Classes["schema_search"] = "" },
+		"unknown class": func(b *providerpkg.MCPBroker) { b.Tools.Classes["schema_search"] = "host-exec" },
+	} {
+		e := naisTestEntry()
+		mut(e.Meta.Broker)
+		if _, err := mcpBrokerCheck(e); err == nil || !strings.Contains(err.Error(), "Fix:") {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if _, err := mcpBrokerCheck(naisTestEntry()); err != nil {
+		t.Errorf("control: %v", err)
+	}
+}
+
+// The registry's own nais entry passes nav-pilot's checks.
+func TestMCPBrokerCheckRegistryNais(t *testing.T) {
+	data, err := os.ReadFile("../../../../apps/mcp-registry/allowlist.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reg struct {
+		Servers []providerpkg.MCPServerEntry `json:"servers"`
+	}
+	if err := json.Unmarshal(data, &reg); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range reg.Servers {
+		if e.Name == "io.github.nais/nais-mcp" {
+			if e.Meta.Broker == nil {
+				t.Fatal("no broker extension")
+			}
+			if _, err := mcpBrokerCheck(e); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+	}
+	t.Fatal("nais-mcp not in the registry")
+}
+
+// nais older than the mechanism's minVersion gets a nudge on enable and in
+// list, never a refusal; a newer one says nothing.
+func TestMCPBrokerOldNaisNudge(t *testing.T) {
+	for _, c := range []struct {
+		version string
+		nudge   bool
+	}{{"7.0.1", true}, {"7.0.3", false}, {"v7.0.2", false}} {
+		f := brokerEnv(t, brokerStatusOK)
+		writeTestFile(t, filepath.Join(f.dir, "version"), c.version+"\n")
+		var err error
+		errOut := captureStderr(func() {
+			captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
+		})
+		if err != nil {
+			t.Errorf("%s: enable refused: %v", c.version, err)
+		}
+		if got := strings.Contains(errOut, "older than 7.0.2") && strings.Contains(errOut, "Fix: brew upgrade nais"); got != c.nudge {
+			t.Errorf("%s: nudge %v, stderr:\n%s", c.version, got, errOut)
+		}
+		out := captureStdout(func() {
+			if err := cmdMCP([]string{"list"}); err != nil {
 				t.Fatal(err)
 			}
 		})
-	})
-	if !strings.Contains(errOut, "no read-only guarantee") || !strings.Contains(errOut, "execute_graphql") || !strings.Contains(errOut, "Fix: brew install navikt/tap/cplt") {
-		t.Errorf("stderr:\n%s", errOut)
-	}
-	readBrokerSpec(t, f.spec)
-	out := captureStdout(func() { _ = cmdMCP([]string{"list"}) })
-	if !strings.Contains(out, "direct (no read-only guarantee)") {
-		t.Errorf("list:\n%s", out)
+		if got := strings.Contains(out, "Fix: brew upgrade nais"); got != c.nudge {
+			t.Errorf("%s: list nudge %v:\n%s", c.version, got, out)
+		}
 	}
 }
