@@ -178,6 +178,13 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             kommandoen <code className={code}>cplt mcp status</code>. <code className={code}>nav-pilot mcp list</code>{" "}
             viser innloggingen og om cplt kjører serveren.
           </BodyLong>
+          <BodyLong>
+            Hele oppsettet står i{" "}
+            <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt" className={linkClass}>
+              MCP gjennom cplt
+            </NextLink>
+            .
+          </BodyLong>
           <LinkableHeading id="mcp-hoster" size="small" level="3">
             Hoster i sandkassen
           </LinkableHeading>
