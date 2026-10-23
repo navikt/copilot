@@ -53,7 +53,11 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 	}
 	if st.Failed != "" {
 		// No schema to check the spec against: say so rather than guess.
-		return fmt.Errorf("cplt mcp status did not answer here (%s), so nothing was written. Fix: cd <your repo> && nav-pilot mcp enable %s", st.Failed, e.Name)
+		fix := "cd <your repo> && nav-pilot mcp enable " + e.Name
+		if st.TimedOut {
+			fix = "run it again: nav-pilot mcp enable " + e.Name
+		}
+		return fmt.Errorf("cplt mcp status did not answer here (%s), so nothing was written. Fix: %s", st.Failed, fix)
 	}
 	if !slices.Contains(st.Schema, mcpBrokerVersion) {
 		return fmt.Errorf("cplt reads broker spec v%v, not v%d, so nothing was written. Fix: %s && nav-pilot mcp enable %s", st.Schema, mcpBrokerVersion, mcpCpltUpgrade, e.Name)
