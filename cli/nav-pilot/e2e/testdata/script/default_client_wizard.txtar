@@ -25,7 +25,7 @@ fake-bin cplt copilot
 exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
 ! stdout 'Install it now'
 ! stdout 'opencode\.ai/install'
-stdout 'opencode is not installed, so nav-pilot will use GitHub Copilot\. To switch later: install Homebrew \(https://brew\.sh\) or Node\.js \(https://nodejs\.org\), run brew install anomalyco/tap/opencode-v2 or npm i -g @opencode/cli@2\.1\.3, then nav-pilot config set client opencode'
+stdout 'opencode is not installed, so nav-pilot will use GitHub Copilot\. To switch later: install Homebrew \(https://brew\.sh\) or Node\.js \(https://nodejs\.org\), run brew install anomalyco/tap/opencode-v2 or npm i -g @opencode/cli@2\.1\.4, then nav-pilot config set client opencode'
 grep '^client = "copilot"' home/config.toml
 
 # Neither client installed: both ways in (#1184).
@@ -34,7 +34,7 @@ rm $WORK/fake/copilot
 rm $WORK/fake/cplt
 exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
 stdout 'Neither opencode nor GitHub Copilot is installed'
-stdout 'opencode: install Homebrew \(https://brew\.sh\) or Node\.js \(https://nodejs\.org\), run brew install anomalyco/tap/opencode-v2 or npm i -g @opencode/cli@2\.1\.3, then nav-pilot config set client opencode'
+stdout 'opencode: install Homebrew \(https://brew\.sh\) or Node\.js \(https://nodejs\.org\), run brew install anomalyco/tap/opencode-v2 or npm i -g @opencode/cli@2\.1\.4, then nav-pilot config set client opencode'
 stdout 'GitHub Copilot CLI: curl -fsSL https://gh\.io/copilot-install \| bash'
 
 # npm without Homebrew, accepted: npm installs opencode 2, found in the same
@@ -43,8 +43,8 @@ rm home/config.toml
 fake-bin cplt copilot npm
 cp npm.sh $WORK/fake/npm.sh
 exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Install it now' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup
-stdout 'Runs npm i -g @opencode/cli@2\.1\.3'
-grep '^i\n-g\n@opencode/cli@2\.1\.3\n---' $WORK/fake/npm.log
+stdout 'Runs npm i -g @opencode/cli@2\.1\.4'
+grep '^i\n-g\n@opencode/cli@2\.1\.4\n---' $WORK/fake/npm.log
 stdout 'opencode installed'
 grep '^client = "opencode"' home/config.toml
 rm $WORK/fake/opencode

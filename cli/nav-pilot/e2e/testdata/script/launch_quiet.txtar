@@ -20,8 +20,9 @@ exec nav-pilot config set client copilot
 # First launch: what nav-pilot set up, once.
 exec pty-run -- nav-pilot
 stdout 'nav-pilot added Copilot hooks'
-stdout 'Launching via cplt \(Copilot Sandbox\)'
-stdout 'Session model: '
+# cplt's own banner says how to change its settings (#1962).
+! stdout 'Launching via cplt'
+stdout 'Model: '
 grep '^--agent\ncopilot\n' $WORK/fake/cplt.log
 
 # Second launch: nothing to act on, so nothing at all. The terminal still
@@ -42,7 +43,7 @@ exec pty-run -- nav-pilot --verbose
 stdout 'nav-pilot  repo: plattform'
 stdout 'Sandbox: .*/repo'
 stdout 'Launching Copilot Sandbox \(cplt\) with agent nav-pilot'
-stdout 'Session model: '
+stdout 'Model: '
 
 -- empty.txt --
 -- plattform/.nav-pilot/agentpakke.json --

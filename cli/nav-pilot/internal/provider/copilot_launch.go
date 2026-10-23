@@ -332,7 +332,6 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		telemetryRecorder.RecordLaunchError("copilot", "client_not_found")
 		return errors.New(CopilotMissingBehindCplt())
 	}
-	PrintCpltSandboxHint()
 	PrintAutonomyNotice(resolved)
 	env := CopilotEnv(resolved.OtelLogLevel)
 	if note := autopilotNote(resolved); SeenChanged("autopilot-note", note) && note != "" || note != "" && Verbose {
@@ -659,24 +658,6 @@ func stripEnvTokens(env []string) []string {
 func IsTerminal(f *os.File) bool {
 	_, err := unix.IoctlGetWinsize(int(f.Fd()), unix.TIOCGWINSZ)
 	return err == nil
-}
-
-// PrintCpltSandboxHint prints a tip about configuring cplt outside nav-pilot,
-// once per machine: FirstTime records that it was shown. Suppressed by
-// NAV_PILOT_CPLT_HINT=0 and without a terminal, and then not marked as seen.
-func PrintCpltSandboxHint() {
-	if !IsTerminal(os.Stdin) {
-		return
-	}
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("NAV_PILOT_CPLT_HINT")), "0") {
-		return
-	}
-	if !FirstTime("cplt-hint") {
-		return
-	}
-	fmt.Printf("%s Launching via cplt (Copilot Sandbox). Sandbox settings are managed by cplt, not nav-pilot.\n", domain.Dim("ℹ"))
-	fmt.Printf("  View current settings: %s\n", domain.Bold("cplt config list"))
-	fmt.Printf("  Change a setting:      %s\n\n", domain.Bold("cplt config set <key> <value>"))
 }
 
 // PrintAutonomyNotice tells a user whose Copilot asked before each command

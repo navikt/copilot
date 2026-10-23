@@ -53,6 +53,10 @@ const (
 	// HookStateDirEnv tells `nav-pilot hook` where to keep the loop guard's
 	// run and the spooled telemetry, in place of Copilot's session directory.
 	HookStateDirEnv = "NAV_PILOT_HOOK_STATE_DIR"
+	// ClientStartedEnv names this launch's client-started marker, which the
+	// bridge writes when opencode loads it (openCodeClientRan). Unset when
+	// the bridge will not load, so the launch has no sign to wait for.
+	ClientStartedEnv = "NAV_PILOT_CLIENT_STARTED_ID"
 	// openCodeConfigContentEnv is opencode's per-process config.
 	openCodeConfigContentEnv = "OPENCODE_CONFIG_CONTENT"
 )
@@ -153,6 +157,10 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 		env = withOpenCodeConfigContent(env, map[string]any{"plugin": []any{(&url.URL{Scheme: "file", Path: plugin}).String()}})
 	}
 	// opencode 2 has no --pure; the launch drops it (openCodeV2Args).
+	// opencode 1 with --pure loads no plugins, so no marker would come.
+	if v2 || !slices.Contains(r.ExtraArgs, "--pure") {
+		env, _ = telemetry.SetEnvValue(env, ClientStartedEnv, rand.Text())
+	}
 	if !v2 && slices.Contains(r.ExtraArgs, "--pure") {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot's hooks (redaction, loop guard, gates) do not run with --pure: opencode loads no plugins then.\n", domain.Yellow("⚠"))
 		if blocked {
@@ -161,14 +169,15 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	}
 	// Only a sandboxed session is limited in where it may execute from.
 	_, launcher := FindCopilotCLI()
-	if dir := filepath.Dir(b.Bin); launcher == "cplt" && len(b.Post) > 0 && filepath.IsAbs(b.Bin) && !underCpltExecRoot(dir) {
-		fmt.Fprintf(os.Stderr, "%s nav-pilot runs from %s, where the cplt sandbox may not let the session start it. If so, redaction withholds every tool output. Install nav-pilot under ~/.local/bin or Homebrew.\n", domain.Yellow("⚠"), dir)
+	if w := cpltExecRootWarning(b.Bin); launcher == "cplt" && len(b.Post) > 0 && w != "" {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), w)
 	}
 	cpltArgs = append(cpltArgs,
 		"--allow-read", filepath.Dir(plugin),
 		"--allow-write", OpenCodeHookStateDir(),
 		"--pass-env", OpenCodeHooksEnv,
 		"--pass-env", HookStateDirEnv,
+		"--pass-env", ClientStartedEnv,
 		"--pass-env", MCPBlockedEnv)
 	for _, d := range b.ReadDirs {
 		cpltArgs = append(cpltArgs, "--allow-read", d)
@@ -418,6 +427,18 @@ func mergeNode(have, add *yaml.Node) *yaml.Node {
 // ponytail: a copy of cplt's default exec roots (cplt --print-profile, macOS,
 // 2026.09.24); it only decides whether to warn, so a stale list costs a
 // needless warning or a missing one, never a launch.
+// cpltExecRootWarning is the one line for a nav-pilot binary the cplt sandbox
+// may not run, "" when it sits where the sandbox runs programs from. It names
+// what the user sees, not the mechanism: the redaction hook cannot start, so
+// the bridge withholds every tool output (#1962).
+func cpltExecRootWarning(bin string) string {
+	dir := filepath.Dir(bin)
+	if !filepath.IsAbs(bin) || underCpltExecRoot(dir) {
+		return ""
+	}
+	return fmt.Sprintf("The cplt sandbox may not run nav-pilot from %s. If it cannot, the agent sees no tool output, because nav-pilot holds back what it cannot check for secrets. Fix: install nav-pilot in ~/.local/bin or with Homebrew.", dir)
+}
+
 func underCpltExecRoot(dir string) bool {
 	home, _ := os.UserHomeDir()
 	roots := []string{"/opt/homebrew", "/usr/local", "/usr/bin", "/bin", "/usr/sbin", "/nix"}

@@ -185,10 +185,14 @@ func repoHooksCanFire(repoDir string) (reason string, ok bool) {
 // about it being inert all the same. Saying it afterwards means saying it to
 // someone who has already told their team the gate is on.
 //
-// Nothing is printed when the hooks do load, and nothing when the scope has no
-// repo hook entries at all.
+// Nothing is printed when the hooks do load, nothing when the scope has no
+// repo hook entries at all, and nothing for a client other than Copilot: the
+// advice is to go run copilot, which means nothing to an OpenCode user (#1962).
 func warnRepoHooksNeedTrust(scope *InstallScope) {
 	if scope == nil || scope.IsUser() {
+		return
+	}
+	if cfg, _ := readConfig(); cfgClient(cfg) != "copilot" {
 		return
 	}
 	path := filepath.Join(scope.DstPath(KindHook.Dir), source.RepoHooksConfig)

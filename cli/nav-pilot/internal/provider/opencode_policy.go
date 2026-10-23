@@ -405,7 +405,7 @@ func OpenCode1Notice() string {
 		return ""
 	}
 	n := fmt.Sprintf("opencode 1 support ends after %s. Upgrade to opencode 2: %s\n"+
-		"  The upgrade is one-way: opencode 2 converts the opencode 1 database. You will need to log in again (auth.json is not carried over).",
+		"  The update opencode 1 offers keeps you on opencode 1. The upgrade is one-way: opencode 2 converts the opencode 1 database. You will need to log in again (auth.json is not carried over).",
 		OpenCode1EndOfSupport, domain.Bold(OpenCode2InstallHint()))
 	if hostOS == "linux" {
 		n += " Linux needs bubblewrap."
@@ -422,16 +422,30 @@ func warnOpenCode1() {
 }
 
 // warnCpltRecommended prints the cplt recommendation at a cplt launch of any
-// client, once per recommended version: a later recommendation says it again.
-// The opencode reasons are named only on an opencode 2 launch.
+// client, once per recommended version and reason set: a later recommendation
+// says it again. The opencode reasons are named only on an opencode 2 launch,
+// and are seen apart from the client-neutral line, so someone who saw that
+// line under Copilot still gets them under OpenCode, and switching clients
+// back and forth repeats neither (#1962). An up-to-date cplt clears both.
 func warnCpltRecommended(agent string) {
-	n := cpltRecommendedNotice(agent == "opencode" && openCodeMajor() == 2)
-	seen := cpltRecommended
+	opencode := agent == "opencode" && openCodeMajor() == 2
+	n := cpltRecommendedNotice(opencode)
 	if n == "" {
-		seen = ""
+		SeenChanged("cplt-recommended", "")
+		SeenChanged("cplt-recommended-opencode", "")
+		return
 	}
-	if SeenChanged("cplt-recommended", seen) && n != "" || n != "" && Verbose {
+	key := "cplt-recommended"
+	if opencode {
+		key += "-opencode"
+	}
+	if SeenChanged(key, cpltRecommended) || Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
+		// The opencode line holds the neutral reason too, so Copilot need not
+		// say it again.
+		if opencode {
+			SeenChanged("cplt-recommended", cpltRecommended)
+		}
 	}
 }
 
@@ -663,7 +677,7 @@ func OpenCode1InstallHint() string {
 }
 
 // OpenCode2InstallVersion is the opencode 2 release nav-pilot is tested with.
-const OpenCode2InstallVersion = "2.1.3"
+const OpenCode2InstallVersion = "2.1.4"
 
 // OpenCode2InstallHint replaces the opencode on PATH with opencode 2, through
 // Homebrew when that is how it came, otherwise npm.

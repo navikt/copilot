@@ -391,7 +391,6 @@ func TestStagedCopilotHonorsRestrictiveAuthMode(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("COPILOT_GITHUB_TOKEN", "")
-	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
 
 	err := LaunchCopilotStaged(
 		domain.ResolvedConfig{Client: "copilot", AskUser: true, CopilotAuthMode: "env_only"},
