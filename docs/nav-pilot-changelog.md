@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Lokal modell med kommentarer i opencode.json
 
-- **OpenCode**: Med `local_dispatch` på og kommentarer i `~/.config/opencode/opencode.json` stoppet nav-pilot oppstarten med «redefines provider mlx». Den lokale leverandøren er nav-pilots egen, så nå starter økten. Endrer noen leverandøren, stopper oppstarten fortsatt.
+- **OpenCode**: Med `local_dispatch` på og kommentarer i `~/.config/opencode/opencode.json` stoppet nav-pilot oppstarten med «redefines provider mlx». Blokken for den lokale leverandøren er nav-pilots egen, så nå starter økten. Er blokken endret, for eksempel med en annen `baseURL`, stopper oppstarten som før.
 
 ### Spørsmålet om ny modell kommer ved samme oppstart
 

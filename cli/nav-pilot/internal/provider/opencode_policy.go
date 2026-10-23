@@ -118,8 +118,9 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 		// opencode 2.1.2: options.baseURL, settings.baseURL, npm). Any routing
 		// key anywhere under the entry counts, models and variants included,
 		// in the legacy provider map and opencode 2's native providers map.
-		// The mlx block is nav-pilot's own, written to the global config with
-		// the loop guard's address; no other config may reroute it.
+		// The mlx block is nav-pilot's own, with the loop guard's address: in
+		// the global config, or in OPENCODE_CONFIG_CONTENT when that config
+		// has comments. No other config may reroute it.
 		for _, mapKey := range []string{"provider", "providers"} {
 			var providers map[string]json.RawMessage
 			_ = json.Unmarshal(top[mapKey], &providers)
