@@ -993,6 +993,7 @@ func printManifestContents(m *Manifest) {
 	printCategory("instructions", m.Instructions)
 	printCategory("prompts", m.Prompts)
 	printCategory("hooks", m.Hooks)
+	printCategory("extensions", m.Extensions)
 }
 
 // installedAgents extracts agent names from the state file's installed files.

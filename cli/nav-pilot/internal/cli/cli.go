@@ -1145,6 +1145,10 @@ func run(args []string) error {
 			return runWithCommandTelemetry("pakke", telemetryMode(), scope.Name, func() error {
 				return cmdPakkeStatus(scope, scopeProvided)
 			})
+		case len(positional) == 1 && positional[0] == "access" && dryRun:
+			// It records an answer, and a flag it accepted and ignored would
+			// record it anyway.
+			return fmt.Errorf("pakke access has no --dry-run: it records your answer, and nav-pilot pakke shows the state without asking")
 		case len(positional) == 1 && positional[0] == "access":
 			return runWithCommandTelemetry("pakke-access", telemetryMode(), scope.Name, func() error {
 				return cmdPakkeAccess(scope, scopeProvided)
@@ -1154,6 +1158,9 @@ func run(args []string) error {
 		}
 		// It writes the lock, and a flag it accepted and ignored would write it
 		// anyway. git diff undoes a bump.
+		if userScope || repoScope {
+			return fmt.Errorf("pakke bump-base takes no --user or --repo: it works on the pakke repository --target names")
+		}
 		if dryRun {
 			return fmt.Errorf("pakke bump-base has no --dry-run: it writes %s, and git diff shows and undoes the change", agentpakke.DeclarationPath)
 		}

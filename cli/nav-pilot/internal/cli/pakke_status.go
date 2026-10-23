@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 // `nav-pilot pakke` and `nav-pilot pakke access`: one place to see the
@@ -45,15 +46,21 @@ func pakkeScope(scope *InstallScope, scopeProvided bool) (*InstallScope, *StateF
 }
 
 // installedSource resolves the source an installed scope came from, at the
-// revision it is pinned to: the repo's lock file when it has one, else what the
-// state recorded.
+// revision it is pinned to: what the state recorded, which is what is
+// installed, and the repo's lock file only when the state names no source. The
+// lock can say something else: a self-install keeps the author's reused base
+// there, and a pulled lock is not installed until the next install or sync.
 func installedSource(scope *InstallScope, state *StateFile) (*Source, error) {
-	repo, ref, err := declaredPin(scope, "", "")
-	if err != nil {
-		return nil, err
+	repo, ref := state.SourceRepo, state.SourceSHA
+	if repo == "" {
+		declRepo, declRef, err := declaredPin(scope, "", "")
+		if err != nil {
+			return nil, err
+		}
+		repo, ref = declRepo, declRef
 	}
 	if repo == "" {
-		repo, ref = scopeSourceRepo(state), state.SourceSHA
+		repo = scopeSourceRepo(state)
 	}
 	// A full sha names one revision, read from the pinned cache: offline and
 	// fast after the first fetch. Anything else resolves as list does.
@@ -101,14 +108,15 @@ func proposalState(scope *InstallScope, src *Source) (access, state string, err 
 
 // installedContents narrows what the source ships to what this scope has on
 // disk: an item counts when a tracked, not-ignored file sits at its place in
-// the layout. A pin tracks no files, and has everything its revision ships.
-func installedContents(m *Manifest, state *StateFile) *Manifest {
-	if len(state.Files) == 0 && pinnedState(state) {
+// the layout and is still there. A pin whose revision is on disk tracks no
+// files, and has everything its revision ships.
+func installedContents(scope *InstallScope, m *Manifest, state *StateFile) *Manifest {
+	if len(state.Files) == 0 && pinnedRevisionOnDisk(state) {
 		return m
 	}
 	var paths []string
 	for _, f := range state.Files {
-		if f.Status != fileStatusIgnored {
+		if f.Status != fileStatusIgnored && onDisk(scope, f) {
 			paths = append(paths, "/"+filepath.ToSlash(f.Path))
 		}
 	}
@@ -117,7 +125,11 @@ func installedContents(m *Manifest, state *StateFile) *Manifest {
 		for _, name := range names {
 			at := "/" + kind.Dir + "/" + name
 			for _, p := range paths {
-				if strings.Contains(p, at+"/") || strings.Contains(p, at+".") {
+				// The file form ends in the kind's own suffix, so "review" is
+				// not "review.extra"; the directory form is the name and a slash.
+				file := kind.Suffix != "" && strings.HasSuffix(p, at+kind.Suffix)
+				dir := (kind.IsDir || kind.CanBeDir) && strings.Contains(p, at+"/")
+				if file || dir {
 					out = append(out, name)
 					break
 				}
@@ -132,6 +144,7 @@ func installedContents(m *Manifest, state *StateFile) *Manifest {
 		Instructions: keep(KindInstruction, m.Instructions),
 		Prompts:      keep(KindPrompt, m.Prompts),
 		Hooks:        keep(KindHook, m.Hooks),
+		Extensions:   keep(source.KindExtension, m.Extensions),
 	}
 }
 
@@ -169,7 +182,7 @@ func cmdPakkeStatus(scope *InstallScope, scopeProvided bool) error {
 		if err != nil {
 			return err
 		}
-		installed := installedContents(shipped, state)
+		installed := installedContents(scope, shipped, state)
 		hooks := installed.Hooks
 		installed.Hooks = nil
 		printManifestContents(installed)
@@ -203,6 +216,8 @@ func cmdPakkeStatus(scope *InstallScope, scopeProvided bool) error {
 		next = "nav-pilot install"
 	}
 	if next != "" {
+		next = strings.ReplaceAll(next, "nav-pilot pakke access", "nav-pilot pakke access"+scopeArgs(scope))
+		next = strings.ReplaceAll(next, "nav-pilot install", "nav-pilot install"+scopeArgs(scope))
 		fmt.Printf("\nNext: %s\n", bold(next))
 	}
 	return nil
@@ -240,6 +255,20 @@ func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
 	if !isInteractive() {
 		return fmt.Errorf("nav-pilot pakke access needs a terminal to ask in. It would ask: Let the agent %s?", access)
 	}
-	putProposal(scope, src, false, false, true)
-	return nil
+	return putProposal(scope, src, false, false, true)
+}
+
+// scopeArgs is the flag that sends a suggested command to the scope this one
+// read: --user, --target for a repository other than the one the user stands
+// in, and nothing for that one.
+func scopeArgs(scope *InstallScope) string {
+	if scope.IsUser() {
+		return " --user"
+	}
+	if wd, err := os.Getwd(); err == nil {
+		if root := findGitRoot(wd); root != "" && ScopeRepo(root).RootDir == scope.RootDir {
+			return ""
+		}
+	}
+	return " --target " + shellQuote(scope.RootDir)
 }
