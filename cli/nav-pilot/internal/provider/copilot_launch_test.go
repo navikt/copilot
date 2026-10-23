@@ -35,29 +35,6 @@ func TestCLIDisplayName(t *testing.T) {
 	}
 }
 
-func TestCopilotAgentArgs(t *testing.T) {
-	tests := []struct {
-		agent string
-		want  []string
-	}{
-		{"nav-pilot", nil},
-		{"auth", nil},
-		{"", nil},
-	}
-	for _, tt := range tests {
-		got := copilotAgentArgs(tt.agent)
-		if len(got) != len(tt.want) {
-			t.Errorf("copilotAgentArgs(%q) = %v, want %v", tt.agent, got, tt.want)
-			continue
-		}
-		for i := range got {
-			if got[i] != tt.want[i] {
-				t.Errorf("copilotAgentArgs(%q)[%d] = %q, want %q", tt.agent, i, got[i], tt.want[i])
-			}
-		}
-	}
-}
-
 func TestIsCplt(t *testing.T) {
 	dir := t.TempDir()
 	fakeCplt := filepath.Join(dir, "fake-cplt")

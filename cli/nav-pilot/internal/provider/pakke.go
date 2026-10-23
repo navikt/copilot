@@ -135,8 +135,6 @@ func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
 // names the agentpakke that supplied it, so an empty answer is the only honest
 // one wherever the launch itself passes no model:
 //
-//   - a client that forwards no model at all (see [clientForwardsModel]) never
-//     runs on the user's setting or on any declaration, whatever they say;
 //   - a pakke declaring "inherit" (or, for opencode, nothing at all) makes the
 //     launch omit --model entirely and let the client pick for itself — there
 //     is nothing to announce;
@@ -151,9 +149,6 @@ func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
 //     branch too — otherwise the notice would show the pakke's model under
 //     "your setting".
 func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin string) {
-	if !clientForwardsModel(client) {
-		return "", ""
-	}
 	userNamesModel := r.Model != "" && !(client == "opencode" && isOpenCodeUnsetModel(r.Model))
 	if userNamesModel {
 		if client == "opencode" {
