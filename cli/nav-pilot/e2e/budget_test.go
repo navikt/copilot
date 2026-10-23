@@ -267,19 +267,22 @@ func TestLaunchBudget(t *testing.T) {
 		return end.Sub(start), 0, 0
 	}
 	var summaryRows []string
-	check := func(name, label string, d [modes][]time.Duration) {
+	// extra is what telemetry costs on purpose on this path; telemetry on may
+	// exceed off by noise plus extra.
+	check := func(name, label string, d [modes][]time.Duration, extra time.Duration) {
 		t.Helper()
 		budget := budgets[name]
 		ceil := budget * budgetMargin
 		got, on, off := median(d[budgetMode]), median(d[telemetryOn]), median(d[telemetryOff])
 		vDiff := pairedDiff(d[budgetMode], d[telemetryOn])
 		tDiff := pairedDiff(d[telemetryOn], d[telemetryOff])
+		tNoise := noise + extra
 		t.Logf("%-20s median %4d ms (budget %3d ms, ceiling %3d ms); version check done: telemetry on %4d ms, off %4d ms",
 			label, got.Milliseconds(), budget.Milliseconds(), ceil.Milliseconds(), on.Milliseconds(), off.Milliseconds())
 		summaryRows = append(summaryRows, fmt.Sprintf(
 			"| `%s` | %d ms | %d ms (%d ms) | %+d ms (<= %d ms) | %+d ms (<= %d ms) |",
 			label, got.Milliseconds(), budget.Milliseconds(), ceil.Milliseconds(),
-			vDiff.Milliseconds(), noise.Milliseconds(), tDiff.Milliseconds(), noise.Milliseconds(),
+			vDiff.Milliseconds(), noise.Milliseconds(), tDiff.Milliseconds(), tNoise.Milliseconds(),
 		))
 		if got > ceil {
 			t.Errorf("%s took %s (median of %d), budget %s: over %dx the budget. Something on this path waits on the network or does too much before the client starts; see docs/README.nav-pilot.md, «Ytelse»",
@@ -289,7 +292,7 @@ func TestLaunchBudget(t *testing.T) {
 			t.Errorf("%s took %s more with the version check due than with it done (median of %d paired runs; medians %s and %s): something waits for the version check. It may not; see artifacts.AssessStalenessCached",
 				label, vDiff, budgetRuns, got, on)
 		}
-		if tDiff > noise {
+		if tDiff > tNoise {
 			t.Errorf("%s took %s more with telemetry on than off (median of %d paired runs; medians %s and %s): something waits for telemetry. It may not; see internal/telemetry/spool.go",
 				label, tDiff, budgetRuns, on, off)
 		}
@@ -334,7 +337,7 @@ func TestLaunchBudget(t *testing.T) {
 				d[m] = append(d[m], total)
 			}
 		}
-		check(c.name, c.label, d)
+		check(c.name, c.label, d, 0)
 	}
 
 	// Both clients run in each mode of each round, next to each other, and
@@ -361,10 +364,31 @@ func TestLaunchBudget(t *testing.T) {
 			}
 		}
 	}
+	// With telemetry on, an opencode exit reads the session's usage through
+	// opencode's CLI on purpose: one `session list` spawn (the fake lists no
+	// sessions, so no export follows). That is a fixed cost, not a wait, and
+	// on a loaded Mac one spawn alone can exceed the noise floor (#1957). So
+	// the opencode exit may cost two measured spawns of the fake on top.
+	spawns := make([]time.Duration, budgetRuns)
+	for i := range spawns {
+		cmd := exec.Command(filepath.Join(fake, "opencode"), "session", "list")
+		cmd.Env = environ
+		start := time.Now()
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("fake opencode session list: %v\n%s", err, out)
+		}
+		spawns[i] = time.Since(start)
+	}
+	spawn := median(spawns)
+	t.Logf("one spawn of the fake opencode: %d ms (median of %d)", spawn.Milliseconds(), budgetRuns)
 	for c, cl := range clients {
 		t.Logf("nav-pilot %v:", cl.args)
-		check("launch", cl.name+" launch", launches[c])
-		check("exit", cl.name+" exit", exits[c])
+		check("launch", cl.name+" launch", launches[c], 0)
+		var extra time.Duration
+		if cl.name == "opencode" {
+			extra = 2 * spawn
+		}
+		check("exit", cl.name+" exit", exits[c], extra)
 	}
 	// What opencode does on top of the Copilot launch must fit in the launch
 	// budget, with the same margin as the rest. Pairing cancels load that
