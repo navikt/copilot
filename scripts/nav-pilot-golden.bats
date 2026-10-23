@@ -1440,7 +1440,7 @@ probe=false; [[ "\${!#}" == *"svar kun med ordet OK"* ]] && probe=true
 if [[ "\${OC_VERSION:-1}" == v2* && "\${HOST_SERVICE:-}" != all ]] && { \$probe || [[ "\${HOST_SERVICE:-}" != run ]]; }; then
   mkdir -p "\$XDG_STATE_HOME/opencode" "\$XDG_DATA_HOME/opencode"
   port="\$(sed 's/.*"port":\([0-9]*\).*/\1/' "\$XDG_CONFIG_HOME/opencode/service.json")"
-  printf '{"pid":999999,"url":"http://127.0.0.1:%s"}' "\$port" >"\$XDG_STATE_HOME/opencode/service.json"
+  printf '{"url":"http://127.0.0.1:%s"}' "\$port" >"\$XDG_STATE_HOME/opencode/service.json"
   [[ "\$(sqlite3 "\$XDG_DATA_HOME/opencode/opencode.db" "SELECT value FROM credential" 2>/dev/null)" == fixture-login ]] \\
     && touch "$SHIM/login-copied"
   [[ -n "\${NO_SESSION:-}" ]] || for a in "\$@"; do [[ "\$prev" == --title ]] && sqlite3 "\$XDG_DATA_HOME/opencode/opencode.db" \\
