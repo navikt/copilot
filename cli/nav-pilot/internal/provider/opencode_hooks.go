@@ -161,8 +161,8 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	}
 	// Only a sandboxed session is limited in where it may execute from.
 	_, launcher := FindCopilotCLI()
-	if dir := filepath.Dir(b.Bin); launcher == "cplt" && len(b.Post) > 0 && filepath.IsAbs(b.Bin) && !underCpltExecRoot(dir) {
-		fmt.Fprintf(os.Stderr, "%s nav-pilot runs from %s, where the cplt sandbox may not let the session start it. If so, redaction withholds every tool output. Install nav-pilot under ~/.local/bin or Homebrew.\n", domain.Yellow("⚠"), dir)
+	if w := cpltExecRootWarning(b.Bin); launcher == "cplt" && len(b.Post) > 0 && w != "" {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), w)
 	}
 	cpltArgs = append(cpltArgs,
 		"--allow-read", filepath.Dir(plugin),
@@ -418,6 +418,18 @@ func mergeNode(have, add *yaml.Node) *yaml.Node {
 // ponytail: a copy of cplt's default exec roots (cplt --print-profile, macOS,
 // 2026.09.24); it only decides whether to warn, so a stale list costs a
 // needless warning or a missing one, never a launch.
+// cpltExecRootWarning is the one line for a nav-pilot binary the cplt sandbox
+// may not run, "" when it sits where the sandbox runs programs from. It names
+// what the user sees, not the mechanism: the redaction hook cannot start, so
+// the bridge withholds every tool output (#1962).
+func cpltExecRootWarning(bin string) string {
+	dir := filepath.Dir(bin)
+	if !filepath.IsAbs(bin) || underCpltExecRoot(dir) {
+		return ""
+	}
+	return fmt.Sprintf("The cplt sandbox may not run nav-pilot from %s. If it cannot, the agent sees no tool output, because nav-pilot holds back what it cannot check for secrets. Fix: install nav-pilot in ~/.local/bin or with Homebrew.", dir)
+}
+
 func underCpltExecRoot(dir string) bool {
 	home, _ := os.UserHomeDir()
 	roots := []string{"/opt/homebrew", "/usr/local", "/usr/bin", "/bin", "/usr/sbin", "/nix"}

@@ -127,7 +127,21 @@ func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
 	if model == "" {
 		return ""
 	}
-	return fmt.Sprintf("Session model: %s (%s)", model, origin)
+	return fmt.Sprintf("Model: %s (%s)", modelLabel(model), origin)
+}
+
+// modelLabel is a model's name as Copilot's model list shows it, the same on
+// every client: "github-copilot/claude-opus-5.5" and "claude-opus-5.5" both
+// read "Claude Opus 5.5" (#1962). An id outside that list is shown as it is.
+func modelLabel(model string) string {
+	id := strings.TrimPrefix(model, openCodeProviderPrefix)
+	for _, m := range knownCopilotModels {
+		if m.ID == id && m.ID != "auto" {
+			label, _, _ := strings.Cut(m.Label, " (")
+			return label
+		}
+	}
+	return model
 }
 
 // resolvedModelOrigin returns the model a launch resolves to and a short phrase
@@ -154,11 +168,6 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 		if client == "opencode" {
 			return ToOpenCodeModel(r.Model), "your setting"
 		}
-		if client == "copilot" {
-			if id, dropped := CopilotModelID(r.Model); dropped {
-				return id, "your setting, github-copilot/ prefix dropped"
-			}
-		}
 		return r.Model, "your setting"
 	}
 	if declared := pakkeDeclaredModel(client); declared != "" {
@@ -166,11 +175,6 @@ func resolvedModelOrigin(client string, r domain.ResolvedConfig) (model, origin 
 			declared = ToOpenCodeModel(declared)
 			if declared == "" {
 				return "", ""
-			}
-		}
-		if client == "copilot" {
-			if id, dropped := CopilotModelID(declared); dropped {
-				return id, source.ActivePakke().Name + " default, github-copilot/ prefix dropped"
 			}
 		}
 		return declared, source.ActivePakke().Name + " default"

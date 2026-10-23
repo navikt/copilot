@@ -267,14 +267,14 @@ func TestResolvedModelNotice(t *testing.T) {
 			pakke:  navPakke,
 			client: "opencode",
 			model:  "claude-opus-5",
-			want:   "Session model: github-copilot/claude-opus-5 (your setting)",
+			want:   "Model: Claude Opus 5 (your setting)",
 		},
 		{
 			name:   "copilot with the user's own model",
 			pakke:  navPakke,
 			client: "copilot",
 			model:  "claude-opus-5",
-			want:   "Session model: claude-opus-5 (your setting)",
+			want:   "Model: Claude Opus 5 (your setting)",
 		},
 		{
 			// Nothing pinned anywhere: the client picks, and there is nothing
@@ -288,7 +288,7 @@ func TestResolvedModelNotice(t *testing.T) {
 			name:   "a pakke's own declaration is named after that pakke",
 			pakke:  pinningPakke,
 			client: "copilot",
-			want:   "Session model: claude-opus-5 (grillmester default)",
+			want:   "Model: Claude Opus 5 (grillmester default)",
 		},
 		{
 			// "inherit" means the staged launch passes no --model at all, and
@@ -307,13 +307,13 @@ func TestResolvedModelNotice(t *testing.T) {
 			pakke:  navPakke,
 			client: "pi",
 			model:  "claude-opus-5",
-			want:   "Session model: claude-opus-5 (your setting)",
+			want:   "Model: Claude Opus 5 (your setting)",
 		},
 		{
 			name:   "pi names the model the pakke declares",
 			pakke:  pinningPakke,
 			client: "pi",
-			want:   "Session model: claude-opus-5 (grillmester default)",
+			want:   "Model: Claude Opus 5 (grillmester default)",
 		},
 		{
 			// A pakke still declaring the legacy alias must be reported as
@@ -339,7 +339,7 @@ func TestResolvedModelNotice(t *testing.T) {
 				},
 			},
 			client: "opencode",
-			want:   "Session model: github-copilot/claude-opus-5 (grillmester default)",
+			want:   "Model: Claude Opus 5 (grillmester default)",
 		},
 		{
 			// The user's "auto" isn't a real setting for opencode — it resolves
@@ -355,8 +355,29 @@ func TestResolvedModelNotice(t *testing.T) {
 			},
 			client: "opencode",
 			model:  "auto",
-			want:   "Session model: github-copilot/claude-opus-5 (grillmester default)",
+			want:   "Model: Claude Opus 5 (grillmester default)",
 		},
+	}
+
+	// #1962: the same model reads the same on both clients, with no word about
+	// the provider prefix; an id outside the list is shown as it is (control).
+	for _, client := range []string{"copilot", "opencode"} {
+		tests = append(tests,
+			struct {
+				name   string
+				pakke  *agentpakke.Manifest
+				client string
+				model  string
+				want   string
+			}{"prefixed id on " + client, navPakke, client, "github-copilot/claude-opus-5.5", "Model: Claude Opus 5.5 (your setting)"},
+			struct {
+				name   string
+				pakke  *agentpakke.Manifest
+				client string
+				model  string
+				want   string
+			}{"unknown id on " + client, navPakke, client, "github-copilot/not-a-model", "Model: github-copilot/not-a-model (your setting)"},
+		)
 	}
 
 	for _, tt := range tests {

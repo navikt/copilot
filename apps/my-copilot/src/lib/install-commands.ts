@@ -76,8 +76,8 @@ export const NAV_PILOT_INSTALL: Record<InstallOs, string> = {
 // OpenCode2InstallVersion. opencode's install script gives opencode 1 only.
 export const OPENCODE_INSTALL: Record<InstallOs, string> = {
   mac: "brew install anomalyco/tap/opencode-v2",
-  linux: "npm i -g @opencode/cli@2.1.3",
-  windows: "npm i -g @opencode/cli@2.1.3",
+  linux: "npm i -g @opencode/cli@2.1.4",
+  windows: "npm i -g @opencode/cli@2.1.4",
 };
 
 // Maps navigator.userAgentData.platform or navigator.userAgent to the install view.

@@ -208,6 +208,10 @@ func TestInstallHookUserScopeDropsFiles(t *testing.T) {
 // say so, because everything else about it looks like success.
 func TestInstallHookRepoScopeWarnsWhenFolderIsNotTrusted(t *testing.T) {
 	src := hookSource(t)
+	cfgPath := isolatedConfig(t)
+	if err := os.WriteFile(cfgPath, []byte("version = 1\nclient = \"copilot\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	home := t.TempDir()
 	target := t.TempDir()
 	t.Setenv("HOME", home)
@@ -223,6 +227,17 @@ func TestInstallHookRepoScopeWarnsWhenFolderIsNotTrusted(t *testing.T) {
 	})
 	if !strings.Contains(out, "inert") || !strings.Contains(out, "remember this folder") {
 		t.Errorf("untrusted folder: install did not say the hooks are inert, or did not say how to fix it\n%s", out)
+	}
+
+	// The advice is to run copilot: an OpenCode user does not get it (#1962).
+	if err := os.WriteFile(cfgPath, []byte("version = 1\nclient = \"opencode\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out := captureStdout(func() { warnRepoHooksNeedTrust(scope) }); out != "" {
+		t.Errorf("client opencode: want silence, got\n%s", out)
+	}
+	if err := os.WriteFile(cfgPath, []byte("version = 1\nclient = \"copilot\"\n"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 
 	// Trust it the way the CLI itself records trust, and the warning goes away.

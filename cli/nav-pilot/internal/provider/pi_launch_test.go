@@ -74,7 +74,7 @@ func TestPiLaunchArgsModel(t *testing.T) {
 		if got := piLaunchArgs(dir, "a", r); !slices.Equal(got, want) {
 			t.Errorf("piLaunchArgs\n got: %q\nwant: %q", got, want)
 		}
-		if notice := ResolvedModelNotice("pi", r); !strings.Contains(notice, "claude-opus-5") {
+		if notice := ResolvedModelNotice("pi", r); !strings.Contains(notice, modelLabel("claude-opus-5")) {
 			t.Errorf("notice %q should name the model the launch passes", notice)
 		}
 	})

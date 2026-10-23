@@ -560,7 +560,7 @@ func configFixHint() string {
 
 // navPilotUsedBefore reports whether nav-pilot has run on this machine
 // before, config.toml or not: the marker the first cplt launch on a terminal
-// leaves in the config directory (provider.PrintCpltSandboxHint), or a
+// left in the config directory (the cplt tip, dropped in #1962), or a
 // user-scope install's state file. Before #1348's split such a user without
 // a config.toml was on conservative autonomy; now they get the one-time
 // notice that it changed.

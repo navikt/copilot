@@ -38,7 +38,7 @@ func TestOpenCode1Notice(t *testing.T) {
 	t.Cleanup(func() { hostOS = prevOS })
 	hostOS = "linux"
 	first := launch("1.18.32\n")
-	for _, want := range []string{OpenCode1EndOfSupport, "one-way", "converts the opencode 1 database", "log in again", "auth.json", "bubblewrap", OpenCode2InstallHint()} {
+	for _, want := range []string{OpenCode1EndOfSupport, "one-way", "converts the opencode 1 database", "log in again", "auth.json", "bubblewrap", OpenCode2InstallHint(), "keeps you on opencode 1"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("notice %q lacks %q", first, want)
 		}

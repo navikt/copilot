@@ -88,7 +88,6 @@ func TestAutopilotTakesAskUserAway(t *testing.T) {
 // needed, measure it and extend the allowed list on purpose.
 func TestCopilotLaunchSpawnsOnlyTheClient(t *testing.T) {
 	isolateHome(t)
-	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
 	dir := t.TempDir()
 	log := filepath.Join(dir, "spawned.log")
 	logger := filepath.Join(t.TempDir(), "logger")

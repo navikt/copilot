@@ -223,7 +223,6 @@ func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("COPILOT_GITHUB_TOKEN", "")
-	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
 
 	err := LaunchCopilotResolved(domain.ResolvedConfig{
 		Client:          "copilot",
@@ -253,7 +252,6 @@ func TestLaunchCopilotResolved_ShowsCpltRecommendation(t *testing.T) {
 	t.Setenv("GH_TOKEN", "")
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("COPILOT_GITHUB_TOKEN", "")
-	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
 	prev := probeCpltVersion
 	t.Cleanup(func() { probeCpltVersion = prev })
 	probeCpltVersion = func() (string, error) { return "cplt " + cpltDenyEnv + "-7f0fd16\n", nil }

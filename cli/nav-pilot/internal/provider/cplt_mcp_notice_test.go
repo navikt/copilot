@@ -45,12 +45,22 @@ func TestCpltRecommendedNotice(t *testing.T) {
 	if !strings.Contains(first, want) || !strings.Contains(first, cpltUpgradeHint()) || strings.Count(first, "\n") != 1 {
 		t.Errorf("notice %q, want one line with %q", first, want)
 	}
-	// Once per recommended version: another client or old cplt says nothing.
-	if again := launch("copilot", "cplt 2026.10.22-172931-b37a8ab\n"); again != "" {
+	// Once per recommended version and reason set: the same opencode launch
+	// again says nothing.
+	if again := launch("opencode", "cplt 2026.10.22-172931-b37a8ab\n"); again != "" {
 		t.Errorf("same recommendation again: %q, want nothing", again)
 	}
-	// A higher recommendation than the one last seen says it again; a
-	// non-opencode launch names only what it gains, even with opencode 2 installed.
+	// A non-opencode launch names only what it gains, even with opencode 2
+	// installed, once; switching back and forth repeats neither.
+	if next := launch("copilot", old); !strings.Contains(next, "recommended: it runs Nais MCP through cplt's broker. Update cplt: ") {
+		t.Errorf("copilot after opencode: %q, want the client-neutral notice", next)
+	}
+	for _, agent := range []string{"opencode", "copilot"} {
+		if again := launch(agent, old); again != "" {
+			t.Errorf("%s again: %q, want nothing", agent, again)
+		}
+	}
+	// A higher recommendation than the one last seen says it again.
 	SeenChanged("cplt-recommended", cpltDenyEnv)
 	if next := launch("copilot", old); !strings.Contains(next, "recommended: it runs Nais MCP through cplt's broker. Update cplt: ") {
 		t.Errorf("raised recommendation: %q, want the client-neutral notice", next)
@@ -64,6 +74,11 @@ func TestCpltRecommendedNotice(t *testing.T) {
 	}
 	if out := launch("pi", old); out == "" {
 		t.Error("after an up-to-date cplt, an old one again: want the notice")
+	}
+	// #1962: seen under Copilot first, the opencode reasons still reach an
+	// OpenCode launch (the control above: the same client again is silent).
+	if out := launch("opencode", old); !strings.Contains(out, "lets GitHub MCP work in opencode") {
+		t.Errorf("opencode after copilot saw the neutral line: %q, want the opencode reasons", out)
 	}
 }
 

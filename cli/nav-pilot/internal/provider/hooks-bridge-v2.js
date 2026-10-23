@@ -29,6 +29,7 @@
 // Failure: redaction fails closed (the output is withheld), everything else
 // fails open (the call and its result go through), as under Copilot.
 import { spawn } from "node:child_process"
+import { writeFileSync } from "node:fs"
 import { isAbsolute, join } from "node:path"
 
 const WITHHELD =
@@ -221,6 +222,11 @@ export default {
   // whose id another plugin loaded first.
   id: process.env.NAV_PILOT_OPENCODE_PLUGIN_ID || "nav-pilot-hooks",
   setup: async (ctx) => {
+    // Tells the launch the client started, so its sign-in hint after a failed
+    // exit is not shown for a session that never ran (#1962).
+    try {
+      writeFileSync(join(process.env.NAV_PILOT_HOOK_STATE_DIR, "client-started"), "")
+    } catch {}
     let cfg = {}
     try {
       cfg = JSON.parse(process.env.NAV_PILOT_OPENCODE_HOOKS ?? "") ?? {}

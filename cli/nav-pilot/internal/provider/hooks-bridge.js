@@ -22,6 +22,8 @@
 // marked failClosed (the call is denied). Everything else fails open (the call
 // and its result go through), as under Copilot.
 import { spawn } from "node:child_process"
+import { writeFileSync } from "node:fs"
+import { join } from "node:path"
 
 // What the model reads when redaction could not run. How to turn redaction off
 // is left out on purpose: that is for the human (docs, `nav-pilot doctor`),
@@ -100,6 +102,11 @@ function texts(output) {
 }
 
 export const NavPilotHooks = async ({ directory, worktree }) => {
+  // Tells the launch the client started, so its sign-in hint after a failed
+  // exit is not shown for a session that never ran (#1962).
+  try {
+    writeFileSync(join(process.env.NAV_PILOT_HOOK_STATE_DIR, "client-started"), "")
+  } catch {}
   let cfg = {}
   try {
     cfg = JSON.parse(process.env.NAV_PILOT_OPENCODE_HOOKS ?? "") ?? {}
