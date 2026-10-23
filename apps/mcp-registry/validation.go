@@ -136,12 +136,64 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 		}
 	}
 
+	if server.Meta != nil && server.Meta.Broker != nil {
+		if err := validateBroker(server.Meta.Broker, server.Tools, index); err != nil {
+			return err
+		}
+	}
+
 	for j := range server.SetupInstructions {
 		if err := validateSetupInstruction(&server.SetupInstructions[j], index, j); err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+// validateBroker checks the broker extension against what cplt accepts, so
+// a registry entry never yields a spec cplt rejects at launch.
+func validateBroker(b *BrokerExtension, tools []string, index int) error {
+	prefix := fmt.Sprintf("server[%d]._meta[io.github.navikt/broker]", index)
+	if b.V != 1 {
+		return fmt.Errorf("%s.v: %d is not a known version (1)", prefix, b.V)
+	}
+	if !slices.Contains([]string{"nais-keychain", "none"}, b.Credential) {
+		return fmt.Errorf("%s.credential: '%s' must be nais-keychain or none", prefix, b.Credential)
+	}
+	if len(b.Command) == 0 || strings.Contains(b.Command[0], "/") {
+		return fmt.Errorf("%s.command: needs a bare program name first", prefix)
+	}
+	if b.Credential == "nais-keychain" && !slices.Equal(b.Command, []string{"nais", "alpha", "mcp", "serve"}) {
+		return fmt.Errorf("%s.command: nais-keychain runs only 'nais alpha mcp serve'", prefix)
+	}
+	for j, host := range b.EgressHosts {
+		if !hostRegex.MatchString(host) {
+			return fmt.Errorf("%s.egressHosts[%d]: '%s' must be a bare lowercase host name", prefix, j, host)
+		}
+	}
+	if len(b.Tools.Classes) == 0 {
+		return fmt.Errorf("%s.tools.classes: must class at least one tool", prefix)
+	}
+	for tool, class := range b.Tools.Classes {
+		if !slices.Contains(tools, tool) {
+			return fmt.Errorf("%s.tools.classes: '%s' is not in the server's tools", prefix, tool)
+		}
+		if !slices.Contains([]string{"read", "write", "external"}, class) {
+			return fmt.Errorf("%s.tools.classes.%s: '%s' must be read, write or external (host-exec is never brokered)", prefix, tool, class)
+		}
+	}
+	for tool, check := range b.ArgChecks {
+		if _, ok := b.Tools.Classes[tool]; !ok {
+			return fmt.Errorf("%s.argChecks: '%s' is not in tools.classes", prefix, tool)
+		}
+		if check != "graphql-read-only" {
+			return fmt.Errorf("%s.argChecks.%s: '%s' must be graphql-read-only", prefix, tool, check)
+		}
+	}
+	if strings.TrimSpace(b.Login.Run) == "" || strings.TrimSpace(b.Login.Status) == "" {
+		return fmt.Errorf("%s.login: run and status are both required", prefix)
+	}
 	return nil
 }
 

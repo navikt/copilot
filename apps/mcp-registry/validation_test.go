@@ -979,3 +979,34 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateBroker(t *testing.T) {
+	good := func() *BrokerExtension {
+		return &BrokerExtension{V: 1, Credential: "nais-keychain", Command: []string{"nais", "alpha", "mcp", "serve"},
+			EgressHosts: []string{"auth.nais.io"}, Tools: BrokerTools{Classes: map[string]string{"q": "read", "w": "write"}},
+			ArgChecks: map[string]string{"q": "graphql-read-only"}, Login: BrokerLogin{Run: "nais login -n", Status: "nais auth print-access-token"}}
+	}
+	for name, tc := range map[string]struct {
+		mut func(*BrokerExtension)
+		ok  bool
+	}{
+		"nais":              {func(*BrokerExtension) {}, true},
+		"unknown version":   {func(b *BrokerExtension) { b.V = 2 }, false},
+		"gh-token":          {func(b *BrokerExtension) { b.Credential = "gh-token" }, false},
+		"other command":     {func(b *BrokerExtension) { b.Command = []string{"nais", "x"} }, false},
+		"path command":      {func(b *BrokerExtension) { b.Credential, b.Command = "none", []string{"/bin/sh"} }, false},
+		"bad host":          {func(b *BrokerExtension) { b.EgressHosts = []string{"https://x.io"} }, false},
+		"host-exec class":   {func(b *BrokerExtension) { b.Tools.Classes["q"] = "host-exec" }, false},
+		"unlisted tool":     {func(b *BrokerExtension) { b.Tools.Classes["zz"] = "read" }, false},
+		"unknown arg check": {func(b *BrokerExtension) { b.ArgChecks["q"] = "anything" }, false},
+		"no status":         {func(b *BrokerExtension) { b.Login.Status = "" }, false},
+	} {
+		b := good()
+		tc.mut(b)
+		reg := &StaticRegistryData{Servers: []StaticServerData{{Name: "io.github.test/server", Description: "Test", Version: "1.0.0",
+			Tools: []string{"q", "w"}, Meta: &ServerMeta{Broker: b}}}}
+		if err := validateRegistry(reg); (err == nil) != tc.ok {
+			t.Errorf("%s: valid=%v, got %v", name, tc.ok, err)
+		}
+	}
+}

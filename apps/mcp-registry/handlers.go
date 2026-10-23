@@ -149,6 +149,7 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 				Repository:  s.Repository,
 				Remotes:     s.Remotes,
 				Packages:    s.Packages,
+				Meta:        s.Meta,
 			},
 			Meta: ResponseMeta{
 				Official: &RegistryExtensions{
@@ -265,6 +266,7 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 					Repository:  s.Repository,
 					Remotes:     s.Remotes,
 					Packages:    s.Packages,
+					Meta:        s.Meta,
 				},
 				Meta: ResponseMeta{
 					Official: &RegistryExtensions{

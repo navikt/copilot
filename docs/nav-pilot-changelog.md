@@ -31,6 +31,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
   - kontekstfiler du har endret selv
   - `opencode.json` med kommentarer
 - **Bare med `--verbose`**: Grensene for like verktøykall ved lokal kjøring, og fremdriftslinjene for Copilot, OpenCode og pi når du starter med `--sync`. Konflikter og feil i synkroniseringen vises fortsatt. `nav-pilot sync` viser alt som før.
+### Nais MCP med cplt
+
+- **`nav-pilot mcp enable io.github.nais/nais-mcp`**: Slår på Nais MCP. nav-pilot skriver en spesifikasjon til `~/.config/cplt/mcp/`, og cplt kjører serveren på maskinen din, utenfor sandkassen. Innloggingen din blir ikke sluppet inn i sandkassen. Bare lesende verktøy er på. Verktøy som skriver, får du bare med `--tools`. nav-pilot skriver ikke noe i MCP-konfigen til Copilot CLI eller OpenCode; det gjør cplt når økta starter (#1930).
+- **Innlogging**: Er du ikke logget inn i Nais, spør nav-pilot om den skal kjøre `nais login -n`. Uten terminal, eller med `--json`, viser den bare kommandoen.
+- **`nav-pilot mcp list`**: Nye kolonner LOGIN og PATH viser om du er logget inn, og om cplt kjører serveren. Uten cplt står det «direct (no read-only guarantee)»: da er det ingenting som sikrer at serveren bare leser.
+- **Eldre cplt**: Kan ikke cplt kjøre MCP-servere på maskinen ennå, viser nav-pilot et varsel én gang per cplt-versjon med kommandoen som oppdaterer cplt. Dette krever [navikt/cplt#825](https://github.com/navikt/cplt/pull/825).
+- **`nav-pilot mcp disable io.github.nais/nais-mcp`** fjerner spesifikasjonen.
 
 ### Oppdater cplt for GitHub MCP og for å stenge tale i OpenCode 2
 

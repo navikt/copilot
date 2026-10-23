@@ -144,7 +144,7 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             . Registerets headers dokumenterer derfor ikke begrensninger på den innebygde serveren.
           </BodyLong>
           <LinkableHeading id="mcp-opencode" size="small" level="3">
-            GitHub og Figma i OpenCode
+            GitHub, Figma og Nais i OpenCode
           </LinkableHeading>
           <BodyLong>
             <code className={code}>opencode mcp auth io.github.navikt/github-mcp</code> feiler med «Incompatible auth
@@ -168,6 +168,15 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             Figma virker i OpenCode 2.1 etter at Figma rettet lista over godkjente klienter 14. oktober 2026. Logg inn
             én gang med <code className={code}>opencode mcp auth com.figma/figma-mcp</code>. I Copilot CLI virker Figma
             fra versjon 1.0.87.
+          </BodyLong>
+          <BodyLong>
+            Nais MCP feiler med «unauthenticated: please log in with nais login -n» under cplt, selv om du er logget
+            inn. Serveren leser innloggingen din fra nøkkelringen, og den når den ikke fra sandkassen. Slå den på med{" "}
+            <code className={code}>nav-pilot mcp enable io.github.nais/nais-mcp</code>. Da kjører cplt serveren på
+            maskinen din, utenfor sandkassen, med bare lesende verktøy. nav-pilot tilbyr å kjøre{" "}
+            <code className={code}>nais login -n</code> hvis du ikke er logget inn. Dette krever en cplt med{" "}
+            <code className={code}>cplt mcp status</code>. <code className={code}>nav-pilot mcp list</code> viser
+            innloggingen og om cplt kjører serveren.
           </BodyLong>
           <LinkableHeading id="mcp-hoster" size="small" level="3">
             Hoster i sandkassen

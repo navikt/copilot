@@ -81,6 +81,36 @@ type ServerJSON struct {
 	Repository  *Repository `json:"repository,omitempty"`
 	Remotes     []Transport `json:"remotes,omitempty"`
 	Packages    []Package   `json:"packages,omitempty"`
+	Meta        *ServerMeta `json:"_meta,omitempty"`
+}
+
+// ServerMeta is server.json's own _meta (the schema allows any namespaced
+// key). It travels with the server.json to whoever reads it.
+type ServerMeta struct {
+	Broker *BrokerExtension `json:"io.github.navikt/broker,omitempty"`
+}
+
+// BrokerExtension v1 tells cplt how to run a server on the host for the
+// sandbox (navikt/cplt docs/design/mcp-host-broker.md, section 5.2).
+// nav-pilot copies it into the spec it writes, adding the tools the user
+// allowed. Tools.Classes is every tool cplt may broker; any other is refused.
+type BrokerExtension struct {
+	V           int               `json:"v"`
+	Credential  string            `json:"credential"`
+	Command     []string          `json:"command"`
+	EgressHosts []string          `json:"egressHosts,omitempty"`
+	Tools       BrokerTools       `json:"tools"`
+	ArgChecks   map[string]string `json:"argChecks,omitempty"`
+	Login       BrokerLogin       `json:"login"`
+}
+
+type BrokerTools struct {
+	Classes map[string]string `json:"classes"`
+}
+
+type BrokerLogin struct {
+	Run    string `json:"run"`
+	Status string `json:"status"`
 }
 
 type RegistryExtensions struct {
@@ -153,6 +183,7 @@ type StaticServerData struct {
 	ToolRisk          map[string]string  `json:"toolRisk,omitempty"`
 	Remotes           []Transport        `json:"remotes,omitempty"`
 	Packages          []Package          `json:"packages,omitempty"`
+	Meta              *ServerMeta        `json:"_meta,omitempty"`
 }
 
 type StaticRegistryData struct {

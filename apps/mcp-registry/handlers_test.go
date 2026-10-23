@@ -957,3 +957,33 @@ func TestToolRiskServed(t *testing.T) {
 	}
 	t.Fatal("IntelliJ server missing from list response")
 }
+
+// cplt reads the broker extension from server.json's own _meta, not the
+// registry's response _meta: it must travel with the server.json.
+func TestNaisBrokerServed(t *testing.T) {
+	rec := httptest.NewRecorder()
+	serversListHandler(rec, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
+	var list struct {
+		Servers []struct {
+			Server map[string]json.RawMessage `json:"server"`
+		} `json:"servers"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("failed to parse list response: %v", err)
+	}
+	for _, s := range list.Servers {
+		if string(s.Server["name"]) != `"io.github.nais/nais-mcp"` {
+			continue
+		}
+		var meta map[string]BrokerExtension
+		if err := json.Unmarshal(s.Server["_meta"], &meta); err != nil {
+			t.Fatalf("server._meta: %v", err)
+		}
+		b, ok := meta["io.github.navikt/broker"]
+		if !ok || b.Credential != "nais-keychain" || b.ArgChecks["execute_graphql"] != "graphql-read-only" || b.Login.Run != "nais login -n" {
+			t.Fatalf("expected the broker extension in server._meta, got %s", s.Server["_meta"])
+		}
+		return
+	}
+	t.Fatal("Nais server missing from list response")
+}

@@ -117,15 +117,14 @@ func cmdMCP(args []string) error {
 		if len(pos) < 2 {
 			return fmt.Errorf("mcp %s needs one or more server names; see them with: nav-pilot mcp list\n\n%s", pos[0], mcpUsage)
 		}
-		if jsonOut {
-			return fmt.Errorf("--json is for mcp list")
+		if jsonOut && pos[0] != "enable" {
+			return fmt.Errorf("--json is for mcp list and mcp enable")
 		}
-		clients, err := mcpClients(client)
-		if err != nil {
-			return err
-		}
+		// A brokered server needs no client config, so no client either:
+		// the client list is asked for only when one is written.
+		clients := func() ([]string, error) { return mcpClients(client) }
 		if pos[0] == "enable" {
-			return cmdMCPEnable(pos[1:], clients, topts)
+			return cmdMCPEnable(pos[1:], clients, topts, jsonOut)
 		}
 		return cmdMCPDisable(pos[1:], clients)
 	}
@@ -133,7 +132,7 @@ func cmdMCP(args []string) error {
 }
 
 const mcpUsage = `Usage: nav-pilot mcp [list] [--json]
-       nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]
+       nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec] [--json]
        nav-pilot mcp disable <name>... [--client copilot|opencode]`
 
 // mcpProblem is one thing that keeps a configured server from working, and
@@ -165,6 +164,10 @@ type mcpServerRow struct {
 	// HostExec is the tools on that run outside the sandbox.
 	HostExec []string     `json:"hostExec,omitempty"`
 	Hosts    []mcpHostRow `json:"hosts,omitempty"`
+	// Login and Path are for a server cplt brokers on the host: the host
+	// login ("nais: ok") and how it runs ("cplt broker", "direct (...)").
+	Login string `json:"login,omitempty"`
+	Path  string `json:"path,omitempty"`
 }
 
 type mcpReport struct {
@@ -217,7 +220,13 @@ func printMCPReport(rep mcpReport) {
 	}
 	fmt.Printf("\n%s %s\n", bold("Servers in Nav's MCP registry"), dim(rep.Registry))
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "  NAME\tCOPILOT\tOPENCODE\tTOOLS\tSTATUS\tDESCRIPTION")
+	fmt.Fprintln(tw, "  NAME\tCOPILOT\tOPENCODE\tTOOLS\tLOGIN\tPATH\tSTATUS\tDESCRIPTION")
+	dash := func(s string) string {
+		if s == "" {
+			return "-"
+		}
+		return s
+	}
 	on := func(b bool) string {
 		if b {
 			return "on"
@@ -233,7 +242,7 @@ func printMCPReport(rep mcpReport) {
 		if tools == "" {
 			tools = "-"
 		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\n", safe(s.Name, 64), on(s.Copilot), on(s.OpenCode), tools, safe(status, 16), safe(s.Description, 70))
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", safe(s.Name, 64), on(s.Copilot), on(s.OpenCode), tools, dash(s.Login), dash(s.Path), safe(status, 16), safe(s.Description, 70))
 	}
 	_ = tw.Flush()
 	fmt.Printf("\nEnable: %s\n", bold("nav-pilot mcp enable <name>... [--client copilot|opencode]"))
@@ -274,6 +283,8 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 		}
 	}
 	probe.prefetch(targets)
+	var brokerSt *mcpCpltStatusDoc
+	brokerAsked := false
 	add := func(p mcpProblem) {
 		// One line per fix: two checks can find the same missing key.
 		if !slices.ContainsFunc(rep.Problems, func(q mcpProblem) bool { return q.Server == p.Server && q.Client == p.Client && q.Fix == p.Fix }) {
@@ -285,6 +296,16 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			continue
 		}
 		row := mcpServerRow{Name: e.Name, Description: e.Description, Status: e.Status, Copilot: conf.Copilot[e.Name], OpenCode: conf.OpenCode[e.Name]}
+		if e.Meta.Broker != nil && mcpBrokerEnabled(e.Name) {
+			if !brokerAsked {
+				brokerSt, brokerAsked = mcpCpltStatus(cpltPath), true
+			}
+			for _, p := range mcpBrokerRow(&row, e, cpltPath, brokerSt) {
+				add(p)
+			}
+			rep.Servers = append(rep.Servers, row)
+			continue
+		}
 		if !row.Copilot && !row.OpenCode {
 			rep.Servers = append(rep.Servers, row)
 			continue
@@ -705,13 +726,14 @@ func mcpFail(name string, err error) {
 	fmt.Fprintf(os.Stderr, "%s %s: %v\n", red("✗"), safe(name, 64), err)
 }
 
-func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
+func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpToolOpts, jsonOut bool) error {
 	registry, entries, stale, err := mcpRegistryServers()
 	if err != nil {
 		return fmt.Errorf("could not reach Nav's MCP registry, so nothing was changed: %w", err)
 	}
 	mcpNoteStale(stale)
 	failed := 0
+	var clients []string
 	// Every pick comes before any write, so Esc in a later picker leaves
 	// the whole command undone, not half of it.
 	type pick struct {
@@ -723,6 +745,23 @@ func cmdMCPEnable(names []string, clients []string, topts mcpToolOpts) error {
 		e, err := mcpResolve(entries, name)
 		if err == nil && !e.Usable() {
 			err = fmt.Errorf("%s is %s in the registry (%s), so nav-pilot will not enable it", e.Name, safe(e.Status, 32), registry)
+		}
+		if err == nil && e.Meta.Broker != nil {
+			// cplt runs it on the host and adds the client entries at launch.
+			if err := mcpEnableBroker(e, topts, jsonOut); err != nil {
+				mcpFail(e.Name, err)
+				failed++
+			}
+			continue
+		}
+		if err == nil && jsonOut {
+			err = fmt.Errorf("--json is only for servers cplt runs on the host. Fix: nav-pilot mcp enable %s", e.Name)
+		}
+		if err == nil && clients == nil {
+			clients, err = clientsOf()
+			if err != nil {
+				return err
+			}
 		}
 		if err != nil {
 			mcpFail(name, err)
@@ -903,12 +942,37 @@ func mcpEnableFollowUp(registry string, entries []providerpkg.MCPServerEntry, co
 	}
 }
 
-func cmdMCPDisable(names []string, clients []string) error {
+func cmdMCPDisable(names []string, clientsOf func() ([]string, error)) error {
 	var entries []providerpkg.MCPServerEntry
 	var regErr, stale error
 	fetched := false
 	failed, removed := 0, 0
 	for _, name := range names {
+		// A brokered server is only its cplt spec.
+		id := name
+		if !strings.Contains(id, "/") && !mcpBrokerEnabled(id) {
+			if !fetched {
+				_, entries, stale, regErr = mcpRegistryServers()
+				mcpNoteStale(stale)
+				fetched = true
+			}
+			if e, err := mcpResolve(entries, name); err == nil {
+				id = e.Name
+			}
+		}
+		if gone, err := mcpDisableBroker(id); err != nil {
+			mcpFail(name, err)
+			failed++
+			continue
+		} else if gone {
+			continue
+		}
+		clients, err := clientsOf()
+		if err != nil {
+			mcpFail(name, err)
+			failed++
+			continue
+		}
 		found := false
 		for _, client := range clients {
 			keys := providerpkg.MCPConfigKeys(client)

@@ -3,7 +3,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.nais/nais-mcp",
-      "description": "Read Nais platform context through your installed Nais CLI. Requires manual stdio setup.",
+      "description": "Read Nais platform context through your installed Nais CLI, run on the host by cplt.",
       "version": "6.6.1",
       "status": "active",
       "publishedAt": "2026-10-14T00:00:00Z",
@@ -13,16 +13,24 @@
       "tags": ["nav-internal", "nais", "developer-tools"],
       "setupInstructions": [
         {
-          "title": "Installer Nais CLI og logg inn",
-          "description": "Installer Nais CLI fra https://github.com/nais/cli før oppsett. Kjør nais login -n interaktivt utenfor agenten og cplt. MCP-serveren bruker din innlogging; ingen token skal legges i MCP-konfigurasjonen.",
-          "commands": ["nais login -n"]
-        },
-        {
-          "title": "Konfigurer lokal stdio manuelt",
-          "description": "Klienten starter nais med argumentene alpha, mcp, serve. Eksempelet under registrerer serveren i VS Code; andre klienter konfigureres som beskrevet i https://github.com/nais/cli/blob/main/MCP.md. nav-pilot mcp enable og registerets installasjonslenker støtter ikke denne oppføringen. Bruk bare godkjent klient og modell, kun lesing og ingen hemmelighetsverdier, jf. navikt/copilot-intern#115. Tilgang til nøkkelring og innloggingsdata under cplt er ikke verifisert; ikke omgå sandkassen.",
-          "commands": ["code --add-mcp '{\"name\":\"io.github.nais/nais-mcp\",\"command\":\"nais\",\"args\":[\"alpha\",\"mcp\",\"serve\"]}'"]
+          "title": "Installer Nais CLI og slå på serveren",
+          "description": "Installer Nais CLI fra https://github.com/nais/cli. nav-pilot mcp enable skriver en spesifikasjon for cplt og spør om du vil logge inn med nais login -n. Under cplt kjører serveren utenfor sandkassen med din innlogging, og bare lesende verktøy er på. Uten cplt er det ingen garanti for at serveren bare leser. Ingen token skal legges i MCP-konfigurasjonen.",
+          "commands": ["nav-pilot mcp enable io.github.nais/nais-mcp"]
         }
       ],
+      "_meta": {
+        "io.github.navikt/broker": {
+          "v": 1,
+          "credential": "nais-keychain",
+          "command": ["nais", "alpha", "mcp", "serve"],
+          "egressHosts": ["auth.nais.io", "console.nav.cloud.nais.io"],
+          "tools": {
+            "classes": {"get_nais_context": "read", "execute_graphql": "read", "validate_graphql": "read", "schema_list_types": "read", "schema_get_type": "read", "schema_list_queries": "read", "schema_list_mutations": "read", "schema_get_field": "read", "schema_get_enum": "read", "schema_search": "read", "schema_get_implementors": "read", "schema_get_union_types": "read"}
+          },
+          "argChecks": {"execute_graphql": "graphql-read-only"},
+          "login": {"run": "nais login -n", "status": "nais auth print-access-token"}
+        }
+      },
       "examples": [
         {"scenario": "Utforsk Nais API", "prompt": "Vis hvilke lesespørringer Nais API støtter med schema_list_queries"}
       ]

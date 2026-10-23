@@ -36,6 +36,29 @@ type MCPServerEntry struct {
 	// ToolRisk the class of each that is more than a read (mcp_tools.go).
 	Tools    []string          `json:"tools,omitempty"`
 	ToolRisk map[string]string `json:"toolRisk,omitempty"`
+	// Meta is the server.json's own _meta: the broker extension, when cplt
+	// runs the server on the host for the sandbox (mcp_broker.go in cli).
+	Meta struct {
+		Broker *MCPBroker `json:"io.github.navikt/broker,omitempty"`
+	} `json:"_meta"`
+}
+
+// MCPBroker is the registry's _meta["io.github.navikt/broker"] v1, the
+// template of the spec nav-pilot writes for cplt. Tools.Classes is every tool
+// cplt may broker and its class; a tool not in it is never allowed.
+type MCPBroker struct {
+	V           int      `json:"v"`
+	Credential  string   `json:"credential"`
+	Command     []string `json:"command"`
+	EgressHosts []string `json:"egressHosts,omitempty"`
+	Tools       struct {
+		Classes map[string]string `json:"classes"`
+	} `json:"tools"`
+	ArgChecks map[string]string `json:"argChecks,omitempty"`
+	Login     struct {
+		Run    string `json:"run"`
+		Status string `json:"status"`
+	} `json:"login"`
 }
 
 // MCPRemote is a server reached over HTTP.

@@ -344,7 +344,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 	}
 	for _, path := range files {
 		base := filepath.Base(path)
-		if strings.HasSuffix(base, "_test.go") || base == "mcp_cmd.go" || base == "mcp_servers.go" || base == "mcp_tools.go" {
+		if strings.HasSuffix(base, "_test.go") || base == "mcp_cmd.go" || base == "mcp_broker.go" || base == "mcp_servers.go" || base == "mcp_tools.go" {
 			continue
 		}
 		f, err := parser.ParseFile(fset, path, nil, 0)
