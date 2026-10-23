@@ -199,8 +199,8 @@ export default function McpGjennomCplt() {
             </li>
             <li>
               Kjører du Nais MCP i flere økter samtidig, kan flere prosesser fornye en utløpt Nais-innlogging på en gang
-              og av og til logge deg ut. Kjør da <code className={code}>nais login -n</code> på nytt. Feilen følges opp
-              i{" "}
+              og i sjeldne tilfeller logge deg ut. Kjør da <code className={code}>nais login -n</code> på nytt. Vi har
+              funnet risikoen ved å lese koden til Nais CLI, ikke sett den i bruk. Den følges opp i{" "}
               <a href="https://github.com/nais/cli/issues/816" className={linkClass}>
                 nais/cli#816
               </a>
