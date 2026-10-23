@@ -153,7 +153,8 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 }
 
 // brokerMechanism is what a credential mechanism pins: the server command
-// cplt runs, and the login commands nav-pilot runs. nav-pilot keeps the same
+// cplt runs, and the login command nav-pilot runs. login.status is not
+// pinned: nav-pilot probes with its own command. nav-pilot keeps the same
 // table (cli/nav-pilot/internal/cli/mcp_broker.go);
 // testdata/broker-mechanisms.json keeps the two in step.
 type brokerMechanism struct {
@@ -164,7 +165,7 @@ type brokerMechanism struct {
 var brokerMechanisms = map[string]brokerMechanism{
 	"nais-keychain": {
 		Command: []string{"nais", "alpha", "mcp", "serve"},
-		Login:   BrokerLogin{Run: "nais login -n", Status: "nais auth print-access-token"},
+		Login:   BrokerLogin{Run: "nais login -n"},
 	},
 }
 
@@ -187,8 +188,12 @@ func validateBroker(b *BrokerExtension, tools []string, index int) error {
 	if !slices.Equal(b.Command, m.Command) {
 		return fmt.Errorf("%s.command: %s runs only %q", prefix, b.Credential, strings.Join(m.Command, " "))
 	}
-	if b.Login != m.Login {
-		return fmt.Errorf("%s.login: must be %+v for %s (nav-pilot's pinned commands)", prefix, m.Login, b.Credential)
+	// login.status may be anything or absent. allowlist.json still serves
+	// the old value, since nav-pilot builds before the relaxed check refuse
+	// an entry without it; remove it there once that release is widespread
+	// (navikt/copilot#1979).
+	if b.Login.Run != m.Login.Run {
+		return fmt.Errorf("%s.login.run: must be %q for %s (nav-pilot's pinned command)", prefix, m.Login.Run, b.Credential)
 	}
 	for j, host := range b.EgressHosts {
 		if !hostRegex.MatchString(host) {

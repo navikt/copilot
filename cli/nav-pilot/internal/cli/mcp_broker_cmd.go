@@ -51,7 +51,15 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 	if st == nil {
 		return fmt.Errorf("this cplt cannot run MCP servers on the host, so nothing was written. Fix: %s && nav-pilot mcp enable %s", mcpCpltUpgrade, e.Name)
 	}
-	if st.Failed == "" && !slices.Contains(st.Schema, mcpBrokerVersion) {
+	if st.Failed != "" {
+		// No schema to check the spec against: say so rather than guess.
+		fix := "cd <your repo> && nav-pilot mcp enable " + e.Name
+		if st.TimedOut {
+			fix = "run it again: nav-pilot mcp enable " + e.Name
+		}
+		return fmt.Errorf("cplt mcp status did not answer here (%s), so nothing was written. Fix: %s", st.Failed, fix)
+	}
+	if !slices.Contains(st.Schema, mcpBrokerVersion) {
 		return fmt.Errorf("cplt reads broker spec v%v, not v%d, so nothing was written. Fix: %s && nav-pilot mcp enable %s", st.Schema, mcpBrokerVersion, mcpCpltUpgrade, e.Name)
 	}
 	data, err := mcpBrokerSpec(e, m, allow, write)
@@ -67,7 +75,7 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 	if after := mcpCpltStatus(cpltPath); after != nil {
 		st = after
 	}
-	where, _, probs := mcpBrokerState(cpltPath, st, e.Name)
+	where, _, _, probs := mcpBrokerState(cpltPath, st, e.Name)
 	res := mcpBrokerResult{Server: e.Name, Spec: path, Tools: allow, Path: where}
 	if !jsonOut {
 		kind := "read-only"
@@ -128,12 +136,12 @@ func mcpBrokerRow(row *mcpServerRow, e providerpkg.MCPServerEntry, cpltPath stri
 		row.Path = "-"
 		return []mcpProblem{{Server: e.Name, Problem: strings.SplitN(err.Error(), ". Fix: ", 2)[0], Fix: "nav-pilot update"}}
 	}
-	path, credOK, out := mcpBrokerState(cpltPath, st, e.Name)
+	path, credOK, credNote, out := mcpBrokerState(cpltPath, st, e.Name)
 	row.Path = path
 	if !mcpBrokerEnabled(e.Name) {
 		// A client entry the user wrote by hand, with no spec: it runs as
 		// written, without cplt's tool and argument checks.
-		row.Path, credOK = "direct (outside the broker)", nil
+		row.Path, credOK, credNote = "direct (outside the broker)", nil, ""
 		out = []mcpProblem{{Server: e.Name, Problem: "configured in your client but not through cplt's broker, so nothing keeps it read-only", Fix: "nav-pilot mcp enable " + e.Name}}
 	}
 	if old := mcpOldServer(m); old != "" {
@@ -142,6 +150,8 @@ func mcpBrokerRow(row *mcpServerRow, e providerpkg.MCPServerEntry, cpltPath stri
 	tool, login := m.tool(), strings.Join(m.login, " ")
 	state := "logged out"
 	switch {
+	case credOK == nil && credNote != "":
+		state = "unknown (" + credNote + ")" // cplt could not tell; not logged out
 	case credOK == nil:
 		state = mcpLoginState(m)
 	case *credOK:
