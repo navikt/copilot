@@ -221,7 +221,7 @@ func TestDeclineNamesTheWorkflowAndTheOneLiner(t *testing.T) {
 	})
 	// One line (#1962 F2): what the agent cannot do, and the way back. The
 	// pakke's long reason is not repeated.
-	want := "Declined, so the agent can't reach cloud.nais.io. To allow it later: cplt config set proxy.allow_private_domains cloud.nais.io\n"
+	want := "Declined, so the agent can't reach cloud.nais.io. To allow it later: nav-pilot pakke access\n"
 	if !strings.HasSuffix(out, want) || strings.Count(out, "\n") != 1 {
 		t.Errorf("the decline is not the one line %q:\n%s", want, out)
 	}
