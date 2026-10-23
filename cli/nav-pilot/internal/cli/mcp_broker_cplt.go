@@ -83,7 +83,7 @@ func mcpBrokerState(cpltPath string, st *mcpCpltStatusDoc, id string) (path stri
 	case st.Failed != "":
 		return "-", nil, []mcpProblem{{Server: id, Problem: "cplt mcp status did not answer here (" + st.Failed + ")", Fix: mcpStatusFailedFix}}
 	case st.PlatformSupported != nil && !*st.PlatformSupported:
-		return "cplt (macOS only)", nil, []mcpProblem{{Server: id, Problem: "cplt's MCP broker runs on macOS only for now, so here the server is left as configured", Fix: "use it on macOS; Linux support is tracked in navikt/cplt#825"}}
+		return "cplt (macOS only)", nil, []mcpProblem{{Server: id, Problem: "cplt's MCP broker runs on macOS only for now, so here the server is left as configured", Fix: "use it on macOS; Linux support is tracked in navikt/cplt#834"}}
 	}
 	path = "cplt broker"
 	file := strings.ReplaceAll(id, "/", "__") + ".json"

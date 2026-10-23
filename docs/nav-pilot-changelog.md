@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Riktig lenke for Linux-støtte i MCP-brokeren
+
+- **MCP**: På Linux viser `nav-pilot mcp list` nå til navikt/cplt#834 for Linux-støtten i cplts MCP-broker, ikke #825. Se [MCP gjennom cplt](https://ki-utvikling.nav.no/nav-pilot/guider/mcp-gjennom-cplt).
+
 ### Telemetri viser hovedversjonen av opencode
 
 - **OpenCode**: Oppstartsmetrikken `nav_pilot_config_info` har fått feltet `client_major` med hovedversjonen av opencode (`1` eller `2`). Slik ser vi hvor mange som må oppgradere før støtten for opencode 1 slutter 19. november (#1907). Er telemetri slått av, sendes ingenting. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md).
