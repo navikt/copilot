@@ -253,6 +253,7 @@ func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 		"rem": {"type": "remote", "url": "https://any/mcp", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
 		"notype": {"command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
 		"extra": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp", "--x"]},
+		"tools": {"type": "local", "command": ["./tools/cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
 		"evil": {"type": "local", "command": ["node", "evil.js"]}}}}`), 0o600)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"servers":[
@@ -267,7 +268,7 @@ func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 	versionCache.Store("opencode", versionAnswer{"opencode v2.1.3\n", nil, time.Hour})
 
 	all := strings.Join(applyOpenCodeMCPPolicy(nil, proj), "\n")
-	if want := `NAV_PILOT_MCP_BLOCKED={"blocked":["envd","evil","extra","fake","io.github.nais__nais-mcp","nais-mcp","notype","path","rem"],`; !strings.Contains(all, want) {
+	if want := `NAV_PILOT_MCP_BLOCKED={"blocked":["envd","evil","extra","fake","io.github.nais__nais-mcp","nais-mcp","notype","path","rem","tools"],`; !strings.Contains(all, want) {
 		t.Errorf("env lacks %s:\n%s", want, all)
 	}
 }
