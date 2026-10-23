@@ -3,7 +3,7 @@ title: "Slik holder du token-forbruket nede"
 date: 2026-05-28
 author: starefossen
 category: praksis
-excerpt: "Praktiske tips for å få raskere og billigere Copilot-svar, fra innebygd $terse-mode til smarte vaner som sparer tokens."
+excerpt: "Praktiske tips for raskere og billigere svar i Copilot CLI, OpenCode og pi, fra modellvalg og komprimering til vaner som sparer tokens."
 tags:
   - token-optimization
   - cost-optimization
@@ -15,6 +15,18 @@ tags:
 Med [bruksbasert fakturering](/nyheter/model-pinning-kostnadsoptimalisering) betaler du per token. Lange sesjoner med mye frem og tilbake koster mer. Den gode nyheten: du kan få kortere, mer presise svar uten å miste kvalitet.
 
 En [2026-studie](https://arxiv.org/abs/2604.00025) fant at modeller ble mer treffsikre når de ble tvunget til å svare kort. Kortere svar kan derfor koste mindre og gi bedre resultat.
+
+> **Oppdatert 2026-10-23:** Artikkelen dekker nå alle klientene nav-pilot støtter: Copilot CLI, OpenCode og pi. Der klientene skiller seg, står det hvilken det gjelder.
+
+## Fem ting du kan gjøre i dag
+
+1. **Velg modell med vilje.** `nav-pilot models` viser modellene nav-pilot kjenner for klienten din. `nav-pilot config set model <id>` setter din. Uten egen innstilling følger du modellen agentpakka anbefaler.
+2. **Start ny sesjon når du bytter oppgave.** `/new` i OpenCode og pi, `/clear` i Copilot CLI.
+3. **Komprimer lange sesjoner selv.** `/compact` virker i alle tre. I pi kan du legge til hva sammendraget skal ta vare på: `/compact behold beslutningen om Kafka-skjemaet`.
+4. **Senk resonneringsnivået for enkle oppgaver.** `nav-pilot config set reasoning_effort low` virker i Copilot CLI. I OpenCode velger du variant i klienten. Pi tar ikke imot innstillingen.
+5. **Vær presis i første melding**, og la agenten lese filer og logger selv i stedet for å lime dem inn.
+
+Forklaringen på hvert punkt kommer lenger ned.
 
 ## Det viktigste først: bruk `nav-pilot` CLI
 
@@ -113,6 +125,33 @@ I terminalen er den største token-lekkasjen ofte verktøyoutput som testlogger,
 - Be agenten kjøre målrettede tester (`./gradlew test --tests *MinTest`) før full pipeline
 - Pek på branch eller fil for diff i stedet for å lime inn manuelt
 
+## OpenCode og pi: dette er annerledes
+
+Start klienten med `nav-pilot --client opencode` eller `nav-pilot --client pi`. Da får du agentpakka og modellen din. Vil du alltid bruke samme klient: `nav-pilot config set client opencode`.
+
+### Modellvalg
+
+- Modellen du setter med `nav-pilot config set model <id>` eller `--model`, gjelder hovedagenten i alle tre klientene. Underagenter beholder modellen agentpakka har valgt for dem.
+- Endrer agentpakka sin anbefalte modell mens du har satt en annen, spør nav-pilot deg én gang ved oppstart om du vil beholde din, bytte eller følge anbefalingen.
+- `nav-pilot models --client opencode` eller `--client pi` viser listen for den klienten. Hva du faktisk får bruke, avhenger av Copilot-abonnementet og organisasjonens regler.
+
+### Komprimering av kontekst
+
+Når samtalen nærmer seg grensen for kontekstvinduet, lager klienten et sammendrag av den eldste delen og sender sammendraget i stedet. Det sparer tokens, men detaljer kan forsvinne. Komprimer derfor gjerne selv ved et naturlig stoppunkt, før klienten gjør det midt i en oppgave.
+
+- **OpenCode:** `/compact` (eller `ctrl+x c`). Automatisk komprimering er på som standard. Med `"compaction": { "prune": true }` i `opencode.json` fjerner OpenCode også gamle verktøyresultater. Se [OpenCode-dokumentasjonen](https://opencode.ai/docs/config/#compaction).
+- **pi:** `/compact [instruksjoner]`. Pi komprimerer automatisk når konteksten er nesten full, og beholder de siste rundt 20 000 tokens uendret. Se [pi sin dokumentasjon om komprimering](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md).
+
+### Lokal modell (alfa)
+
+Med `nav-pilot alpha local init` kjører du en modell på din egen maskin. `nav-pilot alpha local setup` bruker i stedet en server du kjører selv, for eksempel Ollama. Arbeid som går til den lokale modellen, bruker ikke AI Credits.
+
+- **OpenCode:** Skymodellen styrer økten og sender avgrensede, mekaniske oppgaver til en lokal arbeider, for eksempel samme endring i mange filer. Arbeideren får én oppgave om gangen fra skymodellen, leser og endrer filene lokalt, og svarer med én setning tilbake. Skymodellen ser fortsatt resten av økten. Hvor hardt nav-pilot dytter arbeid lokalt, styrer du med `local_dispatch` (`off`, `conservative`, `balanced` eller `aggressive`).
+- **Copilot CLI:** Hele økten går enten lokalt eller til skyen. Det finnes ingen arbeider å sende deler av jobben til.
+- **pi:** Ingen lokal arbeider.
+
+`nav-pilot alpha local off` sender øktene til skymodellen igjen.
+
 ## Gode første meldinger
 
 Eksempler som gir presise svar uten mange oppfølgingsrunder:
@@ -206,12 +245,18 @@ Grunnen er strukturell: output-tokens utgjør en liten andel av totalen i en age
 
 **Merk:** RTK prosesserer terminaloutput lokalt. Sjekk at verktøyet er godkjent for ditt team før du bruker det med output som kan inneholde sensitive data.
 
-### TOON og dynamiske verktøysett
+### Dynamiske verktøysett
 
-To teknikker for deg som bygger MCP-servere:
+For deg som bygger MCP-servere:
 
-- [TOON](https://toonformat.dev/) koder strukturert data med 30–60 % færre tokens. Relevant når serveren returnerer store JSON-objekter.
 - **Dynamiske verktøysett** betyr at du ikke laster alle verktøyskjemaer på forhånd. Bruk et søk → beskriv → utfør-mønster. [Speakeasy rapporterer 100x reduksjon](https://www.speakeasy.com/blog/how-we-reduced-token-usage-by-100x-dynamic-toolsets-v2) med denne tilnærmingen.
+
+## Ikke testet hos oss
+
+Disse utvidelsene lover lavere token-forbruk eller bedre hukommelse. Nav har ikke testet dem, og vi anbefaler dem ikke. Tallene under er prosjektenes egne. Installerer du en tredjepartsutvidelse, er det på egen risiko: den kjører med samme tilgang som klienten. Bruk cplt-sandkassen, og ikke åpne den opp for å få en utvidelse til å virke.
+
+- [pi-observational-memory](https://github.com/elpapi42/pi-observational-memory) (pi): tar vare på observasjoner og varige fakta underveis, slik at viktige detaljer ikke forsvinner når pi komprimerer gang på gang.
+- [TOON](https://toonformat.dev/): et dataformat for KI-prompter som skal gi samme treffsikkerhet som JSON med færre tokens. Prosjektet sier selv at gevinsten er størst for ensartede tabelldata, og at CSV er mindre for rene tabeller. Mest aktuelt for MCP-servere som returnerer store JSON-objekter.
 
 ## Videre lesing
 

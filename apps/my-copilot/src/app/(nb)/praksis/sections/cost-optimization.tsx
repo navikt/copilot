@@ -66,8 +66,8 @@ export default function CostOptimization() {
                   </Heading>
                 </HStack>
                 <BodyShort size="small" className="text-gray-700">
-                  Bytt chat når du bytter problem. I Copilot CLI tømmer <code>/clear</code> samtalen, og{" "}
-                  <code>/compact</code> komprimerer historikken.
+                  Start ny sesjon når du bytter problem: <code>/clear</code> i Copilot CLI, <code>/new</code> i OpenCode
+                  og pi. <code>/compact</code> komprimerer historikken i alle tre.
                 </BodyShort>
               </VStack>
             </Box>
@@ -105,6 +105,21 @@ export default function CostOptimization() {
               </VStack>
             </Box>
           </HGrid>
+
+          <Box background="neutral-soft" padding="space-16" borderRadius="8">
+            <VStack gap="space-8">
+              <Heading size="small" level="3">
+                Modell og lokal kjøring
+              </Heading>
+              <BodyShort size="small" className="text-gray-700">
+                <code>nav-pilot models</code> viser modellene for klienten din, og{" "}
+                <code>nav-pilot config set model &lt;id&gt;</code> setter din. Uten egen innstilling følger du
+                agentpakkas anbefaling. Med <code>nav-pilot alpha local</code> kan OpenCode sende mekaniske deloppgaver
+                til en modell på din egen maskin, uten AI Credits. Copilot CLI kjører hele økten enten lokalt eller i
+                skyen. Pi har ingen lokal arbeider.
+              </BodyShort>
+            </VStack>
+          </Box>
 
           <Box background="warning-soft" padding="space-16" borderRadius="8">
             <VStack gap="space-8">
