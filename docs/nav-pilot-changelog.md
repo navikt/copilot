@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Strengere leverandørsjekk i OpenCode 2
+
+- **Tillatte leverandører**: nav-pilot sjekker nå også `policies` i OpenCode 2-konfigurasjonen, og ser verdiene slik OpenCode ser dem etter at `{env:}` er byttet ut. Slipper en regel inn en annen leverandør enn de nav-pilot tillater, starter ikke økten, og meldinga sier hvilken fil og nøkkel du må rette.
+
 ### Riktig innloggingsstatus for Nais MCP
 
 - **`nav-pilot mcp list` og `nav-pilot mcp enable`**: Innloggingen sjekkes nå mot `nais login -n`, som er den Nais MCP bruker. Før sjekket nav-pilot gcloud-innloggingen, så du kunne få «logged out» selv om Nais MCP virket. Krever cplt med navikt/cplt#843 for at `mcp list` skal vise riktig status.
