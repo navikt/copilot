@@ -1457,7 +1457,7 @@ EOF
 }
 
 run_opencode_t4() {
-  XDG_DATA_HOME="$SHIM/data" XDG_STATE_HOME="$SHIM/state" PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
+  XDG_DATA_HOME="${OC_DATA:-$SHIM/data}" XDG_STATE_HOME="$SHIM/state" PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
     --client opencode --model stub --only 4 --repeat 1 --save-baseline "$SHIM/b.txt"
 }
 
@@ -1514,6 +1514,16 @@ run_opencode_t4() {
   sqlite3 "$SHIM/data/opencode/opencode.db" "PRAGMA journal_mode=WAL; CREATE TABLE credential (integration_id TEXT, value TEXT); INSERT INTO credential VALUES ('github-copilot', 'fixture-login'); PRAGMA wal_checkpoint(TRUNCATE);" >/dev/null
   rm -f "$SHIM/data/opencode/opencode.db-shm" "$SHIM/data/opencode/opencode.db-wal"
   [ ! -e "$SHIM/data/opencode/opencode.db-shm" ]
+  OC_VERSION=v2.1.2 run_opencode_t4
+  [ "$status" -eq 0 ]
+  [ -f "$SHIM/login-copied" ]
+}
+
+@test "opencode v2: the login is copied from a host data dir with ' and ? in its path (#1917)" {
+  make_opencode_shim
+  export OC_DATA="$SHIM/it's?data"
+  mkdir -p "$OC_DATA/opencode"
+  sqlite3 "$OC_DATA/opencode/opencode.db" "CREATE TABLE credential (integration_id TEXT, value TEXT); INSERT INTO credential VALUES ('github-copilot', 'fixture-login');"
   OC_VERSION=v2.1.2 run_opencode_t4
   [ "$status" -eq 0 ]
   [ -f "$SHIM/login-copied" ]

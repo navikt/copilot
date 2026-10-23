@@ -491,12 +491,20 @@ oc_isolate() {
   [[ -f "$OC_HOST_DATA/opencode.db" && -f "$root/data/opencode/opencode.db" ]] || return 0
   # A WAL database cannot be opened read-only without its -shm file, which a
   # quiet host may not have; immutable=1 reads the main file as is then.
-  local ro="mode=ro"
-  [[ -f "$OC_HOST_DATA/opencode.db-shm" ]] || ro="mode=ro&immutable=1"
-  sqlite3 "$root/data/opencode/opencode.db" \
-    "ATTACH 'file:$OC_HOST_DATA/opencode.db?$ro' AS host; INSERT INTO credential SELECT * FROM host.credential;" \
+  # Paths go in as a percent-encoded URI and the rows as bound parameters, so
+  # no path is ever spliced into SQL.
+  python3 - "$OC_HOST_DATA/opencode.db" "$root/data/opencode/opencode.db" <<'PY' \
     || fail_preflight "could not copy the OpenCode login into the run's store" \
       "Check: sqlite3 -readonly 'file:$OC_HOST_DATA/opencode.db?mode=ro' .tables"
+import os, sqlite3, sys, urllib.parse
+host, run = sys.argv[1:]
+ro = "mode=ro" if os.path.exists(host + "-shm") else "mode=ro&immutable=1"
+src = sqlite3.connect("file:" + urllib.parse.quote(host) + "?" + ro, uri=True)
+rows = src.execute("SELECT * FROM credential").fetchall()
+with sqlite3.connect(run) as dst:
+    if rows:
+        dst.executemany("INSERT INTO credential VALUES (%s)" % ",".join("?" * len(rows[0])), rows)
+PY
 }
 
 # oc_stop <root> <config-home>: removing the registration makes the run's
@@ -532,8 +540,11 @@ oc_check_isolated() {
   [[ -n "$want" && "$want" == "$got" ]] \
     || { echo "opencode did not use this run's service: none registered on port ${want:-?} under $OC_ROOT/state"; return 1; }
   [[ -z "${1:-}" ]] && return 0
-  [[ "$(sqlite3 -readonly "file:$OC_ROOT/data/opencode/opencode.db?mode=ro" \
-    "SELECT count(*) FROM session_v2 WHERE title = '$1'" 2>/dev/null)" -ge 1 ]] \
+  python3 -c '
+import sqlite3, sys, urllib.parse
+db = sqlite3.connect("file:" + urllib.parse.quote(sys.argv[1]) + "?mode=ro", uri=True)
+sys.exit(0 if db.execute("SELECT count(*) FROM session_v2 WHERE title = ?", (sys.argv[2],)).fetchone()[0] else 1)' \
+    "$OC_ROOT/data/opencode/opencode.db" "$1" 2>/dev/null \
     || { echo "opencode session $1 is not in this run's store ($OC_ROOT/data)"; return 1; }
 }
 
