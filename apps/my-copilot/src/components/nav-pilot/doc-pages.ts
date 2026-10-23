@@ -34,6 +34,11 @@ export const GUIDE_PAGES: DocLink[] = [
     desc: "Start nav-pilot i et git-worktree, og la agenten lage worktrees til subagenter i cplt.",
   },
   {
+    href: "/nav-pilot/guider/mcp-gjennom-cplt",
+    title: "MCP gjennom cplt",
+    desc: "Slå på Nais MCP og GitHub under cplt, uten at innloggingen din kommer inn i sandkassen.",
+  },
+  {
     href: "/nav-pilot/guider/cplt-oppsett",
     title: "Sett opp cplt i et repo",
     desc: "Lag .cplt.toml med cplt init, sjekk den inn og godkjenn den. Med det Go, Gradle, Next.js, pnpm, mise og Docker trenger.",
