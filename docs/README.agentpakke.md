@@ -282,14 +282,9 @@ En senere revisjon som legger til eller utvider en oppføring gir ny hash. Det g
 
 Kjøringer uten terminal godkjenner aldri, og registrerer ingenting heller — et ubesvart spørsmål er ikke et nei. `--json` teller som en slik kjøring.
 
-**Avslag installerer likevel.** Du kan ville ha pakka for de andre skillene. Avslaget registreres, så du ikke blir spurt om det samme igjen, og du får vite på én linje hva agenten ikke kan, og at `nav-pilot pakke access` spør på nytt. Vil du heller åpne det for hånd i cplt:
+**Avslag installerer likevel.** Du kan ville ha pakka for de andre skillene. Avslaget registreres, så du ikke blir spurt om det samme igjen, og du får vite på én linje hva agenten ikke kan, og at `nav-pilot pakke access` spør på nytt. Bruk den i stedet for å åpne tilgangen for hånd i cplt: den legger inn de fulle hostene over, ikke suffikset.
 
-```
-cplt config set proxy.allow_private_domains cloud.nais.io
-cplt config set allow.read "~/Library/Application Support/naisdevice/agent-status.json"
-```
-
-Én linje per innstilling blokka foreslår. Blokka er ett spørsmål: har den både et domeneunntak og en lesetilgang, ser brukeren begge i samme spørsmål og svarer én gang. Hashen dekker hele blokka, og posten har bare plass til ett svar.
+Blokka er ett spørsmål: har den både et domeneunntak og en lesetilgang, ser brukeren begge i samme spørsmål og svarer én gang. Hashen dekker hele blokka, og posten har bare plass til ett svar.
 
 Ombestemmer du deg, kjører du `nav-pilot pakke access`. Den stiller det samme spørsmålet igjen, og et ja registreres som ved første oppstart. `nav-pilot pakke` viser om tilgangen er gitt, avslått eller ikke spurt om, og `nav-pilot doctor` sier fra i én linje når noe er avslått.
 
