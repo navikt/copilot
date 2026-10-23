@@ -150,7 +150,8 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             <code className={code}>opencode mcp auth io.github.navikt/github-mcp</code> feiler med «Incompatible auth
             server: does not support dynamic client registration». GitHubs innlogging mangler dynamisk
             klientregistrering, som OpenCode krever. Fra cplt-utgaven 23. oktober 2026 kobler cplt OpenCode til
-            GitHub-serveren gjennom sin egen proxy på maskinen din. Proxyen bruker <code className={code}>gh</code>
+            GitHub-serveren gjennom sin egen proxy på maskinen din. Dette gjelder bare OpenCode 2. Bruker du OpenCode 1,
+            må du oppgradere OpenCode også. Proxyen bruker <code className={code}>gh</code>
             -innloggingen din og sender ikke tokenet inn i sandkassen. Oppgrader cplt, sjekk at du er logget inn med{" "}
             <code className={code}>gh auth status</code>, og start en ny økt. Du trenger ikke{" "}
             <code className={code}>mcp auth</code>. Slå proxyen av for én økt med{" "}
