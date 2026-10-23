@@ -288,11 +288,9 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 			cpltArgs = append(cpltArgs, "--pass-env", "OPENCODE_CONFIG")
 		}
 	}
-	// After the payload's agents are restated above, or their pin wins.
-	env = withUserAgentModel(env, r, agent)
-
 	return cpltLaunch{
 		agent:         "opencode",
+		openCodeAgent: agent,
 		noAudit:       true,
 		cpltArgs:      cpltArgs,
 		skillsDir:     materializedSkillsDir(s.Dir),
@@ -458,13 +456,10 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	if err != nil {
 		return err
 	}
-	spec.env = applyOpenCodePolicy(spec.env)
 	spec.pakke = s.PakkeName
 	warnUntestedOpenCode()
 	warnOpenCode1()
-	spec.env = applyOpenCodeMCPPolicy(spec.env, r.ProjectDir)
-	spec.env = applyOpenCodeOwnDirs(spec.env, r.ProjectDir)
-	spec.env, spec.cpltArgs = applyOpenCodeHooks(r, spec.env, spec.cpltArgs)
+	spec.env, spec.cpltArgs = openCodeSessionEnv(r, spec.openCodeAgent, spec.env, spec.cpltArgs)
 	warnUnsupported("opencode", OpenCodeUnsupportedConfigWarnings(r))
 	return launchOpenCodeViaCplt(spec)
 }

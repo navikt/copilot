@@ -1134,9 +1134,6 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	warnUnsupported("opencode", OpenCodeUnsupportedConfigWarnings(resolved))
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
-	launchEnv = applyOpenCodePolicy(launchEnv)
-	launchEnv = applyOpenCodeMCPPolicy(launchEnv, resolved.ProjectDir)
-	launchEnv = applyOpenCodeOwnDirs(launchEnv, resolved.ProjectDir)
 	warnUntestedOpenCode()
 	warnOpenCode1()
 
@@ -1209,19 +1206,19 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		}
 	}
 
-	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
-	cpltFlags = withDenyVoiceEnv(cpltFlags)
-	if resolved.Mode != "plan" {
-		persona := resolved.Persona
-		if persona == "" {
-			persona = PrimaryAgent("opencode")
-		}
-		launchEnv = withUserAgentModel(launchEnv, resolved, persona)
-	}
 	agentArgs := openCodeAgentArgs(resolved)
 	if openCodeMajor() >= 2 {
 		agentArgs, launchEnv = openCodeV2Args(agentArgs, launchEnv)
 	}
+	agent := "plan"
+	if resolved.Mode != "plan" {
+		agent = resolved.Persona
+		if agent == "" {
+			agent = PrimaryAgent("opencode")
+		}
+	}
+	launchEnv, cpltFlags = openCodeSessionEnv(resolved, agent, launchEnv, cpltFlags)
+	cpltFlags = withDenyVoiceEnv(cpltFlags)
 
 	return launchOpenCodeViaCplt(cpltLaunch{
 		agent:     "opencode",
@@ -1485,6 +1482,27 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 func openCodeUsageDir(projectDir string) string {
 	dir, _ := cpltProjectDir(projectDir)
 	return dir
+}
+
+// openCodeSessionEnv adds nav-pilot's part of OPENCODE_CONFIG_CONTENT to a
+// launch, the same on Tier 1 (LaunchOpenCode) and Tier 2
+// (LaunchOpenCodeStaged). withOpenCodeConfigContent merges last writer wins,
+// so the order is the policy:
+//
+//  1. Inputs, before this: the user's own OPENCODE_CONFIG_CONTENT, OTel, the
+//     staged config dir and the user config it restates, the opencode 2
+//     arguments, and on Tier 1 openCodeLaunchConfig.
+//  2. Here: share and autoupdate, the MCP servers the registry does not list
+//     turned off, nav-pilot's own dirs in permission, the hooks plugin with
+//     the cplt flags it needs, and the user's model on the launched agent.
+//  3. After this, in launchOpenCodeViaCplt: the provider allowlist, last.
+func openCodeSessionEnv(r domain.ResolvedConfig, agent string, env, cpltArgs []string) ([]string, []string) {
+	env = applyOpenCodePolicy(env)
+	env = applyOpenCodeMCPPolicy(env, r.ProjectDir)
+	env = applyOpenCodeOwnDirs(env, r.ProjectDir)
+	env, cpltArgs = applyOpenCodeHooks(r, env, cpltArgs)
+	env = withUserAgentModel(env, r, agent)
+	return env, cpltArgs
 }
 
 // launchOpenCodeViaCplt is launchViaCplt plus the usage recording, shared by

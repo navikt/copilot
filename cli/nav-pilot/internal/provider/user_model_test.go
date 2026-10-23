@@ -95,11 +95,11 @@ func TestStagedOpenCodeUserModelBeatsAgentPin(t *testing.T) {
 	t.Cleanup(func() { SetActivePakke(nil) })
 	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
 
-	spec := buildStagedSpec(t, "opencode", domain.ResolvedConfig{Model: "gpt-6.1-sol", AskUser: true}, staged)
+	spec := stagedOpenCodeSession(t, domain.ResolvedConfig{Model: "gpt-6.1-sol", AskUser: true}, staged)
 	if got := envValue(spec.env, openCodeConfigContentEnv); !strings.Contains(got, `"grillmester":{"model":"github-copilot/gpt-6.1-sol"}`) {
 		t.Errorf("user model set: want it on the agent, got %q", got)
 	}
-	spec = buildStagedSpec(t, "opencode", domain.ResolvedConfig{AskUser: true}, staged)
+	spec = stagedOpenCodeSession(t, domain.ResolvedConfig{AskUser: true}, staged)
 	if got := envValue(spec.env, openCodeConfigContentEnv); strings.Contains(got, `"agent"`) {
 		t.Errorf("no user model: want no agent override, got %q", got)
 	}
@@ -152,7 +152,7 @@ func TestStagedOpenCode2UserModelBeatsRestatedPin(t *testing.T) {
 	mustWrite(t, filepath.Join(dir, "agents", "grillmester.md"), "---\ndescription: g\nmode: primary\nmodel: github-copilot/gpt-6-sol\n---\nGrill.\n")
 	staged := StagedLaunch{Dir: dir, PakkeName: "grillmester", Context: "full"}
 
-	spec := buildStagedSpec(t, "opencode", domain.ResolvedConfig{Model: "gpt-6.1-sol", AskUser: true}, staged)
+	spec := stagedOpenCodeSession(t, domain.ResolvedConfig{Model: "gpt-6.1-sol", AskUser: true}, staged)
 	type entry struct {
 		Model string `json:"model"`
 	}
@@ -225,4 +225,13 @@ func TestCopilotUserModelAgentRefuses(t *testing.T) {
 	if a, _, err := copilotUserModelAgent(r, "grillmester", f); err == nil || a != "" || !strings.Contains(err.Error(), "gpt-6.1-sol") {
 		t.Errorf("unwritable root: want an error naming the model, got %q %v", a, err)
 	}
+}
+
+// stagedOpenCodeSession is a staged opencode spec with nav-pilot's part of
+// OPENCODE_CONFIG_CONTENT added, as LaunchOpenCodeStaged adds it.
+func stagedOpenCodeSession(t *testing.T, r domain.ResolvedConfig, s StagedLaunch) cpltLaunch {
+	t.Helper()
+	spec := buildStagedSpec(t, "opencode", r, s)
+	spec.env, spec.cpltArgs = openCodeSessionEnv(r, spec.openCodeAgent, spec.env, spec.cpltArgs)
+	return spec
 }

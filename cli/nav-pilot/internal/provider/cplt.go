@@ -36,6 +36,9 @@ type cpltLaunch struct {
 	cpltArgs []string
 	// pakke is the agentpakke a staged launch runs, "" for a legacy launch.
 	pakke string
+	// openCodeAgent is the opencode agent a staged launch starts in, for
+	// [openCodeSessionEnv].
+	openCodeAgent string
 	// agentArgs are forwarded to the agent process after the "--" separator.
 	agentArgs []string
 	// projectDir is the user's --project-dir, or "" for the working
