@@ -30,7 +30,7 @@ func TestHookCommandQuotesThePath(t *testing.T) {
 	if err := os.WriteFile(script, []byte("import sys\nprint('deny:' + sys.stdin.read())\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, 5, false))
+	cmd := exec.Command("/bin/sh", "-c", HookCommand(script, 20, false))
 	cmd.Stdin = strings.NewReader("payload")
 	out, err := cmd.Output()
 	if err != nil {
@@ -56,6 +56,12 @@ func TestHookCommandKeepsTwoSecondMargin(t *testing.T) {
 // that directory.
 func runHook(t *testing.T, body string, timeout int, failClosed ...bool) (stdout, stderr, tmp string) {
 	t.Helper()
+	// 3 is for gates the test means to kill. Any other gate must outlast a
+	// python3 that takes seconds to start under load (#1932): with 5 the
+	// watchdog fired at 3 s and killed a gate that should have answered.
+	if timeout != 3 && timeout < 20 {
+		t.Fatalf("runHook timeout %d: use 3 to kill the gate, or 20 or more", timeout)
+	}
 	bin := t.TempDir()
 	wrapper := "#!/bin/sh\nexec '" + testhome.Python3(t) + "' \"$@\"\n"
 	if err := testhome.WriteExec(filepath.Join(bin, "python3"), wrapper); err != nil {
@@ -102,20 +108,20 @@ func emptyEventually(t *testing.T, dir string) {
 // The script's stderr reaches Copilot when it wrote some, and the temp files
 // go either way.
 func TestHookCommandForwardsStderr(t *testing.T) {
-	out, errOut, tmp := runHook(t, "import sys\nprint('ok')\nsys.stderr.write('warned\\n')\n", 5)
+	out, errOut, tmp := runHook(t, "import sys\nprint('ok')\nsys.stderr.write('warned\\n')\n", 20)
 	if strings.TrimSpace(out) != "ok" || strings.TrimSpace(errOut) != "warned" {
 		t.Errorf("stdout %q, stderr %q; want ok and warned", out, errOut)
 	}
 	emptyEventually(t, tmp)
 
-	out, errOut, tmp = runHook(t, "print('ok')\n", 5)
+	out, errOut, tmp = runHook(t, "print('ok')\n", 20)
 	if strings.TrimSpace(out) != "ok" || errOut != "" {
 		t.Errorf("stdout %q, stderr %q; want ok and nothing", out, errOut)
 	}
 	emptyEventually(t, tmp)
 
 	// A script that fails: its stdout is dropped, its stderr still shown.
-	out, errOut, tmp = runHook(t, "import sys\nprint('deny')\nsys.exit('broke')\n", 5)
+	out, errOut, tmp = runHook(t, "import sys\nprint('deny')\nsys.exit('broke')\n", 20)
 	if out != "" || strings.TrimSpace(errOut) != "broke" {
 		t.Errorf("stdout %q, stderr %q; want nothing and broke", out, errOut)
 	}
@@ -137,6 +143,7 @@ func TestHookCommandCleansUpAfterKill(t *testing.T) {
 // Without the flag the same cases allow (TestHookCommandCleansUpAfterKill,
 // TestHookCommandForwardsStderr).
 func TestHookCommandFailClosed(t *testing.T) {
+	path := os.Getenv("PATH") // before runHook puts its own mktemp first
 	deny := func(why string) string {
 		return `{"permissionDecision":"deny","permissionDecisionReason":"gate ` + why + `, så kallet er stoppet"}`
 	}
@@ -160,9 +167,9 @@ func TestHookCommandFailClosed(t *testing.T) {
 	// No python3 at all, or no temp directory: the guards deny too.
 	for name, env := range map[string][]string{
 		"no python3": {"PATH=/nonexistent"},
-		"no mktemp":  {"PATH=" + os.Getenv("PATH"), "TMPDIR=/nonexistent"},
+		"no mktemp":  {"PATH=" + path, "TMPDIR=/nonexistent"},
 	} {
-		cmd := exec.Command("/bin/sh", "-c", HookCommand("gate.py", 3, true))
+		cmd := exec.Command("/bin/sh", "-c", HookCommand("gate.py", 20, true))
 		cmd.Env = env
 		if out, err := cmd.Output(); err != nil || strings.TrimSpace(string(out)) != deny("feilet") {
 			t.Errorf("%s: %v, stdout %q", name, err, out)
