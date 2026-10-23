@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestCopilotUserModelBeatsAgentPin(t *testing.T) {
 	if !slices.Contains(args, copilotSessionPlugin+":grillmester") || !slices.Contains(args, "--plugin-dir") {
 		t.Fatalf("user model set: want the session copy of the agent, got %q", args)
 	}
-	copyFile := filepath.Join(home, ".copilot", copilotSessionPlugin, "agents", "grillmester.agent.md")
+	copyFile := filepath.Join(home, ".copilot", copilotSessionPlugin, strconv.Itoa(os.Getpid()), "agents", "grillmester.agent.md")
 	data, err := os.ReadFile(copyFile)
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +61,7 @@ func TestStagedCopilotUserModelBeatsAgentPin(t *testing.T) {
 	if !slices.Contains(spec.agentArgs, copilotSessionPlugin+":grillmester") {
 		t.Errorf("user model set: want the session copy, got %q", spec.agentArgs)
 	}
-	if i := slices.Index(spec.cpltArgs, filepath.Join(os.Getenv("HOME"), ".copilot", copilotSessionPlugin)); i < 1 || spec.cpltArgs[i-1] != "--allow-read" {
+	if i := slices.Index(spec.cpltArgs, filepath.Join(os.Getenv("HOME"), ".copilot", copilotSessionPlugin, strconv.Itoa(os.Getpid()))); i < 1 || spec.cpltArgs[i-1] != "--allow-read" {
 		t.Errorf("cplt must be allowed to read the session plugin: %q", spec.cpltArgs)
 	}
 
@@ -122,5 +123,17 @@ func TestRecommendedModel(t *testing.T) {
 	mustWrite(t, f, "---\nname: a\nmodel: github-copilot/gpt-6.1-sol\n---\n")
 	if got := RecommendedModel("opencode", f); got != "gpt-6.1-sol" {
 		t.Errorf("opencode id pin: got %q, want gpt-6.1-sol", got)
+	}
+}
+
+// A session plugin directory whose nav-pilot is gone is removed; a live one stays.
+func TestPruneSessionPlugins(t *testing.T) {
+	root := t.TempDir()
+	dead, live := filepath.Join(root, "999999999"), filepath.Join(root, strconv.Itoa(os.Getppid()))
+	mustWrite(t, filepath.Join(dead, "plugin.json"), "{}")
+	mustWrite(t, filepath.Join(live, "plugin.json"), "{}")
+	pruneSessionPlugins(root)
+	if fileExists(filepath.Join(dead, "plugin.json")) || !fileExists(filepath.Join(live, "plugin.json")) {
+		t.Errorf("want the dead pid's directory gone and the live one kept")
 	}
 }

@@ -3,7 +3,9 @@ package provider
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
@@ -121,8 +123,10 @@ const copilotSessionPlugin = "nav-pilot-session"
 // copilot read. ("", "") when nothing needs to change: no user model, no
 // agent file, or no pin in it.
 //
-// ponytail: one fixed directory per machine; two sessions launching agents
-// of the same name from different pakker at the same moment race on it.
+// Each nav-pilot process gets its own directory, named by its pid, so two
+// sessions never share one. nav-pilot waits for the client, so the directory
+// lives as long as the session; directories of processes that are gone are
+// removed at the next launch.
 func copilotUserModelAgent(r domain.ResolvedConfig, persona, agentFile string) (agent, pluginDir string) {
 	if !UserSetModel("copilot", r) || AgentModelPin(agentFile) == "" {
 		return "", ""
@@ -136,11 +140,25 @@ func copilotUserModelAgent(r domain.ResolvedConfig, persona, agentFile string) (
 		return "", ""
 	}
 	fm, body, _ := source.SplitFrontmatter(data)
-	dir := filepath.Join(home, copilotSessionPlugin)
+	root := filepath.Join(home, copilotSessionPlugin)
+	pruneSessionPlugins(root)
+	dir := filepath.Join(root, strconv.Itoa(os.Getpid()))
 	if os.MkdirAll(filepath.Join(dir, "agents"), 0o755) != nil ||
 		os.WriteFile(filepath.Join(dir, "plugin.json"), []byte(`{"name":"`+copilotSessionPlugin+`","version":"0.0.0","agents":"agents/"}`+"\n"), 0o644) != nil ||
 		os.WriteFile(filepath.Join(dir, "agents", persona+".agent.md"), source.Reassemble(source.StripFrontmatterKeys(fm, []string{"model"}), body), 0o644) != nil {
 		return "", ""
 	}
 	return copilotSessionPlugin + ":" + persona, dir
+}
+
+// pruneSessionPlugins removes the session plugin directories of nav-pilot
+// processes that no longer run.
+func pruneSessionPlugins(root string) {
+	entries, _ := os.ReadDir(root)
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err == nil && pid != os.Getpid() && syscall.Kill(pid, 0) == syscall.ESRCH {
+			_ = os.RemoveAll(filepath.Join(root, e.Name()))
+		}
+	}
 }
