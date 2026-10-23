@@ -417,8 +417,29 @@ func cpltMCPNotice() (notice, stamp string) {
 	if err != nil || stamp == "" || stamp < openCode2CpltFloor || stamp >= openCode2CpltRecommended {
 		return "", ""
 	}
-	return fmt.Sprintf("GitHub MCP (io.github.navikt/github-mcp) works in opencode only with cplt %s or newer (navikt/cplt#807). Update cplt: %s",
+	return fmt.Sprintf("cplt %s or newer is recommended for opencode 2: GitHub MCP (io.github.navikt/github-mcp) needs it (navikt/cplt#807), and it lets nav-pilot strip the API keys opencode's voice feature reads (navikt/cplt#817). Update cplt: %s",
 		openCode2CpltRecommended, domain.Bold(cpltUpgradeHint())), stamp
+}
+
+// openCodeVoiceEnv are the env vars opencode 2.1.3's voice feature reads
+// (packages/core/src/voice.ts:179-184). Voice is not allowed under nav-pilot.
+var openCodeVoiceEnv = []string{"OPENAI_API_KEY", "XAI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GEMINI_API_KEY"}
+
+// withDenyVoiceEnv adds --deny-env for openCodeVoiceEnv on opencode 2 when
+// cplt is at least openCode2CpltRecommended (navikt/cplt#817). An older cplt
+// rejects the unknown flag, so it gets none; cpltMCPNotice nudges instead.
+func withDenyVoiceEnv(args []string) []string {
+	if openCodeMajor() != 2 {
+		return args
+	}
+	out, err := probeCpltVersion()
+	if err != nil || cpltStamp(out) < openCode2CpltRecommended {
+		return args
+	}
+	for _, v := range openCodeVoiceEnv {
+		args = append(args, "--deny-env", v)
+	}
+	return args
 }
 
 // CheckOpenCodeMajor stops a launch on opencode 3 or newer, which the warning
@@ -481,8 +502,9 @@ const openCode2CpltFloor = "2026.10.22-172931"
 
 // openCode2CpltRecommended is the cplt nav-pilot nudges opencode 2 users
 // towards without requiring it: navikt/cplt#807, the host-side auth proxy
-// GitHub MCP needs in opencode. Owner decision 2026-10-23: nudge, don't require.
-const openCode2CpltRecommended = "2026.10.23-053641"
+// GitHub MCP needs in opencode, and navikt/cplt#817, --deny-env for the voice
+// keys (withDenyVoiceEnv). Owner decision 2026-10-23: nudge, don't require.
+const openCode2CpltRecommended = "2026.10.23-070444"
 
 // errCpltTooOld marks checkOpenCode2Launch's refusal of a cplt older than
 // minOpenCode2CpltStamp, so telemetry can tell it from argument refusals.
