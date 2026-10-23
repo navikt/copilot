@@ -52,11 +52,10 @@ func brokerEnv(t *testing.T, cpltStatus string) brokerFakes {
 		status = "echo 'cplt: refusing to sandbox your home directory' >&2; exit 1"
 	case "sleep":
 		status = "exec /bin/sleep 5"
-	case "cwd":
-		// An older cplt: it answers only from a repo root.
-		status = "if [ -d .git ]; then echo '" + brokerStatusOK + "'; else echo 'cplt: refusing to sandbox your home directory' >&2; exit 1; fi"
 	default:
-		status = "echo '" + cpltStatus + "'"
+		// From a file: cplt's texts carry quotes and \n escapes.
+		writeTestFile(t, filepath.Join(bin, "status.json"), cpltStatus)
+		status = "/bin/cat " + filepath.Join(bin, "status.json")
 	}
 	writeTestFile(t, f.cplt, "#!/bin/sh\ncase \"$1 $2\" in\n\"mcp status\") "+status+";;\n\"--version \") echo 'cplt 2026.10.01-000000-abcdef0';;\nesac\n")
 	writeTestFile(t, filepath.Join(bin, "nais"), "#!/bin/sh\ntok="+bin+"/token\ncase \"$1 $2\" in\n\"auth print-access-token\") echo x >> "+bin+"/probes; [ -f "+bin+"/hang ] && exec /bin/sleep 5; [ -f $tok ];;\n\"login -n\") : > $tok;;\n\"--version \") [ -f "+bin+"/version ] && read v < "+bin+"/version && echo \"nais version $v\";;\n*) exit 2;;\nesac\n")
@@ -248,7 +247,7 @@ func TestMCPListBrokerStatusFails(t *testing.T) {
 	errOut := captureStderr(func() {
 		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
 	})
-	if err == nil || strings.Contains(errOut, "brew upgrade") || !strings.Contains(errOut, "refusing to sandbox your home") || !strings.Contains(errOut, "nothing was written") {
+	if err == nil || strings.Contains(errOut, "brew upgrade") || !strings.Contains(errOut, "refusing to sandbox your home") || !strings.Contains(errOut, "nothing was written. Fix: cd <your repo>") {
 		t.Errorf("err %v, stderr:\n%s", err, errOut)
 	}
 	if _, statErr := os.Stat(f.spec); !os.IsNotExist(statErr) {
@@ -302,40 +301,11 @@ func TestMCPEnableBrokerStatusTimeout(t *testing.T) {
 	errOut := captureStderr(func() {
 		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
 	})
-	if err == nil || !strings.Contains(errOut, "timed out") || strings.Contains(errOut, "brew upgrade") {
+	if err == nil || !strings.Contains(errOut, "timed out") || !strings.Contains(errOut, "Fix: run it again") || strings.Contains(errOut, "brew upgrade") {
 		t.Errorf("err %v, stderr:\n%s", err, errOut)
 	}
 	if _, statErr := os.Stat(f.spec); !os.IsNotExist(statErr) {
 		t.Fatal("spec written after a timeout")
-	}
-}
-
-// An older cplt refuses to run outside a repo: from a subdirectory the
-// status is asked again from the git root, and enable goes through.
-func TestMCPBrokerStatusRetriesFromGitRoot(t *testing.T) {
-	f := brokerEnv(t, "cwd")
-	repo := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	sub := filepath.Join(repo, "a", "b")
-	if err := os.MkdirAll(sub, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(sub)
-	out := captureStdout(func() {
-		if err := cmdMCP([]string{"enable", "nais-mcp"}); err != nil {
-			t.Fatal(err)
-		}
-	})
-	if !strings.Contains(out, "cplt runs it on the host") {
-		t.Errorf("stdout:\n%s", out)
-	}
-	readBrokerSpec(t, f.spec)
-	// Control: outside any repo the failure stands.
-	t.Chdir(t.TempDir())
-	if st := mcpCpltStatus(f.cplt); st == nil || st.Failed == "" {
-		t.Errorf("outside a repo: %+v", st)
 	}
 }
 
@@ -577,13 +547,31 @@ func TestMCPBrokerRefusesSymlinkedDir(t *testing.T) {
 	}
 }
 
+// cplt's off_reason texts, filled in as cplt would: navikt/cplt
+// src/sandbox.rs mcp_refusal_text, with src/doctor.rs BWRAP_INSTALL_HINT and
+// apparmor_fix_text. Keep them in step with cplt.
+const (
+	cpltRefusalInstall   = "the MCP broker needs Bubblewrap on Linux, and Bubblewrap is not usable (bwrap not found): without its bus masks the agent could read the server's credential over D-Bus. Install it: sudo apt install bubblewrap (or your distro's package; it must land in a trusted system directory such as /usr/bin or /usr/local/bin).\nOr set sandbox.mcp_broker = false"
+	cpltRefusalAppArmor  = "the MCP broker needs Bubblewrap on Linux, and Bubblewrap is not usable (No permissions to create new namespace): without its bus masks the agent could read the server's credential over D-Bus. AppArmor blocks bubblewrap's user namespaces (kernel.apparmor_restrict_unprivileged_userns = 1). Load the profile Ubuntu ships for bwrap, once:\n  sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict\nOr set sandbox.mcp_broker = false"
+	cpltRefusalTransport = "DBUS_SESSION_BUS_ADDRESS names a transport other than a unix socket, which bubblewrap cannot mask. Run `cplt doctor`, or set sandbox.mcp_broker = false"
+	cpltRefusalUnmasked  = "the MCP broker needs Bubblewrap to hide every D-Bus endpoint, and /run/user/1000/bus is not masked. Run `cplt doctor`, or set sandbox.mcp_broker = false"
+)
+
+// offStatus is cplt's status with the broker off for reason.
+func offStatus(reason string) string {
+	r, _ := json.Marshal(reason)
+	return `{"schema":[1],"platform_supported":false,"off_reason":` + string(r) + `,"servers":[]}`
+}
+
 // enable reports what cplt makes of the spec after it is written, not
 // before: a platform without the broker, or the broker off.
 func TestMCPEnableBrokerReportsCpltState(t *testing.T) {
 	for _, c := range []struct{ status, path, want string }{
-		{`{"schema":[1],"platform_supported":false,"off_reason":"bwrap cannot create a user namespace (AppArmor)","servers":[{"id":"io.github.nais/nais-mcp","state":"off"}]}`, "cplt (off here)", "off here: bwrap cannot create a user namespace (AppArmor). Fix: cplt doctor --fix"},
-		{`{"schema":[1],"platform_supported":false,"off_reason":"the broker needs systemd-run. Fix: sudo apt install systemd","servers":[]}`, "cplt (off here)", "off here: the broker needs systemd-run. Fix: sudo apt install systemd"},
-		{`{"schema":[1],"platform_supported":false,"servers":[]}`, "cplt (off here)", "does not run here, so the server is left as configured. Fix: cplt doctor"},
+		{offStatus(cpltRefusalInstall), "cplt (off here)", "off here: the MCP broker needs Bubblewrap on Linux, and Bubblewrap is not usable (bwrap not found). Fix: cplt doctor --fix\n"},
+		{offStatus(cpltRefusalAppArmor), "cplt (off here)", "off here: the MCP broker needs Bubblewrap on Linux, and Bubblewrap is not usable (No permissions to create new namespace). Fix: cplt doctor --fix\n"},
+		{offStatus(cpltRefusalTransport), "cplt (off here)", "off here: DBUS_SESSION_BUS_ADDRESS names a transport other than a unix socket, which bubblewrap cannot mask. Fix: cplt doctor\n"},
+		{offStatus(cpltRefusalUnmasked), "cplt (off here)", "off here: the MCP broker needs Bubblewrap to hide every D-Bus endpoint, and /run/user/1000/bus is not masked. Fix: cplt doctor\n"},
+		{`{"schema":[1],"platform_supported":false,"servers":[]}`, "cplt (off here)", "does not run here, so the server is left as configured. Fix: cplt doctor\n"},
 		{`{"schema":[1],"platform_supported":true,"servers":[{"id":"io.github.nais/nais-mcp","state":"off"}]}`, "cplt off", "Fix: cplt config set sandbox.mcp_broker true"},
 		{`{"schema":[1],"platform_supported":true,"servers":[],"rejected":[{"file":"/x/io.github.nais__nais-mcp.json","reason":"bad","fix":"nav-pilot mcp enable io.github.nais/nais-mcp"}]}`, "rejected", "cplt rejected its spec: bad"},
 	} {
@@ -596,7 +584,7 @@ func TestMCPEnableBrokerReportsCpltState(t *testing.T) {
 				}
 			})
 		})
-		if strings.Contains(out, "cplt runs it on the host") || !strings.Contains(errOut, c.want) {
+		if strings.Contains(out, "cplt runs it on the host") || !strings.Contains(errOut, c.want) || strings.Contains(errOut, "apparmor_parser") {
 			t.Errorf("%s: stdout:\n%s\nstderr:\n%s", c.path, out, errOut)
 		}
 		jsonOut := captureStdout(func() { _ = cmdMCP([]string{"enable", "nais-mcp", "--json"}) })

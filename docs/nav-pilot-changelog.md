@@ -6,8 +6,8 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Tydeligere svar om MCP-servere cplt kjører på maskinen
 
-- **Når cplt ikke kan kjøre serveren på maskinen**: `nav-pilot mcp list` og `nav-pilot mcp enable` viser nå grunnen cplt selv oppgir. Skyldes det sandkassen (bwrap eller AppArmor), står det `Fix: cplt doctor --fix`. Ellers står løsningen cplt foreslår. Meldingen om at dette bare virker på macOS, er borte.
-- **Når cplt ikke svarer**: Kjører du nav-pilot i en undermappe, spør nav-pilot cplt på nytt fra roten av git-repoet. Svarer cplt fortsatt ikke, skriver `nav-pilot mcp enable` ingenting og sier hva du kan gjøre.
+- **Når cplt ikke kan kjøre serveren på maskinen**: `nav-pilot mcp list` og `nav-pilot mcp enable` viser nå grunnen cplt selv oppgir. Kan ikke cplt bruke Bubblewrap, står det `Fix: cplt doctor --fix`. Ellers står det `Fix: cplt doctor`. Meldingen om at dette bare virker på macOS, er borte.
+- **Når cplt ikke svarer**: Da skriver `nav-pilot mcp enable` ingenting og sier hva du kan gjøre: prøve igjen hvis cplt brukte for lang tid, ellers kjøre kommandoen fra repoet ditt.
 - **Innloggingen**: nav-pilot sjekker innloggingen én gang per kommando. Tar sjekken for lang tid, viser LOGIN-kolonnen `nais: unknown (timed out)` i stedet for «logged out». Det samme gjelder når cplt ikke rakk å sjekke.
 - **MCP-registeret**: nav-pilot krever ikke lenger at registeret oppgir en bestemt kommando for å sjekke innloggingen. nav-pilot bruker sin egen.
 

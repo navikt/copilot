@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"errors"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -40,53 +39,34 @@ type mcpCpltStatusDoc struct {
 		Reason string `json:"reason"`
 		Fix    string `json:"fix"`
 	} `json:"rejected"`
-	Failed string `json:"-"`
+	Failed   string `json:"-"`
+	TimedOut bool   `json:"-"`
 }
 
 // mcpCpltStatusTimeout is a var so tests time out fast.
 var mcpCpltStatusTimeout = 15 * time.Second
 
 // mcpCpltStatus is cplt's status, nil for no cplt or an old cplt (only
-// when cplt says it has no such subcommand). A cplt before navikt/cplt#846
-// refuses to run outside a repo, so a failure is retried once from the git
-// root above the working directory; a newer cplt answers anywhere.
+// when cplt says it has no such subcommand).
 func mcpCpltStatus(cpltPath string) *mcpCpltStatusDoc {
 	if cpltPath == "" {
 		return nil
 	}
-	st, retry := mcpCpltStatusIn("", cpltPath)
-	if !retry {
-		return st
-	}
-	if wd, err := os.Getwd(); err == nil {
-		if root := findGitRoot(wd); root != "" && root != wd {
-			if again, _ := mcpCpltStatusIn(root, cpltPath); again == nil || again.Failed == "" {
-				return again
-			}
-		}
-	}
-	return st
-}
-
-// mcpCpltStatusIn runs the status in dir ("" for the working directory);
-// retry is set for a failure that was neither a timeout nor an old cplt.
-func mcpCpltStatusIn(dir, cpltPath string) (st *mcpCpltStatusDoc, retry bool) {
 	start := time.Now()
-	out, err := runBoundedIn(dir, mcpCpltStatusTimeout, false, cpltPath, "mcp", "status", "--json")
+	out, err := runBoundedTimeout(mcpCpltStatusTimeout, false, cpltPath, "mcp", "status", "--json")
 	var msg string
 	if ee := (*exec.ExitError)(nil); errors.As(err, &ee) {
 		msg = strings.TrimSpace(string(ee.Stderr))
 	}
 	if strings.Contains(msg, "unrecognized subcommand") {
-		return nil, false // clap's answer from a cplt without `mcp status`
+		return nil // clap's answer from a cplt without `mcp status`
 	}
 	var doc mcpCpltStatusDoc
-	retry = true
 	switch {
 	case time.Since(start) >= mcpCpltStatusTimeout:
-		msg, retry = "timed out after "+mcpCpltStatusTimeout.String(), false
+		return &mcpCpltStatusDoc{Failed: "timed out after " + mcpCpltStatusTimeout.String(), TimedOut: true}
 	case err == nil && json.Unmarshal(out, &doc) == nil && doc.Schema != nil:
-		return &doc, false
+		return &doc
 	case err == nil:
 		msg = "its output was not the status JSON"
 	case msg == "":
@@ -95,7 +75,7 @@ func mcpCpltStatusIn(dir, cpltPath string) (st *mcpCpltStatusDoc, retry bool) {
 	if i := strings.IndexByte(msg, '\n'); i > 0 {
 		msg = msg[:i]
 	}
-	return &mcpCpltStatusDoc{Failed: safe(msg, 160)}, retry
+	return &mcpCpltStatusDoc{Failed: safe(msg, 160)}
 }
 
 // mcpBrokerState is what cplt says about server id: the PATH column, its
@@ -143,21 +123,25 @@ func mcpBrokerState(cpltPath string, st *mcpCpltStatusDoc, id string) (path stri
 	return path, credOK, credNote, out
 }
 
-// mcpOffProblem is cplt's off_reason as the problem: cplt doctor fixes a
-// sandbox it can set up (bwrap, AppArmor), else the reason's own "Fix: ".
+// mcpOffProblem is the first sentence of cplt's off_reason (navikt/cplt
+// src/sandbox.rs mcp_refusal_text) as the problem. Only an unusable
+// Bubblewrap is something `cplt doctor --fix` repairs; for the rest (D-Bus
+// endpoints it cannot mask) cplt doctor says what to do. The reason's own
+// fix text, which can be a multi-line script, stays out of the line.
 func mcpOffProblem(id, reason string) mcpProblem {
-	reason = safe(reason, 200)
-	if reason == "" {
-		return mcpProblem{Server: id, Problem: "cplt's MCP broker does not run here, so the server is left as configured", Fix: "cplt doctor"}
-	}
-	problem, fix, _ := strings.Cut(reason, "Fix: ")
-	fix = strings.TrimSpace(fix)
-	lower := strings.ToLower(reason)
-	switch {
-	case strings.Contains(lower, "bwrap") || strings.Contains(lower, "bubblewrap") || strings.Contains(lower, "apparmor"):
+	fix := "cplt doctor"
+	if strings.Contains(reason, "is not usable") {
 		fix = mcpCpltDoctorFix
-	case fix == "":
-		fix = "cplt doctor"
 	}
-	return mcpProblem{Server: id, Problem: "cplt's MCP broker is off here: " + strings.TrimRight(strings.TrimSpace(problem), ". "), Fix: fix}
+	problem, _, _ := strings.Cut(reason, "\n")
+	if i := strings.Index(problem, ": without"); i > 0 {
+		problem = problem[:i]
+	} else if i := strings.Index(problem, ". "); i > 0 {
+		problem = problem[:i]
+	}
+	problem = strings.TrimRight(strings.TrimSpace(problem), ".")
+	if problem == "" {
+		return mcpProblem{Server: id, Problem: "cplt's MCP broker does not run here, so the server is left as configured", Fix: fix}
+	}
+	return mcpProblem{Server: id, Problem: "cplt's MCP broker is off here: " + safe(problem, 200), Fix: fix}
 }
