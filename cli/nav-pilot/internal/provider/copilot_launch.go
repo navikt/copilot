@@ -147,14 +147,6 @@ func CLIDisplayName(name string) string {
 	return name
 }
 
-// copilotAgentArgs returns extra CLI flags for a given agent.
-// Keep this empty by default so model/effort selection follows agent defaults
-// (or explicit user overrides in the CLI), not hardcoded launch arguments.
-func copilotAgentArgs(agent string) []string {
-	_ = agent
-	return nil
-}
-
 // BuildCopilotArgs constructs the CLI arguments for launching copilot.
 //
 // cplt is the sandbox wrapper: its own --agent selects WHICH agent to sandbox
@@ -210,7 +202,6 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 		args = append(args, "--plugin-dir", dir)
 	}
 	args = append(args, "--agent", agent)
-	args = append(args, copilotAgentArgs(persona)...)
 	if model := copilotSessionModel(resolved.Model); model != "" {
 		// Same fallback the staged Tier 2 copilot path has
 		// (buildStagedCopilotSpec), and the same one Tier 1 opencode gets

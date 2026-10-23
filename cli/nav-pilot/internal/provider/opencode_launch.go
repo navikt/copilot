@@ -1482,16 +1482,6 @@ func startLocalDispatch(sessionModel string) (*local.Guard, error) {
 	return guard, nil
 }
 
-// clientForwardsModel reports whether launching a client puts the resolved
-// model on its command line. Every client does: copilot and opencode always
-// have, and pi takes --model, which [LaunchPi] now forwards. So a launch notice
-// naming the session model is accurate for all of them.
-//
-// Kept as a predicate rather than inlined: it is what [ResolvedModelNotice]
-// asks before naming a model, and the next client added answers it here, next
-// to the launches, rather than by editing the notice.
-func clientForwardsModel(string) bool { return true }
-
 // openCodeUsageDir is the directory opencode records the session under: the
 // launch directory, which is the project directory unless none was resolved.
 func openCodeUsageDir(projectDir string) string {
