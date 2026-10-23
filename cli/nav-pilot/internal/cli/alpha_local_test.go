@@ -240,7 +240,7 @@ func TestLocalOffTakesTheModelOutOfOpenCode(t *testing.T) {
 	if len(models) == 0 {
 		t.Fatal("the embedded local-model manifest names no models")
 	}
-	if err := providerpkg.EnsureOpenCodeLocalProvider(models[0], "http://127.0.0.1:54321"); err != nil {
+	if err := providerpkg.EnsureOpenCodeLocalProvider(nil, models[0], "http://127.0.0.1:54321"); err != nil {
 		t.Fatalf("registering the local provider: %v", err)
 	}
 	// Something of the developer's own, which off must not take with it.
@@ -305,7 +305,7 @@ func TestLocalOffTakesTheDispatchPolicyOutOfOpenCode(t *testing.T) {
 		t.Fatal("the embedded local-model manifest names no models")
 	}
 	local.SetEnabled(true)
-	if err := providerpkg.EnsureOpenCodeLocalPolicy(models[0]); err != nil {
+	if err := providerpkg.EnsureOpenCodeLocalPolicy(nil, "", models[0]); err != nil {
 		t.Fatalf("provisioning the dispatch policy: %v", err)
 	}
 	policy := filepath.Join(dir, "nav-pilot-local-dispatch.md")

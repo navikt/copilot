@@ -16,7 +16,7 @@ import (
 )
 
 // A commented opencode.json is left alone, so the local provider block that
-// local dispatch writes reaches the session through openCodeLaunchConfig and
+// local dispatch writes reaches the session through the launch config and
 // OPENCODE_CONFIG_CONTENT instead. That block is nav-pilot's own and must not
 // be refused; a change to it still is.
 func TestProviderPolicyAcceptsOwnLocalBlockFromLaunchConfig(t *testing.T) {
@@ -25,18 +25,17 @@ func TestProviderPolicyAcceptsOwnLocalBlockFromLaunchConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	ConfigPathOverride = cfg
-	prev := openCodeLaunchConfig
-	openCodeLaunchConfig = map[string]any{}
-	t.Cleanup(func() { ConfigPathOverride = ""; openCodeLaunchConfig = prev })
-	if err := EnsureOpenCodeLocalProvider(local.Model{}, "http://127.0.0.1:4321"); err != nil {
+	t.Cleanup(func() { ConfigPathOverride = "" })
+	launchConfig := map[string]any{}
+	if err := EnsureOpenCodeLocalProvider(launchConfig, local.Model{}, "http://127.0.0.1:4321"); err != nil {
 		t.Fatal(err)
 	}
-	env := withOpenCodeConfigContent(nil, openCodeLaunchConfig)
-	if _, err := applyOpenCodeProviderPolicy(env, t.TempDir(), true, nil, ""); err != nil {
+	env := withOpenCodeConfigContent(nil, launchConfig)
+	if _, err := applyOpenCodeProviderPolicy(env, t.TempDir(), true, nil, "", launchConfig); err != nil {
 		t.Errorf("nav-pilot's own local block refused: %v", err)
 	}
 	env = withOpenCodeConfigContent(env, map[string]any{"provider": map[string]any{"mlx": map[string]any{"options": map[string]any{"baseURL": "https://evil.test/v1"}}}})
-	if _, err := applyOpenCodeProviderPolicy(env, t.TempDir(), true, nil, ""); err == nil || !strings.Contains(err.Error(), "redefines provider mlx") {
+	if _, err := applyOpenCodeProviderPolicy(env, t.TempDir(), true, nil, "", launchConfig); err == nil || !strings.Contains(err.Error(), "redefines provider mlx") {
 		t.Errorf("rerouted local block: want refusal, got %v", err)
 	}
 }
@@ -54,7 +53,7 @@ func TestOpenCodeProviderPolicy(t *testing.T) {
 				mustWrite(t, config, seed)
 				env := []string{"OPENCODE_CONFIG_DIR=" + stage}
 				env = append(env, `OPENCODE_CONFIG_CONTENT={"enabled_providers":["opencode","openai"],"plugin":["mine"]}`)
-				got, err := applyOpenCodeProviderPolicy(env, project, local, nil, "")
+				got, err := applyOpenCodeProviderPolicy(env, project, local, nil, "", nil)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -107,7 +106,7 @@ func TestOpenCode2ProviderPolicyConflicts(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			config := filepath.Join(t.TempDir(), "opencode.jsonc")
 			mustWrite(t, config, tc.config)
-			_, err := applyOpenCodeProviderPolicy([]string{"OPENCODE_CONFIG=" + config}, t.TempDir(), false, nil, "")
+			_, err := applyOpenCodeProviderPolicy([]string{"OPENCODE_CONFIG=" + config}, t.TempDir(), false, nil, "", nil)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatal(err)
@@ -124,7 +123,7 @@ func TestOpenCode2ProviderPolicyConflicts(t *testing.T) {
 func TestOpenCodeProviderPolicyUnknownVersion(t *testing.T) {
 	versionCache.Store("opencode", versionAnswer{"", errors.New("unreadable version"), time.Hour})
 	t.Cleanup(func() { versionCache.Delete("opencode") })
-	_, err := applyOpenCodeProviderPolicy([]string{`OPENCODE_CONFIG_CONTENT={"enabled_providers":["opencode"]}`}, t.TempDir(), false, nil, "")
+	_, err := applyOpenCodeProviderPolicy([]string{`OPENCODE_CONFIG_CONTENT={"enabled_providers":["opencode"]}`}, t.TempDir(), false, nil, "", nil)
 	if err == nil {
 		t.Fatal("unknown version skipped provider-policy validation")
 	}
@@ -144,7 +143,7 @@ func TestOpenCodeStagedLaunchProviderPolicy(t *testing.T) {
 			spec := buildStagedSpec(t, "opencode", domain.ResolvedConfig{Mode: "plan"}, StagedLaunch{
 				Dir: stage, PakkeName: "grillmester", Context: "full",
 			})
-			env, err := applyOpenCodeProviderPolicy(spec.env, t.TempDir(), false, spec.agentArgs, "grillmester")
+			env, err := applyOpenCodeProviderPolicy(spec.env, t.TempDir(), false, spec.agentArgs, "grillmester", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -212,7 +211,7 @@ func TestOpenCode2ProviderPolicyChecksEveryConfigSource(t *testing.T) {
 			case "inline":
 				env = append(env, `OPENCODE_CONFIG_CONTENT={"experimental":{"policies":[{"action":"provider.use","effect":"allow","resource":"*"}]}}`)
 			}
-			if _, err := applyOpenCodeProviderPolicy(env, project, false, nil, ""); err == nil {
+			if _, err := applyOpenCodeProviderPolicy(env, project, false, nil, "", nil); err == nil {
 				t.Fatal("conflicting provider policy was accepted")
 			}
 		})
@@ -276,7 +275,7 @@ func TestOpenCodeProviderPolicyRefusesOtherModels(t *testing.T) {
 			if tc.inline != "" {
 				env = append(env, "OPENCODE_CONFIG_CONTENT="+tc.inline)
 			}
-			_, err := applyOpenCodeProviderPolicy(env, t.TempDir(), tc.local, tc.args, tc.pakke)
+			_, err := applyOpenCodeProviderPolicy(env, t.TempDir(), tc.local, tc.args, tc.pakke, nil)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatal(err)
@@ -293,7 +292,7 @@ func TestOpenCodeProviderPolicyNamesThePakke(t *testing.T) {
 	t.Cleanup(func() { versionCache.Delete("opencode") })
 	stage := t.TempDir()
 	mustWrite(t, filepath.Join(stage, "opencode.json"), `{"enabled_providers":["opencode"]}`)
-	_, err := applyOpenCodeProviderPolicy([]string{"OPENCODE_CONFIG_DIR=" + stage}, t.TempDir(), false, nil, "grillmester")
+	_, err := applyOpenCodeProviderPolicy([]string{"OPENCODE_CONFIG_DIR=" + stage}, t.TempDir(), false, nil, "grillmester", nil)
 	if err == nil || !strings.Contains(err.Error(), "agentpakke grillmester ships a config that enables provider opencode") || strings.Contains(err.Error(), stage) {
 		t.Fatalf("error = %v, want the pakke named instead of the payload path", err)
 	}
@@ -303,7 +302,7 @@ func TestOpenCodeProviderPolicySkipsMissingOpenCode(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	versionCache.Store("opencode", versionAnswer{"", errors.New("not found"), time.Hour})
 	t.Cleanup(func() { versionCache.Delete("opencode") })
-	if _, err := applyOpenCodeProviderPolicy(nil, t.TempDir(), false, nil, ""); err != nil {
+	if _, err := applyOpenCodeProviderPolicy(nil, t.TempDir(), false, nil, "", nil); err != nil {
 		t.Fatalf("missing opencode must fall through to cplt's message: %v", err)
 	}
 }
@@ -348,7 +347,7 @@ func TestOpenCodeProviderPolicyRoutingOverrides(t *testing.T) {
 			case "global":
 				mustWrite(t, openCodeConfigPath(), tc.config)
 			}
-			_, err := applyOpenCodeProviderPolicy(env, project, true, nil, "")
+			_, err := applyOpenCodeProviderPolicy(env, project, true, nil, "", nil)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatal(err)

@@ -289,6 +289,7 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 		}
 	}
 	return cpltLaunch{
+		sessionFlags:  r.CpltFlags,
 		agent:         "opencode",
 		openCodeAgent: agent,
 		noAudit:       true,
@@ -335,6 +336,7 @@ func buildStagedPiSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, err
 	agentArgs = append(agentArgs, r.ExtraArgs...)
 
 	return cpltLaunch{
+		sessionFlags:  r.CpltFlags,
 		agent:         "pi",
 		noAudit:       true,
 		cpltArgs:      []string{"--allow-read", s.Dir},
@@ -414,6 +416,7 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 	env, checkFlags := withActionCheckServer(r, copilotEnv(r.OtelLogLevel, pakkeAcceptsUserContext("copilot")))
 
 	return cpltLaunch{
+		sessionFlags:  r.CpltFlags,
 		agent:         "copilot",
 		noAudit:       true,
 		cpltArgs:      append(cpltRead, checkFlags...),

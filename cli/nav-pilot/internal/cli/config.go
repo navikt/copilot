@@ -762,6 +762,10 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	}
 	r.ProjectDir = cli.ProjectDir
 	r.ExtraArgs = cli.ExtraArgs
+	if cli.AllowClipboard {
+		r.CpltFlags = append(r.CpltFlags, "--allow-clipboard")
+	}
+	r.CpltFlags = append(r.CpltFlags, cli.CpltArgs...)
 	r.Session = cli.Session
 	return r
 }

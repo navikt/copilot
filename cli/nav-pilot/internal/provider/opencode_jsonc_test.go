@@ -13,7 +13,6 @@ import (
 func TestOpenCodeConfigWithComments(t *testing.T) {
 	withOpenCodeConfig(t)
 	withLocalEnabled(t)
-	t.Cleanup(func() { openCodeLaunchConfig = map[string]any{} })
 	commented := `{
   // my own settings
   "theme": "tokyonight",
@@ -24,32 +23,33 @@ func TestOpenCodeConfigWithComments(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := EnsureOpenCodeConfig(); err != nil {
+	launchConfig, err := EnsureOpenCodeConfig()
+	if err != nil {
 		t.Fatalf("EnsureOpenCodeConfig on a commented file: %v", err)
 	}
-	if err := EnsureOpenCodeLocalPolicy(aLocalModel(t)); err != nil {
+	if err := EnsureOpenCodeLocalPolicy(launchConfig, "", aLocalModel(t)); err != nil {
 		t.Fatalf("EnsureOpenCodeLocalPolicy on a commented file: %v", err)
 	}
 	if got, _ := os.ReadFile(ConfigPathOverride); string(got) != commented {
 		t.Fatalf("the commented file was rewritten:\n%s", got)
 	}
-	if openCodeLaunchConfig["share"] != "disabled" {
-		t.Errorf("share default not passed to the session: %v", openCodeLaunchConfig)
+	if launchConfig["share"] != "disabled" {
+		t.Errorf("share default not passed to the session: %v", launchConfig)
 	}
-	instr, _ := openCodeLaunchConfig["instructions"].([]any)
+	instr, _ := launchConfig["instructions"].([]any)
 	if len(instr) != 1 || instr[0] != localPolicyPath() {
 		t.Errorf("instructions for the session = %v, want only the policy (OpenCode appends lists)", instr)
 	}
-	if _, ok := openCodeLaunchConfig["agent"]; !ok {
-		t.Errorf("worker binding not passed to the session: %v", openCodeLaunchConfig)
+	if _, ok := launchConfig["agent"]; !ok {
+		t.Errorf("worker binding not passed to the session: %v", launchConfig)
 	}
-	env := withOpenCodeConfigContent(nil, openCodeLaunchConfig)
+	env := withOpenCodeConfigContent(nil, launchConfig)
 	if !strings.Contains(strings.Join(env, "\n"), `"share":"disabled"`) {
 		t.Errorf("OPENCODE_CONFIG_CONTENT = %v", env)
 	}
 
 	// A write that adds and removes still hands the session the addition.
-	openCodeLaunchConfig = map[string]any{}
+	launchConfig = map[string]any{}
 	stale := `{
   // mine
   "agent": {"local-worker": {"model": "mlx/old"}},
@@ -58,7 +58,7 @@ func TestOpenCodeConfigWithComments(t *testing.T) {
 	if err := os.WriteFile(ConfigPathOverride, []byte(stale), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	err := mutateOpenCodeConfig(func(cfg map[string]any) bool {
+	err = mutateOpenCodeConfig(launchConfig, func(cfg map[string]any) bool {
 		delete(cfg, "agent")
 		cfg["provider"] = map[string]any{"mlx": map[string]any{"options": map[string]any{"baseURL": "http://127.0.0.1:9/v1"}}}
 		return true
@@ -66,8 +66,8 @@ func TestOpenCodeConfigWithComments(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "agent") {
 		t.Fatalf("add+remove on a commented file = %v, want an error naming agent", err)
 	}
-	if _, ok := openCodeLaunchConfig["provider"]; !ok {
-		t.Fatalf("the addition was lost with the removal: %v", openCodeLaunchConfig)
+	if _, ok := launchConfig["provider"]; !ok {
+		t.Fatalf("the addition was lost with the removal: %v", launchConfig)
 	}
 
 	// Removing something the commented file holds cannot go through the

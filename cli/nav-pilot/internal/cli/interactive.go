@@ -1082,12 +1082,11 @@ func launchClient(resolved ResolvedConfig) (err error) {
 	// Inside the provider launch, once this launch has written the client's
 	// context: before that the agent file on disk is the previous launch's,
 	// and a changed pin would be asked about one launch late (#1931).
-	providerpkg.BeforeClientStart = func(r ResolvedConfig) ResolvedConfig {
+	resolved.BeforeClientStart = func(r ResolvedConfig) ResolvedConfig {
 		r = maybeModelNudge(r, persona, "")
 		printModelNotice(r)
 		return r
 	}
-	defer func() { providerpkg.BeforeClientStart = func(r ResolvedConfig) ResolvedConfig { return r } }()
 	beginSession(resolved.Client)
 	return p.Launch(resolved)
 }
@@ -1345,7 +1344,7 @@ func startCommand(resolved ResolvedConfig) string {
 	dir, _ = filepath.Abs(dir)
 	cmd := fmt.Sprintf("cplt --project-dir %s --agent %s", shellQuote(dir), resolved.Client)
 	self := "nav-pilot --auto-launch"
-	for _, f := range providerpkg.CpltSessionFlags() {
+	for _, f := range resolved.CpltFlags {
 		cmd += " " + shellQuote(f)
 		self += " --cplt " + shellQuote(f)
 	}

@@ -15,8 +15,8 @@ import (
 // Both OpenCode launch paths, Tier 1 (LaunchOpenCode) and Tier 2
 // (LaunchOpenCodeStaged), run to a fake cplt with inputs that contradict
 // nav-pilot's policy: the user's own OPENCODE_CONFIG_CONTENT, a user MCP
-// server the registry does not list, and on Tier 1 openCodeLaunchConfig (what
-// a writer could not put in a commented opencode.json). Whatever the inputs
+// server the registry does not list, and on Tier 1 the launch config (what
+// EnsureOpenCodeConfig could not put in a commented opencode.json). Whatever the inputs
 // say, what reaches opencode must hold the policy keys, the MCP disable, the
 // own-dirs rules, the hooks plugin, the provider allowlist and the user's
 // model on the primary agent.
@@ -68,8 +68,13 @@ func launchOpenCodeForOrder(t *testing.T, path, version string) (content string,
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+"/bin:/usr/bin")
 
 	// The user's opencode.json turns on a server the registry does not list.
-	mustWrite(t, filepath.Join(home, ".config", "opencode", "opencode.json"),
-		`{"share":"disabled","mcp":{"rogue":{"type":"local","command":["rogue-mcp"],"enabled":true}}}`)
+	// On Tier 1 it has a comment and no share key, so the share default
+	// reaches the session through EnsureOpenCodeConfig's launch config.
+	userFile := `{"share":"disabled","mcp":{"rogue":{"type":"local","command":["rogue-mcp"],"enabled":true}}}`
+	if path == "tier1" {
+		userFile = "{\n  // mine\n  \"mcp\": {\"rogue\": {\"type\": \"local\", \"command\": [\"rogue-mcp\"], \"enabled\": true}},\n}\n"
+	}
+	mustWrite(t, filepath.Join(home, ".config", "opencode", "opencode.json"), userFile)
 	primary := "nav-pilot"
 	if path == "tier2" {
 		primary = "grillmester"
@@ -90,17 +95,6 @@ func launchOpenCodeForOrder(t *testing.T, path, version string) (content string,
 	r := domain.ResolvedConfig{Client: "opencode", Mode: "default", Model: "gpt-6.1-sol", AskUser: true, Source: t.TempDir()}
 	var err error
 	if path == "tier1" {
-		// What a writer left out of a commented opencode.json reaches the
-		// session through this map. Here it contradicts the policy too.
-		prev := openCodeLaunchConfig
-		openCodeLaunchConfig = map[string]any{
-			"share":      "auto",
-			"autoupdate": "always",
-			"mcp":        map[string]any{"rogue": map[string]any{"enabled": true}},
-			"permission": map[string]any{"external_directory": "allow"},
-			"agent":      map[string]any{primary: map[string]any{"model": "github-copilot/pinned"}},
-		}
-		t.Cleanup(func() { openCodeLaunchConfig = prev })
 		err = LaunchOpenCode(r)
 	} else {
 		SetActivePakke(stagedFixturePakke())
