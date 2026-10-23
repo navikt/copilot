@@ -223,11 +223,7 @@ sjekken i bakgrunnen rapporterer ikke utfallet. `nav_pilot_up_to_date` og
   opencode betyr dette at `--model auto` kan rapporteres som `auto`, mens tom
   modellverdi rapporteres som `unset`.
 - Tomme valg (`reasoning_effort`, `context_tier`, `model`) rapporteres som `unset`.
-- `client_major` er hovedversjonen av opencode som startes (`1` eller `2`), slik at vi ser
-  hvor mange som fortsatt bruker opencode 1 før støtten slutter (#1907). Ukjente
-  versjoner rapporteres som `unknown`, andre klienter som `unset`. Versjonen leses fra
-  den samme bufrede `opencode --version`-sjekken som oppstarten bruker, og sjekkes ikke
-  når telemetri er slått av. Full versjon sendes ikke.
+- `client_major` er hovedversjonen av opencode som startes (`1` eller `2`), så vi ser hvor mange som fortsatt bruker opencode 1 før støtten slutter (#1907). Versjoner som ikke kan leses, og 3 eller nyere, rapporteres som `unknown`; andre klienter som `unset`. Versjonen kommer fra den samme mellomlagrede `opencode --version`-sjekken som oppstarten bruker, og sjekken kjøres ikke når telemetri er slått av. Hele versjonsnummeret sendes ikke.
 - `nav_pilot_client_available` PATH-sjekker `copilot` (cplt/copilot), `opencode` og `pi`
   ved oppstart, så vi ser hvilke klienter brukere faktisk har installert.
 
