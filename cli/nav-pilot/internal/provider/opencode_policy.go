@@ -441,6 +441,11 @@ func warnCpltRecommended(agent string) {
 	}
 	if SeenChanged(key, cpltRecommended) || Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
+		// The opencode line holds the neutral reason too, so Copilot need not
+		// say it again.
+		if opencode {
+			SeenChanged("cplt-recommended", cpltRecommended)
+		}
 	}
 }
 

@@ -8,9 +8,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Modellinja**: Linja heter nå `Model: Claude Opus 5.5 (your setting)` og ser lik ut i Copilot CLI og OpenCode. Teksten om at `github-copilot/` ble fjernet, er borte. Du ser linja én gang til fordi teksten er ny (#1962).
 - **Råd om innlogging i OpenCode**: Rådet om å kjøre `opencode auth login` vises bare når OpenCode faktisk startet og avsluttet med feil. Svarer du `n` til cplt, eller feiler cplt før OpenCode starter, får du ikke rådet lenger.
-- **Hooks i Copilot CLI**: Varselet om at hooks i `copilot-hooks.json` ikke kjører før du har stolt på mappa i Copilot CLI, vises bare når klienten din er Copilot.
-- **Anbefalt cplt-versjon**: Har du sett anbefalingen i Copilot CLI, får du den én gang til i OpenCode, fordi grunnene der er andre. Bytter du mellom klientene, gjentas den ikke.
-- **Oppgradering fra OpenCode 1**: Kommandoen bruker nå OpenCode 2.1.4, og den passer med hvordan du installerte OpenCode (Homebrew, npm eller installasjonsskriptet). Meldinga sier også at oppdateringen OpenCode 1 selv tilbyr, ikke gir deg OpenCode 2.
+- **Hooks i Copilot CLI**: Varselet om at hooks i `copilot-hooks.json` ikke kjører før du har godkjent mappa i Copilot CLI, vises bare når klienten din er Copilot.
+- **Anbefalt cplt-versjon**: Har du sett anbefalingen i Copilot CLI, får du den én gang til i OpenCode, fordi grunnene er andre der. Bytter du mellom klientene, gjentas den ikke.
+- **Oppgradering fra OpenCode 1**: Kommandoen bruker nå OpenCode 2.1.4, og den passer med hvordan du installerte OpenCode (Homebrew, npm eller installasjonsskriptet). Meldinga sier også at oppdateringen OpenCode 1 selv tilbyr, holder deg på OpenCode 1.
 - **nav-pilot i en mappe sandkassen kanskje ikke kan kjøre fra**: Varselet sier nå i én linje hva som skjer (agenten ser ikke resultatet av verktøykall) og hva du gjør (installer nav-pilot i `~/.local/bin` eller med Homebrew).
 - **Tips om cplt-innstillinger**: Linjene `Launching via cplt … managed by cplt, not nav-pilot` er fjernet. cplt sier selv hvordan du endrer innstillingene. `NAV_PILOT_CPLT_HINT` har ikke lenger noen virkning.
 

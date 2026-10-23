@@ -50,10 +50,10 @@ func TestCpltRecommendedNotice(t *testing.T) {
 	if again := launch("opencode", "cplt 2026.10.22-172931-b37a8ab\n"); again != "" {
 		t.Errorf("same recommendation again: %q, want nothing", again)
 	}
-	// A non-opencode launch names only what it gains, even with opencode 2
-	// installed, once; switching back and forth repeats neither.
-	if next := launch("copilot", old); !strings.Contains(next, "recommended: it runs Nais MCP through cplt's broker. Update cplt: ") {
-		t.Errorf("copilot after opencode: %q, want the client-neutral notice", next)
+	// The opencode line already gave the neutral reason, so Copilot stays
+	// silent; switching back and forth repeats neither.
+	if next := launch("copilot", old); next != "" {
+		t.Errorf("copilot after opencode: %q, want nothing", next)
 	}
 	for _, agent := range []string{"opencode", "copilot"} {
 		if again := launch(agent, old); again != "" {
