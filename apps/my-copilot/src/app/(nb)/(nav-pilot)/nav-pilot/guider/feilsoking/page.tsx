@@ -171,12 +171,12 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
           </BodyLong>
           <BodyLong>
             Nais MCP feiler med «unauthenticated: please log in with nais login -n» under cplt, selv om du er logget
-            inn. Serveren leser innloggingen din fra nøkkelringen, og den når den ikke fra sandkassen. Slå den på med{" "}
-            <code className={code}>nav-pilot mcp enable io.github.nais/nais-mcp</code>. Da kjører cplt serveren på
-            maskinen din, utenfor sandkassen, med bare lesende verktøy. nav-pilot tilbyr å kjøre{" "}
-            <code className={code}>nais login -n</code> hvis du ikke er logget inn. Dette krever en cplt med{" "}
-            <code className={code}>cplt mcp status</code>. <code className={code}>nav-pilot mcp list</code> viser
-            innloggingen og om cplt kjører serveren.
+            inn. Serveren leser innloggingen din fra nøkkelringen, og nøkkelringen er ikke tilgjengelig fra sandkassen.
+            Slå serveren på med <code className={code}>nav-pilot mcp enable io.github.nais/nais-mcp</code>. Da kjører
+            cplt serveren på maskinen din, utenfor sandkassen, med bare lesende verktøy. Er du ikke logget inn, spør
+            nav-pilot om den skal kjøre <code className={code}>nais login -n</code>. Dette krever en cplt som har
+            kommandoen <code className={code}>cplt mcp status</code>. <code className={code}>nav-pilot mcp list</code>{" "}
+            viser innloggingen og om cplt kjører serveren.
           </BodyLong>
           <LinkableHeading id="mcp-hoster" size="small" level="3">
             Hoster i sandkassen
