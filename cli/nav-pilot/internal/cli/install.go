@@ -1262,6 +1262,9 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 			fmt.Printf("%s %s\n", dim("Reuses:"), dim(fmt.Sprintf("%s@%s", sourceLabelFor(reused), shortSHA(reused.SHA))))
 		}
 		fmt.Printf("%s %s\n", dim("Target:"), dim(scope.Label()))
+		// The summary stands in for the per-item list, which is --verbose
+		// only (#1962 F4).
+		printManifestContents(manifest)
 		fmt.Println()
 	}
 

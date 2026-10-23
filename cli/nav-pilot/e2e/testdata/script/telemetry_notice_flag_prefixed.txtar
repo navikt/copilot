@@ -1,0 +1,26 @@
+# With no config, a command behind a launch flag dispatches to the command
+# and never opens the wizard, so the telemetry notice is printed up front
+# (#1962 F19 review).
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+fake-bin cplt copilot
+
+! exists $WORK/home/config.toml
+exec pty-run -- nav-pilot --verbose sync
+stdout 'nav-pilot sends pseudonymous usage metrics'
+! stdout 'First-run setup'
+
+rm $WORK/home/seen-telemetry-notice
+! exists $WORK/home/config.toml
+exec pty-run -- nav-pilot --verbose install --help
+stdout 'nav-pilot sends pseudonymous usage metrics'
+
+rm $WORK/home/seen-telemetry-notice
+! exists $WORK/home/config.toml
+exec pty-run -- nav-pilot --verbose doctor
+stdout 'nav-pilot sends pseudonymous usage metrics'
+! stdout 'First-run setup'

@@ -497,7 +497,10 @@ func reportGHAuthBrief(w io.Writer, st ghAuth, inLaunch bool) {
 		fmt.Fprintf(w, "%s gh is not installed, so the agent can't push or open PRs. Run: %s%s\n", yellow("⚠"),
 			bold(domain.PkgForInstall().Pick("brew install gh", "sudo apt install gh")), goesOn)
 	case st == ghAuthNone:
-		fmt.Fprintf(w, "%s gh is not logged in, so the agent can't push or open PRs. Run: %s%s\n", yellow("⚠"), bold("gh auth login"), goesOn)
+		// A failed stored-login check, not proof that pushing is impossible:
+		// one expired account among working ones lands here too. doctor has
+		// the exact commands, with the token overrides cleared.
+		fmt.Fprintf(w, "%s nav-pilot could not confirm a gh login for github.com, so the agent may not be able to push or open PRs%s. Details: %s\n", yellow("⚠"), goesOn, bold("nav-pilot doctor"))
 	case (st == ghAuthOK || st == ghAuthKeyring) && originUsesSSH():
 		fmt.Fprintf(w, "%s This repo's origin uses SSH, which cplt blocks, so pushes fail. Run %s\n", yellow("⚠"),
 			bold(`git config --global url."https://github.com/".insteadOf "git@github.com:"`))

@@ -9,7 +9,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere ord (#1962).
 
 - **Tilgang til logger, metrikker og sporing**: Spørsmålet heter nå «Let the agent read Nais logs, metrics and traces?», og linja under viser hvilke adresser agenten trenger. Trykker du Enter, sier du fortsatt nei. Sier du nei, får du én linje med kommandoene som gir tilgangen senere. Begrunnelsen fra agentpakken vises med `--verbose`.
-- **gh er ikke logget inn**: Det står nå på én linje hva agenten ikke får gjort, og hvilken kommando som løser det. Oppstarten fortsetter. Detaljene om nøkkelring og tokener finner du i `nav-pilot doctor`.
+- **Innlogging i gh**: Får ikke nav-pilot bekreftet at du er logget inn i gh, står det nå på én linje at agenten kanskje ikke får pushet eller åpnet PR-er. Linja viser videre til `nav-pilot doctor`. Oppstarten fortsetter. Detaljene om nøkkelring og tokener finner du i `nav-pilot doctor`.
 - **Installasjonen**: Etter installasjonen ser du bare oppsummeringen, ikke hver fil. `nav-pilot install --verbose` viser hele lista. Feil vises alltid.
 - **Når nav-pilot ikke når utgivelsene på GitHub**: Du får én dempet linje, ikke en rå feilmelding. Den sier at nav-pilot er festet til en commit på standardgreinen, ikke til en utgivelse, og at neste synkronisering ser etter en utgivelse igjen. `--verbose` viser feilen.
 - **Hooks**: Under første oppstart ber ikke nav-pilot deg kjøre `nav-pilot install` for hooks som installasjonen rett etterpå legger til.

@@ -407,8 +407,8 @@ func TestReportGHAuthBriefIsOneLine(t *testing.T) {
 	stubSSH(t, false)
 	var b bytes.Buffer
 	reportGHAuthBrief(&b, ghAuthNone, true)
-	if s := b.String(); strings.Count(s, "\n") != 1 || !strings.Contains(s, "gh is not logged in, so the agent can't push or open PRs. Run: ") ||
-		!strings.Contains(s, "gh auth login") || !strings.Contains(s, "launch continues") || strings.Contains(s, "keyring") {
+	if s := b.String(); strings.Count(s, "\n") != 1 || !strings.Contains(s, "could not confirm a gh login for github.com, so the agent may not be able to push or open PRs") ||
+		!strings.Contains(s, "Details: nav-pilot doctor") || !strings.Contains(s, "launch continues") || strings.Contains(s, "keyring") {
 		t.Errorf("brief, not logged in: %q", s)
 	}
 	b.Reset()

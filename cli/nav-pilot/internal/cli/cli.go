@@ -1359,14 +1359,13 @@ func isQuickCommand(args []string) bool {
 	return len(args) > 0 && slices.Contains([]string{"--version", "-v", "version", "--help", "-h", "help"}, args[0])
 }
 
-// firstRunWizardAhead reports a launch that will open the first-run wizard:
-// a launch command line, a terminal, and no config file yet.
+// firstRunWizardAhead reports a run that is certain to open the first-run
+// wizard: a bare nav-pilot, a terminal, and no config file yet. Anything with
+// arguments may dispatch elsewhere (nav-pilot --verbose sync, nav-pilot --
+// -p …), so it gets the notice up front rather than a prediction that can
+// drift from run's parse.
 func firstRunWizardAhead(args []string) bool {
-	// An explicit launch (client args after "--") never opens the wizard.
-	if slices.Contains(args, "--") {
-		return false
-	}
-	if len(args) > 0 && args[0] != "--sync" && isKnownCommand(args[0]) {
+	if len(args) > 0 {
 		return false
 	}
 	if !isInteractive() {

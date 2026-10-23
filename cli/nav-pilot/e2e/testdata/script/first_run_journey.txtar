@@ -25,9 +25,9 @@ mkdir .nav-pilot
 cp ../seed/.nav-pilot/agentpakke.lock.json .nav-pilot/agentpakke.lock.json
 ! exists $WORK/home/config.toml
 
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -wait 'Where to install' -send '\r' -wait 'Decline' -send '\r' -- nav-pilot --source $WORK/plattform
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -wait 'Where to install' -send '\r' -wait 'Decline' -send '\r' -- nav-pilot
 
-# F19: the telemetry notice comes after the wizard's header.
+# F19: a bare first run gets the telemetry notice under the wizard header.
 stdout 'First-run setup(.|\n)*nav-pilot sends pseudonymous usage metrics'
 stdout 'gh is not installed, so the agent can.t push or open PRs.*the launch continues without it'
 # F15
