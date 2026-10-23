@@ -473,8 +473,9 @@ func readGitHEAD(root string) string {
 	if err != nil {
 		return ""
 	}
-	if fi.Mode().IsRegular() {
-		// A linked worktree: .git names its own git dir.
+	linked := fi.Mode().IsRegular()
+	if linked {
+		// A linked worktree or submodule: .git names its own git dir.
 		b, err := readGitFile(gitDir, root)
 		if err != nil {
 			return ""
@@ -487,6 +488,9 @@ func readGitHEAD(root string) string {
 			dir = filepath.Join(root, dir)
 		}
 		gitDir = filepath.Clean(dir)
+		if fi, err := os.Lstat(gitDir); err != nil || !fi.IsDir() {
+			return "" // missing, or a symlink
+		}
 	}
 	// Branches live in the common dir: a linked worktree's commondir names
 	// it; a main checkout has none and is its own.
@@ -497,6 +501,12 @@ func readGitHEAD(root string) string {
 			dir = filepath.Join(gitDir, dir)
 		}
 		commonDir = filepath.Clean(dir)
+		// A linked worktree's git dir must point back at this checkout, as
+		// git writes it, or sit in the common dir's worktrees/. A submodule
+		// has no commondir and needs neither.
+		if linked && !worktreeBacklinked(gitDir, commonDir, root) {
+			return ""
+		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return ""
 	}
@@ -516,7 +526,7 @@ func readGitHEAD(root string) string {
 	if !strings.HasPrefix(ref, "refs/") || !filepath.IsLocal(ref) {
 		return ""
 	}
-	for _, dir := range []string{gitDir, commonDir} {
+	for _, dir := range []string{commonDir, gitDir} {
 		b, err := readGitFile(filepath.Join(dir, filepath.FromSlash(ref)), dir)
 		if err == nil {
 			if sha := strings.TrimSpace(string(b)); isFullHexSHA(sha) {
@@ -536,6 +546,24 @@ func readGitHEAD(root string) string {
 		}
 	}
 	return ""
+}
+
+// worktreeBacklinked reports whether a linked worktree's git dir belongs to
+// the checkout at root.
+func worktreeBacklinked(gitDir, commonDir, root string) bool {
+	real := func(p string) string {
+		if r, err := filepath.EvalSymlinks(p); err == nil {
+			return r
+		}
+		return filepath.Clean(p)
+	}
+	if b, err := readGitFile(filepath.Join(gitDir, "gitdir"), gitDir); err == nil {
+		if real(strings.TrimSpace(string(b))) == real(filepath.Join(root, ".git")) {
+			return true
+		}
+	}
+	rel, err := filepath.Rel(real(filepath.Join(commonDir, "worktrees")), real(gitDir))
+	return err == nil && filepath.IsLocal(rel)
 }
 
 func readGitFile(path, boundary string) ([]byte, error) {
