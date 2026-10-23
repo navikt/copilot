@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
@@ -55,6 +56,53 @@ func TestUnsupportedWarningOncePerValue(t *testing.T) {
 	setVerbose(t, true)
 	if out := say("opencode", high); !strings.Contains(out, `"high"`) {
 		t.Errorf("--verbose was silent: %q", out)
+	}
+}
+
+// onceThenChange runs say(v) as a launch would: shown for a new value, silent
+// on repeat, shown again on a change and always with --verbose.
+func onceThenChange(t *testing.T, say func(v string) string, a, b string) {
+	t.Helper()
+	proposeEnv(t)
+	setVerbose(t, false)
+	if out := say(a); !strings.Contains(out, a) {
+		t.Fatalf("first launch was silent: %q", out)
+	}
+	if out := say(a); out != "" {
+		t.Errorf("repeat launch spoke: %q", out)
+	}
+	if out := say(b); !strings.Contains(out, b) {
+		t.Errorf("changed value was silent: %q", out)
+	}
+	setVerbose(t, true)
+	defer setVerbose(t, false)
+	if out := say(b); !strings.Contains(out, b) {
+		t.Errorf("--verbose was silent: %q", out)
+	}
+}
+
+func TestSandboxSubfolderLineOncePerScope(t *testing.T) {
+	onceThenChange(t, func(v string) string {
+		return stderrOf(t, func() { printSandboxScope("/repo/"+v, "/repo", []string{"/repo/AGENTS.md"}) })
+	}, "sub-a", "sub-b")
+}
+
+func TestLaunchSyncProgressIsVerboseOnly(t *testing.T) {
+	prev := artifacts.LaunchNotices
+	t.Cleanup(func() { artifacts.LaunchNotices = prev })
+	setVerbose(t, false)
+	artifacts.LaunchNotices = true
+	if !quietLaunchSync() {
+		t.Error("a launch's --sync progress is not quiet")
+	}
+	setVerbose(t, true)
+	if quietLaunchSync() {
+		t.Error("--verbose did not show the --sync progress")
+	}
+	setVerbose(t, false)
+	artifacts.LaunchNotices = false
+	if quietLaunchSync() {
+		t.Error("an explicit nav-pilot sync lost its progress lines")
 	}
 }
 

@@ -314,6 +314,10 @@ func cmdDoctor() error {
 	reportHooks(repoDir, userScope)
 	fmt.Println()
 
+	if a := assessStaleness(Version); Version != "dev" && a.LatestVersion != "" && versionNewer(a.LatestVersion, Version) {
+		fmt.Printf("[i] nav-pilot %s available (current: %s) — run %s\n\n", a.LatestVersion, Version, bold("nav-pilot upgrade"))
+	}
+
 	// 2c. Settings the client drops. A launch says each once per value;
 	// doctor says them every time.
 	if cfg, _ := readConfig(); cfg != nil {

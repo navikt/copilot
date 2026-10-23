@@ -244,7 +244,16 @@ func startupUpdateCheck() (stop bool, err error) {
 	// even if the (possibly stale) cache still reports a newer version.
 	alreadyReexeced := os.Getenv(reexecGuardEnv) == "1"
 
+	// "Available" is said once per release (doctor says it every time); an
+	// update that runs, fails or prompts is not gated.
+	// Called only where the nudge prints, so a prompt does not use it up.
+	newRelease := func() bool {
+		return providerpkg.SeenChanged("update-available", assessment.LatestVersion) || providerpkg.Verbose
+	}
 	if mgr := packageManager(); mgr.Name != "" {
+		if !newRelease() {
+			return false, nil
+		}
 		// nav-pilot cannot replace a binary Homebrew or dpkg owns: doUpdate
 		// declines, and every offer above it — the auto-update line, the upgrade
 		// prompt, the "run nav-pilot upgrade" nudge — announced something that
@@ -304,6 +313,9 @@ func startupUpdateCheck() (stop bool, err error) {
 			}
 		}
 	} else if !autoUpdate {
+		if !newRelease() {
+			return false, nil
+		}
 		fmt.Fprintf(os.Stderr, "%s nav-pilot %s available (current: %s) — run %s to upgrade\n",
 			yellow("⚠"), assessment.LatestVersion, Version, bold("nav-pilot upgrade"))
 	} else {

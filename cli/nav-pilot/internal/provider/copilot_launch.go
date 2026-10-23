@@ -730,6 +730,9 @@ func PrintModelAvailabilityHint(model string) {
 			domain.Yellow("⚠"), domain.Bold(model))
 		return
 	}
+	if !SeenChanged("model-hint", model) && !Verbose {
+		return
+	}
 	fmt.Printf("%s Model: %s — if unavailable in your org, run: %s\n\n",
 		domain.Dim("ℹ"), domain.Bold(model), domain.Bold("nav-pilot config set model auto"))
 }

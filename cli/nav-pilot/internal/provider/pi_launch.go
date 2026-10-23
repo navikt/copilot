@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
@@ -79,8 +80,10 @@ func ensurePiNavContext(ref, sourceRepo string, launch bool) (string, func(conte
 	if err != nil {
 		return "", refresh, err
 	}
-	for _, c := range conflicts {
-		fmt.Fprintf(os.Stderr, "%s pi context: %s was modified locally and was left alone\n", domain.Yellow("⚠"), c)
+	if SeenChanged("context-modified-pi", strings.Join(conflicts, ",")) && len(conflicts) > 0 || Verbose {
+		for _, c := range conflicts {
+			fmt.Fprintf(os.Stderr, "%s pi context: %s was modified locally and was left alone\n", domain.Yellow("⚠"), c)
+		}
 	}
 	return fmt.Sprintf("%d skill(s), %d agent(s), %d instruction section(s)", skills, agents, instructions), refresh, nil
 }
