@@ -549,3 +549,32 @@ func TestMCPEnableBrokerPickerCancelWritesNothing(t *testing.T) {
 		t.Error("a cancelled picker ran the login")
 	}
 }
+
+// nav-pilot's mechanism table matches the shared fixture, which the
+// registry's own test also checks its table against: the two tables cannot
+// drift apart unnoticed.
+func TestMCPMechanismsMatchRegistryFixture(t *testing.T) {
+	data, err := os.ReadFile("../../../../apps/mcp-registry/testdata/broker-mechanisms.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want map[string]struct {
+		Command []string `json:"command"`
+		Login   struct {
+			Run    string `json:"run"`
+			Status string `json:"status"`
+		} `json:"login"`
+	}
+	if err := json.Unmarshal(data, &want); err != nil {
+		t.Fatal(err)
+	}
+	if len(want) != len(mcpMechanisms) {
+		t.Errorf("fixture has %d mechanisms, mcpMechanisms %d", len(want), len(mcpMechanisms))
+	}
+	for name, w := range want {
+		m, ok := mcpMechanisms[name]
+		if !ok || !slices.Equal(m.command, w.Command) || strings.Join(m.login, " ") != w.Login.Run || strings.Join(m.status, " ") != w.Login.Status {
+			t.Errorf("%s: mcpMechanisms %+v, fixture %+v; change both, and the registry's brokerMechanisms", name, m, w)
+		}
+	}
+}

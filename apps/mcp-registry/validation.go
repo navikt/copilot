@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"os"
@@ -151,21 +152,43 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 	return nil
 }
 
-// validateBroker checks the broker extension against what cplt accepts, so
-// a registry entry never yields a spec cplt rejects at launch.
+// brokerMechanism is what a credential mechanism pins: the server command
+// cplt runs, and the login commands nav-pilot runs. nav-pilot keeps the same
+// table (cli/nav-pilot/internal/cli/mcp_broker.go);
+// testdata/broker-mechanisms.json keeps the two in step.
+type brokerMechanism struct {
+	Command []string    `json:"command"`
+	Login   BrokerLogin `json:"login"`
+}
+
+var brokerMechanisms = map[string]brokerMechanism{
+	"nais-keychain": {
+		Command: []string{"nais", "alpha", "mcp", "serve"},
+		Login:   BrokerLogin{Run: "nais login -n", Status: "nais auth print-access-token"},
+	},
+}
+
+var (
+	brokerClasses   = []string{"read", "write", "external"} // host-exec is never brokered
+	brokerArgChecks = []string{"graphql-read-only"}
+)
+
+// validateBroker checks the broker extension against what cplt and nav-pilot
+// accept, so a registry entry never yields a spec either refuses.
 func validateBroker(b *BrokerExtension, tools []string, index int) error {
 	prefix := fmt.Sprintf("server[%d]._meta[io.github.navikt/broker]", index)
 	if b.V != 1 {
 		return fmt.Errorf("%s.v: %d is not a known version (1)", prefix, b.V)
 	}
-	if !slices.Contains([]string{"nais-keychain", "none"}, b.Credential) {
-		return fmt.Errorf("%s.credential: '%s' must be nais-keychain or none", prefix, b.Credential)
+	m, ok := brokerMechanisms[b.Credential]
+	if !ok {
+		return fmt.Errorf("%s.credential: '%s' must be one of %v", prefix, b.Credential, slices.Sorted(maps.Keys(brokerMechanisms)))
 	}
-	if len(b.Command) == 0 || strings.Contains(b.Command[0], "/") {
-		return fmt.Errorf("%s.command: needs a bare program name first", prefix)
+	if !slices.Equal(b.Command, m.Command) {
+		return fmt.Errorf("%s.command: %s runs only %q", prefix, b.Credential, strings.Join(m.Command, " "))
 	}
-	if b.Credential == "nais-keychain" && !slices.Equal(b.Command, []string{"nais", "alpha", "mcp", "serve"}) {
-		return fmt.Errorf("%s.command: nais-keychain runs only 'nais alpha mcp serve'", prefix)
+	if b.Login != m.Login {
+		return fmt.Errorf("%s.login: must be %+v for %s (nav-pilot's pinned commands)", prefix, m.Login, b.Credential)
 	}
 	for j, host := range b.EgressHosts {
 		if !hostRegex.MatchString(host) {
@@ -179,23 +202,17 @@ func validateBroker(b *BrokerExtension, tools []string, index int) error {
 		if !slices.Contains(tools, tool) {
 			return fmt.Errorf("%s.tools.classes: '%s' is not in the server's tools", prefix, tool)
 		}
-		if !slices.Contains([]string{"read", "write", "external"}, class) {
-			return fmt.Errorf("%s.tools.classes.%s: '%s' must be read, write or external (host-exec is never brokered)", prefix, tool, class)
+		if !slices.Contains(brokerClasses, class) {
+			return fmt.Errorf("%s.tools.classes.%s: '%s' must be one of %v", prefix, tool, class, brokerClasses)
 		}
 	}
 	for tool, check := range b.ArgChecks {
 		if _, ok := b.Tools.Classes[tool]; !ok {
 			return fmt.Errorf("%s.argChecks: '%s' is not in tools.classes", prefix, tool)
 		}
-		if check != "graphql-read-only" {
-			return fmt.Errorf("%s.argChecks.%s: '%s' must be graphql-read-only", prefix, tool, check)
+		if !slices.Contains(brokerArgChecks, check) {
+			return fmt.Errorf("%s.argChecks.%s: '%s' must be one of %v", prefix, tool, check, brokerArgChecks)
 		}
-	}
-	// nav-pilot runs only its own commands per mechanism; these must match
-	// them, and are otherwise text.
-	want := map[string]BrokerLogin{"nais-keychain": {Run: "nais login -n", Status: "nais auth print-access-token"}}[b.Credential]
-	if b.Login != want {
-		return fmt.Errorf("%s.login: must be %+v for %s (nav-pilot's pinned commands)", prefix, want, b.Credential)
 	}
 	return nil
 }

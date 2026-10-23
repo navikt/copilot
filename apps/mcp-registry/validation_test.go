@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -1009,5 +1012,21 @@ func TestValidateBroker(t *testing.T) {
 		if err := validateRegistry(reg); (err == nil) != tc.ok {
 			t.Errorf("%s: valid=%v, got %v", name, tc.ok, err)
 		}
+	}
+}
+
+// The registry's mechanism table matches the shared fixture, which
+// nav-pilot's own test also checks its table against.
+func TestBrokerMechanismsMatchFixture(t *testing.T) {
+	data, err := os.ReadFile("testdata/broker-mechanisms.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want map[string]brokerMechanism
+	if err := json.Unmarshal(data, &want); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(want, brokerMechanisms) {
+		t.Errorf("brokerMechanisms = %+v, testdata/broker-mechanisms.json = %+v; change both, and nav-pilot's mcpMechanisms", brokerMechanisms, want)
 	}
 }
