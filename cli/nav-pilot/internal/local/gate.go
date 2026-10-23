@@ -201,6 +201,10 @@ type GateRules struct {
 	Multi bool
 	// Create: a file the orchestrator would create itself (create-file).
 	Create bool
+	// Verify: the verify reminder and the one retry after the worker's edit or
+	// new file (retry2). Not a refusal rule: on whenever any class is trusted
+	// in delegate mode, since every trusted verdict was measured with the retry.
+	Verify bool
 	// Root is the session's project directory. The gate stats only paths
 	// under it: the route listens on localhost, and must not answer "is this
 	// file there" about the rest of the disk.
@@ -225,7 +229,7 @@ func (r GateRules) budget() int {
 }
 
 // Any reports whether there is a rule to run at all.
-func (r GateRules) Any() bool { return r.Multi || r.Create || r.Pinned }
+func (r GateRules) Any() bool { return r.Multi || r.Create || r.Verify || r.Pinned }
 
 // under returns path cleaned when it lies under root, and false otherwise.
 func under(root, path string) (string, bool) {
@@ -1491,11 +1495,12 @@ func shellWords(s string) []string {
 func DispatchGateRules(level string, c *Capabilities) GateRules {
 	send, _ := c.DelegateTrusted()
 	multi := slices.Contains(send, "edit-multi-mechanical")
+	verify := len(send) > 0
 	switch level {
 	case DispatchBalanced:
-		return GateRules{Multi: multi, Checkpoint: true}
+		return GateRules{Multi: multi, Verify: verify, Checkpoint: true}
 	case DispatchAggressive:
-		return GateRules{Multi: multi, Create: slices.Contains(send, "create-file")}
+		return GateRules{Multi: multi, Create: slices.Contains(send, "create-file"), Verify: verify}
 	}
 	return GateRules{}
 }

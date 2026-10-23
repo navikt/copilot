@@ -354,8 +354,8 @@ func TestDispatchGateRules(t *testing.T) {
 	for level, want := range map[string]GateRules{
 		DispatchOff:          {},
 		DispatchConservative: {},
-		DispatchBalanced:     {Multi: true, Checkpoint: true},
-		DispatchAggressive:   {Multi: true, Create: true},
+		DispatchBalanced:     {Multi: true, Verify: true, Checkpoint: true},
+		DispatchAggressive:   {Multi: true, Create: true, Verify: true},
 	} {
 		if got := DispatchGateRules(level, c); got != want {
 			t.Errorf("%s: %+v, want %+v", level, got, want)
@@ -799,5 +799,44 @@ func TestResolvedFormsFollowsSymlinks(t *testing.T) {
 	}
 	if within(forms, "/elsewhere/F1.bak") {
 		t.Errorf("within(%v, /elsewhere/F1.bak) = true", forms)
+	}
+}
+
+// At balanced the shipped manifest trusts no class with a refusal rule
+// (create-file's rule is aggressive only, edit-multi-mechanical is not
+// trusted), yet both trusted verdicts rest on the one retry. The gate must
+// still run, so a worker's failed check gets the retry instruction.
+func TestBalancedShippedModelKeepsTheRetry(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // no cache: the embedded manifest
+	m, src, _ := Cached()
+	if src != SourceEmbedded {
+		t.Fatalf("source = %s, want embedded", src)
+	}
+	e, ok := Chosen(m)
+	if !ok {
+		t.Fatal("no default entry")
+	}
+	rules := DispatchGateRules(DispatchBalanced, e.Capabilities)
+	if rules.Multi || rules.Create {
+		t.Errorf("balanced rules = %+v, want no refusal rule", rules)
+	}
+	if !rules.Any() {
+		t.Fatalf("balanced rules = %+v: no gate, so no verify or retry", rules)
+	}
+	exit := func(n int) *int { return &n }
+	for _, create := range []bool{false, true} {
+		g := testGate(t, true, rules)
+		g.verify(GateRequest{Session: "w1", Agent: WorkerAgent, Tool: "write", Create: create, Path: filepath.Join(root, "src", "A.kt"), Phase: "worker"})
+		if key, got := g.verify(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Worker: "w1", Phase: "after"}); key != "append" || got != GateVerifyText {
+			t.Fatalf("create=%v: worker return got %q %q", create, key, got)
+		}
+		g.decide(bash(1, "./gradlew test"))
+		if key, got := g.verify(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "bash", Command: "./gradlew test", Exit: exit(1), Phase: "after"}); key != "append" || got != GateRetryText {
+			t.Errorf("create=%v: failed check got %q %q, want the retry", create, key, got)
+		}
+	}
+	// Nothing trusted, no gate: an endpoint's empty block stays gate-free.
+	if r := DispatchGateRules(DispatchBalanced, &Capabilities{}); r.Any() {
+		t.Errorf("empty block rules = %+v, want no gate", r)
 	}
 }
