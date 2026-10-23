@@ -538,6 +538,7 @@ func openCodeConfigDocs(projectDir string, env []string, userOnly bool) [][]byte
 type openCodeConfigDocument struct {
 	path    string
 	content []byte
+	raw     []byte // as read, before any {env:} substitution
 }
 
 func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []openCodeConfigDocument {
@@ -548,7 +549,7 @@ func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []o
 		for _, n := range names {
 			path := filepath.Join(dir, n)
 			if b, err := os.ReadFile(path); err == nil {
-				docs = append(docs, openCodeConfigDocument{path, expandUnquotedEnv(b, getenv)})
+				docs = append(docs, openCodeConfigDocument{path, expandUnquotedEnv(b, getenv), b})
 			}
 		}
 	}
@@ -605,7 +606,7 @@ func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []o
 		read(d, "opencode.json", "opencode.jsonc")
 	}
 	if c := getenv(openCodeConfigContentEnv); c != "" {
-		docs = append(docs, openCodeConfigDocument{openCodeConfigContentEnv, expandUnquotedEnv([]byte(c), getenv)})
+		docs = append(docs, openCodeConfigDocument{openCodeConfigContentEnv, expandUnquotedEnv([]byte(c), getenv), []byte(c)})
 	}
 	return docs
 }
