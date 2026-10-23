@@ -51,7 +51,7 @@ type Recorder interface {
 	RecordStalenessCheck(component, scope, result string)
 	RecordUpToDate(component, scope string, upToDate bool)
 	RecordVersionSkewDays(component, scope string, days int64)
-	RecordConfig(client, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
+	RecordConfig(client, clientMajor, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
 	RecordLocalSession(client, model, backend, level string, dispatches int64, sawTraffic bool)
@@ -80,7 +80,7 @@ func (NoopRecorder) RecordInstalledItems(string, string, string, int64)         
 func (NoopRecorder) RecordStalenessCheck(string, string, string)                         {}
 func (NoopRecorder) RecordUpToDate(string, string, bool)                                 {}
 func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                         {}
-func (NoopRecorder) RecordConfig(string, string, string, string, string, string, bool, bool) {
+func (NoopRecorder) RecordConfig(string, string, string, string, string, string, string, bool, bool) {
 }
 func (NoopRecorder) RecordClientAvailable(string, bool)   {}
 func (NoopRecorder) RecordLaunchError(string, string)     {}
@@ -479,9 +479,14 @@ func (t *otelTelemetry) recordInfo() {
 // gauge so we can see which clients, modes and models users actually run with.
 // All labels are bounded enums (validated upstream), a clamped model id, or
 // booleans, so cardinality stays low and no PII is recorded.
-func (t *otelTelemetry) RecordConfig(client, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool) {
+//
+// clientMajor is the launched client's major version, so far only for opencode,
+// to count launches still on opencode 1 before its end of support (#1907):
+// "1", "2", "unknown" for any other value, "unset" when not probed.
+func (t *otelTelemetry) RecordConfig(client, clientMajor, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool) {
 	t.configInfo.Record(context.Background(), 1, metric.WithAttributes(
 		attribute.String("client", orUnset(client)),
+		attribute.String("client_major", clientMajorLabel(clientMajor)),
 		attribute.String("config_mode", orUnset(configMode)),
 		attribute.String("model", orUnset(model)),
 		attribute.String("reasoning_effort", orUnset(reasoningEffort)),
@@ -750,6 +755,14 @@ type DecideEvent struct {
 }
 
 var decidePBuckets = []float64{0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99}
+
+// clientMajorLabel bounds RecordConfig's client_major to unset, 1, 2 or unknown.
+func clientMajorLabel(v string) string {
+	if v == "" {
+		return "unset"
+	}
+	return oneOf(v, "1", "2")
+}
 
 // oneOf returns v if it is one of allowed, otherwise "unknown". Every attribute
 // the decide and hook instruments carry, except the model, goes through it or

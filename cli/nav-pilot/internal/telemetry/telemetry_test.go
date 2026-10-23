@@ -191,7 +191,7 @@ func collectGauge(t *testing.T, reader *sdkmetric.ManualReader, name string) []m
 
 func TestRecordConfig_EmitsLabels(t *testing.T) {
 	tel, reader := newTestTelemetry(t)
-	tel.RecordConfig("opencode", "autopilot", "claude-opus-4.8", "high", "", "debug", true, false)
+	tel.RecordConfig("opencode", "", "autopilot", "claude-opus-4.8", "high", "", "debug", true, false)
 
 	dps := collectGauge(t, reader, "nav_pilot_config_info")
 	if len(dps) != 1 {
@@ -224,6 +224,17 @@ func TestRecordConfig_EmitsLabels(t *testing.T) {
 	}
 }
 
+func TestRecordConfig_ClientMajor(t *testing.T) {
+	for in, want := range map[string]string{"": "unset", "1": "1", "2": "2", "0": "unknown", "3": "unknown"} {
+		tel, reader := newTestTelemetry(t)
+		tel.RecordConfig("opencode", in, "default", "", "", "", "none", false, false)
+		got, _ := collectGauge(t, reader, "nav_pilot_config_info")[0].Attributes.Value("client_major")
+		if got.AsString() != want {
+			t.Errorf("client_major for %q = %q, want %q", in, got.AsString(), want)
+		}
+	}
+}
+
 func TestRecordClientAvailable_EmitsValue(t *testing.T) {
 	tel, reader := newTestTelemetry(t)
 	tel.RecordClientAvailable("copilot", true)
@@ -245,7 +256,7 @@ func TestRecordClientAvailable_EmitsValue(t *testing.T) {
 
 func TestNoopRecordConfigAndClientAvailable(t *testing.T) {
 	var rec Recorder = NoopRecorder{}
-	rec.RecordConfig("copilot", "default", "", "", "", "none", false, true)
+	rec.RecordConfig("copilot", "", "default", "", "", "", "none", false, true)
 	rec.RecordClientAvailable("copilot", true)
 }
 

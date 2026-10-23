@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Telemetri viser hovedversjonen av opencode
+
+- **OpenCode**: Oppstartsmetrikken `nav_pilot_config_info` har fått feltet `client_major` med hovedversjonen av opencode (`1` eller `2`). Slik ser vi hvor mange som må oppgradere før støtten for opencode 1 slutter 19. november (#1907). Er telemetri slått av, sendes ingenting. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md).
+
 ### Lokal modell med kommentarer i opencode.json
 
 - **OpenCode**: Med `local_dispatch` på og kommentarer i `~/.config/opencode/opencode.json` stoppet nav-pilot oppstarten med «redefines provider mlx». Blokken for den lokale leverandøren er nav-pilots egen, så nå starter økten. Er blokken endret, for eksempel med en annen `baseURL`, stopper oppstarten som før.
