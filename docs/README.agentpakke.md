@@ -272,7 +272,7 @@ Det er de fire `skills/observability-debugging` faktisk curler. `grafana.nav.clo
 
 **To porter, ikke én.** cplt avviser en host utenfor `proxy.allowed_domains` før DNS (`Domain not in allowlist`), og avviser en host som slo opp til en privat adresse etter DNS med mindre `proxy.allow_private_domains` dekker den (`Resolved to a private IP`). En spørring må gjennom begge. `navOwnDomains` i `internal/cli/config_sandbox.go` er den første, forslaget her er den andre, og `TestObservabilityHostsMatchTheProposal` holder de to listene like. `collector-internet.nav.cloud.nais.io`, som nav-pilot selv sender telemetri til, slår opp offentlig og trenger bare den første.
 
-**Slik ser feilen ut uten waiveren.** 403-en kommer midt i en spørring, og hver curl i skillen er rørt til `jq`, så det brukeren ser er `parse error: Invalid numeric literal`. Det ligner på at nettet er nede. `nav-pilot doctor` sier om waiveren er i kraft, skillen har en tabell som skiller de tre 403-ene fra en naisdevice som ikke er koblet til, og avslagsteksten skriver ut enlinjeren som åpner det for hånd.
+**Slik ser feilen ut uten waiveren.** 403-en kommer midt i en spørring, og hver curl i skillen er rørt til `jq`, så det brukeren ser er `parse error: Invalid numeric literal`. Det ligner på at nettet er nede. `nav-pilot doctor` sier om waiveren er i kraft, skillen har en tabell som skiller de tre 403-ene fra en naisdevice som ikke er koblet til, og avslagsteksten viser til `nav-pilot pakke access`.
 
 ### Samtykke
 
@@ -282,7 +282,7 @@ En senere revisjon som legger til eller utvider en oppføring gir ny hash. Det g
 
 Kjøringer uten terminal godkjenner aldri, og registrerer ingenting heller — et ubesvart spørsmål er ikke et nei. `--json` teller som en slik kjøring.
 
-**Avslag installerer likevel.** Du kan ville ha pakka for de andre skillene. Avslaget registreres, så du ikke blir spurt om det samme igjen, og du får vite hvilken arbeidsflyt som ryker og enlinjeren som åpner den for hånd:
+**Avslag installerer likevel.** Du kan ville ha pakka for de andre skillene. Avslaget registreres, så du ikke blir spurt om det samme igjen, og du får vite på én linje hva agenten ikke kan, og at `nav-pilot pakke access` spør på nytt. Vil du heller åpne det for hånd i cplt:
 
 ```
 cplt config set proxy.allow_private_domains cloud.nais.io

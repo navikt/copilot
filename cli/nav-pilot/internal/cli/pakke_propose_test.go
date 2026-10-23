@@ -221,7 +221,7 @@ func TestDeclineNamesTheWorkflowAndTheOneLiner(t *testing.T) {
 	})
 	// One line (#1962 F2): what the agent cannot do, and the way back. The
 	// pakke's long reason is not repeated.
-	want := "Declined, so the agent can't reach cloud.nais.io. To allow it later: nav-pilot pakke access\n"
+	want := "Declined, so the agent can't reach cloud.nais.io. To allow it later: nav-pilot pakke access --user\n"
 	if !strings.HasSuffix(out, want) || strings.Count(out, "\n") != 1 {
 		t.Errorf("the decline is not the one line %q:\n%s", want, out)
 	}
@@ -671,16 +671,16 @@ func TestBothKindsOfProposalAreOneQuestionAndOneRecord(t *testing.T) {
 	}
 }
 
-// A decline still installs, and still says what the user can run by hand — now
-// one line per setting, since a block can carry more than one (#885).
-func TestDeclinedReadGrantPrintsTheCommandToRunByHand(t *testing.T) {
+// A decline still installs and says so in one line, however many settings the
+// block carries (#885).
+func TestDeclinedReadGrantIsOneLine(t *testing.T) {
 	scope := consentEnv(t)
 	answering(t, false)
 	// A warning, so on stderr with every other one.
 	out := captureStderrFor(t, func() {
 		noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, readGrantExtra), false, false)
 	})
-	want := "Declined, so the agent can't reach cloud.nais.io and read ~/Library/Application Support/naisdevice/agent-status.json. To allow it later: nav-pilot pakke access\n"
+	want := "Declined, so the agent can't reach cloud.nais.io and read ~/Library/Application Support/naisdevice/agent-status.json. To allow it later: nav-pilot pakke access --user\n"
 	if !strings.HasSuffix(out, want) || strings.Count(out, "\n") != 1 {
 		t.Errorf("the decline is not the one line %q:\n%s", want, out)
 	}

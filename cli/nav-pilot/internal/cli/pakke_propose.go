@@ -222,8 +222,12 @@ func putProposal(scope *InstallScope, src *Source, dryRun, jsonOutput, reask boo
 	}
 	if !approve {
 		// One line: what the agent cannot do, and the way back (#1962 F2).
-		fmt.Fprintf(os.Stderr, "%s Declined, so the agent can't %s. To allow it later: nav-pilot pakke access\n",
-			yellow("⚠"), proposalAccess(hosts, reads))
+		later := "nav-pilot pakke access"
+		if scope.IsUser() {
+			later += " --user"
+		}
+		fmt.Fprintf(os.Stderr, "%s Declined, so the agent can't %s. To allow it later: %s\n",
+			yellow("⚠"), proposalAccess(hosts, reads), later)
 		return nil
 	}
 	fmt.Printf("%s %s may %s from inside the sandbox.\n", green("✓"), bold(name), proposal.Summary())
