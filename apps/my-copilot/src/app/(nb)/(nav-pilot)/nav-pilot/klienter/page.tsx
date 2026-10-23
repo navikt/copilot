@@ -556,6 +556,17 @@ export default function Klienter() {
             plugins, MCP-servere eller konfig fra repoet.
           </li>
           <li>
+            Hovedagenten kan velge en annen modell for en underagent, og valget går foran modellen i agentpakka.
+            opencode spør deg ikke (
+            <a href="https://github.com/anomalyco/opencode/issues/51071" className={linkClass}>
+              opencode#51071
+            </a>
+            ). Modellen må likevel komme fra GitHub Copilot eller den lokale modellen, så koden kan ikke gå til andre
+            leverandører. Valget kan gi dyrere modeller og flere premiumforespørsler. Sjekk modellen i underøkta hvis
+            kostnaden betyr noe, og skriv i oppdraget hvis modellen ikke skal byttes. Agentpakkeforfattere kan ikke
+            regne med at en fastsatt modell holder.
+          </li>
+          <li>
             <strong>Tale (GPT-Live) er ikke tillatt med nav-pilot.</strong> Talefunksjonen i opencode 2.1 kobler seg
             rett til OpenAI, xAI eller Google når den finner en API-nøkkel for dem, lagret i opencode eller i en
             miljøvariabel som {c("OPENAI_API_KEY")}. Den sjekker ikke lista over tillatte leverandører, så nav-pilots

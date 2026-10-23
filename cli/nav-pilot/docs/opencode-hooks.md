@@ -105,6 +105,19 @@ The user-facing summary is on [the klienter page](https://ki-utvikling.nav.no/na
 - **`external_directory`.** The instructions, agents and skills nav-pilot installs live in `~/.config/opencode/`, outside the project. A launched session may read them without an `external_directory` prompt, but not edit them; that is `nav-pilot sync`'s job. Without the grant OpenCode would prompt when the model opens one, and `opencode run` would answer no and end the session. Other directories outside the project keep the user's own setting. With `external_directory` set to `"deny"`, nav-pilot adds nothing.
 - **Telemetry.** The launch configures OpenTelemetry for OpenCode unless telemetry is turned off.
 
+## Subagent model overrides (#1905)
+
+In OpenCode 2 the parent model can pass a `model` argument to the `subagent` tool, and that choice wins over the subagent's configured model. OpenCode does not check it against anything the user authorized ([anomalyco/opencode#51071](https://github.com/anomalyco/opencode/issues/51071), open). Owner decision 2026-10-22: nav-pilot does not block overrides and relies on the provider allowlist from #1882/#1911 until that issue is fixed.
+
+- **What an override can do.** Pick any model from the allowed providers (`github-copilot`, plus `mlx` with local inference), including a more expensive one or a different premium-request multiplier than the user or the agentpakke chose. The user is not asked.
+- **What it cannot do.** Reach a provider outside the allowlist. The child session uses the same `enabled_providers`. This is configuration control, not an egress boundary (see Providers above).
+- **Cost.** Premium-request use can rise without a prompt. Model choice in agentpakke agents is advice, not a limit.
+- **Data routing.** Stays inside GitHub Copilot and the local model. An override cannot send code to another vendor.
+- **Users.** Watch the model shown on the child session if cost matters, and say in the prompt when a model must not change. Do not store keys for other providers in OpenCode.
+- **Agentpakke authors.** Pin a model in the agent definition where it matters, but do not rely on the pin as a guarantee: a parent override beats it. Do not write instructions that depend on a subagent running on a specific model.
+
+Remove this section when #51071 is fixed and nav-pilot has a tested range that includes the fix.
+
 ## Voice is not allowed
 
 Voice (GPT-Live) is not allowed under nav-pilot (owner decision 2026-10-22). In OpenCode 2.1.3, `packages/core/src/voice.ts` looks for an openai, xai or google credential, stored in OpenCode or in an env var (`OPENAI_API_KEY`, `XAI_API_KEY`, `GEMINI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_API_KEY`), and never reads `enabled_providers`. A hosted route through the OpenCode Console runs without a key at all. The provider allowlist a launch sets therefore does not stop voice. cplt does not let these keys into the sandbox by default. On cplt 2026.10.23-070444 or newer, nav-pilot also blocks them when someone lets them in with `--pass-env`, `--inherit-env` or `.cplt.toml`, by passing `--deny-env` for each ([navikt/cplt#817](https://github.com/navikt/cplt/pull/817), `withDenyVoiceEnv`). An older cplt rejects the flag, so nav-pilot passes none and shows a launch notice instead. Stored keys and the Console route cannot be blocked by config. Users must not store openai, xai or google keys in OpenCode, and must not use voice.
