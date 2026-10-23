@@ -13,6 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/huh"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -207,6 +208,7 @@ func runConfigSetupWith(flagSource string, advanced bool) error {
 	fmt.Printf("%s  First-run setup\n", bold("🧭 nav-pilot"))
 	fmt.Println(dim("  Set your preferences — change anytime with 'nav-pilot config set'."))
 	fmt.Println()
+	maybeTelemetryNotice()
 
 	existing, _ := readConfig()
 	answers := setupPreselect(existing)
@@ -405,12 +407,8 @@ func runConfigSetupWith(flagSource string, advanced bool) error {
 	fmt.Println()
 
 	// Setup checks stored host login only; a launch never probes.
-	ghCfg, err := readConfig()
-	if err != nil {
-		return fmt.Errorf("reading saved config: %w", err)
-	}
-	st, detail := ghAuthProbe()
-	reportGHAuth(os.Stdout, "", answers.Client, resolve(ghCfg, CLIOverrides{}).CopilotAuthMode, st, detail)
+	st, _ := ghAuthProbe()
+	reportGHAuthBrief(os.Stdout, st, artifacts.FirstRun)
 	if cpltPath != "" {
 		offerCpltInit(cpltPath)
 	}
@@ -567,6 +565,11 @@ func maybeRunFirstRunSetup(flagSource string) error {
 		// File exists (err == nil) or some other stat error — skip setup.
 		return nil
 	}
+	// The install that follows adds the source's hooks, so the wizard's
+	// context seeding must not first tell the user to run nav-pilot install
+	// for them (#1962 F9).
+	artifacts.FirstRun = true
+	defer func() { artifacts.FirstRun = false }()
 	return runConfigSetupFn(flagSource)
 }
 

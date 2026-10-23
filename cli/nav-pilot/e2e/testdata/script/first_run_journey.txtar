@@ -1,0 +1,64 @@
+# A new user's first run, end to end: wizard, install, sandbox question,
+# launch (#1962). Each line the journey report found noisy is gone, and the
+# new wording is there.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+env NAV_PILOT_TELEMETRY_ENABLED=true
+env DO_NOT_TRACK=
+env NAV_PILOT_TELEMETRY_ENDPOINT=http://127.0.0.1:9/v1/metrics
+
+fake-bin cplt copilot opencode
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+# The repo pins the local pakke, which is how a first run in it finds it.
+mkdir ../seed
+cd ../seed
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+cd ../repo
+exec git init -q .
+mkdir .nav-pilot
+cp ../seed/.nav-pilot/agentpakke.lock.json .nav-pilot/agentpakke.lock.json
+! exists $WORK/home/config.toml
+
+exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -wait 'Where to install' -send '\r' -wait 'Decline' -send '\r' -- nav-pilot
+
+# F19: a bare first run gets the telemetry notice under the wizard header.
+stdout 'First-run setup(.|\n)*nav-pilot sends pseudonymous usage metrics'
+stdout 'gh is not installed, so the agent can.t push or open PRs.*the launch continues without it'
+# F15
+! stdout 'cplt: no changes'
+# F9: the install that follows adds the hooks.
+! stdout 'hook\(s\) the source ships are not installed'
+# F2: plain question, one-line decline.
+stdout 'Let the agent read Nais logs, metrics and traces\?'
+! stdout 'asks for more than the sandbox gives it'
+! stdout 'DNS-rebinding'
+stdout -count=1 'Declined, so the agent can.t read Nais logs, metrics and traces\. To allow it later: cplt config set proxy\.allow_private_domains'
+! stdout 'To allow it later:\r?\n'
+# F4: the summary, not the per-item list.
+stdout '1 agents:'
+! stdout 'Agents \(1\):'
+! stdout '✓ grillmester'
+# F13: one line, no "start nav-pilot" step.
+stdout -count=1 'Commit \.github/ and \.nav-pilot/ so your team gets them\.'
+! stdout 'Next steps'
+! stdout 'Pinned|Recorded'
+exists .github/hooks/vakt.py
+
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}},"policies":{"propose":{"cplt":{"reason":"The observability skill queries Mimir, Loki and Tempo.","proxy":{"allow_private_domains":["loki.nav.cloud.nais.io","mimir.nav.cloud.nais.io","tempo.dev-gcp.nav.cloud.nais.io"]}}}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
+-- plattform/hooks/vakt.hook.json --
+{"matcher": "bash", "timeoutSec": 5}
+-- plattform/hooks/vakt.py --
+print("{}")

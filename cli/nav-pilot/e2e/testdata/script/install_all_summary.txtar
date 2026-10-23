@@ -1,0 +1,28 @@
+# install --all prints the compact summary of what it installs; the per-item
+# ✓ list is --verbose only (#1962 F4 review).
+
+cp config home/config.toml
+mkdir plattform/skills
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ..
+
+exec nav-pilot install --user --all --source $WORK/plattform --yes
+stdout '1 agents: +grillmester'
+! stdout '✓ grillmester'
+
+exec nav-pilot install --user --all --source $WORK/plattform --yes --force --verbose
+stdout '✓ grillmester'
+
+-- config --
+version = 1
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform

@@ -158,7 +158,7 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
                           (it starts a new session if the id is unknown). With no id, Copilot
                           opens its own picker; OpenCode has no picker, so nav-pilot refuses
   --continue              Continue the last session (Copilot CLI and OpenCode --continue)
-  --verbose               Say what the launch does: sandbox directory, client, agent and model
+  --verbose               Say what the launch does: sandbox directory, client, agent and model; with install, list every item
   --sync                  Sync all scopes without asking, then launch (opt-in; nav-pilot -- … never syncs)
   -- <client-flags>       Launch now with these flags, passed to the client unchanged: no menu, no
                           nav-pilot prompt, no sync, with or without a terminal (nav-pilot -- -p "…").
@@ -725,6 +725,9 @@ func run(args []string) error {
 		switch rest[i] {
 		case "-n", "--dry-run":
 			dryRun = true
+		case "--verbose":
+			// The per-item list an install prints (#1962 F4).
+			providerpkg.Verbose = true
 		case "-f", "--force":
 			force = true
 		case "--apply":
@@ -1326,7 +1329,12 @@ func Main(info BuildInfo) {
 			telemetry.RecordClientAvailable(p.ID(), p.Available())
 		}
 	}
-	maybeTelemetryNotice()
+	// A launch that opens the first-run wizard says it under the wizard's
+	// header instead, so the header is the first thing a new user reads
+	// (#1962 F19).
+	if !firstRunWizardAhead(os.Args[1:]) {
+		maybeTelemetryNotice()
+	}
 	local.OnLoopGuard = countLocalTrip
 
 	exitCode := 0
@@ -1349,6 +1357,22 @@ func Main(info BuildInfo) {
 // or the help text.
 func isQuickCommand(args []string) bool {
 	return len(args) > 0 && slices.Contains([]string{"--version", "-v", "version", "--help", "-h", "help"}, args[0])
+}
+
+// firstRunWizardAhead reports a run that is certain to open the first-run
+// wizard: a bare nav-pilot, a terminal, and no config file yet. Anything with
+// arguments may dispatch elsewhere (nav-pilot --verbose sync, nav-pilot --
+// -p …), so it gets the notice up front rather than a prediction that can
+// drift from run's parse.
+func firstRunWizardAhead(args []string) bool {
+	if len(args) > 0 {
+		return false
+	}
+	if !isInteractive() {
+		return false
+	}
+	_, err := os.Stat(configPath())
+	return errors.Is(err, os.ErrNotExist)
 }
 
 // maybeTelemetryNotice says once per machine, the first time there is someone

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"os"
 	"path/filepath"
 	"strings"
@@ -762,5 +763,32 @@ func TestUninstallRemovesOwnDeclarationOnly(t *testing.T) {
 				t.Fatalf("declaration gone=%v, want %v", gone, tc.wantGone)
 			}
 		})
+	}
+}
+
+// The install summary already names every item, so the per-item list is
+// --verbose only (#1962 F4). The control is the same install with --verbose.
+func TestInstallItemsListIsVerboseOnly(t *testing.T) {
+	source := createFixtureSource(t)
+	manifest, err := loadManifest(source, "test-collection")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := func(verbose bool) string {
+		target := t.TempDir()
+		os.MkdirAll(filepath.Join(target, ".git"), 0o755)
+		providerpkg.Verbose = verbose
+		t.Cleanup(func() { providerpkg.Verbose = false })
+		return captureStdoutFor(t, func() {
+			if _, err := installItems(NewSourceResolver(source), ScopeRepo(target), manifest, false, false); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if out := run(false); strings.Contains(out, "✓ test") || strings.Contains(out, "Agents (1):") {
+		t.Errorf("default install prints the per-item list:\n%s", out)
+	}
+	if out := run(true); !strings.Contains(out, "✓ test") || !strings.Contains(out, "Agents (1):") {
+		t.Errorf("--verbose install does not print the per-item list:\n%s", out)
 	}
 }

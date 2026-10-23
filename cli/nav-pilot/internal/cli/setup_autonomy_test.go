@@ -399,3 +399,35 @@ func TestChoosingStrictDoesNotTriggerLeaveOffer(t *testing.T) {
 		t.Errorf("asked %d times after a deliberate strict choice, want 0", asked)
 	}
 }
+
+// Setup's gh line is one line that says what breaks, the fix, and that the
+// launch goes on; the storage caveats stay in doctor, which is the control
+// (#1962 F3).
+func TestReportGHAuthBriefIsOneLine(t *testing.T) {
+	stubSSH(t, false)
+	var b bytes.Buffer
+	reportGHAuthBrief(&b, ghAuthNone, true)
+	if s := b.String(); strings.Count(s, "\n") != 1 || !strings.Contains(s, "could not confirm a gh login for github.com, so the agent may not be able to push or open PRs") ||
+		!strings.Contains(s, "Details: nav-pilot doctor") || !strings.Contains(s, "launch continues") || strings.Contains(s, "keyring") {
+		t.Errorf("brief, not logged in: %q", s)
+	}
+	b.Reset()
+	reportGHAuthBrief(&b, ghAuthKeyring, true)
+	if b.Len() != 0 {
+		t.Errorf("brief, signed in, printed %q", b.String())
+	}
+	b.Reset()
+	reportGHAuthBrief(&b, ghAuthNone, false)
+	if strings.Contains(b.String(), "launch continues") {
+		t.Errorf("config setup, which does not launch, says the launch continues: %q", b.String())
+	}
+	b.Reset()
+	if b.Len() != 0 {
+		t.Errorf("brief, signed in, printed %q", b.String())
+	}
+	b.Reset()
+	reportGHAuth(&b, "", "opencode", "auto", ghAuthNone, "")
+	if !strings.Contains(b.String(), "keyring") {
+		t.Errorf("doctor lost the storage detail: %q", b.String())
+	}
+}

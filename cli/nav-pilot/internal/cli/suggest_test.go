@@ -19,7 +19,7 @@ func TestSuggest(t *testing.T) {
 		{"exact match", "install", knownCommands, "install"},
 		{"flag typo", "--dry-rn", knownFlags, "--dry-run"},
 		{"flag typo force", "--forc", knownFlags, "--force"},
-		{"flag completely wrong", "--verbose", knownFlags, ""},
+		{"flag completely wrong", "--zzzzzz", knownFlags, ""},
 		{"no candidates", "install", nil, ""},
 		{"single char flag typo", "-n", knownFlags, "-n"},
 	}

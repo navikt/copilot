@@ -4,6 +4,20 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Kortere første oppstart
+
+Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere ord (#1962).
+
+- **Tilgang til logger, metrikker og sporing**: Spørsmålet heter nå «Let the agent read Nais logs, metrics and traces?», og linja under viser hvilke adresser agenten trenger. Trykker du Enter, sier du fortsatt nei. Sier du nei, får du én linje med kommandoene som gir tilgangen senere. Begrunnelsen fra agentpakken vises med `--verbose`.
+- **Innlogging i gh**: Får ikke nav-pilot bekreftet at du er logget inn i gh, står det nå på én linje at agenten kanskje ikke får pushet eller åpnet PR-er. Linja viser videre til `nav-pilot doctor`. Oppstarten fortsetter. Detaljene om nøkkelring og tokener finner du i `nav-pilot doctor`.
+- **Installasjonen**: Etter installasjonen ser du bare oppsummeringen, ikke hver fil. `nav-pilot install --verbose` viser hele lista. Feil vises alltid.
+- **Når nav-pilot ikke når utgivelsene på GitHub**: Du får én dempet linje, ikke en rå feilmelding. Den sier at nav-pilot er festet til en commit på standardgreinen, ikke til en utgivelse, og at neste synkronisering ser etter en utgivelse igjen. `--verbose` viser feilen.
+- **Hooks**: Under første oppstart ber ikke nav-pilot deg kjøre `nav-pilot install` for hooks som installasjonen rett etterpå legger til.
+- **Modellvalget**: Modeller kontoen din ikke har tilgang til, står nå nederst i grått. Valget øverst heter «Nav default (recommended)».
+- **Etter installasjonen**: Når installasjonen skjer som del av oppstarten, står det bare «Commit .github/ and .nav-pilot/ so your team gets them.» «Next steps» med «start nav-pilot» er borte.
+- **Lagre-skjermen**: Linja `cplt: no changes` er borte.
+- **Telemetri**: Merknaden om telemetri kommer nå under overskriften i oppsettet, ikke før den.
+
 ### Hva hovedagenten sender til den lokale modellen
 
 - **Egen server (`local_endpoint`)**: En modell på din egen server er ikke målt. Hovedagenten får nå beskjed om ikke å sende den noe. Før fikk den en bred tekst som ba den sende oppslag, kommentarer og endringer i flere filer (#1021).

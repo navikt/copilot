@@ -92,28 +92,26 @@ func modelPickerOptions(p Provider, available map[string]bool) []huh.Option[stri
 	// the client's own: that is what the launch does (resolvedModelOrigin).
 	defLabel := "Unset (agentpakke default)"
 	if def := p.DefaultModel(); def != "" {
-		defLabel = "Unset (Nav default: " + def + ")"
+		defLabel = "Nav default (recommended)  " + dim(def)
 	}
 	// "Other…" second, not last: at the end of a 35-entry list nobody found it
 	// and typed the id into the filter instead.
 	opts := []huh.Option[string]{huh.NewOption(defLabel, ""), huh.NewOption("Other… (type a model id)", customModelSentinel)}
+	var unavailable []huh.Option[string]
 	for _, m := range p.KnownModels() {
-		// Marked, not hidden (#717). The list is generated from a global
-		// catalogue while availability follows the account, so an entry missing
-		// here may work for a colleague. Hiding it would take that away; saying
-		// so tells the truth for the reader without claiming anything about
-		// anyone else. Unknown availability annotates nothing.
-		//
-		// The suffix is dimmed only when there is one: dim("") is not the empty
-		// string, it is an empty pair of escape codes, and appending it
-		// unconditionally put stray \033[2m\033[0m on every label.
-		label := m.Label + "  " + dim(m.ID)
+		// Marked and sorted last, not hidden (#717, #1962 F11). The list is
+		// generated from a global catalogue while availability follows the
+		// account, so an entry missing here may work for a colleague. Hiding
+		// it would take that away; greying it at the end keeps it out of the
+		// way without claiming anything about anyone else. Unknown
+		// availability annotates nothing.
 		if suffix := unavailableSuffix(available, m.ID); suffix != "" {
-			label += dim(suffix)
+			unavailable = append(unavailable, huh.NewOption(dim(m.Label+"  "+m.ID+suffix), m.ID))
+			continue
 		}
-		opts = append(opts, huh.NewOption(label, m.ID))
+		opts = append(opts, huh.NewOption(m.Label+"  "+dim(m.ID), m.ID))
 	}
-	return opts
+	return append(opts, unavailable...)
 }
 
 // validateCustomModelInput validates the "Custom model id" input, blank
@@ -467,9 +465,16 @@ func interactiveSyncAndLaunch(repoScope *InstallScope, repoState *StateFile, use
 	return offerLaunchCopilotWithAgents(allAgents, resolved)
 }
 
+// installThenLaunch is set when the install runs as the first step of a
+// launch: its closing lines then say only what is left for the user, not
+// "start nav-pilot", which is already happening (#1962 F13).
+var installThenLaunch bool
+
 // interactiveFreshInstall handles the case where no install exists and we're in a git repo.
 // Prompts for scope first, then collection (repo) or installs everything (user).
 func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
+	installThenLaunch = true
+	defer func() { installThenLaunch = false }()
 	fmt.Println(bold("nav-pilot") + dim(" — Nav's toolkit for coding agents"))
 	fmt.Println()
 	// Scope first, then source: the repo's declaration is one rung of the
@@ -507,6 +512,8 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 // interactiveUserOnlyInstall handles fresh install when not in a git repo.
 // Skips the scope picker and goes straight to user-home install.
 func interactiveUserOnlyInstall(resolved ResolvedConfig) error {
+	installThenLaunch = true
+	defer func() { installThenLaunch = false }()
 	fmt.Println(bold("nav-pilot") + dim(" — Nav's toolkit for coding agents"))
 	fmt.Println()
 	fmt.Println(dim("Not in a git repository — installing to user home."))

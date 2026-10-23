@@ -276,7 +276,11 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	// And once per set of missing hooks, not on every launch: the next line
 	// comes when the set changes.
 	if len(skipped) > 0 {
-		if _, said := hookWarningSaid.LoadOrStore(client, true); said || (LaunchNotices && !SeenChanged("hooks-not-installed-"+client, strings.Join(skipped, ","))) {
+		if FirstRun {
+			// Not marked seen: the next launch says it if the install
+			// that follows the wizard did not add them.
+			skipped = nil
+		} else if _, said := hookWarningSaid.LoadOrStore(client, true); said || (LaunchNotices && !SeenChanged("hooks-not-installed-"+client, strings.Join(skipped, ","))) {
 			skipped = nil
 		}
 	}
