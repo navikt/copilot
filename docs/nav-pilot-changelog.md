@@ -4,6 +4,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### @nav-pilot bruker GPT-6.1 Sol
+
+- **Modell**: Agentpakken bruker nå GPT-6.1 Sol (`gpt-6.1-sol`) i stedet for GPT-6 Sol som standardmodell for hovedagenten i Copilot CLI, OpenCode og pi. Den 12. oktober bommet GPT-6.1 Sol på testen der fødselsnummer skal legges i en Kafka-melding. Ved en ny kjøring 23. oktober stoppet den og tok opp personvern i alle tre kjøringene. Har du valgt modell selv, beholder du den. Målingen står i [`2026-10-23-t7b-rerun-gpt-6.1-sol`](golden-baselines/2026-10-23-t7b-rerun-gpt-6.1-sol/).
 ### Riktig innloggingsstatus for Nais MCP
 
 - **`nav-pilot mcp list` og `nav-pilot mcp enable`**: Innloggingen sjekkes nå mot `nais login -n`, som er den Nais MCP bruker. Før sjekket nav-pilot gcloud-innloggingen, så du kunne få «logged out» selv om Nais MCP virket. Krever cplt med navikt/cplt#843 for at `mcp list` skal vise riktig status.

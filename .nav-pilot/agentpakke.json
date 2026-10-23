@@ -9,15 +9,15 @@
   "clients": {
     "copilot": {
       "primaryAgents": ["nav-pilot"],
-      "defaultModel": "gpt-6-sol"
+      "defaultModel": "gpt-6.1-sol"
     },
     "opencode": {
       "primaryAgents": ["nav-pilot", "nav-pilot-opus"],
-      "defaultModel": "github-copilot/gpt-6-sol"
+      "defaultModel": "github-copilot/gpt-6.1-sol"
     },
     "pi": {
       "primaryAgents": ["nav-pilot"],
-      "defaultModel": "github-copilot/gpt-6-sol"
+      "defaultModel": "github-copilot/gpt-6.1-sol"
     }
   },
   "policies": {

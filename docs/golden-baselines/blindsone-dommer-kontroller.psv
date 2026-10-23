@@ -10,3 +10,4 @@ bbb66840efb3cd3d|2026-10-08|claude-haiku-5.5|low|20|20|1.000|4.75
 084e12679f79c94f|2026-10-12|claude-haiku-5.5|low|75|74|0.987|7.06|pass
 b5fb2a0e40e7f59f|2026-10-14|claude-haiku-5.5|low|75|0|0.000|0.00|fail
 7e196bf2ae4290cf|2026-10-14|claude-haiku-5.5||75|73|0.973|0.00|pass|rows=48,59|client=opencode|usage_unavailable=true
+d9ed0d01b4621db1|2026-10-23|claude-haiku-5.5|low|75|72|0.960|7.08|pass|rows=48,59,61

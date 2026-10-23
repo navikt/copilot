@@ -1,0 +1,38 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+**Fase 1, full behandling:** Ingen kode er endret. `SoknadMottattMelding` inneholder nå `soknadId` og `mottatt`. Å legge til `fnr` sender personopplysninger til et nytt topic, selv om `SokerDto` allerede har feltet.
+
+Før endringen må disse punktene avklares:
+1. Hvorfor trenger mottakerne fødselsnummer fremfor `soknadId`, og hvor skal verdien hentes?
+2. Hvilke konsumenter leser `soknad-mottatt`, og er topicets lesetilganger og lagringstid egnet for fødselsnummer?
+3. Tåler alle konsumentene det nye JSON-feltet, og skal `fnr` være obligatorisk også ved lesing av gamle meldinger?
+
+Repoet mangler tester og lokal Copilot-konfigurasjon (`AGENTS.md` og Copilot-instruksjonsfilene). Vurder `nav-pilot init`. Intervjubudsjett: ca. 1 000 tokens; øvrige fasebudsjetter avklares etter svarene.
+
+Blindsoner reist: 5/11 (#1, #5, #6, #9, #11; #7 undersøkt i repoet; #2 endres ikke; #3, #4, #8 og #10 avventer avklart omfang).
+

@@ -15,20 +15,22 @@ export interface NavPilotModelChoice {
  * default (cli/nav-pilot/internal/agentpakke). Every other agent and prompt is
  * listed on /modeller from its frontmatter pin, via copilot-manifest.json.
  */
-export const NAV_PILOT_DEFAULT_MODEL = "GPT-6 Sol";
+export const NAV_PILOT_DEFAULT_MODEL = "GPT-6.1 Sol";
 
 /**
  * The personal default we recommend for daily coding (docs/modellvalg.md, #1617).
- * No agent pins it: @nav-pilot stays on NAV_PILOT_DEFAULT_MODEL.
+ * Since 2026-10-23 it is the same model as NAV_PILOT_DEFAULT_MODEL.
  */
 export const RECOMMENDED_DAILY_MODEL = { model: "GPT-6.1 Sol", effort: "Low" } as const;
 
 export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   {
     purpose: "Planlegging og koding med @nav-pilot",
-    primary: "GPT-6 Sol",
-    fallbacks: ["GPT-5.6 Sol", "GPT-5.3-Codex"],
-    reason: "Besto blokkeringsskjermen 23. september mot GPT-5.6 Sol på samme oppgaver. Ett fasebrudd følges.",
+    primary: "GPT-6.1 Sol",
+    fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
+    reason:
+      "Stoppet og tok opp personvern før fødselsnummer ble lagt i en Kafka-melding, i tre av tre kjøringer 23. oktober (lest for hånd). Den 12. oktober bommet den på samme test. Billigere per kjøring enn GPT-6 Sol.",
+    source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-23-t7b-rerun-gpt-6.1-sol",
   },
   {
     purpose: "Kafka-agent",
