@@ -116,6 +116,14 @@ var cpltInstalled = func() bool {
 var notedProposals = map[string]bool{}
 
 func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bool) {
+	putProposal(scope, src, dryRun, jsonOutput, false)
+}
+
+// putProposal is noteProposalConsent with one switch: reask puts the question
+// again over a recorded decline of this very block, which is what
+// `nav-pilot pakke access` is for. Everything else, the recording included,
+// is the same path first run takes.
+func putProposal(scope *InstallScope, src *Source, dryRun, jsonOutput, reask bool) {
 	if scope == nil || src == nil || src.Pakke == nil || dryRun {
 		return
 	}
@@ -153,8 +161,12 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	if prior != nil && prior.Hash == hash {
 		// Answered already, for exactly this block. An approval needs no
 		// second look, and a decline must not be asked again — that is what
-		// recording it is for.
-		return
+		// recording it is for — unless the user asked to be asked.
+		if prior.Approved || !reask {
+			return
+		}
+		// The same block, so nothing "changed since you last answered".
+		prior = nil
 	}
 
 	// No cplt yet, as on a first run: a question about a sandbox that is not
@@ -541,11 +553,8 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 		fmt.Fprintf(w, "      %s Could not read whether the %s sandbox waiver is approved: %v\n",
 			yellow("⚠"), bold(safe(pakke.Name, 64)), err)
 	case record == nil && declined:
-		// A decision, not a fault: said once, quietly, with the way back.
-		fmt.Fprintf(w, "      %s Sandbox waiver for %d host(s) declined. To allow it:\n", dim("ℹ"), len(hosts))
-		for _, command := range cpltSetupCommands(hosts, proposal.AllowRead()) {
-			fmt.Fprintf(w, "          %s\n", bold(command))
-		}
+		// A decision, not a fault: reportDeclinedAccess says it once, for
+		// every pakke, with the way back.
 	case record == nil:
 		fmt.Fprintf(w, "      %s Sandbox waiver for %d host(s) is not approved\n", yellow("⚠"), len(hosts))
 		fmt.Fprintf(w, "          %s %s\n", dim("Hosts:"), strings.Join(hosts, ", "))
@@ -572,6 +581,14 @@ func reportSandboxWaiver(w io.Writer, pakke *agentpakke.Manifest) {
 			return
 		}
 		fmt.Fprintf(w, "      %s Sandbox waiver approved for %s\n", green("✓"), strings.Join(hosts, ", "))
+	}
+}
+
+// reportDeclinedAccess is doctor's one line for access the user declined, and
+// nothing when there is none: a decision is not a fault.
+func reportDeclinedAccess(w io.Writer) {
+	if n, err := artifacts.DeclinedProposals(); err == nil && n > 0 {
+		fmt.Fprintf(w, "      %s %d access declined: run %s\n", dim("ℹ"), n, bold("nav-pilot pakke access"))
 	}
 }
 

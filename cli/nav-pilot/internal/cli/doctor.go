@@ -406,6 +406,7 @@ func cmdDoctor() error {
 		// decides whether a host may be reached at all, this decides whether
 		// a host that resolves privately may be reached once DNS has answered.
 		reportSandboxWaiver(os.Stdout, agentpakke.Default())
+		reportDeclinedAccess(os.Stdout)
 		reportMCPHostsWith(os.Stdout, cpltPath, mcpRefresh)
 		reportMCPTools(os.Stdout)
 

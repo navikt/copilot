@@ -4,6 +4,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Ett sted for agentpakken
+
+- **`nav-pilot pakke`**: Viser agentpakken i prosjektet: kilden og hvilken versjon den er låst til, hvor mange agenter, skills og instruksjoner som er installert, om hookene er installert, og tilgangen pakken ber om, med svaret ditt (gitt, avslått eller ikke spurt). Må du gjøre noe, står det på én linje til slutt (#1962).
+- **`nav-pilot pakke access`**: Sa du nei til tilgangen ved første oppstart, kan du svare på nytt her. Du får det samme spørsmålet, og Enter sier fortsatt nei. Er alt allerede gitt, står det på én linje.
+- **`nav-pilot doctor`**: Har du sagt nei til tilgang, sier doctor det i én linje og viser til `nav-pilot pakke access`.
+
 ### Riktigere meldinger når du starter nav-pilot
 
 - **Modellinja**: Linja heter nå `Model: Claude Opus 5.5 (your setting)` og ser lik ut i Copilot CLI og OpenCode. Teksten om at `github-copilot/` ble fjernet, er borte. Du ser linja én gang til fordi teksten er ny (#1962).

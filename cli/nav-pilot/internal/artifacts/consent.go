@@ -319,6 +319,19 @@ func proposalAnswer(pakke, hash string, approved bool) (*ProposalConsent, error)
 	if err != nil {
 		return nil, err
 	}
+	roots := launchRoots()
+	for _, rec := range records {
+		if rec.Pakke != pakke || rec.Hash != hash || rec.Approved != approved || !roots[rec.Root] {
+			continue
+		}
+		return &rec, nil
+	}
+	return nil, nil
+}
+
+// launchRoots is the scopes a launch from the working directory reads from:
+// the user scope always, and the repository's when there is one.
+func launchRoots() map[string]bool {
 	roots := map[string]bool{}
 	if user, err := domain.ScopeUser(); err == nil {
 		roots[user.RootDir] = true
@@ -328,11 +341,23 @@ func proposalAnswer(pakke, hash string, approved bool) (*ProposalConsent, error)
 			roots[domain.ScopeRepo(root).RootDir] = true
 		}
 	}
-	for _, rec := range records {
-		if rec.Pakke != pakke || rec.Hash != hash || rec.Approved != approved || !roots[rec.Root] {
-			continue
-		}
-		return &rec, nil
+	return roots
+}
+
+// DeclinedProposals counts the agentpakke proposals declined in a scope a
+// launch reads from. A scope holds one answer per pakke, so a decline on file
+// is the answer in force until the block changes or the user says yes.
+func DeclinedProposals() (int, error) {
+	records, err := readConsentLocked()
+	if err != nil {
+		return 0, err
 	}
-	return nil, nil
+	roots := launchRoots()
+	n := 0
+	for _, rec := range records {
+		if !rec.Approved && roots[rec.Root] && !strings.Contains(rec.Pakke, ":") {
+			n++
+		}
+	}
+	return n, nil
 }

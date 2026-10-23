@@ -563,6 +563,8 @@ Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
 
 ```bash
 nav-pilot list --installed
+nav-pilot pakke              # agentpakken her: kilde, hva som er installert, hooks og tilgangen den ber om
+nav-pilot pakke access       # svar på nytt om tilgang du har sagt nei til
 nav-pilot sync
 nav-pilot upgrade
 nav-pilot mcp list          # MCP-servere som ikke virker, og kommandoen som retter det
