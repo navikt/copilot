@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+Bruk **TokenX token exchange (on-behalf-of)** når tjeneste A kaller tjeneste B på vegne av en innbygger. A bytter brukerens token til et token med B som audience; B validerer tokenet og gir tilgang til riktig ressurs. Ikke bruk et rent maskin-til-maskin-token når brukerkonteksten må følge kallet.
+
+For en Nav-ansatt med Azure AD-brukerkontekst bruker dere i stedet **Azure AD on-behalf-of**.
+

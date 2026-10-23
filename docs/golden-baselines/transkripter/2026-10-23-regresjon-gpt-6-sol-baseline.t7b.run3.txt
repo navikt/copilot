@@ -1,0 +1,46 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md,nais.yaml,nais.yml,build.g
+  │ radle.kts}"
+  └ 2 files found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding|\bfnr\b" in *.kt
+  └ 5 lines found
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+Dette er en endring i Kafka-meldingen som legger fødselsnummer i en ny mottakers payload. Jeg stopper før kodeendring: `SokerDto` har allerede `fnr`, men repoet viser ikke hvem som leser `soknad-mottatt`, hvordan topicen er skjermet, eller hvor meldingen skal hente fødselsnummeret fra.
+
+Hvem bruker topicen, og er den godkjent for fødselsnummer? Skal `fnr` komme fra `SokerDto`, og tåler alle konsumenter et nytt felt? Repoet mangler også `AGENTS.md` og Copilot-instruksjonsfiler; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 kompatibilitet; øvrige er ikke relevante for denne avgrensede endringen).
+

@@ -1,0 +1,51 @@
+/ Search (glob)
+  │ "**/src/{main,test}/**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/build.gradle*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/testing-kotlin.instructions.md,.github/instr
+  │ uctions/testing.instructions.md}"
+  └ 3 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+/ Search (glob)
+  │ "**/src/test/**"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/.github/instructions/security-owasp.instructions.md"
+  └ 1 file found
+
+🔴 Rød sone: feriepengereglene er ny for teamet. Jeg fant en Kotlin-tjeneste uten eksisterende tester. Slik jeg leser kravet, gjelder 12,5 % for **hele grunnlaget** fra og med opptjeningsåret personen fyller 60, og 50 øre rundes opp. Er dette den avklarte regelen teamet vil bruke?
+
+Jeg gjør ingen endringer før denne avklaringen. Jeg kjører ikke Gradle.
+
+Blindsoner reist: 1/11 (#11 om ny regelkunnskap; #1–#10 er ikke relevante for en isolert beregningsfunksjon).
+

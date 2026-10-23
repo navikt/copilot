@@ -1,0 +1,45 @@
+● skill(deliberate-ai-use)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 29 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:100 (100 lines read)
+
+● Check test and instruction files (shell)
+  │ find src -type f; ls -la .github
+  └ 9 lines…
+
+● Edit
+  └ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+
+Lagt til `Avrunding.kt` med `avrundTilNaermesteKrone(teller, nevner)`. Den bruker heltallsregning, slik at 50 øre rundes opp, og avviser negativ teller eller nevner som ikke er positiv. Resten, inkludert `Feriepenger.kt` og enhetstestene, er overlatt til deg. Jeg kjørte ikke Gradle.
+
+🔴 Rød sone: Avrundingen er en del av beregningslogikken. Heltallsregning unngår desimalfeil, men du må selv kontrollere at prosentbrøken du sender inn har riktig teller og nevner.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller i egne tester at verdier under, på og over 50 øre rundes riktig, og at ugyldige argumenter avvises.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

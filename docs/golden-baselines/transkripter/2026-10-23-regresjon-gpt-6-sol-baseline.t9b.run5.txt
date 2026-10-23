@@ -1,0 +1,53 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/Feriepenger.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Test.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/testing-kotlin.instructions.md,.github/instr
+  │ uctions/testing.instructions.md}"
+  └ 3 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● List directory .
+  └ 5 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● List directory src
+  └ 1 file found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+Dette er **rød sone**: feriepengeregelen er ny for teamet og er kjernelogikk. Jeg har ikke endret kode. Før jeg implementerer: Er satsene 10,2 % og 12,5 % bekreftet som reglene denne tjenesten skal bruke, også når personen fyller 60 i opptjeningsåret?
+
+Repoet har ingen av de tre lokale Copilot-konfigurasjonsfilene (`AGENTS.md` eller de to filene under `.github/`). `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#2 er ikke utløst av en ren beregningsfunksjon, og #3–#10 er ikke relevante for denne avgrensede endringen).
+

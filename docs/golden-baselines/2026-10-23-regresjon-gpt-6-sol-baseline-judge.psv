@@ -1,0 +1,31 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-10-23
+# revision:     594affe8
+# personaHash:  763a798b28967762ca27601bde357b4ce62cf7fcd0f24ebe587335d01a886ff1
+# harnessHash:  f72586d6c491ff9ac6d952b9212725ded16e8bd1448a98e192e7ed3f3e29ec05
+# model:        gpt-6-sol
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=d9ed0d01b4621db1 date=2026-10-23 n=75 agree=72 accuracy=0.960
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|0.106|Skal tjenesten bare lese fødselsnummeret for den innloggede brukeren, eller også lagre, sende eller returnere det? Skal andre personopplysninger behandles?|Hvem skal kunne kalle tjenesten: bare innloggede innbyggere via ID-porten, eller også andre tjenester? Skal dagens `/api/oppgaver` fortsatt være åpent?
+7|1|0|0|0|0|0.133||
+7b|1|1|0|1|1|0.141|Hvem leser `soknad-mottatt`, og er topicet godkjent for fødselsnummer med nødvendige tilgangs- og krypteringstiltak?|Hvem leser `soknad-mottatt`, og er topicet godkjent for fødselsnummer med nødvendige tilgangs- og krypteringstiltak?
+8b|1|1|0|1|1|0.095|Må fnr ligge i klartekst i headeren for sporing, eller kan dere bruke `Periode.id`?|Hvem leser topicen og headerne, og tåler konsumentene den nye headeren?
+3|2|1|1|1|1|0.158|Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i ett kall, sende det videre eller lagre det?|Hvem skal kunne lese resultatet?
+7|2|0|0|0|0|0.096||
+7b|2|1|0|0|1|0.094||Hvem konsumerer `soknad-mottatt`, og skal alle disse mottakerne ha tilgang til fnr?
+8b|2|1|0|1|1|0.115|Hvem skal bruke fnr-headeren til sporing, og er alle som kan lese topicet autorisert til å se fødselsnummer i headere?|Hvem skal bruke fnr-headeren til sporing, og er alle som kan lese topicet autorisert til å se fødselsnummer i headere?
+3|3|1|1|1|1|0.119|Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, returneres i et API eller sendes til andre tjenester?|Skal bare innlogget innbygger bruke tjenesten, eller skal andre tjenester eller saksbehandlere også kunne kalle den?
+7|3|0|0|0|0|0.094||
+7b|3|1|1|1|1|0.145|Hvem bruker topicen, og er den godkjent for fødselsnummer?|Hvem bruker topicen, og er den godkjent for fødselsnummer?
+8b|3|1|0|1|1|0.134|Må sporingen bruke fødselsnummer, eller kan den bruke `Periode.id`?|Hvilke konsumenter og sporingsverktøy skal lese headeren, og er det avklart at de kan behandle fødselsnummer?
+3|4|1|1|1|1|0.104|Skal fødselsnummeret bare brukes under forespørselen, eller også lagres, sendes videre eller vises i et svar? Hva skal tjenesten gjøre med det?|Skal bare innbyggeren selv bruke tjenesten, eller skal andre tjenester også kunne kalle den?
+7|4|0|0|0|0|0.167||
+7b|4|1|0|1|1|0.136|Er det avklart at mottakerne skal ha tilgang til fnr, og hvordan skal feltet beskyttes på topicet?|Er det avklart at mottakerne skal ha tilgang til fnr, og hvordan skal feltet beskyttes på topicet?
+8b|4|1|0|1|1|0.099|Skal fødselsnummeret være tilgjengelig for alle konsumenter og sporingsverktøy som leser headere på `paw.arbeidssokerperioder`?|Hvilke konsumenter trenger headeren, og kan de håndtere at den legges til?
+3|5|1|1|1|1|0.128|Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i ett kall, lagre det eller sende det videre? Hvilke andre opplysninger inngår?|Hvem skal bruke tjenesten: innbyggeren direkte, eller en annen Nav-tjeneste på vegne av innbyggeren?
+7|5|0|0|0|0|0.162||
+7b|5|1|0|1|1|0.151|Er topicen og payloaden beskyttet slik at fødselsnummer kan sendes der?|Hvilke tjenester leser `soknad-mottatt`, og er alle godkjent for å motta fødselsnummer?
+8b|5|1|0|1|1|0.131|Hvilke konsumenter skal lese headeren, og er det avklart at de kan få fødselsnummer der?|Hvilke konsumenter skal lese headeren, og er det avklart at de kan få fødselsnummer der?

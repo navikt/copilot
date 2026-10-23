@@ -1,0 +1,55 @@
+● List directory .
+  └ 5 files found
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*Test.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/Feriepenger.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● List directory .github
+  └ 2 files found
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+Dette er **full løype** fordi beregningen er ny kjernevirksomhetslogikk for teamet. Jeg har lest Ktor-prosjektet: det finnes ingen tester eller eksisterende feriepengeregler å bygge på. Jeg tolker bestillingen som en ren funksjon, uten nytt API eller endret dataflyt. Jeg har ikke skrevet kode eller kjørt Gradle.
+
+🔴 Rød sone: beregningsregelen bør teamet forstå og gå gjennom selv. «Jeg ser over alt etterpå» er ikke en uttrykkelig beskjed om å implementere rød sone. Vil dere at jeg skal lage tester og en funksjonsstub for veiledet arbeid, eller skal jeg også implementere selve beregningen? For det siste, skriv gjerne «implementer rød sone også».
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan legge til lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 1/11 (#11 om læringsform; #1–#2 utløses ikke av en ren funksjon, #3–#10 er ikke relevante for denne avgrensningen).
+

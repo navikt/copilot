@@ -1,0 +1,108 @@
+● skill(jackson-3-migration)
+
+## Oppsummering
+
+**Sikkerhet: middels.** Jackson 3 is present in the current build and is used for Kafka payloads and one JSON input helper. The Ktor HTTP endpoint uses `kotlinx.serialization`, not Jackson. I could inspect the working tree, but the available read-only tools did not expose Git metadata or run commands, so I could not verify the current branch, its base, or the branch diff. No test files, Gradle wrapper, or explicit JDK/toolchain configuration appear in the repository snapshot.
+
+## Funn
+
+- **Branch/base and diff:** Unverified. The repository snapshot contains no visible Git metadata, and I could not run Git commands. Use `git status --short --branch`, `git branch --show-current`, `git log -1 --oneline`, and `git diff <base>...HEAD` to establish the branch and changes. The correct base branch is not inferable from the files shown.
+- **Framework and dependency versions:** `build.gradle.kts:2–3` sets Kotlin/JVM and Kotlin serialization plugins to 2.1.0. Lines 9–11 declare Ktor 3.0.0 with Netty, ContentNegotiation, and the `kotlinx-json` serializer. Lines 14–16 declare Jackson 3.1.0 (`tools.jackson.core:jackson-databind` and `tools.jackson.module:jackson-module-kotlin`) and Kafka clients 3.9.0. No JDK version or Java toolchain is configured in this build file.
+- **Jackson mapper and uses:** `src/main/kotlin/no/nav/demo/Soknad.kt:3–5,14–18` imports Jackson 3 packages, builds a `JsonMapper` with `kotlinModule()`, and uses it to deserialize `SokerDto`. Lines 20–25 serialize `SoknadMottattMelding` and `SokerDto` for Kafka records. The mapper is a top-level shared value (`:14`); no explicit date/time module or date-format configuration is visible.
+- **HTTP serialization is separate:** `src/main/kotlin/no/nav/demo/App.kt:3,7,12` installs Ktor ContentNegotiation with `kotlinx.serialization`’s `json()`. `src/main/kotlin/no/nav/demo/Oppgave.kt:3,5–9` uses `@Serializable`, and `Routes.kt:13–16` responds with `OppgaveRespons`. Jackson migration changes would not directly change this route’s serializer unless the HTTP configuration or dependencies also change.
+- **Compatibility risks to verify:**
+  - **Date support/format:** `SoknadMottattMelding` contains `LocalDate` (`Soknad.kt:8,12`) and is serialized through the Jackson mapper (`:21`). The visible configuration registers only `kotlinModule()` (`:14–16`); it does not show how `LocalDate` support is provided. Check the resolved Jackson 3 dependency graph and characterize the exact output and read behavior.
+  - **Kotlin data-class behavior and JSON shape:** The mapper’s Kotlin module is relevant to `SokerDto` deserialization and serialization (`:10,14–18,24–25`). Preserve and test property names, required/missing/null handling, and serialized field set.
+  - **Kafka wire compatibility:** Both serialized payloads are sent to named topics, with keys derived from `soknadId` and `fnr` (`:20–25`). Changes in date representation, field names, null handling, or other defaults could affect consumers. No consumer schemas or tests are present in the snapshot.
+  - **Coverage gap:** No tests are visible, and the build declares no test dependencies or test configuration. Existing HTTP behavior is not evidence of Jackson compatibility because it uses `kotlinx.serialization`.
+
+## Validation commands
+
+These are feasible read-only or non-deploying checks; I did not run them:
+
+```sh
+git status --short --branch
+git branch --show-current
+git log -1 --oneline
+git diff <base>...HEAD
+
+./gradlew --version
+./gradlew dependencies --configuration runtimeClasspath
+./gradlew test
+```
+
+No `gradlew` file was present in the repository listing, so the Gradle commands require an installed `gradle` or a wrapper supplied outside this snapshot. Before relying on broad `test` output, inspect whether tests exist. For compatibility validation, add or run characterization checks that compare representative JSON for `SokerDto` and `SoknadMottattMelding` against existing consumer expectations, including `LocalDate`; that would require a test harness not visible here.● Research-agent (model: gpt-6-luna) Kartlegg Jackson i branchen                                 33s
+  │ ## Oppsummering
+  │ Search (grep)
+  │   │ "Jackson|jackson|ObjectMapper|Json|serialize|deserialize|ContentNegotiation|kotlinx"
+  │   └ 28 lines found
+  └ Search (grep)
+      │ "." (src/main/kotlin/no/nav/demo/App.kt, src/main/kotlin/no/nav/demo/Oppgave.kt,
+      │ src/main/kotlin/no/nav/demo/Routes.kt, src/main/kotlin/no/nav/demo/Soknad.kt,
+      build.gradle.kts)
+      └ 82 lines found
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ L1:160 (139 lines read)
+
+● Check Java and build tools (shell)
+  │ java -version 2>&1; command -v gradle || true; ls -la
+  └ 13 lines…
+
+● Inspect branch and history (shell)
+  │ git status --short --branch && git branch -avv && git --no-pager log -4 --oneline && git remote
+  │ -v
+  └ 5 lines…
+
+Jeg sammenligner branchen med `main` og sjekker om endringen bevarer JSON-formatet på Kafka. Build og tester alene kan ikke avdekke alle formatendringer.
+
+● Read migration diff and tracked files (shell)
+  │ git --no-pager diff main...HEAD -- build.gradle.kts src && git --no-pager diff --stat
+  │ main...HEAD && git ls-files
+  └ 73 lines…
+
+✗ Build branch offline (shell)
+  │ gradle build --offline --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+● Inspect resolved Jackson dependencies (shell)
+  │ gradle dependencies --configuration runtimeClasspath --offline --quiet | grep -i jackson; gradle
+  │ dependencyInsight --dependency jackson-databind --configuration compileClasspath --offline
+  │ --quiet | head -65
+  └ 27 lines…
+
+✗ Check JDK options and baseline mapper (shell)
+  │ /usr/libexec/java_home -V 2>&1; ls ~/.local/share/mise/installs/java 2>/dev/null ||
+  │ true; git --no-pager show main:src/main/kotlin/no/nav/demo/Soknad.kt
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+● Diagnose Gradle configuration error (shell)
+  │ gradle build --offline --stacktrace 2>&1 | tail -65
+  └ 65 lines…
+
+**Vurdering:** Jackson 3-migreringen i `jackson-3` er ikke klar til å regnes som verifisert. Branchen bytter til Jackson 3.1.0 og bygger mapperen med Kotlin-modulen, men endringen i `Soknad.kt` påvirker JSON som sendes på Kafka. Det finnes ingen tester som sammenligner meldingsformatet med `main`, særlig `LocalDate`-feltet `mottatt`.
+
+Jeg fikk ikke kjørt bygg eller avhengighetssjekk: Gradle 8.14.6 stopper under konfigurering med JDK 27 (`> 27`). Bruk en støttet JDK, kjør `gradle build` og `dependencyInsight`, og sammenlign representative Kafka-meldinger fra begge brancher før migreringen godkjennes. Ktor-endepunktet bruker `kotlinx.serialization` og er ikke direkte berørt.
+
+🔴 Rød sone: Kafka-meldingenes format er en kontrakt. Valget om å bevare eller endre det må avklares med konsumentene; byggsuksess alene avgjør ikke dette. Still gjerne spørsmål om valgene over.
+

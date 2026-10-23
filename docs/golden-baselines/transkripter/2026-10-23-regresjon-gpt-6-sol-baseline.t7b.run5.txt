@@ -1,0 +1,49 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding" in **/*.{kt,kts,yaml,yml,md}
+  └ 3 lines found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md}"
+  └ 1 file found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+/ Search (glob)
+  │ "**/*.{kt,kts,yaml,yml,md}"
+  └ 25 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:35 (34 lines read)
+
+Dette er en **full endring**: `fnr` er en ny personopplysning i Kafka-meldingen. Jeg fant `SoknadMottattMelding` og produsenten for `soknad-mottatt`, men repoet sier ikke hvem som leser topicen eller hvordan den er beskyttet. Jeg gjør derfor ingen kodeendring før dette er avklart.
+
+Hvilke tjenester leser `soknad-mottatt`, og er alle godkjent for å motta fødselsnummer? Er topicen og payloaden beskyttet slik at fødselsnummer kan sendes der? Kan konsumentene håndtere et nytt påkrevd `fnr`-felt, eller må endringen innføres gradvis? De øvrige blindsonene gjelder ikke denne avgrensede endringen.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan legge til lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 bakoverkompatibilitet).
+

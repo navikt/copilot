@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+Bruk **token exchange med brukerkontekst**, ikke et maskin-til-maskin-token. For en innbygger autentisert med ID-porten bruker tjeneste A **TokenX** til å hente et token med tjeneste B som audience. For en Nav-ansatt autentisert med Entra ID bruker A **Entra ID on-behalf-of**. Tjeneste B validerer tokenet og gjør egen tilgangskontroll.
+
+🔴 Rød sone: Valg og validering av auth må gjennomgås grundig. Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,54 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,nais.yaml,nai
+  │ s.yml,package.json,build.gradle.kts,pom.xml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+● Inspect project root (shell)
+  │ pwd && ls -la
+  └ 9 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**"
+  └ 4 files found
+
+● skill(nav-auth)
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+/ Search (glob)
+  │ ".github/**"
+  └ 17 files found
+
+**Fase 1: avklaringer.** Repoet er en liten Ktor-tjeneste med et åpent `/api/oppgaver`-endpoint. `nais.yaml` har verken ID-porten eller `accessPolicy`. Jeg legger til grunn at fødselsnummer er personopplysningen det gjelder, men repoet sier ikke hva tjenesten skal gjøre med nummeret.
+
+1. Skal tjenesten bare lese fødselsnummeret for den innloggede brukeren, eller også lagre, sende eller returnere det? Skal andre personopplysninger behandles?
+2. Hvem skal kunne kalle tjenesten: bare innloggede innbyggere via ID-porten, eller også andre tjenester? Skal dagens `/api/oppgaver` fortsatt være åpent?
+3. Hva skal tjenesten bruke fødselsnummeret til, og hvilke andre systemer må den eventuelt kontakte?
+
+Repoet har ingen `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` hvis dere vil legge til repo-lokale Copilot-instruksjoner.
+
+Blindsoner reist: 3/11 (#1, #2 og #6; resten avklares når tjenestens formål og dataflyt er kjent).
+

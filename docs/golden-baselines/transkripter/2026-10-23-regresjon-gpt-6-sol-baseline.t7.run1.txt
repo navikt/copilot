@@ -1,0 +1,113 @@
+● skill(jackson-3-migration)
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*gradle*"
+  └ 1 file found
+
+● Inspect branch and worktree (shell)
+  │ git status --short && git branch --show-current && git --no-pager log -1 --oneline && git remote
+  │ -v
+  └ 2 lines…
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ L1:130 (130 lines read)
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 5 files found
+
+● Inspect migration commit (shell)
+  │ git --no-pager branch -a && git --no-pager show --stat --oneline HEAD && git --no-pager show
+  │ --format=fuller --no-ext-diff HEAD
+  └ 58 lines…
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+✗ Check tests and Java baseline (shell)
+  │ ls -la && find src -type f | sort && java -version 2>&1 && ls -l gradlew 2>&1
+  └ total 24
+    drwxr-xr-x   8 hans  staff   256 Oct 23 21:43 .
+    drwx------  32 hans  staff  1024 Oct 23 21:43 ..
+    drwxr-xr-x  12 hans  staff   384 Oct 23 21:43 .git
+    drwxr-xr-x   4 hans  staff   128 Oct 23 21:43 .github
+    -rw-r--r--   1 hans  staff   551 Oct 23 21:43 build.gradle.kts
+    -rw-r--r--   1 hans  staff   216 Oct 23 21:43 nais.yaml
+    -rw-r--r--   1 hans  staff   166 Oct 23 21:43 README.md
+    drwxr-xr-x   3 hans  staff    96 Oct 23 21:43 src
+    src/main/kotlin/no/nav/demo/App.kt
+    src/main/kotlin/no/nav/demo/Config.kt
+    src/main/kotlin/no/nav/demo/Oppgave.kt
+    src/main/kotlin/no/nav/demo/Routes.kt
+    src/main/kotlin/no/nav/demo/Soknad.kt
+    openjdk version "27" 2026-09-15
+    OpenJDK Runtime Environment Temurin-27+35 (build 27+35)
+    OpenJDK 64-Bit Server VM Temurin-27+35 (build 27+35, mixed mode, sharing)
+    ls: gradlew: No such file or directory
+    Failed with exit code 1
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (grep)
+  │ "jackson|mapper|sendMottatt|sendSoker|lesSoker|JsonNode|mottatt" in **/*
+  └ 13 lines found
+
+● Check build tooling and baseline serializer (shell)
+  │ command -v gradle || true; git --no-pager show main:src/main/kotlin/no/nav/demo/Soknad.kt; git
+  │ --no-pager diff main...HEAD --check
+  └ 28 lines…
+
+✗ Verify migration build and dependency resolution (shell)
+  │ gradle build dependencyInsight --dependency jackson-databind --configuration compileClasspath
+  │ --console=plain --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+✗ Identify supported JDKs (shell)
+  │ ls /Library/Java/JavaVirtualMachines 2>/dev/null; /usr/libexec/java_home -V 2>&1 | head -25; git
+  │ status --short
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+**Vurdering: Migreringen er ikke klar til å godkjennes.** Ktor bruker `kotlinx-json`, så Jackson-byttet gjelder Kafka-meldingene i `Soknad.kt`, ikke REST-API-et. Jackson 3 sorterer som standard felter alfabetisk. Dermed kan `soknad-mottatt` endres fra `soknadId, mottatt` til `mottatt, soknadId`. Avklar om konsumentene tåler endret felrekkefølge, og lås formatet med en karakteriseringstest før utrulling. Det finnes ingen tester i branchen som dokumenterer at JSON-format og innlesing er bevart.
+
+**Verifisering er blokkert:** `gradle build dependencyInsight` feilet under prosjektkonfigurasjon med `> 27`; miljøet kjører JDK 27. Forsøk på å undersøke installerte JDK-er ble nektet av miljøet. Kjør bygg og dependency-sjekk med en støttet JDK før migreringen godkjennes. Koden bruker Jackson 3.1.0 og har ingen synlige gamle Jackson-importer, men classpathen er ikke verifisert.
+
+🔴 Rød sone: Kafka-formatet er en kompatibilitetsbeslutning. Valget er å bevare dokumentert wire-format fremfor å stole på nye standardverdier; det gir en ekstra test, men reduserer risikoen for å bryte konsumenter. Still gjerne spørsmål om valgene over.
+

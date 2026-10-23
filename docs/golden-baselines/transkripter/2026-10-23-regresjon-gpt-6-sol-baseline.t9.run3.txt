@@ -1,0 +1,66 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/*"
+  └ 16 files found
+
+● Inspect repository root (shell)
+  │ ls -la
+  └ 8 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+Dette er kjernelogikk og et nytt regelområde for teamet. Jeg legger inn funksjonen og tester grenseverdiene, men kjører ikke Gradle.
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Lagt til `feriepenger` med 10,2 % før fylte 60 år og 12,5 % fra og med opptjeningsåret personen fyller 60. Beregningen bruker eksakte desimaltall for å runde 50 øre opp, og avviser negativt grunnlag. Enhetstester og nødvendig testoppsett er lagt til. **Gradle er ikke kjørt**, som ønsket.
+
+🔴 Rød sone: Feriepengeberegningen er kjernelogikk og et nytt regelområde for teamet. Eksakt desimalregning gjør avrundingen tydelig; alternativet, heltallsregning, krever mer omtanke rundt skalering og avrunding.
+
+**Sjekkliste for rød sone**
+- [ ] Gå gjennom satsvalget ved 59 og 60 år og les testene for aldersgrensen.
+- [ ] Gå gjennom avrunding ved og under 50 øre og les avrundingstestene.
+- [ ] Gå gjennom avvisning av negativt grunnlag og les feiltesten.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig? Still gjerne spørsmål om valgene over.
+

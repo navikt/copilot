@@ -1,0 +1,34 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read decision-trees.md
+  │ ~/.copilot/skills/nav-plan/references/decision-trees.md
+  └ L1:175 (175 lines read)
+
+● skill(nav-auth)
+
+## Fase 2: Plan
+
+Jeg planlegger en **Ktor-tjeneste for oppslag av innlogget innbyggers navn**. Den eksisterende Next.js-frontenden håndterer ID-porten-innlogging med Wonderwall og kaller Ktor-tjenesten fra serversiden. Frontenden bruker TokenX for å videreføre brukerens identitet. Tjenesten validerer TokenX-tokenet, henter fødselsnummeret fra det validerte tokenet og gjør et synkront PDL-oppslag. Fødselsnummer skal ikke sendes som parameter fra nettleseren. Dette forutsetter at frontenden kan gjøre et serversidekall; det må bekreftes før levering.
+
+**API og data:** Foreslått kontrakt er `GET /api/meg/navn`, med kun navnefeltene frontenden trenger i svaret. Tjenesten blir tilstandsløs: ingen database, Flyway, kø eller lagring av fødselsnummer og navn. Ved utilgjengelig PDL returnerer den `503` med et generisk feilsvar i Problem Details-format. Den logger feilen og en korrelasjons-ID, aldri token, fødselsnummer eller navn. Timeouts skal hindre at kall blir hengende.
+
+**Nais og drift:** Planen er å konfigurere TokenX for backend, eksplisitt `accessPolicy.inbound` kun for vår frontend og `accessPolicy.outbound` kun for PDL. Frontendens ID-porten- og Wonderwall-oppsett må kontrolleres mot dens faktiske manifest. Backend får helsesjekker, `/metrics`, to replikaer og små ressursforespørsler uten CPU-grense. Målinger skal vise oppslag per minutt og feilandel, uten personidentifikatorer som etiketter. Alarm ved vedvarende høy feilandel eller PDL-feil.
+
+**Filer og levering:** Behold Ktor-prosjektet. Legg til avgrensede moduler for autentisering, PDL-klient, navneoppslag og feilhåndtering, samt tester. Oppdater `nais.yaml`, byggoppsett og CI/CD for bygg, test og utrulling til dev før prod. Ingen databasefiler trengs. Leveringsdokumentasjonen skal beskrive utrulling, tilbakeføring til forrige versjon, alarmer og kontroll etter utrulling: innlogget oppslag lykkes, uautentisert kall avvises, og PDL-feil gir `503`.
+
+**Tester:** Test tokenvalidering og at bare innlogget brukers fødselsnummer brukes. Test PDL-svar, timeout og `503`, samt at logger og målinger ikke inneholder personopplysninger. En integrasjonstest skal dekke flyten fra frontendens serversidekall til backend med testtoken og simulert PDL.
+
+🔴 **Rød sone:** TokenX-validering, identitetsbinding mellom token og PDL-oppslag, tilgangsstyring og feilhåndtering. Dette skal gjennomgås grundig av teamet. Gevinsten ved serversidekall er at nettleseren ikke trenger å håndtere tjenestetoken; kostnaden er at den eksisterende frontenden må støtte denne kallveien. Jeg velger bort direkte nettleserkall til backend inntil frontendens faktiske oppsett er verifisert.
+
+Dette er planen, ikke en implementasjon. Jeg stopper her før sikkerhets- og arkitekturgjennomgangen i fase 3. Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,53 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,nais.yaml,**/
+  │ nais.yaml,package.json,build.gradle.kts,pom.xml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+● Inspect workspace and Copilot configuration (shell)
+  │ pwd && ls -la && ls -la .github 2>/dev/null || true
+  └ 14 lines…
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● List directory src
+  └ 1 file found
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er en ny tjeneste med fødselsnummer og innlogging, så jeg stopper i **fase 1: avklaring** før vi velger løsning eller endrer kode. Repoet har en enkel Ktor-tjeneste, men ingen ID-porten-oppsett. `AGENTS.md` og Copilot-instruksjonsfilene mangler; `nav-pilot init` kan legge dem til senere.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det bare under forespørselen, lagre det eller sende det videre?
+2. Hvem skal kunne kalle tjenesten, og hvem skal kunne lese resultatet? Er det bare innlogget innbygger, eller også andre Nav-tjenester?
+3. Hvilket API eller hvilken brukerflyt skal tjenesten tilby, og finnes det kjente konsumenter?
+4. Hva skal skje hvis ID-porten eller en eventuell nedstrøms tjeneste ikke er tilgjengelig?
+5. Er dette en erstatning for en eksisterende løsning, eller en ny flyt?
+
+🔴 Rød sone: håndtering av fødselsnummer og tilgangskontroll. Still gjerne spørsmål om hvorfor disse avklaringene trengs.
+
+Blindsoner reist: 5/11 (#1, #2, #3, #6, #8; øvrige avklares ved behov i neste fase).
+

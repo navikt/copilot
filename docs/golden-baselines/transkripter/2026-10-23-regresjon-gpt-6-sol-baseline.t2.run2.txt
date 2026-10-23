@@ -1,0 +1,48 @@
+/ Search (glob)
+  │ ".github/copilot-*.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/{nais.yaml,package.json,build.gradle.kts,pom.xml}"
+  └ 2 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read README.md
+  └ 4 lines read
+
+Dette er en ny tjeneste med ID-porten som mulig innlogging, så jeg stopper ved avklaring før vi velger auth og dataløp. Repoet er en Ktor-demo uten auth eller `accessPolicy`. Jeg legger til grunn at fødselsnummer er en personopplysning som **ikke skal logges**.
+
+1. Skal innbyggere bruke tjenesten direkte, eller skal en frontend eller annen tjeneste kalle API-et på deres vegne? Hvem skal kunne lese resultatet?
+2. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i ett kall, sende det videre eller lagre det? Hvilke mottakere er aktuelle?
+3. Hvem eier eventuelle tjenester den må kalle, og hva skal skje hvis de er utilgjengelige?
+4. Finnes det eksisterende tester eller en løsning vi skal bygge videre på?
+
+`AGENTS.md` og repoets Copilot-instruksjonsfiler mangler. `nav-pilot init` kan legge dem til senere. #4 om driftsmålinger avklares når flyten er kjent; #8–#10 om migrering og avvikling er ikke relevante for en ny tjeneste.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #5, #6, #7 stilt; #4 utsatt; #8–#10 ikke relevante; #11 avklares når løsningsvalget er kjent).
+
