@@ -88,8 +88,9 @@ func FuzzInterpreterWrites(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, cmd string) {
-		if InterpreterWrites(cmd) != InterpreterWrites(cmd) {
-			t.Fatalf("unstable for %q", cmd)
+		first := InterpreterWrites(cmd)
+		if second := InterpreterWrites(cmd); first != second {
+			t.Fatalf("unstable for %q: %v then %v", cmd, first, second)
 		}
 	})
 }
