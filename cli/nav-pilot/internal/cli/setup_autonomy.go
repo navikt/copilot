@@ -224,7 +224,7 @@ func autonomySummary(c autonomyChoice, changes []cpltChange, cpltFound bool, all
 			b.WriteString("  That is nav-pilot's list from strict. To reach every host, run `cplt config set --global --unset proxy.allowed_domains`.\n")
 		}
 	}
-	fmt.Fprintf(&b, "Your other answers go to %s.", configPath())
+	fmt.Fprintf(&b, "Settings are saved to %s.", configPath())
 	return b.String()
 }
 

@@ -38,7 +38,7 @@ stdout 'gh is not installed, so the agent can.t push or open PRs.*the launch con
 stdout 'Let the agent read Nais logs, metrics and traces\?'
 ! stdout 'asks for more than the sandbox gives it'
 ! stdout 'DNS-rebinding'
-stdout -count=1 'Declined, so the agent can.t read Nais logs, metrics and traces\. To allow it later: cplt config set proxy\.allow_private_domains'
+stdout -count=1 'Declined, so the agent can.t read Nais logs, metrics and traces\. To allow it later: nav-pilot pakke access'
 ! stdout 'To allow it later:\r?\n'
 # F4: the summary, not the per-item list.
 stdout '1 agents:'
