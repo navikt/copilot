@@ -57,6 +57,19 @@ func OpenCodeTestedRangeFor(version string) string {
 // or a proxy (#1345). Raise it with the range.
 const OpenCodeInstallVersion = "1.18.32"
 
+// ownLocalProviderBlock reports whether v is the local provider block this
+// process put in openCodeLaunchConfig, compared as JSON.
+func ownLocalProviderBlock(v any) bool {
+	providers, _ := openCodeLaunchConfig["provider"].(map[string]any)
+	own, ok := providers[LocalProviderID]
+	if !ok {
+		return false
+	}
+	a, _ := json.Marshal(own)
+	b, _ := json.Marshal(v)
+	return bytes.Equal(a, b)
+}
+
 func applyOpenCodePolicy(env []string) []string {
 	return withOpenCodeConfigContent(env, openCodePolicy)
 }
@@ -105,8 +118,9 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 		// opencode 2.1.2: options.baseURL, settings.baseURL, npm). Any routing
 		// key anywhere under the entry counts, models and variants included,
 		// in the legacy provider map and opencode 2's native providers map.
-		// The mlx block is nav-pilot's own, written to the global config with
-		// the loop guard's address; no other config may reroute it.
+		// The mlx block is nav-pilot's own, with the loop guard's address: in
+		// the global config, or in OPENCODE_CONFIG_CONTENT when that config
+		// has comments. No other config may reroute it.
 		for _, mapKey := range []string{"provider", "providers"} {
 			var providers map[string]json.RawMessage
 			_ = json.Unmarshal(top[mapKey], &providers)
@@ -117,6 +131,12 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 				}
 				var v any
 				_ = json.Unmarshal(raw, &v)
+				// A commented config is not rewritten, so the block rides in
+				// OPENCODE_CONFIG_CONTENT via openCodeLaunchConfig: exactly
+				// nav-pilot's own block passes, anything changed in it does not.
+				if id == LocalProviderID && mapKey == "provider" && doc.path == openCodeConfigContentEnv && ownLocalProviderBlock(v) {
+					continue
+				}
 				if k := openCodeRoutingKey(v); k != "" {
 					return nil, conflict("redefines provider " + id + " (" + mapKey + "." + id + ": " + k + ")")
 				}
