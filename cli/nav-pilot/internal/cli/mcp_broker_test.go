@@ -578,3 +578,11 @@ func TestMCPMechanismsMatchRegistryFixture(t *testing.T) {
 		}
 	}
 }
+
+// The nais MCP server uses the nais login (-n), not gcloud: probing gcloud
+// read an expired gcloud session as logged out.
+func TestMCPNaisProbeChecksTheNaisLogin(t *testing.T) {
+	if got := strings.Join(mcpMechanisms["nais-keychain"].probe, " "); got != "nais auth print-access-token -n" {
+		t.Fatalf("probe = %q", got)
+	}
+}

@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Riktig innloggingsstatus for Nais MCP
+
+- **`nav-pilot mcp list` og `nav-pilot mcp enable`**: Innloggingen sjekkes nå mot `nais login -n`, som er den Nais MCP bruker. Før sjekket nav-pilot gcloud-innloggingen, så du kunne få «logged out» selv om Nais MCP virket. Krever cplt med navikt/cplt#843 for at `mcp list` skal vise riktig status.
+
 ### Ett sted for agentpakken
 
 - **`nav-pilot pakke`**: Viser agentpakken i prosjektet: kilden og hvilken versjon den er låst til, hvilke agenter, skills og instruksjoner som er installert, om hookene er på plass, og tilgangen pakken ber om, med svaret ditt (gitt, avslått eller ikke spurt om). Må du gjøre noe, står det på én linje til slutt (#1962).
