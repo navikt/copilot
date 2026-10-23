@@ -1505,7 +1505,7 @@ run_opencode_t4() {
   make_opencode_shim
   OC_VERSION=v2.1.2 NO_SESSION=1 run_opencode_t4
   [ "$status" -ne 0 ]
-  grep -rq "is not in this run's store" "$SHIM"
+  grep -q "is not in this run's store" <<<"$output"
 }
 
 @test "opencode v2: the login is copied from a quiet WAL host DB with no -shm (#1917)" {

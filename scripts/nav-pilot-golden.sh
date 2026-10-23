@@ -563,15 +563,16 @@ preflight_client() {
     [[ -n "$CLI_PATH" ]] || fail_preflight "opencode not found on PATH" "brew install opencode"
     CLI_VERSION="opencode $("$CLI_PATH" --version 2>&1 | head -1)"
     [[ "$(grep -oE '[0-9]+' <<<"$CLI_VERSION" | head -1)" -ge 2 ]] && OC_V2=true
-    local oc_probe_dir oc_probe_out oc_probe_rc
+    local oc_probe_dir oc_probe_out oc_probe_rc oc_probe_title
+    oc_probe_title="golden-probe-$(python3 -c 'import uuid; print(uuid.uuid4())')"
     oc_probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
     # Ctrl-C or a fail_preflight must not leave the login copy or the service behind.
     trap 'oc_stop "$oc_probe_dir" "$oc_probe_dir/config"; rm -rf "$oc_probe_dir"' EXIT
     oc_isolate "$oc_probe_dir" "$oc_probe_dir/config"
     oc_probe_out="$(cd "$oc_probe_dir/home" && env "${OC_ENV[@]}" \
-      "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)"
+      "$CLI_PATH" run -m "$OC_MODEL" --title "$oc_probe_title" "svar kun med ordet OK" 2>&1)"
     oc_probe_rc=$?
-    [[ $oc_probe_rc -eq 0 ]] && ! oc_probe_out="$(oc_check_isolated)" && oc_probe_rc=1
+    [[ $oc_probe_rc -eq 0 ]] && ! oc_probe_out="$(oc_check_isolated "$oc_probe_title")" && oc_probe_rc=1
     oc_stop "$oc_probe_dir" "$oc_probe_dir/config"
     rm -rf "$oc_probe_dir"
     trap - EXIT
