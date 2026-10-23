@@ -112,7 +112,7 @@ In OpenCode 2 the parent model can pass a `model` argument to the `subagent` too
 - **What an override can do.** Pick any model from the allowed providers (`github-copilot`, plus `mlx` with local inference), including a more expensive one or a different premium-request multiplier than the user or the agentpakke chose. The user is not asked.
 - **What it cannot do.** Reach a provider outside the allowlist. The child session uses the same `enabled_providers`. This is configuration control, not an egress boundary (see Providers above).
 - **Cost.** Premium-request use can rise without a prompt. Model choice in agentpakke agents is advice, not a limit.
-- **Data routing.** Stays inside GitHub Copilot and the local model. An override cannot send code to another vendor.
+- **Data routing.** While the launch-time provider allowlist holds, an override stays inside GitHub Copilot and the local model and cannot send code to another vendor. The allowlist's own limits apply (see Providers above): plugins, config changed after launch, remote configuration and managed organization policies are not covered.
 - **Users.** Watch the model shown on the child session if cost matters, and say in the prompt when a model must not change. Do not store keys for other providers in OpenCode.
 - **Agentpakke authors.** Pin a model in the agent definition where it matters, but do not rely on the pin as a guarantee: a parent override beats it. Do not write instructions that depend on a subagent running on a specific model.
 
