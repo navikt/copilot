@@ -98,9 +98,9 @@ func runBudgetClient() {
 	if slices.Contains(os.Args[1:], "--version") {
 		switch name {
 		case "cplt":
-			fmt.Println("cplt 2026.09.24-192459-38642b4")
+			fmt.Println("cplt 2026.10.22-172931-b37a8ab")
 		case "opencode":
-			fmt.Println("1.18.25")
+			fmt.Println("opencode v2.1.3")
 		default:
 			fmt.Println("GitHub Copilot CLI 1.0.40")
 		}

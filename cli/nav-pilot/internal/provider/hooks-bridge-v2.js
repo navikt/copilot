@@ -1,6 +1,5 @@
-// nav-pilot hooks for opencode 2. hooks-bridge.js is the same bridge for
-// opencode 1; this one speaks opencode 2's plugin API (a default export with an
-// id and a setup function, hooks registered per domain). Loaded only by a
+// nav-pilot hooks for opencode 2. It speaks opencode 2's plugin API (a default
+// export with an id and a setup function, hooks registered per domain). Loaded only by a
 // nav-pilot launch, which names this file's directory in
 // OPENCODE_CONFIG_CONTENT and hands it the hooks to run in
 // NAV_PILOT_OPENCODE_HOOKS. Design: cli/nav-pilot/docs/opencode-hooks.md.
@@ -19,7 +18,7 @@
 // under that tool's own name, and for a subagent's session.
 //
 // With NAV_PILOT_DISPATCH_GATE set, it also runs the local dispatch gate
-// (internal/local/gate.go), as dispatch-gate.js does on opencode 1: it asks
+// (internal/local/gate.go): it asks
 // the gate before the orchestrator's edit, write, shell or subagent call and
 // throws a refusal, appends what the gate answers to the worker's result and
 // to a check after it, and adds the gate's reminder, once the orchestrator has
@@ -94,9 +93,8 @@ function texts(result) {
   return out
 }
 
-// The local dispatch gate. Its questions and answers are dispatch-gate.js's,
-// with opencode 2's tool names and arguments mapped to opencode 1's, which the
-// gate matches on. Every hook is a no-op without the gate's address.
+// The local dispatch gate, with opencode 2's tool names and arguments mapped
+// to opencode 1's, which the gate matches on. Every hook is a no-op without the gate's address.
 function dispatchGate(ctx, directory) {
   const url = process.env.NAV_PILOT_DISPATCH_GATE
   if (!url) return undefined
@@ -104,7 +102,7 @@ function dispatchGate(ctx, directory) {
   const topLevel = new Map()
   const str = (v) => (typeof v === "string" ? v : "")
   const abs = (p) => (p ? (isAbsolute(p) ? p : join(directory, p)) : "")
-  // Only the session the developer talks to; see dispatch-gate.js. Unknown
+  // Only the session the developer talks to. Unknown
   // is not top-level, and only a definite answer is kept.
   const isTopLevel = async (id) => {
     if (!topLevel.has(id)) {
@@ -131,7 +129,7 @@ function dispatchGate(ctx, directory) {
   // unchecked, the gate answers with a reminder once per turn, added as a
   // synthetic steer: the running session takes it at its next step, and a
   // session that has gone idle wakes for it, so the model reads it before the
-  // turn ends, as dispatch-gate.js does on opencode 1.
+  // turn ends.
   ;(async () => {
     try {
       for await (const e of ctx.event.subscribe()) {
@@ -165,7 +163,7 @@ function dispatchGate(ctx, directory) {
       try {
         const agent = await orchestrator(event.sessionID, curAgent)
         if (!agent) {
-          // The worker's writes, edits and shell commands: see dispatch-gate.js.
+          // The worker's writes, edits and shell commands.
           if (curAgent === "local-worker" && (tool === "write" || tool === "edit" || tool === "patch" || tool === "shell")) {
             deny = (await ask({ session: event.sessionID, agent: "local-worker", tool: tool === "shell" ? "bash" : tool, create, path: abs(str(args.path)), command: tool === "shell" ? str(args.command) : "", patch: tool === "patch" ? str(args.patchText) : "", phase: "worker" })).deny ?? ""
           }
@@ -225,8 +223,9 @@ export default {
     try {
       cfg = JSON.parse(process.env.NAV_PILOT_OPENCODE_HOOKS ?? "") ?? {}
     } catch {}
-    // MCP servers Nav's registry does not list (#1027); see hooks-bridge.js.
-    // opencode 2 names an MCP tool <server>_<tool> as opencode 1 does.
+    // MCP servers Nav's registry does not list (#1027). opencode names an MCP
+    // tool <server>_<tool>, the server name with anything outside
+    // [a-zA-Z0-9_-] as "_".
     const prefix = (n) => String(n).replace(/[^a-zA-Z0-9_-]/g, "_") + "_"
     let servers = []
     try {
@@ -236,7 +235,7 @@ export default {
         ...(m.listed ?? []).map((n) => ({ p: prefix(n), name: n, blocked: false })),
       ].sort((a, b) => b.p.length - a.p.length || Number(b.blocked) - Number(a.blocked))
     } catch {}
-    // ponytail: opencode 2.0.24's own tools, by hand, as in hooks-bridge.js.
+    // ponytail: opencode 2.0.24's own tools, by hand; update with the tested range.
     const builtin = new Set(["shell", "read", "edit", "write", "patch", "glob", "grep", "subagent", "webfetch", "websearch", "skill", "question", "execute", "invalid", "opencode_session_rename", "opencode_session_move", "opencode_models"])
     const resourceTools = new Set(["list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource"])
     const blockedServer = (tool, args) => {

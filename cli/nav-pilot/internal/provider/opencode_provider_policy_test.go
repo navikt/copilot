@@ -15,7 +15,7 @@ import (
 )
 
 func TestOpenCodeProviderPolicy(t *testing.T) {
-	for _, version := range []string{"1.18.32", "opencode v2.0.24"} {
+	for _, version := range []string{"opencode v2.0.24"} {
 		for _, local := range []bool{false, true} {
 			t.Run(version+"/local="+map[bool]string{false: "off", true: "on"}[local], func(t *testing.T) {
 				versionCache.Store("opencode", versionAnswer{version, nil, time.Hour})
@@ -109,7 +109,7 @@ func TestOpenCodeProviderPolicyUnknownVersion(t *testing.T) {
 func TestOpenCodeStagedLaunchProviderPolicy(t *testing.T) {
 	SetActivePakke(stagedFixturePakke())
 	t.Cleanup(func() { SetActivePakke(nil); versionCache.Delete("opencode") })
-	for _, version := range []string{"1.18.32", "opencode v2.0.24"} {
+	for _, version := range []string{"opencode v2.0.24"} {
 		t.Run(version, func(t *testing.T) {
 			versionCache.Store("opencode", versionAnswer{version, nil, time.Hour})
 			stage := t.TempDir()
@@ -142,7 +142,7 @@ func TestOpenCodeLaunchAppliesProviderPolicyBeforeCplt(t *testing.T) {
 	if err := testhome.WriteExec(bin, "#!/bin/sh\nprintf '%s' \"$OPENCODE_CONFIG_CONTENT\" > \""+out+"\"\n"); err != nil {
 		t.Fatal(err)
 	}
-	for _, version := range []string{"1.18.32", "opencode v2.0.24"} {
+	for _, version := range []string{"opencode v2.0.24"} {
 		t.Run(version, func(t *testing.T) {
 			versionCache.Store("opencode", versionAnswer{version, nil, time.Hour})
 			t.Cleanup(func() { versionCache.Delete("opencode") })

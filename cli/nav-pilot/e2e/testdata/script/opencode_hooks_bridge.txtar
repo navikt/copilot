@@ -6,7 +6,7 @@
 #
 # The fake cplt plays opencode: node loads the plugin the launch named, from
 # the environment the launch passed, and calls its hooks the way opencode does
-# (packages/opencode/src/session/tools.ts at v1.18.32).
+# (opencode 2's plugin API: a default export whose setup registers hooks).
 
 [!exec:node] skip 'needs node to load the plugin'
 [!exec:python3] skip 'needs python3 for the gate'
@@ -34,9 +34,8 @@ grep '^--pass-env\nNAV_PILOT_OPENCODE_HOOKS\n' $WORK/fake/cplt.log
 grep '^--pass-env\nOPENCODE_CONFIG_CONTENT\n' $WORK/fake/cplt.log
 grep '^--allow-read\n.*/\.copilot/hooks\n' $WORK/fake/cplt.log
 grep '^--allow-write\n.*/\.local/share/nav-pilot/opencode-hook-state\n' $WORK/fake/cplt.log
-exists $HOME/.local/share/nav-pilot/opencode-plugin/nav-pilot-hooks.js
+exists $HOME/.local/share/nav-pilot/opencode-plugin/v2/index.js
 ! exists $HOME/.config/opencode/plugins/nav-pilot-hooks.js
-! stderr 'do not run with --pure'
 # The agentpakke's hook runs here, so the launch no longer says it was left out.
 ! stderr 'not installed for opencode'
 
@@ -65,10 +64,6 @@ stdout '^after broken: \[nav-pilot: this tool output was withheld because the re
 stdout '^after loop: \[nav-pilot loop guard\]'
 exists $HOME/.local/share/nav-pilot/opencode-hook-state/ses_parent/nav-pilot-loop-guard.json
 
-# --pure loads no plugins: said on stderr.
-exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- --pure run x </dev/null'
-stderr 'hooks \(redaction, loop guard, gates\) do not run with --pure'
-
 # Redaction off: the output goes through as it was, and the gate still runs.
 exec nav-pilot config set hook_redact_secrets false
 exec nav-pilot config set hook_redact_fnr false
@@ -81,57 +76,69 @@ stdout '^before forbidden: denied'
 -- fake/cplt.sh --
 "$WORK/bin/node" "$WORK/driver.mjs" > "$WORK/driver.out" 2>&1
 -- driver.mjs --
+import { pathToFileURL } from "node:url"
 const cfg = JSON.parse(process.env.OPENCODE_CONFIG_CONTENT)
-const mod = await import(cfg.plugin[0])
-const hooks = await mod.NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
+const mod = (await import(pathToFileURL(cfg.plugins[0] + "/index.js").href)).default
+const load = async () => {
+  const h = {}
+  await mod.setup({
+    location: { directory: process.cwd(), worktree: process.cwd() },
+    session: { hook: async (n, f) => (h["session." + n] = f) },
+    tool: { hook: async (n, f) => (h[n] = f) },
+  })
+  return h
+}
+const hooks = await load()
 // Built at run time, so no token-shaped string sits in the repository.
 const secret = "token=" + ["ghp", "0123456789abcdefghijABCDEFGHIJ012345"].join("_") + "\nbruker 15078545620\n"
 const one = (s) => s.replace(/\n/g, " | ")
-const after = async (label, tool, output, session = "ses_parent") => {
-  await hooks["tool.execute.after"]({ tool, sessionID: session, callID: "c", args: { command: "cat x" } }, output)
-  const text = output.output ?? output.content[0].text
-  console.log(`after ${label}: ${one(text)}`)
+const afterCall = (h, tool, result, session = "ses_parent", id = "c", input = { command: "cat x" }) =>
+  h["execute.after"]({ tool, sessionID: session, id, input, status: "completed", result })
+const after = async (label, tool, text, session) => {
+  const result = { content: [{ type: "text", text }] }
+  await afterCall(hooks, tool, result, session)
+  console.log(`after ${label}: ${one(result.content[0].text)}`)
 }
 const before = async (label, command) => {
   try {
-    await hooks["tool.execute.before"]({ tool: "bash", sessionID: "ses_parent", callID: "c" }, { args: { command } })
+    await hooks["execute.before"]({ tool: "shell", sessionID: "ses_parent", id: "c", input: { command } })
     console.log(`before ${label}: allowed`)
   } catch (e) {
     console.log(`before ${label}: denied: ${e.message}`)
   }
 }
-await after("bash", "bash", { title: "", output: secret, metadata: {} })
-await after("mcp", "github_get_file", { content: [{ type: "text", text: secret }] })
+await after("bash", "shell", secret)
+await after("mcp", "github_get_file", secret)
 // Two items: one pass over both, the rewrite in the first.
 const split = { content: [{ type: "text", text: "hello" }, { type: "text", text: secret }] }
-await hooks["tool.execute.after"]({ tool: "github_get_file", sessionID: "ses_parent", callID: "m2", args: {} }, split)
+await afterCall(hooks, "github_get_file", split, "ses_parent", "m2", {})
 console.log(`after mcp split: ${one(split.content.map((c) => c.text).join("|"))}`)
-await after("child", "bash", { title: "", output: secret, metadata: {} }, "ses_child")
-await after("clean", "bash", { title: "", output: "hello", metadata: {} })
+await after("child", "shell", secret, "ses_child")
+await after("clean", "shell", "hello")
 await before("forbidden", "echo forbidden")
 await before("fine", "echo ok")
 for (let i = 1; i <= 6; i++) {
-  const out = { title: "", output: "same", metadata: {} }
-  await hooks["tool.execute.after"]({ tool: "bash", sessionID: "ses_parent", callID: "l" + i, args: { command: "gh run list" } }, out)
-  if (i === 6) console.log(`after loop: ${one(out.output)}`)
+  const out = { content: [{ type: "text", text: "same" }] }
+  await afterCall(hooks, "shell", out, "ses_parent", "l" + i, { command: "gh run list" })
+  if (i === 6) console.log(`after loop: ${one(out.content[0].text)}`)
 }
 // A tool that threw, and one the user interrupted: redacted on the way to the
-// model by the messages transform.
-const msgs = { messages: [{ info: {}, parts: [
-  { type: "tool", tool: "webfetch", callID: "e1", sessionID: "ses_parent", state: { status: "error", input: {}, error: secret } },
-  { type: "tool", tool: "bash", callID: "e2", sessionID: "ses_parent", state: { status: "error", input: { command: "cat .env" }, error: "Cancelled", metadata: { interrupted: true, output: secret } } },
+// model, in the last hop before the model call.
+const msgs = { sessionID: "ses_parent", messages: [{ role: "tool", content: [
+  { type: "tool-result", id: "e1", name: "webfetch", result: { value: { error: { message: secret } } } },
+  { type: "tool-result", id: "e2", name: "shell", result: { value: secret } },
 ] }] }
-await hooks["experimental.chat.messages.transform"]({}, msgs)
-console.log(`transform error: ${one(msgs.messages[0].parts[0].state.error)}`)
-console.log(`transform interrupted: ${one(msgs.messages[0].parts[1].state.metadata.output)}`)
+await hooks["session.context"](msgs)
+console.log(`transform error: ${one(msgs.messages[0].content[0].result.value.error.message)}`)
+console.log(`transform interrupted: ${one(msgs.messages[0].content[1].result.value)}`)
 // Redaction that cannot run: the same plugin, handed a nav-pilot that is gone.
 const cfgHooks = JSON.parse(process.env.NAV_PILOT_OPENCODE_HOOKS)
 for (const h of cfgHooks.post) h.argv[0] = "/nonexistent/nav-pilot"
 process.env.NAV_PILOT_OPENCODE_HOOKS = JSON.stringify(cfgHooks)
-const broken = await mod.NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
-const bout = { title: "", output: secret, metadata: {} }
-await broken["tool.execute.after"]({ tool: "bash", sessionID: "ses_b", callID: "b", args: {} }, bout)
-console.log(`after broken: ${one(bout.output)}`)
+const broken = await load()
+const bout = { content: [{ type: "text", text: secret }] }
+await afterCall(broken, "shell", bout, "ses_b", "b", {})
+console.log(`after broken: ${one(bout.content[0].text)}`)
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills","hooks":"hooks"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

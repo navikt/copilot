@@ -38,15 +38,10 @@ func TestApplyOpenCodeHooksStagesV2PluginDir(t *testing.T) {
 	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge {
 		return HookBridge{Post: []BridgeHook{{Name: "r", Argv: []string{"/bin/true"}}}}
 	}
-	for ver, want := range map[string]string{
-		"1.18.35\n":          `"plugin":["file://` + filepath.Join(openCodePluginDir(), "nav-pilot-hooks.js") + `"]`,
-		"opencode v2.0.24\n": `"plugins":["` + filepath.Join(openCodePluginDir(), "v2") + `"]`,
-	} {
-		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
-		env, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, nil, nil)
-		if got := strings.Join(env, "\n"); !strings.Contains(got, want) {
-			t.Errorf("%q: env = %s, want %s", ver, got, want)
-		}
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	env, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, nil, nil)
+	if got, want := strings.Join(env, "\n"), `"plugins":["`+filepath.Join(openCodePluginDir(), "v2")+`"]`; !strings.Contains(got, want) {
+		t.Errorf("env = %s, want %s", got, want)
 	}
 	if b, err := os.ReadFile(filepath.Join(openCodePluginDir(), "v2", "index.js")); err != nil || !bytes.Equal(b, hooksBridgePluginV2) {
 		t.Errorf("v2/index.js not the v2 bridge: %v", err)
@@ -54,7 +49,7 @@ func TestApplyOpenCodeHooksStagesV2PluginDir(t *testing.T) {
 }
 
 // opencode 2 keeps the first plugin of an id, so the bridge's id is fresh per
-// launch and passed through cplt; opencode 1 gets none.
+// launch and passed through cplt.
 func TestApplyOpenCodeHooksV2PluginIDPerLaunch(t *testing.T) {
 	prev := OpenCodeHookBridge
 	t.Cleanup(func() { OpenCodeHookBridge = prev; versionCache.Delete("opencode") })
@@ -69,10 +64,6 @@ func TestApplyOpenCodeHooksV2PluginIDPerLaunch(t *testing.T) {
 			}
 		}
 		return "", cplt
-	}
-	versionCache.Store("opencode", versionAnswer{"1.18.35\n", nil, time.Hour})
-	if v, _ := id(); v != "" {
-		t.Errorf("opencode 1 got a plugin id: %q", v)
 	}
 	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
 	a, cplt := id()
@@ -89,22 +80,21 @@ func TestApplyOpenCodeHooksV2PluginIDPerLaunch(t *testing.T) {
 	}
 }
 
-// On opencode 2 the bridge runs the dispatch gate, so a launch with the gate
-// and no other hook still stages it; on opencode 1 dispatch-gate.js does.
-func TestOpenCodeHooksStageBridgeForDispatchGateOnV2(t *testing.T) {
+// The bridge runs the dispatch gate, so a launch with the gate and no other
+// hook still stages it.
+func TestOpenCodeHooksStageBridgeForDispatchGate(t *testing.T) {
 	prev := OpenCodeHookBridge
 	t.Cleanup(func() { OpenCodeHookBridge = prev })
 	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge { return HookBridge{} }
 	t.Cleanup(func() { versionCache.Delete("opencode") })
-	for _, c := range []struct {
-		version string
-		want    bool
-	}{{"opencode v2.0.24\n", true}, {"opencode 1.17.0\n", false}} {
-		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
-		env, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{DispatchGateEnv + "=http://127.0.0.1:1/x"}, nil)
-		if got := strings.Contains(strings.Join(env, "\n"), "plugin"); got != c.want {
-			t.Errorf("%s: bridge staged = %v, want %v", strings.TrimSpace(c.version), got, c.want)
-		}
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	env, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{DispatchGateEnv + "=http://127.0.0.1:1/x"}, nil)
+	if !strings.Contains(strings.Join(env, "\n"), "plugin") {
+		t.Error("bridge not staged for the dispatch gate")
+	}
+	env, _ = applyOpenCodeHooks(domain.ResolvedConfig{}, nil, nil)
+	if strings.Contains(strings.Join(env, "\n"), "plugin") {
+		t.Error("bridge staged with no hook and no gate")
 	}
 }
 
@@ -125,7 +115,7 @@ func TestApplyOpenCodeHooksPassesDisableProjectConfig(t *testing.T) {
 	prev := OpenCodeHookBridge
 	t.Cleanup(func() { OpenCodeHookBridge = prev; versionCache.Delete("opencode") })
 	OpenCodeHookBridge = nil
-	for _, ver := range []string{"1.18.35\n", "opencode v2.0.24\n"} {
+	for _, ver := range []string{"opencode v2.0.24\n"} {
 		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
 		_, cplt := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{"OPENCODE_DISABLE_PROJECT_CONFIG=1"}, nil)
 		if !strings.Contains(strings.Join(cplt, " "), "--pass-env OPENCODE_DISABLE_PROJECT_CONFIG") {
@@ -143,25 +133,19 @@ func TestHooksBridgeMCPBlockedCollisionAndResourceFailClosed(t *testing.T) {
 		t.Skip("node not installed")
 	}
 	dir := t.TempDir()
-	v1Path := filepath.Join(dir, "bridge-v1.mjs")
 	v2Path := filepath.Join(dir, "bridge-v2.mjs")
-	if err := os.WriteFile(v1Path, hooksBridgePlugin, 0o600); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.WriteFile(v2Path, hooksBridgePluginV2, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	script := `
-import { NavPilotHooks } from "` + filepath.ToSlash(v1Path) + `";
 import v2Mod from "` + filepath.ToSlash(v2Path) + `";
-const p1 = await NavPilotHooks({ directory: process.cwd() });
 let v2Before;
 await v2Mod.setup({
   session: { hook: async () => {} },
   tool: { hook: async (name, fn) => { if (name === "execute.before") v2Before = fn; } },
 });
 const wrapV2 = (ev, out) => v2Before({ tool: ev.tool, input: out.args });
-for (const before of [p1["tool.execute.before"], wrapV2]) {
+for (const before of [wrapV2]) {
   let collideBlocked = false;
   try {
     await before({ tool: "foo_bar_ping", args: {} }, { args: {} });

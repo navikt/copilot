@@ -29,8 +29,8 @@ env POLICY=registry_only
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
 stderr 'MCP servers turned off for this session \(not in Nav''s MCP registry\): egen-lokal, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
 exec cat $WORK/env.out
-stdout '"tredjepart":\{"enabled":false\}'
-stdout '"egen-lokal":\{"enabled":false\}'
+stdout '"tredjepart":\{"enabled":false,"type":"remote","url":"https://mcp\.example\.com/sse"\}'
+stdout '"egen-lokal":\{"command":\["node","\./server\.js"\],"enabled":false,"type":"local"\}'
 ! stdout '"aksel"'
 ! stdout '"playwright"'
 ! stdout '"av"'
@@ -40,7 +40,7 @@ grep '^--pass-env\nNAV_PILOT_MCP_BLOCKED\n' $WORK/fake/cplt.log
 [exec:node] exec cat $WORK/gate.out
 [exec:node] stdout '^tredjepart_search: denied: nav-pilot: the MCP server tredjepart is not in Nav''s MCP registry'
 [exec:node] stdout '^aksel_find_docs: allowed$'
-[exec:node] stdout '^bash: allowed$'
+[exec:node] stdout '^shell: allowed$'
 [exec:node] stdout '^read_mcp_resource: denied: nav-pilot: the MCP server tredjepart'
 [exec:node] stdout '^list_mcp_resources: allowed$'
 
@@ -56,7 +56,7 @@ exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </
 grep '^--pass-env\nOPENCODE_CONFIG_CONTENT\n' $WORK/fake/cplt.log
 exec cat $WORK/env.out
 stdout '"share":"disabled"'
-stdout '"tredjepart":\{"enabled":false\}'
+stdout '"tredjepart":\{"enabled":false,"type":"remote","url":"https://mcp\.example\.com/sse"\}'
 
 # A policy that allows every server: nothing is turned off.
 env POLICY=allow_all
@@ -84,11 +84,13 @@ env | grep '^OPENCODE_CONFIG_CONTENT=' > "$WORK/env.out"
 if [ -x "$WORK/bin/node" ]; then "$WORK/bin/node" "$WORK/gate.mjs" > "$WORK/gate.out" 2>&1; fi
 -- gate.mjs --
 const cfg = JSON.parse(process.env.OPENCODE_CONFIG_CONTENT)
-const mod = await import(cfg.plugin[0])
-const hooks = await mod.NavPilotHooks({ directory: process.cwd(), worktree: process.cwd() })
-for (const [tool, args] of [["tredjepart_search", {}], ["aksel_find_docs", {}], ["bash", {}], ["read_mcp_resource", { server: "tredjepart", uri: "x" }], ["list_mcp_resources", {}]]) {
+const { pathToFileURL } = await import("node:url")
+const mod = (await import(pathToFileURL(cfg.plugins[0] + "/index.js").href)).default
+const hooks = {}
+await mod.setup({ location: { directory: process.cwd() }, session: { hook: async () => {} }, tool: { hook: async (n, f) => (hooks[n] = f) } })
+for (const [tool, input] of [["tredjepart_search", {}], ["aksel_find_docs", {}], ["shell", {}], ["read_mcp_resource", { server: "tredjepart", uri: "x" }], ["list_mcp_resources", {}]]) {
   try {
-    await hooks["tool.execute.before"]({ tool, sessionID: "s", callID: "c" }, { args })
+    await hooks["execute.before"]({ tool, sessionID: "s", id: "c", input })
     console.log(`${tool}: allowed`)
   } catch (e) {
     console.log(`${tool}: denied: ${e.message}`)

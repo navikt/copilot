@@ -31,31 +31,12 @@ import (
 //     developer as a notice, not as a new binary mid-week.
 var openCodePolicy = map[string]any{"share": "disabled", "autoupdate": "notify"}
 
-// OpenCode1TestedRange and OpenCode2TestedRange are the OpenCode versions nav-pilot's OpenCode path is
+// OpenCode2TestedRange is the opencode versions nav-pilot's OpenCode path is
 // tested against: the plugin hooks the bridge and the dispatch gate rely on,
 // the config merge order, the permission schema. Raise it after running the
 // e2e journeys and the real-opencode checks in docs/opencode-hooks.md against
-// the new release. opencode 1 and 2 are tested separately, so each major has
-// its own range; OpenCodeTestedRangeFor picks one.
-const (
-	OpenCode1TestedRange = ">=1.18.20,<1.19"
-	OpenCode2TestedRange = ">=2.0.24,<2.2"
-)
-
-// OpenCodeTestedRangeFor is the tested range for version's major.
-func OpenCodeTestedRangeFor(version string) string {
-	if n, _ := strconv.Atoi(strings.SplitN(version, ".", 2)[0]); n >= 2 {
-		return OpenCode2TestedRange
-	}
-	return OpenCode1TestedRange
-}
-
-// OpenCodeInstallVersion is the release nav-pilot's installer asks for: inside
-// OpenCode1TestedRange, and the one the hooks were verified against. Passing a
-// version makes opencode's install script skip its api.github.com lookup,
-// which fails with "Failed to fetch version information" behind a rate limit
-// or a proxy (#1345). Raise it with the range.
-const OpenCodeInstallVersion = "1.18.32"
+// the new release.
+const OpenCode2TestedRange = ">=2.0.24,<2.2"
 
 func applyOpenCodePolicy(env []string) []string {
 	return withOpenCodeConfigContent(env, openCodePolicy)
@@ -121,9 +102,6 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 					return nil, conflict("redefines provider " + id + " (" + mapKey + "." + id + ": " + k + ")")
 				}
 			}
-		}
-		if major < 2 {
-			continue
 		}
 		// OpenCode substitutes these before parsing, so an unresolved value
 		// here could become an allow rule; fail closed.
@@ -291,7 +269,7 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 		var s string
 		return json.Unmarshal(raw, &s) == nil && s == "deny"
 	}
-	v2, listDeny := openCodeMajor() >= 2, false
+	listDeny := false
 	for _, doc := range docs {
 		var cfg struct {
 			Permission  json.RawMessage `json:"permission"`
@@ -302,13 +280,11 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
 			continue
 		}
-		if v2 {
-			for _, r := range cfg.Permissions {
-				// ponytail: path.Match for opencode's Wildcard; the same for
-				// action names, which have no slash.
-				if ok, _ := path.Match(r.Action, key); ok && r.Resource == "*" {
-					listDeny = r.Effect == "deny"
-				}
+		for _, r := range cfg.Permissions {
+			// ponytail: path.Match for opencode's Wildcard; the same for
+			// action names, which have no slash.
+			if ok, _ := path.Match(r.Action, key); ok && r.Resource == "*" {
+				listDeny = r.Effect == "deny"
 			}
 		}
 		if cfg.Permission == nil {
@@ -342,7 +318,7 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 }
 
 // OpenCodeVersionStatus reports the installed opencode's version and whether
-// it is inside [OpenCodeTestedRangeFor]. err is set when the version could not
+// it is inside [OpenCode2TestedRange]. err is set when the version could not
 // be read.
 func OpenCodeVersionStatus() (version string, tested bool, err error) {
 	out, err := cachedVersion("opencode", clientProbeTimeout)
@@ -354,7 +330,7 @@ func OpenCodeVersionStatus() (version string, tested bool, err error) {
 		return "", false, err
 	}
 	version = fmt.Sprintf("%d.%d.%d", v[0], v[1], v[2])
-	rng, err := agentpakke.ParseVersionRange(OpenCodeTestedRangeFor(version))
+	rng, err := agentpakke.ParseVersionRange(OpenCode2TestedRange)
 	if err != nil {
 		return "", false, err
 	}
@@ -367,38 +343,15 @@ func OpenCodeVersionStatus() (version string, tested bool, err error) {
 // the parts that could break fail in the safe direction (redaction withholds).
 func warnUntestedOpenCode() {
 	v, tested, err := OpenCodeVersionStatus()
-	if err != nil || tested || !SeenChanged("opencode-untested", v+" "+OpenCodeTestedRangeFor(v)) {
+	if err != nil || tested || !SeenChanged("opencode-untested", v+" "+OpenCode2TestedRange) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "%s opencode %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described. See %s.\n",
-		domain.Yellow("⚠"), v, OpenCodeTestedRangeFor(v), domain.Bold("nav-pilot doctor"))
+		domain.Yellow("⚠"), v, OpenCode2TestedRange, domain.Bold("nav-pilot doctor"))
 }
 
-// OpenCode1EndOfSupport is the last day nav-pilot supports opencode 1 (#1907).
-const OpenCode1EndOfSupport = "2026-11-19"
-
-// OpenCode1Notice is the upgrade nudge for an opencode 1 user, "" on any
-// other major or an unreadable version.
-func OpenCode1Notice() string {
-	if openCodeMajor() != 1 {
-		return ""
-	}
-	n := fmt.Sprintf("opencode 1 support ends after %s. Upgrade to opencode 2: %s\n"+
-		"  The upgrade is one-way: opencode 2 converts the opencode 1 database. You will need to log in again (auth.json is not carried over).",
-		OpenCode1EndOfSupport, domain.Bold(OpenCode2InstallHint()))
-	if hostOS == "linux" {
-		n += " Linux needs bubblewrap."
-	}
-	return n
-}
-
-// warnOpenCode1 prints OpenCode1Notice at launch, once per opencode version,
-// and the CpltMCPNotice once per cplt version.
-func warnOpenCode1() {
-	out, _ := cachedVersion("opencode", clientProbeTimeout)
-	if n := OpenCode1Notice(); n != "" && SeenChanged("opencode1-notice", strings.TrimSpace(out)) {
-		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
-	}
+// warnCpltMCP prints the CpltMCPNotice at launch, once per cplt version.
+func warnCpltMCP() {
 	if n, stamp := cpltMCPNotice(); n != "" && SeenChanged("cplt-mcp-notice", stamp) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
 	}
@@ -442,36 +395,28 @@ func withDenyVoiceEnv(args []string) []string {
 	return args
 }
 
-// CheckOpenCodeMajor stops a launch on opencode 3 or newer, which the warning
-// above is not enough for: opencode 2 changed the flags, the plugin API and
-// how config loads, and nav-pilot's bridge only exists for 1 and 2. A session
-// on an unknown major could start without nav-pilot's hooks and MCP policy.
-// A prerelease such as "opencode v3.0.0-beta.1" does not parse as a version,
-// so the major is read from the raw line. Any other unreadable version passes
-// here; applyOpenCodeProviderPolicy then refuses the launch, because it cannot
-// tell which config precedence applies.
+// CheckOpenCodeMajor stops a launch on any opencode but 2. Support for
+// opencode 1 ended after 2026-11-19 (#1907): nav-pilot's bridge, gate and
+// policy only exist for opencode 2. opencode 3 or newer may have changed the
+// flags, the plugin API and how config loads, so a session could start
+// without nav-pilot's hooks and MCP policy. A prerelease such as
+// "opencode v3.0.0-beta.1" does not parse as a version, so the major is read
+// from the raw line. An unreadable version passes here;
+// applyOpenCodeProviderPolicy then refuses the launch.
 func CheckOpenCodeMajor() error {
-	v, _, err := OpenCodeVersionStatus()
-	if err != nil {
-		out, _ := cachedVersion("opencode", clientProbeTimeout)
-		m := openCodeMajorPattern.FindStringSubmatch(strings.TrimSpace(out))
-		if m == nil {
-			return nil
-		}
-		v = strings.TrimSpace(out)
-		if n, _ := strconv.Atoi(m[1]); n < 3 {
-			return nil
-		}
-	} else if n, _ := strconv.Atoi(strings.SplitN(v, ".", 2)[0]); n < 3 {
+	n := openCodeMajor()
+	if n == 0 || n == 2 {
 		return nil
 	}
-	// opencode 2 runs under cplt on macOS and Linux (checkOpenCode2Launch).
-	major, hint := "1", OpenCode1InstallHint()
-	if minOpenCode2CpltStamp() != "" {
-		major, hint = "2", OpenCode2InstallHint()
+	out, _ := cachedVersion("opencode", clientProbeTimeout)
+	v := strings.TrimPrefix(strings.TrimSpace(out), "opencode ")
+	if n < 2 {
+		return fmt.Errorf("opencode %s is no longer supported: nav-pilot runs opencode 2 only (support for opencode 1 ended after 2026-11-19).\n"+
+			"  The upgrade is one-way: opencode 2 converts the opencode 1 database, and you log in again (auth.json is not carried over).\n\n  Upgrade to opencode 2: %s",
+			v, domain.Bold(OpenCode2InstallHint()))
 	}
-	return fmt.Errorf("opencode %s is newer than nav-pilot supports (opencode 1 and 2): its flags, plugins and config loading may have changed.\n\n  Install opencode %s: %s",
-		strings.TrimPrefix(v, "opencode "), major, domain.Bold(hint))
+	return fmt.Errorf("opencode %s is newer than nav-pilot supports (opencode 2): its flags, plugins and config loading may have changed.\n\n  Install opencode 2: %s",
+		v, domain.Bold(OpenCode2InstallHint()))
 }
 
 // openCodeMajor is the installed opencode's major version, read from the raw
@@ -527,9 +472,8 @@ func minOpenCode2CpltStamp() string {
 // sandboxed per-session service: a cplt without #716 (or one whose version
 // cannot be read, fail-closed as checkCpltFloor), arguments that connect
 // the client to another server, or a platform other than macOS and Linux, where cplt
-// does not run opencode 2. Nil on opencode 1. An opencode whose version
-// cannot be read is launched as opencode 1 but still needs the cplt floor, so
-// cplt's own fail-closed refusal (#735) is there if it really is opencode 2.
+// does not run opencode 2. An opencode whose version cannot be read still
+// needs the cplt floor, so cplt's own fail-closed refusal (#735) is there if it really is opencode 2.
 var lookPath = exec.LookPath
 
 func checkOpenCode2Launch(args []string) error {
@@ -542,11 +486,8 @@ func checkOpenCode2Launch(args []string) error {
 		if err := checkOpenCode2Cplt(); err != nil {
 			return err
 		}
-	} else if openCodeMajor() < 2 {
-		return nil
 	} else if minOpenCode2CpltStamp() == "" {
-		return fmt.Errorf("opencode 2 runs under cplt on macOS and Linux only, and nav-pilot never launches a client outside cplt.\n\n  Install opencode 1: %s",
-			domain.Bold(OpenCode1InstallHint()))
+		return fmt.Errorf("opencode 2 runs under cplt on macOS and Linux only, and nav-pilot never launches a client outside cplt")
 	}
 	if len(args) > 0 && args[0] == "attach" {
 		return fmt.Errorf("attach is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts")
@@ -589,36 +530,11 @@ func checkOpenCode2Cplt() error {
 }
 
 // OpenCodeLaunchCheck is checkOpenCode2Launch for doctor: what a plain
-// `nav-pilot opencode` would be refused for, nil on opencode 1.
+// `nav-pilot opencode` would be refused for.
 func OpenCodeLaunchCheck() error { return checkOpenCode2Launch(nil) }
-
-// OpenCodeScriptInstall is opencode's own installer, pinned to the tested release.
-const OpenCodeScriptInstall = "curl -fsSL https://opencode.ai/install | bash -s -- --version " + OpenCodeInstallVersion
 
 // brewKegPattern pulls the formula name out of a Homebrew Cellar path.
 var brewKegPattern = regexp.MustCompile(`/Cellar/([^/]+)/`)
-
-// OpenCode1InstallHint is the command that puts opencode 1 back on this
-// machine, chosen by how the opencode on PATH was installed. npm's opencode 2
-// package (@opencode/cli) owns the same bin, so installing opencode-ai over it
-// fails with EEXIST. On Homebrew, opencode 2 comes from homebrew-core's
-// opencode or anomalyco/tap/opencode-v2, while anomalyco/tap/opencode is still
-// opencode 1, so the hint removes the keg actually on PATH and installs that.
-func OpenCode1InstallHint() string {
-	path, _ := exec.LookPath("opencode")
-	resolved, _ := filepath.EvalSymlinks(path)
-	if strings.Contains(resolved, "node_modules") {
-		return "npm uninstall -g @opencode/cli && npm i -g opencode-ai@" + OpenCodeInstallVersion
-	}
-	if domain.PkgOwner(path) == domain.PkgBrew {
-		keg := "opencode"
-		if m := brewKegPattern.FindStringSubmatch(resolved); m != nil {
-			keg = m[1]
-		}
-		return "brew uninstall " + keg + " && brew install anomalyco/tap/opencode"
-	}
-	return OpenCodeScriptInstall
-}
 
 // OpenCode2InstallVersion is the opencode 2 release nav-pilot is tested with.
 const OpenCode2InstallVersion = "2.1.3"

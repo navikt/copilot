@@ -277,16 +277,14 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
 	cpltArgs := []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"}
 	cpltArgs = withDenyVoiceEnv(cpltArgs)
-	if openCodeMajor() >= 2 {
-		agentArgs, env = openCodeV2Args(agentArgs, env)
-		env, err = withOpenCode2UserConfig(env, s.Dir)
-		if err != nil {
-			return cpltLaunch{}, err
-		}
-		// Not in cplt's allowlist: without it the user's config is gone.
-		if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG=") }) {
-			cpltArgs = append(cpltArgs, "--pass-env", "OPENCODE_CONFIG")
-		}
+	agentArgs, env = openCodeV2Args(agentArgs, env)
+	env, err = withOpenCode2UserConfig(env, s.Dir)
+	if err != nil {
+		return cpltLaunch{}, err
+	}
+	// Not in cplt's allowlist: without it the user's config is gone.
+	if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "OPENCODE_CONFIG=") }) {
+		cpltArgs = append(cpltArgs, "--pass-env", "OPENCODE_CONFIG")
 	}
 
 	return cpltLaunch{
@@ -452,7 +450,7 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	spec.env = applyOpenCodePolicy(spec.env)
 	spec.pakke = s.PakkeName
 	warnUntestedOpenCode()
-	warnOpenCode1()
+	warnCpltMCP()
 	spec.env = applyOpenCodeMCPPolicy(spec.env, r.ProjectDir)
 	spec.env = applyOpenCodeOwnDirs(spec.env, r.ProjectDir)
 	spec.env, spec.cpltArgs = applyOpenCodeHooks(r, spec.env, spec.cpltArgs)
@@ -500,7 +498,8 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	return launchViaCplt(spec)
 }
 
-// openCodeV2Args rewrites a launch's opencode 1 arguments for opencode 2
+// openCodeV2Args rewrites a launch's arguments, built in opencode 1's shape by
+// openCodeAgentArgs and openCodeClientArgs, for opencode 2
 // (2.0.24 `opencode --help`, `opencode run --help`), and puts what moved into
 // OPENCODE_CONFIG_CONTENT:
 //
