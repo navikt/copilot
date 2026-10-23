@@ -15,6 +15,9 @@ import (
 func TestOpenCode1Notice(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
 	t.Cleanup(func() { versionCache.Delete("opencode") })
+	prevProbe := probeCpltVersion
+	t.Cleanup(func() { probeCpltVersion = prevProbe })
+	probeCpltVersion = func() (string, error) { return "cplt " + openCode2CpltRecommended + "-abcdef0\n", nil }
 	launch := func(version string) string {
 		t.Helper()
 		versionCache.Store("opencode", versionAnswer{version, nil, time.Hour})

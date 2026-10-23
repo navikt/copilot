@@ -560,11 +560,13 @@ export default function Klienter() {
             rett til OpenAI, xAI eller Google når den finner en API-nøkkel for dem, lagret i opencode eller i en
             miljøvariabel som {c("OPENAI_API_KEY")}. Den sjekker ikke lista over tillatte leverandører, så nav-pilots
             sperre stopper den ikke. Ikke lagre nøkler for openai, xai eller google i opencode, og ikke bruk tale. cplt
-            skal fjerne miljøvariablene (
-            <a href="https://github.com/navikt/cplt/issues/814" className={linkClass}>
-              navikt/cplt#814
+            slipper ikke miljøvariabler med slike nøkler inn i sandkassen som standard. Med cplt 2026.10.23-070444 eller
+            nyere stenger nav-pilot dem også når noen slipper dem inn med {c("--pass-env")}, {c("--inherit-env")} eller{" "}
+            {c(".cplt.toml")} (
+            <a href="https://github.com/navikt/cplt/pull/817" className={linkClass}>
+              navikt/cplt#817
             </a>
-            ), men lagrede nøkler og tale via OpenCode Console kan ikke stenges med konfig.
+            ). Lagrede nøkler og tale via OpenCode Console kan likevel ikke stenges med konfig.
           </li>
         </Bullets>
         <BodyShort size="small" textColor="subtle">

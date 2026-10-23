@@ -1211,6 +1211,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 
 	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
+	cpltFlags = withDenyVoiceEnv(cpltFlags)
 	agentArgs := openCodeAgentArgs(resolved)
 	if openCodeMajor() >= 2 {
 		agentArgs, launchEnv = openCodeV2Args(agentArgs, launchEnv)

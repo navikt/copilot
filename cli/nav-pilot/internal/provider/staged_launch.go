@@ -276,6 +276,7 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	}
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
 	cpltArgs := []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"}
+	cpltArgs = withDenyVoiceEnv(cpltArgs)
 	if openCodeMajor() >= 2 {
 		agentArgs, env = openCodeV2Args(agentArgs, env)
 		env, err = withOpenCode2UserConfig(env, s.Dir)
