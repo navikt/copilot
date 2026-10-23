@@ -760,6 +760,22 @@ State leses alltid gjennom `readScopedState()` som validerer scope-match og sti-
 
 ## Output
 
+### Hva som vises
+
+En oppstart som ikke trenger noe fra brukeren, skriver ingenting. Hver linje
+nav-pilot skriver ved oppstart og avslutning hører til én av fire klasser:
+
+| Klasse | Når den vises | Eksempel |
+|---|---|---|
+| **Handle nå** | Alltid, kort. Brukeren må gjøre noe, eller linja varsler om en risiko. | cplt mangler, tilgang nektet, feil |
+| **Endret** | Én gang, når verdien har endret seg siden forrige oppstart (`SeenChanged`). Ellers stille. | innstilling klienten ikke støtter, ny godkjenning for agentpakken, ny modell |
+| **Stabil tilstand** | Aldri. | samme agentpakke, samme godkjenning som sist |
+| **Detalj** | Bare med `--verbose` eller i `nav-pilot doctor`. | sandkassemappe, ekstra cplt-flagg |
+
+En linje i klassen «Endret» vises alltid med `--verbose`, og `nav-pilot doctor` viser tilstanden hver gang. Kommandoer brukeren selv kjører (`sync`, `doctor`, `config setup`) skjuler ingenting; bare en oppstart (`artifacts.LaunchNotices`) gjør det.
+
+Nøkkelen til `SeenChanged` er det linja handler om (klient, innstilling, agentpakke), og verdien er det som kan endre seg. Kall `SeenChanged` også når tilstanden er borte (tom verdi), ellers er linja stille når tilstanden kommer tilbake. Tilstanden ligger i `seen-<nøkkel>` i state-katalogen; kan den ikke skrives, vises linja.
+
 ### Farger
 
 Bruk hjelpefunksjonene i `output.go`:

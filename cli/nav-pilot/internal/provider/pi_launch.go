@@ -79,9 +79,7 @@ func ensurePiNavContext(ref, sourceRepo string, launch bool) (string, func(conte
 	if err != nil {
 		return "", refresh, err
 	}
-	for _, c := range conflicts {
-		fmt.Fprintf(os.Stderr, "%s pi context: %s was modified locally and was left alone\n", domain.Yellow("⚠"), c)
-	}
+	sayConflicts("context-modified-pi", "pi context: %s was modified locally and was left alone", conflicts)
 	return fmt.Sprintf("%d skill(s), %d agent(s), %d instruction section(s)", skills, agents, instructions), refresh, nil
 }
 
@@ -177,9 +175,7 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 		return fmt.Errorf("pi not found in PATH. Install it with: npm i -g @earendil-works/pi-coding-agent\n  Or pick another client with: nav-pilot config set client copilot")
 	}
 
-	for _, msg := range PiUnsupportedConfigWarnings(resolved) {
-		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
-	}
+	warnUnsupported("pi", PiUnsupportedConfigWarnings(resolved))
 
 	// Materialize from the source this launch resolved. Bootstrap takes the
 	// resolved config too (#813), but it only runs from `config setup`, and a

@@ -240,8 +240,10 @@ func printSandboxScope(dir, root string, reads []string) {
 	for i, p := range reads {
 		names[i] = filepath.Base(p)
 	}
-	fmt.Fprintf(os.Stderr, "%s Sandbox: %s (reads repo instructions from %s: %s)\n",
-		domain.Dim("ℹ"), dir, root, strings.Join(names, ", "))
+	line := fmt.Sprintf("%s (reads repo instructions from %s: %s)", dir, root, strings.Join(names, ", "))
+	if SeenChanged("sandbox-scope", line) || Verbose {
+		fmt.Fprintf(os.Stderr, "%s Sandbox: %s\n", domain.Dim("ℹ"), line)
+	}
 }
 
 // ErrCpltMissing is the error every launch without cplt fails with:

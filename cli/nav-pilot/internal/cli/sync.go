@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // syncResult holds the outcome of a sync check for machine-readable output.
@@ -1396,7 +1397,7 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 	}
 
 	if repoState != nil {
-		if !jsonOutput {
+		if !jsonOutput && !providerpkg.QuietLaunchSync() {
 			fmt.Printf("%s Syncing %s scope...\n", dim("→"), bold("repo"))
 		}
 		if err := cmdSyncFn(repoScope, ref, sourceRepo, apply, jsonOutput); err != nil {
@@ -1408,13 +1409,13 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 					fmt.Printf("%s Repo scope sync failed.\n", yellow("⚠"))
 				}
 			}
-		} else if !jsonOutput {
+		} else if !jsonOutput && !providerpkg.QuietLaunchSync() {
 			fmt.Printf("%s Repo scope synced.\n", green("✓"))
 		}
 	}
 
 	if userState != nil {
-		if !jsonOutput {
+		if !jsonOutput && !providerpkg.QuietLaunchSync() {
 			if repoState != nil {
 				fmt.Println()
 			}
@@ -1429,7 +1430,7 @@ func cmdSyncAuto(repoDir, ref, sourceRepo string, apply, jsonOutput bool) error 
 					fmt.Printf("%s User scope sync failed.\n", yellow("⚠"))
 				}
 			}
-		} else if !jsonOutput {
+		} else if !jsonOutput && !providerpkg.QuietLaunchSync() {
 			fmt.Printf("%s User scope synced.\n", green("✓"))
 		}
 	}

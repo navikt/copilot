@@ -335,9 +335,14 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	PrintCpltSandboxHint()
 	PrintAutonomyNotice(resolved)
 	env := CopilotEnv(resolved.OtelLogLevel)
-	if note := autopilotNote(resolved); note != "" {
+	if note := autopilotNote(resolved); SeenChanged("autopilot-note", note) && note != "" || note != "" && Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
+	localModel := ""
+	if guard != nil {
+		localModel = worker.Model
+	}
+	localChanged := SeenChanged("local-inference-copilot", localModel)
 	if guard == nil {
 		PrintModelAvailabilityHint(resolved.Model)
 	} else {
@@ -345,10 +350,14 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		// nav-pilot's provider-qualified spelling and tells the developer to
 		// drop it, which for a Hugging Face model id is the wrong advice.
 		env = copilotLocalEnv(env, worker, guard.URL())
-		fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
-			domain.Dim("ℹ"), domain.Bold(worker.Model))
-		fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n\n",
-			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		if localChanged || Verbose {
+			fmt.Fprintf(os.Stderr, "%s Local inference: this whole session runs on %s here on the machine.\n",
+				domain.Dim("ℹ"), domain.Bold(worker.Model))
+		}
+		if Verbose {
+			fmt.Fprintf(os.Stderr, "%s nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n\n",
+				domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		}
 	}
 	// The second seam. This path builds its own argument vector and runs its
 	// own exec.Command instead of going through cpltArgv/launchViaCplt, so
@@ -715,6 +724,9 @@ func PrintModelAvailabilityHint(model string) {
 	if strings.Contains(model, "/") {
 		fmt.Printf("%s Model %s is not a Copilot model id (Copilot takes ids like claude-opus-4.8), so Copilot may reject it.\n\n",
 			domain.Yellow("⚠"), domain.Bold(model))
+		return
+	}
+	if !SeenChanged("model-hint", model) && !Verbose {
 		return
 	}
 	fmt.Printf("%s Model: %s — if unavailable in your org, run: %s\n\n",

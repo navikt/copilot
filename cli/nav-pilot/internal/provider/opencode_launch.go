@@ -206,9 +206,7 @@ func ensureOpenCodeNavContext(ref, sourceRepo string, launch bool) (string, func
 		return "", refresh, err
 	}
 
-	for _, c := range conflicts {
-		fmt.Fprintf(os.Stderr, "%s Nav context file modified locally, not overwriting: %s\n", domain.Yellow("⚠"), c)
-	}
+	sayConflicts("context-modified-opencode", "Nav context file modified locally, not overwriting: %s", conflicts)
 
 	summary := artifacts.ExportSummary(skills, commands, agents, instrCount)
 	if summary == "nothing to export" {
@@ -633,7 +631,7 @@ func writeOpenCodeConfig(path string, data []byte, cfg map[string]any, commented
 	// Additions first: a write that also removes still hands the session
 	// what it adds, such as a new guard port.
 	if add, ok := add.(map[string]any); ok && len(add) > 0 {
-		if len(openCodeLaunchConfig) == 0 {
+		if len(openCodeLaunchConfig) == 0 && (SeenChanged("config-has-comments", path) || Verbose || !artifacts.LaunchNotices) {
 			fmt.Fprintf(os.Stderr, "%s %s has comments or trailing commas, so nav-pilot leaves it alone; the settings it would have written apply only to sessions nav-pilot starts.\n", domain.Dim("ℹ"), path)
 		}
 		for k, v := range add {
@@ -1133,9 +1131,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 	}
 	resolved = BeforeClientStart(resolved)
 
-	for _, msg := range OpenCodeUnsupportedConfigWarnings(resolved) {
-		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
-	}
+	warnUnsupported("opencode", OpenCodeUnsupportedConfigWarnings(resolved))
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
 	launchEnv = applyOpenCodePolicy(launchEnv)
@@ -1180,8 +1176,10 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 					domain.Yellow("⚠"), err)
 			}
 		}()
-		fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n",
-			domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		if Verbose {
+			fmt.Fprintf(os.Stderr, "%s Local dispatch: nav-pilot ends a turn after %d identical tool calls in a row with the same result, or %d whatever they return.\n",
+				domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
+		}
 		if url := guard.GateURL(); url != "" {
 			launchEnv, _ = telemetry.SetEnvValue(launchEnv, DispatchGateEnv, url)
 			if openCodeMajor() < 2 && slices.Contains(resolved.ExtraArgs, "--pure") {

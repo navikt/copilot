@@ -658,6 +658,7 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		}
 	}
 	if len(names) == 0 {
+		SeenChanged("mcp-off", "")
 		return env
 	}
 	sort.Strings(names)
@@ -666,6 +667,7 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		fmt.Fprintf(os.Stderr, "%s MCP servers were not checked against Nav's MCP registry (%v); they run as configured.\n", domain.Yellow("⚠"), err)
 		return env
 	}
+	offChanged := SeenChanged("mcp-off", strings.Join(off, ","))
 	if len(off) == 0 {
 		return env
 	}
@@ -692,8 +694,10 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		}
 		mcp[name] = e
 	}
-	fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (not in Nav's MCP registry): %s. See %s\n",
-		domain.Yellow("⚠"), strings.Join(off, ", "), MCPRegistryHelpURL)
+	if offChanged || Verbose {
+		fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (not in Nav's MCP registry): %s. See %s\n",
+			domain.Yellow("⚠"), strings.Join(off, ", "), MCPRegistryHelpURL)
+	}
 	var listed []string
 	for name := range servers {
 		if !slices.Contains(off, name) {

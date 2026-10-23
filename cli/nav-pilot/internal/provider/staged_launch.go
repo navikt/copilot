@@ -360,9 +360,7 @@ func LaunchPiStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	if err != nil {
 		return err
 	}
-	for _, msg := range PiUnsupportedConfigWarnings(r) {
-		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
-	}
+	warnUnsupported("pi", PiUnsupportedConfigWarnings(r))
 	return launchViaCplt(spec)
 }
 
@@ -467,9 +465,7 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	spec.env = applyOpenCodeMCPPolicy(spec.env, r.ProjectDir)
 	spec.env = applyOpenCodeOwnDirs(spec.env, r.ProjectDir)
 	spec.env, spec.cpltArgs = applyOpenCodeHooks(r, spec.env, spec.cpltArgs)
-	for _, msg := range OpenCodeUnsupportedConfigWarnings(r) {
-		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), msg)
-	}
+	warnUnsupported("opencode", OpenCodeUnsupportedConfigWarnings(r))
 	return launchOpenCodeViaCplt(spec)
 }
 
@@ -505,7 +501,7 @@ func LaunchCopilotStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 	PrintCpltSandboxHint()
 	PrintAutonomyNotice(r)
 	PrintModelAvailabilityHint(r.Model)
-	if note := autopilotNote(r); note != "" {
+	if note := autopilotNote(r); SeenChanged("autopilot-note", note) && note != "" || note != "" && Verbose {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
 	return launchViaCplt(spec)

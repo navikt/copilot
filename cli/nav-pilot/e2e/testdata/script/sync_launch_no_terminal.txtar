@@ -16,7 +16,7 @@ exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 
 # The prompt runs, sandboxed, without a confirmation nobody can answer.
 exec nav-pilot --sync --source $WORK/plattform -- -p 'review this PR'
-stdout 'Repo scope synced'
+! stdout 'Repo scope synced'
 ! stdout 'Launching'
 grep '^--yes\n' $WORK/fake/cplt.log
 grep '^-p\nreview this PR\n--session-id=[0-9a-f-]{36}\n---' $WORK/fake/cplt.log
@@ -38,9 +38,13 @@ env COPILOT_VERSION=
 # No prompt, no terminal: nothing to run. Sync still happens, exit 0.
 rm $WORK/fake/cplt.log
 exits 0 nav-pilot --sync --source $WORK/plattform
-stdout 'Repo scope synced'
+! stdout 'Repo scope synced'
 stderr 'Not launching: no terminal\. To run a prompt, pass it after --: nav-pilot --sync -- -p "…"'
 ! exists $WORK/fake/cplt.log
+
+# The sync's progress lines are --verbose detail on a launch.
+exits 0 nav-pilot --sync --verbose --source $WORK/plattform
+stdout 'Repo scope synced'
 
 # Without cplt, copilot is never launched: refused.
 # fake-bin writes under the current directory, here $WORK/repo/fake.
