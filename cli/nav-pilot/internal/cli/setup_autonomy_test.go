@@ -399,3 +399,26 @@ func TestChoosingStrictDoesNotTriggerLeaveOffer(t *testing.T) {
 		t.Errorf("asked %d times after a deliberate strict choice, want 0", asked)
 	}
 }
+
+// Setup's gh line is one line that says what breaks, the fix, and that the
+// launch goes on; the storage caveats stay in doctor, which is the control
+// (#1962 F3).
+func TestReportGHAuthBriefIsOneLine(t *testing.T) {
+	stubSSH(t, false)
+	var b bytes.Buffer
+	reportGHAuthBrief(&b, ghAuthNone)
+	if s := b.String(); strings.Count(s, "\n") != 1 || !strings.Contains(s, "gh is not logged in, so the agent can't push or open PRs. Run: ") ||
+		!strings.Contains(s, "gh auth login") || !strings.Contains(s, "launch continues") || strings.Contains(s, "keyring") {
+		t.Errorf("brief, not logged in: %q", s)
+	}
+	b.Reset()
+	reportGHAuthBrief(&b, ghAuthKeyring)
+	if b.Len() != 0 {
+		t.Errorf("brief, signed in, printed %q", b.String())
+	}
+	b.Reset()
+	reportGHAuth(&b, "", "opencode", "auto", ghAuthNone, "")
+	if !strings.Contains(b.String(), "keyring") {
+		t.Errorf("doctor lost the storage detail: %q", b.String())
+	}
+}

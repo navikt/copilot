@@ -179,7 +179,7 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 	}
 
 	approve := false
-	if err := askProposalConsent(proposalTitle(name, prior), proposalDescription(proposal, hosts, reads, prior), &approve); err != nil {
+	if err := askProposalConsent(proposalTitle(name, hosts, reads, prior), proposalDescription(name, proposal, hosts, reads, prior), &approve); err != nil {
 		// Ctrl-C is not an answer: nothing is recorded and the question comes
 		// back at the next install or sync.
 		return
@@ -206,8 +206,9 @@ func noteProposalConsent(scope *InstallScope, src *Source, dryRun, jsonOutput bo
 		return
 	}
 	if !approve {
-		fmt.Fprintf(os.Stderr, "%s Declined. %s is installed without the sandbox change, so what it was for will not work: %s\n  To allow it later:\n%s\n",
-			yellow("⚠"), bold(name), safe(proposal.Reason, proposalReasonWidth), indented(commands))
+		// One line: what the agent cannot do, and the way back (#1962 F2).
+		fmt.Fprintf(os.Stderr, "%s Declined, so the agent can't %s. To allow it later: %s\n",
+			yellow("⚠"), proposalAccess(hosts, reads), strings.Join(commands, " && "))
 		return
 	}
 	fmt.Printf("%s %s may %s from inside the sandbox.\n", green("✓"), bold(name), proposal.Summary())
@@ -230,48 +231,99 @@ func indented(commands []string) string {
 	return strings.Join(lines, "\n")
 }
 
-// proposalTitle is the question. A revision the user has answered before says
-// so, because "approve this" and "approve this again, it changed" are different
-// questions.
+// observabilityHosts names what each Nais observability backend holds, by
+// the first label of its host name, so the question can say what the agent
+// gets to do instead of naming hosts.
+var observabilityHosts = map[string]string{"loki": "logs", "mimir": "metrics", "tempo": "traces"}
+
+// proposalAccess is what the block lets the agent do, in plain words: "read
+// Nais logs, metrics and traces" for the stock pakke, the host and file names
+// for anything else.
+func proposalAccess(hosts, reads []string) string {
+	var parts []string
+	if len(hosts) > 0 {
+		seen := map[string]bool{}
+		for _, host := range hosts {
+			kind := observabilityHosts[strings.SplitN(host, ".", 2)[0]]
+			if kind == "" || !strings.HasSuffix(host, ".nais.io") {
+				seen = nil
+				break
+			}
+			seen[kind] = true
+		}
+		if seen != nil {
+			var kinds []string
+			for _, kind := range []string{"logs", "metrics", "traces"} {
+				if seen[kind] {
+					kinds = append(kinds, kind)
+				}
+			}
+			parts = append(parts, "read Nais "+joinAnd(kinds))
+		} else {
+			parts = append(parts, "reach "+strings.Join(hosts, ", "))
+		}
+	}
+	if len(reads) > 0 {
+		parts = append(parts, "read "+safePathList(reads))
+	}
+	return strings.Join(parts, " and ")
+}
+
+// joinAnd joins words as prose: "a", "a and b", "a, b and c".
+func joinAnd(words []string) string {
+	if len(words) < 2 {
+		return strings.Join(words, "")
+	}
+	return strings.Join(words[:len(words)-1], ", ") + " and " + words[len(words)-1]
+}
+
+// proposalTitle is the question, in plain words: what the agent gets to do.
+// Enter declines. A revision the user has answered before says so, because
+// "allow this" and "allow this again, it changed" are different questions.
 //
 // One question for the whole block, however many kinds of setting it carries:
 // the consent record is keyed on the block's hash, so a second prompt would be
 // a second answer to a question that has only one record to live in.
-func proposalTitle(name string, prior *artifacts.ProposalConsent) string {
+func proposalTitle(name string, hosts, reads []string, prior *artifacts.ProposalConsent) string {
+	q := "Let the agent " + proposalAccess(hosts, reads) + "?"
 	if prior == nil {
-		return fmt.Sprintf("agentpakke %s asks for more than the sandbox gives it. Allow it?", name)
+		return q
 	}
-	return fmt.Sprintf("agentpakke %s changed what it asks of the sandbox. Allow it?", name)
+	return fmt.Sprintf("agentpakke %s changed what it asks. %s", name, q)
 }
 
-// proposalDescription is what the person decides on: the pakke's own reason,
-// the exact hosts and files, what each of them is not, and — for a changed
-// block — what moved since the answer it voids.
+// proposalDescription is the access the question needs, in one short line, and
+// for a changed block what moved since the answer it voids. The pakke's own
+// reason and what the waiver is not are detail, shown with --verbose.
 //
 // Both kinds in one description, because both are one block, one hash and one
 // answer. A block carrying both lists both and is accepted or declined whole.
-func proposalDescription(proposal *agentpakke.CpltProposal, hosts, reads []string, prior *artifacts.ProposalConsent) string {
+func proposalDescription(name string, proposal *agentpakke.CpltProposal, hosts, reads []string, prior *artifacts.ProposalConsent) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s\n\n", safe(proposal.Reason, proposalReasonWidth))
+	var needs []string
+	if len(hosts) > 0 {
+		needs = append(needs, "sandbox access to "+strings.Join(hosts, ", ")+" (internal addresses)")
+	}
+	if len(reads) > 0 {
+		needs = append(needs, "read-only access to "+safePathList(reads))
+	}
+	fmt.Fprintf(&b, "agentpakke %s needs %s.\n", name, strings.Join(needs, " and "))
 	if prior != nil {
-		b.WriteString("Changed since you last answered:\n")
+		b.WriteString("\nChanged since you last answered:\n")
 		for _, line := range proposalChanges(prior.Block, proposal.CanonicalJSON()) {
 			fmt.Fprintf(&b, "%s\n", line)
 		}
-		b.WriteString("\n")
 	}
-	if len(hosts) > 0 {
-		fmt.Fprintf(&b, "Hosts: %s\n", strings.Join(hosts, ", "))
-		b.WriteString("This lifts cplt's DNS-rebinding guard for those names only. " +
-			"The allowlist and blocklist still apply, no port is opened, no path is granted, nothing is executed.\n")
-	}
-	if len(reads) > 0 {
+	if providerpkg.Verbose {
+		fmt.Fprintf(&b, "\n%s\n", safe(proposal.Reason, proposalReasonWidth))
 		if len(hosts) > 0 {
-			b.WriteString("\n")
+			b.WriteString("This lifts cplt's DNS-rebinding guard for those names only. " +
+				"The allowlist and blocklist still apply, no port is opened, no path is granted, nothing is executed.\n")
 		}
-		fmt.Fprintf(&b, "Files: %s\n", safePathList(reads))
-		b.WriteString("Read-only, one file each, under your home directory. " +
-			"Nothing is written, no directory is opened, and a file that turns out to be a directory is skipped at launch.")
+		if len(reads) > 0 {
+			b.WriteString("Read-only, one file each, under your home directory. " +
+				"Nothing is written, no directory is opened, and a file that turns out to be a directory is skipped at launch.")
+		}
 	}
 	return strings.TrimRight(b.String(), "\n")
 }

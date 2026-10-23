@@ -231,7 +231,9 @@ func recordDeclaration(scope *InstallScope, src *Source, quiet bool) {
 		fmt.Fprintf(os.Stderr, "%s Could not write %s: %v\n", yellow("⚠"), agentpakke.DeclarationPath, err)
 		return
 	}
-	if quiet {
+	// Inside a launch the install's one "Commit .github/ and .nav-pilot/"
+	// line covers the lock file too (#1962 F13).
+	if quiet || installThenLaunch {
 		return
 	}
 	if d.SHA == "" {

@@ -212,9 +212,6 @@ func autonomySummary(c autonomyChoice, changes []cpltChange, cpltFound bool, all
 			b.WriteString("  also points proxy.allowed_domains at nav-pilot's list of Nav hosts\n")
 		}
 	}
-	if cpltFound && len(changes) == 0 {
-		b.WriteString("cplt: no changes\n")
-	}
 	switch {
 	case cpltFound && !guardedPreset(c.Preset):
 		fmt.Fprintf(&b, "cplt preset %s: its git and gh guards are off, so nothing is blocked, not even pushing to main or merging.\n", c.Preset)
@@ -484,6 +481,22 @@ func ghAuthFrom(out []byte, err error) (ghAuth, string) {
 		return ghAuthNone, ""
 	default:
 		return ghAuthUnknown, err.Error()
+	}
+}
+
+// reportGHAuthBrief is setup's gh line: one line when the user has something
+// to do, nothing when gh is signed in. The storage, ambient-token and sandbox
+// caveats are doctor's (reportGHAuth), not a first run's (#1962 F3).
+func reportGHAuthBrief(w io.Writer, st ghAuth) {
+	switch {
+	case st == ghAuthMissing:
+		fmt.Fprintf(w, "%s gh is not installed, so the agent can't push or open PRs. Run: %s (the launch continues without it)\n", yellow("⚠"),
+			bold(domain.PkgForInstall().Pick("brew install gh", "sudo apt install gh")))
+	case st == ghAuthNone:
+		fmt.Fprintf(w, "%s gh is not logged in, so the agent can't push or open PRs. Run: %s (the launch continues without it)\n", yellow("⚠"), bold("gh auth login"))
+	case (st == ghAuthOK || st == ghAuthKeyring) && originUsesSSH():
+		fmt.Fprintf(w, "%s This repo's origin uses SSH, which cplt blocks, so pushes fail. Run %s\n", yellow("⚠"),
+			bold(`git config --global url."https://github.com/".insteadOf "git@github.com:"`))
 	}
 }
 

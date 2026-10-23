@@ -73,6 +73,7 @@ var knownCommands = []string{
 
 var knownFlags = []string{
 	"-n", "--dry-run",
+	"--verbose",
 	"-f", "--force",
 	"--apply",
 	"--updates",

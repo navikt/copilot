@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/huh"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -30,6 +31,8 @@ type installResult struct {
 	Existing    []string
 	Unsupported []string
 	Files       []InstalledFile
+	// quiet drops the per-item ✓ lines: the install's summary names them.
+	quiet bool
 }
 
 // installItems installs every artifact a collection manifest names, reading
@@ -58,13 +61,21 @@ func installItems(resolver *SourceResolver, scope *InstallScope, manifest *Manif
 			result.Unsupported = append(result.Unsupported, fmt.Sprintf("%d %s", len(group.names), group.label))
 			continue
 		}
-		fmt.Println(bold(fmt.Sprintf("%s (%d):", group.label, len(group.names))))
+		// The summary above already names every item, so the per-item list
+		// is detail: --verbose or a dry run (#1962 F4). Errors, conflicts
+		// and skips print either way.
+		result.quiet = !providerpkg.Verbose && !dryRun
+		if !result.quiet {
+			fmt.Println(bold(fmt.Sprintf("%s (%d):", group.label, len(group.names))))
+		}
 		for _, name := range group.names {
 			if err := installArtifact(resolver, scope, stateHashes, group.kind, name, dryRun, force, result); err != nil {
 				return result, err
 			}
 		}
-		fmt.Println()
+		if !result.quiet {
+			fmt.Println()
+		}
 	}
 
 	if !dryRun {
@@ -310,7 +321,9 @@ func installArtifact(resolver *SourceResolver, scope *InstallScope, stateHashes 
 		}
 	}
 
-	fmt.Printf("  %s %s\n", green("✓"), name)
+	if !result.quiet {
+		fmt.Printf("  %s %s\n", green("✓"), name)
+	}
 	result.Installed++
 
 	return nil
@@ -740,10 +753,16 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	// what they just installed, which is the same mistake the launch path made
 	// before #728.
 	agent := installedPrimaryAgent(src)
-	if scope.IsUser() {
+	switch {
+	case installThenLaunch && scope.IsUser():
+		// The launch starts the agent next, so "start it" is not a step.
+		fmt.Println(dim("Agents and skills are now available across all your repos."))
+	case installThenLaunch:
+		fmt.Println(dim("Commit .github/ and .nav-pilot/ so your team gets them."))
+	case scope.IsUser():
 		fmt.Println(dim("Agents and skills are now available across all your repos."))
 		fmt.Println(dim(useAgentLine(agent)))
-	} else {
+	default:
 		fmt.Println(dim("Next steps:"))
 		fmt.Println(dim("  1. Review the installed files in .github/"))
 		fmt.Println(dim("  2. Commit and push, so the team gets them too"))

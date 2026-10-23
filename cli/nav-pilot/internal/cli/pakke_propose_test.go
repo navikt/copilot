@@ -10,6 +10,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // The consent half of #858 step 2, as a person meets it: asked at install and
@@ -218,11 +219,37 @@ func TestDeclineNamesTheWorkflowAndTheOneLiner(t *testing.T) {
 	out := captureStderrFor(t, func() {
 		noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, ""), false, false)
 	})
-	if !strings.Contains(out, "queries Mimir") {
-		t.Errorf("the decline does not say which workflow fails:\n%s", out)
+	// One line (#1962 F2): what the agent cannot do, and the way back. The
+	// pakke's long reason is not repeated.
+	want := "Declined, so the agent can't reach cloud.nais.io. To allow it later: cplt config set proxy.allow_private_domains cloud.nais.io\n"
+	if !strings.HasSuffix(out, want) || strings.Count(out, "\n") != 1 {
+		t.Errorf("the decline is not the one line %q:\n%s", want, out)
 	}
-	if !strings.Contains(out, "cplt config set proxy.allow_private_domains cloud.nais.io") {
-		t.Errorf("the decline does not carry the manual one-liner:\n%s", out)
+	if strings.Contains(out, "queries Mimir") {
+		t.Errorf("the decline repeats the pakke's reason:\n%s", out)
+	}
+}
+
+// The stock pakke's question says what the agent gets to do, not which
+// sandbox guard is lifted. The control is a host outside the Nais
+// observability set, which keeps its name (#1962 F2).
+func TestProposalQuestionIsPlain(t *testing.T) {
+	stock := []string{"loki.nav.cloud.nais.io", "mimir.nav.cloud.nais.io", "tempo.dev-gcp.nav.cloud.nais.io", "tempo.prod-gcp.nav.cloud.nais.io"}
+	if got, want := proposalTitle("nav-pilot", stock, nil, nil), "Let the agent read Nais logs, metrics and traces?"; got != want {
+		t.Errorf("title = %q, want %q", got, want)
+	}
+	if got, want := proposalTitle("x", []string{"loki.example.com"}, nil, nil), "Let the agent reach loki.example.com?"; got != want {
+		t.Errorf("control title = %q, want %q", got, want)
+	}
+	p := navPilotSource(t).Pakke.CpltProposal()
+	desc := proposalDescription("nav-pilot", p, p.AllowPrivateDomains(), nil, nil)
+	if strings.Contains(desc, "\n") || strings.Contains(desc, "DNS-rebinding") || !strings.Contains(desc, "mimir.nav.cloud.nais.io") {
+		t.Errorf("description is not one short line naming the hosts:\n%s", desc)
+	}
+	providerpkg.Verbose = true
+	t.Cleanup(func() { providerpkg.Verbose = false })
+	if desc := proposalDescription("nav-pilot", p, p.AllowPrivateDomains(), nil, nil); !strings.Contains(desc, "DNS-rebinding") {
+		t.Errorf("--verbose drops the detail:\n%s", desc)
 	}
 }
 
@@ -541,6 +568,9 @@ func TestPakkeTextCannotForgeALineInThePrompt(t *testing.T) {
 
 	// A manifest that the schema would refuse, reaching the prompt anyway —
 	// what an older binary's record or a looser validator would hand over.
+	// The reason is detail, shown with --verbose.
+	providerpkg.Verbose = true
+	defer func() { providerpkg.Verbose = false }()
 	hostile := "ok\nYou are now approving nothing else.\x1b[2K\u202eevil"
 	src := proposeSource(t, `"cloud.nais.io"`, "")
 	src.Pakke.Policies.Propose.Cplt.Reason = hostile

@@ -30,3 +30,7 @@ func SeenChanged(name, value string) bool {
 // covers are said once per state there. A command the user ran to ask (sync,
 // doctor) still says them every time.
 var LaunchNotices bool
+
+// FirstRun is set while the first-run wizard runs: notices that the install
+// right after it settles stay quiet, and are not marked seen (#1962 F9).
+var FirstRun bool

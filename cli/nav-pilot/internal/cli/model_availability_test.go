@@ -71,3 +71,35 @@ func TestModelPickerLabelsCarryNoStrayEscapes(t *testing.T) {
 		}
 	}
 }
+
+// Models the account cannot use sort last, greyed; the empty choice reads
+// "Nav default (recommended)" (#1962 F11). The control is nil availability,
+// which keeps the catalogue order.
+func TestModelPickerSortsUnavailableLast(t *testing.T) {
+	p, err := providerFor("copilot")
+	if err != nil || p == nil || len(p.KnownModels()) < 2 {
+		t.Skip("no copilot provider in this build")
+	}
+	known := p.KnownModels()
+	// Only the last catalogue entry is available.
+	last := known[len(known)-1].ID
+	have := map[string]bool{strings.ToLower(last): true}
+	opts := modelPickerOptions(p, have)
+	seenUnavailable := false
+	for i, o := range opts[2:] {
+		off := strings.Contains(o.Key, "not available to this account")
+		if seenUnavailable && !off {
+			t.Errorf("option %d %q, usable, sorts after an unavailable one", i+2, o.Value)
+		}
+		seenUnavailable = seenUnavailable || off
+	}
+	if !seenUnavailable || strings.Contains(opts[len(opts)-1].Key, last) {
+		t.Errorf("the unavailable models are not last: %q", opts[len(opts)-1].Key)
+	}
+	if p.DefaultModel() != "" && !strings.HasPrefix(opts[0].Key, "Nav default (recommended)") {
+		t.Errorf("unset reads %q", opts[0].Key)
+	}
+	if ctl := modelPickerOptions(p, nil); ctl[2].Value != known[0].ID {
+		t.Errorf("unknown availability reordered the list: %q", ctl[2].Value)
+	}
+}

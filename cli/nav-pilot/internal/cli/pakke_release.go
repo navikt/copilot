@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // Release discovery for a pinned Tier 2 agentpakke (#779). The publishing
@@ -455,15 +456,19 @@ func (e *releaseLookupError) Error() string {
 func (e *releaseLookupError) Unwrap() error { return e.err }
 
 // fallBackToHead reports whether err is a [releaseLookupError], and if so says
-// on stderr that the default branch is read instead (stdout may be a JSON
-// document).
+// on stderr, in one dim line, that the default branch is read instead (stdout
+// may be a JSON document).
 func fallBackToHead(err error) bool {
 	var lookup *releaseLookupError
 	if !errors.As(err, &lookup) {
 		return false
 	}
-	fmt.Fprintf(os.Stderr, "%s %v\n  %s is read from %s's default branch instead.\n",
-		yellow("⚠"), err, lookup.name, lookup.repo)
+	// One quiet line: the user can do nothing about it, and the next install
+	// or sync looks again. The raw error is detail (#1962 F7).
+	fmt.Fprintf(os.Stderr, "%s\n", dim(fmt.Sprintf("ℹ Could not reach %s's releases, so %s is read from its default branch.", lookup.repo, lookup.name)))
+	if providerpkg.Verbose {
+		fmt.Fprintf(os.Stderr, "  %s\n", dim(err.Error()))
+	}
 	return true
 }
 

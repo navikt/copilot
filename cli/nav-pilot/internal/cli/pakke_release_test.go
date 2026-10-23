@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 var (
@@ -254,5 +256,24 @@ func TestDiscoverPakkeRelease(t *testing.T) {
 				t.Errorf("= (%d, %+v), want (%d, %+v)", got, rel, tc.want, tc.wantRel)
 			}
 		})
+	}
+}
+
+// A release lookup that could not finish is one quiet line, without the raw
+// Go error; --verbose is the control that still shows it (#1962 F7).
+func TestFallBackToHeadIsOneQuietLine(t *testing.T) {
+	err := &releaseLookupError{name: "nav-pilot", repo: "navikt/copilot", err: errors.New(`Get "https://api.example/releases": context deadline exceeded`)}
+	out := captureStderr(func() {
+		if !fallBackToHead(err) {
+			t.Error("a lookup error did not fall back")
+		}
+	})
+	if strings.Count(out, "\n") != 1 || strings.Contains(out, "deadline") || !strings.Contains(out, "read from its default branch") {
+		t.Errorf("fallback is not one quiet line:\n%s", out)
+	}
+	providerpkg.Verbose = true
+	t.Cleanup(func() { providerpkg.Verbose = false })
+	if out := captureStderr(func() { fallBackToHead(err) }); !strings.Contains(out, "context deadline exceeded") {
+		t.Errorf("--verbose drops the cause:\n%s", out)
 	}
 }

@@ -693,3 +693,29 @@ func TestOpenCodeSyncRejectsSymlinks(t *testing.T) {
 		t.Errorf("SyncOpenCodeArtifacts exported %d symlinked agents, want 0", agents)
 	}
 }
+
+// During the first-run wizard the install right after it adds the hooks, so
+// the seeding does not tell the user to run nav-pilot install (#1962 F9). The
+// control is the same sync outside the wizard.
+func TestMissingHooksNoticeQuietOnFirstRun(t *testing.T) {
+	sourceDir := setupTestSource(t)
+	mustMkdir(t, filepath.Join(sourceDir, "hooks"))
+	mustWrite(t, filepath.Join(sourceDir, "hooks", "vakt.hook.json"), `{"matcher": "bash", "timeoutSec": 5}`)
+	mustWrite(t, filepath.Join(sourceDir, "hooks", "vakt.py"), `print("{}")`)
+	sync := func(firstRun bool) string {
+		hookWarningSaid.Delete("opencode")
+		FirstRun = firstRun
+		t.Cleanup(func() { FirstRun = false; hookWarningSaid.Delete("opencode") })
+		return captureStderr(t, func() {
+			if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", t.TempDir(), "v", "abc123", ""); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if out := sync(true); strings.Contains(out, "not installed") {
+		t.Errorf("first run names the hooks the install is about to add:\n%s", out)
+	}
+	if out := sync(false); !strings.Contains(out, "1 hook(s) the source ships are not installed") {
+		t.Errorf("control: a later launch does not name the missing hook:\n%s", out)
+	}
+}
