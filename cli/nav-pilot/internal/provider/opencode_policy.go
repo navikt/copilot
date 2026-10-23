@@ -148,8 +148,35 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 		}
 		// OpenCode substitutes these before parsing, so an unresolved value
 		// here could become an allow rule; fail closed.
-		if hasOpenCodePlaceholder(top["enabled_providers"]) || hasOpenCodePlaceholder(top["experimental"]) {
-			return nil, conflict("uses a {file:} or {env:} placeholder in enabled_providers or experimental")
+		if hasOpenCodePlaceholder(top["enabled_providers"]) || hasOpenCodePlaceholder(top["experimental"]) || hasOpenCodePlaceholder(top["policies"]) {
+			return nil, conflict("uses a {file:} or {env:} placeholder in enabled_providers, experimental or policies")
+		}
+		// The session and title defaults (opencode 2.1.4 normalize.ts: model,
+		// small_model), as "provider/model" or {providerID}. The
+		// OPENCODE_CONFIG_CONTENT model is checked below with --model.
+		// Per-agent models are not checked: nav-pilot writes its own
+		// local-worker binding there.
+		for _, key := range []string{"model", "small_model"} {
+			raw, ok := top[key]
+			if !ok || (key == "model" && doc.path == openCodeConfigContentEnv) {
+				continue
+			}
+			if hasOpenCodePlaceholder(raw) {
+				return nil, conflict("uses a {file:} or {env:} placeholder in " + key)
+			}
+			var ref string
+			if json.Unmarshal(raw, &ref) == nil {
+				ref, _, _ = strings.Cut(ref, "/")
+			} else {
+				var sel struct {
+					ProviderID string `json:"providerID"`
+				}
+				_ = json.Unmarshal(raw, &sel)
+				ref = sel.ProviderID
+			}
+			if ref != "" && !slices.Contains(allowed, ref) {
+				return nil, conflict("selects provider " + ref + " (" + key + ")")
+			}
 		}
 		var enabled []string
 		if raw, ok := top["enabled_providers"]; ok && json.Unmarshal(raw, &enabled) != nil {
@@ -162,18 +189,25 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 		}
 		var exp map[string]json.RawMessage
 		_ = json.Unmarshal(top["experimental"], &exp)
-		var policies []map[string]json.RawMessage
-		if raw, ok := exp["policies"]; ok && json.Unmarshal(raw, &policies) != nil {
-			return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: experimental.policies is not a list", doc.path)
-		}
-		for _, p := range policies {
-			var action, effect, resource string
-			_ = json.Unmarshal(p["action"], &action)
-			_ = json.Unmarshal(p["effect"], &effect)
-			_ = json.Unmarshal(p["resource"], &resource)
-			// Any non-exact allow may re-enable providers after our deny.
-			if action == "provider.use" && effect == "allow" && !slices.Contains(allowed, resource) {
-				return nil, conflict("allows provider " + resource + " (experimental.policies)")
+		// opencode 2 merges both lists into one (normalize.ts: generated,
+		// experimental, native), so either can allow after nav-pilot's deny.
+		for _, src := range []struct {
+			name string
+			raw  json.RawMessage
+		}{{"experimental.policies", exp["policies"]}, {"policies", top["policies"]}} {
+			var policies []map[string]json.RawMessage
+			if src.raw != nil && json.Unmarshal(src.raw, &policies) != nil {
+				return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: %s is not a list", doc.path, src.name)
+			}
+			for _, p := range policies {
+				var action, effect, resource string
+				_ = json.Unmarshal(p["action"], &action)
+				_ = json.Unmarshal(p["effect"], &effect)
+				_ = json.Unmarshal(p["resource"], &resource)
+				// Any non-exact allow may re-enable providers after our deny.
+				if action == "provider.use" && effect == "allow" && !slices.Contains(allowed, resource) {
+					return nil, conflict("allows provider " + resource + " (" + src.name + ")")
+				}
 			}
 		}
 	}
