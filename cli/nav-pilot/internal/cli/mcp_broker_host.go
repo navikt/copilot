@@ -18,9 +18,9 @@ import (
 const mcpHostTimeout = 10 * time.Second
 
 // mcpLoginState is "ok", "logged out" or "not installed", from the
-// mechanism's status command. Its output is discarded.
+// mechanism's probe. Its output is discarded.
 func mcpLoginState(m mcpMechanism) string {
-	_, err := runBoundedTimeout(mcpHostTimeout, false, m.status[0], m.status[1:]...)
+	_, err := runBoundedTimeout(mcpHostTimeout, false, m.probe[0], m.probe[1:]...)
 	switch {
 	case err == nil:
 		return "ok"

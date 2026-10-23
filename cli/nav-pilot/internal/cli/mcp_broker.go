@@ -34,7 +34,11 @@ const (
 // keeps this table and the registry's in step.
 type mcpMechanism struct {
 	command []string // the server, as cplt pins it
-	status  []string // exits 0 when logged in
+	status  []string // the registry's login.status, matched as written
+	// probe exits 0 when the server's login is usable. It differs from
+	// status for nais: without -n nais prints the gcloud token, which the
+	// MCP server does not use (navikt/cplt#843).
+	probe   []string
 	login   []string
 	install string // where to get the CLI
 	// version, minVersion, upgrade and oldNotice: an older CLI gets a
@@ -52,6 +56,7 @@ var mcpMechanisms = map[string]mcpMechanism{
 	"nais-keychain": {
 		command: []string{"nais", "alpha", "mcp", "serve"},
 		status:  []string{"nais", "auth", "print-access-token"},
+		probe:   []string{"nais", "auth", "print-access-token", "-n"},
 		login:   []string{"nais", "login", "-n"},
 		install: "https://doc.nais.io/operate/cli/how-to/install/",
 		// 7.0.2 checks every GraphQL operation and fragment (nais/cli 6ddc986).
