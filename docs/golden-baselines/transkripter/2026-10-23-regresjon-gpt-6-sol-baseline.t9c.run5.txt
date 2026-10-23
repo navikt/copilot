@@ -1,0 +1,51 @@
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/Feriepenger.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/{kotlin,testing-kotlin,testing}.instructions.md"
+  └ 3 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List directory .
+  └ 5 files found
+
+/ Search (glob)
+  │ "src/**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/nais*.yaml"
+  └ 1 file found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+Dette er **full tier, fase 1**: feriepengeregler er ny kjerne­logikk for teamet. Jeg har sett at prosjektet er en liten Ktor-tjeneste uten eksisterende tester eller lokal Copilot-konfigurasjon. Ingen ny dataflyt eller tilgangsstyring er nødvendig for den rene funksjonen.
+
+Vil dere jobbe veiledet med beregningen, eller vil dere uttrykkelig at jeg også implementerer **rød sone**? «Jeg ser over alt etterpå» regnes ikke som en slik instruks. Ved veiledet arbeid lager jeg tester og en funksjonsstub som dere fyller ut. Jeg kjører ikke Gradle. Dere kan legge til repo-instruksjoner senere med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 ikke relevante for denne avgrensede funksjonen).
+

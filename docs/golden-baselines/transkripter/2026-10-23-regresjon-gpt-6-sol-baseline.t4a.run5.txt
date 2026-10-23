@@ -1,0 +1,48 @@
+/ Search (glob)
+  │ "docs/nav-pilot-design.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/{copilot-instructions.md,copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/{AGENTS.md,package.json,build.gradle.kts,nais.yaml,application.yaml}"
+  └ 2 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read README.md
+  └ 4 lines read
+
+**Fase 1: Avklaring.** Repoet er en liten Ktor-demo. `nais.yaml` har ikke ID-porten eller `accessPolicy`, og API-et har ingen autentisering. Jeg legger til grunn at fødselsnummer er personopplysningen tjenesten skal lese, men trenger svar før jeg kan planlegge tilgang og databehandling.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bruke det bare under forespørselen, lagre det eller sende det videre? Behandles andre personopplysninger?
+2. Hvem skal kunne kalle tjenesten: innlogget innbygger direkte, en frontend/BFF eller andre tjenester? Skal den eksisterende `/api/oppgaver` fortsatt være tilgjengelig?
+3. Hvilke andre tjenester er avhengige av svaret, og hva skal skje hvis de er utilgjengelige?
+4. Skal dette erstatte demo-tjenesten, eller opprettes som en separat tjeneste?
+
+Jeg utsetter valg av tester, målinger og utrulling til vi vet hva tjenesten skal gjøre. Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan opprette lokal konfigurasjon.
+
+Blindsoner reist: 4/11 (#1, #2, #3, #5; øvrige avklares etter at formål og omfang er kjent).
+

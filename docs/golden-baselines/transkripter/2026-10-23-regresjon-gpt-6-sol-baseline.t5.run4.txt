@@ -1,0 +1,2 @@
+Bruk **TokenX** med token exchange når tjeneste A kaller tjeneste B på vegne av en bruker. Da bevares brukerkonteksten. Azure AD `client_credentials` er for kall uten brukerkontekst.
+

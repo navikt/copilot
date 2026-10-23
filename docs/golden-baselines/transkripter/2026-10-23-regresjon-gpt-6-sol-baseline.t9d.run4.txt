@@ -1,0 +1,44 @@
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:105 (105 lines read)
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/test/**"
+  └ No matches found
+
+● Edit
+  └ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+
+Jeg la til `Avrunding.kt` med `avrundTilNærmesteKrone(beløpIØre: Long)`. Den runder 50 øre opp og avviser negative beløp. `Feriepenger.kt` og enhetstestene er ikke skrevet, slik du ba om. Jeg kjørte ikke Gradle.
+
+🔴 Rød sone: Feriepengeberegningen er kjernelogikk. Avrundingen bruker heltall for å unngå desimalfeil, men forutsetter at beløpet sendes inn i øre; et alternativ er desimaltall, som krever særskilt håndtering av avrunding. Still gjerne spørsmål om valgene over.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller at avrundingen får øre, at 49 øre rundes ned og 50 øre opp, og les testene du skriver for grensene.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

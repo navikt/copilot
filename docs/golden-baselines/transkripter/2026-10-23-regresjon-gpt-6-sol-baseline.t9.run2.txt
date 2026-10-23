@@ -1,0 +1,53 @@
+● skill(deliberate-ai-use)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,build.gradle.
+  │ kts}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:180 (180 lines read)
+
+/ Search (glob)
+  │ "src/test/**"
+  └ No matches found
+
+Jeg legger til kontrakten og enhetstester, men lar selve beregningen stå som en TODO: dette er ny forretningslogikk som teamet bør skrive og forstå selv. Jeg kjører ikke Gradle.
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Jeg har lagt til `Feriepenger.kt`, enhetstester for satsene, avrunding og negativt grunnlag, og testoppsett i Gradle. **Beregningen er ikke implementert:** funksjonen står som `TODO`, så testene vil feile til teamet skriver den.
+
+🔴 Rød sone: Feriepengeberegningen er ny forretningslogikk for teamet. Et alternativ var å levere ferdig kode, men her får teamet testede eksempler å arbeide ut fra og ansvar for å forstå regelen. Jeg kjørte ikke Gradle, som ønsket. Still gjerne spørsmål om valgene over.
+

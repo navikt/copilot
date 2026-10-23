@@ -1,0 +1,43 @@
+● skill(kafka)
+
+/ Search (grep)
+  │ "signatur|signature|fnr|fødselsnummer"
+  └ 5 files found
+
+● Check local Copilot guidance (shell)
+  │ for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md; do if
+  │ test -f "$f"; then echo "$f present"; else echo "$f missing"; fi; done
+  └ 3 lines…
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 30 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+Dette er en endring i Kafka-kontrakten, ikke bare en ny sporingsheader. `fnr` finnes allerede i `Periode`-payloaden, men en egen header gjør fødselsnummeret tilgjengelig for andre verktøy og lesere. Jeg stopper derfor før jeg endrer produsenten.
+
+Hvilke konsumenter skal lese headeren, og er det avklart at de kan få fødselsnummer der? Skal signaturen også dekke headeren, eller skal den fortsatt bare dekke payloaden? Repoet avklarer ikke dette. `AGENTS.md` og de lokale Copilot-instruksjonsfilene mangler; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter og #9 kompatibilitet; øvrige er ikke relevante for denne avgrensede endringen).
+

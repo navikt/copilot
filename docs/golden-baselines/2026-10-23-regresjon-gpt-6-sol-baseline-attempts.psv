@@ -1,0 +1,75 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-23
+# revision:     594affe8
+# personaHash:  763a798b28967762ca27601bde357b4ce62cf7fcd0f24ebe587335d01a886ff1
+# harnessHash:  f72586d6c491ff9ac6d952b9212725ded16e8bd1448a98e192e7ed3f3e29ec05
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.103.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+t2|1|0|pass|1883|27722|true|
+t4a|1|0|pass|1655|21181|true|
+t4b|1|0|pass|3677|31733|true|
+t5|1|0|pass|420|10721|true|
+t7|1|0|pass|4679|38290|true|
+t7b|1|0|pass|1639|25833|true|
+t8|1|0|pass|4865|71689|true|
+t8b|1|0|pass|1521|20681|true|
+t9|1|0|pass|1267|20928|true|
+t9b|1|0|pass|1286|24327|true|
+t9c|1|0|pass|1742|22775|true|
+t9d|1|0|pass|1537|27118|true|
+t2|2|0|pass|1762|24169|true|
+t4a|2|0|pass|2002|30575|true|
+t4b|2|0|pass|2579|23348|true|
+t5|2|0|pass|472|10403|true|
+t7|2|0|pass|4094|47347|true|
+t7b|2|0|pass|1503|24079|true|
+t8|2|0|pass|2858|60258|true|
+t8b|2|0|pass|1832|31334|true|
+t9|2|0|pass|1839|33813|true|
+t9b|2|0|pass|1798|25392|true|
+t9c|2|0|pass|1707|23695|true|
+t9d|2|0|pass|1632|23463|true|
+t2|3|0|pass|1867|27636|true|
+t4a|3|0|pass|1965|26064|true|
+t4b|3|0|pass|2515|20685|true|
+t5|3|0|pass|266|18415|true|
+t7|3|0|pass|3528|46275|true|
+t7b|3|0|pass|1421|25092|true|
+t8|3|0|pass|5332|73452|true|
+t8b|3|0|pass|1992|29334|true|
+t9|3|0|pass|2216|36126|true|
+t9b|3|0|pass|1573|19647|true|
+t9c|3|0|pass|1267|25824|true|
+t9d|3|0|pass|1587|40329|true|
+t2|4|0|pass|1976|27440|true|
+t4a|4|0|pass|1730|20112|true|
+t4b|4|0|pass|3188|27766|true|
+t5|4|0|pass|186|7830|true|
+t7|4|0|pass|7736|66752|true|
+t7b|4|0|pass|1434|19100|true|
+t8|4|0|pass|2117|26668|true|
+t8b|4|0|pass|1696|19655|true|
+t9|4|0|pass|1795|23134|true|
+t9b|4|0|pass|1576|27265|true|
+t9c|4|0|pass|1843|36666|true|
+t9d|4|0|pass|1469|26163|true|
+t2|5|0|pass|2014|26292|true|
+t4a|5|0|pass|1816|21782|true|
+t4b|5|0|pass|3100|25612|true|
+t5|5|0|pass|228|7207|true|
+t7|5|0|pass|7602|66469|true|
+t7b|5|0|pass|1763|25958|true|
+t8|5|0|pass|5915|61881|true|
+t8b|5|0|pass|1705|20455|true|
+t9|5|0|pass|1120|18161|true|
+t9b|5|0|pass|1602|26108|true|
+t9c|5|0|pass|1563|19924|true|
+t9d|5|0|pass|1245|19250|true|

@@ -1,0 +1,42 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding"
+  └ 1 file found
+
+● Inspect workspace files (shell)
+  │ pwd; ls -la | head -35
+  └ 9 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+Dette er en **full endring** fordi `fnr` vil bli et nytt personopplysningsfelt i Kafka-meldingen. Repoet viser at `SokerDto` har `fnr`, men ikke hvordan den kobles til `SoknadMottattMelding`. `nais.yaml` viser heller ikke hvem som kan lese topicen. Jeg stopper derfor før kodeendring.
+
+Hvem konsumerer `soknad-mottatt`, og skal alle disse mottakerne ha tilgang til fnr? Hvor skal `fnr` hentes fra når meldingen opprettes, og kan eksisterende konsumenter håndtere det nye feltet? Jeg fant ingen av de tre repo-lokale Copilot-konfigurasjonsfilene; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 2/11 (#6 og #9; #1 er avklart som fnr, #2 gjelder ikke endret tilgang, øvrige er ikke nødvendige for å avklare dette feltet).
+

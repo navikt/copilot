@@ -1,0 +1,89 @@
+● Inspect current repository files (shell)
+  │ pwd; ls -la; find . -maxdepth 2 -type f | head -60
+  └ 13 lines…
+
+● Find paw reference repositories (shell)
+  │ gh repo list navikt --limit 100 --json name --jq '.[].name' | grep -Ei 'paw|sign' | head -40
+  └ No Content
+
+● Check repository guidance files (shell)
+  │ find .github -type f -maxdepth 4 -print
+  └ 17 lines…
+
+● Read project structure and configuration (shell)
+  │ find . -type f -maxdepth 9 -print; cat README.md build.gradle.kts nais.yaml
+  └ 52 lines…
+
+● Check access to paw signing reference (shell)
+  │ gh auth status 2>&1 | head -25; gh search code 'signeringsheaders repo:navikt/paw' --limit 10
+  │ 2>&1 | head -35
+  └ 6 lines…
+
+● Read Kotlin service and applicable instructions (shell)
+  │ cat src/main/kotlin/no/nav/demo/{App,Oppgave,Routes,Config}.kt; cat
+  │ .github/instructions/{kotlin,security-owasp}.instructions.md
+  └ 22 lines…
+
+● Locate paw monorepo and signing code (shell)
+  │ gh search repos 'paw org:navikt' --limit 30 --json nameWithOwner --jq '.[].nameWithOwner' 2>&1 |
+  │ head -40; gh search code 'X-Signature org:navikt paw' --limit 5 2>&1 | head -30
+  └ 30 lines…
+
+● Inspect service and essential coding rules (shell)
+  │ for f in src/main/kotlin/no/nav/demo/*.kt; do echo "--- $f"; cat "$f"; done; sed -n '1,110p'
+  │ .github/instructions/kotlin.instructions.md; sed -n '1,90p'
+  │ .github/instructions/security-owasp.instructions.md
+  └ 173 lines…
+
+● Find upstream reference repository (shell)
+  │ gh search repos 'paw org:navikt' --limit 30 --json fullName --jq '.[].fullName' 2>&1 | head -35;
+  │ gh search code 'signeringsheaders org:navikt' --limit 5 2>&1 | head -20
+  └ 32 lines…
+
+● Identify internal paw reference availability (shell)
+  │ gh search repos 'paw-arbeidssoekerregisteret-monorepo-intern org:navikt' --limit 10 --json
+  │ fullName --jq '.[].fullName'; gh search repos 'paw monorepo intern org:navikt' --limit 10 --json
+  │ fullName --jq '.[].fullName'; gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern'
+  │ --jq '.full_name' 2>&1 | head -10
+  └ 3 lines…
+
+● Find upstream signature implementation (shell)
+  │ gh search code 'repo:navikt/paw-arbeidssoekerregisteret-monorepo-intern signatur' --limit 20
+  │ --json path --jq '.[].path' 2>&1 | head -35; gh search code
+  │ 'repo:navikt/paw-arbeidssoekerregisteret-monorepo-intern signering' --limit 20 --json path --jq
+  │ '.[].path' 2>&1 | head -35
+  └ No Content
+
+● Locate signing files in paw monorepos (shell)
+  │ gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1'
+  │ --jq '.tree[].path | select(test("[Ss]ign|sign"))' 2>&1 | head -55; gh api
+  │ 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-ekstern/git/trees/main?recursive=1' --jq
+  │ '.tree[].path | select(test("[Ss]ign|sign"))' 2>&1 | head -35
+  └ 90 lines…
+
+● Inspect local signing library if present (shell)
+  │ find lib -type f -print -exec sed -n '1,180p' {} \;
+  └ 40 lines…
+
+● Read upstream signing implementation (shell)
+  │ gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/sr
+  │ c/main/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt' -H 'Accept:
+  │ application/vnd.github.raw+json' | head -160; gh api
+  │ 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/main/
+  │ kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt' -H 'Accept: …
+  └ 170 lines…
+
+● Compare upstream header removal with local call sites (shell)
+  │ gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/sr
+  │ c/main/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt' -H 'Accept:
+  │ application/vnd.github.raw+json' | sed -n '110,205p'; gh api
+  │ 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/main/
+  │ kotlin/no/nav/paw/kafka/signing/SigningHeaders.kt' -H 'Accept: …
+  └ 58 lines…
+
+I dette repoet legger `SigningProducerInterceptor` på nye signeringsheadere uten å fjerne gamle. Jeg har lest løsningen i Paw sitt interne monorepo: signeringsprosessen fjerner arvede headere før den legger på nye. Dette er **rød sone: sikkerhetskritisk signering**, så jeg stopper før kodeendring.
+
+Før jeg endrer den, trenger jeg avklart det repoet ikke viser: Skal signeringsfeil hindre at meldingen sendes, hvilke konsumenter verifiserer signaturen, og hvordan får den injiserte `Signer` nøkkelmaterialet sitt? Repoet mangler også `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 3/11 (#3 feilmodus, #6 verifiserende konsumenter, #11 nøkkelhåndtering; øvrige er ikke relevante for denne endringen).
+

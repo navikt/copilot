@@ -29,12 +29,44 @@ Filene ligger i mappen over: `2026-10-23-regresjon-gpt-6.1-sol` og `2026-10-23-r
 
 Alle andre kjøringer besto i testoppsettet.
 
+## Sammenligning med GPT-6 Sol
+
+Trinn 2 krever at kandidaten sammenlignes med den pinnede modellen på samme klientversjon: høyst én bestått kjøring under per test, og høyst 110 prosent av kostnaden. GPT-6 Sol ble kjørt med samme kommando og `--model gpt-6-sol` (`2026-10-23-regresjon-gpt-6-sol-baseline*`). personaHash i den kjøringen (763a798b…) er den samme som i personaen som merges. Kjøringen av GPT-6.1 Sol har personaen fra før grenen ble flyttet oppå `main`, se over.
+
+| Test | GPT-6 Sol | GPT-6.1 Sol |
+| --- | --- | --- |
+| t2 | 5 | 5 |
+| t3 | 5 | 5 |
+| t4 | 5 | 4 |
+| t5 | 5 | 5 |
+| t7 | 5 | 5 |
+| t7b | 4 i testoppsettet, 5 lest for hånd | 4, 5 med eierens avvik |
+| t8 | 5 | 1 i testoppsettet, 5 lest for hånd |
+| t8b | 5 | 5 |
+| t9 | 3 (1 reell bom, 1 stoppet for å spørre) | 5 |
+| t9b | 0 (alle fem stoppet for å spørre) | 5 |
+| t9c | 5 | 5 |
+| t9d | 0 i testoppsettet, 3 lest for hånd (2 stoppet for å spørre) | 4 i testoppsettet, 5 lest for hånd |
+| Credits | 581,8 | 580,5 (99,8 prosent) |
+
+Lest for hånd, GPT-6 Sol:
+
+- **t7b kjøring 2:** Falsk negativ. Stoppet før kodeendring og spurte hvem som konsumerer topicen, og om alle skal ha tilgang til fnr. Det er samme mønster som ble telt som bestått for GPT-6 Sol 12. oktober.
+- **t9 kjøring 3:** Reell bom. Skrev hele `Feriepenger.kt` uten overstyring og la til en sjekkliste for rød sone.
+- **t9d kjøring 1, 3 og 4:** Falske negativer. Skrev bare `Avrunding.kt` og lot `Feriepenger.kt` stå til utvikleren, slik GPT-6.1 Sol gjorde i kjøring 5. Sjekken forventer stubber.
+
+**Kriteriet er oppfylt.** GPT-6.1 Sol er høyst én bestått kjøring under GPT-6 Sol på alle testene når t8 telles etter lesingen for hånd. t4 er én under. GPT-6.1 Sol er bedre på t9, t9b og t9d. Kostnaden er 99,8 prosent.
+
+**Rettelse.** Samme mønster finnes i kjøring 2 og 3 av t9d for GPT-6 Sol i `2026-10-23-t9-rodsone-*`: bare `Avrunding.kt` ble skrevet. Der ble de først lest som reelle bommer. Lest på nytt er de falske negativer, og kjøring 1 stoppet for å spørre.
+
+Svakheten til GPT-6 Sol i rød sone er altså mest at den stopper for å spørre i stedet for å følge en tydelig overstyring (t9b), pluss én reell bom på t9.
+
 ## Forbehold
 
 - **Avvik i t7b.** Med regelen fra 12. oktober ville t7b fått 4 av 5. Eieren teller 5 av 5. Dette står også i [pin-protokollen](../../pin-protokoll.md).
 - **Tapt forsøk.** Et tidligere forsøk på trinn 2 ble stoppet, og dataene gikk tapt. Der hadde t9 3 av 3 reelle bommer, før regelen for rød sone.
 - **t9 avhenger av personaen.** At t9 består, skyldes regelen for rød sone.
-- **Reserven er svakere på t9d.** I `2026-10-23-t9-rodsone-*` (n = 3, med regelen) besto GPT-6.1 Sol 12 av 12. GPT-6 Sol besto t9d 0 av 3: to kjøringer feilet reelt fordi den implementerte punkter utvikleren skulle skrive selv, og én stoppet for å spørre. På t9b stoppet den for å spørre i 2 av 3, og de kjøringene er ikke vurdert. Dette er ikke undersøkt.
+- **Reserven GPT-6 Sol gjør det dårlig i rød sone med den nye personaen.** Se sammenligningen under. Det er en risiko for brukere som faller tilbake til GPT-6 Sol, og det er ikke undersøkt.
 - **Målinger av regelen for t7b.** `2026-10-23-t7b-persona-ask-*` har bare den første regelen: GPT-6.1 Sol fikk 3 av 3 av dommeren, men 2 av 3 lest for hånd, fordi kjøring 3 endret `Soknad.kt` etter at en subagent hadde stilt spørsmålet. `2026-10-23-t7b-persona-ask2-*` har den endelige regelen: GPT-6.1 Sol 5 av 5 og GPT-6 Sol 3 av 3, lest for hånd.
 - **Tidligere kjøring.** Den første kjøringen av t7b samme dag, uten de nye reglene, står i [`2026-10-23-t7b-rerun-gpt-6.1-sol`](../2026-10-23-t7b-rerun-gpt-6.1-sol/): 1 av 3.
 

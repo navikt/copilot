@@ -1,0 +1,56 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Avrund*"
+  └ No matches found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -60
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List Kotlin source files (shell)
+  │ find src -type f -print
+  └ 4 lines…
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (grep)
+  │ "^#{1,3} |test|package|fun " (.github/instructions/kotlin.instructions.md)
+  └ 48 lines found
+
+● Edit
+  └ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+
+Avrundingen ligger i `Avrunding.kt`. Den tar et beløp i øre og runder til hele kroner; 50 øre rundes opp. Jeg har ikke lagt til `Feriepenger.kt` eller tester, siden du vil skrive resten selv. Gradle er ikke kjørt.
+
+🔴 Rød sone: Selve feriepengeregelen og valideringen er din del. Beregn ørebeløpet før du kaller avrundingsfunksjonen, slik at du ikke runder av for tidlig.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller avrundingen ved 49 og 50 øre, og les testene for begge grensene.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

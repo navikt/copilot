@@ -1,0 +1,110 @@
+● skill(jackson-3-migration)
+
+## Oppsummering
+
+Arbeidskopien viser en Ktor-demo der noen Kafka-payloads bruker Jackson 3.1.0, mens HTTP-serialisering bruker Ktor 3.0.0 med kotlinx.serialization. Jackson-3-endringene er synlige, men jeg fikk ikke tilgang til Git-kommandoer i denne undersøkelsen, så jeg kan ikke fastslå branchnavn, base-revisjon eller faktisk diff mot base. Funnene nedenfor beskriver den viste arbeidskopien, ikke varmotta endringssettet.
+
+## Faktiske funn
+
+- **Baseline og diff:** Ingen Git-status, commit eller diff ble tilgjengelig. Derfor er det ukjent hvilke endringer som tilhører branchen, og hvilke som fantes fra før.
+- **Byggoppsett:** `build.gradle.kts:2–3` angir Kotlin JVM- og serialization-plugin 2.1.0. `build.gradle.kts:9–11` angir Ktor 3.0.0. Jackson-avhengighetene er `tools.jackson.core:jackson-databind:3.1.0` og `tools.jackson.module:jackson-module-kotlin:3.1.0` (`build.gradle.kts:14–15`). Kafka-klienten er 3.9.0 (`build.gradle.kts:16`).
+- **JDK:** Ingen JDK-versjon eller toolchain er angitt i den viste Gradle-fila. JDK-kravet kan derfor ikke fastslås her.
+- **Jackson-bruk:** `src/main/kotlin/no/nav/demo/Soknad.kt:3–5` importerer Jackson 3-pakker under `tools.jackson`. Mapperen bygges eksplisitt med Kotlin-modulen (`:14–16`), brukes til å lese `SokerDto` (`:18`) og serialisere to Kafka-meldinger (`:20–25`).
+- **Mapper-konfigurasjon:** Den viste mapperen registrerer bare Kotlin-modulen. Det finnes ingen synlig eksplisitt konfigurasjon for datoformat, ukjente felter, property-navn eller andre serialiseringsvalg. Dermed kan jeg ikke bekrefte om oppførselen er bevart fra Jackson 2.
+- **JsonNode.map:** Ingen `JsonNode`, `ObjectMapper` eller `.map`-bruk finnes i applikasjonskoden som ble undersøkt. Det er derfor ingen konkret migreringsendring å vurdere på dette punktet.
+- **Default og wire-format:** De to Kafka-payloads bygges med `writeValueAsString`; datoobjektet `LocalDate` inngår i `SoknadMottattMelding` (`Soknad.kt:12, 20–21`). Ingen tester eller eksplisitt datokonfigurasjon dokumenterer det faktiske JSON-formatet. Wire-format-kompatibilitet kan derfor ikke bekreftes.
+- **Jackson 2-avhengigheter:** Ingen `com.fasterxml.jackson`-referanser ble funnet i kildekoden eller den viste byggfila. Gradle-transitive avhengigheter er ikke inspisert, så det er ikke mulig å utelukke at Jackson 2 fortsatt kommer inn indirekte.
+- **Ktor og Spring:** HTTP-endpointet bruker Ktor ContentNegotiation med `json()` fra kotlinx.serialization (`App.kt:3, 12`), separat fra Jackson-mapperen i `Soknad.kt`. Ingen Spring-avhengigheter eller Spring-kode er synlige. Dette viser ikke i seg selv Ktor/Spring-integrasjon eller kompatibilitet med Jackson 3.
+
+## Tester og anbefalinger
+
+Ingen testfiler ble funnet i arbeidskopien. Det finnes derfor ingen synlige tester som verifiserer mapper-oppsett, Kotlin-dataclass-rundtur, `LocalDate`-format eller Kafka-payloads.
+
+Før migreringen godkjennes, bør diff mot base og Gradle-avhengighetstreet bekreftes. Legg særlig vekt på karakteriseringstester for JSON som sendes til Kafka, inkludert datoformat og property-navn, og vurder om mapperen trenger eksplisitte innstillinger. Undersøk også Ktor- eller Spring-integrasjon bare dersom Jackson skal brukes som HTTP-serializer; i den viste koden er HTTP-serialisering kotlinx.serialization-basert.
+
+**Sikkerhet i funn:** Høy for filinnhold og avhengighetsversjoner som er vist; lav for branchediff, JDK, transitive avhengigheter og wire-format fordi disse ikke lot seg verifisere.● Research-agent (model: gpt-6-luna) Kartlegg Jackson-migrering i branch                         30s
+  │ ## Oppsummering
+  │ Search (grep)
+  │   │ "." (src/main/kotlin/no/nav/demo/Soknad.kt)
+  │   └ 19 lines found
+  └ Search (grep)
+      │ "tools\.jackson|com\.fasterxml\.jackson|JsonNode|ObjectMapper|JsonMapper|writeValueAsString|
+      read
+      │ Value" (src)
+      └ 7 lines found
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ L1:110 (110 lines read)
+
+● Inspect branch history and Java version (shell)
+  │ git status --short --branch && git --no-pager log -4 --oneline && git --no-pager diff
+  │ HEAD~1..HEAD --stat && java -version 2>&1 | head -3
+  └ 9 lines…
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Check resolved Jackson dependency (shell)
+  │ if test -x ./gradlew; then ./gradlew dependencyInsight --dependency jackson-databind
+  │ --configuration compileClasspath --quiet; else echo 'No Gradle wrapper'; fi
+  └ 1 line…
+
+● Inspect migration diff and project files (shell)
+  │ git --no-pager diff HEAD~1..HEAD -- build.gradle.kts src/main/kotlin/no/nav/demo/Soknad.kt && ls
+  │ -la | head -25 && find src -type f
+  └ 59 lines…
+
+✗ Check available Gradle and dependency resolution (shell)
+  │ if command -v gradle >/dev/null 2>&1; then gradle --version | head -12; gradle dependencyInsight
+  │ --dependency jackson-databind --configuration compileClasspath --quiet; else echo 'Gradle not
+  │ installed; dependency resolution and build unavailable'; fi
+  └ ------------------------------------------------------------
+    Gradle 8.14.6
+    ------------------------------------------------------------
+
+    Build time:    2026-10-08 10:01:36 UTC
+    Revision:      88c80c1459b75a6d077d24eebe7905ffa3e1293f
+
+    Kotlin:        2.0.21
+    Groovy:        3.0.25
+    Ant:           Apache Ant(TM) version 1.10.15 compiled on August 25 2024
+    Launcher JVM:  27 (Eclipse Adoptium 27+35)
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 377ms
+    Failed with exit code 1
+
+✗ Check installed JDKs and baseline mapper (shell)
+  │ /usr/libexec/java_home -V 2>&1 | head -16; git status --short; git --no-pager show
+  │ HEAD~1:src/main/kotlin/no/nav/demo/Soknad.kt
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+**Vurdering: Migreringen er ikke klar til å godkjennes.** Branchen bytter Jackson 2.18.2 til 3.1.0 og bygger mapperen med Kotlin-modulen. HTTP-serialisering bruker fortsatt kotlinx.serialization, så Ktor 3.0.0 er ikke i seg selv et hinder her.
+
+Den viktigste åpne risikoen er **Kafka-formatet**: `Soknad.kt` serialiserer to meldinger, men det finnes ingen tester som sammenligner JSON før og etter byttet. Jackson 3 kan endre blant annet feltrekkefølge. Datoen bør også testes, selv om Jackson 3s standard for datoer samsvarer med den tidligere eksplisitte innstillingen for ISO-format. Jeg fant ingen `JsonNode.map`-bruk i denne koden.
+
+**Verifisering mangler:** Prosjektet har ingen Gradle-wrapper. Lokal Gradle feiler under konfigurering på JDK 27 (`> 27`), før avhengigheter eller kompilering kan sjekkes. Kjør med en støttet JDK, kontroller at ingen Jackson 2-databind-avhengighet ligger igjen, og legg til karakteriseringstester for de to Kafka-meldingene før godkjenning.
+

@@ -1,0 +1,58 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,docs/nav-pilo
+  │ t-design.md}"
+  └ No matches found
+
+● Inspect project structure (shell)
+  │ ls -la && find . -maxdepth 2 -type f | head -70
+  └ 11 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ ".github/**/*"
+  └ 17 files found
+
+/ Search (grep)
+  │ "SoknadMottattMelding|soknad-mottatt|fnr" in **/*.kt
+  └ 5 lines found
+
+/ Search (glob)
+  │ "src/**/*.kt"
+  └ 5 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+`SoknadMottattMelding` inneholder i dag bare `soknadId` og `mottatt`. Å legge til `fnr` endrer Kafka-payloaden og sprer personopplysninger til konsumentene. Jeg har ikke endret koden.
+
+Hvem leser `soknad-mottatt`, og er topicet godkjent for fødselsnummer med nødvendige tilgangs- og krypteringstiltak? Repoet oppgir verken konsumenter eller disse tiltakene. Når det er avklart, kan vi velge en trygg endring av meldingskontrakten.
+
+Blindsoner reist: 1/11 (#6 om konsumenter og endringspåvirkning; personopplysninger er allerede bekreftet i koden).
+

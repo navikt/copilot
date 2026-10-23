@@ -1,0 +1,48 @@
+● skill(nav-auth)
+
+● Inspect project and Copilot configuration (shell)
+  │ pwd; ls -la; for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if test -f "$f"; then echo "PRESENT $f"; else echo
+  │ "MISSING $f"; fi; done
+  └ 12 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+**Fase 1: Avklaringer før vi planlegger.** Dette er en ny tjeneste med fødselsnummer og innlogging, så jeg stopper før arkitektur og kode. Repoet har en enkel Ktor-tjeneste på Nais, men ingen ID-porten-konfigurasjon eller autentisering. Jeg antar at innbyggeren logger inn via ID-porten. `AGENTS.md` og de to Copilot-instruksjonsfilene mangler; `nav-pilot init` kan legge til repo-oppsett senere.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres, returneres i et API eller sendes til andre tjenester?
+2. Skal bare innlogget innbygger bruke tjenesten, eller skal andre tjenester eller saksbehandlere også kunne kalle den?
+3. Hvilke team eller tjenester eier eventuelle mottakere av fødselsnummeret?
+4. Hva skal skje hvis ID-porten eller en nødvendig nedstrømstjeneste ikke er tilgjengelig?
+
+🔴 Rød sone: håndtering av fødselsnummer, autentisering og tilgangskontroll. Disse valgene må avklares før implementering.
+
+Blindsoner reist: 4/11 (#1, #2, #3, #5; #4 og #6–#11 avventer tjenestens formål eller er ikke relevante ennå).
+

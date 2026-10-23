@@ -1,0 +1,35 @@
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*.{kt,kts}"
+  └ 5 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,.github/instr
+  │ uctions/kotlin.instructions.md,.github/instructions/testing-kotlin.instructions.md,.github/instr
+  │ uctions/testing.instructions.md,.github/instructions/security-owasp.instructions.md}"
+  └ 4 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+Jeg har ikke endret kode. Feriepengeberegningen er kjerne­logikk, så jeg stopper før implementering. Jeg legger til grunn at `Avrunding.kt` skal runde et ikke-negativt beløp i øre til hele kroner, med 50 øre opp, og at du selv skriver `Feriepenger.kt` og testene.
+
+Vil dere gå gjennom feriepengereglene før dere skriver beregningen, eller er den oppgitte regelen nok?
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 ikke relevante for denne avgrensede endringen).
+

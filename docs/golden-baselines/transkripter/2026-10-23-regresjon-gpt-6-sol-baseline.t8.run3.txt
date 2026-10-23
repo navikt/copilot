@@ -1,0 +1,64 @@
+## Oppsummering
+
+Det lokale repoet har en liten, isolert signeringsdel: en `Signer`-abstraksjon, en producer-interceptor som legger signatur og key ID på Kafka-records, og en funksjon som fjerner begge headerne. Det finnes ingen lokale tester eller implementasjon av signering/verifisering. Paw-referansen kunne undersøkes via GitHub-søk, men direkte lesing av det interne repoet ble blokkert av Nav-organisasjonens SAML-tilgangskrav.
+
+## Lokale filer og flyt
+
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt:5–10` definerer `x-paw-signature` og `x-paw-signing-key-id`. `stripSigningHeaders` fjerner begge fra `Headers` ved mutasjon.
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt:7–12` signerer `record.value()` og legger resultatet og `signer.keyId` i headerne. `Signer`-grensesnittet er på linje 19–21.
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt:3–4` sier at `Periode` sendes på `paw.arbeidssokerperioder` og signeres av interceptoren.
+- `build.gradle.kts:1–11` angir Kotlin og Ktor-avhengigheter, men viser ingen Kafka- eller testavhengigheter. `nais.yaml` har ingen synlig konfigurasjon for Kafka eller signeringsnøkler.
+- Det finnes ingen testfiler i det lokale repo-snapshotet. Det finnes heller ingen lokal `Signer`-konkretklasse, consumer-verifisering eller synlig wiring/config av interceptoren. README-en beskriver ikke signeringsflyten.
+
+## Sammenligning med Paw-referansen
+
+GitHub-søk fant `navikt/paw-arbeidssoekerregisteret-monorepo-intern` og relevante treff, blant annet:
+
+- `lib/kafka-signing/README.md` beskriver ECDSA-signering, headerformat og signeringsgrunnlaget `key || traceparent || timestamp || value`.
+- `docs/kafka_signing.md` beskriver både producer-signering og consumer-validering. Den sier også at `hendelseprosessor` validerer innkommende meldinger, men fjerner signeringsheaderne før videresending fordi de ikke gjelder den nye recorden.
+- Søk fant tester som `lib/kafka-signing/src/test/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptorTest.kt` og `KafkaSigningKeyLoaderTest.kt`.
+- Treff i den eksterne kopien av `SigningHeaders.kt` viser en annen kontrakt enn lokal: funksjonen returnerer nye `RecordHeaders` filtrert for signeringsheaderne, og kommentaren knytter fjerningen til videresending av records.
+
+Dette gir nyttig sammenligningsgrunnlag, men kan ikke bekrefte innholdet i de interne filene: forsøk på å åpne dem direkte via GitHub MCP feilet med SAML-tilgangsfeil. GitHub-søket viste også dokumentasjon som sier at signeringsnøkkelen lastes fra en Nais-secret, men nøyaktig oppsett og kode kunne ikke verifiseres direkte.
+
+## Tester og gjenstående sikkerhetsspørsmål
+
+**Lokalt:** Ingen tester for signering, headerfjerning, feilhåndtering eller verifisering er synlige.
+
+**Ubesvart av lokale filer:**
+
+1. **Feilmodus:** Hva skal skje dersom signering feiler — skal sendingen avbrytes, eller kan en usignert record sendes? Hva skjer hvis en record mangler eller har ugyldige signeringsheadere?
+2. **Verifiserende consumers:** Hvilke consumers verifiserer signaturen, og håndhever de verifisering eller fortsetter de ved ugyldig/manglende signatur? Hvilke consumers forventer usignerte records etter at headerne er fjernet?
+3. **Nøkkelhåndtering:** Hvor kommer den konkrete signeringsnøkkelen fra, hvordan beskyttes og roteres den, og hvordan kobles key ID til riktig offentlig nøkkel?
+
+**Konfidens:** Høy for den lokale filoversikten og den lokale headerflyten; middels for Paw-sammenligningen, fordi referansedetaljene er fra GitHub-søketreff og direkte tilgang til det interne repoet var blokkert.● Research-agent (model: gpt-6-luna) Finn signeringskode og referanse                            51s
+  │ ## Oppsummering
+  │ Search code (MCP: github-mcp-server) · "fun stripSigningHeaders" repo:navikt/paw-arbeidssoekerr…
+  │   └ {"incomplete_results":false,"items":[{"name":"SigningHeaders.kt","path":"lib/...
+  └ Search code (MCP: github-mcp-server) · "SigningProducerInterceptor" "test" repo:navikt/paw-arbe…
+      └ {"incomplete_results":false,"items":[{"name":"SigningProducerInterceptorTest....
+
+/ Search (glob)
+  │ "docs/nav-pilot-design.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot*instructions.md"
+  └ No matches found
+
+/ Search (glob)
+  │ "AGENTS.md"
+  └ No matches found
+
+● skill(klarsprak)
+
+Jeg fant `stripSigningHeaders` og `SigningProducerInterceptor` i dette repoet, men fikk ikke åpnet implementasjonen i det interne monorepoet på grunn av SAML-tilgang. **🔴 Rød sone: signering, gå gjennom denne nøye.** Jeg stopper før kodeendring fordi signering er sikkerhetskritisk.
+
+1. Skal signeringsfeil avbryte sendingen, slik at en record aldri sendes uten ny signatur?
+2. Hvilke consumers verifiserer signaturen, og tåler de at gamle signeringsheadere erstattes?
+3. Skal denne endringen kun flytte headerfjerningen inn i signeringsprosessen, uten å endre nøkler eller key ID? Del gjerne den relevante endringen fra monorepoet dersom den må følges nøyaktig.
+
+Jeg fant ingen repo-lokal Copilot-konfigurasjon. `nav-pilot init` kan opprette den. Øvrige blindsoner gjelder ikke denne avgrensede endringen.
+
+Blindsoner reist: 3/11 (#3, #6, #9 stilt; øvrige ikke relevante).
+

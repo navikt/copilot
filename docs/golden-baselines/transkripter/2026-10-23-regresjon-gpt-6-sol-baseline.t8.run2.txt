@@ -1,0 +1,60 @@
+● skill(security-owasp)
+
+● Check repo Copilot instructions (shell)
+  │ ls AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md 2>/dev/null
+  │ || true
+  └ No Content
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -70
+  └ 30 lines…
+
+● Find Paw upstream repositories (shell)                                                         21s
+  │ gh repo list navikt --limit 1000 --json name --jq '.[].name' | grep -Ei 'paw|intern' | head -60
+  └ 12 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read local code inventory and metadata (shell)
+  │ find src lib -type f; cat build.gradle.kts README.md nais.yaml
+  └ 35 lines…
+
+● Locate upstream signing implementation (shell)
+  │ gh api 'search/code?q=repo:navikt/paw-arbeidssoekerregisteret-monorepo-intern+signeringsheaders'
+  │ --jq '.items[] | .path' 2>&1 | head -35; gh api
+  │ 'search/code?q=repo:navikt/paw-arbeidssoekerregisteret-monorepo-intern+signer' --jq '.items[] |
+  │ .path' 2>&1 | head -35
+  └ 10 lines…
+
+/ Search (grep)
+  │ "sign|header|kafka" (.github/instructions/kotlin.instructions.md)
+  └ 4 lines found
+
+● Inspect local signing behavior (shell)
+  │ for f in lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/*.kt; do echo "--- $f"; cat "$f";
+  │ done
+  └ 40 lines…
+
+● List reference signing files (shell)
+  │ gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/
+  │ main/kotlin/no/nav/paw/kafka/signing' --jq '.[].name'
+  └ 6 lines…
+
+● Trace local signing usage (shell)
+  │ find lib -type f; rg -n 'stripSigningHeaders|SigningProducerInterceptor|\.sign\(' . -g '*.kt'
+  └ 7 lines…
+
+● Read upstream signer and header handling (shell)
+  │ for f in KafkaMessageSigner.kt SigningProducerInterceptor.kt SigningHeaders.kt; do echo "---
+  │ $f"; gh api "repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing
+  │ /src/main/kotlin/no/nav/paw/kafka/signing/$f" --jq .content | base64 -d; done
+  └ 221 lines…
+
+Jeg fant samme header-navn i referanseimplementasjonen. Her ligger oppryddingen allerede i `stripSigningHeaders`, men signeringsinterceptoren kaller den ikke. Endringen gjelder signering, så jeg stopper før jeg redigerer.
+
+**Avklaring:** Verifiserer mottakerne den siste signaturen når en melding har flere signeringsheadere, og skal eksisterende headere fjernes før eller etter at `signer.sign` er kalt? Det avgjør om en signer som feiler, skal etterlate de gamle headerne.
+
+Repoet mangler `AGENTS.md` og repo-lokale Copilot-instruksjoner; `nav-pilot init` kan opprette dem. Blindsoner reist: 1/11 (#6 om mottakere og verifisering; øvrige er enten besvart av koden eller ikke relevante).
+

@@ -1,0 +1,31 @@
+● skill(kafka)
+
+● Find signature headers and privacy signals (shell)
+  │ for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md; do if
+  │ test -f "$f"; then echo "$f present"; else echo "$f missing"; fi; done; rg -n -i
+  │ 'signatur|signature|fnr|fødselsnummer|headers?' . --glob '!**/build/**' | head -100
+  └ 13 lines…
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 30 lines…
+
+● Read producer and event model (shell)
+  │ find lib src -type f | sort; cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/{SigningPr
+  │ oducerInterceptor,SigningHeaders,Periode}.kt
+  └ 44 lines…
+
+● Read service context and tests (shell)
+  │ cat nais.yaml README.md build.gradle.kts; find lib -path '*test*' -type f -print
+  └ 28 lines…
+
+Dette er en **ny personopplysning i Kafka-headeren**, selv om fnr allerede finnes i `Periode`-payloaden. Jeg stopper før kodeendring: headeren kan bli synlig for andre verktøy og konsumenter enn dem som leser payloaden.
+
+1. Må fnr ligge i klartekst i headeren for sporing, eller kan dere bruke `Periode.id`?
+2. Hvem leser topicen og headerne, og tåler konsumentene den nye headeren?
+3. Skal signaturen dekke fnr-headeren, eller bare payloaden slik interceptoren gjør nå?
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene. `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 3/11 (#1, #6, #9; øvrige er enten besvart av koden eller ikke relevante nå).
+

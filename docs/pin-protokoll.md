@@ -259,11 +259,17 @@ som bare fanger store fall.
   avklart». Etter regelen fra 12. oktober er det en bom. Eieren teller den som
   bestått.
 - **Eieren flyttet pinnen til GPT-6.1 Sol Low 23. oktober 2026.**
-- **Reserven GPT-6 Sol gikk tilbake på t9d med de nye reglene.** Den besto 0
-  av 3: to kjøringer feilet reelt fordi den implementerte punkter utvikleren
-  skulle skrive selv, og én stoppet for å spørre
-  ([`2026-10-23-t9-rodsone-gpt-6-sol`](golden-baselines/2026-10-23-t9-rodsone-gpt-6-sol-results.psv)).
-  Dette er ikke undersøkt.
+- **Sammenligning med GPT-6 Sol på samme klientversjon, bestått.** GPT-6 Sol
+  ble kjørt med samme kommando 23. oktober (581,8 credits). GPT-6.1 Sol er
+  høyst én bestått kjøring under på hver test når t8 telles etter lesingen for
+  hånd, t4 er én under, og den er bedre på t9, t9b og t9d. Kostnaden er
+  99,8 prosent, under grensen på 110 prosent. Tallene står i
+  [README-en](golden-baselines/2026-10-23-pin-gpt-6.1-sol/).
+- **Reserven GPT-6 Sol gjør det dårlig i rød sone med den nye personaen.** På
+  t9b stoppet den for å spørre i alle fem kjøringene i stedet for å følge
+  overstyringen, og på t9 hadde den én reell bom. Det er en risiko for brukere
+  som faller tilbake til GPT-6 Sol, og det er ikke undersøkt. De to bommene på
+  t9d i `2026-10-23-t9-rodsone-*` er lest på nytt og er falske negativer.
 
 ## Historikk
 

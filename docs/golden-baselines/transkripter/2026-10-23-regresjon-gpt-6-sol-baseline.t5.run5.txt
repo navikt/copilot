@@ -1,0 +1,2 @@
+Bruk **TokenX**: Tjeneste A veksler brukerens token til et token med tjeneste B som audience. Da beholder B brukerkonteksten og kan kontrollere tilgangen. Ikke bruk Azure `client_credentials`, som bare representerer tjenesten.
+

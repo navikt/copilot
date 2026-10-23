@@ -1,0 +1,4 @@
+● skill(nav-auth)
+
+Bruk **TokenX token exchange** når tjeneste A kaller tjeneste B på vegne av en bruker. A bytter brukerens token til et token med B som audience; B validerer tokenet. Bruk ikke Azure AD `client_credentials`, siden det mister brukerkonteksten.
+
