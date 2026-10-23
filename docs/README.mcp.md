@@ -33,7 +33,7 @@ Legg til i `.vscode/mcp.json` (delt med teamet) eller VS Code `settings.json` (p
 }
 ```
 
-### Copilot CLI
+### Copilot CLI og OpenCode
 
 ```bash
 nav-pilot mcp list
@@ -42,6 +42,8 @@ nav-pilot mcp enable figma-mcp --client copilot
 
 Nye oppføringer får registerets headers og verktøyvalg. Eksisterende oppføringer beholdes.
 Et manuelt `copilot mcp add` kopierer ikke disse begrensningene fra registeret.
+
+Nais MCP (`nav-pilot mcp enable io.github.nais/nais-mcp`) og GitHub-serveren i OpenCode trenger innloggingen din. Under cplt kjører cplt dem på maskinen din, utenfor sandkassen, med bare lesende verktøy som standard. Figma logger du inn på i klienten. Se [MCP gjennom cplt](https://ki-utvikling.nav.no/nav-pilot/guider/mcp-gjennom-cplt).
 
 Tilkoblet, men verktøyet mangler? Se [MCP-feilsøking](https://ki-utvikling.nav.no/nav-pilot/guider/feilsoking#mcp-verktoy).
 

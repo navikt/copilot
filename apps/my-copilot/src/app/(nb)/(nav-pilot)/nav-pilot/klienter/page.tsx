@@ -378,6 +378,15 @@ export default function Klienter() {
           </a>
           .
         </BodyLong>
+        <BodyLong>
+          Nais MCP trenger innloggingen din. Under cplt kjører cplt serveren på maskinen din, så innloggingen ikke
+          kommer inn i sandkassen, likt i Copilot CLI og opencode. I opencode går GitHub-serveren gjennom en proxy i
+          cplt som bruker {c("gh")}-innloggingen din. Se{" "}
+          <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt" className={linkClass}>
+            MCP gjennom cplt
+          </NextLink>
+          .
+        </BodyLong>
         <LinkableHeading id="legg-til-server" size="small" level="3">
           Få en server inn i registeret
         </LinkableHeading>
