@@ -1,0 +1,63 @@
+# The access granted to navikt/copilot's agentpakke reaches cplt on a launch
+# with no `source` key in config, the default for most users. Before the fix
+# the approval was recorded, doctor said ✓, and the launch passed nothing.
+# The local source here is named nav-pilot and proposes the built-in block
+# verbatim, so its answer is the answer for the built-in default.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+# The default state directory, where cplt denies writes, so the record counts.
+env NAV_PILOT_CONFIG=$HOME/.nav-pilot/config.toml
+
+mkdir nav/skills repo
+cd nav
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+
+# Control: Decline passes no flag.
+exits 0 pty-run -wait 'Decline' -send '\r' -- nav-pilot install --user --all --source $WORK/nav
+exec nav-pilot config show
+! stdout '^source'
+exec /bin/sh -c 'nav-pilot --client copilot -- -p hei </dev/null'
+exists $WORK/fake/cplt.log
+! grep 'allow-private-domain' $WORK/fake/cplt.log
+rm $WORK/fake/cplt.log
+
+# Allow: every host is passed, and doctor agrees.
+exits 0 pty-run -wait 'Let the agent read Nais logs' -send 'y' -- nav-pilot pakke access --user
+exec nav-pilot doctor
+stdout 'Sandbox waiver approved for'
+exec /bin/sh -c 'nav-pilot --client copilot -- -p hei </dev/null'
+grep '^--allow-private-domain\nmimir\.nav\.cloud\.nais\.io$' $WORK/fake/cplt.log
+grep '^--allow-private-domain\nloki\.nav\.cloud\.nais\.io$' $WORK/fake/cplt.log
+grep '^--allow-private-domain\ntempo\.dev-gcp\.nav\.cloud\.nais\.io$' $WORK/fake/cplt.log
+grep '^--allow-private-domain\ntempo\.prod-gcp\.nav\.cloud\.nais\.io$' $WORK/fake/cplt.log
+
+-- nav/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"nav-pilot","description":"nav","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["nav-pilot"]}},"policies":{"propose":{"cplt":{
+  "reason": "The observability-debugging skill queries Mimir, Loki and Tempo with curl. Those four hosts resolve to private addresses over naisdevice, so cplt refuses every one of them before the request leaves the sandbox. Without this waiver each metrics, logs and trace query in that skill returns a 403 mid-query, where it reads as a broken PromQL rather than as a sandbox rule.",
+  "proxy": {
+    "allow_private_domains": [
+      "mimir.nav.cloud.nais.io",
+      "loki.nav.cloud.nais.io",
+      "tempo.dev-gcp.nav.cloud.nais.io",
+      "tempo.prod-gcp.nav.cloud.nais.io"
+    ]
+  }
+}}}}
+-- nav/agents/nav-pilot.agent.md --
+---
+name: nav-pilot
+description: nav
+---
+nav
+-- nav/skills/brann/SKILL.md --
+---
+name: brann
+description: nav
+---
+brann
