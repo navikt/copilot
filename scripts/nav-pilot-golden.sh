@@ -452,6 +452,8 @@ case "$CLIENT" in
     [[ "$MODEL" == */* ]] && OC_MODEL="$MODEL" || OC_MODEL="github-copilot/$MODEL"
     command -v go >/dev/null 2>&1 || fail_preflight "--client opencode needs go" \
       "The persona is converted with nav-pilot's own OpenCode transform (go run)."
+    command -v sqlite3 >/dev/null 2>&1 || fail_preflight "--client opencode needs sqlite3" \
+      "The login is copied into, and sessions are checked in, each run's own opencode.db."
     # Everything OpenCode reads config from is redirected: OPENCODE_CONFIG,
     # OPENCODE_CONFIG_CONTENT, OPENCODE_CONFIG_DIR and OPENCODE_DB are cleared,
     # and oc_isolate points HOME and the XDG dirs at scratch dirs.
@@ -480,29 +482,41 @@ oc_isolate() {
   mkdir -p "$root/data/opencode" "$root/state" "$root/cache" "$root/home" "$OC_CFG_HOME/opencode"
   port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
   # ponytail: bind-and-release; another process can take the port first (rare, as in cplt).
-  ( umask 077; printf '{"port":%s,"password":"%s"}\n' "$port" "$(openssl rand -hex 16)" >"$OC_CFG_HOME/opencode/service.json" )
+  ( umask 077; printf '{"port":%s,"password":"%s"}\n' "$port" "$(python3 -c 'import secrets; print(secrets.token_hex(16))')" >"$OC_CFG_HOME/opencode/service.json" )
   OC_ENV=("${OC_BASE_ENV[@]}" "XDG_CONFIG_HOME=$OC_CFG_HOME" "XDG_DATA_HOME=$root/data"
     "XDG_STATE_HOME=$root/state" "XDG_CACHE_HOME=$root/cache" "HOME=$root/home")
   [[ -f "$OC_HOST_DATA/auth.json" ]] && cp -p "$OC_HOST_DATA/auth.json" "$root/data/opencode/"
   $OC_V2 || return 0
   (cd "$root/home" && env "${OC_ENV[@]}" "$CLI_PATH" session list >/dev/null 2>&1)
   [[ -f "$OC_HOST_DATA/opencode.db" && -f "$root/data/opencode/opencode.db" ]] || return 0
+  # A WAL database cannot be opened read-only without its -shm file, which a
+  # quiet host may not have; immutable=1 reads the main file as is then.
+  local ro="mode=ro"
+  [[ -f "$OC_HOST_DATA/opencode.db-shm" ]] || ro="mode=ro&immutable=1"
   sqlite3 "$root/data/opencode/opencode.db" \
-    "ATTACH 'file:$OC_HOST_DATA/opencode.db?mode=ro' AS host; INSERT INTO credential SELECT * FROM host.credential;" \
+    "ATTACH 'file:$OC_HOST_DATA/opencode.db?$ro' AS host; INSERT INTO credential SELECT * FROM host.credential;" \
     || fail_preflight "could not copy the OpenCode login into the run's store" \
       "Check: sqlite3 -readonly 'file:$OC_HOST_DATA/opencode.db?mode=ro' .tables"
 }
 
-# oc_stop <root>: removing the registration makes the run's service exit (it
-# checks every few seconds); one still running after 6 s is killed.
+# oc_stop <root> <config-home>: removing the registration makes the run's
+# service exit (it checks every few seconds). One still running after 6 s is
+# killed, but only if the registration names the port this run wrote: a pid
+# from any other registration is never signalled.
 oc_stop() {
   local reg="$1/state/opencode/service.json" pid
   [[ -f "$reg" ]] || return 0
-  pid="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("pid", ""))' "$reg" 2>/dev/null)"
+  pid="$(python3 -c '
+import json, sys
+reg, cfg = (json.load(open(f)) for f in sys.argv[1:])
+print(reg.get("pid", "") if reg["url"].rstrip("/").rsplit(":", 1)[1] == str(cfg["port"]) else "")' \
+    "$reg" "$2/opencode/service.json" 2>/dev/null)"
   rm -f "$reg"
   [[ "$pid" =~ ^[0-9]+$ ]] || return 0
   for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do kill -0 "$pid" 2>/dev/null || return 0; sleep 0.5; done
   kill "$pid" 2>/dev/null
+  for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || return 0; sleep 0.5; done
+  kill -9 "$pid" 2>/dev/null
 }
 
 # oc_check_isolated [title]: did the last call run on this run's own service,
@@ -540,13 +554,16 @@ preflight_client() {
     [[ "$(grep -oE '[0-9]+' <<<"$CLI_VERSION" | head -1)" -ge 2 ]] && OC_V2=true
     local oc_probe_dir oc_probe_out oc_probe_rc
     oc_probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/nav-pilot-golden-oc.XXXXXX")"
+    # Ctrl-C or a fail_preflight must not leave the login copy or the service behind.
+    trap 'oc_stop "$oc_probe_dir" "$oc_probe_dir/config"; rm -rf "$oc_probe_dir"' EXIT
     oc_isolate "$oc_probe_dir" "$oc_probe_dir/config"
     oc_probe_out="$(cd "$oc_probe_dir/home" && env "${OC_ENV[@]}" \
       "$CLI_PATH" run -m "$OC_MODEL" "svar kun med ordet OK" 2>&1)"
     oc_probe_rc=$?
     [[ $oc_probe_rc -eq 0 ]] && ! oc_probe_out="$(oc_check_isolated)" && oc_probe_rc=1
-    oc_stop "$oc_probe_dir"
+    oc_stop "$oc_probe_dir" "$oc_probe_dir/config"
     rm -rf "$oc_probe_dir"
+    trap - EXIT
     OC_ROOT=""
     [[ $oc_probe_rc -eq 0 ]] \
       || fail_preflight "opencode probe prompt failed for $OC_MODEL" "$(head -c 300 <<<"$oc_probe_out")"
@@ -692,6 +709,11 @@ fi
 cleanup() {
   if $KEEP; then
     echo "${DIM}transcripts kept in $WORKDIR${RESET}"
+    if [[ -n "$OC_ROOT" ]]; then
+      rm -f "$OC_ROOT/data/opencode/auth.json"
+      [[ -f "$OC_ROOT/data/opencode/opencode.db" ]] && sqlite3 "$OC_ROOT/data/opencode/opencode.db" "DELETE FROM credential;" 2>/dev/null
+      echo "${DIM}OpenCode login removed from the kept store${RESET}"
+    fi
     [[ -n "$DELEG_HOME" ]] && echo "${DIM}client home kept in $DELEG_HOME${RESET}"
   else
     rm -rf "$WORKDIR" ${DELEG_HOME:+"$DELEG_HOME"}
@@ -726,7 +748,7 @@ reap_daemons() {
     fi
   done
 }
-trap 'reap_daemons; [[ -z "$OC_ROOT" ]] || oc_stop "$OC_ROOT"; cleanup' EXIT
+trap 'reap_daemons; [[ -z "$OC_ROOT" ]] || oc_stop "$OC_ROOT" "$OC_CFG_HOME"; cleanup' EXIT
 
 mkdir -p "$TEMPLATE/.github/agents" "$TEMPLATE/src/main/kotlin/no/nav/demo"
 # The installed copy differs from the working-tree file in two frontmatter
@@ -1674,10 +1696,6 @@ run_prompt() {
   ( cd "$WS" && ${runner[@]+"${runner[@]}"} env ${OC_ENV[@]+"${OC_ENV[@]}"} ${HOOK_ENV[@]+"${HOOK_ENV[@]}"} "$CLI_PATH" "${args[@]}" ) >"$out" 2>"${out%.txt}.err"
   local rc=$?
   ended_ms="$(now_ms)"
-  if [[ "$CLIENT" == opencode ]] && ! LAST_PROMPT_DETAIL="$(oc_check_isolated "$session")"; then
-    LAST_PROMPT_FAILURE="cli_failure"
-    return 1
-  fi
   elapsed_ms=$((ended_ms - started_ms))
   if $USAGE_ESTIMATED && $USAGE_TRACKING; then
     # Only messages created after started_ms: turn two exports turn one again.
@@ -1709,7 +1727,9 @@ run_prompt() {
   local size=0
   [[ -f "$out" ]] && size="$(wc -c <"$out" | tr -d ' ')"
   local outcome="pass" detail=""
-  if [[ -n "$TIMEOUT_BIN" && $rc -eq 124 ]]; then
+  if [[ "$CLIENT" == opencode ]] && ! detail="$(oc_check_isolated "$session")"; then
+    outcome="cli_failure"
+  elif [[ -n "$TIMEOUT_BIN" && $rc -eq 124 ]]; then
     outcome="timeout"
     detail="timed out after ${TIMEOUT_SECS}s"
   elif [[ $rc -ne 0 ]]; then

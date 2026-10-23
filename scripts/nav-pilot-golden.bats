@@ -1426,18 +1426,24 @@ if [[ "\$1 \$2" == "session export" ]]; then
   exit 0
 fi
 if [[ "\$1" == session ]]; then
+  [[ "\${OC_VERSION:-1}" == v2* ]] && mkdir -p "\$XDG_DATA_HOME/opencode" \\
+    && sqlite3 "\$XDG_DATA_HOME/opencode/opencode.db" "CREATE TABLE IF NOT EXISTS credential (integration_id TEXT, value TEXT);"
   t="\$(cat "$SHIM/title" 2>/dev/null)"; [[ "\$LISTED" == other ]] && t=noen-andre
   printf '[{"id":"ses_annen","title":"x"},{"id":"ses_stub","title":"%s"}]\n' "\$t"; exit 0
 fi
 printf '%s\n' "\$*" >>"$SHIM/calls"
 # A v2 client registers its service in XDG_STATE_HOME and stores sessions in
-# XDG_DATA_HOME. HOST_SERVICE=1 plays a client that attached to the host's
-# service instead: nothing lands in the run's dirs (#1917).
-if [[ "\${OC_VERSION:-1}" == v2* && -z "\${HOST_SERVICE:-}" ]]; then
+# XDG_DATA_HOME. A client that attached to the host's service leaves nothing
+# in the run's dirs (#1917): HOST_SERVICE=all on every call, HOST_SERVICE=run
+# after an isolated probe. NO_SESSION=1 registers but stores no session.
+probe=false; [[ "\${!#}" == *"svar kun med ordet OK"* ]] && probe=true
+if [[ "\${OC_VERSION:-1}" == v2* && "\${HOST_SERVICE:-}" != all ]] && { \$probe || [[ "\${HOST_SERVICE:-}" != run ]]; }; then
   mkdir -p "\$XDG_STATE_HOME/opencode" "\$XDG_DATA_HOME/opencode"
   port="\$(sed 's/.*"port":\([0-9]*\).*/\1/' "\$XDG_CONFIG_HOME/opencode/service.json")"
   printf '{"pid":999999,"url":"http://127.0.0.1:%s"}' "\$port" >"\$XDG_STATE_HOME/opencode/service.json"
-  for a in "\$@"; do [[ "\$prev" == --title ]] && /usr/bin/sqlite3 "\$XDG_DATA_HOME/opencode/opencode.db" \
+  [[ "\$(sqlite3 "\$XDG_DATA_HOME/opencode/opencode.db" "SELECT value FROM credential" 2>/dev/null)" == fixture-login ]] \\
+    && touch "$SHIM/login-copied"
+  [[ -n "\${NO_SESSION:-}" ]] || for a in "\$@"; do [[ "\$prev" == --title ]] && sqlite3 "\$XDG_DATA_HOME/opencode/opencode.db" \\
     "CREATE TABLE IF NOT EXISTS session_v2 (id TEXT, title TEXT); INSERT INTO session_v2 VALUES ('ses_stub', '\$a');"; prev="\$a"; done
 fi
 while [[ \$# -gt 1 ]]; do [[ "\$1" == --title ]] && printf '%s' "\$2" >"$SHIM/title"; shift; done
@@ -1481,9 +1487,36 @@ run_opencode_t4() {
 
 @test "opencode v2: a call served by the host's service fails the run (#1917)" {
   make_opencode_shim
-  OC_VERSION=v2.1.2 HOST_SERVICE=1 run_opencode_t4
+  OC_VERSION=v2.1.2 HOST_SERVICE=all run_opencode_t4
   [ "$status" -ne 0 ]
   grep -q "did not use this run's service" <<<"$output"
+}
+
+@test "opencode v2: a run call on the host's service after an isolated probe is a cli_failure (#1917)" {
+  make_opencode_shim
+  OC_VERSION=v2.1.2 HOST_SERVICE=run run_opencode_t4
+  [ "$status" -ne 0 ]
+  grep -q 'svar kun med ordet OK' "$SHIM/calls"
+  grep -rq "did not use this run's service" "$SHIM"
+  grep -rq "cli_failure" "$SHIM"
+}
+
+@test "opencode v2: a session missing from the run's store fails the call (#1917)" {
+  make_opencode_shim
+  OC_VERSION=v2.1.2 NO_SESSION=1 run_opencode_t4
+  [ "$status" -ne 0 ]
+  grep -rq "is not in this run's store" "$SHIM"
+}
+
+@test "opencode v2: the login is copied from a quiet WAL host DB with no -shm (#1917)" {
+  make_opencode_shim
+  mkdir -p "$SHIM/data/opencode"
+  sqlite3 "$SHIM/data/opencode/opencode.db" "PRAGMA journal_mode=WAL; CREATE TABLE credential (integration_id TEXT, value TEXT); INSERT INTO credential VALUES ('github-copilot', 'fixture-login'); PRAGMA wal_checkpoint(TRUNCATE);" >/dev/null
+  rm -f "$SHIM/data/opencode/opencode.db-shm" "$SHIM/data/opencode/opencode.db-wal"
+  [ ! -e "$SHIM/data/opencode/opencode.db-shm" ]
+  OC_VERSION=v2.1.2 run_opencode_t4
+  [ "$status" -eq 0 ]
+  [ -f "$SHIM/login-copied" ]
 }
 
 @test "opencode v2: --suite delegation is refused before any model call" {
