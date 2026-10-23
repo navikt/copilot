@@ -34,7 +34,10 @@ func binaryKey(bin string) string {
 	if err != nil || !fi.Mode().IsRegular() {
 		return ""
 	}
-	return fmt.Sprintf("%s|%d|%d|%s", p, fi.Size(), fi.ModTime().UnixNano(), fileChange(fi))
+	// The name comes first: one file can answer differently under two names
+	// (a symlink farm, a multi-call binary), and writeVersionCache drops the
+	// earlier answers per name.
+	return fmt.Sprintf("%s|%s|%d|%d|%s", filepath.Base(bin), p, fi.Size(), fi.ModTime().UnixNano(), fileChange(fi))
 }
 
 func readVersionCacheFile() map[string]string {
@@ -54,7 +57,7 @@ func readVersionCache(key string) (string, bool) {
 }
 
 // writeVersionCache records an answer, dropping earlier answers for the same
-// path: those are versions no longer installed.
+// binary name: those are versions no longer installed.
 func writeVersionCache(key, out string) {
 	if key == "" {
 		return

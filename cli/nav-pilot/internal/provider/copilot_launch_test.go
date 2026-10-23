@@ -224,8 +224,6 @@ func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("COPILOT_GITHUB_TOKEN", "")
 	t.Setenv("NAV_PILOT_CPLT_HINT", "0")
-	// The version probe runs cplt --version, which would write the marker.
-	stubCpltVersion(t, func() (string, error) { return "cplt " + cpltRecommended + "-7f0fd16\n", nil })
 
 	err := LaunchCopilotResolved(domain.ResolvedConfig{
 		Client:          "copilot",
@@ -266,8 +264,7 @@ func TestLaunchCopilotResolved_ShowsCpltRecommendation(t *testing.T) {
 	}
 	orig := os.Stderr
 	os.Stderr = w
-	// env_only without a token stops before cplt runs, after the notices.
-	_ = LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true, CopilotAuthMode: "env_only", OtelLogLevel: "none"})
+	_ = LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true, OtelLogLevel: "none"})
 	os.Stderr = orig
 	w.Close()
 	out, _ := io.ReadAll(r)
