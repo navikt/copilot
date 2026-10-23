@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -17,17 +18,33 @@ import (
 
 const mcpHostTimeout = 10 * time.Second
 
-// mcpLoginState is "ok", "logged out" or "not installed", from the
-// mechanism's probe. Its output is discarded.
+// mcpProbeTimeout is a var so tests time out fast.
+var mcpProbeTimeout = mcpHostTimeout
+
+// mcpLoginStates caches each probe's answer for one nav-pilot run, so a
+// list or enable probes once; cmdMCP clears it, and a login forgets it.
+var mcpLoginStates = map[string]string{}
+
+// mcpLoginState is "ok", "logged out", "not installed" or "unknown (timed
+// out)", from the mechanism's probe. Its output is discarded.
 func mcpLoginState(m mcpMechanism) string {
-	_, err := runBoundedTimeout(mcpHostTimeout, false, m.probe[0], m.probe[1:]...)
+	key := strings.Join(m.probe, " ")
+	if s, ok := mcpLoginStates[key]; ok {
+		return s
+	}
+	start := time.Now()
+	_, err := runBoundedTimeout(mcpProbeTimeout, false, m.probe[0], m.probe[1:]...)
+	s := "logged out"
 	switch {
 	case err == nil:
-		return "ok"
+		s = "ok"
 	case errors.Is(err, exec.ErrNotFound):
-		return "not installed"
+		s = "not installed"
+	case time.Since(start) >= mcpProbeTimeout:
+		s = "unknown (timed out)"
 	}
-	return "logged out"
+	mcpLoginStates[key] = s
+	return s
 }
 
 // mcpRunLogin runs the mechanism's login in the terminal, with no deadline:
@@ -35,6 +52,7 @@ func mcpLoginState(m mcpMechanism) string {
 func mcpRunLogin(m mcpMechanism) error {
 	cmd := exec.Command(m.login[0], m.login[1:]...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	delete(mcpLoginStates, strings.Join(m.probe, " "))
 	return cmd.Run()
 }
 

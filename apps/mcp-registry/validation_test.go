@@ -1002,7 +1002,8 @@ func TestValidateBroker(t *testing.T) {
 		"host-exec class":   {func(b *BrokerExtension) { b.Tools.Classes["q"] = "host-exec" }, false},
 		"unlisted tool":     {func(b *BrokerExtension) { b.Tools.Classes["zz"] = "read" }, false},
 		"unknown arg check": {func(b *BrokerExtension) { b.ArgChecks["q"] = "anything" }, false},
-		"no status":         {func(b *BrokerExtension) { b.Login.Status = "" }, false},
+		"no status":         {func(b *BrokerExtension) { b.Login.Status = "" }, true},
+		"other status":      {func(b *BrokerExtension) { b.Login.Status = "nais whoami" }, true},
 		"other login":       {func(b *BrokerExtension) { b.Login.Run = "sh -c evil" }, false},
 	} {
 		b := good()

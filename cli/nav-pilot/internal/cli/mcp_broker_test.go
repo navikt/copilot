@@ -52,11 +52,14 @@ func brokerEnv(t *testing.T, cpltStatus string) brokerFakes {
 		status = "echo 'cplt: refusing to sandbox your home directory' >&2; exit 1"
 	case "sleep":
 		status = "exec /bin/sleep 5"
+	case "cwd":
+		// An older cplt: it answers only from a repo root.
+		status = "if [ -d .git ]; then echo '" + brokerStatusOK + "'; else echo 'cplt: refusing to sandbox your home directory' >&2; exit 1; fi"
 	default:
 		status = "echo '" + cpltStatus + "'"
 	}
 	writeTestFile(t, f.cplt, "#!/bin/sh\ncase \"$1 $2\" in\n\"mcp status\") "+status+";;\n\"--version \") echo 'cplt 2026.10.01-000000-abcdef0';;\nesac\n")
-	writeTestFile(t, filepath.Join(bin, "nais"), "#!/bin/sh\ntok="+bin+"/token\ncase \"$1 $2\" in\n\"auth print-access-token\") [ -f $tok ];;\n\"login -n\") : > $tok;;\n\"--version \") [ -f "+bin+"/version ] && read v < "+bin+"/version && echo \"nais version $v\";;\n*) exit 2;;\nesac\n")
+	writeTestFile(t, filepath.Join(bin, "nais"), "#!/bin/sh\ntok="+bin+"/token\ncase \"$1 $2\" in\n\"auth print-access-token\") echo x >> "+bin+"/probes; [ -f "+bin+"/hang ] && exec /bin/sleep 5; [ -f $tok ];;\n\"login -n\") : > $tok;;\n\"--version \") [ -f "+bin+"/version ] && read v < "+bin+"/version && echo \"nais version $v\";;\n*) exit 2;;\nesac\n")
 	for _, p := range []string{f.cplt, filepath.Join(bin, "nais")} {
 		if err := os.Chmod(p, 0o755); err != nil {
 			t.Fatal(err)
@@ -65,10 +68,10 @@ func brokerEnv(t *testing.T, cpltStatus string) brokerFakes {
 	t.Setenv("PATH", bin)
 	// Every global this overrides is put back, whatever mcpCmdEnv restores.
 	prevCplt, prevReg, prevInstalled, prevTimeout, prevInteractive := mcpCpltPath, mcpRegistryServers, mcpClientInstalled, mcpCpltStatusTimeout, isInteractive
-	prevPick, prev, prevYes := mcpPickTools, mcpAsk, mcpConfirmLogin
+	prevPick, prev, prevYes, prevProbe := mcpPickTools, mcpAsk, mcpConfirmLogin, mcpProbeTimeout
 	t.Cleanup(func() {
 		mcpCpltPath, mcpRegistryServers, mcpClientInstalled, mcpCpltStatusTimeout, isInteractive = prevCplt, prevReg, prevInstalled, prevTimeout, prevInteractive
-		mcpPickTools, mcpAsk, mcpConfirmLogin = prevPick, prev, prevYes
+		mcpPickTools, mcpAsk, mcpConfirmLogin, mcpProbeTimeout = prevPick, prev, prevYes, prevProbe
 	})
 	mcpCpltPath = func() string { return f.cplt }
 	mcpAsk = func(string) bool { t.Error("asked without a terminal"); return false }
@@ -237,21 +240,21 @@ func TestMCPEnableBrokerOldCplt(t *testing.T) {
 	}
 }
 
-// cplt mcp status refuses to run in ~: list shows "-" and a hint, never the
-// old-cplt notice.
+// cplt mcp status refuses to run in ~: enable writes nothing on a schema it
+// could not check, and list shows "-" and a hint, never the old-cplt notice.
 func TestMCPListBrokerStatusFails(t *testing.T) {
 	f := brokerEnv(t, "home")
+	var err error
 	errOut := captureStderr(func() {
-		captureStdout(func() {
-			if err := cmdMCP([]string{"enable", "nais-mcp"}); err != nil {
-				t.Fatal(err)
-			}
-		})
+		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
 	})
-	if strings.Contains(errOut, "brew upgrade") || !strings.Contains(errOut, "refusing to sandbox your home") {
-		t.Errorf("stderr:\n%s", errOut)
+	if err == nil || strings.Contains(errOut, "brew upgrade") || !strings.Contains(errOut, "refusing to sandbox your home") || !strings.Contains(errOut, "nothing was written") {
+		t.Errorf("err %v, stderr:\n%s", err, errOut)
 	}
-	readBrokerSpec(t, f.spec)
+	if _, statErr := os.Stat(f.spec); !os.IsNotExist(statErr) {
+		t.Fatal("spec written on an unchecked schema")
+	}
+	writeTestFile(t, f.spec, `{}`)
 	out := captureStdout(func() {
 		if err := cmdMCP([]string{"list"}); err != nil {
 			t.Fatal(err)
@@ -288,8 +291,8 @@ func TestMCPEnableBrokerWithoutCplt(t *testing.T) {
 	}
 }
 
-// A cplt that hangs is a failed status, not an old cplt: the spec is
-// written, with a warning.
+// A cplt that hangs is a failed status, not an old cplt: nothing is
+// written, and the fix is not an upgrade.
 func TestMCPEnableBrokerStatusTimeout(t *testing.T) {
 	f := brokerEnv(t, "sleep")
 	prev := mcpCpltStatusTimeout
@@ -299,10 +302,82 @@ func TestMCPEnableBrokerStatusTimeout(t *testing.T) {
 	errOut := captureStderr(func() {
 		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
 	})
-	if err != nil || !strings.Contains(errOut, "timed out") || strings.Contains(errOut, "brew upgrade") {
+	if err == nil || !strings.Contains(errOut, "timed out") || strings.Contains(errOut, "brew upgrade") {
 		t.Errorf("err %v, stderr:\n%s", err, errOut)
 	}
+	if _, statErr := os.Stat(f.spec); !os.IsNotExist(statErr) {
+		t.Fatal("spec written after a timeout")
+	}
+}
+
+// An older cplt refuses to run outside a repo: from a subdirectory the
+// status is asked again from the git root, and enable goes through.
+func TestMCPBrokerStatusRetriesFromGitRoot(t *testing.T) {
+	f := brokerEnv(t, "cwd")
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(repo, "a", "b")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(sub)
+	out := captureStdout(func() {
+		if err := cmdMCP([]string{"enable", "nais-mcp"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(out, "cplt runs it on the host") {
+		t.Errorf("stdout:\n%s", out)
+	}
 	readBrokerSpec(t, f.spec)
+	// Control: outside any repo the failure stands.
+	t.Chdir(t.TempDir())
+	if st := mcpCpltStatus(f.cplt); st == nil || st.Failed == "" {
+		t.Errorf("outside a repo: %+v", st)
+	}
+}
+
+// credential_ok null with a note is unknown, not logged out, and is no
+// problem to fix.
+func TestMCPListBrokerCredentialUnknown(t *testing.T) {
+	f := brokerEnv(t, `{"schema":[1],"servers":[{"id":"io.github.nais/nais-mcp","state":"brokered","credential_ok":null,"credential_note":"timed out"}]}`)
+	writeTestFile(t, f.spec, `{}`)
+	out := captureStdout(func() { _ = cmdMCP([]string{"list"}) })
+	if !strings.Contains(out, "nais: unknown (timed out)") || strings.Contains(out, "Fix: nais login -n") {
+		t.Errorf("list:\n%s", out)
+	}
+}
+
+// One probe per run, however many times a run asks; a probe that hangs is
+// unknown, not logged out.
+func TestMCPBrokerProbesOncePerRun(t *testing.T) {
+	f := brokerEnv(t, brokerStatusOK)
+	probes := func() int {
+		data, _ := os.ReadFile(filepath.Join(f.dir, "probes"))
+		return strings.Count(string(data), "x")
+	}
+	captureStdout(func() { _ = cmdMCP([]string{"enable", "nais-mcp"}) })
+	if n := probes(); n != 1 {
+		t.Errorf("enable probed %d times", n)
+	}
+	m := mcpMechanisms["nais-keychain"]
+	mcpLoginState(m)
+	mcpLoginState(m)
+	if n := probes(); n != 1 {
+		t.Errorf("cached probe ran again: %d", n)
+	}
+	captureStdout(func() { _ = cmdMCP([]string{"list"}) })
+	if n := probes(); n != 2 {
+		t.Errorf("list probed %d times (want one more)", n-1)
+	}
+	writeTestFile(t, filepath.Join(f.dir, "hang"), "")
+	mcpProbeTimeout = 200 * time.Millisecond
+	out := captureStdout(func() { _ = cmdMCP([]string{"list"}) })
+	if !strings.Contains(out, "nais: unknown (timed out)") || strings.Contains(out, "Fix: nais login -n") {
+		t.Errorf("list with a hanging probe:\n%s", out)
+	}
 }
 
 func TestMCPEnableBrokerAllToolsAllowsWrites(t *testing.T) {
@@ -344,7 +419,6 @@ func TestMCPListBrokerOffHasFix(t *testing.T) {
 func TestMCPBrokerCheckPinsCommands(t *testing.T) {
 	for name, mut := range map[string]func(b *providerpkg.MCPBroker){
 		"login":         func(b *providerpkg.MCPBroker) { b.Login.Run = "sh -c touch-pwned" },
-		"status":        func(b *providerpkg.MCPBroker) { b.Login.Status = "nais whoami" },
 		"command":       func(b *providerpkg.MCPBroker) { b.Command = []string{"nais", "x"} },
 		"credential":    func(b *providerpkg.MCPBroker) { b.Credential = "gh-token" },
 		"empty class":   func(b *providerpkg.MCPBroker) { b.Tools.Classes["schema_search"] = "" },
@@ -358,6 +432,21 @@ func TestMCPBrokerCheckPinsCommands(t *testing.T) {
 	}
 	if _, err := mcpBrokerCheck(naisTestEntry()); err != nil {
 		t.Errorf("control: %v", err)
+	}
+	// login.status is only text: absent, the old value or another one all
+	// pass, and the spec still carries nav-pilot's own.
+	for _, st := range []string{"", "nais auth print-access-token", "nais whoami"} {
+		e := naisTestEntry()
+		e.Meta.Broker.Login.Status = st
+		m, err := mcpBrokerCheck(e)
+		if err != nil {
+			t.Errorf("status %q: %v", st, err)
+			continue
+		}
+		data, _ := mcpBrokerSpec(e, m, []string{"schema_search"}, false)
+		if !strings.Contains(string(data), `"status": "nais auth print-access-token"`) {
+			t.Errorf("status %q: spec %s", st, data)
+		}
 	}
 }
 
@@ -476,7 +565,9 @@ func TestMCPBrokerRefusesSymlinkedDir(t *testing.T) {
 // before: a platform without the broker, or the broker off.
 func TestMCPEnableBrokerReportsCpltState(t *testing.T) {
 	for _, c := range []struct{ status, path, want string }{
-		{`{"schema":[1],"platform_supported":false,"servers":[{"id":"io.github.nais/nais-mcp","state":"off"}]}`, "cplt (macOS only)", "macOS only"},
+		{`{"schema":[1],"platform_supported":false,"off_reason":"bwrap cannot create a user namespace (AppArmor)","servers":[{"id":"io.github.nais/nais-mcp","state":"off"}]}`, "cplt (off here)", "off here: bwrap cannot create a user namespace (AppArmor). Fix: cplt doctor --fix"},
+		{`{"schema":[1],"platform_supported":false,"off_reason":"the broker needs systemd-run. Fix: sudo apt install systemd","servers":[]}`, "cplt (off here)", "off here: the broker needs systemd-run. Fix: sudo apt install systemd"},
+		{`{"schema":[1],"platform_supported":false,"servers":[]}`, "cplt (off here)", "does not run here, so the server is left as configured. Fix: cplt doctor"},
 		{`{"schema":[1],"platform_supported":true,"servers":[{"id":"io.github.nais/nais-mcp","state":"off"}]}`, "cplt off", "Fix: cplt config set sandbox.mcp_broker true"},
 		{`{"schema":[1],"platform_supported":true,"servers":[],"rejected":[{"file":"/x/io.github.nais__nais-mcp.json","reason":"bad","fix":"nav-pilot mcp enable io.github.nais/nais-mcp"}]}`, "rejected", "cplt rejected its spec: bad"},
 	} {
@@ -561,8 +652,7 @@ func TestMCPMechanismsMatchRegistryFixture(t *testing.T) {
 	var want map[string]struct {
 		Command []string `json:"command"`
 		Login   struct {
-			Run    string `json:"run"`
-			Status string `json:"status"`
+			Run string `json:"run"`
 		} `json:"login"`
 	}
 	if err := json.Unmarshal(data, &want); err != nil {
@@ -573,7 +663,7 @@ func TestMCPMechanismsMatchRegistryFixture(t *testing.T) {
 	}
 	for name, w := range want {
 		m, ok := mcpMechanisms[name]
-		if !ok || !slices.Equal(m.command, w.Command) || strings.Join(m.login, " ") != w.Login.Run || strings.Join(m.status, " ") != w.Login.Status {
+		if !ok || !slices.Equal(m.command, w.Command) || strings.Join(m.login, " ") != w.Login.Run {
 			t.Errorf("%s: mcpMechanisms %+v, fixture %+v; change both, and the registry's brokerMechanisms", name, m, w)
 		}
 	}
