@@ -56,7 +56,7 @@ export const UPGRADE_COMMANDS: Record<UpgradeMethod, string> = {
   brew: `brew update
 brew upgrade navikt/tap/nav-pilot navikt/tap/cplt
 ${CLIENT_UPGRADE}`,
-  apt: `sudo apt update && sudo apt upgrade nav-pilot cplt
+  apt: `sudo apt update && sudo apt install --only-upgrade nav-pilot cplt
 ${CLIENT_UPGRADE}`,
   script: `nav-pilot upgrade
 cplt update

@@ -794,7 +794,7 @@ func TestCpltUpgradeHintFollowsTheOwner(t *testing.T) {
 		mgr  domain.PkgManager
 		want string
 	}{
-		{"apt", domain.PkgApt, "sudo apt upgrade cplt"},
+		{"apt", domain.PkgApt, "sudo apt update && sudo apt install --only-upgrade cplt"},
 		{"homebrew", domain.PkgBrew, "brew upgrade cplt"},
 		{"unmanaged", domain.PkgNone, "brew upgrade cplt"},
 	} {
