@@ -53,6 +53,10 @@ const (
 	// HookStateDirEnv tells `nav-pilot hook` where to keep the loop guard's
 	// run and the spooled telemetry, in place of Copilot's session directory.
 	HookStateDirEnv = "NAV_PILOT_HOOK_STATE_DIR"
+	// ClientStartedEnv names this launch's client-started marker, which the
+	// bridge writes when opencode loads it (openCodeClientRan). Unset when
+	// the bridge will not load, so the launch has no sign to wait for.
+	ClientStartedEnv = "NAV_PILOT_CLIENT_STARTED_ID"
 	// openCodeConfigContentEnv is opencode's per-process config.
 	openCodeConfigContentEnv = "OPENCODE_CONFIG_CONTENT"
 )
@@ -153,6 +157,10 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 		env = withOpenCodeConfigContent(env, map[string]any{"plugin": []any{(&url.URL{Scheme: "file", Path: plugin}).String()}})
 	}
 	// opencode 2 has no --pure; the launch drops it (openCodeV2Args).
+	// opencode 1 with --pure loads no plugins, so no marker would come.
+	if v2 || !slices.Contains(r.ExtraArgs, "--pure") {
+		env, _ = telemetry.SetEnvValue(env, ClientStartedEnv, rand.Text())
+	}
 	if !v2 && slices.Contains(r.ExtraArgs, "--pure") {
 		fmt.Fprintf(os.Stderr, "%s nav-pilot's hooks (redaction, loop guard, gates) do not run with --pure: opencode loads no plugins then.\n", domain.Yellow("⚠"))
 		if blocked {
@@ -169,6 +177,7 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 		"--allow-write", OpenCodeHookStateDir(),
 		"--pass-env", OpenCodeHooksEnv,
 		"--pass-env", HookStateDirEnv,
+		"--pass-env", ClientStartedEnv,
 		"--pass-env", MCPBlockedEnv)
 	for _, d := range b.ReadDirs {
 		cpltArgs = append(cpltArgs, "--allow-read", d)

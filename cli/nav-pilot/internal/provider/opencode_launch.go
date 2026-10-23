@@ -1531,36 +1531,37 @@ func launchOpenCodeViaCplt(spec cpltLaunch) error {
 			}
 		}()
 	}
-	start := time.Now()
 	err = launchViaCplt(spec)
 	// Without Copilot access opencode exits with only "Model unavailable", and
 	// the session allows no other provider to fall back to. cplt exits non-zero
 	// too when its setup fails or the user answers n, so the hint waits for
 	// signs that opencode itself ran (#1962).
-	if classifyLaunchError(err) == "client_exit" && openCodeClientRan(spec.env, start) {
+	if classifyLaunchError(err) == "client_exit" && openCodeClientRan(spec.env) {
 		fmt.Fprintf(os.Stderr, "%s If OpenCode reported a github-copilot model as unavailable, sign in with %s (choose GitHub Copilot) and check that your Copilot plan includes the model. nav-pilot sessions allow no other model provider.\n",
 			domain.Yellow("⚠"), domain.Bold("opencode auth login"))
 	}
 	return err
 }
 
-// openCodeClientRan reports whether opencode started during a launch that
-// began at start: the hooks bridge marks client-started in the hook state dir
-// when opencode loads it. Without the bridge there is no such sign, and it
-// answers true, as before.
+// openCodeClientRan reports whether opencode started during this launch: the
+// hooks bridge writes client-started-<id> in the hook state dir when opencode
+// loads it, and this removes it. Without an id (no bridge, or opencode 1 with
+// --pure) there is no such sign, and it answers true, as before.
 //
-// ponytail: one marker for every launch, so another session starting meanwhile
-// counts too; that only brings back the old hint. Per-launch marker if it matters.
-func openCodeClientRan(env []string, start time.Time) bool {
-	dir := ""
+// ponytail: a plugin that loads but fails before writing reads as "never ran";
+// the hint then stays quiet for that real failure.
+func openCodeClientRan(env []string) bool {
+	dir, id := "", ""
 	for _, e := range env {
 		if v, ok := strings.CutPrefix(e, HookStateDirEnv+"="); ok {
 			dir = v
 		}
+		if v, ok := strings.CutPrefix(e, ClientStartedEnv+"="); ok {
+			id = v
+		}
 	}
-	if dir == "" {
+	if dir == "" || id == "" {
 		return true
 	}
-	fi, err := os.Stat(filepath.Join(dir, "client-started"))
-	return err == nil && !fi.ModTime().Before(start.Truncate(time.Second))
+	return os.Remove(filepath.Join(dir, "client-started-"+id)) == nil
 }

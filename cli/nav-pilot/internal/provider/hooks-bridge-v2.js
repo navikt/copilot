@@ -225,7 +225,7 @@ export default {
     // Tells the launch the client started, so its sign-in hint after a failed
     // exit is not shown for a session that never ran (#1962).
     try {
-      writeFileSync(join(process.env.NAV_PILOT_HOOK_STATE_DIR, "client-started"), "")
+      writeFileSync(join(process.env.NAV_PILOT_HOOK_STATE_DIR, "client-started-" + process.env.NAV_PILOT_CLIENT_STARTED_ID), "")
     } catch {}
     let cfg = {}
     try {
