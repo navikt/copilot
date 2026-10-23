@@ -206,7 +206,7 @@ func runConfigSetup(flagSource string) error { return runConfigSetupWith(flagSou
 func runConfigSetupWith(flagSource string, advanced bool) error {
 	fmt.Println()
 	fmt.Printf("%s  First-run setup\n", bold("🧭 nav-pilot"))
-	fmt.Println(dim("  Set your preferences — change anytime with 'nav-pilot config set'."))
+	fmt.Println(dim("  Set your preferences."))
 	fmt.Println()
 	maybeTelemetryNotice()
 

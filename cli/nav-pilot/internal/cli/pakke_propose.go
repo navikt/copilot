@@ -222,8 +222,14 @@ func putProposal(scope *InstallScope, src *Source, dryRun, jsonOutput, reask boo
 	}
 	if !approve {
 		// One line: what the agent cannot do, and the way back (#1962 F2).
+		// A chain of commands runs to hundreds of characters, so only a single
+		// one is inline; more point at the list the pakke itself proposes.
+		later := "see policies.propose.cplt in the pakke's agentpakke.json"
+		if len(commands) == 1 {
+			later = commands[0]
+		}
 		fmt.Fprintf(os.Stderr, "%s Declined, so the agent can't %s. To allow it later: %s\n",
-			yellow("⚠"), proposalAccess(hosts, reads), strings.Join(commands, " && "))
+			yellow("⚠"), proposalAccess(hosts, reads), later)
 		return nil
 	}
 	fmt.Printf("%s %s may %s from inside the sandbox.\n", green("✓"), bold(name), proposal.Summary())

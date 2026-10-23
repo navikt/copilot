@@ -24,8 +24,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere ord (#1962).
 
-- **Tilgang til logger, metrikker og sporing**: Spørsmålet heter nå «Let the agent read Nais logs, metrics and traces?», og linja under viser hvilke adresser agenten trenger. Trykker du Enter, sier du fortsatt nei. Sier du nei, får du én linje med kommandoene som gir tilgangen senere. Begrunnelsen fra agentpakken vises med `--verbose`.
+- **Tilgang til logger, metrikker og sporing**: Spørsmålet heter nå «Let the agent read Nais logs, metrics and traces?», og linja under viser hvilke adresser agenten trenger. Trykker du Enter, sier du fortsatt nei. Sier du nei, får du én linje som sier hva agenten ikke kan, og hvordan du gir tilgangen senere. Krever tilgangen flere kommandoer, viser linja til `agentpakke.json` i stedet for å skrive dem alle ut. Begrunnelsen fra agentpakken vises med `--verbose`.
 - **Innlogging i gh**: Får ikke nav-pilot bekreftet at du er logget inn i gh, står det nå på én linje at agenten kanskje ikke får pushet eller åpnet PR-er. Linja viser videre til `nav-pilot doctor`. Oppstarten fortsetter. Detaljene om nøkkelring og tokener finner du i `nav-pilot doctor`.
+- **Oppsettveiviseren**: Teksten «Your other answers go to …» på lagre-skjermen er erstattet av «Settings are saved to …», og «change anytime» står nå bare én gang, i blokken etter lagring.
 - **Installasjonen**: Etter installasjonen ser du bare oppsummeringen, ikke hver fil. `nav-pilot install --verbose` viser hele lista. Feil vises alltid.
 - **Når nav-pilot ikke når utgivelsene på GitHub**: Du får én dempet linje, ikke en rå feilmelding. Den sier at nav-pilot er festet til en commit på standardgreinen, ikke til en utgivelse, og at neste synkronisering ser etter en utgivelse igjen. `--verbose` viser feilen.
 - **Hooks**: Under første oppstart ber ikke nav-pilot deg kjøre `nav-pilot install` for hooks som installasjonen rett etterpå legger til.

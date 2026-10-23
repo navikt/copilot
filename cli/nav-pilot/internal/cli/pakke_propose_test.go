@@ -680,13 +680,10 @@ func TestDeclinedReadGrantPrintsTheCommandToRunByHand(t *testing.T) {
 	out := captureStderrFor(t, func() {
 		noteProposalConsent(scope, proposeSource(t, `"cloud.nais.io"`, readGrantExtra), false, false)
 	})
-	for _, want := range []string{
-		"cplt config set proxy.allow_private_domains cloud.nais.io",
-		`cplt config set allow.read "~/Library/Application Support/naisdevice/agent-status.json"`,
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("the decline does not carry %q:\n%s", want, out)
-		}
+	// Two settings would chain two commands; the line stays short and points at the pakke.
+	want := "Declined, so the agent can't reach cloud.nais.io and read ~/Library/Application Support/naisdevice/agent-status.json. To allow it later: see policies.propose.cplt in the pakke's agentpakke.json\n"
+	if !strings.HasSuffix(out, want) || strings.Count(out, "\n") != 1 {
+		t.Errorf("the decline is not the one line %q:\n%s", want, out)
 	}
 	rec := recordFor(t, scope)
 	if rec == nil || rec.Approved || len(rec.Reads) != 0 {
