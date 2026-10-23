@@ -1452,7 +1452,8 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/lokal/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
-      "docs/README.nav-pilot.md"
+      "docs/README.nav-pilot.md",
+      "docs/news/articles/token-forbruk-verktoy-teknikker.md"
     ],
     "anchors": {
       "autostart": [
@@ -1671,6 +1672,10 @@
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
         "cli/nav-pilot/docs/opencode-hooks.md"
+      ],
+      "opencode-1": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
+        "docs/news/articles/opencode-2-pa-mac.md"
       ],
       "paritet": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
