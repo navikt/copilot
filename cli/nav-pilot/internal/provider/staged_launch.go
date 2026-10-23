@@ -400,7 +400,11 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 	}
 	agentArgs := []string{"--plugin-dir", s.Dir, "--agent", s.PakkeName + ":" + primary}
 	cpltRead := []string{"--allow-read", s.Dir}
-	if a, dir := copilotUserModelAgent(r, primary, PrimaryAgentFile("copilot", primary, s.Dir, "")); a != "" {
+	a, dir, err := copilotUserModelAgent(r, primary, PrimaryAgentFile("copilot", primary, s.Dir, ""))
+	if err != nil {
+		return cpltLaunch{}, err
+	}
+	if a != "" {
 		agentArgs = []string{"--plugin-dir", s.Dir, "--plugin-dir", dir, "--agent", a}
 		cpltRead = append(cpltRead, "--allow-read", dir)
 	}

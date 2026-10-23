@@ -191,8 +191,38 @@ func TestCopilotUserModelAgentSkips(t *testing.T) {
 		{"../evil", "gpt-6.1-sol"}, {".hidden", "gpt-6.1-sol"}, {"a/b", "gpt-6.1-sol"},
 		{"grillmester", "GPT-6-SOL"}, {"grillmester", "github-copilot/gpt-6-sol"},
 	} {
-		if a, dir := copilotUserModelAgent(domain.ResolvedConfig{Model: c.model}, c.persona, f); a != "" || dir != "" {
-			t.Errorf("persona %q model %q: got %q %q, want nothing", c.persona, c.model, a, dir)
+		if a, dir, err := copilotUserModelAgent(domain.ResolvedConfig{Model: c.model}, c.persona, f); a != "" || dir != "" || err != nil {
+			t.Errorf("persona %q model %q: got %q %q %v, want nothing", c.persona, c.model, a, dir, err)
 		}
+	}
+}
+
+// A symlinked session plugin root, or a directory that cannot be written,
+// stops the launch rather than running the pinned agent on its pin.
+func TestCopilotUserModelAgentRefuses(t *testing.T) {
+	home, _ := os.UserHomeDir()
+	f := filepath.Join(t.TempDir(), "grillmester.agent.md")
+	mustWrite(t, f, pinnedAgent)
+	r := domain.ResolvedConfig{Model: "gpt-6.1-sol"}
+	root := filepath.Join(home, ".copilot", copilotSessionPlugin)
+	_ = os.MkdirAll(filepath.Dir(root), 0o755)
+	_ = os.RemoveAll(root)
+	elsewhere := t.TempDir()
+	if err := os.Symlink(elsewhere, root); err != nil {
+		t.Fatal(err)
+	}
+	if a, _, err := copilotUserModelAgent(r, "grillmester", f); err == nil || a != "" {
+		t.Errorf("symlinked root: want an error, got agent %q", a)
+	}
+	if entries, _ := os.ReadDir(elsewhere); len(entries) != 0 {
+		t.Errorf("wrote through the symlink: %v", entries)
+	}
+	_ = os.Remove(root)
+
+	// Unwritable: a file where the root directory should be.
+	mustWrite(t, root, "not a directory")
+	t.Cleanup(func() { _ = os.Remove(root) })
+	if a, _, err := copilotUserModelAgent(r, "grillmester", f); err == nil || a != "" || !strings.Contains(err.Error(), "gpt-6.1-sol") {
+		t.Errorf("unwritable root: want an error naming the model, got %q %v", a, err)
 	}
 }

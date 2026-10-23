@@ -102,6 +102,27 @@ func TestModelNudgeAnswers(t *testing.T) {
 	}
 }
 
+// --model on this run is the user's choice for it, even when it equals the
+// saved model: not questioned, config untouched.
+func TestModelNudgeNotForModelFlag(t *testing.T) {
+	dir, asked, _ := nudgeFixture(t, "gpt-5.5")
+	sessionPrompted = false
+	maybeModelNudge(ResolvedConfig{Client: "copilot", Model: "gpt-5.5", ModelFromFlag: true}, "grillmester", dir)
+	if *asked != 0 {
+		t.Errorf("asked %d times for an explicit --model", *asked)
+	}
+}
+
+// No agent file: nothing is known to recommend.
+func TestModelNudgeNoAgentFile(t *testing.T) {
+	_, asked, _ := nudgeFixture(t, "gpt-5.5")
+	providerpkg.SetActivePakke(&agentpakke.Manifest{ContractVersion: "1", Name: "grill", Clients: map[string]agentpakke.ClientEntry{"copilot": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "gpt-6-sol"}}})
+	runModelNudge(t.TempDir(), "gpt-5.5")
+	if *asked != 0 {
+		t.Errorf("asked %d times without an agent file", *asked)
+	}
+}
+
 // A persona that is not a plain file name is never used in a path or key.
 func TestModelNudgeUnsafePersona(t *testing.T) {
 	dir, asked, _ := nudgeFixture(t, "gpt-5.5")

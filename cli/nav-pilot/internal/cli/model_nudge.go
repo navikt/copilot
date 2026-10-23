@@ -37,7 +37,7 @@ func maybeModelNudge(resolved ResolvedConfig, persona, stagedDir string) Resolve
 		return resolved
 	}
 	cfg, _ := readConfig()
-	if !providerpkg.UserSetModel(resolved.Client, resolved) || cfg == nil || cfg.Model == nil || *cfg.Model != resolved.Model {
+	if resolved.ModelFromFlag || !providerpkg.UserSetModel(resolved.Client, resolved) || cfg == nil || cfg.Model == nil || *cfg.Model != resolved.Model {
 		return resolved
 	}
 	if user, _ := providerpkg.CopilotModelID(strings.TrimSpace(resolved.Model)); strings.EqualFold(user, rec) {

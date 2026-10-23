@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -85,6 +87,11 @@ func AgentModelPin(file string) string {
 // primary agent's pin as a Copilot id, else the pakke's defaultModel, without
 // a github-copilot/ prefix. "" when neither names one.
 func RecommendedModel(client, agentFile string) string {
+	// No agent file to read: whether the agent pins a model is unknown, and
+	// the pakke's defaultModel may not be what it runs on.
+	if agentFile == "" {
+		return ""
+	}
 	m := AgentModelPin(agentFile)
 	if id := domain.CopilotModelIDForLabel(m); id != "" {
 		m = id
@@ -141,10 +148,10 @@ const copilotSessionPlugin = "nav-pilot-session"
 // sessions never share one. nav-pilot waits for the client, so the directory
 // lives as long as the session; directories of processes that are gone are
 // removed at the next launch.
-func copilotUserModelAgent(r domain.ResolvedConfig, persona, agentFile string) (agent, pluginDir string) {
+func copilotUserModelAgent(r domain.ResolvedConfig, persona, agentFile string) (agent, pluginDir string, err error) {
 	pin := AgentModelPin(agentFile)
 	if !SafePersona(persona) || !UserSetModel("copilot", r) || pin == "" {
-		return "", ""
+		return "", "", nil
 	}
 	// The user's model is the pin already: the agent runs as it is.
 	if id := domain.CopilotModelIDForLabel(pin); id != "" {
@@ -152,26 +159,44 @@ func copilotUserModelAgent(r domain.ResolvedConfig, persona, agentFile string) (
 	}
 	pin, _ = CopilotModelID(pin)
 	if user, _ := CopilotModelID(strings.TrimSpace(r.Model)); strings.EqualFold(user, pin) {
-		return "", ""
+		return "", "", nil
 	}
-	home := copilotSkillsRoot()
-	if home == "" {
-		return "", ""
+	// From here a failure stops the launch: the pinned agent would run on
+	// its pin, not on the model the user chose.
+	fail := func(path string, err error) (string, string, error) {
+		return "", "", fmt.Errorf("preparing %s so your model %s wins over the agent's %s: %w", path, r.Model, pin, err)
+	}
+	home, herr := os.UserHomeDir()
+	root := copilotSkillsRoot()
+	if herr != nil || root == "" {
+		return fail("~/.copilot", errors.New("no home directory"))
 	}
 	data, err := os.ReadFile(agentFile)
 	if err != nil {
-		return "", ""
+		return fail(agentFile, err)
 	}
 	fm, body, _ := source.SplitFrontmatter(data)
-	root := filepath.Join(home, copilotSessionPlugin)
-	pruneSessionPlugins(root)
+	root = filepath.Join(root, copilotSessionPlugin)
 	dir := filepath.Join(root, strconv.Itoa(os.Getpid()))
-	if os.MkdirAll(filepath.Join(dir, "agents"), 0o755) != nil ||
-		os.WriteFile(filepath.Join(dir, "plugin.json"), []byte(`{"name":"`+copilotSessionPlugin+`","version":"0.0.0","agents":"agents/"}`+"\n"), 0o644) != nil ||
-		os.WriteFile(filepath.Join(dir, "agents", persona+".agent.md"), source.Reassemble(source.StripFrontmatterKeys(fm, []string{"model"}), body), 0o644) != nil {
-		return "", ""
+	manifest, copyFile := filepath.Join(dir, "plugin.json"), filepath.Join(dir, "agents", persona+".agent.md")
+	// No symlink on the way down from the home directory before anything is
+	// pruned or written, as in source.CopyFile.
+	for _, p := range []string{root, manifest, copyFile} {
+		if err := source.CheckSymlink(p, home); err != nil {
+			return fail(p, err)
+		}
 	}
-	return copilotSessionPlugin + ":" + persona, dir
+	pruneSessionPlugins(root)
+	if err := os.MkdirAll(filepath.Dir(copyFile), 0o755); err != nil {
+		return fail(dir, err)
+	}
+	if err := os.WriteFile(manifest, []byte(`{"name":"`+copilotSessionPlugin+`","version":"0.0.0","agents":"agents/"}`+"\n"), 0o644); err != nil {
+		return fail(manifest, err)
+	}
+	if err := os.WriteFile(copyFile, source.Reassemble(source.StripFrontmatterKeys(fm, []string{"model"}), body), 0o644); err != nil {
+		return fail(copyFile, err)
+	}
+	return copilotSessionPlugin + ":" + persona, dir, nil
 }
 
 // SafePersona reports whether persona is a plain file name, safe to join
