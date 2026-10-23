@@ -1125,8 +1125,8 @@ gjelder det:
   standardvinduet og $8.00 / $30.00 over 272K. Det er nøyaktig de tallene vi
   regnet oss fram til fra «50 % off», så anslaget traff. Sol har ingen fotnote
   lenger, og tallene i tabellen over er nå publisert listepris, ikke utregning.
-- **Gemini 3.6 Flash, Gemini 3.7 Flash og Gemini 3.8 Flash:** $0.75 input og $3.75 output t.o.m. 31. desember 2026. Standardprisen står ikke i fotnoten. Gemini 3.6 og 3.7 er deaktivert i Nav.
-  Gemini 3.7 er heller ikke pinnet noe sted hos oss og står derfor ikke i tabellen over.
+- **Gemini 3.8 Flash:** $0.75 input og $3.75 output t.o.m. 31. desember 2026. Standardprisen står ikke i fotnoten.
+  Gemini 3.6 Flash og 3.7 Flash er ikke lenger i GitHubs prisliste (20. oktober 2026). De var uansett deaktivert i Nav.
 - **Claude Sonnet 5:** notatet vårt sa kampanje t.o.m. 31. august 2026. GitHubs
   pristabell viser fortsatt $2.00 / $10.00 og har ingen fotnote for Sonnet 5, så
   vi kan hverken bekrefte kampanjen eller finne standardprisen. Tallet skal
