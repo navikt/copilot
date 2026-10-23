@@ -84,9 +84,14 @@ jobs:
         with:
           experimental: true
       - if: steps.changed.outputs.run
-        run: |
-          mise run install
-          pnpm exec playwright install --with-deps chromium
+        timeout-minutes: 4
+        run: mise run install
+      # No --with-deps: the runner image already has Chromium's libraries, and
+      # the extra apt fetch from azure.archive.ubuntu.com stalled until the job
+      # timeout (#1966).
+      - if: steps.changed.outputs.run
+        timeout-minutes: 3
+        run: pnpm exec playwright install chromium
       - if: steps.changed.outputs.run
         run: mise run e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
