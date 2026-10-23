@@ -102,6 +102,15 @@ func TestOpenCode2ProviderPolicyConflicts(t *testing.T) {
 		{"deny only", `{"experimental":{"policies":[{"action":"provider.use","effect":"deny","resource":"*"}]}}`, ""},
 		{"allowed only", `{"enabled_providers":["github-copilot"]}`, ""},
 		{"other action", `{"experimental":{"policies":[{"action":"permission","effect":"allow","resource":"*"}]}}`, ""},
+		{"top-level policies", `{"policies":[{"action":"provider.use","resource":"custom","effect":"allow"}],"providers":{"custom":{}}}`, "allows provider custom (policies)"},
+		{"top-level policies malformed", `{"policies":{}}`, "policies is not a list"},
+		{"top-level policies placeholder", `{"policies":"{file:p.json}"}`, "placeholder"},
+		{"top-level deny only", `{"policies":[{"action":"provider.use","effect":"deny","resource":"*"}]}`, ""},
+		{"model other provider", `{"model":"openai/gpt-5"}`, "selects provider openai (model)"},
+		{"model selection object", `{"model":{"providerID":"openai","modelID":"gpt-5"}}`, "(model)"},
+		{"small_model other provider", `{"small_model":"openai/gpt-5-mini"}`, "(small_model)"},
+		{"model placeholder", `{"model":"{env:M}"}`, "placeholder in model"},
+		{"model allowed provider", `{"model":"github-copilot/claude-sonnet-4.5","small_model":"github-copilot/gpt-5-mini"}`, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			config := filepath.Join(t.TempDir(), "opencode.jsonc")
