@@ -170,23 +170,6 @@ func mcpCpltStatus(cpltPath string) *mcpCpltStatusDoc {
 	return &mcpCpltStatusDoc{Failed: safe(msg, 160)}
 }
 
-// mcpOldCpltNotice says once per cplt version that it cannot broker yet.
-func mcpOldCpltNotice(cpltPath string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	out, _ := exec.CommandContext(ctx, cpltPath, "--version").Output()
-	v := strings.TrimSpace(string(out))
-	key := "cplt-mcp-broker-" + strings.Map(func(r rune) rune {
-		if r == '.' || r == '-' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') {
-			return r
-		}
-		return '_'
-	}, v)
-	if providerpkg.FirstTime(key) {
-		fmt.Fprintf(os.Stderr, "%s %s cannot run MCP servers on the host yet, so it leaves them as configured. Fix: %s\n", yellow("⚠"), safe(v, 64), bold(mcpCpltUpgrade))
-	}
-}
-
 // mcpRunHost runs a registry command (login or status) on the host. With
 // quiet, its output is discarded and stdin is closed.
 func mcpRunHost(command string, quiet bool) error {
@@ -250,6 +233,11 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 	}
 	cpltPath := mcpCpltPath()
 	st := mcpCpltStatus(cpltPath)
+	if cpltPath != "" && st == nil {
+		// An old cplt would leave the server as configured: refuse rather
+		// than write a spec nothing enforces.
+		return fmt.Errorf("this cplt cannot run MCP servers on the host, so nothing was written. Fix: %s && nav-pilot mcp enable %s", mcpCpltUpgrade, e.Name)
+	}
 	if st != nil && st.Failed == "" && !slices.Contains(st.Schema, mcpBrokerVersion) {
 		return fmt.Errorf("cplt reads broker spec v%v, not v%d, so nothing was written. Fix: %s", st.Schema, mcpBrokerVersion, mcpCpltUpgrade)
 	}
@@ -286,11 +274,6 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 		if !jsonOut {
 			fmt.Fprintf(os.Stderr, "%s %s. Fix: %s\n", yellow("⚠"), msg, bold("brew install navikt/tap/cplt"))
 		}
-	case st == nil:
-		res.Fix = append(res.Fix, mcpCpltUpgrade)
-		if !jsonOut {
-			mcpOldCpltNotice(cpltPath)
-		}
 	case st.Failed != "":
 		res.Fix = append(res.Fix, mcpStatusFailedFix)
 		if !jsonOut {
@@ -312,7 +295,7 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 			if !jsonOut {
 				fmt.Printf("%s %s: not logged in on this machine. Fix: %s\n", yellow("⚠"), tool, bold(b.Login.Run))
 			}
-		} else if mcpAsk(fmt.Sprintf("%s: not logged in. Log in now? Runs `%s` on this machine.", tool, b.Login.Run)) {
+		} else if mcpAskYes(fmt.Sprintf("%s: not logged in. Log in now? Runs `%s` on this machine.", tool, b.Login.Run)) {
 			if err := mcpRunHost(b.Login.Run, false); err != nil {
 				return fmt.Errorf("%s failed (%v). Fix: run it yourself: %s", b.Login.Run, err, b.Login.Run)
 			}

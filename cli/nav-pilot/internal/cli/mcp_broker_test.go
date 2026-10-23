@@ -57,9 +57,10 @@ func brokerEnv(t *testing.T, cpltStatus string) brokerFakes {
 	}
 	t.Setenv("PATH", bin)
 	mcpCpltPath = func() string { return f.cplt }
-	prev := mcpAsk
-	t.Cleanup(func() { mcpAsk = prev })
+	prev, prevYes := mcpAsk, mcpAskYes
+	t.Cleanup(func() { mcpAsk, mcpAskYes = prev, prevYes })
 	mcpAsk = func(string) bool { t.Error("asked without a terminal"); return false }
+	mcpAskYes = mcpAsk
 	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
 		return "https://registry.test", append(mcpTestEntries(), naisTestEntry()), nil, nil
 	}
@@ -140,7 +141,7 @@ func TestMCPEnableBrokerLogsInAfterYes(t *testing.T) {
 	f := brokerEnv(t, brokerStatusOK)
 	isInteractive = func() bool { return true }
 	asked := ""
-	mcpAsk = func(q string) bool { asked = q; return true }
+	mcpAskYes = func(q string) bool { asked = q; return true }
 	captureStdout(func() {
 		if err := cmdMCP([]string{"enable", "io.github.nais/nais-mcp"}); err != nil {
 			t.Fatal(err)
@@ -195,26 +196,29 @@ func TestMCPEnableBrokerJSONPrintsLoginCommand(t *testing.T) {
 	}
 }
 
-// An old cplt: a notice once per version, the spec still written, no failure.
+// An old cplt: enable refuses with the upgrade command and writes nothing;
+// list, with a spec left from before, never fails and says the same.
 func TestMCPEnableBrokerOldCplt(t *testing.T) {
 	f := brokerEnv(t, "")
-	run := func() string {
-		return captureStderr(func() {
-			captureStdout(func() {
-				if err := cmdMCP([]string{"enable", "nais-mcp"}); err != nil {
-					t.Fatal(err)
-				}
-			})
-		})
+	var err error
+	errOut := captureStderr(func() {
+		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
+	})
+	if err == nil {
+		t.Error("enable succeeded with an old cplt")
 	}
-	if first := run(); !strings.Contains(first, "cannot run MCP servers on the host yet") || !strings.Contains(first, "Fix: brew upgrade cplt") {
-		t.Errorf("first run:\n%s", first)
+	if !strings.Contains(errOut, "nothing was written. Fix: brew upgrade cplt && nav-pilot mcp enable io.github.nais/nais-mcp") {
+		t.Errorf("stderr:\n%s", errOut)
 	}
-	if second := run(); strings.Contains(second, "cannot run MCP servers") {
-		t.Errorf("notice twice:\n%s", second)
+	if _, err := os.Stat(f.spec); !os.IsNotExist(err) {
+		t.Fatalf("spec written with an old cplt: %v", err)
 	}
-	readBrokerSpec(t, f.spec)
-	out := captureStdout(func() { _ = cmdMCP([]string{"list"}) })
+	writeTestFile(t, f.spec, `{"name":"io.github.nais/nais-mcp","_meta":{"io.github.navikt/broker":{"tools":{"allow":["schema_search"]}}}}`)
+	out := captureStdout(func() {
+		if err := cmdMCP([]string{"list"}); err != nil {
+			t.Fatal(err)
+		}
+	})
 	if !strings.Contains(out, "Fix: brew upgrade cplt") {
 		t.Errorf("list:\n%s", out)
 	}
