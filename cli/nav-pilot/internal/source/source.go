@@ -461,11 +461,56 @@ func getGitSHA(dir string) string {
 }
 
 // readGitHEAD resolves HEAD from .git/HEAD and loose or packed refs without
-// spawning git. It returns "" when HEAD is in a format only git understands
-// (such as a linked worktree or reftable), so getGitSHA can fall back to git.
+// spawning git, in a main checkout or a linked worktree. It returns "" when
+// HEAD is in a format only git understands (such as reftable), so getGitSHA
+// can fall back to git.
 func readGitHEAD(root string) string {
 	gitDir := filepath.Join(root, ".git")
 	if CheckSymlink(gitDir, root) != nil {
+		return ""
+	}
+	fi, err := os.Lstat(gitDir)
+	if err != nil {
+		return ""
+	}
+	linked := fi.Mode().IsRegular()
+	if linked {
+		// A linked worktree or submodule: .git names its own git dir.
+		b, err := readGitFile(gitDir, root)
+		if err != nil {
+			return ""
+		}
+		dir, ok := strings.CutPrefix(strings.TrimSpace(string(b)), "gitdir: ")
+		if !ok || dir == "" {
+			return ""
+		}
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(root, dir)
+		}
+		gitDir = filepath.Clean(dir)
+		if fi, err := os.Lstat(gitDir); err != nil || !fi.IsDir() {
+			return "" // missing, or a symlink
+		}
+	}
+	// Branches live in the common dir: a linked worktree's commondir names
+	// it; a main checkout has none and is its own.
+	commonDir := gitDir
+	if b, err := readGitFile(filepath.Join(gitDir, "commondir"), gitDir); err == nil {
+		dir := strings.TrimSpace(string(b))
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(gitDir, dir)
+		}
+		commonDir = filepath.Clean(dir)
+		if fi, err := os.Lstat(commonDir); err != nil || !fi.IsDir() {
+			return "" // missing, or a symlink
+		}
+		// A linked worktree's git dir must point back at this checkout, as
+		// as git writes it; a moved, unrepaired worktree falls back to git.
+		// A submodule has no commondir and needs no back-link.
+		if linked && !worktreeBacklinked(gitDir, root) {
+			return ""
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return ""
 	}
 	headBytes, err := readGitFile(filepath.Join(gitDir, "HEAD"), gitDir)
@@ -484,16 +529,19 @@ func readGitHEAD(root string) string {
 	if !strings.HasPrefix(ref, "refs/") || !filepath.IsLocal(ref) {
 		return ""
 	}
-	refPath := filepath.Join(gitDir, filepath.FromSlash(ref))
-	if b, err := readGitFile(refPath, gitDir); err == nil {
-		if sha := strings.TrimSpace(string(b)); isFullHexSHA(sha) {
-			return strings.ToLower(sha)
+	for _, dir := range []string{commonDir, gitDir} {
+		b, err := readGitFile(filepath.Join(dir, filepath.FromSlash(ref)), dir)
+		if err == nil {
+			if sha := strings.TrimSpace(string(b)); isFullHexSHA(sha) {
+				return strings.ToLower(sha)
+			}
+			return ""
 		}
-		return ""
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return ""
+		if !errors.Is(err, os.ErrNotExist) {
+			return ""
+		}
 	}
-	if b, err := readGitFile(filepath.Join(gitDir, "packed-refs"), gitDir); err == nil {
+	if b, err := readGitFile(filepath.Join(commonDir, "packed-refs"), commonDir); err == nil {
 		for line := range strings.SplitSeq(string(b), "\n") {
 			if sha, name, ok := strings.Cut(strings.TrimSpace(line), " "); ok && name == ref && isFullHexSHA(sha) {
 				return strings.ToLower(sha)
@@ -501,6 +549,19 @@ func readGitHEAD(root string) string {
 		}
 	}
 	return ""
+}
+
+// worktreeBacklinked reports whether a linked worktree's git dir belongs to
+// the checkout at root.
+func worktreeBacklinked(gitDir, root string) bool {
+	real := func(p string) string {
+		if r, err := filepath.EvalSymlinks(p); err == nil {
+			return r
+		}
+		return filepath.Clean(p)
+	}
+	b, err := readGitFile(filepath.Join(gitDir, "gitdir"), gitDir)
+	return err == nil && real(strings.TrimSpace(string(b))) == real(filepath.Join(root, ".git"))
 }
 
 func readGitFile(path, boundary string) ([]byte, error) {
