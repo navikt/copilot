@@ -709,10 +709,16 @@ fi
 cleanup() {
   if $KEEP; then
     echo "${DIM}transcripts kept in $WORKDIR${RESET}"
+    # The run's opencode.db holds the copied login, so it is not kept; the
+    # transcripts and usage exports are.
     if [[ -n "$OC_ROOT" ]]; then
-      rm -f "$OC_ROOT/data/opencode/auth.json"
-      [[ -f "$OC_ROOT/data/opencode/opencode.db" ]] && sqlite3 "$OC_ROOT/data/opencode/opencode.db" "DELETE FROM credential;" 2>/dev/null
-      echo "${DIM}OpenCode login removed from the kept store${RESET}"
+      local d="$OC_ROOT/data/opencode"
+      rm -f "$d/auth.json" "$d/opencode.db" "$d/opencode.db-wal" "$d/opencode.db-shm"
+      if [[ -e "$d/auth.json" || -e "$d/opencode.db" || -e "$d/opencode.db-wal" ]]; then
+        echo "${RED}could not remove the OpenCode login from $d; delete it by hand${RESET}" >&2
+      else
+        echo "${DIM}OpenCode store with the login removed from the kept dir${RESET}"
+      fi
     fi
     [[ -n "$DELEG_HOME" ]] && echo "${DIM}client home kept in $DELEG_HOME${RESET}"
   else
