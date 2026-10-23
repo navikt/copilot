@@ -128,7 +128,11 @@ export default function McpGjennomCplt() {
             Nais MCP
           </LinkableHeading>
           <BodyLong>
-            Du trenger cplt-utgaven fra 23. oktober 2026 eller nyere, og Nais CLI 7.0.2 eller nyere. Slå på serveren:
+            Du trenger cplt-utgaven fra 23. oktober 2026 eller nyere (på Linux en nyere, se{" "}
+            <a href="#plattformer" className={linkClass}>
+              Plattformer
+            </a>
+            ), og Nais CLI 7.0.2 eller nyere. Slå på serveren:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot mcp enable io.github.nais/nais-mcp`}</CodeBlock>
           <BodyLong>
@@ -194,6 +198,15 @@ export default function McpGjennomCplt() {
               operasjon.
             </li>
             <li>
+              Kjører du Nais MCP i flere økter samtidig, kan flere prosesser fornye en utløpt Nais-innlogging på en gang
+              og av og til logge deg ut. Kjør da <code className={code}>nais login -n</code> på nytt. Feilen følges opp
+              i{" "}
+              <a href="https://github.com/nais/cli/issues/816" className={linkClass}>
+                nais/cli#816
+              </a>
+              .
+            </li>
+            <li>
               Ikke alle plattformer er støttet, se{" "}
               <a href="#plattformer" className={linkClass}>
                 Plattformer
@@ -209,10 +222,13 @@ export default function McpGjennomCplt() {
           <LinkableHeading id="plattformer" size="medium" level="2">
             Plattformer
           </LinkableHeading>
-          {/* TODO ved merge: nevn cplt-utgaven med Linux-støtte (navikt/cplt#838). */}
+          {/* TODO ved merge: bytt «<dato>» med datoen til cplt-utgaven med navikt/cplt#838 og #841. */}
           <BodyLong>
-            På Linux og WSL2 bruker cplt bubblewrap (<code className={code}>bwrap</code>). Det krever cplt-utgaven med
-            Linux-støtte.
+            På Linux og WSL2 kjører cplt serveren bare når bubblewrap (<code className={code}>bwrap</code>) pakker inn
+            økten, fordi det er bubblewrap som skjuler nøkkelringen for agenten. Uten bubblewrap nekter cplt. Det krever
+            cplt-utgaven fra &lt;dato&gt; eller nyere. Mangler bubblewrap, installerer{" "}
+            <code className={code}>cplt doctor --fix</code> det med <code className={code}>apt-get</code> eller{" "}
+            <code className={code}>dnf</code>.
           </BodyLong>
           <div className="overflow-x-auto">
             <Table size="small">
@@ -245,7 +261,8 @@ export default function McpGjennomCplt() {
                 <TableRow>
                   <TableDataCell>WSL2</TableDataCell>
                   <TableDataCell>
-                    Skal virke med bubblewrap. Nais-innloggingen trenger en nøkkelring, se under.
+                    Skal virke med bubblewrap, men er ikke testet på en ekte maskin ennå. Nais-innloggingen trenger en
+                    nøkkelring, se under.
                   </TableDataCell>
                 </TableRow>
               </TableBody>
@@ -255,15 +272,34 @@ export default function McpGjennomCplt() {
             Ubuntu 24.04 og nyere
           </LinkableHeading>
           <BodyLong>
-            Fiksen legger inn en AppArmor-profil for <code className={code}>bwrap</code>. cplt kan gjøre det selv, og
-            spør før den kjører noe:
+            Fiksen gir <code className={code}>bwrap</code>, og bare den, lov til å lage brukernavnerom. cplt kan gjøre
+            det selv:
           </BodyLong>
           <CodeBlock compact>{`cplt doctor --fix`}</CodeBlock>
-          <BodyLong>Vil du gjøre det for hånd, kjører du disse kommandoene:</BodyLong>
-          {/* TODO ved merge: lim inn de nøyaktige kommandoene fra navikt/cplt#838. */}
-          <CodeBlock
-            compact
-          >{`# Kommandoene kommer med cplt-utgaven som har Linux-støtte (navikt/cplt#838)`}</CodeBlock>
+          <BodyLong>
+            cplt viser kommandoene og innholdet i fila, spør <code className={code}>Fix now? [Y/n]</code>, kjører dem
+            med <code className={code}>sudo</code> og sjekker på nytt. Den spør bare i en terminal. Med{" "}
+            <code className={code}>--yes</code>, uten terminal, med <code className={code}>CI</code> satt eller inne i
+            sandkassen skriver den bare ut kommandoene. Det samme tilbudet får du når cplt nekter å starte serveren.
+          </BodyLong>
+          <BodyLong>
+            Vil du gjøre det for hånd og <code className={code}>/etc/apparmor.d/bwrap-userns-restrict</code> finnes,
+            laster du profilen Ubuntu har lagt med:
+          </BodyLong>
+          <CodeBlock compact>{`sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict`}</CodeBlock>
+          <BodyLong>Finnes den ikke, skriver du en egen profil og laster den:</BodyLong>
+          <CodeBlock compact>
+            {`sudo tee /etc/apparmor.d/bwrap >/dev/null <<'EOF'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+  include if exists <local/bwrap>
+}
+EOF
+sudo apparmor_parser -r /etc/apparmor.d/bwrap`}
+          </CodeBlock>
           <LinkableHeading id="wsl2-nokkelring" size="small" level="3">
             Nais-innlogging i WSL2
           </LinkableHeading>
