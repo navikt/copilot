@@ -22,7 +22,6 @@ import (
 // model on the primary agent.
 func TestOpenCodeSessionEnvPolicyWinsOnBothPaths(t *testing.T) {
 	for _, c := range []struct{ name, opencode string }{
-		{"v1", "1.18.32\n"},
 		{"v2", "opencode v2.0.24\n"},
 	} {
 		for _, path := range []string{"tier1", "tier2"} {

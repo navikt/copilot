@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -78,6 +79,25 @@ func buildStagedSpec(t *testing.T, client string, r domain.ResolvedConfig, s Sta
 	return spec
 }
 
+// openCodeBinding is an opencode spec's agent arguments with the TUI's
+// default_agent and model, which opencode 2 takes in OPENCODE_CONFIG_CONTENT
+// (openCodeV2Args), put back in front as --agent and --model.
+func openCodeBinding(spec cpltLaunch) []string {
+	var cfg struct {
+		DefaultAgent string `json:"default_agent"`
+		Model        string `json:"model"`
+	}
+	_ = json.Unmarshal([]byte(telemetry.LookupEnvValue(spec.env, openCodeConfigContentEnv)), &cfg)
+	var out []string
+	if cfg.DefaultAgent != "" {
+		out = append(out, "--agent", cfg.DefaultAgent)
+	}
+	if cfg.Model != "" {
+		out = append(out, "--model", cfg.Model)
+	}
+	return append(out, spec.agentArgs...)
+}
+
 // TestStagedLaunchSpecs is the four-scenario invocation table: the two clients
 // times the two payload contexts a Tier 2 agentpakke declares.
 //
@@ -109,6 +129,8 @@ func buildStagedSpec(t *testing.T, client string, r domain.ResolvedConfig, s Sta
 // (TestLaunchViaCpltPassesProjectDir). No --model either: the fixture declares "inherit", and the reference
 // forwards no model at all.
 func TestStagedLaunchSpecs(t *testing.T) {
+	// No user opencode config: opencode 2 would pass it as OPENCODE_CONFIG.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	SetActivePakke(stagedFixturePakke())
 	t.Cleanup(func() { SetActivePakke(nil) })
 
@@ -219,8 +241,12 @@ func TestStagedLaunchSpecs(t *testing.T) {
 			if argv := cpltArgv(spec); len(argv) == 0 || argv[0] != "--no-audit" {
 				t.Errorf("cplt vector must lead with --no-audit\n got: %q", argv)
 			}
-			if !slices.Equal(spec.agentArgs, tt.wantAgentArgs) {
-				t.Errorf("agentArgs\n got: %q\nwant: %q", spec.agentArgs, tt.wantAgentArgs)
+			got := spec.agentArgs
+			if tt.client == "opencode" {
+				got = openCodeBinding(spec)
+			}
+			if !slices.Equal(got, tt.wantAgentArgs) {
+				t.Errorf("agentArgs\n got: %q\nwant: %q", got, tt.wantAgentArgs)
 			}
 			if got := telemetry.LookupEnvValue(spec.env, "OPENCODE_CONFIG_DIR"); got != tt.wantConfigDir {
 				t.Errorf("OPENCODE_CONFIG_DIR = %q, want %q", got, tt.wantConfigDir)
@@ -290,7 +316,7 @@ func TestStagedLaunchModel(t *testing.T) {
 			SetActivePakke(tt.pakke)
 			r := domain.ResolvedConfig{AskUser: true, Model: tt.userModel}
 
-			if got := buildStagedSpec(t, "opencode", r, staged).agentArgs; !slices.Equal(got, tt.wantOpen) {
+			if got := openCodeBinding(buildStagedSpec(t, "opencode", r, staged)); !slices.Equal(got, tt.wantOpen) {
 				t.Errorf("opencode agentArgs\n got: %q\nwant: %q", got, tt.wantOpen)
 			}
 			if got := buildStagedSpec(t, "copilot", r, staged).agentArgs; !slices.Equal(got, tt.wantCopilo) {
@@ -335,7 +361,7 @@ func TestStagedLaunchForwardsResolvedConfig(t *testing.T) {
 
 	plan := domain.ResolvedConfig{Mode: "plan", AskUser: true, ExtraArgs: []string{"--foo"}}
 	wantPlan := []string{"--agent", "plan", "--foo"}
-	if got := buildStagedSpec(t, "opencode", plan, staged).agentArgs; !slices.Equal(got, wantPlan) {
+	if got := openCodeBinding(buildStagedSpec(t, "opencode", plan, staged)); !slices.Equal(got, wantPlan) {
 		t.Errorf("opencode agentArgs (plan mode)\n got: %q\nwant: %q", got, wantPlan)
 	}
 }
@@ -522,13 +548,14 @@ func TestStagedOpenCodeVariant(t *testing.T) {
 		want  []string
 	}{
 		{"TUI", nil, []string{"--agent", "grillmester"}},
-		{"run", []string{"run", "hello"}, []string{"run", "--agent", "grillmester", "--variant", "low", "hello"}},
-		{"pure run", []string{"--pure", "run", "hello"}, []string{"--pure", "run", "--agent", "grillmester", "--variant", "low", "hello"}},
+		// opencode 2 has no --variant without a model, and no --pure.
+		{"run", []string{"run", "hello"}, []string{"run", "--agent", "grillmester", "hello"}},
+		{"pure run", []string{"--pure", "run", "hello"}, []string{"run", "--agent", "grillmester", "hello"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			spec := buildStagedSpec(t, "opencode", domain.ResolvedConfig{ReasoningEffort: "low", ExtraArgs: tt.extra}, staged)
-			if !slices.Equal(spec.agentArgs, tt.want) {
-				t.Errorf("agentArgs = %q, want %q", spec.agentArgs, tt.want)
+			if got := openCodeBinding(spec); !slices.Equal(got, tt.want) {
+				t.Errorf("agentArgs = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -952,7 +979,7 @@ func TestStagedOpenCode2PassesOpenCodeConfig(t *testing.T) {
 	mustWrite(t, filepath.Join(openCodeConfigDir(), "opencode.json"), `{}`)
 	t.Cleanup(func() { SetActivePakke(nil); versionCache.Delete("opencode") })
 	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
-	for ver, want := range map[string]bool{"1.18.35\n": false, "opencode v2.0.24\n": true} {
+	for ver, want := range map[string]bool{"opencode v2.0.24\n": true} {
 		versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
 		spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{Client: "opencode"}, staged)
 		if err != nil {
@@ -996,7 +1023,7 @@ func TestWithOpenCode2UserConfigRejectsFileTraversalAndSymlink(t *testing.T) {
 		if env, err := withOpenCode2UserConfig(nil, payload); err == nil {
 			t.Errorf("%s: withOpenCode2UserConfig succeeded with env %q, want rejection", ref, env)
 		}
-		for _, ver := range []string{"1.18.35\n", "opencode v2.0.24\n"} {
+		for _, ver := range []string{"opencode v2.0.24\n"} {
 			versionCache.Store("opencode", versionAnswer{ver, nil, time.Hour})
 			if spec, err := buildStagedOpenCodeSpec(domain.ResolvedConfig{Client: "opencode"}, StagedLaunch{
 				Dir: payload, PakkeName: "grillmester", Context: "full",

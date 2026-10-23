@@ -53,6 +53,8 @@ stdout -count=4 '^small: \{\}$'
 -- fake/cplt.sh --
 # Play opencode's gate plugin. Turn 1: probe 6's r6. Turn 2: a small job.
 # Turn 3: a worker returns, then text. Turn 4: a worker returns, a build, text.
+for a in "$@"; do last=$a; done
+[ "$last" = --version ] && return
 if [ -z "$NAV_PILOT_DISPATCH_GATE" ]; then
   echo 'no gate' > "$WORK/gate.out"
   exit 0

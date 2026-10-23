@@ -29,8 +29,7 @@ const TOC: TocItem[] = [
 
 const GH = "https://github.com/navikt/copilot";
 const HOOKS_DOC = `${GH}/blob/main/cli/nav-pilot/docs/opencode-hooks.md`;
-// OpenCode1TestedRange and OpenCode2TestedRange in cli/nav-pilot/internal/provider/opencode_policy.go
-const OPENCODE_RANGE = ">=1.18.20,<1.19";
+// OpenCode2TestedRange in cli/nav-pilot/internal/provider/opencode_policy.go
 const OPENCODE2_RANGE = ">=2.0.24,<2.2";
 const c = (s: string) => <code className={code}>{s}</code>;
 
@@ -98,8 +97,8 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     pi: "Nei",
     note: (
       <>
-        opencode {c(OPENCODE_RANGE)} og {c(OPENCODE2_RANGE)}. Utenfor dette advarer nav-pilot ved oppstart og i{" "}
-        {c("nav-pilot doctor")}.
+        opencode {c(OPENCODE2_RANGE)}. Utenfor dette advarer nav-pilot ved oppstart og i {c("nav-pilot doctor")}.
+        opencode 1 starter ikke.
       </>
     ),
   },
@@ -296,7 +295,7 @@ export default function Klienter() {
         <Box background="warning-soft" borderRadius="8" padding="space-16">
           <BodyShort>
             Uten nav-pilots hooks er det verken loop guard (stopper agenten når den gjentar seg) eller maskering. Det
-            gjelder alltid pi, og opencode 1 med {c("--pure")} og opencode uten nav-pilot. Se{" "}
+            gjelder alltid pi og opencode uten nav-pilot. Se{" "}
             <a href="#kjente-hull" className={linkClass}>
               Kjente mangler i opencode
             </a>
@@ -350,10 +349,7 @@ export default function Klienter() {
             Servere i opencode-konfigen din som ikke står i registeret, slås av for økten. En ekstern server må ha samme
             URL som i registeret, en lokal må starte en pakke registeret lister.
           </li>
-          <li>
-            Kobler du til en avslått server med {c("/mcp")} i økten, avviser hooks-pluginen verktøyene dens. Med{" "}
-            {c("--pure")} i opencode 1 kjører ingen hooks, så da virker ikke dette.
-          </li>
+          <li>Kobler du til en avslått server med {c("/mcp")} i økten, avviser hooks-pluginen verktøyene dens.</li>
           <li>Konfigen din endres ikke, og opencode du starter uten nav-pilot, berøres ikke.</li>
           <li>Mangler {c("gh")}, eller svarer ikke GitHub, slår nav-pilot ingenting av. Du får en advarsel.</li>
         </Bullets>
@@ -441,9 +437,10 @@ export default function Klienter() {
           Testet versjon
         </LinkableHeading>
         <BodyLong>
-          nav-pilot er testet mot opencode {c(OPENCODE_RANGE)} og {c(OPENCODE2_RANGE)}. Utenfor dette advarer nav-pilot
-          og starter likevel, men hooks og delegeringssperre er ikke testet. {c("nav-pilot doctor")} viser versjonen
-          din. opencode 3 starter ikke før vi har testet den.
+          nav-pilot er testet mot opencode {c(OPENCODE2_RANGE)}. Utenfor dette advarer nav-pilot og starter likevel, men
+          hooks og delegeringssperre er ikke testet. {c("nav-pilot doctor")} viser versjonen din. opencode 1 er ikke
+          lenger støttet og starter ikke. Da viser nav-pilot kommandoen som oppgraderer til opencode 2. opencode 3
+          starter ikke før vi har testet den.
         </BodyLong>
         <BodyLong>opencode 2 krever:</BodyLong>
         <Bullets>
@@ -461,8 +458,8 @@ export default function Klienter() {
           Fra opencode 1 til 2
         </LinkableHeading>
         <BodyLong>
-          nav-pilot støtter opencode 1 til og med 19. november 2026. Oppdateringen opencode 1 selv tilbyr, holder deg på
-          opencode 1. Oppgrader slik, etter hvordan du installerte opencode:
+          nav-pilot støttet opencode 1 til og med 19. november 2026, og starter den ikke lenger. Oppdateringen opencode
+          1 selv tilbyr, holder deg på opencode 1. Oppgrader slik, etter hvordan du installerte opencode:
         </BodyLong>
         <Bullets>
           <li>Homebrew: {c("brew uninstall opencode && brew install anomalyco/tap/opencode-v2")}</li>
@@ -564,7 +561,6 @@ export default function Klienter() {
         </LinkableHeading>
         <BodyLong>Hookene kjører som en plugin nav-pilot legger inn ved oppstart. Dette dekker de ikke:</BodyLong>
         <Bullets>
-          <li>{c("--pure")}: opencode laster ingen plugins, så ingen hooks kjører. nav-pilot sier fra ved oppstart.</li>
           <li>Vedlegg som bilder og PDF-er går til modellen uten maskering. Maskeringen virker på tekst.</li>
           <li>
             Sjekken mot MCP-registeret dekker ikke servere du legger til midt i økten, konfig fra{" "}

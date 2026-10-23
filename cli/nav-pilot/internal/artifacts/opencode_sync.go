@@ -258,7 +258,7 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	// Hooks are not materialized: they are code, and they run from where
 	// `nav-pilot install` put them. An opencode launch hands the installed
 	// gates, agentpakke hooks included, to the hooks bridge
-	// (provider/hooks-bridge.js, #1025, #709), which runs them from
+	// (provider/hooks-bridge-v2.js, #1025, #709), which runs them from
 	// tool.execute.before as Copilot CLI does. So for opencode the ones worth
 	// a line are those the source ships and nobody installed. pi has no
 	// bridge, so there every hook is named. Said out loud rather than skipped
