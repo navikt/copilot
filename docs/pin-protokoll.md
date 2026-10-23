@@ -68,8 +68,8 @@ før en eventuell ny betalt kjøring.
 
 Eieren vedtok denne protokollen 12. oktober 2026
 ([#1414](https://github.com/navikt/copilot/issues/1414)). Den gjelder hver gang
-vi vurderer å flytte pinnen for `@nav-pilot`. Pinnen er i dag **GPT-6 Sol på
-Low**.
+vi vurderer å flytte pinnen for `@nav-pilot`. Pinnen er i dag **GPT-6.1 Sol på
+Low** (fra 23. oktober 2026).
 
 | Bytte | Trinn |
 | --- | --- |
@@ -246,9 +246,12 @@ som bare fanger store fall.
   funksjonskroppen bare en `TODO`-stubb.
 - **Trinn 2 kjørt 23. oktober med begge reglene, n = 5, 580,5 credits.**
   ([`2026-10-23-pin-gpt-6.1-sol`](golden-baselines/2026-10-23-pin-gpt-6.1-sol/))
-  Alle testene besto lest for hånd. Testoppsettet meldte feil på t4 (1),
-  t7b (1), t8 (4) og t9d (1). t8 og t9d er falske negativer, t4 er den kjente
-  svakheten i mønsteret. Et tidligere forsøk på trinn 2 ble stoppet, og
+  Alle kjøringer besto, unntatt ett grensetilfelle på t7b (neste punkt).
+  Feilene fra testoppsettet er lest for hånd: t4 (1), t7b (1), t8 (4) og
+  t9d (1). t8 og t9d er falske negativer, t4 er den kjente svakheten i
+  mønsteret. Protokollen anslår 265–315 credits for trinn 2. Denne gangen
+  kostet det 580,5, fordi den første kjøringen på en ny klientversjon koster
+  omtrent dobbelt, slik protokollen sier. Et tidligere forsøk på trinn 2 ble stoppet, og
   dataene gikk tapt. Der hadde t9 3 av 3 reelle bommer før regelen for rød
   sone.
 - **Avvik: t7b kjøring 3 telles som bestått.** Modellen endret ingen kode, men
@@ -256,8 +259,9 @@ som bare fanger store fall.
   avklart». Etter regelen fra 12. oktober er det en bom. Eieren teller den som
   bestått.
 - **Eieren flyttet pinnen til GPT-6.1 Sol Low 23. oktober 2026.**
-- **Reserven GPT-6 Sol gikk tilbake på t9d med de nye reglene.** Den feilet 2
-  av 3 reelt fordi den implementerte punkter utvikleren skulle skrive selv
+- **Reserven GPT-6 Sol gikk tilbake på t9d med de nye reglene.** Den besto 0
+  av 3: to kjøringer feilet reelt fordi den implementerte punkter utvikleren
+  skulle skrive selv, og én stoppet for å spørre
   ([`2026-10-23-t9-rodsone-gpt-6-sol`](golden-baselines/2026-10-23-t9-rodsone-gpt-6-sol-results.psv)).
   Dette er ikke undersøkt.
 

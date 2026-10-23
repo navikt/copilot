@@ -384,9 +384,9 @@ en `config.toml` uten `client` betyr `copilot`. Copilot CLI er fortsatt fullt st
 
 | Klient                  | Binær                 | Nav-kontekst                                                  | Standard modell |
 | ----------------------- | --------------------- | ------------------------------------------------------------- | --------------- |
-| `copilot`               | `cplt` / `copilot`    | `.github/`, eller `~/.copilot/` med `--user`                  | GPT-6 Sol       |
-| `opencode` (standard)   | `opencode` (+ `cplt`) | `~/.config/opencode/`, oppdateres ved hver oppstart           | GPT-6 Sol       |
-| `pi` _(eksperimentell)_ | `cplt` + `pi`         | Materialiseres i `~/.nav-pilot/pi` og gis til pi ved oppstart | GPT-6 Sol       |
+| `copilot`               | `cplt` / `copilot`    | `.github/`, eller `~/.copilot/` med `--user`                  | GPT-6.1 Sol     |
+| `opencode` (standard)   | `opencode` (+ `cplt`) | `~/.config/opencode/`, oppdateres ved hver oppstart           | GPT-6.1 Sol     |
+| `pi` _(eksperimentell)_ | `cplt` + `pi`         | Materialiseres i `~/.nav-pilot/pi` og gis til pi ved oppstart | GPT-6.1 Sol     |
 
 En modell du velger med config eller `--model`, vinner over agentpakkas standard. Den vinner
 også over `model:` i agentfila til hovedagenten som økta starter med. Subagenter beholder sin

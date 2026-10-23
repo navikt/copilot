@@ -29,7 +29,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "GPT-6.1 Sol",
     fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
     reason:
-      "Besto regresjonssjekken på alle planleggingstestene 23. oktober, fem kjøringer hver og lest for hånd, med de nye reglene for personopplysninger og rød sone. Billigere per kjøring enn GPT-6 Sol.",
+      "Besto regresjonssjekken etter trinn 2 i pin-protokollen 23. oktober, fem kjøringer per test. Eieren godtok ett grensetilfelle på personvernintervjuet. Brukte færre credits per kjøring enn GPT-6 Sol 12. oktober (44,89 mot 51,12).",
     source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-23-pin-gpt-6.1-sol",
   },
   {
