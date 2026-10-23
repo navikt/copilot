@@ -29,7 +29,7 @@ describe("generateSetupScript", () => {
     it("generates correct OpenCode script", () => {
       const result = generateSetupScript(os, "opencode");
       expect(result.code).toContain("brew install navikt/tap/nav-pilot navikt/tap/cplt");
-      expect(result.code).toContain("brew install anomalyco/tap/opencode");
+      expect(result.code).toContain("brew install anomalyco/tap/opencode-v2");
       expect(result.code).not.toContain("opencode.ai/install");
       // A new install already starts opencode (#1187).
       expect(result.code).toContain("# nav-pilot config set client opencode");
@@ -55,9 +55,10 @@ describe("generateSetupScript", () => {
       expect(result.code).not.toContain("which -a");
     });
 
-    it("generates correct OpenCode script with curl", () => {
+    it("generates correct OpenCode script with npm", () => {
       const result = generateSetupScript(os, "opencode");
-      expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.32");
+      expect(result.code).toContain("npm i -g @opencode/cli@2.1.3");
+      expect(result.code).not.toContain("opencode.ai/install");
       expect(result.code).not.toContain("npm install -g opencode");
       expect(result.code).toContain(NAV_PILOT_INSTALL_SCRIPT);
       expect(result.code).not.toContain("apt");
@@ -85,7 +86,8 @@ describe("generateSetupScript", () => {
     it("generates WSL instructions for OpenCode", () => {
       const result = generateSetupScript(os, "opencode");
       expect(result.code).toContain("WSL2-terminalen");
-      expect(result.code).toContain("curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.32");
+      expect(result.code).toContain("npm i -g @opencode/cli@2.1.3");
+      expect(result.code).not.toContain("opencode.ai/install");
       expect(result.code).toContain("# nav-pilot config set client opencode");
       expect(result.code).toContain("nav-pilot install nav-pilot");
       expect(result.code).toContain('export PATH="$HOME/.local/bin:$PATH"');
