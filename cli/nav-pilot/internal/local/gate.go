@@ -125,6 +125,12 @@ const GateNudgeText = "nav-pilot (local_dispatch): no build or test command has 
 	"Unless you are about to run one, build the project and run the tests that cover the change before you answer, " +
 	"and fix or redo what fails."
 
+// GateInterpreterText is what the orchestrator reads when it would write a
+// file with an inline python, node, ruby or perl script (#1915).
+const GateInterpreterText = "nav-pilot (local_dispatch): this script writes files from the shell, around the edit tools and the dispatch rule. " +
+	"Send the change to `local-worker` instead: one task per file, naming each place that changes and exactly what it becomes, " +
+	"with a check such as a grep. For a small change, use the edit tool."
+
 // GateRetryText is appended to a build or test that failed after
 // `local-worker` created or edited a file this turn. One retry with the check's output
 // is the lever bench-frontier measures as retry2: on create-file it took
@@ -347,7 +353,25 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 				st.checking = r.Command
 			}
 		}
+		if InterpreterWrites(r.Command) {
+			if !g.rules.Multi || st.dispatched || st.passes(r.Command, g.rules) || st.denies >= g.rules.budget() || !g.serverUp() {
+				return "", ""
+			}
+			st.refused[r.Command] = true
+			st.denies++
+			g.counts["deny_interpreter"]++
+			return GateInterpreterText, "deny_interpreter"
+		}
 		scripted, edits = shellEdits(r.Command)
+		for _, f := range RedirectFiles(r.Command) {
+			// Outside the project: the temp rule above, or not the project's file.
+			if filepath.IsAbs(f) {
+				if _, ok := under(g.rules.Root, f); !ok {
+					continue
+				}
+			}
+			edits = append(edits, shellEdit{file: f})
+		}
 	default:
 		return "", ""
 	}
@@ -707,8 +731,8 @@ var perlInline = regexp.MustCompile(`^-[a-zA-Z0-9]*i`)
 // files, or taking them from xargs or find -exec, is one search-and-replace,
 // which the policy keeps with the orchestrator, so it contributes nothing.
 //
-// ponytail: a lexer, not a shell parser. Heredocs, python -c and cat > file
-// are not seen; telemetry shows them as few denies with few dispatches.
+// ponytail: a lexer, not a shell parser. Redirects and interpreter writes are
+// read by RedirectFiles and InterpreterWrites (#1915).
 func ShellEdits(cmd string) (scripted bool, files []string) {
 	scripted, edits := shellEdits(cmd)
 	for _, e := range edits {
@@ -852,6 +876,182 @@ func shellEdits(cmd string) (scripted bool, edits []shellEdit) {
 		}
 	}
 	return false, edits
+}
+
+// heredocOp is the start of a heredoc on a raw line: <<EOF, <<-'EOF', << "EOF".
+// A here-string (<<<) is not one.
+var heredocOp = regexp.MustCompile(`(^|[^<])<<-?[ \t]*\\?['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?`)
+
+// splitHeredocs takes the heredoc bodies out of a command, so a quote or a >
+// in a body does not change how the rest is read. bodies are in the order of
+// the heredocs that start them.
+func splitHeredocs(cmd string) (rest string, bodies []string) {
+	var keep []string
+	lines := strings.Split(cmd, "\n")
+	for i := 0; i < len(lines); i++ {
+		keep = append(keep, lines[i])
+		for _, m := range heredocOp.FindAllStringSubmatch(lines[i], -1) {
+			var body []string
+			for i++; i < len(lines) && strings.TrimSpace(lines[i]) != m[2]; i++ {
+				body = append(body, lines[i])
+			}
+			bodies = append(bodies, strings.Join(body, "\n"))
+		}
+	}
+	return strings.Join(keep, "\n"), bodies
+}
+
+// RedirectFiles reads the files a bash command writes by redirecting output
+// into them: > f, >> f, &> f, 1> f, tee [-a] f. Heredoc bodies are skipped,
+// so cat > f <<EOF counts f once. Not edits: a redirect of stderr (2> f, which
+// is a log), a dup (2>&1, >&2), /dev/* (/dev/null, /dev/stderr), process
+// substitution (>(cmd)) and a comparison in [[ ]], [ ], test or (( )).
+//
+// ponytail: a lexer, not a shell parser. A path built at run time ($f, a
+// loop's variable) is counted by its literal text, a quoted word that starts
+// with > is read as a redirect, and exec > f, a file a program writes itself
+// (cp, mv, an output flag) and a here-string are not seen.
+func RedirectFiles(cmd string) []string {
+	var out []string
+	add := func(f string) {
+		if f != "" && !strings.HasPrefix(f, "&") && !strings.HasPrefix(f, "(") && !strings.HasPrefix(f, "/dev/") && !slices.Contains(out, f) {
+			out = append(out, f)
+		}
+	}
+	rest, _ := splitHeredocs(cmd)
+	for _, seg := range splitSegments(rest) {
+		words := shellWords(spaceRedirects(seg.text))
+		head := words
+		for len(head) > 0 && slices.Contains([]string{"if", "while", "until", "!", "do", "then", "{", "("}, head[0]) {
+			head = head[1:]
+		}
+		if len(head) > 0 && (slices.Contains([]string{"[[", "[", "test"}, head[0]) || strings.HasPrefix(head[0], "((")) {
+			continue
+		}
+		for i := 0; i < len(words); i++ {
+			w := words[i]
+			if strings.HasPrefix(w, "<<") {
+				// A heredoc's delimiter, as its own word, is not a file.
+				if strings.TrimLeft(w, "<-") == "" {
+					i++
+				}
+				continue
+			}
+			op := strings.TrimPrefix(strings.TrimPrefix(w, "&"), "1")
+			if !strings.HasPrefix(op, ">") {
+				continue
+			}
+			f := strings.TrimLeft(op, ">|")
+			if f == "" && i+1 < len(words) {
+				i++
+				f = words[i]
+			}
+			add(f)
+		}
+		if cmdw := commandWords(words); len(cmdw) > 0 && cmdw[0] == "tee" {
+			// Skip redirections and their operands; the rest are files.
+			for i := 1; i < len(cmdw); i++ {
+				a := cmdw[i]
+				if op := strings.TrimLeft(a, "0123456789&"); strings.HasPrefix(op, "<") || strings.HasPrefix(op, ">") {
+					if strings.TrimLeft(op, "<>&|-") == "" {
+						i++
+					}
+					continue
+				}
+				if !strings.HasPrefix(a, "-") {
+					add(a)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// spaceRedirects puts a space before an unquoted > that is glued to a word,
+// as bash reads echo x>f: the word x, then >f. A file descriptor (2>f, &>f)
+// stays glued, and so does a > inside parentheses ($((a>b)), >(cmd)).
+func spaceRedirects(s string) string {
+	var b strings.Builder
+	var q byte
+	depth, start := 0, 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case q != 0:
+			if c == '\\' && q == '"' && i+1 < len(s) {
+				b.WriteByte(c)
+				i++
+				c = s[i]
+			} else if c == q {
+				q = 0
+			}
+		case c == '\\' && i+1 < len(s):
+			b.WriteByte(c)
+			i++
+			c = s[i]
+		case c == '\'' || c == '"':
+			q = c
+		case c == '(':
+			depth++
+		case c == ')':
+			depth = max(0, depth-1)
+		case c == ' ' || c == '\t':
+			start = b.Len() + 1
+		case c == '>' && depth == 0:
+			if w := b.String()[min(start, b.Len()):]; w != "" && strings.Trim(w, "0123456789&>") != "" {
+				b.WriteByte(' ')
+				start = b.Len()
+			}
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
+// interpreter runs an inline script: python -c, node -e, ruby -e, perl -e,
+// deno eval, bun -e, or any of them reading a heredoc.
+var interpreter = regexp.MustCompile(`^(python[0-9.]*|node|ruby|perl|deno|bun)$`)
+
+// fileWrite is a script that opens a file for writing. open( allows one
+// level of nested parentheses, as in open(Path("a"), "w").
+var fileWrite = regexp.MustCompile(`open\((?:[^()]|\([^()]*\))*,\s*['"][wax][bt+]*['"]|mode\s*=\s*['"][wax]|write_(text|bytes)\(|(writeFile|appendFile)(Sync)?\(|createWriteStream\(|File\.(write|open\((?:[^()]|\([^()]*\))*,\s*['"][wa])|IO\.write\(|Deno\.write(Text)?File|Bun\.write\(|open\s*\(?\s*(my\s+)?\$?\w+\s*,\s*['"](\+?>|>>)`)
+
+// InterpreterWrites reports whether a bash command runs an interpreter with
+// an inline script (-c, -e, --eval, eval, - or a heredoc) that writes a file.
+// Only the interpreter's own words and its heredoc bodies are read, so a grep
+// for open(f, 'w') next to it does not count. A read-only one-liner passes.
+//
+// ponytail: a pattern list, not a parser. A write through a library (shutil,
+// os.rename, fs.cp), a script file (python x.py) and a mode held in a
+// variable are not seen.
+func InterpreterWrites(cmd string) bool {
+	rest, bodies := splitHeredocs(cmd)
+	next := 0
+	for _, seg := range splitSegments(rest) {
+		n := len(heredocOp.FindAllStringIndex(seg.text, -1))
+		mine := bodies[min(next, len(bodies)):min(next+n, len(bodies))]
+		next += n
+		toks := commandWords(shellWords(seg.text))
+		if len(toks) == 0 || !interpreter.MatchString(filepath.Base(toks[0])) {
+			continue
+		}
+		inline := n > 0
+		var script []string
+		for _, t := range toks[1:] {
+			if strings.HasPrefix(t, "#") {
+				break
+			}
+			if slices.Contains([]string{"-", "eval"}, t) || strings.HasPrefix(t, "-c") || strings.HasPrefix(t, "-e") || strings.HasPrefix(t, "-E") ||
+				strings.HasPrefix(t, "--eval") || strings.HasPrefix(t, "-pe") || strings.HasPrefix(t, "-ne") {
+				inline = true
+			}
+			script = append(script, t)
+		}
+		if inline && fileWrite.MatchString(strings.Join(append(script, mine...), "\n")) {
+			return true
+		}
+	}
+	return false
 }
 
 // pinnedShellEdit reports whether cmd modifies a pinned file via in-place

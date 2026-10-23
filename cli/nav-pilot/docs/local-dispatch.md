@@ -423,7 +423,7 @@ Recorded at exit by the launch process, like `nav_pilot_local_dispatches`. Enums
 - `nav_pilot_local_dispatches` gets a `dispatch_level` attribute
   (`off|conservative|balanced|aggressive`). This gives the dispatch rate per level.
 - `nav_pilot_local_gate_total{outcome}` counts gate decisions, with `outcome` one of
-  `deny_files`, `deny_sites`, `deny_scripted`, `deny_create`, `deny_tmp`, `dispatched_after_deny`,
+  `deny_files`, `deny_sites`, `deny_scripted`, `deny_interpreter`, `deny_create`, `deny_tmp`, `dispatched_after_deny`,
   `verify_nudge`, `create_retry`, `create_retry_passed`, `create_retry_failed` and `pinned_deny`. `deny_sites` is a deny from the call-site count alone. `dispatched_after_deny`
   is a `task` to `local-worker` after a deny in the same turn. `verify_nudge` is a reminder
   sent because no build or test ran after the worker returned. Recording `allow` would be one data point

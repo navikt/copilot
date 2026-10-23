@@ -10,6 +10,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Nøkler for tale stenges**: Talefunksjonen i OpenCode leser `OPENAI_API_KEY`, `XAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` og `GEMINI_API_KEY`. cplt slipper ikke disse nøklene inn i sandkassen som standard. Med cplt 2026.10.23-070444 eller nyere stenger nav-pilot dem også når noen slipper dem inn med `--pass-env`, `--inherit-env` eller `.cplt.toml` ([navikt/cplt#817](https://github.com/navikt/cplt/pull/817)). Nøkler du har lagret i OpenCode og tale via OpenCode Console kan fortsatt ikke stenges. Tale er fortsatt ikke tillatt.
 - **Varsel**: Har du en eldre cplt, viser nav-pilot et kort varsel én gang per cplt-versjon når du starter OpenCode 2, og hver gang i `nav-pilot doctor`. Varselet viser kommandoen som oppdaterer cplt. Du kan fortsatt starte OpenCode 2 uten å oppdatere.
 
+### Skallkommandoer som skriver filer, teller som endringer
+
+- **`local_dispatch`**: Når hovedagenten skriver til en fil med en omdirigering i skallet (`> fil`, `>> fil`, `tee fil` eller `cat > fil <<EOF`), teller det nå som en endring av filen. Grensene er de samme som for endrings- og skriveverktøyene. `2>&1`, `> /dev/null` og prosessubstitusjon teller ikke. Skript i python, node, ruby, perl, deno eller bun som hovedagenten kjører direkte (`-c`, `-e` eller heredoc), og som åpner en fil for skriving, blir stoppet med beskjed om å sende endringen til `local-worker`. Skript som bare leser, slipper gjennom. `local-worker` er ikke berørt (#1915).
+
 ### Fortsett en tidligere økt
 
 - **`nav-pilot --resume [id]` og `nav-pilot --continue`**: Fortsetter en tidligere økt med agentpakken, sandkassen og sjekkene som en vanlig oppstart. `--continue` fortsetter den siste økten. `--resume` uten id åpner listen over økter i Copilot CLI. OpenCode har ingen slik liste, så der må du oppgi id-en. Finnes ikke id-en, starter OpenCode en ny økt. pi støtter ikke flaggene ennå, og nav-pilot sier fra i stedet for å starte (#1919).
