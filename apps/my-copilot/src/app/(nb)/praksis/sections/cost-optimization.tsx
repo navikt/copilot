@@ -66,8 +66,10 @@ export default function CostOptimization() {
                   </Heading>
                 </HStack>
                 <BodyShort size="small" className="text-gray-700">
-                  Bytt chat når du bytter problem. I Copilot CLI tømmer <code>/clear</code> samtalen, og{" "}
-                  <code>/compact</code> komprimerer historikken.
+                  Start ny sesjon når du bytter problem med <code>/new</code>. <code>/compact</code> komprimerer
+                  historikken. Begge virker i Copilot CLI, OpenCode og pi. Velg modell med{" "}
+                  <code>nav-pilot config set model &lt;id&gt;</code>; uten egen innstilling følger du agentpakkas
+                  anbefaling.
                 </BodyShort>
               </VStack>
             </Box>
