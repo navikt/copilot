@@ -366,6 +366,9 @@ func cmdDoctor() error {
 
 		l := latest()
 		reportCpltVersionWith(cpltPath, version, l.version, l.err)
+		if n := providerpkg.CpltRecommendedNotice(); n != "" {
+			fmt.Printf("      %s %s\n", yellow("⚠"), n)
+		}
 
 		// Security posture. No recommendation: standard is the default and
 		// lets the agent push a feature branch; strict blocks all pushes.
@@ -716,10 +719,8 @@ func reportOpenCodeVersion() (ok bool) {
 	default:
 		fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRangeFor(v))
 	}
-	for _, n := range []string{providerpkg.OpenCode1Notice(), providerpkg.CpltMCPNotice()} {
-		if n != "" {
-			fmt.Printf("      %s %s\n", yellow("⚠"), strings.ReplaceAll(n, "\n", "\n      "))
-		}
+	if n := providerpkg.OpenCode1Notice(); n != "" {
+		fmt.Printf("      %s %s\n", yellow("⚠"), strings.ReplaceAll(n, "\n", "\n      "))
 	}
 	return ok
 }

@@ -42,11 +42,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Eldre Nais CLI**: Er Nais CLI eldre enn 7.0.2, viser `mcp enable` og `mcp list` et varsel med `brew upgrade nais`. 7.0.2 sjekker alle GraphQL-operasjonene agenten sender. Serveren virker også med eldre versjoner.
 - **`nav-pilot mcp disable io.github.nais/nais-mcp`** fjerner spesifikasjonen.
 
-### Oppdater cplt for GitHub MCP og for å stenge tale i OpenCode 2
+### Oppdater cplt for Nais MCP, GitHub MCP og for å stenge tale i OpenCode 2
 
-- **cplt 2026.10.23-070444 anbefales**: GitHub MCP (`io.github.navikt/github-mcp`) virker i OpenCode bare med cplt 2026.10.23-053641 eller nyere ([navikt/cplt#807](https://github.com/navikt/cplt/pull/807)).
+- **cplt 2026.10.23-130113 anbefales**: Med denne versjonen kjører cplt Nais MCP på maskinen din, utenfor sandkassen, og slipper bare lesende verktøy gjennom til agenten. GitHub MCP (`io.github.navikt/github-mcp`) virker i OpenCode bare med cplt 2026.10.23-053641 eller nyere ([navikt/cplt#807](https://github.com/navikt/cplt/pull/807)).
 - **Nøkler for tale stenges**: Talefunksjonen i OpenCode leser `OPENAI_API_KEY`, `XAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` og `GEMINI_API_KEY`. cplt slipper ikke disse nøklene inn i sandkassen som standard. Med cplt 2026.10.23-070444 eller nyere stenger nav-pilot dem også når noen slipper dem inn med `--pass-env`, `--inherit-env` eller `.cplt.toml` ([navikt/cplt#817](https://github.com/navikt/cplt/pull/817)). Nøkler du har lagret i OpenCode og tale via OpenCode Console kan fortsatt ikke stenges. Tale er fortsatt ikke tillatt.
-- **Varsel**: Har du en eldre cplt, viser nav-pilot et kort varsel én gang per cplt-versjon når du starter OpenCode 2, og hver gang i `nav-pilot doctor`. Varselet viser kommandoen som oppdaterer cplt. Du kan fortsatt starte OpenCode 2 uten å oppdatere.
+- **Ett varsel**: Har du en eldre cplt, viser nav-pilot én linje med alt du får ved å oppdatere, og kommandoen som oppdaterer cplt. Linja vises én gang per anbefalt cplt-versjon, uansett hvilken klient du starter, og hver gang i `nav-pilot doctor`. Du kan fortsatt starte uten å oppdatere.
+- **MCP-servere fra cplt får være i fred**: Når nav-pilot slår av MCP-servere som ikke står i Navs MCP-register i OpenCode, lar den nå være serverne som cplt kjører for deg, som Nais MCP (#1941).
 
 ### Skallkommandoer som skriver filer, teller som endringer
 

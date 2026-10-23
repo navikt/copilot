@@ -5,6 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -289,6 +292,21 @@ var cpltDeniedHomePaths = []string{
 	".cargo/credentials", ".cargo/credentials.toml", ".nuget/NuGet.Config", ".npmrc",
 }
 
+// deniedHomePaths is cpltDeniedHomePaths plus $XDG_CONFIG_HOME/cplt when
+// XDG_CONFIG_HOME is set under the home directory: cplt's broker specs live
+// in $XDG_CONFIG_HOME/cplt/mcp (#1941). Outside home no "~/" grant reaches it.
+func deniedHomePaths() []string {
+	xdg, home := os.Getenv("XDG_CONFIG_HOME"), os.Getenv("HOME")
+	if xdg == "" || home == "" {
+		return cpltDeniedHomePaths
+	}
+	rel, err := filepath.Rel(home, filepath.Join(xdg, "cplt"))
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return cpltDeniedHomePaths
+	}
+	return append(slices.Clone(cpltDeniedHomePaths), filepath.ToSlash(rel))
+}
+
 // checkPropose runs the read-grant rules the schema cannot express: what the
 // path resolves to, and what it must never resolve to.
 //
@@ -322,7 +340,7 @@ func checkReadGrant(declared string) error {
 				"and a grant that can climb out of what it names is not one anybody can read off the prompt", declared)
 		}
 	}
-	for _, denied := range cpltDeniedHomePaths {
+	for _, denied := range deniedHomePaths() {
 		if rest == denied || strings.HasPrefix(rest, denied+"/") {
 			return fmt.Errorf("%q is at or under ~/%s, which cplt denies or protects. "+
 				"A pakke may not propose it, and a user who needs it grants it themselves with "+

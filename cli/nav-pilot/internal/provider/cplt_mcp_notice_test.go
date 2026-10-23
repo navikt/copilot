@@ -13,7 +13,10 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
-func TestCpltMCPNotice(t *testing.T) {
+// One cplt line per recommended version, for every client cplt launches: shown
+// below cpltRecommended once, again when the recommendation rises, never at or
+// above it.
+func TestCpltRecommendedNotice(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
 	t.Cleanup(func() { versionCache.Delete("opencode") })
 	prev := probeCpltVersion
@@ -28,32 +31,33 @@ func TestCpltMCPNotice(t *testing.T) {
 		}
 		orig := os.Stderr
 		os.Stderr = w
-		warnOpenCode1()
+		warnCpltRecommended()
 		os.Stderr = orig
 		w.Close()
 		out, _ := io.ReadAll(r)
 		return string(out)
 	}
 	const v2 = "opencode v2.1.2\n"
-	old := "cplt " + openCode2CpltFloor + "-b37a8ab\n"
+	old := "cplt " + cpltDenyEnv + "-7f0fd16\n"
 
-	// Control: the same old cplt under opencode 1 says nothing about cplt.
-	if out := launch("1.18.32\n", old); strings.Contains(out, "github-mcp") {
-		t.Errorf("opencode 1: %q, want no cplt notice", out)
-	}
 	first := launch(v2, old)
-	for _, want := range []string{"io.github.navikt/github-mcp", openCode2CpltRecommended, "navikt/cplt#807", "navikt/cplt#817", cpltUpgradeHint()} {
-		if !strings.Contains(first, want) {
-			t.Errorf("notice %q lacks %q", first, want)
-		}
+	want := "cplt " + cpltRecommended + " or newer is recommended: GitHub MCP and Nais MCP through cplt's broker, and blocking API keys opencode's voice feature reads. Update: "
+	if !strings.Contains(first, want) || !strings.Contains(first, cpltUpgradeHint()) || strings.Count(first, "\n") != 1 {
+		t.Errorf("notice %q, want one line with %q", first, want)
 	}
-	if again := launch(v2, old); again != "" {
-		t.Errorf("same cplt again: %q, want nothing", again)
+	// Once per recommended version: another old cplt or client says nothing.
+	if again := launch("", "cplt 2026.10.22-172931-b37a8ab\n"); again != "" {
+		t.Errorf("same recommendation again: %q, want nothing", again)
 	}
-	if next := launch(v2, "cplt 2026.10.23-053641-abcdef0\n"); !strings.Contains(next, "github-mcp") {
-		t.Errorf("new cplt below recommended: %q, want notice", next)
+	// A higher recommendation than the one last seen says it again; without
+	// opencode 2 only the reason every client gains.
+	SeenChanged("cplt-recommended", cpltDenyEnv)
+	if next := launch("", old); !strings.Contains(next, "recommended: Nais MCP through cplt's broker. Update: ") {
+		t.Errorf("raised recommendation: %q, want notice", next)
 	}
-	for _, c := range []string{"cplt " + openCode2CpltRecommended + "-7f0fd16\n", "cplt 2026.11.01-000000-abcdef0\n"} {
+	// Control: at and above the recommendation, silent even when unseen.
+	for _, c := range []string{"cplt " + cpltRecommended + "-7f0fd16\n", "cplt 2026.11.01-000000-abcdef0\n"} {
+		SeenChanged("cplt-recommended", "")
 		if out := launch(v2, c); out != "" {
 			t.Errorf("cplt %q: %q, want nothing", c, out)
 		}
@@ -61,7 +65,7 @@ func TestCpltMCPNotice(t *testing.T) {
 }
 
 // --deny-env for the voice keys only on opencode 2 with cplt at or above
-// openCode2CpltRecommended: an older cplt rejects the flag. "tier1" is the
+// cpltDenyEnv, even below cpltRecommended: an older cplt rejects the flag. "tier1" is the
 // helper opencode_launch.go appends to cpltFlags; "staged" is the real spec.
 func TestDenyVoiceEnv(t *testing.T) {
 	SetActivePakke(stagedFixturePakke())
@@ -70,13 +74,15 @@ func TestDenyVoiceEnv(t *testing.T) {
 	prev := probeCpltVersion
 	t.Cleanup(func() { probeCpltVersion = prev })
 	staged := StagedLaunch{Dir: t.TempDir(), PakkeName: "grillmester", Context: "full"}
-	at := "cplt " + openCode2CpltRecommended + "-7f0fd16\n"
+	at := "cplt " + cpltDenyEnv + "-7f0fd16\n"
 	for _, c := range []struct {
 		opencode, cplt string
 		err            error
 		want           bool
 	}{
 		{"opencode v2.1.3\n", at, nil, true},
+		{"opencode v2.1.3\n", "cplt 2026.10.23-130112-abcdef0\n", nil, true}, // below cpltRecommended
+		{"opencode v2.1.3\n", "cplt " + cpltRecommended + "-abcdef0\n", nil, true},
 		{"opencode v2.1.3\n", "cplt 2026.11.01-000000-abcdef0\n", nil, true},
 		{"opencode v2.1.3\n", "cplt 2026.10.23-053641-abcdef0\n", nil, false},
 		{"opencode v2.1.3\n", "cplt dev\n", nil, false},                 // unparseable

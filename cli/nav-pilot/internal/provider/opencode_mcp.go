@@ -80,6 +80,9 @@ type mcpRegistry struct {
 	// Entries is every listed server in full, in the registry's order, for
 	// nav-pilot mcp (mcp_servers.go).
 	Entries []MCPServerEntry
+	// Brokered is the ids of the servers with the broker _meta, which cplt
+	// runs on the host and adds to the client itself (#1941).
+	Brokered map[string]bool
 }
 
 // fetchMCPPolicy and fetchMCPRegistry are asked once per process: an OpenCode
@@ -212,6 +215,12 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 			e.Tools = s.Meta.Nav.Tools
 			e.ToolRisk = s.Meta.Nav.ToolRisk
 			reg.Entries = append(reg.Entries, e)
+			if e.Meta.Broker != nil && e.Name != "" {
+				if reg.Brokered == nil {
+					reg.Brokered = map[string]bool{}
+				}
+				reg.Brokered[e.Name] = true
+			}
 			for _, r := range s.Server.Remotes {
 				reg.Remotes[normalizeMCPURL(r.URL)] = true
 				if s.Server.Name != "" {
@@ -242,6 +251,28 @@ func normalizeMCPURL(s string) string {
 	u.Scheme, u.Host = strings.ToLower(u.Scheme), strings.ToLower(u.Host)
 	u.Path = strings.TrimSuffix(u.Path, "/")
 	return u.String()
+}
+
+// brokered reports whether the server is, or could be, an entry cplt adds
+// for a brokered registry server: one that runs `cplt mcp-stdio <id>`, or one
+// under a name cplt gives such entries (the short name, the id with "/" as
+// "__", or that with -2, -3...). The policy leaves both alone, so it never
+// switches off what cplt brokers (#1941).
+func (r mcpRegistry) brokered(name string, s mcpServer) bool {
+	if c := s.Command; len(c) == 3 && filepath.Base(c[0]) == "cplt" && c[1] == "mcp-stdio" && r.Brokered[c[2]] {
+		return true
+	}
+	for id := range r.Brokered {
+		full := strings.ReplaceAll(id, "/", "__")
+		short := id[strings.LastIndex(id, "/")+1:]
+		if name == short || name == full {
+			return true
+		}
+		if n, ok := strings.CutPrefix(name, full+"-"); ok && n != "" && strings.Trim(n, "0123456789") == "" {
+			return true
+		}
+	}
+	return false
 }
 
 // listed reports whether the registry lists the server.
@@ -727,7 +758,7 @@ func unlistedIn(registry string, servers map[string]mcpServer, names []string) (
 	}
 	var off []string
 	for _, name := range names {
-		if !reg.listed(servers[name]) {
+		if !reg.listed(servers[name]) && !reg.brokered(name, servers[name]) {
 			off = append(off, name)
 		}
 	}
