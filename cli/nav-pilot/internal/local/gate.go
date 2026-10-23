@@ -920,7 +920,7 @@ func RedirectFiles(cmd string) []string {
 	}
 	rest, _ := splitHeredocs(cmd)
 	for _, seg := range splitSegments(rest) {
-		words := shellWords(seg.text)
+		words := shellWords(spaceRedirects(seg.text))
 		head := words
 		for len(head) > 0 && slices.Contains([]string{"if", "while", "until", "!", "do", "then", "{", "("}, head[0]) {
 			head = head[1:]
@@ -949,9 +949,14 @@ func RedirectFiles(cmd string) []string {
 			add(f)
 		}
 		if cmdw := commandWords(words); len(cmdw) > 0 && cmdw[0] == "tee" {
-			for _, a := range cmdw[1:] {
-				if strings.ContainsAny(a, "<>") {
-					break
+			// Skip redirections and their operands; the rest are files.
+			for i := 1; i < len(cmdw); i++ {
+				a := cmdw[i]
+				if op := strings.TrimLeft(a, "0123456789&"); strings.HasPrefix(op, "<") || strings.HasPrefix(op, ">") {
+					if strings.TrimLeft(op, "<>&|-") == "" {
+						i++
+					}
+					continue
 				}
 				if !strings.HasPrefix(a, "-") {
 					add(a)
@@ -960,6 +965,47 @@ func RedirectFiles(cmd string) []string {
 		}
 	}
 	return out
+}
+
+// spaceRedirects puts a space before an unquoted > that is glued to a word,
+// as bash reads echo x>f: the word x, then >f. A file descriptor (2>f, &>f)
+// stays glued, and so does a > inside parentheses ($((a>b)), >(cmd)).
+func spaceRedirects(s string) string {
+	var b strings.Builder
+	var q byte
+	depth, start := 0, 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case q != 0:
+			if c == '\\' && q == '"' && i+1 < len(s) {
+				b.WriteByte(c)
+				i++
+				c = s[i]
+			} else if c == q {
+				q = 0
+			}
+		case c == '\\' && i+1 < len(s):
+			b.WriteByte(c)
+			i++
+			c = s[i]
+		case c == '\'' || c == '"':
+			q = c
+		case c == '(':
+			depth++
+		case c == ')':
+			depth = max(0, depth-1)
+		case c == ' ' || c == '\t':
+			start = b.Len() + 1
+		case c == '>' && depth == 0:
+			if w := b.String()[min(start, b.Len()):]; w != "" && strings.Trim(w, "0123456789&>") != "" {
+				b.WriteByte(' ')
+				start = b.Len()
+			}
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 // interpreter runs an inline script: python -c, node -e, ruby -e, perl -e,

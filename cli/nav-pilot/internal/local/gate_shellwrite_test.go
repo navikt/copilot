@@ -26,6 +26,14 @@ func TestRedirectFiles(t *testing.T) {
 		{"cat <<EOF > f.txt\nx >> g.txt\nEOF", []string{"f.txt"}},
 		// An apostrophe in a heredoc body does not hide what follows it.
 		{"cat > a.txt <<EOF\ndon't\nEOF\necho x > b.txt", []string{"a.txt", "b.txt"}},
+		// A redirect glued to the word before it.
+		{`echo x>src/F5.kt`, []string{"src/F5.kt"}},
+		{`echo x>>a.txt 2>&1`, []string{"a.txt"}},
+		{`echo "x>y" $((a>b))`, nil},
+		// tee keeps its files around a redirection.
+		{"tee <<'EOF' src/F5.kt\nx\nEOF", []string{"src/F5.kt"}},
+		{`tee < in.txt src/F5.kt`, []string{"src/F5.kt"}},
+		{`tee src/A.kt <in.txt src/B.kt`, []string{"src/A.kt", "src/B.kt"}},
 		// Comparisons are not redirects.
 		{`[[ $a > $b ]]`, nil},
 		{`(( a > b ))`, nil},
