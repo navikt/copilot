@@ -501,6 +501,9 @@ func readGitHEAD(root string) string {
 			dir = filepath.Join(gitDir, dir)
 		}
 		commonDir = filepath.Clean(dir)
+		if fi, err := os.Lstat(commonDir); err != nil || !fi.IsDir() {
+			return "" // missing, or a symlink
+		}
 		// A linked worktree's git dir must point back at this checkout, as
 		// as git writes it; a moved, unrepaired worktree falls back to git.
 		// A submodule has no commondir and needs no back-link.

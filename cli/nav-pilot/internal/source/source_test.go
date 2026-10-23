@@ -380,6 +380,15 @@ func TestReadGitHEAD(t *testing.T) {
 				}
 				return dotGit(t, base, "gitdir: "+link+"\n")
 			},
+			"symlinked commondir": func(t *testing.T) string {
+				base, gitDir := hand(t)
+				link := filepath.Join(base, "commonlink")
+				if err := os.Symlink(filepath.Join(base, "common"), link); err != nil {
+					t.Fatal(err)
+				}
+				os.WriteFile(filepath.Join(gitDir, "commondir"), []byte(link+"\n"), 0o644)
+				return dotGit(t, base, "gitdir: "+gitDir+"\n")
+			},
 			"symlinked HEAD in gitdir": func(t *testing.T) string {
 				base, gitDir := hand(t)
 				head := filepath.Join(base, "head")
