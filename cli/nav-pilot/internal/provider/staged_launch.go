@@ -288,6 +288,8 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 			cpltArgs = append(cpltArgs, "--pass-env", "OPENCODE_CONFIG")
 		}
 	}
+	// After the payload's agents are restated above, or their pin wins.
+	env = withUserAgentModel(env, r, agent)
 
 	return cpltLaunch{
 		agent:         "opencode",
@@ -397,6 +399,15 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 			model, s.PakkeName, domain.Bold("nav-pilot --client copilot"))
 	}
 	agentArgs := []string{"--plugin-dir", s.Dir, "--agent", s.PakkeName + ":" + primary}
+	cpltRead := []string{"--allow-read", s.Dir}
+	a, dir, err := copilotUserModelAgent(r, primary, PrimaryAgentFile("copilot", primary, s.Dir, ""))
+	if err != nil {
+		return cpltLaunch{}, err
+	}
+	if a != "" {
+		agentArgs = []string{"--plugin-dir", s.Dir, "--plugin-dir", dir, "--agent", a}
+		cpltRead = append(cpltRead, "--allow-read", dir)
+	}
 	agentArgs = append(agentArgs, copilotResolvedFlags(r)...)
 	if model != "" {
 		agentArgs = append(agentArgs, "--model", model)
@@ -409,7 +420,7 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 	return cpltLaunch{
 		agent:         "copilot",
 		noAudit:       true,
-		cpltArgs:      append([]string{"--allow-read", s.Dir}, checkFlags...),
+		cpltArgs:      append(cpltRead, checkFlags...),
 		skillsDir:     materializedSkillsDir(s.Dir),
 		agentArgs:     agentArgs,
 		env:           env,

@@ -120,6 +120,7 @@ type ResolvedConfig struct {
 	// other than the agentpakke's first declared primary (--persona).
 	Persona         string
 	Model           string // empty = use agent default
+	ModelFromFlag   bool   // Model came from --model on this run
 	Mode            string
 	ReasoningEffort string // empty = unset
 	ContextTier     string // empty = unset

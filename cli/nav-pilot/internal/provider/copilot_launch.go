@@ -202,7 +202,14 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 		persona = PrimaryAgent("copilot")
 	}
 	var args []string
-	args = append(args, "--agent", persona)
+	agent := persona
+	// LaunchCopilotResolved prepared the same copy first and stopped on an
+	// error, so this call only repeats a write that just succeeded.
+	if a, dir, _ := copilotUserModelAgent(resolved, persona, PrimaryAgentFile("copilot", persona, "", resolved.ProjectDir)); a != "" {
+		agent = a
+		args = append(args, "--plugin-dir", dir)
+	}
+	args = append(args, "--agent", agent)
 	args = append(args, copilotAgentArgs(persona)...)
 	if model := copilotSessionModel(resolved.Model); model != "" {
 		// Same fallback the staged Tier 2 copilot path has
@@ -354,6 +361,13 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	// own exec.Command instead of going through cpltArgv/launchViaCplt, so
 	// NAV_PILOT_SKILLS_DIR has to be wired here separately or a Tier 1 copilot
 	// session is the one launch that does not get it (#858).
+	persona := resolved.Persona
+	if persona == "" {
+		persona = PrimaryAgent("copilot")
+	}
+	if _, _, err := copilotUserModelAgent(resolved, persona, PrimaryAgentFile("copilot", persona, "", resolved.ProjectDir)); err != nil {
+		return err
+	}
 	skillsDir := materializedSkillsDir(copilotSkillsRoot())
 	env = withSkillsDirEnv(env, skillsDir)
 	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin), skillsDir)

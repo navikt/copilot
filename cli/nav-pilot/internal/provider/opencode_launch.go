@@ -253,9 +253,9 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 	// `opencode run` it outranks an agent's frontmatter too, because there it
 	// is the request model. In the TUI, which is what nav-pilot launches, an
 	// agent that declares its own `model:` uses that instead (verified
-	// against opencode 1.18.25). So the order is agent specialisation, then
-	// nav-pilot's session model, then whatever the client would have picked
-	// on its own. ToOpenCodeModel returns "" when nothing is pinned anywhere,
+	// against opencode 1.18.25). A model the user set still wins for the
+	// primary agent: LaunchOpenCode sets it on that agent too
+	// (withUserAgentModel, #1920). ToOpenCodeModel returns "" when nothing is pinned anywhere,
 	// and the flag is omitted so opencode resolves its own default.
 	if model := ToOpenCodeModel(resolved.Model); model != "" {
 		args = append(args, "--model", model)
@@ -1212,6 +1212,13 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 	launchEnv, cpltFlags = applyOpenCodeHooks(resolved, launchEnv, cpltFlags)
 	cpltFlags = withDenyVoiceEnv(cpltFlags)
+	if resolved.Mode != "plan" {
+		persona := resolved.Persona
+		if persona == "" {
+			persona = PrimaryAgent("opencode")
+		}
+		launchEnv = withUserAgentModel(launchEnv, resolved, persona)
+	}
 	agentArgs := openCodeAgentArgs(resolved)
 	if openCodeMajor() >= 2 {
 		agentArgs, launchEnv = openCodeV2Args(agentArgs, launchEnv)

@@ -1,0 +1,83 @@
+# #1920: a model the user set wins over the primary agent's pin, and when the
+# agentpakke's recommendation changes nav-pilot asks once per new value what
+# to run. Ctrl-C keeps the model. Without a terminal it is one line.
+
+[!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
+
+fake-bin cplt copilot
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+exec nav-pilot config set client copilot
+exec nav-pilot config set source $WORK/plattform
+
+# No model of your own: the agent's pin runs, nothing is asked.
+exec pty-run -- nav-pilot
+! stdout 'now recommends'
+grep '\-\-agent\ngrillmester\n' $WORK/fake/cplt.log
+
+# A model of your own that differs: asked once. Enter keeps it, and it wins
+# over the pin through the session copy of the agent.
+exec nav-pilot config set model gpt-5.5
+cp $WORK/pin-6.1.md .github/agents/grillmester.agent.md
+rm $WORK/fake/cplt.log
+exec pty-run -wait 'Follow the agentpakke' -send '\r' -- nav-pilot
+stdout 'The plattform agentpakke now recommends gpt-6.1-sol\.'
+stdout 'You have model = gpt-5\.5 set\.'
+grep '\-\-agent\nnav-pilot-session:grillmester\n' $WORK/fake/cplt.log
+grep '\-\-model\ngpt-5\.5\n' $WORK/fake/cplt.log
+exec pty-run -- nav-pilot
+! stdout 'now recommends'
+
+# A new recommendation is asked about again. Ctrl-C keeps the model, and is
+# not asked again.
+cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
+rm $WORK/fake/cplt.log
+exec pty-run -wait 'Follow the agentpakke' -send '\x03' -- nav-pilot
+stdout 'now recommends gpt-6.2-sol'
+grep 'model = "gpt-5.5"' $WORK/home/config.toml
+grep '\-\-model\ngpt-5\.5\n' $WORK/fake/cplt.log
+exec pty-run -- nav-pilot
+! stdout 'now recommends'
+
+# Switch runs config set model.
+cp $WORK/pin-6.1.md .github/agents/grillmester.agent.md
+rm $WORK/fake/cplt.log
+exec pty-run -wait 'Follow the agentpakke' -send '\x1b[B\r' -- nav-pilot
+grep 'model = "gpt-6.1-sol"' $WORK/home/config.toml
+grep '\-\-model\ngpt-6\.1-sol\n' $WORK/fake/cplt.log
+
+# Without a terminal: one line with both commands.
+cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
+exec nav-pilot -- -p hi
+stderr 'The plattform agentpakke now recommends gpt-6\.2-sol; you have model = gpt-6\.1-sol set\. To switch: nav-pilot config set model gpt-6\.2-sol\. To follow the agentpakke: nav-pilot config unset model\.'
+
+-- pin-6.1.md --
+---
+name: grillmester
+description: fra plattform
+model: gpt-6.1-sol
+---
+plattform
+-- pin-6.2.md --
+---
+name: grillmester
+description: fra plattform
+model: gpt-6.2-sol
+---
+plattform
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+model: gpt-6-sol
+---
+plattform

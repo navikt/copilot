@@ -18,6 +18,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **`nav-pilot --resume [id]` og `nav-pilot --continue`**: Fortsetter en tidligere økt med agentpakken, sandkassen og sjekkene som en vanlig oppstart. `--continue` fortsetter den siste økten. `--resume` uten id åpner listen over økter i Copilot CLI. OpenCode har ingen slik liste, så der må du oppgi id-en. Finnes ikke id-en, starter OpenCode en ny økt. pi støtter ikke flaggene ennå, og nav-pilot sier fra i stedet for å starte (#1919).
 
+### Modellen du har valgt, gjelder også hovedagenten
+
+- **Modell**: Har du valgt modell med `nav-pilot config set model` eller `--model`, kjører hovedagenten nå på den. Før vant modellen i agentfila. Med `model = gpt-6.1-sol` fikk du for eksempel `gpt-6-sol` fordi hovedagenten i nais-platform har `gpt-6-sol` i agentfila. Dette gjelder Copilot CLI, OpenCode og pi. Subagenter beholder sin egen modell. Har du ikke valgt modell, er alt som før (#1920).
+- **Copilot CLI**: Når modellen din skal vinne, starter nav-pilot en kopi av hovedagenten uten modell. Agenten heter da `nav-pilot-session:<agent>` i økta.
+- **Ny anbefaling**: Når agentpakken anbefaler en ny modell for hovedagenten og du har valgt en annen, spør nav-pilot én gang: behold modellen din, bytt til den nye, eller følg agentpakken. Første gang du starter etter oppdateringen, kan du få dette spørsmålet hvis modellen din er en annen enn den agentpakken anbefaler. Uten terminal får du én linje med kommandoene i stedet.
+
 ## 2026-10-22
 
 ### Tale i OpenCode er ikke tillatt

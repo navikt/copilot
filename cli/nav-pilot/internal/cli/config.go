@@ -716,6 +716,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	}
 	if cli.Model != "" {
 		r.Model = cli.Model
+		r.ModelFromFlag = true
 	}
 	if cli.Mode != "" {
 		r.Mode = cli.Mode
