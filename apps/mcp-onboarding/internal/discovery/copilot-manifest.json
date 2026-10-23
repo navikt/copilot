@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "71e46ac2868cbf2eace369f8b6338d1e4a30db51177b98e62d955ea86d3404f6",
+      "contentHash": "20e8ae13e1457c63fb2ad083a563684fef727b683374c515e012d43db3267c35",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
