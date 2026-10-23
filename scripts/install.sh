@@ -75,10 +75,7 @@ if [[ "$OS" == "darwin" && "$NO_BREW" == false && -z "$VERSION" && -z "$INSTALL_
   INSTALLED_VERSION=$(nav-pilot version 2>/dev/null || echo "unknown")
   echo "✓ nav-pilot is ready! (${INSTALLED_VERSION})"
   echo ""
-  echo "Get started:"
-  echo "  nav-pilot list                    # See what the agentpakke ships"
-  echo "  nav-pilot install nav-pilot       # Install the agentpakke"
-  echo "  nav-pilot install --dry-run nav-pilot  # Preview first"
+  echo "Get started: run nav-pilot in a git repo to start the setup wizard."
   echo ""
   echo "Upgrade later with: brew upgrade navikt/tap/nav-pilot"
   exit 0
@@ -309,7 +306,4 @@ else
 fi
 
 echo ""
-echo "Get started:"
-echo "  nav-pilot list                    # See what the agentpakke ships"
-echo "  nav-pilot install nav-pilot       # Install the agentpakke"
-echo "  nav-pilot install --dry-run nav-pilot  # Preview first"
+echo "Get started: run nav-pilot in a git repo to start the setup wizard."
