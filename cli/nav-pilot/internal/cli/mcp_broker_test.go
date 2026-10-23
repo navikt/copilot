@@ -341,12 +341,28 @@ func TestMCPBrokerStatusRetriesFromGitRoot(t *testing.T) {
 
 // credential_ok null with a note is unknown, not logged out, and is no
 // problem to fix.
+// Covers cplt#846's output too: project null outside a project, clients []
+// outside a launch (nav-pilot fills the client columns from the spec, not
+// clients), and a disabled row with every field null.
 func TestMCPListBrokerCredentialUnknown(t *testing.T) {
-	f := brokerEnv(t, `{"schema":[1],"servers":[{"id":"io.github.nais/nais-mcp","state":"brokered","credential_ok":null,"credential_note":"timed out"}]}`)
+	for status, want := range map[string]string{
+		`{"schema":[1],"servers":[{"id":"io.github.nais/nais-mcp","state":"brokered","credential_ok":null,"credential_note":"timed out"}]}`:                                        "nais: unknown (timed out)",
+		`{"schema":[1],"project":null,"servers":[{"id":"io.github.nais/nais-mcp","state":"brokered","credential_ok":null,"credential_note":"cannot run the probe","clients":[]}]}`: "nais: unknown (cannot run the probe)",
+		`{"schema":[1],"project":"/r","servers":[{"id":"io.github.nais/nais-mcp","state":"brokered","credential_ok":true,"credential_note":null,"clients":[]}]}`:                   "nais: ok",
+	} {
+		f := brokerEnv(t, status)
+		writeTestFile(t, f.spec, `{}`)
+		out := captureStdout(func() { _ = cmdMCP([]string{"list"}) })
+		if !strings.Contains(out, want) || strings.Contains(out, "Fix: nais login -n") || !regexp.MustCompile(`nais-mcp\s+cplt\s+cplt\s`).MatchString(out) {
+			t.Errorf("%s: list:\n%s", want, out)
+		}
+	}
+	// A disabled row (--no-mcp-broker) under cplt#846: every field null.
+	f := brokerEnv(t, `{"schema":[1],"project":null,"servers":[{"id":"io.github.nais/nais-mcp","state":"off","credential_ok":null,"credential_note":null,"clients":[]}]}`)
 	writeTestFile(t, f.spec, `{}`)
 	out := captureStdout(func() { _ = cmdMCP([]string{"list"}) })
-	if !strings.Contains(out, "nais: unknown (timed out)") || strings.Contains(out, "Fix: nais login -n") {
-		t.Errorf("list:\n%s", out)
+	if !strings.Contains(out, "cplt off") || !strings.Contains(out, "nais: logged out") {
+		t.Errorf("disabled row:\n%s", out)
 	}
 }
 
