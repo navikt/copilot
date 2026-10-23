@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+**TokenX** for innlogget innbygger (ID-porten). A veksler brukertokenet til et token med B som audience. For ansattkontekst (Azure AD) bruker dere **OAuth On-Behalf-Of (OBO)**.
+
+Ikke bruk `client_credentials`: det gir maskinidentitet uten brukerkontekst.
+

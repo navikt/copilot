@@ -1,0 +1,32 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,README*,nais*
+  │ ,package.json,build.gradle.kts}"
+  └ 3 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+**Fase 1: avklaring (fullt løp).** Repoet har en Ktor-tjeneste på Nais, men ingen ID-porten-konfigurasjon i `nais.yaml`. Jeg antar at tjenesten skal lese fødselsnummeret til den innloggede innbyggeren.
+
+1. Hva skal fødselsnummeret brukes til? Skal det bare brukes i forespørselen, lagres eller sendes videre, og behandles andre personopplysninger?
+2. Logger innbyggeren inn direkte via nettleser, eller kalles tjenesten av en annen tjeneste på vegne av innbyggeren? Hvem skal ha tilgang?
+3. Skal vi utvide demo-tjenesten eller opprette en separat tjeneste? Hvem eier frontend og eventuelle mottakere av fødselsnummeret?
+4. Hva skal skje ved innloggingsfeil eller utilgjengelige avhengigheter, og hvordan skal vi måle at flyten virker uten å logge fødselsnummer eller tokens?
+5. Hvilke tester finnes, og er Ktor og ID-porten kjent teknologi for deg? Ønsker du veiledning eller delegering av arbeidet etter avklaring?
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer må forstås grundig. Ingen kode er endret.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal konfigurasjon.
+
+Anslått tokenbudsjett: intervju 1 000, plan 2 000, review 1 500, levering 3 000. Migrering, bakoverkompatibilitet og avvikling (#8–#10) antas ikke relevante for en ny, separat tjeneste.
+
+Blindsoner reist: 8/11 (#1–#7 og #11; #8–#10 utelatt under antakelsen over).
+

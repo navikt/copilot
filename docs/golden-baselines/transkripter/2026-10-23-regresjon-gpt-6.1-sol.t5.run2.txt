@@ -1,0 +1,6 @@
+● skill(nav-auth)
+
+**TokenX** for innlogget innbygger (ID-porten). For ansatt med Azure AD: **On-Behalf-Of (OBO)**.
+
+A veksler brukertokenet til et token med B som audience. Ikke bruk `client_credentials`: det mister brukerkonteksten. B må validere tokenet og kontrollere brukerens tilgang til ressursen.
+

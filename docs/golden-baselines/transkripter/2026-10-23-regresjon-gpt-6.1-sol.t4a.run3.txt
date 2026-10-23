@@ -1,0 +1,27 @@
+● skill(klarsprak)
+
+● Se etter prosjektfiler og lokale instruksjoner (shell)
+  │ pwd && ls -a
+  └ 8 lines…
+
+● Les eksisterende stack, tilgang og prosjektinstruksjoner (shell)
+  │ find .github -maxdepth 2 -type f && cat build.gradle.kts nais.yaml README.md && find src -type f
+  └ 49 lines…
+
+/ Search (grep)
+  │ "." in src/**/*.kt
+  └ 47 lines found
+
+**Fase 1: Avklaringer før plan og kode (fullt løp).** Repoet har Ktor, men ingen ID-porten-integrasjon eller konfigurert tilgangsstyring. Fødselsnummer er personopplysninger. 🔴 Rød sone: autentisering og håndtering av fødselsnummer må forstås grundig.
+
+1. Skal tjenesten behandle bare innlogget brukers fødselsnummer, eller også andre personopplysninger? Hva er formålet og behandlingsgrunnlaget?
+2. Logger innbyggeren inn direkte via nettleseren, eller kaller en annen tjeneste dette API-et på brukerens vegne?
+3. Skal fødselsnummeret bare brukes under forespørselen, lagres eller sendes videre? Hvilke tjenester skal eventuelt motta det?
+4. Skal dette bygges inn i demo-tjenesten eller være et separat prosjekt? Hvilket team eier løsningen?
+5. Hva skal skje når innlogging eller avhengigheter feiler, og hvilke målinger uten personopplysninger skal vise at tjenesten virker?
+6. Ønsker du veiledet implementering eller full delegering, også av rød sone?
+
+Jeg fant ingen tester eller repo-lokal `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`. Migrering, bakoverkompatibilitet og avvikling (#8–#10) er foreløpig ikke relevante for en ny tjeneste. Fasebudsjetter: intervju ca. 1 000 tokens, plan 2 000, review 1 500, levering etter avklart omfang.
+
+Blindsoner reist: 8/11 (#1–#7 og #11; #7 avdekket i repoet, øvrige avventer svar).
+

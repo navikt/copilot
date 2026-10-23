@@ -29,8 +29,8 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "GPT-6.1 Sol",
     fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
     reason:
-      "Stoppet og tok opp personvern før fødselsnummer ble lagt i en Kafka-melding, i tre av tre kjøringer 23. oktober (lest for hånd). Den 12. oktober bommet den på samme test. Billigere per kjøring enn GPT-6 Sol.",
-    source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-23-t7b-rerun-gpt-6.1-sol",
+      "Besto regresjonssjekken på alle planleggingstestene 23. oktober, fem kjøringer hver og lest for hånd, med de nye reglene for personopplysninger og rød sone. Billigere per kjøring enn GPT-6 Sol.",
+    source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-23-pin-gpt-6.1-sol",
   },
   {
     purpose: "Kafka-agent",

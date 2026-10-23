@@ -1,0 +1,37 @@
+● skill(klarsprak)
+
+● List directory .
+  └ 5 files found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/**,src/**}"
+  └ 21 files found
+
+/ Search (grep)
+  │ "." in src/**/*.kt
+  └ 47 lines found
+
+**Fase 1: avklaring (fullt løp).** Repoet har en Ktor-demo uten auth. `nais.yaml` har verken ID-porten-konfigurasjon eller `accessPolicy`. Ingen kode er endret.
+
+Jeg antar at tjenesten skal lese fødselsnummeret til innlogget bruker, ikke slå opp andre personer. Før vi velger løsning:
+
+1. Hva skal fødselsnummeret brukes til? Skal det kun behandles under forespørselen, lagres eller sendes videre, og behandles andre personopplysninger?
+2. Kommer brukeren direkte fra nettleseren, eller kaller en annen tjeneste med brukerens identitet? Skal tjenesten bare gi tilgang til egne data?
+3. Skal dette bygges i demo-repoet, og hvilke andre tjenester eller team må løsningen samhandle med?
+4. Ønsker du veiledet implementering eller delegering av standardoppsettet? Auth og tilgangskontroll er rød sone og må forstås grundig.
+
+Fødselsnummer og tokens skal ikke logges. Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; bruk `nav-pilot init` for repo-lokalt oppsett.
+
+Omtrentlig tokenbudsjett: intervju 1 000, plan 2 000, review 1 500, levering 3 000. Feilhåndtering, observability og teststrategi avklares når flyten er kjent. Migrering, bakoverkompatibilitet og avvikling er foreløpig ikke relevante for en ny tjeneste.
+
+Blindsoner reist: 5/11 (#1, #2, #5, #6, #11 stilt; #3, #4, #7 avventes; #8–#10 ikke relevante nå).
+

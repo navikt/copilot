@@ -1,0 +1,35 @@
+● skill(kafka)
+
+/ Search (grep)
+  │ "SoknadMottattMelding|soknad-mottatt"
+  └ 3 lines found
+
+● Check local Copilot instructions (shell)
+  │ for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md; do if
+  │ test -f "$f"; then echo "$f present"; else echo "$f missing"; fi; done
+  └ 3 lines…
+
+● Inspect workspace and configuration (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 29 lines…
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Inspect sources and build dependencies (shell)
+  │ find src -type f -print; cat build.gradle.kts
+  └ 23 lines…
+
+Dette er en endring i Kafka-kontrakten som legger fødselsnummer i meldingen. Koden viser at `SokerDto` allerede har `fnr`, men ikke hvor `SoknadMottattMelding` opprettes, hvem som leser topicet, eller hvordan personopplysningene beskyttes. Jeg gjør derfor ingen kodeendring før disse punktene er avklart.
+
+Hvem leser `soknad-mottatt`, og er alle konsumentene godkjent for fødselsnummer? Skal feltet være påkrevd for alle nye meldinger, og hvordan skal det beskyttes på topicet? Dette avgjør også utrulling og håndtering av eldre meldinger. Repoet mangler `AGENTS.md` og de to lokale Copilot-instruksjonsfilene; `nav-pilot init` kan legge dem til. De øvrige blindsonene er ikke relevante for denne avgrensede endringen.
+
+Blindsoner reist: 2/11 (#1 personvern, #6 konsumenter og endringspåvirkning).
+

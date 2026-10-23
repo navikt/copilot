@@ -1,0 +1,43 @@
+● skill(klarsprak)
+
+● Finn Kotlin-kode og lokale instruksjoner (shell)
+  │ pwd && ls -a && find . -name '*.kt' -o -name '*instructions.md' -o -name 'AGENTS.md' -o -name
+  │ '*gradle*'
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Jeg implementerer bare avrundingen i `Avrunding.kt`. Feriepengefunksjonen, valideringen og enhetstestene lar jeg deg skrive, og jeg kjører ikke Gradle.
+
+
+● Edit
+  └ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+
+● Kontroller avrundingsfil og tilgjengelig Kotlin-kompilator (shell)
+  │ command -v kotlinc; command -v jshell; cat src/main/kotlin/no/nav/demo/Avrunding.kt
+  └ 8 lines…
+
+Lagt til `Avrunding.kt` med `avrundTilHeleKroner(BigDecimal): Long`. `HALF_UP` runder 50 øre opp, og `BigDecimal` unngår presisjonstap fra flyttall.
+
+Resten er overlatt til deg. Gradle er ikke kjørt.
+
+🔴 Rød sone: avrundingsregelen, forstå denne grundig. Still gjerne spørsmål om valgene over.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller at 0,49 gir 0, 0,50 gir 1 og 1,50 gir 2 i testene du skriver.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

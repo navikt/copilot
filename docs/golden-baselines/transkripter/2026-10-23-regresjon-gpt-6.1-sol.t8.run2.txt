@@ -1,0 +1,56 @@
+/ Search (glob)
+  │ "*"
+  └ 27 files found
+
+● skill(klarsprak)
+
+● Read SigningProducerInterceptor.kt                                                              7s
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read SigningHeaders.kt                                                                          8s
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read build.gradle.kts                                                                           9s
+  └ 12 lines read
+
+● Finn referanserepoet for Paw (shell)                                                           12s
+  │ gh search repos paw --owner navikt --limit 30 --json name --jq '.[].name'
+  └ 30 lines…
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md}"
+  └ No matches found
+
+● Les filoversikt for signeringsreferansen (shell)
+  │ gh repo view navikt/paw-arbeidssoekerregisteret-monorepo-intern --json name,defaultBranchRef &&
+  │ gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1'
+  │ --jq '.tree[] | select(.path | test("Signing|signing")) | .path'
+  └ 59 lines…
+
+● Les hvordan internrepoet erstatter signeringsheaders (shell)                                    7s
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src
+  │ /main/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq '.content' | base64
+  │ --decode && printf '\n--- SIGNER ---\n' && gh api
+  │ repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/main/k
+  │ otlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt --jq '.content' | base64 --decode && …
+  └ 225 lines…
+
+Jeg har lest referansen i `paw-arbeidssoekerregisteret-monorepo-intern` og signeringskoden her. Internrepoet fjerner begge signeringsheaders rett før nye legges til. Her finnes allerede `stripSigningHeaders`, men `SigningProducerInterceptor.onSend` bruker den ikke.
+
+🔴 Rød sone: signering. Full løype, fase 1. Ingen filer er endret. Payload, mottakere og nøkkelhåndtering forutsettes uendret. Fasebudsjett: omtrent 500/700/500/1000 tokens for intervju/plan/review/leveranse.
+
+Hvis signeringen feiler, skal eksisterende signeringsheaders beholdes som i referansen, eller fjernes for å unngå at meldingen sendes med en gammel signatur?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#3 stilt; #1–#2 og #4–#11 ikke relevante for den avgrensede headerendringen eller avklart av referansen).
+

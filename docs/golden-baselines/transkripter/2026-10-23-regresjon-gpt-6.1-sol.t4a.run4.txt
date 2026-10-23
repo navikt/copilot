@@ -1,0 +1,39 @@
+● skill(klarsprak)
+
+● Se etter prosjektfiler og lokal Copilot-konfigurasjon (shell)
+  │ ls -a && for f in AGENTS.md .github/copilot-instructions.md
+  │ .github/copilot-review-instructions.md; do if [ -f "$f" ]; then printf '\n--- %s ---\n' "$f";
+  │ head -80 "$f"; fi; done
+  └ 7 lines…
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Les eksisterende dataflyt og tilgangskontroll (shell)
+  │ cat src/main/kotlin/no/nav/demo/{App,Routes,Oppgave,Config}.kt
+  └ 47 lines…
+
+**Fase 1: Avklaring (fullt løp).** Repoet har en Ktor-tjeneste uten konfigurert ID-porten eller tilgangskontroll. Ingen kode er endret. Fødselsnummer er personopplysninger og skal ikke logges.
+
+1. Hva skal tjenesten bruke fødselsnummeret til, og behandles andre personopplysninger? Skal nummeret lagres eller sendes videre, og i så fall hvor?
+2. Skal innbyggere bruke tjenesten via nettleser, eller skal et annet system kalle API-et på brukerens vegne? Har dere allerede en frontend med ID-porten og Wonderwall?
+3. Er dette en utvidelse av demo-tjenesten eller en separat tjeneste? Hvilke team eller konsumenter berøres?
+4. Hva skal skje ved innloggingsfeil, og hvordan måler dere at brukerflyten fungerer uten personopplysninger i logger eller metrikker?
+5. Ønsker du veiledet implementering eller full delegering etter at planen er avklart?
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer må forstås grundig før implementering. Fasebudsjett: intervju ca. 1 000 tokens, plan 1 500, review 1 000, levering etter avklart omfang.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette disse.
+
+Blindsoner reist: 7/11 (#1–#6 og #11). #7–#10 avventer avklaring av om eksisterende tjeneste skal endres.
+

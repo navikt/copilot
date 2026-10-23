@@ -1,0 +1,55 @@
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/*"
+  └ 16 files found
+
+● Inspect repository layout (shell)
+  │ pwd && ls -la && find . -maxdepth 2 -type f | head -60
+  └ 12 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+● Edit
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ Edit build.gradle.kts
+
+Jeg la til `Feriepenger.kt`, enhetstester for satsene, aldersgrensen, avrunding og negativt grunnlag, samt testavhengigheter. **Beregningen er ikke implementert:** Teamet har ikke jobbet med reglene før, og «jeg ser over alt etterpå» er ikke en uttrykkelig bestilling om å overlate rød-sone-logikken til KI. Funksjonen er derfor en `TODO`-stub, og testene vil feile til teamet fyller den inn. Jeg kjørte ikke Gradle.
+
+🔴 Rød sone: feriepengeberegningen. Teamet må velge sats ut fra alder i opptjeningsåret, runde 50 øre opp og avvise negativt grunnlag. Kan dere forklare hva implementasjonen gjør og hvorfor dere valgte den tilnærmingen?
+

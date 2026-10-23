@@ -1,0 +1,58 @@
+● skill(klarsprak)
+
+● Finn kildefiler og prosjektinstruksjoner (shell)
+  │ pwd && ls -a && find . -name AGENTS.md -o -name '*.kt' -o -path './.github/instructions/*' -o
+  │ -name '*gradle*' -o -name 'copilot*instructions.md'
+  └ 29 lines…
+
+● Les Kotlin-konvensjoner og testoppsett (shell)
+  │ cat build.gradle.kts src/main/kotlin/no/nav/demo/{App,Oppgave}.kt .github/instructions/{kotlin,s
+  │ ecurity-owasp,testing-kotlin,testing,deliberate-ai-use}.instructions.md && find src -type f
+  └ 22 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Jeg implementerer bare avrundingen. Feriepengeberegningen blir en TODO-stubb med tester for satsene, 60-årsgrensen og negativt grunnlag. Jeg kjører ikke Gradle.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/AvrundingTest.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Kontroller lagret kode og tilgjengelig Kotlin-kompilator (shell)
+  │ cat src/main/kotlin/no/nav/demo/{Avrunding,Feriepenger}.kt && cat build.gradle.kts && command -v
+  │ kotlinc || true
+  └ 25 lines…
+
+Implementert avrunding i `Avrunding.kt` med `BigDecimal` og `HALF_UP`: unngår flyttallsfeil og runder 50 øre opp.
+
+`Feriepenger.kt` er en TODO-stubb. Enhetstester dekker avrunding, begge satser, 60-årsgrensen og negativt grunnlag. Beregningstestene vil feile til du implementerer stubben. Gradle er ikke kjørt.
+
+🔴 Rød sone: feriepengegrunnlag, aldersregel og validering skriver du selv.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller avrundingen og les `AvrundingTest`, særlig 49, 50 og 51 øre.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

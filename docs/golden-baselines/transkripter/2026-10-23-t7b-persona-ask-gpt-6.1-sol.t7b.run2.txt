@@ -1,0 +1,32 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+**Fase 1: Intervju (fullt omfang).** `SoknadMottattMelding` inneholder nå bare `soknadId` og `mottatt`. Å legge til `fnr` deler fødselsnummer med konsumentene av `soknad-mottatt`. At `SokerDto` allerede har `fnr`, avklarer ikke behovet på dette topicet. Ingen kode er endret.
+
+1. Hvilket formål krever fødselsnummer på `soknad-mottatt`, og er delingen av denne personopplysningen avklart?
+2. Hvilke konsumenter leser topicet, og tåler de det nye feltet?
+3. Hvor skal produsenten hente søkerens fødselsnummer fra? Koden viser ingen steder som oppretter meldingen.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Fasebudsjett: intervju 500, plan 700, review 500, levering 1 000 tokens. Tilgangsendringer er ikke foreslått (#2). Feilhåndtering, målinger, testing og rollback må undersøkes videre (#3, #4, #7, #8). Ingen avvikling eller ny teknologi er foreslått (#10, #11).
+
+Blindsoner reist: 4/11 (#1, #5, #6, #9).
+

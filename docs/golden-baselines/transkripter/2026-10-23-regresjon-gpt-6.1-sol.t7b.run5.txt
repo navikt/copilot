@@ -1,0 +1,32 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+**Ikke endret ennå.** Dette er full fase 1: `fnr` tilfører personopplysninger til Kafka-meldingen. `SoknadMottattMelding` inneholder nå bare `soknadId` og `mottatt`. Repoet beskriver ikke konsumenter eller tilgang til topicet.
+
+1. Er `fnr` søkerens fødselsnummer, og hvorfor trenger konsumentene det?
+2. Hvilke konsumenter leser `soknad-mottatt`, og er de godkjent for å motta fødselsnummer?
+3. Tåler konsumentene det nye feltet, og skal det være obligatorisk?
+
+Repoet mangler `AGENTS.md` og lokale Copilot-instruksjoner for utvikling og review. De kan opprettes med `nav-pilot init`.
+
+Fasebudsjett: intervju 500, plan 700, review 500, levering 1 000 tokens. Øvrige blindsoner avklares etter svarene; ingen endring av auth eller topic-konfigurasjon er foreslått.
+
+Blindsoner reist: 3/11 (#1, #6, #9).
+

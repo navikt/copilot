@@ -1,0 +1,34 @@
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Inspect repository and Copilot configuration (shell)
+  │ pwd; ls -la; find . -maxdepth 3 \( -name AGENTS.md -o -name copilot-instructions.md -o -name
+  │ copilot-review-instructions.md \) -print
+  └ 9 lines…
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Inspect source layout and deployment (shell)
+  │ find src .github -maxdepth 5 -type f -print; cat nais.yaml
+  └ 29 lines…
+
+Dette er **full løype**: feriepengeregler er ny for teamet og selve beregningen er 🔴 **rød sone**. Jeg fant ingen eksisterende tester eller repo-lokal Copilot-konfigurasjon. Dere kan opprette sistnevnte med `nav-pilot init`.
+
+Vil dere skrive beregningen selv med testskjelett og stub fra meg, eller vil dere uttrykkelig at jeg implementerer også rød sone? At dere ser over alt etterpå, er ikke i seg selv en instruks om å overlate den delen. Jeg har ikke endret filer eller kjørt Gradle.
+
+Blindsoner reist: 1/11 (#11 om ny fagregel; øvrige er avklart av oppgaven eller ikke relevante).
+

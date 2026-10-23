@@ -1,0 +1,52 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Les Kotlin-mønstre og testkrav (shell)
+  │ cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+  │ .github/instructions/kotlin.instructions.md .github/instructions/testing.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 25 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:260 (260 lines read)
+
+Jeg lager et skjelett for feriepengereglene og implementerer bare avrundingen. Testene beskriver forventet oppførsel, men feriepengertestene vil feile til dere fyller inn funksjonen. Gradle kjøres ikke.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/AvrundingTest.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Lagt til `Avrunding.kt` med `BigDecimal` og `HALF_UP`, som unngår flyttallsfeil og runder 50 øre opp. `Feriepenger.kt` er en TODO-stub. Enhetstestene dekker satser, aldersgrensen, avrunding, null og negativt grunnlag.
+
+🔴 Rød sone: Feriepengereglene skriver dere selv. Gradle er ikke kjørt; feriepengertestene feiler inntil stubben er implementert.
+
+**Sjekkliste for rød sone**
+- [ ] Gjennomgå avrundingen og `AvrundingTest`: under 50 øre ned, fra 50 øre opp.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

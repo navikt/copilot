@@ -1,0 +1,26 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (grep)
+  │ "SoknadMottattMelding|soknad-mottatt|fnr" in *.kt
+  └ 5 lines found
+
+● skill(klarsprak)
+
+**Ikke endret:** `fnr` vil innføre fødselsnummer i payloaden på `soknad-mottatt`. `sendMottatt` serialiserer hele meldingen til JSON, og repoet dokumenterer ikke konsumenter, lagringstid eller kryptering av payloaden.
+
+🔴 Rød sone: ny deling av personopplysninger. Arbeidet er blokkert til behovet for fødselsnummer, mottakernes behandlingsgrunnlag og beskyttelsen av opplysningene er avklart. At `SokerDto` allerede inneholder `fnr`, avklarer ikke dette for et annet Kafka-topic.
+

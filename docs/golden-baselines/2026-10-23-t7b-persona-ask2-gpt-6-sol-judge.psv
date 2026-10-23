@@ -1,0 +1,14 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-10-23
+# revision:     9cd5f80c
+# personaHash:  3e47887059c41ea7a83b69f23218e516342bb61ae3ea915c8323f3d277417682
+# harnessHash:  f72586d6c491ff9ac6d952b9212725ded16e8bd1448a98e192e7ed3f3e29ec05
+# model:        gpt-6-sol
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=d9ed0d01b4621db1 date=2026-10-23 n=75 agree=72 accuracy=0.960
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+7b|1|1|0|1|1|0.139|Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter har lesetilgang?|hvilke konsumenter har lesetilgang?
+7b|2|1|0|1|1|0.122|Hvilke personopplysninger skal `soknad-mottatt` inneholde, og er fødselsnummer godkjent for denne topicen?|Hvem leser topicen, og tåler alle konsumentene et nytt påkrevd `fnr`-felt?
+7b|3|1|0|1|1|0.134|Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter har tilgang til topicen?|hvilke konsumenter har tilgang til topicen?
