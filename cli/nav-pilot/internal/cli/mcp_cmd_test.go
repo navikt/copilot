@@ -316,7 +316,11 @@ func TestMCPListStaleAndProjectConfig(t *testing.T) {
 func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 	fset := token.NewFileSet()
 	own := map[string]bool{}
-	for _, name := range []string{"mcp_cmd.go", "mcp_broker.go", "mcp_tools.go"} {
+	broker, _ := filepath.Glob("mcp_broker*.go")
+	for _, name := range append([]string{"mcp_cmd.go", "mcp_tools.go"}, broker...) {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
 		file, err := parser.ParseFile(fset, name, nil, 0)
 		if err != nil {
 			t.Fatal(err)
@@ -349,7 +353,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 	}
 	for _, path := range files {
 		base := filepath.Base(path)
-		if strings.HasSuffix(base, "_test.go") || base == "mcp_cmd.go" || base == "mcp_broker.go" || base == "mcp_servers.go" || base == "mcp_tools.go" {
+		if strings.HasSuffix(base, "_test.go") || base == "mcp_cmd.go" || strings.HasPrefix(base, "mcp_broker") || base == "mcp_servers.go" || base == "mcp_tools.go" {
 			continue
 		}
 		f, err := parser.ParseFile(fset, path, nil, 0)

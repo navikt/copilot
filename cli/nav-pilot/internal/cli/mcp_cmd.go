@@ -135,7 +135,7 @@ const mcpUsage = `Usage: nav-pilot mcp [list] [--json]
        nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec] [--json]
        nav-pilot mcp disable <name>... [--client copilot|opencode]
 
-A server cplt runs on the host (Nais) gets its read tools by default.
+A server cplt runs on the host gets its read tools by default.
 --all-tools, or a write tool named in --tools, also allows its writes.`
 
 // mcpProblem is one thing that keeps a configured server from working, and

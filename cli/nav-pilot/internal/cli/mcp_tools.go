@@ -59,13 +59,6 @@ var mcpAsk = func(title string) bool {
 	return isInteractive() && runField(huh.NewConfirm().Title(title).Value(&ok)) == nil && ok
 }
 
-// mcpAskYes is mcpAsk with Enter meaning yes ([Y/n]), for a step the user
-// asked for, such as logging in. Esc and ctrl+c are still no.
-var mcpAskYes = func(title string) bool {
-	ok := true
-	return isInteractive() && runField(huh.NewConfirm().Title(title).Value(&ok)) == nil && ok
-}
-
 // mcpChooseTools is the tools enable turns on for e.
 func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MCPToolChoice, error) {
 	if o.noPick {

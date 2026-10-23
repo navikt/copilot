@@ -63,11 +63,16 @@ func brokerEnv(t *testing.T, cpltStatus string) brokerFakes {
 		}
 	}
 	t.Setenv("PATH", bin)
+	// Every global this overrides is put back, whatever mcpCmdEnv restores.
+	prevCplt, prevReg, prevInstalled, prevTimeout, prevInteractive := mcpCpltPath, mcpRegistryServers, mcpClientInstalled, mcpCpltStatusTimeout, isInteractive
+	prevPick, prev, prevYes := mcpPickTools, mcpAsk, mcpConfirmLogin
+	t.Cleanup(func() {
+		mcpCpltPath, mcpRegistryServers, mcpClientInstalled, mcpCpltStatusTimeout, isInteractive = prevCplt, prevReg, prevInstalled, prevTimeout, prevInteractive
+		mcpPickTools, mcpAsk, mcpConfirmLogin = prevPick, prev, prevYes
+	})
 	mcpCpltPath = func() string { return f.cplt }
-	prev, prevYes := mcpAsk, mcpAskYes
-	t.Cleanup(func() { mcpAsk, mcpAskYes = prev, prevYes })
 	mcpAsk = func(string) bool { t.Error("asked without a terminal"); return false }
-	mcpAskYes = mcpAsk
+	mcpConfirmLogin = mcpAsk
 	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
 		return "https://registry.test", append(mcpTestEntries(), naisTestEntry()), nil, nil
 	}
@@ -149,7 +154,7 @@ func TestMCPEnableBrokerLogsInAfterYes(t *testing.T) {
 	f := brokerEnv(t, brokerStatusOK)
 	isInteractive = func() bool { return true }
 	asked := ""
-	mcpAskYes = func(q string) bool { asked = q; return true }
+	mcpConfirmLogin = func(q string) bool { asked = q; return true }
 	captureStdout(func() {
 		if err := cmdMCP([]string{"enable", "io.github.nais/nais-mcp"}); err != nil {
 			t.Fatal(err)
