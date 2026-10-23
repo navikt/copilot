@@ -158,7 +158,7 @@
 #   the path with NAV_PILOT_GOLDEN_USAGE_DB when cplt or an isolated HOME keeps
 #   the database elsewhere. The CLI's rounded banner is not used as raw data.
 #   With --client opencode (v2) the same file is filled from `opencode session
-#   export`, and total_nano_aiu is an estimate from list price, marked
+#   export`, subagent sessions included, and total_nano_aiu is an estimate from list price, marked
 #   "estimert" (#1721). A credit cap over column 13 counts it the same way.
 #
 # PASS/FAIL ACROSS REPEATS
@@ -1559,6 +1559,23 @@ oc_session_id() {
     | python3 -c 'import json,sys; print(next((s["id"] for s in json.load(sys.stdin) if s.get("title")==sys.argv[1]),""))' "$1" 2>&1)
 }
 
+# oc_export_usage <session id> <since ms> <slug> <title>: usage rows for the
+# session and every child session below it (subagents; col 17 names them).
+# `session list` shows top-level sessions only, so children are found in the
+# parent's export, from its subagent tool calls.
+oc_export_usage() {
+  local queue=("$1") seen=" " sid json children
+  while ((${#queue[@]})); do
+    sid="${queue[0]}"; queue=("${queue[@]:1}")
+    [[ "$seen" == *" $sid "* ]] && continue
+    seen+="$sid "
+    json="$(cd "$WS" && env ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" session export "$sid")" || return 1
+    python3 "$USAGE_HELPER" opencode --since-ms "$2" --slug "$3" --run "$RUN" --title "$4" <<<"$json" || return 1
+    children="$(python3 "$USAGE_HELPER" opencode-children <<<"$json")" || return 1
+    [[ -z "$children" ]] || while IFS= read -r sid; do queue+=("$sid"); done <<<"$children"
+  done
+}
+
 now_ms() {
   if command -v python3 >/dev/null 2>&1; then
     python3 -c 'import time; print(time.time_ns() // 1_000_000)'
@@ -1717,13 +1734,11 @@ run_prompt() {
   elapsed_ms=$((ended_ms - started_ms))
   if $USAGE_ESTIMATED && $USAGE_TRACKING; then
     # Only messages created after started_ms: turn two exports turn one again.
-    # ponytail: subagent (child) sessions are not exported, so a run that
-    # delegates is underestimated; walk child sessions if that starts to matter.
+    # Subagent (child) sessions are exported too, recursively, through the
+    # same CLI and OC_ENV as the run, so they come from the run's own store.
     local oc_usage_sid
     if ! { oc_usage_sid="$(oc_session_id "$session")" && [[ -n "$oc_usage_sid" ]] \
-      && (cd "$WS" && env ${OC_ENV[@]+"${OC_ENV[@]}"} "$CLI_PATH" session export "$oc_usage_sid") \
-        | python3 "$USAGE_HELPER" opencode --since-ms "$started_ms" --slug "$slug" --run "$RUN" --title "$session" \
-        >>"$USAGE_FILE"; }; then
+      && oc_export_usage "$oc_usage_sid" "$started_ms" "$slug" "$session" >>"$USAGE_FILE"; }; then
       USAGE_TRACKING=false
       USAGE_COMPLETE=false
       USAGE_UNAVAILABLE="could not export opencode session usage after $slug"

@@ -1420,9 +1420,20 @@ make_opencode_shim() {
 if [[ "\$1 \$2" == "session export" ]]; then
   # Fake token counts. One message from before any run, one "now".
   now=\$(((\$(date +%s) + 1) * 1000))  # date has whole seconds; round up past started_ms
-  printf '{"messages":[%s,%s]}\n' \
+  # With KIDS=1 the session delegates to ses_kid, which delegates to ses_grandkid.
+  case "\$3" in
+    ses_kid) printf '{"info":{"id":"ses_kid","parentID":"ses_stub","agent":"fake-explorer"},"messages":[%s,%s]}\n' \
+      '{"type":"assistant","id":"m_kid","time":{"created":'"\$now"'},"model":{"id":"gpt-6-luna"},"tokens":{"input":30,"output":3,"reasoning":0,"cache":{"read":0,"write":0}}}' \
+      '{"type":"assistant","content":[{"type":"tool","name":"subagent","state":{"status":"completed","metadata":{"sessionID":"ses_grandkid"}}}]}'
+      exit 0 ;;
+    ses_grandkid) printf '{"info":{"id":"ses_grandkid","parentID":"ses_kid","agent":"fake-reader"},"messages":[%s]}\n' \
+      '{"type":"assistant","id":"m_grandkid","time":{"created":'"\$now"'},"model":{"id":"gpt-6-luna"},"tokens":{"input":20,"output":2,"reasoning":0,"cache":{"read":0,"write":0}}}'
+      exit 0 ;;
+  esac
+  kid=""; [[ -n "\$KIDS" ]] && kid=',{"type":"assistant","content":[{"type":"tool","name":"subagent","state":{"status":"completed","metadata":{"sessionID":"ses_kid"}}}]}'
+  printf '{"messages":[%s,%s%s]}\n' \
     '{"type":"assistant","id":"m_old","time":{"created":1},"model":{"id":"gpt-6-luna"},"tokens":{"input":9,"output":9,"reasoning":0,"cache":{"read":0,"write":0}}}' \
-    '{"type":"assistant","id":"m_new","time":{"created":'"\$now"'},"model":{"id":"gpt-6-luna"},"tokens":{"input":600,"output":150,"reasoning":50,"cache":{"read":400,"write":0}}}'
+    '{"type":"assistant","id":"m_new","time":{"created":'"\$now"'},"model":{"id":"gpt-6-luna"},"tokens":{"input":600,"output":150,"reasoning":50,"cache":{"read":400,"write":0}}}' "\$kid"
   exit 0
 fi
 if [[ "\$1" == session ]]; then
@@ -1527,6 +1538,33 @@ run_opencode_t4() {
   OC_VERSION=v2.1.2 run_opencode_t4
   [ "$status" -eq 0 ]
   [ -f "$SHIM/login-copied" ]
+}
+
+@test "opencode v2: subagent sessions are exported recursively and summed with the main agent" {
+  make_opencode_shim
+  KIDS=1 OC_VERSION=v2.1.3 run_opencode_t4
+  [ "$status" -eq 0 ]
+  rows="$(grep -v '^#' "$SHIM/b-usage.psv")"
+  # Per turn: the main agent with an empty col 17, then child and grandchild named there.
+  [ "$(awk -F'|' '$4 == "m_new" && $17 == ""' <<<"$rows" | wc -l)" -eq 2 ]
+  [ "$(awk -F'|' '$4 == "m_kid" && $17 == "fake-explorer"' <<<"$rows" | wc -l)" -eq 2 ]
+  [ "$(awk -F'|' '$4 == "m_grandkid" && $17 == "fake-reader"' <<<"$rows" | wc -l)" -eq 2 ]
+  # benchmark-summary.py sums every row of the run, main agent and subagents.
+  sum="$(awk -F'|' '{ s += $13 } END { print s }' <<<"$rows")"
+  main="$(awk -F'|' '$17 == "" { s += $13 } END { print s }' <<<"$rows")"
+  [ "$sum" -gt "$main" ]
+  # Usage rows only; attempts are faked complete so credits are not nulled.
+  mkdir -p "$SHIM/s"
+  printf '# suite: planning\n# date: 2026-01-01\n# model: gpt-6-luna\n# effort: low\n# repeats: 1\n' >"$SHIM/s/r.txt"
+  cp "$SHIM/b-usage.psv" "$SHIM/s/r-usage.psv"
+  echo 't4|1|0|pass|9|1000|true|' >"$SHIM/s/r-attempts.psv"
+  credits="$(python3 -c '
+import importlib.util, json, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("bs", sys.argv[1]); bs = importlib.util.module_from_spec(spec); spec.loader.exec_module(bs)
+bs.REPO = Path(sys.argv[2])
+print(json.loads(bs.build(Path(sys.argv[2])))["runs"][0]["credits"]["mean"])' "$BATS_TEST_DIRNAME/benchmark-summary.py" "$SHIM/s")"
+  [ "$credits" = "$(python3 -c "print(round($sum / 1e9, 3))")" ]
 }
 
 @test "opencode v2: --suite delegation is refused before any model call" {
