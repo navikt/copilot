@@ -31,6 +31,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
   - kontekstfiler du har endret selv
   - `opencode.json` med kommentarer
 - **Bare med `--verbose`**: Grensene for like verktøykall ved lokal kjøring, og fremdriftslinjene for Copilot, OpenCode og pi når du starter med `--sync`. Konflikter og feil i synkroniseringen vises fortsatt. `nav-pilot sync` viser alt som før.
+
 ### Nais MCP med cplt
 
 - **`nav-pilot mcp enable io.github.nais/nais-mcp`** slår på Nais MCP. nav-pilot skriver en spesifikasjon til `~/.config/cplt/mcp/`, og cplt kjører serveren på maskinen din, utenfor sandkassen. Innloggingen din kommer aldri inn i sandkassen. Bare lesende verktøy er på; verktøy som skriver, må du velge med `--tools`. nav-pilot skriver ingenting i MCP-konfigurasjonen til Copilot CLI eller OpenCode. Det gjør cplt når økta starter (#1930).
