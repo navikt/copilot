@@ -32,6 +32,16 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
   - `opencode.json` med kommentarer
 - **Bare med `--verbose`**: Grensene for like verktøykall ved lokal kjøring, og fremdriftslinjene for Copilot, OpenCode og pi når du starter med `--sync`. Konflikter og feil i synkroniseringen vises fortsatt. `nav-pilot sync` viser alt som før.
 
+### Nais MCP med cplt
+
+- **`nav-pilot mcp enable io.github.nais/nais-mcp`** slår på Nais MCP. nav-pilot skriver en spesifikasjon til `~/.config/cplt/mcp/`, og cplt kjører serveren på maskinen din, utenfor sandkassen. Innloggingen din kommer aldri inn i sandkassen. Bare lesende verktøy er på; verktøy som skriver, må du velge med `--tools`. nav-pilot skriver ingenting i MCP-konfigurasjonen til Copilot CLI eller OpenCode. Det gjør cplt når økta starter (#1930).
+- **Innlogging**: Er du ikke logget inn i Nais, spør nav-pilot om den skal kjøre `nais login -n`. Uten terminal, eller med `--json`, viser den bare kommandoen.
+- **`nav-pilot mcp list`**: De nye kolonnene LOGIN og PATH viser om du er logget inn, og om cplt kjører serveren. Står serveren som `cplt` i kolonnene COPILOT og OPENCODE, legger cplt den inn når økta starter.
+- **Uten cplt**: Nais MCP krever cplt. Uten cplt skriver nav-pilot ingenting og viser kommandoen som installerer cplt.
+- **Eldre cplt**: Har du en cplt som ennå ikke kan kjøre MCP-servere på maskinen, skriver nav-pilot ingenting og viser kommandoen som oppdaterer cplt. Kjør `nav-pilot mcp enable` på nytt etterpå. Støtten kommer med [navikt/cplt#825](https://github.com/navikt/cplt/pull/825).
+- **Eldre Nais CLI**: Er Nais CLI eldre enn 7.0.2, viser `mcp enable` og `mcp list` et varsel med `brew upgrade nais`. 7.0.2 sjekker alle GraphQL-operasjonene agenten sender. Serveren virker også med eldre versjoner.
+- **`nav-pilot mcp disable io.github.nais/nais-mcp`** fjerner spesifikasjonen.
+
 ### Oppdater cplt for GitHub MCP og for å stenge tale i OpenCode 2
 
 - **cplt 2026.10.23-070444 anbefales**: GitHub MCP (`io.github.navikt/github-mcp`) virker i OpenCode bare med cplt 2026.10.23-053641 eller nyere ([navikt/cplt#807](https://github.com/navikt/cplt/pull/807)).
