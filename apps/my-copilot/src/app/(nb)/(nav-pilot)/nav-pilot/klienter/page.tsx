@@ -561,10 +561,10 @@ export default function Klienter() {
             <a href="https://github.com/anomalyco/opencode/issues/51071" className={linkClass}>
               opencode#51071
             </a>
-            ). Modellen må likevel komme fra GitHub Copilot eller den lokale modellen, så koden kan ikke gå til andre
-            leverandører. Valget kan gi dyrere modeller og flere premiumforespørsler. Sjekk modellen i underøkta hvis
-            kostnaden betyr noe, og skriv i oppdraget hvis modellen ikke skal byttes. Agentpakkeforfattere kan ikke
-            regne med at en fastsatt modell holder.
+            ). Modellen må likevel være en GitHub Copilot-modell eller den lokale modellen, så koden går ikke til andre
+            leverandører. Valget kan gi en dyrere modell og flere premiumforespørsler. Betyr kostnaden noe, sjekk
+            hvilken modell underagenten kjører på, og skriv i oppdraget at modellen ikke skal byttes. Lager du
+            agentpakker: modellen du setter i agentfila, er et råd, ikke en garanti.
           </li>
           <li>
             <strong>Tale (GPT-Live) er ikke tillatt med nav-pilot.</strong> Talefunksjonen i opencode 2.1 kobler seg
