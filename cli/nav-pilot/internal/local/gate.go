@@ -127,7 +127,7 @@ const GateNudgeText = "nav-pilot (local_dispatch): no build or test command has 
 
 // GateInterpreterText is what the orchestrator reads when it would write a
 // file with an inline python, node, ruby or perl script (#1915).
-const GateInterpreterText = "nav-pilot (local_dispatch): this script writes files from the shell, past the edit tools and the dispatch rule. " +
+const GateInterpreterText = "nav-pilot (local_dispatch): this script writes files from the shell, around the edit tools and the dispatch rule. " +
 	"Send the change to `local-worker` instead: one task per file, naming each place that changes and exactly what it becomes, " +
 	"with a check such as a grep. For a small change, use the edit tool."
 
@@ -354,7 +354,7 @@ func (g *dispatchGate) decide(r GateRequest) (deny, outcome string) {
 			}
 		}
 		if InterpreterWrites(r.Command) {
-			if !g.rules.Multi || st.passes(r.Command, g.rules) || st.denies >= g.rules.budget() || !g.serverUp() {
+			if !g.rules.Multi || st.dispatched || st.passes(r.Command, g.rules) || st.denies >= g.rules.budget() || !g.serverUp() {
 				return "", ""
 			}
 			st.refused[r.Command] = true
@@ -878,11 +878,34 @@ func shellEdits(cmd string) (scripted bool, edits []shellEdit) {
 	return false, edits
 }
 
+// heredocOp is the start of a heredoc on a raw line: <<EOF, <<-'EOF', << "EOF".
+// A here-string (<<<) is not one.
+var heredocOp = regexp.MustCompile(`(^|[^<])<<-?[ \t]*\\?['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?`)
+
+// splitHeredocs takes the heredoc bodies out of a command, so a quote or a >
+// in a body does not change how the rest is read. bodies are in the order of
+// the heredocs that start them.
+func splitHeredocs(cmd string) (rest string, bodies []string) {
+	var keep []string
+	lines := strings.Split(cmd, "\n")
+	for i := 0; i < len(lines); i++ {
+		keep = append(keep, lines[i])
+		for _, m := range heredocOp.FindAllStringSubmatch(lines[i], -1) {
+			var body []string
+			for i++; i < len(lines) && strings.TrimSpace(lines[i]) != m[2]; i++ {
+				body = append(body, lines[i])
+			}
+			bodies = append(bodies, strings.Join(body, "\n"))
+		}
+	}
+	return strings.Join(keep, "\n"), bodies
+}
+
 // RedirectFiles reads the files a bash command writes by redirecting output
-// into them: > f, >> f, &> f, 1> f, tee [-a] f. A heredoc's body is skipped,
+// into them: > f, >> f, &> f, 1> f, tee [-a] f. Heredoc bodies are skipped,
 // so cat > f <<EOF counts f once. Not edits: a redirect of stderr (2> f, which
-// is a log), a dup (2>&1, >&2), /dev/* (/dev/null, /dev/stderr) and process
-// substitution (>(cmd)).
+// is a log), a dup (2>&1, >&2), /dev/* (/dev/null, /dev/stderr), process
+// substitution (>(cmd)) and a comparison in [[ ]], [ ], test or (( )).
 //
 // ponytail: a lexer, not a shell parser. A path built at run time ($f, a
 // loop's variable) is counted by its literal text, a quoted word that starts
@@ -895,25 +918,23 @@ func RedirectFiles(cmd string) []string {
 			out = append(out, f)
 		}
 	}
-	heredoc := ""
-	for _, seg := range splitSegments(cmd) {
-		if heredoc != "" {
-			if strings.TrimSpace(seg.text) == heredoc {
-				heredoc = ""
-			}
+	rest, _ := splitHeredocs(cmd)
+	for _, seg := range splitSegments(rest) {
+		words := shellWords(seg.text)
+		head := words
+		for len(head) > 0 && slices.Contains([]string{"if", "while", "until", "!", "do", "then", "{", "("}, head[0]) {
+			head = head[1:]
+		}
+		if len(head) > 0 && (slices.Contains([]string{"[[", "[", "test"}, head[0]) || strings.HasPrefix(head[0], "((")) {
 			continue
 		}
-		words := shellWords(seg.text)
-		cmdw := commandWords(words)
 		for i := 0; i < len(words); i++ {
 			w := words[i]
-			if d, ok := strings.CutPrefix(w, "<<"); ok && !strings.HasPrefix(d, "<") {
-				d = strings.TrimPrefix(d, "-")
-				if d == "" && i+1 < len(words) {
+			if strings.HasPrefix(w, "<<") {
+				// A heredoc's delimiter, as its own word, is not a file.
+				if strings.TrimLeft(w, "<-") == "" {
 					i++
-					d = words[i]
 				}
-				heredoc = d
 				continue
 			}
 			op := strings.TrimPrefix(strings.TrimPrefix(w, "&"), "1")
@@ -927,7 +948,7 @@ func RedirectFiles(cmd string) []string {
 			}
 			add(f)
 		}
-		if len(cmdw) > 0 && cmdw[0] == "tee" {
+		if cmdw := commandWords(words); len(cmdw) > 0 && cmdw[0] == "tee" {
 			for _, a := range cmdw[1:] {
 				if strings.ContainsAny(a, "<>") {
 					break
@@ -941,34 +962,50 @@ func RedirectFiles(cmd string) []string {
 	return out
 }
 
-// interpreters run an inline script: python -c, node -e, ruby -e, perl -e,
+// interpreter runs an inline script: python -c, node -e, ruby -e, perl -e,
 // deno eval, bun -e, or any of them reading a heredoc.
-var interpreters = []string{"python", "node", "ruby", "perl", "deno", "bun"}
+var interpreter = regexp.MustCompile(`^(python[0-9.]*|node|ruby|perl|deno|bun)$`)
 
-// fileWrite is a script that opens a file for writing.
-var fileWrite = regexp.MustCompile(`open\([^)]*,\s*['"][wax][bt+]*['"]|mode\s*=\s*['"][wax]|write_(text|bytes)\(|(writeFile|appendFile)(Sync)?\(|createWriteStream\(|File\.(write|open\([^)]*,\s*['"][wa])|IO\.write\(|Deno\.write(Text)?File|Bun\.write\(|open\s*\(?\s*(my\s+)?\$?\w+\s*,\s*['"](\+?>|>>)`)
+// fileWrite is a script that opens a file for writing. open( allows one
+// level of nested parentheses, as in open(Path("a"), "w").
+var fileWrite = regexp.MustCompile(`open\((?:[^()]|\([^()]*\))*,\s*['"][wax][bt+]*['"]|mode\s*=\s*['"][wax]|write_(text|bytes)\(|(writeFile|appendFile)(Sync)?\(|createWriteStream\(|File\.(write|open\((?:[^()]|\([^()]*\))*,\s*['"][wa])|IO\.write\(|Deno\.write(Text)?File|Bun\.write\(|open\s*\(?\s*(my\s+)?\$?\w+\s*,\s*['"](\+?>|>>)`)
 
 // InterpreterWrites reports whether a bash command runs an interpreter with
-// an inline script (-c, -e, eval or a heredoc) that writes a file. A read-only
-// one-liner (open(f) with no mode, json.load) passes.
+// an inline script (-c, -e, --eval, eval, - or a heredoc) that writes a file.
+// Only the interpreter's own words and its heredoc bodies are read, so a grep
+// for open(f, 'w') next to it does not count. A read-only one-liner passes.
 //
-// ponytail: a pattern list over the whole command, not a parser. A write
-// through a library (shutil, os.rename, fs.cp), a script file (python x.py)
-// and a mode held in a variable are not seen.
+// ponytail: a pattern list, not a parser. A write through a library (shutil,
+// os.rename, fs.cp), a script file (python x.py) and a mode held in a
+// variable are not seen.
 func InterpreterWrites(cmd string) bool {
-	inline := false
-	for _, seg := range splitSegments(cmd) {
+	rest, bodies := splitHeredocs(cmd)
+	next := 0
+	for _, seg := range splitSegments(rest) {
+		n := len(heredocOp.FindAllStringIndex(seg.text, -1))
+		mine := bodies[min(next, len(bodies)):min(next+n, len(bodies))]
+		next += n
 		toks := commandWords(shellWords(seg.text))
-		if len(toks) == 0 || !slices.ContainsFunc(interpreters, func(p string) bool { return strings.HasPrefix(filepath.Base(toks[0]), p) }) {
+		if len(toks) == 0 || !interpreter.MatchString(filepath.Base(toks[0])) {
 			continue
 		}
+		inline := n > 0
+		var script []string
 		for _, t := range toks[1:] {
-			if slices.Contains([]string{"-c", "-e", "-E", "--eval", "eval", "-"}, t) || strings.HasPrefix(t, "<<") || strings.HasPrefix(t, "-pe") || strings.HasPrefix(t, "-ne") {
+			if strings.HasPrefix(t, "#") {
+				break
+			}
+			if slices.Contains([]string{"-", "eval"}, t) || strings.HasPrefix(t, "-c") || strings.HasPrefix(t, "-e") || strings.HasPrefix(t, "-E") ||
+				strings.HasPrefix(t, "--eval") || strings.HasPrefix(t, "-pe") || strings.HasPrefix(t, "-ne") {
 				inline = true
 			}
+			script = append(script, t)
+		}
+		if inline && fileWrite.MatchString(strings.Join(append(script, mine...), "\n")) {
+			return true
 		}
 	}
-	return inline && fileWrite.MatchString(cmd)
+	return false
 }
 
 // pinnedShellEdit reports whether cmd modifies a pinned file via in-place

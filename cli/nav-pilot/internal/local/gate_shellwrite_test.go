@@ -24,6 +24,20 @@ func TestRedirectFiles(t *testing.T) {
 		{`echo x | tee -a c.txt d.txt > /dev/null`, []string{"c.txt", "d.txt"}},
 		{"cat > src/New.kt <<'EOF'\nval a = b > c\nEOF\necho done > e.txt", []string{"src/New.kt", "e.txt"}},
 		{"cat <<EOF > f.txt\nx >> g.txt\nEOF", []string{"f.txt"}},
+		// An apostrophe in a heredoc body does not hide what follows it.
+		{"cat > a.txt <<EOF\ndon't\nEOF\necho x > b.txt", []string{"a.txt", "b.txt"}},
+		// Comparisons are not redirects.
+		{`[[ $a > $b ]]`, nil},
+		{`(( a > b ))`, nil},
+		{`(( $(nproc) > 4 ))`, nil},
+		{`[ "$a" \> "$b" ]`, nil},
+		{`if [[ "$x" > "y" ]]; then echo ok; fi`, nil},
+		// A > inside a quoted word or a flag.
+		{`grep -rn "x >= 1" src`, nil},
+		{`curl -s "https://x/a?b>c"`, nil},
+		{`git log --format='>%s'`, nil},
+		{`awk '{print > f}'`, nil},
+		{`jq '. > 1'`, nil},
 	} {
 		if got := RedirectFiles(tc.cmd); !slices.Equal(got, tc.files) {
 			t.Errorf("RedirectFiles(%q) = %q, want %q", tc.cmd, got, tc.files)
@@ -48,6 +62,20 @@ func TestInterpreterWrites(t *testing.T) {
 		{`perl -e 'open(my $fh, ">", "a.pl"); print $fh "x"'`, true},
 		{`deno eval 'await Deno.writeTextFile("a.ts", "x")'`, true},
 		{`bun -e 'await Bun.write("a.ts", "x")'`, true},
+		// Only the interpreter's own words and heredoc bodies are read.
+		{`python3 -c 'print(1)' && grep -rn "open(f, 'w')" src`, false},
+		{`python3 -c 'import sys; print(sys.version)'; grep -rn 'writeFileSync(' src/`, false},
+		{`node -e 'console.log(1)' # see fs.writeFile( docs`, false},
+		{`python3 -c 'import json; d = json.load(open("a")); print(d["mode"])' | grep mode='w'`, false},
+		{`python3 -c "open(\"a.kt\", \"w\").write(\"x\")"`, true},
+		// Exact interpreter names.
+		{`bundle exec rspec -e 'File.write'`, false},
+		// Glued options and nested parentheses.
+		{`python3 -c'open("a", "w")'`, true},
+		{`node --eval='require("fs").writeFileSync("a", "x")'`, true},
+		{`python3 -c 'from pathlib import Path; open(Path("a.kt"), "w").write("x")'`, true},
+		// A heredoc body with an apostrophe, then a write in a later heredoc.
+		{"cat > notes.txt <<EOF\ndon't\nEOF\npython3 - <<EOF\nopen('a', 'w')\nEOF", true},
 	} {
 		if got := InterpreterWrites(tc.cmd); got != tc.want {
 			t.Errorf("InterpreterWrites(%q) = %v, want %v", tc.cmd, got, tc.want)
@@ -86,5 +114,34 @@ func TestGateShellWrites(t *testing.T) {
 	}
 	if deny, _ := g.decide(GateRequest{Session: "s", Turn: 1, Agent: WorkerAgent, Tool: "bash", Command: "echo x > src/F7.kt"}); deny != "" {
 		t.Fatal("the worker's redirect was denied")
+	}
+}
+
+func TestGateInterpreterWriteControls(t *testing.T) {
+	write := GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "bash", Command: `python3 -c 'open("a.kt", "w").write("x")'`}
+	// Off: the multi rule is not set.
+	if deny, _ := testGate(t, true, GateRules{Create: true}).decide(write); deny != "" {
+		t.Fatal("an interpreter write was denied without the multi rule")
+	}
+	// A checkpoint: the same command again passes.
+	g := testGate(t, true, GateRules{Multi: true, Checkpoint: true})
+	if deny, _ := g.decide(write); deny != GateInterpreterText {
+		t.Fatalf("the interpreter write got %q", deny)
+	}
+	if deny, _ := g.decide(write); deny != "" {
+		t.Fatal("the retry at a checkpoint was denied")
+	}
+	// After a dispatch to the worker: passes, as a scripted edit does.
+	g = testGate(t, true, multi)
+	g.decide(GateRequest{Session: "s", Turn: 1, Agent: "nav-pilot", Tool: "task", Subagent: WorkerAgent, Prompt: "x"})
+	if deny, _ := g.decide(write); deny != "" {
+		t.Fatal("an interpreter write after a dispatch was denied")
+	}
+	// The budget: two denies, then it passes.
+	g = testGate(t, true, multi)
+	g.decide(write)
+	g.decide(write)
+	if deny, _ := g.decide(write); deny != "" {
+		t.Fatal("the gate denied past its budget")
 	}
 }
