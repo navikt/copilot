@@ -41,7 +41,7 @@ func UserSetModel(client string, r domain.ResolvedConfig) bool {
 func PrimaryAgentFile(client, persona, stagedDir, projectDir string) string {
 	var dirs []string
 	switch {
-	case persona == "":
+	case !SafePersona(persona):
 	case stagedDir != "":
 		dirs = []string{filepath.Join(stagedDir, "agents")}
 	case client == "copilot":
@@ -88,6 +88,9 @@ func RecommendedModel(client, agentFile string) string {
 	m := AgentModelPin(agentFile)
 	if id := domain.CopilotModelIDForLabel(m); id != "" {
 		m = id
+	} else if m != "" && domain.ValidateModelValue(m) != nil {
+		// A display name the catalog does not know yet: nothing to name.
+		return ""
 	}
 	if m == "" {
 		m = pakkeDeclaredModel(client)
@@ -106,8 +109,19 @@ func withUserAgentModel(env []string, r domain.ResolvedConfig, agent string) []s
 	if agent == "" || agent == "plan" || !UserSetModel("opencode", r) {
 		return env
 	}
+	// A staged launch on opencode 2 restates the payload's agents here,
+	// native ones under "agents" (withOpenCode2UserConfig), and opencode takes
+	// a native entry whole over a legacy one: set the model where the agent is.
+	key := "agent"
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, openCodeConfigContentEnv+"="); ok {
+			if n, err := jsonNode([]byte(v)); err == nil && nodeGet(nodeGet(n, "agents"), agent) != nil {
+				key = "agents"
+			}
+		}
+	}
 	return withOpenCodeConfigContent(env, map[string]any{
-		"agent": map[string]any{agent: map[string]any{"model": ToOpenCodeModel(r.Model)}},
+		key: map[string]any{agent: map[string]any{"model": ToOpenCodeModel(r.Model)}},
 	})
 }
 
@@ -128,7 +142,16 @@ const copilotSessionPlugin = "nav-pilot-session"
 // lives as long as the session; directories of processes that are gone are
 // removed at the next launch.
 func copilotUserModelAgent(r domain.ResolvedConfig, persona, agentFile string) (agent, pluginDir string) {
-	if !UserSetModel("copilot", r) || AgentModelPin(agentFile) == "" {
+	pin := AgentModelPin(agentFile)
+	if !SafePersona(persona) || !UserSetModel("copilot", r) || pin == "" {
+		return "", ""
+	}
+	// The user's model is the pin already: the agent runs as it is.
+	if id := domain.CopilotModelIDForLabel(pin); id != "" {
+		pin = id
+	}
+	pin, _ = CopilotModelID(pin)
+	if user, _ := CopilotModelID(strings.TrimSpace(r.Model)); strings.EqualFold(user, pin) {
 		return "", ""
 	}
 	home := copilotSkillsRoot()
@@ -151,8 +174,16 @@ func copilotUserModelAgent(r domain.ResolvedConfig, persona, agentFile string) (
 	return copilotSessionPlugin + ":" + persona, dir
 }
 
+// SafePersona reports whether persona is a plain file name, safe to join
+// into a path.
+func SafePersona(persona string) bool {
+	return persona != "" && persona == filepath.Base(persona) && !strings.HasPrefix(persona, ".")
+}
+
 // pruneSessionPlugins removes the session plugin directories of nav-pilot
-// processes that no longer run.
+// processes that no longer run. A reused pid, or one the kernel will not
+// answer for (EPERM), keeps its directory: it leaks rather than deleting a
+// live session's agent.
 func pruneSessionPlugins(root string) {
 	entries, _ := os.ReadDir(root)
 	for _, e := range entries {

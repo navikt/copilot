@@ -1,12 +1,14 @@
 package provider
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
@@ -135,5 +137,62 @@ func TestPruneSessionPlugins(t *testing.T) {
 	pruneSessionPlugins(root)
 	if fileExists(filepath.Join(dead, "plugin.json")) || !fileExists(filepath.Join(live, "plugin.json")) {
 		t.Errorf("want the dead pid's directory gone and the live one kept")
+	}
+}
+
+// On opencode 2 a staged launch restates the payload's agents in
+// OPENCODE_CONFIG_CONTENT, pin included; the user's model must be set after
+// that, or the pin wins again.
+func TestStagedOpenCode2UserModelBeatsRestatedPin(t *testing.T) {
+	versionCache.Store("opencode", versionAnswer{"opencode v2.1.3\n", nil, time.Hour})
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	SetActivePakke(stagedFixturePakke())
+	t.Cleanup(func() { SetActivePakke(nil) })
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "agents", "grillmester.md"), "---\ndescription: g\nmode: primary\nmodel: github-copilot/gpt-6-sol\n---\nGrill.\n")
+	staged := StagedLaunch{Dir: dir, PakkeName: "grillmester", Context: "full"}
+
+	spec := buildStagedSpec(t, "opencode", domain.ResolvedConfig{Model: "gpt-6.1-sol", AskUser: true}, staged)
+	type entry struct {
+		Model string `json:"model"`
+	}
+	var cfg struct {
+		Agent  map[string]entry `json:"agent"`
+		Agents map[string]entry `json:"agents"`
+	}
+	content := envValue(spec.env, openCodeConfigContentEnv)
+	if err := json.Unmarshal([]byte(content), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	// opencode 2 takes a native (agents) entry whole over a legacy one, so
+	// every grillmester entry must carry the user's model.
+	for key, m := range map[string]map[string]entry{"agent": cfg.Agent, "agents": cfg.Agents} {
+		if e, ok := m["grillmester"]; ok && e.Model != "github-copilot/gpt-6.1-sol" {
+			t.Errorf("%s.grillmester.model = %q, want github-copilot/gpt-6.1-sol\n%s", key, e.Model, content)
+		}
+	}
+}
+
+// A pin that is neither a known label nor a valid id recommends nothing.
+func TestRecommendedModelUnknownLabel(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "a.agent.md")
+	mustWrite(t, f, "---\nname: a\nmodel: Some Future Model\n---\n")
+	if got := RecommendedModel("copilot", f); got != "" {
+		t.Errorf("got %q, want no recommendation", got)
+	}
+}
+
+// A persona that is not a plain file name never reaches a path, and a user
+// model equal to the pin needs no copy.
+func TestCopilotUserModelAgentSkips(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "a.agent.md")
+	mustWrite(t, f, pinnedAgent)
+	for _, c := range []struct{ persona, model string }{
+		{"../evil", "gpt-6.1-sol"}, {".hidden", "gpt-6.1-sol"}, {"a/b", "gpt-6.1-sol"},
+		{"grillmester", "GPT-6-SOL"}, {"grillmester", "github-copilot/gpt-6-sol"},
+	} {
+		if a, dir := copilotUserModelAgent(domain.ResolvedConfig{Model: c.model}, c.persona, f); a != "" || dir != "" {
+			t.Errorf("persona %q model %q: got %q %q, want nothing", c.persona, c.model, a, dir)
+		}
 	}
 }

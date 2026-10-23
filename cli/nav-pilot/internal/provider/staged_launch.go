@@ -274,7 +274,6 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	if err := validatePayloadOpenCodeConfig(s.Dir); err != nil {
 		return cpltLaunch{}, err
 	}
-	env = withUserAgentModel(env, r, agent)
 	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
 	cpltArgs := []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"}
 	cpltArgs = withDenyVoiceEnv(cpltArgs)
@@ -289,6 +288,8 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 			cpltArgs = append(cpltArgs, "--pass-env", "OPENCODE_CONFIG")
 		}
 	}
+	// After the payload's agents are restated above, or their pin wins.
+	env = withUserAgentModel(env, r, agent)
 
 	return cpltLaunch{
 		agent:         "opencode",

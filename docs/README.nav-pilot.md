@@ -392,7 +392,7 @@ En modell du velger med config eller `--model`, vinner over agentpakkas standard
 også over `model:` i agentfila til hovedagenten som økta starter med. Subagenter beholder sin
 egen modell. Har du ikke valgt modell, bruker økta modellen til agenten eller agentpakka.
 
-Copilot CLI og OpenCode lar ellers `model:` i agentfila vinne over `--model`. For OpenCode setter
+I Copilot CLI og OpenCode vinner ellers `model:` i agentfila over `--model`. For OpenCode setter
 nav-pilot derfor modellen din på hovedagenten i `OPENCODE_CONFIG_CONTENT`. For Copilot CLI
 starter nav-pilot en kopi av hovedagenten uten `model:`, fra en egen plugin i
 `~/.copilot/nav-pilot-session`. Agenten heter da `nav-pilot-session:<agent>` i økta.
@@ -402,7 +402,7 @@ Når agentpakka anbefaler en ny modell for hovedagenten og du har valgt en annen
 følg agentpakka (`nav-pilot config unset model`). Ctrl+C eller Esc beholder modellen din. Uten
 terminal, for eksempel i skript eller med `--`, skriver nav-pilot én linje med de to kommandoene.
 Du får ikke spørsmålet igjen før anbefalingen endrer seg på nytt. En ny modell for en subagent
-gir ikke noe spørsmål.
+utløser ikke spørsmålet.
 
 ### Modellen til en subagent (Copilot CLI)
 

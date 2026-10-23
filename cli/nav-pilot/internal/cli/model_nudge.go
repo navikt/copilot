@@ -28,6 +28,9 @@ var askModelNudge = func(title string, opts []huh.Option[string], choice *string
 // the user's choice for it and is not questioned. Without a terminal, or once
 // the session's one prompt is taken, it is one line on stderr instead.
 func maybeModelNudge(resolved ResolvedConfig, persona, stagedDir string) ResolvedConfig {
+	if !providerpkg.SafePersona(persona) {
+		return resolved
+	}
 	pakke := source.ActivePakke().Name
 	rec := providerpkg.RecommendedModel(resolved.Client, providerpkg.PrimaryAgentFile(resolved.Client, persona, stagedDir, resolved.ProjectDir))
 	if rec == "" || !artifacts.SeenChanged("model-recommendation-"+pakke+"-"+persona, rec) {
@@ -41,7 +44,7 @@ func maybeModelNudge(resolved ResolvedConfig, persona, stagedDir string) Resolve
 		return resolved
 	}
 	if !isInteractive() || !claimSessionPrompt() {
-		fmt.Fprintf(os.Stderr, "%s The %s agentpakke now recommends %s; you have model = %s set. Switch: %s  Follow the agentpakke: %s\n",
+		fmt.Fprintf(os.Stderr, "%s The %s agentpakke now recommends %s; you have model = %s set. To switch: %s. To follow the agentpakke: %s.\n",
 			dim("ℹ"), pakke, rec, resolved.Model, bold("nav-pilot config set model "+rec), bold("nav-pilot config unset model"))
 		return resolved
 	}

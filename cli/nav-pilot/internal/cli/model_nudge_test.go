@@ -102,6 +102,18 @@ func TestModelNudgeAnswers(t *testing.T) {
 	}
 }
 
+// A persona that is not a plain file name is never used in a path or key.
+func TestModelNudgeUnsafePersona(t *testing.T) {
+	dir, asked, _ := nudgeFixture(t, "gpt-5.5")
+	for _, p := range []string{"../grillmester", ".grillmester", "a/grillmester"} {
+		sessionPrompted = false
+		maybeModelNudge(ResolvedConfig{Client: "copilot", Model: "gpt-5.5"}, p, dir)
+	}
+	if *asked != 0 {
+		t.Errorf("asked %d times for unsafe personas", *asked)
+	}
+}
+
 func TestModelNudgeNoTerminalNotice(t *testing.T) {
 	dir, asked, _ := nudgeFixture(t, "gpt-5.5")
 	isInteractive = func() bool { return false }

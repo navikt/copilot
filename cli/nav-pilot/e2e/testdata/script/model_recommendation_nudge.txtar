@@ -38,9 +38,11 @@ exec pty-run -- nav-pilot
 # A new recommendation is asked about again. Ctrl-C keeps the model, and is
 # not asked again.
 cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
+rm $WORK/fake/cplt.log
 exec pty-run -wait 'Follow the agentpakke' -send '\x03' -- nav-pilot
 stdout 'now recommends gpt-6.2-sol'
 grep 'model = "gpt-5.5"' $WORK/home/config.toml
+grep '\-\-model\ngpt-5\.5\n' $WORK/fake/cplt.log
 exec pty-run -- nav-pilot
 ! stdout 'now recommends'
 
@@ -54,7 +56,7 @@ grep '\-\-model\ngpt-6\.1-sol\n' $WORK/fake/cplt.log
 # Without a terminal: one line with both commands.
 cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
 exec nav-pilot -- -p hi
-stderr 'The plattform agentpakke now recommends gpt-6\.2-sol; you have model = gpt-6\.1-sol set\. Switch: nav-pilot config set model gpt-6\.2-sol  Follow the agentpakke: nav-pilot config unset model'
+stderr 'The plattform agentpakke now recommends gpt-6\.2-sol; you have model = gpt-6\.1-sol set\. To switch: nav-pilot config set model gpt-6\.2-sol\. To follow the agentpakke: nav-pilot config unset model\.'
 
 -- pin-6.1.md --
 ---
