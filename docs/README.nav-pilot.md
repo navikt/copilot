@@ -40,7 +40,7 @@ bash install.sh
 > henter den nyeste `.deb`-en fra hver release, så en release du nettopp kuttet
 > er ikke installerbar med `apt` med det samme. Det er et vanlig apt-arkiv som
 > speiler releasene våre, ikke en distropakke med egen vedlikeholder. Oppgrader
-> med `sudo apt update && sudo apt upgrade nav-pilot`. `nav-pilot upgrade` kjenner
+> med `sudo apt update && sudo apt install --only-upgrade nav-pilot`. `nav-pilot upgrade` kjenner
 > igjen en binær som Homebrew eller dpkg eier, lar den være og skriver kommandoen
 > som virker.
 
@@ -368,7 +368,7 @@ presetet skal settes via `nav-pilot config` og ikke for hånd, når strict ikke 
 og hva `proxy.log_level` faktisk logger.
 
 `nav-pilot doctor` sier også fra når cplt selv er utdatert, og foreslår kommandoen som
-hører til den cplt-en du har: `sudo apt upgrade cplt` når dpkg eier binæren,
+hører til den cplt-en du har: `sudo apt update && sudo apt install --only-upgrade cplt` når dpkg eier binæren,
 `brew upgrade navikt/tap/cplt` ellers. Det er eierskapet som avgjør, ikke hvor pakka kom fra:
 en `.deb` installert for hånd får samme svar som en fra arkivet. nav-pilot laster aldri ned eller oppgraderer cplt for
 deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
@@ -588,7 +588,7 @@ du får bare en linje på stderr. Ctrl-C ved spørsmålet avbryter kommandoen.
 `nav-pilot upgrade` bytter ikke ut en binær Homebrew eller apt eier. Da ville
 pakkedatabasen pekt på en versjon som ikke lenger ligger på disk, og neste `apt upgrade`
 ville rullet oppdateringen tilbake i stillhet. nav-pilot skriver i stedet kommandoen som
-virker: `sudo apt upgrade nav-pilot` eller `brew upgrade navikt/tap/nav-pilot`. Er du
+virker: `sudo apt update && sudo apt install --only-upgrade nav-pilot` eller `brew upgrade navikt/tap/nav-pilot`. Er du
 allerede på nyeste versjon, sier den det i stedet.
 
 `nav-pilot upgrade` spør ikke, og installerer alltid nyeste versjon. `nav-pilot upgrade --dry-run`

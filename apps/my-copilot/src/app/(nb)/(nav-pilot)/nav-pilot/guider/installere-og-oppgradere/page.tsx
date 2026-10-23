@@ -204,7 +204,7 @@ nav-pilot list --installed --json | jq .`}
           </BodyLong>
           <CodeBlock compact>
             {`brew update && ${NAV_PILOT_BREW_UPGRADE} navikt/tap/cplt   # Homebrew
-sudo apt update && sudo apt upgrade nav-pilot cplt                  # Debian og Ubuntu
+sudo apt update && sudo apt install --only-upgrade nav-pilot cplt   # Debian og Ubuntu
 nav-pilot upgrade && cplt update                                    # installert med skript`}
           </CodeBlock>
           <BodyLong>

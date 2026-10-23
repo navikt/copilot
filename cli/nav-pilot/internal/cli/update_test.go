@@ -298,7 +298,7 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 		mgr  domain.PkgManager
 		want string
 	}{
-		{"apt", domain.PkgApt, "sudo apt upgrade nav-pilot"},
+		{"apt", domain.PkgApt, "sudo apt update && sudo apt install --only-upgrade nav-pilot"},
 		{"homebrew", domain.PkgBrew, "brew upgrade navikt/tap/nav-pilot"},
 	}
 	for _, tt := range tests {

@@ -603,7 +603,7 @@ func reportCpltVersion(cpltPath, version string) {
 
 func reportCpltVersionWith(cpltPath, version, latest string, lerr error) {
 	installed := parseCpltVersion(version)
-	upgrade := bold(domain.PkgOwner(cpltPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt upgrade cplt"))
+	upgrade := bold(domain.PkgOwner(cpltPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt update && sudo apt install --only-upgrade cplt"))
 	_, hostsFromCplt := cpltBuiltinDomains()
 	const fallback = "`cplt config hosts` gave no usable answer, so nav-pilot uses its own, possibly stale, copy of cplt's host list"
 	switch classifyCpltSkew(installed, latest, lerr) {

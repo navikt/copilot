@@ -182,7 +182,7 @@ func TestStartupUpdateNeverAnnouncesWhatAptMustDo(t *testing.T) {
 			if err != nil || stop {
 				t.Fatalf("startupUpdateCheck = (%v, %v)", stop, err)
 			}
-			if !strings.Contains(out, "sudo apt upgrade nav-pilot") {
+			if !strings.Contains(out, "sudo apt update && sudo apt install --only-upgrade nav-pilot") {
 				t.Errorf("an apt install was not told to use apt. Output:\n%s", out)
 			}
 			if strings.Contains(out, "brew") {

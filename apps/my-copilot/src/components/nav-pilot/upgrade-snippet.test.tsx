@@ -17,7 +17,7 @@ describe("UpgradeSnippet", () => {
     render(<UpgradeSnippet />);
     fireEvent.click(screen.getByRole("button", { name: /Oppgrader først/ }));
     expect(screen.getByRole("radio", { name: "apt" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText(/sudo apt update && sudo apt upgrade nav-pilot cplt/)).toBeInTheDocument();
+    expect(screen.getByText(/sudo apt update && sudo apt install --only-upgrade nav-pilot cplt/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: "Skript" }));
     expect(screen.getByText(/cplt update/)).toBeInTheDocument();
     expect(UPGRADE_COMMANDS.script).toContain("nav-pilot upgrade");

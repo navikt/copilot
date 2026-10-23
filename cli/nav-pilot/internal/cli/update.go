@@ -243,7 +243,7 @@ var packageManager = domain.PkgSelf
 
 // navPilotUpgradeCmd is the command that upgrades this nav-pilot install.
 func navPilotUpgradeCmd(m domain.PkgManager) string {
-	return m.Pick("brew upgrade navikt/tap/nav-pilot", "sudo apt upgrade nav-pilot")
+	return m.Pick("brew upgrade navikt/tap/nav-pilot", "sudo apt update && sudo apt install --only-upgrade nav-pilot")
 }
 
 // fetchLatestVersion queries the GitHub releases API for the latest nav-pilot release.
@@ -478,7 +478,7 @@ func reportCpltUpgrade(w io.Writer) {
 	switch classifyCpltSkew(installed, latest, lerr) {
 	case cpltVersionBehind:
 		fmt.Fprintf(w, "cplt %s is out of date (latest: %s). Run %s\n", installed, latest,
-			bold(domain.PkgOwner(cliPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt upgrade cplt")))
+			bold(domain.PkgOwner(cliPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt update && sudo apt install --only-upgrade cplt")))
 	case cpltVersionCurrent:
 		fmt.Fprintf(w, "✓ cplt is up to date (%s)\n", installed)
 	default:
