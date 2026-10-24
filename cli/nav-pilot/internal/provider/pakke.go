@@ -133,6 +133,8 @@ func ResolvedModelNotice(client string, r domain.ResolvedConfig) string {
 // modelLabel is a model's name as Copilot's model list shows it, the same on
 // every client: "github-copilot/claude-opus-5.5" and "claude-opus-5.5" both
 // read "Claude Opus 5.5" (#1962). An id outside that list is shown as it is.
+func ModelLabel(model string) string { return modelLabel(model) }
+
 func modelLabel(model string) string {
 	id := strings.TrimPrefix(model, openCodeProviderPrefix)
 	for _, m := range knownCopilotModels {

@@ -37,6 +37,16 @@ func (m PkgManager) Pick(brew, apt string) string {
 	return brew
 }
 
+// CpltInstallHint is the one spelling of the command that installs cplt with m.
+func CpltInstallHint(m PkgManager) string {
+	return m.Pick("brew install navikt/tap/cplt", "sudo apt install cplt")
+}
+
+// CpltUpgradeHint is the one spelling of the command that upgrades cplt with m.
+func CpltUpgradeHint(m PkgManager) string {
+	return m.Pick("brew upgrade navikt/tap/cplt", "sudo apt update && sudo apt install --only-upgrade cplt")
+}
+
 // PkgOwner reports which package manager owns the binary at path. It is a
 // variable so a test can assert what a packaged install is told without being
 // installed from a package.

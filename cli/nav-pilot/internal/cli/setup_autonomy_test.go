@@ -207,6 +207,24 @@ func TestSummaryPermissiveAndKeptAllowlist(t *testing.T) {
 	}
 }
 
+// The autonomy row is a sentence, not the config key.
+func TestSummaryAutonomySentence(t *testing.T) {
+	isolatedConfig(t)
+	for mode, want := range map[string]string{
+		"sandbox":      "runs commands on its own inside the sandbox",
+		"conservative": "asks you before each command",
+	} {
+		s := autonomySummary(autonomyChoice{Autonomy: mode, Preset: "standard", Push: true}, nil, true, "")
+		if !strings.Contains(s, want) || strings.Contains(s, "autonomy =") {
+			t.Errorf("%s summary: %q", mode, s)
+		}
+	}
+	// Control: no choice, no autonomy row.
+	if s := autonomySummary(autonomyChoice{Preset: "standard", Push: true}, nil, true, ""); strings.Contains(s, "Copilot") {
+		t.Errorf("empty autonomy: %q", s)
+	}
+}
+
 // Only nav-pilot's own list, and only when leaving strict, is offered for
 // removal; a list the user chose stays.
 func TestLeavingStrictAllowlist(t *testing.T) {

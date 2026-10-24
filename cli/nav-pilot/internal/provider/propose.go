@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
@@ -102,6 +103,7 @@ func pakkeProposalFlags() []string {
 		fmt.Fprintf(os.Stderr, "%s %s: no sandbox waiver is applied — %v\n", domain.Yellow("⚠"), name, err)
 		return nil
 	}
+	noteUnansweredProposal(pakke.Name, proposal, record != nil)
 	if record == nil || (len(record.Hosts) == 0 && len(record.Reads) == 0) {
 		return nil
 	}
@@ -117,9 +119,7 @@ func pakkeProposalFlags() []string {
 	// The value names the approval itself (scope, root, hash, time), not only
 	// its grants: another repo's approval, a new revision or a re-approval
 	// with the same grants is still said once.
-	seen := strings.Join([]string{record.Scope, record.Root, record.Hash, record.At.UTC().Format(time.RFC3339Nano),
-		strings.Join(record.Hosts, ","), strings.Join(reads, ",")}, "\n")
-	say := SeenChanged("approved-scope-"+pakke.Name, seen) || Verbose
+	say := SeenChanged("approved-scope-"+pakke.Name, approvalSeen(record, reads)) || Verbose
 	var args []string
 	if hosts := record.Hosts; len(hosts) > 0 {
 		if say {
@@ -136,6 +136,34 @@ func pakkeProposalFlags() []string {
 		args = append(args, readGrantFlags(reads)...)
 	}
 	return args
+}
+
+// noteUnansweredProposal is the one line a launch gives a proposal the user
+// was never asked about — a teammate who got the agentpakke with the repo, or
+// a Ctrl-C at the question. Once per proposal hash (SeenChanged).
+func noteUnansweredProposal(pakke string, proposal *agentpakke.CpltProposal, approved bool) {
+	key := "proposal-unanswered-" + pakke
+	declined, err := artifacts.DeclinedProposal(pakke, proposal.Hash())
+	hosts, reads := proposal.AllowPrivateDomains(), proposal.AllowRead()
+	if approved || declined || err != nil || (len(hosts) == 0 && len(reads) == 0) {
+		SeenChanged(key, "")
+		return
+	}
+	if SeenChanged(key, proposal.Hash()) || Verbose {
+		fmt.Fprintf(os.Stderr, "%s The agentpakke can give the agent %s. Answer: %s\n",
+			domain.Dim("ℹ"), agentpakke.Access(hosts, reads), domain.Bold("nav-pilot pakke access"))
+	}
+}
+
+func approvalSeen(record *artifacts.ProposalConsent, reads []string) string {
+	return strings.Join([]string{record.Scope, record.Root, record.Hash, record.At.UTC().Format(time.RFC3339Nano),
+		strings.Join(record.Hosts, ","), strings.Join(reads, ",")}, "\n")
+}
+
+// MarkApprovalSaid records an approval the user just gave as already said,
+// so the next launch does not repeat the ✓ line they saw at answer time.
+func MarkApprovalSaid(record artifacts.ProposalConsent) {
+	SeenChanged("approved-scope-"+record.Pakke, approvalSeen(&record, resolveReadGrants(record.Reads)))
 }
 
 // resolveReadGrants turns the "~/"-relative paths an approval covers into the

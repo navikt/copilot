@@ -190,6 +190,63 @@ func TestLaunchSyncProgressIsVerboseOnly(t *testing.T) {
 	}
 }
 
+// An approval the user just answered (✓ at answer time) is not repeated as an
+// ℹ line by the launch that follows; the control, an approval nobody marked,
+// still is.
+func TestJustAnsweredApprovalIsNotRepeated(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t)
+	setVerbose(t, false)
+	launch := func() string { return stderrOf(t, func() { cpltProposalFlags() }) }
+
+	approve(t, scope, proposal.Hash(), "cloud.nais.io")
+	if out := launch(); !strings.Contains(out, "approved for this scope") {
+		t.Fatalf("control: an unmarked approval was silent: %q", out)
+	}
+
+	record := artifacts.ProposalConsent{
+		Scope: scope.Name, Root: scope.RootDir, Pakke: "nais-pilot", Hash: proposal.Hash(), Approved: true,
+		Hosts: []string{"cloud.nais.io", "example.nais.io"}, CpltStamp: minCpltStampProtectingNavPilotState, At: time.Now(),
+	}
+	if err := artifacts.WriteProposalConsent(record); err != nil {
+		t.Fatal(err)
+	}
+	MarkApprovalSaid(record)
+	if out := launch(); out != "" {
+		t.Errorf("the launch repeated an approval just answered: %q", out)
+	}
+	if got := cpltProposalFlags(); len(got) == 0 {
+		t.Error("the quiet launch dropped the approved flags")
+	}
+}
+
+// A proposal nobody answered (a teammate who got the agentpakke with the
+// repo) is named once per hash at launch; an answered one, the control, never.
+func TestUnansweredProposalNamedOnce(t *testing.T) {
+	scope := proposeEnv(t)
+	proposal := activeProposal(t)
+	protectingCplt(t)
+	setVerbose(t, false)
+	launch := func() string { return stderrOf(t, func() { cpltProposalFlags() }) }
+
+	out := launch()
+	if !strings.Contains(out, "The agentpakke can give the agent ") || !strings.Contains(out, "Answer: nav-pilot pakke access") {
+		t.Fatalf("an unanswered proposal was silent: %q", out)
+	}
+	if out := launch(); out != "" {
+		t.Errorf("repeat launch spoke: %q", out)
+	}
+	if err := artifacts.WriteProposalConsent(artifacts.ProposalConsent{
+		Scope: scope.Name, Root: scope.RootDir, Pakke: "nais-pilot", Hash: proposal.Hash(), Approved: false,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if out := launch(); strings.Contains(out, "can give the agent") {
+		t.Errorf("control: a declined proposal was named as unanswered: %q", out)
+	}
+}
+
 // Approved-scope lines show on a new or changed approval, not on a repeat.
 func TestApprovedScopeLinesOnlyOnChange(t *testing.T) {
 	scope := proposeEnv(t)

@@ -193,8 +193,11 @@ func askAutonomy(client string, cur autonomyChoice, advanced bool) (autonomyChoi
 // than strict, or "".
 func autonomySummary(c autonomyChoice, changes []cpltChange, cpltFound bool, allowlist string) string {
 	var b strings.Builder
-	if c.Autonomy != "" {
-		fmt.Fprintf(&b, "nav-pilot autonomy = %s\n", c.Autonomy)
+	switch c.Autonomy {
+	case "sandbox":
+		b.WriteString("Copilot runs commands on its own inside the sandbox, and asks you when it needs to.\n")
+	case "conservative":
+		b.WriteString("Copilot asks you before each command.\n")
 	}
 	if !cpltFound {
 		b.WriteString("cplt is not installed: its git and network rules are left for later.\n")

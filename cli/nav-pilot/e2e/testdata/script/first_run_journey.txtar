@@ -32,6 +32,9 @@ stdout 'First-run setup(.|\n)*nav-pilot sends pseudonymous usage metrics'
 stdout 'gh is not installed, so the agent can.t push or open PRs.*the launch continues without it'
 # F15
 ! stdout 'cplt: no changes'
+# The Save screen names no config key; one "change anytime", after Save.
+! stdout 'nav-pilot autonomy ='
+stdout -count=1 'anytime'
 # F9: the install that follows adds the hooks.
 ! stdout 'hook\(s\) the source ships are not installed'
 # F2: plain question, one-line decline.

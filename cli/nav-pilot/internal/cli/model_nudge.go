@@ -53,16 +53,18 @@ func maybeModelNudge(resolved ResolvedConfig, persona, stagedDir string) Resolve
 	if user, _ := providerpkg.CopilotModelID(strings.TrimSpace(resolved.Model)); strings.EqualFold(user, rec) {
 		return resolved
 	}
+	// Names as the Model line shows them; the commands keep the ids.
+	recName, ownName := providerpkg.ModelLabel(rec), providerpkg.ModelLabel(resolved.Model)
 	if !isInteractive() || !claimSessionPrompt() {
-		fmt.Fprintf(os.Stderr, "%s The %s agentpakke now recommends %s; you have model = %s set. To switch: %s. To follow the agentpakke: %s.\n",
-			dim("ℹ"), pakke, rec, resolved.Model, bold("nav-pilot config set model "+rec), bold("nav-pilot config unset model"))
+		fmt.Fprintf(os.Stderr, "%s The %s agentpakke recommends %s; you chose %s. To switch: %s. To follow the agentpakke: %s.\n",
+			dim("ℹ"), pakke, recName, ownName, bold("nav-pilot config set model "+rec), bold("nav-pilot config unset model"))
 		return resolved
 	}
 	choice := "keep"
-	title := fmt.Sprintf("The %s agentpakke now recommends %s.\nYou have model = %s set.", pakke, rec, resolved.Model)
+	title := fmt.Sprintf("The %s agentpakke recommends %s.\nYou chose %s.", pakke, recName, ownName)
 	err := askModelNudge(title, []huh.Option[string]{
-		huh.NewOption("Keep "+resolved.Model, "keep"),
-		huh.NewOption("Switch to "+rec, "switch"),
+		huh.NewOption("Keep "+ownName, "keep"),
+		huh.NewOption("Switch to "+recName, "switch"),
 		huh.NewOption("Follow the agentpakke's recommendation (unset model)", "follow"),
 	}, &choice)
 	switch {

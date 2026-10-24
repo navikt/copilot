@@ -398,7 +398,7 @@ func pakkeCompatibility(client string) string {
 // apt when the binary came from the apt archive, Homebrew otherwise.
 func cpltUpgradeHint() string {
 	path, _ := exec.LookPath("cplt")
-	return domain.PkgOwner(path).Pick("brew upgrade cplt", "sudo apt update && sudo apt install --only-upgrade cplt")
+	return domain.CpltUpgradeHint(domain.PkgOwner(path))
 }
 
 // checkCpltFloor refuses a staged launch on a cplt older than the reviewed

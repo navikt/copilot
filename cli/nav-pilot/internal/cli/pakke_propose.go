@@ -225,15 +225,21 @@ func putProposal(scope *InstallScope, src *Source, dryRun, jsonOutput, reask boo
 	}
 	if !approve {
 		// One line: what the agent cannot do, and the way back (#1962 F2).
-		later := "nav-pilot pakke access"
+		later := "To allow it later: nav-pilot pakke access"
 		if scope.IsUser() {
 			later += " --user"
 		}
-		fmt.Fprintf(os.Stderr, "%s Declined, so the agent can't %s. To allow it later: %s\n",
+		if reask {
+			// Already inside `pakke access`: naming the command is circular.
+			later = "Run this again to allow it."
+		}
+		fmt.Fprintf(os.Stderr, "%s Declined, so the agent can't %s. %s\n",
 			yellow("⚠"), proposalAccess(hosts, reads), later)
 		return nil
 	}
-	fmt.Printf("%s %s may %s from inside the sandbox.\n", green("✓"), bold(name), proposal.Summary())
+	// Said here, so the launch that follows stays quiet about it.
+	providerpkg.MarkApprovalSaid(record)
+	fmt.Printf("%s The agent may %s from inside the sandbox.\n", green("✓"), proposalAccess(hosts, reads))
 	if !providerpkg.CpltProtectsNavPilotState() {
 		// Recorded, and deliberately not usable yet. Saying so here is the
 		// difference between a waiver that has not taken effect and one that
@@ -254,51 +260,8 @@ func indented(commands []string) string {
 	return strings.Join(lines, "\n")
 }
 
-// observabilityHosts names what each Nais observability backend holds, by
-// the first label of its host name, so the question can say what the agent
-// gets to do instead of naming hosts.
-var observabilityHosts = map[string]string{"loki": "logs", "mimir": "metrics", "tempo": "traces"}
-
-// proposalAccess is what the block lets the agent do, in plain words: "read
-// Nais logs, metrics and traces" for the stock pakke, the host and file names
-// for anything else.
-func proposalAccess(hosts, reads []string) string {
-	var parts []string
-	if len(hosts) > 0 {
-		seen := map[string]bool{}
-		for _, host := range hosts {
-			kind := observabilityHosts[strings.SplitN(host, ".", 2)[0]]
-			if kind == "" || !strings.HasSuffix(host, ".nais.io") {
-				seen = nil
-				break
-			}
-			seen[kind] = true
-		}
-		if seen != nil {
-			var kinds []string
-			for _, kind := range []string{"logs", "metrics", "traces"} {
-				if seen[kind] {
-					kinds = append(kinds, kind)
-				}
-			}
-			parts = append(parts, "read Nais "+joinAnd(kinds))
-		} else {
-			parts = append(parts, "reach "+strings.Join(hosts, ", "))
-		}
-	}
-	if len(reads) > 0 {
-		parts = append(parts, "read "+safePathList(reads))
-	}
-	return strings.Join(parts, " and ")
-}
-
-// joinAnd joins words as prose: "a", "a and b", "a, b and c".
-func joinAnd(words []string) string {
-	if len(words) < 2 {
-		return strings.Join(words, "")
-	}
-	return strings.Join(words[:len(words)-1], ", ") + " and " + words[len(words)-1]
-}
+// proposalAccess is what the block lets the agent do, in plain words.
+func proposalAccess(hosts, reads []string) string { return agentpakke.Access(hosts, reads) }
 
 // proposalTitle is the question, in plain words: what the agent gets to do.
 // Enter declines. A revision the user has answered before says so, because

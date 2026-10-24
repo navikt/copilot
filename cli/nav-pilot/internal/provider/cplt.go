@@ -259,7 +259,7 @@ func printSandboxScope(dir, root string, reads []string) {
 // nav-pilot never runs a client outside the sandbox.
 func ErrCpltMissing(client string) error {
 	return fmt.Errorf("cplt not found in PATH: nav-pilot launches clients inside the cplt sandbox; install cplt to launch %s: %s",
-		client, domain.Bold(domain.PkgForInstall().Pick("brew install navikt/tap/cplt", "sudo apt install cplt")))
+		client, domain.Bold(domain.CpltInstallHint(domain.PkgForInstall())))
 }
 
 // launchViaCplt runs the given client agent inside the cplt sandbox, wiring
