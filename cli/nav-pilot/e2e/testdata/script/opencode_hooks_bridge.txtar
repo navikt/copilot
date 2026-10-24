@@ -33,6 +33,7 @@ exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </
 grep '^--pass-env\nNAV_PILOT_OPENCODE_HOOKS\n' $WORK/fake/cplt.log
 grep '^--pass-env\nOPENCODE_CONFIG_CONTENT\n' $WORK/fake/cplt.log
 grep '^--allow-read\n.*/\.copilot/hooks\n' $WORK/fake/cplt.log
+# The fake cplt reports no version, so it gets --allow-write, not --allow-write-state.
 grep '^--allow-write\n.*/\.local/share/nav-pilot/opencode-hook-state\n' $WORK/fake/cplt.log
 exists $HOME/.local/share/nav-pilot/opencode-plugin/nav-pilot-hooks.js
 ! exists $HOME/.config/opencode/plugins/nav-pilot-hooks.js

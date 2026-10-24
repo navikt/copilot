@@ -489,9 +489,9 @@ func cpltRecommendedNotice(opencode bool) string {
 	if err != nil || stamp == "" || stamp >= cpltRecommended {
 		return ""
 	}
-	reasons := "it runs Nais MCP through cplt's broker"
+	reasons := "it starts without a prompt when nothing changed and runs Nais MCP through cplt's broker"
 	if opencode {
-		reasons = "it runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, and blocks the API keys opencode's voice feature reads"
+		reasons = "it starts without a prompt when nothing changed, runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, blocks the API keys opencode's voice feature reads, and leaves nav-pilot's own state out of the \"NOT audited\" note"
 	}
 	return fmt.Sprintf("cplt %s or newer is recommended: %s. Update cplt: %s", cpltRecommended, reasons, domain.Bold(cpltUpgradeHint()))
 }
@@ -515,6 +515,17 @@ func withDenyVoiceEnv(args []string) []string {
 		args = append(args, "--deny-env", v)
 	}
 	return args
+}
+
+// cpltStateWriteFlag is the flag for a nav-pilot-owned state dir:
+// --allow-write-state from cpltAllowWriteState on, which cplt leaves out of the
+// "NOT audited" exit warning; --allow-write on an older or unreadable cplt.
+func cpltStateWriteFlag() string {
+	out, err := probeCpltVersion()
+	if err != nil || cpltStamp(out) < cpltAllowWriteState {
+		return "--allow-write"
+	}
+	return "--allow-write-state"
 }
 
 // CheckOpenCodeMajor stops a launch on opencode 3 or newer, which the warning
@@ -582,13 +593,17 @@ const openCode2CpltFloor = "2026.10.22-172931"
 // without requiring it (owner decision 2026-10-23: nudge, don't require):
 // navikt/cplt#807, the host-side auth proxy GitHub MCP needs in opencode;
 // navikt/cplt#817, --deny-env for the voice keys; and the MCP broker, which
-// runs Nais MCP on the host for the sandbox. Raise it when a release brings
+// runs Nais MCP on the host for the sandbox; 2026.10.24-160000 adds no prompt
+// when nothing changed and --allow-write-state. Raise it when a release brings
 // something users gain, and list the gain in CpltRecommendedNotice.
-const cpltRecommended = "2026.10.23-130113"
+const cpltRecommended = "2026.10.24-160000"
 
 // cpltDenyEnv is the first cplt with --deny-env (navikt/cplt#817). Kept apart
 // from cpltRecommended so a cplt between the two keeps the flag.
 const cpltDenyEnv = "2026.10.23-070444"
+
+// cpltAllowWriteState is the first cplt with --allow-write-state.
+const cpltAllowWriteState = "2026.10.24-160000"
 
 // errCpltTooOld marks checkOpenCode2Launch's refusal of a cplt older than
 // minOpenCode2CpltStamp, so telemetry can tell it from argument refusals.
