@@ -143,6 +143,14 @@ Flags:
 
 Set the model: nav-pilot config set model <id>
 `,
+	"plugins": `Usage: nav-pilot plugins
+
+Show this repo's own OpenCode plugins and answer again whether to load them.
+It lists the plugins, shows your answer, and asks again. Enter declines. A no
+turns off everything OpenCode 2 reads from the repo: opencode.json, plugins,
+agents, commands, skills and AGENTS.md. Without a terminal it prints the
+state and exits non-zero.
+`,
 	"mcp": `Usage: nav-pilot mcp [list] [--json]
        nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]
        nav-pilot mcp disable <name>... [--client copilot|opencode]

@@ -66,7 +66,7 @@ var commandAliases = map[string]string{
 }
 
 // dispatchedCommands is every command name run dispatches.
-var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "pakke", "env", "feedback", "survey", "news", "models", "mcp", "alpha", "auth", "usage", "version", "help"}
+var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "pakke", "env", "feedback", "survey", "news", "models", "mcp", "plugins", "alpha", "auth", "usage", "version", "help"}
 
 func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
@@ -113,6 +113,7 @@ Commands:
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   models [filter]         List the models the client can use, the current one marked
   mcp [list|enable|disable]  List Nav's MCP servers and what stops yours from working; enable or disable some
+  plugins                 Show this repo's own OpenCode plugins and answer again whether to load them
   auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
   usage                   Show your GitHub Copilot usage (requires 'auth login')
   version                 Show version information
@@ -697,6 +698,18 @@ func run(args []string) error {
 	if command == "mcp" {
 		return runWithCommandTelemetry("mcp", telemetryMode(), "none", func() error {
 			return cmdMCP(rest)
+		})
+	}
+	if command == "plugins" {
+		if len(rest) == 1 && (rest[0] == "-h" || rest[0] == "--help") {
+			printHelp(os.Stdout, "plugins")
+			return nil
+		}
+		if len(rest) > 0 {
+			return fmt.Errorf("usage: %s", providerpkg.OpenCodePluginsCommand)
+		}
+		return runWithCommandTelemetry("plugins", telemetryMode(), "none", func() error {
+			return providerpkg.RunOpenCodePlugins("")
 		})
 	}
 	if command == "models" {

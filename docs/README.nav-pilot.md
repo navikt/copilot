@@ -518,6 +518,16 @@ nav-pilot config set client opencode  # sett permanent
 `nav-pilot status` og `nav-pilot list --installed` viser opencode-artefaktene og om de er
 oppdaterte.
 
+**Egne OpenCode-plugins i repoet.** Har repoet egne OpenCode-plugins (i `.opencode/plugins/`
+eller under `plugins` i repoets `opencode.json`), spør nav-pilot før OpenCode 2 laster dem.
+De kjører med samme tilgang som agenten. Svarer du nei, eller trykker Enter, slår nav-pilot av
+repoets eget OpenCode-oppsett for økta: konfigurasjon, plugins, agenter, kommandoer, skills og
+`AGENTS.md`. OpenCode leser `~/.opencode` og `~/AGENTS.md` på samme måte, så et nei slår av
+dem også. Da sier nav-pilot det i én linje ved hver oppstart. Svaret huskes til pluginene
+endrer seg, og gjelder også uten terminal. Uten terminal lastes de ikke før du har svart.
+Svaret gjelder per repo-rot; et worktree og et flyttet repo får spørsmålet på nytt.
+`nav-pilot plugins` viser pluginene og svaret ditt, og lar deg svare på nytt.
+
 ##### Hva scopet ditt bidrar med
 
 Skills, prompts og agenter du har lagt inn for hånd i `.github/` i repoet du står i,

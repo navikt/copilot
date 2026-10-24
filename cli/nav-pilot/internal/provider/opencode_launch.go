@@ -1501,6 +1501,7 @@ func openCodeUsageDir(projectDir string) string {
 //     the cplt flags it needs, and the user's model on the launched agent.
 //  3. After this, in launchOpenCodeViaCplt: the provider allowlist, last.
 func openCodeSessionEnv(r domain.ResolvedConfig, agent string, env, cpltArgs []string) ([]string, []string) {
+	env = applyOpenCodeProjectPlugins(env, r.ProjectDir)
 	env = applyOpenCodePolicy(env)
 	env = applyOpenCodeMCPPolicy(env, r.ProjectDir)
 	env = applyOpenCodeOwnDirs(env, r.ProjectDir)
