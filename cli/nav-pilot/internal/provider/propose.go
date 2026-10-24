@@ -151,7 +151,7 @@ func noteUnansweredProposal(pakke string, proposal *agentpakke.CpltProposal, app
 	}
 	if SeenChanged(key, proposal.Hash()) || Verbose {
 		fmt.Fprintf(os.Stderr, "%s The agentpakke asks to let the agent %s. Answer: %s\n",
-			domain.Dim("ℹ"), agentpakke.Access(hosts, reads), domain.Bold("nav-pilot pakke access"))
+			domain.Dim("ℹ"), agentpakke.Access(hosts, reads), domain.Bold(pakkeAccessCommand()))
 	}
 }
 

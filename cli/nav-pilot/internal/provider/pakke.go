@@ -35,7 +35,25 @@ import (
 // The manifest itself is held by internal/source, the lowest package both this
 // one and internal/artifacts import — artifacts materializes agent frontmatter
 // from the same declarations and cannot import provider.
-func SetActivePakke(m *agentpakke.Manifest) { source.SetActivePakke(m) }
+func SetActivePakke(m *agentpakke.Manifest) {
+	source.SetActivePakke(m)
+	activePakkeUser = false
+}
+
+// activePakkeUser is set when the active pakke runs from a user-scope pin, so
+// a hint names `pakke access --user` instead of a repo install alongside it.
+var activePakkeUser bool
+
+// SetActivePakkeUser marks the active pakke as the user-scope pin.
+func SetActivePakkeUser() { activePakkeUser = true }
+
+// pakkeAccessCommand is `nav-pilot pakke access` for the active pakke's scope.
+func pakkeAccessCommand() string {
+	if activePakkeUser {
+		return "nav-pilot pakke access --user"
+	}
+	return "nav-pilot pakke access"
+}
 
 // PrimaryAgent returns the persona a client launches by default: the first
 // primary agent the active agentpakke declares for it.

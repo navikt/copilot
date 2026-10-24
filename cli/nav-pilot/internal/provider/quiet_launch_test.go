@@ -247,6 +247,33 @@ func TestUnansweredProposalNamedOnce(t *testing.T) {
 	}
 }
 
+// A launch running the user-scope pin points the unanswered hint at
+// `pakke access --user`, even with a repo install beside it (which plain
+// `pakke access` would pick). Control: a repo-only launch gets no --user.
+func TestUnansweredHintNamesTheActiveScope(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		userPin bool
+		want    string
+	}{
+		{"user pin beside a repo install", true, "Answer: nav-pilot pakke access --user"},
+		{"repo only", false, "Answer: nav-pilot pakke access\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			proposeEnv(t)
+			activeProposal(t)
+			protectingCplt(t)
+			setVerbose(t, false)
+			activePakkeUser = tc.userPin
+			t.Cleanup(func() { activePakkeUser = false })
+			out := stderrOf(t, func() { cpltProposalFlags() })
+			if !strings.Contains(out, tc.want) {
+				t.Errorf("hint %q, want %q", out, tc.want)
+			}
+		})
+	}
+}
+
 // Approved-scope lines show on a new or changed approval, not on a repeat.
 func TestApprovedScopeLinesOnlyOnChange(t *testing.T) {
 	scope := proposeEnv(t)
