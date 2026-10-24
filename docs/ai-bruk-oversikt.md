@@ -67,7 +67,7 @@ Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og
 | kotlin | `*.kt` | Ktor og Rapids & Rivers, Spring Boot, Kotliquery, testing |
 | security-core | Alle filer | Sikkerhetsregler som alltid gjelder: logging, hemmeligheter, spørringer, eierskap, `azp`, TLS |
 | security-owasp | `*.{kt,go,java,ts,tsx}` | Peker til `$security-owasp` for OWASP-mønstre |
-| nextjs-aksel | `**/*.{tsx,ts}`, bare Next.js-prosjekter | Samlede App Router-regler og Aksel-oppsett via `aksel-builder` |
+| nextjs-aksel | `src/**/*.{tsx,ts}` | Samlede App Router-regler og Aksel-oppsett via `aksel-builder` |
 | performance | `src/**/*.{tsx,ts}` | Lazy loading, memo, bundle-størrelse |
 | accessibility | `src/**/*.{tsx,jsx}` | ARIA, semantisk HTML, tastaturnavigasjon |
 | testing | `*.test.*` | Teststruktur, Arrange-Act-Assert |

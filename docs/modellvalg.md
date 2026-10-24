@@ -28,15 +28,15 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 
 ### Prompts
 
-| Prompt                 | Modell           | Begrunnelse                                                                 |
-| ---------------------- | ---------------- | --------------------------------------------------------------------------- |
-| `kafka-topic`          | GPT-6 Luna       | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                   |
-| `nais-manifest`        | GPT-6 Luna       | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                   |
-| `aksel-component`      | GPT-6 Luna       | Komponentmal som bruker `aksel-builder` og verifiserte Aksel-API-er         |
-| `ktor-endpoint`        | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
-| `nextjs-api-route`     | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
-| `spring-boot-endpoint` | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
-| `golang-service`       | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
+| Prompt                 | Modell     | Begrunnelse                                                                     |
+| ---------------------- | ---------- | ------------------------------------------------------------------------------- |
+| `kafka-topic`          | GPT-6 Luna | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                       |
+| `nais-manifest`        | GPT-6 Luna | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                       |
+| `aksel-component`      | GPT-6 Luna | Ikke målt. Følger de andre malpromptene. Gemini 3.8 Flash beholdes som fallback |
+| `ktor-endpoint`        | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen     |
+| `nextjs-api-route`     | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen     |
+| `spring-boot-endpoint` | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen     |
+| `golang-service`       | GPT-6 Luna | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen     |
 
 ## Blokkeringsskjerm for GPT-6 og Opus 5.5
 

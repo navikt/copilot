@@ -12,7 +12,7 @@ rule set; confirm any specific component or token via the MCP ([mcp-workflow.md]
 | `@navikt/ds-tokens`   | Raw token values for SCSS/JS/LESS (CSS already in ds-css) | `@use "@navikt/ds-tokens/scss";`                  |
 | `@navikt/aksel-icons` | Icon components                                           | `import { TrashIcon } from "@navikt/aksel-icons"` |
 | `@navikt/ds-tailwind` | Tailwind preset mapping Aksel tokens to `ax-*` utilities  | `presets: [require("@navikt/ds-tailwind")]`       |
-| `@navikt/aksel`       | CLI: codemods                                             | `pnpx @navikt/aksel <command>`                    |
+| `@navikt/aksel`       | CLI: codemods                                             | `npx @navikt/aksel <command>`                     |
 
 Aksel's published React components support React 17–19. This library constraint does
 not prohibit an application from using APIs supported by its own React version.

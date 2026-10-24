@@ -52,7 +52,7 @@
       "displayName": "@code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "filePath": "agents/code-review.agent.md",
-      "contentHash": "dfc7e55ea6e3435cb7eaf9486f14d92b77a2aec6942ee2d42f05d9e1cc5e5d3c",
+      "contentHash": "fa76255226b84d06338cb45b1705412f495656de66a2bac92fb1918fc5224c45",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",

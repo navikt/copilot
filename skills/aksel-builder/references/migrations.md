@@ -11,9 +11,8 @@ and don't rely on memory for which exist — **list them from MCP**, since the s
 ```
 
 The response includes a run command and matching codemods (each with a `name`,
-`description`, and sometimes a `warning`). Its current `cliVersion` field is populated
-from the MCP package version, not the installed `@navikt/aksel` CLI; don't use it to select
-a CLI release. Check the intended CLI version and read the matching migration guide.
+`description`, and sometimes a `warning`). Its `cliVersion` field may not match the installed
+`@navikt/aksel` CLI; don't use it to select a CLI release. Check the intended CLI version and read the matching migration guide.
 You can also read the catalog from `aksel-migrations://catalog`.
 
 Use `kind:"migrations"` to find codemods. Use `kind:"docs"` or the docs index to find
@@ -22,7 +21,7 @@ the migration guide and manual steps; a codemod catalog is not a complete upgrad
 ## Run a codemod
 
 ```bash
-pnpx @navikt/aksel codemod <name>
+npx @navikt/aksel codemod <name>
 ```
 
 Use the project's approved package runner and chosen CLI version. Review the working
