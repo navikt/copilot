@@ -82,13 +82,9 @@ func main() {
 	// Union with the committed record. Some recorded blobs lived only on
 	// branches deleted after a squash merge, so no clone can regenerate them
 	// (#1955); dropping them would stop nav-pilot recognising those files.
-	if have, err := os.ReadFile(outputPath); err == nil {
-		var committed document
-		if err := json.Unmarshal(have, &committed); err != nil {
-			fmt.Fprintf(os.Stderr, "generate-retired: %s: %v\n", outputPath, err)
-			os.Exit(1)
-		}
-		union(doc, &committed, present)
+	if err := unionWithFile(doc, outputPath); err != nil {
+		fmt.Fprintf(os.Stderr, "generate-retired: %v\n", err)
+		os.Exit(1)
 	}
 	out, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -150,6 +146,25 @@ func build() (*document, error) {
 	return doc, nil
 }
 
+// unionWithFile merges the record at path into doc. Only a missing file is
+// skipped: any other read or parse error aborts before anything is written,
+// so a transient failure can never truncate the record.
+func unionWithFile(doc *document, path string) error {
+	have, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var committed document
+	if err := json.Unmarshal(have, &committed); err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	union(doc, &committed, present)
+	return nil
+}
+
 // present reports whether a path exists in the working tree.
 func present(p string) bool {
 	_, err := os.Stat(p)
@@ -187,7 +202,7 @@ func union(doc, committed *document, isPresent func(string) bool) {
 // never shows up as deleted. It is still gone from the user's install, which is
 // the only thing this file is for.
 func deletedPaths(dir string) ([]string, error) {
-	out, err := git("log", "--all", "--no-renames", "--diff-filter=D", "--format=", "--name-only", "--", dir+"/")
+	out, err := git("log", "HEAD", "--no-renames", "--diff-filter=D", "--format=", "--name-only", "--", dir+"/")
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +223,7 @@ func deletedPaths(dir string) ([]string, error) {
 // blobsFor returns every distinct blob hash the path has held, oldest listing
 // order made deterministic by sorting.
 func blobsFor(path string) ([]string, error) {
-	commits, err := git("log", "--all", "--format=%H", "--", path)
+	commits, err := git("log", "HEAD", "--format=%H", "--", path)
 	if err != nil {
 		return nil, err
 	}

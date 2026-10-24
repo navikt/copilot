@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -36,5 +38,25 @@ func TestUnionWithEmptyRecord(t *testing.T) {
 	union(doc, &document{}, func(string) bool { return false })
 	if want := map[string][]string{"agents/a.agent.md": {"bbb"}}; !reflect.DeepEqual(doc.Paths, want) || doc.Replacements != nil {
 		t.Errorf("doc = %+v, want history unchanged", doc)
+	}
+}
+
+// Only a missing record is skipped. An unreadable one must abort, or the
+// generator writes history alone over it and loses the squash-lost hashes.
+func TestUnionWithFileAbortsOnReadError(t *testing.T) {
+	doc := &document{Paths: map[string][]string{}}
+	dir := t.TempDir()
+	if err := unionWithFile(doc, filepath.Join(dir, "missing.json")); err != nil {
+		t.Errorf("missing record: err = %v, want nil", err)
+	}
+	if err := unionWithFile(doc, dir); err == nil { // a directory cannot be read as a file
+		t.Error("unreadable record: err = nil, want an error")
+	}
+	bad := filepath.Join(dir, "bad.json")
+	if err := os.WriteFile(bad, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := unionWithFile(doc, bad); err == nil {
+		t.Error("malformed record: err = nil, want an error")
 	}
 }
