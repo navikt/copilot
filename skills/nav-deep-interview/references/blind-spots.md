@@ -44,7 +44,7 @@ Basert på analyse av reelle Nav-repoer (dp-behandling, helse-spesialist, tiltak
 |--------------|------------|-------------------|
 | Manglende universell utforming | Lovbrudd (likestillingsloven) | «Er UU-krav ivaretatt? Bruker dere Aksel-komponenter?» |
 | Direkte API-kall fra klient | CORS-problemer, token-eksponering | «Bruker dere BFF-mønster med server-side proxy?» |
-| Spacing som bryter med prosjektets konvensjoner | Inkonsistent layout, tyngre vedlikehold | «Hvilke layout- og spacing-konvensjoner bruker prosjektet? For Aksel: se aksel-builder. Vanlig Tailwind-spacing er greit om ikke lokale regler sier noe annet.» |
+| Spacing that conflicts with project conventions | Inconsistent layout and harder maintenance | "Which layout and spacing conventions does the project use? For Aksel, consult aksel-builder; native Tailwind spacing is valid unless local rules restrict it." |
 | Manglende error boundaries | Hvit side ved feil | «Hva ser brukeren når noe feiler?» |
 
 ## Sikkerhet
