@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -240,11 +241,14 @@ func reportRetired(orphans []retiredOrphan, apply bool) {
 	fmt.Printf("%s %d artifact(s) retired in the source are still installed\n\n",
 		yellow("⚠"), len(orphans))
 	for _, o := range orphans {
+		// The record is a third party's file. The schema refuses control
+		// runes; this holds if a looser record gets through anyway.
+		p := domain.SafeText(o.Path, 0)
 		if o.Replacement != "" {
-			fmt.Printf("  %s %s is retired; replaced by %s\n", dim("⊘"), o.Path, bold(o.Replacement))
+			fmt.Printf("  %s %s is retired; replaced by %s\n", dim("⊘"), p, bold(domain.SafeText(o.Replacement, 120)))
 			continue
 		}
-		fmt.Printf("  %s %s\n", dim("⊘"), o.Path)
+		fmt.Printf("  %s %s\n", dim("⊘"), p)
 	}
 	fmt.Println()
 	if !apply {

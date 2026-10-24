@@ -643,3 +643,14 @@ func TestFindRetiredOrphansCarriesReplacement(t *testing.T) {
 		t.Errorf("findRetiredOrphans = %+v, want one orphan replaced by new", got)
 	}
 }
+
+// Defence in depth: a C1 CSI that slipped past the schema must not reach the
+// terminal as an escape sequence.
+func TestReportRetiredSanitizesReplacement(t *testing.T) {
+	out := captureStdout(func() {
+		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Replacement: "new\u009b2J"}}, true)
+	})
+	if strings.ContainsRune(out, '\u009b') || !strings.Contains(out, "new\uFFFD2J") {
+		t.Errorf("output = %q, want the CSI replaced by U+FFFD", out)
+	}
+}
