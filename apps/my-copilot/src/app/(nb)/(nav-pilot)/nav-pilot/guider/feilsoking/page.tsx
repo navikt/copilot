@@ -92,7 +92,12 @@ nav-pilot mcp disable <navn>                  # slå av, og steng hostene bare d
             <code className={code}>external</code>, som handler i et annet system (en issue, en PR, en fil i Figma), og{" "}
             <code className={code}>host-exec</code>, som kjører på maskinen din utenfor cplt-sandkassen. I en terminal
             viser <code className={code}>enable</code> alle verktøyene med klasse, og du velger selv. Et{" "}
-            <code className={code}>host-exec</code>-verktøy må du i tillegg si ja til.
+            <code className={code}>host-exec</code>-verktøy må du i tillegg si ja til. Servere som cplt kjører på
+            maskinen din, som Nais MCP, får som standard bare lesende verktøy. Se{" "}
+            <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt#begrensninger" className={linkClass}>
+              MCP gjennom cplt
+            </NextLink>
+            .
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot mcp enable <navn> --tools <a,b>   # nøyaktig disse verktøyene
@@ -173,10 +178,11 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             Nais MCP feiler med «unauthenticated: please log in with nais login -n» under cplt, selv om du er logget
             inn. Serveren leser innloggingen din fra nøkkelringen, og nøkkelringen er ikke tilgjengelig fra sandkassen.
             Slå serveren på med <code className={code}>nav-pilot mcp enable io.github.nais/nais-mcp</code>. Da kjører
-            cplt serveren på maskinen din, utenfor sandkassen, med bare lesende verktøy. Er du ikke logget inn, spør
-            nav-pilot om den skal kjøre <code className={code}>nais login -n</code>. Dette krever en cplt som har
-            kommandoen <code className={code}>cplt mcp status</code>. <code className={code}>nav-pilot mcp list</code>{" "}
-            viser innloggingen og om cplt kjører serveren.
+            cplt serveren på maskinen din, utenfor sandkassen. Oppsett, plattformer og feilmeldinger står i{" "}
+            <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt" className={linkClass}>
+              MCP gjennom cplt
+            </NextLink>
+            .
           </BodyLong>
           <LinkableHeading id="mcp-hoster" size="small" level="3">
             Hoster i sandkassen
