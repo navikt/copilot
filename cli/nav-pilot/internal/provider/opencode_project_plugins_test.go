@@ -115,6 +115,38 @@ func TestOpenCodeProjectPluginsHeadlessDisables(t *testing.T) {
 	}
 }
 
+// A terminal answer holds headless too: yes loads, no stays off.
+func TestOpenCodeProjectPluginsHeadlessUsesStoredAnswer(t *testing.T) {
+	for _, answer := range []bool{true, false} {
+		a := answer
+		proj, asked := pluginTrustSetup(t, true, &a)
+		writePlugin(t, proj, "p.ts", "x")
+		applyOpenCodeProjectPlugins(nil, proj)
+		openCodePluginsTTY = func() bool { return false }
+		if env := applyOpenCodeProjectPlugins(nil, proj); disabled(env) == answer || *asked != 1 {
+			t.Fatalf("stored %v: asked=%d env=%v", answer, *asked, env)
+		}
+	}
+}
+
+func TestRunOpenCodePluginsAsksAgain(t *testing.T) {
+	answer := false
+	proj, asked := pluginTrustSetup(t, true, &answer)
+	writePlugin(t, proj, "p.ts", "x")
+	applyOpenCodeProjectPlugins(nil, proj)
+	answer = true
+	if err := RunOpenCodePlugins(proj); err != nil {
+		t.Fatal(err)
+	}
+	if env := applyOpenCodeProjectPlugins(nil, proj); disabled(env) || *asked != 2 {
+		t.Fatalf("asked=%d env=%v", *asked, env)
+	}
+	openCodePluginsTTY = func() bool { return false }
+	if err := RunOpenCodePlugins(proj); err == nil || *asked != 2 {
+		t.Fatalf("headless: err=%v asked=%d", err, *asked)
+	}
+}
+
 func TestOpenCodeProjectPluginsV1Untouched(t *testing.T) {
 	yes := false
 	proj, asked := pluginTrustSetup(t, true, &yes)

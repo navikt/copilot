@@ -103,6 +103,7 @@ Commands:
   validate                Check that a source repo conforms to the agentpakke contract
   pakke                   Show the agentpakke here: source, items, hooks and the access it asks for
   pakke access            Answer again about access you declined
+  pakke plugins           Show this repo's own OpenCode plugins and answer again about loading them
   pakke bump-base         Move the agentpakke this pakke reuses onto its latest revision
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
@@ -1153,8 +1154,12 @@ func run(args []string) error {
 			return runWithCommandTelemetry("pakke-access", telemetryMode(), scope.Name, func() error {
 				return cmdPakkeAccess(scope, scopeProvided)
 			})
+		case len(positional) == 1 && positional[0] == "plugins":
+			return runWithCommandTelemetry("pakke-plugins", telemetryMode(), "none", func() error {
+				return providerpkg.RunOpenCodePlugins(targetDir)
+			})
 		case len(positional) != 1 || positional[0] != "bump-base":
-			return fmt.Errorf("usage: nav-pilot pakke [access]\n       nav-pilot pakke bump-base [--target <dir>]")
+			return fmt.Errorf("usage: nav-pilot pakke [access|plugins]\n       nav-pilot pakke bump-base [--target <dir>]")
 		}
 		// It writes the lock, and a flag it accepted and ignored would write it
 		// anyway. git diff undoes a bump.

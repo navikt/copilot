@@ -293,6 +293,7 @@ Flags:
 `,
 	"pakke": `Usage: nav-pilot pakke [--user]
        nav-pilot pakke access [--user]
+       nav-pilot pakke plugins
        nav-pilot pakke bump-base [--target <dir>]
 
 nav-pilot pakke shows the agentpakke this project uses: its source and pinned
@@ -304,6 +305,11 @@ nav-pilot pakke access asks again about access you declined or were never
 asked about, the same question as on first run. Enter declines. A yes is
 recorded and the next launch applies it. Without a terminal it prints what it
 would ask and exits non-zero.
+
+nav-pilot pakke plugins shows the repo's own OpenCode plugins and your answer,
+and asks again whether OpenCode 2 may load them. Enter declines. A no turns
+the repo's OpenCode config off: its config, plugins, agents, commands, skills
+and AGENTS.md. Without a terminal it prints the state and exits non-zero.
 
 nav-pilot pakke bump-base is for the owner of an agentpakke that reuses
 another. Moves the revision pinned in .nav-pilot/agentpakke.lock.json onto the

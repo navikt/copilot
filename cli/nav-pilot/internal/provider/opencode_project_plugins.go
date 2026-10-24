@@ -175,9 +175,23 @@ var (
 	}
 )
 
+// OpenCodePluginsCommand is the command that answers again.
+const OpenCodePluginsCommand = "nav-pilot pakke plugins"
+
+func askOpenCodePluginSet(root string, names []string, sum string) bool {
+	short := names
+	if len(short) > 3 {
+		short = append(slices.Clone(short[:3]), "…")
+	}
+	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. [y/N] ", len(names), strings.Join(short, ", ")))
+	recordOpenCodePluginAnswer(root, openCodePluginAnswer{Hash: sum, Allow: allow})
+	return allow
+}
+
 // applyOpenCodeProjectPlugins asks before an opencode 2 launch loads the
 // repo's own plugins, and turns the project config off when the answer is no.
-// Silent once this set is answered (DESIGN.md, "Hva som vises").
+// A stored answer holds with or without a terminal. A yes is silent; a no says
+// one dim line each launch, since the repo's AGENTS.md and agents are off too.
 func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 	if openCodeMajor() < 2 {
 		return env
@@ -187,30 +201,49 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 		return env
 	}
 	a, ok := readOpenCodePluginAnswers()[root]
-	known := ok && a.Hash == sum
 	allow := a.Allow
 	switch {
-	case known:
+	case ok && a.Hash == sum:
 	case !openCodePluginsTTY():
 		// Headless: never block, never load an unanswered set, record nothing.
 		env, _ = telemetry.SetEnvValue(env, openCodeDisableProjectConfigEnv, "1")
-		fmt.Fprintf(os.Stderr, "%s This repo has its own OpenCode plugins; with no terminal to ask, its OpenCode config, plugins, agents, commands, skills and AGENTS.md are off for this session.\n", domain.Yellow("⚠"))
+		fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config is off: its plugins are not approved yet. To approve, run %s in a terminal.\n", domain.Yellow("⚠"), OpenCodePluginsCommand)
 		return env
 	default:
-		short := names
-		if len(short) > 3 {
-			short = append(slices.Clone(short[:3]), "…")
-		}
-		allow = askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. [y/N] ", len(names), strings.Join(short, ", ")))
-		recordOpenCodePluginAnswer(root, openCodePluginAnswer{Hash: sum, Allow: allow})
+		allow = askOpenCodePluginSet(root, names, sum)
 	}
 	if allow {
 		return env
 	}
 	env, _ = telemetry.SetEnvValue(env, openCodeDisableProjectConfigEnv, "1")
-	if known {
-		return env // said when answered
-	}
-	fmt.Fprintf(os.Stderr, "%s This repo's own OpenCode config, plugins, agents, commands, skills and AGENTS.md are off for this session and later ones until the plugins change. To answer again, delete the entry for %s in %s.\n", domain.Dim("-"), root, openCodePluginAnswersFile())
+	fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config is off (its plugins aren't trusted). Change: %s\n", domain.Dim("-"), OpenCodePluginsCommand)
 	return env
+}
+
+// RunOpenCodePlugins shows the repo's own OpenCode plugins and the stored
+// answer, and asks again on a terminal.
+func RunOpenCodePlugins(projectDir string) error {
+	root, names, sum := openCodeProjectPlugins(projectDir, nil)
+	if sum == "" {
+		fmt.Println("This repo has no OpenCode plugins of its own.")
+		return nil
+	}
+	fmt.Printf("OpenCode plugins in %s:\n", root)
+	for _, n := range names {
+		fmt.Printf("  %s\n", n)
+	}
+	a, ok := readOpenCodePluginAnswers()[root]
+	switch {
+	case !ok || a.Hash != sum:
+		fmt.Println("Answer: not asked (off until approved)")
+	case a.Allow:
+		fmt.Println("Answer: load them")
+	default:
+		fmt.Println("Answer: do not load (the repo's OpenCode config is off)")
+	}
+	if !openCodePluginsTTY() {
+		return fmt.Errorf("no terminal to ask on: run %s in a terminal", OpenCodePluginsCommand)
+	}
+	askOpenCodePluginSet(root, names, sum)
+	return nil
 }

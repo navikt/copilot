@@ -522,9 +522,9 @@ oppdaterte.
 eller under `plugins` i repoets `opencode.json`), spør nav-pilot før OpenCode 2 laster dem.
 De kjører med samme tilgang som agenten. Svarer du nei, eller trykker Enter, slår nav-pilot av
 repoets egen OpenCode-oppsett for økta: konfigurasjon, plugins, agenter, kommandoer, skills og
-`AGENTS.md`. Svaret huskes per repo til pluginene endrer seg. Uten terminal spør nav-pilot
-ikke, men slår dem av og sier fra i én linje. Vil du svare på nytt, sletter du repoet fra
-`~/.nav-pilot/opencode-project-plugins.json`.
+`AGENTS.md`. Da sier nav-pilot det i én linje ved hver oppstart. Svaret huskes per repo til
+pluginene endrer seg, og gjelder også uten terminal. Har du ikke svart, og det ikke er noen
+terminal, lastes de ikke. `nav-pilot pakke plugins` viser pluginene og svaret ditt, og spør på nytt.
 
 ##### Hva scopet ditt bidrar med
 
