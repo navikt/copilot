@@ -231,7 +231,7 @@ func TestUnansweredProposalNamedOnce(t *testing.T) {
 	launch := func() string { return stderrOf(t, func() { cpltProposalFlags() }) }
 
 	out := launch()
-	if !strings.Contains(out, "The agentpakke can give the agent ") || !strings.Contains(out, "Answer: nav-pilot pakke access") {
+	if !strings.Contains(out, "The agentpakke asks to let the agent ") || !strings.Contains(out, "Answer: nav-pilot pakke access") {
 		t.Fatalf("an unanswered proposal was silent: %q", out)
 	}
 	if out := launch(); out != "" {
@@ -242,7 +242,7 @@ func TestUnansweredProposalNamedOnce(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if out := launch(); strings.Contains(out, "can give the agent") {
+	if out := launch(); strings.Contains(out, "asks to let the agent") {
 		t.Errorf("control: a declined proposal was named as unanswered: %q", out)
 	}
 }

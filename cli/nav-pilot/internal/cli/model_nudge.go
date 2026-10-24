@@ -56,12 +56,12 @@ func maybeModelNudge(resolved ResolvedConfig, persona, stagedDir string) Resolve
 	// Names as the Model line shows them; the commands keep the ids.
 	recName, ownName := providerpkg.ModelLabel(rec), providerpkg.ModelLabel(resolved.Model)
 	if !isInteractive() || !claimSessionPrompt() {
-		fmt.Fprintf(os.Stderr, "%s The %s agentpakke recommends %s; you chose %s. To switch: %s. To follow the agentpakke: %s.\n",
+		fmt.Fprintf(os.Stderr, "%s The %s agentpakke recommends %s; your setting is %s. To switch: %s. To follow the agentpakke: %s.\n",
 			dim("ℹ"), pakke, recName, ownName, bold("nav-pilot config set model "+rec), bold("nav-pilot config unset model"))
 		return resolved
 	}
 	choice := "keep"
-	title := fmt.Sprintf("The %s agentpakke recommends %s.\nYou chose %s.", pakke, recName, ownName)
+	title := fmt.Sprintf("The %s agentpakke recommends %s.\nYour setting is %s.", pakke, recName, ownName)
 	err := askModelNudge(title, []huh.Option[string]{
 		huh.NewOption("Keep "+ownName, "keep"),
 		huh.NewOption("Switch to "+recName, "switch"),

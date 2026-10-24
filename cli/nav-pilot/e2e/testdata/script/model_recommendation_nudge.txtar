@@ -29,7 +29,7 @@ cp $WORK/pin-6.1.md .github/agents/grillmester.agent.md
 rm $WORK/fake/cplt.log
 exec pty-run -wait 'Follow the agentpakke' -send '\r' -- nav-pilot
 stdout 'The plattform agentpakke recommends GPT-6\.1 Sol\.'
-stdout 'You chose GPT-5\.5\.'
+stdout 'Your setting is GPT-5\.5\.'
 # Names, as the Model line shows them, not ids; and no "now".
 ! stdout 'now recommends|recommends gpt-6\.1-sol|You have model'
 grep '\-\-agent\nnav-pilot-session:grillmester\n' $WORK/fake/cplt.log
@@ -58,7 +58,7 @@ grep '\-\-model\ngpt-6\.1-sol\n' $WORK/fake/cplt.log
 # Without a terminal: one line with both commands.
 cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
 exec nav-pilot -- -p hi
-stderr 'The plattform agentpakke recommends gpt-6\.2-sol; you chose GPT-6\.1 Sol\. To switch: nav-pilot config set model gpt-6\.2-sol\. To follow the agentpakke: nav-pilot config unset model\.'
+stderr 'The plattform agentpakke recommends gpt-6\.2-sol; your setting is GPT-6\.1 Sol\. To switch: nav-pilot config set model gpt-6\.2-sol\. To follow the agentpakke: nav-pilot config unset model\.'
 
 -- pin-6.1.md --
 ---

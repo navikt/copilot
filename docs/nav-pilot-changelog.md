@@ -19,10 +19,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Færre og tydeligere meldinger
 
-- **Tilgang for agentpakken**: Når du sier ja til tilgangen agentpakken ber om, står det én gang hva agenten får gjøre, med de samme ordene som spørsmålet. Oppstarten som følger, gjentar det ikke. Sier du nei inne i `nav-pilot pakke access`, står det «Run this again to allow it.» i stedet for kommandoen du allerede kjører.
-- **Har du aldri svart**: Fikk du agentpakken med repoet og har aldri blitt spurt om tilgangen den ber om, sier oppstarten det i én linje, én gang per versjon av forespørselen, og viser til `nav-pilot pakke access`.
-- **Oppsett for Copilot**: Siste skjerm før lagring beskriver selvstendigheten i en setning i stedet for å vise `nav-pilot autonomy = sandbox`.
-- **`nav-pilot doctor`**: Med advarsler eller feil ender rapporten med hvor mange ting du bør rette, ikke «All systems healthy». Er cplt utdatert, får du én linje med oppgraderingskommando, ikke to med ulike kommandoer.
+- **Tilgang for agentpakken**: Når du sier ja til tilgangen agentpakken ber om, står det én gang hva agenten får gjøre, med de samme ordene som spørsmålet. Oppstarten etterpå gjentar det ikke. Sier du nei inne i `nav-pilot pakke access`, står det «Run this again to allow it.» i stedet for kommandoen du allerede kjører.
+- **Aldri spurt**: Fikk du agentpakken med repoet uten å bli spurt om tilgangen den ber om, sier oppstarten det i én linje, én gang per versjon av forespørselen, og viser til `nav-pilot pakke access`.
+- **Oppsett for Copilot**: Siste skjerm før lagring sier i én setning hvordan Copilot kjører kommandoer, i stedet for å vise `nav-pilot autonomy = sandbox`.
+- **`nav-pilot doctor`**: Med advarsler eller feil ender rapporten med hvor mange ting du bør rette, ikke «All systems healthy». Er cplt utdatert, får du én linje med oppgraderingskommandoen, ikke to med ulike kommandoer.
 - **Én skrivemåte for cplt**: Alle meldinger som viser hvordan du installerer eller oppgraderer cplt med Homebrew, bruker `navikt/tap/cplt`.
 - **Modellanbefaling**: Meldingen om at agentpakken anbefaler en annen modell, viser modellnavnene slik linja «Model:» gjør, for eksempel «Claude Opus 5.5», og sier «recommends», ikke «now recommends».
 - **`--verbose`**: Oppstarten skriver «Launching …» én gang, ikke to.

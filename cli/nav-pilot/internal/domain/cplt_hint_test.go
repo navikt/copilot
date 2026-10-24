@@ -27,7 +27,7 @@ func TestCpltHints(t *testing.T) {
 // No other source file spells a cplt install or upgrade command itself. The
 // control: the pattern finds the spellings in pkgmanager.go.
 func TestCpltHintsSpelledOnce(t *testing.T) {
-	re := regexp.MustCompile(`"(brew (install|upgrade) (navikt/tap/)?cplt|sudo apt (update && sudo apt )?install( --only-upgrade)? cplt)`)
+	re := regexp.MustCompile(`(brew (install|upgrade) (navikt/tap/)?cplt|sudo apt (update && sudo apt )?install( --only-upgrade)? cplt)`)
 	var hits []string
 	err := filepath.WalkDir("..", func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {

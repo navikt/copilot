@@ -375,11 +375,11 @@ func doctorChecks() bool {
 		fmt.Printf("      %s Binary found: %s (%s)\n", green("✓"), cpltPath, version)
 
 		l := latest()
-		// One upgrade line: the recommended-version notice carries its own
-		// upgrade command, so it stays quiet when the version row gave one.
+		// One upgrade line: when the version row already gave the command,
+		// the recommended-version notice keeps only its reasons.
 		offered := reportCpltVersionWith(cpltPath, version, l.version, l.err)
-		if n := providerpkg.CpltRecommendedNotice(); n != "" && !offered {
-			fmt.Printf("      %s %s\n", yellow("⚠"), n)
+		if n := providerpkg.CpltRecommendedNotice(); n != "" {
+			fmt.Printf("      %s %s\n", yellow("⚠"), recommendedRow(n, offered))
 		}
 
 		// Security posture. No recommendation: standard is the default and
@@ -595,14 +595,24 @@ func doctorChecks() bool {
 	return hasErrors
 }
 
+// recommendedRow is the recommended-cplt notice without its upgrade command
+// when the version row already gave one.
+func recommendedRow(notice string, offered bool) string {
+	if !offered {
+		return notice
+	}
+	reasons, _, _ := strings.Cut(notice, ". Update cplt:")
+	return reasons + "."
+}
+
 // doctorVerdict is doctor's last line. A run that printed ⚠ or ✗ rows never
 // ends "healthy", even when no check set hasErrors.
 func doctorVerdict(fixRows int, hasErrors bool) string {
 	switch {
 	case fixRows == 1:
-		return yellow("⚠") + " 1 thing to fix; see the Solution lines."
+		return yellow("⚠") + " 1 thing to fix; see the lines above."
 	case fixRows > 1:
-		return fmt.Sprintf("%s %d things to fix; see the Solution lines.", yellow("⚠"), fixRows)
+		return fmt.Sprintf("%s %d things to fix; see the lines above.", yellow("⚠"), fixRows)
 	case hasErrors:
 		return yellow("⚠") + " Health check complete with warnings. See solutions above."
 	}
