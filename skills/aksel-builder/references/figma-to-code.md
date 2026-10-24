@@ -34,8 +34,7 @@ options exist; don't send parameters from a different Figma MCP variant.
 
 Use the screenshot embedded in the design context when present. Otherwise call the
 available `get_screenshot` tool for the same node, using its advertised schema. Keep the
-image as `figma-visual-reference` for verification. Use `get_variable_defs`, when
-available, to clarify design variables before mapping them to verified Aksel tokens.
+image as `figma-visual-reference` for verification.
 
 ### 3. Assets
 

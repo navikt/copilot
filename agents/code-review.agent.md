@@ -184,7 +184,7 @@ Only 34% of Nav developers agree that AI code passes review without extra work �
 | 🟡       | Rapids & Rivers: validate required keys in `River` |
 | 💭       | Error wrapping with `Result` or sealed classes     |
 
-### TypeScript/Next.js (`**/*.{ts,tsx}`)
+### TypeScript/Next.js (`src/**/*.{ts,tsx}`)
 
 | Priority | Check                                                             |
 | -------- | ----------------------------------------------------------------- |

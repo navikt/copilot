@@ -100,7 +100,7 @@ dropped** (`background="accent-strong"` → `--ax-bg-accent-strong`,
 `aksel_get_token_details` or [tokens-styling.md](tokens-styling.md).
 
 > **Deprecation:** `Box.New` / `BoxNew` is deprecated in v8 — use `Box` (same props).
-> Run `pnpx @navikt/aksel codemod v8-box-new` to migrate. See [migrations.md](migrations.md).
+> Run `npx @navikt/aksel codemod v8-box-new` to migrate. See [migrations.md](migrations.md).
 
 ## Stack (HStack / VStack)
 
