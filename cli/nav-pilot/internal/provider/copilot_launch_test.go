@@ -66,7 +66,7 @@ func TestBuildCopilotArgs(t *testing.T) {
 			name:     "cplt pins copilot sandbox agent and emits nav-pilot persona",
 			cliName:  "cplt",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6.1-sol"},
 		},
 		{
 			name:     "copilot always emits nav-pilot persona",
@@ -99,7 +99,7 @@ func TestBuildCopilotArgs(t *testing.T) {
 				AskUser:         false,
 				LogLevel:        "debug",
 			},
-			want: []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-4o",
+			want: []string{"--agent", "nav-pilot", "--model", "gpt-4o",
 				"--mode", "plan", "--effort", "high", "--context", "long_context",
 				"--allow-all-tools", "--no-ask-user", "--log-level", "debug"},
 		},
@@ -238,7 +238,7 @@ func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.
 	}
 }
 
-// Tier 1 Copilot builds its own cplt command, so the cplt recommendation must
+// The cplt recommendation must
 // be said on that path too, with the client-neutral reasons.
 func TestLaunchCopilotResolved_ShowsCpltRecommendation(t *testing.T) {
 	dir := t.TempDir()
@@ -469,5 +469,10 @@ func TestSayAutopilotNote(t *testing.T) {
 	}
 	if !say(autopilot, true) {
 		t.Error("--verbose did not repeat the note")
+	}
+	// Leaving autopilot resets the marker, so coming back says it again.
+	say(domain.ResolvedConfig{}, false)
+	if !say(autopilot, false) {
+		t.Error("autopilot after a default-mode launch did not print the note")
 	}
 }

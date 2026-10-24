@@ -74,8 +74,7 @@ func copilotSkillsRoot() string {
 // since been deleted, and the skill would read the wrong file or none at all.
 // Passing something through is not the same as not setting it.
 //
-// The cplt side of the same decision is in [cpltArgv] and
-// [copilotLaunchArgs]: with no root there is no --pass-env either, so nothing
+// The cplt side of the same decision is in [cpltArgv]: with no root there is no --pass-env either, so nothing
 // is named to the sandbox that should not exist. Both layers, because either
 // one alone leaves the stale value reachable.
 //
@@ -108,20 +107,4 @@ func isSkillsDirEntry(entry string) bool {
 		return strings.EqualFold(name, SkillsDirEnv)
 	}
 	return name == SkillsDirEnv
-}
-
-// insertCpltPassEnv splices --pass-env into a cplt vector whose "--" separator
-// is already in place.
-//
-// The legacy copilot launch builds its own argument vector (BuildCopilotArgs)
-// rather than going through cpltArgv, so it is a second seam and needs the flag
-// inserted rather than appended: after "--" it would reach the copilot binary,
-// which has no such flag. A vector with no separator is left alone — that is
-// the plain-copilot spelling, where there is no cplt to pass anything through.
-func insertCpltPassEnv(args []string, key string) []string {
-	i := slices.Index(args, "--")
-	if i < 0 {
-		return args
-	}
-	return slices.Insert(slices.Clone(args), i, "--pass-env", key)
 }

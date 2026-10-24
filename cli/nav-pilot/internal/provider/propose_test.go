@@ -126,7 +126,7 @@ func TestI1ProposalHasNoEffectWithoutApproval(t *testing.T) {
 	if slices.Contains(argv, "--allow-private-domain") {
 		t.Errorf("an unapproved proposal reached the staged launch vector: %q", argv)
 	}
-	legacy := BuildCopilotArgs("cplt", domain.ResolvedConfig{Persona: "nais-pilot"})
+	legacy := copilotLaunchArgs("cplt", domain.ResolvedConfig{Persona: "nais-pilot"}, "")
 	if slices.Contains(legacy, "--allow-private-domain") {
 		t.Errorf("an unapproved proposal reached the legacy launch vector: %q", legacy)
 	}
@@ -149,7 +149,7 @@ func TestI5ApprovedEntriesReachBothLaunchSeams(t *testing.T) {
 		t.Errorf("staged seam: entry missing or outside the cplt-flag slot: %s", staged)
 	}
 
-	legacy := strings.Join(BuildCopilotArgs("cplt", domain.ResolvedConfig{Persona: "nais-pilot"}), " ")
+	legacy := strings.Join(copilotLaunchArgs("cplt", domain.ResolvedConfig{Persona: "nais-pilot"}, ""), " ")
 	if !strings.Contains(legacy, "--agent copilot --allow-private-domain cloud.nais.io --") {
 		t.Errorf("legacy seam: entry missing or outside the cplt-flag slot: %s", legacy)
 	}
@@ -287,7 +287,6 @@ func TestI5NoUnaccountedCpltLaunchPath(t *testing.T) {
 	// agent session and so carry no waiver.
 	accounted := map[string]string{
 		"launchViaCplt":           "cplt.go — argv from cpltArgv, which carries the entries",
-		"LaunchCopilotResolved":   "copilot_launch.go — argv from copilotLaunchArgs over BuildCopilotArgs, which carries the entries; #859's --pass-env is spliced in ahead of the same separator",
 		"runStagedProbe":          "runtime_gate.go — a bounded --version probe, no session",
 		"IsCplt":                  "copilot_launch.go — a --version probe, no session",
 		"printCopilotDiagnostics": "copilot_launch.go — diagnostics, no session",
@@ -298,7 +297,7 @@ func TestI5NoUnaccountedCpltLaunchPath(t *testing.T) {
 	for _, name := range processSpawners(t, ".") {
 		if _, ok := accounted[name]; !ok {
 			t.Errorf("%s spawns a process and is not accounted for.\n"+
-				"If it launches cplt with an agent, build its argv through cpltArgv or BuildCopilotArgs so an "+
+				"If it launches cplt with an agent, build its argv through cpltArgv so an "+
 				"approved sandbox proposal reaches it (#858, invariant 5). If it does not, add it to this test's list.", name)
 		}
 	}
@@ -525,18 +524,16 @@ func TestLaunchNoticeCarriesNoPakkeControlCharacters(t *testing.T) {
 	}
 }
 
-// The legacy launch carries two things in the cplt-flag slot now: #859's
-// --pass-env NAV_PILOT_SKILLS_DIR and an approved waiver. They are placed by
-// different code — insertCpltPassEnv searches for the separator, the waiver is
-// built into the vector ahead of it — so this drives the vector the launch
-// really assembles rather than either half of it.
+// The Tier 1 copilot launch carries two things in the cplt-flag slot: #859's
+// --pass-env NAV_PILOT_SKILLS_DIR and an approved waiver. This drives the
+// vector the launch really assembles rather than either half of it.
 func TestI5SkillsDirAndWaiverBothSurviveTheLegacyVector(t *testing.T) {
 	scope := proposeEnv(t)
 	proposal := activeProposal(t)
 	protectingCplt(t)
 	approve(t, scope, proposal.Hash(), "cloud.nais.io")
 
-	args := copilotLaunchArgs("cplt", domain.ResolvedConfig{Persona: "nais-pilot"}, true, "/skills")
+	args := copilotLaunchArgs("cplt", domain.ResolvedConfig{Persona: "nais-pilot"}, "/skills")
 	joined := strings.Join(args, " ")
 
 	sep := slices.Index(args, "--")

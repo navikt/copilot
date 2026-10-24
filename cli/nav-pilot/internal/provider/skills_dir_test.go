@@ -16,17 +16,12 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
-// The launch paths NAV_PILOT_SKILLS_DIR has to cover, and the two seams they
-// reach cplt through.
-//
-// Five of the six build a [cpltLaunch] and hand it to launchViaCplt. The sixth,
-// LaunchCopilotResolved, builds its own argument vector (BuildCopilotArgs) and
-// runs its own exec.Command — which is exactly how a variable wired "at the
-// launch" can be wired at only five of six launches without anything failing.
-// The two tests below are the guard: one fails if a new cpltLaunch skips the
-// field, the other fails if a Launch* function appears that nobody checked.
+// The launch paths NAV_PILOT_SKILLS_DIR has to cover. Each builds a
+// [cpltLaunch] and hands it to launchViaCplt. The two tests below are the
+// guard: one fails if a new cpltLaunch skips the field, the other fails if a
+// Launch* function appears that nobody checked.
 var knownLaunchPaths = []string{
-	"LaunchCopilotResolved", // legacy copilot — its own argv, its own exec
+	"LaunchCopilotResolved", // Tier 1 copilot
 	"LaunchCopilotStaged",   // Tier 2 copilot
 	"LaunchOpenCode",        // legacy opencode
 	"LaunchOpenCodeStaged",  // Tier 2 opencode
@@ -165,21 +160,21 @@ func TestCpltArgvSkillsDir(t *testing.T) {
 	}
 }
 
-// TestCopilotLaunchArgsSkillsDir pins the second seam. The flag has to land
+// TestCopilotLaunchArgsSkillsDir pins the Tier 1 copilot vector. The flag has to land
 // before the "--", because after it the copilot binary gets it and does not
 // know it; and the plain copilot CLI, which has no cplt to pass anything
 // through, must never see it at all.
 func TestCopilotLaunchArgsSkillsDir(t *testing.T) {
 	resolved := domain.ResolvedConfig{AskUser: true}
 
-	want := []string{"--yes", "--agent", "copilot", "--pass-env", SkillsDirEnv, "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"}
-	got := copilotLaunchArgs("cplt", resolved, false, "/home/u/.copilot/skills")
+	want := []string{"--agent", "copilot", "--pass-env", SkillsDirEnv, "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"}
+	got := copilotLaunchArgs("cplt", resolved, "/home/u/.copilot/skills")
 	if !slices.Equal(got, want) {
 		t.Errorf("cplt with a skills dir\n got: %q\nwant: %q", got, want)
 	}
 
 	plain := []string{"--agent", "nav-pilot", "--model", "gpt-6.1-sol"}
-	if got := copilotLaunchArgs("copilot", resolved, false, "/home/u/.copilot/skills"); !slices.Equal(got, plain) {
+	if got := copilotLaunchArgs("copilot", resolved, "/home/u/.copilot/skills"); !slices.Equal(got, plain) {
 		t.Errorf("the plain copilot CLI must not be given cplt's --pass-env\n got: %q\nwant: %q", got, plain)
 	}
 }
@@ -276,8 +271,8 @@ func TestLaunchViaCpltDropsInheritedSkillsDir(t *testing.T) {
 	}
 }
 
-// TestLaunchCopilotResolvedDropsInheritedSkillsDir covers the other seam, the
-// one that builds its own argument vector and runs its own exec.Command. HOME
+// TestLaunchCopilotResolvedDropsInheritedSkillsDir covers the Tier 1 copilot
+// launch end to end. HOME
 // is a temp tree, so there is no ~/.copilot/skills and nothing was
 // materialized.
 func TestLaunchCopilotResolvedDropsInheritedSkillsDir(t *testing.T) {

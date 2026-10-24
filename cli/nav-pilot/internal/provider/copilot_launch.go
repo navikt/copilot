@@ -147,13 +147,8 @@ func CLIDisplayName(name string) string {
 	return name
 }
 
-// BuildCopilotArgs constructs the CLI arguments for launching copilot.
-//
-// cplt is the sandbox wrapper: its own --agent selects WHICH agent to sandbox
-// and otherwise auto-detects from PATH (per `cplt --help`). Because nav-pilot is
-// on the copilot launch path here, we pin `cplt --agent copilot` so a different
-// agent on PATH (e.g. opencode) is never picked, then forward the copilot
-// persona + flags after the "--" separator.
+// BuildCopilotArgs constructs the copilot CLI arguments: what cplt forwards
+// after "--" (see [copilotLaunchArgs] for the whole cplt vector).
 //
 // Note: the forwarded --agent is always the active agentpakke's copilot
 // persona; resolved.Client selects the launcher and is consumed by
@@ -213,20 +208,13 @@ func BuildCopilotArgs(cliName string, resolved domain.ResolvedConfig) []string {
 		args = append(args, "--model", model)
 	}
 	args = append(args, copilotResolvedFlags(resolved)...)
+	args = append(args, resolved.ExtraArgs...)
 	if cliName != "cplt" {
 		// Allow-all is only safe with cplt as the boundary. LaunchCopilot never
 		// gets here (it refuses without cplt); the branch stays as a backstop.
-		return withoutAllowAll(append(args, resolved.ExtraArgs...))
+		return withoutAllowAll(args)
 	}
-	// Seam two of two for an approved sandbox proposal (#858). This launch
-	// never goes through cpltArgv, so the entries have to be placed here
-	// too — in the cplt-flag slot, before the "--" that hands the rest to
-	// the agent.
-	cpltArgs := append([]string{"--agent", "copilot"}, cpltProposalFlags()...)
-	cpltArgs = append(cpltArgs, resolved.CpltFlags...)
-	cpltArgs = append(cpltArgs, "--")
-	cpltArgs = append(cpltArgs, args...)
-	return append(cpltArgs, resolved.ExtraArgs...)
+	return args
 }
 
 // copilotAllowAllFlags are the Copilot CLI flags that switch its permission
@@ -245,12 +233,12 @@ func withoutAllowAll(args []string) []string {
 	return slices.DeleteFunc(args, isAllowAllFlag)
 }
 
-// sayAutopilotNote prints autopilotNote once per change, and every time with
-// --verbose. SeenChanged runs whenever the note is non-empty, so the marker
-// stays current under --verbose too.
+// sayAutopilotNote prints autopilotNote when it changed, and every time with
+// --verbose. The marker records every launch, the empty note too, so leaving
+// autopilot and coming back says it again.
 func sayAutopilotNote(r domain.ResolvedConfig) {
 	note := autopilotNote(r)
-	if note != "" && (SeenChanged("autopilot-note", note) || Verbose) {
+	if changed := SeenChanged("autopilot-note", note); note != "" && (changed || Verbose) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
 	}
 }
@@ -366,9 +354,6 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 				domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 		}
 	}
-	// The argument vector is BuildCopilotArgs's (pinned by
-	// golden_launch_test.go), so it goes to launchViaCplt as argv rather than
-	// through cpltArgv, whose flag order differs.
 	persona := resolved.Persona
 	if persona == "" {
 		persona = PrimaryAgent("copilot")
@@ -376,44 +361,27 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	if _, _, err := copilotUserModelAgent(resolved, persona, PrimaryAgentFile("copilot", persona, "", resolved.ProjectDir)); err != nil {
 		return err
 	}
-	skillsDir := materializedSkillsDir(copilotSkillsRoot())
-	// tty true: launchViaCplt adds --yes itself.
-	args := copilotLaunchArgs(cliName, resolved, true, skillsDir)
-	env, checkFlags := withActionCheckServer(resolved, env)
-	checkFlags = append(checkFlags, ideBridgeFlags()...)
-	if i := slices.Index(args, "--"); i >= 0 {
-		// Before the separator, as insertCpltPassEnv does: after it they
-		// would reach copilot.
-		args = slices.Insert(slices.Clone(args), i, checkFlags...)
-	}
-	localPort := 0
+	spec := copilotSpec(resolved, materializedSkillsDir(copilotSkillsRoot()))
+	var checkFlags []string
+	spec.env, checkFlags = withActionCheckServer(resolved, env)
+	spec.cpltArgs = append(checkFlags, ideBridgeFlags()...)
 	if guard != nil {
 		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
 		// which cplt blocks by default. Name the port so it survives — and so
 		// it survives the strict preset, which supersedes allow_localhost_any.
-		localPort = guard.Port()
+		spec.cpltArgs = withCpltAllowLocalhost(spec.cpltArgs, guard.Port())
 	}
-	displayName := CLIDisplayName(cliName)
+	// The agent actually launched, not the pakke's first primary: with
+	// --persona the two differ, and a banner naming the wrong one is worse
+	// than none.
+	spec.banner = fmt.Sprintf("%s with agent %s", domain.Bold(CLIDisplayName(cliName)), domain.Bold(persona))
 
 	// Check the environment before handing it to cplt; cplt can still supply
 	// credentials of its own.
-	if env, err = applyCopilotAuthMode(env, resolved.CopilotAuthMode); err != nil {
+	if spec.env, err = applyCopilotAuthMode(spec.env, resolved.CopilotAuthMode); err != nil {
 		return err
 	}
-	return launchViaCplt(cpltLaunch{
-		agent:        "copilot",
-		argv:         args,
-		localPort:    localPort,
-		projectDir:   resolved.ProjectDir,
-		skillsDir:    skillsDir,
-		env:          env,
-		displayName:  displayName,
-		sessionFlags: resolved.CpltFlags,
-		// The agent actually launched, not the pakke's first primary: with
-		// --persona the two differ, and a banner naming the wrong one is worse
-		// than none.
-		banner: fmt.Sprintf("%s with agent %s", domain.Bold(displayName), domain.Bold(persona)),
-	})
+	return launchViaCplt(spec)
 }
 
 // copilotLocalWorker prepares a Copilot CLI session to run against the local
@@ -520,29 +488,31 @@ func copilotLocalEnv(env []string, m local.Model, guardURL string) []string {
 // tell that the local guard already watches this session's tool calls.
 const LocalProviderAPIKey = "nav-pilot"
 
-// copilotLaunchArgs is the vector LaunchCopilot passes to the binary it
-// resolved: [BuildCopilotArgs], plus cplt's --yes when no terminal can answer
-// the confirmation cplt asks before it starts anything. This path builds its
-// own vector rather than going through cpltArgv, so it needs the same treatment
-// separately or it keeps dying on the prompt that the opencode and pi paths no
-// longer die on.
-//
-// LaunchCopilot only runs under cplt. The non-cplt vector (no --yes, no
-// --pass-env) is kept for the tests that pin it, not for any launch.
+// copilotSpec is the Tier 1 copilot launch, before the per-machine cpltArgs
+// (action check, IDE bridge, local guard port) LaunchCopilotResolved adds.
 //
 // skillsDir is a parameter rather than a lookup so this stays pure: the golden
 // vectors are pinned by calling it, and a function that read the home directory
 // would make them depend on whether the machine running the test happens to
 // have skills installed.
-func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, tty bool, skillsDir string) []string {
-	args := BuildCopilotArgs(cliName, resolved)
+func copilotSpec(resolved domain.ResolvedConfig, skillsDir string) cpltLaunch {
+	return cpltLaunch{
+		agent:        "copilot",
+		agentArgs:    BuildCopilotArgs("cplt", resolved),
+		projectDir:   resolved.ProjectDir,
+		skillsDir:    skillsDir,
+		displayName:  "Copilot",
+		sessionFlags: resolved.CpltFlags,
+	}
+}
+
+// copilotLaunchArgs is the vector cpltArgv builds for a Tier 1 copilot
+// launch, or [BuildCopilotArgs] alone for a plain copilot binary.
+func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, skillsDir string) []string {
 	if cliName != "cplt" {
-		return args
+		return BuildCopilotArgs(cliName, resolved)
 	}
-	if skillsDir != "" {
-		args = insertCpltPassEnv(args, SkillsDirEnv)
-	}
-	return withCpltConfirmation(args, tty)
+	return cpltArgv(copilotSpec(resolved, skillsDir))
 }
 
 // ghTokenVars are the token names recognised by cplt. This filter does not

@@ -28,13 +28,13 @@ func TestGoldenBuildCopilotArgs(t *testing.T) {
 			cliName: "cplt",
 			// AskUser is false in a zero ResolvedConfig, hence --no-ask-user.
 			resolved: domain.ResolvedConfig{},
-			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol", "--no-ask-user"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6.1-sol", "--no-ask-user"},
 		},
 		{
 			name:     "cplt/ask user",
 			cliName:  "cplt",
 			resolved: domain.ResolvedConfig{AskUser: true},
-			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6.1-sol"},
 		},
 		{
 			name:    "cplt/every field set",
@@ -51,7 +51,6 @@ func TestGoldenBuildCopilotArgs(t *testing.T) {
 				ExtraArgs:       []string{"-p", "hei"},
 			},
 			want: []string{
-				"--agent", "copilot", "--",
 				"--agent", "nav-pilot",
 				"--model", "claude-opus-5",
 				"--mode", "autopilot",
@@ -73,7 +72,7 @@ func TestGoldenBuildCopilotArgs(t *testing.T) {
 				ContextTier: "default",
 				AskUser:     true,
 			},
-			want: []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"},
+			want: []string{"--agent", "nav-pilot", "--model", "gpt-6.1-sol"},
 		},
 		{
 			name:     "copilot/zero config",
@@ -272,26 +271,33 @@ func TestNonInteractiveLaunchAddsOnlyYes(t *testing.T) {
 	}
 }
 
-// TestGoldenCopilotLaunchArgsNonInteractive pins the copilot path, which builds
-// its cplt vector itself instead of going through cpltArgv: it needs --yes on
-// the same terms, and the plain copilot CLI must never see it.
-func TestGoldenCopilotLaunchArgsNonInteractive(t *testing.T) {
+// TestGoldenCopilotLaunchArgs pins the Tier 1 copilot vector, which goes
+// through cpltArgv like every other launch, and that the plain copilot CLI gets
+// none of cplt's flags.
+func TestGoldenCopilotLaunchArgs(t *testing.T) {
 	resolved := domain.ResolvedConfig{AskUser: true}
 
-	interactive := []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"}
-	if got := copilotLaunchArgs("cplt", resolved, true, ""); !slices.Equal(got, interactive) {
-		t.Errorf("cplt with a terminal\n got: %q\nwant: %q", got, interactive)
+	want := []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"}
+	if got := copilotLaunchArgs("cplt", resolved, ""); !slices.Equal(got, want) {
+		t.Errorf("cplt\n got: %q\nwant: %q", got, want)
 	}
-	want := append([]string{"--yes"}, interactive...)
-	if got := copilotLaunchArgs("cplt", resolved, false, ""); !slices.Equal(got, want) {
-		t.Errorf("cplt without a terminal\n got: %q\nwant: %q", got, want)
+	// Every cplt flag with its value, ahead of "--". cplt's parser does not
+	// care about their order; this pins that none is lost or moves past "--".
+	full := domain.ResolvedConfig{AskUser: true, CpltFlags: []string{"--allow-clipboard", "--allow-port=8080"}, ExtraArgs: []string{"-p", "hei"}}
+	wantFull := []string{
+		"--agent", "copilot",
+		"--pass-env", SkillsDirEnv,
+		"--allow-clipboard", "--allow-port=8080",
+		"--",
+		"--agent", "nav-pilot", "--model", "gpt-6.1-sol", "-p", "hei",
+	}
+	if got := copilotLaunchArgs("cplt", full, "/skills"); !slices.Equal(got, wantFull) {
+		t.Errorf("cplt with skills, session flags and extra args\n got: %q\nwant: %q", got, wantFull)
 	}
 
 	plain := []string{"--agent", "nav-pilot", "--model", "gpt-6.1-sol"}
-	for _, tty := range []bool{true, false} {
-		if got := copilotLaunchArgs("copilot", resolved, tty, ""); !slices.Equal(got, plain) {
-			t.Errorf("the plain copilot CLI must never be given cplt's --yes (tty=%v)\n got: %q\nwant: %q", tty, got, plain)
-		}
+	if got := copilotLaunchArgs("copilot", resolved, ""); !slices.Equal(got, plain) {
+		t.Errorf("the plain copilot CLI must never be given cplt's flags\n got: %q\nwant: %q", got, plain)
 	}
 }
 

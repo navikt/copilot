@@ -25,10 +25,8 @@ import (
 // launch cannot drift, and a revoked or superseded approval stops taking effect
 // the moment it stops matching.
 //
-// Two seams carry it, not one: the staged and opencode/pi launches go through
-// [cpltArgv], and the legacy Copilot launch assembles its own argv in
-// [BuildCopilotArgs]. TestI5NoUnaccountedCpltLaunchPath fails if a third
-// appears.
+// Every launch goes through [cpltArgv], which carries it.
+// TestI5NoUnaccountedCpltLaunchPath fails if a launch appears that does not.
 
 // minCpltStampProtectingNavPilotState is the cplt release that denies
 // ~/.nav-pilot/ by name, so no user configuration can reopen it.

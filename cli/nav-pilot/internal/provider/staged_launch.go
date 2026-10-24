@@ -423,7 +423,7 @@ func buildStagedCopilotSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch
 		skillsDir:     materializedSkillsDir(s.Dir),
 		agentArgs:     agentArgs,
 		env:           env,
-		displayName:   CLIDisplayName("cplt"),
+		displayName:   "Copilot",
 		messageSuffix: s.suffix(),
 		projectDir:    r.ProjectDir,
 	}, nil
