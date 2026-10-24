@@ -374,7 +374,7 @@ func TestMCPEnableBrokerLoginProbeTimeout(t *testing.T) {
 	errOut := captureStderr(func() {
 		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
 	})
-	if err != nil || !strings.Contains(errOut, "could not check the nais login (timed out)") || !strings.Contains(errOut, "nav-pilot mcp enable nais-mcp again") {
+	if err != nil || !strings.Contains(errOut, "could not check the nais login (timed out)") || !strings.Contains(errOut, "nav-pilot mcp enable io.github.nais/nais-mcp again") {
 		t.Errorf("enable with a hanging probe (err %v):\n%s", err, errOut)
 	}
 }
