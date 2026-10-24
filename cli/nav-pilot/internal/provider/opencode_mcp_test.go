@@ -280,4 +280,14 @@ func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 			t.Errorf("config lacks disabled entry %s:\n%s", n, all)
 		}
 	}
+	// They must be listed too: the bridges match the longest known prefix,
+	// so a tool from a pasted "gh_extra" would otherwise fall back to a blocked
+	// "gh" (#1995).
+	_, after, _ := strings.Cut(all, `"listed":[`)
+	listed, _, _ := strings.Cut(after, "]")
+	for _, n := range []string{`"envd"`, `"pasted"`} {
+		if !strings.Contains(listed, n) {
+			t.Errorf("listed lacks %s: %s", n, listed)
+		}
+	}
 }

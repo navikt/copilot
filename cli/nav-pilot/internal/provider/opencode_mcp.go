@@ -732,11 +732,19 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 	}
 	// A pasted copy of cplt's own broker entry is still turned off above
 	// (it has an environment), but cplt replaces it in place, so its tools
-	// stay unblocked (#1960). Both lookups are cached: no second request.
+	// stay unblocked (#1960). It joins listed, so the bridges' longest-prefix
+	// match never falls back to a shorter blocked name. Both lookups are
+	// cached: no second request.
 	block := off
 	if registry, err := fetchMCPPolicy(); err == nil {
 		if reg, err := fetchMCPRegistry(registry); err == nil {
-			block = slices.DeleteFunc(slices.Clone(off), func(n string) bool { return reg.brokerEntry(servers[n]) })
+			block = slices.DeleteFunc(slices.Clone(off), func(n string) bool {
+				if reg.brokerEntry(servers[n]) {
+					listed = append(listed, n)
+					return true
+				}
+				return false
+			})
 		}
 	}
 	blocked, _ := json.Marshal(map[string][]string{"blocked": block, "listed": listed})
