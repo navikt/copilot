@@ -97,8 +97,10 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     message: "--allow-gpg-signing needs sockets in the runtime dir, which the MCP broker hides from the sandbox",
     fix: (
       <>
-        Gjelder også <code className={code}>--allow-rootless-docker</code>. Fjern flagget for å bruke serveren, eller
-        behold det og start med <code className={code}>--no-mcp-broker io.github.nais/nais-mcp</code>.
+        Gjelder også <code className={code}>--allow-rootless-docker</code>. Fjern flagget for å bruke Nais MCP. Trenger
+        du flagget, får du ikke Nais MCP i den økten: med{" "}
+        <code className={code}>--no-mcp-broker io.github.nais/nais-mcp</code> lar cplt klientens egen Nais-oppføring
+        stå, så serveren kjører i sandkassen uten innloggingen din og får ikke logget inn.
       </>
     ),
   },
@@ -106,8 +108,8 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     message: "cplt mcp status did not answer here",
     fix: (
       <>
-        Prøv igjen. Står det <code className={code}>timed out</code>, brukte cplt for lang tid. Ellers kjører du{" "}
-        <code className={code}>nav-pilot mcp list</code> fra repoet ditt.
+        Prøv igjen. Står det <code className={code}>timed out</code>, brukte cplt for lang tid. Med cplt fra før 24.
+        oktober 2026 kjører du <code className={code}>nav-pilot mcp list</code> fra repoet ditt.
       </>
     ),
   },
@@ -167,8 +169,10 @@ export default function McpGjennomCplt() {
             <a href="#plattformer" className={linkClass}>
               Plattformer
             </a>
-            ), og Nais CLI 7.0.2 eller nyere. Slå på serveren:
+            ), og Nais CLI 7.0.2 eller nyere. Har du ikke Nais CLI, installerer du den først:
           </BodyLong>
+          <CodeBlock compact>{`brew install nais/tap/nais`}</CodeBlock>
+          <BodyLong>Slå på serveren:</BodyLong>
           <CodeBlock compact>{`nav-pilot mcp enable io.github.nais/nais-mcp`}</CodeBlock>
           <BodyLong>
             Er du ikke logget inn, spør nav-pilot om den skal kjøre <code className={code}>nais login -n</code>. Trykker
@@ -183,8 +187,8 @@ export default function McpGjennomCplt() {
             <code className={code}>nais: unknown (timed out)</code>, som betyr at sjekken tok for lang tid, ikke at du
             er logget ut. Står det <code className={code}>cplt broker</code> under PATH, kjører cplt serveren. Står det{" "}
             <code className={code}>cplt (off here)</code>, kan ikke cplt kjøre den på denne maskinen, og linja under
-            tabellen sier hvorfor. Kommandoen virker fra hvilken som helst mappe. Start en ny økt etter at du har slått
-            serveren på.
+            tabellen sier hvorfor. Med cplt fra 24. oktober 2026 virker kommandoen fra hvilken som helst mappe. Start en
+            ny økt etter at du har slått serveren på.
           </BodyLong>
           <BodyLong>Slå den av igjen:</BodyLong>
           <CodeBlock compact>{`nav-pilot mcp disable io.github.nais/nais-mcp`}</CodeBlock>
