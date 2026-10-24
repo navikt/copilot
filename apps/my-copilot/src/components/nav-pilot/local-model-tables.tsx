@@ -12,7 +12,7 @@ import type { ResultRow } from "@/lib/local-model-results";
 // shows the manifest's English role with a visible note.
 const LOCAL_MODEL_TEXT: Record<string, string> = {
   "qwen3.6-35b-a3b-optiq":
-    "Rask og forutsigbar, og svarer på sekunder. Hovedagenten kan delegere endringer i én fil og nye filer hit. Mekaniske endringer over flere filer blir i skyen.",
+    "Rask og forutsigbar, og svarer på sekunder. Hovedagenten kan delegere endringer i én fil og nye filer hit. Mekaniske endringer i flere filer blir i skyen.",
   "qwen3.8-27b-optiq-4bit":
     "Mye tregere enn standardmodellen. Bruker 8 bit på de mest følsomme lagene og 4 bit på resten. I siste måling nådde ingen oppgaver tidsgrensen. Det gjorde den vanlige 4-bit-versjonen den erstatter.",
   "qwen3.8-27b-8bit-mlx":

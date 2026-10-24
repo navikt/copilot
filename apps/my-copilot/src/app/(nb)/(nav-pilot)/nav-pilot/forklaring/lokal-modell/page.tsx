@@ -1,7 +1,7 @@
 import { BodyLong, BodyShort, Box, Label, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
@@ -24,19 +24,30 @@ const TOC: TocItem[] = [
   { id: "hva-kommer", label: "Hva kommer" },
 ];
 
-type Verdict = { task: string; verdict: string };
+type Verdict = { task: string; verdict: ReactNode };
 
 const VERDICTS: Verdict[] = [
   {
     task: "Mekanisk endring i flere filer",
     verdict:
-      "Blir i skyen. Målingene holdt kvalitetsgrensen, men vi valgte 23. oktober 2026 å la skymodellen gjøre dette",
+      "Blir i skyen. Målingene holdt kvalitetsgrensen (35 av 35), men vi bestemte 23. oktober 2026 at skymodellen gjør dette selv",
   },
   {
     task: "Endre én fil",
     verdict: "Godkjent for delegering. Modellen for 64 GB er også godkjent som hovedagent",
   },
-  { task: "Lage en ny fil", verdict: "Godkjent for delegering" },
+  {
+    task: "Lage en ny fil",
+    verdict: (
+      <>
+        Godkjent for delegering etter en{" "}
+        <a href="https://github.com/navikt/mlx-workspace/pull/302" className={linkClass}>
+          beslutning 23. oktober 2026
+        </a>
+        . Målt med modellen som hovedagent og ett nytt forsøk: 15 av 20.
+      </>
+    ),
+  },
   {
     task: "Svare på spørsmål om kodebasen",
     verdict: "Ikke godkjent for delegering. Modellen for 64 GB og Qwen3.8-27B-OptiQ er godkjent som hovedagent",
@@ -98,9 +109,9 @@ export default function LokalModellForklaring() {
               mekaniske endringer (minst 10 filer eller 20 kall). Ingenting stoppes.
             </li>
             <li>
-              <code className={code}>balanced</code>: redigerer hovedagenten selv en femte fil eller et tiende kall i
-              samme runde, stopper nav-pilot den én gang, hvis modellen er godkjent for mekaniske endringer i flere
-              filer. Da ber nav-pilot den delegere resten. Et søk-og-erstatt teller hvert sted det endrer.
+              <code className={code}>balanced</code>: er modellen godkjent for mekaniske endringer i flere filer,
+              stopper nav-pilot hovedagenten én gang når den selv redigerer en femte fil eller et tiende kall i samme
+              runde, og ber den delegere resten. Et søk-og-erstatt teller hvert sted det endrer.
             </li>
             <li>
               <code className={code}>aggressive</code> (standard): en stoppet fil slipper gjennom først når den er
@@ -153,9 +164,12 @@ export default function LokalModellForklaring() {
           <Bullets>
             <li>
               Standardmodellen på Mac er godkjent for endringer i én fil og nye filer, men ikke for mekaniske endringer
-              i flere filer. Derfor stopper nav-pilot ikke hovedagenten ved femte fil eller tiende kall. På{" "}
-              <code className={code}>aggressive</code> stopper nav-pilot en ny fil hovedagenten lager selv, til den er
-              delegert til <code className={code}>local-worker</code>.
+              i flere filer.
+            </li>
+            <li>Derfor stopper ikke nav-pilot hovedagenten ved en femte fil eller et tiende kall.</li>
+            <li>
+              På <code className={code}>aggressive</code> stopper nav-pilot hovedagenten når den selv lager en ny fil,
+              til filen er delegert til <code className={code}>local-worker</code>.
             </li>
             <li>
               Lager eller endrer modellen en fil som ikke bygger eller består testene, får den feilen tilbake og ett
