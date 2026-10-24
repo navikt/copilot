@@ -1,0 +1,33 @@
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md,build.gradle.kts}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+/ Search (glob)
+  │ ".github/**"
+  └ 17 files found
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+Dette er kjernelogikk teamet ikke har jobbet med før, så jeg stopper før implementering. Repoet har Kotlin-kildekode, men ingen testavhengighet eller eksisterende tester. Jeg har ikke kjørt Gradle.
+
+Vil dere skrive beregningsfunksjonen selv med testskjelett fra meg, eller ber dere meg uttrykkelig implementere **rød sone** også? I så fall legger jeg til funksjonen, testene og nødvendig testavhengighet. Repoet mangler også `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 1/11 (#11 om nytt regelverk; #1–#10 er ikke relevante for denne rene beregningsfunksjonen).
+

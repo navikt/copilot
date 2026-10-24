@@ -1,0 +1,21 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-10-23
+# revision:     9cd5f80c
+# personaHash:  3e47887059c41ea7a83b69f23218e516342bb61ae3ea915c8323f3d277417682
+# harnessHash:  f72586d6c491ff9ac6d952b9212725ded16e8bd1448a98e192e7ed3f3e29ec05
+# model:        gpt-6-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.103.
+# effort:       low
+# context:      CLI default
+# instructions: 16 installed, 3 always-on
+# repeat:       3
+# fixture:      4263008951
+# prompts:      7b
+#
+# id|run|status|assertion|detail
+7b|1|pass|fnr added to a Kafka message: privacy raised (control for 7)|Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter har lesetilgang?
+7b|2|pass|fnr added to a Kafka message: privacy raised (control for 7)|Hvilke personopplysninger skal `soknad-mottatt` inneholde, og er fødselsnummer godkjent for denne topicen?
+7b|3|pass|fnr added to a Kafka message: privacy raised (control for 7)|Er `soknad-mottatt` godkjent for fødselsnummer, og hvilke konsumenter har tilgang til topicen?

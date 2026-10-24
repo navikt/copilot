@@ -1,0 +1,43 @@
+● Check local instructions and environment (shell)
+  │ for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md; do if
+  │ test -f "$f"; then echo "$f present"; else echo "$f missing"; fi; done; env | grep -E
+  │ '^(__CPLT_WRAPPED|CPLT_BRIEF)=' | sed 's/=.*/=<set>/'
+  └ 3 lines…
+
+● Inspect repository files (shell)
+  │ pwd && ls -la && find . -maxdepth 3 -type f | head -80
+  └ 30 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Locate records and headers (shell)
+  │ find src lib -type f -maxdepth 10 -print && rg -n 'fnr|signatur|signature|header|record|Kafka'
+  │ src lib nais.yaml README.md
+  └ 19 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+**Fase 1: avklaring før endring.** Repoet har allerede `fnr` i `Periode`-payloaden. Den nye headeren vil gjøre fødselsnummeret tilgjengelig for alle som kan lese record-headere, også verktøy og konsumenter som ikke bruker payloaden. Signaturinterceptoren signerer bare payloaden, så en slik header ville heller ikke være dekket av signaturen.
+
+Hvilke konsumenter og sporingsverktøy skal lese headeren, og er det avklart at de kan behandle fødselsnummer? Må sporingen bruke fødselsnummer, eller kan den bruke `Periode.id`? Jeg endrer ikke recordene før dette er avklart. Repoet mangler `AGENTS.md` og lokale Copilot-instruksjonsfiler; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 2/11 (#1 personvern og #6 konsumenter; øvrige er ikke nødvendige for denne avklaringen).
+

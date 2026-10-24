@@ -1,0 +1,26 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,docs/nav-pilo
+  │ t-design.md,.github/instructions/kotlin.instructions.md}"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● List directory .
+  └ 5 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Jeg tolker dette som at du vil skrive `Feriepenger.kt` og testene selv, mens jeg skal implementere `Avrunding.kt`. Før jeg gjør det, må vi avklare én ting: Skal avrundingsfunksjonen ta et beløp i **øre** som `Long` og returnere hele **kroner** som `Long`? Da kan 50 øre rundes opp uten flyttall. Siden feriepengereglene er nye for teamet, lar jeg satsvalg og øvrig forretningslogikk ligge hos dere.
+
+Repoet mangler `AGENTS.md` og de to Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 ikke relevante eller avklart i bestillingen).
+

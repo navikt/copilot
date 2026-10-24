@@ -1,0 +1,51 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Jeg avgrenser dette til avrunding, en stub for feriepengereglene og tester. `worker` er ikke installert, så jeg gjør endringen selv. Gradle kjøres ikke.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/AvrundingTest.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit build.gradle.kts
+
+Lagt til avrunding med `BigDecimal` og `HALF_UP`, samt enhetstester og JUnit-oppsett. Desimaltall unngår presisjonstap fra `Double`, men krever at beløpet beregnes med `BigDecimal`.
+
+🔴 Rød sone: Feriepengereglene står som `TODO` i `Feriepenger.kt`. Testene dekker satsene, aldersgrensen, avrunding og negativt grunnlag. De feiler til du implementerer funksjonen. Gradle er ikke kjørt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller `Avrunding.kt` mot `AvrundingTest`: under 50 øre ned, fra 50 øre opp.
+
+Kan du fortelle meg hva avrundingskoden gjør og hvorfor denne tilnærmingen er riktig?
+

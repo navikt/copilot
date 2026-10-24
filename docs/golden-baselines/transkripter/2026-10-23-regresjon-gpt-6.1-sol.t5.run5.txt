@@ -1,0 +1,4 @@
+**TokenX** for tjeneste-til-tjeneste-kall med brukerkontekst. Tjeneste A veksler brukerens token til et token med tjeneste B som målgruppe.
+
+Azure AD `client_credentials` passer ikke her: det representerer tjenesten, ikke brukeren.
+

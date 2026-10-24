@@ -1,0 +1,35 @@
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+/ Search (glob)
+  │ "*gradle*"
+  └ 1 file found
+
+● Edit
+  └ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+
+Jeg har lagt avrundingen i `Avrunding.kt`. `avrundTilNaermesteKrone(teller, nevner)` tar et ikke-negativt beløp som brøk av kroner og runder 50 øre opp. Den kan brukes med `grunnlag * 102 / 1000` og `grunnlag * 125 / 1000` uten flyttall.
+
+🔴 Rød sone: Feriepengereglene og testene gjenstår til deg. Jeg kjørte ikke Gradle, som ønsket.
+

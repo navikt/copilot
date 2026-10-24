@@ -1,0 +1,45 @@
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● skill(klarsprak)
+
+🔴 Rød sone: Feriepengereglene er ny forretningslogikk for teamet. Jeg legger derfor til en TODO-stub og tester som beskriver kravene, ikke selve beregningen. Gradle kjøres ikke. `worker` er ikke tilgjengelig, så jeg gjør endringene selv.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Read FeriepengerTest.kt
+  │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ 44 lines read
+
+Lagt til `Feriepenger.kt` som **TODO-stub**, enhetstester og JUnit 5-oppsett. Testene dekker begge satser, aldersgrensen 59/60, nullgrunnlag, avrunding og negativt grunnlag. Gradle er ikke kjørt.
+
+🔴 Rød sone: Beregningen gjenstår fordi reglene er nye for teamet. Testene beskriver forventet oppførsel, men vil feile inntil dere implementerer funksjonen. Dette prioriterer regel­forståelse fremfor ferdig generert forretningslogikk.
+

@@ -1,0 +1,37 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 27 files found
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+**Ingen kode er endret.** Dette er full løype, fase 1: Fødselsnummer i en header er et nytt persondatafelt, selv om `Periode.fnr` allerede finnes i payloaden. Jeg har lest modellen, signaturheaderne, interceptoren og Nais-manifestet. Signaturen dekker i dag bare payloaden, ikke headerne.
+
+1. Er det nødvendig å eksponere fødselsnummer i headeren for sporing, eller dekker `Periode.id` behovet? Hvilke konsumenter og sporingsverktøy skal lese headeren, og hvordan hindrer dere at fødselsnummer havner i logger?
+2. Må headerverdien beskyttes av signaturen, eller skal konsumentene behandle den som ubekreftet metadata?
+
+🔴 Rød sone: persondata og eventuell endring av signeringsgrunnlaget må avklares før implementering.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Fasebudsjett: intervju 1 000, plan 1 500, review 1 000 og levering 2 000 tokens. Tilgangsendringer er ikke foreslått (#2); øvrige drifts-, test- og kompatibilitetsspørsmål avventer avgrensningen (#3–#5, #7–#11).
+
+Blindsoner reist: 2/11 (#1 og #6 stilt).
+

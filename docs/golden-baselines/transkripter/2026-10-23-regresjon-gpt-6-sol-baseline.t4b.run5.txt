@@ -1,0 +1,24 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● Read decision-trees.md
+  │ ~/.copilot/skills/nav-plan/references/decision-trees.md
+  └ L1:165 (165 lines read)
+
+● Read nais-templates.md
+  │ ~/.copilot/skills/nav-plan/references/nais-templates.md
+  └ L1:185 (60 lines read)
+
+**Fase 2: Plan.** Jeg legger til grunn at den eksisterende Next.js-frontenden er eneste inngang for innbyggeren. Da bør nettleseren kalle frontendens serverdel, ikke Ktor-tjenesten direkte: Frontenden håndterer ID-porten via Wonderwall, og kaller Ktor med et TokenX-token som bevarer brukerens identitet. Ktor validerer tokenet, henter fødselsnummer fra det og bruker TokenX ved oppslag mot PDL. Alternativet, direkte nettleserkall til Ktor, ville kreve en egen nettleservendt innlogging og gi to steder å håndtere sesjon og tilgang.
+
+- **API og data:** Legg til `GET /api/meg` med svar som bare inneholder `navn`. Fødselsnummer tas fra validert token, aldri fra URL eller forespørselskropp, og returneres ikke. Tjenesten lagrer verken fødselsnummer eller navn. PDL-feil gir `503` i et feilsvar uten personopplysninger; logg årsakskategori og korrelasjons-ID, ikke token, fødselsnummer eller navn. Avklar PDLs konkrete endepunkt, nødvendige tilganger og feilkontrakt før koding.
+- **Prosjekt:** Behold Ktor og legg autentisering, PDL-klient, rute og feilhåndtering i egne deler. Fjern eller sperr demo-ruten `/api/oppgaver` før eksponering. Ingen database, Flyway, Kafka eller kø.
+- **Nais:** Oppdater backend-manifestet med `tokenx.enabled`, eksplisitt `accessPolicy.inbound` for **kun** den eksisterende frontenden og `accessPolicy.outbound` for PDL. Sett riktige namespace/cluster ut fra faktisk PDL-miljø. Frontendens manifest må støtte ID-porten og TokenX-utveksling. Behold helsesjekker; legg til `/metrics`. Start med to replikaer, `15m` CPU-forespørsel og `256Mi` minneforespørsel, uten CPU-grense.
+- **CI/CD og tester:** Bygg og kjør tester i GitHub Actions før deploy til dev, deretter prod med kontrollert godkjenning. Test ugyldig eller manglende token, at fødselsnummer bare hentes fra tokenet, PDL-suksess, PDL-nedetid som `503`, og at svar og logger ikke inneholder personopplysninger. Verifiser frontendens tokenutveksling mot backend i integrasjonstest.
+- **Drift og levering:** Mål oppslag per minutt og feilandel uten fødselsnummer som metrikketikett. Alarmér på vedvarende høy feilandel og PDL-feil. Lever endringsbeskrivelse, driftsveiledning og sjekkliste for deploy: verifiser innlogging, oppslag og feilhåndtering i dev før prod. Ved feil rulles backend og eventuell frontend-endring tilbake samlet; det finnes ingen data som må migreres.
+
+🔴 **Rød sone — forstå dette grundig:** tokenvalidering og -utveksling, tilgang til eget fødselsnummer og håndtering av PDL-svar. Disse delene bør teamet kode selv med tester som viser sikkerhetskravene. Valget av frontend som eneste inngang forutsetter at dagens Next.js-løsning kan gjøre server-side tokenutveksling; det må bekreftes i gjennomgangen før levering.
+
+Still gjerne spørsmål om valgene over.
+

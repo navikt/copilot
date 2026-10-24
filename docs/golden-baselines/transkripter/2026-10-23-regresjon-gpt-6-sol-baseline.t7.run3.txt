@@ -1,0 +1,98 @@
+● skill(jackson-3-migration)
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+● Read dependency-preflight.md
+  │ ~/.copilot/skills/jackson-3-migration/references/dependency-preflight.md
+  └ 37 lines read
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+/ Search (glob)
+  │ "**/*gradle*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/*Jackson*"
+  └ No matches found
+
+● Inspect branch and status (shell)
+  │ git status --short && git branch --show-current && git --no-pager log -1 --oneline && git
+  │ merge-base HEAD main 2>/dev/null || true
+  └ 3 lines…
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 5 files found
+
+● Inspect project and Java runtime (shell)
+  │ ls -la | head -35; java -version 2>&1 | head -3
+  └ 12 lines…
+
+● Inspect migration diff (shell)
+  │ git --no-pager diff --stat main...HEAD && git --no-pager diff main...HEAD -- build.gradle.kts &&
+  │ git --no-pager diff --name-only main...HEAD
+  └ 20 lines…
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Review Kotlin migration and tooling (shell)
+  │ git --no-pager diff main...HEAD -- src/main/kotlin/no/nav/demo/Soknad.kt; command -v gradle ||
+  │ true; find src -type f
+  └ 36 lines…
+
+✗ Build and inspect resolved Jackson dependencies (shell)
+  │ gradle build dependencyInsight --dependency jackson-databind --configuration compileClasspath
+  │ --no-daemon --console=plain --quiet
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 3s
+    Failed with exit code 1
+
+✗ Check JDK options and previous serializer (shell)
+  │ /usr/libexec/java_home -V 2>&1; git --no-pager show main:src/main/kotlin/no/nav/demo/Soknad.kt;
+  │ git status --short
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+**Vurdering: Ikke klar for godkjenning.** Migreringen bruker Jackson 3.1.0 og bygger `JsonMapper` med Kotlin-modulen. Ktor-endepunktet bruker derimot `kotlinx-json`, så det trenger ikke `ktor-serialization-jackson3`.
+
+Det mangler tester som viser at `SokerDto` kan leses, og at Kafka-meldingens JSON-format, særlig `LocalDate`, er uendret. Jeg fant ingen testfiler i repoet. Jeg kunne heller ikke bekrefte bygg eller avhengighetstre: `gradle build dependencyInsight ...` stoppet under prosjektkonfigurasjon med feilen `> 27`. En etterfølgende sjekk av tilgjengelige JDK-er ble avvist av miljøet. Kjør bygg og avhengighetssjekk med en støttet JDK, og legg til formattester før branchen merges.
+

@@ -1,0 +1,44 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Lagt til `Feriepenger.kt`, enhetstester og JUnit 5-oppsett. Gradle er ikke kjørt.
+
+🔴 Rød sone: beregningsregler og validering, forstå dette grundig. Heltallsregning med promille unngår flyttallsfeil. Tillegget på 500 før divisjon med 1000 runder 50 øre opp.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsgrensen ved 59/60 år og avrundingen i `FeriepengerTest`.
+- [ ] Kontroller at negativt grunnlag gir `IllegalArgumentException`, og null gir null.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

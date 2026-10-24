@@ -1,0 +1,51 @@
+● skill(nav-auth)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,nais.yaml,.na
+  │ is/**,package.json,build.gradle.kts,pom.xml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+● Inspect repository layout (shell)
+  │ pwd && ls -la && ls -la .github 2>/dev/null || true
+  └ 14 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+Dette er **fase 1: avklaring**. Repoet er en liten Ktor-tjeneste på Nais, men har verken ID-porten-konfigurasjon eller tilgangsstyring. Jeg legger til grunn at fødselsnummer er personopplysninger som ikke skal logges.
+
+1. Hvem skal bruke tjenesten: innbyggeren direkte, eller en annen Nav-tjeneste på vegne av innbyggeren?
+2. Hva skal tjenesten gjøre med fødselsnummeret etter innlogging: bruke det i ett kall, lagre det eller sende det videre? Hvilke andre opplysninger inngår?
+3. Hvem eier eventuelle tjenester den skal kalle, og hva skal skje hvis de er utilgjengelige?
+4. Finnes det krav til innloggingsnivå, måling av at tjenesten virker, eller utrulling og rollback?
+
+Jeg avventer svar før jeg velger auth-oppsett eller skriver kode. Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; `nav-pilot init` kan legge til lokal Copilot-konfigurasjon. Spørsmål om eksisterende tester, bakoverkompatibilitet og avvikling er ikke relevante ennå, siden løsningen ikke er avklart.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #4, #5, #8; #6, #7, #9–#11 avventes eller er ikke relevante ennå).
+

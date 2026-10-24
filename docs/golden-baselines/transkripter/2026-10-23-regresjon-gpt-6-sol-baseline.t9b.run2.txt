@@ -1,0 +1,48 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,build.gradle.
+  │ kts,src/**/*.kt,.github/instructions/kotlin.instructions.md,.github/instructions/testing-kotlin.
+  │ instructions.md,.github/instructions/testing.instructions.md}"
+  └ 8 files found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+● Inspect project layout (shell)
+  │ pwd && ls -la && find . -maxdepth 3 -type f | head -60
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+Dette er **full faseflyt** fordi feriepengeregelen er ny kjerne­logikk for teamet. I fase 1 er kravene klare: satsene, 60-årsgrensen, avrunding, negativt grunnlag og unntak for overflyt er oppgitt. Jeg legger til funksjonen og enhetstestene når planen er bekreftet; jeg kjører ikke Gradle.
+
+Repoet har ingen eksisterende tester eller testavhengigheter, og mangler `AGENTS.md` og Copilot-instruksjonsfilene. `nav-pilot init` kan legge til repo-instruksjonene senere. Ingen nye dataflyter eller tilgangsveier er del av endringen, så personvern og tilgangskontroll trenger ikke avklaring; de øvrige blindsonene er enten besvart av oppgaven eller ikke relevante for en ren beregningsfunksjon.
+
+Blindsoner reist: 0/11.
+

@@ -1,0 +1,13 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+**Fase 2: Plan.** Jeg legger til grunn at den eksisterende Next.js-frontenden håndterer innlogging med ID-porten via Wonderwall. Nettleseren kaller bare frontenden. Frontendens serverdel veksler brukerens token med TokenX og kaller den nye Ktor-tjenesten. Tjenesten validerer TokenX-tokenet, henter fødselsnummer fra den validerte identiteten og slår opp navn i PDL med brukerkontekst. Fødselsnummer skal ikke tas imot som en klientstyrt parameter. Vi må bekrefte PDLs konkrete tokenkrav før integrasjonen kodes.
+
+- **API og data:** Ett autentisert `GET /api/meg` returnerer bare navnet frontenden trenger. Tjenesten er uten database og cache; fødselsnummer og navn brukes kun under kallet. Feil returneres i et konsistent problemformat uten personopplysninger. PDL-feil eller tidsavbrudd gir `503`; loggen inneholder feilkategori og korrelasjons-ID, ikke token, fødselsnummer eller navn.
+- **Prosjekt og Nais:** Behold Ktor-prosjektet. Skill rute, tokenvalidering, PDL-klient, feilhåndtering og metrikker i egne komponenter. Konfigurer TokenX for tjenesten og eksplisitt `accessPolicy.inbound` for frontend-applikasjonen samt `outbound` for PDL. Tilpass frontendens ID-porten-/Wonderwall- og TokenX-oppsett. Behold helsesjekker; legg til metrikkendepunkt. Start med små ressursforespørsler, uten CPU-grense.
+- **CI/CD og test:** Bygg og kjør tester før utrulling til dev og deretter prod, med SHA-pinnede GitHub Actions. Test manglende/ugyldig token, at identiteten i tokenet styrer oppslaget, PDL-suksess, PDL-feil og tidsavbrudd, `503` uten persondata, og at andre kallere avvises. Verifiser hele kjeden mot frontend i dev.
+- **Observerbarhet og utrulling:** Mål oppslag per minutt og andel feil, fordelt på utfall uten personidentifikatorer. Varsle ved vedvarende feilrate og PDL-utilgjengelighet. Lever endringsbeskrivelse, driftsrutine og sjekkliste for verifisering etter utrulling. Rull tilbake ved å sende frontend tilbake til forrige versjon og stoppe trafikken til den nye tjenesten; ingen datamigrering trengs.
+
+**🔴 Rød sone:** Tokenvalidering, koblingen mellom innlogget identitet og PDL-oppslag, samt tilgangsreglene må forstås og gjennomgås særskilt. Planen velger server-til-server-kall fremfor et direkte nettleserkall for å holde tokenhåndtering og PDL-tilgang på serversiden; det gir en ekstra tokenutveksling, men ingen klientstyrt fødselsnummerverdi. Still gjerne spørsmål om valgene over. Jeg stopper her før fase 3.
+

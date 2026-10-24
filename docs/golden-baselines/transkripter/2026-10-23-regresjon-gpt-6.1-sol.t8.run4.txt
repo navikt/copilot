@@ -1,0 +1,48 @@
+/ Search (glob)
+  │ "**/*"
+  └ 27 files found
+
+● skill(klarsprak)
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Finn Paw-referanserepo (shell)
+  │ gh search repos 'paw' --owner navikt --limit 30 --json name --jq '.[].name'
+  └ 30 lines…
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Finn signeringskode i intern monorepo (shell)
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=true
+  │ --jq '.tree[] | select(.path | test("Signing|signing")) | .path'
+  └ 58 lines…
+
+● Les referansens signering og headerhåndtering (shell)
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src
+  │ /main/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt --jq .content | base64 --decode;
+  │ gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src
+  │ /main/kotlin/no/nav/paw/kafka/signing/SigningHeaders.kt --jq .content | base64 --decode; gh
+  │ api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma…
+  └ 220 lines…
+
+**Fase 1: Dette berører sikkerhetskritisk signeringskode (fullt løp). Ingen filer er endret.** Jeg har lest referansen i Paw sitt interne monorepo og signeringskoden her. Referansen fjerner begge signeringsheaderne før nye legges til. Her finnes allerede `stripSigningHeaders`, men `SigningProducerInterceptor` bruker den ikke.
+
+🔴 Rød sone: signering, forstå dette grundig.
+
+Jeg legger til grunn at payload, mottakere, signeringsalgoritme og nøkler skal være uendret. Ett avklaringspunkt: **Hvis signeringen feiler, skal eksisterende signeringsheaders fjernes også da, eller skal recorden beholde dem?** Referansen rydder først etter vellykket signering.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`; disse kan opprettes med `nav-pilot init`. Anslått tokenbudsjett for intervju/plan/review/leveranse: 1 000/1 000/1 000/2 000.
+
+Blindsoner reist: 1/11 (#3 stilt; #1–#2 og #4–#11 gjelder ikke denne avgrensede headerendringen eller er besvart av koden og referansen).
+

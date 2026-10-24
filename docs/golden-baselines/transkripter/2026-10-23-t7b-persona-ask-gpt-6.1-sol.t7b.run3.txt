@@ -1,0 +1,79 @@
+● skill(klarsprak)
+
+## Kort rapport
+
+**Funn:** `SoknadMottattMelding` er definert i `src/main/kotlin/no/nav/demo/Soknad.kt:13` med feltene `soknadId` og `mottatt`. `sendMottatt` publiserer JSON til topicet `soknad-mottatt`, med `soknadId` som Kafka-nøkkel (`Soknad.kt:21–22`). Meldingsklassen inneholder ikke fnr.
+
+**Kilde til fnr:** `SokerDto` har feltene `fnr` og `navn`, og `lesSoker` leser DTO-en fra JSON (`Soknad.kt:11, 19`). `sendSoker` bruker fnr som nøkkel på et annet topic, `soker-oppdatert` (`Soknad.kt:25–26`). Repoet viser **ikke** at fnr fra `SokerDto` kobles til `SoknadMottattMelding` eller søknaden.
+
+**Tester:** Jeg fant ingen testfiler. `build.gradle.kts` har heller ingen testavhengigheter. Det finnes derfor ingen tester her som dokumenterer meldingsformat eller konsumentatferd.
+
+**Topic, tilgang og personvern:** `nais.yaml` inneholder bare grunnleggende applikasjonsoppsett; ingen Kafka-topic-konfigurasjon eller tilgangspolicy. README-en beskriver tjenesten som en liten demonstrasjonstjeneste og sier at dokumentasjonen ikke er komplett. Jeg fant ingen dokumentasjon om konsumenter, tilgang til topicet, retention eller formålet med å distribuere personopplysninger.
+
+**Uavklart før endring:** Repoet avklarer ikke hvorfor konsumentene på `soknad-mottatt` trenger fnr, om de tåler et nytt felt i payloaden, eller om tilgang, retention og formål dekker distribusjon av fnr. En konkret avklaring er: **Hvilket dokumentert behov skal fnr dekke for konsumentene av `soknad-mottatt`, og har de bekreftet at de tåler det nye feltet?**
+
+**Filer og instruksjoner:** Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md` i repoet. Funnene bygger på filene over; ingen filer er endret.● Research-agent (model: gpt-6-luna) Kartlegg Kafka-melding og personvern                        26s
+  │ ## Kort rapport
+  │ Search (glob)
+  │   │ "**/*Test*"
+  │   └ No matches found
+  └ Search (glob)
+      │ "**/AGENTS.md"
+      └ No matches found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read build.gradle.kts
+  └ 18 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Edit
+  └ Edit src/main/kotlin/no/nav/demo/Soknad.kt
+
+✗ Finn byggverktøy og kompiler Kotlin (shell)                                                    12s
+  │ ls -a && command -v gradle && gradle --console=plain compileKotlin
+  └ .
+    ..
+    .github
+    build.gradle.kts
+    nais.yaml
+    README.md
+    src
+    ~/.local/share/mise/installs/gradle/8/gradle-8.14.6/bin/gradle
+    Starting a Gradle Daemon (subsequent builds will be faster)
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 11s
+    Failed with exit code 1
+
+✗ Finn kompatibel Java for Gradle (shell)
+  │ /usr/libexec/java_home -V 2>&1; ls ~/.local/share/mise/installs/java
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+Lagt til obligatorisk `fnr: String` i `SoknadMottattMelding`. Eksisterende serialisering tar feltet med på `soknad-mottatt`; Kafka-nøkkelen er fortsatt `soknadId`.
+
+Bygget kunne ikke verifiseres grunnet Gradle-/Java-feil. Før produksjonsbruk må behovet for fødselsnummer, konsumenttilgang og retention avklares.
+

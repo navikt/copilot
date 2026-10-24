@@ -1,0 +1,33 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read README.md
+  └ 4 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+`SoknadMottattMelding` inneholder nå bare `soknadId` og `mottatt`. Å legge til `fnr` sender en ny personopplysning på `soknad-mottatt`. Ingen filer er endret.
+
+**Fase 1: avklaringer før endring**
+1. Hvilket behov krever fødselsnummer på dette topicet, fremfor oppslag via `soknadId`?
+2. Hvilke konsumenter mottar meldingene, og er behandling av fødselsnummer avklart for dem?
+3. Tåler konsumentene det nye feltet, og hvor skal avsenderen hente fødselsnummeret fra?
+
+🔴 Rød sone: utvidet behandling av personopplysninger må avklares før implementering.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 4/11 (#1, #5, #6, #9). Øvrige utsettes til dataflyten er avklart; #2 gjelder ikke fordi forespørselen ikke endrer tilgang.
+

@@ -172,13 +172,13 @@ func TestCpltArgvSkillsDir(t *testing.T) {
 func TestCopilotLaunchArgsSkillsDir(t *testing.T) {
 	resolved := domain.ResolvedConfig{AskUser: true}
 
-	want := []string{"--yes", "--agent", "copilot", "--pass-env", SkillsDirEnv, "--", "--agent", "nav-pilot", "--model", "gpt-6-sol"}
+	want := []string{"--yes", "--agent", "copilot", "--pass-env", SkillsDirEnv, "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"}
 	got := copilotLaunchArgs("cplt", resolved, false, "/home/u/.copilot/skills")
 	if !slices.Equal(got, want) {
 		t.Errorf("cplt with a skills dir\n got: %q\nwant: %q", got, want)
 	}
 
-	plain := []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"}
+	plain := []string{"--agent", "nav-pilot", "--model", "gpt-6.1-sol"}
 	if got := copilotLaunchArgs("copilot", resolved, false, "/home/u/.copilot/skills"); !slices.Equal(got, plain) {
 		t.Errorf("the plain copilot CLI must not be given cplt's --pass-env\n got: %q\nwant: %q", got, plain)
 	}

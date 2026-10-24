@@ -1,0 +1,36 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 25 files found
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+/ Search (grep)
+  │ "SoknadMottattMelding|sendMottatt|fnr|soknad-mottatt" in *.{kt,kts,yaml,md}
+  └ 10 lines found
+
+**Fase 1: Fullt omfang**, fordi fødselsnummer blir et nytt personopplysningsfelt på `soknad-mottatt`. Ingen kode er endret.
+
+`SokerDto` har allerede `fnr`, men repoet viser ikke konsumenter eller tilgangsregler for dette topicet. At fødselsnummer sendes på `soker-oppdatert`, avklarer ikke bruken på `soknad-mottatt`.
+
+1. Hva trenger konsumentene fødselsnummeret til, og er denne delingen avklart?
+2. Hvilke tjenester konsumerer topicet, og tåler de det nye feltet?
+3. Skal `fnr` være obligatorisk, og hvordan skal eldre meldinger uten feltet håndteres?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1, #6, #9). Øvrige er ikke relevante for avklaringen nå; ingen endring av hvem som får tilgang er foreslått.
+

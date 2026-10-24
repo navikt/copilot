@@ -1,0 +1,38 @@
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,nais.yaml,nai
+  │ s.yml,package.json,build.gradle.kts,pom.xml,docs/nav-pilot-design.md}"
+  └ 2 files found
+
+● Inspect project root (shell)
+  │ pwd && ls -la
+  └ 9 lines…
+
+● List directory .github
+  └ 2 files found
+
+● List directory src
+  └ 1 file found
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● List directory src/main
+  └ 1 file found
+
+Dette er en ny tjeneste med fødselsnummer og innlogging, så jeg stopper ved avklaring før jeg lager plan eller kode. Jeg antar at innbyggeren logger inn via ID-porten. Repoet har en enkel Ktor-tjeneste og et Nais-manifest, men ingen ID-porten-konfigurasjon eller beskrivelse av dataflyten.
+
+1. Hva skal tjenesten gjøre med fødselsnummeret: bare bruke det i forespørselen, lagre det, eller sende det til andre tjenester? Hvilke tjenester skal i så fall motta det?
+2. Skal innbyggeren bruke tjenesten direkte via nettleser, eller skal en annen tjeneste kalle den på innbyggerens vegne?
+3. Hva skal skje hvis en tjeneste den er avhengig av, er utilgjengelig?
+4. Erstatter dette en eksisterende løsning, eller er det en ny flyt?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan legge til repo-lokal konfigurasjon. Jeg utsetter spørsmål om måltall, tester, utrulling og kompatibilitet til vi vet hva tjenesten skal gjøre.
+
+Blindsoner reist: 4/11 (#1, #2, #3, #8 stilt; #4–#7 og #9–#11 avventer avklart flyt).
+

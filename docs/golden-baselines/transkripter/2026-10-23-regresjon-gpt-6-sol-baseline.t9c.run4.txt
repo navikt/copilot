@@ -1,0 +1,55 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+● Inspect service and instruction files (shell)
+  │ pwd; ls -la; find . -maxdepth 4 -type f | head -80
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+Dette er kjernelogikk teamet ikke har jobbet med før, så jeg legger inn konkrete tester og en funksjonsstub etter rød-sone-regelen. Jeg kjører ikke Gradle.
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Jeg la til `Feriepenger.kt` som stub og enhetstester for satsene 10,2 % og 12,5 %, aldersgrensen, avrunding, nullgrunnlag og negativt grunnlag. Testavhengigheten er lagt til. **Beregningen er ikke implementert**, så testene vil feile inntil teamet fyller inn funksjonen. Gradle er ikke kjørt.
+
+🔴 Rød sone: Feriepengeberegningen er kjernelogikk med regler teamet ikke har jobbet med før. Implementer og gå gjennom avrunding og aldersgrense mot testene. Kan du fortelle meg hva koden gjør og hvorfor du valgte denne tilnærmingen?
+

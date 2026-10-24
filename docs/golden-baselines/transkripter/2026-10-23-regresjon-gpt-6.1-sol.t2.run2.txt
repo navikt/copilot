@@ -1,0 +1,29 @@
+● skill(klarsprak)
+
+● Se etter prosjektfiler og lokale instruksjoner (shell)
+  │ ls -a && find . -maxdepth 3 -type f -name '*instructions*' -o -name 'AGENTS.md' -o -name
+  │ 'nais.yaml' -o -name 'package.json' -o -name 'build.gradle.kts'
+  └ 25 lines…
+
+● Les eksisterende stack, tilgang og prosjektbeskrivelse (shell)
+  │ cat build.gradle.kts nais.yaml README.md && find src .github -maxdepth 2 -type f | head -35
+  └ 45 lines…
+
+**Fase 1: Avklaringer før implementering (fullt løp)**
+
+Repoet har Ktor og et Nais-manifest, men ingen ID-porten-konfigurasjon. Jeg antar at fødselsnummeret gjelder den innloggede brukeren. Ingen filer er endret.
+
+🔴 Rød sone: autentisering og håndtering av fødselsnummer må forstås grundig.
+
+1. Hva skal fødselsnummeret brukes til? Skal det lagres eller sendes videre, og skal tjenesten behandle andre personopplysninger?
+2. Logger innbyggeren inn direkte via nettleseren, eller kaller en annen tjeneste dette API-et på brukerens vegne?
+3. Hvilke tjenester skal dere kalle, hvem eier dem, og hva skal skje når de er utilgjengelige?
+4. Hva skal tjenesten gjøre etter innlogging, og hvordan skal vi måle at flyten fungerer uten å logge fødselsnummer?
+5. Ønsker du veiledet implementering eller full delegering, også av autentiseringen?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Vurder `nav-pilot init`.
+
+Omtrentlig tokenbudsjett: intervju 1 000, plan 2 000, review 1 500, levering 4 000. Migrering, bakoverkompatibilitet og avvikling (#8–#10) er foreløpig ikke relevante for en ny tjeneste.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevante).
+

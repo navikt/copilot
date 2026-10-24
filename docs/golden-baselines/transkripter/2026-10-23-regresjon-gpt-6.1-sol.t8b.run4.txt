@@ -1,0 +1,32 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 27 files found
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+**Ingen kode er endret.** Dette er full-fase 1: FNR i en Kafka-header er en ny eksponering av personopplysninger, selv om `Periode` allerede inneholder FNR. `SigningProducerInterceptor` signerer bare payloaden, så en ny header blir ikke signaturbeskyttet.
+
+Hvilket sporingsbehov krever FNR fremfor `Periode.id`, og kan verktøy som leser eller logger headere behandle fødselsnummer? Repoet avklarer ikke dette.
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene for repo og review. De kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#1 personvern; øvrige avventes til sporingsbehovet er avklart).
+

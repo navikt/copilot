@@ -1,0 +1,29 @@
+● skill(klarsprak)
+
+● Se etter prosjekt og lokale instruksjoner (shell)
+  │ pwd && ls -a
+  └ 8 lines…
+
+● Les prosjektets rammer og eksisterende tilgang (shell)
+  │ cat build.gradle.kts nais.yaml README.md && find .github src -maxdepth 3 -type f | sort
+  └ 45 lines…
+
+● Undersøk eksisterende endpoints og persondataflyt (shell)
+  │ find src -type f -maxdepth 8 -print && find src -type f -maxdepth 8 -exec cat {} \;
+  └ 51 lines…
+
+**Fase 1: Avklaringer før plan og kode.** Dette er full løype: ny tjeneste med autentisering og personopplysninger. Repoet har en Ktor-demo uten auth. Jeg antar at fødselsnummeret gjelder den innloggede brukeren.
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer må forstås grundig.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal den behandle andre personopplysninger, lagre noe eller sende opplysninger videre? Ikke del ekte fødselsnumre.
+2. Skal innbyggeren bruke tjenesten direkte via nettleseren, eller skal en annen tjeneste kalle den på brukerens vegne?
+3. Skal vi bygge videre på Ktor-demoen eller opprette et eget prosjekt? Hvilket team eier tjenesten og eventuelle avhengigheter?
+4. Hva skal skje når innlogging eller avhengigheter feiler, og hvordan skal dere måle at tjenesten fungerer uten å logge fødselsnummer eller token?
+
+Jeg fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Vurder `nav-pilot init`.
+
+Omtrentlig tokenbudsjett per fase: intervju 1 000, plan 2 000, review 1 500, levering 4 000. #7 avklares når funksjonen er kjent. #8–#10 er ikke relevante dersom dette er en ny tjeneste uten eksisterende konsumenter. #11 er markert som rød sone.
+
+Blindsoner reist: 6/11 (#1–#6 stilt; #7 utsatt; #8–#10 foreløpig ikke relevante; #11 markert).
+

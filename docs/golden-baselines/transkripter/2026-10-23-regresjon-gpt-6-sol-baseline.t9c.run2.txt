@@ -1,0 +1,51 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/test/**/*.kt"
+  └ No matches found
+
+Dette er **rød sone**: feriepengeregler er ny kjerne­logikk for teamet. Spesifikasjonen er tydelig nok til å planlegge funksjonen og enhetstestene, men «jeg ser over alt etterpå» er ikke en beskjed om å overlate selve regelimplementeringen til meg. Jeg har ikke endret filer eller kjørt Gradle.
+
+Vil dere skrive beregningen selv med tester og en funksjonsstub fra meg, eller vil dere uttrykkelig at jeg også implementerer den? Jeg fant heller ingen `AGENTS.md` eller repo-lokale Copilot-instruksjoner; `nav-pilot init` kan legge dem til. Øvrige blindsoner er ikke relevante for denne avgrensede funksjonen uten ny dataflyt eller tilgangsendring.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 ikke relevante).
+

@@ -1,0 +1,45 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ ".github/instructions/*.md"
+  └ 16 files found
+
+● Inspect repository layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -60
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Edit
+  └ Create src/main/kotlin/no/nav/demo/Avrunding.kt
+
+Jeg la avrundingen i `Avrunding.kt`. `avrundØreTilKroner(øre: Long)` runder 50 øre opp og avviser negative beløp. Jeg lot `Feriepenger.kt` og enhetstestene stå til deg, og kjørte ikke Gradle.
+
+🔴 Rød sone: Avrundingen er beregningslogikk. Den tar imot hele øre; du må ta stilling til hvordan prosentsatsen regnes om til øre før funksjonen brukes. Valget holder avrundingen enkel, men gjør presisjonen i mellomregningen til ditt ansvar. Still gjerne spørsmål om valgene over.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller grensene 49, 50 og 99 øre, samt at negativt beløp avvises. Les enhetstestene når du har skrevet dem.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

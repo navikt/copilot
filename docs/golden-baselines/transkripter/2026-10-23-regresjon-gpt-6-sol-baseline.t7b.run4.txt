@@ -1,0 +1,40 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/*SoknadMottatt*"
+  └ No matches found
+
+/ Search (grep)
+  │ "soknad-mottatt|SoknadMottattMelding"
+  └ 3 lines found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md,nais*.yaml,bu
+  │ ild.gradle.kts}"
+  └ 2 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 27 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+🔴 **Rød sone:** Å legge fnr i `SoknadMottattMelding` gjør fødselsnummer tilgjengelig på Kafka-topicet `soknad-mottatt`. Jeg har ikke endret koden. Modellen har i dag bare `soknadId` og `mottatt`; repoet viser verken hvem som leser topicet, eller hvordan fnr skal beskyttes. Repo-lokal Copilot-konfigurasjon mangler; `nav-pilot init` kan opprette den.
+
+Før endringen: Er det avklart at mottakerne skal ha tilgang til fnr, og hvordan skal feltet beskyttes på topicet? Må eksisterende konsumenter kunne lese meldinger både med og uten fnr? Øvrige blindsoner er ikke relevante for denne avgrensede endringen.
+
+Blindsoner reist: 2/11 (#1 personvern og mottakere, #9 bakoverkompatibilitet).
+

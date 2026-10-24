@@ -1,0 +1,44 @@
+● skill(klarsprak)
+
+## Oppsummering
+
+I `src/main/kotlin/no/nav/demo/Soknad.kt` er `SoknadMottattMelding` definert med `soknadId` og `mottatt`, og `sendMottatt` publiserer den som JSON til topicet `soknad-mottatt`. Fnr finnes i `SokerDto`, men repoet viser ikke at det hentes derfra eller kobles til søknadsmeldingen. Det finnes ingen synlig topic-konfigurasjon, konsumentdokumentasjon eller tester som avklarer behov, mottakere eller kompatibilitet.
+
+## Funn
+
+- **Meldingsklasse og produsent:** `src/main/kotlin/no/nav/demo/Soknad.kt:13,21–22`. Kafka-nøkkelen er `melding.soknadId`; verdien er JSON-serialisering av hele meldingsobjektet.
+- **Mulig kilde til fnr:** `SokerDto` har `fnr` og `navn` (`Soknad.kt:11`). `lesSoker` leser DTO-en fra JSON (`Soknad.kt:19`), men repoet viser ingen kobling fra denne til `SoknadMottattMelding`. `sendSoker` sender allerede `SokerDto` til `soker-oppdatert`, med fnr både som nøkkel og i JSON-payload (`Soknad.kt:25–26`).
+- **Serialisering:** Jackson `jacksonObjectMapper()` med registrerte moduler og datoer som tekst (`Soknad.kt:15–18`). Avhengighetene er i `build.gradle.kts` (Jackson 2.18.2, Kafka-klient 3.9.0). Repoet dokumenterer ikke et separat skjema eller en eksplisitt kompatibilitetsregel.
+- **Logging:** Ingen logging av meldingene eller fnr er synlig i de undersøkte kildefilene. Den lokale regelen forbyr logging av fnr og andre personopplysninger: `.github/instructions/security-core.instructions.md:7`.
+- **Tester:** Filoversikten viser ingen testfiler eller testkilder. Dermed finnes det ingen repo-test som beskriver forventet payload eller konsumentkompatibilitet.
+- **Topic, tilgang og retensjon:** `sendMottatt` bruker topic-navnet direkte (`Soknad.kt:22`). `nais.yaml` inneholder bare grunnleggende applikasjonsoppsett; ingen Kafka-topic-, tilgangs- eller retensjonskonfigurasjon (`nais.yaml:1–10`).
+- **Konsumenter, formål og personvern:** README beskriver bare tjenesten overordnet og sier at dokumentasjonen er ufullstendig (`README.md:1–2`). Repoet identifiserer ikke konsumenter, formålet med meldingen eller personvernvurdering for fnr-feltet.
+
+## Dette må avklares før endring
+
+Repoet svarer ikke på **hvorfor** konsumentene trenger fnr, **hvilke** konsumenter som mottar topicet, eller om de kan håndtere at payloaden utvides med et persondatafelt. Det avklarer heller ikke om fnr skal komme fra `SokerDto`, om det skal ligge i payloaden eller Kafka-nøkkelen, eller hvilke tilgangs- og lagringsvilkår som gjelder for topicet. Dette er nødvendige spørsmål før feltet legges til.
+
+## Instruksjonsfiler og avgrensning
+
+Søket fant ikke `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md` i repoet. De relevante lokale instruksjonene som finnes, omfatter Kotlin-mønstre, testing og sikkerhetsregler. Repoet er lest skrivebeskyttet; ingen kode er endret. **Sikkerhet i funnene: høy** for det som er direkte synlig i repoet; ukjent ekstern Kafka-konfigurasjon og konsumenter kan ikke fastslås her.● Research-agent (model: gpt-6-luna) Kartlegg Kafka-melding og personvern                        33s
+  │ ## Oppsummering
+  │ Read security-core.instructions.md
+  │   │ .github/instructions/security-core.instructions.md
+  │   └ 16 lines read
+  └ Search (glob)
+      │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md}"
+      └ No matches found
+
+**Ikke endret ennå.** Dette utvider Kafka-payloaden med personopplysninger og krever full fasebehandling.
+
+`SoknadMottattMelding` i `src/main/kotlin/no/nav/demo/Soknad.kt` inneholder `soknadId` og `mottatt`. Fnr finnes i `SokerDto`, men koblingen til meldingen er ikke dokumentert.
+
+Før implementering må følgende avklares:
+- Formålet med fnr og hvilke konsumenter som skal motta det.
+- Topicets tilgang og retensjon.
+- Kilden til fnr og om eksisterende konsumenter tåler det nye feltet.
+
+Repoet mangler lokale Copilot-konfigurasjonsfiler. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 4/11 (#1, #5, #6, #9). Tilgangsveien endres ikke (#2); øvrige punkter utsettes til planfasen eller er ikke relevante nå.
+

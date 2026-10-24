@@ -1,0 +1,53 @@
+/ Search (glob)
+  │ "**/*Ferie*.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructions.md}"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/*Avrund*.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/build.gradle.kts"
+  └ 1 file found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+/ Search (glob)
+  │ "src/**/*.kt"
+  └ 4 files found
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:110 (110 lines read)
+
+/ Search (glob)
+  │ "src/test/**/*.kt"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/instructions/security-core.instructions.md"
+  └ 1 file found
+
+Dette er **rød sone — forstå dette grundig**: Teamet skal skrive selve feriepengeregelen, mens jeg bare skal implementere avrundingen i `Avrunding.kt`. Repoet har ingen testoppsett eller repo-lokale Copilot-instruksjoner; `nav-pilot init` kan legge til sistnevnte senere.
+
+Før jeg skriver avrundingen: Skal funksjonen ta imot **beløp i øre** og returnere hele kroner, eller ta imot **grunnlag og prosentsats** og gjøre beregning og avrunding samlet? Det avgjør grensen mellom avrundingshjelperen og regelen dere vil skrive selv.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 ikke relevante for den avgrensede endringen).
+

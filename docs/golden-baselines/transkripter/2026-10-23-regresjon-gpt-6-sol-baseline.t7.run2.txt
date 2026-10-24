@@ -1,0 +1,100 @@
+● skill(jackson-3-migration)
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+● Read dependency-preflight.md
+  │ ~/.copilot/skills/jackson-3-migration/references/dependency-preflight.md
+  └ 37 lines read
+
+/ Search (glob)
+  │ "**/*gradle*"
+  └ 1 file found
+
+/ Search (grep)
+  │ "jackson|ktor-serialization|spring-boot" in *.{kts,kt,xml,toml}
+  └ 2 files found
+
+● Inspect branch and repository (shell)
+  │ git status --short && git branch --show-current && git --no-pager log -1 --oneline && ls -a
+  └ 10 lines…
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read Soknad.kt
+  │ src/main/kotlin/no/nav/demo/Soknad.kt
+  └ 26 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 5 files found
+
+● Inspect migration commit and changes (shell)
+  │ git branch -a && git --no-pager show --stat --oneline HEAD && git --no-pager show
+  │ --format=fuller HEAD
+  └ 58 lines…
+
+● Check Java and build tooling (shell)
+  │ java -version 2>&1; ls -la gradlew gradle 2>&1; git --no-pager log --oneline -5
+  └ 7 lines…
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (grep)
+  │ "mapper|SokerDto|SoknadMottattMelding|lesSoker|sendMottatt|sendSoker|JsonNode|com\.fasterxml|too
+  │ ls\.jackson" in *.kt
+  └ 11 lines found
+
+● Inspect baseline and test coverage (shell)
+  │ command -v gradle || true; git --no-pager show main:src/main/kotlin/no/nav/demo/Soknad.kt; git
+  │ --no-pager diff main...HEAD --check; find src -type f
+  └ 33 lines…
+
+✗ Build migration and inspect resolved Jackson dependencies (shell)
+  │ gradle --no-daemon build --quiet && gradle --no-daemon dependencies --configuration
+  │ compileClasspath --quiet | grep -i jackson
+  └ FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 3s
+    Failed with exit code 1
+
+✗ Diagnose Java runtime build failure (shell)
+  │ /usr/libexec/java_home -V 2>&1; ls ~/.local/share/mise/installs/java 2>/dev/null;
+  │ gradle --no-daemon build --stacktrace --quiet 2>&1 | head -65
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+✗ Identify available JDK installations (shell)
+  │ ls ~/.local/share/mise/installs/java
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+**Vurdering:** Jackson 3-migreringen er plausibel, men ikke verifisert som atferdsbevarende. Koden bruker builder-konfigurasjon, og Jackson 3.1 skriver som standard datoer som tekst, slik den gamle mapperen var konfigurert til. Ktor bruker `kotlinx-json`, så den trenger ikke `ktor-serialization-jackson3` her.
+
+Det viktigste som mangler, er tester som sammenligner JSON-formatet for `SoknadMottattMelding` og `SokerDto` før og etter migreringen. Det finnes ingen tester i branchen. Jeg fant heller ingen `JsonNode.map`-kall eller gjenværende Jackson 2-importer i kildekoden, men kunne ikke kontrollere transitive avhengigheter: Gradle stoppet under prosjektkonfigurasjon med JDK 27 (`> 27`), og tilgang til installerte JDK-er ble avvist. **Konklusjon:** Ikke erklær migreringen ferdig før bygg, tester og `compileClasspath` er kontrollert med en støttet JDK.
+

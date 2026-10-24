@@ -1,0 +1,45 @@
+● skill(kafka)
+
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md,*sign*,*Sign*,*kafka*,*Kaf
+  │ ka*}"
+  └ 2 files found
+
+● Inspect project layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -70
+  └ 30 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect producers and deployment signals (shell)
+  │ find src lib -type f; cat nais.yaml; cat README.md; cat build.gradle.kts
+  └ 35 lines…
+
+● Read Periode.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+  └ 4 lines read
+
+/ Search (grep)
+  │ "fnr|fødselsnummer|SigningProducerInterceptor|SIGNATURE_HEADER|ProducerRecord" in **/*.kt
+  └ 8 lines found
+
+🔴 Rød sone: Fnr i en Kafka-header er en ny plassering av personopplysninger, selv om `Periode` allerede har fnr i payloaden. Jeg har ikke endret kode. Repoet viser at `SigningProducerInterceptor` legger på signaturheadere, men ikke hvem som kan lese topicet eller headerne.
+
+Hvem skal bruke fnr-headeren til sporing, og er alle som kan lese topicet autorisert til å se fødselsnummer i headere? Dette må avklares før jeg legger den til. Repoet mangler også `AGENTS.md` og Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem.
+
+Blindsoner reist: 2/11 (#1 personvern og #6 berørte konsumenter; øvrige er ikke relevante for denne avklaringen).
+

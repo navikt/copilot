@@ -1,0 +1,47 @@
+● Inspect local project files (shell)
+  │ pwd && ls -la && find . -maxdepth 3 -type f | head -60
+  └ 30 lines…
+
+● Locate reference signing implementation (shell)
+  │ gh search code 'signeringsheaders org:navikt' --limit 10 2>&1 | head -60
+  └ 2 lines…
+
+● Find signing behavior and configuration (shell)
+  │ find .github -maxdepth 2 -type f -name 'copilot*' -o -name AGENTS.md; rg -n
+  │ 'sign|header|key|verify' src lib
+  └ 16 lines…
+
+● Inspect signing module and configuration (shell)
+  │ find src lib -type f -maxdepth 8 -print && cat README.md && cat build.gradle.kts && cat
+  │ nais.yaml
+  └ 32 lines…
+
+● Find referenced monorepo implementation (shell)
+  │ gh search repos 'paw intern monorepo' --limit 8 2>&1 | head -40; gh search code
+  │ 'signeringsheaders org:navikt' --limit 10 2>&1 | head -40
+  └ 2 lines…
+
+✗ Read build.gradle.kts
+  │ lib/kafka-signing/build.gradle.kts
+  └ Path does not exist
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read SigningProducerInterceptor.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+  └ 22 lines read
+
+● Read SigningHeaders.kt
+  │ lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+  └ 11 lines read
+
+Dette er en endring i signeringskode, så jeg stopper før redigering. Her i repoet legger `SigningProducerInterceptor` til nye signeringsheadere uten å fjerne gamle. Hjelpefunksjonen `stripSigningHeaders` finnes allerede, men brukes ikke der. Jeg fant ikke den omtalte løsningen i paw sitt interne monorepo.
+
+Kan du peke meg til referanseimplementasjonen og avklare om konsumentene forventer **nøyaktig én** signaturheader og **nøyaktig én** nøkkel-ID-header etter signering? Jeg legger ellers til grunn at signeringsfeil fortsatt skal stoppe sendingen, og at nøkkelhåndteringen skal være uendret.
+
+🔴 Rød sone: signeringskode, forstå denne endringen grundig.
+
+Blindsoner reist: 1/11 (#6 om konsumentenes forventning; øvrige er besvart av koden eller ikke relevante).
+

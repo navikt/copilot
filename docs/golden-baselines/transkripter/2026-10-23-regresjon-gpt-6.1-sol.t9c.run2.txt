@@ -1,0 +1,58 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+Dette er en avgrenset endring, men beregningsregelen er rød sone fordi den er ny for teamet. Jeg lager funksjonsstubben og tester med konkrete forventninger, ikke beregningslogikken; «jeg ser over alt etterpå» er ikke en eksplisitt bestilling om å implementere rød sone. Gradle kjøres ikke. Agenten `worker` er ikke tilgjengelig, så jeg gjør endringene selv.
+
+
+● Edit
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ Edit build.gradle.kts
+
+● Edit
+  └ Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Ingen språkfeil funnet i de to filene.
+
+- **Feriepenger.kt**: TODO-teksten er korrekt bokmål, med «avrund til nærmeste krone med 50 øre opp». Formuleringen er grei.
+- **FeriepengerTest.kt**: Testnavnene er korrekte bokmål, med riktig tallformat («10,2 prosent», «12,5 prosent») og konsekvent bruk av «ved»/«fra». Jeg fant ingen nynorsk, svensk, anglisismer eller KI-markører.
+
+Jeg har ikke endret noen filer.● Forfatter (model: claude-sonnet-5.5) Språksjekk av testnavn                                     9s
+  │ Ingen språkfeil funnet i de to filene.
+  │ Read Feriepenger.kt
+  │   │ src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │   └ 5 lines read
+  └ Read FeriepengerTest.kt
+      │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+      └ 44 lines read
+
+Lagt til `Feriepenger.kt` med TODO-stubb og enhetstester for satsene, aldersgrensen, avrunding, null og negativt grunnlag. Testoppsett er lagt til i Gradle, men Gradle er ikke kjørt.
+
+🔴 Rød sone: Beregningslogikken står uimplementert fordi regelen er ny for teamet. Testene beskriver forventet oppførsel, men vil feile til dere implementerer funksjonen. Dette gir dere konkrete krav å kode mot uten å overlate faglogikken til KI. Still gjerne spørsmål om valgene over.
+

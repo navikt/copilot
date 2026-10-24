@@ -1,0 +1,23 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● skill(klarsprak)
+
+**Fase 2: Plan.** Vi bygger en stateless Ktor-tjeneste som henter innlogget innbyggers fødselsnummer fra et validert ID-porten-token og bruker TokenX til å hente navn fra PDL. Fødselsnummeret skal ikke komme fra URL eller request-body. Tjenesten lagrer verken fødselsnummer eller navn.
+
+| Område | Plan |
+|---|---|
+| Tilgang | ID-porten og Wonderwall for innbyggeren. Avklar hvordan eksisterende Next.js-frontend sender forespørselen via samme opphav eller en BFF før vi låser ruting og `accessPolicy.inbound`; ikke åpne med generell CORS. |
+| API | `GET /api/meg` returnerer bare navnet frontenden trenger. Dokumenter respons og feil i OpenAPI. Manglende eller ugyldig innlogging gir 401, mens PDL-feil gir 503 uten personopplysninger i feilresponsen. |
+| PDL | TokenX viderefører brukerens kontekst. Gi tjenesten bare nødvendig tilgang til PDL. Sett tidsavbrudd; logg status og korrelasjons-ID ved feil, aldri token, fødselsnummer eller navn. |
+| Data | Ingen database, cache, Kafka eller Flyway-migrasjoner. |
+| Nais | Utvid `nais.yaml` med ID-porten, TokenX, nødvendige PDL-tilganger, eksplisitt `accessPolicy` for faktisk kaller og PDL, Prometheus og små ressursforespørsler uten CPU-grense. Behold interne helseendepunkter. |
+| Kode og tester | Skill tokenhåndtering, PDL-klient og API-rute. Test avvist token, at innbyggeren bare kan slå opp seg selv, vellykket navneoppslag, PDL-tidsavbrudd og 503 uten datalekkasje. |
+| CI/CD | Bygg og kjør tester i GitHub Actions; deploy til dev før prod. Pin actions til SHA og bruk minimale rettigheter. |
+| Drift | Mål oppslag per minutt og feilandelen, uten personidentifikatorer som metrikknøkler. Lag alarm for vedvarende PDL-feil. Verifiser innlogging, eget navneoppslag, feilhåndtering og metrikker i dev før prod. Ved feil: gjør rollback til forrige image og undersøk korrelasjons-ID og aggregerte metrikker. |
+
+**🔴 Rød sone, skriv selv:** tokenvalidering, kontrollen som binder oppslaget til innlogget innbygger, og håndtering av fødselsnummer mot PDL. Teamet bør gå gjennom TokenX og Wonderwall før implementering. Valget om direkte nettleserkall fremfor BFF gir færre ledd, men forutsetter at frontendens opphav og innloggingsflyt faktisk støtter det. BFF er alternativet hvis de ikke gjør det.
+
+Dette er planen, ikke en gjennomført sikkerhetsreview eller kodeendring. Neste fase er å kontrollere særlig innloggingsflyten mot den eksisterende frontenden før implementering. Still gjerne spørsmål om valgene over.
+

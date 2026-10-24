@@ -1,0 +1,53 @@
+● skill(nav-auth)
+
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md,nais.yaml,package.json,bui
+  │ ld.gradle.kts,pom.xml}"
+  └ 2 files found
+
+● Inspect project root and Copilot configuration (shell)
+  │ pwd && ls -la && ls -la .github 2>/dev/null || true
+  └ 14 lines…
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 4 files found
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+Dette er en ny tjeneste med ID-porten og fødselsnummer, så jeg stopper i **fase 1** før jeg planlegger eller endrer kode. Repoet har en liten Ktor-tjeneste på Nais, men ingen ID-porten-konfigurasjon, tilgangsregler eller tester. Jeg legger til grunn at innbyggeren logger inn via ID-porten, og at fødselsnummeret er en personopplysning. Repoet har heller ikke `AGENTS.md` eller Copilot-instruksjoner; `nav-pilot init` kan legge dem til senere.
+
+Jeg trenger svar på dette:
+- Skal fødselsnummeret bare brukes under forespørselen, eller også lagres, sendes videre eller vises i et svar? Hva skal tjenesten gjøre med det?
+- Skal bare innbyggeren selv bruke tjenesten, eller skal andre tjenester også kunne kalle den?
+- Hvem bruker dagens `/api/oppgaver`, og skal den fortsatt være tilgjengelig når tjenesten får innlogging?
+
+Jeg utsetter spørsmål om database, feil ved avhengigheter og rollback til vi vet hva tjenesten skal gjøre. Kafka og avvikling av en gammel løsning er ikke relevant ut fra beskrivelsen.
+
+Blindsoner reist: 3/11 (#1, #2 og #6 stilt; øvrige utsettes eller er ikke relevante nå).
+

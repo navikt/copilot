@@ -1,0 +1,51 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md                                                             5s
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● skill(deliberate-ai-use)
+
+🔴 Rød sone: Dette er ny forretningslogikk for teamet. Jeg legger til funksjonsstub og tester som beskriver reglene, men lar selve beregningen stå som `TODO`. Gradle blir ikke kjørt.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+/ Search (grep)
+  │ "TODO|fun |assertEquals|assertFailsWith|testImplementation|testRuntimeOnly|useJUnitPlatform" in
+  │ *.{kt,kts}
+  └ 40 lines found
+
+Lagt til `Feriepenger.kt` som **TODO-stub**, enhetstester for satsene, aldersgrensen, avrunding og negativt grunnlag, samt JUnit 5-oppsett. Gradle er ikke kjørt. Testene vil feile til beregningen er implementert.
+
+🔴 Rød sone: Beregningen er forretningslogikk som er ny for teamet. Derfor står implementasjonen igjen til dere, mens testene beskriver forventet oppførsel. Dette gir øvelse i reglene, men ikke en ferdig beregning.
+

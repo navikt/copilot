@@ -1,0 +1,53 @@
+● skill(nav-plan)
+
+● skill(api-design)
+
+● List directory src/main/kotlin
+  └ 1 file found
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ L1:100 (12 lines read)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:100 (100 lines read)
+
+● Read nais-templates.md
+  │ ~/.copilot/skills/nav-plan/references/nais-templates.md
+  └ L1:170 (60 lines read)
+
+/ Search (glob)
+  │ "src/**/*.kt"
+  └ 4 files found
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+## Fase 2: Plan
+
+**Valg:** Behold Ktor som backend og bruk den eksisterende Next.js-frontenden som eneste inngang. Innbyggeren logger inn med ID-porten via Wonderwall i frontenden. Frontenden veksler brukerens token til et TokenX-token med backend som audience; backend validerer tokenet, henter fødselsnummer fra validert identitet og kaller PDL med brukerens kontekst for å hente navn. Dette bevarer brukerkonteksten helt til PDL, men krever tokenutveksling i frontenden og tokenvalidering i backend. Backend skal ikke stole på et fødselsnummer sendt fra nettleseren.
+
+**API og dataflyt:** Foreslå `GET /api/meg` med svar `{ "navn": "..." }`. Ikke send fødselsnummer i URL, request body eller respons. Tjenesten er stateless: ingen database, Flyway-migrasjoner, kø eller cache. Avklar den konkrete PDL-operasjonen og hvilket navneformat frontenden trenger mot eksisterende frontend-kontrakt før kontrakten låses.
+
+**Filer og drift:** Utvid `nais.yaml` med TokenX, eksplisitt inbound-regel for frontend og outbound-regel for PDL, samt nødvendige ressurser for PDL-kallet. Bruk separate miljøverdier der frontend- og PDL-identifikatorer er ulike. Legg til Ktor-rute, autentisering, PDL-klient, konfigurasjon og feiloversetting. Behold helsesjekkene i manifestet og implementer dem i applikasjonen; legg til `/metrics`. CI/CD skal bygge og teste før deployment til dev, deretter prod. Ingen nye GCP-ressurser trengs.
+
+**Feil og sikkerhet:** Manglende eller ugyldig token gir 401. PDL-feil eller timeout gir 503 i et svar uten personopplysninger, for eksempel `application/problem+json`. Logg feilkategori og en ikke-personidentifiserende korrelasjons-ID, aldri fødselsnummer, navn, token eller PDL-payload. Sett timeout på PDL-kallet; ingen kø eller dead-letter. Bruk lovhjemmel som behandlingsgrunnlag, ikke samtykkeflyt.
+
+**Tester og observabilitet:** Test tokenvalidering, at oppslaget gjelder innlogget person, PDL-kall med brukerkontekst, 401 ved ugyldig token og 503 ved PDL-feil eller timeout. Bruk en PDL-stub i integrasjonstester. Mål oppslag per minutt og feilandel uten personidentifiserende metrikknøkler; alarmer på vedvarende feilandel og manglende vellykkede oppslag. Lever en kort endringsbeskrivelse, driftsveiledning og sjekkliste for verifisering etter deployment. Rollback er å rulle tilbake backend og frontend-integrasjonen; det finnes ingen data eller gammel løsning å migrere.
+
+🔴 **Rød sone:** Tokenutveksling og -validering, koblingen mellom innlogget identitet og PDL-oppslag, samt beslutningen om API-kontrakt må utvikleren forstå og implementere selv. Resten kan delegeres etter review. Tradeoffet ved å returnere bare navn er mindre eksponering av fødselsnummer, men frontenden kan ikke bruke responsen til andre identitetsformål. Still gjerne spørsmål om valgene over.
+

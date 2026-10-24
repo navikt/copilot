@@ -1,0 +1,153 @@
+● skill(jackson-3-migration)
+
+● Identify branch and migration scope (shell)
+  │ git status --short && git --no-pager diff --stat && git branch --show-current && git --no-pager
+  │ log -5 --oneline && ls -a
+  └ 11 lines…
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read kotlin-cleanup.md
+  │ ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md
+  └ 186 lines read
+
+● Read rename-and-defaults.md
+  │ ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md
+  └ 139 lines read
+
+/ Search (glob)
+  │ "src/**/*"
+  └ 5 files found
+
+● Read migration diff and runtime baseline (shell)
+  │ git --no-pager diff HEAD^ HEAD && find .github -maxdepth 2 -type f && java -version && command
+  │ -v gradle
+  └ 66 lines…
+
+● skill(klarsprak)
+
+● List directory src/main/kotlin/no/nav/demo
+  └ 5 files found
+
+✗ Check tracked files and build migration (shell)
+  │ git ls-files && git --no-pager show HEAD^:src/main/kotlin/no/nav/demo/Soknad.kt && gradle build
+  │ --console=plain
+  └ .github/agents/golden-nav-pilot.agent.md
+    .github/instructions/accessibility.instructions.md
+    .github/instructions/database.instructions.md
+    .github/instructions/deliberate-ai-use.instructions.md
+    .github/instructions/docker.instructions.md
+    .github/instructions/github-actions.instructions.md
+    .github/instructions/golang.instructions.md
+    .github/instructions/kotlin.instructions.md
+    .github/instructions/nextjs-aksel.instructions.md
+    .github/instructions/norwegian-text.instructions.md
+    .github/instructions/output-style.instructions.md
+    .github/instructions/performance.instructions.md
+    .github/instructions/security-core.instructions.md
+    .github/instructions/security-owasp.instructions.md
+    .github/instructions/testing-kotlin.instructions.md
+    .github/instructions/testing-typescript.instructions.md
+    .github/instructions/testing.instructions.md
+    README.md
+    build.gradle.kts
+    nais.yaml
+    src/main/kotlin/no/nav/demo/App.kt
+    src/main/kotlin/no/nav/demo/Config.kt
+    src/main/kotlin/no/nav/demo/Oppgave.kt
+    src/main/kotlin/no/nav/demo/Routes.kt
+    src/main/kotlin/no/nav/demo/Soknad.kt
+    package no.nav.demo
+
+    import com.fasterxml.jackson.databind.ObjectMapper
+    import com.fasterxml.jackson.databind.SerializationFeature
+    import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+    import com.fasterxml.jackson.module.kotlin.readValue
+    import org.apache.kafka.clients.producer.KafkaProducer
+    import org.apache.kafka.clients.producer.ProducerRecord
+    import java.time.LocalDate
+
+    data class SokerDto(val fnr: String, val navn: String)
+
+    data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+
+    val mapper: ObjectMapper = jacksonObjectMapper()
+    .findAndRegisterModules()
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+
+    fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+    fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId,
+    mapper.writeValueAsString(melding)))
+    }
+
+    fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+    }
+    Starting a Gradle Daemon (subsequent builds will be faster)
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 2s
+    Failed with exit code 1
+
+✗ Read consumers and discover compatible JDK (shell)
+  │ for f in src/main/kotlin/no/nav/demo/*.kt README.md; do echo "--- $f"; nl -ba "$f"; done;
+  │ /usr/libexec/java_home -V 2>&1; git status --short
+  └ Permission denied because no interactive user response was available. Retry in an interactive
+    session so the user can approve it, or try an alternative that does not require this permission.
+  Approval check
+    └ ✗ Denied, no one to approve
+
+/ Search (grep)
+  │ "." (src, README.md)
+  └ 73 lines found
+
+✗ Check dependency verification and worktree state (shell)
+  │ git status --short && gradle dependencyInsight --dependency jackson --configuration
+  │ compileClasspath --console=plain
+  └ ?? .gradle/
+
+    FAILURE: Build failed with an exception.
+
+    * What went wrong:
+    A problem occurred configuring root project 'repo'.
+    > 27
+
+    * Try:
+    > Run with --stacktrace option to get the stack trace.
+    > Run with --info or --debug option to get more log output.
+    > Run with --scan to get full insights.
+    > Get more help at https://help.gradle.org.
+
+    BUILD FAILED in 608ms
+    Failed with exit code 1
+
+● Remove generated local Gradle cache (shell)
+  │ rm -r .gradle && git status --short
+  └ No Content
+
+**Migreringen ser riktig ut mekanisk, men er ikke verifisert som atferdsbevarende.** Vurdert commit `d0292c7` mot `fb104be`. Ingen filer er endret.
+
+| Funn | Sted | Betydning |
+|---|---|---|
+| JSON-feltrekkefølgen endres | `Soknad.kt:14–16` | Jackson 3 sorterer alfabetisk. `SoknadMottattMelding` får `mottatt` før `soknadId`. Relevant dersom Kafka-konsumenter sammenligner rå JSON. |
+| Strengere lesing | `Soknad.kt:18` | `FAIL_ON_TRAILING_TOKENS` er nå aktivert som standard. Input med flere JSON-verdier som tidligere ble godtatt, avvises. |
+| Regresjonstester mangler | `src/` | Ingen tester dokumenterer uendret DTO-lesing eller Kafka-payload. Verifiser særlig `LocalDate` som ISO-streng og begge meldingstypenes felter. |
+
+**Riktige grep:** builder-basert `JsonMapper`, Kotlin-modul på 3.1.0 og fjernet `jackson-datatype-jsr310`, siden tidsstøtten er innebygd. Ingen gamle Jackson-importer, mapper-mutasjon eller `JsonNode.map`-kall finnes i kildekoden. Ktor bruker kotlinx.serialization, så Jackson-migreringen krever ikke Ktor 3.4 eller `jackson3`.
+
+**Verifikasjon blokkert:** både `gradle build` og `dependencyInsight` feilet under prosjektkonfigurering med `> 27` på lokal JDK 27. Kompilering, tester og faktisk avhengighetstre er derfor ikke bekreftet. Kjør disse med en kompatibel JDK før merge.
+

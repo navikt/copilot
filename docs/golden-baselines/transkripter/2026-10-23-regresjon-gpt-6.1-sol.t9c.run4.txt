@@ -1,0 +1,54 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+Dette er rød sone: nye fagregler og kjernelogikk. Jeg legger inn funksjonsstubben og tester med konkrete forventninger, men lar selve beregningen stå som `TODO`. «Jeg ser over alt etterpå» er ikke en eksplisitt bestilling om å implementere rød sone. Gradle kjøres ikke.
+
+`worker` er ikke tilgjengelig, så jeg legger inn testoppsettet selv.
+
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Read Feriepenger.kt
+  │ src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ 5 lines read
+
+● Read build.gradle.kts
+  └ 17 lines read
+
+● Read FeriepengerTest.kt
+  │ src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ 48 lines read
+
+Lagt til `Feriepenger.kt` med funksjonsstub, sju enhetstester og testoppsett i Gradle. Testene dekker satsene, aldersgrensen, null, avrunding og negativt grunnlag. Gradle er ikke kjørt.
+
+🔴 Rød sone: nye fagregler og kjernelogikk, forstå dette grundig. Beregningen står som `TODO` for teamet; testene vil feile til den er implementert. Dette bevarer læringen, men betyr at funksjonen ikke er ferdig. «Jeg ser over alt etterpå» gir ikke eksplisitt overstyring til å implementere rød sone.
+

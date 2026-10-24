@@ -1,0 +1,46 @@
+● skill(deliberate-ai-use)
+
+● Check Copilot config (shell)
+  │ for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md; do if
+  │ test -f "$f"; then echo "present $f"; else echo "missing $f"; fi; done
+  └ 3 lines…
+
+● Inspect project layout (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -70
+  └ 29 lines…
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read nais.yaml
+  └ 12 lines read
+
+● Read README.md
+  └ 4 lines read
+
+● List source files (shell)
+  │ find src -type f -maxdepth 10 -print
+  └ 4 lines…
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read App.kt
+  │ src/main/kotlin/no/nav/demo/App.kt
+  └ 15 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+● Read Config.kt
+  │ src/main/kotlin/no/nav/demo/Config.kt
+  └ 4 lines read
+
+Dette er **full oppgave, fase 1**: Feriepengeberegning er ny kjerne­logikk for teamet. Jeg fant ingen eksisterende feriepengeregler i tjenesten. Jeg legger til grunn at `grunnlag` er hele kroner, og at satsen bestemmes av alderen i opptjeningsåret, slik du har spesifisert. Ønsker dere en kort gjennomgang av avrundingsregelen før jeg implementerer, eller skal jeg gå rett til kode og tester?
+
+Jeg fant heller ingen repo-lokal Copilot-konfigurasjon (`AGENTS.md` eller `.github/copilot-*.md`). `nav-pilot init` kan legge den til senere.
+
+Blindsoner reist: 1/11 (#11 stilt; #1–#10 er ikke relevante for en intern beregningsfunksjon uten ny dataflyt).
+

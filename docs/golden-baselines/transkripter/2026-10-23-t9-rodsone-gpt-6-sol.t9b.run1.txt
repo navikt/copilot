@@ -1,0 +1,75 @@
+● skill(deliberate-ai-use)
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Inspect service files (shell)
+  │ pwd; ls -la; find . -maxdepth 3 -type f | head -80
+  └ 29 lines…
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ L1:125 (125 lines read)
+
+● Inspect Kotlin project structure (shell)
+  │ find src -type f -maxdepth 12; find .github -maxdepth 1 -type f; cat build.gradle.kts; cat
+  │ README.md; cat nais.yaml
+  └ 32 lines…
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read Routes.kt
+  │ src/main/kotlin/no/nav/demo/Routes.kt
+  └ 19 lines read
+
+✗ Edit
+  │ Edit src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Edit build.gradle.kts
+  │ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+  └ Failed to apply patch: Error: Failed to read file to update $TMPDIR/nav-pilot-golden.sRw9bT/repo/
+    src/main/kotlin/no/nav/demo/Feriepenger.kt:
+    Error: ENOENT: no such file or directory, open '$TMPDIR/nav-pilot-golden.sRw9bT/repo/
+    src/main/kotlin/no/nav/demo/Feriepenger.kt'
+
+● Check large-value expectations (shell)
+  │ python3 -c 'n=2**63-1; print((n*102+500)//1000, (n*125+500)//1000)'
+  └ 1 line…
+
+● Edit
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  │ Edit build.gradle.kts
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+● Edit
+  └ Edit build.gradle.kts
+
+● Verify written files without Gradle (shell)
+  │ command -v kotlinc || true; find src/test -type f; sed -n '1,45p' build.gradle.kts; sed -n
+  │ '1,35p' src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ 28 lines…
+
+Lagt til `feriepenger` og enhetstester for begge satser, aldersgrensen, avrunding og negativt grunnlag. Funksjonen bruker heltallsregning for å runde 50 øre opp uten flyttallsfeil. Gradle er ikke kjørt, som avtalt.
+
+🔴 **Rød sone:** Feriepengeberegningen og valideringen bør gjennomgås nøye. Heltallsregning gir presis avrunding, men gjør formelen mindre umiddelbar å lese enn en prosentberegning med desimaltall. Still gjerne spørsmål om valgene over.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene og at 12,5 % gjelder fra og med fylte 60 år; les aldersgrensetestene.
+- [ ] Kontroller avrunding ved 50 øre og avvisning av negativt grunnlag; les avrundings- og feiltestene.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

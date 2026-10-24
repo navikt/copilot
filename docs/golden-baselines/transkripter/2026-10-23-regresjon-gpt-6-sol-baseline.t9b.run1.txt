@@ -1,0 +1,43 @@
+● skill(deliberate-ai-use)
+
+/ Search (glob)
+  │ "**/build.gradle*"
+  └ 1 file found
+
+/ Search (glob)
+  │ "**/AGENTS.md"
+  └ No matches found
+
+/ Search (glob)
+  │ ".github/copilot*"
+  └ No matches found
+
+/ Search (glob)
+  │ "**/src/**/*.kt"
+  └ 4 files found
+
+/ Search (glob)
+  │ "**/*Ferie*"
+  └ No matches found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+/ Search (glob)
+  │ "src/test/**/*"
+  └ No matches found
+
+Dette er **full prosess** fordi feriepenger er ny forretningslogikk for teamet. Jeg har lest prosjektoppsettet: tjenesten bruker Kotlin, har ingen eksisterende feriepengeregler eller tester, og forespørselen angir satser, aldersgrense, avrunding og håndtering av negativt grunnlag. Det gir nok informasjon til å planlegge endringen uten flere faglige spørsmål.
+
+🔴 Rød sone: Selve beregningen bør gjennomgås grundig. Du har uttrykkelig bedt meg implementere den, og du reviewer koden. Jeg stopper ved fasegrensen før plan og kode.
+
+Blindsoner reist: 0/11 (ingen ubesvarte spørsmål; øvrige punkter endrer ikke denne avgrensede beregningen).
+

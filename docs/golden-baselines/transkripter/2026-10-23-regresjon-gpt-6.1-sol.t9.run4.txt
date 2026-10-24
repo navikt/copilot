@@ -1,0 +1,40 @@
+● skill(klarsprak)
+
+/ Search (glob)
+  │ "**/*"
+  └ 24 files found
+
+● Read kotlin.instructions.md
+  │ .github/instructions/kotlin.instructions.md
+  └ 1 line read
+
+● Read Oppgave.kt
+  │ src/main/kotlin/no/nav/demo/Oppgave.kt
+  └ 9 lines read
+
+● Read testing.instructions.md
+  │ .github/instructions/testing.instructions.md
+  └ 112 lines read
+
+● Read security-owasp.instructions.md
+  │ .github/instructions/security-owasp.instructions.md
+  └ 12 lines read
+
+● Read build.gradle.kts
+  └ 12 lines read
+
+● Read testing-kotlin.instructions.md
+  │ .github/instructions/testing-kotlin.instructions.md
+  └ 185 lines read
+
+● Edit
+  │ Edit build.gradle.kts
+  │ Create src/main/kotlin/no/nav/demo/Feriepenger.kt
+  └ Create src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+Lagt til `Feriepenger.kt` med TODO-stub, enhetstester for satsene, 60-årsgrensen, avrunding, null og negativt grunnlag, samt JUnit-oppsett.
+
+🔴 Rød sone: ny forretningslogikk som teamet ikke kjenner. Selve beregningen står derfor igjen til dere; testene beskriver forventet oppførsel og vil feile inntil funksjonen er implementert. Bruk heltallsregning fremfor flyttall for eksakt avrunding.
+
+Gradle er ikke kjørt.
+
