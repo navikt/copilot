@@ -266,7 +266,7 @@ func TestLaunchCopilotResolved_ShowsCpltRecommendation(t *testing.T) {
 	os.Stderr = orig
 	w.Close()
 	out, _ := io.ReadAll(r)
-	if want := "recommended: it starts without a prompt when nothing changed and runs Nais MCP through cplt's broker. Update cplt: "; !strings.Contains(string(out), want) {
+	if want := "recommended: it starts without a prompt when nothing changed, keeps headless runs quiet when nothing changed, and runs Nais MCP through cplt's broker. Update cplt: "; !strings.Contains(string(out), want) {
 		t.Errorf("stderr %q lacks %q", out, want)
 	}
 }

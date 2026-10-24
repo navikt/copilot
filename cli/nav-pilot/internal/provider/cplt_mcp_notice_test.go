@@ -41,7 +41,7 @@ func TestCpltRecommendedNotice(t *testing.T) {
 	at := "cplt " + cpltRecommended + "-7f0fd16\n"
 
 	first := launch("opencode", old)
-	want := "cplt " + cpltRecommended + " or newer is recommended: it starts without a prompt when nothing changed, runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, blocks the API keys opencode's voice feature reads, and leaves nav-pilot's own state out of the \"NOT audited\" note. Update cplt: "
+	want := "cplt " + cpltRecommended + " or newer is recommended: it starts without a prompt when nothing changed, keeps headless runs quiet when nothing changed, runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, blocks the API keys opencode's voice feature reads, and leaves nav-pilot's own state out of the \"NOT audited\" note. Update cplt: "
 	if !strings.Contains(first, want) || !strings.Contains(first, cpltUpgradeHint()) || strings.Count(first, "\n") != 1 {
 		t.Errorf("notice %q, want one line with %q", first, want)
 	}
@@ -62,7 +62,7 @@ func TestCpltRecommendedNotice(t *testing.T) {
 	}
 	// A higher recommendation than the one last seen says it again.
 	SeenChanged("cplt-recommended", cpltDenyEnv)
-	if next := launch("copilot", old); !strings.Contains(next, "recommended: it starts without a prompt when nothing changed and runs Nais MCP through cplt's broker. Update cplt: ") {
+	if next := launch("copilot", old); !strings.Contains(next, "recommended: it starts without a prompt when nothing changed, keeps headless runs quiet when nothing changed, and runs Nais MCP through cplt's broker. Update cplt: ") {
 		t.Errorf("raised recommendation: %q, want the client-neutral notice", next)
 	}
 	// At or above: silent, and the seen state is cleared, so a later old cplt

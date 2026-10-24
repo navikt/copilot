@@ -489,9 +489,9 @@ func cpltRecommendedNotice(opencode bool) string {
 	if err != nil || stamp == "" || stamp >= cpltRecommended {
 		return ""
 	}
-	reasons := "it starts without a prompt when nothing changed and runs Nais MCP through cplt's broker"
+	reasons := "it starts without a prompt when nothing changed, keeps headless runs quiet when nothing changed, and runs Nais MCP through cplt's broker"
 	if opencode {
-		reasons = "it starts without a prompt when nothing changed, runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, blocks the API keys opencode's voice feature reads, and leaves nav-pilot's own state out of the \"NOT audited\" note"
+		reasons = "it starts without a prompt when nothing changed, keeps headless runs quiet when nothing changed, runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, blocks the API keys opencode's voice feature reads, and leaves nav-pilot's own state out of the \"NOT audited\" note"
 	}
 	return fmt.Sprintf("cplt %s or newer is recommended: %s. Update cplt: %s", cpltRecommended, reasons, domain.Bold(cpltUpgradeHint()))
 }
@@ -594,9 +594,10 @@ const openCode2CpltFloor = "2026.10.22-172931"
 // navikt/cplt#807, the host-side auth proxy GitHub MCP needs in opencode;
 // navikt/cplt#817, --deny-env for the voice keys; and the MCP broker, which
 // runs Nais MCP on the host for the sandbox; 2026.10.24-160000 adds no prompt
-// when nothing changed and --allow-write-state. Raise it when a release brings
+// when nothing changed and --allow-write-state; 2026.10.24-184905 keeps headless
+// runs quiet when nothing changed. Raise it when a release brings
 // something users gain, and list the gain in CpltRecommendedNotice.
-const cpltRecommended = "2026.10.24-160000"
+const cpltRecommended = "2026.10.24-184905"
 
 // cpltDenyEnv is the first cplt with --deny-env (navikt/cplt#817). Kept apart
 // from cpltRecommended so a cplt between the two keeps the flag.
