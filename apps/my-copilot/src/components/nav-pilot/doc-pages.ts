@@ -36,7 +36,7 @@ export const GUIDE_PAGES: DocLink[] = [
   {
     href: "/nav-pilot/guider/mcp-gjennom-cplt",
     title: "MCP gjennom cplt",
-    desc: "Slå på Nais MCP og GitHub under cplt, uten at innloggingen din kommer inn i sandkassen.",
+    desc: "Slå på Nais MCP og GitHub under cplt, uten at Nais-innloggingen din kommer inn i sandkassen.",
   },
   {
     href: "/nav-pilot/guider/cplt-oppsett",
