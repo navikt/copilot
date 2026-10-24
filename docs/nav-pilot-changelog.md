@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-24
+
+### Roligere oppstart med ny cplt
+
+- **Anbefalt cplt fra 24. oktober 2026**: nav-pilot anbefaler nå cplt-versjonen fra 24. oktober. Den spør ikke ved oppstart når ingenting er endret. Med den versjonen gir nav-pilot også OpenCode-hookenes egen tilstandsmappe skrivetilgang med `--allow-write-state`, så mappa ikke lenger står i merknaden «NOT audited» når økten avsluttes. Eldre cplt får `--allow-write` som før.
+
 ## 2026-10-23
 
 ### Strengere leverandørsjekk i OpenCode 2

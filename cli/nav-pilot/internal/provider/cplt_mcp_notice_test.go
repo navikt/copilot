@@ -41,7 +41,7 @@ func TestCpltRecommendedNotice(t *testing.T) {
 	at := "cplt " + cpltRecommended + "-7f0fd16\n"
 
 	first := launch("opencode", old)
-	want := "cplt " + cpltRecommended + " or newer is recommended: it runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, and blocks the API keys opencode's voice feature reads. Update cplt: "
+	want := "cplt " + cpltRecommended + " or newer is recommended: it starts without a prompt when nothing changed, runs Nais MCP through cplt's broker, lets GitHub MCP work in opencode, blocks the API keys opencode's voice feature reads, and leaves nav-pilot's own state out of the \"NOT audited\" note. Update cplt: "
 	if !strings.Contains(first, want) || !strings.Contains(first, cpltUpgradeHint()) || strings.Count(first, "\n") != 1 {
 		t.Errorf("notice %q, want one line with %q", first, want)
 	}
@@ -62,7 +62,7 @@ func TestCpltRecommendedNotice(t *testing.T) {
 	}
 	// A higher recommendation than the one last seen says it again.
 	SeenChanged("cplt-recommended", cpltDenyEnv)
-	if next := launch("copilot", old); !strings.Contains(next, "recommended: it runs Nais MCP through cplt's broker. Update cplt: ") {
+	if next := launch("copilot", old); !strings.Contains(next, "recommended: it starts without a prompt when nothing changed and runs Nais MCP through cplt's broker. Update cplt: ") {
 		t.Errorf("raised recommendation: %q, want the client-neutral notice", next)
 	}
 	// At or above: silent, and the seen state is cleared, so a later old cplt
@@ -120,6 +120,31 @@ func TestDenyVoiceEnv(t *testing.T) {
 					t.Errorf("%s %q %q: args %v, want --deny-env %s: %v", name, c.opencode, c.cplt, args, v, c.want)
 				}
 			}
+		}
+	}
+}
+
+// The hook-state dir gets --allow-write-state from cpltAllowWriteState on, so
+// cplt's "NOT audited" note leaves it out; an older or unreadable cplt gets
+// --allow-write, which it knows.
+func TestCpltStateWriteFlag(t *testing.T) {
+	prev := probeCpltVersion
+	t.Cleanup(func() { probeCpltVersion = prev })
+	for _, c := range []struct {
+		out  string
+		err  error
+		want string
+	}{
+		{"cplt " + cpltAllowWriteState + "-c742e86\n", nil, "--allow-write-state"},
+		{"cplt 2026.11.01-000000-abcdef0\n", nil, "--allow-write-state"},
+		{"cplt 2026.10.24-155959-abcdef0\n", nil, "--allow-write"},
+		{"cplt " + cpltDenyEnv + "-7f0fd16\n", nil, "--allow-write"},
+		{"cplt dev\n", nil, "--allow-write"},
+		{"", errors.New("probe timed out"), "--allow-write"},
+	} {
+		probeCpltVersion = func() (string, error) { return c.out, c.err }
+		if got := cpltStateWriteFlag(); got != c.want {
+			t.Errorf("cplt %q: %s, want %s", c.out, got, c.want)
 		}
 	}
 }

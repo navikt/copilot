@@ -174,7 +174,7 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	}
 	cpltArgs = append(cpltArgs,
 		"--allow-read", filepath.Dir(plugin),
-		"--allow-write", OpenCodeHookStateDir(),
+		cpltStateWriteFlag(), OpenCodeHookStateDir(),
 		"--pass-env", OpenCodeHooksEnv,
 		"--pass-env", HookStateDirEnv,
 		"--pass-env", ClientStartedEnv,
