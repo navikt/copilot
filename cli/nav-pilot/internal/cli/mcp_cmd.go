@@ -50,6 +50,7 @@ func mcpNoteStale(stale error) {
 }
 
 func cmdMCP(args []string) error {
+	mcpLoginStates = map[string]string{} // one probe per run
 	var client string
 	var jsonOut bool
 	var pos []string

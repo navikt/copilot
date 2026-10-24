@@ -14,6 +14,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Personopplysninger**: Når et nytt felt med personopplysninger ikke er avklart i repoet, stopper `@nav-pilot` før den endrer noe, spør deg direkte om formålet og venter på svar. En liste med åpne punkter er ikke lenger nok.
 - **Rød sone**: En detaljert beskrivelse i oppgaven betyr ikke at `@nav-pilot` skal skrive koden i rød sone. Uten at du ber om det, får du bare en `TODO`-stubb og testskjeletter. Sjekklisten for rød sone kommer bare for kode `@nav-pilot` faktisk har skrevet.
 
+### Tydeligere svar om MCP-servere cplt kjører på maskinen
+
+- **Når cplt ikke kan kjøre serveren på maskinen**: `nav-pilot mcp list` og `nav-pilot mcp enable` viser nå grunnen cplt selv oppgir. Kan ikke cplt bruke Bubblewrap, står det `Fix: cplt doctor --fix`. Ellers står det `Fix: cplt doctor`. Meldingen om at dette bare virker på macOS, er borte.
+- **Når cplt ikke svarer**: Da skriver `nav-pilot mcp enable` ingenting og sier hva du kan gjøre: prøve igjen hvis cplt brukte for lang tid, ellers kjøre kommandoen fra repoet ditt.
+- **Innloggingen**: nav-pilot sjekker innloggingen én gang per kommando. Tar sjekken for lang tid, viser LOGIN-kolonnen `nais: unknown (timed out)` i stedet for «logged out». Det samme gjelder når cplt ikke rakk å sjekke.
+- **MCP-registeret**: nav-pilot krever ikke lenger at registeret oppgir en bestemt kommando for å sjekke innloggingen. nav-pilot bruker sin egen.
+
 ### Riktig innloggingsstatus for Nais MCP
 
 - **`nav-pilot mcp list` og `nav-pilot mcp enable`**: Innloggingen sjekkes nå mot `nais login -n`, som er den Nais MCP bruker. Før sjekket nav-pilot gcloud-innloggingen, så du kunne få «logged out» selv om Nais MCP virket. Krever cplt med navikt/cplt#843 for at `mcp list` skal vise riktig status.

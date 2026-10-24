@@ -34,7 +34,7 @@ const (
 // keeps this table and the registry's in step.
 type mcpMechanism struct {
 	command []string // the server, as cplt pins it
-	status  []string // the registry's login.status, matched as written
+	status  []string // login.status in the spec nav-pilot writes for cplt
 	// probe exits 0 when the server's login is usable. It differs from
 	// status for nais: without -n nais prints the gcloud token, which the
 	// MCP server does not use (navikt/cplt#843).
@@ -84,8 +84,10 @@ func mcpBrokerCheck(e providerpkg.MCPServerEntry) (mcpMechanism, error) {
 	if !slices.Equal(b.Command, m.command) {
 		return m, fmt.Errorf("the registry's command for %s is not %q. %s", e.Name, strings.Join(m.command, " "), fix)
 	}
-	if b.Login.Run != strings.Join(m.login, " ") || b.Login.Status != strings.Join(m.status, " ") {
-		return m, fmt.Errorf("the registry's login commands for %s are not the ones nav-pilot runs for %s. %s", e.Name, b.Credential, fix)
+	// login.status is only text: nav-pilot probes with its own probe and
+	// writes its own status into the spec.
+	if b.Login.Run != strings.Join(m.login, " ") {
+		return m, fmt.Errorf("the registry's login command for %s is not the one nav-pilot runs for %s. %s", e.Name, b.Credential, fix)
 	}
 	if len(b.Tools.Classes) == 0 {
 		return m, fmt.Errorf("the registry classes no tools for %s. %s", e.Name, fix)

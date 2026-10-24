@@ -16,25 +16,31 @@ const (
 	mcpCpltUpgrade     = "brew upgrade cplt"
 	mcpCpltInstall     = "brew install navikt/tap/cplt"
 	mcpStatusFailedFix = "cd <your repo> && nav-pilot mcp list"
+	mcpCpltDoctorFix   = "cplt doctor --fix"
 )
 
 // mcpCpltStatusDoc is `cplt mcp status --json`. Failed is set, and the rest
 // empty, when a cplt that has the command did not answer: it refuses to run
-// in ~ as a launch does, timed out, or printed something else.
+// in ~ as a launch does, timed out, or printed something else. OffReason is
+// why the broker does not run here when PlatformSupported is false.
 type mcpCpltStatusDoc struct {
-	Schema            []int `json:"schema"`
-	PlatformSupported *bool `json:"platform_supported"`
+	Schema            []int  `json:"schema"`
+	PlatformSupported *bool  `json:"platform_supported"`
+	OffReason         string `json:"off_reason"`
 	Servers           []struct {
 		ID           string `json:"id"`
 		State        string `json:"state"`
 		CredentialOK *bool  `json:"credential_ok"`
+		// CredentialNote says why CredentialOK is null, e.g. "timed out".
+		CredentialNote string `json:"credential_note"`
 	} `json:"servers"`
 	Rejected []struct {
 		File   string `json:"file"`
 		Reason string `json:"reason"`
 		Fix    string `json:"fix"`
 	} `json:"rejected"`
-	Failed string `json:"-"`
+	Failed   string `json:"-"`
+	TimedOut bool   `json:"-"`
 }
 
 // mcpCpltStatusTimeout is a var so tests time out fast.
@@ -58,7 +64,7 @@ func mcpCpltStatus(cpltPath string) *mcpCpltStatusDoc {
 	var doc mcpCpltStatusDoc
 	switch {
 	case time.Since(start) >= mcpCpltStatusTimeout:
-		msg = "timed out after " + mcpCpltStatusTimeout.String()
+		return &mcpCpltStatusDoc{Failed: "timed out after " + mcpCpltStatusTimeout.String(), TimedOut: true}
 	case err == nil && json.Unmarshal(out, &doc) == nil && doc.Schema != nil:
 		return &doc
 	case err == nil:
@@ -73,17 +79,18 @@ func mcpCpltStatus(cpltPath string) *mcpCpltStatusDoc {
 }
 
 // mcpBrokerState is what cplt says about server id: the PATH column, its
-// credential probe, and the problems with their fixes.
-func mcpBrokerState(cpltPath string, st *mcpCpltStatusDoc, id string) (path string, credOK *bool, out []mcpProblem) {
+// credential probe with the note when that is null, and the problems with
+// their fixes.
+func mcpBrokerState(cpltPath string, st *mcpCpltStatusDoc, id string) (path string, credOK *bool, credNote string, out []mcpProblem) {
 	switch {
 	case cpltPath == "":
-		return "not configured (no cplt)", nil, []mcpProblem{{Server: id, Problem: "it runs only under cplt, which is not installed", Fix: mcpCpltInstall}}
+		return "not configured (no cplt)", nil, "", []mcpProblem{{Server: id, Problem: "it runs only under cplt, which is not installed", Fix: mcpCpltInstall}}
 	case st == nil:
-		return "-", nil, []mcpProblem{{Server: id, Problem: "this cplt cannot run MCP servers on the host, so it leaves them as configured", Fix: mcpCpltUpgrade}}
+		return "-", nil, "", []mcpProblem{{Server: id, Problem: "this cplt cannot run MCP servers on the host, so it leaves them as configured", Fix: mcpCpltUpgrade}}
 	case st.Failed != "":
-		return "-", nil, []mcpProblem{{Server: id, Problem: "cplt mcp status did not answer here (" + st.Failed + ")", Fix: mcpStatusFailedFix}}
+		return "-", nil, "", []mcpProblem{{Server: id, Problem: "cplt mcp status did not answer here (" + st.Failed + ")", Fix: mcpStatusFailedFix}}
 	case st.PlatformSupported != nil && !*st.PlatformSupported:
-		return "cplt (macOS only)", nil, []mcpProblem{{Server: id, Problem: "cplt's MCP broker runs on macOS only for now, so here the server is left as configured", Fix: "use it on macOS; Linux support is tracked in navikt/cplt#825"}}
+		return "cplt (off here)", nil, "", []mcpProblem{mcpOffProblem(id, st.OffReason)}
 	}
 	path = "cplt broker"
 	file := strings.ReplaceAll(id, "/", "__") + ".json"
@@ -102,7 +109,7 @@ func mcpBrokerState(cpltPath string, st *mcpCpltStatusDoc, id string) (path stri
 		if s.ID != id {
 			continue
 		}
-		found, credOK = true, s.CredentialOK
+		found, credOK, credNote = true, s.CredentialOK, safe(s.CredentialNote, 40)
 		if s.State == "off" {
 			path = "cplt off"
 			out = append(out, mcpProblem{Server: id, Problem: "cplt's MCP broker is off", Fix: "cplt config set sandbox.mcp_broker true"})
@@ -113,5 +120,28 @@ func mcpBrokerState(cpltPath string, st *mcpCpltStatusDoc, id string) (path stri
 	if !found {
 		path = "-"
 	}
-	return path, credOK, out
+	return path, credOK, credNote, out
+}
+
+// mcpOffProblem is the first sentence of cplt's off_reason (navikt/cplt
+// src/sandbox.rs mcp_refusal_text) as the problem. Only an unusable
+// Bubblewrap is something `cplt doctor --fix` repairs; for the rest (D-Bus
+// endpoints it cannot mask) cplt doctor says what to do. The reason's own
+// fix text, which can be a multi-line script, stays out of the line.
+func mcpOffProblem(id, reason string) mcpProblem {
+	fix := "cplt doctor"
+	if strings.Contains(reason, "is not usable") {
+		fix = mcpCpltDoctorFix
+	}
+	problem, _, _ := strings.Cut(reason, "\n")
+	if i := strings.Index(problem, ": without"); i > 0 {
+		problem = problem[:i]
+	} else if i := strings.Index(problem, ". "); i > 0 {
+		problem = problem[:i]
+	}
+	problem = strings.TrimRight(strings.TrimSpace(problem), ".")
+	if problem == "" {
+		return mcpProblem{Server: id, Problem: "cplt's MCP broker does not run here, so the server is left as configured", Fix: fix}
+	}
+	return mcpProblem{Server: id, Problem: "cplt's MCP broker is off here: " + safe(problem, 200), Fix: fix}
 }
