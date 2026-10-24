@@ -20,7 +20,7 @@ exec nav-pilot install plattform --user --yes
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
 exists $WORK/env.out
 ! grep 'OPENCODE_DISABLE_PROJECT_CONFIG' $WORK/env.out
-! stderr 'OpenCode plugins'
+! stderr 'OpenCode config'
 
 # A repo plugin, headless: off for the session, said on stderr.
 mkdir .opencode/plugins
@@ -28,10 +28,10 @@ cp $WORK/p.ts .opencode/plugins/p.ts
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
 grep '^OPENCODE_DISABLE_PROJECT_CONFIG=1$' $WORK/env.out
 grep '^--pass-env\nOPENCODE_DISABLE_PROJECT_CONFIG\n' $WORK/fake/cplt.log
-stderr 'its plugins are not approved yet. To approve, run nav-pilot pakke plugins in a terminal'
+stderr 'is off until you answer. Run nav-pilot plugins in a terminal'
 
 # The command shows the set and the state; headless it does not ask.
-! exec /bin/sh -c 'nav-pilot pakke plugins </dev/null'
+! exec /bin/sh -c 'nav-pilot plugins </dev/null'
 stdout 'p\.ts'
 stdout 'Answer: not asked'
 

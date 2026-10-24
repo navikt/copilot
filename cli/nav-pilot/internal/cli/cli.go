@@ -66,7 +66,7 @@ var commandAliases = map[string]string{
 }
 
 // dispatchedCommands is every command name run dispatches.
-var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "pakke", "env", "feedback", "survey", "news", "models", "mcp", "alpha", "auth", "usage", "version", "help"}
+var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "pakke", "env", "feedback", "survey", "news", "models", "mcp", "plugins", "alpha", "auth", "usage", "version", "help"}
 
 func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
@@ -103,7 +103,6 @@ Commands:
   validate                Check that a source repo conforms to the agentpakke contract
   pakke                   Show the agentpakke here: source, items, hooks and the access it asks for
   pakke access            Answer again about access you declined
-  pakke plugins           Show this repo's own OpenCode plugins and answer again about loading them
   pakke bump-base         Move the agentpakke this pakke reuses onto its latest revision
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
@@ -114,6 +113,7 @@ Commands:
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   models [filter]         List the models the client can use, the current one marked
   mcp [list|enable|disable]  List Nav's MCP servers and what stops yours from working; enable or disable some
+  plugins                 Show this repo's own OpenCode plugins and answer again whether to load them
   auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
   usage                   Show your GitHub Copilot usage (requires 'auth login')
   version                 Show version information
@@ -700,6 +700,18 @@ func run(args []string) error {
 			return cmdMCP(rest)
 		})
 	}
+	if command == "plugins" {
+		if len(rest) == 1 && (rest[0] == "-h" || rest[0] == "--help") {
+			printHelp(os.Stdout, "plugins")
+			return nil
+		}
+		if len(rest) > 0 {
+			return fmt.Errorf("usage: %s", providerpkg.OpenCodePluginsCommand)
+		}
+		return runWithCommandTelemetry("plugins", telemetryMode(), "none", func() error {
+			return providerpkg.RunOpenCodePlugins("")
+		})
+	}
 	if command == "models" {
 		return runWithCommandTelemetry("models", telemetryMode(), "none", func() error {
 			return cmdModels(rest, cliOverrides)
@@ -1154,12 +1166,8 @@ func run(args []string) error {
 			return runWithCommandTelemetry("pakke-access", telemetryMode(), scope.Name, func() error {
 				return cmdPakkeAccess(scope, scopeProvided)
 			})
-		case len(positional) == 1 && positional[0] == "plugins":
-			return runWithCommandTelemetry("pakke-plugins", telemetryMode(), "none", func() error {
-				return providerpkg.RunOpenCodePlugins(targetDir)
-			})
 		case len(positional) != 1 || positional[0] != "bump-base":
-			return fmt.Errorf("usage: nav-pilot pakke [access|plugins]\n       nav-pilot pakke bump-base [--target <dir>]")
+			return fmt.Errorf("usage: nav-pilot pakke [access]\n       nav-pilot pakke bump-base [--target <dir>]")
 		}
 		// It writes the lock, and a flag it accepted and ignored would write it
 		// anyway. git diff undoes a bump.

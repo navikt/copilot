@@ -1,11 +1,14 @@
 package provider
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/fs"
+	"hash"
+	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,23 +26,44 @@ import (
 // once per project and plugin set before letting them load. The user's own
 // global plugins are theirs and are not asked about.
 
-// openCodeProjectPlugins is what a launch in projectDir would load from the
-// project: plugin files and directories, and plugins entries in project config
-// documents. Names are short, for the prompt; sum covers paths, file contents
-// and the entries, so any change asks again. root keys the answer.
-func openCodeProjectPlugins(projectDir string, env []string) (root string, names []string, sum string) {
+// OpenCodePluginsCommand is the command that answers again.
+const OpenCodePluginsCommand = "nav-pilot plugins"
+
+// openCodePluginSet is what a launch would load from the project.
+type openCodePluginSet struct {
+	key   string // root plus the launch directory: the answer's key
+	root  string
+	names []string // short, for the prompt
+	sum   string   // "" when there are none
+}
+
+// openCodeProjectPlugins finds the plugin files and directories, and plugins
+// entries in project config documents with the code they point at. sum covers
+// paths (relative to root), file contents and the entries, so any change asks
+// again. The key adds the launch directory, since opencode reads a
+// subdirectory's .opencode only when launched there. A set that cannot be
+// pinned down (a non-regular file, an entry built from {env:} or {file:}) gets
+// a sum that never matches, so it is asked about every time.
+//
+// ponytail: a bundled plugin can import any file in the repo, so the hash
+// covers the plugin's own files, not everything it may load.
+func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
 	getenv := openCodeEnvGetter(env)
-	if v := strings.ToLower(getenv(openCodeDisableProjectConfigEnv)); v == "1" || v == "true" {
-		return "", nil, ""
+	for _, k := range []string{openCodeDisableProjectConfigEnv, "OPENCODE_CONFIG_PROJECT_DISABLE"} {
+		if v := strings.ToLower(getenv(k)); v == "1" || v == "true" {
+			return openCodePluginSet{}
+		}
 	}
 	if projectDir == "" {
 		projectDir, _ = os.Getwd()
 	}
 	projectDir, _ = filepath.Abs(projectDir)
-	root = source.FindGitRoot(projectDir)
-	if root == "" {
-		root = projectDir
+	set := openCodePluginSet{root: source.FindGitRoot(projectDir)}
+	if set.root == "" {
+		set.root = projectDir
 	}
+	rel, _ := filepath.Rel(set.root, projectDir)
+	set.key = set.root + "::" + filepath.ToSlash(rel)
 	home, _ := os.UserHomeDir()
 	// opencode 2 walks every ancestor; ~/.opencode is the user's own.
 	var dirs []string
@@ -49,7 +73,7 @@ func openCodeProjectPlugins(projectDir string, env []string) (root string, names
 			break
 		}
 	}
-	h := sha256.New()
+	w := pluginHasher{h: sha256.New(), root: set.root, seen: map[string]bool{}}
 	for _, d := range dirs {
 		if filepath.Base(d) != ".opencode" {
 			continue
@@ -58,25 +82,11 @@ func openCodeProjectPlugins(projectDir string, env []string) (root string, names
 			entries, _ := os.ReadDir(filepath.Join(d, sub))
 			for _, e := range entries {
 				p := filepath.Join(d, sub, e.Name())
-				st, err := os.Stat(p)
-				if err != nil || (!st.IsDir() && !strings.HasSuffix(p, ".ts") && !strings.HasSuffix(p, ".js")) {
+				if st, err := os.Stat(p); err == nil && !st.IsDir() && !strings.HasSuffix(p, ".ts") && !strings.HasSuffix(p, ".js") {
 					continue
 				}
-				names = append(names, e.Name())
-				// ponytail: hashes every file under a plugin directory except node_modules; fine for plugin-sized trees.
-				_ = filepath.WalkDir(p, func(f string, de fs.DirEntry, err error) error {
-					if err != nil {
-						return nil
-					}
-					if de.IsDir() && de.Name() == "node_modules" {
-						return filepath.SkipDir
-					}
-					if b, err := os.ReadFile(f); err == nil {
-						fmt.Fprintf(h, "file %s %d\n", f, len(b))
-						h.Write(b)
-					}
-					return nil
-				})
+				set.names = append(set.names, e.Name())
+				w.add(p)
 			}
 		}
 	}
@@ -84,33 +94,134 @@ func openCodeProjectPlugins(projectDir string, env []string) (root string, names
 		if !slices.Contains(dirs, filepath.Dir(doc.path)) {
 			continue
 		}
-		var cfg struct {
-			Plugins []json.RawMessage `json:"plugins"`
-			Plugin  []json.RawMessage `json:"plugin"`
-		}
+		var cfg map[string]json.RawMessage
 		if json.Unmarshal(stripJSONC(doc.content), &cfg) != nil {
 			continue
 		}
-		for _, e := range append(cfg.Plugins, cfg.Plugin...) {
-			var s string
-			if json.Unmarshal(e, &s) != nil {
-				var o struct {
-					Package string `json:"package"`
-				}
-				_ = json.Unmarshal(e, &o)
-				s = o.Package
-			}
-			if s == "" || strings.HasPrefix(s, "-") {
+		for _, k := range []string{"plugins", "plugin"} {
+			raw, ok := cfg[k]
+			if !ok {
 				continue
 			}
-			names = append(names, filepath.Base(strings.TrimPrefix(s, "file://")))
-			fmt.Fprintf(h, "entry %s %s\n", doc.path, e)
+			var list []json.RawMessage
+			if json.Unmarshal(raw, &list) != nil || list == nil {
+				// An unquoted {env:} nulls it here; opencode still sees a list.
+				set.names = append(set.names, k+" in "+filepath.Base(doc.path))
+				w.unknown = true
+				continue
+			}
+			for _, e := range list {
+				w.entry(doc.path, e, &set.names)
+			}
 		}
 	}
-	if len(names) == 0 {
-		return root, nil, ""
+	switch {
+	case len(set.names) == 0:
+	case w.unknown:
+		set.sum = "unknown:" + rand.Text()
+	default:
+		set.sum = hex.EncodeToString(w.h.Sum(nil))
 	}
-	return root, names, hex.EncodeToString(h.Sum(nil))
+	return set
+}
+
+// pluginMaxRead caps what is read per file before the user has said yes.
+const pluginMaxRead = 1 << 20
+
+type pluginHasher struct {
+	h       hash.Hash
+	root    string
+	seen    map[string]bool
+	unknown bool
+}
+
+func (w *pluginHasher) rel(p string) string {
+	if r, err := filepath.Rel(w.root, p); err == nil && !strings.HasPrefix(r, "..") {
+		return filepath.ToSlash(r)
+	}
+	return p
+}
+
+// entry hashes one plugins entry and, for a local one, the code it names,
+// resolved as opencode's core/src/config/plugin/source.ts does.
+func (w *pluginHasher) entry(docPath string, e json.RawMessage, names *[]string) {
+	var s string
+	if json.Unmarshal(e, &s) != nil {
+		var o struct {
+			Package string `json:"package"`
+		}
+		_ = json.Unmarshal(e, &o)
+		s = o.Package
+	}
+	if s == "" || strings.HasPrefix(s, "-") {
+		return
+	}
+	if strings.Contains(string(e), "{env:") || strings.Contains(string(e), "{file:") {
+		w.unknown = true
+	}
+	target := s
+	switch {
+	case strings.HasPrefix(s, "file://"):
+		if u, err := url.Parse(s); err == nil {
+			target = u.Path
+		}
+	case strings.HasPrefix(s, "./"), strings.HasPrefix(s, "../"):
+		target = filepath.Join(filepath.Dir(docPath), s)
+	}
+	*names = append(*names, filepath.Base(target))
+	fmt.Fprintf(w.h, "entry %s %s\n", w.rel(docPath), e)
+	if filepath.IsAbs(target) {
+		w.add(target)
+	}
+}
+
+// add hashes p, following symlinks, and reads only regular files.
+func (w *pluginHasher) add(p string) {
+	real, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		if _, lerr := os.Lstat(p); lerr != nil {
+			fmt.Fprintf(w.h, "missing %s\n", w.rel(p))
+		} else {
+			w.unknown = true // a dangling or looping link
+		}
+		return
+	}
+	if w.seen[real] {
+		return
+	}
+	w.seen[real] = true
+	st, err := os.Lstat(real)
+	switch {
+	case err != nil:
+		w.unknown = true
+	case st.IsDir():
+		fmt.Fprintf(w.h, "dir %s\n", w.rel(p))
+		entries, err := os.ReadDir(real)
+		if err != nil {
+			w.unknown = true
+			return
+		}
+		for _, e := range entries {
+			if e.Name() == "node_modules" && e.IsDir() {
+				continue
+			}
+			w.add(filepath.Join(p, e.Name()))
+		}
+	case st.Mode().IsRegular():
+		fmt.Fprintf(w.h, "file %s %d\n", w.rel(p), st.Size())
+		if st.Size() > pluginMaxRead {
+			return // name and size only
+		}
+		f, err := os.Open(real)
+		if err != nil {
+			w.unknown = true
+			return
+		}
+		_, _ = io.Copy(w.h, io.LimitReader(f, pluginMaxRead))
+		f.Close()
+	default:
+		w.unknown = true // a FIFO, device or socket
+	}
 }
 
 type openCodePluginAnswer struct {
@@ -118,9 +229,9 @@ type openCodePluginAnswer struct {
 	Allow bool   `json:"allow"`
 }
 
-// The answers live next to cplt-trust-seen.json, keyed by project root: like
-// that file they record what this user said about a repo's own files, by hash.
-// The proposal consent store is about pakke proposals and their scopes.
+// The answers live next to cplt-trust-seen.json: like that file they record
+// what this user said about a repo's own files, by hash. The proposal consent
+// store is about pakke proposals and their scopes.
 func openCodePluginAnswersFile() string {
 	dir, err := telemetry.GetConfigDir()
 	if err != nil {
@@ -141,7 +252,7 @@ func readOpenCodePluginAnswers() map[string]openCodePluginAnswer {
 
 var openCodePluginAnswersMu sync.Mutex
 
-func recordOpenCodePluginAnswer(root string, a openCodePluginAnswer) {
+func recordOpenCodePluginAnswer(key string, a openCodePluginAnswer) {
 	openCodePluginAnswersMu.Lock()
 	defer openCodePluginAnswersMu.Unlock()
 	p := openCodePluginAnswersFile()
@@ -149,7 +260,7 @@ func recordOpenCodePluginAnswer(root string, a openCodePluginAnswer) {
 		return
 	}
 	m := readOpenCodePluginAnswers()
-	m[root] = a
+	m[key] = a
 	b, _ := json.MarshalIndent(m, "", "  ")
 	_ = os.MkdirAll(filepath.Dir(p), 0o700)
 	_ = writeConfigAtomically(p, b)
@@ -175,16 +286,13 @@ var (
 	}
 )
 
-// OpenCodePluginsCommand is the command that answers again.
-const OpenCodePluginsCommand = "nav-pilot pakke plugins"
-
-func askOpenCodePluginSet(root string, names []string, sum string) bool {
-	short := names
+func askOpenCodePluginSet(set openCodePluginSet) bool {
+	short := set.names
 	if len(short) > 3 {
 		short = append(slices.Clone(short[:3]), "…")
 	}
-	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. [y/N] ", len(names), strings.Join(short, ", ")))
-	recordOpenCodePluginAnswer(root, openCodePluginAnswer{Hash: sum, Allow: allow})
+	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. [y/N] ", len(set.names), strings.Join(short, ", ")))
+	recordOpenCodePluginAnswer(set.key, openCodePluginAnswer{Hash: set.sum, Allow: allow})
 	return allow
 }
 
@@ -196,45 +304,49 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 	if openCodeMajor() < 2 {
 		return env
 	}
-	root, names, sum := openCodeProjectPlugins(projectDir, env)
-	if sum == "" {
+	set := openCodeProjectPlugins(projectDir, env)
+	if set.sum == "" {
 		return env
 	}
-	a, ok := readOpenCodePluginAnswers()[root]
+	a, ok := readOpenCodePluginAnswers()[set.key]
 	allow := a.Allow
 	switch {
-	case ok && a.Hash == sum:
+	case ok && a.Hash == set.sum:
 	case !openCodePluginsTTY():
 		// Headless: never block, never load an unanswered set, record nothing.
 		env, _ = telemetry.SetEnvValue(env, openCodeDisableProjectConfigEnv, "1")
-		fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config is off: its plugins are not approved yet. To approve, run %s in a terminal.\n", domain.Yellow("⚠"), OpenCodePluginsCommand)
+		fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config (plugins, agents, AGENTS.md) is off until you answer. Run %s in a terminal.\n", domain.Yellow("⚠"), OpenCodePluginsCommand)
 		return env
 	default:
-		allow = askOpenCodePluginSet(root, names, sum)
+		allow = askOpenCodePluginSet(set)
 	}
 	if allow {
 		return env
 	}
 	env, _ = telemetry.SetEnvValue(env, openCodeDisableProjectConfigEnv, "1")
-	fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config is off (its plugins aren't trusted). Change: %s\n", domain.Dim("-"), OpenCodePluginsCommand)
+	fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config is off (you declined its plugins). Change: %s\n", domain.Dim("-"), OpenCodePluginsCommand)
+	// A repo-scope install lives in the same .opencode/ and goes off with it.
+	if _, err := os.Stat(filepath.Join(set.root, ".opencode", ".nav-pilot-state.json")); err == nil {
+		fmt.Fprintf(os.Stderr, "%s nav-pilot's agents installed in this repo are off too. nav-pilot install --user puts them where they stay on.\n", domain.Dim("-"))
+	}
 	return env
 }
 
 // RunOpenCodePlugins shows the repo's own OpenCode plugins and the stored
 // answer, and asks again on a terminal.
 func RunOpenCodePlugins(projectDir string) error {
-	root, names, sum := openCodeProjectPlugins(projectDir, nil)
-	if sum == "" {
+	set := openCodeProjectPlugins(projectDir, nil)
+	if set.sum == "" {
 		fmt.Println("This repo has no OpenCode plugins of its own.")
 		return nil
 	}
-	fmt.Printf("OpenCode plugins in %s:\n", root)
-	for _, n := range names {
+	fmt.Printf("OpenCode plugins in %s:\n", set.root)
+	for _, n := range set.names {
 		fmt.Printf("  %s\n", n)
 	}
-	a, ok := readOpenCodePluginAnswers()[root]
+	a, ok := readOpenCodePluginAnswers()[set.key]
 	switch {
-	case !ok || a.Hash != sum:
+	case !ok || a.Hash != set.sum:
 		fmt.Println("Answer: not asked (off until approved)")
 	case a.Allow:
 		fmt.Println("Answer: load them")
@@ -244,6 +356,6 @@ func RunOpenCodePlugins(projectDir string) error {
 	if !openCodePluginsTTY() {
 		return fmt.Errorf("no terminal to ask on: run %s in a terminal", OpenCodePluginsCommand)
 	}
-	askOpenCodePluginSet(root, names, sum)
+	askOpenCodePluginSet(set)
 	return nil
 }
