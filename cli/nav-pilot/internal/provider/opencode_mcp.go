@@ -271,7 +271,7 @@ func (r mcpRegistry) listed(s mcpServer) bool {
 		// no environment of its own, so a config cannot point PATH at its own
 		// cplt. cplt never replaces an entry that does not run its command,
 		// so turning such an entry off never touches cplt's (#1941).
-		if c := s.Command; len(c) == 3 && c[0] == "cplt" && c[1] == "mcp-stdio" && r.Brokered[c[2]] {
+		if r.brokerEntry(s) {
 			return true
 		}
 	default:
@@ -295,6 +295,13 @@ func (r mcpRegistry) listed(s mcpServer) bool {
 		}
 	}
 	return false
+}
+
+// brokerEntry reports whether s runs exactly `cplt mcp-stdio <id>` for an id
+// the registry brokers, whatever its environment.
+func (r mcpRegistry) brokerEntry(s mcpServer) bool {
+	c := s.Command
+	return s.Type == "local" && len(c) == 3 && c[0] == "cplt" && c[1] == "mcp-stdio" && r.Brokered[c[2]]
 }
 
 func validMCPPackageSpec(pkg string) bool {
@@ -723,7 +730,24 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 			listed = append(listed, name)
 		}
 	}
-	blocked, _ := json.Marshal(map[string][]string{"blocked": off, "listed": listed})
+	// A pasted copy of cplt's own broker entry is still turned off above
+	// (it has an environment), but cplt replaces it in place, so its tools
+	// stay unblocked (#1960). It joins listed, so the bridges' longest-prefix
+	// match never falls back to a shorter blocked name. Both lookups are
+	// cached: no second request.
+	block := off
+	if registry, err := fetchMCPPolicy(); err == nil {
+		if reg, err := fetchMCPRegistry(registry); err == nil {
+			block = slices.DeleteFunc(slices.Clone(off), func(n string) bool {
+				if reg.brokerEntry(servers[n]) {
+					listed = append(listed, n)
+					return true
+				}
+				return false
+			})
+		}
+	}
+	blocked, _ := json.Marshal(map[string][]string{"blocked": block, "listed": listed})
 	env, _ = telemetry.SetEnvValue(env, MCPBlockedEnv, string(blocked))
 	return withOpenCodeConfigContent(env, map[string]any{"mcp": mcp})
 }
