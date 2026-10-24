@@ -366,6 +366,19 @@ func TestMCPBrokerProbesOncePerRun(t *testing.T) {
 	}
 }
 
+func TestMCPEnableBrokerLoginProbeTimeout(t *testing.T) {
+	f := brokerEnv(t, brokerStatusOK)
+	writeTestFile(t, filepath.Join(f.dir, "hang"), "")
+	mcpProbeTimeout = 200 * time.Millisecond
+	var err error
+	errOut := captureStderr(func() {
+		captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp"}) })
+	})
+	if err != nil || !strings.Contains(errOut, "could not check the nais login (timed out)") || !strings.Contains(errOut, "nav-pilot mcp enable nais-mcp again") {
+		t.Errorf("enable with a hanging probe (err %v):\n%s", err, errOut)
+	}
+}
+
 func TestMCPEnableBrokerAllToolsAllowsWrites(t *testing.T) {
 	f := brokerEnv(t, brokerStatusOK)
 	captureStdout(func() {

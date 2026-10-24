@@ -105,6 +105,8 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 	switch res.Login {
 	case "not installed":
 		warn(tool+" is not installed", "install it ("+m.install+"), then run "+login)
+	case "unknown (timed out)":
+		warn("could not check the "+tool+" login (timed out)", "run nav-pilot mcp enable "+e.Name+" again, or check it with "+login)
 	case "logged out":
 		switch {
 		case jsonOut || !isInteractive():
