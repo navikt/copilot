@@ -27,14 +27,16 @@ const TOC: TocItem[] = [
 type Verdict = { task: string; verdict: string };
 
 const VERDICTS: Verdict[] = [
-  { task: "Legge til et argument i 1–2 kall, i flere filer", verdict: "Godkjent for delegering" },
-  { task: "Det samme i 3–8 kall", verdict: "Ikke godkjent ennå" },
-  { task: "Det samme i 9 kall eller flere", verdict: "Blir i skyen" },
+  {
+    task: "Mekanisk endring i flere filer",
+    verdict:
+      "Blir i skyen. Målingene holdt kvalitetsgrensen, men vi valgte 23. oktober 2026 å la skymodellen gjøre dette",
+  },
   {
     task: "Endre én fil",
-    verdict: "Ikke godkjent for delegering ennå. Modellen for 64 GB er godkjent som hovedagent",
+    verdict: "Godkjent for delegering. Modellen for 64 GB er også godkjent som hovedagent",
   },
-  { task: "Lage en ny fil", verdict: "Godkjent lokalt på de to letteste trinnene, ikke for delegering" },
+  { task: "Lage en ny fil", verdict: "Godkjent for delegering" },
   {
     task: "Svare på spørsmål om kodebasen",
     verdict: "Ikke godkjent for delegering. Modellen for 64 GB og Qwen3.8-27B-OptiQ er godkjent som hovedagent",
@@ -97,8 +99,8 @@ export default function LokalModellForklaring() {
             </li>
             <li>
               <code className={code}>balanced</code>: redigerer hovedagenten selv en femte fil eller et tiende kall i
-              samme runde, stopper nav-pilot den én gang. Da ber nav-pilot den delegere resten. Et søk-og-erstatt teller
-              hvert sted det endrer.
+              samme runde, stopper nav-pilot den én gang, hvis modellen er godkjent for mekaniske endringer i flere
+              filer. Da ber nav-pilot den delegere resten. Et søk-og-erstatt teller hvert sted det endrer.
             </li>
             <li>
               <code className={code}>aggressive</code> (standard): en stoppet fil slipper gjennom først når den er
@@ -118,12 +120,12 @@ export default function LokalModellForklaring() {
             .
           </BodyLong>
           <BodyLong>
-            Derfor er ingen flere oppgavetyper godkjent for delegering. Siden 8. oktober 2026 må delegering koste høyst
-            like mye som skyen alene, regnet samlet over alle målingene for oppgavetypen (
+            Siden 8. oktober 2026 må delegering koste høyst like mye som skyen alene, regnet samlet over alle målingene
+            for oppgavetypen (
             <a href={SOURCES.costRule} className={linkClass}>
               kostnadsregelen
             </a>
-            ). Ingen av de nye målingene klarte det:
+            ). Disse målingene klarte det ikke:
           </BodyLong>
           <Bullets>
             <li>
@@ -150,8 +152,10 @@ export default function LokalModellForklaring() {
           <BodyLong>nav-pilot stopper bare det manifestet har godkjent modellen for. I dag betyr det:</BodyLong>
           <Bullets>
             <li>
-              Standardmodellen på Mac er godkjent bare for mekaniske endringer i flere filer, så regelen om nye filer
-              slår ikke inn.
+              Standardmodellen på Mac er godkjent for endringer i én fil og nye filer, men ikke for mekaniske endringer
+              i flere filer. Derfor stopper nav-pilot ikke hovedagenten ved femte fil eller tiende kall. På{" "}
+              <code className={code}>aggressive</code> stopper nav-pilot en ny fil hovedagenten lager selv, til den er
+              delegert til <code className={code}>local-worker</code>.
             </li>
             <li>
               Lager eller endrer modellen en fil som ikke bygger eller består testene, får den feilen tilbake og ett
