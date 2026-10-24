@@ -56,6 +56,15 @@
     ],
     "instructions/kotlin-spring.metadata.json": [
       "ff9b226688872751bf5a24e54a0d92408ed22fcb"
+    ],
+    "skills/aksel-spacing/SKILL.md": [
+      "6be8a0173d55ee0dba158744a484cfacad987fe5",
+      "f03da473bc1513acbb01085e22e94089ee4ffbad",
+      "fe92e3d6909f289fd6fc76982773d4de9153b9ca"
+    ],
+    "skills/aksel-spacing/metadata.json": [
+      "a1475e627d97a571c9b02ba5c6cd6dcd9e5636d2",
+      "e9af59c2c44039f3138ecab5c2a5a377f9f30baa"
     ]
   }
 }

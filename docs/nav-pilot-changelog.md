@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-24
 
+### Aksel: `aksel-spacing` er pensjonert, bruk `aksel-builder`
+
+- **`aksel-spacing` er fjernet**: Rådene om layout og spacing står nå i `aksel-builder`, sammen med resten av Aksel-veiledningen. Har du en uendret kopi av `aksel-spacing`, fjerner `nav-pilot sync --apply` den. Installer `aksel-builder` i stedet: `nav-pilot install aksel-builder --type skill --repo`. En kopi du har endret selv, blir liggende.
+
 ### Spør før repoets egne OpenCode-plugins lastes
 
 - **OpenCode 2**: Har repoet egne OpenCode-plugins, spør nav-pilot én gang før de lastes. De kjører med samme tilgang som agenten. Enter betyr nei. Svarer du nei, slår nav-pilot av repoets eget OpenCode-oppsett for økta: konfigurasjon, plugins, agenter, kommandoer, skills og `AGENTS.md`, og sier det i én linje ved hver oppstart. Svaret huskes til pluginene endrer seg, og gjelder også uten terminal. Uten terminal lastes de ikke før du har svart.

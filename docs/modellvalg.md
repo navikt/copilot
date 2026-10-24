@@ -32,7 +32,7 @@ De fleste agenter og prompts har et eksplisitt `model:`-felt i YAML-frontmatter.
 | ---------------------- | ---------------- | --------------------------------------------------------------------------- |
 | `kafka-topic`          | GPT-6 Luna       | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                   |
 | `nais-manifest`        | GPT-6 Luna       | Fast scaffold-prompt. GPT-5.3-Codex beholdes som fallback                   |
-| aksel-component        | GPT-6 Luna | Komponentmal som bruker `aksel-builder` og verifiserte Aksel-API-er               |
+| `aksel-component`      | GPT-6 Luna       | Komponentmal som bruker `aksel-builder` og verifiserte Aksel-API-er         |
 | `ktor-endpoint`        | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
 | `nextjs-api-route`     | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |
 | `spring-boot-endpoint` | GPT-6 Luna       | Enkel strukturert mal. GPT-5.6 Luna beholdes som fallback under utrullingen |

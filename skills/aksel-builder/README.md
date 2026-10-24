@@ -47,21 +47,17 @@ Install the builder in the consuming repository with `nav-pilot`:
 nav-pilot install aksel-builder --type skill --source navikt/copilot --repo
 ```
 
-For older recipes that name `aksel-spacing`, also install the compatibility alias:
+`aksel-builder` replaces the retired `aksel-spacing` skill. `nav-pilot sync --apply` removes
+an unchanged `aksel-spacing` copy; install the builder in its place.
 
-```sh
-nav-pilot install aksel-spacing --type skill --source navikt/copilot --repo
-```
-
-The alias requires the builder; installing an individual artifact does not install its
-companions. Install the builder alongside any of these optional entry points:
+Installing an individual artifact does not install its companions. Install the builder
+alongside any of these optional entry points:
 
 | Artifact                              | Source                                                         | Role                                                  |
 | ------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------- |
 | `aksel` agent (`aksel-agent` in chat) | [Agent](../../agents/aksel.agent.md)                           | Routes Aksel tasks to this skill                      |
 | `aksel-component` prompt              | [Prompt](../../prompts/aksel-component.prompt.md)              | Scaffolds a component using this workflow             |
 | `nextjs-aksel` instruction            | [Instruction](../../instructions/nextjs-aksel.instructions.md) | Keeps Next.js guidance and Aksel integration together |
-| `aksel-spacing` skill                 | [Compatibility alias](../aksel-spacing/SKILL.md)               | Supports older references without a second rule set   |
 
 Use `--type agent`, `--type prompt`, or `--type instruction` when installing those artifact
 names with the same source and scope flags. New layout tasks should select `aksel-builder`

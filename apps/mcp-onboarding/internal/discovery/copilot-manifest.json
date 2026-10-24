@@ -619,16 +619,6 @@
     },
     {
       "type": "skill",
-      "name": "aksel-spacing",
-      "displayName": "aksel-spacing",
-      "description": "Kompatibilitetsalias som laster aksel-builder. Velg aksel-builder direkte for nye layout- og spacing-oppgaver.",
-      "filePath": "skills/aksel-spacing/SKILL.md",
-      "contentHash": "ca71073cab93dcb79caead64866f5f49379c800e6d3cc3c8ae070a8e527152f8",
-      "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-spacing/SKILL.md"
-    },
-    {
-      "type": "skill",
       "name": "api-design",
       "displayName": "api-design",
       "description": "REST API-designmønstre, versjonering, feilhåndtering (RFC 7807) og OpenAPI-konvensjoner for Nav-tjenester",
