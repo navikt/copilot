@@ -109,7 +109,8 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     fix: (
       <>
         Prøv igjen. Står det <code className={code}>timed out</code>, brukte cplt for lang tid. Med cplt fra før 24.
-        oktober 2026 kjører du <code className={code}>nav-pilot mcp list</code> fra repoet ditt.
+        oktober 2026 kjører du <code className={code}>nav-pilot mcp enable io.github.nais/nais-mcp</code> på nytt fra
+        repoet ditt.
       </>
     ),
   },
@@ -230,12 +231,9 @@ export default function McpGjennomCplt() {
           </LinkableHeading>
           <Bullets>
             <li>
-              Bare lesende verktøy er slått på som standard. Vil du ha verktøy som skriver, slår du dem på med{" "}
-              <code className={code}>--tools</code> eller <code className={code}>--all-tools</code>, og nav-pilot ber
-              deg godkjenne det:
-              <CodeBlock
-                compact
-              >{`nav-pilot mcp enable io.github.nais/nais-mcp --tools <verktøy som skriver>`}</CodeBlock>
+              Bare lesende verktøy er slått på som standard. Verktøy som skriver, slår du på selv med{" "}
+              <code className={code}>--tools</code> eller <code className={code}>--all-tools</code>. Det valget er
+              samtykket ditt, og nav-pilot spør ikke i tillegg. Alle verktøyene i Nais MCP leser i dag.
             </li>
             <li>
               GraphQL-verktøyet i Nais MCP sender bare spørringer. cplt avviser mutasjoner og dokumenter med mer enn én
@@ -281,7 +279,7 @@ export default function McpGjennomCplt() {
             <code className={code}>cplt doctor --fix</code> det med <code className={code}>apt-get</code> (Debian og
             Ubuntu) eller <code className={code}>dnf</code> (Fedora). Starter du cplt med{" "}
             <code className={code}>--allow-gpg-signing</code> eller{" "}
-            <code className={code}>--allow-rootless-docker</code>, er serveren av, fordi begge trenger sockets som cplt
+            <code className={code}>--allow-rootless-docker</code>, er serveren av, fordi begge trenger socketer som cplt
             skjuler.
           </BodyLong>
           <div className="overflow-x-auto">
@@ -330,8 +328,8 @@ export default function McpGjennomCplt() {
             Ubuntu 24.04 og nyere
           </LinkableHeading>
           <BodyLong>
-            Fiksen gir <code className={code}>bwrap</code>, og bare den, lov til å lage user namespaces. cplt kan gjøre
-            det for deg:
+            Endringen gir <code className={code}>bwrap</code>, og bare den, lov til å lage user namespaces. cplt kan
+            gjøre det for deg:
           </BodyLong>
           <CodeBlock compact>{`cplt doctor --fix`}</CodeBlock>
           <BodyLong>
