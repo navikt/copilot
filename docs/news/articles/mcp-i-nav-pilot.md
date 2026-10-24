@@ -31,12 +31,12 @@ Start en ny økt etterpå. Detaljene står i [MCP gjennom cplt](/nav-pilot/guide
 
 **Figma** logger du inn på i klienten, ikke gjennom cplt. I OpenCode gjør du det én gang med `opencode mcp auth com.figma/figma-mcp`.
 
-**Likt i begge klienter.** `nav-pilot mcp enable` skriver serveren til Copilot CLI og OpenCode, og `nav-pilot mcp list` viser begge. To nye kolonner: LOGIN viser `nais: ok` når du er logget inn, og PATH viser `cplt broker` når cplt kjører serveren. Står det `cplt (off here)`, sier linja under hvorfor cplt ikke kan kjøre den.
+**Likt i begge klienter.** `nav-pilot mcp enable` setter opp Nais MCP én gang for cplt, og cplt legger serveren inn i både Copilot CLI og OpenCode når du starter en økt. `nav-pilot mcp list` viser begge. To nye kolonner: LOGIN viser `nais: ok` når du er logget inn, og PATH viser `cplt broker` når cplt kjører serveren. Står det `cplt (off here)`, sier linja under hvorfor cplt ikke kan kjøre den.
 
 ## Sikkerhet
 
 - **Innloggingen blir på maskinen din.** Nais-tokenet og `gh`-tokenet kommer aldri inn i sandkassen. Agenten ser verktøyene, ikke tokenet.
-- **Bare lesing som standard.** Nais MCP får som standard bare lesende verktøy. Vil du ha verktøy som skriver, ber du om dem med `--tools`, og nav-pilot ber deg godkjenne det. GitHub-proxyen i OpenCode bruker alltid det skrivebeskyttede endepunktet.
+- **Bare lesing som standard.** Nais MCP får som standard bare lesende verktøy, og alle verktøyene i Nais MCP leser i dag. Verktøy som skriver, slår du på selv med `--tools` eller `--all-tools`. Det valget er samtykket ditt, og nav-pilot spør ikke i tillegg. GitHub-proxyen i OpenCode bruker alltid det skrivebeskyttede endepunktet.
 - **cplt avviser GraphQL-mutasjoner.** GraphQL-verktøyet i Nais MCP slipper bare gjennom spørringer. cplt avviser mutasjoner og dokumenter med mer enn én operasjon. Fra Nais CLI 7.0.2 sjekker også Nais CLI hver operasjon. cplt avbryter et kall som ikke har fått svar etter 120 sekunder.
 - **cplt kjører ikke en server agenten kan endre.** Ligger oppsettet til serveren i en mappe agenten kan skrive til, nekter cplt å starte den.
 
