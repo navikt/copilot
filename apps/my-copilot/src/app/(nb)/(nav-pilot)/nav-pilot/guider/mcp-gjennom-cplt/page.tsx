@@ -11,7 +11,7 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "MCP gjennom cplt",
   description:
-    "Slå på Nais MCP og GitHub under cplt. cplt kjører serverne på maskinen din, så innloggingen din ikke kommer inn i sandkassen.",
+    "Slå på Nais MCP og GitHub under cplt. cplt kjører Nais MCP på maskinen din, så Nais-innloggingen ikke kommer inn i sandkassen.",
 };
 
 const TOC: TocItem[] = [
@@ -143,7 +143,7 @@ export default function McpGjennomCplt() {
       label="Guider"
       upgrade
       title="MCP gjennom cplt"
-      description="Noen MCP-servere trenger innloggingen din. cplt kjører dem på maskinen din, utenfor sandkassen, så agenten får verktøyene uten å se innloggingen."
+      description="Nais MCP trenger Nais-innloggingen din. cplt kjører serveren på maskinen din, utenfor sandkassen, så agenten får verktøyene uten å se innloggingen."
       toc={TOC}
     >
       <section>
@@ -152,10 +152,15 @@ export default function McpGjennomCplt() {
             Hva det er
           </LinkableHeading>
           <BodyLong>
-            Nais MCP leser innloggingen din fra nøkkelringen, og GitHub-serveren trenger{" "}
-            <code className={code}>gh</code>-tokenet ditt. Ingen av delene skal inn i sandkassen. Derfor kjører cplt
-            disse serverne på maskinen din, utenfor sandkassen. Som standard når agenten bare de lesende verktøyene. Det
-            virker likt i Copilot CLI og OpenCode.
+            Nais MCP leser innloggingen din fra nøkkelringen. cplt kjører serveren på maskinen din, utenfor sandkassen,
+            så Nais-innloggingen aldri kommer inn i sandkassen. Det virker likt i Copilot CLI og OpenCode.
+            GitHub-serveren i OpenCode går gjennom en proxy i cplt som holder <code className={code}>gh</code>-tokenet
+            utenfor MCP-trafikken. Tokenet er likevel tilgjengelig i sandkassen på andre måter, for eksempel gjennom{" "}
+            <code className={code}>gh</code>, se{" "}
+            <a href="https://github.com/navikt/cplt/blob/main/SECURITY.md" className={linkClass}>
+              SECURITY.md i cplt
+            </a>
+            . Som standard når agenten bare de lesende verktøyene.
           </BodyLong>
         </VStack>
       </section>
@@ -201,9 +206,11 @@ export default function McpGjennomCplt() {
           <LinkableHeading id="github" size="medium" level="2">
             GitHub i OpenCode
           </LinkableHeading>
+          <BodyLong>Proxyen krever OpenCode 2. Slå på GitHub-serveren for OpenCode først:</BodyLong>
+          <CodeBlock compact>{`nav-pilot mcp enable io.github.navikt/github-mcp --client opencode`}</CodeBlock>
           <BodyLong>
-            I OpenCode kobler cplt GitHub-serveren gjennom sin egen proxy, med <code className={code}>gh</code>
-            -innloggingen din. Du trenger ikke <code className={code}>mcp auth</code>. Sjekk at du er logget inn med{" "}
+            Da kobler cplt serveren gjennom sin egen proxy, med <code className={code}>gh</code>-innloggingen din. Du
+            trenger ikke <code className={code}>mcp auth</code>. Sjekk at du er logget inn med{" "}
             <code className={code}>gh auth status</code>, og start en ny økt. Proxyen slipper bare gjennom lesende
             verktøy. Detaljene står i{" "}
             <NextLink href="/nav-pilot/guider/feilsoking#mcp-opencode" className={linkClass}>
@@ -363,14 +370,16 @@ sudo apparmor_parser -r /etc/apparmor.d/bwrap`}
             Nais-innlogging i WSL2
           </LinkableHeading>
           <BodyLong>
-            Nais CLI lagrer innloggingen gjennom Secret Service. WSL2 uten skrivebord har ingen slik tjeneste. Installer
-            gnome-keyring og start den før du kjører <code className={code}>nais login -n</code>:
+            Nais CLI lagrer innloggingen gjennom Secret Service. WSL2 uten skrivebord har ingen slik tjeneste, så du må
+            sette opp en nøkkelring, for eksempel gnome-keyring, før du kjører{" "}
+            <code className={code}>nais login -n</code>. Gi nøkkelringen et passord. Låser du den opp med tomt passord,
+            lagres nøkkelen til Nais-innloggingen ukryptert på disken. Vi har ikke en testet oppskrift som ber om
+            passordet uten å sende det gjennom et rør eller skrive det i historikken, så følg{" "}
+            <a href="https://wiki.gnome.org/Projects/GnomeKeyring" className={linkClass}>
+              dokumentasjonen til GNOME Keyring
+            </a>
+            .
           </BodyLong>
-          <CodeBlock compact>
-            {`sudo apt install gnome-keyring dbus-x11
-eval "$(dbus-launch --sh-syntax)"
-echo -n "" | gnome-keyring-daemon --unlock --components=secrets`}
-          </CodeBlock>
           <BodyLong>
             <a href="https://github.com/nais/cli/issues/815" className={linkClass}>
               nais/cli#815
