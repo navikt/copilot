@@ -63,6 +63,17 @@ var activePakkeDeclared bool
 // that way; a sandbox waiver must not be. See provider's cpltProposalFlags.
 func ActivePakkeIsDeclared() bool { return activePakkeDeclared }
 
+// UseDefaultSourcePakke makes the built-in default the active agentpakke as
+// [DefaultRepo]'s own declaration. A launch with no source configured runs
+// navikt/copilot, and the built-in default stands for that source's manifest
+// (its proposal hashes equal to the committed one), so a waiver approved for it
+// applies. Without this, a user with no `source` key had the approval recorded
+// but never passed to cplt.
+func UseDefaultSourcePakke() {
+	activePakke = agentpakke.Default()
+	activePakkeDeclared = true
+}
+
 // Source holds a resolved source directory and optional temp dir to clean up.
 type Source struct {
 	Dir     string

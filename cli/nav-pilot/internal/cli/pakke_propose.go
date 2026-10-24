@@ -165,7 +165,10 @@ func putProposal(scope *InstallScope, src *Source, dryRun, jsonOutput, reask boo
 		// Answered already, for exactly this block. An approval needs no
 		// second look, and a decline must not be asked again — that is what
 		// recording it is for — unless the user asked to be asked.
-		if prior.Approved || !reask {
+		// The one approval asked again is one stamped under an older cplt,
+		// when the user asked: answering now stamps it with this one.
+		stale := prior.Approved && providerpkg.WaiverBlockedReason(prior) != "" && providerpkg.WaiverFix() == ""
+		if !reask || (prior.Approved && !stale) {
 			return nil
 		}
 		// The same block, so nothing "changed since you last answered".

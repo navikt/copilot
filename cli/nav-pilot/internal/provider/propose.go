@@ -244,6 +244,18 @@ func WaiverBlockedReason(record *artifacts.ProposalConsent) string {
 	return untrustworthyRecord(record)
 }
 
+// WaiverFix is the command that clears [WaiverBlockedReason]'s reason, or ""
+// when answering again is the fix (a record stamped under an older cplt).
+func WaiverFix() string {
+	switch {
+	case !cpltProtectsNavPilotState():
+		return cpltUpgradeHint()
+	case !consentRecordIsProtected():
+		return "unset NAV_PILOT_CONFIG"
+	}
+	return ""
+}
+
 // recordedCpltLabel names the cplt a record was made under, for the one line
 // that refuses it. An empty stamp means the probe could not read a version then.
 func recordedCpltLabel(record *artifacts.ProposalConsent) string {

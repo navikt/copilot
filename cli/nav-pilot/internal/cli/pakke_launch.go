@@ -37,6 +37,9 @@ import (
 // again.
 func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	if resolved.Source == "" {
+		// No source is navikt/copilot, whose manifest the built-in default is:
+		// its approved sandbox access applies as it does with --source.
+		source.UseDefaultSourcePakke()
 		return false, payloadContextUnsupported(resolved, defaultSourceRepo)
 	}
 
