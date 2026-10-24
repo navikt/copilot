@@ -1,0 +1,49 @@
+# opencode 2 loads a repo's own plugins with no question asked. nav-pilot asks
+# first; with no terminal to ask on it turns the repo's OpenCode config off for
+# the session instead, and never blocks. A repo without plugins is untouched.
+
+fake-bin cplt opencode
+env PATH=$PATH${:}/bin${:}/usr/bin
+env OC_VERSION='opencode v2.1.4'
+
+mkdir plattform/skills repo
+cd plattform
+exec git init -q .
+exec git add -A
+exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
+cd ../repo
+exec git init -q .
+exec nav-pilot config set source $WORK/plattform
+exec nav-pilot install plattform --user --yes
+
+# Control: no plugins, no switch, no line.
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+exists $WORK/env.out
+! grep 'OPENCODE_DISABLE_PROJECT_CONFIG' $WORK/env.out
+! stderr 'OpenCode plugins'
+
+# A repo plugin, headless: off for the session, said on stderr.
+mkdir .opencode/plugins
+cp $WORK/p.ts .opencode/plugins/p.ts
+exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
+grep '^OPENCODE_DISABLE_PROJECT_CONFIG=1$' $WORK/env.out
+grep '^--pass-env\nOPENCODE_DISABLE_PROJECT_CONFIG\n' $WORK/fake/cplt.log
+stderr 'This repo has its own OpenCode plugins; with no terminal to ask'
+
+-- p.ts --
+export default {}
+-- fake/opencode.sh --
+for a in "$@"; do last=$a; done
+[ "$last" = --version ] && { echo "$OC_VERSION"; exit 0; }
+-- fake/cplt.sh --
+for a in "$@"; do last=$a; done
+[ "$last" = --version ] && { echo 'cplt 2026.10.22-172931-b37a8ab'; exit 0; }
+env | grep '^OPENCODE_' > "$WORK/env.out"
+-- plattform/.nav-pilot/agentpakke.json --
+{"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"opencode":{"primaryAgents":["grillmester"]}}}
+-- plattform/agents/grillmester.agent.md --
+---
+name: grillmester
+description: fra plattform
+---
+plattform
