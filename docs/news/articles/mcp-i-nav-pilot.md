@@ -1,5 +1,5 @@
 ---
-title: "Nais MCP, GitHub og Figma under cplt, uten at innloggingen kommer inn i sandkassen"
+title: "Nais MCP og GitHub under cplt, uten at innloggingen kommer inn i sandkassen"
 date: 2026-10-24 # TODO (eier): sett forventet publiseringsdato
 author: starefossen
 category: nav-pilot
@@ -32,11 +32,11 @@ Start en ny økt etterpå. Detaljene står i [MCP gjennom cplt](/nav-pilot/guide
 
 **Likt i begge klienter.** `nav-pilot mcp enable` skriver serveren til Copilot CLI og OpenCode, og `nav-pilot mcp list` viser begge. To nye kolonner: LOGIN viser `nais: ok` når du er logget inn, og PATH viser `cplt broker` når cplt kjører serveren. Står det `cplt (off here)`, sier linja under hvorfor cplt ikke kan kjøre den.
 
-## Hvorfor det er trygt
+## Sikkerhet
 
 - **Innloggingen blir på maskinen din.** Nais-tokenet og `gh`-tokenet kommer aldri inn i sandkassen. Agenten ser verktøyene, ikke tokenet.
-- **Bare lesing som standard.** Nais MCP får bare lesende verktøy. Vil du ha verktøy som skriver, ber du om dem med `--tools`, og nav-pilot ber deg godkjenne det. GitHub-proxyen i OpenCode bruker alltid det skrivebeskyttede endepunktet.
-- **cplt avviser GraphQL-mutasjoner.** GraphQL-verktøyet i Nais MCP slipper bare gjennom spørringer. cplt avviser mutasjoner og dokumenter med mer enn én operasjon. Fra Nais CLI 7.0.2 sjekker også Nais CLI hver operasjon. Et kall uten svar etter 120 sekunder avbryter cplt.
+- **Bare lesing som standard.** Nais MCP får som standard bare lesende verktøy. Vil du ha verktøy som skriver, ber du om dem med `--tools`, og nav-pilot ber deg godkjenne det. GitHub-proxyen i OpenCode bruker alltid det skrivebeskyttede endepunktet.
+- **cplt avviser GraphQL-mutasjoner.** GraphQL-verktøyet i Nais MCP slipper bare gjennom spørringer. cplt avviser mutasjoner og dokumenter med mer enn én operasjon. Fra Nais CLI 7.0.2 sjekker også Nais CLI hver operasjon. cplt avbryter et kall som ikke har fått svar etter 120 sekunder.
 - **cplt kjører ikke en server agenten kan endre.** Ligger oppsettet til serveren i en mappe agenten kan skrive til, nekter cplt å starte den.
 
 ## Kjente begrensninger
@@ -49,7 +49,7 @@ Start en ny økt etterpå. Detaljene står i [MCP gjennom cplt](/nav-pilot/guide
 
 - **macOS** virker med cplt fra 23. oktober 2026.
 - **Linux** krever bubblewrap (`bwrap`) og cplt fra 24. oktober 2026. Uten bubblewrap kjører ikke cplt serveren, fordi det er bubblewrap som skjuler nøkkelringen for agenten. På Debian, Ubuntu og Fedora installerer `cplt doctor --fix` bubblewrap for deg. Med `--allow-gpg-signing` eller `--allow-rootless-docker` er serveren av.
-- **Ubuntu 24.04** stopper bubblewrap med AppArmor. Kjør `cplt doctor --fix` én gang. cplt viser kommandoene, spør før den kjører dem med `sudo`, og sjekker på nytt. Kommandoene for hånd står i [guiden](/nav-pilot/guider/mcp-gjennom-cplt#ubuntu-apparmor).
+- **Ubuntu 24.04 og nyere** stopper bubblewrap med AppArmor. Kjør `cplt doctor --fix` én gang. cplt viser kommandoene, spør før den kjører dem med `sudo`, og sjekker på nytt. Kommandoene for hånd står i [guiden](/nav-pilot/guider/mcp-gjennom-cplt#ubuntu-apparmor).
 - **WSL2** skal virke med bubblewrap, men er ikke testet på en ekte maskin ennå. Nais CLI trenger en nøkkelring, og WSL2 uten skrivebord har ingen. Guiden viser [hvordan du setter opp gnome-keyring](/nav-pilot/guider/mcp-gjennom-cplt#wsl2-nokkelring).
 
 Virker det ikke, se [feilmeldingene i guiden](/nav-pilot/guider/mcp-gjennom-cplt#feilsoking).
