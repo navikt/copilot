@@ -199,16 +199,18 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 			}
 			return reg, fmt.Errorf("%w: %w", errMCPRegistryUnreachable, err)
 		}
+		// The status first: a 4xx is an answer even when its body is cut off.
+		if res.StatusCode != http.StatusOK {
+			res.Body.Close()
+			if res.StatusCode >= 500 {
+				return reg, fmt.Errorf("%w: %s answered %s", errMCPRegistryUnreachable, u, res.Status)
+			}
+			return reg, fmt.Errorf("%s answered %s", u, res.Status)
+		}
 		body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 		res.Body.Close()
 		if err != nil {
 			return reg, fmt.Errorf("%w: %w", errMCPRegistryUnreachable, err)
-		}
-		if res.StatusCode >= 500 {
-			return reg, fmt.Errorf("%w: %s answered %s", errMCPRegistryUnreachable, u, res.Status)
-		}
-		if res.StatusCode != http.StatusOK {
-			return reg, fmt.Errorf("%s answered %s", u, res.Status)
 		}
 		var page struct {
 			Servers []struct {

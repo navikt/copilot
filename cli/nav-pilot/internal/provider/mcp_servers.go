@@ -141,6 +141,8 @@ func MCPRegistryServers() (registry string, servers []MCPServerEntry, stale, err
 		} else if c, ok = readMCPRegistryCache(); !ok {
 			return "", nil, nil, errMCPRegistryNotRead
 		}
+	} else {
+		sayMCPFallback(c.Policy) // a quiet background read may have cached it
 	}
 	return c.Registry.URL, c.Registry.Entries, stale, nil
 }

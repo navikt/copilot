@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -322,10 +323,42 @@ func fetchPolicyRegistry(registry string) (reg mcpRegistry, fallback bool, err e
 	if err != nil && errors.Is(err, errMCPRegistryUnreachable) &&
 		strings.TrimSuffix(registry, "/") != agentpakke.MCPRegistryURL && navMCPRegistries[strings.TrimSuffix(registry, "/")] {
 		if fb, fbErr := fetchMCPRegistry(agentpakke.MCPRegistryURL); fbErr == nil {
-			return fb, true, nil
+			if fb, fbErr = asDevRegistry(fb); fbErr == nil {
+				return fb, true, nil
+			}
 		}
 	}
 	return reg, false, err
+}
+
+// prodInternalHost is a URL host under prod's {{domain_internal}}.
+var prodInternalHost = regexp.MustCompile(`(://[A-Za-z0-9.-]+)\.intern\.nav\.no([/:"])`)
+
+// asDevRegistry turns prod's answer into dev's. The registry fills in
+// {{domain_internal}} per environment (apps/mcp-registry/handlers.go), so
+// prod lists mcp-onboarding.intern.nav.no where dev lists
+// mcp-onboarding.intern.dev.nav.no; the policy approves dev's. No literal
+// URL in allowlist.json is under intern.nav.no, and none uses
+// {{domain_external}}, which could not be told apart from a literal nav.no
+// host (TestAllowlistTemplatesAreMapped guards both).
+func asDevRegistry(reg mcpRegistry) (mcpRegistry, error) {
+	data, err := json.Marshal(reg)
+	if err != nil {
+		return mcpRegistry{}, err
+	}
+	data = prodInternalHost.ReplaceAll(data, []byte("${1}.intern.dev.nav.no${2}"))
+	var dev mcpRegistry
+	return dev, json.Unmarshal(data, &dev)
+}
+
+// sayMCPFallback says, once per policy URL, that Nav's prod registry stood in
+// for the policy's. policy is "" when it did not, which resets the record so
+// a policy registry that comes back and goes again is said again.
+func sayMCPFallback(policy string) {
+	if changed := SeenChanged("mcp-registry-fallback", policy); policy != "" && (changed || Verbose) {
+		fmt.Fprintf(os.Stderr, "The policy registry %s did not answer, so nav-pilot used %s. Copilot still checks servers against %s.\n",
+			policy, agentpakke.MCPRegistryURL, policy)
+	}
 }
 
 // refreshMCPRegistry asks the org policy which registry, asks that registry,
@@ -351,12 +384,7 @@ func refreshMCPRegistry(quiet bool) error {
 		policy = registry
 	}
 	if !quiet {
-		// Recorded on every foreground read, so a policy registry that comes
-		// back and goes again is said again.
-		if changed := SeenChanged("mcp-registry-fallback", policy); fallback && (changed || Verbose) {
-			fmt.Fprintf(os.Stderr, "The policy registry %s did not answer, so nav-pilot used %s. Copilot still checks servers against %s.\n",
-				registry, agentpakke.MCPRegistryURL, registry)
-		}
+		sayMCPFallback(policy)
 	}
 	path := mcpRegistryCachePath()
 	if path == "" {
@@ -391,6 +419,7 @@ func RefreshMCPRegistryIfDue() error {
 		return nil
 	}
 	if c, ok := readMCPRegistryCache(); ok && c.fresh() {
+		sayMCPFallback(c.Policy) // a quiet background read may have cached it
 		return nil
 	}
 	return refreshMCPRegistry(false)

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
@@ -231,5 +232,84 @@ func TestOpenCodeLaunchUsesTheFallback(t *testing.T) {
 	}
 	if !strings.Contains(env, `"blocked":["bad"]`) {
 		t.Fatalf("env = %s", env)
+	}
+}
+
+// Prod fills {{domain_internal}} with intern.nav.no, dev with
+// intern.dev.nav.no: the fallback approves dev's host, as the policy does.
+func TestMCPRegistryFallbackKeepsDevHosts(t *testing.T) {
+	_, stderr := fallbackEnv(t, devRegistry, nil)
+	mcpHTTPClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host != "mcp-registry.nav.no" {
+			return nil, context.DeadlineExceeded
+		}
+		body := `{"servers":[{"server":{"name":"io.github.navikt/mcp-onboarding","remotes":[{"type":"streamable-http","url":"https://mcp-onboarding.intern.nav.no/mcp"}]}},
+			{"server":{"name":"io.github.navikt/aksel","remotes":[{"type":"streamable-http","url":"https://aksel-mcp.nav.no/mcp"}]}}],"metadata":{}}`
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})
+	if err := refreshMCPRegistry(false); err != nil {
+		t.Fatal(err)
+	}
+	stderr()
+	c, _ := readMCPRegistryCache()
+	if got := c.Registry.Servers["io.github.navikt/mcp-onboarding"]; len(got) != 1 || got[0] != "https://mcp-onboarding.intern.dev.nav.no/mcp" {
+		t.Fatalf("servers = %v", c.Registry.Servers)
+	}
+	if !c.Registry.Remotes["https://mcp-onboarding.intern.dev.nav.no/mcp"] || c.Registry.Remotes["https://mcp-onboarding.intern.nav.no/mcp"] || !c.Registry.Remotes["https://aksel-mcp.nav.no/mcp"] {
+		t.Fatalf("remotes = %v", c.Registry.Remotes)
+	}
+	if u := c.Registry.Entries[0].Remotes[0].URL; u != "https://mcp-onboarding.intern.dev.nav.no/mcp" {
+		t.Fatalf("entry remote = %s", u)
+	}
+}
+
+// asDevRegistry maps {{domain_internal}} only. A literal intern.nav.no URL
+// or a {{domain_external}} template would make dev and prod differ in a way
+// it cannot undo: extend it first.
+func TestAllowlistTemplatesAreMapped(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "apps", "mcp-registry", "allowlist.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "{{domain_external}}") {
+		t.Fatal("allowlist.json uses {{domain_external}}, which asDevRegistry does not map")
+	}
+	if m := prodInternalHost.Find(data); m != nil {
+		t.Fatalf("allowlist.json has a literal intern.nav.no URL (%s), which asDevRegistry would rewrite", m)
+	}
+}
+
+// After a quiet background read cached a fallback, the next foreground read
+// of the fresh cache says it.
+func TestMCPRegistryFallbackSaidFromCache(t *testing.T) {
+	_, stderr := fallbackEnv(t, devRegistry, func(host string) int {
+		if strings.Contains(host, "ekstern.dev") {
+			return 0
+		}
+		return 200
+	})
+	if err := refreshMCPRegistry(true); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := MCPRegistryServers(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stderr(), "did not answer, so") {
+		t.Fatal("no notice from the cached fallback")
+	}
+}
+
+// A 4xx whose body is cut off is still an answer: no fallback.
+func TestMCPRegistry4xxWithBrokenBodyDoesNotFallBack(t *testing.T) {
+	asked, stderr := fallbackEnv(t, devRegistry, nil)
+	mcpHTTPClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		*asked = append(*asked, r.URL.Host)
+		return &http.Response{StatusCode: 401, Status: "401", Body: io.NopCloser(iotest.ErrReader(io.ErrUnexpectedEOF))}, nil
+	})
+	if err := refreshMCPRegistry(false); err == nil {
+		t.Fatal("no error")
+	}
+	if out := stderr(); strings.Contains(out, "did not answer, so") || len(*asked) != 1 {
+		t.Fatalf("asked %v, said %q", *asked, out)
 	}
 }
