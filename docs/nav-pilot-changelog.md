@@ -7,6 +7,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### Aksel: `aksel-spacing` er pensjonert, bruk `aksel-builder`
 
 - **`aksel-spacing` er fjernet**: Rådene om layout og spacing står nå i `aksel-builder`, sammen med resten av Aksel-veiledningen. Har du en uendret kopi av `aksel-spacing`, fjerner `nav-pilot sync --apply` den. Installer `aksel-builder` i stedet: `nav-pilot install aksel-builder --type skill --repo`. En kopi du har endret selv, blir liggende.
+- **`nav-pilot sync` sier hva som erstatter en pensjonert artefakt**: Er `aksel-spacing` fortsatt installert, står det nå «is retired; use aksel-builder» ved siden av. Agentpakker kan oppgi en erstatning i feltet `replacements` i `.nav-pilot/retired-artifacts.json`.
 
 ### Spør før repoets egne OpenCode-plugins lastes
 

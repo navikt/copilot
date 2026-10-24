@@ -32,6 +32,12 @@ func TestValidateRetired(t *testing.T) {
 		{"absolute path", `{"paths":{"/etc/passwd":["` + blob + `"]}}`, "not a repo-relative path"},
 		{"home-relative path", `{"paths":{"~/secrets":["` + blob + `"]}}`, "not a repo-relative path"},
 		{"not an object", `["agents/a.agent.md"]`, "got array"},
+
+		{"replacement", `{"paths":{},"replacements":{"skills/old":"new-skill"}}`, ""},
+		{"empty replacement", `{"paths":{},"replacements":{"skills/old":""}}`, "minLength"},
+		{"replacement with a control character", `{"paths":{},"replacements":{"skills/old":"a\u001b[2Jb"}}`, "replacements"},
+		{"replacement key escapes the repo", `{"paths":{},"replacements":{"../x":"new"}}`, "not a repo-relative path"},
+		{"replacement is not a string", `{"paths":{},"replacements":{"skills/old":1}}`, "replacements"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

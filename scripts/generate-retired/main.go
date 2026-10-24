@@ -48,6 +48,9 @@ const outputPath = ".nav-pilot/retired-artifacts.json"
 type document struct {
 	Comment string              `json:"_comment"`
 	Paths   map[string][]string `json:"paths"`
+	// Replacements maps a retired artifact (a recorded path, or a skill's
+	// directory) to what replaces it. Written by hand; the generator keeps it.
+	Replacements map[string]string `json:"replacements,omitempty"`
 }
 
 func main() {
@@ -72,6 +75,17 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "generate-retired: %v\n", err)
 		os.Exit(1)
+	}
+	// Union with the committed record. Some recorded blobs lived only on
+	// branches deleted after a squash merge, so no clone can regenerate them
+	// (#1955); dropping them would stop nav-pilot recognising those files.
+	if have, err := os.ReadFile(outputPath); err == nil {
+		var committed document
+		if err := json.Unmarshal(have, &committed); err != nil {
+			fmt.Fprintf(os.Stderr, "generate-retired: %s: %v\n", outputPath, err)
+			os.Exit(1)
+		}
+		union(doc, &committed, present)
 	}
 	out, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
@@ -131,6 +145,36 @@ func build() (*document, error) {
 		}
 	}
 	return doc, nil
+}
+
+// present reports whether a path exists in the working tree.
+func present(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+// union adds every path and hash the committed record holds to doc, and keeps
+// its replacements. A path that exists again is not retired and stays out, as
+// in build.
+func union(doc, committed *document, isPresent func(string) bool) {
+	for p, blobs := range committed.Paths {
+		if isPresent(p) {
+			continue
+		}
+		seen := map[string]bool{}
+		var merged []string
+		for _, b := range append(append([]string{}, doc.Paths[p]...), blobs...) {
+			if !seen[b] {
+				seen[b] = true
+				merged = append(merged, b)
+			}
+		}
+		sort.Strings(merged)
+		doc.Paths[p] = merged
+	}
+	if len(committed.Replacements) > 0 {
+		doc.Replacements = committed.Replacements
+	}
 }
 
 // deletedPaths lists every path under dir that some commit deleted.
