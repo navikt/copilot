@@ -9,6 +9,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **OpenCode 2**: Har repoet egne OpenCode-plugins, spør nav-pilot én gang før de lastes. De kjører med samme tilgang som agenten. Enter betyr nei. Svarer du nei, slår nav-pilot av repoets eget OpenCode-oppsett for økta: konfigurasjon, plugins, agenter, kommandoer, skills og `AGENTS.md`, og sier det i én linje ved hver oppstart. Svaret huskes til pluginene endrer seg, og gjelder også uten terminal. Uten terminal lastes de ikke før du har svart.
 - **`nav-pilot plugins`**: Viser repoets OpenCode-plugins og svaret ditt, og lar deg svare på nytt.
 
+### MCP-registeret har en reserve
+
+- **Når registeret i policyen ikke svarer**: Svarer ikke registeret som GitHub-policyen peker på (ingen forbindelse, tidsavbrudd eller en 5xx-feil), henter nav-pilot listen fra `https://mcp-registry.nav.no` i stedet. Det skjer bare når policyen peker på et av Navs egne registre, som viser den samme listen. Du får én melding om det, og `nav-pilot mcp list` merker adressen med «(fallback)». Copilot sjekker fortsatt serverne mot registeret i policyen. nav-pilot prøver policyens register igjen innen en time.
+
 ### Roligere oppstart med ny cplt
 
 - **Anbefalt cplt fra 24. oktober 2026**: nav-pilot anbefaler nå cplt-versjonen fra 24. oktober. Den spør ikke ved oppstart når ingenting er endret. Med den versjonen gir nav-pilot også OpenCode-hookenes egen tilstandsmappe skrivetilgang med `--allow-write-state`, så mappa ikke lenger står i merknaden «NOT audited» når økten avsluttes. Eldre cplt får `--allow-write` som før.

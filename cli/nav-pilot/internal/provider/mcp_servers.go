@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 )
@@ -133,8 +132,8 @@ func (p MCPPackage) Launch() (runtime string, args []string) {
 // read fails, a cache there is still answers, and stale says why it is old.
 func MCPRegistryServers() (registry string, servers []MCPServerEntry, stale, err error) {
 	c, ok := readMCPRegistryCache()
-	if !ok || c.Registry.Entries == nil || c.Schema < mcpRegistryCacheSchema || time.Since(c.At) > mcpRegistryTTL {
-		if rerr := refreshMCPRegistry(); rerr != nil {
+	if !ok || c.Registry.Entries == nil || c.Schema < mcpRegistryCacheSchema || !c.fresh() {
+		if rerr := refreshMCPRegistry(false); rerr != nil {
 			if !ok || c.Registry.Entries == nil {
 				return "", nil, nil, rerr
 			}

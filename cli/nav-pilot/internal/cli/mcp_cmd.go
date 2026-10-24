@@ -33,6 +33,7 @@ var (
 	mcpCpltConfigGet   = cpltConfigGet
 	mcpLookPath        = exec.LookPath
 	narrowMCPApproval  = providerpkg.NarrowMCPApproval
+	mcpFallback        = providerpkg.MCPRegistryFallback
 )
 
 // mcpLaunchClient is the client a plain nav-pilot launches: whose servers
@@ -177,6 +178,9 @@ type mcpServerRow struct {
 type mcpReport struct {
 	Registry string `json:"registry"`
 	Stale    string `json:"stale,omitempty"`
+	// Fallback is set when Registry is Nav's prod registry, read because the
+	// policy's did not answer.
+	Fallback bool `json:"fallback,omitempty"`
 	// OpenCodeProject is servers OpenCode loads from a project's config or an
 	// OPENCODE_CONFIG* variable, which nav-pilot does not count.
 	OpenCodeProject []string       `json:"opencode_project,omitempty"`
@@ -222,7 +226,11 @@ func printMCPReport(rep mcpReport) {
 		fmt.Printf("%s OpenCode also loads %s here, from the project's config or OPENCODE_CONFIG*. nav-pilot counts only your own config: it neither checks nor allows hosts for these.\n",
 			dim("ℹ"), strings.Join(names, ", "))
 	}
-	fmt.Printf("\n%s %s\n", bold("Servers in Nav's MCP registry"), dim(rep.Registry))
+	reg := rep.Registry
+	if rep.Fallback {
+		reg += " (fallback)"
+	}
+	fmt.Printf("\n%s %s\n", bold("Servers in Nav's MCP registry"), dim(reg))
 	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "  NAME\tCOPILOT\tOPENCODE\tTOOLS\tLOGIN\tPATH\tSTATUS\tDESCRIPTION")
 	on := func(b bool) string {
@@ -274,7 +282,7 @@ func printMCPProblems(problems []mcpProblem) {
 // server. Problems come first in the report: a user runs this because
 // something does not work.
 func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf providerpkg.MCPConfigured, only string) mcpReport {
-	rep := mcpReport{Registry: registry, Problems: []mcpProblem{}}
+	rep := mcpReport{Registry: registry, Fallback: mcpFallback(), Problems: []mcpProblem{}}
 	cpltPath := mcpCpltPath()
 	mode := mcpHostsMode()
 	var st providerpkg.MCPHostState

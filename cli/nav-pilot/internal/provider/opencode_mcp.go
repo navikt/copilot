@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -92,8 +94,26 @@ var (
 	fetchMCPPolicy   = sync.OnceValues(askMCPPolicy)
 	fetchMCPRegistry = memoMCPRegistry(askMCPRegistry)
 	// mcpHTTPClient is the registry's client, a var so a test can fail on use.
-	mcpHTTPClient = &http.Client{}
+	// nil is a client made for the read, bounded by [MCPPolicyTimeout] as it
+	// is then (nav-pilot update raises it).
+	mcpHTTPClient *http.Client
 )
+
+// errMCPRegistryUnreachable marks a registry that did not answer: no
+// connection, a timeout, or a 5xx. A 4xx or a body nav-pilot cannot read is
+// an answer, and is not marked.
+var errMCPRegistryUnreachable = errors.New("unreachable")
+
+// newMCPHTTPClient bounds the connect and the TLS handshake on their own, so
+// a dead host fails at the dial rather than when the whole read times out.
+// Neither is shorter than the read's own bound.
+func newMCPHTTPClient() *http.Client {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	d := &net.Dialer{Timeout: MCPPolicyTimeout, KeepAlive: 30 * time.Second}
+	t.DialContext = d.DialContext
+	t.TLSHandshakeTimeout = MCPPolicyTimeout
+	return &http.Client{Transport: t}
+}
 
 func memoMCPRegistry(ask func(string) (mcpRegistry, error)) func(string) (mcpRegistry, error) {
 	var mu sync.Mutex
@@ -161,6 +181,9 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), MCPPolicyTimeout)
 	defer cancel()
 	client := mcpHTTPClient
+	if client == nil {
+		client = newMCPHTTPClient()
+	}
 	cursor := ""
 	for range 20 {
 		u := strings.TrimSuffix(base, "/") + "/v0.1/servers?limit=100"
@@ -173,12 +196,15 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 		}
 		res, err := client.Do(req)
 		if err != nil {
-			return reg, err
+			return reg, fmt.Errorf("%w: %w", errMCPRegistryUnreachable, err)
 		}
 		body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 		res.Body.Close()
 		if err != nil {
-			return reg, err
+			return reg, fmt.Errorf("%w: %w", errMCPRegistryUnreachable, err)
+		}
+		if res.StatusCode >= 500 {
+			return reg, fmt.Errorf("%w: %s answered %s", errMCPRegistryUnreachable, u, res.Status)
 		}
 		if res.StatusCode != http.StatusOK {
 			return reg, fmt.Errorf("%s answered %s", u, res.Status)

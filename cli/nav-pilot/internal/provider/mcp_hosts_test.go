@@ -58,7 +58,7 @@ func mcpEnv(t *testing.T, copilotConfig string, reg mcpRegistry, regErr error) {
 	t.Cleanup(mcpRefreshing.Wait) // runs first: no read outlives the fakes
 	// The registry's answer as a launch finds it: cached, or never read.
 	if regErr == nil {
-		if err := refreshMCPRegistry(); err != nil {
+		if err := refreshMCPRegistry(false); err != nil {
 			t.Fatal(err)
 		}
 	}

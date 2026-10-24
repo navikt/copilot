@@ -232,7 +232,7 @@ func resolveMCPHosts() (MCPHosts, error) {
 		return MCPHosts{}, nil
 	}
 	c, ok := readMCPRegistryCache()
-	if !ok || time.Since(c.At) > mcpRegistryTTL {
+	if !ok || !c.fresh() {
 		startMCPRegistryRefresh()
 	}
 	if !ok {
@@ -261,6 +261,39 @@ type mcpRegistryCache struct {
 	// Schema is 1 from when the cache carries each server's tools and their
 	// risk; nav-pilot mcp reads an older cache again before it trusts it.
 	Schema int `json:"schema,omitempty"`
+	// Fallback is set when the policy's registry did not answer and Nav's
+	// prod registry did (Policy is the one that did not). Registry.URL is the
+	// one read.
+	Fallback bool   `json:"fallback,omitempty"`
+	Policy   string `json:"policy,omitempty"`
+}
+
+// mcpRegistryFallbackTTL is how long a fallback answer stands: the policy's
+// registry is asked again within the hour.
+const mcpRegistryFallbackTTL = time.Hour
+
+func (c mcpRegistryCache) fresh() bool {
+	ttl := mcpRegistryTTL
+	if c.Fallback {
+		ttl = mcpRegistryFallbackTTL
+	}
+	return time.Since(c.At) <= ttl
+}
+
+// navMCPRegistries is Nav's own registry deployments, built from the same
+// main and serving the same list (apps/mcp-registry/.nais). Only between
+// these does nav-pilot fall back, so a fallback never widens what the
+// policy allows.
+var navMCPRegistries = map[string]bool{
+	"https://mcp-registry.ekstern.dev.nav.no": true,
+	agentpakke.MCPRegistryURL:                 true,
+}
+
+// MCPRegistryFallback reports whether the cached registry answer came from
+// Nav's prod registry because the policy's did not answer.
+func MCPRegistryFallback() bool {
+	c, ok := readMCPRegistryCache()
+	return ok && c.Fallback
 }
 
 const mcpRegistryCacheSchema = 3 // 2: remotes carry headers; 3: the broker _meta
@@ -280,8 +313,11 @@ func readMCPRegistryCache() (mcpRegistryCache, bool) {
 }
 
 // refreshMCPRegistry asks the org policy which registry, asks that registry,
-// and caches the answer. A failure keeps the cache as it was.
-func refreshMCPRegistry() error {
+// and caches the answer. A failure keeps the cache as it was. When the
+// policy names one of Nav's own registries and it is unreachable (no
+// connection, a timeout, a 5xx), Nav's prod registry answers instead, and
+// unless quiet a notice says so once per policy URL.
+func refreshMCPRegistry(quiet bool) error {
 	// The registry the org policy names, which is the one Copilot enforces.
 	// No policy, or no gh to ask, is Nav's own: the hosts are Nav-curated
 	// either way, and a policy question nobody answered is not a reason to
@@ -291,14 +327,33 @@ func refreshMCPRegistry() error {
 		registry = agentpakke.MCPRegistryURL
 	}
 	reg, err := fetchMCPRegistry(registry)
+	fallback := false
+	if err != nil && errors.Is(err, errMCPRegistryUnreachable) &&
+		registry != agentpakke.MCPRegistryURL && navMCPRegistries[strings.TrimSuffix(registry, "/")] {
+		if fb, fbErr := fetchMCPRegistry(agentpakke.MCPRegistryURL); fbErr == nil {
+			reg, err, fallback = fb, nil, true
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("%s did not answer: %w", registry, err)
+	}
+	policy := ""
+	if fallback {
+		policy = registry
+	}
+	if !quiet {
+		// Recorded on every foreground read, so a policy registry that comes
+		// back and goes again is said again.
+		if changed := SeenChanged("mcp-registry-fallback", policy); fallback && (changed || Verbose) {
+			fmt.Fprintf(os.Stderr, "The policy registry %s did not answer, so nav-pilot used %s. Copilot still checks servers against %s.\n",
+				registry, agentpakke.MCPRegistryURL, registry)
+		}
 	}
 	path := mcpRegistryCachePath()
 	if path == "" {
 		return errors.New("nav-pilot has no state directory to cache the MCP registry in")
 	}
-	data, err := json.Marshal(mcpRegistryCache{At: time.Now(), Registry: reg, Schema: mcpRegistryCacheSchema})
+	data, err := json.Marshal(mcpRegistryCache{At: time.Now(), Registry: reg, Schema: mcpRegistryCacheSchema, Fallback: fallback, Policy: policy})
 	if err != nil {
 		return err
 	}
@@ -312,7 +367,7 @@ func refreshMCPRegistry() error {
 // process. The launch does not wait for it; the process waits for nothing at
 // exit either, so a session shorter than the read leaves it to the next one.
 func startMCPRegistryRefresh() {
-	mcpRefreshOnce.Do(func() { mcpRefreshing.Go(func() { _ = refreshMCPRegistry() }) })
+	mcpRefreshOnce.Do(func() { mcpRefreshing.Go(func() { _ = refreshMCPRegistry(true) }) })
 }
 
 var (
@@ -326,10 +381,10 @@ func RefreshMCPRegistryIfDue() error {
 	if copilot, openCode := configuredMCPServers(); len(copilot)+len(openCode) == 0 {
 		return nil
 	}
-	if c, ok := readMCPRegistryCache(); ok && time.Since(c.At) <= mcpRegistryTTL {
+	if c, ok := readMCPRegistryCache(); ok && c.fresh() {
 		return nil
 	}
-	return refreshMCPRegistry()
+	return refreshMCPRegistry(false)
 }
 
 // lookupIPAddr resolves a host for classification. A var for tests.
