@@ -11,7 +11,7 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "MCP gjennom cplt",
   description:
-    "Slå på Nais MCP, GitHub og Figma under cplt. cplt kjører serverne på maskinen din, så innloggingen din aldri kommer inn i sandkassen.",
+    "Slå på Nais MCP og GitHub under cplt. cplt kjører serverne på maskinen din, så innloggingen din ikke kommer inn i sandkassen.",
 };
 
 const TOC: TocItem[] = [
@@ -151,8 +151,8 @@ export default function McpGjennomCplt() {
           <BodyLong>
             Nais MCP leser innloggingen din fra nøkkelringen, og GitHub-serveren trenger{" "}
             <code className={code}>gh</code>-tokenet ditt. Ingen av delene skal inn i sandkassen. Derfor kjører cplt
-            disse serverne på maskinen din, utenfor sandkassen, og agenten når bare de lesende verktøyene. Det virker
-            likt i Copilot CLI og OpenCode.
+            disse serverne på maskinen din, utenfor sandkassen. Som standard når agenten bare de lesende verktøyene. Det
+            virker likt i Copilot CLI og OpenCode.
           </BodyLong>
         </VStack>
       </section>
@@ -237,7 +237,7 @@ export default function McpGjennomCplt() {
               GraphQL-verktøyet i Nais MCP sender bare spørringer. cplt avviser mutasjoner og dokumenter med mer enn én
               operasjon.
             </li>
-            <li>Et kall som ikke har fått svar etter 120 sekunder, avbryter cplt.</li>
+            <li>cplt avbryter et kall som ikke har fått svar etter 120 sekunder.</li>
             <li>
               I OpenCode feiler <code className={code}>schema_list_queries</code>. Følges opp i{" "}
               <a href="https://github.com/nais/cli/issues/817" className={linkClass}>
@@ -312,7 +312,7 @@ export default function McpGjennomCplt() {
                   <TableDataCell>WSL2</TableDataCell>
                   <TableDataCell>
                     Skal virke med bubblewrap, men er ikke testet på en ekte maskin ennå. Nais-innloggingen trenger en
-                    nøkkelring, se under (
+                    nøkkelring, se Nais-innlogging i WSL2 under (
                     <a href="https://github.com/nais/cli/issues/815" className={linkClass}>
                       nais/cli#815
                     </a>
@@ -326,18 +326,18 @@ export default function McpGjennomCplt() {
             Ubuntu 24.04 og nyere
           </LinkableHeading>
           <BodyLong>
-            Fiksen gir <code className={code}>bwrap</code>, og bare den, lov til å lage brukernavnerom. cplt kan gjøre
-            det selv:
+            Fiksen gir <code className={code}>bwrap</code>, og bare den, lov til å lage user namespaces. cplt kan gjøre
+            det for deg:
           </BodyLong>
           <CodeBlock compact>{`cplt doctor --fix`}</CodeBlock>
           <BodyLong>
             cplt viser kommandoene og innholdet i fila og spør{" "}
             <code className={code}>Fix now? sudo will ask for your password. [Y/n]</code>. Svarer du ja, kjører den
-            kommandoene med <code className={code}>sudo</code> og sjekker på nytt. Den spør bare i en terminal. Med{" "}
-            <code className={code}>cplt --yes doctor --fix</code>, uten terminal, med <code className={code}>CI</code>{" "}
-            satt, inne i sandkassen eller med <code className={code}>--print-profile</code> skriver den kommandoene og{" "}
-            <code className={code}>Not offering to run it (…)</code> med grunnen, og du kjører dem selv. Det samme
-            tilbudet får du når du starter cplt og bubblewrap ikke virker.
+            kommandoene med <code className={code}>sudo</code> og sjekker på nytt. Den spør bare i en terminal. Uten
+            terminal, med <code className={code}>cplt --yes doctor --fix</code>, med <code className={code}>CI</code>{" "}
+            satt, inne i sandkassen eller med <code className={code}>--print-profile</code> kjører den ingenting selv.
+            Da skriver den kommandoene og <code className={code}>Not offering to run it (…)</code> med grunnen, og du
+            kjører dem selv. Det samme tilbudet får du når du starter cplt og bubblewrap ikke virker.
           </BodyLong>
           <BodyLong>
             Vil du gjøre det for hånd og <code className={code}>/etc/apparmor.d/bwrap-userns-restrict</code> finnes,
@@ -361,8 +361,8 @@ sudo apparmor_parser -r /etc/apparmor.d/bwrap`}
             Nais-innlogging i WSL2
           </LinkableHeading>
           <BodyLong>
-            Nais CLI lagrer innloggingen gjennom Secret Service. WSL2 uten skrivebord har ingen slik tjeneste, så
-            installer gnome-keyring og start den før du kjører <code className={code}>nais login -n</code>:
+            Nais CLI lagrer innloggingen gjennom Secret Service. WSL2 uten skrivebord har ingen slik tjeneste. Installer
+            gnome-keyring og start den før du kjører <code className={code}>nais login -n</code>:
           </BodyLong>
           <CodeBlock compact>
             {`sudo apt install gnome-keyring dbus-x11

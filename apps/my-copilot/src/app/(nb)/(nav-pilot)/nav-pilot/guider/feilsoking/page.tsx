@@ -93,7 +93,7 @@ nav-pilot mcp disable <navn>                  # slå av, og steng hostene bare d
             <code className={code}>host-exec</code>, som kjører på maskinen din utenfor cplt-sandkassen. I en terminal
             viser <code className={code}>enable</code> alle verktøyene med klasse, og du velger selv. Et{" "}
             <code className={code}>host-exec</code>-verktøy må du i tillegg si ja til. Servere som cplt kjører på
-            maskinen din, som Nais MCP, får bare lesende verktøy. Se{" "}
+            maskinen din, som Nais MCP, får som standard bare lesende verktøy. Se{" "}
             <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt#begrensninger" className={linkClass}>
               MCP gjennom cplt
             </NextLink>
