@@ -618,13 +618,13 @@ func TestReportRetiredNamesReplacement(t *testing.T) {
 	with := captureStdout(func() {
 		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Replacement: "new-skill"}}, true)
 	})
-	if !strings.Contains(with, "skills/old/SKILL.md is retired; use") || !strings.Contains(with, "new-skill") {
+	if !strings.Contains(with, "skills/old/SKILL.md is retired; replaced by") || !strings.Contains(with, "new-skill") {
 		t.Errorf("with a replacement, output = %q, want it named", with)
 	}
 	without := captureStdout(func() {
 		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md"}}, true)
 	})
-	if strings.Contains(without, "is retired; use") || !strings.Contains(without, "skills/old/SKILL.md") {
+	if strings.Contains(without, "is retired; replaced by") || !strings.Contains(without, "skills/old/SKILL.md") {
 		t.Errorf("without a replacement, output = %q, want the bare path", without)
 	}
 }

@@ -22,6 +22,9 @@
 // Generated, not maintained: nobody has to remember to add a name while they
 // are busy deleting one, which was the objection to keeping such a list by
 // hand.
+//
+// To drop an entry history cannot regenerate, delete it from the file; the
+// generator keeps what history or the file has, never more.
 package main
 
 import (

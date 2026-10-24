@@ -1,6 +1,8 @@
 package agentpakke
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -37,6 +39,9 @@ func TestValidateRetired(t *testing.T) {
 		{"empty replacement", `{"paths":{},"replacements":{"skills/old":""}}`, "minLength"},
 		{"replacement with a control character", `{"paths":{},"replacements":{"skills/old":"a\u001b[2Jb"}}`, "replacements"},
 		{"replacement key escapes the repo", `{"paths":{},"replacements":{"../x":"new"}}`, "not a repo-relative path"},
+		{"replacement with a C1 CSI", `{"paths":{},"replacements":{"skills/old":"a\u009bb"}}`, "replacements"},
+		{"replacement with a bidi override", `{"paths":{},"replacements":{"skills/old":"a\u202eb"}}`, "replacements"},
+		{"replacement too long", `{"paths":{},"replacements":{"skills/old":"` + strings.Repeat("x", 200) + `"}}`, "maxLength"},
 		{"replacement is not a string", `{"paths":{},"replacements":{"skills/old":1}}`, "replacements"},
 	}
 	for _, tt := range tests {
@@ -55,5 +60,17 @@ func TestValidateRetired(t *testing.T) {
 				t.Errorf("error %q does not mention %q", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+// The record this repo publishes must pass the validator sync applies, or sync
+// silently ignores it.
+func TestCommittedRetiredRecordValidates(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", RetiredRecordPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateRetired(data); err != nil {
+		t.Error(err)
 	}
 }

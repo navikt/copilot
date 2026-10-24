@@ -442,7 +442,15 @@ func ValidateSource(sourceRoot string) []error {
 	if err != nil {
 		return []error{err}
 	}
-	return m.validateContent(sourceRoot)
+	errs := m.validateContent(sourceRoot)
+	// sync treats a malformed record as absent, silently; validate is where
+	// its author hears about it.
+	if data, err := os.ReadFile(filepath.Join(sourceRoot, RetiredRecordPath)); err == nil {
+		if err := ValidateRetired(data); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
 }
 
 // validateContent checks a validated manifest against the files on disk.

@@ -241,7 +241,7 @@ func reportRetired(orphans []retiredOrphan, apply bool) {
 		yellow("⚠"), len(orphans))
 	for _, o := range orphans {
 		if o.Replacement != "" {
-			fmt.Printf("  %s %s is retired; use %s\n", dim("⊘"), o.Path, bold(o.Replacement))
+			fmt.Printf("  %s %s is retired; replaced by %s\n", dim("⊘"), o.Path, bold(o.Replacement))
 			continue
 		}
 		fmt.Printf("  %s %s\n", dim("⊘"), o.Path)
