@@ -10,7 +10,7 @@ tags:
   - opencode
 ---
 
-> **Oppdatert 23. oktober 2026:** OpenCode 2 krever nå cplt fra 22. oktober 2026 eller nyere, og `opencode auth import` gjelder ikke lenger: du logger inn på nytt etter oppgraderingen. Se [Klienter](/nav-pilot/klienter#opencode-1).
+> **Oppdatert 23. oktober 2026:** OpenCode 2 krever nå cplt fra 22. oktober 2026 eller nyere, og `opencode auth import` gjelder ikke lenger: du logger inn på nytt etter oppgraderingen. Trinn 2 og 3 under gjelder ikke lenger. Se [Klienter](/nav-pilot/klienter#opencode-1).
 
 Du kan nå bruke OpenCode 2 med nav-pilot på macOS, og nå også på Linux (se under). Bruker du OpenCode 1, trenger du ikke gjøre noe.
 

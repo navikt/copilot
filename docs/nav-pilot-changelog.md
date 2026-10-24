@@ -50,7 +50,7 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### Lokal modell med kommentarer i opencode.json
 
-- **OpenCode**: Med `local_dispatch` på og kommentarer i `~/.config/opencode/opencode.json` stoppet nav-pilot oppstarten med «redefines provider mlx». Blokken for den lokale leverandøren er nav-pilots egen, så nå starter økta. Er blokken endret, for eksempel med en annen `baseURL`, stopper oppstarten som før.
+- **OpenCode**: Med `local_dispatch` på og kommentarer i `~/.config/opencode/opencode.json` stoppet nav-pilot oppstarten med «redefines provider mlx». Blokken for den lokale leverandøren er nav-pilots egen, så nå starter økten. Er blokken endret, for eksempel med en annen `baseURL`, stopper oppstarten som før.
 
 ### Spørsmålet om ny modell kommer ved samme oppstart
 
@@ -86,7 +86,7 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 - **cplt 2026.10.23-130113 anbefales**: Med denne versjonen kjører cplt Nais MCP på maskinen din, utenfor sandkassen, og slipper bare lesende verktøy gjennom til agenten. GitHub MCP (`io.github.navikt/github-mcp`) virker i OpenCode bare med cplt 2026.10.23-053641 eller nyere ([navikt/cplt#807](https://github.com/navikt/cplt/pull/807)).
 - **Nøkler for tale stenges**: Talefunksjonen i OpenCode leser `OPENAI_API_KEY`, `XAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` og `GEMINI_API_KEY`. cplt slipper ikke disse nøklene inn i sandkassen som standard. Med cplt 2026.10.23-070444 eller nyere stenger nav-pilot dem også når noen slipper dem inn med `--pass-env`, `--inherit-env` eller `.cplt.toml` ([navikt/cplt#817](https://github.com/navikt/cplt/pull/817)). Nøkler du har lagret i OpenCode og tale via OpenCode Console kan fortsatt ikke stenges. Tale er fortsatt ikke tillatt.
-- **Ett varsel**: Har du en eldre cplt, viser nav-pilot én linje med alt du får ved å oppdatere, og kommandoen som oppdaterer cplt. Linja vises én gang per anbefalt cplt-versjon, og hver gang i `nav-pilot doctor`. I OpenCode 2 vises den én gang til, med grunnene som gjelder OpenCode. Du kan fortsatt starte uten å oppdatere.
+- **Ett varsel**: Har du en eldre cplt, viser nav-pilot én linje med alt du får ved å oppdatere, og kommandoen som oppdaterer cplt. Linja vises én gang per anbefalt cplt-versjon, og hver gang i `nav-pilot doctor`. I OpenCode 2 har linja også grunnene som gjelder OpenCode, og vises én gang der selv om du har sett den i en annen klient. Du kan fortsatt starte uten å oppdatere.
 - **MCP-servere fra cplt får være i fred**: Når nav-pilot slår av MCP-servere i OpenCode som ikke står i Navs MCP-register, lar den serverne cplt kjører for deg, for eksempel Nais MCP, være i fred. Det er kommandoen serveren kjører som avgjør det, ikke navnet (#1941).
 
 ### Skallkommandoer som skriver filer, teller som endringer
@@ -95,7 +95,7 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### Fortsett en tidligere økt
 
-- **`nav-pilot --resume [id]` og `nav-pilot --continue`**: Fortsetter en tidligere økt med agentpakken, sandkassen og sjekkene som en vanlig oppstart. `--continue` fortsetter den siste økta. `--resume` uten id åpner lista over økter i Copilot CLI. OpenCode har ingen slik liste, så der må du oppgi id-en. Finnes ikke id-en, starter OpenCode en ny økt. pi støtter ikke flaggene ennå, og nav-pilot sier fra i stedet for å starte (#1919).
+- **`nav-pilot --resume [id]` og `nav-pilot --continue`**: Fortsetter en tidligere økt med agentpakken, sandkassen og sjekkene som en vanlig oppstart. `--continue` fortsetter den siste økten. `--resume` uten id åpner lista over økter i Copilot CLI. OpenCode har ingen slik liste, så der må du oppgi id-en. Finnes ikke id-en, starter OpenCode en ny økt. pi støtter ikke flaggene ennå, og nav-pilot sier fra i stedet for å starte (#1919).
 
 ### Modellen du har valgt, gjelder også hovedagenten
 
@@ -111,7 +111,7 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### Nye installasjoner får OpenCode 2, og støtten for OpenCode 1 slutter etter 19. november 2026
 
-- **Ny installasjon**: Når nav-pilot foreslår eller installerer OpenCode, er det nå OpenCode 2: `brew install anomalyco/tap/opencode-v2` med Homebrew, ellers `npm i -g @opencode/cli@2.1.3` (nå 2.1.4). Har du verken Homebrew eller npm, installerer nav-pilot ingenting, men sier at du må installere Homebrew eller Node.js først, og hvilken kommando du kjører etterpå. nav-pilot bruker ikke lenger OpenCodes eget installasjonsskript, fordi det bare installerer OpenCode 1. Har du OpenCode 1 fra før, lar nav-pilot den stå.
+- **Ny installasjon**: Når nav-pilot foreslår eller installerer OpenCode, er det nå OpenCode 2: `brew install anomalyco/tap/opencode-v2` med Homebrew, ellers `npm i -g @opencode/cli@2.1.3`. Har du verken Homebrew eller npm, installerer nav-pilot ingenting, men sier at du må installere Homebrew eller Node.js først, og hvilken kommando du kjører etterpå. nav-pilot bruker ikke lenger OpenCodes eget installasjonsskript, fordi det bare installerer OpenCode 1. Har du OpenCode 1 fra før, lar nav-pilot den stå.
 - **Varsel til deg som bruker OpenCode 1**: nav-pilot viser et kort varsel når du starter OpenCode 1, én gang per OpenCode-versjon, og i `nav-pilot doctor`. nav-pilot slutter å støtte OpenCode 1 etter 19. november 2026. Oppgraderingen kan ikke angres: OpenCode 2 skriver om databasen fra OpenCode 1. Du må logge inn på nytt, fordi innloggingen (auth.json) ikke blir med, og på Linux trenger du bubblewrap. Varselet viser kommandoen du skal kjøre.
 - **OpenCode 2 krever nyere cplt**: OpenCode 2 starter bare med cplt 2026.10.22-172931 eller nyere. Da beholder OpenCode favoritter og historikk mellom økter og tar øyeblikksbilder med git, og plugins og MCP-servere får tilgangen de trenger. Har du en eldre cplt, stopper nav-pilot og sier hvordan du oppdaterer, for eksempel `brew upgrade cplt` (#1907).
 
@@ -129,12 +129,12 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### Utklippstavle og egne cplt-flagg for én økt
 
-- **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavlen på macOS for denne økta. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle økter med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
-- **`nav-pilot --cplt <flagg>`**: Sender ett cplt-flagg videre for denne økta, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Flagg med verdi skrives med `=`. `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
+- **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavla på macOS for denne økten. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle økter med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
+- **`nav-pilot --cplt <flagg>`**: Sender ett cplt-flagg videre for denne økten, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Flagg med verdi skrives med `=`. `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
 
 ### OpenCode-økter bruker bare GitHub Copilot og lokal modell
 
-- **`nav-pilot --client opencode`**: En økt som nav-pilot starter, kan bare bruke modeller fra GitHub Copilot. Har du slått på lokal inferens (`local_enabled`), kan økta også bruke den lokale modellen (`mlx`). Andre leverandører er slått av i økta, også når en agentpakke peker på dem. Starter du OpenCode uten nav-pilot, er alt som før, og nav-pilot endrer ikke OpenCode-konfigurasjonen din (#1882).
+- **`nav-pilot --client opencode`**: En økt som nav-pilot starter, kan bare bruke modeller fra GitHub Copilot. Har du slått på lokal inferens (`local_enabled`), kan økten også bruke den lokale modellen (`mlx`). Andre leverandører er slått av i økten, også når en agentpakke peker på dem. Starter du OpenCode uten nav-pilot, er alt som før, og nav-pilot endrer ikke OpenCode-konfigurasjonen din (#1882).
 - **Ingen stille bytte**: Får ikke OpenCode tilgang til en Copilot-modell, svarer den «Model unavailable» i stedet for å bytte til en annen leverandør. Avslutter OpenCode med feil, minner nav-pilot deg på å logge inn med `opencode auth login` (velg GitHub Copilot) og sjekke at Copilot-planen din har modellen. Avbryter du selv med Ctrl+C, kommer ikke påminnelsen.
 - **Når nav-pilot ikke starter OpenCode**:
   - `opencode --version` svarer ikke. Sjekk at kommandoen virker, og prøv igjen.

@@ -439,8 +439,8 @@ export default function Klienter() {
         <BodyLong>opencode 2 krever:</BodyLong>
         <Bullets>
           <li>
-            macOS eller Linux med cplt fra 22. oktober 2026 eller nyere. {c("cplt --version")} viser datoen først i
-            versjonen. Med eldre cplt stopper nav-pilot og sier hvordan du oppdaterer.
+            macOS eller Linux med cplt fra 22. oktober 2026 eller nyere ({c("cplt --version")} minst{" "}
+            {c("2026.10.22-172931")}). Med eldre cplt stopper nav-pilot og sier hvordan du oppdaterer.
           </li>
           <li>På Linux må bubblewrap ({c("bwrap")}) være installert.</li>
           <li>

@@ -137,9 +137,10 @@ nav-pilot`}</CodeBlock>
           </Bullets>
           <BodyLong>
             Til slutt viser <strong>Save these settings?</strong> hva som blir endret, både i nav-pilot og i cplt.
-            Velger du Cancel, lagres ingenting. Etterpå sjekker nav-pilot gh-innloggingen. Finner den ingen innlogging,
-            sier den at agenten kanskje ikke får pushet eller laget pull requests, og viser til{" "}
-            <code className={code}>nav-pilot doctor</code> for detaljer.
+            Velger du Cancel, lagres ingenting. Etterpå sjekker nav-pilot gh-innloggingen. Kan den ikke bekrefte
+            innloggingen, sier den at agenten kanskje ikke får pushet eller laget pull requests, og viser til{" "}
+            <code className={code}>nav-pilot doctor</code> for detaljer. Mangler gh, viser den kommandoen som
+            installerer den.
           </BodyLong>
           <BodyLong>
             Kjenner cplt igjen verktøyene i repoet, kommer spørsmålet om <code className={code}>.cplt.toml</code> nå, se{" "}
@@ -156,8 +157,8 @@ nav-pilot`}</CodeBlock>
           <BodyLong>
             Ber agentpakka om et unntak i sandkassen, spør nav-pilot før den installerer (
             <strong>Let the agent read Nais logs, metrics and traces?</strong>). Nav-pakka ber om å nå
-            Grafana-verktøyene Mimir, Loki og Tempo. Enter svarer nei, og da virker alt annet i pakka. Ombestemmer du
-            deg, kjører du <code className={code}>nav-pilot pakke access</code>.{" "}
+            Grafana-verktøyene Mimir, Loki og Tempo. Enter svarer Decline, og da virker alt annet i pakka. Ombestemmer
+            du deg, kjører du <code className={code}>nav-pilot pakke access</code>.{" "}
             <NextLink href="/nav-pilot/agentpakker/referanse#sandkasse" className={linkClass}>
               Agentpakker
             </NextLink>{" "}

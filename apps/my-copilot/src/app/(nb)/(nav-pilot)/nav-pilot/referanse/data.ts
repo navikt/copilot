@@ -200,7 +200,7 @@ export const CLI_COMMANDS = [
   {
     command: "nav-pilot",
     description:
-      "Interaktivt: installer, oppgrader eller start agenten i cplt-sandkassen. Nye installasjoner får opencode, ellers Copilot CLI",
+      "Interaktivt: installer, oppgrader eller start agenten i cplt-sandkassen. Nye installasjoner får opencode (nav-pilot tilbyr å installere den), ellers Copilot CLI.",
   },
   { command: "nav-pilot --resume [id]", description: "Fortsett en økt. Uten id åpner Copilot CLI sin egen liste" },
   { command: "nav-pilot --continue", description: "Fortsett den forrige økta" },
