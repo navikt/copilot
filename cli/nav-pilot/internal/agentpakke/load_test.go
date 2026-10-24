@@ -545,6 +545,39 @@ func TestLoadInvalidManifestFailsClosed(t *testing.T) {
 
 // --- ValidateSource ---
 
+// sync ignores a malformed retired record silently, so validate must report it.
+func TestValidateSourceRetiredRecord(t *testing.T) {
+	blob := strings.Repeat("a", 40)
+	for _, tt := range []struct {
+		name, record string
+		wantFinding  bool
+	}{
+		{"valid record", `{"paths":{"skills/old/SKILL.md":["` + blob + `"]},"replacements":{"skills/old":"new"}}`, false},
+		{"bidi override in a replacement", `{"paths":{},"replacements":{"skills/old":"a\u202eb"}}`, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeManifest(t, root, grillmesterManifest)
+			for _, dir := range []string{
+				"plugin", "targets/copilot-cli-focused-v1",
+				"targets/opencode-v1", "targets/opencode-v1-focused",
+			} {
+				mkdirAll(t, filepath.Join(root, filepath.FromSlash(dir)))
+				writeFile(t, filepath.Join(root, filepath.FromSlash(dir), PayloadManifestFile), `{"schemaVersion":1,"files":{}}`)
+			}
+			mkdirAll(t, filepath.Join(root, "profiles", "opencode"))
+			writeFile(t, filepath.Join(root, "profiles", "opencode", "hybrid.json"), `{}`)
+			mkdirAll(t, filepath.Join(root, ".nav-pilot"))
+			writeFile(t, filepath.Join(root, filepath.FromSlash(RetiredRecordPath)), tt.record)
+
+			joined := joinErrs(ValidateSource(root))
+			if got := strings.Contains(joined, RetiredRecordPath); got != tt.wantFinding {
+				t.Errorf("ValidateSource findings = %q, want a retired-record finding: %v", joined, tt.wantFinding)
+			}
+		})
+	}
+}
+
 func TestValidateSourceTier2(t *testing.T) {
 	root := t.TempDir()
 	writeManifest(t, root, grillmesterManifest)

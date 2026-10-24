@@ -603,3 +603,54 @@ func TestKindForPathPrefersTheLongestLayoutDir(t *testing.T) {
 		t.Errorf("fildelen ble %q, ventet gammel.agent.md", file)
 	}
 }
+
+// The sync message names the replacement when the record has one, for a
+// skill's files through the skill's directory, and stays as before without.
+func TestReportRetiredNamesReplacement(t *testing.T) {
+	m := &retiredManifest{Replacements: map[string]string{"skills/old": "new-skill"}}
+	if got := m.replacementFor("skills/old/SKILL.md"); got != "new-skill" {
+		t.Fatalf("replacementFor(skills/old/SKILL.md) = %q, want new-skill", got)
+	}
+	if got := m.replacementFor("skills/older/SKILL.md"); got != "" {
+		t.Fatalf("replacementFor(skills/older/SKILL.md) = %q, want none: a name prefix is not a directory", got)
+	}
+
+	with := captureStdout(func() {
+		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Replacement: "new-skill"}}, true)
+	})
+	if !strings.Contains(with, "skills/old/SKILL.md is retired; replaced by") || !strings.Contains(with, "new-skill") {
+		t.Errorf("with a replacement, output = %q, want it named", with)
+	}
+	without := captureStdout(func() {
+		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md"}}, true)
+	})
+	if strings.Contains(without, "is retired; replaced by") || !strings.Contains(without, "skills/old/SKILL.md") {
+		t.Errorf("without a replacement, output = %q, want the bare path", without)
+	}
+}
+
+// Through the record: findRetiredOrphans carries the replacement.
+func TestFindRetiredOrphansCarriesReplacement(t *testing.T) {
+	scope, agentDir := userScopeWithAgents(t)
+	body := []byte("old agent\n")
+	if err := os.WriteFile(filepath.Join(agentDir, "old.agent.md"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sourceDir := t.TempDir()
+	writeRetired(t, sourceDir, `{"paths":{"agents/old.agent.md":["`+blobHash(body)+`"]},"replacements":{"agents/old.agent.md":"new"}}`)
+	got := findRetiredOrphans(scope, sourceDir, nil)
+	if len(got) != 1 || got[0].Replacement != "new" {
+		t.Errorf("findRetiredOrphans = %+v, want one orphan replaced by new", got)
+	}
+}
+
+// Defence in depth: a C1 CSI that slipped past the schema must not reach the
+// terminal as an escape sequence.
+func TestReportRetiredSanitizesReplacement(t *testing.T) {
+	out := captureStdout(func() {
+		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Replacement: "new\u009b2J"}}, true)
+	})
+	if strings.ContainsRune(out, '\u009b') || !strings.Contains(out, "new\uFFFD2J") {
+		t.Errorf("output = %q, want the CSI replaced by U+FFFD", out)
+	}
+}

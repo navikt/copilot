@@ -20,6 +20,17 @@
         "minItems": 1,
         "items": { "$ref": "#/$defs/blobHash" }
       }
+    },
+    "replacements": {
+      "description": "Optional. A retired artifact, as a recorded path or the directory that holds it (\"skills/aksel-spacing\"), mapped to the name or path of what replaces it. nav-pilot sync names the replacement when it reports the artifact as retired.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/repoRelativePath" },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120,
+        "pattern": "^[^\u0000-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]+$"
+      }
     }
   },
   "$defs": {

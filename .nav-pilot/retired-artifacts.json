@@ -66,5 +66,8 @@
       "a1475e627d97a571c9b02ba5c6cd6dcd9e5636d2",
       "e9af59c2c44039f3138ecab5c2a5a377f9f30baa"
     ]
+  },
+  "replacements": {
+    "skills/aksel-spacing": "aksel-builder"
   }
 }

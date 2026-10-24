@@ -22,6 +22,9 @@
 // Generated, not maintained: nobody has to remember to add a name while they
 // are busy deleting one, which was the objection to keeping such a list by
 // hand.
+//
+// To drop an entry history cannot regenerate, delete it from the file; the
+// generator keeps what history or the file has, never more.
 package main
 
 import (
@@ -48,6 +51,9 @@ const outputPath = ".nav-pilot/retired-artifacts.json"
 type document struct {
 	Comment string              `json:"_comment"`
 	Paths   map[string][]string `json:"paths"`
+	// Replacements maps a retired artifact (a recorded path, or a skill's
+	// directory) to what replaces it. Written by hand; the generator keeps it.
+	Replacements map[string]string `json:"replacements,omitempty"`
 }
 
 func main() {
@@ -70,6 +76,13 @@ func main() {
 
 	doc, err := build()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "generate-retired: %v\n", err)
+		os.Exit(1)
+	}
+	// Union with the committed record. Some recorded blobs lived only on
+	// branches deleted after a squash merge, so no clone can regenerate them
+	// (#1955); dropping them would stop nav-pilot recognising those files.
+	if err := unionWithFile(doc, outputPath); err != nil {
 		fmt.Fprintf(os.Stderr, "generate-retired: %v\n", err)
 		os.Exit(1)
 	}
@@ -133,6 +146,55 @@ func build() (*document, error) {
 	return doc, nil
 }
 
+// unionWithFile merges the record at path into doc. Only a missing file is
+// skipped: any other read or parse error aborts before anything is written,
+// so a transient failure can never truncate the record.
+func unionWithFile(doc *document, path string) error {
+	have, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var committed document
+	if err := json.Unmarshal(have, &committed); err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	union(doc, &committed, present)
+	return nil
+}
+
+// present reports whether a path exists in the working tree.
+func present(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+// union adds every path and hash the committed record holds to doc, and keeps
+// its replacements. A path that exists again is not retired and stays out, as
+// in build.
+func union(doc, committed *document, isPresent func(string) bool) {
+	for p, blobs := range committed.Paths {
+		if isPresent(p) {
+			continue
+		}
+		seen := map[string]bool{}
+		var merged []string
+		for _, b := range append(append([]string{}, doc.Paths[p]...), blobs...) {
+			if !seen[b] {
+				seen[b] = true
+				merged = append(merged, b)
+			}
+		}
+		sort.Strings(merged)
+		doc.Paths[p] = merged
+	}
+	if len(committed.Replacements) > 0 {
+		doc.Replacements = committed.Replacements
+	}
+}
+
 // deletedPaths lists every path under dir that some commit deleted.
 //
 // --no-renames matters: with rename detection on, git reports a file that was
@@ -140,7 +202,7 @@ func build() (*document, error) {
 // never shows up as deleted. It is still gone from the user's install, which is
 // the only thing this file is for.
 func deletedPaths(dir string) ([]string, error) {
-	out, err := git("log", "--all", "--no-renames", "--diff-filter=D", "--format=", "--name-only", "--", dir+"/")
+	out, err := git("log", "HEAD", "--no-renames", "--diff-filter=D", "--format=", "--name-only", "--", dir+"/")
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +223,7 @@ func deletedPaths(dir string) ([]string, error) {
 // blobsFor returns every distinct blob hash the path has held, oldest listing
 // order made deterministic by sorting.
 func blobsFor(path string) ([]string, error) {
-	commits, err := git("log", "--all", "--format=%H", "--", path)
+	commits, err := git("log", "HEAD", "--format=%H", "--", path)
 	if err != nil {
 		return nil, err
 	}

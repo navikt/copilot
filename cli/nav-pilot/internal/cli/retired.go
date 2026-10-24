@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -29,7 +31,19 @@ const retiredManifestPath = agentpakke.RetiredRecordPath
 // history. Computing one needs no git: it is sha1 of "blob <len>\x00" followed
 // by the bytes.
 type retiredManifest struct {
-	Paths map[string][]string `json:"paths"`
+	Paths        map[string][]string `json:"paths"`
+	Replacements map[string]string   `json:"replacements"`
+}
+
+// replacementFor returns what replaces a retired path: an entry for the path
+// itself, or for a directory holding it (a skill is a directory of files).
+func (m *retiredManifest) replacementFor(p string) string {
+	for ; p != "." && p != "/" && p != ""; p = path.Dir(p) {
+		if r := m.Replacements[p]; r != "" {
+			return r
+		}
+	}
+	return ""
 }
 
 // loadRetired reads the source's retired-artifact record.
@@ -77,6 +91,8 @@ func blobHash(data []byte) string {
 type retiredOrphan struct {
 	Path  string // path as the source names it, e.g. "agents/auth.agent.md"
 	Local string // absolute path in the scope
+	// Replacement names what replaces it, when the record says.
+	Replacement string
 }
 
 // findRetiredOrphans returns the installed artifacts the source has retired,
@@ -120,7 +136,7 @@ func findRetiredOrphans(scope *InstallScope, sourceDir string, pakke *agentpakke
 		have := blobHash(data)
 		for _, b := range blobs {
 			if b == have {
-				found = append(found, retiredOrphan{Path: srcPath, Local: local})
+				found = append(found, retiredOrphan{Path: srcPath, Local: local, Replacement: m.replacementFor(srcPath)})
 				break
 			}
 		}
@@ -225,7 +241,14 @@ func reportRetired(orphans []retiredOrphan, apply bool) {
 	fmt.Printf("%s %d artifact(s) retired in the source are still installed\n\n",
 		yellow("⚠"), len(orphans))
 	for _, o := range orphans {
-		fmt.Printf("  %s %s\n", dim("⊘"), o.Path)
+		// The record is a third party's file. The schema refuses control
+		// runes; this holds if a looser record gets through anyway.
+		p := domain.SafeText(o.Path, 0)
+		if o.Replacement != "" {
+			fmt.Printf("  %s %s is retired; replaced by %s\n", dim("⊘"), p, bold(domain.SafeText(o.Replacement, 120)))
+			continue
+		}
+		fmt.Printf("  %s %s\n", dim("⊘"), p)
 	}
 	fmt.Println()
 	if !apply {

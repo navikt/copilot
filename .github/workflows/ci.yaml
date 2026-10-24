@@ -187,6 +187,9 @@ jobs:
               - 'docs/**'
               - 'README.md'
               - 'scripts/generate-docs/**'
+              - 'extensions/**'
+              - '.nav-pilot/retired-artifacts.json'
+              - 'scripts/generate-retired/**'
               - 'scripts/lint-skills.sh'
               - 'scripts/test-lint-skills.sh'
               - 'scripts/check-harness-budget.py'
@@ -546,6 +549,10 @@ jobs:
           go-version-file: scripts/generate-docs/go.mod
       - name: Docs in sync
         run: cd scripts/generate-docs && go run . --check
+      # Needs the full history the checkout above fetches: the record is read
+      # out of every deleted artifact's past blobs.
+      - name: Retired-artifact record is current
+        run: cd scripts/generate-retired && go test ./... && go run . --check
       - name: Lint skills
         run: bash scripts/lint-skills.sh
       - name: Test the skill linter
