@@ -32,15 +32,15 @@
           "local_n": 48
         },
         "edit-single": {
-          "delegate": "cloud",
+          "delegate": "trusted",
           "local": "not-yet",
-          "delegate_k": 3,
-          "delegate_n": 3,
+          "delegate_k": 48,
+          "delegate_n": 48,
           "local_k": 9,
           "local_n": 9
         },
         "edit-multi-mechanical": {
-          "delegate": "trusted",
+          "delegate": "cloud",
           "local": "cloud",
           "delegate_k": 35,
           "delegate_n": 35,
@@ -48,10 +48,10 @@
           "local_n": 32
         },
         "create-file": {
-          "delegate": "cloud",
+          "delegate": "trusted",
           "local": "cloud",
-          "delegate_k": 1,
-          "delegate_n": 2,
+          "delegate_k": 15,
+          "delegate_n": 20,
           "local_k": 33,
           "local_n": 48
         },
