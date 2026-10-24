@@ -86,12 +86,19 @@ func startFakeMLX(t testing.TB, queued bool) string {
 	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
 	base := fmt.Sprintf("http://127.0.0.1:%d", port)
 	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		// Only our fake answers "<peak> <ran>". freePort closes its listener
+		// before python binds, so another process can take the port in that
+		// gap; a server that answers with anything else is not ours (#1909).
 		if resp, err := http.Get(base + "/peak"); err == nil {
+			var p, ran int
+			_, err := fmt.Fscan(resp.Body, &p, &ran)
 			resp.Body.Close()
-			return base
+			if err == nil {
+				return base
+			}
 		}
 	}
-	t.Fatal("the fake server never answered")
+	t.Fatal("the fake server never answered with its counters; another process may hold the port")
 	return ""
 }
 
@@ -114,9 +121,10 @@ func peak(t *testing.T, base string) (int, int) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
 	var p, ran int
-	if _, err := fmt.Fscan(resp.Body, &p, &ran); err != nil {
-		t.Fatal(err)
+	if _, err := fmt.Sscan(string(b), &p, &ran); err != nil {
+		t.Fatalf("GET /peak = %d %q: %v", resp.StatusCode, b, err)
 	}
 	return p, ran
 }
