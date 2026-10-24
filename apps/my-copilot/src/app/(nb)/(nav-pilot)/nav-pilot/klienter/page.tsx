@@ -438,20 +438,33 @@ export default function Klienter() {
         </BodyLong>
         <BodyLong>opencode 2 krever:</BodyLong>
         <Bullets>
-          <li>macOS med cplt fra 8. oktober 2026 eller nyere. {c("cplt --version")} viser datoen først i versjonen.</li>
           <li>
-            Linux med cplt fra 8. oktober 2026 eller nyere ({c("cplt --version")} minst {c("2026.10.08-092800")}) og
-            bubblewrap ({c("bwrap")}) installert.
+            macOS eller Linux med cplt fra 22. oktober 2026 eller nyere ({c("cplt --version")} minst{" "}
+            {c("2026.10.22-172931")}). Med eldre cplt stopper nav-pilot og sier hvordan du oppdaterer.
           </li>
+          <li>På Linux må bubblewrap ({c("bwrap")}) være installert.</li>
           <li>
-            Med Linux-kjerne eldre enn 6.7 kan ikke cplt stenge portene til økten. Da beskytter bare passordet til
+            Med Linux-kjerne eldre enn 6.7 kan ikke cplt stenge portene til økta. Da beskytter bare passordet til
             tjenesten den.
           </li>
-          <li>
-            Går du fra opencode 1 til 2, må du kjøre {c("opencode auth import")} én gang. Innloggingen følger ikke med
-            automatisk.
-          </li>
         </Bullets>
+        <LinkableHeading id="opencode-1" size="small" level="3">
+          Fra opencode 1 til 2
+        </LinkableHeading>
+        <BodyLong>
+          nav-pilot støtter opencode 1 til og med 19. november 2026. Oppdateringen opencode 1 selv tilbyr, holder deg på
+          opencode 1. Oppgrader slik, etter hvordan du installerte opencode:
+        </BodyLong>
+        <Bullets>
+          <li>Homebrew: {c("brew uninstall opencode && brew install anomalyco/tap/opencode-v2")}</li>
+          <li>npm: {c("npm uninstall -g opencode-ai && npm i -g @opencode/cli@2.1.4")}</li>
+          <li>Installasjonsskriptet: {c("rm ~/.opencode/bin/opencode && npm i -g @opencode/cli@2.1.4")}</li>
+        </Bullets>
+        <BodyLong>
+          Oppgraderingen kan ikke angres: opencode 2 skriver om databasen fra opencode 1. Du må logge inn på nytt, fordi
+          innloggingen ({c("auth.json")}) ikke blir med. Når du starter opencode 1, viser nav-pilot den riktige
+          kommandoen for din maskin.
+        </BodyLong>
         <LinkableHeading id="deling-og-oppdatering" size="small" level="3">
           Deling og oppdatering
         </LinkableHeading>

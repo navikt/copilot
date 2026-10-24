@@ -116,6 +116,10 @@ export default function KomIGang() {
           <CodeBlock compact>{`cd ~/src/min-app
 (unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; nav-pilot)`}</CodeBlock>
           <BodyLong>
+            Tokenene tømmes bare for denne kommandoen, så nav-pilot bruker innloggingen fra{" "}
+            <code className={code}>gh auth login</code>, ikke et gammelt token i skallet.
+          </BodyLong>
+          <BodyLong>
             Første gang spør nav-pilot om noen innstillinger. Enter gir det anbefalte valget. Spørsmålene er på engelsk:
           </BodyLong>
           <Bullets>
@@ -137,8 +141,10 @@ export default function KomIGang() {
           </Bullets>
           <BodyLong>
             Til slutt viser <strong>Save these settings?</strong> hva som blir endret, både i nav-pilot og i cplt.
-            Velger du Cancel, lagres ingenting. Etterpå sjekker nav-pilot gh-innloggingen og sier hvilken kommando du må
-            kjøre hvis push eller pull requests ikke vil virke.
+            Velger du Cancel, lagres ingenting. Etterpå sjekker nav-pilot gh-innloggingen. Kan den ikke bekrefte
+            innloggingen, sier den at agenten kanskje ikke får pushet eller laget pull requests, og viser til{" "}
+            <code className={code}>nav-pilot doctor</code> for detaljer. Mangler gh, viser den kommandoen som
+            installerer den.
           </BodyLong>
           <BodyLong>
             Kjenner cplt igjen verktøyene i repoet, kommer spørsmålet om <code className={code}>.cplt.toml</code> nå, se{" "}
@@ -154,8 +160,9 @@ export default function KomIGang() {
           </BodyLong>
           <BodyLong>
             Ber agentpakka om et unntak i sandkassen, spør nav-pilot før den installerer (
-            <strong>agentpakke nav-pilot asks for more than the sandbox gives it. Allow it?</strong>). Nav-pakka ber om
-            å nå Grafana-verktøyene Mimir, Loki og Tempo. Enter svarer Decline, og da virker alt annet i pakka.{" "}
+            <strong>Let the agent read Nais logs, metrics and traces?</strong>). Nav-pakka ber om å nå
+            Grafana-verktøyene Mimir, Loki og Tempo. Enter svarer Decline, og da virker alt annet i pakka. Ombestemmer
+            du deg, kjører du <code className={code}>nav-pilot pakke access</code>.{" "}
             <NextLink href="/nav-pilot/agentpakker/referanse#sandkasse" className={linkClass}>
               Agentpakker
             </NextLink>{" "}

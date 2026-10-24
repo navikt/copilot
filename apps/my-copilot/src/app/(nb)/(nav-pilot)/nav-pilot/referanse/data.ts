@@ -197,7 +197,23 @@ export const CONFIG_KEYS = [
 ];
 
 export const CLI_COMMANDS = [
-  { command: "nav-pilot", description: "Interaktivt: installer, oppgrader eller start Copilot-sandkassen (cplt)" },
+  {
+    command: "nav-pilot",
+    description:
+      "Interaktivt: installer, oppgrader eller start agenten i cplt-sandkassen. Nye installasjoner får opencode (nav-pilot tilbyr å installere den), ellers Copilot CLI.",
+  },
+  { command: "nav-pilot --resume [id]", description: "Fortsett en økt. Uten id åpner Copilot CLI sin egen liste" },
+  { command: "nav-pilot --continue", description: "Fortsett den forrige økta" },
+  {
+    command: "nav-pilot --cplt <flagg>",
+    description: "Send et flagg til cplt for denne økta, for eksempel --cplt --allow-port=8080. Kan gjentas",
+  },
+  { command: "nav-pilot --allow-clipboard", description: "La agenten bruke utklippstavla i macOS denne økta" },
+  {
+    command: "nav-pilot pakke",
+    description: "Vis agentpakka her: kilde, versjon, hooks og tilgangen den ber om, med svaret ditt",
+  },
+  { command: "nav-pilot pakke access", description: "Svar på nytt om tilgang du har avslått eller ikke er spurt om" },
   { command: "nav-pilot --client opencode", description: "Start opencode med Nav-konteksten på plass" },
   {
     command: "nav-pilot --verbose",
@@ -286,10 +302,6 @@ export const CLI_COMMANDS = [
   {
     command: "nav-pilot export opencode",
     description: "Skriv agentpakka til .opencode/ i repoet, i formatet til opencode. Trengs ikke for å bruke opencode",
-  },
-  {
-    command: "nav-pilot export opencode --user",
-    description: "Skriv til ~/.config/opencode/ (eller $XDG_CONFIG_HOME/opencode/) i stedet, for alle repoer",
   },
   { command: "nav-pilot config", description: "Interaktiv innstillingsside i terminalen" },
   { command: "nav-pilot config init", description: "Opprett ~/.nav-pilot/config.toml med alle valg kommentert ut" },
