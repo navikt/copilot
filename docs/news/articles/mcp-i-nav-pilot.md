@@ -1,6 +1,6 @@
 ---
 title: "Nais MCP og GitHub under cplt, uten at innloggingen kommer inn i sandkassen"
-date: 2026-10-24 # TODO (eier): sett forventet publiseringsdato
+date: 2026-10-24
 author: starefossen
 category: nav-pilot
 cli: true
