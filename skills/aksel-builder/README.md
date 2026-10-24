@@ -14,7 +14,7 @@ and primitive — and backs every choice with the **Aksel MCP server** instead o
   `@navikt/ds-tailwind` preset.
 - **Theming** — light/dark mode and base color via the `Theme` component.
 - **Icons** — finding icons and the `name` → `${name}Icon` import mapping.
-- **Accessibility** — the props Aksel requires for WCAG-compliant output.
+- **Accessibility** — labels, semantics, focus, and checks for the complete user flow.
 - **Setup & migrations** — packages, imports, SSR/RSC, and version codemods.
 - **Figma → code** — translate a Figma design into Aksel components and tokens (needs a Figma MCP).
 
@@ -22,10 +22,12 @@ and primitive — and backs every choice with the **Aksel MCP server** instead o
 
 **MCP-first, anti-hallucination.** Aksel's API shifts between major versions, so the skill
 never generates imports, props, tokens, or icon names from memory. It verifies each against
-the live MCP tools (`aksel_find_docs`, `aksel_get_doc`, `aksel_get_component_info`,
-`aksel_get_token_details`, `aksel_find_icons`) before writing code.
+MCP tools (`aksel_find_docs`, `aksel_get_doc`, `aksel_get_component_info`,
+`aksel_get_token_details`, `aksel_find_icons`) and installed packages before writing code.
+Docs/props are fetched live and cached; token, icon, and migration catalogs are bundled
+with the MCP server. They are not automatically aligned with the consuming app's version.
 
-**Progressive disclosure.** `SKILL.md` is the always-on entry point (mission, MCP rules,
+**Progressive disclosure.** `SKILL.md` is loaded when the skill is invoked (mission, MCP rules,
 tool matrix, and a decision tree). The ten `references/` files load **on demand** — only
 when a task touches their domain — keeping context small.
 
@@ -33,8 +35,34 @@ when a task touches their domain — keeping context small.
 Aksel version?), then each task branch maps to one reference file plus the tools to call.
 
 **Works without the MCP.** If the `aksel_*` tools aren't installed, the skill recommends
-adding them, then falls back to fetching the same docs over HTTP from
-`https://aksel.nav.no/llm.md`.
+adding them, then falls back to fetching documentation over HTTP from
+`https://aksel.nav.no/llm.md`. These pages do not replace structured token/icon catalogs;
+check installed package exports and types when the prose is insufficient.
+
+## Installation and entry points
+
+Install the builder in the consuming repository with `nav-pilot`:
+
+```sh
+nav-pilot install aksel-builder --type skill --source navikt/copilot --repo
+```
+
+`aksel-builder` replaces the retired `aksel-spacing` skill. `nav-pilot sync --apply` removes
+an unchanged `aksel-spacing` copy; install the builder in its place.
+
+Installing an individual artifact does not install its companions. Install the builder
+alongside any of these optional entry points:
+
+| Artifact                              | Source                                                         | Role                                                  |
+| ------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------- |
+| `aksel` agent (`aksel-agent` in chat) | [Agent](../../agents/aksel.agent.md)                           | Routes Aksel tasks to this skill                      |
+| `aksel-component` prompt              | [Prompt](../../prompts/aksel-component.prompt.md)              | Scaffolds a component using this workflow             |
+| `nextjs-aksel` instruction            | [Instruction](../../instructions/nextjs-aksel.instructions.md) | Keeps Next.js guidance and Aksel integration together |
+
+Use `--type agent`, `--type prompt`, or `--type instruction` when installing those artifact
+names with the same source and scope flags. New layout tasks should select `aksel-builder`
+directly. Configure Aksel MCP through the client as described in `SKILL.md` → Preflight.
+Figma work also needs a connected Figma MCP server.
 
 ## Structure
 
@@ -56,17 +84,19 @@ aksel-builder/
 
 ## Context cost
 
-Token estimates (`~4 chars/token`; markdown with tables/code, so ±10%):
+Size estimates measured from file character counts on 2026-10-21, divided by four.
+Actual token counts depend on the model, language, and Markdown; these are not tokenizer
+measurements. Tool responses and conversation history are excluded.
 
-| Tier                   | Loads                          | ~Tokens |
-| ---------------------- | ------------------------------ | ------- |
-| Idle (until triggered) | frontmatter `description` only | ~240    |
-| Triggered, no refs     | full `SKILL.md`                | ~3,200  |
-| Typical task           | `SKILL.md` + 1–2 references    | ~5–7k   |
-| All references loaded  | `SKILL.md` + all 10 references | ~19,000 |
+| Tier                   | Loads                          | ~Tokens   |
+| ---------------------- | ------------------------------ | --------- |
+| Idle (until triggered) | frontmatter `description` only | ~80       |
+| Triggered, no refs     | full `SKILL.md`                | ~3,550    |
+| One or two references  | `SKILL.md` + 1–2 references    | ~4.5–8.5k |
+| All references loaded  | `SKILL.md` + all 10 references | ~20,700   |
 
-The skill costs ~240 tokens until a UI task triggers it, and most tasks pull only one or two
-references — the all-in figure is a ceiling, not the norm.
+Hosts may also include skill names and other metadata before invocation. Load only the
+references needed for the task; the all-in figure is not the normal cost.
 
 ## Requirements
 

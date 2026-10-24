@@ -1,7 +1,7 @@
 ---
 name: aksel-component
 description: Scaffold en responsiv React-komponent med Aksel Design System, riktige tokens og props verifisert via Aksel MCP / aksel-builder-skillen
-model: Gemini 3.8 Flash
+model: GPT-6 Luna
 ---
 
 You scaffold a new React component using Nav's Aksel design system (`@navikt/ds-react`, v8+).
@@ -12,11 +12,14 @@ You scaffold a new React component using Nav's Aksel design system (`@navikt/ds-
 conventions, layout primitives, and accessibility rules. This prompt only adds the
 scaffolding-specific steps below; defer to the skill instead of restating it.
 
-Verify every component, prop, token, and icon via the MCP (`aksel_get_component_info`,
-`aksel_get_token_details`, `aksel_find_icons`) — never from memory. No MCP? Fall back to
-`https://aksel.nav.no/llm.md`. Never invent an API.
+Use the skill's MCP workflow and installed package exports to verify APIs, never memory.
+If MCP is unavailable, follow the skill's Preflight fallback. Don't assume current
+documentation matches the project's installed version.
 
-## Ask the user first
+## Clarify only what is missing
+
+Use the request and repository conventions first. Ask only when an unanswered question
+changes the implementation; don't repeat information the user already supplied.
 
 1. **Component name** (PascalCase)?
 2. **Purpose** — what does it do?
@@ -25,26 +28,35 @@ Verify every component, prop, token, and icon via the MCP (`aksel_get_component_
 
 ## v8 gotchas (safety net)
 
-The skill carries the full detail; keep just these so you don't ship a stale API even before loading it:
+The skill carries the full detail:
 
-- Spacing/gap use `space-` tokens (`gap="space-16"`, not `gap="4"`); responsive props are mobile-first `{ xs, sm, md, lg, xl, 2xl }`.
-- Color on `data-color`, emphasis on `variant` — destructive button is `variant="primary" data-color="danger"`.
-- `borderRadius` uses the scale (`"8"`, `"full"`); `background` drops the `bg-` prefix (`"raised"`); no v7 `surface-*`.
-- `Alert` is legacy → `LocalAlert` / `GlobalAlert` / `InfoCard` / `InlineMessage` (confirm via MCP).
+- **Verify the installed version.** MCP catalogs and current docs can be newer than the app.
+- **Color and emphasis differ.** For v8 buttons, use `variant="primary" data-color="danger"` for a destructive primary action.
+- **Choose current components.** `Alert` is legacy; confirm the appropriate replacement and API.
+- **Follow project styling.** Primitive token props and native Tailwind layout/spacing are valid; don't target Aksel internals.
+- **Check accessible composition.** Label controls, preserve focus behavior, and match document language and locale.
 
 ## Starter template
 
-```tsx
-import { Box, VStack, Heading, BodyShort } from "@navikt/ds-react";
+Use this card-shaped example only when it fits the requested component. Rename the
+component and props, follow the project's export style, and choose the heading level
+from its surrounding page.
 
-interface {ComponentName}Props {
+```tsx
+import { BodyShort, Box, Heading, VStack } from "@navikt/ds-react";
+
+interface ExampleCardProps {
   title: string;
   description?: string;
 }
 
-export function {ComponentName}({ title, description }: {ComponentName}Props) {
+export function ExampleCard({ title, description }: ExampleCardProps) {
   return (
-    <Box background="raised" padding={{ xs: "space-16", md: "space-24" }} borderRadius="12">
+    <Box
+      background="raised"
+      padding={{ xs: "space-16", md: "space-24" }}
+      borderRadius="12"
+    >
       <VStack gap="space-16">
         <Heading size="medium" level="2">
           {title}
@@ -58,8 +70,7 @@ export function {ComponentName}({ title, description }: {ComponentName}Props) {
 
 ## Before finishing
 
-Add `{component-name}.test.tsx`, then confirm: spacing via `space-` token-props (no Tailwind
-spacing); Aksel primitives over raw `<div>`; mobile-first responsive props; v8 patterns
-(`data-color`, `borderRadius` scale, `background` without `surface-`); every component, prop,
-token and icon verified via MCP; accessible markup (heading levels, labels); TypeScript props;
-component exported.
+Run the project's existing relevant checks. Add behavior coverage when warranted, using
+its test setup and naming; don't unconditionally create a `.test.tsx` file or add tooling.
+Confirm responsive behavior, verified APIs/imports, accessible headings and labels,
+TypeScript props, and required exports. Report checks that could not run.

@@ -649,7 +649,7 @@ var navOwnDomains = []string{
 
 	// The documented fallback when that MCP is unavailable: the agent fetches
 	// the llm.md index and follows the .md links off it.
-	// skills/aksel-builder/SKILL.md, skills/aksel-spacing/SKILL.md.
+	// skills/aksel-builder/SKILL.md.
 	"aksel.nav.no",
 
 	// The observability skill hands the agent literal curl commands against

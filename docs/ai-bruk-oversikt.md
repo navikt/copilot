@@ -16,7 +16,7 @@ Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og
 | `$nais` | Deployment, GCP-ressurser, plattformfeilsøking | Infrastruktur | 🟢 |
 | `$nav-auth` | Azure AD, TokenX, ID-porten, Maskinporten, JWT | Autentisering | 🔴 |
 | `@kafka-agent` | Rapids & Rivers, eventdrevet arkitektur, schema | Meldingssystemer | 🟢/🔴 |
-| `@aksel-agent` | Aksel Design System — komponenter, tokens, layout | Frontend | 🟢 |
+| `@aksel-agent` | Aksel-komponenter, layout og Figma-til-kode via `aksel-builder` | Frontend | 🟢 |
 | `@forfatter` | Norsk klarspråk, AI-markører, fagtermer, mikrotekst | Språk/innhold | 🟢 |
 | `@research-agent` | Utforsker kodebaser, samler kontekst | Forberedelse | 🟢 |
 | `@rust-agent` | Idiomatisk Rust med cargo, clippy, async/tokio | Språkspesifikt | 🟢 |
@@ -47,7 +47,7 @@ Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og
 | flyway-migration | Databasemigrasjoner med Flyway | Scaffolding |
 | api-design | REST API-mønstre, RFC 7807, OpenAPI | Scaffolding |
 | tokenx-auth | TokenX token exchange-implementasjon | Scaffolding |
-| aksel-builder | Responsive layouts med spacing tokens | Frontend |
+| aksel-builder | Aksel-komponenter, layout, tokens, theming, tilgjengelighet, migrering og Figma-til-kode | Frontend |
 | playwright-testing | E2E-tester med page objects og a11y | Testing |
 | conventional-commit | Commit-meldinger med Nav-scopes | Workflow |
 | ai-news-research | Månedlige AI-nyhetsoppsummeringer | Innhold |
@@ -67,7 +67,7 @@ Se også [modellvalg.md](modellvalg.md) for gjeldende modellpinning per agent og
 | kotlin | `*.kt` | Ktor og Rapids & Rivers, Spring Boot, Kotliquery, testing |
 | security-core | Alle filer | Sikkerhetsregler som alltid gjelder: logging, hemmeligheter, spørringer, eierskap, `azp`, TLS |
 | security-owasp | `*.{kt,go,java,ts,tsx}` | Peker til `$security-owasp` for OWASP-mønstre |
-| nextjs-aksel | `src/**/*.{tsx,ts}` | Aksel spacing, responsive props, Box/VStack |
+| nextjs-aksel | `**/*.{tsx,ts}`, bare Next.js-prosjekter | Samlede App Router-regler og Aksel-oppsett via `aksel-builder` |
 | performance | `src/**/*.{tsx,ts}` | Lazy loading, memo, bundle-størrelse |
 | accessibility | `src/**/*.{tsx,jsx}` | ARIA, semantisk HTML, tastaturnavigasjon |
 | testing | `*.test.*` | Teststruktur, Arrange-Act-Assert |

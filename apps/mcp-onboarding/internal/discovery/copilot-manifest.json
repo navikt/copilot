@@ -28,7 +28,7 @@
       "type": "agent",
       "name": "aksel-agent",
       "displayName": "@aksel-agent",
-      "description": "Ekspert på Navs Aksel designsystem (v8+) — bygger og refaktorerer UI med @navikt/ds-react, tokens, layout-primitives, theming, versjon/migrering og tilgjengelighet, og oversetter Figma-design til Aksel-kode. Drevet av aksel-builder-skillen og Aksel MCP som fasit.",
+      "description": "Bygger og refaktorerer UI med Navs Aksel designsystem (v8+), fra komponenter og layout til Figma-design, theming og tilgjengelighet. Bruker aksel-builder, Aksel MCP og prosjektets installerte versjon.",
       "category": "backend",
       "tags": [
         "aksel",
@@ -38,7 +38,7 @@
         "ui"
       ],
       "filePath": "agents/aksel.agent.md",
-      "contentHash": "700721ce34d631f56ccee054baeb7b30d417bb9397b9676b185c0409e80c61ca",
+      "contentHash": "c14ba829b924f33c0ae8331f50024749b25451ab7286032584cad43a50c23300",
       "useCases": [
         "Converting Tailwind to Aksel tokens",
         "Responsive layouts"
@@ -52,7 +52,7 @@
       "displayName": "@code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "filePath": "agents/code-review.agent.md",
-      "contentHash": "811b2a6765ff86de28dda607206e2d3cfdca73343a6a5f64cf0a59cf74a5ee21",
+      "contentHash": "dfc7e55ea6e3435cb7eaf9486f14d92b77a2aec6942ee2d42f05d9e1cc5e5d3c",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -324,8 +324,8 @@
     {
       "type": "instruction",
       "name": "nextjs-aksel",
-      "displayName": "Next.js/Aksel Development",
-      "description": "Aksel spacing tokens (never Tailwind p-/m-), correct background/borderRadius token names, mobile-first responsive design with layout primitives.",
+      "displayName": "Next.js og Aksel",
+      "description": "Samlede regler for Next.js App Router og Aksel: server-/klientgrenser, data, autentisering og versjonstilpasset Aksel-oppsett via aksel-builder.",
       "tags": [
         "aksel",
         "design-system",
@@ -334,7 +334,7 @@
         "ui"
       ],
       "filePath": "instructions/nextjs-aksel.instructions.md",
-      "contentHash": "342cce96431f6ca53c1e9539bbe17b49d27b09756c4a0010e18a1d9c6f6a237a",
+      "contentHash": "0b83049114a7b86a5ae7e4cd848517f89537b10576dc0462898cc2604ddec748",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/nextjs-aksel.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/nextjs-aksel.instructions.md"
     },
@@ -469,7 +469,7 @@
         "ui"
       ],
       "filePath": "prompts/aksel-component.prompt.md",
-      "contentHash": "fa646ea49f00e34ee1ecdda2c2f73876deaf1b8ce01811f6fe8e01afc4951b5d",
+      "contentHash": "a86d83671cddc887a000c75bc2a58d10df1799b7a9016606a9ddea2adc83a68f",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/aksel-component.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/aksel-component.prompt.md"
     },
@@ -571,7 +571,7 @@
       "displayName": "aksel-builder",
       "description": "Ekspertbygger for Aksel. React-komponenter, design-tokens, layout-primitiver, theming (lys/mørk), ikoner, CSS, Tailwind-preset, versjonsmigreringer og design til kode.",
       "filePath": "skills/aksel-builder/SKILL.md",
-      "contentHash": "19426456c10f06cd50bf4a5dc0066bf9a808ee9f2a44249d55890d81f4a22789",
+      "contentHash": "098341b233cd30958b2cddad3cef723aa66a80333f5d1fea4dc3a50a658b6071",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-builder/SKILL.md",
       "references": [
@@ -616,16 +616,6 @@
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-builder/references/figma-to-code.md"
         }
       ]
-    },
-    {
-      "type": "skill",
-      "name": "aksel-spacing",
-      "displayName": "aksel-spacing",
-      "description": "Lag responsive layouts med Aksel Design System v8: spacing tokens, layout primitives (Box, HStack, VStack, HGrid, Page, Bleed, Show/Hide) og ResponsiveProp-mønsteret",
-      "filePath": "skills/aksel-spacing/SKILL.md",
-      "contentHash": "9f0fc46fef61440bd9b9eb11c475b94cc5a554e2cc360282b78557eec2bf4ae2",
-      "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-spacing/SKILL.md"
     },
     {
       "type": "skill",

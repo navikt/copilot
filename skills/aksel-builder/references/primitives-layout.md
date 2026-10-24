@@ -20,13 +20,15 @@ themeable.
 | Hide an element only above/below a breakpoint                      | `Hide`                     |
 
 `HStack` and `VStack` are `Stack` with a fixed direction — prefer them when the direction
-is static. They accept all the same layout props as `Box`, so write `<VStack padding="space-16">`
-rather than wrapping a `Box` around a stack.
+is static. They share layout props with `Box`, so write `<VStack padding="space-16">`
+rather than adding a wrapper just for padding. `Box`'s visual props, such as `background`,
+`borderColor`, and `shadow`, are not Stack props.
 
 ## The responsive prop system
 
-Every primitive style prop accepts **either** a single token **or** an object keyed by
-breakpoint. The breakpoint aliases are `xs`, `sm`, `md`, `lg`, `xl`, `2xl`.
+Props typed as `ResponsiveProp` accept either a single value or an object keyed by
+breakpoint: `xs`, `sm`, `md`, `lg`, `xl`, `2xl`. Not every prop is responsive;
+for example, `HGrid.align` takes a single value. Check the specific prop's type.
 
 ```tsx
 <Box padding="space-16" />
@@ -37,7 +39,7 @@ Directional spacing props accept one or two tokens (`"<block/inline> <inline/...
 
 ```tsx
 <Box paddingInline="space-16 space-32" />     // left/right differ
-<HStack gap="space-32 space-16" />            // column-gap row-gap
+<HStack gap="space-32 space-16" />            // row-gap column-gap
 ```
 
 `marginInline` / `marginBlock` additionally accept `"auto"` (e.g. `marginInline="auto"`
@@ -98,7 +100,7 @@ dropped** (`background="accent-strong"` → `--ax-bg-accent-strong`,
 `aksel_get_token_details` or [tokens-styling.md](tokens-styling.md).
 
 > **Deprecation:** `Box.New` / `BoxNew` is deprecated in v8 — use `Box` (same props).
-> Run `pnx @navikt/aksel codemod v8-box-new` to migrate. See [migrations.md](migrations.md).
+> Run `pnpx @navikt/aksel codemod v8-box-new` to migrate. See [migrations.md](migrations.md).
 
 ## Stack (HStack / VStack)
 
@@ -115,7 +117,7 @@ dropped** (`background="accent-strong"` → `--ax-bg-accent-strong`,
 </HStack>
 ```
 
-- `gap` — spacing token (or two for column/row).
+- `gap` — spacing token (or two for row/column).
 - `align` — `start | center | end | baseline | stretch` (default `stretch`).
 - `justify` — `start | center | end | space-around | space-between | space-evenly`.
 - `wrap` — boolean (default `true`).
@@ -173,13 +175,14 @@ Lets a child extend past the parent's padding using negative margin.
 </Box>
 ```
 
-- `marginInline` accepts spacing tokens **or** `"full"` to span the full viewport width.
+- `marginInline` accepts spacing tokens or `"full"`; check the documented containing-block behavior before using full bleed.
 - `marginBlock` accepts spacing tokens (no `"full"`).
 - `reflectivePadding` re-adds matching padding so apparent width is preserved.
 
 ## Show / Hide
 
-Render content conditionally by breakpoint. Use `asChild` to avoid an extra wrapper element.
+Hide content with CSS by breakpoint; children still mount. Do not use this to avoid
+fetching data or rendering expensive children. Use `asChild` to avoid an extra wrapper.
 
 ```tsx
 <Hide below="md" asChild>
@@ -193,3 +196,74 @@ Render content conditionally by breakpoint. Use `asChild` to avoid an extra wrap
 
 - `above` / `below` take a breakpoint (`sm`–`2xl`, inclusive); `xs` is not valid here.
 - `as` is `"div"` (default) or `"span"`.
+
+## Common layout recipes
+
+Import the components used below from `@navikt/ds-react`, except `PageBlock`, which is
+a named export from `@navikt/ds-react/Page` for Server Component compatibility.
+Confirm these props against the installed version before adapting a recipe.
+
+**Responsive sidebar and content:** use flexible tracks so content can shrink.
+
+```tsx
+<HGrid columns={{ xs: 1, md: "1fr 3fr" }} gap="space-24">
+  <Box as="aside" minWidth="0">
+    Sidebar
+  </Box>
+  <Box as="main" minWidth="0">
+    Content
+  </Box>
+</HGrid>
+```
+
+**Cards:** supply both border width and color.
+
+```tsx
+<HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+  <Box
+    padding="space-24"
+    borderWidth="1"
+    borderColor="neutral-subtle"
+    borderRadius="8"
+  >
+    First card
+  </Box>
+  <Box
+    padding="space-24"
+    borderWidth="1"
+    borderColor="neutral-subtle"
+    borderRadius="8"
+  >
+    Second card
+  </Box>
+</HGrid>
+```
+
+**Centered content:** use `PageBlock` inside the application's `Page`.
+
+```tsx
+<PageBlock as="main" width="xl" gutters>
+  <VStack gap="space-24">Page content</VStack>
+</PageBlock>
+```
+
+**Mobile-first form row:** preserve DOM order instead of rearranging fields visually.
+
+```tsx
+<HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+  <TextField label="First name" autoComplete="given-name" />
+  <TextField label="Last name" autoComplete="family-name" />
+</HGrid>
+```
+
+**Full-bleed section:** match the parent's responsive padding.
+
+```tsx
+<Box paddingInline={{ xs: "space-16", md: "space-32" }}>
+  <Bleed marginInline={{ xs: "space-16", md: "space-32" }} reflectivePadding>
+    <Box background="neutral-soft" paddingBlock="space-24">
+      Section
+    </Box>
+  </Bleed>
+</Box>
+```
