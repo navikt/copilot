@@ -1,10 +1,10 @@
 ---
-title: "Nais MCP og GitHub under cplt, uten at innloggingen kommer inn i sandkassen"
+title: "Nais MCP og GitHub under cplt, uten at Nais-innloggingen kommer inn i sandkassen"
 date: 2026-10-24
 author: starefossen
 category: nav-pilot
 cli: true
-excerpt: "nav-pilot mcp enable slår på Nais MCP med én kommando. cplt kjører serveren på maskinen din, utenfor sandkassen, så agenten får verktøyene uten å se innloggingen. GitHub-serveren virker i OpenCode uten egen innlogging. Det virker likt i Copilot CLI og OpenCode."
+excerpt: "nav-pilot mcp enable slår på Nais MCP med én kommando. cplt kjører serveren på maskinen din, utenfor sandkassen, så agenten får verktøyene uten å se innloggingen. GitHub-serveren virker i OpenCode 2 uten egen innlogging. Det virker likt i Copilot CLI og OpenCode."
 tags:
   - nav-pilot
   - cplt
@@ -27,7 +27,7 @@ Start en ny økt etterpå. Detaljene står i [MCP gjennom cplt](/nav-pilot/guide
 
 **Nais MCP med én kommando.** Nais MCP leser innloggingen din fra nøkkelringen. Inne i sandkassen fantes ikke nøkkelringen, så serveren svarte «unauthenticated» selv om du var logget inn. Nå kjører cplt serveren på maskinen din, utenfor sandkassen, og agenten når verktøyene gjennom cplt. Er du ikke logget inn, spør nav-pilot om den skal kjøre `nais login -n`. Har du en Nais CLI eldre enn 7.0.2, ber nav-pilot deg oppgradere, men slår på serveren likevel.
 
-**GitHub i OpenCode uten egen innlogging.** `opencode mcp auth` feilet mot GitHub, fordi GitHubs innlogging mangler dynamisk klientregistrering. Nå kobler cplt OpenCode til GitHub-serveren gjennom en proxy på maskinen din, med `gh`-innloggingen din. Sjekk `gh auth status` og start en ny økt.
+**GitHub i OpenCode uten egen innlogging.** `opencode mcp auth` feilet mot GitHub, fordi GitHubs innlogging mangler dynamisk klientregistrering. Nå kobler cplt OpenCode 2 til GitHub-serveren gjennom en proxy på maskinen din, med `gh`-innloggingen din. Slå den på med `nav-pilot mcp enable io.github.navikt/github-mcp --client opencode`, sjekk `gh auth status` og start en ny økt.
 
 **Figma** logger du inn på i klienten, ikke gjennom cplt. I OpenCode gjør du det én gang med `opencode mcp auth com.figma/figma-mcp`.
 
@@ -35,7 +35,7 @@ Start en ny økt etterpå. Detaljene står i [MCP gjennom cplt](/nav-pilot/guide
 
 ## Sikkerhet
 
-- **Innloggingen blir på maskinen din.** Nais-tokenet og `gh`-tokenet kommer aldri inn i sandkassen. Agenten ser verktøyene, ikke tokenet.
+- **Nais-innloggingen blir på maskinen din.** Nais-tokenet kommer aldri inn i sandkassen. GitHub-proxyen holder `gh`-tokenet utenfor MCP-trafikken, men tokenet er fortsatt tilgjengelig i sandkassen på andre måter, for eksempel gjennom `gh` (se [SECURITY.md i cplt](https://github.com/navikt/cplt/blob/main/SECURITY.md)).
 - **Bare lesing som standard.** Nais MCP får som standard bare lesende verktøy, og alle verktøyene i Nais MCP leser i dag. Verktøy som skriver, slår du på selv med `--tools` eller `--all-tools`. Det valget er samtykket ditt, og nav-pilot spør ikke i tillegg. GitHub-proxyen i OpenCode bruker alltid det skrivebeskyttede endepunktet.
 - **cplt avviser GraphQL-mutasjoner.** GraphQL-verktøyet i Nais MCP slipper bare gjennom spørringer. cplt avviser mutasjoner og dokumenter med mer enn én operasjon. Fra Nais CLI 7.0.2 sjekker også Nais CLI hver operasjon. cplt avbryter et kall som ikke har fått svar etter 120 sekunder.
 - **cplt kjører ikke en server agenten kan endre.** Ligger oppsettet til serveren i en mappe agenten kan skrive til, nekter cplt å starte den.
