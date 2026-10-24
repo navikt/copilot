@@ -3,11 +3,12 @@ package provider
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -94,9 +95,7 @@ var (
 	fetchMCPPolicy   = sync.OnceValues(askMCPPolicy)
 	fetchMCPRegistry = memoMCPRegistry(askMCPRegistry)
 	// mcpHTTPClient is the registry's client, a var so a test can fail on use.
-	// nil is a client made for the read, bounded by [MCPPolicyTimeout] as it
-	// is then (nav-pilot update raises it).
-	mcpHTTPClient *http.Client
+	mcpHTTPClient = &http.Client{}
 )
 
 // errMCPRegistryUnreachable marks a registry that did not answer: no
@@ -104,15 +103,13 @@ var (
 // an answer, and is not marked.
 var errMCPRegistryUnreachable = errors.New("unreachable")
 
-// newMCPHTTPClient bounds the connect and the TLS handshake on their own, so
-// a dead host fails at the dial rather than when the whole read times out.
-// Neither is shorter than the read's own bound.
-func newMCPHTTPClient() *http.Client {
-	t := http.DefaultTransport.(*http.Transport).Clone()
-	d := &net.Dialer{Timeout: MCPPolicyTimeout, KeepAlive: 30 * time.Second}
-	t.DialContext = d.DialContext
-	t.TLSHandshakeTimeout = MCPPolicyTimeout
-	return &http.Client{Transport: t}
+// badCertificate reports whether err is a TLS certificate that did not verify.
+func badCertificate(err error) bool {
+	var cv *tls.CertificateVerificationError
+	var ua x509.UnknownAuthorityError
+	var he x509.HostnameError
+	var ci x509.CertificateInvalidError
+	return errors.As(err, &cv) || errors.As(err, &ua) || errors.As(err, &he) || errors.As(err, &ci)
 }
 
 func memoMCPRegistry(ask func(string) (mcpRegistry, error)) func(string) (mcpRegistry, error) {
@@ -178,12 +175,11 @@ func askMCPPolicy() (registry string, err error) {
 // askMCPRegistry lists a registry's servers (MCP Registry v0.1).
 func askMCPRegistry(base string) (mcpRegistry, error) {
 	reg := mcpRegistry{URL: base, Remotes: map[string]bool{}, Packages: map[string]bool{}, Servers: map[string][]string{}}
+	// The one bound on the whole read: it covers the dial, the TLS handshake,
+	// the headers and the body. Keep it; the client sets no timeout of its own.
 	ctx, cancel := context.WithTimeout(context.Background(), MCPPolicyTimeout)
 	defer cancel()
 	client := mcpHTTPClient
-	if client == nil {
-		client = newMCPHTTPClient()
-	}
 	cursor := ""
 	for range 20 {
 		u := strings.TrimSuffix(base, "/") + "/v0.1/servers?limit=100"
@@ -196,6 +192,11 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 		}
 		res, err := client.Do(req)
 		if err != nil {
+			if badCertificate(err) {
+				// A certificate that does not verify is an answer, maybe a
+				// MITM: it fails loudly rather than falls back.
+				return reg, err
+			}
 			return reg, fmt.Errorf("%w: %w", errMCPRegistryUnreachable, err)
 		}
 		body, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
@@ -766,7 +767,7 @@ func unlistedMCPServers(servers map[string]mcpServer, names []string) ([]string,
 
 // unlistedIn is unlistedMCPServers against a registry already looked up.
 func unlistedIn(registry string, servers map[string]mcpServer, names []string) ([]string, error) {
-	reg, err := fetchMCPRegistry(registry)
+	reg, _, err := fetchPolicyRegistry(registry)
 	if err != nil {
 		return nil, fmt.Errorf("%s did not answer: %w", registry, err)
 	}

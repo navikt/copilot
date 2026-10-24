@@ -283,7 +283,8 @@ func (c mcpRegistryCache) fresh() bool {
 // navMCPRegistries is Nav's own registry deployments, built from the same
 // main and serving the same list (apps/mcp-registry/.nais). Only between
 // these does nav-pilot fall back, so a fallback never widens what the
-// policy allows.
+// policy allows. The only possible widening is the deploy gap between dev
+// and prod: the same image and allowlist.json, deployed a few minutes apart.
 var navMCPRegistries = map[string]bool{
 	"https://mcp-registry.ekstern.dev.nav.no": true,
 	agentpakke.MCPRegistryURL:                 true,
@@ -312,6 +313,21 @@ func readMCPRegistryCache() (mcpRegistryCache, bool) {
 	return c, err == nil && json.Unmarshal(data, &c) == nil && c.Registry.Servers != nil
 }
 
+// fetchPolicyRegistry reads the registry the policy names. When that is one
+// of Nav's own registries and it is unreachable (no connection, a timeout, a
+// 5xx), Nav's prod registry answers instead, and fallback says so. Any other
+// failure, or any other registry, is the policy registry's error.
+func fetchPolicyRegistry(registry string) (reg mcpRegistry, fallback bool, err error) {
+	reg, err = fetchMCPRegistry(registry)
+	if err != nil && errors.Is(err, errMCPRegistryUnreachable) &&
+		strings.TrimSuffix(registry, "/") != agentpakke.MCPRegistryURL && navMCPRegistries[strings.TrimSuffix(registry, "/")] {
+		if fb, fbErr := fetchMCPRegistry(agentpakke.MCPRegistryURL); fbErr == nil {
+			return fb, true, nil
+		}
+	}
+	return reg, false, err
+}
+
 // refreshMCPRegistry asks the org policy which registry, asks that registry,
 // and caches the answer. A failure keeps the cache as it was. When the
 // policy names one of Nav's own registries and it is unreachable (no
@@ -326,14 +342,7 @@ func refreshMCPRegistry(quiet bool) error {
 	if err != nil || registry == "" {
 		registry = agentpakke.MCPRegistryURL
 	}
-	reg, err := fetchMCPRegistry(registry)
-	fallback := false
-	if err != nil && errors.Is(err, errMCPRegistryUnreachable) &&
-		registry != agentpakke.MCPRegistryURL && navMCPRegistries[strings.TrimSuffix(registry, "/")] {
-		if fb, fbErr := fetchMCPRegistry(agentpakke.MCPRegistryURL); fbErr == nil {
-			reg, err, fallback = fb, nil, true
-		}
-	}
+	reg, fallback, err := fetchPolicyRegistry(registry)
 	if err != nil {
 		return fmt.Errorf("%s did not answer: %w", registry, err)
 	}

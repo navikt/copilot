@@ -3,9 +3,12 @@ package provider
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -49,9 +52,9 @@ func fallbackEnv(t *testing.T, policy string, answer func(host string) int) (ask
 }
 
 func TestMCPRegistryFallsBackWhenPolicyRegistryIsUnreachable(t *testing.T) {
-	for _, code := range []int{0, 503} {
-		t.Run(http.StatusText(code), func(t *testing.T) {
-			_, stderr := fallbackEnv(t, devRegistry, func(host string) int {
+	for name, code := range map[string]int{"connect timeout": 0, "503": 503} {
+		t.Run(name, func(t *testing.T) {
+			_, stderr := fallbackEnv(t, devRegistry+"/", func(host string) int {
 				if strings.Contains(host, "ekstern.dev") {
 					return code
 				}
@@ -60,11 +63,11 @@ func TestMCPRegistryFallsBackWhenPolicyRegistryIsUnreachable(t *testing.T) {
 			if err := refreshMCPRegistry(false); err != nil {
 				t.Fatal(err)
 			}
-			if out := stderr(); !strings.Contains(out, "The policy registry "+devRegistry+" did not answer, so nav-pilot used "+agentpakke.MCPRegistryURL) {
+			if out := stderr(); !strings.Contains(out, "The policy registry "+devRegistry+"/ did not answer, so nav-pilot used "+agentpakke.MCPRegistryURL) {
 				t.Fatalf("notice = %q", out)
 			}
 			c, ok := readMCPRegistryCache()
-			if !ok || !c.Fallback || c.Registry.URL != agentpakke.MCPRegistryURL || c.Policy != devRegistry {
+			if !ok || !c.Fallback || c.Registry.URL != agentpakke.MCPRegistryURL || c.Policy != devRegistry+"/" {
 				t.Fatalf("cache = %+v", c)
 			}
 			if !MCPRegistryFallback() {
@@ -147,9 +150,86 @@ func TestMCPRegistryNoFallback(t *testing.T) {
 	}
 }
 
-func TestMCPHTTPClientBoundsDialAndHandshake(t *testing.T) {
-	tr := newMCPHTTPClient().Transport.(*http.Transport)
-	if tr.TLSHandshakeTimeout < MCPPolicyTimeout || tr.DialContext == nil {
-		t.Fatalf("handshake %v, dial set %v", tr.TLSHandshakeTimeout, tr.DialContext != nil)
+// Policy is prod and prod is down: no second ask, the error stands.
+func TestMCPRegistryNoFallbackFromProdToProd(t *testing.T) {
+	asked, stderr := fallbackEnv(t, agentpakke.MCPRegistryURL+"/", func(string) int { return 503 })
+	if err := refreshMCPRegistry(false); err == nil {
+		t.Fatal("no error")
+	}
+	if out := stderr(); strings.Contains(out, "did not answer, so") || len(*asked) != 1 {
+		t.Fatalf("asked %v, said %q", *asked, out)
+	}
+}
+
+// A certificate that does not verify may be a MITM: it fails, never falls back.
+func TestMCPRegistryBadCertificateDoesNotFallBack(t *testing.T) {
+	asked, stderr := fallbackEnv(t, devRegistry, func(string) int { return 200 })
+	mcpHTTPClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		*asked = append(*asked, r.URL.Host)
+		return nil, &url.Error{Op: "Get", URL: r.URL.String(), Err: x509.UnknownAuthorityError{}}
+	})
+	if err := refreshMCPRegistry(false); err == nil {
+		t.Fatal("no error")
+	}
+	if out := stderr(); strings.Contains(out, "did not answer, so") || len(*asked) != 1 {
+		t.Fatalf("asked %v, said %q", *asked, out)
+	}
+}
+
+// A 5xx on a later page is as unreachable as one on the first.
+func TestMCPRegistryFallsBackOn5xxOnPage2(t *testing.T) {
+	_, stderr := fallbackEnv(t, devRegistry, nil)
+	mcpHTTPClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		page := `{"servers":[{"server":{"name":"io.github.navikt/x","remotes":[{"type":"streamable-http","url":"https://x.nav.no/mcp"}]}}],"metadata":{"nextCursor":"2"}}`
+		if r.URL.Host == "mcp-registry.nav.no" {
+			page = strings.Replace(page, `"nextCursor":"2"`, "", 1)
+		} else if r.URL.Query().Get("cursor") == "2" {
+			return &http.Response{StatusCode: 502, Status: "502", Body: io.NopCloser(strings.NewReader(""))}, nil
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(page))}, nil
+	})
+	if err := refreshMCPRegistry(false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stderr(), "did not answer, so") || !MCPRegistryFallback() {
+		t.Fatal("no fallback")
+	}
+}
+
+// The background refresh at launch never prints: it would write over the session.
+func TestMCPRegistryBackgroundRefreshIsQuiet(t *testing.T) {
+	_, stderr := fallbackEnv(t, devRegistry, func(host string) int {
+		if strings.Contains(host, "ekstern.dev") {
+			return 0
+		}
+		return 200
+	})
+	startMCPRegistryRefresh()
+	mcpRefreshing.Wait()
+	if out := stderr(); out != "" {
+		t.Fatalf("background refresh said %q", out)
+	}
+	if !MCPRegistryFallback() {
+		t.Fatal("background refresh did not cache the fallback")
+	}
+}
+
+// An OpenCode launch checks its servers against the fallback, not "not checked".
+func TestOpenCodeLaunchUsesTheFallback(t *testing.T) {
+	_, stderr := fallbackEnv(t, devRegistry, func(host string) int {
+		if strings.Contains(host, "ekstern.dev") {
+			return 0
+		}
+		return 200
+	})
+	proj := t.TempDir()
+	_ = os.Mkdir(filepath.Join(proj, ".git"), 0o700)
+	_ = os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {"x": {"type": "remote", "url": "https://x.nav.no/mcp"}, "bad": {"type": "remote", "url": "https://bad/mcp"}}}`), 0o600)
+	env := strings.Join(applyOpenCodeMCPPolicy(nil, proj), "\n")
+	if out := stderr(); strings.Contains(out, "were not checked") {
+		t.Fatalf("said %q", out)
+	}
+	if !strings.Contains(env, `"blocked":["bad"]`) {
+		t.Fatalf("env = %s", env)
 	}
 }
