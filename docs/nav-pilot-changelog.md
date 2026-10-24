@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-23
 
+### Strengere leverandørsjekk i OpenCode 2
+
+- **Tillatte leverandører**: nav-pilot sjekker nå også `policies` i OpenCode 2-konfigurasjonen, og ser verdiene slik OpenCode ser dem etter at `{env:}` er byttet ut. Slipper en regel inn en annen leverandør enn de nav-pilot tillater, starter ikke økten, og meldinga sier hvilken fil og nøkkel du må rette.
+
 ### @nav-pilot bruker GPT-6.1 Sol og spør før personopplysninger
 
 - **Modell**: Agentpakken bruker nå GPT-6.1 Sol (`gpt-6.1-sol`) i stedet for GPT-6 Sol som standardmodell for hovedagenten i Copilot CLI, OpenCode og pi. Har du valgt modell selv, beholder du den. Målingen står i [`2026-10-23-pin-gpt-6.1-sol`](golden-baselines/2026-10-23-pin-gpt-6.1-sol/).

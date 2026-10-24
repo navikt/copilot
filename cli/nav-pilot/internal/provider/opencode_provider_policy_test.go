@@ -102,6 +102,10 @@ func TestOpenCode2ProviderPolicyConflicts(t *testing.T) {
 		{"deny only", `{"experimental":{"policies":[{"action":"provider.use","effect":"deny","resource":"*"}]}}`, ""},
 		{"allowed only", `{"enabled_providers":["github-copilot"]}`, ""},
 		{"other action", `{"experimental":{"policies":[{"action":"permission","effect":"allow","resource":"*"}]}}`, ""},
+		{"top-level policies", `{"policies":[{"action":"provider.use","resource":"custom","effect":"allow"}],"providers":{"custom":{}}}`, "allows provider custom (policies)"},
+		{"top-level policies malformed", `{"policies":{}}`, "policies is not a list"},
+		{"top-level policies placeholder", `{"policies":"{file:p.json}"}`, "placeholder"},
+		{"top-level deny only", `{"policies":[{"action":"provider.use","effect":"deny","resource":"*"}]}`, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			config := filepath.Join(t.TempDir(), "opencode.jsonc")
@@ -115,6 +119,38 @@ func TestOpenCode2ProviderPolicyConflicts(t *testing.T) {
 				t.Fatalf("error = %v, want %q", err, tc.wantErr)
 			} else if !strings.Contains(err.Error(), config) {
 				t.Fatalf("error does not identify the config: %v", err)
+			}
+		})
+	}
+}
+
+// The provider policy check sees values after {env:} substitution, as
+// opencode 2.1.4 does it.
+func TestOpenCode2ProviderPolicyEnvSubstitution(t *testing.T) {
+	versionCache.Store("opencode", versionAnswer{"opencode v2.1.4", nil, time.Hour})
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	allow := `{"action":"provider.use","effect":"allow","resource":"custom"}`
+	for _, tc := range []struct {
+		name, config, value, wantErr string
+		allowLocal                   bool
+	}{
+		{"whole policies value", `{"policies": {env:NP_V}}`, "[" + allow + "]", "allows provider custom (policies)", false},
+		{"policies element", `{"policies": [{env:NP_V}]}`, allow, "allows provider custom (policies)", false},
+		{"value in another string key", `{"instructions": ["{env:NP_V}"]}`, `"],"policies":[` + allow + `],"x":["`, "allows provider custom (policies)", false},
+		{"harmless value", `{"instructions": ["{env:NP_V}"], "policies": [{env:NP_D}]}`, "notes.md", "", false},
+		{"local model allowed", `{"model": "mlx/some-model", "instructions": ["{env:NP_V}"]}`, "notes.md", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := filepath.Join(t.TempDir(), "opencode.json")
+			mustWrite(t, config, tc.config)
+			env := []string{"OPENCODE_CONFIG=" + config, "NP_V=" + tc.value, `NP_D={"action":"provider.use","effect":"deny","resource":"*"}`}
+			_, err := applyOpenCodeProviderPolicy(env, t.TempDir(), tc.allowLocal, nil, "", nil)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("error = %v, want %q", err, tc.wantErr)
 			}
 		})
 	}

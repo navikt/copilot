@@ -106,74 +106,85 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 			}
 			return fmt.Errorf("%s in %s conflicts with nav-pilot's provider restriction; nav-pilot sessions allow only %s", what, doc.path, want)
 		}
-		// Exact keys: OpenCode reads them case-sensitively, encoding/json
-		// would not.
-		var top map[string]json.RawMessage
-		if err := json.Unmarshal(stripJSONC(doc.content), &top); err != nil {
-			return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: invalid configuration; correct the config before launching nav-pilot", doc.path)
-		}
-		if doc.path == openCodeConfigContentEnv && model == "" {
-			_ = json.Unmarshal(top["model"], &model)
-		}
-		// A redefined allowed provider sends its traffic elsewhere (measured on
-		// opencode 2.1.2: options.baseURL, settings.baseURL, npm). Any routing
-		// key anywhere under the entry counts, models and variants included,
-		// in the legacy provider map and opencode 2's native providers map.
-		// The mlx block is nav-pilot's own, with the loop guard's address: in
-		// the global config, or in OPENCODE_CONFIG_CONTENT when that config
-		// has comments. No other config may reroute it.
-		for _, mapKey := range []string{"provider", "providers"} {
-			var providers map[string]json.RawMessage
-			_ = json.Unmarshal(top[mapKey], &providers)
-			for _, id := range allowed {
-				raw, ok := providers[id]
-				if !ok || (id == LocalProviderID && doc.path == openCodeConfigPath()) {
-					continue
-				}
-				var v any
-				_ = json.Unmarshal(raw, &v)
-				// A commented config is not rewritten, so the block rides in
-				// OPENCODE_CONFIG_CONTENT via launchConfig: exactly
-				// nav-pilot's own block passes, anything changed in it does not.
-				if id == LocalProviderID && mapKey == "provider" && doc.path == openCodeConfigContentEnv && ownLocalProviderBlock(launchConfig, v) {
-					continue
-				}
-				if k := openCodeRoutingKey(v); k != "" {
-					return nil, conflict("redefines provider " + id + " (" + mapKey + "." + id + ": " + k + ")")
+		// Check the file as written, with placeholders, and as opencode sees
+		// it after {env:} substitution with this launch environment.
+		for _, content := range [][]byte{doc.content, expandOpenCodeEnv(doc, getenv)} {
+			// Exact keys: OpenCode reads them case-sensitively, encoding/json
+			// would not.
+			var top map[string]json.RawMessage
+			if err := json.Unmarshal(stripJSONC(content), &top); err != nil {
+				return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: invalid configuration; correct the config before launching nav-pilot", doc.path)
+			}
+			if doc.path == openCodeConfigContentEnv && model == "" {
+				_ = json.Unmarshal(top["model"], &model)
+			}
+			// A redefined allowed provider sends its traffic elsewhere (measured on
+			// opencode 2.1.2: options.baseURL, settings.baseURL, npm). Any routing
+			// key anywhere under the entry counts, models and variants included,
+			// in the legacy provider map and opencode 2's native providers map.
+			// The mlx block is nav-pilot's own, with the loop guard's address: in
+			// the global config, or in OPENCODE_CONFIG_CONTENT when that config
+			// has comments. No other config may reroute it.
+			for _, mapKey := range []string{"provider", "providers"} {
+				var providers map[string]json.RawMessage
+				_ = json.Unmarshal(top[mapKey], &providers)
+				for _, id := range allowed {
+					raw, ok := providers[id]
+					if !ok || (id == LocalProviderID && doc.path == openCodeConfigPath()) {
+						continue
+					}
+					var v any
+					_ = json.Unmarshal(raw, &v)
+					// A commented config is not rewritten, so the block rides in
+					// OPENCODE_CONFIG_CONTENT via launchConfig: exactly
+					// nav-pilot's own block passes, anything changed in it does not.
+					if id == LocalProviderID && mapKey == "provider" && doc.path == openCodeConfigContentEnv && ownLocalProviderBlock(launchConfig, v) {
+						continue
+					}
+					if k := openCodeRoutingKey(v); k != "" {
+						return nil, conflict("redefines provider " + id + " (" + mapKey + "." + id + ": " + k + ")")
+					}
 				}
 			}
-		}
-		if major < 2 {
-			continue
-		}
-		// OpenCode substitutes these before parsing, so an unresolved value
-		// here could become an allow rule; fail closed.
-		if hasOpenCodePlaceholder(top["enabled_providers"]) || hasOpenCodePlaceholder(top["experimental"]) {
-			return nil, conflict("uses a {file:} or {env:} placeholder in enabled_providers or experimental")
-		}
-		var enabled []string
-		if raw, ok := top["enabled_providers"]; ok && json.Unmarshal(raw, &enabled) != nil {
-			return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: enabled_providers is not a list of strings", doc.path)
-		}
-		for _, id := range enabled {
-			if doc.path != openCodeConfigContentEnv && !slices.Contains(allowed, id) {
-				return nil, conflict("enables provider " + id + " (enabled_providers)")
+			if major < 2 {
+				break
 			}
-		}
-		var exp map[string]json.RawMessage
-		_ = json.Unmarshal(top["experimental"], &exp)
-		var policies []map[string]json.RawMessage
-		if raw, ok := exp["policies"]; ok && json.Unmarshal(raw, &policies) != nil {
-			return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: experimental.policies is not a list", doc.path)
-		}
-		for _, p := range policies {
-			var action, effect, resource string
-			_ = json.Unmarshal(p["action"], &action)
-			_ = json.Unmarshal(p["effect"], &effect)
-			_ = json.Unmarshal(p["resource"], &resource)
-			// Any non-exact allow may re-enable providers after our deny.
-			if action == "provider.use" && effect == "allow" && !slices.Contains(allowed, resource) {
-				return nil, conflict("allows provider " + resource + " (experimental.policies)")
+			// OpenCode substitutes these before parsing, so an unresolved value
+			// here could become an allow rule; fail closed.
+			if hasOpenCodePlaceholder(top["enabled_providers"]) || hasOpenCodePlaceholder(top["experimental"]) || hasOpenCodePlaceholder(top["policies"]) {
+				return nil, conflict("uses a {file:} or {env:} placeholder in enabled_providers, experimental or policies")
+			}
+			var enabled []string
+			if raw, ok := top["enabled_providers"]; ok && json.Unmarshal(raw, &enabled) != nil {
+				return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: enabled_providers is not a list of strings", doc.path)
+			}
+			for _, id := range enabled {
+				if doc.path != openCodeConfigContentEnv && !slices.Contains(allowed, id) {
+					return nil, conflict("enables provider " + id + " (enabled_providers)")
+				}
+			}
+			var exp map[string]json.RawMessage
+			_ = json.Unmarshal(top["experimental"], &exp)
+			// opencode 2 merges both lists into one (normalize.ts: generated,
+			// experimental, native), so either can allow after nav-pilot's deny.
+			for _, src := range []struct {
+				name string
+				raw  json.RawMessage
+			}{{"experimental.policies", exp["policies"]}, {"policies", top["policies"]}} {
+				var policies []map[string]json.RawMessage
+				if src.raw != nil && json.Unmarshal(src.raw, &policies) != nil {
+					return nil, fmt.Errorf("cannot verify OpenCode provider policy in %s: %s is not a list", doc.path, src.name)
+				}
+				for _, p := range policies {
+					var action, effect, resource string
+					_ = json.Unmarshal(p["action"], &action)
+					_ = json.Unmarshal(p["effect"], &effect)
+					_ = json.Unmarshal(p["resource"], &resource)
+					// Any non-exact allow may re-enable providers after our deny.
+					if action == "provider.use" && effect == "allow" && !slices.Contains(allowed, resource) {
+						return nil, conflict("allows provider " + resource + " (" + src.name + ")")
+					}
+				}
 			}
 		}
 	}
@@ -184,6 +195,23 @@ func applyOpenCodeProviderPolicy(env []string, projectDir string, allowLocal boo
 		return nil, fmt.Errorf("model %s is from provider %s, but nav-pilot sessions allow only %s; pick a model from those providers with --model", model, provider, want)
 	}
 	return withOpenCodeConfigContent(env, map[string]any{"enabled_providers": allowed}), nil
+}
+
+// expandOpenCodeEnv substitutes {env:NAME} in doc the way opencode 2.1.4
+// does (core/src/config/variable.ts): the raw value first, the JSON-escaped
+// value when that does not parse. When neither parses, opencode rejects the
+// file anyway, so the nav-pilot-parsed content is kept. In memory only.
+func expandOpenCodeEnv(doc openCodeConfigDocument, getenv func(string) string) []byte {
+	raw := envPlaceholder.ReplaceAllFunc(doc.raw, func(m []byte) []byte {
+		return []byte(getenv(string(envPlaceholder.FindSubmatch(m)[1])))
+	})
+	if json.Valid(stripJSONC(raw)) {
+		return raw
+	}
+	if escaped := expandOpenCodeServerJSON(doc.raw, getenv); json.Valid(stripJSONC(escaped)) {
+		return escaped
+	}
+	return doc.content
 }
 
 // openCodeRoutingKey returns the path of the first key under v that can
