@@ -26,6 +26,10 @@ cd ../repo
 exec /bin/sh -c 'nav-pilot --client opencode -- run x </dev/null'
 stderr 'agentpakke recommends GPT-6\.1 Sol;'
 
+# Nothing changed since: the next launch says nothing about the model.
+exec /bin/sh -c 'nav-pilot --client opencode -- run x </dev/null'
+! stderr 'recommends'
+
 -- pin-6.1.md --
 ---
 name: grillmester

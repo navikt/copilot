@@ -440,3 +440,34 @@ func TestLaunchCopilotResolved_NoCLINamesTheInstallCommand(t *testing.T) {
 		t.Fatalf("want the missing binary and %q, got %v", CopilotInstallCommand, err)
 	}
 }
+
+// TestSayAutopilotNote pins the note's rule: once per change, every time with
+// --verbose, never outside autopilot. The default-mode case is the control: it
+// stays silent even under --verbose.
+func TestSayAutopilotNote(t *testing.T) {
+	isolateHome(t)
+	say := func(r domain.ResolvedConfig, verbose bool) bool {
+		t.Helper()
+		orig, origVerbose := os.Stderr, Verbose
+		pr, pw, _ := os.Pipe()
+		os.Stderr, Verbose = pw, verbose
+		sayAutopilotNote(r)
+		os.Stderr, Verbose = orig, origVerbose
+		pw.Close()
+		out, _ := io.ReadAll(pr)
+		return strings.Contains(string(out), "Autopilot:")
+	}
+	autopilot := domain.ResolvedConfig{Mode: "autopilot"}
+	if say(domain.ResolvedConfig{}, true) {
+		t.Error("control: a default-mode launch printed the autopilot note")
+	}
+	if !say(autopilot, false) {
+		t.Error("the first autopilot launch did not print the note")
+	}
+	if say(autopilot, false) {
+		t.Error("an unchanged autopilot launch printed the note again")
+	}
+	if !say(autopilot, true) {
+		t.Error("--verbose did not repeat the note")
+	}
+}

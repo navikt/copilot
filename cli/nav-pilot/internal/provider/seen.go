@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
@@ -24,6 +25,27 @@ func printCpltSessionFlags(flags []string) {
 
 // SeenChanged is [artifacts.SeenChanged].
 func SeenChanged(name, value string) bool { return artifacts.SeenChanged(name, value) }
+
+// FirstTime reports whether the one-time notice name has not been shown on
+// this machine yet, and records that it now has been: a marker file named
+// seen-<name> beside SeenChanged's markers (nav-pilot's config directory in
+// production). When the marker cannot be written it answers false, so a notice
+// can go missing but never nags.
+func FirstTime(name string) bool {
+	p := artifacts.CacheFilePath()
+	if p == "" {
+		return false
+	}
+	dir := filepath.Dir(p)
+	if os.MkdirAll(dir, 0o700) != nil {
+		return false
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "seen-"+name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return false
+	}
+	return f.Close() == nil
+}
 
 // warnUnsupported prints a client's unsupported-setting warnings once per
 // set: each message names its setting and value, so a changed value, setting

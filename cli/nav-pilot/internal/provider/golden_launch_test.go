@@ -208,10 +208,16 @@ func TestGoldenOpenCodeLaunchAgent(t *testing.T) {
 // golden ones above when there is.
 
 // TestGoldenCpltArgvNonInteractive pins the non-interactive vector for every
-// launch that goes through cpltArgv — opencode, pi, and both staged clients.
+// launch that goes through cpltArgv — opencode, pi, and both staged clients —
+// and, with no cpltArgs, the legacy vector itself (formerly
+// TestGoldenCpltArgvWithoutCpltArgs). Tier 1 Copilot hands launchViaCplt its
+// own argv; TestGoldenCopilotLaunchArgsNonInteractive pins that one.
 func TestGoldenCpltArgvNonInteractive(t *testing.T) {
 	spec := cpltLaunch{agent: "opencode", agentArgs: OpenCodeArgs(domain.ResolvedConfig{})}
 	interactive := []string{"--agent", "opencode", "--", "--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot"}
+	if got := cpltArgv(cpltLaunch{agent: "pi"}); !slices.Equal(got, []string{"--agent", "pi", "--"}) {
+		t.Errorf("cpltArgv(pi) = %q", got)
+	}
 
 	if got := withCpltConfirmation(cpltArgv(spec), true); !slices.Equal(got, interactive) {
 		t.Errorf("with a terminal the vector must not change\n got: %q\nwant: %q", got, interactive)

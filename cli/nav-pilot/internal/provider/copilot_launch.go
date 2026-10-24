@@ -245,6 +245,16 @@ func withoutAllowAll(args []string) []string {
 	return slices.DeleteFunc(args, isAllowAllFlag)
 }
 
+// sayAutopilotNote prints autopilotNote once per change, and every time with
+// --verbose. SeenChanged runs whenever the note is non-empty, so the marker
+// stays current under --verbose too.
+func sayAutopilotNote(r domain.ResolvedConfig) {
+	note := autopilotNote(r)
+	if note != "" && (SeenChanged("autopilot-note", note) || Verbose) {
+		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
+	}
+}
+
 // autopilotNote is the line a launch in autopilot prints, or "".
 func autopilotNote(resolved domain.ResolvedConfig) string {
 	// --autopilot after "--" is Copilot's alias for --mode autopilot.
@@ -334,9 +344,7 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 	}
 	PrintAutonomyNotice(resolved)
 	env := CopilotEnv(resolved.OtelLogLevel)
-	if note := autopilotNote(resolved); SeenChanged("autopilot-note", note) && note != "" || note != "" && Verbose {
-		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), note)
-	}
+	sayAutopilotNote(resolved)
 	localModel := ""
 	if guard != nil {
 		localModel = worker.Model
@@ -358,10 +366,9 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 				domain.Dim("ℹ"), local.SameResultRepeat(), local.LoopGuardRepeat())
 		}
 	}
-	// The second seam. This path builds its own argument vector and runs its
-	// own exec.Command instead of going through cpltArgv/launchViaCplt, so
-	// NAV_PILOT_SKILLS_DIR has to be wired here separately or a Tier 1 copilot
-	// session is the one launch that does not get it (#858).
+	// The argument vector is BuildCopilotArgs's (pinned by
+	// golden_launch_test.go), so it goes to launchViaCplt as argv rather than
+	// through cpltArgv, whose flag order differs.
 	persona := resolved.Persona
 	if persona == "" {
 		persona = PrimaryAgent("copilot")
@@ -370,11 +377,8 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		return err
 	}
 	skillsDir := materializedSkillsDir(copilotSkillsRoot())
-	env = withSkillsDirEnv(env, skillsDir)
-	args := copilotLaunchArgs(cliName, resolved, IsTerminal(os.Stdin), skillsDir)
-	if args, err = withCpltProjectDir(args, resolved.ProjectDir); err != nil {
-		return err
-	}
+	// tty true: launchViaCplt adds --yes itself.
+	args := copilotLaunchArgs(cliName, resolved, true, skillsDir)
 	env, checkFlags := withActionCheckServer(resolved, env)
 	checkFlags = append(checkFlags, ideBridgeFlags()...)
 	if i := slices.Index(args, "--"); i >= 0 {
@@ -382,50 +386,34 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		// would reach copilot.
 		args = slices.Insert(slices.Clone(args), i, checkFlags...)
 	}
+	localPort := 0
 	if guard != nil {
 		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
 		// which cplt blocks by default. Name the port so it survives — and so
 		// it survives the strict preset, which supersedes allow_localhost_any.
-		args = withCpltAllowLocalhost(args, guard.Port())
+		localPort = guard.Port()
 	}
 	displayName := CLIDisplayName(cliName)
-	// The agent actually launched, not the pakke's first primary: with
-	// --persona the two differ, and a banner naming the wrong one is worse
-	// than none.
-	banner := resolved.Persona
-	if banner == "" {
-		banner = PrimaryAgent("copilot")
-	}
-	if Verbose {
-		fmt.Printf("Launching %s with agent %s...\n\n", domain.Bold(displayName), domain.Bold(banner))
-		printCpltSessionFlags(resolved.CpltFlags)
-	}
 
 	// Check the environment before handing it to cplt; cplt can still supply
 	// credentials of its own.
 	if env, err = applyCopilotAuthMode(env, resolved.CopilotAuthMode); err != nil {
 		return err
 	}
-	// Tier 1 Copilot builds its own cplt command and never reaches
-	// launchViaCplt. Only once cplt will run, so a refusal probes nothing.
-	warnCpltRecommended("copilot")
-
-	cmd := exec.Command(cliPath, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Env = env
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) {
-			fmt.Fprintf(os.Stderr, "%s Could not launch %s: %v\n", domain.Yellow("⚠"), displayName, err)
-		}
-		if kind := classifyLaunchError(err); kind != "" {
-			telemetryRecorder.RecordLaunchError("copilot", kind)
-		}
-		return err
-	}
-	return nil
+	return launchViaCplt(cpltLaunch{
+		agent:        "copilot",
+		argv:         args,
+		localPort:    localPort,
+		projectDir:   resolved.ProjectDir,
+		skillsDir:    skillsDir,
+		env:          env,
+		displayName:  displayName,
+		sessionFlags: resolved.CpltFlags,
+		// The agent actually launched, not the pakke's first primary: with
+		// --persona the two differ, and a banner naming the wrong one is worse
+		// than none.
+		banner: fmt.Sprintf("%s with agent %s", domain.Bold(displayName), domain.Bold(persona)),
+	})
 }
 
 // copilotLocalWorker prepares a Copilot CLI session to run against the local
@@ -672,22 +660,6 @@ func PrintAutonomyNotice(r domain.ResolvedConfig) {
 	}
 	fmt.Printf("%s Inside cplt, Copilot now runs commands on its own and asks you when it needs to. Under the standard and strict cplt presets, cplt still blocks merging pull requests, pushing to main and force pushes.\n", domain.Dim("ℹ"))
 	fmt.Printf("  To have it ask before each command again: %s\n\n", domain.Bold("nav-pilot config set autonomy conservative"))
-}
-
-// FirstTime reports whether the one-time notice name has not been shown on
-// this machine yet, and records that it now has been: a marker file named
-// seen-<name> in nav-pilot's config directory. When the marker cannot be
-// written it answers false, so a notice can go missing but never nags.
-func FirstTime(name string) bool {
-	dir, err := telemetrypkg.GetConfigDir()
-	if err != nil {
-		return false
-	}
-	f, err := os.OpenFile(filepath.Join(dir, "seen-"+name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if err != nil {
-		return false
-	}
-	return f.Close() == nil
 }
 
 // PrintModelAvailabilityHint shows a note when a specific model is configured.

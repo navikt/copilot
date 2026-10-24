@@ -62,6 +62,15 @@ type cpltLaunch struct {
 	// sessionFlags are ResolvedConfig.CpltFlags: --allow-clipboard and --cplt
 	// for this session only, placed last before the "--".
 	sessionFlags []string
+	// argv replaces cpltArgv(spec) when set: Tier 1 Copilot's vector, built by
+	// BuildCopilotArgs and pinned by golden_launch_test.go.
+	argv []string
+	// localPort, when non-zero, goes to cplt as --allow-localhost ahead of
+	// everything else (withCpltAllowLocalhost).
+	localPort int
+	// banner replaces "<displayName> via cplt sandbox<messageSuffix>" in the
+	// --verbose "Launching …" line.
+	banner string
 	// launchConfig is a Tier 1 opencode launch's additions to
 	// OPENCODE_CONFIG_CONTENT, for [applyOpenCodeProviderPolicy].
 	launchConfig map[string]any
@@ -280,14 +289,22 @@ func launchViaCplt(spec cpltLaunch) error {
 	warnCpltRecommended(spec.agent)
 
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
-	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)
+	args := spec.argv
+	if args == nil {
+		args = cpltArgv(spec)
+	}
+	args, err := withCpltProjectDir(withCpltConfirmation(args, IsTerminal(os.Stdin)), spec.projectDir)
 	if err != nil {
 		return err
 	}
+	args = withCpltAllowLocalhost(args, spec.localPort)
 
 	if Verbose {
-		fmt.Printf("Launching %s via %s%s...\n\n",
-			domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)
+		banner := spec.banner
+		if banner == "" {
+			banner = domain.Bold(spec.displayName) + " via " + domain.Bold("cplt sandbox") + spec.messageSuffix
+		}
+		fmt.Printf("Launching %s...\n\n", banner)
 		printCpltSessionFlags(spec.sessionFlags)
 	}
 
