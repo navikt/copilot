@@ -12,9 +12,10 @@ tags:
   - opencode
 ---
 
-Kom i gang med tre kommandoer:
+Kom i gang slik:
 
 ```bash
+brew install nais/tap/nais                                # først, hvis du ikke har Nais CLI
 brew upgrade navikt/tap/nav-pilot navikt/tap/cplt nais   # skriptinstallasjon: nav-pilot upgrade && cplt update
 nav-pilot mcp enable io.github.nais/nais-mcp
 nav-pilot mcp list                                        # LOGIN og PATH viser at det virker
