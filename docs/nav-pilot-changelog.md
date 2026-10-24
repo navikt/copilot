@@ -22,6 +22,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Tilgang for agentpakken**: Når du sier ja til tilgangen agentpakken ber om, står det én gang hva agenten får gjøre, med de samme ordene som spørsmålet. Oppstarten etterpå gjentar det ikke. Sier du nei inne i `nav-pilot pakke access`, står det «Run this again to allow it.» i stedet for kommandoen du allerede kjører.
 - **Aldri spurt**: Fikk du agentpakken med repoet uten å bli spurt om tilgangen den ber om, sier oppstarten det i én linje, én gang per versjon av forespørselen, og viser til `nav-pilot pakke access`.
+- **Kopiert cplt-oppføring i OpenCode**: Har du limt cplts egen MCP-oppføring (`cplt mcp-stdio <id>`) inn i `opencode.json`, slås den fortsatt av, men verktøyene til serveren blokkeres ikke lenger. cplt legger inn sin egen oppføring i stedet.
 - **Oppsett for Copilot**: Siste skjerm før lagring sier i én setning hvordan Copilot kjører kommandoer, i stedet for å vise `nav-pilot autonomy = sandbox`.
 - **`nav-pilot doctor`**: Med advarsler eller feil ender rapporten med hvor mange ting du bør rette, ikke «All systems healthy». Er cplt utdatert, får du én linje med oppgraderingskommandoen, ikke to med ulike kommandoer.
 - **Én skrivemåte for cplt**: Alle meldinger som viser hvordan du installerer eller oppgraderer cplt med Homebrew, bruker `navikt/tap/cplt`.

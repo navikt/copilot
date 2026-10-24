@@ -250,6 +250,8 @@ func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 		"path": {"type": "local", "command": ["/opt/x/cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
 		"fake": {"type": "local", "command": ["cplt", "mcp-stdio", "io.example/other"]},
 		"envd": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"], "environment": {"PATH": "/repo/bin"}},
+		"pasted": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"], "environment": {"CPLT_MCP_SOCKET": "/tmp/s"}},
+		"pasted-extra": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp", "--x"], "environment": {"CPLT_MCP_SOCKET": "/tmp/s"}},
 		"rem": {"type": "remote", "url": "https://any/mcp", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
 		"notype": {"command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp"]},
 		"extra": {"type": "local", "command": ["cplt", "mcp-stdio", "io.github.nais/nais-mcp", "--x"]},
@@ -268,7 +270,14 @@ func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 	versionCache.Store("opencode", versionAnswer{"opencode v2.1.3\n", nil, time.Hour})
 
 	all := strings.Join(applyOpenCodeMCPPolicy(nil, proj), "\n")
-	if want := `NAV_PILOT_MCP_BLOCKED={"blocked":["envd","evil","extra","fake","io.github.nais__nais-mcp","nais-mcp","notype","path","rem","tools"],`; !strings.Contains(all, want) {
+	// envd and pasted run cplt's exact broker command: turned off for their
+	// environment (#1959), but kept out of the blocked list (#1960).
+	if want := `NAV_PILOT_MCP_BLOCKED={"blocked":["evil","extra","fake","io.github.nais__nais-mcp","nais-mcp","notype","pasted-extra","path","rem","tools"],`; !strings.Contains(all, want) {
 		t.Errorf("env lacks %s:\n%s", want, all)
+	}
+	for _, n := range []string{`"envd":{"command"`, `"pasted":{"command"`} {
+		if !strings.Contains(all, n) {
+			t.Errorf("config lacks disabled entry %s:\n%s", n, all)
+		}
 	}
 }
