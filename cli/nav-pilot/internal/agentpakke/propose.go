@@ -10,6 +10,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // policies.propose: the sandbox configuration an agentpakke asks the installing
@@ -239,20 +241,55 @@ func (p *CpltProposal) InertKeys() []string {
 	return out
 }
 
-// Summary is the one line the consent prompt and the install log use to say
-// what the proposal would change.
-func (p *CpltProposal) Summary() string {
+// observabilityHosts names what each Nais observability backend holds, by
+// the first label of its host name, so the question can say what the agent
+// gets to do instead of naming hosts.
+var observabilityHosts = map[string]string{"loki": "logs", "mimir": "metrics", "tempo": "traces"}
+
+// Access is what a proposal lets the agent do, in plain words: "read Nais
+// logs, metrics and traces" for the stock pakke, the host and file names for
+// anything else. Every line that names a proposal's access uses it.
+func Access(hosts, reads []string) string {
 	var parts []string
-	if hosts := p.AllowPrivateDomains(); len(hosts) > 0 {
-		parts = append(parts, fmt.Sprintf("reach %s, which resolve to private addresses", strings.Join(hosts, ", ")))
+	if len(hosts) > 0 {
+		seen := map[string]bool{}
+		for _, host := range hosts {
+			kind := observabilityHosts[strings.SplitN(host, ".", 2)[0]]
+			if kind == "" || !strings.HasSuffix(host, ".nais.io") {
+				seen = nil
+				break
+			}
+			seen[kind] = true
+		}
+		if seen != nil {
+			var kinds []string
+			for _, kind := range []string{"logs", "metrics", "traces"} {
+				if seen[kind] {
+					kinds = append(kinds, kind)
+				}
+			}
+			parts = append(parts, "read Nais "+joinAnd(kinds))
+		} else {
+			parts = append(parts, "reach "+strings.Join(hosts, ", "))
+		}
 	}
-	if reads := p.AllowRead(); len(reads) > 0 {
-		parts = append(parts, fmt.Sprintf("read %s", strings.Join(reads, ", ")))
+	if len(reads) > 0 {
+		// Read grants stay whole: the person answering reads the exact path.
+		safe := make([]string, 0, len(reads))
+		for _, r := range reads {
+			safe = append(safe, domain.SafeText(r, 256))
+		}
+		parts = append(parts, "read "+strings.Join(safe, ", "))
 	}
-	if len(parts) == 0 {
-		return "nothing this nav-pilot implements"
+	return strings.Join(parts, " and ")
+}
+
+// joinAnd joins words as prose: "a", "a and b", "a, b and c".
+func joinAnd(words []string) string {
+	if len(words) < 2 {
+		return strings.Join(words, "")
 	}
-	return strings.Join(parts, "; and ")
+	return strings.Join(words[:len(words)-1], ", ") + " and " + words[len(words)-1]
 }
 
 func contains(list []string, want string) bool {

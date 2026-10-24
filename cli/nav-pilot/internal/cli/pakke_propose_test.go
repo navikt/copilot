@@ -968,6 +968,28 @@ func TestAccessAsksAgainAfterADecline(t *testing.T) {
 	}
 }
 
+// Declining inside pakke access does not tell the user to run pakke access;
+// the control, a first-run decline, still does. The yes line says what the
+// agent may do, not which hosts resolve where.
+func TestAccessDeclineAndAllowWording(t *testing.T) {
+	scope := consentEnv(t)
+	src := proposeSource(t, `"cloud.nais.io"`, "")
+	answering(t, false)
+	first := captureStderrFor(t, func() { noteProposalConsent(scope, src, false, false) })
+	if !strings.Contains(first, "To allow it later: nav-pilot pakke access") {
+		t.Fatalf("control: first-run decline lost the way back: %q", first)
+	}
+	again := captureStderrFor(t, func() { _ = putProposal(scope, src, false, false, true) })
+	if !strings.Contains(again, "Run this again to allow it.") || strings.Contains(again, "To allow it later") {
+		t.Errorf("decline inside pakke access: %q", again)
+	}
+	answering(t, true)
+	yes := captureStdoutFor(t, func() { _ = putProposal(scope, src, false, false, true) })
+	if !strings.Contains(yes, "The agent may reach cloud.nais.io from inside the sandbox.") || strings.Contains(yes, "private addresses") {
+		t.Errorf("allow line: %q", yes)
+	}
+}
+
 // An approval a launch will not apply is not "granted" (#1976): with the
 // consent file outside ~/.nav-pilot, pakke says why and the state is not held,
 // so Next and pakke access do not claim the access is there. The control, the record in

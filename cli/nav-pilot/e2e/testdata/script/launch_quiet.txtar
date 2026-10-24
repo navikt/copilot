@@ -43,6 +43,8 @@ exec pty-run -- nav-pilot --verbose
 stdout 'nav-pilot  repo: plattform'
 stdout 'Sandbox: .*/repo'
 stdout 'Launching Copilot Sandbox \(cplt\) with agent nav-pilot'
+# One Launching line, not one from nav-pilot and one from the provider.
+stdout -count=1 'Launching'
 stdout 'Model: '
 
 -- empty.txt --

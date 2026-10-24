@@ -15,7 +15,7 @@ exits 0 pty-run -wait 'Keep it' -send '\x1b[D\r' -wait 'Which coding agent' -sen
 cmp home/config.toml before.toml
 ! exists home/config.toml.bak
 
-stdout 'nav-pilot autonomy = sandbox'
+stdout 'Copilot runs commands on its own'
 
 # Ask before each command, chosen this time.
 exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\x1b[B\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Custom model id' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force

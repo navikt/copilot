@@ -67,7 +67,7 @@ const minStagedCpltStamp = "2026.08.17-062831"
 // The client budget is the loose one on purpose. cplt unpacks the Copilot
 // runtime into its cache on the first run after every cplt upgrade; a warm
 // probe answers in well under a second, but the first staged launch after
-// `brew upgrade cplt` does that extraction inside the probe. A 2-second cap —
+// an upgrade does that extraction inside the probe. A 2-second cap —
 // what this gate shipped with — turns that one run into a fatal launch error
 // for a perfectly healthy install.
 const (
@@ -398,7 +398,7 @@ func pakkeCompatibility(client string) string {
 // apt when the binary came from the apt archive, Homebrew otherwise.
 func cpltUpgradeHint() string {
 	path, _ := exec.LookPath("cplt")
-	return domain.PkgOwner(path).Pick("brew upgrade cplt", "sudo apt update && sudo apt install --only-upgrade cplt")
+	return domain.CpltUpgradeHint(domain.PkgOwner(path))
 }
 
 // checkCpltFloor refuses a staged launch on a cplt older than the reviewed

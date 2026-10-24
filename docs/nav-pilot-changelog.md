@@ -17,6 +17,16 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Anbefalt cplt fra 24. oktober 2026**: nav-pilot anbefaler nå cplt-versjonen fra 24. oktober. Den spør ikke ved oppstart når ingenting er endret. Med den versjonen gir nav-pilot også OpenCode-hookenes egen tilstandsmappe skrivetilgang med `--allow-write-state`, så mappa ikke lenger står i merknaden «NOT audited» når økten avsluttes. Eldre cplt får `--allow-write` som før.
 
+### Færre og tydeligere meldinger
+
+- **Tilgang for agentpakken**: Når du sier ja til tilgangen agentpakken ber om, står det én gang hva agenten får gjøre, med de samme ordene som spørsmålet. Oppstarten etterpå gjentar det ikke. Sier du nei inne i `nav-pilot pakke access`, står det «Run this again to allow it.» i stedet for kommandoen du allerede kjører.
+- **Aldri spurt**: Fikk du agentpakken med repoet uten å bli spurt om tilgangen den ber om, sier oppstarten det i én linje, én gang per versjon av forespørselen, og viser til `nav-pilot pakke access`.
+- **Oppsett for Copilot**: Siste skjerm før lagring sier i én setning hvordan Copilot kjører kommandoer, i stedet for å vise `nav-pilot autonomy = sandbox`.
+- **`nav-pilot doctor`**: Med advarsler eller feil ender rapporten med hvor mange ting du bør rette, ikke «All systems healthy». Er cplt utdatert, får du én linje med oppgraderingskommandoen, ikke to med ulike kommandoer.
+- **Én skrivemåte for cplt**: Alle meldinger som viser hvordan du installerer eller oppgraderer cplt med Homebrew, bruker `navikt/tap/cplt`.
+- **Modellanbefaling**: Meldingen om at agentpakken anbefaler en annen modell, viser modellnavnene slik linja «Model:» gjør, for eksempel «Claude Opus 5.5», og sier «recommends», ikke «now recommends».
+- **`--verbose`**: Oppstarten skriver «Launching …» én gang, ikke to.
+
 ## 2026-10-23
 
 ### Strengere leverandørsjekk i OpenCode 2

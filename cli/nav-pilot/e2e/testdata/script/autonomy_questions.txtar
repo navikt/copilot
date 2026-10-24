@@ -17,7 +17,7 @@ stdout 'On its own inside the sandbox, and ask you when it needs to \(recommende
 stdout 'Commit, push branches and open pull requests \(recommended\)'
 stdout 'cplt never lets it push to main or merge'
 ! stdout 'Network'
-stdout 'nav-pilot autonomy = sandbox'
+stdout 'Copilot runs commands on its own'
 ! stdout 'cplt: no changes'
 grep 'autonomy = "sandbox"' home/config.toml
 ! grep 'config\nset' $WORK/fake/cplt.log
@@ -32,7 +32,7 @@ cmp home/config.toml before.toml
 
 # 2. Ask before each command: written with the mark that it was chosen.
 exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\x1b[B\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -- nav-pilot config setup --force
-stdout 'nav-pilot autonomy = conservative'
+stdout 'Copilot asks you before each command'
 grep 'autonomy = "conservative"' home/config.toml
 grep 'autonomy_chosen = true' home/config.toml
 ! grep 'config\nset' $WORK/fake/cplt.log

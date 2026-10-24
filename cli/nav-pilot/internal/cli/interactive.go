@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
@@ -1129,8 +1130,8 @@ func beginSession(client string) {
 	}
 }
 
-// cpltInstallHint is how to get the sandbox.
-const cpltInstallHint = "brew install navikt/tap/cplt (or sudo apt install cplt)"
+// cpltInstallHint is how to get the sandbox, on either package manager.
+var cpltInstallHint = domain.CpltInstallHint(domain.PkgBrew) + " (or " + domain.CpltInstallHint(domain.PkgApt) + ")"
 
 // launchDirTooBroad reports whether the launch would sandbox the home
 // directory or /, which cplt refuses as too broad.
@@ -1295,9 +1296,8 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		return nil
 	}
 
-	if providerpkg.Verbose {
-		fmt.Printf("%s Launching %s...\n", dim("→"), p.DisplayName())
-	}
+	// The provider prints the --verbose "Launching …" line; a second one here
+	// said the same thing twice.
 	if err := runWithCommandTelemetry("launch", telemetryMode(), "none", func() error {
 		return launchClient(resolved)
 	}); err != nil {

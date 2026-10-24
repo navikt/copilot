@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bufio"
 	"cmp"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -178,6 +180,14 @@ func reportCopilotCLI() bool {
 
 // cmdDoctor runs system health checks and outputs actionable diagnostics.
 func cmdDoctor() error {
+	var hasErrors bool
+	n := countFixRows(func() { hasErrors = doctorChecks() })
+	fmt.Println(doctorVerdict(n, hasErrors))
+	return nil
+}
+
+// doctorChecks prints every doctor section and reports whether a check failed.
+func doctorChecks() bool {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
 	hasErrors := false
 
@@ -355,7 +365,7 @@ func cmdDoctor() error {
 		fmt.Printf("      %s Binary not found on PATH\n", red("[✗]"))
 		mgr := domain.PkgForInstall()
 		fmt.Printf("          %s Install cplt via %s: %s\n", red("Solution:"), mgr.Label,
-			bold(mgr.Pick("brew install navikt/tap/cplt", "sudo apt install cplt")))
+			bold(domain.CpltInstallHint(mgr)))
 	} else {
 		versionOut, err := runBounded(cpltPath, "--version")
 		version := strings.TrimSpace(string(versionOut))
@@ -365,9 +375,11 @@ func cmdDoctor() error {
 		fmt.Printf("      %s Binary found: %s (%s)\n", green("✓"), cpltPath, version)
 
 		l := latest()
-		reportCpltVersionWith(cpltPath, version, l.version, l.err)
+		// One upgrade line: when the version row already gave the command,
+		// the recommended-version notice keeps only its reasons.
+		offered := reportCpltVersionWith(cpltPath, version, l.version, l.err)
 		if n := providerpkg.CpltRecommendedNotice(); n != "" {
-			fmt.Printf("      %s %s\n", yellow("⚠"), n)
+			fmt.Printf("      %s %s\n", yellow("⚠"), recommendedRow(n, offered))
 		}
 
 		// Security posture. No recommendation: standard is the default and
@@ -580,14 +592,64 @@ func cmdDoctor() error {
 		hasErrors = true
 	}
 	fmt.Println()
+	return hasErrors
+}
 
-	if hasErrors {
-		fmt.Printf("%s Health check complete with warnings. See solutions above.\n", yellow("⚠"))
-	} else {
-		fmt.Printf("%s All systems healthy! 🚀\n", green("✓"))
+// recommendedRow is the recommended-cplt notice without its upgrade command
+// when the version row already gave one.
+func recommendedRow(notice string, offered bool) string {
+	if !offered {
+		return notice
 	}
+	reasons, _, _ := strings.Cut(notice, ". Update cplt:")
+	return reasons + "."
+}
 
-	return nil
+// doctorVerdict is doctor's last line. A run that printed ⚠ or ✗ rows never
+// ends "healthy", even when no check set hasErrors.
+func doctorVerdict(fixRows int, hasErrors bool) string {
+	switch {
+	case fixRows == 1:
+		return yellow("⚠") + " 1 thing to fix; see the lines above."
+	case fixRows > 1:
+		return fmt.Sprintf("%s %d things to fix; see the lines above.", yellow("⚠"), fixRows)
+	case hasErrors:
+		return yellow("⚠") + " Health check complete with warnings. See solutions above."
+	}
+	return green("✓") + " All systems healthy! 🚀"
+}
+
+// countFixRows runs print with stdout teed through a pipe and returns how many
+// printed lines carry a ⚠ or ✗.
+func countFixRows(print func()) int {
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		print()
+		return 0
+	}
+	done := make(chan int)
+	go func() {
+		n := 0
+		sc := bufio.NewScanner(r)
+		sc.Buffer(make([]byte, 64*1024), 4*1024*1024)
+		for sc.Scan() {
+			line := sc.Text()
+			fmt.Fprintln(orig, line)
+			if strings.ContainsAny(line, "⚠✗") {
+				n++
+			}
+		}
+		_, _ = io.Copy(orig, r)
+		done <- n
+	}()
+	os.Stdout = w
+	func() {
+		defer func() { os.Stdout = orig }()
+		print()
+	}()
+	_ = w.Close()
+	return <-done
 }
 
 // reportCpltVersion is doctor's cplt version line: behind the latest release,
@@ -604,9 +666,9 @@ func reportCpltVersion(cpltPath, version string) {
 	reportCpltVersionWith(cpltPath, version, latest, lerr)
 }
 
-func reportCpltVersionWith(cpltPath, version, latest string, lerr error) {
+func reportCpltVersionWith(cpltPath, version, latest string, lerr error) (offeredUpgrade bool) {
 	installed := parseCpltVersion(version)
-	upgrade := bold(domain.PkgOwner(cpltPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt update && sudo apt install --only-upgrade cplt"))
+	upgrade := bold(domain.CpltUpgradeHint(domain.PkgOwner(cpltPath)))
 	_, hostsFromCplt := cpltBuiltinDomains()
 	const fallback = "`cplt config hosts` gave no usable answer, so nav-pilot uses its own, possibly stale, copy of cplt's host list"
 	switch classifyCpltSkew(installed, latest, lerr) {
@@ -616,6 +678,7 @@ func reportCpltVersionWith(cpltPath, version, latest string, lerr error) {
 			fmt.Printf("          %s %s.\n", dim("Note:"), fallback)
 		}
 		fmt.Printf("          %s Run %s\n", yellow("Solution:"), upgrade)
+		return true
 	case cpltVersionCurrent:
 		fmt.Printf("      %s cplt is up to date\n", green("✓"))
 		// Current, yet without the subcommand: nothing newer to upgrade to.
@@ -627,8 +690,10 @@ func reportCpltVersionWith(cpltPath, version, latest string, lerr error) {
 		if !hostsFromCplt {
 			fmt.Printf("      %s cplt may be too old: %s\n", yellow("⚠"), fallback)
 			fmt.Printf("          %s Run %s\n", yellow("Solution:"), upgrade)
+			return true
 		}
 	}
+	return false
 }
 
 // reportCpltProjectConfig is doctor's .cplt.toml line, from the output of

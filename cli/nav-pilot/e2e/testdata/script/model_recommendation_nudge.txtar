@@ -19,7 +19,7 @@ exec nav-pilot config set source $WORK/plattform
 
 # No model of your own: the agent's pin runs, nothing is asked.
 exec pty-run -- nav-pilot
-! stdout 'now recommends'
+! stdout 'agentpakke recommends'
 grep '\-\-agent\ngrillmester\n' $WORK/fake/cplt.log
 
 # A model of your own that differs: asked once. Enter keeps it, and it wins
@@ -28,23 +28,25 @@ exec nav-pilot config set model gpt-5.5
 cp $WORK/pin-6.1.md .github/agents/grillmester.agent.md
 rm $WORK/fake/cplt.log
 exec pty-run -wait 'Follow the agentpakke' -send '\r' -- nav-pilot
-stdout 'The plattform agentpakke now recommends gpt-6.1-sol\.'
-stdout 'You have model = gpt-5\.5 set\.'
+stdout 'The plattform agentpakke recommends GPT-6\.1 Sol\.'
+stdout 'Your setting is GPT-5\.5\.'
+# Names, as the Model line shows them, not ids; and no "now".
+! stdout 'now recommends|recommends gpt-6\.1-sol|You have model'
 grep '\-\-agent\nnav-pilot-session:grillmester\n' $WORK/fake/cplt.log
 grep '\-\-model\ngpt-5\.5\n' $WORK/fake/cplt.log
 exec pty-run -- nav-pilot
-! stdout 'now recommends'
+! stdout 'agentpakke recommends'
 
 # A new recommendation is asked about again. Ctrl-C keeps the model, and is
 # not asked again.
 cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
 rm $WORK/fake/cplt.log
 exec pty-run -wait 'Follow the agentpakke' -send '\x03' -- nav-pilot
-stdout 'now recommends gpt-6.2-sol'
+stdout 'agentpakke recommends gpt-6\.2-sol'
 grep 'model = "gpt-5.5"' $WORK/home/config.toml
 grep '\-\-model\ngpt-5\.5\n' $WORK/fake/cplt.log
 exec pty-run -- nav-pilot
-! stdout 'now recommends'
+! stdout 'agentpakke recommends'
 
 # Switch runs config set model.
 cp $WORK/pin-6.1.md .github/agents/grillmester.agent.md
@@ -56,7 +58,7 @@ grep '\-\-model\ngpt-6\.1-sol\n' $WORK/fake/cplt.log
 # Without a terminal: one line with both commands.
 cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
 exec nav-pilot -- -p hi
-stderr 'The plattform agentpakke now recommends gpt-6\.2-sol; you have model = gpt-6\.1-sol set\. To switch: nav-pilot config set model gpt-6\.2-sol\. To follow the agentpakke: nav-pilot config unset model\.'
+stderr 'The plattform agentpakke recommends gpt-6\.2-sol; your setting is GPT-6\.1 Sol\. To switch: nav-pilot config set model gpt-6\.2-sol\. To follow the agentpakke: nav-pilot config unset model\.'
 
 -- pin-6.1.md --
 ---

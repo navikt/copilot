@@ -222,7 +222,7 @@ func TestMCPEnableBrokerOldCplt(t *testing.T) {
 	if err == nil {
 		t.Error("enable succeeded with an old cplt")
 	}
-	if !strings.Contains(errOut, "nothing was written. Fix: brew upgrade cplt && nav-pilot mcp enable io.github.nais/nais-mcp") {
+	if !strings.Contains(errOut, "nothing was written. Fix: brew upgrade navikt/tap/cplt && nav-pilot mcp enable io.github.nais/nais-mcp") {
 		t.Errorf("stderr:\n%s", errOut)
 	}
 	if _, err := os.Stat(f.spec); !os.IsNotExist(err) {
@@ -234,7 +234,7 @@ func TestMCPEnableBrokerOldCplt(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if !strings.Contains(out, "Fix: brew upgrade cplt") {
+	if !strings.Contains(out, "Fix: brew upgrade navikt/tap/cplt") {
 		t.Errorf("list:\n%s", out)
 	}
 }

@@ -112,6 +112,8 @@ func tryPakkeLaunch(resolved ResolvedConfig) (bool, error) {
 	// relies on. It is the manifest pinned with the payloads, so persona, model
 	// and the compatibility gate all read the revision that is about to run.
 	providerpkg.SetActivePakke(pakke)
+	// Pins live in user scope, even with a repo install beside them.
+	providerpkg.SetActivePakkeUser()
 	// Once per pinned revision, or with --verbose: the pin changes rarely.
 	if using := fmt.Sprintf("Using agentpakke %s@%s (%s payload).", pakke.Name, rev.SHA, context); artifacts.SeenChanged("staged-pakke-"+resolved.Client, using) || providerpkg.Verbose {
 		fmt.Println(dim(using))

@@ -16,6 +16,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
@@ -407,7 +408,7 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			add(mcpUnlisted(entries, k, providerpkg.MCPClientOpenCode))
 		}
 		if cpltPath == "" {
-			add(mcpProblem{Server: "cplt", Problem: "cplt is not installed, so no host was checked against the sandbox", Fix: "brew install navikt/tap/cplt"})
+			add(mcpProblem{Server: "cplt", Problem: "cplt is not installed, so no host was checked against the sandbox", Fix: domain.CpltInstallHint(domain.PkgForInstall())})
 		}
 	}
 	return rep

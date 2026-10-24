@@ -7,16 +7,21 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // What cplt says about the broker: `cplt mcp status --json`, and what that
 // means for one server.
 
 const (
-	mcpCpltUpgrade     = "brew upgrade cplt"
-	mcpCpltInstall     = "brew install navikt/tap/cplt"
 	mcpStatusFailedFix = "cd <your repo> && nav-pilot mcp list"
 	mcpCpltDoctorFix   = "cplt doctor --fix"
+)
+
+var (
+	mcpCpltUpgrade = domain.CpltUpgradeHint(domain.PkgBrew)
+	mcpCpltInstall = domain.CpltInstallHint(domain.PkgBrew)
 )
 
 // mcpCpltStatusDoc is `cplt mcp status --json`. Failed is set, and the rest

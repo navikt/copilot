@@ -478,7 +478,7 @@ func reportCpltUpgrade(w io.Writer) {
 	switch classifyCpltSkew(installed, latest, lerr) {
 	case cpltVersionBehind:
 		fmt.Fprintf(w, "cplt %s is out of date (latest: %s). Run %s\n", installed, latest,
-			bold(domain.PkgOwner(cliPath).Pick("brew upgrade navikt/tap/cplt", "sudo apt update && sudo apt install --only-upgrade cplt")))
+			bold(domain.CpltUpgradeHint(domain.PkgOwner(cliPath))))
 	case cpltVersionCurrent:
 		fmt.Fprintf(w, "✓ cplt is up to date (%s)\n", installed)
 	default:

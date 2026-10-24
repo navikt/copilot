@@ -42,9 +42,15 @@ exits 0 nav-pilot doctor
 stderr 'needs a terminal to ask in\. It would ask: Let the agent read Nais logs and metrics\?'
 ! stdout .
 
-# The same question as first run; y allows.
+# Declining here again does not name the command already running.
+exits 0 pty-run -wait 'Let the agent read Nais logs and metrics' -send '\r' -- nav-pilot pakke access
+stdout 'Declined, so the agent can.t read Nais logs and metrics\. Run this again to allow it\.'
+! stdout 'To allow it later'
+
+# The same question as first run; y allows, in the question's own words.
 exits 0 pty-run -wait 'Let the agent read Nais logs and metrics' -send 'y' -- nav-pilot pakke access
-stdout 'plattform may'
+stdout '✓ The agent may read Nais logs and metrics from inside the sandbox\.'
+! stdout 'private addresses'
 
 exec nav-pilot pakke
 stdout 'Access: +read Nais logs and metrics — granted'
@@ -59,7 +65,7 @@ exec nav-pilot pakke --user
 stdout 'agentpakke plattform \(user\)'
 stdout 'Access: +read Nais logs and metrics — declined'
 exits 0 pty-run -wait 'Let the agent read Nais logs and metrics' -send 'y' -- nav-pilot pakke access --user
-stdout 'plattform may'
+stdout 'The agent may read Nais logs and metrics'
 exec nav-pilot pakke --user
 stdout 'Access: +read Nais logs and metrics — granted'
 
