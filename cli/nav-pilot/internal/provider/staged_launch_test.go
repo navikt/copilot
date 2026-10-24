@@ -512,23 +512,6 @@ func TestStagedOpenCodeLeavesSharedConfigAlone(t *testing.T) {
 	}
 }
 
-// TestGoldenCpltArgvWithoutCpltArgs pins that the new pre-"--" slot is inert
-// for every legacy launch: with no cpltArgs, cplt receives exactly today's
-// vector.
-func TestGoldenCpltArgvWithoutCpltArgs(t *testing.T) {
-	spec := cpltLaunch{agent: "opencode", agentArgs: OpenCodeArgs(domain.ResolvedConfig{})}
-	want := []string{"--agent", "opencode", "--", "--model", "github-copilot/gpt-6.1-sol", "--agent", "nav-pilot"}
-	if got := cpltArgv(spec); !slices.Equal(got, want) {
-		t.Errorf("cpltArgv\n got: %q\nwant: %q", got, want)
-	}
-
-	pi := cpltLaunch{agent: "pi"}
-	wantPi := []string{"--agent", "pi", "--"}
-	if got := cpltArgv(pi); !slices.Equal(got, wantPi) {
-		t.Errorf("cpltArgv(pi)\n got: %q\nwant: %q", got, wantPi)
-	}
-}
-
 func TestStagedOpenCodeVariant(t *testing.T) {
 	SetActivePakke(stagedFixturePakke())
 	t.Cleanup(func() { SetActivePakke(nil) })

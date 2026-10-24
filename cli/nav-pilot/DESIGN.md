@@ -172,7 +172,7 @@ nav-pilot eksponerer bare klienter med bekreftet launch-sti og Nav-kontekst.
 > fortsatt og kartlegges til `client`-feltet. En advarsel skrives ut ved oppstart;
 > bytt til `client` for å fjerne den.
 
-**cplt agent-pinning:** `BuildCopilotArgs` (`internal/provider/copilot_launch.go`) setter alltid `cplt --agent copilot`
+**cplt agent-pinning:** `copilotLaunchArgs` (`internal/provider/copilot_launch.go`) setter alltid `cplt --agent copilot`
 slik at en annen agent på PATH ikke plukkes opp, og videreformidler `nav-pilot`-
 persona + flagg etter `--`-separatoren: `cplt --agent copilot -- --agent nav-pilot …`.
 

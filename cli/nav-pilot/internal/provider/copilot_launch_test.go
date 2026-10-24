@@ -66,7 +66,7 @@ func TestBuildCopilotArgs(t *testing.T) {
 			name:     "cplt pins copilot sandbox agent and emits nav-pilot persona",
 			cliName:  "cplt",
 			resolved: domain.ResolvedConfig{Client: "copilot", Mode: "default", AskUser: true},
-			want:     []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-6.1-sol"},
+			want:     []string{"--agent", "nav-pilot", "--model", "gpt-6.1-sol"},
 		},
 		{
 			name:     "copilot always emits nav-pilot persona",
@@ -99,7 +99,7 @@ func TestBuildCopilotArgs(t *testing.T) {
 				AskUser:         false,
 				LogLevel:        "debug",
 			},
-			want: []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", "gpt-4o",
+			want: []string{"--agent", "nav-pilot", "--model", "gpt-4o",
 				"--mode", "plan", "--effort", "high", "--context", "long_context",
 				"--allow-all-tools", "--no-ask-user", "--log-level", "debug"},
 		},
@@ -238,7 +238,7 @@ func TestLaunchCopilotResolved_EnvOnlyWithoutToken_DoesNotLaunchCplt(t *testing.
 	}
 }
 
-// Tier 1 Copilot builds its own cplt command, so the cplt recommendation must
+// The cplt recommendation must
 // be said on that path too, with the client-neutral reasons.
 func TestLaunchCopilotResolved_ShowsCpltRecommendation(t *testing.T) {
 	dir := t.TempDir()
@@ -438,5 +438,41 @@ func TestLaunchCopilotResolved_NoCLINamesTheInstallCommand(t *testing.T) {
 	err := LaunchCopilotResolved(domain.ResolvedConfig{Client: "copilot", AskUser: true, OtelLogLevel: "none"})
 	if err == nil || !strings.Contains(err.Error(), "not on PATH") || !strings.Contains(err.Error(), CopilotInstallCommand) {
 		t.Fatalf("want the missing binary and %q, got %v", CopilotInstallCommand, err)
+	}
+}
+
+// TestSayAutopilotNote pins the note's rule: once per change, every time with
+// --verbose, never outside autopilot. The default-mode case is the control: it
+// stays silent even under --verbose.
+func TestSayAutopilotNote(t *testing.T) {
+	isolateHome(t)
+	say := func(r domain.ResolvedConfig, verbose bool) bool {
+		t.Helper()
+		orig, origVerbose := os.Stderr, Verbose
+		pr, pw, _ := os.Pipe()
+		os.Stderr, Verbose = pw, verbose
+		sayAutopilotNote(r)
+		os.Stderr, Verbose = orig, origVerbose
+		pw.Close()
+		out, _ := io.ReadAll(pr)
+		return strings.Contains(string(out), "Autopilot:")
+	}
+	autopilot := domain.ResolvedConfig{Mode: "autopilot"}
+	if say(domain.ResolvedConfig{}, true) {
+		t.Error("control: a default-mode launch printed the autopilot note")
+	}
+	if !say(autopilot, false) {
+		t.Error("the first autopilot launch did not print the note")
+	}
+	if say(autopilot, false) {
+		t.Error("an unchanged autopilot launch printed the note again")
+	}
+	if !say(autopilot, true) {
+		t.Error("--verbose did not repeat the note")
+	}
+	// Leaving autopilot resets the marker, so coming back says it again.
+	say(domain.ResolvedConfig{}, false)
+	if !say(autopilot, false) {
+		t.Error("autopilot after a default-mode launch did not print the note")
 	}
 }

@@ -85,7 +85,7 @@ func TestGoldenLocalDisabledLeavesLaunchArgsAlone(t *testing.T) {
 	id := aLocalModelID(t)
 	r := domain.ResolvedConfig{Model: id, AskUser: true}
 
-	wantCopilot := []string{"--agent", "copilot", "--", "--agent", "nav-pilot", "--model", id}
+	wantCopilot := []string{"--agent", "nav-pilot", "--model", id}
 	if got := BuildCopilotArgs("cplt", r); !slices.Equal(got, wantCopilot) {
 		t.Errorf("BuildCopilotArgs\n got: %q\nwant: %q", got, wantCopilot)
 	}

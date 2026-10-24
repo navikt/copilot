@@ -62,6 +62,9 @@ type cpltLaunch struct {
 	// sessionFlags are ResolvedConfig.CpltFlags: --allow-clipboard and --cplt
 	// for this session only, placed last before the "--".
 	sessionFlags []string
+	// banner replaces "<displayName> via cplt sandbox<messageSuffix>" in the
+	// --verbose "Launching …" line.
+	banner string
 	// launchConfig is a Tier 1 opencode launch's additions to
 	// OPENCODE_CONFIG_CONTENT, for [applyOpenCodeProviderPolicy].
 	launchConfig map[string]any
@@ -85,9 +88,8 @@ func cpltArgv(spec cpltLaunch) []string {
 		args = append(args, "--pass-env", SkillsDirEnv)
 	}
 	// Seam one of two for an approved sandbox proposal (#858). Here rather than
-	// at each cpltLaunch call site: every staged, opencode and pi launch is
-	// assembled by this function, so a new one cannot forget it. The legacy
-	// Copilot launch builds its own vector and carries it in BuildCopilotArgs.
+	// at each cpltLaunch call site: every launch is assembled by this
+	// function, so a new one cannot forget it.
 	args = append(args, cpltProposalFlags()...)
 	args = append(args, spec.sessionFlags...)
 	args = append(args, "--")
@@ -286,8 +288,11 @@ func launchViaCplt(spec cpltLaunch) error {
 	}
 
 	if Verbose {
-		fmt.Printf("Launching %s via %s%s...\n\n",
-			domain.Bold(spec.displayName), domain.Bold("cplt sandbox"), spec.messageSuffix)
+		banner := spec.banner
+		if banner == "" {
+			banner = domain.Bold(spec.displayName) + " via " + domain.Bold("cplt sandbox") + spec.messageSuffix
+		}
+		fmt.Printf("Launching %s...\n\n", banner)
 		printCpltSessionFlags(spec.sessionFlags)
 	}
 

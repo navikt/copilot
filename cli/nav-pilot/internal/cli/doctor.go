@@ -422,7 +422,7 @@ func doctorChecks() bool {
 		reportMCPTools(os.Stdout)
 
 		// The persona is pinned by nav-pilot itself, not by user configuration:
-		// BuildCopilotArgs unconditionally emits `cplt --agent copilot --
+		// copilotLaunchArgs unconditionally emits `cplt --agent copilot --
 		// --agent nav-pilot` on every launch. There is nothing to check and
 		// nothing for the user to set.
 		//

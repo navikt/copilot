@@ -17,7 +17,7 @@ func TestAllowClipboardBothSeams(t *testing.T) {
 		t.Errorf("cpltArgv\n got: %q\nwant: %q", got, want)
 	}
 
-	got = copilotLaunchArgs("cplt", domain.ResolvedConfig{AskUser: true, CpltFlags: flags}, false, "")
+	got = copilotLaunchArgs("cplt", domain.ResolvedConfig{AskUser: true, CpltFlags: flags}, "")
 	if i, j := slices.Index(got, "--allow-clipboard"), slices.Index(got, "--"); i < 0 || i > j {
 		t.Errorf("copilot launch: --allow-clipboard missing or after --: %q", got)
 	}
