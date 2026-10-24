@@ -114,7 +114,11 @@ export default function KomIGang() {
           </LinkableHeading>
           <BodyLong>Gå til et repo og start nav-pilot:</BodyLong>
           <CodeBlock compact>{`cd ~/src/min-app
-nav-pilot`}</CodeBlock>
+(unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; nav-pilot)`}</CodeBlock>
+          <BodyLong>
+            Tokenene tømmes bare for denne kommandoen, så nav-pilot bruker innloggingen fra{" "}
+            <code className={code}>gh auth login</code>, ikke et gammelt token i skallet.
+          </BodyLong>
           <BodyLong>
             Første gang spør nav-pilot om noen innstillinger. Enter gir det anbefalte valget. Spørsmålene er på engelsk:
           </BodyLong>
