@@ -29,6 +29,7 @@ describe("modelSizeRows", () => {
     expect(def.n).toBeGreaterThan(0);
     expect(def.lo).toBeGreaterThan(0);
     expect(def.hi).toBeLessThanOrEqual(1);
-    expect(def.trusted).toContain("mekanisk endring over flere filer (delegert)");
+    expect(def.trusted).toEqual(expect.arrayContaining(["endring i én fil (delegert)", "ny fil (delegert)"]));
+    expect(def.trusted).not.toContain("mekanisk endring over flere filer (delegert)");
   });
 });

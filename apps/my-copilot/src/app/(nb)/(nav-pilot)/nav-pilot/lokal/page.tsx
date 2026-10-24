@@ -153,9 +153,8 @@ export default async function LokalIntro() {
             Delegering krever opencode som klient. Copilot CLI har ingen subagent som kan kjøre lokalt.
           </BodyLong>
           <BodyLong>
-            Be om en mekanisk endring over flere filer, for eksempel «legg til parameteren{" "}
-            <code className={code}>ctx</code> i alle kall til <code className={code}>hentBruker</code>». Gjør
-            hovedagenten en stor mekanisk endring selv, stopper nav-pilot den og ber den delegere resten til{" "}
+            Be om en ny fil, for eksempel «lag en enhetstest for <code className={code}>hentBruker</code>». Lager
+            hovedagenten filen selv, stopper nav-pilot den og ber den delegere filen til{" "}
             <code className={code}>local-worker</code>. Når <code className={code}>local-worker</code> er ferdig, ber
             nav-pilot hovedagenten bygge prosjektet og kjøre testene. Små endringer gjør hovedagenten selv.
           </BodyLong>
