@@ -59,7 +59,7 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     ),
   },
   {
-    message: "broker spec rejected: … is writable in the sandbox",
+    message: "… is writable in the sandbox",
     fix: (
       <>
         cplt kjører ikke en server når agenten kan endre oppsettet til den. Flytt{" "}
@@ -69,12 +69,47 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     ),
   },
   {
-    message: "broker spec rejected: … is a symlink",
+    message: "… is a symlink",
     fix: <>Bytt ut lenken meldingen nevner med en vanlig mappe eller fil, og slå på serveren igjen.</>,
   },
   {
-    message: "the MCP broker runs on macOS only for now",
-    fix: <>Du bruker Linux med en cplt uten Linux-støtte. Oppgrader cplt når Linux-støtten er ute.</>,
+    message: "cplt's MCP broker is off here: the MCP broker needs Bubblewrap on Linux, and Bubblewrap is not usable",
+    fix: (
+      <>
+        Kjør <code className={code}>cplt doctor --fix</code>. Den installerer bubblewrap eller fikser AppArmor, se{" "}
+        <a href="#plattformer" className={linkClass}>
+          Plattformer
+        </a>
+        .
+      </>
+    ),
+  },
+  {
+    message: "cplt's MCP broker is off here: …",
+    fix: (
+      <>
+        cplt kan ikke skjule alle D-Bus-endepunktene for agenten. Kjør <code className={code}>cplt doctor</code> for å
+        se hva som stopper det.
+      </>
+    ),
+  },
+  {
+    message: "--allow-gpg-signing needs sockets in the runtime dir, which the MCP broker hides from the sandbox",
+    fix: (
+      <>
+        Gjelder også <code className={code}>--allow-rootless-docker</code>. Fjern flagget for å bruke serveren, eller
+        behold det og start med <code className={code}>--no-mcp-broker io.github.nais/nais-mcp</code>.
+      </>
+    ),
+  },
+  {
+    message: "cplt mcp status did not answer here",
+    fix: (
+      <>
+        Prøv igjen. Står det <code className={code}>timed out</code>, brukte cplt for lang tid. Ellers kjører du{" "}
+        <code className={code}>nav-pilot mcp list</code> fra repoet ditt.
+      </>
+    ),
   },
   {
     message: "cplt's MCP broker is off",
@@ -128,7 +163,7 @@ export default function McpGjennomCplt() {
             Nais MCP
           </LinkableHeading>
           <BodyLong>
-            Du trenger cplt-utgaven fra 23. oktober 2026 eller nyere (på Linux en nyere, se{" "}
+            Du trenger cplt fra 23. oktober 2026 eller nyere på macOS og cplt fra 24. oktober 2026 på Linux (se{" "}
             <a href="#plattformer" className={linkClass}>
               Plattformer
             </a>
@@ -143,8 +178,13 @@ export default function McpGjennomCplt() {
           <BodyLong>Sjekk at det virker:</BodyLong>
           <CodeBlock compact>{`nav-pilot mcp list`}</CodeBlock>
           <BodyLong>
-            Kolonnen LOGIN viser om du er logget inn. Står det <code className={code}>cplt broker</code> under PATH,
-            kjører cplt serveren. Start en ny økt etter at du har slått den på.
+            Kolonnen LOGIN viser <code className={code}>nais: ok</code> når du er logget inn. Andre verdier er{" "}
+            <code className={code}>nais: logged out</code>, <code className={code}>nais: not installed</code> og{" "}
+            <code className={code}>nais: unknown (timed out)</code>, som betyr at sjekken tok for lang tid, ikke at du
+            er logget ut. Står det <code className={code}>cplt broker</code> under PATH, kjører cplt serveren. Står det{" "}
+            <code className={code}>cplt (off here)</code>, kan ikke cplt kjøre den på denne maskinen, og linja under
+            tabellen sier hvorfor. Kommandoen virker fra hvilken som helst mappe. Start en ny økt etter at du har slått
+            serveren på.
           </BodyLong>
           <BodyLong>Slå den av igjen:</BodyLong>
           <CodeBlock compact>{`nav-pilot mcp disable io.github.nais/nais-mcp`}</CodeBlock>
@@ -197,10 +237,18 @@ export default function McpGjennomCplt() {
               GraphQL-verktøyet i Nais MCP sender bare spørringer. cplt avviser mutasjoner og dokumenter med mer enn én
               operasjon.
             </li>
+            <li>Et kall som ikke har fått svar etter 120 sekunder, avbryter cplt.</li>
+            <li>
+              I OpenCode feiler <code className={code}>schema_list_queries</code>. Følges opp i{" "}
+              <a href="https://github.com/nais/cli/issues/817" className={linkClass}>
+                nais/cli#817
+              </a>
+              .
+            </li>
             <li>
               Kjører du Nais MCP i flere økter samtidig, kan flere prosesser fornye en utløpt Nais-innlogging på en gang
-              og i sjeldne tilfeller logge deg ut. Kjør da <code className={code}>nais login -n</code> på nytt. Vi har
-              funnet risikoen ved å lese koden til Nais CLI, ikke sett den i bruk. Den følges opp i{" "}
+              og i sjeldne tilfeller logge deg ut. Kjør da <code className={code}>nais login -n</code> på nytt. Risikoen
+              er teoretisk: vi fant den ved å lese koden til Nais CLI og har ikke sett den skje. Den følges opp i{" "}
               <a href="https://github.com/nais/cli/issues/816" className={linkClass}>
                 nais/cli#816
               </a>
@@ -222,13 +270,15 @@ export default function McpGjennomCplt() {
           <LinkableHeading id="plattformer" size="medium" level="2">
             Plattformer
           </LinkableHeading>
-          {/* TODO ved merge: bytt «<dato>» med datoen til cplt-utgaven med navikt/cplt#838 og #841. */}
           <BodyLong>
             På Linux og WSL2 kjører cplt serveren bare når bubblewrap (<code className={code}>bwrap</code>) pakker inn
-            økten, fordi det er bubblewrap som skjuler nøkkelringen for agenten. Uten bubblewrap nekter cplt. Det krever
-            cplt-utgaven fra &lt;dato&gt; eller nyere. Mangler bubblewrap, installerer{" "}
-            <code className={code}>cplt doctor --fix</code> det med <code className={code}>apt-get</code> eller{" "}
-            <code className={code}>dnf</code>.
+            økten, fordi det er bubblewrap som skjuler nøkkelringen for agenten. Uten bubblewrap kjører ikke cplt
+            serveren. Det krever cplt fra 24. oktober 2026 eller nyere. Mangler bubblewrap, installerer{" "}
+            <code className={code}>cplt doctor --fix</code> det med <code className={code}>apt-get</code> (Debian og
+            Ubuntu) eller <code className={code}>dnf</code> (Fedora). Starter du cplt med{" "}
+            <code className={code}>--allow-gpg-signing</code> eller{" "}
+            <code className={code}>--allow-rootless-docker</code>, er serveren av, fordi begge trenger sockets som cplt
+            skjuler.
           </BodyLong>
           <div className="overflow-x-auto">
             <Table size="small">
@@ -250,8 +300,8 @@ export default function McpGjennomCplt() {
                 <TableRow>
                   <TableDataCell>Ubuntu 24.04 og nyere</TableDataCell>
                   <TableDataCell>
-                    AppArmor stopper bubblewrap som standard. cplt nekter å starte og viser kommandoen som fikser det.
-                    Du kjører den én gang.
+                    AppArmor stopper bubblewrap som standard. Kjør <code className={code}>cplt doctor --fix</code> én
+                    gang.
                   </TableDataCell>
                 </TableRow>
                 <TableRow>
@@ -262,7 +312,11 @@ export default function McpGjennomCplt() {
                   <TableDataCell>WSL2</TableDataCell>
                   <TableDataCell>
                     Skal virke med bubblewrap, men er ikke testet på en ekte maskin ennå. Nais-innloggingen trenger en
-                    nøkkelring, se under.
+                    nøkkelring, se under (
+                    <a href="https://github.com/nais/cli/issues/815" className={linkClass}>
+                      nais/cli#815
+                    </a>
+                    ).
                   </TableDataCell>
                 </TableRow>
               </TableBody>
@@ -277,10 +331,13 @@ export default function McpGjennomCplt() {
           </BodyLong>
           <CodeBlock compact>{`cplt doctor --fix`}</CodeBlock>
           <BodyLong>
-            cplt viser kommandoene og innholdet i fila, spør <code className={code}>Fix now? [Y/n]</code>, kjører dem
-            med <code className={code}>sudo</code> og sjekker på nytt. Den spør bare i en terminal. Med{" "}
-            <code className={code}>--yes</code>, uten terminal, med <code className={code}>CI</code> satt eller inne i
-            sandkassen skriver den bare ut kommandoene. Det samme tilbudet får du når cplt nekter å starte serveren.
+            cplt viser kommandoene og innholdet i fila og spør{" "}
+            <code className={code}>Fix now? sudo will ask for your password. [Y/n]</code>. Svarer du ja, kjører den
+            kommandoene med <code className={code}>sudo</code> og sjekker på nytt. Den spør bare i en terminal. Med{" "}
+            <code className={code}>cplt --yes doctor --fix</code>, uten terminal, med <code className={code}>CI</code>{" "}
+            satt, inne i sandkassen eller med <code className={code}>--print-profile</code> skriver den kommandoene og{" "}
+            <code className={code}>Not offering to run it (…)</code> med grunnen, og du kjører dem selv. Det samme
+            tilbudet får du når du starter cplt og bubblewrap ikke virker.
           </BodyLong>
           <BodyLong>
             Vil du gjøre det for hånd og <code className={code}>/etc/apparmor.d/bwrap-userns-restrict</code> finnes,
