@@ -6,30 +6,21 @@ Designmønstre og konvensjoner i nav-pilot CLI. Nye kommandoer og endringer skal
 
 ## Arkitektur
 
-nav-pilot er én Go-pakke (`package main`) uten interne moduler. Koden er delt i filer etter ansvarsområde, ikke etter lag.
+`main.go` er et tynt inngangspunkt som kaller `internal/cli`. Resten ligger i
+interne pakker, delt etter ansvarsområde:
 
 ```
-main.go          CLI-parsing, dispatch til cmd*-funksjoner
-install.go       install, install --auto-detect, list, status, uninstall
-init.go          scaffold repo-lokale Copilot-konfigurasjonsfiler
-add.go           add (enkeltartifakt — deprecated alias for install)
-export.go        export (formatkonvertering)
-sync.go          sync (oppdateringssjekk)
-interactive.go   TUI-flyt med charmbracelet/huh
-update.go        upgrade / update (selvoppdatering av binæren)
-feedback.go      åpner GitHub issue med diagnostikk
-env.go           shell-eksport for Copilot CLI-integrasjon
-scope.go         InstallScope (repo vs. user)
-source.go        Source (lokal repo eller git clone)
-state.go         StateFile (JSON-basert installasjonstilstand)
-files.go         filkopiering, hashing, symlink-sjekk
-manifest.go      manifest.json-parsing og validering
-frontmatter.go   YAML-frontmatter splitting og transformasjon
-output.go        fargefunksjoner (red, green, yellow, dim, bold)
-suggest.go       Levenshtein-avstand og did-you-mean-forslag
-staleness.go     bakgrunnssjekk av ny versjon
-syncconfig.go    copilot-sync.json per repo
-version.go       versjonsstrengslogikk
+internal/cli         kommandoer, parsing og dispatch (cli.go), veiviser, doctor, sync
+internal/provider    klientene (copilot, opencode, pi), cplt-oppstart, Provider-registeret
+internal/artifacts   installasjon, eksport, tilstand, SeenChanged
+internal/agentpakke  agentpakke-kontrakten, lasting og validering
+internal/source      kilderepo (lokal sjekkut eller git clone)
+internal/domain      felles typer (ResolvedConfig, stier, navnevalidering)
+internal/hook        nav-pilots egne hooks
+internal/local       lokal modell (alpha local)
+internal/telemetry   telemetri
+internal/testhome    isolert hjemmekatalog for tester
+internal/cmd         hjelpeprogrammer for golden-tester
 ```
 
 ## Config-system
@@ -138,8 +129,8 @@ The standalone `nav-pilot config validate` command performs the same checks
 
 ### Provider-abstraksjon (Provider interface)
 
-`launchProvider(resolved ResolvedConfig)` delegerer til `providerFor(resolved.Client).Launch(resolved)`.
-Alle provider-spesifikke valg er samlet i `provider.go`:
+En oppstart kaller `providerFor(resolved.Client).Launch(resolved)`.
+Grensesnittet og registeret ligger i `internal/provider/provider.go`:
 
 ```go
 type Provider interface {
@@ -152,6 +143,7 @@ type Provider interface {
     ValidateModel(model string) error                 // provider-spesifikk validering
     ModelAdvisory(model string) string                // advarsel for ukurerte men gyldige ids
     UnsupportedConfigWarnings(ResolvedConfig) []string // advarsel for felt uten ekvivalent
+    Bootstrap(resolved ResolvedConfig) (string, error) // materialiserer kontekst før første oppstart
 }
 ```
 
@@ -172,9 +164,18 @@ nav-pilot eksponerer bare klienter med bekreftet launch-sti og Nav-kontekst.
 > fortsatt og kartlegges til `client`-feltet. En advarsel skrives ut ved oppstart;
 > bytt til `client` for å fjerne den.
 
-**cplt agent-pinning:** `copilotLaunchArgs` (`internal/provider/copilot_launch.go`) setter alltid `cplt --agent copilot`
+**cplt agent-pinning:** Alle klienter starter gjennom `launchViaCplt`
+(`internal/provider/cplt.go`), også Tier 1 Copilot. `copilotSpec`
+(`internal/provider/copilot_launch.go`) beskriver Copilot-oppstarten, og
+`cpltArgv` bygger kommandolinja av den. Den setter alltid `cplt --agent copilot`
 slik at en annen agent på PATH ikke plukkes opp, og videreformidler `nav-pilot`-
 persona + flagg etter `--`-separatoren: `cplt --agent copilot -- --agent nav-pilot …`.
+
+**Skrivetilgang til egen tilstand:** En tilstandskatalog nav-pilot eier, får
+`--allow-write-state` når cplt er minst `cpltAllowWriteState`
+(`internal/provider/opencode_policy.go`). Da regner ikke cplt den som en urevidert
+skrivetilgang i advarselen ved avslutning. Eldre cplt, eller en versjon som ikke
+kan leses, får `--allow-write`.
 
 **Autonomi og allow-all:** Med `autonomy = "sandbox"` (standard) får Copilot i cplt
 `--allow-all-tools --allow-all-paths --allow-all-urls` og beholder `ask_user`. Med `conservative` gjelder `allow_all_tools` som før. cplt er
@@ -220,6 +221,19 @@ Ved hver opencode-oppstart kaller nav-pilot `EnsureOpenCodeConfig()`, som slår 
 I tillegg injiserer nav-pilot `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_RESOURCE_ATTRIBUTES` og `OPENCODE_CLIENT=nav-pilot` i opencodes miljø, med samme unntak når telemetri er slått av.
 
 Sammenslåingen er dyp (beholder eksisterende `experimental.*`-nøkler), idempotent og skriver atomisk. Er `opencode.json` en symlenke, skrives fila den peker på.
+
+### OpenCode 2: providere og prosjektets egne filer
+
+nav-pilot setter `enabled_providers` til `github-copilot` (pluss den lokale
+provideren når lokal modell er på) i `applyOpenCodeProviderPolicy`
+(`internal/provider/opencode_policy.go`). OpenCode 2 lar en global
+provider-policy gå foran inline-konfig, så en konfig som vil åpne for flere
+providere, eller som bruker `{file:}`/`{env:}` i feltet, stopper oppstarten i
+stedet for å utvide økta i det stille.
+
+Repoets egne OpenCode-plugins lastes bare når brukeren har sagt ja.
+`nav-pilot plugins` viser pluginene og spør på nytt. Et nei slår av alt OpenCode 2
+leser fra repoet: `opencode.json`, plugins, agenter, kommandoer, skills og `AGENTS.md`.
 
 ### OpenCode livssyklus — Nav-kontekst
 
@@ -269,7 +283,7 @@ Ingen YAML-bibliotek. Frontmatter parses linjebasert. Ingen HTTP-rammeverk. Inge
 
 ## Kommandomønster
 
-Hver kommando er en `cmd*`-funksjon som tar parsed argumenter og returnerer `error`. `run()` i main.go parser flagg og dispatcher.
+Hver kommando er en `cmd*`-funksjon som tar parsed argumenter og returnerer `error`. `run()` i `internal/cli/cli.go` parser flagg og dispatcher.
 
 ```go
 func cmdExport(format string, scope *InstallScope, ref, sourceRepo string, dryRun, force bool, jsonOutput bool) error
@@ -520,6 +534,15 @@ egen CI. Ikke å forveksle med `nav-pilot config validate`, som sjekker
 brukerens egen config.
 
 Feltreferansen for manifestet, kompatibilitetsreglene og CI-bruken for
+`nav-pilot pakke` viser hvilken agentpakke prosjektet bruker, hva som er
+installert, og svaret på tilgangen pakka ber om. `nav-pilot pakke access` stiller
+spørsmålet på nytt for tilgang som ble avslått eller aldri spurt om.
+
+Kilden publiserer det den har pensjonert i `.nav-pilot/retired-artifacts.json`
+(`agentpakke.RetiredRecordPath`): sti mot alle innholdshasher stien har hatt, og
+eventuelt hva som erstatter den. `sync` finner pensjonerte filer som fortsatt
+ligger installert, tilbyr å slette dem og navngir erstatningen.
+
 agentpakke-forfattere står i [docs/README.agentpakke.md](../../docs/README.agentpakke.md).
 Kontrakten selv er JSON Schema-filen `schemas/agentpakke-v1.json`, som er både
 publisert i repoet og embedded i binæren.
@@ -775,6 +798,11 @@ nav-pilot skriver ved oppstart og avslutning hører til én av fire klasser:
 En linje i klassen «Endret» vises alltid med `--verbose`, og `nav-pilot doctor` viser tilstanden hver gang. Kommandoer brukeren selv kjører (`sync`, `doctor`, `config setup`) skjuler ingenting; bare en oppstart (`artifacts.LaunchNotices`) gjør det.
 
 Nøkkelen til `SeenChanged` er det linja handler om (klient, innstilling, agentpakke), og verdien er det som kan endre seg. Kall `SeenChanged` også når tilstanden er borte (tom verdi), ellers er linja stille når tilstanden kommer tilbake. Tilstanden ligger i `seen-<nøkkel>` i state-katalogen; kan den ikke skrives, vises linja.
+
+En linje som skal vises bare én gang uansett verdi, bruker `FirstTime`
+(`internal/provider/seen.go`) i samme katalog. Kan markøren ikke skrives, vises
+linja ikke, så den aldri maser. Hint fra `alpha local` vises én gang per tekst
+gjennom `SeenChanged` (`nudgeOnce`).
 
 ### Farger
 

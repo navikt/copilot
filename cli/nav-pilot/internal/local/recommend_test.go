@@ -178,21 +178,3 @@ func TestPinnedAdvisory(t *testing.T) {
 	}
 }
 
-// TestShowOnce: a line shows once per machine, a changed line shows again, and
-// MarkSeen suppresses a line without showing it.
-func TestShowOnce(t *testing.T) {
-	stubCache(t, nil)
-	if !ShowOnce("a") || ShowOnce("a") {
-		t.Error("the same line showed twice, or not at all")
-	}
-	if !ShowOnce("b") || ShowOnce("a") || ShowOnce("b") {
-		t.Error("a new line did not show once, or an old one came back")
-	}
-	MarkSeen("c")
-	if ShowOnce("c") {
-		t.Error("a line marked seen was shown")
-	}
-	if ShowOnce("") {
-		t.Error("an empty line was shown")
-	}
-}

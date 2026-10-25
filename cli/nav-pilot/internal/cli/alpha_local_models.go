@@ -241,7 +241,7 @@ func cmdLocalUse(args []string) error {
 	// Just chosen on purpose, so the advisory this choice would trigger has
 	// nothing to tell them.
 	local.SetSelectedModel(e.Model)
-	local.MarkSeen(local.PinnedAdvisory(m))
+	nudgeOnce(local.PinnedAdvisory(m))
 
 	present, err := local.WeightsPresent(e.Model, e.Revision)
 	if err != nil {
