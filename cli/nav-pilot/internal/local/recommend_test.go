@@ -177,4 +177,3 @@ func TestPinnedAdvisory(t *testing.T) {
 		t.Errorf("no recommendation to name: advisory = %q, want none", a)
 	}
 }
-
