@@ -14,7 +14,7 @@ internal/cli         kommandoer, parsing og dispatch (cli.go), veiviser, doctor,
 internal/provider    klientene (copilot, opencode, pi), cplt-oppstart, Provider-registeret
 internal/artifacts   installasjon, eksport, tilstand, SeenChanged
 internal/agentpakke  agentpakke-kontrakten, lasting og validering
-internal/source      kilderepo (lokal sjekkut eller git clone)
+internal/source      kilderepo (lokal utsjekk eller `git clone`)
 internal/domain      felles typer (ResolvedConfig, stier, navnevalidering)
 internal/hook        nav-pilots egne hooks
 internal/local       lokal modell (alpha local)
@@ -167,15 +167,15 @@ nav-pilot eksponerer bare klienter med bekreftet launch-sti og Nav-kontekst.
 **cplt agent-pinning:** Alle klienter starter gjennom `launchViaCplt`
 (`internal/provider/cplt.go`), også Tier 1 Copilot. `copilotSpec`
 (`internal/provider/copilot_launch.go`) beskriver Copilot-oppstarten, og
-`cpltArgv` bygger kommandolinja av den. Den setter alltid `cplt --agent copilot`
+`cpltArgv` bygger kommandolinja av den. Kommandolinja har alltid `cplt --agent copilot`,
 slik at en annen agent på PATH ikke plukkes opp, og videreformidler `nav-pilot`-
 persona + flagg etter `--`-separatoren: `cplt --agent copilot -- --agent nav-pilot …`.
 
-**Skrivetilgang til egen tilstand:** En tilstandskatalog nav-pilot eier, får
+**Skrivetilgang til egen tilstand:** En tilstandskatalog nav-pilot eier får
 `--allow-write-state` når cplt er minst `cpltAllowWriteState`
-(`internal/provider/opencode_policy.go`). Da regner ikke cplt den som en urevidert
-skrivetilgang i advarselen ved avslutning. Eldre cplt, eller en versjon som ikke
-kan leses, får `--allow-write`.
+(`cpltStateWriteFlag` i `internal/provider/opencode_policy.go`). Da holder cplt
+den utenfor advarselen om ureviderte skrivetilganger ved avslutning. Eldre cplt,
+eller en versjon som ikke kan leses, får `--allow-write`.
 
 **Autonomi og allow-all:** Med `autonomy = "sandbox"` (standard) får Copilot i cplt
 `--allow-all-tools --allow-all-paths --allow-all-urls` og beholder `ask_user`. Med `conservative` gjelder `allow_all_tools` som før. cplt er
@@ -226,14 +226,16 @@ Sammenslåingen er dyp (beholder eksisterende `experimental.*`-nøkler), idempot
 
 nav-pilot setter `enabled_providers` til `github-copilot` (pluss den lokale
 provideren når lokal modell er på) i `applyOpenCodeProviderPolicy`
-(`internal/provider/opencode_policy.go`). OpenCode 2 lar en global
-provider-policy gå foran inline-konfig, så en konfig som vil åpne for flere
-providere, eller som bruker `{file:}`/`{env:}` i feltet, stopper oppstarten i
-stedet for å utvide økta i det stille.
+(`internal/provider/opencode_policy.go`). OpenCode 2 lar globale
+provider-regler gå foran konfigen nav-pilot sender med oppstarten. En
+repo-konfig som vil åpne for flere providere, eller som bruker `{file:}` eller
+`{env:}` i `enabled_providers`, `experimental` eller `policies`, stopper derfor
+oppstarten i stedet for å utvide økta i det stille.
 
 Repoets egne OpenCode-plugins lastes bare når brukeren har sagt ja.
-`nav-pilot plugins` viser pluginene og spør på nytt. Et nei slår av alt OpenCode 2
-leser fra repoet: `opencode.json`, plugins, agenter, kommandoer, skills og `AGENTS.md`.
+`nav-pilot plugins` viser pluginene og spør på nytt. Et nei setter
+`OPENCODE_DISABLE_PROJECT_CONFIG=1`, og da leser OpenCode 2 ingenting fra repoet:
+`opencode.json`, `.opencode/` (plugins, agenter, MCP-servere) og `AGENTS.md`.
 
 ### OpenCode livssyklus — Nav-kontekst
 
@@ -533,16 +535,17 @@ konformanssjekken og avslutter med kode 1 ved brudd — ment for agentpakke-repo
 egen CI. Ikke å forveksle med `nav-pilot config validate`, som sjekker
 brukerens egen config.
 
-Feltreferansen for manifestet, kompatibilitetsreglene og CI-bruken for
 `nav-pilot pakke` viser hvilken agentpakke prosjektet bruker, hva som er
 installert, og svaret på tilgangen pakka ber om. `nav-pilot pakke access` stiller
 spørsmålet på nytt for tilgang som ble avslått eller aldri spurt om.
 
-Kilden publiserer det den har pensjonert i `.nav-pilot/retired-artifacts.json`
-(`agentpakke.RetiredRecordPath`): sti mot alle innholdshasher stien har hatt, og
-eventuelt hva som erstatter den. `sync` finner pensjonerte filer som fortsatt
-ligger installert, tilbyr å slette dem og navngir erstatningen.
+Kilden fører opp artefakter den har trukket tilbake i
+`.nav-pilot/retired-artifacts.json` (`agentpakke.RetiredRecordPath`): hver sti
+med alle innholdshashene den har hatt, og eventuelt hva som erstatter den.
+`sync` finner tilbaketrukne filer som fortsatt ligger installert, tilbyr å
+slette dem og navngir erstatningen.
 
+Feltreferansen for manifestet, kompatibilitetsreglene og CI-bruken for
 agentpakke-forfattere står i [docs/README.agentpakke.md](../../docs/README.agentpakke.md).
 Kontrakten selv er JSON Schema-filen `schemas/agentpakke-v1.json`, som er både
 publisert i repoet og embedded i binæren.
@@ -801,8 +804,9 @@ Nøkkelen til `SeenChanged` er det linja handler om (klient, innstilling, agentp
 
 En linje som skal vises bare én gang uansett verdi, bruker `FirstTime`
 (`internal/provider/seen.go`) i samme katalog. Kan markøren ikke skrives, vises
-linja ikke, så den aldri maser. Hint fra `alpha local` vises én gang per tekst
-gjennom `SeenChanged` (`nudgeOnce`).
+linja ikke, så den aldri maser. Hintene fra `alpha local` (`nudgeOnce` i
+`internal/cli`) går gjennom `SeenChanged` med én nøkkel per tekst, så et hint
+vises én gang og kommer tilbake først når teksten endrer seg.
 
 ### Farger
 
