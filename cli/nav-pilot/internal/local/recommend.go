@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -121,7 +120,7 @@ func keepLegacy(old, repl Model) bool {
 // removed from the manifest and listed as replaced: either nav-pilot still
 // runs it because the replacement is not downloaded, or it runs the
 // replacement now. The config is never rewritten. Plain text, for
-// [ShowOnce].
+// cli.nudge.
 func ReplacedNotice(m *Manifest) string {
 	if m == nil || slices.ContainsFunc(m.Models, func(e Model) bool { return e.Model == selectedModel }) {
 		return ""
@@ -145,7 +144,7 @@ func ReplacedNotice(m *Manifest) string {
 // PinnedAdvisory is the nudge for a developer whose local_model pins an
 // offered model that is not the default: what the default is recommended
 // for, first, then the command to switch. "" when there is nothing to say.
-// Plain text, for [ShowOnce]; the local commands show it, launches and `alpha
+// Plain text, for cli.nudge; the local commands show it, launches and `alpha
 // decide` never do.
 func PinnedAdvisory(m *Manifest) string {
 	if m == nil || selectedModel == "" {
@@ -174,9 +173,8 @@ func PinnedAdvisory(m *Manifest) string {
 		strings.Join(fors, " and "), def.Key, pinned.Key, def.Key)
 }
 
-// seenPath holds every nudge line already shown on this machine, next to the
-// manifest cache so tests that move the cache move it too. A line comes back
-// only when the manifest changes what it says.
+// seenPath is the legacy list of nudge lines already shown, next to the
+// manifest cache. Read only, by [ShownBefore].
 func seenPath() string {
 	if p := cachePath(); p != "" {
 		return p + ".seen"
@@ -189,31 +187,10 @@ func seen(path, line string) bool {
 	return slices.Contains(strings.Split(string(data), "\n"), line)
 }
 
-// ShowOnce reports whether line has not been shown on this machine yet, and
-// records it as shown. The caller checks that someone is there to see it
-// first: a line recorded while stderr went to a pipe is never shown.
-//
-// ponytail: the file only grows, by one line per distinct message; prune it
-// if messages ever start carrying per-run values.
-func ShowOnce(line string) bool {
+// ShownBefore reports whether line is in the pre-2026-10-25 list of shown
+// nudges. New marks go to the shared seen-<name> store; this read keeps a nudge
+// a developer already saw from coming back after the upgrade.
+func ShownBefore(line string) bool {
 	path := seenPath()
-	if line == "" || (path != "" && seen(path, line)) {
-		return false
-	}
-	MarkSeen(line)
-	return true
-}
-
-// MarkSeen records line as shown without showing it: `use` calls it for the
-// advisory its own choice would trigger, since the developer just decided.
-// Best effort: a marker that cannot be written means the line shows again,
-// which is the lesser failure.
-func MarkSeen(line string) {
-	path := seenPath()
-	if line == "" || path == "" || seen(path, line) {
-		return
-	}
-	data, _ := os.ReadFile(path)
-	_ = os.MkdirAll(filepath.Dir(path), 0o755)
-	_ = writeFileAtomic(path, append(data, []byte(line+"\n")...), 0o644)
+	return path != "" && seen(path, line)
 }

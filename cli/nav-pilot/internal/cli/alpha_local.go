@@ -20,6 +20,8 @@ package cli
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -241,10 +243,18 @@ var stderrIsTerminal = func() bool { return providerpkg.IsTerminal(os.Stderr) }
 // it: a line marked seen while piped into a script would never reach a person.
 // Called by start, status and models; never by launches or `alpha decide`.
 func nudge(line string) {
-	if line == "" || !stderrIsTerminal() || !local.ShowOnce(line) {
+	if line == "" || !stderrIsTerminal() || !nudgeOnce(line) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "%s %s\n", dim("ℹ"), wrapIndent(line, "  ", 78))
+}
+
+// nudgeOnce reports whether line has not been shown on this machine, and marks
+// it shown: a SeenChanged marker per line, plus the legacy list for nudges
+// shown before the marker existed.
+func nudgeOnce(line string) bool {
+	sum := sha256.Sum256([]byte(line))
+	return line != "" && !local.ShownBefore(line) && providerpkg.SeenChanged("local-nudge-"+hex.EncodeToString(sum[:8]), "")
 }
 
 // localSelection is localModel without the printing, for the commands that
