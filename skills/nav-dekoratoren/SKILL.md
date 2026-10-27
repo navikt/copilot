@@ -496,7 +496,7 @@ Start with static generation (3.4), the most common cause.
 | ----------- | ---------------------------------------------- | ------------------------------------------------ |
 | `prod`      | `http://nav-dekoratoren.personbruker`          | `https://www.nav.no/dekoratoren`                 |
 | `dev`       | `http://nav-dekoratoren.personbruker`          | `https://dekoratoren.ekstern.dev.nav.no`         |
-| `beta`      | `http://nav-dekoratoren-beta.personbruker`     | `https://dekoratoren-beta.intern.dev.nav.no`     |
-| `beta-tms`  | `http://nav-dekoratoren-beta-tms.personbruker` | `https://dekoratoren-beta-tms.intern.dev.nav.no` |
+| `beta`      | `http://nav-dekoratoren-beta.navno`            | `https://dekoratoren-beta.intern.dev.nav.no`     |
+| `beta-tms`  | `http://nav-dekoratoren-beta-tms.navno`        | `https://dekoratoren-beta-tms.intern.dev.nav.no` |
 
 > ⚠️ Beta instances are only for internal testing by Team Nav.no / Team Min Side and may be unstable.
