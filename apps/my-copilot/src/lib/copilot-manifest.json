@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-24T17:58:10.192Z",
+  "generatedAt": "2026-10-27T14:14:39.448Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -563,7 +563,7 @@
       "filePath": ".github/instructions/github-actions.instructions.md",
       "repoPath": "instructions/github-actions.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/github-actions.instructions.md",
-      "contentHash": "553b61e739b1430d29abeac82cbca158139bd33e7f1e602948daba0857917e3a",
+      "contentHash": "6799f9ac75b7806eb5c0a70542ebdd41d321d546bc51b9efdc633834122af020",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fgithub-actions.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fgithub-actions.instructions.md",
       "applyTo": ".github/workflows/*.{yml,yaml}",
