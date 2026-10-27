@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -28,6 +32,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize OTel tracing. Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by
+	// Nais (runtime: sdk); a no-op without it.
+	ctx := context.Background()
+	shutdownTracer, err := initTracer(ctx, "mcp-registry")
+	if err != nil {
+		slog.Warn("OTel tracer initialization failed — tracing disabled", "error", err)
+	} else {
+		defer func() {
+			if err := shutdownTracer(ctx); err != nil {
+				slog.Warn("OTel tracer shutdown error", "error", err)
+			}
+		}()
+	}
+
 	http.HandleFunc("/health", loggingMiddleware(config, healthHandler))
 	http.HandleFunc("/ready", loggingMiddleware(config, readyHandler))
 	http.Handle("/metrics", metricsHandler())
@@ -43,13 +61,29 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":" + config.Port,
+		Handler:      traceHTTP(http.DefaultServeMux),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		slog.Error("Server failed", "error", err)
-		os.Exit(1)
+	// Graceful shutdown, so the deferred tracer shutdown flushes spans.
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("Server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-ctx.Done()
+	slog.Info("Shutting down gracefully...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Server shutdown failed", "error", err)
 	}
 }
