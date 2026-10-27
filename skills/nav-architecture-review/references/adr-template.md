@@ -76,6 +76,11 @@ Vi har besluttet å {konkret valg}.
 - **Tilbakerulling:** {hvordan vi ruller tilbake hvis det feiler}
 - **Tidsramme:** {når skal dette være på plass}
 
+### User experience
+- **Affected users and task:** {workflow, or why not applicable}
+- **Effect of the decision:** {information, interaction, accessibility, and recovery}
+- **Evidence and gaps:** {proposed flow or exercised interface, unresolved assumptions}
+
 ## Konsekvenser
 
 ### Positive
