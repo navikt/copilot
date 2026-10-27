@@ -148,7 +148,7 @@ If a task has both a discovery part and a decision part, split it: research firs
 |-------|--------------|----------------|------|
 | 1. Interview | Ask questions, map blind spots, report the blind-spot count | All relevant blind spots raised as questions, count reported, answers still pending | → Phase 2 |
 | 2. Plan | Build architecture, make decisions | Complete plan with auth, data, CI/CD, test, red-zone declaration | → Phase 3 |
-| 3. Review | Verify plan from 4 perspectives | All perspectives evaluated, user approves | → Phase 4 |
+| 3. Review | Verify plan from 5 perspectives | All relevant perspectives evaluated, user approves | → Phase 4 |
 | 4. Deliver | Generate code and documentation | All deliverables produced | ✅ Done |
 
 ### Delegation format
@@ -220,8 +220,6 @@ Build a concrete plan covering:
 
 If nothing is red zone, state explicitly: "🔴 Rød sone: ingen for denne oppgaven."
 
-For user-facing applications, include the affected user's job, workflow, and next meaningful action in the plan. Derive navigation from that workflow, not from project documents or technical capabilities. Put working content first; show explanations and status where they support a decision or action. Reports and information-led views are appropriate when reading, comparing, or monitoring is the user's job. Use `@aksel-agent` and the `aksel-builder` skill for Aksel UI.
-
 Use `$nav-plan` for a full architecture decision process.
 Use `$api-design` when the plan includes synchronous REST APIs or BFF layers.
 
@@ -246,7 +244,7 @@ Use `$api-design` when the plan includes synchronous REST APIs or BFF layers.
 
 ### Fase 3: Review — «Er dette riktig?»
 
-Review from four perspectives. In Full tier, dispatch the Sikkerhet perspective to `@security-champion-agent` with the plan and the data classification, and merge its findings into the table. The other perspectives you may assess yourself.
+Review from five perspectives. For each, record findings and supporting evidence, or a brief reason it does not apply to the change. In Full tier, dispatch the Sikkerhet perspective to `@security-champion-agent` with the plan and the data classification, and merge its findings into the table. The other perspectives you may assess yourself.
 
 ```
 | Perspektiv        | Vurdering | Funn |
@@ -255,13 +253,14 @@ Review from four perspectives. In Full tier, dispatch the Sikkerhet perspective 
 | Plattform         | ✅/⚠️/❌  | Resources, health endpoints, observability |
 | Arkitektur        | ✅/⚠️/❌  | Simplest solution, reuse, sync vs async |
 | Endringssikkerhet | ✅/⚠️/❌  | Tests, rollback, backward compat |
+| Brukeropplevelse  | ✅/⚠️/❌  | User job, workflow, hierarchy, feedback, recovery, accessibility |
 
 Konklusjon: Godkjent / Godkjent med endringer / Tilbake til Fase 2
 ```
 
-Use `$nav-architecture-review` to generate a formal ADR.
+**Brukeropplevelse** evaluates whether the intended user can enter, complete, and check the task through a coherent workflow. Assess navigation, working content, and supporting information against that job, including reading, comparison, or monitoring when that is the purpose. For plans, inspect the proposed flow and assumptions; for implemented UI, exercise the task on the rendered interface. Record what was inspected and any missing evidence. Passing tests and correct components alone do not establish usability.
 
-For user-facing work, also review the proposed flow: can the intended user start the task directly, and what must they read or navigate through first? In delivery, exercise that task on the rendered interface, including the result and recovery from relevant errors. Passing tests and correct Aksel components alone do not establish usability; report any part that could not be inspected.
+Use `$nav-architecture-review` to generate a formal ADR.
 
 ### Fase 4: Lever — «Kode + dokumentasjon»
 

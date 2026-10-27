@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "cff50dd5d2e640bff9d33938c26a775a820e5afbb1f024499dd83074790857db",
+      "contentHash": "d4e6d5bb76c41b2b10bfad3d78c6c532105c62be543b6861ca538598eb50d4c5",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -767,7 +767,7 @@
       "displayName": "nav-architecture-review",
       "description": "Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav",
       "filePath": "skills/nav-architecture-review/SKILL.md",
-      "contentHash": "2293e1d394aef74a34c3e23fb7b9a6987832fcd5ffd18dfbe0f760a3fff6354b",
+      "contentHash": "583cd752cd959da03bd633b207c43f1ef9b65e5e156d12aa794d87089c19d289",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-architecture-review/SKILL.md",
       "references": [
