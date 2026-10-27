@@ -45,6 +45,9 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
+	startRun("copilot-metrics")
+	defer finishRun(0)
+
 	if *mimirDaily {
 		if getEnv("MIMIR_DAILY_ENABLED", "false") != "true" {
 			slog.Info("Mimir daily copy is disabled")
@@ -56,42 +59,42 @@ func main() {
 		if *mimirFrom != "" {
 			if from, err = time.Parse("2006-01-02", *mimirFrom); err != nil {
 				slog.Error("Invalid --mimir-from", "error", err)
-				os.Exit(1)
+				exit(1)
 			}
 		}
 		if *mimirTo != "" {
 			if to, err = time.Parse("2006-01-02", *mimirTo); err != nil {
 				slog.Error("Invalid --mimir-to", "error", err)
-				os.Exit(1)
+				exit(1)
 			}
 		}
 		// Mimir keeps ~70 days; a half-retained day returns partial rows that
 		// would replace complete ones.
 		if from.Before(yesterday.AddDate(0, 0, -60)) {
 			slog.Error("--mimir-from is too close to Mimir retention; max 60 days back", "from", from)
-			os.Exit(1)
+			exit(1)
 		}
 		if to.After(yesterday) || from.After(to) {
 			slog.Error("Mimir range must be closed days with from <= to", "from", from, "to", to)
-			os.Exit(1)
+			exit(1)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Minute)
 		defer cancel()
 		bq, err := NewBigQueryClient(ctx, config)
 		if err != nil {
 			slog.Error("Failed to connect to BigQuery", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		defer func() { _ = bq.Close() }()
 		if err := bq.EnsureMimirDailyTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure mimir_daily table", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		m := &MimirClient{BaseURL: getEnv("MIMIR_URL", "https://mimir.nav.cloud.nais.io/prometheus/api/v1"), HTTP: &http.Client{Timeout: 5 * time.Minute}}
 		if err := runMimirDaily(ctx, m, bq, from, to); err != nil {
 			slog.Error("Mimir daily copy failed", "error", err)
 			NewSlackNotifier(config.SlackWebhookURL).NotifyError(context.Background(), fmt.Sprintf("Mimir daily copy failed: %v", err))
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
@@ -102,7 +105,7 @@ func main() {
 		}
 		if err := config.Validate(); err != nil || config.GitHubBillingToken == "" {
 			slog.Error("User billing sync requires GitHub App, billing token and BigQuery configuration")
-			os.Exit(1)
+			exit(1)
 		}
 		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 		defer stop()
@@ -111,18 +114,18 @@ func main() {
 		bq, err := NewBigQueryClient(ctx, config)
 		if err != nil {
 			slog.Error("Failed to connect billing sync to BigQuery")
-			os.Exit(1)
+			exit(1)
 		}
 		defer func() { _ = bq.Close() }()
 		gh, err := NewGitHubClient(config)
 		if err != nil {
 			slog.Error("Failed to create billing source client")
-			os.Exit(1)
+			exit(1)
 		}
 		for _, ensure := range []func(context.Context) error{bq.EnsureUserBillingTableExists, bq.EnsureUserBillingRunsTableExists, bq.EnsureUserMetricsTableExists, bq.EnsureUserTeamsTableExists, bq.EnsureBillingUsageDailyModelTableExists} {
 			if err := ensure(ctx); err != nil {
 				slog.Error("Failed to prepare billing sync tables")
-				os.Exit(1)
+				exit(1)
 			}
 		}
 		if err := syncUserBilling(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), gh, bq, config, time.Now().UTC()); err != nil {
@@ -132,7 +135,7 @@ func main() {
 			}
 			slog.Error("User billing sync incomplete", "error", err)
 			NewSlackNotifier(config.SlackWebhookURL).NotifyError(context.Background(), "Monthly user billing sync is incomplete. Check the job logs; completed checkpoints will resume next night.")
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
@@ -140,7 +143,7 @@ func main() {
 		month, err := time.Parse("2006-01", *userBillingPublish)
 		if err != nil || config.BigQueryProjectID == "" || config.GitHubBillingToken == "" {
 			slog.Error("User billing publish requires YYYY-MM, GCP_TEAM_PROJECT_ID and GITHUB_BILLING_TOKEN", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		ctx := context.Background()
 		bq, err := NewBigQueryClient(ctx, config)
@@ -153,47 +156,47 @@ func main() {
 		}
 		if err != nil {
 			slog.Error("User billing publish failed", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
 	if *userBillingMonth != "" {
 		if config.BigQueryProjectID == "" || config.GitHubBillingToken == "" {
 			slog.Error("User billing backfill requires GCP_TEAM_PROJECT_ID and GITHUB_BILLING_TOKEN")
-			os.Exit(1)
+			exit(1)
 		}
 		month, err := time.Parse("2006-01", *userBillingMonth)
 		if err != nil {
 			slog.Error("Invalid user billing month", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if !month.Before(billingSyncStart) {
 			slog.Error("Months from October 2026 require --user-billing-sync with identity and source validation")
-			os.Exit(1)
+			exit(1)
 		}
 		now := time.Now().UTC()
 		if !month.Before(time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)) {
 			slog.Error("User billing month must be closed", "month", *userBillingMonth)
-			os.Exit(1)
+			exit(1)
 		}
 		ctx := context.Background()
 		bq, err := NewBigQueryClient(ctx, config)
 		if err != nil {
 			slog.Error("Failed to connect to BigQuery", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		defer func() { _ = bq.Close() }()
 		if err := bq.EnsureUserBillingTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure user billing table", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := bq.EnsureUserBillingRunsTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure user billing runs table", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := ingestUserBillingMonth(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), bq, config, month); err != nil {
 			slog.Error("User billing ingestion failed", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
@@ -208,7 +211,7 @@ func main() {
 
 	if err := config.Validate(); err != nil {
 		slog.Error("Configuration error", "error", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -217,34 +220,34 @@ func main() {
 	ghClient, err := NewGitHubClient(config)
 	if err != nil {
 		slog.Error("Failed to create GitHub client", "error", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	bqClient, err := NewBigQueryClient(ctx, config)
 	if err != nil {
 		slog.Error("Failed to create BigQuery client", "error", err)
-		os.Exit(1)
+		exit(1)
 	}
 	defer func() { _ = bqClient.Close() }()
 
 	if err := bqClient.EnsureTableExists(ctx); err != nil {
 		slog.Error("Failed to ensure table exists", "error", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	if err := bqClient.EnsureUserTeamsTableExists(ctx); err != nil {
 		slog.Error("Failed to ensure user_teams table exists", "error", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	if err := bqClient.EnsureUserMetricsTableExists(ctx); err != nil {
 		slog.Error("Failed to ensure user_metrics table exists", "error", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	if err := bqClient.EnsureRepoMetricsTableExists(ctx); err != nil {
 		slog.Error("Failed to ensure repository_metrics table exists", "error", err)
-		os.Exit(1)
+		exit(1)
 	}
 
 	// Non-fatal like the views: seat counts are secondary and must not block
@@ -279,23 +282,23 @@ func main() {
 		slog.Info("Billing client configured — premium request usage and budget snapshot ingestion enabled")
 		if err := bqClient.EnsureBillingTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure billing table exists", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := bqClient.EnsureBudgetSnapshotsTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure budget_snapshots table exists", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := bqClient.EnsureUserBudgetSnapshotsTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure user_budget_snapshots table exists", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := bqClient.EnsureBillingUsageReportsTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure billing_usage_reports table exists", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := bqClient.EnsureBillingUsageDailyModelTableExists(ctx); err != nil {
 			slog.Error("Failed to ensure billing_usage_daily_model table exists", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 	} else {
 		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing ingestion and budget snapshot ingestion disabled")
@@ -325,16 +328,16 @@ func main() {
 	if runBillingDailyReportBackfill {
 		if billingClient == nil {
 			slog.Error("Billing daily report backfill requires GITHUB_BILLING_TOKEN")
-			os.Exit(1)
+			exit(1)
 		}
 		startDay, err := time.Parse("2006-01-02", effectiveBillingDailyReportFrom)
 		if err != nil {
 			slog.Error("Invalid billing-daily-report-from day", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := runBillingUsageReportBackfill(ctx, billingClient, bqClient, config, startDay, *backfillForce); err != nil {
 			slog.Error("Billing daily report backfill failed", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
@@ -342,16 +345,16 @@ func main() {
 	if *billingModelDailyBackfill {
 		if billingClient == nil {
 			slog.Error("Billing model daily backfill requires GITHUB_BILLING_TOKEN")
-			os.Exit(1)
+			exit(1)
 		}
 		startDay, err := time.Parse("2006-01-02", *billingModelDailyFrom)
 		if err != nil {
 			slog.Error("Invalid billing-model-daily-from day", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := runBillingDailyModelBackfill(ctx, billingClient, bqClient, config, startDay, *backfillForce); err != nil {
 			slog.Error("Billing model daily backfill failed", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
@@ -359,16 +362,16 @@ func main() {
 	if runBillingMonthlyBackfill {
 		if billingClient == nil {
 			slog.Error("Billing monthly backfill requires GITHUB_BILLING_TOKEN")
-			os.Exit(1)
+			exit(1)
 		}
 		startMonth, err := time.Parse("2006-01", effectiveBillingMonthlyFrom)
 		if err != nil {
 			slog.Error("Invalid billing-monthly-from month", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := runBillingBackfill(ctx, billingClient, bqClient, config, startMonth, *backfillForce); err != nil {
 			slog.Error("Billing monthly backfill failed", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
@@ -377,11 +380,11 @@ func main() {
 		startDay, err := time.Parse("2006-01-02", *repoMetricsFrom)
 		if err != nil {
 			slog.Error("Invalid repo-metrics-from day", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := runRepoMetricsBackfill(ctx, ghClient, bqClient, config, startDay, *backfillForce); err != nil {
 			slog.Error("Repository metrics backfill failed", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
@@ -390,11 +393,11 @@ func main() {
 		startDate, err := time.Parse("2006-01-02", *backfillFrom)
 		if err != nil {
 			slog.Error("Invalid backfill-from date", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		if err := runBackfill(ctx, ghClient, bqClient, config, startDate, *backfillForce); err != nil {
 			slog.Error("Backfill failed", "error", err)
-			os.Exit(1)
+			exit(1)
 		}
 		return
 	}
@@ -479,14 +482,14 @@ func main() {
 		}
 		if runIngestSteps(steps) != nil {
 			slog.Error("Ingestion finished with failures; see step errors above")
-			os.Exit(1)
+			exit(1)
 		}
 		slog.Info("Ingestion completed successfully")
 		return
 	}
 
 	slog.Error("No job flag specified (expected --run-once, --backfill, --mimir-daily, or a billing flag)")
-	os.Exit(1)
+	exit(1)
 }
 
 type ingestStep struct {

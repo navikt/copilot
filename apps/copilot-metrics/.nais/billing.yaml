@@ -9,6 +9,10 @@ spec:
   concurrencyPolicy: Forbid
   activeDeadlineSeconds: 3600
   backoffLimit: 0
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
   command:
     - /app/copilot-metrics
     - --user-billing-sync
