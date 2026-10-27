@@ -526,6 +526,12 @@ jobs:
       - uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # ratchet:jdx/mise-action@v5.2.0
         with:
           experimental: true
+      # ubuntu-latest moved to 26.04, whose default JDK is too new for the
+      # golden fixtures' Kotlin 2.1. Pin JDK 21 so the gradle controls run.
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # ratchet:actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
       - name: Run BATS
         run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
       - name: Benchmark checks (offline)
