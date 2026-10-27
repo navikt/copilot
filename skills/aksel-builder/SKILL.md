@@ -18,6 +18,17 @@ from `aksel.nav.no` with token, icon, and migration catalogs bundled with the se
 Check the project's installed versions before applying newer APIs. Aim for the
 _fewest correct calls_.
 
+## Design for the user's work
+
+Start with the affected user's job and workflow. For applications where people carry out
+work, give working content and the next meaningful action priority. Derive navigation from
+workflows rather than project documents, hypotheses, or capability lists. Keep explanations,
+status, and history where they help people choose, perform, or check the work; disclose other
+detail when needed. Remove filler while preserving context needed for informed decisions
+and accessibility. Reports and information-led views are appropriate when reading,
+comparing, or monitoring is the user's job. Use the existing product direction and Aksel
+components to support that job; no single layout fits every workflow.
+
 ---
 
 ## MCP-First rule (hard rule)
@@ -203,6 +214,7 @@ contains_. Load on demand to keep context small.
 
 ## Final validation checklist
 
+- [ ] For changes to layout or interaction, the affected job was exercised on the rendered UI, including its result and relevant recovery states. Inspect hierarchy at the relevant viewport and whether explanation or navigation delays the work. Report anything that could not be inspected.
 - [ ] Aksel components and icons were confirmed via MCP or the documented fallback, and match installed versions.
 - [ ] Doc paths came from `aksel_find_docs`, `aksel-docs://index`, or `llm.md` — none were guessed.
 - [ ] Non-trivial props were checked with `aksel_get_component_info` or, in fallback mode, official docs and installed types.
