@@ -8,6 +8,10 @@ spec:
   schedule: "0 6 * * *"
   activeDeadlineSeconds: 3600
   backoffLimit: 3
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
   command:
     - /app/copilot-metrics
     - --run-once

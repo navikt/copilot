@@ -8,6 +8,10 @@ spec:
   schedule: "0 5 * * *"
   activeDeadlineSeconds: 7200
   backoffLimit: 2
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
   command:
     - /app/copilot-adoption
     - --run-once

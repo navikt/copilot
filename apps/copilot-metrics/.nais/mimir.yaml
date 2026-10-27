@@ -10,6 +10,10 @@ spec:
   concurrencyPolicy: Forbid
   activeDeadlineSeconds: 7200
   backoffLimit: 2
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
   command:
     - /app/copilot-metrics
     - --mimir-daily
