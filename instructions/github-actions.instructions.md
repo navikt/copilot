@@ -9,16 +9,16 @@ Standarder for CI/CD-workflows med GitHub Actions på Nais: SHA-pinning, Nais de
 
 ## Action Pinning
 
-Pin all actions to full commit SHA, never just a major tag:
+Pin actions to a full commit SHA or use the dependency lockfile feature (currently in beta) for supported direct and transitive action dependencies. The lockfile records their resolved commits in `.github/workflows/actions.lock`. Cross-repository reusable workflows called through `jobs.<id>.uses` are not covered and must still be pinned to full commit SHAs; container images must be pinned with `@sha256:` digests.
+
+The lockfile feature requires the `github/gh-actions-lock` extension to be installed in the `gh` cli. 
+
+Usage: `gh actions-lock .github/workflows/myWorkflow.yaml`
 
 ```yaml
-# ✅ Correct — pinned to SHA
+# Example on pinning actions to a commit SHA:
 - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 - uses: nais/deploy/actions/deploy@bf80eb8dba46797adb4909901e629bca8595a027 # v2
-
-# ❌ Wrong — unpinned tag can be compromised
-- uses: actions/checkout@v4
-- uses: nais/deploy/actions/deploy@v2
 ```
 
 ## Minimal Permissions

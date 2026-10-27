@@ -286,7 +286,7 @@
         "infrastructure"
       ],
       "filePath": "instructions/github-actions.instructions.md",
-      "contentHash": "553b61e739b1430d29abeac82cbca158139bd33e7f1e602948daba0857917e3a",
+      "contentHash": "6799f9ac75b7806eb5c0a70542ebdd41d321d546bc51b9efdc633834122af020",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/github-actions.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/github-actions.instructions.md"
     },
