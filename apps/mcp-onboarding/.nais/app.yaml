@@ -32,6 +32,10 @@ spec:
   prometheus:
     enabled: true
     path: /metrics
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
   ingresses:
     {{#each ingresses}}
     - {{this}}

@@ -29,6 +29,10 @@ spec:
   prometheus:
     enabled: true
     path: /metrics
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
   env:
     - name: PORT
       value: "8080"
