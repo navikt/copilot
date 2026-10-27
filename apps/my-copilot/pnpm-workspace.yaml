@@ -13,6 +13,8 @@ overrides:
   "@opentelemetry/core@<2.8.0": "2.8.0"
   # Dependabot alert #143: sharp arver libvips-sårbarheter (CVE-2026-33327 m.fl.); next@16.2.12 pinner sharp til ^0.34.5, og next 16.3 har selv gått over til ^0.35.3
   "sharp@<0.35.0": "0.35.4"
+  # @opentelemetry/sdk-trace-web 2.12.0 and core declare peer @opentelemetry/api <1.10.0; drop once they accept 1.10
+  "@opentelemetry/api": "~1.9.1"
   # Dependabot alert #162 og #171: postcss leser vilkårlige .map-filer via sourceMappingURL; @tailwindcss/postcss@4.3.1 pinner postcss til 8.5.15 eksakt
   "postcss@<8.5.23": "8.5.26"
   # Dependabot alert #173: js-yaml kvadratisk CPU-bruk i !!omap; gray-matter@4.0.3 tillater ^3.13.1, men pnpm løfter ikke låsen av seg selv
