@@ -197,7 +197,7 @@ func main() {
 	}
 
 	// Graceful shutdown
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	go func() {
@@ -207,7 +207,7 @@ func main() {
 		}
 	}()
 
-	<-ctx.Done()
+	<-sigCtx.Done()
 	slog.Info("Shutting down gracefully...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
