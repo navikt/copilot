@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -88,6 +90,18 @@ func startRun(service string) {
 			}
 		})
 	}
+
+	// Kubernetes sends SIGTERM at activeDeadlineSeconds or on eviction. End
+	// and flush the span, then hand the signal back: to the run's own handler
+	// if it has one, otherwise to the default action, which terminates.
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGTERM)
+	go func() {
+		<-sig
+		finishRun(143)
+		signal.Stop(sig)
+		_ = syscall.Kill(os.Getpid(), syscall.SIGTERM)
+	}()
 }
 
 // exit ends and flushes the run span, then exits with code.
