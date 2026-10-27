@@ -220,6 +220,8 @@ Build a concrete plan covering:
 
 If nothing is red zone, state explicitly: "🔴 Rød sone: ingen for denne oppgaven."
 
+For user-facing applications, include the affected user's job, workflow, and next meaningful action in the plan. Derive navigation from that workflow, not from project documents or technical capabilities. Put working content first; show explanations and status where they support a decision or action. Reports and information-led views are appropriate when reading, comparing, or monitoring is the user's job. Use `@aksel-agent` and the `aksel-builder` skill for Aksel UI.
+
 Use `$nav-plan` for a full architecture decision process.
 Use `$api-design` when the plan includes synchronous REST APIs or BFF layers.
 
@@ -258,6 +260,8 @@ Konklusjon: Godkjent / Godkjent med endringer / Tilbake til Fase 2
 ```
 
 Use `$nav-architecture-review` to generate a formal ADR.
+
+For user-facing work, also review the proposed flow: can the intended user start the task directly, and what must they read or navigate through first? In delivery, exercise that task on the rendered interface, including the result and recovery from relevant errors. Passing tests and correct Aksel components alone do not establish usability; report any part that could not be inspected.
 
 ### Fase 4: Lever — «Kode + dokumentasjon»
 
