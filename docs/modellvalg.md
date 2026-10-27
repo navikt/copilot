@@ -1087,7 +1087,7 @@ anslag, ikke noe vi har målt**, og forholdet varierer med oppgaven.
 
 Et kuratert utvalg av modellflåten: modellene vi faktisk vurderer, ikke alle
 GitHub priser. Prisene under er GitHubs listepriser slik de sto
-**20. oktober 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
+**27. oktober 2026**, hentet fra `apps/my-copilot/src/lib/model-pricing.ts`,
 som dekker hele flåten. De endrer seg uten varsel, så
 tallene her har et tidsstempel og ikke evig gyldighet.
 
