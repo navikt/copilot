@@ -155,10 +155,9 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
                           the enclosing git root; the root's instructions stay readable)
   --cplt <flag>           Pass a flag to cplt for this session; repeat for more. A value goes
                           in the same argument: --cplt --allow-port=8080
-  --client-arg <arg>      Pass one argument to the client and launch as usual (menu, prompt,
-                          sync); repeat for more. Goes after nav-pilot's own client flags, so
-                          the client's last-value-wins rule lets it override them. Unlike --,
-                          it does not skip the menu or sync
+  --client-arg <arg>      Pass one argument to the client and launch as usual, with the menu
+                          and sync that -- skips; repeat for more. Goes after nav-pilot's own
+                          client flags, so a client that takes the last value lets yours win
   --allow-clipboard       Let the agent use the macOS clipboard this session (cplt denies it
                           by default)
   --resume [id]           Resume a session in the client: Copilot CLI --resume, OpenCode --session

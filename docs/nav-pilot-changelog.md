@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Send flagg til klienten uten å miste menyen
 
-- **`--client-arg <argument>`**: Sender ett argument til Copilot CLI, OpenCode eller pi og starter ellers som vanlig, med meny, spørsmål og sync. Gjenta flagget for flere. Argumentene kommer etter nav-pilots egne flagg, så din `--model` vinner. `nav-pilot -- <argumenter>` virker som før og starter klienten med en gang.
+- **`--client-arg <argument>`**: Sender ett argument til Copilot CLI, OpenCode eller pi og starter ellers som vanlig, med meny, spørsmål og sync. Gjenta flagget for flere. Argumentene kommer etter nav-pilots egne flagg, så din `--model` vinner over nav-pilots. `nav-pilot -- <argumenter>` virker som før og starter klienten med en gang, uten meny og uten sync.
 
 ### Færre gjentakelser og riktigere svar
 

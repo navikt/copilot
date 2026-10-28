@@ -100,3 +100,19 @@ func TestStartCommandKeepsCpltFlags(t *testing.T) {
 		t.Errorf("\n got: %q\nwant: %q", got, want)
 	}
 }
+
+// The printed command keeps the client arguments too, as --client-arg or
+// after --, whichever the user gave.
+func TestStartCommandKeepsClientArgs(t *testing.T) {
+	t.Parallel()
+	got := startCommand(ResolvedConfig{Client: "copilot", Persona: "x", ProjectDir: "/p", ExtraArgs: []string{"--model=m"}})
+	want := "nav-pilot --auto-launch --client-arg '--model=m', or cplt --project-dir /p --agent copilot -- --agent x '--model=m'"
+	if got != want {
+		t.Errorf("\n got: %q\nwant: %q", got, want)
+	}
+	got = startCommand(ResolvedConfig{Client: "pi", ProjectDir: "/p", ExtraArgs: []string{"-p", "hi"}, DashDash: true})
+	want = "nav-pilot --auto-launch -- -p hi, or cplt --project-dir /p --agent pi -- -p hi"
+	if got != want {
+		t.Errorf("\n got: %q\nwant: %q", got, want)
+	}
+}

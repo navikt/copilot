@@ -1360,12 +1360,31 @@ func startCommand(resolved ResolvedConfig) string {
 		cmd += " " + shellQuote(f)
 		self += " --cplt " + shellQuote(f)
 	}
+	// The client arguments too: a hint that drops them starts another session.
+	if resolved.DashDash {
+		self += " --"
+	}
+	for _, a := range resolved.ExtraArgs {
+		if resolved.DashDash {
+			self += " " + shellQuote(a)
+		} else {
+			self += " --client-arg " + shellQuote(a)
+		}
+	}
 	persona := resolved.Persona
 	if persona == "" {
 		persona = providerpkg.PrimaryAgent(resolved.Client)
 	}
+	var client []string
 	if persona != "" && resolved.Client != "pi" {
-		cmd += " -- --agent " + shellQuote(persona)
+		client = append(client, "--agent", persona)
+	}
+	client = append(client, resolved.ExtraArgs...)
+	if len(client) > 0 {
+		cmd += " --"
+		for _, a := range client {
+			cmd += " " + shellQuote(a)
+		}
 	}
 	return self + ", or " + cmd
 }
