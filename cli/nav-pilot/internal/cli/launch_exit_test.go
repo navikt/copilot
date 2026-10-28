@@ -87,7 +87,7 @@ func TestOfferLaunchMissingClientWithPromptFails(t *testing.T) {
 	isInteractive = func() bool { return true }
 	providerFor = func(string) (Provider, error) { return failingProvider{unavailable: true}, nil }
 
-	if code := exitCodeFor(offerLaunch(ResolvedConfig{Client: "pi", AutoLaunch: true, ExtraArgs: []string{"-p", "x"}}, false)); code != ExitError {
+	if code := exitCodeFor(offerLaunch(ResolvedConfig{Client: "pi", AutoLaunch: true, ExtraArgs: []string{"-p", "x"}, DashDash: true}, false)); code != ExitError {
 		t.Errorf("with prompt: exitCodeFor = %d, want %d", code, ExitError)
 	}
 	if err := offerLaunch(ResolvedConfig{Client: "pi", AutoLaunch: true}, false); err != nil {

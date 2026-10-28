@@ -97,7 +97,7 @@ var launchFlags = []string{
 	"--client", "--source", "--project-dir", "--persona", "--model", "--mode",
 	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch",
 	"--allow-all-tools", "--no-allow-all-tools", "--ask-user", "--no-ask-user",
-	"--auto-launch", "--no-auto-launch", "--sync", "--verbose", "--allow-clipboard", "--cplt",
+	"--auto-launch", "--no-auto-launch", "--sync", "--verbose", "--allow-clipboard", "--cplt", "--client-arg",
 	"--resume", "--continue",
 	"--version", "-v", "--help", "-h",
 }
@@ -105,17 +105,25 @@ var launchFlags = []string{
 // valueFlags take a value, so --flag=value can be split into --flag value.
 var valueFlags = []string{
 	"--client", "--source", "--project-dir", "--persona", "--model", "--mode",
-	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch", "--cplt", "--resume",
+	"--effort", "--context", "--payload-context", "--log-level", "--otel-log-level", "--local-dispatch", "--cplt", "--client-arg", "--resume",
 	"--target", "--ref", "--type", "--updates",
 }
 
 // splitFlagValues rewrites --flag=value as --flag value for the flags in
 // valueFlags, up to a "--" separator: what follows it belongs to the client.
+// The word after --cplt or --client-arg is a flag for cplt or the client and
+// is kept whole: --client-arg --model=x must not become --model x.
 func splitFlagValues(args []string) []string {
 	out := make([]string, 0, len(args))
-	for i, a := range args {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
 		if a == "--" {
 			return append(out, args[i:]...)
+		}
+		if (a == "--cplt" || a == "--client-arg") && i+1 < len(args) {
+			out = append(out, a, args[i+1])
+			i++
+			continue
 		}
 		if name, value, ok := strings.Cut(a, "="); ok && slices.Contains(valueFlags, name) {
 			out = append(out, name, value)

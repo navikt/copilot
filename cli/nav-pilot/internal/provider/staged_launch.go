@@ -197,7 +197,7 @@ func rejectReservedClientArgs(client, pakkeName string, args []string) error {
 	}
 	for _, option := range reserved {
 		if containsOption(args, option) {
-			return fmt.Errorf("%s is owned by agentpakke %q's verified payload and cannot be passed to %s after --", option, pakkeName, client)
+			return fmt.Errorf("%s is owned by agentpakke %q's verified payload and cannot be passed to %s with --client-arg or after --", option, pakkeName, client)
 		}
 	}
 	return nil

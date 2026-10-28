@@ -155,6 +155,9 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
                           the enclosing git root; the root's instructions stay readable)
   --cplt <flag>           Pass a flag to cplt for this session; repeat for more. A value goes
                           in the same argument: --cplt --allow-port=8080
+  --client-arg <arg>      Pass one argument to the client and launch as usual, with the menu
+                          and sync that -- skips; repeat for more. Goes after nav-pilot's own
+                          client flags, so a client that takes the last value lets yours win
   --allow-clipboard       Let the agent use the macOS clipboard this session (cplt denies it
                           by default)
   --resume [id]           Resume a session in the client: Copilot CLI --resume, OpenCode --session
@@ -331,6 +334,10 @@ func startupUpdateCheck() (stop bool, err error) {
 	return false, nil
 }
 
+// parsedOverrides is a test seam: it sees the launch flags once parsed, and a
+// non-nil error stops run there.
+var parsedOverrides = func(CLIOverrides) error { return nil }
+
 func run(args []string) error {
 	// Per run, not per process: a second run() in one process prints it again.
 	notedProposals = map[string]bool{}
@@ -500,6 +507,17 @@ func run(args []string) error {
 				} else if !slices.Contains(cliOverrides.CpltArgs, args[i]) {
 					cliOverrides.CpltArgs = append(cliOverrides.CpltArgs, args[i])
 				}
+			case "--client-arg":
+				if i+1 >= len(args) {
+					return fmt.Errorf("--client-arg requires a value (a client flag, e.g. --client-arg --allow-all-paths)")
+				}
+				i++
+				if args[i] == "--" {
+					return fmt.Errorf("--client-arg cannot be \"--\"; put client arguments after nav-pilot's own --")
+				}
+				// Kept in order and repeats kept: a flag and its value are
+				// two --client-arg, and the client decides what a repeat means.
+				cliOverrides.ClientArgs = append(cliOverrides.ClientArgs, args[i])
 			case "--allow-clipboard":
 				cliOverrides.AllowClipboard = true
 			case "--verbose":
@@ -573,6 +591,9 @@ func run(args []string) error {
 		} else if !fi.IsDir() {
 			return fmt.Errorf("--project-dir %s is not a directory", d)
 		}
+	}
+	if err := parsedOverrides(cliOverrides); err != nil {
+		return err
 	}
 	if cliOverrides.Client != "" && !containsStr(validProviderIDs, cliOverrides.Client) {
 		return fmt.Errorf("--client %q is not valid (allowed: %s)", cliOverrides.Client, strings.Join(validProviderIDs, ", "))
@@ -669,7 +690,7 @@ func run(args []string) error {
 		if cfgErr != nil {
 			return cfgErr
 		}
-		if !isInteractive() && len(resolved.ExtraArgs) == 0 {
+		if !isInteractive() && !resolved.DashDash {
 			fmt.Fprintf(os.Stderr, "%s Not launching: no terminal. To run a prompt, pass it after --: %s\n",
 				dim("ℹ"), bold(`nav-pilot --sync -- -p "…"`))
 			return nil

@@ -208,6 +208,10 @@ export const CLI_COMMANDS = [
     command: "nav-pilot --cplt <flagg>",
     description: "Send et flagg til cplt for denne økta, for eksempel --cplt --allow-port=8080. Kan gjentas",
   },
+  {
+    command: "nav-pilot --client-arg <argument>",
+    description: "Send ett argument til klienten og start som vanlig, med meny og sync. Kan gjentas",
+  },
   { command: "nav-pilot --allow-clipboard", description: "La agenten bruke utklippstavla i macOS denne økta" },
   {
     command: "nav-pilot pakke",

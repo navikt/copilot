@@ -1230,7 +1230,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	// short of that launch is an error: the caller asked for a prompt to run,
 	// and exit 0 without running it read as success.
 	interactive := isInteractive()
-	headless := !interactive && len(resolved.ExtraArgs) > 0
+	headless := !interactive && resolved.DashDash
 	decision := decideLaunch(p.Available(), resolved.AutoLaunch, sandboxed, interactive || headless)
 	if decision == launchSkipQuiet {
 		return nil
@@ -1263,7 +1263,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		// A prompt after "--" asked for a run that cannot happen: fail, so a
 		// script does not read exit 0 as success. Bare nav-pilot stays exit 0.
 		var skipped error
-		if len(resolved.ExtraArgs) > 0 {
+		if resolved.DashDash {
 			skipped = &exitCode{code: ExitError}
 		}
 		if resolved.Client == "copilot" {
@@ -1360,12 +1360,31 @@ func startCommand(resolved ResolvedConfig) string {
 		cmd += " " + shellQuote(f)
 		self += " --cplt " + shellQuote(f)
 	}
+	// The client arguments too: a hint that drops them starts another session.
+	if resolved.DashDash {
+		self += " --"
+	}
+	for _, a := range resolved.ExtraArgs {
+		if resolved.DashDash {
+			self += " " + shellQuote(a)
+		} else {
+			self += " --client-arg " + shellQuote(a)
+		}
+	}
 	persona := resolved.Persona
 	if persona == "" {
 		persona = providerpkg.PrimaryAgent(resolved.Client)
 	}
+	var client []string
 	if persona != "" && resolved.Client != "pi" {
-		cmd += " -- --agent " + shellQuote(persona)
+		client = append(client, "--agent", persona)
+	}
+	client = append(client, resolved.ExtraArgs...)
+	if len(client) > 0 {
+		cmd += " --"
+		for _, a := range client {
+			cmd += " " + shellQuote(a)
+		}
 	}
 	return self + ", or " + cmd
 }
