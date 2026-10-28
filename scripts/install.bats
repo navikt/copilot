@@ -1,5 +1,9 @@
 #!/usr/bin/env bats
 
+# Fail a stuck test instead of hanging the suite (#2019).
+: "${BATS_TEST_TIMEOUT:=60}"
+export BATS_TEST_TIMEOUT
+
 setup() {
   export TMP_DIR="${BATS_TEST_DIRNAME}/.tmp-${BATS_TEST_NUMBER}"
   mkdir -p "${TMP_DIR}"

@@ -152,9 +152,10 @@ find_install_dir() {
 
   # Prefer directories already on PATH, in order of preference
   for dir in "$HOME/.local/bin" "$HOME/bin" "/usr/local/bin"; do
-    # A here-string, not `echo | grep -q`: under pipefail the writer can die
-    # of SIGPIPE when grep exits on the match, and the match reads as a miss.
-    if grep -qxF -- "$dir" <<<"${PATH//:/$'\n'}"; then
+    # A plain string match: `echo | grep -q` loses the match to SIGPIPE under
+    # pipefail (#1318), and ${PATH//:/...} is cubic in macOS bash 3.2, so a
+    # long PATH takes minutes (#2019).
+    if [[ ":${PATH}:" == *":${dir}:"* ]]; then
       if [[ -w "$dir" ]] || [[ ! -d "$dir" && -w "$(dirname "$dir")" ]]; then
         INSTALL_DIR="$dir"
         return
