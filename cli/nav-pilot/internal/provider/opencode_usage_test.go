@@ -18,7 +18,7 @@ func TestReadOpenCodeUsage(t *testing.T) {
 	old := openCodeCommand
 	t.Cleanup(func() { openCodeCommand = old })
 	openCodeCommand = func(_ context.Context, _ string, args ...string) ([]byte, error) {
-		if args[0] == "session" {
+		if args[1] == "list" {
 			return []byte(`[{"id":"new","updated":2000,"directory":"/repo"},{"id":"old","updated":500,"directory":"/repo"},{"id":"other","updated":2000,"directory":"/elsewhere"}]`), nil
 		}
 		if args[len(args)-1] != "new" || strings.Contains(strings.Join(args, " "), "--sanitize") {
@@ -178,7 +178,7 @@ func TestReadOpenCodeUsageAllowlistForLaunchDir(t *testing.T) {
 		return map[string]bool{"nav-skill": true}, map[string]bool{}
 	}
 	openCodeCommand = func(_ context.Context, _ string, args ...string) ([]byte, error) {
-		if args[0] == "session" {
+		if args[1] == "list" {
 			return []byte(`[{"id":"s1","updated":2000,"directory":"/repo"}]`), nil
 		}
 		return []byte(openCodeCanaryExport), nil

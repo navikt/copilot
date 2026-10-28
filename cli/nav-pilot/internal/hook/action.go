@@ -21,7 +21,7 @@ import (
 
 // ShellCommand returns a shell tool call's command and the description the
 // model gave with it, from either dialect's toolArgs (OpenCode's arrive in
-// Copilot's shape via hooks-bridge.js). ok is false for any other tool.
+// Copilot's shape via hooks-bridge-v2.js). ok is false for any other tool.
 func ShellCommand(tool string, args json.RawMessage) (command, description string, ok bool) {
 	if !shellTools[strings.ToLower(tool)] {
 		return "", "", false

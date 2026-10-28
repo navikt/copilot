@@ -301,9 +301,6 @@ func askOpenCodePluginSet(set openCodePluginSet) bool {
 // A stored answer holds with or without a terminal. A yes is silent; a no says
 // one dim line each launch, since the repo's AGENTS.md and agents are off too.
 func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
-	if openCodeMajor() < 2 {
-		return env
-	}
 	set := openCodeProjectPlugins(projectDir, env)
 	if set.sum == "" {
 		return env

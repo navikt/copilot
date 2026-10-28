@@ -8,30 +8,6 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
-func TestOpenCode1InstallHint(t *testing.T) {
-	cases := []struct {
-		name, target string
-		owner        domain.PkgManager
-		want         string
-	}{
-		{"npm", "lib/node_modules/@opencode/cli/bin/opencode", domain.PkgNone,
-			"npm uninstall -g @opencode/cli && npm i -g opencode-ai@" + OpenCodeInstallVersion},
-		{"brew opencode-v2", "Cellar/opencode-v2/2.0.24/bin/opencode", domain.PkgBrew,
-			"brew uninstall opencode-v2 && brew install anomalyco/tap/opencode"},
-		{"brew opencode", "Cellar/opencode/2.0.24/bin/opencode", domain.PkgBrew,
-			"brew uninstall opencode && brew install anomalyco/tap/opencode"},
-		{"script", "home/.opencode/bin/opencode", domain.PkgNone, OpenCodeScriptInstall},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			fakeOpenCodeOnPath(t, tc.target, tc.owner)
-			if got := OpenCode1InstallHint(); got != tc.want {
-				t.Fatalf("got %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestOpenCode2InstallHint(t *testing.T) {
 	npm := "npm i -g @opencode/cli@" + OpenCode2InstallVersion
 	for _, tc := range []struct {

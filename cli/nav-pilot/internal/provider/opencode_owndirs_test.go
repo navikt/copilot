@@ -144,7 +144,6 @@ func TestUserPermissionReadsV2List(t *testing.T) {
 		{"v2 later allow wins", "opencode v2.0.24\n", []string{deny, `{"permissions": [{"action": "external_directory", "resource": "*", "effect": "allow"}]}`}, false},
 		{"v2 path rule is not wholesale", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "external_directory", "resource": "/x/*", "effect": "deny"}]}`}, false},
 		{"v2 other action", "opencode v2.0.24\n", []string{`{"permissions": [{"action": "edit", "resource": "*", "effect": "deny"}]}`}, false},
-		{"v1 ignores the list", "opencode 1.17.0\n", []string{deny}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			versionCache.Store("opencode", versionAnswer{tc.version, nil, time.Hour})
@@ -188,9 +187,7 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 		{"opencode v2.0.24\n", "cplt 2026.10.22-172931-b37a8ab\n", nil, []string{"run", "--", "--server", "x"}, true},
 		{"opencode v2.0.24\n", "cplt 2026.10.22-172931-b37a8ab\n", nil, []string{"--standalone"}, false},
 		{"opencode v2.0.24\n", "", errCpltNotFound, nil, true},
-		{"opencode 1.17.0\n", "", errors.New("timeout"), []string{"attach", "--server", "x"}, true},
-		{"opencode 1.17.0\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, nil, true},
-		// unreadable version: launched as opencode 1, but cplt must be new enough to fail closed (#735)
+		// unreadable version: cplt must be new enough to fail closed (#735)
 		{"garbage\n", "cplt 2026.10.08-060626-86f0f7e\n", nil, nil, false},
 		{"garbage\n", "cplt 2026.10.22-172931-b37a8ab\n", nil, nil, true},
 		// cplt may still detect opencode 2, so the argument refusals stay
@@ -232,7 +229,6 @@ func TestCheckOpenCode2Launch(t *testing.T) {
 		{"opencode v2.0.24\n", "cplt 2026.10.22-172931-b37a8ab\n", []string{"--standalone"}, false},
 		{"garbage\n", "cplt 2026.10.21-120000-0000000\n", nil, false},
 		{"garbage\n", "cplt 2026.10.22-172931-b37a8ab\n", nil, true},
-		{"1.18.35\n", "cplt 2026.10.06-120000-0d1d66d\n", nil, true},
 	} {
 		versionCache.Store("opencode", versionAnswer{c.version, nil, time.Hour})
 		stubProbes(t, c.cplt, nil, "", nil)

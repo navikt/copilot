@@ -38,10 +38,9 @@ exec cat $WORK/gate.out
 stdout -count=4 '^\{\}$'
 stdout -count=1 '"deny":"nav-pilot \(local_dispatch\): this is a mechanical change across several files'
 stdout -count=1 '"deny":"nav-pilot \(local_dispatch = aggressive\): new files go to `local-worker` first'
-exists $HOME/.config/opencode/plugins/nav-pilot-dispatch-gate.js
+! exists $HOME/.config/opencode/plugins/nav-pilot-dispatch-gate.js
 grep 'nav-pilot enforces this in every tier' $HOME/.config/opencode/nav-pilot-local-dispatch.md
 grep 'A new file you would write yourself' $HOME/.config/opencode/nav-pilot-local-dispatch.md
-! stderr 'not enforced with --pure'
 
 # A backup in /tmp for the break-and-undo check (#1237): refused by the gate,
 # so a headless session goes on instead of ending on opencode's rejected
@@ -52,10 +51,6 @@ exec cat $WORK/gate.out
 stdout -count=1 '"deny":"nav-pilot \(local_dispatch\): this path is outside the project'
 stdout -count=5 '^\{\}$'
 env TMP_BACKUP=
-
-# --pure turns opencode's plugins off, the gate with them: said on stderr.
-exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- --pure run x </dev/null'
-stderr 'local_dispatch = aggressive is not enforced with --pure'
 
 # balanced: the 5th file is refused once, as a checkpoint; new files are not
 # its business.

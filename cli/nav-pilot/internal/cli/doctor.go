@@ -764,12 +764,9 @@ func reportOpenCodeVersion() (ok bool) {
 	case err != nil:
 		fmt.Printf("      %s Could not read the opencode version: %v\n", yellow("⚠"), err)
 	case tested:
-		fmt.Printf("      %s Version %s is inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCodeTestedRangeFor(v))
+		fmt.Printf("      %s Version %s is inside the tested range (%s)\n", green("✓"), v, providerpkg.OpenCode2TestedRange)
 	default:
-		fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCodeTestedRangeFor(v))
-	}
-	if n := providerpkg.OpenCode1Notice(); n != "" {
-		fmt.Printf("      %s %s\n", yellow("⚠"), strings.ReplaceAll(n, "\n", "\n      "))
+		fmt.Printf("      %s Version %s is outside the tested range (%s). Hooks, the dispatch gate and the session policy may not apply as described.\n", yellow("⚠"), v, providerpkg.OpenCode2TestedRange)
 	}
 	return ok
 }

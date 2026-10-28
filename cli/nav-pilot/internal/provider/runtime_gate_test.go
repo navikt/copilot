@@ -847,22 +847,30 @@ func TestCheckOpenCodeMajorLaunchesOpenCode2(t *testing.T) {
 	t.Cleanup(func() { versionCache.Delete("opencode") })
 	for out, stop := range map[string]bool{
 		"opencode v2.0.24\n": false, "opencode v2.1.0-beta.1\n": false, "10.0.0\n": true,
-		"opencode v3.0.0\n": true, "opencode v3.0.0-beta.1\n": true, "1.18.35\n": false, "1.19.0-next.3\n": false, "garbage\n": false,
+		"opencode v3.0.0\n": true, "opencode v3.0.0-beta.1\n": true, "1.18.35\n": true, "1.19.0-next.3\n": true, "garbage\n": false,
 	} {
 		versionCache.Store("opencode", versionAnswer{out, nil, time.Minute})
 		if err := CheckOpenCodeMajor(); (err != nil) != stop {
 			t.Errorf("CheckOpenCodeMajor() with %q = %v, want stop=%v", out, err, stop)
 		}
 	}
-	// opencode 2 is the way back on macOS and Linux, where cplt runs it; opencode 1 elsewhere.
-	versionCache.Store("opencode", versionAnswer{"opencode v3.0.0\n", nil, time.Minute})
-	prevOS := hostOS
-	t.Cleanup(func() { hostOS = prevOS })
-	for goos, want := range map[string]string{"darwin": "Install opencode 2", "linux": "Install opencode 2", "windows": "Install opencode 1"} {
-		hostOS = goos
-		if err := CheckOpenCodeMajor(); err == nil || !strings.Contains(err.Error(), want) {
-			t.Errorf("%s: %v, want %q", goos, err, want)
+	// Both refusals name the way to opencode 2.
+	for out, want := range map[string]string{"opencode v3.0.0\n": "Install opencode 2", "1.18.35\n": "no longer supported"} {
+		versionCache.Store("opencode", versionAnswer{out, nil, time.Minute})
+		if err := CheckOpenCodeMajor(); err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), OpenCode2InstallHint()) {
+			t.Errorf("%q: %v, want %q and %q", out, err, want, OpenCode2InstallHint())
 		}
+	}
+}
+
+// An opencode 1 from npm's opencode-ai is told to uninstall it first: npm
+// fails with EEXIST on the shared bin otherwise.
+func TestCheckOpenCodeMajorRefusesNpmOpenCode1WithUninstall(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	fakeOpenCodeOnPath(t, "lib/node_modules/opencode-ai/bin/opencode", domain.PkgNone)
+	versionCache.Store("opencode", versionAnswer{"1.18.32\n", nil, time.Minute})
+	if err := CheckOpenCodeMajor(); err == nil || !strings.Contains(err.Error(), "npm uninstall -g opencode-ai && npm i -g @opencode/cli@"+OpenCode2InstallVersion) {
+		t.Errorf("err = %v", err)
 	}
 }
 

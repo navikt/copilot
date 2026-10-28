@@ -781,21 +781,12 @@ func localPolicyPath() string {
 	return filepath.Join(filepath.Dir(openCodeConfigPath()), localPolicyFileName)
 }
 
-// dispatchGatePlugin is the opencode plugin behind the dispatch gate at
-// local_dispatch = balanced and aggressive (local/gate.go,
-// docs/local-dispatch.md). opencode loads every
-// .js in its plugins directory, so the file is the whole registration.
-//
-// It is written with the policy at every level and does nothing unless the
-// launch sets NAV_PILOT_DISPATCH_GATE: one file, written idempotently, and
-// removed only by `alpha local off` ([RemoveDispatchGatePlugin]).
-//
-//go:embed dispatch-gate.js
-var dispatchGatePlugin []byte
-
-// DispatchGateEnv carries the gate's address to the plugin.
+// DispatchGateEnv carries the dispatch gate's address (local/gate.go) to the
+// hooks bridge, which runs the gate.
 const DispatchGateEnv = "NAV_PILOT_DISPATCH_GATE"
 
+// dispatchGatePluginPath is where nav-pilot wrote the opencode 1 gate plugin
+// before #1907. It is only removed now.
 func dispatchGatePluginPath() string {
 	return filepath.Join(filepath.Dir(openCodeConfigPath()), "plugins", "nav-pilot-dispatch-gate.js")
 }
@@ -1028,11 +1019,9 @@ func ensureOpenCodeLocalPolicy(adds map[string]any, root string, m local.Model) 
 	if err := os.WriteFile(path, []byte(LocalDispatchPolicy(m, local.DispatchLevel(), local.SameResultRepeat(), local.LoopGuardRepeat())+local.DepUpgradePolicyText(dep)), 0o600); err != nil {
 		return fmt.Errorf("writing the local dispatch policy: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(dispatchGatePluginPath()), 0o700); err != nil {
-		return fmt.Errorf("creating opencode's plugins dir: %w", err)
-	}
-	if err := os.WriteFile(dispatchGatePluginPath(), dispatchGatePlugin, 0o600); err != nil {
-		return fmt.Errorf("writing the dispatch gate plugin: %w", err)
+	// The opencode 1 gate plugin an earlier nav-pilot left behind.
+	if err := RemoveDispatchGatePlugin(); err != nil {
+		return err
 	}
 	return mutateOpenCodeConfig(adds, func(cfg map[string]any) bool {
 		bound := bindLocalWorker(cfg, m)
@@ -1082,10 +1071,8 @@ func RemoveOpenCodeLocalPolicy() error {
 	return nil
 }
 
-// RemoveDispatchGatePlugin takes the gate plugin out, for `alpha local off`
-// only. A launch never removes it: the file does nothing without the
-// variable a gated launch sets, and a launch that removed it could do so
-// between another session's write and opencode's plugin scan.
+// RemoveDispatchGatePlugin takes out the opencode 1 gate plugin an earlier
+// nav-pilot wrote.
 func RemoveDispatchGatePlugin() error {
 	if err := os.Remove(dispatchGatePluginPath()); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("removing the dispatch gate plugin: %w", err)
@@ -1139,7 +1126,6 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 
 	launchEnv, _ := telemetry.ApplyOpenCodeOTelEnv(env, cliVersion)
 	warnUntestedOpenCode()
-	warnOpenCode1()
 
 	// Local dispatch, whether or not this session's own model is local: a cloud
 	// main agent handing focused tasks to a local worker is the case the
@@ -1183,9 +1169,6 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		}
 		if url := guard.GateURL(); url != "" {
 			launchEnv, _ = telemetry.SetEnvValue(launchEnv, DispatchGateEnv, url)
-			if openCodeMajor() < 2 && slices.Contains(resolved.ExtraArgs, "--pure") {
-				fmt.Fprintf(os.Stderr, "%s local_dispatch = %s is not enforced with --pure: opencode loads no plugins then, and the gate is a plugin.\n", domain.Yellow("⚠"), local.DispatchLevel())
-			}
 		}
 	}
 
@@ -1210,10 +1193,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		}
 	}
 
-	agentArgs := openCodeAgentArgs(resolved)
-	if openCodeMajor() >= 2 {
-		agentArgs, launchEnv = openCodeV2Args(agentArgs, launchEnv)
-	}
+	agentArgs, launchEnv := openCodeV2Args(openCodeAgentArgs(resolved), launchEnv)
 	agent := "plan"
 	if resolved.Mode != "plan" {
 		agent = resolved.Persona
@@ -1546,8 +1526,8 @@ func launchOpenCodeViaCplt(spec cpltLaunch) error {
 
 // openCodeClientRan reports whether opencode started during this launch: the
 // hooks bridge writes client-started-<id> in the hook state dir when opencode
-// loads it, and this removes it. Without an id (no bridge, or opencode 1 with
-// --pure) there is no such sign, and it answers true, as before.
+// loads it, and this removes it. Without an id (no bridge) there is no such
+// sign, and it answers true, as before.
 //
 // ponytail: a plugin that loads but fails before writing reads as "never ran";
 // the hint then stays quiet for that real failure.

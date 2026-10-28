@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
-	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
@@ -432,7 +431,6 @@ func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]
 	if getenv == nil {
 		getenv = func(string) string { return "" }
 	}
-	v2 := openCodeMajor() >= 2
 	servers := map[string]mcpServer{}
 	unmarshalServer := func(name string, raw json.RawMessage, v2Native bool) {
 		hadEnvName := envPlaceholder.MatchString(name)
@@ -482,9 +480,8 @@ func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]
 		for name, raw := range cfg.MCP {
 			// opencode 2's own shape: mcp.servers.<name>, mcp.timeout. A
 			// key of either name is a server only with a type, as opencode
-			// 2 reads it (core/src/config/normalize.ts at v2.0.24). Only on
-			// opencode 2: opencode 1 reads "servers" as a server's name.
-			if v2 && (name == "servers" || name == "timeout") {
+			// 2 reads it (core/src/config/normalize.ts at v2.0.24).
+			if name == "servers" || name == "timeout" {
 				var probe struct {
 					Type string `json:"type"`
 				}
@@ -568,9 +565,8 @@ func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []o
 		return docs
 	}
 	// opencode 2 reads OPENCODE_CONFIG_DIR as its global config, below
-	// everything else; opencode 1 ranks it above the project.
-	v2 := openCodeMajor() >= 2
-	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" && v2 {
+	// everything else.
+	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" {
 		read(d, "opencode.json", "opencode.jsonc")
 	}
 	if f := getenv("OPENCODE_CONFIG"); f != "" {
@@ -581,14 +577,8 @@ func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []o
 			projectDir, _ = os.Getwd()
 		}
 		projectDir, _ = filepath.Abs(projectDir)
-		root := source.FindGitRoot(projectDir)
-		if root == "" || v2 {
-			if !v2 && home != "" && domain.PathWithinRoot(home, projectDir) {
-				root = filepath.Clean(home)
-			} else {
-				root = "/"
-			}
-		}
+		// opencode 2 walks up to the filesystem root, git repo or not.
+		root := "/"
 		var dirs []string
 		for d := projectDir; ; d = filepath.Dir(d) {
 			if isOpenCodeWalkStopDir(d, home) {
@@ -608,9 +598,6 @@ func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []o
 	// OpenCode reads ~/.opencode as a config directory as well.
 	if home != "" {
 		read(filepath.Join(home, ".opencode"), "opencode.json", "opencode.jsonc")
-	}
-	if d := getenv("OPENCODE_CONFIG_DIR"); d != "" && !v2 {
-		read(d, "opencode.json", "opencode.jsonc")
 	}
 	if c := getenv(openCodeConfigContentEnv); c != "" {
 		docs = append(docs, openCodeConfigDocument{openCodeConfigContentEnv, expandUnquotedEnv([]byte(c), getenv), []byte(c)})
@@ -698,12 +685,7 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		return env
 	}
 	mcp := map[string]any{}
-	v2 := openCodeMajor() >= 2
 	for _, name := range off {
-		if !v2 {
-			mcp[name] = map[string]any{"enabled": false}
-			continue
-		}
 		// opencode 2 drops an entry that only says enabled, so the server
 		// would run: it needs the type and the command or URL as well.
 		// Never write host-expanded {env:VAR} values into OPENCODE_CONFIG_CONTENT.
