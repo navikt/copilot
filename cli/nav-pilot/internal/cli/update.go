@@ -40,7 +40,9 @@ var httpClient = &http.Client{
 }
 
 type ghRelease struct {
-	TagName string `json:"tag_name"`
+	TagName    string `json:"tag_name"`
+	Draft      bool   `json:"draft"`
+	Prerelease bool   `json:"prerelease"`
 }
 
 // releasesPage is where a user picks one nav-pilot version by hand.
@@ -256,7 +258,8 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 
 // fetchLatestRelease returns the newest release from a GitHub releases API whose
 // tag carries prefix (empty prefix = the newest release, for repos that do not
-// prefix their tags). Returns the version (tag minus prefix) and the full tag.
+// prefix their tags). Drafts and prereleases are skipped: a token with write
+// access lists drafts first, and their assets are not downloadable. Returns the version (tag minus prefix) and the full tag.
 func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, tag string, err error) {
 	resp, err := githubGet(ctx, api+"?per_page=20", "")
 	if err != nil {
@@ -274,7 +277,7 @@ func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, ta
 	}
 
 	for _, rel := range releases {
-		if strings.HasPrefix(rel.TagName, prefix) {
+		if !rel.Draft && !rel.Prerelease && strings.HasPrefix(rel.TagName, prefix) {
 			tag = rel.TagName
 			ver = strings.TrimPrefix(tag, prefix)
 			return ver, tag, nil

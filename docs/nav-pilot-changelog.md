@@ -17,6 +17,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Førstegangsoppsett**: Overskriften «nav-pilot — Nav's toolkit for coding agents» vises én gang, ikke en gang til rett etter oppsettet.
 - **`nav-pilot alpha local status`**: Viser hvordan du setter opp lokal kjøring, én gang, ikke to.
 
+### Installasjon og oppgradering hopper over utkast
+
+- **`install.sh` og `nav-pilot upgrade`**: Har tokenet ditt skrivetilgang til navikt/copilot, lister GitHub utkast til releaser først. Installasjonsskriptet og `nav-pilot upgrade` valgte da utkastet og fikk 404 på nedlastingen. Nå hopper begge over utkast og forhåndsversjoner. Det samme gjelder sjekken av nyeste nav-pilot og cplt i `nav-pilot doctor` og ved oppstart.
+
 ## 2026-10-24
 
 ### Aksel: `aksel-spacing` er pensjonert, bruk `aksel-builder`

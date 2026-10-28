@@ -28,7 +28,10 @@ write_out() {
   fi
 }
 
-if [[ "$*" == *"api.github.com"* ]]; then
+if [[ "$*" == *"api.github.com"* && -n "$MOCK_RELEASES" ]]; then
+  cat "$MOCK_RELEASES"
+  exit 0
+elif [[ "$*" == *"api.github.com"* ]]; then
   write_out '{"tag_name": "nav-pilot/2026.01.01-mock"}'
   exit 0
 elif [[ "$*" == *"SHA256SUMS"* ]]; then
@@ -132,6 +135,48 @@ EOF
   [[ "$output" == *"nav-pilot nav-pilot/2026.01.01-mock (linux/amd64)"* ]]
   [[ "$output" == *"Downloading nav-pilot-linux-amd64"* ]]
   [[ "$output" == *"Installed nav-pilot to ${TMP_DIR}/install-dest/nav-pilot"* ]]
+}
+
+# A token with write access lists draft releases first, and a draft's assets
+# 404. Prereleases, other packages and quoted text in a body are skipped too.
+@test "skips draft and prerelease releases when picking the latest" {
+  export MOCK_RELEASES="${TMP_DIR}/releases.json"
+  cat <<'JSON' > "$MOCK_RELEASES"
+[
+  {
+    "tag_name": "nav-pilot/2026.03.03-draft",
+    "body": "says \"draft\": false, \"tag_name\": \"nav-pilot/fake\"",
+    "draft": true,
+    "prerelease": false
+  },
+  {
+    "tag_name": "skills/2026.03.02",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "nav-pilot/2026.03.02-pre",
+    "draft": false,
+    "prerelease": true
+  },
+  {
+    "tag_name": "nav-pilot/2026.03.01-good",
+    "body": "\"draft\": true",
+    "draft": false,
+    "prerelease": false,
+    "assets": [{"name": "nav-pilot-linux-amd64"}]
+  },
+  {
+    "tag_name": "nav-pilot/2026.02.01-older",
+    "draft": false,
+    "prerelease": false
+  }
+]
+JSON
+  run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nav-pilot nav-pilot/2026.03.01-good (linux/amd64)"* ]]
 }
 
 # Homebrew on Linux resolves navikt/tap/cplt, which only ships macOS bottles.
