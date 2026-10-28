@@ -586,6 +586,7 @@ nav-pilot survey            # svar på en åpen brukerundersøkelse
 nav-pilot news              # de nyeste sakene fra ki-utvikling.nav.no
 nav-pilot -- -p "…"         # start klienten med argumentene etter --, uten spørsmål fra nav-pilot og uten sync
 nav-pilot --client opencode -- run "…"   # det samme i opencode, som bruker run i stedet for -p
+nav-pilot --client-arg --allow-all-paths  # send ett flagg til klienten, og start som vanlig
 ```
 
 `nav-pilot models --client opencode` viser listen for en annen klient. `--json` gir
@@ -780,6 +781,15 @@ roten kan agenten fortsatt lese.
 den som standard. `--cplt <flagg>` sender ett cplt-flagg videre for denne økten, for eksempel
 `--cplt --allow-port=8080`. Gjenta flagget for flere. Flagg med verdi skrives med `=`.
 `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
+
+`--client-arg <argument>` sender ett argument til klienten (Copilot CLI, OpenCode eller pi) og
+starter ellers som vanlig, med meny, spørsmål og sync. Gjenta flagget for flere argumenter, for
+eksempel `--client-arg --model --client-arg gpt-5` eller `--client-arg=--model=gpt-5`. Argumentene
+kommer i den rekkefølgen du gir dem, etter flaggene nav-pilot setter selv, og før argumentene etter
+`--`. Setter du et flagg nav-pilot også setter, som `--model`, vinner din verdi hos klienter som
+bruker den siste. Med en OpenCode-underkommando etter `--`, som `run`, legger du flaggene etter `--`
+i stedet. `nav-pilot -- <argumenter>` virker som før: klienten starter med en gang, uten meny og
+uten sync.
 
 `--resume [id]` fortsetter en tidligere økt, og `--continue` fortsetter den siste. nav-pilot
 lagrer ingen økter selv, men oversetter flagget til klientens eget. Uten id åpner lista over økter i

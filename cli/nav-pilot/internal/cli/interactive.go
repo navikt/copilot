@@ -1230,7 +1230,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 	// short of that launch is an error: the caller asked for a prompt to run,
 	// and exit 0 without running it read as success.
 	interactive := isInteractive()
-	headless := !interactive && len(resolved.ExtraArgs) > 0
+	headless := !interactive && resolved.DashDash
 	decision := decideLaunch(p.Available(), resolved.AutoLaunch, sandboxed, interactive || headless)
 	if decision == launchSkipQuiet {
 		return nil
@@ -1263,7 +1263,7 @@ func offerLaunch(resolved ResolvedConfig, installed bool) error {
 		// A prompt after "--" asked for a run that cannot happen: fail, so a
 		// script does not read exit 0 as success. Bare nav-pilot stays exit 0.
 		var skipped error
-		if len(resolved.ExtraArgs) > 0 {
+		if resolved.DashDash {
 			skipped = &exitCode{code: ExitError}
 		}
 		if resolved.Client == "copilot" {

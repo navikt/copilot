@@ -761,7 +761,12 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		r.LocalDispatch = cli.LocalDispatch
 	}
 	r.ProjectDir = cli.ProjectDir
-	r.ExtraArgs = cli.ExtraArgs
+	if len(cli.ClientArgs) > 0 {
+		r.ExtraArgs = append(append([]string(nil), cli.ClientArgs...), cli.ExtraArgs...)
+	} else {
+		r.ExtraArgs = cli.ExtraArgs
+	}
+	r.DashDash = len(cli.ExtraArgs) > 0
 	if cli.AllowClipboard {
 		r.CpltFlags = append(r.CpltFlags, "--allow-clipboard")
 	}
