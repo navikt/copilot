@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -93,6 +94,9 @@ type retiredOrphan struct {
 	Local string // absolute path in the scope
 	// Replacement names what replaces it, when the record says.
 	Replacement string
+	// Artifact is the artifact the file belongs to: the skill directory
+	// ("skills/aksel-spacing") or the file itself for a one-file kind.
+	Artifact string
 }
 
 // findRetiredOrphans returns the installed artifacts the source has retired,
@@ -136,7 +140,8 @@ func findRetiredOrphans(scope *InstallScope, sourceDir string, pakke *agentpakke
 		have := blobHash(data)
 		for _, b := range blobs {
 			if b == have {
-				found = append(found, retiredOrphan{Path: srcPath, Local: local, Replacement: m.replacementFor(srcPath)})
+				found = append(found, retiredOrphan{Path: srcPath, Local: local, Replacement: m.replacementFor(srcPath),
+					Artifact: strings.TrimSuffix(srcPath, file) + strings.SplitN(file, "/", 2)[0]})
 				break
 			}
 		}
@@ -236,25 +241,44 @@ func retiredPaths(orphans []retiredOrphan) []string {
 	return out
 }
 
-// reportRetired prints the retired-artifact section.
+// reportRetired prints the retired-artifact section of a check, one line per
+// artifact. --apply prints nothing here: the removal lists what went.
 func reportRetired(orphans []retiredOrphan, apply bool) {
-	fmt.Printf("%s %d artifact(s) retired in the source are still installed\n\n",
-		yellow("⚠"), len(orphans))
+	if apply {
+		return
+	}
+	var lines []string
+	seen := map[string]bool{}
 	for _, o := range orphans {
-		// The record is a third party's file. The schema refuses control
-		// runes; this holds if a looser record gets through anyway.
-		p := domain.SafeText(o.Path, 0)
-		if o.Replacement != "" {
-			fmt.Printf("  %s %s is retired; replaced by %s\n", dim("⊘"), p, bold(domain.SafeText(o.Replacement, 120)))
+		if seen[o.Artifact] {
 			continue
 		}
-		fmt.Printf("  %s %s\n", dim("⊘"), p)
+		seen[o.Artifact] = true
+		// The record is a third party's file. The schema refuses control
+		// runes; this holds if a looser record gets through anyway.
+		p := domain.SafeText(o.Artifact, 0)
+		if o.Replacement != "" {
+			p += " is retired; replaced by " + bold(domain.SafeText(o.Replacement, 120))
+		}
+		lines = append(lines, p)
+	}
+	fmt.Printf("%s %d artifact(s) retired in the source are still installed\n\n", yellow("⚠"), len(lines))
+	for _, l := range lines {
+		fmt.Printf("  %s %s\n", dim("⊘"), l)
 	}
 	fmt.Println()
-	if !apply {
-		fmt.Printf("%s removes them. Each one's content matches a revision nav-pilot published,\n", bold("nav-pilot sync --apply"))
-		fmt.Printf("so nothing you wrote yourself is touched.\n\n")
+	fmt.Printf("%s removes them. Each one's content matches a revision nav-pilot published,\n", bold("nav-pilot sync --apply"))
+	fmt.Printf("so nothing you wrote yourself is touched.\n\n")
+}
+
+// withoutDeleted drops the retired files the ordinary deletion pass already
+// lists, so one file is not reported twice.
+func withoutDeleted(scope *InstallScope, orphans []retiredOrphan, deleted []string) []retiredOrphan {
+	gone := map[string]bool{}
+	for _, p := range deleted {
+		gone[filepath.Join(scope.RootDir, p)] = true
 	}
+	return slices.DeleteFunc(orphans, func(o retiredOrphan) bool { return gone[filepath.Clean(o.Local)] })
 }
 
 // ignoredButInstalled lists artifacts the state marks as ignored while the file

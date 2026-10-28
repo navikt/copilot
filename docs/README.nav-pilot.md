@@ -515,7 +515,7 @@ nav-pilot --client opencode           # én gangs override
 nav-pilot config set client opencode  # sett permanent
 ```
 
-`nav-pilot status` og `nav-pilot list --installed` viser opencode-artefaktene og om de er
+`nav-pilot list --installed` viser opencode-artefaktene og om de er
 oppdaterte.
 
 **Egne OpenCode-plugins i repoet.** Har repoet egne OpenCode-plugins (i `.opencode/plugins/`
@@ -574,7 +574,7 @@ Til ditt **personlige** oppsett trenger du ikke `export` i det hele tatt.
 ```bash
 nav-pilot list --installed
 nav-pilot pakke              # agentpakken her: kilde, hva som er installert, hooks og tilgangen den ber om
-nav-pilot pakke access       # svar på nytt om tilgang du har sagt nei til
+nav-pilot pakke access       # svar på tilgangen agentpakken ber om, også tilgang du ikke er spurt om
 nav-pilot sync
 nav-pilot upgrade
 nav-pilot mcp list          # MCP-servere som ikke virker, og kommandoen som retter det

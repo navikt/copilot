@@ -21,7 +21,7 @@ func pluginTrustSetup(t *testing.T, tty bool, answer *bool) (string, *int) {
 	openCodePluginsTTY = func() bool { return tty }
 	askOpenCodePlugins = func(p string) bool {
 		*asked++
-		if !strings.Contains(p, "This repo has its own OpenCode plugins (") || !strings.Contains(p, "Load them? They run with the same access as the agent.") {
+		if !strings.Contains(p, "This repo has its own OpenCode plugins (") || !strings.Contains(p, "Load them? They run with the same access as the agent. No also turns off this repo's AGENTS.md, agents and skills.") {
 			t.Errorf("prompt %q", p)
 		}
 		return *answer
@@ -141,9 +141,15 @@ func TestRunOpenCodePluginsAsksAgain(t *testing.T) {
 	if env := applyOpenCodeProjectPlugins(nil, proj); disabled(env) || *asked != 2 {
 		t.Fatalf("asked=%d env=%v", *asked, env)
 	}
+	// Headless with an answer on record: show it and succeed.
 	openCodePluginsTTY = func() bool { return false }
+	if err := RunOpenCodePlugins(proj); err != nil || *asked != 2 {
+		t.Fatalf("headless, answered: err=%v asked=%d", err, *asked)
+	}
+	// Headless with no answer for the current set: that one needs a terminal.
+	writePlugin(t, proj, "q.ts", "y")
 	if err := RunOpenCodePlugins(proj); err == nil || *asked != 2 {
-		t.Fatalf("headless: err=%v asked=%d", err, *asked)
+		t.Fatalf("headless, unanswered: err=%v asked=%d", err, *asked)
 	}
 }
 

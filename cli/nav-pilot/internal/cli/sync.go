@@ -373,6 +373,9 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 				reportRetired(retired, apply)
 			}
 			if apply {
+				if !jsonOutput {
+					fmt.Printf("%s Removing %d retired artifact(s)\n", dim("→"), len(retired))
+				}
 				removeRetiredOrphans(scope, retired, jsonOutput)
 				return nil
 			}
@@ -745,6 +748,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	// files the state file tracks: these are untracked leftovers the ordinary
 	// delete path cannot see, and the only reason they can be removed at all is
 	// that their bytes match a revision the source published (#716).
+	retired = withoutDeleted(scope, retired, deletedPaths)
 	if len(retired) > 0 {
 		reportRetired(retired, apply)
 	}

@@ -277,6 +277,12 @@ func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
 		return fmt.Errorf("cplt is not installed, and the access only applies inside its sandbox. Install it: %s", cpltInstallHint)
 	}
 	if !isInteractive() {
+		// A recorded decline is an answer: say it and succeed. Only an
+		// unanswered question needs the terminal it cannot get here.
+		if answer == accessDeclined {
+			fmt.Printf("Access: %s — declined. Run nav-pilot pakke access in a terminal to allow it.\n", access)
+			return nil
+		}
 		return fmt.Errorf("nav-pilot pakke access needs a terminal to ask in. It would ask: Let the agent %s?", access)
 	}
 	return putProposal(scope, src, false, false, true)

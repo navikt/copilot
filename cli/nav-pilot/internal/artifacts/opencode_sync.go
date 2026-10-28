@@ -161,6 +161,8 @@ type OpenCodeSyncReport struct {
 	// Kept names files the new set no longer has that changed since nav-pilot
 	// wrote them. They stay, and stay tracked (see the removal loop).
 	Kept []string
+	// Unchanged is true when the sync found nothing to write or remove.
+	Unchanged bool
 }
 
 // SyncOpenCodeArtifactsReport is [SyncOpenCodeArtifacts] for `nav-pilot sync`:
@@ -502,7 +504,11 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 	// Entries carried over untouched above keep their own unknown keys; the
 	// ones this sync rebuilt do not, and neither does the top level (#588).
 	newState.PreserveUnknownFrom(existingState)
-	if dryRun || openCodeStateUnchanged(existingState, newState) {
+	unchanged := openCodeStateUnchanged(existingState, newState)
+	if report != nil {
+		report.Unchanged = unchanged
+	}
+	if dryRun || unchanged {
 		return skills, commands, agents, instructions, conflicts, nil
 	}
 	if wErr := WriteOpenCodeState(outputDir, newState); wErr != nil {

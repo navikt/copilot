@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
@@ -415,6 +416,11 @@ func OpenCodeVersionStatus() (version string, tested bool, err error) {
 // session: the developer may have good reason to run a newer opencode, and
 // the parts that could break fail in the safe direction (redaction withholds).
 func warnUntestedOpenCode() {
+	// On opencode 1 the weekly upgrade hint says what matters; doctor still
+	// shows both.
+	if openCodeMajor() == 1 {
+		return
+	}
 	v, tested, err := OpenCodeVersionStatus()
 	if err != nil || tested || !SeenChanged("opencode-untested", v+" "+OpenCodeTestedRangeFor(v)) {
 		return
@@ -441,10 +447,15 @@ func OpenCode1Notice() string {
 	return n
 }
 
-// warnOpenCode1 prints OpenCode1Notice at launch, once per opencode version.
+// openCode1Now is the clock the weekly opencode 1 hint reads.
+var openCode1Now = time.Now
+
+// warnOpenCode1 prints OpenCode1Notice at launch, once a week and once per
+// opencode version, so it is seen again before support ends.
 func warnOpenCode1() {
 	out, _ := cachedVersion("opencode", clientProbeTimeout)
-	if n := OpenCode1Notice(); n != "" && SeenChanged("opencode1-notice", strings.TrimSpace(out)) {
+	year, week := openCode1Now().ISOWeek()
+	if n := OpenCode1Notice(); n != "" && SeenChanged("opencode1-notice", fmt.Sprintf("%d-W%02d %s", year, week, strings.TrimSpace(out))) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
 	}
 }

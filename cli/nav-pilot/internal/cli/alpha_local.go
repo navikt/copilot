@@ -826,11 +826,10 @@ func cmdLocalStatus() error {
 	}
 	if !ok {
 		fmt.Printf("  Server       %s %s\n\n", local.HealthNotStarted, dim("(nothing recorded)"))
-		// start refuses an unprovisioned machine, so it is not the next step there.
+		// start refuses an unprovisioned machine, so it is not the next step
+		// there; the Environment line already names init.
 		if local.Installed() {
 			fmt.Printf("  Start it: %s\n\n", bold("nav-pilot alpha local start"))
-		} else {
-			fmt.Printf("  Set it up: %s\n\n", bold("nav-pilot alpha local init"))
 		}
 		return nil
 	}

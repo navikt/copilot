@@ -605,8 +605,12 @@ func offerCpltInit(cliPath string) {
 	}
 	write := exec.Command(cliPath, "init", "--write")
 	write.Dir = root
-	write.Stdout, write.Stderr = os.Stdout, os.Stderr
+	// cplt's own stdout ends in a "trust accept --all" hint; nav-pilot prints
+	// the one next step below. Stderr shows only when the write fails.
+	var stderr bytes.Buffer
+	write.Stderr = &stderr
 	if err := write.Run(); err != nil {
+		os.Stderr.Write(stderr.Bytes())
 		fmt.Fprintf(os.Stderr, "%s cplt init --write: %v\n", yellow("⚠"), err)
 		return
 	}

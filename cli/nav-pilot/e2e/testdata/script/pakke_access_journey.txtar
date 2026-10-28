@@ -20,6 +20,15 @@ exec git -c user.email=e2e@example.test -c user.name=e2e commit -qm innhold
 cd ../repo
 exec git init -q .
 
+# A headless install cannot ask: one line names the answer command, and
+# pakke access without a terminal fails, since there is no answer to show.
+exec nav-pilot install plattform --source $WORK/plattform --repo --yes
+stderr -count=1 'only an interactive install can approve\. Answer: nav-pilot pakke access$'
+! stderr 'cplt config set'
+! exec nav-pilot pakke access
+stderr 'needs a terminal to ask in\. It would ask: Let the agent read Nais logs and metrics\?'
+! stdout .
+
 # Enter declines.
 exits 0 pty-run -wait 'Decline' -send '\r' -- nav-pilot install plattform --source $WORK/plattform --repo --yes
 stdout 'Declined, so the agent can.t read Nais logs and metrics'
@@ -37,10 +46,10 @@ stderr 'no --json'
 exits 0 nav-pilot doctor
 ! stdout 'Access declined'
 
-# Without a terminal it says what it would ask, in one line, and fails.
-! exec nav-pilot pakke access
-stderr 'needs a terminal to ask in\. It would ask: Let the agent read Nais logs and metrics\?'
-! stdout .
+# Without a terminal a recorded answer is shown, and that is not a failure.
+exec nav-pilot pakke access
+stdout 'Access: read Nais logs and metrics — declined\.'
+! stderr 'needs a terminal'
 
 # Declining here again does not name the command already running.
 exits 0 pty-run -wait 'Let the agent read Nais logs and metrics' -send '\r' -- nav-pilot pakke access

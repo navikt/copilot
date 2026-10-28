@@ -34,9 +34,10 @@ stderr 'kept agent grillmester: it differs from what nav-pilot installed'
 stderr '1 file\(s\) kept'
 ! stdout 'kept'
 
-# Both scopes sync the same pakke: one note, not two.
-exec nav-pilot sync --apply --yes
-stderr -count=1 'proposes cplt sandbox settings'
+# Both scopes sync the same pakke: one note, not two. --verbose, since without
+# it the note is said once per block across runs, and the installs said it.
+exec nav-pilot sync --apply --yes --verbose
+stderr -count=1 'only an interactive install can approve'
 stdout '~ \.github/agents/grillmester\.agent\.md \(updated\)'
 
 -- plattform/.nav-pilot/agentpakke.json --

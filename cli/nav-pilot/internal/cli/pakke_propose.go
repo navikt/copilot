@@ -188,10 +188,15 @@ func putProposal(scope *InstallScope, src *Source, dryRun, jsonOutput, reask boo
 	if !isInteractive() || jsonOutput {
 		// Once per run: a sync over two scopes of the same pakke printed it
 		// twice.
-		if key := name + "@" + hash; !notedProposals[key] {
+		// Once per block across runs too: a headless sync repeated it on
+		// every run.
+		if key := name + "@" + hash; !notedProposals[key] && (providerpkg.SeenChanged("proposal-headless-"+name, hash) || providerpkg.Verbose) {
 			notedProposals[key] = true
-			fmt.Fprintf(os.Stderr, "%s agentpakke %s proposes cplt sandbox settings, which only an interactive install can approve.\n%s\n",
-				dim("ℹ"), bold(name), indented(commands))
+			fmt.Fprintf(os.Stderr, "%s agentpakke %s asks for sandbox access, which only an interactive install can approve. Answer: %s\n",
+				dim("ℹ"), bold(name), bold("nav-pilot pakke access"+scopeArgs(scope)))
+			if providerpkg.Verbose {
+				fmt.Fprintf(os.Stderr, "%s\n", indented(commands))
+			}
 		}
 		return nil
 	}

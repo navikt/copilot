@@ -149,7 +149,7 @@ Show this repo's own OpenCode plugins and answer again whether to load them.
 It lists the plugins, shows your answer, and asks again. Enter declines. A no
 turns off everything OpenCode 2 reads from the repo: opencode.json, plugins,
 agents, commands, skills and AGENTS.md. Without a terminal it prints the
-state and exits non-zero.
+state, and exits non-zero only when the plugins are not answered yet.
 `,
 	"mcp": `Usage: nav-pilot mcp [list] [--json]
        nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]
@@ -310,8 +310,8 @@ with one Next: line when something needs doing.
 
 nav-pilot pakke access asks again about access you declined or were never
 asked about, the same question as on first run. Enter declines. A yes is
-recorded and the next launch applies it. Without a terminal it prints what it
-would ask and exits non-zero.
+recorded and the next launch applies it. Without a terminal it shows a
+recorded answer, and exits non-zero only when there is none.
 
 nav-pilot pakke bump-base is for the owner of an agentpakke that reuses
 another. Moves the revision pinned in .nav-pilot/agentpakke.lock.json onto the

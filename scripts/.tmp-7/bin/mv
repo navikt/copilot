@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "mock mv $1 to $2"
+exit 0

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"cmp"
 	"fmt"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"io"
 	"os"
 	"os/exec"
@@ -452,25 +453,8 @@ func doctorChecks() bool {
 		case len(listed) > 0:
 			fmt.Printf("      %s MCP servers in Nav's MCP registry: %s\n", green("✓"), strings.Join(listed, ", "))
 		}
-		// Check opencode context
-		configDir, err := os.UserConfigDir()
-		if err != nil {
-			configDir = filepath.Join(os.Getenv("HOME"), ".config")
-		}
-		ocDir := filepath.Join(configDir, "opencode")
-		ocScope := &InstallScope{Name: "opencode", RootDir: ocDir, StateFile: ".nav-pilot-state.json"}
-		ocState, _ := readScopedState(ocScope)
-		if ocState != nil {
-			ok, _, missing, _, _ := countFileIntegrity(ocDir, ocState)
-			if missing > 0 {
-				hasErrors = true
-				fmt.Printf("      %s Context is missing %d files\n", red("[✗]"), missing)
-				fmt.Printf("          %s Run %s to fix.\n", red("Solution:"), bold("nav-pilot sync"))
-			} else {
-				fmt.Printf("      %s Context securely materialized (%d files OK)\n", green("✓"), ok)
-			}
-		} else {
-			fmt.Printf("      [i] Context not initialized yet\n")
+		if !reportOpenCodeContext() {
+			hasErrors = true
 		}
 	}
 
@@ -788,4 +772,23 @@ func reportOpenCodeVersion() (ok bool) {
 		fmt.Printf("      %s %s\n", yellow("⚠"), strings.ReplaceAll(n, "\n", "\n      "))
 	}
 	return ok
+}
+
+// reportOpenCodeContext checks the files nav-pilot sync wrote to OpenCode's
+// global config dir, the same dir the sync writes to.
+func reportOpenCodeContext() bool {
+	ocDir := artifacts.OpenCodeConfigDir()
+	ocState, _ := readScopedState(&InstallScope{Name: "opencode", RootDir: ocDir, StateFile: ".nav-pilot-state.json"})
+	if ocState == nil {
+		fmt.Printf("      [i] Context not initialized yet\n")
+		return true
+	}
+	ok, _, missing, _, _ := countFileIntegrity(ocDir, ocState)
+	if missing > 0 {
+		fmt.Printf("      %s Context is missing %d files\n", red("[✗]"), missing)
+		fmt.Printf("          %s Run %s to fix.\n", red("Solution:"), bold("nav-pilot sync"))
+		return false
+	}
+	fmt.Printf("      %s Context securely materialized (%d files OK)\n", green("✓"), ok)
+	return true
 }
