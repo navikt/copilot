@@ -192,6 +192,39 @@ func TestFetchLatestRelease_UnprefixedTags(t *testing.T) {
 	}
 }
 
+func TestFetchLatestReleaseSkipsDraftsAndPrereleases(t *testing.T) {
+	tests := []struct {
+		name, body, prefix, want string
+	}{
+		{"draft first", `[{"tag_name":"nav-pilot/2","draft":true},{"tag_name":"nav-pilot/1","draft":false}]`, "nav-pilot/", "1"},
+		{"prerelease first", `[{"tag_name":"nav-pilot/2","prerelease":true},{"tag_name":"nav-pilot/1"}]`, "nav-pilot/", "1"},
+		{"unprefixed draft", `[{"tag_name":"b","draft":true},{"tag_name":"a"}]`, "", "a"},
+		{"only a draft", `[{"tag_name":"nav-pilot/2","draft":true}]`, "nav-pilot/", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				fmt.Fprint(w, tt.body)
+			}))
+			defer srv.Close()
+			origClient := httpClient
+			httpClient = srv.Client()
+			defer func() { httpClient = origClient }()
+
+			ver, _, err := fetchLatestRelease(context.Background(), srv.URL, tt.prefix)
+			if tt.want == "" {
+				if err == nil {
+					t.Fatalf("got %q, want an error", ver)
+				}
+				return
+			}
+			if err != nil || ver != tt.want {
+				t.Errorf("got %q, %v; want %q", ver, err, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseCpltVersion(t *testing.T) {
 	tests := []struct{ out, want string }{
 		{"cplt 2026.08.24-153138-0d1d66d", "2026.08.24-153138-0d1d66d"},

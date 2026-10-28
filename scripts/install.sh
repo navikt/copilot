@@ -119,10 +119,15 @@ if [[ -z "$VERSION" ]]; then
     return 0
   }
   VERSION=$(auth_config | curl -fsSL -K - "https://api.github.com/repos/${REPO}/releases?per_page=100" \
-    | grep '"tag_name"' \
-    | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/' \
-    | grep '^nav-pilot/' \
-    | head -1)
+    | tr ',' '\n' \
+    | awk '
+        # Per release object: tag_name comes first, draft and prerelease later.
+        # Skip drafts (a token with write access lists them first, and their
+        # assets 404) and prereleases. Escaped quotes in body text do not match.
+        function emit() { if (!done && tag ~ /^nav-pilot\// && !skip) { print tag; done = 1; exit } }
+        /(^|[^\\])"tag_name": *"/ { emit(); tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); skip = 0 }
+        /(^|[^\\])"(draft|prerelease)": *true/ { skip = 1 }
+        END { emit() }')
   set -o pipefail
   if [[ -z "$VERSION" ]]; then
     echo "Error: Could not determine latest version."
