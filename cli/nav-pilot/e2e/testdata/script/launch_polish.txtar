@@ -48,7 +48,7 @@ stderr 'Install it: brew install anomalyco/tap/opencode-v2'
 
 fake-bin cplt copilot
 exits 1 nav-pilot --sync --source $WORK/plattform --no-auto-launch -- -p x
-stderr 'Not launching: auto_launch = false\. Start it yourself with: nav-pilot --auto-launch, or cplt --project-dir .*/repo --agent copilot'
+stderr 'Not launching: auto_launch = false\. Start it yourself with: nav-pilot --auto-launch -- -p x, or cplt --project-dir .*/repo --agent copilot -- --agent nav-pilot -p x'
 
 fake-bin cplt pi
 exec nav-pilot --sync --source $WORK/plattform --client pi -- -p x
