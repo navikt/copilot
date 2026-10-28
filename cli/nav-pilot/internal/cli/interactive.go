@@ -476,8 +476,10 @@ var installThenLaunch bool
 func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 	installThenLaunch = true
 	defer func() { installThenLaunch = false }()
-	fmt.Println(bold("nav-pilot") + dim(" — Nav's toolkit for coding agents"))
-	fmt.Println()
+	if !wizardShown {
+		fmt.Println(bold("nav-pilot") + dim(" — Nav's toolkit for coding agents"))
+		fmt.Println()
+	}
 	// Scope first, then source: the repo's declaration is one rung of the
 	// source ladder, and it is only readable once we know which scope (and so
 	// which repository root) the install is for.
@@ -515,8 +517,10 @@ func interactiveFreshInstall(targetDir string, resolved ResolvedConfig) error {
 func interactiveUserOnlyInstall(resolved ResolvedConfig) error {
 	installThenLaunch = true
 	defer func() { installThenLaunch = false }()
-	fmt.Println(bold("nav-pilot") + dim(" — Nav's toolkit for coding agents"))
-	fmt.Println()
+	if !wizardShown {
+		fmt.Println(bold("nav-pilot") + dim(" — Nav's toolkit for coding agents"))
+		fmt.Println()
+	}
 	fmt.Println(dim("Not in a git repository — installing to user home."))
 	fmt.Fprintln(os.Stderr, dim("Resolving source..."))
 

@@ -36,6 +36,11 @@ exec nav-pilot sync --apply --source $WORK/plattform
 stdout 'Pi scope synced'
 ! exists $HOME/.nav-pilot/pi/agents/fjernes.md
 
+# Nothing left to do: the check says so instead of pointing at --apply.
+exec nav-pilot sync --source $WORK/plattform
+stdout 'Pi scope up to date'
+! stdout 'Pi scope checked'
+
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]},"pi":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

@@ -780,7 +780,22 @@ func TestStockProposalPrintsTheByHandCommandWhenNobodyCanBeAsked(t *testing.T) {
 	isInteractive = func() bool { return false }
 	src := navPilotSource(t)
 
+	t.Cleanup(func() { providerpkg.Verbose = false })
+
+	// Without --verbose: one line naming the command that answers, once per
+	// block across runs.
 	stderr := captureStderr(func() { noteProposalConsent(scope, src, false, false) })
+	if !strings.HasSuffix(strings.TrimSpace(stderr), "Answer: nav-pilot pakke access --user") || strings.Contains(stderr, "cplt config set") {
+		t.Errorf("first headless run, want one line ending in the answer command:\n%s", stderr)
+	}
+	notedProposals = map[string]bool{} // the next run
+	if again := captureStderr(func() { noteProposalConsent(scope, src, false, false) }); again != "" {
+		t.Errorf("the next headless run repeated the note:\n%s", again)
+	}
+
+	notedProposals = map[string]bool{}
+	providerpkg.Verbose = true
+	stderr = captureStderr(func() { noteProposalConsent(scope, src, false, false) })
 
 	// One line per host: cplt refuses a comma-joined value (#1316).
 	for _, host := range []string{

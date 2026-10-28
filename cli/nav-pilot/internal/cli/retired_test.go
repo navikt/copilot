@@ -616,15 +616,15 @@ func TestReportRetiredNamesReplacement(t *testing.T) {
 	}
 
 	with := captureStdout(func() {
-		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Replacement: "new-skill"}}, true)
+		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Artifact: "skills/old", Replacement: "new-skill"}}, false)
 	})
-	if !strings.Contains(with, "skills/old/SKILL.md is retired; replaced by") || !strings.Contains(with, "new-skill") {
+	if !strings.Contains(with, "skills/old is retired; replaced by") || !strings.Contains(with, "new-skill") {
 		t.Errorf("with a replacement, output = %q, want it named", with)
 	}
 	without := captureStdout(func() {
-		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md"}}, true)
+		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Artifact: "skills/old"}}, false)
 	})
-	if strings.Contains(without, "is retired; replaced by") || !strings.Contains(without, "skills/old/SKILL.md") {
+	if strings.Contains(without, "is retired; replaced by") || !strings.Contains(without, "skills/old") {
 		t.Errorf("without a replacement, output = %q, want the bare path", without)
 	}
 }
@@ -648,9 +648,28 @@ func TestFindRetiredOrphansCarriesReplacement(t *testing.T) {
 // terminal as an escape sequence.
 func TestReportRetiredSanitizesReplacement(t *testing.T) {
 	out := captureStdout(func() {
-		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Replacement: "new\u009b2J"}}, true)
+		reportRetired([]retiredOrphan{{Path: "skills/old/SKILL.md", Artifact: "skills/old", Replacement: "new\u009b2J"}}, false)
 	})
 	if strings.ContainsRune(out, '\u009b') || !strings.Contains(out, "new\uFFFD2J") {
 		t.Errorf("output = %q, want the CSI replaced by U+FFFD", out)
+	}
+}
+
+// One line per artifact, files the deletion pass already lists left out, and
+// nothing on --apply, where the removal lists what went.
+func TestReportRetiredOneLinePerArtifact(t *testing.T) {
+	scope := &InstallScope{RootDir: "/r"}
+	orphans := withoutDeleted(scope, []retiredOrphan{
+		{Path: "skills/old/SKILL.md", Local: "/r/.github/skills/old/SKILL.md", Artifact: "skills/old", Replacement: "new"},
+		{Path: "skills/old/references/a.md", Local: "/r/.github/skills/old/references/a.md", Artifact: "skills/old", Replacement: "new"},
+		{Path: "agents/gone.agent.md", Local: "/r/.github/agents/gone.agent.md", Artifact: "agents/gone.agent.md"},
+		{Path: "skills/tracked/SKILL.md", Local: "/r/.github/skills/tracked/SKILL.md", Artifact: "skills/tracked"},
+	}, []string{".github/agents/gone.agent.md", ".github/skills/tracked/"})
+	out := captureStdout(func() { reportRetired(orphans, false) })
+	if strings.Count(out, "skills/old") != 1 || strings.Contains(out, "gone.agent.md") || strings.Contains(out, "skills/tracked") || !strings.Contains(out, "1 artifact(s) retired") {
+		t.Errorf("check output:\n%s", out)
+	}
+	if out := captureStdout(func() { reportRetired(orphans, true) }); out != "" {
+		t.Errorf("--apply reprinted the preview:\n%s", out)
 	}
 }

@@ -570,8 +570,13 @@ func maybeRunFirstRunSetup(flagSource string) error {
 	// for them (#1962 F9).
 	artifacts.FirstRun = true
 	defer func() { artifacts.FirstRun = false }()
+	wizardShown = true
 	return runConfigSetupFn(flagSource)
 }
+
+// wizardShown is set once the first-run wizard has run in this process: its
+// own heading stands in for the install's banner that follows.
+var wizardShown bool
 
 // cmdConfigSetup implements the 'nav-pilot config setup' subcommand.
 // It touches nothing until the wizard has every answer: the existing file is

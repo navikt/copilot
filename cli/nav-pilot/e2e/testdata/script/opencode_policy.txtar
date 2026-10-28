@@ -32,7 +32,8 @@ grep '"share": "manual"' $HOME/.config/opencode/opencode.json
 env OC_VERSION=1.19.0
 exec touch $WORK/fake/opencode
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
-stderr 'opencode 1\.19\.0 is outside the tested range \(>=1\.18\.20,<1\.19\)'
+# On opencode 1 the upgrade hint covers it; doctor still names the range.
+! stderr 'outside the tested range'
 exec cat $WORK/env.out
 stdout '"share":"disabled"'
 

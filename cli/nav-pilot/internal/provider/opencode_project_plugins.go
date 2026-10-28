@@ -291,7 +291,7 @@ func askOpenCodePluginSet(set openCodePluginSet) bool {
 	if len(short) > 3 {
 		short = append(slices.Clone(short[:3]), "…")
 	}
-	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. [y/N] ", len(set.names), strings.Join(short, ", ")))
+	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills. [y/N] ", len(set.names), strings.Join(short, ", ")))
 	recordOpenCodePluginAnswer(set.key, openCodePluginAnswer{Hash: set.sum, Allow: allow})
 	return allow
 }
@@ -354,6 +354,9 @@ func RunOpenCodePlugins(projectDir string) error {
 		fmt.Println("Answer: do not load (the repo's OpenCode config is off)")
 	}
 	if !openCodePluginsTTY() {
+		if ok && a.Hash == set.sum {
+			return nil
+		}
 		return fmt.Errorf("no terminal to ask on: run %s in a terminal", OpenCodePluginsCommand)
 	}
 	askOpenCodePluginSet(set)

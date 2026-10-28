@@ -398,7 +398,7 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, h
 		for _, p := range report.Kept {
 			fmt.Printf("  %s %s %s\n", domain.Dim("⊘"), p, domain.Dim("(deleted in source, changed here: kept)"))
 		}
-		if !apply {
+		if !apply && Verbose {
 			// The mirror of the repo's own .github/ is compared with the repo as
 			// it is now; what the repo scope is about to remove goes here too
 			// on --apply, but is not listed yet.
@@ -407,6 +407,8 @@ func (openCodeProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, h
 		switch {
 		case !apply && len(report.Removed) > 0:
 			fmt.Printf("%s Opencode scope has %d file(s) to remove. Run %s to apply.\n", domain.Yellow("⚠"), len(report.Removed), domain.Bold("nav-pilot sync --apply"))
+		case !apply && report.Unchanged && len(ocConflicts) == 0:
+			fmt.Printf("%s Opencode scope up to date.\n", domain.Green("✓"))
 		case !apply:
 			fmt.Printf("%s Opencode scope checked; %s refreshes it.\n", domain.Dim("→"), domain.Bold("nav-pilot sync --apply"))
 		case len(ocConflicts) > 0:
@@ -529,6 +531,8 @@ func (piProvider) SyncContext(ref, sourceRepo string, apply, jsonOutput, hasPrev
 		switch {
 		case !apply && len(report.Removed) > 0:
 			fmt.Printf("%s Pi scope has %d file(s) to remove. Run %s to apply.\n", domain.Yellow("⚠"), len(report.Removed), domain.Bold("nav-pilot sync --apply"))
+		case !apply && report.Unchanged && len(report.Conflicts) == 0:
+			fmt.Printf("%s Pi scope up to date.\n", domain.Green("✓"))
 		case !apply:
 			fmt.Printf("%s Pi scope checked; %s refreshes it.\n", domain.Dim("→"), domain.Bold("nav-pilot sync --apply"))
 		case len(report.Conflicts) > 0:

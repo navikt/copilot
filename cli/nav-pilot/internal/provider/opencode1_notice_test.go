@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-// TestOpenCode1Notice: the opencode 1 nudge is said once per version, never on
-// opencode 2, and names the date, the one-way migration, the new login,
-// bubblewrap and the install command.
+// TestOpenCode1Notice: the opencode 1 nudge is said once a week and once per
+// version, never on opencode 2, and names the date, the one-way migration,
+// the new login, bubblewrap and the install command.
 func TestOpenCode1Notice(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
 	t.Cleanup(func() { versionCache.Delete("opencode") })
@@ -50,6 +50,12 @@ func TestOpenCode1Notice(t *testing.T) {
 	if again := launch("1.18.32\n"); again != "" {
 		t.Errorf("same version again: %q, want nothing", again)
 	}
+	prevNow := openCode1Now
+	t.Cleanup(func() { openCode1Now = prevNow })
+	openCode1Now = func() time.Time { return prevNow().AddDate(0, 0, 7) }
+	if nextWeek := launch("1.18.32\n"); nextWeek == "" {
+		t.Error("same version a week later: no notice")
+	}
 	if next := launch("1.19.4\n"); next == "" {
 		t.Error("new opencode 1 version: no notice")
 	}
@@ -58,5 +64,25 @@ func TestOpenCode1Notice(t *testing.T) {
 	}
 	if OpenCode1Notice() != "" {
 		t.Error("OpenCode1Notice on opencode 2 is not empty")
+	}
+
+	// The untested-range warning stays out of an opencode 1 launch; the
+	// control is opencode 2 outside its range, which still warns.
+	untested := func(version string) string {
+		versionCache.Store("opencode", versionAnswer{version, nil, time.Hour})
+		r, w, _ := os.Pipe()
+		orig := os.Stderr
+		os.Stderr = w
+		warnUntestedOpenCode()
+		os.Stderr = orig
+		w.Close()
+		out, _ := io.ReadAll(r)
+		return string(out)
+	}
+	if out := untested("1.0.0\n"); out != "" {
+		t.Errorf("opencode 1 launch warned about the tested range: %q", out)
+	}
+	if out := untested("opencode v9.0.0\n"); !strings.Contains(out, "outside the tested range") {
+		t.Errorf("control: opencode 9, outside the opencode 2 range: %q", out)
 	}
 }

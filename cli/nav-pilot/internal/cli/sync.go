@@ -373,6 +373,9 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 				reportRetired(retired, apply)
 			}
 			if apply {
+				if !jsonOutput {
+					fmt.Printf("%s Removing %d retired artifact(s)\n", dim("→"), len(retired))
+				}
 				removeRetiredOrphans(scope, retired, jsonOutput)
 				return nil
 			}
@@ -534,6 +537,10 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			}
 		}
 	}
+
+	// A retired file the deletion pass already lists is not reported, counted
+	// or removed twice.
+	retired = withoutDeleted(scope, retired, deletedPaths)
 
 	// A source that ships nothing at all is a broken source, not one that
 	// retired everything: a wrong --ref, an empty branch, a layout pointing at

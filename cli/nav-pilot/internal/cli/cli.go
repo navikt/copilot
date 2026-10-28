@@ -102,7 +102,7 @@ Commands:
   config [subcommand]     Manage user-specific nav-pilot configuration; no subcommand opens the interactive settings page
   validate                Check that a source repo conforms to the agentpakke contract
   pakke                   Show the agentpakke here: source, items, hooks and the access it asks for
-  pakke access            Answer again about access you declined
+  pakke access            Answer about the access the agentpakke asks for, including access never asked about
   pakke bump-base         Move the agentpakke this pakke reuses onto its latest revision
   env                     Print shell exports for Copilot CLI integration
   ignore <type> <name>    Suppress new-item reminders for a specific item (--user)
@@ -334,7 +334,7 @@ func startupUpdateCheck() (stop bool, err error) {
 func run(args []string) error {
 	// Per run, not per process: a second run() in one process prints it again.
 	notedProposals = map[string]bool{}
-	armNudges, nudgesReady = false, nil
+	armNudges, nudgesReady, wizardShown = false, nil, false
 	providerpkg.Verbose, artifacts.LaunchNotices = false, false
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
