@@ -1,7 +1,0 @@
-#!/bin/bash
-if [[ "$1" == "-s" ]]; then
-  echo "Linux"
-elif [[ "$1" == "-m" ]]; then
-  echo "x86_64"
-fi
-exit 0

@@ -228,12 +228,14 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		h, _ := source.RawArtifactHash(dstPath, isDir)
 		return h
 	}
+	// The hash is the file's after the write: on a dry run, what the write
+	// would leave, so the state it builds says whether --apply has anything
+	// to do.
 	writeOpenCodeFile := func(dstPath string, data []byte, currentHash string) (string, error) {
+		h := source.BytesHash(data)
 		if dryRun {
-			h, _ := source.RawArtifactHash(dstPath, false)
 			return h, nil
 		}
-		h := source.BytesHash(data)
 		if currentHash != h {
 			if err := writeFile(dstPath, data); err != nil {
 				return "", err
@@ -318,7 +320,9 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 				}
 			}
 			h := currentHash
-			if dryRun || changed || h == "" {
+			if dryRun {
+				h, _ = source.RawArtifactHash(skill.AbsPath, true)
+			} else if changed || h == "" {
 				h, _ = source.RawArtifactHash(dstDir, true)
 			}
 			files = append(files, domain.InstalledFile{Path: relPath, Hash: h})
@@ -492,6 +496,9 @@ func syncOpenCode(client, sourceDir, scopeDir, outputDir, sourceVersion, sourceS
 		}
 	}
 
+	// The order WriteStateAt stores, so the comparison below is by content:
+	// in build order it never matched a written state.
+	slices.SortStableFunc(files, func(a, b domain.InstalledFile) int { return strings.Compare(a.Path, b.Path) })
 	newState := &domain.StateFile{
 		Collection:  OpenCodeCollection,
 		Version:     sourceVersion,

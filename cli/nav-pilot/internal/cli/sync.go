@@ -538,6 +538,10 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 		}
 	}
 
+	// A retired file the deletion pass already lists is not reported, counted
+	// or removed twice.
+	retired = withoutDeleted(scope, retired, deletedPaths)
+
 	// A source that ships nothing at all is a broken source, not one that
 	// retired everything: a wrong --ref, an empty branch, a layout pointing at
 	// empty directories. Reading it as "deleted upstream" would remove every
@@ -748,7 +752,6 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 	// files the state file tracks: these are untracked leftovers the ordinary
 	// delete path cannot see, and the only reason they can be removed at all is
 	// that their bytes match a revision the source published (#716).
-	retired = withoutDeleted(scope, retired, deletedPaths)
 	if len(retired) > 0 {
 		reportRetired(retired, apply)
 	}

@@ -1,3 +1,0 @@
-#!/bin/bash
-echo "mock chmod $1 $2"
-exit 0

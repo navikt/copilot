@@ -9,12 +9,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **OpenCode-plugins**: Spørsmålet om repoets egne plugins sier nå at nei, som er standard, også slår av repoets `AGENTS.md`, agenter og skills. Uten terminal viser `nav-pilot plugins` svaret du har gitt, og avslutter uten feil. Har du ikke svart, feiler den som før.
 - **`nav-pilot pakke access`**: Uten terminal viser kommandoen et nei du allerede har gitt, og avslutter uten feil. Bare et ubesvart spørsmål gir feil.
 - **Tilgang uten terminal**: Når en installasjon eller synkronisering uten terminal ikke kan spørre om tilgangen agentpakken ber om, står det én linje som ender med `nav-pilot pakke access`. Linja kommer én gang per versjon av forespørselen, ikke ved hver kjøring. cplt-kommandoene vises bare med `--verbose`.
-- **`nav-pilot sync` for OpenCode og pi**: Er det ingenting å gjøre, står det «scope up to date». Merknaden om skills og agenter speilet fra repoets `.github/` vises bare med `--verbose`.
+- **`nav-pilot sync` for OpenCode og pi**: Er det ingenting å gjøre, står det «scope up to date»; før pekte sjekken alltid på `--apply`. Merknaden om skills og agenter speilet fra repoets `.github/` vises bare med `--verbose`.
 - **Pensjonerte artefakter**: `nav-pilot sync` viser én linje per artefakt, for eksempel «skills/aksel-spacing is retired; replaced by aksel-builder», ikke én per fil. En fil som allerede står blant filene som er slettet i kilden, vises ikke to ganger. Med `--apply` vises ikke forhåndsvisningen igjen før filene fjernes.
-- **OpenCode 1**: Meldingen om å oppgradere til OpenCode 2 kommer én gang i uka fram til støtten slutter 19. november 2026. Når den vises, vises ikke advarselen om at versjonen er utenfor det som er testet. `nav-pilot doctor` viser begge.
+- **OpenCode 1**: Meldingen om å oppgradere til OpenCode 2 kommer én gang i uka fram til støtten slutter 19. november 2026. Ved start på OpenCode 1 kommer ikke lenger advarselen om at versjonen er utenfor det som er testet. `nav-pilot doctor` viser begge.
 - **`nav-pilot doctor`**: Sjekker OpenCode-artefaktene i `~/.config/opencode`, der `nav-pilot sync` legger dem, også på macOS.
 - **cplt-regler for repoet**: Etter `cplt init --write` i førstegangsoppsettet står det bare nav-pilots egen linje om hvordan du committer `.cplt.toml` og godkjenner reglene med `cplt trust accept`.
-- **Førstegangsoppsett**: Overskriften «nav-pilot — Nav's toolkit for coding agents» vises ikke en gang til rett etter oppsettet.
+- **Førstegangsoppsett**: Overskriften «nav-pilot — Nav's toolkit for coding agents» vises én gang, ikke en gang til rett etter oppsettet.
 - **`nav-pilot alpha local status`**: Viser hvordan du setter opp lokal kjøring, én gang, ikke to.
 
 ## 2026-10-24

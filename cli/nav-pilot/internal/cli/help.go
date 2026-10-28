@@ -149,7 +149,7 @@ Show this repo's own OpenCode plugins and answer again whether to load them.
 It lists the plugins, shows your answer, and asks again. Enter declines. A no
 turns off everything OpenCode 2 reads from the repo: opencode.json, plugins,
 agents, commands, skills and AGENTS.md. Without a terminal it prints the
-state, and exits non-zero only when the plugins are not answered yet.
+state, and exits non-zero only when there is no answer yet.
 `,
 	"mcp": `Usage: nav-pilot mcp [list] [--json]
        nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]

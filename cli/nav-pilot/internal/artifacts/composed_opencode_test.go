@@ -327,3 +327,32 @@ func TestComposedOpenCodeRefusalsDoNotWrite(t *testing.T) {
 		})
 	}
 }
+
+// A dry run's Unchanged says whether --apply would write anything, so an
+// edit that keeps the source SHA (a scope extra, here) still counts.
+func TestOpenCodeSyncReportUnchanged(t *testing.T) {
+	team, cleanup := composedOpenCodeFixture(t)
+	defer cleanup()
+	out, scope := t.TempDir(), t.TempDir()
+	mustWrite(t, filepath.Join(scope, "skills/scope-extra/SKILL.md"), "scope extra")
+	mustWrite(t, filepath.Join(scope, "instructions/repo.instructions.md"), "repo-only instruction")
+	if r, err := SyncOpenCodeArtifactsReport("opencode", team, scope, out, "fixture", "team-sha", team, true); err != nil || r.Unchanged {
+		t.Fatalf("first dry run: %+v, %v", r, err)
+	}
+	if _, err := SyncOpenCodeArtifactsReport("opencode", team, scope, out, "fixture", "team-sha", team, false); err != nil {
+		t.Fatal(err)
+	}
+	if r, err := SyncOpenCodeArtifactsReport("opencode", team, scope, out, "fixture", "team-sha", team, true); err != nil || !r.Unchanged {
+		t.Fatalf("dry run after apply: %+v, %v", r, err)
+	}
+	// A scope extra (a skill dir) and a source file, both without a new SHA.
+	for _, edit := range []string{filepath.Join(scope, "skills/scope-extra/SKILL.md"), filepath.Join(team, "content/agents/team-persona.agent.md")} {
+		mustWrite(t, edit, "---\ndescription: edited\n---\nedited")
+		if r, err := SyncOpenCodeArtifactsReport("opencode", team, scope, out, "fixture", "team-sha", team, true); err != nil || r.Unchanged {
+			t.Fatalf("%s edited, dry run: %+v, %v", edit, r, err)
+		}
+		if _, err := SyncOpenCodeArtifactsReport("opencode", team, scope, out, "fixture", "team-sha", team, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

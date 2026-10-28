@@ -291,7 +291,7 @@ func askOpenCodePluginSet(set openCodePluginSet) bool {
 	if len(short) > 3 {
 		short = append(slices.Clone(short[:3]), "…")
 	}
-	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. No also turns off this repo's AGENTS.md, agents and skills. [y/N] ", len(set.names), strings.Join(short, ", ")))
+	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills. [y/N] ", len(set.names), strings.Join(short, ", ")))
 	recordOpenCodePluginAnswer(set.key, openCodePluginAnswer{Hash: set.sum, Allow: allow})
 	return allow
 }

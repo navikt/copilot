@@ -21,7 +21,7 @@ func pluginTrustSetup(t *testing.T, tty bool, answer *bool) (string, *int) {
 	openCodePluginsTTY = func() bool { return tty }
 	askOpenCodePlugins = func(p string) bool {
 		*asked++
-		if !strings.Contains(p, "This repo has its own OpenCode plugins (") || !strings.Contains(p, "Load them? They run with the same access as the agent. No also turns off this repo's AGENTS.md, agents and skills.") {
+		if !strings.Contains(p, "This repo has its own OpenCode plugins (") || !strings.Contains(p, "Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills.") {
 			t.Errorf("prompt %q", p)
 		}
 		return *answer

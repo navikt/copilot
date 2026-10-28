@@ -10,9 +10,8 @@ import (
 )
 
 // TestOpenCode1Notice: the opencode 1 nudge is said once a week and once per
-// version, never on
-// opencode 2, and names the date, the one-way migration, the new login,
-// bubblewrap and the install command.
+// version, never on opencode 2, and names the date, the one-way migration,
+// the new login, bubblewrap and the install command.
 func TestOpenCode1Notice(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
 	t.Cleanup(func() { versionCache.Delete("opencode") })

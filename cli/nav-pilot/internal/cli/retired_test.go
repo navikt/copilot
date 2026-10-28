@@ -663,9 +663,10 @@ func TestReportRetiredOneLinePerArtifact(t *testing.T) {
 		{Path: "skills/old/SKILL.md", Local: "/r/.github/skills/old/SKILL.md", Artifact: "skills/old", Replacement: "new"},
 		{Path: "skills/old/references/a.md", Local: "/r/.github/skills/old/references/a.md", Artifact: "skills/old", Replacement: "new"},
 		{Path: "agents/gone.agent.md", Local: "/r/.github/agents/gone.agent.md", Artifact: "agents/gone.agent.md"},
-	}, []string{".github/agents/gone.agent.md"})
+		{Path: "skills/tracked/SKILL.md", Local: "/r/.github/skills/tracked/SKILL.md", Artifact: "skills/tracked"},
+	}, []string{".github/agents/gone.agent.md", ".github/skills/tracked/"})
 	out := captureStdout(func() { reportRetired(orphans, false) })
-	if strings.Count(out, "skills/old") != 1 || strings.Contains(out, "gone.agent.md") || !strings.Contains(out, "1 artifact(s) retired") {
+	if strings.Count(out, "skills/old") != 1 || strings.Contains(out, "gone.agent.md") || strings.Contains(out, "skills/tracked") || !strings.Contains(out, "1 artifact(s) retired") {
 		t.Errorf("check output:\n%s", out)
 	}
 	if out := captureStdout(func() { reportRetired(orphans, true) }); out != "" {

@@ -273,12 +273,19 @@ func reportRetired(orphans []retiredOrphan, apply bool) {
 
 // withoutDeleted drops the retired files the ordinary deletion pass already
 // lists, so one file is not reported twice.
+// A deleted skill is listed as its directory ("…/skills/old/"); the retired
+// record names the files under it.
 func withoutDeleted(scope *InstallScope, orphans []retiredOrphan, deleted []string) []retiredOrphan {
-	gone := map[string]bool{}
-	for _, p := range deleted {
-		gone[filepath.Join(scope.RootDir, p)] = true
-	}
-	return slices.DeleteFunc(orphans, func(o retiredOrphan) bool { return gone[filepath.Clean(o.Local)] })
+	return slices.DeleteFunc(orphans, func(o retiredOrphan) bool {
+		local := filepath.Clean(o.Local)
+		for _, p := range deleted {
+			full := filepath.Join(scope.RootDir, p)
+			if local == full || (strings.HasSuffix(p, "/") && strings.HasPrefix(local, full+string(filepath.Separator))) {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 // ignoredButInstalled lists artifacts the state marks as ignored while the file
