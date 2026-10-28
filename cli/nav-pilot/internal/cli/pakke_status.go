@@ -280,7 +280,7 @@ func cmdPakkeAccess(scope *InstallScope, scopeProvided bool) error {
 		// A recorded decline is an answer: say it and succeed. Only an
 		// unanswered question needs the terminal it cannot get here.
 		if answer == accessDeclined {
-			fmt.Printf("Access: %s — declined. Run nav-pilot pakke access in a terminal to allow it.\n", access)
+			fmt.Printf("Access: %s — declined. Run nav-pilot pakke access%s in a terminal to allow it.\n", access, scopeArgs(scope))
 			return nil
 		}
 		return fmt.Errorf("nav-pilot pakke access needs a terminal to ask in. It would ask: Let the agent %s?", access)
