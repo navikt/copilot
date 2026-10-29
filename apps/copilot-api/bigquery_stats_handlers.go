@@ -487,3 +487,17 @@ func (h *BigQueryHandlers) handleRepositoryUsage(w http.ResponseWriter, r *http.
 	cacheControl(w, 3600, false)
 	respondJSON(w, repositories, http.StatusOK)
 }
+
+// handleClientUsage handles GET /api/v1/copilot/usage/clients
+// Cache: 1 hour. Requests and sessions per client, last 28 days.
+func (h *BigQueryHandlers) handleClientUsage(w http.ResponseWriter, r *http.Request) {
+	clients, err := h.bqClient.GetClientUsage(r.Context())
+	if err != nil {
+		slog.Error("Failed to fetch client usage", "error", err)
+		respondError(w, "internal_error", "Failed to fetch client usage", http.StatusInternalServerError)
+		return
+	}
+
+	cacheControl(w, 3600, false)
+	respondJSON(w, clients, http.StatusOK)
+}

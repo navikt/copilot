@@ -20,6 +20,7 @@ var views = []viewDefinition{
 	{name: "v_daily_summary", filename: "views/v_daily_summary.sql"},
 	{name: "v_language_stats", filename: "views/v_language_stats.sql"},
 	{name: "v_editor_stats", filename: "views/v_editor_stats.sql"},
+	{name: "v_client_stats", filename: "views/v_client_stats.sql"},
 	{name: "v_model_stats", filename: "views/v_model_stats.sql"},
 	{name: "v_code_generation", filename: "views/v_code_generation.sql"},
 	{name: "v_team_daily_summary", filename: "views/v_team_daily_summary.sql"},

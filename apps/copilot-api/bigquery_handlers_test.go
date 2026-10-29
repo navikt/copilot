@@ -72,6 +72,8 @@ type mockBigQueryClient struct {
 	usageDistribution    *UsageDistribution
 	usageDistErr         error
 	repositoryUsage      []RepositoryUsage
+	clientUsage          []ClientUsage
+	clientUsageErr       error
 	repositoryUsageErr   error
 	creditsPerUser       []CreditsPerUserMonth
 	creditsPerUserErr    error
@@ -392,6 +394,10 @@ func (m *mockBigQueryClient) GetUsageDistribution(_ context.Context, _ string, _
 
 func (m *mockBigQueryClient) GetRepositoryUsage(_ context.Context) ([]RepositoryUsage, error) {
 	return m.repositoryUsage, m.repositoryUsageErr
+}
+
+func (m *mockBigQueryClient) GetClientUsage(_ context.Context) ([]ClientUsage, error) {
+	return m.clientUsage, m.clientUsageErr
 }
 
 func (m *mockBigQueryClient) GetCreditsPerUserMonthly(_ context.Context) ([]CreditsPerUserMonth, error) {
@@ -797,6 +803,20 @@ func TestHandleNewStatsEndpoints(t *testing.T) {
 			mock:       &mockBigQueryClient{repositoryUsageErr: errors.New("bq")},
 			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/repositories", nil),
 			handle:     (*BigQueryHandlers).handleRepositoryUsage,
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "client usage success",
+			mock:       &mockBigQueryClient{clientUsage: []ClientUsage{{Client: "some_new_client", Requests: 12, Sessions: 3}}},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/clients", nil),
+			handle:     (*BigQueryHandlers).handleClientUsage,
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "client usage error",
+			mock:       &mockBigQueryClient{clientUsageErr: errors.New("bq")},
+			req:        httptest.NewRequest(http.MethodGet, "/api/v1/copilot/usage/clients", nil),
+			handle:     (*BigQueryHandlers).handleClientUsage,
 			wantStatus: http.StatusInternalServerError,
 		},
 		{

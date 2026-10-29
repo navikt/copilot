@@ -38,6 +38,7 @@ func TestViewDefinitions(t *testing.T) {
 		"v_daily_summary",
 		"v_language_stats",
 		"v_editor_stats",
+		"v_client_stats",
 		"v_model_stats",
 		"v_code_generation",
 		"v_team_daily_summary",
