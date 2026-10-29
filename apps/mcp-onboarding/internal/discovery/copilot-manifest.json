@@ -767,7 +767,7 @@
       "displayName": "nav-architecture-review",
       "description": "Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav",
       "filePath": "skills/nav-architecture-review/SKILL.md",
-      "contentHash": "b7fef9651f11bd3ce4a9e28a2be36cba6ce5f735cb82e3b2fab2a776c531f98e",
+      "contentHash": "dcd16f8de893353aad05a64a8198edf15491cf8251bcb928e78387d6498778b5",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-architecture-review/SKILL.md",
       "references": [

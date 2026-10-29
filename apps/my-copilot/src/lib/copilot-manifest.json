@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-29T09:53:37.234Z",
+  "generatedAt": "2026-10-29T10:01:38.236Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1301,7 +1301,7 @@
       "filePath": "skills/nav-architecture-review/SKILL.md",
       "repoPath": "skills/nav-architecture-review/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-architecture-review/SKILL.md",
-      "contentHash": "b7fef9651f11bd3ce4a9e28a2be36cba6ce5f735cb82e3b2fab2a776c531f98e",
+      "contentHash": "dcd16f8de893353aad05a64a8198edf15491cf8251bcb928e78387d6498778b5",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["architecture", "adr", "review", "planning", "nav-pilot"],
