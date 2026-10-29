@@ -138,7 +138,7 @@ oppgi hva som ikke er undersøkt, og foreslå trygge tester. Ikke kjør pentest.
 ```
 
 ```text
-Bruk nav-auth og tokenx-auth. Sjekk at alle endepunkter i denne Ktor-appen
+Bruk nav-auth. Sjekk at alle endepunkter i denne Ktor-appen
 validerer token med riktig audience og issuer, og at kall videre bruker
 token exchange i stedet for å sende brukerens token videre.
 ```
