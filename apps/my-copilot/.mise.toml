@@ -5,9 +5,10 @@ fnox = "latest"
 
 [env]
 GITHUB_ORG = "navikt"
-# .npmrc needs it for @nais/apm on GitHub Packages. Empty when gh is logged
-# out, so mise still works; pnpm then fails only if @nais/apm is not cached.
-GITHUB_PACKAGES_TOKEN = "{{ exec(command='gh auth token 2>/dev/null || true') }}"
+# .npmrc needs it for @nais/apm on GitHub Packages. CI sets it from
+# github.token, which must win; locally it comes from gh. Empty when gh is
+# logged out, so mise still works; pnpm then fails only if @nais/apm is not cached.
+GITHUB_PACKAGES_TOKEN = "{{ get_env(name='GITHUB_PACKAGES_TOKEN', default=exec(command='gh auth token 2>/dev/null || true')) }}"
 GCP_TEAM_PROJECT_ID = "copilot-dev-e17a"
 DEV_USER_GROUPS = "48120347-8582-4329-8673-7beb3ed6ca06"
 VIDEO_BUCKET_PUBLIC_DEV = "copilot-videos-public-dev"
