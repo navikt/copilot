@@ -37,6 +37,7 @@ on:
       - 'apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx'
       - 'apps/copilot-survey/surveys/schema.json'
       - 'scripts/install.sh'
+      - 'scripts/publish-release.sh'
       - 'scripts/*.bats'
       - '.github/workflows/copilot-customization-sync.yml'
       - 'skills/**'
@@ -163,7 +164,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: ShellCheck
-        run: shellcheck scripts/install.sh skills/*/*.sh
+        run: shellcheck scripts/install.sh scripts/publish-release.sh skills/*/*.sh
 
   bats:
     name: Unit Test install.sh
@@ -183,7 +184,7 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
+        run: mise exec -- bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
 
   e2e-install:
     name: E2E test install.sh

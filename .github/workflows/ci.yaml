@@ -156,6 +156,7 @@ jobs:
               - 'apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx'
               - 'apps/copilot-survey/surveys/schema.json'
               - 'scripts/install.sh'
+              - 'scripts/publish-release.sh'
               - 'scripts/*.bats'
               - '.github/workflows/copilot-customization-sync.yml'
               - 'skills/**'
@@ -534,7 +535,7 @@ jobs:
       - name: Local dashboard is generated
         run: python3 scripts/build-local-dashboard.py --check
       - name: ShellCheck
-        run: shellcheck scripts/install.sh skills/*/*.sh
+        run: shellcheck scripts/install.sh scripts/publish-release.sh skills/*/*.sh
       - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # ratchet:jdx/mise-action@v5.2.3
         with:
           experimental: true
@@ -545,7 +546,7 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
+        run: mise exec -- bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
       - name: Benchmark checks (offline)
         run: mise run benchmark:check
 

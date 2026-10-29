@@ -237,17 +237,15 @@ jobs:
             echo "${EOF_DELIM}"
           } >> "$GITHUB_OUTPUT"
 
+      # Draft, upload with retries, verify, then publish; a failure deletes the
+      # draft so clients never see a half-uploaded release (#2056).
       - name: Create release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        with:
-          tag_name: ${{ needs.prepare.outputs.tag }}
-          target_commitish: ${{ needs.prepare.outputs.commit_sha }}
-          name: ${{ needs.prepare.outputs.title }}
-          body: ${{ steps.notes.outputs.body }}
-          make_latest: true
-          fail_on_unmatched_files: true
-          files: |
-            artifacts/nav-pilot-*
-            artifacts/nav-pilot_*.deb
-            artifacts/SHA256SUMS
-
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: ${{ steps.notes.outputs.body }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          SHA: ${{ needs.prepare.outputs.commit_sha }}
+          TITLE: ${{ needs.prepare.outputs.title }}
+        run: |
+          printf '%s\n' "$BODY" > "$RUNNER_TEMP/notes.md"
+          scripts/publish-release.sh "$TAG" "$SHA" "$TITLE" "$RUNNER_TEMP/notes.md" artifacts
