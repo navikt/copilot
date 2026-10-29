@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-29
 
+### `mcp enable` spør cplt om Nais-innloggingen
+
+- **`nav-pilot mcp enable`**: Sjekker nå om du er logget inn i Nais gjennom cplt, slik `mcp list` gjør. Før kjørte nav-pilot `nais auth print-access-token` direkte på maskinen din, utenfor sandkassen. nav-pilot sjekker selv bare når cplt ikke svarer (#2058).
+
 ### Nais-veiledningen følger Nais-dokumentasjonen
 
 - **`nais`-skillen og `nais-manifest`-prompten**: Viser nå `accessPolicy.outbound.external`. Uten den slipper ikke appen ut til hosts utenfor clusteret.
