@@ -1056,6 +1056,7 @@ func launchClient(resolved ResolvedConfig) (err error) {
 	maybeTrustNudge(resolved.ProjectDir)
 	offerLeaveStrict()
 	noteMCPHostConsent(resolved.Client, false)
+	probeMCPLoopback(os.Stderr, "", resolved.Client)
 	handled, err := tryPakkeLaunch(resolved)
 	if err != nil {
 		return err

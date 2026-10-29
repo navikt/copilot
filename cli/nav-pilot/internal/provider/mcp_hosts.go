@@ -65,6 +65,7 @@ type MCPHost struct {
 // Never granted: the user opens the port in cplt themselves.
 type MCPLoopback struct {
 	Server string
+	Host   string // as the registry wrote it: localhost, 127.0.0.1 or ::1
 	Port   string
 }
 
@@ -159,8 +160,8 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 			if port == "" {
 				port = map[string]string{"http": "80", "https": "443"}[u.Scheme]
 			}
-			if !slices.Contains(loopback, MCPLoopback{server, port}) {
-				loopback = append(loopback, MCPLoopback{server, port})
+			if !slices.Contains(loopback, MCPLoopback{server, host, port}) {
+				loopback = append(loopback, MCPLoopback{server, host, port})
 			}
 			return
 		}
