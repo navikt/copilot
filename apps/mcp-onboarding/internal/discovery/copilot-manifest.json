@@ -661,9 +661,9 @@
       "type": "skill",
       "name": "dependency-upgrade",
       "displayName": "dependency-upgrade",
-      "description": "Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, og hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem",
+      "description": "Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem, sett opp Dependabot-grupper i .github/dependabot.yml, og finn og fjern ubrukte avhengigheter",
       "filePath": "skills/dependency-upgrade/SKILL.md",
-      "contentHash": "4de1d4b6129e2fc13d0035e9f26686f64da64c32c3517168fddaadc96399daf8",
+      "contentHash": "e46b209657823e94ecd457cb4f8bd5f162dac7ae27827021e3eb59e72d2fc259",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/dependency-upgrade/SKILL.md"
     },
