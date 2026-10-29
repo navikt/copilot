@@ -134,10 +134,12 @@ if [[ -z "$VERSION" ]]; then
           if (missing != "") print "→ " missing " has no " asset " or SHA256SUMS yet, so installing " tag > "/dev/stderr"
           print tag; done = 1; exit
         }
-        /(^|[^\\])"tag_name": *"/ { emit(); tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); skip = 0; has = 0; sums = 0 }
+        /(^|[^\\])"tag_name": *"/ { emit(); tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); skip = 0; has = 0; sums = 0; inassets = 0 }
         /(^|[^\\])"(draft|prerelease)": *true/ { skip = 1 }
-        $0 ~ "(^|[^\\\\])\"name\": *\"" asset "\"" { has = 1 }
-        /(^|[^\\])"name": *"SHA256SUMS"/ { sums = 1 }
+        # Only names in assets[] count, not the release title before it.
+        /(^|[^\\])"assets": *\[/ { inassets = 1 }
+        inassets && $0 ~ "(^|[^\\\\])\"name\": *\"" asset "\"" { has = 1 }
+        inassets && /(^|[^\\])"name": *"SHA256SUMS"/ { sums = 1 }
         END { emit() }')
   set -o pipefail
   if [[ -n "$RELEASES" && -z "$VERSION" ]]; then

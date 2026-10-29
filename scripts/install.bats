@@ -195,7 +195,7 @@ release_fixture() {
 [
   {
     "tag_name": "nav-pilot/2026.03.02-partial",
-    "name": "nav-pilot-linux-amd64-notes",
+    "name": "nav-pilot-linux-amd64",
     "body": "\"name\": \"nav-pilot-linux-amd64\"",
     "draft": false,
     "prerelease": false,
