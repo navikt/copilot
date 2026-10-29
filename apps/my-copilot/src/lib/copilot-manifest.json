@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-29T10:01:38.236Z",
+  "generatedAt": "2026-10-29T11:14:45.841Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -852,7 +852,7 @@
       "filePath": ".github/prompts/nais-manifest.prompt.md",
       "repoPath": "prompts/nais-manifest.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md",
-      "contentHash": "df650deedb8cf0f024d5b9fb51cb78979a6a1ffd5e52cd9b24609a82359429ae",
+      "contentHash": "4501bfb691da7fae33753f3127049189e328214e65509437a5ff675160b14eab",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnais-manifest.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnais-manifest.prompt.md",
       "invocation": "#nais-manifest",
@@ -1287,7 +1287,7 @@
       "filePath": "skills/nais/SKILL.md",
       "repoPath": "skills/nais/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nais/SKILL.md",
-      "contentHash": "4c18e5e288ec0a3af2d48155e47bc63cec23989c0a326856172dfec57015a950",
+      "contentHash": "4d8aa55be210c7d118fd7eb1c56e4d4fe933e2109ddf47b17203fa28d19cedd0",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["nais", "kubernetes", "deployment", "gcp", "infrastructure", "troubleshooting"]
@@ -1549,7 +1549,7 @@
       "filePath": "skills/observability-setup/SKILL.md",
       "repoPath": "skills/observability-setup/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/SKILL.md",
-      "contentHash": "119e9d2580b373d14fd5435e8737a716a919dea28f27c2b51a9a5d8b6add63ce",
+      "contentHash": "41d01bbe976c5bb84cae44fe915d13ce42a55b8b6202dd3658ac9437198edb76",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["prometheus", "opentelemetry", "health", "metrics"],
@@ -1903,7 +1903,7 @@
       "filePath": "skills/tokenx-auth/SKILL.md",
       "repoPath": "skills/tokenx-auth/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/tokenx-auth/SKILL.md",
-      "contentHash": "efa91db0fb79778288ad17a1ef0b8a6e8437cc73912be0a40dc513554921e201",
+      "contentHash": "643235e2538fad09ee09e6f6dd22d3d4b681a6dc38c64fb2f692e4331a952985",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["tokenx", "auth", "service-to-service", "nais"],
