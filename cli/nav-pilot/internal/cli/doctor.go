@@ -358,6 +358,16 @@ func doctorChecks() bool {
 	if !reportCopilotCLI() {
 		hasErrors = true
 	}
+	// The persona is pinned by nav-pilot itself, not by user configuration:
+	// copilotLaunchArgs unconditionally emits `cplt --agent copilot --
+	// --agent nav-pilot` on every launch. There is nothing to check and
+	// nothing for the user to set.
+	//
+	// This previously grepped `cplt config show` for "nav-pilot". cplt has
+	// no such key, so the check always failed and pointed users at
+	// `cplt config set copilot.agent_name nav-pilot` — a key that has never
+	// existed in cplt, which rejects it with "unknown config key" (#406).
+	fmt.Printf("      %s Agent pinned to %s at launch\n", green("✓"), providerpkg.PrimaryAgent("copilot"))
 
 	// cplt
 	fmt.Printf("    • cplt (sandbox)\n")
@@ -422,16 +432,6 @@ func doctorChecks() bool {
 		reportMCPHostsWith(os.Stdout, cpltPath, mcpRefresh)
 		reportMCPTools(os.Stdout)
 
-		// The persona is pinned by nav-pilot itself, not by user configuration:
-		// copilotLaunchArgs unconditionally emits `cplt --agent copilot --
-		// --agent nav-pilot` on every launch. There is nothing to check and
-		// nothing for the user to set.
-		//
-		// This previously grepped `cplt config show` for "nav-pilot". cplt has
-		// no such key, so the check always failed and pointed users at
-		// `cplt config set copilot.agent_name nav-pilot` — a key that has never
-		// existed in cplt, which rejects it with "unknown config key" (#406).
-		fmt.Printf("      %s Agent pinned to %s at launch\n", green("✓"), providerpkg.PrimaryAgent("copilot"))
 	}
 
 	// opencode

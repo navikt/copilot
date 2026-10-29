@@ -659,7 +659,7 @@ func checkOpenCode2Launch(args []string) error {
 		return fmt.Errorf("opencode 2 runs under cplt on macOS and Linux only, and nav-pilot never launches a client outside cplt.\n\n  Install opencode 1: %s",
 			domain.Bold(OpenCode1InstallHint()))
 	}
-	if len(args) > 0 && args[0] == "attach" {
+	if openCodeFirstWord(args) == "attach" {
 		return fmt.Errorf("attach is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts")
 	}
 	for _, a := range args {
@@ -674,6 +674,30 @@ func checkOpenCode2Launch(args []string) error {
 		}
 	}
 	return checkOpenCode2Cplt()
+}
+
+// openCodeValueFlags are the opencode options that take a separate value, from
+// `opencode --help` and `opencode run --help` of v2.1.3.
+var openCodeValueFlags = map[string]bool{
+	"--server": true, "--session": true, "-s": true, "--prompt": true,
+	"--log-level": true, "--completions": true, "-m": true, "--model": true,
+	"--agent": true, "--format": true, "-f": true, "--file": true, "--title": true,
+}
+
+// openCodeFirstWord is the first argument that is neither a flag nor a flag's
+// value: the subcommand, when there is one. "--" ends the search.
+func openCodeFirstWord(args []string) string {
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--":
+			return ""
+		case openCodeValueFlags[a]:
+			i++
+		case !strings.HasPrefix(a, "-"):
+			return a
+		}
+	}
+	return ""
 }
 
 // checkOpenCode2Cplt refuses a cplt older than minOpenCode2CpltStamp. On a

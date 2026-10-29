@@ -77,7 +77,7 @@ func TestOpenCode2LiveDispatchGate(t *testing.T) {
 			if staged := strings.Contains(strings.Join(env, "\n"), `"plugins":["`); staged != gated {
 				t.Fatalf("bridge staged = %v, want %v: %v", staged, gated, env)
 			}
-			args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, []string{"run", "go"}, ""), env)
+			args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, nil, []string{"run", "go"}, ""), env)
 			out := runOpenCode2(t, oc, proj, args, env, cpltArgs, local...)
 			t.Logf("opencode run:\n%s", tail(out, 1500))
 
@@ -236,7 +236,7 @@ func TestOpenCode2LiveDispatchGateReminderInTurn(t *testing.T) {
 				}
 				mustWrite(t, p, off)
 			}
-			args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, []string{"run", "go"}, ""), env)
+			args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, nil, []string{"run", "go"}, ""), env)
 			out := runOpenCode2(t, oc, proj, args, env, cpltArgs, srv, guard.GateURL())
 			t.Logf("opencode run:\n%s", tail(out, 1500))
 			users := strings.Join(llm.userMessages(), "\n")

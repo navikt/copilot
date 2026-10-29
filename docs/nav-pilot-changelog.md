@@ -2,6 +2,14 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-10-29
+
+### Riktig rekkefølge for klientargumenter i OpenCode
+
+- **`--client-arg` med en OpenCode-underkommando**: `nav-pilot --client-arg --foo -- run "…"` sender nå `--foo` etter `run`, der OpenCode venter det. Før havnet flagget foran underkommandoen, og OpenCode tolket kommandoen feil. Du trenger ikke lenger flytte klientflaggene etter `--`.
+- **`attach` i OpenCode 2**: nav-pilot avviser `attach` også når det står flagg foran, som i `nav-pilot -- --auto attach …`. Før ble bare `attach` som første argument stoppet.
+- **`nav-pilot doctor`**: Linja om at agenten er låst ved oppstart står nå under Copilot, ikke under cplt.
+
 ## 2026-10-28
 
 ### Send flagg til klienten uten å miste menyen
