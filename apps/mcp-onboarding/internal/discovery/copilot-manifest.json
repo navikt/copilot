@@ -1075,7 +1075,7 @@
       "displayName": "tokenx-auth",
       "description": "Tjeneste-til-tjeneste-autentisering med TokenX token exchange i Nais",
       "filePath": "skills/tokenx-auth/SKILL.md",
-      "contentHash": "efa91db0fb79778288ad17a1ef0b8a6e8437cc73912be0a40dc513554921e201",
+      "contentHash": "ddaf7c3b68231985dd906b868a03aa83e05bc15dcd5d98c622af835fa158486f",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/tokenx-auth/SKILL.md"
     },

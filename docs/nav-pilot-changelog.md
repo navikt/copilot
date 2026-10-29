@@ -9,6 +9,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **`nais`-skillen og `nais-manifest`-prompten**: Viser nå `accessPolicy.outbound.external`. Uten den slipper ikke appen ut til hosts utenfor clusteret.
 - **`observability-setup`-skillen**: Varseleksemplene bruker `PrometheusRule` med `namespace`-label, slik Nais-dokumentasjonen gjør. `kind: Alert` finnes ikke lenger i Nais (#2031).
 
+### `tokenx-auth` bruker Texas
+
+- **Token exchange og validering**: Skillen viser nå hvordan du bytter og validerer TokenX-tokener gjennom Texas, tokensidecaren i Nais. Før lærte den deg å signere klient-assertions og verifisere JWT-er selv, i strid med `threat-model`. Vil du heller bruke et bibliotek, peker skillen til `token-validation-ktor` fra navikt/token-support (#2033).
+
 ### Riktig rekkefølge for klientargumenter i OpenCode
 
 - **`--client-arg` med en OpenCode-underkommando**: `nav-pilot --client-arg --foo -- run "…"` sender nå `--foo` etter `run`, der OpenCode leser det. Før havnet flagget foran underkommandoen, og OpenCode tolket kommandoen feil. Du trenger ikke lenger flytte klientflaggene etter `--`.
