@@ -72,9 +72,9 @@ type mockBigQueryClient struct {
 	usageDistribution    *UsageDistribution
 	usageDistErr         error
 	repositoryUsage      []RepositoryUsage
+	repositoryUsageErr   error
 	clientUsage          []ClientUsage
 	clientUsageErr       error
-	repositoryUsageErr   error
 	creditsPerUser       []CreditsPerUserMonth
 	creditsPerUserErr    error
 	copilotPRs           []CopilotPRMonth

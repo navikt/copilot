@@ -114,3 +114,18 @@ func TestBillingViewsAreCopilotOnly(t *testing.T) {
 		}
 	}
 }
+
+// TestClientStatsView guards the JSON paths and the enterprise filter in
+// v_client_stats; a typo in a path silently yields NULL counts.
+func TestClientStatsView(t *testing.T) {
+	data, err := viewsFS.ReadFile("views/v_client_stats.sql")
+	if err != nil {
+		t.Fatalf("could not read v_client_stats.sql: %v", err)
+	}
+	sql := string(data)
+	for _, want := range []string{"'$.totals_by_client'", "'$.request_count'", "'$.session_count'", "scope = 'enterprise'"} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("v_client_stats.sql must contain %s", want)
+		}
+	}
+}

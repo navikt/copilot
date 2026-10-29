@@ -302,13 +302,17 @@ async function Clients({ token }: { token: string }) {
     <>
       <BodyShort>
         Forespørsler og økter per verktøy de siste 28 dagene. Navnene er slik GitHub oppgir dem, for eksempel{" "}
-        <code>vscode</code>, <code>copilot_cli</code> og <code>opencode</code>. GitHub har målt dette siden 23. oktober
-        2026.
+        <code>vscode</code>, <code>copilot_cli</code> og <code>opencode</code>. GitHub har tall per verktøy fra 23.
+        oktober 2026, så fram til 20. november dekker summen færre enn 28 dager.
       </BodyShort>
       <PlainTable
         rows={[
           ["Verktøy", "Forespørsler", "Økter"],
-          ...clients.map((c) => [c.client, formatNumber(c.requests), formatNumber(c.sessions)]),
+          ...clients.map((c) => [
+            c.client === "other" ? "andre" : c.client,
+            formatNumber(c.requests),
+            formatNumber(c.sessions),
+          ]),
         ]}
       />
     </>
