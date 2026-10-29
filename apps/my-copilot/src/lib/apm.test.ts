@@ -1,4 +1,4 @@
-import { apmOptions, ignoreErrors, propagateExtraOrigins, scrubEvent } from "./apm";
+import { ignoreErrors, propagateExtraOrigins, scrubEvent } from "./apm";
 
 const matchesAny = (url: string) => propagateExtraOrigins.some((pattern) => pattern.test(url));
 
@@ -43,7 +43,11 @@ describe("scrubEvent", () => {
       meta: { page: { url: "https://ki-utvikling.nav.no/a/12345678901?id=1" } },
       payload: {
         name: "faro.navigation",
-        attributes: { fromUrl: "https://x.nav.no/b?u=2", toUrl: "https://x.nav.no/12345678901", toRoute: "/c/12345678901" },
+        attributes: {
+          fromUrl: "https://x.nav.no/b?u=2",
+          toUrl: "https://x.nav.no/12345678901",
+          toRoute: "/c/12345678901",
+        },
       },
     };
     const out = scrubEvent(event);

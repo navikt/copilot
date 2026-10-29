@@ -37,6 +37,8 @@ export async function SiteShell({
 
   return (
     <html lang={lang}>
+      {/* App Router root layout: a plain <head> is correct here; the rule targets pages/. */}
+      {/* eslint-disable-next-line @next/next/no-head-element */}
       <head>
         <NaisMetaTags />
       </head>

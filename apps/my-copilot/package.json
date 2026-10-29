@@ -24,6 +24,7 @@
   "dependencies": {
     "@headlessui/react": "2.2.10",
     "@icons-pack/react-simple-icons": "^13.15.1",
+    "@nais/apm": "0.7.3",
     "@navikt/aksel-icons": "8.20.0",
     "@navikt/ds-css": "^8.20.0",
     "@navikt/ds-react": "^8.20.0",
