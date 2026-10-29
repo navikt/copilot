@@ -110,7 +110,7 @@ export default { id: "nav-pilot-hooks", setup: async () => { fs.writeFileSync(%q
 	}
 
 	// The arguments a `nav-pilot -- run go` launch builds, rewritten for v2.
-	args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, []string{"run", "go"}, ""), env)
+	args, env := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build", "--auto", "--model", "fake/m", "--log-level", "WARN"}, nil, []string{"run", "go"}, ""), env)
 	t.Logf("opencode %s", strings.Join(args, " "))
 	out := runOpenCode2(t, oc, proj, args, env, append(cpltArgs, "--allow-read", work), srv.URL)
 	t.Logf("opencode run:\n%s", tail(out, 2000))

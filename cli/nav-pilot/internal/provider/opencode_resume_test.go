@@ -9,7 +9,7 @@ import (
 // and --agent move into the config (#1919).
 func TestOpenCodeV2ArgsKeepSessionFlags(t *testing.T) {
 	for _, flags := range [][]string{{"--session", "ses_1"}, {"--continue"}} {
-		args, _ := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build"}, flags, ""), nil)
+		args, _ := openCodeV2Args(openCodeClientArgs([]string{"--agent", "build"}, nil, flags, ""), nil)
 		if !slices.Equal(args[len(args)-len(flags):], flags) {
 			t.Errorf("%q: args = %q", flags, args)
 		}

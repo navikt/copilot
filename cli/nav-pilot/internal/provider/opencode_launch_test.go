@@ -1051,3 +1051,38 @@ func TestEnsureOpenCodeRuntimeGitignoreAcceptsResolvableSymlink(t *testing.T) {
 		t.Errorf("symlink target = %q, %v; want it untouched", got, err)
 	}
 }
+
+func TestOpenCodeAgentArgsClientArgs(t *testing.T) {
+	bind := []string{"--agent", "a"}
+	for _, c := range []struct {
+		client, dash, want []string
+	}{
+		{[]string{"--foo"}, nil, []string{"--agent", "a", "--foo"}},
+		{[]string{"--foo"}, []string{"x"}, []string{"--agent", "a", "--foo", "x"}},
+		{[]string{"--foo"}, []string{"run", "x"}, []string{"run", "--agent", "a", "--foo", "x"}},
+		{[]string{"--foo"}, []string{"--pure", "run", "x"}, []string{"--pure", "run", "--agent", "a", "--foo", "x"}},
+		{[]string{"--foo"}, []string{"session", "list"}, []string{"session", "--foo", "list"}},
+		{nil, []string{"run", "x"}, []string{"run", "--agent", "a", "x"}},
+	} {
+		r := domain.ResolvedConfig{ClientArgs: c.client, ExtraArgs: append(slices.Clone(c.client), c.dash...)}
+		client, dash := openCodeSplitArgs(r)
+		if got := openCodeClientArgs(bind, client, dash, ""); !slices.Equal(got, c.want) {
+			t.Errorf("client %v -- %v: got %v, want %v", c.client, c.dash, got, c.want)
+		}
+	}
+	// ExtraArgs no longer starting with ClientArgs: all of it counts as after --.
+	client, dash := openCodeSplitArgs(domain.ResolvedConfig{ClientArgs: []string{"--foo"}, ExtraArgs: []string{"run"}})
+	if client != nil || !slices.Equal(dash, []string{"run"}) {
+		t.Errorf("mismatch: client %v, dash %v", client, dash)
+	}
+	// The launch check sees the order opencode gets: `--client-arg -s -- attach
+	// --title x http://y` is `attach -s --title x http://y`, not `-s attach …`
+	// where -s would swallow the subcommand.
+	r := domain.ResolvedConfig{ClientArgs: []string{"-s"}, ExtraArgs: []string{"-s", "attach", "--title", "x", "http://y"}}
+	if got, want := openCodeUserArgs(r), []string{"attach", "-s", "--title", "x", "http://y"}; !slices.Equal(got, want) {
+		t.Errorf("openCodeUserArgs = %v, want %v", got, want)
+	}
+	if !openCodeAttachArg(openCodeUserArgs(r)) {
+		t.Error("attach after -- behind --client-arg -s not refused")
+	}
+}

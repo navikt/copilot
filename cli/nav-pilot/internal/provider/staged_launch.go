@@ -144,22 +144,42 @@ func openCodeRunArgs(forwarded []string) bool {
 	return len(forwarded) > 0 && (forwarded[0] == "run" || len(forwarded) > 1 && forwarded[0] == "--pure" && forwarded[1] == "run")
 }
 
-func openCodeClientArgs(bind, forwarded []string, variant string) []string {
+func openCodeClientArgs(bind, client, forwarded []string, variant string) []string {
 	if openCodeRunArgs(forwarded) && variant != "" {
 		bind = append(slices.Clone(bind), "--variant", variant)
 	}
 	switch {
 	case len(forwarded) == 0:
-		return bind
+		return slices.Concat(bind, client)
 	case forwarded[0] == "run":
-		return append(append([]string{"run"}, bind...), forwarded[1:]...)
+		return slices.Concat([]string{"run"}, bind, client, forwarded[1:])
 	case len(forwarded) > 1 && forwarded[0] == "--pure" && forwarded[1] == "run":
-		return append(append([]string{"--pure", "run"}, bind...), forwarded[2:]...)
+		return slices.Concat([]string{"--pure", "run"}, bind, client, forwarded[2:])
 	case openCodeSubcommands[forwarded[0]]:
-		return slices.Clone(forwarded)
+		return slices.Concat(forwarded[:1], client, forwarded[1:])
 	default:
-		return append(slices.Clone(bind), forwarded...)
+		return slices.Concat(bind, client, forwarded)
 	}
+}
+
+// openCodeSplitArgs splits ExtraArgs back into the --client-arg values and
+// the arguments after --, so a subcommand after -- is still seen first. An
+// ExtraArgs that no longer starts with ClientArgs is all treated as after --.
+func openCodeSplitArgs(r domain.ResolvedConfig) (client, forwarded []string) {
+	n := len(r.ClientArgs)
+	if n > len(r.ExtraArgs) || !slices.Equal(r.ClientArgs, r.ExtraArgs[:n]) {
+		return nil, r.ExtraArgs
+	}
+	return r.ExtraArgs[:n], r.ExtraArgs[n:]
+}
+
+// openCodeUserArgs is the user's arguments in the order opencode gets them,
+// which checkOpenCode2Launch must see: a subcommand after -- moves in front
+// of the --client-arg values, so `--client-arg -s -- attach …` is still
+// `attach -s …` to opencode.
+func openCodeUserArgs(r domain.ResolvedConfig) []string {
+	client, forwarded := openCodeSplitArgs(r)
+	return openCodeClientArgs(nil, client, forwarded, "")
 }
 
 // containsOption reports whether an argument vector carries an option, in
@@ -274,7 +294,8 @@ func buildStagedOpenCodeSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunc
 	if err := validatePayloadOpenCodeConfig(s.Dir); err != nil {
 		return cpltLaunch{}, err
 	}
-	agentArgs := openCodeClientArgs(bind, r.ExtraArgs, r.ReasoningEffort)
+	client, forwarded := openCodeSplitArgs(r)
+	agentArgs := openCodeClientArgs(bind, client, forwarded, r.ReasoningEffort)
 	cpltArgs := []string{"--allow-read", s.Dir, "--pass-env", "OPENCODE_CONFIG_DIR"}
 	cpltArgs = withDenyVoiceEnv(cpltArgs)
 	if openCodeMajor() >= 2 {
@@ -438,7 +459,7 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
 		return err
 	}
-	if err := checkOpenCode2Launch(r.ExtraArgs); err != nil {
+	if err := checkOpenCode2Launch(openCodeUserArgs(r)); err != nil {
 		reason := "client_unsupported"
 		if errors.Is(err, errCpltTooOld) {
 			reason = "cplt_too_old"

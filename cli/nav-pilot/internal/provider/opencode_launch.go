@@ -291,7 +291,8 @@ func OpenCodeArgs(resolved domain.ResolvedConfig) []string {
 // dropped on the floor: `nav-pilot -- run "…"` started the TUI with the request
 // discarded, which is a whole non-interactive dispatch thrown away in silence.
 func openCodeAgentArgs(resolved domain.ResolvedConfig) []string {
-	return openCodeClientArgs(OpenCodeArgs(resolved), resolved.ExtraArgs, resolved.ReasoningEffort)
+	client, forwarded := openCodeSplitArgs(resolved)
+	return openCodeClientArgs(OpenCodeArgs(resolved), client, forwarded, resolved.ReasoningEffort)
 }
 
 // OpenCodeUnsupportedConfigWarnings returns informational warning strings for
@@ -308,7 +309,8 @@ func OpenCodeUnsupportedConfigWarnings(r domain.ResolvedConfig) []string {
 	if !r.AskUser {
 		w = append(w, "ask_user = false has no opencode equivalent — ignored")
 	}
-	if r.ReasoningEffort != "" && !openCodeRunArgs(r.ExtraArgs) && (len(r.ExtraArgs) == 0 || !openCodeSubcommands[r.ExtraArgs[0]]) {
+	_, forwarded := openCodeSplitArgs(r)
+	if r.ReasoningEffort != "" && !openCodeRunArgs(forwarded) && (len(forwarded) == 0 || !openCodeSubcommands[forwarded[0]]) {
 		w = append(w, fmt.Sprintf("reasoning_effort = %q is not applied in the OpenCode TUI; select a variant there instead (anomalyco/opencode#7354).", r.ReasoningEffort))
 	}
 	return w
@@ -1105,7 +1107,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
 		return err
 	}
-	if err := checkOpenCode2Launch(resolved.ExtraArgs); err != nil {
+	if err := checkOpenCode2Launch(openCodeUserArgs(resolved)); err != nil {
 		reason := "client_unsupported"
 		if errors.Is(err, errCpltTooOld) {
 			reason = "cplt_too_old"

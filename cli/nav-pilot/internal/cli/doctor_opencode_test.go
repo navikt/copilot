@@ -26,7 +26,10 @@ func TestDoctorReportsOpenCode2Refusal(t *testing.T) {
 func TestDoctorOpenCodeContextUsesSyncDir(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", "")
+	// A relative XDG_CONFIG_HOME: the sync dir ignores it and uses
+	// ~/.config, while os.UserConfigDir fails on Linux and answers
+	// ~/Library/Application Support on macOS, so a regression to it fails on both.
+	t.Setenv("XDG_CONFIG_HOME", "relative-xdg")
 	dir := filepath.Join(home, ".config", "opencode")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)

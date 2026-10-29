@@ -787,8 +787,8 @@ starter ellers som vanlig, med meny, spørsmål og sync. Gjenta flagget for fler
 eksempel `--client-arg --model --client-arg gpt-5` eller `--client-arg=--model=gpt-5`. Argumentene
 kommer i den rekkefølgen du gir dem, etter flaggene nav-pilot setter selv og før argumentene etter
 `--`. Setter du et flagg nav-pilot også setter, som `--model`, vinner din verdi i klienter som
-bruker den siste verdien. Bruker du en OpenCode-underkommando etter `--`, som `run`, må
-klientflaggene også stå etter `--`. `nav-pilot -- <argumenter>` virker som før: klienten starter
+bruker den siste verdien. Bruker du en OpenCode-underkommando etter `--`, som `run`, kommer
+klientflaggene etter underkommandoen. `nav-pilot -- <argumenter>` virker som før: klienten starter
 med en gang, uten meny og uten sync.
 
 `--resume [id]` fortsetter en tidligere økt, og `--continue` fortsetter den siste. nav-pilot

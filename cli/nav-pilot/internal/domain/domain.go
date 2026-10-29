@@ -157,7 +157,10 @@ type ResolvedConfig struct {
 	// DashDash is true when arguments came after --: an explicit launch that
 	// runs headless when no terminal is attached. --client-arg alone is not.
 	DashDash bool
-	Session  SessionFlag // --resume / --continue, translated at launch
+	// ClientArgs are the --client-arg values, also at the start of ExtraArgs,
+	// so OpenCode can place them after a subcommand given after --.
+	ClientArgs []string
+	Session    SessionFlag // --resume / --continue, translated at launch
 	// CpltFlags are the cplt flags this launch adds for the session only:
 	// --allow-clipboard first, then each --cplt value in order.
 	CpltFlags []string
