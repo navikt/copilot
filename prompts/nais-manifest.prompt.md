@@ -170,6 +170,12 @@ spec:
       rules:
         - application: downstream-app
           namespace: downstream-namespace
+      # External hosts (optional - remove if the app calls nothing outside the cluster)
+      # Egress is blocked unless listed here or on the Nais default allow-list:
+      # https://doc.nais.io/workloads/reference/access-policies/
+      # host has no https://; add ports for protocols other than HTTPS.
+      external:
+        - host: api.example.com
 ```
 
 ## Follow-up

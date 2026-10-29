@@ -253,59 +253,70 @@ spec:
 Create `.nais/alert.yml`:
 
 ```yaml
-apiVersion: nais.io/v1
-kind: Alert
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
 metadata:
   name: my-app-alerts
   namespace: myteam
   labels:
     team: myteam
 spec:
-  receivers:
-    slack:
-      channel: "#team-alerts"
-      prependText: "@here "
-  alerts:
-    - alert: HighErrorRate
-      expr: |
-        (sum(rate(http_requests_total{app="my-app",status=~"5.."}[5m]))
-        / sum(rate(http_requests_total{app="my-app"}[5m]))) > 0.05
-      for: 5m
-      description: "Error rate is {{ $value | humanizePercentage }}"
-      action: "Check logs in Grafana Loki"
-      documentation: https://teamdocs/runbooks/high-error-rate
-      sla: "Respond within 15 minutes"
-      severity: critical
+  groups:
+    - name: my-app-alerts
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            (sum(rate(http_requests_total{app="my-app",status=~"5.."}[5m]))
+            / sum(rate(http_requests_total{app="my-app"}[5m]))) > 0.05
+          for: 5m
+          labels:
+            namespace: myteam # required
+            severity: critical
+          annotations:
+            summary: "Error rate is {{ $value | humanizePercentage }}"
+            consequence: "Users get errors"
+            action: "Check logs in Grafana Loki"
 
-    - alert: HighResponseTime
-      expr: |
-        histogram_quantile(0.95,
-          rate(http_request_duration_seconds_bucket{app="my-app"}[5m])
-        ) > 1
-      for: 10m
-      description: "95th percentile response time is {{ $value }}s"
-      action: "Check Tempo traces for slow requests"
-      severity: warning
+        - alert: HighResponseTime
+          expr: |
+            histogram_quantile(0.95,
+              rate(http_request_duration_seconds_bucket{app="my-app"}[5m])
+            ) > 1
+          for: 10m
+          labels:
+            namespace: myteam
+            severity: warning
+          annotations:
+            summary: "95th percentile response time is {{ $value }}s"
+            action: "Check Tempo traces for slow requests"
 
-    - alert: PodCrashLooping
-      expr: |
-        rate(kube_pod_container_status_restarts_total{
-          pod=~"my-app-.*"
-        }[15m]) > 0
-      for: 5m
-      description: "Pod {{ $labels.pod }} is crash looping"
-      action: "Check logs: kubectl logs {{ $labels.pod }}"
-      severity: critical
+        - alert: PodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total{
+              pod=~"my-app-.*"
+            }[15m]) > 0
+          for: 5m
+          labels:
+            namespace: myteam
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash looping"
+            action: "Check logs: kubectl logs {{ $labels.pod }}"
 
-    - alert: HighMemoryUsage
-      expr: |
-        (container_memory_working_set_bytes{app="my-app"}
-        / container_spec_memory_limit_bytes{app="my-app"}) > 0.9
-      for: 10m
-      description: "Memory usage is {{ $value | humanizePercentage }}"
-      action: "Check for memory leaks, increase limits if needed"
-      severity: warning
+        - alert: HighMemoryUsage
+          expr: |
+            (container_memory_working_set_bytes{app="my-app"}
+            / container_spec_memory_limit_bytes{app="my-app"}) > 0.9
+          for: 10m
+          labels:
+            namespace: myteam
+            severity: warning
+          annotations:
+            summary: "Memory usage is {{ $value | humanizePercentage }}"
+            action: "Check for memory leaks, increase limits if needed"
 ```
+
+Nais sends these to the team's default Slack channel. To use another channel, add an `AlertmanagerConfig` and label those rules `alert_type: custom`, or the default route posts them twice (see `apps/copilot-api/.nais/app.yaml` in navikt/copilot and the [Nais alerting docs](https://doc.nais.io/observability/alerting/how-to/prometheus-advanced/)).
 
 ## Complete Example
 
