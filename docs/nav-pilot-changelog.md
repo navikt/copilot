@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-29
 
+### Oppgradering og installasjon hopper over ufullstendige versjoner
+
+- **`nav-pilot upgrade` og `install.sh`**: Mangler den nyeste versjonen filen for maskinen din, får du den nyeste versjonen som har den. Én linje sier hvilken versjon som ble hoppet over. Før stoppet oppgraderingen med HTTP 404. Har ingen nyere versjon filen, står det hvilken plattform som mangler (#2057).
+
 ### Dev-registeret er ute av sandkassens tillatelsesliste
 
 - **`mcp-registry.ekstern.dev.nav.no`**: Copilot sjekker nå MCP-servere mot produksjonsregisteret, `mcp-registry.nav.no`. Dev-verten er derfor fjernet fra listen over Nav-domener sandkassen slipper gjennom, også fra lister nav-pilot har skrevet før (#896).

@@ -135,7 +135,7 @@ func TestExplicitUpdateIgnoresQuietPeriod(t *testing.T) {
 	stubStartupUpdate(t, current, fresh, false, domain.PkgBrew)
 	t.Setenv("PATH", t.TempDir())
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, fresh)
+		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}]}]`, fresh, platformAsset)
 	}))
 	t.Cleanup(srv.Close)
 	origAPI := releasesAPI
@@ -203,7 +203,7 @@ func TestAutoUpdateLeavesCpltAlone(t *testing.T) {
 	const current = "2026.09.10-065538-661d4c8"
 	stubStartupUpdate(t, current, "2026.09.12-080624-cfeafb1", true, domain.PkgNone)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, current)
+		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}]}]`, current, platformAsset)
 	}))
 	t.Cleanup(srv.Close)
 	origAPI, origCplt := releasesAPI, latestCpltVersion

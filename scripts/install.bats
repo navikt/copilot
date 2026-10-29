@@ -36,7 +36,7 @@ if [[ "$*" == *"api.github.com"* && -n "$MOCK_RELEASES" ]]; then
   cat "$MOCK_RELEASES"
   exit 0
 elif [[ "$*" == *"api.github.com"* ]]; then
-  write_out '{"tag_name": "nav-pilot/2026.01.01-mock"}'
+  write_out '[{"tag_name": "nav-pilot/2026.01.01-mock", "assets": [{"name": "nav-pilot-linux-amd64"}, {"name": "nav-pilot-darwin-arm64"}]}]'
   exit 0
 elif [[ "$*" == *"SHA256SUMS"* ]]; then
   write_out "dummyhash  nav-pilot-linux-amd64\ndummyhash  nav-pilot-darwin-arm64"
@@ -181,6 +181,59 @@ JSON
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"nav-pilot nav-pilot/2026.03.01-good (linux/amd64)"* ]]
+}
+
+# A release run that died mid-upload published a release without the Linux
+# binary (#2057). The newest release that has it is installed, with one line.
+# The control gives the newest release the binary and shows it is picked
+# then, so the skip comes from the missing asset alone.
+release_fixture() {
+  export MOCK_RELEASES="${TMP_DIR}/releases.json"
+  cat <<JSON > "$MOCK_RELEASES"
+[
+  {
+    "tag_name": "nav-pilot/2026.03.02-partial",
+    "name": "nav-pilot-linux-amd64-notes",
+    "body": "\"name\": \"nav-pilot-linux-amd64\"",
+    "draft": false,
+    "prerelease": false,
+    "assets": [{"name": "nav-pilot-darwin-arm64"}$1]
+  },
+  {
+    "tag_name": "nav-pilot/2026.03.01-good",
+    "draft": false,
+    "prerelease": false,
+    "assets": [{"name": "nav-pilot-darwin-arm64"}, {"name": "nav-pilot-linux-amd64"}]
+  }
+]
+JSON
+}
+
+@test "skips the newest release when it lacks this platform's binary" {
+  release_fixture ""
+  run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nav-pilot/2026.03.02-partial has no nav-pilot-linux-amd64 yet, so installing nav-pilot/2026.03.01-good"* ]]
+  [[ "$output" == *"nav-pilot nav-pilot/2026.03.01-good (linux/amd64)"* ]]
+}
+
+@test "control: the newest release is installed when it has the binary" {
+  release_fixture ', {"name": "nav-pilot-linux-amd64"}'
+  run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"has no"* ]]
+  [[ "$output" == *"nav-pilot nav-pilot/2026.03.02-partial (linux/amd64)"* ]]
+}
+
+@test "names the platform when no release has its binary" {
+  export MOCK_RELEASES="${TMP_DIR}/releases.json"
+  echo '[{"tag_name": "nav-pilot/2026.03.02-partial", "assets": [{"name": "nav-pilot-darwin-arm64"}]}]' > "$MOCK_RELEASES"
+  run bash "$SCRIPT" --dir "${TMP_DIR}/install-dest"
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"No recent nav-pilot release has nav-pilot-linux-amd64, the binary for linux/amd64"* ]]
 }
 
 # Homebrew on Linux resolves navikt/tap/cplt, which only ships macOS bottles.

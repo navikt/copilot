@@ -43,7 +43,13 @@ type ghRelease struct {
 	TagName    string `json:"tag_name"`
 	Draft      bool   `json:"draft"`
 	Prerelease bool   `json:"prerelease"`
+	Assets     []struct {
+		Name string `json:"name"`
+	} `json:"assets"`
 }
+
+// platformAsset is the release asset `nav-pilot upgrade` downloads here.
+var platformAsset = fmt.Sprintf("nav-pilot-%s-%s", runtime.GOOS, runtime.GOARCH)
 
 // releasesPage is where a user picks one nav-pilot version by hand.
 const releasesPage = "https://github.com/navikt/copilot/releases?q=nav-pilot"
@@ -120,10 +126,15 @@ func checkUpdate() error {
 var releaseCheckTimeout = 15 * time.Second
 
 // latestRelease looks up the newest nav-pilot release for an explicit upgrade.
-func latestRelease() (ver, tag string, err error) {
+// A newer release that lacks this platform's binary is skipped with one line
+// on stderr, so the user knows why the version is not the newest.
+func latestRelease() (string, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), releaseCheckTimeout)
 	defer cancel()
-	ver, tag, err = fetchLatestVersion(ctx)
+	ver, tag, skipped, err := fetchLatestRelease(ctx, releasesAPI, "nav-pilot/", platformAsset)
+	if skipped != "" && err == nil {
+		fmt.Fprintf(os.Stderr, "→ %s has no %s yet, so nav-pilot uses %s\n", skipped, platformAsset, tag)
+	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "", "", fmt.Errorf("could not check for updates: GitHub did not answer within %s. Try again later, or download nav-pilot from %s", releaseCheckTimeout, releasesPage)
 	}
@@ -185,7 +196,7 @@ func doUpdate(w io.Writer) (updated, current bool, err error) {
 		return false, false, fmt.Errorf("cannot resolve binary path: %w", err)
 	}
 
-	asset := fmt.Sprintf("nav-pilot-%s-%s", runtime.GOOS, runtime.GOARCH)
+	asset := platformAsset
 	assetURL := fmt.Sprintf("%s/%s/%s", downloadURL, tag, asset)
 	checksumURL := fmt.Sprintf("%s/%s/SHA256SUMS", downloadURL, tag)
 
@@ -253,38 +264,60 @@ func navPilotUpgradeCmd(m domain.PkgManager) string {
 // Returns the raw version (matching the build-injected format, e.g. "2026.04.13-170138-abc1234")
 // and the full tag (e.g. "nav-pilot/2026.04.13-170138-abc1234").
 func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error) {
-	return fetchLatestRelease(ctx, releasesAPI, "nav-pilot/")
+	ver, tag, _, err = fetchLatestRelease(ctx, releasesAPI, "nav-pilot/", platformAsset)
+	return ver, tag, err
 }
 
 // fetchLatestRelease returns the newest release from a GitHub releases API whose
 // tag carries prefix (empty prefix = the newest release, for repos that do not
 // prefix their tags). Drafts and prereleases are skipped: a token with write
-// access lists drafts first, and their assets are not downloadable. Returns the version (tag minus prefix) and the full tag.
-func fetchLatestRelease(ctx context.Context, api, prefix string) (ver string, tag string, err error) {
+// access lists drafts first, and their assets are not downloadable. When asset
+// is set, a release without an asset of that exact name is skipped too: a
+// release run that died mid-upload published one without it (#2057).
+// Returns the version (tag minus prefix), the full tag, and the newest tag
+// skipped for lacking the asset ("" when the newest release had it).
+func fetchLatestRelease(ctx context.Context, api, prefix, asset string) (ver, tag, skipped string, err error) {
 	resp, err := githubGet(ctx, api+"?per_page=20", "")
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", "", releaseCheckError(resp)
+		return "", "", "", releaseCheckError(resp)
 	}
 
 	var releases []ghRelease
 	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	for _, rel := range releases {
-		if !rel.Draft && !rel.Prerelease && strings.HasPrefix(rel.TagName, prefix) {
-			tag = rel.TagName
-			ver = strings.TrimPrefix(tag, prefix)
-			return ver, tag, nil
+		if rel.Draft || rel.Prerelease || !strings.HasPrefix(rel.TagName, prefix) {
+			continue
 		}
+		if asset != "" && !rel.hasAsset(asset) {
+			if skipped == "" {
+				skipped = rel.TagName
+			}
+			continue
+		}
+		return strings.TrimPrefix(rel.TagName, prefix), rel.TagName, skipped, nil
 	}
 
-	return "", "", fmt.Errorf("no release found with tag prefix %q", prefix)
+	if skipped != "" {
+		return "", "", "", fmt.Errorf("no recent nav-pilot release has %s, the binary for %s/%s. Try again later, or download nav-pilot from %s", asset, runtime.GOOS, runtime.GOARCH, releasesPage)
+	}
+	return "", "", "", fmt.Errorf("no release found with tag prefix %q", prefix)
+}
+
+func (r ghRelease) hasAsset(name string) bool {
+	for _, a := range r.Assets {
+		if a.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // releaseCheckError explains a failed release lookup. A rate limit says so,
@@ -354,7 +387,8 @@ func githubRequest(ctx context.Context, url, accept, token string) (*http.Respon
 var latestCpltVersion = func() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	ver, _, err := fetchLatestRelease(ctx, cpltReleasesAPI, "")
+	// Only the version is read here; nav-pilot never downloads cplt itself.
+	ver, _, _, err := fetchLatestRelease(ctx, cpltReleasesAPI, "", "")
 	return ver, err
 }
 
