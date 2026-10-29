@@ -28,7 +28,7 @@
             "classes": {"get_nais_context": "read", "execute_graphql": "read", "validate_graphql": "read", "schema_list_types": "read", "schema_get_type": "read", "schema_list_queries": "read", "schema_list_mutations": "read", "schema_get_field": "read", "schema_get_enum": "read", "schema_search": "read", "schema_get_implementors": "read", "schema_get_union_types": "read"}
           },
           "argChecks": {"execute_graphql": "graphql-read-only"},
-          "login": {"run": "nais login -n", "status": "nais auth print-access-token"}
+          "login": {"run": "nais login -n"}
         }
       },
       "examples": [

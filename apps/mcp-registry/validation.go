@@ -188,10 +188,9 @@ func validateBroker(b *BrokerExtension, tools []string, index int) error {
 	if !slices.Equal(b.Command, m.Command) {
 		return fmt.Errorf("%s.command: %s runs only %q", prefix, b.Credential, strings.Join(m.Command, " "))
 	}
-	// login.status may be anything or absent. allowlist.json still serves
-	// the old value, since nav-pilot builds before the relaxed check refuse
-	// an entry without it; remove it there once that release is widespread
-	// (navikt/copilot#1979).
+	// login.status may be anything or absent; nav-pilot probes with its own
+	// pinned command. Builds before 2026.10.24 refuse an entry without it and
+	// must be updated (navikt/copilot#1979).
 	if b.Login.Run != m.Login.Run {
 		return fmt.Errorf("%s.login.run: must be %q for %s (nav-pilot's pinned command)", prefix, m.Login.Run, b.Credential)
 	}

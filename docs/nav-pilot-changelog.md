@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-29
 
+### Nais MCP gjennom cplt krever nav-pilot fra 2026-10-24
+
+- **Nais MCP-oppføringen i registeret**: Oppføringen har ikke lenger feltet `login.status`. nav-pilot sjekker innloggingen med sin egen faste kommando. Bygg fra før 2026-10-24 avviser oppføringen. Kjør `nav-pilot upgrade` (#1979).
+
 ### Nais-veiledningen følger Nais-dokumentasjonen
 
 - **`nais`-skillen og `nais-manifest`-prompten**: Viser nå `accessPolicy.outbound.external`. Uten den slipper ikke appen ut til hosts utenfor clusteret.
