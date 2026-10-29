@@ -1107,7 +1107,7 @@ func LaunchOpenCode(resolved domain.ResolvedConfig) error {
 		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
 		return err
 	}
-	if err := checkOpenCode2Launch(resolved.ExtraArgs); err != nil {
+	if err := checkOpenCode2Launch(openCodeUserArgs(resolved)); err != nil {
 		reason := "client_unsupported"
 		if errors.Is(err, errCpltTooOld) {
 			reason = "cplt_too_old"

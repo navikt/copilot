@@ -659,8 +659,8 @@ func checkOpenCode2Launch(args []string) error {
 		return fmt.Errorf("opencode 2 runs under cplt on macOS and Linux only, and nav-pilot never launches a client outside cplt.\n\n  Install opencode 1: %s",
 			domain.Bold(OpenCode1InstallHint()))
 	}
-	if openCodeFirstWord(args) == "attach" {
-		return fmt.Errorf("attach is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts")
+	if openCodeAttachArg(args) {
+		return fmt.Errorf("attach is not allowed on opencode 2: it connects to a server outside the sandboxed session nav-pilot starts (a run message that starts with the word attach: quote it)")
 	}
 	for _, a := range args {
 		if a == "--" {
@@ -684,20 +684,34 @@ var openCodeValueFlags = map[string]bool{
 	"--agent": true, "--format": true, "-f": true, "--file": true, "--title": true,
 }
 
-// openCodeFirstWord is the first argument that is neither a flag nor a flag's
-// value: the subcommand, when there is one. "--" ends the search.
-func openCodeFirstWord(args []string) string {
+// openCodeAttachArg reports whether args, in the order opencode gets them,
+// could start its attach subcommand: a bare "attach" before "--" or before
+// another subcommand. The value of a flag in openCodeValueFlags is skipped.
+// Any other flag may still take the next word (a boolean takes a literal
+// true/false, an unknown flag takes anything), so that word cannot be trusted
+// to be the subcommand and the search goes on past it: refusing too much
+// (`--auto run attach …`) over missing `--auto false attach`.
+func openCodeAttachArg(args []string) bool {
+	afterFlag := false
 	for i := 0; i < len(args); i++ {
-		switch a := args[i]; {
+		a := args[i]
+		switch {
 		case a == "--":
-			return ""
+			return false
+		case a == "attach":
+			return true
 		case openCodeValueFlags[a]:
 			i++
-		case !strings.HasPrefix(a, "-"):
-			return a
+			afterFlag = false
+		case strings.HasPrefix(a, "-"):
+			afterFlag = true
+		case openCodeSubcommands[a] && !afterFlag:
+			return false // what follows belongs to that subcommand
+		default:
+			afterFlag = false
 		}
 	}
-	return ""
+	return false
 }
 
 // checkOpenCode2Cplt refuses a cplt older than minOpenCode2CpltStamp. On a

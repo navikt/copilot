@@ -1075,4 +1075,14 @@ func TestOpenCodeAgentArgsClientArgs(t *testing.T) {
 	if client != nil || !slices.Equal(dash, []string{"run"}) {
 		t.Errorf("mismatch: client %v, dash %v", client, dash)
 	}
+	// The launch check sees the order opencode gets: `--client-arg -s -- attach
+	// --title x http://y` is `attach -s --title x http://y`, not `-s attach …`
+	// where -s would swallow the subcommand.
+	r := domain.ResolvedConfig{ClientArgs: []string{"-s"}, ExtraArgs: []string{"-s", "attach", "--title", "x", "http://y"}}
+	if got, want := openCodeUserArgs(r), []string{"attach", "-s", "--title", "x", "http://y"}; !slices.Equal(got, want) {
+		t.Errorf("openCodeUserArgs = %v, want %v", got, want)
+	}
+	if !openCodeAttachArg(openCodeUserArgs(r)) {
+		t.Error("attach after -- behind --client-arg -s not refused")
+	}
 }

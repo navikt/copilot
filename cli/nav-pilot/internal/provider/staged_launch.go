@@ -173,6 +173,15 @@ func openCodeSplitArgs(r domain.ResolvedConfig) (client, forwarded []string) {
 	return r.ExtraArgs[:n], r.ExtraArgs[n:]
 }
 
+// openCodeUserArgs is the user's arguments in the order opencode gets them,
+// which checkOpenCode2Launch must see: a subcommand after -- moves in front
+// of the --client-arg values, so `--client-arg -s -- attach …` is still
+// `attach -s …` to opencode.
+func openCodeUserArgs(r domain.ResolvedConfig) []string {
+	client, forwarded := openCodeSplitArgs(r)
+	return openCodeClientArgs(nil, client, forwarded, "")
+}
+
 // containsOption reports whether an argument vector carries an option, in
 // either the "--opt value" or "--opt=value" spelling. Transcribed from the
 // reference launcher's _contains_option (grillmester.py lines 602-603 at
@@ -450,7 +459,7 @@ func LaunchOpenCodeStaged(r domain.ResolvedConfig, s StagedLaunch) error {
 		telemetryRecorder.RecordLaunchError("opencode", "client_unsupported")
 		return err
 	}
-	if err := checkOpenCode2Launch(r.ExtraArgs); err != nil {
+	if err := checkOpenCode2Launch(openCodeUserArgs(r)); err != nil {
 		reason := "client_unsupported"
 		if errors.Is(err, errCpltTooOld) {
 			reason = "cplt_too_old"
