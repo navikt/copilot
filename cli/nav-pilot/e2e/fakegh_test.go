@@ -71,7 +71,7 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 				fmt.Fprint(w, `{"message": "API rate limit exceeded"}`)
 				return
 			}
-			fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": "%s"}]}]`, fakeGHLatest, asset)
+			fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": "%s"}, {"name": "SHA256SUMS"}]}]`, fakeGHLatest, asset)
 		case "/repos/navikt/cplt/releases":
 			fmt.Fprint(w, `[{"tag_name": "2026.09.24-192459-38642b4"}]`)
 		case dl + asset:

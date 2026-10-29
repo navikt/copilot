@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Oppgradering og installasjon hopper over ufullstendige versjoner
 
-- **`nav-pilot upgrade` og `install.sh`**: Mangler den nyeste versjonen filen for maskinen din, får du den nyeste versjonen som har den. Én linje sier hvilken versjon som ble hoppet over. Før stoppet oppgraderingen med HTTP 404. Har ingen nyere versjon filen, står det hvilken plattform som mangler (#2057).
+- **`nav-pilot upgrade` og `install.sh`**: Mangler den nyeste versjonen programfilen for maskinen din, får du den nyeste versjonen som har den, og én linje sier hvilken versjon som ble hoppet over. Før stoppet oppgraderingen med HTTP 404. Har ingen av de siste versjonene filen, sier feilmeldingen hvilken fil og plattform som mangler (#2057).
 
 ### Dev-registeret er ute av sandkassens tillatelsesliste
 

@@ -140,7 +140,7 @@ func TestFetchLatestVersion_SkipsNonNavPilot(t *testing.T) {
 func localReleaseAPI(t *testing.T) {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}]}]`, Version, platformAsset)
+		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}, {"name": "SHA256SUMS"}]}]`, Version, platformAsset)
 	}))
 	t.Cleanup(srv.Close)
 	origReleases, origCplt, origDownload := releasesAPI, cpltReleasesAPI, downloadURL
@@ -325,9 +325,9 @@ func TestFetchLatestRelease_NoRetryWithoutToken(t *testing.T) {
 // broken release: the old behaviour, which shows the fixture has it first.
 func TestFetchLatestReleaseSkipsReleaseMissingAsset(t *testing.T) {
 	const body = `[
-		{"tag_name": "nav-pilot/3", "assets": [{"name": "nav-pilot-darwin-arm64"}]},
-		{"tag_name": "nav-pilot/2", "assets": [{"name": "nav-pilot-linux-amd64.sig"}, {"name": "nav-pilot-linux-amd64"}]},
-		{"tag_name": "nav-pilot/1", "assets": [{"name": "nav-pilot-linux-amd64"}]}
+		{"tag_name": "nav-pilot/3", "assets": [{"name": "nav-pilot-darwin-arm64"}, {"name": "SHA256SUMS"}]},
+		{"tag_name": "nav-pilot/2", "assets": [{"name": "nav-pilot-linux-amd64.sig"}, {"name": "nav-pilot-linux-amd64"}, {"name": "SHA256SUMS"}]},
+		{"tag_name": "nav-pilot/1", "assets": [{"name": "nav-pilot-linux-amd64"}, {"name": "SHA256SUMS"}]}
 	]`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, body)
@@ -350,6 +350,31 @@ func TestFetchLatestReleaseSkipsReleaseMissingAsset(t *testing.T) {
 	_, _, _, err = fetchLatestRelease(context.Background(), srv.URL, "nav-pilot/", "nav-pilot-windows-arm64")
 	if err == nil || !strings.Contains(err.Error(), "nav-pilot-windows-arm64") {
 		t.Errorf("no release has the asset: err = %v, want one naming the asset", err)
+	}
+}
+
+// A run that died before uploading SHA256SUMS leaves a release whose binary
+// verifyChecksum cannot check, so it is skipped like one without the binary.
+// The control, with no asset to look for, picks it.
+func TestFetchLatestReleaseSkipsReleaseMissingChecksums(t *testing.T) {
+	const body = `[
+		{"tag_name": "nav-pilot/2", "assets": [{"name": "nav-pilot-linux-amd64"}]},
+		{"tag_name": "nav-pilot/1", "assets": [{"name": "nav-pilot-linux-amd64"}, {"name": "SHA256SUMS"}]}
+	]`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, body)
+	}))
+	defer srv.Close()
+	origClient := httpClient
+	httpClient = srv.Client()
+	defer func() { httpClient = origClient }()
+
+	ver, _, skipped, err := fetchLatestRelease(context.Background(), srv.URL, "nav-pilot/", "nav-pilot-linux-amd64")
+	if err != nil || ver != "1" || skipped != "nav-pilot/2" {
+		t.Errorf("got ver=%q skipped=%q err=%v; want 1 with nav-pilot/2 skipped", ver, skipped, err)
+	}
+	if ver, _, _, _ := fetchLatestRelease(context.Background(), srv.URL, "nav-pilot/", ""); ver != "2" {
+		t.Errorf("control: got %q, want 2", ver)
 	}
 }
 
@@ -379,7 +404,7 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 			// print the package manager's command. The empty PATH keeps the
 			// Homebrew branch's cplt lookup off the network.
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/2099.01.01-000000-fffffff", "assets": [{"name": %q}]}]`, platformAsset)
+				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/2099.01.01-000000-fffffff", "assets": [{"name": %q}, {"name": "SHA256SUMS"}]}]`, platformAsset)
 			}))
 			t.Cleanup(srv.Close)
 			releasesAPI = srv.URL
@@ -469,7 +494,7 @@ func TestUpgradeChecksCpltWhenNavPilotIsCurrent(t *testing.T) {
 			packageManager = func() domain.PkgManager { return tc.mgr }
 			latestCpltVersion = func() (string, error) { return tc.latest, tc.lookErr }
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}]}]`, current, platformAsset)
+				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}, {"name": "SHA256SUMS"}]}]`, current, platformAsset)
 			}))
 			t.Cleanup(srv.Close)
 			releasesAPI = srv.URL

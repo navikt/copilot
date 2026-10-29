@@ -118,28 +118,30 @@ if [[ -z "$VERSION" ]]; then
     [[ -n "$API_TOKEN" ]] && printf 'header = "Authorization: Bearer %s"\n' "$API_TOKEN"
     return 0
   }
-  RELEASES=$(auth_config | curl -fsSL -K - "https://api.github.com/repos/${REPO}/releases?per_page=100")
+  RELEASES=$(auth_config | curl -fsSL -K - "https://api.github.com/repos/${REPO}/releases?per_page=100") || RELEASES=""
   VERSION=$(printf '%s' "$RELEASES" \
     | tr ',' '\n' \
     | awk -v asset="$ASSET" '
         # Per release object: tag_name comes first, draft, prerelease and
         # assets later. Skip drafts (a token with write access lists them
         # first, and their assets 404) and prereleases, and releases without
-        # this platform'\''s binary: a release run that died mid-upload
-        # published one (#2057). Escaped quotes in body text do not match.
+        # this platform'\''s binary or SHA256SUMS: a release run that died
+        # mid-upload published one (#2057). Escaped quotes in body text do
+        # not match.
         function emit() {
           if (done || tag !~ /^nav-pilot\// || skip) return
-          if (!has) { if (missing == "") missing = tag; return }
-          if (missing != "") print "→ " missing " has no " asset " yet, so installing " tag > "/dev/stderr"
+          if (!has || !sums) { if (missing == "") missing = tag; return }
+          if (missing != "") print "→ " missing " has no " asset " or SHA256SUMS yet, so installing " tag > "/dev/stderr"
           print tag; done = 1; exit
         }
-        /(^|[^\\])"tag_name": *"/ { emit(); tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); skip = 0; has = 0 }
+        /(^|[^\\])"tag_name": *"/ { emit(); tag = $0; sub(/.*"tag_name": *"/, "", tag); sub(/".*/, "", tag); skip = 0; has = 0; sums = 0 }
         /(^|[^\\])"(draft|prerelease)": *true/ { skip = 1 }
         $0 ~ "(^|[^\\\\])\"name\": *\"" asset "\"" { has = 1 }
+        /(^|[^\\])"name": *"SHA256SUMS"/ { sums = 1 }
         END { emit() }')
   set -o pipefail
   if [[ -n "$RELEASES" && -z "$VERSION" ]]; then
-    echo "Error: No recent nav-pilot release has ${ASSET}, the binary for ${OS}/${ARCH}."
+    echo "Error: No recent nav-pilot release has both ${ASSET}, the binary for ${OS}/${ARCH}, and SHA256SUMS."
     echo "  Try again later, or pass --version with a release that has it."
     exit 1
   fi

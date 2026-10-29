@@ -135,7 +135,7 @@ func latestRelease(notice io.Writer) (string, string, error) {
 	defer cancel()
 	ver, tag, skipped, err := fetchLatestRelease(ctx, releasesAPI, "nav-pilot/", platformAsset)
 	if skipped != "" && err == nil && notice != nil {
-		fmt.Fprintf(notice, "→ %s has no %s yet, so nav-pilot uses %s\n", skipped, platformAsset, tag)
+		fmt.Fprintf(notice, "→ %s has no %s or SHA256SUMS yet, so nav-pilot uses %s\n", skipped, platformAsset, tag)
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "", "", fmt.Errorf("could not check for updates: GitHub did not answer within %s. Try again later, or download nav-pilot from %s", releaseCheckTimeout, releasesPage)
@@ -277,7 +277,8 @@ func fetchLatestVersion(ctx context.Context) (ver string, tag string, err error)
 // tag carries prefix (empty prefix = the newest release, for repos that do not
 // prefix their tags). Drafts and prereleases are skipped: a token with write
 // access lists drafts first, and their assets are not downloadable. When asset
-// is set, a release without an asset of that exact name is skipped too: a
+// is set, a release without an asset of that exact name, or without the
+// SHA256SUMS the download is checked against, is skipped too: a
 // release run that died mid-upload published one without it (#2057).
 // Returns the version (tag minus prefix), the full tag, and the newest tag
 // skipped for lacking the asset ("" when the newest release had it).
@@ -301,7 +302,7 @@ func fetchLatestRelease(ctx context.Context, api, prefix, asset string) (ver, ta
 		if rel.Draft || rel.Prerelease || !strings.HasPrefix(rel.TagName, prefix) {
 			continue
 		}
-		if asset != "" && !rel.hasAsset(asset) {
+		if asset != "" && (!rel.hasAsset(asset) || !rel.hasAsset("SHA256SUMS")) {
 			if skipped == "" {
 				skipped = rel.TagName
 			}
@@ -311,7 +312,7 @@ func fetchLatestRelease(ctx context.Context, api, prefix, asset string) (ver, ta
 	}
 
 	if skipped != "" {
-		return "", "", "", fmt.Errorf("no recent nav-pilot release has %s, the binary for %s/%s. Try again later, or download nav-pilot from %s", asset, runtime.GOOS, runtime.GOARCH, releasesPage)
+		return "", "", "", fmt.Errorf("no recent nav-pilot release has both %s, the binary for %s/%s, and SHA256SUMS. Try again later, or download nav-pilot from %s", asset, runtime.GOOS, runtime.GOARCH, releasesPage)
 	}
 	return "", "", "", fmt.Errorf("no release found with tag prefix %q", prefix)
 }
