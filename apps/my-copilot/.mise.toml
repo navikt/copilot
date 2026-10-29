@@ -8,7 +8,7 @@ GITHUB_ORG = "navikt"
 # .npmrc will read it for packages on GitHub Packages (@nais/apm, #2026). CI
 # sets it from github.token, which must win; locally it comes from gh. Empty
 # when gh is logged out, so mise still works.
-GITHUB_PACKAGES_TOKEN = "{{ get_env(name='GITHUB_PACKAGES_TOKEN', default=exec(command='gh auth token 2>/dev/null || true')) }}"
+GITHUB_PACKAGES_TOKEN = { value = "{{ get_env(name='GITHUB_PACKAGES_TOKEN', default=exec(command='gh auth token 2>/dev/null || true')) }}", redact = true }
 GCP_TEAM_PROJECT_ID = "copilot-dev-e17a"
 NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL = "https://telemetry.ekstern.dev.nav.no/collect"
 DEV_USER_GROUPS = "48120347-8582-4329-8673-7beb3ed6ca06"
