@@ -30,9 +30,11 @@ export default function PersonvernPage() {
               Hva vi samler inn
             </Heading>
             <BodyLong>
-              Vi bruker Grafana Faro for feilovervåking, ytelsesmåling og bruksstatistikk. Faro samler inn teknisk
-              informasjon om nettleser, operativsystem, feilmeldinger og hvilke sider du besøker. Vi lagrer ikke
-              parametere i nettadressen. Vi kobler ikke disse dataene til navn eller brukerkonto.
+              Vi bruker Nais APM til å overvåke feil, måle ytelse og lage bruksstatistikk. Nais APM samler inn teknisk
+              informasjon om nettleseren og operativsystemet ditt, feilmeldinger, hvor raskt sidene laster og hvilke
+              sider du besøker. Dataene sendes til Navs egen overvåkingsplattform. Før dataene sendes, fjerner vi
+              parametere fra nettadressene og maskerer fødselsnummer og e-postadresser i feilmeldinger. Vi kobler ikke
+              dataene til navn eller brukerkonto.
             </BodyLong>
             <BodyLong>
               For innloggede Nav-ansatte henter vi navn fra Azure AD-tokenet for å vise det i brukergrensesnittet. Denne

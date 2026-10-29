@@ -409,6 +409,12 @@ jobs:
   my-copilot:
     name: my-copilot
     needs: changes
+    permissions:
+      contents: read
+      packages: read
+    env:
+      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     if: needs.changes.outputs.my-copilot == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -437,6 +443,12 @@ jobs:
   link-guard:
     name: link-guard
     needs: changes
+    permissions:
+      contents: read
+      packages: read
+    env:
+      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     if: needs.changes.outputs.link-guard == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -22,10 +22,9 @@
     "link-inventory:update": "UPDATE_LINK_INVENTORY=1 vitest run src/link-inventory.test.ts && prettier --write src/lib/link-inventory.json"
   },
   "dependencies": {
-    "@grafana/faro-web-sdk": "^2.13.0",
-    "@grafana/faro-web-tracing": "^2.13.0",
     "@headlessui/react": "2.2.10",
     "@icons-pack/react-simple-icons": "^13.15.1",
+    "@nais/apm": "0.7.3",
     "@navikt/aksel-icons": "8.20.0",
     "@navikt/ds-css": "^8.20.0",
     "@navikt/ds-react": "^8.20.0",

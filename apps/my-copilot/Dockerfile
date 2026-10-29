@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM node:24 AS base
 
 RUN corepack enable
@@ -6,7 +7,8 @@ FROM base AS deps
 WORKDIR /app
 
 COPY apps/my-copilot/package.json apps/my-copilot/pnpm-lock.yaml apps/my-copilot/pnpm-workspace.yaml apps/my-copilot/.npmrc ./
-RUN pnpm install --frozen-lockfile
+# .npmrc reads GITHUB_PACKAGES_TOKEN for @nais/apm; a BuildKit secret keeps it out of every layer.
+RUN --mount=type=secret,id=GITHUB_PACKAGES_TOKEN,env=GITHUB_PACKAGES_TOKEN pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app

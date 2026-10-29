@@ -1,11 +1,11 @@
 "use client";
 
-import { faro } from "@grafana/faro-web-sdk";
+import { captureException } from "@nais/apm";
 import { useEffect } from "react";
 
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
   useEffect(() => {
-    faro.api?.pushError(error);
+    captureException(error);
   }, [error]);
 
   return (

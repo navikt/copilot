@@ -26,6 +26,8 @@ concurrency:
 permissions:
   contents: read
   id-token: write
+  # Read public npm packages (@nais/apm) from GitHub Packages.
+  packages: read
 
 jobs:
   build:
