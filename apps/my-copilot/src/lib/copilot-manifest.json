@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-29T09:55:30.495Z",
+  "generatedAt": "2026-10-29T09:55:40.414Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1903,7 +1903,7 @@
       "filePath": "skills/tokenx-auth/SKILL.md",
       "repoPath": "skills/tokenx-auth/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/tokenx-auth/SKILL.md",
-      "contentHash": "ddaf7c3b68231985dd906b868a03aa83e05bc15dcd5d98c622af835fa158486f",
+      "contentHash": "643235e2538fad09ee09e6f6dd22d3d4b681a6dc38c64fb2f692e4331a952985",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["tokenx", "auth", "service-to-service", "nais"],

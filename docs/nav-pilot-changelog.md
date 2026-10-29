@@ -11,7 +11,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### `tokenx-auth` bruker Texas
 
-- **Token exchange og validering**: Skillen viser nå hvordan du bytter og validerer TokenX-tokener gjennom Texas, tokensidecaren i Nais. Før lærte den deg å signere klient-assertions og verifisere JWT-er selv, i strid med `threat-model`. Vil du heller bruke et bibliotek, peker skillen til `token-validation-ktor` fra navikt/token-support (#2033).
+- **Token exchange og validering**: Skillen viser nå hvordan du veksler og validerer TokenX-tokener gjennom Texas, token-sidecaren i Nais. Før viste den hvordan du signerer client assertions og verifiserer JWT-er selv. Vil du heller bruke et bibliotek, peker skillen til `token-validation-ktor` fra navikt/token-support (#2033).
 
 ### Riktig rekkefølge for klientargumenter i OpenCode
 
