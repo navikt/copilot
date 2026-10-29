@@ -140,7 +140,7 @@ func TestFetchLatestVersion_SkipsNonNavPilot(t *testing.T) {
 func localReleaseAPI(t *testing.T) {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, Version)
+		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}, {"name": "SHA256SUMS"}]}]`, Version, platformAsset)
 	}))
 	t.Cleanup(srv.Close)
 	origReleases, origCplt, origDownload := releasesAPI, cpltReleasesAPI, downloadURL
@@ -183,7 +183,7 @@ func TestFetchLatestRelease_UnprefixedTags(t *testing.T) {
 	defer func() { httpClient = origClient }()
 
 	// cplt tags carry no prefix, so the newest release wins outright.
-	ver, tag, err := fetchLatestRelease(context.Background(), srv.URL, "")
+	ver, tag, _, err := fetchLatestRelease(context.Background(), srv.URL, "", "")
 	if err != nil {
 		t.Fatalf("fetchLatestRelease: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestFetchLatestReleaseSkipsDraftsAndPrereleases(t *testing.T) {
 			httpClient = srv.Client()
 			defer func() { httpClient = origClient }()
 
-			ver, _, err := fetchLatestRelease(context.Background(), srv.URL, tt.prefix)
+			ver, _, _, err := fetchLatestRelease(context.Background(), srv.URL, tt.prefix, "")
 			if tt.want == "" {
 				if err == nil {
 					t.Fatalf("got %q, want an error", ver)
@@ -285,7 +285,7 @@ func TestFetchLatestRelease_RetriesAnonymouslyOn401(t *testing.T) {
 	defer func() { httpClient = origClient }()
 	t.Setenv("GITHUB_TOKEN", "packages-only-token")
 
-	ver, _, err := fetchLatestRelease(context.Background(), srv.URL, "")
+	ver, _, _, err := fetchLatestRelease(context.Background(), srv.URL, "", "")
 	if err != nil {
 		t.Fatalf("fetchLatestRelease: %v", err)
 	}
@@ -311,11 +311,70 @@ func TestFetchLatestRelease_NoRetryWithoutToken(t *testing.T) {
 	defer func() { httpClient = origClient }()
 	t.Setenv("GITHUB_TOKEN", "")
 
-	if _, _, err := fetchLatestRelease(context.Background(), srv.URL, ""); err == nil {
+	if _, _, _, err := fetchLatestRelease(context.Background(), srv.URL, "", ""); err == nil {
 		t.Fatal("fetchLatestRelease = nil error, want a failure")
 	}
 	if calls != 1 {
 		t.Errorf("calls = %d, want 1", calls)
+	}
+}
+
+// A release run that died mid-upload published a release without one
+// platform's binary (#2057). The newest release that has it wins, and the
+// skipped tag is reported. The control, with no asset to look for, picks the
+// broken release: the old behaviour, which shows the fixture has it first.
+func TestFetchLatestReleaseSkipsReleaseMissingAsset(t *testing.T) {
+	const body = `[
+		{"tag_name": "nav-pilot/3", "assets": [{"name": "nav-pilot-darwin-arm64"}, {"name": "SHA256SUMS"}]},
+		{"tag_name": "nav-pilot/2", "assets": [{"name": "nav-pilot-linux-amd64.sig"}, {"name": "nav-pilot-linux-amd64"}, {"name": "SHA256SUMS"}]},
+		{"tag_name": "nav-pilot/1", "assets": [{"name": "nav-pilot-linux-amd64"}, {"name": "SHA256SUMS"}]}
+	]`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, body)
+	}))
+	defer srv.Close()
+	origClient := httpClient
+	httpClient = srv.Client()
+	defer func() { httpClient = origClient }()
+
+	ver, tag, skipped, err := fetchLatestRelease(context.Background(), srv.URL, "nav-pilot/", "nav-pilot-linux-amd64")
+	if err != nil || ver != "2" || tag != "nav-pilot/2" || skipped != "nav-pilot/3" {
+		t.Errorf("got ver=%q tag=%q skipped=%q err=%v; want 2, nav-pilot/2, nav-pilot/3", ver, tag, skipped, err)
+	}
+
+	ver, _, skipped, err = fetchLatestRelease(context.Background(), srv.URL, "nav-pilot/", "")
+	if err != nil || ver != "3" || skipped != "" {
+		t.Errorf("control: got ver=%q skipped=%q err=%v; want 3 and nothing skipped", ver, skipped, err)
+	}
+
+	_, _, _, err = fetchLatestRelease(context.Background(), srv.URL, "nav-pilot/", "nav-pilot-windows-arm64")
+	if err == nil || !strings.Contains(err.Error(), "nav-pilot-windows-arm64") {
+		t.Errorf("no release has the asset: err = %v, want one naming the asset", err)
+	}
+}
+
+// A run that died before uploading SHA256SUMS leaves a release whose binary
+// verifyChecksum cannot check, so it is skipped like one without the binary.
+// The control, with no asset to look for, picks it.
+func TestFetchLatestReleaseSkipsReleaseMissingChecksums(t *testing.T) {
+	const body = `[
+		{"tag_name": "nav-pilot/2", "assets": [{"name": "nav-pilot-linux-amd64"}]},
+		{"tag_name": "nav-pilot/1", "assets": [{"name": "nav-pilot-linux-amd64"}, {"name": "SHA256SUMS"}]}
+	]`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, body)
+	}))
+	defer srv.Close()
+	origClient := httpClient
+	httpClient = srv.Client()
+	defer func() { httpClient = origClient }()
+
+	ver, _, skipped, err := fetchLatestRelease(context.Background(), srv.URL, "nav-pilot/", "nav-pilot-linux-amd64")
+	if err != nil || ver != "1" || skipped != "nav-pilot/2" {
+		t.Errorf("got ver=%q skipped=%q err=%v; want 1 with nav-pilot/2 skipped", ver, skipped, err)
+	}
+	if ver, _, _, _ := fetchLatestRelease(context.Background(), srv.URL, "nav-pilot/", ""); ver != "2" {
+		t.Errorf("control: got %q, want 2", ver)
 	}
 }
 
@@ -345,7 +404,7 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 			// print the package manager's command. The empty PATH keeps the
 			// Homebrew branch's cplt lookup off the network.
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprint(w, `[{"tag_name": "nav-pilot/2099.01.01-000000-fffffff"}]`)
+				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/2099.01.01-000000-fffffff", "assets": [{"name": %q}, {"name": "SHA256SUMS"}]}]`, platformAsset)
 			}))
 			t.Cleanup(srv.Close)
 			releasesAPI = srv.URL
@@ -353,7 +412,7 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 
 			var updated bool
 			var err error
-			out := captureStdoutFor(t, func() { updated, _, err = doUpdate(os.Stdout) })
+			out := captureStdoutFor(t, func() { updated, _, err = doUpdate(os.Stdout, os.Stderr) })
 			if err != nil {
 				t.Fatalf("doUpdate = %v", err)
 			}
@@ -379,7 +438,7 @@ func TestLatestReleaseTimesOutInWords(t *testing.T) {
 	t.Cleanup(func() { releasesAPI, releaseCheckTimeout = origAPI, origTimeout })
 	releasesAPI, releaseCheckTimeout = srv.URL, 50*time.Millisecond
 
-	_, _, err := latestRelease()
+	_, _, err := latestRelease(nil)
 	if err == nil || !strings.Contains(err.Error(), "GitHub did not answer within 50ms") {
 		t.Fatalf("latestRelease = %v, want a timeout in words", err)
 	}
@@ -435,7 +494,7 @@ func TestUpgradeChecksCpltWhenNavPilotIsCurrent(t *testing.T) {
 			packageManager = func() domain.PkgManager { return tc.mgr }
 			latestCpltVersion = func() (string, error) { return tc.latest, tc.lookErr }
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s"}]`, current)
+				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}, {"name": "SHA256SUMS"}]}]`, current, platformAsset)
 			}))
 			t.Cleanup(srv.Close)
 			releasesAPI = srv.URL
