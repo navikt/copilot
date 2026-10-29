@@ -138,37 +138,53 @@ Follow the tables with each project's verify command and exit status, plus any p
 
 Write or tidy `.github/dependabot.yml` with navikt/copilot's own file as the pattern. Use only options listed in the [Dependabot options reference](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference).
 
-- **One `updates` entry per ecosystem and directory.** Give every directory with a lockfile (`go.sum`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `gradle/libs.versions.toml` or `build.gradle*`, `packages.lock.json`) its own entry. Add one `github-actions` entry for `/` with a group matching `"*"`.
+- **One `updates` entry per ecosystem and directory.** Give every directory with a manifest or lockfile its own entry. A Gradle multi-project build needs only one entry, at the root. Add one `github-actions` entry for `/` with a group matching `"*"`.
 - **Schedule**: `interval: "weekly"`, `day: "monday"`, `time: "06:00"`, `timezone: "Europe/Oslo"`. Set `open-pull-requests-limit` (5, the default, fits most repos).
-- **Groups per entry**: one for `@navikt/*` and `@nais/*` (`no.nav*` for Gradle), one with `dependency-type: "development"`, and one with `dependency-type: "production"` that lists the Nav patterns under `exclude-patterns`. `update-types` (`patch`, `minor`, `major`) can split majors into their own group.
-- **Security updates are never delayed.** A group without `applies-to` covers version updates only, so security PRs stay separate and arrive at once. Do not add `applies-to: security-updates` groups unless asked. `cooldown` and `open-pull-requests-limit` do not apply to security updates.
-- **GitHub Packages**: if a project uses `@navikt/*` or `@nais/*` npm packages, add a top-level `registries` entry per scope (`scope` takes one value) and list it under that entry's `registries`. `READER_TOKEN` must exist as a Dependabot secret; say so in the report.
+- **Groups per entry.** A dependency goes into the first group it matches, so put the Nav group first: `@navikt/*` and `@nais/*` for npm, `no.nav*` for Maven and Gradle.
+  - npm and Maven (also bundler, composer, mix, pip): then one group with `dependency-type: "development"` and one with `dependency-type: "production"`.
+  - Gradle, Go, NuGet and Actions do not support `dependency-type`: after the Nav group, add one group with `patterns: ["*"]`.
+  - `update-types` (`patch`, `minor`, `major`) can split majors into their own group.
+- **Do not add `reviewers`.** GitHub removed the option in May 2025; use `CODEOWNERS` to assign reviewers.
+- **Security updates.** They are driven by alerts, so `cooldown` and `open-pull-requests-limit` do not apply to them (they have their own limit of 10). A group without `applies-to` covers version updates only. Whether security PRs are grouped depends on the repo's "Grouped security updates" setting. `ignore` does apply to security updates, so never use `dependency-name: "*"` unless that is the intent.
+- **GitHub Packages for npm**: take the scope from `.npmrc`. At Nav that is usually `@nais` on `npm.pkg.github.com`; `@navikt` is on npmjs. Never add a scope that `.npmrc` does not route to `npm.pkg.github.com`. Add one `registries` entry per scope (`scope` takes one value) and list it under the npm entry's `registries`.
 
   ```yaml
   registries:
-    npm-navikt:
+    npm-github:
       type: npm-registry
       url: https://npm.pkg.github.com
-      scope: "@navikt"
+      scope: "@nais"
       token: ${{ secrets.READER_TOKEN }}
   ```
 
+- **GitHub Packages for Gradle and Maven**: add one `maven-repository` entry per GitHub Packages repo that the build declares, copied from `repositories {}` or `pom.xml`. Never add one the build does not declare.
+
+  ```yaml
+    rapids-and-rivers:
+      type: maven-repository
+      url: https://maven.pkg.github.com/navikt/rapids-and-rivers
+      username: x-access-token
+      password: ${{ secrets.READER_TOKEN }}
+  ```
+
+  `READER_TOKEN` must exist as a Dependabot secret; say so in the report.
 - Keep existing `ignore` entries and their comments. Use `cooldown` or `multi-ecosystem-groups` only when the user asks.
 
 Check before finishing:
 
 ```bash
 # The YAML parses
-ruby -ryaml -e 'YAML.load_file(".github/dependabot.yml")'
-# Directories with a lockfile ...
+yq '.' .github/dependabot.yml >/dev/null || ruby -ryaml -e 'YAML.load_file(".github/dependabot.yml")'
+# Directories with a manifest or lockfile ...
 find . -name node_modules -prune -o \( -name go.sum -o -name package-lock.json -o -name pnpm-lock.yaml \
-  -o -name yarn.lock -o -name libs.versions.toml -o -name packages.lock.json \) -print \
+  -o -name yarn.lock -o -name libs.versions.toml -o -name 'build.gradle*' -o -name gradle.lockfile \
+  -o -name pom.xml -o -name '*.csproj' -o -name packages.lock.json \) -print \
   | xargs -n1 dirname | sed 's#/gradle$##; s#^\.##; s#^$#/#' | sort -u
 # ... must each appear here
 grep -E '^\s*directory:' .github/dependabot.yml
 ```
 
-Workspace members that share a root lockfile are covered by the root entry.
+Workspace members that share a root lockfile, and subprojects of a Gradle multi-project build, are covered by the root entry.
 
 ## Remove unused dependencies
 
@@ -176,14 +192,14 @@ Find candidates with tooling, confirm each one by hand, then remove in small bat
 
 | Ecosystem | Find candidates | Remove |
 |---|---|---|
-| npm/pnpm/yarn | `npx -y knip --dependencies` or `npx -y depcheck`; never add them to `package.json` | `<pm> remove <pkg>` with the manager from step 2 |
-| Go | `go mod tidy`, then review the `go.mod` diff | `go mod tidy` does it |
-| Gradle | search `src/` for the package names of each declared dependency; run `./gradlew buildHealth` only if the `com.autonomousapps.dependency-analysis` plugin is already applied | delete the line in the build file or version catalog |
-| .NET | search `*.cs` for the namespaces of each `PackageReference` | `dotnet remove package <id>` |
+| npm/pnpm/yarn | `npx -y knip --dependencies --no-exit-code` from the repo root; never add knip to `package.json` | `<pm> remove <pkg>` with the manager from step 2 |
+| Go | `go mod tidy -diff` (Go 1.23+) to preview | `go mod tidy`; also `go mod vendor` if `vendor/` exists |
+| Gradle | only `implementation`, `api` and `testImplementation` lines; never `runtimeOnly`, `*-starter-*`, `*-engine`, `*-launcher`, kapt/ksp or plugins. Prefer `./gradlew buildHealth` if `com.autonomousapps.dependency-analysis` is already applied, and act only on its "unused" advice. Otherwise search `src/` for the artifact's real package root (for example `jar tf` on the cached jar), not the Maven group | delete the line in the build file or version catalog |
+| .NET | search `*.cs` for the namespaces of each `PackageReference`; skip `Microsoft.NET.Test.Sdk`, test runners, `coverlet.*` and `*.Analyzers` | `dotnet remove package <id>` |
 
 Before removing a candidate, search the whole repo for its name, not only source imports:
 
-- Config files: `*.config.*`, `.eslintrc*`, `tsconfig*.json`, test setup files, `next.config.*`, `application*.yml`, `logback*.xml`.
+- Config files: `*.config.*`, `postcss.config.*`, `.eslintrc*`, `.prettierrc*`, `.storybook/`, `tsconfig*.json`, test setup files, `next.config.*`, the `prettier`, `eslintConfig`, `browserslist` and `jest` fields in `package.json`, `application*.yml`, `logback*.xml`.
 - Scripts and deploy: `scripts` in `package.json`, `mise.toml`, `Makefile`, `.github/workflows/`, `Dockerfile*`, `.nais/`.
 - Runtime and reflection use: Spring auto-configuration, JDBC drivers, `ServiceLoader`, logging backends, compiler and Gradle plugins, `@types/*` for a package still in use, peer dependencies of a package you keep.
 
