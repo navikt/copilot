@@ -471,7 +471,7 @@ func TestAskMCPRegistryBrokerMeta(t *testing.T) {
 	}
 	b := reg.Entries[0].Meta.Broker
 	if b == nil || b.Credential != "nais-keychain" || !slices.Equal(b.Command, []string{"nais", "alpha", "mcp", "serve"}) ||
-		b.Login.Status != "nais auth print-access-token" || b.Tools.Classes["execute_graphql"] != "read" || b.ArgChecks["execute_graphql"] != "graphql-read-only" {
+		b.Login.Status != "" || b.Tools.Classes["execute_graphql"] != "read" || b.ArgChecks["execute_graphql"] != "graphql-read-only" {
 		t.Errorf("broker = %+v", b)
 	}
 	if reg.Entries[1].Meta.Broker != nil {

@@ -110,7 +110,7 @@ type BrokerTools struct {
 
 type BrokerLogin struct {
 	Run    string `json:"run"`
-	Status string `json:"status"`
+	Status string `json:"status,omitempty"`
 }
 
 type RegistryExtensions struct {
