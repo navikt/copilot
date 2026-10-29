@@ -1,4 +1,13 @@
 version: 2
+registries:
+  # Pakker fra GitHub Packages (@nais/apm fra #2026) krever token også for
+  # offentlige pakker. READER_TOKEN er navikt-org-hemmeligheten, samme
+  # mønster som navikt/aksel; den må finnes som Dependabot-hemmelighet.
+  npm-github:
+    type: npm-registry
+    url: https://npm.pkg.github.com
+    scope: "@nais"
+    token: ${{ secrets.READER_TOKEN }}
 updates:
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -25,6 +34,8 @@ updates:
   # my-copilot (Next.js)
   - package-ecosystem: "npm"
     directory: "/apps/my-copilot"
+    registries:
+      - npm-github
     schedule:
       interval: "weekly"
       day: "monday"
