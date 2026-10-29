@@ -106,4 +106,57 @@ describe("scrubEvent", () => {
       "https://x.nav.no/api/team-year"
     );
   });
+  it("drops a query in an exception value", () => {
+    const out = scrubEvent({
+      meta: {},
+      payload: { type: "Error", value: "Failed to fetch https://x.nav.no/api/usage?username=ola" },
+    });
+    expect(out.payload.value).toBe("Failed to fetch https://x.nav.no/api/usage");
+  });
+
+  it("drops a query in a stack frame filename", () => {
+    const out = scrubEvent({
+      meta: {},
+      payload: { stacktrace: { frames: [{ filename: "https://x.nav.no/_next/app.js?user=ola", lineno: 1 }] } },
+    });
+    expect(out.payload.stacktrace.frames[0].filename).toBe("https://x.nav.no/_next/app.js");
+  });
+
+  it("drops a query in measurement context", () => {
+    const out = scrubEvent({
+      meta: {},
+      payload: { type: "web-vitals", values: { lcp: 1 }, context: { url: "/team?name=ola" } },
+    });
+    expect(out.payload.context.url).toBe("/team");
+  });
+
+  const otlp = <S>(span: S) => ({ meta: {}, payload: { resourceSpans: [{ scopeSpans: [{ spans: [span] }] }] } });
+
+  it("scrubs span event attributes", () => {
+    const out = scrubEvent(otlp({ events: [{ attributes: [{ key: "url", value: { stringValue: "/api?q=ola" } }] }] }));
+    expect(out.payload.resourceSpans[0].scopeSpans[0].spans[0].events[0].attributes[0].value.stringValue).toBe("/api");
+  });
+
+  it("scrubs OTLP array values", () => {
+    const out = scrubEvent(
+      otlp({
+        attributes: [
+          { key: "urls", value: { arrayValue: { values: [{ stringValue: "https://x.nav.no/a?id=12345678901" }] } } },
+        ],
+      })
+    );
+    expect(
+      out.payload.resourceSpans[0].scopeSpans[0].spans[0].attributes[0].value.arrayValue.values[0].stringValue
+    ).toBe("https://x.nav.no/a");
+  });
+
+  it("drops a query from a URL embedded in a longer string", () => {
+    const out = scrubEvent({ meta: {}, payload: { attributes: { name: "GET /api?x=1 failed" } } });
+    expect(out.payload.attributes.name).toBe("GET /api failed");
+  });
+
+  it("drops fragments", () => {
+    const out = scrubEvent({ meta: { page: { url: "https://x.nav.no/a#token=abc" } }, payload: {} });
+    expect(out.meta.page.url).toBe("https://x.nav.no/a");
+  });
 });
