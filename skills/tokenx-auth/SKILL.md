@@ -10,16 +10,18 @@ metadata:
 
 # TokenX Authentication Skill
 
-This skill provides patterns for secure service-to-service authentication using TokenX.
+This skill provides patterns for secure service-to-service authentication using TokenX. Token exchange and validation go through [Texas](https://doc.nais.io/auth/reference/#texas), the Nais token sidecar. Do not sign client assertions or verify JWTs yourself.
+
+The examples use Ktor 3 and need these artifacts besides Ktor server and client: `ktor-client-content-negotiation`, `ktor-serialization-jackson`, and for tests `ktor-client-mock` and `kotlinx-coroutines-test`.
 
 ## Workflow
 
 1. Enable TokenX in the Nais manifest and define access policies
-2. Implement token exchange (basic or with caching)
+2. Exchange tokens through Texas
 3. Call downstream services with the exchanged token
-4. Validate inbound TokenX tokens on protected endpoints
+4. Validate inbound TokenX tokens through Texas
 5. Integrate with Ktor authentication
-6. Test with MockOAuth2Server
+6. Test with a stubbed Texas
 
 ## 1. Nais Manifest Setup
 
@@ -39,239 +41,99 @@ spec:
           namespace: team-user
 ```
 
-This creates environment variables:
+Nais injects these environment variables when `tokenx.enabled` is true:
 
-- `TOKEN_X_WELL_KNOWN_URL`
-- `TOKEN_X_CLIENT_ID`
-- `TOKEN_X_PRIVATE_JWK`
+- `NAIS_TOKEN_EXCHANGE_ENDPOINT`
+- `NAIS_TOKEN_INTROSPECTION_ENDPOINT`
 
-## 2. Token Exchange with Caching
+## 2. Token Exchange
 
-Production pattern from [navikt/tms-ktor-token-support](https://github.com/navikt/tms-ktor-token-support) - used across 198+ Nav repositories:
+POST to `NAIS_TOKEN_EXCHANGE_ENDPOINT` ([docs](https://doc.nais.io/auth/tokenx/how-to/consume/)). Texas signs the client assertion, caches tokens and never returns an expired one, so you need no cache or key handling of your own.
 
-```kotlin
-import com.github.benmanes.caffeine.cache.Cache
-import com.github.benmanes.caffeine.cache.Caffeine
-import com.nimbusds.jose.jwk.RSAKey
-
-class CachingTokendingsService(
-    private val tokendingsConsumer: TokendingsConsumer,
-    private val jwtAudience: String,
-    private val clientId: String,
-    privateJwk: String,
-    maxCacheEntries: Long = 10000,
-    cacheExpiryMarginSeconds: Int = 10
-) : TokendingsService {
-
-    private val cache: Cache<String, AccessTokenEntry> = Caffeine.newBuilder()
-        .maximumSize(maxCacheEntries)
-        .expireAfter(ExpiryPolicy(cacheExpiryMarginSeconds))
-        .build()
-
-    private val privateRsaKey = RSAKey.parse(privateJwk)
-
-    override suspend fun exchangeToken(token: String, targetApp: String): String {
-        val cacheKey = "$token:$targetApp".hashCode().toString()
-        return cache.get(cacheKey) {
-            performTokenExchange(token, targetApp)
-        }.accessToken
-    }
-
-    private suspend fun performTokenExchange(
-        token: String,
-        targetApp: String
-    ): AccessTokenEntry {
-        val clientAssertion = createSignedAssertion(clientId, jwtAudience, privateRsaKey)
-        return tokendingsConsumer.exchangeToken(
-            subjectToken = token,
-            clientAssertion = clientAssertion,
-            targetApp = "cluster:namespace:$targetApp"
-        )
-    }
-}
-```
-
-## 3. Token Exchange (Basic)
-
-```kotlin
-import com.nimbusds.jose.JWSAlgorithm
-import com.nimbusds.jose.JWSHeader
-import com.nimbusds.jose.crypto.RSASSASigner
-import com.nimbusds.jose.jwk.RSAKey
-import com.nimbusds.jwt.JWTClaimsSet
-import com.nimbusds.jwt.SignedJWT
-import java.time.Instant
-import java.util.*
-
-class TokenXClient(
-    private val tokenXUrl: String,
-    private val clientId: String,
-    private val privateJwk: String
-) {
-    private val rsaKey = RSAKey.parse(privateJwk)
-
-    fun exchangeToken(
-        userToken: String,
-        targetApp: String,
-        targetNamespace: String = "default"
-    ): String {
-        val audience = "cluster:$targetNamespace:$targetApp"
-        val clientAssertion = createClientAssertion()
-
-        val response = httpClient.post("$tokenXUrl/token") {
-            contentType(ContentType.Application.FormUrlEncoded)
-            setBody(
-                listOf(
-                    "grant_type" to "urn:ietf:params:oauth:grant-type:token-exchange",
-                    "client_assertion_type" to "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-                    "client_assertion" to clientAssertion,
-                    "subject_token_type" to "urn:ietf:params:oauth:token-type:jwt",
-                    "subject_token" to userToken,
-                    "audience" to audience
-                ).formUrlEncode()
-            )
-        }
-
-        val tokenResponse = response.body<TokenResponse>()
-        return tokenResponse.access_token
-    }
-
-    private fun createClientAssertion(): String {
-        val now = Instant.now()
-
-        val claimsSet = JWTClaimsSet.Builder()
-            .subject(clientId)
-            .issuer(clientId)
-            .audience(tokenXUrl)
-            .issueTime(Date.from(now))
-            .expirationTime(Date.from(now.plusSeconds(60)))
-            .jwtID(UUID.randomUUID().toString())
-            .build()
-
-        val signedJWT = SignedJWT(
-            JWSHeader.Builder(JWSAlgorithm.RS256)
-                .keyID(rsaKey.keyID)
-                .build(),
-            claimsSet
-        )
-
-        signedJWT.sign(RSASSASigner(rsaKey))
-        return signedJWT.serialize()
-    }
-}
-
-data class TokenResponse(
-    val access_token: String,
-    val token_type: String,
-    val expires_in: Int
-)
-```
-
-## 4. Calling Another Service
+If the target rejects a token after its access policy changed, retry once with `"skip_cache": true` in the request body to get a fresh token.
 
 ```kotlin
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 
+class TexasClient(
+    private val httpClient: HttpClient,
+    private val exchangeEndpoint: String = System.getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT"),
+    private val introspectionEndpoint: String = System.getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"),
+) {
+    /** target: "<cluster>:<namespace>:<app>" */
+    suspend fun exchange(userToken: String, target: String): String =
+        httpClient.post(exchangeEndpoint) {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("identity_provider" to "tokenx", "target" to target, "user_token" to userToken))
+        }.body<TokenResponse>().access_token
+
+    suspend fun introspect(token: String): Map<String, Any?> =
+        httpClient.post(introspectionEndpoint) {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("identity_provider" to "tokenx", "token" to token))
+        }.body()
+}
+
+data class TokenResponse(val access_token: String, val expires_in: Int, val token_type: String)
+```
+
+Create the `HttpClient` with `expectSuccess = true` and `ContentNegotiation` with Jackson. Texas answers errors with 400 or 500 and a body with `error` and `error_description`, and `expectSuccess` turns those into exceptions instead of a half-parsed response.
+
+## 3. Calling Another Service
+
+```kotlin
 class UserServiceClient(
-    private val tokenXClient: TokenXClient,
+    private val texas: TexasClient,
     private val httpClient: HttpClient,
     private val userServiceUrl: String
 ) {
     suspend fun getUser(userId: String, userToken: String): User {
-        val exchangedToken = tokenXClient.exchangeToken(
-            userToken = userToken,
-            targetApp = "user-service",
-            targetNamespace = "team-user"
-        )
+        // NAIS_CLUSTER_NAME is injected by Nais, e.g. "dev-gcp" or "prod-gcp"
+        val target = "${System.getenv("NAIS_CLUSTER_NAME")}:team-user:user-service"
+        val exchangedToken = texas.exchange(userToken, target)
 
-        val response = httpClient.get("$userServiceUrl/api/users/$userId") {
-            headers {
-                append(HttpHeaders.Authorization, "Bearer $exchangedToken")
-            }
-        }
-
-        return response.body<User>()
+        return httpClient.get("$userServiceUrl/api/users/$userId") {
+            bearerAuth(exchangedToken)
+        }.body()
     }
 }
 ```
 
-## 5. Validating Inbound Tokens
+## 4. Validating Inbound Tokens
 
-```kotlin
-import com.auth0.jwk.JwkProviderBuilder
-import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
-import java.net.URL
-import java.security.interfaces.RSAPublicKey
+POST the token to `NAIS_TOKEN_INTROSPECTION_ENDPOINT` ([docs](https://doc.nais.io/auth/tokenx/how-to/secure/)). The response is always HTTP 200: `active: true` with the token's claims, or `active: false` with an `error`.
 
-class TokenValidator(
-    private val tokenXWellKnownUrl: String,
-    private val clientId: String
-) {
-    private val metadata = fetchMetadata()
-    private val jwkProvider = JwkProviderBuilder(URL(metadata.jwks_uri)).build()
+Texas checks the signature, `iss`, `aud` (your TokenX client id), `exp`, `iat` and `nbf`. Your app must still check:
 
-    fun validate(token: String): Boolean {
-        return try {
-            val jwt = JWT.decode(token)
-            val jwk = jwkProvider.get(jwt.keyId)
-            val algorithm = Algorithm.RSA256(jwk.publicKey as RSAPublicKey, null)
+- `acr`, if you require a security level. Both `Level4` and `idporten-loa-high` occur.
+- `client_id`, if you authorize per calling app.
+- `pid`, against the resource the user asks for.
 
-            val verifier = JWT.require(algorithm)
-                .withIssuer(metadata.issuer)
-                .withAudience(clientId)
-                .build()
+If Texas itself fails (network error, 5xx), let the request fail with 5xx. Do not treat it as 401: that hides an outage.
 
-            verifier.verify(token)
-            true
-        } catch (e: Exception) {
-            logger.warn("Token validation failed", e)
-            false
-        }
-    }
+If you would rather use a library, use `token-validation-ktor` from [navikt/token-support](https://github.com/navikt/token-support). Never verify JWTs by hand.
 
-    private fun fetchMetadata(): OAuthMetadata {
-        return httpClient.get(tokenXWellKnownUrl).body()
-    }
-}
-
-data class OAuthMetadata(
-    val issuer: String,
-    val jwks_uri: String,
-    val token_endpoint: String
-)
-```
-
-## 6. Ktor Integration
+## 5. Ktor Integration
 
 ```kotlin
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
-import io.ktor.server.auth.jwt.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 
-fun Application.configureTokenX() {
-    val tokenValidator = TokenValidator(
-        tokenXWellKnownUrl = environment.config.property("tokenx.well.known.url").getString(),
-        clientId = environment.config.property("tokenx.client.id").getString()
-    )
+// Ktor 3: a principal no longer needs to implement Principal
+data class TokenXPrincipal(val token: String, val claims: Map<String, Any?>)
 
+fun Application.configureTokenX(texas: TexasClient) {
     install(Authentication) {
-        jwt("tokenx") {
-            verifier(
-                JwkProviderBuilder(URL(tokenValidator.metadata.jwks_uri)).build(),
-                tokenValidator.metadata.issuer
-            ) {
-                withAudience(tokenValidator.clientId)
-            }
-
-            validate { credential ->
-                if (credential.payload.audience.contains(tokenValidator.clientId)) {
-                    JWTPrincipal(credential.payload)
-                } else {
-                    null
-                }
+        bearer("tokenx") {
+            authenticate { credential ->
+                // Exceptions from Texas propagate and give 5xx, not 401
+                val result = texas.introspect(credential.token)
+                if (result["active"] == true) TokenXPrincipal(credential.token, result) else null
             }
         }
     }
@@ -279,10 +141,8 @@ fun Application.configureTokenX() {
     routing {
         authenticate("tokenx") {
             get("/api/protected") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.subject
-
-                call.respond("Authenticated user: $userId")
+                val principal = call.principal<TokenXPrincipal>()!!
+                call.respond("Authenticated user: ${principal.claims["pid"]}")
             }
         }
     }
@@ -293,32 +153,21 @@ fun Application.configureTokenX() {
 
 ```kotlin
 fun main() {
-    val env = Environment.from(System.getenv())
-
-    val tokenXClient = TokenXClient(
-        tokenXUrl = env.tokenXUrl,
-        clientId = env.tokenXClientId,
-        privateJwk = env.tokenXPrivateJwk
-    )
-
-    val userServiceClient = UserServiceClient(
-        tokenXClient = tokenXClient,
-        httpClient = HttpClient(),
-        userServiceUrl = env.userServiceUrl
-    )
+    val httpClient = HttpClient {
+        expectSuccess = true
+        install(ContentNegotiation) { jackson() }
+    }
+    val texas = TexasClient(httpClient)
+    val userServiceClient = UserServiceClient(texas, httpClient, System.getenv("USER_SERVICE_URL"))
 
     embeddedServer(Netty, port = 8080) {
-        configureTokenX()
+        configureTokenX(texas)
 
         routing {
             authenticate("tokenx") {
                 get("/api/users/{id}") {
-                    val userId = call.parameters["id"]!!
-                    val userToken = call.request.headers["Authorization"]!!
-                        .removePrefix("Bearer ")
-
-                    val user = userServiceClient.getUser(userId, userToken)
-                    call.respond(user)
+                    val principal = call.principal<TokenXPrincipal>()!!
+                    call.respond(userServiceClient.getUser(call.parameters["id"]!!, principal.token))
                 }
             }
         }
@@ -326,57 +175,52 @@ fun main() {
 }
 ```
 
-## Testing with MockOAuth2Server
+## Testing
+
+Texas is not part of your local setup, so stub it with Ktor's `MockEngine`:
 
 ```kotlin
-import no.nav.security.mock.oauth2.MockOAuth2Server
-import org.junit.jupiter.api.*
+import io.ktor.client.engine.mock.*
+import io.ktor.server.testing.*
 
-class TokenXTest {
-    private lateinit var mockOAuth2Server: MockOAuth2Server
-
-    @BeforeEach
-    fun setup() {
-        mockOAuth2Server = MockOAuth2Server()
-        mockOAuth2Server.start()
+private fun texasStub(body: String): TexasClient {
+    val engine = MockEngine {
+        respond(body, headers = headersOf(HttpHeaders.ContentType, "application/json"))
     }
-
-    @AfterEach
-    fun teardown() {
-        mockOAuth2Server.shutdown()
+    val client = HttpClient(engine) {
+        expectSuccess = true
+        install(ContentNegotiation) { jackson() }
     }
+    return TexasClient(client, "http://texas/exchange", "http://texas/introspect")
+}
 
-    @Test
-    fun `should exchange token successfully`() {
-        val userToken = mockOAuth2Server.issueToken(
-            issuerId = "tokenx",
-            subject = "user123",
-            audience = "my-app"
-        )
+@Test
+fun `exchanges token through Texas`() = runTest {
+    val texas = texasStub("""{"access_token":"exchanged","expires_in":3599,"token_type":"Bearer"}""")
 
-        val tokenXClient = TokenXClient(
-            tokenXUrl = mockOAuth2Server.tokenEndpointUrl("tokenx").toString(),
-            clientId = "my-app",
-            privateJwk = generatePrivateJwk()
-        )
+    assertEquals("exchanged", texas.exchange("user-token", "dev-gcp:team-user:user-service"))
+}
 
-        val exchangedToken = tokenXClient.exchangeToken(
-            userToken = userToken.serialize(),
-            targetApp = "user-service",
-            targetNamespace = "team-user"
-        )
+@Test
+fun `rejects inactive token with 401`() = testApplication {
+    val texas = texasStub("""{"active":false,"error":"token is expired"}""")
+    application { configureTokenX(texas) }
 
-        assertNotNull(exchangedToken)
-    }
+    val response = client.get("/api/protected") { bearerAuth("expired-token") }
+
+    assertEquals(HttpStatusCode.Unauthorized, response.status)
 }
 ```
+
+For tests that need real signed JWTs, [navikt/mock-oauth2-server](https://github.com/navikt/mock-oauth2-server) issues them.
 
 ## Security Checklist
 
 - [ ] TokenX enabled in Nais manifest
 - [ ] Access policy defined for outbound calls
-- [ ] Token validation on all protected endpoints
-- [ ] Client assertion signed with private JWK
+- [ ] Inbound tokens validated through Texas (or token-support) on all protected endpoints
+- [ ] App checks `acr`, `client_id` and `pid` where it relies on them
+- [ ] Texas outages give 5xx, not 401
+- [ ] No hand-written JWT validation or client assertions
 - [ ] Tokens not logged or exposed
-- [ ] Token expiry handled gracefully
 - [ ] HTTPS enforced for all calls
