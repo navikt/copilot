@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Dev-registeret er ute av sandkassens tillatelsesliste
 
-- **`mcp-registry.ekstern.dev.nav.no`**: Copilot sjekker nå MCP-servere mot produksjonsregisteret, `mcp-registry.nav.no`. Dev-verten er derfor fjernet fra listen over Nav-domener sandkassen slipper gjennom (#896).
+- **`mcp-registry.ekstern.dev.nav.no`**: Copilot sjekker nå MCP-servere mot produksjonsregisteret, `mcp-registry.nav.no`. Dev-verten er derfor fjernet fra listen over Nav-domener sandkassen slipper gjennom, også fra lister nav-pilot har skrevet før (#896).
 
 ### Varsel når en lokal MCP-server ikke kjører
 

@@ -366,3 +366,26 @@ func TestMCPConsentUnreadableRecordTopsUpNavHosts(t *testing.T) {
 		}
 	}
 }
+
+// A host nav-pilot seeded once and has retired comes out of a file nav-pilot
+// wrote, and nothing else in it changes (#896).
+func TestSyncAllowlistDropsRetiredSeeds(t *testing.T) {
+	isolatedConfig(t)
+	prev := mcpAllowlistHosts
+	mcpAllowlistHosts = func() []string { return nil }
+	t.Cleanup(func() { mcpAllowlistHosts = prev })
+	path, err := writeNavAllowedDomains()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, _ := os.ReadFile(path)
+	old := string(fresh) + "mcp-registry.ekstern.dev.nav.no\ncustom.example\n"
+	if err := os.WriteFile(path, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	syncMCPAllowlist()
+	after, _ := os.ReadFile(path)
+	if want := string(fresh) + "custom.example\n"; string(after) != want {
+		t.Errorf("after sync:\n%s\nwant:\n%s", after, want)
+	}
+}

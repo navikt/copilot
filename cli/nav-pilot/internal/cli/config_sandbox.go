@@ -795,6 +795,13 @@ var mcpAllowlistHosts = providerpkg.MCPAllowlistHosts
 // a file the user wrote is theirs.
 func syncMCPAllowlist() { syncAllowlist(true) }
 
+// retiredNavDomains are hosts nav-pilot seeded once and no longer allows.
+// syncAllowlist removes them from a file nav-pilot wrote.
+var retiredNavDomains = []string{
+	// The dev MCP registry, while the Copilot policy pointed there (#896).
+	"mcp-registry.ekstern.dev.nav.no",
+}
+
 // syncAllowlist is syncMCPAllowlist; with mcp false it only appends missing
 // Nav hosts and leaves the MCP section byte for byte, for when the consent
 // record cannot be read.
@@ -805,6 +812,14 @@ func syncAllowlist(mcp bool) {
 		return
 	}
 	prefix, section, hasSection := strings.Cut(string(data), mcpAllowlistMarker+"\n")
+	// Seeds nav-pilot once wrote and has since retired come out again.
+	var kept []string
+	for _, line := range strings.SplitAfter(prefix, "\n") {
+		if !slices.Contains(retiredNavDomains, strings.TrimSpace(line)) {
+			kept = append(kept, line)
+		}
+	}
+	prefix = strings.Join(kept, "")
 	var own []string
 	for _, line := range strings.Split(prefix, "\n") {
 		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") {
