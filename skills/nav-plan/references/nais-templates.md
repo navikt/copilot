@@ -7,11 +7,11 @@
 
 | Arketype | Port | Auth | Lagring | Bruk `$nais` for |
 |----------|------|------|---------|----------------------|
-| Backend API (Kotlin/Ktor) | 8080 | Azure AD + TokenX | PostgreSQL | Komplett manifest med auth, GCP SQL, accessPolicy |
+| Backend API (Kotlin/Ktor) | 8080 | Entra ID + TokenX | PostgreSQL | Komplett manifest med auth, GCP SQL, accessPolicy |
 | Hendelsekonsument (Kafka) | 8080 | — | PostgreSQL + Kafka | Manifest med kafka pool, topic-definisjon |
 | Frontend (Next.js + ID-porten) | 3000 | ID-porten sidecar | — | Manifest med sidecar, ingress, autoLogin |
-| Frontend (Next.js + Azure AD) | 3000 | Azure AD sidecar | — | Manifest med sidecar, ingress, autoLogin |
-| Batchjobb (Naisjob) | — | Azure AD | PostgreSQL | Naisjob med schedule, activeDeadlineSeconds |
+| Frontend (Next.js + Entra ID) | 3000 | Entra ID sidecar | — | Manifest med sidecar, ingress, autoLogin |
+| Batchjobb (Naisjob) | — | Entra ID | PostgreSQL | Naisjob med schedule, activeDeadlineSeconds |
 
 ## Planlegging: Hva du må bestemme
 

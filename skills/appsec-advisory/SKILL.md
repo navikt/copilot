@@ -30,8 +30,8 @@ Identify how the reviewed service actually runs from its configuration and docum
 Only for Nais workloads, assess each environment's `.nais/` manifests or Helm charts when present; use `$nais` and `$nav-auth` for details:
 
 - **Ingress:** distinguish ingress from service discovery. `accessPolicy.inbound` governs service-discovery traffic, not ingress traffic ([Nais zero trust](https://github.com/nais/doc/blob/main/docs/workloads/explanations/zero-trust.md)). Check the ingress domain and any Wonderwall settings. `*.intern.nav.no` and `*.intern.dev.nav.no` are internal; `*.nav.no`, `*.dev.nav.no` and `*.ansatt.nav.no` are reachable from the internet, so authentication decides who gets in.
-- **Inbound callers:** check the caller's outbound and target's inbound policies for service discovery. Where Azure AD or TokenX is used, check that application-side token validation matches the intended callers.
-- **Login:** with an ID-porten or Azure AD sidecar, `autoLogin` enforces login only outside `autoLoginIgnorePaths`; the application must validate tokens on every path it relies on. `azure.application.allowAllUsers: true` admits every Nav employee unless the code checks groups or roles.
+- **Inbound callers:** check the caller's outbound and target's inbound policies for service discovery. Where Entra ID or TokenX is used, check that application-side token validation matches the intended callers.
+- **Login:** with an ID-porten or Entra ID sidecar, `autoLogin` enforces login only outside `autoLoginIgnorePaths`; the application must validate tokens on every path it relies on. `azure.application.allowAllUsers: true` admits every Nav employee unless the code checks groups or roles.
 - **Logs:** personal data belongs in team logs, not ordinary application logs. Credentials and tokens belong in neither.
 
 ## Severity and exclusions

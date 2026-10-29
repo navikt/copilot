@@ -109,8 +109,8 @@ kubectl exec -n {namespace} {pod} -- wget -qO- $AZURE_OPENID_CONFIG_JWKS_URI | h
 │   └── Ja → Gå videre
 │
 ├── Er token fra riktig issuer?
-│   ├── Azure AD men forventet TokenX → Feil auth-flow
-│   ├── ID-porten men forventet Azure AD → Feil sidecar-config
+│   ├── Entra ID men forventet TokenX → Feil auth-flow
+│   ├── ID-porten men forventet Entra ID → Feil sidecar-config
 │   └── Riktig issuer → Gå videre
 │
 ├── Er audience riktig?

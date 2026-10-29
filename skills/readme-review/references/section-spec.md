@@ -75,7 +75,7 @@ mise test       # Run tests
 - **Backend:** Kotlin 2.0, Ktor 3.0
 - **Database:** PostgreSQL (via Kotliquery + HikariCP)
 - **Platform:** Nais (Kubernetes on GCP)
-- **Auth:** Azure AD + TokenX
+- **Auth:** Entra ID + TokenX
 ```
 
 - Bullet list with specific versions
@@ -165,7 +165,7 @@ Deployes til Nais via GitHub Actions.
 ```markdown
 ## Auth og integrasjoner
 
-- **Innkommende:** Azure AD (saksbehandler-frontend)
+- **Innkommende:** Entra ID (saksbehandler-frontend)
 - **Utgående:** PDL via TokenX, Dokarkiv via Maskinporten
 - **Access policy:** Se `.nais/dev.yaml`
 ```

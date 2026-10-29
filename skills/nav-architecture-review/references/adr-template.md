@@ -60,7 +60,7 @@ Vi har besluttet å {konkret valg}.
 
 ### Sikkerhet og personvern
 - **Dataklassifisering:** Åpen / Intern / Fortrolig / Strengt fortrolig
-- **Auth-mekanisme:** ID-porten / Azure AD / TokenX / Maskinporten
+- **Auth-mekanisme:** ID-porten / Entra ID / TokenX / Maskinporten
 - **PII-håndtering:** {hvordan personopplysninger beskyttes}
 - **Tilgangsstyring:** {accessPolicy-strategi}
 

@@ -7,11 +7,11 @@
 | Caller | Auth-mekanisme | Nais-konfigurasjon |
 |--------|---------------|-------------------|
 | Innbygger via nettleser | ID-porten | `idporten.enabled: true` |
-| Saksbehandler via nettleser | Azure AD | `azure.application.enabled: true` |
+| Saksbehandler via nettleser | Entra ID | `azure.application.enabled: true` |
 | Annen Nav-tjeneste med brukerkontext | TokenX | `tokenx.enabled: true` |
-| Annen Nav-tjeneste uten brukerkontext | Azure AD client_credentials | `azure.application.enabled: true` |
+| Annen Nav-tjeneste uten brukerkontext | Entra ID client_credentials | `azure.application.enabled: true` |
 | Ekstern partner/system | Maskinporten | `maskinporten.enabled: true` |
-| Intern batch/cron | Azure AD client_credentials | `azure.application.enabled: true` |
+| Intern batch/cron | Entra ID client_credentials | `azure.application.enabled: true` |
 
 ### Steg 2: Token-validering og exchange
 
@@ -89,7 +89,7 @@ class VedtakRiver(rapidsConnection: RapidsConnection) : River.PacketListener {
 # Dev (Nais)
 gcp:
   sqlInstances:
-    - type: POSTGRES_15
+    - type: POSTGRES_18
       tier: db-f1-micro
       databases:
         - name: myapp-db
@@ -97,7 +97,7 @@ gcp:
 # Prod (Nais)
 gcp:
   sqlInstances:
-    - type: POSTGRES_15
+    - type: POSTGRES_18
       tier: db-custom-1-3840
       diskAutoresize: true
       highAvailability: true

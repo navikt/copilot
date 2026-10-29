@@ -42,7 +42,7 @@ cd apps/<app-name> && mise test
 | `@accessibility-agent`     | WCAG compliance, ARIA attributes, keyboard navigation    |
 | `$observability-setup`     | Metrics, tracing, health endpoints, alerting             |
 | `@aksel-agent`             | Aksel component usage, spacing tokens, responsive layout |
-| `$nav-auth`                | JWT validation, TokenX, ID-porten, Azure AD              |
+| `$nav-auth`                | JWT validation, TokenX, ID-porten, Entra ID              |
 
 ## Review Process
 

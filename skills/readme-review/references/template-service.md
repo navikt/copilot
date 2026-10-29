@@ -26,7 +26,7 @@ cd {project-name}
 - **Rammeverk:** {e.g., Ktor 3.0}
 - **Database:** {e.g., PostgreSQL via Kotliquery + HikariCP}
 - **Plattform:** Nais (Kubernetes on GCP)
-- **Auth:** {e.g., Azure AD + TokenX}
+- **Auth:** {e.g., Entra ID + TokenX}
 
 ## API
 

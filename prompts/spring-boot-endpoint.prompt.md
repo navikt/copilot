@@ -14,7 +14,7 @@ Ask these questions before scaffolding:
 
 1. What is the resource name? (e.g. `vedtak`, `søknad`, `bruker`)
 2. What fields does the resource have?
-3. Does it need auth (Azure AD)?
+3. Does it need auth (Entra ID)?
 4. Does it need a database (PostgreSQL)?
 5. Which operations? (CRUD, or specific ones?)
 
@@ -127,7 +127,7 @@ class {{Ressurs}}ControllerTest {
     @Autowired lateinit var objectMapper: ObjectMapper
 
     companion object {
-        @Container val postgres = PostgreSQLContainer("postgres:15")
+        @Container val postgres = PostgreSQLContainer("postgres:18")
         val mockOAuth2Server = MockOAuth2Server()
 
         @BeforeAll @JvmStatic fun setup() { mockOAuth2Server.start() }

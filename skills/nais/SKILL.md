@@ -104,7 +104,7 @@ Common anti-patterns:
 ```yaml
 gcp:
   sqlInstances:
-    - type: POSTGRES_15
+    - type: POSTGRES_18
       databases:
         - name: myapp-db
           envVarPrefix: DB
@@ -119,7 +119,7 @@ kafka:
   pool: nav-dev # or nav-prod
 ```
 
-### Azure AD Authentication
+### Entra ID Authentication
 
 ```yaml
 azure:

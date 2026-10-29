@@ -92,7 +92,7 @@ require (
 // build.gradle.kts — use dependency locking and BOM
 dependencyLocking { lockAllConfigurations() }
 dependencyManagement {
-    imports { mavenBom("org.springframework.boot:spring-boot-dependencies:<latest-spring-boot-version>") }
+    imports { mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.16") }
 }
 // Run: ./gradlew dependencies --write-locks
 ```

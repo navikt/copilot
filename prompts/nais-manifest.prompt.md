@@ -59,7 +59,7 @@ Ask user if they need:
    ```yaml
    gcp:
      sqlInstances:
-       - type: POSTGRES_15
+       - type: POSTGRES_18
          databases:
            - name: mydb
    ```
@@ -139,7 +139,7 @@ spec:
   # Database (optional)
   gcp:
     sqlInstances:
-      - type: POSTGRES_15
+      - type: POSTGRES_18
         databases:
           - name: myapp-db
 
