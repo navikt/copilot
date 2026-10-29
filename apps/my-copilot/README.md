@@ -69,7 +69,7 @@ Install the dependencies:
 pnpm install --frozen-lockfile
 ```
 
-`@nais/apm` is served from GitHub Packages, which needs a token even for public packages. `.npmrc` reads it from `GITHUB_PACKAGES_TOKEN`; `.mise.toml` sets that from `gh auth token`, so log in with `gh auth login` first (the token needs the `read:packages` scope). CI uses the workflow's `GITHUB_TOKEN` with `packages: read`.
+`@nais/apm` is served from GitHub Packages, which needs a token even for public packages. `.npmrc` reads it from `GITHUB_PACKAGES_TOKEN`, so set that first, for example `GITHUB_PACKAGES_TOKEN=$(gh auth token) pnpm install --frozen-lockfile` (the token needs the `read:packages` scope). CI uses the workflow's `GITHUB_TOKEN` with `packages: read`.
 
 Create a `.env.local` file in the root directory and add the required environment variables:
 
