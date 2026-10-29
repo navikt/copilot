@@ -52,7 +52,7 @@
       "displayName": "@code-review",
       "description": "Kodegjennomgang for Nav-applikasjoner — finner feil, sikkerhetsproblemer og brudd på Nav-konvensjoner",
       "filePath": "agents/code-review.agent.md",
-      "contentHash": "fa76255226b84d06338cb45b1705412f495656de66a2bac92fb1918fc5224c45",
+      "contentHash": "9d50afc2daa1a11c7749a9370f080455acfa7638d25fc9f46895482acaf3a20d",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "d4e6d5bb76c41b2b10bfad3d78c6c532105c62be543b6861ca538598eb50d4c5",
+      "contentHash": "3cabc463ebd2b54c438e904614b9f4fe42174d3141ff5d38dace57084cf46447",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -166,7 +166,7 @@
       "displayName": "@research-agent",
       "description": "Utforsker kodebaser, undersøker problemer og samler kontekst før implementering",
       "filePath": "agents/research.agent.md",
-      "contentHash": "22005ea46dec85a06fee168a2a0be309296809cf3737cca18047e54c67529195",
+      "contentHash": "bfd27dcb2ee26f091fbc71c847ebdf211ee307dc6c41d565ea73a5ae8667ba32",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -220,7 +220,7 @@
         "vulnerability"
       ],
       "filePath": "agents/security-champion.agent.md",
-      "contentHash": "cc4c2f66395d593ed1dce211ba2981ced75e1d5d0052e69d48f3a5d5afca72ff",
+      "contentHash": "fb9fd0c8f1432dad316ef6d9b4ec56074f4bf335dd6f63c46666776360ab6ba8",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Azure AD integration",
@@ -485,7 +485,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/golang-service.prompt.md",
-      "contentHash": "7fde0ad3e09207507985e4ed7902f84e7494bf1bbf22fc85d894145f10a11abe",
+      "contentHash": "42a31083e83b52eaa6dd970b8921c6c3be1d82516c96ba747d6042f9ffb3462c",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/golang-service.prompt.md"
     },
@@ -527,7 +527,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/nais-manifest.prompt.md",
-      "contentHash": "f39dfdb13dcff616d1761bc4a5bb087379410fa9f6e0da891c85e6b3a591a62f",
+      "contentHash": "2fd90d5d10e9b31d36d99c03080e1edcf084279275fe3c84a0690e0c8b6eaa93",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md"
     },
@@ -559,7 +559,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/spring-boot-endpoint.prompt.md",
-      "contentHash": "e2e2a7c6af3729b33dc1e0f2e98650e4e71e5437bf2a3999bb74696db65fe83e",
+      "contentHash": "3804da163fe6fb7867abad0bffa1cf10f918e0306e0294eab10740a2b78172ae",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md"
     }
@@ -633,7 +633,7 @@
       "displayName": "appsec-advisory",
       "description": "Rådgivende sikkerhetsgjennomgang av repoer og PR-er med etterprøvbare funn, vurdert eksponering og forslag til trygg testing. Bruk når teamet vil ha en dypere sikkerhetsvurdering eller prioritering av funn, ikke for sjekk før commit (bruk security-review) eller pentest",
       "filePath": "skills/appsec-advisory/SKILL.md",
-      "contentHash": "5a6ff8e2720c6c01a53ffbb7bb7e219b2890d96f0296b7590400e019be1d355e",
+      "contentHash": "019e9e4372da8a5f97ca3910c2db4d8ef5109039a56d3cfbd2c27d02b7fb3161",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/appsec-advisory/SKILL.md"
     },
@@ -757,7 +757,7 @@
       "displayName": "nais",
       "description": "Nais-deployment, GCP-ressurser, pod-lifecycle og feilsøking på plattformen",
       "filePath": "skills/nais/SKILL.md",
-      "contentHash": "4d8aa55be210c7d118fd7eb1c56e4d4fe933e2109ddf47b17203fa28d19cedd0",
+      "contentHash": "588e49a8b9533769e0ed13181e1a6f196ce74274aef0fc878b985f206be36378",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nais/SKILL.md"
     },
@@ -797,7 +797,7 @@
       "displayName": "nav-deep-interview",
       "description": "Strukturert intervju som avdekker blindsoner i Nav-prosjekter — personvern, auth, avhengigheter og observerbarhet",
       "filePath": "skills/nav-deep-interview/SKILL.md",
-      "contentHash": "836d0873167176e2dcff40402e2513c185f55323fe5d8dc37e1974de0eb3ca87",
+      "contentHash": "551cffd0bec816351438d9c7ac456341b911fb2dcf04c768ecd296c096f12fae",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-deep-interview/SKILL.md",
       "references": [
@@ -849,7 +849,7 @@
       "displayName": "nav-plan",
       "description": "Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database, Nais-konfigurasjon og moderniseringsmønstre",
       "filePath": "skills/nav-plan/SKILL.md",
-      "contentHash": "a10798e1cdc522558c6fa4de9fb4b8da2267965e483873ee12362c7186949295",
+      "contentHash": "25839c37744a1ca02a8a93841e3bb6dbaf59d331c0a6221e14c3473d470857f6",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-plan/SKILL.md",
       "references": [
@@ -877,7 +877,7 @@
       "displayName": "nav-troubleshoot",
       "description": "Strukturerte diagnostiske trær for vanlige Nav-plattformproblemer — pod-krasj, auth-feil, Kafka-lag og databaseproblemer",
       "filePath": "skills/nav-troubleshoot/SKILL.md",
-      "contentHash": "eb50649eeb5b58401c306e0c00c698dd6ef97c788a0b67443dbb1d3e8b2cc66d",
+      "contentHash": "b3a8bbbc715524b0fb136fc7c6bee2b1a1571152fd6fff84b66c66bd8efaf25b",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-troubleshoot/SKILL.md",
       "references": [
@@ -953,7 +953,7 @@
       "displayName": "playwright-testing",
       "description": "Generer og kjør Playwright E2E-tester for webapplikasjoner med page objects, auth fixtures og tilgjengelighetstester",
       "filePath": "skills/playwright-testing/SKILL.md",
-      "contentHash": "2f5bb75962fafb02b22d9da56271e8de8e3eb1b28617ada88f8763b5cc962843",
+      "contentHash": "140d1b9aa77d47b7802872d04db78b2b543a44a919f49382a65822bfaa24d62d",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/playwright-testing/SKILL.md"
     },
@@ -1019,7 +1019,7 @@
       "displayName": "security-owasp",
       "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin, Go, Java og Node.js — tilgangskontroll, forsyningskjede, injeksjon og feilhåndtering",
       "filePath": "skills/security-owasp/SKILL.md",
-      "contentHash": "3a8a0af2570a4569037375892d2ed05a682fe73e7884600c38150cf4518a05f7",
+      "contentHash": "d17dc35c154950d0ecc4384c0f3e85a9b9440396b707e532d373a15ddd117191",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/security-owasp/SKILL.md"
     },
@@ -1029,7 +1029,7 @@
       "displayName": "security-review",
       "description": "Bruk før commit, push eller pull request for å sjekke at koden er trygg å merge",
       "filePath": "skills/security-review/SKILL.md",
-      "contentHash": "f5a44597fc6d9c1bb000b19d3c1ed4464cb053f2ca01221ad9fc55a5daa59035",
+      "contentHash": "1ca2b3675d0e6d097a669d08fa88185197cf9b7d5c648808a286ec8f4ce75d0a",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/security-review/SKILL.md"
     },
@@ -1039,7 +1039,7 @@
       "displayName": "spring-boot-scaffold",
       "description": "Scaffold et nytt Spring Boot Kotlin-prosjekt med Nais-konfigurasjon, Flyway og standard Nav-mønstre",
       "filePath": "skills/spring-boot-scaffold/SKILL.md",
-      "contentHash": "2c8f2f490cc6d0bb4ca7119a35acb25867dfe52081fec652bb8e6c2bc046a8d0",
+      "contentHash": "7c6a02e8c2cff43d0bac13804b564aa4b3aa789dec25aa3cefd4b9bd71659ce6",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/spring-boot-scaffold/SKILL.md"
     },
