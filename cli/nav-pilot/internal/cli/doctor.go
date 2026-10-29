@@ -433,6 +433,12 @@ func doctorChecks() bool {
 		reportMCPTools(os.Stdout)
 
 	}
+	// Outside the cplt block: a stopped local app breaks the server with or
+	// without a sandbox, and mcp_hosts = off changes nothing about it.
+	{
+		cfg, _ := readConfig()
+		probeMCPLoopback(os.Stdout, "      ", resolve(cfg, CLIOverrides{}).Client)
+	}
 
 	// opencode
 	fmt.Printf("    • opencode\n")

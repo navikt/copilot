@@ -12,6 +12,8 @@ import (
 // loopbackPair is one server with a listener and one on a port just closed.
 func loopbackPair(t *testing.T) (live, dead providerpkg.MCPLoopback) {
 	t.Helper()
+	prevClient := providerpkg.MCPClient
+	t.Cleanup(func() { providerpkg.MCPClient = prevClient })
 	d := t.TempDir()
 	for _, k := range []string{"XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"} {
 		t.Setenv(k, d)
@@ -32,34 +34,44 @@ func loopbackPair(t *testing.T) (live, dead providerpkg.MCPLoopback) {
 		providerpkg.MCPLoopback{Server: "no.nav.aksel/aksel-arcade", Host: "127.0.0.1", Port: deadPort}
 }
 
+// Doctor's probe runs under mcp_hosts = off and without cplt: the sandbox
+// guards are about consent, not about whether the app is up.
 func TestDoctorWarnsWhenNothingListensOnLoopback(t *testing.T) {
 	live, dead := loopbackPair(t)
 	mcpConsentEnv(t, providerpkg.MCPHostState{Current: providerpkg.MCPHosts{Loopback: []providerpkg.MCPLoopback{live, dead}}}, false)
+	cpltInstalled = func() bool { return false }
+	writeTestFile(t, configPath(), "version = 1\nmcp_hosts = \"off\"\n")
 	var out bytes.Buffer
-	reportMCPHosts(&out, "")
-	want := "aksel-arcade: nothing listening on 127.0.0.1:" + dead.Port + ". Start the app that serves it."
-	if !strings.Contains(out.String(), want) {
-		t.Errorf("doctor output lacks %q:\n%s", want, out.String())
-	}
-	if strings.Contains(out.String(), "live-app: nothing listening") {
-		t.Errorf("warned about a server that listens:\n%s", out.String())
+	probeMCPLoopback(&out, "      ", providerpkg.MCPClientCopilot)
+	want := "      " + yellow("⚠") + " aksel-arcade: nothing listening on 127.0.0.1:" + dead.Port + ". Start the app that serves it.\n"
+	if out.String() != want {
+		t.Errorf("doctor output = %q, want %q", out.String(), want)
 	}
 }
 
 func TestLaunchWarnsOnceForADeadLoopbackServer(t *testing.T) {
 	live, dead := loopbackPair(t)
 	mcpConsentEnv(t, providerpkg.MCPHostState{Current: providerpkg.MCPHosts{Loopback: []providerpkg.MCPLoopback{live, dead}}}, false)
+	for _, client := range []string{providerpkg.MCPClientCopilot, providerpkg.MCPClientOpenCode} {
+		var out bytes.Buffer
+		probeMCPLoopback(&out, "", client)
+		want := "aksel-arcade: nothing listening on 127.0.0.1:" + dead.Port + ". Start the app that serves it.\n"
+		if !strings.HasSuffix(out.String(), want) || strings.Count(out.String(), "\n") != 1 {
+			t.Errorf("%s launch output = %q, want one line ending %q", client, out.String(), want)
+		}
+	}
+
+	// pi reads no MCP config nav-pilot knows: nothing probed, nothing said.
 	var out bytes.Buffer
-	warnDeadMCPLoopbackAtLaunch(&out)
-	want := "aksel-arcade: nothing listening on 127.0.0.1:" + dead.Port + ". Start the app that serves it.\n"
-	if !strings.HasSuffix(out.String(), want) || strings.Count(out.String(), "\n") != 1 {
-		t.Errorf("launch output = %q, want one line ending %q", out.String(), want)
+	probeMCPLoopback(&out, "", "pi")
+	if out.Len() != 0 {
+		t.Errorf("pi launch printed %q", out.String())
 	}
 
 	// Everything answers: the launch says nothing.
 	mcpConsentEnv(t, providerpkg.MCPHostState{Current: providerpkg.MCPHosts{Loopback: []providerpkg.MCPLoopback{live}}}, false)
 	out.Reset()
-	warnDeadMCPLoopbackAtLaunch(&out)
+	probeMCPLoopback(&out, "", providerpkg.MCPClientCopilot)
 	if out.Len() != 0 {
 		t.Errorf("launch printed %q with every loopback server up", out.String())
 	}

@@ -51,10 +51,17 @@ func warnDeadMCPLoopback(w io.Writer, indent string, loopback []providerpkg.MCPL
 	}
 }
 
-// warnDeadMCPLoopbackAtLaunch is the launch's check: silent when every
-// loopback server answers or none is configured, and never stops the launch.
-func warnDeadMCPLoopbackAtLaunch(w io.Writer) {
+// probeMCPLoopback reads the configured loopback servers for client and
+// warns about the dead ones. Silent when every one answers, none is
+// configured, or the client reads no MCP config nav-pilot knows (pi). It runs
+// whatever mcp_hosts says and with or without cplt: a stopped app is not a
+// sandbox question. Never stops a launch.
+func probeMCPLoopback(w io.Writer, indent, client string) {
+	if client != providerpkg.MCPClientCopilot && client != providerpkg.MCPClientOpenCode {
+		return
+	}
+	providerpkg.MCPClient = client
 	if st, err := readMCPHostState(); err == nil {
-		warnDeadMCPLoopback(w, "", st.Current.Loopback)
+		warnDeadMCPLoopback(w, indent, st.Current.Loopback)
 	}
 }
