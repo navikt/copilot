@@ -247,7 +247,8 @@
       "månedlige-trender": ["apps/my-copilot/src/components/charts/MonthlyTrendsChart.tsx"],
       "nokkeltall": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "pull-requests-og-code-review": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
-      "repositorier": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"]
+      "repositorier": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "verktoy": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"]
     }
   },
   "/innsikt/forbruk": {

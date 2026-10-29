@@ -11,6 +11,7 @@ import {
   getCreditsPerUserMonthly,
   getDailySummary,
   getRepositoryUsage,
+  getClientUsage,
 } from "@/lib/cached-bigquery";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import RepositoryUsageTable from "@/components/repository-usage-table";
@@ -293,6 +294,31 @@ async function Repositories({ token }: { token: string }) {
   );
 }
 
+async function Clients({ token }: { token: string }) {
+  const { clients, error } = await getClientUsage(token);
+  if (error) return <BodyShort>{`Kunne ikke hente bruk per verktøy: ${error}`}</BodyShort>;
+  if (!clients?.length) return <BodyShort>Ingen data om verktøy ennå.</BodyShort>;
+  return (
+    <>
+      <BodyShort>
+        Forespørsler og økter per verktøy de siste 28 dagene. Navnene er slik GitHub oppgir dem, for eksempel{" "}
+        <code>vscode</code>, <code>copilot_cli</code> og <code>opencode</code>. GitHub har tall per verktøy fra 23.
+        oktober 2026, så fram til 20. november dekker summen færre enn 28 dager.
+      </BodyShort>
+      <PlainTable
+        rows={[
+          ["Verktøy", "Forespørsler", "Økter"],
+          ...clients.map((c) => [
+            c.client === "other" ? "andre" : c.client,
+            formatNumber(c.requests),
+            formatNumber(c.sessions),
+          ]),
+        ]}
+      />
+    </>
+  );
+}
+
 async function ModelFamilies({ token }: { token: string }) {
   // 36 months is the most the endpoint returns.
   const { breakdown, error } = await getBillingModelBreakdown(token, 36);
@@ -359,7 +385,8 @@ export default async function BrukPage() {
           aktiv når hen har brukt AI Credits, chat eller kodeforslag i måneden. Adopsjonsfasene kommer fra{" "}
           <code>/adoption/cohorts</code>. Pull requests og daglig aktivitet bruker de siste 28 dagene fra{" "}
           <code>/usage/metrics</code>, og tid til første review kommer fra <code>/usage/daily-summary</code> (
-          <code>v_daily_summary</code>). Repoene gjelder hele perioden med data, uten private repoer og uten repoer med
+          <code>v_daily_summary</code>). Bruk per verktøy summerer de siste 28 dagene fra <code>/usage/clients</code> (
+          <code>v_client_stats</code>). Repoene gjelder hele perioden med data, uten private repoer og uten repoer med
           færre enn fem PR-er. «Sist oppdatert» er siste dag med data i <code>v_daily_summary</code>.
         </>
       }
@@ -432,6 +459,12 @@ export default async function BrukPage() {
       <InsightSection id="daglig-aktivitet" title="Daglig aktivitet">
         <Suspense fallback={fallback}>
           <UsageMetrics token={token}>{(usage) => <TrendChart data={buildTrendData(usage)} />}</UsageMetrics>
+        </Suspense>
+      </InsightSection>
+
+      <InsightSection id="verktoy" title="Bruk per verktøy">
+        <Suspense fallback={fallback}>
+          <Clients token={token} />
         </Suspense>
       </InsightSection>
 

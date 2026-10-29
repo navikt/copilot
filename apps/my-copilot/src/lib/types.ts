@@ -408,6 +408,15 @@ export interface TeamNetOverview {
 // repos (fewer than 5 total PRs) — see the k=5 guard mirrored from
 // minUsersForDistribution. The three median fields are nullable when no
 // qualifying PRs exist for that slice.
+// Requests and sessions per client over the last 28 days, from copilot-api's
+// GET /api/v1/copilot/usage/clients. `client` is GitHub's raw name
+// (vscode, copilot_cli, opencode, ...); unknown names pass through.
+export interface ClientUsage {
+  client: string;
+  requests: number;
+  sessions: number;
+}
+
 export interface RepositoryUsage {
   repo_id: number;
   repo_owner: string;

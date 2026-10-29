@@ -959,6 +959,7 @@ type BigQueryQuerier interface {
 	GetDailySummary(ctx context.Context) (*DailySummary, error)
 	GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error)
 	GetRepositoryUsage(ctx context.Context) ([]RepositoryUsage, error)
+	GetClientUsage(ctx context.Context) ([]ClientUsage, error)
 	GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error)
 	GetCopilotPRsMonthly(ctx context.Context) ([]CopilotPRMonth, error)
 	GetCohortRetention(ctx context.Context) ([]CohortRetention, error)
@@ -1211,6 +1212,14 @@ func (c *CachedBigQueryClient) GetRepositoryUsage(ctx context.Context) ([]Reposi
 	defer cancel()
 	return getCachedValue(c, "repository_usage", func() ([]RepositoryUsage, error) {
 		return c.client.GetRepositoryUsage(ctx)
+	})
+}
+
+func (c *CachedBigQueryClient) GetClientUsage(ctx context.Context) ([]ClientUsage, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "client_usage", func() ([]ClientUsage, error) {
+		return c.client.GetClientUsage(ctx)
 	})
 }
 

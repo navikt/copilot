@@ -1188,6 +1188,37 @@ func (bq *BigQueryClient) GetRepositoryUsage(ctx context.Context) ([]RepositoryU
 	return readAllRows[RepositoryUsage](it)
 }
 
+// ClientUsage is the 28-day request and session total for one client
+// (vscode, copilot_cli, opencode and so on) from the v_client_stats view.
+// Client names pass through as GitHub sends them, so new clients show up
+// without a code change.
+type ClientUsage struct {
+	Client   string `bigquery:"client" json:"client"`
+	Requests int64  `bigquery:"requests" json:"requests"`
+	Sessions int64  `bigquery:"sessions" json:"sessions"`
+}
+
+// GetClientUsage sums requests and sessions per client over the last 28 days
+// of data, busiest client first.
+//
+// DEPLOY ORDERING: the v_client_stats view must be deployed by copilot-metrics
+// before this endpoint is queried.
+func (bq *BigQueryClient) GetClientUsage(ctx context.Context) ([]ClientUsage, error) {
+	viewRef := bq.viewRef(bq.metricsDataset, "v_client_stats")
+	queryStr := fmt.Sprintf(`
+      SELECT client, SUM(IFNULL(requests, 0)) AS requests, SUM(IFNULL(sessions, 0)) AS sessions
+      FROM %s
+      WHERE day > DATE_SUB((SELECT MAX(day) FROM %s), INTERVAL 28 DAY)
+      GROUP BY client
+      ORDER BY requests DESC
+    `, viewRef, viewRef)
+	it, err := bq.client.Query(queryStr).Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("execute query: %w", err)
+	}
+	return readAllRows[ClientUsage](it)
+}
+
 func (bq *BigQueryClient) GetBillingModelBreakdown(ctx context.Context, months int) ([]BillingModelBreakdown, error) {
 	viewRef := bq.viewRef(bq.metricsDataset, "v_billing_model_breakdown")
 	queryStr := fmt.Sprintf(`
