@@ -30,10 +30,10 @@ export default function PersonvernPage() {
               Hva vi samler inn
             </Heading>
             <BodyLong>
-              Vi bruker Nais APM for feilovervåking, ytelsesmåling og bruksstatistikk. Nais APM samler inn teknisk
-              informasjon om nettleser, operativsystem, feilmeldinger, hvor raskt sidene laster og hvilke sider du
-              besøker. Dataene sendes til Navs egen overvåkingsplattform. Vi lagrer ikke parametere i nettadressen, og
-              fødselsnummer og e-postadresser i feilmeldinger blir maskert før dataene sendes. Vi kobler ikke disse
+              Vi bruker Nais APM til å overvåke feil, måle ytelse og lage bruksstatistikk. Nais APM samler inn teknisk
+              informasjon om nettleseren og operativsystemet ditt, feilmeldinger, hvor raskt sidene laster og hvilke
+              sider du besøker. Dataene sendes til Navs egen overvåkingsplattform. Før dataene sendes, fjerner vi
+              parametere fra nettadressene og maskerer fødselsnummer og e-postadresser i feilmeldinger. Vi kobler ikke
               dataene til navn eller brukerkonto.
             </BodyLong>
             <BodyLong>
