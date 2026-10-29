@@ -87,7 +87,7 @@ func cmdUpgrade(command string, args []string) error {
 		if check {
 			return checkUpdate()
 		}
-		updated, current, err := doUpdate(os.Stdout)
+		updated, current, err := doUpdate(os.Stdout, os.Stderr)
 		if updated || current {
 			// Here, not in doUpdate: the auto-update in front of another
 			// command goes through doUpdate too, and must stay quiet.
@@ -103,7 +103,7 @@ func cmdUpgrade(command string, args []string) error {
 // checkUpdate is `upgrade --dry-run`: it says whether a newer release exists
 // and changes nothing. Exit 1 when one does, the way sync reports updates.
 func checkUpdate() error {
-	latest, _, err := latestRelease()
+	latest, _, err := latestRelease(os.Stderr)
 	if err != nil {
 		return err
 	}
@@ -127,13 +127,15 @@ var releaseCheckTimeout = 15 * time.Second
 
 // latestRelease looks up the newest nav-pilot release for an explicit upgrade.
 // A newer release that lacks this platform's binary is skipped with one line
-// on stderr, so the user knows why the version is not the newest.
-func latestRelease() (string, string, error) {
+// on notice, so the user knows why the version is not the newest. A nil
+// notice stays silent: the startup check and the auto-update run on every
+// command, and the user cannot act on the skip there.
+func latestRelease(notice io.Writer) (string, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), releaseCheckTimeout)
 	defer cancel()
 	ver, tag, skipped, err := fetchLatestRelease(ctx, releasesAPI, "nav-pilot/", platformAsset)
-	if skipped != "" && err == nil {
-		fmt.Fprintf(os.Stderr, "→ %s has no %s yet, so nav-pilot uses %s\n", skipped, platformAsset, tag)
+	if skipped != "" && err == nil && notice != nil {
+		fmt.Fprintf(notice, "→ %s has no %s yet, so nav-pilot uses %s\n", skipped, platformAsset, tag)
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "", "", fmt.Errorf("could not check for updates: GitHub did not answer within %s. Try again later, or download nav-pilot from %s", releaseCheckTimeout, releasesPage)
@@ -153,12 +155,15 @@ func latestRelease() (string, string, error) {
 // Everything it prints goes to w: stdout for `nav-pilot upgrade`, whose output
 // this is, and stderr for the auto-update in front of another command, whose
 // stdout (a --json document, say) must stay its own.
-func doUpdate(w io.Writer) (updated, current bool, err error) {
+//
+// notice gets the line about a skipped release (see latestRelease); nil for
+// the auto-update, which must stay quiet about it.
+func doUpdate(w, notice io.Writer) (updated, current bool, err error) {
 	if mgr := packageManager(); mgr.Name != "" {
 		// Up to date says so, rather than sending the user to brew for a
 		// no-op. A fresh lookup, not the startup cache: that can be a day
 		// old. When it fails, the package manager's command is the answer.
-		if latest, _, err := latestRelease(); err == nil && !versionNewer(latest, Version) {
+		if latest, _, err := latestRelease(nil); err == nil && !versionNewer(latest, Version) {
 			fmt.Fprintf(w, "✓ nav-pilot is up to date (%s)\n", Version)
 			return false, true, nil
 		}
@@ -175,7 +180,7 @@ func doUpdate(w io.Writer) (updated, current bool, err error) {
 		return false, false, nil
 	}
 
-	latest, tag, err := latestRelease()
+	latest, tag, err := latestRelease(notice)
 	if err != nil {
 		return false, false, err
 	}

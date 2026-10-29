@@ -151,7 +151,7 @@ func TestExplicitUpdateIgnoresQuietPeriod(t *testing.T) {
 	}
 
 	out := captureStdoutFor(t, func() {
-		if _, _, err := doUpdate(os.Stdout); err != nil {
+		if _, _, err := doUpdate(os.Stdout, nil); err != nil {
 			t.Fatalf("doUpdate = %v", err)
 		}
 	})
@@ -228,5 +228,42 @@ func TestAutoUpdateLeavesCpltAlone(t *testing.T) {
 	}
 	if looked || strings.Contains(out, "cplt") {
 		t.Errorf("the auto-update checked cplt (lookup=%v):\n%s", looked, out)
+	}
+}
+
+// A newer release without this platform's binary is skipped silently in
+// front of another command: the user cannot act on it there, and it would
+// repeat on every run. The control shows `nav-pilot upgrade`'s lookup, on
+// the same list, does print the line, so the silence is not a missing skip.
+func TestAutoUpdateSkipsMissingAssetSilently(t *testing.T) {
+	const current = "2026.09.10-065538-661d4c8"
+	stubStartupUpdate(t, current, "2026.09.12-080624-cfeafb1", true, domain.PkgNone)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `[{"tag_name": "nav-pilot/2026.09.12-080624-cfeafb1", "assets": []},
+			{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}]}]`, current, platformAsset)
+	}))
+	t.Cleanup(srv.Close)
+	origAPI := releasesAPI
+	t.Cleanup(func() { releasesAPI = origAPI })
+	releasesAPI = srv.URL
+
+	out := captureStderrFor(t, func() {
+		if stop, err := startupUpdateCheck(); stop || err != nil {
+			t.Errorf("startupUpdateCheck = (%v, %v)", stop, err)
+		}
+	})
+	if !strings.Contains(out, "nav-pilot is up to date") {
+		t.Fatalf("the auto-update did not reach the up-to-date branch:\n%s", out)
+	}
+	if strings.Contains(out, "has no") {
+		t.Errorf("the auto-update reported the skipped release:\n%s", out)
+	}
+
+	var notice strings.Builder
+	if _, _, err := latestRelease(&notice); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(notice.String(), "nav-pilot/2026.09.12-080624-cfeafb1 has no "+platformAsset) {
+		t.Errorf("control: upgrade's lookup did not report the skip: %q", notice.String())
 	}
 }

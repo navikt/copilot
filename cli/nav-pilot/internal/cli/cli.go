@@ -270,7 +270,7 @@ func startupUpdateCheck() (stop bool, err error) {
 		fmt.Fprintf(os.Stderr, "%s Auto-updating nav-pilot %s → %s...\n", yellow("ℹ"), Version, assessment.LatestVersion)
 		// On stderr: this runs in front of another command, and that
 		// command's stdout (a --json document) must stay its own.
-		updated, _, err := doUpdate(os.Stderr)
+		updated, _, err := doUpdate(os.Stderr, nil)
 		if err != nil {
 			// The command the user ran still runs, on the version they have.
 			autoUpdateFailed(assessment.LatestVersion, err)
@@ -305,7 +305,7 @@ func startupUpdateCheck() (stop bool, err error) {
 		}
 
 		if err == nil && upgradeChoice {
-			updated, _, err := doUpdate(os.Stderr)
+			updated, _, err := doUpdate(os.Stderr, nil)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%s Upgrade failed: %v\n  Running %s instead.\n\n", yellow("⚠"), err, Version)
 				return false, nil

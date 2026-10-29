@@ -387,7 +387,7 @@ func TestUpdateRefusesToReplaceAPackagedBinary(t *testing.T) {
 
 			var updated bool
 			var err error
-			out := captureStdoutFor(t, func() { updated, _, err = doUpdate(os.Stdout) })
+			out := captureStdoutFor(t, func() { updated, _, err = doUpdate(os.Stdout, os.Stderr) })
 			if err != nil {
 				t.Fatalf("doUpdate = %v", err)
 			}
@@ -413,7 +413,7 @@ func TestLatestReleaseTimesOutInWords(t *testing.T) {
 	t.Cleanup(func() { releasesAPI, releaseCheckTimeout = origAPI, origTimeout })
 	releasesAPI, releaseCheckTimeout = srv.URL, 50*time.Millisecond
 
-	_, _, err := latestRelease()
+	_, _, err := latestRelease(nil)
 	if err == nil || !strings.Contains(err.Error(), "GitHub did not answer within 50ms") {
 		t.Fatalf("latestRelease = %v, want a timeout in words", err)
 	}
