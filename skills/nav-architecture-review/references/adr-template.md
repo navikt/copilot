@@ -76,6 +76,11 @@ Vi har besluttet å {konkret valg}.
 - **Tilbakerulling:** {hvordan vi ruller tilbake hvis det feiler}
 - **Tidsramme:** {når skal dette være på plass}
 
+### Brukeropplevelse
+- **Berørte brukere og oppgave:** {arbeidsflyt, eller hvorfor det ikke gjelder}
+- **Effekt av beslutningen:** {informasjon, samhandling, universell utforming og feilretting}
+- **Grunnlag og hull:** {foreslått flyt eller utprøvd grensesnitt, åpne antakelser}
+
 ## Konsekvenser
 
 ### Positive

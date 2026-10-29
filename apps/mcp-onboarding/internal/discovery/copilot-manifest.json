@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "763a798b28967762ca27601bde357b4ce62cf7fcd0f24ebe587335d01a886ff1",
+      "contentHash": "d4e6d5bb76c41b2b10bfad3d78c6c532105c62be543b6861ca538598eb50d4c5",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -571,7 +571,7 @@
       "displayName": "aksel-builder",
       "description": "Ekspertbygger for Aksel. React-komponenter, design-tokens, layout-primitiver, theming (lys/mørk), ikoner, CSS, Tailwind-preset, versjonsmigreringer og design til kode.",
       "filePath": "skills/aksel-builder/SKILL.md",
-      "contentHash": "098341b233cd30958b2cddad3cef723aa66a80333f5d1fea4dc3a50a658b6071",
+      "contentHash": "8727e318ed714f65ae398d12370ce34c14958f3b166b659d817021f3a17b1846",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/aksel-builder/SKILL.md",
       "references": [
@@ -767,7 +767,7 @@
       "displayName": "nav-architecture-review",
       "description": "Generer Architecture Decision Records (ADR) med flerperspektiv-review tilpasset Nav",
       "filePath": "skills/nav-architecture-review/SKILL.md",
-      "contentHash": "2293e1d394aef74a34c3e23fb7b9a6987832fcd5ffd18dfbe0f760a3fff6354b",
+      "contentHash": "dcd16f8de893353aad05a64a8198edf15491cf8251bcb928e78387d6498778b5",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-architecture-review/SKILL.md",
       "references": [

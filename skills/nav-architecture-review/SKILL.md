@@ -9,12 +9,12 @@ metadata:
 
 # Architecture Review — ADR Generator
 
-Generer et Architecture Decision Record (ADR) med review fra tre perspektiver: arkitektur, sikkerhet og plattform. Følger Navs Architecture Advice Process.
+Generate an Architecture Decision Record (ADR) with review from five perspectives: architecture, security, platform, migration, and user experience. Follow Nav's Architecture Advice Process.
 
 ## Workflow
 
 1. **Forstå konteksten** — hva er endringen og hvorfor?
-2. **Evaluer fra tre perspektiver** — arkitektur, sikkerhet, plattform
+2. **Review the five perspectives** — architecture, security, platform, migration, and user experience; state when a perspective does not apply.
 3. **Identifiser alternativer** — minst to alternativer + valgt løsning
 4. **Generer ADR** — formelt dokument med Nav-spesifikke vurderinger
 5. **Liste aksjonspunkter** — hva må gjøres for å realisere beslutningen
@@ -30,7 +30,7 @@ Still disse spørsmålene:
 
 ## Steg 2: Fler-perspektiv-review
 
-Evaluer fra tre perspektiver. For hvert perspektiv: identifiser bekymringer, risiko og anbefalinger.
+For each perspective, identify concerns, risks, and recommendations, or briefly explain why it does not apply to the change.
 
 ### Perspektiv 1: Arkitektur
 
@@ -70,6 +70,13 @@ Evaluer fra tre perspektiver. For hvert perspektiv: identifiser bekymringer, ris
 - Er det satt opp rekonsiliering for å verifisere datakonsistens?
 - Er dekommisjoneringsplan for gammel løsning definert?
 - Er migrasjons-observerbarhet på plass (gammel vs ny path, avviksteller)?
+
+### Perspective 5: User experience
+
+- Who is affected, and what task must they be able to enter, complete, and check?
+- How does each alternative affect that workflow, including navigation, necessary information, feedback, recovery, and accessibility?
+- For a plan, inspect the proposed flow and assumptions. For implemented UI, exercise the task on the rendered interface; record what was inspected and any missing evidence.
+- Judge reading, comparison, and monitoring views by those jobs. Correct components and passing tests alone do not establish usability.
 
 ## Steg 3: Alternativer
 
@@ -128,6 +135,11 @@ Bruk malen fra [adr-template.md](./references/adr-template.md).
 - Berørte team: {liste}
 - Migrasjonsstrategi: {plan}
 - Tilbakerulle-strategi: {plan}
+
+### Brukeropplevelse
+- Berørte brukere og oppgave: {arbeidsflyt, eller hvorfor det ikke gjelder}
+- Effekt av beslutningen: {informasjon, samhandling, universell utforming og feilretting}
+- Grunnlag og hull: {foreslått flyt eller utprøvd grensesnitt, åpne antakelser}
 
 ### Migrasjon (ved endring av eksisterende system)
 - Bakoverkompatibilitet: {vurdering}
@@ -234,7 +246,7 @@ Nedslagsfelt (1-3):
 ### ✅ Always
 
 - Inkluder minst to alternativer (inkludert «gjøre ingenting»)
-- Vurder fra alle tre perspektiver
+- Review all five perspectives; explain any that do not apply.
 - Dokumenter Nav-spesifikke vurderinger (auth, data, plattform)
 - Avslutt med konkrete aksjonspunkter
 
@@ -252,13 +264,13 @@ Nedslagsfelt (1-3):
 
 ## Review contract
 
-*Axes: the four perspectives in Steg 2 — arkitektur, sikkerhet, plattform, and migrasjon where it applies. The verdict is on the chosen alternative, and it gates the ADR Status field: `BLOCK` means the ADR is not approvable as written.*
+*Axes: the five perspectives in Steg 2 — architecture, security, platform, migration, and user experience. State why any axis does not apply. The verdict is on the chosen alternative, and it gates the ADR Status field: `BLOCK` means the ADR is not approvable as written.*
 
 The review ends here, in this shape. A review with no output section has not run.
 
 **Judge primary evidence.** The diff, the file, the `EXPLAIN` output, the rendered page — never your own summary of the change, and never your memory of what you meant to write. Resolve the base first, then cover committed, staged, unstaged **and untracked** changes. Read untracked files in full: diff output omits them.
 
-**Every axis reports.** Each axis produces at least one finding, or one line saying what it inspected and what that evidence does not prove. An axis that says nothing has not looked.
+**Every axis reports.** Each applicable axis produces at least one finding, or one line saying what it inspected and what that evidence does not prove. For an inapplicable axis, state why. An axis that says nothing has not looked.
 
 **Report what you inspected.** "No findings in the two files I opened" and "no findings in the change" are different claims, and only the first one is ever true.
 
@@ -269,7 +281,7 @@ Findings:      <n blocking, n concerns>
 Verdict:       BLOCK | CONCERNS | CLEAN
 ```
 
-- `BLOCK` — at least one finding that, shipped as written, risks data loss, a security or privacy breach, a production incident, or a wrong answer to a user.
+- `BLOCK` — at least one finding that, shipped as written, risks data loss, a security or privacy breach, a production incident, a wrong answer to a user, or prevents an intended user from completing a critical task.
 - `CONCERNS` — no blocking finding, but at least one a maintainer should fix or answer first.
 - `CLEAN` — every axis inspected against primary evidence, nothing at either bar. `CLEAN` claims only the axes above and the files on the `Inspected` line, and it is wrong if a defect is later found in them.
 
