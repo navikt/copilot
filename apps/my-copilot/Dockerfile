@@ -23,7 +23,8 @@ ENV GITHUB_ORG=navikt
 ARG APP_VERSION=unknown
 ENV NEXT_PUBLIC_APP_VERSION=${APP_VERSION}
 
-RUN pnpm build
+# pnpm re-checks minimumReleaseAge against the registry during build, so it needs the token too.
+RUN --mount=type=secret,id=GITHUB_PACKAGES_TOKEN,env=GITHUB_PACKAGES_TOKEN pnpm build
 
 FROM gcr.io/distroless/nodejs24:nonroot AS runner
 WORKDIR /app
