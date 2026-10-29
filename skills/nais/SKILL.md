@@ -150,7 +150,7 @@ accessPolicy:
           - port: 5432
 ```
 
-Egress to hosts outside the cluster is blocked unless listed in `outbound.external`. Use `host` (no `https://`) or `ipv4`, not both. Add `ports` for protocols other than HTTPS.
+Egress to hosts outside the cluster is blocked unless listed in `outbound.external` or on the [Nais default allow-list](https://doc.nais.io/workloads/reference/access-policies/) (Google APIs, Microsoft login/Graph, Aiven). Use `host` (no `https://`) or `ipv4`, not both. Add `ports` for protocols other than HTTPS.
 
 ### Ingress Configuration
 

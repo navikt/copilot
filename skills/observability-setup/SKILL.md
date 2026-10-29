@@ -316,7 +316,7 @@ spec:
             action: "Check for memory leaks, increase limits if needed"
 ```
 
-Nais sends these to the team's default Slack channel. To use another channel, add an `AlertmanagerConfig` (see `apps/copilot-api/.nais/app.yaml` in navikt/copilot and the [Nais alerting docs](https://doc.nais.io/observability/alerting/)).
+Nais sends these to the team's default Slack channel. To use another channel, add an `AlertmanagerConfig` and label those rules `alert_type: custom`, or the default route posts them twice (see `apps/copilot-api/.nais/app.yaml` in navikt/copilot and the [Nais alerting docs](https://doc.nais.io/observability/alerting/how-to/prometheus-advanced/)).
 
 ## Complete Example
 

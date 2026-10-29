@@ -527,7 +527,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/nais-manifest.prompt.md",
-      "contentHash": "c4d4547c2bdbc1a140189abc3a6904b83306f032efd7e7487cc5bad79ab760e5",
+      "contentHash": "4501bfb691da7fae33753f3127049189e328214e65509437a5ff675160b14eab",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md"
     },
@@ -757,7 +757,7 @@
       "displayName": "nais",
       "description": "Nais-deployment, GCP-ressurser, pod-lifecycle og feilsøking på plattformen",
       "filePath": "skills/nais/SKILL.md",
-      "contentHash": "bb95fd5d0aba95dd066bc994cf0126e98e60011174f7b60255807b700cbca13d",
+      "contentHash": "4d8aa55be210c7d118fd7eb1c56e4d4fe933e2109ddf47b17203fa28d19cedd0",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nais/SKILL.md"
     },
@@ -909,7 +909,7 @@
       "displayName": "observability-setup",
       "description": "Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endepunkter for Nais-applikasjoner",
       "filePath": "skills/observability-setup/SKILL.md",
-      "contentHash": "a99660418649da267d1aae472cd4eb9fe4969f87883fa0b718a57fbc2e9d30e5",
+      "contentHash": "41d01bbe976c5bb84cae44fe915d13ce42a55b8b6202dd3658ac9437198edb76",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/SKILL.md",
       "references": [
