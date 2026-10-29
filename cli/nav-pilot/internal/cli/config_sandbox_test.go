@@ -339,14 +339,15 @@ func TestSeededAllowlistStandsAloneForEveryAgent(t *testing.T) {
 
 // Copilot CLI verifies MCP servers against a registry at startup, so a
 // registry it cannot reach is a session that times out and then hangs — not a
-// feature quietly missing. Both of Nav's registry ingresses are in the list
-// because the URL comes from Nav's org-level Copilot MCP policy, which points
-// at dev today and can change without a nav-pilot release.
+// feature quietly missing. The policy names the production registry since
+// 2026-10-29 (#896); the dev ingress is not in the list.
 func TestSeededAllowlistReachesTheMCPRegistry(t *testing.T) {
 	oldCplt(t)
+	if containsStr(navAllowedDomains(), "mcp-registry.ekstern.dev.nav.no") {
+		t.Error("the dev registry is back in the allowlist (#896)")
+	}
 	for _, host := range []string{
 		"mcp-registry.nav.no",
-		"mcp-registry.ekstern.dev.nav.no",
 	} {
 		if !containsStr(navAllowedDomains(), host) {
 			t.Errorf("%q missing — Copilot CLI hangs at startup when it cannot reach the registry it verifies servers against", host)

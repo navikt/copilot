@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-29
 
+### Dev-registeret er ute av sandkassens tillatelsesliste
+
+- **`mcp-registry.ekstern.dev.nav.no`**: Copilot sjekker nå MCP-servere mot produksjonsregisteret, `mcp-registry.nav.no`. Dev-verten er derfor fjernet fra listen over Nav-domener sandkassen slipper gjennom, også fra lister nav-pilot har skrevet før (#896).
+
 ### Varsel når en lokal MCP-server ikke kjører
 
 - **`nav-pilot doctor` og oppstart**: Når en MCP-server du har slått på kjører på din egen maskin (`127.0.0.1`, `localhost` eller `::1`), sjekker nav-pilot at noe svarer på porten. Svarer ingenting, får du ett varsel med navnet på serveren og porten, for eksempel «aksel-arcade: nothing listening on 127.0.0.1:3846». Start appen som har serveren. Klienten starter uansett (#1448).
