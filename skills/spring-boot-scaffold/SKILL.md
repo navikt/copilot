@@ -10,7 +10,7 @@ metadata:
 
 # Spring Boot Kotlin Project Scaffold
 
-Scaffold a new Spring Boot project with Nav standards: Nais manifest, Flyway migrations, Azure AD, health endpoints, and Docker.
+Scaffold a new Spring Boot project with Nav standards: Nais manifest, Flyway migrations, Entra ID, health endpoints, and Docker.
 
 ## Workflow
 
@@ -68,10 +68,10 @@ my-app/
 
 ```kotlin
 plugins {
-    id("org.springframework.boot") version "3.4.1"
+    id("org.springframework.boot") version "3.5.16" // latest 3.5.x; moving to 4.x needs webmvc/Jackson 3/token-support 6 changes, see nav-plan
     id("io.spring.dependency-management") version "1.1.7"
-    kotlin("jvm") version "2.1.0"
-    kotlin("plugin.spring") version "2.1.0"
+    kotlin("jvm") version "2.4.21"
+    kotlin("plugin.spring") version "2.4.21"
 }
 
 group = "no.nav"
@@ -100,12 +100,12 @@ dependencies {
     implementation("net.logstash.logback:logstash-logback-encoder:8.0")
 
     // Nav token-validation
-    implementation("no.nav.security:token-validation-spring:5.0.13")
+    implementation("no.nav.security:token-validation-spring:5.0.30")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("no.nav.security:mock-oauth2-server:2.1.10")
-    testImplementation("org.testcontainers:postgresql:1.20.4")
-    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+    testImplementation("no.nav.security:mock-oauth2-server:6.1.4")
+    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("io.mockk:mockk:1.13.14")
 }
 
@@ -203,7 +203,7 @@ spec:
       memory: 256Mi
   gcp:
     sqlInstances:
-      - type: POSTGRES_15
+      - type: POSTGRES_18
         databases:
           - name: myapp
   azure:
@@ -296,7 +296,7 @@ class ResourceControllerTest {
 
     companion object {
         @Container
-        val postgres = PostgreSQLContainer("postgres:15")
+        val postgres = PostgreSQLContainer("postgres:18")
 
         val mockOAuth2Server = MockOAuth2Server()
 
@@ -352,7 +352,7 @@ class ResourceControllerTest {
 ```yaml
 services:
   postgres:
-    image: postgres:15
+    image: postgres:18
     ports:
       - "5432:5432"
     environment:

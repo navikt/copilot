@@ -21,6 +21,14 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Token exchange og validering**: Skillen viser nå hvordan du veksler og validerer TokenX-tokener gjennom Texas, token-sidecaren i Nais. Før viste den hvordan du signerer client assertions og verifiserer JWT-er selv. Vil du heller bruke et bibliotek, peker skillen til `token-validation-ktor` fra navikt/token-support (#2033).
 
+### Oppdaterte versjoner og navn i skills
+
+- **`spring-boot-scaffold`**: Spring Boot 3.5 og Kotlin 2.4, med oppdaterte test- og sikkerhetsavhengigheter. Postgres-eksemplene bruker versjon 18.
+- **Entra ID**: Skills, agenter og prompter skriver Entra ID, ikke Azure AD. Konfigurasjonsnøklene `azure:` og `AZURE_*` er uendret.
+- **`api-design`**: Viser til RFC 9457, som erstatter RFC 7807.
+- **`security-champion`**: Peker til Dependabot, GitHub security alerts og sårbarhetsoversikten i Nais Console, ikke Snyk.
+- **`dependency-upgrade`**: Jackson 2 til 3 migrerer du med `jackson-3-migration`. Spring Boot 3 til 4 planlegger du med `nav-plan` til en egen skill finnes (#2032).
+
 ### Riktig rekkefølge for klientargumenter i OpenCode
 
 - **`--client-arg` med en OpenCode-underkommando**: `nav-pilot --client-arg --foo -- run "…"` sender nå `--foo` etter `run`, der OpenCode leser det. Før havnet flagget foran underkommandoen, og OpenCode tolket kommandoen feil. Du trenger ikke lenger flytte klientflaggene etter `--`.

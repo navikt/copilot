@@ -16,7 +16,7 @@ Generate Playwright tests for Nav web applications. Covers page object pattern, 
 
 1. Install Playwright and configure `playwright.config.ts`
 2. Create page objects for your app's pages
-3. Set up auth fixtures for Azure AD / MockOAuth2Server
+3. Set up auth fixtures for Entra ID / MockOAuth2Server
 4. Write tests: navigation, forms, responsive, accessibility
 5. Add CI workflow in GitHub Actions
 
@@ -95,7 +95,7 @@ export class OversiktPage {
 }
 ```
 
-## 3. Auth Fixture (Azure AD / MockOAuth2Server)
+## 3. Auth Fixture (Entra ID / MockOAuth2Server)
 
 ```typescript
 // e2e/fixtures/auth.ts

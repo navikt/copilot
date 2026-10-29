@@ -195,7 +195,7 @@ private val ALLOWED_TYPES = setOf("application/pdf", "image/png", "image/jpeg")
 // build.gradle.kts — pin versions, use BOM
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.boot:spring-boot-dependencies:3.4.1")
+        mavenBom("org.springframework.boot:spring-boot-dependencies:3.5.16")
     }
 }
 

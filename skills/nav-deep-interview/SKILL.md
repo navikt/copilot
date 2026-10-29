@@ -26,7 +26,7 @@ Still dette spørsmålet først:
 > - Backend API (Kotlin/Ktor eller Spring Boot)
 > - Hendelsekonsument (Kafka / Rapids & Rivers)
 > - Frontend for innbygger (Next.js + ID-porten)
-> - Frontend for saksbehandler (Next.js + Azure AD)
+> - Frontend for saksbehandler (Next.js + Entra ID)
 > - Batchjobb (Naisjob)
 > - Fullstack (frontend + BFF + backend)
 

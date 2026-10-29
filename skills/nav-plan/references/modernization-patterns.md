@@ -250,7 +250,7 @@ spec:
 spec:
   gcp:
     sqlInstances:
-      - type: POSTGRES_15
+      - type: POSTGRES_18
         tier: db-custom-1-3840
         diskAutoresize: true
         highAvailability: true
@@ -281,7 +281,7 @@ testcontainers.reuse.enable=true
 ```kotlin
 // Delt test-database med gjenbruk
 object TestDatabase {
-    val container = PostgreSQLContainer<Nothing>("postgres:15").apply {
+    val container = PostgreSQLContainer<Nothing>("postgres:18").apply {
         withDatabaseName("testdb")
         withReuse(true)
         start()

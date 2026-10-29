@@ -194,7 +194,7 @@ A behaviour-preserving change (library migration, refactor, version bump, rename
 | Backend API | Kotlin (Ktor, Spring Boot, or Javalin) + Nais |
 | Event consumer | Kotlin + Kafka + Rapids & Rivers |
 | Frontend (citizen) | Next.js + ID-porten + Wonderwall |
-| Frontend (caseworker) | Next.js + Azure AD + Wonderwall |
+| Frontend (caseworker) | Next.js + Entra ID + Wonderwall |
 | Batch job | Kotlin + Naisjob |
 | Fullstack | Next.js + BFF + backend API |
 
@@ -228,9 +228,9 @@ Use `$api-design` when the plan includes synchronous REST APIs or BFF layers.
 | Who calls? | Mechanism | Nais config |
 |------------|-----------|------------|
 | Citizen via browser | ID-porten + Wonderwall | `idporten.enabled: true` |
-| Caseworker via browser | Azure AD + Wonderwall | `azure.application.enabled: true` |
+| Caseworker via browser | Entra ID + Wonderwall | `azure.application.enabled: true` |
 | Other Nav service (user context) | TokenX | `tokenx.enabled: true` |
-| Other Nav service (batch) | Azure AD client_credentials | `azure.application.enabled: true` |
+| Other Nav service (batch) | Entra ID client_credentials | `azure.application.enabled: true` |
 | External partner | Maskinporten | `maskinporten.enabled: true` |
 
 **Communication decision tree:**

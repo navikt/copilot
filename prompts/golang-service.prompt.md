@@ -111,7 +111,7 @@ spec:
     path: /metrics
   gcp:
     sqlInstances:
-      - type: POSTGRES_17
+      - type: POSTGRES_18
         databases:
           - name: {{service-name}}
   accessPolicy:

@@ -201,7 +201,7 @@ When researching in Nav projects, focus on:
 - **Kotlin/Ktor**: Look for ApplicationBuilder patterns, routing, authentication
 - **Next.js/Aksel**: Check for design system usage, spacing tokens, components
 - **Nais**: Examine `.nais/*.yaml` manifests, GCP resources, Kafka config
-- **Auth**: Investigate Azure AD, TokenX, ID-porten integration patterns
+- **Auth**: Investigate Entra ID, TokenX, ID-porten integration patterns
 
 ### Nav Repositories to Reference
 

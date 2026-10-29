@@ -1,6 +1,6 @@
 ---
 name: api-design
-description: REST API-designmønstre, versjonering, feilhåndtering (RFC 7807) og OpenAPI-konvensjoner for Nav-tjenester
+description: REST API-designmønstre, versjonering, feilhåndtering (RFC 9457) og OpenAPI-konvensjoner for Nav-tjenester
 license: MIT
 compatibility: Go or Kotlin backend on Nais
 metadata:
@@ -37,7 +37,7 @@ POST   /api/createVedtak              # Verb in URL
 GET    /api/Vedtak                    # PascalCase
 ```
 
-## Error Handling (RFC 7807 / ProblemDetail)
+## Error Handling (RFC 9457 / ProblemDetail)
 
 ```kotlin
 // Spring Boot 3+ — built-in ProblemDetail support
@@ -86,7 +86,7 @@ install(StatusPages) {
 }
 ```
 
-Response format (RFC 7807):
+Response format (RFC 9457):
 
 ```json
 {

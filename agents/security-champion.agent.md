@@ -248,13 +248,13 @@ spec:
 
 ## Authentication & Authorization
 
-> **For detailed authentication implementation**, use the `$nav-auth` skill, which covers Azure AD, TokenX, ID-porten, Maskinporten, and JWT validation in depth.
+> **For detailed authentication implementation**, use the `$nav-auth` skill, which covers Entra ID, TokenX, ID-porten, Maskinporten, and JWT validation in depth.
 
 ### Authentication Strategy Overview
 
 | Scenario | Auth Method | Agent |
 |----------|-------------|-------|
-| Internal Nav employees | Azure AD | `$nav-auth` |
+| Internal Nav employees | Entra ID | `$nav-auth` |
 | Citizen-facing services | ID-porten + TokenX | `$nav-auth` |
 | Machine-to-machine (external) | Maskinporten | `$nav-auth` |
 | Service-to-service (internal) | TokenX | `$nav-auth` |
@@ -265,7 +265,7 @@ When reviewing authentication, ensure:
 
 1. **Defense in depth**: Don't rely solely on authentication - combine with authorization, network policies, and input validation
 2. **Token validation**: Always validate issuer, audience, expiration, and signature
-3. **M2M `azp` validation**: For Azure AD machine-to-machine tokens, validate the `azp` claim against `AZURE_APP_PRE_AUTHORIZED_APPS` — otherwise any app in the tenant can call the service
+3. **M2M `azp` validation**: For Entra ID machine-to-machine tokens, validate the `azp` claim against `AZURE_APP_PRE_AUTHORIZED_APPS` — otherwise any app in the tenant can call the service
 4. **Auth-vs-accessPolicy cross-check**: Diff auth code (which apps are validated in code) against `.nais/` `accessPolicy.inbound.rules` (which apps can reach the service). Mismatches indicate dead code or missing network rules
 5. **Access policies**: Define explicit network policies in `accessPolicy` for all authenticated services. Treat an open or widened `accessPolicy.inbound` (`*`, all namespaces or all applications, a new inbound rule, or a removed restriction) as a critical finding, never as good practice.
 6. **Personal data in logs**: Treat fnr or other personal data about a person (name, home address, health or benefit data) written to application logs, including via string interpolation, exception messages or `toString`, as a critical finding. The only exception is a CEF-formatted line written through the dedicated `auditLogger` (own appender, `additivity="false"`, see Audit Logging) when personal data is shown to an employee. A line in the ordinary application logger is not an audit log, whatever it is called.
@@ -286,7 +286,7 @@ spec:
       allowAllUsers: false # Restrict to specific users
       claims:
         groups:
-          - id: "group-uuid" # Azure AD group ID
+          - id: "group-uuid" # Entra ID group ID
 ```
 
 > See the `$nav-auth` skill for complete JWT validation and RBAC implementation patterns.
@@ -581,7 +581,7 @@ Nais automatically scans for vulnerabilities using:
 
 - **Trivy**: Container image scanning
 - **Dependabot**: Dependency updates
-- **Snyk**: Vulnerability alerts
+- **Nais Console**: Vulnerability overview per workload, from the SBOMs your build attests
 
 ### Keeping Dependencies Updated
 
@@ -739,7 +739,7 @@ suspend fun callDownstreamService(callId: String) {
 ### STRIDE Framework
 
 1. **Spoofing**: Can attacker impersonate users?
-   - Mitigation: Strong authentication (Azure AD)
+   - Mitigation: Strong authentication (Entra ID)
 
 2. **Tampering**: Can attacker modify data?
    - Mitigation: Input validation, integrity checks
@@ -762,7 +762,7 @@ Use this checklist for security reviews. Specialized agents can help with specif
 
 ```markdown
 ## Authentication & Authorization (`$nav-auth` skill)
-- [ ] Authentication method chosen (Azure AD / TokenX / ID-porten)
+- [ ] Authentication method chosen (Entra ID / TokenX / ID-porten)
 - [ ] Token validation implemented correctly
 - [ ] Authorization checks on all endpoints
 - [ ] Access policies defined in nais.yaml
@@ -791,7 +791,7 @@ Use this checklist for security reviews. Specialized agents can help with specif
 - [ ] Nav-Call-Id tracing implemented
 
 ## Security Scanning
-- [ ] Dependency scanning enabled (Dependabot/Snyk)
+- [ ] Dependency scanning enabled (Dependabot/GitHub security alerts)
 - [ ] Container scanning enabled (Trivy)
 - [ ] No critical/high vulnerabilities
 

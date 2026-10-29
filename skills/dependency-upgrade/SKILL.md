@@ -27,7 +27,7 @@ The rule behind every step: **only change what something in the repo will check.
 
 ## When NOT to Use
 
-- Framework migrations that require code changes (Spring Boot 3→4, Jackson 2→3): use the dedicated migration skill
+- Framework migrations that require code changes: use `jackson-3-migration` for Jackson 2→3, and plan Spring Boot 3→4 with `nav-plan` until a dedicated skill exists (#2029)
 - A project with no lockfile or no test command: report that it has no lockfile/tests and skip it
 
 ## 1. Find each project and its ecosystem
