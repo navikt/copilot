@@ -281,7 +281,7 @@ testcontainers.reuse.enable=true
 ```kotlin
 // Delt test-database med gjenbruk
 object TestDatabase {
-    val container = PostgreSQLContainer<Nothing>("postgres:15").apply {
+    val container = PostgreSQLContainer<Nothing>("postgres:17").apply {
         withDatabaseName("testdb")
         withReuse(true)
         start()

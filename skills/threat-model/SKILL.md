@@ -44,7 +44,7 @@ Start by answering these questions to establish the threat model boundary:
 
 - **Who consumes this service?** (end users, other services, external partners)
 - **What does this service depend on?** (databases, Kafka topics, upstream APIs)
-- **What auth mechanisms are in play?** (ID-porten, Azure AD, TokenX, Maskinporten)
+- **What auth mechanisms are in play?** (ID-porten, Entra ID, TokenX, Maskinporten)
 
 ### Deployment Context
 
@@ -87,7 +87,7 @@ Map the system using these element types:
     |
 (dp-soknad-api)
     |
-    |--- REST (Azure AD M2M) ---> (dp-behandling)
+    |--- REST (Entra ID M2M) ---> (dp-behandling)
     |
     |--- Kafka produce ---------> {kafka: dp.soknad.v1}
     |                                  |
@@ -110,9 +110,9 @@ Identify these trust boundaries in every Nav threat model:
 
 | Boundary | Transition | Security Mechanism |
 |----------|-----------|-------------------|
-| Internet → Ingress | External user to Nais | Wonderwall + ID-porten / Azure AD |
+| Internet → Ingress | External user to Nais | Wonderwall + ID-porten / Entra ID |
 | Ingress → Application | Sidecar to app container | Token validation (JWT claims) |
-| Application → Application | Service-to-service | TokenX token exchange / Azure AD M2M |
+| Application → Application | Service-to-service | TokenX token exchange / Entra ID M2M |
 | Application → Kafka | App to message broker | mTLS (Nais-managed certs), schema validation |
 | Application → Database | App to PostgreSQL | Nais-injected credentials, connection pooling |
 | Application → External API | App to outside Nais | Egress policy, mutual TLS, API keys |

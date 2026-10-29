@@ -581,7 +581,7 @@ Nais automatically scans for vulnerabilities using:
 
 - **Trivy**: Container image scanning
 - **Dependabot**: Dependency updates
-- **Snyk**: Vulnerability alerts
+- **GitHub security alerts**: Vulnerability alerts (Dependabot alerts)
 
 ### Keeping Dependencies Updated
 
@@ -791,7 +791,7 @@ Use this checklist for security reviews. Specialized agents can help with specif
 - [ ] Nav-Call-Id tracing implemented
 
 ## Security Scanning
-- [ ] Dependency scanning enabled (Dependabot/Snyk)
+- [ ] Dependency scanning enabled (Dependabot/GitHub security alerts)
 - [ ] Container scanning enabled (Trivy)
 - [ ] No critical/high vulnerabilities
 

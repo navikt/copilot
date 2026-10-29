@@ -1,6 +1,6 @@
 ---
 name: nav-auth
-description: Azure AD, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-applikasjoner
+description: Entra ID, TokenX, ID-porten, Maskinporten og JWT-validering for Nav-applikasjoner
 license: MIT
 compatibility: Application on Nais with authentication needs
 metadata:
@@ -10,13 +10,13 @@ metadata:
 
 # Nav Authentication Skill
 
-Patterns for authentication and authorization in Nav applications. Covers Azure AD, TokenX, ID-porten, Maskinporten, and JWT validation.
+Patterns for authentication and authorization in Nav applications. Covers Entra ID, TokenX, ID-porten, Maskinporten, and JWT validation.
 
 ## When to Use
 
 - Adding authentication to a Nais application
 - Implementing service-to-service calls with TokenX
-- Validating JWT tokens (Azure AD, ID-porten)
+- Validating JWT tokens (Entra ID, ID-porten)
 - Setting up machine-to-machine auth with Maskinporten
 - Debugging auth failures
 
@@ -26,7 +26,7 @@ Patterns for authentication and authorization in Nav applications. Covers Azure 
 # Decode JWT token payload (without verification — note: uses tr for base64url)
 echo "<token>" | cut -d'.' -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq .
 
-# Fetch Azure AD OpenID config
+# Fetch Entra ID OpenID config
 curl -s "https://login.microsoftonline.com/nav.no/.well-known/openid-configuration" | jq .
 
 # Check auth env var names in pod (works with distroless/Chainguard, values hidden)
@@ -39,7 +39,7 @@ curl -s "$AZURE_OPENID_CONFIG_JWKS_URI" | jq '.keys | length'
 
 ## Authentication Types
 
-### 1. Azure AD (Internal Nav Users)
+### 1. Entra ID (Internal Nav Users)
 
 **Use when**: Internal Nav employees need to access the application.
 
@@ -148,7 +148,7 @@ export async function GET(request: Request) {
 }
 ```
 
-> **Note**: `@navikt/oasis` auto-caches OBO tokens. Azure AD audience uses different format: `"api://dev-gcp.namespace.app-name/.default"`
+> **Note**: `@navikt/oasis` auto-caches OBO tokens. Entra ID audience uses different format: `"api://dev-gcp.namespace.app-name/.default"`
 
 **Kotlin Token Exchange**:
 
@@ -300,7 +300,7 @@ authenticate("azureAd") {
 
 ## Machine-to-Machine (M2M) Validation
 
-When accepting Azure AD M2M tokens (`sub == oid`), always validate `azp` against `AZURE_APP_PRE_AUTHORIZED_APPS`:
+When accepting Entra ID M2M tokens (`sub == oid`), always validate `azp` against `AZURE_APP_PRE_AUTHORIZED_APPS`:
 
 ```kotlin
 // ✅ Correct — validate azp against pre-authorized apps
@@ -315,7 +315,7 @@ validate { credentials ->
     JWTPrincipal(credentials.payload)
 }
 
-// ❌ Wrong — accepts ANY app in the Azure AD tenant
+// ❌ Wrong — accepts ANY app in the Entra ID tenant
 validate { credentials ->
     if (!erMaskinTilMaskin(credentials)) return@validate null
     JWTPrincipal(credentials.payload)  // no azp check!
@@ -404,8 +404,8 @@ describe("auth middleware", () => {
 
 - `accessPolicy` and auth validation must match — drift means dead code or missing rules
 - `@navikt/oasis` auto-caches OBO tokens — don't add your own cache layer
-- Azure AD M2M tokens have `sub == oid` — detect this to apply `azp` validation
-- TokenX audience format differs from Azure AD OBO (`cluster:ns:app` vs `api://.../.default`)
+- Entra ID M2M tokens have `sub == oid` — detect this to apply `azp` validation
+- TokenX audience format differs from Entra ID OBO (`cluster:ns:app` vs `api://.../.default`)
 - Never log full JWT tokens — only log claims you need for debugging
 
 ## Boundaries
