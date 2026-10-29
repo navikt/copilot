@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-29
 
+### Varsel når en lokal MCP-server ikke kjører
+
+- **`nav-pilot doctor` og oppstart**: Når en MCP-server du har slått på kjører på din egen maskin (`127.0.0.1`, `localhost` eller `::1`), sjekker nav-pilot at noe svarer på porten. Svarer ingenting, får du ett varsel med navnet på serveren og porten, for eksempel «aksel-arcade: nothing listening on 127.0.0.1:3846». Start appen som har serveren. Klienten starter uansett (#1448).
+
 ### `mcp enable` spør cplt om Nais-innloggingen
 
 - **`nav-pilot mcp enable`**: Sjekker nå om du er logget inn i Nais gjennom cplt, slik `mcp list` gjør. Før kjørte nav-pilot `nais auth print-access-token` direkte på maskinen din, utenfor sandkassen. nav-pilot sjekker selv bare når cplt ikke svarer (#2058).

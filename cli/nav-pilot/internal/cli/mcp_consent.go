@@ -289,6 +289,7 @@ func reportMCPHostsWith(w io.Writer, cpltPath string, refresh func() error) {
 			fmt.Fprintf(w, "      %s MCP hosts allowed: %s\n", green("✓"), strings.Join(mcpHostNames(st.Grant), ", "))
 		}
 	}
+	warnDeadMCPLoopback(w, "      ", st.Current.Loopback)
 	if len(st.Current.Loopback) == 0 {
 		return
 	}

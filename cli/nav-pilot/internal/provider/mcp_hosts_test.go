@@ -81,7 +81,7 @@ func TestMCPHostsComeFromTheRegistryNotTheConfig(t *testing.T) {
 	if names := got.Names(); !slices.Equal(names, []string{"mcp.figma.com"}) {
 		t.Errorf("hosts = %v, want only the registry's mcp.figma.com", names)
 	}
-	if !slices.Equal(got.Loopback, []MCPLoopback{{"io.github.navikt/aksel-arcade", "3846"}}) {
+	if !slices.Equal(got.Loopback, []MCPLoopback{{"io.github.navikt/aksel-arcade", "127.0.0.1", "3846"}}) {
 		t.Errorf("loopback = %v, want aksel-arcade on 3846 and no grant", got.Loopback)
 	}
 }
