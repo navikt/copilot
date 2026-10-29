@@ -9,12 +9,12 @@ metadata:
 
 # Architecture Review — ADR Generator
 
-Generate an Architecture Decision Record (ADR) with review from five perspectives: architecture, security, platform, migration, and user experience. Follow Nav's Architecture Advice Process.
+Generer et Architecture Decision Record (ADR) med review fra fem perspektiver: arkitektur, sikkerhet, plattform, migrasjon og brukeropplevelse. Følger Navs Architecture Advice Process.
 
 ## Workflow
 
 1. **Forstå konteksten** — hva er endringen og hvorfor?
-2. **Review the five perspectives** — architecture, security, platform, migration, and user experience; state when a perspective does not apply.
+2. **Evaluer fra fem perspektiver** — arkitektur, sikkerhet, plattform, migrasjon, brukeropplevelse; si fra når et perspektiv ikke gjelder
 3. **Identifiser alternativer** — minst to alternativer + valgt løsning
 4. **Generer ADR** — formelt dokument med Nav-spesifikke vurderinger
 5. **Liste aksjonspunkter** — hva må gjøres for å realisere beslutningen
@@ -30,7 +30,7 @@ Still disse spørsmålene:
 
 ## Steg 2: Fler-perspektiv-review
 
-For each perspective, identify concerns, risks, and recommendations, or briefly explain why it does not apply to the change.
+For hvert perspektiv: identifiser bekymringer, risiko og anbefalinger, eller forklar kort hvorfor det ikke gjelder endringen.
 
 ### Perspektiv 1: Arkitektur
 
@@ -71,12 +71,12 @@ For each perspective, identify concerns, risks, and recommendations, or briefly 
 - Er dekommisjoneringsplan for gammel løsning definert?
 - Er migrasjons-observerbarhet på plass (gammel vs ny path, avviksteller)?
 
-### Perspective 5: User experience
+### Perspektiv 5: Brukeropplevelse
 
-- Who is affected, and what task must they be able to enter, complete, and check?
-- How does each alternative affect that workflow, including navigation, necessary information, feedback, recovery, and accessibility?
-- For a plan, inspect the proposed flow and assumptions. For implemented UI, exercise the task on the rendered interface; record what was inspected and any missing evidence.
-- Judge reading, comparison, and monitoring views by those jobs. Correct components and passing tests alone do not establish usability.
+- Hvem berøres, og hvilken oppgave må de kunne starte, fullføre og kontrollere?
+- Hvordan påvirker hvert alternativ arbeidsflyten, inkludert navigasjon, nødvendig informasjon, tilbakemelding, feilretting og universell utforming?
+- For en plan: gå gjennom den foreslåtte flyten og antakelsene. For ferdig grensesnitt: utfør oppgaven i det rendrede grensesnittet, og noter hva du sjekket og hva du ikke fikk sjekket.
+- Vurder visninger for lesing, sammenligning og overvåking ut fra nettopp de oppgavene. Riktige komponenter og grønne tester alene viser ikke at løsningen er brukbar.
 
 ## Steg 3: Alternativer
 
@@ -136,10 +136,10 @@ Bruk malen fra [adr-template.md](./references/adr-template.md).
 - Migrasjonsstrategi: {plan}
 - Tilbakerulle-strategi: {plan}
 
-### User experience
-- Affected users and task: {workflow, or why not applicable}
-- Effect of the decision: {information, interaction, accessibility, and recovery}
-- Evidence and gaps: {proposed flow or exercised interface, unresolved assumptions}
+### Brukeropplevelse
+- Berørte brukere og oppgave: {arbeidsflyt, eller hvorfor det ikke gjelder}
+- Effekt av beslutningen: {informasjon, samhandling, universell utforming og feilretting}
+- Grunnlag og hull: {foreslått flyt eller utprøvd grensesnitt, åpne antakelser}
 
 ### Migrasjon (ved endring av eksisterende system)
 - Bakoverkompatibilitet: {vurdering}
@@ -246,7 +246,7 @@ Nedslagsfelt (1-3):
 ### ✅ Always
 
 - Inkluder minst to alternativer (inkludert «gjøre ingenting»)
-- Review all five perspectives; explain any that do not apply.
+- Vurder fra alle fem perspektiver, og forklar hvorfor et perspektiv eventuelt ikke gjelder
 - Dokumenter Nav-spesifikke vurderinger (auth, data, plattform)
 - Avslutt med konkrete aksjonspunkter
 
