@@ -23,7 +23,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Entra ID**: Skills, agenter og prompter skriver Entra ID, ikke Azure AD. Konfigurasjonsnøklene `azure:` og `AZURE_*` er uendret.
 - **`api-design`**: Viser til RFC 9457, som erstatter RFC 7807.
 - **`security-champion`**: Peker til Dependabot, GitHub security alerts og sårbarhetsoversikten i Nais Console, ikke Snyk.
-- **`dependency-upgrade`**: Rammeverksmigreringer som Spring Boot 3 til 4 planlegger du med `nav-plan` (#2032).
+- **`dependency-upgrade`**: Jackson 2 til 3 migrerer du med `jackson-3-migration`. Spring Boot 3 til 4 planlegger du med `nav-plan` til en egen skill finnes (#2032).
 
 ### Riktig rekkefølge for klientargumenter i OpenCode
 

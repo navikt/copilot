@@ -663,7 +663,7 @@
       "displayName": "dependency-upgrade",
       "description": "Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, og hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem",
       "filePath": "skills/dependency-upgrade/SKILL.md",
-      "contentHash": "a8c4408eb7bd20d66b6516bcd51eba09ad4a95c7f156cb20159302c1cdd84cdd",
+      "contentHash": "4de1d4b6129e2fc13d0035e9f26686f64da64c32c3517168fddaadc96399daf8",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/dependency-upgrade/SKILL.md"
     },
