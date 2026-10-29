@@ -2491,8 +2491,16 @@
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
-  "/nyheter/mcp-i-nav-pilot": {
+  "/nyheter/mcp-broker-egen-sandkasse": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/mcp-i-nav-pilot": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/news/articles/mcp-broker-egen-sandkasse.md"
+    ],
     "anchors": {}
   },
   "/nyheter/mcp-registry-tools-page": {
