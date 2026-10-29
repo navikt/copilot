@@ -631,16 +631,6 @@ var navOwnDomains = []string{
 	// apps/mcp-registry/.nais/prod-gcp.yaml is the ingress.
 	"mcp-registry.nav.no",
 
-	// Nav's MCP registry, in dev — and the one Copilot CLI actually resolves
-	// today. The registry URL comes from Nav's org-level Copilot MCP policy
-	// over api.github.com, not from anything on the machine, so it cannot be
-	// pointed at production from here. A debug log on a Nav machine reads
-	// `Registry https://mcp-registry.ekstern.dev.nav.no/: servers will be
-	// verified against this registry`, followed by a connection to that host.
-	// Remove this entry when the org policy names the production registry.
-	// apps/mcp-registry/.nais/dev-gcp.yaml is the ingress.
-	"mcp-registry.ekstern.dev.nav.no",
-
 	// The Aksel design-system MCP server the aksel agent is built around.
 	// agents/aksel.agent.md declares it as a streamable-http MCP endpoint, and
 	// skills/aksel-builder/SKILL.md says in as many words that the URL has to
