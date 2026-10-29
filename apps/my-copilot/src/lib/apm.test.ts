@@ -1,33 +1,23 @@
-import type { TransportItem } from "@grafana/faro-web-sdk";
-import { ignoreErrors, propagateTraceHeaderCorsUrls, scrubEvent } from "./faro";
+import { apmOptions, ignoreErrors, propagateExtraOrigins, scrubEvent } from "./apm";
 
-const matchesAny = (url: string) => propagateTraceHeaderCorsUrls.some((pattern) => pattern.test(url));
+const matchesAny = (url: string) => propagateExtraOrigins.some((pattern) => pattern.test(url));
 
-describe("propagateTraceHeaderCorsUrls", () => {
-  it("matches nav.no and its subdomains", () => {
-    expect(matchesAny("https://nav.no")).toBe(true);
-    expect(matchesAny("https://nav.no/some/path")).toBe(true);
-    expect(matchesAny("https://www.nav.no")).toBe(true);
-    expect(matchesAny("https://telemetry.nav.no/collect")).toBe(true);
-    expect(matchesAny("https://deep.sub.domain.nav.no:8443/path")).toBe(true);
-  });
-
+describe("propagateExtraOrigins", () => {
   it("matches nav.cloud.nais.io and its subdomains", () => {
     expect(matchesAny("https://nav.cloud.nais.io")).toBe(true);
     expect(matchesAny("https://my-app.nav.cloud.nais.io/api")).toBe(true);
+    expect(matchesAny("https://deep.sub.nav.cloud.nais.io:8443/path")).toBe(true);
   });
 
   it("does not match lookalike hosts that merely contain a trusted domain", () => {
-    expect(matchesAny("https://x.nav.no.evil.com")).toBe(false);
-    expect(matchesAny("https://x.nav.no.evil.com/nav.no")).toBe(false);
     expect(matchesAny("https://app.nav.cloud.nais.io.evil.com")).toBe(false);
-    expect(matchesAny("https://evilnav.no")).toBe(false);
-    expect(matchesAny("https://nav.noevil.com")).toBe(false);
+    expect(matchesAny("https://evilnav.cloud.nais.io")).toBe(false);
+    expect(matchesAny("https://x.evil.com/nav.cloud.nais.io")).toBe(false);
   });
 
   it("does not match untrusted schemes or embedded URLs", () => {
-    expect(matchesAny("http://nav.no")).toBe(false);
-    expect(matchesAny("https://evil.com/?u=https://nav.no")).toBe(false);
+    expect(matchesAny("http://nav.cloud.nais.io")).toBe(false);
+    expect(matchesAny("https://evil.com/?u=https://nav.cloud.nais.io")).toBe(false);
   });
 });
 
@@ -53,15 +43,13 @@ describe("scrubEvent", () => {
       meta: { page: { url: "https://ki-utvikling.nav.no/a/12345678901?id=1" } },
       payload: {
         name: "faro.navigation",
-        attributes: { fromUrl: "https://x.nav.no/b?u=2", toUrl: "https://x.nav.no/12345678901" },
+        attributes: { fromUrl: "https://x.nav.no/b?u=2", toUrl: "https://x.nav.no/12345678901", toRoute: "/c/12345678901" },
       },
-    } as unknown as TransportItem;
-    const out = scrubEvent(event) as unknown as {
-      meta: { page: { url: string } };
-      payload: { attributes: Record<string, string> };
     };
+    const out = scrubEvent(event);
     expect(out.meta.page.url).toBe("https://ki-utvikling.nav.no/a/[REDACTED]");
     expect(out.payload.attributes.fromUrl).toBe("https://x.nav.no/b");
     expect(out.payload.attributes.toUrl).toBe("https://x.nav.no/[REDACTED]");
+    expect(out.payload.attributes.toRoute).toBe("/c/[REDACTED]");
   });
 });

@@ -70,6 +70,10 @@ updates:
       # navikt/copilot#852 for hele sporet.
       - dependency-name: "next"
         versions: [">=16.3"]
+      # @nais/apm ligger på GitHub Packages, som krever token også for
+      # offentlige pakker. Dependabot har ikke det tokenet, så vi oppdaterer
+      # den for hånd, med eksakt pinnet versjon (pre-1.0).
+      - dependency-name: "@nais/apm"
     open-pull-requests-limit: 5
 
   # copilot-api (Go)

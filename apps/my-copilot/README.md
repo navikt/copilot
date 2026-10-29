@@ -201,10 +201,8 @@ All environment variables are documented below, organized by integration:
 | `COPILOT_METRICS_DATASET`       | No       | `copilot_metrics`                              | Dataset for usage metrics                   |
 | `COPILOT_METRICS_TABLE`         | No       | `usage_metrics`                                | Table for daily usage data                  |
 | `COPILOT_ADOPTION_DATASET`      | No       | `copilot_adoption`                             | Dataset for repo adoption scan results      |
-| **Telemetry** (Faro)            |          |                                                |                                             |
-| `NEXT_PUBLIC_FARO_URL`          | No       | `https://telemetry.ekstern.dev.nav.no/collect` | Grafana Faro collector endpoint             |
-| `NEXT_PUBLIC_FARO_APP_NAME`     | No       | `min-copilot`                                  | Application name for Faro                   |
-| `NEXT_PUBLIC_FARO_NAMESPACE`    | No       | `nais`                                         | Namespace for Faro                          |
+| **Telemetry** (@nais/apm)       |          |                                                |                                             |
+| `NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL` | No | set by nais | Collector URL; unset on localhost, so nothing is sent |
 | **MCP Registry**                |          |                                                |                                             |
 | `MCP_REGISTRY_URL`              | No       | `https://mcp-registry.nav.no`                  | MCP server registry URL                     |
 

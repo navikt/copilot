@@ -156,6 +156,10 @@ jobs:
     name: Setup
     permissions:
       contents: read
+      packages: read
+    env:
+      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     if: ${{ inputs.mise-setup-tasks != '[]' }}
     runs-on: ${{ inputs.runner-size }}
     defaults:
@@ -201,6 +205,10 @@ jobs:
     name: Check
     permissions:
       contents: read
+      packages: read
+    env:
+      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
     if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
     strategy:
@@ -256,6 +264,10 @@ jobs:
     name: Build
     permissions:
       contents: read
+      packages: read
+    env:
+      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
     if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
     runs-on: ${{ inputs.runner-size }}
@@ -307,6 +319,7 @@ jobs:
     if: ${{ inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
     permissions:
       contents: read
+      packages: read
       id-token: write
     runs-on: ${{ inputs.runner-size-docker }}
     needs: [meta, lint, build]
@@ -326,6 +339,9 @@ jobs:
           docker_context: ${{ inputs.working-directory != '.' && format('{0}/{1}', inputs.working-directory, inputs.docker-context) || inputs.docker-context }}
           build_args: |
             APP_VERSION=${{ needs.meta.outputs.version }}
+          # BuildKit secret, never a layer: lets pnpm read GitHub Packages.
+          build_secrets: |
+            GITHUB_PACKAGES_TOKEN=${{ github.token }}
           cache_from: type=gha
           cache_to: type=gha,mode=max
 

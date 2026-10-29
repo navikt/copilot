@@ -1,4 +1,5 @@
-import Faro from "@/components/faro";
+import { NaisMetaTags } from "@nais/apm/react";
+import ApmRouteTracker from "@/components/apm-route-tracker";
 import { FooterMessage } from "@/components/footer-message";
 import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
 import { SiteHeader, type HeaderLabels } from "@/components/navigation/site-nav";
@@ -36,6 +37,9 @@ export async function SiteShell({
 
   return (
     <html lang={lang}>
+      <head>
+        <NaisMetaTags />
+      </head>
       <body className={`${inter.className} bg-gray-800 min-h-dvh flex flex-col`}>
         <Suspense fallback={null}>
           <HashAnchorScroll />
@@ -96,7 +100,7 @@ export async function SiteShell({
             </footer>
           </HStack>
         </Theme>
-        <Faro collectorUrl={process.env.NAIS_FRONTEND_TELEMETRY_COLLECTOR_URL} />
+        <ApmRouteTracker />
       </body>
     </html>
   );
