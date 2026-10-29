@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-29
 
+### `mcp enable` spør cplt om Nais-innloggingen
+
+- **`nav-pilot mcp enable`**: Sjekker nå om du er logget inn i Nais gjennom cplt, slik `mcp list` gjør. Før kjørte nav-pilot `nais auth print-access-token` direkte på maskinen din, utenfor sandkassen. nav-pilot sjekker selv bare når cplt ikke svarer (#2058).
+
 ### Nais MCP gjennom cplt krever nav-pilot fra 2026-10-24
 
 - **Nais MCP-oppføringen i registeret**: Oppføringen har ikke lenger feltet `login.status`. nav-pilot sjekker innloggingen med sin egen faste kommando. Bygg fra før 2026-10-24 avviser oppføringen. Kjør `nav-pilot upgrade` (#1979).

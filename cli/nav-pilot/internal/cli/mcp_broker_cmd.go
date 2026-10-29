@@ -75,7 +75,7 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 	if after := mcpCpltStatus(cpltPath); after != nil {
 		st = after
 	}
-	where, _, _, probs := mcpBrokerState(cpltPath, st, e.Name)
+	where, credOK, credNote, probs := mcpBrokerState(cpltPath, st, e.Name)
 	res := mcpBrokerResult{Server: e.Name, Spec: path, Tools: allow, Path: where}
 	if !jsonOut {
 		kind := "read-only"
@@ -101,13 +101,13 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 		warn(old, m.upgrade)
 	}
 	tool, login := m.tool(), strings.Join(m.login, " ")
-	res.Login = mcpLoginState(m)
-	switch res.Login {
-	case "not installed":
+	res.Login = mcpCredState(m, credOK, credNote)
+	switch {
+	case res.Login == "not installed":
 		warn(tool+" is not installed", "install it ("+m.install+"), then run "+login)
-	case "unknown (timed out)":
-		warn("could not check the "+tool+" login (timed out)", "run nav-pilot mcp enable "+e.Name+" again, or check it with "+login)
-	case "logged out":
+	case strings.HasPrefix(res.Login, "unknown ("):
+		warn("could not check the "+tool+" login "+strings.TrimPrefix(res.Login, "unknown "), "run nav-pilot mcp enable "+e.Name+" again, or check it with "+login)
+	case res.Login == "logged out":
 		switch {
 		case jsonOut || !isInteractive():
 			res.Fix = append(res.Fix, login)
@@ -118,7 +118,12 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 			if err := mcpRunLogin(m); err != nil {
 				return fmt.Errorf("%s failed (%v). Fix: run it yourself: %s", login, err, login)
 			}
-			res.Login = mcpLoginState(m)
+			// Ask cplt again: the host probe runs only when cplt cannot say.
+			if after := mcpCpltStatus(cpltPath); after != nil {
+				st = after
+			}
+			_, credOK, credNote, _ = mcpBrokerState(cpltPath, st, e.Name)
+			res.Login = mcpCredState(m, credOK, credNote)
 		default:
 			fmt.Printf("%s Log in later: %s\n", dim("•"), bold(login))
 		}
@@ -127,6 +132,21 @@ func mcpEnableBroker(e providerpkg.MCPServerEntry, o mcpToolOpts, jsonOut bool) 
 		return outputJSON(res)
 	}
 	return nil
+}
+
+// mcpCredState is the login state from cplt's credential_ok and
+// credential_note. The host probe runs only when cplt gave no answer: on the
+// host it reads config the brokered server can write (#2058).
+func mcpCredState(m mcpMechanism, credOK *bool, credNote string) string {
+	switch {
+	case credOK == nil && credNote != "":
+		return "unknown (" + credNote + ")" // cplt could not tell; not logged out
+	case credOK == nil:
+		return mcpLoginState(m)
+	case *credOK:
+		return "ok"
+	}
+	return "logged out"
 }
 
 // mcpBrokerRow fills LOGIN, PATH and TOOLS for a brokered server, enabled or
@@ -150,15 +170,7 @@ func mcpBrokerRow(row *mcpServerRow, e providerpkg.MCPServerEntry, cpltPath stri
 		out = append(out, mcpProblem{Server: e.Name, Problem: old, Fix: m.upgrade})
 	}
 	tool, login := m.tool(), strings.Join(m.login, " ")
-	state := "logged out"
-	switch {
-	case credOK == nil && credNote != "":
-		state = "unknown (" + credNote + ")" // cplt could not tell; not logged out
-	case credOK == nil:
-		state = mcpLoginState(m)
-	case *credOK:
-		state = "ok"
-	}
+	state := mcpCredState(m, credOK, credNote)
 	row.Login = tool + ": " + state
 	switch state {
 	case "logged out":

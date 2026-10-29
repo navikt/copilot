@@ -693,3 +693,20 @@ func TestMCPNaisProbeChecksTheNaisLogin(t *testing.T) {
 		t.Fatalf("probe = %q", got)
 	}
 }
+
+// When cplt answers credential_ok, enable trusts it and never runs the host
+// probe, which reads config the brokered server can write (#2058).
+func TestMCPEnableBrokerUsesCpltCredential(t *testing.T) {
+	f := brokerEnv(t, `{"schema":[1],"servers":[{"id":"io.github.nais/nais-mcp","state":"brokered","credential_ok":false,"credential_note":null}]}`)
+	out := captureStdout(func() {
+		if err := cmdMCP([]string{"enable", "nais-mcp", "--json"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if _, err := os.Stat(filepath.Join(f.dir, "probes")); !os.IsNotExist(err) {
+		t.Errorf("enable ran the host probe although cplt answered")
+	}
+	if !strings.Contains(out, `"logged out"`) {
+		t.Errorf("enable did not report cplt's answer:\n%s", out)
+	}
+}
