@@ -1,11 +1,11 @@
 ---
 name: dependency-upgrade
-description: Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, og hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem
+description: Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem, sett opp Dependabot-grupper i .github/dependabot.yml, og finn og fjern ubrukte avhengigheter
 license: MIT
 compatibility: Repos with a lockfile and a test command (Go modules, npm/pnpm/yarn, Gradle, .NET). Written for local models in nav-pilot's local mode; works with any model.
 metadata:
   domain: platform
-  tags: dependencies upgrade go npm gradle dotnet local-model
+  tags: dependencies upgrade dependabot unused go npm gradle dotnet local-model
 ---
 
 # Dependency upgrade
@@ -24,6 +24,8 @@ The rule behind every step: **only change what something in the repo will check.
 
 - "Upgrade the dependencies", "bump everything", "update npm packages"
 - A Dependabot or Renovate backlog you want to clear in one pass
+- "Set up Dependabot groups", "tidy dependabot.yml": see [Dependabot groups](#dependabot-groups)
+- "Find unused dependencies and remove them": see [Remove unused dependencies](#remove-unused-dependencies)
 
 ## When NOT to Use
 
@@ -131,3 +133,58 @@ End with one table per project:
 | eslint | 8.57.0 | — | held: 9.x broke config, tests red after one fix |
 
 Follow the tables with each project's verify command and exit status, plus any package-manager version mismatch or `mise` `latest` override spotted in step 2.
+
+## Dependabot groups
+
+Write or tidy `.github/dependabot.yml` with navikt/copilot's own file as the pattern. Use only options listed in the [Dependabot options reference](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference).
+
+- **One `updates` entry per ecosystem and directory.** Give every directory with a lockfile (`go.sum`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `gradle/libs.versions.toml` or `build.gradle*`, `packages.lock.json`) its own entry. Add one `github-actions` entry for `/` with a group matching `"*"`.
+- **Schedule**: `interval: "weekly"`, `day: "monday"`, `time: "06:00"`, `timezone: "Europe/Oslo"`. Set `open-pull-requests-limit` (5, the default, fits most repos).
+- **Groups per entry**: one for `@navikt/*` and `@nais/*` (`no.nav*` for Gradle), one with `dependency-type: "development"`, and one with `dependency-type: "production"` that lists the Nav patterns under `exclude-patterns`. `update-types` (`patch`, `minor`, `major`) can split majors into their own group.
+- **Security updates are never delayed.** A group without `applies-to` covers version updates only, so security PRs stay separate and arrive at once. Do not add `applies-to: security-updates` groups unless asked. `cooldown` and `open-pull-requests-limit` do not apply to security updates.
+- **GitHub Packages**: if a project uses `@navikt/*` or `@nais/*` npm packages, add a top-level `registries` entry per scope (`scope` takes one value) and list it under that entry's `registries`. `READER_TOKEN` must exist as a Dependabot secret; say so in the report.
+
+  ```yaml
+  registries:
+    npm-navikt:
+      type: npm-registry
+      url: https://npm.pkg.github.com
+      scope: "@navikt"
+      token: ${{ secrets.READER_TOKEN }}
+  ```
+
+- Keep existing `ignore` entries and their comments. Use `cooldown` or `multi-ecosystem-groups` only when the user asks.
+
+Check before finishing:
+
+```bash
+# The YAML parses
+ruby -ryaml -e 'YAML.load_file(".github/dependabot.yml")'
+# Directories with a lockfile ...
+find . -name node_modules -prune -o \( -name go.sum -o -name package-lock.json -o -name pnpm-lock.yaml \
+  -o -name yarn.lock -o -name libs.versions.toml -o -name packages.lock.json \) -print \
+  | xargs -n1 dirname | sed 's#/gradle$##; s#^\.##; s#^$#/#' | sort -u
+# ... must each appear here
+grep -E '^\s*directory:' .github/dependabot.yml
+```
+
+Workspace members that share a root lockfile are covered by the root entry.
+
+## Remove unused dependencies
+
+Find candidates with tooling, confirm each one by hand, then remove in small batches.
+
+| Ecosystem | Find candidates | Remove |
+|---|---|---|
+| npm/pnpm/yarn | `npx -y knip --dependencies` or `npx -y depcheck`; never add them to `package.json` | `<pm> remove <pkg>` with the manager from step 2 |
+| Go | `go mod tidy`, then review the `go.mod` diff | `go mod tidy` does it |
+| Gradle | search `src/` for the package names of each declared dependency; run `./gradlew buildHealth` only if the `com.autonomousapps.dependency-analysis` plugin is already applied | delete the line in the build file or version catalog |
+| .NET | search `*.cs` for the namespaces of each `PackageReference` | `dotnet remove package <id>` |
+
+Before removing a candidate, search the whole repo for its name, not only source imports:
+
+- Config files: `*.config.*`, `.eslintrc*`, `tsconfig*.json`, test setup files, `next.config.*`, `application*.yml`, `logback*.xml`.
+- Scripts and deploy: `scripts` in `package.json`, `mise.toml`, `Makefile`, `.github/workflows/`, `Dockerfile*`, `.nais/`.
+- Runtime and reflection use: Spring auto-configuration, JDBC drivers, `ServiceLoader`, logging backends, compiler and Gradle plugins, `@types/*` for a package still in use, peer dependencies of a package you keep.
+
+If a CI script, Dockerfile or runtime config uses it, keep it: tools often flag these as unused. Remove one dependency or a small related batch, run the verify command from step 1, and revert the batch if it fails. Report each candidate as removed, kept (with the reason) or reverted.

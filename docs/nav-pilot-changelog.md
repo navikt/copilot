@@ -12,6 +12,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Nais MCP-oppføringen i registeret**: Oppføringen har ikke lenger feltet `login.status`. nav-pilot sjekker innloggingen med sin egen faste kommando. Bygg fra før 2026-10-24 avviser oppføringen. Kjør `nav-pilot upgrade` (#1979).
 
+### `dependency-upgrade` setter opp Dependabot og rydder ubrukte avhengigheter
+
+- **Dependabot-grupper**: Skillen skriver eller rydder `.github/dependabot.yml` etter mønsteret i navikt/copilot: én oppføring per økosystem og mappe, ukentlig kjøring mandag 06:00 norsk tid, og egne grupper for produksjon, utvikling og `@navikt`/`@nais`-pakker. Sikkerhetsoppdateringer kommer fortsatt med en gang. Til slutt sjekker den at alle mapper med en låsefil er med.
+- **Ubrukte avhengigheter**: Skillen finner kandidater med verktøy som knip og `go mod tidy`, sjekker hver av dem mot kode, konfigurasjon, CI-skript og Dockerfiler, og fjerner noen få om gangen med bygg og test etter hver runde.
+
 ### Nais-veiledningen følger Nais-dokumentasjonen
 
 - **`nais`-skillen og `nais-manifest`-prompten**: Viser nå `accessPolicy.outbound.external`. Uten den slipper ikke appen ut til hosts utenfor clusteret.
