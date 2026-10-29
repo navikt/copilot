@@ -1,7 +1,7 @@
 {
-  "description": "Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, og hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem",
+  "description": "Oppgrader direkte avhengigheter i Go-, npm-, Gradle- og .NET-prosjekter med repoets låste pakkehåndterer, sjekk hver ny versjon mot pakkeregisteret, kjør bygg og tester, hold tilbake verktøypinner og major-hopp på database og infrastruktur med mindre du ber om dem, sett opp Dependabot-grupper i .github/dependabot.yml, og finn og fjern ubrukte avhengigheter",
   "domain": "platform",
-  "tags": ["dependencies", "upgrade", "go", "npm", "gradle", "dotnet", "local-model"],
+  "tags": ["dependencies", "upgrade", "dependabot", "unused", "go", "npm", "gradle", "dotnet", "local-model"],
   "examples": [
     {
       "prompt": "Oppgrader avhengighetene i dette repoet",
@@ -10,6 +10,14 @@
     {
       "prompt": "Oppdater alle npm-pakker i frontend-appene og sjekk at testene går grønt",
       "scenario": "Monorepo med flere apper og økosystemer"
+    },
+    {
+      "prompt": "Sett opp Dependabot-grupper for dette repoet",
+      "scenario": "Repo uten eller med uryddig .github/dependabot.yml"
+    },
+    {
+      "prompt": "Finn avhengigheter vi ikke bruker, og fjern dem",
+      "scenario": "Opprydding av ubrukte pakker med bygg og test etter hver runde"
     }
   ]
 }
