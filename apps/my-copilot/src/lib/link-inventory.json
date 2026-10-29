@@ -527,6 +527,7 @@
       "docs/nav-pilot-changelog.md",
       "docs/nav-pilot-design.md",
       "docs/news/articles/cplt-lokal-config-og-flere-repoer.md",
+      "docs/news/articles/kvalitet-foran-fart.md",
       "docs/news/articles/model-pinning-kostnadsoptimalisering.md"
     ],
     "anchors": {}
@@ -2280,7 +2281,11 @@
     "anchors": {}
   },
   "/nyheter/cplt-lokal-config-og-flere-repoer": {
-    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/news/articles/kvalitet-foran-fart.md"
+    ],
     "anchors": {}
   },
   "/nyheter/cplt-mai-2026-oppdatering": {
@@ -2308,7 +2313,11 @@
     "anchors": {}
   },
   "/nyheter/dette-er-retningen": {
-    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "docs/news/articles/kvalitet-foran-fart.md"
+    ],
     "anchors": {}
   },
   "/nyheter/enterprise-ai-controls-ga": {
@@ -2444,6 +2453,10 @@
     "anchors": {}
   },
   "/nyheter/kimi-k2-7-code-ga": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
+  "/nyheter/kvalitet-foran-fart": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
@@ -2729,7 +2742,8 @@
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/interactive-setup-wizard.tsx",
       "apps/my-copilot/src/components/page-hero.tsx",
-      "apps/my-copilot/src/lib/nav-items.ts"
+      "apps/my-copilot/src/lib/nav-items.ts",
+      "docs/news/articles/kvalitet-foran-fart.md"
     ],
     "anchors": {}
   },
@@ -2985,6 +2999,7 @@
       "docs/README.mcp.md",
       "docs/README.prompts.md",
       "docs/README.skills.md",
+      "docs/news/articles/kvalitet-foran-fart.md",
       "docs/news/articles/nav-pilot-mcp-og-cplt-init.md",
       "docs/news/articles/nye-tilpasninger-mars-2026.md"
     ],
