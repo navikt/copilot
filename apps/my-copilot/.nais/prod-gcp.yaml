@@ -5,3 +5,6 @@ ingresses:
   - "https://ki-utvikling.nav.no"
   - "https://min-copilot.intern.nav.no"
   - "https://min-copilot.ansatt.nav.no"
+# Umami page views on public pages. Get the website ID from Team ResearchOps
+# (umami.nav.no, #researchops on Slack), then uncomment to switch tracking on.
+# umami_website_id: ""

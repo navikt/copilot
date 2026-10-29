@@ -37,6 +37,12 @@ export default function PersonvernPage() {
               dataene til navn eller brukerkonto.
             </BodyLong>
             <BodyLong>
+              På de åpne sidene teller vi sidevisninger med Umami, Navs verktøy for nettstatistikk. Umami registrerer
+              hvilken side du besøker, hvor du kom fra, skjermstørrelse og språket i nettleseren. Umami bruker ingen
+              informasjonskapsler, og vi kobler ikke besøket til navn eller brukerkonto. Vi fjerner parametere og ankere
+              fra nettadressene før de sendes. Sider du må logge inn for å se, blir ikke telt.
+            </BodyLong>
+            <BodyLong>
               For innloggede Nav-ansatte henter vi navn fra Azure AD-tokenet for å vise det i brukergrensesnittet. Denne
               informasjonen lagres ikke utover sesjonen.
             </BodyLong>

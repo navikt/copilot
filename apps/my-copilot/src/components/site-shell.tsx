@@ -2,6 +2,7 @@ import { NaisMetaTags } from "@nais/apm/react";
 import ApmRouteTracker from "@/components/apm-route-tracker";
 import { FooterMessage } from "@/components/footer-message";
 import { HashAnchorScroll } from "@/components/hash-anchor-scroll";
+import { Umami } from "@/components/umami";
 import { SiteHeader, type HeaderLabels } from "@/components/navigation/site-nav";
 import { getUser, isAdmin } from "@/lib/auth";
 import { BodyShort, Box, HStack, Link, Theme } from "@navikt/ds-react";
@@ -103,6 +104,8 @@ export async function SiteShell({
           </HStack>
         </Theme>
         <ApmRouteTracker />
+        {/* Read per request (the shell is dynamic via getUser), so Nais sets it without a rebuild. */}
+        <Umami websiteId={process.env.UMAMI_WEBSITE_ID || undefined} />
       </body>
     </html>
   );
