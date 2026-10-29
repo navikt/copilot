@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-27T14:57:09.527Z",
+  "generatedAt": "2026-10-29T08:49:34.433Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -852,7 +852,7 @@
       "filePath": ".github/prompts/nais-manifest.prompt.md",
       "repoPath": "prompts/nais-manifest.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/nais-manifest.prompt.md",
-      "contentHash": "df650deedb8cf0f024d5b9fb51cb78979a6a1ffd5e52cd9b24609a82359429ae",
+      "contentHash": "c4d4547c2bdbc1a140189abc3a6904b83306f032efd7e7487cc5bad79ab760e5",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnais-manifest.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fnais-manifest.prompt.md",
       "invocation": "#nais-manifest",
@@ -1287,7 +1287,7 @@
       "filePath": "skills/nais/SKILL.md",
       "repoPath": "skills/nais/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nais/SKILL.md",
-      "contentHash": "4c18e5e288ec0a3af2d48155e47bc63cec23989c0a326856172dfec57015a950",
+      "contentHash": "bb95fd5d0aba95dd066bc994cf0126e98e60011174f7b60255807b700cbca13d",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["nais", "kubernetes", "deployment", "gcp", "infrastructure", "troubleshooting"]
@@ -1549,7 +1549,7 @@
       "filePath": "skills/observability-setup/SKILL.md",
       "repoPath": "skills/observability-setup/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/SKILL.md",
-      "contentHash": "119e9d2580b373d14fd5435e8737a716a919dea28f27c2b51a9a5d8b6add63ce",
+      "contentHash": "a99660418649da267d1aae472cd4eb9fe4969f87883fa0b718a57fbc2e9d30e5",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["prometheus", "opentelemetry", "health", "metrics"],

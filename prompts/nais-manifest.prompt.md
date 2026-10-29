@@ -170,6 +170,10 @@ spec:
       rules:
         - application: downstream-app
           namespace: downstream-namespace
+      # Egress outside the cluster is blocked unless listed here.
+      # host has no https://; add ports for protocols other than HTTPS.
+      external:
+        - host: api.example.com
 ```
 
 ## Follow-up

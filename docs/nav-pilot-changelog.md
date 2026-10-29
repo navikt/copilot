@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-29
 
+### Riktigere Nais-veiledning
+
+- **`nais`-skillen og `nais-manifest`-prompten**: Viser nå `accessPolicy.outbound.external`. Uten den blokkerer Nais trafikk til tjenester utenfor klyngen.
+- **`observability-setup`-skillen**: Alarmeksemplene bruker nå `PrometheusRule`, slik Nais-dokumentasjonen gjør, i stedet for det gamle `kind: Alert`.
+
 ### Riktig rekkefølge for klientargumenter i OpenCode
 
 - **`--client-arg` med en OpenCode-underkommando**: `nav-pilot --client-arg --foo -- run "…"` sender nå `--foo` etter `run`, der OpenCode leser det. Før havnet flagget foran underkommandoen, og OpenCode tolket kommandoen feil. Du trenger ikke lenger flytte klientflaggene etter `--`.
