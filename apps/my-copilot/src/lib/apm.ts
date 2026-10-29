@@ -37,11 +37,22 @@ const MAX_DEPTH = 16;
 // faro.performance.* `name`, `url.full`, exception values, stack frames,
 // measurement context and OTLP span attributes all carry URLs in different
 // places, and a query string such as ?username= or ?q= is user data in all.
-function walk(value: unknown, depth: number): unknown {
+function walk(value: unknown, depth: number, seen: WeakSet<object>): unknown {
   if (typeof value === "string") return scrub(value);
-  if (value === null || typeof value !== "object" || depth >= MAX_DEPTH) return value;
+  if (value === null || typeof value !== "object" || depth >= MAX_DEPTH || seen.has(value)) return value;
+  seen.add(value);
   const obj = value as Record<string, unknown>;
-  for (const key of Object.keys(obj)) obj[key] = walk(obj[key], depth + 1);
+  for (const key of Object.keys(obj)) {
+    const before = obj[key];
+    const after = walk(before, depth + 1, seen);
+    if (after === before) continue;
+    // Frozen, read-only and getter-only properties must not throw out of beforeSend.
+    try {
+      obj[key] = after;
+    } catch {
+      // leave the original value in place
+    }
+  }
   return value;
 }
 
@@ -51,7 +62,7 @@ type Item = { meta: { page?: { url?: string } }; payload: unknown };
 // token params but keeps other query strings.
 export function scrubEvent<T extends Item>(event: T): T {
   if (event.meta.page?.url) event.meta.page.url = scrub(event.meta.page.url);
-  walk(event.payload, 0);
+  walk(event.payload, 0, new WeakSet());
   return event;
 }
 

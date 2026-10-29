@@ -159,4 +159,17 @@ describe("scrubEvent", () => {
     const out = scrubEvent({ meta: { page: { url: "https://x.nav.no/a#token=abc" } }, payload: {} });
     expect(out.meta.page.url).toBe("https://x.nav.no/a");
   });
+
+  it("finishes on a cyclic payload and still scrubs strings", () => {
+    const payload: Record<string, unknown> = { url: "/a?x=1" };
+    payload.self = payload;
+    const event = { meta: {}, payload };
+    scrubEvent(event);
+    expect(payload.url).toBe("/a");
+  });
+
+  it("does not throw on a frozen payload", () => {
+    const event = { meta: {}, payload: Object.freeze({ url: "/a?x=1", nested: Object.freeze({ u: "/b?y=2" }) }) };
+    expect(() => scrubEvent(event)).not.toThrow();
+  });
 });
