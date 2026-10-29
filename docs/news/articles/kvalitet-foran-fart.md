@@ -102,11 +102,13 @@ Funnene er forslag. Dere avgjør hva som skal rettes, og sjekker funnet først.
 
 ## Flere repoer i samme sesjon
 
-Ligger biblioteket i ett repo og appene i et annet, kan nav-pilot jobbe mot begge i én sesjon. Start i ett repo og pek på det andre:
+Ligger biblioteket i ett repo og appene i et annet, kan nav-pilot jobbe mot begge i én sesjon. Stå i det ene repoet og koble til det andre med navnet:
 
 ```sh
-cplt config set --local sandbox.repo_dirs ~/src/<annet-repo>
+cplt link navikt/<annet-repo>
 ```
+
+cplt finner checkouten på maskinen din og sjekker at den virkelig er det repoet før den kobler det til.
 
 Agenten kan da lese, skrive og kjøre kode i det repoet også, på lik linje med repoet dere startet i. Detaljene står i [cplt: global, local eller repo, og flere repoer i samme sesjon](/nyheter/cplt-lokal-config-og-flere-repoer).
 
