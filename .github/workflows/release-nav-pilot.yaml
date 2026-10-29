@@ -237,8 +237,14 @@ jobs:
             echo "${EOF_DELIM}"
           } >> "$GITHUB_OUTPUT"
 
+      # The script publishes whatever is in artifacts/, so check here that
+      # every expected file is there (what fail_on_unmatched_files did).
+      - name: Check release assets
+        run: ls artifacts/nav-pilot-{darwin,linux}-{amd64,arm64} artifacts/nav-pilot_*_{amd64,arm64}.deb artifacts/SHA256SUMS
+
       # Draft, upload with retries, verify, then publish; a failure deletes the
-      # draft so clients never see a half-uploaded release (#2056).
+      # draft, and every run first sweeps nav-pilot/ drafts that a killed run
+      # left behind (#2056). exec, so a cancel's SIGTERM reaches the script.
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -248,4 +254,4 @@ jobs:
           TITLE: ${{ needs.prepare.outputs.title }}
         run: |
           printf '%s\n' "$BODY" > "$RUNNER_TEMP/notes.md"
-          scripts/publish-release.sh "$TAG" "$SHA" "$TITLE" "$RUNNER_TEMP/notes.md" artifacts
+          exec scripts/publish-release.sh "$TAG" "$SHA" "$TITLE" "$RUNNER_TEMP/notes.md" artifacts
