@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-29T13:57:27.739Z",
+  "generatedAt": "2026-10-30T22:16:12.799Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1916,6 +1916,48 @@
       "insidersInstallUrl": null,
       "tags": ["tokenx", "auth", "service-to-service", "nais"],
       "examples": ["Sett opp TokenX-utveksling mellom dp-soknad og dp-inntekt"]
+    },
+    {
+      "id": "vulnerability-triage",
+      "name": "vulnerability-triage",
+      "description": "Hent Nais-sårbarheter for appen i repoet via Nais MCP, vurder hver pakke mot avhengigheter, kildekode og advisory med kilder, og rett det som kan rettes. Bruk for CVE-er fra Nais Console eller spørsmål om én CVE, ikke for kodegjennomgang (appsec-advisory) eller rutineoppgradering (dependency-upgrade)",
+      "type": "skill",
+      "domain": "platform",
+      "filePath": "skills/vulnerability-triage/SKILL.md",
+      "repoPath": "skills/vulnerability-triage/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
+      "contentHash": "e23b8c0851cd5de6d3277a99e20f864a565543ded31fa02595d8426637353b0d",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
+      "examples": [
+        {
+          "prompt": "Rydd opp i sårbarhetene Nais Console viser for appen i dette repoet",
+          "scenario": "Workload med mange CVE-er på avhengigheter og image"
+        },
+        {
+          "prompt": "Er CVE-2024-47554 et problem for oss, eller er det en falsk positiv?",
+          "scenario": "Vurdering av én CVE uten å endre kode"
+        },
+        {
+          "prompt": "Hvilke apper i teamet har CVE-2024-47554, og kan vi fikse den her?",
+          "scenario": "Én CVE på tvers av workloads"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/ecosystems.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/ecosystems.md"
+        },
+        {
+          "path": "references/nais-mcp.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/report-format.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/report-format.md"
+        }
+      ]
     },
     {
       "id": "web-design-reviewer",
