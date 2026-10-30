@@ -1085,7 +1085,7 @@
       "displayName": "vulnerability-triage",
       "description": "Hent Nais-sårbarheter for appen i repoet via Nais MCP, vurder hver pakke mot avhengigheter, kildekode og advisory med kilder, og rett det som kan rettes. Bruk for CVE-er fra Nais Console eller spørsmål om én CVE, ikke for kodegjennomgang (appsec-advisory) eller rutineoppgradering (dependency-upgrade)",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "e23b8c0851cd5de6d3277a99e20f864a565543ded31fa02595d8426637353b0d",
+      "contentHash": "442fcc8fdb05b09c213983f34cabcfeaeec207caff84a23451efac621d380ac6",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
