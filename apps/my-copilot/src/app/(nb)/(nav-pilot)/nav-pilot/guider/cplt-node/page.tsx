@@ -20,6 +20,7 @@ const TOC: TocItem[] = [
   { id: "nettleser", label: "Playwright og Cypress" },
   { id: "mermaid", label: "Puppeteer og Mermaid-diagrammer" },
   { id: "pnpm-konfig", label: "pnpm-konfig og tokens" },
+  { id: "pnpm-skript", label: "pnpm fra installasjonsskriptet" },
   { id: "globale", label: "Globale installasjoner" },
   { id: "tillatelsesliste", label: "Pakkeregistre og en liste over tillatte hoster" },
   { id: "feil", label: "Når installasjonen feiler" },
@@ -322,6 +323,48 @@ cplt --pass-env PUPPETEER_CACHE_DIR`}
             </NextLink>{" "}
             i oppsettguiden.
           </BodyLong>
+        </VStack>
+      </section>
+
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="pnpm-skript" size="medium" level="2">
+            pnpm fra installasjonsskriptet
+          </LinkableHeading>
+          <BodyLong>
+            Har du installert pnpm med pnpms eget installasjonsskript, ligger den i{" "}
+            <code className={code}>$PNPM_HOME</code>: <code className={code}>~/Library/pnpm</code> på macOS og{" "}
+            <code className={code}>~/.local/share/pnpm</code> på Linux. Agenten kan skrive i pnpm-lageret og får derfor
+            ikke kjøre programmer derfra. cplt lager i stedet en skrivebeskyttet kopi av pnpm for økten og legger den
+            først i <code className={code}>PATH</code>.
+          </BodyLong>
+          <BodyLong>
+            Fra cplt 29. oktober 2026 virker kopien sammen med blokken <code className={code}>pnpm setup</code> skriver
+            i skalloppsettet ditt (<code className={code}>~/.zshrc</code> eller <code className={code}>~/.bashrc</code>
+            ). En linje som alltid legger pnpm-mappa først, som{" "}
+            <code className={code}>export PATH=&quot;$PNPM_HOME/bin:$PATH&quot;</code>, legger pnpm-starteren foran
+            kopien. Da stopper pnpm med <code className={code}>EPERM</code> eller{" "}
+            <code className={code}>bad interpreter: Operation not permitted</code>. Bruk blokken fra{" "}
+            <code className={code}>pnpm setup</code>, eller installer pnpm med Homebrew og sjekk at den kommer først:
+          </BodyLong>
+          <CodeBlock compact>
+            {`brew install pnpm
+which -a pnpm   # Homebrew-pnpm skal stå øverst`}
+          </CodeBlock>
+          <BodyLong>
+            Feiler det fortsatt med oppdatert cplt, meld fra i{" "}
+            <a href="https://github.com/navikt/cplt/issues/936" className={linkClass}>
+              cplt#936
+            </a>
+            . Ikke gi <code className={code}>allow.exec</code> på <code className={code}>~/Library/pnpm/global</code>{" "}
+            eller lageret for å omgå feilen. Da kan agenten kjøre programmer fra en mappe den kan skrive i.
+          </BodyLong>
+          <BodyLong>Slik ser du hvilken pnpm agenten får, og hva sandkassen åpner:</BodyLong>
+          <CodeBlock compact>
+            {`cplt doctor                                               # varsler om $PNPM_HOME/bin mangler i PATH
+cplt --print-profile | grep -i pnpm                       # pnpm-mappene i sandkasseprofilen (macOS)
+cplt exec -- zsh -ic 'command -v pnpm; pnpm --version'    # pnpm slik agenten ser den`}
+          </CodeBlock>
         </VStack>
       </section>
 

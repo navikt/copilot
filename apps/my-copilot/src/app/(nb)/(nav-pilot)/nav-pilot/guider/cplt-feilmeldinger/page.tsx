@@ -57,8 +57,12 @@ export default function CpltFeilmeldinger() {
 cplt check net registry.npmjs.org        # slipper proxyen gjennom denne hosten?
 cplt check path ~/.npmrc                 # får agenten lese eller skrive denne fila?
 cplt config set proxy.log_level blocked  # vis blokkerte nettverkskall mens agenten jobber
-cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
+cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?
+cplt config set allow.read ~/.npmrc --unset  # fjern en verdi du har lagt til`}
           </CodeBlock>
+          <BodyLong>
+            Vil du heller bruke en meny, kjør <code className={code}>cplt settings</code>.
+          </BodyLong>
           <BodyLong>
             Svarene fra <code className={code}>cplt check</code> har en linje som begynner med{" "}
             <code className={code}>Reason:</code>, og ofte en med <code className={code}>Fix:</code>. Flere detaljer
@@ -76,6 +80,20 @@ cplt config explain sandbox.allow_env_files  # hva gjør en nøkkel?`}
           <LinkableHeading id="versjon" size="medium" level="2">
             Versjon og konfig
           </LinkableHeading>
+
+          <LinkableHeading id="allow-socket" size="small" level="3">
+            unexpected argument &apos;--allow-socket&apos;
+          </LinkableHeading>
+          <BodyLong>
+            cplt er for gammel for nav-pilot. Oppdater cplt slik du installerte den, og sjekk at du ikke har en gammel
+            kopi liggende, for eksempel i <code className={code}>~/.local/bin</code>:
+          </BodyLong>
+          <CodeBlock compact>
+            {`cplt update                                             # sier selv fra om du må bruke brew eller apt
+brew upgrade navikt/tap/cplt                            # installert med Homebrew
+sudo apt update && sudo apt install --only-upgrade cplt  # installert med apt
+which -a cplt                                           # den øverste er den som kjører`}
+          </CodeBlock>
 
           <LinkableHeading id="unknown-config-key" size="small" level="3">
             unknown config key
@@ -762,6 +780,12 @@ nav-pilot --client copilot
             <code className={code}>gh_guard.enabled</code>), ellers sender cplt ikke inn noe token:
           </BodyLong>
           <CodeBlock compact>{`cplt config set gh_guard.inject_token true --force`}</CodeBlock>
+          <BodyLong>
+            Finner cplt ikke noe token for Copilot på Linux, sier den fra ved oppstart.{" "}
+            <code className={code}>/login</code> virker ikke inne i sandkassen. Logg inn med{" "}
+            <code className={code}>gh auth login</code> på maskinen, og slå på{" "}
+            <code className={code}>inject_token</code> som over.
+          </BodyLong>
           <BodyLong>
             <strong>Slik velger cplt innlogging på macOS.</strong> Når{" "}
             <code className={code}>sandbox.keychain_substitute</code> står på, henter cplt tokenet fra{" "}
