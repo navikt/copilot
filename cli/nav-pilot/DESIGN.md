@@ -798,11 +798,12 @@ nav-pilot skriver ved oppstart og avslutning hører til én av fire klasser:
 | **Stabil tilstand** | Aldri. | samme agentpakke, samme godkjenning som sist |
 | **Detalj** | Bare med `--verbose` eller i `nav-pilot doctor`. | sandkassemappe, ekstra cplt-flagg |
 
-Alle linjer ved oppstart deler ett budsjett. Før klienten tar over terminalen,
-vises høyst én «Handle nå»-linje. Resten hører hjemme i `nav-pilot doctor`. Hver
-linje er i dag gatet for seg, men ingenting begrenser summen: første oppstart
-etter en endring kan vise flere linjer samtidig. Budsjettet er derfor ikke
-oppfylt ennå.
+Alle linjer ved oppstart deler ett linjebudsjett. Før klienten tar over
+terminalen, skriver nav-pilot høyst én linje. Er det flere, vinner «Handle nå»
+over «Endret», og linja slutter med `nav-pilot doctor`, som viser resten. Hver
+linje har i dag sin egen regel for når den vises, men ingen regel begrenser
+summen: første oppstart etter en endring kan vise flere linjer. Linjebudsjettet
+er derfor ikke oppfylt ennå.
 
 En linje i klassen «Endret» vises alltid med `--verbose`, og `nav-pilot doctor` viser tilstanden hver gang. Kommandoer brukeren selv kjører (`sync`, `doctor`, `config setup`) skjuler ingenting; bare en oppstart (`artifacts.LaunchNotices`) gjør det.
 
@@ -916,14 +917,18 @@ om det er oppfylt. Status gjelder `main` per 2026-10-30.
    Linux) starter en økt uten at brukeren må redigere config eller lese
    dokumentasjon.
    Test: e2e på en ren maskin for begge plattformer.
-   Status: ikke testet.
-2. **En vanlig oppstart viser høyst én linje før klienten tar terminalen.**
-   Linjen finnes bare når brukeren må gjøre noe nå (se «Hva som vises»).
-   Test: start to ganger på rad i en fikstur og tell linjer på stderr. Andre
-   oppstart skal gi 0.
-   Status: hver linje for seg er testet i
-   `internal/provider/quiet_launch_test.go`. Summen er ikke testet, og
-   budsjettet er ikke oppfylt.
+   Status: ikke testet på ren maskin. `e2e/testdata/script/first_run_journey.txtar`
+   kjører førstegangsløpet med falske klienter.
+2. **En vanlig oppstart skriver høyst én linje før klienten tar over
+   terminalen.** Linjen finnes bare når brukeren må gjøre noe nå (se «Hva som
+   vises»).
+   Test: start to ganger på rad i en fikstur og tell linjer på stderr. Første
+   oppstart gir høyst 1, andre gir 0.
+   Status: delvis oppfylt. Andre oppstart er testet
+   (`e2e/testdata/script/launch_quiet.txtar`: ingen tekst, heller ikke
+   headless). Hver linje for seg er testet i
+   `internal/provider/quiet_launch_test.go`. Første oppstart er ikke testet,
+   og linjebudsjettet er ikke oppfylt.
 3. **Hver feilmelding slutter med en kommando som virker i versjonen brukeren
    har.**
    Test: hver kommando i en feilmelding kjøres mot den installerte binæren og
@@ -932,17 +937,21 @@ om det er oppfylt. Status gjelder `main` per 2026-10-30.
    den sender flagget (`internal/provider/cplt_flag_floor_test.go`).
 4. **`doctor` navngir problemet.** Når en økt feiler av en kjent grunn, viser
    `nav-pilot doctor` eller `cplt doctor` årsaken og neste steg.
-   Test: hver feilklasse vi har rettet, får en doctor-sjekk med en test som
-   gjenskaper feilen.
-   Status: ingen fast regel ennå.
+   Test: hver doctor-sjekk har en test som gjenskaper feilen og sjekker at
+   doctor navngir den og neste steg.
+   Status: delvis oppfylt. Sjekkene i nav-pilot er testet
+   (`internal/cli/doctor_*_test.go`,
+   `e2e/testdata/script/doctor_copilot_cli.txtar`). Ingen regel krever en
+   doctor-sjekk for hver feilklasse vi retter.
 5. **Det sikre standardvalget virker.** Ingen skal måtte svekke sandkassen
    (`inject_token`, ekstra `--allow-*`) for å få en vanlig arbeidsflyt til å
    virke.
-   Test: e2e for innlogging, pakkehåndterere og MCP med standard config.
-   Status: ikke testet.
-6. **Oppgraderinger bryter aldri, og endringer varsles én gang.** En ny versjon
-   publiseres først når alle plattformbinærer finnes i alle kanaler (GitHub,
-   brew).
+   Test: med standard config fullfører innlogging (`gh auth status`), en
+   pakkeinstallasjon (`npm install`) og et MCP-kall i sandkassen uten ekstra
+   flagg.
+   Status: ikke testet i dette repoet. cplt er ikke vurdert.
+6. **Oppgraderinger bryter aldri.** En ny versjon publiseres først når alle
+   plattformbinærer finnes i alle kanaler (GitHub, brew).
    Test: oppgraderingstest mot siste publiserte utgave per kanal.
    Status: delvis oppfylt. Utgivelsen publiseres først når alle filene er
    lastet opp (`scripts/publish-release.bats`). `upgrade` og automatisk
