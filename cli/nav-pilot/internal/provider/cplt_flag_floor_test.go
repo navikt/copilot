@@ -60,6 +60,14 @@ func TestCheckCpltFlagFloorClipboard(t *testing.T) {
 	}
 }
 
+// --cplt passes values as --flag=value, which is floored the same.
+func TestCheckCpltFlagFloorEqualsForm(t *testing.T) {
+	t.Cleanup(StubCpltVersion("cplt 2026.06.01-000000-aaaaaaa\n"))
+	if err := checkCpltFlagFloor([]string{"--allow-socket=/tmp/m.sock", "--"}); err == nil || !strings.Contains(err.Error(), "for --allow-socket ") {
+		t.Fatalf("want a block naming --allow-socket, got %v", err)
+	}
+}
+
 // A blocked launch says exactly one thing: the returned error. It runs no cplt
 // and prints nothing first, not even the recommended-cplt notice, which an old
 // cplt would otherwise trigger.

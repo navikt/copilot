@@ -133,8 +133,10 @@ func checkCpltFlagFloor(args []string) error {
 		if a == "--" {
 			break
 		}
-		if f, ok := cpltFlagFloor[a]; ok && f > floor {
-			flag, floor = a, f
+		// --flag=value is how --cplt passes a value through (cli/cli.go).
+		name, _, _ := strings.Cut(a, "=")
+		if f, ok := cpltFlagFloor[name]; ok && f > floor {
+			flag, floor = name, f
 		}
 	}
 	if floor == "" {
