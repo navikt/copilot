@@ -17,6 +17,7 @@ const securityHeaders = [
       "img-src 'self' blob: data: https://avatars.githubusercontent.com https://github.com https://storage.googleapis.com https://*.storage.googleapis.com https://*.googleusercontent.com",
       "media-src 'self' blob: data: https://storage.googleapis.com",
       "font-src 'self' data: https://cdn.nav.no",
+      // Innblikk in dev would also need https://reops-event-proxy.ekstern.dev.nav.no here.
       "connect-src 'self' https://telemetry.ekstern.dev.nav.no https://telemetry.nav.no https://reops-event-proxy.nav.no",
       "frame-ancestors 'self'",
       "base-uri 'self'",

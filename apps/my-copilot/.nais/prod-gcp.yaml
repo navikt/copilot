@@ -5,6 +5,9 @@ ingresses:
   - "https://ki-utvikling.nav.no"
   - "https://min-copilot.intern.nav.no"
   - "https://min-copilot.ansatt.nav.no"
-# Umami page views on public pages. Get the website ID from Team ResearchOps
-# (umami.nav.no, #researchops on Slack), then uncomment to switch tracking on.
-# umami_website_id: ""
+# Innblikk page views on public pages. Before switching it on in prod:
+# 1. Get the tracking code (website ID) from #ResearchOps on Slack.
+# 2. Fill in the reusable "Innblikk etterlevelsesdokument".
+# 3. Describe the use on the privacy page (/personvern).
+# Then uncomment and set the ID.
+# innblikk_website_id: ""

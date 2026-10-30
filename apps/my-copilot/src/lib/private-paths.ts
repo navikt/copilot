@@ -1,4 +1,4 @@
-// No server imports: the Umami client component uses isPrivatePath too.
+// No server imports: the Innblikk client component uses isPrivatePath too.
 export const PRIVATE_PAGE_PATHS = [
   "/statistikk",
   "/innsikt/team",
