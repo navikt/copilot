@@ -798,6 +798,13 @@ nav-pilot skriver ved oppstart og avslutning hører til én av fire klasser:
 | **Stabil tilstand** | Aldri. | samme agentpakke, samme godkjenning som sist |
 | **Detalj** | Bare med `--verbose` eller i `nav-pilot doctor`. | sandkassemappe, ekstra cplt-flagg |
 
+Alle linjer ved oppstart deler ett linjebudsjett. Før klienten tar over
+terminalen, skriver nav-pilot høyst én linje. Er det flere, vinner «Handle nå»
+over «Endret», og linja slutter med `nav-pilot doctor`, som viser resten. Hver
+linje har i dag sin egen regel for når den vises, men ingen regel begrenser
+summen: første oppstart etter en endring kan vise flere linjer. Linjebudsjettet
+er derfor ikke oppfylt ennå.
+
 En linje i klassen «Endret» vises alltid med `--verbose`, og `nav-pilot doctor` viser tilstanden hver gang. Kommandoer brukeren selv kjører (`sync`, `doctor`, `config setup`) skjuler ingenting; bare en oppstart (`artifacts.LaunchNotices`) gjør det.
 
 Nøkkelen til `SeenChanged` er det linja handler om (klient, innstilling, agentpakke), og verdien er det som kan endre seg. Kall `SeenChanged` også når tilstanden er borte (tom verdi), ellers er linja stille når tilstanden kommer tilbake. Tilstanden ligger i `seen-<nøkkel>` i state-katalogen; kan den ikke skrives, vises linja.
@@ -900,6 +907,68 @@ Implementert i `suggest.go`. Terskel: avstand ≤ 2. Returnerer "" om ingen matc
 ```
 
 Stderroutput er viktig for CI: det vises i terminalen men forstyrrer ikke stdout-piping.
+
+## Krav til utvikleropplevelse
+
+Sju krav som gjelder både nav-pilot og cplt. Hvert krav har en test som viser
+om det er oppfylt. Status gjelder `main` per 2026-10-30.
+
+1. **Én kommando gir en økt som virker.** `nav-pilot` på en ny maskin (macOS og
+   Linux) starter en økt uten at brukeren må redigere config eller lese
+   dokumentasjon.
+   Test: e2e på en ren maskin for begge plattformer.
+   Status: ikke testet på ren maskin. `e2e/testdata/script/first_run_journey.txtar`
+   kjører førstegangsløpet med falske klienter.
+2. **En vanlig oppstart skriver høyst én linje før klienten tar over
+   terminalen.** Linjen finnes bare når brukeren må gjøre noe nå (se «Hva som
+   vises»).
+   Test: start to ganger på rad i en fikstur og tell linjer på stderr. Første
+   oppstart gir høyst 1, andre gir 0.
+   Status: delvis oppfylt. Andre oppstart er testet
+   (`e2e/testdata/script/launch_quiet.txtar`: ingen tekst, heller ikke
+   headless). Hver linje for seg er testet i
+   `internal/provider/quiet_launch_test.go`. Første oppstart er ikke testet,
+   og linjebudsjettet er ikke oppfylt.
+3. **Hver feilmelding slutter med en kommando som virker i versjonen brukeren
+   har.**
+   Test: hver kommando i en feilmelding kjøres mot den installerte binæren og
+   gir ikke «unknown command» eller «unknown flag».
+   Status: ikke testet samlet. For cplt-flagg sjekker nav-pilot versjonen før
+   den sender flagget (`internal/provider/cplt_flag_floor_test.go`).
+4. **`doctor` navngir problemet.** Når en økt feiler av en kjent grunn, viser
+   `nav-pilot doctor` eller `cplt doctor` årsaken og neste steg.
+   Test: hver doctor-sjekk har en test som gjenskaper feilen og sjekker at
+   doctor navngir den og neste steg.
+   Status: delvis oppfylt. Sjekkene i nav-pilot er testet
+   (`internal/cli/doctor_*_test.go`,
+   `e2e/testdata/script/doctor_copilot_cli.txtar`). Ingen regel krever en
+   doctor-sjekk for hver feilklasse vi retter.
+5. **Det sikre standardvalget virker.** Ingen skal måtte svekke sandkassen
+   (`inject_token`, ekstra `--allow-*`) for å få en vanlig arbeidsflyt til å
+   virke.
+   Test: med standard config fullfører innlogging (`gh auth status`), en
+   pakkeinstallasjon (`npm install`) og et MCP-kall i sandkassen uten ekstra
+   flagg.
+   Status: ikke testet i dette repoet. cplt er ikke vurdert.
+6. **Oppgraderinger bryter aldri.** En ny versjon publiseres først når alle
+   plattformbinærer finnes i alle kanaler (GitHub, brew).
+   Test: oppgraderingstest mot siste publiserte utgave per kanal.
+   Status: delvis oppfylt. Utgivelsen publiseres først når alle filene er
+   lastet opp (`scripts/publish-release.bats`). `upgrade` og automatisk
+   oppdatering hopper over en utgave som mangler binæren
+   (`internal/cli/update_test.go`, `internal/cli/startup_update_test.go`). En
+   for gammel cplt stopper med én linje i stedet for en rå feil
+   (`internal/provider/cplt_flag_floor_test.go`). Brew-formelen for cplt kan
+   ligge opptil én time bak (navikt/cplt#941).
+7. **Agenter rører aldri utviklerens ekte config.** E2e- og agentkjøringer
+   bruker egen `HOME` og `XDG_CONFIG_HOME`.
+   Test: en kjøring som feiler hvis noe under den ekte `~/.config` endres.
+   Status: delvis oppfylt for testene. `internal/testhome` gir hver testbinær
+   egen `HOME` og egne XDG-mapper, og stopper kjøringen hvis testprosessen
+   rører utvalgte mapper i det ekte hjemmet (blant annet `~/.nav-pilot` og
+   `~/.config/opencode`). I CI stopper den også ved endringer fra andre
+   prosesser. `~/.config/cplt` og resten av `~/.config` følges ikke med, og
+   agentkjøringer utenfor testene er ikke dekket.
 
 ## Testbarhet
 
