@@ -105,7 +105,7 @@ export async function SiteShell({
         </Theme>
         <ApmRouteTracker />
         {/* Read per request (the shell is dynamic via getUser), so Nais sets it without a rebuild. */}
-        <Innblikk websiteId={process.env.INNBLIKK_WEBSITE_ID || undefined} />
+        <Innblikk websiteId={process.env.INNBLIKK_WEBSITE_ID || undefined} lang={lang} />
       </body>
     </html>
   );

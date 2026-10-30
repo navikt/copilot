@@ -1,4 +1,5 @@
-import { render } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { CONSENT_KEY, setConsent } from "@/lib/innblikk-consent";
 import { Innblikk, innblikkBeforeSend } from "./innblikk";
 
 const nav = vi.hoisted(() => ({ pathname: "/" }));
@@ -8,6 +9,13 @@ vi.mock("next/script", () => ({ default: (props: Record<string, string>) => <scr
 
 const SRC = "https://cdn.nav.no/team-researchops/sporing/sporing.js";
 const scriptIn = (c: HTMLElement) => c.querySelector(`script[src="${SRC}"]`);
+
+const banner = () => screen.queryByRole("region", { name: "Nettstatistikk" });
+
+beforeEach(() => {
+  localStorage.clear();
+  setConsent(true);
+});
 
 describe("Innblikk", () => {
   it.each(["/", "/nyheter", "/innsikt"])("renders on public page %s when the ID is set", (p) => {
@@ -38,6 +46,71 @@ describe("Innblikk", () => {
   ])("never renders on logged-in page %s, even with the ID set", (p) => {
     nav.pathname = p;
     expect(scriptIn(render(<Innblikk websiteId="abc" />).container)).toBeNull();
+  });
+});
+
+describe("consent", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    nav.pathname = "/nyheter";
+  });
+
+  it("shows the banner and no script while no choice is stored", () => {
+    const { container } = render(<Innblikk websiteId="abc" />);
+    expect(banner()).not.toBeNull();
+    expect(scriptIn(container)).toBeNull();
+  });
+
+  it("loads the script after Ja (control: Nei never loads it and sets the opt-out flags)", () => {
+    const yes = render(<Innblikk websiteId="abc" />);
+    fireEvent.click(screen.getByRole("button", { name: "Ja" }));
+    expect(scriptIn(yes.container)).not.toBeNull();
+    expect(banner()).toBeNull();
+    expect(JSON.parse(localStorage.getItem(CONSENT_KEY)!)).toMatchObject({ analytics: true, version: 1 });
+    yes.unmount();
+
+    localStorage.clear();
+    const no = render(<Innblikk websiteId="abc" />);
+    fireEvent.click(screen.getByRole("button", { name: "Nei" }));
+    expect(scriptIn(no.container)).toBeNull();
+    expect(banner()).toBeNull();
+    expect(localStorage.getItem("umami.disabled")).toBe("1");
+    expect(localStorage.getItem("sporing.disabled")).toBe("1");
+  });
+
+  it.each(["/admin", "/innsikt/team", "/%61dmin"])(
+    "never shows the banner on logged-in page %s (control: /nyheter shows it)",
+    (p) => {
+      nav.pathname = p;
+      render(<Innblikk websiteId="abc" />);
+      expect(banner()).toBeNull();
+    }
+  );
+
+  it("never shows the banner without an ID (control: with an ID it shows)", () => {
+    const none = render(<Innblikk websiteId={undefined} />);
+    expect(banner()).toBeNull();
+    none.unmount();
+    render(<Innblikk websiteId="abc" />);
+    expect(banner()).not.toBeNull();
+  });
+
+  it("is a labelled region with keyboard-reachable buttons and a privacy link, in English on /en", () => {
+    render(<Innblikk websiteId="abc" lang="en" />);
+    const region = screen.getByRole("region", { name: "Web statistics" });
+    for (const name of ["Yes", "No"]) expect(screen.getByRole("button", { name }).tabIndex).toBe(0);
+    expect(screen.getByRole("link", { name: /privacy/i }).getAttribute("href")).toBe("/personvern");
+    expect(region.querySelector('[aria-modal="true"]')).toBeNull();
+  });
+
+  it("the hook returns false once consent is withdrawn (control: true while given)", () => {
+    const url = "https://ki-utvikling.nav.no/nyheter";
+    act(() => setConsent(true));
+    expect(innblikkBeforeSend("event", { url })).not.toBe(false);
+    act(() => setConsent(false));
+    expect(innblikkBeforeSend("event", { url })).toBe(false);
+    localStorage.clear();
+    expect(innblikkBeforeSend("event", { url })).toBe(false);
   });
 });
 
