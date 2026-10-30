@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Tydelig beskjed når cplt er for gammel
 
-- **Oppstart med IDE-kobling**: Er cplt eldre enn 2026-07-03, stopper nav-pilot før oppstart med én linje som sier hvilken kommando som oppdaterer cplt. Før stoppet cplt med feilen «unexpected argument '--allow-socket' found». Egne bygg av cplt uten versjonsnummer starter som før (#2069).
+- **Copilot med IDE-kobling**: Er cplt eldre enn 2026-07-03, stopper nav-pilot før oppstart med én linje som sier hvilken kommando som oppdaterer cplt. Det samme gjelder `--allow-clipboard` på cplt eldre enn 2026-09-04. Tidligere feilet cplt med «unexpected argument '--allow-socket' found». Egne bygg av cplt uten versjonsstempel starter som før (#2069).
 
 ## 2026-10-29
 

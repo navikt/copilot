@@ -15,7 +15,7 @@ func TestCpltHints(t *testing.T) {
 		{CpltInstallHint(PkgBrew), "brew install navikt/tap/cplt"},
 		{CpltInstallHint(PkgApt), "sudo apt install cplt"},
 		{CpltUpgradeHint(PkgBrew), "brew upgrade navikt/tap/cplt"},
-		{CpltUpgradeHint(PkgNone), "brew upgrade navikt/tap/cplt"},
+		{CpltUpgradeHint(PkgNone), "cplt update"},
 		{CpltUpgradeHint(PkgApt), "sudo apt update && sudo apt install --only-upgrade cplt"},
 	} {
 		if tc.got != tc.want {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -102,7 +103,25 @@ func cpltArgv(spec cpltLaunch) []string {
 // probe (--deny-env, --allow-write-state) need no entry. Add one when a launch
 // starts passing a newer flag unconditionally (#2069).
 var cpltFlagFloor = map[string]string{
-	"--allow-socket": "2026.07.03-205915", // navikt/cplt#108, release 2026.07.03-205915-2798b06
+	"--allow-socket":    "2026.07.03-205915", // navikt/cplt#108, release 2026.07.03-205915-2798b06
+	"--allow-clipboard": "2026.09.04-194301", // navikt/cplt#337, release 2026.09.04-194301-d59230a
+}
+
+// cpltPreStampPattern is what the 22 releases before navikt/cplt 90b9ae7
+// (2026-04-13) printed: "cplt 0.1.0" (clap's default, Cargo.toml 0.1.0 until
+// 58c9894) or a date-only "cplt 2026.04.11-48aedfc" (ed1c219..90b9ae7). Both
+// are older than every floor. "cplt 0.0.0", a plain cargo build today, does
+// not match and launches.
+var cpltPreStampPattern = regexp.MustCompile(`^cplt (0\.1\.0|\d{4}\.\d{2}\.\d{2}-[0-9a-f]{7,40})$`)
+
+// cpltPreStampVersion returns the version of a pre-stamp release, or "".
+func cpltPreStampVersion(out string) string {
+	first, _, _ := strings.Cut(out, "\n")
+	m := cpltPreStampPattern.FindStringSubmatch(strings.TrimSpace(first))
+	if m == nil {
+		return ""
+	}
+	return m[1]
 }
 
 // checkCpltFlagFloor stops a launch whose cplt is too old for a flag in args,
@@ -126,6 +145,9 @@ func checkCpltFlagFloor(args []string) error {
 		return nil
 	}
 	stamp := cpltStamp(out)
+	if stamp == "" {
+		stamp = cpltPreStampVersion(out)
+	}
 	if stamp == "" || stamp >= floor {
 		return nil
 	}
@@ -316,16 +338,16 @@ func launchViaCplt(spec cpltLaunch) error {
 	if IsTerminal(os.Stdin) {
 		FirstTime("autonomy-notice")
 	}
-	warnCpltRecommended(spec.agent)
-
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)
 	if err != nil {
 		return err
 	}
+	// Before the recommended notice, so a blocked cplt prints one line.
 	if err := checkCpltFlagFloor(args); err != nil {
 		return err
 	}
+	warnCpltRecommended(spec.agent)
 
 	if Verbose {
 		banner := spec.banner
