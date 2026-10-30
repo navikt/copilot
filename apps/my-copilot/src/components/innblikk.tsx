@@ -107,3 +107,22 @@ export function Innblikk({ websiteId, lang = "nb" }: { websiteId?: string; lang?
     />
   );
 }
+
+/** For /personvern: shows the stored choice and lets the visitor change it. */
+export function InnblikkChoice() {
+  const consent = useConsent();
+  if (consent === undefined) return null;
+  const state =
+    consent === true ? "Du har sagt ja." : consent === false ? "Du har sagt nei." : "Du har ikke valgt ennå.";
+  return (
+    <HStack gap="space-8" align="center" wrap>
+      <BodyShort aria-live="polite">Nettstatistikk: {state}</BodyShort>
+      <Button size="small" variant="secondary" onClick={() => setConsent(true)} aria-pressed={consent === true}>
+        Ja, tell sidene jeg besøker
+      </Button>
+      <Button size="small" variant="secondary" onClick={() => setConsent(false)} aria-pressed={consent === false}>
+        Nei
+      </Button>
+    </HStack>
+  );
+}

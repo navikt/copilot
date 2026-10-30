@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { CONSENT_KEY, setConsent } from "@/lib/innblikk-consent";
-import { Innblikk, innblikkBeforeSend } from "./innblikk";
+import { Innblikk, InnblikkChoice, innblikkBeforeSend } from "./innblikk";
 
 const nav = vi.hoisted(() => ({ pathname: "/" }));
 vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
@@ -149,5 +149,19 @@ describe("innblikkBeforeSend", () => {
 
   it("is installed on window at import, before sporing.js can read it", () => {
     expect((window as unknown as Record<string, unknown>).innblikkBeforeSend).toBe(innblikkBeforeSend);
+  });
+});
+
+describe("InnblikkChoice", () => {
+  it("shows the stored choice and changes it (control: starts undecided)", () => {
+    localStorage.clear();
+    render(<InnblikkChoice />);
+    expect(screen.getByText(/ikke valgt/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Nei" }));
+    expect(screen.getByText(/sagt nei/)).toBeTruthy();
+    expect(localStorage.getItem("umami.disabled")).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: /Ja/ }));
+    expect(screen.getByText(/sagt ja/)).toBeTruthy();
+    expect(localStorage.getItem("umami.disabled")).toBeNull();
   });
 });
