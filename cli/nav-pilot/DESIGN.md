@@ -963,9 +963,12 @@ om det er oppfylt. Status gjelder `main` per 2026-10-30.
 7. **Agenter rører aldri utviklerens ekte config.** E2e- og agentkjøringer
    bruker egen `HOME` og `XDG_CONFIG_HOME`.
    Test: en kjøring som feiler hvis noe under den ekte `~/.config` endres.
-   Status: e2e-testene i `e2e/` setter egen `HOME` og `XDG_CONFIG_HOME`
-   (`e2e/harness_test.go`). Ingen test feiler ved skriving til ekte config, og
-   agentkjøringer er ikke dekket.
+   Status: delvis oppfylt for testene. `internal/testhome` gir hver testbinær
+   egen `HOME` og egne XDG-mapper, og stopper kjøringen hvis testprosessen
+   rører utvalgte mapper i det ekte hjemmet (blant annet `~/.nav-pilot` og
+   `~/.config/opencode`). I CI stopper den også ved endringer fra andre
+   prosesser. `~/.config/cplt` og resten av `~/.config` følges ikke med, og
+   agentkjøringer utenfor testene er ikke dekket.
 
 ## Testbarhet
 
