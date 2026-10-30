@@ -1081,6 +1081,30 @@
     },
     {
       "type": "skill",
+      "name": "vulnerability-triage",
+      "displayName": "vulnerability-triage",
+      "description": "Hent Nais-sårbarheter for appen i repoet via Nais MCP, vurder hver pakke mot avhengigheter, kildekode og advisory med kilder, og rett det som kan rettes. Bruk for CVE-er fra Nais Console eller spørsmål om én CVE, ikke for kodegjennomgang (appsec-advisory) eller rutineoppgradering (dependency-upgrade)",
+      "filePath": "skills/vulnerability-triage/SKILL.md",
+      "contentHash": "442fcc8fdb05b09c213983f34cabcfeaeec207caff84a23451efac621d380ac6",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
+      "references": [
+        {
+          "path": "references/ecosystems.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/ecosystems.md"
+        },
+        {
+          "path": "references/nais-mcp.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/report-format.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/report-format.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
       "name": "web-design-reviewer",
       "displayName": "web-design-reviewer",
       "description": "Visuell inspeksjon av nettsider for å identifisere og fikse designproblemer",
