@@ -1,5 +1,6 @@
 import { Heading, BodyLong, Link, VStack, Box } from "@navikt/ds-react";
 import type { Metadata } from "next";
+import { InnblikkChoice } from "@/components/innblikk";
 
 export const metadata: Metadata = {
   title: "Personvern",
@@ -36,6 +37,18 @@ export default function PersonvernPage() {
               parametere fra nettadressene og maskerer fødselsnummer og e-postadresser i feilmeldinger. Vi kobler ikke
               dataene til navn eller brukerkonto.
             </BodyLong>
+            {process.env.INNBLIKK_WEBSITE_ID && (
+              <>
+                <BodyLong>
+                  På de åpne sidene teller vi sidevisninger med Innblikk, Navs eget verktøy for nettstatistikk, men bare
+                  hvis du har sagt ja. Du kan endre valget nedenfor når som helst. Innblikk får vite hvilken side du ser
+                  på, tittelen på siden, hvilken side du kom fra, skjermstørrelsen og språket i nettleseren. Vi fjerner
+                  søkeparametere og alt etter # i nettadressen før den sendes, og teller ikke sider du må logge inn for
+                  å se. Innblikk setter ingen informasjonskapsler, og vi kobler ikke besøket til navn eller brukerkonto.
+                </BodyLong>
+                <InnblikkChoice />
+              </>
+            )}
             <BodyLong>
               For innloggede Nav-ansatte henter vi navn fra Azure AD-tokenet for å vise det i brukergrensesnittet. Denne
               informasjonen lagres ikke utover sesjonen.

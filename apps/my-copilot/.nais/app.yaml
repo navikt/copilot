@@ -156,6 +156,10 @@ spec:
       value: "{{mcp_registry_public_url}}"
     - name: COPILOT_API_URL
       value: "http://copilot-api"
+  {{#if innblikk_website_id}}
+    - name: INNBLIKK_WEBSITE_ID
+      value: "{{innblikk_website_id}}"
+  {{/if}}
   {{#if copilot_survey_url}}
     - name: COPILOT_SURVEY_URL
       value: "{{copilot_survey_url}}"

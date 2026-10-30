@@ -5,7 +5,8 @@
 //
 // PRIVATE_ROUTES in auto-login-ignore-paths.mjs is deliberate. Add a route there
 // when it should require a login, not to silence this check. Each one must be
-// guarded by src/proxy.ts, both its path lists and config.matcher.
+// guarded by the path lists in src/lib/private-paths.ts and by config.matcher
+// in src/proxy.ts.
 import { globSync, readFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,12 +15,13 @@ import { autoLoginIgnorePaths as allowed, matches, PRIVATE_ROUTES } from "./auto
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const proxy = readFileSync(join(appDir, "src", "proxy.ts"), "utf-8");
-const listed = (name) => {
-  const body = proxy.match(new RegExp(`${name}\\W*\\[([^\\]]*)\\]`))?.[1] ?? "";
+const paths = readFileSync(join(appDir, "src", "lib", "private-paths.ts"), "utf-8");
+const listed = (name, src = proxy) => {
+  const body = src.match(new RegExp(`${name}\\W*\\[([^\\]]*)\\]`))?.[1] ?? "";
   return [...body.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
 };
 const covers = (prefixes, route) => prefixes.some((p) => route === p || route.startsWith(p + "/"));
-const guarded = [...listed("PRIVATE_PAGE_PATHS"), ...listed("PRIVATE_API_PATHS")];
+const guarded = [...listed("PRIVATE_PAGE_PATHS", paths), ...listed("PRIVATE_API_PATHS", paths)];
 // Only /x/:path* matchers count: an exact one would leave the subroutes unguarded.
 const matched = listed("matcher")
   .filter((m) => m.endsWith("/:path*"))
@@ -28,7 +30,7 @@ const unguarded = PRIVATE_ROUTES.filter((r) => !covers(guarded, r) || !covers(ma
 if (unguarded.length > 0) {
   console.error("These private routes are not guarded by src/proxy.ts:");
   for (const route of unguarded) console.error(`  ${route}`);
-  console.error("\nAdd them to the path lists and config.matcher in src/proxy.ts.");
+  console.error("\nAdd them to src/lib/private-paths.ts and config.matcher in src/proxy.ts.");
   process.exit(1);
 }
 

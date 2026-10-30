@@ -38,7 +38,7 @@ Not problems (checked):
   `LinkableHeading` ids, so pages with local wrappers need their anchors guarded first.
   Some links are invisible to the guard and are checked by hand: month-insights.ts:351,
   praksis/sections/cost-optimization.tsx:183, ordliste/terms.ts:279, cost-anomalies.tsx.
-- A new private page goes into `PRIVATE_PAGE_PATHS` and matcher (src/proxy.ts),
+- A new private page goes into `PRIVATE_PAGE_PATHS` (src/lib/private-paths.ts) and matcher (src/proxy.ts),
   `PRIVATE_ROUTES` (scripts/auto-login-ignore-paths.mjs), and app.yaml
   `autoLoginIgnorePaths`. The sitemap lists public pages only.
 - Norwegian copy goes through språkvask before merge.

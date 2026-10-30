@@ -6,18 +6,19 @@ const isProduction = process.env.NODE_ENV === "production";
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "Referrer-Policy", value: "no-referrer-when-downgrade" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
   {
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
+      `script-src 'self' 'unsafe-inline' https://cdn.nav.no/team-researchops/sporing/sporing.js${isProduction ? "" : " 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' blob: data: https://avatars.githubusercontent.com https://github.com https://storage.googleapis.com https://*.storage.googleapis.com https://*.googleusercontent.com",
       "media-src 'self' blob: data: https://storage.googleapis.com",
       "font-src 'self' data: https://cdn.nav.no",
-      "connect-src 'self' https://telemetry.ekstern.dev.nav.no https://telemetry.nav.no",
+      // Innblikk in dev would also need https://reops-event-proxy.ekstern.dev.nav.no here.
+      "connect-src 'self' https://telemetry.ekstern.dev.nav.no https://telemetry.nav.no https://reops-event-proxy.nav.no",
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -5,3 +5,5 @@ ingresses:
   - "https://ki-utvikling.ekstern.dev.nav.no"
   - "https://min-copilot.intern.dev.nav.no"
   - "https://min-copilot.ansatt.dev.nav.no"
+# Innblikk: if set, dev loads the script, but data-domains=ki-utvikling.nav.no keeps it from sending.
+# innblikk_website_id: ""
