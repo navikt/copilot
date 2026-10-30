@@ -96,6 +96,43 @@ func cpltArgv(spec cpltLaunch) []string {
 	return append(args, spec.agentArgs...)
 }
 
+// cpltFlagFloor is the first cplt release (date-time stamp) that knows a flag
+// nav-pilot passes without probing first. Flags missing here are older than
+// every release that still matters; flags nav-pilot only adds after its own
+// probe (--deny-env, --allow-write-state) need no entry. Add one when a launch
+// starts passing a newer flag unconditionally (#2069).
+var cpltFlagFloor = map[string]string{
+	"--allow-socket": "2026.07.03-205915", // navikt/cplt#108, release 2026.07.03-205915-2798b06
+}
+
+// checkCpltFlagFloor stops a launch whose cplt is too old for a flag in args,
+// instead of letting cplt fail with a clap error. A cplt whose version cannot
+// be read (a dev or local build) launches as before.
+func checkCpltFlagFloor(args []string) error {
+	var flag, floor string
+	for _, a := range args {
+		if a == "--" {
+			break
+		}
+		if f, ok := cpltFlagFloor[a]; ok && f > floor {
+			flag, floor = a, f
+		}
+	}
+	if floor == "" {
+		return nil
+	}
+	out, err := probeCpltVersion()
+	if err != nil {
+		return nil
+	}
+	stamp := cpltStamp(out)
+	if stamp == "" || stamp >= floor {
+		return nil
+	}
+	return fmt.Errorf("cplt %s is too old for %s (needs %s or newer). Update cplt: %s",
+		stamp, flag, floor, domain.Bold(cpltUpgradeHint()))
+}
+
 // withCpltConfirmation prefixes cplt's --yes when no terminal can answer the
 // launch confirmation cplt asks before it starts an agent. Without it cplt
 // stops with "No TTY available for confirmation. Use --yes for non-interactive
@@ -284,6 +321,9 @@ func launchViaCplt(spec cpltLaunch) error {
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)
 	if err != nil {
+		return err
+	}
+	if err := checkCpltFlagFloor(args); err != nil {
 		return err
 	}
 
