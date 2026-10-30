@@ -766,13 +766,13 @@ func TestDoctorReportsCpltVersion(t *testing.T) {
 		want, reject []string
 	}{
 		{"behind, new cplt", "2026.09.29-105335-ce50857", true,
-			[]string{"out of date (latest: 2026.09.29-105335-ce50857)", "brew upgrade navikt/tap/cplt"}, []string{"config hosts"}},
+			[]string{"out of date (latest: 2026.09.29-105335-ce50857)", "cplt update"}, []string{"config hosts"}},
 		{"behind, old cplt", "2026.09.29-105335-ce50857", false,
-			[]string{"out of date", "Note:", "config hosts", "brew upgrade navikt/tap/cplt"}, []string{"may be too old"}},
+			[]string{"out of date", "Note:", "config hosts", "cplt update"}, []string{"may be too old"}},
 		{"current, cplt without config hosts", "2026.09.28-185454-a924b3d", false,
 			[]string{"cplt is up to date", "Note:", "config hosts"}, []string{"Solution"}},
 		{"unknown, old cplt", "", false,
-			[]string{"Could not check", "may be too old", "config hosts", "brew upgrade navikt/tap/cplt"}, []string{"up to date"}},
+			[]string{"Could not check", "may be too old", "config hosts", "cplt update"}, []string{"up to date"}},
 		{"current, new cplt", "2026.09.28-185454-a924b3d", true,
 			[]string{"cplt is up to date"}, []string{"config hosts", "Solution"}},
 	} {

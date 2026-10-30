@@ -479,7 +479,7 @@ func TestUpgradeChecksCpltWhenNavPilotIsCurrent(t *testing.T) {
 		lookErr error
 		want    string
 	}{
-		{"homebrew, cplt behind", domain.PkgBrew, true, "2026.09.29-105335-ce50857", nil, "cplt 2026.09.28-185454-a924b3d is out of date (latest: 2026.09.29-105335-ce50857). Run brew upgrade navikt/tap/cplt"},
+		{"homebrew, cplt behind", domain.PkgBrew, true, "2026.09.29-105335-ce50857", nil, "cplt 2026.09.28-185454-a924b3d is out of date (latest: 2026.09.29-105335-ce50857). Run cplt update"},
 		{"direct, cplt behind", domain.PkgNone, true, "2026.09.29-105335-ce50857", nil, "is out of date"},
 		{"homebrew, cplt current", domain.PkgBrew, true, "2026.09.28-185454-a924b3d", nil, "✓ cplt is up to date (2026.09.28-185454-a924b3d)"},
 		{"lookup fails", domain.PkgBrew, true, "", context.DeadlineExceeded, "Could not check for a newer cplt release (timeout)"},

@@ -44,6 +44,11 @@ func CpltInstallHint(m PkgManager) string {
 
 // CpltUpgradeHint is the one spelling of the command that upgrades cplt with m.
 func CpltUpgradeHint(m PkgManager) string {
+	// A bare binary (install.sh, ~/.local/bin) updates itself: every cplt since
+	// 2026.04.13-142233 has `cplt update`.
+	if m == PkgNone {
+		return "cplt update"
+	}
 	return m.Pick("brew upgrade navikt/tap/cplt", "sudo apt update && sudo apt install --only-upgrade cplt")
 }
 

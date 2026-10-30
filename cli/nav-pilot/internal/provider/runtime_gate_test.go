@@ -796,7 +796,7 @@ func TestCpltUpgradeHintFollowsTheOwner(t *testing.T) {
 	}{
 		{"apt", domain.PkgApt, "sudo apt update && sudo apt install --only-upgrade cplt"},
 		{"homebrew", domain.PkgBrew, "brew upgrade navikt/tap/cplt"},
-		{"unmanaged", domain.PkgNone, "brew upgrade navikt/tap/cplt"},
+		{"unmanaged", domain.PkgNone, "cplt update"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			orig := domain.PkgOwner
