@@ -1121,6 +1121,7 @@
     ],
     "anchors": {
       "agent": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
+      "allow-socket": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "audit-fjernet": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "blocked-allowlist": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
       "cannot-hash": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"],
@@ -1281,6 +1282,7 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"
       ],
+      "pnpm-skript": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "pnpm-token": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx"],
       "skript": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-node/page.tsx",
@@ -2733,7 +2735,8 @@
       "apps/my-copilot/src/app/(nb)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/personvern/page.tsx",
       "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
-      "apps/my-copilot/src/app/sitemap.ts"
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/innblikk.tsx"
     ],
     "anchors": {}
   },
