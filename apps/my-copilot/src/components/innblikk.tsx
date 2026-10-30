@@ -40,25 +40,25 @@ const TEXT = {
   nb: {
     label: "Nettstatistikk",
     question:
-      "Får vi telle hvilke sider du besøker? Vi bruker Innblikk, Navs verktøy for nettstatistikk, og kobler det ikke til deg.",
+      "Får vi telle hvilke sider du besøker? Vi bruker Innblikk, Navs eget verktøy for nettstatistikk, og kobler ikke besøket til deg.",
     privacy: "Les om personvern",
-    yes: "Ja",
-    no: "Nei",
+    yes: "Ja, tell sidene",
+    no: "Nei, ikke tell",
   },
   en: {
     label: "Web statistics",
     question:
-      "May we count which pages you visit? We use Innblikk, Nav's web statistics tool, and do not link it to you.",
-    privacy: "Read about privacy (Norwegian)",
-    yes: "Yes",
-    no: "No",
+      "May we count which pages you visit? We use Innblikk, Nav's own web statistics tool, and do not link the visit to you.",
+    privacy: "Read about privacy (in Norwegian)",
+    yes: "Yes, count pages",
+    no: "No, do not count",
   },
 };
 
 function choose(analytics: boolean) {
   setConsent(analytics);
   // The banner unmounts; hand focus to the page instead of dropping it on <body>.
-  document.getElementById("hovedinnhold")?.focus();
+  document.getElementById("hovedinnhold")?.focus({ preventScroll: true });
 }
 
 export function Innblikk({ websiteId, lang = "nb" }: { websiteId?: string; lang?: "nb" | "en" }) {
@@ -74,7 +74,7 @@ export function Innblikk({ websiteId, lang = "nb" }: { websiteId?: string; lang?
         background="default"
         padding="space-16"
         borderWidth="1 0 0 0"
-        className="fixed bottom-0 inset-x-0 z-50"
+        className="sticky bottom-0 z-50"
       >
         <HStack gap="space-16" align="center" justify="center" wrap>
           <BodyShort>
@@ -118,10 +118,10 @@ export function InnblikkChoice() {
     <HStack gap="space-8" align="center" wrap>
       <BodyShort aria-live="polite">Nettstatistikk: {state}</BodyShort>
       <Button size="small" variant="secondary" onClick={() => setConsent(true)} aria-pressed={consent === true}>
-        Ja, tell sidene jeg besøker
+        {TEXT.nb.yes}
       </Button>
       <Button size="small" variant="secondary" onClick={() => setConsent(false)} aria-pressed={consent === false}>
-        Nei
+        {TEXT.nb.no}
       </Button>
     </HStack>
   );

@@ -63,7 +63,7 @@ describe("consent", () => {
 
   it("loads the script after Ja (control: Nei never loads it and sets the opt-out flags)", () => {
     const yes = render(<Innblikk websiteId="abc" />);
-    fireEvent.click(screen.getByRole("button", { name: "Ja" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Ja/ }));
     expect(scriptIn(yes.container)).not.toBeNull();
     expect(banner()).toBeNull();
     expect(JSON.parse(localStorage.getItem(CONSENT_KEY)!)).toMatchObject({ analytics: true, version: 1 });
@@ -71,7 +71,7 @@ describe("consent", () => {
 
     localStorage.clear();
     const no = render(<Innblikk websiteId="abc" />);
-    fireEvent.click(screen.getByRole("button", { name: "Nei" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Nei/ }));
     expect(scriptIn(no.container)).toBeNull();
     expect(banner()).toBeNull();
     expect(localStorage.getItem("umami.disabled")).toBe("1");
@@ -98,7 +98,7 @@ describe("consent", () => {
   it("is a labelled region with keyboard-reachable buttons and a privacy link, in English on /en", () => {
     render(<Innblikk websiteId="abc" lang="en" />);
     const region = screen.getByRole("region", { name: "Web statistics" });
-    for (const name of ["Yes", "No"]) expect(screen.getByRole("button", { name }).tabIndex).toBe(0);
+    for (const name of [/^Yes/, /^No/]) expect(screen.getByRole("button", { name }).tabIndex).toBe(0);
     expect(screen.getByRole("link", { name: /privacy/i }).getAttribute("href")).toBe("/personvern");
     expect(region.querySelector('[aria-modal="true"]')).toBeNull();
   });
@@ -157,11 +157,64 @@ describe("InnblikkChoice", () => {
     localStorage.clear();
     render(<InnblikkChoice />);
     expect(screen.getByText(/ikke valgt/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Nei" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Nei/ }));
     expect(screen.getByText(/sagt nei/)).toBeTruthy();
     expect(localStorage.getItem("umami.disabled")).toBe("1");
-    fireEvent.click(screen.getByRole("button", { name: /Ja/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Ja/ }));
     expect(screen.getByText(/sagt ja/)).toBeTruthy();
     expect(localStorage.getItem("umami.disabled")).toBeNull();
+  });
+});
+
+describe("consent edge cases", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    nav.pathname = "/nyheter";
+  });
+
+  it.each([
+    ["version 2", JSON.stringify({ analytics: true, version: 2 })],
+    ["string true", JSON.stringify({ analytics: "true", version: 1 })],
+    ["garbage", "{not json"],
+    ["empty", ""],
+  ])("treats a bad stored value (%s) as no choice", (_name, raw) => {
+    localStorage.setItem(CONSENT_KEY, raw);
+    const { container } = render(<Innblikk websiteId="abc" />);
+    expect(banner()).not.toBeNull();
+    expect(scriptIn(container)).toBeNull();
+  });
+
+  it("control: a stored version 1 true loads the script without a banner", () => {
+    localStorage.setItem(CONSENT_KEY, JSON.stringify({ analytics: true, version: 1 }));
+    const { container } = render(<Innblikk websiteId="abc" />);
+    expect(banner()).toBeNull();
+    expect(scriptIn(container)).not.toBeNull();
+  });
+
+  it("a storage event from another tab that withdraws consent makes the hook return false", () => {
+    const url = "https://ki-utvikling.nav.no/nyheter";
+    act(() => setConsent(true));
+    render(<Innblikk websiteId="abc" />);
+    expect(innblikkBeforeSend("event", { url })).not.toBe(false);
+    const value = JSON.stringify({ analytics: false, version: 1 });
+    localStorage.setItem(CONSENT_KEY, value);
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: CONSENT_KEY, newValue: value }));
+    });
+    expect(innblikkBeforeSend("event", { url })).toBe(false);
+  });
+
+  it("hides the banner after a choice even when storage throws (control: banner shown first)", () => {
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    try {
+      render(<Innblikk websiteId="abc" />);
+      expect(banner()).not.toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /^Nei/ }));
+      expect(banner()).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

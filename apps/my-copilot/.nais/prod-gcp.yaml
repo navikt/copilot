@@ -8,6 +8,5 @@ ingresses:
 # Innblikk page views on public pages. Before switching it on in prod:
 # 1. Get the tracking code (website ID) from #ResearchOps on Slack.
 # 2. Fill in the reusable "Innblikk etterlevelsesdokument".
-# 3. Describe the use on the privacy page (/personvern).
 # Then uncomment and set the ID.
 # innblikk_website_id: ""
