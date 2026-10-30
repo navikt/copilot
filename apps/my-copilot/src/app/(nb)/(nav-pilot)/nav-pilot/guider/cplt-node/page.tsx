@@ -339,9 +339,9 @@ cplt --pass-env PUPPETEER_CACHE_DIR`}
             først i <code className={code}>PATH</code>.
           </BodyLong>
           <BodyLong>
-            Fra cplt 29. oktober 2026 virker kopien sammen med blokken <code className={code}>pnpm setup</code> skriver
-            i skalloppsettet ditt (<code className={code}>~/.zshrc</code> eller <code className={code}>~/.bashrc</code>
-            ). En linje som alltid legger pnpm-mappa først, som{" "}
+            <code className={code}>pnpm setup</code> skriver en blokk i <code className={code}>~/.zshrc</code> eller{" "}
+            <code className={code}>~/.bashrc</code>. Med cplt fra 29. oktober 2026 virker kopien sammen med den blokka.
+            En linje som alltid legger pnpm-mappa først, som{" "}
             <code className={code}>export PATH=&quot;$PNPM_HOME/bin:$PATH&quot;</code>, legger pnpm-starteren foran
             kopien. Da stopper pnpm med <code className={code}>EPERM</code> eller{" "}
             <code className={code}>bad interpreter: Operation not permitted</code>. Bruk blokken fra{" "}
@@ -361,9 +361,14 @@ which -a pnpm   # Homebrew-pnpm skal stå øverst`}
           </BodyLong>
           <BodyLong>Slik ser du hvilken pnpm agenten får, og hva sandkassen åpner:</BodyLong>
           <CodeBlock compact>
-            {`cplt doctor                                               # varsler om $PNPM_HOME/bin mangler i PATH
-cplt --print-profile | grep -i pnpm                       # pnpm-mappene i sandkasseprofilen (macOS)
-cplt exec -- zsh -ic 'command -v pnpm; pnpm --version'    # pnpm slik agenten ser den`}
+            {`# varsler om $PNPM_HOME/bin mangler i PATH
+cplt doctor
+
+# pnpm-mappene i sandkasseprofilen (macOS)
+cplt --print-profile | grep -i pnpm
+
+# pnpm slik agenten ser den
+cplt exec -- zsh -ic 'command -v pnpm; pnpm --version'`}
           </CodeBlock>
         </VStack>
       </section>

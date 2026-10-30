@@ -85,14 +85,16 @@ cplt config set allow.read ~/.npmrc --unset  # fjern en verdi du har lagt til`}
             unexpected argument &apos;--allow-socket&apos;
           </LinkableHeading>
           <BodyLong>
-            cplt er for gammel for nav-pilot. Oppdater cplt slik du installerte den, og sjekk at du ikke har en gammel
-            kopi liggende, for eksempel i <code className={code}>~/.local/bin</code>:
+            cplt er for gammel for nav-pilot. Oppdater cplt slik du installerte den, og sjekk at det ikke ligger en
+            gammel kopi et annet sted, for eksempel i <code className={code}>~/.local/bin</code>:
           </BodyLong>
           <CodeBlock compact>
-            {`cplt update                                             # sier selv fra om du må bruke brew eller apt
-brew upgrade navikt/tap/cplt                            # installert med Homebrew
-sudo apt update && sudo apt install --only-upgrade cplt  # installert med apt
-which -a cplt                                           # den øverste er den som kjører`}
+            {`cplt update                   # sier fra hvis du må bruke brew eller apt
+brew upgrade navikt/tap/cplt  # Homebrew
+which -a cplt                 # den øverste er den som kjører
+
+# apt
+sudo apt update && sudo apt install --only-upgrade cplt`}
           </CodeBlock>
 
           <LinkableHeading id="unknown-config-key" size="small" level="3">
@@ -783,7 +785,7 @@ nav-pilot --client copilot
           <BodyLong>
             Finner cplt ikke noe token for Copilot på Linux, sier den fra ved oppstart.{" "}
             <code className={code}>/login</code> virker ikke inne i sandkassen. Logg inn med{" "}
-            <code className={code}>gh auth login</code> på maskinen, og slå på{" "}
+            <code className={code}>gh auth login</code> utenfor sandkassen, og slå på{" "}
             <code className={code}>inject_token</code> som over.
           </BodyLong>
           <BodyLong>
