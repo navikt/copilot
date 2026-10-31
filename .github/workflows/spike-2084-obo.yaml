@@ -1,0 +1,34 @@
+# Spike for navikt/copilot#2084: deploys three throwaway apps to dev-gcp. Do not merge.
+name: spike 2084 obo
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'spikes/2084-obo/**'
+      - '.github/workflows/spike-2084-obo.yaml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # ratchet:nais/docker-build-push@v0
+        id: docker-push
+        with:
+          team: copilot
+          image_suffix: obo-spike
+          dockerfile: spikes/2084-obo/Dockerfile
+          docker_context: spikes/2084-obo
+      - uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # ratchet:nais/deploy/actions/deploy@v3
+        env:
+          CLUSTER: dev-gcp
+          TEAM: copilot
+          RESOURCE: spikes/2084-obo/.nais/mcp-down-spike.yaml,spikes/2084-obo/.nais/mcp-team-spike.yaml,spikes/2084-obo/.nais/mcp-gw-spike.yaml
+          IMAGE: ${{ steps.docker-push.outputs.image }}
+          TELEMETRY: ${{ steps.docker-push.outputs.telemetry }}
