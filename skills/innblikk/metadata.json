@@ -1,0 +1,12 @@
+{
+  "description": "Sett opp Innblikk (Umami-basert nettstatistikk fra Team ResearchOps) med samtykke, CSP og before-send-hook i Nav-apper uten dekoratøren",
+  "domain": "frontend",
+  "tags": ["nav", "innblikk", "umami", "analytics", "consent", "ekomloven", "csp", "researchops"],
+  "examples": [
+    "Legg til Innblikk-sidevisninger i en Next.js App Router-app uten dekoratøren",
+    "Lag et samtykkebanner for Innblikk med like ja- og nei-knapper",
+    "Skriv en before-send-hook som holder innloggede sider ute av Innblikk",
+    "Sett CSP og Referrer-Policy for sporing.js og reops-event-proxy",
+    "Sjekk en eksisterende Innblikk-integrasjon mot ekomloven og datareglene"
+  ]
+}

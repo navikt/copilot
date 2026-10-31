@@ -679,6 +679,16 @@
     },
     {
       "type": "skill",
+      "name": "innblikk",
+      "displayName": "innblikk",
+      "description": "Sett opp Innblikk (Umami-basert nettstatistikk fra Team ResearchOps) med samtykke, CSP og before-send-hook i Nav-apper uten dekoratøren",
+      "filePath": "skills/innblikk/SKILL.md",
+      "contentHash": "1782238be0ebf1002d69ae5ac603a00b31d82987931eb1bff065820fb8c01b4a",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/innblikk/SKILL.md"
+    },
+    {
+      "type": "skill",
       "name": "jackson-3-migration",
       "displayName": "jackson-3-migration",
       "description": "Migrer Jackson 2.x til Jackson 3.x (tools.jackson) i Kotlin/Java-prosjekter — automatisert OpenRewrite-pass pluss manuell Kotlin-spesifikk opprydding og verifisering",
@@ -817,7 +827,7 @@
       "displayName": "nav-dekoratoren",
       "description": "Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
       "filePath": "skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "41acabdef1092d2559ccbc6e3d22bbc0c0891e1e5b70971801f4b466bfc59622",
+      "contentHash": "6f5019d88987d4f76d36190dffd668cf6195399e374ccd4dbb3ce1b9dd5e3cc9",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
       "references": [
