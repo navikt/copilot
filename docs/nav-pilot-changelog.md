@@ -4,9 +4,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-10-31
 
-### Ny skill: innblikk
+### `innblikk`: nettstatistikk uten dekoratøren
 
-- **`innblikk`**: Viser hvordan en app uten dekoratøren tar i bruk Innblikk, Team ResearchOps' nettstatistikk. Skillen dekker sporingskode, script-taggen med riktige attributter, samtykke med like ja- og nei-knapper, CSP, Referrer-Policy, hvilke data som ikke skal sendes, og hvordan du sjekker at ingenting sendes før et ja. ki-utvikling.nav.no er brukt som eksempel. Bruker appen dekoratøren, får den allerede Innblikk og skal bruke `nav-dekoratoren`, som nå peker til den nye skillen.
+- **`innblikk`**: Ny skill for apper uten dekoratøren som vil telle sidevisninger med Innblikk, Team ResearchOps' nettstatistikk. Den dekker sporingskode, script-tag med riktige attributter, samtykke med like ja- og nei-knapper, CSP og Referrer-Policy, hvilke data som ikke skal sendes, og hvordan du sjekker at ingenting sendes før et ja. Eksempelet er ki-utvikling.nav.no. Apper med dekoratøren har Innblikk fra før og bruker `nav-dekoratoren`, som nå peker hit (#2095).
 
 ## 2026-10-30
 

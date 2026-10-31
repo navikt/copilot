@@ -67,18 +67,22 @@ and `data-opt-out-filters`. Do not use attributes beyond these. It ignores them.
 
 Behaviour to know before writing the hook:
 
-- Page views are sent on load and on every `history.pushState`/`replaceState`, so client-side
-  navigation is tracked once the script is loaded.
+- Page views are sent on load, and about 300 ms after a `history.pushState`/`replaceState` that
+  changes the URL, so client-side navigation is tracked once the script is loaded. Back and
+  forward (`popstate`) are not tracked.
 - On navigation, `referrer` is the previous URL in the app. On first load it is
   `document.referrer`, or empty when that is the same origin.
 - The hash stays in `url` and `referrer`.
 - Clicks on elements with `data-umami-event` or `data-sporing-event` attributes send custom
-  events. Do not add those attributes if the app counts page views only.
+  events; every `data-umami-event-<key>` attribute on the element is sent as event data, and the
+  hook below passes `name` and `data` through unchanged. Never put personal data in them, and do
+  not add the attributes at all if the app counts page views only.
 
 ### The before-send hook
 
-Define it on `window` before the script loads. It must drop private pages, drop private
-referrers and strip the hash:
+Define it on `window` before the script loads. sporing.js looks up `window[name]` at every send,
+which is why withdrawn consent takes effect without a reload. It must drop private pages, drop
+private referrers and strip the hash:
 
 ```ts
 export function innblikkBeforeSend(_type: string, payload: { url?: string; referrer?: string }) {
@@ -89,7 +93,9 @@ export function innblikkBeforeSend(_type: string, payload: { url?: string; refer
   const referrer = payload.referrer && !isPrivatePath(path(payload.referrer)) ? noHash(payload.referrer) : undefined;
   return { ...payload, url: noHash(payload.url), referrer };
 }
-window.innblikkBeforeSend = innblikkBeforeSend;
+if (typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).innblikkBeforeSend = innblikkBeforeSend;
+}
 ```
 
 `decodePath` is `decodeURIComponent` with a fallback, so `/%61dmin` counts as `/admin`. Use the
@@ -108,6 +114,8 @@ the reason for the flow below, not legal advice. Ask your privacy contact if in 
   no choice.
 - On no or withdrawal, set both `umami.disabled` and `sporing.disabled` in `localStorage`.
   sporing.js checks both before every send. On yes, remove them.
+- sporing.js also checks the flags once at load. If a flag is set then, it never installs its
+  navigation hooks, so remove the flags before loading the script, as `setConsent` does.
 - Make withdrawal as easy as consent, for example with the same two buttons on the privacy page.
 
 ```ts
@@ -121,7 +129,8 @@ export function setConsent(analytics: boolean) {
 }
 ```
 
-Wrap storage calls in `try`/`catch`. If storage throws, keep the choice in memory for the page
+The reference (`innblikk-consent.ts`) wraps the storage calls in `try`/`catch`. Do the same: if
+storage throws, keep the choice in memory for the page
 load so the banner does not come back on every render.
 
 ## Step 4: CSP and Referrer-Policy
@@ -144,9 +153,10 @@ connect-src 'self' https://reops-event-proxy.nav.no
 - No personal data in events, page titles or query strings. The title is sent with every page
   view.
 - Never load the script on logged-in or admin pages, and cancel events from them in the hook.
-- Do not call `identify()` (`window.umami.identify` / `window.sporing.identify`).
-- Do not track the content of free-text or search fields. Innblikk's own guidance says this
-  needs a separate data protection impact assessment (PVK) and extra measures.
+- Do not call `identify()` (`window.umami.identify` / `window.sporing.identify`). The id is
+  attached to every later event.
+- Tracking free-text or search content is out of scope here. Ask #researchops and your privacy
+  contact first.
 
 ## Framework notes
 
@@ -159,7 +169,8 @@ connect-src 'self' https://reops-event-proxy.nav.no
 - Read `process.env.INNBLIKK_WEBSITE_ID` in a server component that renders per request, and pass
   it as a prop. A `NEXT_PUBLIC_` variable would be baked in at build time.
 - Assign `window.innblikkBeforeSend` at module scope in the client component, so it exists
-  before sporing.js runs.
+  before sporing.js runs. Guard it with `typeof window !== "undefined"`, because the module also
+  runs on the server.
 - Set CSP and Referrer-Policy in `headers()` in `next.config.ts`.
 
 ### Plain HTML and other frameworks
@@ -169,7 +180,6 @@ Define `window.innblikkBeforeSend` first. After a yes, inject the tag:
 ```js
 const s = document.createElement("script");
 s.src = "https://cdn.nav.no/team-researchops/sporing/sporing.js";
-s.defer = true;
 Object.entries({
   websiteId: "YOUR-WEBSITE-ID",
   domains: "minapp.nav.no",
@@ -188,7 +198,7 @@ Record every request:
 | Case | Expected |
 | --- | --- |
 | Before a choice | No request to cdn.nav.no or reops-event-proxy |
-| After yes | `sporing.js` returns 200, `POST /api/send` returns 2xx (201 on ki-utvikling) |
+| After yes | `sporing.js` returns 200, `POST /api/send` returns 2xx (201 in a headless check on ki-utvikling.nav.no, 2026-10-31) |
 | After no, then navigate | No new `/api/send` |
 | Private page, consent given | No script tag, no `/api/send` |
 

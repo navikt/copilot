@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-31T18:02:56.721Z",
+  "generatedAt": "2026-10-31T18:16:37.931Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1148,7 +1148,7 @@
       "filePath": "skills/innblikk/SKILL.md",
       "repoPath": "skills/innblikk/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/innblikk/SKILL.md",
-      "contentHash": "1782238be0ebf1002d69ae5ac603a00b31d82987931eb1bff065820fb8c01b4a",
+      "contentHash": "518d4e6de73ed8dac31dac7cdeaa356631769765063df994fd546c60e8c92dd2",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["nav", "innblikk", "umami", "analytics", "consent", "ekomloven", "csp", "researchops"],
@@ -1157,7 +1157,7 @@
         "Lag et samtykkebanner for Innblikk med like ja- og nei-knapper",
         "Skriv en before-send-hook som holder innloggede sider ute av Innblikk",
         "Sett CSP og Referrer-Policy for sporing.js og reops-event-proxy",
-        "Sjekk en eksisterende Innblikk-integrasjon mot ekomloven og datareglene"
+        "Sjekk en eksisterende Innblikk-integrasjon mot samtykkekravet og datareglene i skillen"
       ]
     },
     {
@@ -1406,13 +1406,13 @@
     {
       "id": "nav-dekoratoren",
       "name": "nav-dekoratoren",
-      "description": "Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.",
+      "description": "Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics (Innblikk), håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.",
       "type": "skill",
       "domain": "frontend",
       "filePath": "skills/nav-dekoratoren/SKILL.md",
       "repoPath": "skills/nav-dekoratoren/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "6f5019d88987d4f76d36190dffd668cf6195399e374ccd4dbb3ce1b9dd5e3cc9",
+      "contentHash": "3f5ec888d70bf87fb4127015334db5d8cf98840c22a93271b85e0d7f29afda51",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["nav", "dekoratoren", "header", "footer", "integration", "ssr", "analytics", "consent"],

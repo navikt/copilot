@@ -1,6 +1,6 @@
 ---
 name: nav-dekoratoren
-description: Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.
+description: Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics (Innblikk), håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.
 license: MIT
 compatibility: Web applications on nav.no (Next.js, Remix, Vite, Express/Node)
 metadata:
@@ -14,14 +14,14 @@ Dekoratøren is the shared header and footer for public-facing nav.no applicatio
 SSR/CSR integration, login buttons via ID-porten, analytics (Innblikk, Umami-based) and consent and cookie handling
 under the Norwegian Electronic Communications Act (ekomloven). Dekoratøren does not give the app
 access to the user's login session. Set up authentication and access control in the app itself.
-Apps without Dekoratøren that want Innblikk load the script themselves: see the `innblikk` skill
-(`skills/innblikk`).
 
 **Slack:** `#dekoratøren_på_navno`
 **Repo:** https://github.com/navikt/nav-dekoratoren
 **Documentation:** https://github.com/navikt/nav-dekoratoren/blob/main/README.md
 **Modules package:** https://github.com/navikt/nav-dekoratoren-moduler
 **Storybook:** https://navikt.github.io/nav-dekoratoren
+
+**Without Dekoratøren?** Use the `innblikk` skill (`skills/innblikk`).
 
 ---
 

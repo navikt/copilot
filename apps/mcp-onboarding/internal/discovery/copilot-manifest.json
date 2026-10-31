@@ -681,9 +681,9 @@
       "type": "skill",
       "name": "innblikk",
       "displayName": "innblikk",
-      "description": "Sett opp Innblikk (Umami-basert nettstatistikk fra Team ResearchOps) med samtykke, CSP og before-send-hook i Nav-apper uten dekoratøren",
+      "description": "Sett opp Innblikk (Team ResearchOps' nettstatistikk, basert på Umami) i en Nav-app som ikke bruker dekoratøren. Bruk når et team vil telle sidevisninger med sporing.js, trenger samtykke etter ekomloven, CSP for Innblikk, en before-send-hook som holder private sider ute, eller vil sjekke en eksisterende Innblikk-integrasjon. Bruker appen dekoratøren, bruk nav-dekoratoren i stedet.",
       "filePath": "skills/innblikk/SKILL.md",
-      "contentHash": "1782238be0ebf1002d69ae5ac603a00b31d82987931eb1bff065820fb8c01b4a",
+      "contentHash": "518d4e6de73ed8dac31dac7cdeaa356631769765063df994fd546c60e8c92dd2",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/innblikk/SKILL.md"
     },
@@ -827,7 +827,7 @@
       "displayName": "nav-dekoratoren",
       "description": "Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner",
       "filePath": "skills/nav-dekoratoren/SKILL.md",
-      "contentHash": "6f5019d88987d4f76d36190dffd668cf6195399e374ccd4dbb3ce1b9dd5e3cc9",
+      "contentHash": "3f5ec888d70bf87fb4127015334db5d8cf98840c22a93271b85e0d7f29afda51",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-dekoratoren/SKILL.md",
       "references": [
