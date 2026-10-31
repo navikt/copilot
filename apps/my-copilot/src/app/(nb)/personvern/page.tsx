@@ -112,7 +112,7 @@ export default function PersonvernPage() {
               </li>
             </ul>
             <BodyLong>
-              Vi bruker ingen tredjeparts informasjonskapsler, reklamesporere eller analysekapsler som krever samtykke.
+              Vi bruker ingen tredjeparts informasjonskapsler eller reklamesporere. Nettstatistikken med Innblikk bruker ingen informasjonskapsler, og vi teller bare hvis du har sagt ja.
             </BodyLong>
           </VStack>
 
