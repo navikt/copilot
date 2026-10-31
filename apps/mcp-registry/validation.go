@@ -320,16 +320,10 @@ func validateTransport(transport *Transport, serverIndex, remoteIndex int) error
 }
 
 func validateURL(rawURL string) error {
-	if templateVarRegex.MatchString(rawURL) {
-		// ponytail: template hosts such as {{domain_internal}} are resolved at
-		// serve time and not checked here; the rule covers literal hosts only.
-		testURL := templateVarRegex.ReplaceAllString(rawURL, "placeholder")
-		if _, err := url.Parse(testURL); err != nil {
-			return fmt.Errorf("invalid url format (after template substitution): %v", err)
-		}
-		return nil
-	}
-	u, err := url.Parse(rawURL)
+	// Placeholders such as {{domain_internal}} are filled at serve time; the
+	// host is checked with them replaced, so a literal internal host still
+	// fails wherever a placeholder sits in the URL.
+	u, err := url.Parse(templateVarRegex.ReplaceAllString(rawURL, "placeholder"))
 	if err != nil {
 		return fmt.Errorf("invalid url format: %v", err)
 	}

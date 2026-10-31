@@ -1050,3 +1050,17 @@ func TestValidateURLRejectsInternalHosts(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateURLChecksHostBesideTemplates(t *testing.T) {
+	for _, u := range []string{
+		"https://app.intern.nav.no/mcp?domain={{domain_external}}",
+		"https://app.intern.nav.no/{{path}}/mcp",
+	} {
+		if err := validateURL(u); err == nil {
+			t.Errorf("%s passed; the literal host is internal", u)
+		}
+	}
+	if err := validateURL("https://mcp.{{domain_internal}}/mcp"); err != nil {
+		t.Errorf("templated host refused: %v", err)
+	}
+}
