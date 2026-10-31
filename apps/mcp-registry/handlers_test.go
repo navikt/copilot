@@ -13,10 +13,12 @@ import (
 )
 
 func testConfig() *Config {
-	return &Config{
+	cfg := &Config{
 		DomainInternal: "intern.dev.nav.no",
 		DomainExternal: "ekstern.dev.nav.no",
 	}
+	cfg.Store = NewStore(cfg, "allowlist.json", nil)
+	return cfg
 }
 
 func TestHealthHandler(t *testing.T) {

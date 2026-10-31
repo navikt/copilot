@@ -5,9 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -103,73 +101,24 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 		return
 	}
 
-	data, err := os.ReadFile("allowlist.json")
+	if config == nil || config.Store == nil {
+		slog.Error("Store not initialized")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	servers, err := config.Store.GetServers()
 	if err != nil {
-		slog.Error("Error reading allowlist.json", "error", err)
+		slog.Error("Error getting servers from store", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
-	data = substituteVariables(data, config)
-
-	fileInfo, err := os.Stat("allowlist.json")
-	if err != nil {
-		slog.Error("Error getting file info", "error", err, "file", "allowlist.json")
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	var staticData StaticRegistryData
-	if err := json.Unmarshal(data, &staticData); err != nil {
-		slog.Error("Unexpected error parsing allowlist.json", "error", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	updatedAt := fileInfo.ModTime().UTC()
-	servers := make([]ServerResponse, 0, len(staticData.Servers))
-	for _, s := range staticData.Servers {
-		publishedAt := updatedAt
-		if s.PublishedAt != "" {
-			if parsed, err := time.Parse(time.RFC3339, s.PublishedAt); err == nil {
-				publishedAt = parsed
-			}
-		}
-		status := s.Status
-		if status == "" {
-			status = StatusActive
-		}
-		servers = append(servers, ServerResponse{
-			Server: ServerJSON{
-				Schema:      CurrentSchemaURL,
-				Name:        s.Name,
-				Description: s.Description,
-				Version:     s.Version,
-				WebsiteURL:  s.WebsiteURL,
-				Repository:  s.Repository,
-				Remotes:     s.Remotes,
-				Packages:    s.Packages,
-				Meta:        s.Meta,
-			},
-			Meta: ResponseMeta{
-				Official: &RegistryExtensions{
-					Status:      status,
-					PublishedAt: publishedAt,
-					UpdatedAt:   updatedAt,
-					IsLatest:    true,
-				},
-				NavRegistry: navRegistryMeta(s),
-			},
-		})
-	}
-
 	response := ServerListResponse{
 		Servers: servers,
 		Metadata: Metadata{
 			Count: len(servers),
 		},
 	}
-
 	slog.Debug("Returning servers list", "server_count", len(servers))
 	setCORSHeaders(w)
 	respondJSON(w, http.StatusOK, response)
@@ -220,72 +169,25 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 		return
 	}
 
-	data, err := os.ReadFile("allowlist.json")
+	if config == nil || config.Store == nil {
+		slog.Error("Store not initialized")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	server, err := config.Store.GetServer(serverName, version)
 	if err != nil {
-		slog.Error("Error reading allowlist.json", "error", err)
+		slog.Error("Error getting server from store", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
-	data = substituteVariables(data, config)
-
-	fileInfo, err := os.Stat("allowlist.json")
-	if err != nil {
-		slog.Error("Error getting file info", "error", err, "file", "allowlist.json")
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	if server != nil {
+		slog.Debug("Returning server", "name", serverName, "version", version)
+		recordServerLookup(serverName, "found")
+		setCORSHeaders(w)
+		respondJSON(w, http.StatusOK, *server)
 		return
 	}
-
-	var staticData StaticRegistryData
-	if err := json.Unmarshal(data, &staticData); err != nil {
-		slog.Error("Unexpected error parsing allowlist.json", "error", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	updatedAt := fileInfo.ModTime().UTC()
-	for _, s := range staticData.Servers {
-		if s.Name == serverName && (version == "latest" || s.Version == version) {
-			publishedAt := updatedAt
-			if s.PublishedAt != "" {
-				if parsed, err := time.Parse(time.RFC3339, s.PublishedAt); err == nil {
-					publishedAt = parsed
-				}
-			}
-			status := s.Status
-			if status == "" {
-				status = StatusActive
-			}
-			response := ServerResponse{
-				Server: ServerJSON{
-					Schema:      CurrentSchemaURL,
-					Name:        s.Name,
-					Description: s.Description,
-					Version:     s.Version,
-					WebsiteURL:  s.WebsiteURL,
-					Repository:  s.Repository,
-					Remotes:     s.Remotes,
-					Packages:    s.Packages,
-					Meta:        s.Meta,
-				},
-				Meta: ResponseMeta{
-					Official: &RegistryExtensions{
-						Status:      status,
-						PublishedAt: publishedAt,
-						UpdatedAt:   updatedAt,
-						IsLatest:    true,
-					},
-					NavRegistry: navRegistryMeta(s),
-				},
-			}
-			slog.Debug("Returning server", "name", serverName, "version", version)
-			recordServerLookup(serverName, "found")
-			setCORSHeaders(w)
-			respondJSON(w, http.StatusOK, response)
-			return
-		}
-	}
-
 	recordServerLookup("unknown", "not_found")
 	slog.Warn("Server not found", "name", serverName, "version", version)
 	http.Error(w, "Server not found", http.StatusNotFound)
