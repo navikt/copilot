@@ -1031,3 +1031,22 @@ func TestBrokerMechanismsMatchFixture(t *testing.T) {
 		t.Errorf("brokerMechanisms = %+v, testdata/broker-mechanisms.json = %+v; change both, and nav-pilot's mcpMechanisms", brokerMechanisms, want)
 	}
 }
+
+func TestValidateURLRejectsInternalHosts(t *testing.T) {
+	for url, wantErr := range map[string]bool{
+		"https://app.intern.nav.no/mcp":            true,
+		"https://APP.intern.dev.nav.no./mcp":       true,
+		"http://app.team.svc.cluster.local:8080/x": true,
+		"https://foo.adeo.no/mcp":                  true,
+		"https://intern.nav.no/mcp":                true,
+		"https://aksel-mcp.nav.no/mcp":             false,
+		"https://notintern.nav.no/mcp":             false,
+		"https://evil-adeo.no/mcp":                 false,
+		"http://127.0.0.1:3846/mcp":                false,
+		"https://mcp.{{domain_internal}}/mcp":      false,
+	} {
+		if err := validateURL(url); (err != nil) != wantErr {
+			t.Errorf("validateURL(%q) = %v, want error %v", url, err, wantErr)
+		}
+	}
+}

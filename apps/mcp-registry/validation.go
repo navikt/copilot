@@ -321,14 +321,31 @@ func validateTransport(transport *Transport, serverIndex, remoteIndex int) error
 
 func validateURL(rawURL string) error {
 	if templateVarRegex.MatchString(rawURL) {
+		// ponytail: template hosts such as {{domain_internal}} are resolved at
+		// serve time and not checked here; the rule covers literal hosts only.
 		testURL := templateVarRegex.ReplaceAllString(rawURL, "placeholder")
 		if _, err := url.Parse(testURL); err != nil {
 			return fmt.Errorf("invalid url format (after template substitution): %v", err)
 		}
 		return nil
 	}
-	if _, err := url.Parse(rawURL); err != nil {
+	u, err := url.Parse(rawURL)
+	if err != nil {
 		return fmt.Errorf("invalid url format: %v", err)
+	}
+	return validatePublicHost(u.Hostname())
+}
+
+// internalHostSuffixes are domains only reachable inside Nav. The registry is
+// public, so a remote on one of them would publish an internal hostname.
+var internalHostSuffixes = []string{".intern.nav.no", ".intern.dev.nav.no", ".svc.cluster.local", ".adeo.no"}
+
+func validatePublicHost(host string) error {
+	h := "." + strings.TrimSuffix(strings.ToLower(host), ".")
+	for _, suffix := range internalHostSuffixes {
+		if strings.HasSuffix(h, suffix) {
+			return fmt.Errorf("url host %q is internal (%s); team MCPs go through the gateway", host, strings.TrimPrefix(suffix, "."))
+		}
 	}
 	return nil
 }
