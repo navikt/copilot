@@ -42,9 +42,11 @@ export default function PersonvernPage() {
                 <BodyLong>
                   På de åpne sidene teller vi sidevisninger med Innblikk, Navs eget verktøy for nettstatistikk, men bare
                   hvis du har sagt ja. Du kan endre valget nedenfor når som helst. Innblikk får vite hvilken side du ser
-                  på, tittelen på siden, hvilken side du kom fra, skjermstørrelsen og språket i nettleseren. Vi fjerner
-                  søkeparametere og alt etter # i nettadressen før den sendes, og teller ikke sider du må logge inn for
-                  å se. Innblikk setter ingen informasjonskapsler, og vi kobler ikke besøket til navn eller brukerkonto.
+                  på, tittelen på siden, hvilken side du kom fra, skjermstørrelsen og språket i nettleseren. Ut fra
+                  IP-adressen og nettleseren lagrer Innblikk også land, nettlesertype, operativsystem og enhetstype. Vi
+                  fjerner søkeparametere og alt etter # i nettadressen før den sendes, og teller ikke sider du må logge
+                  inn for å se. Innblikk setter ingen informasjonskapsler, og vi kobler ikke besøket til navn eller
+                  brukerkonto.
                 </BodyLong>
                 <InnblikkChoice />
               </>
@@ -112,7 +114,8 @@ export default function PersonvernPage() {
               </li>
             </ul>
             <BodyLong>
-              Vi bruker ingen tredjeparts informasjonskapsler eller reklamesporere. Nettstatistikken med Innblikk bruker ingen informasjonskapsler, og vi teller bare hvis du har sagt ja.
+              Vi bruker ingen tredjeparts informasjonskapsler eller reklamesporere. Nettstatistikken med Innblikk bruker
+              ingen informasjonskapsler, og vi teller bare hvis du har sagt ja.
             </BodyLong>
           </VStack>
 
