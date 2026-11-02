@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AdminMonth, AdminMonthlyOverview } from "./types";
-import { adminMonthlyCsv, adminMonthlyHeader, adminMonthlyRows, rebuiltSeatMonths } from "./admin-monthly";
+import {
+  adminMonthlyCaveats,
+  adminMonthlyCsv,
+  adminMonthlyHeader,
+  adminMonthlyRows,
+  rebuiltSeatMonths,
+} from "./admin-monthly";
 
 const net = (
   month: string,
@@ -90,7 +96,7 @@ describe("adminMonthlyRows", () => {
     expect(knownTotal[adminMonthlyHeader.indexOf("fakturert_uten_bruksdager_usd")]).toBe("5215.43");
   });
 
-  it("leaves no_usage cell and total blank when field is absent during rollout", () => {
+  it("leaves no_usage and narrow no_team cells blank when field is absent during rollout", () => {
     const absent: AdminMonthlyOverview = {
       ...data,
       months: [{ ...net("2026-09", "net", 64558.85, 170.51, 6000.0), no_usage_net_usd: undefined as unknown as null }],
@@ -99,8 +105,14 @@ describe("adminMonthlyRows", () => {
     const sep = rows[0];
     const tot = rows.at(-1)!;
     const col = adminMonthlyHeader.indexOf("fakturert_uten_bruksdager_usd");
+    const noTeamCol = adminMonthlyHeader.indexOf("personer_uten_team_usd");
     expect(sep[col]).toBe("");
     expect(tot[col]).toBe("");
+    expect(sep[noTeamCol]).toBe("");
+    expect(tot[noTeamCol]).toBe("");
+    expect(adminMonthlyCaveats(absent)).toContain(
+      "Skillet mellom personer uten registrert team og personer uten observerte bruksdager er utilgjengelig for eldre data. Personer uten team skjules inntil oppdatert datakilde er tilgjengelig."
+    );
   });
 });
 

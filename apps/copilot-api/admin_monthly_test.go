@@ -169,6 +169,152 @@ func TestAdminMonthlyQueryReusesSharedCTEs(t *testing.T) {
 	}
 }
 
+func TestAdminMonthlySyntheticQuery(t *testing.T) {
+	project := os.Getenv("VERIFY_ADMIN_MONTHLY_SYNTHETIC_PROJECT")
+	if project == "" {
+		t.Skip("set VERIFY_ADMIN_MONTHLY_SYNTHETIC_PROJECT for the opt-in synthetic BigQuery check")
+	}
+
+	client, err := newBigQueryClient(&Config{GCPProjectID: project, CopilotMetricsDataset: "copilot_metrics"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.client.Close() })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	// 1. Synthetic runs: complete run for 2026-06 with enterprise_net=100, residual_net=10
+	syntheticRuns := `(
+		SELECT DATE '2026-06-01' AS month, TIMESTAMP '2026-07-02 08:00:00 UTC' AS loaded_at,
+			100.0 AS enterprise_net, 10.0 AS residual_net, 'nav' AS scope_id, 'complete' AS status
+	)`
+
+	// 2. Synthetic billing_user_monthly: covers raw billed users, zero-gross user, unspread user, and refund
+	syntheticBillingUserMonthly := `(
+		SELECT DATE '2026-06-01' AS month, 'nav' AS scope_id, 'u1' AS user_id, 'Copilot AI Credits' AS sku, 30.0 AS net_amount, TIMESTAMP '2026-07-02 08:00:00 UTC' AS loaded_at
+		UNION ALL
+		SELECT DATE '2026-06-01' AS month, 'nav' AS scope_id, 'u2' AS user_id, 'Copilot AI Credits' AS sku, 25.0 AS net_amount, TIMESTAMP '2026-07-02 08:00:00 UTC' AS loaded_at
+		UNION ALL
+		SELECT DATE '2026-06-01' AS month, 'nav' AS scope_id, 'u3' AS user_id, 'Copilot AI Credits' AS sku, 20.0 AS net_amount, TIMESTAMP '2026-07-02 08:00:00 UTC' AS loaded_at
+		UNION ALL
+		SELECT DATE '2026-06-01' AS month, 'nav' AS scope_id, 'u4' AS user_id, 'Copilot AI Credits' AS sku, 20.0 AS net_amount, TIMESTAMP '2026-07-02 08:00:00 UTC' AS loaded_at
+		UNION ALL
+		SELECT DATE '2026-06-01' AS month, 'nav' AS scope_id, 'u5' AS user_id, 'Copilot AI Credits' AS sku, -5.0 AS net_amount, TIMESTAMP '2026-07-02 08:00:00 UTC' AS loaded_at
+	)`
+
+	// 3. Synthetic user_metrics: usage days for u1, u2, u4 (gross=0); u3 and u5 absent
+	syntheticUserMetrics := `(
+		SELECT DATE '2026-06-10' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"u1","ai_credits_used":"50"}' AS raw_record
+		UNION ALL
+		SELECT DATE '2026-06-11' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"u1","ai_credits_used":"50"}' AS raw_record
+		UNION ALL
+		SELECT DATE '2026-06-15' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"u2","ai_credits_used":"100"}' AS raw_record
+		UNION ALL
+		SELECT DATE '2026-06-20' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"u4","ai_credits_used":"0"}' AS raw_record
+	)`
+
+	// 4. Synthetic user_teams: initial coverage day, multi-team day (u1 in t1 and t2 on same day), missing membership day (u2 has no entry)
+	syntheticUserTeams := `(
+		SELECT DATE '2026-05-06' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"init","team_id":"t0","slug":"team-zero"}' AS raw_record
+		UNION ALL
+		SELECT DATE '2026-06-10' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"u1","team_id":"t1","slug":"team-alpha"}' AS raw_record
+		UNION ALL
+		SELECT DATE '2026-06-10' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"u1","team_id":"t2","slug":"team-beta"}' AS raw_record
+		UNION ALL
+		SELECT DATE '2026-06-11' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"u1","team_id":"t1","slug":"team-alpha"}' AS raw_record
+		UNION ALL
+		SELECT DATE '2026-06-20' AS day, 'enterprise' AS scope, 'nav' AS scope_id, '{"user_id":"u4","team_id":"t1","slug":"team-alpha"}' AS raw_record
+	)`
+
+	// 5. Synthetic billing_usage_daily_model: gross usage and coverage
+	syntheticDailyModel := `(
+		SELECT DATE '2026-06-15' AS day, 'nav' AS scope_id, 'Copilot' AS product, 'Copilot AI Credits' AS sku, 120.0 AS gross_amount, 90.0 AS net_amount
+	)`
+
+	// 6. Synthetic copilot_seats: 1 business seat
+	syntheticCopilotSeats := `(
+		SELECT DATE '2026-06-01' AS snapshot_date, TIMESTAMP '2026-01-01 00:00:00 UTC' AS created_at,
+			CAST(NULL AS DATE) AS pending_cancellation_date, 'u1' AS user_id, 'u1' AS login, 'business' AS plan_type
+	)`
+
+	q := client.adminMonthlyQuery(2026)
+
+	// Replace all 6 table references with synthetic inline fixtures
+	replacements := map[string]string{
+		client.tableRef(client.metricsDataset, "billing_user_monthly_runs"): syntheticRuns,
+		client.tableRef(client.metricsDataset, "billing_user_monthly"):      syntheticBillingUserMonthly,
+		client.tableRef(client.metricsDataset, "user_metrics"):              syntheticUserMetrics,
+		client.tableRef(client.metricsDataset, "user_teams"):                syntheticUserTeams,
+		client.tableRef(client.metricsDataset, "billing_usage_daily_model"): syntheticDailyModel,
+		client.tableRef(client.metricsDataset, "copilot_seats"):             syntheticCopilotSeats,
+	}
+
+	for table, fixture := range replacements {
+		if !strings.Contains(q.Q, table) {
+			t.Fatalf("expected query to contain table reference %s", table)
+		}
+		q.Q = strings.ReplaceAll(q.Q, table, fixture)
+	}
+
+	// Strictly reject any remaining real table reference
+	if strings.Contains(q.Q, "`") {
+		t.Fatalf("synthetic query must not reference any real tables:\n%s", q.Q)
+	}
+
+	it, err := q.Read(ctx)
+	if err != nil {
+		t.Fatalf("execute synthetic query: %v", err)
+	}
+	rows, err := readAllRows[adminMonthRow](it)
+	if err != nil {
+		t.Fatalf("read synthetic rows: %v", err)
+	}
+
+	overview := adminMonthlyOverview(2026, rows, time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC))
+	var jun *AdminMonth
+	for i := range overview.Months {
+		if overview.Months[i].Month == "2026-06" {
+			jun = &overview.Months[i]
+			break
+		}
+	}
+	if jun == nil {
+		t.Fatalf("missing June 2026 in overview: %+v", overview.Months)
+	}
+
+	// Verify exact amounts from real BigQuery SQL execution
+	if jun.Basis != basisNet {
+		t.Errorf("basis = %s, want net", jun.Basis)
+	}
+	if *jun.EnterpriseNetUSD != 100.0 {
+		t.Errorf("EnterpriseNetUSD = %v, want 100.00", *jun.EnterpriseNetUSD)
+	}
+	if *jun.AssignedNetUSD != 90.0 {
+		t.Errorf("AssignedNetUSD = %v, want 90.00", *jun.AssignedNetUSD)
+	}
+	if *jun.ResidualNetUSD != 10.0 {
+		t.Errorf("ResidualNetUSD = %v, want 10.00", *jun.ResidualNetUSD)
+	}
+	// TeamNet: u1 (30.00) + u4 (20.00) = 50.00
+	// NoUsageNet: u3 (20.00) + u5 (-5.00) = 15.00
+	// NoTeamNet: AssignedNet (90.00) - TeamNet (50.00) - NoUsageNet (15.00) = 25.00 (u2)
+	if *jun.NoUsageNetUSD != 15.0 {
+		t.Errorf("NoUsageNetUSD = %v, want 15.00", *jun.NoUsageNetUSD)
+	}
+	if *jun.NoTeamNetUSD != 25.0 {
+		t.Errorf("NoTeamNetUSD = %v, want 25.00", *jun.NoTeamNetUSD)
+	}
+	if *jun.Seats != 1 || *jun.LicenceUSDEstimate != 19.0 || *jun.TotalUSD != 119.0 {
+		t.Errorf("seats=%v licence=%v total=%v; want 1, 19.00, 119.00", *jun.Seats, *jun.LicenceUSDEstimate, *jun.TotalUSD)
+	}
+	// Full reconciliation check
+	if math.Abs(*jun.AssignedNetUSD+*jun.ResidualNetUSD-*jun.EnterpriseNetUSD) > 0.001 {
+		t.Errorf("enterprise reconciliation failed: assigned %v + residual %v != enterprise %v",
+			*jun.AssignedNetUSD, *jun.ResidualNetUSD, *jun.EnterpriseNetUSD)
+	}
+}
+
 // TestAdminMonthlyReconcilesBigQuery is the read-only check behind the PR
 // evidence: VERIFY_ADMIN_MONTHLY_PROJECT=copilot-prod-c697 go test -run Reconciles.
 func TestAdminMonthlyReconcilesBigQuery(t *testing.T) {
